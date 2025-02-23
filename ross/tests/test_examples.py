@@ -40,7 +40,7 @@ def test_example1_w_equals_0rpm():
     rotor = rotor_example1(6)
     modal = rotor.run_modal(0)
     assert modal.wn == pytest.approx(
-        np.array([86.66, 86.66, 274.31, 274.31, 716.78, 716.78]), 1e-3
+        np.array([86.66, 86.66, 274.31, 274.31, 650.41, 716.78]), 1e-3
     )
 
 
@@ -48,7 +48,7 @@ def test_example1_w_equals_4000rpm():
     rotor = rotor_example1(6)
     modal = rotor.run_modal(4000 * np.pi / 30)
     assert modal.wn == pytest.approx(
-        np.array([85.39, 87.80, 251.78, 294.71, 600.18, 827.08]), 1e-3
+        np.array([85.39, 87.80, 251.78, 294.71, 600.18, 650.41]), 1e-3
     )
 
 
@@ -134,7 +134,7 @@ def test_example3_w_equals_0rpm():
     rotor = rotor_example3(48)
     modal = rotor.run_modal(0)
     assert pytest.approx(modal.wn, 1e-3) == np.array(
-        [82.65, 86.66, 254.52, 274.31, 679.49, 716.79]
+        [82.65, 86.66, 254.52, 274.31, 650.41, 679.49]
     )
 
 
@@ -142,7 +142,7 @@ def test_example3_w_equals_4000rpm():
     rotor = rotor_example3(48)
     modal = rotor.run_modal(4000 * np.pi / 30)
     assert pytest.approx(modal.wn, 1e-3) == np.array(
-        [82.33, 86.86, 239.64, 287.25, 583.49, 806.89]
+        [82.33, 86.86, 239.64, 287.25, 583.49, 650.41]
     )
 
 
@@ -194,10 +194,10 @@ def test_example4_w_equals_4000rpm():
     wn_hertz = modal.wn / (2 * np.pi)
     wd_hertz = modal.wd / (2 * np.pi)
     assert pytest.approx(wn_hertz, 1e-1) == np.array(
-        [13.70, 14.09, 43.61, 52.18, 122.37, 149.81]
+        [13.70, 14.09, 43.61, 52.18, 103.52, 122.37]
     )
     assert pytest.approx(wd_hertz, 1e-1) == np.array(
-        [13.68, 14.07, 41.98, 50.65, 104.25, 105.66]
+        [13.68, 14.07, 41.98, 50.65, 103.52, 104.25]
     )
 
 

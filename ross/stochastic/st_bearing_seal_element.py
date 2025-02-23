@@ -6,8 +6,8 @@ This module creates an instance of random bearing for stochastic analysis.
 import numpy as np
 
 from ross.bearing_seal_element import BearingElement
-from ross.fluid_flow import fluid_flow as flow
-from ross.fluid_flow.fluid_flow_coefficients import (
+from ross.bearing import fluid_flow as flow
+from ross.bearing.fluid_flow_coefficients import (
     calculate_stiffness_and_damping_coefficients,
 )
 from ross.stochastic.st_results_elements import plot_histogram
@@ -292,25 +292,21 @@ class ST_BearingElement:
 
         try:
             for i in range(len(args_dict[is_random[0]][0])):
-                arg = []
-                for key, value in args_dict.items():
-                    if key in is_random:
-                        arg.append([value[j][i] for j in range(len(value))])
-                    else:
-                        arg.append(value)
+                arg = args_dict.copy()
+                for key in is_random:
+                    value = arg[key]
+                    arg[key] = [value[j][i] for j in range(len(value))]
                 new_args.append(arg)
 
         except TypeError:
             for i in range(len(args_dict[is_random[0]])):
-                arg = []
-                for key, value in args_dict.items():
-                    if key in is_random:
-                        arg.append(value[i])
-                    else:
-                        arg.append(value)
+                arg = args_dict.copy()
+                for key in is_random:
+                    value = arg[key]
+                    arg[key] = value[i]
                 new_args.append(arg)
 
-        f_list = (BearingElement(*arg) for arg in new_args)
+        f_list = (BearingElement(**arg) for arg in new_args)
 
         return f_list
 

@@ -1,7 +1,6 @@
 import inspect
 import sys
 import warnings
-from collections import Counter
 from collections.abc import Iterable
 from copy import copy, deepcopy
 from itertools import chain, cycle
@@ -15,14 +14,12 @@ from plotly import graph_objects as go
 from scipy import io as sio
 from scipy import linalg as la
 from scipy import signal as signal
-from scipy.interpolate import UnivariateSpline
 from scipy.optimize import newton
 from scipy.sparse import linalg as las
 
 from ross.bearing_seal_element import (
     BallBearingElement,
     BearingElement,
-    BearingElement6DoF,
     BearingFluidFlow,
     MagneticBearingElement,
     RollerBearingElement,
@@ -30,10 +27,10 @@ from ross.bearing_seal_element import (
     CylindricalBearing,
 )
 from ross.faults import Crack, MisalignmentFlex, MisalignmentRigid, Rubbing
-from ross.disk_element import DiskElement, DiskElement6DoF
-from ross.coupling_element import CouplingElement, CouplingElement6DoF
-from ross.materials import steel
-from ross.point_mass import PointMass, PointMass6DoF
+from ross.disk_element import DiskElement
+from ross.coupling_element import CouplingElement
+from ross.materials import Material, steel
+from ross.point_mass import PointMass
 from ross.results import (
     CampbellResults,
     ConvergenceResults,
@@ -47,7 +44,7 @@ from ross.results import (
     TimeResponseResults,
     UCSResults,
 )
-from ross.shaft_element import ShaftElement, ShaftElement6DoF
+from ross.shaft_element import ShaftElement
 from ross.units import Q_, check_units
 from ross.utils import (
     intersection,
@@ -64,6 +61,7 @@ __all__ = [
     "compressor_example",
     "coaxrotor_example",
     "rotor_example_6dof",
+    "rotor_example_with_damping",
 ]
 
 # set Plotly palette of colors
@@ -146,7 +144,12 @@ class Rotor(object):
         tag=None,
     ):
         self.parameters = {"min_w": min_w, "max_w": max_w, "rated_w": rated_w}
-        self.tag = "Rotor 0" if tag is None else tag
+        isMultiRotor = type(self) not in (Rotor, CoAxialRotor)
+
+        if tag is None:
+            self.tag = "MultiRotor 0" if isMultiRotor else "Rotor 0"
+        else:
+            self.tag = tag
 
         ####################################################
         # Config attributes
@@ -176,8 +179,8 @@ class Rotor(object):
         for i, sh in enumerate(shaft_elements):
             if sh.n is None:
                 sh.n = i
-            if sh.tag is None:
-                sh.tag = "ShaftElement " + str(i)
+            if sh.tag is None or isMultiRotor:
+                sh.tag = sh.get_class_name_prefix(i)
 
         if disk_elements is None:
             disk_elements = []
@@ -187,22 +190,19 @@ class Rotor(object):
             point_mass_elements = []
 
         for i, disk in enumerate(disk_elements):
-            if disk.tag is None:
-                disk.tag = "Disk " + str(i)
+            if disk.tag is None or isMultiRotor:
+                disk.tag = disk.get_class_name_prefix(i)
 
         for i, brg in enumerate(bearing_elements):
             # add n_l and n_r to bearing elements
             brg.n_l = brg.n
             brg.n_r = brg.n
-            if brg.tag is None:
-                if isinstance(brg, SealElement):
-                    brg.tag = "Seal " + str(i)
-                else:
-                    brg.tag = "Bearing " + str(i)
+            if brg.tag is None or isMultiRotor:
+                brg.tag = brg.get_class_name_prefix(i)
 
         for i, p_mass in enumerate(point_mass_elements):
-            if p_mass.tag is None:
-                p_mass.tag = "Point Mass " + str(i)
+            if p_mass.tag is None or isMultiRotor:
+                p_mass.tag = p_mass.get_class_name_prefix(i)
 
         self.shaft_elements = sorted(shaft_elements, key=lambda el: el.n)
         self.bearing_elements = sorted(bearing_elements, key=lambda el: el.n)
@@ -286,6 +286,8 @@ class Rotor(object):
                 nodes_pos_r[i] = nodes_pos_r[i - 1]
             else:
                 nodes_pos_l[i] = nodes_pos_r[i - 1]
+                if isMultiRotor:
+                    self._fix_nodes_pos(i, sh.n, nodes_pos_l)
                 nodes_pos_r[i] = nodes_pos_l[i] + df_shaft.loc[i, "L"]
             axial_cg_pos[i] = sh.beam_cg + nodes_pos_l[i]
             sh.axial_cg_pos = axial_cg_pos[i]
@@ -323,10 +325,16 @@ class Rotor(object):
             raise ValueError("Trying to set disk or bearing outside shaft")
 
         # nodes axial position and diameter
-        nodes_pos = list(df_shaft.groupby("n_l")["nodes_pos_l"].max())
-        nodes_pos.append(df_shaft["nodes_pos_r"].iloc[-1])
-        self.nodes_pos = nodes_pos
-        self.nodes = list(range(len(self.nodes_pos)))
+        self.nodes_pos = list(df_shaft.groupby("n_l")["nodes_pos_l"].max())
+        self.nodes_pos.append(df_shaft["nodes_pos_r"].iloc[-1])
+
+        self.nodes = list(df_shaft.groupby("n_l")["n_l"].max())
+        self.nodes.append(df_shaft["n_r"].iloc[-1])
+
+        self.center_line_pos = [0] * len(self.nodes)
+
+        if isMultiRotor:
+            self._fix_nodes()
 
         nodes_i_d = []
         for n in self.nodes:
@@ -349,7 +357,7 @@ class Rotor(object):
         shaft_elements_length = list(df_shaft.groupby("n_l")["L"].min())
         self.shaft_elements_length = shaft_elements_length
 
-        self.L = nodes_pos[-1]
+        self.L = self.nodes_pos[-1]
 
         if "n_link" in df.columns:
             self.link_nodes = list(df["n_link"].dropna().unique().astype(int))
@@ -366,7 +374,10 @@ class Rotor(object):
             [(sh.m * sh.axial_cg_pos) / self.m for sh in self.shaft_elements]
         )
         CG_dsk = np.sum(
-            [disk.m * nodes_pos[disk.n] / self.m for disk in self.disk_elements]
+            [
+                disk.m * self.nodes_pos[self.nodes.index(disk.n)] / self.m
+                for disk in self.disk_elements
+            ]
         )
         self.CG = CG_sh + CG_dsk
 
@@ -377,8 +388,8 @@ class Rotor(object):
         # number of dofs
         half_ndof = self.number_dof / 2
         self.ndof = int(
-            self.number_dof * (max([el.n for el in shaft_elements]) + 2)
-            + half_ndof * len([el for el in point_mass_elements])
+            self.number_dof * len(self.nodes)
+            + half_ndof * len(self.point_mass_elements)
         )
 
         # global indexes for dofs
@@ -409,10 +420,9 @@ class Rotor(object):
                     global_dof_mapping[f"y_{elm.n_link}"] = int(
                         self.number_dof * elm.n_link + 1
                     )
-                    if self.number_dof == 6:
-                        global_dof_mapping[f"z_{elm.n_link}"] = int(
-                            self.number_dof * elm.n_link + 2
-                        )
+                    global_dof_mapping[f"z_{elm.n_link}"] = int(
+                        self.number_dof * elm.n_link + 2
+                    )
                 else:
                     global_dof_mapping[f"x_{elm.n_link}"] = int(
                         half_ndof * n_last + half_ndof * elm.n_link + self.number_dof
@@ -423,13 +433,12 @@ class Rotor(object):
                         + self.number_dof
                         + 1
                     )
-                    if self.number_dof == 6:
-                        global_dof_mapping[f"z_{elm.n_link}"] = int(
-                            half_ndof * n_last
-                            + half_ndof * elm.n_link
-                            + self.number_dof
-                            + 2
-                        )
+                    global_dof_mapping[f"z_{elm.n_link}"] = int(
+                        half_ndof * n_last
+                        + half_ndof * elm.n_link
+                        + self.number_dof
+                        + 2
+                    )
 
             elm.dof_global_index = global_dof_mapping
             df.at[df.loc[df.tag == elm.tag].index[0], "dof_global_index"] = (
@@ -437,9 +446,10 @@ class Rotor(object):
             )
 
         # define positions for disks
-        for disk in disk_elements:
-            z_pos = nodes_pos[disk.n]
-            y_pos = nodes_o_d[disk.n]
+        for disk in self.disk_elements:
+            i = self.nodes.index(disk.n)
+            z_pos = self.nodes_pos[i]
+            y_pos = self.nodes_o_d[i] / 2
             df.loc[df.tag == disk.tag, "nodes_pos_l"] = z_pos
             df.loc[df.tag == disk.tag, "nodes_pos_r"] = z_pos
             df.loc[df.tag == disk.tag, "y_pos"] = y_pos
@@ -494,52 +504,69 @@ class Rotor(object):
         for z_pos in z_positions:
             dfb_z_pos = dfb[dfb.nodes_pos_l == z_pos]
             dfb_z_pos = dfb_z_pos.sort_values(by="n_l")
-            if z_pos == df_shaft["nodes_pos_l"].iloc[0]:
-                y_pos = (
-                    max(
-                        df_shaft["odl"][
-                            df_shaft.n_l == int(dfb_z_pos.iloc[0]["n_l"])
-                        ].values
-                    )
-                    / 2
-                )
-            elif z_pos == df_shaft["nodes_pos_r"].iloc[-1]:
-                y_pos = (
-                    max(
-                        df_shaft["odr"][
-                            df_shaft.n_r == int(dfb_z_pos.iloc[0]["n_r"])
-                        ].values
-                    )
-                    / 2
-                )
-            else:
-                y_pos = (
-                    max(
-                        [
-                            max(
-                                df_shaft["odl"][
-                                    df_shaft._n == int(dfb_z_pos.iloc[0]["n_l"])
-                                ].values
-                            ),
-                            max(
-                                df_shaft["odr"][
-                                    df_shaft._n == int(dfb_z_pos.iloc[0]["n_l"]) - 1
-                                ].values
-                            ),
-                        ]
-                    )
-                    / 2
-                )
-            mean_od = np.mean(nodes_o_d)
+
+            y_pos = 0
+            y_pos_sup = 0
+            mean_od = np.mean(self.nodes_o_d)
             # use a 0.5 factor here based on plot experience for real machines
             scale_size = 0.5 * dfb["scale_factor"] * mean_od
-            y_pos_sup = y_pos + 2 * scale_size
 
-            for t in dfb_z_pos.tag:
-                df.loc[df.tag == t, "y_pos"] = y_pos
-                df.loc[df.tag == t, "y_pos_sup"] = y_pos_sup
-                y_pos += mean_od * df["scale_factor"][df.tag == t].values[0]
-                y_pos_sup += mean_od * df["scale_factor"][df.tag == t].values[0]
+            for i in range(len(dfb_z_pos)):
+                t = dfb_z_pos.iloc[i].tag
+
+                if df.loc[df.tag == t, "n_l"].values[0] in self.link_nodes:
+                    df.loc[df.tag == t, "y_pos"] = (
+                        y_pos + mean_od * df["scale_factor"][df.tag == t].values[0]
+                    )
+                    df.loc[df.tag == t, "y_pos_sup"] = (
+                        y_pos_sup + mean_od * df["scale_factor"][df.tag == t].values[0]
+                    )
+
+                else:
+                    try:
+                        y_pos = (
+                            max(
+                                df_shaft["odl"][
+                                    df_shaft.n_l == int(dfb_z_pos.iloc[i]["n_l"])
+                                ].values
+                            )
+                            / 2
+                        )
+                    except ValueError:
+                        try:
+                            y_pos = (
+                                max(
+                                    df_shaft["odr"][
+                                        df_shaft.n_r == int(dfb_z_pos.iloc[i]["n_r"])
+                                    ].values
+                                )
+                                / 2
+                            )
+                        except ValueError:
+                            y_pos = (
+                                max(
+                                    [
+                                        max(
+                                            df_shaft["odl"][
+                                                df_shaft._n
+                                                == int(dfb_z_pos.iloc[i]["n_l"])
+                                            ].values
+                                        ),
+                                        max(
+                                            df_shaft["odr"][
+                                                df_shaft._n
+                                                == int(dfb_z_pos.iloc[i]["n_l"]) - 1
+                                            ].values
+                                        ),
+                                    ]
+                                )
+                                / 2
+                            )
+
+                    y_pos_sup = y_pos + 2 * scale_size
+
+                    df.loc[df.tag == t, "y_pos"] = y_pos
+                    df.loc[df.tag == t, "y_pos_sup"] = y_pos_sup
 
         # define position for point mass elements
         dfb = df[df.type.isin(classes)]
@@ -709,7 +736,9 @@ class Rotor(object):
         )
 
     @check_units
-    def run_modal(self, speed, num_modes=12, sparse=True, synchronous=False):
+    def run_modal(
+        self, speed, num_modes=12, sparse=True, synchronous=False, full=False
+    ):
         """Run modal analysis.
 
         Method to calculate eigenvalues and eigvectors for a given rotor system.
@@ -744,6 +773,10 @@ class Rotor(object):
         synchronous : bool, optional
             If True a synchronous analysis is carried out.
             Default is False.
+        full : bool, optional
+            If True, the size of the result arrays is equal to `num_modes`.
+            If False, it is half the value of `num_modes`.
+            Default is False.
 
         Returns
         -------
@@ -753,7 +786,6 @@ class Rotor(object):
 
         Examples
         --------
-
         >>> import ross as rs
         >>> rotor = rs.rotor_example()
         >>> modal = rotor.run_modal(speed=0, sparse=False)
@@ -771,7 +803,7 @@ class Rotor(object):
         evalues, evectors = self._eigen(
             speed, num_modes=num_modes, sparse=sparse, synchronous=synchronous
         )
-        wn_len = num_modes // 2
+        wn_len = num_modes if full else num_modes // 2
         wn = (np.absolute(evalues))[:wn_len]
         wd = (np.imag(evalues))[:wn_len]
         damping_ratio = (-np.real(evalues) / np.absolute(evalues))[:wn_len]
@@ -851,11 +883,11 @@ class Rotor(object):
         Finding the first critical speeds within a speed range
         >>> results = rotor.run_critical_speed(speed_range=(100, 1000))
         >>> np.round(results.wd())
-        array([271., 300., 636., 867.])
+        array([271., 300., 636., 774., 867.])
 
         Changing output units
         >>> np.round(results.wd("rpm"))
-        array([2590., 2868., 6074., 8278.])
+        array([2590., 2868., 6074., 7394., 8278.])
 
         Retrieving whirl directions
         >>> results.whirl_direction # doctest: +ELLIPSIS
@@ -1037,10 +1069,10 @@ class Rotor(object):
         --------
         >>> rotor = rotor_example()
         >>> rotor.M(0)[:4, :4]
-        array([[ 1.42050794,  0.        ,  0.        ,  0.04931719],
-               [ 0.        ,  1.42050794, -0.04931719,  0.        ],
-               [ 0.        , -0.04931719,  0.00231392,  0.        ],
-               [ 0.04931719,  0.        ,  0.        ,  0.00231392]])
+        array([[ 1.42050794,  0.        ,  0.        ,  0.        ],
+               [ 0.        ,  1.42050794,  0.        , -0.04931719],
+               [ 0.        ,  0.        ,  1.27790826,  0.        ],
+               [ 0.        , -0.04931719,  0.        ,  0.00231392]])
         """
         M0 = np.zeros((self.ndof, self.ndof))
 
@@ -1058,22 +1090,32 @@ class Rotor(object):
 
             if synchronous:
                 if elm in self.shaft_elements:
+                    a0 = elm.dof_mapping()["alpha_0"]
+                    b0 = elm.dof_mapping()["beta_0"]
+                    x0 = elm.dof_mapping()["x_0"]
+                    y0 = elm.dof_mapping()["y_0"]
+                    x1 = elm.dof_mapping()["x_1"]
+                    y1 = elm.dof_mapping()["y_1"]
+                    a1 = elm.dof_mapping()["alpha_1"]
+                    b1 = elm.dof_mapping()["beta_1"]
                     G = elm.G()
-                    for i in range(8):
-                        if i in (0, 3, 4, 7):
-                            M[i, 0] = M[i, 0] - G[i, 1]
-                            M[i, 3] = M[i, 3] + G[i, 2]
-                            M[i, 4] = M[i, 4] - G[i, 5]
-                            M[i, 7] = M[i, 7] + G[i, 6]
+                    for i in range(2 * self.number_dof):
+                        if i in (x0, b0, x1, b1):
+                            M[i, x0] = M[i, x0] - G[i, y0]
+                            M[i, b0] = M[i, b0] + G[i, a0]
+                            M[i, x1] = M[i, x1] - G[i, y1]
+                            M[i, b1] = M[i, b1] + G[i, a1]
                         else:
-                            M[i, 1] = M[i, 1] + G[i, 0]
-                            M[i, 2] = M[i, 2] - G[i, 3]
-                            M[i, 5] = M[i, 5] + G[i, 4]
-                            M[i, 6] = M[i, 6] - G[i, 7]
+                            M[i, y0] = M[i, y0] + G[i, x0]
+                            M[i, a0] = M[i, a0] - G[i, b0]
+                            M[i, y1] = M[i, y1] + G[i, x1]
+                            M[i, a1] = M[i, a1] - G[i, b1]
                 elif elm in self.disk_elements:
+                    a0 = elm.dof_mapping()["alpha_0"]
+                    b0 = elm.dof_mapping()["beta_0"]
                     G = elm.G()
-                    M[2, 2] = M[2, 2] - G[2, 3]
-                    M[3, 3] = M[3, 3] + G[3, 2]
+                    M[a0, a0] = M[a0, a0] - G[a0, b0]
+                    M[b0, b0] = M[b0, b0] + G[b0, a0]
 
             M0[np.ix_(dofs, dofs)] += M
 
@@ -1097,11 +1139,11 @@ class Rotor(object):
         Examples
         --------
         >>> rotor = rotor_example()
-        >>> np.round(rotor.K(0)[:4, :4]/1e6)
-        array([[47.,  0.,  0.,  6.],
-               [ 0., 46., -6.,  0.],
-               [ 0., -6.,  1.,  0.],
-               [ 6.,  0.,  0.,  1.]])
+        >>> np.round(rotor.K(0)[:4, :4] / 1e6)
+        array([[ 4.700e+01,  0.000e+00,  0.000e+00,  0.000e+00],
+               [ 0.000e+00,  4.600e+01,  0.000e+00, -6.000e+00],
+               [ 0.000e+00,  0.000e+00,  1.657e+03,  0.000e+00],
+               [ 0.000e+00, -6.000e+00,  0.000e+00,  1.000e+00]])
         """
         K0 = np.zeros((self.ndof, self.ndof))
 
@@ -1126,8 +1168,7 @@ class Rotor(object):
         Returns
         -------
         Ksdt0 : np.ndarray
-            Dynamic stiffness matrix for the rotor. Only useable to
-            the 6 DoF model in variable speed analyses.
+            Dynamic stiffness matrix for the rotor.
 
         Examples
         --------
@@ -1142,14 +1183,13 @@ class Rotor(object):
         """
         Ksdt0 = np.zeros((self.ndof, self.ndof))
 
-        if self.number_dof == 6:
-            for elm in self.shaft_elements:
-                dofs = list(elm.dof_global_index.values())
-                Ksdt0[np.ix_(dofs, dofs)] += elm.Kst()
+        for elm in self.shaft_elements:
+            dofs = list(elm.dof_global_index.values())
+            Ksdt0[np.ix_(dofs, dofs)] += elm.Kst()
 
-            for elm in self.disk_elements:
-                dofs = list(elm.dof_global_index.values())
-                Ksdt0[np.ix_(dofs, dofs)] += elm.Kdt()
+        for elm in self.disk_elements:
+            dofs = list(elm.dof_global_index.values())
+            Ksdt0[np.ix_(dofs, dofs)] += elm.Kdt()
 
         return Ksdt0
 
@@ -1202,10 +1242,10 @@ class Rotor(object):
         --------
         >>> rotor = rotor_example()
         >>> rotor.G()[:4, :4]
-        array([[ 0.        ,  0.01943344, -0.00022681,  0.        ],
-               [-0.01943344,  0.        ,  0.        , -0.00022681],
-               [ 0.00022681,  0.        ,  0.        ,  0.0001524 ],
-               [ 0.        ,  0.00022681, -0.0001524 ,  0.        ]])
+        array([[ 0.        ,  0.01943344,  0.        , -0.00022681],
+               [-0.01943344,  0.        ,  0.        ,  0.        ],
+               [ 0.        ,  0.        ,  0.        ,  0.        ],
+               [ 0.00022681,  0.        ,  0.        ,  0.        ]])
         """
         G0 = np.zeros((self.ndof, self.ndof))
 
@@ -1237,13 +1277,15 @@ class Rotor(object):
         Examples
         --------
         >>> rotor = rotor_example()
-        >>> np.round(rotor.A()[50:56, :2])
+        >>> np.round(rotor.A()[75:83, :2]) + 0.
         array([[     0.,  10927.],
-               [-10924.,     -0.],
+               [-10924.,      0.],
+               [     0.,      0.],
                [  -174.,      0.],
-               [    -0.,   -174.],
-               [    -0.,  10723.],
-               [-10719.,     -0.]])
+               [     0.,   -174.],
+               [     0.,      0.],
+               [     0.,  10723.],
+               [-10719.,      0.]])
         """
         if frequency is None:
             frequency = speed
@@ -1385,7 +1427,7 @@ class Rotor(object):
         Examples
         --------
         >>> rotor = rotor_example()
-        >>> evalues, evectors = rotor._eigen(0, sorted_=True)
+        >>> evalues, evectors = rotor._eigen(0, sorted_=True, sparse=False)
         >>> idx = rotor._index(evalues)
         >>> idx[:6] # doctest: +ELLIPSIS
         array([0, 1, 2, 3, 4, ...
@@ -1459,7 +1501,7 @@ class Rotor(object):
         Examples
         --------
         >>> rotor = rotor_example()
-        >>> evalues, evectors = rotor._eigen(0)
+        >>> evalues, evectors = rotor._eigen(0, sparse=False)
         >>> evalues[0].imag # doctest: +ELLIPSIS
         91.796...
         """
@@ -1493,9 +1535,9 @@ class Rotor(object):
             else:
                 evalues, evectors = la.eig(A)
 
-            if sparse is not None:
-                idx = np.where((np.imag(evalues) != 0) & (np.abs(evalues) > 0.1))[0]
-                evalues, evectors = filter_eigenpairs(evalues, evectors, idx)
+        if sparse is not None and not synchronous:
+            idx = np.where(np.abs(evalues) > 1e-1)[0]
+            evalues, evectors = filter_eigenpairs(evalues, evectors, idx)
 
         if sorted_:
             idx = self._index(evalues)
@@ -1592,21 +1634,19 @@ class Rotor(object):
         >>> speed = 500.0
         >>> t = np.linspace(0, 10, size)
         >>> F = np.zeros((size, rotor.ndof))
-        >>> F[:, rotor.number_dof * node] = 10 * np.cos(2 * t)
+        >>> F[:, rotor.number_dof * node + 0] = 10 * np.cos(2 * t)
         >>> F[:, rotor.number_dof * node + 1] = 10 * np.sin(2 * t)
         >>> get_array = rotor._pseudo_modal(speed, num_modes=12)
         >>> F_modal = get_array[1](F.T).T
-        >>> round(la.norm(F_modal), 5)
-        226.92798
+        >>> la.norm(F_modal) # doctest: +ELLIPSIS
+        195.466...
         """
 
         M = self.M(speed)
         K_aux = self.K(speed)
 
         # Remove cross-coupled coefficients of bearing stiffness matrix
-        rmv_cross_coeffs = [[0, 1], [1, 0]]
-        if self.number_dof == 6:
-            rmv_cross_coeffs = [[0, 1, 0], [1, 0, 0], [0, 0, 0]]
+        rmv_cross_coeffs = [[0, 1, 0], [1, 0, 0], [0, 0, 0]]
 
         for elm in self.bearing_elements:
             dofs = list(elm.dof_global_index.values())
@@ -1753,7 +1793,7 @@ class Rotor(object):
         (61,)
 
         Selecting the disirable modes, if you want a reduced model:
-        >>> response = rotor.run_freq_response(speed_range=speed, modes=[0, 1, 2])
+        >>> response = rotor.run_freq_response(speed_range=speed, modes=[0, 1, 2, 3, 4])
         >>> abs(response.freq_resp) # doctest: +ELLIPSIS
         array([[[2.00154633e-07, 2.02422522e-07, 2.09522044e-07, ...
 
@@ -1946,7 +1986,7 @@ class Rotor(object):
         --------
         >>> rotor = rotor_example()
         >>> speed = np.linspace(0, 1000, 101)
-        >>> rotor._unbalance_force(3, 10.0, 0.0, speed)[12] # doctest: +ELLIPSIS
+        >>> rotor._unbalance_force(3, 10.0, 0.0, speed)[18] # doctest: +ELLIPSIS
         array([0.000e+00+0.j, 1.000e+03+0.j, 4.000e+03+0.j, ...
         """
         F0 = np.zeros((self.ndof, len(omega)), dtype=np.complex128)
@@ -2235,12 +2275,11 @@ class Rotor(object):
         >>> accel = 0.0
         >>> t = np.linspace(0, 10, size)
         >>> F = np.zeros((size, rotor.ndof))
-        >>> F[:, rotor.number_dof * node] = 10 * np.cos(2 * t)
+        >>> F[:, rotor.number_dof * node + 0] = 10 * np.cos(2 * t)
         >>> F[:, rotor.number_dof * node + 1] = 10 * np.sin(2 * t)
         >>> t, yout = rotor.integrate_system(speed, F, t)
         Running direct method
-        >>> dof = 13
-        >>> yout[:, dof] # doctest: +ELLIPSIS
+        >>> yout[:, rotor.number_dof * node + 1] # doctest: +ELLIPSIS
         array([0.00000000e+00, 2.07239823e-10, 7.80952429e-10, ...,
                1.21848307e-07, 1.21957287e-07, 1.22065778e-07])
         """
@@ -2486,30 +2525,33 @@ class Rotor(object):
 
         nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
         nodes_o_d = Q_(self.nodes_o_d, "m").to(length_units).m
+        center_line_pos = Q_(self.center_line_pos, "m").to(length_units).m
 
         fig = go.Figure()
 
         # plot shaft centerline
-        shaft_end = max(nodes_pos)
-        fig.add_trace(
-            go.Scatter(
-                x=[-0.2 * shaft_end, 1.2 * shaft_end],
-                y=[0, 0],
-                mode="lines",
-                opacity=0.7,
-                line=dict(width=3.0, color="black", dash="dashdot"),
-                showlegend=False,
-                hoverinfo="none",
-            )
+        fig.add_shape(
+            x0=0,
+            x1=1,
+            y0=0,
+            y1=0,
+            xref="paper",
+            yref="y",
+            layer="below",
+            opacity=0.7,
+            type="line",
+            line=dict(width=3.0, color="black", dash="dashdot"),
         )
 
         # plot nodes icons
         text = []
         x_pos = []
         y_pos = np.linspace(0, 0, len(nodes_pos[::nodes]))
-        for node, position in enumerate(nodes_pos[::nodes]):
+        for i, position in enumerate(nodes_pos[::nodes]):
+            node = self.nodes[i]
             text.append("{}".format(node * nodes))
             x_pos.append(position)
+            y_pos[i] = center_line_pos[i]
 
         fig.add_trace(
             go.Scatter(
@@ -2530,7 +2572,11 @@ class Rotor(object):
 
         # plot shaft elements
         for sh_elm in self.shaft_elements:
-            position = self.nodes_pos[sh_elm.n]
+            i = self.nodes.index(sh_elm.n)
+            z_pos = self.nodes_pos[i]
+            yc_pos = self.center_line_pos[i]
+
+            position = (z_pos, yc_pos)
             fig = sh_elm._patch(position, check_sld, fig, length_units)
 
         mean_od = np.mean(nodes_o_d)
@@ -2538,9 +2584,12 @@ class Rotor(object):
 
         # calculate scale factor if disks have scale_factor='mass'
         if self.disk_elements:
-            if all([disk.scale_factor == "mass" for disk in self.disk_elements]):
-                max_mass = max([disk.m for disk in self.disk_elements])
-                for disk in self.disk_elements:
+            scaled_disks = [
+                disk for disk in self.disk_elements if disk.scale_factor == "mass"
+            ]
+            if scaled_disks:
+                max_mass = max([disk.m for disk in scaled_disks])
+                for disk in scaled_disks:
                     f = disk.m / max_mass
                     disk._scale_factor_calculated = (1 - f) * 0.5 + f * 1.0
 
@@ -2550,7 +2599,18 @@ class Rotor(object):
                     scale_factor = disk._scale_factor_calculated
                 step = scale_factor * mean_od
 
-                position = (nodes_pos[disk.n], nodes_o_d[disk.n] / 2, step)
+                z_pos = (
+                    Q_(self.df[self.df.tag == disk.tag]["nodes_pos_l"].values[0], "m")
+                    .to(length_units)
+                    .m
+                )
+                y_pos = (
+                    Q_(self.df[self.df.tag == disk.tag]["y_pos"].values[0], "m")
+                    .to(length_units)
+                    .m
+                )
+                yc_pos = center_line_pos[self.nodes.index(disk.n)]
+                position = (z_pos, y_pos, yc_pos, step)
                 fig = disk._patch(position, fig)
 
         # plot bearings
@@ -2570,7 +2630,15 @@ class Rotor(object):
                 .to(length_units)
                 .m
             )
-            position = (z_pos, y_pos, y_pos_sup)
+            node = bearing.n
+            if node in self.link_nodes:
+                linked_bearing = next(
+                    (elm for elm in self.bearing_elements if elm.n_link == node), None
+                )
+                node = linked_bearing.n
+            yc_pos = center_line_pos[self.nodes.index(node)]
+
+            position = (z_pos, y_pos, y_pos_sup, yc_pos)
             bearing._patch(position, fig)
 
         # plot point mass
@@ -2585,18 +2653,26 @@ class Rotor(object):
                 .to(length_units)
                 .m
             )
-            position = (z_pos, y_pos)
+            node = p_mass.n
+            if node in self.link_nodes:
+                linked_bearing = next(
+                    (elm for elm in self.bearing_elements if elm.n_link == node), None
+                )
+                node = linked_bearing.n
+            yc_pos = center_line_pos[self.nodes.index(node)]
+
+            position = (z_pos, y_pos, yc_pos)
             fig = p_mass._patch(position, fig)
 
         fig.update_xaxes(
             title_text=f"Axial location ({length_units})",
-            range=[-0.1 * shaft_end, 1.1 * shaft_end],
             showgrid=False,
             mirror=True,
+            scaleanchor="y",
+            scaleratio=1.5,
         )
         fig.update_yaxes(
             title_text=f"Shaft radius ({length_units})",
-            range=[-0.3 * shaft_end, 0.3 * shaft_end],
             showgrid=False,
             mirror=True,
         )
@@ -2648,16 +2724,57 @@ class Rotor(object):
         Plotting Campbell Diagram
         >>> fig = camp.plot()
         """
+
         # store in results [speeds(x axis), frequencies[0] or logdec[1] or
         # whirl[2](y axis), 3]
         self._check_frequency_array(speed_range)
 
         results = np.zeros([len(speed_range), frequencies, 6])
 
+        # MAC criterion to track modes
+        def MAC(u, v):
+            H = lambda a: a.T.conj()
+            return np.absolute((H(u) @ v) ** 2 / ((H(u) @ u) * (H(v) @ v)))
+
+        num_modes = 2 * (frequencies + 2)  # ensure to get the right modes
+        evec_size = num_modes
+        mode_order = np.arange(evec_size)
+        threshold = 0.9
+        evec_u = []
+
         modal_results = {}
         for i, w in enumerate(speed_range):
-            modal = self.run_modal(speed=w, num_modes=2 * frequencies)
+            modal = self.run_modal(speed=w, num_modes=num_modes, full=True)
             modal_results[w] = modal
+
+            evec_v = modal.evectors[:, :evec_size]
+
+            if i > 0:
+                macs = np.zeros((evec_size, evec_size))
+                for u in enumerate(evec_u.T):
+                    for v in enumerate(evec_v.T):
+                        macs[u[0], v[0]] = MAC(u[1], v[1])
+
+                mask = macs > threshold
+                found_order = np.where(
+                    mask.any(axis=1), np.argmax(macs * mask, axis=1), -1
+                )
+                modes_not_found = np.where(found_order == -1)[0]
+
+                if len(modes_not_found):
+                    missing_modes = sorted(set(mode_order) - set(found_order))
+                    found_order[modes_not_found] = missing_modes[: len(modes_not_found)]
+
+                if not (found_order == mode_order).all():
+                    modal.evectors = modal.evectors[:, found_order]
+                    modal.evalues = modal.evalues[found_order]
+                    modal.wd = modal.wd[found_order]
+                    modal.wn = modal.wn[found_order]
+                    modal.log_dec = modal.log_dec[found_order]
+                    modal.damping_ratio = modal.damping_ratio[found_order]
+                    modal.update_mode_shapes()
+
+            evec_u = modal.evectors[:, :evec_size]
 
             if frequency_type == "wd":
                 results[i, :, 0] = modal.wd[:frequencies]
@@ -2682,7 +2799,7 @@ class Rotor(object):
             whirl_values=results[..., 3],
             modal_results=modal_results,
             number_dof=self.number_dof,
-            run_modal=lambda w: self.run_modal(speed=w, num_modes=2 * frequencies),
+            run_modal=lambda w: self.run_modal(speed=w, num_modes=num_modes, full=True),
         )
 
         return results
@@ -2755,14 +2872,11 @@ class Rotor(object):
             if not isinstance(bearing, SealElement):
                 bearings_elements.append(bearing)
 
-        bearing_class = BearingElement6DoF if self.number_dof == 6 else BearingElement
-
         for i, k in enumerate(stiffness_log):
-            bearings = [bearing_class(b.n, kxx=k, cxx=0) for b in bearings_elements]
-            rotor = self.__class__(self.shaft_elements, self.disk_elements, bearings)
-
-            if self.number_dof == 6:
-                rotor = convert_6dof_to_4dof(rotor)
+            bearings = [BearingElement(b.n, kxx=k, cxx=0) for b in bearings_elements]
+            rotor = convert_6dof_to_4dof(
+                self.__class__(self.shaft_elements, self.disk_elements, bearings)
+            )
 
             modal = rotor.run_modal(
                 speed=0, num_modes=num_modes, synchronous=synchronous
@@ -2808,18 +2922,17 @@ class Rotor(object):
 
                         # create bearing
                         bearings = [
-                            bearing_class(b.n, kxx=k, cxx=0) for b in bearings_elements
+                            BearingElement(b.n, kxx=k, cxx=0) for b in bearings_elements
                         ]
 
                         # create rotor
-                        rotor_critical = Rotor(
-                            shaft_elements=self.shaft_elements,
-                            disk_elements=self.disk_elements,
-                            bearing_elements=bearings,
+                        rotor_critical = convert_6dof_to_4dof(
+                            Rotor(
+                                shaft_elements=self.shaft_elements,
+                                disk_elements=self.disk_elements,
+                                bearing_elements=bearings,
+                            )
                         )
-
-                        if self.number_dof == 6:
-                            rotor_critical = convert_6dof_to_4dof(rotor_critical)
 
                         modal_critical = rotor_critical.run_modal(speed=speed)
                         critical_points_modal.append(modal_critical)
@@ -2967,11 +3080,10 @@ class Rotor(object):
         >>> probe1 = Probe(3, 0)
         >>> t = np.linspace(0, 10, size)
         >>> F = np.zeros((size, rotor.ndof))
-        >>> F[:, 4 * node] = 10 * np.cos(2 * t)
-        >>> F[:, 4 * node + 1] = 10 * np.sin(2 * t)
+        >>> F[:, rotor.number_dof * node + 0] = 10 * np.cos(2 * t)
+        >>> F[:, rotor.number_dof * node + 1] = 10 * np.sin(2 * t)
         >>> response = rotor.run_time_response(speed, F, t)
-        >>> dof = 13
-        >>> response.yout[:, dof] # doctest: +ELLIPSIS
+        >>> response.yout[:, rotor.number_dof * node + 1] # doctest: +ELLIPSIS
         array([ 0.00000000e+00,  1.86686693e-07,  8.39130663e-07, ...
         >>> # plot time response for a given probe:
         >>> fig1 = response.plot_1d(probe=[probe1])
@@ -3387,12 +3499,12 @@ class Rotor(object):
         aux_M = aux_rotor.M(0)
         aux_K = aux_rotor.K(0)
         aux1_K = aux_rotor_1.K(0)
-        num_dof = 4
 
-        if self.number_dof == 6:
-            aux_M = remove_dofs(aux_M)
-            aux_K = remove_dofs(aux_K)
-            aux1_K = remove_dofs(aux1_K)
+        # convert to 4 dof
+        num_dof = 4
+        aux_M = remove_dofs(aux_M)
+        aux_K = remove_dofs(aux_K)
+        aux1_K = remove_dofs(aux1_K)
 
         # gravity aceleration vector
         g = -9.8065
@@ -3619,7 +3731,7 @@ class Rotor(object):
         ...             nel_r=1)
         >>> modal = rotor.run_modal(speed=0)
         >>> modal.wn.round(4)
-        array([ 85.7634,  85.7634, 271.9326, 271.9326, 718.58  , 718.58  ])
+        array([ 85.7634,  85.7634, 271.9326, 271.9326, 650.1377, 718.58  ])
         """
         if len(leng_data) != len(odl_data) or len(leng_data) != len(idl_data):
             raise ValueError(
@@ -4100,6 +4212,7 @@ class CoAxialRotor(Rotor):
 
         self.nodes = list(range(len(self.nodes_pos)))
         self.L = nodes_pos[-1]
+        self.center_line_pos = [0] * len(self.nodes)
 
         # rotor mass can also be calculated with self.M()[::4, ::4].sum()
         self.m_disks = np.sum([disk.m for disk in self.disk_elements])
@@ -4120,10 +4233,10 @@ class CoAxialRotor(Rotor):
         self.Ip = Ip_sh + Ip_dsk
 
         # number of dofs
+        half_ndof = self.number_dof / 2
         self.ndof = int(
-            4 * max([el.n for el in shaft_elements])
-            + 8
-            + 2 * len([el for el in point_mass_elements])
+            self.number_dof * (max([el.n for el in shaft_elements]) + 2)
+            + half_ndof * len([el for el in point_mass_elements])
         )
 
         elm_no_shaft_id = {
@@ -4187,25 +4300,45 @@ class CoAxialRotor(Rotor):
             global_dof_mapping = {}
             for k, v in dof_mapping.items():
                 dof_letter, dof_number = k.split("_")
-                global_dof_mapping[dof_letter + "_" + str(int(dof_number) + elm.n)] = v
+                global_dof_mapping[dof_letter + "_" + str(int(dof_number) + elm.n)] = (
+                    int(v)
+                )
 
             if elm.n <= n_last + 1:
                 for k, v in global_dof_mapping.items():
-                    global_dof_mapping[k] = 4 * elm.n + v
+                    global_dof_mapping[k] = int(self.number_dof * elm.n + v)
             else:
                 for k, v in global_dof_mapping.items():
-                    global_dof_mapping[k] = 2 * n_last + 2 * elm.n + 4 + v
+                    global_dof_mapping[k] = int(
+                        half_ndof * n_last + half_ndof * elm.n + self.number_dof + v
+                    )
 
             if hasattr(elm, "n_link") and elm.n_link is not None:
                 if elm.n_link <= n_last + 1:
-                    global_dof_mapping[f"x_{elm.n_link}"] = 4 * elm.n_link
-                    global_dof_mapping[f"y_{elm.n_link}"] = 4 * elm.n_link + 1
-                else:
-                    global_dof_mapping[f"x_{elm.n_link}"] = (
-                        2 * n_last + 2 * elm.n_link + 4
+                    global_dof_mapping[f"x_{elm.n_link}"] = int(
+                        self.number_dof * elm.n_link
                     )
-                    global_dof_mapping[f"y_{elm.n_link}"] = (
-                        2 * n_last + 2 * elm.n_link + 5
+                    global_dof_mapping[f"y_{elm.n_link}"] = int(
+                        self.number_dof * elm.n_link + 1
+                    )
+                    global_dof_mapping[f"z_{elm.n_link}"] = int(
+                        self.number_dof * elm.n_link + 2
+                    )
+                else:
+                    global_dof_mapping[f"x_{elm.n_link}"] = int(
+                        half_ndof * n_last + half_ndof * elm.n_link + self.number_dof
+                    )
+                    global_dof_mapping[f"y_{elm.n_link}"] = int(
+                        half_ndof * n_last
+                        + half_ndof * elm.n_link
+                        + self.number_dof
+                        + 1
+                    )
+                    global_dof_mapping[f"z_{elm.n_link}"] = int(
+                        half_ndof * n_last
+                        + half_ndof * elm.n_link
+                        + self.number_dof
+                        + 2
                     )
 
             elm.dof_global_index = global_dof_mapping
@@ -4348,8 +4481,8 @@ class CoAxialRotor(Rotor):
 def rotor_example():
     """Create a rotor as example.
 
-    This function returns an instance of a simple rotor with
-    two shaft elements, one disk and two simple bearings.
+    This function returns an instance of a simple rotor without
+    damping with 6 shaft elements, 2 disks and 2 simple bearings.
     The purpose of this is to make available a simple model
     so that doctest can be written using this.
 
@@ -4364,7 +4497,6 @@ def rotor_example():
     >>> np.round(modal.wd[:4])
     array([ 92.,  96., 275., 297.])
     """
-    #  Rotor without damping with 6 shaft elements 2 disks and 2 bearings
     i_d = 0
     o_d = 0.05
     n = 6
@@ -4399,12 +4531,10 @@ def rotor_example():
 
 
 def compressor_example():
-    """Create a rotor as example.
+    """Create a compressor as example.
 
-    This function returns an instance of a simple rotor with
+    This function returns an instance of a rotor with
     91 shaft elements, 7 disks and 2 simple bearings and 12 seals.
-    The purpose of this is to make available a simple model
-    so that doctest can be written using this.
 
     Returns
     -------
@@ -4418,9 +4548,7 @@ def compressor_example():
 
     Examples
     --------
-    >>> import ross as rs
-    >>> rotor = rs.compressor_example()
-    >>> fig = rotor.plot_rotor()
+    >>> rotor = compressor_example()
     >>> len(rotor.shaft_elements)
     91
     >>> len(rotor.disk_elements)
@@ -4434,12 +4562,10 @@ def compressor_example():
 
 
 def coaxrotor_example():
-    """Create a rotor as example.
+    """Create a coaxial rotor as example.
 
-    This function returns an instance of a simple rotor with
-    two shafts, four disk and four bearings.
-    The purpose of this is to make available a simple model for co-axial rotors
-    so that doctest can be written using this.
+    This function returns an instance of a coaxial rotor with
+    2 shafts, 4 disk and 4 bearings.
 
     Returns
     -------
@@ -4447,12 +4573,7 @@ def coaxrotor_example():
 
     Examples
     --------
-    >>> import ross as rs
-    >>> rotor = rs.coaxrotor_example()
-
-    Plotting rotor model
-    >>> fig = rotor.plot_rotor()
-
+    >>> rotor = coaxrotor_example()
     >>> modal = rotor.run_modal(speed=0)
     >>> np.round(modal.wd[:4])
     array([39., 39., 99., 99.])
@@ -4509,52 +4630,50 @@ def coaxrotor_example():
 
 
 def rotor_example_6dof():
-    """This function returns an instance of a simple rotor with
-    two shaft elements, one disk and two simple bearings.
-    The purpose of this is to make available a simple model
-    so that doctest can be written using this.
+    """Create a rotor as example.
 
-    Parameters
-    ----------
+    This function returns an instance of a simple rotor with
+    6 shaft elements, 2 disks and 2 bearings with stiffness in
+    the z direction.
 
     Returns
     -------
-    An instance of a 6DoFs rotor object.
+    An instance of a rotor object.
 
     Examples
     --------
     >>> import ross as rs
     >>> import numpy as np
-    >>> rotor6 = rs.rotor_assembly.rotor_example_6dof()
-    >>> # Plotting rotor model
-    >>> fig = rotor6.plot_rotor()
+    >>> rotor = rs.rotor_example_6dof()
+
+    Plotting rotor model
+    >>> fig = rotor.plot_rotor()
     >>> # fig.show()
-    >>> # Running modal
+
+    Running modal
     >>> rotor_speed = 100.0 # rad/s
-    >>> modal6 = rotor6.run_modal(rotor_speed)
-    >>> print(f"Undamped natural frequencies: {np.round(modal6.wn, 2)}") # doctest: +ELLIPSIS
+    >>> modal = rotor.run_modal(rotor_speed)
+    >>> print(f"Undamped natural frequencies: {np.round(modal.wn, 2)}") # doctest: +ELLIPSIS
     Undamped natural frequencies: [ 47.62  91.84  96.36 274.44 ...
-    >>> print(f"Damped natural frequencies: {np.round(modal6.wd, 2)}") # doctest: +ELLIPSIS
+    >>> print(f"Damped natural frequencies: {np.round(modal.wd, 2)}") # doctest: +ELLIPSIS
     Damped natural frequencies: [ 47.62  91.84  96.36 274.44 ...
-    >>> # Plotting Campbell Diagram
-    >>> camp6 = rotor6.run_campbell(np.linspace(0, 400, 101), frequencies=6)
-    >>> fig = camp6.plot()
+
+    Plotting Campbell Diagram
+    >>> camp = rotor.run_campbell(np.linspace(0, 400, 101), frequencies=6)
+    >>> fig = camp.plot()
     >>> # fig.show()
     """
-    #  Rotor with 6 DoFs, with internal damping, with 10 shaft elements, 2 disks and 2 bearings.
     i_d = 0
     o_d = 0.05
     n = 6
     L = [0.25 for _ in range(n)]
 
     shaft_elem = [
-        ShaftElement6DoF(
+        ShaftElement(
+            l,
+            i_d,
+            o_d,
             material=steel,
-            L=0.25,
-            idl=0,
-            odl=0.05,
-            idr=0,
-            odr=0.05,
             alpha=0,
             beta=0,
             rotary_inertia=False,
@@ -4563,24 +4682,79 @@ def rotor_example_6dof():
         for l in L
     ]
 
-    disk0 = DiskElement6DoF.from_geometry(
+    disk0 = DiskElement.from_geometry(
         n=2, material=steel, width=0.07, i_d=0.05, o_d=0.28
     )
-    disk1 = DiskElement6DoF.from_geometry(
+    disk1 = DiskElement.from_geometry(
         n=4, material=steel, width=0.07, i_d=0.05, o_d=0.28
     )
 
     kxx = 1e6
     kyy = 0.8e6
-    kzz = 1e5
-    cxx = 0
-    cyy = 0
-    czz = 0
-    bearing0 = BearingElement6DoF(
-        n=0, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, kzz=kzz, czz=czz
+    kzz = 0.1e6
+    bearing0 = BearingElement(n=0, kxx=kxx, kyy=kyy, kzz=kzz, cxx=0, cyy=0, czz=0)
+    bearing1 = BearingElement(n=6, kxx=kxx, kyy=kyy, kzz=kzz, cxx=0, cyy=0, czz=0)
+
+    return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
+
+
+def rotor_example_with_damping():
+    """Create a rotor as example.
+
+    This function returns an instance of a rotor with internal
+    damping, with 33 shaft elements, 2 disks and 2 bearings.
+
+    Returns
+    -------
+    An instance of a rotor object.
+
+    Examples
+    --------
+    >>> rotor = rotor_example_with_damping()
+    >>> rotor.Ip
+    0.015118294226367068
+    """
+    steel2 = Material(name="Steel", rho=7850, E=2.17e11, G_s=81.2e9)
+
+    # fmt: off
+    node_position = np.array([
+        0  ,  25,  64, 104, 124, 143, 175, 207, 239, 271, 303, 335, 
+        345, 355, 380, 408, 436, 466, 496, 526, 556, 586, 614, 647,
+        657, 667, 702, 737, 772, 807, 842, 862, 881, 914
+    ]) * 1e-3
+    # fmt: on
+
+    L = [node_position[i] - node_position[i - 1] for i in range(1, len(node_position))]
+
+    i_d = 0
+    o_d = 0.019
+
+    shaft_elem = [
+        ShaftElement(
+            l,
+            i_d,
+            o_d,
+            material=steel2,
+            alpha=8.0501,
+            beta=1.0e-5,
+            rotary_inertia=True,
+            shear_effects=True,
+        )
+        for l in L
+    ]
+
+    m = 2.6375
+    Id = 0.003844540885417
+    Ip = 0.007513248437500
+
+    disk0 = DiskElement(n=12, m=m, Id=Id, Ip=Ip)
+    disk1 = DiskElement(n=24, m=m, Id=Id, Ip=Ip)
+
+    bearing0 = BearingElement(
+        n=4, kxx=4.40e5, kyy=4.6114e5, cxx=27.4, cyy=2.505, kzz=0, czz=0
     )
-    bearing1 = BearingElement6DoF(
-        n=6, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, kzz=kzz, czz=czz
+    bearing1 = BearingElement(
+        n=31, kxx=9.50e5, kyy=1.09e8, cxx=50.4, cyy=100.4553, kzz=0, czz=0
     )
 
     return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])

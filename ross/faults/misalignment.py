@@ -1,6 +1,6 @@
 """Misalignment module.
 
-This module defines misalignments of various types on the shaft coupling. There are 
+This module defines misalignments of various types on the shaft coupling. There are
 a number of options, for the formulation of 6 DoFs (degrees of freedom).
 """
 
@@ -9,7 +9,7 @@ import time
 import numpy as np
 from scipy import linalg as la
 
-import ross
+import ross as rs
 from ross.units import Q_, check_units
 
 from .abs_fault import Fault
@@ -239,7 +239,7 @@ class MisalignmentFlex(Fault):
 
             unbx = self.unbalance_magnitude[ii] * (self.AccelV) * (
                 np.cos(self.tetaUNB[ii, :])
-            ) - self.unbalance_magnitude[ii] * ((self.Omega**2)) * (
+            ) - self.unbalance_magnitude[ii] * (self.Omega**2) * (
                 np.sin(self.tetaUNB[ii, :])
             )
 
@@ -305,7 +305,7 @@ class MisalignmentFlex(Fault):
         new_V_dot = (
             ftmodal
             + self.Funbmodal[:, i]
-            - ((self.Cmodal + self.Gmodal * self.Omega[i])).dot(velocity)
+            - (self.Cmodal + self.Gmodal * self.Omega[i]).dot(velocity)
             - ((self.Kmodal + self.Ksdtmodal * self.AccelV[i]).dot(positions))
         ).dot(self.inv_Mmodal)
 
@@ -331,7 +331,7 @@ class MisalignmentFlex(Fault):
 
         F_mis_p = np.zeros((self.ndof, len(angular_position)))
 
-        fib = np.arctan(self.eCOUPy / self.eCOUPx)
+        fib = np.arctan(self.eCOUPx / self.eCOUPy)
 
         self.mi_y = (
             (
@@ -712,7 +712,7 @@ class MisalignmentRigid(Fault):
 
             unbx = self.unbalance_magnitude[ii] * (self.AccelV) * (
                 np.cos(self.tetaUNB[ii, :])
-            ) - self.unbalance_magnitude[ii] * ((self.Omega**2)) * (
+            ) - self.unbalance_magnitude[ii] * (self.Omega**2) * (
                 np.sin(self.tetaUNB[ii, :])
             )
 
@@ -793,7 +793,7 @@ class MisalignmentRigid(Fault):
         new_V_dot = (
             ftmodal
             + self.Funbmodal[:, i]
-            - ((self.Cmodal + self.Gmodal * self.Omega[i])).dot(velocity)
+            - (self.Cmodal + self.Gmodal * self.Omega[i]).dot(velocity)
             - ((self.Kmodal + self.Ksdtmodal * self.AccelV[i]).dot(positions))
         ).dot(self.inv_Mmodal)
 
@@ -867,88 +867,6 @@ class MisalignmentRigid(Fault):
         return Fmis, FFmis
 
 
-def base_rotor_example():
-    """Internal routine that create an example of a rotor, to be used in
-    the associated misalignment problems as a prerequisite.
-
-    This function returns an instance of a 6 DoF rotor, with a number of
-    components attached. As this is not the focus of the example here, but
-    only a requisite, see the example in "rotor assembly" for additional
-    information on the rotor object.
-
-    Returns
-    -------
-    rotor : ross.Rotor Object
-        An instance of a flexible 6 DoF rotor object.
-
-    Examples
-    --------
-    >>> rotor = base_rotor_example()
-    >>> rotor.Ip
-    0.015118294226367068
-    """
-    steel2 = ross.Material(name="Steel", rho=7850, E=2.17e11, G_s=81.2e9)
-    #  Rotor with 6 DoFs, with internal damping, with 10 shaft elements, 2 disks and 2 bearings.
-    i_d = 0
-    o_d = 0.019
-    n = 33
-
-    # fmt: off
-    L = np.array(
-            [0  ,  25,  64, 104, 124, 143, 175, 207, 239, 271,
-            303, 335, 345, 355, 380, 408, 436, 466, 496, 526,
-            556, 586, 614, 647, 657, 667, 702, 737, 772, 807,
-            842, 862, 881, 914]
-            )/ 1000
-    # fmt: on
-
-    L = [L[i] - L[i - 1] for i in range(1, len(L))]
-
-    shaft_elem = [
-        ross.ShaftElement6DoF(
-            material=steel2,
-            L=l,
-            idl=i_d,
-            odl=o_d,
-            idr=i_d,
-            odr=o_d,
-            alpha=8.0501,
-            beta=1.0e-5,
-            rotary_inertia=True,
-            shear_effects=True,
-        )
-        for l in L
-    ]
-
-    Id = 0.003844540885417
-    Ip = 0.007513248437500
-
-    disk0 = ross.DiskElement6DoF(n=12, m=2.6375, Id=Id, Ip=Ip)
-    disk1 = ross.DiskElement6DoF(n=24, m=2.6375, Id=Id, Ip=Ip)
-
-    kxx1 = 4.40e5
-    kyy1 = 4.6114e5
-    kzz = 0
-    cxx1 = 27.4
-    cyy1 = 2.505
-    czz = 0
-    kxx2 = 9.50e5
-    kyy2 = 1.09e8
-    cxx2 = 50.4
-    cyy2 = 100.4553
-
-    bearing0 = ross.BearingElement6DoF(
-        n=4, kxx=kxx1, kyy=kyy1, cxx=cxx1, cyy=cyy1, kzz=kzz, czz=czz
-    )
-    bearing1 = ross.BearingElement6DoF(
-        n=31, kxx=kxx2, kyy=kyy2, cxx=cxx2, cyy=cyy2, kzz=kzz, czz=czz
-    )
-
-    rotor = ross.Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
-
-    return rotor
-
-
 def misalignment_flex_parallel_example():
     """Create an example of a flexible parallel misalignment fault.
 
@@ -968,7 +886,7 @@ def misalignment_flex_parallel_example():
     125.66370614359172
     """
 
-    rotor = base_rotor_example()
+    rotor = rs.rotor_example_with_damping()
 
     misalignment = rotor.run_misalignment(
         coupling="flex",
@@ -1012,7 +930,7 @@ def misalignment_flex_angular_example():
     125.66370614359172
     """
 
-    rotor = base_rotor_example()
+    rotor = rs.rotor_example_with_damping()
 
     misalignment = rotor.run_misalignment(
         coupling="flex",
@@ -1056,7 +974,7 @@ def misalignment_flex_combined_example():
     125.66370614359172
     """
 
-    rotor = base_rotor_example()
+    rotor = rs.rotor_example_with_damping()
 
     misalignment = rotor.run_misalignment(
         coupling="flex",
@@ -1100,7 +1018,7 @@ def misalignment_rigid_example():
     125.66370614359172
     """
 
-    rotor = base_rotor_example()
+    rotor = rs.rotor_example_with_damping()
 
     misalignment = rotor.run_misalignment(
         coupling="rigid",

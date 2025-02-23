@@ -1,10 +1,10 @@
 from inspect import signature
 from abc import ABC, abstractmethod
 from collections import namedtuple
-from pathlib import Path
 
 import pandas as pd
 import toml
+import re
 
 
 class Element(ABC):
@@ -110,8 +110,9 @@ class Element(ABC):
         >>> from ross.bearing_seal_element import bearing_example
         >>> bearing = bearing_example()
         >>> bearing.M(0)
-        array([[0., 0.],
-               [0., 0.]])
+        array([[0., 0., 0.],
+               [0., 0., 0.],
+               [0., 0., 0.]])
         """
         pass
 
@@ -134,8 +135,9 @@ class Element(ABC):
         >>> from ross.bearing_seal_element import bearing_example
         >>> bearing = bearing_example()
         >>> bearing.C(0)
-        array([[200.,   0.],
-               [  0., 150.]])
+        array([[200.,   0.,   0.],
+               [  0., 150.,   0.],
+               [  0.,   0.,  50.]])
         """
         pass
 
@@ -158,8 +160,9 @@ class Element(ABC):
         >>> from ross.bearing_seal_element import bearing_example
         >>> bearing = bearing_example()
         >>> bearing.K(0)
-        array([[1000000.,       0.],
-               [      0.,  800000.]])
+        array([[1000000.,       0.,       0.],
+               [      0.,  800000.,       0.],
+               [      0.,       0.,  100000.]])
         """
         pass
 
@@ -177,8 +180,9 @@ class Element(ABC):
         >>> from ross.bearing_seal_element import bearing_example
         >>> bearing = bearing_example()
         >>> bearing.G()
-        array([[0., 0.],
-               [0., 0.]])
+        array([[0., 0., 0.],
+               [0., 0., 0.],
+               [0., 0., 0.]])
         """
         pass
 
@@ -223,7 +227,7 @@ class Element(ABC):
         >>> from ross.bearing_seal_element import bearing_example
         >>> bearing = bearing_example()
         >>> bearing.dof_mapping()
-        {'x_0': 0, 'y_0': 1}
+        {'x_0': 0, 'y_0': 1, 'z_0': 2}
         """
         pass
 
@@ -241,10 +245,46 @@ class Element(ABC):
         >>> from ross.bearing_seal_element import bearing_example
         >>> bearing = bearing_example()
         >>> bearing.dof_local_index()
-        LocalIndex(x_0=0, y_0=1)
+        LocalIndex(x_0=0, y_0=1, z_0=2)
         """
         dof_mapping = self.dof_mapping()
         dof_tuple = namedtuple("LocalIndex", dof_mapping)
         local_index = dof_tuple(**dof_mapping)
 
         return local_index
+
+    def get_class_name_prefix(self, index=None):
+        """Extract prefix of the class name preceding 'Element',
+        insert spaces before uppercase letters, and append an index
+        number at the end.
+
+        Parameters
+        ----------
+        index : int, optional
+            The index number to append at the end of the resulting string.
+            Default is None.
+
+        Returns
+        -------
+        prefix : str
+            The processed class name prefix.
+
+        Examples
+        --------
+        >>> # Example using BearingElement
+        >>> from ross.bearing_seal_element import bearing_example
+        >>> bearing = bearing_example()
+        >>> bearing.get_class_name_prefix()
+        'Bearing'
+        """
+        class_name = self.__class__.__name__
+
+        if "Shaft" in class_name:
+            prefix = "Shaft Element"
+        else:
+            prefix = re.sub(r"(?<!^)(?=[A-Z])", " ", class_name.split("Element")[0])
+
+        if index is None:
+            return prefix
+        else:
+            return f"{prefix} {index}"
