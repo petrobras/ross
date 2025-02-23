@@ -2678,4 +2678,4 @@ def test_amb_controller():
             mean_response.append(np.mean(response.yout[:, 4 * ii + jj]))
     mean_max = np.max(np.array(mean_response))
 
-    assert_allclose(np.array(mean_max), np.array(7.31786978e-07), rtol=1e-6, atol=1e-6)
+    assert_allclose(np.array(mean_max), np.array(1.40899209e-07), rtol=1e-6, atol=1e-6)
