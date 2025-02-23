@@ -2198,7 +2198,7 @@ class Rotor(object):
         >>> np.nonzero(magnetic_force)[0]
         array([ 48,  49, 172, 173])
         >>> magnetic_force[np.nonzero(magnetic_force)[0]]
-        array([0.0070686 , 0.02656392, 0.00180106, 0.01577127])
+        array([-0.00114497,  0.01361201,  0.00109872,  0.00670087])
         """
 
         offset = 0
@@ -2209,7 +2209,13 @@ class Rotor(object):
         for elm in magnetic_bearings:
             dofs = [self.number_dof * elm.n, self.number_dof * elm.n + 1]
             for idx_dofs, value_dofs in enumerate(dofs):
-                err = setpoint - disp_resp[value_dofs]
+
+                if idx_dofs == 0:
+                    disp_45 = disp_resp[value_dofs]*np.cos(np.pi/4)
+                else:
+                    disp_45 = disp_resp[value_dofs]*np.sin(np.pi/4)
+                    
+                err = setpoint - disp_45
 
                 P = elm.kp_pid * err
                 elm.integral[idx_dofs] += elm.ki_pid * err * dt
@@ -2217,7 +2223,7 @@ class Rotor(object):
 
                 signal_pid = offset + P + elm.integral[idx_dofs] + D
                 magnetic_force[value_dofs] = (
-                    elm.ki * signal_pid + elm.ks * disp_resp[value_dofs]
+                    elm.ki * signal_pid + elm.ks * disp_45
                 )
 
                 elm.e0[idx_dofs] = err
