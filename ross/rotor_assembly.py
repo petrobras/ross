@@ -2196,9 +2196,9 @@ class Rotor(object):
         ... ]
         >>> magnetic_force = rotor.magnetic_bearing_controller(magnetic_bearings, dt, response.yout[-1,:])
         >>> np.nonzero(magnetic_force)[0]
-        array([ 48,  49, 172, 173])
+        array([ 72,  73, 258, 259])
         >>> magnetic_force[np.nonzero(magnetic_force)[0]]
-        array([-0.00114497,  0.01361201,  0.00109872,  0.00670087])
+        array([ 0.07273389,  0.10095048, -0.08090672, -0.04073291])
         """
 
         offset = 0
