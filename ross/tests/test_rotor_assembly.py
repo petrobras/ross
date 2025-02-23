@@ -2667,15 +2667,15 @@ def test_amb_controller():
 
     F = np.zeros((len(t), rotor.ndof))
     for n, m in zip(node, mass):
-        F[:, 4 * n + 0] = m * np.cos((speed * t))
-        F[:, 4 * n + 1] = (m - 5) * np.sin((speed * t))
+        F[:, 6 * n + 0] = m * np.cos((speed * t))
+        F[:, 6 * n + 1] = (m - 5) * np.sin((speed * t))
 
     response = rotor.run_time_response(speed, F, t, method="newmark")
 
     mean_response = []
     for ii in probes:
         for jj in range(2):
-            mean_response.append(np.mean(response.yout[:, 4 * ii + jj]))
+            mean_response.append(np.mean(response.yout[:, 6 * ii + jj]))
     mean_max = np.max(np.array(mean_response))
 
     assert_allclose(np.array(mean_max), np.array(1.40899209e-07), rtol=1e-6, atol=1e-6)

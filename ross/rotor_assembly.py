@@ -2185,8 +2185,8 @@ class Rotor(object):
         >>> mass = [10, 10]
         >>> F = np.zeros((len(t), rotor.ndof))
         >>> for n, m in zip(node,mass):
-        ...     F[:, 4 * n + 0] = m * np.cos((speed * t))
-        ...     F[:, 4 * n + 1] = (m-5) * np.sin((speed * t))
+        ...     F[:, 6 * n + 0] = m * np.cos((speed * t))
+        ...     F[:, 6 * n + 1] = (m-5) * np.sin((speed * t))
         >>> response = rotor.run_time_response(speed, F, t, method = "newmark")
         Running direct method
         >>> magnetic_bearings = [
@@ -2198,7 +2198,7 @@ class Rotor(object):
         >>> np.nonzero(magnetic_force)[0]
         array([ 72,  73, 258, 259])
         >>> magnetic_force[np.nonzero(magnetic_force)[0]]
-        array([ 0.07273389,  0.10095048, -0.08090672, -0.04073291])
+        array([-0.00114497,  0.01361201,  0.00109872,  0.00670087])
         """
 
         offset = 0
