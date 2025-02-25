@@ -12,7 +12,7 @@ from abc import ABC, abstractmethod
 import pandas as pd
 import scipy as sp
 
-
+from ross.disk_element import DiskElement
 
 class GearElementTVMS(DiskElement):
     """A gear element.
@@ -1324,10 +1324,17 @@ class Mesh:
         self.gearInput = gearInput
         self.gearOutput = gearOutput
 
+        self.gearInputSpeed = gearInputSpeed
+
         eta = gearOutput.n_tooth / gearInput.n_tooth # Gear ratio 
+        
+        self.gearOutputSpeed = - gearInputSpeed / eta
+
         self.kh = GearStiffness.kh(gearInput, gearOutput)
         self.cr = self.contact_ratio(self.gearInput, self.gearOutput)
+        self.tm = 2 * np.pi / (gearInputSpeed * self.gearInput.n_tooth) # Gearmesh period [seconds/engagement]
         self.ctm = self.cr * self.tm # [seconds/tooth] how much time each tooth remains in contact
+
 
     @staticmethod
     def contact_ratio(gearInput: GearElementTVMS, gearOutput: GearElementTVMS) -> float:
@@ -1409,7 +1416,7 @@ class Mesh:
     
 
 
-    def mesh(self, t, gearInputSpeed):
+    def mesh(self, t):
         """
         Calculate the time-varying meshing stiffness of a gear pair.
 
@@ -1439,10 +1446,6 @@ class Mesh:
         - The stiffness contribution varies depending on whether one or two pairs of teeth are in contact.
         """
 
-        self.gearInputSpeed = gearInputSpeed # pinion speed [rad/sec] 
-        self.gearOutputSpeed = - gearInputSpeed/ self.eta # gear speed [rad/sec]
-        self.tm = 2 * np.pi / (self.gearInputSpeed * self.gearInput.n_tooth) # Gearmesh period [seconds/engagement]
-
         tm = self.tm
         t = t - t // tm * tm
         
@@ -1464,15 +1467,15 @@ def gearGeometryExample() -> None:
     pass
 
 def gearMeshStiffnessExample() -> None:
-    gear1 = GearElementTVMS(21, 12, 12, 12, 2e-3, 55, 2e-2, 17.5e-3)
-    gear2 = GearElementTVMS(21, 12, 12, 12, 2e-3, 75, 2e-2, 17.5e-3)
+    gear1 = GearElementTVMS(n=21, m=12, module=2e-3, width=2e-2, n_tooth=55, hub_bore_radius=17.5e-3)
+    gear2 = GearElementTVMS(n=21, m=12, module=2e-3, width=2e-2, n_tooth=75, hub_bore_radius=17.5e-3)
 
     gear1Speed = 11*2*np.pi
 
     meshing = Mesh(gear1, gear2, gear1Speed)    
 
     nTm = 18
-    time_range = np.linspace(0, nTm * meshing.tm, int(18e3))
+    time_range = np.linspace(0, nTm * meshing.tm, int(5e3))
 
     angle_range = time_range * gear1Speed
 
@@ -1535,7 +1538,7 @@ def gearMeshStiffnessExample() -> None:
     # gear1.geometry.plot_tooth_geometry()
 
 def gearStiffnessExample():
-    gear1 = GearElementTVMS(21, 12, 12, 12, 2e-3, 55, 2e-2, 10.5e-3)
+    gear1 = GearElementTVMS(21, 12, 2e-3, 12, 2e-3, 55, 2e-2, 10.5e-3)
     computeStiffness = np.vectorize(gear1.stiffness.compute_stiffness)
 
     angle_range = np.linspace(gear1.geometry.geometryDict['alpha_c'], gear1.geometry.geometryDict['alpha_a'], 200)
