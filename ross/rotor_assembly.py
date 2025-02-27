@@ -1715,7 +1715,6 @@ class Rotor(object):
 
         return H
 
-    @lru_cache()
     def run_freq_response(
         self,
         speed_range=None,
@@ -1813,6 +1812,40 @@ class Rotor(object):
         Plotting acceleration response
         >>> fig = response.plot(inp=13, out=13, amplitude_units="m/s**2/N")
         """
+
+        if speed_range is not None:
+            speed_range = tuple(speed_range)
+
+        if modes is not None:
+            modes = tuple(modes)
+
+        return self._run_freq_response(
+            speed_range=speed_range,
+            modes=modes,
+            cluster_points=cluster_points,
+            num_modes=num_modes,
+            num_points=num_points,
+            rtol=rtol,
+        )
+
+    @lru_cache()
+    def _run_freq_response(
+        self,
+        speed_range=None,
+        modes=None,
+        cluster_points=False,
+        num_modes=12,
+        num_points=10,
+        rtol=0.005,
+    ):
+        """Frequency response for a mdof system.
+
+        Note: The `run_freq_resp` method has been split into two separate methods.
+        This change was made to convert the `speed_range` to a tuple format and to enable
+        the use of the `@lru_cache` decorator, which requires hashable arguments to cache
+        results effectively.
+        """
+
         if speed_range is None:
             if not cluster_points:
                 modal = self.run_modal(0)
@@ -1838,7 +1871,7 @@ class Rotor(object):
             freq_resp=freq_resp,
             velc_resp=velc_resp,
             accl_resp=accl_resp,
-            speed_range=speed_range,
+            speed_range=np.array(speed_range),
             number_dof=self.number_dof,
         )
 
@@ -1939,7 +1972,7 @@ class Rotor(object):
                 )
 
         freq_resp = self.run_freq_response(
-            tuple(speed_range), modes, cluster_points, num_modes, num_points, rtol
+            speed_range, modes, cluster_points, num_modes, num_points, rtol
         )
 
         forced_resp = np.zeros((self.ndof, len(freq_resp.speed_range)), dtype=complex)
