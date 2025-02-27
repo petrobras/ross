@@ -424,28 +424,29 @@ class Shape(Results):
         self._calculate()
 
     def _classify(self):
-        size = len(self.vector)
-
-        norm_vec = abs(self.vector) / max(abs(self.vector))
-        max_dofs = np.where(norm_vec > 0.01)[0]
-
-        dofs_count = [
-            sum(np.isin(np.arange(i, size, self.number_dof), max_dofs))
-            for i in range(self.number_dof)
-        ]
-
-        axial_count = dofs_count[2] / sum(dofs_count)
-        torsional_count = dofs_count[5] / sum(dofs_count)
-
         self.mode_type = "Lateral"
 
-        if axial_count > 0:
-            self.mode_type = "Axial"
-            self.color = tableau_colors["orange"]
+        if self.number_dof == 6:
+            size = len(self.vector)
 
-        elif torsional_count >= 0.45:
-            self.mode_type = "Torsional"
-            self.color = tableau_colors["green"]
+            norm_vec = abs(self.vector) / la.norm(abs(self.vector))
+            nonzero_dofs = np.where(norm_vec > 0.08)[0]
+
+            dofs_count = [
+                sum(np.isin(np.arange(i, size, self.number_dof), nonzero_dofs))
+                for i in range(self.number_dof)
+            ]
+
+            axial_percent = dofs_count[2] / sum(dofs_count)
+            torsional_percent = dofs_count[5] / sum(dofs_count)
+
+            if axial_percent > 0.9:
+                self.mode_type = "Axial"
+                self.color = tableau_colors["orange"]
+
+            elif torsional_percent > 0.9:
+                self.mode_type = "Torsional"
+                self.color = tableau_colors["green"]
 
     def _calculate_orbits(self):
         orbits = []
