@@ -16,7 +16,7 @@ def calculate_attitude_angle(eccentricity_ratio):
         Attitude angle
     Examples
     --------
-    >>> from ross.bearing.fluid_flow import fluid_flow_example
+    >>> from ross.bearings.fluid_flow import fluid_flow_example
     >>> my_fluid_flow = fluid_flow_example()
     >>> calculate_attitude_angle(my_fluid_flow.eccentricity_ratio) # doctest: +ELLIPSIS
     0.93...
@@ -50,7 +50,7 @@ def internal_radius_function(gama, attitude_angle, radius_rotor, eccentricity):
         The position y of the returned internal radius.
     Examples
     --------
-    >>> from ross.bearing.fluid_flow import fluid_flow_example
+    >>> from ross.bearings.fluid_flow import fluid_flow_example
     >>> my_fluid_flow = fluid_flow_example()
     >>> attitude_angle = my_fluid_flow.attitude_angle
     >>> radius_rotor = my_fluid_flow.radius_rotor
@@ -114,7 +114,7 @@ def external_radius_function(
         The position y of the returned external radius.
     Examples
     --------
-    >>> from ross.bearing.fluid_flow import fluid_flow_example
+    >>> from ross.bearings.fluid_flow import fluid_flow_example
     >>> my_fluid_flow = fluid_flow_example()
     >>> radius_stator = my_fluid_flow.radius_stator
     >>> radius_external, xre, yre = external_radius_function(0, radius_stator)
@@ -199,7 +199,7 @@ def reynolds_number(density, characteristic_speed, radial_clearance, viscosity):
             The reynolds number.
         Examples
         --------
-        >>> from ross.bearing.fluid_flow import fluid_flow_example
+        >>> from ross.bearings.fluid_flow import fluid_flow_example
         >>> my_fluid_flow = fluid_flow_example()
         >>> density = my_fluid_flow.density
         >>> characteristic_speed = my_fluid_flow.characteristic_speed
@@ -236,7 +236,7 @@ def modified_sommerfeld_number(
         The modified sommerfeld number.
     Examples
     --------
-    >>> from ross.bearing.fluid_flow import fluid_flow_example
+    >>> from ross.bearings.fluid_flow import fluid_flow_example
     >>> my_fluid_flow = fluid_flow_example()
     >>> radius_stator = my_fluid_flow.radius_stator
     >>> omega = my_fluid_flow.omega
@@ -269,7 +269,7 @@ def sommerfeld_number(modified_s, radius_stator, length):
         The sommerfeld number.
     Examples
     --------
-    >>> from ross.bearing.fluid_flow import fluid_flow_example
+    >>> from ross.bearings.fluid_flow import fluid_flow_example
     >>> my_fluid_flow = fluid_flow_example()
     >>> radius_stator = my_fluid_flow.radius_stator
     >>> omega = my_fluid_flow.omega
@@ -358,7 +358,7 @@ def calculate_rotor_load(
         Load applied to the rotor.
     Examples
     --------
-    >>> from ross.bearing.fluid_flow import fluid_flow_example
+    >>> from ross.bearings.fluid_flow import fluid_flow_example
     >>> my_fluid_flow = fluid_flow_example()
     >>> radius_stator = my_fluid_flow.radius_stator
     >>> omega = my_fluid_flow.omega
@@ -400,7 +400,7 @@ def move_rotor_center(fluid_flow_object, dx, dy):
     -------
     None
     --------
-    >>> from ross.bearing.fluid_flow import fluid_flow_example2
+    >>> from ross.bearings.fluid_flow import fluid_flow_example2
     >>> my_fluid_flow = fluid_flow_example2()
     >>> move_rotor_center(my_fluid_flow, 0, 0)
     >>> my_fluid_flow.eccentricity # doctest: +ELLIPSIS
@@ -433,7 +433,7 @@ def move_rotor_center_abs(fluid_flow_object, x, y):
     -------
     None
     --------
-    >>> from ross.bearing.fluid_flow import fluid_flow_example
+    >>> from ross.bearings.fluid_flow import fluid_flow_example
     >>> my_fluid_flow = fluid_flow_example()
     >>> move_rotor_center_abs(my_fluid_flow, 0, -1e-3*my_fluid_flow.radial_clearance)
     >>> my_fluid_flow.eccentricity # doctest: +ELLIPSIS
