@@ -1840,9 +1840,9 @@ class Rotor(object):
     ):
         """Frequency response for a mdof system.
 
-        Note: The `run_freq_resp` method has been split into two separate methods.
-        This change was made to convert the `speed_range` to a tuple format and to enable
-        the use of the `@lru_cache` decorator, which requires hashable arguments to cache
+        The `run_freq_response()` has been split into two separate methods. This change
+        was made to convert `speed_range` and `modes` to a tuple format and to enable
+        the use of the `@lru_cache()` method, which requires hashable arguments to cache
         results effectively.
         """
 
