@@ -5,6 +5,7 @@ from collections.abc import Iterable
 from copy import copy, deepcopy
 from itertools import chain, cycle
 from pathlib import Path
+from methodtools import lru_cache
 
 import numpy as np
 import pandas as pd
@@ -735,6 +736,7 @@ class Rotor(object):
             tag=self.tag,
         )
 
+    @lru_cache()
     @check_units
     def run_modal(
         self, speed, num_modes=12, sparse=True, synchronous=False, full=False
@@ -1810,6 +1812,40 @@ class Rotor(object):
         Plotting acceleration response
         >>> fig = response.plot(inp=13, out=13, amplitude_units="m/s**2/N")
         """
+
+        if speed_range is not None:
+            speed_range = tuple(speed_range)
+
+        if modes is not None:
+            modes = tuple(modes)
+
+        return self._run_freq_response(
+            speed_range=speed_range,
+            modes=modes,
+            cluster_points=cluster_points,
+            num_modes=num_modes,
+            num_points=num_points,
+            rtol=rtol,
+        )
+
+    @lru_cache()
+    def _run_freq_response(
+        self,
+        speed_range=None,
+        modes=None,
+        cluster_points=False,
+        num_modes=12,
+        num_points=10,
+        rtol=0.005,
+    ):
+        """Frequency response for a mdof system.
+
+        The `run_freq_response()` has been split into two separate methods. This change
+        was made to convert `speed_range` and `modes` to a tuple format and to enable
+        the use of the `@lru_cache()` method, which requires hashable arguments to cache
+        results effectively.
+        """
+
         if speed_range is None:
             if not cluster_points:
                 modal = self.run_modal(0)
@@ -1835,7 +1871,7 @@ class Rotor(object):
             freq_resp=freq_resp,
             velc_resp=velc_resp,
             accl_resp=accl_resp,
-            speed_range=speed_range,
+            speed_range=np.array(speed_range),
             number_dof=self.number_dof,
         )
 
