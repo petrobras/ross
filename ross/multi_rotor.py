@@ -3,7 +3,7 @@ from re import search
 from copy import deepcopy as copy
 
 import ross as rs
-from ross.gear_element import GearElement, Mesh
+from ross.gear_element import GearElement
 from ross.rotor_assembly import Rotor
 
 __all__ = ["MultiRotor"]
@@ -109,15 +109,16 @@ class MultiRotor(Rotor):
         driving_rotor,
         driven_rotor,
         coupled_nodes,
+        gear_ratio,
+        gear_mesh_stiffness,
         orientation_angle=0.0,
         position="above",
         tag=None,
     ):
         self.rotors = [driving_rotor, driven_rotor]
+        self.gear_ratio = gear_ratio
+        self.gear_mesh_stiffness = gear_mesh_stiffness
         self.orientation_angle = float(orientation_angle)
-
-        if driving_rotor.number_dof != 6 or driven_rotor.number_dof != 6:
-            raise TypeError("Rotors must be modeled with 6 degrees of freedom!")
 
         R1 = copy(driving_rotor)
         R2 = copy(driven_rotor)
@@ -132,15 +133,11 @@ class MultiRotor(Rotor):
             for elm in R2.disk_elements
             if elm.n == coupled_nodes[1] and type(elm) == GearElement
         ]
-
         if len(gear_1) == 0 or len(gear_2) == 0:
             raise TypeError("Each rotor needs a GearElement in the coupled nodes!")
         else:
             gear_1 = gear_1[0]
             gear_2 = gear_2[0]
-
-        self.meshing_gears = Mesh(gear_1, gear_2, gearInputSpeed=None)
-        self.gear_ratio = self.meshing_gear.eta
 
         self.gears = [gear_1, gear_2]
 
@@ -246,37 +243,6 @@ class MultiRotor(Rotor):
 
         return global_matrix
 
-    def _check_speed(self, node, omega):
-        """Adjusts the speed for the specified node based on the rotor configuration.
-
-        This method checks if the given node belongs to the driven rotor.
-        If so, the rotation speed is multiplied by the gear ratio.
-
-        Parameters
-        ----------
-        node : int
-            The node index where the speed check is being applied.
-        omega : float or np.ndarray
-            The original rotation speed of the driving rotor in rad/s.
-
-        Returns
-        -------
-        speed : float or np.ndarray
-            The adjusted rotation speed for the specified node.
-        """
-
-        speed = omega
-        rotor = self.rotors[0]
-
-        if node in self.R2_nodes:
-            speed = -omega * self.gear_ratio
-            rotor = self.rotors[1]
-
-        if isinstance(rotor, MultiRotor):
-            return rotor._check_speed(node, speed)
-
-        return speed
-
     def _unbalance_force(self, node, magnitude, phase, omega):
         """Calculate unbalance forces.
 
@@ -300,9 +266,40 @@ class MultiRotor(Rotor):
         F0 : list
             Unbalance force in each degree of freedom for each value in omega
         """
-        speed = self._check_speed(node, omega)
+        speed = self.check_speed(node, omega)
 
         return super()._unbalance_force(node, magnitude, phase, speed)
+
+    def check_speed(self, node, omega):
+        """Adjusts the speed for the specified node based on the rotor configuration.
+
+        This method checks if the given node belongs to the driven rotor.
+        If so, the rotation speed is multiplied by the gear ratio.
+
+        Parameters
+        ----------
+        node : int
+            The node index where the speed check is being applied.
+        omega : float or np.ndarray
+            The original rotation speed of the driving rotor in rad/s.
+
+        Returns
+        -------
+        speed : float or np.ndarray
+            The adjusted rotation speed for the specified node.
+        """
+
+        speed = omega
+        rotor = self.rotors[0]
+
+        if node in self.R2_nodes:
+            speed = -self.gear_ratio * omega
+            rotor = self.rotors[1]
+
+        if isinstance(rotor, MultiRotor):
+            return rotor.check_speed(node, speed)
+
+        return speed
 
     def coupling_matrix(self):
         """Coupling matrix of two coupled gears.
@@ -316,16 +313,16 @@ class MultiRotor(Rotor):
         --------
         >>> multi_rotor = two_shaft_rotor_example()
         >>> multi_rotor.coupling_matrix()[:4, :4]
-        array([[ 0.14644661, -0.35355339,  0.        ,  0.        ],
-               [-0.35355339,  0.85355339,  0.        ,  0.        ],
-               [ 0.        ,  0.        ,  0.        ,  0.        ],
-               [ 0.        ,  0.        ,  0.        ,  0.        ]])
+        array([[0.14644661, 0.35355339, 0.        , 0.        ],
+               [0.35355339, 0.85355339, 0.        , 0.        ],
+               [0.        , 0.        , 0.        , 0.        ],
+               [0.        , 0.        , 0.        , 0.        ]])
         """
         r1 = self.gears[0].base_radius
         r2 = self.gears[1].base_radius
 
-        S = np.sin(self.orientation_angle - self.gears[0].pressure_angle)
-        C = np.cos(self.orientation_angle - self.gears[0].pressure_angle)
+        S = np.sin(self.gears[0].pressure_angle - self.orientation_angle)
+        C = np.cos(self.gears[0].pressure_angle - self.orientation_angle)
 
         # fmt: off
         coupling_matrix = np.array([
@@ -381,7 +378,7 @@ class MultiRotor(Rotor):
                 self.rotors[1].M(frequency * self.gear_ratio, synchronous),
             )
 
-    def K(self, frequency, time, ignore=[]):
+    def K(self, frequency, ignore=[]):
         """Stiffness matrix for a multi-rotor.
 
         Parameters
@@ -415,7 +412,7 @@ class MultiRotor(Rotor):
         dofs_2 = self.gears[1].dof_global_index.values()
         dofs = [*dofs_1, *dofs_2]
 
-        K0[np.ix_(dofs, dofs)] += self.coupling_matrix() * self.meshing_gears.mesh(frequency, time)
+        K0[np.ix_(dofs, dofs)] += self.coupling_matrix() * self.gear_mesh_stiffness
 
         return K0
 
@@ -446,7 +443,7 @@ class MultiRotor(Rotor):
         """
 
         return self._join_matrices(
-            self.rotors[0].Ksdt(), self.rotors[1].Ksdt() * self.gear_ratio
+            self.rotors[0].Ksdt(), -self.gear_ratio * self.rotors[1].Ksdt()
         )
 
     def C(self, frequency, ignore=[]):
@@ -502,7 +499,7 @@ class MultiRotor(Rotor):
         """
 
         return self._join_matrices(
-            self.rotors[0].G(), -self.rotors[1].G() * self.gear_ratio
+            self.rotors[0].G(), -self.gear_ratio * self.rotors[1].G()
         )
 
 
@@ -567,12 +564,15 @@ def two_shaft_rotor_example():
         Ip=6.23,
     )
 
-    pressure_angle = rs.Q_(20, "deg")
+    pressure_angle = rs.Q_(22.5, "deg")
     base_radius = 0.5086
     pitch_diameter = 2 * base_radius / np.cos(pressure_angle)
     gear1 = rs.GearElement(
         n=4,
         m=726.4,
+        Id=56.95,
+        Ip=113.9,
+        pitch_diameter=pitch_diameter,
         pressure_angle=pressure_angle,
     )
 
@@ -606,6 +606,9 @@ def two_shaft_rotor_example():
     gear2 = rs.GearElement(
         n=0,
         m=5,
+        Id=0.002,
+        Ip=0.004,
+        pitch_diameter=pitch_diameter,
         pressure_angle=pressure_angle,
     )
 
@@ -633,6 +636,3 @@ def two_shaft_rotor_example():
         orientation_angle=0.0,
         position="below",
     )
-
-if __name__ == '__main__':
-    two_shaft_rotor_example()

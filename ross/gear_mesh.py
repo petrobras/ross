@@ -1474,8 +1474,8 @@ def gearMeshStiffnessExample() -> None:
 
     meshing = Mesh(gear1, gear2, gear1Speed)    
 
-    nTm = 18
-    time_range = np.linspace(0, nTm * meshing.tm, int(5e3))
+    nTm = 3
+    time_range = np.linspace(0, nTm * meshing.tm, int(8e2))
 
     angle_range = time_range * gear1Speed
 

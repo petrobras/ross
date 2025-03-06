@@ -28,7 +28,6 @@ from ross.bearing_seal_element import (
 )
 from ross.faults import Crack, MisalignmentFlex, MisalignmentRigid, Rubbing
 from ross.disk_element import DiskElement
-from ross.gear_element import GearElement, Mesh
 from ross.coupling_element import CouplingElement
 from ross.materials import Material, steel
 from ross.point_mass import PointMass
@@ -2240,14 +2239,6 @@ class Rotor(object):
         K2 = get_array[0](kwargs.get("Ksdt", self.Ksdt()))
         F = get_array[1](F.T).T
 
-        # Check if there is a GearElement
-
-        gear_elements = [
-            disk
-            for disk in self.disk_elements
-            if isinstance(disk, GearElement)
-        ]
-        
         # Consider any additional RHS function (extra forces)
         add_to_RHS = kwargs.get("add_to_RHS")
 
@@ -2489,9 +2480,12 @@ class Rotor(object):
 
         # calculate scale factor if disks have scale_factor='mass'
         if self.disk_elements:
-            if all([disk.scale_factor == "mass" for disk in self.disk_elements]):
-                max_mass = max([disk.m for disk in self.disk_elements])
-                for disk in self.disk_elements:
+            scaled_disks = [
+                disk for disk in self.disk_elements if disk.scale_factor == "mass"
+            ]
+            if scaled_disks:
+                max_mass = max([disk.m for disk in scaled_disks])
+                for disk in scaled_disks:
                     f = disk.m / max_mass
                     disk._scale_factor_calculated = (1 - f) * 0.5 + f * 1.0
 

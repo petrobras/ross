@@ -10,6 +10,7 @@ import numpy as np
 import toml
 
 from .units import check_units
+from ross.units import Q_
 
 __all__ = ["Material", "steel"]
 
@@ -39,6 +40,10 @@ class Material:
         Shear modulus (N/m**2).
     Poisson : float, optional
         Poisson ratio (dimensionless).
+    specific_heat : float, optional
+        Specific heat (J/(kg*K)).
+    thermal_conductivity : float, optional
+        Thermal conductivity (W/(m*K)).
     color : str, optional
         Color that will be used on plots.
 
@@ -55,7 +60,7 @@ class Material:
 
     @check_units
     def __init__(
-        self, name, rho, E=None, G_s=None, Poisson=None, color="#525252", **kwargs
+        self, name, rho, E=None, G_s=None, Poisson=None, specific_heat=None, thermal_conductivity=None, color="#525252", **kwargs
     ):
         self.name = str(name)
         if " " in name:
@@ -80,6 +85,8 @@ class Material:
         self.E = float(E)
         self.G_s = float(G_s)
         self.Poisson = float(Poisson)
+        self.specific_heat = float(specific_heat) if specific_heat is not None else 0.0
+        self.thermal_conductivity = float(thermal_conductivity) if thermal_conductivity is not None else 0.0
         self.color = color
 
     def __eq__(self, other):
@@ -123,16 +130,19 @@ class Material:
         >>> import ross as rs
         >>> steel = rs.Material.load_material('Steel')
         >>> steel # doctest: +ELLIPSIS
-        Material(name="Steel", rho=7.81000e+03, G_s=8.12000e+10, E=2.11000e+11, color='#525252')
+        Material(name="Steel", rho=7.81000e+03, G_s=8.12000e+10, E=2.11000e+11, specific_heat = 4.34000e+02, thermal_conductivity = 6.05000e+01,color='#525252')
         """
         selfE = "{:.5e}".format(self.E)
         selfrho = "{:.5e}".format(self.rho)
         selfGs = "{:.5e}".format(self.G_s)
+        selfspecific_heat = "{:.5e}".format(self.specific_heat)
+        selfthermal_conductivity = "{:.5e}".format(self.thermal_conductivity)
 
         return (
             f"Material"
             f'(name="{self.name}", rho={selfrho}, G_s={selfGs}, '
-            f"E={selfE}, color={self.color!r})"
+            f'E={selfE}, specific_heat = {selfspecific_heat}, thermal_conductivity = {selfthermal_conductivity},'
+            f"color={self.color!r})"
         )
 
     def __str__(self):
@@ -152,6 +162,8 @@ class Material:
         Young`s modulus (N/m**2):  2.11e+11
         Shear modulus   (N/m**2):  8.12e+10
         Poisson coefficient     :  0.29926108
+        Specific heat   (J/(kg*K)): 434.0
+        Thermal conductivity (W/(m*K)): 60.5
         """
         return (
             f"{self.name}"
@@ -160,6 +172,8 @@ class Material:
             f"\nYoung`s modulus (N/m**2):  {self.E:{2}.{8}}"
             f"\nShear modulus   (N/m**2):  {self.G_s:{2}.{8}}"
             f"\nPoisson coefficient     :  {self.Poisson:{2}.{8}}"
+            f"\nSpecific heat   (J/(kg*K)): {self.specific_heat:{2}.{8}}"
+            f"\nThermal conductivity (W/(m*K)): {self.thermal_conductivity:{2}.{8}}"
         )
 
     @staticmethod
