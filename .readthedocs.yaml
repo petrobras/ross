@@ -1,9 +1,5 @@
 version: 2
 
-sphinx:
-  # Path to your Sphinx configuration file.
-  configuration: docs/conf.py
-
 build:
   os: ubuntu-22.04
   tools:
@@ -18,3 +14,4 @@ python:
 sphinx:
   builder: html
   fail_on_warning: false
+  configuration: docs/conf.py
