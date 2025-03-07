@@ -2277,7 +2277,7 @@ class Rotor(object):
                     Cb, Kb = assemble_C_K_matrices(
                         brgs_with_var_coeffs, np.copy(C0), np.copy(K0), speed[step]
                     )
-
+                    
                     C1 = get_array[0](Cb)
                     K1 = get_array[0](Kb)
 
@@ -2300,8 +2300,30 @@ class Rotor(object):
                 )
 
         else:  # Option 3
+
+            gear_TVMS = [
+                gear_TVMS for elm in  self.disk_elements if type(elm) == "GearElementTVMS"
+            ]
+
             C1 = get_array[0](kwargs.get("C", self.C(speed_ref)))
             K1 = get_array[0](kwargs.get("K", self.K(speed_ref)))
+
+
+            def rotor_system(step, **current_state):
+                Cb, Kb = assemble_C_K_matrices(
+                    brgs_with_var_coeffs, np.copy(C0), np.copy(K0), speed[step]
+                )
+                
+                C1 = get_array[0](Cb)
+                K1 = get_array[0](Kb)
+
+                return (
+                    M,
+                    C1 + C2 * speed[step],
+                    K1 + K2 * accel[step],
+                    forces(step, **current_state),
+                )
+
 
             rotor_system = lambda step, **current_state: (
                 M,
