@@ -10,6 +10,8 @@ from ross.units import Q_, check_units
 
 from .abs_fault import Fault
 from .integrate_solver import Integrator
+from ross.utils import newmark
+from copy import copy
 
 __all__ = [
     "Crack",
@@ -130,52 +132,26 @@ class Crack(Fault):
         """
 
         self.rotor = rotor
-        self.n_disk = len(self.rotor.disk_elements)
-        if self.n_disk != len(self.unbalance_magnitude):
-            raise Exception("The number of discs and unbalances must agree!")
-
         self.ndof = rotor.ndof
-        self.L = rotor.elements[self.n_crack].L
-        self.KK = rotor.elements[self.n_crack].K()
-        self.radius = rotor.elements[self.n_crack].odl / 2
-        self.Poisson = rotor.elements[self.n_crack].material.Poisson
-        self.E = rotor.elements[self.n_crack].material.E
-        self.ndofd = np.zeros(len(self.rotor.disk_elements))
 
-        for ii in range(self.n_disk):
-            self.ndofd[ii] = (self.rotor.disk_elements[ii].n) * 6
+        self.shaft_element = [
+            elm for elm in rotor.shaft_elements if elm.n == self.n_crack
+        ][0]
 
-        G_s = rotor.elements[self.n_crack].material.G_s
-        odr = rotor.elements[self.n_crack].odr
-        odl = rotor.elements[self.n_crack].odl
-        idr = rotor.elements[self.n_crack].idr
-        idl = rotor.elements[self.n_crack].idl
-
-        self.dof_crack = np.arange((self.n_crack * 6), (self.n_crack * 6 + 12))
-        tempS = np.pi * (
-            ((odr / 2) ** 2 + (odl / 2) ** 2) / 2
-            - ((idr / 2) ** 2 + (idl / 2) ** 2) / 2
-        )
-        tempI = (
-            np.pi
-            / 4
-            * (
-                ((odr / 2) ** 4 + (odl / 2) ** 4) / 2
-                - ((idr / 2) ** 4 + (idl / 2) ** 4) / 2
-            )
-        )
-
-        kappa = (6 * (1 + self.Poisson) ** 2) / (
-            7 + 12 * self.Poisson + 4 * self.Poisson**2
-        )
-
-        A = 12 * self.E * tempI / (G_s * kappa * tempS * (self.L**2))
+        self.L = self.shaft_element.L
+        self.KK = self.shaft_element.K()
+        self.radius = self.shaft_element.odl / 2
+        self.Poisson = self.shaft_element.material.Poisson
+        self.E = self.shaft_element.material.E
+        self.dof_crack = list(self.shaft_element.dof_global_index.values())
+        tempI = self.shaft_element.Ie
+        phi = self.shaft_element.phi
 
         # fmt = off
         Coxy = np.array(
             [
                 [
-                    (self.L**3) * (1 + A / 4) / (3 * self.E * tempI),
+                    (self.L**3) * (1 + phi / 4) / (3 * self.E * tempI),
                     -(self.L**2) / (2 * self.E * tempI),
                 ],
                 [-(self.L**2) / (2 * self.E * tempI), self.L / (self.E * tempI)],
@@ -185,7 +161,7 @@ class Crack(Fault):
         Coyz = np.array(
             [
                 [
-                    (self.L**3) * (1 + A / 4) / (3 * self.E * tempI),
+                    (self.L**3) * (1 + phi / 4) / (3 * self.E * tempI),
                     (self.L**2) / (2 * self.E * tempI),
                 ],
                 [(self.L**2) / (2 * self.E * tempI), self.L / (self.E * tempI)],
@@ -219,35 +195,8 @@ class Crack(Fault):
         self.kc = np.linalg.pinv(Cc)
         self.kcx = self.kc[0, 0]
         self.kcz = self.kc[1, 1]
-        self.fcrack = np.zeros(self.ndof)
 
-        self.iteration = 0
-
-        # parameters for the time integration
-        self.lambdat = 0.00001
-        Faxial = 0
-        TorqueI = 0
-        TorqueF = 0
-
-        # pre-processing of auxilary variuables for the time integration
-        self.sA = (
-            self.speedI * np.exp(-self.lambdat * self.tF)
-            - self.speedF * np.exp(-self.lambdat * self.tI)
-        ) / (np.exp(-self.lambdat * self.tF) - np.exp(-self.lambdat * self.tI))
-        self.sB = (self.speedF - self.speedI) / (
-            np.exp(-self.lambdat * self.tF) - np.exp(-self.lambdat * self.tI)
-        )
-
-        # sAT = (
-        #     TorqueI * np.exp(-lambdat * self.tF) - TorqueF * np.exp(-lambdat * self.tI)
-        # ) / (np.exp(-lambdat * self.tF) - np.exp(-lambdat * self.tI))
-        # sBT = (TorqueF - TorqueI) / (
-        #     np.exp(-lambdat * self.tF) - np.exp(-lambdat * self.tI)
-        # )
-
-        # SpeedV = sA + sB * np.exp(-lambdat * self.t)
-        # TorqueV = sAT + sBT * np.exp(-lambdat * self.t)
-        # AccelV = -lambdat * sB * np.exp(-lambdat * self.t)
+        #####################
 
         # Determining the modal matrix
         self.K = self.rotor.K(self.speed)
@@ -260,16 +209,28 @@ class Crack(Fault):
         ModMat = ModMat[:, :12]
         self.ModMat = ModMat
 
-        # Modal transformations
-        self.Mmodal = ((ModMat.T).dot(self.M)).dot(ModMat)
-        self.Cmodal = ((ModMat.T).dot(self.C)).dot(ModMat)
-        self.Gmodal = ((ModMat.T).dot(self.G)).dot(ModMat)
-        self.Kmodal = ((ModMat.T).dot(self.K)).dot(ModMat)
-        self.Ksdtmodal = ((ModMat.T).dot(self.Ksdt)).dot(ModMat)
+        self.n_disk = len(self.rotor.disk_elements)
+        if self.n_disk != len(self.unbalance_magnitude):
+            raise Exception("The number of discs and unbalances must agree!")
+
+        self.ndofd = np.zeros(len(self.rotor.disk_elements))
+        for ii in range(self.n_disk):
+            self.ndofd[ii] = (self.rotor.disk_elements[ii].n) * 6
+
+        # parameters for the time integration
+        self.lambdat = 0.00001
+
+        # pre-processing of auxilary variuables for the time integration
+        self.sA = (
+            self.speedI * np.exp(-self.lambdat * self.tF)
+            - self.speedF * np.exp(-self.lambdat * self.tI)
+        ) / (np.exp(-self.lambdat * self.tF) - np.exp(-self.lambdat * self.tI))
+        self.sB = (self.speedF - self.speedI) / (
+            np.exp(-self.lambdat * self.tF) - np.exp(-self.lambdat * self.tI)
+        )
 
         y0 = np.zeros(24)
         t_eval = np.arange(self.tI, self.tF + self.dt, self.dt)
-        # t_eval = np.arange(self.dt, self.tF, self.dt)
         T = t_eval
 
         self.angular_position = (
@@ -286,7 +247,7 @@ class Crack(Fault):
         unby = np.zeros(len(self.angular_position))
 
         FFunb = np.zeros((self.ndof, len(t_eval)))
-        self.forces_crack = np.zeros((self.ndof, len(t_eval)))
+        self.forces = np.zeros((self.ndof, len(t_eval)))
 
         for ii in range(self.n_disk):
             self.tetaUNB[ii, :] = (
@@ -308,28 +269,82 @@ class Crack(Fault):
             FFunb[int(self.ndofd[ii]), :] += unbx
             FFunb[int(self.ndofd[ii] + 1), :] += unby
 
-        self.Funbmodal = (self.ModMat.T).dot(FFunb)
+        # g = np.zeros(self.ndof)
+        # g[1::6] = -9.81
+        # for i in range(FFunb.shape[1]):
+        #     FFunb[:, i] += self.M @ g
 
-        self.inv_Mmodal = np.linalg.pinv(self.Mmodal)
-        t1 = time.time()
+        # self.Funbmodal = (self.ModMat.T).dot(FFunb)
 
-        x = Integrator(
-            self.tI,
-            y0,
-            self.tF,
-            self.dt,
-            self._equation_of_movement,
-            self.print_progress,
-        )
-        x = x.rk45()
-        t2 = time.time()
-        if self.print_progress:
-            print(f"Time spent: {t2-t1} s")
+        # # Modal transformations
+        # self.Mmodal = ((ModMat.T).dot(self.M)).dot(ModMat)
+        # self.Cmodal = ((ModMat.T).dot(self.C)).dot(ModMat)
+        # self.Gmodal = ((ModMat.T).dot(self.G)).dot(ModMat)
+        # self.Kmodal = ((ModMat.T).dot(self.K)).dot(ModMat)
+        # self.Ksdtmodal = ((ModMat.T).dot(self.Ksdt)).dot(ModMat)
 
-        self.displacement = x[:12, :]
-        self.velocity = x[12:, :]
+        # self.inv_Mmodal = np.linalg.pinv(self.Mmodal)
+
+        # x = Integrator(
+        #     self.tI,
+        #     y0,
+        #     self.tF,
+        #     self.dt,
+        #     self._equation_of_movement,
+        #     self.print_progress,
+        # )
+        # x = x.rk45()
+
+        # self.displacement = x[:12, :]
+        # self.velocity = x[12:, :]
+        # self.response = self.ModMat.dot(self.displacement)
         self.time_vector = t_eval
-        self.response = self.ModMat.dot(self.displacement)
+
+        # crack_force = lambda step, **state: self._force_in_time(
+        #     step, state.get("disp_resp")
+        # )
+
+        # _, yout, _ = self.rotor.time_response(
+        #     speed=self.Omega,
+        #     F=FFunb.T,
+        #     t=self.time_vector,
+        #     method="newmark",
+        #     add_to_RHS=crack_force,
+        #     # num_modes=24,
+        # )  # , **kwargs)
+        # self.response = yout.T
+
+        def rotor_system(step, **curr_state):
+            disp_resp = curr_state.get("y")
+
+            K_crack = self._crack(self.angular_position[step])
+            dofs = self.dof_crack
+
+            F_crack = np.zeros(self.ndof)
+            K1 = copy(self.K)
+
+            F_crack[dofs] = (self.KK - K_crack) @ disp_resp[dofs]
+            self.forces[:, step] = F_crack
+            # K1[np.ix_(dofs, dofs)] -= (self.KK - K_crack)
+
+            return (
+                self.M,
+                self.C + self.G * self.Omega[step],
+                K1 + self.Ksdt * self.AccelV[step],
+                FFunb[:, step] + F_crack,
+            )
+
+        yout = newmark(rotor_system, self.time_vector, len(self.M))
+        self.response = yout.T
+
+    def _force_in_time(self, step, disp_resp):
+        K_crack = self._crack(self.angular_position[step])
+
+        F_crack = np.zeros(self.ndof)
+        F_crack[self.dof_crack] = (self.KK - K_crack) @ disp_resp[self.dof_crack]
+        self.forces[:, step] = F_crack
+
+        return F_crack
 
     def _equation_of_movement(self, T, Y, i):
         """Calculates the displacement and velocity using state-space representation in the modal domain.
@@ -352,18 +367,13 @@ class Crack(Fault):
         positions = Y[:12]
         velocity = Y[12:]  # velocity in space state
 
-        self.positionsFis = self.ModMat.dot(positions)
-        self.velocityFis = self.ModMat.dot(velocity)
-        self.T_matrix = np.array(
-            [
-                [np.cos(self.angular_position[i]), np.sin(self.angular_position[i])],
-                [-np.sin(self.angular_position[i]), np.cos(self.angular_position[i])],
-            ]
-        )
-        self.tp = self.crack_model(self.angular_position[i])
+        positionsFis = self.ModMat.dot(positions)
 
-        FF_CRACK, ft = self._crack(self.tp, self.angular_position[i])
-        self.forces_crack[:, i] = ft
+        KK_crack = self._crack(self.angular_position[i])
+
+        ft = np.zeros(self.ndof)
+        ft[self.dof_crack] = (self.KK - KK_crack) @ positionsFis[self.dof_crack]
+        self.forces[:, i] = ft
         ftmodal = (self.ModMat.T).dot(ft)
 
         # equation of movement to be integrated in time
@@ -382,7 +392,7 @@ class Crack(Fault):
 
         return new_Y
 
-    def _crack(self, func, ap):
+    def _crack(self, ap):
         """Reaction forces of cracked element
 
         Returns
@@ -393,7 +403,14 @@ class Crack(Fault):
             Excitation force caused by the parallel misalignment on the entire system.
         """
 
-        K = func
+        self.T_matrix = np.array(
+            [
+                [np.cos(ap), np.sin(ap)],
+                [-np.sin(ap), np.cos(ap)],
+            ]
+        )
+
+        K = self.crack_model(ap)
 
         k11 = K[0, 0]
         k12 = K[0, 1]
@@ -432,14 +449,8 @@ class Crack(Fault):
                              [Koxy[3,0]	,0           ,0         , 0	        ,Koxy[3,1]  ,0          ,Koxy[3,2]          ,0                  ,0      ,0                  ,Koxy[3,3]  ,0],
                              [0	        ,0           ,0         , 0	        ,0	        ,0          ,0                  ,0                  ,0      ,0                  ,0	        ,0]])
         # fmt: on
-        F_CRACK = np.zeros(self.ndof)
 
-        KK_CRACK = self.KK - KK_crack
-        FF_CRACK = (KK_CRACK).dot(self.positionsFis[self.dof_crack])
-        F_CRACK[self.dof_crack] = FF_CRACK
-        self.KK_CRACK = KK_CRACK
-
-        return FF_CRACK, F_CRACK
+        return KK_crack
 
     def _gasch(self, ap):
         """Stiffness matrix of the cracked element according to the Gasch model.
