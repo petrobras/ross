@@ -44,6 +44,9 @@ from ross.results import (
     TimeResponseResults,
     UCSResults,
 )
+
+# from ross.multi_rotor_TVMS import MultiRotorTVMS
+
 from ross.shaft_element import ShaftElement
 from ross.units import Q_, check_units
 from ross.utils import (
@@ -1289,9 +1292,14 @@ class Rotor(object):
         """
         if frequency is None:
             frequency = speed
-
+        
         Z = np.zeros((self.ndof, self.ndof))
         I = np.eye(self.ndof)
+
+        if type(self).__name__ == "MultiRotorTVMS":
+            A = np.vstack(
+                [np.hstack([Z, I]),
+                np.hstack([la.solve(-self.M(frequency, synchronous=synchronous), self.K(frequency)), la.solve(-self.M(frequency,synchronous=synchronous), (self.C(frequency) + self.G() * speed))])])
 
         # fmt: off
         A = np.vstack(
@@ -2305,32 +2313,34 @@ class Rotor(object):
                 gear_TVMS for elm in  self.disk_elements if type(elm) == "GearElementTVMS"
             ]
 
-            C1 = get_array[0](kwargs.get("C", self.C(speed_ref)))
-            K1 = get_array[0](kwargs.get("K", self.K(speed_ref)))
+            if len(gear_TVMS):
+                if kwargs.get("C") or kwargs.get("K"):
+                    raise Warning(
+                        "The gear coefficients vary with speed. Therefore, C and K matrices are not being replaced by the matrices defined as input arguments."
+                    )
 
+            C0 = self.C(speed_ref)
+            C1 = get_array[0](C0)
 
             def rotor_system(step, **current_state):
-                Cb, Kb = assemble_C_K_matrices(
-                    brgs_with_var_coeffs, np.copy(C0), np.copy(K0), speed[step]
-                )
+                K0 = self.K(speed_ref, t[step])
                 
-                C1 = get_array[0](Cb)
-                K1 = get_array[0](Kb)
+                K1 = get_array[0](K0)
 
                 return (
                     M,
-                    C1 + C2 * speed[step],
-                    K1 + K2 * accel[step],
+                    C1 + C2 * speed_ref,
+                    K1,
                     forces(step, **current_state),
                 )
 
 
-            rotor_system = lambda step, **current_state: (
-                M,
-                C1 + C2 * speed_ref,
-                K1,
-                forces(step, **current_state),
-            )
+            # rotor_system = lambda step, **current_state: (
+            #     M,
+            #     C1 + C2 * speed_ref,
+            #     K1,
+            #     forces(step, **current_state),
+            # )
 
         size = len(M)
         response = newmark(rotor_system, t, size, **kwargs)

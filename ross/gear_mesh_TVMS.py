@@ -177,7 +177,7 @@ class GearElementTVMS(DiskElement):
         --------
         >>> from ross.materials import steel
         >>> gear = GearElementTVMS.from_geometry(0, steel, 0.07, 0.05, 0.28)
-        >>> gear.base_radius # doctest: +ELLIPSIS
+        >>> gear.r_b # doctest: +ELLIPSIS
         0.131556...
         >>>
         """
@@ -210,7 +210,7 @@ class GearElementTVMS(DiskElement):
 
         zpos, ypos, yc_pos, scale_factor = position
         scale_factor *= 1.3
-        radius = self.base_radius * 1.1 + 0.05
+        radius = self.geometry.geometryDict['r_b'] * 1.1 + 0.05
 
         z_upper = [
             zpos + scale_factor / 25,
@@ -236,7 +236,7 @@ class GearElementTVMS(DiskElement):
         y_upper.append(None)
         y_pos.extend(y_lower)
 
-        customdata = [self.n, self.Ip, self.Id, self.m, self.base_radius * 2]
+        customdata = [self.n, self.Ip, self.Id, self.m, self.geometry.geometryDict['r_b'] * 2]
         hovertemplate = (
             f"Gear Node: {customdata[0]}<br>"
             + f"Polar Inertia: {customdata[1]:.3e}<br>"
@@ -270,37 +270,6 @@ class GearElementTVMS(DiskElement):
         )
 
         return fig
-
-    def K(self, frequency, time):
-        """Stiffness matrix for an instance of a disk element.
-
-        This method will return the stiffness matrix for an instance of a disk
-        element.
-
-        Returns
-        -------
-        K : np.ndarray
-            A matrix of floats containing the values of the stiffness matrix.
-
-        Examples
-        --------
-        >>> disk = disk_example()
-        >>> disk.K().round(2)
-        array([[0., 0., 0., 0., 0., 0.],
-               [0., 0., 0., 0., 0., 0.],
-               [0., 0., 0., 0., 0., 0.],
-               [0., 0., 0., 0., 0., 0.],
-               [0., 0., 0., 0., 0., 0.],
-               [0., 0., 0., 0., 0., 0.]])
-        """
-
-        def t_acc(step, time_step, disp_rep, velc_resp, accl_resp):
-            global AT, speed1
-            AT += time_step
-            
-
-
-            return forces1
 
 # para conseguir acessar o tempo naquele instante
 
@@ -1324,21 +1293,17 @@ class Mesh:
 
     """
 
-    def __init__(self, gearInput: GearElementTVMS, gearOutput: GearElementTVMS, gearInputSpeed: float):
+    def __init__(self, gearInput: GearElementTVMS, gearOutput: GearElementTVMS):
         self.gearInput = gearInput
         self.gearOutput = gearOutput
 
-        self.gearInputSpeed = gearInputSpeed
 
-        eta = gearOutput.n_tooth / gearInput.n_tooth # Gear ratio 
+        self.time = 0
+
+        self.eta = gearOutput.n_tooth / gearInput.n_tooth # Gear ratio 
         
-        self.gearOutputSpeed = - gearInputSpeed / eta
-
         self.kh = GearStiffness.kh(gearInput, gearOutput)
         self.cr = self.contact_ratio(self.gearInput, self.gearOutput)
-        self.tm = 2 * np.pi / (gearInputSpeed * self.gearInput.n_tooth) # Gearmesh period [seconds/engagement]
-        self.ctm = self.cr * self.tm # [seconds/tooth] how much time each tooth remains in contact
-
 
     @staticmethod
     def contact_ratio(gearInput: GearElementTVMS, gearOutput: GearElementTVMS) -> float:
@@ -1379,7 +1344,7 @@ class Mesh:
     
         return CR
 
-    def time_equivalent_stiffness(self, t: float) -> float:
+    def time_equivalent_stiffness(self, t: float, gearInputSpeed: float) -> float:
         """
         Parameters
         ---------
@@ -1401,9 +1366,12 @@ class Mesh:
         167970095.70859054
         """
 
+        gearOutputSpeed = - gearInputSpeed / self.eta
+
+
         # Angular displacements 
-        alphaGearInput = t * self.gearInputSpeed + self.gearInput.geometry.geometryDict['alpha_c'] # angle variation of the input pinion [rad]
-        alphaGearOutput   = t * self.gearOutputSpeed + self.gearOutput.geometry.geometryDict['alpha_a']   # angle variation of the output gear   [rad]
+        alphaGearInput = t * gearInputSpeed + self.gearInput.geometry.geometryDict['alpha_c'] # angle variation of the input pinion [rad]
+        alphaGearOutput   = t * gearOutputSpeed + self.gearOutput.geometry.geometryDict['alpha_a']   # angle variation of the output gear   [rad]
         
         # Tau displacementes
         dTauGearInput = self.gearInput.geometry._to_tau(alphaGearInput)     # angle variation of the pinion in tau [rad]
@@ -1420,7 +1388,7 @@ class Mesh:
     
 
 
-    def mesh(self, t):
+    def mesh(self, t, gearInputSpeed: float):
         """
         Calculate the time-varying meshing stiffness of a gear pair.
 
@@ -1450,17 +1418,20 @@ class Mesh:
         - The stiffness contribution varies depending on whether one or two pairs of teeth are in contact.
         """
 
-        tm = self.tm
+
+        tm = 2 * np.pi / (gearInputSpeed * self.gearInput.n_tooth) # Gearmesh period [seconds/engagement]
+        ctm = self.cr * tm # [seconds/tooth] how much time each tooth remains in contact
+
         t = t - t // tm * tm
         
         if t <= (self.cr-1) * tm:
-            stiffnessMesh1, d_tau_pinion1, d_tau_gear1 = self.time_equivalent_stiffness(t)
-            stiffnessMesh0,  d_tau_pinion0, d_tau_gear0 = self.time_equivalent_stiffness(self.tm + t)
+            stiffnessMesh1, d_tau_pinion1, d_tau_gear1 = self.time_equivalent_stiffness(t, gearInputSpeed)
+            stiffnessMesh0,  d_tau_pinion0, d_tau_gear0 = self.time_equivalent_stiffness(tm + t, gearInputSpeed)
 
             return stiffnessMesh0 + stiffnessMesh1, stiffnessMesh0, stiffnessMesh1
         
         elif t > (self.cr-1) * tm:
-            stiffnessMesh1, d_tau_pinion1, d_tau_gear1 = self.time_equivalent_stiffness(t)
+            stiffnessMesh1, d_tau_pinion1, d_tau_gear1 = self.time_equivalent_stiffness(t, gearInputSpeed)
             
             return stiffnessMesh1, np.nan, stiffnessMesh1
         
@@ -1474,12 +1445,14 @@ def gearMeshStiffnessExample() -> None:
     gear1 = GearElementTVMS(n=21, m=12, module=2e-3, width=2e-2, n_tooth=55, hub_bore_radius=17.5e-3)
     gear2 = GearElementTVMS(n=21, m=12, module=2e-3, width=2e-2, n_tooth=75, hub_bore_radius=17.5e-3)
 
-    gear1Speed = 11*2*np.pi
+    gear1Speed = 89*2*np.pi
 
-    meshing = Mesh(gear1, gear2, gear1Speed)    
+    meshing = Mesh(gear1, gear2)   
 
     nTm = 3
-    time_range = np.linspace(0, nTm * meshing.tm, int(2e3))
+    time_range = np.linspace(0, 1, int(5000))
+
+    speed_range = gear1Speed * np.ones(np.shape(time_range))
 
     angle_range = time_range * gear1Speed
 
@@ -1488,10 +1461,10 @@ def gearMeshStiffnessExample() -> None:
     k1_stiffness = np.zeros(np.shape(time_range))
 
     for i, time in enumerate(time_range):
-        stiffness[i], k0_stiffness[i], k1_stiffness[i] = meshing.mesh(time)
+        stiffness[i], k0_stiffness[i], k1_stiffness[i] = meshing.mesh(time, speed_range[i])
 
     # Calculate limits and yticks
-    x_lim = nTm * meshing.tm * gear1Speed * 180 / np.pi
+    x_lim = time_range[-1]
 #    yticks = np.arange(3.8e8, int(4.4e8), int(0.1e8))
 
     # Create figure
@@ -1499,7 +1472,7 @@ def gearMeshStiffnessExample() -> None:
 
     # Add the main plot lines
     fig.add_trace(go.Scatter(
-        x=angle_range * 180 / np.pi,
+        x=time_range,
         y=stiffness,
         mode='lines',
         line=dict(color='blue', width=1),
@@ -1507,7 +1480,7 @@ def gearMeshStiffnessExample() -> None:
     ))
 
     fig.add_trace(go.Scatter(
-        x=angle_range * 180 / np.pi,
+        x=time_range,
         y=k1_stiffness,
         mode='lines',
         line=dict(color='red', dash='solid'),
@@ -1515,7 +1488,7 @@ def gearMeshStiffnessExample() -> None:
     ))
 
     fig.add_trace(go.Scatter(
-        x=angle_range * 180 / np.pi,
+        x=time_range,
         y=k0_stiffness,
         mode='lines',
         line=dict(color='black', dash='dot'),
@@ -1526,7 +1499,7 @@ def gearMeshStiffnessExample() -> None:
     fig.update_layout(
         title='Stiffness x Angular Displacement',
         xaxis=dict(
-            title='Angular Displacement [deg]',
+            title='Time [s]',
             range=[0, x_lim],
         ),
         yaxis=dict(
