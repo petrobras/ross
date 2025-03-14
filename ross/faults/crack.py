@@ -119,17 +119,13 @@ class Crack(Fault):
         self.coefficient_data = pd.read_csv(dir_path)
 
         self.rotor = rotor
-        self.ndof = rotor.ndof
 
         self.shaft_element = [
             elm for elm in rotor.shaft_elements if elm.n == self.n_crack
         ][0]
 
-        self.KK = self.shaft_element.K()
+        self.K_elem = self.shaft_element.K()
         self.dof_crack = list(self.shaft_element.dof_global_index.values())
-
-    def run(self):
-        """Calculates the shaft angular position and the unbalance forces at X / Y directions."""
 
         L = self.shaft_element.L
         E = self.shaft_element.material.E
@@ -163,18 +159,10 @@ class Crack(Fault):
         self.Ko = np.linalg.pinv(Co)
         self.Kc = np.linalg.pinv(Cc)
 
+    def run(self):
+        """Calculates the shaft angular position and the unbalance forces at X / Y directions."""
+
         #####################
-
-        # Determining the modal matrix
-        self.K = self.rotor.K(self.speed)
-        self.C = self.rotor.C(self.speed)
-        self.G = self.rotor.G()
-        self.M = self.rotor.M(self.speed)
-        self.Ksdt = self.rotor.Ksdt()
-
-        _, ModMat = la.eigh(self.K, self.M)
-        ModMat = ModMat[:, :12]
-        self.ModMat = ModMat
 
         self.n_disk = len(self.rotor.disk_elements)
         if self.n_disk != len(self.unbalance_magnitude):
@@ -211,8 +199,8 @@ class Crack(Fault):
         unbx = np.zeros(len(self.angular_position))
         unby = np.zeros(len(self.angular_position))
 
-        FFunb = np.zeros((self.ndof, len(t)))
-        self.forces = np.zeros((self.ndof, len(t)))
+        FFunb = np.zeros((self.rotor.ndof, len(t)))
+        self.forces = np.zeros((self.rotor.ndof, len(t)))
 
         # Unbalance force
         for ii in range(self.n_disk):
@@ -236,10 +224,12 @@ class Crack(Fault):
             FFunb[int(self.ndofd[ii] + 1), :] += unby
 
         # Weight force
-        g = np.zeros(self.ndof)
+        g = np.zeros(self.rotor.ndof)
         g[1::6] = -9.81
+        M = self.rotor.M()
+
         for i in range(FFunb.shape[1]):
-            FFunb[:, i] += self.M @ g
+            FFunb[:, i] += M @ g
 
         crack_force = lambda step, **state: self._force_in_time(
             step, state.get("disp_resp")
@@ -258,10 +248,10 @@ class Crack(Fault):
         return results
 
     def _force_in_time(self, step, disp_resp):
-        K_cracked = self._cracked_element_stiffness(self.angular_position[step])
+        K_crack = self._cracked_element_stiffness(self.angular_position[step])
 
-        F_crack = np.zeros(self.ndof)
-        F_crack[self.dof_crack] = (self.KK - K_cracked) @ disp_resp[self.dof_crack]
+        F_crack = np.zeros(self.rotor.ndof)
+        F_crack[self.dof_crack] = (self.K_elem - K_crack) @ disp_resp[self.dof_crack]
         self.forces[:, step] = F_crack
 
         return F_crack
