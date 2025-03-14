@@ -69,6 +69,7 @@ class Crack(Fault):
     @check_units
     def __init__(
         self,
+        rotor,
         dt,
         tI,
         tF,
@@ -115,17 +116,7 @@ class Crack(Fault):
             )
 
         dir_path = Path(__file__).parents[0] / "data/PAPADOPOULOS.csv"
-        self.data_coefs = pd.read_csv(dir_path)
-
-    def run(self, rotor):
-        """Calculates the shaft angular position and the unbalance forces at X / Y directions.
-
-        Parameters
-        ----------
-        rotor : ross.Rotor Object
-             6 DoF rotor model.
-
-        """
+        self.coefficient_data = pd.read_csv(dir_path)
 
         self.rotor = rotor
         self.ndof = rotor.ndof
@@ -134,45 +125,43 @@ class Crack(Fault):
             elm for elm in rotor.shaft_elements if elm.n == self.n_crack
         ][0]
 
-        self.L = self.shaft_element.L
         self.KK = self.shaft_element.K()
-        self.radius = self.shaft_element.odl / 2
-        self.Poisson = self.shaft_element.material.Poisson
-        self.E = self.shaft_element.material.E
         self.dof_crack = list(self.shaft_element.dof_global_index.values())
-        tempI = self.shaft_element.Ie
+
+    def run(self):
+        """Calculates the shaft angular position and the unbalance forces at X / Y directions."""
+
+        L = self.shaft_element.L
+        E = self.shaft_element.material.E
+        Ie = self.shaft_element.Ie
         phi = self.shaft_element.phi
 
-        co1 = self.L**3 * (1 + phi / 4) / 3
-        co2 = self.L**2 / 2
-        co3 = self.L
+        co1 = L**3 * (1 + phi / 4) / 3
+        co2 = L**2 / 2
+        co3 = L
 
-        Co = np.array(
-            [
-                [co1, 0, 0, co2],
-                [0, co1, -co2, 0],
-                [0, -co2, co3, 0],
-                [co2, 0, 0, co3],
-            ]
-        ) / (self.E * tempI)
+        # fmt: off
+        Co = np.array([
+            [co1,   0,     0, co2],
+            [  0,  co1, -co2,   0],
+            [  0, -co2,  co3,   0],
+            [co2,    0,    0, co3],
+        ]) / (E * Ie)
+        # fmt: on
 
         if self.depth_ratio == 0:
             Cc = Co
         else:
-            c44 = self._get_coefs("c44")
-            c55 = self._get_coefs("c55")
-            c45 = self._get_coefs("c45")
+            c44 = self._get_coefficient("c44")
+            c55 = self._get_coefficient("c55")
+            c45 = self._get_coefficient("c45")
 
             Cc = Co + np.array(
                 [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, c55, c45], [0, 0, c45, c44]]
             )
 
-        self.Kele = np.linalg.pinv(Co)
-        self.ko = self.Kele[0, 0]
-
-        self.kc = np.linalg.pinv(Cc)
-        self.kcx = self.kc[0, 0]
-        self.kcz = self.kc[1, 1]
+        self.Ko = np.linalg.pinv(Co)
+        self.Kc = np.linalg.pinv(Cc)
 
         #####################
 
@@ -256,7 +245,7 @@ class Crack(Fault):
             step, state.get("disp_resp")
         )
 
-        _, yout, _ = self.rotor.time_response(
+        results = self.rotor.run_time_response(
             speed=self.Omega,
             F=FFunb.T,
             t=t,
@@ -266,11 +255,10 @@ class Crack(Fault):
             # **kwargs,
         )
 
-        self.response = yout.T
-        self.time_vector = t
+        return results
 
     def _force_in_time(self, step, disp_resp):
-        K_cracked = self._crack(self.angular_position[step])
+        K_cracked = self._cracked_element_stiffness(self.angular_position[step])
 
         F_crack = np.zeros(self.ndof)
         F_crack[self.dof_crack] = (self.KK - K_cracked) @ disp_resp[self.dof_crack]
@@ -278,62 +266,49 @@ class Crack(Fault):
 
         return F_crack
 
-    def _crack(self, ap):
-        """Reaction forces of cracked element
+    def _cracked_element_stiffness(self, ap):
+        """Stiffness matrix of the shaft element with crack in inertial coordinates.
 
         Returns
         -------
-        F_CRACK : array
-            Excitation force caused by the parallel misalignment on the node of application.
-        FF_CRACK : array
-            Excitation force caused by the parallel misalignment on the entire system.
+        K : np.ndarray
+            Stiffness matrix of the cracked element.
         """
 
-        kee, knn = self.crack_model(ap)
+        L = self.shaft_element.L
 
-        self.T_matrix = np.array(
-            [
-                [np.cos(ap), np.sin(ap)],
-                [-np.sin(ap), np.cos(ap)],
-            ]
-        )
+        Kmodel = self.crack_model(ap)
 
-        Kmodel = self.T_matrix.T @ np.array([[kee, 0], [0, knn]]) @ self.T_matrix
-
-        # Stiffness matrix of the cracked element
-        Toxy = np.array([[-1, 0], [-self.L, -1], [1, 0], [0, 1]])
-        kxy = np.array(
-            [[Kmodel[0, 0], self.Kele[0, 3]], [self.Kele[3, 0], self.Kele[3, 3]]]
-        )
+        Toxy = np.array([[-1, 0], [-L, -1], [1, 0], [0, 1]])
+        kxy = np.array([[Kmodel[0, 0], self.Ko[0, 3]], [self.Ko[3, 0], self.Ko[3, 3]]])
         Koxy = Toxy @ kxy @ Toxy.T
 
-        Toyz = np.array([[-1, 0], [self.L, -1], [1, 0], [0, 1]])
-        kyz = np.array(
-            [[Kmodel[1, 1], self.Kele[1, 2]], [self.Kele[2, 1], self.Kele[2, 2]]]
-        )
+        Toyz = np.array([[-1, 0], [L, -1], [1, 0], [0, 1]])
+        kyz = np.array([[Kmodel[1, 1], self.Ko[1, 2]], [self.Ko[2, 1], self.Ko[2, 2]]])
         Koyz = Toyz @ kyz @ Toyz.T
 
         # fmt: off
-        K_cracked = np.array([
-            [Koxy[0,0], 0        , 0   , 0	      , Koxy[0,1], 0   , Koxy[0,2], 0        , 0   , 0        , Koxy[0,3], 0   ],
-            [0	      , Koyz[0,0], 0   , Koyz[0,1], 0        , 0   , 0        , Koyz[0,2], 0   , Koyz[0,3], 0        , 0   ],
-            [0	      , 0	     , 0   , 0	      , 0        , 0   , 0        , 0        , 0   , 0        , 0        , 0   ],
-            [0	      , Koyz[1,0], 0   , Koyz[1,1], 0        , 0   , 0        , Koyz[1,2], 0   , Koyz[1,3], 0        , 0   ],
-            [Koxy[1,0], 0        , 0   , 0	      , Koxy[1,1], 0   , Koxy[1,2], 0        , 0   , 0        , Koxy[1,3], 0   ],
-            [0	      , 0        , 0   , 0	      , 0        , 0   , 0        , 0        , 0   , 0        , 0	     , 0   ],
-            [Koxy[2,0], 0        , 0   , 0	      , Koxy[2,1], 0   , Koxy[2,2], 0        , 0   , 0        , Koxy[2,3], 0   ],
-            [0	      , Koyz[2,0], 0   , Koyz[2,1], 0        , 0   , 0        , Koyz[2,2], 0   , Koyz[2,3], 0        , 0   ],
-            [0	      , 0	     , 0   , 0	      , 0        , 0   , 0        , 0        , 0   , 0        , 0        , 0   ],
-            [0	      , Koyz[3,0], 0   , Koyz[3,1], 0        , 0   , 0        , Koyz[3,2], 0   , Koyz[3,3], 0        , 0   ],
-            [Koxy[3,0], 0        , 0   , 0	      , Koxy[3,1], 0   , Koxy[3,2], 0        , 0   , 0        , Koxy[3,3], 0   ],
-            [0	      , 0        , 0   , 0	      , 0	     , 0   , 0        , 0        , 0   , 0        , 0        , 0   ]
+        K = np.array([
+            [Koxy[0,0],         0,   0,         0, Koxy[0,1],   0, Koxy[0,2],         0,   0,         0, Koxy[0,3],   0],
+            [        0, Koyz[0,0],   0, Koyz[0,1],         0,   0,         0, Koyz[0,2],   0, Koyz[0,3],         0,   0],
+            [        0,         0,   0,         0,         0,   0,         0,         0,   0,         0,         0,   0],
+            [        0, Koyz[1,0],   0, Koyz[1,1],         0,   0,         0, Koyz[1,2],   0, Koyz[1,3],         0,   0],
+            [Koxy[1,0],         0,   0,         0, Koxy[1,1],   0, Koxy[1,2],         0,   0,         0, Koxy[1,3],   0],
+            [        0,         0,   0,         0,         0,   0,         0,         0,   0,         0,         0,   0],
+            [Koxy[2,0],         0,   0,         0, Koxy[2,1],   0, Koxy[2,2],         0,   0,         0, Koxy[2,3],   0],
+            [        0, Koyz[2,0],   0, Koyz[2,1],         0,   0,         0, Koyz[2,2],   0, Koyz[2,3],         0,   0],
+            [        0,         0,   0,         0,         0,   0,         0,         0,   0,         0,         0,   0],
+            [        0, Koyz[3,0],   0, Koyz[3,1],         0,   0,         0, Koyz[3,2],   0, Koyz[3,3],         0,   0],
+            [Koxy[3,0],         0,   0,         0, Koxy[3,1],   0, Koxy[3,2],         0,   0,         0, Koxy[3,3],   0],
+            [        0,         0,   0,         0,         0,   0,         0,         0,   0,         0,         0,   0]
         ])
         # fmt: on
 
-        return K_cracked
+        return K
 
     def _gasch(self, ap):
-        """Stiffness matrix of the cracked element according to the Gasch model.
+        """Stiffness matrix of the shaft element with crack in rotating coordinates
+        according to the Gasch model.
 
         Paramenters
         -----------
@@ -343,27 +318,41 @@ class Crack(Fault):
         Returns
         -------
         K : np.ndarray
-            Stiffness matrix of cracked element.
+            Stiffness matrix of the cracked element.
         """
 
         # Gasch
-        kme = (self.ko + self.kcx) / 2
-        kmn = (self.ko + self.kcz) / 2
-        kde = (self.ko - self.kcx) / 2
-        kdn = (self.ko - self.kcz) / 2
+        ko = self.Ko[0, 0]
+        kcx = self.Kc[0, 0]
+        kcz = self.Kc[1, 1]
+
+        kme = (ko + kcx) / 2
+        kmn = (ko + kcz) / 2
+        kde = (ko - kcx) / 2
+        kdn = (ko - kcz) / 2
 
         size = 18
         cosine_sum = np.sum(
             [(-1) ** i * np.cos((2 * i + 1) * ap) / (2 * i + 1) for i in range(size)]
         )
 
-        kee = kme + (4 / np.pi) * kde * cosine_sum
-        knn = kmn + (4 / np.pi) * kdn * cosine_sum
+        ke = kme + (4 / np.pi) * kde * cosine_sum
+        kn = kmn + (4 / np.pi) * kdn * cosine_sum
 
-        return kee, knn
+        T_matrix = np.array(
+            [
+                [np.cos(ap), np.sin(ap)],
+                [-np.sin(ap), np.cos(ap)],
+            ]
+        )
+
+        K = T_matrix.T @ np.array([[ke, 0], [0, kn]]) @ T_matrix
+
+        return K
 
     def _mayes(self, ap):
-        """Stiffness matrix of the cracked element according to the Mayes model.
+        """Stiffness matrix of the shaft element with crack in rotating coordinates
+        according to the Mayes model.
 
         Paramenters
         -----------
@@ -373,22 +362,35 @@ class Crack(Fault):
         Returns
         -------
         K : np.ndarray
-            Stiffness matrix of cracked element.
+            Stiffness matrix of the cracked element.
         """
 
         # Mayes
-        kee = 0.5 * (self.ko + self.kcx) + 0.5 * (self.ko - self.kcx) * np.cos(ap)
-        knn = 0.5 * (self.ko + self.kcz) + 0.5 * (self.ko - self.kcz) * np.cos(ap)
+        ko = self.Ko[0, 0]
+        kcx = self.Kc[0, 0]
+        kcz = self.Kc[1, 1]
 
-        return kee, knn
+        ke = 0.5 * (ko + kcx) + 0.5 * (ko - kcx) * np.cos(ap)
+        kn = 0.5 * (ko + kcz) + 0.5 * (ko - kcz) * np.cos(ap)
 
-    def _get_coefs(self, coef):
+        T_matrix = np.array(
+            [
+                [np.cos(ap), np.sin(ap)],
+                [-np.sin(ap), np.cos(ap)],
+            ]
+        )
+
+        K = T_matrix.T @ np.array([[ke, 0], [0, kn]]) @ T_matrix
+
+        return K
+
+    def _get_coefficient(self, coeff):
         """Terms os the compliance matrix.
 
         Paramenters
         -----------
-        coef : string
-            Name of the Coefficient according to the corresponding direction.
+        coeff : string
+            Name of the coefficient according to the corresponding direction.
 
         Returns
         -------
@@ -396,11 +398,14 @@ class Crack(Fault):
             Compliance coefficient according to the crack depth.
         """
 
-        c = np.array(pd.eval(self.data_coefs[coef]))
-        aux = np.where(c[:, 1] >= self.depth_ratio * 2)[0]
-        c = c[aux[0], 0] * (1 - self.Poisson**2) / (self.E * (self.radius**3))
+        Poisson = self.shaft_element.material.Poisson
+        E = self.shaft_element.material.E
+        radius = self.shaft_element.odl / 2
 
-        return c
+        c = np.array(pd.eval(self.coefficient_data[coeff]))
+        ind = np.where(c[:, 1] >= self.depth_ratio * 2)[0]
+
+        return c[ind[0], 0] * (1 - Poisson**2) / (E * radius**3)
 
 
 def crack_example():

@@ -3219,9 +3219,9 @@ class Rotor(object):
         >>> fig = response.plot_dfft(probe=[probe1, probe2], range_freq=[0, 100], yaxis_type="log")
         >>> # fig.show()
         """
-        fault = Crack(**kwargs)
-        fault.run(self)
-        return fault
+        fault = Crack(self, **kwargs)
+        results = fault.run()
+        return results
 
     def save_mat(self, file, speed, frequency=None):
         """Save matrices and rotor model to a .mat file.
