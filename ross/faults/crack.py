@@ -149,10 +149,10 @@ class Crack(Fault):
 
         Co = np.array(
             [
-                [co1, 0, 0, -co2],
-                [0, co1, co2, 0],
-                [0, co2, co3, 0],
-                [-co2, 0, 0, co3],
+                [co1, 0, 0, co2],
+                [0, co1, -co2, 0],
+                [0, -co2, co3, 0],
+                [co2, 0, 0, co3],
             ]
         ) / (self.E * tempI)
 
@@ -225,6 +225,7 @@ class Crack(Fault):
         FFunb = np.zeros((self.ndof, len(t)))
         self.forces = np.zeros((self.ndof, len(t)))
 
+        # Unbalance force
         for ii in range(self.n_disk):
             self.tetaUNB[ii, :] = (
                 self.angular_position + self.unbalance_phase[ii] + np.pi / 2
@@ -245,6 +246,7 @@ class Crack(Fault):
             FFunb[int(self.ndofd[ii]), :] += unbx
             FFunb[int(self.ndofd[ii] + 1), :] += unby
 
+        # Weight force
         g = np.zeros(self.ndof)
         g[1::6] = -9.81
         for i in range(FFunb.shape[1]):
@@ -265,6 +267,7 @@ class Crack(Fault):
         )
 
         self.response = yout.T
+        self.time_vector = t
 
     def _force_in_time(self, step, disp_resp):
         K_cracked = self._crack(self.angular_position[step])
@@ -298,14 +301,13 @@ class Crack(Fault):
         Kmodel = self.T_matrix.T @ np.array([[kee, 0], [0, knn]]) @ self.T_matrix
 
         # Stiffness matrix of the cracked element
-        Toxy = np.array([[-1, 0], [self.L, -1], [1, 0], [0, 1]])
-        Toyz = np.array([[-1, 0], [-self.L, -1], [1, 0], [0, 1]])
-
+        Toxy = np.array([[-1, 0], [-self.L, -1], [1, 0], [0, 1]])
         kxy = np.array(
             [[Kmodel[0, 0], self.Kele[0, 3]], [self.Kele[3, 0], self.Kele[3, 3]]]
         )
         Koxy = Toxy @ kxy @ Toxy.T
 
+        Toyz = np.array([[-1, 0], [self.L, -1], [1, 0], [0, 1]])
         kyz = np.array(
             [[Kmodel[1, 1], self.Kele[1, 2]], [self.Kele[2, 1], self.Kele[2, 2]]]
         )
