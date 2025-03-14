@@ -1,4 +1,3 @@
-import time
 from pathlib import Path
 
 import numpy as np
@@ -9,9 +8,6 @@ import ross as rs
 from ross.units import Q_, check_units
 
 from .abs_fault import Fault
-from .integrate_solver import Integrator
-from ross.utils import newmark
-from copy import copy
 
 __all__ = [
     "Crack",
@@ -147,44 +143,26 @@ class Crack(Fault):
         tempI = self.shaft_element.Ie
         phi = self.shaft_element.phi
 
-        # fmt = off
-        Coxy = np.array(
-            [
-                [
-                    (self.L**3) * (1 + phi / 4) / (3 * self.E * tempI),
-                    -(self.L**2) / (2 * self.E * tempI),
-                ],
-                [-(self.L**2) / (2 * self.E * tempI), self.L / (self.E * tempI)],
-            ]
-        )
-
-        Coyz = np.array(
-            [
-                [
-                    (self.L**3) * (1 + phi / 4) / (3 * self.E * tempI),
-                    (self.L**2) / (2 * self.E * tempI),
-                ],
-                [(self.L**2) / (2 * self.E * tempI), self.L / (self.E * tempI)],
-            ]
-        )
+        co1 = self.L**3 * (1 + phi / 4) / 3
+        co2 = self.L**2 / 2
+        co3 = self.L
 
         Co = np.array(
             [
-                [Coxy[0, 0], 0, 0, Coxy[0, 1]],
-                [0, Coyz[0, 0], Coyz[0, 1], 0],
-                [0, Coyz[1, 0], Coyz[1, 1], 0],
-                [Coxy[1, 0], 0, 0, Coxy[1, 1]],
+                [co1, 0, 0, -co2],
+                [0, co1, co2, 0],
+                [0, co2, co3, 0],
+                [-co2, 0, 0, co3],
             ]
-        )
-        # fmt = on
-
-        c44 = self._get_coefs("c44")
-        c55 = self._get_coefs("c55")
-        c45 = self._get_coefs("c45")
+        ) / (self.E * tempI)
 
         if self.depth_ratio == 0:
             Cc = Co
         else:
+            c44 = self._get_coefs("c44")
+            c55 = self._get_coefs("c55")
+            c45 = self._get_coefs("c45")
+
             Cc = Co + np.array(
                 [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, c55, c45], [0, 0, c45, c44]]
             )
@@ -229,25 +207,23 @@ class Crack(Fault):
             np.exp(-self.lambdat * self.tF) - np.exp(-self.lambdat * self.tI)
         )
 
-        y0 = np.zeros(24)
-        t_eval = np.arange(self.tI, self.tF + self.dt, self.dt)
-        T = t_eval
+        t = np.arange(self.tI, self.tF + self.dt, self.dt)
 
         self.angular_position = (
-            self.sA * T
-            - (self.sB / self.lambdat) * np.exp(-self.lambdat * T)
+            self.sA * t
+            - (self.sB / self.lambdat) * np.exp(-self.lambdat * t)
             + (self.sB / self.lambdat)
         )
 
-        self.Omega = self.sA + self.sB * np.exp(-self.lambdat * T)
-        self.AccelV = -self.lambdat * self.sB * np.exp(-self.lambdat * T)
+        self.Omega = self.sA + self.sB * np.exp(-self.lambdat * t)
+        self.AccelV = -self.lambdat * self.sB * np.exp(-self.lambdat * t)
 
         self.tetaUNB = np.zeros((len(self.unbalance_phase), len(self.angular_position)))
         unbx = np.zeros(len(self.angular_position))
         unby = np.zeros(len(self.angular_position))
 
-        FFunb = np.zeros((self.ndof, len(t_eval)))
-        self.forces = np.zeros((self.ndof, len(t_eval)))
+        FFunb = np.zeros((self.ndof, len(t)))
+        self.forces = np.zeros((self.ndof, len(t)))
 
         for ii in range(self.n_disk):
             self.tetaUNB[ii, :] = (
@@ -269,128 +245,35 @@ class Crack(Fault):
             FFunb[int(self.ndofd[ii]), :] += unbx
             FFunb[int(self.ndofd[ii] + 1), :] += unby
 
-        # g = np.zeros(self.ndof)
-        # g[1::6] = -9.81
-        # for i in range(FFunb.shape[1]):
-        #     FFunb[:, i] += self.M @ g
+        g = np.zeros(self.ndof)
+        g[1::6] = -9.81
+        for i in range(FFunb.shape[1]):
+            FFunb[:, i] += self.M @ g
 
-        # self.Funbmodal = (self.ModMat.T).dot(FFunb)
+        crack_force = lambda step, **state: self._force_in_time(
+            step, state.get("disp_resp")
+        )
 
-        # # Modal transformations
-        # self.Mmodal = ((ModMat.T).dot(self.M)).dot(ModMat)
-        # self.Cmodal = ((ModMat.T).dot(self.C)).dot(ModMat)
-        # self.Gmodal = ((ModMat.T).dot(self.G)).dot(ModMat)
-        # self.Kmodal = ((ModMat.T).dot(self.K)).dot(ModMat)
-        # self.Ksdtmodal = ((ModMat.T).dot(self.Ksdt)).dot(ModMat)
+        _, yout, _ = self.rotor.time_response(
+            speed=self.Omega,
+            F=FFunb.T,
+            t=t,
+            method="newmark",
+            add_to_RHS=crack_force,
+            # num_modes=12,
+            # **kwargs,
+        )
 
-        # self.inv_Mmodal = np.linalg.pinv(self.Mmodal)
-
-        # x = Integrator(
-        #     self.tI,
-        #     y0,
-        #     self.tF,
-        #     self.dt,
-        #     self._equation_of_movement,
-        #     self.print_progress,
-        # )
-        # x = x.rk45()
-
-        # self.displacement = x[:12, :]
-        # self.velocity = x[12:, :]
-        # self.response = self.ModMat.dot(self.displacement)
-        self.time_vector = t_eval
-
-        # crack_force = lambda step, **state: self._force_in_time(
-        #     step, state.get("disp_resp")
-        # )
-
-        # _, yout, _ = self.rotor.time_response(
-        #     speed=self.Omega,
-        #     F=FFunb.T,
-        #     t=self.time_vector,
-        #     method="newmark",
-        #     add_to_RHS=crack_force,
-        #     # num_modes=24,
-        # )  # , **kwargs)
-        # self.response = yout.T
-
-        def rotor_system(step, **curr_state):
-            disp_resp = curr_state.get("y")
-
-            K_crack = self._crack(self.angular_position[step])
-            dofs = self.dof_crack
-
-            F_crack = np.zeros(self.ndof)
-            K1 = copy(self.K)
-
-            F_crack[dofs] = (self.KK - K_crack) @ disp_resp[dofs]
-            self.forces[:, step] = F_crack
-            # K1[np.ix_(dofs, dofs)] -= (self.KK - K_crack)
-
-            return (
-                self.M,
-                self.C + self.G * self.Omega[step],
-                K1 + self.Ksdt * self.AccelV[step],
-                FFunb[:, step] + F_crack,
-            )
-
-        yout = newmark(rotor_system, self.time_vector, len(self.M))
         self.response = yout.T
 
     def _force_in_time(self, step, disp_resp):
-        K_crack = self._crack(self.angular_position[step])
+        K_cracked = self._crack(self.angular_position[step])
 
         F_crack = np.zeros(self.ndof)
-        F_crack[self.dof_crack] = (self.KK - K_crack) @ disp_resp[self.dof_crack]
+        F_crack[self.dof_crack] = (self.KK - K_cracked) @ disp_resp[self.dof_crack]
         self.forces[:, step] = F_crack
 
         return F_crack
-
-    def _equation_of_movement(self, T, Y, i):
-        """Calculates the displacement and velocity using state-space representation in the modal domain.
-
-        Parameters
-        ----------
-        T : float
-            Iteration time.
-        Y : array
-            Array of displacement and velocity, in the modal domain.
-        i : int
-            Iteration step.
-
-        Returns
-        -------
-        new_Y :  array
-            Array of the new displacement and velocity, in the modal domain.
-        """
-
-        positions = Y[:12]
-        velocity = Y[12:]  # velocity in space state
-
-        positionsFis = self.ModMat.dot(positions)
-
-        KK_crack = self._crack(self.angular_position[i])
-
-        ft = np.zeros(self.ndof)
-        ft[self.dof_crack] = (self.KK - KK_crack) @ positionsFis[self.dof_crack]
-        self.forces[:, i] = ft
-        ftmodal = (self.ModMat.T).dot(ft)
-
-        # equation of movement to be integrated in time
-        new_V_dot = (
-            ftmodal
-            + self.Funbmodal[:, i]
-            - (self.Cmodal + self.Gmodal * self.Omega[i]).dot(velocity)
-            - ((self.Kmodal + self.Ksdtmodal * self.AccelV[i]).dot(positions))
-        ).dot(self.inv_Mmodal)
-
-        new_X_dot = velocity
-
-        new_Y = np.zeros(24)
-        new_Y[:12] = new_X_dot
-        new_Y[12:] = new_V_dot
-
-        return new_Y
 
     def _crack(self, ap):
         """Reaction forces of cracked element
@@ -403,6 +286,8 @@ class Crack(Fault):
             Excitation force caused by the parallel misalignment on the entire system.
         """
 
+        kee, knn = self.crack_model(ap)
+
         self.T_matrix = np.array(
             [
                 [np.cos(ap), np.sin(ap)],
@@ -410,47 +295,40 @@ class Crack(Fault):
             ]
         )
 
-        K = self.crack_model(ap)
-
-        k11 = K[0, 0]
-        k12 = K[0, 1]
-        k22 = K[1, 1]
+        Kmodel = self.T_matrix.T @ np.array([[kee, 0], [0, knn]]) @ self.T_matrix
 
         # Stiffness matrix of the cracked element
-        Toxy = np.array([[-1, 0], [self.L, -1], [1, 0], [0, 1]])  # OXY
+        Toxy = np.array([[-1, 0], [self.L, -1], [1, 0], [0, 1]])
+        Toyz = np.array([[-1, 0], [-self.L, -1], [1, 0], [0, 1]])
 
         kxy = np.array(
-            [[self.Kele[0, 0], self.Kele[0, 3]], [self.Kele[3, 0], self.Kele[3, 3]]]
+            [[Kmodel[0, 0], self.Kele[0, 3]], [self.Kele[3, 0], self.Kele[3, 3]]]
         )
-
-        kxy[0, 0] = k11
-        Koxy = ((Toxy).dot(kxy)).dot(Toxy.T)
-
-        Toyz = np.array([[-1, 0], [-self.L, -1], [1, 0], [0, 1]])  # OYZ
+        Koxy = Toxy @ kxy @ Toxy.T
 
         kyz = np.array(
-            [[self.Kele[1, 1], self.Kele[1, 2]], [self.Kele[2, 1], self.Kele[2, 2]]]
+            [[Kmodel[1, 1], self.Kele[1, 2]], [self.Kele[2, 1], self.Kele[2, 2]]]
         )
-
-        kyz[0, 0] = k22
-        Koyz = ((Toyz).dot(kyz)).dot(Toyz.T)
+        Koyz = Toyz @ kyz @ Toyz.T
 
         # fmt: off
-        KK_crack = np.array([[Koxy[0,0]	,0           ,0         ,0	        ,Koxy[0,1]	,0	        ,Koxy[0,2]	        ,0                  ,0      ,0                  ,Koxy[0,3]	,0],
-                             [0	        ,Koyz[0,0]   ,0         ,Koyz[0,1]	,0          ,0          ,0                  ,Koyz[0,2]	        ,0      ,Koyz[0,3]	        ,0          ,0],
-                             [0	        ,0	         ,0         ,0	        ,0          ,0          ,0                  ,0                  ,0      ,0                  ,0          ,0],
-                             [0	        ,Koyz[1,0]	 ,0         ,Koyz[1,1]  ,0          ,0          ,0                  ,Koyz[1,2]          ,0      ,Koyz[1,3]          ,0          ,0],
-                             [Koxy[1,0]	,0           ,0         ,0	        ,Koxy[1,1]  ,0          ,Koxy[1,2]          ,0                  ,0      ,0                  ,Koxy[1,3]  ,0],
-                             [0	        ,0           ,0         ,0	        ,0	        ,0          ,0                  ,0                  ,0      ,0                  ,0	        ,0],
-                             [Koxy[2,0]	,0           ,0         ,0	        ,Koxy[2,1]	,0          ,Koxy[2,2]          ,0                  ,0      ,0                  ,Koxy[2,3]	,0],
-                             [0	        ,Koyz[2,0]   ,0         ,Koyz[2,1]	,0 ,         0          ,0                  ,Koyz[2,2]          ,0      ,Koyz[2,3]          ,0          ,0],
-                             [0	        ,0	         ,0         ,0	        ,0 ,         0          ,0                  ,0                  ,0      ,0                  ,0          ,0],
-                             [0	        ,Koyz[3,0]	 ,0         ,Koyz[3,1]	,0 ,         0          ,0                  ,Koyz[3,2]          ,0      ,Koyz[3,3]          ,0          ,0],
-                             [Koxy[3,0]	,0           ,0         , 0	        ,Koxy[3,1]  ,0          ,Koxy[3,2]          ,0                  ,0      ,0                  ,Koxy[3,3]  ,0],
-                             [0	        ,0           ,0         , 0	        ,0	        ,0          ,0                  ,0                  ,0      ,0                  ,0	        ,0]])
+        K_cracked = np.array([
+            [Koxy[0,0], 0        , 0   , 0	      , Koxy[0,1], 0   , Koxy[0,2], 0        , 0   , 0        , Koxy[0,3], 0   ],
+            [0	      , Koyz[0,0], 0   , Koyz[0,1], 0        , 0   , 0        , Koyz[0,2], 0   , Koyz[0,3], 0        , 0   ],
+            [0	      , 0	     , 0   , 0	      , 0        , 0   , 0        , 0        , 0   , 0        , 0        , 0   ],
+            [0	      , Koyz[1,0], 0   , Koyz[1,1], 0        , 0   , 0        , Koyz[1,2], 0   , Koyz[1,3], 0        , 0   ],
+            [Koxy[1,0], 0        , 0   , 0	      , Koxy[1,1], 0   , Koxy[1,2], 0        , 0   , 0        , Koxy[1,3], 0   ],
+            [0	      , 0        , 0   , 0	      , 0        , 0   , 0        , 0        , 0   , 0        , 0	     , 0   ],
+            [Koxy[2,0], 0        , 0   , 0	      , Koxy[2,1], 0   , Koxy[2,2], 0        , 0   , 0        , Koxy[2,3], 0   ],
+            [0	      , Koyz[2,0], 0   , Koyz[2,1], 0        , 0   , 0        , Koyz[2,2], 0   , Koyz[2,3], 0        , 0   ],
+            [0	      , 0	     , 0   , 0	      , 0        , 0   , 0        , 0        , 0   , 0        , 0        , 0   ],
+            [0	      , Koyz[3,0], 0   , Koyz[3,1], 0        , 0   , 0        , Koyz[3,2], 0   , Koyz[3,3], 0        , 0   ],
+            [Koxy[3,0], 0        , 0   , 0	      , Koxy[3,1], 0   , Koxy[3,2], 0        , 0   , 0        , Koxy[3,3], 0   ],
+            [0	      , 0        , 0   , 0	      , 0	     , 0   , 0        , 0        , 0   , 0        , 0        , 0   ]
+        ])
         # fmt: on
 
-        return KK_crack
+        return K_cracked
 
     def _gasch(self, ap):
         """Stiffness matrix of the cracked element according to the Gasch model.
@@ -480,11 +358,7 @@ class Crack(Fault):
         kee = kme + (4 / np.pi) * kde * cosine_sum
         knn = kmn + (4 / np.pi) * kdn * cosine_sum
 
-        aux = np.array([[kee, 0], [0, knn]])
-
-        K = ((self.T_matrix.T).dot(aux)).dot(self.T_matrix)
-
-        return K
+        return kee, knn
 
     def _mayes(self, ap):
         """Stiffness matrix of the cracked element according to the Mayes model.
@@ -499,17 +373,12 @@ class Crack(Fault):
         K : np.ndarray
             Stiffness matrix of cracked element.
         """
+
         # Mayes
-
         kee = 0.5 * (self.ko + self.kcx) + 0.5 * (self.ko - self.kcx) * np.cos(ap)
-
         knn = 0.5 * (self.ko + self.kcz) + 0.5 * (self.ko - self.kcz) * np.cos(ap)
 
-        aux = np.array([[kee, 0], [0, knn]])
-
-        K = ((self.T_matrix.T).dot(aux)).dot(self.T_matrix)
-
-        return K
+        return kee, knn
 
     def _get_coefs(self, coef):
         """Terms os the compliance matrix.
