@@ -22,32 +22,16 @@ class Crack(Fault):
 
     Parameters
     ----------
-    dt : float
-        Time step
-    tI : float
-        Initial time
-    tF : float
-        Final time
+    rotor :
+
+    n_crack : float
+        Element number where the crack is located.
     depth_ratio : float
         Crack depth ratio related to the diameter of the crack container element. A depth value of 0.1 is equal to 10%,
         0.2 equal to 20%, and so on. This parameter is restricted to up to 50% within the implemented approach,
         as discussed in :cite `papadopoulos2004some`.
-    n_crack : float
-        Element where the crack is located
-    speed : float, pint.Quantity
-        Operational speed of the machine. Default unit is rad/s.
-    unbalance_magnitude : array
-        Array with the unbalance magnitude. The unit is kg.m.
-    unbalance_phase : array
-        Array with the unbalance phase. The unit is rad.
     crack_type : string
         String containing type of crack model chosed. The avaible types are: Mayes and Gasch.
-    print_progress : bool
-        Set it True, to print the time iterations and the total time spent, by default False.
-
-    Returns
-    -------
-    A force to be applied on the shaft.
 
     References
     ----------
@@ -70,27 +54,12 @@ class Crack(Fault):
     def __init__(
         self,
         rotor,
-        dt,
-        tI,
-        tF,
-        depth_ratio,
         n_crack,
-        speed,
-        unbalance_magnitude,
-        unbalance_phase,
-        crack_type="Mayes",
-        print_progress=False,
+        depth_ratio,
+        crack_model="Mayes",
     ):
-        self.dt = dt
-        self.tI = tI
-        self.tF = tF
+        self.rotor = rotor
         self.n_crack = n_crack
-        self.speed = speed
-        self.speedI = speed
-        self.speedF = speed
-        self.unbalance_magnitude = unbalance_magnitude
-        self.unbalance_phase = unbalance_phase
-        self.print_progress = print_progress
 
         if depth_ratio <= 0.5:
             self.depth_ratio = depth_ratio
@@ -103,23 +72,17 @@ class Crack(Fault):
                 """
             )
 
-        if crack_type is None or crack_type == "Mayes":
-            self.crack_model = self._mayes
-        elif crack_type == "Gasch":
-            self.crack_model = self._gasch
+        if crack_model is None or crack_model == "Mayes":
+            self._crack_model = self.mayes
+        elif crack_model == "Gasch":
+            self._crack_model = self.gasch
         else:
             raise Exception("Check the crack model!")
-
-        if len(self.unbalance_magnitude) != len(self.unbalance_phase):
-            raise Exception(
-                "The unbalance magnitude vector and phase must have the same size!"
-            )
 
         dir_path = Path(__file__).parents[0] / "data/PAPADOPOULOS.csv"
         self.coefficient_data = pd.read_csv(dir_path)
 
-        self.rotor = rotor
-
+        # Cracked shaft element
         self.shaft_element = [
             elm for elm in rotor.shaft_elements if elm.n == self.n_crack
         ][0]
@@ -159,93 +122,28 @@ class Crack(Fault):
         self.Ko = np.linalg.pinv(Co)
         self.Kc = np.linalg.pinv(Cc)
 
-    def run(self):
-        """Calculates the shaft angular position and the unbalance forces at X / Y directions."""
+    def _get_coefficient(self, coeff):
+        """Terms os the compliance matrix.
 
-        #####################
+        Paramenters
+        -----------
+        coeff : string
+            Name of the coefficient according to the corresponding direction.
 
-        self.n_disk = len(self.rotor.disk_elements)
-        if self.n_disk != len(self.unbalance_magnitude):
-            raise Exception("The number of discs and unbalances must agree!")
+        Returns
+        -------
+        c : np.ndarray
+            Compliance coefficient according to the crack depth.
+        """
 
-        self.ndofd = np.zeros(len(self.rotor.disk_elements))
-        for ii in range(self.n_disk):
-            self.ndofd[ii] = (self.rotor.disk_elements[ii].n) * 6
+        Poisson = self.shaft_element.material.Poisson
+        E = self.shaft_element.material.E
+        radius = self.shaft_element.odl / 2
 
-        # parameters for the time integration
-        self.lambdat = 0.00001
+        c = np.array(pd.eval(self.coefficient_data[coeff]))
+        ind = np.where(c[:, 1] >= self.depth_ratio * 2)[0]
 
-        # pre-processing of auxilary variuables for the time integration
-        self.sA = (
-            self.speedI * np.exp(-self.lambdat * self.tF)
-            - self.speedF * np.exp(-self.lambdat * self.tI)
-        ) / (np.exp(-self.lambdat * self.tF) - np.exp(-self.lambdat * self.tI))
-        self.sB = (self.speedF - self.speedI) / (
-            np.exp(-self.lambdat * self.tF) - np.exp(-self.lambdat * self.tI)
-        )
-
-        t = np.arange(self.tI, self.tF + self.dt, self.dt)
-
-        self.angular_position = (
-            self.sA * t
-            - (self.sB / self.lambdat) * np.exp(-self.lambdat * t)
-            + (self.sB / self.lambdat)
-        )
-
-        self.Omega = self.sA + self.sB * np.exp(-self.lambdat * t)
-        self.AccelV = -self.lambdat * self.sB * np.exp(-self.lambdat * t)
-
-        self.tetaUNB = np.zeros((len(self.unbalance_phase), len(self.angular_position)))
-        unbx = np.zeros(len(self.angular_position))
-        unby = np.zeros(len(self.angular_position))
-
-        FFunb = np.zeros((self.rotor.ndof, len(t)))
-        self.forces = np.zeros((self.rotor.ndof, len(t)))
-
-        # Unbalance force
-        for ii in range(self.n_disk):
-            self.tetaUNB[ii, :] = (
-                self.angular_position + self.unbalance_phase[ii] + np.pi / 2
-            )
-
-            unbx = self.unbalance_magnitude[ii] * (self.AccelV) * (
-                np.cos(self.tetaUNB[ii, :])
-            ) - self.unbalance_magnitude[ii] * (self.Omega**2) * (
-                np.sin(self.tetaUNB[ii, :])
-            )
-
-            unby = -self.unbalance_magnitude[ii] * (self.AccelV) * (
-                np.sin(self.tetaUNB[ii, :])
-            ) - self.unbalance_magnitude[ii] * (self.Omega**2) * (
-                np.cos(self.tetaUNB[ii, :])
-            )
-
-            FFunb[int(self.ndofd[ii]), :] += unbx
-            FFunb[int(self.ndofd[ii] + 1), :] += unby
-
-        # Weight force
-        g = np.zeros(self.rotor.ndof)
-        g[1::6] = -9.81
-        M = self.rotor.M()
-
-        for i in range(FFunb.shape[1]):
-            FFunb[:, i] += M @ g
-
-        crack_force = lambda step, **state: self._force_in_time(
-            step, state.get("disp_resp")
-        )
-
-        results = self.rotor.run_time_response(
-            speed=self.Omega,
-            F=FFunb.T,
-            t=t,
-            method="newmark",
-            add_to_RHS=crack_force,
-            # num_modes=12,
-            # **kwargs,
-        )
-
-        return results
+        return c[ind[0], 0] * (1 - Poisson**2) / (E * radius**3)
 
     def _force_in_time(self, step, disp_resp):
         K_crack = self._cracked_element_stiffness(self.angular_position[step])
@@ -267,7 +165,7 @@ class Crack(Fault):
 
         L = self.shaft_element.L
 
-        Kmodel = self.crack_model(ap)
+        Kmodel = self._crack_model(ap)
 
         Toxy = np.array([[-1, 0], [-L, -1], [1, 0], [0, 1]])
         kxy = np.array([[Kmodel[0, 0], self.Ko[0, 3]], [self.Ko[3, 0], self.Ko[3, 3]]])
@@ -296,7 +194,7 @@ class Crack(Fault):
 
         return K
 
-    def _gasch(self, ap):
+    def gasch(self, ap):
         """Stiffness matrix of the shaft element with crack in rotating coordinates
         according to the Gasch model.
 
@@ -340,7 +238,7 @@ class Crack(Fault):
 
         return K
 
-    def _mayes(self, ap):
+    def mayes(self, ap):
         """Stiffness matrix of the shaft element with crack in rotating coordinates
         according to the Mayes model.
 
@@ -374,28 +272,105 @@ class Crack(Fault):
 
         return K
 
-    def _get_coefficient(self, coeff):
-        """Terms os the compliance matrix.
+    def run(self, node, unbalance_magnitude, unbalance_phase, speed, t, **kwargs):
+        """Calculates the shaft angular position and the unbalance forces at X / Y directions."""
 
-        Paramenters
-        -----------
-        coeff : string
-            Name of the coefficient according to the corresponding direction.
+        #####################
+        t0 = t[0]
+        tf = t[-1]
 
-        Returns
-        -------
-        c : np.ndarray
-            Compliance coefficient according to the crack depth.
-        """
+        speed_is_array = isinstance(speed, (list, tuple, np.ndarray))
 
-        Poisson = self.shaft_element.material.Poisson
-        E = self.shaft_element.material.E
-        radius = self.shaft_element.odl / 2
+        if speed_is_array:
+            speed_0 = speed[0]
+            speed_f = speed[-1]
+        else:
+            speed_0 = speed
+            speed_f = speed
 
-        c = np.array(pd.eval(self.coefficient_data[coeff]))
-        ind = np.where(c[:, 1] >= self.depth_ratio * 2)[0]
+        if len(unbalance_magnitude) != len(unbalance_phase):
+            raise Exception(
+                "The unbalance magnitude vector and phase must have the same size!"
+            )
 
-        return c[ind[0], 0] * (1 - Poisson**2) / (E * radius**3)
+        self.n_disk = len(self.rotor.disk_elements)
+        if self.n_disk != len(unbalance_magnitude):
+            raise Exception("The number of discs and unbalances must agree!")
+
+        self.ndofd = np.zeros(len(self.rotor.disk_elements))
+        for ii in range(self.n_disk):
+            self.ndofd[ii] = (self.rotor.disk_elements[ii].n) * 6
+
+        # parameters for the time integration
+        self.lambdat = 0.00001
+
+        # pre-processing of auxilary variuables for the time integration
+        self.sA = (
+            speed_0 * np.exp(-self.lambdat * tf) - speed_f * np.exp(-self.lambdat * t0)
+        ) / (np.exp(-self.lambdat * tf) - np.exp(-self.lambdat * t0))
+        self.sB = (speed_f - speed_0) / (
+            np.exp(-self.lambdat * tf) - np.exp(-self.lambdat * t0)
+        )
+
+        self.angular_position = (
+            self.sA * t
+            - (self.sB / self.lambdat) * np.exp(-self.lambdat * t)
+            + (self.sB / self.lambdat)
+        )
+
+        self.Omega = self.sA + self.sB * np.exp(-self.lambdat * t)
+        self.AccelV = -self.lambdat * self.sB * np.exp(-self.lambdat * t)
+
+        self.tetaUNB = np.zeros((len(unbalance_phase), len(self.angular_position)))
+        unbx = np.zeros(len(self.angular_position))
+        unby = np.zeros(len(self.angular_position))
+
+        FFunb = np.zeros((self.rotor.ndof, len(t)))
+        self.forces = np.zeros((self.rotor.ndof, len(t)))
+
+        # Unbalance force
+        for ii in range(self.n_disk):
+            self.tetaUNB[ii, :] = (
+                self.angular_position + unbalance_phase[ii] + np.pi / 2
+            )
+
+            unbx = unbalance_magnitude[ii] * (self.AccelV) * (
+                np.cos(self.tetaUNB[ii, :])
+            ) - unbalance_magnitude[ii] * (self.Omega**2) * (
+                np.sin(self.tetaUNB[ii, :])
+            )
+
+            unby = -unbalance_magnitude[ii] * (self.AccelV) * (
+                np.sin(self.tetaUNB[ii, :])
+            ) - unbalance_magnitude[ii] * (self.Omega**2) * (
+                np.cos(self.tetaUNB[ii, :])
+            )
+
+            FFunb[int(self.ndofd[ii]), :] += unbx
+            FFunb[int(self.ndofd[ii] + 1), :] += unby
+
+        # Weight force
+        g = np.zeros(self.rotor.ndof)
+        g[1::6] = -9.81
+        M = self.rotor.M()
+
+        for i in range(FFunb.shape[1]):
+            FFunb[:, i] += M @ g
+
+        force_crack = lambda step, **state: self._force_in_time(
+            step, state.get("disp_resp")
+        )
+
+        results = self.rotor.run_time_response(
+            speed=self.Omega,
+            F=FFunb.T,
+            t=t,
+            method="newmark",
+            add_to_RHS=force_crack,
+            **kwargs,
+        )
+
+        return results
 
 
 def crack_example():

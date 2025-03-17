@@ -3175,38 +3175,62 @@ class Rotor(object):
         >>> fig = response.plot_dfft(probe=[probe1, probe2], range_freq=[0, 100], yaxis_type="log")
         >>> # fig.show()
         """
-
         fault = Rubbing(**kwargs)
         fault.run(self)
         return fault
 
-    def run_crack(self, **kwargs):
-        """Run an analyzes with rubbing.
+    @check_units
+    def run_crack(
+        self,
+        n_crack,
+        depth_ratio,
+        node,
+        unbalance_magnitude,
+        unbalance_phase,
+        speed,
+        t,
+        crack_model="Mayes",
+        **kwargs,
+    ):
+        """Run an analysis for the rotor system with crack.
 
-        Execute the crack fault and generates the crack object on the back-end.
+        Instantiate crack object and simulate system time response.
 
         Parameters
         ----------
-        dt : float
-            Time step
-        tI : float
-            Initial time
-        tF : float
-            Final time
-        depth_ratio : float
-            Crack depth ratio related to the diameter of the crack container element. A depth value of 0.1 is equal to 10%, 0.2 equal to 20%, and so on.
         n_crack : float
-            Element where the crack is located
-        speed : float, pint.Quantity
-            Operational speed of the machine. Default unit is rad/s.
+            Element number where the crack is located.
+        depth_ratio : float
+            Crack depth ratio related to the diameter of the crack container element.
+            A depth value of 0.1 is equal to 10%, 0.2 equal to 20%, and so on.
+        node : list, int
+            Node where the unbalance is applied.
         unbalance_magnitude : array
             Array with the unbalance magnitude. The unit is kg.m.
         unbalance_phase : array
             Array with the unbalance phase. The unit is rad.
-        crack_type : string
+        speed : float or array_like, pint.Quantity
+            Rotor speed.
+        F : array
+            Force array (needs to have the same number of rows as time array).
+            Each column corresponds to a dof and each row to a time.
+        t : array
+            Time array.
+        crack_model : string, optional
             String containing type of crack model chosed. The avaible types are: Mayes and Gasch.
-        print_progress : bool
-            Set it True, to print the time iterations and the total time spent, by default False.
+        **kwargs : optional
+            Additional keyword arguments can be passed to define the parameters
+            of the Newmark method if it is used (e.g. gamma, beta, tol, ...).
+            See `ross.utils.newmark` for more details.
+            Other keyword arguments can also be passed to be used in numerical
+            integration (e.g. num_modes).
+            See `Rotor.integrate_system` for more details.
+
+        Returns
+        -------
+        results : ross.TimeResponseResults
+            For more information on attributes and methods available see:
+            :py:class:`ross.TimeResponseResults`
 
         Examples
         --------
@@ -3219,8 +3243,12 @@ class Rotor(object):
         >>> fig = response.plot_dfft(probe=[probe1, probe2], range_freq=[0, 100], yaxis_type="log")
         >>> # fig.show()
         """
-        fault = Crack(self, **kwargs)
-        results = fault.run()
+        fault = Crack(self, n_crack, depth_ratio, crack_model)
+
+        results = fault.run(
+            node, unbalance_magnitude, unbalance_phase, speed, t, **kwargs
+        )
+
         return results
 
     def save_mat(self, file, speed, frequency=None):
