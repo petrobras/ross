@@ -12,7 +12,7 @@ from scipy import linalg as la
 import ross as rs
 from ross.units import Q_, check_units
 
-from .abs_fault import Fault
+from .fault import Fault
 from .integrate_solver import Integrator
 
 __all__ = ["MisalignmentFlex", "MisalignmentRigid"]
