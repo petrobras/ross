@@ -17,6 +17,7 @@ from scipy import linalg as la
 from scipy import signal as signal
 from scipy.optimize import newton
 from scipy.sparse import linalg as las
+from scipy.integrate import cumulative_trapezoid as integrate
 
 from ross.bearing_seal_element import (
     BallBearingElement,
@@ -2039,6 +2040,31 @@ class Rotor(object):
 
         return F0
 
+    def _unbalance_force_in_time(self, node, magnitude, phase, omega, t):
+        try:  # omega varies with time
+            angle = integrate(omega, t, initial=0)
+            accel = np.gradient(omega, t)
+        except:  # omega is constant
+            angle = omega * t
+            accel = 0
+
+        F0 = np.zeros((self.ndof, len(t)))
+
+        for i, n in enumerate(node):
+            theta = phase[i] + angle
+
+            Fx = magnitude[i] * (omega**2) * np.cos(theta) + magnitude[
+                i
+            ] * accel * np.sin(theta)
+            Fy = magnitude[i] * (omega**2) * np.sin(theta) - magnitude[
+                i
+            ] * accel * np.cos(theta)
+
+            F0[n * self.number_dof + 0, :] += Fx
+            F0[n * self.number_dof + 1, :] += Fy
+
+        return F0
+
     @check_units
     def run_unbalance_response(
         self,
@@ -3192,9 +3218,9 @@ class Rotor(object):
         crack_model="Mayes",
         **kwargs,
     ):
-        """Run an analysis for the rotor system with crack.
+        """Run analysis for the rotor system with crack given an unbalance force.
 
-        Instantiate crack object and simulate system time response.
+        Crack object is instantiated and system time response is simulated.
 
         Parameters
         ----------
@@ -3205,10 +3231,10 @@ class Rotor(object):
             A depth value of 0.1 is equal to 10%, 0.2 equal to 20%, and so on.
         node : list, int
             Node where the unbalance is applied.
-        unbalance_magnitude : array
-            Array with the unbalance magnitude. The unit is kg.m.
-        unbalance_phase : array
-            Array with the unbalance phase. The unit is rad.
+        unbalance_magnitude : list, float
+            Unbalance magnitude (kg.m).
+        unbalance_phase : list, float
+            Unbalance phase (rad).
         speed : float or array_like, pint.Quantity
             Rotor speed.
         F : array
@@ -3234,14 +3260,6 @@ class Rotor(object):
 
         Examples
         --------
-        >>> from ross.probe import Probe
-        >>> from ross.faults.crack import crack_example
-        >>> probe1 = Probe(14, 0)
-        >>> probe2 = Probe(22, 0)
-        >>> response = crack_example()
-        >>> results = response.run_time_response()
-        >>> fig = response.plot_dfft(probe=[probe1, probe2], range_freq=[0, 100], yaxis_type="log")
-        >>> # fig.show()
         """
         fault = Crack(self, n_crack, depth_ratio, crack_model)
 
