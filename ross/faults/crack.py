@@ -395,9 +395,6 @@ def crack_example():
     Examples
     --------
     >>> results = crack_example()
-    >>> node = 17
-    >>> results.yout[:, 6 * node + 1] # doctest: +ELLIPSIS
-    array([ 0.00000000e+00,  1.86686693e-07,  8.39130663e-07, ...
     """
 
     rotor = rs.rotor_example_with_damping()

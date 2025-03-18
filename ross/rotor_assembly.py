@@ -3260,6 +3260,19 @@ class Rotor(object):
 
         Examples
         --------
+        >>> rotor = rotor_example_with_damping()
+        >>> n1 = rotor.disk_elements[0].n
+        >>> n2 = rotor.disk_elements[1].n
+        >>> results = rotor.run_crack(
+        ...    n_crack=18,
+        ...    depth_ratio=0.2,
+        ...    node=[n1, n2],
+        ...    unbalance_magnitude=[5e-4, 0],
+        ...    unbalance_phase=[-np.pi / 2, 0],
+        ...    crack_model="Mayes",
+        ...    speed=Q_(1200, "RPM"),
+        ...    t=np.arange(0, 0.5, 0.0001),
+        ... )
         """
         fault = Crack(self, n_crack, depth_ratio, crack_model)
 
