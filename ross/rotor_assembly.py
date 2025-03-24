@@ -3157,61 +3157,93 @@ class Rotor(object):
     @check_units
     def run_rubbing(
         self,
+        n_rub,
+        delta_rub,
+        contact_stiffness,
+        contact_damping,
+        friction_coeff,
         node,
         unbalance_magnitude,
         unbalance_phase,
         speed,
         t,
+        torque=False,
         **kwargs,
     ):
-        """Run an analyzes with rubbing.
+        """Run analysis for the rotor system with rubbing given an unbalance force.
 
-        Execute the rubbing fault and generates the rubbing object on the back-end.
+        Rubbing object is instantiated and system time response is simulated.
 
         Parameters
         ----------
-        **kwargs: dictionary
+        n_rub : int
+            Number of shaft element where rubbing is ocurring.
+        delta_rub : float
+            Distance between the housing and shaft surface.
+        contact_stiffness : float
+            Contact stiffness.
+        contact_damping : float
+            Contact damping.
+        friction_coeff : float
+            Friction coefficient.
+        node : list, int
+            Node where the unbalance is applied.
+        unbalance_magnitude : list, float
+            Unbalance magnitude (kg.m).
+        unbalance_phase : list, float
+            Unbalance phase (rad).
+        speed : float or array_like, pint.Quantity
+            Rotor speed.
+        F : array
+            Force array (needs to have the same number of rows as time array).
+            Each column corresponds to a dof and each row to a time.
+        t : array
+            Time array.
+        torque : bool, optional
+            If True a torque is considered by rubbing.
+            Default is False.
+        **kwargs : optional
+            Additional keyword arguments can be passed to define the parameters
+            of the Newmark method if it is used (e.g. gamma, beta, tol, ...).
+            See `ross.utils.newmark` for more details.
+            Other keyword arguments can also be passed to be used in numerical
+            integration (e.g. num_modes).
+            See `Rotor.integrate_system` for more details.
 
-            **kwargs receives:
-                dt : float
-                    Time step.
-                tI : float
-                    Initial time.
-                tF : float
-                    Final time.
-                deltaRUB : float
-                    Distance between the housing and shaft surface.
-                kRUB : float
-                    Contact stiffness.
-                cRUB : float
-                    Contact damping.
-                miRUB : float
-                    Friction coefficient.
-                posRUB : int
-                    Node where the rubbing is ocurring.
-                speed : float, pint.Quantity
-                    Operational speed of the machine. Default unit is rad/s.
-                unbalance_magnitude : array
-                    Array with the unbalance magnitude. The unit is kg.m.
-                unbalance_phase : array
-                    Array with the unbalance phase. The unit is rad.
-                torque : bool
-                    Set it as True to consider the torque provided by the rubbing, by default False.
-                print_progress : bool
-                    Set it True, to print the time iterations and the total time spent, by default False.
+        Returns
+        -------
+        results : ross.TimeResponseResults
+            For more information on attributes and methods available see:
+            :py:class:`ross.TimeResponseResults`
 
         Examples
         --------
-        >>> from ross.probe import Probe
-        >>> from ross.faults.rubbing import rubbing_example
-        >>> probe1 = Probe(14, 0)
-        >>> probe2 = Probe(22, 0)
-        >>> response = rubbing_example()
-        >>> results = response.run_time_response()
-        >>> fig = response.plot_dfft(probe=[probe1, probe2], range_freq=[0, 100], yaxis_type="log")
-        >>> # fig.show()
+        >>> rotor = rotor_example_with_damping()
+        >>> n1 = rotor.disk_elements[0].n
+        >>> n2 = rotor.disk_elements[1].n
+        >>> results = rotor.run_crack(
+        ...    n_rub=12,
+        ...    contact_stiffness=1.1e6,
+        ...    contact_damping=40,
+        ...    friction_coeff=0.3,
+        ...    torque=False,
+        ...    node=[n1, n2],
+        ...    unbalance_magnitude=[5e-4, 0],
+        ...    unbalance_phase=[-np.pi / 2, 0],
+        ...    crack_model="Mayes",
+        ...    speed=Q_(1200, "RPM"),
+        ...    t=np.arange(0, 0.5, 0.0001),
+        ... )
         """
-        fault = Rubbing(self, **kwargs)
+        fault = Rubbing(
+            self,
+            n_rub,
+            delta_rub,
+            contact_stiffness,
+            contact_damping,
+            friction_coeff,
+            torque=torque,
+        )
 
         results = fault.run(
             node, unbalance_magnitude, unbalance_phase, speed, t, **kwargs
@@ -3258,6 +3290,7 @@ class Rotor(object):
             Time array.
         crack_model : string, optional
             String containing type of crack model chosed. The avaible types are: Mayes and Gasch.
+            Default is "Mayes".
         **kwargs : optional
             Additional keyword arguments can be passed to define the parameters
             of the Newmark method if it is used (e.g. gamma, beta, tol, ...).

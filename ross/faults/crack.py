@@ -15,12 +15,11 @@ __all__ = [
 
 
 class Crack(Fault):
-    """Models a crack based on Linear Fracture Mechanics in a given shaft element
+    """Models a crack based on Linear Fracture Mechanics on a given shaft element
     of a rotor system.
 
     Contains a :cite:`gasch1993survey` and :cite:`mayes1984analysis` transversal
-    crack models for applications on finite element models of rotative machinery.
-    The reference coordenate system is:
+    crack models. The reference coordenate system is:
         - x-axis and y-axis in the sensors' planes;
         - z-axis throught the shaft center.
 
@@ -66,7 +65,6 @@ class Crack(Fault):
     >>> rotor = rs.rotor_example_with_damping()
     >>> fault = Crack(rotor, n_crack=18, depth_ratio=0.2, crack_model="Gasch")
     >>> fault.shaft_element
-    ShaftElement()
     """
 
     @check_units
@@ -379,10 +377,12 @@ class Crack(Fault):
 
 
 def crack_example():
-    """Create an example to evaluate the influence of transverse cracks in a rotating shaft.
+    """Create an example to evaluate the influence of transverse cracks in a
+    rotating shaft.
 
-    This function returns time response results of a transversal crack fault. The purpose is
-    to make available a simple example so that a doctest can be written using it.
+    This function returns time response results of a transversal crack fault.
+    The purpose is to make available a simple example so that a doctest can be
+    written using it.
 
     Returns
     -------
