@@ -2041,12 +2041,13 @@ class Rotor(object):
         return F0
 
     def _unbalance_force_in_time(self, node, magnitude, phase, omega, t):
-        try:  # omega varies with time
-            angle = integrate(omega, t, initial=0)
-            accel = np.gradient(omega, t)
-        except:  # omega is constant
-            angle = omega * t
-            accel = 0
+        omega_is_array = isinstance(omega, (list, tuple, np.ndarray))
+
+        if not omega_is_array:
+            omega = np.full_like(t, omega)
+
+        angle = integrate(omega, t, initial=0)
+        accel = np.gradient(omega, t)
 
         F0 = np.zeros((self.ndof, len(t)))
 
@@ -2063,7 +2064,7 @@ class Rotor(object):
             F0[n * self.number_dof + 0, :] += Fx
             F0[n * self.number_dof + 1, :] += Fy
 
-        return F0
+        return F0, angle, omega, accel
 
     @check_units
     def run_unbalance_response(
@@ -3153,7 +3154,16 @@ class Rotor(object):
         fault.run(self)
         return fault
 
-    def run_rubbing(self, **kwargs):
+    @check_units
+    def run_rubbing(
+        self,
+        node,
+        unbalance_magnitude,
+        unbalance_phase,
+        speed,
+        t,
+        **kwargs,
+    ):
         """Run an analyzes with rubbing.
 
         Execute the rubbing fault and generates the rubbing object on the back-end.
@@ -3201,9 +3211,13 @@ class Rotor(object):
         >>> fig = response.plot_dfft(probe=[probe1, probe2], range_freq=[0, 100], yaxis_type="log")
         >>> # fig.show()
         """
-        fault = Rubbing(**kwargs)
-        fault.run(self)
-        return fault
+        fault = Rubbing(self, **kwargs)
+
+        results = fault.run(
+            node, unbalance_magnitude, unbalance_phase, speed, t, **kwargs
+        )
+
+        return results
 
     @check_units
     def run_crack(

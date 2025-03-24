@@ -1,13 +1,9 @@
-import time
-
 import numpy as np
-from scipy import linalg as la
 
 import ross as rs
 from ross.units import Q_, check_units
 
 from .fault import Fault
-from .integrate_solver import Integrator
 
 __all__ = [
     "Rubbing",
@@ -70,265 +66,27 @@ class Rubbing(Fault):
     @check_units
     def __init__(
         self,
-        dt,
-        tI,
-        tF,
+        rotor,
         deltaRUB,
         kRUB,
         cRUB,
         miRUB,
         posRUB,
-        speed,
-        unbalance_magnitude,
-        unbalance_phase,
         torque=False,
-        print_progress=False,
     ):
-        self.dt = dt
-        self.tI = tI
-        self.tF = tF
+        self.rotor = rotor
         self.deltaRUB = deltaRUB
         self.kRUB = kRUB
         self.cRUB = cRUB
         self.miRUB = miRUB
         self.posRUB = posRUB
-        self.speed = speed
-        self.speedI = speed
-        self.speedF = speed
-        self.DoF = np.arange((self.posRUB * 6), (self.posRUB * 6 + 6))
+        self.dof_rubbing = np.arange((self.posRUB * 6), (self.posRUB * 6 + 6))
         self.torque = torque
-        self.unbalance_magnitude = unbalance_magnitude
-        self.unbalance_phase = unbalance_phase
-        self.print_progress = print_progress
 
-        if len(self.unbalance_magnitude) != len(self.unbalance_phase):
-            raise Exception(
-                "The unbalance magnitude vector and phase must have the same size!"
-            )
-
-    def run(self, rotor):
-        """Calculates the shaft angular position and the unbalance forces at X / Y directions.
-
-        Parameters
-        ----------
-        rotor : ross.Rotor Object
-             6 DoF rotor model.
-
-        """
-
-        self.rotor = rotor
-        self.n_disk = len(self.rotor.disk_elements)
-        if self.n_disk != len(self.unbalance_magnitude):
-            raise Exception("The number of discs and unbalances must agree!")
-
-        self.ndof = rotor.ndof
-        self.iteration = 0
-        self.radius = rotor.df_shaft.iloc[self.posRUB].o_d / 2
-        self.ndofd = np.zeros(len(self.rotor.disk_elements))
-
-        for ii in range(self.n_disk):
-            self.ndofd[ii] = (self.rotor.disk_elements[ii].n) * 6
-
-        self.lambdat = 0.00001
-        # Faxial = 0
-        # TorqueI = 0
-        # TorqueF = 0
-
-        self.sA = (
-            self.speedI * np.exp(-self.lambdat * self.tF)
-            - self.speedF * np.exp(-self.lambdat * self.tI)
-        ) / (np.exp(-self.lambdat * self.tF) - np.exp(-self.lambdat * self.tI))
-        self.sB = (self.speedF - self.speedI) / (
-            np.exp(-self.lambdat * self.tF) - np.exp(-self.lambdat * self.tI)
-        )
-
-        # sAT = (
-        #     TorqueI * np.exp(-lambdat * self.tF) - TorqueF * np.exp(-lambdat * self.tI)
-        # ) / (np.exp(-lambdat * self.tF) - np.exp(-lambdat * self.tI))
-        # sBT = (TorqueF - TorqueI) / (
-        #     np.exp(-lambdat * self.tF) - np.exp(-lambdat * self.tI)
-        # )
-
-        # self.SpeedV = sA + sB * np.exp(-lambdat * t)
-        # self.TorqueV = sAT + sBT * np.exp(-lambdat * t)
-        # self.AccelV = -lambdat * sB * np.exp(-lambdat * t)
-
-        # Determining the modal matrix
-        self.K = self.rotor.K(self.speed)
-        self.C = self.rotor.C(self.speed)
-        self.G = self.rotor.G()
-        self.M = self.rotor.M(self.speed)
-        self.Ksdt = self.rotor.Ksdt()
-
-        V1, ModMat = la.eigh(self.K, self.M)
-
-        ModMat = ModMat[:, :12]
-        self.ModMat = ModMat
-
-        # Modal transformations
-        self.Mmodal = ((ModMat.T).dot(self.M)).dot(ModMat)
-        self.Cmodal = ((ModMat.T).dot(self.C)).dot(ModMat)
-        self.Gmodal = ((ModMat.T).dot(self.G)).dot(ModMat)
-        self.Kmodal = ((ModMat.T).dot(self.K)).dot(ModMat)
-        self.Ksdtmodal = ((ModMat.T).dot(self.Ksdt)).dot(ModMat)
-
-        y0 = np.zeros(24)
-        t_eval = np.arange(self.tI, self.tF + self.dt, self.dt)
-        # t_eval = np.arange(self.tI, self.tF, self.dt)
-        T = t_eval
-
-        self.angular_position = (
-            self.sA * T
-            - (self.sB / self.lambdat) * np.exp(-self.lambdat * T)
-            + (self.sB / self.lambdat)
-        )
-
-        self.Omega = self.sA + self.sB * np.exp(-self.lambdat * T)
-        self.AccelV = -self.lambdat * self.sB * np.exp(-self.lambdat * T)
-
-        self.tetaUNB = np.zeros((len(self.unbalance_phase), len(self.angular_position)))
-        unbx = np.zeros(len(self.angular_position))
-        unby = np.zeros(len(self.angular_position))
-
-        FFunb = np.zeros((self.ndof, len(t_eval)))
-        self.forces_rub = np.zeros((self.ndof, len(t_eval)))
-
-        for ii in range(self.n_disk):
-            self.tetaUNB[ii, :] = (
-                self.angular_position + self.unbalance_phase[ii] + np.pi / 2
-            )
-
-            unbx = self.unbalance_magnitude[ii] * (self.AccelV) * (
-                np.cos(self.tetaUNB[ii, :])
-            ) - self.unbalance_magnitude[ii] * (self.Omega**2) * (
-                np.sin(self.tetaUNB[ii, :])
-            )
-
-            unby = -self.unbalance_magnitude[ii] * (self.AccelV) * (
-                np.sin(self.tetaUNB[ii, :])
-            ) - self.unbalance_magnitude[ii] * (self.Omega**2) * (
-                np.cos(self.tetaUNB[ii, :])
-            )
-
-            FFunb[int(self.ndofd[ii]), :] += unbx
-            FFunb[int(self.ndofd[ii] + 1), :] += unby
-
-        self.Funbmodal = (self.ModMat.T).dot(FFunb)
-
-        self.inv_Mmodal = np.linalg.pinv(self.Mmodal)
-        t1 = time.time()
-
-        x = Integrator(
-            self.tI,
-            y0,
-            self.tF,
-            self.dt,
-            self._equation_of_movement,
-            self.print_progress,
-        )
-        x = x.rk4()
-        t2 = time.time()
-        if self.print_progress:
-            print(f"Time spent: {t2-t1} s")
-
-        self.displacement = x[:12, :]
-        self.velocity = x[12:, :]
-        self.time_vector = t_eval
-        self.response = self.ModMat.dot(self.displacement)
-
-    def _equation_of_movement(self, T, Y, i):
-        """Calculates the displacement and velocity using state-space representation in the modal domain.
-
-        Parameters
-        ----------
-        T : float
-            Iteration time.
-        Y : array
-            Array of displacement and velocity, in the modal domain.
-        i : int
-            Iteration step.
-
-        Returns
-        -------
-        new_Y :  array
-            Array of the new displacement and velocity, in the modal domain.
-        """
-
-        positions = Y[:12]
-        velocity = Y[12:]  # velocity in space state
-
-        positionsFis = self.ModMat.dot(positions)
-        velocityFis = self.ModMat.dot(velocity)
-
-        Frub, ft = self._rub(positionsFis, velocityFis, self.Omega[i])
-        self.forces_rub[:, i] = ft
-        ftmodal = (self.ModMat.T).dot(ft)
-
-        # proper equation of movement to be integrated in time
-        new_V_dot = (
-            ftmodal
-            + self.Funbmodal[:, i]
-            - (self.Cmodal + self.Gmodal * self.Omega[i]).dot(velocity)
-            - ((self.Kmodal + self.Ksdtmodal * self.AccelV[i]).dot(positions))
-        ).dot(self.inv_Mmodal)
-
-        new_X_dot = velocity
-
-        new_Y = np.zeros(24)
-        new_Y[:12] = new_X_dot
-        new_Y[12:] = new_V_dot
-
-        return new_Y
-
-    def _rub(self, positionsFis, velocityFis, ang):
-        self.F_k = np.zeros(self.ndof)
-        self.F_c = np.zeros(self.ndof)
-        self.F_f = np.zeros(self.ndof)
-
-        self.y = np.concatenate((positionsFis, velocityFis))
-
-        ii = 0 + 6 * self.posRUB  # rubbing position
-
-        self.radial_displ_node = np.sqrt(
-            self.y[ii] ** 2 + self.y[ii + 1] ** 2
-        )  # radial displacement
-        self.radial_displ_vel_node = np.sqrt(
-            self.y[ii + self.ndof] ** 2 + self.y[ii + 1 + self.ndof] ** 2
-        )  # velocity
-        self.phi_angle = np.arctan2(self.y[ii + 1], self.y[ii])
-
-        if self.radial_displ_node >= self.deltaRUB:
-            self.F_k[ii] = self._stiffness_force(self.y[ii])
-            self.F_k[ii + 1] = self._stiffness_force(self.y[ii + 1])
-            self.F_c[ii] = self._damping_force(self.y[ii + self.ndof])
-            self.F_c[ii + 1] = self._damping_force(self.y[ii + 1 + self.ndof])
-
-            Vt = -self.y[ii + self.ndof + 1] * np.sin(self.phi_angle) + self.y[
-                ii + self.ndof
-            ] * np.cos(self.phi_angle)
-
-            if Vt + ang * self.radius > 0:
-                self.F_f[ii] = -self._tangential_force(self.F_k[ii], self.F_c[ii])
-                self.F_f[ii + 1] = self._tangential_force(
-                    self.F_k[ii + 1], self.F_c[ii + 1]
-                )
-
-                if self.torque:
-                    self.F_f[ii + 5] = self._torque_force(
-                        self.F_f[ii], self.F_f[ii + 1], self.y[ii]
-                    )
-            elif Vt + ang * self.radius < 0:
-                self.F_f[ii] = self._tangential_force(self.F_k[ii], self.F_c[ii])
-                self.F_f[ii + 1] = -self._tangential_force(
-                    self.F_k[ii + 1], self.F_c[ii + 1]
-                )
-
-                if self.torque:
-                    self.F_f[ii + 5] = self._torque_force(
-                        self.F_f[ii], self.F_f[ii + 1], self.y[ii]
-                    )
-
-        return self._combine_forces(self.F_k, self.F_c, self.F_f)
+        # Shaft element with rubbing
+        self.shaft_element = [
+            elm for elm in rotor.shaft_elements if elm.n == self.posRUB
+        ][0]
 
     def _stiffness_force(self, y):
         """Calculates the stiffness force
@@ -401,38 +159,145 @@ class Rubbing(Fault):
         force : numpy.float64
             Force magnitude.
         """
-        force = self.radius * (
-            np.sqrt(F_f**2 + F_fp**2) * y / abs(self.radial_displ_node)
-        )
+        radius = self.shaft_element.odl / 2
+
+        force = radius * (np.sqrt(F_f**2 + F_fp**2) * y / abs(self.radial_displ_node))
         return force
 
-    def _combine_forces(self, F_k, F_c, F_f):
-        """Mounts the final force vector.
+    def _rub(self, positionsFis, velocityFis, ang):
+        ndof = self.rotor.ndof
+        radius = self.shaft_element.odl / 2
 
-        Parameters
-        ----------
-        F_k : numpy.ndarray
-            Stiffness force vector.
-        F_c : numpy.ndarray
-            Damping force vector.
-        F_f : numpy.ndarray
-            Tangential force vector.
+        self.F_k = np.zeros(ndof)
+        self.F_c = np.zeros(ndof)
+        self.F_f = np.zeros(ndof)
+
+        self.y = np.concatenate((positionsFis, velocityFis))
+
+        ii = 0 + 6 * self.posRUB  # rubbing position
+
+        self.radial_displ_node = np.sqrt(
+            self.y[ii] ** 2 + self.y[ii + 1] ** 2
+        )  # radial displacement
+        self.radial_displ_vel_node = np.sqrt(
+            self.y[ii + ndof] ** 2 + self.y[ii + 1 + ndof] ** 2
+        )  # velocity
+        self.phi_angle = np.arctan2(self.y[ii + 1], self.y[ii])
+
+        if self.radial_displ_node >= self.deltaRUB:
+            self.F_k[ii] = self._stiffness_force(self.y[ii])
+            self.F_k[ii + 1] = self._stiffness_force(self.y[ii + 1])
+            self.F_c[ii] = self._damping_force(self.y[ii + ndof])
+            self.F_c[ii + 1] = self._damping_force(self.y[ii + 1 + ndof])
+
+            Vt = -self.y[ii + ndof + 1] * np.sin(self.phi_angle) + self.y[
+                ii + ndof
+            ] * np.cos(self.phi_angle)
+
+            if Vt + ang * radius > 0:
+                self.F_f[ii] = -self._tangential_force(self.F_k[ii], self.F_c[ii])
+                self.F_f[ii + 1] = self._tangential_force(
+                    self.F_k[ii + 1], self.F_c[ii + 1]
+                )
+
+                if self.torque:
+                    self.F_f[ii + 5] = self._torque_force(
+                        self.F_f[ii], self.F_f[ii + 1], self.y[ii]
+                    )
+            elif Vt + ang * radius < 0:
+                self.F_f[ii] = self._tangential_force(self.F_k[ii], self.F_c[ii])
+                self.F_f[ii + 1] = -self._tangential_force(
+                    self.F_k[ii + 1], self.F_c[ii + 1]
+                )
+
+                if self.torque:
+                    self.F_f[ii + 5] = self._torque_force(
+                        self.F_f[ii], self.F_f[ii + 1], self.y[ii]
+                    )
+
+        return self.F_k + self.F_c + self.F_f
+
+    def _force_in_time(self, step, disp_resp, velc_resp, speed):
+        """Calculates the dynamic force on given time step.
+
+        Paramenters
+        -----------
+        step : int
+            Current time step index.
+        disp_resp : np.ndarray
+            Displacement response of the system at the current time step.
+        velc_resp : np.ndarray
+            Velocity response of the system at the current time step.
+        speed : float
+            Rotation speed of the shaft at the current time step.
 
         Returns
         -------
-        Frub : numpy.ndarray
-            Final force vector for each degree of freedom.
-        FFrub : numpy.ndarray
-            Final force vector.
+        F_rubbing : np.ndarray
+            Force matrix related to rubbing in the current time step `t[step]`.
         """
-        Frub = F_k[self.DoF] + F_c[self.DoF] + F_f[self.DoF]
-        FFrub = F_k + F_c + F_f
 
-        return Frub, FFrub
+        F_rubbing = self._rub(disp_resp, velc_resp, speed)
 
-    @property
-    def forces(self):
-        pass
+        self.forces[:, step] = F_rubbing
+
+        return F_rubbing
+
+    def run(self, node, unb_magnitude, unb_phase, speed, t, **kwargs):
+        """Run analysis for the system with rubbing given an unbalance force.
+
+        System time response is simulated.
+
+        Parameters
+        ----------
+        node : list, int
+            Node where the unbalance is applied.
+        unb_magnitude : list, float
+            Unbalance magnitude (kg.m).
+        unb_phase : list, float
+            Unbalance phase (rad).
+        speed : float or array_like, pint.Quantity
+            Rotor speed.
+        t : array
+            Time array.
+        **kwargs : optional
+            Additional keyword arguments can be passed to define the parameters
+            of the Newmark method if it is used (e.g. gamma, beta, tol, ...).
+            See `ross.utils.newmark` for more details.
+            Other keyword arguments can also be passed to be used in numerical
+            integration (e.g. num_modes).
+            See `Rotor.integrate_system` for more details.
+
+        Returns
+        -------
+        results : ross.TimeResponseResults
+            For more information on attributes and methods available see:
+            :py:class:`ross.TimeResponseResults`
+        """
+
+        rotor = self.rotor
+
+        self.forces = np.zeros((rotor.ndof, len(t)))
+
+        # Unbalance force
+        F, _, speed, _ = rotor._unbalance_force_in_time(
+            node, unb_magnitude, unb_phase, speed, t
+        )
+
+        force_rubbing = lambda step, **state: self._force_in_time(
+            step, state.get("disp_resp"), state.get("velc_resp"), speed[step]
+        )
+
+        results = rotor.run_time_response(
+            speed=speed,
+            F=F.T,
+            t=t,
+            method="newmark",
+            add_to_RHS=force_rubbing,
+            **kwargs,
+        )
+
+        return results
 
 
 def rubbing_example():
