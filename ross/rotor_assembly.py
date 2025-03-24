@@ -2040,7 +2040,7 @@ class Rotor(object):
 
         return F0
 
-    def _unbalance_force_in_time(self, node, magnitude, phase, omega, t):
+    def _unbalance_force_over_time(self, node, magnitude, phase, omega, t):
         omega_is_array = isinstance(omega, (list, tuple, np.ndarray))
 
         if not omega_is_array:
@@ -3157,8 +3157,8 @@ class Rotor(object):
     @check_units
     def run_rubbing(
         self,
-        n_rub,
-        delta_rub,
+        n_rubbing,
+        delta_rubbing,
         contact_stiffness,
         contact_damping,
         friction_coeff,
@@ -3176,7 +3176,7 @@ class Rotor(object):
 
         Parameters
         ----------
-        n_rub : int
+        n_rubbing : int
             Number of shaft element where rubbing is ocurring.
         delta_rub : float
             Distance between the housing and shaft surface.
@@ -3221,8 +3221,9 @@ class Rotor(object):
         >>> rotor = rotor_example_with_damping()
         >>> n1 = rotor.disk_elements[0].n
         >>> n2 = rotor.disk_elements[1].n
-        >>> results = rotor.run_crack(
-        ...    n_rub=12,
+        >>> results = rotor.run_rubbing(
+        ...    n_rubbing=12,
+        ...    delta_rubbing=7.95e-5,
         ...    contact_stiffness=1.1e6,
         ...    contact_damping=40,
         ...    friction_coeff=0.3,
@@ -3230,15 +3231,14 @@ class Rotor(object):
         ...    node=[n1, n2],
         ...    unbalance_magnitude=[5e-4, 0],
         ...    unbalance_phase=[-np.pi / 2, 0],
-        ...    crack_model="Mayes",
         ...    speed=Q_(1200, "RPM"),
         ...    t=np.arange(0, 0.5, 0.0001),
         ... )
         """
         fault = Rubbing(
             self,
-            n_rub,
-            delta_rub,
+            n_rubbing,
+            delta_rubbing,
             contact_stiffness,
             contact_damping,
             friction_coeff,

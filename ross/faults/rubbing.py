@@ -11,18 +11,19 @@ __all__ = [
 
 
 class Rubbing(Fault):
-    """Models rubbing based on Finite Element Method on a given shaft element of a
+    """Model rubbing based on Finite Element Method on a given shaft element of a
     rotor system.
 
-    Contains a rubbing model :cite:`yamamoto2002linear`. The reference coordenate system is:
+    Contains a rubbing model :cite:`yamamoto2002linear`.
+    The reference coordenate system is:
         - x-axis and y-axis in the sensors' planes;
         - z-axis throught the shaft center.
 
     Parameters
     ----------
-    n_rub : int
+    n_rubbing : int
         Number of shaft element where rubbing is ocurring.
-    delta_rub : float
+    delta_rubbing : float
         Distance between the housing and shaft surface.
     contact_stiffness : float
         Contact stiffness.
@@ -55,8 +56,8 @@ class Rubbing(Fault):
     >>> rotor = rs.rotor_example_with_damping()
     >>> fault = Rubbing(
     ...     rotor,
-    ...     n_rub=12,
-    ...     delta_rub=7.95e-5,
+    ...     n_rubbing=12,
+    ...     delta_rubbing=7.95e-5,
     ...     contact_stiffness=1.1e6,
     ...     contact_damping=40,
     ...     friction_coeff=0.3
@@ -68,161 +69,87 @@ class Rubbing(Fault):
     def __init__(
         self,
         rotor,
-        n_rub,
-        delta_rub,
+        n_rubbing,
+        delta_rubbing,
         contact_stiffness,
         contact_damping,
         friction_coeff,
         torque=False,
     ):
         self.rotor = rotor
-        self.delta_rub = delta_rub
+        self.delta_rubbing = delta_rubbing
         self.contact_stiffness = contact_stiffness
         self.contact_damping = contact_damping
         self.friction_coeff = friction_coeff
-        self.n_rub = n_rub
         self.torque = torque
 
         # Shaft element with rubbing
         self.shaft_element = [
-            elm for elm in rotor.shaft_elements if elm.n == self.n_rub
+            elm for elm in rotor.shaft_elements if elm.n == n_rubbing
         ][0]
 
-        self.dof_rub = list(self.shaft_element.dof_global_index.values())
+        self.dofs = list(self.shaft_element.dof_global_index.values())
 
-    def _stiffness_force(self, y):
-        """Calculates the stiffness force
-
-        Parameters
-        ----------
-        y : float
-            Displacement value.
-
-        Returns
-        -------
-        force : numpy.float64
-            Force magnitude.
-        """
-        force = (
-            -self.contact_stiffness
-            * (self.radial_displ_node - self.delta_rub)
-            * y
-            / abs(self.radial_displ_node)
-        )
-        return force
-
-    def _damping_force(self, y):
-        """Calculates the damping force
+    def compute_rubbing_force(self, disp_resp, velc_resp, ang_speed):
+        """Calculate the force on the shaft element with rubbing.
 
         Parameters
         ----------
-        y : float
-            Displacement value.
+        disp_resp : np.ndarray
+            Displacement response of the element.
+        velc_resp : np.ndarray
+            Velocity response of the element.
+        ang_speed : float
+            Angular speed of the element.
 
         Returns
         -------
-        force : numpy.float64
-            Force magnitude.
-        """
-        force = (
-            -self.contact_damping
-            * (self.radial_displ_vel_node)
-            * y
-            / abs(self.radial_displ_vel_node)
-        )
-        return force
-
-    def _tangential_force(self, F_k, F_c):
-        """Calculates the tangential force
-
-        Parameters
-        ----------
-        y : float
-            Displacement value.
-
-        Returns
-        -------
-        force : numpy.float64
-            Force magnitude.
-        """
-        force = self.friction_coeff * (abs(F_k + F_c))
-        return force
-
-    def _torque_force(self, F_f, F_fp, y):
-        """Calculates the torque force
-
-        Parameters
-        ----------
-        y : float
-            Displacement value.
-
-        Returns
-        -------
-        force : numpy.float64
-            Force magnitude.
+        F : np.ndarray
+            Force matrix of the element due to rubbing.
         """
         radius = self.shaft_element.odl / 2
 
-        force = radius * (np.sqrt(F_f**2 + F_fp**2) * y / abs(self.radial_displ_node))
-        return force
+        F_k = np.zeros_like(disp_resp)
+        F_c = np.zeros_like(disp_resp)
+        F_f = np.zeros_like(disp_resp)
 
-    def _rub(self, positionsFis, velocityFis, ang):
-        ndof = self.rotor.ndof
-        radius = self.shaft_element.odl / 2
+        radial_disp = np.sqrt(disp_resp[0] ** 2 + disp_resp[1] ** 2)
+        radial_velc = np.sqrt(velc_resp[0] ** 2 + velc_resp[1] ** 2)
 
-        self.F_k = np.zeros(ndof)
-        self.F_c = np.zeros(ndof)
-        self.F_f = np.zeros(ndof)
+        if radial_disp >= self.delta_rubbing:
+            F_k[0:2] = (
+                -self.contact_stiffness
+                * disp_resp[0:2]
+                * (radial_disp - self.delta_rubbing)
+                / abs(radial_disp)
+            )
+            F_c[0:2] = (
+                -self.contact_damping * velc_resp[0:2] * radial_velc / abs(radial_velc)
+            )
 
-        self.y = np.concatenate((positionsFis, velocityFis))
+            F_f[0:2] = self.friction_coeff * abs(F_k[0:2] + F_c[0:2])
 
-        ii = 0 + 6 * self.n_rub  # rubbing position
+            phi = np.arctan2(disp_resp[1], disp_resp[0])
+            velc_t = velc_resp[0] * np.cos(phi) - velc_resp[1] * np.sin(phi)
+            velc = velc_t + ang_speed * radius
 
-        self.radial_displ_node = np.sqrt(
-            self.y[ii] ** 2 + self.y[ii + 1] ** 2
-        )  # radial displacement
+            if velc > 0:
+                F_f[0] = -F_f[0]
+            else:
+                F_f[1] = -F_f[1]
 
-        self.radial_displ_vel_node = np.sqrt(
-            self.y[ii + ndof] ** 2 + self.y[ii + 1 + ndof] ** 2
-        )  # velocity
-
-        self.phi_angle = np.arctan2(self.y[ii + 1], self.y[ii])
-
-        if self.radial_displ_node >= self.delta_rub:
-            self.F_k[ii] = self._stiffness_force(self.y[ii])
-            self.F_k[ii + 1] = self._stiffness_force(self.y[ii + 1])
-            self.F_c[ii] = self._damping_force(self.y[ii + ndof])
-            self.F_c[ii + 1] = self._damping_force(self.y[ii + 1 + ndof])
-
-            Vt = -self.y[ii + ndof + 1] * np.sin(self.phi_angle) + self.y[
-                ii + ndof
-            ] * np.cos(self.phi_angle)
-
-            if Vt + ang * radius > 0:
-                self.F_f[ii] = -self._tangential_force(self.F_k[ii], self.F_c[ii])
-                self.F_f[ii + 1] = self._tangential_force(
-                    self.F_k[ii + 1], self.F_c[ii + 1]
+            if self.torque:
+                F_f[5] = (
+                    radius
+                    * np.sqrt(F_f[0] ** 2 + F_f[1] ** 2)
+                    * disp_resp[0]
+                    / abs(radial_disp)
                 )
 
-                if self.torque:
-                    self.F_f[ii + 5] = self._torque_force(
-                        self.F_f[ii], self.F_f[ii + 1], self.y[ii]
-                    )
-            elif Vt + ang * radius < 0:
-                self.F_f[ii] = self._tangential_force(self.F_k[ii], self.F_c[ii])
-                self.F_f[ii + 1] = -self._tangential_force(
-                    self.F_k[ii + 1], self.F_c[ii + 1]
-                )
+        return F_k + F_c + F_f
 
-                if self.torque:
-                    self.F_f[ii + 5] = self._torque_force(
-                        self.F_f[ii], self.F_f[ii + 1], self.y[ii]
-                    )
-
-        return self.F_k + self.F_c + self.F_f
-
-    def _force_in_time(self, step, disp_resp, velc_resp, speed):
-        """Calculates the dynamic force on given time step.
+    def _get_force_over_time(self, step, disp_resp, velc_resp, speed):
+        """Calculate the dynamic force on given time step.
 
         Paramenters
         -----------
@@ -238,10 +165,13 @@ class Rubbing(Fault):
         Returns
         -------
         F_rubbing : np.ndarray
-            Force matrix related to rubbing in the current time step `t[step]`.
+            Force matrix due to rubbing in the current time step `t[step]`.
         """
 
-        F_rubbing = self._rub(disp_resp, velc_resp, speed)
+        F_rubbing = np.zeros(self.rotor.ndof)
+        F_rubbing[self.dofs] = self.compute_rubbing_force(
+            disp_resp[self.dofs], velc_resp[self.dofs], speed
+        )
         self.forces[:, step] = F_rubbing
 
         return F_rubbing
@@ -283,11 +213,11 @@ class Rubbing(Fault):
         self.forces = np.zeros((rotor.ndof, len(t)))
 
         # Unbalance force
-        F, _, speed, _ = rotor._unbalance_force_in_time(
+        F, _, speed, _ = rotor._unbalance_force_over_time(
             node, unb_magnitude, unb_phase, speed, t
         )
 
-        force_rubbing = lambda step, **state: self._force_in_time(
+        force_rubbing = lambda step, **state: self._get_force_over_time(
             step, state.get("disp_resp"), state.get("velc_resp"), speed[step]
         )
 
@@ -316,7 +246,7 @@ def rubbing_example():
 
     Examples
     --------
-    >>> rubbing = rubbing_example()
+    >>> results = rubbing_example()
     """
 
     rotor = rs.rotor_example_with_damping()
@@ -325,8 +255,8 @@ def rubbing_example():
     n2 = rotor.disk_elements[1].n
 
     results = rotor.run_rubbing(
-        n_rub=12,
-        delta_rub=7.95e-5,
+        n_rubbing=12,
+        delta_rubbing=7.95e-5,
         contact_stiffness=1.1e6,
         contact_damping=40,
         friction_coeff=0.3,

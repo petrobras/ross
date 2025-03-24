@@ -2,7 +2,6 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from scipy.integrate import cumulative_trapezoid as integrate
 
 import ross as rs
 from ross.units import Q_, check_units
@@ -15,11 +14,11 @@ __all__ = [
 
 
 class Crack(Fault):
-    """Models a crack based on Linear Fracture Mechanics on a given shaft element
+    """Model a crack based on Linear Fracture Mechanics on a given shaft element
     of a rotor system.
 
-    Contains a :cite:`gasch1993survey` and :cite:`mayes1984analysis` transversal
-    crack models. The reference coordenate system is:
+    Contains transversal crack models :cite:`gasch1993survey` and :cite:`mayes1984analysis`.
+    The reference coordenate system is:
         - x-axis and y-axis in the sensors' planes;
         - z-axis throught the shaft center.
 
@@ -76,7 +75,6 @@ class Crack(Fault):
         crack_model="Mayes",
     ):
         self.rotor = rotor
-        self.n_crack = n_crack
 
         if depth_ratio <= 0.5:
             self.depth_ratio = depth_ratio
@@ -100,12 +98,13 @@ class Crack(Fault):
         self.coefficient_data = pd.read_csv(dir_path)
 
         # Shaft element with crack
-        self.shaft_element = [
-            elm for elm in rotor.shaft_elements if elm.n == self.n_crack
-        ][0]
+        self.shaft_element = [elm for elm in rotor.shaft_elements if elm.n == n_crack][
+            0
+        ]
+
+        self.dofs = list(self.shaft_element.dof_global_index.values())
 
         self.K_elem = self.shaft_element.K()
-        self.dof_crack = list(self.shaft_element.dof_global_index.values())
 
         L = self.shaft_element.L
         E = self.shaft_element.material.E
@@ -140,7 +139,7 @@ class Crack(Fault):
         self.Kc = np.linalg.pinv(Cc)
 
     def _get_coefficient(self, coeff):
-        """Terms os the compliance matrix.
+        """Get terms of the compliance matrix.
 
         Parameters
         -----------
@@ -164,8 +163,13 @@ class Crack(Fault):
 
         return c
 
-    def cracked_element_stiffness(self, ap):
-        """Stiffness matrix of the shaft element with crack in inertial coordinates.
+    def compute_crack_stiffness(self, ap):
+        """Compute stiffness matrix of the shaft element with crack in inertial coordinates.
+
+        Parameters
+        ----------
+        ap : float
+            Angular position of the element.
 
         Returns
         -------
@@ -204,13 +208,13 @@ class Crack(Fault):
 
         return K
 
-    def gasch(self, ang_pos):
+    def gasch(self, ap):
         """Stiffness matrix of the shaft element with crack in rotating coordinates
         according to the breathing model of Gasch.
 
         Paramenters
         -----------
-        ang_pos : float
+        ap : float
             Angular position of the shaft.
 
         Returns
@@ -231,10 +235,7 @@ class Crack(Fault):
 
         size = 18
         cosine_sum = np.sum(
-            [
-                (-1) ** i * np.cos((2 * i + 1) * ang_pos) / (2 * i + 1)
-                for i in range(size)
-            ]
+            [(-1) ** i * np.cos((2 * i + 1) * ap) / (2 * i + 1) for i in range(size)]
         )
 
         ke = kme + (4 / np.pi) * kde * cosine_sum
@@ -242,8 +243,8 @@ class Crack(Fault):
 
         T_matrix = np.array(
             [
-                [np.cos(ang_pos), np.sin(ang_pos)],
-                [-np.sin(ang_pos), np.cos(ang_pos)],
+                [np.cos(ap), np.sin(ap)],
+                [-np.sin(ap), np.cos(ap)],
             ]
         )
 
@@ -251,13 +252,13 @@ class Crack(Fault):
 
         return K
 
-    def mayes(self, ang_pos):
+    def mayes(self, ap):
         """Stiffness matrix of the shaft element with crack in rotating coordinates
         according to the breathing model of Mayes.
 
         Paramenters
         -----------
-        ang_pos : float
+        ap : float
             Angular position of the shaft.
 
         Returns
@@ -271,13 +272,13 @@ class Crack(Fault):
         kcx = self.Kc[0, 0]
         kcz = self.Kc[1, 1]
 
-        ke = 0.5 * (ko + kcx) + 0.5 * (ko - kcx) * np.cos(ang_pos)
-        kn = 0.5 * (ko + kcz) + 0.5 * (ko - kcz) * np.cos(ang_pos)
+        ke = 0.5 * (ko + kcx) + 0.5 * (ko - kcx) * np.cos(ap)
+        kn = 0.5 * (ko + kcz) + 0.5 * (ko - kcz) * np.cos(ap)
 
         T_matrix = np.array(
             [
-                [np.cos(ang_pos), np.sin(ang_pos)],
-                [-np.sin(ang_pos), np.cos(ang_pos)],
+                [np.cos(ap), np.sin(ap)],
+                [-np.sin(ap), np.cos(ap)],
             ]
         )
 
@@ -285,8 +286,8 @@ class Crack(Fault):
 
         return K
 
-    def _force_in_time(self, step, disp_resp, ang_pos):
-        """Calculates the dynamic force related on given time step.
+    def _get_force_in_time(self, step, disp_resp, ang_pos):
+        """Calculate the dynamic force related on given time step.
 
         Paramenters
         -----------
@@ -303,10 +304,10 @@ class Crack(Fault):
             Force matrix related to the open crack in the current time step `t[step]`.
         """
 
-        K_crack = self.cracked_element_stiffness(ang_pos)
+        K_crack = self.compute_crack_stiffness(ang_pos)
 
         F_crack = np.zeros(self.rotor.ndof)
-        F_crack[self.dof_crack] = (self.K_elem - K_crack) @ disp_resp[self.dof_crack]
+        F_crack[self.dofs] = (self.K_elem - K_crack) @ disp_resp[self.dofs]
         self.forces[:, step] = F_crack
 
         return F_crack
@@ -348,7 +349,7 @@ class Crack(Fault):
         self.forces = np.zeros((rotor.ndof, len(t)))
 
         # Unbalance force
-        F, ang_pos, _, _ = rotor._unbalance_force_in_time(
+        F, ang_pos, _, _ = rotor._unbalance_force_over_time(
             node, unb_magnitude, unb_phase, speed, t
         )
 
@@ -360,7 +361,7 @@ class Crack(Fault):
         for i in range(len(t)):
             F[:, i] += M @ g
 
-        force_crack = lambda step, **state: self._force_in_time(
+        force_crack = lambda step, **state: self._get_force_in_time(
             step, state.get("disp_resp"), ang_pos[step]
         )
 
