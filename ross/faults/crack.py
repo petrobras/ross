@@ -52,7 +52,7 @@ class Crack(Fault):
     Kc : np.ndarray
         Stiffness of the shaft including compliance coefficients according to the crack depth.
     forces : np.ndarray
-        Force matrix of shape `(ndof, len(t))` for the crack.
+        Force matrix of shape `(ndof, len(t))` due to crack.
 
     References
     ----------
@@ -392,7 +392,12 @@ def crack_example():
 
     Examples
     --------
+    >>> from ross.faults.crack import crack_example
+    >>> from ross.probe import Probe
     >>> results = crack_example()
+    >>> probe1 = Probe(14, 0)
+    >>> probe2 = Probe(22, 0)
+    >>> fig = results.plot_1d([probe1, probe2]
     """
 
     rotor = rs.rotor_example_with_damping()

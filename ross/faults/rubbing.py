@@ -44,7 +44,7 @@ class Rubbing(Fault):
     shaft_element : ross.ShaftElement
         A 6 degrees of freedom shaft element object where rubbing is ocurring.
     forces : np.ndarray
-        Force matrix of shape `(ndof, len(t))` for the rubbing.
+        Force matrix of shape `(ndof, len(t))` due to rubbing.
 
     References
     ----------
@@ -246,7 +246,12 @@ def rubbing_example():
 
     Examples
     --------
+    >>> from ross.faults.rubbing import rubbing_example
+    >>> from ross.probe import Probe
     >>> results = rubbing_example()
+    >>> probe1 = Probe(14, 0)
+    >>> probe2 = Probe(22, 0)
+    >>> fig = results.plot_1d([probe1, probe2]
     """
 
     rotor = rs.rotor_example_with_damping()
