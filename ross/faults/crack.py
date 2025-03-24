@@ -288,7 +288,7 @@ class Crack(Fault):
         return K
 
     def _force_in_time(self, step, disp_resp, ang_pos):
-        """Calculates the dynamic force of a crack on given time step.
+        """Calculates the dynamic force related on given time step.
 
         Paramenters
         -----------
@@ -302,7 +302,7 @@ class Crack(Fault):
         Returns
         -------
         F_crack : np.ndarray
-            Stiffness matrix of the cracked element in the current time step `t[step]`.
+            Force matrix related to the open crack in the current time step `t[step]`.
         """
 
         K_crack = self.cracked_element_stiffness(ang_pos)
@@ -350,7 +350,9 @@ class Crack(Fault):
         self.forces = np.zeros((rotor.ndof, len(t)))
 
         # Unbalance force
-        F = rotor._unbalance_force_in_time(node, unb_magnitude, unb_phase, speed, t)
+        F, ang_pos, _, _ = rotor._unbalance_force_in_time(
+            node, unb_magnitude, unb_phase, speed, t
+        )
 
         # Weight force
         g = np.zeros(rotor.ndof)
@@ -359,11 +361,6 @@ class Crack(Fault):
 
         for i in range(len(t)):
             F[:, i] += M @ g
-
-        try:
-            ang_pos = integrate(speed, t, initial=0)
-        except:
-            ang_pos = speed * t
 
         force_crack = lambda step, **state: self._force_in_time(
             step, state.get("disp_resp"), ang_pos[step]
