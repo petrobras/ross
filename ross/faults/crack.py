@@ -43,7 +43,7 @@ class Crack(Fault):
 
     Attributes
     ----------
-    shaft_element : ross.ShaftElement
+    shaft_elem : ross.ShaftElement
         A 6 degrees of freedom shaft element object where crack is located.
     K_elem : np.ndarray
         Stiffness matrix of the shaft element without crack.
@@ -52,7 +52,7 @@ class Crack(Fault):
     Kc : np.ndarray
         Stiffness of the shaft including compliance coefficients according to the crack depth.
     forces : np.ndarray
-        Force matrix of shape `(ndof, len(t))` due to crack.
+        Force matrix due to crack. Each row corresponds to a dof and each column to a time.
 
     References
     ----------
@@ -63,7 +63,7 @@ class Crack(Fault):
     --------
     >>> rotor = rs.rotor_example_with_damping()
     >>> fault = Crack(rotor, n_crack=18, depth_ratio=0.2, crack_model="Gasch")
-    >>> fault.shaft_element
+    >>> fault.shaft_elem
     """
 
     @check_units
@@ -98,18 +98,16 @@ class Crack(Fault):
         self.coefficient_data = pd.read_csv(dir_path)
 
         # Shaft element with crack
-        self.shaft_element = [elm for elm in rotor.shaft_elements if elm.n == n_crack][
-            0
-        ]
+        self.shaft_elem = [elm for elm in rotor.shaft_elements if elm.n == n_crack][0]
 
-        self.dofs = list(self.shaft_element.dof_global_index.values())
+        self.dofs = list(self.shaft_elem.dof_global_index.values())
 
-        self.K_elem = self.shaft_element.K()
+        self.K_elem = self.shaft_elem.K()
 
-        L = self.shaft_element.L
-        E = self.shaft_element.material.E
-        Ie = self.shaft_element.Ie
-        phi = self.shaft_element.phi
+        L = self.shaft_elem.L
+        E = self.shaft_elem.material.E
+        Ie = self.shaft_elem.Ie
+        phi = self.shaft_elem.phi
 
         co1 = L**3 * (1 + phi / 4) / 3
         co2 = L**2 / 2
@@ -152,9 +150,9 @@ class Crack(Fault):
             Compliance coefficient according to the crack depth.
         """
 
-        Poisson = self.shaft_element.material.Poisson
-        E = self.shaft_element.material.E
-        radius = self.shaft_element.odl / 2
+        Poisson = self.shaft_elem.material.Poisson
+        E = self.shaft_elem.material.E
+        radius = self.shaft_elem.odl / 2
 
         c = np.array(pd.eval(self.coefficient_data[coeff]))
         ind = np.where(c[:, 1] >= self.depth_ratio * 2)[0]
@@ -177,7 +175,7 @@ class Crack(Fault):
             Stiffness matrix of the cracked element.
         """
 
-        L = self.shaft_element.L
+        L = self.shaft_elem.L
 
         Kmodel = self._crack_model(ap)
 
@@ -300,17 +298,17 @@ class Crack(Fault):
 
         Returns
         -------
-        F_crack : np.ndarray
+        F : np.ndarray
             Force matrix related to the open crack in the current time step `t[step]`.
         """
 
         K_crack = self.compute_crack_stiffness(ang_pos)
 
-        F_crack = np.zeros(self.rotor.ndof)
-        F_crack[self.dofs] = (self.K_elem - K_crack) @ disp_resp[self.dofs]
-        self.forces[:, step] = F_crack
+        F = np.zeros(self.rotor.ndof)
+        F[self.dofs] = (self.K_elem - K_crack) @ disp_resp[self.dofs]
+        self.forces[:, step] = F
 
-        return F_crack
+        return F
 
     def run(self, node, unb_magnitude, unb_phase, speed, t, **kwargs):
         """Run analysis for the system with crack given an unbalance force.
@@ -346,8 +344,6 @@ class Crack(Fault):
 
         rotor = self.rotor
 
-        self.forces = np.zeros((rotor.ndof, len(t)))
-
         # Unbalance force
         F, ang_pos, _, _ = rotor._unbalance_force_over_time(
             node, unb_magnitude, unb_phase, speed, t
@@ -360,6 +356,8 @@ class Crack(Fault):
 
         for i in range(len(t)):
             F[:, i] += M @ g
+
+        self.forces = np.zeros((rotor.ndof, len(t)))
 
         force_crack = lambda step, **state: self._get_force_in_time(
             step, state.get("disp_resp"), ang_pos[step]

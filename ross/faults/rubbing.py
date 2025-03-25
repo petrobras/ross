@@ -41,10 +41,10 @@ class Rubbing(Fault):
 
     Attributes
     ----------
-    shaft_element : ross.ShaftElement
+    shaft_elem : ross.ShaftElement
         A 6 degrees of freedom shaft element object where rubbing is ocurring.
     forces : np.ndarray
-        Force matrix of shape `(ndof, len(t))` due to rubbing.
+        Force matrix due to rubbing. Each row corresponds to a dof and each column to a time.
 
     References
     ----------
@@ -62,7 +62,7 @@ class Rubbing(Fault):
     ...     contact_damping=40,
     ...     friction_coeff=0.3
     ... )
-    >>> fault.shaft_element
+    >>> fault.shaft_elem
     """
 
     @check_units
@@ -84,11 +84,9 @@ class Rubbing(Fault):
         self.torque = torque
 
         # Shaft element with rubbing
-        self.shaft_element = [
-            elm for elm in rotor.shaft_elements if elm.n == n_rubbing
-        ][0]
+        self.shaft_elem = [elm for elm in rotor.shaft_elements if elm.n == n_rubbing][0]
 
-        self.dofs = list(self.shaft_element.dof_global_index.values())
+        self.dofs = list(self.shaft_elem.dof_global_index.values())
 
     def compute_rubbing_force(self, disp_resp, velc_resp, ang_speed):
         """Calculate the force on the shaft element with rubbing.
@@ -107,7 +105,7 @@ class Rubbing(Fault):
         F : np.ndarray
             Force matrix of the element due to rubbing.
         """
-        radius = self.shaft_element.odl / 2
+        radius = self.shaft_elem.odl / 2
 
         F_k = np.zeros_like(disp_resp)
         F_c = np.zeros_like(disp_resp)
@@ -146,7 +144,9 @@ class Rubbing(Fault):
                     / abs(radial_disp)
                 )
 
-        return F_k + F_c + F_f
+        F = F_k + F_c + F_f
+
+        return F
 
     def _get_force_over_time(self, step, disp_resp, velc_resp, speed):
         """Calculate the dynamic force on given time step.
@@ -164,17 +164,17 @@ class Rubbing(Fault):
 
         Returns
         -------
-        F_rubbing : np.ndarray
+        F : np.ndarray
             Force matrix due to rubbing in the current time step `t[step]`.
         """
 
-        F_rubbing = np.zeros(self.rotor.ndof)
-        F_rubbing[self.dofs] = self.compute_rubbing_force(
+        F = np.zeros(self.rotor.ndof)
+        F[self.dofs] = self.compute_rubbing_force(
             disp_resp[self.dofs], velc_resp[self.dofs], speed
         )
-        self.forces[:, step] = F_rubbing
+        self.forces[:, step] = F
 
-        return F_rubbing
+        return F
 
     def run(self, node, unb_magnitude, unb_phase, speed, t, **kwargs):
         """Run analysis for the system with rubbing given an unbalance force.
@@ -210,12 +210,12 @@ class Rubbing(Fault):
 
         rotor = self.rotor
 
-        self.forces = np.zeros((rotor.ndof, len(t)))
-
         # Unbalance force
         F, _, speed, _ = rotor._unbalance_force_over_time(
             node, unb_magnitude, unb_phase, speed, t
         )
+
+        self.forces = np.zeros((rotor.ndof, len(t)))
 
         force_rubbing = lambda step, **state: self._get_force_over_time(
             step, state.get("disp_resp"), state.get("velc_resp"), speed[step]
