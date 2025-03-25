@@ -141,87 +141,24 @@ class MisalignmentFlex(Fault):
 
         fib = np.arctan(self.eCOUPx / self.eCOUPy)
 
+        aux1 = self.radius**2 + self.eCOUPx**2 + self.eCOUPy**2
+        aux2 = 2 * self.radius * np.sqrt(self.eCOUPx**2 + self.eCOUPy**2)
+
         Fpy = (
-            (
-                np.sqrt(
-                    self.radius**2
-                    + self.eCOUPx**2
-                    + self.eCOUPy**2
-                    + 2
-                    * self.radius
-                    * np.sqrt(self.eCOUPx**2 + self.eCOUPy**2)
-                    * np.sin(fib + ang_pos)
-                )
-                - self.radius
-            )
+            (np.sqrt(aux1 + aux2 * np.sin(fib + ang_pos)) - self.radius)
             * np.cos(ang_pos)
-            + (
-                np.sqrt(
-                    self.radius**2
-                    + self.eCOUPx**2
-                    + self.eCOUPy**2
-                    + 2
-                    * self.radius
-                    * np.sqrt(self.eCOUPx**2 + self.eCOUPy**2)
-                    * np.cos(np.pi / 6 + fib + ang_pos)
-                )
-                - self.radius
-            )
+            + (np.sqrt(aux1 + aux2 * np.cos(np.pi / 6 + fib + ang_pos)) - self.radius)
             * np.cos(2 * np.pi / 3 + ang_pos)
-            + (
-                self.radius
-                - np.sqrt(
-                    self.radius**2
-                    + self.eCOUPx**2
-                    + self.eCOUPy**2
-                    - 2
-                    * self.radius
-                    * np.sqrt(self.eCOUPx**2 + self.eCOUPy**2)
-                    * np.sin(np.pi / 3 + fib + ang_pos)
-                )
-            )
+            + (self.radius - np.sqrt(aux1 - aux2 * np.sin(np.pi / 3 + fib + ang_pos)))
             * np.cos(4 * np.pi / 3 + ang_pos)
         ) * self.kd
 
         Fpx = (
-            (
-                np.sqrt(
-                    self.radius**2
-                    + self.eCOUPx**2
-                    + self.eCOUPy**2
-                    + 2
-                    * self.radius
-                    * np.sqrt(self.eCOUPx**2 + self.eCOUPy**2)
-                    * np.sin(fib + ang_pos)
-                )
-                - self.radius
-            )
+            (np.sqrt(aux1 + aux2 * np.sin(fib + ang_pos)) - self.radius)
             * np.sin(ang_pos)
-            + (
-                np.sqrt(
-                    self.radius**2
-                    + self.eCOUPx**2
-                    + self.eCOUPy**2
-                    + 2
-                    * self.radius
-                    * np.sqrt(self.eCOUPx**2 + self.eCOUPy**2)
-                    * np.cos(np.pi / 6 + fib + ang_pos)
-                )
-                - self.radius
-            )
+            + (np.sqrt(aux1 + aux2 * np.cos(np.pi / 6 + fib + ang_pos)) - self.radius)
             * np.sin(2 * np.pi / 3 + ang_pos)
-            + (
-                self.radius
-                - np.sqrt(
-                    self.radius**2
-                    + self.eCOUPx**2
-                    + self.eCOUPy**2
-                    - 2
-                    * self.radius
-                    * np.sqrt(self.eCOUPx**2 + self.eCOUPy**2)
-                    * np.sin(np.pi / 3 + fib + ang_pos)
-                )
-            )
+            + (self.radius - np.sqrt(aux1 - aux2 * np.sin(np.pi / 3 + fib + ang_pos)))
             * np.sin(4 * np.pi / 3 + ang_pos)
         ) * self.kd
 
@@ -248,25 +185,26 @@ class MisalignmentFlex(Fault):
             Excitation force caused by the angular misalignment on the entire system.
             Each row corresponds to a dof and each column to a time.
         """
+
         F = np.zeros((self.rotor.ndof, len(ang_pos)))
 
-        Cte = self.ks * self.radius * np.sqrt(2 - 2 * np.cos(self.mis_angle))
+        cte = self.ks * self.radius * np.sqrt(2 - 2 * np.cos(self.mis_angle))
 
         Fay = (
-            np.abs(Cte * np.sin(ang_pos) * np.sin(self.mis_angle))
+            np.abs(cte * np.sin(ang_pos) * np.sin(self.mis_angle))
             * np.sin(ang_pos + np.pi)
-            + np.abs(Cte * np.sin(ang_pos + 2 * np.pi / 3) * np.sin(self.mis_angle))
+            + np.abs(cte * np.sin(ang_pos + 2 * np.pi / 3) * np.sin(self.mis_angle))
             * np.sin(ang_pos + np.pi + 2 * np.pi / 3)
-            + np.abs(Cte * np.sin(ang_pos + 4 * np.pi / 3) * np.sin(self.mis_angle))
+            + np.abs(cte * np.sin(ang_pos + 4 * np.pi / 3) * np.sin(self.mis_angle))
             * np.sin(ang_pos + np.pi + 4 * np.pi / 3)
         )
 
         Fax = (
-            np.abs(Cte * np.sin(ang_pos) * np.sin(self.mis_angle))
+            np.abs(cte * np.sin(ang_pos) * np.sin(self.mis_angle))
             * np.cos(ang_pos + np.pi)
-            + np.abs(Cte * np.sin(ang_pos + 2 * np.pi / 3) * np.sin(self.mis_angle))
+            + np.abs(cte * np.sin(ang_pos + 2 * np.pi / 3) * np.sin(self.mis_angle))
             * np.cos(ang_pos + np.pi + 2 * np.pi / 3)
-            + np.abs(Cte * np.sin(ang_pos + 4 * np.pi / 3) * np.sin(self.mis_angle))
+            + np.abs(cte * np.sin(ang_pos + 4 * np.pi / 3) * np.sin(self.mis_angle))
             * np.cos(ang_pos + np.pi + 4 * np.pi / 3)
         )
 
