@@ -3057,7 +3057,17 @@ class Rotor(object):
 
         return results
 
-    def run_misalignment(self, coupling="flex", **kwargs):
+    @check_units
+    def run_misalignment(
+        self,
+        node,
+        unbalance_magnitude,
+        unbalance_phase,
+        speed,
+        t,
+        coupling="flex",
+        **kwargs,
+    ):
         """Run an analyzes with misalignment.
 
         Execute the misalignment fault and generates the misalignment object
@@ -3144,15 +3154,30 @@ class Rotor(object):
         >>> # fig.show()
         """
 
-        if coupling == "flex" or coupling == None:
-            fault = MisalignmentFlex(**kwargs)
+        if coupling == "flex":
+            fault = MisalignmentFlex(
+                self,
+                n1=kwargs.get("n1"),
+                TD=kwargs.get("TD"),
+                TL=kwargs.get("TL"),
+                eCOUPx=kwargs.get("eCOUPx"),
+                eCOUPy=kwargs.get("eCOUPy"),
+                kd=kwargs.get("kd"),
+                ks=kwargs.get("ks"),
+                mis_angle=kwargs.get("mis_angle"),
+                mis_type=kwargs.get("mis_type", "parallel"),
+            )
+
         elif coupling == "rigid":
-            fault = MisalignmentRigid(**kwargs)
+            fault = MisalignmentRigid(self, **kwargs)
         else:
             raise Exception("Check the choosed coupling type!")
 
-        fault.run(self)
-        return fault
+        results = fault.run(
+            node, unbalance_magnitude, unbalance_phase, speed, t, **kwargs
+        )
+
+        return results
 
     @check_units
     def run_rubbing(
