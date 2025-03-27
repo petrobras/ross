@@ -110,11 +110,11 @@ class MisalignmentFlex(Fault):
         self.mis_angle = mis_angle
 
         if mis_type == "parallel":
-            self._compute_reaction_forces = self._parallel
+            self.compute_reaction_force = self._parallel
         elif mis_type == "angular":
-            self._compute_reaction_forces = self._angular
+            self.compute_reaction_force = self._angular
         elif mis_type == "combined":
-            self._compute_reaction_forces = self._combined
+            self.compute_reaction_force = self._combined
         else:
             raise Exception("Check the misalignment type!")
 
@@ -274,7 +274,7 @@ class MisalignmentFlex(Fault):
             node, unb_magnitude, unb_phase, speed, t
         )
 
-        self.forces = self._compute_reaction_forces(ang_pos)
+        self.forces = self.compute_reaction_force(ang_pos)
 
         F += self.forces
 
@@ -345,275 +345,87 @@ class MisalignmentRigid(Fault):
     @check_units
     def __init__(
         self,
-        dt,
-        tI,
-        tF,
-        eCOUP,
+        rotor,
+        n1,
         TD,
         TL,
-        n1,
-        speed,
-        unbalance_magnitude,
-        unbalance_phase,
-        print_progress=False,
+        eCOUP,
     ):
-        self.dt = dt
-        self.tI = tI
-        self.tF = tF
+        self.rotor = rotor
+
         self.eCOUP = eCOUP
+
         self.TD = TD
         self.TL = TL
-        self.n1 = n1
-        self.n2 = n1 + 1
-        self.speed = speed
-        self.speedI = speed
-        self.speedF = speed
-        self.unbalance_magnitude = unbalance_magnitude
-        self.unbalance_phase = unbalance_phase
-        self.DoF = np.arange((self.n1 * 6), (self.n2 * 6 + 6))
-        self.print_progress = print_progress
 
-        if len(self.unbalance_magnitude) != len(self.unbalance_phase):
-            raise Exception(
-                "The unbalance magnitude vector and phase must have the same size!"
-            )
+        # Shaft element with misalignment
+        self.shaft_elem = [elm for elm in rotor.shaft_elements if elm.n == n1][0]
 
-    def run(self, rotor):
-        """Calculates the shaft angular position and the misalignment amount at X directions.
+        self.dofs = list(self.shaft_elem.dof_global_index.values())
 
-        Parameters
-        ----------
-        rotor : ross.Rotor Object
-             6 DoF rotor model.
-
-        """
-        self.rotor = rotor
-        self.n_disk = len(self.rotor.disk_elements)
-        if self.n_disk != len(self.unbalance_magnitude):
-            raise Exception("The number of discs and unbalances must agree!")
-
-        self.ndof = rotor.ndof
-        self.ndofd = np.zeros(len(self.rotor.disk_elements))
-
-        for ii in range(self.n_disk):
-            self.ndofd[ii] = (self.rotor.disk_elements[ii].n) * 6
-
-        self.lambdat = 0.00001
-        # Faxial = 0
-        # TorqueI = 0
-        # TorqueF = 0
-
-        # pre-processing of auxilary variuables for the time integration
-        self.sA = (
-            self.speedI * np.exp(-self.lambdat * self.tF)
-            - self.speedF * np.exp(-self.lambdat * self.tI)
-        ) / (np.exp(-self.lambdat * self.tF) - np.exp(-self.lambdat * self.tI))
-        self.sB = (self.speedF - self.speedI) / (
-            np.exp(-self.lambdat * self.tF) - np.exp(-self.lambdat * self.tI)
-        )
-
-        # This code below here is used for acceleration and torque application to the rotor. As of
-        # september/2020 it is unused, but might be implemented in future releases. These would be
-        # run-up and run-down operations and variations of operating conditions.
-        #
-        # sAT = (
-        #     TorqueI * np.exp(-lambdat * self.tF) - TorqueF * np.exp(-lambdat * self.tI)
-        # ) / (np.exp(-lambdat * self.tF) - np.exp(-lambdat * self.tI))
-        # sBT = (TorqueF - TorqueI) / (
-        #     np.exp(-lambdat * self.tF) - np.exp(-lambdat * self.tI)
-        # )
-        #
-        # self.SpeedV = sA + sB * np.exp(-lambdat * t)
-        # self.TorqueV = sAT + sBT * np.exp(-lambdat * t)
-        # self.AccelV = -lambdat * sB * np.exp(-lambdat * t)
-
-        # Determining the modal matrix
-        self.K = self.rotor.K(self.speed)
-        self.C = self.rotor.C(self.speed)
-        self.G = self.rotor.G()
-        self.M = self.rotor.M(self.speed)
-        self.Ksdt = self.rotor.Ksdt()
-
-        _, ModMat = la.eigh(self.K, self.M)
-        ModMat = ModMat[:, :12]
-        self.ModMat = ModMat
-
-        # Modal transformations
-        self.Mmodal = ((ModMat.T).dot(self.M)).dot(ModMat)
-        self.Cmodal = ((ModMat.T).dot(self.C)).dot(ModMat)
-        self.Gmodal = ((ModMat.T).dot(self.G)).dot(ModMat)
-        self.Kmodal = ((ModMat.T).dot(self.K)).dot(ModMat)
-        self.Ksdtmodal = ((ModMat.T).dot(self.Ksdt)).dot(ModMat)
-
-        self.angANG = -np.pi / 180
+    def _initialize_parameters(self, frequency):
+        K = self.rotor.K(frequency)
 
         self.kcoup_auxt = 1 / (
-            self.K[5 + 6 * self.n1, 5 + 6 * self.n1]
-            + self.K[5 + 6 * self.n2, 5 + 6 * self.n2]
+            K[self.dofs[5], self.dofs[5]] + K[self.dofs[11], self.dofs[11]]
         )
 
-        self.kCOUP = (
-            self.K[6 * self.n1, 6 * self.n1] * self.K[6 * self.n2, 6 * self.n2]
-        ) / (self.K[6 * self.n1, 6 * self.n1] + self.K[6 * self.n2, 6 * self.n2])
-
-        self.Kcoup_auxI = self.K[5 + 6 * self.n1, 5 + 6 * self.n1] / (
-            self.K[5 + 6 * self.n1, 5 + 6 * self.n1]
-            + self.K[5 + 6 * self.n2, 5 + 6 * self.n2]
+        self.kCOUP = (K[self.dofs[0], self.dofs[0]] * K[self.dofs[6], self.dofs[6]]) / (
+            K[self.dofs[0], self.dofs[0]] + K[self.dofs[6], self.dofs[6]]
         )
 
-        self.Kcoup_auxF = self.K[5 + 6 * self.n2, 5 + 6 * self.n2] / (
-            self.K[5 + 6 * self.n1, 5 + 6 * self.n1]
-            + self.K[5 + 6 * self.n2, 5 + 6 * self.n2]
+        self.Kcoup_auxI = K[self.dofs[5], self.dofs[5]] / (
+            K[self.dofs[5], self.dofs[5]] + K[self.dofs[11], self.dofs[11]]
         )
 
-        FFmis = np.zeros(self.ndof)
-
-        # Omega = self.speedI * np.pi / 30
-
-        y0 = np.zeros(24)
-        t_eval = np.arange(self.tI, self.tF + self.dt, self.dt)
-        T = t_eval
-
-        self.angular_position = (
-            self.sA * T
-            - (self.sB / self.lambdat) * np.exp(-self.lambdat * T)
-            + (self.sB / self.lambdat)
+        self.Kcoup_auxF = K[self.dofs[11], self.dofs[11]] / (
+            K[self.dofs[5], self.dofs[5]] + K[self.dofs[11], self.dofs[11]]
         )
 
-        self.Omega = self.sA + self.sB * np.exp(-self.lambdat * T)
-        self.AccelV = -self.lambdat * self.sB * np.exp(-self.lambdat * T)
+        self.fir = -np.pi / 180
 
-        self.tetaUNB = np.zeros((len(self.unbalance_phase), len(self.angular_position)))
-        unbx = np.zeros(len(self.angular_position))
-        unby = np.zeros(len(self.angular_position))
-
-        FFunb = np.zeros((self.ndof, len(t_eval)))
-
-        for ii in range(self.n_disk):
-            self.tetaUNB[ii, :] = (
-                self.angular_position + self.unbalance_phase[ii] + np.pi / 2
-            )
-
-            unbx = self.unbalance_magnitude[ii] * (self.AccelV) * (
-                np.cos(self.tetaUNB[ii, :])
-            ) - self.unbalance_magnitude[ii] * (self.Omega**2) * (
-                np.sin(self.tetaUNB[ii, :])
-            )
-
-            unby = -self.unbalance_magnitude[ii] * (self.AccelV) * (
-                np.sin(self.tetaUNB[ii, :])
-            ) - self.unbalance_magnitude[ii] * (self.Omega**2) * (
-                np.cos(self.tetaUNB[ii, :])
-            )
-
-            FFunb[int(self.ndofd[ii]), :] += unbx
-            FFunb[int(self.ndofd[ii] + 1), :] += unby
-
-        self.Funbmodal = (self.ModMat.T).dot(FFunb)
-        self.forces = np.zeros((self.ndof, len(t_eval)))
-
-        self.inv_Mmodal = np.linalg.pinv(self.Mmodal)
-        t1 = time.time()
-
-        x = Integrator(
-            self.tI,
-            y0,
-            self.tF,
-            self.dt,
-            self._equation_of_movement,
-            self.print_progress,
-        )
-        x = x.rk45()
-        t2 = time.time()
-        if self.print_progress:
-            print(f"Time spent: {t2-t1} s")
-
-        self.displacement = x[:12, :]
-        self.velocity = x[12:, :]
-        self.time_vector = t_eval
-        self.response = self.ModMat.dot(self.displacement)
-
-    def _equation_of_movement(self, T, Y, i):
-        """Calculates the displacement and velocity using state-space representation in the modal domain.
+    def compute_reaction_force(self, y, ap):
+        """Calculate reaction forces of parallel misalignment.
 
         Parameters
         ----------
-        T : float
-            Iteration time.
-        Y : array
-            Array of displacement and velocity, in the modal domain.
-        i : int
-            Iteration step.
+        y : np.ndarray
+            Displacement response of the element.
+        ap : float
+            Angular position of the element.
 
         Returns
         -------
-        new_Y :  array
-            Array of the new displacement and velocity, in the modal domain.
+        F : np.ndarray
+            Force matrix of the element due to misalignment.
         """
-        positions = Y[:12]
-        velocity = Y[12:]  # velocity ign space state
 
-        positionsFis = self.ModMat.dot(positions)
-
-        self.angANG = (
-            self.Kcoup_auxI * self.angular_position[i]
-            + self.Kcoup_auxF * self.angular_position[i]
+        self.fir = (
+            self.Kcoup_auxI * ap
+            + self.Kcoup_auxF * ap
             + self.kCOUP
             * self.kcoup_auxt
             * self.eCOUP
             * (
-                -positionsFis[0 + 6 * self.n1] * np.sin(self.angANG)
-                + positionsFis[0 + 6 * self.n2] * np.sin(self.angANG)
-                + positionsFis[1 + 6 * self.n1] * np.cos(self.angANG)
-                - positionsFis[1 + 6 * self.n2] * np.cos(self.angANG)
+                (y[self.dofs[6]] - y[self.dofs[0]]) * np.sin(self.fir)
+                - (y[self.dofs[7]] - y[self.dofs[1]]) * np.cos(self.fir)
             )
         )
 
-        Fmis, ft = self._parallel(positionsFis, self.angANG)
-        self.forces[:, i] = ft
-        ftmodal = (self.ModMat.T).dot(ft)
-
-        # proper equation of movement to be integrated in time
-        new_V_dot = (
-            ftmodal
-            + self.Funbmodal[:, i]
-            - (self.Cmodal + self.Gmodal * self.Omega[i]).dot(velocity)
-            - ((self.Kmodal + self.Ksdtmodal * self.AccelV[i]).dot(positions))
-        ).dot(self.inv_Mmodal)
-
-        new_X_dot = velocity
-
-        new_Y = np.zeros(24)
-        new_Y[:12] = new_X_dot
-        new_Y[12:] = new_V_dot
-
-        return new_Y
-
-    def _parallel(self, positions, fir):
-        """Reaction forces of parallel misalignment.
-
-        Returns
-        -------
-        Fmis : array
-            Excitation force caused by the parallel misalignment on the node of application.
-        FFmis : array
-            Excitation force caused by the parallel misalignment on the entire system.
-        """
         k0 = self.kCOUP
-        delta1 = self.eCOUP
+        delta = self.eCOUP
+        beta = 0
 
-        betam = 0
-
-        k_misalignbeta1 = np.array(
+        k_beta = np.array(
             [
-                k0 * self.Kcoup_auxI * delta1 * np.sin(betam + fir),
-                -k0 * self.Kcoup_auxI * delta1 * np.cos(betam + fir),
+                k0 * self.Kcoup_auxI * delta * np.sin(beta + self.fir),
+                -k0 * self.Kcoup_auxI * delta * np.cos(beta + self.fir),
                 0,
                 0,
                 0,
                 0,
-                k0 * self.Kcoup_auxF * delta1 * np.sin(betam + fir),
-                -k0 * self.Kcoup_auxF * delta1 * np.cos(betam + fir),
+                k0 * self.Kcoup_auxF * delta * np.sin(beta + self.fir),
+                -k0 * self.Kcoup_auxF * delta * np.cos(beta + self.fir),
                 0,
                 0,
                 0,
@@ -621,22 +433,20 @@ class MisalignmentRigid(Fault):
             ]
         )
 
-        K_mis_matrix = np.zeros((12, 12))
-        K_mis_matrix[5, :] = k_misalignbeta1
-        K_mis_matrix[11, :] = -k_misalignbeta1
+        K_mis = np.zeros((12, 12))
+        K_mis[5, :] = k_beta
+        K_mis[11, :] = -k_beta
 
-        Force_kkmis = K_mis_matrix.dot(positions[self.DoF])
-
-        F_misalign = np.array(
+        F_mis = np.array(
             [
-                (-k0 * delta1 * np.cos(betam + fir) + k0 * delta1),
-                -k0 * delta1 * np.sin(betam + fir),
+                (-k0 * delta * np.cos(beta + self.fir) + k0 * delta),
+                -k0 * delta * np.sin(beta + self.fir),
                 0,
                 0,
                 0,
                 self.TD - self.TL,
-                (k0 * delta1 * np.cos(betam + fir) - k0 * delta1),
-                k0 * delta1 * np.sin(betam + fir),
+                (k0 * delta * np.cos(beta + self.fir) - k0 * delta),
+                k0 * delta * np.sin(beta + self.fir),
                 0,
                 0,
                 0,
@@ -644,11 +454,91 @@ class MisalignmentRigid(Fault):
             ]
         )
 
-        Fmis = Force_kkmis + F_misalign
-        FFmis = np.zeros(self.ndof)
-        FFmis[self.DoF] = Fmis
+        F = K_mis @ y[self.dofs] + F_mis
 
-        return Fmis, FFmis
+        return F
+
+    def _get_force_over_time(self, step, disp_resp, ang_pos):
+        """Calculate the dynamic force on given time step.
+
+        Paramenters
+        -----------
+        step : int
+            Current time step index.
+        disp_resp : np.ndarray
+            Displacement response of the system at the current time step.
+        ang_pos : float
+            Angular position of the shaft at the current time step.
+
+        Returns
+        -------
+        F : np.ndarray
+            Force matrix due to rubbing in the current time step `t[step]`.
+        """
+
+        F = np.zeros(self.rotor.ndof)
+        F[self.dofs] = self.compute_reaction_force(disp_resp, ang_pos)
+        self.forces[:, step] = F
+
+        return F
+
+    def run(self, node, unb_magnitude, unb_phase, speed, t, **kwargs):
+        """Run analysis for the system with rubbing given an unbalance force.
+
+        System time response is simulated.
+
+        Parameters
+        ----------
+        node : list, int
+            Node where the unbalance is applied.
+        unb_magnitude : list, float
+            Unbalance magnitude (kg.m).
+        unb_phase : list, float
+            Unbalance phase (rad).
+        speed : float or array_like, pint.Quantity
+            Rotor speed.
+        t : array
+            Time array.
+        **kwargs : optional
+            Additional keyword arguments can be passed to define the parameters
+            of the Newmark method if it is used (e.g. gamma, beta, tol, ...).
+            See `ross.utils.newmark` for more details.
+            Other keyword arguments can also be passed to be used in numerical
+            integration (e.g. num_modes).
+            See `Rotor.integrate_system` for more details.
+
+        Returns
+        -------
+        results : ross.TimeResponseResults
+            For more information on attributes and methods available see:
+            :py:class:`ross.TimeResponseResults`
+        """
+
+        rotor = self.rotor
+
+        F, ang_pos, speed, _ = rotor._unbalance_force_over_time(
+            node, unb_magnitude, unb_phase, speed, t
+        )
+
+        self._initialize_parameters(np.mean(speed))
+
+        self.forces = np.zeros((rotor.ndof, len(t)))
+
+        force_mis = lambda step, **state: self._get_force_over_time(
+            step, state.get("disp_resp"), ang_pos[step]
+        )
+
+        results = rotor.run_time_response(
+            speed=speed,
+            F=F.T,
+            t=t,
+            method="newmark",
+            add_to_RHS=force_mis,
+            num_modes=12,
+            **kwargs,
+        )
+
+        return results
 
 
 def misalignment_flex_parallel_example():

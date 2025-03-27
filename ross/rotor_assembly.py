@@ -3169,7 +3169,14 @@ class Rotor(object):
             )
 
         elif coupling == "rigid":
-            fault = MisalignmentRigid(self, **kwargs)
+            fault = MisalignmentRigid(
+                self,
+                n1=kwargs.get("n1"),
+                TD=kwargs.get("TD"),
+                TL=kwargs.get("TL"),
+                eCOUP=kwargs.get("eCOUP"),
+            )
+
         else:
             raise Exception("Check the choosed coupling type!")
 
