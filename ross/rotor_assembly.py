@@ -3077,81 +3077,94 @@ class Rotor(object):
 
         Parameters
         ----------
+        node : list, int
+            Node where the unbalance is applied.
+        unbalance_magnitude : list, float
+            Unbalance magnitude (kg.m).
+        unbalance_phase : list, float
+            Unbalance phase (rad).
+        speed : float or array_like, pint.Quantity
+            Rotor speed.
+        F : array
+            Force array (needs to have the same number of rows as time array).
+            Each column corresponds to a dof and each row to a time.
+        t : array
+            Time array.
         coupling : str
-            Coupling type. The avaible types are: flex, by default; and rigid.
+            Coupling type. The avaible types are: "flex" and "rigid".
+            Default is "flex".
 
-        **kwargs: dictionary
-
-            In the case of coupling = "flex", **kwargs receives:
-                dt : float
-                    Time step.
-                tI : float
-                    Initial time.
-                tF : float
-                    Final time.
-                kd : float
+        **kwargs : dictionary
+            If coupling = "flex", **kwargs receives:
+                n_mis : float
+                    Number of shaft element where the misalignment is ocurring.
+                delta_x : float
+                    Parallel misalignment offset between driving rotor and driven
+                    rotor along X direction.
+                delta_y : float
+                    Parallel misalignment offset between driving rotor and driven
+                    rotor along Y direction.
+                radial_stiffness : float
                     Radial stiffness of flexible coupling.
-                ks : float
-                    Bending stiffness of flexible coupling.
-                eCOUPx : float
-                    Parallel misalignment offset between driving rotor and driven rotor along X direction.
-                eCOUPy : float
-                    Parallel misalignment offset between driving rotor and driven rotor along Y direction.
-                misalignment_angle : float
+                bending_stifness : float
+                    Bending stiffness of flexible coupling. Provide if mis_type is
+                    "angular" or "combined".
+                mis_angle : float
                     Angular misalignment angle.
-                TD : float
-                    Driving torque.
-                TL : float
-                    Driven torque.
-                n1 : float
-                    Node where the misalignment is ocurring.
-                speed : float, pint.Quantity
-                    Operational speed of the machine. Default unit is rad/s.
-                unbalance_magnitude : array
-                    Array with the unbalance magnitude. The unit is kg.m.
-                unbalance_phase : array
-                    Array with the unbalance phase. The unit is rad.
                 mis_type: string
-                    String containing the misalignment type choosed. The avaible types are: parallel, by default; angular; combined.
-                print_progress : bool
-                    Set it True, to print the time iterations and the total time spent.
-                    False by default.
+                    Name of the chosen misalignment type.
+                    The avaible types are: "parallel", "angular" and "combined".
+                    Default is "parallel".
+                input_torque : float
+                    Driving torque. Default is 0.
+                load_torque : float
+                    Driven torque. Default is 0.
 
-            In the case of coupling = "rigid", **kwargs receives:
-                dt : float
-                    Time step.
-                tI : float
-                    Initial time.
-                tF : float
-                    Final time.
-                eCOUP : float
-                    Parallel misalignment offset between driving rotor and driven rotor along X direction.
-                TD : float
-                    Driving torque.
-                TL : float
-                    Driven torque.
-                n1 : float
-                    Node where the misalignment is ocurring.
-                speed : float, pint.Quantity
-                    Operational speed of the machine. Default unit is rad/s.
-                unbalance_magnitude : array
-                    Array with the unbalance magnitude. The unit is kg.m.
-                unbalance_phase : array
-                    Array with the unbalance phase. The unit is rad.
-                print_progress : bool
-                    Set it True, to print the time iterations and the total time spent.
-                    False by default.
+            If coupling = "rigid", **kwargs receives:
+                n_mis : float
+                    Number of shaft element where the misalignment is ocurring.
+                delta : float
+                    Parallel misalignment offset between driving rotor and driven rotor.
+                input_torque : float
+                    Driving torque. Default is 0.
+                load_torque : float
+                    Driven torque. Default is 0.
+
+            Additional keyword arguments can be passed to define the parameters
+            of the Newmark method if it is used (e.g. gamma, beta, tol, ...).
+            See `ross.utils.newmark` for more details.
+            Other keyword arguments can also be passed to be used in numerical
+            integration (e.g. num_modes).
+            See `Rotor.integrate_system` for more details.
+
+        Returns
+        -------
+        results : ross.TimeResponseResults
+            For more information on attributes and methods available see:
+            :py:class:`ross.TimeResponseResults`
 
         Examples
         --------
+        >>> import ross as rs
         >>> from ross.probe import Probe
-        >>> from ross.faults.misalignment import misalignment_flex_parallel_example
+        >>> rotor = rotor_example_with_damping()
+        >>> n1 = rotor.disk_elements[0].n
+        >>> n2 = rotor.disk_elements[1].n
+        >>> results = rotor.run_misalignment(
+        ...    node=[n1, n2],
+        ...    unbalance_magnitude=[5e-4, 0],
+        ...    unbalance_phase=[-np.pi / 2, 0],
+        ...    speed=Q_(1200, "RPM"),
+        ...    t=np.arange(0, 0.5, 0.0001),
+        ...    coupling="rigid",
+        ...    n_mis=0,
+        ...    delta=2e-4,
+        ...    input_torque=0,
+        ...    load_torque=0,
+        ... )
         >>> probe1 = Probe(14, 0)
         >>> probe2 = Probe(22, 0)
-        >>> response = misalignment_flex_parallel_example()
-        >>> results = response.run_time_response()
-        >>> fig = response.plot_dfft(probe=[probe1, probe2], range_freq=[0, 100], yaxis_type="log")
-        >>> # fig.show()
+        >>> fig = results.plot_1d([probe1, probe2]
         """
 
         if coupling == "flex":
@@ -3250,6 +3263,8 @@ class Rotor(object):
 
         Examples
         --------
+        >>> import ross as rs
+        >>> from ross.probe import Probe
         >>> rotor = rotor_example_with_damping()
         >>> n1 = rotor.disk_elements[0].n
         >>> n2 = rotor.disk_elements[1].n
@@ -3266,6 +3281,9 @@ class Rotor(object):
         ...    speed=Q_(1200, "RPM"),
         ...    t=np.arange(0, 0.5, 0.0001),
         ... )
+        >>> probe1 = Probe(14, 0)
+        >>> probe2 = Probe(22, 0)
+        >>> fig = results.plot_1d([probe1, probe2]
         """
         fault = Rubbing(
             self,
@@ -3339,7 +3357,9 @@ class Rotor(object):
 
         Examples
         --------
-        >>> rotor = rotor_example_with_damping()
+        >>> import ross as rs
+        >>> from ross.probe import Probe
+        >>> rotor = rs.rotor_example_with_damping()
         >>> n1 = rotor.disk_elements[0].n
         >>> n2 = rotor.disk_elements[1].n
         >>> results = rotor.run_crack(
@@ -3352,6 +3372,9 @@ class Rotor(object):
         ...    speed=Q_(1200, "RPM"),
         ...    t=np.arange(0, 0.5, 0.0001),
         ... )
+        >>> probe1 = Probe(14, 0)
+        >>> probe2 = Probe(22, 0)
+        >>> fig = results.plot_1d([probe1, probe2]
         """
         fault = Crack(self, n_crack, depth_ratio, crack_model)
 

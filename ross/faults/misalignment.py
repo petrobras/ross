@@ -66,6 +66,11 @@ class MisalignmentFlex(Fault):
 
     Examples
     --------
+    >>> rotor = rs.rotor_example_with_damping()
+    >>> fault = MisalignmentFlex(rotor, n_mis=0, delta_x=2e-4, delta_y=2e-4,
+    ... radial_stiffness=40e3, bending_stiffness=38e3, mis_angle=5 * np.pi / 180,
+    ... mis_type="combined", input_torque=0, load_torque=0)
+    >>> fault.shaft_elem
     """
 
     @check_units
@@ -322,6 +327,10 @@ class MisalignmentRigid(Fault):
 
     Examples
     --------
+    >>> rotor = rs.rotor_example_with_damping()
+    >>> fault = MisalignmentRigid(rotor, n_mis=0, delta=2e-4,
+    ... input_torque=0, load_torque=0)
+    >>> fault.shaft_elem
     """
 
     @check_units
@@ -510,140 +519,59 @@ class MisalignmentRigid(Fault):
             t=t,
             method="newmark",
             add_to_RHS=force_mis,
-            num_modes=12,
             **kwargs,
         )
 
         return results
 
 
-def misalignment_flex_parallel_example():
-    """Create an example of a flexible parallel misalignment fault.
-
-    This function returns an instance of a flexible parallel misalignment
-    fault. The purpose is to make available a simple model so that a
-    doctest can be written using it.
-
-    Returns
-    -------
-    misalignment : ross.MisalignmentFlex Object
-        An instance of a flexible parallel misalignment model object.
-
-    Examples
-    --------
-    >>> misalignment = misalignment_flex_parallel_example()
-    >>> misalignment.speed
-    125.66370614359172
-    """
-
-    rotor = rs.rotor_example_with_damping()
-
-    misalignment = rotor.run_misalignment(
-        coupling="flex",
-        dt=0.0001,
-        tI=0,
-        tF=0.5,
-        radial_stiffness=40 * 10 ** (3),
-        bending_stiffness=38 * 10 ** (3),
-        delta_x=2 * 10 ** (-4),
-        delta_y=2 * 10 ** (-4),
-        mis_angle=5 * np.pi / 180,
-        input_torque=0,
-        load_torque=0,
-        n_mis=0,
-        speed=Q_(1200, "RPM"),
-        unbalance_magnitude=np.array([5e-4, 0]),
-        unbalance_phase=np.array([-np.pi / 2, 0]),
-        mis_type="parallel",
-        print_progress=False,
-    )
-
-    return misalignment
-
-
-def misalignment_flex_angular_example():
-    """Create an example of a flexible angular misalignment fault.
-
-    This function returns an instance of a flexible angular misalignment
-    fault. The purpose is to make available a simple model so that a
-    doctest can be written using it.
-
-    Returns
-    -------
-    misalignment : ross.MisalignmentFlex Object
-        An instance of a flexible Angular misalignment model object.
-
-    Examples
-    --------
-    >>> misalignment = misalignment_flex_angular_example()
-    >>> misalignment.speed
-    125.66370614359172
-    """
-
-    rotor = rs.rotor_example_with_damping()
-
-    misalignment = rotor.run_misalignment(
-        coupling="flex",
-        dt=0.0001,
-        tI=0,
-        tF=0.5,
-        radial_stiffness=40 * 10 ** (3),
-        bending_stiffness=38 * 10 ** (3),
-        delta_x=2 * 10 ** (-4),
-        delta_y=2 * 10 ** (-4),
-        mis_angle=5 * np.pi / 180,
-        input_torque=0,
-        load_torque=0,
-        n_mis=0,
-        speed=Q_(1200, "RPM"),
-        unbalance_magnitude=np.array([5e-4, 0]),
-        unbalance_phase=np.array([-np.pi / 2, 0]),
-        mis_type="angular",
-        print_progress=False,
-    )
-
-    return misalignment
-
-
-def misalignment_flex_combined_example():
+def misalignment_flex_example(mis_type="parallel"):
     """Create an example of a flexible combined misalignment fault.
 
-    This function returns an instance of a flexible combined misalignment
+    This function returns time response results of a flexible misalignment
     fault. The purpose is to make available a simple model so that a
     doctest can be written using it.
 
+    mis_type: string
+        Name of the chosen misalignment type.
+        The avaible types are: "parallel", "angular" and "combined". Default is "parallel".
+
     Returns
     -------
-    misalignment : ross.MisalignmentFlex Object
-        An instance of a flexible combined misalignment model object.
+    results : ross.TimeResponseResults
+        Results for a shaft with misalignment.
 
     Examples
     --------
-    >>> misalignment = misalignment_flex_combined_example()
-    >>> misalignment.speed
-    125.66370614359172
+    >>> from ross.faults.misalignment import misalignment_flex_example
+    >>> from ross.probe import Probe
+    >>> results = misalignment_flex_example("combined")
+    >>> probe1 = Probe(14, 0)
+    >>> probe2 = Probe(22, 0)
+    >>> fig = results.plot_1d([probe1, probe2]
     """
 
     rotor = rs.rotor_example_with_damping()
 
+    n1 = rotor.disk_elements[0].n
+    n2 = rotor.disk_elements[1].n
+
     misalignment = rotor.run_misalignment(
         coupling="flex",
-        dt=0.0001,
-        tI=0,
-        tF=0.5,
-        radial_stiffness=40 * 10 ** (3),
-        bending_stiffness=38 * 10 ** (3),
-        delta_x=2 * 10 ** (-4),
-        delta_y=2 * 10 ** (-4),
+        n_mis=0,
+        radial_stiffness=40e3,
+        bending_stiffness=38e3,
+        delta_x=2e-4,
+        delta_y=2e-4,
         mis_angle=5 * np.pi / 180,
+        mis_type=mis_type,
         input_torque=0,
         load_torque=0,
-        n_mis=0,
+        node=[n1, n2],
+        unbalance_magnitude=[5e-4, 0],
+        unbalance_phase=[-np.pi / 2, 0],
         speed=Q_(1200, "RPM"),
-        unbalance_magnitude=np.array([5e-4, 0]),
-        unbalance_phase=np.array([-np.pi / 2, 0]),
-        mis_type="combined",
-        print_progress=False,
+        t=np.arange(0, 0.5, 0.0001),
     )
 
     return misalignment
@@ -652,7 +580,7 @@ def misalignment_flex_combined_example():
 def misalignment_rigid_example():
     """Create an example of a rigid misalignment fault.
 
-    This function returns an instance of a rigid misalignment
+    This function returns time response results of a rigid misalignment
     fault. The purpose is to make available a simple model so that a
     doctest can be written using it.
 
@@ -663,26 +591,30 @@ def misalignment_rigid_example():
 
     Examples
     --------
-    >>> misalignment = misalignment_rigid_example()
-    >>> misalignment.speed
-    125.66370614359172
+    >>> from ross.faults.misalignment import misalignment_rigid_example
+    >>> from ross.probe import Probe
+    >>> results = misalignment_rigid_example()
+    >>> probe1 = Probe(14, 0)
+    >>> probe2 = Probe(22, 0)
+    >>> fig = results.plot_1d([probe1, probe2]
     """
 
     rotor = rs.rotor_example_with_damping()
 
+    n1 = rotor.disk_elements[0].n
+    n2 = rotor.disk_elements[1].n
+
     misalignment = rotor.run_misalignment(
         coupling="rigid",
-        dt=0.0001,
-        tI=0,
-        tF=0.5,
-        eCOUP=2e-4,
+        n_mis=0,
+        delta=2e-4,
         input_torque=0,
         load_torque=0,
-        n_mis=0,
+        node=[n1, n2],
+        unbalance_magnitude=[5e-4, 0],
+        unbalance_phase=[-np.pi / 2, 0],
         speed=Q_(1200, "RPM"),
-        unbalance_magnitude=np.array([5e-4, 0]),
-        unbalance_phase=np.array([-np.pi / 2, 0]),
-        print_progress=False,
+        t=np.arange(0, 0.5, 0.0001),
     )
 
     return misalignment

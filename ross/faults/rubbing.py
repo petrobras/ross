@@ -238,8 +238,9 @@ class Rubbing(Fault):
 def rubbing_example():
     """Create an example of a rubbing fault.
 
-    This function returns an instance of a rubbing fault. The purpose is to make
-    available a simple model so that a doctest can be written using it.
+    This function returns time response results of a rubbing fault.
+    The purpose is to make available a simple model so that a doctest
+    can be written using it.
 
     Returns
     -------
