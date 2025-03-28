@@ -6,6 +6,7 @@ import ross as rs
 from ross.gear_element import GearElement
 from ross.rotor_assembly import Rotor
 from ross.gear_mesh_TVMS import GearElementTVMS, Mesh
+import time
 
 
 __all__ = ["MultiRotorTVMS"]
@@ -414,7 +415,9 @@ class MultiRotorTVMS(Rotor):
         dofs_2 = self.gears[1].dof_global_index.values()
         dofs = [*dofs_1, *dofs_2]
 
-        K0[np.ix_(dofs, dofs)] += self.coupling_matrix() * self.gear_mesh.mesh(t, frequency)[0]
+        k_eq = self.gear_mesh.mesh(t, frequency)[0]
+        
+        K0[np.ix_(dofs, dofs)] += self.coupling_matrix() * k_eq
 
         return K0
 
@@ -627,9 +630,9 @@ if __name__ == "__main__":
     unb_mag = [35.505e-3, 0.449e-3]
     unb_phase = [0, 0]
 
-    dt = 2.5e-4
-    t = np.arange(0, 5, dt)
-    speed1 = 11*2*np.pi  # Generator rotor speed
+    dt = 0.1e-4
+    t = np.arange(0, 10, dt)
+    speed1 = 25*2*np.pi  # Generator rotor speed
 
     num_dof = rotor.number_dof
 
@@ -644,14 +647,16 @@ if __name__ == "__main__":
         F[:, dofx] += unb_mag[i] * (speed**2) * np.cos(phi)
         F[:, dofy] += unb_mag[i] * (speed**2) * np.sin(phi)
 
+    start_time=time.time()
+    tr = rotor.run_time_response(speed1, F, t, method='newmark')
 
-    tr = rotor.run_time_response(speed1, F, t, method='newmark', progress_interval=.1)
-
+    end_time = time.time()
+    print(f'Time to run:{end_time - start_time}')
     probe1 = rs.Probe(2, 0)  # node 3, orientation 0° (X dir.)
     probe2 = rs.Probe(7, np.pi/2)  # node 3, orientation 90°(Y dir.)
 
     data = tr.data_time_response(probe=[probe1,probe2])
-    data.to_csv("C:\\gear_freq_data\\time_response_2_11hz.csv")
+    data.to_csv("C:\\gear_freq_data\\time_response_0.1e-4_10s.csv")
 
     fig3= tr.plot_1d(probe=[probe1, probe2])
     fig3.show()

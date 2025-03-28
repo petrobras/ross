@@ -1388,7 +1388,7 @@ class Mesh:
     
 
 
-    def mesh(self, t, gearInputSpeed: float):
+    def mesh(self, t, gearInputSpeed: float, interpolation: bool):
         """
         Calculate the time-varying meshing stiffness of a gear pair.
 
@@ -1418,23 +1418,56 @@ class Mesh:
         - The stiffness contribution varies depending on whether one or two pairs of teeth are in contact.
         """
 
+        interpolation = kwargs.get('dt')
 
-        tm = 2 * np.pi / (gearInputSpeed * self.gearInput.n_tooth) # Gearmesh period [seconds/engagement]
-        ctm = self.cr * tm # [seconds/tooth] how much time each tooth remains in contact
-
-        t = t - t // tm * tm
-        
-        if t <= (self.cr-1) * tm:
-            stiffnessMesh1, d_tau_pinion1, d_tau_gear1 = self.time_equivalent_stiffness(t, gearInputSpeed)
-            stiffnessMesh0,  d_tau_pinion0, d_tau_gear0 = self.time_equivalent_stiffness(tm + t, gearInputSpeed)
-
-            return stiffnessMesh0 + stiffnessMesh1, stiffnessMesh0, stiffnessMesh1
-        
-        elif t > (self.cr-1) * tm:
-            stiffnessMesh1, d_tau_pinion1, d_tau_gear1 = self.time_equivalent_stiffness(t, gearInputSpeed)
+        if interpolation == True:
+            count = 0
+            if count == 0:
+                t_interpol, double_contact, single_contact = self._time_stiffness()
             
-            return stiffnessMesh1, np.nan, stiffnessMesh1
+
+
+
+
+
+        else: 
+            tm = 2 * np.pi / (gearInputSpeed * self.gearInput.n_tooth) # Gearmesh period [seconds/engagement]
+            ctm = self.cr * tm # [seconds/tooth] how much time each tooth remains in contact
+
+            t = t - t // tm * tm
+            
+            if t <= (self.cr-1) * tm:
+                stiffnessMesh1, d_tau_pinion1, d_tau_gear1 = self.time_equivalent_stiffness(t, gearInputSpeed)
+                stiffnessMesh0,  d_tau_pinion0, d_tau_gear0 = self.time_equivalent_stiffness(tm + t, gearInputSpeed)
+
+                return stiffnessMesh0 + stiffnessMesh1, stiffnessMesh0, stiffnessMesh1
+            
+            elif t > (self.cr-1) * tm:
+                stiffnessMesh1, d_tau_pinion1, d_tau_gear1 = self.time_equivalent_stiffness(t, gearInputSpeed)
+                
+                return stiffnessMesh1, np.nan, stiffnessMesh1
+    
+    def _time_stiffness(self, gearInputSpeed: float, dt: float) -> float:
+
+        t_interpol = np.arange(0, self.tm+dt, dt)
+        double_contact = np.zeros(np.shape(t_interpol))
+        single_contact = np.zeros(np.shape(self.double_contact))
+
+        for i, t in enumerate(t_interpol):
+
+            if t <= (self.cr-1) * self.tm:
+                stiffnessMesh1, _, _ = self.time_equivalent_stiffness(t, gearInputSpeed)
+                stiffnessMesh0,  _, _ = self.time_equivalent_stiffness(self.tm + t, gearInputSpeed)
+
+                double_contact[i] = stiffnessMesh0 + stiffnessMesh1
+            
+            elif t > (self.cr-1) * self.tm:
+                stiffnessMesh1, _, _ = self.time_equivalent_stiffness(t, gearInputSpeed)
+                
+                single_contact[i] = stiffnessMesh1
         
+        return t_interpol, double_contact, single_contact
+
 
 def gearGeometryExample() -> None:
     gear1 = GearElementTVMS(21, 12, 12, 12, 2e-3, 55, 2e-2)
