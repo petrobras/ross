@@ -19,93 +19,79 @@ __all__ = ["MisalignmentFlex", "MisalignmentRigid"]
 
 
 class MisalignmentFlex(Fault):
-    """A flexible coupling with misalignment of some kind.
+    """Model misalignment on a given flexible coupling element of a rotor system.
 
     Calculates the dynamic reaction force of hexangular flexible coupling
-    induced by 6DOF's rotor parallel and angular misalignment.
+    induced by rotor misalignment of some kind based on :cite:`xia2019study`.
 
     Parameters
     ----------
-    dt : float
-        Time step.
-    tI : float
-        Initial time.
-    tF : float
-        Final time.
-    kd : float
-        Radial stiffness of flexible coupling.
-    ks : float
-        Bending stiffness of flexible coupling.
-    eCOUPx : float
+    rotor : ross.Rotor
+        Rotor object.
+    n_mis : float
+        Number of shaft element where the misalignment is ocurring.
+    delta_x : float
         Parallel misalignment offset between driving rotor and driven rotor along X direction.
-    eCOUPy : float
+    delta_y : float
         Parallel misalignment offset between driving rotor and driven rotor along Y direction.
+    radial_stiffness : float
+        Radial stiffness of flexible coupling.
+    bending_stifness : float
+        Bending stiffness of flexible coupling. Provide if mis_type is "angular" or "combined".
     mis_angle : float
         Angular misalignment angle.
-    TD : float
-        Driving torque.
-    TL : float
-        Driven torque.
-    n1 : float
-        Node where the misalignment is ocurring.
-    speed : float, pint.Quantity
-        Operational speed of the machine. Default unit is rad/s.
-    unbalance_magnitude : array
-        Array with the unbalance magnitude. The unit is kg.m.
-    unbalance_phase : array
-        Array with the unbalance phase. The unit is rad.
     mis_type: string
-        String containing the misalignment type choosed. The avaible types are: parallel, by default; angular; combined.
-    print_progress : bool
-        Set it True, to print the time iterations and the total time spent.
-        False by default.
+        Name of the chosen misalignment type.
+        The avaible types are: "parallel", "angular" and "combined". Default is "parallel".
+    input_torque : float
+        Driving torque. Default is 0.
+    load_torque : float
+        Driven torque. Default is 0.
 
     Returns
     -------
-    A force to be applied on the shaft.
+        A MisalignmentFlex object.
+
+    Attributes
+    ----------
+    shaft_elem : ross.ShaftElement
+        A 6 degrees of freedom shaft element object where misalignment is ocurring.
+    forces : np.ndarray
+        Force matrix due to misalignment. Each row corresponds to a dof and each column to a time.
 
     References
     ----------
-    .. [1] 'Xia, Y., Pang, J., Yang, L., Zhao, Q., & Yang, X. (2019). Study on vibration response
-    and orbits of misaligned rigid rotors connected by hexangular flexible coupling. Applied
-    Acoustics, 155, 286-296 ..
+    .. bibliography::
+    :filter: docname in docnames
 
     Examples
     --------
-    >>> from ross.probe import Probe
-    >>> from ross.faults.misalignment import misalignment_flex_parallel_example
-    >>> probe1 = Probe(14, 0)
-    >>> probe2 = Probe(22, 0)
-    >>> response = misalignment_flex_parallel_example()
-    >>> results = response.run_time_response()
-    >>> fig = response.plot_dfft(probe=[probe1, probe2], range_freq=[0, 100], yaxis_type="log")
-    >>> # fig.show()
     """
 
     @check_units
     def __init__(
         self,
         rotor,
-        n1,
-        TD,
-        TL,
-        eCOUPx,
-        eCOUPy,
-        kd,
-        ks,
+        n_mis,
+        delta_x,
+        delta_y,
+        radial_stiffness,
+        bending_stiffness,
         mis_angle,
         mis_type="parallel",
+        input_torque=0,
+        load_torque=0,
     ):
         self.rotor = rotor
 
-        self.TD = TD
-        self.TL = TL
+        self.input_torque = input_torque
+        self.load_torque = load_torque
 
-        self.eCOUPx = eCOUPx
-        self.eCOUPy = eCOUPy
+        self.delta_x = delta_x
+        self.delta_y = delta_y
 
-        self.kd = kd
-        self.ks = ks
+        self.radial_stiffness = radial_stiffness
+        self.bending_stiffness = bending_stiffness
 
         self.mis_angle = mis_angle
 
@@ -119,7 +105,7 @@ class MisalignmentFlex(Fault):
             raise Exception("Check the misalignment type!")
 
         # Shaft element with misalignment
-        self.shaft_elem = [elm for elm in rotor.shaft_elements if elm.n == n1][0]
+        self.shaft_elem = [elm for elm in rotor.shaft_elements if elm.n == n_mis][0]
 
         self.dofs = list(self.shaft_elem.dof_global_index.values())
         self.radius = self.shaft_elem.odl / 2
@@ -139,28 +125,26 @@ class MisalignmentFlex(Fault):
 
         F = np.zeros((self.rotor.ndof, len(ang_pos)))
 
-        fib = np.arctan(self.eCOUPx / self.eCOUPy)
+        aux1 = self.radius**2 + self.delta_x**2 + self.delta_y**2
+        aux2 = 2 * self.radius * np.sqrt(self.delta_x**2 + self.delta_y**2)
 
-        aux1 = self.radius**2 + self.eCOUPx**2 + self.eCOUPy**2
-        aux2 = 2 * self.radius * np.sqrt(self.eCOUPx**2 + self.eCOUPy**2)
+        phi = np.arctan(self.delta_x / self.delta_y) + ang_pos
 
         Fpy = (
-            (np.sqrt(aux1 + aux2 * np.sin(fib + ang_pos)) - self.radius)
-            * np.cos(ang_pos)
-            + (np.sqrt(aux1 + aux2 * np.cos(np.pi / 6 + fib + ang_pos)) - self.radius)
-            * np.cos(2 * np.pi / 3 + ang_pos)
-            + (self.radius - np.sqrt(aux1 - aux2 * np.sin(np.pi / 3 + fib + ang_pos)))
-            * np.cos(4 * np.pi / 3 + ang_pos)
-        ) * self.kd
+            (np.sqrt(aux1 + aux2 * np.sin(phi)) - self.radius) * np.cos(ang_pos)
+            + (np.sqrt(aux1 + aux2 * np.cos(np.pi / 6 + phi)) - self.radius)
+            * np.cos(2 * np.pi / 3)
+            + (self.radius - np.sqrt(aux1 - aux2 * np.sin(np.pi / 3 + phi)))
+            * np.cos(4 * np.pi / 3)
+        ) * self.radial_stiffness
 
         Fpx = (
-            (np.sqrt(aux1 + aux2 * np.sin(fib + ang_pos)) - self.radius)
-            * np.sin(ang_pos)
-            + (np.sqrt(aux1 + aux2 * np.cos(np.pi / 6 + fib + ang_pos)) - self.radius)
-            * np.sin(2 * np.pi / 3 + ang_pos)
-            + (self.radius - np.sqrt(aux1 - aux2 * np.sin(np.pi / 3 + fib + ang_pos)))
-            * np.sin(4 * np.pi / 3 + ang_pos)
-        ) * self.kd
+            (np.sqrt(aux1 + aux2 * np.sin(phi)) - self.radius) * np.sin(ang_pos)
+            + (np.sqrt(aux1 + aux2 * np.cos(np.pi / 6 + phi)) - self.radius)
+            * np.sin(2 * np.pi / 3)
+            + (self.radius - np.sqrt(aux1 - aux2 * np.sin(np.pi / 3 + phi)))
+            * np.sin(4 * np.pi / 3)
+        ) * self.radial_stiffness
 
         F[self.dofs[0]] = Fpx
         F[self.dofs[1]] = Fpy
@@ -168,8 +152,8 @@ class MisalignmentFlex(Fault):
         F[self.dofs[6]] = -Fpx
         F[self.dofs[7]] = -Fpy
 
-        F[self.dofs[5]] = self.TD
-        F[self.dofs[11]] = self.TL
+        F[self.dofs[5]] = self.input_torque
+        F[self.dofs[11]] = self.load_torque
 
         return F
 
@@ -188,7 +172,11 @@ class MisalignmentFlex(Fault):
 
         F = np.zeros((self.rotor.ndof, len(ang_pos)))
 
-        cte = self.ks * self.radius * np.sqrt(2 - 2 * np.cos(self.mis_angle))
+        cte = (
+            self.bending_stiffness
+            * self.radius
+            * np.sqrt(2 - 2 * np.cos(self.mis_angle))
+        )
 
         Fay = (
             np.abs(cte * np.sin(ang_pos) * np.sin(self.mis_angle))
@@ -214,8 +202,8 @@ class MisalignmentFlex(Fault):
         F[self.dofs[6]] = -Fax
         F[self.dofs[7]] = -Fay
 
-        F[self.dofs[5]] = self.TD
-        F[self.dofs[11]] = self.TL
+        F[self.dofs[5]] = self.input_torque
+        F[self.dofs[11]] = self.load_torque
 
         return F
 
@@ -290,99 +278,72 @@ class MisalignmentFlex(Fault):
 
 
 class MisalignmentRigid(Fault):
-    """A rigid coupling with parallel misalignment.
+    """Model misalignment on a given rigid coupling element of a rotor system.
 
     Calculates the dynamic reaction force of hexangular rigid coupling
-    induced by 6DOF's rotor parallel misalignment.
+    induced by rotor parallel misalignment based on :cite:`hussain2002dynamic`.
 
     Parameters
     ----------
-    dt : float
-        Time step.
-    tI : float
-        Initial time.
-    tF : float
-        Final time.
-    eCOUP : float
-        Parallel misalignment offset between driving rotor and driven rotor along X direction.
-    TD : float
-        Driving torque.
-    TL : float
-        Driven torque.
-    n1 : float
-        Node where the misalignment is ocurring.
-    speed : float, pint.Quantity
-        Operational speed of the machine. Default unit is rad/s.
-    unbalance_magnitude : array
-        Array with the unbalance magnitude. The unit is kg.m.
-    unbalance_phase : array
-        Array with the unbalance phase. The unit is rad.
-    print_progress : bool
-        Set it True, to print the time iterations and the total time spent.
-        False by default.
+    n_mis : float
+        Number of shaft element where the misalignment is ocurring.
+    delta : float
+        Parallel misalignment offset between driving rotor and driven rotor.
+    input_torque : float
+        Driving torque. Default is 0.
+    load_torque : float
+        Driven torque. Default is 0.
 
     Returns
     -------
-    A force to be applied on the shaft.
+    A MisalignmentRigid object.
+
+    Attributes
+    ----------
+    shaft_elem : ross.ShaftElement
+        A 6 degrees of freedom shaft element object where misalignment is ocurring.
+    kl1 : float
+        Stiffness of the x-direction degree of freedom at the left node of the shaft element.
+    kl2 : float
+        Stiffness of the x-direction degree of freedom at the right node of the shaft element.
+    kt1 : float
+        Stiffness of the torsional degree of freedom at the left node of the shaft element.
+    kt2 : float
+        Stiffness of the torsional degree of freedom at the right node of the shaft element.
+    phi : float
+        Coupling angular position.
+    forces : np.ndarray
+        Force matrix due to misalignment. Each row corresponds to a dof and each column to a time.
 
     References
     ----------
-
-    .. [1] 'Al-Hussain, K. M., & Redmond, I. (2002). Dynamic response of two rotors connected by rigid mechanical coupling with parallel misalignment. Journal of Sound and vibration, 249(3), 483-498..
+    .. bibliography::
+        :filter: docname in docnames
 
     Examples
     --------
-    >>> from ross.probe import Probe
-    >>> from ross.faults.misalignment import misalignment_rigid_example
-    >>> probe1 = Probe(14, 0)
-    >>> probe2 = Probe(22, 0)
-    >>> response = misalignment_rigid_example()
-    >>> results = response.run_time_response()
-    >>> fig = response.plot_dfft(probe=[probe1, probe2], range_freq=[0, 100], yaxis_type="log")
-    >>> # fig.show
     """
 
     @check_units
     def __init__(
         self,
         rotor,
-        n1,
-        TD,
-        TL,
-        eCOUP,
+        n_mis,
+        delta,
+        input_torque=0,
+        load_torque=0,
     ):
         self.rotor = rotor
 
-        self.eCOUP = eCOUP
+        self.delta = delta
 
-        self.TD = TD
-        self.TL = TL
+        self.input_torque = input_torque
+        self.load_torque = load_torque
 
         # Shaft element with misalignment
-        self.shaft_elem = [elm for elm in rotor.shaft_elements if elm.n == n1][0]
+        self.shaft_elem = [elm for elm in rotor.shaft_elements if elm.n == n_mis][0]
 
         self.dofs = list(self.shaft_elem.dof_global_index.values())
-
-    def _initialize_parameters(self, frequency):
-        K = self.rotor.K(frequency)
-
-        self.kcoup_auxt = 1 / (
-            K[self.dofs[5], self.dofs[5]] + K[self.dofs[11], self.dofs[11]]
-        )
-
-        self.kCOUP = (K[self.dofs[0], self.dofs[0]] * K[self.dofs[6], self.dofs[6]]) / (
-            K[self.dofs[0], self.dofs[0]] + K[self.dofs[6], self.dofs[6]]
-        )
-
-        self.Kcoup_auxI = K[self.dofs[5], self.dofs[5]] / (
-            K[self.dofs[5], self.dofs[5]] + K[self.dofs[11], self.dofs[11]]
-        )
-
-        self.Kcoup_auxF = K[self.dofs[11], self.dofs[11]] / (
-            K[self.dofs[5], self.dofs[5]] + K[self.dofs[11], self.dofs[11]]
-        )
-
-        self.fir = -np.pi / 180
 
     def compute_reaction_force(self, y, ap):
         """Calculate reaction forces of parallel misalignment.
@@ -400,32 +361,39 @@ class MisalignmentRigid(Fault):
             Force matrix of the element due to misalignment.
         """
 
-        self.fir = (
-            self.Kcoup_auxI * ap
-            + self.Kcoup_auxF * ap
-            + self.kCOUP
-            * self.kcoup_auxt
-            * self.eCOUP
-            * (
-                (y[self.dofs[6]] - y[self.dofs[0]]) * np.sin(self.fir)
-                - (y[self.dofs[7]] - y[self.dofs[1]]) * np.cos(self.fir)
+        kte = 1 / (self.kt1 + self.kt2)
+        kt1 = self.kt1 * kte
+        kt2 = self.kt2 * kte
+        kle = self.kl1 * self.kl2 / (self.kl1 + self.kl2)
+
+        x1 = y[self.dofs[0]]
+        x2 = y[self.dofs[6]]
+
+        y1 = y[self.dofs[1]]
+        y2 = y[self.dofs[7]]
+
+        # fmt: off
+        self.phi = kt1 * ap + kt2 * ap + (
+            kle * kte * self.delta * (
+                (x2 - x1) * np.sin(self.phi) - (y2 - y1) * np.cos(self.phi)
             )
         )
+        # fmt: on
 
-        k0 = self.kCOUP
-        delta = self.eCOUP
         beta = 0
+        sin = np.sin(beta + self.phi)
+        cos = np.cos(beta + self.phi)
 
         k_beta = np.array(
             [
-                k0 * self.Kcoup_auxI * delta * np.sin(beta + self.fir),
-                -k0 * self.Kcoup_auxI * delta * np.cos(beta + self.fir),
+                kle * self.delta * (kt1 * sin),
+                -kle * self.delta * (kt1 * cos),
                 0,
                 0,
                 0,
                 0,
-                k0 * self.Kcoup_auxF * delta * np.sin(beta + self.fir),
-                -k0 * self.Kcoup_auxF * delta * np.cos(beta + self.fir),
+                kle * self.delta * (kt2 * sin),
+                -kle * self.delta * (kt2 * cos),
                 0,
                 0,
                 0,
@@ -439,18 +407,18 @@ class MisalignmentRigid(Fault):
 
         F_mis = np.array(
             [
-                (-k0 * delta * np.cos(beta + self.fir) + k0 * delta),
-                -k0 * delta * np.sin(beta + self.fir),
+                -kle * self.delta * (cos - 1),
+                -kle * self.delta * sin,
                 0,
                 0,
                 0,
-                self.TD - self.TL,
-                (k0 * delta * np.cos(beta + self.fir) - k0 * delta),
-                k0 * delta * np.sin(beta + self.fir),
+                self.input_torque - self.load_torque,
+                kle * self.delta * (cos - 1),
+                kle * self.delta * sin,
                 0,
                 0,
                 0,
-                -(self.TD - self.TL),
+                -(self.input_torque - self.load_torque),
             ]
         )
 
@@ -520,13 +488,21 @@ class MisalignmentRigid(Fault):
             node, unb_magnitude, unb_phase, speed, t
         )
 
-        self._initialize_parameters(np.mean(speed))
-
         self.forces = np.zeros((rotor.ndof, len(t)))
 
         force_mis = lambda step, **state: self._get_force_over_time(
             step, state.get("disp_resp"), ang_pos[step]
         )
+
+        K = self.rotor.K(np.mean(speed))
+
+        self.kl1 = K[self.dofs[0], self.dofs[0]]
+        self.kl2 = K[self.dofs[6], self.dofs[6]]
+
+        self.kt1 = K[self.dofs[5], self.dofs[5]]
+        self.kt2 = K[self.dofs[11], self.dofs[11]]
+
+        self.phi = -np.pi / 180
 
         results = rotor.run_time_response(
             speed=speed,
@@ -567,14 +543,14 @@ def misalignment_flex_parallel_example():
         dt=0.0001,
         tI=0,
         tF=0.5,
-        kd=40 * 10 ** (3),
-        ks=38 * 10 ** (3),
-        eCOUPx=2 * 10 ** (-4),
-        eCOUPy=2 * 10 ** (-4),
+        radial_stiffness=40 * 10 ** (3),
+        bending_stiffness=38 * 10 ** (3),
+        delta_x=2 * 10 ** (-4),
+        delta_y=2 * 10 ** (-4),
         mis_angle=5 * np.pi / 180,
-        TD=0,
-        TL=0,
-        n1=0,
+        input_torque=0,
+        load_torque=0,
+        n_mis=0,
         speed=Q_(1200, "RPM"),
         unbalance_magnitude=np.array([5e-4, 0]),
         unbalance_phase=np.array([-np.pi / 2, 0]),
@@ -611,14 +587,14 @@ def misalignment_flex_angular_example():
         dt=0.0001,
         tI=0,
         tF=0.5,
-        kd=40 * 10 ** (3),
-        ks=38 * 10 ** (3),
-        eCOUPx=2 * 10 ** (-4),
-        eCOUPy=2 * 10 ** (-4),
+        radial_stiffness=40 * 10 ** (3),
+        bending_stiffness=38 * 10 ** (3),
+        delta_x=2 * 10 ** (-4),
+        delta_y=2 * 10 ** (-4),
         mis_angle=5 * np.pi / 180,
-        TD=0,
-        TL=0,
-        n1=0,
+        input_torque=0,
+        load_torque=0,
+        n_mis=0,
         speed=Q_(1200, "RPM"),
         unbalance_magnitude=np.array([5e-4, 0]),
         unbalance_phase=np.array([-np.pi / 2, 0]),
@@ -655,14 +631,14 @@ def misalignment_flex_combined_example():
         dt=0.0001,
         tI=0,
         tF=0.5,
-        kd=40 * 10 ** (3),
-        ks=38 * 10 ** (3),
-        eCOUPx=2 * 10 ** (-4),
-        eCOUPy=2 * 10 ** (-4),
+        radial_stiffness=40 * 10 ** (3),
+        bending_stiffness=38 * 10 ** (3),
+        delta_x=2 * 10 ** (-4),
+        delta_y=2 * 10 ** (-4),
         mis_angle=5 * np.pi / 180,
-        TD=0,
-        TL=0,
-        n1=0,
+        input_torque=0,
+        load_torque=0,
+        n_mis=0,
         speed=Q_(1200, "RPM"),
         unbalance_magnitude=np.array([5e-4, 0]),
         unbalance_phase=np.array([-np.pi / 2, 0]),
@@ -700,9 +676,9 @@ def misalignment_rigid_example():
         tI=0,
         tF=0.5,
         eCOUP=2e-4,
-        TD=0,
-        TL=0,
-        n1=0,
+        input_torque=0,
+        load_torque=0,
+        n_mis=0,
         speed=Q_(1200, "RPM"),
         unbalance_magnitude=np.array([5e-4, 0]),
         unbalance_phase=np.array([-np.pi / 2, 0]),

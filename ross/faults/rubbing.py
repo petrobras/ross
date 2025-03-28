@@ -21,9 +21,11 @@ class Rubbing(Fault):
 
     Parameters
     ----------
+    rotor : ross.Rotor
+        Rotor object.
     n_rubbing : int
         Number of shaft element where rubbing is ocurring.
-    delta_rubbing : float
+    delta : float
         Distance between the housing and shaft surface.
     contact_stiffness : float
         Contact stiffness.
@@ -57,7 +59,7 @@ class Rubbing(Fault):
     >>> fault = Rubbing(
     ...     rotor,
     ...     n_rubbing=12,
-    ...     delta_rubbing=7.95e-5,
+    ...     delta=7.95e-5,
     ...     contact_stiffness=1.1e6,
     ...     contact_damping=40,
     ...     friction_coeff=0.3
@@ -70,14 +72,14 @@ class Rubbing(Fault):
         self,
         rotor,
         n_rubbing,
-        delta_rubbing,
+        delta,
         contact_stiffness,
         contact_damping,
         friction_coeff,
         torque=False,
     ):
         self.rotor = rotor
-        self.delta_rubbing = delta_rubbing
+        self.delta = delta
         self.contact_stiffness = contact_stiffness
         self.contact_damping = contact_damping
         self.friction_coeff = friction_coeff
@@ -114,11 +116,11 @@ class Rubbing(Fault):
         radial_disp = np.sqrt(disp_resp[0] ** 2 + disp_resp[1] ** 2)
         radial_velc = np.sqrt(velc_resp[0] ** 2 + velc_resp[1] ** 2)
 
-        if radial_disp >= self.delta_rubbing:
+        if radial_disp >= self.delta:
             F_k[0:2] = (
                 -self.contact_stiffness
                 * disp_resp[0:2]
-                * (radial_disp - self.delta_rubbing)
+                * (radial_disp - self.delta)
                 / abs(radial_disp)
             )
             F_c[0:2] = (
@@ -261,7 +263,7 @@ def rubbing_example():
 
     results = rotor.run_rubbing(
         n_rubbing=12,
-        delta_rubbing=7.95e-5,
+        delta=7.95e-5,
         contact_stiffness=1.1e6,
         contact_damping=40,
         friction_coeff=0.3,

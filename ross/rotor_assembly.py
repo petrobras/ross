@@ -3157,24 +3157,24 @@ class Rotor(object):
         if coupling == "flex":
             fault = MisalignmentFlex(
                 self,
-                n1=kwargs.get("n1"),
-                TD=kwargs.get("TD"),
-                TL=kwargs.get("TL"),
-                eCOUPx=kwargs.get("eCOUPx"),
-                eCOUPy=kwargs.get("eCOUPy"),
-                kd=kwargs.get("kd"),
-                ks=kwargs.get("ks"),
+                n_mis=kwargs.get("n_mis"),
+                delta_x=kwargs.get("delta_x"),
+                delta_y=kwargs.get("delta_y"),
+                radial_stiffness=kwargs.get("radial_stiffness"),
+                bending_stiffness=kwargs.get("bending_stiffness"),
                 mis_angle=kwargs.get("mis_angle"),
                 mis_type=kwargs.get("mis_type", "parallel"),
+                input_torque=kwargs.get("input_torque", 0),
+                load_torque=kwargs.get("load_torque", 0),
             )
 
         elif coupling == "rigid":
             fault = MisalignmentRigid(
                 self,
-                n1=kwargs.get("n1"),
-                TD=kwargs.get("TD"),
-                TL=kwargs.get("TL"),
-                eCOUP=kwargs.get("eCOUP"),
+                n_mis=kwargs.get("n_mis"),
+                delta=kwargs.get("delta"),
+                input_torque=kwargs.get("input_torque", 0),
+                load_torque=kwargs.get("load_torque", 0),
             )
 
         else:
@@ -3190,7 +3190,7 @@ class Rotor(object):
     def run_rubbing(
         self,
         n_rubbing,
-        delta_rubbing,
+        delta,
         contact_stiffness,
         contact_damping,
         friction_coeff,
@@ -3255,7 +3255,7 @@ class Rotor(object):
         >>> n2 = rotor.disk_elements[1].n
         >>> results = rotor.run_rubbing(
         ...    n_rubbing=12,
-        ...    delta_rubbing=7.95e-5,
+        ...    delta=7.95e-5,
         ...    contact_stiffness=1.1e6,
         ...    contact_damping=40,
         ...    friction_coeff=0.3,
@@ -3270,7 +3270,7 @@ class Rotor(object):
         fault = Rubbing(
             self,
             n_rubbing,
-            delta_rubbing,
+            delta,
             contact_stiffness,
             contact_damping,
             friction_coeff,
