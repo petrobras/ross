@@ -65,6 +65,7 @@ class Rubbing(Fault):
     ...     friction_coeff=0.3
     ... )
     >>> fault.shaft_elem
+    ShaftElement(L=0.01, idl=0.0, idr=0.0, odl=0.019,  odr=0.019, material='Steel', n=12)
     """
 
     @check_units
@@ -252,9 +253,10 @@ def rubbing_example():
     >>> from ross.faults.rubbing import rubbing_example
     >>> from ross.probe import Probe
     >>> results = rubbing_example()
+    Running direct method
     >>> probe1 = Probe(14, 0)
     >>> probe2 = Probe(22, 0)
-    >>> fig = results.plot_1d([probe1, probe2]
+    >>> fig = results.plot_1d([probe1, probe2])
     """
 
     rotor = rs.rotor_example_with_damping()

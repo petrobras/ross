@@ -2078,8 +2078,9 @@ class Rotor(object):
         >>> rotor = rotor_example()
         >>> t = np.linspace(0, 10, 31)
         >>> omega = np.linspace(0, 1000, 31)
-        >>> rotor._unbalance_force_over_time([3], [10.0], [0.0], omega, t)[18] # doctest: +ELLIPSIS
-        array([0.000e+00+0.j, 1.000e+03+0.j, 4.000e+03+0.j, ...
+        >>> F, _, _, _ = rotor._unbalance_force_over_time([3], [10.0], [0.0], omega, t)
+        >>> F[18, :3]
+        array([     0.        ,   7632.15353293, -43492.18127561])
         """
 
         omega_is_array = isinstance(omega, (list, tuple, np.ndarray))
@@ -3105,12 +3106,12 @@ class Rotor(object):
         coupling="flex",
         **kwargs,
     ):
-        """Run an analyzes with misalignment.
+        """Run analysis for the rotor system with misalignment given an
+        unbalance force.
 
-        Execute the misalignment fault and generates the misalignment object
-        on the back-end. There are two types of coupling, flexible (flex)
-        and rigid, which have different entries. These entries are provided
-        via **kwargs to the specific method.
+        Misalignment object is instantiated and system's time response is simulated.
+        There are two types of coupling: flexible (flex) and rigid, each with distinct
+        parameters. These parameters are passed to the respective method through **kwargs.
 
         Parameters
         ----------
@@ -3198,10 +3199,12 @@ class Rotor(object):
         ...    delta=2e-4,
         ...    input_torque=0,
         ...    load_torque=0,
+        ...    num_modes=12,
         ... )
+        Running pseudo-modal method, number of modes = 12
         >>> probe1 = Probe(14, 0)
         >>> probe2 = Probe(22, 0)
-        >>> fig = results.plot_1d([probe1, probe2]
+        >>> fig = results.plot_1d([probe1, probe2])
         """
 
         if coupling == "flex":
@@ -3254,7 +3257,7 @@ class Rotor(object):
     ):
         """Run analysis for the rotor system with rubbing given an unbalance force.
 
-        Rubbing object is instantiated and system time response is simulated.
+        Rubbing object is instantiated and system's time response is simulated.
 
         Parameters
         ----------
@@ -3317,10 +3320,12 @@ class Rotor(object):
         ...    unbalance_phase=[-np.pi / 2, 0],
         ...    speed=Q_(1200, "RPM"),
         ...    t=np.arange(0, 0.5, 0.0001),
+        ...    num_modes=12,
         ... )
+        Running pseudo-modal method, number of modes = 12
         >>> probe1 = Probe(14, 0)
         >>> probe2 = Probe(22, 0)
-        >>> fig = results.plot_1d([probe1, probe2]
+        >>> fig = results.plot_1d([probe1, probe2])
         """
         fault = Rubbing(
             self,
@@ -3353,7 +3358,7 @@ class Rotor(object):
     ):
         """Run analysis for the rotor system with crack given an unbalance force.
 
-        Crack object is instantiated and system time response is simulated.
+        Crack object is instantiated and system's time response is simulated.
 
         Parameters
         ----------
@@ -3376,8 +3381,8 @@ class Rotor(object):
         t : array
             Time array.
         crack_model : string, optional
-            String containing type of crack model chosed. The avaible types are: Mayes and Gasch.
-            Default is "Mayes".
+            String containing type of crack model chosed. The avaible types are:
+            "Mayes" and "Gasch". Default is "Mayes".
         **kwargs : optional
             Additional keyword arguments can be passed to define the parameters
             of the Newmark method if it is used (e.g. gamma, beta, tol, ...).
@@ -3408,10 +3413,12 @@ class Rotor(object):
         ...    crack_model="Mayes",
         ...    speed=Q_(1200, "RPM"),
         ...    t=np.arange(0, 0.5, 0.0001),
+        ...    num_modes=12,
         ... )
+        Running pseudo-modal method, number of modes = 12
         >>> probe1 = Probe(14, 0)
         >>> probe2 = Probe(22, 0)
-        >>> fig = results.plot_1d([probe1, probe2]
+        >>> fig = results.plot_1d([probe1, probe2])
         """
         fault = Crack(self, n_crack, depth_ratio, crack_model)
 

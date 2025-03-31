@@ -64,6 +64,7 @@ class Crack(Fault):
     >>> rotor = rs.rotor_example_with_damping()
     >>> fault = Crack(rotor, n_crack=18, depth_ratio=0.2, crack_model="Gasch")
     >>> fault.shaft_elem
+    ShaftElement(L=0.03, idl=0.0, idr=0.0, odl=0.019,  odr=0.019, material='Steel', n=18)
     """
 
     @check_units
@@ -393,9 +394,10 @@ def crack_example():
     >>> from ross.faults.crack import crack_example
     >>> from ross.probe import Probe
     >>> results = crack_example()
+    Running direct method
     >>> probe1 = Probe(14, 0)
     >>> probe2 = Probe(22, 0)
-    >>> fig = results.plot_1d([probe1, probe2]
+    >>> fig = results.plot_1d([probe1, probe2])
     """
 
     rotor = rs.rotor_example_with_damping()

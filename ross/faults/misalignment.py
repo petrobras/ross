@@ -71,6 +71,7 @@ class MisalignmentFlex(Fault):
     ... radial_stiffness=40e3, bending_stiffness=38e3, mis_angle=5 * np.pi / 180,
     ... mis_type="combined", input_torque=0, load_torque=0)
     >>> fault.shaft_elem
+    ShaftElement(L=0.025, idl=0.0, idr=0.0, odl=0.019,  odr=0.019, material='Steel', n=0)
     """
 
     @check_units
@@ -321,6 +322,7 @@ class MisalignmentRigid(Fault):
     >>> fault = MisalignmentRigid(rotor, n_mis=0, delta=2e-4,
     ... input_torque=0, load_torque=0)
     >>> fault.shaft_elem
+    ShaftElement(L=0.025, idl=0.0, idr=0.0, odl=0.019,  odr=0.019, material='Steel', n=0)
     """
 
     @check_units
@@ -463,7 +465,7 @@ class MisalignmentRigid(Fault):
         unb_phase : list, float
             Unbalance phase (rad).
         speed : float or array_like, pint.Quantity
-            Rotor speed (rad/s).
+            Rotor speed.
         t : array
             Time array.
         **kwargs : optional
@@ -537,9 +539,10 @@ def misalignment_flex_example(mis_type="parallel"):
     >>> from ross.faults.misalignment import misalignment_flex_example
     >>> from ross.probe import Probe
     >>> results = misalignment_flex_example("combined")
+    Running direct method
     >>> probe1 = Probe(14, 0)
     >>> probe2 = Probe(22, 0)
-    >>> fig = results.plot_1d([probe1, probe2]
+    >>> fig = results.plot_1d([probe1, probe2])
     """
 
     rotor = rs.rotor_example_with_damping()
@@ -585,9 +588,10 @@ def misalignment_rigid_example():
     >>> from ross.faults.misalignment import misalignment_rigid_example
     >>> from ross.probe import Probe
     >>> results = misalignment_rigid_example()
+    Running direct method
     >>> probe1 = Probe(14, 0)
     >>> probe2 = Probe(22, 0)
-    >>> fig = results.plot_1d([probe1, probe2]
+    >>> fig = results.plot_1d([probe1, probe2])
     """
 
     rotor = rs.rotor_example_with_damping()
