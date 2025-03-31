@@ -2041,30 +2041,67 @@ class Rotor(object):
         return F0
 
     def _unbalance_force_over_time(self, node, magnitude, phase, omega, t):
+        """Calculate unbalance forces for each time step.
+
+        This auxiliary function calculates the unbalanced forces by taking
+        into account the magnitude and phase of the force. It generates an
+        array of force values at each degree of freedom for the specified
+        nodes at each time step, while also considering a range of
+        frequencies.
+
+        Parameters
+        ----------
+        node : list, int
+            Nodes where the unbalance is applied.
+        magnitude : list, float
+            Unbalance magnitude (kg.m) for each node.
+        phase : list, float
+            Unbalance phase (rad) for each node.
+        omega : float, np.darray
+            Constant velocity or desired range of velocities (rad/s).
+        t : np.darray
+            Time array (s).
+
+        Returns
+        -------
+        F0 : np.ndarray
+            Unbalance force at each degree of freedom for each time step.
+        theta : np.ndarray
+            Angular positions for each time step.
+        omega : np.ndarray
+            Angular velocities for each time step.
+        alpha : np.ndarray
+            Angular accelerations for each time step.
+
+        Examples
+        --------
+        >>> rotor = rotor_example()
+        >>> t = np.linspace(0, 10, 31)
+        >>> omega = np.linspace(0, 1000, 31)
+        >>> rotor._unbalance_force_over_time([3], [10.0], [0.0], omega, t)[18] # doctest: +ELLIPSIS
+        array([0.000e+00+0.j, 1.000e+03+0.j, 4.000e+03+0.j, ...
+        """
+
         omega_is_array = isinstance(omega, (list, tuple, np.ndarray))
 
         if not omega_is_array:
             omega = np.full_like(t, omega)
 
-        angle = integrate(omega, t, initial=0)
-        accel = np.gradient(omega, t)
+        theta = integrate(omega, t, initial=0)
+        alpha = np.gradient(omega, t)
 
         F0 = np.zeros((self.ndof, len(t)))
 
         for i, n in enumerate(node):
-            theta = phase[i] + angle
+            phi = phase[i] + theta
 
-            Fx = magnitude[i] * (omega**2) * np.cos(theta) + magnitude[
-                i
-            ] * accel * np.sin(theta)
-            Fy = magnitude[i] * (omega**2) * np.sin(theta) - magnitude[
-                i
-            ] * accel * np.cos(theta)
+            Fx = magnitude[i] * ((omega**2) * np.cos(phi) + alpha * np.sin(phi))
+            Fy = magnitude[i] * ((omega**2) * np.sin(phi) - alpha * np.cos(phi))
 
             F0[n * self.number_dof + 0, :] += Fx
             F0[n * self.number_dof + 1, :] += Fy
 
-        return F0, angle, omega, accel
+        return F0, theta, omega, alpha
 
     @check_units
     def run_unbalance_response(
