@@ -128,33 +128,33 @@ class MisalignmentFlex(Fault):
             Each row corresponds to a dof and each column to a time.
         """
 
-        F = np.zeros((self.rotor.ndof, len(ang_pos)))
-
         aux1 = self.radius**2 + self.delta_x**2 + self.delta_y**2
         aux2 = 2 * self.radius * np.sqrt(self.delta_x**2 + self.delta_y**2)
 
         phi = np.arctan(self.delta_x / self.delta_y) + ang_pos
 
-        Fpy = (
-            (np.sqrt(aux1 + aux2 * np.sin(phi)) - self.radius) * np.cos(ang_pos)
-            + (np.sqrt(aux1 + aux2 * np.cos(np.pi / 6 + phi)) - self.radius)
-            * np.cos(2 * np.pi / 3)
-            + (self.radius - np.sqrt(aux1 - aux2 * np.sin(np.pi / 3 + phi)))
-            * np.cos(4 * np.pi / 3)
-        ) * self.radial_stiffness
+        Fp_ = lambda f, a: np.sqrt(aux1 + aux2 * f(phi + a)) - self.radius
+        Fpx_ = lambda f, a: Fp_(f, a) * np.sin(ang_pos + 4 * a)
+        Fpy_ = lambda f, a: Fp_(f, a) * np.cos(ang_pos + 4 * a)
 
         Fpx = (
-            (np.sqrt(aux1 + aux2 * np.sin(phi)) - self.radius) * np.sin(ang_pos)
-            + (np.sqrt(aux1 + aux2 * np.cos(np.pi / 6 + phi)) - self.radius)
-            * np.sin(2 * np.pi / 3)
-            + (self.radius - np.sqrt(aux1 - aux2 * np.sin(np.pi / 3 + phi)))
-            * np.sin(4 * np.pi / 3)
+            Fpx_(np.sin, 0)
+            + Fpx_(np.cos, np.pi / 6)
+            - Fpx_(lambda x: -np.sin(x), np.pi / 3)
         ) * self.radial_stiffness
 
-        F[self.dofs[0]] = Fpx
-        F[self.dofs[1]] = Fpy
+        Fpy = (
+            Fpy_(np.sin, 0)
+            + Fpy_(np.cos, np.pi / 6)
+            - Fpy_(lambda x: -np.sin(x), np.pi / 3)
+        ) * self.radial_stiffness
 
+        F = np.zeros((self.rotor.ndof, len(ang_pos)))
+
+        F[self.dofs[0]] = Fpx
         F[self.dofs[6]] = -Fpx
+
+        F[self.dofs[1]] = Fpy
         F[self.dofs[7]] = -Fpy
 
         F[self.dofs[5]] = self.input_torque
@@ -175,36 +175,26 @@ class MisalignmentFlex(Fault):
             Each row corresponds to a dof and each column to a time.
         """
 
-        F = np.zeros((self.rotor.ndof, len(ang_pos)))
-
-        cte = (
+        aux = (
             self.bending_stiffness
             * self.radius
             * np.sqrt(2 - 2 * np.cos(self.mis_angle))
+            * np.sin(self.mis_angle)
         )
 
-        Fay = (
-            np.abs(cte * np.sin(ang_pos) * np.sin(self.mis_angle))
-            * np.sin(ang_pos + np.pi)
-            + np.abs(cte * np.sin(ang_pos + 2 * np.pi / 3) * np.sin(self.mis_angle))
-            * np.sin(ang_pos + np.pi + 2 * np.pi / 3)
-            + np.abs(cte * np.sin(ang_pos + 4 * np.pi / 3) * np.sin(self.mis_angle))
-            * np.sin(ang_pos + np.pi + 4 * np.pi / 3)
-        )
+        Fa_ = lambda a: np.abs(aux * np.sin(ang_pos + 4 * a))
+        Fax_ = lambda a: Fa_(a) * np.cos(ang_pos + np.pi + 4 * a)
+        Fay_ = lambda a: Fa_(a) * np.sin(ang_pos + np.pi + 4 * a)
 
-        Fax = (
-            np.abs(cte * np.sin(ang_pos) * np.sin(self.mis_angle))
-            * np.cos(ang_pos + np.pi)
-            + np.abs(cte * np.sin(ang_pos + 2 * np.pi / 3) * np.sin(self.mis_angle))
-            * np.cos(ang_pos + np.pi + 2 * np.pi / 3)
-            + np.abs(cte * np.sin(ang_pos + 4 * np.pi / 3) * np.sin(self.mis_angle))
-            * np.cos(ang_pos + np.pi + 4 * np.pi / 3)
-        )
+        Fax = Fax_(0) + Fax_(np.pi / 6) + Fax_(np.pi / 3)
+        Fay = Fay_(0) + Fay_(np.pi / 6) + Fay_(np.pi / 3)
+
+        F = np.zeros((self.rotor.ndof, len(ang_pos)))
 
         F[self.dofs[0]] = Fax
-        F[self.dofs[1]] = Fay
-
         F[self.dofs[6]] = -Fax
+
+        F[self.dofs[1]] = Fay
         F[self.dofs[7]] = -Fay
 
         F[self.dofs[5]] = self.input_torque
@@ -450,7 +440,7 @@ class MisalignmentRigid(Fault):
         Returns
         -------
         F : np.ndarray
-            Force matrix due to rubbing in the current time step `t[step]`.
+            Force matrix due to misalignment in the current time step `t[step]`.
         """
 
         F = np.zeros(self.rotor.ndof)
@@ -473,7 +463,7 @@ class MisalignmentRigid(Fault):
         unb_phase : list, float
             Unbalance phase (rad).
         speed : float or array_like, pint.Quantity
-            Rotor speed.
+            Rotor speed (rad/s).
         t : array
             Time array.
         **kwargs : optional
@@ -534,7 +524,8 @@ def misalignment_flex_example(mis_type="parallel"):
 
     mis_type: string
         Name of the chosen misalignment type.
-        The avaible types are: "parallel", "angular" and "combined". Default is "parallel".
+        The avaible types are: "parallel", "angular" and "combined".
+        Default is "parallel".
 
     Returns
     -------
