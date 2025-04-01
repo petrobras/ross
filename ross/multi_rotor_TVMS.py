@@ -415,7 +415,7 @@ class MultiRotorTVMS(Rotor):
         dofs_2 = self.gears[1].dof_global_index.values()
         dofs = [*dofs_1, *dofs_2]
 
-        k_eq = self.gear_mesh.mesh(t, frequency)[0]
+        k_eq = self.gear_mesh.mesh(t, frequency, True)[0]
         
         K0[np.ix_(dofs, dofs)] += self.coupling_matrix() * k_eq
 
@@ -630,7 +630,7 @@ if __name__ == "__main__":
     unb_mag = [35.505e-3, 0.449e-3]
     unb_phase = [0, 0]
 
-    dt = 0.1e-4
+    dt = 1e-5
     t = np.arange(0, 10, dt)
     speed1 = 25*2*np.pi  # Generator rotor speed
 
@@ -648,7 +648,7 @@ if __name__ == "__main__":
         F[:, dofy] += unb_mag[i] * (speed**2) * np.sin(phi)
 
     start_time=time.time()
-    tr = rotor.run_time_response(speed1, F, t, method='newmark')
+    tr = rotor.run_time_response(speed1, F, t, method='newmark', progress_interval=1)
 
     end_time = time.time()
     print(f'Time to run:{end_time - start_time}')
@@ -656,7 +656,7 @@ if __name__ == "__main__":
     probe2 = rs.Probe(7, np.pi/2)  # node 3, orientation 90°(Y dir.)
 
     data = tr.data_time_response(probe=[probe1,probe2])
-    data.to_csv("C:\\gear_freq_data\\time_response_0.1e-4_10s.csv")
+    data.to_csv("C:\\gear_freq_data\\time_response_1e-5_10s_interp.csv")
 
     fig3= tr.plot_1d(probe=[probe1, probe2])
     fig3.show()
