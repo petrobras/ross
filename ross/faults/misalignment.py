@@ -346,6 +346,19 @@ class MisalignmentRigid(Fault):
 
         self.dofs = list(self.shaft_elem.dof_global_index.values())
 
+        self._initialize_params()
+
+    def _initialize_params(self, speed=0):
+        K = self.rotor.K(speed)
+
+        self.kl1 = K[self.dofs[0], self.dofs[0]]
+        self.kl2 = K[self.dofs[6], self.dofs[6]]
+
+        self.kt1 = K[self.dofs[5], self.dofs[5]]
+        self.kt2 = K[self.dofs[11], self.dofs[11]]
+
+        self.phi = -np.pi / 180
+
     def compute_reaction_force(self, y, ap):
         """Calculate reaction forces of parallel misalignment.
 
@@ -495,15 +508,7 @@ class MisalignmentRigid(Fault):
             step, state.get("disp_resp"), ang_pos[step]
         )
 
-        K = self.rotor.K(np.mean(speed))
-
-        self.kl1 = K[self.dofs[0], self.dofs[0]]
-        self.kl2 = K[self.dofs[6], self.dofs[6]]
-
-        self.kt1 = K[self.dofs[5], self.dofs[5]]
-        self.kt2 = K[self.dofs[11], self.dofs[11]]
-
-        self.phi = -np.pi / 180
+        self._initialize_params(np.mean(speed))
 
         results = rotor.run_time_response(
             speed=speed,
