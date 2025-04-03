@@ -1,16 +1,16 @@
+from abc import ABC
+
 import numpy as np
 
 import ross as rs
 from ross.units import Q_, check_units
-
-from .fault import Fault
 
 __all__ = [
     "Rubbing",
 ]
 
 
-class Rubbing(Fault):
+class Rubbing(ABC):
     """Model rubbing based on Finite Element Method on a given shaft element of a
     rotor system.
 

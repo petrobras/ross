@@ -4,21 +4,18 @@ This module defines misalignments of various types on the shaft coupling. There 
 a number of options, for the formulation of 6 DoFs (degrees of freedom).
 """
 
-import time
+from abc import ABC
 
 import numpy as np
-from scipy import linalg as la
 
 import ross as rs
 from ross.units import Q_, check_units
 
-from .fault import Fault
-from .integrate_solver import Integrator
 
 __all__ = ["MisalignmentFlex", "MisalignmentRigid"]
 
 
-class MisalignmentFlex(Fault):
+class MisalignmentFlex(ABC):
     """Model misalignment on a given flexible coupling element of a rotor system.
 
     Calculates the dynamic reaction force of hexangular flexible coupling
@@ -273,7 +270,7 @@ class MisalignmentFlex(Fault):
         return results
 
 
-class MisalignmentRigid(Fault):
+class MisalignmentRigid(ABC):
     """Model misalignment on a given rigid coupling element of a rotor system.
 
     Calculates the dynamic reaction force of hexangular rigid coupling

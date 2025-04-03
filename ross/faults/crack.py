@@ -1,3 +1,4 @@
+from abc import ABC
 from pathlib import Path
 
 import numpy as np
@@ -6,14 +7,10 @@ import pandas as pd
 import ross as rs
 from ross.units import Q_, check_units
 
-from .fault import Fault
-
-__all__ = [
-    "Crack",
-]
+__all__ = ["Crack"]
 
 
-class Crack(Fault):
+class Crack(ABC):
     """Model a crack based on Linear Fracture Mechanics on a given shaft element
     of a rotor system.
 
