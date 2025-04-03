@@ -4939,10 +4939,12 @@ class TimeResponseResults(Results):
         - 1d: plot time response for given probes.
         - 2d: plot orbit of a selected node of a rotor system.
         - 3d: plot orbits for each node on the rotor system in a 3D view.
+        - dfft: plot response in frequency domain for given probes.
 
     plot_1d: input probes.
     plot_2d: input a node.
     plot_3d: no need to input probes or node.
+    plot_dfft: input probes.
 
     Parameters
     ----------
