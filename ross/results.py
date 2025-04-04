@@ -5305,12 +5305,14 @@ class TimeResponseResults(Results):
 
         return freq, y_amp, y_phase
 
+    @check_units
     def plot_dfft(
         self,
         probe,
         probe_units="rad",
         displacement_units="m",
         frequency_units="Hz",
+        frequency_range=None,
         fig=None,
         **kwargs,
     ):
@@ -5332,6 +5334,11 @@ class TimeResponseResults(Results):
         frequency_units : str
             Frequency units.
             Default is "Hz".
+        frequency_range : tuple, pint.Quantity(tuple), optional
+            Tuple with (min, max) values for the frequencies that will be plotted.
+            Frequencies that are not within the range are filtered out and are not plotted.
+            It is possible to use a pint Quantity (e.g. Q_((2000, 1000), "RPM")).
+            Default is None (no filter).
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         kwargs : optional
@@ -5362,6 +5369,14 @@ class TimeResponseResults(Results):
                 probe_resp = data[f"probe_resp[{i}]"].values
 
                 freq, amp, _ = self._dfft(probe_resp, dt)
+
+                if frequency_range is not None:
+                    amp = amp[
+                        (freq >= frequency_range[0]) & (freq <= frequency_range[1])
+                    ]
+                    freq = freq[
+                        (freq >= frequency_range[0]) & (freq <= frequency_range[1])
+                    ]
 
                 fig.add_trace(
                     go.Scatter(

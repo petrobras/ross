@@ -23,13 +23,13 @@ class Rubbing(ABC):
     ----------
     rotor : ross.Rotor
         Rotor object.
-    n_rubbing : int
+    n : int
         Number of shaft element where rubbing is ocurring.
-    delta : float
+    distance : float, pint.Quantity
         Distance between the housing and shaft surface.
-    contact_stiffness : float
+    contact_stiffness : float, pint.Quantity
         Contact stiffness.
-    contact_damping : float
+    contact_damping : float, pint.Quantity
         Contact damping.
     friction_coeff : float
         Friction coefficient.
@@ -58,8 +58,8 @@ class Rubbing(ABC):
     >>> rotor = rs.rotor_example_with_damping()
     >>> fault = Rubbing(
     ...     rotor,
-    ...     n_rubbing=12,
-    ...     delta=7.95e-5,
+    ...     n=12,
+    ...     distance=7.95e-5,
     ...     contact_stiffness=1.1e6,
     ...     contact_damping=40,
     ...     friction_coeff=0.3
@@ -72,22 +72,22 @@ class Rubbing(ABC):
     def __init__(
         self,
         rotor,
-        n_rubbing,
-        delta,
+        n,
+        distance,
         contact_stiffness,
         contact_damping,
         friction_coeff,
         torque=False,
     ):
         self.rotor = rotor
-        self.delta = delta
+        self.delta = distance
         self.contact_stiffness = contact_stiffness
         self.contact_damping = contact_damping
         self.friction_coeff = friction_coeff
         self.torque = torque
 
         # Shaft element with rubbing
-        self.shaft_elem = [elm for elm in rotor.shaft_elements if elm.n == n_rubbing][0]
+        self.shaft_elem = [elm for elm in rotor.shaft_elements if elm.n == n][0]
 
         self.dofs = list(self.shaft_elem.dof_global_index.values())
 
@@ -265,8 +265,8 @@ def rubbing_example():
     n2 = rotor.disk_elements[1].n
 
     results = rotor.run_rubbing(
-        n_rubbing=12,
-        delta=7.95e-5,
+        n=12,
+        distance=7.95e-5,
         contact_stiffness=1.1e6,
         contact_damping=40,
         friction_coeff=0.3,

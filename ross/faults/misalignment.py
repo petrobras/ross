@@ -25,24 +25,24 @@ class MisalignmentFlex(ABC):
     ----------
     rotor : ross.Rotor
         Rotor object.
-    n_mis : float
+    n : float
         Number of shaft element where the misalignment is ocurring.
-    delta_x : float
-        Parallel misalignment offset between driving rotor and driven rotor along X direction.
-    delta_y : float
-        Parallel misalignment offset between driving rotor and driven rotor along Y direction.
-    radial_stiffness : float
-        Radial stiffness of flexible coupling.
-    bending_stifness : float
-        Bending stiffness of flexible coupling. Provide if mis_type is "angular" or "combined".
-    mis_angle : float
-        Angular misalignment angle.
     mis_type: string
         Name of the chosen misalignment type.
-        The avaible types are: "parallel", "angular" and "combined". Default is "parallel".
-    input_torque : float
+        The avaible types are: "parallel", "angular" and "combined".
+    mis_distance_x : float, pint.Quantity
+        Parallel misalignment distance between driving rotor and driven rotor along X direction.
+    mis_distance_y : float, pint.Quantity
+        Parallel misalignment distance between driving rotor and driven rotor along Y direction.
+    mis_angle : float, pint.Quantity
+        Angular misalignment angle.
+    radial_stiffness : float, pint.Quantity
+        Radial stiffness of flexible coupling.
+    bending_stiffness : float, pint.Quantity
+        Bending stiffness of flexible coupling. Provide if mis_type is "angular" or "combined".
+    input_torque : float, pint.Quantity
         Driving torque. Default is 0.
-    load_torque : float
+    load_torque : float, pint.Quantity
         Driven torque. Default is 0.
 
     Returns
@@ -64,9 +64,18 @@ class MisalignmentFlex(ABC):
     Examples
     --------
     >>> rotor = rs.rotor_example_with_damping()
-    >>> fault = MisalignmentFlex(rotor, n_mis=0, delta_x=2e-4, delta_y=2e-4,
-    ... radial_stiffness=40e3, bending_stiffness=38e3, mis_angle=5 * np.pi / 180,
-    ... mis_type="combined", input_torque=0, load_torque=0)
+    >>> fault = MisalignmentFlex(
+    ...     rotor,
+    ...     n=0,
+    ...     mis_type="combined",
+    ...     mis_distance_x=2e-4,
+    ...     mis_distance_y=2e-4,
+    ...     mis_angle=5 * np.pi / 180,
+    ...     radial_stiffness=40e3,
+    ...     bending_stiffness=38e3,
+    ...     input_torque=0,
+    ...     load_torque=0
+    ... )
     >>> fault.shaft_elem
     ShaftElement(L=0.025, idl=0.0, idr=0.0, odl=0.019,  odr=0.019, material='Steel', n=0)
     """
@@ -75,13 +84,13 @@ class MisalignmentFlex(ABC):
     def __init__(
         self,
         rotor,
-        n_mis,
-        delta_x,
-        delta_y,
+        n,
+        mis_type,
+        mis_distance_x,
+        mis_distance_y,
+        mis_angle,
         radial_stiffness,
         bending_stiffness,
-        mis_angle,
-        mis_type="parallel",
         input_torque=0,
         load_torque=0,
     ):
@@ -90,8 +99,8 @@ class MisalignmentFlex(ABC):
         self.input_torque = input_torque
         self.load_torque = load_torque
 
-        self.delta_x = delta_x
-        self.delta_y = delta_y
+        self.delta_x = mis_distance_x
+        self.delta_y = mis_distance_y
 
         self.radial_stiffness = radial_stiffness
         self.bending_stiffness = bending_stiffness
@@ -108,7 +117,7 @@ class MisalignmentFlex(ABC):
             raise Exception("Check the misalignment type!")
 
         # Shaft element with misalignment
-        self.shaft_elem = [elm for elm in rotor.shaft_elements if elm.n == n_mis][0]
+        self.shaft_elem = [elm for elm in rotor.shaft_elements if elm.n == n][0]
 
         self.dofs = list(self.shaft_elem.dof_global_index.values())
         self.radius = self.shaft_elem.odl / 2
@@ -278,13 +287,13 @@ class MisalignmentRigid(ABC):
 
     Parameters
     ----------
-    n_mis : float
+    n : float
         Number of shaft element where the misalignment is ocurring.
-    delta : float
-        Parallel misalignment offset between driving rotor and driven rotor.
-    input_torque : float
+    mis_distance : float, pint.Quantity
+        Parallel misalignment distance between driving rotor and driven rotor.
+    input_torque : float, pint.Quantity
         Driving torque. Default is 0.
-    load_torque : float
+    load_torque : float, pint.Quantity
         Driven torque. Default is 0.
 
     Returns
@@ -316,8 +325,7 @@ class MisalignmentRigid(ABC):
     Examples
     --------
     >>> rotor = rs.rotor_example_with_damping()
-    >>> fault = MisalignmentRigid(rotor, n_mis=0, delta=2e-4,
-    ... input_torque=0, load_torque=0)
+    >>> fault = MisalignmentRigid(rotor, n=0, mis_distance=2e-4, input_torque=0, load_torque=0)
     >>> fault.shaft_elem
     ShaftElement(L=0.025, idl=0.0, idr=0.0, odl=0.019,  odr=0.019, material='Steel', n=0)
     """
@@ -326,20 +334,20 @@ class MisalignmentRigid(ABC):
     def __init__(
         self,
         rotor,
-        n_mis,
-        delta,
+        n,
+        mis_distance,
         input_torque=0,
         load_torque=0,
     ):
         self.rotor = rotor
 
-        self.delta = delta
+        self.delta = mis_distance
 
         self.input_torque = input_torque
         self.load_torque = load_torque
 
         # Shaft element with misalignment
-        self.shaft_elem = [elm for elm in rotor.shaft_elements if elm.n == n_mis][0]
+        self.shaft_elem = [elm for elm in rotor.shaft_elements if elm.n == n][0]
 
         self.dofs = list(self.shaft_elem.dof_global_index.values())
 
@@ -554,13 +562,13 @@ def misalignment_flex_example(mis_type="parallel"):
 
     misalignment = rotor.run_misalignment(
         coupling="flex",
-        n_mis=0,
+        n=0,
+        mis_type=mis_type,
         radial_stiffness=40e3,
         bending_stiffness=38e3,
-        delta_x=2e-4,
-        delta_y=2e-4,
+        mis_distance_x=2e-4,
+        mis_distance_y=2e-4,
         mis_angle=5 * np.pi / 180,
-        mis_type=mis_type,
         input_torque=0,
         load_torque=0,
         node=[n1, n2],
@@ -603,8 +611,8 @@ def misalignment_rigid_example():
 
     misalignment = rotor.run_misalignment(
         coupling="rigid",
-        n_mis=0,
-        delta=2e-4,
+        n=0,
+        mis_distance=2e-4,
         input_torque=0,
         load_torque=0,
         node=[n1, n2],

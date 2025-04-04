@@ -3117,9 +3117,9 @@ class Rotor(object):
         ----------
         node : list, int
             Node where the unbalance is applied.
-        unbalance_magnitude : list, float
+        unbalance_magnitude : list, float, pint.Quantity
             Unbalance magnitude (kg.m).
-        unbalance_phase : list, float
+        unbalance_phase : list, float, pint.Quantity
             Unbalance phase (rad).
         speed : float or array_like, pint.Quantity
             Rotor speed.
@@ -3134,38 +3134,37 @@ class Rotor(object):
 
         **kwargs : dictionary
             If coupling = "flex", **kwargs receives:
-                n_mis : float
+                n : float
                     Number of shaft element where the misalignment is ocurring.
-                delta_x : float
-                    Parallel misalignment offset between driving rotor and driven
-                    rotor along X direction.
-                delta_y : float
-                    Parallel misalignment offset between driving rotor and driven
-                    rotor along Y direction.
-                radial_stiffness : float
-                    Radial stiffness of flexible coupling.
-                bending_stifness : float
-                    Bending stiffness of flexible coupling. Provide if mis_type is
-                    "angular" or "combined".
-                mis_angle : float
-                    Angular misalignment angle.
                 mis_type: string
                     Name of the chosen misalignment type.
                     The avaible types are: "parallel", "angular" and "combined".
-                    Default is "parallel".
-                input_torque : float
+                mis_distance_x : float, pint.Quantity
+                    Parallel misalignment distance between driving rotor and driven
+                    rotor along X direction.
+                mis_distance_y : float, pint.Quantity
+                    Parallel misalignment distance between driving rotor and driven
+                    rotor along Y direction.
+                mis_angle : float, pint.Quantity
+                    Angular misalignment angle.
+                radial_stiffness : float, pint.Quantity
+                    Radial stiffness of flexible coupling.
+                bending_stiffness : float, pint.Quantity
+                    Bending stiffness of flexible coupling. Provide if mis_type is
+                    "angular" or "combined".
+                input_torque : float, pint.Quantity
                     Driving torque. Default is 0.
-                load_torque : float
+                load_torque : float, pint.Quantity
                     Driven torque. Default is 0.
 
             If coupling = "rigid", **kwargs receives:
-                n_mis : float
+                n : float
                     Number of shaft element where the misalignment is ocurring.
-                delta : float
-                    Parallel misalignment offset between driving rotor and driven rotor.
-                input_torque : float
+                mis_distance : float, pint.Quantity
+                    Parallel misalignment distance between driving rotor and driven rotor.
+                input_torque : float, pint.Quantity
                     Driving torque. Default is 0.
-                load_torque : float
+                load_torque : float, pint.Quantity
                     Driven torque. Default is 0.
 
             Additional keyword arguments can be passed to define the parameters
@@ -3185,6 +3184,7 @@ class Rotor(object):
         --------
         >>> import ross as rs
         >>> from ross.probe import Probe
+        >>> from ross.units import Q_
         >>> rotor = rotor_example_with_damping()
         >>> n1 = rotor.disk_elements[0].n
         >>> n2 = rotor.disk_elements[1].n
@@ -3195,8 +3195,8 @@ class Rotor(object):
         ...    speed=Q_(1200, "RPM"),
         ...    t=np.arange(0, 0.5, 0.0001),
         ...    coupling="rigid",
-        ...    n_mis=0,
-        ...    delta=2e-4,
+        ...    n=0,
+        ...    mis_distance=2e-4,
         ...    input_torque=0,
         ...    load_torque=0,
         ...    num_modes=12,  # Pseudo-modal method
@@ -3207,7 +3207,7 @@ class Rotor(object):
         >>> fig1 = results.plot_1d([probe1, probe2])
         >>> fig2 = results.plot_dfft(
         ...     [probe1, probe2],
-        ...     xaxis_range=[0, 200],
+        ...     frequency_range=Q_((0, 200), "Hz"),
         ...     yaxis_type="log",
         ... )
         """
@@ -3215,13 +3215,13 @@ class Rotor(object):
         if coupling == "flex":
             fault = MisalignmentFlex(
                 self,
-                n_mis=kwargs.get("n_mis"),
-                delta_x=kwargs.get("delta_x"),
-                delta_y=kwargs.get("delta_y"),
+                n=kwargs.get("n"),
+                mis_type=kwargs.get("mis_type"),
+                mis_distance_x=kwargs.get("mis_distance_x"),
+                mis_distance_y=kwargs.get("mis_distance_y"),
+                mis_angle=kwargs.get("mis_angle"),
                 radial_stiffness=kwargs.get("radial_stiffness"),
                 bending_stiffness=kwargs.get("bending_stiffness"),
-                mis_angle=kwargs.get("mis_angle"),
-                mis_type=kwargs.get("mis_type", "parallel"),
                 input_torque=kwargs.get("input_torque", 0),
                 load_torque=kwargs.get("load_torque", 0),
             )
@@ -3229,8 +3229,8 @@ class Rotor(object):
         elif coupling == "rigid":
             fault = MisalignmentRigid(
                 self,
-                n_mis=kwargs.get("n_mis"),
-                delta=kwargs.get("delta"),
+                n=kwargs.get("n"),
+                mis_distance=kwargs.get("mis_distance"),
                 input_torque=kwargs.get("input_torque", 0),
                 load_torque=kwargs.get("load_torque", 0),
             )
@@ -3247,8 +3247,8 @@ class Rotor(object):
     @check_units
     def run_rubbing(
         self,
-        n_rubbing,
-        delta,
+        n,
+        distance,
         contact_stiffness,
         contact_damping,
         friction_coeff,
@@ -3266,21 +3266,21 @@ class Rotor(object):
 
         Parameters
         ----------
-        n_rubbing : int
+        n : int
             Number of shaft element where rubbing is ocurring.
-        delta_rub : float
+        distance : float, pint.Quantity
             Distance between the housing and shaft surface.
-        contact_stiffness : float
+        contact_stiffness : float, pint.Quantity
             Contact stiffness.
-        contact_damping : float
+        contact_damping : float, pint.Quantity
             Contact damping.
         friction_coeff : float
             Friction coefficient.
         node : list, int
             Node where the unbalance is applied.
-        unbalance_magnitude : list, float
+        unbalance_magnitude : list, float, pint.Quantity
             Unbalance magnitude (kg.m).
-        unbalance_phase : list, float
+        unbalance_phase : list, float, pint.Quantity
             Unbalance phase (rad).
         speed : float or array_like, pint.Quantity
             Rotor speed.
@@ -3309,13 +3309,14 @@ class Rotor(object):
         Examples
         --------
         >>> import ross as rs
+        >>> from ross.units import Q_
         >>> from ross.probe import Probe
         >>> rotor = rotor_example_with_damping()
         >>> n1 = rotor.disk_elements[0].n
         >>> n2 = rotor.disk_elements[1].n
         >>> results = rotor.run_rubbing(
-        ...    n_rubbing=12,
-        ...    delta=7.95e-5,
+        ...    n=12,
+        ...    distance=7.95e-5,
         ...    contact_stiffness=1.1e6,
         ...    contact_damping=40,
         ...    friction_coeff=0.3,
@@ -3333,14 +3334,14 @@ class Rotor(object):
         >>> fig1 = results.plot_1d([probe1, probe2])
         >>> fig2 = results.plot_dfft(
         ...     [probe1, probe2],
-        ...     xaxis_range=[0, 200],
+        ...     frequency_range=Q_((0, 200), "Hz"),
         ...     yaxis_type="log",
         ... )
         """
         fault = Rubbing(
             self,
-            n_rubbing,
-            delta,
+            n,
+            distance,
             contact_stiffness,
             contact_damping,
             friction_coeff,
@@ -3356,7 +3357,7 @@ class Rotor(object):
     @check_units
     def run_crack(
         self,
-        n_crack,
+        n,
         depth_ratio,
         node,
         unbalance_magnitude,
@@ -3372,16 +3373,16 @@ class Rotor(object):
 
         Parameters
         ----------
-        n_crack : float
+        n : float
             Element number where the crack is located.
         depth_ratio : float
             Crack depth ratio related to the diameter of the crack container element.
             A depth value of 0.1 is equal to 10%, 0.2 equal to 20%, and so on.
         node : list, int
             Node where the unbalance is applied.
-        unbalance_magnitude : list, float
+        unbalance_magnitude : list, float, pint.Quantity
             Unbalance magnitude (kg.m).
-        unbalance_phase : list, float
+        unbalance_phase : list, float, pint.Quantity
             Unbalance phase (rad).
         speed : float or array_like, pint.Quantity
             Rotor speed.
@@ -3411,11 +3412,12 @@ class Rotor(object):
         --------
         >>> import ross as rs
         >>> from ross.probe import Probe
+        >>> from ross.units import Q_
         >>> rotor = rs.rotor_example_with_damping()
         >>> n1 = rotor.disk_elements[0].n
         >>> n2 = rotor.disk_elements[1].n
         >>> results = rotor.run_crack(
-        ...    n_crack=18,
+        ...    n=18,
         ...    depth_ratio=0.2,
         ...    node=[n1, n2],
         ...    unbalance_magnitude=[5e-4, 0],
@@ -3431,11 +3433,11 @@ class Rotor(object):
         >>> fig1 = results.plot_1d([probe1, probe2])
         >>> fig2 = results.plot_dfft(
         ...     [probe1, probe2],
-        ...     xaxis_range=[0, 200],
+        ...     frequency_range=Q_((0, 200), "Hz"),
         ...     yaxis_type="log",
         ... )
         """
-        fault = Crack(self, n_crack, depth_ratio, crack_model)
+        fault = Crack(self, n, depth_ratio, crack_model)
 
         results = fault.run(
             node, unbalance_magnitude, unbalance_phase, speed, t, **kwargs

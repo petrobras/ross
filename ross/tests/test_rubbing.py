@@ -78,8 +78,8 @@ def run_rubbing(rotor):
         unbalance_magnitude=unb_mag,
         unbalance_phase=unb_phase,
         node=unb_node,
-        n_rubbing=12,
-        delta=7.95e-5,
+        n=12,
+        distance=7.95e-5,
         contact_stiffness=1.1e6,
         contact_damping=40,
         friction_coeff=0.3,
@@ -94,8 +94,8 @@ def run_rubbing(rotor):
 def test_rubbing(rotor):
     rubbing = Rubbing(
         rotor,
-        n_rubbing=12,
-        delta=7.95e-5,
+        n=12,
+        distance=7.95e-5,
         contact_stiffness=1.1e6,
         contact_damping=40,
         friction_coeff=0.3,

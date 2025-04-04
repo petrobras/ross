@@ -69,11 +69,11 @@ def rotor():
 @pytest.fixture
 def flex_params():
     return dict(
-        n_mis=0,
+        n=0,
         radial_stiffness=40e3,
         bending_stiffness=38e3,
-        delta_x=2e-4,
-        delta_y=2e-4,
+        mis_distance_x=2e-4,
+        mis_distance_y=2e-4,
         mis_angle=5 * np.pi / 180,
         input_torque=0,
         load_torque=0,
@@ -237,8 +237,8 @@ def test_mis_angular_resp(run_mis_angular):
 def mis_rigid(rotor):
     results = rotor.run_misalignment(
         coupling="rigid",
-        n_mis=0,
-        delta=2e-4,
+        n=0,
+        mis_distance=2e-4,
         input_torque=0,
         load_torque=0,
         node=[12, 24],
@@ -253,7 +253,7 @@ def mis_rigid(rotor):
 
 
 def test_mis_rigid(rotor):
-    misalignment = MisalignmentRigid(rotor, n_mis=0, delta=2e-4)
+    misalignment = MisalignmentRigid(rotor, n=0, mis_distance=2e-4)
 
     assert misalignment.delta == 2e-4
     assert misalignment.shaft_elem.n == 0

@@ -23,7 +23,7 @@ class Crack(ABC):
     ----------
     rotor : ross.Rotor
         Rotor object.
-    n_crack : float
+    n : float
         Number of shaft element where crack is located.
     depth_ratio : float
         Crack depth ratio related to the diameter of the crack container element.
@@ -59,7 +59,7 @@ class Crack(ABC):
     Examples
     --------
     >>> rotor = rs.rotor_example_with_damping()
-    >>> fault = Crack(rotor, n_crack=18, depth_ratio=0.2, crack_model="Gasch")
+    >>> fault = Crack(rotor, n=18, depth_ratio=0.2, crack_model="Gasch")
     >>> fault.shaft_elem
     ShaftElement(L=0.03, idl=0.0, idr=0.0, odl=0.019,  odr=0.019, material='Steel', n=18)
     """
@@ -68,7 +68,7 @@ class Crack(ABC):
     def __init__(
         self,
         rotor,
-        n_crack,
+        n,
         depth_ratio,
         crack_model="Mayes",
     ):
@@ -96,7 +96,7 @@ class Crack(ABC):
         self.coefficient_data = pd.read_csv(dir_path)
 
         # Shaft element with crack
-        self.shaft_elem = [elm for elm in rotor.shaft_elements if elm.n == n_crack][0]
+        self.shaft_elem = [elm for elm in rotor.shaft_elements if elm.n == n][0]
 
         self.dofs = list(self.shaft_elem.dof_global_index.values())
 
@@ -403,7 +403,7 @@ def crack_example():
     n2 = rotor.disk_elements[1].n
 
     results = rotor.run_crack(
-        n_crack=18,
+        n=18,
         depth_ratio=0.2,
         node=[n1, n2],
         unbalance_magnitude=[5e-4, 0],

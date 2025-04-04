@@ -71,7 +71,7 @@ def rotor():
 
 
 def test_crack_mayes(rotor):
-    crack = Crack(rotor, n_crack=18, depth_ratio=0.2, crack_model="Mayes")
+    crack = Crack(rotor, n=18, depth_ratio=0.2, crack_model="Mayes")
 
     assert crack.depth_ratio == 0.2
     assert crack.shaft_elem.n == 18
@@ -109,7 +109,7 @@ def run_crack_mayes(rotor):
     unb_phase = [-np.pi / 2, 0]
 
     results = rotor.run_crack(
-        n_crack=18,
+        n=18,
         depth_ratio=0.2,
         node=unb_node,
         unbalance_magnitude=unb_mag,
@@ -129,7 +129,7 @@ def run_crack_mayes_units(rotor):
     unb_phase = Q_([-90.0, 0.0], "degrees")
 
     results = rotor.run_crack(
-        n_crack=18,
+        n=18,
         node=unb_node,
         depth_ratio=0.2,
         unbalance_magnitude=unb_mag,
@@ -153,7 +153,7 @@ def run_crack_gasch(rotor):
 
     results = rotor.run_crack(
         depth_ratio=0.2,
-        n_crack=18,
+        n=18,
         speed=125.66370614359172,
         t=np.arange(0, 0.5, 1e-4),
         node=unb_node,
