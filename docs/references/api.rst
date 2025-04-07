@@ -18,15 +18,17 @@ Elements
     :toctree: generated/elements
 
     ShaftElement
-    ShaftElement6DoF
     DiskElement
     BearingElement
-    BearingElement6DoF
     SealElement
     BallBearingElement
     RollerBearingElement
+    THDCylindrical
     BearingFluidFlow
     MagneticBearingElement
+    GearElement
+    CouplingElement
+    Probe
     PointMass
 
 Rotor and Results
@@ -37,6 +39,7 @@ Rotor class and available methods for analysis (`run_` methods).
     :toctree: generated/rotor
 
     Rotor
+    MultiRotor
     Rotor.run_modal
     Rotor.run_critical_speed
     Rotor.run_freq_response
