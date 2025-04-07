@@ -152,9 +152,9 @@ mathjax_options = {
 }
 
 try:
-    jupyter_execute_notebooks = os.environ["EXECUTE_NOTEBOOKS"]
+    nb_execution_mode = os.environ["EXECUTE_NOTEBOOKS"]
 except KeyError:
-    jupyter_execute_notebooks = "off"
+    nb_execution_mode = "auto"
 
 # Custom sidebar templates, must be a dictionary that maps document names
 # to template names.
