@@ -154,7 +154,7 @@ mathjax_options = {
 try:
     nb_execution_mode = os.environ["EXECUTE_NOTEBOOKS"]
 except KeyError:
-    nb_execution_mode = "auto"
+    nb_execution_mode = "off"
 
 # Custom sidebar templates, must be a dictionary that maps document names
 # to template names.
