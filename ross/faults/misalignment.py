@@ -243,6 +243,7 @@ class MisalignmentFlex(ABC):
         t : array
             Time array.
         **kwargs : optional
+            The Newmark method can be chosen by setting `method='newmark'`.
             Additional keyword arguments can be passed to define the parameters
             of the Newmark method if it is used (e.g. gamma, beta, tol, ...).
             See `ross.utils.newmark` for more details.
@@ -272,7 +273,7 @@ class MisalignmentFlex(ABC):
             speed=speed,
             F=F.T,
             t=t,
-            method="newmark",
+            method=kwargs.get("method", "default"),
             **kwargs,
         )
 

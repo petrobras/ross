@@ -91,14 +91,14 @@ class Rubbing(ABC):
 
         self.dofs = list(self.shaft_elem.dof_global_index.values())
 
-    def compute_rubbing_force(self, disp_resp, velc_resp, ang_speed):
+    def compute_rubbing_force(self, y, ydot, ang_speed):
         """Calculate the force on the shaft element with rubbing.
 
         Parameters
         ----------
-        disp_resp : np.ndarray
+        y : np.ndarray
             Displacement response of the element.
-        velc_resp : np.ndarray
+        ydot : np.ndarray
             Velocity response of the element.
         ang_speed : float
             Angular speed of the element.
@@ -108,44 +108,38 @@ class Rubbing(ABC):
         F : np.ndarray
             Force matrix of the element due to rubbing.
         """
-        radius = self.shaft_elem.odl / 2
 
-        F_k = np.zeros_like(disp_resp)
-        F_c = np.zeros_like(disp_resp)
-        F_f = np.zeros_like(disp_resp)
+        F_k = np.zeros_like(y)
+        F_c = np.zeros_like(y)
+        F_f = np.zeros_like(y)
 
-        radial_disp = np.sqrt(disp_resp[0] ** 2 + disp_resp[1] ** 2)
-        radial_velc = np.sqrt(velc_resp[0] ** 2 + velc_resp[1] ** 2)
+        r = self.shaft_elem.odl / 2
+        c = self.contact_damping
+        k = self.contact_stiffness
+        f = self.friction_coeff
 
-        if radial_disp >= self.delta:
-            F_k[0:2] = (
-                -self.contact_stiffness
-                * disp_resp[0:2]
-                * (radial_disp - self.delta)
-                / abs(radial_disp)
-            )
-            F_c[0:2] = (
-                -self.contact_damping * velc_resp[0:2] * radial_velc / abs(radial_velc)
-            )
+        y_r = np.sqrt(y[0] ** 2 + y[1] ** 2)
+        ydot_r = np.sqrt(ydot[0] ** 2 + ydot[1] ** 2)
 
-            F_f[0:2] = self.friction_coeff * abs(F_k[0:2] + F_c[0:2])
+        if y_r >= self.delta:
+            F_k[0:2] = -k * y[0:2] * (y_r - self.delta) / abs(y_r)
+            F_c[0:2] = -c * ydot[0:2] * ydot_r / abs(ydot_r)
 
-            phi = np.arctan2(disp_resp[1], disp_resp[0])
-            velc_t = velc_resp[0] * np.cos(phi) - velc_resp[1] * np.sin(phi)
-            velc = velc_t + ang_speed * radius
+            phi = np.arctan2(y[1], y[0])
+            velc_t = ydot[0] * np.cos(phi) - ydot[1] * np.sin(phi)
+            velc = velc_t + ang_speed * r
 
             if velc > 0:
+                F_f[0:2] = f * abs(F_k[0:2] + F_c[0:2])
                 F_f[0] = -F_f[0]
-            else:
+
+            elif velc < 0:
+                F_f[0:2] = f * abs(F_k[0:2] + F_c[0:2])
                 F_f[1] = -F_f[1]
 
             if self.torque:
-                F_f[5] = (
-                    radius
-                    * np.sqrt(F_f[0] ** 2 + F_f[1] ** 2)
-                    * disp_resp[0]
-                    / abs(radial_disp)
-                )
+                F_f_r = np.sqrt(F_f[0] ** 2 + F_f[1] ** 2)
+                F_f[5] = F_f_r * r * y[0] / abs(y_r)
 
         F = F_k + F_c + F_f
 

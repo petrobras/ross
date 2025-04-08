@@ -5354,6 +5354,9 @@ class TimeResponseResults(Results):
         if fig is None:
             fig = go.Figure()
 
+        if frequency_range is not None:
+            frequency_range = Q_(frequency_range, "rad/s").to("Hz").m
+
         rows, cols = self.yout.shape
         init_step = int(2 * rows / 3)
 
