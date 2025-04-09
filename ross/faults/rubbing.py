@@ -266,7 +266,7 @@ def rubbing_example():
         friction_coeff=0.3,
         torque=False,
         node=[n1, n2],
-        unbalance_magnitude=[5e-4, 0],
+        unbalance_magnitude=[2e-4, 0],
         unbalance_phase=[-np.pi / 2, 0],
         speed=Q_(1200, "RPM"),
         t=np.arange(0, 0.5, 0.0001),

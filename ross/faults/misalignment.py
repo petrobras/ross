@@ -260,6 +260,9 @@ class MisalignmentFlex(ABC):
 
         rotor = self.rotor
 
+        method = kwargs.get("method", "default")
+        kwargs.pop("method", None)
+
         # Unbalance force
         F, ang_pos, _, _ = rotor._unbalance_force_over_time(
             node, unb_magnitude, unb_phase, speed, t
@@ -273,7 +276,7 @@ class MisalignmentFlex(ABC):
             speed=speed,
             F=F.T,
             t=t,
-            method=kwargs.get("method", "default"),
+            method=method,
             **kwargs,
         )
 
@@ -550,7 +553,6 @@ def misalignment_flex_example(mis_type="parallel"):
     >>> from ross.faults.misalignment import misalignment_flex_example
     >>> from ross.probe import Probe
     >>> results = misalignment_flex_example("combined")
-    Running direct method
     >>> probe1 = Probe(14, 0)
     >>> probe2 = Probe(22, 0)
     >>> fig = results.plot_1d([probe1, probe2])
