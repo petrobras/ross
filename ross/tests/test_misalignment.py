@@ -3,7 +3,9 @@ import pytest
 from numpy.testing import assert_allclose
 
 import ross as rs
-from ross.units import Q_
+from ross import Q_, Probe, MisalignmentFlex, MisalignmentRigid
+
+from numpy.testing import assert_allclose
 
 
 @pytest.fixture
@@ -65,351 +67,198 @@ def rotor():
 
 
 @pytest.fixture
-def common_parameters():
-    unbalance_magnitudet = np.array([5e-4, 0])
-    unbalance_phaset = Q_(np.array([-90.0, 0.0]), "degrees")
-
+def flex_params():
     return dict(
-        coupling="flex",
-        dt=0.1,
-        tI=0,
-        tF=5,
-        kd=40 * 10 ** (3),
-        ks=38 * 10 ** (3),
-        eCOUPx=2 * 10 ** (-4),
-        eCOUPy=2 * 10 ** (-4),
-        misalignment_angle=5 * np.pi / 180,
-        TD=0,
-        TL=0,
-        n1=0,
-        speed=Q_(1200, "RPM"),
-        unbalance_magnitude=unbalance_magnitudet,
-        unbalance_phase=unbalance_phaset,
-        print_progress=False,
+        n=0,
+        radial_stiffness=40e3,
+        bending_stiffness=38e3,
+        mis_distance_x=2e-4,
+        mis_distance_y=2e-4,
+        mis_angle=5 * np.pi / 180,
+        input_torque=0,
+        load_torque=0,
     )
 
 
-@pytest.fixture
-def mis_comb(rotor, common_parameters):
-    return rotor.run_misalignment(mis_type="combined", **common_parameters)
+def test_mis_flex(rotor, flex_params):
+    misalignment = MisalignmentFlex(rotor, mis_type="combined", **flex_params)
 
-
-def test_mis_comb_parameters(mis_comb):
-    assert mis_comb.dt == 0.1
-    assert mis_comb.tI == 0
-    assert mis_comb.tF == 5
-    assert mis_comb.kd == 40 * 10 ** (3)
-    assert mis_comb.ks == 38 * 10 ** (3)
-    assert mis_comb.eCOUPx == 2 * 10 ** (-4)
-    assert mis_comb.eCOUPy == 2 * 10 ** (-4)
-    assert mis_comb.misalignment_angle == 5 * np.pi / 180
-    assert mis_comb.TD == 0
-    assert mis_comb.TL == 0
-    assert mis_comb.n1 == 0
-    assert mis_comb.speed == 125.66370614359172
-
-
-def test_mis_comb_forces(mis_comb):
-    # fmt: off
-    Fx_n1_comb = np.array([
-        -4.40605, -4.40605, -4.40605, -4.40605, -4.40605, -4.40605,
-        -4.40605, -4.40605, -4.40605, -4.40605, -4.40605, -4.40605,
-        -4.40605, -4.40605, -4.40605, -4.40605, -4.40605, -4.40605,
-        -4.40605, -4.40605, -4.40605, -4.40605, -4.40605, -4.40605,
-        -4.40605, -4.40605, -4.40605, -4.40605, -4.40605, -4.40605,
-        -4.40605, -4.40605, -4.40605, -4.40605, -4.40605, -4.40605,
-        -4.40605, -4.40605, -4.40605, -4.40605, -4.40605, -4.40605,
-        -4.40605, -4.40605, -4.40605, -4.40605, -4.40605, -4.40605,
-        -4.40605, -4.40605, -4.40605
-    ])
-
-    Fy_n1_comb = np.array([
-        1.08212, 1.08212, 1.08212, 1.08212, 1.08212, 1.08212, 1.08212,
-        1.08212, 1.08212, 1.08212, 1.08212, 1.08212, 1.08212, 1.08212,
-        1.08212, 1.08212, 1.08212, 1.08212, 1.08212, 1.08212, 1.08212,
-        1.08212, 1.08212, 1.08212, 1.08212, 1.08212, 1.08212, 1.08212,
-        1.08212, 1.08212, 1.08212, 1.08212, 1.08212, 1.08212, 1.08212,
-        1.08212, 1.08212, 1.08212, 1.08212, 1.08212, 1.08212, 1.08212,
-        1.08212, 1.08212, 1.08212, 1.08212, 1.08212, 1.08212, 1.08212,
-        1.08212, 1.08212
-    ])
-
-    Fx_n2_comb = np.array([
-        4.40604748, 4.40604748, 4.40604748, 4.40604748, 4.40604748,
-        4.40604748, 4.40604748, 4.40604748, 4.40604748, 4.40604748,
-        4.40604748, 4.40604748, 4.40604748, 4.40604748, 4.40604748,
-        4.40604748, 4.40604748, 4.40604748, 4.40604748, 4.40604748,
-        4.40604748, 4.40604748, 4.40604748, 4.40604748, 4.40604748,
-        4.40604748, 4.40604748, 4.40604748, 4.40604748, 4.40604748,
-        4.40604748, 4.40604748, 4.40604748, 4.40604748, 4.40604748,
-        4.40604748, 4.40604748, 4.40604748, 4.40604748, 4.40604748,
-        4.40604748, 4.40604748, 4.40604748, 4.40604748, 4.40604748,
-        4.40604748, 4.40604748, 4.40604748, 4.40604748, 4.40604748,
-        4.40604748
-    ])
-
-    Fy_n2_comb = np.array([
-        -1.0821174, -1.0821174, -1.0821174, -1.0821174, -1.0821174,
-        -1.0821174, -1.0821174, -1.0821174, -1.0821174, -1.0821174,
-        -1.0821174, -1.0821174, -1.0821174, -1.0821174, -1.0821174,
-        -1.0821174, -1.0821174, -1.0821174, -1.0821174, -1.0821174,
-        -1.0821174, -1.0821174, -1.0821174, -1.0821174, -1.0821174,
-        -1.0821174, -1.0821174, -1.0821174, -1.0821174, -1.0821174,
-        -1.0821174, -1.0821174, -1.0821174, -1.0821174, -1.0821174,
-        -1.0821174, -1.0821174, -1.0821174, -1.0821174, -1.0821174,
-        -1.0821174, -1.0821174, -1.0821174, -1.0821174, -1.0821174,
-        -1.0821174, -1.0821174, -1.0821174, -1.0821174, -1.0821174,
-        -1.0821174
-    ])
-    # fmt: on
-
-    assert_allclose(mis_comb.forces[mis_comb.n1 * 6 + 0, :], Fx_n1_comb, rtol=3e-2)
-    assert_allclose(mis_comb.forces[mis_comb.n1 * 6 + 1, :], Fy_n1_comb, rtol=3e-2)
-
-    assert_allclose(mis_comb.forces[mis_comb.n2 * 6 + 0, :], Fx_n2_comb, rtol=3e-2)
-    assert_allclose(mis_comb.forces[mis_comb.n2 * 6 + 1, :], Fy_n2_comb, rtol=3e-2)
+    assert misalignment.delta_x == 2e-4
+    assert misalignment.delta_y == 2e-4
+    assert misalignment.radial_stiffness == 40e3
+    assert misalignment.bending_stiffness == 38e3
+    assert round(misalignment.mis_angle, 3) == 0.087
+    assert misalignment.shaft_elem.n == 0
+    assert round(misalignment.shaft_elem.L, 3) == 0.025
 
 
 @pytest.fixture
-def mis_par(rotor, common_parameters):
-    return rotor.run_misalignment(mis_type="parallel", **common_parameters)
+def run_mis_combined(rotor, flex_params):
+    results = rotor.run_misalignment(
+        coupling="flex",
+        mis_type="combined",
+        node=[12, 24],
+        unbalance_magnitude=[5e-4, 0],
+        unbalance_phase=Q_([-90.0, 0.0], "degrees"),
+        speed=Q_(1200, "RPM"),
+        t=np.arange(0, 0.5, 0.0001),
+        num_modes=12,
+        method="newmark",
+        **flex_params,
+    )
+
+    return results
 
 
-def test_mis_par_parameters(mis_par):
-    assert mis_par.dt == 0.1
-    assert mis_par.tI == 0
-    assert mis_par.tF == 5
-    assert mis_par.kd == 40 * 10 ** (3)
-    assert mis_par.ks == 38 * 10 ** (3)
-    assert mis_par.eCOUPx == 2 * 10 ** (-4)
-    assert mis_par.eCOUPy == 2 * 10 ** (-4)
-    assert mis_par.misalignment_angle == 5 * np.pi / 180
-    assert mis_par.TD == 0
-    assert mis_par.TL == 0
-    assert mis_par.n1 == 0
-    assert mis_par.speed == 125.66370614359172
+def test_mis_comb_resp(run_mis_combined):
+    probe1 = Probe(12, Q_(45, "deg"))
+    probe2 = Probe(20, Q_(90, "deg"))
 
+    resp_prob1 = np.array(
+        [
+            0.00000000e00,
+            -4.00480050e-09,
+            -1.99806748e-08,
+            -5.17934582e-08,
+            -9.92341611e-08,
+        ]
+    )
+    resp_prob2 = np.array(
+        [
+            0.00000000e00,
+            -1.21720976e-09,
+            -6.06026932e-09,
+            -1.57142071e-08,
+            -3.02555141e-08,
+        ]
+    )
 
-def test_mis_par_forces(mis_par):
-    # fmt: off
-    Fx_n1_par = np.array([
-        -6.78313, -6.78313, -6.78313, -6.78313, -6.78313, -6.78313,
-        -6.78313, -6.78313, -6.78313, -6.78313, -6.78313, -6.78313,
-        -6.78313, -6.78313, -6.78313, -6.78313, -6.78313, -6.78313,
-        -6.78313, -6.78313, -6.78313, -6.78313, -6.78313, -6.78313,
-        -6.78313, -6.78313, -6.78313, -6.78313, -6.78313, -6.78313,
-        -6.78313, -6.78313, -6.78313, -6.78313, -6.78313, -6.78313,
-        -6.78313, -6.78313, -6.78313, -6.78313, -6.78313, -6.78313,
-        -6.78313, -6.78313, -6.78313, -6.78313, -6.78313, -6.78313,
-        -6.78313, -6.78313, -6.78313
-    ])
-
-    Fy_n1_par = np.array([
-        1.08212, 1.08212, 1.08212, 1.08212, 1.08212, 1.08212, 1.08212,
-        1.08212, 1.08212, 1.08212, 1.08212, 1.08212, 1.08212, 1.08212,
-        1.08212, 1.08212, 1.08212, 1.08212, 1.08212, 1.08212, 1.08212,
-        1.08212, 1.08212, 1.08212, 1.08212, 1.08212, 1.08212, 1.08212,
-        1.08212, 1.08212, 1.08212, 1.08212, 1.08212, 1.08212, 1.08212,
-        1.08212, 1.08212, 1.08212, 1.08212, 1.08212, 1.08212, 1.08212,
-        1.08212, 1.08212, 1.08212, 1.08212, 1.08212, 1.08212, 1.08212,
-        1.08212, 1.08212
-    ])
-
-    Fx_n2_par = np.array([
-        6.78313, 6.78313, 6.78313, 6.78313, 6.78313, 6.78313, 6.78313,
-        6.78313, 6.78313, 6.78313, 6.78313, 6.78313, 6.78313, 6.78313,
-        6.78313, 6.78313, 6.78313, 6.78313, 6.78313, 6.78313, 6.78313,
-        6.78313, 6.78313, 6.78313, 6.78313, 6.78313, 6.78313, 6.78313,
-        6.78313, 6.78313, 6.78313, 6.78313, 6.78313, 6.78313, 6.78313,
-        6.78313, 6.78313, 6.78313, 6.78313, 6.78313, 6.78313, 6.78313,
-        6.78313, 6.78313, 6.78313, 6.78313, 6.78313, 6.78313, 6.78313,
-        6.78313, 6.78313
-    ])
-
-    Fy_n2_par = np.array([
-        -1.08212, -1.08212, -1.08212, -1.08212, -1.08212, -1.08212,
-        -1.08212, -1.08212, -1.08212, -1.08212, -1.08212, -1.08212,
-        -1.08212, -1.08212, -1.08212, -1.08212, -1.08212, -1.08212,
-        -1.08212, -1.08212, -1.08212, -1.08212, -1.08212, -1.08212,
-        -1.08212, -1.08212, -1.08212, -1.08212, -1.08212, -1.08212,
-        -1.08212, -1.08212, -1.08212, -1.08212, -1.08212, -1.08212,
-        -1.08212, -1.08212, -1.08212, -1.08212, -1.08212, -1.08212,
-        -1.08212, -1.08212, -1.08212, -1.08212, -1.08212, -1.08212,
-        -1.08212, -1.08212, -1.08212
-    ])
-    # fmt: on
-
-    assert_allclose(mis_par.forces[mis_par.n1 * 6 + 0, :], Fx_n1_par, rtol=3e-2)
-    assert_allclose(mis_par.forces[mis_par.n1 * 6 + 1, :], Fy_n1_par, rtol=3e-2)
-
-    assert_allclose(mis_par.forces[mis_par.n2 * 6 + 0, :], Fx_n2_par, rtol=3e-2)
-    assert_allclose(mis_par.forces[mis_par.n2 * 6 + 1, :], Fy_n2_par, rtol=3e-2)
+    data = run_mis_combined.data_time_response(probe=[probe1, probe2])
+    assert_allclose(data["probe_resp[0]"].to_numpy()[:5], resp_prob1)
+    assert_allclose(data["probe_resp[1]"].to_numpy()[:5], resp_prob2)
 
 
 @pytest.fixture
-def mis_ang(rotor, common_parameters):
-    return rotor.run_misalignment(mis_type="angular", **common_parameters)
+def run_mis_parallel(rotor, flex_params):
+    results = rotor.run_misalignment(
+        coupling="flex",
+        mis_type="parallel",
+        node=[12, 24],
+        unbalance_magnitude=[5e-4, 0],
+        unbalance_phase=Q_([-90.0, 0.0], "degrees"),
+        speed=Q_(1200, "RPM"),
+        t=np.arange(0, 0.5, 0.0001),
+        num_modes=12,
+        **flex_params,
+    )
+
+    return results
 
 
-def test_mis_ang_parameters(mis_ang):
-    assert mis_ang.dt == 0.1
-    assert mis_ang.tI == 0
-    assert mis_ang.tF == 5
-    assert mis_ang.kd == 40 * 10 ** (3)
-    assert mis_ang.ks == 38 * 10 ** (3)
-    assert mis_ang.eCOUPx == 2 * 10 ** (-4)
-    assert mis_ang.eCOUPy == 2 * 10 ** (-4)
-    assert mis_ang.misalignment_angle == 5 * np.pi / 180
-    assert mis_ang.TD == 0
-    assert mis_ang.TL == 0
-    assert mis_ang.n1 == 0
-    assert mis_ang.speed == 125.66370614359172
+def test_mis_parallel_resp(run_mis_parallel):
+    probe1 = Probe(12, Q_(45, "deg"))
+    probe2 = Probe(20, Q_(90, "deg"))
+
+    resp_prob1 = np.array(
+        [
+            0.00000000e00,
+            -9.82380959e-09,
+            -3.77538576e-08,
+            -8.55724533e-08,
+            -1.50596848e-07,
+        ]
+    )
+    resp_prob2 = np.array(
+        [0.00000000e00, -1.07085953e-10, 2.98333170e-09, 1.12848038e-08, 1.09412616e-08]
+    )
+
+    data = run_mis_parallel.data_time_response(probe=[probe1, probe2])
+    assert_allclose(data["probe_resp[0]"].to_numpy()[:5], resp_prob1)
+    assert_allclose(data["probe_resp[1]"].to_numpy()[:5], resp_prob2)
 
 
-def test_mis_ang_forces(mis_ang):
-    # fmt: off
-    Fx_n1_ang = np.array([
-        2.37708, 2.37708, 2.37708, 2.37708, 2.37708, 2.37708, 2.37708,
-        2.37708, 2.37708, 2.37708, 2.37708, 2.37708, 2.37708, 2.37708,
-        2.37708, 2.37708, 2.37708, 2.37708, 2.37708, 2.37708, 2.37708,
-        2.37708, 2.37708, 2.37708, 2.37708, 2.37708, 2.37708, 2.37708,
-        2.37708, 2.37708, 2.37708, 2.37708, 2.37708, 2.37708, 2.37708,
-        2.37708, 2.37708, 2.37708, 2.37708, 2.37708, 2.37708, 2.37708,
-        2.37708, 2.37708, 2.37708, 2.37708, 2.37708, 2.37708, 2.37708,
-        2.37708, 2.37708
-    ])
+@pytest.fixture
+def run_mis_angular(rotor, flex_params):
+    results = rotor.run_misalignment(
+        coupling="flex",
+        mis_type="angular",
+        node=[12, 24],
+        unbalance_magnitude=[5e-4, 0],
+        unbalance_phase=Q_([-90.0, 0.0], "degrees"),
+        speed=Q_(1200, "RPM"),
+        t=np.arange(0, 0.5, 0.0001),
+        num_modes=12,
+        **flex_params,
+    )
 
-    Fy_n1_ang = np.array([
-        -0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,
-         0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,
-         0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,
-         0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.
-    ])
+    return results
 
-    Fx_n2_ang = np.array([
-        -2.37708, -2.37708, -2.37708, -2.37708, -2.37708, -2.37708,
-        -2.37708, -2.37708, -2.37708, -2.37708, -2.37708, -2.37708,
-        -2.37708, -2.37708, -2.37708, -2.37708, -2.37708, -2.37708,
-        -2.37708, -2.37708, -2.37708, -2.37708, -2.37708, -2.37708,
-        -2.37708, -2.37708, -2.37708, -2.37708, -2.37708, -2.37708,
-        -2.37708, -2.37708, -2.37708, -2.37708, -2.37708, -2.37708,
-        -2.37708, -2.37708, -2.37708, -2.37708, -2.37708, -2.37708,
-        -2.37708, -2.37708, -2.37708, -2.37708, -2.37708, -2.37708,
-        -2.37708, -2.37708, -2.37708
-    ])
 
-    Fy_n2_ang = np.array([
-         0., -0., -0., -0., -0., -0., -0., -0., -0., -0., -0., -0., -0.,
-        -0., -0., -0., -0., -0., -0., -0., -0., -0., -0., -0., -0., -0.,
-        -0., -0., -0., -0., -0., -0., -0., -0., -0., -0., -0., -0., -0.,
-        -0., -0., -0., -0., -0., -0., -0., -0., -0., -0., -0., -0.
-    ])
-    # fmt: on
+def test_mis_angular_resp(run_mis_angular):
+    probe1 = Probe(12, Q_(45, "deg"))
+    probe2 = Probe(20, Q_(90, "deg"))
 
-    assert_allclose(mis_ang.forces[mis_ang.n1 * 6 + 0, :], Fx_n1_ang, rtol=3e-2)
-    assert_allclose(mis_ang.forces[mis_ang.n1 * 6 + 1, :], Fy_n1_ang, atol=1e-6)
+    resp_prob1 = np.array(
+        [0.000000e00, -9.813397e-09, -3.816761e-08, -8.260056e-08, -1.429129e-07]
+    )
+    resp_prob2 = np.array(
+        [0.000000e00, -1.070854e-10, 2.984443e-09, 1.126141e-08, 1.096169e-08]
+    )
 
-    assert_allclose(mis_ang.forces[mis_ang.n2 * 6 + 0, :], Fx_n2_ang, rtol=3e-2)
-    assert_allclose(mis_ang.forces[mis_ang.n2 * 6 + 1, :], Fy_n2_ang, atol=1e-6)
+    data = run_mis_angular.data_time_response(probe=[probe1, probe2])
+    assert_allclose(data["probe_resp[0]"].to_numpy()[:5], resp_prob1, rtol=1e-6)
+    assert_allclose(data["probe_resp[1]"].to_numpy()[:5], resp_prob2, rtol=1e-6)
 
 
 @pytest.fixture
 def mis_rigid(rotor):
-    unbalance_magnitudet = np.array([5e-4, 0])
-    unbalance_phaset = Q_(np.array([-90.0, 0.0]), "degrees")
-
-    return rotor.run_misalignment(
+    results = rotor.run_misalignment(
         coupling="rigid",
-        dt=0.0001,
-        tI=0,
-        tF=0.005,
-        eCOUP=2e-4,
-        TD=0,
-        TL=0,
-        n1=0,
+        n=0,
+        mis_distance=2e-4,
+        input_torque=0,
+        load_torque=0,
+        node=[12, 24],
+        unbalance_magnitude=[5e-4, 0],
+        unbalance_phase=Q_([-90.0, 0.0], "degrees"),
         speed=Q_(1200, "RPM"),
-        unbalance_magnitude=unbalance_magnitudet,
-        unbalance_phase=unbalance_phaset,
-        print_progress=False,
+        t=np.arange(0, 0.5, 0.0001),
+        num_modes=12,
     )
 
-
-def test_mis_rigid_parameters(mis_rigid):
-    assert mis_rigid.dt == 0.0001
-    assert mis_rigid.tI == 0
-    assert mis_rigid.tF == 0.005
-    assert mis_rigid.eCOUP == 2e-4
-    assert mis_rigid.TD == 0
-    assert mis_rigid.TL == 0
-    assert mis_rigid.n1 == 0
-    assert mis_rigid.speed == 125.66370614359172
+    return results
 
 
-def test_mis_rigid_forces(mis_rigid):
-    # fmt: off
-    Fx_n1_rig = np.array([
-            0.     ,     4.31682,    17.26592,    38.84351,    69.04359,
-          107.85803,   155.27676,   211.28794,   275.87817,   349.03266,
-          430.73544,   520.9695 ,   619.71696,   726.95916,   842.67672,
-          966.84955,  1099.45687,  1240.47709,  1389.8878 ,  1547.66558,
-         1713.78589,  1888.22299,  2070.94971,  2261.93744,  2461.15597,
-         2668.57346,  2884.15645,  3107.86985,  3339.67703,  3579.53994,
-         3827.41925,  4083.27451,  4347.06438,  4618.74677,  4898.27908,
-         5185.61834,  5480.72137,  5783.54484,  6094.04533,  6412.17932,
-         6737.90309,  7071.1726 ,  7411.94329,  7760.16982,  8115.80585,
-         8478.80363,  8849.11381,  9226.68502,  9611.46366, 10003.39363,
-        10402.41613
-    ])
+def test_mis_rigid(rotor):
+    misalignment = MisalignmentRigid(rotor, n=0, mis_distance=2e-4)
 
-    Fy_n1_rig = np.array([
-             0.     ,   -687.04194,  -1373.94823,  -2060.59157,
-         -2746.84626,  -3432.58871,  -4117.6979 ,  -4802.05574,
-         -5485.54725,  -6168.06069,  -6849.48752,  -7529.72223,
-         -8208.66208,  -8886.20674,  -9562.25785, -10236.71857,
-        -10909.49302, -11580.48583, -12249.60164, -12916.74468,
-        -13581.81844, -14244.72539, -14905.36686, -15563.64295,
-        -16219.4526 , -16872.69375, -17523.26358, -18171.05879,
-        -18815.97606, -19457.91233, -20096.7653 , -20732.43379,
-        -21364.81807, -21993.82016, -22619.34409, -23241.29595,
-        -23859.58398, -24474.11847, -25084.81159, -25691.57716,
-        -26294.33031, -26892.98709, -27487.46407, -28077.67788,
-        -28663.54481, -29244.98043, -29821.89922, -30394.21433,
-        -30961.83738, -31524.67842, -32082.6459
-    ])
+    assert misalignment.delta == 2e-4
+    assert misalignment.shaft_elem.n == 0
+    assert round(misalignment.shaft_elem.L, 3) == 0.025
+    assert round(misalignment.phi, 3) == -0.017
+    assert int(misalignment.kl1) == 469638975
+    assert int(misalignment.kt1) == 42737
+    assert int(misalignment.kl2) == 654160580
+    assert int(misalignment.kt2) == 70133
 
-    Fx_n2_rig = np.array([
-            0.     ,     -4.31682,    -17.26592,    -38.84351,
-          -69.04359,   -107.85803,   -155.27676,   -211.28794,
-         -275.87817,   -349.03266,   -430.73544,   -520.9695 ,
-         -619.71696,   -726.95916,   -842.67672,   -966.84955,
-        -1099.45687,  -1240.47709,  -1389.8878 ,  -1547.66558,
-        -1713.78589,  -1888.22299,  -2070.94971,  -2261.93744,
-        -2461.15597,  -2668.57346,  -2884.15645,  -3107.86985,
-        -3339.67703,  -3579.53994,  -3827.41925,  -4083.27451,
-        -4347.06438,  -4618.74677,  -4898.27908,  -5185.61834,
-        -5480.72137,  -5783.54484,  -6094.04533,  -6412.17932,
-        -6737.90309,  -7071.1726 ,  -7411.94329,  -7760.16982,
-        -8115.80585,  -8478.80363,  -8849.11381,  -9226.68502,
-        -9611.46366, -10003.39363, -10402.41613
-    ])
 
-    Fy_n2_rig = np.array([
-            0.     ,   687.04194,  1373.94823,  2060.59157,  2746.84626,
-         3432.58871,  4117.6979 ,  4802.05574,  5485.54725,  6168.06069,
-         6849.48752,  7529.72223,  8208.66208,  8886.20674,  9562.25785,
-        10236.71857, 10909.49302, 11580.48583, 12249.60164, 12916.74468,
-        13581.81844, 14244.72539, 14905.36686, 15563.64295, 16219.4526 ,
-        16872.69375, 17523.26358, 18171.05879, 18815.97606, 19457.91233,
-        20096.7653 , 20732.43379, 21364.81807, 21993.82016, 22619.34409,
-        23241.29595, 23859.58398, 24474.11847, 25084.81159, 25691.57716,
-        26294.33031, 26892.98709, 27487.46407, 28077.67788, 28663.54481,
-        29244.98043, 29821.89922, 30394.21433, 30961.83738, 31524.67842,
-        32082.6459
-    ])
-    # fmt: on
+def test_mis_rigid_resp(mis_rigid):
+    probe1 = Probe(12, Q_(45, "deg"))
+    probe2 = Probe(20, Q_(90, "deg"))
 
-    assert_allclose(mis_rigid.forces[mis_rigid.n1 * 6 + 0, :], Fx_n1_rig, rtol=3e-2)
-    assert_allclose(mis_rigid.forces[mis_rigid.n1 * 6 + 1, :], Fy_n1_rig, rtol=3e-2)
+    resp_prob1 = np.array(
+        [0.00000000e00, 6.15126513e-08, 3.71773834e-07, 1.18252510e-06, 2.74026919e-06]
+    )
+    resp_prob2 = np.array(
+        [
+            0.00000000e00,
+            -1.99130062e-07,
+            -1.18066869e-06,
+            -3.67565279e-06,
+            -8.32209309e-06,
+        ]
+    )
 
-    assert_allclose(mis_rigid.forces[mis_rigid.n2 * 6 + 0, :], Fx_n2_rig, rtol=3e-2)
-    assert_allclose(mis_rigid.forces[mis_rigid.n2 * 6 + 1, :], Fy_n2_rig, rtol=3e-2)
+    data = mis_rigid.data_time_response(probe=[probe1, probe2])
+    assert_allclose(data["probe_resp[0]"].to_numpy()[:5], resp_prob1)
+    assert_allclose(data["probe_resp[1]"].to_numpy()[:5], resp_prob2)

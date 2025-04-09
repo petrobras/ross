@@ -1,55 +1,55 @@
-import time
+from abc import ABC
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from scipy import linalg as la
 
 import ross as rs
 from ross.units import Q_, check_units
 
-from .abs_fault import Fault
-from .integrate_solver import Integrator
-
-__all__ = [
-    "Crack",
-]
+__all__ = ["Crack"]
 
 
-class Crack(Fault):
-    """Contains a :cite:`gasch1993survey` and :cite:`mayes1984analysis` transversal crack models for applications on
-    finite element models of rotative machinery.
-    The reference coordenates system is: z-axis throught the shaft center; x-axis and y-axis in the sensors' planes
-    Calculates the dynamic forces of a crack on a given shaft element.
+class Crack(ABC):
+    """Model a crack based on Linear Fracture Mechanics on a given shaft element
+    of a rotor system.
+
+    Contains transversal crack models :cite:`gasch1993survey` and :cite:`mayes1984analysis`.
+    The reference coordenate system is:
+        - x-axis and y-axis in the sensors' planes;
+        - z-axis throught the shaft center.
 
     Parameters
     ----------
-    dt : float
-        Time step
-    tI : float
-        Initial time
-    tF : float
-        Final time
+    rotor : ross.Rotor
+        Rotor object.
+    n : float
+        Number of shaft element where crack is located.
     depth_ratio : float
-        Crack depth ratio related to the diameter of the crack container element. A depth value of 0.1 is equal to 10%,
-        0.2 equal to 20%, and so on. This parameter is restricted to up to 50% within the implemented approach,
+        Crack depth ratio related to the diameter of the crack container element.
+        A depth value of 0.1 is equal to 10%, 0.2 equal to 20%, and so on.
+        This parameter is restricted to up to 50% within the implemented approach,
         as discussed in :cite `papadopoulos2004some`.
-    n_crack : float
-        Element where the crack is located
-    speed : float, pint.Quantity
-        Operational speed of the machine. Default unit is rad/s.
-    unbalance_magnitude : array
-        Array with the unbalance magnitude. The unit is kg.m.
-    unbalance_phase : array
-        Array with the unbalance phase. The unit is rad.
-    crack_type : string
-        String containing type of crack model chosed. The avaible types are: Mayes and Gasch.
-    print_progress : bool
-        Set it True, to print the time iterations and the total time spent, by default False.
+    crack_model : string, optional
+        Name of the chosen crack model. The avaible types are: "Mayes" and "Gasch".
+        Default is "Mayes".
 
     Returns
     -------
-    A force to be applied on the shaft.
+    A crack object.
+
+    Attributes
+    ----------
+    shaft_elem : ross.ShaftElement
+        A 6 degrees of freedom shaft element object where crack is located.
+    K_elem : np.ndarray
+        Stiffness matrix of the shaft element without crack.
+    Ko : np.ndarray
+        Stiffness of the shaft with the crack closed (equivalent to the shaft without crack).
+    Kc : np.ndarray
+        Stiffness of the shaft including compliance coefficients according to the crack depth.
+    forces : np.ndarray
+        Force matrix due to crack. Each row corresponds to a dof and each column to a time.
 
     References
     ----------
@@ -58,40 +58,21 @@ class Crack(Fault):
 
     Examples
     --------
-    >>> from ross.probe import Probe
-    >>> from ross.faults.crack import crack_example
-    >>> probe1 = Probe(14, 0)
-    >>> probe2 = Probe(22, 0)
-    >>> response = crack_example()
-    >>> results = response.run_time_response()
-    >>> fig = response.plot_dfft(probe=[probe1, probe2], range_freq=[0, 100], yaxis_type="log")
-    >>> # fig.show()
+    >>> rotor = rs.rotor_example_with_damping()
+    >>> fault = Crack(rotor, n=18, depth_ratio=0.2, crack_model="Gasch")
+    >>> fault.shaft_elem
+    ShaftElement(L=0.03, idl=0.0, idr=0.0, odl=0.019,  odr=0.019, material='Steel', n=18)
     """
 
     @check_units
     def __init__(
         self,
-        dt,
-        tI,
-        tF,
+        rotor,
+        n,
         depth_ratio,
-        n_crack,
-        speed,
-        unbalance_magnitude,
-        unbalance_phase,
-        crack_type="Mayes",
-        print_progress=False,
+        crack_model="Mayes",
     ):
-        self.dt = dt
-        self.tI = tI
-        self.tF = tF
-        self.n_crack = n_crack
-        self.speed = speed
-        self.speedI = speed
-        self.speedF = speed
-        self.unbalance_magnitude = unbalance_magnitude
-        self.unbalance_phase = unbalance_phase
-        self.print_progress = print_progress
+        self.rotor = rotor
 
         if depth_ratio <= 0.5:
             self.depth_ratio = depth_ratio
@@ -104,409 +85,62 @@ class Crack(Fault):
                 """
             )
 
-        if crack_type is None or crack_type == "Mayes":
-            self.crack_model = self._mayes
-        elif crack_type == "Gasch":
-            self.crack_model = self._gasch
+        if crack_model is None or crack_model == "Mayes":
+            self._crack_model = self.mayes
+        elif crack_model == "Gasch":
+            self._crack_model = self.gasch
         else:
             raise Exception("Check the crack model!")
 
-        if len(self.unbalance_magnitude) != len(self.unbalance_phase):
-            raise Exception(
-                "The unbalance magnitude vector and phase must have the same size!"
-            )
-
         dir_path = Path(__file__).parents[0] / "data/PAPADOPOULOS.csv"
-        self.data_coefs = pd.read_csv(dir_path)
+        self.coefficient_data = pd.read_csv(dir_path)
 
-    def run(self, rotor):
-        """Calculates the shaft angular position and the unbalance forces at X / Y directions.
+        # Shaft element with crack
+        self.shaft_elem = [elm for elm in rotor.shaft_elements if elm.n == n][0]
 
-        Parameters
-        ----------
-        rotor : ross.Rotor Object
-             6 DoF rotor model.
+        self.dofs = list(self.shaft_elem.dof_global_index.values())
 
-        """
+        self.K_elem = self.shaft_elem.K()
 
-        self.rotor = rotor
-        self.n_disk = len(self.rotor.disk_elements)
-        if self.n_disk != len(self.unbalance_magnitude):
-            raise Exception("The number of discs and unbalances must agree!")
+        L = self.shaft_elem.L
+        E = self.shaft_elem.material.E
+        Ie = self.shaft_elem.Ie
+        phi = self.shaft_elem.phi
 
-        self.ndof = rotor.ndof
-        self.L = rotor.elements[self.n_crack].L
-        self.KK = rotor.elements[self.n_crack].K()
-        self.radius = rotor.elements[self.n_crack].odl / 2
-        self.Poisson = rotor.elements[self.n_crack].material.Poisson
-        self.E = rotor.elements[self.n_crack].material.E
-        self.ndofd = np.zeros(len(self.rotor.disk_elements))
+        co1 = L**3 * (1 + phi / 4) / 3
+        co2 = L**2 / 2
+        co3 = L
 
-        for ii in range(self.n_disk):
-            self.ndofd[ii] = (self.rotor.disk_elements[ii].n) * 6
-
-        G_s = rotor.elements[self.n_crack].material.G_s
-        odr = rotor.elements[self.n_crack].odr
-        odl = rotor.elements[self.n_crack].odl
-        idr = rotor.elements[self.n_crack].idr
-        idl = rotor.elements[self.n_crack].idl
-
-        self.dof_crack = np.arange((self.n_crack * 6), (self.n_crack * 6 + 12))
-        tempS = np.pi * (
-            ((odr / 2) ** 2 + (odl / 2) ** 2) / 2
-            - ((idr / 2) ** 2 + (idl / 2) ** 2) / 2
-        )
-        tempI = (
-            np.pi
-            / 4
-            * (
-                ((odr / 2) ** 4 + (odl / 2) ** 4) / 2
-                - ((idr / 2) ** 4 + (idl / 2) ** 4) / 2
-            )
-        )
-
-        kappa = (6 * (1 + self.Poisson) ** 2) / (
-            7 + 12 * self.Poisson + 4 * self.Poisson**2
-        )
-
-        A = 12 * self.E * tempI / (G_s * kappa * tempS * (self.L**2))
-
-        # fmt = off
-        Coxy = np.array(
-            [
-                [
-                    (self.L**3) * (1 + A / 4) / (3 * self.E * tempI),
-                    -(self.L**2) / (2 * self.E * tempI),
-                ],
-                [-(self.L**2) / (2 * self.E * tempI), self.L / (self.E * tempI)],
-            ]
-        )
-
-        Coyz = np.array(
-            [
-                [
-                    (self.L**3) * (1 + A / 4) / (3 * self.E * tempI),
-                    (self.L**2) / (2 * self.E * tempI),
-                ],
-                [(self.L**2) / (2 * self.E * tempI), self.L / (self.E * tempI)],
-            ]
-        )
-
-        Co = np.array(
-            [
-                [Coxy[0, 0], 0, 0, Coxy[0, 1]],
-                [0, Coyz[0, 0], Coyz[0, 1], 0],
-                [0, Coyz[1, 0], Coyz[1, 1], 0],
-                [Coxy[1, 0], 0, 0, Coxy[1, 1]],
-            ]
-        )
-        # fmt = on
-
-        c44 = self._get_coefs("c44")
-        c55 = self._get_coefs("c55")
-        c45 = self._get_coefs("c45")
+        # fmt: off
+        Co = np.array([
+            [co1,   0,     0, co2],
+            [  0,  co1, -co2,   0],
+            [  0, -co2,  co3,   0],
+            [co2,    0,    0, co3],
+        ]) / (E * Ie)
+        # fmt: on
 
         if self.depth_ratio == 0:
             Cc = Co
         else:
+            c44 = self._get_coefficient("c44")
+            c55 = self._get_coefficient("c55")
+            c45 = self._get_coefficient("c45")
+
             Cc = Co + np.array(
                 [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, c55, c45], [0, 0, c45, c44]]
             )
 
-        self.Kele = np.linalg.pinv(Co)
-        self.ko = self.Kele[0, 0]
+        self.Ko = np.linalg.pinv(Co)
+        self.Kc = np.linalg.pinv(Cc)
 
-        self.kc = np.linalg.pinv(Cc)
-        self.kcx = self.kc[0, 0]
-        self.kcz = self.kc[1, 1]
-        self.fcrack = np.zeros(self.ndof)
-
-        self.iteration = 0
-
-        # parameters for the time integration
-        self.lambdat = 0.00001
-        Faxial = 0
-        TorqueI = 0
-        TorqueF = 0
-
-        # pre-processing of auxilary variuables for the time integration
-        self.sA = (
-            self.speedI * np.exp(-self.lambdat * self.tF)
-            - self.speedF * np.exp(-self.lambdat * self.tI)
-        ) / (np.exp(-self.lambdat * self.tF) - np.exp(-self.lambdat * self.tI))
-        self.sB = (self.speedF - self.speedI) / (
-            np.exp(-self.lambdat * self.tF) - np.exp(-self.lambdat * self.tI)
-        )
-
-        # sAT = (
-        #     TorqueI * np.exp(-lambdat * self.tF) - TorqueF * np.exp(-lambdat * self.tI)
-        # ) / (np.exp(-lambdat * self.tF) - np.exp(-lambdat * self.tI))
-        # sBT = (TorqueF - TorqueI) / (
-        #     np.exp(-lambdat * self.tF) - np.exp(-lambdat * self.tI)
-        # )
-
-        # SpeedV = sA + sB * np.exp(-lambdat * self.t)
-        # TorqueV = sAT + sBT * np.exp(-lambdat * self.t)
-        # AccelV = -lambdat * sB * np.exp(-lambdat * self.t)
-
-        # Determining the modal matrix
-        self.K = self.rotor.K(self.speed)
-        self.C = self.rotor.C(self.speed)
-        self.G = self.rotor.G()
-        self.M = self.rotor.M(self.speed)
-        self.Ksdt = self.rotor.Ksdt()
-
-        _, ModMat = la.eigh(self.K, self.M)
-        ModMat = ModMat[:, :12]
-        self.ModMat = ModMat
-
-        # Modal transformations
-        self.Mmodal = ((ModMat.T).dot(self.M)).dot(ModMat)
-        self.Cmodal = ((ModMat.T).dot(self.C)).dot(ModMat)
-        self.Gmodal = ((ModMat.T).dot(self.G)).dot(ModMat)
-        self.Kmodal = ((ModMat.T).dot(self.K)).dot(ModMat)
-        self.Ksdtmodal = ((ModMat.T).dot(self.Ksdt)).dot(ModMat)
-
-        y0 = np.zeros(24)
-        t_eval = np.arange(self.tI, self.tF + self.dt, self.dt)
-        # t_eval = np.arange(self.dt, self.tF, self.dt)
-        T = t_eval
-
-        self.angular_position = (
-            self.sA * T
-            - (self.sB / self.lambdat) * np.exp(-self.lambdat * T)
-            + (self.sB / self.lambdat)
-        )
-
-        self.Omega = self.sA + self.sB * np.exp(-self.lambdat * T)
-        self.AccelV = -self.lambdat * self.sB * np.exp(-self.lambdat * T)
-
-        self.tetaUNB = np.zeros((len(self.unbalance_phase), len(self.angular_position)))
-        unbx = np.zeros(len(self.angular_position))
-        unby = np.zeros(len(self.angular_position))
-
-        FFunb = np.zeros((self.ndof, len(t_eval)))
-        self.forces_crack = np.zeros((self.ndof, len(t_eval)))
-
-        for ii in range(self.n_disk):
-            self.tetaUNB[ii, :] = (
-                self.angular_position + self.unbalance_phase[ii] + np.pi / 2
-            )
-
-            unbx = self.unbalance_magnitude[ii] * (self.AccelV) * (
-                np.cos(self.tetaUNB[ii, :])
-            ) - self.unbalance_magnitude[ii] * (self.Omega**2) * (
-                np.sin(self.tetaUNB[ii, :])
-            )
-
-            unby = -self.unbalance_magnitude[ii] * (self.AccelV) * (
-                np.sin(self.tetaUNB[ii, :])
-            ) - self.unbalance_magnitude[ii] * (self.Omega**2) * (
-                np.cos(self.tetaUNB[ii, :])
-            )
-
-            FFunb[int(self.ndofd[ii]), :] += unbx
-            FFunb[int(self.ndofd[ii] + 1), :] += unby
-
-        self.Funbmodal = (self.ModMat.T).dot(FFunb)
-
-        self.inv_Mmodal = np.linalg.pinv(self.Mmodal)
-        t1 = time.time()
-
-        x = Integrator(
-            self.tI,
-            y0,
-            self.tF,
-            self.dt,
-            self._equation_of_movement,
-            self.print_progress,
-        )
-        x = x.rk45()
-        t2 = time.time()
-        if self.print_progress:
-            print(f"Time spent: {t2-t1} s")
-
-        self.displacement = x[:12, :]
-        self.velocity = x[12:, :]
-        self.time_vector = t_eval
-        self.response = self.ModMat.dot(self.displacement)
-
-    def _equation_of_movement(self, T, Y, i):
-        """Calculates the displacement and velocity using state-space representation in the modal domain.
+    def _get_coefficient(self, coeff):
+        """Get terms of the compliance matrix.
 
         Parameters
-        ----------
-        T : float
-            Iteration time.
-        Y : array
-            Array of displacement and velocity, in the modal domain.
-        i : int
-            Iteration step.
-
-        Returns
-        -------
-        new_Y :  array
-            Array of the new displacement and velocity, in the modal domain.
-        """
-
-        positions = Y[:12]
-        velocity = Y[12:]  # velocity in space state
-
-        self.positionsFis = self.ModMat.dot(positions)
-        self.velocityFis = self.ModMat.dot(velocity)
-        self.T_matrix = np.array(
-            [
-                [np.cos(self.angular_position[i]), np.sin(self.angular_position[i])],
-                [-np.sin(self.angular_position[i]), np.cos(self.angular_position[i])],
-            ]
-        )
-        self.tp = self.crack_model(self.angular_position[i])
-
-        FF_CRACK, ft = self._crack(self.tp, self.angular_position[i])
-        self.forces_crack[:, i] = ft
-        ftmodal = (self.ModMat.T).dot(ft)
-
-        # equation of movement to be integrated in time
-        new_V_dot = (
-            ftmodal
-            + self.Funbmodal[:, i]
-            - (self.Cmodal + self.Gmodal * self.Omega[i]).dot(velocity)
-            - ((self.Kmodal + self.Ksdtmodal * self.AccelV[i]).dot(positions))
-        ).dot(self.inv_Mmodal)
-
-        new_X_dot = velocity
-
-        new_Y = np.zeros(24)
-        new_Y[:12] = new_X_dot
-        new_Y[12:] = new_V_dot
-
-        return new_Y
-
-    def _crack(self, func, ap):
-        """Reaction forces of cracked element
-
-        Returns
-        -------
-        F_CRACK : array
-            Excitation force caused by the parallel misalignment on the node of application.
-        FF_CRACK : array
-            Excitation force caused by the parallel misalignment on the entire system.
-        """
-
-        K = func
-
-        k11 = K[0, 0]
-        k12 = K[0, 1]
-        k22 = K[1, 1]
-
-        # Stiffness matrix of the cracked element
-        Toxy = np.array([[-1, 0], [self.L, -1], [1, 0], [0, 1]])  # OXY
-
-        kxy = np.array(
-            [[self.Kele[0, 0], self.Kele[0, 3]], [self.Kele[3, 0], self.Kele[3, 3]]]
-        )
-
-        kxy[0, 0] = k11
-        Koxy = ((Toxy).dot(kxy)).dot(Toxy.T)
-
-        Toyz = np.array([[-1, 0], [-self.L, -1], [1, 0], [0, 1]])  # OYZ
-
-        kyz = np.array(
-            [[self.Kele[1, 1], self.Kele[1, 2]], [self.Kele[2, 1], self.Kele[2, 2]]]
-        )
-
-        kyz[0, 0] = k22
-        Koyz = ((Toyz).dot(kyz)).dot(Toyz.T)
-
-        # fmt: off
-        KK_crack = np.array([[Koxy[0,0]	,0           ,0         ,0	        ,Koxy[0,1]	,0	        ,Koxy[0,2]	        ,0                  ,0      ,0                  ,Koxy[0,3]	,0],
-                             [0	        ,Koyz[0,0]   ,0         ,Koyz[0,1]	,0          ,0          ,0                  ,Koyz[0,2]	        ,0      ,Koyz[0,3]	        ,0          ,0],
-                             [0	        ,0	         ,0         ,0	        ,0          ,0          ,0                  ,0                  ,0      ,0                  ,0          ,0],
-                             [0	        ,Koyz[1,0]	 ,0         ,Koyz[1,1]  ,0          ,0          ,0                  ,Koyz[1,2]          ,0      ,Koyz[1,3]          ,0          ,0],
-                             [Koxy[1,0]	,0           ,0         ,0	        ,Koxy[1,1]  ,0          ,Koxy[1,2]          ,0                  ,0      ,0                  ,Koxy[1,3]  ,0],
-                             [0	        ,0           ,0         ,0	        ,0	        ,0          ,0                  ,0                  ,0      ,0                  ,0	        ,0],
-                             [Koxy[2,0]	,0           ,0         ,0	        ,Koxy[2,1]	,0          ,Koxy[2,2]          ,0                  ,0      ,0                  ,Koxy[2,3]	,0],
-                             [0	        ,Koyz[2,0]   ,0         ,Koyz[2,1]	,0 ,         0          ,0                  ,Koyz[2,2]          ,0      ,Koyz[2,3]          ,0          ,0],
-                             [0	        ,0	         ,0         ,0	        ,0 ,         0          ,0                  ,0                  ,0      ,0                  ,0          ,0],
-                             [0	        ,Koyz[3,0]	 ,0         ,Koyz[3,1]	,0 ,         0          ,0                  ,Koyz[3,2]          ,0      ,Koyz[3,3]          ,0          ,0],
-                             [Koxy[3,0]	,0           ,0         , 0	        ,Koxy[3,1]  ,0          ,Koxy[3,2]          ,0                  ,0      ,0                  ,Koxy[3,3]  ,0],
-                             [0	        ,0           ,0         , 0	        ,0	        ,0          ,0                  ,0                  ,0      ,0                  ,0	        ,0]])
-        # fmt: on
-        F_CRACK = np.zeros(self.ndof)
-
-        KK_CRACK = self.KK - KK_crack
-        FF_CRACK = (KK_CRACK).dot(self.positionsFis[self.dof_crack])
-        F_CRACK[self.dof_crack] = FF_CRACK
-        self.KK_CRACK = KK_CRACK
-
-        return FF_CRACK, F_CRACK
-
-    def _gasch(self, ap):
-        """Stiffness matrix of the cracked element according to the Gasch model.
-
-        Paramenters
         -----------
-        ap : float
-            Angular position of the shaft.
-
-        Returns
-        -------
-        K : np.ndarray
-            Stiffness matrix of cracked element.
-        """
-
-        # Gasch
-        kme = (self.ko + self.kcx) / 2
-        kmn = (self.ko + self.kcz) / 2
-        kde = (self.ko - self.kcx) / 2
-        kdn = (self.ko - self.kcz) / 2
-
-        size = 18
-        cosine_sum = np.sum(
-            [(-1) ** i * np.cos((2 * i + 1) * ap) / (2 * i + 1) for i in range(size)]
-        )
-
-        kee = kme + (4 / np.pi) * kde * cosine_sum
-        knn = kmn + (4 / np.pi) * kdn * cosine_sum
-
-        aux = np.array([[kee, 0], [0, knn]])
-
-        K = ((self.T_matrix.T).dot(aux)).dot(self.T_matrix)
-
-        return K
-
-    def _mayes(self, ap):
-        """Stiffness matrix of the cracked element according to the Mayes model.
-
-        Paramenters
-        -----------
-        ap : float
-            Angular position of the shaft.
-
-        Returns
-        -------
-        K : np.ndarray
-            Stiffness matrix of cracked element.
-        """
-        # Mayes
-
-        kee = 0.5 * (self.ko + self.kcx) + 0.5 * (self.ko - self.kcx) * np.cos(ap)
-
-        knn = 0.5 * (self.ko + self.kcz) + 0.5 * (self.ko - self.kcz) * np.cos(ap)
-
-        aux = np.array([[kee, 0], [0, knn]])
-
-        K = ((self.T_matrix.T).dot(aux)).dot(self.T_matrix)
-
-        return K
-
-    def _get_coefs(self, coef):
-        """Terms os the compliance matrix.
-
-        Paramenters
-        -----------
-        coef : string
-            Name of the Coefficient according to the corresponding direction.
+        coeff : string
+            Name of the coefficient according to the corresponding direction.
 
         Returns
         -------
@@ -514,45 +148,269 @@ class Crack(Fault):
             Compliance coefficient according to the crack depth.
         """
 
-        c = np.array(pd.eval(self.data_coefs[coef]))
-        aux = np.where(c[:, 1] >= self.depth_ratio * 2)[0]
-        c = c[aux[0], 0] * (1 - self.Poisson**2) / (self.E * (self.radius**3))
+        Poisson = self.shaft_elem.material.Poisson
+        E = self.shaft_elem.material.E
+        radius = self.shaft_elem.odl / 2
+
+        c = np.array(pd.eval(self.coefficient_data[coeff]))
+        ind = np.where(c[:, 1] >= self.depth_ratio * 2)[0]
+
+        c = c[ind[0], 0] * (1 - Poisson**2) / (E * radius**3)
 
         return c
 
+    def compute_crack_stiffness(self, ap):
+        """Compute stiffness matrix of the shaft element with crack in inertial coordinates.
+
+        Parameters
+        ----------
+        ap : float
+            Angular position of the element.
+
+        Returns
+        -------
+        K : np.ndarray
+            Stiffness matrix of the cracked element.
+        """
+
+        L = self.shaft_elem.L
+
+        Kmodel = self._crack_model(ap)
+
+        Toxy = np.array([[-1, 0], [-L, -1], [1, 0], [0, 1]])
+        kxy = np.array([[Kmodel[0, 0], self.Ko[0, 3]], [self.Ko[3, 0], self.Ko[3, 3]]])
+        Koxy = Toxy @ kxy @ Toxy.T
+
+        Toyz = np.array([[-1, 0], [L, -1], [1, 0], [0, 1]])
+        kyz = np.array([[Kmodel[1, 1], self.Ko[1, 2]], [self.Ko[2, 1], self.Ko[2, 2]]])
+        Koyz = Toyz @ kyz @ Toyz.T
+
+        # fmt: off
+        K = np.array([
+            [Koxy[0,0],         0,   0,         0, Koxy[0,1],   0, Koxy[0,2],         0,   0,         0, Koxy[0,3],   0],
+            [        0, Koyz[0,0],   0, Koyz[0,1],         0,   0,         0, Koyz[0,2],   0, Koyz[0,3],         0,   0],
+            [        0,         0,   0,         0,         0,   0,         0,         0,   0,         0,         0,   0],
+            [        0, Koyz[1,0],   0, Koyz[1,1],         0,   0,         0, Koyz[1,2],   0, Koyz[1,3],         0,   0],
+            [Koxy[1,0],         0,   0,         0, Koxy[1,1],   0, Koxy[1,2],         0,   0,         0, Koxy[1,3],   0],
+            [        0,         0,   0,         0,         0,   0,         0,         0,   0,         0,         0,   0],
+            [Koxy[2,0],         0,   0,         0, Koxy[2,1],   0, Koxy[2,2],         0,   0,         0, Koxy[2,3],   0],
+            [        0, Koyz[2,0],   0, Koyz[2,1],         0,   0,         0, Koyz[2,2],   0, Koyz[2,3],         0,   0],
+            [        0,         0,   0,         0,         0,   0,         0,         0,   0,         0,         0,   0],
+            [        0, Koyz[3,0],   0, Koyz[3,1],         0,   0,         0, Koyz[3,2],   0, Koyz[3,3],         0,   0],
+            [Koxy[3,0],         0,   0,         0, Koxy[3,1],   0, Koxy[3,2],         0,   0,         0, Koxy[3,3],   0],
+            [        0,         0,   0,         0,         0,   0,         0,         0,   0,         0,         0,   0]
+        ])
+        # fmt: on
+
+        return K
+
+    def gasch(self, ap):
+        """Stiffness matrix of the shaft element with crack in rotating coordinates
+        according to the breathing model of Gasch.
+
+        Paramenters
+        -----------
+        ap : float
+            Angular position of the shaft.
+
+        Returns
+        -------
+        K : np.ndarray
+            Stiffness matrix of the cracked element.
+        """
+
+        # Gasch
+        ko = self.Ko[0, 0]
+        kcx = self.Kc[0, 0]
+        kcz = self.Kc[1, 1]
+
+        kme = (ko + kcx) / 2
+        kmn = (ko + kcz) / 2
+        kde = (ko - kcx) / 2
+        kdn = (ko - kcz) / 2
+
+        size = 18
+        cosine_sum = np.sum(
+            [(-1) ** i * np.cos((2 * i + 1) * ap) / (2 * i + 1) for i in range(size)]
+        )
+
+        ke = kme + (4 / np.pi) * kde * cosine_sum
+        kn = kmn + (4 / np.pi) * kdn * cosine_sum
+
+        T_matrix = np.array(
+            [
+                [np.cos(ap), np.sin(ap)],
+                [-np.sin(ap), np.cos(ap)],
+            ]
+        )
+
+        K = T_matrix.T @ np.array([[ke, 0], [0, kn]]) @ T_matrix
+
+        return K
+
+    def mayes(self, ap):
+        """Stiffness matrix of the shaft element with crack in rotating coordinates
+        according to the breathing model of Mayes.
+
+        Paramenters
+        -----------
+        ap : float
+            Angular position of the shaft.
+
+        Returns
+        -------
+        K : np.ndarray
+            Stiffness matrix of the cracked element.
+        """
+
+        # Mayes
+        ko = self.Ko[0, 0]
+        kcx = self.Kc[0, 0]
+        kcz = self.Kc[1, 1]
+
+        ke = 0.5 * (ko + kcx) + 0.5 * (ko - kcx) * np.cos(ap)
+        kn = 0.5 * (ko + kcz) + 0.5 * (ko - kcz) * np.cos(ap)
+
+        T_matrix = np.array(
+            [
+                [np.cos(ap), np.sin(ap)],
+                [-np.sin(ap), np.cos(ap)],
+            ]
+        )
+
+        K = T_matrix.T @ np.array([[ke, 0], [0, kn]]) @ T_matrix
+
+        return K
+
+    def _get_force_in_time(self, step, disp_resp, ang_pos):
+        """Calculate the dynamic force related on given time step.
+
+        Paramenters
+        -----------
+        step : int
+            Current time step index.
+        disp_resp : np.ndarray
+            Displacement response of the system at the current time step.
+        ang_pos : float
+            Angular position of the shaft at the current time step.
+
+        Returns
+        -------
+        F : np.ndarray
+            Force matrix related to the open crack in the current time step `t[step]`.
+        """
+
+        K_crack = self.compute_crack_stiffness(ang_pos)
+
+        F = np.zeros(self.rotor.ndof)
+        F[self.dofs] = (self.K_elem - K_crack) @ disp_resp[self.dofs]
+        self.forces[:, step] = F
+
+        return F
+
+    def run(self, node, unb_magnitude, unb_phase, speed, t, **kwargs):
+        """Run analysis for the system with crack given an unbalance force.
+
+        System time response is simulated considering weight force.
+
+        Parameters
+        ----------
+        node : list, int
+            Node where the unbalance is applied.
+        unb_magnitude : list, float
+            Unbalance magnitude (kg.m).
+        unb_phase : list, float
+            Unbalance phase (rad).
+        speed : float or array_like, pint.Quantity
+            Rotor speed.
+        t : array
+            Time array.
+        **kwargs : optional
+            Additional keyword arguments can be passed to define the parameters
+            of the Newmark method if it is used (e.g. gamma, beta, tol, ...).
+            See `ross.utils.newmark` for more details.
+            Other keyword arguments can also be passed to be used in numerical
+            integration (e.g. num_modes).
+            See `Rotor.integrate_system` for more details.
+
+        Returns
+        -------
+        results : ross.TimeResponseResults
+            For more information on attributes and methods available see:
+            :py:class:`ross.TimeResponseResults`
+        """
+
+        rotor = self.rotor
+
+        # Unbalance force
+        F, ang_pos, _, _ = rotor._unbalance_force_over_time(
+            node, unb_magnitude, unb_phase, speed, t
+        )
+
+        # Weight force
+        g = np.zeros(rotor.ndof)
+        g[1::6] = -9.81
+        M = rotor.M()
+
+        for i in range(len(t)):
+            F[:, i] += M @ g
+
+        self.forces = np.zeros((rotor.ndof, len(t)))
+
+        force_crack = lambda step, **state: self._get_force_in_time(
+            step, state.get("disp_resp"), ang_pos[step]
+        )
+
+        results = rotor.run_time_response(
+            speed=speed,
+            F=F.T,
+            t=t,
+            method="newmark",
+            add_to_RHS=force_crack,
+            **kwargs,
+        )
+
+        return results
+
 
 def crack_example():
-    """Create an example to evaluate the influence of transverse cracks in a rotating shaft.
+    """Create an example to evaluate the influence of transverse cracks in a
+    rotating shaft.
 
-    This function returns an instance of a transversal crack
-    fault. The purpose is to make available a simple model so that a
-    doctest can be written using it.
+    This function returns time response results of a transversal crack fault.
+    The purpose is to make available a simple example so that a doctest can be
+    written using it.
 
     Returns
     -------
-    crack : ross.Crack Object
-        An instance of a crack model object.
+    results : ross.TimeResponseResults
+        Results for a shaft with crack.
 
     Examples
     --------
-    >>> crack = crack_example()
-    >>> crack.speed
-    125.66370614359172
+    >>> from ross.faults.crack import crack_example
+    >>> from ross.probe import Probe
+    >>> results = crack_example()
+    Running direct method
+    >>> probe1 = Probe(14, 0)
+    >>> probe2 = Probe(22, 0)
+    >>> fig = results.plot_1d([probe1, probe2])
     """
 
     rotor = rs.rotor_example_with_damping()
 
-    crack = rotor.run_crack(
-        dt=0.0001,
-        tI=0,
-        tF=0.5,
+    n1 = rotor.disk_elements[0].n
+    n2 = rotor.disk_elements[1].n
+
+    results = rotor.run_crack(
+        n=18,
         depth_ratio=0.2,
-        n_crack=18,
+        node=[n1, n2],
+        unbalance_magnitude=[5e-4, 0],
+        unbalance_phase=[-np.pi / 2, 0],
+        crack_model="Mayes",
         speed=Q_(1200, "RPM"),
-        unbalance_magnitude=np.array([5e-4, 0]),
-        unbalance_phase=np.array([-np.pi / 2, 0]),
-        crack_type="Mayes",
-        print_progress=False,
+        t=np.arange(0, 0.5, 0.0001),
     )
 
-    return crack
+    return results
