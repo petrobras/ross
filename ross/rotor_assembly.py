@@ -710,6 +710,10 @@ class Rotor(object):
                             elm._n = elm.n
                             elm.n_l = elm.n
                             elm.n_r = elm.n + 1
+                        if elm in point_mass_elements:
+                            for brg in bearing_elements:
+                                if elm.n - 1 == brg.n_link:
+                                    brg.n_link += 1
 
             for j in range(i + 1, len(target_elements)):
                 if target_elements[j] == target_elements[i]:
