@@ -175,6 +175,7 @@ class THDCylindrical(BearingElement):
         print_result=False,
         print_progress=False,
         print_time=False,
+        **kwargs,
     ):
         self.axial_length = axial_length
         self.journal_radius = journal_radius
@@ -296,6 +297,7 @@ class THDCylindrical(BearingElement):
             n, 
             kxx, cxx, kyy, kxy, kyx, cyy, cxy, cyx, 
             frequency,
+            **kwargs
         )
 
     def _flooded(self, n_p, Mat_coef, b_P, mu, initial_guess, y0):
