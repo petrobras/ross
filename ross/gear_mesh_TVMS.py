@@ -643,8 +643,6 @@ class GearGeometry:
             yaxis=dict(showgrid=True),
         )
 
-
-
         # Show the plot
         fig.show()
         pass
@@ -690,16 +688,6 @@ class TransitionCurve():
             - I_y (float): The second moment of area (moment of inertia) about the y-axis at x.
         """
         self.geometryDict: dict[str, float] = self.gear.geometry.geometryDict
-        phi: float = self._phi(gamma)
-        y: float = self._y(gamma, phi)
-        x: float = self._x(gamma, phi)
-        area: float = self._area(x)
-        I_y: float = self._I_y(x) 
-
-        return y, x, area, I_y
-
-    def _phi(self, gamma: float) -> float:
-        
         phi: float = (
             (
                 self.geometryDict['a_1'] 
@@ -709,10 +697,6 @@ class TransitionCurve():
             / self.geometryDict['r_p']
         )
 
-        return phi
-        
-    def _y(self, gamma: float, phi: float) -> float:
-        
         y: float = (
             self.geometryDict['r_p'] 
             * np.cos(phi) 
@@ -723,10 +707,6 @@ class TransitionCurve():
             ) 
             * np.sin(gamma-phi)
         )
-
-        return y 
-    
-    def _x(self, gamma: float, phi: float) -> float:
 
         x: float = (
             self.geometryDict['r_p']
@@ -739,35 +719,11 @@ class TransitionCurve():
             * np.cos(gamma - phi)
         )
 
-        return x
+        area: float = 2 * x * self.gear.width
+        I_y: float = 2/3 * x**3 * self.gear.width
+
+        return y, x, area, I_y
     
-    def _area(self, x_gamma: float) -> float:
-        """Evaluate the transition curve area given a gamma angle. 
-
-        Args:
-            gamma (float): _description_
-
-        Returns:
-            float: _description_
-        """
-
-        area: float = 2 * x_gamma * self.gear.width
-
-        return area
-    
-    def _I_y(self, x_gamma: float) -> float:
-        """Evaluate the transition curve area moment of inertia for the y-axis given a gamma angle. 
-
-        Args:
-            gamma (float): positional angle
-
-        Returns:
-            float: Area moment of inertia for the y-axis.
-        """
-
-        I_y: float = 2/3 * x_gamma**3 * self.gear.width
-
-        return I_y
 
 class InvoluteCurve():
     """
@@ -817,15 +773,6 @@ class InvoluteCurve():
         """
         self.geometryDict: dict[str, float] = self.gear.geometry.geometryDict
         
-        y: float = self._y(tau_i)
-        x: float = self._x(tau_i)
-        area: float = self._area(x)
-        I_y: float = self._I_y(x) 
-
-        return y, x, area, I_y
-
-    def _y(self, tau_i: float) -> float:
-        
         y: float = (
             self.geometryDict['r_b']
             * (
@@ -836,10 +783,6 @@ class InvoluteCurve():
             + np.cos(tau_i)
             )
         ) 
-
-        return y
-
-    def _x(self, tau_i: float) -> float:
 
         x: float = (
             self.geometryDict['r_b']
@@ -852,20 +795,10 @@ class InvoluteCurve():
             )
         )
 
-        return x
-
-    def _area(self, x: float) -> float:
-
         area: float = 2 * x * self.gear.width
-
-        return area
-    
-    def _I_y(self, x: float) -> float:
-
-
         I_y: float = 2/3 * x**3 * self.gear.width
 
-        return I_y
+        return y, x, area, I_y
 
 class GearStiffness:
     """
