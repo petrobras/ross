@@ -1416,6 +1416,7 @@ class Mesh:
         -----
         - The calculation considers the periodic nature of meshing and the contact ratio (cr) of the gear pair.
         - The stiffness contribution varies depending on whether one or two pairs of teeth are in contact.
+        - For the correct evaluation of the TVMS it's important that `dt = (2 * np.pi) / (20 * n_toth_gear_x * speed_gear_x)`
         """
 
 
@@ -1503,12 +1504,14 @@ def gearMeshStiffnessExample() -> None:
     gear1 = GearElementTVMS(n=21, m=12, module=2e-3, width=2e-2, n_tooth=55, hub_bore_radius=17.5e-3)
     gear2 = GearElementTVMS(n=21, m=12, module=2e-3, width=2e-2, n_tooth=75, hub_bore_radius=17.5e-3)
 
-    gear1Speed = 89*2*np.pi
+    gear1Speed = 80 * 2 * np.pi
 
     meshing = Mesh(gear1, gear2)   
+    
+    dt = 2 * np.pi / (20 * gear1Speed * gear1.n_tooth)
 
     nTm = 3
-    time_range = np.linspace(0, 1, int(5000))
+    time_range = np.arange(0, 2 * np.pi / (gear1Speed * gear1.n_tooth), dt)
 
     speed_range = gear1Speed * np.ones(np.shape(time_range))
 
@@ -1523,7 +1526,7 @@ def gearMeshStiffnessExample() -> None:
 
     # Calculate limits and yticks
     x_lim = time_range[-1]
-#    yticks = np.arange(3.8e8, int(4.4e8), int(0.1e8))
+    # yticks = np.arange(3.8e8, int(4.4e8), int(0.1e8))
 
     # Create figure
     fig = go.Figure()
@@ -1532,7 +1535,7 @@ def gearMeshStiffnessExample() -> None:
     fig.add_trace(go.Scatter(
         x=time_range,
         y=stiffness,
-        mode='lines',
+        mode='markers',
         line=dict(color='blue', width=1),
         name='Stiffness'
     ))
@@ -1568,6 +1571,18 @@ def gearMeshStiffnessExample() -> None:
         showlegend=True
     )
 
+    fig.add_annotation(
+        x=1,  # x-coordinate of the annotation (relative to the plot area, 1 = right edge)
+        y=1,  # y-coordinate of the annotation (relative to the plot area, 1 = top edge)
+        xref="paper",  # Use relative coordinates for x (0 to 1)
+        yref="paper",  # Use relative coordinates for y (0 to 1)
+        text=f"gear_1: {gear1.n_tooth} tooth,    gear_2: {gear2.n_tooth} tooth,    gear_1_speed={gear1Speed/np.pi/2:.2f} Hz,    dt = {dt:.3e}",  # The text to display
+        showarrow=False,  # Do not show an arrow pointing to the annotation
+        align="right",  # Align text to the right
+        xanchor="right",  # Anchor point for x (right-aligned)
+        yanchor="top",  # Anchor point for y (top-aligned)
+        font=dict(size=12, color="black")  # Customize font size and color
+    )
     fig.show()
 
     # gear1.geometry.plot_tooth_geometry()
