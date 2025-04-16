@@ -649,25 +649,7 @@ class GearGeometry:
         fig.show()
         pass
 
-class GeometryProfile(ABC):
-    
-    @abstractmethod
-    def _y(*args, **kwargs):
-        pass
-
-    @abstractmethod
-    def _x(*args, **kwargs):
-        pass
-
-    @abstractmethod
-    def _area(*args, **kwargs):
-        pass
-    
-    @abstractmethod
-    def _I_y(*args, **kwargs):
-        pass
-
-class TransitionCurve(GeometryProfile):
+class TransitionCurve():
     """
     Transition curve class.
 
@@ -787,7 +769,7 @@ class TransitionCurve(GeometryProfile):
 
         return I_y
 
-class InvoluteCurve(GeometryProfile):
+class InvoluteCurve():
     """
     Class to compute the geometric involute curve profile.
 
