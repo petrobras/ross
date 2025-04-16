@@ -318,7 +318,7 @@ class THDCylindrical(BearingElement):
                     cyx[ii] = coef[2]
                     cyy[ii] = coef[3]
 
-        super().__init__(n, kxx, cxx, kyy, kxy, kyx, cyy, cxy, cyx, frequency, **kwargs)
+        super().__init__(n, kxx, cxx, kyy, kxy, kyx, cyy, cxy, cyx, frequency=frequency, **kwargs)
 
     def _flooded(self, n_p, Mat_coef, b_P, mu, initial_guess, y0):
         """Provides an analysis in which the bearing always receive sufficient oil feed to operate.
