@@ -48,7 +48,7 @@ def cylindrical():
 def test_cylindrical_parameters(cylindrical):
     assert math.isclose(cylindrical.axial_length, 0.263144, rel_tol=0.0001)
     assert cylindrical.journal_radius == 0.2
-    assert cylindrical.frequency == 94.24777960769379
+    assert_allclose(cylindrical.frequency, 94.24777961)
     assert cylindrical.rho == 873.99629
     assert cylindrical.reference_temperature == 50
 
