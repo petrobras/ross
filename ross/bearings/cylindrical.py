@@ -84,7 +84,7 @@ class THDCylindrical(BearingElement):
         Is required one factor per segment.
     oil_flow_v: float, pint.Quantity
         Suply oil flow to bearing. Only used when operating type 'starvation' is
-        selected. Unit is Litre per minute (l/min)
+        selected. Default unit is meter**3/second
     oil_supply_pressure: float, Pint.Quantity
         Suply oil pressure that bearing receives at groove regions. Only used
         when operating type 'starvation' is selected. Unit is Pascal (Pa).
@@ -161,7 +161,7 @@ class THDCylindrical(BearingElement):
     ...    method="perturbation",
     ...    operating_type="flooded",
     ...    oil_supply_pressure=0,
-    ...    oil_flow_v=37.86,
+    ...    oil_flow_v=Q_(37.86, "l/min"),
     ...    show_coef=False,
     ...    print_result=False,
     ...    print_progress=False,
@@ -234,6 +234,8 @@ class THDCylindrical(BearingElement):
         self.thetaF = self.betha_s
         self.dtheta = (self.thetaF - self.thetaI) / (self.elements_circumferential)
 
+        # for calculating convertion to l/min
+        self.oil_flow_v = Q_(oil_flow_v, "meter**3/second").to("l/min").m
         ##
         # Dimensionless discretization variables
 
