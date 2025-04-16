@@ -297,16 +297,13 @@ class GearGeometry:
         self.gear: GearElementTVMS = gear
 
         # Curves
-        self.transition = TransitionCurve(self.gear)
+        #self.transition = self._compute_transition_curve
         self.involute = InvoluteCurve(self.gear)
 
         # Initialize the geometryDict
         self.geometryDict: dict[str, float] = {}
         self.geometryDict:  dict[str, float] = self._initialize_geometry(self.geometryDict)
 
-
-        
-    
     def _initialize_geometry(self, dict_geo: dict) -> dict[str, float]:
         """
         Initialize the geometry dictionary for gear tooth stiffness analysis.
@@ -536,6 +533,54 @@ class GearGeometry:
 
         return dict_place
     
+    def _compute_transition_curve(self, gamma: float) -> tuple[float, float, float, float]:
+        """Compute the y, x, area and I_y of the transition curve given a gamma angle.
+
+        Args:
+            gamma (float): The angle indicating the position on the transition curve profile.
+
+        Returns:
+            - y (float): The y-coordinate of the transition curve at gamma.
+            - x (float): The x-coordinate of the transition curve at gamma.
+            - area (float): The cumulative area under the transition curve up to x.
+            - I_y (float): The second moment of area (moment of inertia) about the y-axis at x.
+        """
+        phi: float = (
+            (
+                self.geometryDict['a_1'] 
+                / np.tan(gamma) 
+                + self.geometryDict['b_1']
+            ) 
+            / self.geometryDict['r_p']
+        )
+
+        y: float = (
+            self.geometryDict['r_p'] 
+            * np.cos(phi) 
+            - (
+                self.geometryDict['a_1'] 
+                / np.sin(gamma) 
+                + self.geometryDict['r_rho']
+            ) 
+            * np.sin(gamma-phi)
+        )
+
+        x: float = (
+            self.geometryDict['r_p']
+            * np.sin(phi)
+            - (
+                self.geometryDict['a_1']
+                / np.sin(gamma)
+                + self.geometryDict['r_rho']
+            )
+            * np.cos(gamma - phi)
+        )
+
+        area: float = 2 * x * self.gear.width
+        I_y: float = 2/3 * x**3 * self.gear.width
+
+        return y, x, area, I_y
+    
     @staticmethod
     def _involute(angle: float) -> float:
         """Involute function
@@ -614,7 +659,7 @@ class GearGeometry:
 
         # Generate the transition geometry
         transition: np.array = np.linspace(np.pi/2, gear.pressure_angle, 200)
-        transition_vectorized: np.vectorize = np.vectorize(self.transition._compute_transition_curve)
+        transition_vectorized: np.vectorize = np.vectorize(self._compute_transition_curve)
         y_t, x_t, _, _ = transition_vectorized(transition)
 
         # Generate the involute geometry
@@ -646,85 +691,7 @@ class GearGeometry:
         # Show the plot
         fig.show()
         pass
-
-class TransitionCurve():
-    """
-    Transition curve class.
-
-    Used to compute the geometric transition curve profile for a single gamma.
-
-    Based on:
-    Ma, H., Song, R., Pang, X., & Wen, B. (2014). Time-varying mesh stiffness calculation of cracked spur gears. 
-    Engineering Failure Analysis, 44, 179–194. https://doi.org/10.1016/j.engfailanal.2014.05.018
-
-    Parameters
-    ----------
-    -`gear` : GearElementTVMS
-
-    Methods 
-    -------
-    -`_x` -> float
-        x-coordinates of the transition curve.
-    -`_y` -> float
-        y-coordinates of the transition curve.
-    -`_A_y` -> float
-        Area values based on x_1.
-    -`_I_y` -> float
-        Moment of inertia values based on x_1.
-    """
-    def __init__(self, gear: GearElementTVMS):
-        self.gear: GearElementTVMS = gear
-
-    def _compute_transition_curve(self, gamma: float) -> tuple[float, float, float, float]:
-        """Compute the y, x, area and I_y of the transition curve given a gamma angle.
-
-        Args:
-            gamma (float): The angle indicating the position on the transition curve profile.
-
-        Returns:
-            - y (float): The y-coordinate of the transition curve at gamma.
-            - x (float): The x-coordinate of the transition curve at gamma.
-            - area (float): The cumulative area under the transition curve up to x.
-            - I_y (float): The second moment of area (moment of inertia) about the y-axis at x.
-        """
-        self.geometryDict: dict[str, float] = self.gear.geometry.geometryDict
-        phi: float = (
-            (
-                self.geometryDict['a_1'] 
-                / np.tan(gamma) 
-                + self.geometryDict['b_1']
-            ) 
-            / self.geometryDict['r_p']
-        )
-
-        y: float = (
-            self.geometryDict['r_p'] 
-            * np.cos(phi) 
-            - (
-                self.geometryDict['a_1'] 
-                / np.sin(gamma) 
-                + self.geometryDict['r_rho']
-            ) 
-            * np.sin(gamma-phi)
-        )
-
-        x: float = (
-            self.geometryDict['r_p']
-            * np.sin(phi)
-            - (
-                self.geometryDict['a_1']
-                / np.sin(gamma)
-                + self.geometryDict['r_rho']
-            )
-            * np.cos(gamma - phi)
-        )
-
-        area: float = 2 * x * self.gear.width
-        I_y: float = 2/3 * x**3 * self.gear.width
-
-        return y, x, area, I_y
     
-
 class InvoluteCurve():
     """
     Class to compute the geometric involute curve profile.
@@ -878,7 +845,6 @@ class GearStiffness:
             )
 
         return term_1 + term_2 + term_3 # OK 
-
 
     def compute_stiffness(self, alpha_op) -> tuple[float, float, float, float]:
         """
@@ -1037,7 +1003,7 @@ class GearStiffness:
             1.2 * np.cos(tau_op)**2 
             / (
                 self.material.G_s 
-                * self.geometry.transition._compute_transition_curve(gamma)[2]
+                * self.geometry._compute_transition_curve(gamma)[2]
             ) 
             * self.diff_gamma(gamma)
         ) 
@@ -1084,13 +1050,13 @@ class GearStiffness:
             (
                 np.cos(tau_op) 
                 * (
-                    y_op - self.geometry.transition._compute_transition_curve(gamma)[0]
+                    y_op - self.geometry._compute_transition_curve(gamma)[0]
                 )
                 - x_op * np.sin(tau_op)
             )**2 
             / (
                 self.material.E 
-                * self.geometry.transition._compute_transition_curve(gamma)[3]
+                * self.geometry._compute_transition_curve(gamma)[3]
             )
             * self.diff_gamma(gamma)
         ) 
@@ -1132,7 +1098,7 @@ class GearStiffness:
 
         f_transiction = lambda gamma: (
             np.sin(tau_op)**2
-            / (self.material.E * self.geometry.transition._compute_transition_curve(gamma)[2])
+            / (self.material.E * self.geometry._compute_transition_curve(gamma)[2])
             * self.diff_gamma(gamma)
         ) 
 
