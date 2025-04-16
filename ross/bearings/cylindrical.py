@@ -82,10 +82,10 @@ class THDCylindrical(BearingElement):
     groove_factor : list, numpy array, tuple or float
         Ratio of oil in reservoir temperature that mixes with the circulating oil.
         Is required one factor per segment.
-    oil_flow: float
+    oil_flow_v: float, pint.Quantity
         Suply oil flow to bearing. Only used when operating type 'starvation' is
         selected. Unit is Litre per minute (l/min)
-    injection_pressure: float
+    oil_supply_pressure: float, Pint.Quantity
         Suply oil pressure that bearing receives at groove regions. Only used
         when operating type 'starvation' is selected. Unit is Pascal (Pa).
 
@@ -169,8 +169,8 @@ class THDCylindrical(BearingElement):
         initial_guess=[0.1, -0.1],
         method="perturbation",
         operating_type="flooded",
-        injection_pressure=None,
-        oil_flow=None,
+        oil_supply_pressure=None,
+        oil_flow_v=None,
         show_coef=False,
         print_result=False,
         print_progress=False,
@@ -194,8 +194,8 @@ class THDCylindrical(BearingElement):
         self.initial_guess = initial_guess
         self.method = method
         self.operating_type = operating_type
-        self.injection_pressure = injection_pressure
-        self.oil_flow = oil_flow
+        self.oil_supply_pressure = oil_supply_pressure
+        self.oil_flow_v = oil_flow_v
         self.show_coef = show_coef
         self.print_result = print_result
         self.print_progress = print_progress
@@ -234,7 +234,7 @@ class THDCylindrical(BearingElement):
 
         self.Zdim = self.Z * self.axial_length
 
-        self.oil_flow = self.oil_flow / 60000
+        self.oil_flow_v = self.oil_flow_v / 60000
 
         # lubricant_properties = lubricants_dict[self.lubricant]
         lubricant_properties = (
@@ -894,7 +894,7 @@ class THDCylindrical(BearingElement):
                             B[k] = (
                                 -KP * self.theta_vol[k]
                                 - self.theta_vol_groove[n_p] * KW
-                                - 2 * CW * self.injection_pressure
+                                - 2 * CW * self.oil_supply_pressure
                             )
                             pp = np.zeros((nk - 1, 1))
                             pp = np.delete(p, k)
@@ -948,7 +948,7 @@ class THDCylindrical(BearingElement):
                             B[k] = (
                                 -KP * self.theta_vol[k]
                                 - self.theta_vol_groove[n_p] * KW
-                                - 2 * CW * self.injection_pressure
+                                - 2 * CW * self.oil_supply_pressure
                             )
                             pp = np.zeros((nk - 1, 1))
                             pp = np.delete(p, k)
@@ -1000,7 +1000,7 @@ class THDCylindrical(BearingElement):
                             B[k] = (
                                 -KP * self.theta_vol[k]
                                 - self.theta_vol_groove[n_p] * KW
-                                - 2 * CW * self.injection_pressure
+                                - 2 * CW * self.oil_supply_pressure
                             )
                             pp = np.zeros((nk - 1, 1))
                             pp = np.delete(p, k)
@@ -1771,13 +1771,13 @@ class THDCylindrical(BearingElement):
                         + (
                             self.reference_temperature
                             * geometry_factor[n_p]
-                            * self.oil_flow
+                            * self.oil_flow_v
                         )
-                    ) / (geometry_factor[n_p] * self.oil_flow + self.Qsdim[n_p - 1])
+                    ) / (geometry_factor[n_p] * self.oil_flow_v + self.Qsdim[n_p - 1])
 
                     self.theta_vol_groove[n_p] = (
                         0.8
-                        * (geometry_factor[n_p] * self.oil_flow + self.Qsdim[n_p - 1])
+                        * (geometry_factor[n_p] * self.oil_flow_v + self.Qsdim[n_p - 1])
                         / self.Qedim[n_p]
                     )
 
@@ -2440,13 +2440,13 @@ class THDCylindrical(BearingElement):
                                     np.matmul(CX, PP)
                                     + KXW * self.theta_vol_groove[n_p]
                                     + KXP * self.Theta_vol[ki, kj, n_p]
-                                    + 2 * CXW * self.injection_pressure
+                                    + 2 * CXW * self.oil_supply_pressure
                                 )
                                 BY = (
                                     np.matmul(CY, PP)
                                     + KYW * self.theta_vol_groove[n_p]
                                     + KYP * self.Theta_vol[ki, kj, n_p]
-                                    + 2 * CYW * self.injection_pressure
+                                    + 2 * CYW * self.oil_supply_pressure
                                 )
 
                                 PX[ki, kj, n_p] = (BX - np.matmul(C, PPX)) / Mat_coef[
@@ -2482,13 +2482,13 @@ class THDCylindrical(BearingElement):
                                     np.matmul(CX, PP)
                                     + KXW * self.theta_vol_groove[n_p]
                                     + KXP * self.Theta_vol[ki, kj, n_p]
-                                    + 2 * CXW * self.injection_pressure
+                                    + 2 * CXW * self.oil_supply_pressure
                                 )
                                 BY = (
                                     np.matmul(CY, PP)
                                     + KYW * self.theta_vol_groove[n_p]
                                     + KYP * self.Theta_vol[ki, kj, n_p]
-                                    + 2 * CYW * self.injection_pressure
+                                    + 2 * CYW * self.oil_supply_pressure
                                 )
 
                                 PX[ki, kj, n_p] = (BX - np.matmul(C, PPX)) / Mat_coef[
@@ -2521,13 +2521,13 @@ class THDCylindrical(BearingElement):
                                     np.matmul(CX, PP)
                                     + KXW * self.theta_vol_groove[n_p]
                                     + KXP * self.Theta_vol[ki, kj, n_p]
-                                    + 2 * CXW * self.injection_pressure
+                                    + 2 * CXW * self.oil_supply_pressure
                                 )
                                 BY = (
                                     np.matmul(CY, PP)
                                     + KYW * self.theta_vol_groove[n_p]
                                     + KYP * self.Theta_vol[ki, kj, n_p]
-                                    + 2 * CYW * self.injection_pressure
+                                    + 2 * CYW * self.oil_supply_pressure
                                 )
 
                                 PX[ki, kj, n_p] = (BX - np.matmul(C, PPX)) / Mat_coef[
@@ -3219,8 +3219,8 @@ def cylindrical_bearing_example():
         initial_guess=[0.1, -0.1],
         method="perturbation",
         operating_type="flooded",
-        injection_pressure=0,
-        oil_flow=37.86,
+        oil_supply_pressure=0,
+        oil_flow_v=37.86,
         show_coef=False,
         print_result=False,
         print_progress=False,
