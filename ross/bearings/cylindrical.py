@@ -23,6 +23,8 @@ class THDCylindrical(BearingElement):
     Bearing Geometry
     ^^^^^^^^^^^^^^^^
     Describes the geometric characteristics.
+    n : int
+        Node in which the bearing will be located.
     axial_length : float, pint.Quantity
         Bearing length. Default unit is meter.
     journal_radius : float
@@ -147,6 +149,7 @@ class THDCylindrical(BearingElement):
     @check_units
     def __init__(
         self,
+        n,
         axial_length,
         journal_radius,
         radial_clearance,
@@ -162,7 +165,6 @@ class THDCylindrical(BearingElement):
         load_y_direction,
         groove_factor,
         lubricant,
-        node,
         sommerfeld_type=2,
         initial_guess=[0.1, -0.1],
         method="perturbation",
@@ -290,7 +292,11 @@ class THDCylindrical(BearingElement):
                     cyx[ii] = coef[2]
                     cyy[ii] = coef[3]
 
-        super().__init__(node, kxx, cxx, kyy, kxy, kyx, cyy, cxy, cyx, speed)
+        super().__init__(
+            n, 
+            kxx, cxx, kyy, kxy, kyx, cyy, cxy, cyx, 
+            speed,
+        )
 
     def _flooded(self, n_p, Mat_coef, b_P, mu, initial_guess, y0):
         """Provides an analysis in which the bearing always receive sufficient oil feed to operate.
@@ -3193,6 +3199,7 @@ def cylindrical_bearing_example():
     """
 
     bearing = THDCylindrical(
+        n=3,
         axial_length=0.263144,
         journal_radius=0.2,
         radial_clearance=1.95e-4,
@@ -3208,7 +3215,6 @@ def cylindrical_bearing_example():
         load_y_direction=-112814.91,
         groove_factor=[0.52, 0.48],
         lubricant="ISOVG32",
-        node=3,
         sommerfeld_type=2,
         initial_guess=[0.1, -0.1],
         method="perturbation",
