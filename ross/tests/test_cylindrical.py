@@ -10,10 +10,11 @@ from ross.units import Q_
 
 @pytest.fixture
 def cylindrical():
-    speed = Q_([900], "RPM")
+    frequency = Q_([900], "RPM")
     L = Q_(10.3600055944, "in")
 
     bearing = THDCylindrical(
+        n=3,
         axial_length=L,
         journal_radius=0.2,
         radial_clearance=1.95e-4,
@@ -24,18 +25,17 @@ def cylindrical():
         preload=0,
         geometry="circular",
         reference_temperature=50,
-        speed=speed,
-        load_x_direction=0,
-        load_y_direction=-112814.91,
+        frequency=frequency,
+        fxs_load=0,
+        fys_load=-112814.91,
         groove_factor=[0.52, 0.48],
         lubricant="ISOVG32",
-        node=3,
         sommerfeld_type=2,
         initial_guess=[0.1, -0.1],
         method="perturbation",
         operating_type="flooded",
-        injection_pressure=0,
-        oil_flow=37.86,
+        oil_supply_pressure=0,
+        oil_flow_v=37.86,
         show_coef=False,
         print_result=False,
         print_progress=False,
@@ -48,7 +48,7 @@ def cylindrical():
 def test_cylindrical_parameters(cylindrical):
     assert math.isclose(cylindrical.axial_length, 0.263144, rel_tol=0.0001)
     assert cylindrical.journal_radius == 0.2
-    assert cylindrical.speed == 94.24777960769379
+    assert cylindrical.frequency == 94.24777960769379
     assert cylindrical.rho == 873.99629
     assert cylindrical.reference_temperature == 50
 
