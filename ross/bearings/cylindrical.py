@@ -318,12 +318,7 @@ class THDCylindrical(BearingElement):
                     cyx[ii] = coef[2]
                     cyy[ii] = coef[3]
 
-        super().__init__(
-            n, 
-            kxx, cxx, kyy, kxy, kyx, cyy, cxy, cyx, 
-            frequency,
-            **kwargs
-        )
+        super().__init__(n, kxx, cxx, kyy, kxy, kyx, cyy, cxy, cyx, frequency, **kwargs)
 
     def _flooded(self, n_p, Mat_coef, b_P, mu, initial_guess, y0):
         """Provides an analysis in which the bearing always receive sufficient oil feed to operate.
@@ -600,7 +595,10 @@ class THDCylindrical(BearingElement):
         # Dimensional pressure fied
 
         self.Pdim = (
-            self.P * self.reference_viscosity * self.frequency * (self.journal_radius**2)
+            self.P
+            * self.reference_viscosity
+            * self.frequency
+            * (self.journal_radius**2)
         ) / (self.radial_clearance**2)
 
         return self.P
@@ -1094,7 +1092,10 @@ class THDCylindrical(BearingElement):
         # Dimensional pressure fied
 
         self.Pdim = (
-            self.P * self.reference_viscosity * self.frequency * (self.journal_radius**2)
+            self.P
+            * self.reference_viscosity
+            * self.frequency
+            * (self.journal_radius**2)
         ) / (self.radial_clearance**2)
 
         return self.P
@@ -2015,20 +2016,16 @@ class THDCylindrical(BearingElement):
         )
 
         kxx = (
-            np.sqrt((self.fxs_load**2) + (self.fys_load**2))
-            / self.radial_clearance
+            np.sqrt((self.fxs_load**2) + (self.fys_load**2)) / self.radial_clearance
         ) * Kxx
         kxy = (
-            np.sqrt((self.fxs_load**2) + (self.fys_load**2))
-            / self.radial_clearance
+            np.sqrt((self.fxs_load**2) + (self.fys_load**2)) / self.radial_clearance
         ) * Kxy
         kyx = (
-            np.sqrt((self.fxs_load**2) + (self.fys_load**2))
-            / self.radial_clearance
+            np.sqrt((self.fxs_load**2) + (self.fys_load**2)) / self.radial_clearance
         ) * Kyx
         kyy = (
-            np.sqrt((self.fxs_load**2) + (self.fys_load**2))
-            / self.radial_clearance
+            np.sqrt((self.fxs_load**2) + (self.fys_load**2)) / self.radial_clearance
         ) * Kyy
 
         cxx = (
@@ -2931,9 +2928,7 @@ class THDCylindrical(BearingElement):
         """
 
         Fhx, Fhy = self._forces(x, None, None, None)
-        score = np.sqrt(
-            ((self.fxs_load + Fhx) ** 2) + ((self.fys_load + Fhy) ** 2)
-        )
+        score = np.sqrt(((self.fxs_load + Fhx) ** 2) + ((self.fys_load + Fhy) ** 2))
         if print_progress:
             print(x)
             print(f"Score: ", score)
