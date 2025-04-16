@@ -61,9 +61,9 @@ class THDCylindrical(BearingElement):
     Describes the operation conditions of the bearing.
     frequency : float, pint.Quantity
         Rotor rotational speed. Default unit is rad/s.
-    load_x_direction : Float
+    fxs_load : float, pint.Quantity
         Load in X direction. The unit is newton.
-    load_y_direction : Float
+    fys_load : float, pint.Quantity
         Load in Y direction. The unit is newton.
     operating_type : string
         Choose the operating condition that bearing is operating.
@@ -161,8 +161,8 @@ class THDCylindrical(BearingElement):
         geometry,
         reference_temperature,
         frequency,
-        load_x_direction,
-        load_y_direction,
+        fxs_load,
+        fys_load,
         groove_factor,
         lubricant,
         sommerfeld_type=2,
@@ -185,8 +185,8 @@ class THDCylindrical(BearingElement):
         self.preload = preload
         self.geometry = geometry
         self.reference_temperature = reference_temperature
-        self.load_x_direction = load_x_direction
-        self.load_y_direction = load_y_direction
+        self.fxs_load = fxs_load
+        self.fys_load = fys_load
         self.lubricant = lubricant
         self.fat_mixt = np.array(groove_factor)
         self.equilibrium_pos = None
@@ -1988,36 +1988,36 @@ class THDCylindrical(BearingElement):
         )
 
         kxx = (
-            np.sqrt((self.load_x_direction**2) + (self.load_y_direction**2))
+            np.sqrt((self.fxs_load**2) + (self.fys_load**2))
             / self.radial_clearance
         ) * Kxx
         kxy = (
-            np.sqrt((self.load_x_direction**2) + (self.load_y_direction**2))
+            np.sqrt((self.fxs_load**2) + (self.fys_load**2))
             / self.radial_clearance
         ) * Kxy
         kyx = (
-            np.sqrt((self.load_x_direction**2) + (self.load_y_direction**2))
+            np.sqrt((self.fxs_load**2) + (self.fys_load**2))
             / self.radial_clearance
         ) * Kyx
         kyy = (
-            np.sqrt((self.load_x_direction**2) + (self.load_y_direction**2))
+            np.sqrt((self.fxs_load**2) + (self.fys_load**2))
             / self.radial_clearance
         ) * Kyy
 
         cxx = (
-            np.sqrt((self.load_x_direction**2) + (self.load_y_direction**2))
+            np.sqrt((self.fxs_load**2) + (self.fys_load**2))
             / (self.radial_clearance * self.frequency)
         ) * Cxx
         cxy = (
-            np.sqrt((self.load_x_direction**2) + (self.load_y_direction**2))
+            np.sqrt((self.fxs_load**2) + (self.fys_load**2))
             / (self.radial_clearance * self.frequency)
         ) * Cxy
         cyx = (
-            np.sqrt((self.load_x_direction**2) + (self.load_y_direction**2))
+            np.sqrt((self.fxs_load**2) + (self.fys_load**2))
             / (self.radial_clearance * self.frequency)
         ) * Cyx
         cyy = (
-            np.sqrt((self.load_x_direction**2) + (self.load_y_direction**2))
+            np.sqrt((self.fxs_load**2) + (self.fys_load**2))
             / (self.radial_clearance * self.frequency)
         ) * Cyy
 
@@ -2905,7 +2905,7 @@ class THDCylindrical(BearingElement):
 
         Fhx, Fhy = self._forces(x, None, None, None)
         score = np.sqrt(
-            ((self.load_x_direction + Fhx) ** 2) + ((self.load_y_direction + Fhy) ** 2)
+            ((self.fxs_load + Fhx) ** 2) + ((self.fys_load + Fhy) ** 2)
         )
         if print_progress:
             print(x)
@@ -2944,7 +2944,7 @@ class THDCylindrical(BearingElement):
             ) / (
                 np.pi
                 * (self.radial_clearance**2)
-                * np.sqrt((self.load_x_direction**2) + (self.load_y_direction**2))
+                * np.sqrt((self.fxs_load**2) + (self.fys_load**2))
             )
 
         elif self.sommerfeld_type == 2:
@@ -2996,8 +2996,8 @@ class THDCylindrical(BearingElement):
         )
 
         fig.add_annotation(
-            x=self.load_x_direction,
-            y=self.load_y_direction,
+            x=self.fxs_load,
+            y=self.fys_load,
             ax=0,
             ay=0,
             xref="x",
@@ -3211,8 +3211,8 @@ def cylindrical_bearing_example():
         geometry="circular",
         reference_temperature=50,
         frequency=Q_([900], "RPM"),
-        load_x_direction=0,
-        load_y_direction=-112814.91,
+        fxs_load=0,
+        fys_load=-112814.91,
         groove_factor=[0.52, 0.48],
         lubricant="ISOVG32",
         sommerfeld_type=2,
