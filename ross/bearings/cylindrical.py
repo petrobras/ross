@@ -109,8 +109,6 @@ class THDCylindrical(BearingElement):
     elements_axial : int
         Number of volumes along the Z direction (axial direction).
 
-
-
     Returns
     -------
     A THDCylindrical object.
@@ -138,10 +136,37 @@ class THDCylindrical(BearingElement):
         Array with excentricity ratio and attitude angle information.
         Its shape is: array([excentricity, angle])
 
-    Examples
+    Example
     --------
-    >>> from ross.bearings.cylindrical import cylindrical_bearing_example
-    >>> bearing = cylindrical_bearing_example()
+    >>> from ross.bearings.cylindrical import THDCylindrical
+    >>> bearing = THDCylindrical(
+    ...    n=3,
+    ...    axial_length=0.263144,
+    ...    journal_radius=0.2,
+    ...    radial_clearance=1.95e-4,
+    ...    elements_circumferential=11,
+    ...    elements_axial=3,
+    ...    n_pad=2,
+    ...    pad_arc_length=176,
+    ...    preload=0,
+    ...    geometry="circular",
+    ...    reference_temperature=50,
+    ...    frequency=Q_([900], "RPM"),
+    ...    fxs_load=0,
+    ...    fys_load=-112814.91,
+    ...    groove_factor=[0.52, 0.48],
+    ...    lubricant="ISOVG32",
+    ...    sommerfeld_type=2,
+    ...    initial_guess=[0.1, -0.1],
+    ...    method="perturbation",
+    ...    operating_type="flooded",
+    ...    oil_supply_pressure=0,
+    ...    oil_flow_v=37.86,
+    ...    show_coef=False,
+    ...    print_result=False,
+    ...    print_progress=False,
+    ...    print_time=False,
+    ... )
     >>> bearing.equilibrium_pos
     array([ 0.68733194, -0.79394211])
     """
@@ -3182,51 +3207,3 @@ class THDCylindrical(BearingElement):
         )
 
         return fig
-
-
-def cylindrical_bearing_example():
-    """Create an example of a cylindrical bearing with termo hydrodynamic effects.
-    This function returns pressure and temperature field and dynamic coefficient.
-    The purpose is to make available a simple model so that a doctest can be written
-    using it.
-    Returns
-    -------
-    THDCylindrical : ross.THDCylindrical Object
-        An instance of a termo-hydrodynamic cylendrical bearing model object.
-    Examples
-    --------
-    >>> bearing = cylindrical_bearing_example()
-    >>> bearing.axial_length
-    0.263144
-    """
-
-    bearing = THDCylindrical(
-        n=3,
-        axial_length=0.263144,
-        journal_radius=0.2,
-        radial_clearance=1.95e-4,
-        elements_circumferential=11,
-        elements_axial=3,
-        n_pad=2,
-        pad_arc_length=176,
-        preload=0,
-        geometry="circular",
-        reference_temperature=50,
-        frequency=Q_([900], "RPM"),
-        fxs_load=0,
-        fys_load=-112814.91,
-        groove_factor=[0.52, 0.48],
-        lubricant="ISOVG32",
-        sommerfeld_type=2,
-        initial_guess=[0.1, -0.1],
-        method="perturbation",
-        operating_type="flooded",
-        oil_supply_pressure=0,
-        oil_flow_v=37.86,
-        show_coef=False,
-        print_result=False,
-        print_progress=False,
-        print_time=False,
-    )
-
-    return bearing
