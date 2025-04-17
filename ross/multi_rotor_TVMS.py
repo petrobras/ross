@@ -321,8 +321,8 @@ class MultiRotorTVMS(Rotor):
                [0.        , 0.        , 0.        , 0.        ],
                [0.        , 0.        , 0.        , 0.        ]])
         """
-        r1 = self.gears[0].geometry.geometryDict['r_b']
-        r2 = self.gears[1].geometry.geometryDict['r_b']
+        r1 = self.gears[0].geometryDict['r_b']
+        r2 = self.gears[1].geometryDict['r_b']
 
         S = np.sin(self.gears[0].pressure_angle - self.orientation_angle)
         C = np.cos(self.gears[0].pressure_angle - self.orientation_angle)
