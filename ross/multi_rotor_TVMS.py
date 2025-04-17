@@ -631,8 +631,8 @@ if __name__ == "__main__":
     unb_phase = [0, 0]
 
     dt = 1e-5
-    t = np.arange(0, 10, dt)
-    speed1 = 25*2*np.pi  # Generator rotor speed
+    t = np.arange(0, 0.1, dt)
+    speed1 = 80*2*np.pi  # Generator rotor speed
 
     num_dof = rotor.number_dof
 

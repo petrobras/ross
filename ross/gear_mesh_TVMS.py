@@ -296,10 +296,6 @@ class GearGeometry:
     def __init__(self, gear: GearElementTVMS):
         self.gear: GearElementTVMS = gear
 
-        # Curves
-        #self.transition = self._compute_transition_curve
-        self.involute = InvoluteCurve(self.gear)
-
         # Initialize the geometryDict
         self.geometryDict: dict[str, float] = {}
         self.geometryDict:  dict[str, float] = self._initialize_geometry(self.geometryDict)
@@ -580,7 +576,48 @@ class GearGeometry:
         I_y: float = 2/3 * x**3 * self.gear.width
 
         return y, x, area, I_y
-    
+
+    def _compute_involute_curve(self, tau_i: float) -> tuple[float, float, float, float]:
+        """Compute the y, x, area and I_y of the involute curve given a tau angle.
+
+        Args:
+            tau (float): The angle indicating the position on the involute curve profile.
+
+        Returns:
+            - y (float): The y-coordinate of the transition curve at tau_i.
+            - x (float): The x-coordinate of the transition curve at tau_i.
+            - area (float): The area under the transition curve up to x.
+            - I_y (float): The second moment of area (moment of inertia) about the y-axis at x.
+        """
+        self.geometryDict: dict[str, float] = self.gear.geometry.geometryDict
+        
+        y: float = (
+            self.geometryDict['r_b']
+            * (
+                (
+                    tau_i + self.geometryDict['theta_b']
+                )
+            * np.sin(tau_i)
+            + np.cos(tau_i)
+            )
+        ) 
+
+        x: float = (
+            self.geometryDict['r_b']
+            * (
+                (
+                    tau_i + self.geometryDict['theta_b']
+                )
+            * np.cos(tau_i)    
+            - np.sin(tau_i)            
+            )
+        )
+
+        area: float = 2 * x * self.gear.width
+        I_y: float = 2/3 * x**3 * self.gear.width
+
+        return y, x, area, I_y
+
     @staticmethod
     def _involute(angle: float) -> float:
         """Involute function
@@ -667,7 +704,7 @@ class GearGeometry:
         tau_vectorize = np.vectorize(self._to_tau)
         tau_values = tau_vectorize(involute)
 
-        involute_vectorize = np.vectorize(self.involute._compute_involute_curve)
+        involute_vectorize = np.vectorize(self._compute_involute_curve)
         y_i, x_i, _, _ = involute_vectorize(tau_values)
 
         # Create the plot
@@ -691,81 +728,6 @@ class GearGeometry:
         # Show the plot
         fig.show()
         pass
-    
-class InvoluteCurve():
-    """
-    Class to compute the geometric involute curve profile.
-
-    Parameters
-    --------
-        -`gear`: GearElementTVMS
-
-    Methods 
-    -------
-        -`_x` -> float
-            x-coordinates of the involute curve.
-        -`_y` -> float
-            y-coordinates of the involute curve.
-        -`_area` -> float
-            Area values based on _x.
-        -`_I_y` -> float
-            Moment of inertia values based on _x.
-    
-    Example
-    --------
-    >>> self.involute_curve(0.3405551128775112)
-    (0.0014447795342141163, 0.055344111158185265, 5.7791181368564653e-05, 4.02108709529994e-11)
-
-    References
-    ---------
-    From Ma, H., Song, R., Pang, X., & Wen, B. (2014). Time-varying mesh stiffness calculation of cracked spur gears. 
-    Engineering Failure Analysis, 44, 179–194. https://doi.org/10.1016/j.engfailanal.2014.05.018
-
-    """
-    
-    def __init__(self, gear: GearElementTVMS):
-        self.gear = gear
-
-    def _compute_involute_curve(self, tau_i: float) -> tuple[float, float, float, float]:
-        """Compute the y, x, area and I_y of the involute curve given a tau angle.
-
-        Args:
-            tau (float): The angle indicating the position on the involute curve profile.
-
-        Returns:
-            - y (float): The y-coordinate of the transition curve at tau_i.
-            - x (float): The x-coordinate of the transition curve at tau_i.
-            - area (float): The area under the transition curve up to x.
-            - I_y (float): The second moment of area (moment of inertia) about the y-axis at x.
-        """
-        self.geometryDict: dict[str, float] = self.gear.geometry.geometryDict
-        
-        y: float = (
-            self.geometryDict['r_b']
-            * (
-                (
-                    tau_i + self.geometryDict['theta_b']
-                )
-            * np.sin(tau_i)
-            + np.cos(tau_i)
-            )
-        ) 
-
-        x: float = (
-            self.geometryDict['r_b']
-            * (
-                (
-                    tau_i + self.geometryDict['theta_b']
-                )
-            * np.cos(tau_i)    
-            - np.sin(tau_i)            
-            )
-        )
-
-        area: float = 2 * x * self.gear.width
-        I_y: float = 2/3 * x**3 * self.gear.width
-
-        return y, x, area, I_y
 
 class GearStiffness:
     """
@@ -968,7 +930,7 @@ class GearStiffness:
 
         L_poly, M_poly, P_poly, Q_poly =  poly['X_i']
 
-        y,_, _, _ = self.gear.geometry.involute._compute_involute_curve(tau_op)
+        y,_, _, _ = self.gear.geometry._compute_involute_curve(tau_op)
 
         Sf = 2 * self.geometryDict['r_f'] * self.geometryDict['theta_f']
         u = y - self.geometryDict['r_f']
@@ -1017,7 +979,7 @@ class GearStiffness:
         f_involute = lambda tau: (
             1.2 * (
                 np.cos(tau_op)**2
-                / (self.material.G_s*self.geometry.involute._compute_involute_curve(tau)[2]) # verificar se esse 2 é a área msm
+                / (self.material.G_s*self.geometry._compute_involute_curve(tau)[2]) # verificar se esse 2 é a área msm
                 * self.diff_tau(tau)
             )
         ) 
@@ -1044,7 +1006,7 @@ class GearStiffness:
         float
             The bending stiffness in the form of 1/kb.
         """        
-        y_op, x_op, _, _ = self.gear.geometry.involute._compute_involute_curve(tau_op)
+        y_op, x_op, _, _ = self.gear.geometry._compute_involute_curve(tau_op)
 
         f_transiction = lambda gamma: (
             (
@@ -1066,10 +1028,10 @@ class GearStiffness:
         f_involute = lambda tau: (
             (
                 np.cos(tau_op) 
-                * (y_op - self.geometry.involute._compute_involute_curve(tau)[0])
+                * (y_op - self.geometry._compute_involute_curve(tau)[0])
                 - x_op * np.sin(tau_op)
             )**2
-            / (self.material.E * self.geometry.involute._compute_involute_curve(tau)[3])
+            / (self.material.E * self.geometry._compute_involute_curve(tau)[3])
             * self.diff_tau(tau)
         ) 
 
@@ -1106,7 +1068,7 @@ class GearStiffness:
 
         f_involute = lambda tau: (
             np.sin(tau_op)**2 
-            / (self.material.E * self.geometry.involute._compute_involute_curve(tau)[2])
+            / (self.material.E * self.geometry._compute_involute_curve(tau)[2])
             * self.diff_tau(tau)
         ) 
 
