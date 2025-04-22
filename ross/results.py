@@ -1019,12 +1019,21 @@ class Shape(Results):
         initial_state = []
         fixed_lines = []
 
+        ntimes = 4  # number of times to animate
+        step = 20  # step interval for showing orbit marker
+        orbit_len = len(self.orbits[0].x_circle)
+        orbit_range = np.tile(np.arange(0, orbit_len, step), ntimes)
+
         # plot orbits
-        for i in range(0, len(self.orbits[0].x_circle), 20):
+        for n, i in enumerate(orbit_range):
             orbit_data = []
             first_orbit = True
 
-            j = max(i - 30, 0)
+            if n < orbit_len / step:
+                j = np.arange(max(i - orbit_len, 0), i)
+            else:
+                j = np.arange(i - orbit_len, i)
+
             for orbit in self.orbits:
                 zc_pos = np.repeat(orbit.node_pos, len(orbit.x_circle))
                 zc_pos = Q_(zc_pos, "m").to(length_units).m
@@ -1047,12 +1056,30 @@ class Shape(Results):
                     )
                 )
 
-                if i == 0:
-                    fixed_lines.append(
+                if n > 0:
+                    orbit_data.append(
                         go.Scatter3d(
-                            x=zc_pos,  # [j:i],
-                            y=orbit.x_circle,  # [j:i],
-                            z=orbit.y_circle,  # [j:i],
+                            x=zc_pos[j],
+                            y=orbit.x_circle[j],
+                            z=orbit.y_circle[j],
+                            mode="lines",
+                            line=dict(color=orbit.color, dash="dashdot"),
+                            name="node {}".format(orbit.node),
+                            showlegend=False,
+                            hovertemplate=(
+                                "Nodal Position: %{x:.2f}<br>"
+                                + "X - Displacement: %{y:.2f}<br>"
+                                + "Y - Displacement: %{z:.2f}"
+                            ),
+                        )
+                    )
+
+                if n == 0:
+                    orbit_data.append(
+                        go.Scatter3d(
+                            x=zc_pos,
+                            y=orbit.x_circle,
+                            z=orbit.y_circle,
                             mode="lines",
                             line=dict(color=orbit.color),
                             name="node {}".format(orbit.node),
@@ -1095,7 +1122,7 @@ class Shape(Results):
 
             frames.append(go.Frame(data=orbit_data))
 
-            if i == 0:
+            if n == 0:
                 initial_state = orbit_data
 
         # plot line connecting orbits starting points
@@ -1179,7 +1206,7 @@ class Shape(Results):
                     )
                 ]
             ),
-            frames=frames * 5,  # animate 5 times
+            frames=frames,
         )
 
         return fig
