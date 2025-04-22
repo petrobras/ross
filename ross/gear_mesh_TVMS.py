@@ -29,19 +29,25 @@ class GearElementTVMS(DiskElement):
         Node in which the gear will be inserted.
     m : float, pint.Quantity
         Mass of the gear element (kg).
-    Id : float, pint.Quantity
-        Diametral moment of inertia.
-    Ip : float, pint.Quantity
-        Polar moment of inertia.
     module  : float
         Gear module (m).
-    n_tooth: int
-        Tooth number of the gear. 
-    pressure_angle : float, pint.Quantity, optional
+    n_tooth : int
+        Tooth number of the gear.
+    width   : float
+        Width of the gear (m).
+    hub_bore_radius     : float
+        The hub bore radius (m).
+    material    : Material
+        Gear's construction material.
+    pressure_angle : float, optional
         The pressure angle of the gear (rad).
         Default is 20 deg (converted to rad).
-    width: float
-        The width of the spur gear (m)
+    addendum_coeff  : float | optional
+        Addendum coefficient of the gear.
+        Default is 1.
+    clearance_coeff : float | optional
+        Gear's clearance coefficient.
+        Default is 0.25.
     tag : str, optional
         A tag to name the element.
         Default is None.
