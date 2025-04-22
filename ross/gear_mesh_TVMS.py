@@ -110,7 +110,6 @@ class GearElementTVMS(DiskElement):
         self.geometryDict: dict[str, float] = {}
         self.geometryDict:  dict[str, float] = self._initialize_geometry(self.geometryDict)
 
-        self.stiffness: GearStiffness = GearStiffness(self)
 
         super().__init__(n, m, self.Id, self.Ip, tag, scale_factor, color)
 
@@ -724,21 +723,6 @@ class GearElementTVMS(DiskElement):
         fig.show()
         pass
 
-class GearStiffness:
-    """
-    A class which evaluates the stiffness of a single gear.
-
-    Parameters:
-    --------
-    gear: Gear object
-
-    """
-
-    def __init__(self, gear: GearElementTVMS):
-        self.gear = gear 
-        self.geometryDict = gear.geometryDict
-        self.material = gear.material
-
     def diff_tau(self, tau_i) -> float:
         """
         Method for evaluating the stiffness commonly found in the integrative functions of the involute region on a specified angle tau_i.
@@ -825,7 +809,7 @@ class GearStiffness:
             - ks : float
                 Stiffness related to shear stresses.
         """
-        tau_op = self.gear._to_tau(alpha_op)
+        tau_op = self._to_tau(alpha_op)
 
         inv_kf = self.inv_kf(tau_op)
         inv_ka = self.inv_ka(tau_op)
@@ -852,7 +836,7 @@ class GearStiffness:
             Return 'oo' if it doesn't match the criteria for the experimental range where this method was built.
         """
 
-        h = self.geometryDict['r_f'] / self.gear.r_shaft
+        h = self.geometryDict['r_f'] / self.r_shaft
 
         poly = pd.DataFrame()
         poly['var'] = ['L'          , 'M',            'P'           , 'Q']
@@ -924,13 +908,13 @@ class GearStiffness:
 
         L_poly, M_poly, P_poly, Q_poly =  poly['X_i']
 
-        y,_, _, _ = self.gear._compute_involute_curve(tau_op)
+        y,_, _, _ = self._compute_involute_curve(tau_op)
 
         Sf = 2 * self.geometryDict['r_f'] * self.geometryDict['theta_f']
         u = y - self.geometryDict['r_f']
 
         kf = (
-            ( np.cos(tau_op)**2 / (self.material.E * self.gear.width) )
+            ( np.cos(tau_op)**2 / (self.material.E * self.width) )
             * ( 
                 L_poly * ( u /Sf)**2 
                 + M_poly * u / Sf 
@@ -959,7 +943,7 @@ class GearStiffness:
             1.2 * np.cos(tau_op)**2 
             / (
                 self.material.G_s 
-                * self.gear._compute_transition_curve(gamma)[2]
+                * self._compute_transition_curve(gamma)[2]
             ) 
             * self.diff_gamma(gamma)
         ) 
@@ -967,20 +951,20 @@ class GearStiffness:
         k_transiction, _ = sp.integrate.quad(
             f_transiction, 
             np.pi/2, 
-            self.gear.pressure_angle
+            self.pressure_angle
         ) # OK
 
         f_involute = lambda tau: (
             1.2 * (
                 np.cos(tau_op)**2
-                / (self.material.G_s*self.gear._compute_involute_curve(tau)[2]) # verificar se esse 2 é a área msm
+                / (self.material.G_s*self._compute_involute_curve(tau)[2]) # verificar se esse 2 é a área msm
                 * self.diff_tau(tau)
             )
         ) 
 
         k_involute, _ = sp.integrate.quad(
             f_involute, 
-            self.gear._to_tau(self.geometryDict['alpha_c']), 
+            self._to_tau(self.geometryDict['alpha_c']), 
             tau_op
         ) 
 
@@ -1000,38 +984,38 @@ class GearStiffness:
         float
             The bending stiffness in the form of 1/kb.
         """        
-        y_op, x_op, _, _ = self.gear._compute_involute_curve(tau_op)
+        y_op, x_op, _, _ = self._compute_involute_curve(tau_op)
 
         f_transiction = lambda gamma: (
             (
                 np.cos(tau_op) 
                 * (
-                    y_op - self.gear._compute_transition_curve(gamma)[0]
+                    y_op - self._compute_transition_curve(gamma)[0]
                 )
                 - x_op * np.sin(tau_op)
             )**2 
             / (
                 self.material.E 
-                * self.gear._compute_transition_curve(gamma)[3]
+                * self._compute_transition_curve(gamma)[3]
             )
             * self.diff_gamma(gamma)
         ) 
 
-        k_transiction, _ = sp.integrate.quad(f_transiction, np.pi/2, self.gear.pressure_angle)
+        k_transiction, _ = sp.integrate.quad(f_transiction, np.pi/2, self.pressure_angle)
 
         f_involute = lambda tau: (
             (
                 np.cos(tau_op) 
-                * (y_op - self.gear._compute_involute_curve(tau)[0])
+                * (y_op - self._compute_involute_curve(tau)[0])
                 - x_op * np.sin(tau_op)
             )**2
-            / (self.material.E * self.gear._compute_involute_curve(tau)[3])
+            / (self.material.E * self._compute_involute_curve(tau)[3])
             * self.diff_tau(tau)
         ) 
 
         k_involute, _ = sp.integrate.quad(
             f_involute, 
-            self.gear._to_tau(self.geometryDict['alpha_c']), 
+            self._to_tau(self.geometryDict['alpha_c']), 
             tau_op
         )
 
@@ -1054,28 +1038,28 @@ class GearStiffness:
 
         f_transiction = lambda gamma: (
             np.sin(tau_op)**2
-            / (self.material.E * self.gear._compute_transition_curve(gamma)[2])
+            / (self.material.E * self._compute_transition_curve(gamma)[2])
             * self.diff_gamma(gamma)
         ) 
 
-        k_transiction, _ = sp.integrate.quad(f_transiction, np.pi/2, self.gear.pressure_angle)
+        k_transiction, _ = sp.integrate.quad(f_transiction, np.pi/2, self.pressure_angle)
 
         f_involute = lambda tau: (
             np.sin(tau_op)**2 
-            / (self.material.E * self.gear._compute_involute_curve(tau)[2])
+            / (self.material.E * self._compute_involute_curve(tau)[2])
             * self.diff_tau(tau)
         ) 
 
         k_involute, _ = sp.integrate.quad(
             f_involute, 
-            self.gear._to_tau(self.geometryDict['alpha_c']), 
+            self._to_tau(self.geometryDict['alpha_c']), 
             tau_op
         )
 
         return (k_transiction + k_involute)
 
     @staticmethod
-    def kh(gear1: GearElementTVMS, gear2: GearElementTVMS) -> float:
+    def kh(gear1, gear2) -> float:
         """
         Evaluates the contact hertzian stiffness considering that both elasticity modulus are equal.
 
@@ -1097,7 +1081,7 @@ class GearStiffness:
         - It returns kh, not 1/kh.
         """
 
-        return np.pi * gear1.material.E * gear1.width / 4 / (1 - gear1.material.Poisson**2)
+        return np.pi * gear1.material.E * gear1.width / 4 / (1 - gear1.material.Poisson**2)    
 
 class Mesh:
     """
@@ -1139,7 +1123,7 @@ class Mesh:
 
         self.eta = gearOutput.n_tooth / gearInput.n_tooth # Gear ratio 
         
-        self.kh = GearStiffness.kh(gearInput, gearOutput)
+        self.kh = GearElementTVMS.kh(gearInput, gearOutput)
         self.cr = self.contact_ratio(self.gearInput, self.gearOutput)
 
     @staticmethod
@@ -1215,8 +1199,8 @@ class Mesh:
         dTauGearOutput   = self.gearOutput._to_tau(alphaGearOutput)     # angle variation of the pinion in tau [rad]
 
         # Contact stiffness according to tau angles
-        ka_1, kb_1, kf_1, ks_1 = self.gearInput.stiffness.compute_stiffness(dTauGearInput)
-        ka_2, kb_2, kf_2, ks_2 = self.gearOutput.stiffness.compute_stiffness(dTauGearOutput)
+        ka_1, kb_1, kf_1, ks_1 = self.gearInput.compute_stiffness(dTauGearInput)
+        ka_2, kb_2, kf_2, ks_2 = self.gearOutput.compute_stiffness(dTauGearOutput)
 
         # Evaluating the equivalate meshing stiffness. 
         k_t = 1 / (1/self.kh + 1/ka_1 + 1/kb_1 + 1/kf_1 + 1/ks_1 + 1/ka_2 + 1/kb_2 + 1/kf_2 + 1/ks_2)
@@ -1425,7 +1409,7 @@ def gearMeshStiffnessExample() -> None:
 
 def gearStiffnessExample():
     gear1 = GearElementTVMS(    n=21, m=12, module=2e-3, width=2e-2, n_tooth=55, hub_bore_radius=17.5e-3)
-    computeStiffness = np.vectorize(gear1.stiffness.compute_stiffness)
+    computeStiffness = np.vectorize(gear1.compute_stiffness)
 
     angle_range = np.linspace(gear1.geometryDict['alpha_c'], gear1.geometryDict['alpha_a'], 200)
     ka, kb, kf, ks = computeStiffness(angle_range)
@@ -1453,4 +1437,4 @@ def gearStiffnessExample():
     fig.show()
 
 if __name__ == '__main__':
-    gearGeometryExample()
+    gearStiffnessExample()
