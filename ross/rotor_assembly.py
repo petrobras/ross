@@ -469,7 +469,7 @@ class Rotor(object):
             df.loc[df.tag == elm.tag, "nodes_pos_r"] = z_pos
 
         bclass = BearingElement
-        classes = [_class.__name__ for _class in ([bclass] + bclass.__subclasses__())]
+        classes = [cls.__name__ for cls in ([bclass] + bclass.get_subclasses())]
 
         dfb = df[df.type.isin(classes)]
         z_positions = [pos for pos in dfb["nodes_pos_l"]]
