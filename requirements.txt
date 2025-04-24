@@ -7,3 +7,4 @@ plotly>=4.7.0
 xlrd
 pint>=0.18
 methodtools
+ccp-performance
