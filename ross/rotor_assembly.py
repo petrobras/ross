@@ -2083,9 +2083,7 @@ class Rotor(object):
         array([     0.        ,   7632.15353293, -43492.18127561])
         """
 
-        omega_is_array = isinstance(omega, (list, tuple, np.ndarray))
-
-        if not omega_is_array:
+        if not isinstance(omega, Iterable):
             omega = np.full_like(t, omega)
 
         theta = integrate(omega, t, initial=0)
@@ -2316,12 +2314,8 @@ class Rotor(object):
         """
 
         # Check if speed is array
-        try:
-            speed_is_array = len(set(speed)) > 1
-            speed_ref = np.mean(speed)
-        except:
-            speed_is_array = False
-            speed_ref = speed
+        speed_is_array = isinstance(speed, Iterable)
+        speed_ref = np.mean(speed) if speed_is_array else speed
 
         # Check if the pseudo-modal method has to be applied
         num_modes = kwargs.get("num_modes")
@@ -2462,9 +2456,8 @@ class Rotor(object):
         >>> rotor.time_response(speed, F, t) # doctest: +ELLIPSIS
         (array([0.        , 0.18518519, 0.37037037, ...
         """
-        speed_is_array = isinstance(speed, (list, tuple, np.ndarray))
 
-        if speed_is_array or method.lower() == "newmark":
+        if isinstance(speed, Iterable) or method.lower() == "newmark":
             t_, yout = self.integrate_system(speed, F, t, **kwargs)
             return t_, yout, []
 
