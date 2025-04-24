@@ -92,23 +92,23 @@ class GearElementTVMS(DiskElement):
         if pressure_angle is None:
             pressure_angle = Q_(20, "deg")
 
-        self.r_shaft: float = hub_bore_radius # [m]
+        self.shaft_od: float = hub_bore_radius # [m]
         self.module: float = module # [m]
         self.n_tooth: float = n_tooth # [-]
         self.pressure_angle: float = float(pressure_angle) #[rad]
         self.width: float = width # [m]
-        self.ha_: float = addendum_coeff #[-]
-        self.c_: float = clearance_coeff #[-]
+        self.addendum_coeff: float = addendum_coeff #[-]
+        self.clearance_coeff: float = clearance_coeff #[-]
         self.pitch_diameter: float = module * n_tooth #[m]
 
-        self.Ip = np.pi/2 * ((self.pitch_diameter/2)**4 - self.r_shaft**4)
-        self.Id = np.pi/4 * ((self.pitch_diameter/2)**4 - self.r_shaft**4)
+        self.Ip = np.pi/2 * ((self.pitch_diameter/2)**4 - self.shaft_od**4)
+        self.Id = np.pi/4 * ((self.pitch_diameter/2)**4 - self.shaft_od**4)
 
         self.material: Material = material
         
-        # Initialize the geometryDict
-        self.geometryDict: dict[str, float] = {}
-        self.geometryDict:  dict[str, float] = self._initialize_geometry(self.geometryDict)
+        # Initialize the geometry_dict
+        self.geometry_dict: dict[str, float] = {}
+        self.geometry_dict:  dict[str, float] = self._initialize_geometry(self.geometry_dict)
 
 
         super().__init__(n, m, self.Id, self.Ip, tag, scale_factor, color)
@@ -219,7 +219,7 @@ class GearElementTVMS(DiskElement):
 
         zpos, ypos, yc_pos, scale_factor = position
         scale_factor *= 1.3
-        radius = self.geometryDict['r_b'] * 1.1 + 0.05
+        radius = self.geometry_dict['r_b'] * 1.1 + 0.05
 
         z_upper = [
             zpos + scale_factor / 25,
@@ -245,7 +245,7 @@ class GearElementTVMS(DiskElement):
         y_upper.append(None)
         y_pos.extend(y_lower)
 
-        customdata = [self.n, self.Ip, self.Id, self.m, self.geometryDict['r_b'] * 2]
+        customdata = [self.n, self.Ip, self.Id, self.m, self.geometry_dict['r_b'] * 2]
         hovertemplate = (
             f"Gear Node: {customdata[0]}<br>"
             + f"Polar Inertia: {customdata[1]:.3e}<br>"
@@ -304,7 +304,7 @@ class GearElementTVMS(DiskElement):
         """
         Initialize the geometry dictionary for gear tooth stiffness analysis.
 
-        This method populates ``self.geometryDict`` with various geometric parameters 
+        This method populates ``self.geometry_dict`` with various geometric parameters 
         computed by helper functions:
 
         - Radii constants (from :meth:`_notable_radii`)
@@ -320,24 +320,24 @@ class GearElementTVMS(DiskElement):
         -----
             None
         """
-        geometryDict = dict_geo
+        geometry_dict = dict_geo
         # Add radii constants
         radii:      dict[str, float] = self._notable_radii()
-        geometryDict |= radii 
+        geometry_dict |= radii 
 
         # Add angular constants of the involute profile
         angles:     dict[str, float] = self._notable_angles()
-        geometryDict |= angles
+        geometry_dict |= angles
 
         # Add geometric constants of the tooth profile
         geo_const:  dict[str, float] = self._geometric_constants()
-        geometryDict |= geo_const
+        geometry_dict |= geo_const
 
         # Add geometric constants of tau values of the tooth profile
         tau_const:  dict[str, float] = self._tau_constants()
-        geometryDict |= tau_const
+        geometry_dict |= tau_const
 
-        return geometryDict
+        return geometry_dict
 
     def _notable_angles(self) -> dict[str, float]:
         """Computes and returns key angles from the gear tooth's geometric profile. 
@@ -363,17 +363,17 @@ class GearElementTVMS(DiskElement):
         """
 
         # pressure angle when the contact point is on the addendum circle [rad] MAOK
-        alpha_a: float = np.arccos(self.geometryDict['r_b'] / self.geometryDict['r_a']) 
+        alpha_a: float = np.arccos(self.geometry_dict['r_b'] / self.geometry_dict['r_a']) 
 
         # pressure angle when the contact point is on the C point [rad] MAOK
-        alpha_c: float = np.arccos(self.geometryDict['r_b'] / self.geometryDict['r_c'])       
+        alpha_c: float = np.arccos(self.geometry_dict['r_b'] / self.geometry_dict['r_c'])       
         
         # The angle between the tooth center-line and de junction with the root circle [radians]
         theta_f: float = (                                                          
             1 / self.n_tooth * ( 
                 np.pi / 2 
-                + 2 * np.tan(self.pressure_angle) * (self.ha_ - self.geometryDict['r_rho_'])
-                + 2 * self.geometryDict['r_rho_'] / np.cos(self.pressure_angle)
+                + 2 * np.tan(self.pressure_angle) * (self.addendum_coeff - self.geometry_dict['r_rho_'])
+                + 2 * self.geometry_dict['r_rho_'] / np.cos(self.pressure_angle)
             ) 
         )
 
@@ -428,7 +428,7 @@ class GearElementTVMS(DiskElement):
         Note:
         ------
             All calculations assume standard gear geometry parameters stored in the
-            class instance's `gear` and `geometryDict` attributes.
+            class instance's `gear` and `geometry_dict` attributes.
         """
 
         # radius of base circle [m] MAOK
@@ -438,22 +438,22 @@ class GearElementTVMS(DiskElement):
         r_p: float = r_b / np.cos(self.pressure_angle)
 
         # radius of addendum circle [m]                                  
-        r_a: float = r_p + self.ha_ * self.module                                        
+        r_a: float = r_p + self.addendum_coeff * self.module                                        
         
         # radii of the involute starting point [m] MAOK
         r_c: float = (                                                                 
             np.sqrt( 
                 np.square(r_b * np.tan(self.pressure_angle) 
-                - self.ha_ * self.module /  np.sin(self.pressure_angle) ) 
+                - self.addendum_coeff * self.module /  np.sin(self.pressure_angle) ) 
                 + np.square(r_b) 
             ) 
         )
 
         # radius of root circle [m] MAOK
-        r_f: float = 1 / 2 * self.module * self.n_tooth - (self.ha_ + self.c_) * self.module
+        r_f: float = 1 / 2 * self.module * self.n_tooth - (self.addendum_coeff + self.clearance_coeff) * self.module
 
         # radius of cutter tip round corner [m] MAOK
-        r_rho: float = self.c_ * self.module / (1 - np.sin(self.pressure_angle) )
+        r_rho: float = self.clearance_coeff * self.module / (1 - np.sin(self.pressure_angle) )
 
         # normalized by the module radius of cutter tip round corner [m]                  
         r_rho_: float = r_rho / self.module                                                         
@@ -494,15 +494,15 @@ class GearElementTVMS(DiskElement):
 
         Note:
         ---
-            - Requires precomputed geometryDict values from _notable_radii().
+            - Requires precomputed geometry_dict values from _notable_radii().
             - All values calculated in meters (m).
             - MAOK refers to mechanical engineering verification markers.
         """
 
-        a1: float = (self.ha_ + self.c_) * self.module - self.geometryDict['r_rho']  # MAOK
+        a1: float = (self.addendum_coeff + self.clearance_coeff) * self.module - self.geometry_dict['r_rho']  # MAOK
         b1: float = (                                                       # MAOK
-            np.pi * self.module / 4 + self.ha_ * self.module * np.tan(self.pressure_angle) 
-            + self.geometryDict['r_rho'] * np.cos(self.pressure_angle) 
+            np.pi * self.module / 4 + self.addendum_coeff * self.module * np.tan(self.pressure_angle) 
+            + self.geometry_dict['r_rho'] * np.cos(self.pressure_angle) 
         )
 
         dict_place: dict[str, float] = {
@@ -514,8 +514,8 @@ class GearElementTVMS(DiskElement):
 
     def _tau_constants(self) -> dict[str, float]:
 
-        tau_c: float = self._to_tau(self.geometryDict['alpha_c'])
-        tau_a: float = self._to_tau(self.geometryDict['alpha_a'])  
+        tau_c: float = self._to_tau(self.geometry_dict['alpha_c'])
+        tau_a: float = self._to_tau(self.geometry_dict['alpha_a'])  
 
         dict_place: dict[str, float] = {
             'tau_c': tau_c,
@@ -538,31 +538,31 @@ class GearElementTVMS(DiskElement):
         """
         phi: float = (
             (
-                self.geometryDict['a_1'] 
+                self.geometry_dict['a_1'] 
                 / np.tan(gamma) 
-                + self.geometryDict['b_1']
+                + self.geometry_dict['b_1']
             ) 
-            / self.geometryDict['r_p']
+            / self.geometry_dict['r_p']
         )
 
         y: float = (
-            self.geometryDict['r_p'] 
+            self.geometry_dict['r_p'] 
             * np.cos(phi) 
             - (
-                self.geometryDict['a_1'] 
+                self.geometry_dict['a_1'] 
                 / np.sin(gamma) 
-                + self.geometryDict['r_rho']
+                + self.geometry_dict['r_rho']
             ) 
             * np.sin(gamma-phi)
         )
 
         x: float = (
-            self.geometryDict['r_p']
+            self.geometry_dict['r_p']
             * np.sin(phi)
             - (
-                self.geometryDict['a_1']
+                self.geometry_dict['a_1']
                 / np.sin(gamma)
-                + self.geometryDict['r_rho']
+                + self.geometry_dict['r_rho']
             )
             * np.cos(gamma - phi)
         )
@@ -584,13 +584,13 @@ class GearElementTVMS(DiskElement):
             - area (float): The area under the transition curve up to x.
             - I_y (float): The second moment of area (moment of inertia) about the y-axis at x.
         """
-        self.geometryDict: dict[str, float] = self.geometryDict
+        self.geometry_dict: dict[str, float] = self.geometry_dict
         
         y: float = (
-            self.geometryDict['r_b']
+            self.geometry_dict['r_b']
             * (
                 (
-                    tau_i + self.geometryDict['theta_b']
+                    tau_i + self.geometry_dict['theta_b']
                 )
             * np.sin(tau_i)
             + np.cos(tau_i)
@@ -598,10 +598,10 @@ class GearElementTVMS(DiskElement):
         ) 
 
         x: float = (
-            self.geometryDict['r_b']
+            self.geometry_dict['r_b']
             * (
                 (
-                    tau_i + self.geometryDict['theta_b']
+                    tau_i + self.geometry_dict['theta_b']
                 )
             * np.cos(tau_i)    
             - np.sin(tau_i)            
@@ -678,7 +678,7 @@ class GearElementTVMS(DiskElement):
         Journal of Northeastern University (Natural Science), 35(6), 863–867. https://doi.org/10.3969/j.issn.1005-3026.2014.06.023
         """
 
-        return alpha_i - self.geometryDict['theta_b'] + self._involute(alpha_i)
+        return alpha_i - self.geometry_dict['theta_b'] + self._involute(alpha_i)
 
     def plot_tooth_geometry(self) -> None:
         
@@ -694,7 +694,7 @@ class GearElementTVMS(DiskElement):
         y_t, x_t, _, _ = transition_vectorized(transition)
 
         # Generate the involute geometry
-        involute = np.linspace(self.geometryDict['alpha_c'], self.geometryDict['alpha_a'], 200)
+        involute = np.linspace(self.geometry_dict['alpha_c'], self.geometry_dict['alpha_a'], 200)
         tau_vectorize = np.vectorize(self._to_tau)
         tau_values = tau_vectorize(involute)
 
@@ -737,7 +737,7 @@ class GearElementTVMS(DiskElement):
         float
             The value of diff_tau(tau_i)
         """
-        return self.geometryDict['r_b'] * (tau_i + self.geometryDict['theta_b']) * np.cos(tau_i) # OK
+        return self.geometry_dict['r_b'] * (tau_i + self.geometry_dict['theta_b']) * np.cos(tau_i) # OK
 
     def diff_gamma(self, gamma) -> float:
         """
@@ -753,10 +753,10 @@ class GearElementTVMS(DiskElement):
         float
             The value of diff_gamma(gamma)
         """
-        a1 = self.geometryDict['a_1']
-        b1 = self.geometryDict['b_1']
-        r_p = self.geometryDict['r_p']
-        r_rho = self.geometryDict['r_rho']
+        a1 = self.geometry_dict['a_1']
+        b1 = self.geometry_dict['b_1']
+        r_p = self.geometry_dict['r_p']
+        r_rho = self.geometry_dict['r_rho']
 
         term_1 = (
                 ( 
@@ -836,7 +836,7 @@ class GearElementTVMS(DiskElement):
             Return 'oo' if it doesn't match the criteria for the experimental range where this method was built.
         """
 
-        h = self.geometryDict['r_f'] / self.r_shaft
+        h = self.geometry_dict['r_f'] / self.shaft_od
 
         poly = pd.DataFrame()
         poly['var'] = ['L'          , 'M',            'P'           , 'Q']
@@ -848,10 +848,10 @@ class GearElementTVMS(DiskElement):
         poly['F_i'] = [6.8045       , 0.9086        , 0.9236        , 0.6904]
 
         calculate_x_i = lambda row: (
-            row['A_i'] / (self.geometryDict['theta_f'] ** 2)
+            row['A_i'] / (self.geometry_dict['theta_f'] ** 2)
             + row['B_i'] * h ** 2
-            + row['C_i'] * h / self.geometryDict['theta_f']
-            + row['D_i'] / self.geometryDict['theta_f']
+            + row['C_i'] * h / self.geometry_dict['theta_f']
+            + row['D_i'] / self.geometry_dict['theta_f']
             + row['E_i'] * h
             + row['F_i']
         ) # OK
@@ -888,13 +888,13 @@ class GearElementTVMS(DiskElement):
 
         Parameters
         ---------
-        tau_op (float): 
+        tau_op : float
             The operational pressure angle (tau) in radians. This angle is used to determine the stiffness characteristics 
             based on the gear geometry and material properties. It's the current angle of the contact point between the meshing gears.
 
         Returns
         ---------
-        float: 
+        kf : float 
             The calculated 1/kf for the gear base.
     
         """
@@ -910,8 +910,8 @@ class GearElementTVMS(DiskElement):
 
         y,_, _, _ = self._compute_involute_curve(tau_op)
 
-        Sf = 2 * self.geometryDict['r_f'] * self.geometryDict['theta_f']
-        u = y - self.geometryDict['r_f']
+        Sf = 2 * self.geometry_dict['r_f'] * self.geometry_dict['theta_f']
+        u = y - self.geometry_dict['r_f']
 
         kf = (
             ( np.cos(tau_op)**2 / (self.material.E * self.width) )
@@ -964,7 +964,7 @@ class GearElementTVMS(DiskElement):
 
         k_involute, _ = sp.integrate.quad(
             f_involute, 
-            self._to_tau(self.geometryDict['alpha_c']), 
+            self._to_tau(self.geometry_dict['alpha_c']), 
             tau_op
         ) 
 
@@ -1015,7 +1015,7 @@ class GearElementTVMS(DiskElement):
 
         k_involute, _ = sp.integrate.quad(
             f_involute, 
-            self._to_tau(self.geometryDict['alpha_c']), 
+            self._to_tau(self.geometry_dict['alpha_c']), 
             tau_op
         )
 
@@ -1052,7 +1052,7 @@ class GearElementTVMS(DiskElement):
 
         k_involute, _ = sp.integrate.quad(
             f_involute, 
-            self._to_tau(self.geometryDict['alpha_c']), 
+            self._to_tau(self.geometry_dict['alpha_c']), 
             tau_op
         )
 
@@ -1152,12 +1152,12 @@ class Mesh:
         Retrieved from: https://www.myweb.ttu.edu/amosedal/articles.html
         """
 
-        pb = np.pi * 2 * gearInput.geometryDict['r_b'] / gearInput.n_tooth # base pitch
-        C = gearInput.geometryDict['r_p'] + gearOutput.geometryDict['r_p'] # center distance (not the operating one)
+        pb = np.pi * 2 * gearInput.geometry_dict['r_b'] / gearInput.n_tooth # base pitch
+        C = gearInput.geometry_dict['r_p'] + gearOutput.geometry_dict['r_p'] # center distance (not the operating one)
 
         lc = ( # length of contact (not the operating one) # OK
-            np.sqrt(gearInput.geometryDict['r_a']**2 - gearInput.geometryDict['r_b']**2) 
-            + np.sqrt(gearOutput.geometryDict['r_a']**2 - gearOutput.geometryDict['r_b']**2) 
+            np.sqrt(gearInput.geometry_dict['r_a']**2 - gearInput.geometry_dict['r_b']**2) 
+            + np.sqrt(gearOutput.geometry_dict['r_a']**2 - gearOutput.geometry_dict['r_b']**2) 
             - C * np.sin(gearInput.pressure_angle)
         )
 
@@ -1191,8 +1191,8 @@ class Mesh:
 
 
         # Angular displacements 
-        alphaGearInput = t * gearInputSpeed + self.gearInput.geometryDict['alpha_c'] # angle variation of the input pinion [rad]
-        alphaGearOutput   = t * gearOutputSpeed + self.gearOutput.geometryDict['alpha_a']   # angle variation of the output gear   [rad]
+        alphaGearInput = t * gearInputSpeed + self.gearInput.geometry_dict['alpha_c'] # angle variation of the input pinion [rad]
+        alphaGearOutput   = t * gearOutputSpeed + self.gearOutput.geometry_dict['alpha_a']   # angle variation of the output gear   [rad]
         
         # Tau displacementes
         dTauGearInput = self.gearInput._to_tau(alphaGearInput)     # angle variation of the pinion in tau [rad]
@@ -1317,7 +1317,7 @@ class Mesh:
 
 def gearGeometryExample() -> None:
     gear1 = GearElementTVMS(21, 12, 12, 12, 2e-3, 55, 2e-2)
-    print(gear1.geometryDict)
+    print(gear1.geometry_dict)
     pass
 
 def gearMeshStiffnessExample() -> None:
@@ -1411,7 +1411,7 @@ def gearStiffnessExample():
     gear1 = GearElementTVMS(    n=21, m=12, module=2e-3, width=2e-2, n_tooth=55, hub_bore_radius=17.5e-3)
     computeStiffness = np.vectorize(gear1.compute_stiffness)
 
-    angle_range = np.linspace(gear1.geometryDict['alpha_c'], gear1.geometryDict['alpha_a'], 200)
+    angle_range = np.linspace(gear1.geometry_dict['alpha_c'], gear1.geometry_dict['alpha_a'], 200)
     ka, kb, kf, ks = computeStiffness(angle_range)
     
     # Create the figure
