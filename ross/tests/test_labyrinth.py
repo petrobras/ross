@@ -29,14 +29,14 @@ def labyrinth():
     return seal
 
 def test_labyrinth_coefficients(labyrinth):
-    kxx = self.kxx
-    kxy = self.kxy
-    kyx = self.kyx
-    kyy = self.kyy
-    cxx = self.cxx
-    cxy = self.cxy
-    cyx = self.cyx
-    cyy = self.cyy
+    kxx = labyrinth.kxx
+    kxy = labyrinth.kxy
+    kyx = labyrinth.kyx
+    kyy = labyrinth.kyy
+    cxx = labyrinth.cxx
+    cxy = labyrinth.cxy
+    cyx = labyrinth.cyx
+    cyy = labyrinth.cyy
 
     assert math.isclose(kxx, -50419.34106546, rel_tol=0.0001)
     assert math.isclose(kxy, 35522.04516972, rel_tol=0.0001)
