@@ -378,15 +378,15 @@ class MultiRotor(Rotor):
                 self.rotors[1].M(frequency * self.gear_ratio, synchronous),
             )
 
-    def K(self, frequency, ignore=[]):
+    def K(self, frequency, ignore=()):
         """Stiffness matrix for a multi-rotor.
 
         Parameters
         ----------
         frequency : float, optional
             Excitation frequency.
-        ignore : list, optional
-            List of elements to leave out of the matrix.
+        ignore : tuple, optional
+            Tuple of elements to leave out of the matrix.
 
         Returns
         -------
@@ -446,15 +446,15 @@ class MultiRotor(Rotor):
             self.rotors[0].Ksdt(), -self.gear_ratio * self.rotors[1].Ksdt()
         )
 
-    def C(self, frequency, ignore=[]):
+    def C(self, frequency, ignore=()):
         """Damping matrix for a multi-rotor rotor.
 
         Parameters
         ----------
         frequency : float
             Excitation frequency.
-        ignore : list, optional
-            List of elements to leave out of the matrix.
+        ignore : tuple, optional
+            Tuple of elements to leave out of the matrix.
 
         Returns
         -------

@@ -1053,6 +1053,7 @@ class Rotor(object):
 
         return results
 
+    @lru_cache()
     def M(self, frequency=None, synchronous=False):
         """Mass matrix for an instance of a rotor.
 
@@ -1123,15 +1124,16 @@ class Rotor(object):
 
         return M0
 
-    def K(self, frequency, ignore=[]):
+    @lru_cache()
+    def K(self, frequency, ignore=()):
         """Stiffness matrix for an instance of a rotor.
 
         Parameters
         ----------
         frequency : float, optional
             Excitation frequency.
-        ignore : list, optional
-            List of elements to leave out of the matrix.
+        ignore : tuple, optional
+            Tuple of elements to leave out of the matrix.
 
         Returns
         -------
@@ -1160,6 +1162,7 @@ class Rotor(object):
 
         return K0
 
+    @lru_cache()
     def Ksdt(self):
         """Dynamic stiffness matrix for an instance of a rotor.
 
@@ -1195,15 +1198,16 @@ class Rotor(object):
 
         return Ksdt0
 
-    def C(self, frequency, ignore=[]):
+    @lru_cache()
+    def C(self, frequency, ignore=()):
         """Damping matrix for an instance of a rotor.
 
         Parameters
         ----------
         frequency : float
             Excitation frequency.
-        ignore : list, optional
-            List of elements to leave out of the matrix.
+        ignore : tuple, optional
+            Tuple of elements to leave out of the matrix.
 
         Returns
         -------
@@ -1232,6 +1236,7 @@ class Rotor(object):
 
         return C0
 
+    @lru_cache()
     def G(self):
         """Gyroscopic matrix for an instance of a rotor.
 
@@ -1257,6 +1262,7 @@ class Rotor(object):
 
         return G0
 
+    @lru_cache()
     def A(self, speed=0, frequency=None, synchronous=False):
         """State space matrix for an instance of a rotor.
 
@@ -1295,10 +1301,12 @@ class Rotor(object):
         Z = np.zeros((self.ndof, self.ndof))
         I = np.eye(self.ndof)
 
+        M = self.M(frequency, synchronous=synchronous)
+
         # fmt: off
         A = np.vstack(
             [np.hstack([Z, I]),
-             np.hstack([la.solve(-self.M(frequency, synchronous=synchronous), self.K(frequency)), la.solve(-self.M(frequency,synchronous=synchronous), (self.C(frequency) + self.G() * speed))])])
+             np.hstack([la.solve(-M, self.K(frequency)), la.solve(-M, (self.C(frequency) + self.G() * speed))])])
         # fmt: on
 
         return A
@@ -1583,10 +1591,13 @@ class Rotor(object):
         B2 = I
         if frequency is None:
             frequency = speed
+
         A = self.A(speed=speed, frequency=frequency)
+        M = self.M(frequency)
+
         # fmt: off
         B = np.vstack([Z,
-                       la.solve(self.M(frequency), B2)])
+                       la.solve(M, B2)])
         # fmt: on
 
         # y = Cx + Du
@@ -1596,9 +1607,9 @@ class Rotor(object):
         Ca = Z
 
         # fmt: off
-        C = np.hstack((Cd - Ca @ la.solve(self.M(frequency), self.K(frequency)), Cv - Ca @ la.solve(self.M(frequency), self.C(frequency))))
+        C = np.hstack((Cd - Ca @ la.solve(M, self.K(frequency)), Cv - Ca @ la.solve(M, self.C(frequency))))
         # fmt: on
-        D = Ca @ la.solve(self.M(frequency), B2)
+        D = Ca @ la.solve(M, B2)
 
         sys = signal.lti(A, B, C, D)
 
@@ -2297,9 +2308,9 @@ class Rotor(object):
         if speed_is_array:
             accel = np.gradient(speed, t)
 
-            brgs_with_var_coeffs = [
+            brgs_with_var_coeffs = tuple(
                 brg for brg in self.bearing_elements if brg.frequency is not None
-            ]
+            )
 
             if len(brgs_with_var_coeffs):  # Option 1
                 if kwargs.get("C") or kwargs.get("K"):
@@ -2662,7 +2673,7 @@ class Rotor(object):
         # whirl[2](y axis), 3]
         self._check_frequency_array(speed_range)
 
-        results = np.zeros([len(speed_range), frequencies, 6])
+        results = np.zeros([len(speed_range), frequencies, 4])
 
         # MAC criterion to track modes
         def MAC(u, v):
@@ -2720,9 +2731,6 @@ class Rotor(object):
                 results[i, :, 1] = modal.log_dec[idx][:frequencies]
                 results[i, :, 2] = modal.damping_ratio[idx][:frequencies]
                 results[i, :, 3] = modal.whirl_values()[idx][:frequencies]
-
-            results[i, :, 4] = w
-            results[i, :, 5] = modal.wn[:frequencies]
 
         results = CampbellResults(
             speed_range=speed_range,
@@ -2800,10 +2808,10 @@ class Rotor(object):
         # the forward mode in the plots, therefore we have num_modes / 2 / 2
         rotor_wn = np.zeros((num_modes // 2 // 2, len(stiffness_log)))
 
-        bearings_elements = []  # exclude the seals
-        for bearing in self.bearing_elements:
-            if not isinstance(bearing, SealElement):
-                bearings_elements.append(bearing)
+        # exclude the seals
+        bearings_elements = [
+            b for b in self.bearing_elements if not isinstance(b, SealElement)
+        ]
 
         for i, k in enumerate(stiffness_log):
             bearings = [BearingElement(b.n, kxx=k, cxx=0) for b in bearings_elements]
