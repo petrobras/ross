@@ -2262,6 +2262,7 @@ class Rotor(object):
         num_modes = kwargs.get("num_modes")
 
         if num_modes and num_modes > 0:
+            kwargs.pop("num_modes")
             print("Running pseudo-modal method, number of modes =", num_modes)
             get_array = self._pseudo_modal(speed_ref, num_modes)
         else:
@@ -2704,7 +2705,7 @@ class Rotor(object):
                     modal.wn = modal.wn[found_order]
                     modal.log_dec = modal.log_dec[found_order]
                     modal.damping_ratio = modal.damping_ratio[found_order]
-                    modal.update_mode_shapes()
+                    modal.shapes = list(np.array(modal.shapes)[found_order])
 
             evec_u = modal.evectors[:, :evec_size]
 
