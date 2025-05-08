@@ -96,6 +96,14 @@ class Element(ABC):
         data = list(data.values())[0]
         return cls.read_toml_data(data)
 
+    @classmethod
+    def get_subclasses(cls):
+        subclasses = []
+        for subclass in cls.__subclasses__():
+            subclasses.append(subclass)
+            subclasses.extend(subclass.get_subclasses())
+        return subclasses
+
     @abstractmethod
     def M(self):
         """Mass matrix.
