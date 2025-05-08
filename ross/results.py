@@ -7,16 +7,15 @@ import copy
 import inspect
 from abc import ABC
 from collections.abc import Iterable
-from pathlib import Path
 from warnings import warn
 
 import numpy as np
 import pandas as pd
 import toml
 from plotly import graph_objects as go
-from plotly import colors as pc
 from plotly.subplots import make_subplots
 from scipy import linalg as la
+from scipy.fft import fft
 
 from ross.plotly_theme import tableau_colors, coolwarm_r
 from ross.units import Q_, check_units
@@ -4940,10 +4939,12 @@ class TimeResponseResults(Results):
         - 1d: plot time response for given probes.
         - 2d: plot orbit of a selected node of a rotor system.
         - 3d: plot orbits for each node on the rotor system in a 3D view.
+        - dfft: plot response in frequency domain for given probes.
 
     plot_1d: input probes.
     plot_2d: input a node.
     plot_3d: no need to input probes or node.
+    plot_dfft: input probes.
 
     Parameters
     ----------
@@ -4974,6 +4975,7 @@ class TimeResponseResults(Results):
         probe_units="rad",
         displacement_units="m",
         time_units="s",
+        init_step=0,
     ):
         """Return the time response given a list of probes in DataFrame format.
 
@@ -4981,7 +4983,7 @@ class TimeResponseResults(Results):
         ----------
         probe : list
             List with rs.Probe objects.
-        probe_units : str, option
+        probe_units : str, optional
             Units for probe orientation.
             Default is "rad".
         displacement_units : str, optional
@@ -4990,6 +4992,9 @@ class TimeResponseResults(Results):
         time_units : str
             Time units.
             Default is 's'.
+        init_step : int, optional
+            The index of the initial time step from which to extract the response.
+            Default is 0.
 
         Returns
         -------
@@ -5044,17 +5049,17 @@ class TimeResponseResults(Results):
                     [-np.sin(angle), np.cos(angle)]]
                 )
 
-                _probe_resp = operator @ np.vstack((self.yout[:, dofx], self.yout[:, dofy]))
+                _probe_resp = operator @ np.vstack((self.yout[init_step:, dofx], self.yout[init_step:, dofy]))
                 probe_resp = _probe_resp[0,:]
                 # fmt: on
             else:
                 dofz = ndof * node + 2 - fix_dof
-                probe_resp = self.yout[:, dofz]
+                probe_resp = self.yout[init_step:, dofz]
 
             probe_resp = Q_(probe_resp, "m").to(displacement_units).m
             data[f"probe_resp[{i}]"] = probe_resp
 
-        data["time"] = Q_(self.t, "s").to(time_units).m
+        data["time"] = Q_(self.t[init_step:], "s").to(time_units).m
         df = pd.DataFrame(data)
 
         return df
@@ -5263,6 +5268,136 @@ class TimeResponseResults(Results):
             ),
             **kwargs,
         )
+
+        return fig
+
+    def _dfft(self, y, dt):
+        """Calculate dFFT - discrete Fourier Transform.
+
+        Parameters
+        ----------
+        y : np.array
+            Magnitude of the response in time domain (m).
+        dt : int
+            Time step (s).
+
+        Returns
+        -------
+        freq : np.array
+            Frequency range (Hz).
+        y_amp : np.array
+            Amplitude of the response in frequency domain (m).
+        y_phase : np.array
+            Phase of the response in frequency domain (rad).
+        """
+        b = np.floor(len(y) / 2)
+        c = len(y)
+        df = 1 / (c * dt)
+
+        y_amp = fft(y)[: int(b)]
+        y_amp = y_amp * 2 / c
+
+        y_phase = np.angle(y_amp)
+        y_amp = np.abs(y_amp)
+
+        freq = np.arange(0, df * b, df)
+        freq = freq[: int(b)]
+
+        return freq, y_amp, y_phase
+
+    @check_units
+    def plot_dfft(
+        self,
+        probe,
+        probe_units="rad",
+        displacement_units="m",
+        frequency_units="Hz",
+        frequency_range=None,
+        fig=None,
+        **kwargs,
+    ):
+        """Plot response in frequency domain.
+
+        This method plots the frequency domain response using Discrete Fourier
+        Transform (dFFT) given a list of probes using Plotly.
+
+        Parameters
+        ----------
+        probe : list
+            List with rs.Probe objects.
+        probe_units : str, option
+            Units for probe orientation.
+            Default is "rad".
+        displacement_units : str, optional
+            Displacement units.
+            Default is "m".
+        frequency_units : str
+            Frequency units.
+            Default is "Hz".
+        frequency_range : tuple, pint.Quantity(tuple), optional
+            Tuple with (min, max) values for the frequencies that will be plotted.
+            Frequencies that are not within the range are filtered out and are not plotted.
+            It is possible to use a pint Quantity (e.g. Q_((2000, 1000), "RPM")).
+            Default is None (no filter).
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        kwargs : optional
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. xaxis=dict(range=[0, 1000]), yaxis=dict(type="log")).
+            *See Plotly Python Figure Reference for more information.
+
+        Returns
+        -------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        """
+        if fig is None:
+            fig = go.Figure()
+
+        if frequency_range is not None:
+            frequency_range = Q_(frequency_range, "rad/s").to("Hz").m
+
+        rows, cols = self.yout.shape
+        init_step = int(2 * rows / 3)
+
+        data = self.data_time_response(
+            probe, probe_units, displacement_units, init_step=init_step
+        )
+        t = data["time"].values
+        dt = t[1] - t[0]
+
+        for i, p in enumerate(probe):
+            try:
+                probe_tag = data[f"probe_tag[{i}]"].values[0]
+                probe_resp = data[f"probe_resp[{i}]"].values
+
+                freq, amp, _ = self._dfft(probe_resp, dt)
+
+                if frequency_range is not None:
+                    amp = amp[
+                        (freq >= frequency_range[0]) & (freq <= frequency_range[1])
+                    ]
+                    freq = freq[
+                        (freq >= frequency_range[0]) & (freq <= frequency_range[1])
+                    ]
+
+                fig.add_trace(
+                    go.Scatter(
+                        x=Q_(freq, "Hz").to(frequency_units).m,
+                        y=Q_(amp, "m").to(displacement_units).m,
+                        mode="lines",
+                        name=probe_tag,
+                        legendgroup=probe_tag,
+                        showlegend=True,
+                        hovertemplate=f"Frequency ({frequency_units}): %{{x:.2f}}<br>Amplitude ({displacement_units}): %{{y:.2e}}",
+                    )
+                )
+            except KeyError:
+                pass
+
+        fig.update_xaxes(title_text=f"Frequency ({frequency_units})")
+        fig.update_yaxes(title_text=f"Amplitude ({displacement_units})")
+        fig.update_layout(**kwargs)
 
         return fig
 
