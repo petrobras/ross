@@ -151,7 +151,13 @@ class Results(ABC):
         >>> abs(results2.forced_resp).all() == abs(results.forced_resp).all()
         True
         """
-        str_type = [np.dtype(f"<U4{i}") for i in range(10)]
+
+        def remove_npformat(v):  # remove type info related to numpy format
+            if v.startswith("np."):
+                idx = v.find("(")
+            else:
+                idx = -1
+            return v[idx:] if idx != -1 else v
 
         data = toml.load(file)
         data = list(data.values())[0]
@@ -167,8 +173,9 @@ class Results(ABC):
             elif isinstance(value, Iterable):
                 try:
                     data[key] = np.array(value)
-                    if data[key].dtype in str_type:
-                        data[key] = np.array(value).astype(np.complex128)
+                    if np.isdtype(data[key].dtype, np.str_):
+                        fvalue = np.vectorize(remove_npformat)(data[key])
+                        data[key] = fvalue.astype(np.complex128)
                 except:
                     data[key] = value
 
