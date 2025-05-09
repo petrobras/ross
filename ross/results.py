@@ -16,7 +16,8 @@ import toml
 from plotly import graph_objects as go
 from plotly import colors as pc
 from plotly.subplots import make_subplots
-from scipy import linalg as la
+from numpy import linalg as la
+from numba import njit
 
 from ross.plotly_theme import tableau_colors, coolwarm_r
 from ross.units import Q_, check_units
@@ -239,66 +240,22 @@ class Orbit(Results):
         self.ru_e = ru_e
         self.rv_e = rv_e
 
-        # data for plotting
-        num_points = 360
-        c = np.linspace(0, 2 * np.pi, num_points)
-        circle = np.exp(1j * c)
+        (
+            self.x_circle,
+            self.y_circle,
+            self.angle,
+            self.major_x,
+            self.major_y,
+            self.major_angle,
+            self.minor_angle,
+            self.major_index,
+            self.nu,
+            self.nv,
+            self.minor_axis,
+            self.major_axis,
+            self.kappa,
+        ) = _init_orbit(ru_e, rv_e)  # separated call to use with numba
 
-        self.x_circle = np.real(ru_e * circle)
-        self.y_circle = np.real(rv_e * circle)
-        angle = np.arctan2(self.y_circle, self.x_circle)
-        angle[angle < 0] = angle[angle < 0] + 2 * np.pi
-        self.angle = angle
-
-        # find major axis index looking at the first half circle
-        self.major_index = np.argmax(
-            np.sqrt(self.x_circle[:180] ** 2 + self.y_circle[:180] ** 2)
-        )
-        self.major_x = self.x_circle[self.major_index]
-        self.major_y = self.y_circle[self.major_index]
-        self.major_angle = self.angle[self.major_index]
-        self.minor_angle = self.major_angle + np.pi / 2
-
-        # calculate T matrix
-        ru = np.absolute(ru_e)
-        rv = np.absolute(rv_e)
-
-        nu = np.angle(ru_e)
-        nv = np.angle(rv_e)
-        self.nu = nu
-        self.nv = nv
-        # fmt: off
-        T = np.array([[ru * np.cos(nu), -ru * np.sin(nu)],
-                      [rv * np.cos(nv), -rv * np.sin(nv)]])
-        # fmt: on
-        H = T @ T.T
-
-        lam = la.eig(H)[0]
-        # lam is the eigenvalue -> sqrt(lam) is the minor/major axis.
-        # kappa encodes the relation between the axis and the precession.
-        minor = np.sqrt(lam.min())
-        major = np.sqrt(lam.max())
-
-        diff = nv - nu
-
-        # we need to evaluate if 0 < nv - nu < pi.
-        if diff < -np.pi:
-            diff += 2 * np.pi
-        elif diff > np.pi:
-            diff -= 2 * np.pi
-
-        # if nv = nu or nv = nu + pi then the response is a straight line.
-        if diff == 0 or diff == np.pi:
-            kappa = 0
-        # if 0 < nv - nu < pi, then a backward rotating mode exists.
-        elif 0 < diff < np.pi:
-            kappa = -minor / major
-        else:
-            kappa = minor / major
-
-        self.minor_axis = np.real(minor)
-        self.major_axis = np.real(major)
-        self.kappa = np.real(kappa)
         self.whirl = "Forward" if self.kappa > 0 else "Backward"
         self.color = (
             tableau_colors["blue"] if self.whirl == "Forward" else tableau_colors["red"]
@@ -362,6 +319,83 @@ class Orbit(Results):
         )
 
         return fig
+
+
+@njit
+def _init_orbit(ru_e, rv_e):
+    # data for plotting
+    num_points = 360
+    c = np.linspace(0, 2 * np.pi, num_points)
+    circle = np.exp(1j * c)
+
+    x_circle = np.real(ru_e * circle)
+    y_circle = np.real(rv_e * circle)
+    angle = np.arctan2(y_circle, x_circle)
+    angle[angle < 0] = angle[angle < 0] + 2 * np.pi
+
+    # find major axis index looking at the first half circle
+    major_index = np.argmax(np.sqrt(x_circle[:180] ** 2 + y_circle[:180] ** 2))
+    major_x = x_circle[major_index]
+    major_y = y_circle[major_index]
+    major_angle = angle[major_index]
+    minor_angle = major_angle + np.pi / 2
+
+    # calculate T matrix
+    ru = np.absolute(ru_e)
+    rv = np.absolute(rv_e)
+
+    nu = np.angle(ru_e)
+    nv = np.angle(rv_e)
+    nu = nu
+    nv = nv
+    # fmt: off
+    T = np.array([[ru * np.cos(nu), -ru * np.sin(nu)],
+                    [rv * np.cos(nv), -rv * np.sin(nv)]])
+    # fmt: on
+    H = T @ T.T
+
+    lam = la.eigvals(H)
+    # lam is the eigenvalue -> sqrt(lam) is the minor/major axis.
+    # kappa encodes the relation between the axis and the precession.
+    minor = np.sqrt(lam.min())
+    major = np.sqrt(lam.max())
+
+    diff = nv - nu
+
+    # we need to evaluate if 0 < nv - nu < pi.
+    if diff < -np.pi:
+        diff += 2 * np.pi
+    elif diff > np.pi:
+        diff -= 2 * np.pi
+
+    # if nv = nu or nv = nu + pi then the response is a straight line.
+    if diff == 0 or diff == np.pi:
+        kappa = 0
+    # if 0 < nv - nu < pi, then a backward rotating mode exists.
+    elif 0 < diff < np.pi:
+        kappa = -minor / major
+    else:
+        kappa = minor / major
+
+    minor_axis = np.real(minor)
+    major_axis = np.real(major)
+    kappa = np.real(kappa)
+
+    return (
+        x_circle,
+        y_circle,
+        angle,
+        major_x,
+        major_y,
+        major_angle,
+        minor_angle,
+        major_index,
+        nu,
+        nv,
+        minor_axis,
+        major_axis,
+        kappa,
+    )
 
 
 class Shape(Results):
@@ -459,95 +493,98 @@ class Shape(Results):
 
         self.orbits = orbits
         # check shape whirl
-        if self.mode_type == "Lateral":
-            if all(w == "Forward" for w in whirl):
-                self.whirl = "Forward"
-                self.color = tableau_colors["blue"]
-            elif all(w == "Backward" for w in whirl):
-                self.whirl = "Backward"
-                self.color = tableau_colors["red"]
-            else:
-                self.whirl = "Mixed"
-                self.color = tableau_colors["gray"]
+        if all(w == "Forward" for w in whirl):
+            self.whirl = "Forward"
+            self.color = tableau_colors["blue"]
+        elif all(w == "Backward" for w in whirl):
+            self.whirl = "Backward"
+            self.color = tableau_colors["red"]
         else:
-            self.whirl = "None"
+            self.whirl = "Mixed"
+            self.color = tableau_colors["gray"]
 
     def _calculate(self):
-        evec = self._evec
-        nodes = self.nodes
-        shaft_elements_length = self.shaft_elements_length
-        nodes_pos = self.nodes_pos
-        num_dof = self.number_dof
+        if self.mode_type == "Lateral":
+            evec = self._evec
+            nodes = self.nodes
+            shaft_elements_length = self.shaft_elements_length
+            nodes_pos = self.nodes_pos
+            num_dof = self.number_dof
 
-        # calculate each orbit
-        self._calculate_orbits()
+            # calculate each orbit
+            self._calculate_orbits()
 
-        # plot lines
-        nn = 5  # number of points in each line between nodes
-        zeta = np.linspace(0, 1, nn)
-        onn = np.ones_like(zeta)
+            # plot lines
+            nn = 5  # number of points in each line between nodes
+            zeta = np.linspace(0, 1, nn)
+            onn = np.ones_like(zeta)
 
-        zeta = zeta.reshape(nn, 1)
-        onn = onn.reshape(nn, 1)
+            zeta = zeta.reshape(nn, 1)
+            onn = onn.reshape(nn, 1)
 
-        xn = np.zeros(nn * (len(nodes) - 1))
-        yn = np.zeros(nn * (len(nodes) - 1))
-        xn_complex = np.zeros(nn * (len(nodes) - 1), dtype=np.complex128)
-        yn_complex = np.zeros(nn * (len(nodes) - 1), dtype=np.complex128)
-        zn = np.zeros(nn * (len(nodes) - 1))
-        major = np.zeros(nn * (len(nodes) - 1))
-        major_x = np.zeros(nn * (len(nodes) - 1))
-        major_y = np.zeros(nn * (len(nodes) - 1))
-        major_angle = np.zeros(nn * (len(nodes) - 1))
+            xn = np.zeros(nn * (len(nodes) - 1))
+            yn = np.zeros(nn * (len(nodes) - 1))
+            xn_complex = np.zeros(nn * (len(nodes) - 1), dtype=np.complex128)
+            yn_complex = np.zeros(nn * (len(nodes) - 1), dtype=np.complex128)
+            zn = np.zeros(nn * (len(nodes) - 1))
+            major = np.zeros(nn * (len(nodes) - 1))
+            major_x = np.zeros(nn * (len(nodes) - 1))
+            major_y = np.zeros(nn * (len(nodes) - 1))
+            major_angle = np.zeros(nn * (len(nodes) - 1))
 
-        N1 = onn - 3 * zeta**2 + 2 * zeta**3
-        N2 = zeta - 2 * zeta**2 + zeta**3
-        N3 = 3 * zeta**2 - 2 * zeta**3
-        N4 = -(zeta**2) + zeta**3
+            N1 = onn - 3 * zeta**2 + 2 * zeta**3
+            N2 = zeta - 2 * zeta**2 + zeta**3
+            N3 = 3 * zeta**2 - 2 * zeta**3
+            N4 = -(zeta**2) + zeta**3
 
-        for Le, n in zip(shaft_elements_length, nodes):
-            node_pos = nodes_pos[n]
-            Nx = np.hstack((N1, Le * N2, N3, Le * N4))
-            Ny = np.hstack((N1, -Le * N2, N3, -Le * N4))
+            for Le, n in zip(shaft_elements_length, nodes):
+                node_pos = nodes_pos[n]
+                Nx = np.hstack((N1, Le * N2, N3, Le * N4))
+                Ny = np.hstack((N1, -Le * N2, N3, -Le * N4))
 
-            ind = num_dof * n
-            xx = [
-                ind + 0,
-                ind + int(num_dof / 2) + 1,
-                ind + num_dof + 0,
-                ind + int(3 * num_dof / 2) + 1,
-            ]
-            yy = [
-                ind + 1,
-                ind + int(num_dof / 2) + 0,
-                ind + num_dof + 1,
-                ind + int(3 * num_dof / 2) + 0,
-            ]
+                ind = num_dof * n
+                xx = [
+                    ind + 0,
+                    ind + int(num_dof / 2) + 1,
+                    ind + num_dof + 0,
+                    ind + int(3 * num_dof / 2) + 1,
+                ]
+                yy = [
+                    ind + 1,
+                    ind + int(num_dof / 2) + 0,
+                    ind + num_dof + 1,
+                    ind + int(3 * num_dof / 2) + 0,
+                ]
 
-            pos0 = nn * n
-            pos1 = nn * (n + 1)
+                pos0 = nn * n
+                pos1 = nn * (n + 1)
 
-            xn[pos0:pos1] = Nx @ evec[xx].real
-            yn[pos0:pos1] = Ny @ evec[yy].real
-            zn[pos0:pos1] = (node_pos * onn + Le * zeta).reshape(nn)
+                xn[pos0:pos1] = Nx @ evec[xx].real
+                yn[pos0:pos1] = Ny @ evec[yy].real
+                zn[pos0:pos1] = (node_pos * onn + Le * zeta).reshape(nn)
 
-            # major axes calculation
-            xn_complex[pos0:pos1] = Nx @ evec[xx]
-            yn_complex[pos0:pos1] = Ny @ evec[yy]
-            for i in range(pos0, pos1):
-                orb = Orbit(node=0, node_pos=0, ru_e=xn_complex[i], rv_e=yn_complex[i])
-                major[i] = orb.major_axis
-                major_x[i] = orb.major_x
-                major_y[i] = orb.major_y
-                major_angle[i] = orb.major_angle
+                # major axes calculation
+                xn_complex[pos0:pos1] = Nx @ evec[xx]
+                yn_complex[pos0:pos1] = Ny @ evec[yy]
+                for i in range(pos0, pos1):
+                    orb = Orbit(
+                        node=0, node_pos=0, ru_e=xn_complex[i], rv_e=yn_complex[i]
+                    )
+                    major[i] = orb.major_axis
+                    major_x[i] = orb.major_x
+                    major_y[i] = orb.major_y
+                    major_angle[i] = orb.major_angle
 
-        self.xn = xn
-        self.yn = yn
-        self.zn = zn
-        self.major_axis = major
-        self.major_x = major_x
-        self.major_y = major_y
-        self.major_angle = major_angle
+            self.xn = xn
+            self.yn = yn
+            self.zn = zn
+            self.major_axis = major
+            self.major_x = major_x
+            self.major_y = major_y
+            self.major_angle = major_angle
+
+        else:
+            self.whirl = "None"
 
     def plot_orbit(self, nodes, fig=None):
         """Plot orbits.
