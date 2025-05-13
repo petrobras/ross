@@ -1003,6 +1003,213 @@ class Shape(Results):
 
         return fig
 
+    def _plot_orbits(
+        self, animation=False, length_units="m", phase_units="rad", fig=None
+    ):
+        if fig is None:
+            fig = go.Figure()
+
+        xn = self.xn.copy()
+        yn = self.yn.copy()
+        zn = self.zn.copy()
+        zn = Q_(zn, "m").to(length_units).m
+
+        frames = []
+        initial_state = []
+        fixed_lines = []
+
+        ntimes = 4  # number of times to animate
+        step = 20  # step interval for showing orbit marker
+        orbit_len = len(self.orbits[0].x_circle)
+        orbit_range = np.tile(np.arange(0, orbit_len, step), ntimes)
+
+        # plot orbits
+        for n, i in enumerate(orbit_range):
+            orbit_data = []
+            first_orbit = True
+
+            if n < orbit_len / step:
+                j = np.arange(max(i - orbit_len, 0), i)
+            else:
+                j = np.arange(i - orbit_len, i)
+
+            for orbit in self.orbits:
+                zc_pos = np.repeat(orbit.node_pos, len(orbit.x_circle))
+                zc_pos = Q_(zc_pos, "m").to(length_units).m
+
+                # add orbit point
+                orbit_data.append(
+                    go.Scatter3d(
+                        x=[zc_pos[i]],
+                        y=[orbit.x_circle[i]],
+                        z=[orbit.y_circle[i]],
+                        mode="markers",
+                        marker=dict(color=orbit.color),
+                        name="node {}".format(orbit.node),
+                        showlegend=False,
+                        hovertemplate=(
+                            "Nodal Position: %{x:.2f}<br>"
+                            + "X - Displacement: %{y:.2f}<br>"
+                            + "Y - Displacement: %{z:.2f}"
+                        ),
+                    )
+                )
+
+                if n > 0:
+                    orbit_data.append(
+                        go.Scatter3d(
+                            x=zc_pos[j],
+                            y=orbit.x_circle[j],
+                            z=orbit.y_circle[j],
+                            mode="lines",
+                            line=dict(color=orbit.color, dash="dashdot"),
+                            name="node {}".format(orbit.node),
+                            showlegend=False,
+                            hovertemplate=(
+                                "Nodal Position: %{x:.2f}<br>"
+                                + "X - Displacement: %{y:.2f}<br>"
+                                + "Y - Displacement: %{z:.2f}"
+                            ),
+                        )
+                    )
+
+                if n == 0:
+                    orbit_data.append(
+                        go.Scatter3d(
+                            x=zc_pos,
+                            y=orbit.x_circle,
+                            z=orbit.y_circle,
+                            mode="lines",
+                            line=dict(color=orbit.color),
+                            name="node {}".format(orbit.node),
+                            showlegend=False,
+                            hovertemplate=(
+                                "Nodal Position: %{x:.2f}<br>"
+                                + "X - Displacement: %{y:.2f}<br>"
+                                + "Y - Displacement: %{z:.2f}"
+                            ),
+                        )
+                    )
+
+                    # add orbit major axis marker
+                    fixed_lines.append(
+                        go.Scatter3d(
+                            x=[zc_pos[0]],
+                            y=[orbit.major_x],
+                            z=[orbit.major_y],
+                            mode="markers",
+                            marker=dict(
+                                color="black", symbol="cross", size=4, line_width=2
+                            ),
+                            name="Major axis",
+                            showlegend=first_orbit,
+                            legendgroup="major_axis",
+                            customdata=np.array(
+                                [
+                                    orbit.major_axis,
+                                    Q_(orbit.major_angle, "rad").to(phase_units).m,
+                                ]
+                            ).reshape(1, 2),
+                            hovertemplate=(
+                                "Nodal Position: %{x:.2f}<br>"
+                                + "Major axis: %{customdata[0]:.2f}<br>"
+                                + "Angle: %{customdata[1]:.2f}"
+                            ),
+                        )
+                    )
+                    first_orbit = False
+
+            frames.append(go.Frame(data=orbit_data))
+
+            if n == 0:
+                initial_state = orbit_data
+
+        # plot line connecting orbits starting points
+        fixed_lines.append(
+            go.Scatter3d(
+                x=zn,
+                y=xn,
+                z=yn,
+                mode="lines",
+                line=dict(color="black", dash="dash"),
+                name="mode shape",
+                showlegend=False,
+            )
+        )
+
+        # plot center line
+        min_pos = min(zn) - 0.15 * abs(max(zn) - min(zn))
+        max_pos = max(zn) + 0.15 * abs(max(zn) - min(zn))
+        fixed_lines.append(
+            go.Scatter3d(
+                x=[min_pos, max_pos],
+                y=[0, 0],
+                z=[0, 0],
+                mode="lines",
+                line=dict(color="black", dash="dashdot"),
+                hoverinfo="none",
+                showlegend=False,
+            ),
+        )
+
+        # plot major axis line
+        fixed_lines.append(
+            go.Scatter3d(
+                x=zn,
+                y=self.major_x,
+                z=self.major_y,
+                mode="lines",
+                line=dict(color="black", dash="dashdot"),
+                hoverinfo="none",
+                legendgroup="major_axis",
+                showlegend=False,
+            ),
+        )
+
+        fig.add_traces(data=[*initial_state, *fixed_lines])
+
+        if not animation:
+            return fig
+
+        fig.update(
+            layout=dict(
+                updatemenus=[
+                    dict(
+                        type="buttons",
+                        buttons=[
+                            dict(
+                                args=[
+                                    None,
+                                    dict(
+                                        frame=dict(duration=50, redraw=True),
+                                        mode="immediate",
+                                    ),
+                                ],
+                                label="Play",
+                                method="animate",
+                            ),
+                            dict(
+                                args=[
+                                    [None],
+                                    dict(
+                                        frame=dict(duration=0, redraw=False),
+                                        mode="immediate",
+                                    ),
+                                ],
+                                label="Pause",
+                                method="animate",
+                            ),
+                        ],
+                        x=0.05,
+                        y=0.25,
+                    )
+                ]
+            ),
+            frames=frames,
+        )
+
+        return fig
+
     def plot_3d(
         self,
         mode=None,
@@ -1034,120 +1241,11 @@ class Shape(Results):
             )
 
         else:
-            xn = self.xn.copy()
-            yn = self.yn.copy()
-            zn = self.zn.copy()
-
-            # plot orbits
-            first_orbit = True
-            for orbit in self.orbits:
-                zc_pos = (
-                    Q_(np.repeat(orbit.node_pos, len(orbit.x_circle)), "m")
-                    .to(length_units)
-                    .m
-                )
-                fig.add_trace(
-                    go.Scatter3d(
-                        x=zc_pos[:-10],
-                        y=orbit.x_circle[:-10],
-                        z=orbit.y_circle[:-10],
-                        mode="lines",
-                        line=dict(color=orbit.color),
-                        name="node {}".format(orbit.node),
-                        showlegend=False,
-                        hovertemplate=(
-                            "Nodal Position: %{x:.2f}<br>"
-                            + "X - Displacement: %{y:.2f}<br>"
-                            + "Y - Displacement: %{z:.2f}"
-                        ),
-                    )
-                )
-                # add orbit start
-                fig.add_trace(
-                    go.Scatter3d(
-                        x=[zc_pos[0]],
-                        y=[orbit.x_circle[0]],
-                        z=[orbit.y_circle[0]],
-                        mode="markers",
-                        marker=dict(color=orbit.color),
-                        name="node {}".format(orbit.node),
-                        showlegend=False,
-                        hovertemplate=(
-                            "Nodal Position: %{x:.2f}<br>"
-                            + "X - Displacement: %{y:.2f}<br>"
-                            + "Y - Displacement: %{z:.2f}"
-                        ),
-                    )
-                )
-                # add orbit major axis marker
-                fig.add_trace(
-                    go.Scatter3d(
-                        x=[zc_pos[0]],
-                        y=[orbit.major_x],
-                        z=[orbit.major_y],
-                        mode="markers",
-                        marker=dict(
-                            color="black", symbol="cross", size=4, line_width=2
-                        ),
-                        name="Major axis",
-                        showlegend=True if first_orbit else False,
-                        legendgroup="major_axis",
-                        customdata=np.array(
-                            [
-                                orbit.major_axis,
-                                Q_(orbit.major_angle, "rad").to(phase_units).m,
-                            ]
-                        ).reshape(1, 2),
-                        hovertemplate=(
-                            "Nodal Position: %{x:.2f}<br>"
-                            + "Major axis: %{customdata[0]:.2f}<br>"
-                            + "Angle: %{customdata[1]:.2f}"
-                        ),
-                    )
-                )
-                first_orbit = False
-
-            # plot line connecting orbits starting points
-            fig.add_trace(
-                go.Scatter3d(
-                    x=Q_(zn, "m").to(length_units).m,
-                    y=xn,
-                    z=yn,
-                    mode="lines",
-                    line=dict(color="black", dash="dash"),
-                    name="mode shape",
-                    showlegend=False,
-                )
-            )
-
-            # plot center line
-            zn_cl0 = -(zn[-1] * 0.1)
-            zn_cl1 = zn[-1] * 1.1
-            zn_cl = np.linspace(zn_cl0, zn_cl1, 30)
-            fig.add_trace(
-                go.Scatter3d(
-                    x=Q_(zn_cl, "m").to(length_units).m,
-                    y=zn_cl * 0,
-                    z=zn_cl * 0,
-                    mode="lines",
-                    line=dict(color="black", dash="dashdot"),
-                    hoverinfo="none",
-                    showlegend=False,
-                )
-            )
-
-            # plot major axis line
-            fig.add_trace(
-                go.Scatter3d(
-                    x=Q_(zn, "m").to(length_units).m,
-                    y=self.major_x,
-                    z=self.major_y,
-                    mode="lines",
-                    line=dict(color="black", dash="dashdot"),
-                    hoverinfo="none",
-                    legendgroup="major_axis",
-                    showlegend=False,
-                )
+            fig = self._plot_orbits(
+                animation=animation,
+                length_units=length_units,
+                phase_units=phase_units,
+                fig=fig,
             )
 
         fig.update_layout(
