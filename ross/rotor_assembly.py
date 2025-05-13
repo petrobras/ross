@@ -448,57 +448,29 @@ class Rotor(object):
             )
 
         # define positions for disks
-        for disk in self.disk_elements:
-            i = self.nodes.index(disk.n)
+        for elm in self.disk_elements:
+            i = self.nodes.index(elm.n)
             z_pos = self.nodes_pos[i]
             y_pos = self.nodes_o_d[i] / 2
-            df.loc[df.tag == disk.tag, "nodes_pos_l"] = z_pos
-            df.loc[df.tag == disk.tag, "nodes_pos_r"] = z_pos
-            df.loc[df.tag == disk.tag, "y_pos"] = y_pos
+            df.loc[df.tag == elm.tag, "nodes_pos_l"] = z_pos
+            df.loc[df.tag == elm.tag, "nodes_pos_r"] = z_pos
+            df.loc[df.tag == elm.tag, "y_pos"] = y_pos
 
         # define positions for bearings
-        # check if there are bearings without location
-        bearings_no_zloc = {
-            b
-            for b in bearing_elements
-            if pd.isna(df.loc[df.tag == b.tag, "nodes_pos_l"]).all()
-        }
-        # cycle while there are bearings without a z location
-        for b in cycle(self.bearing_elements):
-            if bearings_no_zloc:
-                if b in bearings_no_zloc:
-                    # first check if b.n is on list, if not, check for n_link
-                    node_l = df.loc[(df.n_l == b.n) & (df.tag != b.tag), "nodes_pos_l"]
-                    node_r = df.loc[(df.n_r == b.n) & (df.tag != b.tag), "nodes_pos_r"]
-                    if len(node_l) == 0 and len(node_r) == 0:
-                        node_l = df.loc[
-                            (df.n_link == b.n) & (df.tag != b.tag), "nodes_pos_l"
-                        ]
-                        if len(node_l) == 0:
-                            raise ValueError(
-                                f"The following bearing is not connected to the rotor. Check n_link. {b}"
-                            )
-                        node_r = node_l
-                    if len(node_l):
-                        df.loc[df.tag == b.tag, "nodes_pos_l"] = node_l.values[0]
-                        df.loc[df.tag == b.tag, "nodes_pos_r"] = node_l.values[0]
-                        bearings_no_zloc.discard(b)
-                    elif len(node_r):
-                        df.loc[df.tag == b.tag, "nodes_pos_l"] = node_r.values[0]
-                        df.loc[df.tag == b.tag, "nodes_pos_r"] = node_r.values[0]
-                        bearings_no_zloc.discard(b)
+        for elm in self.bearing_elements:
+            if elm.n in self.link_nodes:
+                i = self.nodes.index(
+                    [brg.n for brg in self.bearing_elements if brg.n_link == elm.n][0]
+                )
             else:
-                break
+                i = self.nodes.index(elm.n)
 
-        # TODO fix this so that we don't have to add here every custom bearing class
-        classes = [
-            _class
-            for _class, _ in inspect.getmembers(
-                sys.modules["ross.bearing_seal_element"], inspect.isclass
-            )
-        ]
-        # add custom bearing classes for now
-        classes += ["MaxBrg", "HComb", "Laby3"]
+            z_pos = self.nodes_pos[i]
+            df.loc[df.tag == elm.tag, "nodes_pos_l"] = z_pos
+            df.loc[df.tag == elm.tag, "nodes_pos_r"] = z_pos
+
+        bclass = BearingElement
+        classes = [cls.__name__ for cls in ([bclass] + bclass.get_subclasses())]
 
         dfb = df[df.type.isin(classes)]
         z_positions = [pos for pos in dfb["nodes_pos_l"]]
