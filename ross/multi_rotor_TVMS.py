@@ -627,12 +627,12 @@ if __name__ == "__main__":
     # speed_range = gear1Speed * np.ones(np.shape(time_range))
 
     nodes = [2, 7]
-    unb_mag = [35.505e-3, 0.449e-3]
+    unb_mag = [35.505e-4, 0.449e-4]
     unb_phase = [0, 0]
 
     dt = 1e-5
-    t = np.arange(0, 0.1, dt)
-    speed1 = 80*2*np.pi  # Generator rotor speed
+    t = np.arange(0, 50, dt)
+    speed1 = 60*2*np.pi  # Generator rotor speed
 
     num_dof = rotor.number_dof
 
