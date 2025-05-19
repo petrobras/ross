@@ -1127,16 +1127,19 @@ class Mesh:
         The contact ratio, representing the average number of tooth in contact during meshing.
     """
 
-    def __init__(self, gear_input: GearElementTVMS, gear_output: GearElementTVMS):
+    def __init__(self, gear_input: GearElementTVMS, gear_output: GearElementTVMS, interpolation: bool = False, only_max_stiffness: bool = False):
         self.gear_input = gear_input
         self.gear_output = gear_output
 
         self.time = 0
 
-        self.eta    = gear_output.n_tooth / gear_input.n_tooth # Gear ratio 
+        self.eta    = gear_output.n_tooth / gear_input.n_tooth # Gear ratio
         
         self._kh    = GearElementTVMS._kh(gear_input, gear_output)
         self.cr     = self.contact_ratio(self.gear_input, self.gear_output)
+
+        self.interpolation = interpolation
+        self.only_max_stiffness = only_max_stiffness
 
     @staticmethod
     def contact_ratio(gear_input: GearElementTVMS, gear_output: GearElementTVMS) -> float:
@@ -1219,7 +1222,7 @@ class Mesh:
         return k_t, d_tau_gear_input, d_tau_gear_output
     
     @check_units
-    def mesh(self, t, gear_input_speed: float,  interpolation: bool = False, max_stiffness: bool = False):
+    def mesh(self, t, gear_input_speed: float):
         """
         Calculate the time-varying meshing stiffness of a gear pair.
 
@@ -1258,7 +1261,7 @@ class Mesh:
         tm  = 2 * np.pi / (gear_input_speed * self.gear_input.n_tooth) # Gearmesh period [seconds/engagement]
         ctm = self.cr * tm # [seconds/tooth] how much time each tooth remains in contact
 
-        if max_stiffness == True:
+        if self.only_max_stiffness == True:
             if hasattr(self, 'already_evaluated_max') == False:
                 dt = (2 * np.pi) / (20 * self.gear_input.n_tooth * gear_input_speed)
                 self.max_stiffness = self._max_gear_stiff(gear_input_speed, dt)
@@ -1267,7 +1270,7 @@ class Mesh:
             else:
                 return self.max_stiffness, None, None
 
-        if interpolation == True: # Runs the time dependency for one period of double-single mesh
+        if self.interpolation == True: # Runs the time dependency for one period of double-single mesh
 
             if hasattr(self, 'already_interpolated') == False: # Case 1: If it had never evaluated the stiffness
 

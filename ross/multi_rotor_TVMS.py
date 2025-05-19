@@ -113,6 +113,8 @@ class MultiRotorTVMS(Rotor):
         driven_rotor,
         coupled_nodes,
         orientation_angle=0.0,
+        only_max_stiffness = False,
+        interpolation = False,
         position="above",
         tag=None,
     ):
@@ -141,7 +143,7 @@ class MultiRotorTVMS(Rotor):
 
         self.gears = [gear_1, gear_2]
 
-        self.gear_mesh = Mesh(*self.gears)
+        self.gear_mesh = Mesh(*self.gears, interpolation=interpolation, only_max_stiffness=only_max_stiffness)
         self.gear_ratio = self.gear_mesh.eta
 
         gear1_plot = next(
@@ -416,7 +418,7 @@ class MultiRotorTVMS(Rotor):
         dofs_2 = self.gears[1].dof_global_index.values()
         dofs = [*dofs_1, *dofs_2]
 
-        k_eq = self.gear_mesh.mesh(t, frequency, True, True)[0]
+        k_eq = self.gear_mesh.mesh(t, frequency)[0]
         
         K0[np.ix_(dofs, dofs)] += self.coupling_matrix() * k_eq
 
@@ -617,21 +619,19 @@ def two_shaft_rotor_example():
         coupled_nodes=(4, 0),
         orientation_angle=0.0,
         position="below",
+        interpolation=True,
+        only_max_stiffness=True
     )
 
 def main_example() -> None:
     rotor = two_shaft_rotor_example()
-    
-    # gear1Speed = 11*2*np.pi
-
-    # speed_range = gear1Speed * np.ones(np.shape(time_range))
 
     nodes = [2, 7]
     unb_mag = [35.505e-4, 0.449e-4]
     unb_phase = [0, 0]
 
     dt = 1e-4
-    t = np.arange(0, 0.1, dt)
+    t = np.arange(0, 10, dt)
     speed1 = 60*2*np.pi  # Generator rotor speed
 
     num_dof = rotor.number_dof
@@ -656,7 +656,7 @@ def main_example() -> None:
     probe2 = rs.Probe(7, np.pi/2)  # node 3, orientation 90°(Y dir.)
 
     data = tr.data_time_response(probe=[probe1,probe2])
-    data.to_csv(f"C:\\gear_freq_data\\TVMS_w{speed/2/np.pi:.2f}Hz_dt{dt:.3e}s_t{np.max(t):.2f}s_constant_stiffness.csv")
+    data.to_csv(f"C:\\gear_freq_data\\TVMS_w{speed1/2/np.pi:.2f}Hz_dt{dt:.3e}s_t{np.max(t):.2f}s_interpolation.csv")
 
     fig3= tr.plot_1d(probe=[probe1, probe2])
     fig3.show()
