@@ -322,6 +322,7 @@ class MultiRotorTVMS(Rotor):
                [0.        , 0.        , 0.        , 0.        ]])
         """
         r1 = self.gears[0].geometry_dict['r_b']
+
         r2 = self.gears[1].geometry_dict['r_b']
 
         S = np.sin(self.gears[0].pressure_angle - self.orientation_angle)
@@ -415,7 +416,7 @@ class MultiRotorTVMS(Rotor):
         dofs_2 = self.gears[1].dof_global_index.values()
         dofs = [*dofs_1, *dofs_2]
 
-        k_eq = self.gear_mesh.mesh(t, frequency, True)[0]
+        k_eq = self.gear_mesh.mesh(t, frequency, True, True)[0]
         
         K0[np.ix_(dofs, dofs)] += self.coupling_matrix() * k_eq
 
@@ -618,8 +619,7 @@ def two_shaft_rotor_example():
         position="below",
     )
 
-if __name__ == "__main__":
-
+def main_example() -> None:
     rotor = two_shaft_rotor_example()
     
     # gear1Speed = 11*2*np.pi
@@ -630,8 +630,8 @@ if __name__ == "__main__":
     unb_mag = [35.505e-4, 0.449e-4]
     unb_phase = [0, 0]
 
-    dt = 1e-5
-    t = np.arange(0, 50, dt)
+    dt = 1e-4
+    t = np.arange(0, 0.1, dt)
     speed1 = 60*2*np.pi  # Generator rotor speed
 
     num_dof = rotor.number_dof
@@ -648,7 +648,7 @@ if __name__ == "__main__":
         F[:, dofy] += unb_mag[i] * (speed**2) * np.sin(phi)
 
     start_time=time.time()
-    tr = rotor.run_time_response(speed1, F, t, method='newmark', progress_interval=1)
+    tr = rotor.run_time_response(speed1, F, t, method='newmark', progress_interval=0.1)
 
     end_time = time.time()
     print(f'Time to run:{end_time - start_time}')
@@ -656,7 +656,10 @@ if __name__ == "__main__":
     probe2 = rs.Probe(7, np.pi/2)  # node 3, orientation 90°(Y dir.)
 
     data = tr.data_time_response(probe=[probe1,probe2])
-    data.to_csv("C:\\gear_freq_data\\time_response_1e-5_10s_interp.csv")
+    data.to_csv(f"C:\\gear_freq_data\\TVMS_w{speed/2/np.pi:.2f}Hz_dt{dt:.3e}s_t{np.max(t):.2f}s_constant_stiffness.csv")
 
     fig3= tr.plot_1d(probe=[probe1, probe2])
     fig3.show()
+
+if __name__ == "__main__":
+    main_example()
