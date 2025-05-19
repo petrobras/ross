@@ -1,5 +1,4 @@
 import numpy as np
-import ccp
 import math
 import sys
 from scipy.linalg import lu_factor, lu_solve
@@ -127,28 +126,28 @@ class LabyrinthSeal(SealElement):
         self.tz = [0] * 2
         self.muz = [0] * 2
         
-        state_in = ccp.State.define(
-            p=inlet_pressure, T=inlet_temperature, fluid=self.gas_composition
-        )
-        state_out = ccp.State.define(
-            p=outlet_pressure, h=state_in.h(), fluid=self.gas_composition
-        )
+        # state_in = ccp.State.define(
+        #     p=inlet_pressure, T=inlet_temperature, fluid=self.gas_composition
+        # )
+        # state_out = ccp.State.define(
+        #     p=outlet_pressure, h=state_in.h(), fluid=self.gas_composition
+        # )
 
-        # Calculate
-        # gas constant : float -> Gas constant (J / kg degK
-        self.r = (state_in.gas_constant() / state_in.molar_mass()).m
-        print(f"R {self.r}")
-        # ratio_specific_heats : float -> Ratio of specific heats.
-        self.gamma = (state_in.cp() / state_in.cv()).m
-        print(f"gamma {self.gamma}")
-        # tz1 : float -> Temperature at state 1 (deg K).
-        self.tz[0] = state_in.T().m
-        # muz1 : float -> Dynamic viscosity at state 1 (kg/(m s))
-        self.muz[0] = state_in.viscosity().m
-        # tz2 : float -> Temperature at state 2 (deg K).
-        self.tz[1] = state_out.T().m
-        # muz2 : float -> Dynamic viscosity at state 2 (kg/(m s))
-        self.muz[1] = state_out.viscosity().m
+        # # Calculate
+        # # gas constant : float -> Gas constant (J / kg degK
+        # self.r = (state_in.gas_constant() / state_in.molar_mass()).m
+        # print(f"R {self.r}")
+        # # ratio_specific_heats : float -> Ratio of specific heats.
+        # self.gamma = (state_in.cp() / state_in.cv()).m
+        # print(f"gamma {self.gamma}")
+        # # tz1 : float -> Temperature at state 1 (deg K).
+        # self.tz[0] = state_in.T().m
+        # # muz1 : float -> Dynamic viscosity at state 1 (kg/(m s))
+        # self.muz[0] = state_in.viscosity().m
+        # # tz2 : float -> Temperature at state 2 (deg K).
+        # self.tz[1] = state_out.T().m
+        # # muz2 : float -> Dynamic viscosity at state 2 (kg/(m s))
+        # self.muz[1] = state_out.viscosity().m
 
         self.n = n
         self.inlet_pressure = inlet_pressure
