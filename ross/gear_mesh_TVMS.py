@@ -1110,6 +1110,11 @@ class Mesh:
         The crown gear object used in the gear pair (driven).
     gear_input_w : float
         The rotational speed [rad/sec] of the gear_input gear in radians per second.
+    interpolation: `bool`
+        If True, it will run the TVMS once and interpolate after (increased performance).
+    max_stiffness: `bool`
+        If True, return only the max stiffness of the meshing. 
+
         
     Attributes:
     -----------
@@ -1236,10 +1241,6 @@ class Mesh:
             The gear_input object.
         t : float
             Time instant for which the meshing stiffness is calculated.
-        interpolation: `bool`
-            If True, it will run the TVMS once and interpolate after.
-        max_stiffness: `bool`
-            If True, return only the max stiffness of the meshing. 
 
         Returns
         ------
@@ -1313,7 +1314,27 @@ class Mesh:
                 return stiffnes_mesh_1, np.nan, stiffnes_mesh_1
     
     def _time_stiffness(self, gear_input_speed: float, dt: float) -> float:
+        """
+        Calculate the time-varying meshing stiffness of a gear pair in ONE time-mesh period.
 
+        - This method is used for interpolation, since the TVMS is constant for gear-pairs without deffects.
+        - This method is also used for evaluating the _max_stiffness, since in one time-mesh period it's possible to evaluate the maximum stiffness.
+
+        Parameters
+        ----------
+        gear_input_speed : GearElementTVMS
+            The gear_input object.
+        t : float
+            Time instant for which the meshing stiffness is calculated.
+
+        Returns
+        ------
+        tuple: A tuple containing the following elements:
+            - total_stiffness (float): The total equivalent meshing stiffness at time `t`.
+            - stiffness_tooth_pair_1 (float): The meshing stiffness of the first tooth pair in contact. 
+            If no first tooth pair is in contact, this value is `np.nan`.
+            - stiffness_tooth_pair_2 (float): The meshing stiffness of the second tooth pair in contact.
+        """
         tm  = 2 * np.pi / (gear_input_speed * self.gear_input.n_tooth) # Gearmesh period [seconds/engagement]
         ctm = self.cr * tm # [seconds/tooth] how much time each tooth remains in contact
 
@@ -1339,6 +1360,21 @@ class Mesh:
         return t_interpol, double_contact, single_contact
 
     def _max_gear_stiff(self, gear_input_speed: float, dt: float) -> float:
+        """
+        Evaluate the maximum meshing stiffness from one time-mesh period.
+
+        Parameters
+        ----------
+        gear_input_speed : GearElementTVMS
+            The gear_input object.
+        t : float
+            Time instant for which the meshing stiffness is calculated.
+
+        Returns
+        ------
+        np.max(double_contact): float 
+            The maximum stiffness [N/m]        
+        """
         
         _, double_contact, _ = self._time_stiffness(gear_input_speed, dt)
         

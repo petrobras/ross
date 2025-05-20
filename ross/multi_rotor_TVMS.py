@@ -7,6 +7,7 @@ from ross.gear_element import GearElement
 from ross.rotor_assembly import Rotor
 from ross.gear_mesh_TVMS import GearElementTVMS, Mesh
 import time
+from ross.units import Q_
 
 
 __all__ = ["MultiRotorTVMS"]
