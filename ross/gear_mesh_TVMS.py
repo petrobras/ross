@@ -81,21 +81,21 @@ class GearElementTVMS(DiskElement):
         width,
         hub_bore_radius,
         material: Material = Material(name="Steel", rho=Q_(7.81, 'g/cm**3'), E=211e9, G_s=81.2e9), 
-        pressure_angle=Q_(20, 'deg'),
+        p_angle=Q_(20, 'deg').to_base_units(),
         addendum_coeff=1,
         clearance_coeff=0.25,
         tag=None,
         scale_factor=1.0,
         color="Goldenrod",
     ):
-
-        self.shaft_od           = hub_bore_radius # [m]
-        self.module             = module # [m]
-        self.n_tooth            = n_tooth # [-]
-        self.pressure_angle     = pressure_angle #[rad]
-        self.width              = width # [m]
-        self.addendum_coeff     = addendum_coeff #[-]
-        self.clearance_coeff    = clearance_coeff #[-]
+        
+        self.shaft_od           = float(hub_bore_radius) # [m]
+        self.module             = float(module) # [m]
+        self.n_tooth            = float(n_tooth) # [-]
+        self.pressure_angle     = float(p_angle) #[rad]
+        self.width              = float(width) # [m]
+        self.addendum_coeff     = float(addendum_coeff) #[-]
+        self.clearance_coeff    = float(clearance_coeff) #[-]
         self.pitch_diameter     = module * n_tooth #[m]
 
         self.Ip = np.pi/2 * ((self.pitch_diameter/2)**4 - (self.shaft_od/2)**4)
@@ -660,7 +660,7 @@ class GearElementTVMS(DiskElement):
         >>> GearGeometry._involute(15 / 180 * np.pi)
         0.006149804631973288
         """
-
+        angle = float(angle)
         return np.tan(angle) - angle
     
     def _to_tau(self, alpha_i: float) -> float:
@@ -822,7 +822,7 @@ class GearElementTVMS(DiskElement):
             - ks : float
                 Stiffness related to shear stresses.
         """
-        alpha_op = alpha_op_angle
+        alpha_op = float(alpha_op_angle)
         tau_op = self._to_tau(alpha_op)
 
         _inv_kf = self._inv_kf(tau_op)
@@ -951,22 +951,24 @@ class GearElementTVMS(DiskElement):
         ---------
         float
             The shear stiffness in the form of 1/ks.
-        """        
-        
-        f_transiction       = lambda gamma: (
-            1.2 * np.cos(tau_op)**2 
-            / (
-                self.material.G_s 
-                * self._compute_transition_curve(gamma)[2]
-            ) 
-            * self._diff_gamma(gamma)
-        ) 
+        """ 
 
-        k_transiction, _    = sp.integrate.quad(
-            f_transiction, 
-            np.pi/2, 
-            self.pressure_angle
-        ) # OK
+        # it's constant, if it doesn't have any crack.  
+        if hasattr(self, '_ks_transiction') == False:
+            f_transiction       = lambda gamma: (
+                1.2 * np.cos(tau_op)**2 
+                / (
+                    self.material.G_s 
+                    * self._compute_transition_curve(gamma)[2]
+                ) 
+                * self._diff_gamma(gamma)
+            ) 
+
+            self._ks_transiction, _    = sp.integrate.quad(
+                f_transiction, 
+                np.pi/2, 
+                self.pressure_angle
+            ) # OK
 
         f_involute      = lambda tau: (
             1.2 * (
@@ -982,7 +984,7 @@ class GearElementTVMS(DiskElement):
             tau_op
         ) 
 
-        return (k_transiction + k_involute)
+        return (self._ks_transiction + k_involute)
 
     def _inv_kb(self, tau_op) -> float:
         """
@@ -1000,22 +1002,23 @@ class GearElementTVMS(DiskElement):
         """        
         y_op, x_op, _, _    = self._compute_involute_curve(tau_op)
 
-        f_transiction       = lambda gamma: (
-            (
-                np.cos(tau_op) 
-                * (
-                    y_op - self._compute_transition_curve(gamma)[0]
+        if hasattr(self, '_kb_transiction') == False:
+            f_transiction       = lambda gamma: (
+                (
+                    np.cos(tau_op) 
+                    * (
+                        y_op - self._compute_transition_curve(gamma)[0]
+                    )
+                    - x_op * np.sin(tau_op)
+                )**2 
+                / (
+                    self.material.E 
+                    * self._compute_transition_curve(gamma)[3]
                 )
-                - x_op * np.sin(tau_op)
-            )**2 
-            / (
-                self.material.E 
-                * self._compute_transition_curve(gamma)[3]
-            )
-            * self._diff_gamma(gamma)
-        ) 
+                * self._diff_gamma(gamma)
+            ) 
 
-        k_transiction, _ = sp.integrate.quad(f_transiction, np.pi/2, self.pressure_angle)
+            self._kb_transiction, _ = sp.integrate.quad(f_transiction, np.pi/2, self.pressure_angle)
 
         f_involute      = lambda tau: (
             (
@@ -1033,7 +1036,7 @@ class GearElementTVMS(DiskElement):
             tau_op
         )
 
-        return (k_transiction + k_involute)
+        return (self._kb_transiction + k_involute)
 
     def _inv_ka(self, tau_op: float) -> float:
         """
@@ -1049,14 +1052,14 @@ class GearElementTVMS(DiskElement):
         float
             The axial stiffness in the form of 1/ka.
         """        
+        if hasattr(self, '_ka_transiction') == False:
+            f_transiction   = lambda gamma: (
+                np.sin(tau_op)**2
+                / (self.material.E * self._compute_transition_curve(gamma)[2])
+                * self._diff_gamma(gamma)
+            ) 
 
-        f_transiction   = lambda gamma: (
-            np.sin(tau_op)**2
-            / (self.material.E * self._compute_transition_curve(gamma)[2])
-            * self._diff_gamma(gamma)
-        ) 
-
-        k_transiction, _ = sp.integrate.quad(f_transiction, np.pi/2, self.pressure_angle)
+            self._ka_transiction, _ = sp.integrate.quad(f_transiction, np.pi/2, self.pressure_angle)
 
         f_involute      = lambda tau: (
             np.sin(tau_op)**2 
@@ -1070,7 +1073,7 @@ class GearElementTVMS(DiskElement):
             tau_op
         )
 
-        return (k_transiction + k_involute)
+        return (self._ka_transiction + k_involute)
 
     @staticmethod
     def _kh(gear1, gear2) -> float:
@@ -1258,7 +1261,9 @@ class Mesh:
         `dt = (2 * np.pi) / (K * n_toth_gear_x * speed_gear_x)`
             Where K is the discretization ratio of a double gear-mesh contact, recommended K >= 20.
         """
-
+        t = float(t)
+        gear_input_speed = float(gear_input_speed)
+        
         tm  = 2 * np.pi / (gear_input_speed * self.gear_input.n_tooth) # Gearmesh period [seconds/engagement]
         ctm = self.cr * tm # [seconds/tooth] how much time each tooth remains in contact
 

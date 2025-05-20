@@ -573,7 +573,7 @@ def two_shaft_rotor_example():
         Ip=6.23,
     )
 
-    gear1 = GearElementTVMS(n=4, m=12, module=2e-3, width=2e-2, n_tooth=55, hub_bore_radius=11e-2)
+    gear1 = GearElementTVMS(n=4, m=12, module=Q_(2,'mm'), width=Q_(2, 'cm'), n_tooth=55, hub_bore_radius=Q_(11, 'cm'))
 
     bearing1 = rs.BearingElement(n=0, kxx=183.9e6, kyy=200.4e6, cxx=3e3)
     bearing2 = rs.BearingElement(n=3, kxx=183.9e6, kyy=200.4e6, cxx=3e3)
@@ -600,7 +600,7 @@ def two_shaft_rotor_example():
         for i in range(len(L2))
     ]
     
-    gear2 = GearElementTVMS(n=0, m=20, module=2e-3, width=2e-2, n_tooth=75, hub_bore_radius=7.5e-2)
+    gear2 = GearElementTVMS(n=0, m=Q_(20, 'kg'), module=Q_(2, 'mm'), width=Q_(2,'cm'), n_tooth=75, hub_bore_radius=Q_(7.5,'cm'))
 
     turbine = rs.DiskElement(n=2, m=7.45, Id=0.0745, Ip=0.149)
 
@@ -621,7 +621,7 @@ def two_shaft_rotor_example():
         orientation_angle=0.0,
         position="below",
         interpolation=True,
-        only_max_stiffness=True
+        only_max_stiffness=False
     )
 
 def main_example() -> None:
@@ -631,8 +631,8 @@ def main_example() -> None:
     unb_mag = [35.505e-4, 0.449e-4]
     unb_phase = [0, 0]
 
-    dt = 1e-4
-    t = np.arange(0, 10, dt)
+    dt = 1e-5
+    t = np.arange(0, 2, dt)
     speed1 = 60*2*np.pi  # Generator rotor speed
 
     num_dof = rotor.number_dof
