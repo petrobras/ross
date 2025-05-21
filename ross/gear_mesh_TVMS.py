@@ -107,7 +107,6 @@ class GearElementTVMS(DiskElement):
         self.geometry_dict = {}
         self.geometry_dict = self._initialize_geometry(self.geometry_dict)
 
-
         super().__init__(n, m, self.Id, self.Ip, tag, scale_factor, color)
 
     @check_units
@@ -1135,7 +1134,11 @@ class Mesh:
         The contact ratio, representing the average number of tooth in contact during meshing.
     """
 
-    def __init__(self, gear_input: GearElementTVMS, gear_output: GearElementTVMS, interpolation: bool = False, only_max_stiffness: bool = False):
+    def __init__(self, gear_input: GearElementTVMS, gear_output: GearElementTVMS, interpolation: bool = False, only_max_stiffness: bool = False, user_defined_stiffness = None | float):
+
+        if user_defined_stiffness is not None:
+            self._user_defined_stiffness = user_defined_stiffness
+
         self.gear_input = gear_input
         self.gear_output = gear_output
 
@@ -1230,7 +1233,7 @@ class Mesh:
         return k_t, d_tau_gear_input, d_tau_gear_output
     
     @check_units
-    def mesh(self, t, gear_input_speed: float):
+    def mesh(self, gear_input_speed: float, t: None | float = None):
         """
         Calculate the time-varying meshing stiffness of a gear pair.
 
@@ -1261,13 +1264,19 @@ class Mesh:
         `dt = (2 * np.pi) / (K * n_toth_gear_x * speed_gear_x)`
             Where K is the discretization ratio of a double gear-mesh contact, recommended K >= 20.
         """
+        # OPTION 0: RETURN ONLY THE USER DEFINED STIFFNESS
+        if hasattr(self, '_user_defined_stiffness'):
+            return self._user_defined_stiffness, None, None
+
         t = float(t)
         gear_input_speed = float(gear_input_speed)
-        
+
         tm  = 2 * np.pi / (gear_input_speed * self.gear_input.n_tooth) # Gearmesh period [seconds/engagement]
         ctm = self.cr * tm # [seconds/tooth] how much time each tooth remains in contact
 
+        # OPTION 1: RETURN ONLY MAX STIFFNESS
         if self.only_max_stiffness == True:
+
             if hasattr(self, 'already_evaluated_max') == False:
                 dt = (2 * np.pi) / (20 * self.gear_input.n_tooth * gear_input_speed)
                 self.max_stiffness = self._max_gear_stiff(gear_input_speed, dt)
@@ -1276,6 +1285,7 @@ class Mesh:
             else:
                 return self.max_stiffness, None, None
 
+        # OPTION 2: RUN INTERPOLATION ONLY
         if self.interpolation == True: # Runs the time dependency for one period of double-single mesh
 
             if hasattr(self, 'already_interpolated') == False: # Case 1: If it had never evaluated the stiffness
@@ -1303,6 +1313,7 @@ class Mesh:
             elif t > (self.cr-1) * tm:
                 return np.interp(t, self.t_interpol_single, self.single_contact), None, None
 
+        # OPTION 3: RUN THE TVMS EVERY STEP
         else: # If it needs to re-evaluate every stiffness integration every step
 
             t   = t - t // tm * tm

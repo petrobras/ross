@@ -1124,7 +1124,7 @@ class Rotor(object):
 
         return M0
 
-    def K(self, frequency, ignore=[]):
+    def K(self, frequency, ignore=[], **kwargs):
         """Stiffness matrix for an instance of a rotor.
 
         Parameters
@@ -2323,7 +2323,7 @@ class Rotor(object):
             C1 = get_array[0](C0)
 
             def rotor_system(step, **current_state):
-                K0 = self.K(speed_ref, t[step])
+                K0 = self.K(speed_ref, ignore =[], t = t[step])
                 
                 K1 = get_array[0](K0)
 

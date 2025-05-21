@@ -3,11 +3,14 @@ from re import search
 from copy import deepcopy as copy
 
 import ross as rs
-from ross.gear_element import GearElement
 from ross.rotor_assembly import Rotor
 from ross.gear_mesh_TVMS import GearElementTVMS, Mesh
 import time
 from ross.units import Q_
+import plotly.io as pio
+
+import plotly.io as pio
+#pio.renderers.default = "vscode"
 
 
 __all__ = ["MultiRotorTVMS"]
@@ -116,6 +119,7 @@ class MultiRotorTVMS(Rotor):
         orientation_angle=0.0,
         only_max_stiffness = False,
         interpolation = False,
+        user_defined_stiffness = None | float,
         position="above",
         tag=None,
     ):
@@ -144,7 +148,7 @@ class MultiRotorTVMS(Rotor):
 
         self.gears = [gear_1, gear_2]
 
-        self.gear_mesh = Mesh(*self.gears, interpolation=interpolation, only_max_stiffness=only_max_stiffness)
+        self.gear_mesh = Mesh(*self.gears, interpolation=interpolation, only_max_stiffness=only_max_stiffness, user_defined_stiffness=user_defined_stiffness)
         self.gear_ratio = self.gear_mesh.eta
 
         gear1_plot = next(
@@ -385,7 +389,7 @@ class MultiRotorTVMS(Rotor):
                 self.rotors[1].M(frequency * self.gear_ratio, synchronous),
             )
 
-    def K(self, frequency, t, ignore=[]):
+    def K(self, frequency, ignore=[], **kwargs):
         """Stiffness matrix for a multi-rotor.
 
         Parameters
@@ -419,8 +423,15 @@ class MultiRotorTVMS(Rotor):
         dofs_2 = self.gears[1].dof_global_index.values()
         dofs = [*dofs_1, *dofs_2]
 
-        k_eq = self.gear_mesh.mesh(t, frequency)[0]
-        
+        # If TVMS or Maximum Stiffness, it's time dependant and therefore must have time as parameter.
+        if hasattr(self.gear_mesh, '_user_defined_stiffness'):
+            k_eq = self.gear_mesh._user_defined_stiffness
+
+        # If it is a user defined stiffness, it's not time dependant.
+        else:
+            t = kwargs['t']
+            k_eq = self.gear_mesh.mesh(frequency, t)[0]
+
         K0[np.ix_(dofs, dofs)] += self.coupling_matrix() * k_eq
 
         return K0
@@ -512,7 +523,7 @@ class MultiRotorTVMS(Rotor):
         )
 
 
-def two_shaft_rotor_example():
+def two_shaft_rotor_example(run_type: str):
     """Create a multi-rotor as example.
 
     This function returns an instance of two-shaft rotor system from Rao et al.
@@ -613,25 +624,65 @@ def two_shaft_rotor_example():
         [bearing3, bearing4],
     )
 
+    if run_type == 'interpolation':
+        return MultiRotorTVMS(
+            rotor1,
+            rotor2,
+            coupled_nodes=(4, 0),
+            orientation_angle=0.0,
+            position="below",
+            interpolation=True,
+            only_max_stiffness=False,
+            user_defined_stiffness=None
+        )
 
-    return MultiRotorTVMS(
-        rotor1,
-        rotor2,
-        coupled_nodes=(4, 0),
-        orientation_angle=0.0,
-        position="below",
-        interpolation=True,
-        only_max_stiffness=False
-    )
+    if run_type == 'max_stiffness':
+        return MultiRotorTVMS(
+            rotor1,
+            rotor2,
+            coupled_nodes=(4, 0),
+            orientation_angle=0.0,
+            position="below",
+            interpolation=False,
+            only_max_stiffness=True,
+            user_defined_stiffness=None
+        )
+
+    if run_type == 'TVMS':
+        return MultiRotorTVMS(
+            rotor1,
+            rotor2,
+            coupled_nodes=(4, 0),
+            orientation_angle=0.0,
+            position="below",
+            interpolation=False,
+            only_max_stiffness=False,
+            user_defined_stiffness=None
+        )
+
+    if run_type == 'user_defined':
+        return MultiRotorTVMS(
+            rotor1,
+            rotor2,
+            coupled_nodes=(4, 0),
+            orientation_angle=0.0,
+            position="below",
+            interpolation=False,
+            only_max_stiffness=False,
+            user_defined_stiffness=1e18
+        )
+
 
 def main_example() -> None:
-    rotor = two_shaft_rotor_example()
+    run_type = 'user_defined'
+    rotor = two_shaft_rotor_example(run_type=run_type)
+    #figure = rotor.plot_rotor().show()
 
     nodes = [2, 7]
     unb_mag = [35.505e-4, 0.449e-4]
     unb_phase = [0, 0]
 
-    dt = 1e-5
+    dt = 5e-5
     t = np.arange(0, 2, dt)
     speed1 = 60*2*np.pi  # Generator rotor speed
 
@@ -657,7 +708,7 @@ def main_example() -> None:
     probe2 = rs.Probe(7, np.pi/2)  # node 3, orientation 90°(Y dir.)
 
     data = tr.data_time_response(probe=[probe1,probe2])
-    data.to_csv(f"C:\\gear_freq_data\\TVMS_w{speed1/2/np.pi:.2f}Hz_dt{dt:.3e}s_t{np.max(t):.2f}s_interpolation.csv")
+    data.to_csv(f"C:\\gear_freq_data\\TVMS_w{speed1/2/np.pi:.2f}Hz_dt{dt:.3e}s_t{np.max(t):.2f}s_{run_type}.csv")
 
     fig3= tr.plot_1d(probe=[probe1, probe2])
     fig3.show()
