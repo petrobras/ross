@@ -92,7 +92,9 @@ class LabyrinthSeal(SealElement):
     ...     tooth_height=Q_(3.175,"mm"),
     ...     tooth_width=Q_(0.1524,"mm"),
     ...     seal_type="inter",
-    ... )
+    ...     gas_composition = "Methane"
+    ...     tz = [298.0, 305.0], 
+    ...     muz = [11.2e-6, 11.6e-6], 
     """
 
     @check_units

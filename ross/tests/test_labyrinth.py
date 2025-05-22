@@ -24,6 +24,10 @@ def labyrinth():
         tooth_height=Q_(3.175,"mm"),
         tooth_width=Q_(0.1524,"mm"),
         seal_type="inter",
+        gas_composition = 'Methane',
+        tz = [298.0, 305.0],
+        muz = [11.2e-6, 11.6e-6],
+
     )
 
     return seal
@@ -38,11 +42,11 @@ def test_labyrinth_coefficients(labyrinth):
     cyx = labyrinth.cyx
     cyy = labyrinth.cyy
 
-    assert math.isclose(kxx, -50242.35216407, rel_tol=0.0001)
-    assert math.isclose(kxy, 35764.19464202, rel_tol=0.0001)
-    assert math.isclose(kyx, -35764.19464202, rel_tol=0.0001)
-    assert math.isclose(kyy, -50242.35216407, rel_tol=0.0001)
-    assert math.isclose(cxx, 24.03501182, rel_tol=0.0001)
-    assert math.isclose(cxy, 55.95971508, rel_tol=0.0001)
-    assert math.isclose(cyx, -55.95971508, rel_tol=0.0001)
-    assert math.isclose(cyy, 24.03501182, rel_tol=0.0001)
+    assert math.isclose(kxx, -51847.51694877, rel_tol=0.0001)
+    assert math.isclose(kxy, 34286.00723278, rel_tol=0.0001)
+    assert math.isclose(kyx, -34286.00723278, rel_tol=0.0001)
+    assert math.isclose(kyy, -51847.51694877, rel_tol=0.0001)
+    assert math.isclose(cxx, 22.79922935, rel_tol=0.0001)
+    assert math.isclose(cxy, 58.39427577, rel_tol=0.0001)
+    assert math.isclose(cyx, -58.39427577, rel_tol=0.0001)
+    assert math.isclose(cyy, 22.79922935, rel_tol=0.0001)
