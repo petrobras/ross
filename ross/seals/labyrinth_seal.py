@@ -3,7 +3,7 @@ import math
 import sys
 from scipy.linalg import lu_factor, lu_solve
 from numpy.linalg import cond
-import multiprocessing 
+import multiprocessing
 from ross import SealElement
 from ross.units import check_units
 import multiprocessing
@@ -74,7 +74,7 @@ class LabyrinthSeal(SealElement):
         Specify value 0 to not use parameters
         Specify value 1 to use parameters
 
-    
+
     Examples
     --------
     >>> from ross.seals.labyrinth_seal import LabyrinthSeal
@@ -121,35 +121,13 @@ class LabyrinthSeal(SealElement):
         iopt1 = 0,
         **kwargs,
     ):
-    
+
         self.gas_composition = gas_composition
         self.tz = tz
         self.muz = muz
         self.r = r
         self.gamma = gamma
 
-        # state_in = ccp.State.define(
-        #     p=inlet_pressure, T=inlet_temperature, fluid=self.gas_composition
-        # )
-        # state_out = ccp.State.define(
-        #     p=outlet_pressure, h=state_in.h(), fluid=self.gas_composition
-        # )
-
-        # # Calculate
-        # # gas constant : float -> Gas constant (J / kg degK
-        # self.r = (state_in.gas_constant() / state_in.molar_mass()).m
-        # print(f"R {self.r}")
-        # # ratio_specific_heats : float -> Ratio of specific heats.
-        # self.gamma = (state_in.cp() / state_in.cv()).m
-        # print(f"gamma {self.gamma}")
-        # # tz1 : float -> Temperature at state 1 (deg K).
-        # self.tz[0] = state_in.T().m
-        # # muz1 : float -> Dynamic viscosity at state 1 (kg/(m s))
-        # self.muz[0] = state_in.viscosity().m
-        # # tz2 : float -> Temperature at state 2 (deg K).
-        # self.tz[1] = state_out.T().m
-        # # muz2 : float -> Dynamic viscosity at state 2 (kg/(m s))
-        # self.muz[1] = state_out.viscosity().m
 
         self.n = n
         self.inlet_pressure = inlet_pressure
@@ -163,7 +141,7 @@ class LabyrinthSeal(SealElement):
         self.tooth_height = tooth_height
         self.tooth_width = tooth_width
         self.seal_type = seal_type
-       
+
         self.analz = analz
         self.nprt = nprt
         self.iopt1 = iopt1
@@ -196,7 +174,7 @@ class LabyrinthSeal(SealElement):
         self.vtime1 = '22:21:00'
 
         coefficients_dict = {}
-        if kwargs.get("kxx") is None: 
+        if kwargs.get("kxx") is None:
             pool = multiprocessing.Pool()
             coefficients_dict_list = pool.map(self.run, frequency)
             coefficients_dict = {k: [] for k in coefficients_dict_list[0].keys()}
@@ -281,7 +259,7 @@ class LabyrinthSeal(SealElement):
 
         self.pi = math.pi
         self.pg = self.outlet_pressure / self.inlet_pressure
-        self.omega = self.frequency 
+        self.omega = self.frequency
 
         return
 
@@ -293,7 +271,7 @@ class LabyrinthSeal(SealElement):
             self.vnu = 0
         if self.vnu >= 1:
             with open("output.txt", "a") as arquivo:
-                arquivo.write("ERROR, alpha maior que 1 \n")
+                print("ERROR, alpha maior que 1 \n")
             return
         vg = 1 / (1 - self.vnu)**0.5
         self.r_choke = [0] * self.m_x
@@ -306,13 +284,7 @@ class LabyrinthSeal(SealElement):
         self.mdotv = self.gve * self.inlet_pressure * self.radial_clearance[0] / (self.r * self.inlet_temperature)**0.5
         leakv = self.mdotv * 2 * self.pi * (self.shaft_radius + 0.5 * self.radial_clearance[0])
 
-        with open("output.txt", "a") as arquivo:
-            arquivo.write("Computed Leakage Coefficients & Parameters: \n \n \n \n")
-            arquivo.write("Vermes/Modified Egli Method: \n \n")
-            arquivo.write(f"{'   Contraction Coefficient':<40} {self.alphav:>15.8f} kg/s \n")
-            arquivo.write(f"{'   Mass Flow Number':<40} {self.gve:>15.8f} kg/s \n")
-            arquivo.write(f"{'   Leakage Per Cir. Length':<40} {self.mdotv:>15.8f} kg/(m s)\n")
-            arquivo.write(f"{'   Leakage':<40} {leakv:>15.8f} kg/s \n \n")
+        print(f"{'   Leakage':<40} {leakv:>15.8f} kg/s \n \n")
         self.mdot = self.mdotv
 
     def ZPRES(self):
@@ -357,7 +329,7 @@ class LabyrinthSeal(SealElement):
                     prgs[0] = chok2
                 else:
                     prgs[0] = chok2
-            
+
                 prgs[1] = 0.9999999
                 for j in range(0, 2):
                     fpr[j] = self.alphav * self.radial_clearance[i-1] * self.rho[i-1] * (prgs[j]**gam1) * (((self.vnu*self.w[i-1])*self.w[i-1]) + (gam4*self.t[i-1]*(1-(prgs[j]**gam2))))**0.5
@@ -372,8 +344,8 @@ class LabyrinthSeal(SealElement):
                         a2001 = False
                         error_outlet_pressure = 0
                         break
-                    fpr[2] = self.mdot - fpr[2] 
-                    
+                    fpr[2] = self.mdot - fpr[2]
+
                     if fpr[2]*fpr[0] < 0:
                         prgs[1] = prgs[2]
                         fpr[1] = fpr[2]
@@ -395,7 +367,7 @@ class LabyrinthSeal(SealElement):
                     if abs((prgs[2]-prold)/prgs[2]) <= tol1:
                         break
                     prold = prgs[2]
-                
+
                 if a2001 == False:
                     break
                 if (abs(fpr[2]) > tol_p):
@@ -405,7 +377,7 @@ class LabyrinthSeal(SealElement):
                 self.w[i] = (self.mdot * self.r * self.t[i-1])/(self.alphav * self.p[i-1]*(self.pr[i-1]**gam1)*self.radial_clearance[i-1])
                 self.rho[i] = self.rho[i-1] * (self.pr[i-1] ** gam1)
                 self.t[i] = self.t[i-1] * (self.pr[i-1] ** gam2)
-            
+
 
             if a2001 == True:
                 i = self.np-1
@@ -443,41 +415,24 @@ class LabyrinthSeal(SealElement):
             leak = self.mdot * 2 * self.pi * (self.shaft_radius + 0.5*self.radial_clearance[0])
 
         if ndex1 != 1 and abs(self.pr[self.np-2]-chok2)/chok2 <= tol_choked:
-            with open("output.txt", "a") as arquivo:        
-                arquivo.write("Flow Chocked in Last Thottle")
+                print("Flow Chocked in Last Thottle")
                 ndex1 = 1
         if (self.pr[self.n_teeth-1]) > 1:
-            with open("output.txt", "a") as arquivo:        
-                arquivo.write("ERROR IN LEAKAGE CALCULATION")
+                print("ERROR IN LEAKAGE CALCULATION")
         if self.nprt > 4:
             return
 
-        with open("output.txt", "a") as arquivo:        
-                arquivo.write("Benevenuti Method: \n \n")
-                arquivo.write(f"{'   Leakage Per Cir. Length':<40} {self.mdot:>15.8f} kg/(m s)\n")
-                arquivo.write(f"{'   Leakage':<40} {leak:>15.8f} kg/s \n")
-                arquivo.write("Benvenuti Result Used Throughout Program \n \n \n \n")
-                header_1 = "#      Pr Ratio   Pressure       Norm Pr    Dens     Temp     Ax Vel  Ax Mach\n"
-                header_2 = "                  N/(m**2)                kg/(m**3)  deg K    m/s\n"
-                arquivo.write(header_1)
-                arquivo.write(header_2)
+        print("Benevenuti Method: \n \n")
+        print(f"{'   Leakage':<40} {leak:>15.8f} kg/s \n")
 
 
         for i in range(0, self.np):
             mach = self.w[i]/(self.gamma * self.r *self.t[i])**0.5
             pnorm = self.p[i]/self.inlet_pressure
-            linha_formatada = (
-                f"{i+1:<5}  {self.pr[i]:<10.4f} {self.p[i]:<14.6E} {pnorm:<10.4f} "
-                f"{self.rho[i]:<8.3f} {self.t[i]:<8.1f} {self.w[i]:<8.2f} {mach:<8.2f}\n"
-            )   
-            with open("output.txt", "a") as arquivo:        
-                arquivo.write(linha_formatada)
-        with open("output.txt", "a") as arquivo:        
-            arquivo.write("\n \n")
         return
 
     def zvel_JEN(self):
-        
+
         vgs = [0]*3
         fv  = [0]*3
         rov = [0]*3
@@ -510,7 +465,7 @@ class LabyrinthSeal(SealElement):
         else:
             ar = (2*self.tooth_height[0]+self.pitch[0])/self.pitch[0]
             as_py = 1
-        
+
         dh = 2*(self.radial_clearance[0]+self.tooth_height[0])*self.pitch[0]/(self.radial_clearance[0]+self.tooth_height[0]+self.pitch[0])
         area = (self.tooth_height[0]+self.radial_clearance[0])*self.pitch[0]
 
@@ -564,7 +519,7 @@ class LabyrinthSeal(SealElement):
                         vold = vgs[2]
                     else:
                         break
-                        
+
                 elif fv[2]*fv[0] == 0:
                     if fv[1]== 0:
                         vgs[1] = vgs[0]
@@ -602,7 +557,7 @@ class LabyrinthSeal(SealElement):
                     else:
                         break
             if abs(fv[2] > 0.001):
-                print('Velocity Convergence Error at station', i) 
+                print('Velocity Convergence Error at station', i)
             self.v[i] = vgs[2]
             self.vout[i] = self.vin[i]*(1-jc) + self.v[i]*jc
             self.kout[i] = self.vout[i]/self.v[i]
@@ -632,37 +587,10 @@ class LabyrinthSeal(SealElement):
             cxx3 = (-bms*self.taus[i]*as_py + bmr*self.taur[i]*ar)*(self.pitch[0]*dh/(2*(self.radial_clearance[0]+self.tooth_height[0])**2))
             self.cx[7][i] = (self.mdot/self.radial_clearance[0])*jc*(self.vin[i]-self.v[i]) + cxx3
 
-        if self.nprt > 3:
-            return
-        with open("output.txt", "a") as arquivo:
-            arquivo.write("Cavity  Rotor Stress     Stator Stress    Circum Vel     Cir Mach  \n")
-            arquivo.write("         N/(m**2)         N/(m**2)           m/s\n")
-            for i in range(0, self.nc):
-                mach = self.v[i+1]/(self.gamma*self.r*self.t[i+1])**0.5
-                linha_formatada = (
-                    f"{i+1:<5}  {self.taur[i+1]:<16.6E} {self.taus[i+1]:<16.6E} {self.v[i+1]:<16.6E} {mach:<5.2f} \n"
-                )       
-                arquivo.write(linha_formatada)
-            arquivo.write("\n                   Pertubation Continuity Coeficients \n")
-            arquivo.write("Cavity     1        2        3        4         5         6         7 \n")
-            for i in range(1, self.n_teeth):
-                linha_formatada1 = (
-                    f"{i+1:<5}  {self.cg[0][i]:<8.2E} {self.cg[1][i]:<8.2E} {self.cg[2][i]:<8.2E} {self.cg[3][i]:<8.2E}"
-                    f" {self.cg[4][i]:<8.2E} {self.cg[5][i]:<8.2E} {self.cg[6][i]:<8.2E}\n"
-                )
-                arquivo.write(linha_formatada1)
-            arquivo.write("\n                        Pertubation Momentun Coeficients: \n")
-            arquivo.write("Cavity     1        2        3        4         5        6        7        8 \n")
-            for i in range(1, self.n_teeth):
-                linha_formatada2 = (
-                    f"{i+1:<5}  {self.cx[0][i]:<8.2E} {self.cx[1][i]:<8.2E} {self.cx[2][i]:<8.2E} {self.cx[3][i]:<8.2E}"
-                    f" {self.cx[4][i]:<8.2E} {self.cx[5][i]:<8.2E} {self.cx[6][i]:<8.2E} {self.cx[7][i]:<8.2E}\n"
-                )
-                arquivo.write(linha_formatada2)
         return
 
     def zvel(self):
-        
+
         vgs = [0]*3
         fv  = [0]*3
         rov = [0]*3
@@ -687,8 +615,6 @@ class LabyrinthSeal(SealElement):
             as_py = (2*self.tooth_height[0]+self.pitch[0])/self.pitch[0]
             ar = 1
 
-
-        #check
         dh = 2*(self.radial_clearance[0]+self.tooth_height[0])*self.pitch[0]/(self.radial_clearance[0]+self.tooth_height[0]+self.pitch[0])
         area = (self.tooth_height[0]+self.radial_clearance[0])*self.pitch[0]
 
@@ -737,7 +663,7 @@ class LabyrinthSeal(SealElement):
                         vold = vgs[2]
                     else:
                         break
-                        
+
                 elif fv[2]*fv[0] == 0:
                     if fv[1]== 0:
                         vgs[1] = vgs[0]
@@ -773,7 +699,7 @@ class LabyrinthSeal(SealElement):
                     else:
                         break
             if abs(fv[2] > 0.001):
-                print('Velocity Convergence Error at station', i) 
+                print('Velocity Convergence Error at station', i)
             self.v[i] = vgs[2]
             self.taur[i] = tr[2]
             self.taus[i] = ts[2]
@@ -798,37 +724,9 @@ class LabyrinthSeal(SealElement):
             self.cx[6][i] = -self.mdot*(self.v[i]-self.v[i-1])*self.p[i]/(self.p[i-1]**2 - self.p[i]**2) + ((self.taus[i]*as_py-self.taur[i]*ar)*(self.pitch[1]/self.p[i]))
             cxx3 = (-bms*self.taus[i]*as_py + bmr*self.taur[i]*ar)*(self.pitch[0]*dh/(2*(self.radial_clearance[0]+self.tooth_height[0])**2))
             self.cx[7][i] = (self.mdot/self.radial_clearance[0])*(self.v[i-1]-self.v[i]) + cxx3
-        if self.nprt > 3:
-            return
-        with open("output.txt", "a") as arquivo:
-            arquivo.write("Cavit  Rotor Stress     Stator Stress    Circum Vel     Cir Mach  \n")
-            arquivo.write("         N/(m**2)         N/(m**2)           m/s\n")
-            
-            for i in range(0, self.nc):
-                mach = self.v[i+1]/(self.gamma*self.r*self.t[i+1])**0.5
-                linha_formatada = (
-                    f"{i+1:<5}  {self.taur[i+1]:<16.6E} {self.taus[i+1]:<16.6E} {self.v[i+1]:<16.6E} {mach:<5.2f} \n"
-                )       
-                arquivo.write(linha_formatada)
-            arquivo.write("\n                   Pertubation Continuity Coeficients \n")
-            arquivo.write("Cavity     1        2        3        4         5         6         7 \n")
-            for i in range(1, self.n_teeth):
-                linha_formatada1 = (
-                    f"{i+1:<5}  {self.cg[0][i]:<8.2E} {self.cg[1][i]:<8.2E} {self.cg[2][i]:<8.2E} {self.cg[3][i]:<8.2E}"
-                    f" {self.cg[4][i]:<8.2E} {self.cg[5][i]:<8.2E} {self.cg[6][i]:<8.2E}\n"
 
-                )
-                arquivo.write(linha_formatada1)
-            arquivo.write("\n                        Pertubation Momentun Coeficients: \n")
-            arquivo.write("Cavity     1        2        3        4         5        6        7        8 \n")
-            for i in range(1, self.n_teeth):
-                linha_formatada2 = (
-                    f"{i+1:<5}  {self.cx[0][i]:<8.2E} {self.cx[1][i]:<8.2E} {self.cx[2][i]:<8.2E} {self.cx[3][i]:<8.2E}"
-                    f" {self.cx[4][i]:<8.2E} {self.cx[5][i]:<8.2E} {self.cx[6][i]:<8.2E} {self.cx[7][i]:<8.2E}\n"
-                )
-                arquivo.write(linha_formatada2)
 
-            return
+        return
 
     def pert(self):
         gmfull = [[0 for j in range(1000)] for i in range(1000)]
@@ -889,7 +787,7 @@ class LabyrinthSeal(SealElement):
             cf8 = self.cx[3][i+1]
             cf9 = -self.omega*self.cx[1][i+1] + self.cx[2][i+1]
 
-            
+
             val[0] =  cf1
             val[1] =  cf2
             val[2] =  cf3
@@ -977,7 +875,7 @@ class LabyrinthSeal(SealElement):
             self.kxy = self.kxy + self.rhs[icnt+1][1] - self.rhs[icnt+3][1]
             self.cxx = self.cxx + self.rhs[icnt+1][0] - self.rhs[icnt+3][0]
             self.cxy = self.cxy + self.rhs[icnt+2][1] + self.rhs[icnt+4][1]
-        
+
         self.kxx = self.pi * self.shaft_radius * self.pitch[1] * (self.epslon/self.awrl) * self.kxx
         self.kxy = self.pi * self.shaft_radius * self.pitch[1] * (self.epslon/self.tooth_heightwrl) * self.kxy
         self.kyx = -self.kxy
@@ -990,20 +888,19 @@ class LabyrinthSeal(SealElement):
             self.cxy = 0
             self.cyx = 0
 
-        with open("output.txt", "a") as arquivo:
-            arquivo.write("\n Computed results \n \n")
-            arquivo.write("   Stiffness Coefficients \n \n")
-            
-            arquivo.write(f"{'kxx':<10} {self.kxx:>15.4E} N/m \n")
-            arquivo.write(f"{'kyx':<10} {self.kyx:>15.4E} N/m \n")
-            arquivo.write(f"{'kxy':<10} {self.kxy:>15.4E} N/m \n")
-            arquivo.write(f"{'kxx':<10} {self.kxx:>15.4E} N/m \n")
+        print("\n Computed results \n \n")
+        print("   Stiffness Coefficients \n \n")
 
-            arquivo.write("\n Damping Coefficients \n \n")
-            arquivo.write(f"{'cxx':<10} {self.cxx:>15.4E} N/m \n")
-            arquivo.write(f"{'cyx':<10} {self.cyx:>15.4E} N/m \n")
-            arquivo.write(f"{'cxy':<10} {self.cxy:>15.4E} N/m \n")
-            arquivo.write(f"{'cyy':<10} {self.cxx:>15.4E} N/m \n")
+        print(f"{'kxx':<10} {self.kxx:>15.4E} N/m \n")
+        print(f"{'kyx':<10} {self.kyx:>15.4E} N/m \n")
+        print(f"{'kxy':<10} {self.kxy:>15.4E} N/m \n")
+        print(f"{'kxx':<10} {self.kxx:>15.4E} N/m \n")
+
+        print("\n Damping Coefficients \n \n")
+        print(f"{'cxx':<10} {self.cxx:>15.4E} N/m \n")
+        print(f"{'cyx':<10} {self.cyx:>15.4E} N/m \n")
+        print(f"{'cxy':<10} {self.cxy:>15.4E} N/m \n")
+        print(f"{'cyy':<10} {self.cxx:>15.4E} N/m \n")
 
     def run(self, frequency):
         self.frequency = frequency
@@ -1017,8 +914,8 @@ class LabyrinthSeal(SealElement):
             self.zvel_JEN()
         if self.analz != "LEAKAGE":
             self.pert()
-        keys = ["kxx","kyy","kxy","kyx","cxx","cyy","cxy","cyx","leakage"] 
-        coefficients_dict = {}              
+        keys = ["kxx","kyy","kxy","kyx","cxx","cyy","cxy","cyx","leakage"]
+        coefficients_dict = {}
         coefficients_dict["kxx"] = self.kxx
         coefficients_dict["kyy"] = self.kxx
         coefficients_dict["kxy"] = self.kxy
@@ -1026,7 +923,7 @@ class LabyrinthSeal(SealElement):
         coefficients_dict["cxx"] = self.cxx
         coefficients_dict["cyy"] = self.cxx
         coefficients_dict["cxy"] = self.cxy
-        coefficients_dict["cyx"] = self.cyx               
+        coefficients_dict["cyx"] = self.cyx
         coefficients_dict["leakage"] = self.mdot
-        
+
         return coefficients_dict
