@@ -15,6 +15,7 @@ seal = LabyrinthSeal(
     tooth_height=Q_(3.175,"mm"),
     tooth_width=Q_(0.1524,"mm"),
     seal_type="inter",
+    gas_composition = 'AIR',
 )
 
 # seal = LabyrinthSeal(

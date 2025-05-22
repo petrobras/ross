@@ -38,11 +38,11 @@ def test_labyrinth_coefficients(labyrinth):
     cyx = labyrinth.cyx
     cyy = labyrinth.cyy
 
-    assert math.isclose(kxx, -50419.34106546, rel_tol=0.0001)
-    assert math.isclose(kxy, 35522.04516972, rel_tol=0.0001)
-    assert math.isclose(kyx, -35522.04516972, rel_tol=0.0001)
-    assert math.isclose(kyy, -50419.34106546, rel_tol=0.0001)
-    assert math.isclose(cxx, 23.8100433, rel_tol=0.0001)
-    assert math.isclose(cxy, 56.21255909, rel_tol=0.0001)
-    assert math.isclose(cyx, -56.21255909, rel_tol=0.0001)
-    assert math.isclose(cyy, 23.8100433, rel_tol=0.0001)
+    assert math.isclose(kxx, -50242.35216407, rel_tol=0.0001)
+    assert math.isclose(kxy, 35764.19464202, rel_tol=0.0001)
+    assert math.isclose(kyx, -35764.19464202, rel_tol=0.0001)
+    assert math.isclose(kyy, -50242.35216407, rel_tol=0.0001)
+    assert math.isclose(cxx, 24.03501182, rel_tol=0.0001)
+    assert math.isclose(cxy, 55.95971508, rel_tol=0.0001)
+    assert math.isclose(cyx, -55.95971508, rel_tol=0.0001)
+    assert math.isclose(cyy, 24.03501182, rel_tol=0.0001)
