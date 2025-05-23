@@ -360,7 +360,7 @@ def _init_orbit(ru_e, rv_e):
     # fmt: on
     H = T @ T.T
 
-    lam = la.eigvals(H)
+    lam = la.eigvals(H).astype(np.complex128)
     # lam is the eigenvalue -> sqrt(lam) is the minor/major axis.
     # kappa encodes the relation between the axis and the precession.
     minor = np.sqrt(lam.min())
