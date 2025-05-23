@@ -5,6 +5,7 @@ import pandas as pd
 from numpy import linalg as la
 from plotly import graph_objects as go
 from copy import deepcopy as copy
+from numba import njit
 
 
 class DataNotFoundError(Exception):
@@ -719,35 +720,44 @@ def newmark(func, t, y_size, **options):
 
         M, C, K, RHS = func(step, dt=dt, y=y0, ydot=ydot0, y2dot=y2dot0)
 
-        y2dot = np.zeros(ny)
-        ydot = ydot0 + y2dot0 * (1 - gamma) * dt
-        y = y0 + ydot0 * dt + y2dot0 * (0.5 - beta) * (dt**2)
+        y0, ydot0, y2dot0 = _converge_newmark(
+            ny, y0, ydot0, y2dot0, dt, M, C, K, RHS, gamma, beta, tol
+        )  # separated call to use with numba
 
-        res = RHS - (K @ y + C @ ydot) - M @ y2dot
-        nr_iter = 0
-
-        while la.norm(res) >= tol:
-            nr_iter += 1
-            if nr_iter > 1e5:
-                raise Warning(
-                    "The Newton-Raphson algorithm is taking a long time to converge."
-                )
-
-            dy2dot = la.solve(M + C * gamma * dt + K * beta * (dt**2), res)
-
-            y2dot += dy2dot
-            ydot += dy2dot * gamma * dt
-            y += dy2dot * beta * (dt**2)
-
-            res = RHS - (K @ y + C @ ydot) - M @ y2dot
-
-        y0 = y
-        ydot0 = ydot
-        y2dot0 = y2dot
-
-        yout[step, :] = y
+        yout[step, :] = y0
 
     return yout
+
+
+@njit
+def _converge_newmark(ny, y0, ydot0, y2dot0, dt, M, C, K, RHS, gamma, beta, tol):
+    y2dot = np.zeros(ny)
+    ydot = ydot0 + y2dot0 * (1 - gamma) * dt
+    y = y0 + ydot0 * dt + y2dot0 * (0.5 - beta) * (dt**2)
+
+    res = RHS - (K @ y + C @ ydot) - M @ y2dot
+    nr_iter = 0
+
+    while la.norm(res) >= tol:
+        nr_iter += 1
+        if nr_iter > 1e5:
+            raise Warning(
+                "The Newton-Raphson algorithm is taking a long time to converge."
+            )
+
+        dy2dot = la.solve(M + C * gamma * dt + K * beta * (dt**2), res)
+
+        y2dot += dy2dot
+        ydot += dy2dot * gamma * dt
+        y += dy2dot * beta * (dt**2)
+
+        res = RHS - (K @ y + C @ ydot) - M @ y2dot
+
+    y0 = y
+    ydot0 = ydot
+    y2dot0 = y2dot
+
+    return y0, ydot0, y2dot0
 
 
 def assemble_C_K_matrices(elements, C0, K0, *args):

@@ -1,4 +1,3 @@
-
 numpy
 scipy
 toml>=0.10.1
@@ -7,3 +6,4 @@ plotly>=4.7.0
 xlrd
 pint>=0.18
 methodtools
+numba
