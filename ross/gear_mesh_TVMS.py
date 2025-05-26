@@ -215,8 +215,8 @@ class GearElementTVMS(DiskElement):
         """
 
         zpos, ypos, yc_pos, scale_factor = position
-        scale_factor *= 1.3
-        radius = self.geometry_dict['r_b'] * 1.1 + 0.05
+        scale_factor *= 3
+        radius = self.geometry_dict['r_b'] * 3 + 0.05
 
         z_upper = [
             zpos + scale_factor / 25,
@@ -1134,7 +1134,7 @@ class Mesh:
         The contact ratio, representing the average number of tooth in contact during meshing.
     """
 
-    def __init__(self, gear_input: GearElementTVMS, gear_output: GearElementTVMS, interpolation: bool = False, only_max_stiffness: bool = False, user_defined_stiffness = None | float):
+    def __init__(self, gear_input: GearElementTVMS, gear_output: GearElementTVMS, interpolation: bool = False, only_max_stiffness: bool = False, user_defined_stiffness: None | float = None ):
 
         if user_defined_stiffness is not None:
             self._user_defined_stiffness = user_defined_stiffness
@@ -1290,7 +1290,7 @@ class Mesh:
 
             if hasattr(self, 'already_interpolated') == False: # Case 1: If it had never evaluated the stiffness
 
-                dt = (2 * np.pi) / (20 * self.gear_input.n_tooth * gear_input_speed)
+                dt = (2 * np.pi) / (100 * self.gear_input.n_tooth * gear_input_speed)
                 t_interpol, double_contact, single_contact = self._time_stiffness(gear_input_speed, dt)
 
                 mask_double_contact     = double_contact > 0 
@@ -1407,11 +1407,11 @@ def gear_mesh_stiffness_example() -> None:
 
     gear1Speed = 80 * 2 * np.pi
 
-    meshing = Mesh(gear1, gear2)   
+    meshing = Mesh(gear1, gear2, interpolation=True)   
     
-    dt      = 2 * np.pi / (20 * gear1Speed * gear1.n_tooth)
+    dt      = 2 * np.pi / (1e2 * gear1Speed * gear1.n_tooth)
 
-    time_range  = np.arange(0, 2 * np.pi / (gear1Speed * gear1.n_tooth), dt)
+    time_range  = np.arange(0, 10 * np.pi / (gear1Speed * gear1.n_tooth), dt)
 
     speed_range = gear1Speed * np.ones(np.shape(time_range))
 
@@ -1420,7 +1420,13 @@ def gear_mesh_stiffness_example() -> None:
     k1_stiffness = np.zeros(np.shape(time_range))
 
     for i, time in enumerate(time_range):
-        stiffness[i], k0_stiffness[i], k1_stiffness[i] = meshing.mesh(time, speed_range[i])
+        time = float(time)
+        speed = float(speed_range[i])
+        stiffness[i], k0_stiffness[i], k1_stiffness[i] = meshing.mesh(speed, time)
+
+
+    standard_font = dict(size=15, color="black", weight="bold")
+    axis_font = dict(size=18, color="black", weight="bold")
 
     # Calculate limits and yticks
     x_lim = time_range[-1]
@@ -1433,30 +1439,30 @@ def gear_mesh_stiffness_example() -> None:
     fig.add_trace(go.Scatter(
         x=time_range,
         y=stiffness,
-        mode='markers',
+        mode='lines',
         line=dict(color='blue', width=1),
         name='Stiffness'
     ))
 
-    fig.add_trace(go.Scatter(
-        x=time_range,
-        y=k1_stiffness,
-        mode='lines',
-        line=dict(color='red', dash='solid'),
-        name='K1 Stiffness'
-    ))
+    # fig.add_trace(go.Scatter(
+    #     x=time_range,
+    #     y=k1_stiffness,
+    #     mode='lines',
+    #     line=dict(color='red', dash='solid'),
+    #     name='K1 Stiffness'
+    # ))
 
-    fig.add_trace(go.Scatter(
-        x=time_range,
-        y=k0_stiffness,
-        mode='lines',
-        line=dict(color='black', dash='dot'),
-        name='K0 Stiffness'
-    ))
+    # fig.add_trace(go.Scatter(
+    #     x=time_range,
+    #     y=k0_stiffness,
+    #     mode='lines',
+    #     line=dict(color='black', dash='dot'),
+    #     name='K0 Stiffness'
+    # ))
 
     # Update layout
     fig.update_layout(
-        title='Stiffness x Angular Displacement',
+        title='Stiffness x Time',
         xaxis=dict(
             title='Time [s]',
             range=[0, x_lim],
@@ -1466,6 +1472,7 @@ def gear_mesh_stiffness_example() -> None:
             autorange=True,
             tickformat=".1e",  # Use scientific notation for y-axis labels
         ),
+        font=standard_font,  # Customize font size and color
         showlegend=True
     )
 
@@ -1474,12 +1481,12 @@ def gear_mesh_stiffness_example() -> None:
         y=1,  # y-coordinate of the annotation (relative to the plot area, 1 = top edge)
         xref="paper",  # Use relative coordinates for x (0 to 1)
         yref="paper",  # Use relative coordinates for y (0 to 1)
-        text=f"gear_1: {gear1.n_tooth} tooth,    gear_2: {gear2.n_tooth} tooth, gear_1_speed={gear1Speed/np.pi/2:.2f} Hz,    dt = {dt:.3e}",  # The text to display
+        text=f"gear_1= {gear1.n_tooth} tooth, gear_2= {gear2.n_tooth} tooth, gear_1_speed= {gear1Speed/np.pi/2:.2f} Hz, gear_2_speed= {1/meshing.eta*gear1Speed/np.pi/2:.2f} Hz,    dt= {dt:.3e} s",  # The text to display
         showarrow=False,  # Do not show an arrow pointing to the annotation
         align="right",  # Align text to the right
         xanchor="right",  # Anchor point for x (right-aligned)
         yanchor="top",  # Anchor point for y (top-aligned)
-        font=dict(size=12, color="black")  # Customize font size and color
+        font=standard_font  # Customize font size and color
     )
     fig.show()
 

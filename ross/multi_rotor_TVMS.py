@@ -423,11 +423,11 @@ class MultiRotorTVMS(Rotor):
         dofs_2 = self.gears[1].dof_global_index.values()
         dofs = [*dofs_1, *dofs_2]
 
-        # If TVMS or Maximum Stiffness, it's time dependant and therefore must have time as parameter.
+        # If TVMS or Maximum Stiffness, it's time dependent and therefore must have time as parameter.
         if hasattr(self.gear_mesh, '_user_defined_stiffness'):
             k_eq = self.gear_mesh._user_defined_stiffness
 
-        # If it is a user defined stiffness, it's not time dependant.
+        # If it is a user defined stiffness, it's not time dependent.
         else:
             t = kwargs['t']
             k_eq = self.gear_mesh.mesh(frequency, t)[0]
@@ -676,7 +676,7 @@ def two_shaft_rotor_example(run_type: str):
 def main_example() -> None:
     run_type = 'user_defined'
     rotor = two_shaft_rotor_example(run_type=run_type)
-    #figure = rotor.plot_rotor().show()
+    figure = rotor.plot_rotor().show()
 
     nodes = [2, 7]
     unb_mag = [35.505e-4, 0.449e-4]
