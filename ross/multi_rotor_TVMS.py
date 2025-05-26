@@ -669,21 +669,21 @@ def two_shaft_rotor_example(run_type: str):
             position="below",
             interpolation=False,
             only_max_stiffness=False,
-            user_defined_stiffness=1e18
+            user_defined_stiffness=4e8
         )
 
 
 def main_example() -> None:
-    run_type = 'user_defined'
+    run_type = 'interpolation'
     rotor = two_shaft_rotor_example(run_type=run_type)
-    figure = rotor.plot_rotor().show()
+    #figure = rotor.plot_rotor().show()
 
     nodes = [2, 7]
     unb_mag = [35.505e-4, 0.449e-4]
     unb_phase = [0, 0]
 
     dt = 5e-5
-    t = np.arange(0, 2, dt)
+    t = np.arange(0, 1, dt)
     speed1 = 60*2*np.pi  # Generator rotor speed
 
     num_dof = rotor.number_dof
@@ -704,13 +704,14 @@ def main_example() -> None:
 
     end_time = time.time()
     print(f'Time to run:{end_time - start_time}')
-    probe1 = rs.Probe(2, 0)  # node 3, orientation 0° (X dir.)
+    probe1 = rs.Probe(3, 0)  # node 3, orientation 0° (X dir.)
     probe2 = rs.Probe(7, np.pi/2)  # node 3, orientation 90°(Y dir.)
 
     data = tr.data_time_response(probe=[probe1,probe2])
-    data.to_csv(f"C:\\gear_freq_data\\TVMS_w{speed1/2/np.pi:.2f}Hz_dt{dt:.3e}s_t{np.max(t):.2f}s_{run_type}.csv")
+    #data.to_csv(f"C:\\gear_freq_data\\TVMS_w{speed1/2/np.pi:.2f}Hz_dt{dt:.3e}s_t{np.max(t):.2f}s_{run_type}.csv")
 
-    fig3= tr.plot_1d(probe=[probe1, probe2])
+#   fig3= tr.plot_1d(probe=[probe1, probe2])
+    fig3= tr.plot_3d()
     fig3.show()
 
 if __name__ == "__main__":
