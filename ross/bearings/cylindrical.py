@@ -1,15 +1,13 @@
 import time
-
 import numpy as np
-from numpy.linalg import pinv
+from numpy.linalg import norm
+from scipy.optimize import curve_fit, minimize
+from plotly import graph_objects as go
+
 from ross.bearing_seal_element import BearingElement
 from ross.units import Q_, check_units
 from ross.plotly_theme import tableau_colors
-from scipy.optimize import curve_fit, minimize
 from ross.bearings.lubricants import lubricants_dict
-
-from plotly import graph_objects as go
-from plotly import figure_factory as ff
 
 
 class THDCylindrical(BearingElement):
@@ -162,7 +160,7 @@ class THDCylindrical(BearingElement):
     ...    operating_type="flooded",
     ...    oil_supply_pressure=0,
     ...    oil_flow_v=Q_(37.86, "l/min"),
-    ...    show_coef=False,
+    ...    show_coeffs=False,
     ...    print_result=False,
     ...    print_progress=False,
     ...    print_time=False,
@@ -196,7 +194,7 @@ class THDCylindrical(BearingElement):
         operating_type="flooded",
         oil_supply_pressure=None,
         oil_flow_v=None,
-        show_coef=False,
+        show_coeffs=False,
         print_result=False,
         print_progress=False,
         print_time=False,
@@ -222,7 +220,7 @@ class THDCylindrical(BearingElement):
         self.operating_type = operating_type
         self.oil_supply_pressure = oil_supply_pressure
         self.oil_flow_v = oil_flow_v
-        self.show_coef = show_coef
+        self.show_coeffs = show_coeffs
         self.print_result = print_result
         self.print_progress = print_progress
         self.print_time = print_time
@@ -234,16 +232,11 @@ class THDCylindrical(BearingElement):
         self.thetaF = self.betha_s
         self.dtheta = (self.thetaF - self.thetaI) / (self.elements_circumferential)
 
-        # for calculating convertion to l/min
-        self.oil_flow_v = Q_(oil_flow_v, "meter**3/second").to("l/min").m
-        ##
         # Dimensionless discretization variables
-
         self.dY = 1 / self.elements_circumferential
         self.dZ = 1 / self.elements_axial
 
         # Z-axis direction
-
         self.Z_I = 0
         self.Z_F = 1
         Z = np.zeros((self.elements_axial + 2))
@@ -256,13 +249,10 @@ class THDCylindrical(BearingElement):
         self.Z = Z
 
         # Dimensionalization
-
         self.dz = self.dZ * self.axial_length
         self.dy = self.dY * self.betha_s * self.journal_radius
 
         self.Zdim = self.Z * self.axial_length
-
-        self.oil_flow_v = self.oil_flow_v / 60000
 
         # lubricant_properties = lubricants_dict[self.lubricant]
         lubricant_properties = (
@@ -279,48 +269,42 @@ class THDCylindrical(BearingElement):
         self.Cp = lubricant_properties["liquid_specific_heat"]
         self.k_t = lubricant_properties["liquid_thermal_conductivity"]
 
-        # Interpolation coefficients
-        self.a, self.b = self._interpol(T_muI, T_muF, mu_I, mu_F)
+        # Interpolation for viscosity
+        a, b = self._get_interp_coeffs(
+            T_muI, T_muF, mu_I, mu_F
+        )  # Interpolation coefficients
+        self.interpolate = lambda reference: a * (
+            reference**b
+        )  # Interpolation function
+        self.reference_viscosity = self.interpolate(self.reference_temperature)
 
-        self.reference_viscosity = self.a * (self.reference_temperature**self.b)
+        # if self.geometry == "lobe":
+        self.theta_pivot = np.array([90, 270]) * np.pi / 180
 
-        if self.geometry == "lobe":
-            self.theta_pivot = np.array([90, 270]) * np.pi / 180
+        n_freq = np.shape(frequency)[0]
 
-        number_of_freq = np.shape(frequency)[0]
+        kxx = np.zeros(n_freq)
+        kxy = np.zeros(n_freq)
+        kyx = np.zeros(n_freq)
+        kyy = np.zeros(n_freq)
 
-        kxx = np.zeros(number_of_freq)
-        kxy = np.zeros(number_of_freq)
-        kyx = np.zeros(number_of_freq)
-        kyy = np.zeros(number_of_freq)
+        cxx = np.zeros(n_freq)
+        cxy = np.zeros(n_freq)
+        cyx = np.zeros(n_freq)
+        cyy = np.zeros(n_freq)
 
-        cxx = np.zeros(number_of_freq)
-        cxy = np.zeros(number_of_freq)
-        cyx = np.zeros(number_of_freq)
-        cyy = np.zeros(number_of_freq)
-
-        for ii in range(number_of_freq):
-            self.frequency = frequency[ii]
+        for i in range(n_freq):
+            self.frequency = frequency[i]
 
             self.run()
 
-            coefs = self.coefficients()
-            stiff = True
-            for coef in coefs:
-                if stiff:
-                    kxx[ii] = coef[0]
-                    kxy[ii] = coef[1]
-                    kyx[ii] = coef[2]
-                    kyy[ii] = coef[3]
+            coeffs = self.coefficients()
+            kxx[i], kxy[i], kyx[i], kyy[i] = coeffs[0]
+            cxx[i], cxy[i], cyx[i], cyy[i] = coeffs[1]
 
-                    stiff = False
-                else:
-                    cxx[ii] = coef[0]
-                    cxy[ii] = coef[1]
-                    cyx[ii] = coef[2]
-                    cyy[ii] = coef[3]
-
-        super().__init__(n, kxx, cxx, kyy, kxy, kyx, cyy, cxy, cyx, frequency=frequency, **kwargs)
+        super().__init__(
+            n, kxx, cxx, kyy, kxy, kyx, cyy, cxy, cyx, frequency=frequency, **kwargs
+        )
 
     def _flooded(self, n_p, Mat_coef, b_P, mu, initial_guess, y0):
         """Provides an analysis in which the bearing always receive sufficient oil feed to operate.
@@ -1074,9 +1058,7 @@ class THDCylindrical(BearingElement):
                 kj = 0
                 ki = ki + 1
 
-            self.erro = np.linalg.norm(p - p_old) + np.linalg.norm(
-                self.theta_vol - theta_vol_old
-            )
+            self.erro = norm(p - p_old) + norm(self.theta_vol - theta_vol_old)
 
         cont = 0
 
@@ -1102,7 +1084,7 @@ class THDCylindrical(BearingElement):
 
         return self.P
 
-    def _forces(self, initial_guess, y0, xpt0, ypt0):
+    def _forces(self, initial_guess, y0=None, xpt0=None, ypt0=None):
         """Calculates the forces in Y and X direction.
 
         Parameters
@@ -1247,9 +1229,7 @@ class THDCylindrical(BearingElement):
                 T_ref = T_mist[n_p]
 
                 while (
-                    np.linalg.norm(T_new[:, :, n_p] - T[:, :, n_p])
-                    / np.linalg.norm(T[:, :, n_p])
-                    >= 0.01
+                    norm(T_new[:, :, n_p] - T[:, :, n_p]) / norm(T[:, :, n_p]) >= 0.01
                 ):
                     T_ref = T_mist[n_p]
 
@@ -1763,8 +1743,8 @@ class THDCylindrical(BearingElement):
                         )
 
                     mu_new[:, :, n_p] = (
-                        self.a * (Tdim[:, :, n_p]) ** self.b
-                    ) / self.reference_viscosity
+                        self.interpolate(Tdim[:, :, n_p]) / self.reference_viscosity
+                    )
 
             if self.operating_type == "starvation":
                 for n_p in np.arange(self.n_pad):
@@ -1876,7 +1856,7 @@ class THDCylindrical(BearingElement):
         if self.print_time:
             print(f"Time Spent: {t2-t1} seconds")
 
-    def _interpol(self, T_muI, T_muF, mu_I, mu_F):
+    def _get_interp_coeffs(self, T_muI, T_muF, mu_I, mu_F):
         """
         This method is used to create a relationship between viscosity and
         temperature.
@@ -1894,8 +1874,8 @@ class THDCylindrical(BearingElement):
 
         Returns
         -------
-        a,b: Float
-            Coeficients of the curve viscosity vs temperature.
+        a, b: Float
+            Coefficients of the curve viscosity vs temperature.
         """
 
         def viscosity(x, a, b):
@@ -1936,7 +1916,7 @@ class THDCylindrical(BearingElement):
             elif self.method == "perturbation":
                 k, c = self._pertubation_method()
 
-            if self.show_coef:
+            if self.show_coeffs:
                 print(f"kxx = {k[0]}")
                 print(f"kxy = {k[1]}")
                 print(f"kyx = {k[2]}")
@@ -2017,35 +1997,17 @@ class THDCylindrical(BearingElement):
             / (epiypt / self.radial_clearance / self.frequency)
         )
 
-        kxx = (
-            np.sqrt((self.fxs_load**2) + (self.fys_load**2)) / self.radial_clearance
-        ) * Kxx
-        kxy = (
-            np.sqrt((self.fxs_load**2) + (self.fys_load**2)) / self.radial_clearance
-        ) * Kxy
-        kyx = (
-            np.sqrt((self.fxs_load**2) + (self.fys_load**2)) / self.radial_clearance
-        ) * Kyx
-        kyy = (
-            np.sqrt((self.fxs_load**2) + (self.fys_load**2)) / self.radial_clearance
-        ) * Kyy
+        ratio = np.sqrt((self.fxs_load**2) + (self.fys_load**2)) / self.radial_clearance
 
-        cxx = (
-            np.sqrt((self.fxs_load**2) + (self.fys_load**2))
-            / (self.radial_clearance * self.frequency)
-        ) * Cxx
-        cxy = (
-            np.sqrt((self.fxs_load**2) + (self.fys_load**2))
-            / (self.radial_clearance * self.frequency)
-        ) * Cxy
-        cyx = (
-            np.sqrt((self.fxs_load**2) + (self.fys_load**2))
-            / (self.radial_clearance * self.frequency)
-        ) * Cyx
-        cyy = (
-            np.sqrt((self.fxs_load**2) + (self.fys_load**2))
-            / (self.radial_clearance * self.frequency)
-        ) * Cyy
+        kxx = ratio * Kxx
+        kxy = ratio * Kxy
+        kyx = ratio * Kyx
+        kyy = ratio * Kyy
+
+        cxx = ratio * Cxx
+        cxy = ratio * Cxy
+        cyx = ratio * Cyx
+        cyy = ratio * Cyy
 
         return (kxx, kxy, kyx, kyy), (cxx, cxy, cyx, cyy)
 
@@ -2826,7 +2788,7 @@ class THDCylindrical(BearingElement):
                     kj = 0
                     ki = ki + 1
 
-                erro = np.linalg.norm(PX - PX_old) + np.linalg.norm(PY - PY_old)
+                erro = norm(PX - PX_old) + norm(PY - PY_old)
 
         PXdim = (
             PX
@@ -2929,7 +2891,7 @@ class THDCylindrical(BearingElement):
 
         """
 
-        Fhx, Fhy = self._forces(x, None, None, None)
+        Fhx, Fhy = self._forces(x)
         score = np.sqrt(((self.fxs_load + Fhx) ** 2) + ((self.fys_load + Fhy) ** 2))
         if print_progress:
             print(x)
@@ -2978,7 +2940,7 @@ class THDCylindrical(BearingElement):
                 * (np.sqrt((force_x**2) + (force_y**2)))
             )
 
-        Ss = S * ((self.axial_length / (2 * self.journal_radius)) ** 2)
+        # Ss = S * ((self.axial_length / (2 * self.journal_radius)) ** 2)
         Ss = S
 
         return Ss
