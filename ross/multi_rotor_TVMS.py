@@ -8,6 +8,8 @@ from ross.gear_mesh_TVMS import GearElementTVMS, Mesh
 import time
 from ross.units import Q_
 import plotly.io as pio
+import numpy as np
+import matplotlib.pyplot as plt
 
 import plotly.io as pio
 #pio.renderers.default = "vscode"
@@ -674,7 +676,7 @@ def two_shaft_rotor_example(run_type: str):
 
 
 def main_example() -> None:
-    run_type = 'interpolation'
+    run_type = 'user_defined'
     rotor = two_shaft_rotor_example(run_type=run_type)
     #figure = rotor.plot_rotor().show()
 
@@ -702,8 +704,39 @@ def main_example() -> None:
     start_time=time.time()
     tr = rotor.run_time_response(speed1, F, t, method='newmark', progress_interval=0.1)
 
+
     end_time = time.time()
     print(f'Time to run:{end_time - start_time}')
+
+    node = 3
+    dof_node_torsional = node * rotor.number_dof + 5
+    fft_yout = tr.yout[:,dof_node_torsional]
+    
+
+    fft_time = t[t>=0.3]
+    fft_yout = fft_yout[t>=0.3]
+
+
+    dft = np.abs(np.fft.fft(fft_yout))
+    dft_freq = np.fft.fftfreq(len(fft_time), d=dt)
+    dft_freq = dft_freq[dft_freq>0]
+
+    plt.figure(figsize=(8, 4))  # tamanho adequado para publicação (em polegadas)
+
+    plt.plot(dft_freq, np.log(dft[:len(dft_freq)]), color='black', linewidth=1.5, label='DFT Amplitude')
+
+    plt.grid(True, which='both', linestyle='--', linewidth=0.5, alpha=0.7)  # grade discreta
+    plt.xlabel('Frequency [Hz]', fontsize=12)
+    plt.ylabel('Amplitude', fontsize=12)
+    plt.xticks(fontsize=10)
+    plt.yticks(fontsize=10)
+
+    plt.tick_params(direction='in', length=6, width=1)  # visibilidade dos ticks
+    plt.box(True)  # garante contorno visível do gráfico
+    plt.tight_layout()  # evita cortes de texto ao salvar
+
+    plt.legend(loc='best', fontsize=10)
+    plt.show()
     probe1 = rs.Probe(3, 0)  # node 3, orientation 0° (X dir.)
     probe2 = rs.Probe(7, np.pi/2)  # node 3, orientation 90°(Y dir.)
 
@@ -711,7 +744,7 @@ def main_example() -> None:
     #data.to_csv(f"C:\\gear_freq_data\\TVMS_w{speed1/2/np.pi:.2f}Hz_dt{dt:.3e}s_t{np.max(t):.2f}s_{run_type}.csv")
 
 #   fig3= tr.plot_1d(probe=[probe1, probe2])
-    fig3= tr.plot_3d()
+    fig3= tr.plot_dfft()
     fig3.show()
 
 if __name__ == "__main__":

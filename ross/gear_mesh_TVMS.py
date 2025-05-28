@@ -1290,8 +1290,9 @@ class Mesh:
         if self.interpolation == True: # Runs the time dependency for one period of double-single mesh
 
             if hasattr(self, 'already_interpolated') == False: # Case 1: If it had never evaluated the stiffness
-
-                dt = (2 * np.pi) / (100 * self.gear_input.n_tooth * gear_input_speed)
+                if (2 * np.pi) / (100 * self.gear_input.n_tooth * gear_input_speed) < 1e-5:
+                    dt = (2 * np.pi) / (100 * self.gear_input.n_tooth * gear_input_speed)
+                dt = 1e-5
                 t_interpol, double_contact, single_contact = self._time_stiffness(gear_input_speed, dt)
 
                 mask_double_contact     = double_contact > 0 
