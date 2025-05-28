@@ -633,8 +633,8 @@ class THDCylindrical(BearingElement):
         self.P : np.array
             Pressure distribution in current pad vector.
         """
-
-        while self.erro >= 0.01:
+        erro = 1
+        while erro >= 0.01:
             p_old = np.array(p)
 
             theta_vol_old = np.array(self.theta_vol)
@@ -1137,14 +1137,6 @@ class THDCylindrical(BearingElement):
             self.Xpt = xpt0 / (self.radial_clearance * self.frequency)
             self.Ypt = ypt0 / (self.radial_clearance * self.frequency)
 
-        T_conv = 0.8 * self.reference_temperature
-
-        T_mist = self.reference_temperature * np.ones(self.n_pad)
-
-        Reyn = np.zeros(
-            (self.elements_axial, self.elements_circumferential, self.n_pad)
-        )
-
         pad_ct = [ang for ang in range(0, 360, int(360 / self.n_pad))]
 
         self.thetaI = np.radians(
@@ -1155,601 +1147,180 @@ class THDCylindrical(BearingElement):
             [pad + (180 / self.n_pad) + (self.betha_s_dg / 2) for pad in pad_ct]
         )
 
-        Ytheta = [
-            np.linspace(
-                t1 + self.dtheta / 2,
-                t2 - self.dtheta / 2,
-                self.elements_circumferential,
-            )
-            for t1, t2 in zip(self.thetaI, self.thetaF)
-        ]
-
         self.theta_vol_groove = 0.8 * np.ones(self.n_pad)
 
+        shape_2d = (self.elements_axial, self.elements_circumferential)
+        shape_3d = (self.elements_axial, self.elements_circumferential, self.n_pad)
+        nk = self.elements_axial * self.elements_circumferential
+
         T_end = np.ones(self.n_pad)
+        T_conv = 0.8 * self.reference_temperature
+        T_mist = self.reference_temperature * np.ones(self.n_pad)
+        self.Pdim = np.zeros(shape_3d)
 
         while (T_mist[0] - T_conv) >= 0.5:
-            H_PLOT = np.zeros((self.elements_circumferential, self.n_pad))
-            nk = (self.elements_axial) * (self.elements_circumferential)
-            self.P = np.zeros(
-                (self.elements_axial, self.elements_circumferential, self.n_pad)
-            )
-            dPdy = np.zeros(
-                (self.elements_axial, self.elements_circumferential, self.n_pad)
-            )
-            dPdz = np.zeros(
-                (self.elements_axial, self.elements_circumferential, self.n_pad)
-            )
-            T = np.ones(
-                (self.elements_axial, self.elements_circumferential, self.n_pad)
-            )
-            T_new = (
-                np.ones(
-                    (self.elements_axial, self.elements_circumferential, self.n_pad)
-                )
-                * 1.2
-            )
-
-            self.Theta_vol = np.zeros(
-                (self.elements_axial, self.elements_circumferential, self.n_pad)
-            )
-
-            mu_new = 1.1 * np.ones(
-                (self.elements_axial, self.elements_circumferential, self.n_pad)
-            )
-            mu_turb = 1.3 * np.ones(
-                (self.elements_axial, self.elements_circumferential, self.n_pad)
-            )
-
             T_conv = T_mist[0]
+
+            self.P = np.zeros(shape_3d)
+            T = np.ones(shape_3d)
+            Tdim = np.ones(shape_3d)
+            T_new = np.ones(shape_3d) * 1.2
+
+            self.Theta_vol = np.zeros(shape_3d)
+
+            mu_new = 1.1 * np.ones(shape_3d)
+            mu_turb = 1.3 * np.ones(shape_3d)
 
             self.H = np.ones((self.elements_circumferential, self.n_pad))
 
-            U = 0.5 * np.ones(
-                (self.elements_axial, self.elements_circumferential, self.n_pad)
-            )
-
-            self.V = np.zeros(
-                (self.elements_axial, self.elements_circumferential, self.n_pad)
-            )
+            U = 0.5 * np.ones(shape_3d)
 
             self.Qedim = np.ones(self.n_pad)
-
             self.Qsdim = np.ones(self.n_pad)
-
             self.Qldim = np.ones(self.n_pad)
 
             b_T = np.zeros((nk, 1))
-
             b_P = np.zeros((nk, 1))
-
             Mat_coef = np.zeros((nk, nk))  # Coeficients matrix
-
-            B = np.zeros((nk, 1))  # Termo fonte for pressure
+            B = np.zeros((nk, 1))  # Source term for pressure
 
             for n_p in np.arange(self.n_pad):
                 T_ref = T_mist[n_p]
+
+                theta_range = np.arange(
+                    self.thetaI[n_p] + (self.dtheta / 2),
+                    self.thetaF[n_p],
+                    self.dtheta,
+                )
 
                 while (
                     norm(T_new[:, :, n_p] - T[:, :, n_p]) / norm(T[:, :, n_p]) >= 0.01
                 ):
                     T_ref = T_mist[n_p]
-
-                    mu = mu_new
-
+                    T[:, :, n_p] = T_new[:, :, n_p]
                     self.mu_l = mu_new
 
-                    T[:, :, n_p] = T_new[:, :, n_p]
+                    if self.operating_type == "flooded":
+                        Mat_coef, b_P = _flooded(
+                            Mat_coef,
+                            b_P,
+                            self.H[:, n_p],
+                            self.mu_l[:, :, n_p],
+                            theta_range,
+                            self.dtheta,
+                            self.elements_axial,
+                            self.elements_circumferential,
+                            self.X,
+                            self.Y,
+                            self.dY,
+                            self.dZ,
+                            self.Xpt,
+                            self.Ypt,
+                            self.betha_s,
+                            self.axial_length,
+                            self.journal_radius,
+                            self.geometry,
+                            self.preload,
+                            self.theta_pivot[n_p],
+                        )
 
-                    self.erro = 1
+                        P_sol = _solve(Mat_coef, b_P)
+                        P_sol = np.where(P_sol < 0, 0, P_sol).reshape(shape_2d)
 
-                    p_old = np.zeros((nk, 1))
+                    elif self.operating_type == "starvation":
+                        theta_vol = np.zeros((nk, 1))  # Theta volumetric vector
+                        Mat_coef_st = np.zeros((nk, nk))  # Coeficients matrix
+                        B_theta = np.zeros((nk, 1))
+                        p = np.ones((nk, 1))  # Pressure vector
 
-                    self.theta_vol = np.zeros((nk, 1))  # Theta volumetric vector
+                        P_sol, theta_vol = _starvation(
+                            p,
+                            Mat_coef_st,
+                            B,
+                            B_theta,
+                            self.H[:, n_p],
+                            self.mu_l[:, :, n_p],
+                            theta_vol,
+                            self.theta_vol_groove[n_p],
+                            theta_range,
+                            self.dtheta,
+                            self.elements_axial,
+                            self.elements_circumferential,
+                            self.X,
+                            self.Y,
+                            self.dY,
+                            self.dZ,
+                            self.Xpt,
+                            self.Ypt,
+                            self.betha_s,
+                            self.oil_supply_pressure,
+                            self.axial_length,
+                            self.journal_radius,
+                            self.geometry,
+                            self.preload,
+                            self.theta_pivot[n_p],
+                        )
 
-                    Mat_coef_st = np.zeros((nk, nk))  # Coeficients matrix
+                        self.Theta_vol[:, :, n_p] = theta_vol
+
+                    self.P[:, :, n_p] = P_sol
+
+                    self.Pdim[:, :, n_p] = (
+                        P_sol
+                        * self.reference_viscosity
+                        * self.frequency
+                        * (self.journal_radius**2)
+                    ) / (self.radial_clearance**2)
 
                     Mat_coef_T = np.zeros((nk, nk))
 
-                    p = np.ones((nk, 1))  # Pressure vector
+                    Mat_coef_T, b_T = _temperature(
+                        Mat_coef_T,
+                        b_T,
+                        T_ref,
+                        self.P[:, :, n_p],
+                        U[:, :, n_p],
+                        self.H[:, n_p],
+                        self.Theta_vol[:, :, n_p],
+                        theta_range,
+                        self.mu_l[:, :, n_p],
+                        mu_turb[:, :, n_p],
+                        self.frequency,
+                        self.reference_temperature,
+                        self.reference_viscosity,
+                        self.rho,
+                        self.Cp,
+                        self.k_t,
+                        self.elements_axial,
+                        self.elements_circumferential,
+                        self.dY,
+                        self.dZ,
+                        self.Xpt,
+                        self.Ypt,
+                        self.betha_s,
+                        self.axial_length,
+                        self.journal_radius,
+                        self.radial_clearance,
+                        self.operating_type,
+                    )
 
-                    B_theta = np.zeros((nk, 1))
-
-                    if self.operating_type == "flooded":
-                        self._flooded(n_p, Mat_coef, b_P, mu, initial_guess, y0)
-
-                    elif self.operating_type == "starvation":
-                        self._starvation(
-                            n_p,
-                            Mat_coef_st,
-                            mu,
-                            p_old,
-                            p,
-                            B,
-                            B_theta,
-                            nk,
-                            initial_guess,
-                            y0,
-                            xpt0,
-                            ypt0,
-                        )
-
-                    ki = 0
-                    kj = 0
-                    k = 0
-
-                    # Solution of temperature field initialization
-
-                    for ii in np.arange(
-                        (self.Z_I + 0.5 * self.dZ), (self.Z_F), self.dZ
-                    ):
-                        for jj in np.arange(
-                            self.thetaI[n_p] + (self.dtheta / 2),
-                            self.thetaF[n_p],
-                            self.dtheta,
-                        ):
-                            # Pressure gradients
-
-                            if kj == 0 and ki == 0:
-                                dPdy[ki, kj, n_p] = (self.P[ki, kj + 1, n_p] - 0) / (
-                                    2 * self.dY
-                                )
-                                dPdz[ki, kj, n_p] = (self.P[ki + 1, kj, n_p] - 0) / (
-                                    2 * self.dZ
-                                )
-
-                            if kj == 0 and ki > 0 and ki < self.elements_axial - 1:
-                                dPdy[ki, kj, n_p] = (self.P[ki, kj + 1, n_p] - 0) / (
-                                    2 * self.dY
-                                )
-                                dPdz[ki, kj, n_p] = (
-                                    self.P[ki + 1, kj, n_p] - self.P[ki - 1, kj, n_p]
-                                ) / (2 * self.dZ)
-
-                            if kj == 0 and ki == self.elements_axial - 1:
-                                dPdy[ki, kj, n_p] = (self.P[ki, kj + 1, n_p] - 0) / (
-                                    2 * self.dY
-                                )
-                                dPdz[ki, kj, n_p] = (0 - self.P[ki - 1, kj, n_p]) / (
-                                    2 * self.dZ
-                                )
-
-                            if (
-                                ki == 0
-                                and kj > 0
-                                and kj < self.elements_circumferential - 1
-                            ):
-                                dPdy[ki, kj, n_p] = (
-                                    self.P[ki, kj + 1, n_p] - self.P[ki, kj - 1, n_p]
-                                ) / (2 * self.dY)
-                                dPdz[ki, kj, n_p] = (self.P[ki + 1, kj, n_p] - 0) / (
-                                    2 * self.dZ
-                                )
-
-                            if (
-                                kj > 0
-                                and kj < self.elements_circumferential - 1
-                                and ki > 0
-                                and ki < self.elements_axial - 1
-                            ):
-                                dPdy[ki, kj, n_p] = (
-                                    self.P[ki, kj + 1, n_p] - self.P[ki, kj - 1, n_p]
-                                ) / (2 * self.dY)
-                                dPdz[ki, kj, n_p] = (
-                                    self.P[ki + 1, kj, n_p] - self.P[ki - 1, kj, n_p]
-                                ) / (2 * self.dZ)
-
-                            if (
-                                ki == self.elements_axial - 1
-                                and kj > 0
-                                and kj < self.elements_circumferential - 1
-                            ):
-                                dPdy[ki, kj, n_p] = (
-                                    self.P[ki, kj + 1, n_p] - self.P[ki, kj - 1, n_p]
-                                ) / (2 * self.dY)
-                                dPdz[ki, kj, n_p] = (0 - self.P[ki - 1, kj, n_p]) / (
-                                    2 * self.dZ
-                                )
-
-                            if ki == 0 and kj == self.elements_circumferential - 1:
-                                dPdy[ki, kj, n_p] = (0 - self.P[ki, kj - 1, n_p]) / (
-                                    2 * self.dY
-                                )
-                                dPdz[ki, kj, n_p] = (self.P[ki + 1, kj, n_p] - 0) / (
-                                    2 * self.dZ
-                                )
-
-                            if (
-                                kj == self.elements_circumferential - 1
-                                and ki > 0
-                                and ki < self.elements_axial - 1
-                            ):
-                                dPdy[ki, kj, n_p] = (0 - self.P[ki, kj - 1, n_p]) / (
-                                    2 * self.dY
-                                )
-                                dPdz[ki, kj, n_p] = (
-                                    self.P[ki + 1, kj, n_p] - self.P[ki - 1, kj, n_p]
-                                ) / (2 * self.dZ)
-
-                            if (
-                                kj == self.elements_circumferential - 1
-                                and ki == self.elements_axial - 1
-                            ):
-                                dPdy[ki, kj, n_p] = (0 - self.P[ki, kj - 1, n_p]) / (
-                                    2 * self.dY
-                                )
-                                dPdz[ki, kj, n_p] = (0 - self.P[ki - 1, kj, n_p]) / (
-                                    2 * self.dZ
-                                )
-
-                            if self.geometry == "circular":
-                                HP = 1 - self.X * np.cos(jj) - self.Y * np.sin(jj)
-
-                            else:
-                                if self.geometry == "lobe":
-                                    HP = (
-                                        1 / (1 - self.preload)
-                                        - self.X * np.cos(jj)
-                                        - self.Y * np.sin(jj)
-                                        - self.preload
-                                        / (1 - self.preload)
-                                        * np.cos(jj - self.theta_pivot[n_p])
-                                    )
-
-                                if self.geometry == "elliptical":
-                                    HP = (
-                                        1
-                                        - self.X * np.cos(jj)
-                                        - self.Y * np.sin(jj)
-                                        + self.preload
-                                        / (1 - self.preload)
-                                        * (np.cos(jj)) ** 2
-                                    )
-
-                            if ki == 0:
-                                H_PLOT[kj, n_p] = HP
-
-                            hpt = -self.Xpt * np.cos(jj) - self.Ypt * np.sin(jj)
-
-                            self.H[kj, n_p] = HP
-
-                            mu_p = mu[ki, kj, n_p]
-
-                            if self.operating_type == "starvation":
-                                Reyn[ki, kj, n_p] = (
-                                    self.Theta_vol[ki, kj, n_p]
-                                    * self.rho
-                                    * self.frequency
-                                    * self.journal_radius
-                                    * (HP / self.axial_length)
-                                    * self.radial_clearance
-                                    / (self.reference_viscosity * mu_p)
-                                )
-
-                            else:
-                                Reyn[ki, kj, n_p] = (
-                                    self.rho
-                                    * self.frequency
-                                    * self.journal_radius
-                                    * (HP / self.axial_length)
-                                    * self.radial_clearance
-                                    / (self.reference_viscosity * mu_p)
-                                )
-
-                            if Reyn[ki, kj, n_p] <= 500:
-                                self.delta_turb = 0
-
-                            elif Reyn[ki, kj, n_p] > 500 and Reyn[ki, kj, n_p] <= 1000:
-                                self.delta_turb = 1 - (
-                                    (1000 - Reyn[ki, kj, n_p]) / 500
-                                ) ** (1 / 8)
-
-                            elif Reyn[ki, kj, n_p] > 1000:
-                                self.delta_turb = 1
-
-                            dudy = ((HP / mu_turb[ki, kj, n_p]) * dPdy[ki, kj, n_p]) - (
-                                self.frequency / HP
-                            )
-
-                            dwdy = (HP / mu_turb[ki, kj, n_p]) * dPdz[ki, kj, n_p]
-
-                            tal = mu_turb[ki, kj, n_p] * np.sqrt((dudy**2) + (dwdy**2))
-
-                            x_wall = (
-                                (HP * self.radial_clearance * 2)
-                                / (
-                                    self.reference_viscosity
-                                    * mu_turb[ki, kj, n_p]
-                                    / self.rho
-                                )
-                            ) * ((abs(tal) / self.rho) ** 0.5)
-
-                            emv = 0.4 * (x_wall - (10.7 * np.tanh(x_wall / 10.7)))
-
-                            mu_turb[ki, kj, n_p] = mu_p * (1 + (self.delta_turb * emv))
-
-                            mi_t = mu_turb[ki, kj, n_p]
-
-                            U[ki, kj, n_p] = (
-                                -(HP**2)
-                                / (12 * mi_t * self.betha_s)
-                                * dPdy[ki, kj, n_p]
-                                + 1 / 2
-                            )
-
-                            AE = -(self.k_t * HP * self.dZ) / (
-                                self.rho
-                                * self.Cp
-                                * self.frequency
-                                * ((self.betha_s * self.journal_radius) ** 2)
-                                * self.dY
-                            )
-                            AW = (
-                                (
-                                    ((HP**3) * dPdy[ki, kj, n_p] * self.dZ)
-                                    / (12 * mi_t * (self.betha_s**2))
-                                )
-                                - ((HP) * self.dZ / (2 * self.betha_s))
-                                - (
-                                    (self.k_t * HP * self.dZ)
-                                    / (
-                                        self.rho
-                                        * self.Cp
-                                        * self.frequency
-                                        * ((self.betha_s * self.journal_radius) ** 2)
-                                        * self.dY
-                                    )
-                                )
-                            )
-
-                            AN = -(
-                                (
-                                    (self.journal_radius**2)
-                                    * (HP**3)
-                                    * (dPdz[ki, kj, n_p] * self.dY)
-                                )
-                                / (2 * 12 * (self.axial_length**2) * mi_t)
-                            ) - (
-                                (self.k_t * HP * self.dY)
-                                / (
-                                    self.rho
-                                    * self.Cp
-                                    * self.frequency
-                                    * (self.axial_length**2)
-                                    * self.dZ
-                                )
-                            )
-
-                            AS = (
-                                (
-                                    (self.journal_radius**2)
-                                    * (HP**3)
-                                    * (dPdz[ki, kj, n_p] * self.dY)
-                                )
-                                / (2 * 12 * (self.axial_length**2) * mi_t)
-                            ) - (
-                                (self.k_t * HP * self.dY)
-                                / (
-                                    self.rho
-                                    * self.Cp
-                                    * self.frequency
-                                    * (self.axial_length**2)
-                                    * self.dZ
-                                )
-                            )
-
-                            AP = -(AE + AW + AN + AS)
-
-                            auxb_T = (self.frequency * self.reference_viscosity) / (
-                                self.rho
-                                * self.Cp
-                                * self.reference_temperature
-                                * self.radial_clearance
-                            )
-                            b_TG = (
-                                self.reference_viscosity
-                                * self.frequency
-                                * (self.journal_radius**2)
-                                * self.dY
-                                * self.dZ
-                                * self.P[ki, kj, n_p]
-                                * hpt
-                            ) / (
-                                self.rho
-                                * self.Cp
-                                * self.reference_temperature
-                                * (self.radial_clearance**2)
-                            )
-                            b_TH = (
-                                self.frequency
-                                * self.reference_viscosity
-                                * (hpt**2)
-                                * 4
-                                * mi_t
-                                * self.dY
-                                * self.dZ
-                            ) / (
-                                self.rho * self.Cp * self.reference_temperature * 3 * HP
-                            )
-                            b_TI = (
-                                auxb_T
-                                * (mi_t * (self.journal_radius**2) * self.dY * self.dZ)
-                                / (HP * self.radial_clearance)
-                            )
-                            b_TJ = (
-                                auxb_T
-                                * (
-                                    (self.journal_radius**2)
-                                    * (HP**3)
-                                    * (dPdy[ki, kj, n_p] ** 2)
-                                    * self.dY
-                                    * self.dZ
-                                )
-                                / (
-                                    12
-                                    * self.radial_clearance
-                                    * (self.betha_s**2)
-                                    * mi_t
-                                )
-                            )
-                            b_TK = (
-                                auxb_T
-                                * (
-                                    (self.journal_radius**4)
-                                    * (HP**3)
-                                    * (dPdz[ki, kj, n_p] ** 2)
-                                    * self.dY
-                                    * self.dZ
-                                )
-                                / (
-                                    12
-                                    * self.radial_clearance
-                                    * (self.axial_length**2)
-                                    * mi_t
-                                )
-                            )
-
-                            B_T = b_TG + b_TH + b_TI + b_TJ + b_TK
-
-                            k = k + 1
-
-                            b_T[k - 1, 0] = B_T
-
-                            if ki == 0 and kj == 0:
-                                Mat_coef_T[k - 1, k - 1] = AP + AS - AW
-                                Mat_coef_T[k - 1, k] = AE
-                                Mat_coef_T[
-                                    k - 1, k + self.elements_circumferential - 1
-                                ] = AN
-                                b_T[k - 1, 0] = b_T[k - 1, 0] - 2 * AW * (
-                                    T_ref / self.reference_temperature
-                                )
-
-                            elif kj == 0 and ki > 0 and ki < self.elements_axial - 1:
-                                Mat_coef_T[k - 1, k - 1] = AP - AW
-                                Mat_coef_T[k - 1, k] = AE
-                                Mat_coef_T[
-                                    k - 1, k - self.elements_circumferential - 1
-                                ] = AS
-                                Mat_coef_T[
-                                    k - 1, k + self.elements_circumferential - 1
-                                ] = AN
-                                b_T[k - 1, 0] = b_T[k - 1, 0] - 2 * AW * (
-                                    T_ref / self.reference_temperature
-                                )
-
-                            elif kj == 0 and ki == self.elements_axial - 1:
-                                Mat_coef_T[k - 1, k - 1] = AP + AN - AW
-                                Mat_coef_T[k - 1, k] = AE
-                                Mat_coef_T[
-                                    k - 1, k - self.elements_circumferential - 1
-                                ] = AS
-                                b_T[k - 1, 0] = b_T[k - 1, 0] - 2 * AW * (
-                                    T_ref / self.reference_temperature
-                                )
-
-                            elif (
-                                ki == 0
-                                and kj > 0
-                                and kj < self.elements_circumferential - 1
-                            ):
-                                Mat_coef_T[k - 1, k - 1] = AP + AS
-                                Mat_coef_T[k - 1, k] = AE
-                                Mat_coef_T[k - 1, k - 2] = AW
-                                Mat_coef_T[
-                                    k - 1, k + self.elements_circumferential - 1
-                                ] = AN
-
-                            elif (
-                                ki > 0
-                                and ki < self.elements_axial - 1
-                                and kj > 0
-                                and kj < self.elements_circumferential - 1
-                            ):
-                                Mat_coef_T[k - 1, k - 1] = AP
-                                Mat_coef_T[k - 1, k - 2] = AW
-                                Mat_coef_T[
-                                    k - 1, k - self.elements_circumferential - 1
-                                ] = AS
-                                Mat_coef_T[
-                                    k - 1, k + self.elements_circumferential - 1
-                                ] = AN
-                                Mat_coef_T[k - 1, k] = AE
-
-                            elif (
-                                ki == self.elements_axial - 1
-                                and kj > 0
-                                and kj < self.elements_circumferential - 1
-                            ):
-                                Mat_coef_T[k - 1, k - 1] = AP + AN
-                                Mat_coef_T[k - 1, k] = AE
-                                Mat_coef_T[k - 1, k - 2] = AW
-                                Mat_coef_T[
-                                    k - 1, k - self.elements_circumferential - 1
-                                ] = AS
-
-                            elif ki == 0 and kj == self.elements_circumferential - 1:
-                                Mat_coef_T[k - 1, k - 1] = AP + AE + AS
-                                Mat_coef_T[k - 1, k - 2] = AW
-                                Mat_coef_T[
-                                    k - 1, k + self.elements_circumferential - 1
-                                ] = AN
-
-                            elif (
-                                kj == self.elements_circumferential - 1
-                                and ki > 0
-                                and ki < self.elements_axial - 1
-                            ):
-                                Mat_coef_T[k - 1, k - 1] = AP + AE
-                                Mat_coef_T[k - 1, k - 2] = AW
-                                Mat_coef_T[
-                                    k - 1, k - self.elements_circumferential - 1
-                                ] = AS
-                                Mat_coef_T[
-                                    k - 1, k + self.elements_circumferential - 1
-                                ] = AN
-
-                            elif (
-                                ki == self.elements_axial - 1
-                                and kj == self.elements_circumferential - 1
-                            ):
-                                Mat_coef_T[k - 1, k - 1] = AP + AE + AN
-                                Mat_coef_T[k - 1, k - 2] = AW
-                                Mat_coef_T[
-                                    k - 1, k - self.elements_circumferential - 1
-                                ] = AS
-
-                            kj = kj + 1
-
-                        kj = 0
-                        ki = ki + 1
-
-                    # Solution of temperature field end
-
-                    t = np.linalg.solve(Mat_coef_T, b_T)
-                    cont = 0
-
-                    for i in np.arange(self.elements_axial):
-                        for j in np.arange(self.elements_circumferential):
-                            T_new[i, j, n_p] = t[cont, 0]
-                            cont = cont + 1
-
-                    Tdim = T_new * self.reference_temperature
-
-                    T_end[n_p] = np.sum(Tdim[:, -1, n_p]) / self.elements_axial
-
-                    if self.operating_type == "flooded":
-                        T_mist[n_p - 1] = (
-                            self.fat_mixt[n_p] * self.reference_temperature
-                            + (1 - self.fat_mixt[n_p]) * T_end[n_p]
-                        )
+                    T_sol = _solve(Mat_coef_T, b_T).reshape(shape_2d)
+                    T_new[:, :, n_p] = T_sol
+                    Tdim[:, :, n_p] = T_sol * self.reference_temperature
 
                     mu_new[:, :, n_p] = (
                         self.interpolate(Tdim[:, :, n_p]) / self.reference_viscosity
                     )
 
-            if self.operating_type == "starvation":
-                for n_p in np.arange(self.n_pad):
+                T_end[n_p] = np.sum(Tdim[:, -1, n_p]) / self.elements_axial
+
+                if self.operating_type == "flooded":
+                    T_mist[n_p - 1] = (
+                        self.fat_mixt[n_p] * self.reference_temperature
+                        + (1 - self.fat_mixt[n_p]) * T_end[n_p]
+                    )
+
+                if self.operating_type == "starvation":
                     self.Qedim[n_p] = (
                         self.radial_clearance
                         * self.H[0, n_p]
@@ -1770,65 +1341,47 @@ class THDCylindrical(BearingElement):
                         * (np.mean(U[:, -1, n_p]))
                     )
 
-                geometry_factor = np.ones(self.n_pad)
-
+            if self.operating_type == "starvation":
                 for n_p in np.arange(self.n_pad):
-                    geometry_factor[n_p] = (self.Qedim[n_p] + self.Qsdim[n_p - 1]) / (
+                    geometry_factor = (self.Qedim[n_p] + self.Qsdim[n_p - 1]) / (
                         np.sum(self.Qedim) + np.sum(self.Qsdim)
                     )
 
-                for n_p in np.arange(self.n_pad):
                     T_mist[n_p] = (
                         (self.Qsdim[n_p - 1] * T_end[n_p - 1])
                         + (
                             self.reference_temperature
-                            * geometry_factor[n_p]
+                            * geometry_factor
                             * self.oil_flow_v
                         )
-                    ) / (geometry_factor[n_p] * self.oil_flow_v + self.Qsdim[n_p - 1])
+                    ) / (geometry_factor * self.oil_flow_v + self.Qsdim[n_p - 1])
 
                     self.theta_vol_groove[n_p] = (
                         0.8
-                        * (geometry_factor[n_p] * self.oil_flow_v + self.Qsdim[n_p - 1])
+                        * (geometry_factor * self.oil_flow_v + self.Qsdim[n_p - 1])
                         / self.Qedim[n_p]
                     )
 
                     if self.theta_vol_groove[n_p] > 1:
                         self.theta_vol_groove[n_p] = 1
 
-        PPlot = np.zeros(
-            (self.elements_axial, self.elements_circumferential * self.n_pad)
+        PPlot = self.Pdim.reshape(self.elements_axial, -1, order="F")
+        TPlot = Tdim.reshape(self.elements_axial, -1, order="F")
+
+        Ytheta = np.sort(
+            np.linspace(
+                self.thetaI + self.dtheta / 2,
+                self.thetaF - self.dtheta / 2,
+                self.elements_circumferential,
+            ).ravel()
         )
 
-        TPlot = np.zeros(
-            (self.elements_axial, self.elements_circumferential * self.n_pad)
-        )
+        fx1 = np.trapezoid(PPlot * np.cos(Ytheta), self.journal_radius * Ytheta)
+        fy1 = np.trapezoid(PPlot * np.sin(Ytheta), self.journal_radius * Ytheta)
 
-        for i in range(self.elements_axial):
-            PPlot[i] = self.Pdim[i, :, :].ravel("F")
-            TPlot[i] = Tdim[i, :, :].ravel("F")
-
-        Ytheta = np.array(Ytheta)
-        Ytheta = Ytheta.flatten()
-
-        auxF = np.zeros((2, len(Ytheta)))
-
-        auxF[0, :] = np.cos(Ytheta)
-        auxF[1, :] = np.sin(Ytheta)
-
-        fx1 = np.trapz(PPlot * auxF[0, :], self.journal_radius * Ytheta)
-        Fhx = -np.trapz(fx1, self.axial_length * self.Z[1 : self.elements_axial + 1])
-
-        fy1 = np.trapz(PPlot * auxF[1, :], self.journal_radius * Ytheta)
-        Fhy = -np.trapz(fy1, self.axial_length * self.Z[1 : self.elements_axial + 1])
-        F1 = Fhx
-        F2 = Fhy
-
-        Fhx = F1
-        Fhy = F2
-
-        self.Fhx = Fhx
-        self.Fhy = Fhy
+        z_vals = self.axial_length * self.Z[1:-1]
+        Fhx = -np.trapezoid(fx1, z_vals)
+        Fhy = -np.trapezoid(fy1, z_vals)
 
         return Fhx, Fhy
 
