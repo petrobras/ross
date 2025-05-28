@@ -6,3 +6,4 @@ pandas>=0.23
 plotly>=4.7.0
 xlrd
 pint>=0.18
+methodtools

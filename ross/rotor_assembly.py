@@ -5,6 +5,7 @@ from collections.abc import Iterable
 from copy import copy, deepcopy
 from itertools import chain, cycle
 from pathlib import Path
+from methodtools import lru_cache
 
 import numpy as np
 import pandas as pd
@@ -16,6 +17,7 @@ from scipy import linalg as la
 from scipy import signal as signal
 from scipy.optimize import newton
 from scipy.sparse import linalg as las
+from scipy.integrate import cumulative_trapezoid as integrate
 
 from ross.bearing_seal_element import (
     BallBearingElement,
@@ -449,57 +451,29 @@ class Rotor(object):
             )
 
         # define positions for disks
-        for disk in self.disk_elements:
-            i = self.nodes.index(disk.n)
+        for elm in self.disk_elements:
+            i = self.nodes.index(elm.n)
             z_pos = self.nodes_pos[i]
             y_pos = self.nodes_o_d[i] / 2
-            df.loc[df.tag == disk.tag, "nodes_pos_l"] = z_pos
-            df.loc[df.tag == disk.tag, "nodes_pos_r"] = z_pos
-            df.loc[df.tag == disk.tag, "y_pos"] = y_pos
+            df.loc[df.tag == elm.tag, "nodes_pos_l"] = z_pos
+            df.loc[df.tag == elm.tag, "nodes_pos_r"] = z_pos
+            df.loc[df.tag == elm.tag, "y_pos"] = y_pos
 
         # define positions for bearings
-        # check if there are bearings without location
-        bearings_no_zloc = {
-            b
-            for b in bearing_elements
-            if pd.isna(df.loc[df.tag == b.tag, "nodes_pos_l"]).all()
-        }
-        # cycle while there are bearings without a z location
-        for b in cycle(self.bearing_elements):
-            if bearings_no_zloc:
-                if b in bearings_no_zloc:
-                    # first check if b.n is on list, if not, check for n_link
-                    node_l = df.loc[(df.n_l == b.n) & (df.tag != b.tag), "nodes_pos_l"]
-                    node_r = df.loc[(df.n_r == b.n) & (df.tag != b.tag), "nodes_pos_r"]
-                    if len(node_l) == 0 and len(node_r) == 0:
-                        node_l = df.loc[
-                            (df.n_link == b.n) & (df.tag != b.tag), "nodes_pos_l"
-                        ]
-                        if len(node_l) == 0:
-                            raise ValueError(
-                                f"The following bearing is not connected to the rotor. Check n_link. {b}"
-                            )
-                        node_r = node_l
-                    if len(node_l):
-                        df.loc[df.tag == b.tag, "nodes_pos_l"] = node_l.values[0]
-                        df.loc[df.tag == b.tag, "nodes_pos_r"] = node_l.values[0]
-                        bearings_no_zloc.discard(b)
-                    elif len(node_r):
-                        df.loc[df.tag == b.tag, "nodes_pos_l"] = node_r.values[0]
-                        df.loc[df.tag == b.tag, "nodes_pos_r"] = node_r.values[0]
-                        bearings_no_zloc.discard(b)
+        for elm in self.bearing_elements:
+            if elm.n in self.link_nodes:
+                i = self.nodes.index(
+                    [brg.n for brg in self.bearing_elements if brg.n_link == elm.n][0]
+                )
             else:
-                break
+                i = self.nodes.index(elm.n)
 
-        # TODO fix this so that we don't have to add here every custom bearing class
-        classes = [
-            _class
-            for _class, _ in inspect.getmembers(
-                sys.modules["ross.bearing_seal_element"], inspect.isclass
-            )
-        ]
-        # add custom bearing classes for now
-        classes += ["MaxBrg", "HComb", "Laby3"]
+            z_pos = self.nodes_pos[i]
+            df.loc[df.tag == elm.tag, "nodes_pos_l"] = z_pos
+            df.loc[df.tag == elm.tag, "nodes_pos_r"] = z_pos
+
+        bclass = BearingElement
+        classes = [cls.__name__ for cls in ([bclass] + bclass.get_subclasses())]
 
         dfb = df[df.type.isin(classes)]
         z_positions = [pos for pos in dfb["nodes_pos_l"]]
@@ -712,6 +686,10 @@ class Rotor(object):
                             elm._n = elm.n
                             elm.n_l = elm.n
                             elm.n_r = elm.n + 1
+                        if elm in point_mass_elements:
+                            for brg in bearing_elements:
+                                if elm.n - 1 == brg.n_link:
+                                    brg.n_link += 1
 
             for j in range(i + 1, len(target_elements)):
                 if target_elements[j] == target_elements[i]:
@@ -738,6 +716,7 @@ class Rotor(object):
             tag=self.tag,
         )
 
+    @lru_cache()
     @check_units
     def run_modal(
         self, speed, num_modes=12, sparse=True, synchronous=False, full=False
@@ -1818,6 +1797,40 @@ class Rotor(object):
         Plotting acceleration response
         >>> fig = response.plot(inp=13, out=13, amplitude_units="m/s**2/N")
         """
+
+        if speed_range is not None:
+            speed_range = tuple(speed_range)
+
+        if modes is not None:
+            modes = tuple(modes)
+
+        return self._run_freq_response(
+            speed_range=speed_range,
+            modes=modes,
+            cluster_points=cluster_points,
+            num_modes=num_modes,
+            num_points=num_points,
+            rtol=rtol,
+        )
+
+    @lru_cache()
+    def _run_freq_response(
+        self,
+        speed_range=None,
+        modes=None,
+        cluster_points=False,
+        num_modes=12,
+        num_points=10,
+        rtol=0.005,
+    ):
+        """Frequency response for a mdof system.
+
+        The `run_freq_response()` has been split into two separate methods. This change
+        was made to convert `speed_range` and `modes` to a tuple format and to enable
+        the use of the `@lru_cache()` method, which requires hashable arguments to cache
+        results effectively.
+        """
+
         if speed_range is None:
             if not cluster_points:
                 modal = self.run_modal(0)
@@ -1843,7 +1856,7 @@ class Rotor(object):
             freq_resp=freq_resp,
             velc_resp=velc_resp,
             accl_resp=accl_resp,
-            speed_range=speed_range,
+            speed_range=np.array(speed_range),
             number_dof=self.number_dof,
         )
 
@@ -2010,6 +2023,68 @@ class Rotor(object):
             F0[n0:n1, i] += w**2 * b0
 
         return F0
+
+    def _unbalance_force_over_time(self, node, magnitude, phase, omega, t):
+        """Calculate unbalance forces for each time step.
+
+        This auxiliary function calculates the unbalanced forces by taking
+        into account the magnitude and phase of the force. It generates an
+        array of force values at each degree of freedom for the specified
+        nodes at each time step, while also considering a range of
+        frequencies.
+
+        Parameters
+        ----------
+        node : list, int
+            Nodes where the unbalance is applied.
+        magnitude : list, float
+            Unbalance magnitude (kg.m) for each node.
+        phase : list, float
+            Unbalance phase (rad) for each node.
+        omega : float, np.darray
+            Constant velocity or desired range of velocities (rad/s).
+        t : np.darray
+            Time array (s).
+
+        Returns
+        -------
+        F0 : np.ndarray
+            Unbalance force at each degree of freedom for each time step.
+        theta : np.ndarray
+            Angular positions for each time step.
+        omega : np.ndarray
+            Angular velocities for each time step.
+        alpha : np.ndarray
+            Angular accelerations for each time step.
+
+        Examples
+        --------
+        >>> rotor = rotor_example()
+        >>> t = np.linspace(0, 10, 31)
+        >>> omega = np.linspace(0, 1000, 31)
+        >>> F, _, _, _ = rotor._unbalance_force_over_time([3], [10.0], [0.0], omega, t)
+        >>> F[18, :3]
+        array([     0.        ,   7632.15353293, -43492.18127561])
+        """
+
+        if not isinstance(omega, Iterable):
+            omega = np.full_like(t, omega)
+
+        theta = integrate(omega, t, initial=0)
+        alpha = np.gradient(omega, t)
+
+        F0 = np.zeros((self.ndof, len(t)))
+
+        for i, n in enumerate(node):
+            phi = phase[i] + theta
+
+            Fx = magnitude[i] * ((omega**2) * np.cos(phi) + alpha * np.sin(phi))
+            Fy = magnitude[i] * ((omega**2) * np.sin(phi) - alpha * np.cos(phi))
+
+            F0[n * self.number_dof + 0, :] += Fx
+            F0[n * self.number_dof + 1, :] += Fy
+
+        return F0, theta, omega, alpha
 
     @check_units
     def run_unbalance_response(
@@ -2223,12 +2298,8 @@ class Rotor(object):
         """
 
         # Check if speed is array
-        try:
-            speed_is_array = len(set(speed)) > 1
-            speed_ref = np.mean(speed)
-        except:
-            speed_is_array = False
-            speed_ref = speed
+        speed_is_array = isinstance(speed, Iterable)
+        speed_ref = np.mean(speed) if speed_is_array else speed
 
         # Check if the pseudo-modal method has to be applied
         num_modes = kwargs.get("num_modes")
@@ -2393,9 +2464,8 @@ class Rotor(object):
         >>> rotor.time_response(speed, F, t) # doctest: +ELLIPSIS
         (array([0.        , 0.18518519, 0.37037037, ...
         """
-        speed_is_array = isinstance(speed, (list, tuple, np.ndarray))
 
-        if speed_is_array or method.lower() == "newmark":
+        if isinstance(speed, Iterable) or method.lower() == "newmark":
             t_, yout = self.integrate_system(speed, F, t, **kwargs)
             return t_, yout, []
 
@@ -3026,198 +3096,355 @@ class Rotor(object):
 
         return results
 
-    def run_misalignment(self, coupling="flex", **kwargs):
-        """Run an analyzes with misalignment.
+    @check_units
+    def run_misalignment(
+        self,
+        node,
+        unbalance_magnitude,
+        unbalance_phase,
+        speed,
+        t,
+        coupling="flex",
+        **kwargs,
+    ):
+        """Run analysis for the rotor system with misalignment given an
+        unbalance force.
 
-        Execute the misalignment fault and generates the misalignment object
-        on the back-end. There are two types of coupling, flexible (flex)
-        and rigid, which have different entries. These entries are provided
-        via **kwargs to the specific method.
+        Misalignment object is instantiated and system's time response is simulated.
+        There are two types of coupling: flexible (flex) and rigid, each with distinct
+        parameters. These parameters are passed to the respective method through **kwargs.
 
         Parameters
         ----------
+        node : list, int
+            Node where the unbalance is applied.
+        unbalance_magnitude : list, float, pint.Quantity
+            Unbalance magnitude (kg.m).
+        unbalance_phase : list, float, pint.Quantity
+            Unbalance phase (rad).
+        speed : float or array_like, pint.Quantity
+            Rotor speed.
+        F : array
+            Force array (needs to have the same number of rows as time array).
+            Each column corresponds to a dof and each row to a time.
+        t : array
+            Time array.
         coupling : str
-            Coupling type. The avaible types are: flex, by default; and rigid.
+            Coupling type. The avaible types are: "flex" and "rigid".
+            Default is "flex".
 
-        **kwargs: dictionary
-
-            In the case of coupling = "flex", **kwargs receives:
-                dt : float
-                    Time step.
-                tI : float
-                    Initial time.
-                tF : float
-                    Final time.
-                kd : float
-                    Radial stiffness of flexible coupling.
-                ks : float
-                    Bending stiffness of flexible coupling.
-                eCOUPx : float
-                    Parallel misalignment offset between driving rotor and driven rotor along X direction.
-                eCOUPy : float
-                    Parallel misalignment offset between driving rotor and driven rotor along Y direction.
-                misalignment_angle : float
-                    Angular misalignment angle.
-                TD : float
-                    Driving torque.
-                TL : float
-                    Driven torque.
-                n1 : float
-                    Node where the misalignment is ocurring.
-                speed : float, pint.Quantity
-                    Operational speed of the machine. Default unit is rad/s.
-                unbalance_magnitude : array
-                    Array with the unbalance magnitude. The unit is kg.m.
-                unbalance_phase : array
-                    Array with the unbalance phase. The unit is rad.
+        **kwargs : dictionary
+            If coupling = "flex", **kwargs receives:
+                n : float
+                    Number of shaft element where the misalignment is ocurring.
                 mis_type: string
-                    String containing the misalignment type choosed. The avaible types are: parallel, by default; angular; combined.
-                print_progress : bool
-                    Set it True, to print the time iterations and the total time spent.
-                    False by default.
+                    Name of the chosen misalignment type.
+                    The avaible types are: "parallel", "angular" and "combined".
+                mis_distance_x : float, pint.Quantity
+                    Parallel misalignment distance between driving rotor and driven
+                    rotor along X direction.
+                mis_distance_y : float, pint.Quantity
+                    Parallel misalignment distance between driving rotor and driven
+                    rotor along Y direction.
+                mis_angle : float, pint.Quantity
+                    Angular misalignment angle.
+                radial_stiffness : float, pint.Quantity
+                    Radial stiffness of flexible coupling.
+                bending_stiffness : float, pint.Quantity
+                    Bending stiffness of flexible coupling. Provide if mis_type is
+                    "angular" or "combined".
+                input_torque : float, pint.Quantity
+                    Driving torque. Default is 0.
+                load_torque : float, pint.Quantity
+                    Driven torque. Default is 0.
 
-            In the case of coupling = "rigid", **kwargs receives:
-                dt : float
-                    Time step.
-                tI : float
-                    Initial time.
-                tF : float
-                    Final time.
-                eCOUP : float
-                    Parallel misalignment offset between driving rotor and driven rotor along X direction.
-                TD : float
-                    Driving torque.
-                TL : float
-                    Driven torque.
-                n1 : float
-                    Node where the misalignment is ocurring.
-                speed : float, pint.Quantity
-                    Operational speed of the machine. Default unit is rad/s.
-                unbalance_magnitude : array
-                    Array with the unbalance magnitude. The unit is kg.m.
-                unbalance_phase : array
-                    Array with the unbalance phase. The unit is rad.
-                print_progress : bool
-                    Set it True, to print the time iterations and the total time spent.
-                    False by default.
+            If coupling = "rigid", **kwargs receives:
+                n : float
+                    Number of shaft element where the misalignment is ocurring.
+                mis_distance : float, pint.Quantity
+                    Parallel misalignment distance between driving rotor and driven rotor.
+                input_torque : float, pint.Quantity
+                    Driving torque. Default is 0.
+                load_torque : float, pint.Quantity
+                    Driven torque. Default is 0.
+
+            Additional keyword arguments can be passed to define the parameters
+            of the Newmark method if it is used (e.g. gamma, beta, tol, ...).
+            See `ross.utils.newmark` for more details.
+            Other keyword arguments can also be passed to be used in numerical
+            integration (e.g. num_modes).
+            See `Rotor.integrate_system` for more details.
+
+        Returns
+        -------
+        results : ross.TimeResponseResults
+            For more information on attributes and methods available see:
+            :py:class:`ross.TimeResponseResults`
 
         Examples
         --------
+        >>> import ross as rs
         >>> from ross.probe import Probe
-        >>> from ross.faults.misalignment import misalignment_flex_parallel_example
+        >>> from ross.units import Q_
+        >>> rotor = rotor_example_with_damping()
+        >>> n1 = rotor.disk_elements[0].n
+        >>> n2 = rotor.disk_elements[1].n
+        >>> results = rotor.run_misalignment(
+        ...    node=[n1, n2],
+        ...    unbalance_magnitude=[5e-4, 0],
+        ...    unbalance_phase=[-np.pi / 2, 0],
+        ...    speed=Q_(1200, "RPM"),
+        ...    t=np.arange(0, 0.5, 0.0001),
+        ...    coupling="rigid",
+        ...    n=0,
+        ...    mis_distance=2e-4,
+        ...    input_torque=0,
+        ...    load_torque=0,
+        ...    num_modes=12,  # Pseudo-modal method
+        ... )
+        Running pseudo-modal method, number of modes = 12
         >>> probe1 = Probe(14, 0)
         >>> probe2 = Probe(22, 0)
-        >>> response = misalignment_flex_parallel_example()
-        >>> results = response.run_time_response()
-        >>> fig = response.plot_dfft(probe=[probe1, probe2], range_freq=[0, 100], yaxis_type="log")
-        >>> # fig.show()
+        >>> fig1 = results.plot_1d([probe1, probe2])
+        >>> fig2 = results.plot_dfft(
+        ...     [probe1, probe2],
+        ...     frequency_range=Q_((0, 200), "Hz"),
+        ...     yaxis_type="log",
+        ... )
         """
 
-        if coupling == "flex" or coupling == None:
-            fault = MisalignmentFlex(**kwargs)
+        if coupling == "flex":
+            fault = MisalignmentFlex(
+                self,
+                n=kwargs.get("n"),
+                mis_type=kwargs.get("mis_type"),
+                mis_distance_x=kwargs.get("mis_distance_x"),
+                mis_distance_y=kwargs.get("mis_distance_y"),
+                mis_angle=kwargs.get("mis_angle"),
+                radial_stiffness=kwargs.get("radial_stiffness"),
+                bending_stiffness=kwargs.get("bending_stiffness"),
+                input_torque=kwargs.get("input_torque", 0),
+                load_torque=kwargs.get("load_torque", 0),
+            )
+
         elif coupling == "rigid":
-            fault = MisalignmentRigid(**kwargs)
+            fault = MisalignmentRigid(
+                self,
+                n=kwargs.get("n"),
+                mis_distance=kwargs.get("mis_distance"),
+                input_torque=kwargs.get("input_torque", 0),
+                load_torque=kwargs.get("load_torque", 0),
+            )
+
         else:
             raise Exception("Check the choosed coupling type!")
 
-        fault.run(self)
-        return fault
+        results = fault.run(
+            node, unbalance_magnitude, unbalance_phase, speed, t, **kwargs
+        )
 
-    def run_rubbing(self, **kwargs):
-        """Run an analyzes with rubbing.
+        return results
 
-        Execute the rubbing fault and generates the rubbing object on the back-end.
+    @check_units
+    def run_rubbing(
+        self,
+        n,
+        distance,
+        contact_stiffness,
+        contact_damping,
+        friction_coeff,
+        node,
+        unbalance_magnitude,
+        unbalance_phase,
+        speed,
+        t,
+        torque=False,
+        **kwargs,
+    ):
+        """Run analysis for the rotor system with rubbing given an unbalance force.
+
+        Rubbing object is instantiated and system's time response is simulated.
 
         Parameters
         ----------
-        **kwargs: dictionary
+        n : int
+            Number of shaft element where rubbing is ocurring.
+        distance : float, pint.Quantity
+            Distance between the housing and shaft surface.
+        contact_stiffness : float, pint.Quantity
+            Contact stiffness.
+        contact_damping : float, pint.Quantity
+            Contact damping.
+        friction_coeff : float
+            Friction coefficient.
+        node : list, int
+            Node where the unbalance is applied.
+        unbalance_magnitude : list, float, pint.Quantity
+            Unbalance magnitude (kg.m).
+        unbalance_phase : list, float, pint.Quantity
+            Unbalance phase (rad).
+        speed : float or array_like, pint.Quantity
+            Rotor speed.
+        F : array
+            Force array (needs to have the same number of rows as time array).
+            Each column corresponds to a dof and each row to a time.
+        t : array
+            Time array.
+        torque : bool, optional
+            If True a torque is considered by rubbing.
+            Default is False.
+        **kwargs : optional
+            Additional keyword arguments can be passed to define the parameters
+            of the Newmark method if it is used (e.g. gamma, beta, tol, ...).
+            See `ross.utils.newmark` for more details.
+            Other keyword arguments can also be passed to be used in numerical
+            integration (e.g. num_modes).
+            See `Rotor.integrate_system` for more details.
 
-            **kwargs receives:
-                dt : float
-                    Time step.
-                tI : float
-                    Initial time.
-                tF : float
-                    Final time.
-                deltaRUB : float
-                    Distance between the housing and shaft surface.
-                kRUB : float
-                    Contact stiffness.
-                cRUB : float
-                    Contact damping.
-                miRUB : float
-                    Friction coefficient.
-                posRUB : int
-                    Node where the rubbing is ocurring.
-                speed : float, pint.Quantity
-                    Operational speed of the machine. Default unit is rad/s.
-                unbalance_magnitude : array
-                    Array with the unbalance magnitude. The unit is kg.m.
-                unbalance_phase : array
-                    Array with the unbalance phase. The unit is rad.
-                torque : bool
-                    Set it as True to consider the torque provided by the rubbing, by default False.
-                print_progress : bool
-                    Set it True, to print the time iterations and the total time spent, by default False.
+        Returns
+        -------
+        results : ross.TimeResponseResults
+            For more information on attributes and methods available see:
+            :py:class:`ross.TimeResponseResults`
 
         Examples
         --------
+        >>> import ross as rs
+        >>> from ross.units import Q_
         >>> from ross.probe import Probe
-        >>> from ross.faults.rubbing import rubbing_example
+        >>> rotor = rotor_example_with_damping()
+        >>> n1 = rotor.disk_elements[0].n
+        >>> n2 = rotor.disk_elements[1].n
+        >>> results = rotor.run_rubbing(
+        ...    n=12,
+        ...    distance=7.95e-5,
+        ...    contact_stiffness=1.1e6,
+        ...    contact_damping=40,
+        ...    friction_coeff=0.3,
+        ...    torque=False,
+        ...    node=[n1, n2],
+        ...    unbalance_magnitude=[5e-4, 0],
+        ...    unbalance_phase=[-np.pi / 2, 0],
+        ...    speed=Q_(1200, "RPM"),
+        ...    t=np.arange(0, 0.5, 0.0001),
+        ...    num_modes=12,  # Pseudo-modal method
+        ... )
+        Running pseudo-modal method, number of modes = 12
         >>> probe1 = Probe(14, 0)
         >>> probe2 = Probe(22, 0)
-        >>> response = rubbing_example()
-        >>> results = response.run_time_response()
-        >>> fig = response.plot_dfft(probe=[probe1, probe2], range_freq=[0, 100], yaxis_type="log")
-        >>> # fig.show()
+        >>> fig1 = results.plot_1d([probe1, probe2])
+        >>> fig2 = results.plot_dfft(
+        ...     [probe1, probe2],
+        ...     frequency_range=Q_((0, 200), "Hz"),
+        ...     yaxis_type="log",
+        ... )
         """
+        fault = Rubbing(
+            self,
+            n,
+            distance,
+            contact_stiffness,
+            contact_damping,
+            friction_coeff,
+            torque=torque,
+        )
 
-        fault = Rubbing(**kwargs)
-        fault.run(self)
-        return fault
+        results = fault.run(
+            node, unbalance_magnitude, unbalance_phase, speed, t, **kwargs
+        )
 
-    def run_crack(self, **kwargs):
-        """Run an analyzes with rubbing.
+        return results
 
-        Execute the crack fault and generates the crack object on the back-end.
+    @check_units
+    def run_crack(
+        self,
+        n,
+        depth_ratio,
+        node,
+        unbalance_magnitude,
+        unbalance_phase,
+        speed,
+        t,
+        crack_model="Mayes",
+        **kwargs,
+    ):
+        """Run analysis for the rotor system with crack given an unbalance force.
+
+        Crack object is instantiated and system's time response is simulated.
 
         Parameters
         ----------
-        dt : float
-            Time step
-        tI : float
-            Initial time
-        tF : float
-            Final time
+        n : float
+            Element number where the crack is located.
         depth_ratio : float
-            Crack depth ratio related to the diameter of the crack container element. A depth value of 0.1 is equal to 10%, 0.2 equal to 20%, and so on.
-        n_crack : float
-            Element where the crack is located
-        speed : float, pint.Quantity
-            Operational speed of the machine. Default unit is rad/s.
-        unbalance_magnitude : array
-            Array with the unbalance magnitude. The unit is kg.m.
-        unbalance_phase : array
-            Array with the unbalance phase. The unit is rad.
-        crack_type : string
-            String containing type of crack model chosed. The avaible types are: Mayes and Gasch.
-        print_progress : bool
-            Set it True, to print the time iterations and the total time spent, by default False.
+            Crack depth ratio related to the diameter of the crack container element.
+            A depth value of 0.1 is equal to 10%, 0.2 equal to 20%, and so on.
+        node : list, int
+            Node where the unbalance is applied.
+        unbalance_magnitude : list, float, pint.Quantity
+            Unbalance magnitude (kg.m).
+        unbalance_phase : list, float, pint.Quantity
+            Unbalance phase (rad).
+        speed : float or array_like, pint.Quantity
+            Rotor speed.
+        F : array
+            Force array (needs to have the same number of rows as time array).
+            Each column corresponds to a dof and each row to a time.
+        t : array
+            Time array.
+        crack_model : string, optional
+            String containing type of crack model chosed. The avaible types are:
+            "Mayes" and "Gasch". Default is "Mayes".
+        **kwargs : optional
+            Additional keyword arguments can be passed to define the parameters
+            of the Newmark method if it is used (e.g. gamma, beta, tol, ...).
+            See `ross.utils.newmark` for more details.
+            Other keyword arguments can also be passed to be used in numerical
+            integration (e.g. num_modes).
+            See `Rotor.integrate_system` for more details.
+
+        Returns
+        -------
+        results : ross.TimeResponseResults
+            For more information on attributes and methods available see:
+            :py:class:`ross.TimeResponseResults`
 
         Examples
         --------
+        >>> import ross as rs
         >>> from ross.probe import Probe
-        >>> from ross.faults.crack import crack_example
+        >>> from ross.units import Q_
+        >>> rotor = rs.rotor_example_with_damping()
+        >>> n1 = rotor.disk_elements[0].n
+        >>> n2 = rotor.disk_elements[1].n
+        >>> results = rotor.run_crack(
+        ...    n=18,
+        ...    depth_ratio=0.2,
+        ...    node=[n1, n2],
+        ...    unbalance_magnitude=[5e-4, 0],
+        ...    unbalance_phase=[-np.pi / 2, 0],
+        ...    crack_model="Mayes",
+        ...    speed=Q_(1200, "RPM"),
+        ...    t=np.arange(0, 0.5, 0.0001),
+        ...    num_modes=12, # Pseudo-modal method
+        ... )
+        Running pseudo-modal method, number of modes = 12
         >>> probe1 = Probe(14, 0)
         >>> probe2 = Probe(22, 0)
-        >>> response = crack_example()
-        >>> results = response.run_time_response()
-        >>> fig = response.plot_dfft(probe=[probe1, probe2], range_freq=[0, 100], yaxis_type="log")
-        >>> # fig.show()
+        >>> fig1 = results.plot_1d([probe1, probe2])
+        >>> fig2 = results.plot_dfft(
+        ...     [probe1, probe2],
+        ...     frequency_range=Q_((0, 200), "Hz"),
+        ...     yaxis_type="log",
+        ... )
         """
-        fault = Crack(**kwargs)
-        fault.run(self)
-        return fault
+        fault = Crack(self, n, depth_ratio, crack_model)
+
+        results = fault.run(
+            node, unbalance_magnitude, unbalance_phase, speed, t, **kwargs
+        )
+
+        return results
 
     def save_mat(self, file, speed, frequency=None):
         """Save matrices and rotor model to a .mat file.
