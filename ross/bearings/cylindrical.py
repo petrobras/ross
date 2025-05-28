@@ -3,6 +3,8 @@ import numpy as np
 from numpy.linalg import norm
 from scipy.optimize import curve_fit, minimize
 from plotly import graph_objects as go
+from numba import njit
+from scipy import sparse
 
 from ross.bearing_seal_element import BearingElement
 from ross.units import Q_, check_units
@@ -3166,3 +3168,518 @@ class THDCylindrical(BearingElement):
         )
 
         return fig
+
+
+@njit
+def _evaluate_bearing_clearance(X, Y, theta, dtheta, geometry, preload, theta_pivot):
+    if geometry == "circular":
+        hp = 1 - X * np.cos(theta) - Y * np.sin(theta)
+        he = 1 - X * np.cos(theta + 0.5 * dtheta) - Y * np.sin(theta + 0.5 * dtheta)
+        hw = 1 - X * np.cos(theta - 0.5 * dtheta) - Y * np.sin(theta - 0.5 * dtheta)
+
+    elif geometry == "lobe":
+        hp = (
+            1 / (1 - preload)
+            - preload / (1 - preload) * np.cos(theta - theta_pivot)
+            - X * np.cos(theta)
+            - Y * np.sin(theta)
+        )
+        he = (
+            1 / (1 - preload)
+            - preload / (1 - preload) * np.cos(theta + 0.5 * dtheta - theta_pivot)
+            - X * np.cos(theta + 0.5 * dtheta)
+            - Y * np.sin(theta + 0.5 * dtheta)
+        )
+        hw = (
+            1 / (1 - preload)
+            - preload / (1 - preload) * np.cos(theta - 0.5 * dtheta - theta_pivot)
+            - X * np.cos(theta - 0.5 * dtheta)
+            - Y * np.sin(theta - 0.5 * dtheta)
+        )
+
+    elif geometry == "elliptical":
+        hp = (
+            1
+            + preload / (1 - preload) * (np.cos(theta)) ** 2
+            - X * np.cos(theta)
+            - Y * np.sin(theta)
+        )
+        he = (
+            1
+            + preload / (1 - preload) * (np.cos(theta + 0.5 * dtheta)) ** 2
+            - X * np.cos(theta + 0.5 * dtheta)
+            - Y * np.sin(theta + 0.5 * dtheta)
+        )
+        hw = (
+            1
+            + preload / (1 - preload) * (np.cos(theta - 0.5 * dtheta)) ** 2
+            - X * np.cos(theta - 0.5 * dtheta)
+            - Y * np.sin(theta - 0.5 * dtheta)
+        )
+
+    hn = hp
+    hs = hn
+
+    return he, hw, hn, hs, hp
+
+
+@njit
+def _calculate_discretization_coeffs(
+    kj,
+    ki,
+    elm_cir,
+    elm_axi,
+    dY,
+    dZ,
+    journal_radius,
+    axial_length,
+    mu,
+    beta_s,
+    he,
+    hw,
+    hn,
+    hs,
+):
+    mu_p = mu[ki, kj]
+
+    MU_e = 0.5 * (mu_p + mu[ki, kj + 1])
+    MU_w = 0.5 * (mu_p + mu[ki, kj - 1])
+    MU_s = 0.5 * (mu_p + mu[ki - 1, kj])
+    MU_n = 0.5 * (mu_p + mu[ki + 1, kj])
+
+    if kj == 0:
+        MU_w = mu_p
+    if kj == elm_cir - 1:
+        MU_e = mu_p
+    if ki == 0:
+        MU_s = mu_p
+    if ki == elm_axi - 1:
+        MU_n = mu_p
+
+    aux_0 = dZ / (12 * dY * beta_s**2)
+    aux_1 = dY * journal_radius**2 / (12 * dZ * axial_length**2)
+
+    CE = aux_0 * he**3 / MU_e
+    CW = aux_0 * hw**3 / MU_w
+    CN = aux_1 * hn**3 / MU_n
+    CS = aux_1 * hs**3 / MU_s
+    CP = -(CE + CW + CN + CS)
+
+    return CE, CW, CN, CS, CP
+
+
+@njit
+def _flooded(
+    A_P,
+    b_P,
+    film_thickness,
+    mu,
+    theta_range,
+    dtheta,
+    elm_axi,
+    elm_cir,
+    X,
+    Y,
+    dY,
+    dZ,
+    Xpt,
+    Ypt,
+    beta_s,
+    axial_length,
+    journal_radius,
+    geometry,
+    preload,
+    theta_pivot,
+):
+    kj = 0
+    k = 0
+
+    for ki in range(elm_axi):
+        for theta in theta_range:
+            he, hw, hn, hs, hp = _evaluate_bearing_clearance(
+                X, Y, theta, dtheta, geometry, preload, theta_pivot
+            )
+
+            film_thickness[kj] = hp
+
+            b_P[k, 0] = (dZ / (2 * beta_s)) * (he - hw) - (
+                (Xpt * np.cos(theta) + Ypt * np.sin(theta)) * dY * dZ
+            )
+
+            CE, CW, CN, CS, CP = _calculate_discretization_coeffs(
+                kj,
+                ki,
+                elm_cir,
+                elm_axi,
+                dY,
+                dZ,
+                journal_radius,
+                axial_length,
+                mu,
+                beta_s,
+                he,
+                hw,
+                hn,
+                hs,
+            )
+
+            A_P[k, k] = CP
+
+            if ki == 0:
+                A_P[k, k] -= CS
+            else:
+                A_P[k, k - elm_cir] = CS
+
+            if ki == elm_axi - 1:
+                A_P[k, k] -= CN
+            else:
+                A_P[k, k + elm_cir] = CN
+
+            if kj == 0:
+                A_P[k, k] -= CW
+            else:
+                A_P[k, k - 1] = CW
+
+            if kj == elm_cir - 1:
+                A_P[k, k] -= CE
+            else:
+                A_P[k, k + 1] = CE
+
+            k += 1
+            kj += 1
+
+        kj = 0
+
+    return A_P, b_P
+
+
+@njit
+def _starvation(
+    P,
+    A_P,
+    b_P,
+    b_theta,
+    film_thickness,
+    mu,
+    theta_vol,
+    theta_vol_groove,
+    theta_range,
+    dtheta,
+    elm_axi,
+    elm_cir,
+    X,
+    Y,
+    dY,
+    dZ,
+    Xpt,
+    Ypt,
+    beta_s,
+    injection_pressure,
+    axial_length,
+    journal_radius,
+    geometry,
+    preload,
+    theta_pivot,
+):
+    k_range = np.arange(elm_axi * elm_cir)
+
+    CW = np.zeros((elm_axi * elm_cir))
+    KP = np.zeros((elm_axi * elm_cir))
+    KW = np.zeros((elm_axi * elm_cir))
+
+    k = 0
+    kj = 0
+
+    for ki in range(elm_axi):
+        for theta in theta_range:
+            he, hw, hn, hs, hp = _evaluate_bearing_clearance(
+                X, Y, theta, dtheta, geometry, preload, theta_pivot
+            )
+
+            film_thickness[kj] = hp
+
+            CE, CW[k], CN, CS, CP = _calculate_discretization_coeffs(
+                kj,
+                ki,
+                elm_cir,
+                elm_axi,
+                dY,
+                dZ,
+                journal_radius,
+                axial_length,
+                mu,
+                beta_s,
+                he,
+                hw,
+                hn,
+                hs,
+            )
+
+            # Source term
+            KP1 = -(dZ / (2 * beta_s)) * he
+            hpt = -Xpt * np.cos(theta) - Ypt * np.sin(theta)
+            KP2 = -hpt * dY * dZ
+
+            KP[k] = KP1 + KP2
+            KW[k] = (dZ / (2 * beta_s)) * hw
+
+            A_P[k, k] = CP
+
+            if ki == 0:
+                A_P[k, k] -= CS
+            else:
+                A_P[k, k - elm_cir] = CS
+
+            if ki == elm_axi - 1:
+                A_P[k, k] -= CN
+            else:
+                A_P[k, k + elm_cir] = CN
+
+            if kj == 0:
+                A_P[k, k] -= CW[k]
+            else:
+                A_P[k, k - 1] = CW[k]
+
+            if kj == elm_cir - 1:
+                A_P[k, k] -= CE
+            else:
+                A_P[k, k + 1] = CE
+
+            k += 1
+            kj += 1
+
+        kj = 0
+
+    tol = 1e-2
+    res = 1.0
+
+    while res >= tol:
+        P_old = P.copy()
+        theta_vol_old = theta_vol.copy()
+
+        k = 0
+
+        for ki in range(elm_axi):
+            # kj == 0:
+            if P[k] > 0:
+                theta_vol[k] = 1
+                b_P[k] = (
+                    -KP[k] * theta_vol[k]
+                    - KW[k] * theta_vol_groove
+                    - 2 * CW[k] * injection_pressure
+                )
+                rmvk = k_range != k
+                P[k] = (b_P[k] - A_P[k, rmvk] @ P[rmvk]) / A_P[k, k]
+
+            else:
+                P[k] = 0
+                b_theta[k] = -A_P[k, :] @ P
+                theta_vol[k] = (b_theta[k] - KW[k] * theta_vol_groove) / KP[k]
+            k += 1
+
+            # kj != 0:
+            for theta in theta_range[1:]:
+                if P[k] > 0:
+                    theta_vol[k] = 1
+                    b_P[k] = -KP[k] * theta_vol[k] - KW[k] * theta_vol[k - 1]
+                    rmvk = k_range != k
+                    P[k] = (b_P[k] - A_P[k, rmvk] @ P[rmvk]) / A_P[k, k]
+
+                else:
+                    P[k] = 0
+                    b_theta[k] = -A_P[k, :] @ P
+                    theta_vol[k] = (b_theta[k] - KW[k] * theta_vol[k - 1]) / KP[k]
+                k += 1
+
+        res = norm(P - P_old) + norm(theta_vol - theta_vol_old)
+
+    P = np.where(P < 0, 0, P).reshape((elm_axi, elm_cir))
+    theta_vol = theta_vol.reshape((elm_axi, elm_cir))
+
+    return P, theta_vol
+
+
+@njit
+def _compute_turbulence_props(
+    film_thickness,
+    speed,
+    dPdy,
+    dPdz,
+    rho,
+    mu,
+    mu_t,
+    reference_viscosity,
+    beta_s,
+    axial_length,
+    journal_radius,
+    radial_clearance,
+    operating_type,
+    theta_vol,
+):
+    Reyn = (
+        rho
+        * speed
+        * journal_radius
+        * (film_thickness / axial_length)
+        * radial_clearance
+        / (reference_viscosity * mu)
+    )
+
+    if operating_type == "starvation":
+        Reyn *= theta_vol
+
+    delta_turb = 0
+    if Reyn > 500 and Reyn <= 1000:
+        delta_turb = 1 - ((1000 - Reyn) / 500) ** (1 / 8)
+    elif Reyn > 1000:
+        delta_turb = 1
+
+    dudy = ((film_thickness / mu_t) * dPdy) - (speed / film_thickness)
+    dwdy = (film_thickness / mu_t) * dPdz
+
+    tau_w = mu_t * np.sqrt((dudy**2) + (dwdy**2))
+    u_s = (abs(tau_w) / rho) ** 0.5
+    nu = reference_viscosity * mu_t / rho
+    y_w = (2 * film_thickness * radial_clearance) / nu * u_s
+
+    emv = 0.4 * (y_w - (10.7 * np.tanh(y_w / 10.7)))
+    mu_t = mu * (1 + (delta_turb * emv))
+
+    U = 0.5 - (film_thickness**2) / (12 * mu_t * beta_s) * dPdy
+
+    return U, mu_t
+
+
+@njit
+def _temperature(
+    A_T,
+    b_T,
+    T_ref,
+    P,
+    U,
+    film_thickness,
+    Theta_vol,
+    theta_range,
+    mu,
+    mu_turb,
+    speed,
+    reference_temperature,
+    reference_viscosity,
+    rho,
+    Cp,
+    k_t,
+    elm_axi,
+    elm_cir,
+    dY,
+    dZ,
+    Xpt,
+    Ypt,
+    beta_s,
+    axial_length,
+    journal_radius,
+    radial_clearance,
+    operating_type,
+):
+    kj = 0
+    k = 0
+
+    for ki in range(elm_axi):
+        for theta in theta_range:
+            h = film_thickness[kj]
+
+            # Pressure gradient
+            p_west = 0.0
+            p_east = 0.0
+            p_south = 0.0
+            p_north = 0.0
+
+            if kj > 0:
+                p_west = P[ki, kj - 1]
+            if kj < elm_cir - 1:
+                p_east = P[ki, kj + 1]
+
+            if ki > 0:
+                p_south = P[ki - 1, kj]
+            if ki < elm_axi - 1:
+                p_north = P[ki + 1, kj]
+
+            dPdy = (p_east - p_west) / (2 * dY)
+            dPdz = (p_north - p_south) / (2 * dZ)
+
+            U[ki, kj], mu_t = _compute_turbulence_props(
+                h,
+                speed,
+                dPdy,
+                dPdz,
+                rho,
+                mu[ki, kj],
+                mu_turb[ki, kj],
+                reference_viscosity,
+                beta_s,
+                axial_length,
+                journal_radius,
+                radial_clearance,
+                operating_type,
+                Theta_vol[ki, kj],
+            )
+
+            mu_turb[ki, kj] = mu_t
+
+            aux_0 = h**3 / (12 * mu_t)
+            aux_1 = (speed * reference_viscosity) / (rho * Cp * reference_temperature)
+            aux_2 = aux_1 / radial_clearance**2
+            aux_3 = aux_0 * (journal_radius**2 * dPdz * dY) / (2 * axial_length**2)
+            aux_4 = k_t * h / (rho * Cp * speed)
+
+            hpt = -Xpt * np.cos(theta) - Ypt * np.sin(theta)
+
+            b_TG = aux_2 * (journal_radius**2 * dY * dZ * P[ki, kj] * hpt)
+            b_TH = aux_1 * ((4 * mu_t * hpt**2 * dY * dZ) / (3 * h))
+            b_TI = aux_2 * (mu_t * journal_radius**2 * dY * dZ / h)
+            b_TJ = aux_0 * aux_2 * (journal_radius**2 * dPdy**2 * dY * dZ / beta_s**2)
+            b_TK = aux_2 * aux_3 * (2 * journal_radius**2 * dPdz * dZ)
+
+            AE = -aux_4 / ((beta_s * journal_radius) ** 2 * dY)
+            AW = aux_0 * dPdy * dZ / beta_s**2 - h * dZ / (2 * beta_s) + AE
+            AN = -aux_3 - aux_4 * dY / (axial_length**2 * dZ)
+            AS = aux_3 - aux_4 * dY / (axial_length**2 * dZ)
+            AP = -(AE + AW + AN + AS)
+
+            AP_mod = AP
+            b_mod = b_TG + b_TH + b_TI + b_TJ + b_TK
+
+            if ki == 0:
+                AP_mod += AS
+            else:
+                A_T[k, k - elm_cir] = AS
+
+            if ki == elm_axi - 1:
+                AP_mod += AN
+            else:
+                A_T[k, k + elm_cir] = AN
+
+            if kj == 0:
+                AP_mod -= AW
+                b_mod -= 2 * AW * (T_ref / reference_temperature)
+            else:
+                A_T[k, k - 1] = AW
+
+            if kj == elm_cir - 1:
+                AP_mod += AE
+            else:
+                A_T[k, k + 1] = AE
+
+            A_T[k, k] = AP_mod
+            b_T[k, 0] = b_mod
+
+            k += 1
+            kj += 1
+
+        kj = 0
+
+    return A_T, b_T
+
+
+def _solve(A, b):
+    """Solve the linear system Ax = b using sparse matrix solver."""
+    return sparse.linalg.spsolve(sparse.csr_matrix(A), b)
