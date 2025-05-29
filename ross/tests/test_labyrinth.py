@@ -24,11 +24,14 @@ def labyrinth():
         tooth_height=Q_(3.175,"mm"),
         tooth_width=Q_(0.1524,"mm"),
         seal_type="inter",
+        gas_composition = 'AIR',
+
     )
 
     return seal
 
 def test_labyrinth_coefficients(labyrinth):
+
     assert_allclose(labyrinth.kxx, -50242.35216407, rtol=1e-4)
     assert_allclose(labyrinth.kxy, 35764.19464202, rtol=1e-4)
     assert_allclose(labyrinth.kyx, -35764.19464202, rtol=1e-4)

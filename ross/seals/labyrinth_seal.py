@@ -121,36 +121,15 @@ class LabyrinthSeal(SealElement):
         iopt1=0,
         **kwargs,
     ):
+
         self.gas_composition = gas_composition
         self.tz = tz
         self.muz = muz
-
-        # state_in = ccp.State.define(
-        #     p=inlet_pressure, T=inlet_temperature, fluid=self.gas_composition
-        # )
-        # state_out = ccp.State.define(
-        #     p=outlet_pressure, h=state_in.h(), fluid=self.gas_composition
-        # )
-
-        # # Calculate
-        # # gas constant : float -> Gas constant (J / kg degK
-        # self.r = (state_in.gas_constant() / state_in.molar_mass()).m
-        # print(f"R {self.r}")
-        # # ratio_specific_heats : float -> Ratio of specific heats.
-        # self.gamma = (state_in.cp() / state_in.cv()).m
-        # print(f"gamma {self.gamma}")
-        # # tz1 : float -> Temperature at state 1 (deg K).
-        # self.tz[0] = state_in.T().m
-        # # muz1 : float -> Dynamic viscosity at state 1 (kg/(m s))
-        # self.muz[0] = state_in.viscosity().m
-        # # tz2 : float -> Temperature at state 2 (deg K).
-        # self.tz[1] = state_out.T().m
-        # # muz2 : float -> Dynamic viscosity at state 2 (kg/(m s))
-        # self.muz[1] = state_out.viscosity().m
-
-        self.n = n
         self.r = r
         self.gamma = gamma
+
+
+        self.n = n
         self.inlet_pressure = inlet_pressure
         self.outlet_pressure = outlet_pressure
         self.inlet_temperature = inlet_temperature
@@ -349,12 +328,10 @@ class LabyrinthSeal(SealElement):
 
         while True:
             asaida = True
-            # 2998
             if a2998 == True:
                 mdot_high = self.mdot * 5
                 mdot_low = 0
                 a2998 = False
-            # 4000
             if ndex1 < 1:
                 self.w[0] = 0
                 self.p[0] = self.inlet_pressure
@@ -367,8 +344,6 @@ class LabyrinthSeal(SealElement):
                     / (gam4 * self.t[self.n_teeth - 1])
                 )
                 chok2 = chok1**gam5
-            # check
-            # do 2000
             for i in range(1, self.n_teeth + 1):
                 if i == self.n_teeth:
                     prgs[0] = chok2
@@ -376,7 +351,6 @@ class LabyrinthSeal(SealElement):
                     prgs[0] = chok2
 
                 prgs[1] = 0.9999999
-                # do 150
                 for j in range(0, 2):
                     fpr[j] = (
                         self.alphav
@@ -390,10 +364,8 @@ class LabyrinthSeal(SealElement):
                         ** 0.5
                     )
                     fpr[j] = self.mdot - fpr[j]
-                # 150
                 if fpr[0] > 0:
                     fpr[0] = 0
-                # do 1000
                 for itn in range(0, itmx1):
                     prgs[2] = (prgs[0] * fpr[1] - prgs[1] * fpr[0]) / (fpr[1] - fpr[0])
                     fpr[2] = (
@@ -406,21 +378,16 @@ class LabyrinthSeal(SealElement):
                             + (gam4 * self.t[i - 1] * (1.0 - (prgs[2] ** gam2)))
                         )
                     )
-                    # check
                     a2001 = True
                     if prgs[2] <= chok2:
                         a2001 = False
                         error_outlet_pressure = 0
-                        # goto 2001
                         break
                     fpr[2] = self.mdot - fpr[2]
 
                     if fpr[2] * fpr[0] < 0:
-                        # 200
                         prgs[1] = prgs[2]
                         fpr[1] = fpr[2]
-                        # goto 500
-                    # 300
                     elif fpr[2] * fpr[0] == 0:
                         if fpr[0] == 0:
                             prgs[2] = prgs[0]
@@ -432,21 +399,16 @@ class LabyrinthSeal(SealElement):
                             fpr[1] = fpr[2]
                             prgs[0] = prgs[2]
                             fpr[0] = fpr[2]
-                            # goto 1500
                             break
-                    # 400
                     elif fpr[2] * fpr[0] > 0:
                         prgs[0] = prgs[2]
                         fpr[0] = fpr[2]
-                    # 500
                     if abs((prgs[2] - prold) / prgs[2]) <= tol1:
-                        # go to 1500
                         break
                     prold = prgs[2]
 
                 if a2001 == False:
                     break
-                # 1500
                 if abs(fpr[2]) > tol_p:
                     print("Pressuere Convergence Error at Station", i)
                 self.pr[i - 1] = prgs[2]
@@ -476,8 +438,6 @@ class LabyrinthSeal(SealElement):
                 and abs(self.pr[self.np - 2] - chock2) / chock2 > tol_choked
             ) or a2001 == False:
                 if error_outlet_pressure < 0 or a2001 == False:
-                    # 2001
-                    # print("1")
                     mdot_tmp = self.mdot
                     self.mdot = (mdot_low + self.mdot) / 2
                     mdot_high = mdot_tmp
@@ -486,7 +446,6 @@ class LabyrinthSeal(SealElement):
                         ndex1 = 2
                         a2998 = True
                 elif error_outlet_pressure >= 0:
-                    # print("2")
                     mdot_tmp = self.mdot
                     self.mdot = (mdot_high + self.mdot) / 2
                     mdot_low = mdot_tmp
