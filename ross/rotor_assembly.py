@@ -807,6 +807,7 @@ class Rotor(object):
 
         return modal_results
 
+    @check_units
     def run_critical_speed(self, speed_range=None, num_modes=12, rtol=0.005):
         """Calculate the critical speeds and damping ratios for the rotor model.
 
@@ -827,7 +828,7 @@ class Rotor(object):
 
         Parameters
         ----------
-        speed_range : tuple
+        speed_range : tuple, optional, pint.Quantity
             Tuple (start, end) with the desired range of frequencies (rad/s).
             The function returns all eigenvalues within this range.
         num_modes : int, optional
@@ -1703,6 +1704,7 @@ class Rotor(object):
 
         return H
 
+    @check_units
     def run_freq_response(
         self,
         speed_range=None,
@@ -1725,7 +1727,7 @@ class Rotor(object):
 
         Parameters
         ----------
-        speed_range : array, optional
+        speed_range : array, optional, pint.Quantity
             Array with the desired range of frequencies.
             Default is 0 to 1.5 x highest damped natural frequency.
         modes : list, optional
@@ -1865,6 +1867,7 @@ class Rotor(object):
 
         return results
 
+    @check_units
     def run_forced_response(
         self,
         force=None,
@@ -1894,9 +1897,9 @@ class Rotor(object):
 
         Parameters
         ----------
-        force : list, array
+        force : list, array, pint.Quantity
             Unbalance force in each degree of freedom for each value in omega
-        speed_range : list, array
+        speed_range : list, array, pint.Quantity
             Array with the desired range of frequencies
         modes : list, optional
             Modes that will be used to calculate the frequency response
@@ -2671,7 +2674,7 @@ class Rotor(object):
 
         Parameters
         ----------
-        speed_range : array
+        speed_range : array, pint.Quantity
             Array with the speed range in rad/s.
         frequencies : int, optional
             Number of frequencies that will be calculated.
@@ -3008,6 +3011,7 @@ class Rotor(object):
 
         return results
 
+    @check_units
     def run_time_response(self, speed, F, t, method="default", **kwargs):
         """Calculate the time response.
 
@@ -3021,7 +3025,7 @@ class Rotor(object):
 
         Parameters
         ----------
-        speed : float or array_like
+        speed : float or array_like, pint.Quantity
             Rotor speed. Automatically, the Newmark method is chosen if `speed`
             has an array_like type.
         F : array
