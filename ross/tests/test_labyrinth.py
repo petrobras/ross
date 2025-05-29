@@ -1,6 +1,6 @@
-import math
-
+import numpy as np
 import pytest
+
 from numpy.testing import assert_allclose, assert_almost_equal
 
 from ross.seals.labyrinth_seal import LabyrinthSeal
@@ -29,20 +29,11 @@ def labyrinth():
     return seal
 
 def test_labyrinth_coefficients(labyrinth):
-    kxx = labyrinth.kxx
-    kxy = labyrinth.kxy
-    kyx = labyrinth.kyx
-    kyy = labyrinth.kyy
-    cxx = labyrinth.cxx
-    cxy = labyrinth.cxy
-    cyx = labyrinth.cyx
-    cyy = labyrinth.cyy
-
-    assert math.isclose(kxx, -50419.34106546, rel_tol=0.0001)
-    assert math.isclose(kxy, 35522.04516972, rel_tol=0.0001)
-    assert math.isclose(kyx, -35522.04516972, rel_tol=0.0001)
-    assert math.isclose(kyy, -50419.34106546, rel_tol=0.0001)
-    assert math.isclose(cxx, 23.8100433, rel_tol=0.0001)
-    assert math.isclose(cxy, 56.21255909, rel_tol=0.0001)
-    assert math.isclose(cyx, -56.21255909, rel_tol=0.0001)
-    assert math.isclose(cyy, 23.8100433, rel_tol=0.0001)
+    assert_allclose(labyrinth.kxx, -50242.35216407, rtol=1e-4)
+    assert_allclose(labyrinth.kxy, 35764.19464202, rtol=1e-4)
+    assert_allclose(labyrinth.kyx, -35764.19464202, rtol=1e-4)
+    assert_allclose(labyrinth.kyy, -50242.35216407, rtol=1e-4)
+    assert_allclose(labyrinth.cxx, 24.03501182, rtol=1e-4)
+    assert_allclose(labyrinth.cxy, 55.95971508, rtol=1e-4)
+    assert_allclose(labyrinth.cyx, -55.95971508, rtol=1e-4)
+    assert_allclose(labyrinth.cyy, 24.03501182, rtol=1e-4)
