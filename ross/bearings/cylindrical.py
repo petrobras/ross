@@ -2040,19 +2040,25 @@ def _calculate_discretization_coeffs(
 ):
     mu_p = mu[ki, kj]
 
-    MU_e = 0.5 * (mu_p + mu[ki, kj + 1])
-    MU_w = 0.5 * (mu_p + mu[ki, kj - 1])
-    MU_s = 0.5 * (mu_p + mu[ki - 1, kj])
-    MU_n = 0.5 * (mu_p + mu[ki + 1, kj])
-
     if kj == 0:
         MU_w = mu_p
-    if kj == elm_cir - 1:
+        MU_e = 0.5 * (mu_p + mu[ki, kj + 1])
+    elif kj == elm_cir - 1:
+        MU_w = 0.5 * (mu_p + mu[ki, kj - 1])
         MU_e = mu_p
+    else:
+        MU_w = 0.5 * (mu_p + mu[ki, kj - 1])
+        MU_e = 0.5 * (mu_p + mu[ki, kj + 1])
+
     if ki == 0:
         MU_s = mu_p
-    if ki == elm_axi - 1:
+        MU_n = 0.5 * (mu_p + mu[ki + 1, kj])
+    elif ki == elm_axi - 1:
+        MU_s = 0.5 * (mu_p + mu[ki - 1, kj])
         MU_n = mu_p
+    else:
+        MU_s = 0.5 * (mu_p + mu[ki - 1, kj])
+        MU_n = 0.5 * (mu_p + mu[ki + 1, kj])
 
     aux_0 = dZ / (12 * dY * beta_s**2)
     aux_1 = dY * journal_radius**2 / (12 * dZ * axial_length**2)
