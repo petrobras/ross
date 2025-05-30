@@ -59,8 +59,8 @@ class THDCylindrical(BearingElement):
     Operation conditions
     ^^^^^^^^^^^^^^^^^^^^
     Describes the operation conditions of the bearing.
-    frequency : float, pint.Quantity
-        Rotor rotational speed. Default unit is rad/s.
+    frequency : list, pint.Quantity
+        Array with the frequencies (rad/s).
     fxs_load : float, pint.Quantity
         Load in X direction. The unit is newton.
     fys_load : float, pint.Quantity
@@ -305,11 +305,11 @@ class THDCylindrical(BearingElement):
         cyy = np.zeros(n_freq)
 
         for i in range(n_freq):
-            self.frequency = frequency[i]
+            speed = frequency[i]
 
-            self.run()
+            self.run(speed)
 
-            coeffs = self.coefficients()
+            coeffs = self.coefficients(speed)
             kxx[i], kxy[i], kyx[i], kyy[i] = coeffs[0]
             cxx[i], cxy[i], cyx[i], cyy[i] = coeffs[1]
 
@@ -317,7 +317,7 @@ class THDCylindrical(BearingElement):
             n, kxx, cxx, kyy, kxy, kyx, cyy, cxy, cyx, frequency=frequency, **kwargs
         )
 
-    def _forces(self, initial_guess, y0=None, xpt0=None, ypt0=None):
+    def _forces(self, initial_guess, speed, y0=None, xpt0=None, ypt0=None):
         """Calculates the forces in Y and X direction.
 
         Parameters
@@ -326,6 +326,8 @@ class THDCylindrical(BearingElement):
             If the other parameters are None, initial_guess is an array with eccentricity
             ratio and attitude angle. Else, initial_guess is the position of the center of
             the rotor in the x-axis.
+        speed : float
+            Rotor speed. The unit is rad/s.
         y0 : float
             The position of the center of the rotor in the y-axis.
         xpt0 : float
@@ -365,8 +367,8 @@ class THDCylindrical(BearingElement):
             self.X = initial_guess / self.radial_clearance
             self.Y = y0 / self.radial_clearance
 
-            self.Xpt = xpt0 / (self.radial_clearance * self.frequency)
-            self.Ypt = ypt0 / (self.radial_clearance * self.frequency)
+            self.Xpt = xpt0 / (self.radial_clearance * speed)
+            self.Ypt = ypt0 / (self.radial_clearance * speed)
 
         shape_2d = (self.elements_axial, self.elements_circumferential)
         shape_3d = (self.elements_axial, self.elements_circumferential, self.n_pad)
@@ -509,7 +511,7 @@ class THDCylindrical(BearingElement):
                     Pdim[:, :, n_p] = (
                         P_sol
                         * self.reference_viscosity
-                        * self.frequency
+                        * speed
                         * (self.journal_radius**2)
                     ) / (self.radial_clearance**2)
 
@@ -526,7 +528,7 @@ class THDCylindrical(BearingElement):
                         self.theta_range[n_p],
                         self.mu_l[:, :, n_p],
                         mu_turb[:, :, n_p],
-                        self.frequency,
+                        speed,
                         self.reference_temperature,
                         self.reference_viscosity,
                         self.rho,
@@ -565,7 +567,7 @@ class THDCylindrical(BearingElement):
                     Qedim[n_p] = (
                         self.radial_clearance
                         * H[0, n_p]
-                        * self.frequency
+                        * speed
                         * self.journal_radius
                         * self.axial_length
                         * Theta_vol[0, 0, n_p]
@@ -575,7 +577,7 @@ class THDCylindrical(BearingElement):
                     Qsdim[n_p] = (
                         self.radial_clearance
                         * H[-1, n_p]
-                        * self.frequency
+                        * speed
                         * self.journal_radius
                         * self.axial_length
                         * Theta_vol[0, -1, n_p]
@@ -630,13 +632,12 @@ class THDCylindrical(BearingElement):
 
         return Fhx, Fhy
 
-    def run(self):
+    def run(self, speed):
         """This method runs the optimization to find the equilibrium position of
         the rotor's center.
-
         """
 
-        args = self.print_progress
+        args = (speed, self.print_progress)
         t1 = time.time()
         res = minimize(
             self._score,
@@ -689,15 +690,19 @@ class THDCylindrical(BearingElement):
 
         return a, b
 
-    def coefficients(self):
+    @check_units
+    def coefficients(self, speed):
         """Calculates the dynamic coefficients of stiffness "k" and damping "c".
         Basic reference is found at :cite:t:`lund1978`
+
         Parameters
         ----------
+        speed : float, pint.Quantity
+            Rotational speed to evaluate coefficients. The unit is rad/s.
 
         Returns
         -------
-        coefs : tuple
+        coeffs : tuple
             Bearing stiffness and damping coefficients.
             Its shape is: ((kxx, kxy, kyx, kyy), (cxx, cxy, cyx, cyy))
 
@@ -708,13 +713,13 @@ class THDCylindrical(BearingElement):
         """
 
         if self.equilibrium_pos is None:
-            self.run()
-            self.coefficients()
+            self.run(speed)
+            self.coefficients(speed)
         else:
             if self.method == "lund":
-                k, c = self._lund_method()
+                k, c = self._lund_method(speed)
             elif self.method == "perturbation":
-                k, c = self._pertubation_method()
+                k, c = self._pertubation_method(speed)
 
             if self.show_coeffs:
                 print(f"kxx = {k[0]}")
@@ -727,11 +732,11 @@ class THDCylindrical(BearingElement):
                 print(f"cyx = {c[2]}")
                 print(f"cyy = {c[3]}")
 
-            coefs = (k, c)
+            coeffs = (k, c)
 
-            return coefs
+            return coeffs
 
-    def _pertubation_method(self):
+    def _pertubation_method(self, speed):
         """In this method the formulation is based in application of virtual
         displacements and speeds on the rotor from its equilibrium position to
         determine the bearing stiffness and damping coefficients.
@@ -753,48 +758,48 @@ class THDCylindrical(BearingElement):
         epix = np.abs(dE * self.radial_clearance * np.cos(self.equilibrium_pos[1]))
         epiy = np.abs(dE * self.radial_clearance * np.sin(self.equilibrium_pos[1]))
 
-        Va = self.frequency * (self.journal_radius)
+        Va = speed * (self.journal_radius)
         epixpt = 0.000001 * np.abs(Va * np.sin(self.equilibrium_pos[1]))
         epiypt = 0.000001 * np.abs(Va * np.cos(self.equilibrium_pos[1]))
 
-        Auinitial_guess1 = self._forces(xeq + epix, yeq, 0, 0)
-        Auinitial_guess2 = self._forces(xeq - epix, yeq, 0, 0)
-        Auinitial_guess3 = self._forces(xeq, yeq + epiy, 0, 0)
-        Auinitial_guess4 = self._forces(xeq, yeq - epiy, 0, 0)
+        Auinitial_guess1 = self._forces(xeq + epix, speed, yeq, 0, 0)
+        Auinitial_guess2 = self._forces(xeq - epix, speed, yeq, 0, 0)
+        Auinitial_guess3 = self._forces(xeq, speed, yeq + epiy, 0, 0)
+        Auinitial_guess4 = self._forces(xeq, speed, yeq - epiy, 0, 0)
 
-        Auinitial_guess5 = self._forces(xeq, yeq, epixpt, 0)
-        Auinitial_guess6 = self._forces(xeq, yeq, -epixpt, 0)
-        Auinitial_guess7 = self._forces(xeq, yeq, 0, epiypt)
-        Auinitial_guess8 = self._forces(xeq, yeq, 0, -epiypt)
+        Auinitial_guess5 = self._forces(xeq, speed, yeq, epixpt, 0)
+        Auinitial_guess6 = self._forces(xeq, speed, yeq, -epixpt, 0)
+        Auinitial_guess7 = self._forces(xeq, speed, yeq, 0, epiypt)
+        Auinitial_guess8 = self._forces(xeq, speed, yeq, 0, -epiypt)
 
-        Kxx = -self.sommerfeld(Auinitial_guess1[0], Auinitial_guess2[1]) * (
+        Kxx = -self.sommerfeld(speed, Auinitial_guess1[0], Auinitial_guess2[1]) * (
             (Auinitial_guess1[0] - Auinitial_guess2[0]) / (epix / self.radial_clearance)
         )
-        Kxy = -self.sommerfeld(Auinitial_guess3[0], Auinitial_guess4[1]) * (
+        Kxy = -self.sommerfeld(speed, Auinitial_guess3[0], Auinitial_guess4[1]) * (
             (Auinitial_guess3[0] - Auinitial_guess4[0]) / (epiy / self.radial_clearance)
         )
-        Kyx = -self.sommerfeld(Auinitial_guess1[1], Auinitial_guess2[1]) * (
+        Kyx = -self.sommerfeld(speed, Auinitial_guess1[1], Auinitial_guess2[1]) * (
             (Auinitial_guess1[1] - Auinitial_guess2[1]) / (epix / self.radial_clearance)
         )
-        Kyy = -self.sommerfeld(Auinitial_guess3[1], Auinitial_guess4[1]) * (
+        Kyy = -self.sommerfeld(speed, Auinitial_guess3[1], Auinitial_guess4[1]) * (
             (Auinitial_guess3[1] - Auinitial_guess4[1]) / (epiy / self.radial_clearance)
         )
 
-        Cxx = -self.sommerfeld(Auinitial_guess5[0], Auinitial_guess6[1]) * (
+        Cxx = -self.sommerfeld(speed, Auinitial_guess5[0], Auinitial_guess6[1]) * (
             (Auinitial_guess5[0] - Auinitial_guess6[0])
-            / (epixpt / self.radial_clearance / self.frequency)
+            / (epixpt / self.radial_clearance / speed)
         )
-        Cxy = -self.sommerfeld(Auinitial_guess7[0], Auinitial_guess8[1]) * (
+        Cxy = -self.sommerfeld(speed, Auinitial_guess7[0], Auinitial_guess8[1]) * (
             (Auinitial_guess7[0] - Auinitial_guess8[0])
-            / (epiypt / self.radial_clearance / self.frequency)
+            / (epiypt / self.radial_clearance / speed)
         )
-        Cyx = -self.sommerfeld(Auinitial_guess5[0], Auinitial_guess6[1]) * (
+        Cyx = -self.sommerfeld(speed, Auinitial_guess5[0], Auinitial_guess6[1]) * (
             (Auinitial_guess5[1] - Auinitial_guess6[1])
-            / (epixpt / self.radial_clearance / self.frequency)
+            / (epixpt / self.radial_clearance / speed)
         )
-        Cyy = -self.sommerfeld(Auinitial_guess7[0], Auinitial_guess8[1]) * (
+        Cyy = -self.sommerfeld(speed, Auinitial_guess7[0], Auinitial_guess8[1]) * (
             (Auinitial_guess7[1] - Auinitial_guess8[1])
-            / (epiypt / self.radial_clearance / self.frequency)
+            / (epiypt / self.radial_clearance / speed)
         )
 
         ratio = np.sqrt((self.fxs_load**2) + (self.fys_load**2)) / self.radial_clearance
@@ -804,6 +809,8 @@ class THDCylindrical(BearingElement):
         kyx = ratio * Kyx
         kyy = ratio * Kyy
 
+        ratio *= 1 / speed
+
         cxx = ratio * Cxx
         cxy = ratio * Cxy
         cyx = ratio * Cyx
@@ -811,7 +818,7 @@ class THDCylindrical(BearingElement):
 
         return (kxx, kxy, kyx, kyy), (cxx, cxy, cyx, cyy)
 
-    def _lund_method(self):
+    def _lund_method(self, speed):
         """In this method a small amplitude whirl of the journal center (a first
         order perturbation solution) is aplied. The four stiffness coefficients,
         and the four damping coefficients is obtained by integration of the pressure
@@ -1592,13 +1599,13 @@ class THDCylindrical(BearingElement):
 
         PXdim = (
             PX
-            * (self.reference_viscosity * self.frequency * (self.journal_radius**2))
+            * (self.reference_viscosity * speed * (self.journal_radius**2))
             / (self.radial_clearance**3)
         )
 
         PYdim = (
             PY
-            * (self.reference_viscosity * self.frequency * (self.journal_radius**2))
+            * (self.reference_viscosity * speed * (self.journal_radius**2))
             / (self.radial_clearance**3)
         )
 
@@ -1619,64 +1626,64 @@ class THDCylindrical(BearingElement):
         HY = HY.flatten()
 
         kxx = -np.real(
-            np.trapz(
-                np.trapz(PXPlot * HX, Ytheta * self.journal_radius),
+            np.trapezoid(
+                np.trapezoid(PXPlot * HX, Ytheta * self.journal_radius),
                 self.Zdim[1 : self.elements_axial + 1],
             )
         )
 
         kxy = -np.real(
-            np.trapz(
-                np.trapz(PYPlot * HX, Ytheta * self.journal_radius),
+            np.trapezoid(
+                np.trapezoid(PYPlot * HX, Ytheta * self.journal_radius),
                 self.Zdim[1 : self.elements_axial + 1],
             )
         )
 
         kyx = -np.real(
-            np.trapz(
-                np.trapz(PXPlot * HY, Ytheta * self.journal_radius),
+            np.trapezoid(
+                np.trapezoid(PXPlot * HY, Ytheta * self.journal_radius),
                 self.Zdim[1 : self.elements_axial + 1],
             )
         )
 
         kyy = -np.real(
-            np.trapz(
-                np.trapz(PYPlot * HY, Ytheta * self.journal_radius),
+            np.trapezoid(
+                np.trapezoid(PYPlot * HY, Ytheta * self.journal_radius),
                 self.Zdim[1 : self.elements_axial + 1],
             )
         )
 
         cxx = -np.imag(
-            np.trapz(
-                np.trapz(PXPlot * HX, Ytheta * self.journal_radius),
+            np.trapezoid(
+                np.trapezoid(PXPlot * HX, Ytheta * self.journal_radius),
                 self.Zdim[1 : self.elements_axial + 1],
             )
-        ) / (gamma * self.frequency)
+        ) / (gamma * speed)
 
         cxy = -np.imag(
-            np.trapz(
-                np.trapz(PYPlot * HX, Ytheta * self.journal_radius),
+            np.trapezoid(
+                np.trapezoid(PYPlot * HX, Ytheta * self.journal_radius),
                 self.Zdim[1 : self.elements_axial + 1],
             )
-        ) / (gamma * self.frequency)
+        ) / (gamma * speed)
 
         cyx = -np.imag(
-            np.trapz(
-                np.trapz(PXPlot * HY, Ytheta * self.journal_radius),
+            np.trapezoid(
+                np.trapezoid(PXPlot * HY, Ytheta * self.journal_radius),
                 self.Zdim[1 : self.elements_axial + 1],
             )
-        ) / (gamma * self.frequency)
+        ) / (gamma * speed)
 
         cyy = -np.imag(
-            np.trapz(
-                np.trapz(PYPlot * HY, Ytheta * self.journal_radius),
+            np.trapezoid(
+                np.trapezoid(PYPlot * HY, Ytheta * self.journal_radius),
                 self.Zdim[1 : self.elements_axial + 1],
             )
-        ) / (gamma * self.frequency)
+        ) / (gamma * speed)
 
         return (kxx, kxy, kyx, kyy), (cxx, cxy, cyx, cyy)
 
-    def _score(self, x, print_progress=False):
+    def _score(self, x, speed, print_progress=False):
         """This method used to set the objective function of minimize optimization.
 
         Parameters
@@ -1684,14 +1691,15 @@ class THDCylindrical(BearingElement):
         x: array
            Balanced Force expression between the load aplied in bearing and the
            resultant force provide by oil film.
+        speed: float
+            Rotational speed to evaluate bearing coefficients. The unit is rad/s.
 
         Returns
         -------
         Score coefficient.
-
         """
 
-        Fhx, Fhy = self._forces(x)
+        Fhx, Fhy = self._forces(x, speed)
         score = np.sqrt(((self.fxs_load + Fhx) ** 2) + ((self.fys_load + Fhy) ** 2))
         if print_progress:
             print(x)
@@ -1704,12 +1712,14 @@ class THDCylindrical(BearingElement):
 
         return score
 
-    def sommerfeld(self, force_x, force_y):
+    def sommerfeld(self, speed, force_x, force_y):
         """Calculate the sommerfeld number. This dimensionless number is used to
         calculate the dynamic coeficients.
 
         Parameters
         ----------
+        speed : float
+            Rotor speed. The unit is rad/s.
         force_x : float
             Force in x direction. The unit is newton.
         force_y : float
@@ -1726,7 +1736,7 @@ class THDCylindrical(BearingElement):
                 self.reference_viscosity
                 * ((self.journal_radius) ** 3)
                 * self.axial_length
-                * self.frequency
+                * speed
             ) / (
                 np.pi
                 * (self.radial_clearance**2)
