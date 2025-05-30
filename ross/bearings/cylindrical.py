@@ -719,7 +719,7 @@ class THDCylindrical(BearingElement):
             if self.method == "lund":
                 k, c = self._lund_method(speed)
             elif self.method == "perturbation":
-                k, c = self._pertubation_method(speed)
+                k, c = self._perturbation_method(speed)
 
             if self.show_coeffs:
                 print(f"kxx = {k[0]}")
@@ -736,7 +736,7 @@ class THDCylindrical(BearingElement):
 
             return coeffs
 
-    def _pertubation_method(self, speed):
+    def _perturbation_method(self, speed):
         """In this method the formulation is based in application of virtual
         displacements and speeds on the rotor from its equilibrium position to
         determine the bearing stiffness and damping coefficients.
