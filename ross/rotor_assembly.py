@@ -807,6 +807,7 @@ class Rotor(object):
 
         return modal_results
 
+    @check_units
     def run_critical_speed(self, speed_range=None, num_modes=12, rtol=0.005):
         """Calculate the critical speeds and damping ratios for the rotor model.
 
@@ -827,7 +828,7 @@ class Rotor(object):
 
         Parameters
         ----------
-        speed_range : tuple
+        speed_range : tuple, optional, pint.Quantity
             Tuple (start, end) with the desired range of frequencies (rad/s).
             The function returns all eigenvalues within this range.
         num_modes : int, optional
@@ -1030,6 +1031,7 @@ class Rotor(object):
 
         return results
 
+    @lru_cache()
     def M(self, frequency=None, synchronous=False):
         """Mass matrix for an instance of a rotor.
 
@@ -1100,15 +1102,16 @@ class Rotor(object):
 
         return M0
 
-    def K(self, frequency, ignore=[]):
+    @lru_cache()
+    def K(self, frequency, ignore=()):
         """Stiffness matrix for an instance of a rotor.
 
         Parameters
         ----------
         frequency : float, optional
             Excitation frequency.
-        ignore : list, optional
-            List of elements to leave out of the matrix.
+        ignore : tuple, optional
+            Tuple of elements to leave out of the matrix.
 
         Returns
         -------
@@ -1137,6 +1140,7 @@ class Rotor(object):
 
         return K0
 
+    @lru_cache()
     def Ksdt(self):
         """Dynamic stiffness matrix for an instance of a rotor.
 
@@ -1172,15 +1176,16 @@ class Rotor(object):
 
         return Ksdt0
 
-    def C(self, frequency, ignore=[]):
+    @lru_cache()
+    def C(self, frequency, ignore=()):
         """Damping matrix for an instance of a rotor.
 
         Parameters
         ----------
         frequency : float
             Excitation frequency.
-        ignore : list, optional
-            List of elements to leave out of the matrix.
+        ignore : tuple, optional
+            Tuple of elements to leave out of the matrix.
 
         Returns
         -------
@@ -1209,6 +1214,7 @@ class Rotor(object):
 
         return C0
 
+    @lru_cache()
     def G(self):
         """Gyroscopic matrix for an instance of a rotor.
 
@@ -1234,6 +1240,7 @@ class Rotor(object):
 
         return G0
 
+    @lru_cache()
     def A(self, speed=0, frequency=None, synchronous=False):
         """State space matrix for an instance of a rotor.
 
@@ -1272,10 +1279,12 @@ class Rotor(object):
         Z = np.zeros((self.ndof, self.ndof))
         I = np.eye(self.ndof)
 
+        M = self.M(frequency, synchronous=synchronous)
+
         # fmt: off
         A = np.vstack(
             [np.hstack([Z, I]),
-             np.hstack([la.solve(-self.M(frequency, synchronous=synchronous), self.K(frequency)), la.solve(-self.M(frequency,synchronous=synchronous), (self.C(frequency) + self.G() * speed))])])
+             np.hstack([la.solve(-M, self.K(frequency)), la.solve(-M, (self.C(frequency) + self.G() * speed))])])
         # fmt: on
 
         return A
@@ -1560,10 +1569,13 @@ class Rotor(object):
         B2 = I
         if frequency is None:
             frequency = speed
+
         A = self.A(speed=speed, frequency=frequency)
+        M = self.M(frequency)
+
         # fmt: off
         B = np.vstack([Z,
-                       la.solve(self.M(frequency), B2)])
+                       la.solve(M, B2)])
         # fmt: on
 
         # y = Cx + Du
@@ -1573,9 +1585,9 @@ class Rotor(object):
         Ca = Z
 
         # fmt: off
-        C = np.hstack((Cd - Ca @ la.solve(self.M(frequency), self.K(frequency)), Cv - Ca @ la.solve(self.M(frequency), self.C(frequency))))
+        C = np.hstack((Cd - Ca @ la.solve(M, self.K(frequency)), Cv - Ca @ la.solve(M, self.C(frequency))))
         # fmt: on
-        D = Ca @ la.solve(self.M(frequency), B2)
+        D = Ca @ la.solve(M, B2)
 
         sys = signal.lti(A, B, C, D)
 
@@ -1692,6 +1704,7 @@ class Rotor(object):
 
         return H
 
+    @check_units
     def run_freq_response(
         self,
         speed_range=None,
@@ -1714,7 +1727,7 @@ class Rotor(object):
 
         Parameters
         ----------
-        speed_range : array, optional
+        speed_range : array, optional, pint.Quantity
             Array with the desired range of frequencies.
             Default is 0 to 1.5 x highest damped natural frequency.
         modes : list, optional
@@ -1854,6 +1867,7 @@ class Rotor(object):
 
         return results
 
+    @check_units
     def run_forced_response(
         self,
         force=None,
@@ -1883,9 +1897,9 @@ class Rotor(object):
 
         Parameters
         ----------
-        force : list, array
+        force : list, array, pint.Quantity
             Unbalance force in each degree of freedom for each value in omega
-        speed_range : list, array
+        speed_range : list, array, pint.Quantity
             Array with the desired range of frequencies
         modes : list, optional
             Modes that will be used to calculate the frequency response
@@ -2297,6 +2311,7 @@ class Rotor(object):
         num_modes = kwargs.get("num_modes")
 
         if num_modes and num_modes > 0:
+            kwargs.pop("num_modes")
             print("Running pseudo-modal method, number of modes =", num_modes)
             get_array = self._pseudo_modal(speed_ref, num_modes)
         else:
@@ -2331,9 +2346,9 @@ class Rotor(object):
         if speed_is_array:
             accel = np.gradient(speed, t)
 
-            brgs_with_var_coeffs = [
+            brgs_with_var_coeffs = tuple(
                 brg for brg in self.bearing_elements if brg.frequency is not None
-            ]
+            )
 
             if len(brgs_with_var_coeffs):  # Option 1
                 if kwargs.get("C") or kwargs.get("K"):
@@ -2659,7 +2674,7 @@ class Rotor(object):
 
         Parameters
         ----------
-        speed_range : array
+        speed_range : array, pint.Quantity
             Array with the speed range in rad/s.
         frequencies : int, optional
             Number of frequencies that will be calculated.
@@ -2695,7 +2710,7 @@ class Rotor(object):
         # whirl[2](y axis), 3]
         self._check_frequency_array(speed_range)
 
-        results = np.zeros([len(speed_range), frequencies, 6])
+        results = np.zeros([len(speed_range), frequencies, 4])
 
         # MAC criterion to track modes
         def MAC(u, v):
@@ -2738,7 +2753,7 @@ class Rotor(object):
                     modal.wn = modal.wn[found_order]
                     modal.log_dec = modal.log_dec[found_order]
                     modal.damping_ratio = modal.damping_ratio[found_order]
-                    modal.update_mode_shapes()
+                    modal.shapes = list(np.array(modal.shapes)[found_order])
 
             evec_u = modal.evectors[:, :evec_size]
 
@@ -2753,9 +2768,6 @@ class Rotor(object):
                 results[i, :, 1] = modal.log_dec[idx][:frequencies]
                 results[i, :, 2] = modal.damping_ratio[idx][:frequencies]
                 results[i, :, 3] = modal.whirl_values()[idx][:frequencies]
-
-            results[i, :, 4] = w
-            results[i, :, 5] = modal.wn[:frequencies]
 
         results = CampbellResults(
             speed_range=speed_range,
@@ -2833,10 +2845,10 @@ class Rotor(object):
         # the forward mode in the plots, therefore we have num_modes / 2 / 2
         rotor_wn = np.zeros((num_modes // 2 // 2, len(stiffness_log)))
 
-        bearings_elements = []  # exclude the seals
-        for bearing in self.bearing_elements:
-            if not isinstance(bearing, SealElement):
-                bearings_elements.append(bearing)
+        # exclude the seals
+        bearings_elements = [
+            b for b in self.bearing_elements if not isinstance(b, SealElement)
+        ]
 
         for i, k in enumerate(stiffness_log):
             bearings = [BearingElement(b.n, kxx=k, cxx=0) for b in bearings_elements]
@@ -2999,6 +3011,7 @@ class Rotor(object):
 
         return results
 
+    @check_units
     def run_time_response(self, speed, F, t, method="default", **kwargs):
         """Calculate the time response.
 
@@ -3012,7 +3025,7 @@ class Rotor(object):
 
         Parameters
         ----------
-        speed : float or array_like
+        speed : float or array_like, pint.Quantity
             Rotor speed. Automatically, the Newmark method is chosen if `speed`
             has an array_like type.
         F : array
