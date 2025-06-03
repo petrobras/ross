@@ -812,28 +812,64 @@ class Shape(Results):
 
         nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
 
+        intersecting_nodes = np.where(nodes_pos[:-1] >= nodes_pos[1:])[0] + 1
+        n_plot = len(intersecting_nodes) + 1
+
+        get_node_index = (
+            lambda i: intersecting_nodes[i] if i + 1 < n_plot else len(nodes_pos)
+        )
+        get_color = (
+            lambda i: self.color
+            if i == 0
+            else list(tableau_colors.values())[::-1][i - 1]
+        )
+
         if plot_dimension == 2:
             # Plot 2d
+            n0 = 0
+            for i in range(n_plot):
+                n1 = get_node_index(i)
+                color = get_color(i)
+
+                fig.add_traces(
+                    go.Scatter(
+                        x=nodes_pos[n0:n1],
+                        y=theta[n0:n1],
+                        mode="lines",
+                        line=dict(color=color),
+                        showlegend=False,
+                        hovertemplate=(f"Relative angle: %{{y:.2f}}<extra></extra>"),
+                    )
+                )
+                fig.add_shape(
+                    type="line",
+                    x0=nodes_pos[n0],
+                    y0=0,
+                    x1=nodes_pos[n0],
+                    y1=theta[n0],
+                    line=dict(color=color, dash="dash"),
+                )
+                fig.add_shape(
+                    type="line",
+                    x0=nodes_pos[n1 - 1],
+                    y0=0,
+                    x1=nodes_pos[n1 - 1],
+                    y1=theta[n1 - 1],
+                    line=dict(color=color, dash="dash"),
+                )
+
+                n0 = n1
+
             fig.add_traces(
-                data=[
-                    go.Scatter(
-                        x=nodes_pos,
-                        y=theta,
-                        mode="lines",
-                        line=dict(color=self.color),
-                        showlegend=False,
-                        hovertemplate=(f"Relative angle: %{{y:.2f }}<extra></extra>"),
-                    ),
-                    go.Scatter(
-                        x=nodes_pos,
-                        y=nodes_pos * 0,
-                        mode="lines",
-                        line=dict(color="black", dash="dashdot"),
-                        name="centerline",
-                        hoverinfo="none",
-                        showlegend=False,
-                    ),
-                ]
+                go.Scatter(
+                    x=nodes_pos,
+                    y=nodes_pos * 0,
+                    mode="lines",
+                    line=dict(color="black", dash="dashdot"),
+                    name="centerline",
+                    hoverinfo="none",
+                    showlegend=False,
+                )
             )
 
             fig.update_yaxes(title_text="Relative Angle", range=[-1, 1])
@@ -861,49 +897,58 @@ class Shape(Results):
 
         frames = []
         initial_state = []
-        for i in range(len(variation)):
+        for j in range(len(variation)):
             node_data = []
-            xn = []
-            yn = []
-            zn = []
-            for n in range(len(nodes_pos)):
+
+            n0 = 0
+            for i in range(n_plot):
+                xn = []
+                yn = []
+                zn = []
+
+                n1 = get_node_index(i)
+                color = get_color(i)
+
+                for n in range(n0, n1):
+                    node_data.append(
+                        go.Scatter3d(
+                            x=[nodes_pos[n], nodes_pos[n]],
+                            y=[0, xt[j, n]],
+                            z=[0, yt[j, n]],
+                            mode="lines",
+                            line=dict(width=2, color=color),
+                            showlegend=False,
+                            name=f"Node {self.nodes[n]}",
+                            hovertemplate=(
+                                "Nodal position: %{x:.2f}<br>"
+                                + "X - Displacement: %{y:.2f}<br>"
+                                + "Y - Displacement: %{z:.2f}<br>"
+                                + f"Relative angle: {theta[n]:.2f}"
+                            ),
+                        )
+                    )
+                    xn.append(nodes_pos[n])
+                    yn.append(xt[j, n])
+                    zn.append(yt[j, n])
+
+                n0 = n1
+
                 node_data.append(
                     go.Scatter3d(
-                        x=[nodes_pos[n], nodes_pos[n]],
-                        y=[0, xt[i, n]],
-                        z=[0, yt[i, n]],
-                        mode="lines",
-                        line=dict(width=2, color=self.color),
+                        x=xn,
+                        y=yn,
+                        z=zn,
+                        mode="lines+markers",
+                        line=dict(width=2, color=color),
+                        marker=dict(size=3),
                         showlegend=False,
-                        name=f"Node {self.nodes[n]}",
-                        hovertemplate=(
-                            "Nodal position: %{x:.2f}<br>"
-                            + "X - Displacement: %{y:.2f}<br>"
-                            + "Y - Displacement: %{z:.2f}<br>"
-                            + f"Relative angle: {theta[n]:.2f}"
-                        ),
+                        hoverinfo="none",
                     )
                 )
-                xn.append(nodes_pos[n])
-                yn.append(xt[i, n])
-                zn.append(yt[i, n])
-
-            node_data.append(
-                go.Scatter3d(
-                    x=xn,
-                    y=yn,
-                    z=zn,
-                    mode="lines+markers",
-                    line=dict(width=2, color=self.color),
-                    marker=dict(size=3),
-                    showlegend=False,
-                    hoverinfo="none",
-                )
-            )
 
             frames.append(go.Frame(data=node_data))
 
-            if i == 0:
+            if j == 0:
                 initial_state = node_data
 
         # Center line
@@ -989,10 +1034,6 @@ class Shape(Results):
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
-        xn = self.major_x.copy()
-        yn = self.major_y.copy()
-        zn = self.zn.copy()
-        nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
 
         if fig is None:
             fig = go.Figure()
@@ -1004,6 +1045,11 @@ class Shape(Results):
             self._plot_axial(plot_dimension=2, length_units=length_units, fig=fig)
 
         else:
+            xn = self.major_x.copy()
+            yn = self.major_y.copy()
+            zn = self.zn.copy()
+            nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
+
             if orientation == "major":
                 values = self.major_axis.copy()
             elif orientation == "x":
