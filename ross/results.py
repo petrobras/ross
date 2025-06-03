@@ -618,6 +618,24 @@ class Shape(Results):
 
         return fig
 
+    def _fix_curve_intersec(self):
+        nodes_pos = np.array(self.nodes_pos)
+
+        intersecting_nodes = np.where(nodes_pos[:-1] >= nodes_pos[1:])[0] + 1
+        n_plot = len(intersecting_nodes) + 1
+
+        get_node_index = (
+            lambda i: intersecting_nodes[i] if i + 1 < n_plot else len(nodes_pos)
+        )
+
+        get_color = (
+            lambda i: self.color
+            if i == 0
+            else list(tableau_colors.values())[::-1][i - 1]
+        )
+
+        return n_plot, get_node_index, get_color
+
     def _plot_axial(
         self, plot_dimension=None, animation=False, length_units="m", fig=None
     ):
@@ -634,28 +652,54 @@ class Shape(Results):
 
         nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
 
+        n_plot, get_node_index, get_color = self._fix_curve_intersec()
+
         if plot_dimension == 2:
             # Plot 2d
-            fig.add_traces(
-                data=[
+            n0 = 0
+            for i in range(n_plot):
+                n1 = get_node_index(i)
+                color = get_color(i)
+
+                fig.add_trace(
                     go.Scatter(
-                        x=nodes_pos,
-                        y=rel_disp,
+                        x=nodes_pos[n0:n1],
+                        y=rel_disp[n0:n1],
                         mode="lines",
-                        line=dict(color=self.color),
+                        line=dict(color=color),
                         showlegend=False,
                         hovertemplate=(f"Relative angle: %{{y:.2f }}<extra></extra>"),
-                    ),
-                    go.Scatter(
-                        x=nodes_pos,
-                        y=nodes_pos * 0,
-                        mode="lines",
-                        line=dict(color="black", dash="dashdot"),
-                        name="centerline",
-                        hoverinfo="none",
-                        showlegend=False,
-                    ),
-                ]
+                    )
+                )
+                fig.add_shape(
+                    type="line",
+                    x0=nodes_pos[n0],
+                    y0=0,
+                    x1=nodes_pos[n0],
+                    y1=rel_disp[n0],
+                    line=dict(color=color, dash="dash"),
+                )
+                fig.add_shape(
+                    type="line",
+                    x0=nodes_pos[n1 - 1],
+                    y0=0,
+                    x1=nodes_pos[n1 - 1],
+                    y1=rel_disp[n1 - 1],
+                    line=dict(color=color, dash="dash"),
+                )
+
+                n0 = n1
+
+            fig.add_trace(
+                go.Scatter(
+                    x=nodes_pos,
+                    y=nodes_pos * 0,
+                    mode="lines",
+                    line=dict(color="black", dash="dashdot"),
+                    name="centerline",
+                    hoverinfo="none",
+                    showlegend=False,
+                )
             )
 
             fig.update_yaxes(title_text="Relative Displacement", range=[-1, 1])
@@ -676,45 +720,53 @@ class Shape(Results):
 
         frames = []
         initial_state = []
-        for i, var in enumerate(variation):
+        for j, var in enumerate(variation):
             zt = np.array(nodes_pos) + rel_disp * var
-
             node_data = []
-            xn = []
-            for n in range(len(nodes_pos)):
+
+            n0 = 0
+            for i in range(n_plot):
+                xn = []
+
+                n1 = get_node_index(i)
+                color = get_color(i)
+
+                for n in range(n0, n1):
+                    node_data.append(
+                        go.Scatter3d(
+                            x=[nodes_pos[n], zt[n]],
+                            y=[0, 0],
+                            z=[0, 1],
+                            mode="lines",
+                            line=dict(width=2, color=color),
+                            showlegend=False,
+                            name=f"Node {self.nodes[n]}",
+                            hovertemplate=(
+                                f"Original position: {nodes_pos[n]:.2f} {length_units}<br>"
+                                + f"Relative displacement: {rel_disp[n]:.2f}"
+                            ),
+                        )
+                    )
+                    xn.append(zt[n])
+
+                n0 = n1
+
                 node_data.append(
                     go.Scatter3d(
-                        x=[nodes_pos[n], zt[n]],
-                        y=[0, 0],
-                        z=[0, 1],
-                        mode="lines",
-                        line=dict(width=2, color=self.color),
+                        x=xn,
+                        y=np.zeros(len(nodes_pos)),
+                        z=np.ones(len(nodes_pos)),
+                        mode="lines+markers",
+                        line=dict(width=2, color=color),
+                        marker=dict(size=3),
                         showlegend=False,
-                        name=f"Node {self.nodes[n]}",
-                        hovertemplate=(
-                            f"Original position: {nodes_pos[n]:.2f} {length_units}<br>"
-                            + f"Relative displacement: {rel_disp[n]:.2f}"
-                        ),
+                        hoverinfo="none",
                     )
                 )
-                xn.append(zt[n])
-
-            node_data.append(
-                go.Scatter3d(
-                    x=xn,
-                    y=np.zeros(len(nodes_pos)),
-                    z=np.ones(len(nodes_pos)),
-                    mode="lines+markers",
-                    line=dict(width=2, color=self.color),
-                    marker=dict(size=3),
-                    showlegend=False,
-                    hoverinfo="none",
-                )
-            )
 
             frames.append(go.Frame(data=node_data))
 
-            if i == 0:
+            if j == 0:
                 initial_state = node_data
 
         original = [
@@ -812,17 +864,7 @@ class Shape(Results):
 
         nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
 
-        intersecting_nodes = np.where(nodes_pos[:-1] >= nodes_pos[1:])[0] + 1
-        n_plot = len(intersecting_nodes) + 1
-
-        get_node_index = (
-            lambda i: intersecting_nodes[i] if i + 1 < n_plot else len(nodes_pos)
-        )
-        get_color = (
-            lambda i: self.color
-            if i == 0
-            else list(tableau_colors.values())[::-1][i - 1]
-        )
+        n_plot, get_node_index, get_color = self._fix_curve_intersec()
 
         if plot_dimension == 2:
             # Plot 2d
@@ -831,7 +873,7 @@ class Shape(Results):
                 n1 = get_node_index(i)
                 color = get_color(i)
 
-                fig.add_traces(
+                fig.add_trace(
                     go.Scatter(
                         x=nodes_pos[n0:n1],
                         y=theta[n0:n1],
@@ -860,7 +902,7 @@ class Shape(Results):
 
                 n0 = n1
 
-            fig.add_traces(
+            fig.add_trace(
                 go.Scatter(
                     x=nodes_pos,
                     y=nodes_pos * 0,
