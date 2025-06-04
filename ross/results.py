@@ -528,58 +528,74 @@ class Shape(Results):
             zeta = zeta.reshape(nn, 1)
             onn = onn.reshape(nn, 1)
 
-            xn = np.zeros(nn * (len(nodes) - 1))
-            yn = np.zeros(nn * (len(nodes) - 1))
-            xn_complex = np.zeros(nn * (len(nodes) - 1), dtype=np.complex128)
-            yn_complex = np.zeros(nn * (len(nodes) - 1), dtype=np.complex128)
-            zn = np.zeros(nn * (len(nodes) - 1))
-            major = np.zeros(nn * (len(nodes) - 1))
-            major_x = np.zeros(nn * (len(nodes) - 1))
-            major_y = np.zeros(nn * (len(nodes) - 1))
-            major_angle = np.zeros(nn * (len(nodes) - 1))
+            shape = nn * len(shaft_elements_length)
+
+            xn = np.zeros(shape)
+            yn = np.zeros(shape)
+            xn_complex = np.zeros(shape, dtype=np.complex128)
+            yn_complex = np.zeros(shape, dtype=np.complex128)
+            zn = np.zeros(shape)
+            major = np.zeros(shape)
+            major_x = np.zeros(shape)
+            major_y = np.zeros(shape)
+            major_angle = np.zeros(shape)
 
             N1 = onn - 3 * zeta**2 + 2 * zeta**3
             N2 = zeta - 2 * zeta**2 + zeta**3
             N3 = 3 * zeta**2 - 2 * zeta**3
             N4 = -(zeta**2) + zeta**3
 
-            for Le, n in zip(shaft_elements_length, nodes):
-                node_pos = nodes_pos[n]
-                Nx = np.hstack((N1, Le * N2, N3, Le * N4))
-                Ny = np.hstack((N1, -Le * N2, N3, -Le * N4))
+            n_div, get_node_index, _ = self._fix_curve_intersec()
 
-                ind = num_dof * n
-                xx = [
-                    ind + 0,
-                    ind + int(num_dof / 2) + 1,
-                    ind + num_dof + 0,
-                    ind + int(3 * num_dof / 2) + 1,
-                ]
-                yy = [
-                    ind + 1,
-                    ind + int(num_dof / 2) + 0,
-                    ind + num_dof + 1,
-                    ind + int(3 * num_dof / 2) + 0,
-                ]
+            n0 = 0
+            e0 = 0
+            k = 0
+            for j in range(n_div):
+                n1 = get_node_index(j)
+                e1 = n1 - 1
 
-                pos0 = nn * n
-                pos1 = nn * (n + 1)
+                for Le, n in zip(shaft_elements_length[e0:e1], nodes[n0:n1]):
+                    node_pos = nodes_pos[n]
+                    Nx = np.hstack((N1, Le * N2, N3, Le * N4))
+                    Ny = np.hstack((N1, -Le * N2, N3, -Le * N4))
 
-                xn[pos0:pos1] = Nx @ evec[xx].real
-                yn[pos0:pos1] = Ny @ evec[yy].real
-                zn[pos0:pos1] = (node_pos * onn + Le * zeta).reshape(nn)
+                    ind = num_dof * n
+                    xx = [
+                        ind + 0,
+                        ind + int(num_dof / 2) + 1,
+                        ind + num_dof + 0,
+                        ind + int(3 * num_dof / 2) + 1,
+                    ]
+                    yy = [
+                        ind + 1,
+                        ind + int(num_dof / 2) + 0,
+                        ind + num_dof + 1,
+                        ind + int(3 * num_dof / 2) + 0,
+                    ]
 
-                # major axes calculation
-                xn_complex[pos0:pos1] = Nx @ evec[xx]
-                yn_complex[pos0:pos1] = Ny @ evec[yy]
-                for i in range(pos0, pos1):
-                    orb = Orbit(
-                        node=0, node_pos=0, ru_e=xn_complex[i], rv_e=yn_complex[i]
-                    )
-                    major[i] = orb.major_axis
-                    major_x[i] = orb.major_x
-                    major_y[i] = orb.major_y
-                    major_angle[i] = orb.major_angle
+                    pos0 = nn * k
+                    pos1 = nn * (k + 1)
+
+                    xn[pos0:pos1] = Nx @ evec[xx].real
+                    yn[pos0:pos1] = Ny @ evec[yy].real
+                    zn[pos0:pos1] = (node_pos * onn + Le * zeta).reshape(nn)
+
+                    # major axes calculation
+                    xn_complex[pos0:pos1] = Nx @ evec[xx]
+                    yn_complex[pos0:pos1] = Ny @ evec[yy]
+
+                    k += 1
+                    for i in range(pos0, pos1):
+                        orb = Orbit(
+                            node=0, node_pos=0, ru_e=xn_complex[i], rv_e=yn_complex[i]
+                        )
+                        major[i] = orb.major_axis
+                        major_x[i] = orb.major_x
+                        major_y[i] = orb.major_y
+                        major_angle[i] = orb.major_angle
+
+                n0 = n1
+                e0 = e1
 
             self.xn = xn
             self.yn = yn
@@ -619,6 +635,8 @@ class Shape(Results):
         return fig
 
     def _fix_curve_intersec(self):
+        """This function is used to fix the mode shape plot, especially for multi rotors
+        for which the mode curves of each rotor may intersect"""
         nodes_pos = np.array(self.nodes_pos)
 
         intersecting_nodes = np.where(nodes_pos[:-1] >= nodes_pos[1:])[0] + 1
@@ -628,11 +646,9 @@ class Shape(Results):
             lambda i: intersecting_nodes[i] if i + 1 < n_plot else len(nodes_pos)
         )
 
-        get_color = (
-            lambda i: self.color
-            if i == 0
-            else list(tableau_colors.values())[::-1][i - 1]
-        )
+        colors = list(tableau_colors.values())
+
+        get_color = lambda i: self.color if i == 0 else colors[::-1][i - 1]
 
         return n_plot, get_node_index, get_color
 
@@ -1089,8 +1105,9 @@ class Shape(Results):
         else:
             xn = self.major_x.copy()
             yn = self.major_y.copy()
-            zn = self.zn.copy()
+            zn = Q_(self.zn, "m").to(length_units).m
             nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
+            major_angle = Q_(self.major_angle, "rad").to(phase_units).m
 
             if orientation == "major":
                 values = self.major_axis.copy()
@@ -1101,21 +1118,47 @@ class Shape(Results):
             else:
                 raise ValueError(f"Invalid orientation {orientation}.")
 
-            fig.add_trace(
-                go.Scatter(
-                    x=Q_(zn, "m").to(length_units).m,
-                    y=values,
-                    mode="lines",
-                    line=dict(color=self.color),
-                    name=f"{orientation}",
-                    showlegend=False,
-                    customdata=Q_(self.major_angle, "rad").to(phase_units).m,
-                    hovertemplate=(
-                        f"Displacement: %{{y:.2f}}<br>"
-                        + f"Angle {phase_units}: %{{customdata:.2f}}"
+            n_plot, get_node_index, get_color = self._fix_curve_intersec()
+            aux = len(zn) // len(self.shaft_elements_length)
+
+            n0 = 0
+            for i in range(n_plot):
+                n1 = (get_node_index(i) - (i + 1)) * aux
+                color = get_color(i)
+
+                fig.add_trace(
+                    go.Scatter(
+                        x=zn[n0:n1],
+                        y=values[n0:n1],
+                        mode="lines",
+                        line=dict(color=color),
+                        name=f"{orientation}",
+                        showlegend=False,
+                        customdata=major_angle[n0:n1],
+                        hovertemplate=(
+                            f"Displacement: %{{y:.2f}}<br>"
+                            + f"Angle {phase_units}: %{{customdata:.2f}}"
+                        ),
                     ),
-                ),
-            )
+                )
+                fig.add_shape(
+                    type="line",
+                    x0=zn[n0],
+                    y0=0,
+                    x1=zn[n0],
+                    y1=values[n0],
+                    line=dict(color=color, dash="dash"),
+                )
+                fig.add_shape(
+                    type="line",
+                    x0=zn[n1 - 1],
+                    y0=0,
+                    x1=zn[n1 - 1],
+                    y1=values[n1 - 1],
+                    line=dict(color=color, dash="dash"),
+                )
+
+                n0 = n1
 
             # plot center line
             fig.add_trace(
