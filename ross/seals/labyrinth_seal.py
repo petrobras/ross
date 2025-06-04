@@ -10,7 +10,6 @@ import multiprocessing
 
 __all__ = ["LabyrinthSeal"]
 
-
 class LabyrinthSeal(SealElement):
     """Calculate labyrinth seal with model based on Laby3.
 
@@ -73,7 +72,8 @@ class LabyrinthSeal(SealElement):
         Use or no use of tangential momentum parameters introduced by Jenny and Kanki
         Specify value 0 to not use parameters
         Specify value 1 to use parameters
-
+    print_results : bool
+        If True, print results to console. Default is False.
 
     Examples
     --------
@@ -120,16 +120,16 @@ class LabyrinthSeal(SealElement):
         analz="FULL",
         nprt=1,
         iopt1=0,
+        print_results=False,
         **kwargs,
     ):
 
+        self.print_results = print_results
         self.gas_composition = gas_composition
         self.tz = tz
         self.muz = muz
         self.r = r
         self.gamma = gamma
-
-
         self.n = n
         self.inlet_pressure = inlet_pressure
         self.outlet_pressure = outlet_pressure
@@ -301,7 +301,8 @@ class LabyrinthSeal(SealElement):
             * self.pi
             * (self.shaft_radius + 0.5 * self.radial_clearance[0])
         )
-        print(f"{'   Leakage':<40} {leakv:>15.8f} kg/s \n \n")
+        if self.print_results:
+            print(f"{'   Leakage':<40} {leakv:>15.8f} kg/s \n \n")
         self.mdot = self.mdotv
 
     def zpres(self):
@@ -411,7 +412,7 @@ class LabyrinthSeal(SealElement):
                 if a2001 == False:
                     break
                 if abs(fpr[2]) > tol_p:
-                    print("Pressuere Convergence Error at Station", i)
+                    print(f"Pressuere Convergence Error at Station {i}")
                 self.pr[i - 1] = prgs[2]
                 self.p[i] = self.pr[i - 1] * self.p[i - 1]
                 self.w[i] = (self.mdot * self.r * self.t[i - 1]) / (
@@ -443,7 +444,8 @@ class LabyrinthSeal(SealElement):
                     self.mdot = (mdot_low + self.mdot) / 2
                     mdot_high = mdot_tmp
                     if (self.mdot - mdot_tmp) / self.mdot == 0:
-                        print("reset iteration")
+                        if self.print_results:
+                            print("Reset iteration")
                         ndex1 = 2
                         a2998 = True
                 elif error_outlet_pressure >= 0:
@@ -451,7 +453,8 @@ class LabyrinthSeal(SealElement):
                     self.mdot = (mdot_high + self.mdot) / 2
                     mdot_low = mdot_tmp
                     if (self.mdot - mdot_tmp) / self.mdot == 0:
-                        print("reset iteration")
+                        if self.print_results:
+                            print("Reset iteration")
                         ndex1 = 2
                         a2998 = True
                 asaida = False
@@ -480,7 +483,8 @@ class LabyrinthSeal(SealElement):
         if self.nprt > 4:
             return
 
-        print(f"{'   Leakage':<40} {leak:>15.8f} kg/s \n")
+        if self.print_results:
+            print(f"{'   Leakage':<40} {leak:>15.8f} kg/s \n")
 
         return
 
@@ -501,7 +505,7 @@ class LabyrinthSeal(SealElement):
         if self.seal_type == "inter":
             jc = 0.90
         if jc == 0:
-            print("Improper selection of labyrinth type")
+            print("Improper selection of labyrinth type.")
             sys.exit()
         bmr = -0.25
         bms = -0.25
@@ -650,7 +654,7 @@ class LabyrinthSeal(SealElement):
                     else:
                         break
             if abs(fv[2] > 0.001):
-                print("Velocity Convergence Error at station", i)
+                print(f"Velocity Convergence Error at station {i}")
             self.v[i] = vgs[2]
             self.vout[i] = self.vin[i] * (1 - jc) + self.v[i] * jc
             self.kout[i] = self.vout[i] / self.v[i]
@@ -854,8 +858,8 @@ class LabyrinthSeal(SealElement):
                         vold = vgs[2]
                     else:
                         break
-            if abs(fv[2] > 0.001):
-                print("Velocity Convergence Error at station", i)
+            if abs(fv[2] > 0.001) and self.print_results:
+                print(f"Velocity Convergence Error at station {i}")
             self.v[i] = vgs[2]
             self.taur[i] = tr[2]
             self.taus[i] = ts[2]
@@ -1084,15 +1088,11 @@ class LabyrinthSeal(SealElement):
         rcond = 1 / cnd
 
         if rcond <= 1 / 3.0e8:
-            print(
-                "Matriz quase singular \n Sem previsão para os coeficientes dinâmicos"
-            )
+            print("Almost singular matrix. \n No prediction for dynamic coefficients.")
             quit()
         if rcond <= 1 / 1.0e6:
-            print(
-                "Número de condição da Matriz é alto \n número de condição de matriz e:",
-                cnd,
-            )
+            print(f"Array condition number is high \n array condition number e:{cnd}")
+
         sol1 = lu_solve((lu, piv), rhs1)
         sol2 = lu_solve((lu, piv), rhs2)
         for i in range(0, 8 * self.nc):
