@@ -24,3 +24,15 @@ Alternatively, you can install the development version from github:
 ```{code-block}
 pip install git+https://github.com/petrobras/ross.git
 ```
+
+# 💡 ROSS GPT – Virtual Assistant
+
+Need help building your rotor model or running an analysis?
+
+Meet [**ROSS GPT**](https://bit.ly/rossgpt), a virtual assistant trained specifically for the ROSS package. You can:
+
+- Generate rotor models in Python with just a description.
+- Run and interpret modal analysis, Campbell diagrams, and more.
+- Understand technical aspects of ROSS elements like ShaftElement, DiskElement, BearingElement, etc.
+
+👉 [Click here to start using ROSS GPT](https://bit.ly/rossgpt).
