@@ -78,6 +78,7 @@ class LabyrinthSeal(SealElement):
     Examples
     --------
     >>> from ross.seals.labyrinth_seal import LabyrinthSeal
+    >>> from ross.units import Q_
     >>> seal = LabyrinthSeal(
     ...     n=0,
     ...     inlet_pressure=308000,
