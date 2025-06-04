@@ -1,5 +1,4 @@
 import numpy as np
-import math
 import sys
 from scipy.linalg import lu_factor, lu_solve
 from numpy.linalg import cond
@@ -142,7 +141,6 @@ class LabyrinthSeal(SealElement):
         self.tooth_height = tooth_height
         self.tooth_width = tooth_width
         self.seal_type = seal_type
-
         self.analz = analz
         self.nprt = nprt
         self.iopt1 = iopt1
@@ -196,8 +194,8 @@ class LabyrinthSeal(SealElement):
         n = 0
         while n < self.n_teeth:
             r = guess
-            deriv_num = -2 * (n + 1) + 2 * r * math.log(r) + 1 / r - r
-            deriv_den = ((1 - r**2) ** 0.5) * ((n - math.log(r)) ** 1.5)
+            deriv_num = -2 * (n + 1) + 2 * r * np.log(r) + 1 / r - r
+            deriv_den = ((1 - r**2) ** 0.5) * ((n - np.log(r)) ** 1.5)
             deriv = deriv_num / deriv_den
             error = -deriv
             while abs(error) > tol:
@@ -208,13 +206,13 @@ class LabyrinthSeal(SealElement):
                     guess_high = guess
                     guess = (guess + guess_low) / 2
                 r = guess
-                deriv_num = -2 * (n + 1) + 2 * r * math.log(r) + 1 / r - r
-                deriv_den = ((1 - r**2) ** 0.5) * ((n - math.log(r)) ** 1.5)
+                deriv_num = -2 * (n + 1) + 2 * r * np.log(r) + 1 / r - r
+                deriv_den = ((1 - r**2) ** 0.5) * ((n - np.log(r)) ** 1.5)
                 deriv = deriv_num / deriv_den
                 error = -deriv
             self.r_choke[n] = guess
             self.tooth_height_choke[n] = (
-                (1 - self.r_choke[n] ** 2) / ((n + 1) - math.log(self.r_choke[n]))
+                (1 - self.r_choke[n] ** 2) / ((n + 1) - np.log(self.r_choke[n]))
             ) ** 0.5
             n += 1
             error = 10000
@@ -225,7 +223,7 @@ class LabyrinthSeal(SealElement):
             self.tooth_heighteta_nt = self.tooth_height_choke[self.n_teeth]
         else:
             self.tooth_heighteta_nt = (
-                (1 - self.pg**2) / (self.n_teeth - math.log(self.pg))
+                (1 - self.pg**2) / (self.n_teeth - np.log(self.pg))
             ) ** 0.5
         return
 
@@ -258,7 +256,7 @@ class LabyrinthSeal(SealElement):
             self.rho[i] = 0
             self.t[i] = self.inlet_temperature
 
-        self.pi = math.pi
+        self.pi = np.pi
         self.pg = self.outlet_pressure / self.inlet_pressure
         self.omega = self.frequency
 
@@ -375,7 +373,7 @@ class LabyrinthSeal(SealElement):
                         * self.radial_clearance[i - 1]
                         * self.rho[i - 1]
                         * (prgs[2] ** gam1)
-                        * math.sqrt(
+                        * np.sqrt(
                             (self.vnu * self.w[i - 1] * self.w[i - 1])
                             + (gam4 * self.t[i - 1] * (1.0 - (prgs[2] ** gam2)))
                         )
@@ -565,7 +563,7 @@ class LabyrinthSeal(SealElement):
                     * rov[j]
                     * bnr
                     * ((abs(rov[j]) * dh / self.nu) ** bmr)
-                    * math.copysign(1, rov[j])
+                    * np.copysign(1, rov[j])
                 )
                 ts[j] = (
                     0.5
@@ -574,7 +572,7 @@ class LabyrinthSeal(SealElement):
                     * vgs[j]
                     * bns
                     * ((abs(vgs[j]) * dh / self.nu) ** bms)
-                    * math.copysign(1, vgs[j])
+                    * np.copysign(1, vgs[j])
                 )
                 fv[j] = (self.mdot * jc * (vgs[j] - self.vin[i])) - (
                     self.pitch[0] * (tr[j] * ar - ts[j] * as_py)
@@ -590,7 +588,7 @@ class LabyrinthSeal(SealElement):
                     * rov[2]
                     * bnr
                     * ((abs(rov[2]) * dh / self.nu) ** bmr)
-                    * math.copysign(1, rov[2])
+                    * np.copysign(1, rov[2])
                 )
                 ts[2] = (
                     0.5
@@ -599,7 +597,7 @@ class LabyrinthSeal(SealElement):
                     * vgs[2]
                     * bns
                     * ((abs(vgs[2]) * dh / self.nu) ** bms)
-                    * math.copysign(1, vgs[2])
+                    * np.copysign(1, vgs[2])
                 )
                 fv[2] = (self.mdot * (vgs[2] - self.vin[i])) - (
                     self.pitch[0] * (tr[2] * ar - ts[2] * as_py)
@@ -774,7 +772,7 @@ class LabyrinthSeal(SealElement):
                     * rov[j]
                     * bnr
                     * ((abs(rov[j]) * dh / self.nu) ** bmr)
-                    * math.copysign(1, rov[j])
+                    * np.copysign(1, rov[j])
                 )
                 ts[j] = (
                     0.5
@@ -783,7 +781,7 @@ class LabyrinthSeal(SealElement):
                     * vgs[j]
                     * bns
                     * ((abs(vgs[j]) * dh / self.nu) ** bms)
-                    * math.copysign(1, vgs[j])
+                    * np.copysign(1, vgs[j])
                 )
                 fv[j] = (self.mdot * (vgs[j] - self.v[i - 1])) - (
                     self.pitch[0] * (tr[j] * ar - ts[j] * as_py)
@@ -798,7 +796,7 @@ class LabyrinthSeal(SealElement):
                     * rov[2]
                     * bnr
                     * ((abs(rov[2]) * dh / self.nu) ** bmr)
-                    * math.copysign(1, rov[2])
+                    * np.copysign(1, rov[2])
                 )
                 ts[2] = (
                     0.5
@@ -807,7 +805,7 @@ class LabyrinthSeal(SealElement):
                     * vgs[2]
                     * bns
                     * ((abs(vgs[2]) * dh / self.nu) ** bms)
-                    * math.copysign(1, vgs[2])
+                    * np.copysign(1, vgs[2])
                 )
                 fv[2] = (self.mdot * (vgs[2] - self.v[i - 1])) - (
                     self.pitch[0] * (tr[2] * ar - ts[2] * as_py)
