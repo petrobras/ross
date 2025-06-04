@@ -9,6 +9,7 @@ import multiprocessing
 
 __all__ = ["LabyrinthSeal"]
 
+
 class LabyrinthSeal(SealElement):
     """Calculate labyrinth seal with model based on Laby3.
 
@@ -122,7 +123,6 @@ class LabyrinthSeal(SealElement):
         print_results=False,
         **kwargs,
     ):
-
         self.print_results = print_results
         self.gas_composition = gas_composition
         self.tz = tz
@@ -225,7 +225,6 @@ class LabyrinthSeal(SealElement):
             self.tooth_heighteta_nt = (
                 (1 - self.pg**2) / (self.n_teeth - np.log(self.pg))
             ) ** 0.5
-        return
 
     def setup(self):
         self.epslon = 0.6
@@ -259,8 +258,6 @@ class LabyrinthSeal(SealElement):
         self.pi = np.pi
         self.pg = self.outlet_pressure / self.inlet_pressure
         self.omega = self.frequency
-
-        return
 
     def vermes(self):
         sg = self.tooth_width[0] / self.radial_clearance[0]
@@ -328,7 +325,7 @@ class LabyrinthSeal(SealElement):
 
         while True:
             asaida = True
-            if a2998 == True:
+            if a2998:
                 mdot_high = self.mdot * 5
                 mdot_low = 0
                 a2998 = False
@@ -345,7 +342,7 @@ class LabyrinthSeal(SealElement):
                 )
                 chok2 = chok1**gam5
             for i in range(1, self.n_teeth + 1):
-                if i == self.n_teeth:
+                if i is self.n_teeth:
                     prgs[0] = chok2
                 else:
                     prgs[0] = chok2
@@ -407,7 +404,7 @@ class LabyrinthSeal(SealElement):
                         break
                     prold = prgs[2]
 
-                if a2001 == False:
+                if not a2001:
                     break
                 if abs(fpr[2]) > tol_p:
                     print(f"Pressuere Convergence Error at Station {i}")
@@ -422,7 +419,7 @@ class LabyrinthSeal(SealElement):
                 self.rho[i] = self.rho[i - 1] * (self.pr[i - 1] ** gam1)
                 self.t[i] = self.t[i - 1] * (self.pr[i - 1] ** gam2)
 
-            if a2001 == True:
+            if a2001:
                 i = self.np - 1
                 chock1 = gam7 + (
                     self.vnu * self.w[i - 1] * self.w[i - 1] / (gam4 * self.t[i - 1])
@@ -436,8 +433,8 @@ class LabyrinthSeal(SealElement):
             if (
                 abs(error_outlet_pressure) >= tol_outlet_pressure
                 and abs(self.pr[self.np - 2] - chock2) / chock2 > tol_choked
-            ) or a2001 == False:
-                if error_outlet_pressure < 0 or a2001 == False:
+            ) or not a2001:
+                if error_outlet_pressure < 0 or not a2001:
                     mdot_tmp = self.mdot
                     self.mdot = (mdot_low + self.mdot) / 2
                     mdot_high = mdot_tmp
@@ -456,7 +453,7 @@ class LabyrinthSeal(SealElement):
                         ndex1 = 2
                         a2998 = True
                 asaida = False
-            if asaida == True:
+            if asaida:
                 break
 
         i = self.np - 1
@@ -483,8 +480,6 @@ class LabyrinthSeal(SealElement):
 
         if self.print_results:
             print(f"{'   Leakage':<40} {leak:>15.8f} kg/s \n")
-
-        return
 
     def zvel_jen(self):
         vgs = np.zeros(3)
@@ -705,7 +700,6 @@ class LabyrinthSeal(SealElement):
 
         if self.nprt > 3:
             return
-        return
 
     def zvel(self):
         vgs = np.zeros(3)
@@ -903,7 +897,6 @@ class LabyrinthSeal(SealElement):
             self.cx[7][i] = (self.mdot / self.radial_clearance[0]) * (
                 self.v[i - 1] - self.v[i]
             ) + cxx3
-        return
 
     def pert(self):
         gmfull = np.zeros((1000, 1000))
@@ -919,66 +912,8 @@ class LabyrinthSeal(SealElement):
         ic2 = [2, 1, 4, 3]
         ir3 = [5, 6, 7, 8]
         ic3 = [2, 1, 4, 3]
-        ir4 = [
-            1,
-            1,
-            1,
-            2,
-            2,
-            2,
-            3,
-            3,
-            3,
-            4,
-            4,
-            4,
-            5,
-            5,
-            5,
-            5,
-            6,
-            6,
-            6,
-            6,
-            7,
-            7,
-            7,
-            7,
-            8,
-            8,
-            8,
-            8,
-        ]
-        ic4 = [
-            1,
-            2,
-            5,
-            1,
-            2,
-            6,
-            3,
-            4,
-            7,
-            3,
-            4,
-            8,
-            1,
-            2,
-            5,
-            6,
-            1,
-            2,
-            5,
-            6,
-            3,
-            4,
-            7,
-            8,
-            3,
-            4,
-            7,
-            8,
-        ]
+        ir4 = [1,1,1,2,2,2,3,3,3,4,4,4,5,5,5,5,6,6,6,6,7,7,7,7,8,8,8,8]
+        ic4 = [1,2,5,1,2,6,3,4,7,3,4,8,1,2,5,6,1,2,5,6,3,4,7,8,3,4,7,8]
         ir5 = [2, 4, 5, 7]
         ic6 = [2, 1, 4, 3]
         ir7 = [1, 2, 3, 4]
@@ -1161,16 +1096,18 @@ class LabyrinthSeal(SealElement):
             self.zvel_jen()
         if self.analz != "LEAKAGE":
             self.pert()
-        keys = ["kxx", "kyy", "kxy", "kyx", "cxx", "cyy", "cxy", "cyx", "leakage"]
-        coefficients_dict = {}
-        coefficients_dict["kxx"] = self.kxx
-        coefficients_dict["kyy"] = self.kxx
-        coefficients_dict["kxy"] = self.kxy
-        coefficients_dict["kyx"] = self.kyx
-        coefficients_dict["cxx"] = self.cxx
-        coefficients_dict["cyy"] = self.cxx
-        coefficients_dict["cxy"] = self.cxy
-        coefficients_dict["cyx"] = self.cyx
-        coefficients_dict["leakage"] = self.mdot
+
+        attrbute_coef = {
+            "kxx": "kxx",
+            "kyy": "kxx",
+            "kxy": "kxy",
+            "kyx": "kyx",
+            "cxx": "cxx",
+            "cyy": "cxx",
+            "cxy": "cxy",
+            "cyx": "cyx",
+            "seal_leakage": "mdot",
+        }
+        coefficients_dict = {k: getattr(self, v) for k, v in attrbute_coef.items()}
 
         return coefficients_dict
