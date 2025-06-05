@@ -545,7 +545,7 @@ class Shape(Results):
             N3 = 3 * zeta**2 - 2 * zeta**3
             N4 = -(zeta**2) + zeta**3
 
-            n_div, get_node_index, _ = self._fix_curve_intersec()
+            n_div, get_node_index, _ = self._fix_mode_shape_intersections()
 
             n0 = 0
             e0 = 0
@@ -634,7 +634,7 @@ class Shape(Results):
 
         return fig
 
-    def _fix_curve_intersec(self):
+    def _fix_mode_shape_intersections(self):
         """This function is used to fix the mode shape plot, especially for multi rotors
         for which the mode curves of each rotor may intersect"""
         nodes_pos = np.array(self.nodes_pos)
@@ -668,7 +668,7 @@ class Shape(Results):
 
         nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
 
-        n_plot, get_node_index, get_color = self._fix_curve_intersec()
+        n_plot, get_node_index, get_color = self._fix_mode_shape_intersections()
 
         if plot_dimension == 2:
             # Plot 2d
@@ -880,7 +880,7 @@ class Shape(Results):
 
         nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
 
-        n_plot, get_node_index, get_color = self._fix_curve_intersec()
+        n_plot, get_node_index, get_color = self._fix_mode_shape_intersections()
 
         if plot_dimension == 2:
             # Plot 2d
@@ -1118,7 +1118,7 @@ class Shape(Results):
             else:
                 raise ValueError(f"Invalid orientation {orientation}.")
 
-            n_plot, get_node_index, get_color = self._fix_curve_intersec()
+            n_plot, get_node_index, get_color = self._fix_mode_shape_intersections()
             aux = len(zn) // len(self.shaft_elements_length)
 
             n0 = 0
@@ -1299,18 +1299,41 @@ class Shape(Results):
             if n == 0:
                 initial_state = orbit_data
 
-        # plot line connecting orbits starting points
-        fixed_lines.append(
-            go.Scatter3d(
-                x=zn,
-                y=xn,
-                z=yn,
-                mode="lines",
-                line=dict(color="black", dash="dash"),
-                name="mode shape",
-                showlegend=False,
+        n_plot, get_node_index, get_color = self._fix_mode_shape_intersections()
+        aux = len(zn) // len(self.shaft_elements_length)
+
+        n0 = 0
+        for i in range(n_plot):
+            n1 = (get_node_index(i) - (i + 1)) * aux
+
+            # plot line connecting orbits starting points
+            fixed_lines.append(
+                go.Scatter3d(
+                    x=zn[n0:n1],
+                    y=xn[n0:n1],
+                    z=yn[n0:n1],
+                    mode="lines",
+                    line=dict(color="black", dash="dash"),
+                    name="mode shape",
+                    showlegend=False,
+                )
             )
-        )
+
+            # plot major axis line
+            fixed_lines.append(
+                go.Scatter3d(
+                    x=zn[n0:n1],
+                    y=self.major_x[n0:n1],
+                    z=self.major_y[n0:n1],
+                    mode="lines",
+                    line=dict(color="black", dash="dashdot"),
+                    hoverinfo="none",
+                    legendgroup="major_axis",
+                    showlegend=False,
+                ),
+            )
+
+            n0 = n1
 
         # plot center line
         min_pos = min(zn) - 0.15 * abs(max(zn) - min(zn))
@@ -1323,20 +1346,6 @@ class Shape(Results):
                 mode="lines",
                 line=dict(color="black", dash="dashdot"),
                 hoverinfo="none",
-                showlegend=False,
-            ),
-        )
-
-        # plot major axis line
-        fixed_lines.append(
-            go.Scatter3d(
-                x=zn,
-                y=self.major_x,
-                z=self.major_y,
-                mode="lines",
-                line=dict(color="black", dash="dashdot"),
-                hoverinfo="none",
-                legendgroup="major_axis",
                 showlegend=False,
             ),
         )
@@ -1387,9 +1396,6 @@ class Shape(Results):
 
     def plot_3d(
         self,
-        mode=None,
-        orientation="major",
-        title=None,
         length_units="m",
         phase_units="rad",
         animation=False,
