@@ -1682,9 +1682,9 @@ def test_deflected_shape(rotor7):
             4.88678837e-05,
         ]
     )
-    assert_allclose(fig.data[-3]["x"][:8], expected_x, rtol=1e-4)
-    assert_allclose(fig.data[-3]["y"][:8], expected_y, rtol=1e-4)
-    assert_allclose(fig.data[-3]["z"][:8], expected_z, rtol=1e-4)
+    assert_allclose(fig.data[-4]["x"][:8], expected_x, rtol=1e-4)
+    assert_allclose(fig.data[-4]["y"][:8], expected_y, rtol=1e-4)
+    assert_allclose(fig.data[-4]["z"][:8], expected_z, rtol=1e-4)
 
 
 def test_global_index():
