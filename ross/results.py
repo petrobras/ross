@@ -646,11 +646,15 @@ class Shape(Results):
             lambda i: intersecting_nodes[i] if i + 1 < n_plot else len(nodes_pos)
         )
 
-        colors = list(tableau_colors.values())
+        symbols = ["circle", "square", "triangle-up", "triangle-down", "diamond"]
 
-        get_color = lambda i: self.color if i == 0 else colors[::-1][i - 1]
+        get_mode_plot = lambda i: (
+            dict(mode="lines+markers", marker=dict(symbol=symbols[i]))
+            if n_plot > 1
+            else dict(mode="lines")
+        )
 
-        return n_plot, get_node_index, get_color
+        return n_plot, get_node_index, get_mode_plot
 
     def _plot_axial(
         self, plot_dimension=None, animation=False, length_units="m", fig=None
@@ -668,23 +672,22 @@ class Shape(Results):
 
         nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
 
-        n_plot, get_node_index, get_color = self._fix_mode_shape_intersections()
+        n_plot, get_node_index, get_mode_plot = self._fix_mode_shape_intersections()
 
         if plot_dimension == 2:
             # Plot 2d
             n0 = 0
             for i in range(n_plot):
                 n1 = get_node_index(i)
-                color = get_color(i)
 
                 fig.add_trace(
                     go.Scatter(
                         x=nodes_pos[n0:n1],
                         y=rel_disp[n0:n1],
-                        mode="lines",
-                        line=dict(color=color),
+                        line=dict(color=self.color),
                         showlegend=False,
-                        hovertemplate=(f"Relative angle: %{{y:.2f }}<extra></extra>"),
+                        hovertemplate=(f"Relative angle: %{{y:.2f}}<extra></extra>"),
+                        **get_mode_plot(i),
                     )
                 )
                 fig.add_shape(
@@ -693,7 +696,7 @@ class Shape(Results):
                     y0=0,
                     x1=nodes_pos[n0],
                     y1=rel_disp[n0],
-                    line=dict(color=color, dash="dash"),
+                    line=dict(color=self.color, dash="dash"),
                 )
                 fig.add_shape(
                     type="line",
@@ -701,7 +704,7 @@ class Shape(Results):
                     y0=0,
                     x1=nodes_pos[n1 - 1],
                     y1=rel_disp[n1 - 1],
-                    line=dict(color=color, dash="dash"),
+                    line=dict(color=self.color, dash="dash"),
                 )
 
                 n0 = n1
@@ -745,7 +748,6 @@ class Shape(Results):
                 xn = []
 
                 n1 = get_node_index(i)
-                color = get_color(i)
 
                 for n in range(n0, n1):
                     node_data.append(
@@ -754,7 +756,7 @@ class Shape(Results):
                             y=[0, 0],
                             z=[0, 1],
                             mode="lines",
-                            line=dict(width=2, color=color),
+                            line=dict(width=2, color=self.color),
                             showlegend=False,
                             name=f"Node {self.nodes[n]}",
                             hovertemplate=(
@@ -773,7 +775,7 @@ class Shape(Results):
                         y=np.zeros(len(nodes_pos)),
                         z=np.ones(len(nodes_pos)),
                         mode="lines+markers",
-                        line=dict(width=2, color=color),
+                        line=dict(width=2, color=self.color),
                         marker=dict(size=3),
                         showlegend=False,
                         hoverinfo="none",
@@ -880,23 +882,22 @@ class Shape(Results):
 
         nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
 
-        n_plot, get_node_index, get_color = self._fix_mode_shape_intersections()
+        n_plot, get_node_index, get_mode_plot = self._fix_mode_shape_intersections()
 
         if plot_dimension == 2:
             # Plot 2d
             n0 = 0
             for i in range(n_plot):
                 n1 = get_node_index(i)
-                color = get_color(i)
 
                 fig.add_trace(
                     go.Scatter(
                         x=nodes_pos[n0:n1],
                         y=theta[n0:n1],
-                        mode="lines",
-                        line=dict(color=color),
+                        line=dict(color=self.color),
                         showlegend=False,
                         hovertemplate=(f"Relative angle: %{{y:.2f}}<extra></extra>"),
+                        **get_mode_plot(i),
                     )
                 )
                 fig.add_shape(
@@ -905,7 +906,7 @@ class Shape(Results):
                     y0=0,
                     x1=nodes_pos[n0],
                     y1=theta[n0],
-                    line=dict(color=color, dash="dash"),
+                    line=dict(color=self.color, dash="dash"),
                 )
                 fig.add_shape(
                     type="line",
@@ -913,7 +914,7 @@ class Shape(Results):
                     y0=0,
                     x1=nodes_pos[n1 - 1],
                     y1=theta[n1 - 1],
-                    line=dict(color=color, dash="dash"),
+                    line=dict(color=self.color, dash="dash"),
                 )
 
                 n0 = n1
@@ -965,7 +966,6 @@ class Shape(Results):
                 zn = []
 
                 n1 = get_node_index(i)
-                color = get_color(i)
 
                 for n in range(n0, n1):
                     node_data.append(
@@ -974,7 +974,7 @@ class Shape(Results):
                             y=[0, xt[j, n]],
                             z=[0, yt[j, n]],
                             mode="lines",
-                            line=dict(width=2, color=color),
+                            line=dict(width=2, color=self.color),
                             showlegend=False,
                             name=f"Node {self.nodes[n]}",
                             hovertemplate=(
@@ -997,7 +997,7 @@ class Shape(Results):
                         y=yn,
                         z=zn,
                         mode="lines+markers",
-                        line=dict(width=2, color=color),
+                        line=dict(width=2, color=self.color),
                         marker=dict(size=3),
                         showlegend=False,
                         hoverinfo="none",
@@ -1118,20 +1118,18 @@ class Shape(Results):
             else:
                 raise ValueError(f"Invalid orientation {orientation}.")
 
-            n_plot, get_node_index, get_color = self._fix_mode_shape_intersections()
+            n_plot, get_node_index, get_mode_plot = self._fix_mode_shape_intersections()
             aux = len(zn) // len(self.shaft_elements_length)
 
             n0 = 0
             for i in range(n_plot):
                 n1 = (get_node_index(i) - (i + 1)) * aux
-                color = get_color(i)
 
                 fig.add_trace(
                     go.Scatter(
                         x=zn[n0:n1],
                         y=values[n0:n1],
-                        mode="lines",
-                        line=dict(color=color),
+                        line=dict(color=self.color),
                         name=f"{orientation}",
                         showlegend=False,
                         customdata=major_angle[n0:n1],
@@ -1139,6 +1137,7 @@ class Shape(Results):
                             f"Displacement: %{{y:.2f}}<br>"
                             + f"Angle {phase_units}: %{{customdata:.2f}}"
                         ),
+                        **get_mode_plot(i),
                     ),
                 )
                 fig.add_shape(
@@ -1147,7 +1146,7 @@ class Shape(Results):
                     y0=0,
                     x1=zn[n0],
                     y1=values[n0],
-                    line=dict(color=color, dash="dash"),
+                    line=dict(color=self.color, dash="dash"),
                 )
                 fig.add_shape(
                     type="line",
@@ -1155,7 +1154,7 @@ class Shape(Results):
                     y0=0,
                     x1=zn[n1 - 1],
                     y1=values[n1 - 1],
-                    line=dict(color=color, dash="dash"),
+                    line=dict(color=self.color, dash="dash"),
                 )
 
                 n0 = n1
@@ -1299,7 +1298,7 @@ class Shape(Results):
             if n == 0:
                 initial_state = orbit_data
 
-        n_plot, get_node_index, get_color = self._fix_mode_shape_intersections()
+        n_plot, get_node_index, _ = self._fix_mode_shape_intersections()
         aux = len(zn) // len(self.shaft_elements_length)
 
         n0 = 0
