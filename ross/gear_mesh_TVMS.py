@@ -1127,12 +1127,10 @@ class Mesh:
         The gear wheel object, which contains information about the geometry and properties of the wheel gear.
     tm : float
         The meshing period, calculated based on the rotational speed and the number of teeth of the gear_input.
-    _kh : float
-        Hertzian stiffness of 2 tooth in contact (same Elasticity Modulus).
-    k_mesh : float
-        The equivalent stiffness of the gear mesh, combining the stiffness of the gear_input and crown.
     cr : float
         The contact ratio, representing the average number of tooth in contact during meshing.
+    eta : float
+        The transamission ratio, defined as the ratio of the radii between the driven and driving gears. 
     """
 
     def __init__(self, gear_input: GearElementTVMS, gear_output: GearElementTVMS, interpolation: bool = False, only_max_stiffness: bool = False, user_defined_stiffness: None | float = None ):
@@ -1145,7 +1143,7 @@ class Mesh:
 
         self.time = 0
 
-        self.eta    = gear_output.n_tooth / gear_input.n_tooth # Gear ratio
+        self.eta    = gear_output.n_tooth / gear_input.n_tooth  # Gear ratio
         
         self._kh    = GearElementTVMS._kh(gear_input, gear_output)
         self.cr     = self.contact_ratio(self.gear_input, self.gear_output)
@@ -1496,10 +1494,10 @@ def gear_mesh_stiffness_example() -> None:
     # gear1.plot_tooth_geometry()
 
 def gear_mesh_compare() -> None:
-    gear_material_ma = Material("ma_steel", rho=Q_(7.81, 'g/cm**3'), E=Q_(212, 'GPa'), Poisson=0.29)
+    gear_material_ma = Material("ma_steel", rho=Q_(7.81, 'g/cm**3'), E=Q_(206, 'GPa'), Poisson=0.3)
     
-    gear1 = GearElementTVMS(n=21, material=gear_material_ma, m=Q_(12*2.204,'lbs'), module=Q_(2, 'mm'), width=Q_(20,'mm'), n_tooth=55, hub_bore_radius=Q_(17.5,'mm'), pr_angle=Q_(20,'deg'))
-    gear2 = GearElementTVMS(n=21, material=gear_material_ma, m=Q_(12*2.204,'lbs'), module=Q_(2,'mm'), width=Q_(20,'mm'), n_tooth=75, hub_bore_radius=Q_(17.5, 'mm'), pr_angle=Q_(20,'deg'))
+    gear1 = GearElementTVMS(n=21, material=gear_material_ma, m=Q_(12*2.204,'lbs'), module=Q_(2, 'mm'), width=Q_(20,'mm'), n_tooth=62, hub_bore_radius=Q_(17.5,'mm'), pr_angle=Q_(20,'deg'))
+    gear2 = GearElementTVMS(n=21, material=gear_material_ma, m=Q_(12*2.204,'lbs'), module=Q_(2,'mm'), width=Q_(20,'mm'), n_tooth=62, hub_bore_radius=Q_(17.5, 'mm'), pr_angle=Q_(20,'deg'))
 
     n_tm = 2
 

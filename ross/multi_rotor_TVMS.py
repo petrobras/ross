@@ -10,6 +10,9 @@ from ross.units import Q_
 import plotly.io as pio
 import numpy as np
 import matplotlib.pyplot as plt
+import pandas as pd
+import multiprocessing
+import os
 
 import plotly.io as pio
 #pio.renderers.default = "vscode"
@@ -305,7 +308,7 @@ class MultiRotorTVMS(Rotor):
         rotor = self.rotors[0]
 
         if node in self.R2_nodes:
-            speed = -self.gear_ratio * omega
+            speed = -1/self.gear_ratio * omega
             rotor = self.rotors[1]
 
         if isinstance(rotor, MultiRotorTVMS):
@@ -388,7 +391,7 @@ class MultiRotorTVMS(Rotor):
         else:
             return self._join_matrices(
                 self.rotors[0].M(frequency, synchronous),
-                self.rotors[1].M(frequency * self.gear_ratio, synchronous),
+                self.rotors[1].M(-frequency / self.gear_ratio, synchronous),
             )
 
     def K(self, frequency, ignore=[], **kwargs):
@@ -418,7 +421,7 @@ class MultiRotorTVMS(Rotor):
 
         K0 = self._join_matrices(
             self.rotors[0].K(frequency, ignore),
-            self.rotors[1].K(frequency * self.gear_ratio, ignore),
+            self.rotors[1].K(-frequency / self.gear_ratio, ignore),
         )
 
         dofs_1 = self.gears[0].dof_global_index.values()
@@ -465,7 +468,7 @@ class MultiRotorTVMS(Rotor):
         """
 
         return self._join_matrices(
-            self.rotors[0].Ksdt(), -self.gear_ratio * self.rotors[1].Ksdt()
+            self.rotors[0].Ksdt(), -1/self.gear_ratio * self.rotors[1].Ksdt()
         )
 
     def C(self, frequency, ignore=[]):
@@ -495,7 +498,7 @@ class MultiRotorTVMS(Rotor):
 
         return self._join_matrices(
             self.rotors[0].C(frequency, ignore),
-            self.rotors[1].C(frequency * self.gear_ratio, ignore),
+            self.rotors[1].C(-frequency / self.gear_ratio, ignore),
         )
 
     def G(self):
@@ -521,7 +524,7 @@ class MultiRotorTVMS(Rotor):
         """
 
         return self._join_matrices(
-            self.rotors[0].G(), -self.gear_ratio * self.rotors[1].G()
+            self.rotors[0].G(), -1/self.gear_ratio * self.rotors[1].G()
         )
 
 
@@ -585,8 +588,8 @@ def two_shaft_rotor_example(run_type: str):
         Id=3.115,
         Ip=6.23,
     )
-
-    gear1 = GearElementTVMS(n=4, m=12, module=Q_(2,'mm'), width=Q_(2, 'cm'), n_tooth=55, hub_bore_radius=Q_(11, 'cm'))
+    
+    gear1 = GearElementTVMS(n=4, m=5, module=Q_(2,'mm'), width=Q_(2, 'cm'), n_tooth=40, hub_bore_radius=Q_(4, 'cm'))
 
     bearing1 = rs.BearingElement(n=0, kxx=183.9e6, kyy=200.4e6, cxx=3e3)
     bearing2 = rs.BearingElement(n=3, kxx=183.9e6, kyy=200.4e6, cxx=3e3)
@@ -613,7 +616,7 @@ def two_shaft_rotor_example(run_type: str):
         for i in range(len(L2))
     ]
     
-    gear2 = GearElementTVMS(n=0, m=Q_(20, 'kg'), module=Q_(2, 'mm'), width=Q_(2,'cm'), n_tooth=75, hub_bore_radius=Q_(7.5,'cm'))
+    gear2 = GearElementTVMS(n=0, m=Q_(6, 'kg'), module=Q_(2, 'mm'), width=Q_(2,'cm'), n_tooth=75, hub_bore_radius=Q_(7.5,'cm'))
 
     turbine = rs.DiskElement(n=2, m=7.45, Id=0.0745, Ip=0.149)
 
@@ -675,18 +678,21 @@ def two_shaft_rotor_example(run_type: str):
         )
 
 
-def main_example() -> None:
-    run_type = 'user_defined'
+def main_example(id, t=10, speed=50, run_type = 'interpolation', dt = 1e-5, unb_mag = [35e-4, 40e-4]) -> None:
+
+    process_pid = os.getpid()
+    print(f"[PID {process_pid}] Iniciando Simulação: {id} (Speed: {speed} Hz, run_type: {run_type}, dt: {dt}, t_final: {t}), unb: {unb_mag}")
+    
+    run_type = run_type
     rotor = two_shaft_rotor_example(run_type=run_type)
-    #figure = rotor.plot_rotor().show()
 
     nodes = [2, 7]
-    unb_mag = [35.505e-4, 0.449e-4]
+    unb_mag = unb_mag
     unb_phase = [0, 0]
 
-    dt = 5e-5
-    t = np.arange(0, 1, dt)
-    speed1 = 60*2*np.pi  # Generator rotor speed
+    dt = dt
+    t = np.arange(0, t, dt)
+    speed1 = speed*2*np.pi  # Generator rotor speed
 
     num_dof = rotor.number_dof
 
@@ -702,50 +708,45 @@ def main_example() -> None:
         F[:, dofy] += unb_mag[i] * (speed**2) * np.sin(phi)
 
     start_time=time.time()
-    tr = rotor.run_time_response(speed1, F, t, method='newmark', progress_interval=0.1)
+    tr = rotor.run_time_response(speed1, F, t, method='newmark', progress_interval=0.01)
 
 
     end_time = time.time()
     print(f'Time to run:{end_time - start_time}')
 
     node = 3
-    dof_node_torsional = node * rotor.number_dof + 5
-    fft_yout = tr.yout[:,dof_node_torsional]
+    dof_node_x = node * rotor.number_dof + 5
+    dof_node_y = dof_node_x + 1
     
-
-    fft_time = t[t>=0.3]
-    fft_yout = fft_yout[t>=0.3]
-
-
-    dft = np.abs(np.fft.fft(fft_yout))
-    dft_freq = np.fft.fftfreq(len(fft_time), d=dt)
-    dft_freq = dft_freq[dft_freq>0]
-
-    plt.figure(figsize=(8, 4))  # tamanho adequado para publicação (em polegadas)
-
-    plt.plot(dft_freq, np.log(dft[:len(dft_freq)]), color='black', linewidth=1.5, label='DFT Amplitude')
-
-    plt.grid(True, which='both', linestyle='--', linewidth=0.5, alpha=0.7)  # grade discreta
-    plt.xlabel('Frequency [Hz]', fontsize=12)
-    plt.ylabel('Amplitude', fontsize=12)
-    plt.xticks(fontsize=10)
-    plt.yticks(fontsize=10)
-
-    plt.tick_params(direction='in', length=6, width=1)  # visibilidade dos ticks
-    plt.box(True)  # garante contorno visível do gráfico
-    plt.tight_layout()  # evita cortes de texto ao salvar
-
-    plt.legend(loc='best', fontsize=10)
-    plt.show()
-    probe1 = rs.Probe(3, 0)  # node 3, orientation 0° (X dir.)
-    probe2 = rs.Probe(7, np.pi/2)  # node 3, orientation 90°(Y dir.)
-
-    data = tr.data_time_response(probe=[probe1,probe2])
-    #data.to_csv(f"C:\\gear_freq_data\\TVMS_w{speed1/2/np.pi:.2f}Hz_dt{dt:.3e}s_t{np.max(t):.2f}s_{run_type}.csv")
-
-#   fig3= tr.plot_1d(probe=[probe1, probe2])
-    fig3= tr.plot_dfft()
-    fig3.show()
+    x = tr.yout[:,dof_node_x]
+    y = tr.yout[:,dof_node_y]
+    
+    arr = np.column_stack([t,x, y])
+    arr = pd.DataFrame(arr, columns=['time','x', 'y'])
+    arr.to_csv(f'~/Desktop/IC/gear_simulation/w_{speed1/np.pi/2:.2f}hz_dt_{dt:.2e}s_t_{np.max(t):.2f}s_40_75_{run_type}_unb0_{unb_mag[0]}_unb1_{unb_mag[1]}.csv')
 
 if __name__ == "__main__":
-    main_example()
+
+    lista_argumentos = [
+        ('A1', 4, 60, 'interpolation', 1e-5, [50e-4, 70e-4]),
+        ('A2', 4, 60, 'max_stiffness', 1e-5, [50e-4, 70e-4]),
+        ('B1', 4, 70, 'interpolation', 1e-5, [80e-4, 100e-4]),
+        ('B1', 4, 70, 'max_stiffness', 1e-5, [80e-4, 100e-4]),      
+        ('C1', 4, 20, 'interpolation', 1e-5, [100e-4, 100e-4]),
+        ('C2', 4, 20, 'max_stiffness', 1e-5, [100e-4, 100e-4]),
+    ]
+
+    overall_start_time = time.time()
+
+    # O 'with' garante que o pool de processos seja fechado corretamente ao final.
+    with multiprocessing.Pool(processes=6) as pool:
+        # 'starmap' é usado porque cada conjunto de argumentos em 'lista_argumentos_simulacoes'
+        # é uma tupla que precisa ser desempacotada ("starred") para a função 'run_single_simulation'.
+        pool.starmap(main_example, lista_argumentos)
+    
+    overall_end_time = time.time()
+    total_parallel_time = overall_end_time - overall_start_time
+
+    print("\n--- Todas as Simulações Concluídas ---")
+    print(f"Tempo total de execução paralela: {total_parallel_time:.2f} segundos.")
+    print("Resumo dos resultados:")
