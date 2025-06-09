@@ -648,13 +648,13 @@ class Shape(Results):
 
         symbols = ["circle", "square", "triangle-up", "triangle-down", "diamond"]
 
-        get_mode_plot = lambda i: (
+        get_plot_mode = lambda i: (
             dict(mode="lines+markers", marker=dict(symbol=symbols[i]))
             if n_plot > 1
-            else dict(mode="lines")
+            else dict()
         )
 
-        return n_plot, get_node_index, get_mode_plot
+        return n_plot, get_node_index, get_plot_mode
 
     def _plot_axial(
         self, plot_dimension=None, animation=False, length_units="m", fig=None
@@ -672,13 +672,14 @@ class Shape(Results):
 
         nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
 
-        n_plot, get_node_index, get_mode_plot = self._fix_mode_shape_intersections()
+        n_plot, get_node_index, get_plot_mode = self._fix_mode_shape_intersections()
 
         if plot_dimension == 2:
             # Plot 2d
             n0 = 0
             for i in range(n_plot):
                 n1 = get_node_index(i)
+                extra_template = f"Rotor {i + 1} <br>" if n_plot > 1 else ""
 
                 fig.add_trace(
                     go.Scatter(
@@ -686,8 +687,11 @@ class Shape(Results):
                         y=rel_disp[n0:n1],
                         line=dict(color=self.color),
                         showlegend=False,
-                        hovertemplate=(f"Relative angle: %{{y:.2f}}<extra></extra>"),
-                        **get_mode_plot(i),
+                        hovertemplate=(
+                            extra_template
+                            + f"Relative angle: %{{y:.2f}}<extra></extra>"
+                        ),
+                        **get_plot_mode(i),
                     )
                 )
                 fig.add_shape(
@@ -748,6 +752,7 @@ class Shape(Results):
                 xn = []
 
                 n1 = get_node_index(i)
+                extra_template = f" (Rotor {i + 1})" if n_plot > 1 else ""
 
                 for n in range(n0, n1):
                     node_data.append(
@@ -760,7 +765,9 @@ class Shape(Results):
                             showlegend=False,
                             name=f"Node {self.nodes[n]}",
                             hovertemplate=(
-                                f"Original position: {nodes_pos[n]:.2f} {length_units}<br>"
+                                f"Original position: {nodes_pos[n]:.2f} {length_units}"
+                                + extra_template
+                                + "<br>"
                                 + f"Relative displacement: {rel_disp[n]:.2f}"
                             ),
                         )
@@ -882,13 +889,14 @@ class Shape(Results):
 
         nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
 
-        n_plot, get_node_index, get_mode_plot = self._fix_mode_shape_intersections()
+        n_plot, get_node_index, get_plot_mode = self._fix_mode_shape_intersections()
 
         if plot_dimension == 2:
             # Plot 2d
             n0 = 0
             for i in range(n_plot):
                 n1 = get_node_index(i)
+                extra_template = f"Rotor {i + 1} <br>" if n_plot > 1 else ""
 
                 fig.add_trace(
                     go.Scatter(
@@ -896,8 +904,11 @@ class Shape(Results):
                         y=theta[n0:n1],
                         line=dict(color=self.color),
                         showlegend=False,
-                        hovertemplate=(f"Relative angle: %{{y:.2f}}<extra></extra>"),
-                        **get_mode_plot(i),
+                        hovertemplate=(
+                            extra_template
+                            + f"Relative angle: %{{y:.2f}}<extra></extra>"
+                        ),
+                        **get_plot_mode(i),
                     )
                 )
                 fig.add_shape(
@@ -966,6 +977,7 @@ class Shape(Results):
                 zn = []
 
                 n1 = get_node_index(i)
+                extra_template = f" (Rotor {i + 1})" if n_plot > 1 else ""
 
                 for n in range(n0, n1):
                     node_data.append(
@@ -978,7 +990,9 @@ class Shape(Results):
                             showlegend=False,
                             name=f"Node {self.nodes[n]}",
                             hovertemplate=(
-                                "Nodal position: %{x:.2f}<br>"
+                                "Nodal position: %{x:.2f}"
+                                + extra_template
+                                + "<br>"
                                 + "X - Displacement: %{y:.2f}<br>"
                                 + "Y - Displacement: %{z:.2f}<br>"
                                 + f"Relative angle: {theta[n]:.2f}"
@@ -991,16 +1005,23 @@ class Shape(Results):
 
                 n0 = n1
 
+                plot_mode = dict(
+                    mode="lines+markers", marker=dict(size=3, symbol="circle")
+                )
+                try:
+                    plot_mode["marker"]["symbol"] = get_plot_mode(i)["marker"]["symbol"]
+                except KeyError:
+                    pass
+
                 node_data.append(
                     go.Scatter3d(
                         x=xn,
                         y=yn,
                         z=zn,
-                        mode="lines+markers",
                         line=dict(width=2, color=self.color),
-                        marker=dict(size=3),
                         showlegend=False,
                         hoverinfo="none",
+                        **plot_mode,
                     )
                 )
 
@@ -1118,12 +1139,13 @@ class Shape(Results):
             else:
                 raise ValueError(f"Invalid orientation {orientation}.")
 
-            n_plot, get_node_index, get_mode_plot = self._fix_mode_shape_intersections()
+            n_plot, get_node_index, get_plot_mode = self._fix_mode_shape_intersections()
             aux = len(zn) // len(self.shaft_elements_length)
 
             n0 = 0
             for i in range(n_plot):
                 n1 = (get_node_index(i) - (i + 1)) * aux
+                extra_template = f"Rotor {i + 1} <br>" if n_plot > 1 else ""
 
                 fig.add_trace(
                     go.Scatter(
@@ -1134,10 +1156,11 @@ class Shape(Results):
                         showlegend=False,
                         customdata=major_angle[n0:n1],
                         hovertemplate=(
-                            f"Displacement: %{{y:.2f}}<br>"
+                            extra_template
+                            + f"Displacement: %{{y:.2f}}<br>"
                             + f"Angle {phase_units}: %{{customdata:.2f}}"
                         ),
-                        **get_mode_plot(i),
+                        **get_plot_mode(i),
                     ),
                 )
                 fig.add_shape(
