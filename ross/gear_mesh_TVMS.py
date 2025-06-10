@@ -108,6 +108,10 @@ class GearElementTVMS(DiskElement):
         self.geometry_dict = {}
         self.geometry_dict = self._initialize_geometry(self.geometry_dict)
 
+        self._ka_transiction = False
+        self._kb_transiction = False
+        self._ks_transiction = False
+
         super().__init__(n, m, self.Id, self.Ip, tag, scale_factor, color)
 
     @check_units
@@ -954,7 +958,7 @@ class GearElementTVMS(DiskElement):
         """ 
 
         # it's constant, if it doesn't have any crack.  
-        if hasattr(self, '_ks_transiction') == False:
+        if self._ks_transiction == False:
             f_transiction       = lambda gamma: (
                 1.2 * np.cos(tau_op)**2 
                 / (
@@ -1002,7 +1006,7 @@ class GearElementTVMS(DiskElement):
         """        
         y_op, x_op, _, _    = self._compute_involute_curve(tau_op)
 
-        if hasattr(self, '_kb_transiction') == False:
+        if self._kb_transiction == False:
             f_transiction       = lambda gamma: (
                 (
                     np.cos(tau_op) 
@@ -1052,7 +1056,7 @@ class GearElementTVMS(DiskElement):
         float
             The axial stiffness in the form of 1/ka.
         """        
-        if hasattr(self, '_ka_transiction') == False:
+        if self._ka_transiction == False:
             f_transiction   = lambda gamma: (
                 np.sin(tau_op)**2
                 / (self.material.E * self._compute_transition_curve(gamma)[2])
@@ -1113,7 +1117,7 @@ class Mesh:
         The crown gear object used in the gear pair (driven).
     gear_input_w : float
         The rotational speed [rad/sec] of the gear_input gear in radians per second.
-    interpolation: `bool`
+    tvms: `bool`
         If True, it will run the TVMS once and interpolate after (increased performance).
     max_stiffness: `bool`
         If True, return only the max stiffness of the meshing. 
@@ -1133,10 +1137,9 @@ class Mesh:
         The transamission ratio, defined as the ratio of the radii between the driven and driving gears. 
     """
 
-    def __init__(self, gear_input: GearElementTVMS, gear_output: GearElementTVMS, interpolation: bool = False, only_max_stiffness: bool = False, user_defined_stiffness: None | float = None ):
+    def __init__(self, gear_input: GearElementTVMS, gear_output: GearElementTVMS, tvms: bool = False , only_max_stiffness: bool = False , user_defined_stiffness: None | float | int = None):
 
-        if user_defined_stiffness is not None:
-            self._user_defined_stiffness = user_defined_stiffness
+        self._user_defined_stiffness = user_defined_stiffness
 
         self.gear_input = gear_input
         self.gear_output = gear_output
@@ -1148,8 +1151,10 @@ class Mesh:
         self._kh    = GearElementTVMS._kh(gear_input, gear_output)
         self.cr     = self.contact_ratio(self.gear_input, self.gear_output)
 
-        self.interpolation = interpolation
+        self.tvms = tvms
         self.only_max_stiffness = only_max_stiffness
+        self.already_evaluated_max = False
+        self.already_interpolated = False
 
     @staticmethod
     def contact_ratio(gear_input: GearElementTVMS, gear_output: GearElementTVMS) -> float:
@@ -1264,7 +1269,7 @@ class Mesh:
             Where K is the discretization ratio of a double gear-mesh contact, recommended K >= 20.
         """
         # OPTION 0: RETURN ONLY THE USER DEFINED STIFFNESS
-        if hasattr(self, '_user_defined_stiffness'):
+        if isinstance(self._user_defined_stiffness, (float, int)):
             return self._user_defined_stiffness, None, None
 
         t = float(t)
@@ -1276,7 +1281,7 @@ class Mesh:
         # OPTION 1: RETURN ONLY MAX STIFFNESS
         if self.only_max_stiffness == True:
 
-            if hasattr(self, 'already_evaluated_max') == False:
+            if self.already_evaluated_max == False:
                 dt = (2 * np.pi) / (20 * self.gear_input.n_tooth * gear_input_speed)
                 self.max_stiffness = self._max_gear_stiff(gear_input_speed, dt)
                 self.already_evaluated_max = True
@@ -1285,11 +1290,12 @@ class Mesh:
                 return self.max_stiffness, None, None
 
         # OPTION 2: RUN INTERPOLATION ONLY
-        if self.interpolation == True: # Runs the time dependency for one period of double-single mesh
+        if self.tvms == True: # Runs the time dependency for one period of double-single mesh
 
-            if hasattr(self, 'already_interpolated') == False: # Case 1: If it had never evaluated the stiffness
+            if self.already_interpolated == False: # Case 1: If it had never evaluated the stiffness
                 if (2 * np.pi) / (100 * self.gear_input.n_tooth * gear_input_speed) < 1e-5:
                     dt = (2 * np.pi) / (100 * self.gear_input.n_tooth * gear_input_speed)
+                
                 dt = 1e-5
                 t_interpol, double_contact, single_contact = self._time_stiffness(gear_input_speed, dt)
 
@@ -1313,21 +1319,21 @@ class Mesh:
             elif t > (self.cr-1) * tm:
                 return np.interp(t, self.t_interpol_single, self.single_contact), None, None
 
-        # OPTION 3: RUN THE TVMS EVERY STEP
-        else: # If it needs to re-evaluate every stiffness integration every step
+        # # OPTION 3: RUN THE TVMS EVERY STEP
+        # else: # If it needs to re-evaluate every stiffness integration every step
 
-            t   = t - t // tm * tm
+        #     t   = t - t // tm * tm
             
-            if t <= (self.cr-1) * tm:
-                stiffnes_mesh_1, d_tau_gear_input_1, d_tau_gear_1 = self._time_equivalent_stiffness(t, gear_input_speed)
-                stiffnes_mesh_0, d_tau_gear_input_0, d_tau_gear0 = self._time_equivalent_stiffness(tm + t, gear_input_speed)
+        #     if t <= (self.cr-1) * tm:
+        #         stiffnes_mesh_1, d_tau_gear_input_1, d_tau_gear_1 = self._time_equivalent_stiffness(t, gear_input_speed)
+        #         stiffnes_mesh_0, d_tau_gear_input_0, d_tau_gear0 = self._time_equivalent_stiffness(tm + t, gear_input_speed)
 
-                return stiffnes_mesh_0 + stiffnes_mesh_1, stiffnes_mesh_0, stiffnes_mesh_1
+        #         return stiffnes_mesh_0 + stiffnes_mesh_1, stiffnes_mesh_0, stiffnes_mesh_1
             
-            elif t > (self.cr-1) * tm:
-                stiffnes_mesh_1, d_tau_gear_input_1, d_tau_gear_1 = self._time_equivalent_stiffness(t, gear_input_speed)
+        #     elif t > (self.cr-1) * tm:
+        #         stiffnes_mesh_1, d_tau_gear_input_1, d_tau_gear_1 = self._time_equivalent_stiffness(t, gear_input_speed)
                 
-                return stiffnes_mesh_1, np.nan, stiffnes_mesh_1
+        #         return stiffnes_mesh_1, np.nan, stiffnes_mesh_1
     
     def _time_stiffness(self, gear_input_speed: float, dt: float) -> float:
         """

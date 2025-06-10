@@ -110,16 +110,14 @@ def two_shaft_rotor_example(run_type: str):
         [bearing3, bearing4],
     )
 
-    if run_type == 'interpolation':
+    if run_type == 'tvms':
         return MultiRotorTVMS(
             rotor1,
             rotor2,
             coupled_nodes=(4, 0),
             orientation_angle=0.0,
             position="below",
-            interpolation=True,
-            only_max_stiffness=False,
-            user_defined_stiffness=None
+            tvms=True,
         )
 
     if run_type == 'max_stiffness':
@@ -129,21 +127,7 @@ def two_shaft_rotor_example(run_type: str):
             coupled_nodes=(4, 0),
             orientation_angle=0.0,
             position="below",
-            interpolation=False,
             only_max_stiffness=True,
-            user_defined_stiffness=None
-        )
-
-    if run_type == 'TVMS':
-        return MultiRotorTVMS(
-            rotor1,
-            rotor2,
-            coupled_nodes=(4, 0),
-            orientation_angle=0.0,
-            position="below",
-            interpolation=False,
-            only_max_stiffness=False,
-            user_defined_stiffness=None
         )
 
     if run_type == 'user_defined':
@@ -153,12 +137,10 @@ def two_shaft_rotor_example(run_type: str):
             coupled_nodes=(4, 0),
             orientation_angle=0.0,
             position="below",
-            interpolation=False,
-            only_max_stiffness=False,
             user_defined_stiffness=4e8
         )
 
-def multirotor_run(t=10, speed=50, run_type = 'interpolation', dt = 1e-5, unb_mag = [35e-4, 40e-4]) -> None:
+def multirotor_run(t=10, speed=50, run_type = 'tvms', dt = 1e-5, unb_mag = [35e-4, 40e-4]) -> None:
     """
     Run a time response simulation of a two-shaft geared multi-rotor system.
 
@@ -184,11 +166,11 @@ def multirotor_run(t=10, speed=50, run_type = 'interpolation', dt = 1e-5, unb_ma
         Rotational speed of the generator rotor in Hz. Default is 50.
     run_type : str, optional
         Type of gear coupling modeling to use. Options include:
-            - 'interpolation' : smoothly interpolated TVMS.
+            - 'tvms' : smoothly interpolated TVMS.
             - 'max_stiffness' : maximum stiffness used as constant.
             - 'TVMS'          : true time-varying mesh stiffness function.
             - 'user_defined'  : user-defined constant mesh stiffness.
-        Default is 'interpolation'.
+        Default is 'tvms'.
     dt : float, optional
         Time step for numerical integration. Default is 1e-5 seconds.
     unb_mag : list of float, optional
@@ -256,4 +238,4 @@ def multirotor_run(t=10, speed=50, run_type = 'interpolation', dt = 1e-5, unb_ma
     x = tr.yout[:,dof_node_x]
     y = tr.yout[:,dof_node_y]
     
-multirotor_run()
+multirotor_run(run_type='user_defined')
