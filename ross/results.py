@@ -552,7 +552,8 @@ class Shape(Results):
             k = 0
             for j in range(n_div):
                 n1 = get_node_index(j)
-                e1 = n1 - 1
+                e1 = n1 - (j + 1)
+                print("")
 
                 for Le, n in zip(shaft_elements_length[e0:e1], nodes[n0:n1]):
                     node_pos = nodes_pos[n]
@@ -646,7 +647,14 @@ class Shape(Results):
             lambda i: intersecting_nodes[i] if i + 1 < n_plot else len(nodes_pos)
         )
 
-        symbols = ["circle", "square", "triangle-up", "triangle-down", "diamond"]
+        symbols = [
+            "circle",
+            "circle-open",
+            "square",
+            "square-open",
+            "diamond",
+            "diamond-open",
+        ]
 
         get_plot_mode = lambda i: (
             dict(mode="lines+markers", marker=dict(symbol=symbols[i]))
@@ -673,42 +681,47 @@ class Shape(Results):
         nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
 
         n_plot, get_node_index, get_plot_mode = self._fix_mode_shape_intersections()
+        showlegend = n_plot > 1
 
         if plot_dimension == 2:
             # Plot 2d
             n0 = 0
             for i in range(n_plot):
                 n1 = get_node_index(i)
-                extra_template = f"Rotor {i + 1} <br>" if n_plot > 1 else ""
+
+                legend_name = f"Rotor {i + 1}"
 
                 fig.add_trace(
                     go.Scatter(
                         x=nodes_pos[n0:n1],
                         y=rel_disp[n0:n1],
                         line=dict(color=self.color),
-                        showlegend=False,
-                        hovertemplate=(
-                            extra_template
-                            + f"Relative angle: %{{y:.2f}}<extra></extra>"
-                        ),
+                        hovertemplate=(f"Relative angle: %{{y:.2f}}<extra></extra>"),
+                        name=legend_name,
+                        legendgroup=legend_name,
+                        showlegend=showlegend,
                         **get_plot_mode(i),
                     )
                 )
-                fig.add_shape(
-                    type="line",
-                    x0=nodes_pos[n0],
-                    y0=0,
-                    x1=nodes_pos[n0],
-                    y1=rel_disp[n0],
-                    line=dict(color=self.color, dash="dash"),
+                fig.add_trace(
+                    go.Scatter(
+                        x=[nodes_pos[n0], nodes_pos[n0]],
+                        y=[0, rel_disp[n0]],
+                        mode="lines",
+                        line=dict(color=self.color, dash="dash"),
+                        legendgroup=legend_name,
+                        showlegend=False,
+                    )
                 )
-                fig.add_shape(
-                    type="line",
-                    x0=nodes_pos[n1 - 1],
-                    y0=0,
-                    x1=nodes_pos[n1 - 1],
-                    y1=rel_disp[n1 - 1],
-                    line=dict(color=self.color, dash="dash"),
+                fig.add_trace(
+                    go.Scatter(
+                        x=[nodes_pos[n1 - 1], nodes_pos[n1 - 1]],
+                        y=[0, rel_disp[n1 - 1]],
+                        mode="lines",
+                        line=dict(color=self.color, dash="dash"),
+                        legendgroup=legend_name,
+                        showlegend=False,
+                    )
                 )
 
                 n0 = n1
@@ -752,7 +765,8 @@ class Shape(Results):
                 xn = []
 
                 n1 = get_node_index(i)
-                extra_template = f" (Rotor {i + 1})" if n_plot > 1 else ""
+
+                legend_name = f"Rotor {i + 1}"
 
                 for n in range(n0, n1):
                     node_data.append(
@@ -762,30 +776,39 @@ class Shape(Results):
                             z=[0, 1],
                             mode="lines",
                             line=dict(width=2, color=self.color),
-                            showlegend=False,
                             name=f"Node {self.nodes[n]}",
                             hovertemplate=(
-                                f"Original position: {nodes_pos[n]:.2f} {length_units}"
-                                + extra_template
-                                + "<br>"
+                                f"Original position: {nodes_pos[n]:.2f} {length_units}<br>"
                                 + f"Relative displacement: {rel_disp[n]:.2f}"
                             ),
+                            legendgroup=legend_name,
+                            showlegend=False,
                         )
                     )
                     xn.append(zt[n])
 
                 n0 = n1
 
+                plot_mode = dict(
+                    mode="lines+markers", marker=dict(size=3, symbol="circle")
+                )
+
+                try:
+                    plot_mode["marker"]["symbol"] = get_plot_mode(i)["marker"]["symbol"]
+                except KeyError:
+                    pass
+
                 node_data.append(
                     go.Scatter3d(
                         x=xn,
                         y=np.zeros(len(nodes_pos)),
                         z=np.ones(len(nodes_pos)),
-                        mode="lines+markers",
                         line=dict(width=2, color=self.color),
-                        marker=dict(size=3),
-                        showlegend=False,
                         hoverinfo="none",
+                        name=legend_name,
+                        legendgroup=legend_name,
+                        showlegend=showlegend,
+                        **plot_mode,
                     )
                 )
 
@@ -890,42 +913,47 @@ class Shape(Results):
         nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
 
         n_plot, get_node_index, get_plot_mode = self._fix_mode_shape_intersections()
+        showlegend = n_plot > 1
 
         if plot_dimension == 2:
             # Plot 2d
             n0 = 0
             for i in range(n_plot):
                 n1 = get_node_index(i)
-                extra_template = f"Rotor {i + 1} <br>" if n_plot > 1 else ""
+
+                legend_name = f"Rotor {i + 1}"
 
                 fig.add_trace(
                     go.Scatter(
                         x=nodes_pos[n0:n1],
                         y=theta[n0:n1],
                         line=dict(color=self.color),
-                        showlegend=False,
-                        hovertemplate=(
-                            extra_template
-                            + f"Relative angle: %{{y:.2f}}<extra></extra>"
-                        ),
+                        hovertemplate=(f"Relative angle: %{{y:.2f}}<extra></extra>"),
+                        name=legend_name,
+                        legendgroup=legend_name,
+                        showlegend=showlegend,
                         **get_plot_mode(i),
                     )
                 )
-                fig.add_shape(
-                    type="line",
-                    x0=nodes_pos[n0],
-                    y0=0,
-                    x1=nodes_pos[n0],
-                    y1=theta[n0],
-                    line=dict(color=self.color, dash="dash"),
+                fig.add_trace(
+                    go.Scatter(
+                        x=[nodes_pos[n0], nodes_pos[n0]],
+                        y=[0, theta[n0]],
+                        mode="lines",
+                        line=dict(color=self.color, dash="dash"),
+                        legendgroup=legend_name,
+                        showlegend=False,
+                    )
                 )
-                fig.add_shape(
-                    type="line",
-                    x0=nodes_pos[n1 - 1],
-                    y0=0,
-                    x1=nodes_pos[n1 - 1],
-                    y1=theta[n1 - 1],
-                    line=dict(color=self.color, dash="dash"),
+                fig.add_trace(
+                    go.Scatter(
+                        x=[nodes_pos[n1 - 1], nodes_pos[n1 - 1]],
+                        y=[0, theta[n1 - 1]],
+                        mode="lines",
+                        line=dict(color=self.color, dash="dash"),
+                        legendgroup=legend_name,
+                        showlegend=False,
+                    )
                 )
 
                 n0 = n1
@@ -977,7 +1005,8 @@ class Shape(Results):
                 zn = []
 
                 n1 = get_node_index(i)
-                extra_template = f" (Rotor {i + 1})" if n_plot > 1 else ""
+
+                legend_name = f"Rotor {i + 1}"
 
                 for n in range(n0, n1):
                     node_data.append(
@@ -987,16 +1016,15 @@ class Shape(Results):
                             z=[0, yt[j, n]],
                             mode="lines",
                             line=dict(width=2, color=self.color),
-                            showlegend=False,
                             name=f"Node {self.nodes[n]}",
                             hovertemplate=(
-                                "Nodal position: %{x:.2f}"
-                                + extra_template
-                                + "<br>"
+                                "Nodal position: %{x:.2f}<br>"
                                 + "X - Displacement: %{y:.2f}<br>"
                                 + "Y - Displacement: %{z:.2f}<br>"
                                 + f"Relative angle: {theta[n]:.2f}"
                             ),
+                            legendgroup=legend_name,
+                            showlegend=False,
                         )
                     )
                     xn.append(nodes_pos[n])
@@ -1008,6 +1036,7 @@ class Shape(Results):
                 plot_mode = dict(
                     mode="lines+markers", marker=dict(size=3, symbol="circle")
                 )
+
                 try:
                     plot_mode["marker"]["symbol"] = get_plot_mode(i)["marker"]["symbol"]
                 except KeyError:
@@ -1019,8 +1048,10 @@ class Shape(Results):
                         y=yn,
                         z=zn,
                         line=dict(width=2, color=self.color),
-                        showlegend=False,
                         hoverinfo="none",
+                        name=legend_name,
+                        legendgroup=legend_name,
+                        showlegend=showlegend,
                         **plot_mode,
                     )
                 )
@@ -1141,43 +1172,50 @@ class Shape(Results):
 
             n_plot, get_node_index, get_plot_mode = self._fix_mode_shape_intersections()
             aux = len(zn) // len(self.shaft_elements_length)
+            showlegend = n_plot > 1
 
             n0 = 0
             for i in range(n_plot):
                 n1 = (get_node_index(i) - (i + 1)) * aux
-                extra_template = f"Rotor {i + 1} <br>" if n_plot > 1 else ""
+
+                legend_name = f"Rotor {i + 1}"
 
                 fig.add_trace(
                     go.Scatter(
                         x=zn[n0:n1],
                         y=values[n0:n1],
                         line=dict(color=self.color),
-                        name=f"{orientation}",
-                        showlegend=False,
                         customdata=major_angle[n0:n1],
                         hovertemplate=(
-                            extra_template
-                            + f"Displacement: %{{y:.2f}}<br>"
+                            f"Displacement: %{{y:.2f}}<br>"
                             + f"Angle {phase_units}: %{{customdata:.2f}}"
                         ),
+                        name=f"{orientation}",
+                        legendgrouptitle=dict(text=legend_name),
+                        legendgroup=legend_name,
+                        showlegend=showlegend,
                         **get_plot_mode(i),
                     ),
                 )
-                fig.add_shape(
-                    type="line",
-                    x0=zn[n0],
-                    y0=0,
-                    x1=zn[n0],
-                    y1=values[n0],
-                    line=dict(color=self.color, dash="dash"),
+                fig.add_trace(
+                    go.Scatter(
+                        x=[zn[n0], zn[n0]],
+                        y=[0, values[n0]],
+                        mode="lines",
+                        line=dict(color=self.color, dash="dash"),
+                        legendgroup=legend_name,
+                        showlegend=False,
+                    )
                 )
-                fig.add_shape(
-                    type="line",
-                    x0=zn[n1 - 1],
-                    y0=0,
-                    x1=zn[n1 - 1],
-                    y1=values[n1 - 1],
-                    line=dict(color=self.color, dash="dash"),
+                fig.add_trace(
+                    go.Scatter(
+                        x=[zn[n1 - 1], zn[n1 - 1]],
+                        y=[0, values[n1 - 1]],
+                        mode="lines",
+                        line=dict(color=self.color, dash="dash"),
+                        legendgroup=legend_name,
+                        showlegend=False,
+                    )
                 )
 
                 n0 = n1
