@@ -394,7 +394,7 @@ class MultiRotorTVMS(Rotor):
                 self.rotors[1].M(-frequency / self.gear_ratio, synchronous),
             )
 
-    def K(self, frequency, ignore=[], **kwargs):
+    def K(self, frequency, ignore=(), **kwargs):
         """Stiffness matrix for a multi-rotor.
 
         Parameters
@@ -471,7 +471,7 @@ class MultiRotorTVMS(Rotor):
             self.rotors[0].Ksdt(), -1/self.gear_ratio * self.rotors[1].Ksdt()
         )
 
-    def C(self, frequency, ignore=[]):
+    def C(self, frequency, ignore=()):
         """Damping matrix for a multi-rotor rotor.
 
         Parameters
@@ -708,7 +708,7 @@ def main_example(id, t=10, speed=50, run_type = 'interpolation', dt = 1e-5, unb_
         F[:, dofy] += unb_mag[i] * (speed**2) * np.sin(phi)
 
     start_time=time.time()
-    tr = rotor.run_time_response(speed1, F, t, method='newmark', progress_interval=0.01)
+    tr = rotor.run_time_response(speed1, F, t, method='newmark', progress_interval=0.1)
 
 
     end_time = time.time()
@@ -723,17 +723,17 @@ def main_example(id, t=10, speed=50, run_type = 'interpolation', dt = 1e-5, unb_
     
     arr = np.column_stack([t,x, y])
     arr = pd.DataFrame(arr, columns=['time','x', 'y'])
-    arr.to_csv(f'~/Desktop/IC/gear_simulation/w_{speed1/np.pi/2:.2f}hz_dt_{dt:.2e}s_t_{np.max(t):.2f}s_40_75_{run_type}_unb0_{unb_mag[0]}_unb1_{unb_mag[1]}.csv')
+    arr.to_csv(rf'C:\gear_freq_data\w_{speed1/np.pi/2:.2f}hz_dt_{dt:.2e}s_t_{np.max(t):.2f}s_40_75_{run_type}_unb0_{unb_mag[0]}_unb1_{unb_mag[1]}.csv')
 
 if __name__ == "__main__":
 
     lista_argumentos = [
-        ('A1', 4, 60, 'interpolation', 1e-5, [50e-4, 70e-4]),
-        ('A2', 4, 60, 'max_stiffness', 1e-5, [50e-4, 70e-4]),
-        ('B1', 4, 70, 'interpolation', 1e-5, [80e-4, 100e-4]),
-        ('B1', 4, 70, 'max_stiffness', 1e-5, [80e-4, 100e-4]),      
-        ('C1', 4, 20, 'interpolation', 1e-5, [100e-4, 100e-4]),
-        ('C2', 4, 20, 'max_stiffness', 1e-5, [100e-4, 100e-4]),
+        ('A1', 4, 60, 'interpolation', 1e-5, [50e-5, 70e-5]),
+        ('A2', 4, 60, 'max_stiffness', 1e-5, [50e-5, 70e-5]),
+        ('B1', 4, 70, 'interpolation', 1e-5, [80e-5, 100e-5]),
+        ('B1', 4, 70, 'max_stiffness', 1e-5, [80e-5, 100e-5]),      
+        ('C1', 4, 20, 'interpolation', 1e-5, [100e-5, 100e-5]),
+        ('C2', 4, 20, 'max_stiffness', 1e-5, [100e-5, 100e-5]),
     ]
 
     overall_start_time = time.time()

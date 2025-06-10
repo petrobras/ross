@@ -2409,7 +2409,7 @@ class Rotor(object):
             C1 = get_array[0](C0)
 
             def rotor_system(step, **current_state):
-                K0 = self.K(speed_ref, ignore =[], t = t[step])
+                K0 = self.K(speed_ref, ignore=(), t = t[step])
                 
                 K1 = get_array[0](K0)
 
