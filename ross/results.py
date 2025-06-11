@@ -553,7 +553,6 @@ class Shape(Results):
             for j in range(n_div):
                 n1 = get_node_index(j)
                 e1 = n1 - (j + 1)
-                print("")
 
                 for Le, n in zip(shaft_elements_length[e0:e1], nodes[n0:n1]):
                     node_pos = nodes_pos[n]
@@ -649,15 +648,15 @@ class Shape(Results):
 
         symbols = [
             "circle",
-            "circle-open",
             "square",
-            "square-open",
             "diamond",
+            "circle-open",
+            "square-open",
             "diamond-open",
         ]
 
         get_plot_mode = lambda i: (
-            dict(mode="lines+markers", marker=dict(symbol=symbols[i]))
+            dict(mode="lines+markers", marker=dict(symbol=symbols[i % len(symbols)]))
             if n_plot > 1
             else dict()
         )
