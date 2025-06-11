@@ -28,6 +28,17 @@ The documentation provides the [installation procedure](https://ross.readthedocs
 # Questions
 If you have any questions, you can use the [Discussions](https://github.com/petrobras/ross/discussions) area in the repository.
 
+# 💡 ROSS GPT – Your Virtual Assistant for Rotordynamics
+
+Meet [ROSS GPT](https://bit.ly/rossgpt), a virtual assistant specialized in the ROSS (Rotordynamic Open-Source Software) package. With ROSS GPT, you can:
+
+- Create and modify rotor models using ROSS in Python.
+- Request practical examples for modal analysis, Campbell diagrams, unbalance response, and more.
+- Get detailed technical explanations on elements such as shafts, disks, bearings, and couplings.
+
+Access [ROSS GPT here](https://bit.ly/rossgpt) and enhance your modeling workflow with expert automated support!
+
+
 # Contributing to ROSS
 ROSS is a community-driven project. If you want to contribute to the project, please
 check [CONTRIBUTING.md](https://github.com/petrobras/ross/blob/main/CONTRIBUTING.md). 
