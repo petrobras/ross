@@ -37,7 +37,7 @@ class GearElementTVMS(GearElement):
         The hub bore radius (m).
     material : ross.Material
         Gear's construction material.
-    pressure_angle : float, optional
+    pr_angle : float, optional
         The pressure angle of the gear (rad).
         Default is 20 deg (converted to rad).
     addendum_coeff : float | optional
@@ -65,9 +65,9 @@ class GearElementTVMS(GearElement):
     >>> gear = GearElementTVMS(
     ...        n=0, m=4.67, Id=0.015, Ip=0.030,
     ...        pitch_diameter=0.187,
-    ...        pressure_angle=Q_(22.5, "deg")
+    ...        pr_angle=Q_(22.5, "deg")
     ... )
-    >>> gear.pressure_angle # doctest : +ELLIPSIS
+    >>> gear.pr_angle # doctest : +ELLIPSIS
     0.392699...
     """
 
@@ -81,28 +81,37 @@ class GearElementTVMS(GearElement):
         width,
         hub_bore_radius,
         material=steel,
-        pr_angle=0.3490658503988659,
+        pr_angle=None,
         addendum_coeff=1,
         clearance_coeff=0.25,
         tag=None,
         scale_factor=1.0,
         color="Goldenrod",
     ):
-        self.shaft_od = float(hub_bore_radius)  # [m]
-        self.module = float(module)  # [m]
-        self.n_tooth = float(n_tooth)  # [-]
-        self.pressure_angle = float(pr_angle)  # [rad]
-        self.width = float(width)  # [m]
-        self.addendum_coeff = float(addendum_coeff)  # [-]
-        self.clearance_coeff = float(clearance_coeff)  # [-]
-        self.pitch_diameter = module * n_tooth  # [m]
+        pitch_diameter = module * n_tooth
 
-        self.Ip = (
-            np.pi / 2 * ((self.pitch_diameter / 2) ** 4 - (self.shaft_od / 2) ** 4)
+        Ip = np.pi / 2 * ((pitch_diameter / 2) ** 4 - (hub_bore_radius / 2) ** 4)
+
+        Id = np.pi / 4 * ((pitch_diameter / 2) ** 4 - (hub_bore_radius / 2) ** 4)
+
+        super().__init__(
+            n,
+            m,
+            Id,
+            Ip,
+            pitch_diameter=pitch_diameter,
+            pr_angle=pr_angle,
+            tag=tag,
+            scale_factor=scale_factor,
+            color=color,
         )
-        self.Id = (
-            np.pi / 4 * ((self.pitch_diameter / 2) ** 4 - (self.shaft_od / 2) ** 4)
-        )
+
+        self.hub_bore_radius = float(hub_bore_radius)
+        self.module = float(module)
+        self.n_tooth = float(n_tooth)
+        self.width = float(width)
+        self.addendum_coeff = float(addendum_coeff)
+        self.clearance_coeff = float(clearance_coeff)
 
         self.material = material
 
@@ -113,8 +122,6 @@ class GearElementTVMS(GearElement):
         self._ka_transiction = False
         self._kb_transiction = False
         self._ks_transiction = False
-
-        super().__init__(n, m, self.Id, self.Ip, tag, scale_factor, color)
 
     def _initialize_geometry(self, dict_geo):
         """
@@ -193,13 +200,13 @@ class GearElementTVMS(GearElement):
             * (
                 np.pi / 2
                 + 2
-                * np.tan(self.pressure_angle)
+                * np.tan(self.pr_angle)
                 * (self.addendum_coeff - self.geometry_dict["r_rho_"])
-                + 2 * self.geometry_dict["r_rho_"] / np.cos(self.pressure_angle)
+                + 2 * self.geometry_dict["r_rho_"] / np.cos(self.pr_angle)
             )
         )
 
-        theta_b = np.pi / (2 * self.n_tooth) + self._involute(self.pressure_angle)
+        theta_b = np.pi / (2 * self.n_tooth) + self._involute(self.pr_angle)
 
         # Placeholder dictionary
         dict_place = {
@@ -254,10 +261,10 @@ class GearElementTVMS(GearElement):
         """
 
         # radius of base circle [m] MAOK
-        r_b = 1 / 2 * self.module * self.n_tooth * np.cos(self.pressure_angle)
+        r_b = 1 / 2 * self.module * self.n_tooth * np.cos(self.pr_angle)
 
         # radius of pitch circle [m] MAOK
-        r_p = r_b / np.cos(self.pressure_angle)
+        r_p = r_b / np.cos(self.pr_angle)
 
         # radius of addendum circle [m]
         r_a = r_p + self.addendum_coeff * self.module
@@ -265,8 +272,8 @@ class GearElementTVMS(GearElement):
         # radii of the involute starting point [m] MAOK
         r_c = np.sqrt(
             np.square(
-                r_b * np.tan(self.pressure_angle)
-                - self.addendum_coeff * self.module / np.sin(self.pressure_angle)
+                r_b * np.tan(self.pr_angle)
+                - self.addendum_coeff * self.module / np.sin(self.pr_angle)
             )
             + np.square(r_b)
         )
@@ -278,7 +285,7 @@ class GearElementTVMS(GearElement):
         )
 
         # radius of cutter tip round corner [m] MAOK
-        r_rho = self.clearance_coeff * self.module / (1 - np.sin(self.pressure_angle))
+        r_rho = self.clearance_coeff * self.module / (1 - np.sin(self.pr_angle))
 
         # normalized by the module radius of cutter tip round corner [m]
         r_rho_ = r_rho / self.module
@@ -328,8 +335,8 @@ class GearElementTVMS(GearElement):
         ) * self.module - self.geometry_dict["r_rho"]  # MAOK
         b1 = (  # MAOK
             np.pi * self.module / 4
-            + self.addendum_coeff * self.module * np.tan(self.pressure_angle)
-            + self.geometry_dict["r_rho"] * np.cos(self.pressure_angle)
+            + self.addendum_coeff * self.module * np.tan(self.pr_angle)
+            + self.geometry_dict["r_rho"] * np.cos(self.pr_angle)
         )
 
         dict_place = {"a_1": a1, "b_1": b1}
@@ -488,7 +495,7 @@ class GearElementTVMS(GearElement):
         geometry = self.geometry
 
         # Generate the transition geometry
-        transition = np.linspace(np.pi / 2, self.pressure_angle, 200)
+        transition = np.linspace(np.pi / 2, self.pr_angle, 200)
         transition_vectorized = np.vectorize(self._compute_transition_curve)
         y_t, x_t, _, _ = transition_vectorized(transition)
 
@@ -643,7 +650,7 @@ class GearElementTVMS(GearElement):
             Return 'oo' if it doesn't match the criteria for the experimental range where this method was built.
         """
 
-        h = self.geometry_dict["r_f"] / self.shaft_od
+        h = self.geometry_dict["r_f"] / self.hub_bore_radius
 
         poly = pd.DataFrame()
         poly["var"] = ["L", "M", "P", "Q"]
@@ -752,7 +759,7 @@ class GearElementTVMS(GearElement):
             )
 
             self._ks_transiction, _ = sp.integrate.quad(
-                f_transiction, np.pi / 2, self.pressure_angle
+                f_transiction, np.pi / 2, self.pr_angle
             )  # OK
 
         f_involute = lambda tau: (
@@ -800,7 +807,7 @@ class GearElementTVMS(GearElement):
             )
 
             self._kb_transiction, _ = sp.integrate.quad(
-                f_transiction, np.pi / 2, self.pressure_angle
+                f_transiction, np.pi / 2, self.pr_angle
             )
 
         f_involute = lambda tau: (
@@ -841,7 +848,7 @@ class GearElementTVMS(GearElement):
             )
 
             self._ka_transiction, _ = sp.integrate.quad(
-                f_transiction, np.pi / 2, self.pressure_angle
+                f_transiction, np.pi / 2, self.pr_angle
             )
 
         f_involute = lambda tau: (
@@ -984,7 +991,7 @@ class Mesh:
                 gear_output.geometry_dict["r_a"] ** 2
                 - gear_output.geometry_dict["r_b"] ** 2
             )
-            - C * np.sin(gear_input.pressure_angle)
+            - C * np.sin(gear_input.pr_angle)
         )
 
         CR = lc / pb  # contact ratio
@@ -1150,21 +1157,30 @@ class Mesh:
                     None,
                 )
 
-        # # OPTION 3 : RUN THE TVMS EVERY STEP
-        # else : # If it needs to re-evaluate every stiffness integration every step
+        # OPTION 3 : RUN THE TVMS EVERY STEP
+        else:  # If it needs to re-evaluate every stiffness integration every step
+            t = t - t // tm * tm
 
-        #     t   = t - t // tm * tm
+            if t <= (self.cr - 1) * tm:
+                stiffnes_mesh_1, d_tau_gear_input_1, d_tau_gear_1 = (
+                    self._time_equivalent_stiffness(t, gear_input_speed)
+                )
+                stiffnes_mesh_0, d_tau_gear_input_0, d_tau_gear0 = (
+                    self._time_equivalent_stiffness(tm + t, gear_input_speed)
+                )
 
-        #     if t <= (self.cr-1) * tm:
-        #         stiffnes_mesh_1, d_tau_gear_input_1, d_tau_gear_1 = self._time_equivalent_stiffness(t, gear_input_speed)
-        #         stiffnes_mesh_0, d_tau_gear_input_0, d_tau_gear0 = self._time_equivalent_stiffness(tm + t, gear_input_speed)
+                return (
+                    stiffnes_mesh_0 + stiffnes_mesh_1,
+                    stiffnes_mesh_0,
+                    stiffnes_mesh_1,
+                )
 
-        #         return stiffnes_mesh_0 + stiffnes_mesh_1, stiffnes_mesh_0, stiffnes_mesh_1
+            elif t > (self.cr - 1) * tm:
+                stiffnes_mesh_1, d_tau_gear_input_1, d_tau_gear_1 = (
+                    self._time_equivalent_stiffness(t, gear_input_speed)
+                )
 
-        #     elif t > (self.cr-1) * tm:
-        #         stiffnes_mesh_1, d_tau_gear_input_1, d_tau_gear_1 = self._time_equivalent_stiffness(t, gear_input_speed)
-
-        #         return stiffnes_mesh_1, np.nan, stiffnes_mesh_1
+                return stiffnes_mesh_1, np.nan, stiffnes_mesh_1
 
     def _time_stiffness(self, gear_input_speed, dt):
         """

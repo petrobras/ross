@@ -6,7 +6,7 @@ gears or gearboxes used to couple different shafts in the MultiRotor class.
 
 import numpy as np
 from plotly import graph_objects as go
-from ross.units import Q_
+from ross.units import Q_, check_units
 
 from ross.disk_element import DiskElement
 
@@ -35,7 +35,7 @@ class GearElement(DiskElement):
     pitch_diameter : float, pint.Quantity
         Pitch diameter of the gear (m).
         If given base_diameter is not necessary.
-    pressure_angle : float, pint.Quantity, optional
+    pr_angle : float, pint.Quantity, optional
         The pressure angle of the gear (rad).
         Default is 20 deg (converted to rad).
     tag : str, optional
@@ -57,12 +57,13 @@ class GearElement(DiskElement):
     >>> gear = GearElement(
     ...        n=0, m=4.67, Id=0.015, Ip=0.030,
     ...        pitch_diameter=0.187,
-    ...        pressure_angle=Q_(22.5, "deg")
+    ...        pr_angle=Q_(22.5, "deg")
     ... )
-    >>> gear.pressure_angle # doctest: +ELLIPSIS
+    >>> gear.pr_angle # doctest: +ELLIPSIS
     0.392699...
     """
 
+    @check_units
     def __init__(
         self,
         n,
@@ -71,20 +72,20 @@ class GearElement(DiskElement):
         Ip,
         pitch_diameter=None,
         base_diameter=None,
-        pressure_angle=None,
+        pr_angle=None,
         tag=None,
         scale_factor=1.0,
         color="Goldenrod",
     ):
-        if pressure_angle is None:
-            pressure_angle = Q_(20, "deg")
+        if pr_angle is None:
+            pr_angle = Q_(20, "deg").to_base_units().m
 
-        self.pressure_angle = float(pressure_angle)
+        self.pr_angle = float(pr_angle)
 
         if base_diameter:
             self.base_radius = float(base_diameter) / 2
         elif pitch_diameter:
-            self.base_radius = float(pitch_diameter) * np.cos(self.pressure_angle) / 2
+            self.base_radius = float(pitch_diameter) * np.cos(self.pr_angle) / 2
         else:
             raise TypeError(
                 "At least one of the following must be informed for GearElement: base_diameter or pitch_diameter"
@@ -100,7 +101,7 @@ class GearElement(DiskElement):
         width,
         i_d,
         o_d,
-        pressure_angle=None,
+        pr_angle=None,
         tag=None,
         scale_factor=1.0,
         color="Goldenrod",
@@ -139,7 +140,7 @@ class GearElement(DiskElement):
             Inner diameter (the diameter of the shaft on which the gear is mounted).
         o_d : float, pint.Quantity
             Outer pitch diameter (m).
-        pressure_angle : float, pint.Quantity, optional
+        pr_angle : float, pint.Quantity, optional
             The pressure angle of the gear (rad).
             Default is 20 deg (converted to rad).
         tag : str, optional
@@ -173,8 +174,8 @@ class GearElement(DiskElement):
         Ip = m * (o_d**2 + i_d**2) / 8
         Id = 1 / 2 * Ip + 1 / 12 * m * width**2
 
-        if pressure_angle is None:
-            pressure_angle = Q_(20, "deg")
+        if pr_angle is None:
+            pr_angle = Q_(20, "deg")
 
         return cls(
             n,
@@ -182,7 +183,7 @@ class GearElement(DiskElement):
             Id,
             Ip,
             pitch_diameter=o_d,
-            pressure_angle=pressure_angle,
+            pr_angle=pr_angle,
             tag=tag,
             scale_factor=scale_factor,
             color=color,
