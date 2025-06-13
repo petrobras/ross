@@ -137,8 +137,6 @@ class GearElementTVMS(GearElement):
             A dictionary populated with computed geometric parameters.
 
         """
-        self.geometry_dict = {}
-
         a_coeff_mod = self.addendum_coeff * self.module
         c_coeff_mod = self.clearance_coeff * self.module
 
@@ -146,7 +144,7 @@ class GearElementTVMS(GearElement):
 
         # Add radii constants
         # radius of base circle [m]
-        r_b = 1 / 2 * self.module * self.n_tooth * np.cos(p_ang)
+        r_b = self.base_radius
         # radius of pitch circle [m]
         r_p = r_b / np.cos(p_ang)
         # radius of addendum circle [m]
@@ -157,22 +155,10 @@ class GearElementTVMS(GearElement):
             + np.square(r_b)
         )
         # radius of root circle [m]
-        r_f = 1 / 2 * self.module * self.n_tooth - (a_coeff_mod + c_coeff_mod)
+        r_f = r_p - (a_coeff_mod + c_coeff_mod)
         # radius of cutter tip round corner [m]
         r_rho = c_coeff_mod / (1 - np.sin(p_ang))
         r_rho_ = r_rho / self.module
-
-        self.geometry_dict.update(
-            {
-                "r_b": r_b,
-                "r_p": r_p,
-                "r_a": r_a,
-                "r_c": r_c,
-                "r_f": r_f,
-                "r_rho": r_rho,
-                "r_rho_": r_rho_,
-            }
-        )
 
         # Add angular constants of the involute profile
         # pressure angle when the contact point is on the addendum circle [rad]
@@ -189,15 +175,6 @@ class GearElementTVMS(GearElement):
 
         theta_b = np.pi / (2 * self.n_tooth) + self._involute(p_ang)
 
-        self.geometry_dict.update(
-            {
-                "alpha_a": alpha_a,
-                "alpha_c": alpha_c,
-                "theta_f": theta_f,
-                "theta_b": theta_b,
-            }
-        )
-
         # Add geometric constants of the tooth profile
         a1 = (a_coeff_mod + c_coeff_mod) - r_rho
 
@@ -207,12 +184,26 @@ class GearElementTVMS(GearElement):
             + r_rho * np.cos(p_ang)
         )
 
-        tau_c = self._to_tau(alpha_c)
-        tau_a = self._to_tau(alpha_a)
+        self.radii_dict = {
+            "base": r_b,
+            "pitch": r_p,
+            "addendum": r_a,
+            "root": r_f,
+            "cutter_tip": r_rho,
+        }
 
-        self.geometry_dict.update(
-            {"a_1": a1, "b_1": b1, "tau_c": tau_c, "tau_a": tau_a}
-        )
+        self.tooth_dict = {
+            "root_angle": theta_f,
+            "base_angle": theta_b,
+            "a": a1,
+            "b": b1,
+        }
+
+        self.pr_angles_dict = {
+            "default": p_ang,
+            "addendum": alpha_a,
+            "c_point": alpha_c,
+        }
 
     def _compute_transition_curve(self, gamma):
         """Compute the y, x, area and I_y of the transition curve given a gamma
@@ -235,15 +226,15 @@ class GearElementTVMS(GearElement):
             The second moment of area (moment of inertia) about the y-axis at x.
         """
         phi = (
-            self.geometry_dict["a_1"] / np.tan(gamma) + self.geometry_dict["b_1"]
-        ) / self.geometry_dict["r_p"]
+            self.tooth_dict["a"] / np.tan(gamma) + self.tooth_dict["b"]
+        ) / self.radii_dict["pitch"]
 
-        y = self.geometry_dict["r_p"] * np.cos(phi) - (
-            self.geometry_dict["a_1"] / np.sin(gamma) + self.geometry_dict["r_rho"]
+        y = self.radii_dict["pitch"] * np.cos(phi) - (
+            self.tooth_dict["a"] / np.sin(gamma) + self.radii_dict["cutter_tip"]
         ) * np.sin(gamma - phi)
 
-        x = self.geometry_dict["r_p"] * np.sin(phi) - (
-            self.geometry_dict["a_1"] / np.sin(gamma) + self.geometry_dict["r_rho"]
+        x = self.radii_dict["pitch"] * np.sin(phi) - (
+            self.tooth_dict["a"] / np.sin(gamma) + self.radii_dict["cutter_tip"]
         ) * np.cos(gamma - phi)
 
         area = 2 * x * self.width
@@ -271,12 +262,12 @@ class GearElementTVMS(GearElement):
         I_y : float
             The second moment of area (moment of inertia) about the y-axis at x.
         """
-        y = self.geometry_dict["r_b"] * (
-            (tau + self.geometry_dict["theta_b"]) * np.sin(tau) + np.cos(tau)
+        y = self.base_radius * (
+            (tau + self.tooth_dict["base_angle"]) * np.sin(tau) + np.cos(tau)
         )
 
-        x = self.geometry_dict["r_b"] * (
-            (tau + self.geometry_dict["theta_b"]) * np.cos(tau) - np.sin(tau)
+        x = self.base_radius * (
+            (tau + self.tooth_dict["base_angle"]) * np.cos(tau) - np.sin(tau)
         )
 
         area = 2 * x * self.width
@@ -336,7 +327,7 @@ class GearElementTVMS(GearElement):
         https://doi.org/10.3969/j.issn.1005-3026.2014.06.023
         """
 
-        return alpha - self.geometry_dict["theta_b"] + self._involute(alpha)
+        return alpha - self.tooth_dict["base_angle"] + self._involute(alpha)
 
     def plot_tooth_geometry(self):
         """Plot the geometry of the tooth profile."""
@@ -347,7 +338,7 @@ class GearElementTVMS(GearElement):
 
         # Generate the involute geometry
         involute = np.linspace(
-            self.geometry_dict["alpha_c"], self.geometry_dict["alpha_a"], 200
+            self.pr_angles_dict["c_point"], self.pr_angles_dict["addendum"], 200
         )
         tau_vectorize = np.vectorize(self._to_tau)
         tau_values = tau_vectorize(involute)
@@ -395,11 +386,7 @@ class GearElementTVMS(GearElement):
         float
             The value of _diff_tau(tau)
         """
-        return (
-            self.geometry_dict["r_b"]
-            * (tau + self.geometry_dict["theta_b"])
-            * np.cos(tau)
-        )
+        return self.base_radius * (tau + self.tooth_dict["base_angle"]) * np.cos(tau)
 
     def _diff_gamma(self, gamma):
         """Method used in evaluating the stiffness commonly found in the
@@ -415,10 +402,10 @@ class GearElementTVMS(GearElement):
         float
             The value of _diff_gamma(gamma)
         """
-        a1 = self.geometry_dict["a_1"]
-        b1 = self.geometry_dict["b_1"]
-        r_p = self.geometry_dict["r_p"]
-        r_rho = self.geometry_dict["r_rho"]
+        a1 = self.tooth_dict["a"]
+        b1 = self.tooth_dict["b"]
+        r_p = self.radii_dict["pitch"]
+        r_rho = self.radii_dict["cutter_tip"]
 
         term_1 = (
             a1
@@ -500,7 +487,7 @@ class GearElementTVMS(GearElement):
             range where this method was built.
         """
 
-        h = self.geometry_dict["r_f"] / self.hub_bore_radius
+        h = self.radii_dict["root"] / self.hub_bore_radius
 
         poly = pd.DataFrame()
         poly["var"] = ["L", "M", "P", "Q"]
@@ -512,10 +499,10 @@ class GearElementTVMS(GearElement):
         poly["F_i"] = [6.8045, 0.9086, 0.9236, 0.6904]
 
         calculate_x_i = lambda row: (
-            row["A_i"] / (self.geometry_dict["theta_f"] ** 2)
+            row["A_i"] / (self.tooth_dict["root_angle"] ** 2)
             + row["B_i"] * h**2
-            + row["C_i"] * h / self.geometry_dict["theta_f"]
-            + row["D_i"] / self.geometry_dict["theta_f"]
+            + row["C_i"] * h / self.tooth_dict["root_angle"]
+            + row["D_i"] / self.tooth_dict["root_angle"]
             + row["E_i"] * h
             + row["F_i"]
         )  # OK
@@ -576,8 +563,8 @@ class GearElementTVMS(GearElement):
 
         y, _, _, _ = self._compute_involute_curve(tau_op)
 
-        Sf = 2 * self.geometry_dict["r_f"] * self.geometry_dict["theta_f"]
-        u = y - self.geometry_dict["r_f"]
+        Sf = 2 * self.radii_dict["root"] * self.tooth_dict["root_angle"]
+        u = y - self.radii_dict["root"]
 
         kf = (np.cos(tau_op) ** 2 / (self.material.E * self.width)) * (
             L_poly * (u / Sf) ** 2
@@ -627,7 +614,7 @@ class GearElementTVMS(GearElement):
         )
 
         k_involute, _ = sp.integrate.quad(
-            f_involute, self._to_tau(self.geometry_dict["alpha_c"]), tau_op
+            f_involute, self._to_tau(self.pr_angles_dict["c_point"]), tau_op
         )
 
         return self._ks_transiction + k_involute
@@ -674,7 +661,7 @@ class GearElementTVMS(GearElement):
         )
 
         k_involute, _ = sp.integrate.quad(
-            f_involute, self._to_tau(self.geometry_dict["alpha_c"]), tau_op
+            f_involute, self._to_tau(self.pr_angles_dict["c_point"]), tau_op
         )
 
         return self._kb_transiction + k_involute
@@ -711,7 +698,7 @@ class GearElementTVMS(GearElement):
         )
 
         k_involute, _ = sp.integrate.quad(
-            f_involute, self._to_tau(self.geometry_dict["alpha_c"]), tau_op
+            f_involute, self._to_tau(self.pr_angles_dict["c_point"]), tau_op
         )
 
         return self._ka_transiction + k_involute
@@ -831,21 +818,19 @@ class Mesh:
         Retrieved from : https://www.myweb.ttu.edu/amosedal/articles.html
         """
 
-        pb = (
-            np.pi * 2 * gear_input.geometry_dict["r_b"] / gear_input.n_tooth
-        )  # base pitch
+        pb = np.pi * 2 * gear_input.base_radius / gear_input.n_tooth  # base pitch
         C = (
-            gear_input.geometry_dict["r_p"] + gear_output.geometry_dict["r_p"]
+            gear_input.radii_dict["pitch"] + gear_output.radii_dict["pitch"]
         )  # center distance (not the operating one)
 
         lc = (  # length of contact (not the operating one) # OK
             np.sqrt(
-                gear_input.geometry_dict["r_a"] ** 2
-                - gear_input.geometry_dict["r_b"] ** 2
+                gear_input.radii_dict["addendum"] ** 2
+                - gear_input.radii_dict["base"] ** 2
             )
             + np.sqrt(
-                gear_output.geometry_dict["r_a"] ** 2
-                - gear_output.geometry_dict["r_b"] ** 2
+                gear_output.radii_dict["addendum"] ** 2
+                - gear_output.radii_dict["base"] ** 2
             )
             - C * np.sin(gear_input.pr_angle)
         )
@@ -880,10 +865,10 @@ class Mesh:
 
         # Angular displacements
         alphagear_input = (
-            t * gear_input_speed + self.gear_input.geometry_dict["alpha_c"]
+            t * gear_input_speed + self.gear_input.pr_angles_dict["c_point"]
         )  # angle variation of the input gear_input [rad]
         alphagear_output = (
-            t * gear_output_speed + self.gear_output.geometry_dict["alpha_a"]
+            t * gear_output_speed + self.gear_output.pr_angles_dict["addendum"]
         )  # angle variation of the output gear   [rad]
 
         # Tau displacementes
