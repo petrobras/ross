@@ -9,7 +9,7 @@ import scipy as sp
 import pandas as pd
 from plotly import graph_objects as go
 
-from ross.units import Q_, check_units
+from ross.units import check_units
 from ross.materials import steel
 from ross.gear_element import GearElement
 
@@ -40,10 +40,10 @@ class GearElementTVMS(GearElement):
     pr_angle : float, optional
         The pressure angle of the gear (rad).
         Default is 20 deg (converted to rad).
-    addendum_coeff : float | optional
+    addendum_coeff : float, optional
         Addendum coefficient of the gear.
         Default is 1.
-    clearance_coeff : float | optional
+    clearance_coeff : float, optional
         Gear's clearance coefficient.
         Default is 0.25.
     tag : str, optional
@@ -125,17 +125,14 @@ class GearElementTVMS(GearElement):
     def _initialize_geometry(self):
         """Initialize the geometry dictionary for gear tooth stiffness analysis.
 
-        This method populates ``self.geometry_dict`` with various geometric parameters
-        computed by helper functions:
+        This method populates ``geometry_dict`` with various geometric
+        parameters:
 
-        - Radii constants (from :meth:`_notable_radii`)
-        - Angular constants (from :meth:`_notable_angles`)
-        - Geometric constants (from :meth:`_geometric_constants`)
-        - Tau constants (from :meth:`_tau_constants`)
+        NEED TO COMPLETE...
 
 
         Returns
-        -----
+        -------
         geometry_dict : dict
             A dictionary populated with computed geometric parameters.
 
@@ -183,7 +180,7 @@ class GearElementTVMS(GearElement):
         # pressure angle when the contact point is on the C point [rad]
         alpha_c = np.arccos(r_b / r_c)
 
-        # The angle between the tooth center-line and de junction with the root circle [radians]
+        # The angle between the tooth center-line and de junction with the root circle [rad]
         theta_f = (
             np.pi / 2
             + 2 * np.tan(p_ang) * (self.addendum_coeff - r_rho_)
@@ -218,23 +215,24 @@ class GearElementTVMS(GearElement):
         )
 
     def _compute_transition_curve(self, gamma):
-        """Compute the y, x, area and I_y of the transition curve given a gamma angle.
+        """Compute the y, x, area and I_y of the transition curve given a gamma
+        angle.
 
         Parameters
-        -----
-            gamma : float
-                The angle indicating the position on the transition curve profile.
+        ----------
+        gamma : float
+            The angle indicating the position on the transition curve profile.
 
         Returns
-        ------
-            y : float
-                The y-coordinate of the transition curve at gamma.
-            x : float
-                The x-coordinate of the transition curve at gamma.
-            area : float
-                The cumulative area under the transition curve up to x.
-            I_y : float
-                The second moment of area (moment of inertia) about the y-axis at x.
+        -------
+        y : float
+            The y-coordinate of the transition curve at gamma.
+        x : float
+            The x-coordinate of the transition curve at gamma.
+        area : float
+            The cumulative area under the transition curve up to x.
+        I_y : float
+            The second moment of area (moment of inertia) about the y-axis at x.
         """
         phi = (
             self.geometry_dict["a_1"] / np.tan(gamma) + self.geometry_dict["b_1"]
@@ -253,32 +251,32 @@ class GearElementTVMS(GearElement):
 
         return y, x, area, I_y
 
-    def _compute_involute_curve(self, tau_i):
-        """Compute the y, x, area and I_y of the involute curve given a tau angle.
+    def _compute_involute_curve(self, tau):
+        """Compute the y, x, area and I_y of the involute curve given a tau
+        angle.
 
         Parameters
-        ------
-            tau (float) : The angle indicating the position on the involute curve profile.
+        ----------
+        tau : float
+            The angle indicating the position on the involute curve profile.
 
         Returns
-        ------
-            y : float
-                The y-coordinate of the transition curve at tau_i.
-            x : float
-                The x-coordinate of the transition curve at tau_i.
-            area : float
-                The area under the transition curve up to x.
-            I_y : float
-                The second moment of area (moment of inertia) about the y-axis at x.
+        -------
+        y : float
+            The y-coordinate of the transition curve at tau_i.
+        x : float
+            The x-coordinate of the transition curve at tau_i.
+        area : float
+            The area under the transition curve up to x.
+        I_y : float
+            The second moment of area (moment of inertia) about the y-axis at x.
         """
-        self.geometry_dict = self.geometry_dict
-
         y = self.geometry_dict["r_b"] * (
-            (tau_i + self.geometry_dict["theta_b"]) * np.sin(tau_i) + np.cos(tau_i)
+            (tau + self.geometry_dict["theta_b"]) * np.sin(tau) + np.cos(tau)
         )
 
         x = self.geometry_dict["r_b"] * (
-            (tau_i + self.geometry_dict["theta_b"]) * np.cos(tau_i) - np.sin(tau_i)
+            (tau + self.geometry_dict["theta_b"]) * np.cos(tau) - np.sin(tau)
         )
 
         area = 2 * x * self.width
@@ -291,13 +289,8 @@ class GearElementTVMS(GearElement):
     def _involute(angle):
         """Involute function
 
-        Calculates the involute function for a given angle.
-
-        The involute function is used to describe the contact region of the gear profile.
-
-        :math:`inv(angle) = tan(angle) - angle`
-
-        This functions computes the value of the involute for an input angle in radians.
+        Calculates the involute function for a given angle. This function is
+        used to describe the contact region of the gear profile.
 
         Parameters
         ----------
@@ -305,39 +298,30 @@ class GearElementTVMS(GearElement):
             Input angle in radians.
 
         Returns
-        ---------
+        -------
         float
             The inv(angle)
-
-        Notes
-        --------
-        - Ensure that the angle is in radians before passing it to this function.
 
         Examples
         --------
         >>> GearGeometry._involute(20 / 180 * np.pi)
         0.014904383867336446
-
-        >>> GearGeometry._involute(15 / 180 * np.pi)
-        0.006149804631973288
         """
         angle = float(angle)
         return np.tan(angle) - angle
 
-    def _to_tau(self, alpha_i):
-        """
-        Transforms the alpha angle, used to build the involute profile, into the integration variable tau.
-
-        :math:`tau(alpha_i) = alpha_i - self.theta_b + self.involute(alpha_i)`
+    def _to_tau(self, alpha):
+        """Transforms the alpha angle, used to build the involute profile, into
+        the integration variable tau.
 
         Parameters
         ----------
-        alpha_i : float
+        alpha : float
             An angle within the involute profile.
 
         Returns
-        ---------
-        tau_i : float
+        -------
+        tau : float
 
         Examples
         ---------
@@ -345,21 +329,17 @@ class GearElementTVMS(GearElement):
         0.5573963019457713
 
         References
-        --------
-        Ma, H., Pang, X., Song, R., & Yang, J. (2014). 基于改进能量法的直齿轮时变啮合刚度计算
-        [Time-varying mesh stiffness calculation of spur gears based on improved energy method].
-        Journal of Northeastern University (Natural Science), 35(6), 863–867. https://doi.org/10.3969/j.issn.1005-3026.2014.06.023
+        ----------
+        Ma, H., Pang, X., Song, R., & Yang, J. (2014). Time-varying mesh
+        stiffness calculation of spur gears based on improved energy method.
+        Journal of Northeastern University (Natural Science), 35(6), 863–867.
+        https://doi.org/10.3969/j.issn.1005-3026.2014.06.023
         """
 
-        return alpha_i - self.geometry_dict["theta_b"] + self._involute(alpha_i)
+        return alpha - self.geometry_dict["theta_b"] + self._involute(alpha)
 
     def plot_tooth_geometry(self):
-        """
-        Plot the geometry of the tooth profile.
-        """
-
-        geometry = self.geometry
-
+        """Plot the geometry of the tooth profile."""
         # Generate the transition geometry
         transition = np.linspace(np.pi / 2, self.pr_angle, 200)
         transition_vectorized = np.vectorize(self._compute_transition_curve)
@@ -401,29 +381,29 @@ class GearElementTVMS(GearElement):
         fig.show()
         pass
 
-    def _diff_tau(self, tau_i):
-        """
-        Method for evaluating the stiffness commonly found in the integrative functions of the involute region on a specified angle tau_i.
+    def _diff_tau(self, tau):
+        """Method for evaluating the stiffness commonly found in the
+        integrative functions of the involute region on a specified angle.
 
         Parameters
         ----------
-        tau_i : float
-            Operational tau_i angle.
+        tau : float
+            Operational tau angle.
 
         Returns
-        ----------
+        -------
         float
-            The value of _diff_tau(tau_i)
+            The value of _diff_tau(tau)
         """
         return (
             self.geometry_dict["r_b"]
-            * (tau_i + self.geometry_dict["theta_b"])
-            * np.cos(tau_i)
+            * (tau + self.geometry_dict["theta_b"])
+            * np.cos(tau)
         )
 
     def _diff_gamma(self, gamma):
-        """
-        Method used in evaluating the stiffness commonly found in the integrative functions of the transition region.
+        """Method used in evaluating the stiffness commonly found in the
+        integrative functions of the transition region.
 
         Parameters
         ----------
@@ -431,7 +411,7 @@ class GearElementTVMS(GearElement):
             Value of the gamma angle used to describre the profile.
 
         Returns
-        ----------
+        -------
         float
             The value of _diff_gamma(gamma)
         """
@@ -462,30 +442,32 @@ class GearElementTVMS(GearElement):
             )
         )
 
-        return term_1 + term_2 + term_3  # OK
+        return term_1 + term_2 + term_3
 
     @check_units
     def _compute_stiffness(self, alpha_op_angle):
-        """
-        Computes the stiffness in the direction of the applied force on the gear (line of action), according to the involute profile.
+        """Computes the stiffness in the direction of the applied force on the
+        gear (line of action), according to the involute profile.
+
         It evaluates each of them separetly, and those values are returned as 1/stiffness for an approach in accordance with Ma, H. et. al. (2014).
 
         Parameters
         ----------
         tau_op : float
-            The tau operational angle, e.g. the angle formed by the normal of the contact involute curves and the x axis.
+            The tau operational angle, e.g. the angle formed by the normal of
+            the contact involute curves and the x axis.
 
         Returns
-        ----------
-        tuple of float
-            A tuple containing the computed stiffness components as 1/stiffness values. The elements represent:
-            - ka : float
+        -------
+        A tuple containing the computed stiffness components as 1/stiffness
+        values. The elements represent:
+            ka : float
                 Stiffness related to axial stresses.
-            - kb : float
+            kb : float
                 Stiffness related to bending stresses.
-            - kf : float
+            kf : float
                 Stiffness related to body of the gear.
-            - ks : float
+            ks : float
                 Stiffness related to shear stresses.
         """
         alpha_op = float(alpha_op_angle)
@@ -502,18 +484,20 @@ class GearElementTVMS(GearElement):
         return 1 / _inv_ka, 1 / _inv_kb, 1 / _inv_kf, 1 / _inv_ks
 
     def _gear_body_polynominal(self):
-        """
-        This method uses the approach described by Sainsot et al. (2004) to calculate the stiffness factor (kf)
-        contributing to tooth deflections. If the parameters fall outside the experimental range used to derive
-        the analytical formula, the method returns `'oo'` to indicate an infinite stiffness approximation.
+        """This method uses the approach described by Sainsot et al. (2004) to
+        calculate the stiffness factor (kf) contributing to tooth deflections.
+        If the parameters fall outside the experimental range used to derive
+        the analytical formula, the method returns `'oo'` to indicate an
+        infinite stiffness approximation.
 
         Returns
-        ---------
+        -------
         float
             The calculated stiffness factor (kf) for the gear base.
 
         str
-            Return 'oo' if it doesn't match the criteria for the experimental range where this method was built.
+            Return 'oo' if it doesn't match the criteria for the experimental
+            range where this method was built.
         """
 
         h = self.geometry_dict["r_f"] / self.hub_bore_radius
@@ -559,23 +543,26 @@ class GearElementTVMS(GearElement):
         return poly.loc[:, ["var", "X_i"]]
 
     def _inv_kf(self, tau_op):
-        """
-        Sainsot, P., Velex, P., & Duverger, O. (2004). Contribution of gear body to tooth deflections - A new bidimensional analytical
-        formula. Journal of Mechanical Design, 126(4), 748–752. https://doi.org/10.1115/1.1758252
+        """Calculate the stiffness contribution from the gear base, given a
+        point on the involute curve.
 
-        Calculate the stiffness contribution from the gear base, given a point on the involute curve.
+        Sainsot, P., Velex, P., & Duverger, O. (2004). Contribution of gear
+        body to tooth deflections - A new bidimensional analytical
+        formula. Journal of Mechanical Design, 126(4), 748–752.
+        https://doi.org/10.1115/1.1758252
 
         Parameters
-        ---------
+        ----------
         tau_op : float
-            The operational pressure angle (tau) in radians. This angle is used to determine the stiffness characteristics
-            based on the gear geometry and material properties. It's the current angle of the contact point between the meshing gears.
+            The operational pressure angle (tau) in radians. This angle is used
+            to determine the stiffness characteristics based on the gear
+            geometry and material properties. It's the current angle of the
+            contact point between the meshing gears.
 
         Returns
-        ---------
+        -------
         kf : float
             The calculated 1/kf for the gear base.
-
         """
 
         # obtain a dataframe of polynomials coefficients
@@ -601,8 +588,8 @@ class GearElementTVMS(GearElement):
         return kf
 
     def _inv_ks(self, tau_op):
-        """
-        Calculate the stiffness contribution from the gear resistance from shear stresses, given the tau operational angle.
+        """Calculate the stiffness contribution from the gear resistance from
+        shear stresses, given the tau operational angle.
 
         Parameters
         ----------
@@ -610,7 +597,7 @@ class GearElementTVMS(GearElement):
             Operational tau angle.
 
         Returns
-        ---------
+        -------
         float
             The shear stiffness in the form of 1/ks.
         """
@@ -646,8 +633,8 @@ class GearElementTVMS(GearElement):
         return self._ks_transiction + k_involute
 
     def _inv_kb(self, tau_op):
-        """
-        Calculate the stiffness contribution from the gear resistance from bending stresses, given the tau operational angle.
+        """Calculate the stiffness contribution from the gear resistance from
+        bending stresses, given the tau operational angle.
 
         Parameters
         ----------
@@ -655,7 +642,7 @@ class GearElementTVMS(GearElement):
             Operational tau angle.
 
         Returns
-        ---------
+        -------
         float
             The bending stiffness in the form of 1/kb.
         """
@@ -693,8 +680,8 @@ class GearElementTVMS(GearElement):
         return self._kb_transiction + k_involute
 
     def _inv_ka(self, tau_op):
-        """
-        Calculate the stiffness contribution from the gear resistance from axial stresses, given the tau operational angle.
+        """Calculate the stiffness contribution from the gear resistance from
+        axial stresses, given the tau operational angle.
 
         Parameters
         ----------
@@ -702,7 +689,7 @@ class GearElementTVMS(GearElement):
             Operational tau angle.
 
         Returns
-        ---------
+        -------
         float
             The axial stiffness in the form of 1/ka.
         """
@@ -731,8 +718,8 @@ class GearElementTVMS(GearElement):
 
     @staticmethod
     def _kh(gear1, gear2):
-        """
-        Evaluates the contact hertzian stiffness considering that both elasticity modulus are equal.
+        """Evaluates the contact hertzian stiffness considering that both
+        elasticity modulus are equal.
 
         Parameters
         ----------
@@ -743,13 +730,9 @@ class GearElementTVMS(GearElement):
             Gear object.
 
         Returns
-        ----------
+        -------
         float
             The hertzian contact stiffness.
-
-        Notes
-        ----------
-        - It returns _kh, not 1/_kh.
         """
 
         return (
@@ -758,9 +741,9 @@ class GearElementTVMS(GearElement):
 
 
 class Mesh:
-    """
-    Represents the meshing behavior between two gears, typically a gear_input and a crown gear,
-    including stiffness and contact ratio calculations.
+    """Represents the meshing behavior between two gears, typically a
+    gear_input and a crown gear, including stiffness and contact ratio
+    calculations.
 
     Parameters:
     -----------
@@ -769,25 +752,31 @@ class Mesh:
     gear_output : GearElementTVMS
         The crown gear object used in the gear pair (driven).
     gear_input_w : float
-        The rotational speed [rad/sec] of the gear_input gear in radians per second.
-    tvms : `bool`
-        If True, it will run the TVMS once and interpolate after (increased performance).
-    max_stiffness : `bool`
+        The rotational speed [rad/sec] of the gear_input gear in rad/s.
+    tvms : bool
+        If True, it will run the TVMS once and interpolate after (increased
+        performance).
+    max_stiffness : bool
         If True, return only the max stiffness of the meshing.
 
 
     Attributes:
     -----------
     gear_input : GearElementTVMS
-        The gear_input gear object, which contains information about the geometry and properties of the gear_input gear.
+        The gear_input gear object, which contains information about the
+        geometry and properties of the gear_input gear.
     gear_output : GearElementTVMS
-        The gear wheel object, which contains information about the geometry and properties of the wheel gear.
+        The gear wheel object, which contains information about the geometry
+        and properties of the wheel gear.
     tm : float
-        The meshing period, calculated based on the rotational speed and the number of teeth of the gear_input.
+        The meshing period, calculated based on the rotational speed and the
+        number of teeth of the gear_input.
     cr : float
-        The contact ratio, representing the average number of tooth in contact during meshing.
+        The contact ratio, representing the average number of tooth in contact
+        during meshing.
     eta : float
-        The transamission ratio, defined as the ratio of the radii between the driven and driving gears.
+        The transamission ratio, defined as the ratio of the radii between the
+        driven and driving gears.
     """
 
     def __init__(
@@ -837,7 +826,8 @@ class Mesh:
 
         Reference
         ----------
-        Understanding the contact ratio for spur gears with some comments on ways to read a textbook.
+        Understanding the contact ratio for spur gears with some comments on
+        ways to read a textbook.
         Retrieved from : https://www.myweb.ttu.edu/amosedal/articles.html
         """
 
@@ -875,9 +865,10 @@ class Mesh:
 
         Returns
         -------
-        tuple : A containing the following elements
-            k_t (float) : the time equivalent stiffness of mesh contact.
-            d_tau_gear_input (float):
+        A containing the following elements:
+            k_t : float
+                The time equivalent stiffness of mesh contact.
+            d_tau_gear_input : float
 
         Example
         --------
@@ -924,12 +915,13 @@ class Mesh:
 
     @check_units
     def mesh(self, gear_input_speed, t=None):
-        """
-        Calculate the time-varying meshing stiffness of a gear pair.
+        """Calculate the time-varying meshing stiffness of a gear pair.
 
-        This method computes the equivalent stiffness of a gear mesh at a given time `t`, taking into
-        account the periodic nature of the meshing process and the contact ratio (`cr`) of the gear pair.
-        The computation considers whether one or two pairs of teeth are in contact during the meshing cycle.
+        This method computes the equivalent stiffness of a gear mesh at a given
+        time `t`, taking into account the periodic nature of the meshing
+        process and the contact ratio (`cr`) of the gear pair.
+        The computation considers whether one or two pairs of teeth are in
+        contact during the meshing cycle.
 
         Parameters
         ----------
@@ -939,20 +931,26 @@ class Mesh:
             Time instant for which the meshing stiffness is calculated.
 
         Returns
-        ------
-            tuple : A tuple containing the following elements:
-                - total_stiffness (float) : The total equivalent meshing stiffness at time `t`.
-                - stiffness_tooth_pair_1 (float) : The meshing stiffness of the first tooth pair in contact.
+        -------
+        A tuple containing the following elements:
+            total_stiffness : float
+                The total equivalent meshing stiffness at time `t`.
+            stiffness_tooth_pair_1 : float
+                The meshing stiffness of the first tooth pair in contact.
                 If no first tooth pair is in contact, this value is `np.nan`.
-                - stiffness_tooth_pair_2 (float) : The meshing stiffness of the second tooth pair in contact.
+            stiffness_tooth_pair_2 : float
+                The meshing stiffness of the second tooth pair in contact.
 
         Notes
         -----
-        - The calculation considers the periodic nature of meshing and the contact ratio (cr) of the gear pair.
-        - The stiffness contribution varies depending on whether one or two pairs of teeth are in contact.
+        - The calculation considers the periodic nature of meshing and the
+        contact ratio (cr) of the gear pair.
+        - The stiffness contribution varies depending on whether one or two
+        pairs of teeth are in contact.
         - For the correct evaluation of the TVMS it's important that
         `dt = (2 * np.pi) / (K * n_toth_gear_x * speed_gear_x)`
-            Where K is the discretization ratio of a double gear-mesh contact, recommended K >= 20.
+            Where K is the discretization ratio of a double gear-mesh contact,
+            recommended K >= 20.
         """
         # OPTION 0 : RETURN ONLY THE USER DEFINED STIFFNESS
         if isinstance(self._user_defined_stiffness, (float, int)):
@@ -1049,11 +1047,13 @@ class Mesh:
                 return stiffnes_mesh_1, np.nan, stiffnes_mesh_1
 
     def _time_stiffness(self, gear_input_speed, dt):
-        """
-        Calculate the time-varying meshing stiffness of a gear pair in ONE time-mesh period.
+        """Calculate the time-varying meshing stiffness of a gear pair in ONE
+        time-mesh period.
 
-        - This method is used for interpolation, since the TVMS is constant for gear-pairs without deffects.
-        - This method is also used for evaluating the _max_stiffness, since in one time-mesh period it's possible to evaluate the maximum stiffness.
+        - This method is used for interpolation, since the TVMS is constant for
+        gear-pairs without deffects.
+        - This method is also used for evaluating the _max_stiffness, since in
+        one time-mesh period it's possible to evaluate the maximum stiffness.
 
         Parameters
         ----------
@@ -1063,12 +1063,15 @@ class Mesh:
             Time instant for which the meshing stiffness is calculated.
 
         Returns
-        ------
-        tuple : A tuple containing the following elements:
-            - total_stiffness (float) : The total equivalent meshing stiffness at time `t`.
-            - stiffness_tooth_pair_1 (float) : The meshing stiffness of the first tooth pair in contact.
-            If no first tooth pair is in contact, this value is `np.nan`.
-            - stiffness_tooth_pair_2 (float) : The meshing stiffness of the second tooth pair in contact.
+        -------
+        A tuple containing the following elements:
+            total_stiffness : float
+                The total equivalent meshing stiffness at time `t`.
+            stiffness_tooth_pair_1 : float
+                The meshing stiffness of the first tooth pair in contact.
+                If no first tooth pair is in contact, this value is `np.nan`.
+            stiffness_tooth_pair_2 : float
+                The meshing stiffness of the second tooth pair in contact.
         """
         tm = (
             2 * np.pi / (gear_input_speed * self.gear_input.n_tooth)
@@ -1104,8 +1107,7 @@ class Mesh:
         return t_interpol, double_contact, single_contact
 
     def _max_gear_stiff(self, gear_input_speed, dt):
-        """
-        Evaluate the maximum meshing stiffness from one time-mesh period.
+        """Evaluate the maximum meshing stiffness from one time-mesh period.
 
         Parameters
         ----------
@@ -1115,7 +1117,7 @@ class Mesh:
             Time instant for which the meshing stiffness is calculated.
 
         Returns
-        ------
+        -------
         np.max(double_contact) : float
             The maximum stiffness [N/m]
         """
