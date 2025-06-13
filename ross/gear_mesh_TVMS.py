@@ -116,16 +116,14 @@ class GearElementTVMS(GearElement):
         self.material = material
 
         # Initialize the geometry_dict
-        self.geometry_dict = {}
-        self.geometry_dict = self._initialize_geometry(self.geometry_dict)
+        self._initialize_geometry()
 
         self._ka_transiction = False
         self._kb_transiction = False
         self._ks_transiction = False
 
-    def _initialize_geometry(self, dict_geo):
-        """
-        Initialize the geometry dictionary for gear tooth stiffness analysis.
+    def _initialize_geometry(self):
+        """Initialize the geometry dictionary for gear tooth stiffness analysis.
 
         This method populates ``self.geometry_dict`` with various geometric parameters
         computed by helper functions:
@@ -135,10 +133,6 @@ class GearElementTVMS(GearElement):
         - Geometric constants (from :meth:`_geometric_constants`)
         - Tau constants (from :meth:`_tau_constants`)
 
-        Parameters
-        -----
-        dict_geo : dict
-            A dictionary containing input geometric parameters required for the analysis.
 
         Returns
         -----
@@ -146,210 +140,82 @@ class GearElementTVMS(GearElement):
             A dictionary populated with computed geometric parameters.
 
         """
-        geometry_dict = dict_geo
+        self.geometry_dict = {}
+
+        a_coeff_mod = self.addendum_coeff * self.module
+        c_coeff_mod = self.clearance_coeff * self.module
+
+        p_ang = self.pr_angle
+
         # Add radii constants
-        radii = self._notable_radii()
-        geometry_dict |= radii
+        # radius of base circle [m]
+        r_b = 1 / 2 * self.module * self.n_tooth * np.cos(p_ang)
+        # radius of pitch circle [m]
+        r_p = r_b / np.cos(p_ang)
+        # radius of addendum circle [m]
+        r_a = r_p + a_coeff_mod
+        # radii of the involute starting point [m]
+        r_c = np.sqrt(
+            np.square(r_b * np.tan(p_ang) - a_coeff_mod / np.sin(p_ang))
+            + np.square(r_b)
+        )
+        # radius of root circle [m]
+        r_f = 1 / 2 * self.module * self.n_tooth - (a_coeff_mod + c_coeff_mod)
+        # radius of cutter tip round corner [m]
+        r_rho = c_coeff_mod / (1 - np.sin(p_ang))
+        r_rho_ = r_rho / self.module
+
+        self.geometry_dict.update(
+            {
+                "r_b": r_b,
+                "r_p": r_p,
+                "r_a": r_a,
+                "r_c": r_c,
+                "r_f": r_f,
+                "r_rho": r_rho,
+                "r_rho_": r_rho_,
+            }
+        )
 
         # Add angular constants of the involute profile
-        angles = self._notable_angles()
-        geometry_dict |= angles
-
-        # Add geometric constants of the tooth profile
-        geo_const = self._geometric_constants()
-        geometry_dict |= geo_const
-
-        # Add geometric constants of tau values of the tooth profile
-        tau_const = self._tau_constants()
-        geometry_dict |= tau_const
-
-        return geometry_dict
-
-    def _notable_angles(self):
-        """Computes and returns key angles from the gear tooth's geometric profile.
-
-        These angles are typically used in integration methods and geometric analyses of the gear.
-
-        Parameters
-        -----
-        None
-
-        Returns
-        ---
-        dict[str, float] : Dictionary containing angles for geometry evaluations.
-            `alpha_a` (float) : Pressure angle at the addendum circle [rad].
-
-            `alpha_c` (float) : Pressure angle at the involute "C" point [rad].
-
-            `theta_f` (float) : Angle between the tooth center line and the junction with the root circle [rad].
-
-            `theta_b` (float) : Reference angle combining the half-tooth pitch and the base involute angle [rad].
-
-        """
-
-        # pressure angle when the contact point is on the addendum circle [rad] MAOK
-        alpha_a = np.arccos(self.geometry_dict["r_b"] / self.geometry_dict["r_a"])
-
-        # pressure angle when the contact point is on the C point [rad] MAOK
-        alpha_c = np.arccos(self.geometry_dict["r_b"] / self.geometry_dict["r_c"])
+        # pressure angle when the contact point is on the addendum circle [rad]
+        alpha_a = np.arccos(r_b / r_a)
+        # pressure angle when the contact point is on the C point [rad]
+        alpha_c = np.arccos(r_b / r_c)
 
         # The angle between the tooth center-line and de junction with the root circle [radians]
         theta_f = (
-            1
-            / self.n_tooth
-            * (
-                np.pi / 2
-                + 2
-                * np.tan(self.pr_angle)
-                * (self.addendum_coeff - self.geometry_dict["r_rho_"])
-                + 2 * self.geometry_dict["r_rho_"] / np.cos(self.pr_angle)
-            )
+            np.pi / 2
+            + 2 * np.tan(p_ang) * (self.addendum_coeff - r_rho_)
+            + 2 * r_rho_ / np.cos(p_ang)
+        ) / self.n_tooth
+
+        theta_b = np.pi / (2 * self.n_tooth) + self._involute(p_ang)
+
+        self.geometry_dict.update(
+            {
+                "alpha_a": alpha_a,
+                "alpha_c": alpha_c,
+                "theta_f": theta_f,
+                "theta_b": theta_b,
+            }
         )
 
-        theta_b = np.pi / (2 * self.n_tooth) + self._involute(self.pr_angle)
+        # Add geometric constants of the tooth profile
+        a1 = (a_coeff_mod + c_coeff_mod) - r_rho
 
-        # Placeholder dictionary
-        dict_place = {
-            "alpha_a": alpha_a,
-            "alpha_c": alpha_c,
-            "theta_f": theta_f,
-            "theta_b": theta_b,
-        }
-
-        return dict_place
-
-    def _notable_radii(self):
-        """Compute notable gear tooth radii used in integration and geometric analysis.
-
-        Calculates key radii from the gear tooth geometric profile required for
-        subsequent integration methods and geometric calculations. All radii are
-        returned in meters (m).
-
-        Parameters
-        -------
-        None
-
-        Returns
-        ------
-        dict_place : dict[str, float]
-
-            - `r_b` (float):
-                Base circle radius [m]
-
-            - `r_p` (float):
-                Pitch circle radius [m]
-
-            - `r_a` (float):
-                Addendum circle radius [m]
-
-            - `r_c` (float):
-                Involute starting point radius [m]
-
-            - `r_f` (float):
-                Root circle radius [m]
-
-            - `r_rho` (float):
-                Cutter tip round corner radius [m]
-
-            - `r_rho_` (float):
-                Normalized cutter tip radius [-]
-
-        Note:
-        ------
-            All calculations assume standard gear geometry parameters stored in the
-            class instance's `gear` and `geometry_dict` attributes.
-        """
-
-        # radius of base circle [m] MAOK
-        r_b = 1 / 2 * self.module * self.n_tooth * np.cos(self.pr_angle)
-
-        # radius of pitch circle [m] MAOK
-        r_p = r_b / np.cos(self.pr_angle)
-
-        # radius of addendum circle [m]
-        r_a = r_p + self.addendum_coeff * self.module
-
-        # radii of the involute starting point [m] MAOK
-        r_c = np.sqrt(
-            np.square(
-                r_b * np.tan(self.pr_angle)
-                - self.addendum_coeff * self.module / np.sin(self.pr_angle)
-            )
-            + np.square(r_b)
-        )
-
-        # radius of root circle [m] MAOK
-        r_f = (
-            1 / 2 * self.module * self.n_tooth
-            - (self.addendum_coeff + self.clearance_coeff) * self.module
-        )
-
-        # radius of cutter tip round corner [m] MAOK
-        r_rho = self.clearance_coeff * self.module / (1 - np.sin(self.pr_angle))
-
-        # normalized by the module radius of cutter tip round corner [m]
-        r_rho_ = r_rho / self.module
-
-        # placeholder dictionary
-        dict_place = {
-            "r_b": r_b,
-            "r_p": r_p,
-            "r_a": r_a,
-            "r_c": r_c,
-            "r_f": r_f,
-            "r_rho": r_rho,
-            "r_rho_": r_rho_,
-        }
-
-        return dict_place
-
-    def _geometric_constants(self):
-        """Calculate geometric constants for gear tooth root analysis.
-
-        Computes fundamental geometric parameters required for stress analysis
-        and tooth root dimension verification. These constants combine multiple
-        geometric properties of the gear system.
-
-        Parameters
-        ---
-            None
-
-        Returns
-        ----
-            dict[str, float] : Dictionary containing geometric constants.
-
-            - 'a1' : (float)
-                Radial clearance constant [m].
-
-            - 'b1' : (float)
-                Base tangent length [m].
-
-        Note
-        ---
-            - Requires precomputed geometry_dict values from _notable_radii().
-            - All values calculated in meters (m).
-        """
-
-        a1 = (
-            self.addendum_coeff + self.clearance_coeff
-        ) * self.module - self.geometry_dict["r_rho"]  # MAOK
-        b1 = (  # MAOK
+        b1 = (
             np.pi * self.module / 4
-            + self.addendum_coeff * self.module * np.tan(self.pr_angle)
-            + self.geometry_dict["r_rho"] * np.cos(self.pr_angle)
+            + a_coeff_mod * np.tan(p_ang)
+            + r_rho * np.cos(p_ang)
         )
 
-        dict_place = {"a_1": a1, "b_1": b1}
+        tau_c = self._to_tau(alpha_c)
+        tau_a = self._to_tau(alpha_a)
 
-        return dict_place
-
-    def _tau_constants(self):
-        tau_c = self._to_tau(self.geometry_dict["alpha_c"])
-        tau_a = self._to_tau(self.geometry_dict["alpha_a"])
-
-        dict_place = {"tau_c": tau_c, "tau_a": tau_a}
-
-        return dict_place
+        self.geometry_dict.update(
+            {"a_1": a1, "b_1": b1, "tau_c": tau_c, "tau_a": tau_a}
+        )
 
     def _compute_transition_curve(self, gamma):
         """Compute the y, x, area and I_y of the transition curve given a gamma angle.
