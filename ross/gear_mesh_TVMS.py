@@ -31,8 +31,8 @@ class GearElementTVMS(GearElement):
         Gear module (m).
     n_tooth : int
         Tooth number of the gear.
-    width : float
-        Width of the gear (m).
+    tooth_width : float
+        Tooth width (m).
     hub_bore_radius : float
         The hub bore radius (m).
     material : ross.Material
@@ -78,7 +78,7 @@ class GearElementTVMS(GearElement):
         m,
         module,
         n_tooth,
-        width,
+        tooth_width,
         hub_bore_radius,
         material=steel,
         pr_angle=None,
@@ -109,7 +109,7 @@ class GearElementTVMS(GearElement):
         self.hub_bore_radius = float(hub_bore_radius)
         self.module = float(module)
         self.n_tooth = float(n_tooth)
-        self.width = float(width)
+        self.tooth_width = float(tooth_width)
         self.addendum_coeff = float(addendum_coeff)
         self.clearance_coeff = float(clearance_coeff)
 
