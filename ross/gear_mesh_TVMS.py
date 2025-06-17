@@ -285,9 +285,8 @@ class GearElementTVMS(GearElement):
         theta_b = self.tooth_dict["base_angle"]
         r_b = self.base_radius
 
-        y = r_b * ((tau + theta_b) * np.sin(tau) + np.cos(tau))
-
         x = r_b * ((tau + theta_b) * np.cos(tau) - np.sin(tau))
+        y = r_b * ((tau + theta_b) * np.sin(tau) + np.cos(tau))
 
         area = 2 * x * self.width
         I_y = 2 / 3 * x**3 * self.width
@@ -322,7 +321,6 @@ class GearElementTVMS(GearElement):
         phi = (a1 / np.tan(gamma) + b1) / r_p
 
         x = r_p * np.sin(phi) - (a1 / np.sin(gamma) + r_rho) * np.cos(gamma - phi)
-
         y = r_p * np.cos(phi) - (a1 / np.sin(gamma) + r_rho) * np.sin(gamma - phi)
 
         area = 2 * x * self.width
@@ -331,42 +329,30 @@ class GearElementTVMS(GearElement):
         return y, x, area, I_y
 
     @check_units
-    def _compute_stiffness(self, alpha_op_angle):
+    def _compute_stiffness(self, angle):
         """Computes the stiffness in the direction of the applied force on the
-        gear (line of action), according to the involute profile.
-
-        It evaluates each of them separetly, and those values are returned as 1/stiffness for an approach in accordance with Ma, H. et. al. (2014).
+        gear (line of action), according to the involute profile. Ma, H. et. al. (2014).
 
         Parameters
         ----------
-        tau_op : float
-            The tau operational angle, e.g. the angle formed by the normal of
-            the contact involute curves and the x axis.
+        angle : float
+            The angle formed by the normal of the contact involute curves and the x axis.
 
         Returns
         -------
-        A tuple containing the computed stiffness components as 1/stiffness
-        values. The elements represent:
-            ka : float
-                Stiffness related to axial stresses.
-            kb : float
-                Stiffness related to bending stresses.
-            kf : float
-                Stiffness related to body of the gear.
-            ks : float
-                Stiffness related to shear stresses.
+        k : float
+            The sum of the computed stiffness components.
         """
-        alpha_op = float(alpha_op_angle)
-        tau_op = self._to_tau(alpha_op)
+        beta = self._to_tau(angle)
 
-        inv_kf = self._inv_kf(tau_op)
-        inv_ka = self._inv_ka(tau_op)
-        inv_kb = self._inv_kb(tau_op)
-        inv_ks = self._inv_ks(tau_op)
+        inv_kf = self._inv_kf(beta)
+        inv_ka = self._inv_ka(beta)
+        inv_kb = self._inv_kb(beta)
+        inv_ks = self._inv_ks(beta)
 
-        inv_k = inv_kf + inv_ka + inv_kb + inv_ks
+        k = 1 / (inv_kf + inv_ka + inv_kb + inv_ks)
 
-        return 1 / inv_k
+        return k
 
     def _gear_body_polynominal(self):
         """This method uses the approach described by Sainsot et al. (2004) to
@@ -384,7 +370,6 @@ class GearElementTVMS(GearElement):
             Return 'oo' if it doesn't match the criteria for the experimental
             range where this method was built.
         """
-
         h = self.radii_dict["root"] / self.hub_bore_radius
         theta_f = self.tooth_dict["root_angle"]
 
@@ -692,31 +677,24 @@ class Mesh:
 
         self.eta = gear_output.n_tooth / gear_input.n_tooth  # Gear ratio
 
-        self.cr = self.contact_ratio(self.gear_input, self.gear_output)
+        self.cr = self._compute_contact_ratio()
 
         self.tvms = tvms
         self.only_max_stiffness = only_max_stiffness
         self.already_evaluated_max = False
         self.already_interpolated = False
 
-    @staticmethod
-    def contact_ratio(gear_input, gear_output):
-        """
-        Parameters:
-        ---------
-        gear_input : GearElementTVMS
-            The gear_input object.
-        gear_output : GearElementTVMS
-            The gear_output object.
+    def _compute_contact_ratio(self):
+        """Compute contact ratio of the gear pair.
 
         Returns
         -------
-        CR : float
+        contact_ratio : float
             The contact ratio of the gear pair.
 
         Example
         -------
-        >>> Mesh.contact_ratio(gear_input, Gear)
+        >>> Mesh.contact_ratio()
         1.7939883590132295
 
         Reference
@@ -725,27 +703,29 @@ class Mesh:
         ways to read a textbook.
         Retrieved from : https://www.myweb.ttu.edu/amosedal/articles.html
         """
-
-        pb = np.pi * 2 * gear_input.base_radius / gear_input.n_tooth  # base pitch
-        C = (
-            gear_input.radii_dict["pitch"] + gear_output.radii_dict["pitch"]
+        center_distance = (
+            self.gear_input.radii_dict["pitch"] + self.gear_output.radii_dict["pitch"]
         )  # center distance (not the operating one)
 
-        lc = (  # length of contact (not the operating one) # OK
+        contact_length = (
             np.sqrt(
-                gear_input.radii_dict["addendum"] ** 2
-                - gear_input.radii_dict["base"] ** 2
+                self.gear_input.radii_dict["addendum"] ** 2
+                - self.gear_input.radii_dict["base"] ** 2
             )
             + np.sqrt(
-                gear_output.radii_dict["addendum"] ** 2
-                - gear_output.radii_dict["base"] ** 2
+                self.gear_output.radii_dict["addendum"] ** 2
+                - self.gear_output.radii_dict["base"] ** 2
             )
-            - C * np.sin(gear_input.pr_angle)
+            - center_distance * np.sin(self.gear_input.pr_angle)
         )
 
-        CR = lc / pb  # contact ratio
+        base_pitch = (
+            2 * np.pi * self.gear_input.base_radius / self.gear_input.n_tooth
+        )  # base pitch
 
-        return CR
+        contact_ratio = contact_length / base_pitch
+
+        return contact_ratio
 
     def _kh(self):
         """Evaluates the contact hertzian stiffness considering that both
@@ -770,10 +750,8 @@ class Mesh:
 
         Returns
         -------
-        A containing the following elements:
-            k_t : float
-                The time equivalent stiffness of mesh contact.
-            d_tau_gear_input : float
+        k_t : float
+            The time equivalent stiffness of mesh contact.
 
         Example
         --------
@@ -784,29 +762,29 @@ class Mesh:
         gear_output_speed = -gear_input_speed / self.eta
 
         # Angular displacements
-        alphagear_input = (
-            t * gear_input_speed + self.gear_input.pr_angles_dict["start_point"]
+        alpha_input = (
+            self.gear_input.pr_angles_dict["start_point"] + gear_input_speed * t
         )  # angle variation of the input gear_input [rad]
-        alphagear_output = (
-            t * gear_output_speed + self.gear_output.pr_angles_dict["addendum"]
+        alpha_output = (
+            self.gear_output.pr_angles_dict["addendum"] + gear_output_speed * t
         )  # angle variation of the output gear   [rad]
 
-        # Tau displacementes
-        d_tau_gear_input = self.gear_input._to_tau(
-            alphagear_input
-        )  # angle variation of the gear_input in tau [rad]
-        d_tau_gear_output = self.gear_output._to_tau(
-            alphagear_output
-        )  # angle variation of the gear_input in tau [rad]
+        # # Tau displacementes # Verificar ... está aplicando _to_tau duas vezes!
+        # d_tau_gear_input = self.gear_input._to_tau(
+        #     alpha_input
+        # )  # angle variation of the gear_input in tau [rad]
+        # d_tau_gear_output = self.gear_output._to_tau(
+        #     alpha_output
+        # )  # angle variation of the gear_input in tau [rad]
 
         # Contact stiffness according to tau angles
-        k_1 = self.gear_input._compute_stiffness(d_tau_gear_input)
-        k_2 = self.gear_output._compute_stiffness(d_tau_gear_output)
+        k_1 = self.gear_input._compute_stiffness(alpha_input)
+        k_2 = self.gear_output._compute_stiffness(alpha_output)
 
         # Evaluating the equivalate meshing stiffness.
         k_t = 1 / (1 / self._kh() + 1 / k_1 + 1 / k_2)
 
-        return k_t, d_tau_gear_input, d_tau_gear_output
+        return k_t
 
     @check_units
     def mesh(self, gear_input_speed, t=None):
@@ -921,11 +899,9 @@ class Mesh:
             t = t - t // tm * tm
 
             if t <= (self.cr - 1) * tm:
-                stiffnes_mesh_1, d_tau_gear_input_1, d_tau_gear_1 = (
-                    self._time_equivalent_stiffness(t, gear_input_speed)
-                )
-                stiffnes_mesh_0, d_tau_gear_input_0, d_tau_gear0 = (
-                    self._time_equivalent_stiffness(tm + t, gear_input_speed)
+                stiffnes_mesh_1 = self._time_equivalent_stiffness(t, gear_input_speed)
+                stiffnes_mesh_0 = self._time_equivalent_stiffness(
+                    tm + t, gear_input_speed
                 )
 
                 return (
@@ -935,9 +911,7 @@ class Mesh:
                 )
 
             elif t > (self.cr - 1) * tm:
-                stiffnes_mesh_1, d_tau_gear_input_1, d_tau_gear_1 = (
-                    self._time_equivalent_stiffness(t, gear_input_speed)
-                )
+                stiffnes_mesh_1 = self._time_equivalent_stiffness(t, gear_input_speed)
 
                 return stiffnes_mesh_1, np.nan, stiffnes_mesh_1
 
@@ -983,19 +957,15 @@ class Mesh:
             t = t - t // tm * tm
 
             if t <= (self.cr - 1) * tm:
-                stiffnes_mesh_1, _, _ = self._time_equivalent_stiffness(
-                    t, gear_input_speed
-                )
-                stiffnes_mesh_0, _, _ = self._time_equivalent_stiffness(
+                stiffnes_mesh_1 = self._time_equivalent_stiffness(t, gear_input_speed)
+                stiffnes_mesh_0 = self._time_equivalent_stiffness(
                     tm + t, gear_input_speed
                 )
 
                 double_contact[i] = stiffnes_mesh_0 + stiffnes_mesh_1
 
             elif t > (self.cr - 1) * tm:
-                stiffnes_mesh_1, _, _ = self._time_equivalent_stiffness(
-                    t, gear_input_speed
-                )
+                stiffnes_mesh_1 = self._time_equivalent_stiffness(t, gear_input_speed)
 
                 single_contact[i] = stiffnes_mesh_1
 
