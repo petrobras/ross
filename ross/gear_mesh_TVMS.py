@@ -769,14 +769,6 @@ class Mesh:
             self.gear_output.pr_angles_dict["addendum"] + gear_output_speed * t
         )  # angle variation of the output gear   [rad]
 
-        # # Tau displacementes # Verificar ... está aplicando _to_tau duas vezes!
-        # d_tau_gear_input = self.gear_input._to_tau(
-        #     alpha_input
-        # )  # angle variation of the gear_input in tau [rad]
-        # d_tau_gear_output = self.gear_output._to_tau(
-        #     alpha_output
-        # )  # angle variation of the gear_input in tau [rad]
-
         # Contact stiffness according to tau angles
         k_1 = self.gear_input._compute_stiffness(alpha_input)
         k_2 = self.gear_output._compute_stiffness(alpha_output)
