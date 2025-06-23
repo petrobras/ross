@@ -92,7 +92,7 @@ class GearElementTVMS(GearElement):
 
         Ip = np.pi / 2 * ((pitch_diameter / 2) ** 4 - (hub_bore_radius / 2) ** 4)
 
-        Id = np.pi / 4 * ((pitch_diameter / 2) ** 4 - (hub_bore_radius / 2) ** 4)
+        Id = Ip / 2
 
         super().__init__(
             n,
@@ -572,7 +572,6 @@ class GearElementTVMS(GearElement):
         # Add the involute curve
         fig.add_trace(go.Scatter(x=y_i, y=x_i, mode="lines", name="Involute Curve"))
 
-        # Update layout with gridlines
         fig.update_layout(
             title="Tooth Profile Geometry",
             xaxis_title="Y-axis [m]",
@@ -587,18 +586,15 @@ class GearElementTVMS(GearElement):
 
 
 class Mesh:
-    """Represents the meshing behavior between two gears, typically a
-    gear_input and a crown gear, including stiffness and contact ratio
-    calculations.
+    """Represents the meshing behavior between two gears in contact
+    including stiffness and contact ratio calculations.
 
     Parameters:
     -----------
-    gear_input : GearElementTVMS
-        The gear_input gear object used in the gear pair (driver).
-    gear_output : GearElementTVMS
-        The crown gear object used in the gear pair (driven).
-    gear_input_w : float
-        The rotational speed [rad/sec] of the gear_input gear in rad/s.
+    driving_gear : GearElementTVMS
+        The driving gear object used in the gear pair.
+    driven_gear : GearElementTVMS
+        The driven gear object used in the gear pair.
     tvms : bool
         If True, it will run the TVMS once and interpolate after (increased
         performance).
@@ -608,106 +604,75 @@ class Mesh:
 
     Attributes:
     -----------
-    gear_input : GearElementTVMS
-        The gear_input gear object, which contains information about the
-        geometry and properties of the gear_input gear.
-    gear_output : GearElementTVMS
-        The gear wheel object, which contains information about the geometry
-        and properties of the wheel gear.
+    driving_gear : GearElementTVMS
+        The driving_gear object, which contains information about the
+        geometry and properties of the driving gear.
+    driven_gear : GearElementTVMS
+        The driven gear object, which contains information about the
+        geometry and properties of the wheel gear.
     tm : float
         The meshing period, calculated based on the rotational speed and the
-        number of teeth of the gear_input.
-    cr : float
+        number of teeth of the driving gear.
+    contact_ratio : float
         The contact ratio, representing the average number of tooth in contact
         during meshing.
-    eta : float
+    gear_ratio : float
         The transamission ratio, defined as the ratio of the radii between the
-        driven and driving gears.
+        driving and driven gears.
     """
 
     def __init__(
         self,
-        gear_input,
-        gear_output,
+        driving_gear,
+        driven_gear,
         tvms=False,
         only_max_stiffness=False,
         user_defined_stiffness=None,
     ):
         self._user_defined_stiffness = user_defined_stiffness
 
-        self.gear_input = gear_input
-        self.gear_output = gear_output
+        self.driving_gear = driving_gear
+        self.driven_gear = driven_gear
+
+        self.gear_ratio = driving_gear.n_tooth / driven_gear.n_tooth
+
+        # Contact ratio
+        center_distance = (
+            driving_gear.radii_dict["pitch"] + driven_gear.radii_dict["pitch"]
+        )
+        contact_length = (
+            np.sqrt(
+                driving_gear.radii_dict["addendum"] ** 2
+                - driving_gear.radii_dict["base"] ** 2
+            )
+            + np.sqrt(
+                driven_gear.radii_dict["addendum"] ** 2
+                - driven_gear.radii_dict["base"] ** 2
+            )
+            - center_distance * np.sin(driving_gear.pr_angle)
+        )
+        base_pitch = 2 * np.pi * driving_gear.base_radius / driving_gear.n_tooth
+        self.contact_ratio = contact_length / base_pitch
+
+        self.hertzian_stiffness = (
+            np.pi
+            * driving_gear.material.E
+            * driving_gear.tooth_width
+            / (4 * (1 - driving_gear.material.Poisson**2))
+        )
 
         self.time = 0
-
-        self.gear_ratio = gear_input.n_tooth / gear_output.n_tooth
-
-        self.cr = self._compute_contact_ratio()
-
         self.tvms = tvms
         self.only_max_stiffness = only_max_stiffness
         self.already_evaluated_max = False
         self.already_interpolated = False
 
-    def _compute_contact_ratio(self):
-        """Compute contact ratio of the gear pair.
-
-        Returns
-        -------
-        contact_ratio : float
-            The contact ratio of the gear pair.
-
-        Example
-        -------
-        >>> Mesh.contact_ratio()
-        1.7939883590132295
-
-        Reference
-        ----------
-        Understanding the contact ratio for spur gears with some comments on
-        ways to read a textbook.
-        Retrieved from : https://www.myweb.ttu.edu/amosedal/articles.html
-        """
-        center_distance = (
-            self.gear_input.radii_dict["pitch"] + self.gear_output.radii_dict["pitch"]
-        )
-
-        contact_length = (
-            np.sqrt(
-                self.gear_input.radii_dict["addendum"] ** 2
-                - self.gear_input.radii_dict["base"] ** 2
-            )
-            + np.sqrt(
-                self.gear_output.radii_dict["addendum"] ** 2
-                - self.gear_output.radii_dict["base"] ** 2
-            )
-            - center_distance * np.sin(self.gear_input.pr_angle)
-        )
-
-        base_pitch = 2 * np.pi * self.gear_input.base_radius / self.gear_input.n_tooth
-
-        contact_ratio = contact_length / base_pitch
-
-        return contact_ratio
-
-    def _kh(self):
-        """Evaluates the contact hertzian stiffness considering that both
-        elasticity modulus are equal.
-        """
-
-        return (
-            np.pi
-            * self.gear_input.material.E
-            * self.gear_input.tooth_width
-            / (4 * (1 - self.gear_input.material.Poisson**2))
-        )
-
-    def _time_equivalent_stiffness(self, t, gear_input_speed):
+    def _time_equivalent_stiffness(self, driving_gear_speed, t):
         """
         Parameters
         ---------
-        gear_input : GearElementTVMS
-            The gear_input object.
+        driving_gear_speed : float
+            Speed of driving gear in rad/s.
         t : float
             The time of meshing [0, self.tm]
 
@@ -722,39 +687,38 @@ class Mesh:
         167970095.70859054
         """
 
-        gear_output_speed = -gear_input_speed * self.gear_ratio
-
         # Angular displacements
-        alpha_input = (
-            self.gear_input.pr_angles_dict["start_point"] + gear_input_speed * t
+        alpha_in = (
+            self.driving_gear.pr_angles_dict["start_point"] + driving_gear_speed * t
         )
-        alpha_output = (
-            self.gear_output.pr_angles_dict["addendum"] + gear_output_speed * t
-        )
+
+        driven_gear_speed = -driving_gear_speed * self.gear_ratio
+        alpha_out = self.driven_gear.pr_angles_dict["addendum"] + driven_gear_speed * t
 
         # Contact stiffness
-        k_1 = self.gear_input._compute_stiffness(alpha_input)
-        k_2 = self.gear_output._compute_stiffness(alpha_output)
+        k_in = self.driving_gear._compute_stiffness(alpha_in)
+        k_out = self.driven_gear._compute_stiffness(alpha_out)
 
         # Evaluating the equivalate meshing stiffness
-        k_t = 1 / (1 / self._kh() + 1 / k_1 + 1 / k_2)
+        k_h = self.hertzian_stiffness
+        k_t = 1 / (1 / k_h + 1 / k_in + 1 / k_out)
 
         return k_t
 
     @check_units
-    def mesh(self, gear_input_speed, t=None):
+    def mesh(self, driving_gear_speed, t=None):
         """Calculate the time-varying meshing stiffness of a gear pair.
 
         This method computes the equivalent stiffness of a gear mesh at a given
-        time `t`, taking into account the periodic nature of the meshing
-        process and the contact ratio (`cr`) of the gear pair.
+        time, taking into account the periodic nature of the meshing
+        process and the contact ratio of the gear pair.
         The computation considers whether one or two pairs of teeth are in
         contact during the meshing cycle.
 
         Parameters
         ----------
-        gear_input_speed : GearElementTVMS
-            The gear_input object.
+        driving_gear_speed : float
+            Speed of driving gear.
         t : float
             Time instant for which the meshing stiffness is calculated.
 
@@ -785,20 +749,20 @@ class Mesh:
             return self._user_defined_stiffness, None, None
 
         t = float(t)
-        gear_input_speed = float(gear_input_speed)
+        driving_gear_speed = float(driving_gear_speed)
 
         tm = (
-            2 * np.pi / (gear_input_speed * self.gear_input.n_tooth)
+            2 * np.pi / (driving_gear_speed * self.driving_gear.n_tooth)
         )  # Gearmesh period [seconds/engagement]
         ctm = (
-            self.cr * tm
+            self.contact_ratio * tm
         )  # [seconds/tooth] how much time each tooth remains in contact
 
         # OPTION 1 : RETURN ONLY MAX STIFFNESS
         if self.only_max_stiffness:
             if not self.already_evaluated_max:
-                dt = (2 * np.pi) / (20 * self.gear_input.n_tooth * gear_input_speed)
-                self.max_stiffness = self._max_gear_stiff(gear_input_speed, dt)
+                dt = (2 * np.pi) / (20 * self.driving_gear.n_tooth * driving_gear_speed)
+                self.max_stiffness = self._max_gear_stiff(driving_gear_speed, dt)
                 self.already_evaluated_max = True
                 return self.max_stiffness, None, None
             else:
@@ -810,15 +774,15 @@ class Mesh:
                 not self.already_interpolated
             ):  # Case 1 : If it had never evaluated the stiffness
                 if (2 * np.pi) / (
-                    100 * self.gear_input.n_tooth * gear_input_speed
+                    100 * self.driving_gear.n_tooth * driving_gear_speed
                 ) < 1e-5:
                     dt = (2 * np.pi) / (
-                        100 * self.gear_input.n_tooth * gear_input_speed
+                        100 * self.driving_gear.n_tooth * driving_gear_speed
                     )
 
                 dt = 1e-5
                 t_interpol, double_contact, single_contact = self._time_stiffness(
-                    gear_input_speed, dt
+                    driving_gear_speed, dt
                 )
 
                 mask_double_contact = double_contact > 0
@@ -835,14 +799,14 @@ class Mesh:
 
             t = t - t // tm * tm
 
-            if t <= (self.cr - 1) * tm:
+            if t <= (self.contact_ratio - 1) * tm:
                 return (
                     np.interp(t, self.t_interpol_double, self.double_contact),
                     None,
                     None,
                 )
 
-            elif t > (self.cr - 1) * tm:
+            elif t > (self.contact_ratio - 1) * tm:
                 return (
                     np.interp(t, self.t_interpol_single, self.single_contact),
                     None,
@@ -853,10 +817,10 @@ class Mesh:
         else:  # If it needs to re-evaluate every stiffness integration every step
             t = t - t // tm * tm
 
-            if t <= (self.cr - 1) * tm:
-                stiffnes_mesh_1 = self._time_equivalent_stiffness(t, gear_input_speed)
+            if t <= (self.contact_ratio - 1) * tm:
+                stiffnes_mesh_1 = self._time_equivalent_stiffness(t, driving_gear_speed)
                 stiffnes_mesh_0 = self._time_equivalent_stiffness(
-                    tm + t, gear_input_speed
+                    tm + t, driving_gear_speed
                 )
 
                 return (
@@ -865,12 +829,12 @@ class Mesh:
                     stiffnes_mesh_1,
                 )
 
-            elif t > (self.cr - 1) * tm:
-                stiffnes_mesh_1 = self._time_equivalent_stiffness(t, gear_input_speed)
+            elif t > (self.contact_ratio - 1) * tm:
+                stiffnes_mesh_1 = self._time_equivalent_stiffness(t, driving_gear_speed)
 
                 return stiffnes_mesh_1, np.nan, stiffnes_mesh_1
 
-    def _time_stiffness(self, gear_input_speed, dt):
+    def _time_stiffness(self, driving_gear_speed, dt):
         """Calculate the time-varying meshing stiffness of a gear pair in ONE
         time-mesh period.
 
@@ -881,8 +845,8 @@ class Mesh:
 
         Parameters
         ----------
-        gear_input_speed : GearElementTVMS
-            The gear_input object.
+        driving_gear_speed : GearElementTVMS
+            The driving_gear object.
         t : float
             Time instant for which the meshing stiffness is calculated.
 
@@ -898,10 +862,10 @@ class Mesh:
                 The meshing stiffness of the second tooth pair in contact.
         """
         tm = (
-            2 * np.pi / (gear_input_speed * self.gear_input.n_tooth)
+            2 * np.pi / (driving_gear_speed * self.driving_gear.n_tooth)
         )  # Gearmesh period [seconds/engagement]
         ctm = (
-            self.cr * tm
+            self.contact_ratio * tm
         )  # [seconds/tooth] how much time each tooth remains in contact
 
         t_interpol = np.arange(0, tm + dt, dt)
@@ -911,28 +875,28 @@ class Mesh:
         for i, t in enumerate(t_interpol):
             t = t - t // tm * tm
 
-            if t <= (self.cr - 1) * tm:
-                stiffnes_mesh_1 = self._time_equivalent_stiffness(t, gear_input_speed)
+            if t <= (self.contact_ratio - 1) * tm:
+                stiffnes_mesh_1 = self._time_equivalent_stiffness(t, driving_gear_speed)
                 stiffnes_mesh_0 = self._time_equivalent_stiffness(
-                    tm + t, gear_input_speed
+                    tm + t, driving_gear_speed
                 )
 
                 double_contact[i] = stiffnes_mesh_0 + stiffnes_mesh_1
 
-            elif t > (self.cr - 1) * tm:
-                stiffnes_mesh_1 = self._time_equivalent_stiffness(t, gear_input_speed)
+            elif t > (self.contact_ratio - 1) * tm:
+                stiffnes_mesh_1 = self._time_equivalent_stiffness(t, driving_gear_speed)
 
                 single_contact[i] = stiffnes_mesh_1
 
         return t_interpol, double_contact, single_contact
 
-    def _max_gear_stiff(self, gear_input_speed, dt):
+    def _max_gear_stiff(self, driving_gear_speed, dt):
         """Evaluate the maximum meshing stiffness from one time-mesh period.
 
         Parameters
         ----------
-        gear_input_speed : GearElementTVMS
-            The gear_input object.
+        driving_gear_speed : GearElementTVMS
+            The driving_gear object.
         t : float
             Time instant for which the meshing stiffness is calculated.
 
@@ -942,6 +906,6 @@ class Mesh:
             The maximum stiffness [N/m]
         """
 
-        _, double_contact, _ = self._time_stiffness(gear_input_speed, dt)
+        _, double_contact, _ = self._time_stiffness(driving_gear_speed, dt)
 
         return np.max(double_contact)

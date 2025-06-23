@@ -15,7 +15,7 @@ import multiprocessing
 import os
 
 import plotly.io as pio
-#pio.renderers.default = "vscode"
+# pio.renderers.default = "vscode"
 
 
 __all__ = ["MultiRotorTVMS"]
@@ -122,9 +122,9 @@ class MultiRotorTVMS(Rotor):
         driven_rotor,
         coupled_nodes,
         orientation_angle=0.0,
-        only_max_stiffness = False,
-        tvms = False,
-        user_defined_stiffness = None | float,
+        only_max_stiffness=False,
+        tvms=False,
+        user_defined_stiffness=None | float,
         position="above",
         tag=None,
     ):
@@ -153,8 +153,13 @@ class MultiRotorTVMS(Rotor):
 
         self.gears = [gear_1, gear_2]
 
-        self.gear_mesh = Mesh(*self.gears, tvms=tvms, only_max_stiffness=only_max_stiffness, user_defined_stiffness=user_defined_stiffness)
-        self.gear_ratio = self.gear_mesh.eta
+        self.gear_mesh = Mesh(
+            *self.gears,
+            tvms=tvms,
+            only_max_stiffness=only_max_stiffness,
+            user_defined_stiffness=user_defined_stiffness,
+        )
+        self.gear_ratio = self.gear_mesh.gear_ratio
 
         gear1_plot = next(
             (
@@ -308,7 +313,7 @@ class MultiRotorTVMS(Rotor):
         rotor = self.rotors[0]
 
         if node in self.R2_nodes:
-            speed = -1/self.gear_ratio * omega
+            speed = -self.gear_ratio * omega
             rotor = self.rotors[1]
 
         if isinstance(rotor, MultiRotorTVMS):
@@ -333,12 +338,12 @@ class MultiRotorTVMS(Rotor):
                [0.        , 0.        , 0.        , 0.        ],
                [0.        , 0.        , 0.        , 0.        ]])
         """
-        r1 = self.gears[0].geometry_dict['r_b']
+        r1 = self.gears[0].base_radius
 
-        r2 = self.gears[1].geometry_dict['r_b']
+        r2 = self.gears[1].base_radius
 
-        S = np.sin(self.gears[0].pressure_angle - self.orientation_angle)
-        C = np.cos(self.gears[0].pressure_angle - self.orientation_angle)
+        S = np.sin(self.gears[0].pr_angle - self.orientation_angle)
+        C = np.cos(self.gears[0].pr_angle - self.orientation_angle)
 
         # fmt: off
         coupling_matrix = np.array([
@@ -391,7 +396,7 @@ class MultiRotorTVMS(Rotor):
         else:
             return self._join_matrices(
                 self.rotors[0].M(frequency, synchronous),
-                self.rotors[1].M(-frequency / self.gear_ratio, synchronous),
+                self.rotors[1].M(-frequency * self.gear_ratio, synchronous),
             )
 
     def K(self, frequency, ignore=(), **kwargs):
@@ -421,14 +426,14 @@ class MultiRotorTVMS(Rotor):
 
         K0 = self._join_matrices(
             self.rotors[0].K(frequency, ignore),
-            self.rotors[1].K(-frequency / self.gear_ratio, ignore),
+            self.rotors[1].K(-frequency * self.gear_ratio, ignore),
         )
 
         dofs_1 = self.gears[0].dof_global_index.values()
         dofs_2 = self.gears[1].dof_global_index.values()
         dofs = [*dofs_1, *dofs_2]
 
-        t = kwargs['t']
+        t = kwargs["t"]
         k_eq = self.gear_mesh.mesh(frequency, t)[0]
 
         K0[np.ix_(dofs, dofs)] += self.coupling_matrix() * k_eq
@@ -462,7 +467,7 @@ class MultiRotorTVMS(Rotor):
         """
 
         return self._join_matrices(
-            self.rotors[0].Ksdt(), -1/self.gear_ratio * self.rotors[1].Ksdt()
+            self.rotors[0].Ksdt(), -self.gear_ratio * self.rotors[1].Ksdt()
         )
 
     def C(self, frequency, ignore=()):
@@ -492,7 +497,7 @@ class MultiRotorTVMS(Rotor):
 
         return self._join_matrices(
             self.rotors[0].C(frequency, ignore),
-            self.rotors[1].C(-frequency / self.gear_ratio, ignore),
+            self.rotors[1].C(-frequency * self.gear_ratio, ignore),
         )
 
     def G(self):
@@ -518,33 +523,5 @@ class MultiRotorTVMS(Rotor):
         """
 
         return self._join_matrices(
-            self.rotors[0].G(), -1/self.gear_ratio * self.rotors[1].G()
+            self.rotors[0].G(), -self.gear_ratio * self.rotors[1].G()
         )
-
-
-
-if __name__ == "__main__":
-
-    lista_argumentos = [
-        ('A1', 4, 60, 'interpolation', 1e-5, [50e-5, 70e-5]),
-        ('A2', 4, 60, 'max_stiffness', 1e-5, [50e-5, 70e-5]),
-        ('B1', 4, 70, 'interpolation', 1e-5, [80e-5, 100e-5]),
-        ('B1', 4, 70, 'max_stiffness', 1e-5, [80e-5, 100e-5]),      
-        ('C1', 4, 20, 'interpolation', 1e-5, [100e-5, 100e-5]),
-        ('C2', 4, 20, 'max_stiffness', 1e-5, [100e-5, 100e-5]),
-    ]
-
-    overall_start_time = time.time()
-
-    # O 'with' garante que o pool de processos seja fechado corretamente ao final.
-    with multiprocessing.Pool(processes=6) as pool:
-        # 'starmap' é usado porque cada conjunto de argumentos em 'lista_argumentos_simulacoes'
-        # é uma tupla que precisa ser desempacotada ("starred") para a função 'run_single_simulation'.
-        pool.starmap(main_example, lista_argumentos)
-    
-    overall_end_time = time.time()
-    total_parallel_time = overall_end_time - overall_start_time
-
-    print("\n--- Todas as Simulações Concluídas ---")
-    print(f"Tempo total de execução paralela: {total_parallel_time:.2f} segundos.")
-    print("Resumo dos resultados:")
