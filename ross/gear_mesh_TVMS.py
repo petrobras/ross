@@ -6,8 +6,8 @@ gears or gearboxes used to couple different shafts in the MultiRotor class.
 
 import numpy as np
 import scipy as sp
-import pandas as pd
 from plotly import graph_objects as go
+from warnings import warn
 
 from ross.units import check_units
 from ross.materials import steel
@@ -288,8 +288,8 @@ class GearElementTVMS(GearElement):
         x = r_b * ((tau + theta_b) * np.cos(tau) - np.sin(tau))
         y = r_b * ((tau + theta_b) * np.sin(tau) + np.cos(tau))
 
-        area = 2 * x * self.width
-        I_y = 2 / 3 * x**3 * self.width
+        area = 2 * x * self.tooth_width
+        I_y = 2 / 3 * x**3 * self.tooth_width
 
         return y, x, area, I_y
 
@@ -323,8 +323,8 @@ class GearElementTVMS(GearElement):
         x = r_p * np.sin(phi) - (a1 / np.sin(gamma) + r_rho) * np.cos(gamma - phi)
         y = r_p * np.cos(phi) - (a1 / np.sin(gamma) + r_rho) * np.sin(gamma - phi)
 
-        area = 2 * x * self.width
-        I_y = 2 / 3 * x**3 * self.width
+        area = 2 * x * self.tooth_width
+        I_y = 2 / 3 * x**3 * self.tooth_width
 
         return y, x, area, I_y
 
@@ -354,65 +354,6 @@ class GearElementTVMS(GearElement):
 
         return k
 
-    def _gear_body_polynominal(self):
-        """This method uses the approach described by Sainsot et al. (2004) to
-        calculate the stiffness factor (kf) contributing to tooth deflections.
-        If the parameters fall outside the experimental range used to derive
-        the analytical formula, the method returns `'oo'` to indicate an
-        infinite stiffness approximation.
-
-        Returns
-        -------
-        float
-            The calculated stiffness factor (kf) for the gear base.
-
-        str
-            Return 'oo' if it doesn't match the criteria for the experimental
-            range where this method was built.
-        """
-        h = self.radii_dict["root"] / self.hub_bore_radius
-        theta_f = self.tooth_dict["root_angle"]
-
-        limits = {
-            "L": (6.82, 6.94),
-            "M": (1.08, 3.29),
-            "P": (2.56, 13.47),
-            "Q": (0.141, 0.62),
-        }
-
-        poly = pd.DataFrame()
-        poly["var"] = ["L", "M", "P", "Q"]
-        poly["A_i"] = [-5.574e-5, 60.111e-5, -50.952e-5, -6.2042e-5]
-        poly["B_i"] = [-1.9986e-3, 28.100e-3, 185.50e-3, 9.0889e-3]
-        poly["C_i"] = [-2.3015e-4, -83.431e-4, 0.0538e-4, -4.0964e-4]
-        poly["D_i"] = [4.7702e-3, -9.9256e-3, 53.300e-3, 7.8297e-3]
-        poly["E_i"] = [0.0271, 0.1624, 0.2895, -0.1472]
-        poly["F_i"] = [6.8045, 0.9086, 0.9236, 0.6904]
-
-        calculate_x_i = lambda row: (
-            row["A_i"] / (theta_f**2)
-            + row["B_i"] * h**2
-            + row["C_i"] * h / theta_f
-            + row["D_i"] / theta_f
-            + row["E_i"] * h
-            + row["F_i"]
-        )
-
-        poly["X_i"] = poly.apply(calculate_x_i, axis=1)
-
-        for index, row in poly.iterrows():
-            var_name = row["var"]
-            X_i = row["X_i"]
-            lower_limit, upper_limit = limits[var_name]
-
-            # if (not lower_limit <= X_i <= upper_limit) :#or (not 1.4 <= h <= 7) or (not 0.01 <= gear.theta_f <= 0.12):
-            #     # for the stiffness on the base of the tooth to match the model, it has to match those criteria above. If not, kf -> oo.
-            #     global contador
-            #     contador+=1
-            #     return 'oo'
-
-        return poly.loc[:, ["var", "X_i"]]
-
     def _inv_kf(self, beta):
         """Calculate the stiffness contribution from the gear base, given a
         point on the involute curve.
@@ -436,24 +377,48 @@ class GearElementTVMS(GearElement):
             The inverse of kf for the gear base.
         """
 
-        # obtain a dataframe of polynomials coefficients
-        poly = self._gear_body_polynominal()
+        r_f = self.radii_dict["root"]
+        theta_f = self.tooth_dict["root_angle"]
+        h = r_f / self.hub_bore_radius
 
-        # Extrapolating the range of interpolation described by Sainsot et. al. (2014).
-        # if type(poly) == str:
-        #     return 0
+        # curve-fitted by polynomial functions
+        poly_func = lambda A, B, C, D, E, F: (
+            A / (theta_f**2) + B * h**2 + C * h / theta_f + D / theta_f + E * h + F
+        )
 
-        L_poly, M_poly, P_poly, Q_poly = poly["X_i"]
+        poly_coeffs = (
+            (-5.574e-5, -1.9986e-3, -2.3015e-4, 4.7702e-3, 0.0271, 6.8045),
+            (60.111e-5, 28.100e-3, -83.431e-4, -9.9256e-3, 0.1624, 0.9086),
+            (-50.952e-5, 185.50e-3, 0.0538e-4, 53.300e-3, 0.2895, 0.9236),
+            (-6.2042e-5, 9.0889e-3, -4.0964e-4, 7.8297e-3, -0.1472, 0.6904),
+        )
+
+        poly_limits = (
+            (6.82, 6.94),
+            (1.08, 3.29),
+            (2.56, 13.47),
+            (0.141, 0.62),
+        )
+
+        L = poly_func(*poly_coeffs[0])
+        M = poly_func(*poly_coeffs[1])
+        P = poly_func(*poly_coeffs[2])
+        Q = poly_func(*poly_coeffs[3])
+
+        for i, value in enumerate((L, M, P, Q)):
+            if value < min(poly_limits[i]) or value > max(poly_limits[i]):
+                warn(
+                    "Extrapolating gear body coefficients described by Sainsot et. al. (2014). Be careful when post-processing the results."
+                )
+                break
 
         y, _, _, _ = self._compute_involute_curve(beta)
 
-        Sf = 2 * self.radii_dict["root"] * self.tooth_dict["root_angle"]
-        u = y - self.radii_dict["root"]
+        Sf = 2 * r_f * theta_f
+        u = y - r_f
 
-        inv_kf = (np.cos(beta) ** 2 / (self.material.E * self.width)) * (
-            L_poly * (u / Sf) ** 2
-            + M_poly * u / Sf
-            + P_poly * (1 + Q_poly * np.tan(beta) ** 2)
+        inv_kf = (np.cos(beta) ** 2 / (self.material.E * self.tooth_width)) * (
+            L * (u / Sf) ** 2 + M * u / Sf + P * (1 + Q * np.tan(beta) ** 2)
         )
 
         return inv_kf
@@ -675,7 +640,7 @@ class Mesh:
 
         self.time = 0
 
-        self.eta = gear_output.n_tooth / gear_input.n_tooth  # Gear ratio
+        self.gear_ratio = gear_input.n_tooth / gear_output.n_tooth
 
         self.cr = self._compute_contact_ratio()
 
@@ -705,7 +670,7 @@ class Mesh:
         """
         center_distance = (
             self.gear_input.radii_dict["pitch"] + self.gear_output.radii_dict["pitch"]
-        )  # center distance (not the operating one)
+        )
 
         contact_length = (
             np.sqrt(
@@ -719,9 +684,7 @@ class Mesh:
             - center_distance * np.sin(self.gear_input.pr_angle)
         )
 
-        base_pitch = (
-            2 * np.pi * self.gear_input.base_radius / self.gear_input.n_tooth
-        )  # base pitch
+        base_pitch = 2 * np.pi * self.gear_input.base_radius / self.gear_input.n_tooth
 
         contact_ratio = contact_length / base_pitch
 
@@ -735,7 +698,7 @@ class Mesh:
         return (
             np.pi
             * self.gear_input.material.E
-            * self.gear_input.width
+            * self.gear_input.tooth_width
             / (4 * (1 - self.gear_input.material.Poisson**2))
         )
 
@@ -759,21 +722,21 @@ class Mesh:
         167970095.70859054
         """
 
-        gear_output_speed = -gear_input_speed / self.eta
+        gear_output_speed = -gear_input_speed * self.gear_ratio
 
         # Angular displacements
         alpha_input = (
             self.gear_input.pr_angles_dict["start_point"] + gear_input_speed * t
-        )  # angle variation of the input gear_input [rad]
+        )
         alpha_output = (
             self.gear_output.pr_angles_dict["addendum"] + gear_output_speed * t
-        )  # angle variation of the output gear   [rad]
+        )
 
-        # Contact stiffness according to tau angles
+        # Contact stiffness
         k_1 = self.gear_input._compute_stiffness(alpha_input)
         k_2 = self.gear_output._compute_stiffness(alpha_output)
 
-        # Evaluating the equivalate meshing stiffness.
+        # Evaluating the equivalate meshing stiffness
         k_t = 1 / (1 / self._kh() + 1 / k_1 + 1 / k_2)
 
         return k_t
