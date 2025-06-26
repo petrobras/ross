@@ -328,6 +328,8 @@ class Crack(ABC):
     #     if self.crack_model == "Flex Open":
     #         mi = 2 * depth_ratio 
     #         gama = (mi * (2 - mi))**(1 / 2) 
+    #         at = radius**2 * (np.pi - np.arccos(1 - mi) + (1 - mi) * (mi * (2 - mi))**(1 / 2)) 
+    #         ee = 2 * radius**3 / (3 * at) * (mi * (2 - mi))**(3 / 2)
 
     #         Ix = (
     #             np.pi * radius**4 / 8
@@ -352,8 +354,11 @@ class Crack(ABC):
     #         rotation_indexes = [3, 4, 5, 9, 10, 11] 
     #         rot_resp = self.disp_resp[rotation_indexes]
     #         Tx1, Ty1, Tx2, Ty2 = rot_resp[0], rot_resp[1], rot_resp[2], rot_resp[3]
+    #         tx1, ty1, tx2, ty2 = rot_resp[0], rot_resp[1], rot_resp[2], rot_resp[3]
 
     #         Mdy = E * JJ * (Ty2 - Ty1) / Lce
+    #         Mdx = E * JJ * (tx2 - tx1) / Lce
+    #         Mdy = E * JJ * (ty2 - ty1) / Lce
     #         Mpx, Mpy = 0, 0
     #         MTx = Mdx + Mpx
     #         MTy = Mdy + Mpy
@@ -361,6 +366,7 @@ class Crack(ABC):
     #         CCi          = np.zeros((2 * self.cross_divisions + 1, 2 * self.cross_divisions + 1), dtype=complex)
     #         CC           = np.zeros_like(CCi, dtype=complex)
     #         pointsCRACKi = np.zeros_like(CCi, dtype=complex)
+    #         points_crack_i = np.zeros_like(CCi, dtype=complex)
     #         A            = np.zeros((2 * self.cross_divisions, 2 * self.cross_divisions), dtype=complex)
     #         Rarea        = np.zeros_like(A, dtype=complex)
     #         IXX          = JJ
@@ -380,6 +386,8 @@ class Crack(ABC):
 
     #         mask_depth = np.imag(CCi) > (radius - depth_ratio * radius)
     #         pointsCRACK = np.absolute(pointsCRACKi) * np.exp(1j * (np.angle(pointsCRACKi) + ap))
+    #         points_crack_i = np.where(mask_depth, CCi, 1e3)
+    #         points_crack = np.absolute(points_crack_i) * np.exp(1j * (np.angle(points_crack_i) + ap))
 
     #         step_half = step / 2
     #         exp_step_angle = np.exp(1j * np.angle(step_half + step_half * 1j))
@@ -402,16 +410,20 @@ class Crack(ABC):
     #             C_right  = CC[:n1, 1:]
     #             C_down   = CC[1:, :m1]
     #             pointsCRACK_center = pointsCRACK[:n1, :m1]
+    #             pointsCRACK_center = points_crack[:n1, :m1]
 
     #             A = np.abs((C_center - C_right) * (C_center - C_down))
     #             Rarea = C_center + abs_step_angle * exp_step_angle
     #             mask_out = np.abs(Rarea) >= radius
     #             mask_crack = (np.abs(pointsCRACK_center - C_center) < 1e-8) & (np.abs(Tensao) >= 0)
+    #             mask_crack = (np.abs(pointsCRACK_center - C_center) < 1e-8) & (np.abs(tensao) >= 0)
     #             A[mask_out | mask_crack] = 0
     #             Rarea[mask_out] = 0
     #             AT = np.sum(A)
+    #             at = np.sum(A)
 
     #             CG = np.sum(Rarea * A) / AT if AT != 0 else 0
+    #             CG = np.sum(Rarea * A) / at if at != 0 else 0
 
     #             XY = Rarea - CG
     #             XY[mask_out] = 0
@@ -452,6 +464,9 @@ class Crack(ABC):
     #                 break
 
     #     fiiX = (12 * E * IYY / (G_s * kcc * AT * Lce**2))
+    #     fiiY = (12 * E * IXX / (G_s * kcc * at * Lce**2))
+    #     fiiX = (12 * E * IYY / (G_s * kcc * at * Lce**2))
+    #     fiiXY = (12 * E * IYY / (G_s * kcc * at * Lce**2)) 
 
     #     aF = 12 * IYY * E / ((1 + fiiX) * Lce**3)
     #     bF = 12 * IXX * E / ((1 + fiiY) * Lce**3)
@@ -514,12 +529,19 @@ class Crack(ABC):
         depth_ratio = self.depth_ratio
         Lce = (
             - 49.5542 * depth_ratio ** 3
+            -33.3333 * depth_ratio**5
+            + 77.5641 * depth_ratio**4
+            - 49.5542 * depth_ratio**3
+            + 9.0485 * depth_ratio**2
             + 1.2415 * depth_ratio
             - 0.0024
         ) * 2* radius 
 
         mi = 2 * depth_ratio 
+        gama = (mi * (2 - mi))**(1 / 2) 
         kcc = 6 * (1 + Poisson) / (7 + 6 * Poisson)
+        at = radius**2 * (np.pi - np.arccos(1 - mi) + (1 - mi) * (mi * (2 - mi))**(1 / 2)) 
+        ee = 2 * radius**3 / (3 * at) * (mi * (2 - mi))**(3 / 2)
 
         Ix = (
             np.pi * radius**4 / 8
@@ -529,6 +551,7 @@ class Crack(ABC):
             np.pi * radius**4 / 4
             - radius**4 / 12 * ((1 - mi) * (2 * mi**2 - 4 * mi - 3) * gama + 3 * np.arcsin(gama))
         )
+        Ixb = Ix - at * ee**2
         Iyb = Iy
 
         kcc = (6 * (1 + Poisson)) / (7 + 6 * Poisson)
@@ -537,11 +560,20 @@ class Crack(ABC):
         IYY = (Ixb + Iyb) / 2 - (Ixb - Iyb) /2 * np.cos(2 * ap)
         IXY = -(Ixb - Iyb) / 2 * np.sin(2 * ap)       
 
+        fiiY = (12 * E * IXX / (G_s * kcc * at * Lce**2))
+        fiiX = (12 * E * IYY / (G_s * kcc * at * Lce**2))
+        fiiXY = (12 * E * IYY / (G_s * kcc * at * Lce**2)) 
 
+        aF = 12 * IYY * E / ((1 + fiiX) * Lce**3)
+        bF = 12 * IXX * E / ((1 + fiiY) * Lce**3)
+        cF = 6 * IYY * E / ((1 + fiiX) * Lce**2)
+        dF = 6 * IXX * E / ((1 + fiiY) * Lce**2)
         eF = (4 + fiiX) * IYY * E / ((1 + fiiX) * Lce)
         fF = (2 - fiiX) * IYY * E / ((1 + fiiX) * Lce)
         gF = (2 - fiiY) * IXX * E / ((1 + fiiY) * Lce)
         hF = (4 + fiiY) * IXX * E / ((1 + fiiY) * Lce)
+        pF = 12 * IXY * E / ((1 + fiiXY) * Lce**3)
+        qF = 6 * IXY * E / ((1 + fiiXY) * Lce**2)
         rF = (4 + fiiXY) * IXY * E / ((1 + fiiXY) * Lce)
         sF = (2 - fiiXY) * IXY * E / ((1 + fiiXY) * Lce)      
         tF = 0
@@ -591,21 +623,30 @@ class Crack(ABC):
         E = self.shaft_elem.material.E
         radius = self.shaft_elem.odl / 2
         depth_ratio = self.depth_ratio
+        JJ = (np.pi / 4) * radius**4
         step = radius / self.cross_divisions
         Lce = (
+            -33.3333 * depth_ratio**5
+            + 77.5641 * depth_ratio**4
+            - 49.5542 * depth_ratio**3
+            + 9.0485 * depth_ratio**2
             + 1.2415 * depth_ratio
             - 0.0024
         ) * 2 * radius 
 
         rotation_indexes = [3, 4, 5, 9, 10, 11] 
         rot_resp = self.disp_resp[rotation_indexes]
+        tx1, ty1, tx2, ty2 = rot_resp[0], rot_resp[1], rot_resp[2], rot_resp[3]
 
+        Mdx = E * JJ * (tx2 - tx1) / Lce
+        Mdy = E * JJ * (ty2 - ty1) / Lce
         Mpx, Mpy = 0, 0
         MTx = Mdx + Mpx
         MTy = Mdy + Mpy
 
         CCi          = np.zeros((2 * self.cross_divisions + 1, 2 * self.cross_divisions + 1), dtype=complex)
         CC           = np.zeros_like(CCi, dtype=complex)
+        points_crack_i = np.zeros_like(CCi, dtype=complex)
         A            = np.zeros((2 * self.cross_divisions, 2 * self.cross_divisions), dtype=complex)
         Rarea        = np.zeros_like(A, dtype=complex)
         IXX          = JJ
@@ -624,6 +665,8 @@ class Crack(ABC):
         CC = absZ * np.exp(1j * (angleZ + ap))
 
         mask_depth = np.imag(CCi) > (radius - depth_ratio * radius)
+        points_crack_i = np.where(mask_depth, CCi, 1e3)
+        points_crack = np.absolute(points_crack_i) * np.exp(1j * (np.angle(points_crack_i) + ap))
 
         exp_step_angle = np.exp(1j * np.angle((step / 2) + (step / 2) * 1j))
         abs_step_angle = np.absolute((step / 2) + (step / 2) * 1j)
@@ -636,32 +679,44 @@ class Crack(ABC):
         angANTERIOR = 0j
 
         while erroTHETA > 1e-5:
+            tensao = (
+                -(MTx * IYY + MTy * IXY) / (IXX * IYY - IXY)**2 * np.imag(XY)
+                + (MTy * IXX + MTx * IXY) / (IXX * IYY - IXY)**2 * np.real(XY)
             )
                 
             C_center = CC[:n1, :m1]
             C_right  = CC[:n1, 1:]
             C_down   = CC[1:, :m1]
+            pointsCRACK_center = points_crack[:n1, :m1]
 
             A = np.abs((C_center - C_right) * (C_center - C_down))
             Rarea = C_center + abs_step_angle * exp_step_angle
             mask_out = np.abs(Rarea) >= radius
+            mask_crack = (np.abs(pointsCRACK_center - C_center) < 1e-8) & (np.abs(tensao) >= 0)
             A[mask_out | mask_crack] = 0
             Rarea[mask_out] = 0
+            at = np.sum(A)
 
+            CG = np.sum(Rarea * A) / at if at != 0 else 0
 
             XY = Rarea - CG
             XY[mask_out] = 0
 
             dx = C_center - C_right
             dy = C_center - C_down
+            dx3 = np.abs(dx)**3
+            dy3 = np.abs(dy)**3
 
             Ixx = (
                 np.abs(dx * dy3) / 12.0
+                + A * np.abs(np.imag(XY))**2
             )
             Iyy = (
                 np.abs(dx3 * dy) / 12.0
+                + A * np.abs(np.real(XY))**2
             )
             Ixy = A * np.imag(XY) * np.real(XY)
+            mask_crack_2 = (np.abs(pointsCRACK_center - C_center) < 1e-8) & (np.abs(tensao) > 0)
             Ixx[mask_out | mask_crack_2] = 0
             Iyy[mask_out | mask_crack_2] = 0
             Ixy[mask_out | mask_crack_2] = 0
@@ -683,11 +738,20 @@ class Crack(ABC):
 
         kcc = (6 * (1 + Poisson)) / (7 + 6 * Poisson)
 
+        fiiY = (12 * E * IXX / (G_s * kcc * at * Lce**2))
+        fiiX = (12 * E * IYY / (G_s * kcc * at * Lce**2))
+        fiiXY = (12 * E * IYY / (G_s * kcc * at * Lce**2)) 
 
+        aF = 12 * IYY * E / ((1 + fiiX) * Lce**3)
+        bF = 12 * IXX * E / ((1 + fiiY) * Lce**3)
+        cF = 6 * IYY * E / ((1 + fiiX) * Lce**2)
+        dF = 6 * IXX * E / ((1 + fiiY) * Lce**2)
         eF = (4 + fiiX) * IYY * E / ((1 + fiiX) * Lce)
         fF = (2 - fiiX) * IYY * E / ((1 + fiiX) * Lce)
         gF = (2 - fiiY) * IXX * E / ((1 + fiiY) * Lce)
         hF = (4 + fiiY) * IXX * E / ((1 + fiiY) * Lce)
+        pF = 12 * IXY * E / ((1 + fiiXY) * Lce**3)
+        qF = 6 * IXY * E / ((1 + fiiXY) * Lce**2)
         rF = (4 + fiiXY) * IXY * E / ((1 + fiiXY) * Lce)
         sF = (2 - fiiXY) * IXY * E / ((1 + fiiXY) * Lce)      
         tF = 0
