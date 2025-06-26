@@ -328,8 +328,6 @@ class Crack(ABC):
     #     if self.crack_model == "Flex Open":
     #         mi = 2 * depth_ratio 
     #         gama = (mi * (2 - mi))**(1 / 2) 
-    #         AT = radius**2 * (np.pi - np.arccos(1 - mi) + (1 - mi) * (mi * (2 - mi))**(1 / 2)) 
-    #         ee = 2 * radius**3 / (3 * AT) * (mi * (2 - mi))**(3 / 2)
 
     #         Ix = (
     #             np.pi * radius**4 / 8
