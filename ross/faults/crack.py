@@ -585,7 +585,7 @@ class Crack(ABC):
             [-qF,  cF, -iF,	 fF,  sF,   0,	qF,	-cF,  iF,  eF,	rF,   0],
             [-dF,  qF, -jF,  sF,  gF,   0,	dF,	-qF,   0,  rF,	hF,	  0],
             [-mF,	0, -mF,   0, -uF,   0,	 0,	  0,  mF,	0,	uF,	  0] 
-                ])
+        ])
             
         return K
     
@@ -764,7 +764,7 @@ class Crack(ABC):
             [-qF,  cF, -iF,	 fF,  sF,   0,	qF,	-cF,  iF,  eF,	rF,   0],
             [-dF,  qF, -jF,  sF,  gF,   0,	dF,	-qF,   0,  rF,	hF,	  0],
             [-mF,	0, -mF,   0, -uF,   0,	 0,	  0,  mF,	0,	uF,	  0] 
-                ])
+        ])
             
         return K 
         
