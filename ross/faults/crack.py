@@ -11,7 +11,6 @@ __all__ = ["Crack"]
 
 
 class Crack(ABC):
-    """Model a crack based on Linear Fracture Mechanics on a given shaft element
     """Models a crack based on Linear Fracture Mechanics on a given shaft element
     of a rotor system.
 
@@ -32,7 +31,6 @@ class Crack(ABC):
         This parameter is restricted to up to 50% within the implemented approach,
         as discussed in :cite `papadopoulos2004some`.
     crack_model : string, optional
-        Name of the chosen crack model. The avaible types are: "Mayes" and "Gasch".
         Name of the chosen crack model. The avaible types are: "Mayes", "Gasch", 
         "Flex Open" and "Flex Breathing".
         Default is "Mayes".
@@ -77,11 +75,9 @@ class Crack(ABC):
         n,
         depth_ratio,
         crack_model="Mayes",
-        # cross_discret=None,
         cross_divisions=None,
     ):
         self.rotor = rotor
-        # self.cross_discret = cross_discret
         self.cross_divisions = cross_divisions
 
         if depth_ratio <= 0.5:
@@ -102,12 +98,8 @@ class Crack(ABC):
         elif crack_model == "Gasch":
             self._crack_model = self.gasch
         elif crack_model == "Flex Open": 
-            self._crack_model = self.flex
             self._crack_model = self.flex_open
         elif crack_model == "Flex Breathing":
-            self._crack_model = self.flex
-            # if cross_discret is None:
-            #     raise ValueError("The 'cross_discret' argument must be provided for the flex breathing model.")
             self._crack_model = self.flex_breathing
             if cross_divisions is None:
                 raise ValueError("The 'cross_divisions' argument must be provided for the Flex Breathing Model.")
@@ -122,7 +114,6 @@ class Crack(ABC):
         self.K_elem = self.shaft_elem.K()
 
         if self._crack_model == self.mayes or self._crack_model == self.gasch:
-
             dir_path = Path(__file__).parents[0] / "data/PAPADOPOULOS.csv"
             self.coefficient_data = pd.read_csv(dir_path)
 
@@ -183,8 +174,6 @@ class Crack(ABC):
 
         return c
 
-    def compute_crack_stiffness(self, ap):
-        """Compute stiffness matrix of the shaft element with crack in inertial coordinates.
     def _compute_crack_stiffnes_gasch_mayes(self, Kmodel):
         """Compute stiffness matrix of the shaft element with crack in inertial coordinates
         for the Gasch and Mayes models.
@@ -199,38 +188,7 @@ class Crack(ABC):
         K : np.ndarray
             Stiffness matrix of the cracked element.
         """
-        if self._crack_model == self.mayes or self._crack_model == self.gasch:
-            L = self.shaft_elem.L
 
-            Kmodel = self._crack_model(ap)
-
-            Toxy = np.array([[-1, 0], [-L, -1], [1, 0], [0, 1]])
-            kxy = np.array([[Kmodel[0, 0], self.Ko[0, 3]], [self.Ko[3, 0], self.Ko[3, 3]]])
-            Koxy = Toxy @ kxy @ Toxy.T
-
-            Toyz = np.array([[-1, 0], [L, -1], [1, 0], [0, 1]])
-            kyz = np.array([[Kmodel[1, 1], self.Ko[1, 2]], [self.Ko[2, 1], self.Ko[2, 2]]])
-            Koyz = Toyz @ kyz @ Toyz.T
-
-            # fmt: off
-            K = np.array([
-                [Koxy[0,0],         0,   0,         0, Koxy[0,1],   0, Koxy[0,2],         0,   0,         0, Koxy[0,3],   0],
-                [        0, Koyz[0,0],   0, Koyz[0,1],         0,   0,         0, Koyz[0,2],   0, Koyz[0,3],         0,   0],
-                [        0,         0,   0,         0,         0,   0,         0,         0,   0,         0,         0,   0],
-                [        0, Koyz[1,0],   0, Koyz[1,1],         0,   0,         0, Koyz[1,2],   0, Koyz[1,3],         0,   0],
-                [Koxy[1,0],         0,   0,         0, Koxy[1,1],   0, Koxy[1,2],         0,   0,         0, Koxy[1,3],   0],
-                [        0,         0,   0,         0,         0,   0,         0,         0,   0,         0,         0,   0],
-                [Koxy[2,0],         0,   0,         0, Koxy[2,1],   0, Koxy[2,2],         0,   0,         0, Koxy[2,3],   0],
-                [        0, Koyz[2,0],   0, Koyz[2,1],         0,   0,         0, Koyz[2,2],   0, Koyz[2,3],         0,   0],
-                [        0,         0,   0,         0,         0,   0,         0,         0,   0,         0,         0,   0],
-                [        0, Koyz[3,0],   0, Koyz[3,1],         0,   0,         0, Koyz[3,2],   0, Koyz[3,3],         0,   0],
-                [Koxy[3,0],         0,   0,         0, Koxy[3,1],   0, Koxy[3,2],         0,   0,         0, Koxy[3,3],   0],
-                [        0,         0,   0,         0,         0,   0,         0,         0,   0,         0,         0,   0]
-            ])
-            # fmt: on
-
-        if self._crack_model == self.flex:
-            K = self._crack_model(ap)
         L = self.shaft_elem.L
         Toxy = np.array([[-1, 0], [-L, -1], [1, 0], [0, 1]])
         kxy = np.array([[Kmodel[0, 0], self.Ko[0, 3]], [self.Ko[3, 0], self.Ko[3, 3]]])
@@ -301,7 +259,6 @@ class Crack(ABC):
 
         K = T_matrix.T @ np.array([[ke, 0], [0, kn]]) @ T_matrix
 
-        return K
         return self._compute_crack_stiffnes_gasch_mayes(K)
 
     def mayes(self, ap):
@@ -336,10 +293,8 @@ class Crack(ABC):
 
         K = T_matrix.T @ np.array([[ke, 0], [0, kn]]) @ T_matrix
 
-        return K
         return self._compute_crack_stiffnes_gasch_mayes(K)
     
-    def flex(self, ap):
     # def flex(self, ap):
     #     """Stiffness matrix of the shaft element with crack in rotating coordinates
     #     according to the model of Flex, breathing or open.
@@ -554,8 +509,6 @@ class Crack(ABC):
             Stiffness matrix of the cracked element.
         """
 
-
-        # Flex
         # Flex Open
         G_s = self.shaft_elem.material.G_s
         Poisson = self.shaft_elem.material.Poisson
@@ -571,15 +524,12 @@ class Crack(ABC):
             - 0.0024
         ) * 2* radius 
 
-        if self.crack_model == "Flex Open":
         mi = 2 * depth_ratio 
         gama = (mi * (2 - mi)) ** (1 / 2) 
         kcc = 6 * (1 + Poisson) / (7 + 6 * Poisson)
         AT = radius ** 2 * (np.pi - np.arccos(1 - mi) + (1 - mi) * (mi * (2 - mi)) ** (1 / 2)) 
         ee = 2 * radius ** 3 / (3 * AT) * (mi * (2 - mi)) ** (3 / 2)
 
-            mi = 2 * depth_ratio 
-            gama = (mi * (2 - mi))**(1/2) 
         Ix = (
             np.pi * radius**4 / 8
             + radius**4 / 4 * ((1 - mi) * (2 * mi**2 - 4 * mi + 1) * gama + np.arcsin(1 - mi))
@@ -591,8 +541,6 @@ class Crack(ABC):
         Ixb = Ix - AT * ee ** 2
         Iyb = Iy
 
-            Ix = np.pi * (radius**4)/8 + (radius**4)/4 * ((1 - mi) * (2 * mi**2 - 4*mi + 1) * gama + np.arcsin(1 - mi))
-            Iy = np.pi * (radius**4)/4 - (radius**4)/12 * ((1-mi) * (2*mi**2 - 4*mi - 3) * gama + 3*np.arcsin(gama))
         kcc = (6 * (1 + Poisson)) / (7 + 6 * Poisson)
         
         IXX = (Ixb + Iyb) / 2 + (Ixb - Iyb) / 2 * np.cos(2 * ap)
@@ -645,25 +593,17 @@ class Crack(ABC):
         """Stiffness matrix of the shaft element with crack in rotating coordinates
         according to the breathing model of Flex.
 
-            AT = radius**2 * (np.pi - np.arccos(1 - mi) + (1 - mi) * (mi * (2 - mi))**(1/2)) 
-            ee = 2 * radius**3/(3*AT)*(mi*(2 - mi))**(3/2)
         Paramenters
         -----------
         ap : float
             Angular position of the shaft.
 
-            Ixb = Ix - AT * ee**2
-            Iyb = Iy
         Returns
         -------
         K : np.ndarray
             Stiffness matrix of the cracked element.
         """
 
-            kcc = (6 * (1 + Poisson)) / (7 + 6 * Poisson)
-            IXX = (Ixb + Iyb) / 2 + (Ixb - Iyb) / 2 * np.cos(2 * ap)
-            IYY = (Ixb + Iyb) / 2 - (Ixb - Iyb) /2 * np.cos(2 * ap)
-            IXY = -(Ixb - Iyb) / 2 * np.sin(2 * ap)       
         # Flex Breathing
         G_s = self.shaft_elem.material.G_s
         Poisson = self.shaft_elem.material.Poisson
@@ -769,216 +709,27 @@ class Crack(ABC):
             Iyy[mask_out | mask_crack_2] = 0
             Ixy[mask_out | mask_crack_2] = 0
 
-        if self.crack_model == "Flex Breathing":
             IXX = np.sum(Ixx)
             IYY = np.sum(Iyy)
             IXY = np.sum(Ixy)
 
-            cross_discret = 20
             ang = np.arctan(-IXY / (IXX - IYY) / 2) / 2
 
-            JJ = (np.pi / 4) * radius**4
             if stepAV >= 2:
                 erroTHETA = np.abs(np.abs(angANTERIOR) - np.abs(ang))
 
-            # Discretização da área trincada 
-            step = radius / cross_discret
             angANTERIOR = ang
             stepAV += 1
             si += 1
             if si >= 50:
                 break
 
-            rotation_indexes = [3, 4, 5, 9, 10, 11] 
-            rot_resp = self.disp_resp[rotation_indexes]
-            
-            Tx1 = rot_resp[0]
-            Ty1 = rot_resp[1]
-            Tx2 = rot_resp[2]
-            Ty2 = rot_resp[3]
-
-            # Momento gerado no elemento trincado 
-            Mdx = E * JJ * (Tx2 - Tx1) / Lce
-            Mpx = 0
-            Mdy = E * JJ * (Ty2 - Ty1) / Lce
-            Mpy = 0
-
-            MTx = Mdx + Mpx
-            MTy = Mdy + Mpy
-
-            # Discretization of the cracked cross-section e identificação dos pontos que pertencem à área trincada
-            CCi          = np.zeros((2 * cross_discret + 1, 2 * cross_discret + 1), dtype=complex)
-            Ci           = np.zeros_like(CCi, dtype=complex)
-            CC           = np.zeros_like(CCi, dtype=complex)
-            C            = np.zeros_like(CCi, dtype=complex)
-            pointsCRACKi = np.zeros_like(CCi, dtype=complex)
-            Ai           = np.zeros((2 * cross_discret, 2 * cross_discret), dtype=complex)
-            A            = np.zeros_like(Ai, dtype=complex)
-            Rareai       = np.zeros_like(Ai, dtype=complex)
-            Rarea        = np.zeros_like(Ai, dtype=complex)
-            XYi          = np.zeros_like(Ai, dtype=complex)
-            IXX          = 1j*0
-            IXX          = JJ
-            IYY          = 1j*0
-            IYY          = JJ
-            IXY          = 1j*0
-            XY           = np.zeros_like(Ai, dtype=complex)
-
-            # Determinação de CCi
-            x = np.linspace(-radius, radius, (2*cross_discret)+1)
-            y = np.linspace(-radius, radius, (2*cross_discret)+1)
-            X, Y = np.meshgrid(x, y)
-            Z = X + 1j * Y  # pontos complexos
-
-            absZ = np.abs(Z)
-            angleZ = np.angle(Z)
-            CCi = absZ * np.exp(1j * angleZ)
-
-            mask_CCi = absZ <= radius
-            Ci = np.where(mask_CCi, CCi, 0)
-            mask_depth = np.imag(CCi) > (radius - depth_ratio * radius)
-            # mask_depth = np.imag(CCi) > (radius - depth_ratio)
-            pointsCRACKi = np.where(mask_depth, CCi, 500000)
-
-            # Rotation of the cracked area de acordo com a nova posição angular do rotor
-            pointsCRACK = np.absolute(pointsCRACKi) * np.exp(1j * (np.angle(pointsCRACKi) + ap))
-
-            # Determinação de CC e C
-            absZ = np.abs(Z)
-            angleZ = np.angle(Z)
-            CC = absZ * np.exp(1j * (angleZ + ap))
-            C = CC.copy()
-
-            # Identificação de campo de tensões, área e momentos de inércia do elemento trincado
-            stepAV = 1
-            si = 0
-            erroTHETA = 1000
-            angANTERIOR = 1j*0
-            ang = 1j*0
-            K = 1j * np.zeros((2*6, 2*6))
-
-            while erroTHETA > 1e-5:
-                Tensao = (-(MTx * IYY + MTy * IXY) / (IXX * IYY - IXY**2)) * np.imag(XY) + ((MTy * IXX + MTx * IXY) / (IXX * IYY - IXY**2)) * np.real(XY)
-
-                original_shape = (2 * cross_discret, 2 * cross_discret)
-
-                if np.isscalar(Tensao):
-                    Tensao = np.full(original_shape, Tensao)
-                
-                AT = 1j*0
         kcc = (6 * (1 + Poisson)) / (7 + 6 * Poisson)
 
-                step_half = step / 2
-                exp_step_angle = np.exp(1j * np.angle(step_half + step_half * 1j))
-                abs_step_angle = np.absolute(step_half + step_half * 1j)
         fiiY = (12 * E * IXX / (G_s * kcc * AT * Lce ** 2))
         fiiX = (12 * E * IYY / (G_s * kcc * AT * Lce ** 2))
         fiiXY = (12 * E * IYY / (G_s * kcc * AT * Lce ** 2)) 
 
-                n, m = C.shape  #  (2*cross_discret + 1, 2*cross_discret + 1)
-                n1, m1 = n - 1, m - 1  # limites
-
-                # Submatrizes deslocadas para o cálculo de A
-                C_center = C[:n1, :m1]
-                C_right  = C[:n1, 1:]
-                C_down   = C[1:, :m1]
-
-                # Cálculo preliminar de A
-                A_pre = np.abs((C_center - C_right) * (C_center - C_down))
-                Rarea = C_center + abs_step_angle * exp_step_angle
-                Rareai = Rarea.copy()
-                A = A_pre.copy()
-
-                # Condições
-                mask_radius = np.abs(Rareai) >= radius
-                A[mask_radius] = 0
-                Rarea[mask_radius] = 0
-                mask_crack = (np.abs(pointsCRACK[:n1, :m1] - C_center) < 1e-8) & (np.abs(Tensao[:n1, :m1]) >= 0)
-                A[mask_crack] = 0
-
-                AT = np.sum(A)
-                    
-                # Determinação do CG
-                Cgg = 1j*0
-
-                for bb in range(A.shape[0]):
-                    for aa in range(A.shape[1]):
-                        Cgg = Cgg + Rarea[bb,aa]*A[bb,aa]
-
-                CG = Cgg / AT
-                CG = sum(Rarea.flatten() * A.flatten()) / AT
-
-                IXX = 1j*0
-                IYY = 1j*0
-                IXY = 1j*0
-                XY = 0*XY
-
-                n, m = C.shape
-                n1, m1 = n - 1, m - 1
-
-                # Submatrizes deslocadas
-                C0 = C[:n1, :m1]          # C[bb, aa]
-                C1 = C[:n1, 1:]           # C[bb, aa + 1]
-                C2 = C[1:, :m1]           # C[bb + 1, aa]
-                A_ = A[:n1, :m1]
-                Rarea_ = Rarea[:n1, :m1]
-                Rareai_ = Rareai[:n1, :m1]
-                pointsCRACK_ = pointsCRACK[:n1, :m1]
-                Tensao_ = Tensao[:n1, :m1]
-
-                # Inicializa XY
-                XY = np.zeros_like(Rarea_, dtype=complex)
-                XY_mask = np.abs(Rareai_) < radius
-                XY[XY_mask] = Rarea_[XY_mask] - CG
-
-                dx = C0 - C1
-                dy = C0 - C2
-                dx3 = np.abs(dx)**3
-                dy3 = np.abs(dy)**3
-
-                Ixx = (np.abs(dx * dy3) / 12.0) + A_ * np.abs(np.imag(XY))**2
-                Iyy = (np.abs(dx3 * dy) / 12.0) + A_ * np.abs(np.real(XY))**2
-                Ixy = A_ * np.imag(XY) * np.real(XY)
-
-                # Condições
-                mask_crack = (np.abs(pointsCRACK_ - C0) < 1e-8) & (np.abs(Tensao_) > 0)
-                mask_out = np.abs(Rareai_) >= radius
-                Ixx[mask_out | mask_crack] = 0
-                Iyy[mask_out | mask_crack] = 0
-                Ixy[mask_out | mask_crack] = 0
-
-                XY[mask_out] = 0  
-
-                IXX = np.sum(Ixx)
-                IYY = np.sum(Iyy)
-                IXY = np.sum(Ixy)
-
-                ang = np.arctan(-IXY / ((IXX - IYY)) / 2) / 2 
-
-
-                if stepAV >= 2:
-                    erroTHETA = np.absolute(np.absolute(angANTERIOR) - np.absolute(ang))
-
-                XY1 = XY
-                si += 1
-
-                if si == 50:
-                    break
-
-                angANTERIOR = ang
-                stepAV += 1
-
-        mmm = 0
-        kcc = (6 * (1 + Poisson) * (1+mmm**2)**2) / ((7 + 6 * Poisson) * (1+mmm**2)**2 + (20 + 12 * Poisson)*mmm**2)
-
-        fiiY = (12 * E * IXX / (G_s * kcc * AT * Lce**2))
-        fiiX = (12 * E * IYY / (G_s * kcc * AT * Lce**2))
-        fiiXY = (12 * E * IYY / (G_s * kcc * AT * Lce**2)) 
-
-        aF = 12 * IYY * E / ((1 + fiiX) * Lce**3)
-        bF = 12 * IXX * E / ((1 + fiiY) * Lce**3)
-        cF = 6 * IYY * E / ((1 + fiiX) * Lce**2)
-        dF = 6 * IXX * E / ((1 + fiiY) * Lce**2)
         aF = 12 * IYY * E / ((1 + fiiX) * Lce ** 3)
         bF = 12 * IXX * E / ((1 + fiiY) * Lce ** 3)
         cF = 6 * IYY * E / ((1 + fiiX) * Lce ** 2)
@@ -987,8 +738,6 @@ class Crack(ABC):
         fF = (2 - fiiX) * IYY * E / ((1 + fiiX) * Lce)
         gF = (2 - fiiY) * IXX * E / ((1 + fiiY) * Lce)
         hF = (4 + fiiY) * IXX * E / ((1 + fiiY) * Lce)
-        pF = 12 * IXY * E / ((1 + fiiXY) * Lce**3)
-        qF = 6 * IXY * E / ((1 + fiiXY) * Lce**2)
         pF = 12 * IXY * E / ((1 + fiiXY) * Lce ** 3)
         qF = 6 * IXY * E / ((1 + fiiXY) * Lce ** 2)
         rF = (4 + fiiXY) * IXY * E / ((1 + fiiXY) * Lce)
@@ -1017,7 +766,6 @@ class Crack(ABC):
             [-mF,	0, -mF,   0, -uF,   0,	 0,	  0,  mF,	0,	uF,	  0] 
                 ])
             
-        return K
         return K 
         
     def _get_force_in_time(self, step, disp_resp, ang_pos):
