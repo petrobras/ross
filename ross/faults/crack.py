@@ -13,7 +13,7 @@ __all__ = ["Crack"]
 class Crack(ABC):
     """Models a crack on a given shaft element of a rotor system.
     The Gasch and Mayes models are based on Linear Fracture Mechanics,
-    while the Flex models are based on an equivalent beam model from 3D finite element computations.
+    while the Flex models are based on an equivalent beam model from 3D finite element computations
 
     Contains transversal crack models :cite:`gasch1993survey` and :cite:`mayes1984analysis`.
     The reference coordenate system is:
