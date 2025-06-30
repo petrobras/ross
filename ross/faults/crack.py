@@ -13,7 +13,7 @@ __all__ = ["Crack"]
 class Crack(ABC):
     """Models a crack on a given shaft element of a rotor system.
     The Gasch and Mayes models are based on Linear Fracture Mechanics,
-    while the Flex models are based on Equivalent Beam. 
+    while the Flex models are based on an equivalent beam model from 3D finite element computations.
 
     Contains transversal crack models :cite:`gasch1993survey` and :cite:`mayes1984analysis`.
     The reference coordenate system is:
@@ -81,19 +81,6 @@ class Crack(ABC):
         self.rotor = rotor
         self.cross_divisions = cross_divisions
         self.crack_model = crack_model
-
-        # if depth_ratio <= 0.5:
-        #     self.depth_ratio = depth_ratio
-        # else:
-        #     raise ValueError(
-        #         """
-        #         The implemented approach is based on Linear Fracture Mechanics.
-        #         For cracks deeper than 50% of diameter, this approach has a singularity and cannot be used.
-        #         This is discussed in Papadopoulos (2004).
-        #         """
-        #     )
-        
-        # self.crack_model = crack_model
 
         self.validate_depth_ratio(depth_ratio, crack_model)
         self.depth_ratio = depth_ratio
@@ -241,7 +228,8 @@ class Crack(ABC):
 
     def gasch(self, ap):
         """Stiffness matrix of the shaft element with crack in rotating coordinates
-        according to the breathing model of Gasch.
+        according to the breathing model of Gasch. 
+        This model is based on Linear Fracture Mechanics. 
 
         Paramenters
         -----------
@@ -286,6 +274,7 @@ class Crack(ABC):
     def mayes(self, ap):
         """Stiffness matrix of the shaft element with crack in rotating coordinates
         according to the breathing model of Mayes.
+        This model is based on Linear Fracture Mechanics.
 
         Paramenters
         -----------
@@ -320,6 +309,7 @@ class Crack(ABC):
     def flex_open(self, ap):
         """Stiffness matrix of the shaft element with crack in rotating coordinates
         according to the open model of Flex.
+        This model is based on an equivalent beam model from 3D finite element computations.
 
         Paramenters
         -----------
@@ -369,6 +359,7 @@ class Crack(ABC):
     def flex_breathing(self, ap):
         """Stiffness matrix of the shaft element with crack in rotating coordinates
         according to the breathing model of Flex.
+        This model is based on an equivalent beam model from 3D finite element computations.
 
         Paramenters
         -----------
@@ -569,7 +560,6 @@ class Crack(ABC):
 
         self.disp_resp = disp_resp
 
-        K_crack = self.compute_crack_stiffness(ang_pos)
         K_crack = self._crack_model(ang_pos)
 
         F = np.zeros(self.rotor.ndof)
