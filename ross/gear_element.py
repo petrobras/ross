@@ -174,9 +174,6 @@ class GearElement(DiskElement):
         Ip = m * (o_d**2 + i_d**2) / 8
         Id = 1 / 2 * Ip + 1 / 12 * m * width**2
 
-        if pr_angle is None:
-            pr_angle = Q_(20, "deg")
-
         return cls(
             n,
             m,
