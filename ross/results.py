@@ -461,7 +461,9 @@ class Shape(Results):
         self.zn = None
         self.major_axis = None
         self._classify()
-        self._calculate()
+
+        if number_dof > 3:
+            self._calculate()
 
     def _classify(self):
         self.mode_type = "Lateral"
@@ -487,6 +489,10 @@ class Shape(Results):
             elif torsional_percent > 0.9:
                 self.mode_type = "Torsional"
                 self.color = tableau_colors["green"]
+
+        elif self.number_dof == 1:
+            self.mode_type = "Torsional"
+            self.color = tableau_colors["green"]
 
     def _calculate_orbits(self):
         orbits = []
@@ -805,6 +811,9 @@ class Shape(Results):
         size = len(self.vector)
         torsional_dofs = np.arange(5, size, self.number_dof)
 
+        if self.number_dof == 1:
+            torsional_dofs = np.arange(0, size, self.number_dof)
+
         theta = np.abs(self.vector[torsional_dofs]) * np.angle(
             self.vector[torsional_dofs]
         )
@@ -989,11 +998,6 @@ class Shape(Results):
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
-        xn = self.major_x.copy()
-        yn = self.major_y.copy()
-        zn = self.zn.copy()
-        nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
-
         if fig is None:
             fig = go.Figure()
 
@@ -1004,6 +1008,11 @@ class Shape(Results):
             self._plot_axial(plot_dimension=2, length_units=length_units, fig=fig)
 
         else:
+            xn = self.major_x.copy()
+            yn = self.major_y.copy()
+            zn = self.zn.copy()
+            nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
+
             if orientation == "major":
                 values = self.major_axis.copy()
             elif orientation == "x":
