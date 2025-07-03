@@ -7,16 +7,16 @@ import copy
 import inspect
 from abc import ABC
 from collections.abc import Iterable
-from pathlib import Path
 from warnings import warn
 
 import numpy as np
 import pandas as pd
 import toml
 from plotly import graph_objects as go
-from plotly import colors as pc
 from plotly.subplots import make_subplots
-from scipy import linalg as la
+from scipy.fft import fft
+from numpy import linalg as la
+from numba import njit
 
 from ross.plotly_theme import tableau_colors, coolwarm_r
 from ross.units import Q_, check_units
@@ -152,7 +152,13 @@ class Results(ABC):
         >>> abs(results2.forced_resp).all() == abs(results.forced_resp).all()
         True
         """
-        str_type = [np.dtype(f"<U4{i}") for i in range(10)]
+
+        def remove_npformat(v):  # remove type info related to numpy format
+            if v.startswith("np."):
+                idx = v.find("(")
+            else:
+                idx = -1
+            return v[idx:] if idx != -1 else v
 
         data = toml.load(file)
         data = list(data.values())[0]
@@ -168,8 +174,9 @@ class Results(ABC):
             elif isinstance(value, Iterable):
                 try:
                     data[key] = np.array(value)
-                    if data[key].dtype in str_type:
-                        data[key] = np.array(value).astype(np.complex128)
+                    if np.isdtype(data[key].dtype, np.str_):
+                        fvalue = np.vectorize(remove_npformat)(data[key])
+                        data[key] = fvalue.astype(np.complex128)
                 except:
                     data[key] = value
 
@@ -239,66 +246,22 @@ class Orbit(Results):
         self.ru_e = ru_e
         self.rv_e = rv_e
 
-        # data for plotting
-        num_points = 360
-        c = np.linspace(0, 2 * np.pi, num_points)
-        circle = np.exp(1j * c)
+        (
+            self.x_circle,
+            self.y_circle,
+            self.angle,
+            self.major_x,
+            self.major_y,
+            self.major_angle,
+            self.minor_angle,
+            self.major_index,
+            self.nu,
+            self.nv,
+            self.minor_axis,
+            self.major_axis,
+            self.kappa,
+        ) = _init_orbit(ru_e, rv_e)  # separated call to use with numba
 
-        self.x_circle = np.real(ru_e * circle)
-        self.y_circle = np.real(rv_e * circle)
-        angle = np.arctan2(self.y_circle, self.x_circle)
-        angle[angle < 0] = angle[angle < 0] + 2 * np.pi
-        self.angle = angle
-
-        # find major axis index looking at the first half circle
-        self.major_index = np.argmax(
-            np.sqrt(self.x_circle[:180] ** 2 + self.y_circle[:180] ** 2)
-        )
-        self.major_x = self.x_circle[self.major_index]
-        self.major_y = self.y_circle[self.major_index]
-        self.major_angle = self.angle[self.major_index]
-        self.minor_angle = self.major_angle + np.pi / 2
-
-        # calculate T matrix
-        ru = np.absolute(ru_e)
-        rv = np.absolute(rv_e)
-
-        nu = np.angle(ru_e)
-        nv = np.angle(rv_e)
-        self.nu = nu
-        self.nv = nv
-        # fmt: off
-        T = np.array([[ru * np.cos(nu), -ru * np.sin(nu)],
-                      [rv * np.cos(nv), -rv * np.sin(nv)]])
-        # fmt: on
-        H = T @ T.T
-
-        lam = la.eig(H)[0]
-        # lam is the eigenvalue -> sqrt(lam) is the minor/major axis.
-        # kappa encodes the relation between the axis and the precession.
-        minor = np.sqrt(lam.min())
-        major = np.sqrt(lam.max())
-
-        diff = nv - nu
-
-        # we need to evaluate if 0 < nv - nu < pi.
-        if diff < -np.pi:
-            diff += 2 * np.pi
-        elif diff > np.pi:
-            diff -= 2 * np.pi
-
-        # if nv = nu or nv = nu + pi then the response is a straight line.
-        if diff == 0 or diff == np.pi:
-            kappa = 0
-        # if 0 < nv - nu < pi, then a backward rotating mode exists.
-        elif 0 < diff < np.pi:
-            kappa = -minor / major
-        else:
-            kappa = minor / major
-
-        self.minor_axis = np.real(minor)
-        self.major_axis = np.real(major)
-        self.kappa = np.real(kappa)
         self.whirl = "Forward" if self.kappa > 0 else "Backward"
         self.color = (
             tableau_colors["blue"] if self.whirl == "Forward" else tableau_colors["red"]
@@ -364,6 +327,83 @@ class Orbit(Results):
         return fig
 
 
+@njit
+def _init_orbit(ru_e, rv_e):
+    # data for plotting
+    num_points = 360
+    c = np.linspace(0, 2 * np.pi, num_points)
+    circle = np.exp(1j * c)
+
+    x_circle = np.real(ru_e * circle)
+    y_circle = np.real(rv_e * circle)
+    angle = np.arctan2(y_circle, x_circle)
+    angle[angle < 0] = angle[angle < 0] + 2 * np.pi
+
+    # find major axis index looking at the first half circle
+    major_index = np.argmax(np.sqrt(x_circle[:180] ** 2 + y_circle[:180] ** 2))
+    major_x = x_circle[major_index]
+    major_y = y_circle[major_index]
+    major_angle = angle[major_index]
+    minor_angle = major_angle + np.pi / 2
+
+    # calculate T matrix
+    ru = np.absolute(ru_e)
+    rv = np.absolute(rv_e)
+
+    nu = np.angle(ru_e)
+    nv = np.angle(rv_e)
+    nu = nu
+    nv = nv
+    # fmt: off
+    T = np.array([[ru * np.cos(nu), -ru * np.sin(nu)],
+                    [rv * np.cos(nv), -rv * np.sin(nv)]])
+    # fmt: on
+    H = T @ T.T
+
+    lam = la.eigvals(H).astype(np.complex128)
+    # lam is the eigenvalue -> sqrt(lam) is the minor/major axis.
+    # kappa encodes the relation between the axis and the precession.
+    minor = np.sqrt(lam.min())
+    major = np.sqrt(lam.max())
+
+    diff = nv - nu
+
+    # we need to evaluate if 0 < nv - nu < pi.
+    if diff < -np.pi:
+        diff += 2 * np.pi
+    elif diff > np.pi:
+        diff -= 2 * np.pi
+
+    # if nv = nu or nv = nu + pi then the response is a straight line.
+    if diff == 0 or diff == np.pi:
+        kappa = 0
+    # if 0 < nv - nu < pi, then a backward rotating mode exists.
+    elif 0 < diff < np.pi:
+        kappa = -minor / major
+    else:
+        kappa = minor / major
+
+    minor_axis = np.real(minor)
+    major_axis = np.real(major)
+    kappa = np.real(kappa)
+
+    return (
+        x_circle,
+        y_circle,
+        angle,
+        major_x,
+        major_y,
+        major_angle,
+        minor_angle,
+        major_index,
+        nu,
+        nv,
+        minor_axis,
+        major_axis,
+        kappa,
+    )
+
+
 class Shape(Results):
     """Class used to construct a mode or a deflected shape from a eigen or response vector.
 
@@ -424,20 +464,29 @@ class Shape(Results):
         self._calculate()
 
     def _classify(self):
-        size = len(self.vector)
-
-        axial_dofs = np.arange(2, size, self.number_dof)
-        torsional_dofs = np.arange(5, size, self.number_dof)
-
-        nonzero_dofs = np.nonzero(np.abs(self.vector).round(6))[0]
-
         self.mode_type = "Lateral"
-        if np.isin(nonzero_dofs, axial_dofs).all():
-            self.mode_type = "Axial"
-            self.color = tableau_colors["orange"]
-        elif np.isin(nonzero_dofs, torsional_dofs).all():
-            self.mode_type = "Torsional"
-            self.color = tableau_colors["green"]
+
+        if self.number_dof == 6:
+            size = len(self.vector)
+
+            norm_vec = abs(self.vector) / la.norm(abs(self.vector))
+            nonzero_dofs = np.where(norm_vec > 0.08)[0]
+
+            dofs_count = [
+                sum(np.isin(np.arange(i, size, self.number_dof), nonzero_dofs))
+                for i in range(self.number_dof)
+            ]
+
+            axial_percent = dofs_count[2] / sum(dofs_count)
+            torsional_percent = dofs_count[5] / sum(dofs_count)
+
+            if axial_percent > 0.9:
+                self.mode_type = "Axial"
+                self.color = tableau_colors["orange"]
+
+            elif torsional_percent > 0.9:
+                self.mode_type = "Torsional"
+                self.color = tableau_colors["green"]
 
     def _calculate_orbits(self):
         orbits = []
@@ -450,95 +499,98 @@ class Shape(Results):
 
         self.orbits = orbits
         # check shape whirl
-        if self.mode_type == "Lateral":
-            if all(w == "Forward" for w in whirl):
-                self.whirl = "Forward"
-                self.color = tableau_colors["blue"]
-            elif all(w == "Backward" for w in whirl):
-                self.whirl = "Backward"
-                self.color = tableau_colors["red"]
-            else:
-                self.whirl = "Mixed"
-                self.color = tableau_colors["gray"]
+        if all(w == "Forward" for w in whirl):
+            self.whirl = "Forward"
+            self.color = tableau_colors["blue"]
+        elif all(w == "Backward" for w in whirl):
+            self.whirl = "Backward"
+            self.color = tableau_colors["red"]
         else:
-            self.whirl = "None"
+            self.whirl = "Mixed"
+            self.color = tableau_colors["gray"]
 
     def _calculate(self):
-        evec = self._evec
-        nodes = self.nodes
-        shaft_elements_length = self.shaft_elements_length
-        nodes_pos = self.nodes_pos
-        num_dof = self.number_dof
+        if self.mode_type == "Lateral":
+            evec = self._evec
+            nodes = self.nodes
+            shaft_elements_length = self.shaft_elements_length
+            nodes_pos = self.nodes_pos
+            num_dof = self.number_dof
 
-        # calculate each orbit
-        self._calculate_orbits()
+            # calculate each orbit
+            self._calculate_orbits()
 
-        # plot lines
-        nn = 5  # number of points in each line between nodes
-        zeta = np.linspace(0, 1, nn)
-        onn = np.ones_like(zeta)
+            # plot lines
+            nn = 5  # number of points in each line between nodes
+            zeta = np.linspace(0, 1, nn)
+            onn = np.ones_like(zeta)
 
-        zeta = zeta.reshape(nn, 1)
-        onn = onn.reshape(nn, 1)
+            zeta = zeta.reshape(nn, 1)
+            onn = onn.reshape(nn, 1)
 
-        xn = np.zeros(nn * (len(nodes) - 1))
-        yn = np.zeros(nn * (len(nodes) - 1))
-        xn_complex = np.zeros(nn * (len(nodes) - 1), dtype=np.complex128)
-        yn_complex = np.zeros(nn * (len(nodes) - 1), dtype=np.complex128)
-        zn = np.zeros(nn * (len(nodes) - 1))
-        major = np.zeros(nn * (len(nodes) - 1))
-        major_x = np.zeros(nn * (len(nodes) - 1))
-        major_y = np.zeros(nn * (len(nodes) - 1))
-        major_angle = np.zeros(nn * (len(nodes) - 1))
+            xn = np.zeros(nn * (len(nodes) - 1))
+            yn = np.zeros(nn * (len(nodes) - 1))
+            xn_complex = np.zeros(nn * (len(nodes) - 1), dtype=np.complex128)
+            yn_complex = np.zeros(nn * (len(nodes) - 1), dtype=np.complex128)
+            zn = np.zeros(nn * (len(nodes) - 1))
+            major = np.zeros(nn * (len(nodes) - 1))
+            major_x = np.zeros(nn * (len(nodes) - 1))
+            major_y = np.zeros(nn * (len(nodes) - 1))
+            major_angle = np.zeros(nn * (len(nodes) - 1))
 
-        N1 = onn - 3 * zeta**2 + 2 * zeta**3
-        N2 = zeta - 2 * zeta**2 + zeta**3
-        N3 = 3 * zeta**2 - 2 * zeta**3
-        N4 = -(zeta**2) + zeta**3
+            N1 = onn - 3 * zeta**2 + 2 * zeta**3
+            N2 = zeta - 2 * zeta**2 + zeta**3
+            N3 = 3 * zeta**2 - 2 * zeta**3
+            N4 = -(zeta**2) + zeta**3
 
-        for Le, n in zip(shaft_elements_length, nodes):
-            node_pos = nodes_pos[n]
-            Nx = np.hstack((N1, Le * N2, N3, Le * N4))
-            Ny = np.hstack((N1, -Le * N2, N3, -Le * N4))
+            for Le, n in zip(shaft_elements_length, nodes):
+                node_pos = nodes_pos[n]
+                Nx = np.hstack((N1, Le * N2, N3, Le * N4))
+                Ny = np.hstack((N1, -Le * N2, N3, -Le * N4))
 
-            ind = num_dof * n
-            xx = [
-                ind + 0,
-                ind + int(num_dof / 2) + 1,
-                ind + num_dof + 0,
-                ind + int(3 * num_dof / 2) + 1,
-            ]
-            yy = [
-                ind + 1,
-                ind + int(num_dof / 2) + 0,
-                ind + num_dof + 1,
-                ind + int(3 * num_dof / 2) + 0,
-            ]
+                ind = num_dof * n
+                xx = [
+                    ind + 0,
+                    ind + int(num_dof / 2) + 1,
+                    ind + num_dof + 0,
+                    ind + int(3 * num_dof / 2) + 1,
+                ]
+                yy = [
+                    ind + 1,
+                    ind + int(num_dof / 2) + 0,
+                    ind + num_dof + 1,
+                    ind + int(3 * num_dof / 2) + 0,
+                ]
 
-            pos0 = nn * n
-            pos1 = nn * (n + 1)
+                pos0 = nn * n
+                pos1 = nn * (n + 1)
 
-            xn[pos0:pos1] = Nx @ evec[xx].real
-            yn[pos0:pos1] = Ny @ evec[yy].real
-            zn[pos0:pos1] = (node_pos * onn + Le * zeta).reshape(nn)
+                xn[pos0:pos1] = Nx @ evec[xx].real
+                yn[pos0:pos1] = Ny @ evec[yy].real
+                zn[pos0:pos1] = (node_pos * onn + Le * zeta).reshape(nn)
 
-            # major axes calculation
-            xn_complex[pos0:pos1] = Nx @ evec[xx]
-            yn_complex[pos0:pos1] = Ny @ evec[yy]
-            for i in range(pos0, pos1):
-                orb = Orbit(node=0, node_pos=0, ru_e=xn_complex[i], rv_e=yn_complex[i])
-                major[i] = orb.major_axis
-                major_x[i] = orb.major_x
-                major_y[i] = orb.major_y
-                major_angle[i] = orb.major_angle
+                # major axes calculation
+                xn_complex[pos0:pos1] = Nx @ evec[xx]
+                yn_complex[pos0:pos1] = Ny @ evec[yy]
+                for i in range(pos0, pos1):
+                    orb = Orbit(
+                        node=0, node_pos=0, ru_e=xn_complex[i], rv_e=yn_complex[i]
+                    )
+                    major[i] = orb.major_axis
+                    major_x[i] = orb.major_x
+                    major_y[i] = orb.major_y
+                    major_angle[i] = orb.major_angle
 
-        self.xn = xn
-        self.yn = yn
-        self.zn = zn
-        self.major_axis = major
-        self.major_x = major_x
-        self.major_y = major_y
-        self.major_angle = major_angle
+            self.xn = xn
+            self.yn = yn
+            self.zn = zn
+            self.major_axis = major
+            self.major_x = major_x
+            self.major_y = major_y
+            self.major_angle = major_angle
+
+        else:
+            self.whirl = "None"
 
     def plot_orbit(self, nodes, fig=None):
         """Plot orbits.
@@ -995,6 +1047,213 @@ class Shape(Results):
 
         return fig
 
+    def _plot_orbits(
+        self, animation=False, length_units="m", phase_units="rad", fig=None
+    ):
+        if fig is None:
+            fig = go.Figure()
+
+        xn = self.xn.copy()
+        yn = self.yn.copy()
+        zn = self.zn.copy()
+        zn = Q_(zn, "m").to(length_units).m
+
+        frames = []
+        initial_state = []
+        fixed_lines = []
+
+        ntimes = 4  # number of times to animate
+        step = 20  # step interval for showing orbit marker
+        orbit_len = len(self.orbits[0].x_circle)
+        orbit_range = np.tile(np.arange(0, orbit_len, step), ntimes)
+
+        # plot orbits
+        for n, i in enumerate(orbit_range):
+            orbit_data = []
+            first_orbit = True
+
+            if n < orbit_len / step:
+                j = np.arange(max(i - orbit_len, 0), i)
+            else:
+                j = np.arange(i - orbit_len, i)
+
+            for orbit in self.orbits:
+                zc_pos = np.repeat(orbit.node_pos, len(orbit.x_circle))
+                zc_pos = Q_(zc_pos, "m").to(length_units).m
+
+                # add orbit point
+                orbit_data.append(
+                    go.Scatter3d(
+                        x=[zc_pos[i]],
+                        y=[orbit.x_circle[i]],
+                        z=[orbit.y_circle[i]],
+                        mode="markers",
+                        marker=dict(color=orbit.color),
+                        name="node {}".format(orbit.node),
+                        showlegend=False,
+                        hovertemplate=(
+                            "Nodal Position: %{x:.2f}<br>"
+                            + "X - Displacement: %{y:.2f}<br>"
+                            + "Y - Displacement: %{z:.2f}"
+                        ),
+                    )
+                )
+
+                if n > 0:
+                    orbit_data.append(
+                        go.Scatter3d(
+                            x=zc_pos[j],
+                            y=orbit.x_circle[j],
+                            z=orbit.y_circle[j],
+                            mode="lines",
+                            line=dict(color=orbit.color, dash="dashdot"),
+                            name="node {}".format(orbit.node),
+                            showlegend=False,
+                            hovertemplate=(
+                                "Nodal Position: %{x:.2f}<br>"
+                                + "X - Displacement: %{y:.2f}<br>"
+                                + "Y - Displacement: %{z:.2f}"
+                            ),
+                        )
+                    )
+
+                if n == 0:
+                    orbit_data.append(
+                        go.Scatter3d(
+                            x=zc_pos,
+                            y=orbit.x_circle,
+                            z=orbit.y_circle,
+                            mode="lines",
+                            line=dict(color=orbit.color),
+                            name="node {}".format(orbit.node),
+                            showlegend=False,
+                            hovertemplate=(
+                                "Nodal Position: %{x:.2f}<br>"
+                                + "X - Displacement: %{y:.2f}<br>"
+                                + "Y - Displacement: %{z:.2f}"
+                            ),
+                        )
+                    )
+
+                    # add orbit major axis marker
+                    fixed_lines.append(
+                        go.Scatter3d(
+                            x=[zc_pos[0]],
+                            y=[orbit.major_x],
+                            z=[orbit.major_y],
+                            mode="markers",
+                            marker=dict(
+                                color="black", symbol="cross", size=4, line_width=2
+                            ),
+                            name="Major axis",
+                            showlegend=first_orbit,
+                            legendgroup="major_axis",
+                            customdata=np.array(
+                                [
+                                    orbit.major_axis,
+                                    Q_(orbit.major_angle, "rad").to(phase_units).m,
+                                ]
+                            ).reshape(1, 2),
+                            hovertemplate=(
+                                "Nodal Position: %{x:.2f}<br>"
+                                + "Major axis: %{customdata[0]:.2f}<br>"
+                                + "Angle: %{customdata[1]:.2f}"
+                            ),
+                        )
+                    )
+                    first_orbit = False
+
+            frames.append(go.Frame(data=orbit_data))
+
+            if n == 0:
+                initial_state = orbit_data
+
+        # plot line connecting orbits starting points
+        fixed_lines.append(
+            go.Scatter3d(
+                x=zn,
+                y=xn,
+                z=yn,
+                mode="lines",
+                line=dict(color="black", dash="dash"),
+                name="mode shape",
+                showlegend=False,
+            )
+        )
+
+        # plot center line
+        min_pos = min(zn) - 0.15 * abs(max(zn) - min(zn))
+        max_pos = max(zn) + 0.15 * abs(max(zn) - min(zn))
+        fixed_lines.append(
+            go.Scatter3d(
+                x=[min_pos, max_pos],
+                y=[0, 0],
+                z=[0, 0],
+                mode="lines",
+                line=dict(color="black", dash="dashdot"),
+                hoverinfo="none",
+                showlegend=False,
+            ),
+        )
+
+        # plot major axis line
+        fixed_lines.append(
+            go.Scatter3d(
+                x=zn,
+                y=self.major_x,
+                z=self.major_y,
+                mode="lines",
+                line=dict(color="black", dash="dashdot"),
+                hoverinfo="none",
+                legendgroup="major_axis",
+                showlegend=False,
+            ),
+        )
+
+        fig.add_traces(data=[*initial_state, *fixed_lines])
+
+        if not animation:
+            return fig
+
+        fig.update(
+            layout=dict(
+                updatemenus=[
+                    dict(
+                        type="buttons",
+                        buttons=[
+                            dict(
+                                args=[
+                                    None,
+                                    dict(
+                                        frame=dict(duration=50, redraw=True),
+                                        mode="immediate",
+                                    ),
+                                ],
+                                label="Play",
+                                method="animate",
+                            ),
+                            dict(
+                                args=[
+                                    [None],
+                                    dict(
+                                        frame=dict(duration=0, redraw=False),
+                                        mode="immediate",
+                                    ),
+                                ],
+                                label="Pause",
+                                method="animate",
+                            ),
+                        ],
+                        x=0.05,
+                        y=0.25,
+                    )
+                ]
+            ),
+            frames=frames,
+        )
+
+        return fig
+
     def plot_3d(
         self,
         mode=None,
@@ -1026,120 +1285,11 @@ class Shape(Results):
             )
 
         else:
-            xn = self.xn.copy()
-            yn = self.yn.copy()
-            zn = self.zn.copy()
-
-            # plot orbits
-            first_orbit = True
-            for orbit in self.orbits:
-                zc_pos = (
-                    Q_(np.repeat(orbit.node_pos, len(orbit.x_circle)), "m")
-                    .to(length_units)
-                    .m
-                )
-                fig.add_trace(
-                    go.Scatter3d(
-                        x=zc_pos[:-10],
-                        y=orbit.x_circle[:-10],
-                        z=orbit.y_circle[:-10],
-                        mode="lines",
-                        line=dict(color=orbit.color),
-                        name="node {}".format(orbit.node),
-                        showlegend=False,
-                        hovertemplate=(
-                            "Nodal Position: %{x:.2f}<br>"
-                            + "X - Displacement: %{y:.2f}<br>"
-                            + "Y - Displacement: %{z:.2f}"
-                        ),
-                    )
-                )
-                # add orbit start
-                fig.add_trace(
-                    go.Scatter3d(
-                        x=[zc_pos[0]],
-                        y=[orbit.x_circle[0]],
-                        z=[orbit.y_circle[0]],
-                        mode="markers",
-                        marker=dict(color=orbit.color),
-                        name="node {}".format(orbit.node),
-                        showlegend=False,
-                        hovertemplate=(
-                            "Nodal Position: %{x:.2f}<br>"
-                            + "X - Displacement: %{y:.2f}<br>"
-                            + "Y - Displacement: %{z:.2f}"
-                        ),
-                    )
-                )
-                # add orbit major axis marker
-                fig.add_trace(
-                    go.Scatter3d(
-                        x=[zc_pos[0]],
-                        y=[orbit.major_x],
-                        z=[orbit.major_y],
-                        mode="markers",
-                        marker=dict(
-                            color="black", symbol="cross", size=4, line_width=2
-                        ),
-                        name="Major axis",
-                        showlegend=True if first_orbit else False,
-                        legendgroup="major_axis",
-                        customdata=np.array(
-                            [
-                                orbit.major_axis,
-                                Q_(orbit.major_angle, "rad").to(phase_units).m,
-                            ]
-                        ).reshape(1, 2),
-                        hovertemplate=(
-                            "Nodal Position: %{x:.2f}<br>"
-                            + "Major axis: %{customdata[0]:.2f}<br>"
-                            + "Angle: %{customdata[1]:.2f}"
-                        ),
-                    )
-                )
-                first_orbit = False
-
-            # plot line connecting orbits starting points
-            fig.add_trace(
-                go.Scatter3d(
-                    x=Q_(zn, "m").to(length_units).m,
-                    y=xn,
-                    z=yn,
-                    mode="lines",
-                    line=dict(color="black", dash="dash"),
-                    name="mode shape",
-                    showlegend=False,
-                )
-            )
-
-            # plot center line
-            zn_cl0 = -(zn[-1] * 0.1)
-            zn_cl1 = zn[-1] * 1.1
-            zn_cl = np.linspace(zn_cl0, zn_cl1, 30)
-            fig.add_trace(
-                go.Scatter3d(
-                    x=Q_(zn_cl, "m").to(length_units).m,
-                    y=zn_cl * 0,
-                    z=zn_cl * 0,
-                    mode="lines",
-                    line=dict(color="black", dash="dashdot"),
-                    hoverinfo="none",
-                    showlegend=False,
-                )
-            )
-
-            # plot major axis line
-            fig.add_trace(
-                go.Scatter3d(
-                    x=Q_(zn, "m").to(length_units).m,
-                    y=self.major_x,
-                    z=self.major_y,
-                    mode="lines",
-                    line=dict(color="black", dash="dashdot"),
-                    hoverinfo="none",
-                    legendgroup="major_axis",
-                    showlegend=False,
-                )
+            fig = self._plot_orbits(
+                animation=animation,
+                length_units=length_units,
+                phase_units=phase_units,
+                fig=fig,
             )
 
         fig.update_layout(
@@ -4931,10 +5081,12 @@ class TimeResponseResults(Results):
         - 1d: plot time response for given probes.
         - 2d: plot orbit of a selected node of a rotor system.
         - 3d: plot orbits for each node on the rotor system in a 3D view.
+        - dfft: plot response in frequency domain for given probes.
 
     plot_1d: input probes.
     plot_2d: input a node.
     plot_3d: no need to input probes or node.
+    plot_dfft: input probes.
 
     Parameters
     ----------
@@ -4965,6 +5117,7 @@ class TimeResponseResults(Results):
         probe_units="rad",
         displacement_units="m",
         time_units="s",
+        init_step=0,
     ):
         """Return the time response given a list of probes in DataFrame format.
 
@@ -4972,7 +5125,7 @@ class TimeResponseResults(Results):
         ----------
         probe : list
             List with rs.Probe objects.
-        probe_units : str, option
+        probe_units : str, optional
             Units for probe orientation.
             Default is "rad".
         displacement_units : str, optional
@@ -4981,6 +5134,9 @@ class TimeResponseResults(Results):
         time_units : str
             Time units.
             Default is 's'.
+        init_step : int, optional
+            The index of the initial time step from which to extract the response.
+            Default is 0.
 
         Returns
         -------
@@ -5035,17 +5191,17 @@ class TimeResponseResults(Results):
                     [-np.sin(angle), np.cos(angle)]]
                 )
 
-                _probe_resp = operator @ np.vstack((self.yout[:, dofx], self.yout[:, dofy]))
+                _probe_resp = operator @ np.vstack((self.yout[init_step:, dofx], self.yout[init_step:, dofy]))
                 probe_resp = _probe_resp[0,:]
                 # fmt: on
             else:
                 dofz = ndof * node + 2 - fix_dof
-                probe_resp = self.yout[:, dofz]
+                probe_resp = self.yout[init_step:, dofz]
 
             probe_resp = Q_(probe_resp, "m").to(displacement_units).m
             data[f"probe_resp[{i}]"] = probe_resp
 
-        data["time"] = Q_(self.t, "s").to(time_units).m
+        data["time"] = Q_(self.t[init_step:], "s").to(time_units).m
         df = pd.DataFrame(data)
 
         return df
@@ -5254,6 +5410,136 @@ class TimeResponseResults(Results):
             ),
             **kwargs,
         )
+
+        return fig
+
+    def _dfft(self, y, dt):
+        """Calculate dFFT - discrete Fourier Transform.
+
+        Parameters
+        ----------
+        y : np.array
+            Magnitude of the response in time domain (m).
+        dt : int
+            Time step (s).
+
+        Returns
+        -------
+        freq : np.array
+            Frequency range (Hz).
+        y_amp : np.array
+            Amplitude of the response in frequency domain (m).
+        y_phase : np.array
+            Phase of the response in frequency domain (rad).
+        """
+        b = np.floor(len(y) / 2)
+        c = len(y)
+        df = 1 / (c * dt)
+
+        y_amp = fft(y)[: int(b)]
+        y_amp = y_amp * 2 / c
+
+        y_phase = np.angle(y_amp)
+        y_amp = np.abs(y_amp)
+
+        freq = np.arange(0, df * b, df)
+        freq = freq[: int(b)]
+
+        return freq, y_amp, y_phase
+
+    @check_units
+    def plot_dfft(
+        self,
+        probe,
+        probe_units="rad",
+        displacement_units="m",
+        frequency_units="Hz",
+        frequency_range=None,
+        fig=None,
+        **kwargs,
+    ):
+        """Plot response in frequency domain.
+
+        This method plots the frequency domain response using Discrete Fourier
+        Transform (dFFT) given a list of probes using Plotly.
+
+        Parameters
+        ----------
+        probe : list
+            List with rs.Probe objects.
+        probe_units : str, option
+            Units for probe orientation.
+            Default is "rad".
+        displacement_units : str, optional
+            Displacement units.
+            Default is "m".
+        frequency_units : str
+            Frequency units.
+            Default is "Hz".
+        frequency_range : tuple, pint.Quantity(tuple), optional
+            Tuple with (min, max) values for the frequencies that will be plotted.
+            Frequencies that are not within the range are filtered out and are not plotted.
+            It is possible to use a pint Quantity (e.g. Q_((2000, 1000), "RPM")).
+            Default is None (no filter).
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        kwargs : optional
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. xaxis=dict(range=[0, 1000]), yaxis=dict(type="log")).
+            *See Plotly Python Figure Reference for more information.
+
+        Returns
+        -------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        """
+        if fig is None:
+            fig = go.Figure()
+
+        if frequency_range is not None:
+            frequency_range = Q_(frequency_range, "rad/s").to("Hz").m
+
+        rows, cols = self.yout.shape
+        init_step = int(2 * rows / 3)
+
+        data = self.data_time_response(
+            probe, probe_units, displacement_units, init_step=init_step
+        )
+        t = data["time"].values
+        dt = t[1] - t[0]
+
+        for i, p in enumerate(probe):
+            try:
+                probe_tag = data[f"probe_tag[{i}]"].values[0]
+                probe_resp = data[f"probe_resp[{i}]"].values
+
+                freq, amp, _ = self._dfft(probe_resp, dt)
+
+                if frequency_range is not None:
+                    amp = amp[
+                        (freq >= frequency_range[0]) & (freq <= frequency_range[1])
+                    ]
+                    freq = freq[
+                        (freq >= frequency_range[0]) & (freq <= frequency_range[1])
+                    ]
+
+                fig.add_trace(
+                    go.Scatter(
+                        x=Q_(freq, "Hz").to(frequency_units).m,
+                        y=Q_(amp, "m").to(displacement_units).m,
+                        mode="lines",
+                        name=probe_tag,
+                        legendgroup=probe_tag,
+                        showlegend=True,
+                        hovertemplate=f"Frequency ({frequency_units}): %{{x:.2f}}<br>Amplitude ({displacement_units}): %{{y:.2e}}",
+                    )
+                )
+            except KeyError:
+                pass
+
+        fig.update_xaxes(title_text=f"Frequency ({frequency_units})")
+        fig.update_yaxes(title_text=f"Amplitude ({displacement_units})")
+        fig.update_layout(**kwargs)
 
         return fig
 

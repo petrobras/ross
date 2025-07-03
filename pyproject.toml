@@ -39,7 +39,7 @@ exclude = ["ross.tests*"]  # empty by default
 [project]
 name = "ross-rotordynamics"
 dynamic = ["version", "dependencies"]
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 authors = [
     {name = "ROSS developers"},
     {name = "Raphael Timbo Silva", email = "raphaelts@petrobras.com.br"}

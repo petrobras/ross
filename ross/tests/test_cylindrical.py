@@ -1,19 +1,18 @@
-import math
-
-import numpy as np
 import pytest
-from numpy.testing import assert_allclose, assert_almost_equal
+from numpy.testing import assert_allclose
 
-from ross.bearing.cylindrical import THDCylindrical
+from ross.bearings.cylindrical import THDCylindrical
 from ross.units import Q_
 
 
 @pytest.fixture
 def cylindrical():
-    speed = Q_([900], "RPM")
+    frequency = Q_([900], "RPM")
     L = Q_(10.3600055944, "in")
+    oil_flow = Q_(37.86, "l/min")
 
     bearing = THDCylindrical(
+        n=3,
         axial_length=L,
         journal_radius=0.2,
         radial_clearance=1.95e-4,
@@ -24,19 +23,18 @@ def cylindrical():
         preload=0,
         geometry="circular",
         reference_temperature=50,
-        speed=speed,
-        load_x_direction=0,
-        load_y_direction=-112814.91,
+        frequency=frequency,
+        fxs_load=0,
+        fys_load=-112814.91,
         groove_factor=[0.52, 0.48],
         lubricant="ISOVG32",
-        node=3,
         sommerfeld_type=2,
         initial_guess=[0.1, -0.1],
         method="perturbation",
         operating_type="flooded",
-        injection_pressure=0,
-        oil_flow=37.86,
-        show_coef=False,
+        oil_supply_pressure=0,
+        oil_flow_v=oil_flow,
+        show_coeffs=False,
         print_result=False,
         print_progress=False,
         print_time=False,
@@ -46,34 +44,29 @@ def cylindrical():
 
 
 def test_cylindrical_parameters(cylindrical):
-    assert math.isclose(cylindrical.axial_length, 0.263144, rel_tol=0.0001)
-    assert cylindrical.journal_radius == 0.2
-    assert cylindrical.speed == 94.24777960769379
-    assert cylindrical.rho == 873.99629
-    assert cylindrical.reference_temperature == 50
+    assert_allclose(cylindrical.axial_length, 0.263144, rtol=0.0001)
+    assert_allclose(cylindrical.journal_radius, 0.2)
+    assert_allclose(cylindrical.frequency, 94.24777961)
+    assert_allclose(cylindrical.rho, 873.99629)
+    assert_allclose(cylindrical.reference_temperature, 50)
 
 
 def test_cylindrical_equilibrium_pos(cylindrical):
-    assert math.isclose(cylindrical.equilibrium_pos[0], 0.68733194, rel_tol=0.01)
-    assert math.isclose(cylindrical.equilibrium_pos[1], -0.79394211, rel_tol=0.01)
+    assert_allclose(cylindrical.equilibrium_pos[0], 0.68733194, rtol=0.01)
+    assert_allclose(cylindrical.equilibrium_pos[1], -0.79394211, rtol=0.01)
 
 
 def test_cylindrical_coefficients(cylindrical):
-    coefs = cylindrical.coefficients()
-    kxx = coefs[0][0]
-    kxy = coefs[0][1]
-    kyx = coefs[0][2]
-    kyy = coefs[0][3]
-    cxx = coefs[1][0]
-    cxy = coefs[1][1]
-    cyx = coefs[1][2]
-    cyy = coefs[1][3]
+    frequency = Q_(900, "RPM")
+    coeffs = cylindrical.coefficients(frequency)
+    kxx, kxy, kyx, kyy = coeffs[0]
+    cxx, cxy, cyx, cyy = coeffs[1]
 
-    assert math.isclose(kxx, 2497674531.1749372, rel_tol=0.0001)
-    assert math.isclose(kxy, 783937669.6587772, rel_tol=0.0001)
-    assert math.isclose(kyx, -3140562821.5290236, rel_tol=0.0001)
-    assert math.isclose(kyy, 2562440911.734241, rel_tol=0.0001)
-    assert math.isclose(cxx, 36950674.61976142, rel_tol=0.0001)
-    assert math.isclose(cxy, -37265296.2322692, rel_tol=0.0001)
-    assert math.isclose(cyx, -42642543.712838694, rel_tol=0.0001)
-    assert math.isclose(cyy, 100992315.0043159, rel_tol=0.0001)
+    assert_allclose(kxx, 2497674531.1749372, rtol=0.0001)
+    assert_allclose(kxy, 783937669.6587772, rtol=0.0001)
+    assert_allclose(kyx, -3140562821.5290236, rtol=0.0001)
+    assert_allclose(kyy, 2562440911.734241, rtol=0.0001)
+    assert_allclose(cxx, 36950674.61976142, rtol=0.0001)
+    assert_allclose(cxy, -37265296.2322692, rtol=0.0001)
+    assert_allclose(cyx, -42642543.712838694, rtol=0.0001)
+    assert_allclose(cyy, 100992315.0043159, rtol=0.0001)

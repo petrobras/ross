@@ -17,6 +17,8 @@ from .shaft_element import *
 from .coupling_element import *
 from .units import Q_
 from .utils import get_data_from_figure, visualize_matrix
-from ross.bearing.lubricants import lubricants_dict
+from ross.bearings.lubricants import lubricants_dict
+from ross.bearings.cylindrical import *
+from ross.seals.labyrinth_seal import * 
 
 _pio.templates.default = "ross"
