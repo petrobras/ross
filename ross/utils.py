@@ -927,6 +927,11 @@ def convert_6dof_to_torsional(rotor):
     This function takes a 6 dof rotor model and modifies it by removing the axial and
     lateral dofs. It adjusts the corresponding matrix methods to reflect this change.
 
+    Important Note:
+    Some Rotor class methods, such as `run_ucs`, and `run_unbalance_response`, may not
+    work correctly with the modified rotor object. This is because these methods expect a
+    rotor with 6 dofs or at least 4 dofs.
+
     Parameters
     ----------
     rotor: rs.Rotor
