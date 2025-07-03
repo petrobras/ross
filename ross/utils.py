@@ -951,7 +951,7 @@ def convert_6dof_to_torsional(rotor):
     True
     >>> M_tdof.shape
     (7, 7)
-    >>> len(M_4dof) == n_nodes * 1
+    >>> len(M_tdof) == n_nodes * 1
     True
     """
     # Copy the rotor object
