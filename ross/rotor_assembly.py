@@ -1031,7 +1031,6 @@ class Rotor(object):
 
         return results
 
-    @lru_cache()
     def M(self, frequency=None, synchronous=False):
         """Mass matrix for an instance of a rotor.
 
@@ -1102,7 +1101,6 @@ class Rotor(object):
 
         return M0
 
-    @lru_cache()
     def K(self, frequency, ignore=()):
         """Stiffness matrix for an instance of a rotor.
 
@@ -1140,7 +1138,6 @@ class Rotor(object):
 
         return K0
 
-    @lru_cache()
     def Ksdt(self):
         """Dynamic stiffness matrix for an instance of a rotor.
 
@@ -1176,7 +1173,6 @@ class Rotor(object):
 
         return Ksdt0
 
-    @lru_cache()
     def C(self, frequency, ignore=()):
         """Damping matrix for an instance of a rotor.
 
@@ -1214,7 +1210,6 @@ class Rotor(object):
 
         return C0
 
-    @lru_cache()
     def G(self):
         """Gyroscopic matrix for an instance of a rotor.
 
@@ -1240,7 +1235,6 @@ class Rotor(object):
 
         return G0
 
-    @lru_cache()
     def A(self, speed=0, frequency=None, synchronous=False):
         """State space matrix for an instance of a rotor.
 

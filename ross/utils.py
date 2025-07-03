@@ -910,6 +910,10 @@ def convert_6dof_to_4dof(rotor):
     new_rotor.C = lambda frequency: remove_dofs(rotor.C(frequency))
     new_rotor.G = lambda: remove_dofs(rotor.G())
 
+    # Because of lru_cache, we need to unwrap the methods
+    new_rotor.run_modal = new_rotor.run_modal.__wrapped__
+    new_rotor._run_freq_response = new_rotor._run_freq_response.__wrapped__
+
     # Update number of dofs
     new_rotor.number_dof = 4
     new_rotor.ndof = len(new_rotor.M())
@@ -964,6 +968,10 @@ def convert_6dof_to_torsional(rotor):
     new_rotor.Ksdt = lambda: remove_dofs(rotor.Ksdt(), dofs)
     new_rotor.C = lambda frequency: remove_dofs(rotor.C(frequency), dofs)
     new_rotor.G = lambda: remove_dofs(rotor.G(), dofs)
+
+    # Because of lru_cache, we need to unwrap the methods
+    new_rotor.run_modal = new_rotor.run_modal.__wrapped__
+    new_rotor._run_freq_response = new_rotor._run_freq_response.__wrapped__
 
     # Update number of dofs
     new_rotor.number_dof = 1
