@@ -1951,7 +1951,8 @@ class CampbellResults(Results):
         Function that runs the modal analysis.
     campbell_torsional : CampbellResults, optional
         If True, the Campbell Diagram includes separated torsional modes.
-        Default is None, which means that torsional modes are not included.
+        Default is None, which means that torsional modes obtained in the
+        separated analysis are not included.
 
     Returns
     -------

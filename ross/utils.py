@@ -929,8 +929,8 @@ def convert_6dof_to_torsional(rotor):
 
     Important Note:
     Some Rotor class methods, such as `run_ucs`, and `run_unbalance_response`, may not
-    work correctly with the modified rotor object. This is because these methods expect a
-    rotor with 6 dofs or at least 4 dofs.
+    work correctly with the modified rotor object. This is because these methods expect
+    a rotor with 6 dofs or at least 4 dofs.
 
     Parameters
     ----------
