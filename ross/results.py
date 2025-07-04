@@ -1950,9 +1950,9 @@ class CampbellResults(Results):
     run_modal : callable
         Function that runs the modal analysis.
     campbell_torsional : CampbellResults, optional
-        If True, the Campbell Diagram includes separated torsional modes.
-        Default is None, which means that torsional modes obtained in the
-        separated analysis are not included.
+        If True, the Campbell Diagram includes torsional modes of separated
+        analysis. Default is None, which means that torsional modes obtained
+        in the separated analysis are not included.
 
     Returns
     -------
@@ -2280,7 +2280,7 @@ class CampbellResults(Results):
 
             for trace in torsional_fig.data:
                 if trace.name == "Torsional":
-                    new_name = "Separated Torsional Analysis"
+                    new_name = "Torsional Analysis"
                     trace.name = new_name
                     trace.legendgroup = new_name
                     trace.marker.symbol = "bowtie-open"
@@ -2336,7 +2336,7 @@ class CampbellResults(Results):
             speed = clicked_point["x"]
             natural_frequency = clicked_point["y"]
 
-            if camp_fig.data[curve_id].name == "Separated Torsional Analysis":
+            if camp_fig.data[curve_id].name == "Torsional Analysis":
                 update_func = self.campbell_torsional._update_plot_mode_3d
             else:
                 update_func = self._update_plot_mode_3d
