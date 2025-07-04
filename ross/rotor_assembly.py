@@ -54,6 +54,7 @@ from ross.utils import (
     assemble_C_K_matrices,
     remove_dofs,
     convert_6dof_to_4dof,
+    convert_6dof_to_torsional,
 )
 
 __all__ = [
@@ -2657,7 +2658,9 @@ class Rotor(object):
         return fig
 
     @check_units
-    def run_campbell(self, speed_range, frequencies=6, frequency_type="wd"):
+    def run_campbell(
+        self, speed_range, frequencies=6, frequency_type="wd", torsional_analysis=False
+    ):
         """Calculate the Campbell diagram.
 
         This function will calculate the damped natural frequencies
@@ -2763,6 +2766,14 @@ class Rotor(object):
                 results[i, :, 2] = modal.damping_ratio[idx][:frequencies]
                 results[i, :, 3] = modal.whirl_values()[idx][:frequencies]
 
+        if torsional_analysis:
+            rotor_t = convert_6dof_to_torsional(self)
+            campbell_t = rotor_t.run_campbell(
+                speed_range=speed_range,
+                frequencies=int(frequencies / 6),
+                frequency_type=frequency_type,
+            )
+
         results = CampbellResults(
             speed_range=speed_range,
             wd=results[..., 0],
@@ -2772,6 +2783,7 @@ class Rotor(object):
             modal_results=modal_results,
             number_dof=self.number_dof,
             run_modal=lambda w: self.run_modal(speed=w, num_modes=num_modes, full=True),
+            campbell_torsional=campbell_t if torsional_analysis else None,
         )
 
         return results

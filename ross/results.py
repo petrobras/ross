@@ -1962,6 +1962,7 @@ class CampbellResults(Results):
         modal_results,
         number_dof,
         run_modal,
+        campbell_torsional=None,
     ):
         self.speed_range = speed_range
         self.wd = wd
@@ -1971,6 +1972,7 @@ class CampbellResults(Results):
         self.modal_results = modal_results
         self.number_dof = number_dof
         self.run_modal = run_modal
+        self.campbell_torsional = campbell_torsional
 
     def sort_by_mode_type(self):
         """Sort by mode type.
@@ -2257,6 +2259,25 @@ class CampbellResults(Results):
             **kwargs,
         )
 
+        if self.campbell_torsional:
+            torsional_fig = self.campbell_torsional.plot(
+                harmonics=[],
+                frequency_units=frequency_units,
+                speed_units=speed_units,
+                frequency_range=frequency_range,
+                damping_range=damping_range,
+                fig=None,
+                **kwargs,
+            )
+
+            for trace in torsional_fig.data:
+                if trace.name == "Torsional":
+                    new_name = "Separated Torsional Analysis"
+                    trace.name = new_name
+                    trace.legendgroup = new_name
+                    trace.marker.symbol = "bowtie-open"
+                    fig.add_trace(trace)
+
         return fig
 
     def _plot_with_mode_shape(
@@ -2303,37 +2324,65 @@ class CampbellResults(Results):
 
                 return mode_3d_fig
 
+            curve_id = clicked_point["curveNumber"]
             speed = clicked_point["x"]
             natural_frequency = clicked_point["y"]
 
-            try:
-                speed_key = min(
-                    self.modal_results.keys(),
-                    key=lambda k: abs(k - Q_(speed, speed_units).to("rad/s").m),
-                )
-                modal = self.modal_results[speed_key]
-            except:
-                speed_key = min(
-                    modal_results_crit.keys(),
-                    key=lambda k: abs(k - Q_(speed, speed_units).to("rad/s").m),
-                )
-                modal = modal_results_crit[speed_key]
+            if camp_fig.data[curve_id].name == "Separated Torsional Analysis":
+                update_func = self.campbell_torsional._update_plot_mode_3d
+            else:
+                update_func = self._update_plot_mode_3d
 
-            idx = (
-                np.abs(modal.wd - Q_(natural_frequency, frequency_units).to("rad/s").m)
-            ).argmin()
-
-            updated_fig = modal.plot_mode_3d(
-                idx,
-                frequency_units=frequency_units,
-                damping_parameter=damping_parameter,
-                animation=animation,
+            update_fig = update_func(
+                speed,
+                natural_frequency,
+                modal_results_crit,
+                speed_units,
+                frequency_units,
+                damping_parameter,
+                animation,
             )
-            updated_fig.update_layout(mode_3d_layout)
+            update_fig.update_layout(mode_3d_layout)
 
-            return updated_fig
+            return update_fig
 
         return camp_fig, update_mode_3d
+
+    def _update_plot_mode_3d(
+        self,
+        speed,
+        natural_frequency,
+        modal_results_crit,
+        speed_units,
+        frequency_units,
+        damping_parameter,
+        animation,
+    ):
+        try:
+            speed_key = min(
+                self.modal_results.keys(),
+                key=lambda k: abs(k - Q_(speed, speed_units).to("rad/s").m),
+            )
+            modal = self.modal_results[speed_key]
+        except:
+            speed_key = min(
+                modal_results_crit.keys(),
+                key=lambda k: abs(k - Q_(speed, speed_units).to("rad/s").m),
+            )
+            modal = modal_results_crit[speed_key]
+
+        idx = (
+            np.abs(modal.wd - Q_(natural_frequency, frequency_units).to("rad/s").m)
+        ).argmin()
+
+        updated_fig = modal.plot_mode_3d(
+            idx,
+            frequency_units=frequency_units,
+            damping_parameter=damping_parameter,
+            animation=animation,
+        )
+
+        return updated_fig
 
     def plot_with_mode_shape(
         self,
