@@ -2680,6 +2680,11 @@ class Rotor(object):
             Choose between displaying results related to the undamped natural
             frequencies ("wn") or damped natural frequencies ("wd").
             The default is "wd".
+        torsional_analysis : bool, optional
+            If True, performs a separate torsional analysis and returns the
+            respective modes in the Campbell diagram. In this case, a system
+            with only torsional degrees of freedom is considered, thus
+            disregarding coupled modes (lateral + torsional). Default is False.
 
         Returns
         -------

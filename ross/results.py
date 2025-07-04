@@ -1945,6 +1945,13 @@ class CampbellResults(Results):
         Array with the whirl values (0, 0.5 or 1)
     modal_results : dict
         Dictionary with the modal results for each speed in the speed range.
+    numer_dof : int
+        Number of degrees of freedom of model.
+    run_modal : callable
+        Function that runs the modal analysis.
+    campbell_torsional : CampbellResults, optional
+        If True, the Campbell Diagram includes separated torsional modes.
+        Default is None, which means that torsional modes are not included.
 
     Returns
     -------
