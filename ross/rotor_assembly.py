@@ -716,9 +716,7 @@ class Rotor(object):
 
     @lru_cache()
     @check_units
-    def run_modal(
-        self, speed, num_modes=12, sparse=True, synchronous=False, full=False
-    ):
+    def run_modal(self, speed, num_modes=12, sparse=True, synchronous=False):
         """Run modal analysis.
 
         Method to calculate eigenvalues and eigvectors for a given rotor system.
@@ -753,10 +751,6 @@ class Rotor(object):
         synchronous : bool, optional
             If True a synchronous analysis is carried out.
             Default is False.
-        full : bool, optional
-            If True, the size of the result arrays is equal to `num_modes`.
-            If False, it is half the value of `num_modes`.
-            Default is False.
 
         Returns
         -------
@@ -783,7 +777,7 @@ class Rotor(object):
         evalues, evectors = self._eigen(
             speed, num_modes=num_modes, sparse=sparse, synchronous=synchronous
         )
-        wn_len = num_modes if full else num_modes // 2
+        wn_len = num_modes // 2
         wn = (np.absolute(evalues))[:wn_len]
         wd = (np.imag(evalues))[:wn_len]
         damping_ratio = (-np.real(evalues) / np.absolute(evalues))[:wn_len]
@@ -2720,14 +2714,14 @@ class Rotor(object):
             return np.absolute((H(u) @ v) ** 2 / ((H(u) @ u) * (H(v) @ v)))
 
         num_modes = 2 * (frequencies + 2)  # ensure to get the right modes
-        evec_size = num_modes
+        evec_size = int(num_modes / 2)
         mode_order = np.arange(evec_size)
         threshold = 0.9
         evec_u = []
 
         modal_results = {}
         for i, w in enumerate(speed_range):
-            modal = self.run_modal(speed=w, num_modes=num_modes, full=True)
+            modal = self.run_modal(speed=w, num_modes=num_modes)
             modal_results[w] = modal
 
             evec_v = modal.evectors[:, :evec_size]
@@ -2787,7 +2781,7 @@ class Rotor(object):
             whirl_values=results[..., 3],
             modal_results=modal_results,
             number_dof=self.number_dof,
-            run_modal=lambda w: self.run_modal(speed=w, num_modes=num_modes, full=True),
+            run_modal=lambda w: self.run_modal(speed=w, num_modes=num_modes),
             campbell_torsional=campbell_t if torsional_analysis else None,
         )
 
