@@ -16,6 +16,13 @@ from ross.gear_element import GearElement
 __all__ = ["GearElementTVMS", "Mesh"]
 
 
+def normalize(val, max_val):
+    mod = np.mod(val, max_val)
+    return np.where(
+        np.isclose(mod, 0) & (np.isclose(val % max_val, 0)) & (val != 0), max_val, mod
+    )
+
+
 class GearElementTVMS(GearElement):
     """A gear element.
 
@@ -133,6 +140,35 @@ class GearElementTVMS(GearElement):
         used to describe the contact region of the gear profile.
         """
         return np.tan(angle) - float(angle)
+
+    def pressure_angle(self, theta):
+        """
+        Converte o ângulo de rotação da engrenagem em ângulo de pressão instantâneo.
+        Agora permite múltiplos ciclos de engrenamento ao longo da linha de ação.
+
+        Parâmetros
+        ----------
+        theta : float
+            Ângulo de rotação da engrenagem (rad).
+
+        Retorna
+        -------
+        float
+            Ângulo de pressão correspondente (rad).
+        """
+        alpha_c = self.pr_angles_dict["start_point"]
+        alpha_a = self.pr_angles_dict["addendum"]
+        rb = self.base_radius
+
+        s_total = rb * (np.tan(alpha_a) - np.tan(alpha_c))
+        s = np.mod(rb * theta, s_total)
+
+        tan_alpha = np.tan(alpha_c) + (s / s_total) * (
+            np.tan(alpha_a) - np.tan(alpha_c)
+        )
+        alpha = np.arctan(tan_alpha)
+
+        return alpha
 
     def _initialize_geometry(self):
         """Initialize the geometry dictionary for gear tooth stiffness analysis.
@@ -628,12 +664,7 @@ class Mesh:
         self,
         driving_gear,
         driven_gear,
-        tvms=False,
-        only_max_stiffness=False,
-        user_defined_stiffness=None,
     ):
-        self._user_defined_stiffness = user_defined_stiffness
-
         self.driving_gear = driving_gear
         self.driven_gear = driven_gear
 
@@ -664,13 +695,13 @@ class Mesh:
             / (4 * (1 - driving_gear.material.Poisson**2))
         )
 
-        self.time = 0
-        self.tvms = tvms
-        self.only_max_stiffness = only_max_stiffness
-        self.already_evaluated_max = False
-        self.already_interpolated = False
+        theta_range, stiffness_range = self.get_stiffness_for_mesh_period()
 
-    def _time_equivalent_stiffness2(self, dalpha):
+        self.max_stiffness = max(stiffness_range)
+        self.theta_range = theta_range
+        self.stiffness_range = stiffness_range
+
+    def _time_equivalent_stiffness(self, dalpha):
         """
         Parameters
         ---------
@@ -701,7 +732,85 @@ class Mesh:
 
         return k
 
-    def _time_equivalent_stiffness(self, t, driving_gear_speed):
+    def get_variable_stiffness(self, angular_position):
+        """Calculate the variable stiffness of a gear pair.
+
+        This method computes the equivalent stiffness of a gear mesh at a given
+        angular position, taking into account the periodic nature of the meshing
+        process and the contact ratio of the gear pair.
+
+        Parameters
+        ----------
+        angular_position : float
+            Time instant for which the meshing stiffness is calculated.
+
+        Returns
+        -------
+        float
+            The total equivalent meshing stiffness at the given angular position.
+        """
+        contact_ratio = self.contact_ratio
+        alpha_c = self.driving_gear.pr_angles_dict["start_point"]
+        alpha_a = self.driving_gear.pr_angles_dict["addendum"]
+
+        theta = normalize(angular_position, 2 * np.pi / self.driving_gear.n_tooth)
+
+        alpha = self.driving_gear.pressure_angle(theta)
+        dmeshing = (alpha_a - alpha_c) / contact_ratio
+        alpha_norm = normalize(alpha - alpha_c, dmeshing)
+
+        stiffness = self._time_equivalent_stiffness(alpha_norm)
+
+        if alpha_norm <= (contact_ratio - 1) * dmeshing:
+            stiffness += self._time_equivalent_stiffness(alpha_norm + dmeshing)
+
+        return stiffness
+
+    def get_stiffness_for_mesh_period(self, n_mesh_period=1, n_points=1000):
+        theta_end = 2 * np.pi / self.driving_gear.n_tooth * n_mesh_period
+        theta_range = np.linspace(0, theta_end, n_points)
+
+        stiffness_range = [self.get_variable_stiffness(theta) for theta in theta_range]
+
+        return theta_range, stiffness_range
+
+    def interpolate_stiffness(self, angular_position):
+        theta = normalize(angular_position, max(self.theta_range))
+        return np.interp(theta, self.theta_range, self.stiffness_range)
+
+    def plot_stiffness_profile(self, n_mesh_period=1, n_points=1000):
+        fig = go.Figure()
+
+        if n_mesh_period != 1 or n_points != 1000:
+            theta_range, stiffness_range = self.get_stiffness_for_mesh_period(
+                n_mesh_period, n_points
+            )
+        else:
+            theta_range = self.theta_range
+            stiffness_range = self.stiffness_range
+
+        fig.add_trace(
+            go.Scatter(
+                x=theta_range,
+                y=stiffness_range,
+                mode="lines",
+                line=dict(color="black", width=3),
+            )
+        )
+
+        fig.update_layout(
+            xaxis=dict(
+                title="Angular position",
+            ),
+            yaxis=dict(
+                title="Stiffness",
+                tickformat=".1e",
+            ),
+        )
+
+        fig.show()
+
+    def _time_equivalent_stiffness_old(self, t, driving_gear_speed):
         """
         Parameters
         ---------
@@ -738,38 +847,6 @@ class Mesh:
         k_t = 1 / (1 / k_h + 1 / k_in + 1 / k_out)
 
         return k_t
-
-    def mesh_stiffness(self, angular_position):
-        """Calculate the time-varying meshing stiffness of a gear pair.
-
-        This method computes the equivalent stiffness of a gear mesh at a given
-        angular position, taking into account the periodic nature of the meshing
-        process and the contact ratio of the gear pair.
-
-        Parameters
-        ----------
-        angular_position : float
-            Time instant for which the meshing stiffness is calculated.
-
-        Returns
-        -------
-        float
-            The total equivalent meshing stiffness at the given angular position.
-        """
-        alpha_c = self.driving_gear.pr_angles_dict["start_point"]
-        ap_meshing = (
-            self.driving_gear.pr_angles_dict["addendum"] - alpha_c
-        ) / self.contact_ratio
-        ap_ref = (self.contact_ratio - 1) * ap_meshing
-        ap = angular_position - angular_position // ap_meshing * ap_meshing
-
-        stiffness_mesh_0 = self._time_equivalent_stiffness2(ap)
-        stiffness_mesh_1 = self._time_equivalent_stiffness2(ap + ap_meshing)
-
-        if ap <= ap_ref:
-            stiffness_mesh_0 += stiffness_mesh_1
-
-        return stiffness_mesh_0
 
     @check_units
     def mesh(self, driving_gear_speed, t):
@@ -899,79 +976,3 @@ class Mesh:
                 stiffnes_mesh_1 = self._time_equivalent_stiffness(t, driving_gear_speed)
 
                 return stiffnes_mesh_1, np.nan, stiffnes_mesh_1
-
-    def _time_stiffness(self, driving_gear_speed, dt):
-        """Calculate the time-varying meshing stiffness of a gear pair in ONE
-        time-mesh period.
-
-        - This method is used for interpolation, since the TVMS is constant for
-        gear-pairs without deffects.
-        - This method is also used for evaluating the _max_stiffness, since in
-        one time-mesh period it's possible to evaluate the maximum stiffness.
-
-        Parameters
-        ----------
-        driving_gear_speed : GearElementTVMS
-            The driving_gear object.
-        t : float
-            Time instant for which the meshing stiffness is calculated.
-
-        Returns
-        -------
-        A tuple containing the following elements:
-            total_stiffness : float
-                The total equivalent meshing stiffness at time `t`.
-            stiffness_tooth_pair_1 : float
-                The meshing stiffness of the first tooth pair in contact.
-                If no first tooth pair is in contact, this value is `np.nan`.
-            stiffness_tooth_pair_2 : float
-                The meshing stiffness of the second tooth pair in contact.
-        """
-        tm = (
-            2 * np.pi / (driving_gear_speed * self.driving_gear.n_tooth)
-        )  # Gearmesh period [seconds/engagement]
-        ctm = (
-            self.contact_ratio * tm
-        )  # [seconds/tooth] how much time each tooth remains in contact
-
-        t_interpol = np.arange(0, tm + dt, dt)
-        double_contact = np.zeros(np.shape(t_interpol))
-        single_contact = np.zeros(np.shape(double_contact))
-
-        for i, t in enumerate(t_interpol):
-            t = t - t // tm * tm
-
-            if t <= (self.contact_ratio - 1) * tm:
-                stiffnes_mesh_1 = self._time_equivalent_stiffness(t, driving_gear_speed)
-                stiffnes_mesh_0 = self._time_equivalent_stiffness(
-                    tm + t, driving_gear_speed
-                )
-
-                double_contact[i] = stiffnes_mesh_0 + stiffnes_mesh_1
-
-            elif t > (self.contact_ratio - 1) * tm:
-                stiffnes_mesh_1 = self._time_equivalent_stiffness(t, driving_gear_speed)
-
-                single_contact[i] = stiffnes_mesh_1
-
-        return t_interpol, double_contact, single_contact
-
-    def _max_gear_stiff(self, driving_gear_speed, dt):
-        """Evaluate the maximum meshing stiffness from one time-mesh period.
-
-        Parameters
-        ----------
-        driving_gear_speed : GearElementTVMS
-            The driving_gear object.
-        t : float
-            Time instant for which the meshing stiffness is calculated.
-
-        Returns
-        -------
-        np.max(double_contact) : float
-            The maximum stiffness [N/m]
-        """
-
-        _, double_contact, _ = self._time_stiffness(driving_gear_speed, dt)
-
-        return np.max(double_contact)
