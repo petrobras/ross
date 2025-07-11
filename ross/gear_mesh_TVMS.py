@@ -9,7 +9,7 @@ import scipy as sp
 from plotly import graph_objects as go
 from warnings import warn
 
-from ross.units import check_units
+from ross.units import Q_, check_units
 from ross.materials import steel
 from ross.gear_element import GearElement
 
@@ -141,20 +141,19 @@ class GearElementTVMS(GearElement):
         """
         return np.tan(angle) - float(angle)
 
-    def pressure_angle(self, theta):
+    def _pressure_angle(self, theta):
         """
-        Converte o ângulo de rotação da engrenagem em ângulo de pressão instantâneo.
-        Agora permite múltiplos ciclos de engrenamento ao longo da linha de ação.
+        Converts the gear rotation angle into the instantaneous pressure angle.
 
-        Parâmetros
+        Parameters
         ----------
         theta : float
-            Ângulo de rotação da engrenagem (rad).
+            Gear rotation angle (rad).
 
-        Retorna
+        Returns
         -------
-        float
-            Ângulo de pressão correspondente (rad).
+        alpha : float
+            Corresponding pressure angle (rad).
         """
         alpha_c = self.pr_angles_dict["start_point"]
         alpha_a = self.pr_angles_dict["addendum"]
@@ -742,11 +741,11 @@ class Mesh:
         Parameters
         ----------
         angular_position : float
-            Time instant for which the meshing stiffness is calculated.
+            Gear angular position for which the meshing stiffness is calculated.
 
         Returns
         -------
-        float
+        stiffness : float
             The total equivalent meshing stiffness at the given angular position.
         """
         contact_ratio = self.contact_ratio
@@ -755,7 +754,7 @@ class Mesh:
 
         theta = normalize(angular_position, 2 * np.pi / self.driving_gear.n_tooth)
 
-        alpha = self.driving_gear.pressure_angle(theta)
+        alpha = self.driving_gear._pressure_angle(theta)
         dmeshing = (alpha_a - alpha_c) / contact_ratio
         alpha_norm = normalize(alpha - alpha_c, dmeshing)
 
@@ -767,6 +766,25 @@ class Mesh:
         return stiffness
 
     def get_stiffness_for_mesh_period(self, n_mesh_period=1, n_points=1000):
+        """Computes the mesh stiffness profile over a specified number of gear
+        mesh periods.
+
+        Parameters
+        ----------
+        n_mesh_period : int, optional
+            Number of mesh periods to evaluate. Default is 1.
+        n_points : int, optional
+            Number of angular sample points to compute within the total range.
+            Default is 1000.
+
+        Returns
+        -------
+        theta_range : np.ndarray
+            Array of angular positions (in radians) spanning the specified mesh
+            periods.
+        stiffness_range : list of float
+            List of stiffness values corresponding to each angular position.
+        """
         theta_end = 2 * np.pi / self.driving_gear.n_tooth * n_mesh_period
         theta_range = np.linspace(0, theta_end, n_points)
 
@@ -775,10 +793,46 @@ class Mesh:
         return theta_range, stiffness_range
 
     def interpolate_stiffness(self, angular_position):
+        """Interpolates the mesh stiffness value at a given angular position.
+
+        Parameters
+        ----------
+        angular_position : float or array-like
+            Angular position(s) at which to evaluate the stiffness. Should be in
+            the radians.
+
+        Returns
+        -------
+        float or np.ndarray
+            Interpolated stiffness value(s) in N/m.
+        """
         theta = normalize(angular_position, max(self.theta_range))
         return np.interp(theta, self.theta_range, self.stiffness_range)
 
-    def plot_stiffness_profile(self, n_mesh_period=1, n_points=1000):
+    def plot_stiffness_profile(
+        self,
+        n_mesh_period=1,
+        n_points=1000,
+        angle_units="rad",
+        stiffness_units="N/m",
+        **kwargs,
+    ):
+        """Plots the gear mesh stiffness profile over one or more meshing periods.
+
+        Parameters
+        ----------
+        n_mesh_period : int, optional
+            Number of mesh periods to plot. Default is 1.
+        n_points : int, optional
+            Number of data points to evaluate for the stiffness profile. Default is 1000.
+        angle_units : str, optional
+            Units for the angular position axis. Default is 'rad'.
+        stiffness_units : str, optional
+            Units for the stiffness axis. Default is 'N/m'.
+        *kwargs : dict, optional
+            Additional keyword arguments passed to `plotly.graph_objects.Figure.update_layout`
+            for customizing the figure (e.g., title, font, size, legend settings, etc.).
+        """
         fig = go.Figure()
 
         if n_mesh_period != 1 or n_points != 1000:
@@ -791,8 +845,8 @@ class Mesh:
 
         fig.add_trace(
             go.Scatter(
-                x=theta_range,
-                y=stiffness_range,
+                x=Q_(theta_range, "rad").to(angle_units).m,
+                y=Q_(stiffness_range, "").to(stiffness_units).m,
                 mode="lines",
                 line=dict(color="black", width=3),
             )
@@ -806,6 +860,7 @@ class Mesh:
                 title="Stiffness",
                 tickformat=".1e",
             ),
+            **kwargs,
         )
 
         fig.show()
