@@ -125,65 +125,6 @@ class GearElementTVMS(GearElement):
         self.material = material
 
         # Initialize geometry related dictionaries
-        self._initialize_geometry()
-
-        self._ka_transiction = None
-        self._kb_transiction = None
-        self._ks_transiction = None
-
-    @staticmethod
-    @check_units
-    def _involute(angle):
-        """Involute function
-
-        Calculates the involute function for a given angle. This function is
-        used to describe the contact region of the gear profile.
-        """
-        return np.tan(angle) - float(angle)
-
-    def _pressure_angle(self, theta):
-        """
-        Converts the gear rotation angle into the instantaneous pressure angle.
-
-        Parameters
-        ----------
-        theta : float
-            Gear rotation angle (rad).
-
-        Returns
-        -------
-        alpha : float
-            Corresponding pressure angle (rad).
-        """
-        alpha_c = self.pr_angles_dict["start_point"]
-        alpha_a = self.pr_angles_dict["addendum"]
-        rb = self.base_radius
-
-        s_total = rb * (np.tan(alpha_a) - np.tan(alpha_c))
-        s = np.mod(rb * theta, s_total)
-
-        tan_alpha = np.tan(alpha_c) + (s / s_total) * (
-            np.tan(alpha_a) - np.tan(alpha_c)
-        )
-        alpha = np.arctan(tan_alpha)
-
-        return alpha
-
-    def _initialize_geometry(self):
-        """Initialize the geometry dictionary for gear tooth stiffness analysis.
-
-        This method populates ``geometry_dict`` with various geometric
-        parameters:
-
-        NEED TO COMPLETE...
-
-
-        Returns
-        -------
-        geometry_dict : dict
-            A dictionary populated with computed geometric parameters.
-
-        """
         a_coeff_mod = self.addendum_coeff * self.module
         c_coeff_mod = self.tip_clearance_coeff * self.module
 
@@ -243,11 +184,63 @@ class GearElementTVMS(GearElement):
 
         self.tau_c = self._to_tau(alpha_c)
 
+        self._ka_transiction = None
+        self._kb_transiction = None
+        self._ks_transiction = None
+
+    @staticmethod
+    def _involute(angle):
+        """Involute function
+
+        Calculates the involute function for a given angle. This function is
+        used to describe the contact region of the gear profile.
+        """
+        return np.tan(angle) - float(angle)
+
+    def _to_pressure_angle(self, theta):
+        """
+        Converts the gear rotation angle into the instantaneous pressure angle.
+
+        Parameters
+        ----------
+        theta : float
+            Gear rotation angle (rad).
+
+        Returns
+        -------
+        alpha : float
+            Corresponding pressure angle (rad).
+        """
+        alpha_c = self.pr_angles_dict["start_point"]
+        alpha_a = self.pr_angles_dict["addendum"]
+        rb = self.base_radius
+
+        s_total = rb * (np.tan(alpha_a) - np.tan(alpha_c))
+        s = np.mod(rb * theta, s_total)
+
+        tan_alpha = np.tan(alpha_c) + (s / s_total) * (
+            np.tan(alpha_a) - np.tan(alpha_c)
+        )
+        alpha = np.arctan(tan_alpha)
+
+        return alpha
+
     def _to_tau(self, pr_angle):
         """Transforms the pressure angle, used to build the involute profile,
         into the integration variable tau.
+
+        Parameters
+        ----------
+        pr_angle : float
+            The pressure angle (rad) at which to perform the transformation.
+
+        Returns
+        -------
+        tau : float
+            Corresponding tau angle (rad).
         """
-        return pr_angle + self._involute(pr_angle) - self.tooth_dict["base_angle"]
+        tau = pr_angle + self._involute(pr_angle) - self.tooth_dict["base_angle"]
+        return tau
 
     def _diff_tau(self, tau):
         """Method for evaluating the stiffness commonly found in the
@@ -439,7 +432,8 @@ class GearElementTVMS(GearElement):
         for i, value in enumerate((L, M, P, Q)):
             if value < min(poly_limits[i]) or value > max(poly_limits[i]):
                 warn(
-                    "Extrapolating gear body coefficients described by Sainsot et. al. (2014). Be careful when post-processing the results."
+                    """Extrapolating gear body coefficients described by Sainsot et. al. (2014).
+                     Be careful when post-processing the results."""
                 )
                 break
 
@@ -754,7 +748,7 @@ class Mesh:
 
         theta = normalize(angular_position, 2 * np.pi / self.driving_gear.n_tooth)
 
-        alpha = self.driving_gear._pressure_angle(theta)
+        alpha = self.driving_gear._to_pressure_angle(theta)
         dmeshing = (alpha_a - alpha_c) / contact_ratio
         alpha_norm = normalize(alpha - alpha_c, dmeshing)
 
@@ -780,7 +774,7 @@ class Mesh:
         Returns
         -------
         theta_range : np.ndarray
-            Array of angular positions (in radians) spanning the specified mesh
+            Array of angular positions (rad) spanning the specified mesh
             periods.
         stiffness_range : list of float
             List of stiffness values corresponding to each angular position.
