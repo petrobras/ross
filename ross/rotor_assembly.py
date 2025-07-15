@@ -2391,9 +2391,7 @@ class Rotor(object):
         if len(brgs_with_var_coeffs):  # Option 1
             if kwargs.get("C") or kwargs.get("K"):
                 raise Warning(
-                    """The bearing coefficients vary with speed. Therefore, C and 
-                    K matrices are not being replaced by the matrices defined as input 
-                    arguments."""
+                    "The bearing coefficients vary with speed. Therefore, C and K matrices are not being replaced by the matrices defined as input arguments."
                 )
 
             C0 = self.C(speed_ref, ignore=brgs_with_var_coeffs)

@@ -687,8 +687,7 @@ class GearElementTVMS(GearElement):
         for i, value in enumerate((L, M, P, Q)):
             if value < min(poly_limits[i]) or value > max(poly_limits[i]):
                 warn(
-                    """Extrapolating gear body coefficients described by Sainsot et. al. (2014).
-                     Be careful when post-processing the results."""
+                    "Extrapolating gear body coefficients described by Sainsot et. al. (2014). Be careful when post-processing the results."
                 )
                 break
 
@@ -822,30 +821,23 @@ class GearElementTVMS(GearElement):
         involute_vectorize = np.vectorize(self._compute_involute_curve)
         y_i, x_i, _, _ = involute_vectorize(tau_values)
 
-        # Create the plot
         fig = go.Figure()
 
-        # Add the transition curve
         fig.add_trace(
             go.Scatter(
                 x=y_t[-1::-1], y=x_t[-1::-1], mode="lines", name="Transition Curve"
             )
         )
 
-        # Add the involute curve
         fig.add_trace(go.Scatter(x=y_i, y=x_i, mode="lines", name="Involute Curve"))
 
         fig.update_layout(
             title="Tooth Profile Geometry",
-            xaxis_title="Y-axis [m]",
-            yaxis_title="X-axis [m]",
-            xaxis=dict(showgrid=True),
-            yaxis=dict(showgrid=True),
+            xaxis_title="Y-axis (m)",
+            yaxis_title="X-axis (m)",
         )
 
-        # Show the plot
-        fig.show()
-        pass
+        return fig
 
 
 class Mesh:
@@ -894,8 +886,9 @@ class Mesh:
                 type(driving_gear) != GearElementTVMS
                 or type(driven_gear) != GearElementTVMS
             ):
-                raise TypeError("""Missing 'gear_mesh_stiffness'. Please use GearElementTVMS 
-                                instead if this value is not provided.""")
+                raise TypeError(
+                    "Missing gear_mesh_stiffness. Please use GearElementTVMS instead if this value is not provided."
+                )
 
             # Contact ratio
             center_distance = (
@@ -1079,7 +1072,7 @@ class Mesh:
         fig.add_trace(
             go.Scatter(
                 x=Q_(theta_range, "rad").to(angle_units).m,
-                y=Q_(stiffness_range, "").to(stiffness_units).m,
+                y=Q_(stiffness_range, "N/m").to(stiffness_units).m,
                 mode="lines",
                 line=dict(color="black", width=3),
             )
@@ -1087,10 +1080,10 @@ class Mesh:
 
         fig.update_layout(
             xaxis=dict(
-                title="Angular position",
+                title=f"Angular position ({angle_units})",
             ),
             yaxis=dict(
-                title="Stiffness",
+                title=f"Stiffness ({stiffness_units})",
                 tickformat=".1e",
             ),
             **kwargs,
