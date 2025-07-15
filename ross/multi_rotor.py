@@ -25,10 +25,15 @@ class MultiRotor(Rotor):
     coupled_nodes : tuple of int
         Tuple specifying the coupled nodes, where the first node corresponds to
         the driving rotor and the second node corresponds to the driven rotor.
-    gear_ratio : float
-        The gear ratio between the rotors.
-    gear_mesh_stiffness : float
-        The stiffness of the gear mesh.
+    gear_mesh_stiffness : float, optional
+        Directly specify the stiffness of the gear mesh.
+        If not provided, it can be calculated automatically
+        when using `GearElementTVMS` instead of `GearElement`.
+    update_mesh_stiffness : bool, optional
+        Applicable only when using `GearElementTVMS`.
+        If True, the gear mesh stiffness is recalculated
+        at each time step. If False, the maximum stiffness
+        value is used throughout the simulation.
     orientation_angle : float, pint.Quantity, optional
         The angle between the line of gear centers and x-axis. Default is 0.0 rad.
     position : {'above', 'below'}, optional
@@ -110,7 +115,7 @@ class MultiRotor(Rotor):
         driven_rotor,
         coupled_nodes,
         gear_mesh_stiffness=None,
-        only_max_stiffness=False,
+        update_mesh_stiffness=False,
         orientation_angle=0.0,
         position="above",
         tag=None,
@@ -137,11 +142,11 @@ class MultiRotor(Rotor):
             gear_1 = gear_1[0]
             gear_2 = gear_2[0]
 
+        self.update_mesh_stiffness = update_mesh_stiffness
         self.mesh = Mesh(
             gear_1,
             gear_2,
             gear_mesh_stiffness=gear_mesh_stiffness,
-            only_max_stiffness=only_max_stiffness,
         )
 
         gear1_plot = next(
@@ -411,11 +416,17 @@ class MultiRotor(Rotor):
             self.rotors[1].K(frequency * self.mesh.gear_ratio, ignore),
         )
 
+        if not self.update_mesh_stiffness:
+            K0 = self._couple_K(K0, self.mesh.stiffness)
+
+        return K0
+
+    def _couple_K(self, K0, mesh_stiffness):
         dofs_1 = self.mesh.driving_gear.dof_global_index.values()
         dofs_2 = self.mesh.driven_gear.dof_global_index.values()
         dofs = [*dofs_1, *dofs_2]
 
-        K0[np.ix_(dofs, dofs)] += self.coupling_matrix() * self.mesh.stiffness
+        K0[np.ix_(dofs, dofs)] += self.coupling_matrix() * mesh_stiffness
 
         return K0
 

@@ -1278,7 +1278,7 @@ class Rotor(object):
         """
         if frequency is None:
             frequency = speed
-        
+
         Z = np.zeros((self.ndof, self.ndof))
         I = np.eye(self.ndof)
 
@@ -1286,8 +1286,22 @@ class Rotor(object):
 
         if type(self).__name__ == "MultiRotorTVMS":
             A = np.vstack(
-                [np.hstack([Z, I]),
-                np.hstack([la.solve(-self.M(frequency, synchronous=synchronous), self.K(frequency)), la.solve(-self.M(frequency,synchronous=synchronous), (self.C(frequency) + self.G() * speed))])])
+                [
+                    np.hstack([Z, I]),
+                    np.hstack(
+                        [
+                            la.solve(
+                                -self.M(frequency, synchronous=synchronous),
+                                self.K(frequency),
+                            ),
+                            la.solve(
+                                -self.M(frequency, synchronous=synchronous),
+                                (self.C(frequency) + self.G() * speed),
+                            ),
+                        ]
+                    ),
+                ]
+            )
 
         # fmt: off
         A = np.vstack(
@@ -2350,83 +2364,71 @@ class Rotor(object):
             )
 
         # Depending on the conditions of the analysis,
-        # one of the three options below will be chosen.
-        if speed_is_array:
-            accel = np.gradient(speed, t)
+        # one of the two options below will be chosen.
+        if not speed_is_array:
+            speed = np.full_like(t, speed)
 
-            brgs_with_var_coeffs = tuple(
-                brg for brg in self.bearing_elements if brg.frequency is not None
+        accel = np.gradient(speed, t)
+
+        # Applicable for MultiRotor with GearElementTVMS
+        update_mesh_stiffness = (
+            self.update_mesh_stiffness if "mesh" in self.__dict__ else False
+        )
+
+        if update_mesh_stiffness:
+            theta = integrate(speed, t, initial=0)
+            couple_K_matrix = lambda step, K: self._couple_K(
+                K, self.mesh.interpolate_stiffness(theta[step])
             )
+        else:
+            couple_K_matrix = lambda step, K: K
 
-            if len(brgs_with_var_coeffs):  # Option 1
-                if kwargs.get("C") or kwargs.get("K"):
-                    raise Warning(
-                        "The bearing coefficients vary with speed. Therefore, C and K matrices are not being replaced by the matrices defined as input arguments."
-                    )
+        # Check bearings with variable coefficients
+        brgs_with_var_coeffs = tuple(
+            brg for brg in self.bearing_elements if brg.frequency is not None
+        )
 
-                C0 = self.C(speed_ref, ignore=brgs_with_var_coeffs)
-                K0 = self.K(speed_ref, ignore=brgs_with_var_coeffs)
+        if len(brgs_with_var_coeffs):  # Option 1
+            if kwargs.get("C") or kwargs.get("K"):
+                raise Warning(
+                    """The bearing coefficients vary with speed. Therefore, C and 
+                    K matrices are not being replaced by the matrices defined as input 
+                    arguments."""
+                )
 
-                def rotor_system(step, **current_state):
-                    Cb, Kb = assemble_C_K_matrices(
-                        brgs_with_var_coeffs, np.copy(C0), np.copy(K0), speed[step]
-                    )
-                    
-                    C1 = get_array[0](Cb)
-                    K1 = get_array[0](Kb)
+            C0 = self.C(speed_ref, ignore=brgs_with_var_coeffs)
+            K0 = self.K(speed_ref, ignore=brgs_with_var_coeffs)
 
-                    return (
-                        M,
-                        C1 + C2 * speed[step],
-                        K1 + K2 * accel[step],
-                        forces(step, **current_state),
-                    )
+            def rotor_system(step, **current_state):
+                Cb, Kb = assemble_C_K_matrices(
+                    brgs_with_var_coeffs, np.copy(C0), np.copy(K0), speed[step]
+                )
 
-            else:  # Option 2
-                C1 = get_array[0](kwargs.get("C", self.C(speed_ref)))
-                K1 = get_array[0](kwargs.get("K", self.K(speed_ref)))
+                C1 = get_array[0](Cb)
+                K1 = get_array[0](Kb)
 
-                rotor_system = lambda step, **current_state: (
+                K1 = couple_K_matrix(step, K1)
+
+                return (
                     M,
                     C1 + C2 * speed[step],
                     K1 + K2 * accel[step],
                     forces(step, **current_state),
                 )
 
-        else:  # Option 3
-
-            gear_TVMS = [
-                gear_TVMS for elm in  self.disk_elements if type(elm) == "GearElementTVMS"
-            ]
-
-            if len(gear_TVMS):
-                if kwargs.get("C") or kwargs.get("K"):
-                    raise Warning(
-                        "The gear coefficients vary with speed. Therefore, C and K matrices are not being replaced by the matrices defined as input arguments."
-                    )
-
-            C0 = self.C(speed_ref)
-            C1 = get_array[0](C0)
+        else:  # Option 2
+            C1 = get_array[0](kwargs.get("C", self.C(speed_ref)))
+            K0 = get_array[0](kwargs.get("K", self.K(speed_ref)))
 
             def rotor_system(step, **current_state):
-                K0 = self.K(speed_ref, ignore=(), t = t[step])
-                
-                K1 = get_array[0](K0)
+                K1 = couple_K_matrix(step, K0)
 
                 return (
                     M,
-                    C1 + C2 * speed_ref,
-                    K1,
+                    C1 + C2 * speed[step],
+                    K1 + K2 * accel[step],
                     forces(step, **current_state),
                 )
-
-
-            # rotor_system = lambda step, **current_state: (
-            #     M,
-            #     C1 + C2 * speed_ref,
-            #     K1,
-            #     forces(step, **current_state),
-            # )
 
         size = len(M)
         response = newmark(rotor_system, t, size, **kwargs)

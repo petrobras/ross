@@ -858,8 +858,10 @@ class Mesh:
         The driving gear object used in the gear pair.
     driven_gear : GearElement
         The driven gear object used in the gear pair.
-    update_stiffness : bool, optional
-
+    gear_mesh_stiffness : float, optional
+        Directly specify the stiffness of the gear mesh.
+        If not provided, it can be calculated automatically
+        when using `GearElementTVMS` instead of `GearElement`.
 
     Attributes:
     -----------
@@ -873,7 +875,7 @@ class Mesh:
         The transamission ratio, defined as the ratio of the radii between the
         driving and driven gears.
     pressure_angle : float
-
+        The pressure angle of the gear mesh (rad).
     """
 
     def __init__(
@@ -881,11 +883,9 @@ class Mesh:
         driving_gear,
         driven_gear,
         gear_mesh_stiffness=None,
-        update_stiffness=False,
     ):
         self.driving_gear = driving_gear
         self.driven_gear = driven_gear
-        self.update_stiffness = update_stiffness
         self.gear_ratio = driving_gear.n_tooth / driven_gear.n_tooth
         self.pressure_angle = driving_gear.pr_angle
 
