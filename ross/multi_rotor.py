@@ -180,7 +180,7 @@ class MultiRotor(Rotor):
 
         idx1 = R1.nodes.index(gear_1.n)
         idx2 = R2.nodes.index(gear_2.n)
-        self.dz_pos = R1.nodes_pos[idx1] - R2.nodes_pos[idx2]
+        self.dz_pos = float(R1.nodes_pos[idx1] - R2.nodes_pos[idx2])
 
         R1_max_node = max([*R1.nodes, *R1.link_nodes])
         R2_min_node = min([*R2.nodes, *R2.link_nodes])
@@ -194,7 +194,7 @@ class MultiRotor(Rotor):
                 except:
                     pass
 
-        self.R2_nodes = [n + d_node for n in R2.nodes]
+        self.R2_nodes = [int(n + d_node) for n in R2.nodes]
 
         shaft_elements = [*R1.shaft_elements, *R2.shaft_elements]
         disk_elements = [*R1.disk_elements, *R2.disk_elements]

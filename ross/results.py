@@ -528,58 +528,74 @@ class Shape(Results):
             zeta = zeta.reshape(nn, 1)
             onn = onn.reshape(nn, 1)
 
-            xn = np.zeros(nn * (len(nodes) - 1))
-            yn = np.zeros(nn * (len(nodes) - 1))
-            xn_complex = np.zeros(nn * (len(nodes) - 1), dtype=np.complex128)
-            yn_complex = np.zeros(nn * (len(nodes) - 1), dtype=np.complex128)
-            zn = np.zeros(nn * (len(nodes) - 1))
-            major = np.zeros(nn * (len(nodes) - 1))
-            major_x = np.zeros(nn * (len(nodes) - 1))
-            major_y = np.zeros(nn * (len(nodes) - 1))
-            major_angle = np.zeros(nn * (len(nodes) - 1))
+            shape = nn * len(shaft_elements_length)
+
+            xn = np.zeros(shape)
+            yn = np.zeros(shape)
+            xn_complex = np.zeros(shape, dtype=np.complex128)
+            yn_complex = np.zeros(shape, dtype=np.complex128)
+            zn = np.zeros(shape)
+            major = np.zeros(shape)
+            major_x = np.zeros(shape)
+            major_y = np.zeros(shape)
+            major_angle = np.zeros(shape)
 
             N1 = onn - 3 * zeta**2 + 2 * zeta**3
             N2 = zeta - 2 * zeta**2 + zeta**3
             N3 = 3 * zeta**2 - 2 * zeta**3
             N4 = -(zeta**2) + zeta**3
 
-            for Le, n in zip(shaft_elements_length, nodes):
-                node_pos = nodes_pos[n]
-                Nx = np.hstack((N1, Le * N2, N3, Le * N4))
-                Ny = np.hstack((N1, -Le * N2, N3, -Le * N4))
+            n_div, get_node_index, _ = self._fix_mode_shape_intersections()
 
-                ind = num_dof * n
-                xx = [
-                    ind + 0,
-                    ind + int(num_dof / 2) + 1,
-                    ind + num_dof + 0,
-                    ind + int(3 * num_dof / 2) + 1,
-                ]
-                yy = [
-                    ind + 1,
-                    ind + int(num_dof / 2) + 0,
-                    ind + num_dof + 1,
-                    ind + int(3 * num_dof / 2) + 0,
-                ]
+            n0 = 0
+            e0 = 0
+            k = 0
+            for j in range(n_div):
+                n1 = get_node_index(j)
+                e1 = n1 - (j + 1)
 
-                pos0 = nn * n
-                pos1 = nn * (n + 1)
+                for Le, n in zip(shaft_elements_length[e0:e1], nodes[n0:n1]):
+                    node_pos = nodes_pos[n]
+                    Nx = np.hstack((N1, Le * N2, N3, Le * N4))
+                    Ny = np.hstack((N1, -Le * N2, N3, -Le * N4))
 
-                xn[pos0:pos1] = Nx @ evec[xx].real
-                yn[pos0:pos1] = Ny @ evec[yy].real
-                zn[pos0:pos1] = (node_pos * onn + Le * zeta).reshape(nn)
+                    ind = num_dof * n
+                    xx = [
+                        ind + 0,
+                        ind + int(num_dof / 2) + 1,
+                        ind + num_dof + 0,
+                        ind + int(3 * num_dof / 2) + 1,
+                    ]
+                    yy = [
+                        ind + 1,
+                        ind + int(num_dof / 2) + 0,
+                        ind + num_dof + 1,
+                        ind + int(3 * num_dof / 2) + 0,
+                    ]
 
-                # major axes calculation
-                xn_complex[pos0:pos1] = Nx @ evec[xx]
-                yn_complex[pos0:pos1] = Ny @ evec[yy]
-                for i in range(pos0, pos1):
-                    orb = Orbit(
-                        node=0, node_pos=0, ru_e=xn_complex[i], rv_e=yn_complex[i]
-                    )
-                    major[i] = orb.major_axis
-                    major_x[i] = orb.major_x
-                    major_y[i] = orb.major_y
-                    major_angle[i] = orb.major_angle
+                    pos0 = nn * k
+                    pos1 = nn * (k + 1)
+
+                    xn[pos0:pos1] = Nx @ evec[xx].real
+                    yn[pos0:pos1] = Ny @ evec[yy].real
+                    zn[pos0:pos1] = (node_pos * onn + Le * zeta).reshape(nn)
+
+                    # major axes calculation
+                    xn_complex[pos0:pos1] = Nx @ evec[xx]
+                    yn_complex[pos0:pos1] = Ny @ evec[yy]
+
+                    k += 1
+                    for i in range(pos0, pos1):
+                        orb = Orbit(
+                            node=0, node_pos=0, ru_e=xn_complex[i], rv_e=yn_complex[i]
+                        )
+                        major[i] = orb.major_axis
+                        major_x[i] = orb.major_x
+                        major_y[i] = orb.major_y
+                        major_angle[i] = orb.major_angle
+
+                n0 = n1
+                e0 = e1
 
             self.xn = xn
             self.yn = yn
@@ -618,6 +634,35 @@ class Shape(Results):
 
         return fig
 
+    def _fix_mode_shape_intersections(self):
+        """This function is used to fix the mode shape plot, especially for multi rotors
+        for which the mode curves of each rotor may intersect"""
+        nodes_pos = np.array(self.nodes_pos)
+
+        intersecting_nodes = np.where(nodes_pos[:-1] >= nodes_pos[1:])[0] + 1
+        n_plot = len(intersecting_nodes) + 1
+
+        get_node_index = (
+            lambda i: intersecting_nodes[i] if i + 1 < n_plot else len(nodes_pos)
+        )
+
+        symbols = [
+            "circle",
+            "square",
+            "diamond",
+            "circle-open",
+            "square-open",
+            "diamond-open",
+        ]
+
+        get_plot_mode = lambda i: (
+            dict(mode="lines+markers", marker=dict(symbol=symbols[i % len(symbols)]))
+            if n_plot > 1
+            else dict()
+        )
+
+        return n_plot, get_node_index, get_plot_mode
+
     def _plot_axial(
         self, plot_dimension=None, animation=False, length_units="m", fig=None
     ):
@@ -634,28 +679,62 @@ class Shape(Results):
 
         nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
 
+        n_plot, get_node_index, get_plot_mode = self._fix_mode_shape_intersections()
+        showlegend = n_plot > 1
+
         if plot_dimension == 2:
             # Plot 2d
-            fig.add_traces(
-                data=[
+            n0 = 0
+            for i in range(n_plot):
+                n1 = get_node_index(i)
+
+                legend_name = f"Rotor {i + 1}"
+
+                fig.add_trace(
                     go.Scatter(
-                        x=nodes_pos,
-                        y=rel_disp,
-                        mode="lines",
+                        x=nodes_pos[n0:n1],
+                        y=rel_disp[n0:n1],
                         line=dict(color=self.color),
-                        showlegend=False,
-                        hovertemplate=(f"Relative angle: %{{y:.2f }}<extra></extra>"),
-                    ),
+                        hovertemplate=(f"Relative angle: %{{y:.2f}}<extra></extra>"),
+                        name=legend_name,
+                        legendgroup=legend_name,
+                        showlegend=showlegend,
+                        **get_plot_mode(i),
+                    )
+                )
+                fig.add_trace(
                     go.Scatter(
-                        x=nodes_pos,
-                        y=nodes_pos * 0,
+                        x=[nodes_pos[n0], nodes_pos[n0]],
+                        y=[0, rel_disp[n0]],
                         mode="lines",
-                        line=dict(color="black", dash="dashdot"),
-                        name="centerline",
-                        hoverinfo="none",
+                        line=dict(color=self.color, dash="dash"),
+                        legendgroup=legend_name,
                         showlegend=False,
-                    ),
-                ]
+                    )
+                )
+                fig.add_trace(
+                    go.Scatter(
+                        x=[nodes_pos[n1 - 1], nodes_pos[n1 - 1]],
+                        y=[0, rel_disp[n1 - 1]],
+                        mode="lines",
+                        line=dict(color=self.color, dash="dash"),
+                        legendgroup=legend_name,
+                        showlegend=False,
+                    )
+                )
+
+                n0 = n1
+
+            fig.add_trace(
+                go.Scatter(
+                    x=nodes_pos,
+                    y=nodes_pos * 0,
+                    mode="lines",
+                    line=dict(color="black", dash="dashdot"),
+                    name="centerline",
+                    hoverinfo="none",
+                    showlegend=False,
+                )
             )
 
             fig.update_yaxes(title_text="Relative Displacement", range=[-1, 1])
@@ -676,45 +755,65 @@ class Shape(Results):
 
         frames = []
         initial_state = []
-        for i, var in enumerate(variation):
+        for j, var in enumerate(variation):
             zt = np.array(nodes_pos) + rel_disp * var
-
             node_data = []
-            xn = []
-            for n in range(len(nodes_pos)):
+
+            n0 = 0
+            for i in range(n_plot):
+                xn = []
+
+                n1 = get_node_index(i)
+
+                legend_name = f"Rotor {i + 1}"
+
+                for n in range(n0, n1):
+                    node_data.append(
+                        go.Scatter3d(
+                            x=[nodes_pos[n], zt[n]],
+                            y=[0, 0],
+                            z=[0, 1],
+                            mode="lines",
+                            line=dict(width=2, color=self.color),
+                            name=f"Node {self.nodes[n]}",
+                            hovertemplate=(
+                                f"Original position: {nodes_pos[n]:.2f} {length_units}<br>"
+                                + f"Relative displacement: {rel_disp[n]:.2f}"
+                            ),
+                            legendgroup=legend_name,
+                            showlegend=False,
+                        )
+                    )
+                    xn.append(zt[n])
+
+                n0 = n1
+
+                plot_mode = dict(
+                    mode="lines+markers", marker=dict(size=3, symbol="circle")
+                )
+
+                try:
+                    plot_mode["marker"]["symbol"] = get_plot_mode(i)["marker"]["symbol"]
+                except KeyError:
+                    pass
+
                 node_data.append(
                     go.Scatter3d(
-                        x=[nodes_pos[n], zt[n]],
-                        y=[0, 0],
-                        z=[0, 1],
-                        mode="lines",
+                        x=xn,
+                        y=np.zeros(len(nodes_pos)),
+                        z=np.ones(len(nodes_pos)),
                         line=dict(width=2, color=self.color),
-                        showlegend=False,
-                        name=f"Node {self.nodes[n]}",
-                        hovertemplate=(
-                            f"Original position: {nodes_pos[n]:.2f} {length_units}<br>"
-                            + f"Relative displacement: {rel_disp[n]:.2f}"
-                        ),
+                        hoverinfo="none",
+                        name=legend_name,
+                        legendgroup=legend_name,
+                        showlegend=showlegend,
+                        **plot_mode,
                     )
                 )
-                xn.append(zt[n])
-
-            node_data.append(
-                go.Scatter3d(
-                    x=xn,
-                    y=np.zeros(len(nodes_pos)),
-                    z=np.ones(len(nodes_pos)),
-                    mode="lines+markers",
-                    line=dict(width=2, color=self.color),
-                    marker=dict(size=3),
-                    showlegend=False,
-                    hoverinfo="none",
-                )
-            )
 
             frames.append(go.Frame(data=node_data))
 
-            if i == 0:
+            if j == 0:
                 initial_state = node_data
 
         original = [
@@ -812,28 +911,62 @@ class Shape(Results):
 
         nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
 
+        n_plot, get_node_index, get_plot_mode = self._fix_mode_shape_intersections()
+        showlegend = n_plot > 1
+
         if plot_dimension == 2:
             # Plot 2d
-            fig.add_traces(
-                data=[
+            n0 = 0
+            for i in range(n_plot):
+                n1 = get_node_index(i)
+
+                legend_name = f"Rotor {i + 1}"
+
+                fig.add_trace(
                     go.Scatter(
-                        x=nodes_pos,
-                        y=theta,
-                        mode="lines",
+                        x=nodes_pos[n0:n1],
+                        y=theta[n0:n1],
                         line=dict(color=self.color),
-                        showlegend=False,
-                        hovertemplate=(f"Relative angle: %{{y:.2f }}<extra></extra>"),
-                    ),
+                        hovertemplate=(f"Relative angle: %{{y:.2f}}<extra></extra>"),
+                        name=legend_name,
+                        legendgroup=legend_name,
+                        showlegend=showlegend,
+                        **get_plot_mode(i),
+                    )
+                )
+                fig.add_trace(
                     go.Scatter(
-                        x=nodes_pos,
-                        y=nodes_pos * 0,
+                        x=[nodes_pos[n0], nodes_pos[n0]],
+                        y=[0, theta[n0]],
                         mode="lines",
-                        line=dict(color="black", dash="dashdot"),
-                        name="centerline",
-                        hoverinfo="none",
+                        line=dict(color=self.color, dash="dash"),
+                        legendgroup=legend_name,
                         showlegend=False,
-                    ),
-                ]
+                    )
+                )
+                fig.add_trace(
+                    go.Scatter(
+                        x=[nodes_pos[n1 - 1], nodes_pos[n1 - 1]],
+                        y=[0, theta[n1 - 1]],
+                        mode="lines",
+                        line=dict(color=self.color, dash="dash"),
+                        legendgroup=legend_name,
+                        showlegend=False,
+                    )
+                )
+
+                n0 = n1
+
+            fig.add_trace(
+                go.Scatter(
+                    x=nodes_pos,
+                    y=nodes_pos * 0,
+                    mode="lines",
+                    line=dict(color="black", dash="dashdot"),
+                    name="centerline",
+                    hoverinfo="none",
+                    showlegend=False,
+                )
             )
 
             fig.update_yaxes(title_text="Relative Angle", range=[-1, 1])
@@ -861,49 +994,70 @@ class Shape(Results):
 
         frames = []
         initial_state = []
-        for i in range(len(variation)):
+        for j in range(len(variation)):
             node_data = []
-            xn = []
-            yn = []
-            zn = []
-            for n in range(len(nodes_pos)):
+
+            n0 = 0
+            for i in range(n_plot):
+                xn = []
+                yn = []
+                zn = []
+
+                n1 = get_node_index(i)
+
+                legend_name = f"Rotor {i + 1}"
+
+                for n in range(n0, n1):
+                    node_data.append(
+                        go.Scatter3d(
+                            x=[nodes_pos[n], nodes_pos[n]],
+                            y=[0, xt[j, n]],
+                            z=[0, yt[j, n]],
+                            mode="lines",
+                            line=dict(width=2, color=self.color),
+                            name=f"Node {self.nodes[n]}",
+                            hovertemplate=(
+                                "Nodal position: %{x:.2f}<br>"
+                                + "X - Displacement: %{y:.2f}<br>"
+                                + "Y - Displacement: %{z:.2f}<br>"
+                                + f"Relative angle: {theta[n]:.2f}"
+                            ),
+                            legendgroup=legend_name,
+                            showlegend=False,
+                        )
+                    )
+                    xn.append(nodes_pos[n])
+                    yn.append(xt[j, n])
+                    zn.append(yt[j, n])
+
+                n0 = n1
+
+                plot_mode = dict(
+                    mode="lines+markers", marker=dict(size=3, symbol="circle")
+                )
+
+                try:
+                    plot_mode["marker"]["symbol"] = get_plot_mode(i)["marker"]["symbol"]
+                except KeyError:
+                    pass
+
                 node_data.append(
                     go.Scatter3d(
-                        x=[nodes_pos[n], nodes_pos[n]],
-                        y=[0, xt[i, n]],
-                        z=[0, yt[i, n]],
-                        mode="lines",
+                        x=xn,
+                        y=yn,
+                        z=zn,
                         line=dict(width=2, color=self.color),
-                        showlegend=False,
-                        name=f"Node {self.nodes[n]}",
-                        hovertemplate=(
-                            "Nodal position: %{x:.2f}<br>"
-                            + "X - Displacement: %{y:.2f}<br>"
-                            + "Y - Displacement: %{z:.2f}<br>"
-                            + f"Relative angle: {theta[n]:.2f}"
-                        ),
+                        hoverinfo="none",
+                        name=legend_name,
+                        legendgroup=legend_name,
+                        showlegend=showlegend,
+                        **plot_mode,
                     )
                 )
-                xn.append(nodes_pos[n])
-                yn.append(xt[i, n])
-                zn.append(yt[i, n])
-
-            node_data.append(
-                go.Scatter3d(
-                    x=xn,
-                    y=yn,
-                    z=zn,
-                    mode="lines+markers",
-                    line=dict(width=2, color=self.color),
-                    marker=dict(size=3),
-                    showlegend=False,
-                    hoverinfo="none",
-                )
-            )
 
             frames.append(go.Frame(data=node_data))
 
-            if i == 0:
+            if j == 0:
                 initial_state = node_data
 
         # Center line
@@ -989,10 +1143,6 @@ class Shape(Results):
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
-        xn = self.major_x.copy()
-        yn = self.major_y.copy()
-        zn = self.zn.copy()
-        nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
 
         if fig is None:
             fig = go.Figure()
@@ -1004,6 +1154,12 @@ class Shape(Results):
             self._plot_axial(plot_dimension=2, length_units=length_units, fig=fig)
 
         else:
+            xn = self.major_x.copy()
+            yn = self.major_y.copy()
+            zn = Q_(self.zn, "m").to(length_units).m
+            nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
+            major_angle = Q_(self.major_angle, "rad").to(phase_units).m
+
             if orientation == "major":
                 values = self.major_axis.copy()
             elif orientation == "x":
@@ -1013,21 +1169,55 @@ class Shape(Results):
             else:
                 raise ValueError(f"Invalid orientation {orientation}.")
 
-            fig.add_trace(
-                go.Scatter(
-                    x=Q_(zn, "m").to(length_units).m,
-                    y=values,
-                    mode="lines",
-                    line=dict(color=self.color),
-                    name=f"{orientation}",
-                    showlegend=False,
-                    customdata=Q_(self.major_angle, "rad").to(phase_units).m,
-                    hovertemplate=(
-                        f"Displacement: %{{y:.2f}}<br>"
-                        + f"Angle {phase_units}: %{{customdata:.2f}}"
+            n_plot, get_node_index, get_plot_mode = self._fix_mode_shape_intersections()
+            aux = len(zn) // len(self.shaft_elements_length)
+            showlegend = n_plot > 1
+
+            n0 = 0
+            for i in range(n_plot):
+                n1 = (get_node_index(i) - (i + 1)) * aux
+
+                legend_name = f"Rotor {i + 1}"
+
+                fig.add_trace(
+                    go.Scatter(
+                        x=zn[n0:n1],
+                        y=values[n0:n1],
+                        line=dict(color=self.color),
+                        customdata=major_angle[n0:n1],
+                        hovertemplate=(
+                            f"Displacement: %{{y:.2f}}<br>"
+                            + f"Angle {phase_units}: %{{customdata:.2f}}"
+                        ),
+                        name=f"{orientation}",
+                        legendgrouptitle=dict(text=legend_name),
+                        legendgroup=legend_name,
+                        showlegend=showlegend,
+                        **get_plot_mode(i),
                     ),
-                ),
-            )
+                )
+                fig.add_trace(
+                    go.Scatter(
+                        x=[zn[n0], zn[n0]],
+                        y=[0, values[n0]],
+                        mode="lines",
+                        line=dict(color=self.color, dash="dash"),
+                        legendgroup=legend_name,
+                        showlegend=False,
+                    )
+                )
+                fig.add_trace(
+                    go.Scatter(
+                        x=[zn[n1 - 1], zn[n1 - 1]],
+                        y=[0, values[n1 - 1]],
+                        mode="lines",
+                        line=dict(color=self.color, dash="dash"),
+                        legendgroup=legend_name,
+                        showlegend=False,
+                    )
+                )
+
+                n0 = n1
 
             # plot center line
             fig.add_trace(
@@ -1168,18 +1358,41 @@ class Shape(Results):
             if n == 0:
                 initial_state = orbit_data
 
-        # plot line connecting orbits starting points
-        fixed_lines.append(
-            go.Scatter3d(
-                x=zn,
-                y=xn,
-                z=yn,
-                mode="lines",
-                line=dict(color="black", dash="dash"),
-                name="mode shape",
-                showlegend=False,
+        n_plot, get_node_index, _ = self._fix_mode_shape_intersections()
+        aux = len(zn) // len(self.shaft_elements_length)
+
+        n0 = 0
+        for i in range(n_plot):
+            n1 = (get_node_index(i) - (i + 1)) * aux
+
+            # plot line connecting orbits starting points
+            fixed_lines.append(
+                go.Scatter3d(
+                    x=zn[n0:n1],
+                    y=xn[n0:n1],
+                    z=yn[n0:n1],
+                    mode="lines",
+                    line=dict(color="black", dash="dash"),
+                    name="mode shape",
+                    showlegend=False,
+                )
             )
-        )
+
+            # plot major axis line
+            fixed_lines.append(
+                go.Scatter3d(
+                    x=zn[n0:n1],
+                    y=self.major_x[n0:n1],
+                    z=self.major_y[n0:n1],
+                    mode="lines",
+                    line=dict(color="black", dash="dashdot"),
+                    hoverinfo="none",
+                    legendgroup="major_axis",
+                    showlegend=False,
+                ),
+            )
+
+            n0 = n1
 
         # plot center line
         min_pos = min(zn) - 0.15 * abs(max(zn) - min(zn))
@@ -1192,20 +1405,6 @@ class Shape(Results):
                 mode="lines",
                 line=dict(color="black", dash="dashdot"),
                 hoverinfo="none",
-                showlegend=False,
-            ),
-        )
-
-        # plot major axis line
-        fixed_lines.append(
-            go.Scatter3d(
-                x=zn,
-                y=self.major_x,
-                z=self.major_y,
-                mode="lines",
-                line=dict(color="black", dash="dashdot"),
-                hoverinfo="none",
-                legendgroup="major_axis",
                 showlegend=False,
             ),
         )
@@ -1256,9 +1455,6 @@ class Shape(Results):
 
     def plot_3d(
         self,
-        mode=None,
-        orientation="major",
-        title=None,
         length_units="m",
         phase_units="rad",
         animation=False,
