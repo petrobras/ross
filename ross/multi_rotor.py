@@ -3,7 +3,7 @@ from re import search
 from copy import deepcopy as copy
 
 import ross as rs
-from ross.gear_element import GearElement
+from ross.gear_element import Mesh
 from ross.rotor_assembly import Rotor
 
 __all__ = ["MultiRotor"]
@@ -109,15 +109,13 @@ class MultiRotor(Rotor):
         driving_rotor,
         driven_rotor,
         coupled_nodes,
-        gear_ratio,
-        gear_mesh_stiffness,
+        gear_mesh_stiffness=None,
+        only_max_stiffness=False,
         orientation_angle=0.0,
         position="above",
         tag=None,
     ):
         self.rotors = [driving_rotor, driven_rotor]
-        self.gear_ratio = gear_ratio
-        self.gear_mesh_stiffness = gear_mesh_stiffness
         self.orientation_angle = float(orientation_angle)
 
         R1 = copy(driving_rotor)
@@ -126,12 +124,12 @@ class MultiRotor(Rotor):
         gear_1 = [
             elm
             for elm in R1.disk_elements
-            if elm.n == coupled_nodes[0] and type(elm) == GearElement
+            if elm.n == coupled_nodes[0] and "GearElement" in type(elm).__name__
         ]
         gear_2 = [
             elm
             for elm in R2.disk_elements
-            if elm.n == coupled_nodes[1] and type(elm) == GearElement
+            if elm.n == coupled_nodes[1] and "GearElement" in type(elm).__name__
         ]
         if len(gear_1) == 0 or len(gear_2) == 0:
             raise TypeError("Each rotor needs a GearElement in the coupled nodes!")
@@ -139,7 +137,12 @@ class MultiRotor(Rotor):
             gear_1 = gear_1[0]
             gear_2 = gear_2[0]
 
-        self.gears = [gear_1, gear_2]
+        self.mesh = Mesh(
+            gear_1,
+            gear_2,
+            gear_mesh_stiffness=gear_mesh_stiffness,
+            only_max_stiffness=only_max_stiffness,
+        )
 
         gear1_plot = next(
             (
@@ -293,7 +296,7 @@ class MultiRotor(Rotor):
         rotor = self.rotors[0]
 
         if node in self.R2_nodes:
-            speed = -self.gear_ratio * omega
+            speed = -self.mesh.gear_ratio * omega
             rotor = self.rotors[1]
 
         if isinstance(rotor, MultiRotor):
@@ -318,11 +321,11 @@ class MultiRotor(Rotor):
                [0.        , 0.        , 0.        , 0.        ],
                [0.        , 0.        , 0.        , 0.        ]])
         """
-        r1 = self.gears[0].base_radius
-        r2 = self.gears[1].base_radius
+        r1 = self.mesh.driving_gear.base_radius
+        r2 = self.mesh.driven_gear.base_radius
 
-        S = np.sin(self.gears[0].pressure_angle - self.orientation_angle)
-        C = np.cos(self.gears[0].pressure_angle - self.orientation_angle)
+        S = np.sin(self.mesh.pressure_angle - self.orientation_angle)
+        C = np.cos(self.mesh.pressure_angle - self.orientation_angle)
 
         # fmt: off
         coupling_matrix = np.array([
@@ -375,7 +378,7 @@ class MultiRotor(Rotor):
         else:
             return self._join_matrices(
                 self.rotors[0].M(frequency, synchronous),
-                self.rotors[1].M(frequency * self.gear_ratio, synchronous),
+                self.rotors[1].M(frequency * self.mesh.gear_ratio, synchronous),
             )
 
     def K(self, frequency, ignore=()):
@@ -405,14 +408,14 @@ class MultiRotor(Rotor):
 
         K0 = self._join_matrices(
             self.rotors[0].K(frequency, ignore),
-            self.rotors[1].K(frequency * self.gear_ratio, ignore),
+            self.rotors[1].K(frequency * self.mesh.gear_ratio, ignore),
         )
 
-        dofs_1 = self.gears[0].dof_global_index.values()
-        dofs_2 = self.gears[1].dof_global_index.values()
+        dofs_1 = self.mesh.driving_gear.dof_global_index.values()
+        dofs_2 = self.mesh.driven_gear.dof_global_index.values()
         dofs = [*dofs_1, *dofs_2]
 
-        K0[np.ix_(dofs, dofs)] += self.coupling_matrix() * self.gear_mesh_stiffness
+        K0[np.ix_(dofs, dofs)] += self.coupling_matrix() * self.mesh.stiffness
 
         return K0
 
@@ -443,7 +446,7 @@ class MultiRotor(Rotor):
         """
 
         return self._join_matrices(
-            self.rotors[0].Ksdt(), -self.gear_ratio * self.rotors[1].Ksdt()
+            self.rotors[0].Ksdt(), -self.mesh.gear_ratio * self.rotors[1].Ksdt()
         )
 
     def C(self, frequency, ignore=()):
@@ -473,7 +476,7 @@ class MultiRotor(Rotor):
 
         return self._join_matrices(
             self.rotors[0].C(frequency, ignore),
-            self.rotors[1].C(frequency * self.gear_ratio, ignore),
+            self.rotors[1].C(frequency * self.mesh.gear_ratio, ignore),
         )
 
     def G(self):
@@ -499,7 +502,7 @@ class MultiRotor(Rotor):
         """
 
         return self._join_matrices(
-            self.rotors[0].G(), -self.gear_ratio * self.rotors[1].G()
+            self.rotors[0].G(), -self.mesh.gear_ratio * self.rotors[1].G()
         )
 
 
