@@ -854,31 +854,26 @@ class Mesh:
 
     Parameters:
     -----------
-    driving_gear : GearElementTVMS
+    driving_gear : GearElement
         The driving gear object used in the gear pair.
-    driven_gear : GearElementTVMS
+    driven_gear : GearElement
         The driven gear object used in the gear pair.
-    tvms : bool
-        If True, it will run the TVMS once and interpolate after (increased
-        performance).
-    max_stiffness : bool
-        If True, return only the max stiffness of the meshing.
+    update_stiffness : bool, optional
 
 
     Attributes:
     -----------
-    driving_gear : GearElementTVMS
+    driving_gear : GearElement
         The driving_gear object, which contains information about the
         geometry and properties of the driving gear.
-    driven_gear : GearElementTVMS
+    driven_gear : GearElement
         The driven gear object, which contains information about the
         geometry and properties of the wheel gear.
-    contact_ratio : float
-        The contact ratio, representing the average number of tooth in contact
-        during meshing.
     gear_ratio : float
         The transamission ratio, defined as the ratio of the radii between the
         driving and driven gears.
+    pressure_angle : float
+
     """
 
     def __init__(
@@ -886,10 +881,11 @@ class Mesh:
         driving_gear,
         driven_gear,
         gear_mesh_stiffness=None,
-        only_max_stiffness=False,
+        update_stiffness=False,
     ):
         self.driving_gear = driving_gear
         self.driven_gear = driven_gear
+        self.update_stiffness = update_stiffness
         self.gear_ratio = driving_gear.n_tooth / driven_gear.n_tooth
         self.pressure_angle = driving_gear.pr_angle
 
@@ -930,7 +926,6 @@ class Mesh:
 
             self.theta_range = theta_range
             self.stiffness_range = stiffness_range
-
             self.stiffness = max(stiffness_range)
 
         else:
@@ -1028,7 +1023,7 @@ class Mesh:
 
         return theta_range, stiffness_range
 
-    def _interpolate_stiffness(self, angular_position):
+    def interpolate_stiffness(self, angular_position):
         """Interpolates the mesh stiffness value at a given angular position.
 
         Parameters
@@ -1046,17 +1041,6 @@ class Mesh:
         stiffness = np.interp(theta, self.theta_range, self.stiffness_range)
 
         return stiffness
-
-    def update_stiffness(self, angular_position):
-        """Update the mesh stiffness value at a given angular position.
-
-        Parameters
-        ----------
-        angular_position : float or array-like
-            Angular position(s) at which to evaluate the stiffness. Should be in
-            the radians.
-        """
-        self.stiffness = self._interpolate_stiffness(angular_position)
 
     def plot_stiffness_profile(
         self,
