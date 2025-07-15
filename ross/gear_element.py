@@ -1028,7 +1028,7 @@ class Mesh:
 
         return theta_range, stiffness_range
 
-    def interpolate_stiffness(self, angular_position):
+    def _interpolate_stiffness(self, angular_position):
         """Interpolates the mesh stiffness value at a given angular position.
 
         Parameters
@@ -1044,7 +1044,19 @@ class Mesh:
         """
         theta = normalize(angular_position, max(self.theta_range))
         stiffness = np.interp(theta, self.theta_range, self.stiffness_range)
+
         return stiffness
+
+    def update_stiffness(self, angular_position):
+        """Update the mesh stiffness value at a given angular position.
+
+        Parameters
+        ----------
+        angular_position : float or array-like
+            Angular position(s) at which to evaluate the stiffness. Should be in
+            the radians.
+        """
+        self.stiffness = self._interpolate_stiffness(angular_position)
 
     def plot_stiffness_profile(
         self,
