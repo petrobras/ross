@@ -75,7 +75,7 @@ def test_gear_tvms_params(gear_tvms):
     assert gear_tvms.base_radius == 0.05826094248872632
     assert gear_tvms.m == 1.7360332618790646
     assert gear_tvms.Ip == 0.0036024860225567935
-    assert gear_tvms.Id == 0.0018012430112783967
+    assert gear_tvms.Id == 0.0018591107866743656
 
     radii_dict = {
         "base": 0.05826094248872632,
@@ -108,8 +108,8 @@ def test_mass_matrix_gear_tvms(gear_tvms):
     Mgt = np.array([[1.73603,      0.,      0.,      0.,      0.,      0.],
                     [     0., 1.73603,      0.,      0.,      0.,      0.],
                     [     0.,      0., 1.73603,      0.,      0.,      0.],
-                    [     0.,      0.,      0., 0.00180,      0.,      0.],
-                    [     0.,      0.,      0.,      0., 0.00180,      0.],
+                    [     0.,      0.,      0., 0.00185,      0.,      0.],
+                    [     0.,      0.,      0.,      0., 0.00185,      0.],
                     [     0.,      0.,      0.,      0.,      0., 0.00360]])
     # fmt: on
 
