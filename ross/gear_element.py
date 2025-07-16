@@ -68,11 +68,11 @@ class GearElement(DiskElement):
     --------
     >>> gear = GearElement(
     ...        n=0, m=4.67, Id=0.015, Ip=0.030,
-    ...        pitch_diameter=0.187,
+    ...        pitch_diameter=0.187, n_tooth=26,
     ...        pr_angle=Q_(22.5, "deg")
     ... )
-    >>> gear.pr_angle # doctest: +ELLIPSIS
-    0.392699...
+    >>> gear.base_radius # doctest: +ELLIPSIS
+    0.086382...
     """
 
     @check_units
@@ -115,6 +115,7 @@ class GearElement(DiskElement):
         width,
         i_d,
         o_d,
+        n_tooth,
         pr_angle=None,
         tag=None,
         scale_factor=1.0,
@@ -154,6 +155,8 @@ class GearElement(DiskElement):
             Inner diameter (the diameter of the shaft on which the gear is mounted).
         o_d : float, pint.Quantity
             Outer pitch diameter (m).
+        n_tooth : int
+            Tooth number of the gear.
         pr_angle : float, pint.Quantity, optional
             The pressure angle of the gear (rad).
             Default is 20 deg (converted to rad).
@@ -179,9 +182,9 @@ class GearElement(DiskElement):
         Examples
         --------
         >>> from ross.materials import steel
-        >>> gear = GearElement.from_geometry(0, steel, 0.07, 0.05, 0.28)
-        >>> gear.base_radius # doctest: +ELLIPSIS
-        0.131556...
+        >>> gear = GearElement.from_geometry(0, steel, 0.07, 0.05, 0.28, 20)
+        >>> gear.Ip # doctest: +ELLIPSIS
+        0.329563...
         >>>
         """
         m = material.rho * np.pi * width * (o_d**2 - i_d**2) / 4
@@ -193,6 +196,7 @@ class GearElement(DiskElement):
             m,
             Id,
             Ip,
+            n_tooth,
             pitch_diameter=o_d,
             pr_angle=pr_angle,
             tag=tag,
@@ -217,7 +221,6 @@ class GearElement(DiskElement):
         fig : plotly.graph_objects.Figure
             The figure object which traces are added on.
         """
-
         zpos, ypos, yc_pos, scale_factor = position
         scale_factor *= 2
         radius = min(self.base_radius * 1.1 + 0.05, 1)
@@ -328,13 +331,19 @@ class GearElementTVMS(GearElement):
 
     Examples
     --------
+    >>> from ross.materials import steel
     >>> gear = GearElementTVMS(
-    ...        n=0, m=4.67, Id=0.015, Ip=0.030,
-    ...        pitch_diameter=0.187,
-    ...        pr_angle=Q_(22.5, "deg")
+    ...    n=0,
+    ...    material=steel,
+    ...    m=10.886,
+    ...    module=0.002,
+    ...    width=0.02,
+    ...    n_tooth=62,
+    ...    hub_bore_radius=0.0175,
+    ...    pr_angle=0.349066
     ... )
-    >>> gear.pr_angle # doctest : +ELLIPSIS
-    0.392699...
+    >>> gear.base_radius # doctest : +ELLIPSIS
+    0.058260...
     """
 
     @check_units
@@ -359,8 +368,7 @@ class GearElementTVMS(GearElement):
 
         m = material.rho * np.pi * width * (o_d**2 - i_d**2) / 4
         Ip = m * (o_d**2 + i_d**2) / 8
-        # Id = 1 / 2 * Ip + 1 / 12 * m * width**2
-        Id = Ip / 2
+        Id = 1 / 2 * Ip + 1 / 12 * m * width**2
 
         super().__init__(
             n,
@@ -825,7 +833,11 @@ class GearElementTVMS(GearElement):
 
         fig.add_trace(
             go.Scatter(
-                x=y_t[-1::-1], y=x_t[-1::-1], mode="lines", name="Transition Curve"
+                x=y_t[-1::-1],
+                y=x_t[-1::-1],
+                mode="lines",
+                line=dict(dash="dash"),
+                name="Transition Curve",
             )
         )
 
@@ -868,6 +880,33 @@ class Mesh:
         driving and driven gears.
     pressure_angle : float
         The pressure angle of the gear mesh (rad).
+
+    Examples
+    --------
+    >>> from ross.materials import steel
+    >>> driving = GearElementTVMS(
+    ...    n=0,
+    ...    material=steel,
+    ...    m=10.886,
+    ...    module=0.002,
+    ...    width=0.02,
+    ...    n_tooth=62,
+    ...    hub_bore_radius=0.0175,
+    ...    pr_angle=0.349066
+    ... )
+    >>> driven = GearElementTVMS(
+    ...    n=2,
+    ...    material=steel,
+    ...    m=10.886,
+    ...    module=0.002,
+    ...    width=0.02,
+    ...    n_tooth=62,
+    ...    hub_bore_radius=0.0175,
+    ...    pr_angle=0.349066
+    ... )
+    >>> mesh = Mesh(driving, driven)
+    >>> mesh.stiffness # doctest : +ELLIPSIS
+    429787128.434...
     """
 
     def __init__(
@@ -935,11 +974,6 @@ class Mesh:
         -------
         k : float
             The angular equivalent stiffness of mesh contact.
-
-        Example
-        --------
-        >>> self._angular_equivalent_stiffness()
-        167970095.70859054
         """
         # Angular displacements
         alpha_1 = self.driving_gear.pr_angles_dict["start_point"] + dalpha
@@ -1055,7 +1089,7 @@ class Mesh:
             Units for the angular position axis. Default is 'rad'.
         stiffness_units : str, optional
             Units for the stiffness axis. Default is 'N/m'.
-        *kwargs : dict, optional
+        **kwargs : dict, optional
             Additional keyword arguments passed to `plotly.graph_objects.Figure.update_layout`
             for customizing the figure (e.g., title, font, size, legend settings, etc.).
         """
