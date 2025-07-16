@@ -39,8 +39,8 @@ class GearElement(DiskElement):
         Diametral moment of inertia.
     Ip : float, pint.Quantity
         Polar moment of inertia.
-    n_tooth : int
-        Tooth number of the gear.
+    n_teeth : int
+        Number of teeth.
     base_diameter : float, pint.Quantity
         Base diameter of the gear (m).
         If given pitch_diameter is not necessary.
@@ -68,7 +68,7 @@ class GearElement(DiskElement):
     --------
     >>> gear = GearElement(
     ...        n=0, m=4.67, Id=0.015, Ip=0.030,
-    ...        pitch_diameter=0.187, n_tooth=26,
+    ...        pitch_diameter=0.187, n_teeth=26,
     ...        pr_angle=Q_(22.5, "deg")
     ... )
     >>> gear.base_radius # doctest: +ELLIPSIS
@@ -82,7 +82,7 @@ class GearElement(DiskElement):
         m,
         Id,
         Ip,
-        n_tooth,
+        n_teeth,
         pitch_diameter=None,
         base_diameter=None,
         pr_angle=None,
@@ -94,7 +94,7 @@ class GearElement(DiskElement):
             pr_angle = Q_(20, "deg").to_base_units().m
 
         self.pr_angle = float(pr_angle)
-        self.n_tooth = n_tooth
+        self.n_teeth = n_teeth
 
         if base_diameter:
             self.base_radius = float(base_diameter) / 2
@@ -115,7 +115,7 @@ class GearElement(DiskElement):
         width,
         i_d,
         o_d,
-        n_tooth,
+        n_teeth,
         pr_angle=None,
         tag=None,
         scale_factor=1.0,
@@ -155,8 +155,8 @@ class GearElement(DiskElement):
             Inner diameter (the diameter of the shaft on which the gear is mounted).
         o_d : float, pint.Quantity
             Outer pitch diameter (m).
-        n_tooth : int
-            Tooth number of the gear.
+        n_teeth : int
+            Number of teeth.
         pr_angle : float, pint.Quantity, optional
             The pressure angle of the gear (rad).
             Default is 20 deg (converted to rad).
@@ -196,7 +196,7 @@ class GearElement(DiskElement):
             m,
             Id,
             Ip,
-            n_tooth,
+            n_teeth,
             pitch_diameter=o_d,
             pr_angle=pr_angle,
             tag=tag,
@@ -298,8 +298,8 @@ class GearElementTVMS(GearElement):
         Mass of the gear element (kg).
     module : float
         Gear module (m).
-    n_tooth : int
-        Tooth number of the gear.
+    n_teeth : int
+        Number of teeth.
     width : float
         Tooth width (m).
     hub_bore_radius : float
@@ -338,7 +338,7 @@ class GearElementTVMS(GearElement):
     ...    m=10.886,
     ...    module=0.002,
     ...    width=0.02,
-    ...    n_tooth=62,
+    ...    n_teeth=62,
     ...    hub_bore_radius=0.0175,
     ...    pr_angle=0.349066
     ... )
@@ -352,7 +352,7 @@ class GearElementTVMS(GearElement):
         n,
         m,
         module,
-        n_tooth,
+        n_teeth,
         width,
         hub_bore_radius,
         material=steel,
@@ -363,7 +363,7 @@ class GearElementTVMS(GearElement):
         scale_factor=1.0,
         color="Goldenrod",
     ):
-        o_d = module * n_tooth
+        o_d = module * n_teeth
         i_d = 2 * hub_bore_radius
 
         m = material.rho * np.pi * width * (o_d**2 - i_d**2) / 4
@@ -375,7 +375,7 @@ class GearElementTVMS(GearElement):
             m,
             Id,
             Ip,
-            n_tooth=n_tooth,
+            n_teeth=n_teeth,
             pitch_diameter=o_d,
             pr_angle=pr_angle,
             tag=tag,
@@ -415,9 +415,9 @@ class GearElementTVMS(GearElement):
             np.pi / 2
             + 2 * np.tan(p_ang) * (self.addendum_coeff - r_rho_)
             + 2 * r_rho_ / np.cos(p_ang)
-        ) / self.n_tooth
+        ) / self.n_teeth
 
-        theta_b = np.pi / (2 * self.n_tooth) + self._involute(p_ang)
+        theta_b = np.pi / (2 * self.n_teeth) + self._involute(p_ang)
 
         # Add geometric constants of the tooth profile
         a1 = (a_coeff_mod + c_coeff_mod) - r_rho
@@ -890,7 +890,7 @@ class Mesh:
     ...    m=10.886,
     ...    module=0.002,
     ...    width=0.02,
-    ...    n_tooth=62,
+    ...    n_teeth=62,
     ...    hub_bore_radius=0.0175,
     ...    pr_angle=0.349066
     ... )
@@ -900,7 +900,7 @@ class Mesh:
     ...    m=10.886,
     ...    module=0.002,
     ...    width=0.02,
-    ...    n_tooth=62,
+    ...    n_teeth=62,
     ...    hub_bore_radius=0.0175,
     ...    pr_angle=0.349066
     ... )
@@ -917,7 +917,7 @@ class Mesh:
     ):
         self.driving_gear = driving_gear
         self.driven_gear = driven_gear
-        self.gear_ratio = driving_gear.n_tooth / driven_gear.n_tooth
+        self.gear_ratio = driving_gear.n_teeth / driven_gear.n_teeth
         self.pressure_angle = driving_gear.pr_angle
 
         if gear_mesh_stiffness is None:
@@ -944,7 +944,7 @@ class Mesh:
                 )
                 - center_distance * np.sin(driving_gear.pr_angle)
             )
-            base_pitch = 2 * np.pi * driving_gear.base_radius / driving_gear.n_tooth
+            base_pitch = 2 * np.pi * driving_gear.base_radius / driving_gear.n_teeth
             self.contact_ratio = contact_length / base_pitch
 
             self.hertzian_stiffness = (
@@ -1010,7 +1010,7 @@ class Mesh:
         alpha_c = self.driving_gear.pr_angles_dict["start_point"]
         alpha_a = self.driving_gear.pr_angles_dict["addendum"]
 
-        theta = normalize(angular_position, 2 * np.pi / self.driving_gear.n_tooth)
+        theta = normalize(angular_position, 2 * np.pi / self.driving_gear.n_teeth)
 
         alpha = self.driving_gear._to_pressure_angle(theta)
         dmeshing = (alpha_a - alpha_c) / contact_ratio
@@ -1043,7 +1043,7 @@ class Mesh:
         stiffness_range : list of float
             List of stiffness values corresponding to each angular position.
         """
-        theta_end = 2 * np.pi / self.driving_gear.n_tooth * n_mesh_period
+        theta_end = 2 * np.pi / self.driving_gear.n_teeth * n_mesh_period
         theta_range = np.linspace(0, theta_end, n_points)
 
         stiffness_range = [self.get_variable_stiffness(theta) for theta in theta_range]

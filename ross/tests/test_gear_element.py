@@ -15,7 +15,7 @@ def gear():
         m=726.4,
         Id=56.95,
         Ip=113.9,
-        n_tooth=328,
+        n_teeth=328,
         pitch_diameter=1.1,
         pr_angle=Q_(22.5, "deg"),
     )
@@ -64,7 +64,7 @@ def gear_tvms():
         m=Q_(12 * 2.204, "lbs"),
         module=Q_(2, "mm"),
         width=Q_(20, "mm"),
-        n_tooth=62,
+        n_teeth=62,
         hub_bore_radius=Q_(17.5, "mm"),
         pr_angle=Q_(20, "deg"),
     )

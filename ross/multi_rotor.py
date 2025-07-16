@@ -66,7 +66,7 @@ class MultiRotor(Rotor):
     >>> generator = rs.DiskElement(n=1, m=525.7, Id=16.1, Ip=32.2)
     >>> disk = rs.DiskElement(n=2, m=116.04, Id=3.115, Ip=6.23)
     >>> gear1 = rs.GearElement(
-    ...     n=4, m=726.4, Id=56.95, Ip=113.9, n_tooth=328,
+    ...     n=4, m=726.4, Id=56.95, Ip=113.9, n_teeth=328,
     ...     pitch_diameter=1.1, pr_angle=rs.Q_(22.5, 'deg'),
     ... )
     >>> bearing1 = rs.BearingElement(n=0, kxx=183.9e6, kyy=200.4e6, cxx=3e3)
@@ -86,7 +86,7 @@ class MultiRotor(Rotor):
     ...     for i in range(len(L2))
     ... ]
     >>> gear2 = rs.GearElement(
-    ...     n=0, m=5, Id=0.002, Ip=0.004, n_tooth=23,
+    ...     n=0, m=5, Id=0.002, Ip=0.004, n_teeth=23,
     ...     pitch_diameter=0.077, pr_angle=rs.Q_(22.5, 'deg'),
     ... )
     >>> turbine = rs.DiskElement(n=2, m=7.45, Id=0.0745, Ip=0.149)
@@ -589,7 +589,7 @@ def two_shaft_rotor_example():
         m=726.4,
         Id=56.95,
         Ip=113.9,
-        n_tooth=N1,
+        n_teeth=N1,
         pitch_diameter=pitch_diameter,
         pr_angle=pressure_angle,
     )
@@ -626,7 +626,7 @@ def two_shaft_rotor_example():
         m=5,
         Id=0.002,
         Ip=0.004,
-        n_tooth=N2,
+        n_teeth=N2,
         pitch_diameter=pitch_diameter,
         pr_angle=pressure_angle,
     )
