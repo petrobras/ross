@@ -66,8 +66,8 @@ class MultiRotor(Rotor):
     >>> generator = rs.DiskElement(n=1, m=525.7, Id=16.1, Ip=32.2)
     >>> disk = rs.DiskElement(n=2, m=116.04, Id=3.115, Ip=6.23)
     >>> gear1 = rs.GearElement(
-    ...     n=4, m=726.4, Id=56.95, Ip=113.9,
-    ...     pitch_diameter=1.1, pressure_angle=rs.Q_(22.5, 'deg'),
+    ...     n=4, m=726.4, Id=56.95, Ip=113.9, n_tooth=328,
+    ...     pitch_diameter=1.1, pr_angle=rs.Q_(22.5, 'deg'),
     ... )
     >>> bearing1 = rs.BearingElement(n=0, kxx=183.9e6, kyy=200.4e6, cxx=3e3)
     >>> bearing2 = rs.BearingElement(n=3, kxx=183.9e6, kyy=200.4e6, cxx=3e3)
@@ -86,8 +86,8 @@ class MultiRotor(Rotor):
     ...     for i in range(len(L2))
     ... ]
     >>> gear2 = rs.GearElement(
-    ...     n=0, m=5, Id=0.002, Ip=0.004,
-    ...     pitch_diameter=0.077, pressure_angle=rs.Q_(22.5, 'deg'),
+    ...     n=0, m=5, Id=0.002, Ip=0.004, n_tooth=23,
+    ...     pitch_diameter=0.077, pr_angle=rs.Q_(22.5, 'deg'),
     ... )
     >>> turbine = rs.DiskElement(n=2, m=7.45, Id=0.0745, Ip=0.149)
     >>> bearing3 = rs.BearingElement(n=1, kxx=10.1e6, kyy=41.6e6, cxx=3e3)
@@ -99,7 +99,6 @@ class MultiRotor(Rotor):
     ...     rotor1,
     ...     rotor2,
     ...     coupled_nodes=(4, 0),
-    ...     gear_ratio=328 / 23,
     ...     gear_mesh_stiffness=1e8,
     ...     orientation_angle=0.0,
     ...     position="below"
@@ -549,6 +548,10 @@ def two_shaft_rotor_example():
     # A spur geared two-shaft rotor system.
     material = rs.Material(name="mat_steel", rho=7800, E=207e9, G_s=79.5e9)
 
+    N1 = 328  # Number of teeth of gear 1
+    N2 = 23  # Number of teeth of gear 2
+    k_mesh = 1e8  # Mesh stiffness
+
     # Rotor 1
     L1 = [0.1, 4.24, 1.16, 0.3]
     d1 = [0.3, 0.3, 0.22, 0.22]
@@ -578,7 +581,7 @@ def two_shaft_rotor_example():
         Ip=6.23,
     )
 
-    pressure_angle = rs.Q_(22.5, "deg")
+    pressure_angle = rs.Q_(22.5, "deg").to_base_units().m
     base_radius = 0.5086
     pitch_diameter = 2 * base_radius / np.cos(pressure_angle)
     gear1 = rs.GearElement(
@@ -586,8 +589,9 @@ def two_shaft_rotor_example():
         m=726.4,
         Id=56.95,
         Ip=113.9,
+        n_tooth=N1,
         pitch_diameter=pitch_diameter,
-        pressure_angle=pressure_angle,
+        pr_angle=pressure_angle,
     )
 
     bearing1 = rs.BearingElement(n=0, kxx=183.9e6, kyy=200.4e6, cxx=3e3)
@@ -622,8 +626,9 @@ def two_shaft_rotor_example():
         m=5,
         Id=0.002,
         Ip=0.004,
+        n_tooth=N2,
         pitch_diameter=pitch_diameter,
-        pressure_angle=pressure_angle,
+        pr_angle=pressure_angle,
     )
 
     turbine = rs.DiskElement(n=2, m=7.45, Id=0.0745, Ip=0.149)
@@ -637,15 +642,10 @@ def two_shaft_rotor_example():
         [bearing3, bearing4],
     )
 
-    N1 = 328  # Number of teeth of gear 1
-    N2 = 23  # Number of teeth of gear 2
-    k_mesh = 1e8  # Mesh stiffness
-
     return rs.MultiRotor(
         rotor1,
         rotor2,
         coupled_nodes=(4, 0),
-        gear_ratio=N1 / N2,
         gear_mesh_stiffness=k_mesh,
         orientation_angle=0.0,
         position="below",
