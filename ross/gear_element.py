@@ -286,9 +286,11 @@ class GearElement(DiskElement):
 
 
 class GearElementTVMS(GearElement):
-    """A gear element.
+    """A gear element with Time-Varying Mesh Stiffness (TVMS) modeling.
 
-    This class creates a gear element from input data of inertia and mass.
+    This class defines a gear element used in rotor dynamics simulations, incorporating
+    time-varying mesh stiffness to represent gear interactions more accurately. It uses
+    geometric, material, and mass properties to model the gear.
 
     Parameters
     ----------
