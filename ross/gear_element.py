@@ -296,8 +296,6 @@ class GearElementTVMS(GearElement):
     ----------
     n : int
         Node in which the gear will be inserted.
-    m : float, pint.Quantity
-        Mass of the gear element (kg).
     module : float
         Gear module (m).
     n_teeth : int
@@ -337,7 +335,6 @@ class GearElementTVMS(GearElement):
     >>> gear = GearElementTVMS(
     ...    n=0,
     ...    material=steel,
-    ...    m=10.886,
     ...    module=0.002,
     ...    width=0.02,
     ...    n_teeth=62,
@@ -352,7 +349,6 @@ class GearElementTVMS(GearElement):
     def __init__(
         self,
         n,
-        m,
         module,
         n_teeth,
         width,
@@ -889,7 +885,6 @@ class Mesh:
     >>> driving = GearElementTVMS(
     ...    n=0,
     ...    material=steel,
-    ...    m=10.886,
     ...    module=0.002,
     ...    width=0.02,
     ...    n_teeth=62,
@@ -899,7 +894,6 @@ class Mesh:
     >>> driven = GearElementTVMS(
     ...    n=2,
     ...    material=steel,
-    ...    m=10.886,
     ...    module=0.002,
     ...    width=0.02,
     ...    n_teeth=62,

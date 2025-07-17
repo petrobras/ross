@@ -61,7 +61,6 @@ def gear_tvms():
     return GearElementTVMS(
         n=0,
         material=gear_material,
-        m=Q_(12 * 2.204, "lbs"),
         module=Q_(2, "mm"),
         width=Q_(20, "mm"),
         n_teeth=62,
