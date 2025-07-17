@@ -1,6 +1,7 @@
 import numpy as np
 from re import search
 from copy import deepcopy as copy
+from scipy.integrate import cumulative_trapezoid as integrate
 
 import ross as rs
 from ross.gear_element import Mesh
@@ -249,6 +250,32 @@ class MultiRotor(Rotor):
         global_matrix[first_ndof:, first_ndof:] = driven_matrix
 
         return global_matrix
+
+    def _update_mesh_stiffness(self, speed, t):
+        """Update the mesh stiffness based on the current speed and time.
+
+        Parameters
+        ----------
+        speed : array_like
+            Rotor speed.
+        t : ndarray
+            Time array.
+
+        Returns
+        -------
+        couple_K_matrix : callable
+            A function `couple_K_matrix(step, K)` that returns the modified or original
+            stiffness matrix `K` at the given time step.
+        """
+        if self.update_mesh_stiffness:
+            theta = integrate(speed, t, initial=0)
+            couple_K_matrix = lambda step, K: self._couple_K(
+                K, self.mesh.interpolate_stiffness(theta[step])
+            )
+        else:
+            couple_K_matrix = lambda step, K: K
+
+        return couple_K_matrix
 
     def _unbalance_force(self, node, magnitude, phase, omega):
         """Calculate unbalance forces.

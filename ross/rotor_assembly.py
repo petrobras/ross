@@ -46,9 +46,6 @@ from ross.results import (
     TimeResponseResults,
     UCSResults,
 )
-
-# from ross.multi_rotor_TVMS import MultiRotorTVMS
-
 from ross.shaft_element import ShaftElement
 from ross.units import Q_, check_units
 from ross.utils import (
@@ -71,6 +68,9 @@ __all__ = [
 
 # set Plotly palette of colors
 colors = px.colors.qualitative.Dark24
+
+# check if object is MultiRotor
+check_isMultiRotor = lambda obj: type(obj) not in (Rotor, CoAxialRotor)
 
 
 class Rotor(object):
@@ -149,7 +149,7 @@ class Rotor(object):
         tag=None,
     ):
         self.parameters = {"min_w": min_w, "max_w": max_w, "rated_w": rated_w}
-        isMultiRotor = type(self) not in (Rotor, CoAxialRotor)
+        isMultiRotor = check_isMultiRotor(self)
 
         if tag is None:
             self.tag = "MultiRotor 0" if isMultiRotor else "Rotor 0"
@@ -1106,7 +1106,7 @@ class Rotor(object):
         return M0
 
     @lru_cache()
-    def K(self, frequency, ignore=(), **kwargs):
+    def K(self, frequency, ignore=()):
         """Stiffness matrix for an instance of a rotor.
 
         Parameters
@@ -1283,25 +1283,6 @@ class Rotor(object):
         I = np.eye(self.ndof)
 
         M = self.M(frequency, synchronous=synchronous)
-
-        if type(self).__name__ == "MultiRotorTVMS":
-            A = np.vstack(
-                [
-                    np.hstack([Z, I]),
-                    np.hstack(
-                        [
-                            la.solve(
-                                -self.M(frequency, synchronous=synchronous),
-                                self.K(frequency),
-                            ),
-                            la.solve(
-                                -self.M(frequency, synchronous=synchronous),
-                                (self.C(frequency) + self.G() * speed),
-                            ),
-                        ]
-                    ),
-                ]
-            )
 
         # fmt: off
         A = np.vstack(
@@ -2371,15 +2352,8 @@ class Rotor(object):
         accel = np.gradient(speed, t)
 
         # Applicable for MultiRotor with GearElementTVMS
-        update_mesh_stiffness = (
-            self.update_mesh_stiffness if "mesh" in self.__dict__ else False
-        )
-
-        if update_mesh_stiffness:
-            theta = integrate(speed, t, initial=0)
-            couple_K_matrix = lambda step, K: self._couple_K(
-                K, self.mesh.interpolate_stiffness(theta[step])
-            )
+        if check_isMultiRotor(self):
+            couple_K_matrix = self._update_mesh_stiffness(speed, t)
         else:
             couple_K_matrix = lambda step, K: K
 
