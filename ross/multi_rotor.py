@@ -448,6 +448,21 @@ class MultiRotor(Rotor):
         return K0
 
     def _couple_K(self, K0, mesh_stiffness):
+        """Assembles the coupling stiffness matrix for a gear mesh and adds it to
+        the global stiffness matrix.
+
+        Parameters
+        ----------
+        K0 : ndarray
+            The global stiffness matrix to be updated.
+        mesh_stiffness : float
+            The scalar stiffness coefficient for the gear mesh.
+
+        Returns
+        -------
+        K0 : ndarray
+            The updated global stiffness matrix with the gear coupling contributions.
+        """
         dofs_1 = self.mesh.driving_gear.dof_global_index.values()
         dofs_2 = self.mesh.driven_gear.dof_global_index.values()
         dofs = [*dofs_1, *dofs_2]
