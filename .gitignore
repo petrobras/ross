@@ -134,3 +134,4 @@ pip-selfcheck.json
 /tools/plots/*.html
 !/tools/plots/index.html
 /docs/references/generated/
+ross/faults/teste.py
