@@ -2651,3 +2651,31 @@ def test_rotor_conical_frequencies(rotor_conical):
         ]
     )
     assert_allclose(modal.wn, expected_wn, rtol=1e-5)
+
+
+def test_amb_controller():
+    # Test for the magnetic_bearing_controller method.
+    from ross.rotor_assembly import rotor_amb_example
+
+    rotor = rotor_amb_example()
+
+    speed = 1200
+    t = np.linspace(0, 10, 40001)
+    node = [27, 29]
+    mass = [10, 10]
+    probes = [12, 43]
+
+    F = np.zeros((len(t), rotor.ndof))
+    for n, m in zip(node, mass):
+        F[:, 6 * n + 0] = m * np.cos((speed * t))
+        F[:, 6 * n + 1] = (m - 5) * np.sin((speed * t))
+
+    response = rotor.run_time_response(speed, F, t, method="newmark")
+
+    mean_response = []
+    for ii in probes:
+        for jj in range(2):
+            mean_response.append(np.mean(response.yout[:, 6 * ii + jj]))
+    mean_max = np.max(np.array(mean_response))
+
+    assert_allclose(np.array(mean_max), np.array(1.40899209e-07), rtol=1e-6, atol=1e-6)
