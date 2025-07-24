@@ -54,6 +54,7 @@ from ross.utils import (
     assemble_C_K_matrices,
     remove_dofs,
     convert_6dof_to_4dof,
+    convert_6dof_to_torsional,
 )
 
 __all__ = [
@@ -715,9 +716,7 @@ class Rotor(object):
 
     @lru_cache()
     @check_units
-    def run_modal(
-        self, speed, num_modes=12, sparse=True, synchronous=False, full=False
-    ):
+    def run_modal(self, speed, num_modes=12, sparse=True, synchronous=False):
         """Run modal analysis.
 
         Method to calculate eigenvalues and eigvectors for a given rotor system.
@@ -752,10 +751,6 @@ class Rotor(object):
         synchronous : bool, optional
             If True a synchronous analysis is carried out.
             Default is False.
-        full : bool, optional
-            If True, the size of the result arrays is equal to `num_modes`.
-            If False, it is half the value of `num_modes`.
-            Default is False.
 
         Returns
         -------
@@ -782,7 +777,7 @@ class Rotor(object):
         evalues, evectors = self._eigen(
             speed, num_modes=num_modes, sparse=sparse, synchronous=synchronous
         )
-        wn_len = num_modes if full else num_modes // 2
+        wn_len = num_modes // 2
         wn = (np.absolute(evalues))[:wn_len]
         wd = (np.imag(evalues))[:wn_len]
         damping_ratio = (-np.real(evalues) / np.absolute(evalues))[:wn_len]
@@ -1031,7 +1026,6 @@ class Rotor(object):
 
         return results
 
-    @lru_cache()
     def M(self, frequency=None, synchronous=False):
         """Mass matrix for an instance of a rotor.
 
@@ -1102,7 +1096,6 @@ class Rotor(object):
 
         return M0
 
-    @lru_cache()
     def K(self, frequency, ignore=()):
         """Stiffness matrix for an instance of a rotor.
 
@@ -1140,7 +1133,6 @@ class Rotor(object):
 
         return K0
 
-    @lru_cache()
     def Ksdt(self):
         """Dynamic stiffness matrix for an instance of a rotor.
 
@@ -1176,7 +1168,6 @@ class Rotor(object):
 
         return Ksdt0
 
-    @lru_cache()
     def C(self, frequency, ignore=()):
         """Damping matrix for an instance of a rotor.
 
@@ -1214,7 +1205,6 @@ class Rotor(object):
 
         return C0
 
-    @lru_cache()
     def G(self):
         """Gyroscopic matrix for an instance of a rotor.
 
@@ -1240,7 +1230,6 @@ class Rotor(object):
 
         return G0
 
-    @lru_cache()
     def A(self, speed=0, frequency=None, synchronous=False):
         """State space matrix for an instance of a rotor.
 
@@ -2663,7 +2652,9 @@ class Rotor(object):
         return fig
 
     @check_units
-    def run_campbell(self, speed_range, frequencies=6, frequency_type="wd"):
+    def run_campbell(
+        self, speed_range, frequencies=6, frequency_type="wd", torsional_analysis=False
+    ):
         """Calculate the Campbell diagram.
 
         This function will calculate the damped natural frequencies
@@ -2683,6 +2674,11 @@ class Rotor(object):
             Choose between displaying results related to the undamped natural
             frequencies ("wn") or damped natural frequencies ("wd").
             The default is "wd".
+        torsional_analysis : bool, optional
+            If True, performs a separate torsional analysis and returns the
+            respective modes in the Campbell diagram. In this case, a system
+            with only torsional degrees of freedom is considered, thus
+            disregarding coupled modes (lateral + torsional). Default is False.
 
         Returns
         -------
@@ -2718,14 +2714,14 @@ class Rotor(object):
             return np.absolute((H(u) @ v) ** 2 / ((H(u) @ u) * (H(v) @ v)))
 
         num_modes = 2 * (frequencies + 2)  # ensure to get the right modes
-        evec_size = num_modes
+        evec_size = int(num_modes / 2)
         mode_order = np.arange(evec_size)
         threshold = 0.9
         evec_u = []
 
         modal_results = {}
         for i, w in enumerate(speed_range):
-            modal = self.run_modal(speed=w, num_modes=num_modes, full=True)
+            modal = self.run_modal(speed=w, num_modes=num_modes)
             modal_results[w] = modal
 
             evec_v = modal.evectors[:, :evec_size]
@@ -2769,6 +2765,14 @@ class Rotor(object):
                 results[i, :, 2] = modal.damping_ratio[idx][:frequencies]
                 results[i, :, 3] = modal.whirl_values()[idx][:frequencies]
 
+        if torsional_analysis:
+            rotor_t = convert_6dof_to_torsional(self)
+            campbell_t = rotor_t.run_campbell(
+                speed_range=speed_range,
+                frequencies=int(frequencies / 6),
+                frequency_type=frequency_type,
+            )
+
         results = CampbellResults(
             speed_range=speed_range,
             wd=results[..., 0],
@@ -2777,7 +2781,8 @@ class Rotor(object):
             whirl_values=results[..., 3],
             modal_results=modal_results,
             number_dof=self.number_dof,
-            run_modal=lambda w: self.run_modal(speed=w, num_modes=num_modes, full=True),
+            run_modal=lambda w: self.run_modal(speed=w, num_modes=num_modes),
+            campbell_torsional=campbell_t if torsional_analysis else None,
         )
 
         return results
