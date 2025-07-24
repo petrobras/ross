@@ -1665,6 +1665,9 @@ class Rotor(object):
         >>> speed = 100.0
         >>> H = rotor.transfer_matrix(speed=speed)
         """
+        if frequency is None:
+            frequency = speed
+
         lti = self._lti(speed=speed)
         B = lti.B
         C = lti.C
@@ -1687,7 +1690,7 @@ class Rotor(object):
             psi = psi[np.ix_(range(2 * n), idx)]
             psi_inv = psi_inv[np.ix_(idx, range(2 * n))]
 
-        diag = np.diag([1 / (1j * speed - lam) for lam in evals])
+        diag = np.diag([1 / (1j * frequency - lam) for lam in evals])
 
         H = C @ psi @ diag @ psi_inv @ B + D
 
@@ -1702,6 +1705,7 @@ class Rotor(object):
         num_modes=12,
         num_points=10,
         rtol=0.005,
+        free_free=False,
     ):
         """Frequency response for a mdof system.
 
@@ -1743,6 +1747,9 @@ class Rotor(object):
             Tolerance (relative) for termination. Applied to scipy.optimize.newton to
             calculate the approximated critical speeds.
             Default is 0.005 (0.5%).
+        free_free : bool, optional
+            If True, the method will consider the rotor system as free-free.
+            Default is False.
 
         Returns
         -------
@@ -1805,6 +1812,7 @@ class Rotor(object):
             num_modes=num_modes,
             num_points=num_points,
             rtol=rtol,
+            free_free=free_free,
         )
 
     @lru_cache()
@@ -1816,6 +1824,7 @@ class Rotor(object):
         num_modes=12,
         num_points=10,
         rtol=0.005,
+        free_free=False,
     ):
         """Frequency response for a mdof system.
 
@@ -1840,8 +1849,15 @@ class Rotor(object):
         velc_resp = np.empty((self.ndof, self.ndof, len(speed_range)), dtype=complex)
         accl_resp = np.empty((self.ndof, self.ndof, len(speed_range)), dtype=complex)
 
+        if free_free:
+            transfer_matrix = lambda s, m: self.transfer_matrix(
+                speed=0, modes=m, frequency=s
+            )
+        else:
+            transfer_matrix = lambda s, m: self.transfer_matrix(speed=s, modes=m)
+
         for i, speed in enumerate(speed_range):
-            H = self.transfer_matrix(speed=speed, modes=modes)
+            H = transfer_matrix(speed, modes)
             freq_resp[..., i] = H
             velc_resp[..., i] = 1j * speed * H
             accl_resp[..., i] = -(speed**2) * H
