@@ -461,7 +461,9 @@ class Shape(Results):
         self.zn = None
         self.major_axis = None
         self._classify()
-        self._calculate()
+
+        if number_dof > 3:
+            self._calculate()
 
     def _classify(self):
         self.mode_type = "Lateral"
@@ -487,6 +489,10 @@ class Shape(Results):
             elif torsional_percent > 0.9:
                 self.mode_type = "Torsional"
                 self.color = tableau_colors["green"]
+
+        elif self.number_dof == 1:
+            self.mode_type = "Torsional"
+            self.color = tableau_colors["green"]
 
     def _calculate_orbits(self):
         orbits = []
@@ -904,6 +910,9 @@ class Shape(Results):
         size = len(self.vector)
         torsional_dofs = np.arange(5, size, self.number_dof)
 
+        if self.number_dof == 1:
+            torsional_dofs = np.arange(0, size, self.number_dof)
+
         theta = np.abs(self.vector[torsional_dofs]) * np.angle(
             self.vector[torsional_dofs]
         )
@@ -1143,7 +1152,6 @@ class Shape(Results):
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
-
         if fig is None:
             fig = go.Figure()
 
@@ -1156,9 +1164,8 @@ class Shape(Results):
         else:
             xn = self.major_x.copy()
             yn = self.major_y.copy()
-            zn = Q_(self.zn, "m").to(length_units).m
+            zn = self.zn.copy()
             nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
-            major_angle = Q_(self.major_angle, "rad").to(phase_units).m
 
             if orientation == "major":
                 values = self.major_axis.copy()
@@ -1181,10 +1188,10 @@ class Shape(Results):
 
                 fig.add_trace(
                     go.Scatter(
-                        x=zn[n0:n1],
+                        x=Q_(zn[n0:n1], "m").to(length_units).m,
                         y=values[n0:n1],
                         line=dict(color=self.color),
-                        customdata=major_angle[n0:n1],
+                        customdata=Q_(self.major_angle[n0:n1], "rad").to(phase_units).m,
                         hovertemplate=(
                             f"Displacement: %{{y:.2f}}<br>"
                             + f"Angle {phase_units}: %{{customdata:.2f}}"
@@ -2132,6 +2139,14 @@ class CampbellResults(Results):
         Array with the whirl values (0, 0.5 or 1)
     modal_results : dict
         Dictionary with the modal results for each speed in the speed range.
+    numer_dof : int
+        Number of degrees of freedom of model.
+    run_modal : callable
+        Function that runs the modal analysis.
+    campbell_torsional : CampbellResults, optional
+        If True, the Campbell Diagram includes torsional modes of separated
+        analysis. Default is None, which means that torsional modes obtained
+        in the separated analysis are not included.
 
     Returns
     -------
@@ -2149,6 +2164,7 @@ class CampbellResults(Results):
         modal_results,
         number_dof,
         run_modal,
+        campbell_torsional=None,
     ):
         self.speed_range = speed_range
         self.wd = wd
@@ -2158,6 +2174,7 @@ class CampbellResults(Results):
         self.modal_results = modal_results
         self.number_dof = number_dof
         self.run_modal = run_modal
+        self.campbell_torsional = campbell_torsional
 
     def sort_by_mode_type(self):
         """Sort by mode type.
@@ -2444,6 +2461,25 @@ class CampbellResults(Results):
             **kwargs,
         )
 
+        if self.campbell_torsional:
+            torsional_fig = self.campbell_torsional.plot(
+                harmonics=[],
+                frequency_units=frequency_units,
+                speed_units=speed_units,
+                frequency_range=frequency_range,
+                damping_range=damping_range,
+                fig=None,
+                **kwargs,
+            )
+
+            for trace in torsional_fig.data:
+                if trace.name == "Torsional":
+                    new_name = "Torsional Analysis"
+                    trace.name = new_name
+                    trace.legendgroup = new_name
+                    trace.marker.symbol = "bowtie-open"
+                    fig.add_trace(trace)
+
         return fig
 
     def _plot_with_mode_shape(
@@ -2490,37 +2526,65 @@ class CampbellResults(Results):
 
                 return mode_3d_fig
 
+            curve_id = clicked_point["curveNumber"]
             speed = clicked_point["x"]
             natural_frequency = clicked_point["y"]
 
-            try:
-                speed_key = min(
-                    self.modal_results.keys(),
-                    key=lambda k: abs(k - Q_(speed, speed_units).to("rad/s").m),
-                )
-                modal = self.modal_results[speed_key]
-            except:
-                speed_key = min(
-                    modal_results_crit.keys(),
-                    key=lambda k: abs(k - Q_(speed, speed_units).to("rad/s").m),
-                )
-                modal = modal_results_crit[speed_key]
+            if camp_fig.data[curve_id].name == "Torsional Analysis":
+                update_func = self.campbell_torsional._update_plot_mode_3d
+            else:
+                update_func = self._update_plot_mode_3d
 
-            idx = (
-                np.abs(modal.wd - Q_(natural_frequency, frequency_units).to("rad/s").m)
-            ).argmin()
-
-            updated_fig = modal.plot_mode_3d(
-                idx,
-                frequency_units=frequency_units,
-                damping_parameter=damping_parameter,
-                animation=animation,
+            update_fig = update_func(
+                speed,
+                natural_frequency,
+                modal_results_crit,
+                speed_units,
+                frequency_units,
+                damping_parameter,
+                animation,
             )
-            updated_fig.update_layout(mode_3d_layout)
+            update_fig.update_layout(mode_3d_layout)
 
-            return updated_fig
+            return update_fig
 
         return camp_fig, update_mode_3d
+
+    def _update_plot_mode_3d(
+        self,
+        speed,
+        natural_frequency,
+        modal_results_crit,
+        speed_units,
+        frequency_units,
+        damping_parameter,
+        animation,
+    ):
+        try:
+            speed_key = min(
+                self.modal_results.keys(),
+                key=lambda k: abs(k - Q_(speed, speed_units).to("rad/s").m),
+            )
+            modal = self.modal_results[speed_key]
+        except:
+            speed_key = min(
+                modal_results_crit.keys(),
+                key=lambda k: abs(k - Q_(speed, speed_units).to("rad/s").m),
+            )
+            modal = modal_results_crit[speed_key]
+
+        idx = (
+            np.abs(modal.wd - Q_(natural_frequency, frequency_units).to("rad/s").m)
+        ).argmin()
+
+        updated_fig = modal.plot_mode_3d(
+            idx,
+            frequency_units=frequency_units,
+            damping_parameter=damping_parameter,
+            animation=animation,
+        )
+
+        return updated_fig
 
     def plot_with_mode_shape(
         self,
