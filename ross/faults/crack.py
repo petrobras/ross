@@ -11,7 +11,7 @@ __all__ = ["Crack"]
 
 
 class Crack(ABC):
-    """Models a crack on a given shaft element of a rotor system.
+    """Model a crack on a given shaft element of a rotor system.
     The Gasch and Mayes models are based on Linear Fracture Mechanics,
     while the Flex models are based on an equivalent beam model from 3D finite element computations.
 
@@ -29,8 +29,6 @@ class Crack(ABC):
     depth_ratio : float
         Crack depth ratio related to the diameter of the crack container element.
         A depth value of 0.1 is equal to 10%, 0.2 equal to 20%, and so on.
-        This parameter is restricted to up to 50% within the implemented approach,
-        as discussed in :cite `papadopoulos2004some`.
     crack_model : string, optional
         Name of the chosen crack model. The available types are: "Mayes", "Gasch",
         "Flex Open" and "Flex Breathing".
@@ -95,7 +93,7 @@ class Crack(ABC):
             self._crack_model = self.flex_breathing
             if cross_divisions is None:
                 raise ValueError(
-                    "The 'cross_divisions' argument must be provided for the Flex Breathing Model."
+                    "The 'cross_divisions' argument must be provided for the Flex Breathing model."
                 )
         else:
             raise Exception("Check the crack model!")
@@ -143,12 +141,29 @@ class Crack(ABC):
             self.Ko = np.linalg.pinv(Co)
             self.Kc = np.linalg.pinv(Cc)
 
-        self._aF_vals = []
-        self._bF_vals = []
-        self._sumK_vals = []
-
     @staticmethod
     def validate_depth_ratio(depth_ratio, crack_model):
+        """Validate the maximum allowed crack depth ratio for each crack model.
+        Each crack model has a specific upper limit for the relative depth
+        of the crack. This function raises a ValueError if the
+        input value exceeds the supported range.
+
+        Parameters
+        ----------
+        depth_ratio : float
+            Crack depth ratio related to the diameter of the crack container element.
+            A depth value of 0.1 is equal to 10%, 0.2 equal to 20%, and so on.
+        crack_model : string, optional
+            Name of the chosen crack model. The available types are: "Mayes", "Gasch",
+            "Flex Open" and "Flex Breathing".
+            Default is "Mayes".
+
+        Raises
+        ------
+        ValueError
+            If depth_ratio exceeds the supported limit for the given model.
+        """
+
         limits = {
             "Mayes": 0.5,
             "Gasch": 0.5,
@@ -197,6 +212,8 @@ class Crack(ABC):
         ----------
         ap : float
             Angular position of the element.
+        Kmodel: np.ndarray
+            Stiffness matrix of the shaft element with crack in rotating coordinates.
 
         Returns
         -------
@@ -312,10 +329,82 @@ class Crack(ABC):
 
         return self._compute_crack_stiffnes_gasch_mayes(K)
 
+    def _compute_crack_stiffness_flex(self, Lce, at, IXX, IYY, IXY):
+        """Compute stiffness matrix of the shaft element with crack in inertial coordinates
+        for the Flex Open and Flex Breathing models.
+
+        Parameters
+        ----------
+        Lce: float
+            Equivalent cracked element length.
+        at: float
+            Resistant area.
+        IXX: float
+            Moments of inertia about the x axis.
+        IYY: float
+            Moment of inertia about the y axis.
+        IXY: float
+            Product of inertia.
+
+        Returns
+        -------
+        K : np.ndarray
+            Stiffness matrix of the cracked element.
+        """
+        E = self.shaft_elem.material.E
+        Poisson = self.shaft_elem.material.Poisson
+        G_s = self.shaft_elem.material.G_s
+        kcc = (6 * (1 + Poisson)) / (7 + 6 * Poisson)
+
+        fiiY = 12 * E * IXX / (G_s * kcc * at * Lce**2)
+        fiiX = 12 * E * IYY / (G_s * kcc * at * Lce**2)
+        fiiXY = 12 * E * IYY / (G_s * kcc * at * Lce**2)
+
+        aF = 12 * IYY * E / ((1 + fiiX) * Lce**3)
+        bF = 12 * IXX * E / ((1 + fiiY) * Lce**3)
+        cF = 6 * IYY * E / ((1 + fiiX) * Lce**2)
+        dF = 6 * IXX * E / ((1 + fiiY) * Lce**2)
+        eF = (4 + fiiX) * IYY * E / ((1 + fiiX) * Lce)
+        fF = (2 - fiiX) * IYY * E / ((1 + fiiX) * Lce)
+        gF = (2 - fiiY) * IXX * E / ((1 + fiiY) * Lce)
+        hF = (4 + fiiY) * IXX * E / ((1 + fiiY) * Lce)
+        pF = 12 * IXY * E / ((1 + fiiXY) * Lce**3)
+        qF = 6 * IXY * E / ((1 + fiiXY) * Lce**2)
+        rF = (4 + fiiXY) * IXY * E / ((1 + fiiXY) * Lce)
+        sF = (2 - fiiXY) * IXY * E / ((1 + fiiXY) * Lce)
+        tF = 0
+        uF = 0
+        wF = 0
+        kF = 0
+        mF = 0
+        nF = 0
+        iF = 0
+        jF = 0
+
+        K = np.array(
+            [
+                [bF, -pF, kF, -qF, -dF, nF, -bF, pF, -kF, -qF, -dF, -mF],
+                [-pF, aF, wF, cF, qF, mF, pF, -aF, -wF, cF, qF, -mF],
+                [kF, tF, wF, iF, 0, jF, -kF, -tF, -wF, -iF, 0, -jF],
+                [-qF, cF, iF, eF, rF, 0, qF, -cF, -iF, fF, sF, 0],
+                [-dF, qF, jF, rF, hF, 0, dF, -qF, -jF, sF, gF, 0],
+                [nF, 0, mF, 0, uF, 0, -nF, 0, -mF, 0, -uF, 0],
+                [-bF, pF, -kF, qF, dF, -nF, bF, -pF, kF, qF, dF, nF],
+                [pF, -aF, -wF, -cF, -qF, -mF, -pF, aF, wF, -cF, -qF, mF],
+                [-kF, -tF, -wF, -iF, 0, -jF, 0, tF, wF, mF, 0, nF],
+                [-qF, cF, -iF, fF, sF, 0, qF, -cF, iF, eF, rF, 0],
+                [-dF, qF, -jF, sF, gF, 0, dF, -qF, 0, rF, hF, 0],
+                [-mF, 0, -mF, 0, -uF, 0, 0, 0, mF, 0, uF, 0],
+            ]
+        )
+
+        return K
+
     def flex_open(self, ap):
-        """Stiffness matrix of the shaft element with crack in rotating coordinates
-        according to the open model of Flex.
-        This model is based on an equivalent beam model from 3D finite element computations.
+        """Prepare crack geometry parameters for the Flex Open model.
+        Assuming the crack remains fully open during rotation, the resistant area
+        and inertia moments are determined based on the crack depth and angular
+        position. These are then used to compute the element stiffness.
 
         Paramenters
         -----------
@@ -367,9 +456,10 @@ class Crack(ABC):
         return self._compute_crack_stiffness_flex(Lce, at, IXX, IYY, IXY)
 
     def flex_breathing(self, ap):
-        """Stiffness matrix of the shaft element with crack in rotating coordinates
-        according to the breathing model of Flex.
-        This model is based on an equivalent beam model from 3D finite element computations.
+        """Prepare crack geometry parameters for the Flex Breathing model.
+        The resistant area and inertia moments are determined iteratively,
+        considering which parts of the crack are open or closed under local
+        stress. These are then used to compute the element stiffness.
 
         Paramenters
         -----------
@@ -507,56 +597,6 @@ class Crack(ABC):
                 break
 
         return self._compute_crack_stiffness_flex(Lce, at, IXX, IYY, IXY)
-
-    def _compute_crack_stiffness_flex(self, Lce, at, IXX, IYY, IXY):
-        E = self.shaft_elem.material.E
-        Poisson = self.shaft_elem.material.Poisson
-        G_s = self.shaft_elem.material.G_s
-        kcc = (6 * (1 + Poisson)) / (7 + 6 * Poisson)
-
-        fiiY = 12 * E * IXX / (G_s * kcc * at * Lce**2)
-        fiiX = 12 * E * IYY / (G_s * kcc * at * Lce**2)
-        fiiXY = 12 * E * IYY / (G_s * kcc * at * Lce**2)
-
-        aF = 12 * IYY * E / ((1 + fiiX) * Lce**3)
-        bF = 12 * IXX * E / ((1 + fiiY) * Lce**3)
-        cF = 6 * IYY * E / ((1 + fiiX) * Lce**2)
-        dF = 6 * IXX * E / ((1 + fiiY) * Lce**2)
-        eF = (4 + fiiX) * IYY * E / ((1 + fiiX) * Lce)
-        fF = (2 - fiiX) * IYY * E / ((1 + fiiX) * Lce)
-        gF = (2 - fiiY) * IXX * E / ((1 + fiiY) * Lce)
-        hF = (4 + fiiY) * IXX * E / ((1 + fiiY) * Lce)
-        pF = 12 * IXY * E / ((1 + fiiXY) * Lce**3)
-        qF = 6 * IXY * E / ((1 + fiiXY) * Lce**2)
-        rF = (4 + fiiXY) * IXY * E / ((1 + fiiXY) * Lce)
-        sF = (2 - fiiXY) * IXY * E / ((1 + fiiXY) * Lce)
-        tF = 0
-        uF = 0
-        wF = 0
-        kF = 0
-        mF = 0
-        nF = 0
-        iF = 0
-        jF = 0
-
-        K = np.array(
-            [
-                [bF, -pF, kF, -qF, -dF, nF, -bF, pF, -kF, -qF, -dF, -mF],
-                [-pF, aF, wF, cF, qF, mF, pF, -aF, -wF, cF, qF, -mF],
-                [kF, tF, wF, iF, 0, jF, -kF, -tF, -wF, -iF, 0, -jF],
-                [-qF, cF, iF, eF, rF, 0, qF, -cF, -iF, fF, sF, 0],
-                [-dF, qF, jF, rF, hF, 0, dF, -qF, -jF, sF, gF, 0],
-                [nF, 0, mF, 0, uF, 0, -nF, 0, -mF, 0, -uF, 0],
-                [-bF, pF, -kF, qF, dF, -nF, bF, -pF, kF, qF, dF, nF],
-                [pF, -aF, -wF, -cF, -qF, -mF, -pF, aF, wF, -cF, -qF, mF],
-                [-kF, -tF, -wF, -iF, 0, -jF, 0, tF, wF, mF, 0, nF],
-                [-qF, cF, -iF, fF, sF, 0, qF, -cF, iF, eF, rF, 0],
-                [-dF, qF, -jF, sF, gF, 0, dF, -qF, 0, rF, hF, 0],
-                [-mF, 0, -mF, 0, -uF, 0, 0, 0, mF, 0, uF, 0],
-            ]
-        )
-
-        return K
 
     def _get_force_in_time(self, step, disp_resp, ang_pos):
         """Calculate the dynamic force related on given time step.
