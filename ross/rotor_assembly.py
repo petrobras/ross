@@ -56,6 +56,7 @@ from ross.utils import (
     convert_6dof_to_4dof,
     convert_6dof_to_torsional,
 )
+from ross.seals.labyrinth_seal import LabyrinthSeal
 
 __all__ = [
     "Rotor",
