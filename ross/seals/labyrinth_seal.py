@@ -1,5 +1,6 @@
 import numpy as np
 import sys
+import ccp
 from scipy.linalg import lu_factor, lu_solve
 from numpy.linalg import cond
 import multiprocessing
@@ -114,8 +115,8 @@ class LabyrinthSeal(SealElement):
         tooth_width=None,
         seal_type=None,
         gas_composition="AIR",
-        r=287,
-        gamma=1.4,
+        r = None,
+        gamma= None,
         tz=None,
         muz=None,
         analz="FULL",
@@ -126,10 +127,25 @@ class LabyrinthSeal(SealElement):
     ):
         self.print_results = print_results
         self.gas_composition = gas_composition
+        state_in = ccp.State.define(p=inlet_pressure, T=inlet_temperature, fluid=self.gas_composition)
+        state_out = ccp.State.define(p=outlet_pressure, h=state_in.h(), fluid=self.gas_composition)
+
+        if(gamma is None):
+            gamma = round((state_in.cp() / state_in.cv()).m, 2)        
+        if(r is None):
+            r = round((state_in.gas_constant() / state_in.molar_mass()).m, 2)        
+        if(tz is None):
+            # tz: Temperature at state 1 e 2 (deg K)
+            tz = [state_in.T().m, state_out.T().m]
+        if(muz is None):
+            # muz: Dynamic viscosity at state 1 e 2 (kg/(m s))
+            muz = [state_in.viscosity().m, state_out.viscosity().m]
+                
         self.tz = tz
         self.muz = muz
         self.r = r
         self.gamma = gamma
+
         self.n = n
         self.inlet_pressure = inlet_pressure
         self.outlet_pressure = outlet_pressure
@@ -142,6 +158,7 @@ class LabyrinthSeal(SealElement):
         self.tooth_height = tooth_height
         self.tooth_width = tooth_width
         self.seal_type = seal_type
+
         self.analz = analz
         self.nprt = nprt
         self.iopt1 = iopt1
