@@ -70,6 +70,9 @@ __all__ = [
 # set Plotly palette of colors
 colors = px.colors.qualitative.Dark24
 
+# check if object is MultiRotor
+check_isMultiRotor = lambda obj: type(obj) not in (Rotor, CoAxialRotor)
+
 
 class Rotor(object):
     r"""A rotor object.
@@ -147,7 +150,7 @@ class Rotor(object):
         tag=None,
     ):
         self.parameters = {"min_w": min_w, "max_w": max_w, "rated_w": rated_w}
-        isMultiRotor = type(self) not in (Rotor, CoAxialRotor)
+        isMultiRotor = check_isMultiRotor(self)
 
         if tag is None:
             self.tag = "MultiRotor 0" if isMultiRotor else "Rotor 0"
@@ -2347,59 +2350,62 @@ class Rotor(object):
             )
 
         # Depending on the conditions of the analysis,
-        # one of the three options below will be chosen.
-        if speed_is_array:
-            accel = np.gradient(speed, t)
+        # one of the two options below will be chosen.
+        if not speed_is_array:
+            speed = np.full_like(t, speed)
 
-            brgs_with_var_coeffs = tuple(
-                brg for brg in self.bearing_elements if brg.frequency is not None
-            )
+        accel = np.gradient(speed, t)
 
-            if len(brgs_with_var_coeffs):  # Option 1
-                if kwargs.get("C") or kwargs.get("K"):
-                    raise Warning(
-                        "The bearing coefficients vary with speed. Therefore, C and K matrices are not being replaced by the matrices defined as input arguments."
-                    )
+        # Applicable for MultiRotor with GearElementTVMS
+        if check_isMultiRotor(self):
+            couple_K_matrix = self._update_mesh_stiffness(speed, t)
+        else:
+            couple_K_matrix = lambda step, K: K
 
-                C0 = self.C(speed_ref, ignore=brgs_with_var_coeffs)
-                K0 = self.K(speed_ref, ignore=brgs_with_var_coeffs)
+        # Check bearings with variable coefficients
+        brgs_with_var_coeffs = tuple(
+            brg for brg in self.bearing_elements if brg.frequency is not None
+        )
 
-                def rotor_system(step, **current_state):
-                    Cb, Kb = assemble_C_K_matrices(
-                        brgs_with_var_coeffs, np.copy(C0), np.copy(K0), speed[step]
-                    )
+        if len(brgs_with_var_coeffs):  # Option 1
+            if kwargs.get("C") or kwargs.get("K"):
+                raise Warning(
+                    "The bearing coefficients vary with speed. Therefore, C and K matrices are not being replaced by the matrices defined as input arguments."
+                )
 
-                    C1 = get_array[0](Cb)
-                    K1 = get_array[0](Kb)
+            C0 = self.C(speed_ref, ignore=brgs_with_var_coeffs)
+            K0 = self.K(speed_ref, ignore=brgs_with_var_coeffs)
 
-                    return (
-                        M,
-                        C1 + C2 * speed[step],
-                        K1 + K2 * accel[step],
-                        forces(step, **current_state),
-                    )
+            def rotor_system(step, **current_state):
+                Cb, Kb = assemble_C_K_matrices(
+                    brgs_with_var_coeffs, np.copy(C0), np.copy(K0), speed[step]
+                )
 
-            else:  # Option 2
-                C1 = get_array[0](kwargs.get("C", self.C(speed_ref)))
-                K1 = get_array[0](kwargs.get("K", self.K(speed_ref)))
+                C1 = get_array[0](Cb)
+                K1 = get_array[0](Kb)
 
-                rotor_system = lambda step, **current_state: (
+                K1 = couple_K_matrix(step, K1)
+
+                return (
                     M,
                     C1 + C2 * speed[step],
                     K1 + K2 * accel[step],
                     forces(step, **current_state),
                 )
 
-        else:  # Option 3
+        else:  # Option 2
             C1 = get_array[0](kwargs.get("C", self.C(speed_ref)))
-            K1 = get_array[0](kwargs.get("K", self.K(speed_ref)))
+            K0 = get_array[0](kwargs.get("K", self.K(speed_ref)))
 
-            rotor_system = lambda step, **current_state: (
-                M,
-                C1 + C2 * speed_ref,
-                K1,
-                forces(step, **current_state),
-            )
+            def rotor_system(step, **current_state):
+                K1 = couple_K_matrix(step, K0)
+
+                return (
+                    M,
+                    C1 + C2 * speed[step],
+                    K1 + K2 * accel[step],
+                    forces(step, **current_state),
+                )
 
         size = len(M)
         response = newmark(rotor_system, t, size, **kwargs)

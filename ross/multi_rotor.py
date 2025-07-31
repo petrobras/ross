@@ -1,9 +1,10 @@
 import numpy as np
 from re import search
 from copy import deepcopy as copy
+from scipy.integrate import cumulative_trapezoid as integrate
 
 import ross as rs
-from ross.gear_element import GearElement
+from ross.gear_element import Mesh
 from ross.rotor_assembly import Rotor
 
 __all__ = ["MultiRotor"]
@@ -25,10 +26,15 @@ class MultiRotor(Rotor):
     coupled_nodes : tuple of int
         Tuple specifying the coupled nodes, where the first node corresponds to
         the driving rotor and the second node corresponds to the driven rotor.
-    gear_ratio : float
-        The gear ratio between the rotors.
-    gear_mesh_stiffness : float
-        The stiffness of the gear mesh.
+    gear_mesh_stiffness : float, optional
+        Directly specify the stiffness of the gear mesh.
+        If not provided, it can be calculated automatically
+        when using `GearElementTVMS` instead of `GearElement`.
+    update_mesh_stiffness : bool, optional
+        Applicable only when using `GearElementTVMS`.
+        If True, the gear mesh stiffness is recalculated
+        at each time step. If False, the maximum stiffness
+        value is used throughout the simulation.
     orientation_angle : float, pint.Quantity, optional
         The angle between the line of gear centers and x-axis. Default is 0.0 rad.
     position : {'above', 'below'}, optional
@@ -61,8 +67,8 @@ class MultiRotor(Rotor):
     >>> generator = rs.DiskElement(n=1, m=525.7, Id=16.1, Ip=32.2)
     >>> disk = rs.DiskElement(n=2, m=116.04, Id=3.115, Ip=6.23)
     >>> gear1 = rs.GearElement(
-    ...     n=4, m=726.4, Id=56.95, Ip=113.9,
-    ...     pitch_diameter=1.1, pressure_angle=rs.Q_(22.5, 'deg'),
+    ...     n=4, m=726.4, Id=56.95, Ip=113.9, n_teeth=328,
+    ...     pitch_diameter=1.1, pr_angle=rs.Q_(22.5, 'deg'),
     ... )
     >>> bearing1 = rs.BearingElement(n=0, kxx=183.9e6, kyy=200.4e6, cxx=3e3)
     >>> bearing2 = rs.BearingElement(n=3, kxx=183.9e6, kyy=200.4e6, cxx=3e3)
@@ -81,8 +87,8 @@ class MultiRotor(Rotor):
     ...     for i in range(len(L2))
     ... ]
     >>> gear2 = rs.GearElement(
-    ...     n=0, m=5, Id=0.002, Ip=0.004,
-    ...     pitch_diameter=0.077, pressure_angle=rs.Q_(22.5, 'deg'),
+    ...     n=0, m=5, Id=0.002, Ip=0.004, n_teeth=23,
+    ...     pitch_diameter=0.077, pr_angle=rs.Q_(22.5, 'deg'),
     ... )
     >>> turbine = rs.DiskElement(n=2, m=7.45, Id=0.0745, Ip=0.149)
     >>> bearing3 = rs.BearingElement(n=1, kxx=10.1e6, kyy=41.6e6, cxx=3e3)
@@ -94,7 +100,6 @@ class MultiRotor(Rotor):
     ...     rotor1,
     ...     rotor2,
     ...     coupled_nodes=(4, 0),
-    ...     gear_ratio=328 / 23,
     ...     gear_mesh_stiffness=1e8,
     ...     orientation_angle=0.0,
     ...     position="below"
@@ -109,15 +114,13 @@ class MultiRotor(Rotor):
         driving_rotor,
         driven_rotor,
         coupled_nodes,
-        gear_ratio,
-        gear_mesh_stiffness,
+        gear_mesh_stiffness=None,
+        update_mesh_stiffness=False,
         orientation_angle=0.0,
         position="above",
         tag=None,
     ):
         self.rotors = [driving_rotor, driven_rotor]
-        self.gear_ratio = gear_ratio
-        self.gear_mesh_stiffness = gear_mesh_stiffness
         self.orientation_angle = float(orientation_angle)
 
         R1 = copy(driving_rotor)
@@ -126,12 +129,12 @@ class MultiRotor(Rotor):
         gear_1 = [
             elm
             for elm in R1.disk_elements
-            if elm.n == coupled_nodes[0] and type(elm) == GearElement
+            if elm.n == coupled_nodes[0] and "GearElement" in type(elm).__name__
         ]
         gear_2 = [
             elm
             for elm in R2.disk_elements
-            if elm.n == coupled_nodes[1] and type(elm) == GearElement
+            if elm.n == coupled_nodes[1] and "GearElement" in type(elm).__name__
         ]
         if len(gear_1) == 0 or len(gear_2) == 0:
             raise TypeError("Each rotor needs a GearElement in the coupled nodes!")
@@ -139,7 +142,12 @@ class MultiRotor(Rotor):
             gear_1 = gear_1[0]
             gear_2 = gear_2[0]
 
-        self.gears = [gear_1, gear_2]
+        self.update_mesh_stiffness = update_mesh_stiffness
+        self.mesh = Mesh(
+            gear_1,
+            gear_2,
+            gear_mesh_stiffness=gear_mesh_stiffness,
+        )
 
         gear1_plot = next(
             (
@@ -243,6 +251,32 @@ class MultiRotor(Rotor):
 
         return global_matrix
 
+    def _update_mesh_stiffness(self, speed, t):
+        """Update the mesh stiffness based on the current speed and time.
+
+        Parameters
+        ----------
+        speed : array_like
+            Rotor speed.
+        t : ndarray
+            Time array.
+
+        Returns
+        -------
+        couple_K_matrix : callable
+            A function `couple_K_matrix(step, K)` that returns the modified or original
+            stiffness matrix `K` at the given time step.
+        """
+        if self.update_mesh_stiffness:
+            theta = integrate(speed, t, initial=0)
+            couple_K_matrix = lambda step, K: self._couple_K(
+                K, self.mesh.interpolate_stiffness(theta[step])
+            )
+        else:
+            couple_K_matrix = lambda step, K: K
+
+        return couple_K_matrix
+
     def _unbalance_force(self, node, magnitude, phase, omega):
         """Calculate unbalance forces.
 
@@ -293,7 +327,7 @@ class MultiRotor(Rotor):
         rotor = self.rotors[0]
 
         if node in self.R2_nodes:
-            speed = -self.gear_ratio * omega
+            speed = -self.mesh.gear_ratio * omega
             rotor = self.rotors[1]
 
         if isinstance(rotor, MultiRotor):
@@ -318,11 +352,11 @@ class MultiRotor(Rotor):
                [0.        , 0.        , 0.        , 0.        ],
                [0.        , 0.        , 0.        , 0.        ]])
         """
-        r1 = self.gears[0].base_radius
-        r2 = self.gears[1].base_radius
+        r1 = self.mesh.driving_gear.base_radius
+        r2 = self.mesh.driven_gear.base_radius
 
-        S = np.sin(self.gears[0].pressure_angle - self.orientation_angle)
-        C = np.cos(self.gears[0].pressure_angle - self.orientation_angle)
+        S = np.sin(self.mesh.pressure_angle - self.orientation_angle)
+        C = np.cos(self.mesh.pressure_angle - self.orientation_angle)
 
         # fmt: off
         coupling_matrix = np.array([
@@ -375,7 +409,7 @@ class MultiRotor(Rotor):
         else:
             return self._join_matrices(
                 self.rotors[0].M(frequency, synchronous),
-                self.rotors[1].M(frequency * self.gear_ratio, synchronous),
+                self.rotors[1].M(frequency * self.mesh.gear_ratio, synchronous),
             )
 
     def K(self, frequency, ignore=()):
@@ -405,14 +439,35 @@ class MultiRotor(Rotor):
 
         K0 = self._join_matrices(
             self.rotors[0].K(frequency, ignore),
-            self.rotors[1].K(frequency * self.gear_ratio, ignore),
+            self.rotors[1].K(frequency * self.mesh.gear_ratio, ignore),
         )
 
-        dofs_1 = self.gears[0].dof_global_index.values()
-        dofs_2 = self.gears[1].dof_global_index.values()
+        if not self.update_mesh_stiffness:
+            K0 = self._couple_K(K0, self.mesh.stiffness)
+
+        return K0
+
+    def _couple_K(self, K0, mesh_stiffness):
+        """Assembles the coupling stiffness matrix for a gear mesh and adds it to
+        the global stiffness matrix.
+
+        Parameters
+        ----------
+        K0 : ndarray
+            The global stiffness matrix to be updated.
+        mesh_stiffness : float
+            The scalar stiffness coefficient for the gear mesh.
+
+        Returns
+        -------
+        K0 : ndarray
+            The updated global stiffness matrix with the gear coupling contributions.
+        """
+        dofs_1 = self.mesh.driving_gear.dof_global_index.values()
+        dofs_2 = self.mesh.driven_gear.dof_global_index.values()
         dofs = [*dofs_1, *dofs_2]
 
-        K0[np.ix_(dofs, dofs)] += self.coupling_matrix() * self.gear_mesh_stiffness
+        K0[np.ix_(dofs, dofs)] += self.coupling_matrix() * mesh_stiffness
 
         return K0
 
@@ -443,7 +498,7 @@ class MultiRotor(Rotor):
         """
 
         return self._join_matrices(
-            self.rotors[0].Ksdt(), -self.gear_ratio * self.rotors[1].Ksdt()
+            self.rotors[0].Ksdt(), -self.mesh.gear_ratio * self.rotors[1].Ksdt()
         )
 
     def C(self, frequency, ignore=()):
@@ -473,7 +528,7 @@ class MultiRotor(Rotor):
 
         return self._join_matrices(
             self.rotors[0].C(frequency, ignore),
-            self.rotors[1].C(frequency * self.gear_ratio, ignore),
+            self.rotors[1].C(frequency * self.mesh.gear_ratio, ignore),
         )
 
     def G(self):
@@ -499,7 +554,7 @@ class MultiRotor(Rotor):
         """
 
         return self._join_matrices(
-            self.rotors[0].G(), -self.gear_ratio * self.rotors[1].G()
+            self.rotors[0].G(), -self.mesh.gear_ratio * self.rotors[1].G()
         )
 
 
@@ -535,6 +590,10 @@ def two_shaft_rotor_example():
     # A spur geared two-shaft rotor system.
     material = rs.Material(name="mat_steel", rho=7800, E=207e9, G_s=79.5e9)
 
+    N1 = 328  # Number of teeth of gear 1
+    N2 = 23  # Number of teeth of gear 2
+    k_mesh = 1e8  # Mesh stiffness
+
     # Rotor 1
     L1 = [0.1, 4.24, 1.16, 0.3]
     d1 = [0.3, 0.3, 0.22, 0.22]
@@ -564,7 +623,7 @@ def two_shaft_rotor_example():
         Ip=6.23,
     )
 
-    pressure_angle = rs.Q_(22.5, "deg")
+    pressure_angle = rs.Q_(22.5, "deg").to_base_units().m
     base_radius = 0.5086
     pitch_diameter = 2 * base_radius / np.cos(pressure_angle)
     gear1 = rs.GearElement(
@@ -572,8 +631,9 @@ def two_shaft_rotor_example():
         m=726.4,
         Id=56.95,
         Ip=113.9,
+        n_teeth=N1,
         pitch_diameter=pitch_diameter,
-        pressure_angle=pressure_angle,
+        pr_angle=pressure_angle,
     )
 
     bearing1 = rs.BearingElement(n=0, kxx=183.9e6, kyy=200.4e6, cxx=3e3)
@@ -608,8 +668,9 @@ def two_shaft_rotor_example():
         m=5,
         Id=0.002,
         Ip=0.004,
+        n_teeth=N2,
         pitch_diameter=pitch_diameter,
-        pressure_angle=pressure_angle,
+        pr_angle=pressure_angle,
     )
 
     turbine = rs.DiskElement(n=2, m=7.45, Id=0.0745, Ip=0.149)
@@ -623,15 +684,10 @@ def two_shaft_rotor_example():
         [bearing3, bearing4],
     )
 
-    N1 = 328  # Number of teeth of gear 1
-    N2 = 23  # Number of teeth of gear 2
-    k_mesh = 1e8  # Mesh stiffness
-
     return rs.MultiRotor(
         rotor1,
         rotor2,
         coupled_nodes=(4, 0),
-        gear_ratio=N1 / N2,
         gear_mesh_stiffness=k_mesh,
         orientation_angle=0.0,
         position="below",
