@@ -7,7 +7,6 @@ import multiprocessing
 from ross import SealElement
 from ross.units import check_units
 import multiprocessing
-from numba import njit
 
 __all__ = ["LabyrinthSeal"]
 
@@ -203,7 +202,48 @@ class LabyrinthSeal(SealElement):
             **coefficients_dict,
             **kwargs,
         )
-        
+
+    def derv(self):
+        error = 10000
+        tol = 1 * 10**-7
+        guess_low = 0.001
+        guess = 0.8
+        guess_high = 0.99
+        n = 0
+        while n < self.n_teeth:
+            r = guess
+            deriv_num = -2 * (n + 1) + 2 * r * np.log(r) + 1 / r - r
+            deriv_den = ((1 - r**2) ** 0.5) * ((n - np.log(r)) ** 1.5)
+            deriv = deriv_num / deriv_den
+            error = -deriv
+            while abs(error) > tol:
+                if error < 0:
+                    guess_low = guess
+                    guess = (guess + guess_high) / 2
+                if error > 0:
+                    guess_high = guess
+                    guess = (guess + guess_low) / 2
+                r = guess
+                deriv_num = -2 * (n + 1) + 2 * r * np.log(r) + 1 / r - r
+                deriv_den = ((1 - r**2) ** 0.5) * ((n - np.log(r)) ** 1.5)
+                deriv = deriv_num / deriv_den
+                error = -deriv
+            self.r_choke[n] = guess
+            self.tooth_height_choke[n] = (
+                (1 - self.r_choke[n] ** 2) / ((n + 1) - np.log(self.r_choke[n]))
+            ) ** 0.5
+            n += 1
+            error = 10000
+            guess_low = 0.001
+            guess = 0.8
+            guess_high = 0.99
+        if self.pg < self.r_choke[self.n_teeth]:
+            self.tooth_heighteta_nt = self.tooth_height_choke[self.n_teeth]
+        else:
+            self.tooth_heighteta_nt = (
+                (1 - self.pg**2) / (self.n_teeth - np.log(self.pg))
+            ) ** 0.5
+
     def setup(self):
         self.epslon = 0.6
         self.awrl = self.epslon * self.radial_clearance[0]
@@ -256,9 +296,7 @@ class LabyrinthSeal(SealElement):
         vg = 1 / (1 - self.vnu) ** 0.5
         self.r_choke = [0] * self.m_x
         self.tooth_height_choke = [0] * self.m_x
-        self.r_choke, self.tooth_height_choke, self.tooth_heighteta_nt = _derv(
-            self.n_teeth, self.pg, self.r_choke, self.tooth_height_choke
-        )
+        self.derv()
         self.gve = 1.014 * self.alphav * vg * self.tooth_heighteta_nt
 
         if self.seal_type == "inter":
@@ -1090,47 +1128,3 @@ class LabyrinthSeal(SealElement):
         coefficients_dict = {k: getattr(self, v) for k, v in attrbute_coef.items()}
 
         return coefficients_dict
-
-@njit
-def _derv(n_teeth, pg, r_choke, tooth_height_choke):
-    error = 10000
-    tol = 1 * 10**-7
-    guess_low = 0.001
-    guess = 0.8
-    guess_high = 0.99
-    n = 0
-    while n < n_teeth:
-        r = guess
-        deriv_num = -2 * (n + 1) + 2 * r * np.log(r) + 1 / r - r
-        deriv_den = ((1 - r**2) ** 0.5) * ((n - np.log(r)) ** 1.5)
-        deriv = deriv_num / deriv_den
-        error = -deriv
-        while abs(error) > tol:
-            if error < 0:
-                guess_low = guess
-                guess = (guess + guess_high) / 2
-            if error > 0:
-                guess_high = guess
-                guess = (guess + guess_low) / 2
-            r = guess
-            deriv_num = -2 * (n + 1) + 2 * r * np.log(r) + 1 / r - r
-            deriv_den = ((1 - r**2) ** 0.5) * ((n - np.log(r)) ** 1.5)
-            deriv = deriv_num / deriv_den
-            error = -deriv
-        r_choke[n] = guess
-        tooth_height_choke[n] = (
-            (1 - r_choke[n] ** 2) / ((n + 1) - np.log(r_choke[n]))
-        ) ** 0.5
-        n += 1
-        error = 10000
-        guess_low = 0.001
-        guess = 0.8
-        guess_high = 0.99
-    if pg < r_choke[n_teeth]:
-        tooth_heighteta_nt = tooth_height_choke[n_teeth]
-    else:
-        tooth_heighteta_nt = (
-            (1 - pg**2) / (n_teeth - np.log(pg))
-        ) ** 0.5
-
-    return r_choke, tooth_height_choke, tooth_heighteta_nt
