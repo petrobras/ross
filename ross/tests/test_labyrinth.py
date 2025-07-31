@@ -24,7 +24,7 @@ def labyrinth():
         tooth_height=Q_(3.175,"mm"),
         tooth_width=Q_(0.1524,"mm"),
         seal_type="inter",
-        gas_composition = 'AIR',
+        gas_composition = {"AIR": 1.00},
 
     )
 
@@ -32,11 +32,11 @@ def labyrinth():
 
 def test_labyrinth_coefficients(labyrinth):
 
-    assert_allclose(labyrinth.kxx, -50242.35216407, rtol=1e-4)
-    assert_allclose(labyrinth.kxy, 35764.19464202, rtol=1e-4)
-    assert_allclose(labyrinth.kyx, -35764.19464202, rtol=1e-4)
-    assert_allclose(labyrinth.kyy, -50242.35216407, rtol=1e-4)
-    assert_allclose(labyrinth.cxx, 24.03501182, rtol=1e-4)
-    assert_allclose(labyrinth.cxy, 55.95971508, rtol=1e-4)
-    assert_allclose(labyrinth.cyx, -55.95971508, rtol=1e-4)
-    assert_allclose(labyrinth.cyy, 24.03501182, rtol=1e-4)
+    assert_allclose(labyrinth.kxx, -50448.19591, rtol=1e-4)
+    assert_allclose(labyrinth.kxy, 35536.953463, rtol=1e-4)
+    assert_allclose(labyrinth.kyx, -35536.953463, rtol=1e-4)
+    assert_allclose(labyrinth.kyy, -50448.19591, rtol=1e-4)
+    assert_allclose(labyrinth.cxx, 23.821095, rtol=1e-4)
+    assert_allclose(labyrinth.cxy, 56.246427, rtol=1e-4)
+    assert_allclose(labyrinth.cyx, -56.246427, rtol=1e-4)
+    assert_allclose(labyrinth.cyy, 23.821095, rtol=1e-4)
