@@ -4,10 +4,11 @@ This module defines the BearingElement classes which will be used to represent t
 bearings and seals. There are 7 different classes to represent bearings options.
 """
 
-import numpy as np
 import toml
 import warnings
-from inspect import signature
+import sys
+import numpy as np
+from inspect import signature, isclass, getmembers
 from numpy.polynomial import Polynomial
 from plotly import graph_objects as go
 from scipy import interpolate as interpolate
@@ -478,9 +479,16 @@ class BearingElement(Element):
         )
         diff_args.discard("kwargs")
 
+        # If the bearing or seal element is implemented in other file
+        # we will consider the base class name to save element data
+        classes_in_module = getmembers(sys.modules[__name__], isclass)
+        classes_of_module = [
+            cls[1] for cls in classes_in_module if cls[1].__module__ == __name__
+        ]
+
         class_name = (
             self.__class__.__name__
-            if not diff_args
+            if not diff_args and self.__class__ in classes_of_module
             else self.__class__.__bases__[0].__name__
         )
 
