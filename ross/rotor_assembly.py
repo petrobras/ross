@@ -460,13 +460,12 @@ class Rotor(object):
 
         # define positions for bearings
         for elm in self.bearing_elements:
-            if elm.n in self.link_nodes:
-                i = self.nodes.index(
-                    [brg.n for brg in self.bearing_elements if brg.n_link == elm.n][0]
-                )
-            else:
-                i = self.nodes.index(elm.n)
+            node = elm.n
+            if node in self.link_nodes:
+                linked_bearing = self._find_linked_bearing(node)
+                node = linked_bearing.n
 
+            i = self.nodes.index(node)
             z_pos = self.nodes_pos[i]
             df.loc[df.tag == elm.tag, "nodes_pos_l"] = z_pos
             df.loc[df.tag == elm.tag, "nodes_pos_r"] = z_pos
@@ -490,7 +489,10 @@ class Rotor(object):
             for i in range(len(dfb_z_pos)):
                 t = dfb_z_pos.iloc[i].tag
 
-                if df.loc[df.tag == t, "n_l"].values[0] in self.link_nodes:
+                n_l = df.loc[df.tag == t, "n_l"].values[0]
+                if n_l in self.link_nodes:
+                    y_pos = df.loc[df.n_link == n_l, "y_pos"].values[0]
+                    y_pos_sup = df.loc[df.n_link == n_l, "y_pos_sup"].values[0]
                     df.loc[df.tag == t, "y_pos"] = (
                         y_pos + mean_od * df["scale_factor"][df.tag == t].values[0]
                     )
@@ -594,6 +596,28 @@ class Rotor(object):
             )
 
         return int(number_dof)
+
+    def _find_linked_bearing(self, node):
+        """Find the linked bearing element by node
+
+        Parameters
+        ----------
+        node : int
+            Node number to search for a linked bearing element.
+
+        Returns
+        -------
+        brg_found : BearingElement or None
+            The bearing element linked to the specified node, or None if not found.
+        """
+        for brg in self.bearing_elements:
+            if brg.n_link == node:
+                brg_found = self._find_linked_bearing(brg.n)
+                if brg_found:
+                    return brg_found
+                else:
+                    return brg
+        return None
 
     def __eq__(self, other):
         """Equality method for comparasions.
@@ -2619,9 +2643,7 @@ class Rotor(object):
             )
             node = bearing.n
             if node in self.link_nodes:
-                linked_bearing = next(
-                    (elm for elm in self.bearing_elements if elm.n_link == node), None
-                )
+                linked_bearing = self._find_linked_bearing(node)
                 node = linked_bearing.n
             yc_pos = center_line_pos[self.nodes.index(node)]
 
@@ -2642,9 +2664,7 @@ class Rotor(object):
             )
             node = p_mass.n
             if node in self.link_nodes:
-                linked_bearing = next(
-                    (elm for elm in self.bearing_elements if elm.n_link == node), None
-                )
+                linked_bearing = self._find_linked_bearing(node)
                 node = linked_bearing.n
             yc_pos = center_line_pos[self.nodes.index(node)]
 
