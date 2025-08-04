@@ -2526,9 +2526,12 @@ class CampbellResults(Results):
 
                 return mode_3d_fig
 
-            curve_id = clicked_point["curveNumber"]
             speed = clicked_point["x"]
             natural_frequency = clicked_point["y"]
+
+            curve_id = clicked_point.get(
+                "curveNumber", clicked_point.get("curve_number")
+            )
 
             if camp_fig.data[curve_id].name == "Torsional Analysis":
                 update_func = self.campbell_torsional._update_plot_mode_3d
