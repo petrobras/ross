@@ -204,7 +204,7 @@ class Crack(ABC):
 
         return c
 
-    def _compute_crack_stiffnes_gasch_mayes(self, Kmodel):
+    def _compute_crack_stiffness_gasch_mayes(self, Kmodel):
         """Compute stiffness matrix of the shaft element with crack in inertial coordinates
         for the Gasch and Mayes models.
 
@@ -292,7 +292,7 @@ class Crack(ABC):
 
         K = T_matrix.T @ np.array([[ke, 0], [0, kn]]) @ T_matrix
 
-        return self._compute_crack_stiffnes_gasch_mayes(K)
+        return self._compute_crack_stiffness_gasch_mayes(K)
 
     def mayes(self, ap):
         """Stiffness matrix of the shaft element with crack in rotating coordinates
@@ -509,7 +509,7 @@ class Crack(ABC):
         A = np.zeros(
             (2 * self.cross_divisions, 2 * self.cross_divisions), dtype=complex
         )
-        Rarea = np.zeros_like(A, dtype=complex)
+        area = np.zeros_like(A, dtype=complex)
         IXX = J
         IYY = J
         IXY = 1j * 0
@@ -520,10 +520,10 @@ class Crack(ABC):
         y = np.linspace(-radius, radius, n_points)
         X, Y = np.meshgrid(x, y)
         Z = X + 1j * Y
-        absZ = np.abs(Z)
-        angleZ = np.angle(Z)
-        CCi = absZ * np.exp(1j * angleZ)
-        CC = absZ * np.exp(1j * (angleZ + ap))
+        abs_z = np.abs(Z)
+        angle_z = np.angle(Z)
+        CCi = abs_z * np.exp(1j * angle_z)
+        CC = abs_z * np.exp(1j * (angle_z + ap))
 
         mask_depth = np.imag(CCi) > (radius - depth_ratio * radius)
         points_crack_i = np.where(mask_depth, CCi, 1e3)
@@ -536,46 +536,46 @@ class Crack(ABC):
 
         n1, m1 = n_points - 1, n_points - 1
 
-        stepAV = 1
+        step_count = 1
         si = 0
-        erroTHETA = 1e3
-        angANTERIOR = 0j
+        error = 1e3
+        previous_angle = 0j
 
-        while erroTHETA > 1e-5:
-            tensao = -(MTx * IYY + MTy * IXY) / (IXX * IYY - IXY) ** 2 * np.imag(XY) + (
+        while error > 1e-5:
+            stress = -(MTx * IYY + MTy * IXY) / (IXX * IYY - IXY) ** 2 * np.imag(XY) + (
                 MTy * IXX + MTx * IXY
             ) / (IXX * IYY - IXY) ** 2 * np.real(XY)
 
-            C_center = CC[:n1, :m1]
-            C_right = CC[:n1, 1:]
-            C_down = CC[1:, :m1]
-            pointsCRACK_center = points_crack[:n1, :m1]
+            c_center = CC[:n1, :m1]
+            c_right = CC[:n1, 1:]
+            c_down = CC[1:, :m1]
+            points_crack_center = points_crack[:n1, :m1]
 
-            A = np.abs((C_center - C_right) * (C_center - C_down))
-            Rarea = C_center + abs_step_angle * exp_step_angle
-            mask_out = np.abs(Rarea) >= radius
-            mask_crack = (np.abs(pointsCRACK_center - C_center) < 1e-8) & (
-                np.abs(tensao) >= 0
+            A = np.abs((c_center - c_right) * (c_center - c_down))
+            area = c_center + abs_step_angle * exp_step_angle
+            mask_out = np.abs(area) >= radius
+            mask_crack = (np.abs(points_crack_center - c_center) < 1e-8) & (
+                np.abs(stress) >= 0
             )
             A[mask_out | mask_crack] = 0
-            Rarea[mask_out] = 0
+            area[mask_out] = 0
             at = np.sum(A)
 
-            CG = np.sum(Rarea * A) / at if at != 0 else 0
+            CG = np.sum(area * A) / at if at != 0 else 0
 
-            XY = Rarea - CG
+            XY = area - CG
             XY[mask_out] = 0
 
-            dx = C_center - C_right
-            dy = C_center - C_down
+            dx = c_center - c_right
+            dy = c_center - c_down
             dx3 = np.abs(dx) ** 3
             dy3 = np.abs(dy) ** 3
 
             Ixx = np.abs(dx * dy3) / 12.0 + A * np.abs(np.imag(XY)) ** 2
             Iyy = np.abs(dx3 * dy) / 12.0 + A * np.abs(np.real(XY)) ** 2
             Ixy = A * np.imag(XY) * np.real(XY)
-            mask_crack_2 = (np.abs(pointsCRACK_center - C_center) < 1e-8) & (
-                np.abs(tensao) > 0
+            mask_crack_2 = (np.abs(points_crack_center - c_center) < 1e-8) & (
+                np.abs(stress) > 0
             )
             Ixx[mask_out | mask_crack_2] = 0
             Iyy[mask_out | mask_crack_2] = 0
@@ -587,11 +587,11 @@ class Crack(ABC):
 
             ang = np.arctan(-IXY / (IXX - IYY) / 2) / 2
 
-            if stepAV >= 2:
-                erroTHETA = np.abs(np.abs(angANTERIOR) - np.abs(ang))
+            if step_count >= 2:
+                error = np.abs(np.abs(previous_angle) - np.abs(ang))
 
-            angANTERIOR = ang
-            stepAV += 1
+            previous_angle = ang
+            step_count += 1
             si += 1
             if si >= 50:
                 break
