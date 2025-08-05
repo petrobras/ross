@@ -3034,38 +3034,7 @@ def _temperature(
     return A_T, b_T
 
 @njit
-def reshape_3d_to_2d_fortran(arr_3d, rows):
-    """Reshape 3D array to 2D in Fortran (column-major) order.
-    Args:
-        arr_3d: Input array of shape (n1, n2, n3)
-        rows: Desired output rows (must divide n1*n2*n3)
-    Returns:
-        2D array of shape (rows, cols)
-    """
-    n1, n2, n3 = arr_3d.shape
-    size = n1 * n2 * n3
-    cols = size // rows
-    
-    # Initialize output
-    out = np.zeros((rows, cols), dtype=arr_3d.dtype)
-    
-    # Fill in column-major order
-    for i in np.arange(size):
-        # Compute original 3D indices (Fortran-style)
-        k = i // (n1 * n2)
-        j = (i % (n1 * n2)) // n1
-        m = (i % (n1 * n2)) % n1
-        
-        # Compute new 2D indices
-        row = i % rows
-        col = i // rows
-        
-        out[row, col] = arr_3d[m, j, k]
-    
-    return out
-
-@njit
 def _solve(A, b):
     """Solve the linear system Ax = b using sparse matrix solver."""
     #return sparse.linalg.spsolve(sparse.csr_matrix(A), b)
-    return np.linalg.solve(A, b)  # A must be a dense array
+    return np.linalg.solve(A, b)
