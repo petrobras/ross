@@ -12,7 +12,7 @@ from ross.plotly_theme import tableau_colors
 from ross.bearings.lubricants import lubricants_dict
 
 
-class THDCylindrical_modified(BearingElement):
+class THDCylindrical(BearingElement):
     """This class calculates the pressure and temperature field in oil film of
     a cylindrical bearing. It is also possible to obtain the stiffness and
     damping coefficients.
