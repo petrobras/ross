@@ -12,7 +12,7 @@ from ross.plotly_theme import tableau_colors
 from ross.bearings.lubricants import lubricants_dict
 
 
-class THDCylindrical(BearingElement):
+class THDCylindrical_modified(BearingElement):
     """This class calculates the pressure and temperature field in oil film of
     a cylindrical bearing. It is also possible to obtain the stiffness and
     damping coefficients.
@@ -170,7 +170,35 @@ class THDCylindrical(BearingElement):
     >>> bearing.equilibrium_pos
     array([ 0.68733194, -0.79394211])
     """
-
+    
+    __slots__ = [
+        'n',
+        'axial_length',
+        'journal_radius',
+        'radial_clearance',
+        'elements_circumferential',
+        'elements_axial',
+        'n_pad',
+        'pad_arc_length',
+        'preload',
+        'geometry',
+        'reference_temperature',
+        'frequency',
+        'fxs_load',
+        'fys_load',
+        'groove_factor',
+        'lubricant',
+        'sommerfeld_type',
+        'initial_guess',
+        'method',
+        'operating_type',
+        'oil_supply_pressure',
+        'oil_flow_v',
+        'show_coeffs',
+        'print_result',
+        'print_progress',
+        'print_time']
+    
     @check_units
     def __init__(
         self,
@@ -307,7 +335,34 @@ class THDCylindrical(BearingElement):
         for i in range(n_freq):
             speed = frequency[i]
 
-            self.run(speed)
+            self.run(speed,
+                     radial_clearance, 
+                     elements_axial, 
+                     elements_circumferential, 
+                     n_pad, 
+                     reference_temperature, 
+                     operating_type, 
+                     self.theta_range, 
+                     self.dtheta, 
+                     self.dY, 
+                     self.dZ, 
+                     self.betha_s, 
+                     axial_length, 
+                     journal_radius, 
+                     geometry, 
+                     preload, 
+                     self.theta_pivot, 
+                     oil_supply_pressure, 
+                     self.reference_viscosity, 
+                     self.rho, 
+                     self.Cp, 
+                     self.k_t, 
+                     self.interpolate, 
+                     self.fat_mixt, 
+                     oil_flow_v, 
+                     self.thetaI, 
+                     self.thetaF, 
+                     Z)
 
             coeffs = self.coefficients(speed)
             kxx[i], kxy[i], kyx[i], kyy[i] = coeffs[0]
@@ -317,327 +372,70 @@ class THDCylindrical(BearingElement):
             n, kxx, cxx, kyy, kxy, kyx, cyy, cxy, cyx, frequency=frequency, **kwargs
         )
 
-    def _forces(self, initial_guess, speed, y0=None, xpt0=None, ypt0=None):
-        """Calculates the forces in Y and X direction.
-
-        Parameters
-        ----------
-        initial_guess : array, float
-            If the other parameters are None, initial_guess is an array with eccentricity
-            ratio and attitude angle. Else, initial_guess is the position of the center of
-            the rotor in the x-axis.
-        speed : float
-            Rotor speed. The unit is rad/s.
-        y0 : float
-            The position of the center of the rotor in the y-axis.
-        xpt0 : float
-            The speed of the center of the rotor in the x-axis.
-        ypt0 : float
-            The speed of the center of the rotor in the y-axis.
-
-
-        Returns
-        -------
-        Fhx : float
-            Force in X direction. The unit is newton.
-        Fhy : float
-            Force in Y direction. The unit is newton.
-        """
-
-        if y0 is None and xpt0 is None and ypt0 is None:
-            self.initial_guess = initial_guess
-
-            xr = (
-                self.initial_guess[0]
-                * self.radial_clearance
-                * np.cos(self.initial_guess[1])
-            )
-            yr = (
-                self.initial_guess[0]
-                * self.radial_clearance
-                * np.sin(self.initial_guess[1])
-            )
-            self.Y = yr / self.radial_clearance
-            self.X = xr / self.radial_clearance
-
-            self.Xpt = 0
-            self.Ypt = 0
-
-        else:
-            self.X = initial_guess / self.radial_clearance
-            self.Y = y0 / self.radial_clearance
-
-            self.Xpt = xpt0 / (self.radial_clearance * speed)
-            self.Ypt = ypt0 / (self.radial_clearance * speed)
-
-        shape_2d = (self.elements_axial, self.elements_circumferential)
-        shape_3d = (self.elements_axial, self.elements_circumferential, self.n_pad)
-        nk = self.elements_axial * self.elements_circumferential
-
-        self.theta_vol_groove = 0.8 * np.ones(self.n_pad)
-        T_end = np.ones(self.n_pad)
-        T_conv = 0.8 * self.reference_temperature
-        T_mist = self.reference_temperature * np.ones(self.n_pad)
-
-        Qedim = np.ones(self.n_pad)
-        Qsdim = np.ones(self.n_pad)
-
-        Pdim = np.zeros(shape_3d)
-        P = np.zeros(shape_3d)
-        T = np.ones(shape_3d)
-        Tdim = np.ones(shape_3d)
-        T_new = np.ones(shape_3d) * 1.2
-        Theta_vol = np.zeros(shape_3d)
-
-        U = 0.5 * np.ones(shape_3d)
-        mu_new = 1.1 * np.ones(shape_3d)
-        mu_turb = 1.3 * np.ones(shape_3d)
-
-        H = np.ones((self.elements_circumferential, self.n_pad))
-
-        p = np.ones((nk, 1))
-        theta_vol = np.zeros((nk, 1))
-
-        # Coefficient matrices
-        Mat_coef_st = np.zeros((nk, nk))
-        Mat_coef_T = np.zeros((nk, nk))
-        Mat_coef = np.zeros((nk, nk))
-
-        # Source terms arrays
-        b_T = np.zeros((nk, 1))
-        b_P = np.zeros((nk, 1))
-        B = np.zeros((nk, 1))
-        B_theta = np.zeros((nk, 1))
-
-        while (T_mist[0] - T_conv) >= 0.5:
-            T_conv = T_mist[0]
-
-            P[:, :, :] = 0.0
-            T[:, :, :] = 1.0
-            Tdim[:, :, :] = 1.0
-            T_new[:, :, :] = 1.2
-            Theta_vol[:, :, :] = 0.0
-
-            U[:, :, :] = 0.5
-            mu_new[:, :, :] = 1.1
-            mu_turb[:, :, :] = 1.3
-
-            H[:, :] = 1.0
-
-            Qedim[:] = 1.0
-            Qsdim[:] = 1.0
-
-            Mat_coef[:, :] = 0.0
-            b_T[:] = 0.0
-            b_P[:] = 0.0
-            B[:] = 0.0
-
-            for n_p in np.arange(self.n_pad):
-                T_ref = T_mist[n_p]
-
-                while (
-                    norm(T_new[:, :, n_p] - T[:, :, n_p]) / norm(T[:, :, n_p]) >= 0.01
-                ):
-                    T_ref = T_mist[n_p]
-                    T[:, :, n_p] = T_new[:, :, n_p]
-                    self.mu_l = mu_new
-
-                    if self.operating_type == "flooded":
-                        Mat_coef, b_P = _flooded(
-                            Mat_coef,
-                            b_P,
-                            H[:, n_p],
-                            self.mu_l[:, :, n_p],
-                            self.theta_range[n_p],
-                            self.dtheta,
-                            self.elements_axial,
-                            self.elements_circumferential,
-                            self.X,
-                            self.Y,
-                            self.dY,
-                            self.dZ,
-                            self.Xpt,
-                            self.Ypt,
-                            self.betha_s,
-                            self.axial_length,
-                            self.journal_radius,
-                            self.geometry,
-                            self.preload,
-                            self.theta_pivot[n_p],
-                        )
-
-                        P_sol = _solve(Mat_coef, b_P)
-                        P_sol = np.where(P_sol < 0, 0, P_sol).reshape(shape_2d)
-
-                    elif self.operating_type == "starvation":
-                        p[:] = 1.0
-                        theta_vol[:] = 0.0
-                        B_theta[:] = 0.0
-                        Mat_coef_st[:, :] = 0.0
-                        Theta_vol[:, :, n_p] = 0.0
-
-                        P_sol, Theta_vol_sol = _starvation(
-                            p,
-                            theta_vol,
-                            Mat_coef_st,
-                            B,
-                            B_theta,
-                            H[:, n_p],
-                            self.mu_l[:, :, n_p],
-                            self.theta_vol_groove[n_p],
-                            self.theta_range[n_p],
-                            self.dtheta,
-                            self.elements_axial,
-                            self.elements_circumferential,
-                            self.X,
-                            self.Y,
-                            self.dY,
-                            self.dZ,
-                            self.Xpt,
-                            self.Ypt,
-                            self.betha_s,
-                            self.oil_supply_pressure,
-                            self.axial_length,
-                            self.journal_radius,
-                            self.geometry,
-                            self.preload,
-                            self.theta_pivot[n_p],
-                        )
-
-                        Theta_vol[:, :, n_p] = Theta_vol_sol
-
-                    P[:, :, n_p] = P_sol
-
-                    Pdim[:, :, n_p] = (
-                        P_sol
-                        * self.reference_viscosity
-                        * speed
-                        * (self.journal_radius**2)
-                    ) / (self.radial_clearance**2)
-
-                    Mat_coef_T[:, :] = 0.0
-
-                    Mat_coef_T, b_T = _temperature(
-                        Mat_coef_T,
-                        b_T,
-                        T_ref,
-                        P[:, :, n_p],
-                        U[:, :, n_p],
-                        H[:, n_p],
-                        Theta_vol[:, :, n_p],
-                        self.theta_range[n_p],
-                        self.mu_l[:, :, n_p],
-                        mu_turb[:, :, n_p],
-                        speed,
-                        self.reference_temperature,
-                        self.reference_viscosity,
-                        self.rho,
-                        self.Cp,
-                        self.k_t,
-                        self.elements_axial,
-                        self.elements_circumferential,
-                        self.dY,
-                        self.dZ,
-                        self.Xpt,
-                        self.Ypt,
-                        self.betha_s,
-                        self.axial_length,
-                        self.journal_radius,
-                        self.radial_clearance,
-                        self.operating_type,
-                    )
-
-                    T_sol = _solve(Mat_coef_T, b_T).reshape(shape_2d)
-                    T_new[:, :, n_p] = T_sol
-                    Tdim[:, :, n_p] = T_sol * self.reference_temperature
-
-                    mu_new[:, :, n_p] = (
-                        self.interpolate(Tdim[:, :, n_p]) / self.reference_viscosity
-                    )
-
-                T_end[n_p] = np.sum(Tdim[:, -1, n_p]) / self.elements_axial
-
-                if self.operating_type == "flooded":
-                    T_mist[n_p - 1] = (
-                        self.fat_mixt[n_p] * self.reference_temperature
-                        + (1 - self.fat_mixt[n_p]) * T_end[n_p]
-                    )
-
-                if self.operating_type == "starvation":
-                    Qedim[n_p] = (
-                        self.radial_clearance
-                        * H[0, n_p]
-                        * speed
-                        * self.journal_radius
-                        * self.axial_length
-                        * Theta_vol[0, 0, n_p]
-                        * (np.mean(U[:, 0, n_p]))
-                    )
-
-                    Qsdim[n_p] = (
-                        self.radial_clearance
-                        * H[-1, n_p]
-                        * speed
-                        * self.journal_radius
-                        * self.axial_length
-                        * Theta_vol[0, -1, n_p]
-                        * (np.mean(U[:, -1, n_p]))
-                    )
-
-            if self.operating_type == "starvation":
-                for n_p in np.arange(self.n_pad):
-                    geometry_factor = (Qedim[n_p] + Qsdim[n_p - 1]) / (
-                        np.sum(Qedim) + np.sum(Qsdim)
-                    )
-
-                    T_mist[n_p] = (
-                        (Qsdim[n_p - 1] * T_end[n_p - 1])
-                        + (
-                            self.reference_temperature
-                            * geometry_factor
-                            * self.oil_flow_v
-                        )
-                    ) / (geometry_factor * self.oil_flow_v + Qsdim[n_p - 1])
-
-                    self.theta_vol_groove[n_p] = (
-                        0.8
-                        * (geometry_factor * self.oil_flow_v + Qsdim[n_p - 1])
-                        / Qedim[n_p]
-                    )
-
-                    if self.theta_vol_groove[n_p] > 1:
-                        self.theta_vol_groove[n_p] = 1
-
-        self.P = Pdim
-        self.T = Tdim
-        self.Theta_vol = Theta_vol
-
-        PPlot = self.P.reshape(self.elements_axial, -1, order="F")
-        TPlot = self.T.reshape(self.elements_axial, -1, order="F")
-
-        Ytheta = np.sort(
-            np.linspace(
-                self.thetaI + self.dtheta / 2,
-                self.thetaF - self.dtheta / 2,
-                self.elements_circumferential,
-            ).ravel()
-        )
-
-        fx1 = np.trapezoid(PPlot * np.cos(Ytheta), self.journal_radius * Ytheta)
-        fy1 = np.trapezoid(PPlot * np.sin(Ytheta), self.journal_radius * Ytheta)
-
-        z_vals = self.axial_length * self.Z[1:-1]
-        Fhx = -np.trapezoid(fx1, z_vals)
-        Fhy = -np.trapezoid(fy1, z_vals)
-
-        return Fhx, Fhy
-
-    def run(self, speed):
+    def run(self,
+            speed,
+            radial_clearance, 
+            elements_axial, 
+            elements_circumferential, 
+            n_pad, 
+            reference_temperature, 
+            operating_type, 
+            theta_range, 
+            dtheta, 
+            dY, 
+            dZ, 
+            betha_s, 
+            axial_length, 
+            journal_radius, 
+            geometry, 
+            preload, 
+            theta_pivot, 
+            oil_supply_pressure, 
+            reference_viscosity, 
+            rho, 
+            Cp, 
+            k_t, 
+            interpolate, 
+            fat_mixt, 
+            oil_flow_v, 
+            thetaI, 
+            thetaF, 
+            Z):
+        
         """This method runs the optimization to find the equilibrium position of
         the rotor's center.
         """
 
-        args = (speed, self.print_progress)
+        args = (speed,
+                radial_clearance, 
+                elements_axial, 
+                elements_circumferential, 
+                n_pad, 
+                reference_temperature, 
+                operating_type, 
+                theta_range, 
+                dtheta, 
+                dY, 
+                dZ, 
+                betha_s, 
+                axial_length, 
+                journal_radius, 
+                geometry, 
+                preload, 
+                theta_pivot, 
+                oil_supply_pressure, 
+                reference_viscosity, 
+                rho, 
+                Cp, 
+                k_t, 
+                interpolate, 
+                fat_mixt, 
+                oil_flow_v, 
+                thetaI, 
+                thetaF, 
+                Z, 
+                self.print_progress)
+        
         t1 = time.time()
         res = minimize(
             self._score,
@@ -648,6 +446,7 @@ class THDCylindrical(BearingElement):
             tol=0.8,
             options={"maxiter": 1e10},
         )
+            
         self.equilibrium_pos = res.x
         t2 = time.time()
 
@@ -713,13 +512,68 @@ class THDCylindrical(BearingElement):
         """
 
         if self.equilibrium_pos is None:
-            self.run(speed)
+            self.run(speed,
+                     self.radial_clearance, 
+                     self.elements_axial, 
+                     self.elements_circumferential, 
+                     self.n_pad, 
+                     self.reference_temperature, 
+                     self.operating_type, 
+                     self.theta_range, 
+                     self.dtheta, 
+                     self.dY, 
+                     self.dZ, 
+                     self.betha_s, 
+                     self.axial_length, 
+                     self.journal_radius, 
+                     self.geometry, 
+                     self.preload, 
+                     self.theta_pivot, 
+                     self.oil_supply_pressure, 
+                     self.reference_viscosity, 
+                     self.rho, 
+                     self.Cp, 
+                     self.k_t, 
+                     self.interpolate, 
+                     self.fat_mixt, 
+                     self.oil_flow_v, 
+                     self.thetaI, 
+                     self.thetaF, 
+                     self.Z)
+            
             self.coefficients(speed)
         else:
             if self.method == "lund":
                 k, c = self._lund_method(speed)
             elif self.method == "perturbation":
-                k, c = self._perturbation_method(speed)
+                k, c = self._perturbation_method(speed,
+                                                 self.radial_clearance, 
+                                                 self.elements_axial, 
+                                                 self.elements_circumferential, 
+                                                 self.n_pad, 
+                                                 self.reference_temperature, 
+                                                 self.operating_type, 
+                                                 self.theta_range, 
+                                                 self.dtheta, 
+                                                 self.dY, 
+                                                 self.dZ, 
+                                                 self.betha_s, 
+                                                 self.axial_length, 
+                                                 self.journal_radius, 
+                                                 self.geometry, 
+                                                 self.preload, 
+                                                 self.theta_pivot, 
+                                                 self.oil_supply_pressure, 
+                                                 self.reference_viscosity, 
+                                                 self.rho, 
+                                                 self.Cp, 
+                                                 self.k_t, 
+                                                 self.interpolate, 
+                                                 self.fat_mixt, 
+                                                 self.oil_flow_v, 
+                                                 self.thetaI, 
+                                                 self.thetaF, 
+                                                 self.Z)
 
             if self.show_coeffs:
                 print(f"kxx = {k[0]}")
@@ -736,7 +590,36 @@ class THDCylindrical(BearingElement):
 
             return coeffs
 
-    def _perturbation_method(self, speed):
+    def _perturbation_method(self, 
+                             speed, 
+                             radial_clearance, 
+                             elements_axial, 
+                             elements_circumferential, 
+                             n_pad, 
+                             reference_temperature, 
+                             operating_type, 
+                             theta_range, 
+                             dtheta, 
+                             dY, 
+                             dZ, 
+                             betha_s, 
+                             axial_length, 
+                             journal_radius, 
+                             geometry, 
+                             preload, 
+                             theta_pivot, 
+                             oil_supply_pressure, 
+                             reference_viscosity, 
+                             rho, 
+                             Cp, 
+                             k_t, 
+                             interpolate, 
+                             fat_mixt, 
+                             oil_flow_v, 
+                             thetaI, 
+                             thetaF, 
+                             Z):
+        
         """In this method the formulation is based in application of virtual
         displacements and speeds on the rotor from its equilibrium position to
         determine the bearing stiffness and damping coefficients.
@@ -762,15 +645,270 @@ class THDCylindrical(BearingElement):
         epixpt = 0.000001 * np.abs(Va * np.sin(self.equilibrium_pos[1]))
         epiypt = 0.000001 * np.abs(Va * np.cos(self.equilibrium_pos[1]))
 
-        Auinitial_guess1 = self._forces(xeq + epix, speed, yeq, 0, 0)
-        Auinitial_guess2 = self._forces(xeq - epix, speed, yeq, 0, 0)
-        Auinitial_guess3 = self._forces(xeq, speed, yeq + epiy, 0, 0)
-        Auinitial_guess4 = self._forces(xeq, speed, yeq - epiy, 0, 0)
+        Auinitial_guess1 = _forces(xeq + epix, 
+                                   speed, 
+                                   radial_clearance, 
+                                   elements_axial, 
+                                   elements_circumferential, 
+                                   n_pad, 
+                                   reference_temperature, 
+                                   operating_type, 
+                                   theta_range, 
+                                   dtheta, 
+                                   dY, 
+                                   dZ, 
+                                   betha_s, 
+                                   axial_length, 
+                                   journal_radius, 
+                                   geometry, 
+                                   preload, 
+                                   theta_pivot, 
+                                   oil_supply_pressure, 
+                                   reference_viscosity, 
+                                   rho, 
+                                   Cp, 
+                                   k_t, 
+                                   interpolate, 
+                                   fat_mixt, 
+                                   oil_flow_v, 
+                                   thetaI, 
+                                   thetaF, 
+                                   Z, 
+                                   yeq, 
+                                   0, 
+                                   0)
+        
+        Auinitial_guess2 = _forces(xeq - epix, 
+                                   speed, 
+                                   radial_clearance, 
+                                   elements_axial, 
+                                   elements_circumferential, 
+                                   n_pad, 
+                                   reference_temperature, 
+                                   operating_type, 
+                                   theta_range, 
+                                   dtheta, 
+                                   dY, 
+                                   dZ, 
+                                   betha_s, 
+                                   axial_length, 
+                                   journal_radius, 
+                                   geometry, 
+                                   preload, 
+                                   theta_pivot, 
+                                   oil_supply_pressure, 
+                                   reference_viscosity, 
+                                   rho, 
+                                   Cp, 
+                                   k_t, 
+                                   interpolate, 
+                                   fat_mixt, 
+                                   oil_flow_v, 
+                                   thetaI, 
+                                   thetaF, 
+                                   Z, 
+                                   yeq, 
+                                   0, 
+                                   0)
 
-        Auinitial_guess5 = self._forces(xeq, speed, yeq, epixpt, 0)
-        Auinitial_guess6 = self._forces(xeq, speed, yeq, -epixpt, 0)
-        Auinitial_guess7 = self._forces(xeq, speed, yeq, 0, epiypt)
-        Auinitial_guess8 = self._forces(xeq, speed, yeq, 0, -epiypt)
+        Auinitial_guess3 = _forces(xeq, 
+                                   speed, 
+                                   radial_clearance, 
+                                   elements_axial, 
+                                   elements_circumferential, 
+                                   n_pad, 
+                                   reference_temperature, 
+                                   operating_type, 
+                                   theta_range, 
+                                   dtheta, 
+                                   dY, 
+                                   dZ, 
+                                   betha_s, 
+                                   axial_length, 
+                                   journal_radius, 
+                                   geometry, 
+                                   preload, 
+                                   theta_pivot, 
+                                   oil_supply_pressure, 
+                                   reference_viscosity, 
+                                   rho, 
+                                   Cp, 
+                                   k_t, 
+                                   interpolate, 
+                                   fat_mixt, 
+                                   oil_flow_v, 
+                                   thetaI, 
+                                   thetaF, 
+                                   Z, 
+                                   yeq + epiy, 
+                                   0, 
+                                   0)
+
+        Auinitial_guess4 = _forces(xeq, 
+                                   speed, 
+                                   radial_clearance, 
+                                   elements_axial, 
+                                   elements_circumferential, 
+                                   n_pad, 
+                                   reference_temperature, 
+                                   operating_type, 
+                                   theta_range, 
+                                   dtheta, 
+                                   dY, 
+                                   dZ, 
+                                   betha_s, 
+                                   axial_length, 
+                                   journal_radius, 
+                                   geometry, 
+                                   preload, 
+                                   theta_pivot, 
+                                   oil_supply_pressure, 
+                                   reference_viscosity, 
+                                   rho, 
+                                   Cp, 
+                                   k_t, 
+                                   interpolate, 
+                                   fat_mixt, 
+                                   oil_flow_v, 
+                                   thetaI, 
+                                   thetaF, 
+                                   Z, 
+                                   yeq - epiy, 
+                                   0, 
+                                   0)
+
+
+        Auinitial_guess5 = _forces(xeq, 
+                                   speed, 
+                                   radial_clearance, 
+                                   elements_axial, 
+                                   elements_circumferential, 
+                                   n_pad, 
+                                   reference_temperature, 
+                                   operating_type, 
+                                   theta_range, 
+                                   dtheta, 
+                                   dY, 
+                                   dZ, 
+                                   betha_s, 
+                                   axial_length, 
+                                   journal_radius, 
+                                   geometry, 
+                                   preload, 
+                                   theta_pivot, 
+                                   oil_supply_pressure, 
+                                   reference_viscosity, 
+                                   rho, 
+                                   Cp, 
+                                   k_t, 
+                                   interpolate, 
+                                   fat_mixt, 
+                                   oil_flow_v, 
+                                   thetaI, 
+                                   thetaF, 
+                                   Z, 
+                                   yeq, 
+                                   epixpt, 
+                                   0)
+
+        Auinitial_guess6 = _forces(xeq, 
+                                   speed, 
+                                   radial_clearance, 
+                                   elements_axial, 
+                                   elements_circumferential, 
+                                   n_pad, 
+                                   reference_temperature, 
+                                   operating_type, 
+                                   theta_range, 
+                                   dtheta, 
+                                   dY, 
+                                   dZ, 
+                                   betha_s, 
+                                   axial_length, 
+                                   journal_radius, 
+                                   geometry, 
+                                   preload, 
+                                   theta_pivot, 
+                                   oil_supply_pressure, 
+                                   reference_viscosity, 
+                                   rho, 
+                                   Cp, 
+                                   k_t, 
+                                   interpolate, 
+                                   fat_mixt, 
+                                   oil_flow_v, 
+                                   thetaI, 
+                                   thetaF, 
+                                   Z, 
+                                   yeq, 
+                                   -epixpt, 
+                                   0)
+
+        Auinitial_guess7 = _forces(xeq, 
+                                   speed, 
+                                   radial_clearance, 
+                                   elements_axial, 
+                                   elements_circumferential, 
+                                   n_pad, 
+                                   reference_temperature, 
+                                   operating_type, 
+                                   theta_range, 
+                                   dtheta, 
+                                   dY, 
+                                   dZ, 
+                                   betha_s, 
+                                   axial_length, 
+                                   journal_radius, 
+                                   geometry, 
+                                   preload, 
+                                   theta_pivot, 
+                                   oil_supply_pressure, 
+                                   reference_viscosity, 
+                                   rho, 
+                                   Cp, 
+                                   k_t, 
+                                   interpolate, 
+                                   fat_mixt, 
+                                   oil_flow_v, 
+                                   thetaI, 
+                                   thetaF, 
+                                   Z, 
+                                   yeq, 
+                                   0, 
+                                   epiypt)
+        
+        Auinitial_guess8 = _forces(xeq, 
+                                   speed, 
+                                   radial_clearance, 
+                                   elements_axial, 
+                                   elements_circumferential, 
+                                   n_pad, 
+                                   reference_temperature, 
+                                   operating_type, 
+                                   theta_range, 
+                                   dtheta, 
+                                   dY, 
+                                   dZ, 
+                                   betha_s, 
+                                   axial_length, 
+                                   journal_radius, 
+                                   geometry, 
+                                   preload, 
+                                   theta_pivot, 
+                                   oil_supply_pressure, 
+                                   reference_viscosity, 
+                                   rho, 
+                                   Cp, 
+                                   k_t, 
+                                   interpolate, 
+                                   fat_mixt, 
+                                   oil_flow_v, 
+                                   thetaI, 
+                                   thetaF, 
+                                   Z, 
+                                   yeq, 
+                                   0, 
+                                   -epiypt)
 
         Kxx = -self.sommerfeld(speed, Auinitial_guess1[0], Auinitial_guess2[1]) * (
             (Auinitial_guess1[0] - Auinitial_guess2[0]) / (epix / self.radial_clearance)
@@ -1683,7 +1821,38 @@ class THDCylindrical(BearingElement):
 
         return (kxx, kxy, kyx, kyy), (cxx, cxy, cyx, cyy)
 
-    def _score(self, x, speed, print_progress=False):
+    def _score(self, 
+                x, 
+                speed,
+                radial_clearance, 
+                elements_axial, 
+                elements_circumferential, 
+                n_pad, 
+                reference_temperature, 
+                operating_type, 
+                theta_range, 
+                dtheta, 
+                dY, 
+                dZ, 
+                betha_s, 
+                axial_length, 
+                journal_radius, 
+                geometry, 
+                preload, 
+                theta_pivot, 
+                oil_supply_pressure, 
+                reference_viscosity, 
+                rho, 
+                Cp, 
+                k_t, 
+                interpolate, 
+                fat_mixt, 
+                oil_flow_v, 
+                thetaI, 
+                thetaF, 
+                Z,
+                print_progress=False):
+        
         """This method used to set the objective function of minimize optimization.
 
         Parameters
@@ -1699,7 +1868,36 @@ class THDCylindrical(BearingElement):
         Score coefficient.
         """
 
-        Fhx, Fhy = self._forces(x, speed)
+        Fhx, Fhy = _forces(x, 
+                        speed, 
+                        radial_clearance, 
+                        elements_axial, 
+                        elements_circumferential, 
+                        n_pad, 
+                        reference_temperature, 
+                        operating_type, 
+                        theta_range, 
+                        dtheta, 
+                        dY, 
+                        dZ, 
+                        betha_s, 
+                        axial_length, 
+                        journal_radius, 
+                        geometry, 
+                        preload, 
+                        theta_pivot, 
+                        oil_supply_pressure, 
+                        reference_viscosity, 
+                        rho, 
+                        Cp, 
+                        k_t, 
+                        interpolate, 
+                        fat_mixt, 
+                        oil_flow_v, 
+                        thetaI, 
+                        thetaF, 
+                        Z)
+        
         score = np.sqrt(((self.fxs_load + Fhx) ** 2) + ((self.fys_load + Fhy) ** 2))
         if print_progress:
             print(x)
@@ -1977,6 +2175,353 @@ class THDCylindrical(BearingElement):
 
         return fig
 
+#@njit
+def _forces(initial_guess, 
+            speed, 
+            radial_clearance, 
+            elements_axial, 
+            elements_circumferential, 
+            n_pad, 
+            reference_temperature, 
+            operating_type, 
+            theta_range, 
+            dtheta, 
+            dY, 
+            dZ, 
+            betha_s, 
+            axial_length, 
+            journal_radius, 
+            geometry, 
+            preload, 
+            theta_pivot, 
+            oil_supply_pressure, 
+            reference_viscosity, 
+            rho, 
+            Cp, 
+            k_t, 
+            interpolate, 
+            fat_mixt, 
+            oil_flow_v, 
+            thetaI, 
+            thetaF, 
+            Z, 
+            y0=None, 
+            xpt0=None, 
+            ypt0=None):
+    
+    """Calculates the forces in Y and X direction.
+
+    Parameters
+    ----------
+    initial_guess : array, float
+        If the other parameters are None, initial_guess is an array with eccentricity
+        ratio and attitude angle. Else, initial_guess is the position of the center of
+        the rotor in the x-axis.
+    speed : float
+        Rotor speed. The unit is rad/s.
+    y0 : float
+        The position of the center of the rotor in the y-axis.
+    xpt0 : float
+        The speed of the center of the rotor in the x-axis.
+    ypt0 : float
+        The speed of the center of the rotor in the y-axis.
+
+
+    Returns
+    -------
+    Fhx : float
+        Force in X direction. The unit is newton.
+    Fhy : float
+        Force in Y direction. The unit is newton.
+    """
+
+    if y0 is None and xpt0 is None and ypt0 is None:
+        initial_guess = initial_guess
+
+        xr = (
+            initial_guess[0]
+            * radial_clearance
+            * np.cos(initial_guess[1])
+        )
+        yr = (
+            initial_guess[0]
+            * radial_clearance
+            * np.sin(initial_guess[1])
+        )
+        Y = yr / radial_clearance
+        X = xr / radial_clearance
+
+        Xpt = 0
+        Ypt = 0
+
+    else:
+        X = initial_guess / radial_clearance
+        Y = y0 / radial_clearance
+
+        Xpt = xpt0 / (radial_clearance * speed)
+        Ypt = ypt0 / (radial_clearance * speed)
+
+    shape_2d = (elements_axial, elements_circumferential)
+    shape_3d = (elements_axial, elements_circumferential, n_pad)
+    nk = elements_axial * elements_circumferential
+
+    theta_vol_groove = 0.8 * np.ones(n_pad)
+    T_end = np.ones(n_pad)
+    T_conv = 0.8 * reference_temperature
+    T_mist = reference_temperature * np.ones(n_pad)
+
+    Qedim = np.ones(n_pad)
+    Qsdim = np.ones(n_pad)
+
+    Pdim = np.zeros(shape_3d)
+    P = np.zeros(shape_3d)
+    T = np.ones(shape_3d)
+    Tdim = np.ones(shape_3d)
+    T_new = np.ones(shape_3d) * 1.2
+    Theta_vol = np.zeros(shape_3d)
+
+    U = 0.5 * np.ones(shape_3d)
+    mu_new = 1.1 * np.ones(shape_3d)
+    mu_turb = 1.3 * np.ones(shape_3d)
+
+    H = np.ones((elements_circumferential, n_pad))
+
+    p = np.ones((nk, 1))
+    theta_vol = np.zeros((nk, 1))
+
+    # Coefficient matrices
+    Mat_coef_st = np.zeros((nk, nk))
+    Mat_coef_T = np.zeros((nk, nk))
+    Mat_coef = np.zeros((nk, nk))
+
+    # Source terms arrays
+    b_T = np.zeros((nk, 1))
+    b_P = np.zeros((nk, 1))
+    B = np.zeros((nk, 1))
+    B_theta = np.zeros((nk, 1))
+
+    while (T_mist[0] - T_conv) >= 0.5:
+        T_conv = T_mist[0]
+
+        P[:, :, :] = 0.0
+        T[:, :, :] = 1.0
+        Tdim[:, :, :] = 1.0
+        T_new[:, :, :] = 1.2
+        Theta_vol[:, :, :] = 0.0
+
+        U[:, :, :] = 0.5
+        mu_new[:, :, :] = 1.1
+        mu_turb[:, :, :] = 1.3
+
+        H[:, :] = 1.0
+
+        Qedim[:] = 1.0
+        Qsdim[:] = 1.0
+
+        Mat_coef[:, :] = 0.0
+        b_T[:] = 0.0
+        b_P[:] = 0.0
+        B[:] = 0.0
+
+        for n_p in np.arange(n_pad):
+            T_ref = T_mist[n_p]
+
+            while (
+                norm(T_new[:, :, n_p] - T[:, :, n_p]) / norm(T[:, :, n_p]) >= 0.01
+            ):
+                T_ref = T_mist[n_p]
+                T[:, :, n_p] = T_new[:, :, n_p]
+                mu_l = mu_new
+
+                if operating_type == "flooded":
+                    Mat_coef, b_P = _flooded(
+                        Mat_coef,
+                        b_P,
+                        H[:, n_p],
+                        mu_l[:, :, n_p],
+                        theta_range[n_p],
+                        dtheta,
+                        elements_axial,
+                        elements_circumferential,
+                        X,
+                        Y,
+                        dY,
+                        dZ,
+                        Xpt,
+                        Ypt,
+                        betha_s,
+                        axial_length,
+                        journal_radius,
+                        geometry,
+                        preload,
+                        theta_pivot[n_p],
+                    )
+
+                    P_sol = _solve(Mat_coef, b_P)
+                    P_sol = np.where(P_sol < 0, 0, P_sol).reshape(shape_2d)
+
+                elif operating_type == "starvation":
+                    p[:] = 1.0
+                    theta_vol[:] = 0.0
+                    B_theta[:] = 0.0
+                    Mat_coef_st[:, :] = 0.0
+                    Theta_vol[:, :, n_p] = 0.0
+
+                    P_sol, Theta_vol_sol = _starvation(
+                        p,
+                        theta_vol,
+                        Mat_coef_st,
+                        B,
+                        B_theta,
+                        H[:, n_p],
+                        mu_l[:, :, n_p],
+                        theta_vol_groove[n_p],
+                        theta_range[n_p],
+                        dtheta,
+                        elements_axial,
+                        elements_circumferential,
+                        X,
+                        Y,
+                        dY,
+                        dZ,
+                        Xpt,
+                        Ypt,
+                        betha_s,
+                        oil_supply_pressure,
+                        axial_length,
+                        journal_radius,
+                        geometry,
+                        preload,
+                        theta_pivot[n_p],
+                    )
+
+                    Theta_vol[:, :, n_p] = Theta_vol_sol
+
+                P[:, :, n_p] = P_sol
+
+                Pdim[:, :, n_p] = (
+                    P_sol
+                    * reference_viscosity
+                    * speed
+                    * (journal_radius**2)
+                ) / (radial_clearance**2)
+
+                Mat_coef_T[:, :] = 0.0
+
+                Mat_coef_T, b_T = _temperature(
+                    Mat_coef_T,
+                    b_T,
+                    T_ref,
+                    P[:, :, n_p],
+                    U[:, :, n_p],
+                    H[:, n_p],
+                    Theta_vol[:, :, n_p],
+                    theta_range[n_p],
+                    mu_l[:, :, n_p],
+                    mu_turb[:, :, n_p],
+                    speed,
+                    reference_temperature,
+                    reference_viscosity,
+                    rho,
+                    Cp,
+                    k_t,
+                    elements_axial,
+                    elements_circumferential,
+                    dY,
+                    dZ,
+                    Xpt,
+                    Ypt,
+                    betha_s,
+                    axial_length,
+                    journal_radius,
+                    radial_clearance,
+                    operating_type,
+                )
+
+                T_sol = _solve(Mat_coef_T, b_T).reshape(shape_2d)
+                T_new[:, :, n_p] = T_sol
+                Tdim[:, :, n_p] = T_sol * reference_temperature
+
+                mu_new[:, :, n_p] = (
+                    interpolate(Tdim[:, :, n_p]) / reference_viscosity
+                )
+
+            T_end[n_p] = np.sum(Tdim[:, -1, n_p]) / elements_axial
+
+            if operating_type == "flooded":
+                T_mist[n_p - 1] = (
+                    fat_mixt[n_p] * reference_temperature
+                    + (1 - fat_mixt[n_p]) * T_end[n_p]
+                )
+
+            if operating_type == "starvation":
+                Qedim[n_p] = (
+                    radial_clearance
+                    * H[0, n_p]
+                    * speed
+                    * journal_radius
+                    * axial_length
+                    * Theta_vol[0, 0, n_p]
+                    * (np.mean(U[:, 0, n_p]))
+                )
+
+                Qsdim[n_p] = (
+                    radial_clearance
+                    * H[-1, n_p]
+                    * speed
+                    * journal_radius
+                    * axial_length
+                    * Theta_vol[0, -1, n_p]
+                    * (np.mean(U[:, -1, n_p]))
+                )
+
+        if operating_type == "starvation":
+            for n_p in np.arange(n_pad):
+                geometry_factor = (Qedim[n_p] + Qsdim[n_p - 1]) / (
+                    np.sum(Qedim) + np.sum(Qsdim)
+                )
+
+                T_mist[n_p] = (
+                    (Qsdim[n_p - 1] * T_end[n_p - 1])
+                    + (
+                        reference_temperature
+                        * geometry_factor
+                        * oil_flow_v
+                    )
+                ) / (geometry_factor * oil_flow_v + Qsdim[n_p - 1])
+
+                theta_vol_groove[n_p] = (
+                    0.8
+                    * (geometry_factor * oil_flow_v + Qsdim[n_p - 1])
+                    / Qedim[n_p]
+                )
+
+                if theta_vol_groove[n_p] > 1:
+                    theta_vol_groove[n_p] = 1
+
+    P = Pdim
+    T = Tdim
+    Theta_vol = Theta_vol
+
+    PPlot = P.reshape(elements_axial, -1, order="F")
+    TPlot = T.reshape(elements_axial, -1, order="F")
+
+    Ytheta = np.sort(
+        np.linspace(
+            thetaI + dtheta / 2,
+            thetaF - dtheta / 2,
+            elements_circumferential,
+        ).ravel()
+    )
+
+    fx1 = np.trapezoid(PPlot * np.cos(Ytheta), journal_radius * Ytheta)
+    fy1 = np.trapezoid(PPlot * np.sin(Ytheta), journal_radius * Ytheta)
+
+    z_vals = axial_length * Z[1:-1]
+    Fhx = -np.trapezoid(fx1, z_vals)
+    Fhy = -np.trapezoid(fy1, z_vals)
+
+    return Fhx, Fhy
 
 @njit
 def _evaluate_bearing_clearance(X, Y, theta, dtheta, geometry, preload, theta_pivot):
@@ -2030,7 +2575,6 @@ def _evaluate_bearing_clearance(X, Y, theta, dtheta, geometry, preload, theta_pi
 
     return he, hw, hn, hs, hp
 
-
 @njit
 def _calculate_discretization_coeffs(
     kj,
@@ -2080,7 +2624,6 @@ def _calculate_discretization_coeffs(
     CP = -(CE + CW + CN + CS)
 
     return CE, CW, CN, CS, CP
-
 
 @njit
 def _flooded(
@@ -2165,7 +2708,6 @@ def _flooded(
         kj = 0
 
     return A_P, b_P
-
 
 @njit
 def _starvation(
@@ -2312,7 +2854,6 @@ def _starvation(
 
     return P, theta_vol
 
-
 @njit
 def _compute_turbulence_props(
     film_thickness,
@@ -2362,7 +2903,6 @@ def _compute_turbulence_props(
     U = 0.5 - (film_thickness**2) / (12 * mu_t * beta_s) * dPdy
 
     return U, mu_t
-
 
 @njit
 def _temperature(
@@ -2493,7 +3033,39 @@ def _temperature(
 
     return A_T, b_T
 
+@njit
+def reshape_3d_to_2d_fortran(arr_3d, rows):
+    """Reshape 3D array to 2D in Fortran (column-major) order.
+    Args:
+        arr_3d: Input array of shape (n1, n2, n3)
+        rows: Desired output rows (must divide n1*n2*n3)
+    Returns:
+        2D array of shape (rows, cols)
+    """
+    n1, n2, n3 = arr_3d.shape
+    size = n1 * n2 * n3
+    cols = size // rows
+    
+    # Initialize output
+    out = np.zeros((rows, cols), dtype=arr_3d.dtype)
+    
+    # Fill in column-major order
+    for i in np.arange(size):
+        # Compute original 3D indices (Fortran-style)
+        k = i // (n1 * n2)
+        j = (i % (n1 * n2)) // n1
+        m = (i % (n1 * n2)) % n1
+        
+        # Compute new 2D indices
+        row = i % rows
+        col = i // rows
+        
+        out[row, col] = arr_3d[m, j, k]
+    
+    return out
 
+@njit
 def _solve(A, b):
     """Solve the linear system Ax = b using sparse matrix solver."""
-    return sparse.linalg.spsolve(sparse.csr_matrix(A), b)
+    #return sparse.linalg.spsolve(sparse.csr_matrix(A), b)
+    return np.linalg.solve(A, b)  # A must be a dense array
