@@ -34,6 +34,9 @@ class PointMass(Element):
         Mass for the element on the z direction.
     tag: str
         A tag to name the element
+    scale_factor : float, optional
+        The scale factor is used to scale the point mass drawing.
+        Default is 1.
     color : str, optional
         A color to be used when the element is represented.
         Default is "DarkSalmon".
@@ -54,7 +57,15 @@ class PointMass(Element):
 
     @check_units
     def __init__(
-        self, n=None, m=None, mx=None, my=None, mz=None, tag=None, color="DarkSalmon"
+        self,
+        n=None,
+        m=None,
+        mx=None,
+        my=None,
+        mz=None,
+        tag=None,
+        scale_factor=1.0,
+        color="DarkSalmon",
     ):
         self.n = n
         self.m = m
@@ -69,6 +80,7 @@ class PointMass(Element):
         self.mz = 0.0 if mz is None else float(mz)
         self.tag = tag
         self.dof_global_index = None
+        self.scale_factor = scale_factor
         self.color = color
 
     def __hash__(self):
@@ -282,7 +294,8 @@ class PointMass(Element):
             The figure object which traces are added on.
         """
         zpos, ypos, yc_pos = position
-        radius = ypos / 12
+
+        radius = 0.005 * self.scale_factor
 
         customdata = [self.n, self.mx, self.my, self.mz]
         hovertemplate = (

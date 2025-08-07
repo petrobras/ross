@@ -460,13 +460,12 @@ class Rotor(object):
 
         # define positions for bearings
         for elm in self.bearing_elements:
-            if elm.n in self.link_nodes:
-                i = self.nodes.index(
-                    [brg.n for brg in self.bearing_elements if brg.n_link == elm.n][0]
-                )
-            else:
-                i = self.nodes.index(elm.n)
+            node = elm.n
+            if node in self.link_nodes:
+                linked_bearing = self._find_linked_bearing(node)
+                node = linked_bearing.n
 
+            i = self.nodes.index(node)
             z_pos = self.nodes_pos[i]
             df.loc[df.tag == elm.tag, "nodes_pos_l"] = z_pos
             df.loc[df.tag == elm.tag, "nodes_pos_r"] = z_pos
@@ -490,7 +489,10 @@ class Rotor(object):
             for i in range(len(dfb_z_pos)):
                 t = dfb_z_pos.iloc[i].tag
 
-                if df.loc[df.tag == t, "n_l"].values[0] in self.link_nodes:
+                n_l = df.loc[df.tag == t, "n_l"].values[0]
+                if n_l in self.link_nodes:
+                    y_pos = df.loc[df.n_link == n_l, "y_pos"].values[0]
+                    y_pos_sup = df.loc[df.n_link == n_l, "y_pos_sup"].values[0]
                     df.loc[df.tag == t, "y_pos"] = (
                         y_pos + mean_od * df["scale_factor"][df.tag == t].values[0]
                     )
@@ -594,6 +596,32 @@ class Rotor(object):
             )
 
         return int(number_dof)
+
+    def _find_linked_bearing(self, node, bearing_elements=None):
+        """Find the linked bearing element by node
+
+        Parameters
+        ----------
+        node : int
+            Node number to search for a linked bearing element.
+
+        Returns
+        -------
+        brg_found : BearingElement or None
+            The bearing element linked to the specified node, or None if not found.
+        """
+        bearing_elements = (
+            self.bearing_elements if bearing_elements is None else bearing_elements
+        )
+
+        for brg in bearing_elements:
+            if brg.n_link == node:
+                brg_found = self._find_linked_bearing(brg.n)
+                if brg_found:
+                    return brg_found
+                else:
+                    return brg
+        return None
 
     def __eq__(self, other):
         """Equality method for comparasions.
@@ -1692,6 +1720,7 @@ class Rotor(object):
             psi_inv = psi_inv[np.ix_(idx, range(2 * n))]
 
         diag = np.diag([1 / (1j * frequency - lam) for lam in evals])
+        diag[np.isnan(diag)] = 0
 
         H = C @ psi @ diag @ psi_inv @ B + D
 
@@ -2619,9 +2648,7 @@ class Rotor(object):
             )
             node = bearing.n
             if node in self.link_nodes:
-                linked_bearing = next(
-                    (elm for elm in self.bearing_elements if elm.n_link == node), None
-                )
+                linked_bearing = self._find_linked_bearing(node)
                 node = linked_bearing.n
             yc_pos = center_line_pos[self.nodes.index(node)]
 
@@ -2642,9 +2669,7 @@ class Rotor(object):
             )
             node = p_mass.n
             if node in self.link_nodes:
-                linked_bearing = next(
-                    (elm for elm in self.bearing_elements if elm.n_link == node), None
-                )
+                linked_bearing = self._find_linked_bearing(node)
                 node = linked_bearing.n
             yc_pos = center_line_pos[self.nodes.index(node)]
 
@@ -2873,9 +2898,17 @@ class Rotor(object):
         ]
 
         for i, k in enumerate(stiffness_log):
-            bearings = [BearingElement(b.n, kxx=k, cxx=0) for b in bearings_elements]
+            bearings = [
+                BearingElement(b.n, kxx=k, cxx=0, n_link=b.n_link)
+                for b in bearings_elements
+            ]
             rotor = convert_6dof_to_4dof(
-                self.__class__(self.shaft_elements, self.disk_elements, bearings)
+                self.__class__(
+                    self.shaft_elements,
+                    self.disk_elements,
+                    bearings,
+                    self.point_mass_elements,
+                )
             )
 
             modal = rotor.run_modal(
@@ -2922,8 +2955,32 @@ class Rotor(object):
 
                         # create bearing
                         bearings = [
-                            BearingElement(b.n, kxx=k, cxx=0) for b in bearings_elements
+                            BearingElement(b.n, kxx=k, cxx=0, n_link=b.n_link)
+                            for b in bearings_elements
+                            if b.n not in self.link_nodes
                         ]
+
+                        for b in bearings_elements:
+                            if b.n in self.link_nodes:
+                                linked_bearing = self._find_linked_bearing(
+                                    b.n, bearings
+                                )
+
+                                kxx_brg = np.array(linked_bearing.kxx)
+                                kxx_add = np.array(b.kxx)
+                                kxx_eq = 1 / (1 / kxx_brg - 1 / kxx_add)
+                                kxx_eq[np.isinf(kxx_eq)] = 0
+
+                                kyy_brg = np.array(linked_bearing.kyy)
+                                kyy_add = np.array(b.kyy)
+                                kyy_eq = 1 / (1 / kyy_brg - 1 / kyy_add)
+                                kyy_eq[np.isinf(kyy_eq)] = 0
+
+                                linked_bearing.kxx = list(kxx_eq)
+                                linked_bearing.kyy = list(kyy_eq)
+
+                        for b in bearings:
+                            b.n_link = None
 
                         # create rotor
                         rotor_critical = convert_6dof_to_4dof(
