@@ -1720,6 +1720,7 @@ class Rotor(object):
             psi_inv = psi_inv[np.ix_(idx, range(2 * n))]
 
         diag = np.diag([1 / (1j * frequency - lam) for lam in evals])
+        diag[np.isnan(diag)] = 0
 
         H = C @ psi @ diag @ psi_inv @ B + D
 
