@@ -43,19 +43,6 @@ class ModelReduction:
         self.reduced_rotor = self.reduce_model(self.slave_dofs, self.retained_dofs)
 
     @staticmethod
-    def copy_rotor(rotor, tag=None):
-        return Rotor(
-            deepcopy(rotor.shaft_elements),
-            disk_elements=deepcopy(rotor.disk_elements),
-            bearing_elements=deepcopy(rotor.bearing_elements),
-            point_mass_elements=deepcopy(rotor.point_mass_elements),
-            min_w=rotor.min_w,
-            max_w=rotor.max_w,
-            rated_w=rotor.rated_w,
-            tag=tag or rotor.tag,
-        )
-
-    @staticmethod
     def select_nodes_based_rotor(rotor, important_nodes=[]):
         ignored_dofs = []
         selected_dofs = []
@@ -129,7 +116,7 @@ class ModelReduction:
         reduce_matrix = functions[0]
 
         rotor = self.orig_rotor
-        reduced_rotor = self.copy_rotor(rotor)
+        reduced_rotor = Rotor.copy_rotor(rotor)
 
         reduced_rotor.M = lambda frequency=None, synchronous=False: reduce_matrix(
             rotor.M(frequency=frequency, synchronous=synchronous)
@@ -138,6 +125,8 @@ class ModelReduction:
         reduced_rotor.Ksdt = lambda: reduce_matrix(rotor.Ksdt())
         reduced_rotor.C = lambda frequency: reduce_matrix(rotor.C(frequency))
         reduced_rotor.G = lambda: reduce_matrix(rotor.G())
+
+        # Quais funções alterar: run_time_resp, run_modal
 
         return reduced_rotor
 

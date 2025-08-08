@@ -3566,6 +3566,39 @@ class Rotor(object):
             **parameters,
         )
 
+    @classmethod
+    def copy_rotor(cls, rotor, tag=None):
+        """Copy a rotor model
+
+        Parameters
+        ----------
+        rotor : ross.Rotor
+            The rotor model to be copied.
+        tag : str, optional
+            New tag name. Default is same of the original rotor.
+
+        Returns
+        -------
+        rotor : ross.rotor.Rotor
+
+        Example
+        -------
+        >>> rotor1 = rotor_example()
+        >>> rotor2 = Rotor.copy(rotor1)
+        >>> rotor1 == rotor2
+        True
+        """
+        return cls(
+            deepcopy(rotor.shaft_elements),
+            disk_elements=deepcopy(rotor.disk_elements),
+            bearing_elements=deepcopy(rotor.bearing_elements),
+            point_mass_elements=deepcopy(rotor.point_mass_elements),
+            min_w=rotor.min_w,
+            max_w=rotor.max_w,
+            rated_w=rotor.rated_w,
+            tag=tag or rotor.tag,
+        )
+
     def run_static(self):
         """Run static analysis.
 
