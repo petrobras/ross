@@ -2934,7 +2934,10 @@ class Rotor(object):
             modal = rotor.run_modal(
                 speed=0, num_modes=num_modes, synchronous=synchronous
             )
-            rotor_wn[:, i] = modal.wn[::2]
+            try:
+                rotor_wn[:, i] = modal.wn[::2]
+            except ValueError:
+                rotor_wn[:, i] = modal.wn[::2][:-1]
 
         bearing0 = bearings_elements[0]
 
