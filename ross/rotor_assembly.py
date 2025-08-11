@@ -462,8 +462,7 @@ class Rotor(object):
         for elm in self.bearing_elements:
             node = elm.n
             if node in self.link_nodes:
-                linked_bearing = self._find_linked_bearing(node)
-                node = linked_bearing.n
+                node = self._find_linked_bearing_node(node)
 
             i = self.nodes.index(node)
             z_pos = self.nodes_pos[i]
@@ -597,7 +596,7 @@ class Rotor(object):
 
         return int(number_dof)
 
-    def _find_linked_bearing(self, node, bearing_elements=None):
+    def _find_linked_bearing_node(self, node):
         """Find the linked bearing element by node
 
         Parameters
@@ -607,20 +606,16 @@ class Rotor(object):
 
         Returns
         -------
-        brg_found : BearingElement or None
-            The bearing element linked to the specified node, or None if not found.
+        node_found : int or None
+            The bearing element node linked to the specified node, or None if not found.
         """
-        bearing_elements = (
-            self.bearing_elements if bearing_elements is None else bearing_elements
-        )
-
-        for brg in bearing_elements:
+        for brg in self.bearing_elements:
             if brg.n_link == node:
-                brg_found = self._find_linked_bearing(brg.n)
-                if brg_found:
-                    return brg_found
+                node_found = self._find_linked_bearing_node(brg.n)
+                if node_found is not None:
+                    return node_found
                 else:
-                    return brg
+                    return brg.n
         return None
 
     def __eq__(self, other):
@@ -2648,8 +2643,7 @@ class Rotor(object):
             )
             node = bearing.n
             if node in self.link_nodes:
-                linked_bearing = self._find_linked_bearing(node)
-                node = linked_bearing.n
+                node = self._find_linked_bearing_node(node)
             yc_pos = center_line_pos[self.nodes.index(node)]
 
             position = (z_pos, y_pos, y_pos_sup, yc_pos)
@@ -2669,8 +2663,7 @@ class Rotor(object):
             )
             node = p_mass.n
             if node in self.link_nodes:
-                linked_bearing = self._find_linked_bearing(node)
-                node = linked_bearing.n
+                node = self._find_linked_bearing_node(node)
             yc_pos = center_line_pos[self.nodes.index(node)]
 
             position = (z_pos, y_pos, yc_pos)
@@ -2901,12 +2894,12 @@ class Rotor(object):
             bearings = [
                 BearingElement(b.n, kxx=k, cxx=0, n_link=b.n_link)
                 for b in bearings_elements
-                if b.n not in self.link_nodes
             ]
 
-            for b in bearings_elements:
+            for b in bearings:
                 if b.n in self.link_nodes:
-                    linked_bearing = self._find_linked_bearing(b.n, bearings)
+                    node = self._find_linked_bearing_node(b.n)
+                    linked_bearing = [b for b in bearings if b.n == node][0]
 
                     kxx_brg = np.array(linked_bearing.kxx)
                     kxx_add = np.array(b.kxx)
@@ -2921,8 +2914,11 @@ class Rotor(object):
                     linked_bearing.kxx = list(kxx_eq)
                     linked_bearing.kyy = list(kyy_eq)
 
-            for b in bearings:
-                b.n_link = None
+            bearings = [
+                BearingElement(b.n, kxx=b.kxx, cxx=0)
+                for b in bearings
+                if b.n not in self.link_nodes
+            ]
 
             rotor = convert_6dof_to_4dof(
                 self.__class__(
