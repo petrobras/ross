@@ -22,3 +22,4 @@ from ross.bearings.cylindrical import *
 from ross.seals.labyrinth_seal import * 
 
 _pio.templates.default = "ross"
+_pio.renderers.default = "browser"
