@@ -2902,14 +2902,15 @@ class Rotor(object):
                     linked_bearing = [b for b in bearings if b.n == node][0]
 
                     kxx_brg = np.array(linked_bearing.kxx)
-                    kxx_add = np.array(b.kxx)
-                    kxx_eq = 1 / (1 / kxx_brg - 1 / kxx_add)
-                    kxx_eq[np.isinf(kxx_eq)] = 0
-
                     kyy_brg = np.array(linked_bearing.kyy)
+                    kxx_add = np.array(b.kxx)
                     kyy_add = np.array(b.kyy)
-                    kyy_eq = 1 / (1 / kyy_brg - 1 / kyy_add)
-                    kyy_eq[np.isinf(kyy_eq)] = 0
+
+                    with np.errstate(divide="ignore"):
+                        kxx_eq = 1 / (1 / kxx_brg - 1 / kxx_add)
+                        kyy_eq = 1 / (1 / kyy_brg - 1 / kyy_add)
+                        kxx_eq[np.isinf(kxx_eq)] = 0
+                        kyy_eq[np.isinf(kyy_eq)] = 0
 
                     linked_bearing.kxx = list(kxx_eq)
                     linked_bearing.kyy = list(kyy_eq)
