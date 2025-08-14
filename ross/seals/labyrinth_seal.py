@@ -94,7 +94,10 @@ class LabyrinthSeal(SealElement):
     ...     tooth_height=Q_(3.175,"mm"),
     ...     tooth_width=Q_(0.1524,"mm"),
     ...     seal_type="inter",
-    ...     gas_composition={"AIR": 1.00},
+    ...     r=287.05,
+    ...     tz=[283.15, 282.60903080958565],
+    ...     muz=[1.7746561138374613e-05, 1.7687886306966975e-05],
+    ...     gamma=1.41,
     ... )
     """
 
@@ -114,9 +117,9 @@ class LabyrinthSeal(SealElement):
         tooth_height=None,
         tooth_width=None,
         seal_type=None,
-        gas_composition="AIR",
-        r = None,
-        gamma= None,
+        gas_composition=None,
+        r=None,
+        gamma=None,
         tz=None,
         muz=None,
         analz="FULL",
@@ -127,8 +130,9 @@ class LabyrinthSeal(SealElement):
     ):
         self.print_results = print_results
         self.gas_composition = gas_composition
-        state_in = ccp.State.define(p=inlet_pressure, T=inlet_temperature, fluid=self.gas_composition)
-        state_out = ccp.State.define(p=outlet_pressure, h=state_in.h(), fluid=self.gas_composition)
+        if self.gas_composition is not None:
+            state_in = ccp.State.define(p=inlet_pressure, T=inlet_temperature, fluid=self.gas_composition)
+            state_out = ccp.State.define(p=outlet_pressure, h=state_in.h(), fluid=self.gas_composition)
 
         if(gamma is None):
             gamma = round((state_in.cp() / state_in.cv()).m, 2)        
