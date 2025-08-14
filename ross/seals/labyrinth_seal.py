@@ -131,20 +131,24 @@ class LabyrinthSeal(SealElement):
         self.print_results = print_results
         self.gas_composition = gas_composition
         if self.gas_composition is not None:
-            state_in = ccp.State.define(p=inlet_pressure, T=inlet_temperature, fluid=self.gas_composition)
-            state_out = ccp.State.define(p=outlet_pressure, h=state_in.h(), fluid=self.gas_composition)
+            state_in = ccp.State.define(
+                p=inlet_pressure, T=inlet_temperature, fluid=self.gas_composition
+            )
+            state_out = ccp.State.define(
+                p=outlet_pressure, h=state_in.h(), fluid=self.gas_composition
+            )
 
-        if(gamma is None):
-            gamma = round((state_in.cp() / state_in.cv()).m, 2)        
-        if(r is None):
-            r = round((state_in.gas_constant() / state_in.molar_mass()).m, 2)        
-        if(tz is None):
+        if gamma is None:
+            gamma = round((state_in.cp() / state_in.cv()).m, 2)
+        if r is None:
+            r = round((state_in.gas_constant() / state_in.molar_mass()).m, 2)
+        if tz is None:
             # tz: Temperature at state 1 e 2 (deg K)
             tz = [state_in.T().m, state_out.T().m]
-        if(muz is None):
+        if muz is None:
             # muz: Dynamic viscosity at state 1 e 2 (kg/(m s))
             muz = [state_in.viscosity().m, state_out.viscosity().m]
-                
+
         self.tz = tz
         self.muz = muz
         self.r = r
@@ -510,7 +514,7 @@ class LabyrinthSeal(SealElement):
 
         if self.omega == 0 and self.inlet_swirl_velocity == 0:
             return
-        
+
         jc = 0
         if self.seal_type == "stator":
             jc = 0.15
@@ -933,8 +937,66 @@ class LabyrinthSeal(SealElement):
         ic2 = [2, 1, 4, 3]
         ir3 = [5, 6, 7, 8]
         ic3 = [2, 1, 4, 3]
-        ir4 = [1,1,1,2,2,2,3,3,3,4,4,4,5,5,5,5,6,6,6,6,7,7,7,7,8,8,8,8]
-        ic4 = [1,2,5,1,2,6,3,4,7,3,4,8,1,2,5,6,1,2,5,6,3,4,7,8,3,4,7,8]
+        ir4 = [
+            1,
+            1,
+            1,
+            2,
+            2,
+            2,
+            3,
+            3,
+            3,
+            4,
+            4,
+            4,
+            5,
+            5,
+            5,
+            5,
+            6,
+            6,
+            6,
+            6,
+            7,
+            7,
+            7,
+            7,
+            8,
+            8,
+            8,
+            8,
+        ]
+        ic4 = [
+            1,
+            2,
+            5,
+            1,
+            2,
+            6,
+            3,
+            4,
+            7,
+            3,
+            4,
+            8,
+            1,
+            2,
+            5,
+            6,
+            1,
+            2,
+            5,
+            6,
+            3,
+            4,
+            7,
+            8,
+            3,
+            4,
+            7,
+            8,
+        ]
         ir5 = [2, 4, 5, 7]
         ic6 = [2, 1, 4, 3]
         ir7 = [1, 2, 3, 4]
