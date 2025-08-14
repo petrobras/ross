@@ -777,6 +777,13 @@ class Rotor(object):
         evalues, evectors = self._eigen(
             speed, num_modes=num_modes, sparse=sparse, synchronous=synchronous
         )
+
+        if hasattr(self, "tmatrix"):  # FAZENDO TESTES
+            T = self.tmatrix
+            zero = np.zeros_like(T)
+            Tt = np.block([[T, zero], [zero, T]])
+            evectors = Tt @ evectors
+
         wn_len = num_modes // 2
         wn = (np.absolute(evalues))[:wn_len]
         wd = (np.imag(evalues))[:wn_len]
@@ -1265,10 +1272,11 @@ class Rotor(object):
         if frequency is None:
             frequency = speed
 
-        Z = np.zeros((self.ndof, self.ndof))
-        I = np.eye(self.ndof)
-
         M = self.M(frequency, synchronous=synchronous)
+        size = M.shape[0]
+
+        Z = np.zeros((size, size))
+        I = np.eye(size)
 
         # fmt: off
         A = np.vstack(

@@ -1,8 +1,6 @@
 import numpy as np
 from ross import Rotor
 
-from copy import deepcopy
-
 
 class ModelReduction:
     """
@@ -44,24 +42,27 @@ class ModelReduction:
 
     @staticmethod
     def select_nodes_based_rotor(rotor, important_nodes=[]):
-        ignored_dofs = []
-        selected_dofs = []
+        selected_dofs = set()
 
-        important_nodes.append(min(rotor.nodes))
-        important_nodes.append(max(rotor.nodes))
+        elements = []  # [*rotor.disk_elements, *rotor.bearing_elements, *rotor.point_mass_elements]
 
-        for elm in rotor.elements:
+        for elm in elements:
             if elm.n not in rotor.nodes:
                 continue
 
             dofs = list(elm.dof_global_index.values())
+            selected_dofs.update(dofs)
 
-            if elm in rotor.shaft_elements and elm.n not in important_nodes:
-                ignored_dofs.extend(dofs)
-            else:
-                selected_dofs.extend(dofs)
+        important_nodes.append(min(rotor.nodes))
+        important_nodes.append(max(rotor.nodes))
 
-        return sorted(set(ignored_dofs)), sorted(set(selected_dofs))
+        for n in important_nodes:
+            dofs = n * rotor.number_dof + np.arange(rotor.number_dof)
+            selected_dofs.update(dofs)
+
+        ignored_dofs = set(range(rotor.ndof)) - selected_dofs
+
+        return sorted(ignored_dofs), sorted(selected_dofs)
 
     @staticmethod
     def rearrange_matrix(matrix, slave_dofs, retained_dofs):
@@ -116,7 +117,7 @@ class ModelReduction:
         reduce_matrix = functions[0]
 
         rotor = self.orig_rotor
-        reduced_rotor = Rotor.copy_rotor(rotor)
+        reduced_rotor = Rotor.copy_rotor(rotor, tag=f"{rotor.tag} - Reduced")
 
         reduced_rotor.M = lambda frequency=None, synchronous=False: reduce_matrix(
             rotor.M(frequency=frequency, synchronous=synchronous)
@@ -126,7 +127,7 @@ class ModelReduction:
         reduced_rotor.C = lambda frequency: reduce_matrix(rotor.C(frequency))
         reduced_rotor.G = lambda: reduce_matrix(rotor.G())
 
-        # Quais funções alterar: run_time_resp, run_modal
+        reduced_rotor.tmatrix = transf_matrix  # FAZENDO TESTES
 
         return reduced_rotor
 
