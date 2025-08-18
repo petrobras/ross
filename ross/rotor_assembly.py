@@ -2892,40 +2892,16 @@ class Rotor(object):
 
         for i, k in enumerate(stiffness_log):
             bearings = [
-                BearingElement(b.n, kxx=k, cxx=0, n_link=b.n_link)
+                BearingElement(b.n, kxx=k, cxx=0)
                 for b in bearings_elements
-            ]
-
-            for b in bearings:
-                if b.n in self.link_nodes:
-                    node = self._find_linked_bearing_node(b.n)
-                    linked_bearing = [b for b in bearings if b.n == node][0]
-
-                    kxx_brg = np.array(linked_bearing.kxx)
-                    kyy_brg = np.array(linked_bearing.kyy)
-                    kxx_add = np.array(b.kxx)
-                    kyy_add = np.array(b.kyy)
-
-                    with np.errstate(divide="ignore"):
-                        kxx_eq = 1 / (1 / kxx_brg - 1 / kxx_add)
-                        kyy_eq = 1 / (1 / kyy_brg - 1 / kyy_add)
-                        kxx_eq[np.isinf(kxx_eq)] = 0
-                        kyy_eq[np.isinf(kyy_eq)] = 0
-
-                    linked_bearing.kxx = list(kxx_eq)
-                    linked_bearing.kyy = list(kyy_eq)
-
-            bearings = [
-                BearingElement(b.n, kxx=b.kxx, cxx=0)
-                for b in bearings
                 if b.n not in self.link_nodes
             ]
 
             rotor = convert_6dof_to_4dof(
                 self.__class__(
-                    self.shaft_elements,
-                    self.disk_elements,
-                    bearings,
+                    shaft_elements=self.shaft_elements,
+                    disk_elements=self.disk_elements,
+                    bearing_elements=bearings,
                 )
             )
 
@@ -2980,13 +2956,38 @@ class Rotor(object):
                             for b in bearings_elements
                         ]
 
+                        for b in bearings:
+                            if b.n in self.link_nodes:
+                                node = self._find_linked_bearing_node(b.n)
+                                linked_bearing = [b for b in bearings if b.n == node][0]
+
+                                kxx_brg = np.array(linked_bearing.kxx)
+                                kyy_brg = np.array(linked_bearing.kyy)
+                                kxx_add = np.array(b.kxx)
+                                kyy_add = np.array(b.kyy)
+
+                                with np.errstate(divide="ignore"):
+                                    kxx_eq = 1 / (1 / kxx_brg - 1 / kxx_add)
+                                    kyy_eq = 1 / (1 / kyy_brg - 1 / kyy_add)
+                                    kxx_eq[np.isinf(kxx_eq)] = 0
+                                    kyy_eq[np.isinf(kyy_eq)] = 0
+
+                                linked_bearing.kxx = list(kxx_eq)
+                                linked_bearing.kyy = list(kyy_eq)
+
+                        bearings = [
+                            b
+                            for b in bearings
+                            if b.n not in self.link_nodes
+                            and setattr(b, "n_link", None) is None
+                        ]
+
                         # create rotor
                         rotor_critical = convert_6dof_to_4dof(
                             Rotor(
                                 shaft_elements=self.shaft_elements,
                                 disk_elements=self.disk_elements,
                                 bearing_elements=bearings,
-                                point_mass_elements=self.point_mass_elements,
                             )
                         )
 
