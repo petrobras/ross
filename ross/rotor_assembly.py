@@ -1649,12 +1649,17 @@ class Rotor(object):
         M = self.M(speed)
         K_aux = self.K(speed)
 
-        # Remove cross-coupled coefficients of bearing stiffness matrix
-        rmv_cross_coeffs = [[0, 1, 0], [1, 0, 0], [0, 0, 0]]
+        # Cancel cross-coupled coefficients of bearing stiffness matrix
+        cancel_cross_coeffs = np.array([[0, 1, 0], [1, 0, 0], [0, 0, 0]])
 
         for elm in self.bearing_elements:
             dofs = list(elm.dof_global_index.values())
-            K_aux[np.ix_(dofs, dofs)] -= elm.K(speed) * rmv_cross_coeffs
+            if elm.n_link is None:
+                K_aux[np.ix_(dofs, dofs)] -= elm.K(speed) * cancel_cross_coeffs
+            else:
+                K_aux[np.ix_(dofs, dofs)] -= elm.K(speed) * np.tile(
+                    cancel_cross_coeffs, (2, 2)
+                )
 
         _, modal_matrix = la.eigh(K_aux, M)
         modal_matrix = modal_matrix[:, :num_modes]
