@@ -24,7 +24,10 @@ def labyrinth():
         tooth_height=Q_(3.175,"mm"),
         tooth_width=Q_(0.1524,"mm"),
         seal_type="inter",
-        gas_composition = {"AIR": 1.00},
+        r=287.05,
+        tz=[283.15, 282.60903080958565],
+        muz=[1.7746561138374613e-05, 1.7687886306966975e-05],
+        gamma=1.41,
 
     )
 
