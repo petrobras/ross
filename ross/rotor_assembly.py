@@ -2972,8 +2972,8 @@ class Rotor(object):
                                 kyy_add = np.array(b.kyy)
 
                                 with np.errstate(divide="ignore"):
-                                    kxx_eq = 1 / (1 / kxx_brg - 1 / kxx_add)
-                                    kyy_eq = 1 / (1 / kyy_brg - 1 / kyy_add)
+                                    kxx_eq = 1 / (1 / kxx_brg + 1 / kxx_add)
+                                    kyy_eq = 1 / (1 / kyy_brg + 1 / kyy_add)
                                     kxx_eq[np.isinf(kxx_eq)] = 0
                                     kyy_eq[np.isinf(kyy_eq)] = 0
 
