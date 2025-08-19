@@ -2890,6 +2890,11 @@ class Rotor(object):
         # the forward mode in the plots, therefore we have num_modes / 2 / 2
         rotor_wn = np.zeros((num_modes // 2 // 2, len(stiffness_log)))
 
+        # ensure that no proportional damping is considered
+        shaft_elements = deepcopy(self.shaft_elements)
+        for sh in shaft_elements:
+            sh.alpha = sh.beta = 0
+
         # exclude the seals
         bearings_elements = [
             b for b in self.bearing_elements if not isinstance(b, SealElement)
@@ -2904,7 +2909,7 @@ class Rotor(object):
 
             rotor = convert_6dof_to_4dof(
                 self.__class__(
-                    shaft_elements=self.shaft_elements,
+                    shaft_elements=shaft_elements,
                     disk_elements=self.disk_elements,
                     bearing_elements=bearings,
                 )
@@ -2990,7 +2995,7 @@ class Rotor(object):
                         # create rotor
                         rotor_critical = convert_6dof_to_4dof(
                             Rotor(
-                                shaft_elements=self.shaft_elements,
+                                shaft_elements=shaft_elements,
                                 disk_elements=self.disk_elements,
                                 bearing_elements=bearings,
                             )
