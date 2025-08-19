@@ -327,7 +327,7 @@ class Crack(ABC):
 
         K = T_matrix.T @ np.array([[ke, 0], [0, kn]]) @ T_matrix
 
-        return self._compute_crack_stiffnes_gasch_mayes(K)
+        return self._compute_crack_stiffness_gasch_mayes(K)
 
     def _compute_crack_stiffness_flex(self, Lce, at, IXX, IYY, IXY):
         """Compute stiffness matrix of the shaft element with crack in inertial coordinates
