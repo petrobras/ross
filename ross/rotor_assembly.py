@@ -479,25 +479,24 @@ class Rotor(object):
             dfb_z_pos = dfb[dfb.nodes_pos_l == z_pos]
             dfb_z_pos = dfb_z_pos.sort_values(by="n_l")
 
-            y_pos = 0
-            y_pos_sup = 0
             mean_od = np.mean(self.nodes_o_d)
-            # use a 0.5 factor here based on plot experience for real machines
-            scale_size = 0.5 * dfb["scale_factor"] * mean_od
+            scale_size = dfb["scale_factor"] * mean_od
 
             for i in range(len(dfb_z_pos)):
                 t = dfb_z_pos.iloc[i].tag
 
                 n_l = df.loc[df.tag == t, "n_l"].values[0]
                 if n_l in self.link_nodes:
-                    y_pos = df.loc[df.n_link == n_l, "y_pos"].values[0]
-                    y_pos_sup = df.loc[df.n_link == n_l, "y_pos_sup"].values[0]
-                    df.loc[df.tag == t, "y_pos"] = (
-                        y_pos + mean_od * df["scale_factor"][df.tag == t].values[0]
+                    scale_size_link = (
+                        df["scale_factor"][df.tag == t].values[0] * mean_od
                     )
-                    df.loc[df.tag == t, "y_pos_sup"] = (
-                        y_pos_sup + mean_od * df["scale_factor"][df.tag == t].values[0]
-                    )
+
+                    y_pos = df.loc[df.n_link == n_l, "y_pos_sup"].values[
+                        0
+                    ]  # equal to y_pos_sup of linked bearing
+
+                    df.loc[df.tag == t, "y_pos"] = y_pos
+                    df.loc[df.tag == t, "y_pos_sup"] = y_pos + scale_size_link
 
                 else:
                     try:
@@ -540,10 +539,8 @@ class Rotor(object):
                                 / 2
                             )
 
-                    y_pos_sup = y_pos + 2 * scale_size
-
                     df.loc[df.tag == t, "y_pos"] = y_pos
-                    df.loc[df.tag == t, "y_pos_sup"] = y_pos_sup
+                    df.loc[df.tag == t, "y_pos_sup"] = y_pos + scale_size
 
         # define position for point mass elements
         dfb = df[df.type.isin(classes)]
