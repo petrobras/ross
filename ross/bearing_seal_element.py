@@ -1516,14 +1516,17 @@ class MagneticBearingElement(BearingElement):
         Number of windings
     alpha : float or int
         Pole angle in radians.
-    kp_pid : float or int
-        Proportional gain of the PID controller.
-    kd_pid : float or int
-        Derivative gain of the PID controller.
     k_amp : float or int
         Gain of the amplifier model.
     k_sense : float or int
         Gain of the sensor model.
+    kp_pid : float or int
+        Proportional gain of the PID controller.
+    kd_pid : float or int
+        Derivative gain of the PID controller.
+    ki_pid : float or int, optional
+        Integrative gain of the PID controller, must be provided
+        if using closed-loop response.
     tag : str, optional
         A tag to name the element
         Default is None.
@@ -1572,10 +1575,11 @@ class MagneticBearingElement(BearingElement):
         ag,
         nw,
         alpha,
-        kp_pid,
-        kd_pid,
         k_amp,
         k_sense,
+        kp_pid,
+        kd_pid,
+        ki_pid=None,
         tag=None,
         n_link=None,
         scale_factor=1,
@@ -1587,10 +1591,11 @@ class MagneticBearingElement(BearingElement):
         self.ag = ag
         self.nw = nw
         self.alpha = alpha
-        self.kp_pid = kp_pid
-        self.kd_pid = kd_pid
         self.k_amp = k_amp
         self.k_sense = k_sense
+        self.kp_pid = kp_pid
+        self.kd_pid = kd_pid
+        self.ki_pid = ki_pid
 
         pL = [g0, i0, ag, nw, alpha, kp_pid, kd_pid, k_amp, k_sense]
         pA = [0, 0, 0, 0, 0, 0, 0, 0, 0]
@@ -1635,6 +1640,14 @@ class MagneticBearingElement(BearingElement):
             * pA[2]
             / (4.0 * pA[0] ** 2)
         )
+
+        self.ks = ks
+        self.ki = ki
+        self.integral = [0, 0]
+        self.e0 = [1e-6, 1e-6]
+        self.control_signal = [[], []]
+        self.magnetic_force = [[], []]
+
         k = ki * pA[7] * pA[8] * (pA[5] + np.divide(ks, ki * pA[7] * pA[8]))
         c = ki * pA[7] * pA[6] * pA[8]
         # k = ki * k_amp*k_sense*(kp_pid+ np.divide(ks, ki*k_amp*k_sense))
