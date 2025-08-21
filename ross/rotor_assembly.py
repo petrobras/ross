@@ -3369,6 +3369,7 @@ class Rotor(object):
         speed,
         t,
         crack_model="Mayes",
+        cross_divisions=None,
         **kwargs,
     ):
         """Run analysis for the rotor system with crack given an unbalance force.
@@ -3396,8 +3397,11 @@ class Rotor(object):
         t : array
             Time array.
         crack_model : string, optional
-            String containing type of crack model chosed. The avaible types are:
-            "Mayes" and "Gasch". Default is "Mayes".
+            String containing type of crack model chosed. The available types are: "Mayes",
+            "Gasch", "Flex Open" and "Flex Breathing". Default is "Mayes".
+        cross_divisions: float, optional
+            Number of square divisions into which the cross-section of the cracked element
+            will be divided in the analysis conducted for the Flex Breathing model.
         **kwargs : optional
             Additional keyword arguments can be passed to define the parameters
             of the Newmark method if it is used (e.g. gamma, beta, tol, ...).
@@ -3441,7 +3445,7 @@ class Rotor(object):
         ...     yaxis_type="log",
         ... )
         """
-        fault = Crack(self, n, depth_ratio, crack_model)
+        fault = Crack(self, n, depth_ratio, crack_model, cross_divisions)
 
         results = fault.run(
             node, unbalance_magnitude, unbalance_phase, speed, t, **kwargs
