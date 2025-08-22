@@ -8,6 +8,7 @@ import numpy as np
 import toml
 import warnings
 from inspect import signature
+from prettytable import PrettyTable
 from numpy.polynomial import Polynomial
 from plotly import graph_objects as go
 from scipy import interpolate as interpolate
@@ -259,6 +260,20 @@ class BearingElement(Element):
 
         return coefficient, interpolated
 
+    @staticmethod
+    def _get_coefficient_list(ignore_mass=False):
+        """List with all bearing coefficients strings"""
+        coefficients = [
+            attr.replace("_interpolated", "")
+            for attr in BearingElement.__dict__.keys()
+            if "_interpolated" in attr
+        ]
+
+        if ignore_mass:
+            coefficients = [coeff for coeff in coefficients if "m" not in coeff]
+
+        return coefficients
+
     def plot(
         self,
         coefficients=None,
@@ -357,6 +372,91 @@ class BearingElement(Element):
 
         return fig
 
+    def get_coefficient_table(
+        self,
+        coefficients=None,
+        frequency_units="rad/s",
+        stiffness_units="N/m",
+        damping_units="N*s/m",
+        mass_units="kg",
+        num_freq=5,
+    ):
+        """Get frequency vs coefficients in table format.
+
+        Parameters
+        ----------
+        coefficients : list, str, optional
+            List or str with the coefficients to print.
+            Defaults is a list of stiffness and damping coefficients.
+        frequency_units : str, optional
+            Frequency units.
+            Default is rad/s.
+        stiffness_units : str, optional
+            Stiffness units.
+            Default is N/m.
+        damping_units : str, optional
+            Damping units.
+            Default is N*s/m.
+        mass_units : str, optional
+            Mass units.
+            Default is kg.
+
+        Returns
+        -------
+        table : PrettyTable object
+            The table object.
+
+        Example
+        -------
+        >>> bearing = bearing_example()
+        >>> table = bearing.get_coefficient_table(['kxx', 'kxy', 'cxx', 'cxy'])
+        >>> print(table)
+        +-------------------+-----------+-----------+-------------+-------------+
+        | Frequency [rad/s] | kxx [N/m] | kxy [N/m] | cxx [N*s/m] | cxy [N*s/m] |
+        +-------------------+-----------+-----------+-------------+-------------+
+        |        0.0        | 1000000.0 |    0.0    |    200.0    |     0.0     |
+        |        50.0       | 1000000.0 |    0.0    |    200.0    |     0.0     |
+        |       100.0       | 1000000.0 |    0.0    |    200.0    |     0.0     |
+        |       150.0       | 1000000.0 |    0.0    |    200.0    |     0.0     |
+        |       200.0       | 1000000.0 |    0.0    |    200.0    |     0.0     |
+        +-------------------+-----------+-----------+-------------+-------------+
+        """
+        if isinstance(coefficients, str):
+            coefficients = [coefficients]
+        elif coefficients is None:
+            coefficients = self._get_coefficient_list(ignore_mass=True)
+
+        default_units = {"k": "N/m", "c": "N*s/m", "m": "kg"}
+        y_units = {"k": stiffness_units, "c": damping_units, "m": mass_units}
+
+        _frequency_range = np.linspace(
+            min(self.frequency), max(self.frequency), num_freq
+        )
+        frequency_range = Q_(_frequency_range, "rad/s").to(frequency_units).m
+
+        headers = [f"Frequency [{frequency_units}]"]
+        data = [frequency_range]
+
+        table = PrettyTable()
+
+        for coeff in coefficients:
+            headers.append(f"{coeff} [{default_units[coeff[0]]}]")
+            columns = (
+                Q_(
+                    getattr(self, f"{coeff}_interpolated")(_frequency_range),
+                    default_units[coeff[0]],
+                )
+                .to(y_units[coeff[0]])
+                .m
+            )
+            data.append(columns)
+
+        table.field_names = headers
+        for row in np.array(data).T:
+            table.add_row(row.round(5))
+
+        return table
+
     def __repr__(self):
         """Return a string representation of a bearing element.
 
@@ -412,11 +512,7 @@ class BearingElement(Element):
                 self.__dict__.keys()
             )
 
-            coefficients = {
-                attr.replace("_interpolated", "")
-                for attr in self.__dict__.keys()
-                if "_interpolated" in attr
-            }
+            coefficients = set(self._get_coefficient_list())
 
             compared_attributes = list(coefficients.union(init_args))
             compared_attributes.sort()
@@ -449,11 +545,7 @@ class BearingElement(Element):
             self.__dict__.keys()
         )
 
-        coefficients = {
-            attr.replace("_interpolated", "")
-            for attr in self.__dict__.keys()
-            if "_interpolated" in attr
-        }
+        coefficients = set(self._get_coefficient_list())
 
         args = list(coefficients.union(init_args))
         args.sort()
