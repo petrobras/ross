@@ -39,7 +39,8 @@ __all__ = [
 ]
 
 # Define reference circle for orbits
-CIRCLE = np.exp(1j * np.linspace(0, 2 * np.pi, 360))
+NUM_POINTS = 360
+CIRCLE = np.exp(1j * np.linspace(0, 2 * np.pi, NUM_POINTS))
 
 
 class Results(ABC):
@@ -339,7 +340,7 @@ def _init_orbit(ru_e, rv_e):
     angle[angle < 0] = angle[angle < 0] + 2 * np.pi
 
     # find major axis index looking at the first half circle
-    half = len(CIRCLE) // 2
+    half = NUM_POINTS // 2
     r_circle = np.sqrt(x_circle[:half] ** 2 + y_circle[:half] ** 2)
     major_index = np.argmax(r_circle)
     major_x = x_circle[major_index]
