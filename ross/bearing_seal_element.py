@@ -260,12 +260,11 @@ class BearingElement(Element):
 
         return coefficient, interpolated
 
-    @staticmethod
-    def _get_coefficient_list(ignore_mass=False):
+    def _get_coefficient_list(self, ignore_mass=False):
         """List with all bearing coefficients strings"""
         coefficients = [
             attr.replace("_interpolated", "")
-            for attr in BearingElement.__dict__.keys()
+            for attr in self.__dict__.keys()
             if "_interpolated" in attr
         ]
 
@@ -372,21 +371,24 @@ class BearingElement(Element):
 
         return fig
 
-    def get_coefficient_table(
+    def format_table(
         self,
+        num_freq=5,
         coefficients=None,
         frequency_units="rad/s",
         stiffness_units="N/m",
         damping_units="N*s/m",
         mass_units="kg",
-        num_freq=5,
     ):
-        """Get frequency vs coefficients in table format.
+        """Return frequency vs coefficients in table format.
 
         Parameters
         ----------
+        num_freq : int, optional
+            Number of frequency points to generate between the minimum
+            and maximum values of `frequency`. Default is 5.
         coefficients : list, str, optional
-            List or str with the coefficients to print.
+            List or str with the coefficients to include.
             Defaults is a list of stiffness and damping coefficients.
         frequency_units : str, optional
             Frequency units.
@@ -404,12 +406,12 @@ class BearingElement(Element):
         Returns
         -------
         table : PrettyTable object
-            The table object.
+            Table object with bearing coefficients to be printed.
 
         Example
         -------
         >>> bearing = bearing_example()
-        >>> table = bearing.get_coefficient_table(['kxx', 'kxy', 'cxx', 'cxy'])
+        >>> table = bearing.format_table(['kxx', 'kxy', 'cxx', 'cxy'])
         >>> print(table)
         +-------------------+-----------+-----------+-------------+-------------+
         | Frequency [rad/s] | kxx [N/m] | kxy [N/m] | cxx [N*s/m] | cxy [N*s/m] |
