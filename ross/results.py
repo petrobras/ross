@@ -1847,6 +1847,7 @@ class ModalResults(Results):
         log_dec = self.log_dec
 
         headers = [
+            "Mode",
             f"Undamped natural frequencies [{frequency_units}]",
             f"Damped natural frequencies [{frequency_units}]",
             "Damping ratio",
@@ -1855,7 +1856,7 @@ class ModalResults(Results):
 
         table = PrettyTable()
         table.field_names = headers
-        for row in zip(wn, wd, damping_ratio, log_dec):
+        for row in zip(range(len(wn)), wn, wd, damping_ratio, log_dec):
             table.add_row(row)
 
         return table
