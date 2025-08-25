@@ -6,6 +6,7 @@ This module returns graphs for each type of analyses in rotor_assembly.py.
 import copy
 import inspect
 from abc import ABC
+from prettytable import PrettyTable
 from collections.abc import Iterable
 from warnings import warn
 
@@ -1518,7 +1519,7 @@ class CriticalSpeedResults(Results):
     _wn : array
         Undamped critical speeds array.
     _wd : array
-        Undamped critical speeds array.
+        Damped critical speeds array.
     log_dec : array
         Logarithmic decrement for each critical speed.
     damping_ratio : array
@@ -1779,7 +1780,6 @@ class ModalResults(Results):
     def data_mode(
         self,
         mode=None,
-        length_units="m",
         frequency_units="rad/s",
         damping_parameter="log_dec",
     ):
@@ -1789,9 +1789,9 @@ class ModalResults(Results):
         ----------
         mode : int
             The n'th vibration mode
-        length_units : str, optional
-            length units.
-            Default is 'm'.
+        frequency_units : str, optional
+            Frequency units.
+            Default is "rad/s".
         damping_parameter : str, optional
             Define which value to show for damping. We can use "log_dec" or "damping_ratio".
             Default is "log_dec".
@@ -1822,6 +1822,43 @@ class ModalResults(Results):
         df = pd.DataFrame(data)
 
         return df
+
+    def format_table(
+        self,
+        frequency_units="rad/s",
+    ):
+        """Return natural frequencies and damping ratios of modes in table format
+
+        Parameters
+        ----------
+        frequency_units : str, optional
+            Frequency units.
+            Default is "rad/s".
+
+        Returns
+        -------
+        table : PrettyTable object
+            Table object with natural frequencies and damping ratios of modes.
+        """
+
+        wn = Q_(self.wn, "rad/s").to(frequency_units).m
+        wd = Q_(self.wd, "rad/s").to(frequency_units).m
+        damping_ratio = self.damping_ratio
+        log_dec = self.log_dec
+
+        headers = [
+            f"Undamped natural frequencies [{frequency_units}]",
+            f"Damped natural frequencies [{frequency_units}]",
+            "Damping ratio",
+            "Logarithmic decrement",
+        ]
+
+        table = PrettyTable()
+        table.field_names = headers
+        for row in zip(wn, wd, damping_ratio, log_dec):
+            table.add_row(row)
+
+        return table
 
     def plot_mode_3d(
         self,
