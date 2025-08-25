@@ -7,3 +7,4 @@ xlrd
 pint>=0.18
 methodtools
 numba
+ccp-performance
