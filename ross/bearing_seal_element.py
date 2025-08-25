@@ -261,7 +261,7 @@ class BearingElement(Element):
         return coefficient, interpolated
 
     def _get_coefficient_list(self, ignore_mass=False):
-        """List with all bearing coefficients strings"""
+        """List with all bearing coefficients as strings"""
         coefficients = [
             attr.replace("_interpolated", "")
             for attr in self.__dict__.keys()
@@ -411,7 +411,7 @@ class BearingElement(Element):
         Example
         -------
         >>> bearing = bearing_example()
-        >>> table = bearing.format_table(['kxx', 'kxy', 'cxx', 'cxy'])
+        >>> table = bearing.format_table(num_freq=5, coefficients=['kxx', 'kxy', 'cxx', 'cxy'])
         >>> print(table)
         +-------------------+-----------+-----------+-------------+-------------+
         | Frequency [rad/s] | kxx [N/m] | kxy [N/m] | cxx [N*s/m] | cxy [N*s/m] |

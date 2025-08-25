@@ -1918,7 +1918,7 @@ class ModalResults(Results):
         if fig is None:
             fig = go.Figure()
 
-        df = self.data_mode(mode, length_units, frequency_units, damping_parameter)
+        df = self.data_mode(mode, frequency_units, damping_parameter)
 
         damping_name = df["damping_name"].values[0]
         damping_value = df["damping_value"].values[0]
@@ -1997,7 +1997,6 @@ class ModalResults(Results):
         orientation="major",
         frequency_type="wd",
         title=None,
-        length_units="m",
         frequency_units="rad/s",
         damping_parameter="log_dec",
         **kwargs,
@@ -2021,9 +2020,6 @@ class ModalResults(Results):
             A brief title to the mode shape plot, it will be displayed above other
             relevant data in the plot area. It does not modify the figure layout from
             Plotly.
-        length_units : str, optional
-            length units.
-            Default is 'm'.
         frequency_units : str, optional
             Frequency units that will be used in the plot title.
             Default is rad/s.
@@ -2041,7 +2037,7 @@ class ModalResults(Results):
             The figure object with the plot.
         """
 
-        df = self.data_mode(mode, length_units, frequency_units, damping_parameter)
+        df = self.data_mode(mode, frequency_units, damping_parameter)
 
         damping_name = df["damping_name"].values[0]
         damping_value = df["damping_value"].values[0]
@@ -2094,9 +2090,6 @@ class ModalResults(Results):
         mode=None,
         nodes=None,
         fig=None,
-        frequency_type="wd",
-        title=None,
-        frequency_units="rad/s",
         **kwargs,
     ):
         """Plot (2D view) the mode shapes.
@@ -2110,17 +2103,6 @@ class ModalResults(Results):
             Int or list of ints with the nodes selected to be plotted.
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
-        frequency_type : str, optional
-            "wd" calculates de map for the damped natural frequencies.
-            "wn" calculates de map for the undamped natural frequencies.
-            Defaults is "wd".
-        title : str, optional
-            A brief title to the mode shape plot, it will be displayed above other
-            relevant data in the plot area. It does not modify the figure layout from
-            Plotly.
-        frequency_units : str, optional
-            Frequency units that will be used in the plot title.
-            Default is rad/s.
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -4505,7 +4487,6 @@ class ForcedResponseResults(Results):
     def plot_deflected_shape(
         self,
         speed,
-        samples=101,
         frequency_units="rad/s",
         amplitude_units="m",
         phase_units="rad",
@@ -4528,9 +4509,6 @@ class ForcedResponseResults(Results):
         speed : float, pint.Quantity
             The rotor rotation speed. Must be an element from the speed_range argument
             passed to the class (rad/s).
-        samples : int, optional
-            Number of samples to generate the orbit for each node.
-            Default is 101.
         frequency_units : str, optional
             Frequency units.
             Default is "rad/s"
