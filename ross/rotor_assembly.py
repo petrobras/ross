@@ -2063,7 +2063,7 @@ class Rotor(object):
 
         return F0
 
-    def _unbalance_force_over_time(self, node, magnitude, phase, omega, t):
+    def unbalance_force_over_time(self, node, magnitude, phase, omega, t):
         """Calculate unbalance forces for each time step.
 
         This auxiliary function calculates the unbalanced forces by taking
@@ -2101,7 +2101,7 @@ class Rotor(object):
         >>> rotor = rotor_example()
         >>> t = np.linspace(0, 10, 31)
         >>> omega = np.linspace(0, 1000, 31)
-        >>> F, _, _, _ = rotor._unbalance_force_over_time([3], [10.0], [0.0], omega, t)
+        >>> F, _, _, _ = rotor.unbalance_force_over_time([3], [10.0], [0.0], omega, t)
         >>> F[18, :3]
         array([     0.        ,   7632.15353293, -43492.18127561])
         """
@@ -2293,7 +2293,7 @@ class Rotor(object):
         Returns
         -------
         force : ndarray
-            Gravitational force vector of shape `(ndof,)`.
+            Gravitational force (weight) vector of shape `(ndof,)`.
 
         Examples
         --------
@@ -2307,7 +2307,7 @@ class Rotor(object):
         if M is None:
             M = self.M()
 
-        gravity = np.zeros(self.ndof)
+        gravity = np.zeros(len(M))
         gravity[idx[direction] :: self.number_dof] = g
 
         return M @ gravity
@@ -3765,9 +3765,7 @@ class Rotor(object):
 
         # gravity aceleration vector
         g = -9.8065
-        gravity = np.zeros(len(aux_M))
-        gravity[1::num_dof] = g
-        weight = aux_M @ gravity
+        weight = self.gravitional_force(g=g, M=aux_M)
 
         # calculates u, for [K]*(u) = (F)
         displacement = (la.solve(aux_K, weight)).flatten()

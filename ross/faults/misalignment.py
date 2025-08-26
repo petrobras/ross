@@ -264,7 +264,7 @@ class MisalignmentFlex(ABC):
         kwargs.pop("method", None)
 
         # Unbalance force
-        F, ang_pos, _, _ = rotor._unbalance_force_over_time(
+        F, ang_pos, _, _ = rotor.unbalance_force_over_time(
             node, unb_magnitude, unb_phase, speed, t
         )
 
@@ -507,7 +507,7 @@ class MisalignmentRigid(ABC):
 
         rotor = self.rotor
 
-        F, ang_pos, speed, _ = rotor._unbalance_force_over_time(
+        F, ang_pos, speed, _ = rotor.unbalance_force_over_time(
             node, unb_magnitude, unb_phase, speed, t
         )
 

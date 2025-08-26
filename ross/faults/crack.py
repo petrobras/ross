@@ -343,17 +343,12 @@ class Crack(ABC):
         rotor = self.rotor
 
         # Unbalance force
-        F, ang_pos, _, _ = rotor._unbalance_force_over_time(
+        F, ang_pos, _, _ = rotor.unbalance_force_over_time(
             node, unb_magnitude, unb_phase, speed, t
         )
 
-        # Weight force
-        g = np.zeros(rotor.ndof)
-        g[1::6] = -9.81
-        M = rotor.M()
-
-        for i in range(len(t)):
-            F[:, i] += M @ g
+        # Weight
+        F += rotor.gravitational_force()[:, np.newaxis]
 
         self.forces = np.zeros((rotor.ndof, len(t)))
 
