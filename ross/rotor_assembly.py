@@ -2278,6 +2278,40 @@ class Rotor(object):
 
         return forced_response
 
+    def gravitional_force(self, g=-9.8065, direction="y", M=None):
+        """Compute the gravitational force vector for the system.
+
+        Parameters
+        ----------
+        g : float, optional
+            Acceleration due to gravity. Default is -9.8065 m/s².
+        direction : {"x", "y", "z"}, optional
+            Direction in which gravity acts. Default is "y".
+        M : ndarray, optional
+            Mass matrix of the system. If None, the internal mass matrix is used.
+
+        Returns
+        -------
+        force : ndarray
+            Gravitational force vector of shape `(ndof,)`.
+
+        Examples
+        --------
+        >>> rotor = compressor_example()
+        >>> force = rotor.gravitional_force()
+        >>> force[:4]
+        array([ 0.        , -3.12941854,  0.        ,  0.01851573])
+        """
+        idx = {"x": 0, "y": 1, "z": 2}
+
+        if M is None:
+            M = self.M()
+
+        gravity = np.zeros(self.ndof)
+        gravity[idx[direction] :: self.number_dof] = g
+
+        return M @ gravity
+
     def integrate_system(self, speed, F, t, **kwargs):
         """Time integration for a rotor system.
 
