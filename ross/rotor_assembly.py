@@ -2278,7 +2278,7 @@ class Rotor(object):
 
         return forced_response
 
-    def gravitional_force(self, g=-9.8065, direction="y", M=None):
+    def gravitational_force(self, g=-9.8065, direction="y", M=None, num_dof=None):
         """Compute the gravitational force vector for the system.
 
         Parameters
@@ -2289,6 +2289,8 @@ class Rotor(object):
             Direction in which gravity acts. Default is "y".
         M : ndarray, optional
             Mass matrix of the system. If None, the internal mass matrix is used.
+        num_dof : int, optional
+            Number of degrees of freedom per node. If None, the internal value is used.
 
         Returns
         -------
@@ -2298,7 +2300,7 @@ class Rotor(object):
         Examples
         --------
         >>> rotor = compressor_example()
-        >>> force = rotor.gravitional_force()
+        >>> force = rotor.gravitational_force()
         >>> force[:4]
         array([ 0.        , -3.12941854,  0.        ,  0.01851573])
         """
@@ -2306,9 +2308,10 @@ class Rotor(object):
 
         if M is None:
             M = self.M()
+            num_dof = self.number_dof
 
         gravity = np.zeros(len(M))
-        gravity[idx[direction] :: self.number_dof] = g
+        gravity[idx[direction] :: num_dof] = g
 
         return M @ gravity
 
@@ -3765,7 +3768,7 @@ class Rotor(object):
 
         # gravity aceleration vector
         g = -9.8065
-        weight = self.gravitional_force(g=g, M=aux_M)
+        weight = self.gravitational_force(g=g, M=aux_M, num_dof=num_dof)
 
         # calculates u, for [K]*(u) = (F)
         displacement = (la.solve(aux_K, weight)).flatten()
