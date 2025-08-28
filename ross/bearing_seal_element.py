@@ -371,9 +371,10 @@ class BearingElement(Element):
 
         return fig
 
+    @check_units
     def format_table(
         self,
-        num_freq=5,
+        frequency=None,
         coefficients=None,
         frequency_units="rad/s",
         stiffness_units="N/m",
@@ -384,9 +385,9 @@ class BearingElement(Element):
 
         Parameters
         ----------
-        num_freq : int, optional
-            Number of frequency points to generate between the minimum
-            and maximum values of `frequency`. Default is 5.
+        frequency : array, pint.Quantity, optional
+            Array with frequencies (rad/s).
+            Default is 5 values from min to max frequency.
         coefficients : list, str, optional
             List or str with the coefficients to include.
             Defaults is a list of stiffness and damping coefficients.
@@ -411,7 +412,10 @@ class BearingElement(Element):
         Example
         -------
         >>> bearing = bearing_example()
-        >>> table = bearing.format_table(num_freq=5, coefficients=['kxx', 'kxy', 'cxx', 'cxy'])
+        >>> table = bearing.format_table(
+        ...     frequency=[0, 50, 100, 150, 200],
+        ...     coefficients=['kxx', 'kxy', 'cxx', 'cxy']
+        ... )
         >>> print(table)
         +-------------------+-----------+-----------+-------------+-------------+
         | Frequency [rad/s] | kxx [N/m] | kxy [N/m] | cxx [N*s/m] | cxy [N*s/m] |
@@ -431,10 +435,9 @@ class BearingElement(Element):
         default_units = {"k": "N/m", "c": "N*s/m", "m": "kg"}
         y_units = {"k": stiffness_units, "c": damping_units, "m": mass_units}
 
-        _frequency_range = np.linspace(
-            min(self.frequency), max(self.frequency), num_freq
-        )
-        frequency_range = Q_(_frequency_range, "rad/s").to(frequency_units).m
+        if frequency is None:
+            frequency = np.linspace(min(self.frequency), max(self.frequency), 5)
+        frequency_range = Q_(frequency, "rad/s").to(frequency_units).m
 
         headers = [f"Frequency [{frequency_units}]"]
         data = [frequency_range]
@@ -445,7 +448,7 @@ class BearingElement(Element):
             headers.append(f"{coeff} [{default_units[coeff[0]]}]")
             columns = (
                 Q_(
-                    getattr(self, f"{coeff}_interpolated")(_frequency_range),
+                    getattr(self, f"{coeff}_interpolated")(frequency),
                     default_units[coeff[0]],
                 )
                 .to(y_units[coeff[0]])
