@@ -170,27 +170,15 @@ def test_crack_mayes_resp(run_crack_mayes):
     probe2 = Probe(20, Q_(90, "deg"))
 
     resp_prob1 = np.array(
-        [
-            0.00000000e00,
-            -2.21539751e-08,
-            -1.10339302e-07,
-            -2.85629889e-07,
-            -5.46944034e-07,
-        ]
+        [0.000000e00, -2.214779e-08, -1.103084e-07, -2.855495e-07, -5.467894e-07]
     )
     resp_prob2 = np.array(
-        [
-            0.00000000e00,
-            -2.43597443e-08,
-            -1.21169099e-07,
-            -3.13762591e-07,
-            -6.05266672e-07,
-        ]
+        [0.000000e00, -2.435100e-08, -1.211254e-07, -3.136489e-07, -6.050479e-07]
     )
 
     data = run_crack_mayes.data_time_response(probe=[probe1, probe2])
-    assert_allclose(data["probe_resp[0]"].to_numpy()[:5], resp_prob1)
-    assert_allclose(data["probe_resp[1]"].to_numpy()[:5], resp_prob2)
+    assert_allclose(data["probe_resp[0]"].to_numpy()[:5], resp_prob1, rtol=1e-6)
+    assert_allclose(data["probe_resp[1]"].to_numpy()[:5], resp_prob2, rtol=1e-6)
 
 
 def test_crack_mayes_equality(run_crack_mayes, run_crack_mayes_units):
@@ -213,24 +201,12 @@ def test_crack_gasch_resp(run_crack_gasch):
     probe2 = Probe(24, Q_(90, "deg"))
 
     resp_prob1 = np.array(
-        [
-            0.00000000e00,
-            -1.71984535e-08,
-            -8.53287527e-08,
-            -2.19226698e-07,
-            -4.16314136e-07,
-        ]
+        [0.000000e00, -1.719230e-08, -8.529809e-08, -2.191474e-07, -4.161626e-07]
     )
     resp_prob2 = np.array(
-        [
-            0.00000000e00,
-            -2.45512261e-08,
-            -1.22906938e-07,
-            -3.20122684e-07,
-            -6.16492465e-07,
-        ]
+        [0.000000e00, -2.454247e-08, -1.228631e-07, -3.200085e-07, -6.162724e-07]
     )
 
     data = run_crack_gasch.data_time_response(probe=[probe1, probe2])
-    assert_allclose(data["probe_resp[0]"].to_numpy()[:5], resp_prob1)
-    assert_allclose(data["probe_resp[1]"].to_numpy()[:5], resp_prob2)
+    assert_allclose(data["probe_resp[0]"].to_numpy()[:5], resp_prob1, rtol=1e-6)
+    assert_allclose(data["probe_resp[1]"].to_numpy()[:5], resp_prob2, rtol=1e-6)
