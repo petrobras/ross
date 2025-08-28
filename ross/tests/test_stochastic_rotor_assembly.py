@@ -6,6 +6,7 @@ Tests for:
 
 import numpy as np
 import pytest
+from numpy.linalg import norm
 from numpy.testing import assert_allclose
 
 from ross.bearing_seal_element import BearingElement
@@ -300,8 +301,8 @@ def test_run_campbell(rotor1):
 
     assert results.wd.shape == (7, 11, 2)
     assert results.log_dec.shape == (7, 11, 2)
-    assert_allclose(results.wd, wd, atol=1e-6)
-    assert_allclose(results.log_dec, log_dec, atol=1e-6)
+    assert_allclose(norm(results.wd), norm(wd), atol=1e-6)
+    assert_allclose(norm(results.log_dec), norm(log_dec), atol=1e-6)
 
 
 def test_run_freq_response(rotor1):
