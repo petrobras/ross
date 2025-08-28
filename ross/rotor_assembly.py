@@ -2063,7 +2063,7 @@ class Rotor(object):
 
         return F0
 
-    def _unbalance_force_over_time(self, node, magnitude, phase, omega, t):
+    def unbalance_force_over_time(self, node, magnitude, phase, omega, t):
         """Calculate unbalance forces for each time step.
 
         This auxiliary function calculates the unbalanced forces by taking
@@ -2101,7 +2101,7 @@ class Rotor(object):
         >>> rotor = rotor_example()
         >>> t = np.linspace(0, 10, 31)
         >>> omega = np.linspace(0, 1000, 31)
-        >>> F, _, _, _ = rotor._unbalance_force_over_time([3], [10.0], [0.0], omega, t)
+        >>> F, _, _, _ = rotor.unbalance_force_over_time([3], [10.0], [0.0], omega, t)
         >>> F[18, :3]
         array([     0.        ,   7632.15353293, -43492.18127561])
         """
@@ -2277,6 +2277,43 @@ class Rotor(object):
         # fmt: on
 
         return forced_response
+
+    def gravitational_force(self, g=-9.8065, direction="y", M=None, num_dof=None):
+        """Compute the gravitational force vector for the system.
+
+        Parameters
+        ----------
+        g : float, optional
+            Acceleration due to gravity. Default is -9.8065 m/s².
+        direction : {"x", "y", "z"}, optional
+            Direction in which gravity acts. Default is "y".
+        M : ndarray, optional
+            Mass matrix of the system. If None, the internal mass matrix is used.
+        num_dof : int, optional
+            Number of degrees of freedom per node. If None, the internal value is used.
+
+        Returns
+        -------
+        force : ndarray
+            Gravitational force (weight) vector of shape `(ndof,)`.
+
+        Examples
+        --------
+        >>> rotor = compressor_example()
+        >>> force = rotor.gravitational_force()
+        >>> force[:4]
+        array([ 0.        , -3.12941854,  0.        ,  0.01851573])
+        """
+        idx = {"x": 0, "y": 1, "z": 2}
+
+        if M is None:
+            M = self.M()
+            num_dof = self.number_dof
+
+        gravity = np.zeros(len(M))
+        gravity[idx[direction] :: num_dof] = g
+
+        return M @ gravity
 
     def integrate_system(self, speed, F, t, **kwargs):
         """Time integration for a rotor system.
@@ -3735,9 +3772,7 @@ class Rotor(object):
 
         # gravity aceleration vector
         g = -9.8065
-        gravity = np.zeros(len(aux_M))
-        gravity[1::num_dof] = g
-        weight = aux_M @ gravity
+        weight = self.gravitational_force(g=g, M=aux_M, num_dof=num_dof)
 
         # calculates u, for [K]*(u) = (F)
         displacement = (la.solve(aux_K, weight)).flatten()
