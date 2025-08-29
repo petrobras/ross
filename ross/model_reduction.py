@@ -1,5 +1,4 @@
 import numpy as np
-from ross import Rotor
 
 
 class ModelReduction:
@@ -7,7 +6,9 @@ class ModelReduction:
     Base class for model reduction methods.
     """
 
-    def __init__(self, rotor, important_nodes=[], method="guyan"):
+    def __init__(
+        self, rotor, speed, important_nodes=[], method="guyan", limit_nodes=None
+    ):
         """
         Initialize the model reduction with a given model.
 
@@ -19,14 +20,22 @@ class ModelReduction:
 
         self.ndof = rotor.ndof
         self.number_dof = rotor.number_dof
-        self.K = rotor.K(0)
-        self.M = rotor.M()
+        self.K = rotor.K(speed)
+        self.M = rotor.M(speed)
 
         self.orig_rotor = rotor
 
         M_K = np.diag(self.K) / np.diag(self.M)
         # Sort DOFs by mass-stiffness ratio (M/K)
         self.indx = np.argsort(M_K)[::-1]
+
+        for i in self.indx // rotor.number_dof:
+            if i not in important_nodes:
+                important_nodes.append(i)
+
+        if limit_nodes is None:
+            limit_nodes = int(len(rotor.nodes) * 1 / 2 + 1)
+        important_nodes = important_nodes[:limit_nodes]
 
         if method == "guyan":
             self.model_reduction_technique = self.guyan
@@ -38,7 +47,7 @@ class ModelReduction:
         self.slave_dofs, self.retained_dofs = self.select_nodes_based_rotor(
             rotor, important_nodes
         )
-        self.reduced_rotor = self.reduce_model(self.slave_dofs, self.retained_dofs)
+        self.reduce_model(self.slave_dofs, self.retained_dofs)
 
     @staticmethod
     def select_nodes_based_rotor(rotor, important_nodes=[]):
@@ -93,9 +102,9 @@ class ModelReduction:
             array, slave_dofs, retained_dofs
         )
 
-        get_complete_vector = lambda array: transf_matrix @ array
+        revert_vector = lambda array: transf_matrix @ array
 
-        return reduce_matrix, reduce_vector, get_complete_vector
+        return reduce_matrix, reduce_vector, revert_vector
 
     def increment_nodes(self, add_nodes=[]):
         num_dof = self.number_dof
@@ -114,22 +123,13 @@ class ModelReduction:
         functions = self.get_transformation_functions(
             transf_matrix, slave_dofs, retained_dofs
         )
-        reduce_matrix = functions[0]
 
-        rotor = self.orig_rotor
-        reduced_rotor = Rotor.copy_rotor(rotor, tag=f"{rotor.tag} - Reduced")
+        reduce_matrix, reduce_vector, revert_vector = functions
 
-        reduced_rotor.M = lambda frequency=None, synchronous=False: reduce_matrix(
-            rotor.M(frequency=frequency, synchronous=synchronous)
-        )
-        reduced_rotor.K = lambda frequency: reduce_matrix(rotor.K(frequency))
-        reduced_rotor.Ksdt = lambda: reduce_matrix(rotor.Ksdt())
-        reduced_rotor.C = lambda frequency: reduce_matrix(rotor.C(frequency))
-        reduced_rotor.G = lambda: reduce_matrix(rotor.G())
-
-        reduced_rotor.tmatrix = transf_matrix  # FAZENDO TESTES
-
-        return reduced_rotor
+        self.transf_matrix = transf_matrix
+        self.reduce_matrix = reduce_matrix
+        self.reduce_vector = reduce_vector
+        self.return_vector = revert_vector
 
     def optimize(self):
         n = 0
