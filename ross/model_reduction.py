@@ -98,9 +98,7 @@ class ModelReduction:
             @ transf_matrix
         )
 
-        reduce_vector = lambda array: transf_matrix.T @ self.rearrange_matrix(
-            array, slave_dofs, retained_dofs
-        )
+        reduce_vector = lambda array: transf_matrix.T @ array
 
         revert_vector = lambda array: transf_matrix @ array
 

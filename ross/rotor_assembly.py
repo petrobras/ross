@@ -57,6 +57,8 @@ from ross.utils import (
     convert_6dof_to_torsional,
 )
 
+from ross.model_reduction import ModelReduction
+
 __all__ = [
     "Rotor",
     "CoAxialRotor",
@@ -774,15 +776,18 @@ class Rotor(object):
         >>> mode2 = 1  # Second mode
         >>> fig = modal.plot_mode_2d(mode2)
         """
+        # if not hasattr(self, "mr"):
+        #     self.mr = ModelReduction(self, speed)
+
         evalues, evectors = self._eigen(
             speed, num_modes=num_modes, sparse=sparse, synchronous=synchronous
         )
 
-        if hasattr(self, "tmatrix"):  # FAZENDO TESTES
-            T = self.tmatrix
-            zero = np.zeros_like(T)
-            Tt = np.block([[T, zero], [zero, T]])
-            evectors = Tt @ evectors
+        # if hasattr(self, "tmatrix"):  # FAZENDO TESTES
+        #     T = self.tmatrix
+        #     zero = np.zeros_like(T)
+        #     Tt = np.block([[T, zero], [zero, T]])
+        #     evectors = Tt @ evectors
 
         wn_len = num_modes // 2
         wn = (np.absolute(evalues))[:wn_len]
@@ -1272,7 +1277,11 @@ class Rotor(object):
         if frequency is None:
             frequency = speed
 
-        M = self.M(frequency, synchronous=synchronous)
+        # RED = self.mr.reduce_matrix
+
+        RED = lambda x: x  # No reduction
+
+        M = RED(self.M(frequency, synchronous=synchronous))
         size = M.shape[0]
 
         Z = np.zeros((size, size))
@@ -1281,7 +1290,7 @@ class Rotor(object):
         # fmt: off
         A = np.vstack(
             [np.hstack([Z, I]),
-             np.hstack([la.solve(-M, self.K(frequency)), la.solve(-M, (self.C(frequency) + self.G() * speed))])])
+             np.hstack([la.solve(-M, RED(self.K(frequency))), la.solve(-M, (RED(self.C(frequency)) + RED(self.G()) * speed))])])
         # fmt: on
 
         return A
@@ -2332,6 +2341,12 @@ class Rotor(object):
             return_array = lambda array: array
             get_array = [return_array for j in range(3)]
 
+        if kwargs.get("reduced_model"):
+            mr = ModelReduction(self, speed_ref)
+            print("Running reduced model:", mr.model_reduction_technique.__name__)
+            kwargs.pop("reduced_model")
+            get_array = (mr.reduce_matrix, mr.reduce_vector, mr.revert_vector)
+
         # Assemble matrices
         M = get_array[0](kwargs.get("M", self.M()))
         C2 = get_array[0](kwargs.get("G", self.G()))
@@ -2729,6 +2744,8 @@ class Rotor(object):
         # store in results [speeds(x axis), frequencies[0] or logdec[1] or
         # whirl[2](y axis), 3]
         self._check_frequency_array(speed_range)
+
+        # self.mr = ModelReduction(self, np.mean(speed_range))
 
         results = np.zeros([len(speed_range), frequencies, 4])
 
