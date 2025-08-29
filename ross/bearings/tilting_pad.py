@@ -12,10 +12,10 @@ from ross.bearings.lubricants import lubricants_dict
 # [X] - finalizar a adaptação dos objetos da classe THDTilting (transformar alguns objetos em arrays)
 # [] - atualizar/fazer a docstring de cada método e da classe
 # [X] - adicionar o super_init
-# [] - adicionar os plots de resultados
+# [X] - adicionar os plots de resultados
 # [X] - finalizar a padronização das variaveis (coeficientes, etc)
-# [] - adicionar os arquivos do _init_ e de referencia
-# [] - atualizar o fork com a main
+# [X] - adicionar os arquivos do _init_ e de referencia
+# [X] - atualizar o fork com a main
 
 
 class THDTilting(BearingElement):
@@ -31,6 +31,9 @@ class THDTilting(BearingElement):
     Describes the geometric characteristics.
     n : int
     Node in which the bearing will be located.
+    n_link : int, optional
+        Node to which the bearing will connect. If None the bearing is
+        connected to ground.
     Rs : float
     Rotor radius. Default unit is meter
     Rp : float
@@ -145,6 +148,7 @@ class THDTilting(BearingElement):
         frequency,
         nx=30,
         nz=30,
+        n_link=None,
         xj=None,
         yj=None,
         equilibrium_type=None,
@@ -159,7 +163,9 @@ class THDTilting(BearingElement):
         **kwargs,
     ):
 
+        # 
         self.n = n
+        self.n_link = n_link
 
         # Bearing Geometry
         self.journal_radius = journal_diameter / 2
@@ -274,16 +280,6 @@ class THDTilting(BearingElement):
         
         n_freq = np.shape(self.frequency)[0]
 
-        kxx = np.zeros(n_freq)
-        kxy = np.zeros(n_freq)
-        kyx = np.zeros(n_freq)
-        kyy = np.zeros(n_freq)
-
-        cxx = np.zeros(n_freq)
-        cxy = np.zeros(n_freq)
-        cyx = np.zeros(n_freq)
-        cyy = np.zeros(n_freq)
-
         if self.print_time:
             t1 = time.time()
         
@@ -305,20 +301,20 @@ class THDTilting(BearingElement):
                 print("=" * 75)
             
             self.coefficients()
-            kxx[i], kxy[i], kyx[i], kyy[i] = self.Kxx, self.Kxy, self.Kyx, self.Kyy
-            cxx[i], cxy[i], cyx[i], cyy[i] = self.Cxx, self.Cxy, self.Cyx, self.Cyy
+            # kxx[i], kxy[i], kyx[i], kyy[i] = self.kxx, self.kxy, self.kyx, self.kyy
+            # cxx[i], cxy[i], cyx[i], cyy[i] = self.cxx, self.cxy, self.cyx, self.cyy
             
             if self.print_result:
-                print(f"kxx = {kxx[i]}")
-                print(f"kxy = {kxy[i]}")
-                print(f"kyx = {kyx[i]}")
-                print(f"kyy = {kyy[i]}")
-                print(f"cxx = {cxx[i]}")
-                print(f"cxy = {cxy[i]}")
-                print(f"cyx = {cyx[i]}")
-                print(f"cyy = {cyy[i]}")
+                print(f"kxx = {self.kxx}")
+                print(f"kxy = {self.kxy}")
+                print(f"kyx = {self.kyx}")
+                print(f"kyy = {self.kyy}")
+                print(f"cxx = {self.cxx}")
+                print(f"cxy = {self.cxy}")
+                print(f"cyx = {self.cyx}")
+                print(f"cyy = {self.cyy}")
             
-            super().__init__(n=self.n, kxx=kxx, cxx=cxx, kyy=kyy, kxy=kxy, kyx=kyx, cyy=cyy, cxy=cxy, cyx=cyx, frequency=self.frequency)
+            super().__init__(n=self.n, n_link=self.n_link, kxx=self.kxx, cxx=self.cxx, kyy=self.kyy, kxy=self.kxy, kyx=self.kyx, cyy=self.cyy, cxy=self.cxy, cyx=self.cyx, frequency=self.frequency)
             self.plot_results()
         
         if self.print_time:
@@ -1317,10 +1313,8 @@ class THDTilting(BearingElement):
 
         k_r = np.real(self.Sw)
         c_r = np.imag(self.Sw) / self.speed
-        self.Kxx, self.Kyy, self.Kxy, self.Kyx = k_r[0, 0], k_r[1, 1], 2 * k_r[0, 1], 2 * k_r[1, 0]
-        self.Cxx, self.Cyy, self.Cxy, self.Cyx = c_r[0, 0], c_r[1, 1], c_r[0, 1], c_r[1, 0]
-
-        return self.Kxx, self.Kyy, self.Kxy, self.Kyx, self.Cxx, self.Cyy, self.Cxy, self.Cyx
+        self.kxx, self.kyy, self.kxy, self.kyx = k_r[0, 0], k_r[1, 1], 2 * k_r[0, 1], 2 * k_r[1, 0]
+        self.cxx, self.cyy, self.cxy, self.cyx = c_r[0, 0], c_r[1, 1], c_r[0, 1], c_r[1, 0]
 
     def get_equilibrium_position(self, x):
         """Main function to calculate the equilibrium position of the bearing"""
@@ -2337,44 +2331,64 @@ class THDTilting(BearingElement):
             matrix[diag_indices[0][zero_diag], diag_indices[1][zero_diag]] = residual
         return matrix
 
-def tilting_pad_example02():
+def tilting_pad_example():
     """Create an example of a tilting pad bearing with Thermo-Hydro-Dynamic effects.
-    This function returns pressure field and dynamic coefficient. The
-    purpose is to make available a simple model so that a doctest can be
-    written using it.
-
+    
+    This function creates and returns a THDTilting bearing instance with predefined
+    parameters for demonstration purposes. The bearing is configured with 5 pads
+    and operates at two different frequencies.
+    
+    Returns
+    -------
+    bearing : THDTilting
+        A configured tilting pad bearing instance ready for analysis.
+        
+    Examples
+    --------
+    >>> from ross.bearings.tilting_pad import tilting_pad_example
+    >>> bearing = tilting_pad_example()
+    >>> bearing.run()
+    
+    Notes
+    -----
+    This example uses the following configuration:
+    - 5 tilting pads arranged at 18°, 90°, 162°, 234°, and 306°
+    - Journal diameter: 101.6 mm
+    - Radial clearance: 74.9 μm
+    - Pad thickness: 12.7 mm
+    - Pad arc: 60° per pad
+    - Pad axial length: 50.8 mm
+    - ISOVG32 lubricant at 40°C
+    - Operating frequencies: 3000 and 4500 RPM
+    - Pre-load factor: 0.5 for all pads
+    - Pivot offset: 0.5 (centered) for all pads
+    
+    The bearing is configured for "match_eccentricity" equilibrium type,
+    which automatically calculates the equilibrium position based on the
+    specified eccentricity and attitude angle.
     """
 
-
     bearing = THDTilting(
-        n = 1,
-        frequency = Q_([3000, 4500], "RPM"),
-        equilibrium_type = "match_eccentricity",
-        journal_diameter = 101.6e-3, # Seria o journal_diameter (porém, raio no nosso)
-        radial_clearance = 74.9e-6, # radial_clearance no max
-        pad_thickness = 12.7e-3,
-        pivot_angle = Q_([18, 90, 162, 234, 306], "deg"),
-        pad_arc = Q_([60, 60, 60, 60, 60], "deg"), # pad_arc no max (lá em radianos)
-        pad_axial_length = Q_([50.8e-3, 50.8e-3, 50.8e-3, 50.8e-3, 50.8e-3], "m"),
-        pre_load = [0.5, 0.5, 0.5, 0.5, 0.5], # No max é uma array para cada pad
-        offset = [0.5, 0.5, 0.5, 0.5, 0.5], # offset no max (posição do pivot)
-        lubricant = "ISOVG32",
-        oil_supply_temperature = Q_(40, "degC"), # Temperatura do óleo.
-        xj=-1.5780054908995557e-06,
-        yj=-3.61422677977004e-05,
-        nx = 30, # Número de elementos em x
-        nz = 30, # Número de elementos em z
-        print_result=True,
-        print_progress=True,
-        print_time=True,
-        # eccentricity = 0.483,
-        # attitude_angle = Q_(267.5, "deg"),
-        # fxs_load = 0,
-        # fys_load = -5000,
-        # initial_pads_angles = [1e-6, 1e-6, 1e-6, 1e-6, 1e-6], # Ângulo de cada pad - Chute inicial
-    )
+            n = 1,
+            frequency = Q_([3000, 4500], "RPM"),
+            equilibrium_type = "match_eccentricity",
+            journal_diameter = 101.6e-3,
+            radial_clearance = 74.9e-6,
+            pad_thickness = 12.7e-3,
+            pivot_angle = Q_([18, 90, 162, 234, 306], "deg"),
+            pad_arc = Q_([60, 60, 60, 60, 60], "deg"),
+            pad_axial_length = Q_([50.8e-3, 50.8e-3, 50.8e-3, 50.8e-3, 50.8e-3], "m"),
+            pre_load = [0.5, 0.5, 0.5, 0.5, 0.5],
+            offset = [0.5, 0.5, 0.5, 0.5, 0.5],
+            lubricant = "ISOVG32",
+            oil_supply_temperature = Q_(40, "degC"),
+            nx = 30,
+            nz = 30,
+            print_result=True,
+            print_progress=True,
+            print_time=True,
+            eccentricity = 0.483,
+            attitude_angle = Q_(267.5, "deg")
+        )
 
-    bearing.run()
-
-if __name__ == "__main__":
-    tilting_pad_example02()
+    return bearing
