@@ -1,4 +1,5 @@
 __version__ = "2.0.0rc2"
+import sys
 from plotly import io as _pio
 
 import ross.plotly_theme
@@ -23,3 +24,9 @@ from ross.seals.labyrinth_seal import *
 from ross.model_reduction import *
 
 _pio.templates.default = "ross"
+if "ipykernel" in sys.modules:
+    _pio.renderers.default = "notebook"
+elif "google.colab" in sys.modules:
+    _pio.renderers.default = "colab"
+else:
+    _pio.renderers.default = "browser"

@@ -38,6 +38,10 @@ __all__ = [
     "Level1Results",
 ]
 
+# Define reference circle for orbits
+NUM_POINTS = 360
+CIRCLE = np.exp(1j * np.linspace(0, 2 * np.pi, NUM_POINTS))
+
 
 class Results(ABC):
     """Results class.
@@ -330,17 +334,15 @@ class Orbit(Results):
 @njit
 def _init_orbit(ru_e, rv_e):
     # data for plotting
-    num_points = 360
-    c = np.linspace(0, 2 * np.pi, num_points)
-    circle = np.exp(1j * c)
-
-    x_circle = np.real(ru_e * circle)
-    y_circle = np.real(rv_e * circle)
+    x_circle = np.real(ru_e * CIRCLE)
+    y_circle = np.real(rv_e * CIRCLE)
     angle = np.arctan2(y_circle, x_circle)
     angle[angle < 0] = angle[angle < 0] + 2 * np.pi
 
     # find major axis index looking at the first half circle
-    major_index = np.argmax(np.sqrt(x_circle[:180] ** 2 + y_circle[:180] ** 2))
+    half = NUM_POINTS // 2
+    r_circle = np.sqrt(x_circle[:half] ** 2 + y_circle[:half] ** 2)
+    major_index = np.argmax(r_circle)
     major_x = x_circle[major_index]
     major_y = y_circle[major_index]
     major_angle = angle[major_index]
@@ -2526,9 +2528,12 @@ class CampbellResults(Results):
 
                 return mode_3d_fig
 
-            curve_id = clicked_point["curveNumber"]
             speed = clicked_point["x"]
             natural_frequency = clicked_point["y"]
+
+            curve_id = clicked_point.get(
+                "curveNumber", clicked_point.get("curve_number")
+            )
 
             if camp_fig.data[curve_id].name == "Torsional Analysis":
                 update_func = self.campbell_torsional._update_plot_mode_3d

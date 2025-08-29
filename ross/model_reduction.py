@@ -127,7 +127,7 @@ class ModelReduction:
         self.transf_matrix = transf_matrix
         self.reduce_matrix = reduce_matrix
         self.reduce_vector = reduce_vector
-        self.return_vector = revert_vector
+        self.revert_vector = revert_vector
 
     def optimize(self):
         n = 0
