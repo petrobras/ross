@@ -3277,9 +3277,9 @@ def tilting_pad_example():
             oil_supply_temperature = Q_(40, "degC"),
             nx = 30,
             nz = 30,
-            print_result=True,
-            print_progress=True,
-            print_time=True,
+            print_result=False,
+            print_progress=False,
+            print_time=False,
             eccentricity = 0.483,
             attitude_angle = Q_(267.5, "deg")
         )
