@@ -112,6 +112,30 @@ class THDTilting(BearingElement):
         Oil film thickness at pivot point in m.
     ecc : float
         Eccentricity ratio.
+
+    Examples
+    --------
+    >>> from ross.bearings.tilting_pad import THDTilting
+    >>> from ross.units import Q_
+    >>> bearing = THDTilting(
+    ...     n=1,
+    ...     frequency=Q_([3000], "RPM"),
+    ...     equilibrium_type="match_eccentricity", 
+    ...     journal_diameter=101.6e-3,
+    ...     radial_clearance=74.9e-6,
+    ...     pad_thickness=12.7e-3,
+    ...     pivot_angle=Q_([18, 90, 162, 234, 306], "deg"),
+    ...     pad_arc=Q_([60]*5, "deg"),
+    ...     pad_axial_length=Q_([50.8e-3]*5, "m"),
+    ...     pre_load=[0.5]*5,
+    ...     offset=[0.5]*5,
+    ...     lubricant="ISOVG32",
+    ...     oil_supply_temperature=Q_(40, "degC"),
+    ...     print_result=False,
+    ...     eccentricity=0.483,
+    ...     attitude_angle=Q_(267.5, "deg")
+    ... )
+    >>> bearing.run()
     """
 
     @check_units
@@ -291,10 +315,9 @@ class THDTilting(BearingElement):
 
         Examples
         --------
-        >>> bearing = THDTilting(n=1, journal_diameter=0.1, ...)
+        >>> from ross.bearings.tilting_pad import tilting_pad_example
+        >>> bearing = tilting_pad_example()
         >>> bearing.run()
-        >>> print(f"Stiffness kxx: {bearing.kxx:.2e} N/m")
-        >>> print(f"Damping cxx: {bearing.cxx:.2e} N·s/m")
         """
 
         shape_2d = (self.nz, self.nx)
@@ -437,14 +460,6 @@ class THDTilting(BearingElement):
 
         The method assumes the equilibrium position has been previously
         calculated by the solve_fields() method.
-
-        Examples
-        --------
-        >>> bearing = THDTilting(n=1, journal_diameter=0.1, ...)
-        >>> bearing.solve_fields()  # Calculate equilibrium first
-        >>> bearing.coefficients()  # Calculate dynamic coefficients
-        >>> print(f"Stiffness kxx: {bearing.kxx:.2e} N/m")
-        >>> print(f"Damping cxx: {bearing.cxx:.2e} N·s/m")
         """
 
         # Loads initialization
@@ -1168,14 +1183,6 @@ class THDTilting(BearingElement):
         The method assumes steady-state operation and uses finite difference
         methods with upwind scheme for energy equation.
         
-        Examples
-        --------
-        >>> bearing = THDTilting(n=1, journal_diameter=0.1, ...)
-        >>> max_p, med_p, max_t, med_t, h_pivot, ecc = bearing.solve_fields()
-        >>> print(f"Maximum pressure: {max_p:.2e} Pa")
-        >>> print(f"Maximum temperature: {max_t:.1f} °C")
-        >>> print(f"Eccentricity ratio: {ecc:.4f}")
-        
         See Also
         --------
         run : Execute complete analysis including dynamic coefficients
@@ -1583,14 +1590,7 @@ class THDTilting(BearingElement):
         - Moment equilibrium for each pad
         
         Temperature convergence tolerance is set to 0.1°C for field calculations.
-        
-        Examples
-        --------
-        >>> bearing = THDTilting(n=1, journal_diameter=0.1, ...)
-        >>> x0 = [0.5, 0.0, 0.0, 0.0, 0.0, 0.0]  # [ecc, angle, pad1, pad2, pad3, pad4]
-        >>> score = bearing._equilibrium_objective(x0)
-        >>> print(f"Equilibrium residual: {score:.6f}")
-        
+                
         See Also
         --------
         solve_fields : Main method for equilibrium calculation
@@ -3224,64 +3224,64 @@ class THDTilting(BearingElement):
         fig.show()
         return fig
     
-    def tilting_pad_example():
-        """Create an example of a tilting pad bearing with Thermo-Hydro-Dynamic effects.
+def tilting_pad_example():
+    """Create an example of a tilting pad bearing with Thermo-Hydro-Dynamic effects.
+    
+    This function creates and returns a THDTilting bearing instance with predefined
+    parameters for demonstration purposes. The bearing is configured with 5 pads
+    and operates at two different frequencies.
+    
+    Returns
+    -------
+    bearing : THDTilting
+        A configured tilting pad bearing instance ready for analysis.
         
-        This function creates and returns a THDTilting bearing instance with predefined
-        parameters for demonstration purposes. The bearing is configured with 5 pads
-        and operates at two different frequencies.
-        
-        Returns
-        -------
-        bearing : THDTilting
-            A configured tilting pad bearing instance ready for analysis.
-            
-        Examples
-        --------
-        >>> from ross.bearings.tilting_pad import tilting_pad_example
-        >>> bearing = tilting_pad_example()
-        >>> bearing.run()
-        
-        Notes
-        -----
-        This example uses the following configuration:
-        - 5 tilting pads arranged at 18°, 90°, 162°, 234°, and 306°
-        - Journal diameter: 101.6 mm
-        - Radial clearance: 74.9 μm
-        - Pad thickness: 12.7 mm
-        - Pad arc: 60° per pad
-        - Pad axial length: 50.8 mm
-        - ISOVG32 lubricant at 40°C
-        - Operating frequencies: 3000 and 4500 RPM
-        - Pre-load factor: 0.5 for all pads
-        - Pivot offset: 0.5 (centered) for all pads
-        
-        The bearing is configured for "match_eccentricity" equilibrium type,
-        which automatically calculates the equilibrium position based on the
-        specified eccentricity and attitude angle.
-        """
+    Examples
+    --------
+    >>> from ross.bearings.tilting_pad import tilting_pad_example
+    >>> bearing = tilting_pad_example()
+    >>> bearing.run()
+    
+    Notes
+    -----
+    This example uses the following configuration:
+    - 5 tilting pads arranged at 18°, 90°, 162°, 234°, and 306°
+    - Journal diameter: 101.6 mm
+    - Radial clearance: 74.9 μm
+    - Pad thickness: 12.7 mm
+    - Pad arc: 60° per pad
+    - Pad axial length: 50.8 mm
+    - ISOVG32 lubricant at 40°C
+    - Operating frequencies: 3000 RPM
+    - Pre-load factor: 0.5 for all pads
+    - Pivot offset: 0.5 (centered) for all pads
+    
+    The bearing is configured for "match_eccentricity" equilibrium type,
+    which automatically calculates the equilibrium position based on the
+    specified eccentricity and attitude angle.
+    """
 
-        bearing = THDTilting(
-                n = 1,
-                frequency = Q_([3000, 4500], "RPM"),
-                equilibrium_type = "match_eccentricity",
-                journal_diameter = 101.6e-3,
-                radial_clearance = 74.9e-6,
-                pad_thickness = 12.7e-3,
-                pivot_angle = Q_([18, 90, 162, 234, 306], "deg"),
-                pad_arc = Q_([60, 60, 60, 60, 60], "deg"),
-                pad_axial_length = Q_([50.8e-3, 50.8e-3, 50.8e-3, 50.8e-3, 50.8e-3], "m"),
-                pre_load = [0.5, 0.5, 0.5, 0.5, 0.5],
-                offset = [0.5, 0.5, 0.5, 0.5, 0.5],
-                lubricant = "ISOVG32",
-                oil_supply_temperature = Q_(40, "degC"),
-                nx = 30,
-                nz = 30,
-                print_result=True,
-                print_progress=True,
-                print_time=True,
-                eccentricity = 0.483,
-                attitude_angle = Q_(267.5, "deg")
-            )
+    bearing = THDTilting(
+            n = 1,
+            frequency = Q_([3000], "RPM"),
+            equilibrium_type = "match_eccentricity",
+            journal_diameter = 101.6e-3,
+            radial_clearance = 74.9e-6,
+            pad_thickness = 12.7e-3,
+            pivot_angle = Q_([18, 90, 162, 234, 306], "deg"),
+            pad_arc = Q_([60, 60, 60, 60, 60], "deg"),
+            pad_axial_length = Q_([50.8e-3, 50.8e-3, 50.8e-3, 50.8e-3, 50.8e-3], "m"),
+            pre_load = [0.5, 0.5, 0.5, 0.5, 0.5],
+            offset = [0.5, 0.5, 0.5, 0.5, 0.5],
+            lubricant = "ISOVG32",
+            oil_supply_temperature = Q_(40, "degC"),
+            nx = 30,
+            nz = 30,
+            print_result=True,
+            print_progress=True,
+            print_time=True,
+            eccentricity = 0.483,
+            attitude_angle = Q_(267.5, "deg")
+        )
 
-        return bearing
+    return bearing
