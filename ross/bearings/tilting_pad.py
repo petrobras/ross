@@ -200,6 +200,9 @@ class THDTilting(BearingElement):
         self.lubricant = lubricant
         self.frequency = frequency
         self.speed = None
+        self.fxs_load = fxs_load
+        self.fys_load = fys_load
+        self.initial_pads_angles = initial_pads_angles
 
         # Mesh discretization and equation's terms setup
         self.nx = nx
@@ -1264,7 +1267,7 @@ class THDTilting(BearingElement):
                     self.x_0[self.con_np],
                     xtol=0.1,
                     ftol=0.1,
-                    maxiter=100,
+                    maxiter=1000,
                     disp=False,
                 )
 
