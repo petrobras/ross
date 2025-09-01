@@ -9,6 +9,7 @@ from plotly import graph_objects as go
 from ross.units import Q_
 
 from ross.disk_element import DiskElement
+from ross.materials import steel
 
 
 __all__ = ["GearElement"]
@@ -69,10 +70,13 @@ class GearElement(DiskElement):
         m,
         Id,
         Ip,
+        width,
         pitch_diameter=None,
         base_diameter=None,
         pressure_angle=None,
+        material = None,
         tag=None,
+        helix_angle = 0,
         scale_factor=1.0,
         color="Goldenrod",
     ):
@@ -89,6 +93,17 @@ class GearElement(DiskElement):
             raise TypeError(
                 "At least one of the following must be informed for GearElement: base_diameter or pitch_diameter"
             )
+        
+        if not pitch_diameter:
+            self.pitch_diameter = (self.base_radius * 2 )/ np.cos(self.pressure_angle)
+        else:
+            self.pitch_diameter = float(pitch_diameter)
+        
+        self.helix_angle = float(helix_angle)
+        self.width = float(width)
+
+        if not material:
+            self.material = steel
 
         super().__init__(n, m, Id, Ip, tag, scale_factor, color)
 
@@ -102,6 +117,7 @@ class GearElement(DiskElement):
         o_d,
         pressure_angle=None,
         tag=None,
+        helix_angle = 0,
         scale_factor=1.0,
         color="Goldenrod",
     ):
@@ -181,9 +197,12 @@ class GearElement(DiskElement):
             m,
             Id,
             Ip,
+            width=width,
             pitch_diameter=o_d,
             pressure_angle=pressure_angle,
+            material=material,
             tag=tag,
+            helix_angle=helix_angle,
             scale_factor=scale_factor,
             color=color,
         )
