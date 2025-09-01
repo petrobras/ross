@@ -71,6 +71,7 @@ class GearElement(DiskElement):
         Id,
         Ip,
         width,
+        n_teeth,
         pitch_diameter=None,
         base_diameter=None,
         pressure_angle=None,
@@ -104,6 +105,8 @@ class GearElement(DiskElement):
 
         if not material:
             self.material = steel
+
+        self.n_teeth = n_teeth
 
         super().__init__(n, m, Id, Ip, tag, scale_factor, color)
 
