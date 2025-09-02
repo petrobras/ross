@@ -110,7 +110,7 @@ class MultiRotor(Rotor):
         driven_rotor,
         coupled_nodes,
         gear_ratio,
-        gear_mesh_stiffness,
+        gear_mesh_stiffness=None,
         orientation_angle=0.0,
         position="above",
         tag=None,
@@ -140,6 +140,48 @@ class MultiRotor(Rotor):
             gear_2 = gear_2[0]
 
         self.gears = [gear_1, gear_2]
+
+        self.K_coupled_mesh_stiffness = None
+
+        # Contact ratio
+    
+        module_1 = gear_1.pitch_diameter/gear_1.n_teeth
+        addendum_1 = 1*module_1
+        radii_ad_1 = gear_1.pitch_diameter + addendum_1
+        radii_base_1 = gear_1.pitch_diameter*np.cos(gear_1.pressure_angle)
+
+        module_2 = gear_2.pitch_diameter/gear_2.n_teeth
+        addendum_2 = 1*module_2
+        radii_ad_2 = gear_2.pitch_diameter + addendum_2
+        radii_base_2 = gear_2.pitch_diameter*np.cos(gear_2.pressure_angle)
+
+        center_distance = (
+            gear_1.pitch_diameter + gear_2.pitch_diameter
+        )
+
+        contact_length = (
+            np.sqrt(
+                radii_ad_1 ** 2
+                - radii_base_1 ** 2
+            )
+            + np.sqrt(
+                radii_ad_2 ** 2
+                - radii_base_2 ** 2
+            )
+            - center_distance * np.sin(gear_1.pressure_angle)
+        )
+        base_pitch = np.pi * module_1 * np.cos(gear_1.pressure_angle)
+        self.contact_ratio = contact_length / base_pitch
+    
+        # If mesh stiffneess is already not defined
+        if gear_mesh_stiffness is None:
+            c = self.contact_ratio
+            w = (gear_1.width + gear_2.width) / 2
+            E1 = gear_1.material.E
+            E2 = gear_2.material.E
+            gear_mesh_stiffness = (c * w * E1 * E2) / (9 * (E1 + E2))
+
+        self.gear_mesh_stiffness = gear_mesh_stiffness
 
         gear1_plot = next(
             (
