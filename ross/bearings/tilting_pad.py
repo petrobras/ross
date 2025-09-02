@@ -279,8 +279,8 @@ class THDTilting(BearingElement):
             cxx[i], cxy[i], cyx[i], cyy[i] = self.cxx, self.cxy, self.cyx, self.cyy
 
         super().__init__(
-            n, kxx, cxx, kyy, kxy, kyx, cyy, cxy, cyx, frequency=frequency, **kwargs
-        )
+            n, kxx=kxx, cxx=cxx, kyy=kyy, kxy=kxy, kyx=kyx, cyy=cyy, cxy=cxy, cyx=cyx, frequency=frequency, **kwargs
+            )
     
     def run(self):
         """
@@ -3320,3 +3320,5 @@ def tilting_pad_example():
             eccentricity = 0.483,
             attitude_angle = Q_(267.5, "deg")
         )
+
+    return bearing
