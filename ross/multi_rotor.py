@@ -346,6 +346,10 @@ class MultiRotor(Rotor):
     def coupling_matrix(self):
         """Coupling matrix of two coupled gears.
 
+        coupling matrix according to:
+        STRINGER, D. B. Geared Rotor Dynamic Methodologies for Advancing Prognostic Modeling
+        Capabilities in Rotary-Wing Transmission Systems. Tese (Dissertation) — University of Virginia, Charlottesville, VA, 2008
+
         Returns
         -------
         coupling_matrix : np.ndarray
@@ -360,28 +364,170 @@ class MultiRotor(Rotor):
                [0.        , 0.        , 0.        , 0.        ],
                [0.        , 0.        , 0.        , 0.        ]])
         """
-        r1 = self.gears[0].base_radius
-        r2 = self.gears[1].base_radius
 
-        S = np.sin(self.gears[0].pressure_angle - self.orientation_angle)
-        C = np.cos(self.gears[0].pressure_angle - self.orientation_angle)
+        #Note:  Pressure angle is the normal pressure angle (not transverse)
 
-        # fmt: off
-        coupling_matrix = np.array([
-            [   S**2,  S * C, 0, 0, 0,  r1 * S,   -S**2,  -S * C, 0, 0, 0,  r2 * S],
-            [  S * C,   C**2, 0, 0, 0,  r1 * C,  -S * C,   -C**2, 0, 0, 0,  r2 * C],
-            [      0,      0, 0, 0, 0,       0,       0,       0, 0, 0, 0,       0],
-            [      0,      0, 0, 0, 0,       0,       0,       0, 0, 0, 0,       0],
-            [      0,      0, 0, 0, 0,       0,       0,       0, 0, 0, 0,       0],
-            [ r1 * S, r1 * C, 0, 0, 0,   r1**2, -r1 * S, -r1 * C, 0, 0, 0, r1 * r2],
-            [  -S**2, -S * C, 0, 0, 0, -r1 * S,    S**2,   S * C, 0, 0, 0, -r2 * S],
-            [ -S * C,  -C**2, 0, 0, 0, -r1 * C,   S * C,    C**2, 0, 0, 0, -r2 * C],
-            [      0,      0, 0, 0, 0,       0,       0,       0, 0, 0, 0,       0],
-            [      0,      0, 0, 0, 0,       0,       0,       0, 0, 0, 0,       0],
-            [      0,      0, 0, 0, 0,       0,       0,       0, 0, 0, 0,       0],
-            [ r2 * S, r2 * C, 0, 0, 0, r1 * r2, -r2 * S, -r2 * C, 0, 0, 0,   r2**2],
-        ])
-        # fmt: on
+        #Angles start in degrees
+
+        Pitch_Radius_1 = self.gears[0].pitch_diameter/2 # driving gear
+        Pitch_Radius_2 = self.gears[1].pitch_diameter/2 # driven gear
+        Pressure_Angle = self.gears[0].pressure_angle
+        Helical_Angle = self.gears[0].helix_angle - 180*np.pi/180 # correction done for adjusting with the formulation
+        Orientation_Angle = self.orientation_angle
+        
+        
+        #Direction Cosine angles
+        cx=np.cos(Pressure_Angle)*np.cos(Helical_Angle)
+        cy=np.sin(Pressure_Angle)
+        cz=np.sin(Pressure_Angle)*np.sin(Helical_Angle)
+    
+        cp=np.cos(Orientation_Angle)
+        sp=np.sin(Orientation_Angle)
+
+        #Submatrices
+
+        # --- Matriz Kii ---
+        Kii = np.zeros((6, 6))
+
+        Kii[0, 0] = (sp * cx + cp * cy)**2
+        Kii[1, 0] = (sp * cx + cp * cy) * (sp * cy - cp * cx)  
+        Kii[2, 0] = cz * (sp * cx + cp * cy)
+        Kii[3, 0] = sp * cz * Pitch_Radius_1 * (sp * cx + cp * cy)
+        Kii[4, 0] = -1 * cp * cz * Pitch_Radius_1 * (sp * cx + cp * cy)
+        Kii[5, 0] = -1 * cx * Pitch_Radius_1 * (cp**2 + sp**2) * (sp * cx + cp * cy) 
+
+        Kii[0, 1] = Kii[1, 0]
+        Kii[1, 1] = (sp * cy - cp * cx)**2
+        Kii[2, 1] = cz * (sp * cy - cp * cx)
+        Kii[3, 1] = sp * cz * Pitch_Radius_1 * (sp * cy - cp * cx)
+        Kii[4, 1] = -1 * cp * cz * Pitch_Radius_1 * (sp * cy - cp * cx)
+        Kii[5, 1] = -1 * cx * Pitch_Radius_1 * (cp**2 + sp**2) * (sp * cy - cp * cx)
+
+        Kii[0, 2] = Kii[2, 0]
+        Kii[1, 2] = Kii[2, 1]
+        Kii[2, 2] = cz**2
+        Kii[3, 2] = sp * (cz**2) * Pitch_Radius_1
+        Kii[4, 2] = -1 * cp * (cz**2) * Pitch_Radius_1
+        Kii[5, 2] = -1 * cx * cz * Pitch_Radius_1 * (cp**2 + sp**2)
+
+        Kii[0, 3] = Kii[3, 0]
+        Kii[1, 3] = Kii[3, 1]
+        Kii[2, 3] = Kii[3, 2]
+        Kii[3, 3] = (sp * cz * Pitch_Radius_1)**2
+        Kii[4, 3] = -1 * cp * sp * (cz * Pitch_Radius_1)**2
+        Kii[5, 3] = -1 * sp * cx * cz * (Pitch_Radius_1**2) * (cp**2 + sp**2)
+
+        Kii[0, 4] = Kii[4, 0]
+        Kii[1, 4] = Kii[4, 1]
+        Kii[2, 4] = Kii[4, 2]
+        Kii[3, 4] = Kii[4, 3]
+        Kii[4, 4] = (cp * cz * Pitch_Radius_1)**2
+        Kii[5, 4] = cp * cx * cz * (Pitch_Radius_1**2) * (cp**2 + sp**2)
+
+        Kii[0, 5] = Kii[5, 0]
+        Kii[1, 5] = Kii[5, 1]
+        Kii[2, 5] = Kii[5, 2]
+        Kii[3, 5] = Kii[5, 3]
+        Kii[4, 5] = Kii[5, 4]
+        Kii[5, 5] = ((cx * Pitch_Radius_1)**2) * (cp**4 + 2 * (cp * sp)**2 + sp**4)
+
+        # --- Matriz Kji ---
+        Kji = np.zeros((6, 6))
+
+        Kji[0, 0] = -1 * (sp * cx + cp * cy)**2
+        Kji[1, 0] = -1 * (sp * cx + cp * cy) * (sp * cy - cp * cx) 
+        Kji[2, 0] = -1 * cz * (sp * cx + cp * cy)
+        Kji[3, 0] = -1 * sp * cz * Pitch_Radius_2 * (sp * cx + cp * cy)
+        Kji[4, 0] = cp * cz * Pitch_Radius_2 * (sp * cx + cp * cy)
+        Kji[5, 0] = cx * Pitch_Radius_2 * (cp**2 + sp**2) * (sp * cx + cp * cy) 
+
+        Kji[0, 1] = Kji[1, 0]
+        Kji[1, 1] = -1 * (sp * cy - cp * cx)**2
+        Kji[2, 1] = -1 * cz * (sp * cy - cp * cx)
+        Kji[3, 1] = -1 * sp * cz * Pitch_Radius_2 * (sp * cy - cp * cx)
+        Kji[4, 1] = cp * cz * Pitch_Radius_2 * (sp * cy - cp * cx)
+        Kji[5, 1] = cx * Pitch_Radius_2 * (cp**2 + sp**2) * (sp * cy - cp * cx)  
+
+        Kji[0, 2] = Kji[2, 0]
+        Kji[1, 2] = Kji[2, 1]
+        Kji[2, 2] = -1 * (cz**2)
+        Kji[3, 2] = -1 * sp * (cz**2) * Pitch_Radius_2
+        Kji[4, 2] = cp * (cz**2) * Pitch_Radius_2
+        Kji[5, 2] = cx * cz * Pitch_Radius_2 * (cp**2 + sp**2)
+
+        Kji[0, 3] = -1 * sp * cz * Pitch_Radius_1 * (sp * cx + cp * cy)
+        Kji[1, 3] = -1 * sp * cz * Pitch_Radius_1 * (sp * cy - cp * cx)
+        Kji[2, 3] = -1 * sp * (cz**2) * Pitch_Radius_1
+        Kji[3, 3] = -1 * ((sp * cz)**2) * Pitch_Radius_1 * Pitch_Radius_2
+        Kji[4, 3] = cp * sp * (cz**2) * Pitch_Radius_1 * Pitch_Radius_2
+        Kji[5, 3] = sp * cx * cz * Pitch_Radius_1 * Pitch_Radius_2 * (cp**2 + sp**2)
+
+        Kji[0, 4] = cp * cz * Pitch_Radius_1 * (sp * cx + cp * cy)
+        Kji[1, 4] = cp * cz * Pitch_Radius_1 * (sp * cy - cp * cx)
+        Kji[2, 4] = cp * (cz**2) * Pitch_Radius_1
+        Kji[3, 4] = cp * sp * (cz**2) * Pitch_Radius_1 * Pitch_Radius_2
+        Kji[4, 4] = -1 * ((cp * cz)**2) * Pitch_Radius_1 * Pitch_Radius_2
+        Kji[5, 4] = -1 * cp * cx * cz * Pitch_Radius_1 * Pitch_Radius_2 * (cp**2 + sp**2)
+
+        Kji[0, 5] = cx * Pitch_Radius_1 * (cp**2 + sp**2) * (sp * cx + cp * cy)  
+        Kji[1, 5] = cx * Pitch_Radius_1 * (cp**2 + sp**2) * (sp * cy - cp * cx)
+        Kji[2, 5] = cx * cz * Pitch_Radius_1 * (cp**2 + sp**2)
+        Kji[3, 5] = sp * cx * cz * Pitch_Radius_1 * Pitch_Radius_2 * (cp**2 + sp**2)
+        Kji[4, 5] = -1 * cp * cx * cz * Pitch_Radius_1 * Pitch_Radius_2 * (cp**2 + sp**2)
+        Kji[5, 5] = -1 * (cx**2) * Pitch_Radius_1 * Pitch_Radius_2 * (cp**4 + 2 * (cp * sp)**2 + sp**4) 
+
+        # --- Matriz Kij ---
+        Kij = Kji.T # Transposição em NumPy
+
+        # --- Matriz Kjj ---
+        Kjj = np.zeros((6, 6))
+
+        Kjj[0, 0] = (sp * cx + cp * cy)**2
+        Kjj[1, 0] = (sp * cx + cp * cy) * (sp * cy - cp * cx) 
+        Kjj[2, 0] = cz * (sp * cx + cp * cy)
+        Kjj[3, 0] = sp * cz * Pitch_Radius_2 * (sp * cx + cp * cy)
+        Kjj[4, 0] = -1 * cp * cz * Pitch_Radius_2 * (sp * cx + cp * cy)
+        Kjj[5, 0] = -1 * cx * Pitch_Radius_2 * (cp**2 + sp**2) * (sp * cx + cp * cy)
+
+        Kjj[0, 1] = Kjj[1, 0]
+        Kjj[1, 1] = (sp * cy - cp * cx)**2
+        Kjj[2, 1] = cz * (sp * cy - cp * cx)
+        Kjj[3, 1] = sp * cz * Pitch_Radius_2 * (sp * cy - cp * cx)
+        Kjj[4, 1] = -1 * cp * cz * Pitch_Radius_2 * (sp * cy - cp * cx)
+        Kjj[5, 1] = -1 * cx * Pitch_Radius_2 * (cp**2 + sp**2) * (sp * cy - cp * cx) 
+
+        Kjj[0, 2] = Kjj[2, 0]
+        Kjj[1, 2] = Kjj[2, 1]
+        Kjj[2, 2] = cz**2
+        Kjj[3, 2] = sp * (cz**2) * Pitch_Radius_2
+        Kjj[4, 2] = -1 * cp * (cz**2) * Pitch_Radius_2
+        Kjj[5, 2] = -1 * cx * cz * Pitch_Radius_2 * (cp**2 + sp**2)
+
+        Kjj[0, 3] = Kjj[3, 0]
+        Kjj[1, 3] = Kjj[3, 1]
+        Kjj[2, 3] = Kjj[3, 2]
+        Kjj[3, 3] = (sp * cz * Pitch_Radius_2)**2
+        Kjj[4, 3] = -1 * cp * sp * (cz * Pitch_Radius_2)**2
+        Kjj[5, 3] = -1 * sp * cx * cz * (Pitch_Radius_2**2) * (cp**2 + sp**2)
+
+        Kjj[0, 4] = Kjj[4, 0]
+        Kjj[1, 4] = Kjj[4, 1]
+        Kjj[2, 4] = Kjj[4, 2]
+        Kjj[3, 4] = Kjj[4, 3]
+        Kjj[4, 4] = (cp * cz * Pitch_Radius_2)**2
+        Kjj[5, 4] = cp * cx * cz * (Pitch_Radius_2**2) * (cp**2 + sp**2)
+
+        Kjj[0, 5] = Kjj[5, 0]
+        Kjj[1, 5] = Kjj[5, 1]
+        Kjj[2, 5] = Kjj[5, 2]
+        Kjj[3, 5] = Kjj[5, 3]
+        Kjj[4, 5] = Kjj[5, 4]
+        Kjj[5, 5] = ((cx * Pitch_Radius_2)**2) * (cp**4 + 2 * (cp * sp)**2 + sp**4)
+
+
+        # --- Montagem da Matriz de Rigidez Completa ---
+        coupling_matrix = np.block([[Kii, Kij],
+                                    [Kji, Kjj]])
 
         return coupling_matrix
 
