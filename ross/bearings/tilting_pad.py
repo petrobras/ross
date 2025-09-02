@@ -135,7 +135,6 @@ class THDTilting(BearingElement):
     ...     eccentricity=0.483,
     ...     attitude_angle=Q_(267.5, "deg")
     ... )
-    >>> bearing.run()
     """
 
     @check_units
@@ -256,6 +255,32 @@ class THDTilting(BearingElement):
 
         for jj in range(1, self.nx):
             self.xtheta[jj] = self.xtheta[jj - 1] + self.dtheta
+
+        self._initialize_arrays()
+
+        n_freq = np.shape(self.frequency)[0]
+
+        kxx = np.zeros(n_freq)
+        kxy = np.zeros(n_freq)
+        kyx = np.zeros(n_freq)
+        kyy = np.zeros(n_freq)
+
+        cxx = np.zeros(n_freq)
+        cxy = np.zeros(n_freq)
+        cyx = np.zeros(n_freq)
+        cyy = np.zeros(n_freq)
+
+        for i in range(n_freq):
+            self.speed = self.frequency[i]
+
+            self.run()
+            
+            kxx[i], kxy[i], kyx[i], kyy[i] = self.kxx, self.kxy, self.kyx, self.kyy
+            cxx[i], cxy[i], cyx[i], cyy[i] = self.cxx, self.cxy, self.cyx, self.cyy
+
+        super().__init__(
+            n, kxx, cxx, kyy, kxy, kyx, cyy, cxy, cyx, frequency=frequency, **kwargs
+        )
     
     def run(self):
         """
@@ -317,75 +342,39 @@ class THDTilting(BearingElement):
         --------
         >>> from ross.bearings.tilting_pad import tilting_pad_example
         >>> bearing = tilting_pad_example()
-        >>> bearing.run()
         """
 
-        shape_2d = (self.nz, self.nx)
-        shape_3d = (self.nz, self.nx, self.n_pad)
-
-        self.pressure_dim = np.zeros(shape_3d)
-        self.h_0 = np.zeros(shape_3d)
-        self.h_dim = np.zeros(shape_3d)
-        self.h = np.zeros(shape_2d)
-        self.pressure = np.zeros(shape_2d)
-        self.pressure_nd = np.zeros(shape_3d)
-        self.h_pivot = np.zeros(self.n_pad)
-        self.temperature_init = self.reference_temperature * np.ones(shape_3d)
-        self.dp_dx = np.zeros(shape_2d)
-        self.dp_dz = np.zeros(shape_2d)
-        self.reynolds_field = np.zeros(shape_3d)
-        self.mu_turb = 1.3*np.ones(shape_3d)
-        self.force_x = np.zeros(self.n_pad)
-        self.force_y = np.zeros(self.n_pad)
-        self.moment_j = np.zeros(self.n_pad)
-        self.force_x_dim = np.zeros(self.n_pad)
-        self.force_y_dim = np.zeros(self.n_pad)
-        self.moment_j_dim = np.zeros((self.n_pad)) 
-        self.moment_j_new = np.zeros(self.n_pad)
-        self.force_1 = np.zeros(self.n_pad)
-        self.force_new = np.zeros(self.n_pad)
-        self.force_j_dim = np.zeros(self.n_pad)
-        self.force_2 = np.zeros(self.n_pad)
-        self.force_2_new = np.zeros(self.n_pad)
-        self.pressure_prev = np.zeros(shape_2d)
-        
-        n_freq = np.shape(self.frequency)[0]
-
         if self.print_time:
-            t1 = time.time()
-        
-        for i in range(n_freq):
-            self.speed = self.frequency[i]
-            self.dimensionless_force = np.full(self.n_pad, 1 / (self.radial_clearance ** 2 / (self.pad_radius ** 3 * self.mu_0 * self.speed * self.pad_axial_length)))
+            t1 = time.time()        
+
+        self.dimensionless_force = np.full(self.n_pad, 1 / (self.radial_clearance ** 2 / (self.pad_radius ** 3 * self.mu_0 * self.speed * self.pad_axial_length)))
             
-            self._reset_force_arrays()
+        self._reset_force_arrays()
                         
-            maxP, medP, maxT, medT, h_pivot, ecc = self.solve_fields()
+        maxP, medP, maxT, medT, h_pivot, ecc = self.solve_fields()
             
-            if self.print_result:
-                print("Maximum Values:")
-                print("-" * 75)
-                print("Maximum Pressure (Pmax)    : {:15.4f} Pa".format(maxP))
-                print("Maximum Temperature (Tmax)  : {:15.2f} °C".format(maxT))
-                print("Eccentricity              : {:15.4f} [-]".format(ecc))
-                print("Minimum Film Thickness    : {:15.8f} m".format(h_pivot))
-                print("=" * 75)
+        if self.print_result:
+            print("Maximum Values:")
+            print("-" * 75)
+            print("Maximum Pressure (Pmax)    : {:15.4f} Pa".format(maxP))
+            print("Maximum Temperature (Tmax)  : {:15.2f} °C".format(maxT))
+            print("Eccentricity              : {:15.4f} [-]".format(ecc))
+            print("Minimum Film Thickness    : {:15.8f} m".format(h_pivot))
+            print("=" * 75)
             
-            self.coefficients()
+        self.coefficients()
             
-            if self.print_result:
-                print("kxx = {0}".format(self.kxx))
-                print("kxy = {0}".format(self.kxy))
-                print("kyx = {0}".format(self.kyx))
-                print("kyy = {0}".format(self.kyy))
-                print("cxx = {0}".format(self.cxx))
-                print("cxy = {0}".format(self.cxy))
-                print("cyx = {0}".format(self.cyx))
-                print("cyy = {0}".format(self.cyy))
-                self.plot_results()
-            
-            super().__init__(n=self.n, n_link=self.n_link, kxx=self.kxx, cxx=self.cxx, kyy=self.kyy, kxy=self.kxy, kyx=self.kyx, cyy=self.cyy, cxy=self.cxy, cyx=self.cyx, frequency=self.frequency)
-        
+        if self.print_result:
+            print("kxx = {0}".format(self.kxx))
+            print("kxy = {0}".format(self.kxy))
+            print("kyx = {0}".format(self.kyx))
+            print("kyy = {0}".format(self.kyy))
+            print("cxx = {0}".format(self.cxx))
+            print("cxy = {0}".format(self.cxy))
+            print("cyx = {0}".format(self.cyx))
+            print("cyy = {0}".format(self.cyy))
+            self.plot_results()
+                    
         if self.print_time:
             t2 = time.time()
             print("Calculation time spent: {0:.2f} seconds".format(t2-t1))
@@ -2791,6 +2780,57 @@ class THDTilting(BearingElement):
         
         return xryr, xryrpt, xr, yr, xrpt, yrpt
 
+    def _initialize_arrays(self):
+        """Initialize all arrays used in the thermo-hydrodynamic analysis.
+        
+        This method creates and initializes all the arrays needed for the analysis,
+        including pressure, temperature, film thickness, forces, and other field variables.
+        
+        Returns
+        -------
+        None
+            Arrays are stored as instance attributes.
+        """
+        shape_2d = (self.nz, self.nx)
+        shape_3d = (self.nz, self.nx, self.n_pad)
+
+        # Pressure and film thickness arrays
+        self.pressure_dim = np.zeros(shape_3d)
+        self.h_0 = np.zeros(shape_3d)
+        self.h_dim = np.zeros(shape_3d)
+        self.h = np.zeros(shape_2d)
+        self.pressure = np.zeros(shape_2d)
+        self.pressure_nd = np.zeros(shape_3d)
+        self.pressure_prev = np.zeros(shape_2d)
+        
+        # Temperature and thermal arrays
+        self.temperature_init = self.reference_temperature * np.ones(shape_3d)
+        
+        # Pressure gradients
+        self.dp_dx = np.zeros(shape_2d)
+        self.dp_dz = np.zeros(shape_2d)
+        
+        # Turbulence and Reynolds arrays
+        self.reynolds_field = np.zeros(shape_3d)
+        self.mu_turb = 1.3 * np.ones(shape_3d)
+        
+        # Force and moment arrays
+        self.force_x = np.zeros(self.n_pad)
+        self.force_y = np.zeros(self.n_pad)
+        self.moment_j = np.zeros(self.n_pad)
+        self.force_x_dim = np.zeros(self.n_pad)
+        self.force_y_dim = np.zeros(self.n_pad)
+        self.moment_j_dim = np.zeros(self.n_pad)
+        self.moment_j_new = np.zeros(self.n_pad)
+        self.force_1 = np.zeros(self.n_pad)
+        self.force_new = np.zeros(self.n_pad)
+        self.force_j_dim = np.zeros(self.n_pad)
+        self.force_2 = np.zeros(self.n_pad)
+        self.force_2_new = np.zeros(self.n_pad)
+        
+        # Pivot film thickness
+        self.h_pivot = np.zeros(self.n_pad)
+
     def _reset_force_arrays(self):
         """
         Reset force arrays for each frequency iteration.
@@ -3240,7 +3280,6 @@ def tilting_pad_example():
     --------
     >>> from ross.bearings.tilting_pad import tilting_pad_example
     >>> bearing = tilting_pad_example()
-    >>> bearing.run()
     
     Notes
     -----
@@ -3283,5 +3322,3 @@ def tilting_pad_example():
             eccentricity = 0.483,
             attitude_angle = Q_(267.5, "deg")
         )
-
-    return bearing
