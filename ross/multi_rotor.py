@@ -25,10 +25,8 @@ class MultiRotor(Rotor):
     coupled_nodes : tuple of int
         Tuple specifying the coupled nodes, where the first node corresponds to
         the driving rotor and the second node corresponds to the driven rotor.
-    gear_ratio : float
-        The gear ratio between the rotors.
     gear_mesh_stiffness : float
-        The stiffness of the gear mesh.
+        The stiffness of the gear mesh. Can be automatically calculated or set by user.
     orientation_angle : float, pint.Quantity, optional
         The angle between the line of gear centers and x-axis. Default is 0.0 rad.
     position : {'above', 'below'}, optional
@@ -58,11 +56,25 @@ class MultiRotor(Rotor):
     ...     )
     ...     for i in range(len(L1))
     ... ]
+
     >>> generator = rs.DiskElement(n=1, m=525.7, Id=16.1, Ip=32.2)
     >>> disk = rs.DiskElement(n=2, m=116.04, Id=3.115, Ip=6.23)
+    >>> N1 = 328  # Number of teeth of gear 1
+    >>> m=726.4
+    >>> Id=56.95
+    >>> Ip=113.9
+    >>> width = (4*m)/(material.rho*np.pi*(pitch_diameter**2-d1[-1]*2))
     >>> gear1 = rs.GearElement(
-    ...     n=4, m=726.4, Id=56.95, Ip=113.9,
-    ...     pitch_diameter=1.1, pressure_angle=rs.Q_(22.5, 'deg'),
+    ... n=4,
+    ... m=m,
+    ... Id=Id,
+    ... Ip=Ip,
+    ... width=width,
+    ... n_teeth=N1,
+    ... pitch_diameter=pitch_diameter,
+    ... pressure_angle=pressure_angle,
+    ... material=material,
+    ... helix_angle=0,
     ... )
     >>> bearing1 = rs.BearingElement(n=0, kxx=183.9e6, kyy=200.4e6, cxx=3e3)
     >>> bearing2 = rs.BearingElement(n=3, kxx=183.9e6, kyy=200.4e6, cxx=3e3)
@@ -80,10 +92,25 @@ class MultiRotor(Rotor):
     ...     )
     ...     for i in range(len(L2))
     ... ]
+
+    >>> N2 = 23  # Number of teeth of gear 2
+    >>> m=5
+    >>> Id=0.002
+    >>> Ip=0.004
+    >>> width = (4*m)/(material.rho*np.pi*(pitch_diameter**2-d2[0]*2))
     >>> gear2 = rs.GearElement(
-    ...     n=0, m=5, Id=0.002, Ip=0.004,
-    ...     pitch_diameter=0.077, pressure_angle=rs.Q_(22.5, 'deg'),
+    ... n=0,
+    ... m=m,
+    ... Id=Id,
+    ... Ip=Ip,
+    ... width=width,
+    ... n_teeth=N2,
+    ... pitch_diameter=pitch_diameter,
+    ... pressure_angle=pressure_angle,
+    ... material=material,
+    ... helix_angle=0,
     ... )
+
     >>> turbine = rs.DiskElement(n=2, m=7.45, Id=0.0745, Ip=0.149)
     >>> bearing3 = rs.BearingElement(n=1, kxx=10.1e6, kyy=41.6e6, cxx=3e3)
     >>> bearing4 = rs.BearingElement(n=3, kxx=10.1e6, kyy=41.6e6, cxx=3e3)
@@ -94,8 +121,6 @@ class MultiRotor(Rotor):
     ...     rotor1,
     ...     rotor2,
     ...     coupled_nodes=(4, 0),
-    ...     gear_ratio=328 / 23,
-    ...     gear_mesh_stiffness=1e8,
     ...     orientation_angle=0.0,
     ...     position="below"
     ... )
@@ -159,7 +184,7 @@ class MultiRotor(Rotor):
             raise ValueError("The gear module must be the same for both gears in order to mesh properly.")
         
         if gear_1.pressure_angle != gear_2.pressure_angle: 
-            raise ValueError("The gear width must be the same for both gears in order to mesh properly.")
+            raise ValueError("The gear preasure angle must be the same for both gears in order to mesh properly.")
 
         center_distance = (
             gear_1.pitch_diameter + gear_2.pitch_diameter
@@ -344,7 +369,7 @@ class MultiRotor(Rotor):
         rotor = self.rotors[0]
 
         if node in self.R2_nodes:
-            speed = -(1/(self.gear_ratio)) * omega
+            speed = -(1/self.gear_ratio) * omega
             rotor = self.rotors[1]
 
         if isinstance(rotor, MultiRotor):
@@ -572,7 +597,7 @@ class MultiRotor(Rotor):
         else:
             return self._join_matrices(
                 self.rotors[0].M(frequency, synchronous),
-                self.rotors[1].M(frequency * (1/(self.gear_ratio)), synchronous),
+                self.rotors[1].M(frequency * (1/self.gear_ratio), synchronous),
             )
 
     def K(self, frequency):
@@ -600,7 +625,7 @@ class MultiRotor(Rotor):
 
         K0 = self._join_matrices(
             self.rotors[0].K(frequency),
-            self.rotors[1].K(frequency * (1/(self.gear_ratio))),
+            self.rotors[1].K(frequency * (1/self.gear_ratio)),
         )
 
         dofs_1 = self.gears[0].dof_global_index.values()
@@ -640,7 +665,7 @@ class MultiRotor(Rotor):
         """
 
         return self._join_matrices(
-            self.rotors[0].Ksdt(), -(1/(self.gear_ratio)) * self.rotors[1].Ksdt()
+            self.rotors[0].Ksdt(), -(1/self.gear_ratio) * self.rotors[1].Ksdt()
         )
 
     def C(self, frequency):
@@ -668,7 +693,7 @@ class MultiRotor(Rotor):
 
         return self._join_matrices(
             self.rotors[0].C(frequency),
-            self.rotors[1].C(frequency * (1/(self.gear_ratio))),
+            self.rotors[1].C(frequency * (1/self.gear_ratio)),
         )
 
     def G(self):
@@ -694,7 +719,7 @@ class MultiRotor(Rotor):
         """
 
         return self._join_matrices(
-            self.rotors[0].G(), -(1/(self.gear_ratio)) * self.rotors[1].G()
+            self.rotors[0].G(), -(1/self.gear_ratio) * self.rotors[1].G()
         )
 
 
