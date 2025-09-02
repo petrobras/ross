@@ -598,7 +598,9 @@ class MultiRotor(Rotor):
         dofs_2 = self.gears[1].dof_global_index.values()
         dofs = [*dofs_1, *dofs_2]
 
-        K0[np.ix_(dofs, dofs)] += self.coupling_matrix() * self.gear_mesh_stiffness
+        self.K_coupled_mesh_stiffness = self.coupling_matrix() * self.gear_mesh_stiffness
+
+        K0[np.ix_(dofs, dofs)] += self.K_coupled_mesh_stiffness
 
         return K0
 
