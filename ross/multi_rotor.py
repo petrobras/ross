@@ -155,6 +155,12 @@ class MultiRotor(Rotor):
         radii_ad_2 = gear_2.pitch_diameter + addendum_2
         radii_base_2 = gear_2.pitch_diameter*np.cos(gear_2.pressure_angle)
 
+        if round(module_1,1) != round(module_2,1): 
+            raise ValueError("The gear module must be the same for both gears in order to mesh properly.")
+        
+        if gear_1.pressure_angle != gear_2.pressure_angle: 
+            raise ValueError("The gear width must be the same for both gears in order to mesh properly.")
+
         center_distance = (
             gear_1.pitch_diameter + gear_2.pitch_diameter
         )
@@ -172,11 +178,14 @@ class MultiRotor(Rotor):
         )
         base_pitch = np.pi * module_1 * np.cos(gear_1.pressure_angle)
         self.contact_ratio = contact_length / base_pitch
+
+        if gear_1.width != gear_2.width: 
+            raise ValueError("The gear width must be the same for both gears in order to mesh properly.")
     
         # If mesh stiffneess is already not defined
         if gear_mesh_stiffness is None:
             c = self.contact_ratio
-            w = (gear_1.width + gear_2.width) / 2
+            w = gear_1.width
             E1 = gear_1.material.E
             E2 = gear_2.material.E
             gear_mesh_stiffness = (c * w * E1 * E2) / (9 * (E1 + E2))
