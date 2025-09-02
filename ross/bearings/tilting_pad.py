@@ -1239,8 +1239,6 @@ class THDTilting(BearingElement):
             self.force_x_dim = np.sum(self.force_x_dim)
             self.force_y_dim = np.sum(self.force_y_dim)
 
-            np.set_printoptions(precision=20)
-
             self.xdin = np.zeros(self.n_pad + 2)
             self.xdin = [self.eccentricity, self.attitude_angle] + list(ang_rot)
 
