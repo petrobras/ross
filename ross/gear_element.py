@@ -105,6 +105,8 @@ class GearElement(DiskElement):
 
         if not material:
             self.material = steel
+        else: 
+            self.material = material
 
         self.n_teeth = n_teeth
 
