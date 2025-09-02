@@ -751,13 +751,23 @@ def two_shaft_rotor_example():
     pressure_angle = rs.Q_(22.5, "deg")
     base_radius = 0.5086
     pitch_diameter = 2 * base_radius / np.cos(pressure_angle)
+
+    N1 = 328  # Number of teeth of gear 1
+    m=726.4
+    Id=56.95
+    Ip=113.9
+    width = (4*m)/(material.rho*np.pi*(pitch_diameter**2-d1[-1]*2))
     gear1 = rs.GearElement(
         n=4,
-        m=726.4,
-        Id=56.95,
-        Ip=113.9,
+        m=m,
+        Id=Id,
+        Ip=Ip,
+        width=width,
+        n_teeth=N1,
         pitch_diameter=pitch_diameter,
         pressure_angle=pressure_angle,
+        material=material,
+        helix_angle=0,
     )
 
     bearing1 = rs.BearingElement(n=0, kxx=183.9e6, kyy=200.4e6, cxx=3e3)
@@ -787,13 +797,23 @@ def two_shaft_rotor_example():
 
     base_radius = 0.03567
     pitch_diameter = 2 * base_radius / np.cos(pressure_angle)
+
+    N2 = 23  # Number of teeth of gear 2
+    m=5
+    Id=0.002
+    Ip=0.004
+    width = (4*m)/(material.rho*np.pi*(pitch_diameter**2-d2[0]*2))
     gear2 = rs.GearElement(
         n=0,
-        m=5,
-        Id=0.002,
-        Ip=0.004,
+        m=m,
+        Id=Id,
+        Ip=Ip,
+        width=width,
+        n_teeth=N2,
         pitch_diameter=pitch_diameter,
         pressure_angle=pressure_angle,
+        material=material,
+        helix_angle=0,
     )
 
     turbine = rs.DiskElement(n=2, m=7.45, Id=0.0745, Ip=0.149)
@@ -807,16 +827,12 @@ def two_shaft_rotor_example():
         [bearing3, bearing4],
     )
 
-    N1 = 328  # Number of teeth of gear 1
-    N2 = 23  # Number of teeth of gear 2
-    k_mesh = 1e8  # Mesh stiffness
 
     return rs.MultiRotor(
         rotor1,
         rotor2,
         coupled_nodes=(4, 0),
         gear_ratio=N1 / N2,
-        gear_mesh_stiffness=k_mesh,
         orientation_angle=0.0,
         position="below",
     )
