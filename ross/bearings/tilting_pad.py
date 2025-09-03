@@ -1219,13 +1219,14 @@ class THDTilting(BearingElement):
 
             self.x_0 = 0.4 * self.alpha_max_chut
 
-            for self.con_np in range(self.n_pad):
-                idx = self.con_np
+            for con_np in range(self.n_pad):
+                self.con_np = con_np
+                idx = con_np
                 self.score_dim = 100000
 
                 x_opt = fmin(
                     self.get_equilibrium_position,
-                    self.x_0[self.con_np],
+                    self.x_0[con_np],
                     xtol=0.1,
                     ftol=0.1,
                     maxiter=1000,
@@ -1584,7 +1585,7 @@ class THDTilting(BearingElement):
         get_equilibrium_position : Single pad equilibrium optimization
         """
         # Increment iteration counter
-        if not hasattr(self, 'iteration_count'):
+        if not hasattr(self, "iteration_count"):
             self.iteration_count = 0
         self.iteration_count += 1
         
@@ -2122,31 +2123,31 @@ class THDTilting(BearingElement):
         """
         def _get_face_viscosity(direction):
             """Helper function to calculate viscosity at a specific face."""
-            if direction == 'east':
+            if direction == "east":
                 if jj < self.nx - 1:
                     return 0.5 * (mi[ii, jj] + mi[ii, jj + 1])
                 else:
                     return mi[ii, jj]
-            elif direction == 'west':
+            elif direction == "west":
                 if jj > 0:
                     return 0.5 * (mi[ii, jj] + mi[ii, jj - 1])
                 else:
                     return mi[ii, jj]
-            elif direction == 'north':
+            elif direction == "north":
                 if ii < self.nz - 1:
                     return 0.5 * (mi[ii, jj] + mi[ii + 1, jj])
                 else:
                     return mi[ii, jj]
-            elif direction == 'south':
+            elif direction == "south":
                 if ii > 0:
                     return 0.5 * (mi[ii, jj] + mi[ii - 1, jj])
                 else:
                     return mi[ii, jj]
         
-        mi_e = _get_face_viscosity('east')
-        mi_w = _get_face_viscosity('west')
-        mi_n = _get_face_viscosity('north')
-        mi_s = _get_face_viscosity('south')
+        mi_e = _get_face_viscosity("east")
+        mi_w = _get_face_viscosity("west")
+        mi_n = _get_face_viscosity("north")
+        mi_s = _get_face_viscosity("south")
         
         return mi_e, mi_w, mi_n, mi_s
 
@@ -2919,21 +2920,21 @@ class THDTilting(BearingElement):
                 x=XH,
                 y=YH,
                 z=1e-6*self.pressure_dim[:,:,self.pad_in],
-                colorscale='jet',
-                name='Pressure field',
+                colorscale="jet",
+                name="Pressure field",
                 showscale=True
             )
         )
 
         fig.update_layout(
-            title=dict(text='Pressure Distribution', font=dict(size=24)),
+            title=dict(text="Pressure Distribution", font=dict(size=24)),
             scene=dict(
-                xaxis_title=dict(text='X direction [rad]', font=dict(size=14)),
-                yaxis_title=dict(text='Z direction [-]', font=dict(size=14)),
-                zaxis_title=dict(text='Pressure [MPa]', font=dict(size=14))
+                xaxis_title=dict(text="X direction [rad]", font=dict(size=14)),
+                yaxis_title=dict(text="Z direction [-]", font=dict(size=14)),
+                zaxis_title=dict(text="Pressure [MPa]", font=dict(size=14))
             ),
-            plot_bgcolor='white',
-            paper_bgcolor='white',
+            plot_bgcolor="white",
+            paper_bgcolor="white",
             **kwargs
         )
 
@@ -2967,29 +2968,29 @@ class THDTilting(BearingElement):
                 x=XH[0],
                 y=YH[:,0],
                 z=self.temperature_init[:,:,self.pad_in],
-                colorscale='jet',
-                name='Temperature field',
+                colorscale="jet",
+                name="Temperature field",
                 showscale=True,
-                colorbar=dict(title='Temperature [°C]', titleside='right')
+                colorbar=dict(title="Temperature [°C]", titleside="right")
             )
         )
 
         fig.update_layout(
-            title=dict(text='Temperature Distribution', font=dict(size=24)),
+            title=dict(text="Temperature Distribution", font=dict(size=24)),
             xaxis=dict(
-                title=dict(text='X direction [rad]', font=dict(size=14)),
+                title=dict(text="X direction [rad]", font=dict(size=14)),
                 showgrid=True,
                 gridwidth=1,
-                gridcolor=tableau_colors['gray']
+                gridcolor=tableau_colors["gray"]
             ),
             yaxis=dict(
-                title=dict(text='Z direction [-]', font=dict(size=14)),
+                title=dict(text="Z direction [-]", font=dict(size=14)),
                 showgrid=True,
                 gridwidth=1,
-                gridcolor=tableau_colors['gray']
+                gridcolor=tableau_colors["gray"]
             ),
-            plot_bgcolor='white',
-            paper_bgcolor='white',
+            plot_bgcolor="white",
+            paper_bgcolor="white",
             **kwargs
         )
 
@@ -3020,27 +3021,27 @@ class THDTilting(BearingElement):
                 go.Scatter(
                     x=self.xtheta,
                     y=self.pressure_dim[:,i],
-                    name=f'Pad {i+1}',
+                    name=f"Pad {i+1}",
                     line=dict(color=tableau_colors[list(tableau_colors.keys())[i % len(tableau_colors)]])
                 )
             )
 
         fig.update_layout(
-            title=dict(text='Pad Results', font=dict(size=24)),
+            title=dict(text="Pad Results", font=dict(size=24)),
             xaxis=dict(
-                title=dict(text='Angle [rad]', font=dict(size=14)),
+                title=dict(text="Angle [rad]", font=dict(size=14)),
                 showgrid=True,
                 gridwidth=1,
-                gridcolor=tableau_colors['gray']
+                gridcolor=tableau_colors["gray"]
             ),
             yaxis=dict(
-                title=dict(text='Pressure [Pa]', font=dict(size=14)),
+                title=dict(text="Pressure [Pa]", font=dict(size=14)),
                 showgrid=True,
                 gridwidth=1,
-                gridcolor=tableau_colors['gray']
+                gridcolor=tableau_colors["gray"]
             ),
-            plot_bgcolor='white',
-            paper_bgcolor='white',
+            plot_bgcolor="white",
+            paper_bgcolor="white",
             showlegend=True,
             **kwargs
         )
