@@ -48,8 +48,8 @@ class Thrust:
     Operating conditions
     ^^^^^^^^^^^^^^^^^^^^
     Describes the operating conditions of the bearing
-    speed : float
-        Rotor rotating speed. Default unit is rad/s
+    frequency : float
+        Rotor rotating frequency. Default unit is rad/s
     fz : Float
         Axial load. The unit is Newton.
     oil_supply_temperature : Float
@@ -141,15 +141,20 @@ class Thrust:
         n_pad,
         n_theta,
         n_radial,
-        speed,
+        frequency,
         Coefs_D,
         choice_CAIMP,
+        equilibrium_position_mode,
+        fzs_load,
+        radial_inclination_angle,
+        circumferential_inclination_angle,
+        initial_film_thickness,
     ):
         
         self.pad_inner_radius = pad_inner_radius
         self.pad_outer_radius = pad_outer_radius
         self.pad_pivot_radius = pad_pivot_radius
-        self.speed = speed * (np.pi / 30)
+        self.frequency = frequency * (np.pi / 30)
         self.pad_arc_length = pad_arc_length * np.pi / 180
         self.angular_pivot_position = angular_pivot_position * np.pi / 180
         self.oil_supply_temperature = oil_supply_temperature
@@ -178,6 +183,11 @@ class Thrust:
         self.x0 = choice_CAIMP[self.op_key]['init_guess']
         self.Coefs_D = Coefs_D
 
+        self.equilibrium_position_mode = equilibrium_position_mode
+        self.fzs_load = fzs_load
+        self.radial_inclination_angle = radial_inclination_angle
+        self.circumferential_inclination_angle = circumferential_inclination_angle
+        self.initial_film_thickness = initial_film_thickness
 
         # --------------------------------------------------------------------------
         
@@ -227,7 +237,7 @@ class Thrust:
         conditions (see documentation)
         """
         
-        # self.speed = speed * (np.pi / 30)
+        # self.frequency = frequency * (np.pi / 30)
         # self.choice_CAIMP = choice_CAIMP
 
         # self.op_key = [*choice_CAIMP][0]
@@ -242,7 +252,8 @@ class Thrust:
 
         H0, H0ne, H0nw, H0se, H0sw, h0, P0, mi = self.PandT_solution()
 
-        if "calc_h0" in self.op_key:
+        # if "calc_h0" in self.op_key:
+        if self.equilibrium_position_mode == "calculate":
             if "print" in [*self.choice_CAIMP[self.op_key]] and "result" in self.choice_CAIMP["calc_h0"]["print"]:
                 
                 print(f'Pmax: ', self.PPdim.max())
@@ -251,7 +262,8 @@ class Thrust:
                 print(f'Tmax: ', self.TT.max())
                 print(f'h0: ', h0)
         
-        elif "impos_h0" in self.op_key:
+        # elif "impos_h0" in self.op_key:
+        elif self.equilibrium_position_mode == "imposed":
             if "print" in [*self.choice_CAIMP[self.op_key]] and "result" in self.choice_CAIMP["impos_h0"]["print"]:
                 
                 print(f'Pmax: ', self.PPdim.max())
@@ -402,7 +414,7 @@ class Thrust:
                 PPdim = np.zeros((self.n_radial + 2, self.n_theta + 2))
 
                 P0 = self.P_solution(H0, H0ne, H0nw, H0se, H0sw, h0, As, Ar, MI,  Mat_coef, b, P0)
-                PPdim[1:-1, 1:-1] = (self.pad_inner_radius ** 2 * self.speed * self.reference_viscosity / h0 ** 2) * np.flipud(P0)
+                PPdim[1:-1, 1:-1] = (self.pad_inner_radius ** 2 * self.frequency * self.reference_viscosity / h0 ** 2) * np.flipud(P0)
 
                 # PRESSURE_THD =============================================================
                 # ENDS HERE ================================================================
@@ -518,14 +530,14 @@ class Thrust:
                         # difusive terms - central differences
                         CN_2 = (
                             self.kt
-                            / (self.rho * self.cp * self.speed * self.pad_inner_radius ** 2)
+                            / (self.rho * self.cp * self.frequency * self.pad_inner_radius ** 2)
                             * (self.dTETA * Rn)
                             / (self.dR)
                             * H0[kR, kTETA]
                         )
                         CS_2 = (
                             self.kt
-                            / (self.rho * self.cp * self.speed * self.pad_inner_radius ** 2)
+                            / (self.rho * self.cp * self.frequency * self.pad_inner_radius ** 2)
                             * (self.dTETA * Rs)
                             / (self.dR)
                             * H0[kR, kTETA]
@@ -533,7 +545,7 @@ class Thrust:
                         CP_3 = -(CN_2 + CS_2)
                         CE_2 = (
                             self.kt
-                            / (self.rho * self.cp * self.speed * self.pad_inner_radius ** 2)
+                            / (self.rho * self.cp * self.frequency * self.pad_inner_radius ** 2)
                             * self.dR
                             / (self.pad_arc_length ** 2 * self.dTETA)
                             * H0[kR, kTETA]
@@ -541,7 +553,7 @@ class Thrust:
                         )
                         CW_2 = (
                             self.kt
-                            / (self.rho * self.cp * self.speed * self.pad_inner_radius ** 2)
+                            / (self.rho * self.cp * self.frequency * self.pad_inner_radius ** 2)
                             * self.dR
                             / (self.pad_arc_length ** 2 * self.dTETA)
                             * H0[kR, kTETA]
@@ -610,9 +622,9 @@ class Thrust:
 
                         b[k, 0] = (
                             -B_F
-                            + (self.speed * self.reference_viscosity * self.pad_inner_radius ** 2 / (self.rho * self.cp * h0 ** 2 * self.reference_temperature))
+                            + (self.frequency * self.reference_viscosity * self.pad_inner_radius ** 2 / (self.rho * self.cp * h0 ** 2 * self.reference_temperature))
                             * (B_G - B_H - B_I - B_J)
-                            + (self.reference_viscosity * self.speed / (self.rho * self.cp * self.reference_temperature))
+                            + (self.reference_viscosity * self.frequency / (self.rho * self.cp * self.reference_temperature))
                             * (B_K - B_L - B_M - B_N - B_O)
                         )
 
@@ -705,7 +717,7 @@ class Thrust:
             self.Ti = T * self.reference_temperature
 
             # dimensional pressure
-            Pdim = P0 * (self.pad_inner_radius ** 2) * self.speed * self.reference_viscosity / (h0 ** 2)
+            Pdim = P0 * (self.pad_inner_radius ** 2) * self.frequency * self.reference_viscosity / (h0 ** 2)
 
             # RESULTING FORCE AND MOMENTUM: Equilibrium position
             XR = self.pad_inner_radius * self.vec_R
@@ -785,7 +797,7 @@ class Thrust:
         P0 =  self.P_solution(H0, H0ne, H0nw, H0se, H0sw, h0, As, Ar, MI,  Mat_coef, b, P0)
 
         PPdim = np.zeros((self.n_radial + 2, self.n_theta + 2))
-        PPdim[1:-1, 1:-1] = (self.pad_inner_radius ** 2 * self.speed * self.reference_viscosity / h0 ** 2) * np.flipud(P0)
+        PPdim[1:-1, 1:-1] = (self.pad_inner_radius ** 2 * self.frequency * self.reference_viscosity / h0 ** 2) * np.flipud(P0)
         self.PPdim = PPdim
 
         self.hmax = np.max(h0 * H0)
@@ -1025,7 +1037,7 @@ class Thrust:
                     P[ii, jj] = 0
 
         # dimensional pressure
-        Pdim = P * (self.pad_inner_radius ** 2) * self.speed *self. reference_viscosity / (h0 ** 2)
+        Pdim = P * (self.pad_inner_radius ** 2) * self.frequency *self. reference_viscosity / (h0 ** 2)
 
         # RESULTING FORCE AND MOMENTUM: Equilibrium position
         XR = self.pad_inner_radius * self.vec_R
@@ -1317,8 +1329,8 @@ class Thrust:
     def Coef_din(self, H0ne, H0nw, H0se, H0sw, h0, P0, mi):
         # --------------------------------------------------------------------------
         # Stiffness and Damping Coefficients
-        wp = self.speed  # perturbation frequency [rad/s]
-        WP = wp / self.speed
+        wp = self.frequency  # perturbation frequency [rad/s]
+        WP = wp / self.frequency
 
         # HYDROCOEFF_z =============================================================
         # STARTS HERE ==============================================================
@@ -1620,7 +1632,7 @@ class Thrust:
                 P_coef[ii, jj] = p_coef[cont]
 
         # dimensional pressure
-        Pdim_coef = P_coef * (self.pad_inner_radius ** 2) * self.speed * self.reference_viscosity / (h0 ** 3)
+        Pdim_coef = P_coef * (self.pad_inner_radius ** 2) * self.frequency * self.reference_viscosity / (h0 ** 3)
 
         # RESULTING FORCE AND MOMENTUM: Equilibrium position
         XR = self.pad_inner_radius * self.vec_R
@@ -1969,17 +1981,27 @@ def thrust_bearing_example():
         n_theta = 10,
         # n_radial = 10,
         n_radial = 10,
-        speed = 90,
+        frequency = 90,
         choice_CAIMP = {"calc_h0":{"init_guess":[-0.000274792355106384, -1.69258824831925e-05, 0.000191418606538599], "load":13320e3, "print":["result","progress"]}},
-        Coefs_D = {"show_coef":True}
+        Coefs_D = {"show_coef":True},
+        equilibrium_position_mode = "calculate",
+        fzs_load = 13320e3,
+        # equilibrium_position_mode = "imposed"
+
+
+
+        # new parameters
+        radial_inclination_angle = -0.000274792355106384, # a_r
+        circumferential_inclination_angle = -1.69258824831925e-05, # a_s
+        initial_film_thickness = 0.000191418606538599, # h0
     )
     
-    # bearing.run(speed=90, choice_CAIMP={"calc_h0":{"init_guess":[-0.000274792355106384, -1.69258824831925e-05, 0.000191418606538599], "load":13320e3, "print":["result","progress"]}}, Coefs_D={"show_coef":True})
+    # bearing.run(frequency=90, choice_CAIMP={"calc_h0":{"init_guess":[-0.000274792355106384, -1.69258824831925e-05, 0.000191418606538599], "load":13320e3, "print":["result","progress"]}}, Coefs_D={"show_coef":True})
+    # bearing.run(frequency=90, choice_CAIMP={"impos_h0":{"init_guess":[-0.000274792355106384, -1.69258824831925e-05], "h0":0.0001864, "print":["result","progress"]}}, Coefs_D={"show_coef":True})
+    #return bearing
 
-    # bearing.run(speed=90, choice_CAIMP={"impos_h0":{"init_guess":[-0.000274792355106384, -1.69258824831925e-05], "h0":0.0001864, "print":["result","progress"]}}, Coefs_D={"show_coef":True})
     bearing.run()
     bearing.plot_results()
-    #return bearing
 
 if __name__ == "__main__":
     thrust_bearing_example()
