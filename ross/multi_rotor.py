@@ -180,7 +180,7 @@ class MultiRotor(Rotor):
         radii_ad_2 = gear_2.pitch_diameter + addendum_2
         radii_base_2 = gear_2.pitch_diameter*np.cos(gear_2.pressure_angle)
 
-        if round(module_1,1) != round(module_2,1): 
+        if round(module_1,4) != round(module_2,4): 
             raise ValueError("The gear module must be the same for both gears in order to mesh properly.")
         
         if gear_1.pressure_angle != gear_2.pressure_angle: 
