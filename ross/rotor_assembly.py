@@ -2395,21 +2395,27 @@ class Rotor(object):
 
         # Check if the pseudo-modal method has to be applied
         num_modes = kwargs.get("num_modes")
+        model_reduction = kwargs.get("model_reduction")
 
         if num_modes and num_modes > 0:
             kwargs.pop("num_modes")
             print("Running pseudo-modal method, number of modes =", num_modes)
             get_array = self._pseudo_modal(speed_ref, num_modes)
+        elif model_reduction:
+            print("Running with model reduction")
+            force_nodes = list(set(np.where(F != 0)[1] // self.number_dof))
+            mr = ModelReduction(
+                self,
+                speed_ref,
+                include_nodes=force_nodes,
+                limit_percent=model_reduction[1],
+            )
+            get_array = (mr.reduce_matrix, mr.reduce_vector, mr.revert_vector)
+            kwargs.pop("model_reduction")
         else:
             print("Running direct method")
             return_array = lambda array: array
             get_array = [return_array for j in range(3)]
-
-        if kwargs.get("reduced_model"):
-            mr = ModelReduction(self, speed_ref)
-            print("Running reduced model:", mr.model_reduction_technique.__name__)
-            kwargs.pop("reduced_model")
-            get_array = (mr.reduce_matrix, mr.reduce_vector, mr.revert_vector)
 
         # Assemble matrices
         M = get_array[0](kwargs.get("M", self.M()))
