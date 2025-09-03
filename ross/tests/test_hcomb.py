@@ -9,7 +9,6 @@ from ross.units import Q_
 
 @pytest.fixture
 def hcomb():
-
     seal = HcombSeal(
         n=0,
         frequency=Q_([5000], "RPM"),
@@ -29,13 +28,13 @@ def hcomb():
         gamma=1.4,
         preswirl=1.0,
         entr_coef=0.1,
-        exit_coef=0.5
+        exit_coef=0.5,
     )
 
     return seal
 
-def test_hcomb_coefficients(hcomb):
 
+def test_hcomb_coefficients(hcomb):
     assert_allclose(hcomb.kxx, 586228.88958017, rtol=1e-4)
     assert_allclose(hcomb.kxy, 159741.17580073, rtol=1e-4)
     assert_allclose(hcomb.kyx, -159741.17580073, rtol=1e-4)
