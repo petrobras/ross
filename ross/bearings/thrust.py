@@ -32,15 +32,15 @@ class Thrust:
     Bearing Geometry
     ^^^^^^^^^^^^^^^^
     Describes the geometric characteristics.
-    r1 : float
+    pad_inner_radius : float
         Inner pad radius. Default unit is meter.
-    r2 : float
+    pad_outer_radius : float
         Outer pad radius. Default unit is meter.
-    rp : float
+    pad_pivot_radius : float
         Pivot pad radius. Default unit is meter.
-    teta0 : float
+    pad_arc_length : float
           Arc length of each pad. The unit is degree.
-    tetap : float
+    angular_pivot_position : float
           Angular pivot position. The unit is degree.
     n_pad : integer
          Number of pads
@@ -52,7 +52,7 @@ class Thrust:
         Rotor rotating speed. Default unit is rad/s
     fz : Float
         Axial load. The unit is Newton.
-    Tcub : Float
+    oil_supply_temperature : Float
         Oil bath temperature. The unit is °C
     x0  : array
         Initial Equilibrium Position
@@ -89,9 +89,9 @@ class Thrust:
     Mesh discretization
     ^^^^^^^^^^^^^^^^^^^
     Describes the discretization of the fluid film
-    NR : int
+    n_radial : int
         Number of volumes along the R direction.
-    NTETA : int
+    n_theta : int
         Number of volumes along the TETA direction. 
     
     
@@ -131,43 +131,52 @@ class Thrust:
 
     def __init__(
         self,
-        r1,
-        r2,
-        rp,
-        teta0,
-        tetap,
-        Tcub,
+        pad_inner_radius,
+        pad_outer_radius,
+        pad_pivot_radius,
+        pad_arc_length,
+        angular_pivot_position,
+        oil_supply_temperature,
         lubricant,
         n_pad,
-        NTETA,
-        NR,
+        n_theta,
+        n_radial,
+        speed,
+        Coefs_D,
+        choice_CAIMP,
     ):
         
-        self.r1 = r1
-        self.r2 = r2
-        self.rp = rp
-        self.teta0 = teta0 * np.pi / 180
-        self.tetap = tetap * np.pi / 180
-        self.Tcub = Tcub
-        self.TC = Tcub 
-        self.Tin = Tcub 
+        self.pad_inner_radius = pad_inner_radius
+        self.pad_outer_radius = pad_outer_radius
+        self.pad_pivot_radius = pad_pivot_radius
+        self.speed = speed * (np.pi / 30)
+        self.pad_arc_length = pad_arc_length * np.pi / 180
+        self.angular_pivot_position = angular_pivot_position * np.pi / 180
+        self.oil_supply_temperature = oil_supply_temperature
+        self.TC = oil_supply_temperature 
+        self.Tin = oil_supply_temperature 
         self.reference_temperature = 0.5 * (self.TC + self.Tin)
         self.lubricant = lubricant
         self.n_pad = n_pad
-        self.NTETA = NTETA
-        self.NR = NR
+        self.n_theta = n_theta
+        self.n_radial = n_radial
         R1 = 1
         self.R1 = R1
-        self.R2 = r2 / r1
+        self.R2 = pad_outer_radius / pad_inner_radius
         TETA1 = 0
         TETA2 = 1
         self.TETA1 = TETA1
         self.TETA2 = TETA2
-        self.Rp = rp / r1
-        self.TETAp = tetap / teta0 
-        self.dR = (self.R2 - self.R1) / (self.NR)
-        self.dTETA = (TETA2 - TETA1) / (NTETA)
-        self.Ti = self.reference_temperature * (np.ones((self.NR, self.NTETA)))
+        self.Rp = pad_pivot_radius / pad_inner_radius
+        self.TETAp = angular_pivot_position / pad_arc_length 
+        self.dR = (self.R2 - self.R1) / (self.n_radial)
+        self.dTETA = (TETA2 - TETA1) / (n_theta)
+        self.Ti = self.reference_temperature * (np.ones((self.n_radial, self.n_theta)))
+
+        self.choice_CAIMP = choice_CAIMP
+        self.op_key = [*choice_CAIMP][0]
+        self.x0 = choice_CAIMP[self.op_key]['init_guess']
+        self.Coefs_D = Coefs_D
 
 
         # --------------------------------------------------------------------------
@@ -188,18 +197,18 @@ class Thrust:
         self.reference_viscosity = self.a_a*np.exp(self.reference_temperature*self.b_b) #reference viscosity
         
         # Pre-processing loop counters for ease of understanding
-        vec_R = np.zeros(NR)
+        vec_R = np.zeros(n_radial)
         vec_R[0] = R1 + 0.5 * self.dR
 
-        vec_TETA = np.zeros(NTETA)
+        vec_TETA = np.zeros(n_theta)
         vec_TETA[0] = TETA1 + 0.5 * self.dTETA
 
 
-        for ii in range(1, NR):
+        for ii in range(1, n_radial):
             vec_R[ii] = vec_R[ii-1] + self.dR
         self.vec_R = vec_R
 
-        for jj in range(1, NTETA):
+        for jj in range(1, n_theta):
             vec_TETA[jj] = vec_TETA[jj-1] + self.dTETA
         self.vec_TETA = vec_TETA
 
@@ -210,7 +219,7 @@ class Thrust:
         #self.Coef_din(H0ne, H0nw, H0se, H0sw, h0, P0, mi)
         
 
-    def run(self, speed, choice_CAIMP, Coefs_D):
+    def run(self):
         
         """This method runs the calculation of the pressure and temperature field
         in oil film of a tilting pad thrust bearing. It is also possible to obtain
@@ -218,23 +227,23 @@ class Thrust:
         conditions (see documentation)
         """
         
-        self.speed = speed * (np.pi / 30)
-        self.choice_CAIMP = choice_CAIMP
+        # self.speed = speed * (np.pi / 30)
+        # self.choice_CAIMP = choice_CAIMP
 
-        self.op_key = [*choice_CAIMP][0]
-        self.x0 = choice_CAIMP[self.op_key]['init_guess']
+        # self.op_key = [*choice_CAIMP][0]
+        # self.x0 = choice_CAIMP[self.op_key]['init_guess']
 
-        if "print" in [*choice_CAIMP[self.op_key]] and "progress" in choice_CAIMP[self.op_key]["print"]:
+        if "print" in [*self.choice_CAIMP[self.op_key]] and "progress" in self.choice_CAIMP[self.op_key]["print"]:
             
             self.progress = True
                 
         else:
             self.progress = False
 
-        H0, H0ne, H0nw, H0se, H0sw, h0, P0, mi = self.PandT_solution(choice_CAIMP)
+        H0, H0ne, H0nw, H0se, H0sw, h0, P0, mi = self.PandT_solution()
 
         if "calc_h0" in self.op_key:
-            if "print" in [*choice_CAIMP[self.op_key]] and "result" in choice_CAIMP["calc_h0"]["print"]:
+            if "print" in [*self.choice_CAIMP[self.op_key]] and "result" in self.choice_CAIMP["calc_h0"]["print"]:
                 
                 print(f'Pmax: ', self.PPdim.max())
                 print(f'hmax: ', self.hmax)
@@ -243,7 +252,7 @@ class Thrust:
                 print(f'h0: ', h0)
         
         elif "impos_h0" in self.op_key:
-            if "print" in [*choice_CAIMP[self.op_key]] and "result" in choice_CAIMP["impos_h0"]["print"]:
+            if "print" in [*self.choice_CAIMP[self.op_key]] and "result" in self.choice_CAIMP["impos_h0"]["print"]:
                 
                 print(f'Pmax: ', self.PPdim.max())
                 print(f'hmax: ', self.hmax)
@@ -258,17 +267,17 @@ class Thrust:
             print("Please, use a valid choice_CAIMP key (calc_h0 or impos_h0)")
             return
         
-        if Coefs_D is not None:
+        if self.Coefs_D is not None:
         
             self.Coef_din(H0ne, H0nw, H0se, H0sw, h0, P0, mi)
         
-            if "show_coef" in Coefs_D and Coefs_D["show_coef"]:
+            if "show_coef" in self.Coefs_D and self.Coefs_D["show_coef"]:
                 
                 print(f'K:', self.K)
                 print(f'C:', self.C)
                   
 
-    def PandT_solution(self, choice_CAIMP):
+    def PandT_solution(self):
         # --------------------------------------------------------------------------
         # WHILE LOOP INITIALIZATION
         ResFM = 10
@@ -281,7 +290,7 @@ class Thrust:
             # Equilibrium position optimization [ar,ap,h0]
             
             if "impos_h0" in self.op_key:
-                self.h0i = choice_CAIMP["impos_h0"]['h0']
+                self.h0i = self.choice_CAIMP["impos_h0"]['h0']
                 x = scipy.optimize.fmin(
                     self.ArAsh0Equilibrium,                  
                     self.x0,
@@ -301,7 +310,7 @@ class Thrust:
                 h0 = self.h0i
 
             else:
-                self.fz = choice_CAIMP['calc_h0']['load']
+                self.fz = self.choice_CAIMP['calc_h0']['load']
 
                 # x = scipy.optimize.fmin(
                 #     self.ArAsh0Equilibrium,                  
@@ -339,13 +348,13 @@ class Thrust:
             # STARTS HERE ==============================================================
 
             dHdT = 0
-            mi_i = np.zeros((self.NR, self.NTETA))
+            mi_i = np.zeros((self.n_radial, self.n_theta))
 
             # initial temperature field
             T_i = self.Ti
 
-            for ii in range(0, self.NR):
-                for jj in range(0, self.NTETA):
+            for ii in range(0, self.n_radial):
+                for jj in range(0, self.n_theta):
                     mi_i[ii, jj] = (
                         self.a_a * np.exp(self.b_b * T_i[ii, jj])
                     )  # [Pa.s]
@@ -354,8 +363,8 @@ class Thrust:
             MI = 0.2 * MI_new
 
             # TEMPERATURE FIELD - Solution of ENERGY equation
-            for ii in range(0, self.NR):
-                for jj in range(0, self.NTETA):
+            for ii in range(0, self.n_radial):
+                for jj in range(0, self.n_theta):
                     varMI = np.abs((MI_new[ii, jj] - MI[ii, jj]) / MI[ii, jj])
             aux1=1
             
@@ -366,34 +375,34 @@ class Thrust:
                 # PRESSURE_THD =============================================================
                 # STARTS HERE ==============================================================
 
-                Ar = a_r * self.r1 / h0
-                As = a_s * self.r1 / h0
+                Ar = a_r * self.pad_inner_radius / h0
+                As = a_s * self.pad_inner_radius / h0
 
                 # volumes number
-                nk = (self.NR) * (self.NTETA)
+                nk = (self.n_radial) * (self.n_theta)
 
                 # Variable initialization
                 Mat_coef = np.zeros((nk, nk))
                 b = np.zeros((nk, 1))
-                H0 = np.zeros((self.NR, self.NTETA))
-                H0ne = np.zeros((self.NR, self.NTETA))
-                H0nw = np.zeros((self.NR, self.NTETA))
-                H0se = np.zeros((self.NR, self.NTETA))
-                H0sw = np.zeros((self.NR, self.NTETA))
-                dP0dR = np.zeros((self.NR, self.NTETA))
-                dP0dTETA = np.zeros((self.NR, self.NTETA))
-                T_new = np.zeros((self.NR, self.NTETA))
-                Mxr = np.zeros((self.NR, self.NTETA))
-                Myr = np.zeros((self.NR, self.NTETA))
-                Frer = np.zeros((self.NR, self.NTETA))
-                P0 = np.ones((self.NR, self.NTETA))
-                P = np.zeros((self.NR, self.NTETA))
-                mi = np.zeros((self.NR, self.NTETA))
+                H0 = np.zeros((self.n_radial, self.n_theta))
+                H0ne = np.zeros((self.n_radial, self.n_theta))
+                H0nw = np.zeros((self.n_radial, self.n_theta))
+                H0se = np.zeros((self.n_radial, self.n_theta))
+                H0sw = np.zeros((self.n_radial, self.n_theta))
+                dP0dR = np.zeros((self.n_radial, self.n_theta))
+                dP0dTETA = np.zeros((self.n_radial, self.n_theta))
+                T_new = np.zeros((self.n_radial, self.n_theta))
+                Mxr = np.zeros((self.n_radial, self.n_theta))
+                Myr = np.zeros((self.n_radial, self.n_theta))
+                Frer = np.zeros((self.n_radial, self.n_theta))
+                P0 = np.ones((self.n_radial, self.n_theta))
+                P = np.zeros((self.n_radial, self.n_theta))
+                mi = np.zeros((self.n_radial, self.n_theta))
 
-                PPdim = np.zeros((self.NR + 2, self.NTETA + 2))
+                PPdim = np.zeros((self.n_radial + 2, self.n_theta + 2))
 
                 P0 = self.P_solution(H0, H0ne, H0nw, H0se, H0sw, h0, As, Ar, MI,  Mat_coef, b, P0)
-                PPdim[1:-1, 1:-1] = (self.r1 ** 2 * self.speed * self.reference_viscosity / h0 ** 2) * np.flipud(P0)
+                PPdim[1:-1, 1:-1] = (self.pad_inner_radius ** 2 * self.speed * self.reference_viscosity / h0 ** 2) * np.flipud(P0)
 
                 # PRESSURE_THD =============================================================
                 # ENDS HERE ================================================================
@@ -405,7 +414,7 @@ class Thrust:
                 k = -1
 
                 # volumes number
-                nk = (self.NR) * (self.NTETA)
+                nk = (self.n_radial) * (self.n_theta)
 
                 # Coefficients Matrix
                 Mat_coef = np.zeros((nk, nk))
@@ -421,7 +430,7 @@ class Thrust:
                             ) / self.dTETA
                             dP0dR[kR, kTETA] = (P0[kR + 1, kTETA] - P0[kR, kTETA]) / self.dR
 
-                        if kTETA == 0 and kR > 0 and kR < self.NR-1:
+                        if kTETA == 0 and kR > 0 and kR < self.n_radial-1:
                             dP0dTETA[kR, kTETA] = (
                                 P0[kR, kTETA + 1] - P0[kR, kTETA]
                             ) / self.dTETA
@@ -429,13 +438,13 @@ class Thrust:
                                 self.dR
                             )
 
-                        if kTETA == 0 and kR == self.NR-1:
+                        if kTETA == 0 and kR == self.n_radial-1:
                             dP0dTETA[kR, kTETA] = (
                                 P0[kR, kTETA + 1] - P0[kR, kTETA]
                             ) / self.dTETA
                             dP0dR[kR, kTETA] = (0 - P0[kR, kTETA]) / (0.5 * self.dR)
 
-                        if kR == 0 and kTETA > 0 and kTETA < self.NTETA-1:
+                        if kR == 0 and kTETA > 0 and kTETA < self.n_theta-1:
                             dP0dTETA[kR, kTETA] = (
                                 P0[kR, kTETA + 1] - P0[kR, kTETA]
                             ) / (self.dTETA)
@@ -443,7 +452,7 @@ class Thrust:
                                 self.dR
                             )
 
-                        if kTETA > 0 and kTETA < self.NTETA-1 and kR > 0 and kR < self.NR-1:
+                        if kTETA > 0 and kTETA < self.n_theta-1 and kR > 0 and kR < self.n_radial-1:
                             dP0dTETA[kR, kTETA] = (
                                 P0[kR, kTETA + 1] - P0[kR, kTETA]
                             ) / (self.dTETA)
@@ -451,25 +460,25 @@ class Thrust:
                                 self.dR
                             )
 
-                        if kR == self.NR-1 and kTETA > 0 and kTETA < self.NTETA-1:
+                        if kR == self.n_radial-1 and kTETA > 0 and kTETA < self.n_theta-1:
                             dP0dTETA[kR, kTETA] = (
                                 P0[kR, kTETA + 1] - P0[kR, kTETA]
                             ) / (self.dTETA)
                             dP0dR[kR, kTETA] = (0 - P0[kR, kTETA]) / (0.5 * self.dR)
 
-                        if kR == 0 and kTETA == self.NTETA-1:
+                        if kR == 0 and kTETA == self.n_theta-1:
                             dP0dTETA[kR, kTETA] = (0 - P0[kR, kTETA]) / (0.5 * self.dTETA)
                             dP0dR[kR, kTETA] = (P0[kR + 1, kTETA] - P0[kR, kTETA]) / (
                                 self.dR
                             )
 
-                        if kTETA == self.NTETA-1 and kR > 0 and kR < self.NR-1:
+                        if kTETA == self.n_theta-1 and kR > 0 and kR < self.n_radial-1:
                             dP0dTETA[kR, kTETA] = (0 - P0[kR, kTETA]) / (0.5 * self.dTETA)
                             dP0dR[kR, kTETA] = (P0[kR + 1, kTETA] - P0[kR, kTETA]) / (
                                 self.dR
                             )
 
-                        if kTETA == self.NTETA-1 and kR == self.NR-1:
+                        if kTETA == self.n_theta-1 and kR == self.n_radial-1:
                             dP0dTETA[kR, kTETA] = (0 - P0[kR, kTETA]) / (0.5 * self.dTETA)
                             dP0dR[kR, kTETA] = (0 - P0[kR, kTETA]) / (0.5 * self.dR)
 
@@ -494,13 +503,13 @@ class Thrust:
                         CP_1 = -(CS_1 + CN_1)
                         aux_e = (
                             self.dR
-                            / (12 * self.teta0 ** 2)
+                            / (12 * self.pad_arc_length ** 2)
                             * (
                                 H0[kR, kTETA] ** 3
                                 / (R * MI[kR, kTETA])
                                 * dP0dTETA[kR, kTETA]
                             )
-                            - self.dR / (2 * self.teta0) * H0[kR, kTETA] * R
+                            - self.dR / (2 * self.pad_arc_length) * H0[kR, kTETA] * R
                         )
                         CE_1 = 0 * aux_e
                         CW_1 = -1 * aux_e
@@ -509,14 +518,14 @@ class Thrust:
                         # difusive terms - central differences
                         CN_2 = (
                             self.kt
-                            / (self.rho * self.cp * self.speed * self.r1 ** 2)
+                            / (self.rho * self.cp * self.speed * self.pad_inner_radius ** 2)
                             * (self.dTETA * Rn)
                             / (self.dR)
                             * H0[kR, kTETA]
                         )
                         CS_2 = (
                             self.kt
-                            / (self.rho * self.cp * self.speed * self.r1 ** 2)
+                            / (self.rho * self.cp * self.speed * self.pad_inner_radius ** 2)
                             * (self.dTETA * Rs)
                             / (self.dR)
                             * H0[kR, kTETA]
@@ -524,17 +533,17 @@ class Thrust:
                         CP_3 = -(CN_2 + CS_2)
                         CE_2 = (
                             self.kt
-                            / (self.rho * self.cp * self.speed * self.r1 ** 2)
+                            / (self.rho * self.cp * self.speed * self.pad_inner_radius ** 2)
                             * self.dR
-                            / (self.teta0 ** 2 * self.dTETA)
+                            / (self.pad_arc_length ** 2 * self.dTETA)
                             * H0[kR, kTETA]
                             / R
                         )
                         CW_2 = (
                             self.kt
-                            / (self.rho * self.cp * self.speed * self.r1 ** 2)
+                            / (self.rho * self.cp * self.speed * self.pad_inner_radius ** 2)
                             * self.dR
-                            / (self.teta0 ** 2 * self.dTETA)
+                            / (self.pad_arc_length ** 2 * self.dTETA)
                             * H0[kR, kTETA]
                             / R
                         )
@@ -551,7 +560,7 @@ class Thrust:
                         B_H = (
                             self.dR
                             * self.dTETA
-                            / (12 * self.teta0 ** 2)
+                            / (12 * self.pad_arc_length ** 2)
                             * (
                                 H0[kR, kTETA] ** 3
                                 / (MI[kR, kTETA] * R)
@@ -569,7 +578,7 @@ class Thrust:
                         B_K = (
                             self.dR
                             * self.dTETA
-                            / (12 * self.teta0)
+                            / (12 * self.pad_arc_length)
                             * (H0[kR, kTETA] ** 3 / R)
                             * dP0dTETA[kR, kTETA]
                         )
@@ -591,7 +600,7 @@ class Thrust:
                         B_O = (
                             self.dR
                             * self.dTETA
-                            / (120 * self.teta0 ** 2)
+                            / (120 * self.pad_arc_length ** 2)
                             * (H0[kR, kTETA] ** 5 / (MI[kR, kTETA] * R ** 3))
                             * dP0dTETA[kR, kTETA] ** 2
                         )
@@ -601,7 +610,7 @@ class Thrust:
 
                         b[k, 0] = (
                             -B_F
-                            + (self.speed * self.reference_viscosity * self.r1 ** 2 / (self.rho * self.cp * h0 ** 2 * self.reference_temperature))
+                            + (self.speed * self.reference_viscosity * self.pad_inner_radius ** 2 / (self.rho * self.cp * h0 ** 2 * self.reference_temperature))
                             * (B_G - B_H - B_I - B_J)
                             + (self.reference_viscosity * self.speed / (self.rho * self.cp * self.reference_temperature))
                             * (B_K - B_L - B_M - B_N - B_O)
@@ -610,56 +619,56 @@ class Thrust:
                         if kTETA == 0 and kR == 0:
                             Mat_coef[k, k] = CP + CS
                             Mat_coef[k, k + 1] = CE
-                            Mat_coef[k, k + self.NTETA] = CN
+                            Mat_coef[k, k + self.n_theta] = CN
                             b[k, 0] = b[k, 0] - 1 * CW
 
-                        if kTETA == 0 and kR > 0 and kR < self.NR-1:
+                        if kTETA == 0 and kR > 0 and kR < self.n_radial-1:
                             Mat_coef[k, k] = CP
                             Mat_coef[k, k + 1] = CE
-                            Mat_coef[k, k + self.NTETA] = CN
-                            Mat_coef[k, k - self.NTETA] = CS
+                            Mat_coef[k, k + self.n_theta] = CN
+                            Mat_coef[k, k - self.n_theta] = CS
                             b[k, 0] = b[k, 0] - 1 * CW
 
-                        if kTETA == 0 and kR == self.NR-1:
+                        if kTETA == 0 and kR == self.n_radial-1:
                             Mat_coef[k, k] = CP + CN
                             Mat_coef[k, k + 1] = CE
-                            Mat_coef[k, k - self.NTETA] = CS
+                            Mat_coef[k, k - self.n_theta] = CS
                             b[k, 0] = b[k, 0] - 1 * CW
 
-                        if kR == 0 and kTETA > 0 and kTETA < self.NTETA-1:
+                        if kR == 0 and kTETA > 0 and kTETA < self.n_theta-1:
                             Mat_coef[k, k] = CP + CS
                             Mat_coef[k, k + 1] = CE
                             Mat_coef[k, k - 1] = CW
-                            Mat_coef[k, k + self.NTETA] = CN
+                            Mat_coef[k, k + self.n_theta] = CN
 
-                        if kTETA > 0 and kTETA < self.NTETA-1 and kR > 0 and kR < self.NR-1:
+                        if kTETA > 0 and kTETA < self.n_theta-1 and kR > 0 and kR < self.n_radial-1:
                             Mat_coef[k, k] = CP
                             Mat_coef[k, k - 1] = CW
-                            Mat_coef[k, k + self.NTETA] = CN
-                            Mat_coef[k, k - self.NTETA] = CS
+                            Mat_coef[k, k + self.n_theta] = CN
+                            Mat_coef[k, k - self.n_theta] = CS
                             Mat_coef[k, k + 1] = CE
 
-                        if kR == self.NR-1 and kTETA > 0 and kTETA < self.NTETA-1:
+                        if kR == self.n_radial-1 and kTETA > 0 and kTETA < self.n_theta-1:
                             Mat_coef[k, k] = CP + CN
                             Mat_coef[k, k - 1] = CW
                             Mat_coef[k, k + 1] = CE
-                            Mat_coef[k, k - self.NTETA] = CS
+                            Mat_coef[k, k - self.n_theta] = CS
 
-                        if kR == 0 and kTETA == self.NTETA-1:
+                        if kR == 0 and kTETA == self.n_theta-1:
                             Mat_coef[k, k] = CP + CE + CS
                             Mat_coef[k, k - 1] = CW
-                            Mat_coef[k, k + self.NTETA] = CN
+                            Mat_coef[k, k + self.n_theta] = CN
 
-                        if kTETA == self.NTETA-1 and kR > 0 and kR < self.NR-1:
+                        if kTETA == self.n_theta-1 and kR > 0 and kR < self.n_radial-1:
                             Mat_coef[k, k] = CP + CE
                             Mat_coef[k, k - 1] = CW
-                            Mat_coef[k, k - self.NTETA] = CS
-                            Mat_coef[k, k + self.NTETA] = CN
+                            Mat_coef[k, k - self.n_theta] = CS
+                            Mat_coef[k, k + self.n_theta] = CN
 
-                        if kTETA == self.NTETA-1 and kR == self.NR-1:
+                        if kTETA == self.n_theta-1 and kR == self.n_radial-1:
                             Mat_coef[k, k] = CP + CN + CE
                             Mat_coef[k, k - 1] = CW
-                            Mat_coef[k, k - self.NTETA] = CS
+                            Mat_coef[k, k - self.n_theta] = CS
 
                         kTETA = kTETA + 1
 
@@ -671,15 +680,15 @@ class Thrust:
                 cont = -1
 
                 # Temperature matrix
-                for ii in range(0, self.NR):
-                    for jj in range(0, self.NTETA):
+                for ii in range(0, self.n_radial):
+                    for jj in range(0, self.n_theta):
                         cont = cont + 1
                         T_new[ii, jj] = t[cont]
 
                 # viscosity field
-                varMI=np.zeros((self.NR, self.NTETA))
-                for ii in range(0, self.NR):
-                    for jj in range(0, self.NTETA):
+                varMI=np.zeros((self.n_radial, self.n_theta))
+                for ii in range(0, self.n_radial):
+                    for jj in range(0, self.n_theta):
                         MI_new[ii, jj] = (
                             (1 / self.reference_viscosity)
                             * self.a_a
@@ -696,21 +705,21 @@ class Thrust:
             self.Ti = T * self.reference_temperature
 
             # dimensional pressure
-            Pdim = P0 * (self.r1 ** 2) * self.speed * self.reference_viscosity / (h0 ** 2)
+            Pdim = P0 * (self.pad_inner_radius ** 2) * self.speed * self.reference_viscosity / (h0 ** 2)
 
             # RESULTING FORCE AND MOMENTUM: Equilibrium position
-            XR = self.r1 * self.vec_R
-            XTETA = self.teta0 * self.vec_TETA
-            Xrp = self.rp * (np.ones((np.size(XR))))
+            XR = self.pad_inner_radius * self.vec_R
+            XTETA = self.pad_arc_length * self.vec_TETA
+            Xrp = self.pad_pivot_radius * (np.ones((np.size(XR))))
 
-            for ii in range(0, self.NTETA):
+            for ii in range(0, self.n_theta):
                 Mxr[:, ii] = (Pdim[:, ii] * (np.transpose(XR) ** 2)) * np.sin(
-                    XTETA[ii] - self.tetap
+                    XTETA[ii] - self.angular_pivot_position
                 )
                 Myr[:, ii] = (
                     -Pdim[:, ii]
                     * np.transpose(XR)
-                    * np.transpose(XR * np.cos(XTETA[ii] - self.tetap) - Xrp)
+                    * np.transpose(XR * np.cos(XTETA[ii] - self.angular_pivot_position) - Xrp)
                 )
                 Frer[:, ii] = Pdim[:, ii] * np.transpose(XR)
 
@@ -744,30 +753,30 @@ class Thrust:
 
         # --------------------------------------------------------------------------
         # Full temperature field
-        TT = np.ones((self.NR + 2, self.NTETA + 2))
-        TT[1:self.NR+1, 1:self.NTETA+1] = np.flipud(self.Ti)
+        TT = np.ones((self.n_radial + 2, self.n_theta + 2))
+        TT[1:self.n_radial+1, 1:self.n_theta+1] = np.flipud(self.Ti)
         TT[:, 0] = self.reference_temperature
         TT[0, :] = TT[1, :]
-        TT[self.NR + 1, :] = TT[self.NR, :]
-        TT[:, self.NTETA + 1] = TT[:, self.NTETA]
+        TT[self.n_radial + 1, :] = TT[self.n_radial, :]
+        TT[:, self.n_theta + 1] = TT[:, self.n_theta]
 
         self.TT = TT
 
         # --------------------------------------------------------------------------
         # Viscosity field
-        for ii in range(0, self.NR):
-            for jj in range(0, self.NTETA):
+        for ii in range(0, self.n_radial):
+            for jj in range(0, self.n_theta):
                 mi[ii, jj] =  self.a_a * np.exp(self.b_b * (self.Ti[ii, jj]))  # [Pa.s]
 
         # PRESSURE =================================================================
         # STARTS HERE ==============================================================
 
-        Ar = a_r * self.r1 / h0
-        As = a_s * self.r1 / h0
+        Ar = a_r * self.pad_inner_radius / h0
+        As = a_s * self.pad_inner_radius / h0
         MI = 1 / self.reference_viscosity * mi
 
         # number of volumes
-        nk = (self.NR) * (self.NTETA)
+        nk = (self.n_radial) * (self.n_theta)
 
         # Coefficients Matrix
         Mat_coef = np.zeros((nk, nk))
@@ -775,8 +784,8 @@ class Thrust:
 
         P0 =  self.P_solution(H0, H0ne, H0nw, H0se, H0sw, h0, As, Ar, MI,  Mat_coef, b, P0)
 
-        PPdim = np.zeros((self.NR + 2, self.NTETA + 2))
-        PPdim[1:-1, 1:-1] = (self.r1 ** 2 * self.speed * self.reference_viscosity / h0 ** 2) * np.flipud(P0)
+        PPdim = np.zeros((self.n_radial + 2, self.n_theta + 2))
+        PPdim[1:-1, 1:-1] = (self.pad_inner_radius ** 2 * self.speed * self.reference_viscosity / h0 ** 2) * np.flipud(P0)
         self.PPdim = PPdim
 
         self.hmax = np.max(h0 * H0)
@@ -799,11 +808,11 @@ class Thrust:
         """
 
         # Variable startup
-        MI = np.zeros((self.NR, self.NTETA))
-        P = np.zeros((self.NR, self.NTETA))
-        Mxr = np.zeros((self.NR, self.NTETA))
-        Myr = np.zeros((self.NR, self.NTETA))
-        Frer = np.zeros((self.NR, self.NTETA))
+        MI = np.zeros((self.n_radial, self.n_theta))
+        P = np.zeros((self.n_radial, self.n_theta))
+        Mxr = np.zeros((self.n_radial, self.n_theta))
+        Myr = np.zeros((self.n_radial, self.n_theta))
+        Frer = np.zeros((self.n_radial, self.n_theta))
 
         # Pitch angles alpha_r and alpha_p and oil filme thickness at pivot h0
         a_r = x[0]  # [rad]
@@ -815,15 +824,15 @@ class Thrust:
         else:
             h0 = x[2]
 
-        for ii in range(0, self.NR):
-            for jj in range(0, self.NTETA):
+        for ii in range(0, self.n_radial):
+            for jj in range(0, self.n_theta):
                 MI[ii, jj] = (
                     1 / self.reference_viscosity *  self.a_a * np.exp(self.b_b * (self.Ti[ii, jj]))
                 )  # dimensionless
 
         # Dimensioneless Parameters
-        Ar = a_r * self.r1 / h0
-        As = a_s * self.r1 / h0
+        Ar = a_r * self.pad_inner_radius / h0
+        As = a_s * self.pad_inner_radius / h0
         H0 = h0 / h0
 
         # PRESSURE FIELD - Solution of Reynolds equation
@@ -834,7 +843,7 @@ class Thrust:
         k = -1
 
         # number of volumes
-        nk = (self.NR) * (self.NTETA)  # number of volumes
+        nk = (self.n_radial) * (self.n_theta)  # number of volumes
 
         # Coefficients Matrix
         Mat_coef = np.zeros((nk, nk))
@@ -850,23 +859,23 @@ class Thrust:
 
                 Hne = (
                     H0
-                    + As * (self.Rp - Rn * np.cos(self.teta0 * (TETAe - self.TETAp)))
-                    + Ar * Rn * np.sin(self.teta0 * (TETAe - self.TETAp))
+                    + As * (self.Rp - Rn * np.cos(self.pad_arc_length * (TETAe - self.TETAp)))
+                    + Ar * Rn * np.sin(self.pad_arc_length * (TETAe - self.TETAp))
                 )
                 Hnw = (
                     H0
-                    + As * (self.Rp - Rn * np.cos(self.teta0 * (TETAw - self.TETAp)))
-                    + Ar * Rn * np.sin(self.teta0 * (TETAw - self.TETAp))
+                    + As * (self.Rp - Rn * np.cos(self.pad_arc_length * (TETAw - self.TETAp)))
+                    + Ar * Rn * np.sin(self.pad_arc_length * (TETAw - self.TETAp))
                 )
                 Hse = (
                     H0
-                    + As * (self.Rp - Rs * np.cos(self.teta0 * (TETAe - self.TETAp)))
-                    + Ar * Rs * np.sin(self.teta0 * (TETAe - self.TETAp))
+                    + As * (self.Rp - Rs * np.cos(self.pad_arc_length * (TETAe - self.TETAp)))
+                    + Ar * Rs * np.sin(self.pad_arc_length * (TETAe - self.TETAp))
                 )
                 Hsw = (
                     H0
-                    + As * (self.Rp - Rs * np.cos(self.teta0 * (TETAw - self.TETAp)))
-                    + Ar * Rs * np.sin(self.teta0 * (TETAw - self.TETAp))
+                    + As * (self.Rp - Rs * np.cos(self.pad_arc_length * (TETAw - self.TETAp)))
+                    + Ar * Rs * np.sin(self.pad_arc_length * (TETAw - self.TETAp))
                 )
 
                 if kTETA == 0 and kR == 0:
@@ -875,49 +884,49 @@ class Thrust:
                     MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
                     MI_s = MI[kR, kTETA]
 
-                if kTETA == 0 and kR > 0 and kR < self.NR-1:
+                if kTETA == 0 and kR > 0 and kR < self.n_radial-1:
                     MI_e = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA + 1])
                     MI_w = MI[kR, kTETA]
                     MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
                     MI_s = 0.5 * (MI[kR, kTETA] + MI[kR - 1, kTETA])
 
-                if kTETA == 0 and kR == self.NR-1:
+                if kTETA == 0 and kR == self.n_radial-1:
                     MI_e = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA + 1])
                     MI_w = MI[kR, kTETA]
                     MI_n = MI[kR, kTETA]
                     MI_s = 0.5 * (MI[kR, kTETA] + MI[kR - 1, kTETA])
 
-                if kR == 0 and kTETA > 0 and kTETA < self.NTETA - 1:
+                if kR == 0 and kTETA > 0 and kTETA < self.n_theta - 1:
                     MI_e = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA + 1])
                     MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
                     MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
                     MI_s = MI[kR, kTETA]
 
-                if kTETA > 0 and kTETA < self.NTETA - 1 and kR > 0 and kR < self.NR-1:
+                if kTETA > 0 and kTETA < self.n_theta - 1 and kR > 0 and kR < self.n_radial-1:
                     MI_e = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA + 1])
                     MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
                     MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
                     MI_s = 0.5 * (MI[kR, kTETA] + MI[kR - 1, kTETA])
 
-                if kR == self.NR-1 and kTETA > 0 and kTETA < self.NTETA - 1:
+                if kR == self.n_radial-1 and kTETA > 0 and kTETA < self.n_theta - 1:
                     MI_e = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA + 1])
                     MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
                     MI_n = MI[kR, kTETA]
                     MI_s = 0.5 * (MI[kR, kTETA] + MI[kR - 1, kTETA])
 
-                if kR == 0 and kTETA == self.NTETA - 1:
+                if kR == 0 and kTETA == self.n_theta - 1:
                     MI_e = MI[kR, kTETA]
                     MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
                     MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
                     MI_s = MI[kR, kTETA]
 
-                if kTETA == self.NTETA - 1 and kR > 0 and kR < self.NR-1:
+                if kTETA == self.n_theta - 1 and kR > 0 and kR < self.n_radial-1:
                     MI_e = MI[kR, kTETA]
                     MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
                     MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
                     MI_s = 0.5 * (MI[kR, kTETA] + MI[kR - 1, kTETA])
 
-                if kTETA == self.NTETA - 1 and kR == self.NR-1:
+                if kTETA == self.n_theta - 1 and kR == self.n_radial-1:
                     MI_e = MI[kR, kTETA]
                     MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
                     MI_n = MI[kR, kTETA]
@@ -926,13 +935,13 @@ class Thrust:
                 # Coefficients for solving the Reynolds equation
                 CE = (
                     1
-                    / (24 * self.teta0 ** 2 * MI_e)
+                    / (24 * self.pad_arc_length ** 2 * MI_e)
                     * (self.dR / self.dTETA)
                     * (Hne ** 3 / Rn + Hse ** 3 / Rs)
                 )
                 CW = (
                     1
-                    / (24 * self.teta0 ** 2 * MI_w)
+                    / (24 * self.pad_arc_length ** 2 * MI_w)
                     * (self.dR / self.dTETA)
                     * (Hnw ** 3 / Rn + Hsw ** 3 / Rs)
                 )
@@ -943,58 +952,58 @@ class Thrust:
                 # vectorization index
                 k = k + 1
 
-                b[k, 0] = self.dR / (4 * self.teta0) * (Rn * Hne + Rs * Hse - Rn * Hnw - Rs * Hsw)
+                b[k, 0] = self.dR / (4 * self.pad_arc_length) * (Rn * Hne + Rs * Hse - Rn * Hnw - Rs * Hsw)
 
                 if kTETA == 0 and kR == 0:
                     Mat_coef[k, k] = CP - CS - CW
                     Mat_coef[k, k + 1] = CE
-                    Mat_coef[k, k + self.NTETA ] = CN
+                    Mat_coef[k, k + self.n_theta ] = CN
 
-                if kTETA == 0 and kR > 0 and kR < self.NR-1:
+                if kTETA == 0 and kR > 0 and kR < self.n_radial-1:
                     Mat_coef[k, k] = CP - CW
                     Mat_coef[k, k + 1] = CE
-                    Mat_coef[k, k + self.NTETA ] = CN
-                    Mat_coef[k, k - self.NTETA ] = CS
+                    Mat_coef[k, k + self.n_theta ] = CN
+                    Mat_coef[k, k - self.n_theta ] = CS
 
-                if kTETA == 0 and kR == self.NR-1:
+                if kTETA == 0 and kR == self.n_radial-1:
                     Mat_coef[k, k] = CP - CW - CN
                     Mat_coef[k, k + 1] = CE
-                    Mat_coef[k, k - self.NTETA ] = CS
+                    Mat_coef[k, k - self.n_theta ] = CS
 
-                if kR == 0 and kTETA > 0 and kTETA < self.NTETA - 1:
+                if kR == 0 and kTETA > 0 and kTETA < self.n_theta - 1:
                     Mat_coef[k, k] = CP - CS
                     Mat_coef[k, k + 1] = CE
                     Mat_coef[k, k - 1] = CW
-                    Mat_coef[k, k + self.NTETA ] = CN
+                    Mat_coef[k, k + self.n_theta ] = CN
 
-                if kTETA > 0 and kTETA < self.NTETA - 1 and kR > 0 and kR < self.NR-1:
+                if kTETA > 0 and kTETA < self.n_theta - 1 and kR > 0 and kR < self.n_radial-1:
                     Mat_coef[k, k] = CP
                     Mat_coef[k, k - 1] = CW
-                    Mat_coef[k, k + self.NTETA ] = CN
-                    Mat_coef[k, k - self.NTETA ] = CS
+                    Mat_coef[k, k + self.n_theta ] = CN
+                    Mat_coef[k, k - self.n_theta ] = CS
                     Mat_coef[k, k + 1] = CE
 
-                if kR == self.NR-1 and kTETA > 0 and kTETA < self.NTETA - 1:
+                if kR == self.n_radial-1 and kTETA > 0 and kTETA < self.n_theta - 1:
                     Mat_coef[k, k] = CP - CN
                     Mat_coef[k, k - 1] = CW
                     Mat_coef[k, k + 1] = CE
-                    Mat_coef[k, k - self.NTETA ] = CS
+                    Mat_coef[k, k - self.n_theta ] = CS
 
-                if kR == 0 and kTETA == self.NTETA - 1:
+                if kR == 0 and kTETA == self.n_theta - 1:
                     Mat_coef[k, k] = CP - CE - CS
                     Mat_coef[k, k - 1] = CW
-                    Mat_coef[k, k + self.NTETA ] = CN
+                    Mat_coef[k, k + self.n_theta ] = CN
 
-                if kTETA == self.NTETA - 1 and kR > 0 and kR < self.NR-1:
+                if kTETA == self.n_theta - 1 and kR > 0 and kR < self.n_radial-1:
                     Mat_coef[k, k] = CP - CE
                     Mat_coef[k, k - 1] = CW
-                    Mat_coef[k, k - self.NTETA ] = CS
-                    Mat_coef[k, k + self.NTETA ] = CN
+                    Mat_coef[k, k - self.n_theta ] = CS
+                    Mat_coef[k, k + self.n_theta ] = CN
 
-                if kTETA == self.NTETA - 1 and kR == self.NR-1:
+                if kTETA == self.n_theta - 1 and kR == self.n_radial-1:
                     Mat_coef[k, k] = CP - CE - CN
                     Mat_coef[k, k - 1] = CW
-                    Mat_coef[k, k - self.NTETA ] = CS
+                    Mat_coef[k, k - self.n_theta ] = CS
 
                 kTETA = kTETA + 1
 
@@ -1006,8 +1015,8 @@ class Thrust:
         cont = -1
 
         # pressure matrix
-        for ii in range(0, self.NR):
-            for jj in range(0, self.NTETA):
+        for ii in range(0, self.n_radial):
+            for jj in range(0, self.n_theta):
                 cont = cont + 1
                 P[ii, jj] = p[cont]
 
@@ -1016,20 +1025,20 @@ class Thrust:
                     P[ii, jj] = 0
 
         # dimensional pressure
-        Pdim = P * (self.r1 ** 2) * self.speed *self. reference_viscosity / (h0 ** 2)
+        Pdim = P * (self.pad_inner_radius ** 2) * self.speed *self. reference_viscosity / (h0 ** 2)
 
         # RESULTING FORCE AND MOMENTUM: Equilibrium position
-        XR = self.r1 * self.vec_R
-        XTETA = self.teta0 * self.vec_TETA
-        Xrp = self.rp * (np.ones((np.size(XR))))
+        XR = self.pad_inner_radius * self.vec_R
+        XTETA = self.pad_arc_length * self.vec_TETA
+        Xrp = self.pad_pivot_radius * (np.ones((np.size(XR))))
 
-        for ii in range(0, self.NTETA):
+        for ii in range(0, self.n_theta):
             Mxr[:, ii] = (Pdim[:, ii] * (np.transpose(XR) ** 2)) * np.sin(
-                XTETA[ii] - self.tetap)
+                XTETA[ii] - self.angular_pivot_position)
             Myr[:, ii] = (
                 -Pdim[:, ii]
                 * np.transpose(XR)
-                * np.transpose(XR * np.cos(XTETA[ii] - self.tetap) - Xrp)
+                * np.transpose(XR * np.cos(XTETA[ii] - self.angular_pivot_position) - Xrp)
             )
             Frer[:, ii] = Pdim[:, ii] * np.transpose(XR)
         
@@ -1071,28 +1080,28 @@ class Thrust:
 
                 H0[kR, kTETA] = (
                     h0 / h0
-                    + As * (self.Rp - R * np.cos(self.teta0 * (TETA - self.TETAp)))
-                    + Ar * R * np.sin(self.teta0 * (TETA - self.TETAp))
+                    + As * (self.Rp - R * np.cos(self.pad_arc_length * (TETA - self.TETAp)))
+                    + Ar * R * np.sin(self.pad_arc_length * (TETA - self.TETAp))
                 )
                 H0ne[kR, kTETA] = (
                     h0 / h0
-                    + As * (self.Rp - Rn * np.cos(self.teta0 * (TETAe - self.TETAp)))
-                    + Ar * Rn * np.sin(self.teta0 * (TETAe - self.TETAp))
+                    + As * (self.Rp - Rn * np.cos(self.pad_arc_length * (TETAe - self.TETAp)))
+                    + Ar * Rn * np.sin(self.pad_arc_length * (TETAe - self.TETAp))
                 )
                 H0nw[kR, kTETA] = (
                     h0 / h0
-                    + As * (self.Rp - Rn * np.cos(self.teta0 * (TETAw - self.TETAp)))
-                    + Ar * Rn * np.sin(self.teta0 * (TETAw - self.TETAp))
+                    + As * (self.Rp - Rn * np.cos(self.pad_arc_length * (TETAw - self.TETAp)))
+                    + Ar * Rn * np.sin(self.pad_arc_length * (TETAw - self.TETAp))
                 )
                 H0se[kR, kTETA] = (
                     h0 / h0
-                    + As * (self.Rp - Rs * np.cos(self.teta0 * (TETAe - self.TETAp)))
-                    + Ar * Rs * np.sin(self.teta0 * (TETAe - self.TETAp))
+                    + As * (self.Rp - Rs * np.cos(self.pad_arc_length * (TETAe - self.TETAp)))
+                    + Ar * Rs * np.sin(self.pad_arc_length * (TETAe - self.TETAp))
                 )
                 H0sw[kR, kTETA] = (
                     h0 / h0
-                    + As * (self.Rp - Rs * np.cos(self.teta0 * (TETAw - self.TETAp)))
-                    + Ar * Rs * np.sin(self.teta0 * (TETAw - self.TETAp))
+                    + As * (self.Rp - Rs * np.cos(self.pad_arc_length * (TETAw - self.TETAp)))
+                    + Ar * Rs * np.sin(self.pad_arc_length * (TETAw - self.TETAp))
                 )
 
                 if kTETA == 0 and kR == 0:
@@ -1101,49 +1110,49 @@ class Thrust:
                     MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
                     MI_s = MI[kR, kTETA]
 
-                if kTETA == 0 and kR > 0 and kR < self.NR-1:
+                if kTETA == 0 and kR > 0 and kR < self.n_radial-1:
                     MI_e = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA + 1])
                     MI_w = MI[kR, kTETA]
                     MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
                     MI_s = 0.5 * (MI[kR, kTETA] + MI[kR - 1, kTETA])
 
-                if kTETA == 0 and kR == self.NR-1:
+                if kTETA == 0 and kR == self.n_radial-1:
                     MI_e = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA + 1])
                     MI_w = MI[kR, kTETA]
                     MI_n = MI[kR, kTETA]
                     MI_s = 0.5 * (MI[kR, kTETA] + MI[kR - 1, kTETA])
 
-                if kR == 0 and kTETA > 0 and kTETA < self.NTETA-1:
+                if kR == 0 and kTETA > 0 and kTETA < self.n_theta-1:
                     MI_e = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA + 1])
                     MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
                     MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
                     MI_s = MI[kR, kTETA]
 
-                if kTETA > 0 and kTETA < self.NTETA-1 and kR > 0 and kR < self.NR-1:
+                if kTETA > 0 and kTETA < self.n_theta-1 and kR > 0 and kR < self.n_radial-1:
                     MI_e = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA + 1])
                     MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
                     MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
                     MI_s = 0.5 * (MI[kR, kTETA] + MI[kR - 1, kTETA])
 
-                if kR == self.NR-1 and kTETA > 0 and kTETA < self.NTETA-1:
+                if kR == self.n_radial-1 and kTETA > 0 and kTETA < self.n_theta-1:
                     MI_e = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA + 1])
                     MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
                     MI_n = MI[kR, kTETA]
                     MI_s = 0.5 * (MI[kR, kTETA] + MI[kR - 1, kTETA])
 
-                if kR == 0 and kTETA == self.NTETA-1:
+                if kR == 0 and kTETA == self.n_theta-1:
                     MI_e = MI[kR, kTETA]
                     MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
                     MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
                     MI_s = MI[kR, kTETA]
 
-                if kTETA == self.NTETA-1 and kR > 0 and kR < self.NR-1:
+                if kTETA == self.n_theta-1 and kR > 0 and kR < self.n_radial-1:
                     MI_e = MI[kR, kTETA]
                     MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
                     MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
                     MI_s = 0.5 * (MI[kR, kTETA] + MI[kR - 1, kTETA])
 
-                if kTETA == self.NTETA-1 and kR == self.NR-1:
+                if kTETA == self.n_theta-1 and kR == self.n_radial-1:
                     MI_e = MI[kR, kTETA]
                     MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
                     MI_n = MI[kR, kTETA]
@@ -1152,13 +1161,13 @@ class Thrust:
                 # Coefficients for solving the Reynolds equation
                 CE = (
                     1
-                    / (24 * self.teta0 ** 2 * MI_e)
+                    / (24 * self.pad_arc_length ** 2 * MI_e)
                     * (self.dR / self.dTETA)
                     * (H0ne[kR, kTETA] ** 3 / Rn + H0se[kR, kTETA] ** 3 / Rs)
                 )
                 CW = (
                     1
-                    / (24 * self.teta0 ** 2 * MI_w)
+                    / (24 * self.pad_arc_length ** 2 * MI_w)
                     * (self.dR / self.dTETA)
                     * (H0nw[kR, kTETA] ** 3 / Rn + H0sw[kR, kTETA] ** 3 / Rs)
                 )
@@ -1181,7 +1190,7 @@ class Thrust:
 
                 b[k, 0] = (
                     self.dR
-                    / (4 * self.teta0)
+                    / (4 * self.pad_arc_length)
                     * (
                         Rn * H0ne[kR, kTETA]
                         + Rs * H0se[kR, kTETA]
@@ -1193,53 +1202,53 @@ class Thrust:
                 if kTETA == 0 and kR == 0:
                     Mat_coef[k, k] = CP - CS - CW
                     Mat_coef[k, k + 1] = CE
-                    Mat_coef[k, k + self.NTETA] = CN
+                    Mat_coef[k, k + self.n_theta] = CN
 
-                if kTETA == 0 and kR > 0 and kR < self.NR-1:
+                if kTETA == 0 and kR > 0 and kR < self.n_radial-1:
                     Mat_coef[k, k] = CP - CW
                     Mat_coef[k, k + 1] = CE
-                    Mat_coef[k, k + self.NTETA] = CN
-                    Mat_coef[k, k - self.NTETA] = CS
+                    Mat_coef[k, k + self.n_theta] = CN
+                    Mat_coef[k, k - self.n_theta] = CS
 
-                if kTETA == 0 and kR == self.NR-1:
+                if kTETA == 0 and kR == self.n_radial-1:
                     Mat_coef[k, k] = CP - CW - CN
                     Mat_coef[k, k + 1] = CE
-                    Mat_coef[k, k - self.NTETA] = CS
+                    Mat_coef[k, k - self.n_theta] = CS
 
-                if kR == 0 and kTETA > 0 and kTETA < self.NTETA-1:
+                if kR == 0 and kTETA > 0 and kTETA < self.n_theta-1:
                     Mat_coef[k, k] = CP - CS
                     Mat_coef[k, k + 1] = CE
                     Mat_coef[k, k - 1] = CW
-                    Mat_coef[k, k + self.NTETA] = CN
+                    Mat_coef[k, k + self.n_theta] = CN
 
-                if kTETA > 0 and kTETA < self.NTETA-1 and kR > 0 and kR < self.NR-1:
+                if kTETA > 0 and kTETA < self.n_theta-1 and kR > 0 and kR < self.n_radial-1:
                     Mat_coef[k, k] = CP
                     Mat_coef[k, k - 1] = CW
-                    Mat_coef[k, k + self.NTETA] = CN
-                    Mat_coef[k, k - self.NTETA] = CS
+                    Mat_coef[k, k + self.n_theta] = CN
+                    Mat_coef[k, k - self.n_theta] = CS
                     Mat_coef[k, k + 1] = CE
 
-                if kR == self.NR-1 and kTETA > 0 and kTETA < self.NTETA-1:
+                if kR == self.n_radial-1 and kTETA > 0 and kTETA < self.n_theta-1:
                     Mat_coef[k, k] = CP - CN
                     Mat_coef[k, k - 1] = CW
                     Mat_coef[k, k + 1] = CE
-                    Mat_coef[k, k - self.NTETA] = CS
+                    Mat_coef[k, k - self.n_theta] = CS
 
-                if kR == 0 and kTETA == self.NTETA-1:
+                if kR == 0 and kTETA == self.n_theta-1:
                     Mat_coef[k, k] = CP - CE - CS
                     Mat_coef[k, k - 1] = CW
-                    Mat_coef[k, k + self.NTETA] = CN
+                    Mat_coef[k, k + self.n_theta] = CN
 
-                if kTETA == self.NTETA-1 and kR > 0 and kR < self.NR-1:
+                if kTETA == self.n_theta-1 and kR > 0 and kR < self.n_radial-1:
                     Mat_coef[k, k] = CP - CE
                     Mat_coef[k, k - 1] = CW
-                    Mat_coef[k, k - self.NTETA] = CS
-                    Mat_coef[k, k + self.NTETA] = CN
+                    Mat_coef[k, k - self.n_theta] = CS
+                    Mat_coef[k, k + self.n_theta] = CN
 
-                if kTETA == self.NTETA-1 and kR == self.NR-1:
+                if kTETA == self.n_theta-1 and kR == self.n_radial-1:
                     Mat_coef[k, k] = CP - CE - CN
                     Mat_coef[k, k - 1] = CW
-                    Mat_coef[k, k - self.NTETA] = CS
+                    Mat_coef[k, k - self.n_theta] = CS
 
                 kTETA = kTETA + 1
 
@@ -1251,8 +1260,8 @@ class Thrust:
         cont = -1
 
         # pressure matrix
-        for ii in range(0, self.NR):
-            for jj in range(0, self.NTETA):
+        for ii in range(0, self.n_radial):
+            for jj in range(0, self.n_theta):
                 cont = cont + 1
                 P0[ii, jj] = p[cont]
 
@@ -1319,17 +1328,17 @@ class Thrust:
         kR = 0
         kTETA = 0
         k = -1  # pressure vectorization index
-        nk = (self.NR) * (self.NTETA)  # volumes number
+        nk = (self.n_radial) * (self.n_theta)  # volumes number
 
         # coefficients matrix
         Mat_coef = np.zeros((nk, nk))
         b_coef = np.zeros((nk, 1),dtype=complex)
         p_coef = np.zeros((nk, 1),dtype=complex)
-        P_coef = np.zeros((self.NR, self.NTETA),dtype=complex)
-        P_dim_coef = np.zeros((self.NR, self.NTETA),dtype=complex)
-        Mxr_coef = np.zeros((self.NR, self.NTETA),dtype=complex)
-        Myr_coef = np.zeros((self.NR, self.NTETA),dtype=complex)
-        Frer_coef = np.zeros((self.NR, self.NTETA),dtype=complex)
+        P_coef = np.zeros((self.n_radial, self.n_theta),dtype=complex)
+        P_dim_coef = np.zeros((self.n_radial, self.n_theta),dtype=complex)
+        Mxr_coef = np.zeros((self.n_radial, self.n_theta),dtype=complex)
+        Myr_coef = np.zeros((self.n_radial, self.n_theta),dtype=complex)
+        Frer_coef = np.zeros((self.n_radial, self.n_theta),dtype=complex)
 
         for R in self.vec_R:
             for TETA in self.vec_TETA:
@@ -1349,7 +1358,7 @@ class Thrust:
                     dPdRn = (P0[kR + 1, kTETA] - P0[kR, kTETA]) / self.dR
                     dPdRs = P0[kR, kTETA] / (0.5 * self.dR)
 
-                if kTETA == 0 and kR > 0 and kR < self.NR - 1:
+                if kTETA == 0 and kR > 0 and kR < self.n_radial - 1:
                     MI_e = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA + 1])
                     MI_w = MI[kR, kTETA]
                     MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
@@ -1359,7 +1368,7 @@ class Thrust:
                     dPdRn = (P0[kR + 1, kTETA] - P0[kR, kTETA]) / self.dR
                     dPdRs = (P0[kR, kTETA] - P0[kR - 1, kTETA]) / self.dR
 
-                if kTETA == 0 and kR == self.NR - 1:
+                if kTETA == 0 and kR == self.n_radial - 1:
                     MI_e = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA + 1])
                     MI_w = MI[kR, kTETA]
                     MI_n = MI[kR, kTETA]
@@ -1369,7 +1378,7 @@ class Thrust:
                     dPdRn = -P0[kR, kTETA] / (0.5 * self.dR)
                     dPdRs = (P0[kR, kTETA] - P0[kR - 1, kTETA]) / self.dR
 
-                if kR == 0 and kTETA > 0 and kTETA < self.NTETA-1:
+                if kR == 0 and kTETA > 0 and kTETA < self.n_theta-1:
                     MI_e = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA + 1])
                     MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
                     MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
@@ -1379,7 +1388,7 @@ class Thrust:
                     dPdRn = (P0[kR + 1, kTETA] - P0[kR, kTETA]) / self.dR
                     dPdRs = P0[kR, kTETA] / (0.5 * self.dR)
 
-                if kTETA > 0 and kTETA < self.NTETA-1 and kR > 0 and kR < self.NR-1:
+                if kTETA > 0 and kTETA < self.n_theta-1 and kR > 0 and kR < self.n_radial-1:
                     MI_e = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA + 1])
                     MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
                     MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
@@ -1389,7 +1398,7 @@ class Thrust:
                     dPdRn = (P0[kR + 1, kTETA] - P0[kR, kTETA]) / self.dR
                     dPdRs = (P0[kR, kTETA] - P0[kR - 1, kTETA]) / self.dR
 
-                if kR == self.NR-1 and kTETA > 0 and kTETA < self.NTETA -1:
+                if kR == self.n_radial-1 and kTETA > 0 and kTETA < self.n_theta -1:
                     MI_e = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA + 1])
                     MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
                     MI_n = MI[kR, kTETA]
@@ -1399,7 +1408,7 @@ class Thrust:
                     dPdRn = -P0[kR, kTETA] / (0.5 * self.dR)
                     dPdRs = (P0[kR, kTETA] - P0[kR - 1, kTETA]) / self.dR
 
-                if kR == 0 and kTETA == self.NTETA-1:
+                if kR == 0 and kTETA == self.n_theta-1:
                     MI_e = MI[kR, kTETA]
                     MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
                     MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
@@ -1409,7 +1418,7 @@ class Thrust:
                     dPdRn = (P0[kR + 1, kTETA] - P0[kR, kTETA]) / self.dR
                     dPdRs = P0[kR, kTETA] / (0.5 * self.dR)
 
-                if kTETA == self.NTETA-1 and kR > 0 and kR < self.NR-1:
+                if kTETA == self.n_theta-1 and kR > 0 and kR < self.n_radial-1:
                     MI_e = MI[kR, kTETA]
                     MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
                     MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
@@ -1419,7 +1428,7 @@ class Thrust:
                     dPdRn = (P0[kR + 1, kTETA] - P0[kR, kTETA]) / self.dR
                     dPdRs = (P0[kR, kTETA] - P0[kR - 1, kTETA]) / self.dR
 
-                if kTETA == self.NTETA-1 and kR == self.NR-1:
+                if kTETA == self.n_theta-1 and kR == self.n_radial-1:
                     MI_e = MI[kR, kTETA]
                     MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
                     MI_n = MI[kR, kTETA]
@@ -1449,7 +1458,7 @@ class Thrust:
                 # Coefficients for solving the Reynolds equation
                 CE_1 = (
                     1
-                    / (24 * self.teta0 ** 2 * MI_e)
+                    / (24 * self.pad_arc_length ** 2 * MI_e)
                     * (self.dR / self.dTETA)
                     * (
                         As_ne * H0ne[kR, kTETA] ** 3 / Rn
@@ -1458,7 +1467,7 @@ class Thrust:
                 )
                 CE_2 = (
                     self.dR
-                    / (48 * self.teta0 ** 2 * MI_e)
+                    / (48 * self.pad_arc_length ** 2 * MI_e)
                     * (
                         G2_ne * H0ne[kR, kTETA] ** 3 / Rn
                         + G2_se * H0se[kR, kTETA] ** 3 / Rs
@@ -1468,7 +1477,7 @@ class Thrust:
 
                 CW_1 = (
                     1
-                    / (24 * self.teta0 ** 2 * MI_w)
+                    / (24 * self.pad_arc_length ** 2 * MI_w)
                     * (self.dR / self.dTETA)
                     * (
                         As_nw * H0nw[kR, kTETA] ** 3 / Rn
@@ -1477,7 +1486,7 @@ class Thrust:
                 )
                 CW_2 = (
                     -self.dR
-                    / (48 * self.teta0 ** 2 * MI_w)
+                    / (48 * self.pad_arc_length ** 2 * MI_w)
                     * (
                         G2_nw * H0nw[kR, kTETA] ** 3 / Rn
                         + G2_sw * H0sw[kR, kTETA] ** 3 / Rs
@@ -1520,15 +1529,15 @@ class Thrust:
                 ) - (Rs * self.dTETA / (8 * MI_s)) * dPdRs * (
                     As_se * H0se[kR, kTETA] ** 2 + As_sw * H0sw[kR, kTETA] ** 2
                 )
-                B_2 = (self.dR / (8 * self.teta0 ** 2 * MI_e)) * dPdTETAe * (
+                B_2 = (self.dR / (8 * self.pad_arc_length ** 2 * MI_e)) * dPdTETAe * (
                     As_ne * H0ne[kR, kTETA] ** 2 / Rn
                     + As_se * H0se[kR, kTETA] ** 2 / Rs
-                ) - (self.dR / (8 * self.teta0 ** 2 * MI_w)) * dPdTETAw * (
+                ) - (self.dR / (8 * self.pad_arc_length ** 2 * MI_w)) * dPdTETAw * (
                     As_nw * H0nw[kR, kTETA] ** 2 / Rn
                     + As_sw * H0sw[kR, kTETA] ** 2 / Rs
                 )
-                B_3 =self. dR / (4 * self.teta0) * (As_ne * Rn + As_se * Rs) - self.dR / (
-                    4 * self.teta0
+                B_3 =self. dR / (4 * self.pad_arc_length) * (As_ne * Rn + As_se * Rs) - self.dR / (
+                    4 * self.pad_arc_length
                 ) * (As_nw * Rn + As_sw * Rs)
                 B_4 = (
                     complex(0, 1)
@@ -1547,53 +1556,53 @@ class Thrust:
                 if kTETA == 0 and kR == 0:
                     Mat_coef[k, k] = CP - CW - CS
                     Mat_coef[k, k + 1] = CE
-                    Mat_coef[k, k + self.NTETA] = CN
+                    Mat_coef[k, k + self.n_theta] = CN
 
-                if kTETA == 0 and kR > 0 and kR < self.NR-1:
+                if kTETA == 0 and kR > 0 and kR < self.n_radial-1:
                     Mat_coef[k, k] = CP - CW
                     Mat_coef[k, k + 1] = CE
-                    Mat_coef[k, k + self.NTETA] = CN
-                    Mat_coef[k, k - self.NTETA] = CS
+                    Mat_coef[k, k + self.n_theta] = CN
+                    Mat_coef[k, k - self.n_theta] = CS
 
-                if kTETA == 0 and kR == self.NR-1:
+                if kTETA == 0 and kR == self.n_radial-1:
                     Mat_coef[k, k] = CP - CW - CN
                     Mat_coef[k, k + 1] = CE
-                    Mat_coef[k, k - self.NTETA] = CS
+                    Mat_coef[k, k - self.n_theta] = CS
 
-                if kR == 0 and kTETA > 0 and kTETA < self.NTETA-1:
+                if kR == 0 and kTETA > 0 and kTETA < self.n_theta-1:
                     Mat_coef[k, k] = CP - CS
                     Mat_coef[k, k + 1] = CE
                     Mat_coef[k, k - 1] = CW
-                    Mat_coef[k, k + self.NTETA] = CN
+                    Mat_coef[k, k + self.n_theta] = CN
 
-                if kTETA > 0 and kTETA < self.NTETA-1 and kR > 0 and kR < self.NR-1:
+                if kTETA > 0 and kTETA < self.n_theta-1 and kR > 0 and kR < self.n_radial-1:
                     Mat_coef[k, k] = CP
                     Mat_coef[k, k - 1] = CW
-                    Mat_coef[k, k + self.NTETA] = CN
-                    Mat_coef[k, k - self.NTETA] = CS
+                    Mat_coef[k, k + self.n_theta] = CN
+                    Mat_coef[k, k - self.n_theta] = CS
                     Mat_coef[k, k + 1] = CE
 
-                if kR == self.NR-1 and kTETA > 0 and kTETA < self.NTETA-1:
+                if kR == self.n_radial-1 and kTETA > 0 and kTETA < self.n_theta-1:
                     Mat_coef[k, k] = CP - CN
                     Mat_coef[k, k - 1] = CW
                     Mat_coef[k, k + 1] = CE
-                    Mat_coef[k, k - self.NTETA] = CS
+                    Mat_coef[k, k - self.n_theta] = CS
 
-                if kR == 0 and kTETA == self.NTETA-1:
+                if kR == 0 and kTETA == self.n_theta-1:
                     Mat_coef[k, k] = CP - CE - CS
                     Mat_coef[k, k - 1] = CW
-                    Mat_coef[k, k + self.NTETA] = CN
+                    Mat_coef[k, k + self.n_theta] = CN
 
-                if kTETA == self.NTETA-1 and kR > 0 and kR < self.NR-1:
+                if kTETA == self.n_theta-1 and kR > 0 and kR < self.n_radial-1:
                     Mat_coef[k, k] = CP - CE
                     Mat_coef[k, k - 1] = CW
-                    Mat_coef[k, k - self.NTETA] = CS
-                    Mat_coef[k, k + self.NTETA] = CN
+                    Mat_coef[k, k - self.n_theta] = CS
+                    Mat_coef[k, k + self.n_theta] = CN
 
-                if kTETA == self.NTETA-1 and kR == self.NR-1:
+                if kTETA == self.n_theta-1 and kR == self.n_radial-1:
                     Mat_coef[k, k] = CP - CE - CN
                     Mat_coef[k, k - 1] = CW
-                    Mat_coef[k, k - self.NTETA] = CS
+                    Mat_coef[k, k - self.n_theta] = CS
 
                 kTETA = kTETA + 1
 
@@ -1605,27 +1614,27 @@ class Thrust:
         cont = -1
 
         # pressure matrix
-        for ii in range(0, self.NR):
-            for jj in range(0, self.NTETA):
+        for ii in range(0, self.n_radial):
+            for jj in range(0, self.n_theta):
                 cont = cont + 1
                 P_coef[ii, jj] = p_coef[cont]
 
         # dimensional pressure
-        Pdim_coef = P_coef * (self.r1 ** 2) * self.speed * self.reference_viscosity / (h0 ** 3)
+        Pdim_coef = P_coef * (self.pad_inner_radius ** 2) * self.speed * self.reference_viscosity / (h0 ** 3)
 
         # RESULTING FORCE AND MOMENTUM: Equilibrium position
-        XR = self.r1 * self.vec_R
-        XTETA = self.teta0 * self.vec_TETA
-        Xrp = self.rp * (np.ones((np.size(XR))))
+        XR = self.pad_inner_radius * self.vec_R
+        XTETA = self.pad_arc_length * self.vec_TETA
+        Xrp = self.pad_pivot_radius * (np.ones((np.size(XR))))
 
-        for ii in range(0, self.NTETA):
+        for ii in range(0, self.n_theta):
             Mxr_coef[:, ii] = (Pdim_coef[:, ii] * (np.transpose(XR) ** 2)) * np.sin(
-                XTETA[ii] - self.tetap
+                XTETA[ii] - self.angular_pivot_position
             )
             Myr_coef[:, ii] = (
                 -Pdim_coef[:, ii]
                 * np.transpose(XR)
-                * np.transpose(XR * np.cos(XTETA[ii] - self.tetap) - Xrp)
+                * np.transpose(XR * np.cos(XTETA[ii] - self.angular_pivot_position) - Xrp)
             )
             Frer_coef[:, ii] = Pdim_coef[:, ii] * np.transpose(XR)
 
@@ -1655,21 +1664,21 @@ class Thrust:
         # STARTS HERE ==============================================================
 
         # Define vectors and matrix
-        yh = np.zeros((self.NR+2))
-        auxtransf = np.zeros((self.NTETA+2))
-        XH = np.zeros((self.NR+2,self.NTETA+2))
-        YH = np.zeros((self.NR+2,self.NTETA+2))
+        yh = np.zeros((self.n_radial+2))
+        auxtransf = np.zeros((self.n_theta+2))
+        XH = np.zeros((self.n_radial+2,self.n_theta+2))
+        YH = np.zeros((self.n_radial+2,self.n_theta+2))
 
-        yh[0] = self.r2
-        yh[-1] = self.r1
-        yh[1:self.NR+1] = np.arange((self.r2 - 0.5 * self.dR * self.r1), self.r1, -(self.dR * self.r1))
+        yh[0] = self.pad_outer_radius
+        yh[-1] = self.pad_inner_radius
+        yh[1:self.n_radial+1] = np.arange((self.pad_outer_radius - 0.5 * self.dR * self.pad_inner_radius), self.pad_inner_radius, -(self.dR * self.pad_inner_radius))
    
-        auxtransf[0] = np.pi/2 + self.teta0/2
-        auxtransf[-1] = np.pi/2 - self.teta0/2
-        auxtransf[1:self.NTETA+1] = np.arange(np.pi/2 + self.teta0/2 - (0.5 * self.dTETA * self.teta0), np.pi/2 - self.teta0/2, -self.dTETA * self.teta0)
+        auxtransf[0] = np.pi/2 + self.pad_arc_length/2
+        auxtransf[-1] = np.pi/2 - self.pad_arc_length/2
+        auxtransf[1:self.n_theta+1] = np.arange(np.pi/2 + self.pad_arc_length/2 - (0.5 * self.dTETA * self.pad_arc_length), np.pi/2 - self.pad_arc_length/2, -self.dTETA * self.pad_arc_length)
 
-        for ii in range(0, self.NR+2):
-            for jj in range(0, self.NTETA+2):
+        for ii in range(0, self.n_radial+2):
+            for jj in range(0, self.n_theta+2):
                 XH[ii, jj] = yh[ii] * np.cos(auxtransf[jj])
                 YH[ii, jj] = yh[ii] * np.sin(auxtransf[jj])
 
@@ -1893,37 +1902,37 @@ class Thrust:
         # fig.write_image("pressure_field_Th.pdf", width=900, height=500, engine="kaleido")
 
 """"
-def hydroplots (r1, r2, dR, dTETA, teta0, self.NR, self.NTETA):
+def hydroplots (pad_inner_radius, pad_outer_radius, dR, dTETA, pad_arc_length, self.n_radial, self.n_theta):
     
     # Define vectors and matrix
-    yh = np.zeros((1, NR+2))
-    auxtransf = np.zeros((1, NTETA+2))
-    XH = np.zeros((NR+2,NTETA+2))
-    YH = np.zeros((NR+2,NTETA+2))
+    yh = np.zeros((1, n_radial+2))
+    auxtransf = np.zeros((1, n_theta+2))
+    XH = np.zeros((n_radial+2,n_theta+2))
+    YH = np.zeros((n_radial+2,n_theta+2))
 
-    yh[0] = r2
-    yh[NR+1] = r1
-    yh[1:NR] = ((r2 - 0.5 * dR * r1), -(dR * r1),(r1 + 0.5 * dR * r1))
+    yh[0] = pad_outer_radius
+    yh[n_radial+1] = pad_inner_radius
+    yh[1:n_radial] = ((pad_outer_radius - 0.5 * dR * pad_inner_radius), -(dR * pad_inner_radius),(pad_inner_radius + 0.5 * dR * pad_inner_radius))
    
-    auxtransf[0] = np.pi/2 + teta0/2
-    auxtransf[NTETA+1] = np.pi/2 - teta0/2
-    auxtransf[1:NTETA +1] = np.pi/2 + teta0/2 - (0.5 * dTETA * teta0), -dTETA * teta0, np.pi/2 - teta0/2 + (0.5 * dTETA * teta0)
+    auxtransf[0] = np.pi/2 + pad_arc_length/2
+    auxtransf[n_theta+1] = np.pi/2 - pad_arc_length/2
+    auxtransf[1:n_theta +1] = np.pi/2 + pad_arc_length/2 - (0.5 * dTETA * pad_arc_length), -dTETA * pad_arc_length, np.pi/2 - pad_arc_length/2 + (0.5 * dTETA * pad_arc_length)
 
-    for ii in range(0, NR+1):
-        for jj in range(0, NTETA+1):
+    for ii in range(0, n_radial+1):
+        for jj in range(0, n_theta+1):
             XH[ii, jj] = yh[ii] * np.cos(auxtransf[jj])
             YH[ii, jj] = yh[ii] * np.sin(auxtransf[jj])
 
-    yraio1 = r1 * np.sin((np.pi/2 - teta0/2), dTETA * teta0, (np.pi/2 + teta0/2))
-    xraio1 = r1 * np.cos(np.pi/2 - teta0/2, dTETA * teta0, np.pi/2 + teta0/2)
-    yraio2 = r2 * np.sin((np.pi/2 - teta0/2), dTETA*teta0, (np.pi/2 + teta0/2))
-    xraio2 = r2 * np.cos(np.pi/2 - teta0/2, dTETA*teta0, np.pi/2 +teta0/2)
+    yraio1 = pad_inner_radius * np.sin((np.pi/2 - pad_arc_length/2), dTETA * pad_arc_length, (np.pi/2 + pad_arc_length/2))
+    xraio1 = pad_inner_radius * np.cos(np.pi/2 - pad_arc_length/2, dTETA * pad_arc_length, np.pi/2 + pad_arc_length/2)
+    yraio2 = pad_outer_radius * np.sin((np.pi/2 - pad_arc_length/2), dTETA*pad_arc_length, (np.pi/2 + pad_arc_length/2))
+    xraio2 = pad_outer_radius * np.cos(np.pi/2 - pad_arc_length/2, dTETA*pad_arc_length, np.pi/2 +pad_arc_length/2)
 
-    dx = (xraio1[0] - xraio2[0]/(NTETA - 2))
+    dx = (xraio1[0] - xraio2[0]/(n_theta - 2))
     xreta1 = xraio2[0], dx, xraio1[0]
-    yreta1 = yraio2[0], dx * np.tan(np.pi/2 -teta0/2), yraio1[0]
+    yreta1 = yraio2[0], dx * np.tan(np.pi/2 -pad_arc_length/2), yraio1[0]
     xreta2 = xraio2[-1], -dx, xraio1[-1]
-    yreta2 = yraio2[0], dx * np.tan(np.pi/2 - teta0/2), yraio1[0]
+    yreta2 = yraio2[0], dx * np.tan(np.pi/2 - pad_arc_length/2), yraio1[0]
 """   
 def thrust_bearing_example():
     """Create an example of a thrust bearing with Thermo-Hydro-Dynamic effects.
@@ -1943,22 +1952,32 @@ def thrust_bearing_example():
     """
 
     bearing = Thrust(
-        r1 = 0.5 * 2300e-3,
-        r2 = 0.5 * 3450e-3,
-        rp = 0.5 * 2885e-3,
-        teta0 = 26,
-        tetap = 15,
-        Tcub = 40,
+        # pad_inner_radius = 0.5 * 2300e-3,
+        pad_inner_radius = 0.5 * 2300e-3,
+        # pad_outer_radius = 0.5 * 3450e-3,
+        pad_outer_radius = 0.5 * 3450e-3,
+        # pad_pivot_radius = 0.5 * 2885e-3,
+        pad_pivot_radius = 0.5 * 2885e-3,
+        # pad_arc_length = 26,
+        pad_arc_length = 26,
+        # angular_pivot_position = 15,
+        angular_pivot_position = 15,
+        oil_supply_temperature = 40,
         lubricant = "ISOVG68",
         n_pad = 12,
-        NTETA = 10,
-        NR = 10,
+        # n_theta = 10,
+        n_theta = 10,
+        # n_radial = 10,
+        n_radial = 10,
+        speed = 90,
+        choice_CAIMP = {"calc_h0":{"init_guess":[-0.000274792355106384, -1.69258824831925e-05, 0.000191418606538599], "load":13320e3, "print":["result","progress"]}},
+        Coefs_D = {"show_coef":True}
     )
     
-    bearing.run(speed=90, choice_CAIMP={"calc_h0":{"init_guess":[-0.000274792355106384, -1.69258824831925e-05, 0.000191418606538599], "load":13320e3, "print":["result","progress"]}}, Coefs_D={"show_coef":True})
+    # bearing.run(speed=90, choice_CAIMP={"calc_h0":{"init_guess":[-0.000274792355106384, -1.69258824831925e-05, 0.000191418606538599], "load":13320e3, "print":["result","progress"]}}, Coefs_D={"show_coef":True})
 
     # bearing.run(speed=90, choice_CAIMP={"impos_h0":{"init_guess":[-0.000274792355106384, -1.69258824831925e-05], "h0":0.0001864, "print":["result","progress"]}}, Coefs_D={"show_coef":True})
-    
+    bearing.run()
     bearing.plot_results()
     #return bearing
 
