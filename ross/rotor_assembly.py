@@ -57,6 +57,9 @@ from ross.utils import (
     convert_6dof_to_torsional,
 )
 from ross.seals.labyrinth_seal import LabyrinthSeal
+from ross.seals.hcomb_seal import HcombSeal
+from ross.bearings.cylindrical import THDCylindrical
+
 
 __all__ = [
     "Rotor",
