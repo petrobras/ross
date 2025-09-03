@@ -226,20 +226,7 @@ class HcombSeal(SealElement):
             return attribute_coef
         except Exception as e:
             print(f"Error calculating for frequency {frequency} RPM: {e}")
-            return {
-                key: 0
-                for key in [
-                    "kxx",
-                    "kyy",
-                    "kxy",
-                    "kyx",
-                    "cxx",
-                    "cyy",
-                    "cxy",
-                    "cyx",
-                    "leakage",
-                ]
-            }
+            return dict.fromkeys(["kxx", "kyy", "kxy", "kyx", "cxx", "cyy", "cxy", "cyx", "leakage"], 0)
 
     def preproc(self):
         self.dz = self.length / float(self.nz)
