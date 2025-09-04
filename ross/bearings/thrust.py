@@ -21,8 +21,13 @@ pio.templates.default = "plotly_white"
 
 # pio.kaleido.scope.mathjax = None
 
+from ross.bearing_seal_element import BearingElement
+from ross.units import Q_, check_units
+from ross.plotly_theme import tableau_colors
+from ross.bearings.lubricants import lubricants_dict
 
-class THDThrust:
+
+class THDThrust(BearingElement):
     """ This class calculates the pressure and temperature fields, equilibrium
     position of a tilting-pad thrust bearing. It is also possible to obtain the
     stiffness and damping coefficients.
@@ -63,10 +68,10 @@ class THDThrust:
         - "impos_h0"
     
     if calc_h0
-        x0[2] is h0 -> optimization of a_r and a_s
+        x0[2] is self.pivot_film_thickness -> optimization of radial_inclination_angle and circumferential_inclination_angle
     
     if impos_h0
-        x0 is overall initial values -> optimization of h0, a_r and a_s
+        x0 is overall initial values -> optimization of self.pivot_film_thickness, radial_inclination_angle and circumferential_inclination_angle
     
     Fluid properties
     ^^^^^^^^^^^^^^^^
@@ -90,9 +95,9 @@ class THDThrust:
     ^^^^^^^^^^^^^^^^^^^
     Describes the discretization of the fluid film
     n_radial : int
-        Number of volumes along the R direction.
+        Number of volumes along the radius direction.
     n_theta : int
-        Number of volumes along the TETA direction. 
+        Number of volumes along the theta direction. 
     
     
     Returns
@@ -101,17 +106,17 @@ class THDThrust:
           Maximum pressure. The unit is Pa.
     Tmax : float
           Maximum temperature. The unit is °C.
-    h0 : float
+    self.pivot_film_thickness : float
           oil film thickness at the pivot point. The unit is m.
-    hmax : float
+    max_thickness : float
          maximum oil film thickness. The unit is m.
-    hmin : float
+    min_thickness : float
          minimum oil film thickness. The unit is m.
     K : float
          bearing stiffness coefficient. The unit is N/m.
     C : float
          bearing damping coefficient. The unit is N.s/m.
-    PPdim : array
+    pressure_field_dimensional : array
          pressure field. The unit is Pa.
     XH,YH : array
          mesh grid. The uni is m.
@@ -123,7 +128,7 @@ class THDThrust:
     ----------
     .. [1] BARBOSA, J.S. Analise de Modelos Termohidrodinamicos para Mancais de unidades geradoras Francis. 2016. Dissertacao de Mestrado. Universidade Federal de Uberlandia, Uberlandia. ..
     .. [2] HEINRICHSON, N.; SANTOS, I. F.; FUERST, A., The Influence of Injection Pockets on the Performance of Tilting Pad Thrust Bearings Part I Theory. Journal of Tribology, 2007. .. 
-    .. [3] NICOLETTI, R., Efeitos Termicos em Mancais Segmentados Hibridos Teoria e Experimento. 1999. Dissertacao de Mestrado. Universidade Estadual de Campinas, Campinas. ..
+    .. [3] NICOLETTI, radius., Efeitos Termicos em Mancais Segmentados Hibridos Teoria e Experimento. 1999. Dissertacao de Mestrado. Universidade Estadual de Campinas, Campinas. ..
     .. [4] LUND, J. W.; THOMSEN, K. K. A calculation method and data for the dynamic coefficients of oil lubricated journal bearings. Topics in fluid film bearing and rotor bearing system design and optimization, n. 1000118, 1978. ..
     Attributes
     ----------
@@ -145,10 +150,10 @@ class THDThrust:
         # Coefs_D,
         # choice_CAIMP,
         equilibrium_position_mode,
-        fzs_load,
         radial_inclination_angle,
         circumferential_inclination_angle,
         initial_film_thickness,
+        fzs_load=None,
         print_result=False,
         print_progress=False,
         print_time=False,
@@ -160,28 +165,30 @@ class THDThrust:
         self.pad_inner_radius = pad_inner_radius
         self.pad_outer_radius = pad_outer_radius
         self.pad_pivot_radius = pad_pivot_radius
-        self.frequency = frequency * (np.pi / 30)
-        self.pad_arc_length = pad_arc_length * np.pi / 180
-        self.angular_pivot_position = angular_pivot_position * np.pi / 180
+        self.frequency = frequency
+        self.pad_arc_length = pad_arc_length
+        self.angular_pivot_position = angular_pivot_position
         self.oil_supply_temperature = oil_supply_temperature
         self.reference_temperature = oil_supply_temperature
         self.lubricant = lubricant
         self.n_pad = n_pad
         self.n_theta = n_theta
         self.n_radial = n_radial
-        R1 = 1
-        self.R1 = R1
-        self.R2 = pad_outer_radius / pad_inner_radius
-        TETA1 = 0
-        TETA2 = 1
-        self.TETA1 = TETA1
-        self.TETA2 = TETA2
-        self.Rp = pad_pivot_radius / pad_inner_radius
-        self.TETAp = angular_pivot_position / pad_arc_length 
-        self.dR = (self.R2 - self.R1) / (self.n_radial)
-        self.dTETA = (TETA2 - TETA1) / (n_theta)
-        # self.Ti = self.reference_temperature * (np.ones((self.n_radial, self.n_theta)))
-        self.Ti = np.full((self.n_radial, self.n_theta), self.reference_temperature)
+        # R1 = 1
+        # self.R1 = 1
+        # self.R2 = self.pad_outer_radius / self.pad_inner_radius
+        # TETA1 = 0
+        # TETA2 = 1
+        # self.TETA1 = 0
+        # self.TETA2 = 1
+        self.rp = self.pad_pivot_radius / self.pad_inner_radius
+        self.theta_pad = self.angular_pivot_position / self.pad_arc_length 
+        # self.d_radius = (self.R2 - self.R1) / (self.n_radial)
+        self.d_radius = (self.pad_outer_radius / self.pad_inner_radius - 1) / (self.n_radial)
+        # self.d_theta = (self.TETA2 - self.TETA1) / (n_theta)
+        self.d_theta = 1 / (self.n_theta)
+        # self.initial_temperature = self.reference_temperature * (np.ones((self.n_radial, self.n_theta)))
+        self.initial_temperature = np.full((self.n_radial, self.n_theta), self.reference_temperature)
 
         # self.choice_CAIMP = choice_CAIMP
         # self.op_key = [*choice_CAIMP][0]
@@ -204,29 +211,36 @@ class THDThrust:
         mu_I = lubricant_properties["viscosity1"]
         mu_F = lubricant_properties["viscosity2"]
         self.rho = lubricant_properties["lube_density"]
-        self.cp = lubricant_properties["lube_cp"]
         self.kt = lubricant_properties["lube_conduct"]
+        self.cp = lubricant_properties["lube_cp"]
 
-        self.b_b = np.log(mu_I/mu_F)*1/(T_muI-T_muF)
-        self.a_a = mu_I/(np.exp(T_muI*self.b_b))
+        self.b_b = np.log(mu_I / mu_F) / (T_muI - T_muF)
+        self.a_a = mu_I / (np.exp(T_muI * self.b_b))
 
         self.reference_viscosity = self.a_a*np.exp(self.reference_temperature*self.b_b) #reference viscosity
         
         # Pre-processing loop counters for ease of understanding
-        vec_R = np.zeros(n_radial)
-        vec_R[0] = R1 + 0.5 * self.dR
+        # vec_R = np.zeros(n_radial)
+        # vec_R[0] = 1 + 0.5 * self.d_radius
 
-        vec_TETA = np.zeros(n_theta)
-        vec_TETA[0] = TETA1 + 0.5 * self.dTETA
+        # vec_TETA = np.zeros(n_theta)
+        # vec_TETA[0] = 0.5 * self.d_theta
 
 
-        for ii in range(1, n_radial):
-            vec_R[ii] = vec_R[ii-1] + self.dR
-        self.vec_R = vec_R
+        # for ii in range(1, n_radial):
+        #     vec_R[ii] = vec_R[ii-1] + self.d_radius
+        # self.radius_array = vec_R
 
-        for jj in range(1, n_theta):
-            vec_TETA[jj] = vec_TETA[jj-1] + self.dTETA
-        self.vec_TETA = vec_TETA
+        # for jj in range(1, n_theta):
+        #     vec_TETA[jj] = vec_TETA[jj-1] + self.d_theta
+        # self.theta_array = vec_TETA
+
+        self.radius_array = np.linspace(1 + 0.5 * self.d_radius, 
+                        1 + (self.n_radial - 0.5) * self.d_radius, 
+                        n_radial)
+        self.theta_array = np.linspace(0.5 * self.d_theta, 
+                           (self.n_theta - 0.5) * self.d_theta, 
+                           n_theta)
 
         fp.mp.dps = 800  # numerical solver precision setting
 
@@ -241,61 +255,63 @@ class THDThrust:
         the stiffness and damping coefficients. The inputs are the operation
         conditions (see documentation)
         """
-        
-        # self.frequency = frequency * (np.pi / 30)
-        # self.choice_CAIMP = choice_CAIMP
+        # Solve the fields (pressure and temperature field)
+        self.solve_fields()
 
-        # self.op_key = [*choice_CAIMP][0]
-        # self.initial_position = choice_CAIMP[self.op_key]['init_guess']
+        # Calculate the dynamic coefficients
+        self.coefficients()
 
-        H0, H0ne, H0nw, H0se, H0sw, h0, P0, mi = self.PandT_solution()
-
-        # if "calc_h0" in self.op_key:
-        # Print results based on equilibrium position mode
         if self.print_result:
-            print(f"Pmax: ", self.PPdim.max())
-            print(f"hmax: ", self.hmax)
-            print(f"hmin: ", self.hmin)
-            print(f"Tmax: ", self.TT.max())
+            print("\n" + "="*75)
+            print("                         THRUST BEARING RESULTS")
+            print("="*75)
+            print("Operating Speed: {0:.1f} RPM".format(self.frequency * 30 / np.pi))
+            print("Equilibrium Mode: {0}".format(self.equilibrium_position_mode))
+            print("-" * 75)
+            print("Maximum Pressure: {0:.2f} Pa".format(self.pressure_field_dimensional.max()))
+            print("Maximum Temperature: {0:.1f}°C".format(self.temperature_field.max()))
+            print("Maximum Film Thickness: {0:.6f} m".format(self.max_thickness))
+            print("Minimum Film Thickness: {0:.6f} m".format(self.min_thickness))
+            print("Pivot Film Thickness: {0:.6f} m".format(self.pivot_film_thickness))
+            print("-" * 75)
             
-            if self.equilibrium_position_mode == "calculate":
-                print(f"h0: ", h0)
-            elif self.equilibrium_position_mode == "imposed":
-                print(f"fz: ", self.fzs_load.sum())
-        
-        # Calculate dynamic coefficients
-        self.Coef_din(H0ne, H0nw, H0se, H0sw, h0, P0, mi)
-        
-        # Print dynamic coefficients if requested
-        if self.print_result:
-            print(f"K:", self.K)
-            print(f"C:", self.C)
-            # self.plot_results()                    
+            if self.equilibrium_position_mode == "imposed":
+                print("Axial Load: {0:.2f} N".format(self.fzs_load.sum()))
+            elif self.equilibrium_position_mode == "calculate":
+                print("Axial Load: {0:.2f} N".format(self.fzs_load))
+            
+            print("-" * 75)
+            print("Dynamic Coefficients:")
+            print("kzz = {0}".format(self.kzz))
+            print("czz = {0}".format(self.czz))
+            print("="*75)
+            self.plot_results()            
 
-    def PandT_solution(self):
+    def solve_fields(self):
         # --------------------------------------------------------------------------
         # WHILE LOOP INITIALIZATION
-        ResFM = 10
-        tolFM = 1
-        # tolFM = 1e-8
+        residual_force_moment = 10
+        tolerance_force_moment = 1
+        # tolerance_force_moment = 1e-8
 
+        # Residual force and moment convergence loop
         iteration = 0
-        while ResFM >= tolFM:
+        while residual_force_moment >= tolerance_force_moment:
             iteration += 1
             if self.print_progress:
-                print(f"Iteration {iteration} - Residual F&M: {ResFM:.6f}")
+                print(f"Iteration {iteration} - Residual Force & Moment: {residual_force_moment:.6f}")
             # --------------------------------------------------------------------------
-            # Equilibrium position optimization [ar,ap,h0]
+            # Equilibrium position optimization [ar,ap,self.pivot_film_thickness]
             
             # if "impos_h0" in self.op_key:
             if self.equilibrium_position_mode == "imposed":
-                # self.h0i = self.choice_CAIMP["impos_h0"]['h0']
+                # self.h0i = self.choice_CAIMP["impos_h0"]['self.pivot_film_thickness']
                 self.h0i = self.initial_position[2]
                 x = scipy.optimize.fmin(
-                    self.ArAsh0Equilibrium,                  
+                    self._equilibrium_objective,                  
                     self.initial_position,
-                    xtol=tolFM,
-                    ftol=tolFM,
+                    xtol=tolerance_force_moment,
+                    ftol=tolerance_force_moment,
                     maxiter=100000,
                     maxfun=100000,
                     full_output=0,
@@ -305,29 +321,13 @@ class THDThrust:
                     initial_simplex=None,
                          )
                 
-                a_r = x[0]  # [rad]
-                a_s = x[1]  # [rad]
-                h0 = self.h0i
+                radial_inclination_angle = x[0]
+                circumferential_inclination_angle = x[1]
+                self.pivot_film_thickness = self.h0i
 
             else:
-                # self.fzs_load = self.choice_CAIMP["calc_h0"]["load"]
-                # self.fzs_load = self.fzs_load
-
-                # x = scipy.optimize.fmin(
-                #     self.ArAsh0Equilibrium,                  
-                #     self.initial_position,
-                #     xtol=tolFM,
-                #     ftol=tolFM,
-                #     maxiter=100000,
-                #     maxfun=100000,
-                #     full_output=0,
-                #     disp=self.print_progress,
-                #     retall=0,
-                #     callback=None,
-                #     initial_simplex=None,
-                #          )
                 x = scipy.optimize.fmin(
-                    self.ArAsh0Equilibrium,                  
+                    self._equilibrium_objective,                  
                     self.initial_position,
                     xtol = 0.1,
                     ftol = 0.1,
@@ -335,24 +335,20 @@ class THDThrust:
                     disp = False,
                          )
                 
-                a_r = x[0]  # [rad]
-                a_s = x[1]  # [rad]
-                h0 = x[2]
+                radial_inclination_angle = x[0]
+                circumferential_inclination_angle = x[1]
+                self.pivot_film_thickness = x[2]
 
-            # --------------------------------------------------------------------------
-            #  Temperature field
-            self.h0 = h0 
-            # tolMI = 1e-6
-            tolMI = 1e-5
+            viscosity_convergence_tolerance = 1e-5
 
             # TEMPERATURE ==============================================================
             # STARTS HERE ==============================================================
 
-            dHdT = 0
+            dh_dT = 0
             mi_i = np.zeros((self.n_radial, self.n_theta))
 
             # initial temperature field
-            T_i = self.Ti
+            T_i = self.initial_temperature
 
             for ii in range(0, self.n_radial):
                 for jj in range(0, self.n_theta):
@@ -360,919 +356,926 @@ class THDThrust:
                         self.a_a * np.exp(self.b_b * T_i[ii, jj])
                     )  # [Pa.s]
 
-            MI_new = (1 / self.reference_viscosity) * mi_i
-            MI = 0.2 * MI_new
+            mu_update = (1 / self.reference_viscosity) * mi_i
+            self.mu = 0.2 * mu_update
 
             # TEMPERATURE FIELD - Solution of ENERGY equation
             for ii in range(0, self.n_radial):
                 for jj in range(0, self.n_theta):
-                    varMI = np.abs((MI_new[ii, jj] - MI[ii, jj]) / MI[ii, jj])
-            aux1=1
+                    viscosity_variation = np.abs((mu_update[ii, jj] - self.mu[ii, jj]) / self.mu[ii, jj])
+            max_viscosity_variation = 1
             
-            while aux1 >= tolMI:
+            while max_viscosity_variation >= viscosity_convergence_tolerance:
 
-                MI = np.array(MI_new)
+                self.mu = np.array(mu_update)
 
                 # PRESSURE_THD =============================================================
                 # STARTS HERE ==============================================================
-
-                Ar = a_r * self.pad_inner_radius / h0
-                As = a_s * self.pad_inner_radius / h0
+                # Note: radial_inclination_angle and circumferential_inclination_angle here are the optimized values
+                radial_param = radial_inclination_angle * self.pad_inner_radius / self.pivot_film_thickness
+                circum_param = circumferential_inclination_angle * self.pad_inner_radius / self.pivot_film_thickness
 
                 # volumes number
-                nk = (self.n_radial) * (self.n_theta)
+                volumes_number = (self.n_radial) * (self.n_theta)
 
                 # Variable initialization
-                Mat_coef = np.zeros((nk, nk))
-                b = np.zeros((nk, 1))
-                H0 = np.zeros((self.n_radial, self.n_theta))
-                H0ne = np.zeros((self.n_radial, self.n_theta))
-                H0nw = np.zeros((self.n_radial, self.n_theta))
-                H0se = np.zeros((self.n_radial, self.n_theta))
-                H0sw = np.zeros((self.n_radial, self.n_theta))
-                dP0dR = np.zeros((self.n_radial, self.n_theta))
-                dP0dTETA = np.zeros((self.n_radial, self.n_theta))
-                T_new = np.zeros((self.n_radial, self.n_theta))
-                Mxr = np.zeros((self.n_radial, self.n_theta))
-                Myr = np.zeros((self.n_radial, self.n_theta))
-                Frer = np.zeros((self.n_radial, self.n_theta))
-                P0 = np.ones((self.n_radial, self.n_theta))
-                P = np.zeros((self.n_radial, self.n_theta))
-                mi = np.zeros((self.n_radial, self.n_theta))
+                mat_coeff = np.zeros((volumes_number, volumes_number))
+                source_term_vector = np.zeros((volumes_number, 1))
+                self.film_thickness_center_array = np.zeros((self.n_radial, self.n_theta))
+                self.film_thickness_ne = np.zeros((self.n_radial, self.n_theta))
+                self.film_thickness_nw = np.zeros((self.n_radial, self.n_theta))
+                self.film_thickness_se = np.zeros((self.n_radial, self.n_theta))
+                self.film_thickness_sw = np.zeros((self.n_radial, self.n_theta))
+                dp0_dr = np.zeros((self.n_radial, self.n_theta))
+                dp0_dtheta = np.zeros((self.n_radial, self.n_theta))
+                temperature_updt = np.zeros((self.n_radial, self.n_theta))
+                moment_x = np.zeros((self.n_radial, self.n_theta))
+                moment_y = np.zeros((self.n_radial, self.n_theta))
+                force_axial = np.zeros((self.n_radial, self.n_theta))
+                self.pressure_field = np.ones((self.n_radial, self.n_theta))
+                # pressure = np.zeros((self.n_radial, self.n_theta))
+                self.viscosity_field = np.zeros((self.n_radial, self.n_theta))
 
-                PPdim = np.zeros((self.n_radial + 2, self.n_theta + 2))
+                pressure_field_dimensional = np.zeros((self.n_radial + 2, self.n_theta + 2))
 
-                P0 = self.P_solution(H0, H0ne, H0nw, H0se, H0sw, h0, As, Ar, MI,  Mat_coef, b, P0)
-                PPdim[1:-1, 1:-1] = (self.pad_inner_radius ** 2 * self.frequency * self.reference_viscosity / h0 ** 2) * np.flipud(P0)
+                try:
+                    self._solve_pressure_field(circum_param, radial_param, mat_coeff, source_term_vector)
+                    if self.pressure_field is not None and self.pressure_field.ndim >= 1:
+                        pressure_field_dimensional[1:-1, 1:-1] = (self.pad_inner_radius ** 2 * self.frequency * 
+                                             self.reference_viscosity / self.pivot_film_thickness ** 2) * np.flipud(self.pressure_field)
+                    else:
+                        raise ValueError("pressure_field is not a valid array")
+                except Exception as e:
+                    print(f"Error in pressure calculation: {e}")
+                    pressure_field_dimensional[1:-1, 1:-1] = np.zeros((self.n_radial, self.n_theta))
 
                 # PRESSURE_THD =============================================================
                 # ENDS HERE ================================================================
 
-                kR = 0
-                kTETA = 0
+                radial_idx = 0
+                angular_idx = 0
 
                 # pressure vectorization index
-                k = -1
+                vectorization_idx = -1
 
                 # volumes number
-                nk = (self.n_radial) * (self.n_theta)
+                volumes_number = (self.n_radial) * (self.n_theta)
 
                 # Coefficients Matrix
-                Mat_coef = np.zeros((nk, nk))
-                b = np.zeros((nk, 1))
+                mat_coeff = np.zeros((volumes_number, volumes_number))
+                source_term_vector = np.zeros((volumes_number, 1))
 
-                for R in self.vec_R:
-                    for TETA in self.vec_TETA:
+                for radius in self.radius_array:
+                    for theta in self.theta_array:
                         
                         # Pressure derivatives on the faces: dPdR dPdTETA dP2dR2 dP2dTETA2
-                        if kTETA == 0 and kR == 0:
-                            dP0dTETA[kR, kTETA] = (
-                                P0[kR, kTETA + 1] - P0[kR, kTETA]
-                            ) / self.dTETA
-                            dP0dR[kR, kTETA] = (P0[kR + 1, kTETA] - P0[kR, kTETA]) / self.dR
+                        if angular_idx == 0 and radial_idx == 0:
+                            dp0_dtheta[radial_idx, angular_idx] = (
+                                self.pressure_field[radial_idx, angular_idx + 1] - self.pressure_field[radial_idx, angular_idx]
+                            ) / self.d_theta
+                            dp0_dr[radial_idx, angular_idx] = (self.pressure_field[radial_idx + 1, angular_idx] - self.pressure_field[radial_idx, angular_idx]) / self.d_radius
 
-                        if kTETA == 0 and kR > 0 and kR < self.n_radial-1:
-                            dP0dTETA[kR, kTETA] = (
-                                P0[kR, kTETA + 1] - P0[kR, kTETA]
-                            ) / self.dTETA
-                            dP0dR[kR, kTETA] = (P0[kR + 1, kTETA] - P0[kR, kTETA]) / (
-                                self.dR
+                        if angular_idx == 0 and radial_idx > 0 and radial_idx < self.n_radial-1:
+                            dp0_dtheta[radial_idx, angular_idx] = (
+                                self.pressure_field[radial_idx, angular_idx + 1] - self.pressure_field[radial_idx, angular_idx]
+                            ) / self.d_theta
+                            dp0_dr[radial_idx, angular_idx] = (self.pressure_field[radial_idx + 1, angular_idx] - self.pressure_field[radial_idx, angular_idx]) / (
+                                self.d_radius
                             )
 
-                        if kTETA == 0 and kR == self.n_radial-1:
-                            dP0dTETA[kR, kTETA] = (
-                                P0[kR, kTETA + 1] - P0[kR, kTETA]
-                            ) / self.dTETA
-                            dP0dR[kR, kTETA] = (0 - P0[kR, kTETA]) / (0.5 * self.dR)
+                        if angular_idx == 0 and radial_idx == self.n_radial-1:
+                            dp0_dtheta[radial_idx, angular_idx] = (
+                                self.pressure_field[radial_idx, angular_idx + 1] - self.pressure_field[radial_idx, angular_idx]
+                            ) / self.d_theta
+                            dp0_dr[radial_idx, angular_idx] = (0 - self.pressure_field[radial_idx, angular_idx]) / (0.5 * self.d_radius)
 
-                        if kR == 0 and kTETA > 0 and kTETA < self.n_theta-1:
-                            dP0dTETA[kR, kTETA] = (
-                                P0[kR, kTETA + 1] - P0[kR, kTETA]
-                            ) / (self.dTETA)
-                            dP0dR[kR, kTETA] = (P0[kR + 1, kTETA] - P0[kR, kTETA]) / (
-                                self.dR
+                        if radial_idx == 0 and angular_idx > 0 and angular_idx < self.n_theta-1:
+                            dp0_dtheta[radial_idx, angular_idx] = (
+                                self.pressure_field[radial_idx, angular_idx + 1] - self.pressure_field[radial_idx, angular_idx]
+                            ) / (self.d_theta)
+                            dp0_dr[radial_idx, angular_idx] = (self.pressure_field[radial_idx + 1, angular_idx] - self.pressure_field[radial_idx, angular_idx]) / (
+                                self.d_radius
                             )
 
-                        if kTETA > 0 and kTETA < self.n_theta-1 and kR > 0 and kR < self.n_radial-1:
-                            dP0dTETA[kR, kTETA] = (
-                                P0[kR, kTETA + 1] - P0[kR, kTETA]
-                            ) / (self.dTETA)
-                            dP0dR[kR, kTETA] = (P0[kR + 1, kTETA] - P0[kR, kTETA]) / (
-                                self.dR
+                        if angular_idx > 0 and angular_idx < self.n_theta-1 and radial_idx > 0 and radial_idx < self.n_radial-1:
+                            dp0_dtheta[radial_idx, angular_idx] = (
+                                self.pressure_field[radial_idx, angular_idx + 1] - self.pressure_field[radial_idx, angular_idx]
+                            ) / (self.d_theta)
+                            dp0_dr[radial_idx, angular_idx] = (self.pressure_field[radial_idx + 1, angular_idx] - self.pressure_field[radial_idx, angular_idx]) / (
+                                self.d_radius
                             )
 
-                        if kR == self.n_radial-1 and kTETA > 0 and kTETA < self.n_theta-1:
-                            dP0dTETA[kR, kTETA] = (
-                                P0[kR, kTETA + 1] - P0[kR, kTETA]
-                            ) / (self.dTETA)
-                            dP0dR[kR, kTETA] = (0 - P0[kR, kTETA]) / (0.5 * self.dR)
+                        if radial_idx == self.n_radial-1 and angular_idx > 0 and angular_idx < self.n_theta-1:
+                            dp0_dtheta[radial_idx, angular_idx] = (
+                                self.pressure_field[radial_idx, angular_idx + 1] - self.pressure_field[radial_idx, angular_idx]
+                            ) / (self.d_theta)
+                            dp0_dr[radial_idx, angular_idx] = (0 - self.pressure_field[radial_idx, angular_idx]) / (0.5 * self.d_radius)
 
-                        if kR == 0 and kTETA == self.n_theta-1:
-                            dP0dTETA[kR, kTETA] = (0 - P0[kR, kTETA]) / (0.5 * self.dTETA)
-                            dP0dR[kR, kTETA] = (P0[kR + 1, kTETA] - P0[kR, kTETA]) / (
-                                self.dR
+                        if radial_idx == 0 and angular_idx == self.n_theta-1:
+                            dp0_dtheta[radial_idx, angular_idx] = (0 - self.pressure_field[radial_idx, angular_idx]) / (0.5 * self.d_theta)
+                            dp0_dr[radial_idx, angular_idx] = (self.pressure_field[radial_idx + 1, angular_idx] - self.pressure_field[radial_idx, angular_idx]) / (
+                                self.d_radius
                             )
 
-                        if kTETA == self.n_theta-1 and kR > 0 and kR < self.n_radial-1:
-                            dP0dTETA[kR, kTETA] = (0 - P0[kR, kTETA]) / (0.5 * self.dTETA)
-                            dP0dR[kR, kTETA] = (P0[kR + 1, kTETA] - P0[kR, kTETA]) / (
-                                self.dR
+                        if angular_idx == self.n_theta-1 and radial_idx > 0 and radial_idx < self.n_radial-1:
+                            dp0_dtheta[radial_idx, angular_idx] = (0 - self.pressure_field[radial_idx, angular_idx]) / (0.5 * self.d_theta)
+                            dp0_dr[radial_idx, angular_idx] = (self.pressure_field[radial_idx + 1, angular_idx] - self.pressure_field[radial_idx, angular_idx]) / (
+                                self.d_radius
                             )
 
-                        if kTETA == self.n_theta-1 and kR == self.n_radial-1:
-                            dP0dTETA[kR, kTETA] = (0 - P0[kR, kTETA]) / (0.5 * self.dTETA)
-                            dP0dR[kR, kTETA] = (0 - P0[kR, kTETA]) / (0.5 * self.dR)
+                        if angular_idx == self.n_theta-1 and radial_idx == self.n_radial-1:
+                            dp0_dtheta[radial_idx, angular_idx] = (0 - self.pressure_field[radial_idx, angular_idx]) / (0.5 * self.d_theta)
+                            dp0_dr[radial_idx, angular_idx] = (0 - self.pressure_field[radial_idx, angular_idx]) / (0.5 * self.d_radius)
 
-                        TETAe = TETA + 0.5 * self.dTETA
-                        TETAw = TETA - 0.5 * self.dTETA
-                        Rn = R + 0.5 * self.dR
-                        Rs = R - 0.5 * self.dR
+                        theta_e = theta + 0.5 * self.d_theta
+                        theta_w = theta - 0.5 * self.d_theta
+                        radius_n = radius + 0.5 * self.d_radius
+                        radius_s = radius - 0.5 * self.d_radius
 
                         # Coefficients for solving the energy equation
-                        aux_n = (
-                            self.dTETA
+                        north_coeff = (
+                            self.d_theta
                             / 12
                             * (
-                                R
-                                * H0[kR, kTETA] ** 3
-                                / MI[kR, kTETA]
-                                * dP0dR[kR, kTETA]
+                                radius
+                                * self.film_thickness_center_array[radial_idx, angular_idx] ** 3
+                                / self.mu[radial_idx, angular_idx]
+                                * dp0_dr[radial_idx, angular_idx]
                             )
                         )
-                        CN_1 = 0.5 * aux_n
-                        CS_1 = -0.5 * aux_n
-                        CP_1 = -(CS_1 + CN_1)
-                        aux_e = (
-                            self.dR
+                        energy_n = 0.5 * north_coeff
+                        energy_s = -0.5 * north_coeff
+                        energy_c = -(energy_s + energy_n)
+                        east_coeff = (
+                            self.d_radius
                             / (12 * self.pad_arc_length ** 2)
                             * (
-                                H0[kR, kTETA] ** 3
-                                / (R * MI[kR, kTETA])
-                                * dP0dTETA[kR, kTETA]
+                                self.film_thickness_center_array[radial_idx, angular_idx] ** 3
+                                / (radius * self.mu[radial_idx, angular_idx])
+                                * dp0_dtheta[radial_idx, angular_idx]
                             )
-                            - self.dR / (2 * self.pad_arc_length) * H0[kR, kTETA] * R
+                            - self.d_radius / (2 * self.pad_arc_length) * self.film_thickness_center_array[radial_idx, angular_idx] * radius
                         )
-                        CE_1 = 0 * aux_e
-                        CW_1 = -1 * aux_e
-                        CP_2 = -(CE_1 + CW_1)
+                        energy_e = 0 * east_coeff
+                        energy_w = -1 * east_coeff
+                        energy_c2 = -(energy_e + energy_w)
 
                         # difusive terms - central differences
-                        CN_2 = (
+                        diffusion_n = (
                             self.kt
                             / (self.rho * self.cp * self.frequency * self.pad_inner_radius ** 2)
-                            * (self.dTETA * Rn)
-                            / (self.dR)
-                            * H0[kR, kTETA]
+                            * (self.d_theta * radius_n)
+                            / (self.d_radius)
+                            * self.film_thickness_center_array[radial_idx, angular_idx]
                         )
-                        CS_2 = (
+                        diffusion_s = (
                             self.kt
                             / (self.rho * self.cp * self.frequency * self.pad_inner_radius ** 2)
-                            * (self.dTETA * Rs)
-                            / (self.dR)
-                            * H0[kR, kTETA]
+                            * (self.d_theta * radius_s)
+                            / (self.d_radius)
+                            * self.film_thickness_center_array[radial_idx, angular_idx]
                         )
-                        CP_3 = -(CN_2 + CS_2)
-                        CE_2 = (
+                        diffusion_c1 = -(diffusion_n + diffusion_s)
+                        diffusion_e = (
                             self.kt
                             / (self.rho * self.cp * self.frequency * self.pad_inner_radius ** 2)
-                            * self.dR
-                            / (self.pad_arc_length ** 2 * self.dTETA)
-                            * H0[kR, kTETA]
-                            / R
+                            * self.d_radius
+                            / (self.pad_arc_length ** 2 * self.d_theta)
+                            * self.film_thickness_center_array[radial_idx, angular_idx]
+                            / radius
                         )
-                        CW_2 = (
+                        diffusion_w = (
                             self.kt
                             / (self.rho * self.cp * self.frequency * self.pad_inner_radius ** 2)
-                            * self.dR
-                            / (self.pad_arc_length ** 2 * self.dTETA)
-                            * H0[kR, kTETA]
-                            / R
+                            * self.d_radius
+                            / (self.pad_arc_length ** 2 * self.d_theta)
+                            * self.film_thickness_center_array[radial_idx, angular_idx]
+                            / radius
                         )
-                        CP_4 = -(CE_2 + CW_2)
+                        diffusion_c2 = -(diffusion_e + diffusion_w)
 
-                        CW = CW_1 + CW_2
-                        CS = CS_1 + CS_2
-                        CN = CN_1 + CN_2
-                        CE = CE_1 + CE_2
-                        CP = CP_1 + CP_2 + CP_3 + CP_4
+                        coeff_w = energy_w + diffusion_w
+                        coeff_s = energy_s + diffusion_s
+                        coeff_n = energy_n + diffusion_n
+                        coeff_e = energy_e + diffusion_e
+                        coeff_c = energy_c + energy_c2 + diffusion_c1 + diffusion_c2
 
-                        B_F = 0
-                        B_G = 0
-                        B_H = (
-                            self.dR
-                            * self.dTETA
+                        source_f = 0
+                        source_g = 0
+                        source_h = (
+                            self.d_radius
+                            * self.d_theta
                             / (12 * self.pad_arc_length ** 2)
                             * (
-                                H0[kR, kTETA] ** 3
-                                / (MI[kR, kTETA] * R)
-                                * dP0dTETA[kR, kTETA] ** 2
+                                self.film_thickness_center_array[radial_idx, angular_idx] ** 3
+                                / (self.mu[radial_idx, angular_idx] * radius)
+                                * dp0_dtheta[radial_idx, angular_idx] ** 2
                             )
                         )
-                        B_I = MI[kR, kTETA] * R ** 3 / (H0[kR, kTETA]) * self.dR * self.dTETA
-                        B_J = (
-                            self.dR
-                            * self.dTETA
+                        source_i = self.mu[radial_idx, angular_idx] * radius ** 3 / (self.film_thickness_center_array[radial_idx, angular_idx]) * self.d_radius * self.d_theta
+                        source_j = (
+                            self.d_radius
+                            * self.d_theta
                             / 12
-                            * (R * H0[kR, kTETA] ** 3 / MI[kR, kTETA])
-                            * dP0dR[kR, kTETA] ** 2
+                            * (radius * self.film_thickness_center_array[radial_idx, angular_idx] ** 3 / self.mu[radial_idx, angular_idx])
+                            * dp0_dr[radial_idx, angular_idx] ** 2
                         )
-                        B_K = (
-                            self.dR
-                            * self.dTETA
+                        source_k = (
+                            self.d_radius
+                            * self.d_theta
                             / (12 * self.pad_arc_length)
-                            * (H0[kR, kTETA] ** 3 / R)
-                            * dP0dTETA[kR, kTETA]
+                            * (self.film_thickness_center_array[radial_idx, angular_idx] ** 3 / radius)
+                            * dp0_dtheta[radial_idx, angular_idx]
                         )
-                        B_L = (
-                            self.dR
-                            * self.dTETA
+                        source_l = (
+                            self.d_radius
+                            * self.d_theta
                             / 60
-                            * (H0[kR, kTETA] ** 5 / (MI[kR, kTETA] * R))
-                            * dP0dR[kR, kTETA] ** 2
+                            * (self.film_thickness_center_array[radial_idx, angular_idx] ** 5 / (self.mu[radial_idx, angular_idx] * radius))
+                            * dp0_dr[radial_idx, angular_idx] ** 2
                         )
-                        B_M = (
+                        source_m = (
                             2
-                            * self.dR
-                            * self.dTETA
-                            * (R * MI[kR, kTETA] / H0[kR, kTETA])
-                            * (dHdT) ** 2
+                            * self.d_radius
+                            * self.d_theta
+                            * (radius * self.mu[radial_idx, angular_idx] / self.film_thickness_center_array[radial_idx, angular_idx])
+                            * (dh_dT) ** 2
                         )
-                        B_N = self.dR * self.dTETA / 3 * R * MI[kR, kTETA] * H0[kR, kTETA]
-                        B_O = (
-                            self.dR
-                            * self.dTETA
+                        source_n = self.d_radius * self.d_theta / 3 * radius * self.mu[radial_idx, angular_idx] * self.film_thickness_center_array[radial_idx, angular_idx]
+                        source_o = (
+                            self.d_radius
+                            * self.d_theta
                             / (120 * self.pad_arc_length ** 2)
-                            * (H0[kR, kTETA] ** 5 / (MI[kR, kTETA] * R ** 3))
-                            * dP0dTETA[kR, kTETA] ** 2
+                            * (self.film_thickness_center_array[radial_idx, angular_idx] ** 5 / (self.mu[radial_idx, angular_idx] * radius ** 3))
+                            * dp0_dtheta[radial_idx, angular_idx] ** 2
                         )
 
                         # vectorization index
-                        k = k + 1
+                        vectorization_idx = vectorization_idx + 1
 
-                        b[k, 0] = (
-                            -B_F
-                            + (self.frequency * self.reference_viscosity * self.pad_inner_radius ** 2 / (self.rho * self.cp * h0 ** 2 * self.reference_temperature))
-                            * (B_G - B_H - B_I - B_J)
+                        source_term_vector[vectorization_idx, 0] = (
+                            -source_f
+                            + (self.frequency * self.reference_viscosity * self.pad_inner_radius ** 2 / (self.rho * self.cp * self.pivot_film_thickness ** 2 * self.reference_temperature))
+                            * (source_g - source_h - source_i - source_j)
                             + (self.reference_viscosity * self.frequency / (self.rho * self.cp * self.reference_temperature))
-                            * (B_K - B_L - B_M - B_N - B_O)
+                            * (source_k - source_l - source_m - source_n - source_o)
                         )
 
-                        if kTETA == 0 and kR == 0:
-                            Mat_coef[k, k] = CP + CS
-                            Mat_coef[k, k + 1] = CE
-                            Mat_coef[k, k + self.n_theta] = CN
-                            b[k, 0] = b[k, 0] - 1 * CW
+                        if angular_idx == 0 and radial_idx == 0:
+                            mat_coeff[vectorization_idx, vectorization_idx] = coeff_c + coeff_s
+                            mat_coeff[vectorization_idx, vectorization_idx + 1] = coeff_e
+                            mat_coeff[vectorization_idx, vectorization_idx + self.n_theta] = coeff_n
+                            source_term_vector[vectorization_idx, 0] = source_term_vector[vectorization_idx, 0] - 1 * coeff_w
 
-                        if kTETA == 0 and kR > 0 and kR < self.n_radial-1:
-                            Mat_coef[k, k] = CP
-                            Mat_coef[k, k + 1] = CE
-                            Mat_coef[k, k + self.n_theta] = CN
-                            Mat_coef[k, k - self.n_theta] = CS
-                            b[k, 0] = b[k, 0] - 1 * CW
+                        if angular_idx == 0 and radial_idx > 0 and radial_idx < self.n_radial-1:
+                            mat_coeff[vectorization_idx, vectorization_idx] = coeff_c
+                            mat_coeff[vectorization_idx, vectorization_idx + 1] = coeff_e
+                            mat_coeff[vectorization_idx, vectorization_idx + self.n_theta] = coeff_n
+                            mat_coeff[vectorization_idx, vectorization_idx - self.n_theta] = coeff_s
+                            source_term_vector[vectorization_idx, 0] = source_term_vector[vectorization_idx, 0] - 1 * coeff_w
 
-                        if kTETA == 0 and kR == self.n_radial-1:
-                            Mat_coef[k, k] = CP + CN
-                            Mat_coef[k, k + 1] = CE
-                            Mat_coef[k, k - self.n_theta] = CS
-                            b[k, 0] = b[k, 0] - 1 * CW
+                        if angular_idx == 0 and radial_idx == self.n_radial-1:
+                            mat_coeff[vectorization_idx, vectorization_idx] = coeff_c + coeff_n
+                            mat_coeff[vectorization_idx, vectorization_idx + 1] = coeff_e
+                            mat_coeff[vectorization_idx, vectorization_idx - self.n_theta] = coeff_s
+                            source_term_vector[vectorization_idx, 0] = source_term_vector[vectorization_idx, 0] - 1 * coeff_w
 
-                        if kR == 0 and kTETA > 0 and kTETA < self.n_theta-1:
-                            Mat_coef[k, k] = CP + CS
-                            Mat_coef[k, k + 1] = CE
-                            Mat_coef[k, k - 1] = CW
-                            Mat_coef[k, k + self.n_theta] = CN
+                        if radial_idx == 0 and angular_idx > 0 and angular_idx < self.n_theta-1:
+                            mat_coeff[vectorization_idx, vectorization_idx] = coeff_c + coeff_s
+                            mat_coeff[vectorization_idx, vectorization_idx + 1] = coeff_e
+                            mat_coeff[vectorization_idx, vectorization_idx - 1] = coeff_w
+                            mat_coeff[vectorization_idx, vectorization_idx + self.n_theta] = coeff_n
 
-                        if kTETA > 0 and kTETA < self.n_theta-1 and kR > 0 and kR < self.n_radial-1:
-                            Mat_coef[k, k] = CP
-                            Mat_coef[k, k - 1] = CW
-                            Mat_coef[k, k + self.n_theta] = CN
-                            Mat_coef[k, k - self.n_theta] = CS
-                            Mat_coef[k, k + 1] = CE
+                        if angular_idx > 0 and angular_idx < self.n_theta-1 and radial_idx > 0 and radial_idx < self.n_radial-1:
+                            mat_coeff[vectorization_idx, vectorization_idx] = coeff_c
+                            mat_coeff[vectorization_idx, vectorization_idx - 1] = coeff_w
+                            mat_coeff[vectorization_idx, vectorization_idx + self.n_theta] = coeff_n
+                            mat_coeff[vectorization_idx, vectorization_idx - self.n_theta] = coeff_s
+                            mat_coeff[vectorization_idx, vectorization_idx + 1] = coeff_e
 
-                        if kR == self.n_radial-1 and kTETA > 0 and kTETA < self.n_theta-1:
-                            Mat_coef[k, k] = CP + CN
-                            Mat_coef[k, k - 1] = CW
-                            Mat_coef[k, k + 1] = CE
-                            Mat_coef[k, k - self.n_theta] = CS
+                        if radial_idx == self.n_radial-1 and angular_idx > 0 and angular_idx < self.n_theta-1:
+                            mat_coeff[vectorization_idx, vectorization_idx] = coeff_c + coeff_n
+                            mat_coeff[vectorization_idx, vectorization_idx - 1] = coeff_w
+                            mat_coeff[vectorization_idx, vectorization_idx + 1] = coeff_e
+                            mat_coeff[vectorization_idx, vectorization_idx - self.n_theta] = coeff_s
 
-                        if kR == 0 and kTETA == self.n_theta-1:
-                            Mat_coef[k, k] = CP + CE + CS
-                            Mat_coef[k, k - 1] = CW
-                            Mat_coef[k, k + self.n_theta] = CN
+                        if radial_idx == 0 and angular_idx == self.n_theta-1:
+                            mat_coeff[vectorization_idx, vectorization_idx] = coeff_c + coeff_e + coeff_s
+                            mat_coeff[vectorization_idx, vectorization_idx - 1] = coeff_w
+                            mat_coeff[vectorization_idx, vectorization_idx + self.n_theta] = coeff_n
 
-                        if kTETA == self.n_theta-1 and kR > 0 and kR < self.n_radial-1:
-                            Mat_coef[k, k] = CP + CE
-                            Mat_coef[k, k - 1] = CW
-                            Mat_coef[k, k - self.n_theta] = CS
-                            Mat_coef[k, k + self.n_theta] = CN
+                        if angular_idx == self.n_theta-1 and radial_idx > 0 and radial_idx < self.n_radial-1:
+                            mat_coeff[vectorization_idx, vectorization_idx] = coeff_c + coeff_e
+                            mat_coeff[vectorization_idx, vectorization_idx - 1] = coeff_w
+                            mat_coeff[vectorization_idx, vectorization_idx - self.n_theta] = coeff_s
+                            mat_coeff[vectorization_idx, vectorization_idx + self.n_theta] = coeff_n
 
-                        if kTETA == self.n_theta-1 and kR == self.n_radial-1:
-                            Mat_coef[k, k] = CP + CN + CE
-                            Mat_coef[k, k - 1] = CW
-                            Mat_coef[k, k - self.n_theta] = CS
+                        if angular_idx == self.n_theta-1 and radial_idx == self.n_radial-1:
+                            mat_coeff[vectorization_idx, vectorization_idx] = coeff_c + coeff_n + coeff_e
+                            mat_coeff[vectorization_idx, vectorization_idx - 1] = coeff_w
+                            mat_coeff[vectorization_idx, vectorization_idx - self.n_theta] = coeff_s
 
-                        kTETA = kTETA + 1
+                        angular_idx = angular_idx + 1
 
-                    kR = kR + 1
-                    kTETA = 0
+                    radial_idx = radial_idx + 1
+                    angular_idx = 0
 
                 # Temperature field solution
-                t = np.linalg.solve(Mat_coef, b)
-                cont = -1
+                temperature_solution = np.linalg.solve(mat_coeff, source_term_vector)
+                temp_idx = -1
 
                 # Temperature matrix
                 for ii in range(0, self.n_radial):
                     for jj in range(0, self.n_theta):
-                        cont = cont + 1
-                        T_new[ii, jj] = t[cont, 0]
+                        temp_idx = temp_idx + 1
+                        temperature_updt[ii, jj] = temperature_solution[temp_idx, 0]
 
                 # viscosity field
-                varMI=np.zeros((self.n_radial, self.n_theta))
+                viscosity_variation = np.zeros((self.n_radial, self.n_theta))
                 for ii in range(0, self.n_radial):
                     for jj in range(0, self.n_theta):
-                        MI_new[ii, jj] = (
+                        mu_update[ii, jj] = (
                             (1 / self.reference_viscosity)
                             * self.a_a
-                            * np.exp(self.b_b * (self.reference_temperature * T_new[ii, jj]))
+                            * np.exp(self.b_b * (self.reference_temperature * temperature_updt[ii, jj]))
                         )
-                        varMI[ii, jj] = abs((MI_new[ii, jj] - MI[ii, jj]) / MI[ii, jj])
+                        viscosity_variation[ii, jj] = abs((mu_update[ii, jj] - self.mu[ii, jj]) / self.mu[ii, jj])
 
-                T = T_new
-                aux1=np.max(varMI)
+                temperature = temperature_updt
+                max_viscosity_variation=np.max(viscosity_variation)
 
             # TEMPERATURE ==============================================================
             # ENDS HERE ================================================================
             
-            self.Ti = T * self.reference_temperature
+            self.initial_temperature = temperature * self.reference_temperature
 
             # dimensional pressure
-            Pdim = P0 * (self.pad_inner_radius ** 2) * self.frequency * self.reference_viscosity / (h0 ** 2)
+            pressure_dim = self.pressure_field* (self.pad_inner_radius ** 2) * self.frequency * self.reference_viscosity / (self.pivot_film_thickness ** 2)
 
             # RESULTING FORCE AND MOMENTUM: Equilibrium position
-            XR = self.pad_inner_radius * self.vec_R
-            XTETA = self.pad_arc_length * self.vec_TETA
-            Xrp = self.pad_pivot_radius * (np.ones((np.size(XR))))
+            radius_coords = self.pad_inner_radius * self.radius_array
+            theta_coords = self.pad_arc_length * self.theta_array
+            pivot_coords = self.pad_pivot_radius * (np.ones((np.size(radius_coords))))
 
             for ii in range(0, self.n_theta):
-                Mxr[:, ii] = (Pdim[:, ii] * (np.transpose(XR) ** 2)) * np.sin(
-                    XTETA[ii] - self.angular_pivot_position
+                moment_x[:, ii] = (pressure_dim[:, ii] * (np.transpose(radius_coords) ** 2)) * np.sin(
+                    theta_coords[ii] - self.angular_pivot_position
                 )
-                Myr[:, ii] = (
-                    -Pdim[:, ii]
-                    * np.transpose(XR)
-                    * np.transpose(XR * np.cos(XTETA[ii] - self.angular_pivot_position) - Xrp)
+                moment_y[:, ii] = (
+                    -pressure_dim[:, ii]
+                    * np.transpose(radius_coords)
+                    * np.transpose(radius_coords * np.cos(theta_coords[ii] - self.angular_pivot_position) - pivot_coords)
                 )
-                Frer[:, ii] = Pdim[:, ii] * np.transpose(XR)
+                force_axial[:, ii] = pressure_dim[:, ii] * np.transpose(radius_coords)
 
-            frer = np.trapezoid( Frer, XTETA)
+            force_radial = np.trapezoid(force_axial, theta_coords)
 
             ######################################################################
-            mxr = np.trapezoid( Mxr, XTETA)
-            myr = np.trapezoid( Myr, XTETA)
+            mom_x_radial = np.trapezoid(moment_x, theta_coords)
+            mom_y_radial = np.trapezoid(moment_y, theta_coords)
 
-            mx = np.trapezoid(mxr, XR)
-            my = np.trapezoid( myr, XR)
+            mom_x_total = np.trapezoid(mom_x_radial, radius_coords)
+            mom_y_total = np.trapezoid(mom_y_radial, radius_coords)
 
-            resMx = mx
-            resMy = my
+            residual_moment_x = mom_x_total
+            residual_moment_y = mom_y_total
 
 
             ######################################################################
 
             # if self.op_key == "impos_h0":
             if self.equilibrium_position_mode == "imposed":
-                ResFM = np.linalg.norm(np.array([resMx, resMy]))
-                self.fzs_load = frer
+                residual_force_moment = np.linalg.norm(np.array([residual_moment_x, residual_moment_y]))
+                self.fzs_load = force_radial
             
             else:
-                fre = -np.trapezoid( frer, XR) + self.fzs_load / self.n_pad
+                axial_force_residual = -np.trapezoid(force_radial, radius_coords) + self.fzs_load / self.n_pad
+                residual_force_moment = np.linalg.norm(np.array([residual_moment_x, residual_moment_y, axial_force_residual]))
 
-                resFre = fre
-                ResFM = np.linalg.norm(np.array([resMx, resMy, resFre]))
-
-            self.initial_position = np.array([x[0],x[1],h0])
-            self.score = ResFM
+            self.initial_position = np.array([x[0], x[1], self.pivot_film_thickness])
+            self.score = residual_force_moment
 
         # --------------------------------------------------------------------------
-        # Full temperature field
-        TT = np.ones((self.n_radial + 2, self.n_theta + 2))
-        TT[1:self.n_radial+1, 1:self.n_theta+1] = np.flipud(self.Ti)
-        TT[:, 0] = self.reference_temperature
-        TT[0, :] = TT[1, :]
-        TT[self.n_radial + 1, :] = TT[self.n_radial, :]
-        TT[:, self.n_theta + 1] = TT[:, self.n_theta]
+        # Initialize temperature field with boundary padding
+        temperature_field_full = np.ones((self.n_radial + 2, self.n_theta + 2))
+        
+        # Fill interior with calculated temperature values
+        temperature_field_full[1:self.n_radial+1, 1:self.n_theta+1] = np.flipud(self.initial_temperature)
+        
+        # Apply boundary conditions
+        temperature_field_full[:, 0] = self.reference_temperature  # Left boundary
+        temperature_field_full[0, :] = temperature_field_full[1, :]  # Top boundary
+        temperature_field_full[self.n_radial + 1, :] = temperature_field_full[self.n_radial, :]  # Bottom boundary
+        temperature_field_full[:, self.n_theta + 1] = temperature_field_full[:, self.n_theta]  # Right boundary
 
-        self.TT = TT
+        # Store as instance attribute
+        self.temperature_field = temperature_field_full
 
         # --------------------------------------------------------------------------
         # Viscosity field
         for ii in range(0, self.n_radial):
             for jj in range(0, self.n_theta):
-                mi[ii, jj] =  self.a_a * np.exp(self.b_b * (self.Ti[ii, jj]))  # [Pa.s]
+                self.viscosity_field[ii, jj] =  self.a_a * np.exp(self.b_b * (self.initial_temperature[ii, jj]))  # [Pa.s]
 
         # PRESSURE =================================================================
         # STARTS HERE ==============================================================
 
-        Ar = a_r * self.pad_inner_radius / h0
-        As = a_s * self.pad_inner_radius / h0
-        MI = 1 / self.reference_viscosity * mi
+        radial_param = radial_inclination_angle * self.pad_inner_radius / self.pivot_film_thickness
+        circum_param = circumferential_inclination_angle * self.pad_inner_radius / self.pivot_film_thickness
+        self.mu = 1 / self.reference_viscosity * self.viscosity_field
 
         # number of volumes
-        nk = (self.n_radial) * (self.n_theta)
+        volumes_number = (self.n_radial) * (self.n_theta)
 
         # Coefficients Matrix
-        Mat_coef = np.zeros((nk, nk))
-        b = np.zeros((nk, 1))
+        mat_coeff = np.zeros((volumes_number, volumes_number))
+        source_term_vector = np.zeros((volumes_number, 1))
 
-        P0 =  self.P_solution(H0, H0ne, H0nw, H0se, H0sw, h0, As, Ar, MI,  Mat_coef, b, P0)
+        self._solve_pressure_field(circum_param, radial_param,  mat_coeff, source_term_vector)
 
-        PPdim = np.zeros((self.n_radial + 2, self.n_theta + 2))
-        PPdim[1:-1, 1:-1] = (self.pad_inner_radius ** 2 * self.frequency * self.reference_viscosity / h0 ** 2) * np.flipud(P0)
-        self.PPdim = PPdim
+        pressure_field_dimensional = np.zeros((self.n_radial + 2, self.n_theta + 2))
+        pressure_field_dimensional[1:-1, 1:-1] = (self.pad_inner_radius ** 2 * self.frequency * self.reference_viscosity / self.pivot_film_thickness ** 2) * np.flipud(self.pressure_field)
+        self.pressure_field_dimensional = pressure_field_dimensional
 
-        self.hmax = np.max(h0 * H0)
-        self.hmin = np.min(h0 * H0)
-        # PRESSURE =================================================================
-        # ENDS HERE ================================================================
-        return H0, H0ne, H0nw, H0se, H0sw, h0, P0, mi
+        self.max_thickness = np.max(self.pivot_film_thickness * self.film_thickness_center_array)
+        self.min_thickness = np.min(self.pivot_film_thickness * self.film_thickness_center_array)
     
 
-    def ArAsh0Equilibrium(self, x):
+    def _equilibrium_objective(self, x):
 
         """Calculates the equilibrium position of the bearing
 
         Parameters
         ----------
-        a_r = x[0]  : pitch angle axis r [rad]
-        a_s = x[1]  : pitch angle axis s [rad]
-        h0 = x[2]   : oil film thickness at pivot [m]
+        radial_inclination_angle = x[0]  : pitch angle axis r [rad]
+        circumferential_inclination_angle = x[1]  : pitch angle axis s [rad]
+        self.pivot_film_thickness = x[2]   : oil film thickness at pivot [m]
 
         """
 
         # Variable startup
-        MI = np.zeros((self.n_radial, self.n_theta))
-        P = np.zeros((self.n_radial, self.n_theta))
-        Mxr = np.zeros((self.n_radial, self.n_theta))
-        Myr = np.zeros((self.n_radial, self.n_theta))
-        Frer = np.zeros((self.n_radial, self.n_theta))
+        self.mu = np.zeros((self.n_radial, self.n_theta))
+        pressure = np.zeros((self.n_radial, self.n_theta))
+        moment_x = np.zeros((self.n_radial, self.n_theta))
+        moment_y = np.zeros((self.n_radial, self.n_theta))
+        force_axial = np.zeros((self.n_radial, self.n_theta))
 
-        # Pitch angles alpha_r and alpha_p and oil filme thickness at pivot h0
-        a_r = x[0]  # [rad]
-        a_s = x[1]  # [rad]
+        # Pitch angles alpha_r and alpha_p and oil filme thickness at pivot self.pivot_film_thickness
+        radial_inclination_angle = x[0]  # [rad]
+        circumferential_inclination_angle = x[1]  # [rad]
 
-        # Determine h0 based on equilibrium position mode
+        # Determine self.pivot_film_thickness based on equilibrium position mode
         if self.equilibrium_position_mode == "imposed":
-            h0 = self.initial_position[2]  # Use imposed h0 value
+            self.pivot_film_thickness = self.initial_position[2]  # Use imposed self.pivot_film_thickness value
         else:  # "calculate" mode
-            h0 = x[2]  # h0 is optimized
+            self.pivot_film_thickness = x[2]  # self.pivot_film_thickness is optimized
 
         for ii in range(0, self.n_radial):
             for jj in range(0, self.n_theta):
-                MI[ii, jj] = (
-                    1 / self.reference_viscosity *  self.a_a * np.exp(self.b_b * (self.Ti[ii, jj]))
+                self.mu[ii, jj] = (
+                    1 / self.reference_viscosity *  self.a_a * np.exp(self.b_b * (self.initial_temperature[ii, jj]))
                 )  # dimensionless
 
         # Dimensioneless Parameters
-        Ar = a_r * self.pad_inner_radius / h0
-        As = a_s * self.pad_inner_radius / h0
-        H0 = h0 / h0
+        radial_param = radial_inclination_angle * self.pad_inner_radius / self.pivot_film_thickness
+        circum_param = circumferential_inclination_angle * self.pad_inner_radius / self.pivot_film_thickness
+        film_thickness_center = self.pivot_film_thickness / self.pivot_film_thickness
 
         # PRESSURE FIELD - Solution of Reynolds equation
-        kR = 0
-        kTETA = 0
+        radial_idx = 0
+        angular_idx = 0
 
         # pressure vectorization index
-        k = -1
+        vectorization_idx = -1
 
         # number of volumes
-        nk = (self.n_radial) * (self.n_theta)  # number of volumes
+        volumes_number = (self.n_radial) * (self.n_theta)  # number of volumes
 
         # Coefficients Matrix
-        Mat_coef = np.zeros((nk, nk))
-        b = np.zeros((nk, 1))
+        mat_coeff = np.zeros((volumes_number, volumes_number))
+        source_term_vector = np.zeros((volumes_number, 1))
 
-        for R in self.vec_R:
-            for TETA in self.vec_TETA:
+        for radius in self.radius_array:
+            for theta in self.theta_array:
 
-                TETAe = TETA + 0.5 * self.dTETA
-                TETAw = TETA - 0.5 * self.dTETA
-                Rn = R + 0.5 * self.dR
-                Rs = R - 0.5 * self.dR
+                theta_e = theta + 0.5 * self.d_theta
+                theta_w = theta - 0.5 * self.d_theta
+                radius_n = radius + 0.5 * self.d_radius
+                radius_s = radius - 0.5 * self.d_radius
 
-                Hne = (
-                    H0
-                    + As * (self.Rp - Rn * np.cos(self.pad_arc_length * (TETAe - self.TETAp)))
-                    + Ar * Rn * np.sin(self.pad_arc_length * (TETAe - self.TETAp))
+                h_ne = (
+                    film_thickness_center
+                    + circum_param * (self.rp - radius_n * np.cos(self.pad_arc_length * (theta_e - self.theta_pad)))
+                    + radial_param * radius_n * np.sin(self.pad_arc_length * (theta_e - self.theta_pad))
                 )
-                Hnw = (
-                    H0
-                    + As * (self.Rp - Rn * np.cos(self.pad_arc_length * (TETAw - self.TETAp)))
-                    + Ar * Rn * np.sin(self.pad_arc_length * (TETAw - self.TETAp))
+                h_nw = (
+                    film_thickness_center
+                    + circum_param * (self.rp - radius_n * np.cos(self.pad_arc_length * (theta_w - self.theta_pad)))
+                    + radial_param * radius_n * np.sin(self.pad_arc_length * (theta_w - self.theta_pad))
                 )
-                Hse = (
-                    H0
-                    + As * (self.Rp - Rs * np.cos(self.pad_arc_length * (TETAe - self.TETAp)))
-                    + Ar * Rs * np.sin(self.pad_arc_length * (TETAe - self.TETAp))
+                h_se = (
+                    film_thickness_center
+                    + circum_param * (self.rp - radius_s * np.cos(self.pad_arc_length * (theta_e - self.theta_pad)))
+                    + radial_param * radius_s * np.sin(self.pad_arc_length * (theta_e - self.theta_pad))
                 )
-                Hsw = (
-                    H0
-                    + As * (self.Rp - Rs * np.cos(self.pad_arc_length * (TETAw - self.TETAp)))
-                    + Ar * Rs * np.sin(self.pad_arc_length * (TETAw - self.TETAp))
+                h_sw = (
+                    film_thickness_center
+                    + circum_param * (self.rp - radius_s * np.cos(self.pad_arc_length * (theta_w - self.theta_pad)))
+                    + radial_param * radius_s * np.sin(self.pad_arc_length * (theta_w - self.theta_pad))
                 )
 
-                if kTETA == 0 and kR == 0:
-                    MI_e = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA + 1])
-                    MI_w = MI[kR, kTETA]
-                    MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
-                    MI_s = MI[kR, kTETA]
+                if angular_idx == 0 and radial_idx == 0:
+                    mu_e = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx, angular_idx + 1])
+                    mu_w = self.mu[radial_idx, angular_idx]
+                    mu_n = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx + 1, angular_idx])
+                    mu_s = self.mu[radial_idx, angular_idx]
 
-                if kTETA == 0 and kR > 0 and kR < self.n_radial-1:
-                    MI_e = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA + 1])
-                    MI_w = MI[kR, kTETA]
-                    MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
-                    MI_s = 0.5 * (MI[kR, kTETA] + MI[kR - 1, kTETA])
+                if angular_idx == 0 and radial_idx > 0 and radial_idx < self.n_radial-1:
+                    mu_e = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx, angular_idx + 1])
+                    mu_w = self.mu[radial_idx, angular_idx]
+                    mu_n = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx + 1, angular_idx])
+                    mu_s = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx - 1, angular_idx])
 
-                if kTETA == 0 and kR == self.n_radial-1:
-                    MI_e = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA + 1])
-                    MI_w = MI[kR, kTETA]
-                    MI_n = MI[kR, kTETA]
-                    MI_s = 0.5 * (MI[kR, kTETA] + MI[kR - 1, kTETA])
+                if angular_idx == 0 and radial_idx == self.n_radial-1:
+                    mu_e = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx, angular_idx + 1])
+                    mu_w = self.mu[radial_idx, angular_idx]
+                    mu_n = self.mu[radial_idx, angular_idx]
+                    mu_s = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx - 1, angular_idx])
 
-                if kR == 0 and kTETA > 0 and kTETA < self.n_theta - 1:
-                    MI_e = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA + 1])
-                    MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
-                    MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
-                    MI_s = MI[kR, kTETA]
+                if radial_idx == 0 and angular_idx > 0 and angular_idx < self.n_theta - 1:
+                    mu_e = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx, angular_idx + 1])
+                    mu_w = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx, angular_idx - 1])
+                    mu_n = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx + 1, angular_idx])
+                    mu_s = self.mu[radial_idx, angular_idx]
 
-                if kTETA > 0 and kTETA < self.n_theta - 1 and kR > 0 and kR < self.n_radial-1:
-                    MI_e = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA + 1])
-                    MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
-                    MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
-                    MI_s = 0.5 * (MI[kR, kTETA] + MI[kR - 1, kTETA])
+                if angular_idx > 0 and angular_idx < self.n_theta - 1 and radial_idx > 0 and radial_idx < self.n_radial-1:
+                    mu_e = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx, angular_idx + 1])
+                    mu_w = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx, angular_idx - 1])
+                    mu_n = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx + 1, angular_idx])
+                    mu_s = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx - 1, angular_idx])
 
-                if kR == self.n_radial-1 and kTETA > 0 and kTETA < self.n_theta - 1:
-                    MI_e = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA + 1])
-                    MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
-                    MI_n = MI[kR, kTETA]
-                    MI_s = 0.5 * (MI[kR, kTETA] + MI[kR - 1, kTETA])
+                if radial_idx == self.n_radial-1 and angular_idx > 0 and angular_idx < self.n_theta - 1:
+                    mu_e = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx, angular_idx + 1])
+                    mu_w = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx, angular_idx - 1])
+                    mu_n = self.mu[radial_idx, angular_idx]
+                    mu_s = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx - 1, angular_idx])
 
-                if kR == 0 and kTETA == self.n_theta - 1:
-                    MI_e = MI[kR, kTETA]
-                    MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
-                    MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
-                    MI_s = MI[kR, kTETA]
+                if radial_idx == 0 and angular_idx == self.n_theta - 1:
+                    mu_e = self.mu[radial_idx, angular_idx]
+                    mu_w = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx, angular_idx - 1])
+                    mu_n = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx + 1, angular_idx])
+                    mu_s = self.mu[radial_idx, angular_idx]
 
-                if kTETA == self.n_theta - 1 and kR > 0 and kR < self.n_radial-1:
-                    MI_e = MI[kR, kTETA]
-                    MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
-                    MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
-                    MI_s = 0.5 * (MI[kR, kTETA] + MI[kR - 1, kTETA])
+                if angular_idx == self.n_theta - 1 and radial_idx > 0 and radial_idx < self.n_radial-1:
+                    mu_e = self.mu[radial_idx, angular_idx]
+                    mu_w = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx, angular_idx - 1])
+                    mu_n = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx + 1, angular_idx])
+                    mu_s = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx - 1, angular_idx])
 
-                if kTETA == self.n_theta - 1 and kR == self.n_radial-1:
-                    MI_e = MI[kR, kTETA]
-                    MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
-                    MI_n = MI[kR, kTETA]
-                    MI_s = 0.5 * (MI[kR, kTETA] + MI[kR - 1, kTETA])
+                if angular_idx == self.n_theta - 1 and radial_idx == self.n_radial-1:
+                    mu_e = self.mu[radial_idx, angular_idx]
+                    mu_w = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx, angular_idx - 1])
+                    mu_n = self.mu[radial_idx, angular_idx]
+                    mu_s = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx - 1, angular_idx])
 
                 # Coefficients for solving the Reynolds equation
-                CE = (
+                coeff_e = (
                     1
-                    / (24 * self.pad_arc_length ** 2 * MI_e)
-                    * (self.dR / self.dTETA)
-                    * (Hne ** 3 / Rn + Hse ** 3 / Rs)
+                    / (24 * self.pad_arc_length ** 2 * mu_e)
+                    * (self.d_radius / self.d_theta)
+                    * (h_ne ** 3 / radius_n + h_se ** 3 / radius_s)
                 )
-                CW = (
+                coeff_w = (
                     1
-                    / (24 * self.pad_arc_length ** 2 * MI_w)
-                    * (self.dR / self.dTETA)
-                    * (Hnw ** 3 / Rn + Hsw ** 3 / Rs)
+                    / (24 * self.pad_arc_length ** 2 * mu_w)
+                    * (self.d_radius / self.d_theta)
+                    * (h_nw ** 3 / radius_n + h_sw ** 3 / radius_s)
                 )
-                CN = Rn / (24 * MI_n) * (self.dTETA / self.dR) * (Hne ** 3 + Hnw ** 3)
-                CS = Rs / (24 * MI_s) * (self.dTETA / self.dR) * (Hse ** 3 + Hsw ** 3)
-                CP = -(CE + CW + CN + CS)
+                coeff_n = radius_n / (24 * mu_n) * (self.d_theta / self.d_radius) * (h_ne ** 3 + h_nw ** 3)
+                coeff_s = radius_s / (24 * mu_s) * (self.d_theta / self.d_radius) * (h_se ** 3 + h_sw ** 3)
+                coeff_c = -(coeff_e + coeff_w + coeff_n + coeff_s)
 
                 # vectorization index
-                k = k + 1
+                vectorization_idx = vectorization_idx + 1
 
-                b[k, 0] = self.dR / (4 * self.pad_arc_length) * (Rn * Hne + Rs * Hse - Rn * Hnw - Rs * Hsw)
+                source_term_vector[vectorization_idx, 0] = self.d_radius / (4 * self.pad_arc_length) * (radius_n * h_ne + radius_s * h_se - radius_n * h_nw - radius_s * h_sw)
 
-                if kTETA == 0 and kR == 0:
-                    Mat_coef[k, k] = CP - CS - CW
-                    Mat_coef[k, k + 1] = CE
-                    Mat_coef[k, k + self.n_theta ] = CN
+                if angular_idx == 0 and radial_idx == 0:
+                    mat_coeff[vectorization_idx, vectorization_idx] = coeff_c - coeff_s - coeff_w
+                    mat_coeff[vectorization_idx, vectorization_idx + 1] = coeff_e
+                    mat_coeff[vectorization_idx, vectorization_idx + self.n_theta ] = coeff_n
 
-                if kTETA == 0 and kR > 0 and kR < self.n_radial-1:
-                    Mat_coef[k, k] = CP - CW
-                    Mat_coef[k, k + 1] = CE
-                    Mat_coef[k, k + self.n_theta ] = CN
-                    Mat_coef[k, k - self.n_theta ] = CS
+                if angular_idx == 0 and radial_idx > 0 and radial_idx < self.n_radial-1:
+                    mat_coeff[vectorization_idx, vectorization_idx] = coeff_c - coeff_w
+                    mat_coeff[vectorization_idx, vectorization_idx + 1] = coeff_e
+                    mat_coeff[vectorization_idx, vectorization_idx + self.n_theta ] = coeff_n
+                    mat_coeff[vectorization_idx, vectorization_idx - self.n_theta ] = coeff_s
 
-                if kTETA == 0 and kR == self.n_radial-1:
-                    Mat_coef[k, k] = CP - CW - CN
-                    Mat_coef[k, k + 1] = CE
-                    Mat_coef[k, k - self.n_theta ] = CS
+                if angular_idx == 0 and radial_idx == self.n_radial-1:
+                    mat_coeff[vectorization_idx, vectorization_idx] = coeff_c - coeff_w - coeff_n
+                    mat_coeff[vectorization_idx, vectorization_idx + 1] = coeff_e
+                    mat_coeff[vectorization_idx, vectorization_idx - self.n_theta ] = coeff_s
 
-                if kR == 0 and kTETA > 0 and kTETA < self.n_theta - 1:
-                    Mat_coef[k, k] = CP - CS
-                    Mat_coef[k, k + 1] = CE
-                    Mat_coef[k, k - 1] = CW
-                    Mat_coef[k, k + self.n_theta ] = CN
+                if radial_idx == 0 and angular_idx > 0 and angular_idx < self.n_theta - 1:
+                    mat_coeff[vectorization_idx, vectorization_idx] = coeff_c - coeff_s
+                    mat_coeff[vectorization_idx, vectorization_idx + 1] = coeff_e
+                    mat_coeff[vectorization_idx, vectorization_idx - 1] = coeff_w
+                    mat_coeff[vectorization_idx, vectorization_idx + self.n_theta ] = coeff_n
 
-                if kTETA > 0 and kTETA < self.n_theta - 1 and kR > 0 and kR < self.n_radial-1:
-                    Mat_coef[k, k] = CP
-                    Mat_coef[k, k - 1] = CW
-                    Mat_coef[k, k + self.n_theta ] = CN
-                    Mat_coef[k, k - self.n_theta ] = CS
-                    Mat_coef[k, k + 1] = CE
+                if angular_idx > 0 and angular_idx < self.n_theta - 1 and radial_idx > 0 and radial_idx < self.n_radial-1:
+                    mat_coeff[vectorization_idx, vectorization_idx] = coeff_c
+                    mat_coeff[vectorization_idx, vectorization_idx - 1] = coeff_w
+                    mat_coeff[vectorization_idx, vectorization_idx + self.n_theta ] = coeff_n
+                    mat_coeff[vectorization_idx, vectorization_idx - self.n_theta ] = coeff_s
+                    mat_coeff[vectorization_idx, vectorization_idx + 1] = coeff_e
 
-                if kR == self.n_radial-1 and kTETA > 0 and kTETA < self.n_theta - 1:
-                    Mat_coef[k, k] = CP - CN
-                    Mat_coef[k, k - 1] = CW
-                    Mat_coef[k, k + 1] = CE
-                    Mat_coef[k, k - self.n_theta ] = CS
+                if radial_idx == self.n_radial-1 and angular_idx > 0 and angular_idx < self.n_theta - 1:
+                    mat_coeff[vectorization_idx, vectorization_idx] = coeff_c - coeff_n
+                    mat_coeff[vectorization_idx, vectorization_idx - 1] = coeff_w
+                    mat_coeff[vectorization_idx, vectorization_idx + 1] = coeff_e
+                    mat_coeff[vectorization_idx, vectorization_idx - self.n_theta ] = coeff_s
 
-                if kR == 0 and kTETA == self.n_theta - 1:
-                    Mat_coef[k, k] = CP - CE - CS
-                    Mat_coef[k, k - 1] = CW
-                    Mat_coef[k, k + self.n_theta ] = CN
+                if radial_idx == 0 and angular_idx == self.n_theta - 1:
+                    mat_coeff[vectorization_idx, vectorization_idx] = coeff_c - coeff_e - coeff_s
+                    mat_coeff[vectorization_idx, vectorization_idx - 1] = coeff_w
+                    mat_coeff[vectorization_idx, vectorization_idx + self.n_theta ] = coeff_n
 
-                if kTETA == self.n_theta - 1 and kR > 0 and kR < self.n_radial-1:
-                    Mat_coef[k, k] = CP - CE
-                    Mat_coef[k, k - 1] = CW
-                    Mat_coef[k, k - self.n_theta ] = CS
-                    Mat_coef[k, k + self.n_theta ] = CN
+                if angular_idx == self.n_theta - 1 and radial_idx > 0 and radial_idx < self.n_radial-1:
+                    mat_coeff[vectorization_idx, vectorization_idx] = coeff_c - coeff_e
+                    mat_coeff[vectorization_idx, vectorization_idx - 1] = coeff_w
+                    mat_coeff[vectorization_idx, vectorization_idx - self.n_theta ] = coeff_s
+                    mat_coeff[vectorization_idx, vectorization_idx + self.n_theta ] = coeff_n
 
-                if kTETA == self.n_theta - 1 and kR == self.n_radial-1:
-                    Mat_coef[k, k] = CP - CE - CN
-                    Mat_coef[k, k - 1] = CW
-                    Mat_coef[k, k - self.n_theta ] = CS
+                if angular_idx == self.n_theta - 1 and radial_idx == self.n_radial-1:
+                    mat_coeff[vectorization_idx, vectorization_idx] = coeff_c - coeff_e - coeff_n
+                    mat_coeff[vectorization_idx, vectorization_idx - 1] = coeff_w
+                    mat_coeff[vectorization_idx, vectorization_idx - self.n_theta ] = coeff_s
 
-                kTETA = kTETA + 1
+                angular_idx = angular_idx + 1
 
-            kR = kR + 1
-            kTETA = 0
+            radial_idx = radial_idx + 1
+            angular_idx = 0
 
 
-        p = np.linalg.solve(Mat_coef, b)
-        cont = -1
+        pressure_solution = np.linalg.solve(mat_coeff, source_term_vector)
+        pressure_idx = -1
 
         # pressure matrix
         for ii in range(0, self.n_radial):
             for jj in range(0, self.n_theta):
-                cont = cont + 1
-                P[ii, jj] = p[cont, 0]
+                pressure_idx = pressure_idx + 1
+                pressure[ii, jj] = pressure_solution[pressure_idx, 0]
 
                 # boundary conditions of pressure
-                if P[ii, jj] < 0:
-                    P[ii, jj] = 0
+                if pressure[ii, jj] < 0:
+                    pressure[ii, jj] = 0
 
         # dimensional pressure
-        Pdim = P * (self.pad_inner_radius ** 2) * self.frequency *self. reference_viscosity / (h0 ** 2)
+        pressure_dim = pressure * (self.pad_inner_radius ** 2) * self.frequency *self. reference_viscosity / (self.pivot_film_thickness ** 2)
 
         # RESULTING FORCE AND MOMENTUM: Equilibrium position
-        XR = self.pad_inner_radius * self.vec_R
-        XTETA = self.pad_arc_length * self.vec_TETA
-        Xrp = self.pad_pivot_radius * (np.ones((np.size(XR))))
+        radius_coords = self.pad_inner_radius * self.radius_array
+        theta_coords = self.pad_arc_length * self.theta_array
+        pivot_coords = self.pad_pivot_radius * (np.ones((np.size(radius_coords))))
 
         for ii in range(0, self.n_theta):
-            Mxr[:, ii] = (Pdim[:, ii] * (np.transpose(XR) ** 2)) * np.sin(
-                XTETA[ii] - self.angular_pivot_position)
-            Myr[:, ii] = (
-                -Pdim[:, ii]
-                * np.transpose(XR)
-                * np.transpose(XR * np.cos(XTETA[ii] - self.angular_pivot_position) - Xrp)
+            moment_x[:, ii] = (pressure_dim[:, ii] * (np.transpose(radius_coords) ** 2)) * np.sin(
+                theta_coords[ii] - self.angular_pivot_position
             )
-            Frer[:, ii] = Pdim[:, ii] * np.transpose(XR)
+            moment_y[:, ii] = (
+                -pressure_dim[:, ii]
+                * np.transpose(radius_coords)
+                * np.transpose(radius_coords * np.cos(theta_coords[ii] - self.angular_pivot_position) - pivot_coords)
+            )
+            force_axial[:, ii] = pressure_dim[:, ii] * np.transpose(radius_coords)
         
-        frer = np.trapezoid( Frer, XTETA)
+        force_radial = np.trapezoid(force_axial, theta_coords)
         ######################################################################
-        mxr = np.trapezoid( Mxr, XTETA)
-        myr = np.trapezoid( Myr, XTETA)
+        mom_x_radial = np.trapezoid(moment_x, theta_coords)
+        mom_y_radial = np.trapezoid(moment_y, theta_coords)
 
-        mx = np.trapezoid(mxr, XR)
-        my = np.trapezoid( myr, XR)
+        mom_x_total = np.trapezoid(mom_x_radial, radius_coords)
+        mom_y_total = np.trapezoid(mom_y_radial, radius_coords)
         ######################################################################
         
         # if self.op_key == "impos_h0":
         if self.equilibrium_position_mode == "imposed":
-            score = np.linalg.norm([mx, my])
+            score = np.linalg.norm([mom_x_total, mom_y_total])
         
         else:  # "calculate" operation mode
-            fre = -np.trapezoid(frer, XR) + self.fzs_load / self.n_pad
-            score = np.linalg.norm([mx, my, fre])
+            axial_force_residual = -np.trapezoid(force_radial, radius_coords) + self.fzs_load / self.n_pad
+            score = np.linalg.norm([mom_x_total, mom_y_total, axial_force_residual])
 
         return score
 
 
-    def P_solution(self, H0, H0ne, H0nw, H0se, H0sw, h0, As, Ar, MI,  Mat_coef, b, P0):
+    def _solve_pressure_field(self, circum_param, radial_param,  mat_coeff, source_term_vector):
         
         # PRESSURE FIELD - Solution of Reynolds equation
-        kR = 0
-        kTETA = 0
+        radial_idx = 0
+        angular_idx = 0
 
         # pressure vectorization index
-        k = -1
+        vectorization_idx = -1
 
-        for R in self.vec_R:
-            for TETA in self.vec_TETA:
+        for radius in self.radius_array:
+            for theta in self.theta_array:
 
-                TETAe = TETA + 0.5 * self.dTETA
-                TETAw = TETA - 0.5 * self.dTETA
-                Rn = R + 0.5 * self.dR
-                Rs = R - 0.5 * self.dR
+                theta_e = theta + 0.5 * self.d_theta
+                theta_w = theta - 0.5 * self.d_theta
+                radius_n = radius + 0.5 * self.d_radius
+                radius_s = radius - 0.5 * self.d_radius
 
-                H0[kR, kTETA] = (
-                    h0 / h0
-                    + As * (self.Rp - R * np.cos(self.pad_arc_length * (TETA - self.TETAp)))
-                    + Ar * R * np.sin(self.pad_arc_length * (TETA - self.TETAp))
+                self.film_thickness_center_array[radial_idx, angular_idx] = (
+                    self.pivot_film_thickness / self.pivot_film_thickness
+                    + circum_param * (self.rp - radius * np.cos(self.pad_arc_length * (theta - self.theta_pad)))
+                    + radial_param * radius * np.sin(self.pad_arc_length * (theta - self.theta_pad))
                 )
-                H0ne[kR, kTETA] = (
-                    h0 / h0
-                    + As * (self.Rp - Rn * np.cos(self.pad_arc_length * (TETAe - self.TETAp)))
-                    + Ar * Rn * np.sin(self.pad_arc_length * (TETAe - self.TETAp))
+                self.film_thickness_ne[radial_idx, angular_idx] = (
+                    self.pivot_film_thickness / self.pivot_film_thickness
+                    + circum_param * (self.rp - radius_n * np.cos(self.pad_arc_length * (theta_e - self.theta_pad)))
+                    + radial_param * radius_n * np.sin(self.pad_arc_length * (theta_e - self.theta_pad))
                 )
-                H0nw[kR, kTETA] = (
-                    h0 / h0
-                    + As * (self.Rp - Rn * np.cos(self.pad_arc_length * (TETAw - self.TETAp)))
-                    + Ar * Rn * np.sin(self.pad_arc_length * (TETAw - self.TETAp))
+                self.film_thickness_nw[radial_idx, angular_idx] = (
+                    self.pivot_film_thickness / self.pivot_film_thickness
+                    + circum_param * (self.rp - radius_n * np.cos(self.pad_arc_length * (theta_w - self.theta_pad)))
+                    + radial_param * radius_n * np.sin(self.pad_arc_length * (theta_w - self.theta_pad))
                 )
-                H0se[kR, kTETA] = (
-                    h0 / h0
-                    + As * (self.Rp - Rs * np.cos(self.pad_arc_length * (TETAe - self.TETAp)))
-                    + Ar * Rs * np.sin(self.pad_arc_length * (TETAe - self.TETAp))
+                self.film_thickness_se[radial_idx, angular_idx] = (
+                    self.pivot_film_thickness / self.pivot_film_thickness
+                    + circum_param * (self.rp - radius_s * np.cos(self.pad_arc_length * (theta_e - self.theta_pad)))
+                    + radial_param * radius_s * np.sin(self.pad_arc_length * (theta_e - self.theta_pad))
                 )
-                H0sw[kR, kTETA] = (
-                    h0 / h0
-                    + As * (self.Rp - Rs * np.cos(self.pad_arc_length * (TETAw - self.TETAp)))
-                    + Ar * Rs * np.sin(self.pad_arc_length * (TETAw - self.TETAp))
+                self.film_thickness_sw[radial_idx, angular_idx] = (
+                    self.pivot_film_thickness / self.pivot_film_thickness
+                    + circum_param * (self.rp - radius_s * np.cos(self.pad_arc_length * (theta_w - self.theta_pad)))
+                    + radial_param * radius_s * np.sin(self.pad_arc_length * (theta_w - self.theta_pad))
                 )
 
-                if kTETA == 0 and kR == 0:
-                    MI_e = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA + 1])
-                    MI_w = MI[kR, kTETA]
-                    MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
-                    MI_s = MI[kR, kTETA]
+                if angular_idx == 0 and radial_idx == 0:
+                    mu_e = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx, angular_idx + 1])
+                    mu_w = self.mu[radial_idx, angular_idx]
+                    mu_n = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx + 1, angular_idx])
+                    mu_s = self.mu[radial_idx, angular_idx]
 
-                if kTETA == 0 and kR > 0 and kR < self.n_radial-1:
-                    MI_e = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA + 1])
-                    MI_w = MI[kR, kTETA]
-                    MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
-                    MI_s = 0.5 * (MI[kR, kTETA] + MI[kR - 1, kTETA])
+                if angular_idx == 0 and radial_idx > 0 and radial_idx < self.n_radial-1:
+                    mu_e = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx, angular_idx + 1])
+                    mu_w = self.mu[radial_idx, angular_idx]
+                    mu_n = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx + 1, angular_idx])
+                    mu_s = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx - 1, angular_idx])
 
-                if kTETA == 0 and kR == self.n_radial-1:
-                    MI_e = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA + 1])
-                    MI_w = MI[kR, kTETA]
-                    MI_n = MI[kR, kTETA]
-                    MI_s = 0.5 * (MI[kR, kTETA] + MI[kR - 1, kTETA])
+                if angular_idx == 0 and radial_idx == self.n_radial-1:
+                    mu_e = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx, angular_idx + 1])
+                    mu_w = self.mu[radial_idx, angular_idx]
+                    mu_n = self.mu[radial_idx, angular_idx]
+                    mu_s = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx - 1, angular_idx])
 
-                if kR == 0 and kTETA > 0 and kTETA < self.n_theta-1:
-                    MI_e = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA + 1])
-                    MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
-                    MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
-                    MI_s = MI[kR, kTETA]
+                if radial_idx == 0 and angular_idx > 0 and angular_idx < self.n_theta-1:
+                    mu_e = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx, angular_idx + 1])
+                    mu_w = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx, angular_idx - 1])
+                    mu_n = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx + 1, angular_idx])
+                    mu_s = self.mu[radial_idx, angular_idx]
 
-                if kTETA > 0 and kTETA < self.n_theta-1 and kR > 0 and kR < self.n_radial-1:
-                    MI_e = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA + 1])
-                    MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
-                    MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
-                    MI_s = 0.5 * (MI[kR, kTETA] + MI[kR - 1, kTETA])
+                if angular_idx > 0 and angular_idx < self.n_theta-1 and radial_idx > 0 and radial_idx < self.n_radial-1:
+                    mu_e = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx, angular_idx + 1])
+                    mu_w = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx, angular_idx - 1])
+                    mu_n = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx + 1, angular_idx])
+                    mu_s = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx - 1, angular_idx])
 
-                if kR == self.n_radial-1 and kTETA > 0 and kTETA < self.n_theta-1:
-                    MI_e = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA + 1])
-                    MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
-                    MI_n = MI[kR, kTETA]
-                    MI_s = 0.5 * (MI[kR, kTETA] + MI[kR - 1, kTETA])
+                if radial_idx == self.n_radial-1 and angular_idx > 0 and angular_idx < self.n_theta-1:
+                    mu_e = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx, angular_idx + 1])
+                    mu_w = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx, angular_idx - 1])
+                    mu_n = self.mu[radial_idx, angular_idx]
+                    mu_s = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx - 1, angular_idx])
 
-                if kR == 0 and kTETA == self.n_theta-1:
-                    MI_e = MI[kR, kTETA]
-                    MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
-                    MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
-                    MI_s = MI[kR, kTETA]
+                if radial_idx == 0 and angular_idx == self.n_theta-1:
+                    mu_e = self.mu[radial_idx, angular_idx]
+                    mu_w = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx, angular_idx - 1])
+                    mu_n = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx + 1, angular_idx])
+                    mu_s = self.mu[radial_idx, angular_idx]
 
-                if kTETA == self.n_theta-1 and kR > 0 and kR < self.n_radial-1:
-                    MI_e = MI[kR, kTETA]
-                    MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
-                    MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
-                    MI_s = 0.5 * (MI[kR, kTETA] + MI[kR - 1, kTETA])
+                if angular_idx == self.n_theta-1 and radial_idx > 0 and radial_idx < self.n_radial-1:
+                    mu_e = self.mu[radial_idx, angular_idx]
+                    mu_w = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx, angular_idx - 1])
+                    mu_n = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx + 1, angular_idx])
+                    mu_s = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx - 1, angular_idx])
 
-                if kTETA == self.n_theta-1 and kR == self.n_radial-1:
-                    MI_e = MI[kR, kTETA]
-                    MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
-                    MI_n = MI[kR, kTETA]
-                    MI_s = 0.5 * (MI[kR, kTETA] + MI[kR - 1, kTETA])
+                if angular_idx == self.n_theta-1 and radial_idx == self.n_radial-1:
+                    mu_e = self.mu[radial_idx, angular_idx]
+                    mu_w = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx, angular_idx - 1])
+                    mu_n = self.mu[radial_idx, angular_idx]
+                    mu_s = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx - 1, angular_idx])
 
                 # Coefficients for solving the Reynolds equation
-                CE = (
+                coeff_e = (
                     1
-                    / (24 * self.pad_arc_length ** 2 * MI_e)
-                    * (self.dR / self.dTETA)
-                    * (H0ne[kR, kTETA] ** 3 / Rn + H0se[kR, kTETA] ** 3 / Rs)
+                    / (24 * self.pad_arc_length ** 2 * mu_e)
+                    * (self.d_radius / self.d_theta)
+                    * (self.film_thickness_ne[radial_idx, angular_idx] ** 3 / radius_n + self.film_thickness_se[radial_idx, angular_idx] ** 3 / radius_s)
                 )
-                CW = (
+                coeff_w = (
                     1
-                    / (24 * self.pad_arc_length ** 2 * MI_w)
-                    * (self.dR / self.dTETA)
-                    * (H0nw[kR, kTETA] ** 3 / Rn + H0sw[kR, kTETA] ** 3 / Rs)
+                    / (24 * self.pad_arc_length ** 2 * mu_w)
+                    * (self.d_radius / self.d_theta)
+                    * (self.film_thickness_nw[radial_idx, angular_idx] ** 3 / radius_n + self.film_thickness_sw[radial_idx, angular_idx] ** 3 / radius_s)
                 )
-                CN = (
-                    Rn
-                    / (24 * MI_n)
-                    * (self.dTETA / self.dR)
-                    * (H0ne[kR, kTETA] ** 3 + H0nw[kR, kTETA] ** 3)
+                coeff_n = (
+                    radius_n
+                    / (24 * mu_n)
+                    * (self.d_theta / self.d_radius)
+                    * (self.film_thickness_ne[radial_idx, angular_idx] ** 3 + self.film_thickness_nw[radial_idx, angular_idx] ** 3)
                 )
-                CS = (
-                    Rs
-                    / (24 * MI_s)
-                    * (self.dTETA / self.dR)
-                    * (H0se[kR, kTETA] ** 3 + H0sw[kR, kTETA] ** 3)
+                coeff_s = (
+                    radius_s
+                    / (24 * mu_s)
+                    * (self.d_theta / self.d_radius)
+                    * (self.film_thickness_se[radial_idx, angular_idx] ** 3 + self.film_thickness_sw[radial_idx, angular_idx] ** 3)
                 )
-                CP = -(CE + CW + CN + CS)
+                coeff_c = -(coeff_e + coeff_w + coeff_n + coeff_s)
 
                 # vectorization index
-                k = k + 1
+                vectorization_idx = vectorization_idx + 1
 
-                b[k, 0] = (
-                    self.dR
+                source_term_vector[vectorization_idx, 0] = (
+                    self.d_radius
                     / (4 * self.pad_arc_length)
                     * (
-                        Rn * H0ne[kR, kTETA]
-                        + Rs * H0se[kR, kTETA]
-                        - Rn * H0nw[kR, kTETA]
-                        - Rs * H0sw[kR, kTETA]
+                        radius_n * self.film_thickness_ne[radial_idx, angular_idx]
+                        + radius_s * self.film_thickness_se[radial_idx, angular_idx]
+                        - radius_n * self.film_thickness_nw[radial_idx, angular_idx]
+                        - radius_s * self.film_thickness_sw[radial_idx, angular_idx]
                     )
                 )
 
-                if kTETA == 0 and kR == 0:
-                    Mat_coef[k, k] = CP - CS - CW
-                    Mat_coef[k, k + 1] = CE
-                    Mat_coef[k, k + self.n_theta] = CN
+                if angular_idx == 0 and radial_idx == 0:
+                    mat_coeff[vectorization_idx, vectorization_idx] = coeff_c - coeff_s - coeff_w
+                    mat_coeff[vectorization_idx, vectorization_idx + 1] = coeff_e
+                    mat_coeff[vectorization_idx, vectorization_idx + self.n_theta] = coeff_n
 
-                if kTETA == 0 and kR > 0 and kR < self.n_radial-1:
-                    Mat_coef[k, k] = CP - CW
-                    Mat_coef[k, k + 1] = CE
-                    Mat_coef[k, k + self.n_theta] = CN
-                    Mat_coef[k, k - self.n_theta] = CS
+                if angular_idx == 0 and radial_idx > 0 and radial_idx < self.n_radial-1:
+                    mat_coeff[vectorization_idx, vectorization_idx] = coeff_c - coeff_w
+                    mat_coeff[vectorization_idx, vectorization_idx + 1] = coeff_e
+                    mat_coeff[vectorization_idx, vectorization_idx + self.n_theta] = coeff_n
+                    mat_coeff[vectorization_idx, vectorization_idx - self.n_theta] = coeff_s
 
-                if kTETA == 0 and kR == self.n_radial-1:
-                    Mat_coef[k, k] = CP - CW - CN
-                    Mat_coef[k, k + 1] = CE
-                    Mat_coef[k, k - self.n_theta] = CS
+                if angular_idx == 0 and radial_idx == self.n_radial-1:
+                    mat_coeff[vectorization_idx, vectorization_idx] = coeff_c - coeff_w - coeff_n
+                    mat_coeff[vectorization_idx, vectorization_idx + 1] = coeff_e
+                    mat_coeff[vectorization_idx, vectorization_idx - self.n_theta] = coeff_s
 
-                if kR == 0 and kTETA > 0 and kTETA < self.n_theta-1:
-                    Mat_coef[k, k] = CP - CS
-                    Mat_coef[k, k + 1] = CE
-                    Mat_coef[k, k - 1] = CW
-                    Mat_coef[k, k + self.n_theta] = CN
+                if radial_idx == 0 and angular_idx > 0 and angular_idx < self.n_theta-1:
+                    mat_coeff[vectorization_idx, vectorization_idx] = coeff_c - coeff_s
+                    mat_coeff[vectorization_idx, vectorization_idx + 1] = coeff_e
+                    mat_coeff[vectorization_idx, vectorization_idx - 1] = coeff_w
+                    mat_coeff[vectorization_idx, vectorization_idx + self.n_theta] = coeff_n
 
-                if kTETA > 0 and kTETA < self.n_theta-1 and kR > 0 and kR < self.n_radial-1:
-                    Mat_coef[k, k] = CP
-                    Mat_coef[k, k - 1] = CW
-                    Mat_coef[k, k + self.n_theta] = CN
-                    Mat_coef[k, k - self.n_theta] = CS
-                    Mat_coef[k, k + 1] = CE
+                if angular_idx > 0 and angular_idx < self.n_theta-1 and radial_idx > 0 and radial_idx < self.n_radial-1:
+                    mat_coeff[vectorization_idx, vectorization_idx] = coeff_c
+                    mat_coeff[vectorization_idx, vectorization_idx - 1] = coeff_w
+                    mat_coeff[vectorization_idx, vectorization_idx + self.n_theta] = coeff_n
+                    mat_coeff[vectorization_idx, vectorization_idx - self.n_theta] = coeff_s
+                    mat_coeff[vectorization_idx, vectorization_idx + 1] = coeff_e
 
-                if kR == self.n_radial-1 and kTETA > 0 and kTETA < self.n_theta-1:
-                    Mat_coef[k, k] = CP - CN
-                    Mat_coef[k, k - 1] = CW
-                    Mat_coef[k, k + 1] = CE
-                    Mat_coef[k, k - self.n_theta] = CS
+                if radial_idx == self.n_radial-1 and angular_idx > 0 and angular_idx < self.n_theta-1:
+                    mat_coeff[vectorization_idx, vectorization_idx] = coeff_c - coeff_n
+                    mat_coeff[vectorization_idx, vectorization_idx - 1] = coeff_w
+                    mat_coeff[vectorization_idx, vectorization_idx + 1] = coeff_e
+                    mat_coeff[vectorization_idx, vectorization_idx - self.n_theta] = coeff_s
 
-                if kR == 0 and kTETA == self.n_theta-1:
-                    Mat_coef[k, k] = CP - CE - CS
-                    Mat_coef[k, k - 1] = CW
-                    Mat_coef[k, k + self.n_theta] = CN
+                if radial_idx == 0 and angular_idx == self.n_theta-1:
+                    mat_coeff[vectorization_idx, vectorization_idx] = coeff_c - coeff_e - coeff_s
+                    mat_coeff[vectorization_idx, vectorization_idx - 1] = coeff_w
+                    mat_coeff[vectorization_idx, vectorization_idx + self.n_theta] = coeff_n
 
-                if kTETA == self.n_theta-1 and kR > 0 and kR < self.n_radial-1:
-                    Mat_coef[k, k] = CP - CE
-                    Mat_coef[k, k - 1] = CW
-                    Mat_coef[k, k - self.n_theta] = CS
-                    Mat_coef[k, k + self.n_theta] = CN
+                if angular_idx == self.n_theta-1 and radial_idx > 0 and radial_idx < self.n_radial-1:
+                    mat_coeff[vectorization_idx, vectorization_idx] = coeff_c - coeff_e
+                    mat_coeff[vectorization_idx, vectorization_idx - 1] = coeff_w
+                    mat_coeff[vectorization_idx, vectorization_idx - self.n_theta] = coeff_s
+                    mat_coeff[vectorization_idx, vectorization_idx + self.n_theta] = coeff_n
 
-                if kTETA == self.n_theta-1 and kR == self.n_radial-1:
-                    Mat_coef[k, k] = CP - CE - CN
-                    Mat_coef[k, k - 1] = CW
-                    Mat_coef[k, k - self.n_theta] = CS
+                if angular_idx == self.n_theta-1 and radial_idx == self.n_radial-1:
+                    mat_coeff[vectorization_idx, vectorization_idx] = coeff_c - coeff_e - coeff_n
+                    mat_coeff[vectorization_idx, vectorization_idx - 1] = coeff_w
+                    mat_coeff[vectorization_idx, vectorization_idx - self.n_theta] = coeff_s
 
-                kTETA = kTETA + 1
+                angular_idx = angular_idx + 1
 
-            kR = kR + 1
-            kTETA = 0
+            radial_idx = radial_idx + 1
+            angular_idx = 0
 
         # Pressure field solution
-        p = np.linalg.solve(Mat_coef, b)
-        cont = -1
+        pressure_solution = np.linalg.solve(mat_coeff, source_term_vector)
+        pressure_idx = -1
 
         # pressure matrix
         for ii in range(0, self.n_radial):
             for jj in range(0, self.n_theta):
-                cont = cont + 1
-                P0[ii, jj] = p[cont, 0]
+                pressure_idx = pressure_idx + 1
+                self.pressure_field[ii, jj] = pressure_solution[pressure_idx, 0]
 
                 # pressure boundary conditions
-                if P0[ii, jj] < 0:
-                    P0[ii, jj] = 0
-
-        return P0
+                if self.pressure_field[ii, jj] < 0:
+                    self.pressure_field[ii, jj] = 0
 
 
     def lub_selector(self):
@@ -1317,626 +1320,544 @@ class THDThrust:
         return lubricant_dict[self.lubricant]
 
 
-    def Coef_din(self, H0ne, H0nw, H0se, H0sw, h0, P0, mi):
+    def coefficients(self):
         # --------------------------------------------------------------------------
         # Stiffness and Damping Coefficients
-        wp = self.frequency  # perturbation frequency [rad/s]
-        WP = wp / self.frequency
+        perturbation_frequency = self.frequency  # perturbation frequency [rad/s]
+        normalized_frequency = perturbation_frequency / self.frequency
 
         # HYDROCOEFF_z =============================================================
         # STARTS HERE ==============================================================
 
-        MI = (1 / self.reference_viscosity) * mi
+        self.mu = (1 / self.reference_viscosity) * self.viscosity_field
 
-        kR = 0
-        kTETA = 0
-        k = -1  # pressure vectorization index
-        nk = (self.n_radial) * (self.n_theta)  # volumes number
+        radial_idx = 0
+        angular_idx = 0
+        vectorization_idx = -1  # pressure vectorization index
+        volumes_number = (self.n_radial) * (self.n_theta)  # volumes number
 
         # coefficients matrix
-        Mat_coef = np.zeros((nk, nk))
-        b_coef = np.zeros((nk, 1),dtype=complex)
-        p_coef = np.zeros((nk, 1),dtype=complex)
-        P_coef = np.zeros((self.n_radial, self.n_theta),dtype=complex)
-        P_dim_coef = np.zeros((self.n_radial, self.n_theta),dtype=complex)
-        Mxr_coef = np.zeros((self.n_radial, self.n_theta),dtype=complex)
-        Myr_coef = np.zeros((self.n_radial, self.n_theta),dtype=complex)
-        Frer_coef = np.zeros((self.n_radial, self.n_theta),dtype=complex)
+        mat_coeff = np.zeros((volumes_number, volumes_number))
+        source_vector = np.zeros((volumes_number, 1),dtype=complex)
+        pressure_vector = np.zeros((volumes_number, 1),dtype=complex)
+        pressure_field_coeff = np.zeros((self.n_radial, self.n_theta),dtype=complex)
+        moment_x_radial_coeff = np.zeros((self.n_radial, self.n_theta),dtype=complex)
+        moment_y_radial_coeff = np.zeros((self.n_radial, self.n_theta),dtype=complex)
+        force_radial_coeff = np.zeros((self.n_radial, self.n_theta),dtype=complex)
 
-        for R in self.vec_R:
-            for TETA in self.vec_TETA:
+        for radius in self.radius_array:
+            for theta in self.theta_array:
 
-                TETAe = TETA + 0.5 * self.dTETA
-                TETAw = TETA - 0.5 * self.dTETA
-                Rn = R + 0.5 * self.dR
-                Rs = R - 0.5 * self.dR
+                theta_e = theta + 0.5 * self.d_theta
+                theta_w = theta - 0.5 * self.d_theta
+                radius_n = radius + 0.5 * self.d_radius
+                radius_s = radius - 0.5 * self.d_radius
 
-                if kTETA == 0 and kR == 0:
-                    MI_e = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA + 1])
-                    MI_w = MI[kR, kTETA]
-                    MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
-                    MI_s = MI[kR, kTETA]
-                    dPdTETAe = (P0[kR, kTETA + 1] - P0[kR, kTETA]) / self.dTETA
-                    dPdTETAw = P0[kR, kTETA] / (0.5 * self.dTETA)
-                    dPdRn = (P0[kR + 1, kTETA] - P0[kR, kTETA]) / self.dR
-                    dPdRs = P0[kR, kTETA] / (0.5 * self.dR)
+                if angular_idx == 0 and radial_idx == 0:
+                    mu_e = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx, angular_idx + 1])
+                    mu_w = self.mu[radial_idx, angular_idx]
+                    mu_n = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx + 1, angular_idx])
+                    mu_s = self.mu[radial_idx, angular_idx]
+                    dp_dtheta_e = (self.pressure_field[radial_idx, angular_idx + 1] - self.pressure_field[radial_idx, angular_idx]) / self.d_theta
+                    dp_dtheta_w = self.pressure_field[radial_idx, angular_idx] / (0.5 * self.d_theta)
+                    dp_dr_n = (self.pressure_field[radial_idx + 1, angular_idx] - self.pressure_field[radial_idx, angular_idx]) / self.d_radius
+                    dp_dr_s = self.pressure_field[radial_idx, angular_idx] / (0.5 * self.d_radius)
 
-                if kTETA == 0 and kR > 0 and kR < self.n_radial - 1:
-                    MI_e = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA + 1])
-                    MI_w = MI[kR, kTETA]
-                    MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
-                    MI_s = 0.5 * (MI[kR, kTETA] + MI[kR - 1, kTETA])
-                    dPdTETAe = (P0[kR, kTETA + 1] - P0[kR, kTETA]) / self.dTETA
-                    dPdTETAw = P0[kR, kTETA] / (0.5 * self.dTETA)
-                    dPdRn = (P0[kR + 1, kTETA] - P0[kR, kTETA]) / self.dR
-                    dPdRs = (P0[kR, kTETA] - P0[kR - 1, kTETA]) / self.dR
+                if angular_idx == 0 and radial_idx > 0 and radial_idx < self.n_radial - 1:
+                    mu_e = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx, angular_idx + 1])
+                    mu_w = self.mu[radial_idx, angular_idx]
+                    mu_n = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx + 1, angular_idx])
+                    mu_s = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx - 1, angular_idx])
+                    dp_dtheta_e = (self.pressure_field[radial_idx, angular_idx + 1] - self.pressure_field[radial_idx, angular_idx]) / self.d_theta
+                    dp_dtheta_w = self.pressure_field[radial_idx, angular_idx] / (0.5 * self.d_theta)
+                    dp_dr_n = (self.pressure_field[radial_idx + 1, angular_idx] - self.pressure_field[radial_idx, angular_idx]) / self.d_radius
+                    dp_dr_s = (self.pressure_field[radial_idx, angular_idx] - self.pressure_field[radial_idx - 1, angular_idx]) / self.d_radius
 
-                if kTETA == 0 and kR == self.n_radial - 1:
-                    MI_e = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA + 1])
-                    MI_w = MI[kR, kTETA]
-                    MI_n = MI[kR, kTETA]
-                    MI_s = 0.5 * (MI[kR, kTETA] + MI[kR - 1, kTETA])
-                    dPdTETAe = (P0[kR, kTETA + 1] - P0[kR, kTETA]) / self.dTETA
-                    dPdTETAw = P0[kR, kTETA] / (0.5 * self.dTETA)
-                    dPdRn = -P0[kR, kTETA] / (0.5 * self.dR)
-                    dPdRs = (P0[kR, kTETA] - P0[kR - 1, kTETA]) / self.dR
+                if angular_idx == 0 and radial_idx == self.n_radial - 1:
+                    mu_e = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx, angular_idx + 1])
+                    mu_w = self.mu[radial_idx, angular_idx]
+                    mu_n = self.mu[radial_idx, angular_idx]
+                    mu_s = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx - 1, angular_idx])
+                    dp_dtheta_e = (self.pressure_field[radial_idx, angular_idx + 1] - self.pressure_field[radial_idx, angular_idx]) / self.d_theta
+                    dp_dtheta_w = self.pressure_field[radial_idx, angular_idx] / (0.5 * self.d_theta)
+                    dp_dr_n = -self.pressure_field[radial_idx, angular_idx] / (0.5 * self.d_radius)
+                    dp_dr_s = (self.pressure_field[radial_idx, angular_idx] - self.pressure_field[radial_idx - 1, angular_idx]) / self.d_radius
 
-                if kR == 0 and kTETA > 0 and kTETA < self.n_theta-1:
-                    MI_e = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA + 1])
-                    MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
-                    MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
-                    MI_s = MI[kR, kTETA]
-                    dPdTETAe = (P0[kR, kTETA + 1] - P0[kR, kTETA]) / self.dTETA
-                    dPdTETAw = (P0[kR, kTETA] - P0[kR, kTETA - 1]) / self.dTETA
-                    dPdRn = (P0[kR + 1, kTETA] - P0[kR, kTETA]) / self.dR
-                    dPdRs = P0[kR, kTETA] / (0.5 * self.dR)
+                if radial_idx == 0 and angular_idx > 0 and angular_idx < self.n_theta-1:
+                    mu_e = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx, angular_idx + 1])
+                    mu_w = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx, angular_idx - 1])
+                    mu_n = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx + 1, angular_idx])
+                    mu_s = self.mu[radial_idx, angular_idx]
+                    dp_dtheta_e = (self.pressure_field[radial_idx, angular_idx + 1] - self.pressure_field[radial_idx, angular_idx]) / self.d_theta
+                    dp_dtheta_w = (self.pressure_field[radial_idx, angular_idx] - self.pressure_field[radial_idx, angular_idx - 1]) / self.d_theta
+                    dp_dr_n = (self.pressure_field[radial_idx + 1, angular_idx] - self.pressure_field[radial_idx, angular_idx]) / self.d_radius
+                    dp_dr_s = self.pressure_field[radial_idx, angular_idx] / (0.5 * self.d_radius)
 
-                if kTETA > 0 and kTETA < self.n_theta-1 and kR > 0 and kR < self.n_radial-1:
-                    MI_e = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA + 1])
-                    MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
-                    MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
-                    MI_s = 0.5 * (MI[kR, kTETA] + MI[kR - 1, kTETA])
-                    dPdTETAe = (P0[kR, kTETA + 1] - P0[kR, kTETA]) / self.dTETA
-                    dPdTETAw = (P0[kR, kTETA] - P0[kR, kTETA - 1]) / self.dTETA
-                    dPdRn = (P0[kR + 1, kTETA] - P0[kR, kTETA]) / self.dR
-                    dPdRs = (P0[kR, kTETA] - P0[kR - 1, kTETA]) / self.dR
+                if angular_idx > 0 and angular_idx < self.n_theta-1 and radial_idx > 0 and radial_idx < self.n_radial-1:
+                    mu_e = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx, angular_idx + 1])
+                    mu_w = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx, angular_idx - 1])
+                    mu_n = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx + 1, angular_idx])
+                    mu_s = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx - 1, angular_idx])
+                    dp_dtheta_e = (self.pressure_field[radial_idx, angular_idx + 1] - self.pressure_field[radial_idx, angular_idx]) / self.d_theta
+                    dp_dtheta_w = (self.pressure_field[radial_idx, angular_idx] - self.pressure_field[radial_idx, angular_idx - 1]) / self.d_theta
+                    dp_dr_n = (self.pressure_field[radial_idx + 1, angular_idx] - self.pressure_field[radial_idx, angular_idx]) / self.d_radius
+                    dp_dr_s = (self.pressure_field[radial_idx, angular_idx] - self.pressure_field[radial_idx - 1, angular_idx]) / self.d_radius
 
-                if kR == self.n_radial-1 and kTETA > 0 and kTETA < self.n_theta -1:
-                    MI_e = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA + 1])
-                    MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
-                    MI_n = MI[kR, kTETA]
-                    MI_s = 0.5 * (MI[kR, kTETA] + MI[kR - 1, kTETA])
-                    dPdTETAe = (P0[kR, kTETA + 1] - P0[kR, kTETA]) / self.dTETA
-                    dPdTETAw = (P0[kR, kTETA] - P0[kR, kTETA - 1]) / self.dTETA
-                    dPdRn = -P0[kR, kTETA] / (0.5 * self.dR)
-                    dPdRs = (P0[kR, kTETA] - P0[kR - 1, kTETA]) / self.dR
+                if radial_idx == self.n_radial-1 and angular_idx > 0 and angular_idx < self.n_theta -1:
+                    mu_e = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx, angular_idx + 1])
+                    mu_w = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx, angular_idx - 1])
+                    mu_n = self.mu[radial_idx, angular_idx]
+                    mu_s = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx - 1, angular_idx])
+                    dp_dtheta_e = (self.pressure_field[radial_idx, angular_idx + 1] - self.pressure_field[radial_idx, angular_idx]) / self.d_theta
+                    dp_dtheta_w = (self.pressure_field[radial_idx, angular_idx] - self.pressure_field[radial_idx, angular_idx - 1]) / self.d_theta
+                    dp_dr_n = -self.pressure_field[radial_idx, angular_idx] / (0.5 * self.d_radius)
+                    dp_dr_s = (self.pressure_field[radial_idx, angular_idx] - self.pressure_field[radial_idx - 1, angular_idx]) / self.d_radius
 
-                if kR == 0 and kTETA == self.n_theta-1:
-                    MI_e = MI[kR, kTETA]
-                    MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
-                    MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
-                    MI_s = MI[kR, kTETA]
-                    dPdTETAe = -P0[kR, kTETA] / (0.5 * self.dTETA)
-                    dPdTETAw = (P0[kR, kTETA] - P0[kR, kTETA - 1]) / self.dTETA
-                    dPdRn = (P0[kR + 1, kTETA] - P0[kR, kTETA]) / self.dR
-                    dPdRs = P0[kR, kTETA] / (0.5 * self.dR)
+                if radial_idx == 0 and angular_idx == self.n_theta-1:
+                    mu_e = self.mu[radial_idx, angular_idx]
+                    mu_w = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx, angular_idx - 1])
+                    mu_n = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx + 1, angular_idx])
+                    mu_s = self.mu[radial_idx, angular_idx]
+                    dp_dtheta_e = -self.pressure_field[radial_idx, angular_idx] / (0.5 * self.d_theta)
+                    dp_dtheta_w = (self.pressure_field[radial_idx, angular_idx] - self.pressure_field[radial_idx, angular_idx - 1]) / self.d_theta
+                    dp_dr_n = (self.pressure_field[radial_idx + 1, angular_idx] - self.pressure_field[radial_idx, angular_idx]) / self.d_radius
+                    dp_dr_s = self.pressure_field[radial_idx, angular_idx] / (0.5 * self.d_radius)
 
-                if kTETA == self.n_theta-1 and kR > 0 and kR < self.n_radial-1:
-                    MI_e = MI[kR, kTETA]
-                    MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
-                    MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
-                    MI_s = 0.5 * (MI[kR, kTETA] + MI[kR - 1, kTETA])
-                    dPdTETAe = -P0[kR, kTETA] / (0.5 * self.dTETA)
-                    dPdTETAw = (P0[kR, kTETA] - P0[kR, kTETA - 1]) / self.dTETA
-                    dPdRn = (P0[kR + 1, kTETA] - P0[kR, kTETA]) / self.dR
-                    dPdRs = (P0[kR, kTETA] - P0[kR - 1, kTETA]) / self.dR
+                if angular_idx == self.n_theta-1 and radial_idx > 0 and radial_idx < self.n_radial-1:
+                    mu_e = self.mu[radial_idx, angular_idx]
+                    mu_w = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx, angular_idx - 1])
+                    mu_n = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx + 1, angular_idx])
+                    mu_s = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx - 1, angular_idx])
+                    dp_dtheta_e = -self.pressure_field[radial_idx, angular_idx] / (0.5 * self.d_theta)
+                    dp_dtheta_w = (self.pressure_field[radial_idx, angular_idx] - self.pressure_field[radial_idx, angular_idx - 1]) / self.d_theta
+                    dp_dr_n = (self.pressure_field[radial_idx + 1, angular_idx] - self.pressure_field[radial_idx, angular_idx]) / self.d_radius
+                    dp_dr_s = (self.pressure_field[radial_idx, angular_idx] - self.pressure_field[radial_idx - 1, angular_idx]) / self.d_radius
 
-                if kTETA == self.n_theta-1 and kR == self.n_radial-1:
-                    MI_e = MI[kR, kTETA]
-                    MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
-                    MI_n = MI[kR, kTETA]
-                    MI_s = 0.5 * (MI[kR, kTETA] + MI[kR - 1, kTETA])
-                    dPdTETAe = -P0[kR, kTETA] / (0.5 * self.dTETA)
-                    dPdTETAw = (P0[kR, kTETA] - P0[kR, kTETA - 1]) / self.dTETA
-                    dPdRn = -P0[kR, kTETA] / (0.5 * self.dR)
-                    dPdRs = (P0[kR, kTETA] - P0[kR - 1, kTETA]) / self.dR
+                if angular_idx == self.n_theta-1 and radial_idx == self.n_radial-1:
+                    mu_e = self.mu[radial_idx, angular_idx]
+                    mu_w = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx, angular_idx - 1])
+                    mu_n = self.mu[radial_idx, angular_idx]
+                    mu_s = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx - 1, angular_idx])
+                    dp_dtheta_e = -self.pressure_field[radial_idx, angular_idx] / (0.5 * self.d_theta)
+                    dp_dtheta_w = (self.pressure_field[radial_idx, angular_idx] - self.pressure_field[radial_idx, angular_idx - 1]) / self.d_theta
+                    dp_dr_n = -self.pressure_field[radial_idx, angular_idx] / (0.5 * self.d_radius)
+                    dp_dr_s = (self.pressure_field[radial_idx, angular_idx] - self.pressure_field[radial_idx - 1, angular_idx]) / self.d_radius
 
-                As_ne = 1
-                As_nw = 1
-                As_se = 1
-                As_sw = 1
-
-                # G1=dhpivotdR=0
-                G1_ne = 0
-                G1_nw = 0
-                G1_se = 0
-                G1_sw = 0
-
-                # Gs=dhpivotdTETA=0
-                G2_ne = 0
-                G2_nw = 0
-                G2_se = 0
-                G2_sw = 0
+                pert_coeff_ne, pert_coeff_nw, pert_coeff_se, pert_coeff_sw = np.ones(4)
+                rad_pert_ne, rad_pert_nw, rad_pert_se, rad_pert_sw = np.zeros(4)
+                circ_pert_ne, circ_pert_nw, circ_pert_se, circ_pert_sw = np.zeros(4)
 
                 # Coefficients for solving the Reynolds equation
-                CE_1 = (
+                energy_e = (
                     1
-                    / (24 * self.pad_arc_length ** 2 * MI_e)
-                    * (self.dR / self.dTETA)
+                    / (24 * self.pad_arc_length ** 2 * mu_e)
+                    * (self.d_radius / self.d_theta)
                     * (
-                        As_ne * H0ne[kR, kTETA] ** 3 / Rn
-                        + As_se * H0se[kR, kTETA] ** 3 / Rs
+                        pert_coeff_ne * self.film_thickness_ne[radial_idx, angular_idx] ** 3 / radius_n
+                        + pert_coeff_se * self.film_thickness_se[radial_idx, angular_idx] ** 3 / radius_s
                     )
                 )
-                CE_2 = (
-                    self.dR
-                    / (48 * self.pad_arc_length ** 2 * MI_e)
+                diffusion_e = (
+                    self.d_radius
+                    / (48 * self.pad_arc_length ** 2 * mu_e)
                     * (
-                        G2_ne * H0ne[kR, kTETA] ** 3 / Rn
-                        + G2_se * H0se[kR, kTETA] ** 3 / Rs
+                        circ_pert_ne * self.film_thickness_ne[radial_idx, angular_idx] ** 3 / radius_n
+                        + circ_pert_se * self.film_thickness_se[radial_idx, angular_idx] ** 3 / radius_s
                     )
                 )
-                CE = CE_1 + CE_2
+                coeff_e = energy_e + diffusion_e
 
-                CW_1 = (
+                energy_w = (
                     1
-                    / (24 * self.pad_arc_length ** 2 * MI_w)
-                    * (self.dR / self.dTETA)
+                    / (24 * self.pad_arc_length ** 2 * mu_w)
+                    * (self.d_radius / self.d_theta)
                     * (
-                        As_nw * H0nw[kR, kTETA] ** 3 / Rn
-                        + As_sw * H0sw[kR, kTETA] ** 3 / Rs
+                        pert_coeff_nw * self.film_thickness_nw[radial_idx, angular_idx] ** 3 / radius_n
+                        + pert_coeff_sw * self.film_thickness_sw[radial_idx, angular_idx] ** 3 / radius_s
                     )
                 )
-                CW_2 = (
-                    -self.dR
-                    / (48 * self.pad_arc_length ** 2 * MI_w)
+                diffusion_w = (
+                    -self.d_radius
+                    / (48 * self.pad_arc_length ** 2 * mu_w)
                     * (
-                        G2_nw * H0nw[kR, kTETA] ** 3 / Rn
-                        + G2_sw * H0sw[kR, kTETA] ** 3 / Rs
+                        circ_pert_nw * self.film_thickness_nw[radial_idx, angular_idx] ** 3 / radius_n
+                        + circ_pert_sw * self.film_thickness_sw[radial_idx, angular_idx] ** 3 / radius_s
                     )
                 )
-                CW = CW_1 + CW_2
+                coeff_w = energy_w + diffusion_w
 
-                CN_1 = (
-                    Rn
-                    / (24 * MI_n)
-                    * (self.dTETA / self.dR)
-                    * (As_ne * H0ne[kR, kTETA] ** 3 + As_nw * H0nw[kR, kTETA] ** 3)
+                energy_n = (
+                    radius_n
+                    / (24 * mu_n)
+                    * (self.d_theta / self.d_radius)
+                    * (pert_coeff_ne * self.film_thickness_ne[radial_idx, angular_idx] ** 3 + pert_coeff_nw * self.film_thickness_nw[radial_idx, angular_idx] ** 3)
                 )
-                CN_2 = (
-                    Rn
-                    / (48 * MI_n)
-                    * (self.dTETA)
-                    * (G1_ne * H0ne[kR, kTETA] ** 3 + G1_nw * H0nw[kR, kTETA] ** 3)
+                diffusion_n = (
+                    radius_n
+                    / (48 * mu_n)
+                    * (self.d_theta)
+                    * (rad_pert_ne * self.film_thickness_ne[radial_idx, angular_idx] ** 3 + rad_pert_nw * self.film_thickness_nw[radial_idx, angular_idx] ** 3)
                 )
-                CN = CN_1 + CN_2
+                coeff_n = energy_n + diffusion_n
 
-                CS_1 = (
-                    Rs
-                    / (24 * MI_s)
-                    * (self.dTETA / self.dR)
-                    * (As_se * H0se[kR, kTETA] ** 3 + As_sw * H0sw[kR, kTETA] ** 3)
+                energy_s = (
+                    radius_s
+                    / (24 * mu_s)
+                    * (self.d_theta / self.d_radius)
+                    * (pert_coeff_se * self.film_thickness_se[radial_idx, angular_idx] ** 3 + pert_coeff_sw * self.film_thickness_sw[radial_idx, angular_idx] ** 3)
                 )
-                CS_2 = (
-                    -Rs
-                    / (48 * MI_s)
-                    * (self.dTETA)
-                    * (G1_se * H0se[kR, kTETA] ** 3 + G1_sw * H0sw[kR, kTETA] ** 3)
+                diffusion_s = (
+                    -radius_s
+                    / (48 * mu_s)
+                    * (self.d_theta)
+                    * (rad_pert_se * self.film_thickness_se[radial_idx, angular_idx] ** 3 + rad_pert_sw * self.film_thickness_sw[radial_idx, angular_idx] ** 3)
                 )
-                CS = CS_1 + CS_2
+                coeff_s = energy_s + diffusion_s
 
-                CP = -(CE_1 + CW_1 + CN_1 + CS_1) + (CE_2 + CW_2 + CN_2 + CS_2)
+                coeff_c = -(energy_e + energy_w + energy_n + energy_s) + (diffusion_e + diffusion_w + diffusion_n + diffusion_s)
 
-                B_1 = (Rn * self.dTETA / (8 * MI_n)) * dPdRn * (
-                    As_ne * H0ne[kR, kTETA] ** 2 + As_nw * H0nw[kR, kTETA] ** 2
-                ) - (Rs * self.dTETA / (8 * MI_s)) * dPdRs * (
-                    As_se * H0se[kR, kTETA] ** 2 + As_sw * H0sw[kR, kTETA] ** 2
+                radial_term = (radius_n * self.d_theta / (8 * mu_n)) * dp_dr_n * (
+                    pert_coeff_ne * self.film_thickness_ne[radial_idx, angular_idx] ** 2 + pert_coeff_nw * self.film_thickness_nw[radial_idx, angular_idx] ** 2
+                ) - (radius_s * self.d_theta / (8 * mu_s)) * dp_dr_s * (
+                    pert_coeff_se * self.film_thickness_se[radial_idx, angular_idx] ** 2 + pert_coeff_sw * self.film_thickness_sw[radial_idx, angular_idx] ** 2
                 )
-                B_2 = (self.dR / (8 * self.pad_arc_length ** 2 * MI_e)) * dPdTETAe * (
-                    As_ne * H0ne[kR, kTETA] ** 2 / Rn
-                    + As_se * H0se[kR, kTETA] ** 2 / Rs
-                ) - (self.dR / (8 * self.pad_arc_length ** 2 * MI_w)) * dPdTETAw * (
-                    As_nw * H0nw[kR, kTETA] ** 2 / Rn
-                    + As_sw * H0sw[kR, kTETA] ** 2 / Rs
+                circ_term = (self.d_radius / (8 * self.pad_arc_length ** 2 * mu_e)) * dp_dtheta_e * (
+                    pert_coeff_ne * self.film_thickness_ne[radial_idx, angular_idx] ** 2 / radius_n
+                    + pert_coeff_se * self.film_thickness_se[radial_idx, angular_idx] ** 2 / radius_s
+                ) - (self.d_radius / (8 * self.pad_arc_length ** 2 * mu_w)) * dp_dtheta_w * (
+                    pert_coeff_nw * self.film_thickness_nw[radial_idx, angular_idx] ** 2 / radius_n
+                    + pert_coeff_sw * self.film_thickness_sw[radial_idx, angular_idx] ** 2 / radius_s
                 )
-                B_3 =self. dR / (4 * self.pad_arc_length) * (As_ne * Rn + As_se * Rs) - self.dR / (
+                conv_term =self.d_radius / (4 * self.pad_arc_length) * (pert_coeff_ne * radius_n + pert_coeff_se * radius_s) - self.d_radius / (
                     4 * self.pad_arc_length
-                ) * (As_nw * Rn + As_sw * Rs)
-                B_4 = (
+                ) * (pert_coeff_nw * radius_n + pert_coeff_sw * radius_s)
+                inertial_term = (
                     complex(0, 1)
-                    * WP
-                    * self.dR
-                    * self.dTETA
+                    * normalized_frequency
+                    * self.d_radius
+                    * self.d_theta
                     / 4
-                    * (Rn * As_ne + Rn * As_nw + Rs * As_se + Rs * As_sw)
+                    * (radius_n * pert_coeff_ne + radius_n * pert_coeff_nw + radius_s * pert_coeff_se + radius_s * pert_coeff_sw)
                 )
 
                 # vectorization index
-                k = k + 1
+                vectorization_idx = vectorization_idx + 1
 
-                b_coef[k, 0] = -(B_1 + B_2) + B_3 + B_4
+                source_vector[vectorization_idx, 0] = -(radial_term + circ_term) + conv_term + inertial_term
 
-                if kTETA == 0 and kR == 0:
-                    Mat_coef[k, k] = CP - CW - CS
-                    Mat_coef[k, k + 1] = CE
-                    Mat_coef[k, k + self.n_theta] = CN
+                if angular_idx == 0 and radial_idx == 0:
+                    mat_coeff[vectorization_idx, vectorization_idx] = coeff_c - coeff_w - coeff_s
+                    mat_coeff[vectorization_idx, vectorization_idx + 1] = coeff_e
+                    mat_coeff[vectorization_idx, vectorization_idx + self.n_theta] = coeff_n
 
-                if kTETA == 0 and kR > 0 and kR < self.n_radial-1:
-                    Mat_coef[k, k] = CP - CW
-                    Mat_coef[k, k + 1] = CE
-                    Mat_coef[k, k + self.n_theta] = CN
-                    Mat_coef[k, k - self.n_theta] = CS
+                if angular_idx == 0 and radial_idx > 0 and radial_idx < self.n_radial-1:
+                    mat_coeff[vectorization_idx, vectorization_idx] = coeff_c - coeff_w
+                    mat_coeff[vectorization_idx, vectorization_idx + 1] = coeff_e
+                    mat_coeff[vectorization_idx, vectorization_idx + self.n_theta] = coeff_n
+                    mat_coeff[vectorization_idx, vectorization_idx - self.n_theta] = coeff_s
 
-                if kTETA == 0 and kR == self.n_radial-1:
-                    Mat_coef[k, k] = CP - CW - CN
-                    Mat_coef[k, k + 1] = CE
-                    Mat_coef[k, k - self.n_theta] = CS
+                if angular_idx == 0 and radial_idx == self.n_radial-1:
+                    mat_coeff[vectorization_idx, vectorization_idx] = coeff_c - coeff_w - coeff_n
+                    mat_coeff[vectorization_idx, vectorization_idx + 1] = coeff_e
+                    mat_coeff[vectorization_idx, vectorization_idx - self.n_theta] = coeff_s
 
-                if kR == 0 and kTETA > 0 and kTETA < self.n_theta-1:
-                    Mat_coef[k, k] = CP - CS
-                    Mat_coef[k, k + 1] = CE
-                    Mat_coef[k, k - 1] = CW
-                    Mat_coef[k, k + self.n_theta] = CN
+                if radial_idx == 0 and angular_idx > 0 and angular_idx < self.n_theta-1:
+                    mat_coeff[vectorization_idx, vectorization_idx] = coeff_c - coeff_s
+                    mat_coeff[vectorization_idx, vectorization_idx + 1] = coeff_e
+                    mat_coeff[vectorization_idx, vectorization_idx - 1] = coeff_w
+                    mat_coeff[vectorization_idx, vectorization_idx + self.n_theta] = coeff_n
 
-                if kTETA > 0 and kTETA < self.n_theta-1 and kR > 0 and kR < self.n_radial-1:
-                    Mat_coef[k, k] = CP
-                    Mat_coef[k, k - 1] = CW
-                    Mat_coef[k, k + self.n_theta] = CN
-                    Mat_coef[k, k - self.n_theta] = CS
-                    Mat_coef[k, k + 1] = CE
+                if angular_idx > 0 and angular_idx < self.n_theta-1 and radial_idx > 0 and radial_idx < self.n_radial-1:
+                    mat_coeff[vectorization_idx, vectorization_idx] = coeff_c
+                    mat_coeff[vectorization_idx, vectorization_idx - 1] = coeff_w
+                    mat_coeff[vectorization_idx, vectorization_idx + self.n_theta] = coeff_n
+                    mat_coeff[vectorization_idx, vectorization_idx - self.n_theta] = coeff_s
+                    mat_coeff[vectorization_idx, vectorization_idx + 1] = coeff_e
 
-                if kR == self.n_radial-1 and kTETA > 0 and kTETA < self.n_theta-1:
-                    Mat_coef[k, k] = CP - CN
-                    Mat_coef[k, k - 1] = CW
-                    Mat_coef[k, k + 1] = CE
-                    Mat_coef[k, k - self.n_theta] = CS
+                if radial_idx == self.n_radial-1 and angular_idx > 0 and angular_idx < self.n_theta-1:
+                    mat_coeff[vectorization_idx, vectorization_idx] = coeff_c - coeff_n
+                    mat_coeff[vectorization_idx, vectorization_idx - 1] = coeff_w
+                    mat_coeff[vectorization_idx, vectorization_idx + 1] = coeff_e
+                    mat_coeff[vectorization_idx, vectorization_idx - self.n_theta] = coeff_s
 
-                if kR == 0 and kTETA == self.n_theta-1:
-                    Mat_coef[k, k] = CP - CE - CS
-                    Mat_coef[k, k - 1] = CW
-                    Mat_coef[k, k + self.n_theta] = CN
+                if radial_idx == 0 and angular_idx == self.n_theta-1:
+                    mat_coeff[vectorization_idx, vectorization_idx] = coeff_c - coeff_e - coeff_s
+                    mat_coeff[vectorization_idx, vectorization_idx - 1] = coeff_w
+                    mat_coeff[vectorization_idx, vectorization_idx + self.n_theta] = coeff_n
 
-                if kTETA == self.n_theta-1 and kR > 0 and kR < self.n_radial-1:
-                    Mat_coef[k, k] = CP - CE
-                    Mat_coef[k, k - 1] = CW
-                    Mat_coef[k, k - self.n_theta] = CS
-                    Mat_coef[k, k + self.n_theta] = CN
+                if angular_idx == self.n_theta-1 and radial_idx > 0 and radial_idx < self.n_radial-1:
+                    mat_coeff[vectorization_idx, vectorization_idx] = coeff_c - coeff_e
+                    mat_coeff[vectorization_idx, vectorization_idx - 1] = coeff_w
+                    mat_coeff[vectorization_idx, vectorization_idx - self.n_theta] = coeff_s
+                    mat_coeff[vectorization_idx, vectorization_idx + self.n_theta] = coeff_n
 
-                if kTETA == self.n_theta-1 and kR == self.n_radial-1:
-                    Mat_coef[k, k] = CP - CE - CN
-                    Mat_coef[k, k - 1] = CW
-                    Mat_coef[k, k - self.n_theta] = CS
+                if angular_idx == self.n_theta-1 and radial_idx == self.n_radial-1:
+                    mat_coeff[vectorization_idx, vectorization_idx] = coeff_c - coeff_e - coeff_n
+                    mat_coeff[vectorization_idx, vectorization_idx - 1] = coeff_w
+                    mat_coeff[vectorization_idx, vectorization_idx - self.n_theta] = coeff_s
 
-                kTETA = kTETA + 1
+                angular_idx = angular_idx + 1
 
-            kR = kR + 1
-            kTETA = 0
+            radial_idx = radial_idx + 1
+            angular_idx = 0
 
         # vectorized pressure field solution
-        p_coef = np.linalg.solve(Mat_coef, b_coef)
-        cont = -1
+        pressure_vector = np.linalg.solve(mat_coeff, source_vector)
+        pressure_idx = -1
 
         # pressure matrix
         for ii in range(0, self.n_radial):
             for jj in range(0, self.n_theta):
-                cont = cont + 1
-                P_coef[ii, jj] = p_coef[cont, 0]
+                pressure_idx = pressure_idx + 1
+                pressure_field_coeff[ii, jj] = pressure_vector[pressure_idx, 0]
 
         # dimensional pressure
-        Pdim_coef = P_coef * (self.pad_inner_radius ** 2) * self.frequency * self.reference_viscosity / (h0 ** 3)
+        pressure_coeff_dim = pressure_field_coeff * (self.pad_inner_radius ** 2) * self.frequency * self.reference_viscosity / (self.pivot_film_thickness ** 3)
 
         # RESULTING FORCE AND MOMENTUM: Equilibrium position
-        XR = self.pad_inner_radius * self.vec_R
-        XTETA = self.pad_arc_length * self.vec_TETA
-        Xrp = self.pad_pivot_radius * (np.ones((np.size(XR))))
+        radius_coords = self.pad_inner_radius * self.radius_array
+        theta_coords = self.pad_arc_length * self.theta_array
+        pivot_coords = self.pad_pivot_radius * (np.ones((np.size(radius_coords))))
 
         for ii in range(0, self.n_theta):
-            Mxr_coef[:, ii] = (Pdim_coef[:, ii] * (np.transpose(XR) ** 2)) * np.sin(
-                XTETA[ii] - self.angular_pivot_position
+            moment_x_radial_coeff[:, ii] = (pressure_coeff_dim[:, ii] * (np.transpose(radius_coords) ** 2)) * np.sin(
+                theta_coords[ii] - self.angular_pivot_position
             )
-            Myr_coef[:, ii] = (
-                -Pdim_coef[:, ii]
-                * np.transpose(XR)
-                * np.transpose(XR * np.cos(XTETA[ii] - self.angular_pivot_position) - Xrp)
+            moment_y_radial_coeff[:, ii] = (
+                -pressure_coeff_dim[:, ii]
+                * np.transpose(radius_coords)
+                * np.transpose(radius_coords * np.cos(theta_coords[ii] - self.angular_pivot_position) - pivot_coords)
             )
-            Frer_coef[:, ii] = Pdim_coef[:, ii] * np.transpose(XR)
+            force_radial_coeff[:, ii] = pressure_coeff_dim[:, ii] * np.transpose(radius_coords)
 
         ######################################################################
-        mxr_coef = np.trapezoid( Mxr_coef, XTETA)
-        myr_coef = np.trapezoid( Myr_coef, XTETA)
-        frer_coef = np.trapezoid( Frer_coef, XTETA)
+        mx_radial = np.trapezoid(moment_x_radial_coeff, theta_coords)
+        my_radial = np.trapezoid(moment_y_radial_coeff, theta_coords)
+        force_radial = np.trapezoid(force_radial_coeff, theta_coords)
 
-        mx_coef = np.trapezoid(mxr_coef, XR)
-        my_coef = np.trapezoid( myr_coef, XR)
-        fre_coef = -np.trapezoid( frer_coef, XR) 
-        
+        # mx_coef = np.trapezoid(mx_radial, radius_coords)
+        # my_coef = np.trapezoid(my_radial, radius_coords)
+        force_axial = -np.trapezoid(force_radial, radius_coords)
 
-        ######################################################################
-
-        # HYDROCOEFF_z =============================================================
-        # ENDS HERE ================================================================
-
-        self.K = self.n_pad * np.real(fre_coef)  # Stiffness Coefficient
-        self.C = self.n_pad * 1 / wp * np.imag(fre_coef)  # Damping Coefficient
-
+        self.kzz = self.n_pad * np.real(force_axial)
+        self.czz = self.n_pad * 1 / perturbation_frequency * np.imag(force_axial)
 
     def plot_results(self):
-        # PLOT FIGURES ==============================================================
-        # STARTS HERE ==============================================================
-        # PLOT FIGURES ==============================================================
-        # STARTS HERE ==============================================================
+        """Plot pressure and temperature field results.
+        
+        Creates 3D surface plots and 2D contour plots for both pressure
+        and temperature fields using Plotly.
+        """
+        # Define coordinate vectors and matrices
+        radial_coords = np.zeros(self.n_radial + 2)
+        angular_coords = np.zeros(self.n_theta + 2)
+        x_coords = np.zeros((self.n_radial + 2, self.n_theta + 2))
+        y_coords = np.zeros((self.n_radial + 2, self.n_theta + 2))
 
-        # Define vectors and matrix
-        yh = np.zeros((self.n_radial+2))
-        auxtransf = np.zeros((self.n_theta+2))
-        XH = np.zeros((self.n_radial+2,self.n_theta+2))
-        YH = np.zeros((self.n_radial+2,self.n_theta+2))
+        # Set boundary values
+        radial_coords[0] = self.pad_outer_radius
+        radial_coords[-1] = self.pad_inner_radius
+        radial_coords[1:self.n_radial + 1] = np.arange(
+            self.pad_outer_radius - 0.5 * self.d_radius * self.pad_inner_radius,
+            self.pad_inner_radius,
+            -(self.d_radius * self.pad_inner_radius)
+        )
+    
+        angular_coords[0] = np.pi / 2 + self.pad_arc_length / 2
+        angular_coords[-1] = np.pi / 2 - self.pad_arc_length / 2
+        angular_coords[1:self.n_theta + 1] = np.arange(
+            np.pi / 2 + self.pad_arc_length / 2 - (0.5 * self.d_theta * self.pad_arc_length),
+            np.pi / 2 - self.pad_arc_length / 2,
+            -self.d_theta * self.pad_arc_length
+        )
 
-        yh[0] = self.pad_outer_radius
-        yh[-1] = self.pad_inner_radius
-        yh[1:self.n_radial+1] = np.arange((self.pad_outer_radius - 0.5 * self.dR * self.pad_inner_radius), self.pad_inner_radius, -(self.dR * self.pad_inner_radius))
-   
-        auxtransf[0] = np.pi/2 + self.pad_arc_length/2
-        auxtransf[-1] = np.pi/2 - self.pad_arc_length/2
-        auxtransf[1:self.n_theta+1] = np.arange(np.pi/2 + self.pad_arc_length/2 - (0.5 * self.dTETA * self.pad_arc_length), np.pi/2 - self.pad_arc_length/2, -self.dTETA * self.pad_arc_length)
+        # Create coordinate mesh
+        for i in range(self.n_radial + 2):
+            for j in range(self.n_theta + 2):
+                x_coords[i, j] = radial_coords[i] * np.cos(angular_coords[j])
+                y_coords[i, j] = radial_coords[i] * np.sin(angular_coords[j])
 
-        for ii in range(0, self.n_radial+2):
-            for jj in range(0, self.n_theta+2):
-                XH[ii, jj] = yh[ii] * np.cos(auxtransf[jj])
-                YH[ii, jj] = yh[ii] * np.sin(auxtransf[jj])
+        # Calculate angle range for plotting
+        angle_per_pad = 360 / self.n_pad
+        angle_step = 20 / 10
+        angle_range = np.arange(
+            angle_per_pad + (angle_per_pad - 20) - 40,
+            angle_per_pad + angle_per_pad + angle_step - 40,
+            angle_step
+        )
 
-        ang = []
-        ang_pad = 360/self.n_pad
+        # Plot 3D pressure field
+        self._plot_3d_surface(
+            x_coords, y_coords, self.pressure_field_dimensional,
+            "Pressure field", "Pressure [Pa]", angle_range
+        )
 
-        d_ang = 20/10
-        ang1 = np.arange((ang_pad)+(ang_pad - 20)-40, ang_pad+ang_pad+d_ang-40 , d_ang)
+        # Plot 3D temperature field
+        self._plot_3d_surface(
+            x_coords, y_coords, self.temperature_field,
+            "Temperature field", "Temperature [°C]", angle_range
+        )
 
+        # Create interpolation grid for contour plots
+        x_min, x_max = x_coords.min(), x_coords.max()
+        y_min, y_max = y_coords.min(), y_coords.max()
+        
+        x_interp = np.linspace(x_min, x_max, 800)
+        y_interp = np.linspace(y_min, y_max, 800)
+        x_grid, y_grid = np.meshgrid(x_interp, y_interp)
+
+        # Plot 2D temperature contour
+        temp_interpolated = griddata(
+            (x_coords.flatten(), y_coords.flatten()),
+            self.temperature_field.flatten(),
+            (x_grid, y_grid),
+            method="cubic"
+        )
+        self._plot_2d_contour(
+            x_grid, y_grid, temp_interpolated,
+            "Temperature field", "Temperature (°C)"
+        )
+
+        # Plot 2D pressure contour
+        pressure_interpolated = griddata(
+            (x_coords.flatten(), y_coords.flatten()),
+            self.pressure_field_dimensional.flatten(),
+            (x_grid, y_grid),
+            method="cubic"
+        )
+        self._plot_2d_contour(
+            x_grid, y_grid, pressure_interpolated,
+            "Pressure field", "Pressure (Pa)"
+        )
+
+    def _plot_3d_surface(self, x_coords, y_coords, z_data, title, z_label, angle_range):
+        """Create 3D surface plot using Plotly.
+        
+        Parameters
+        ----------
+        x_coords : ndarray
+            X coordinates mesh
+        y_coords : ndarray
+            Y coordinates mesh
+        z_data : ndarray
+            Z data for surface plot
+        title : str
+            Plot title
+        z_label : str
+            Z-axis label
+        angle_range : ndarray
+            Angle range for axis limits
+        """
         fig = go.Figure()
-        fig.update_layout(autosize=True, margin=dict(l=0, r=0, t=0, b=0))
-        fig.add_trace(go.Surface(
-                x=XH,
-                y=YH,
-                z=self.PPdim
-            ))
-        fig.update_layout(xaxis_range=[np.min(ang1), np.max(ang1)], yaxis_range=[np.min(YH), np.max(YH)])
-        fig.update_layout(title="Pressure field")
-        fig.update_layout(plot_bgcolor="white")
+        fig.update_layout(
+            autosize=True,
+            margin=dict(l=0, r=0, t=0, b=0),
+            title=title,
+            plot_bgcolor="white"
+        )
+        
+        fig.add_trace(go.Surface(x=x_coords, y=y_coords, z=z_data))
+        
+        fig.update_layout(
+            xaxis_range=[np.min(angle_range), np.max(angle_range)],
+            yaxis_range=[np.min(y_coords), np.max(y_coords)]
+        )
+        
+        # Update scene properties
         fig.update_scenes(
             xaxis_title=dict(
-                text="Angular length [rad]", font=dict(family="Times New Roman", size=22)
+                text="Angular length [rad]",
+                font=dict(family="Times New Roman", size=22)
             ),
             xaxis_tickfont=dict(family="Times New Roman", size=14),
-        )
-        fig.update_scenes(
             yaxis_title=dict(
-                text="Radial length [m]", font=dict(family="Times New Roman", size=22)
+                text="Radial length [m]",
+                font=dict(family="Times New Roman", size=22)
             ),
             yaxis_tickfont=dict(family="Times New Roman", size=14),
-        )
-        fig.update_scenes(
-            # zaxis=dict(range=[0.53, 1]),
-            zaxis_title=dict(text="Pressure[Pa]", font=dict(family="Times New Roman", size=22)),
+            zaxis_title=dict(
+                text=z_label,
+                font=dict(family="Times New Roman", size=22)
+            ),
             zaxis_tickfont=dict(family="Times New Roman", size=14),
+            aspectratio=dict(x=1.8, y=1.8, z=1.8)
         )
+        
+        # Set camera position
         camera = dict(
             eye=dict(x=-1.5, y=-4, z=1.5),
-            center=dict(x=0, y=0, z=0),
-            # up=dict(x=0, y=0, z=0)
+            center=dict(x=0, y=0, z=0)
         )
         fig.update_layout(scene_camera=camera)
-        fig.update_scenes(aspectratio=dict(x=1.8,y=1.8,z=1.8))
+        
         fig.show()
-        # fig.write_image("pressure_field3D_Th.pdf", width=900, height=500, engine="kaleido")
 
-
-
-        fig = go.Figure()
-        fig.update_layout(autosize=True, margin=dict(l=0, r=0, t=0, b=0))
-        fig.add_trace(go.Surface(
-                x=XH,
-                y=YH,
-                z=self.TT
-            ))
-        fig.update_layout(xaxis_range=[np.min(ang1), np.max(ang1)], yaxis_range=[np.min(YH), np.max(YH)])
-        fig.update_layout(title="Temperature field")
-        fig.update_layout(plot_bgcolor="white")
-        fig.update_scenes(
-            xaxis_title=dict(
-                text="Angular length [rad]", font=dict(family="Times New Roman", size=22)
-            ),
-            xaxis_tickfont=dict(family="Times New Roman", size=14),
-        )
-        fig.update_scenes(
-            yaxis_title=dict(
-                text="Radial length [m]", font=dict(family="Times New Roman", size=22)
-            ),
-            yaxis_tickfont=dict(family="Times New Roman", size=14),
-        )
-        fig.update_scenes(
-            # zaxis=dict(range=[0.53, 1]),
-            zaxis_title=dict(text="Temperature[ºC]", font=dict(family="Times New Roman", size=22)),
-            zaxis_tickfont=dict(family="Times New Roman", size=14),
-        )
-        camera = dict(
-            eye=dict(x=-1.5, y=-4, z=1.5),
-            center=dict(x=0, y=0, z=0),
-            # up=dict(x=0, y=0, z=0)
-        )
-        fig.update_layout(scene_camera=camera)
-        fig.update_scenes(aspectratio=dict(x=1.8,y=1.8,z=1.8))
-        fig.show()
-        # fig.write_image("temperature_field3D_Th.pdf", width=900, height=500, engine="kaleido")
-
-        max_val = self.TT.max()
-
-
-        xm, xM = XH.min(), XH.max()
-        ym, yM = YH.min(), YH.max()
-
-        xr = np.linspace(xm, xM, 800)
-        yr= np.linspace(ym, yM, 800)
-        xr, yr = np.meshgrid(xr, yr)
-
-        Z = griddata((XH.flatten(), YH.flatten()), self.TT.flatten(), (xr, yr), method="cubic")
-
+    def _plot_2d_contour(self, x_grid, y_grid, z_data, title, colorbar_title):
+        """Create 2D contour plot using Plotly.
+        
+        Parameters
+        ----------
+        x_grid : ndarray
+            X coordinates grid
+        y_grid : ndarray
+            Y coordinates grid
+        z_data : ndarray
+            Z data for contour plot
+        title : str
+            Plot title
+        colorbar_title : str
+            Colorbar title
+        """
         fig = go.Figure(
             go.Contour(
-                x=xr[0],
-                y=yr[:, 0],
-                z=Z,
+                x=x_grid[0],
+                y=y_grid[:, 0],
+                z=z_data,
                 ncontours=15,
-                contours=dict(start=np.nanmin(Z), end=np.nanmax(Z)),
+                contours=dict(start=np.nanmin(z_data), end=np.nanmax(z_data)),
                 colorbar=dict(
                     title=dict(
-                        text="Temperature (°C)", 
-                        side="right", 
+                        text=colorbar_title,
+                        side="right",
                         font=dict(size=30, family="Times New Roman")
                     ),
                     tickfont=dict(size=20)
                 )
             )
         )
-        fig.update_layout(autosize=True, margin=dict(l=0, r=0, t=0, b=0))
-        fig.update_layout(title="Temperature field")
+        
+        fig.update_layout(
+            autosize=True,
+            margin=dict(l=0, r=0, t=0, b=0),
+            title=title,
+            plot_bgcolor="white"
+        )
+        
         fig.update_traces(
             contours_coloring="fill",
             contours_showlabels=True,
-            contours_labelfont=dict(size=20),
+            contours_labelfont=dict(size=20)
         )
-        fig.update_layout(xaxis_range=[np.min(XH), np.max(XH)])
+        
+        fig.update_layout(xaxis_range=[np.min(x_grid), np.max(x_grid)])
         fig.update_xaxes(
             tickfont=dict(size=20),
-            title=dict(text="X Direction (m)", font=dict(family="Times New Roman", size=20)),
-            range=[np.min(XH),np.max(XH)]
+            title=dict(
+                text="X Direction (m)",
+                font=dict(family="Times New Roman", size=20)
+            ),
+            range=[np.min(x_grid), np.max(x_grid)]
         )
         fig.update_yaxes(
             tickfont=dict(size=20),
             title=dict(
-                text="Y Direction(m)", font=dict(family="Times New Roman", size=20)
-            ),
-        )
-        fig.update_layout(plot_bgcolor="white")
-        # fig.write_image("temperature_field_Th.pdf", width=900, height=500, engine="kaleido")
-        fig.show()
-
-        Z = griddata((XH.flatten(), YH.flatten()), self.PPdim.flatten(), (xr, yr) , method="cubic")
-
-        fig = go.Figure(
-            go.Contour(
-                x=xr[0], 
-                y=yr[:, 0], 
-                z=Z, 
-                ncontours=15,
-                contours=dict(
-                    start=np.nanmin(Z), 
-                    end=np.nanmax(Z)
-                ),
-                colorbar=dict(
-                    title=dict(
-                        text="Pressure (Pa)", 
-                        side="right",  # ← equivalente ao antigo titleside
-                        font=dict(size=30, family="Times New Roman")
-                    ),
-                    tickfont=dict(size=20),
-                ),
+                text="Y Direction (m)",
+                font=dict(family="Times New Roman", size=20)
             )
         )
-        fig.update_layout(autosize=True, margin=dict(l=0, r=0, t=0, b=0))
-        fig.update_layout(title="Pressure field")
-        fig.update_traces(
-            contours_coloring="fill",
-            contours_showlabels=True,
-            contours_labelfont=dict(size=20),
-        )
-        fig.update_layout(xaxis_range=[np.min(XH), np.max(XH)])
-        fig.update_xaxes(
-            tickfont=dict(size=20),
-            title=dict(text="X Direction (m)", font=dict(family="Times New Roman", size=20)),
-            range=[np.min(XH),np.max(XH)]
-        )
-        fig.update_yaxes(
-            tickfont=dict(size=20),
-            title=dict(
-                text="Y Direction(m)", font=dict(family="Times New Roman", size=20)
-            ),
-        )
-        fig.update_layout(plot_bgcolor="white")
-        # fig.write_image("temperature_field_Th.pdf", width=900, height=500, engine="kaleido")
+        
         fig.show()
 
-
-
-        # max_val = self.PPdim.max()
-        # fig = go.Figure()
-        # fig.add_trace(go.Contour(
-        #     z=self.PPdim,
-        #     x=ang1, # horizontal axis
-        #     y=YH[:,0], # vertical axis
-        #     zmin=0,
-        #     zmax=max_val,
-        #     ncontours=15,
-        #     colorbar=dict(
-        #         title="Pressure (Pa)",  # title here
-        #         titleside="right",
-        #         titlefont=dict(size=30, family="Times New Roman"),
-        #         tickfont=dict(size=22),
-        #         ),
-        #     )
-        # )
-        # fig.update_traces(
-        #     contours_coloring="fill",
-        #     contours_showlabels=True,
-        #     contours_labelfont=dict(size=20),
-        # )
-        # fig.update_layout(xaxis_range=[0, 360])
-        # fig.update_xaxes(
-        #     tickfont=dict(size=22),
-        #     title=dict(text="Angle (º)", font=dict(family="Times New Roman", size=30)),
-        #     range=[0,22]
-        # )
-        # fig.update_yaxes(
-        #     tickfont=dict(size=22),
-        #     title=dict(
-        #         text="Pad Length (m)", font=dict(family="Times New Roman", size=30)
-        #     ),
-        # )
-        # fig.update_layout(plot_bgcolor="white")
-        # fig.show()
-        # fig.write_image("pressure_field_Th.pdf", width=900, height=500, engine="kaleido")
-
-""""
-def hydroplots (pad_inner_radius, pad_outer_radius, dR, dTETA, pad_arc_length, self.n_radial, self.n_theta):
-    
-    # Define vectors and matrix
-    yh = np.zeros((1, n_radial+2))
-    auxtransf = np.zeros((1, n_theta+2))
-    XH = np.zeros((n_radial+2,n_theta+2))
-    YH = np.zeros((n_radial+2,n_theta+2))
-
-    yh[0] = pad_outer_radius
-    yh[n_radial+1] = pad_inner_radius
-    yh[1:n_radial] = ((pad_outer_radius - 0.5 * dR * pad_inner_radius), -(dR * pad_inner_radius),(pad_inner_radius + 0.5 * dR * pad_inner_radius))
-   
-    auxtransf[0] = np.pi/2 + pad_arc_length/2
-    auxtransf[n_theta+1] = np.pi/2 - pad_arc_length/2
-    auxtransf[1:n_theta +1] = np.pi/2 + pad_arc_length/2 - (0.5 * dTETA * pad_arc_length), -dTETA * pad_arc_length, np.pi/2 - pad_arc_length/2 + (0.5 * dTETA * pad_arc_length)
-
-    for ii in range(0, n_radial+1):
-        for jj in range(0, n_theta+1):
-            XH[ii, jj] = yh[ii] * np.cos(auxtransf[jj])
-            YH[ii, jj] = yh[ii] * np.sin(auxtransf[jj])
-
-    yraio1 = pad_inner_radius * np.sin((np.pi/2 - pad_arc_length/2), dTETA * pad_arc_length, (np.pi/2 + pad_arc_length/2))
-    xraio1 = pad_inner_radius * np.cos(np.pi/2 - pad_arc_length/2, dTETA * pad_arc_length, np.pi/2 + pad_arc_length/2)
-    yraio2 = pad_outer_radius * np.sin((np.pi/2 - pad_arc_length/2), dTETA*pad_arc_length, (np.pi/2 + pad_arc_length/2))
-    xraio2 = pad_outer_radius * np.cos(np.pi/2 - pad_arc_length/2, dTETA*pad_arc_length, np.pi/2 +pad_arc_length/2)
-
-    dx = (xraio1[0] - xraio2[0]/(n_theta - 2))
-    xreta1 = xraio2[0], dx, xraio1[0]
-    yreta1 = yraio2[0], dx * np.tan(np.pi/2 -pad_arc_length/2), yraio1[0]
-    xreta2 = xraio2[-1], -dx, xraio1[-1]
-    yreta2 = yraio2[0], dx * np.tan(np.pi/2 - pad_arc_length/2), yraio1[0]
-"""   
 def thrust_bearing_example():
     """Create an example of a thrust bearing with Thermo-Hydro-Dynamic effects.
     This function returns pressure field and dynamic coefficient. The
@@ -1954,35 +1875,28 @@ def thrust_bearing_example():
     0.263144
     """
 
-    bearing = THDThrust(        
+    bearing = THDThrust(       
         pad_inner_radius = 0.5 * 2300e-3,
         pad_outer_radius = 0.5 * 3450e-3,
         pad_pivot_radius = 0.5 * 2885e-3,
-        pad_arc_length = 26,
-        angular_pivot_position = 15,
+        pad_arc_length = 26 * (np.pi / 180),
+        angular_pivot_position = 15 * (np.pi / 180),
         oil_supply_temperature = 40,
         lubricant = "ISOVG68",
         n_pad = 12,
         n_theta = 10,
         n_radial = 10,
-        frequency = 90,
-        # choice_CAIMP = {"calc_h0":{"init_guess":[-0.000274792355106384, -1.69258824831925e-05, 0.000191418606538599], "load":13320e3, "print":["result","progress"]}},
+        frequency = 90 * (np.pi / 30),
         equilibrium_position_mode = "calculate",
+        # equilibrium_position_mode = "imposed",
         fzs_load = 13320e3,
-        radial_inclination_angle = -0.000274792355106384, # a_r
-        circumferential_inclination_angle = -1.69258824831925e-05, # a_s
-        initial_film_thickness = 0.000191418606538599, # h0
+        radial_inclination_angle = -0.000274792355106384, # radial_inclination_angle
+        circumferential_inclination_angle = -1.69258824831925e-05, # circumferential_inclination_angle
+        initial_film_thickness = 0.000191418606538599, # self.pivot_film_thickness
         print_result=True,
         print_progress=True,
         print_time=False,
     )
-    
-    # bearing.run(frequency=90, choice_CAIMP={"calc_h0":{"init_guess":[-0.000274792355106384, -1.69258824831925e-05, 0.000191418606538599], "load":13320e3, "print":["result","progress"]}}, Coefs_D={"show_coef":True})
-    # bearing.run(frequency=90, choice_CAIMP={"impos_h0":{"init_guess":[-0.000274792355106384, -1.69258824831925e-05], "h0":0.0001864, "print":["result","progress"]}}, Coefs_D={"show_coef":True})
-    #return bearing
-
-    # bearing.run()
-    # bearing.plot_results()
 
 if __name__ == "__main__":
     thrust_bearing_example()
