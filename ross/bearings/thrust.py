@@ -17,7 +17,7 @@ from matplotlib import cm
 import plotly.graph_objects as go
 
 import plotly.io as pio
-pio.templates.default = 'plotly_white'
+pio.templates.default = "plotly_white"
 
 # pio.kaleido.scope.mathjax = None
 
@@ -143,7 +143,7 @@ class THDThrust:
         n_radial,
         frequency,
         # Coefs_D,
-        choice_CAIMP,
+        # choice_CAIMP,
         equilibrium_position_mode,
         fzs_load,
         radial_inclination_angle,
@@ -164,9 +164,7 @@ class THDThrust:
         self.pad_arc_length = pad_arc_length * np.pi / 180
         self.angular_pivot_position = angular_pivot_position * np.pi / 180
         self.oil_supply_temperature = oil_supply_temperature
-        self.TC = oil_supply_temperature 
-        self.Tin = oil_supply_temperature 
-        self.reference_temperature = 0.5 * (self.TC + self.Tin)
+        self.reference_temperature = oil_supply_temperature
         self.lubricant = lubricant
         self.n_pad = n_pad
         self.n_theta = n_theta
@@ -182,10 +180,11 @@ class THDThrust:
         self.TETAp = angular_pivot_position / pad_arc_length 
         self.dR = (self.R2 - self.R1) / (self.n_radial)
         self.dTETA = (TETA2 - TETA1) / (n_theta)
-        self.Ti = self.reference_temperature * (np.ones((self.n_radial, self.n_theta)))
+        # self.Ti = self.reference_temperature * (np.ones((self.n_radial, self.n_theta)))
+        self.Ti = np.full((self.n_radial, self.n_theta), self.reference_temperature)
 
-        self.choice_CAIMP = choice_CAIMP
-        self.op_key = [*choice_CAIMP][0]
+        # self.choice_CAIMP = choice_CAIMP
+        # self.op_key = [*choice_CAIMP][0]
         # self.initial_position = choice_CAIMP[self.op_key]['init_guess']
         # self.Coefs_D = Coefs_D
 
@@ -254,23 +253,23 @@ class THDThrust:
         # if "calc_h0" in self.op_key:
         # Print results based on equilibrium position mode
         if self.print_result:
-            print(f'Pmax: ', self.PPdim.max())
-            print(f'hmax: ', self.hmax)
-            print(f'hmin: ', self.hmin)
-            print(f'Tmax: ', self.TT.max())
+            print(f"Pmax: ", self.PPdim.max())
+            print(f"hmax: ", self.hmax)
+            print(f"hmin: ", self.hmin)
+            print(f"Tmax: ", self.TT.max())
             
             if self.equilibrium_position_mode == "calculate":
-                print(f'h0: ', h0)
+                print(f"h0: ", h0)
             elif self.equilibrium_position_mode == "imposed":
-                print(f'fz: ', self.fz.sum())
+                print(f"fz: ", self.fzs_load.sum())
         
         # Calculate dynamic coefficients
         self.Coef_din(H0ne, H0nw, H0se, H0sw, h0, P0, mi)
         
         # Print dynamic coefficients if requested
         if self.print_result:
-            print(f'K:', self.K)
-            print(f'C:', self.C)
+            print(f"K:", self.K)
+            print(f"C:", self.C)
             # self.plot_results()                    
 
     def PandT_solution(self):
@@ -284,11 +283,12 @@ class THDThrust:
         while ResFM >= tolFM:
             iteration += 1
             if self.print_progress:
-                print(f'Iteration {iteration} - Residual F&M: {ResFM:.6f}')
+                print(f"Iteration {iteration} - Residual F&M: {ResFM:.6f}")
             # --------------------------------------------------------------------------
             # Equilibrium position optimization [ar,ap,h0]
             
-            if "impos_h0" in self.op_key:
+            # if "impos_h0" in self.op_key:
+            if self.equilibrium_position_mode == "imposed":
                 # self.h0i = self.choice_CAIMP["impos_h0"]['h0']
                 self.h0i = self.initial_position[2]
                 x = scipy.optimize.fmin(
@@ -310,7 +310,8 @@ class THDThrust:
                 h0 = self.h0i
 
             else:
-                self.fz = self.choice_CAIMP['calc_h0']['load']
+                # self.fzs_load = self.choice_CAIMP["calc_h0"]["load"]
+                # self.fzs_load = self.fzs_load
 
                 # x = scipy.optimize.fmin(
                 #     self.ArAsh0Equilibrium,                  
@@ -738,12 +739,13 @@ class THDThrust:
 
             ######################################################################
 
-            if self.op_key == "impos_h0":
+            # if self.op_key == "impos_h0":
+            if self.equilibrium_position_mode == "imposed":
                 ResFM = np.linalg.norm(np.array([resMx, resMy]))
-                self.fz = frer
+                self.fzs_load = frer
             
             else:
-                fre = -np.trapezoid( frer, XR) + self.fz / self.n_pad
+                fre = -np.trapezoid( frer, XR) + self.fzs_load / self.n_pad
 
                 resFre = fre
                 ResFM = np.linalg.norm(np.array([resMx, resMy, resFre]))
@@ -818,11 +820,11 @@ class THDThrust:
         a_r = x[0]  # [rad]
         a_s = x[1]  # [rad]
 
-        if self.op_key == "impos_h0":
-            h0 = self.h0i
-
-        else:
-            h0 = x[2]
+        # Determine h0 based on equilibrium position mode
+        if self.equilibrium_position_mode == "imposed":
+            h0 = self.initial_position[2]  # Use imposed h0 value
+        else:  # "calculate" mode
+            h0 = x[2]  # h0 is optimized
 
         for ii in range(0, self.n_radial):
             for jj in range(0, self.n_theta):
@@ -1051,11 +1053,12 @@ class THDThrust:
         my = np.trapezoid( myr, XR)
         ######################################################################
         
-        if self.op_key == "impos_h0":
+        # if self.op_key == "impos_h0":
+        if self.equilibrium_position_mode == "imposed":
             score = np.linalg.norm([mx, my])
         
-        else:
-            fre = -np.trapezoid(frer, XR) + self.fz / self.n_pad
+        else:  # "calculate" operation mode
+            fre = -np.trapezoid(frer, XR) + self.fzs_load / self.n_pad
             score = np.linalg.norm([mx, my, fre])
 
         return score
@@ -1696,8 +1699,8 @@ class THDThrust:
                 z=self.PPdim
             ))
         fig.update_layout(xaxis_range=[np.min(ang1), np.max(ang1)], yaxis_range=[np.min(YH), np.max(YH)])
-        fig.update_layout(title='Pressure field')
-        fig.update_layout(plot_bgcolor='white')
+        fig.update_layout(title="Pressure field")
+        fig.update_layout(plot_bgcolor="white")
         fig.update_scenes(
             xaxis_title=dict(
                 text="Angular length [rad]", font=dict(family="Times New Roman", size=22)
@@ -1735,8 +1738,8 @@ class THDThrust:
                 z=self.TT
             ))
         fig.update_layout(xaxis_range=[np.min(ang1), np.max(ang1)], yaxis_range=[np.min(YH), np.max(YH)])
-        fig.update_layout(title='Temperature field')
-        fig.update_layout(plot_bgcolor='white')
+        fig.update_layout(title="Temperature field")
+        fig.update_layout(plot_bgcolor="white")
         fig.update_scenes(
             xaxis_title=dict(
                 text="Angular length [rad]", font=dict(family="Times New Roman", size=22)
@@ -1774,7 +1777,7 @@ class THDThrust:
         yr= np.linspace(ym, yM, 800)
         xr, yr = np.meshgrid(xr, yr)
 
-        Z = griddata((XH.flatten(), YH.flatten()), self.TT.flatten(), (xr, yr), method='cubic')
+        Z = griddata((XH.flatten(), YH.flatten()), self.TT.flatten(), (xr, yr), method="cubic")
 
         fig = go.Figure(
             go.Contour(
@@ -1794,7 +1797,7 @@ class THDThrust:
             )
         )
         fig.update_layout(autosize=True, margin=dict(l=0, r=0, t=0, b=0))
-        fig.update_layout(title='Temperature field')
+        fig.update_layout(title="Temperature field")
         fig.update_traces(
             contours_coloring="fill",
             contours_showlabels=True,
@@ -1816,7 +1819,7 @@ class THDThrust:
         # fig.write_image("temperature_field_Th.pdf", width=900, height=500, engine="kaleido")
         fig.show()
 
-        Z = griddata((XH.flatten(), YH.flatten()), self.PPdim.flatten(), (xr, yr) , method='cubic')
+        Z = griddata((XH.flatten(), YH.flatten()), self.PPdim.flatten(), (xr, yr) , method="cubic")
 
         fig = go.Figure(
             go.Contour(
@@ -1839,7 +1842,7 @@ class THDThrust:
             )
         )
         fig.update_layout(autosize=True, margin=dict(l=0, r=0, t=0, b=0))
-        fig.update_layout(title='Pressure field')
+        fig.update_layout(title="Pressure field")
         fig.update_traces(
             contours_coloring="fill",
             contours_showlabels=True,
@@ -1963,7 +1966,7 @@ def thrust_bearing_example():
         n_theta = 10,
         n_radial = 10,
         frequency = 90,
-        choice_CAIMP = {"calc_h0":{"init_guess":[-0.000274792355106384, -1.69258824831925e-05, 0.000191418606538599], "load":13320e3, "print":["result","progress"]}},
+        # choice_CAIMP = {"calc_h0":{"init_guess":[-0.000274792355106384, -1.69258824831925e-05, 0.000191418606538599], "load":13320e3, "print":["result","progress"]}},
         equilibrium_position_mode = "calculate",
         fzs_load = 13320e3,
         radial_inclination_angle = -0.000274792355106384, # a_r
