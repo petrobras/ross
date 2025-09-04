@@ -1,25 +1,8 @@
+import time
 import numpy as np
-import scipy
-
-
-# import tensorflow as tf
-import mpmath as fp
-
-from numpy.linalg import pinv
-from scipy.linalg import solve
 from scipy.optimize import fmin
 from scipy.interpolate import griddata
-from decimal import Decimal
-
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D  
-from matplotlib import cm
 import plotly.graph_objects as go
-
-import plotly.io as pio
-pio.templates.default = "plotly_white"
-
-# pio.kaleido.scope.mathjax = None
 
 from ross.bearing_seal_element import BearingElement
 from ross.units import Q_, check_units
@@ -134,8 +117,10 @@ class THDThrust(BearingElement):
     ----------
     """
 
+    @check_units
     def __init__(
         self,
+        n,
         pad_inner_radius,
         pad_outer_radius,
         pad_pivot_radius,
@@ -147,8 +132,6 @@ class THDThrust(BearingElement):
         n_theta,
         n_radial,
         frequency,
-        # Coefs_D,
-        # choice_CAIMP,
         equilibrium_position_mode,
         radial_inclination_angle,
         circumferential_inclination_angle,
@@ -167,33 +150,19 @@ class THDThrust(BearingElement):
         self.pad_pivot_radius = pad_pivot_radius
         self.frequency = frequency
         self.pad_arc_length = pad_arc_length
-        self.angular_pivot_position = angular_pivot_position
-        self.oil_supply_temperature = oil_supply_temperature
-        self.reference_temperature = oil_supply_temperature
+        self.angular_pivot_position = angular_pivot_position.m_as("rad")
+        self.oil_supply_temperature = Q_(oil_supply_temperature, "degK").m_as("degC")
+        self.reference_temperature = self.oil_supply_temperature
         self.lubricant = lubricant
         self.n_pad = n_pad
         self.n_theta = n_theta
         self.n_radial = n_radial
-        # R1 = 1
-        # self.R1 = 1
-        # self.R2 = self.pad_outer_radius / self.pad_inner_radius
-        # TETA1 = 0
-        # TETA2 = 1
-        # self.TETA1 = 0
-        # self.TETA2 = 1
         self.rp = self.pad_pivot_radius / self.pad_inner_radius
         self.theta_pad = self.angular_pivot_position / self.pad_arc_length 
-        # self.d_radius = (self.R2 - self.R1) / (self.n_radial)
         self.d_radius = (self.pad_outer_radius / self.pad_inner_radius - 1) / (self.n_radial)
-        # self.d_theta = (self.TETA2 - self.TETA1) / (n_theta)
         self.d_theta = 1 / (self.n_theta)
-        # self.initial_temperature = self.reference_temperature * (np.ones((self.n_radial, self.n_theta)))
         self.initial_temperature = np.full((self.n_radial, self.n_theta), self.reference_temperature)
 
-        # self.choice_CAIMP = choice_CAIMP
-        # self.op_key = [*choice_CAIMP][0]
-        # self.initial_position = choice_CAIMP[self.op_key]['init_guess']
-        # self.Coefs_D = Coefs_D
 
         self.equilibrium_position_mode = equilibrium_position_mode
         self.fzs_load = fzs_load
@@ -219,21 +188,7 @@ class THDThrust(BearingElement):
 
         self.reference_viscosity = self.a_a*np.exp(self.reference_temperature*self.b_b) #reference viscosity
         
-        # Pre-processing loop counters for ease of understanding
-        # vec_R = np.zeros(n_radial)
-        # vec_R[0] = 1 + 0.5 * self.d_radius
 
-        # vec_TETA = np.zeros(n_theta)
-        # vec_TETA[0] = 0.5 * self.d_theta
-
-
-        # for ii in range(1, n_radial):
-        #     vec_R[ii] = vec_R[ii-1] + self.d_radius
-        # self.radius_array = vec_R
-
-        # for jj in range(1, n_theta):
-        #     vec_TETA[jj] = vec_TETA[jj-1] + self.d_theta
-        # self.theta_array = vec_TETA
 
         self.radius_array = np.linspace(1 + 0.5 * self.d_radius, 
                         1 + (self.n_radial - 0.5) * self.d_radius, 
@@ -241,8 +196,6 @@ class THDThrust(BearingElement):
         self.theta_array = np.linspace(0.5 * self.d_theta, 
                            (self.n_theta - 0.5) * self.d_theta, 
                            n_theta)
-
-        fp.mp.dps = 800  # numerical solver precision setting
 
         # Call the run method
         self.run()
@@ -255,6 +208,9 @@ class THDThrust(BearingElement):
         the stiffness and damping coefficients. The inputs are the operation
         conditions (see documentation)
         """
+        if self.print_time:
+            t1 = time.time()
+        
         # Solve the fields (pressure and temperature field)
         self.solve_fields()
 
@@ -285,7 +241,11 @@ class THDThrust(BearingElement):
             print("kzz = {0}".format(self.kzz))
             print("czz = {0}".format(self.czz))
             print("="*75)
-            self.plot_results()            
+            # self.plot_results()
+    
+        if self.print_time:
+            t2 = time.time()
+            print("Calculation time spent: {0:.2f} seconds".format(t2 - t1))         
 
     def solve_fields(self):
         # --------------------------------------------------------------------------
@@ -307,7 +267,7 @@ class THDThrust(BearingElement):
             if self.equilibrium_position_mode == "imposed":
                 # self.h0i = self.choice_CAIMP["impos_h0"]['self.pivot_film_thickness']
                 self.h0i = self.initial_position[2]
-                x = scipy.optimize.fmin(
+                x = fmin(
                     self._equilibrium_objective,                  
                     self.initial_position,
                     xtol=tolerance_force_moment,
@@ -326,7 +286,7 @@ class THDThrust(BearingElement):
                 self.pivot_film_thickness = self.h0i
 
             else:
-                x = scipy.optimize.fmin(
+                x = fmin(
                     self._equilibrium_objective,                  
                     self.initial_position,
                     xtol = 0.1,
@@ -1731,7 +1691,7 @@ class THDThrust(BearingElement):
         )
 
     def _plot_3d_surface(self, x_coords, y_coords, z_data, title, z_label, angle_range):
-        """Create 3D surface plot using Plotly.
+        """Create 3D surface plot using Plotly with tableau colors.
         
         Parameters
         ----------
@@ -1756,14 +1716,32 @@ class THDThrust(BearingElement):
             plot_bgcolor="white"
         )
         
-        fig.add_trace(go.Surface(x=x_coords, y=y_coords, z=z_data))
+        # Use tableau colors directly
+        colorscale = [
+            [0, tableau_colors["blue"]],
+            [0.25, tableau_colors["cyan"]],
+            [0.5, tableau_colors["green"]],
+            [0.75, tableau_colors["orange"]],
+            [1, tableau_colors["red"]]
+        ]
+        
+        fig.add_trace(go.Surface(
+            x=x_coords, 
+            y=y_coords, 
+            z=z_data,
+            colorscale=colorscale,
+            colorbar=dict(
+                title=z_label,
+                tickfont=dict(size=22),
+            )
+        ))
         
         fig.update_layout(
             xaxis_range=[np.min(angle_range), np.max(angle_range)],
             yaxis_range=[np.min(y_coords), np.max(y_coords)]
         )
         
-        # Update scene properties
+        # Update scene properties with tableau colors
         fig.update_scenes(
             xaxis_title=dict(
                 text="Angular length [rad]",
@@ -1793,7 +1771,7 @@ class THDThrust(BearingElement):
         fig.show()
 
     def _plot_2d_contour(self, x_grid, y_grid, z_data, title, colorbar_title):
-        """Create 2D contour plot using Plotly.
+        """Create 2D contour plot using Plotly with tableau colors.
         
         Parameters
         ----------
@@ -1808,20 +1786,28 @@ class THDThrust(BearingElement):
         colorbar_title : str
             Colorbar title
         """
-        fig = go.Figure(
+        fig = go.Figure()
+        
+        # Use tableau colors directly
+        colorscale = [
+            [0, tableau_colors["blue"]],
+            [0.25, tableau_colors["cyan"]],
+            [0.5, tableau_colors["green"]],
+            [0.75, tableau_colors["orange"]],
+            [1, tableau_colors["red"]]
+        ]
+        
+        fig.add_trace(
             go.Contour(
                 x=x_grid[0],
                 y=y_grid[:, 0],
                 z=z_data,
                 ncontours=15,
                 contours=dict(start=np.nanmin(z_data), end=np.nanmax(z_data)),
+                colorscale=colorscale,
                 colorbar=dict(
-                    title=dict(
-                        text=colorbar_title,
-                        side="right",
-                        font=dict(size=30, family="Times New Roman")
-                    ),
-                    tickfont=dict(size=20)
+                    title=colorbar_title,
+                    tickfont=dict(size=22),
                 )
             )
         )
@@ -1836,67 +1822,151 @@ class THDThrust(BearingElement):
         fig.update_traces(
             contours_coloring="fill",
             contours_showlabels=True,
-            contours_labelfont=dict(size=20)
+            contours_labelfont=dict(size=20),
         )
         
         fig.update_layout(xaxis_range=[np.min(x_grid), np.max(x_grid)])
         fig.update_xaxes(
-            tickfont=dict(size=20),
+            tickfont=dict(size=22),
             title=dict(
                 text="X Direction (m)",
-                font=dict(family="Times New Roman", size=20)
+                font=dict(family="Times New Roman", size=30)
             ),
             range=[np.min(x_grid), np.max(x_grid)]
         )
         fig.update_yaxes(
-            tickfont=dict(size=20),
+            tickfont=dict(size=22),
             title=dict(
                 text="Y Direction (m)",
-                font=dict(family="Times New Roman", size=20)
+                font=dict(family="Times New Roman", size=30)
             )
         )
         
         fig.show()
 
-def thrust_bearing_example():
-    """Create an example of a thrust bearing with Thermo-Hydro-Dynamic effects.
-    This function returns pressure field and dynamic coefficient. The
-    purpose is to make available a simple model so that a doctest can be
-    written using it.
+# def thrust_example():
+#     """Create an example of a thrust bearing with Thermo-Hydro-Dynamic effects.
+#     This function returns pressure field and dynamic coefficient. The
+#     purpose is to make available a simple model so that a doctest can be
+#     written using it.
 
+#     Returns
+#     -------
+#     Thrust : ross.Thrust Object
+#         An instance of a hydrodynamic thrust bearing model object.
+#     Examples
+#     --------
+#     >>> bearing = thrust_bearing_example()
+#     >>> bearing.L
+#     0.263144
+#     """
+
+#     # bearing = THDThrust( 
+#     #     n = 1,      
+#     #     pad_inner_radius = 0.5 * 2300e-3,
+#     #     pad_outer_radius = 0.5 * 3450e-3,
+#     #     pad_pivot_radius = 0.5 * 2885e-3,
+#     #     pad_arc_length = 26 * (np.pi / 180),
+#     #     angular_pivot_position = 15 * (np.pi / 180),
+#     #     oil_supply_temperature = 40,
+#     #     lubricant = "ISOVG68",
+#     #     n_pad = 12,
+#     #     n_theta = 10,
+#     #     n_radial = 10,
+#     #     frequency = 90 * (np.pi / 30),
+#     #     equilibrium_position_mode = "calculate",
+#     #     # equilibrium_position_mode = "imposed",
+#     #     fzs_load = 13320e3,
+#     #     radial_inclination_angle = -0.000274792355106384, # radial_inclination_angle
+#     #     circumferential_inclination_angle = -1.69258824831925e-05, # circumferential_inclination_angle
+#     #     initial_film_thickness = 0.000191418606538599, # self.pivot_film_thickness
+#     #     print_result=True,
+#     #     print_progress=True,
+#     #     print_time=False,
+#     # )
+
+#     bearing = THDThrust( 
+#         n = 1,      
+#         pad_inner_radius = Q_(1150, "mm"),
+#         pad_outer_radius = Q_(1725, "mm"),
+#         pad_pivot_radius = Q_(1442.5, "mm"),
+#         pad_arc_length = Q_(26, "deg"),
+#         angular_pivot_position = Q_(15, "deg"),
+#         oil_supply_temperature = Q_(40, "degC"),
+#         lubricant = "ISOVG68",
+#         n_pad = 12,
+#         n_theta = 10,
+#         n_radial = 10,
+#         frequency = Q_(90, "RPM"),
+#         equilibrium_position_mode = "calculate",
+#         # equilibrium_position_mode = "imposed",
+#         fzs_load = 13.320e6,
+#         radial_inclination_angle = Q_(-2.75e-04, "rad"), # radial_inclination_angle
+#         circumferential_inclination_angle = Q_(-1.70e-05, "rad"), # circumferential_inclination_angle
+#         initial_film_thickness = Q_(0.2, "mm"), # self.pivot_film_thickness
+#         print_result=True,
+#         print_progress=True,
+#         print_time=False,
+#     )
+
+def thrust_example():
+    """Create an example of a thrust bearing with Thermo-Hydro-Dynamic effects.
+    
+    This function creates and returns a THDThrust bearing instance with predefined
+    parameters for demonstration purposes. The bearing is configured with 12 pads
+    and operates at 90 RPM.
+    
     Returns
     -------
-    Thrust : ross.Thrust Object
-        An instance of a hydrodynamic thrust bearing model object.
+    bearing : THDThrust
+        A configured thrust bearing instance ready for analysis.
+        
     Examples
     --------
-    >>> bearing = thrust_bearing_example()
-    >>> bearing.L
-    0.263144
+    >>> from ross.bearings.thrust import thrust_example
+    >>> bearing = thrust_example()
+    
+    Notes
+    -----
+    This example uses the following configuration:
+    - 12 tilting pads with 26° arc length each
+    - Pad inner radius: 1150 mm
+    - Pad outer radius: 1725 mm  
+    - Pad pivot radius: 1442.5 mm
+    - Angular pivot position: 15°
+    - ISOVG68 lubricant at 40°C
+    - Operating frequency: 90 RPM
+    - Equilibrium position mode: "calculate"
+    - Axial load: 13.32 MN
+    - Initial film thickness: 0.2 mm
+    - Radial inclination angle: -2.75e-04 rad
+    - Circumferential inclination angle: -1.70e-05 rad
     """
 
-    bearing = THDThrust(       
-        pad_inner_radius = 0.5 * 2300e-3,
-        pad_outer_radius = 0.5 * 3450e-3,
-        pad_pivot_radius = 0.5 * 2885e-3,
-        pad_arc_length = 26 * (np.pi / 180),
-        angular_pivot_position = 15 * (np.pi / 180),
-        oil_supply_temperature = 40,
+    bearing = THDThrust(
+        n = 1,      
+        pad_inner_radius = Q_(1150, "mm"),
+        pad_outer_radius = Q_(1725, "mm"),
+        pad_pivot_radius = Q_(1442.5, "mm"),
+        pad_arc_length = Q_(26, "deg"),
+        angular_pivot_position = Q_(15, "deg"),
+        oil_supply_temperature = Q_(40, "degC"),
         lubricant = "ISOVG68",
         n_pad = 12,
         n_theta = 10,
         n_radial = 10,
-        frequency = 90 * (np.pi / 30),
+        frequency = Q_(90, "RPM"),
         equilibrium_position_mode = "calculate",
-        # equilibrium_position_mode = "imposed",
-        fzs_load = 13320e3,
-        radial_inclination_angle = -0.000274792355106384, # radial_inclination_angle
-        circumferential_inclination_angle = -1.69258824831925e-05, # circumferential_inclination_angle
-        initial_film_thickness = 0.000191418606538599, # self.pivot_film_thickness
+        fzs_load = 13.320e6,
+        radial_inclination_angle = Q_(-2.75e-04, "rad"),
+        circumferential_inclination_angle = Q_(-1.70e-05, "rad"),
+        initial_film_thickness = Q_(0.2, "mm"),
         print_result=True,
-        print_progress=True,
+        print_progress=False,
         print_time=False,
     )
 
+    return bearing
+
 if __name__ == "__main__":
-    thrust_bearing_example()
+    thrust_example()
