@@ -22,7 +22,7 @@ pio.templates.default = 'plotly_white'
 # pio.kaleido.scope.mathjax = None
 
 
-class Thrust:
+class THDThrust:
     """ This class calculates the pressure and temperature fields, equilibrium
     position of a tilting-pad thrust bearing. It is also possible to obtain the
     stiffness and damping coefficients.
@@ -142,15 +142,21 @@ class Thrust:
         n_theta,
         n_radial,
         frequency,
-        Coefs_D,
+        # Coefs_D,
         choice_CAIMP,
         equilibrium_position_mode,
         fzs_load,
         radial_inclination_angle,
         circumferential_inclination_angle,
         initial_film_thickness,
+        print_result=False,
+        print_progress=False,
+        print_time=False,
     ):
-        
+        self.print_result = print_result
+        self.print_progress = print_progress
+        self.print_time = print_time
+
         self.pad_inner_radius = pad_inner_radius
         self.pad_outer_radius = pad_outer_radius
         self.pad_pivot_radius = pad_pivot_radius
@@ -180,14 +186,15 @@ class Thrust:
 
         self.choice_CAIMP = choice_CAIMP
         self.op_key = [*choice_CAIMP][0]
-        self.x0 = choice_CAIMP[self.op_key]['init_guess']
-        self.Coefs_D = Coefs_D
+        # self.initial_position = choice_CAIMP[self.op_key]['init_guess']
+        # self.Coefs_D = Coefs_D
 
         self.equilibrium_position_mode = equilibrium_position_mode
         self.fzs_load = fzs_load
         self.radial_inclination_angle = radial_inclination_angle
         self.circumferential_inclination_angle = circumferential_inclination_angle
         self.initial_film_thickness = initial_film_thickness
+        self.initial_position = np.array([radial_inclination_angle, circumferential_inclination_angle, initial_film_thickness])
 
         # --------------------------------------------------------------------------
         
@@ -224,9 +231,8 @@ class Thrust:
 
         fp.mp.dps = 800  # numerical solver precision setting
 
-        #H0, H0ne, H0nw, H0se, H0sw, h0, P0, mi = self.PandT_solution()
-
-        #self.Coef_din(H0ne, H0nw, H0se, H0sw, h0, P0, mi)
+        # Call the run method
+        self.run()
         
 
     def run(self):
@@ -241,53 +247,31 @@ class Thrust:
         # self.choice_CAIMP = choice_CAIMP
 
         # self.op_key = [*choice_CAIMP][0]
-        # self.x0 = choice_CAIMP[self.op_key]['init_guess']
-
-        if "print" in [*self.choice_CAIMP[self.op_key]] and "progress" in self.choice_CAIMP[self.op_key]["print"]:
-            
-            self.progress = True
-                
-        else:
-            self.progress = False
+        # self.initial_position = choice_CAIMP[self.op_key]['init_guess']
 
         H0, H0ne, H0nw, H0se, H0sw, h0, P0, mi = self.PandT_solution()
 
         # if "calc_h0" in self.op_key:
-        if self.equilibrium_position_mode == "calculate":
-            if "print" in [*self.choice_CAIMP[self.op_key]] and "result" in self.choice_CAIMP["calc_h0"]["print"]:
-                
-                print(f'Pmax: ', self.PPdim.max())
-                print(f'hmax: ', self.hmax)
-                print(f'hmin: ', self.hmin)
-                print(f'Tmax: ', self.TT.max())
-                print(f'h0: ', h0)
-        
-        # elif "impos_h0" in self.op_key:
-        elif self.equilibrium_position_mode == "imposed":
-            if "print" in [*self.choice_CAIMP[self.op_key]] and "result" in self.choice_CAIMP["impos_h0"]["print"]:
-                
-                print(f'Pmax: ', self.PPdim.max())
-                print(f'hmax: ', self.hmax)
-                print(f'hmin: ', self.hmin)
-                print(f'Tmax: ', self.TT.max())
-                print(f'fz: ', self.fz.sum())
-
-            #x0 is the initial guess of EQ
-            #if impos_EQ, x0[2] is h0, else h0 is also a initial guess
+        # Print results based on equilibrium position mode
+        if self.print_result:
+            print(f'Pmax: ', self.PPdim.max())
+            print(f'hmax: ', self.hmax)
+            print(f'hmin: ', self.hmin)
+            print(f'Tmax: ', self.TT.max())
             
-        else:
-            print("Please, use a valid choice_CAIMP key (calc_h0 or impos_h0)")
-            return
+            if self.equilibrium_position_mode == "calculate":
+                print(f'h0: ', h0)
+            elif self.equilibrium_position_mode == "imposed":
+                print(f'fz: ', self.fz.sum())
         
-        if self.Coefs_D is not None:
+        # Calculate dynamic coefficients
+        self.Coef_din(H0ne, H0nw, H0se, H0sw, h0, P0, mi)
         
-            self.Coef_din(H0ne, H0nw, H0se, H0sw, h0, P0, mi)
-        
-            if "show_coef" in self.Coefs_D and self.Coefs_D["show_coef"]:
-                
-                print(f'K:', self.K)
-                print(f'C:', self.C)
-                  
+        # Print dynamic coefficients if requested
+        if self.print_result:
+            print(f'K:', self.K)
+            print(f'C:', self.C)
+            # self.plot_results()                    
 
     def PandT_solution(self):
         # --------------------------------------------------------------------------
@@ -296,22 +280,26 @@ class Thrust:
         tolFM = 1
         # tolFM = 1e-8
 
+        iteration = 0
         while ResFM >= tolFM:
-            print(ResFM)######################################################################################################################################
+            iteration += 1
+            if self.print_progress:
+                print(f'Iteration {iteration} - Residual F&M: {ResFM:.6f}')
             # --------------------------------------------------------------------------
             # Equilibrium position optimization [ar,ap,h0]
             
             if "impos_h0" in self.op_key:
-                self.h0i = self.choice_CAIMP["impos_h0"]['h0']
+                # self.h0i = self.choice_CAIMP["impos_h0"]['h0']
+                self.h0i = self.initial_position[2]
                 x = scipy.optimize.fmin(
                     self.ArAsh0Equilibrium,                  
-                    self.x0,
+                    self.initial_position,
                     xtol=tolFM,
                     ftol=tolFM,
                     maxiter=100000,
                     maxfun=100000,
                     full_output=0,
-                    disp=self.progress,
+                    disp=self.print_progress,
                     retall=0,
                     callback=None,
                     initial_simplex=None,
@@ -326,20 +314,20 @@ class Thrust:
 
                 # x = scipy.optimize.fmin(
                 #     self.ArAsh0Equilibrium,                  
-                #     self.x0,
+                #     self.initial_position,
                 #     xtol=tolFM,
                 #     ftol=tolFM,
                 #     maxiter=100000,
                 #     maxfun=100000,
                 #     full_output=0,
-                #     disp=self.progress,
+                #     disp=self.print_progress,
                 #     retall=0,
                 #     callback=None,
                 #     initial_simplex=None,
                 #          )
                 x = scipy.optimize.fmin(
                     self.ArAsh0Equilibrium,                  
-                    self.x0,
+                    self.initial_position,
                     xtol = 0.1,
                     ftol = 0.1,
                     maxiter = 100,
@@ -695,7 +683,7 @@ class Thrust:
                 for ii in range(0, self.n_radial):
                     for jj in range(0, self.n_theta):
                         cont = cont + 1
-                        T_new[ii, jj] = t[cont]
+                        T_new[ii, jj] = t[cont, 0]
 
                 # viscosity field
                 varMI=np.zeros((self.n_radial, self.n_theta))
@@ -735,14 +723,14 @@ class Thrust:
                 )
                 Frer[:, ii] = Pdim[:, ii] * np.transpose(XR)
 
-            frer = np.trapz( Frer, XTETA)
+            frer = np.trapezoid( Frer, XTETA)
 
             ######################################################################
-            mxr = np.trapz( Mxr, XTETA)
-            myr = np.trapz( Myr, XTETA)
+            mxr = np.trapezoid( Mxr, XTETA)
+            myr = np.trapezoid( Myr, XTETA)
 
-            mx = np.trapz(mxr, XR)
-            my = np.trapz( myr, XR)
+            mx = np.trapezoid(mxr, XR)
+            my = np.trapezoid( myr, XR)
 
             resMx = mx
             resMy = my
@@ -755,12 +743,12 @@ class Thrust:
                 self.fz = frer
             
             else:
-                fre = -np.trapz( frer, XR) + self.fz / self.n_pad
+                fre = -np.trapezoid( frer, XR) + self.fz / self.n_pad
 
                 resFre = fre
                 ResFM = np.linalg.norm(np.array([resMx, resMy, resFre]))
 
-            self.x0 = np.array([x[0],x[1],h0])
+            self.initial_position = np.array([x[0],x[1],h0])
             self.score = ResFM
 
         # --------------------------------------------------------------------------
@@ -1030,7 +1018,7 @@ class Thrust:
         for ii in range(0, self.n_radial):
             for jj in range(0, self.n_theta):
                 cont = cont + 1
-                P[ii, jj] = p[cont]
+                P[ii, jj] = p[cont, 0]
 
                 # boundary conditions of pressure
                 if P[ii, jj] < 0:
@@ -1054,20 +1042,20 @@ class Thrust:
             )
             Frer[:, ii] = Pdim[:, ii] * np.transpose(XR)
         
-        frer = np.trapz( Frer, XTETA)
+        frer = np.trapezoid( Frer, XTETA)
         ######################################################################
-        mxr = np.trapz( Mxr, XTETA)
-        myr = np.trapz( Myr, XTETA)
+        mxr = np.trapezoid( Mxr, XTETA)
+        myr = np.trapezoid( Myr, XTETA)
 
-        mx = np.trapz(mxr, XR)
-        my = np.trapz( myr, XR)
+        mx = np.trapezoid(mxr, XR)
+        my = np.trapezoid( myr, XR)
         ######################################################################
         
         if self.op_key == "impos_h0":
             score = np.linalg.norm([mx, my])
         
         else:
-            fre = -np.trapz(frer, XR) + self.fz / self.n_pad
+            fre = -np.trapezoid(frer, XR) + self.fz / self.n_pad
             score = np.linalg.norm([mx, my, fre])
 
         return score
@@ -1275,7 +1263,7 @@ class Thrust:
         for ii in range(0, self.n_radial):
             for jj in range(0, self.n_theta):
                 cont = cont + 1
-                P0[ii, jj] = p[cont]
+                P0[ii, jj] = p[cont, 0]
 
                 # pressure boundary conditions
                 if P0[ii, jj] < 0:
@@ -1629,7 +1617,7 @@ class Thrust:
         for ii in range(0, self.n_radial):
             for jj in range(0, self.n_theta):
                 cont = cont + 1
-                P_coef[ii, jj] = p_coef[cont]
+                P_coef[ii, jj] = p_coef[cont, 0]
 
         # dimensional pressure
         Pdim_coef = P_coef * (self.pad_inner_radius ** 2) * self.frequency * self.reference_viscosity / (h0 ** 3)
@@ -1651,13 +1639,13 @@ class Thrust:
             Frer_coef[:, ii] = Pdim_coef[:, ii] * np.transpose(XR)
 
         ######################################################################
-        mxr_coef = np.trapz( Mxr_coef, XTETA)
-        myr_coef = np.trapz( Myr_coef, XTETA)
-        frer_coef = np.trapz( Frer_coef, XTETA)
+        mxr_coef = np.trapezoid( Mxr_coef, XTETA)
+        myr_coef = np.trapezoid( Myr_coef, XTETA)
+        frer_coef = np.trapezoid( Frer_coef, XTETA)
 
-        mx_coef = np.trapz(mxr_coef, XR)
-        my_coef = np.trapz( myr_coef, XR)
-        fre_coef = -np.trapz( frer_coef, XR) 
+        mx_coef = np.trapezoid(mxr_coef, XR)
+        my_coef = np.trapezoid( myr_coef, XR)
+        fre_coef = -np.trapezoid( frer_coef, XR) 
         
 
         ######################################################################
@@ -1963,45 +1951,35 @@ def thrust_bearing_example():
     0.263144
     """
 
-    bearing = Thrust(
-        # pad_inner_radius = 0.5 * 2300e-3,
+    bearing = THDThrust(        
         pad_inner_radius = 0.5 * 2300e-3,
-        # pad_outer_radius = 0.5 * 3450e-3,
         pad_outer_radius = 0.5 * 3450e-3,
-        # pad_pivot_radius = 0.5 * 2885e-3,
         pad_pivot_radius = 0.5 * 2885e-3,
-        # pad_arc_length = 26,
         pad_arc_length = 26,
-        # angular_pivot_position = 15,
         angular_pivot_position = 15,
         oil_supply_temperature = 40,
         lubricant = "ISOVG68",
         n_pad = 12,
-        # n_theta = 10,
         n_theta = 10,
-        # n_radial = 10,
         n_radial = 10,
         frequency = 90,
         choice_CAIMP = {"calc_h0":{"init_guess":[-0.000274792355106384, -1.69258824831925e-05, 0.000191418606538599], "load":13320e3, "print":["result","progress"]}},
-        Coefs_D = {"show_coef":True},
         equilibrium_position_mode = "calculate",
         fzs_load = 13320e3,
-        # equilibrium_position_mode = "imposed"
-
-
-
-        # new parameters
         radial_inclination_angle = -0.000274792355106384, # a_r
         circumferential_inclination_angle = -1.69258824831925e-05, # a_s
         initial_film_thickness = 0.000191418606538599, # h0
+        print_result=True,
+        print_progress=True,
+        print_time=False,
     )
     
     # bearing.run(frequency=90, choice_CAIMP={"calc_h0":{"init_guess":[-0.000274792355106384, -1.69258824831925e-05, 0.000191418606538599], "load":13320e3, "print":["result","progress"]}}, Coefs_D={"show_coef":True})
     # bearing.run(frequency=90, choice_CAIMP={"impos_h0":{"init_guess":[-0.000274792355106384, -1.69258824831925e-05], "h0":0.0001864, "print":["result","progress"]}}, Coefs_D={"show_coef":True})
     #return bearing
 
-    bearing.run()
-    bearing.plot_results()
+    # bearing.run()
+    # bearing.plot_results()
 
 if __name__ == "__main__":
     thrust_bearing_example()
