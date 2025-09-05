@@ -553,6 +553,34 @@ class Rotor(object):
 
         self.df = df
 
+        # Base matrices:
+        M0 = np.zeros((self.ndof, self.ndof))
+        C0 = np.zeros((self.ndof, self.ndof))
+        K0 = np.zeros((self.ndof, self.ndof))
+        G0 = np.zeros((self.ndof, self.ndof))
+        Ksdt0 = np.zeros((self.ndof, self.ndof))
+
+        elements = list(set(self.elements).difference(self.bearing_elements))
+
+        for elm in elements:
+            dofs = list(elm.dof_global_index.values())
+
+            M0[np.ix_(dofs, dofs)] += elm.M()
+            C0[np.ix_(dofs, dofs)] += elm.C()
+            K0[np.ix_(dofs, dofs)] += elm.K()
+            G0[np.ix_(dofs, dofs)] += elm.G()
+
+            if elm in self.shaft_elements:
+                Ksdt0[np.ix_(dofs, dofs)] += elm.Kst()
+            elif elm in self.disk_elements:
+                Ksdt0[np.ix_(dofs, dofs)] += elm.Kdt()
+
+        self.M0 = M0
+        self.C0 = C0
+        self.K0 = K0
+        self.G0 = G0
+        self.Ksdt0 = Ksdt0
+
     def _check_number_dof(self):
         """Verify the consistency of degrees of freedom.
 
@@ -741,12 +769,12 @@ class Rotor(object):
         """Run modal analysis.
 
         Method to calculate eigenvalues and eigvectors for a given rotor system.
-        Tthe natural frequencies and dampings ratios are calculated for a given
+        The natural frequencies and dampings ratios are calculated for a given
         rotor speed. It means that for each speed input there's a different set of
         eigenvalues and eigenvectors, hence, different natural frequencies and damping
         ratios are returned.
         This method will return a ModalResults object which stores all data generated
-        and also provides so methods for plotting.
+        and also provides methods for plotting.
 
         Available plotting methods:
             .plot_mode_2d()
@@ -1070,62 +1098,57 @@ class Rotor(object):
                [ 0.        ,  0.        ,  1.27790826,  0.        ],
                [ 0.        , -0.04931719,  0.        ,  0.00231392]])
         """
-        M0 = np.zeros((self.ndof, self.ndof))
-
         # if frequency is None, we assume the rotor does not have any elements
         # with frequency dependent mass matrices
         if frequency is None:
             frequency = 0
 
-        for elm in self.elements:
+        M0 = self.M0.copy()
+
+        for elm in self.bearing_elements:
             dofs = list(elm.dof_global_index.values())
-            try:
-                M = elm.M(frequency)
-            except TypeError:
-                M = elm.M()
+            M0[np.ix_(dofs, dofs)] += elm.M(frequency)
 
-            if synchronous:
-                if elm in self.shaft_elements:
-                    a0 = elm.dof_mapping()["alpha_0"]
-                    b0 = elm.dof_mapping()["beta_0"]
-                    x0 = elm.dof_mapping()["x_0"]
-                    y0 = elm.dof_mapping()["y_0"]
-                    x1 = elm.dof_mapping()["x_1"]
-                    y1 = elm.dof_mapping()["y_1"]
-                    a1 = elm.dof_mapping()["alpha_1"]
-                    b1 = elm.dof_mapping()["beta_1"]
-                    G = elm.G()
-                    for i in range(2 * self.number_dof):
-                        if i in (x0, b0, x1, b1):
-                            M[i, x0] = M[i, x0] - G[i, y0]
-                            M[i, b0] = M[i, b0] + G[i, a0]
-                            M[i, x1] = M[i, x1] - G[i, y1]
-                            M[i, b1] = M[i, b1] + G[i, a1]
-                        else:
-                            M[i, y0] = M[i, y0] + G[i, x0]
-                            M[i, a0] = M[i, a0] - G[i, b0]
-                            M[i, y1] = M[i, y1] + G[i, x1]
-                            M[i, a1] = M[i, a1] - G[i, b1]
-                elif elm in self.disk_elements:
-                    a0 = elm.dof_mapping()["alpha_0"]
-                    b0 = elm.dof_mapping()["beta_0"]
-                    G = elm.G()
-                    M[a0, a0] = M[a0, a0] - G[a0, b0]
-                    M[b0, b0] = M[b0, b0] + G[b0, a0]
-
-            M0[np.ix_(dofs, dofs)] += M
+        if synchronous:
+            for elm in self.shaft_elements:
+                dofs = list(elm.dof_global_index.values())
+                x0 = elm.dof_mapping()["x_0"]
+                y0 = elm.dof_mapping()["y_0"]
+                a0 = elm.dof_mapping()["alpha_0"]
+                b0 = elm.dof_mapping()["beta_0"]
+                x1 = elm.dof_mapping()["x_1"]
+                y1 = elm.dof_mapping()["y_1"]
+                a1 = elm.dof_mapping()["alpha_1"]
+                b1 = elm.dof_mapping()["beta_1"]
+                G = elm.G()
+                for i in range(2 * self.number_dof):
+                    if i in (x0, b0, x1, b1):
+                        M0[dofs[i], dofs[x0]] -= G[i, y0]
+                        M0[dofs[i], dofs[b0]] += G[i, a0]
+                        M0[dofs[i], dofs[x1]] -= G[i, y1]
+                        M0[dofs[i], dofs[b1]] += G[i, a1]
+                    else:
+                        M0[dofs[i], dofs[y0]] += G[i, x0]
+                        M0[dofs[i], dofs[a0]] -= G[i, b0]
+                        M0[dofs[i], dofs[y1]] += G[i, x1]
+                        M0[dofs[i], dofs[a1]] -= G[i, b1]
+            for elm in self.disk_elements:
+                dofs = list(elm.dof_global_index.values())
+                a0 = elm.dof_mapping()["alpha_0"]
+                b0 = elm.dof_mapping()["beta_0"]
+                G = elm.G()
+                M0[dofs[a0], dofs[a0]] -= G[a0, b0]
+                M0[dofs[b0], dofs[b0]] += G[b0, a0]
 
         return M0
 
-    def K(self, frequency, ignore=()):
+    def K(self, frequency):
         """Stiffness matrix for an instance of a rotor.
 
         Parameters
         ----------
         frequency : float, optional
             Excitation frequency.
-        ignore : tuple, optional
-            Tuple of elements to leave out of the matrix.
 
         Returns
         -------
@@ -1141,16 +1164,11 @@ class Rotor(object):
                [ 0.000e+00,  0.000e+00,  1.657e+03,  0.000e+00],
                [ 0.000e+00, -6.000e+00,  0.000e+00,  1.000e+00]])
         """
-        K0 = np.zeros((self.ndof, self.ndof))
+        K0 = self.K0.copy()
 
-        elements = list(set(self.elements).difference(ignore))
-
-        for elm in elements:
+        for elm in self.bearing_elements:
             dofs = list(elm.dof_global_index.values())
-            try:
-                K0[np.ix_(dofs, dofs)] += elm.K(frequency)
-            except TypeError:
-                K0[np.ix_(dofs, dofs)] += elm.K()
+            K0[np.ix_(dofs, dofs)] += elm.K(frequency)
 
         return K0
 
@@ -1177,27 +1195,17 @@ class Rotor(object):
                [  0.  ,  -0.48,   0.  ,   0.16,   0.  ,   0.  ],
                [  0.  ,   0.  ,   0.  ,   0.  ,   0.  ,   0.  ]])
         """
-        Ksdt0 = np.zeros((self.ndof, self.ndof))
-
-        for elm in self.shaft_elements:
-            dofs = list(elm.dof_global_index.values())
-            Ksdt0[np.ix_(dofs, dofs)] += elm.Kst()
-
-        for elm in self.disk_elements:
-            dofs = list(elm.dof_global_index.values())
-            Ksdt0[np.ix_(dofs, dofs)] += elm.Kdt()
+        Ksdt0 = self.Ksdt0.copy()
 
         return Ksdt0
 
-    def C(self, frequency, ignore=()):
+    def C(self, frequency):
         """Damping matrix for an instance of a rotor.
 
         Parameters
         ----------
         frequency : float
             Excitation frequency.
-        ignore : tuple, optional
-            Tuple of elements to leave out of the matrix.
 
         Returns
         -------
@@ -1213,16 +1221,11 @@ class Rotor(object):
                [0., 0., 0., 0.],
                [0., 0., 0., 0.]])
         """
-        C0 = np.zeros((self.ndof, self.ndof))
+        C0 = self.C0.copy()
 
-        elements = list(set(self.elements).difference(ignore))
-
-        for elm in elements:
+        for elm in self.bearing_elements:
             dofs = list(elm.dof_global_index.values())
-            try:
-                C0[np.ix_(dofs, dofs)] += elm.C(frequency)
-            except TypeError:
-                C0[np.ix_(dofs, dofs)] += elm.C()
+            C0[np.ix_(dofs, dofs)] += elm.C(frequency)
 
         return C0
 
@@ -1243,11 +1246,7 @@ class Rotor(object):
                [ 0.        ,  0.        ,  0.        ,  0.        ],
                [ 0.00022681,  0.        ,  0.        ,  0.        ]])
         """
-        G0 = np.zeros((self.ndof, self.ndof))
-
-        for elm in self.elements:
-            dofs = list(elm.dof_global_index.values())
-            G0[np.ix_(dofs, dofs)] += elm.G()
+        G0 = self.G0.copy()
 
         return G0
 
@@ -2063,7 +2062,7 @@ class Rotor(object):
 
         return F0
 
-    def _unbalance_force_over_time(self, node, magnitude, phase, omega, t):
+    def unbalance_force_over_time(self, node, magnitude, phase, omega, t):
         """Calculate unbalance forces for each time step.
 
         This auxiliary function calculates the unbalanced forces by taking
@@ -2101,7 +2100,7 @@ class Rotor(object):
         >>> rotor = rotor_example()
         >>> t = np.linspace(0, 10, 31)
         >>> omega = np.linspace(0, 1000, 31)
-        >>> F, _, _, _ = rotor._unbalance_force_over_time([3], [10.0], [0.0], omega, t)
+        >>> F, _, _, _ = rotor.unbalance_force_over_time([3], [10.0], [0.0], omega, t)
         >>> F[18, :3]
         array([     0.        ,   7632.15353293, -43492.18127561])
         """
@@ -2278,6 +2277,43 @@ class Rotor(object):
 
         return forced_response
 
+    def gravitational_force(self, g=-9.8065, direction="y", M=None, num_dof=None):
+        """Compute the gravitational force vector for the system.
+
+        Parameters
+        ----------
+        g : float, optional
+            Acceleration due to gravity. Default is -9.8065 m/s².
+        direction : {"x", "y", "z"}, optional
+            Direction in which gravity acts. Default is "y".
+        M : ndarray, optional
+            Mass matrix of the system. If None, the internal mass matrix is used.
+        num_dof : int, optional
+            Number of degrees of freedom per node. If None, the internal value is used.
+
+        Returns
+        -------
+        force : ndarray
+            Gravitational force (weight) vector of shape `(ndof,)`.
+
+        Examples
+        --------
+        >>> rotor = compressor_example()
+        >>> force = rotor.gravitational_force()
+        >>> force[:4]
+        array([ 0.        , -3.12941854,  0.        ,  0.01851573])
+        """
+        idx = {"x": 0, "y": 1, "z": 2}
+
+        if M is None:
+            M = self.M()
+            num_dof = self.number_dof
+
+        gravity = np.zeros(len(M))
+        gravity[idx[direction] :: num_dof] = g
+
+        return M @ gravity
+
     def integrate_system(self, speed, F, t, **kwargs):
         """Time integration for a rotor system.
 
@@ -2389,12 +2425,12 @@ class Rotor(object):
                         "The bearing coefficients vary with speed. Therefore, C and K matrices are not being replaced by the matrices defined as input arguments."
                     )
 
-                C0 = self.C(speed_ref, ignore=brgs_with_var_coeffs)
-                K0 = self.K(speed_ref, ignore=brgs_with_var_coeffs)
+                C0 = self.C0
+                K0 = self.K0
 
                 def rotor_system(step, **current_state):
                     Cb, Kb = assemble_C_K_matrices(
-                        brgs_with_var_coeffs, np.copy(C0), np.copy(K0), speed[step]
+                        brgs_with_var_coeffs, C0.copy(), K0.copy(), speed[step]
                     )
 
                     C1 = get_array[0](Cb)
@@ -3434,6 +3470,7 @@ class Rotor(object):
         speed,
         t,
         crack_model="Mayes",
+        cross_divisions=None,
         **kwargs,
     ):
         """Run analysis for the rotor system with crack given an unbalance force.
@@ -3461,8 +3498,11 @@ class Rotor(object):
         t : array
             Time array.
         crack_model : string, optional
-            String containing type of crack model chosed. The avaible types are:
-            "Mayes" and "Gasch". Default is "Mayes".
+            String containing type of crack model chosed. The available types are: "Mayes",
+            "Gasch", "Flex Open" and "Flex Breathing". Default is "Mayes".
+        cross_divisions: float, optional
+            Number of square divisions into which the cross-section of the cracked element
+            will be divided in the analysis conducted for the Flex Breathing model.
         **kwargs : optional
             Additional keyword arguments can be passed to define the parameters
             of the Newmark method if it is used (e.g. gamma, beta, tol, ...).
@@ -3506,7 +3546,7 @@ class Rotor(object):
         ...     yaxis_type="log",
         ... )
         """
-        fault = Crack(self, n, depth_ratio, crack_model)
+        fault = Crack(self, n, depth_ratio, crack_model, cross_divisions)
 
         results = fault.run(
             node, unbalance_magnitude, unbalance_phase, speed, t, **kwargs
@@ -3731,9 +3771,7 @@ class Rotor(object):
 
         # gravity aceleration vector
         g = -9.8065
-        gravity = np.zeros(len(aux_M))
-        gravity[1::num_dof] = g
-        weight = aux_M @ gravity
+        weight = self.gravitational_force(g=g, M=aux_M, num_dof=num_dof)
 
         # calculates u, for [K]*(u) = (F)
         displacement = (la.solve(aux_K, weight)).flatten()
@@ -4699,6 +4737,34 @@ class CoAxialRotor(Rotor):
             df.loc[df.tag == p.tag, "y_pos"] = y_pos
 
         self.df = df
+
+        # Build matrices considering all elements excluding bearing_elements:
+        M0 = np.zeros((self.ndof, self.ndof))
+        C0 = np.zeros((self.ndof, self.ndof))
+        K0 = np.zeros((self.ndof, self.ndof))
+        G0 = np.zeros((self.ndof, self.ndof))
+        Ksdt0 = np.zeros((self.ndof, self.ndof))
+
+        elements = list(set(self.elements).difference(self.bearing_elements))
+
+        for elm in elements:
+            dofs = list(elm.dof_global_index.values())
+
+            M0[np.ix_(dofs, dofs)] += elm.M()
+            C0[np.ix_(dofs, dofs)] += elm.C()
+            K0[np.ix_(dofs, dofs)] += elm.K()
+            G0[np.ix_(dofs, dofs)] += elm.G()
+
+            if elm in self.shaft_elements:
+                Ksdt0[np.ix_(dofs, dofs)] += elm.Kst()
+            elif elm in self.disk_elements:
+                Ksdt0[np.ix_(dofs, dofs)] += elm.Kdt()
+
+        self.M0 = M0
+        self.C0 = C0
+        self.K0 = K0
+        self.G0 = G0
+        self.Ksdt0 = Ksdt0
 
 
 def rotor_example():
