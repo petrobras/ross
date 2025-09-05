@@ -3,13 +3,13 @@ import pytest
 
 from numpy.testing import assert_allclose
 
-from ross.seals.hcomb_seal import HcombSeal
+from ross.seals.hcomb_seal import HoneycombSeal
 from ross.units import Q_
 
 
 @pytest.fixture
 def hcomb():
-    seal = HcombSeal(
+    seal = HoneycombSeal(
         n=0,
         frequency=Q_([5000], "RPM"),
         length=0.0254,

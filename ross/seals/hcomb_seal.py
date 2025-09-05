@@ -5,11 +5,11 @@ from ross import SealElement
 from ross.units import Q_, check_units
 from scipy.optimize import curve_fit
 
-__all__ = ["HcombSeal"]
+__all__ = ["HoneycombSeal"]
 
 
-class HcombSeal(SealElement):
-    """Calculate Honeycomb seal with honeycomb (hcomb).
+class HoneycombSeal(SealElement):
+    """Calculate seal with honeycomb (hcomb).
 
     Parameters
     ----------
@@ -82,9 +82,9 @@ class HcombSeal(SealElement):
 
     Examples
     --------
-    >>> from ross.seals.hcomb_seal import HcombSeal
+    >>> from ross.seals.hcomb_seal import HoneycombSeal
     >>> from ross.units import Q_
-    >>> hcomb = HcombSeal(
+    >>> hcomb = HoneycombSeal(
     ...     n=0,
     ...     frequency=Q_([8000], "RPM"),  # RPM
     ...     length=0.04699,
@@ -150,7 +150,7 @@ class HcombSeal(SealElement):
             def sutherland_formula(T, b, S):
                 return (b * T ** (3 / 2)) / (S + T)
 
-            state = ccp.State.define(
+            state = ccp.State(
                 p=self.inlet_pressure,
                 T=self.inlet_temperature,
                 fluid=self.gas_composition,
