@@ -170,18 +170,39 @@ class THDThrust(BearingElement):
         self.initial_film_thickness = initial_film_thickness
         self.initial_position = np.array([radial_inclination_angle, circumferential_inclination_angle, initial_film_thickness])
         
-        # Viscosity interpolation coefficients
-        lubricant_properties = self.lub_selector()
-        T_muI = lubricant_properties["temp1"] 
-        T_muF = lubricant_properties["temp2"] 
-        mu_I = lubricant_properties["viscosity1"]
-        mu_F = lubricant_properties["viscosity2"]
-        self.rho = lubricant_properties["lube_density"]
-        self.kt = lubricant_properties["lube_conduct"]
-        self.cp = lubricant_properties["lube_cp"]
+        # # Viscosity interpolation coefficients
+        # lubricant_properties = self.lub_selector()
+        # T_muI = lubricant_properties["temp1"] 
+        # T_muF = lubricant_properties["temp2"] 
+        # mu_I = lubricant_properties["viscosity1"]
+        # mu_F = lubricant_properties["viscosity2"]
+        # self.rho = lubricant_properties["lube_density"]
+        # self.kt = lubricant_properties["lube_conduct"]
+        # self.cp = lubricant_properties["lube_cp"]
 
-        self.b_b = np.log(mu_I / mu_F) / (T_muI - T_muF)
-        self.a_a = mu_I / (np.exp(T_muI * self.b_b))
+        # self.b_b = np.log(mu_I / mu_F) / (T_muI - T_muF)
+        # self.a_a = mu_I / (np.exp(T_muI * self.b_b))
+
+        if isinstance(lubricant, str):
+            if lubricant not in lubricants_dict:
+                raise KeyError(f"Lubricant {lubricant} not found in the database.")
+            self.lubricant_properties = lubricants_dict[lubricant]
+        elif isinstance(lubricant, dict):
+            self.lubricant_properties = lubricant
+        else:
+            raise TypeError("Lubricant must be either a string or a dictionary.")
+
+        self.rho = self.lubricant_properties["liquid_density"]
+        self.kt = self.lubricant_properties["liquid_thermal_conductivity"]
+        self.cp = self.lubricant_properties["liquid_specific_heat"]
+
+        T_1 = Q_(self.lubricant_properties["temperature1"], "degK").m_as("degC")
+        mu_1 = self.lubricant_properties["liquid_viscosity1"]
+        T_2 = Q_(self.lubricant_properties["temperature2"], "degK").m_as("degC")
+        mu_2 = self.lubricant_properties["liquid_viscosity2"]
+
+        # Viscosity interpolation coefficients
+        self.a_a, self.b_b = self._get_interp_coeffs(T_1, T_2, mu_1, mu_2)
 
         self.reference_viscosity = self.a_a*np.exp(self.reference_temperature*self.b_b)
 
@@ -193,7 +214,7 @@ class THDThrust(BearingElement):
                            (self.n_theta - 0.5) * self.d_theta, 
                            n_theta)
 
-        n_freq = np.shape(frequency)[0]
+        # n_freq = np.shape(frequency)[0]
 
         # Run the calculation
         self.run()
@@ -1194,47 +1215,70 @@ class THDThrust(BearingElement):
                     self.pressure_field[ii, jj] = 0
 
 
-    def lub_selector(self):
-        lubricant_dict = {
-            "ISOVG32": {
-                "viscosity1": 0.027968,                               # Pa.s
-                "temp1": 40.0,                                    # degC
-                "viscosity2": 0.004667,                               # Pa. s
-                "temp2": 100.0,                                   # degC
-                "lube_density": 873.99629,                            # kg/m³
-                "lube_cp": 1948.7995685758851,                        # J/(kg*degC)
-                "lube_conduct": 0.13126,                              # W/(m*degC)
-            },
-            "ISOVG46": {
-                "viscosity1": 0.039693,                               # Pa.s
-                "temp1": 40.0,                                    # degC
-                "viscosity2": 0.006075,                               # Pa.s
-                "temp2": 100.00000,                                   # degC
-                "lube_density": 862.9,                                # kg/m³ 
-                "lube_cp": 1950,                                      # J/(kg*degC)
-                "lube_conduct": 0.15,                                 # W/(m*degC)
-            },
-            "ISOVG68": {
-                "viscosity1": 0.060248,                               # Pa.s = N*s/m²
-                "temp1": 40.00000,                                    # degC
-                "viscosity2": 0.0076196,                              # Pa.s = N*s/m²
-                "temp2": 100.00000,                                   # degC
-                "lube_density": 886.00,                               # kg/m³ 
-                "lube_cp": 1890.00,                                   # J/(kg*degC)
-                "lube_conduct": 0.1316,                               # W/(m*degC)
-            },
-            "TEST": {
-                "viscosity1": 0.02,                                   # Pa.s = N*s/m²
-                "temp1": 50.00,                                       # degC
-                "viscosity2": 0.01,                                   # Pa.s = N*s/m²
-                "temp2": 80.00,                                       # degC
-                "lube_density": 880.60,                               # kg/m³ 
-                "lube_cp": 1800,                                      # J/(kg*degC)
-                "lube_conduct": 0.1304                                # J/s*m*degC  --W/(m*degC)--
-            },
-        }
-        return lubricant_dict[self.lubricant]
+    # def lub_selector(self):
+    #     lubricant_dict = {
+    #         "ISOVG32": {
+    #             "viscosity1": 0.027968,                               # Pa.s
+    #             "temp1": 40.0,                                    # degC
+    #             "viscosity2": 0.004667,                               # Pa. s
+    #             "temp2": 100.0,                                   # degC
+    #             "lube_density": 873.99629,                            # kg/m³
+    #             "lube_cp": 1948.7995685758851,                        # J/(kg*degC)
+    #             "lube_conduct": 0.13126,                              # W/(m*degC)
+    #         },
+    #         "ISOVG46": {
+    #             "viscosity1": 0.039693,                               # Pa.s
+    #             "temp1": 40.0,                                    # degC
+    #             "viscosity2": 0.006075,                               # Pa.s
+    #             "temp2": 100.00000,                                   # degC
+    #             "lube_density": 862.9,                                # kg/m³ 
+    #             "lube_cp": 1950,                                      # J/(kg*degC)
+    #             "lube_conduct": 0.15,                                 # W/(m*degC)
+    #         },
+    #         "ISOVG68": {
+    #             "viscosity1": 0.060248,                               # Pa.s = N*s/m²
+    #             "temp1": 40.00000,                                    # degC
+    #             "viscosity2": 0.0076196,                              # Pa.s = N*s/m²
+    #             "temp2": 100.00000,                                   # degC
+    #             "lube_density": 886.00,                               # kg/m³ 
+    #             "lube_cp": 1890.00,                                   # J/(kg*degC)
+    #             "lube_conduct": 0.1316,                               # W/(m*degC)
+    #         },
+    #         "TEST": {
+    #             "viscosity1": 0.02,                                   # Pa.s = N*s/m²
+    #             "temp1": 50.00,                                       # degC
+    #             "viscosity2": 0.01,                                   # Pa.s = N*s/m²
+    #             "temp2": 80.00,                                       # degC
+    #             "lube_density": 880.60,                               # kg/m³ 
+    #             "lube_cp": 1800,                                      # J/(kg*degC)
+    #             "lube_conduct": 0.1304                                # J/s*m*degC  --W/(m*degC)--
+    #         },
+    #     }
+    #     return lubricant_dict[self.lubricant]
 
+    def _get_interp_coeffs(self, T_muI, T_muF, mu_I, mu_F):
+        """
+        Calculate viscosity interpolation coefficients.
+        
+        Parameters
+        ----------
+        T_muI : float
+            First temperature point [°C]
+        T_muF : float
+            Second temperature point [°C]
+        mu_I : float
+            Viscosity at first temperature [Pa·s]
+        mu_F : float
+            Viscosity at second temperature [Pa·s]
+        
+        Returns
+        -------
+        tuple
+            Coefficients (a, b) for viscosity equation: μ = a * exp(b * T)
+        """
+        b = np.log(mu_F/mu_I)/(T_muF - T_muI)
+        a = mu_I/np.exp(b * T_muI)
+        return a, b
 
     def coefficients(self):
 
@@ -1839,7 +1883,7 @@ def thrust_example():
         radial_inclination_angle = Q_(-2.75e-04, "rad"),
         circumferential_inclination_angle = Q_(-1.70e-05, "rad"),
         initial_film_thickness = Q_(0.2, "mm"),
-        print_result=False,
+        print_result=True,
         print_progress=False,
         print_time=False,
     )
