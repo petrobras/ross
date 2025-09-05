@@ -163,17 +163,14 @@ class THDThrust(BearingElement):
         self.d_theta = 1 / (self.n_theta)
         self.initial_temperature = np.full((self.n_radial, self.n_theta), self.reference_temperature)
 
-
         self.equilibrium_position_mode = equilibrium_position_mode
         self.fzs_load = fzs_load
         self.radial_inclination_angle = radial_inclination_angle
         self.circumferential_inclination_angle = circumferential_inclination_angle
         self.initial_film_thickness = initial_film_thickness
         self.initial_position = np.array([radial_inclination_angle, circumferential_inclination_angle, initial_film_thickness])
-
-        # --------------------------------------------------------------------------
         
-        # Interpolation coefficients
+        # Viscosity interpolation coefficients
         lubricant_properties = self.lub_selector()
         T_muI = lubricant_properties["temp1"] 
         T_muF = lubricant_properties["temp2"] 
@@ -186,10 +183,9 @@ class THDThrust(BearingElement):
         self.b_b = np.log(mu_I / mu_F) / (T_muI - T_muF)
         self.a_a = mu_I / (np.exp(T_muI * self.b_b))
 
-        self.reference_viscosity = self.a_a*np.exp(self.reference_temperature*self.b_b) #reference viscosity
-        
+        self.reference_viscosity = self.a_a*np.exp(self.reference_temperature*self.b_b)
 
-
+        # Discretization of the mesh
         self.radius_array = np.linspace(1 + 0.5 * self.d_radius, 
                         1 + (self.n_radial - 0.5) * self.d_radius, 
                         n_radial)
@@ -197,7 +193,9 @@ class THDThrust(BearingElement):
                            (self.n_theta - 0.5) * self.d_theta, 
                            n_theta)
 
-        # Call the run method
+        n_freq = np.shape(frequency)[0]
+
+        # Run the calculation
         self.run()
         
 
@@ -211,7 +209,7 @@ class THDThrust(BearingElement):
         if self.print_time:
             t1 = time.time()
         
-        # Solve the fields (pressure and temperature field)
+        # Solve the fields (pressure and temperature fields)
         self.solve_fields()
 
         # Calculate the dynamic coefficients
@@ -248,11 +246,9 @@ class THDThrust(BearingElement):
             print("Calculation time spent: {0:.2f} seconds".format(t2 - t1))         
 
     def solve_fields(self):
-        # --------------------------------------------------------------------------
-        # WHILE LOOP INITIALIZATION
+
         residual_force_moment = 10
         tolerance_force_moment = 1
-        # tolerance_force_moment = 1e-8
 
         # Residual force and moment convergence loop
         iteration = 0
@@ -260,12 +256,8 @@ class THDThrust(BearingElement):
             iteration += 1
             if self.print_progress:
                 print(f"Iteration {iteration} - Residual Force & Moment: {residual_force_moment:.6f}")
-            # --------------------------------------------------------------------------
-            # Equilibrium position optimization [ar,ap,self.pivot_film_thickness]
-            
-            # if "impos_h0" in self.op_key:
+
             if self.equilibrium_position_mode == "imposed":
-                # self.h0i = self.choice_CAIMP["impos_h0"]['self.pivot_film_thickness']
                 self.h0i = self.initial_position[2]
                 x = fmin(
                     self._equilibrium_objective,                  
@@ -301,9 +293,6 @@ class THDThrust(BearingElement):
 
             viscosity_convergence_tolerance = 1e-5
 
-            # TEMPERATURE ==============================================================
-            # STARTS HERE ==============================================================
-
             dh_dT = 0
             mi_i = np.zeros((self.n_radial, self.n_theta))
 
@@ -319,7 +308,7 @@ class THDThrust(BearingElement):
             mu_update = (1 / self.reference_viscosity) * mi_i
             self.mu = 0.2 * mu_update
 
-            # TEMPERATURE FIELD - Solution of ENERGY equation
+            # Viscosity convergence loop
             for ii in range(0, self.n_radial):
                 for jj in range(0, self.n_theta):
                     viscosity_variation = np.abs((mu_update[ii, jj] - self.mu[ii, jj]) / self.mu[ii, jj])
@@ -329,9 +318,6 @@ class THDThrust(BearingElement):
 
                 self.mu = np.array(mu_update)
 
-                # PRESSURE_THD =============================================================
-                # STARTS HERE ==============================================================
-                # Note: radial_inclination_angle and circumferential_inclination_angle here are the optimized values
                 radial_param = radial_inclination_angle * self.pad_inner_radius / self.pivot_film_thickness
                 circum_param = circumferential_inclination_angle * self.pad_inner_radius / self.pivot_film_thickness
 
@@ -353,7 +339,6 @@ class THDThrust(BearingElement):
                 moment_y = np.zeros((self.n_radial, self.n_theta))
                 force_axial = np.zeros((self.n_radial, self.n_theta))
                 self.pressure_field = np.ones((self.n_radial, self.n_theta))
-                # pressure = np.zeros((self.n_radial, self.n_theta))
                 self.viscosity_field = np.zeros((self.n_radial, self.n_theta))
 
                 pressure_field_dimensional = np.zeros((self.n_radial + 2, self.n_theta + 2))
@@ -368,9 +353,6 @@ class THDThrust(BearingElement):
                 except Exception as e:
                     print(f"Error in pressure calculation: {e}")
                     pressure_field_dimensional[1:-1, 1:-1] = np.zeros((self.n_radial, self.n_theta))
-
-                # PRESSURE_THD =============================================================
-                # ENDS HERE ================================================================
 
                 radial_idx = 0
                 angular_idx = 0
@@ -387,8 +369,7 @@ class THDThrust(BearingElement):
 
                 for radius in self.radius_array:
                     for theta in self.theta_array:
-                        
-                        # Pressure derivatives on the faces: dPdR dPdTETA dP2dR2 dP2dTETA2
+
                         if angular_idx == 0 and radial_idx == 0:
                             dp0_dtheta[radial_idx, angular_idx] = (
                                 self.pressure_field[radial_idx, angular_idx + 1] - self.pressure_field[radial_idx, angular_idx]
@@ -452,7 +433,6 @@ class THDThrust(BearingElement):
                         radius_n = radius + 0.5 * self.d_radius
                         radius_s = radius - 0.5 * self.d_radius
 
-                        # Coefficients for solving the energy equation
                         north_coeff = (
                             self.d_theta
                             / 12
@@ -480,7 +460,7 @@ class THDThrust(BearingElement):
                         energy_w = -1 * east_coeff
                         energy_c2 = -(energy_e + energy_w)
 
-                        # difusive terms - central differences
+                        # Difusive terms - central differences
                         diffusion_n = (
                             self.kt
                             / (self.rho * self.cp * self.frequency * self.pad_inner_radius ** 2)
@@ -570,7 +550,7 @@ class THDThrust(BearingElement):
                             * dp0_dtheta[radial_idx, angular_idx] ** 2
                         )
 
-                        # vectorization index
+                        # Vectorization index
                         vectorization_idx = vectorization_idx + 1
 
                         source_term_vector[vectorization_idx, 0] = (
@@ -650,7 +630,7 @@ class THDThrust(BearingElement):
                         temp_idx = temp_idx + 1
                         temperature_updt[ii, jj] = temperature_solution[temp_idx, 0]
 
-                # viscosity field
+                # Viscosity field
                 viscosity_variation = np.zeros((self.n_radial, self.n_theta))
                 for ii in range(0, self.n_radial):
                     for jj in range(0, self.n_theta):
@@ -663,16 +643,13 @@ class THDThrust(BearingElement):
 
                 temperature = temperature_updt
                 max_viscosity_variation=np.max(viscosity_variation)
-
-            # TEMPERATURE ==============================================================
-            # ENDS HERE ================================================================
             
             self.initial_temperature = temperature * self.reference_temperature
 
-            # dimensional pressure
+            # Dimensional pressure
             pressure_dim = self.pressure_field* (self.pad_inner_radius ** 2) * self.frequency * self.reference_viscosity / (self.pivot_film_thickness ** 2)
 
-            # RESULTING FORCE AND MOMENTUM: Equilibrium position
+            # Resulting force and momentum: Equilibrium position
             radius_coords = self.pad_inner_radius * self.radius_array
             theta_coords = self.pad_arc_length * self.theta_array
             pivot_coords = self.pad_pivot_radius * (np.ones((np.size(radius_coords))))
@@ -690,7 +667,6 @@ class THDThrust(BearingElement):
 
             force_radial = np.trapezoid(force_axial, theta_coords)
 
-            ######################################################################
             mom_x_radial = np.trapezoid(moment_x, theta_coords)
             mom_y_radial = np.trapezoid(moment_y, theta_coords)
 
@@ -700,10 +676,6 @@ class THDThrust(BearingElement):
             residual_moment_x = mom_x_total
             residual_moment_y = mom_y_total
 
-
-            ######################################################################
-
-            # if self.op_key == "impos_h0":
             if self.equilibrium_position_mode == "imposed":
                 residual_force_moment = np.linalg.norm(np.array([residual_moment_x, residual_moment_y]))
                 self.fzs_load = force_radial
@@ -715,14 +687,11 @@ class THDThrust(BearingElement):
             self.initial_position = np.array([x[0], x[1], self.pivot_film_thickness])
             self.score = residual_force_moment
 
-        # --------------------------------------------------------------------------
-        # Initialize temperature field with boundary padding
         temperature_field_full = np.ones((self.n_radial + 2, self.n_theta + 2))
-        
-        # Fill interior with calculated temperature values
+
         temperature_field_full[1:self.n_radial+1, 1:self.n_theta+1] = np.flipud(self.initial_temperature)
         
-        # Apply boundary conditions
+        # Boundary conditions
         temperature_field_full[:, 0] = self.reference_temperature  # Left boundary
         temperature_field_full[0, :] = temperature_field_full[1, :]  # Top boundary
         temperature_field_full[self.n_radial + 1, :] = temperature_field_full[self.n_radial, :]  # Bottom boundary
@@ -731,23 +700,18 @@ class THDThrust(BearingElement):
         # Store as instance attribute
         self.temperature_field = temperature_field_full
 
-        # --------------------------------------------------------------------------
-        # Viscosity field
         for ii in range(0, self.n_radial):
             for jj in range(0, self.n_theta):
                 self.viscosity_field[ii, jj] =  self.a_a * np.exp(self.b_b * (self.initial_temperature[ii, jj]))  # [Pa.s]
-
-        # PRESSURE =================================================================
-        # STARTS HERE ==============================================================
 
         radial_param = radial_inclination_angle * self.pad_inner_radius / self.pivot_film_thickness
         circum_param = circumferential_inclination_angle * self.pad_inner_radius / self.pivot_film_thickness
         self.mu = 1 / self.reference_viscosity * self.viscosity_field
 
-        # number of volumes
+        # Number of volumes
         volumes_number = (self.n_radial) * (self.n_theta)
 
-        # Coefficients Matrix
+        # Coefficients matrix
         mat_coeff = np.zeros((volumes_number, volumes_number))
         source_term_vector = np.zeros((volumes_number, 1))
 
@@ -773,22 +737,20 @@ class THDThrust(BearingElement):
 
         """
 
-        # Variable startup
         self.mu = np.zeros((self.n_radial, self.n_theta))
         pressure = np.zeros((self.n_radial, self.n_theta))
         moment_x = np.zeros((self.n_radial, self.n_theta))
         moment_y = np.zeros((self.n_radial, self.n_theta))
         force_axial = np.zeros((self.n_radial, self.n_theta))
 
-        # Pitch angles alpha_r and alpha_p and oil filme thickness at pivot self.pivot_film_thickness
         radial_inclination_angle = x[0]  # [rad]
         circumferential_inclination_angle = x[1]  # [rad]
 
         # Determine self.pivot_film_thickness based on equilibrium position mode
         if self.equilibrium_position_mode == "imposed":
-            self.pivot_film_thickness = self.initial_position[2]  # Use imposed self.pivot_film_thickness value
+            self.pivot_film_thickness = self.initial_position[2]
         else:  # "calculate" mode
-            self.pivot_film_thickness = x[2]  # self.pivot_film_thickness is optimized
+            self.pivot_film_thickness = x[2]
 
         for ii in range(0, self.n_radial):
             for jj in range(0, self.n_theta):
@@ -801,17 +763,16 @@ class THDThrust(BearingElement):
         circum_param = circumferential_inclination_angle * self.pad_inner_radius / self.pivot_film_thickness
         film_thickness_center = self.pivot_film_thickness / self.pivot_film_thickness
 
-        # PRESSURE FIELD - Solution of Reynolds equation
         radial_idx = 0
         angular_idx = 0
 
-        # pressure vectorization index
+        # Pressure vectorization index
         vectorization_idx = -1
 
-        # number of volumes
-        volumes_number = (self.n_radial) * (self.n_theta)  # number of volumes
+        # Number of volumes
+        volumes_number = (self.n_radial) * (self.n_theta)
 
-        # Coefficients Matrix
+        # Coefficients matrix
         mat_coeff = np.zeros((volumes_number, volumes_number))
         source_term_vector = np.zeros((volumes_number, 1))
 
@@ -898,7 +859,7 @@ class THDThrust(BearingElement):
                     mu_n = self.mu[radial_idx, angular_idx]
                     mu_s = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx - 1, angular_idx])
 
-                # Coefficients for solving the Reynolds equation
+                # Reynolds equation coefficients
                 coeff_e = (
                     1
                     / (24 * self.pad_arc_length ** 2 * mu_e)
@@ -915,7 +876,7 @@ class THDThrust(BearingElement):
                 coeff_s = radius_s / (24 * mu_s) * (self.d_theta / self.d_radius) * (h_se ** 3 + h_sw ** 3)
                 coeff_c = -(coeff_e + coeff_w + coeff_n + coeff_s)
 
-                # vectorization index
+                # Vectorization index
                 vectorization_idx = vectorization_idx + 1
 
                 source_term_vector[vectorization_idx, 0] = self.d_radius / (4 * self.pad_arc_length) * (radius_n * h_ne + radius_s * h_se - radius_n * h_nw - radius_s * h_sw)
@@ -980,20 +941,19 @@ class THDThrust(BearingElement):
         pressure_solution = np.linalg.solve(mat_coeff, source_term_vector)
         pressure_idx = -1
 
-        # pressure matrix
+        # Pressure matrix
         for ii in range(0, self.n_radial):
             for jj in range(0, self.n_theta):
                 pressure_idx = pressure_idx + 1
                 pressure[ii, jj] = pressure_solution[pressure_idx, 0]
 
-                # boundary conditions of pressure
+                # Pressure boundary conditions
                 if pressure[ii, jj] < 0:
                     pressure[ii, jj] = 0
 
-        # dimensional pressure
+        # Dimensional pressure
         pressure_dim = pressure * (self.pad_inner_radius ** 2) * self.frequency *self. reference_viscosity / (self.pivot_film_thickness ** 2)
 
-        # RESULTING FORCE AND MOMENTUM: Equilibrium position
         radius_coords = self.pad_inner_radius * self.radius_array
         theta_coords = self.pad_arc_length * self.theta_array
         pivot_coords = self.pad_pivot_radius * (np.ones((np.size(radius_coords))))
@@ -1010,15 +970,12 @@ class THDThrust(BearingElement):
             force_axial[:, ii] = pressure_dim[:, ii] * np.transpose(radius_coords)
         
         force_radial = np.trapezoid(force_axial, theta_coords)
-        ######################################################################
         mom_x_radial = np.trapezoid(moment_x, theta_coords)
         mom_y_radial = np.trapezoid(moment_y, theta_coords)
 
         mom_x_total = np.trapezoid(mom_x_radial, radius_coords)
         mom_y_total = np.trapezoid(mom_y_radial, radius_coords)
-        ######################################################################
         
-        # if self.op_key == "impos_h0":
         if self.equilibrium_position_mode == "imposed":
             score = np.linalg.norm([mom_x_total, mom_y_total])
         
@@ -1031,11 +988,10 @@ class THDThrust(BearingElement):
 
     def _solve_pressure_field(self, circum_param, radial_param,  mat_coeff, source_term_vector):
         
-        # PRESSURE FIELD - Solution of Reynolds equation
         radial_idx = 0
         angular_idx = 0
 
-        # pressure vectorization index
+        # Pressure vectorization index
         vectorization_idx = -1
 
         for radius in self.radius_array:
@@ -1126,7 +1082,7 @@ class THDThrust(BearingElement):
                     mu_n = self.mu[radial_idx, angular_idx]
                     mu_s = 0.5 * (self.mu[radial_idx, angular_idx] + self.mu[radial_idx - 1, angular_idx])
 
-                # Coefficients for solving the Reynolds equation
+                # Reynolds equation coefficients
                 coeff_e = (
                     1
                     / (24 * self.pad_arc_length ** 2 * mu_e)
@@ -1153,7 +1109,7 @@ class THDThrust(BearingElement):
                 )
                 coeff_c = -(coeff_e + coeff_w + coeff_n + coeff_s)
 
-                # vectorization index
+                # Vectorization index
                 vectorization_idx = vectorization_idx + 1
 
                 source_term_vector[vectorization_idx, 0] = (
@@ -1227,13 +1183,13 @@ class THDThrust(BearingElement):
         pressure_solution = np.linalg.solve(mat_coeff, source_term_vector)
         pressure_idx = -1
 
-        # pressure matrix
+        # Pressure matrix
         for ii in range(0, self.n_radial):
             for jj in range(0, self.n_theta):
                 pressure_idx = pressure_idx + 1
                 self.pressure_field[ii, jj] = pressure_solution[pressure_idx, 0]
 
-                # pressure boundary conditions
+                # Pressure boundary conditions
                 if self.pressure_field[ii, jj] < 0:
                     self.pressure_field[ii, jj] = 0
 
@@ -1281,22 +1237,17 @@ class THDThrust(BearingElement):
 
 
     def coefficients(self):
-        # --------------------------------------------------------------------------
-        # Stiffness and Damping Coefficients
-        perturbation_frequency = self.frequency  # perturbation frequency [rad/s]
-        normalized_frequency = perturbation_frequency / self.frequency
 
-        # HYDROCOEFF_z =============================================================
-        # STARTS HERE ==============================================================
+        perturbation_frequency = self.frequency
+        normalized_frequency = perturbation_frequency / self.frequency
 
         self.mu = (1 / self.reference_viscosity) * self.viscosity_field
 
         radial_idx = 0
         angular_idx = 0
-        vectorization_idx = -1  # pressure vectorization index
-        volumes_number = (self.n_radial) * (self.n_theta)  # volumes number
+        vectorization_idx = -1
+        volumes_number = (self.n_radial) * (self.n_theta) 
 
-        # coefficients matrix
         mat_coeff = np.zeros((volumes_number, volumes_number))
         source_vector = np.zeros((volumes_number, 1),dtype=complex)
         pressure_vector = np.zeros((volumes_number, 1),dtype=complex)
@@ -1407,7 +1358,7 @@ class THDThrust(BearingElement):
                 rad_pert_ne, rad_pert_nw, rad_pert_se, rad_pert_sw = np.zeros(4)
                 circ_pert_ne, circ_pert_nw, circ_pert_se, circ_pert_sw = np.zeros(4)
 
-                # Coefficients for solving the Reynolds equation
+                # Dynamic coefficients calculation terms
                 energy_e = (
                     1
                     / (24 * self.pad_arc_length ** 2 * mu_e)
@@ -1500,7 +1451,7 @@ class THDThrust(BearingElement):
                     * (radius_n * pert_coeff_ne + radius_n * pert_coeff_nw + radius_s * pert_coeff_se + radius_s * pert_coeff_sw)
                 )
 
-                # vectorization index
+                # Vectorization index
                 vectorization_idx = vectorization_idx + 1
 
                 source_vector[vectorization_idx, 0] = -(radial_term + circ_term) + conv_term + inertial_term
@@ -1561,20 +1512,20 @@ class THDThrust(BearingElement):
             radial_idx = radial_idx + 1
             angular_idx = 0
 
-        # vectorized pressure field solution
+        # Vectorized pressure field solution
         pressure_vector = np.linalg.solve(mat_coeff, source_vector)
         pressure_idx = -1
 
-        # pressure matrix
+        # Pressure matrix
         for ii in range(0, self.n_radial):
             for jj in range(0, self.n_theta):
                 pressure_idx = pressure_idx + 1
                 pressure_field_coeff[ii, jj] = pressure_vector[pressure_idx, 0]
 
-        # dimensional pressure
+        # Dimensional pressure
         pressure_coeff_dim = pressure_field_coeff * (self.pad_inner_radius ** 2) * self.frequency * self.reference_viscosity / (self.pivot_film_thickness ** 3)
 
-        # RESULTING FORCE AND MOMENTUM: Equilibrium position
+        # Resulting force and momentum: Equilibrium position
         radius_coords = self.pad_inner_radius * self.radius_array
         theta_coords = self.pad_arc_length * self.theta_array
         pivot_coords = self.pad_pivot_radius * (np.ones((np.size(radius_coords))))
@@ -1590,13 +1541,8 @@ class THDThrust(BearingElement):
             )
             force_radial_coeff[:, ii] = pressure_coeff_dim[:, ii] * np.transpose(radius_coords)
 
-        ######################################################################
-        mx_radial = np.trapezoid(moment_x_radial_coeff, theta_coords)
-        my_radial = np.trapezoid(moment_y_radial_coeff, theta_coords)
         force_radial = np.trapezoid(force_radial_coeff, theta_coords)
 
-        # mx_coef = np.trapezoid(mx_radial, radius_coords)
-        # my_coef = np.trapezoid(my_radial, radius_coords)
         force_axial = -np.trapezoid(force_radial, radius_coords)
 
         self.kzz = self.n_pad * np.real(force_axial)
@@ -1716,7 +1662,6 @@ class THDThrust(BearingElement):
             plot_bgcolor="white"
         )
         
-        # Use tableau colors directly
         colorscale = [
             [0, tableau_colors["blue"]],
             [0.25, tableau_colors["cyan"]],
@@ -1741,7 +1686,6 @@ class THDThrust(BearingElement):
             yaxis_range=[np.min(y_coords), np.max(y_coords)]
         )
         
-        # Update scene properties with tableau colors
         fig.update_scenes(
             xaxis_title=dict(
                 text="Angular length [rad]",
@@ -1761,7 +1705,7 @@ class THDThrust(BearingElement):
             aspectratio=dict(x=1.8, y=1.8, z=1.8)
         )
         
-        # Set camera position
+        # Camera position
         camera = dict(
             eye=dict(x=-1.5, y=-4, z=1.5),
             center=dict(x=0, y=0, z=0)
@@ -1788,7 +1732,6 @@ class THDThrust(BearingElement):
         """
         fig = go.Figure()
         
-        # Use tableau colors directly
         colorscale = [
             [0, tableau_colors["blue"]],
             [0.25, tableau_colors["cyan"]],
@@ -1844,71 +1787,6 @@ class THDThrust(BearingElement):
         
         fig.show()
 
-# def thrust_example():
-#     """Create an example of a thrust bearing with Thermo-Hydro-Dynamic effects.
-#     This function returns pressure field and dynamic coefficient. The
-#     purpose is to make available a simple model so that a doctest can be
-#     written using it.
-
-#     Returns
-#     -------
-#     Thrust : ross.Thrust Object
-#         An instance of a hydrodynamic thrust bearing model object.
-#     Examples
-#     --------
-#     >>> bearing = thrust_bearing_example()
-#     >>> bearing.L
-#     0.263144
-#     """
-
-#     # bearing = THDThrust( 
-#     #     n = 1,      
-#     #     pad_inner_radius = 0.5 * 2300e-3,
-#     #     pad_outer_radius = 0.5 * 3450e-3,
-#     #     pad_pivot_radius = 0.5 * 2885e-3,
-#     #     pad_arc_length = 26 * (np.pi / 180),
-#     #     angular_pivot_position = 15 * (np.pi / 180),
-#     #     oil_supply_temperature = 40,
-#     #     lubricant = "ISOVG68",
-#     #     n_pad = 12,
-#     #     n_theta = 10,
-#     #     n_radial = 10,
-#     #     frequency = 90 * (np.pi / 30),
-#     #     equilibrium_position_mode = "calculate",
-#     #     # equilibrium_position_mode = "imposed",
-#     #     fzs_load = 13320e3,
-#     #     radial_inclination_angle = -0.000274792355106384, # radial_inclination_angle
-#     #     circumferential_inclination_angle = -1.69258824831925e-05, # circumferential_inclination_angle
-#     #     initial_film_thickness = 0.000191418606538599, # self.pivot_film_thickness
-#     #     print_result=True,
-#     #     print_progress=True,
-#     #     print_time=False,
-#     # )
-
-#     bearing = THDThrust( 
-#         n = 1,      
-#         pad_inner_radius = Q_(1150, "mm"),
-#         pad_outer_radius = Q_(1725, "mm"),
-#         pad_pivot_radius = Q_(1442.5, "mm"),
-#         pad_arc_length = Q_(26, "deg"),
-#         angular_pivot_position = Q_(15, "deg"),
-#         oil_supply_temperature = Q_(40, "degC"),
-#         lubricant = "ISOVG68",
-#         n_pad = 12,
-#         n_theta = 10,
-#         n_radial = 10,
-#         frequency = Q_(90, "RPM"),
-#         equilibrium_position_mode = "calculate",
-#         # equilibrium_position_mode = "imposed",
-#         fzs_load = 13.320e6,
-#         radial_inclination_angle = Q_(-2.75e-04, "rad"), # radial_inclination_angle
-#         circumferential_inclination_angle = Q_(-1.70e-05, "rad"), # circumferential_inclination_angle
-#         initial_film_thickness = Q_(0.2, "mm"), # self.pivot_film_thickness
-#         print_result=True,
-#         print_progress=True,
-#         print_time=False,
-#     )
-
 def thrust_example():
     """Create an example of a thrust bearing with Thermo-Hydro-Dynamic effects.
     
@@ -1961,7 +1839,7 @@ def thrust_example():
         radial_inclination_angle = Q_(-2.75e-04, "rad"),
         circumferential_inclination_angle = Q_(-1.70e-05, "rad"),
         initial_film_thickness = Q_(0.2, "mm"),
-        print_result=True,
+        print_result=False,
         print_progress=False,
         print_time=False,
     )
