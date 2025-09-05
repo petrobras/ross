@@ -34,8 +34,8 @@ class ModelReduction:
         self.reordering = None
         self.transf_matrix = None
 
-        include_nodes.append(min(rotor.nodes))
-        include_nodes.append(max(rotor.nodes))
+        # include_nodes.append(min(rotor.nodes))
+        # include_nodes.append(max(rotor.nodes))
 
         if method == "guyan":
             self.model_reduction_technique = self.guyan
@@ -46,8 +46,8 @@ class ModelReduction:
 
         print("Applied technique =", method)
         self.reduce_model(include_dofs, include_nodes, limit_percent)
-        print(self.selected_dofs)
-        print(np.array(self.selected_dofs) // self.number_dof)
+
+        print([int(j) for j in self.selected_dofs])
         n_selected = len(self.selected_dofs)
         print(
             f"Number of selected DOFs = {n_selected} / {self.ndof} ({n_selected / self.ndof * 100:.2f}%)"
@@ -80,7 +80,7 @@ class ModelReduction:
 
     def separate_dofs(self, include_dofs=[], include_nodes=[], limit_percent=0.1):
         # Sort DOFs by mass-stiffness ratio (M/K)
-        M_K = np.diag(self.K) / np.diag(self.M)
+        M_K = np.diag(self.M) / np.diag(self.K)
         ordered_dofs = np.argsort(M_K)[::-1]
 
         limit = int(self.ndof * limit_percent)
@@ -127,16 +127,16 @@ class ModelReduction:
 
         return array_reduced
 
-    def revert_vector(self, array):
-        array_reordered = self.transf_matrix @ array
-        array_full = np.zeros_like(array_reordered)
+    def revert_vector(self, array_reduced):
+        array_transf = self.transf_matrix @ array_reduced
+        array = np.zeros_like(array_transf)
 
-        if array_reordered.ndim == 1:
-            array_full[self.reordering] = array_reordered
+        if array_transf.ndim == 1:
+            array[self.reordering] = array_transf
         else:
-            array_full[self.reordering, :] = array_reordered
+            array[self.reordering, :] = array_transf
 
-        return array_full
+        return array
 
     def increment_nodes(self, add_nodes=[]):
         num_dof = self.number_dof
