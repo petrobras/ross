@@ -7,7 +7,13 @@ class ModelReduction:
     """
 
     def __init__(
-        self, rotor, speed, include_nodes=[], method="guyan", limit_percent=0.5
+        self,
+        rotor,
+        speed,
+        include_dofs=[],
+        include_nodes=[],
+        method="guyan",
+        limit_percent=0.1,
     ):
         """
         Initialize the model reduction with a given model.
@@ -23,6 +29,11 @@ class ModelReduction:
         self.K = rotor.K(speed)
         self.M = rotor.M(speed)
 
+        self.ignored_dofs = None
+        self.selected_dofs = None
+        self.reordering = None
+        self.transf_matrix = None
+
         include_nodes.append(min(rotor.nodes))
         include_nodes.append(max(rotor.nodes))
 
@@ -33,13 +44,10 @@ class ModelReduction:
         else:
             raise ValueError(f"Pass a existing {method}.")
 
-        self.ignored_dofs, self.selected_dofs = self.separate_dofs(
-            include_nodes, limit_percent
-        )
-        self.reduce_model(self.ignored_dofs, self.selected_dofs)
-
         print("Applied technique =", method)
-
+        self.reduce_model(include_dofs, include_nodes, limit_percent)
+        print(self.selected_dofs)
+        print(np.array(self.selected_dofs) // self.number_dof)
         n_selected = len(self.selected_dofs)
         print(
             f"Number of selected DOFs = {n_selected} / {self.ndof} ({n_selected / self.ndof * 100:.2f}%)"
@@ -70,15 +78,16 @@ class ModelReduction:
 
         return sorted(ignored_dofs), sorted(selected_dofs)
 
-    def separate_dofs(self, include_nodes=[], limit_percent=0.5):
+    def separate_dofs(self, include_dofs=[], include_nodes=[], limit_percent=0.1):
         # Sort DOFs by mass-stiffness ratio (M/K)
         M_K = np.diag(self.K) / np.diag(self.M)
         ordered_dofs = np.argsort(M_K)[::-1]
 
-        limit = int(len(ordered_dofs) * limit_percent)
+        limit = int(self.ndof * limit_percent)
 
         selected_dofs = set()
         selected_dofs.update(ordered_dofs[:limit])
+        selected_dofs.update(include_dofs)
 
         for n in include_nodes:
             dofs = n * self.number_dof + np.arange(self.number_dof)
@@ -103,66 +112,53 @@ class ModelReduction:
             ]
         )
 
-    def get_transformation_functions(self, transf_matrix, ignored_dofs, selected_dofs):
-        reordering = selected_dofs + ignored_dofs
-
-        inverse_order = np.zeros_like(reordering)
-        for i, idx in enumerate(reordering):
-            inverse_order[idx] = i
-
-        # Verificar - talvez seja melhor separar em várias funções
-        reduce_matrix = (
-            lambda array: (
-                transf_matrix.T
-                @ self.rearrange_matrix(array, ignored_dofs, selected_dofs)
-            )
-            @ transf_matrix
+    def reduce_matrix(self, array):
+        return (
+            self.transf_matrix.T
+            @ self.rearrange_matrix(array, self.ignored_dofs, self.selected_dofs)
+            @ self.transf_matrix
         )
 
-        def reduce_vector(array):
-            if array.ndim == 1:
-                array_reduced = transf_matrix.T @ array[reordering]
-            else:
-                array_reduced = transf_matrix.T @ array[reordering, :]
-            return array_reduced
+    def reduce_vector(self, array):
+        if array.ndim == 1:
+            array_reduced = self.transf_matrix.T @ array[self.reordering]
+        else:
+            array_reduced = self.transf_matrix.T @ array[self.reordering, :]
 
-        def revert_vector(array):
-            array_reordered = transf_matrix @ array
+        return array_reduced
 
-            array_full = np.zeros_like(array_reordered)
-            if array_reordered.ndim == 1:
-                array_full[reordering] = array_reordered
-            else:
-                array_full[reordering, :] = array_reordered
-            return array_full
+    def revert_vector(self, array):
+        array_reordered = self.transf_matrix @ array
+        array_full = np.zeros_like(array_reordered)
 
-        return reduce_matrix, reduce_vector, revert_vector
+        if array_reordered.ndim == 1:
+            array_full[self.reordering] = array_reordered
+        else:
+            array_full[self.reordering, :] = array_reordered
+
+        return array_full
 
     def increment_nodes(self, add_nodes=[]):
         num_dof = self.number_dof
 
         for n in add_nodes:
             dofs = range(n * num_dof + 0, n * num_dof + num_dof)
-            self.slaves_dofs.extends(dofs)
+            self.slaves_dofs.extend(dofs)
 
             for dof in dofs:
                 self.selected_dofs.remove(dof)
 
-        self.reduce_model(self.ignored_dofs, self.selected_dofs)
+        self.reduce_model()
 
-    def reduce_model(self, ignored_dofs, selected_dofs):
-        transf_matrix = self.model_reduction_technique(ignored_dofs, selected_dofs)
-
-        functions = self.get_transformation_functions(
-            transf_matrix, ignored_dofs, selected_dofs
+    def reduce_model(self, include_dofs=[], include_nodes=[], limit_percent=0.1):
+        if self.ignored_dofs is None and self.selected_dofs is None:
+            self.ignored_dofs, self.selected_dofs = self.separate_dofs(
+                include_dofs, include_nodes, limit_percent
+            )
+        self.reordering = self.selected_dofs + self.ignored_dofs
+        self.transf_matrix = self.model_reduction_technique(
+            self.ignored_dofs, self.selected_dofs
         )
-
-        reduce_matrix, reduce_vector, revert_vector = functions
-
-        self.transf_matrix = transf_matrix
-        self.reduce_matrix = reduce_matrix
-        self.reduce_vector = reduce_vector
-        self.revert_vector = revert_vector
 
     def optimize(self):
         n = 0
@@ -215,6 +211,7 @@ class ModelReduction:
             -np.linalg.pinv(K[np.ix_(ignored_dofs, ignored_dofs)])
             @ K[np.ix_(ignored_dofs, selected_dofs)]
         )
+
         Tg = np.block([[np.eye(Kia.shape[1])], [Kia]])
 
         return Tg

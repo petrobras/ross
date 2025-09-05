@@ -2403,11 +2403,12 @@ class Rotor(object):
             get_array = self._pseudo_modal(speed_ref, num_modes)
         elif model_reduction:
             print("Running with model reduction")
-            force_nodes = list(set(np.where(F != 0)[1] // self.number_dof))
+            additional_dofs = list(model_reduction[0])
+            force_dofs = list(set(np.where(F != 0)[1]))
             mr = ModelReduction(
                 self,
                 speed_ref,
-                include_nodes=force_nodes,
+                include_dofs=force_dofs + additional_dofs,
                 limit_percent=model_reduction[1],
             )
             get_array = (mr.reduce_matrix, mr.reduce_vector, mr.revert_vector)
