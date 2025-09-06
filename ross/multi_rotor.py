@@ -63,7 +63,10 @@ class MultiRotor(Rotor):
     >>> m=726.4
     >>> Id=56.95
     >>> Ip=113.9
-    >>> width = (4*m)/(material.rho*np.pi*(pitch_diameter**2-d1[-1]**2))
+    >>> pressure_angle = rs.Q_(22.5, "deg")
+    >>> base_radius = 0.5086
+    >>> pitch_diameter = 2 * base_radius / np.cos(pressure_angle)
+    >>> width = (4*m)/(steel.rho*np.pi*(pitch_diameter**2-d1[-1]**2))
     >>> gear1 = rs.GearElement(
     ... n=4,
     ... m=m,
@@ -73,7 +76,7 @@ class MultiRotor(Rotor):
     ... n_teeth=N1,
     ... pitch_diameter=pitch_diameter,
     ... pressure_angle=pressure_angle,
-    ... material=material,
+    ... material=steel,
     ... helix_angle=0,
     ... )
     >>> bearing1 = rs.BearingElement(n=0, kxx=183.9e6, kyy=200.4e6, cxx=3e3)
@@ -97,7 +100,8 @@ class MultiRotor(Rotor):
     >>> m=5
     >>> Id=0.002
     >>> Ip=0.004
-    >>> width = (4*m)/(material.rho*np.pi*(pitch_diameter**2-d2[0]**2))
+    >>> base_radius = 0.03567
+    >>> pitch_diameter = 2 * base_radius / np.cos(pressure_angle)
     >>> gear2 = rs.GearElement(
     ... n=0,
     ... m=m,
@@ -107,7 +111,7 @@ class MultiRotor(Rotor):
     ... n_teeth=N2,
     ... pitch_diameter=pitch_diameter,
     ... pressure_angle=pressure_angle,
-    ... material=material,
+    ... material=steel,
     ... helix_angle=0,
     ... )
 
@@ -126,7 +130,7 @@ class MultiRotor(Rotor):
     ... )
     >>> modal = multi_rotor.run_modal(speed=0)
     >>> modal.wd[0] # doctest: +ELLIPSIS
-    74.160244...
+    74.1632...
     """
 
     def __init__(
@@ -392,11 +396,11 @@ class MultiRotor(Rotor):
         Examples
         --------
         >>> multi_rotor = two_shaft_rotor_example()
-        >>> multi_rotor.coupling_matrix()[:4, :4]
-        array([[0.14644661, 0.35355339, 0.        , 0.        ],
-               [0.35355339, 0.85355339, 0.        , 0.        ],
-               [0.        , 0.        , 0.        , 0.        ],
-               [0.        , 0.        , 0.        , 0.        ]])
+        >>> np.round(multi_rotor.coupling_matrix(),8)[:4, :4]
+        array([[ 0.14644661,  0.35355339, -0.        , -0.        ],
+               [ 0.35355339,  0.85355339, -0.        , -0.        ],
+               [-0.        , -0.        ,  0.        ,  0.        ],
+               [-0.        , -0.        ,  0.        ,  0.        ]])
         """
 
         #Note:  Pressure angle is the normal pressure angle (not transverse)
@@ -838,7 +842,6 @@ def two_shaft_rotor_example():
     m=5
     Id=0.002
     Ip=0.004
-    width = (4*m)/(material.rho*np.pi*(pitch_diameter**2-d2[0]**2))
     gear2 = rs.GearElement(
         n=0,
         m=m,

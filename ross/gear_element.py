@@ -41,7 +41,7 @@ class GearElement(DiskElement):
         Pitch diameter of the gear (m).
         If given base_diameter is not necessary.
     pressure_angle : float, pint.Quantity, optional
-        The pressure angle of the gear (rad). Defautl is 20 degree.
+        The normal pressure angle of the gear (rad). Defautl is 20 degree.
         Default is 20 deg (converted to rad).
     material: ross.material, optional
         material of the gear. Default is steel.
@@ -175,7 +175,7 @@ class GearElement(DiskElement):
         n_teth: int, pint.Quantity
             number of teeth from the gear
         pressure_angle : float, pint.Quantity, optional
-            The pressure angle of the gear (rad).
+            The normal pressure angle of the gear (rad).
             Default is 20 deg (converted to rad).
         tag : str, optional
             A tag to name the element
@@ -201,7 +201,7 @@ class GearElement(DiskElement):
         Examples
         --------
         >>> from ross.materials import steel
-        >>> gear = GearElement.from_geometry(0, steel, 0.07, 0.05, 0.28)
+        >>> gear = GearElement.from_geometry(0, steel, 0.07, 0.05, 0.28, 50)
         >>> gear.base_radius # doctest: +ELLIPSIS
         0.131556...
         >>>
