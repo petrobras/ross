@@ -164,7 +164,7 @@ class MultiRotor(Rotor):
 
         self.gears = [gear_1, gear_2]
 
-        self.gear_ratio = gear_2.n_teeth/gear_1.n_teeth
+        self.gear_ratio = gear_1.n_teeth/gear_2.n_teeth # gear ratio according Shigley Machine Elements (driving/driven)
 
         self.K_coupled_mesh_stiffness = None
 
@@ -369,7 +369,7 @@ class MultiRotor(Rotor):
         rotor = self.rotors[0]
 
         if node in self.R2_nodes:
-            speed = -(1/self.gear_ratio) * omega
+            speed = -self.gear_ratio * omega
             rotor = self.rotors[1]
 
         if isinstance(rotor, MultiRotor):
@@ -597,7 +597,7 @@ class MultiRotor(Rotor):
         else:
             return self._join_matrices(
                 self.rotors[0].M(frequency, synchronous),
-                self.rotors[1].M(frequency * (1/self.gear_ratio), synchronous),
+                self.rotors[1].M(frequency * self.gear_ratio, synchronous),
             )
 
     def K(self, frequency):
@@ -625,7 +625,7 @@ class MultiRotor(Rotor):
 
         K0 = self._join_matrices(
             self.rotors[0].K(frequency),
-            self.rotors[1].K(frequency * (1/self.gear_ratio)),
+            self.rotors[1].K(frequency * self.gear_ratio),
         )
 
         dofs_1 = self.gears[0].dof_global_index.values()
@@ -665,7 +665,7 @@ class MultiRotor(Rotor):
         """
 
         return self._join_matrices(
-            self.rotors[0].Ksdt(), -(1/self.gear_ratio) * self.rotors[1].Ksdt()
+            self.rotors[0].Ksdt(), -self.gear_ratio * self.rotors[1].Ksdt()
         )
 
     def C(self, frequency):
@@ -693,7 +693,7 @@ class MultiRotor(Rotor):
 
         return self._join_matrices(
             self.rotors[0].C(frequency),
-            self.rotors[1].C(frequency * (1/self.gear_ratio)),
+            self.rotors[1].C(frequency * self.gear_ratio),
         )
 
     def G(self):
@@ -719,7 +719,7 @@ class MultiRotor(Rotor):
         """
 
         return self._join_matrices(
-            self.rotors[0].G(), -(1/self.gear_ratio) * self.rotors[1].G()
+            self.rotors[0].G(), -self.gear_ratio * self.rotors[1].G()
         )
 
 
