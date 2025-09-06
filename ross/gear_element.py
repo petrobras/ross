@@ -30,6 +30,10 @@ class GearElement(DiskElement):
         Diametral moment of inertia.
     Ip : float, pint.Quantity
         Polar moment of inertia.
+    width: float, pint.Quantity
+        width of the gear (mm).
+    n_teth: int, pint.Quantity
+        number of teeth from the gear
     base_diameter : float, pint.Quantity
         Base diameter of the gear (m).
         If given pitch_diameter is not necessary.
@@ -37,11 +41,15 @@ class GearElement(DiskElement):
         Pitch diameter of the gear (m).
         If given base_diameter is not necessary.
     pressure_angle : float, pint.Quantity, optional
-        The pressure angle of the gear (rad).
+        The pressure angle of the gear (rad). Defautl is 20 degree.
         Default is 20 deg (converted to rad).
+    material: ross.material, optional
+        material of the gear. Default is steel.
     tag : str, optional
         A tag to name the element.
         Default is None.
+    helix_angle: float, pint.Quantity, optional
+        value of helix angle for helical gears. Default is 0 representing spur gear.
     scale_factor: float or str, optional
         The scale factor is used to scale the gear drawing.
         For gears it is also possible to provide 'mass' as the scale factor.
@@ -56,9 +64,10 @@ class GearElement(DiskElement):
     Examples
     --------
     >>> gear = GearElement(
-    ...        n=0, m=4.67, Id=0.015, Ip=0.030,
+    ...        n=0, m=4.67, Id=0.015, Ip=0.030, width=0.07, n_teeth=50,
     ...        pitch_diameter=0.187,
-    ...        pressure_angle=Q_(22.5, "deg")
+    ...        pressure_angle=Q_(22.5, "deg"),
+    ...        helix_angle=0,
     ... )
     >>> gear.pressure_angle # doctest: +ELLIPSIS
     0.392699...
@@ -161,12 +170,18 @@ class GearElement(DiskElement):
             Inner diameter (the diameter of the shaft on which the gear is mounted).
         o_d : float, pint.Quantity
             Outer pitch diameter (m).
+        width: float, pint.Quantity
+            width of the gear (mm).
+        n_teth: int, pint.Quantity
+            number of teeth from the gear
         pressure_angle : float, pint.Quantity, optional
             The pressure angle of the gear (rad).
             Default is 20 deg (converted to rad).
         tag : str, optional
             A tag to name the element
             Default is None
+        helix_angle: float, pint.Quantity, optional
+            value of helix angle for helical gears. Default is 0 representing spur gear.
         scale_factor: float, optional
             The scale factor is used to scale the gear drawing.
             Default is 1.

@@ -63,7 +63,7 @@ class MultiRotor(Rotor):
     >>> m=726.4
     >>> Id=56.95
     >>> Ip=113.9
-    >>> width = (4*m)/(material.rho*np.pi*(pitch_diameter**2-d1[-1]*2))
+    >>> width = (4*m)/(material.rho*np.pi*(pitch_diameter**2-d1[-1]**2))
     >>> gear1 = rs.GearElement(
     ... n=4,
     ... m=m,
@@ -97,7 +97,7 @@ class MultiRotor(Rotor):
     >>> m=5
     >>> Id=0.002
     >>> Ip=0.004
-    >>> width = (4*m)/(material.rho*np.pi*(pitch_diameter**2-d2[0]*2))
+    >>> width = (4*m)/(material.rho*np.pi*(pitch_diameter**2-d2[0]**2))
     >>> gear2 = rs.GearElement(
     ... n=0,
     ... m=m,
