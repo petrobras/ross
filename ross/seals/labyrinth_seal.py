@@ -1,6 +1,5 @@
 import numpy as np
 import sys
-import ccp
 from scipy.linalg import lu_factor, lu_solve
 from numpy.linalg import cond
 import multiprocessing
@@ -131,10 +130,11 @@ class LabyrinthSeal(SealElement):
         self.print_results = print_results
         self.gas_composition = gas_composition
         if self.gas_composition is not None:
-            state_in = ccp.State.define(
+            import ccp
+            state_in = ccp.State(
                 p=inlet_pressure, T=inlet_temperature, fluid=self.gas_composition
             )
-            state_out = ccp.State.define(
+            state_out = ccp.State(
                 p=outlet_pressure, h=state_in.h(), fluid=self.gas_composition
             )
 
