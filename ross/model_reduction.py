@@ -1,4 +1,6 @@
 import numpy as np
+from numpy import linalg as la
+from scipy.linalg import eigh
 
 
 class ModelReduction:
@@ -13,7 +15,7 @@ class ModelReduction:
         include_dofs=[],
         include_nodes=[],
         method="guyan",
-        limit_percent=0.1,
+        limit_percent=0.15,
     ):
         """
         Initialize the model reduction with a given model.
@@ -34,20 +36,14 @@ class ModelReduction:
         self.reordering = None
         self.transf_matrix = None
 
-        # include_nodes.append(min(rotor.nodes))
-        # include_nodes.append(max(rotor.nodes))
-
-        if method == "guyan":
-            self.model_reduction_technique = self.guyan
-        elif method == "guyan_melhorado":
-            self.model_reduction_technique = self.guyan_melhorado
-        else:
-            raise ValueError(f"Pass a existing {method}.")
+        try:
+            self.model_reduction_technique = getattr(self, method)
+        except AttributeError:
+            print(f"Method {method} not exists in ModelReduction.")
 
         print("Applied technique =", method)
         self.reduce_model(include_dofs, include_nodes, limit_percent)
 
-        print([int(j) for j in self.selected_dofs])
         n_selected = len(self.selected_dofs)
         print(
             f"Number of selected DOFs = {n_selected} / {self.ndof} ({n_selected / self.ndof * 100:.2f}%)"
@@ -74,13 +70,17 @@ class ModelReduction:
             dofs = n * rotor.number_dof + np.arange(rotor.number_dof)
             selected_dofs.update(dofs)
 
-        ignored_dofs = set(range(rotor.ndof)) - selected_dofs
+        ignored_dofs = sorted(set(range(rotor.ndof)) - selected_dofs)
+        selected_dofs = sorted(selected_dofs)
 
-        return sorted(ignored_dofs), sorted(selected_dofs)
+        return selected_dofs, ignored_dofs
 
-    def separate_dofs(self, include_dofs=[], include_nodes=[], limit_percent=0.1):
+    def separate_dofs(self, include_dofs=[], include_nodes=[], limit_percent=0.15):
         # Sort DOFs by mass-stiffness ratio (M/K)
-        M_K = np.diag(self.M) / np.diag(self.K)
+        with np.errstate(divide="ignore"):
+            diag_K = np.diag(self.K)
+            M_K = np.where(diag_K != 0, np.diag(self.M) / diag_K, 0)
+
         ordered_dofs = np.argsort(M_K)[::-1]
 
         limit = int(self.ndof * limit_percent)
@@ -93,12 +93,13 @@ class ModelReduction:
             dofs = n * self.number_dof + np.arange(self.number_dof)
             selected_dofs.update(dofs)
 
-        ignored_dofs = set(range(self.ndof)) - selected_dofs
+        ignored_dofs = sorted(set(range(self.ndof)) - selected_dofs)
+        selected_dofs = sorted(selected_dofs)
 
-        return sorted(ignored_dofs), sorted(selected_dofs)
+        return selected_dofs, ignored_dofs
 
     @staticmethod
-    def rearrange_matrix(matrix, ignored_dofs, selected_dofs):
+    def rearrange_matrix(matrix, selected_dofs, ignored_dofs):
         return np.block(
             [
                 [
@@ -115,7 +116,7 @@ class ModelReduction:
     def reduce_matrix(self, array):
         return (
             self.transf_matrix.T
-            @ self.rearrange_matrix(array, self.ignored_dofs, self.selected_dofs)
+            @ self.rearrange_matrix(array, self.selected_dofs, self.ignored_dofs)
             @ self.transf_matrix
         )
 
@@ -150,102 +151,74 @@ class ModelReduction:
 
         self.reduce_model()
 
-    def reduce_model(self, include_dofs=[], include_nodes=[], limit_percent=0.1):
-        if self.ignored_dofs is None and self.selected_dofs is None:
-            self.ignored_dofs, self.selected_dofs = self.separate_dofs(
+    def reduce_model(self, include_dofs=[], include_nodes=[], limit_percent=0.15):
+        if self.selected_dofs is None:
+            self.selected_dofs, self.ignored_dofs = self.separate_dofs(
                 include_dofs, include_nodes, limit_percent
             )
         self.reordering = self.selected_dofs + self.ignored_dofs
         self.transf_matrix = self.model_reduction_technique(
-            self.ignored_dofs, self.selected_dofs
+            self.selected_dofs, self.ignored_dofs
         )
 
-    def optimize(self):
-        n = 0
-        aux_count = 0
-        alldofs = np.arange(self.ndof)
-
-        error = 1
-        tol = 1e-6
-
-        while error > tol:
-            speed_dot = 0
-
-            # # Select slave DOFs (less relevant ones)
-            # ignored_dofs = np.sort(range(self.ndof))
-            # ignored_dofs = ignored_dofs[~np.isin(ignored_dofs, inputs)]
-            # ignored_dofs = ignored_dofs[~np.isin(ignored_dofs, outputs)]
-
-            # if n != 0:
-            #     ignored_dofs = ignored_dofs[~np.isin(ignored_dofs, self.indx[-n:])]
-
-            # # Retained DOFs are the remaining ones
-            # selected_dofs = np.sort(alldofs[~np.isin(alldofs, ignored_dofs)])
-
-            # # Indices of inputs and outputs in the reduced model
-            # inputs_r = np.where(np.isin(selected_dofs, inputs))[0]
-            # outputs_r = np.where(np.isin(selected_dofs, outputs))[0]
-
-            # transform_functions = self.model_reduction_technique(ignored_dofs, selected_dofs)
-
-            # # Compute FRFs for both full and reduced models for comparison
-            # FRF_Full, FRF_Red = Rm.compare_FRF_guyan(
-            #     M, K, C, G, Kst, Mr, Kr, Cr, Gr, Kstr,
-            #     frequency_range, inputs, outputs, speed,
-            #     inputs_r, outputs_r, self.model_reduction_technique, speed_dot,n,fig_plot=True)
-
-            # # Store relative error between FRFs
-            # error = np.linalg.norm(FRF_Full - FRF_Red) / np.linalg.norm(FRF_Full)
-
-            n += 3
-            aux_count += 1
-
-    def guyan(self, ignored_dofs, selected_dofs):
+    def guyan(self, selected_dofs, ignored_dofs):
         """
         Standard Guyan Reduction method.
         """
         K = self.K
 
-        # Compute transformation matrix
-        Kia = (
-            -np.linalg.pinv(K[np.ix_(ignored_dofs, ignored_dofs)])
-            @ K[np.ix_(ignored_dofs, selected_dofs)]
-        )
+        n_selected = len(selected_dofs)
+        I = np.eye(n_selected)
 
-        Tg = np.block([[np.eye(Kia.shape[1])], [Kia]])
+        Kss = K[np.ix_(ignored_dofs, ignored_dofs)]
+        Ksm = K[np.ix_(ignored_dofs, selected_dofs)]
+
+        # Compute transformation matrix
+        Tg = np.vstack((I, -la.pinv(Kss) @ Ksm))
 
         return Tg
 
-    def guyan_melhorado(self, ignored_dofs, selected_dofs):
+    def improved_guyan(self, selected_dofs, ignored_dofs):
         M = self.M
         K = self.K
 
-        # Compute transformation matrix using inverse of slave stiffness matrix
-        Kia = (
-            -np.linalg.inv(K[np.ix_(ignored_dofs, ignored_dofs)])
-            @ K[np.ix_(ignored_dofs, selected_dofs)]
-        )
-        Tg = np.block([[np.eye(Kia.shape[1])], [Kia]])
+        Tg = self.guyan(selected_dofs, ignored_dofs)
 
-        n = K.shape[0]
-
-        Kss = np.linalg.inv(K[np.ix_(ignored_dofs, ignored_dofs)])
+        Kss = K[np.ix_(ignored_dofs, ignored_dofs)]
 
         # Build flexibility matrix
         Kfi = np.zeros_like(K)
         if Kss.shape == (1, 1):
             Kfi[-1, -1] = Kss[0, 0]
         else:
-            start = n - Kss.shape[0]
+            start = K.shape[0] - Kss.shape[0]
             Kfi[start:, start:] = Kss
 
         # Reduced mass and stiffness matrices via Guyan transformation
-        Mrr = self.rearrange_matrix(M, ignored_dofs, selected_dofs)
-        Krr = self.rearrange_matrix(K, ignored_dofs, selected_dofs)
+        Mrr = self.rearrange_matrix(M, selected_dofs, ignored_dofs)
+        Krr = self.rearrange_matrix(K, selected_dofs, ignored_dofs)
         Mr = Tg.T @ Mrr @ Tg
         Kr = Tg.T @ Krr @ Tg
 
         # IRS transformation (Improved Reduced System)
-        Tirs = Tg + Kfi @ M @ Tg @ np.linalg.inv(Mr) @ Kr
+        Tirs = Tg + la.pinv(Kfi) @ M @ Tg @ la.pinv(Mr) @ Kr
 
         return Tirs
+
+    def serep(self, selected_dofs, ignored_dofs):
+        M = self.M
+        K = self.K
+
+        Mr = self.rearrange_matrix(M, selected_dofs, ignored_dofs)
+        Kr = self.rearrange_matrix(K, selected_dofs, ignored_dofs)
+
+        n_selected = len(selected_dofs)
+        I = np.eye(n_selected)
+
+        _, Phi_r = eigh(Kr, Mr)
+        Phi_mm = Phi_r[:n_selected, :n_selected]
+        Phi_sm = Phi_r[n_selected:, :n_selected]
+
+        Ts = np.vstack((I, Phi_sm @ la.pinv(Phi_mm)))
+
+        return Ts
