@@ -477,8 +477,7 @@ class CouplingElement(ShaftElement):
         fig : plotly.graph_objects.Figure
             The figure object which traces are added on.
         """
-        zpos = position
-        ypos = 0
+        zpos, ypos = position
         L = self.L
         scale = self.scale_factor * 0.3
 

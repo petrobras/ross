@@ -172,7 +172,7 @@ class MultiRotor(Rotor):
 
         idx1 = R1.nodes.index(gear_1.n)
         idx2 = R2.nodes.index(gear_2.n)
-        self.dz_pos = R1.nodes_pos[idx1] - R2.nodes_pos[idx2]
+        self.dz_pos = float(R1.nodes_pos[idx1] - R2.nodes_pos[idx2])
 
         R1_max_node = max([*R1.nodes, *R1.link_nodes])
         R2_min_node = min([*R2.nodes, *R2.link_nodes])
@@ -186,7 +186,7 @@ class MultiRotor(Rotor):
                 except:
                     pass
 
-        self.R2_nodes = [n + d_node for n in R2.nodes]
+        self.R2_nodes = [int(n + d_node) for n in R2.nodes]
 
         shaft_elements = [*R1.shaft_elements, *R2.shaft_elements]
         disk_elements = [*R1.disk_elements, *R2.disk_elements]
@@ -378,15 +378,13 @@ class MultiRotor(Rotor):
                 self.rotors[1].M(frequency * self.gear_ratio, synchronous),
             )
 
-    def K(self, frequency, ignore=[]):
+    def K(self, frequency):
         """Stiffness matrix for a multi-rotor.
 
         Parameters
         ----------
         frequency : float, optional
             Excitation frequency.
-        ignore : list, optional
-            List of elements to leave out of the matrix.
 
         Returns
         -------
@@ -404,8 +402,8 @@ class MultiRotor(Rotor):
         """
 
         K0 = self._join_matrices(
-            self.rotors[0].K(frequency, ignore),
-            self.rotors[1].K(frequency * self.gear_ratio, ignore),
+            self.rotors[0].K(frequency),
+            self.rotors[1].K(frequency * self.gear_ratio),
         )
 
         dofs_1 = self.gears[0].dof_global_index.values()
@@ -446,15 +444,13 @@ class MultiRotor(Rotor):
             self.rotors[0].Ksdt(), -self.gear_ratio * self.rotors[1].Ksdt()
         )
 
-    def C(self, frequency, ignore=[]):
+    def C(self, frequency):
         """Damping matrix for a multi-rotor rotor.
 
         Parameters
         ----------
         frequency : float
             Excitation frequency.
-        ignore : list, optional
-            List of elements to leave out of the matrix.
 
         Returns
         -------
@@ -472,8 +468,8 @@ class MultiRotor(Rotor):
         """
 
         return self._join_matrices(
-            self.rotors[0].C(frequency, ignore),
-            self.rotors[1].C(frequency * self.gear_ratio, ignore),
+            self.rotors[0].C(frequency),
+            self.rotors[1].C(frequency * self.gear_ratio),
         )
 
     def G(self):

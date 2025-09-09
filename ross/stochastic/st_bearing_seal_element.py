@@ -6,8 +6,8 @@ This module creates an instance of random bearing for stochastic analysis.
 import numpy as np
 
 from ross.bearing_seal_element import BearingElement
-from ross.bearing import fluid_flow as flow
-from ross.bearing.fluid_flow_coefficients import (
+from ross.bearings import fluid_flow as flow
+from ross.bearings.fluid_flow_coefficients import (
     calculate_stiffness_and_damping_coefficients,
 )
 from ross.stochastic.st_results_elements import plot_histogram

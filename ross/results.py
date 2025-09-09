@@ -6,17 +6,18 @@ This module returns graphs for each type of analyses in rotor_assembly.py.
 import copy
 import inspect
 from abc import ABC
+from prettytable import PrettyTable
 from collections.abc import Iterable
-from pathlib import Path
 from warnings import warn
 
 import numpy as np
 import pandas as pd
 import toml
 from plotly import graph_objects as go
-from plotly import colors as pc
 from plotly.subplots import make_subplots
-from scipy import linalg as la
+from scipy.fft import fft
+from numpy import linalg as la
+from numba import njit
 
 from ross.plotly_theme import tableau_colors, coolwarm_r
 from ross.units import Q_, check_units
@@ -38,6 +39,10 @@ __all__ = [
     "Level1Results",
     "SensitivityResults",
 ]
+
+# Define reference circle for orbits
+NUM_POINTS = 360
+CIRCLE = np.exp(1j * np.linspace(0, 2 * np.pi, NUM_POINTS))
 
 
 class Results(ABC):
@@ -153,7 +158,13 @@ class Results(ABC):
         >>> abs(results2.forced_resp).all() == abs(results.forced_resp).all()
         True
         """
-        str_type = [np.dtype(f"<U4{i}") for i in range(10)]
+
+        def remove_npformat(v):  # remove type info related to numpy format
+            if v.startswith("np."):
+                idx = v.find("(")
+            else:
+                idx = -1
+            return v[idx:] if idx != -1 else v
 
         data = toml.load(file)
         data = list(data.values())[0]
@@ -169,8 +180,9 @@ class Results(ABC):
             elif isinstance(value, Iterable):
                 try:
                     data[key] = np.array(value)
-                    if data[key].dtype in str_type:
-                        data[key] = np.array(value).astype(np.complex128)
+                    if np.isdtype(data[key].dtype, np.str_):
+                        fvalue = np.vectorize(remove_npformat)(data[key])
+                        data[key] = fvalue.astype(np.complex128)
                 except:
                     data[key] = value
 
@@ -240,66 +252,22 @@ class Orbit(Results):
         self.ru_e = ru_e
         self.rv_e = rv_e
 
-        # data for plotting
-        num_points = 360
-        c = np.linspace(0, 2 * np.pi, num_points)
-        circle = np.exp(1j * c)
+        (
+            self.x_circle,
+            self.y_circle,
+            self.angle,
+            self.major_x,
+            self.major_y,
+            self.major_angle,
+            self.minor_angle,
+            self.major_index,
+            self.nu,
+            self.nv,
+            self.minor_axis,
+            self.major_axis,
+            self.kappa,
+        ) = _init_orbit(ru_e, rv_e)  # separated call to use with numba
 
-        self.x_circle = np.real(ru_e * circle)
-        self.y_circle = np.real(rv_e * circle)
-        angle = np.arctan2(self.y_circle, self.x_circle)
-        angle[angle < 0] = angle[angle < 0] + 2 * np.pi
-        self.angle = angle
-
-        # find major axis index looking at the first half circle
-        self.major_index = np.argmax(
-            np.sqrt(self.x_circle[:180] ** 2 + self.y_circle[:180] ** 2)
-        )
-        self.major_x = self.x_circle[self.major_index]
-        self.major_y = self.y_circle[self.major_index]
-        self.major_angle = self.angle[self.major_index]
-        self.minor_angle = self.major_angle + np.pi / 2
-
-        # calculate T matrix
-        ru = np.absolute(ru_e)
-        rv = np.absolute(rv_e)
-
-        nu = np.angle(ru_e)
-        nv = np.angle(rv_e)
-        self.nu = nu
-        self.nv = nv
-        # fmt: off
-        T = np.array([[ru * np.cos(nu), -ru * np.sin(nu)],
-                      [rv * np.cos(nv), -rv * np.sin(nv)]])
-        # fmt: on
-        H = T @ T.T
-
-        lam = la.eig(H)[0]
-        # lam is the eigenvalue -> sqrt(lam) is the minor/major axis.
-        # kappa encodes the relation between the axis and the precession.
-        minor = np.sqrt(lam.min())
-        major = np.sqrt(lam.max())
-
-        diff = nv - nu
-
-        # we need to evaluate if 0 < nv - nu < pi.
-        if diff < -np.pi:
-            diff += 2 * np.pi
-        elif diff > np.pi:
-            diff -= 2 * np.pi
-
-        # if nv = nu or nv = nu + pi then the response is a straight line.
-        if diff == 0 or diff == np.pi:
-            kappa = 0
-        # if 0 < nv - nu < pi, then a backward rotating mode exists.
-        elif 0 < diff < np.pi:
-            kappa = -minor / major
-        else:
-            kappa = minor / major
-
-        self.minor_axis = np.real(minor)
-        self.major_axis = np.real(major)
-        self.kappa = np.real(kappa)
         self.whirl = "Forward" if self.kappa > 0 else "Backward"
         self.color = (
             tableau_colors["blue"] if self.whirl == "Forward" else tableau_colors["red"]
@@ -365,6 +333,81 @@ class Orbit(Results):
         return fig
 
 
+@njit
+def _init_orbit(ru_e, rv_e):
+    # data for plotting
+    x_circle = np.real(ru_e * CIRCLE)
+    y_circle = np.real(rv_e * CIRCLE)
+    angle = np.arctan2(y_circle, x_circle)
+    angle[angle < 0] = angle[angle < 0] + 2 * np.pi
+
+    # find major axis index looking at the first half circle
+    half = NUM_POINTS // 2
+    r_circle = np.sqrt(x_circle[:half] ** 2 + y_circle[:half] ** 2)
+    major_index = np.argmax(r_circle)
+    major_x = x_circle[major_index]
+    major_y = y_circle[major_index]
+    major_angle = angle[major_index]
+    minor_angle = major_angle + np.pi / 2
+
+    # calculate T matrix
+    ru = np.absolute(ru_e)
+    rv = np.absolute(rv_e)
+
+    nu = np.angle(ru_e)
+    nv = np.angle(rv_e)
+    nu = nu
+    nv = nv
+    # fmt: off
+    T = np.array([[ru * np.cos(nu), -ru * np.sin(nu)],
+                    [rv * np.cos(nv), -rv * np.sin(nv)]])
+    # fmt: on
+    H = T @ T.T
+
+    lam = la.eigvals(H).astype(np.complex128)
+    # lam is the eigenvalue -> sqrt(lam) is the minor/major axis.
+    # kappa encodes the relation between the axis and the precession.
+    minor = np.sqrt(lam.min())
+    major = np.sqrt(lam.max())
+
+    diff = nv - nu
+
+    # we need to evaluate if 0 < nv - nu < pi.
+    if diff < -np.pi:
+        diff += 2 * np.pi
+    elif diff > np.pi:
+        diff -= 2 * np.pi
+
+    # if nv = nu or nv = nu + pi then the response is a straight line.
+    if diff == 0 or diff == np.pi:
+        kappa = 0
+    # if 0 < nv - nu < pi, then a backward rotating mode exists.
+    elif 0 < diff < np.pi:
+        kappa = -minor / major
+    else:
+        kappa = minor / major
+
+    minor_axis = np.real(minor)
+    major_axis = np.real(major)
+    kappa = np.real(kappa)
+
+    return (
+        x_circle,
+        y_circle,
+        angle,
+        major_x,
+        major_y,
+        major_angle,
+        minor_angle,
+        major_index,
+        nu,
+        nv,
+        minor_axis,
+        major_axis,
+        kappa,
+    )
+
+
 class Shape(Results):
     """Class used to construct a mode or a deflected shape from a eigen or response vector.
 
@@ -422,21 +465,36 @@ class Shape(Results):
         self.zn = None
         self.major_axis = None
         self._classify()
-        self._calculate()
+
+        if number_dof > 3:
+            self._calculate()
 
     def _classify(self):
-        size = len(self.vector)
-
-        axial_dofs = np.arange(2, size, self.number_dof)
-        torsional_dofs = np.arange(5, size, self.number_dof)
-
-        nonzero_dofs = np.nonzero(np.abs(self.vector).round(6))[0]
-
         self.mode_type = "Lateral"
-        if np.isin(nonzero_dofs, axial_dofs).all():
-            self.mode_type = "Axial"
-            self.color = tableau_colors["orange"]
-        elif np.isin(nonzero_dofs, torsional_dofs).all():
+
+        if self.number_dof == 6:
+            size = len(self.vector)
+
+            norm_vec = abs(self.vector) / la.norm(abs(self.vector))
+            nonzero_dofs = np.where(norm_vec > 0.08)[0]
+
+            dofs_count = [
+                sum(np.isin(np.arange(i, size, self.number_dof), nonzero_dofs))
+                for i in range(self.number_dof)
+            ]
+
+            axial_percent = dofs_count[2] / sum(dofs_count)
+            torsional_percent = dofs_count[5] / sum(dofs_count)
+
+            if axial_percent > 0.9:
+                self.mode_type = "Axial"
+                self.color = tableau_colors["orange"]
+
+            elif torsional_percent > 0.9:
+                self.mode_type = "Torsional"
+                self.color = tableau_colors["green"]
+
+        elif self.number_dof == 1:
             self.mode_type = "Torsional"
             self.color = tableau_colors["green"]
 
@@ -451,95 +509,114 @@ class Shape(Results):
 
         self.orbits = orbits
         # check shape whirl
-        if self.mode_type == "Lateral":
-            if all(w == "Forward" for w in whirl):
-                self.whirl = "Forward"
-                self.color = tableau_colors["blue"]
-            elif all(w == "Backward" for w in whirl):
-                self.whirl = "Backward"
-                self.color = tableau_colors["red"]
-            else:
-                self.whirl = "Mixed"
-                self.color = tableau_colors["gray"]
+        if all(w == "Forward" for w in whirl):
+            self.whirl = "Forward"
+            self.color = tableau_colors["blue"]
+        elif all(w == "Backward" for w in whirl):
+            self.whirl = "Backward"
+            self.color = tableau_colors["red"]
         else:
-            self.whirl = "None"
+            self.whirl = "Mixed"
+            self.color = tableau_colors["gray"]
 
     def _calculate(self):
-        evec = self._evec
-        nodes = self.nodes
-        shaft_elements_length = self.shaft_elements_length
-        nodes_pos = self.nodes_pos
-        num_dof = self.number_dof
+        if self.mode_type == "Lateral":
+            evec = self._evec
+            nodes = self.nodes
+            shaft_elements_length = self.shaft_elements_length
+            nodes_pos = self.nodes_pos
+            num_dof = self.number_dof
 
-        # calculate each orbit
-        self._calculate_orbits()
+            # calculate each orbit
+            self._calculate_orbits()
 
-        # plot lines
-        nn = 5  # number of points in each line between nodes
-        zeta = np.linspace(0, 1, nn)
-        onn = np.ones_like(zeta)
+            # plot lines
+            nn = 5  # number of points in each line between nodes
+            zeta = np.linspace(0, 1, nn)
+            onn = np.ones_like(zeta)
 
-        zeta = zeta.reshape(nn, 1)
-        onn = onn.reshape(nn, 1)
+            zeta = zeta.reshape(nn, 1)
+            onn = onn.reshape(nn, 1)
 
-        xn = np.zeros(nn * (len(nodes) - 1))
-        yn = np.zeros(nn * (len(nodes) - 1))
-        xn_complex = np.zeros(nn * (len(nodes) - 1), dtype=np.complex128)
-        yn_complex = np.zeros(nn * (len(nodes) - 1), dtype=np.complex128)
-        zn = np.zeros(nn * (len(nodes) - 1))
-        major = np.zeros(nn * (len(nodes) - 1))
-        major_x = np.zeros(nn * (len(nodes) - 1))
-        major_y = np.zeros(nn * (len(nodes) - 1))
-        major_angle = np.zeros(nn * (len(nodes) - 1))
+            shape = nn * len(shaft_elements_length)
 
-        N1 = onn - 3 * zeta**2 + 2 * zeta**3
-        N2 = zeta - 2 * zeta**2 + zeta**3
-        N3 = 3 * zeta**2 - 2 * zeta**3
-        N4 = -(zeta**2) + zeta**3
+            xn = np.zeros(shape)
+            yn = np.zeros(shape)
+            xn_complex = np.zeros(shape, dtype=np.complex128)
+            yn_complex = np.zeros(shape, dtype=np.complex128)
+            zn = np.zeros(shape)
+            major = np.zeros(shape)
+            major_x = np.zeros(shape)
+            major_y = np.zeros(shape)
+            major_angle = np.zeros(shape)
 
-        for Le, n in zip(shaft_elements_length, nodes):
-            node_pos = nodes_pos[n]
-            Nx = np.hstack((N1, Le * N2, N3, Le * N4))
-            Ny = np.hstack((N1, -Le * N2, N3, -Le * N4))
+            N1 = onn - 3 * zeta**2 + 2 * zeta**3
+            N2 = zeta - 2 * zeta**2 + zeta**3
+            N3 = 3 * zeta**2 - 2 * zeta**3
+            N4 = -(zeta**2) + zeta**3
 
-            ind = num_dof * n
-            xx = [
-                ind + 0,
-                ind + int(num_dof / 2) + 1,
-                ind + num_dof + 0,
-                ind + int(3 * num_dof / 2) + 1,
-            ]
-            yy = [
-                ind + 1,
-                ind + int(num_dof / 2) + 0,
-                ind + num_dof + 1,
-                ind + int(3 * num_dof / 2) + 0,
-            ]
+            n_div, get_node_index, _ = self._fix_mode_shape_intersections()
 
-            pos0 = nn * n
-            pos1 = nn * (n + 1)
+            n0 = 0
+            e0 = 0
+            k = 0
+            for j in range(n_div):
+                n1 = get_node_index(j)
+                e1 = n1 - (j + 1)
 
-            xn[pos0:pos1] = Nx @ evec[xx].real
-            yn[pos0:pos1] = Ny @ evec[yy].real
-            zn[pos0:pos1] = (node_pos * onn + Le * zeta).reshape(nn)
+                for Le, n in zip(shaft_elements_length[e0:e1], nodes[n0:n1]):
+                    node_pos = nodes_pos[n]
+                    Nx = np.hstack((N1, Le * N2, N3, Le * N4))
+                    Ny = np.hstack((N1, -Le * N2, N3, -Le * N4))
 
-            # major axes calculation
-            xn_complex[pos0:pos1] = Nx @ evec[xx]
-            yn_complex[pos0:pos1] = Ny @ evec[yy]
-            for i in range(pos0, pos1):
-                orb = Orbit(node=0, node_pos=0, ru_e=xn_complex[i], rv_e=yn_complex[i])
-                major[i] = orb.major_axis
-                major_x[i] = orb.major_x
-                major_y[i] = orb.major_y
-                major_angle[i] = orb.major_angle
+                    ind = num_dof * n
+                    xx = [
+                        ind + 0,
+                        ind + int(num_dof / 2) + 1,
+                        ind + num_dof + 0,
+                        ind + int(3 * num_dof / 2) + 1,
+                    ]
+                    yy = [
+                        ind + 1,
+                        ind + int(num_dof / 2) + 0,
+                        ind + num_dof + 1,
+                        ind + int(3 * num_dof / 2) + 0,
+                    ]
 
-        self.xn = xn
-        self.yn = yn
-        self.zn = zn
-        self.major_axis = major
-        self.major_x = major_x
-        self.major_y = major_y
-        self.major_angle = major_angle
+                    pos0 = nn * k
+                    pos1 = nn * (k + 1)
+
+                    xn[pos0:pos1] = Nx @ evec[xx].real
+                    yn[pos0:pos1] = Ny @ evec[yy].real
+                    zn[pos0:pos1] = (node_pos * onn + Le * zeta).reshape(nn)
+
+                    # major axes calculation
+                    xn_complex[pos0:pos1] = Nx @ evec[xx]
+                    yn_complex[pos0:pos1] = Ny @ evec[yy]
+
+                    k += 1
+                    for i in range(pos0, pos1):
+                        orb = Orbit(
+                            node=0, node_pos=0, ru_e=xn_complex[i], rv_e=yn_complex[i]
+                        )
+                        major[i] = orb.major_axis
+                        major_x[i] = orb.major_x
+                        major_y[i] = orb.major_y
+                        major_angle[i] = orb.major_angle
+
+                n0 = n1
+                e0 = e1
+
+            self.xn = xn
+            self.yn = yn
+            self.zn = zn
+            self.major_axis = major
+            self.major_x = major_x
+            self.major_y = major_y
+            self.major_angle = major_angle
+
+        else:
+            self.whirl = "None"
 
     def plot_orbit(self, nodes, fig=None):
         """Plot orbits.
@@ -567,6 +644,35 @@ class Shape(Results):
 
         return fig
 
+    def _fix_mode_shape_intersections(self):
+        """This function is used to fix the mode shape plot, especially for multi rotors
+        for which the mode curves of each rotor may intersect"""
+        nodes_pos = np.array(self.nodes_pos)
+
+        intersecting_nodes = np.where(nodes_pos[:-1] >= nodes_pos[1:])[0] + 1
+        n_plot = len(intersecting_nodes) + 1
+
+        get_node_index = (
+            lambda i: intersecting_nodes[i] if i + 1 < n_plot else len(nodes_pos)
+        )
+
+        symbols = [
+            "circle",
+            "square",
+            "diamond",
+            "circle-open",
+            "square-open",
+            "diamond-open",
+        ]
+
+        get_plot_mode = lambda i: (
+            dict(mode="lines+markers", marker=dict(symbol=symbols[i % len(symbols)]))
+            if n_plot > 1
+            else dict()
+        )
+
+        return n_plot, get_node_index, get_plot_mode
+
     def _plot_axial(
         self, plot_dimension=None, animation=False, length_units="m", fig=None
     ):
@@ -583,28 +689,62 @@ class Shape(Results):
 
         nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
 
+        n_plot, get_node_index, get_plot_mode = self._fix_mode_shape_intersections()
+        showlegend = n_plot > 1
+
         if plot_dimension == 2:
             # Plot 2d
-            fig.add_traces(
-                data=[
+            n0 = 0
+            for i in range(n_plot):
+                n1 = get_node_index(i)
+
+                legend_name = f"Rotor {i + 1}"
+
+                fig.add_trace(
                     go.Scatter(
-                        x=nodes_pos,
-                        y=rel_disp,
-                        mode="lines",
+                        x=nodes_pos[n0:n1],
+                        y=rel_disp[n0:n1],
                         line=dict(color=self.color),
-                        showlegend=False,
-                        hovertemplate=(f"Relative angle: %{{y:.2f }}<extra></extra>"),
-                    ),
+                        hovertemplate=(f"Relative angle: %{{y:.2f}}<extra></extra>"),
+                        name=legend_name,
+                        legendgroup=legend_name,
+                        showlegend=showlegend,
+                        **get_plot_mode(i),
+                    )
+                )
+                fig.add_trace(
                     go.Scatter(
-                        x=nodes_pos,
-                        y=nodes_pos * 0,
+                        x=[nodes_pos[n0], nodes_pos[n0]],
+                        y=[0, rel_disp[n0]],
                         mode="lines",
-                        line=dict(color="black", dash="dashdot"),
-                        name="centerline",
-                        hoverinfo="none",
+                        line=dict(color=self.color, dash="dash"),
+                        legendgroup=legend_name,
                         showlegend=False,
-                    ),
-                ]
+                    )
+                )
+                fig.add_trace(
+                    go.Scatter(
+                        x=[nodes_pos[n1 - 1], nodes_pos[n1 - 1]],
+                        y=[0, rel_disp[n1 - 1]],
+                        mode="lines",
+                        line=dict(color=self.color, dash="dash"),
+                        legendgroup=legend_name,
+                        showlegend=False,
+                    )
+                )
+
+                n0 = n1
+
+            fig.add_trace(
+                go.Scatter(
+                    x=nodes_pos,
+                    y=nodes_pos * 0,
+                    mode="lines",
+                    line=dict(color="black", dash="dashdot"),
+                    name="centerline",
+                    hoverinfo="none",
+                    showlegend=False,
+                )
             )
 
             fig.update_yaxes(title_text="Relative Displacement", range=[-1, 1])
@@ -625,45 +765,65 @@ class Shape(Results):
 
         frames = []
         initial_state = []
-        for i, var in enumerate(variation):
+        for j, var in enumerate(variation):
             zt = np.array(nodes_pos) + rel_disp * var
-
             node_data = []
-            xn = []
-            for n in range(len(nodes_pos)):
+
+            n0 = 0
+            for i in range(n_plot):
+                xn = []
+
+                n1 = get_node_index(i)
+
+                legend_name = f"Rotor {i + 1}"
+
+                for n in range(n0, n1):
+                    node_data.append(
+                        go.Scatter3d(
+                            x=[nodes_pos[n], zt[n]],
+                            y=[0, 0],
+                            z=[0, 1],
+                            mode="lines",
+                            line=dict(width=2, color=self.color),
+                            name=f"Node {self.nodes[n]}",
+                            hovertemplate=(
+                                f"Original position: {nodes_pos[n]:.2f} {length_units}<br>"
+                                + f"Relative displacement: {rel_disp[n]:.2f}"
+                            ),
+                            legendgroup=legend_name,
+                            showlegend=False,
+                        )
+                    )
+                    xn.append(zt[n])
+
+                n0 = n1
+
+                plot_mode = dict(
+                    mode="lines+markers", marker=dict(size=3, symbol="circle")
+                )
+
+                try:
+                    plot_mode["marker"]["symbol"] = get_plot_mode(i)["marker"]["symbol"]
+                except KeyError:
+                    pass
+
                 node_data.append(
                     go.Scatter3d(
-                        x=[nodes_pos[n], zt[n]],
-                        y=[0, 0],
-                        z=[0, 1],
-                        mode="lines",
+                        x=xn,
+                        y=np.zeros(len(nodes_pos)),
+                        z=np.ones(len(nodes_pos)),
                         line=dict(width=2, color=self.color),
-                        showlegend=False,
-                        name=f"Node {self.nodes[n]}",
-                        hovertemplate=(
-                            f"Original position: {nodes_pos[n]:.2f} {length_units}<br>"
-                            + f"Relative displacement: {rel_disp[n]:.2f}"
-                        ),
+                        hoverinfo="none",
+                        name=legend_name,
+                        legendgroup=legend_name,
+                        showlegend=showlegend,
+                        **plot_mode,
                     )
                 )
-                xn.append(zt[n])
-
-            node_data.append(
-                go.Scatter3d(
-                    x=xn,
-                    y=np.zeros(len(nodes_pos)),
-                    z=np.ones(len(nodes_pos)),
-                    mode="lines+markers",
-                    line=dict(width=2, color=self.color),
-                    marker=dict(size=3),
-                    showlegend=False,
-                    hoverinfo="none",
-                )
-            )
 
             frames.append(go.Frame(data=node_data))
 
-            if i == 0:
+            if j == 0:
                 initial_state = node_data
 
         original = [
@@ -754,6 +914,9 @@ class Shape(Results):
         size = len(self.vector)
         torsional_dofs = np.arange(5, size, self.number_dof)
 
+        if self.number_dof == 1:
+            torsional_dofs = np.arange(0, size, self.number_dof)
+
         theta = np.abs(self.vector[torsional_dofs]) * np.angle(
             self.vector[torsional_dofs]
         )
@@ -761,28 +924,62 @@ class Shape(Results):
 
         nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
 
+        n_plot, get_node_index, get_plot_mode = self._fix_mode_shape_intersections()
+        showlegend = n_plot > 1
+
         if plot_dimension == 2:
             # Plot 2d
-            fig.add_traces(
-                data=[
+            n0 = 0
+            for i in range(n_plot):
+                n1 = get_node_index(i)
+
+                legend_name = f"Rotor {i + 1}"
+
+                fig.add_trace(
                     go.Scatter(
-                        x=nodes_pos,
-                        y=theta,
-                        mode="lines",
+                        x=nodes_pos[n0:n1],
+                        y=theta[n0:n1],
                         line=dict(color=self.color),
-                        showlegend=False,
-                        hovertemplate=(f"Relative angle: %{{y:.2f }}<extra></extra>"),
-                    ),
+                        hovertemplate=(f"Relative angle: %{{y:.2f}}<extra></extra>"),
+                        name=legend_name,
+                        legendgroup=legend_name,
+                        showlegend=showlegend,
+                        **get_plot_mode(i),
+                    )
+                )
+                fig.add_trace(
                     go.Scatter(
-                        x=nodes_pos,
-                        y=nodes_pos * 0,
+                        x=[nodes_pos[n0], nodes_pos[n0]],
+                        y=[0, theta[n0]],
                         mode="lines",
-                        line=dict(color="black", dash="dashdot"),
-                        name="centerline",
-                        hoverinfo="none",
+                        line=dict(color=self.color, dash="dash"),
+                        legendgroup=legend_name,
                         showlegend=False,
-                    ),
-                ]
+                    )
+                )
+                fig.add_trace(
+                    go.Scatter(
+                        x=[nodes_pos[n1 - 1], nodes_pos[n1 - 1]],
+                        y=[0, theta[n1 - 1]],
+                        mode="lines",
+                        line=dict(color=self.color, dash="dash"),
+                        legendgroup=legend_name,
+                        showlegend=False,
+                    )
+                )
+
+                n0 = n1
+
+            fig.add_trace(
+                go.Scatter(
+                    x=nodes_pos,
+                    y=nodes_pos * 0,
+                    mode="lines",
+                    line=dict(color="black", dash="dashdot"),
+                    name="centerline",
+                    hoverinfo="none",
+                    showlegend=False,
+                )
             )
 
             fig.update_yaxes(title_text="Relative Angle", range=[-1, 1])
@@ -810,49 +1007,70 @@ class Shape(Results):
 
         frames = []
         initial_state = []
-        for i in range(len(variation)):
+        for j in range(len(variation)):
             node_data = []
-            xn = []
-            yn = []
-            zn = []
-            for n in range(len(nodes_pos)):
+
+            n0 = 0
+            for i in range(n_plot):
+                xn = []
+                yn = []
+                zn = []
+
+                n1 = get_node_index(i)
+
+                legend_name = f"Rotor {i + 1}"
+
+                for n in range(n0, n1):
+                    node_data.append(
+                        go.Scatter3d(
+                            x=[nodes_pos[n], nodes_pos[n]],
+                            y=[0, xt[j, n]],
+                            z=[0, yt[j, n]],
+                            mode="lines",
+                            line=dict(width=2, color=self.color),
+                            name=f"Node {self.nodes[n]}",
+                            hovertemplate=(
+                                "Nodal position: %{x:.2f}<br>"
+                                + "X - Displacement: %{y:.2f}<br>"
+                                + "Y - Displacement: %{z:.2f}<br>"
+                                + f"Relative angle: {theta[n]:.2f}"
+                            ),
+                            legendgroup=legend_name,
+                            showlegend=False,
+                        )
+                    )
+                    xn.append(nodes_pos[n])
+                    yn.append(xt[j, n])
+                    zn.append(yt[j, n])
+
+                n0 = n1
+
+                plot_mode = dict(
+                    mode="lines+markers", marker=dict(size=3, symbol="circle")
+                )
+
+                try:
+                    plot_mode["marker"]["symbol"] = get_plot_mode(i)["marker"]["symbol"]
+                except KeyError:
+                    pass
+
                 node_data.append(
                     go.Scatter3d(
-                        x=[nodes_pos[n], nodes_pos[n]],
-                        y=[0, xt[i, n]],
-                        z=[0, yt[i, n]],
-                        mode="lines",
+                        x=xn,
+                        y=yn,
+                        z=zn,
                         line=dict(width=2, color=self.color),
-                        showlegend=False,
-                        name=f"Node {self.nodes[n]}",
-                        hovertemplate=(
-                            "Nodal position: %{x:.2f}<br>"
-                            + "X - Displacement: %{y:.2f}<br>"
-                            + "Y - Displacement: %{z:.2f}<br>"
-                            + f"Relative angle: {theta[n]:.2f}"
-                        ),
+                        hoverinfo="none",
+                        name=legend_name,
+                        legendgroup=legend_name,
+                        showlegend=showlegend,
+                        **plot_mode,
                     )
                 )
-                xn.append(nodes_pos[n])
-                yn.append(xt[i, n])
-                zn.append(yt[i, n])
-
-            node_data.append(
-                go.Scatter3d(
-                    x=xn,
-                    y=yn,
-                    z=zn,
-                    mode="lines+markers",
-                    line=dict(width=2, color=self.color),
-                    marker=dict(size=3),
-                    showlegend=False,
-                    hoverinfo="none",
-                )
-            )
 
             frames.append(go.Frame(data=node_data))
 
-            if i == 0:
+            if j == 0:
                 initial_state = node_data
 
         # Center line
@@ -938,11 +1156,6 @@ class Shape(Results):
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
-        xn = self.major_x.copy()
-        yn = self.major_y.copy()
-        zn = self.zn.copy()
-        nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
-
         if fig is None:
             fig = go.Figure()
 
@@ -953,6 +1166,11 @@ class Shape(Results):
             self._plot_axial(plot_dimension=2, length_units=length_units, fig=fig)
 
         else:
+            xn = self.major_x.copy()
+            yn = self.major_y.copy()
+            zn = self.zn.copy()
+            nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
+
             if orientation == "major":
                 values = self.major_axis.copy()
             elif orientation == "x":
@@ -962,21 +1180,55 @@ class Shape(Results):
             else:
                 raise ValueError(f"Invalid orientation {orientation}.")
 
-            fig.add_trace(
-                go.Scatter(
-                    x=Q_(zn, "m").to(length_units).m,
-                    y=values,
-                    mode="lines",
-                    line=dict(color=self.color),
-                    name=f"{orientation}",
-                    showlegend=False,
-                    customdata=Q_(self.major_angle, "rad").to(phase_units).m,
-                    hovertemplate=(
-                        f"Displacement: %{{y:.2f}}<br>"
-                        + f"Angle {phase_units}: %{{customdata:.2f}}"
+            n_plot, get_node_index, get_plot_mode = self._fix_mode_shape_intersections()
+            aux = len(zn) // len(self.shaft_elements_length)
+            showlegend = n_plot > 1
+
+            n0 = 0
+            for i in range(n_plot):
+                n1 = (get_node_index(i) - (i + 1)) * aux
+
+                legend_name = f"Rotor {i + 1}"
+
+                fig.add_trace(
+                    go.Scatter(
+                        x=Q_(zn[n0:n1], "m").to(length_units).m,
+                        y=values[n0:n1],
+                        line=dict(color=self.color),
+                        customdata=Q_(self.major_angle[n0:n1], "rad").to(phase_units).m,
+                        hovertemplate=(
+                            f"Displacement: %{{y:.2f}}<br>"
+                            + f"Angle {phase_units}: %{{customdata:.2f}}"
+                        ),
+                        name=f"{orientation}",
+                        legendgrouptitle=dict(text=legend_name),
+                        legendgroup=legend_name,
+                        showlegend=showlegend,
+                        **get_plot_mode(i),
                     ),
-                ),
-            )
+                )
+                fig.add_trace(
+                    go.Scatter(
+                        x=[zn[n0], zn[n0]],
+                        y=[0, values[n0]],
+                        mode="lines",
+                        line=dict(color=self.color, dash="dash"),
+                        legendgroup=legend_name,
+                        showlegend=False,
+                    )
+                )
+                fig.add_trace(
+                    go.Scatter(
+                        x=[zn[n1 - 1], zn[n1 - 1]],
+                        y=[0, values[n1 - 1]],
+                        mode="lines",
+                        line=dict(color=self.color, dash="dash"),
+                        legendgroup=legend_name,
+                        showlegend=False,
+                    )
+                )
+
+                n0 = n1
 
             # plot center line
             fig.add_trace(
@@ -996,11 +1248,224 @@ class Shape(Results):
 
         return fig
 
+    def _plot_orbits(
+        self, animation=False, length_units="m", phase_units="rad", fig=None
+    ):
+        if fig is None:
+            fig = go.Figure()
+
+        xn = self.xn.copy()
+        yn = self.yn.copy()
+        zn = self.zn.copy()
+        zn = Q_(zn, "m").to(length_units).m
+
+        frames = []
+        initial_state = []
+        fixed_lines = []
+
+        ntimes = 4  # number of times to animate
+        step = 20  # step interval for showing orbit marker
+        orbit_len = len(self.orbits[0].x_circle)
+        orbit_range = np.tile(np.arange(0, orbit_len, step), ntimes)
+
+        # plot orbits
+        for n, i in enumerate(orbit_range):
+            orbit_data = []
+            first_orbit = True
+
+            if n < orbit_len / step:
+                j = np.arange(max(i - orbit_len, 0), i)
+            else:
+                j = np.arange(i - orbit_len, i)
+
+            for orbit in self.orbits:
+                zc_pos = np.repeat(orbit.node_pos, len(orbit.x_circle))
+                zc_pos = Q_(zc_pos, "m").to(length_units).m
+
+                # add orbit point
+                orbit_data.append(
+                    go.Scatter3d(
+                        x=[zc_pos[i]],
+                        y=[orbit.x_circle[i]],
+                        z=[orbit.y_circle[i]],
+                        mode="markers",
+                        marker=dict(color=orbit.color),
+                        name="node {}".format(orbit.node),
+                        showlegend=False,
+                        hovertemplate=(
+                            "Nodal Position: %{x:.2f}<br>"
+                            + "X - Displacement: %{y:.2f}<br>"
+                            + "Y - Displacement: %{z:.2f}"
+                        ),
+                    )
+                )
+
+                if n > 0:
+                    orbit_data.append(
+                        go.Scatter3d(
+                            x=zc_pos[j],
+                            y=orbit.x_circle[j],
+                            z=orbit.y_circle[j],
+                            mode="lines",
+                            line=dict(color=orbit.color, dash="dashdot"),
+                            name="node {}".format(orbit.node),
+                            showlegend=False,
+                            hovertemplate=(
+                                "Nodal Position: %{x:.2f}<br>"
+                                + "X - Displacement: %{y:.2f}<br>"
+                                + "Y - Displacement: %{z:.2f}"
+                            ),
+                        )
+                    )
+
+                if n == 0:
+                    orbit_data.append(
+                        go.Scatter3d(
+                            x=zc_pos,
+                            y=orbit.x_circle,
+                            z=orbit.y_circle,
+                            mode="lines",
+                            line=dict(color=orbit.color),
+                            name="node {}".format(orbit.node),
+                            showlegend=False,
+                            hovertemplate=(
+                                "Nodal Position: %{x:.2f}<br>"
+                                + "X - Displacement: %{y:.2f}<br>"
+                                + "Y - Displacement: %{z:.2f}"
+                            ),
+                        )
+                    )
+
+                    # add orbit major axis marker
+                    fixed_lines.append(
+                        go.Scatter3d(
+                            x=[zc_pos[0]],
+                            y=[orbit.major_x],
+                            z=[orbit.major_y],
+                            mode="markers",
+                            marker=dict(
+                                color="black", symbol="cross", size=4, line_width=2
+                            ),
+                            name="Major axis",
+                            showlegend=first_orbit,
+                            legendgroup="major_axis",
+                            customdata=np.array(
+                                [
+                                    orbit.major_axis,
+                                    Q_(orbit.major_angle, "rad").to(phase_units).m,
+                                ]
+                            ).reshape(1, 2),
+                            hovertemplate=(
+                                "Nodal Position: %{x:.2f}<br>"
+                                + "Major axis: %{customdata[0]:.2f}<br>"
+                                + "Angle: %{customdata[1]:.2f}"
+                            ),
+                        )
+                    )
+                    first_orbit = False
+
+            frames.append(go.Frame(data=orbit_data))
+
+            if n == 0:
+                initial_state = orbit_data
+
+        n_plot, get_node_index, _ = self._fix_mode_shape_intersections()
+        aux = len(zn) // len(self.shaft_elements_length)
+
+        n0 = 0
+        for i in range(n_plot):
+            n1 = (get_node_index(i) - (i + 1)) * aux
+
+            # plot line connecting orbits starting points
+            fixed_lines.append(
+                go.Scatter3d(
+                    x=zn[n0:n1],
+                    y=xn[n0:n1],
+                    z=yn[n0:n1],
+                    mode="lines",
+                    line=dict(color="black", dash="dash"),
+                    name="mode shape",
+                    showlegend=False,
+                )
+            )
+
+            # plot major axis line
+            fixed_lines.append(
+                go.Scatter3d(
+                    x=zn[n0:n1],
+                    y=self.major_x[n0:n1],
+                    z=self.major_y[n0:n1],
+                    mode="lines",
+                    line=dict(color="black", dash="dashdot"),
+                    hoverinfo="none",
+                    legendgroup="major_axis",
+                    showlegend=False,
+                ),
+            )
+
+            n0 = n1
+
+        # plot center line
+        min_pos = min(zn) - 0.15 * abs(max(zn) - min(zn))
+        max_pos = max(zn) + 0.15 * abs(max(zn) - min(zn))
+        fixed_lines.append(
+            go.Scatter3d(
+                x=[min_pos, max_pos],
+                y=[0, 0],
+                z=[0, 0],
+                mode="lines",
+                line=dict(color="black", dash="dashdot"),
+                hoverinfo="none",
+                showlegend=False,
+            ),
+        )
+
+        fig.add_traces(data=[*initial_state, *fixed_lines])
+
+        if not animation:
+            return fig
+
+        fig.update(
+            layout=dict(
+                updatemenus=[
+                    dict(
+                        type="buttons",
+                        buttons=[
+                            dict(
+                                args=[
+                                    None,
+                                    dict(
+                                        frame=dict(duration=50, redraw=True),
+                                        mode="immediate",
+                                    ),
+                                ],
+                                label="Play",
+                                method="animate",
+                            ),
+                            dict(
+                                args=[
+                                    [None],
+                                    dict(
+                                        frame=dict(duration=0, redraw=False),
+                                        mode="immediate",
+                                    ),
+                                ],
+                                label="Pause",
+                                method="animate",
+                            ),
+                        ],
+                        x=0.05,
+                        y=0.25,
+                    )
+                ]
+            ),
+            frames=frames,
+        )
+
+        return fig
+
     def plot_3d(
         self,
-        mode=None,
-        orientation="major",
-        title=None,
         length_units="m",
         phase_units="rad",
         animation=False,
@@ -1027,120 +1492,11 @@ class Shape(Results):
             )
 
         else:
-            xn = self.xn.copy()
-            yn = self.yn.copy()
-            zn = self.zn.copy()
-
-            # plot orbits
-            first_orbit = True
-            for orbit in self.orbits:
-                zc_pos = (
-                    Q_(np.repeat(orbit.node_pos, len(orbit.x_circle)), "m")
-                    .to(length_units)
-                    .m
-                )
-                fig.add_trace(
-                    go.Scatter3d(
-                        x=zc_pos[:-10],
-                        y=orbit.x_circle[:-10],
-                        z=orbit.y_circle[:-10],
-                        mode="lines",
-                        line=dict(color=orbit.color),
-                        name="node {}".format(orbit.node),
-                        showlegend=False,
-                        hovertemplate=(
-                            "Nodal Position: %{x:.2f}<br>"
-                            + "X - Displacement: %{y:.2f}<br>"
-                            + "Y - Displacement: %{z:.2f}"
-                        ),
-                    )
-                )
-                # add orbit start
-                fig.add_trace(
-                    go.Scatter3d(
-                        x=[zc_pos[0]],
-                        y=[orbit.x_circle[0]],
-                        z=[orbit.y_circle[0]],
-                        mode="markers",
-                        marker=dict(color=orbit.color),
-                        name="node {}".format(orbit.node),
-                        showlegend=False,
-                        hovertemplate=(
-                            "Nodal Position: %{x:.2f}<br>"
-                            + "X - Displacement: %{y:.2f}<br>"
-                            + "Y - Displacement: %{z:.2f}"
-                        ),
-                    )
-                )
-                # add orbit major axis marker
-                fig.add_trace(
-                    go.Scatter3d(
-                        x=[zc_pos[0]],
-                        y=[orbit.major_x],
-                        z=[orbit.major_y],
-                        mode="markers",
-                        marker=dict(
-                            color="black", symbol="cross", size=4, line_width=2
-                        ),
-                        name="Major axis",
-                        showlegend=True if first_orbit else False,
-                        legendgroup="major_axis",
-                        customdata=np.array(
-                            [
-                                orbit.major_axis,
-                                Q_(orbit.major_angle, "rad").to(phase_units).m,
-                            ]
-                        ).reshape(1, 2),
-                        hovertemplate=(
-                            "Nodal Position: %{x:.2f}<br>"
-                            + "Major axis: %{customdata[0]:.2f}<br>"
-                            + "Angle: %{customdata[1]:.2f}"
-                        ),
-                    )
-                )
-                first_orbit = False
-
-            # plot line connecting orbits starting points
-            fig.add_trace(
-                go.Scatter3d(
-                    x=Q_(zn, "m").to(length_units).m,
-                    y=xn,
-                    z=yn,
-                    mode="lines",
-                    line=dict(color="black", dash="dash"),
-                    name="mode shape",
-                    showlegend=False,
-                )
-            )
-
-            # plot center line
-            zn_cl0 = -(zn[-1] * 0.1)
-            zn_cl1 = zn[-1] * 1.1
-            zn_cl = np.linspace(zn_cl0, zn_cl1, 30)
-            fig.add_trace(
-                go.Scatter3d(
-                    x=Q_(zn_cl, "m").to(length_units).m,
-                    y=zn_cl * 0,
-                    z=zn_cl * 0,
-                    mode="lines",
-                    line=dict(color="black", dash="dashdot"),
-                    hoverinfo="none",
-                    showlegend=False,
-                )
-            )
-
-            # plot major axis line
-            fig.add_trace(
-                go.Scatter3d(
-                    x=Q_(zn, "m").to(length_units).m,
-                    y=self.major_x,
-                    z=self.major_y,
-                    mode="lines",
-                    line=dict(color="black", dash="dashdot"),
-                    hoverinfo="none",
-                    legendgroup="major_axis",
-                    showlegend=False,
-                )
+            fig = self._plot_orbits(
+                animation=animation,
+                length_units=length_units,
+                phase_units=phase_units,
+                fig=fig,
             )
 
         fig.update_layout(
@@ -1166,7 +1522,7 @@ class CriticalSpeedResults(Results):
     _wn : array
         Undamped critical speeds array.
     _wd : array
-        Undamped critical speeds array.
+        Damped critical speeds array.
     log_dec : array
         Logarithmic decrement for each critical speed.
     damping_ratio : array
@@ -1427,7 +1783,6 @@ class ModalResults(Results):
     def data_mode(
         self,
         mode=None,
-        length_units="m",
         frequency_units="rad/s",
         damping_parameter="log_dec",
     ):
@@ -1437,9 +1792,9 @@ class ModalResults(Results):
         ----------
         mode : int
             The n'th vibration mode
-        length_units : str, optional
-            length units.
-            Default is 'm'.
+        frequency_units : str, optional
+            Frequency units.
+            Default is "rad/s".
         damping_parameter : str, optional
             Define which value to show for damping. We can use "log_dec" or "damping_ratio".
             Default is "log_dec".
@@ -1470,6 +1825,44 @@ class ModalResults(Results):
         df = pd.DataFrame(data)
 
         return df
+
+    def format_table(
+        self,
+        frequency_units="rad/s",
+    ):
+        """Return natural frequencies and damping ratios of modes in table format
+
+        Parameters
+        ----------
+        frequency_units : str, optional
+            Frequency units.
+            Default is "rad/s".
+
+        Returns
+        -------
+        table : PrettyTable object
+            Table object with natural frequencies and damping ratios of modes.
+        """
+
+        wn = Q_(self.wn, "rad/s").to(frequency_units).m
+        wd = Q_(self.wd, "rad/s").to(frequency_units).m
+        damping_ratio = self.damping_ratio
+        log_dec = self.log_dec
+
+        headers = [
+            "Mode",
+            f"Undamped natural frequencies [{frequency_units}]",
+            f"Damped natural frequencies [{frequency_units}]",
+            "Damping ratio",
+            "Logarithmic decrement",
+        ]
+
+        table = PrettyTable()
+        table.field_names = headers
+        for row in zip(range(len(wn)), wn, wd, damping_ratio, log_dec):
+            table.add_row(row)
+
+        return table
 
     def plot_mode_3d(
         self,
@@ -1529,7 +1922,7 @@ class ModalResults(Results):
         if fig is None:
             fig = go.Figure()
 
-        df = self.data_mode(mode, length_units, frequency_units, damping_parameter)
+        df = self.data_mode(mode, frequency_units, damping_parameter)
 
         damping_name = df["damping_name"].values[0]
         damping_value = df["damping_value"].values[0]
@@ -1608,7 +2001,6 @@ class ModalResults(Results):
         orientation="major",
         frequency_type="wd",
         title=None,
-        length_units="m",
         frequency_units="rad/s",
         damping_parameter="log_dec",
         **kwargs,
@@ -1632,9 +2024,6 @@ class ModalResults(Results):
             A brief title to the mode shape plot, it will be displayed above other
             relevant data in the plot area. It does not modify the figure layout from
             Plotly.
-        length_units : str, optional
-            length units.
-            Default is 'm'.
         frequency_units : str, optional
             Frequency units that will be used in the plot title.
             Default is rad/s.
@@ -1652,7 +2041,7 @@ class ModalResults(Results):
             The figure object with the plot.
         """
 
-        df = self.data_mode(mode, length_units, frequency_units, damping_parameter)
+        df = self.data_mode(mode, frequency_units, damping_parameter)
 
         damping_name = df["damping_name"].values[0]
         damping_value = df["damping_value"].values[0]
@@ -1705,9 +2094,6 @@ class ModalResults(Results):
         mode=None,
         nodes=None,
         fig=None,
-        frequency_type="wd",
-        title=None,
-        frequency_units="rad/s",
         **kwargs,
     ):
         """Plot (2D view) the mode shapes.
@@ -1721,17 +2107,6 @@ class ModalResults(Results):
             Int or list of ints with the nodes selected to be plotted.
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
-        frequency_type : str, optional
-            "wd" calculates de map for the damped natural frequencies.
-            "wn" calculates de map for the undamped natural frequencies.
-            Defaults is "wd".
-        title : str, optional
-            A brief title to the mode shape plot, it will be displayed above other
-            relevant data in the plot area. It does not modify the figure layout from
-            Plotly.
-        frequency_units : str, optional
-            Frequency units that will be used in the plot title.
-            Default is rad/s.
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -1787,6 +2162,14 @@ class CampbellResults(Results):
         Array with the whirl values (0, 0.5 or 1)
     modal_results : dict
         Dictionary with the modal results for each speed in the speed range.
+    numer_dof : int
+        Number of degrees of freedom of model.
+    run_modal : callable
+        Function that runs the modal analysis.
+    campbell_torsional : CampbellResults, optional
+        If True, the Campbell Diagram includes torsional modes of separated
+        analysis. Default is None, which means that torsional modes obtained
+        in the separated analysis are not included.
 
     Returns
     -------
@@ -1804,6 +2187,7 @@ class CampbellResults(Results):
         modal_results,
         number_dof,
         run_modal,
+        campbell_torsional=None,
     ):
         self.speed_range = speed_range
         self.wd = wd
@@ -1813,6 +2197,7 @@ class CampbellResults(Results):
         self.modal_results = modal_results
         self.number_dof = number_dof
         self.run_modal = run_modal
+        self.campbell_torsional = campbell_torsional
 
     def sort_by_mode_type(self):
         """Sort by mode type.
@@ -2099,6 +2484,25 @@ class CampbellResults(Results):
             **kwargs,
         )
 
+        if self.campbell_torsional:
+            torsional_fig = self.campbell_torsional.plot(
+                harmonics=[],
+                frequency_units=frequency_units,
+                speed_units=speed_units,
+                frequency_range=frequency_range,
+                damping_range=damping_range,
+                fig=None,
+                **kwargs,
+            )
+
+            for trace in torsional_fig.data:
+                if trace.name == "Torsional":
+                    new_name = "Torsional Analysis"
+                    trace.name = new_name
+                    trace.legendgroup = new_name
+                    trace.marker.symbol = "bowtie-open"
+                    fig.add_trace(trace)
+
         return fig
 
     def _plot_with_mode_shape(
@@ -2148,34 +2552,65 @@ class CampbellResults(Results):
             speed = clicked_point["x"]
             natural_frequency = clicked_point["y"]
 
-            try:
-                speed_key = min(
-                    self.modal_results.keys(),
-                    key=lambda k: abs(k - Q_(speed, speed_units).to("rad/s").m),
-                )
-                modal = self.modal_results[speed_key]
-            except:
-                speed_key = min(
-                    modal_results_crit.keys(),
-                    key=lambda k: abs(k - Q_(speed, speed_units).to("rad/s").m),
-                )
-                modal = modal_results_crit[speed_key]
-
-            idx = (
-                np.abs(modal.wd - Q_(natural_frequency, frequency_units).to("rad/s").m)
-            ).argmin()
-
-            updated_fig = modal.plot_mode_3d(
-                idx,
-                frequency_units=frequency_units,
-                damping_parameter=damping_parameter,
-                animation=animation,
+            curve_id = clicked_point.get(
+                "curveNumber", clicked_point.get("curve_number")
             )
-            updated_fig.update_layout(mode_3d_layout)
 
-            return updated_fig
+            if camp_fig.data[curve_id].name == "Torsional Analysis":
+                update_func = self.campbell_torsional._update_plot_mode_3d
+            else:
+                update_func = self._update_plot_mode_3d
+
+            update_fig = update_func(
+                speed,
+                natural_frequency,
+                modal_results_crit,
+                speed_units,
+                frequency_units,
+                damping_parameter,
+                animation,
+            )
+            update_fig.update_layout(mode_3d_layout)
+
+            return update_fig
 
         return camp_fig, update_mode_3d
+
+    def _update_plot_mode_3d(
+        self,
+        speed,
+        natural_frequency,
+        modal_results_crit,
+        speed_units,
+        frequency_units,
+        damping_parameter,
+        animation,
+    ):
+        try:
+            speed_key = min(
+                self.modal_results.keys(),
+                key=lambda k: abs(k - Q_(speed, speed_units).to("rad/s").m),
+            )
+            modal = self.modal_results[speed_key]
+        except:
+            speed_key = min(
+                modal_results_crit.keys(),
+                key=lambda k: abs(k - Q_(speed, speed_units).to("rad/s").m),
+            )
+            modal = modal_results_crit[speed_key]
+
+        idx = (
+            np.abs(modal.wd - Q_(natural_frequency, frequency_units).to("rad/s").m)
+        ).argmin()
+
+        updated_fig = modal.plot_mode_3d(
+            idx,
+            frequency_units=frequency_units,
+            damping_parameter=damping_parameter,
+            animation=animation,
+        )
+
+        return updated_fig
 
     def plot_with_mode_shape(
         self,
@@ -4056,7 +4491,6 @@ class ForcedResponseResults(Results):
     def plot_deflected_shape(
         self,
         speed,
-        samples=101,
         frequency_units="rad/s",
         amplitude_units="m",
         phase_units="rad",
@@ -4079,9 +4513,6 @@ class ForcedResponseResults(Results):
         speed : float, pint.Quantity
             The rotor rotation speed. Must be an element from the speed_range argument
             passed to the class (rad/s).
-        samples : int, optional
-            Number of samples to generate the orbit for each node.
-            Default is 101.
         frequency_units : str, optional
             Frequency units.
             Default is "rad/s"
@@ -4932,10 +5363,12 @@ class TimeResponseResults(Results):
         - 1d: plot time response for given probes.
         - 2d: plot orbit of a selected node of a rotor system.
         - 3d: plot orbits for each node on the rotor system in a 3D view.
+        - dfft: plot response in frequency domain for given probes.
 
     plot_1d: input probes.
     plot_2d: input a node.
     plot_3d: no need to input probes or node.
+    plot_dfft: input probes.
 
     Parameters
     ----------
@@ -4966,6 +5399,7 @@ class TimeResponseResults(Results):
         probe_units="rad",
         displacement_units="m",
         time_units="s",
+        init_step=0,
     ):
         """Return the time response given a list of probes in DataFrame format.
 
@@ -4973,7 +5407,7 @@ class TimeResponseResults(Results):
         ----------
         probe : list
             List with rs.Probe objects.
-        probe_units : str, option
+        probe_units : str, optional
             Units for probe orientation.
             Default is "rad".
         displacement_units : str, optional
@@ -4982,6 +5416,9 @@ class TimeResponseResults(Results):
         time_units : str
             Time units.
             Default is 's'.
+        init_step : int, optional
+            The index of the initial time step from which to extract the response.
+            Default is 0.
 
         Returns
         -------
@@ -5036,17 +5473,17 @@ class TimeResponseResults(Results):
                     [-np.sin(angle), np.cos(angle)]]
                 )
 
-                _probe_resp = operator @ np.vstack((self.yout[:, dofx], self.yout[:, dofy]))
+                _probe_resp = operator @ np.vstack((self.yout[init_step:, dofx], self.yout[init_step:, dofy]))
                 probe_resp = _probe_resp[0,:]
                 # fmt: on
             else:
                 dofz = ndof * node + 2 - fix_dof
-                probe_resp = self.yout[:, dofz]
+                probe_resp = self.yout[init_step:, dofz]
 
             probe_resp = Q_(probe_resp, "m").to(displacement_units).m
             data[f"probe_resp[{i}]"] = probe_resp
 
-        data["time"] = Q_(self.t, "s").to(time_units).m
+        data["time"] = Q_(self.t[init_step:], "s").to(time_units).m
         df = pd.DataFrame(data)
 
         return df
@@ -5255,6 +5692,136 @@ class TimeResponseResults(Results):
             ),
             **kwargs,
         )
+
+        return fig
+
+    def _dfft(self, y, dt):
+        """Calculate dFFT - discrete Fourier Transform.
+
+        Parameters
+        ----------
+        y : np.array
+            Magnitude of the response in time domain (m).
+        dt : int
+            Time step (s).
+
+        Returns
+        -------
+        freq : np.array
+            Frequency range (Hz).
+        y_amp : np.array
+            Amplitude of the response in frequency domain (m).
+        y_phase : np.array
+            Phase of the response in frequency domain (rad).
+        """
+        b = np.floor(len(y) / 2)
+        c = len(y)
+        df = 1 / (c * dt)
+
+        y_amp = fft(y)[: int(b)]
+        y_amp = y_amp * 2 / c
+
+        y_phase = np.angle(y_amp)
+        y_amp = np.abs(y_amp)
+
+        freq = np.arange(0, df * b, df)
+        freq = freq[: int(b)]
+
+        return freq, y_amp, y_phase
+
+    @check_units
+    def plot_dfft(
+        self,
+        probe,
+        probe_units="rad",
+        displacement_units="m",
+        frequency_units="Hz",
+        frequency_range=None,
+        fig=None,
+        **kwargs,
+    ):
+        """Plot response in frequency domain.
+
+        This method plots the frequency domain response using Discrete Fourier
+        Transform (dFFT) given a list of probes using Plotly.
+
+        Parameters
+        ----------
+        probe : list
+            List with rs.Probe objects.
+        probe_units : str, option
+            Units for probe orientation.
+            Default is "rad".
+        displacement_units : str, optional
+            Displacement units.
+            Default is "m".
+        frequency_units : str
+            Frequency units.
+            Default is "Hz".
+        frequency_range : tuple, pint.Quantity(tuple), optional
+            Tuple with (min, max) values for the frequencies that will be plotted.
+            Frequencies that are not within the range are filtered out and are not plotted.
+            It is possible to use a pint Quantity (e.g. Q_((2000, 1000), "RPM")).
+            Default is None (no filter).
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        kwargs : optional
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. xaxis=dict(range=[0, 1000]), yaxis=dict(type="log")).
+            *See Plotly Python Figure Reference for more information.
+
+        Returns
+        -------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        """
+        if fig is None:
+            fig = go.Figure()
+
+        if frequency_range is not None:
+            frequency_range = Q_(frequency_range, "rad/s").to("Hz").m
+
+        rows, cols = self.yout.shape
+        init_step = int(2 * rows / 3)
+
+        data = self.data_time_response(
+            probe, probe_units, displacement_units, init_step=init_step
+        )
+        t = data["time"].values
+        dt = t[1] - t[0]
+
+        for i, p in enumerate(probe):
+            try:
+                probe_tag = data[f"probe_tag[{i}]"].values[0]
+                probe_resp = data[f"probe_resp[{i}]"].values
+
+                freq, amp, _ = self._dfft(probe_resp, dt)
+
+                if frequency_range is not None:
+                    amp = amp[
+                        (freq >= frequency_range[0]) & (freq <= frequency_range[1])
+                    ]
+                    freq = freq[
+                        (freq >= frequency_range[0]) & (freq <= frequency_range[1])
+                    ]
+
+                fig.add_trace(
+                    go.Scatter(
+                        x=Q_(freq, "Hz").to(frequency_units).m,
+                        y=Q_(amp, "m").to(displacement_units).m,
+                        mode="lines",
+                        name=probe_tag,
+                        legendgroup=probe_tag,
+                        showlegend=True,
+                        hovertemplate=f"Frequency ({frequency_units}): %{{x:.2f}}<br>Amplitude ({displacement_units}): %{{y:.2e}}",
+                    )
+                )
+            except KeyError:
+                pass
+
+        fig.update_xaxes(title_text=f"Frequency ({frequency_units})")
+        fig.update_yaxes(title_text=f"Amplitude ({displacement_units})")
+        fig.update_layout(**kwargs)
 
         return fig
 

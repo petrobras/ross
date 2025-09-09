@@ -22,7 +22,7 @@ import ross
 
 # General information about the project.
 project = "ross"
-copyright = "2024"
+copyright = "2025"
 author = "ROSS devs"
 googleanalytics_id = "G-YKZBE83MZ5"
 
@@ -82,7 +82,7 @@ master_doc = "index"
 #
 # This is also used if you do content translation via gettext catalogs.
 # Usually you set "language" from the command line for these cases.
-language = None
+language = "en"
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
@@ -152,9 +152,9 @@ mathjax_options = {
 }
 
 try:
-    jupyter_execute_notebooks = os.environ["EXECUTE_NOTEBOOKS"]
+    nb_execution_mode = os.environ["EXECUTE_NOTEBOOKS"]
 except KeyError:
-    jupyter_execute_notebooks = "off"
+    nb_execution_mode = "off"
 
 # Custom sidebar templates, must be a dictionary that maps document names
 # to template names.

@@ -7,6 +7,7 @@ tutorial_part_1
 tutorial_part_2_1
 tutorial_part_2_2
 tutorial_part_3
+tutorial_part_4
 ```
 
 

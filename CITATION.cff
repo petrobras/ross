@@ -1,40 +1,52 @@
 cff-version: 1.2.0
-message: "If you use this software, please cite it as below."
-type: article
+title: ROSS - Rotordynamic Open Source Software
+message: 'If you use this software, please cite it as below.'
+type: software
 authors:
-- family-names: "Timbó"
-  given-names: "Raphael"
-  email: raphaelts@petrobras.com.br
-  orcid: "https://orcid.org/0000-0001-7689-5486"
-  affiliation: Petróleo Brasileiro S.A.
-- family-names: "Martins"
-  given-names: "Rodrigo"
-  orcid: "https://orcid.org/0000-0002-9996-6600"
-  affiliation: "Universidade Federal do Rio de Janeiro, Department of Mechanical Engineering, Rio de Janeiro, Brazil"
-- family-names: "Bachmann"
-  given-names: "Gabriel"
-  orcid: "https://orcid.org/0000-0003-4401-8408"
-  affiliation: "Universidade Federal do Rio de Janeiro, Department of Electrical Engineering, Rio de Janeiro, Brazil"
-- family-names: "Rangel"
-  given-names: "Flavio"
-  orcid: "https://orcid.org/0000-0002-4852-8141"
-- family-names: "Mota"
-  given-names: "Júlia"
-  orcid: "https://orcid.org/0000-0002-9547-9629"
-  affiliation: "Universidade Federal do Rio de Janeiro, Graduate Program in Informatics, Rio de Janeiro, Brazil"
-- family-names: "Valério"
-  given-names: "Juliana"
-  orcid: "https://orcid.org/0000-0002-6198-7932"
-  affiliation: "Universidade Federal do Rio de Janeiro, Department of Computer Science, Rio de Janeiro, Brazil"
-- family-names: "Ritto"
-  given-names: "Thiago"
-  orcid: "https://orcid.org/0000-0003-0649-6919"
-  affiliation: "Universidade Federal do Rio de Janeiro, Department of Mechanical Engineering, Rio de Janeiro, Brazil"
-doi: 10.21105/joss.02120
-journal: "Journal of Open Source Software"
-month: April
-title: "ROSS - Rotordynamic Open Source Software"
-issue: 48
-volume: 5
-year: 2020
-url: "https://joss.theoj.org/papers/10.21105/joss.02120"
+  - family-names: Timbó
+    given-names: Raphael
+    email: raphaelts@petrobras.com.br
+    orcid: 'https://orcid.org/0000-0001-7689-5486'
+    affiliation: Petróleo Brasileiro S.A.
+  - family-names: Martins
+    given-names: Rodrigo
+    orcid: 'https://orcid.org/0000-0002-9996-6600'
+    affiliation: >-
+      Universidade Federal do Rio de Janeiro, Department of
+      Mechanical Engineering, Rio de Janeiro, Brazil
+  - family-names: Bachmann
+    given-names: Gabriel
+    orcid: 'https://orcid.org/0000-0003-4401-8408'
+    affiliation: >-
+      Universidade Federal do Rio de Janeiro, Department of
+      Electrical Engineering, Rio de Janeiro, Brazil
+  - family-names: Rangel
+    given-names: Flavio
+    orcid: 'https://orcid.org/0000-0002-4852-8141'
+  - family-names: Mota
+    given-names: Júlia
+    orcid: 'https://orcid.org/0000-0002-9547-9629'
+    affiliation: >-
+      Universidade Federal do Rio de Janeiro, Graduate
+      Program in Informatics, Rio de Janeiro, Brazil
+  - family-names: Valério
+    given-names: Juliana
+    orcid: 'https://orcid.org/0000-0002-6198-7932'
+    affiliation: >-
+      Universidade Federal do Rio de Janeiro, Department of
+      Computer Science, Rio de Janeiro, Brazil
+  - family-names: Ritto
+    given-names: Thiago
+    orcid: 'https://orcid.org/0000-0003-0649-6919'
+    affiliation: >-
+      Universidade Federal do Rio de Janeiro, Department of
+      Mechanical Engineering, Rio de Janeiro, Brazil
+identifiers:
+  - type: doi
+    value: 10.21105/joss.02120
+    description: Journal of Open Source Software
+repository-code: 'https://github.com/petrobras/ross'
+url: 'https://joss.theoj.org/papers/10.21105/joss.02120'
+license: Apache-2.0
+version: 1.0.1
+date-released: '2020-04-09'
