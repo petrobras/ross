@@ -212,12 +212,14 @@ class ModelReduction:
         Mr = self.rearrange_matrix(M, selected_dofs, ignored_dofs)
         Kr = self.rearrange_matrix(K, selected_dofs, ignored_dofs)
 
-        n_selected = len(selected_dofs)
-        I = np.eye(n_selected)
-
         _, Phi_r = eigh(Kr, Mr)
+
+        n_selected = len(selected_dofs)
+
         Phi_mm = Phi_r[:n_selected, :n_selected]
         Phi_sm = Phi_r[n_selected:, :n_selected]
+
+        I = np.eye(n_selected)
 
         Ts = np.vstack((I, Phi_sm @ la.pinv(Phi_mm)))
 
