@@ -424,7 +424,7 @@ class MultiRotor(Rotor):
 
         #Submatrices
 
-        # --- Matriz Kii ---
+        # --- Matrix Kii ---
         Kii = np.zeros((6, 6))
 
         Kii[0, 0] = (sp * cx + cp * cy)**2
@@ -469,7 +469,7 @@ class MultiRotor(Rotor):
         Kii[4, 5] = Kii[5, 4]
         Kii[5, 5] = ((cx * Pitch_Radius_1)**2) * (cp**4 + 2 * (cp * sp)**2 + sp**4)
 
-        # --- Matriz Kji ---
+        # --- Matrix Kji ---
         Kji = np.zeros((6, 6))
 
         Kji[0, 0] = -1 * (sp * cx + cp * cy)**2
@@ -514,10 +514,10 @@ class MultiRotor(Rotor):
         Kji[4, 5] = -1 * cp * cx * cz * Pitch_Radius_1 * Pitch_Radius_2 * (cp**2 + sp**2)
         Kji[5, 5] = -1 * (cx**2) * Pitch_Radius_1 * Pitch_Radius_2 * (cp**4 + 2 * (cp * sp)**2 + sp**4) 
 
-        # --- Matriz Kij ---
-        Kij = Kji.T # Transposição em NumPy
+        # --- Matrix Kij ---
+        Kij = Kji.T 
 
-        # --- Matriz Kjj ---
+        # --- Matrix Kjj ---
         Kjj = np.zeros((6, 6))
 
         Kjj[0, 0] = (sp * cx + cp * cy)**2
@@ -563,7 +563,7 @@ class MultiRotor(Rotor):
         Kjj[5, 5] = ((cx * Pitch_Radius_2)**2) * (cp**4 + 2 * (cp * sp)**2 + sp**4)
 
 
-        # --- Montagem da Matriz de Rigidez Completa ---
+        # --- Full Stiffness Matix  ---
         coupling_matrix = np.block([[Kii, Kij],
                                     [Kji, Kjj]])
 

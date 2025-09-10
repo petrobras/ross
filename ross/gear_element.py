@@ -84,7 +84,7 @@ class GearElement(DiskElement):
         pitch_diameter=None,
         base_diameter=None,
         pressure_angle=None,
-        material = None,
+        material = steel,
         tag=None,
         helix_angle = 0,
         scale_factor=1.0,
@@ -112,10 +112,7 @@ class GearElement(DiskElement):
         self.helix_angle = float(helix_angle)
         self.width = float(width)
 
-        if not material:
-            self.material = steel
-        else: 
-            self.material = material
+        self.material = material
 
         self.n_teeth = n_teeth
 
