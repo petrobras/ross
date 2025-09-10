@@ -168,49 +168,49 @@ class MultiRotor(Rotor):
 
         self.gears = [gear_1, gear_2]
 
-        self.gear_ratio = gear_1.n_teeth/gear_2.n_teeth # gear ratio according Shigley Machine Elements (driving/driven)
+        self.gear_ratio = (
+            gear_1.n_teeth / gear_2.n_teeth
+        )  # gear ratio according Shigley Machine Elements (driving/driven)
 
         self.K_coupled_mesh_stiffness = None
 
         # Contact ratio
-    
-        module_1 = gear_1.pitch_diameter/gear_1.n_teeth
-        addendum_1 = 1*module_1
+
+        module_1 = gear_1.pitch_diameter / gear_1.n_teeth
+        addendum_1 = 1 * module_1
         radii_ad_1 = gear_1.pitch_diameter + addendum_1
-        radii_base_1 = gear_1.pitch_diameter*np.cos(gear_1.pressure_angle)
+        radii_base_1 = gear_1.pitch_diameter * np.cos(gear_1.pressure_angle)
 
-        module_2 = gear_2.pitch_diameter/gear_2.n_teeth
-        addendum_2 = 1*module_2
+        module_2 = gear_2.pitch_diameter / gear_2.n_teeth
+        addendum_2 = 1 * module_2
         radii_ad_2 = gear_2.pitch_diameter + addendum_2
-        radii_base_2 = gear_2.pitch_diameter*np.cos(gear_2.pressure_angle)
+        radii_base_2 = gear_2.pitch_diameter * np.cos(gear_2.pressure_angle)
 
-        if round(module_1,4) != round(module_2,4): 
-            raise ValueError("The gear module must be the same for both gears in order to mesh properly.")
-        
-        if gear_1.pressure_angle != gear_2.pressure_angle: 
-            raise ValueError("The gear preasure angle must be the same for both gears in order to mesh properly.")
+        if round(module_1, 4) != round(module_2, 4):
+            raise ValueError(
+                "The gear module must be the same for both gears in order to mesh properly."
+            )
 
-        center_distance = (
-            gear_1.pitch_diameter + gear_2.pitch_diameter
-        )
+        if gear_1.pressure_angle != gear_2.pressure_angle:
+            raise ValueError(
+                "The gear preasure angle must be the same for both gears in order to mesh properly."
+            )
+
+        center_distance = gear_1.pitch_diameter + gear_2.pitch_diameter
 
         contact_length = (
-            np.sqrt(
-                radii_ad_1 ** 2
-                - radii_base_1 ** 2
-            )
-            + np.sqrt(
-                radii_ad_2 ** 2
-                - radii_base_2 ** 2
-            )
+            np.sqrt(radii_ad_1**2 - radii_base_1**2)
+            + np.sqrt(radii_ad_2**2 - radii_base_2**2)
             - center_distance * np.sin(gear_1.pressure_angle)
         )
         base_pitch = np.pi * module_1 * np.cos(gear_1.pressure_angle)
         self.contact_ratio = contact_length / base_pitch
 
-        if gear_1.width != gear_2.width: 
-            raise ValueError("The gear width must be the same for both gears in order to mesh properly.")
-    
+        if gear_1.width != gear_2.width:
+            raise ValueError(
+                "The gear width must be the same for both gears in order to mesh properly."
+            )
+
         # If mesh stiffneess is already not defined
         if gear_mesh_stiffness is None:
             c = self.contact_ratio
@@ -403,39 +403,40 @@ class MultiRotor(Rotor):
                [-0.        , -0.        ,  0.        ,  0.        ]])
         """
 
-        #Note:  Pressure angle is the normal pressure angle (not transverse)
+        # Note:  Pressure angle is the normal pressure angle (not transverse)
 
-        #Angles start in degrees
+        # Angles start in degrees
 
-        pitch_radius_1 = self.gears[0].pitch_diameter/2 # driving gear
-        pitch_radius_2 = self.gears[1].pitch_diameter/2 # driven gear
+        pitch_radius_1 = self.gears[0].pitch_diameter / 2  # driving gear
+        pitch_radius_2 = self.gears[1].pitch_diameter / 2  # driven gear
         Pressure_Angle = self.gears[0].pressure_angle
-        Helical_Angle = self.gears[0].helix_angle - 180*np.pi/180 # correction done for adjusting with the formulation
+        Helical_Angle = (
+            self.gears[0].helix_angle - 180 * np.pi / 180
+        )  # correction done for adjusting with the formulation
         Orientation_Angle = self.orientation_angle
-        
-        
-        #Direction Cosine angles
-        cx=np.cos(Pressure_Angle)*np.cos(Helical_Angle)
-        cy=np.sin(Pressure_Angle)
-        cz=np.sin(Pressure_Angle)*np.sin(Helical_Angle)
-    
-        cp=np.cos(Orientation_Angle)
-        sp=np.sin(Orientation_Angle)
 
-        #Submatrices
+        # Direction Cosine angles
+        cx = np.cos(Pressure_Angle) * np.cos(Helical_Angle)
+        cy = np.sin(Pressure_Angle)
+        cz = np.sin(Pressure_Angle) * np.sin(Helical_Angle)
+
+        cp = np.cos(Orientation_Angle)
+        sp = np.sin(Orientation_Angle)
+
+        # Submatrices
 
         # --- Matrix Kii ---
         Kii = np.zeros((6, 6))
 
-        Kii[0, 0] = (sp * cx + cp * cy)**2
-        Kii[1, 0] = (sp * cx + cp * cy) * (sp * cy - cp * cx)  
+        Kii[0, 0] = (sp * cx + cp * cy) ** 2
+        Kii[1, 0] = (sp * cx + cp * cy) * (sp * cy - cp * cx)
         Kii[2, 0] = cz * (sp * cx + cp * cy)
         Kii[3, 0] = sp * cz * pitch_radius_1 * (sp * cx + cp * cy)
         Kii[4, 0] = -1 * cp * cz * pitch_radius_1 * (sp * cx + cp * cy)
-        Kii[5, 0] = -1 * cx * pitch_radius_1 * (cp**2 + sp**2) * (sp * cx + cp * cy) 
+        Kii[5, 0] = -1 * cx * pitch_radius_1 * (cp**2 + sp**2) * (sp * cx + cp * cy)
 
         Kii[0, 1] = Kii[1, 0]
-        Kii[1, 1] = (sp * cy - cp * cx)**2
+        Kii[1, 1] = (sp * cy - cp * cx) ** 2
         Kii[2, 1] = cz * (sp * cy - cp * cx)
         Kii[3, 1] = sp * cz * pitch_radius_1 * (sp * cy - cp * cx)
         Kii[4, 1] = -1 * cp * cz * pitch_radius_1 * (sp * cy - cp * cx)
@@ -451,15 +452,15 @@ class MultiRotor(Rotor):
         Kii[0, 3] = Kii[3, 0]
         Kii[1, 3] = Kii[3, 1]
         Kii[2, 3] = Kii[3, 2]
-        Kii[3, 3] = (sp * cz * pitch_radius_1)**2
-        Kii[4, 3] = -1 * cp * sp * (cz * pitch_radius_1)**2
+        Kii[3, 3] = (sp * cz * pitch_radius_1) ** 2
+        Kii[4, 3] = -1 * cp * sp * (cz * pitch_radius_1) ** 2
         Kii[5, 3] = -1 * sp * cx * cz * (pitch_radius_1**2) * (cp**2 + sp**2)
 
         Kii[0, 4] = Kii[4, 0]
         Kii[1, 4] = Kii[4, 1]
         Kii[2, 4] = Kii[4, 2]
         Kii[3, 4] = Kii[4, 3]
-        Kii[4, 4] = (cp * cz * pitch_radius_1)**2
+        Kii[4, 4] = (cp * cz * pitch_radius_1) ** 2
         Kii[5, 4] = cp * cx * cz * (pitch_radius_1**2) * (cp**2 + sp**2)
 
         Kii[0, 5] = Kii[5, 0]
@@ -467,24 +468,24 @@ class MultiRotor(Rotor):
         Kii[2, 5] = Kii[5, 2]
         Kii[3, 5] = Kii[5, 3]
         Kii[4, 5] = Kii[5, 4]
-        Kii[5, 5] = ((cx * pitch_radius_1)**2) * (cp**4 + 2 * (cp * sp)**2 + sp**4)
+        Kii[5, 5] = ((cx * pitch_radius_1) ** 2) * (cp**4 + 2 * (cp * sp) ** 2 + sp**4)
 
         # --- Matrix Kji ---
         Kji = np.zeros((6, 6))
 
-        Kji[0, 0] = -1 * (sp * cx + cp * cy)**2
-        Kji[1, 0] = -1 * (sp * cx + cp * cy) * (sp * cy - cp * cx) 
+        Kji[0, 0] = -1 * (sp * cx + cp * cy) ** 2
+        Kji[1, 0] = -1 * (sp * cx + cp * cy) * (sp * cy - cp * cx)
         Kji[2, 0] = -1 * cz * (sp * cx + cp * cy)
         Kji[3, 0] = -1 * sp * cz * pitch_radius_2 * (sp * cx + cp * cy)
         Kji[4, 0] = cp * cz * pitch_radius_2 * (sp * cx + cp * cy)
-        Kji[5, 0] = cx * pitch_radius_2 * (cp**2 + sp**2) * (sp * cx + cp * cy) 
+        Kji[5, 0] = cx * pitch_radius_2 * (cp**2 + sp**2) * (sp * cx + cp * cy)
 
         Kji[0, 1] = Kji[1, 0]
-        Kji[1, 1] = -1 * (sp * cy - cp * cx)**2
+        Kji[1, 1] = -1 * (sp * cy - cp * cx) ** 2
         Kji[2, 1] = -1 * cz * (sp * cy - cp * cx)
         Kji[3, 1] = -1 * sp * cz * pitch_radius_2 * (sp * cy - cp * cx)
         Kji[4, 1] = cp * cz * pitch_radius_2 * (sp * cy - cp * cx)
-        Kji[5, 1] = cx * pitch_radius_2 * (cp**2 + sp**2) * (sp * cy - cp * cx)  
+        Kji[5, 1] = cx * pitch_radius_2 * (cp**2 + sp**2) * (sp * cy - cp * cx)
 
         Kji[0, 2] = Kji[2, 0]
         Kji[1, 2] = Kji[2, 1]
@@ -496,7 +497,7 @@ class MultiRotor(Rotor):
         Kji[0, 3] = -1 * sp * cz * pitch_radius_1 * (sp * cx + cp * cy)
         Kji[1, 3] = -1 * sp * cz * pitch_radius_1 * (sp * cy - cp * cx)
         Kji[2, 3] = -1 * sp * (cz**2) * pitch_radius_1
-        Kji[3, 3] = -1 * ((sp * cz)**2) * pitch_radius_1 * pitch_radius_2
+        Kji[3, 3] = -1 * ((sp * cz) ** 2) * pitch_radius_1 * pitch_radius_2
         Kji[4, 3] = cp * sp * (cz**2) * pitch_radius_1 * pitch_radius_2
         Kji[5, 3] = sp * cx * cz * pitch_radius_1 * pitch_radius_2 * (cp**2 + sp**2)
 
@@ -504,35 +505,45 @@ class MultiRotor(Rotor):
         Kji[1, 4] = cp * cz * pitch_radius_1 * (sp * cy - cp * cx)
         Kji[2, 4] = cp * (cz**2) * pitch_radius_1
         Kji[3, 4] = cp * sp * (cz**2) * pitch_radius_1 * pitch_radius_2
-        Kji[4, 4] = -1 * ((cp * cz)**2) * pitch_radius_1 * pitch_radius_2
-        Kji[5, 4] = -1 * cp * cx * cz * pitch_radius_1 * pitch_radius_2 * (cp**2 + sp**2)
+        Kji[4, 4] = -1 * ((cp * cz) ** 2) * pitch_radius_1 * pitch_radius_2
+        Kji[5, 4] = (
+            -1 * cp * cx * cz * pitch_radius_1 * pitch_radius_2 * (cp**2 + sp**2)
+        )
 
-        Kji[0, 5] = cx * pitch_radius_1 * (cp**2 + sp**2) * (sp * cx + cp * cy)  
+        Kji[0, 5] = cx * pitch_radius_1 * (cp**2 + sp**2) * (sp * cx + cp * cy)
         Kji[1, 5] = cx * pitch_radius_1 * (cp**2 + sp**2) * (sp * cy - cp * cx)
         Kji[2, 5] = cx * cz * pitch_radius_1 * (cp**2 + sp**2)
         Kji[3, 5] = sp * cx * cz * pitch_radius_1 * pitch_radius_2 * (cp**2 + sp**2)
-        Kji[4, 5] = -1 * cp * cx * cz * pitch_radius_1 * pitch_radius_2 * (cp**2 + sp**2)
-        Kji[5, 5] = -1 * (cx**2) * pitch_radius_1 * pitch_radius_2 * (cp**4 + 2 * (cp * sp)**2 + sp**4) 
+        Kji[4, 5] = (
+            -1 * cp * cx * cz * pitch_radius_1 * pitch_radius_2 * (cp**2 + sp**2)
+        )
+        Kji[5, 5] = (
+            -1
+            * (cx**2)
+            * pitch_radius_1
+            * pitch_radius_2
+            * (cp**4 + 2 * (cp * sp) ** 2 + sp**4)
+        )
 
         # --- Matrix Kij ---
-        Kij = Kji.T 
+        Kij = Kji.T
 
         # --- Matrix Kjj ---
         Kjj = np.zeros((6, 6))
 
-        Kjj[0, 0] = (sp * cx + cp * cy)**2
-        Kjj[1, 0] = (sp * cx + cp * cy) * (sp * cy - cp * cx) 
+        Kjj[0, 0] = (sp * cx + cp * cy) ** 2
+        Kjj[1, 0] = (sp * cx + cp * cy) * (sp * cy - cp * cx)
         Kjj[2, 0] = cz * (sp * cx + cp * cy)
         Kjj[3, 0] = sp * cz * pitch_radius_2 * (sp * cx + cp * cy)
         Kjj[4, 0] = -1 * cp * cz * pitch_radius_2 * (sp * cx + cp * cy)
         Kjj[5, 0] = -1 * cx * pitch_radius_2 * (cp**2 + sp**2) * (sp * cx + cp * cy)
 
         Kjj[0, 1] = Kjj[1, 0]
-        Kjj[1, 1] = (sp * cy - cp * cx)**2
+        Kjj[1, 1] = (sp * cy - cp * cx) ** 2
         Kjj[2, 1] = cz * (sp * cy - cp * cx)
         Kjj[3, 1] = sp * cz * pitch_radius_2 * (sp * cy - cp * cx)
         Kjj[4, 1] = -1 * cp * cz * pitch_radius_2 * (sp * cy - cp * cx)
-        Kjj[5, 1] = -1 * cx * pitch_radius_2 * (cp**2 + sp**2) * (sp * cy - cp * cx) 
+        Kjj[5, 1] = -1 * cx * pitch_radius_2 * (cp**2 + sp**2) * (sp * cy - cp * cx)
 
         Kjj[0, 2] = Kjj[2, 0]
         Kjj[1, 2] = Kjj[2, 1]
@@ -544,15 +555,15 @@ class MultiRotor(Rotor):
         Kjj[0, 3] = Kjj[3, 0]
         Kjj[1, 3] = Kjj[3, 1]
         Kjj[2, 3] = Kjj[3, 2]
-        Kjj[3, 3] = (sp * cz * pitch_radius_2)**2
-        Kjj[4, 3] = -1 * cp * sp * (cz * pitch_radius_2)**2
+        Kjj[3, 3] = (sp * cz * pitch_radius_2) ** 2
+        Kjj[4, 3] = -1 * cp * sp * (cz * pitch_radius_2) ** 2
         Kjj[5, 3] = -1 * sp * cx * cz * (pitch_radius_2**2) * (cp**2 + sp**2)
 
         Kjj[0, 4] = Kjj[4, 0]
         Kjj[1, 4] = Kjj[4, 1]
         Kjj[2, 4] = Kjj[4, 2]
         Kjj[3, 4] = Kjj[4, 3]
-        Kjj[4, 4] = (cp * cz * pitch_radius_2)**2
+        Kjj[4, 4] = (cp * cz * pitch_radius_2) ** 2
         Kjj[5, 4] = cp * cx * cz * (pitch_radius_2**2) * (cp**2 + sp**2)
 
         Kjj[0, 5] = Kjj[5, 0]
@@ -560,12 +571,10 @@ class MultiRotor(Rotor):
         Kjj[2, 5] = Kjj[5, 2]
         Kjj[3, 5] = Kjj[5, 3]
         Kjj[4, 5] = Kjj[5, 4]
-        Kjj[5, 5] = ((cx * pitch_radius_2)**2) * (cp**4 + 2 * (cp * sp)**2 + sp**4)
-
+        Kjj[5, 5] = ((cx * pitch_radius_2) ** 2) * (cp**4 + 2 * (cp * sp) ** 2 + sp**4)
 
         # --- Full Stiffness Matix  ---
-        coupling_matrix = np.block([[Kii, Kij],
-                                    [Kji, Kjj]])
+        coupling_matrix = np.block([[Kii, Kij], [Kji, Kjj]])
 
         return coupling_matrix
 
@@ -636,7 +645,9 @@ class MultiRotor(Rotor):
         dofs_2 = self.gears[1].dof_global_index.values()
         dofs = [*dofs_1, *dofs_2]
 
-        self.K_coupled_mesh_stiffness = self.coupling_matrix() * self.gear_mesh_stiffness
+        self.K_coupled_mesh_stiffness = (
+            self.coupling_matrix() * self.gear_mesh_stiffness
+        )
 
         K0[np.ix_(dofs, dofs)] += self.K_coupled_mesh_stiffness
 
@@ -793,10 +804,10 @@ def two_shaft_rotor_example():
     pitch_diameter = 2 * base_radius / np.cos(pressure_angle)
 
     N1 = 328  # Number of teeth of gear 1
-    m=726.4
-    Id=56.95
-    Ip=113.9
-    width = (4*m)/(material.rho*np.pi*(pitch_diameter**2-d1[-1]**2))
+    m = 726.4
+    Id = 56.95
+    Ip = 113.9
+    width = (4 * m) / (material.rho * np.pi * (pitch_diameter**2 - d1[-1] ** 2))
     gear1 = rs.GearElement(
         n=4,
         m=m,
@@ -839,9 +850,9 @@ def two_shaft_rotor_example():
     pitch_diameter = 2 * base_radius / np.cos(pressure_angle)
 
     N2 = 23  # Number of teeth of gear 2
-    m=5
-    Id=0.002
-    Ip=0.004
+    m = 5
+    Id = 0.002
+    Ip = 0.004
     gear2 = rs.GearElement(
         n=0,
         m=m,
@@ -865,7 +876,6 @@ def two_shaft_rotor_example():
         [gear2, turbine],
         [bearing3, bearing4],
     )
-
 
     return rs.MultiRotor(
         rotor1,

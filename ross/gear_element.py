@@ -84,9 +84,9 @@ class GearElement(DiskElement):
         pitch_diameter=None,
         base_diameter=None,
         pressure_angle=None,
-        material = steel,
+        material=steel,
         tag=None,
-        helix_angle = 0,
+        helix_angle=0,
         scale_factor=1.0,
         color="Goldenrod",
     ):
@@ -103,12 +103,12 @@ class GearElement(DiskElement):
             raise TypeError(
                 "At least one of the following must be informed for GearElement: base_diameter or pitch_diameter"
             )
-        
+
         if not pitch_diameter:
-            self.pitch_diameter = (self.base_radius * 2 )/ np.cos(self.pressure_angle)
+            self.pitch_diameter = (self.base_radius * 2) / np.cos(self.pressure_angle)
         else:
             self.pitch_diameter = float(pitch_diameter)
-        
+
         self.helix_angle = float(helix_angle)
         self.width = float(width)
 
@@ -129,7 +129,7 @@ class GearElement(DiskElement):
         n_teeth,
         pressure_angle=None,
         tag=None,
-        helix_angle = 0,
+        helix_angle=0,
         scale_factor=1.0,
         color="Goldenrod",
     ):
