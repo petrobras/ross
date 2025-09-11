@@ -4,78 +4,82 @@ from scipy.linalg import eigh
 
 
 class ModelReduction:
-    """
-    Base class for model reduction methods.
-    """
+    subclasses = {}
 
-    def __init__(
-        self,
-        rotor,
-        speed,
-        include_dofs=[],
-        include_nodes=[],
-        method="guyan",
-        limit_percent=0.15,
-    ):
-        """
-        Initialize the model reduction with a given model.
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        ModelReduction.subclasses[cls.__name__.lower()] = cls
 
-        Parameters
-        ----------
-        model : ross.Rotor
-            The rotor model to be reduced.
-        """
+    def __new__(cls, method="guyan", **kwargs):
+        if cls is ModelReduction:
+            subcls = ModelReduction.subclasses.get(method.lower())
 
+            if subcls is None:
+                raise ValueError(f"Method {method} not exists in ModelReduction.")
+
+            return super().__new__(subcls)
+
+        else:
+            return super().__new__(cls)
+
+
+class PseudoModal(ModelReduction):
+    def __init__(self, rotor, speed, num_modes=24, **kwargs):
+        self.num_modes = num_modes
+        self.bearings = [
+            b for b in rotor.bearing_elements if b.n not in rotor.link_nodes
+        ]
+        self.M = rotor.M(speed)
+        self.K = rotor.K(speed)
+        self.transf_matrix = self.get_transformation_matrix(speed)
+
+    def get_transformation_matrix(self, speed):
+        M = self.M
+        K_aux = self.K.copy()
+
+        # Cancel cross-coupled coefficients of bearing stiffness matrix
+        cancel_cross_coeffs = np.array([[0, 1, 0], [1, 0, 0], [0, 0, 0]])
+
+        for elm in self.bearings:
+            dofs = list(elm.dof_global_index.values())
+            if elm.n_link is None:
+                K_aux[np.ix_(dofs, dofs)] -= elm.K(speed) * cancel_cross_coeffs
+            else:
+                K_aux[np.ix_(dofs, dofs)] -= elm.K(speed) * np.tile(
+                    cancel_cross_coeffs, (2, 2)
+                )
+
+        _, modal_matrix = eigh(K_aux, M)
+        modal_matrix = modal_matrix[:, : self.num_modes]
+
+        return modal_matrix
+
+    def reduce_matrix(self, array):
+        return self.transf_matrix.T @ array @ self.transf_matrix
+
+    def reduce_vector(self, array):
+        return self.transf_matrix.T @ array
+
+    def revert_vector(self, array_reduced):
+        return self.transf_matrix @ array_reduced
+
+
+class Guyan(ModelReduction):
+    def __init__(self, rotor, speed, ndof_limit, include_dofs=[], include_nodes=[]):
         self.ndof = rotor.ndof
         self.number_dof = rotor.number_dof
-        self.K = rotor.K(speed)
         self.M = rotor.M(speed)
+        self.K = rotor.K(speed)
 
-        self.ignored_dofs = None
-        self.selected_dofs = None
-        self.reordering = None
-        self.transf_matrix = None
+        self.ndof_limit = int(self.ndof * 0.15) if ndof_limit is None else ndof_limit
 
-        try:
-            self.model_reduction_technique = getattr(self, method)
-        except AttributeError:
-            print(f"Method {method} not exists in ModelReduction.")
-
-        print("Applied technique =", method)
-        self.reduce_model(include_dofs, include_nodes, limit_percent)
-
-        n_selected = len(self.selected_dofs)
-        print(
-            f"Number of selected DOFs = {n_selected} / {self.ndof} ({n_selected / self.ndof * 100:.2f}%)"
+        self.selected_dofs, self.ignored_dofs = self.separate_dofs(
+            include_dofs, include_nodes
         )
+        self.reordering = self.selected_dofs + self.ignored_dofs
+        self.transf_matrix = self.get_transformation_matrix()
 
-    @staticmethod
-    def select_nodes_based_rotor(rotor, include_nodes=[]):
-        selected_dofs = set()
-
-        elements = [
-            *rotor.disk_elements,
-            *rotor.bearing_elements,
-            *rotor.point_mass_elements,
-        ]
-
-        for elm in elements:
-            if elm.n not in rotor.nodes:
-                continue
-
-            dofs = list(elm.dof_global_index.values())
-            selected_dofs.update(dofs)
-
-        for n in include_nodes:
-            dofs = n * rotor.number_dof + np.arange(rotor.number_dof)
-            selected_dofs.update(dofs)
-
-        ignored_dofs = sorted(set(range(rotor.ndof)) - selected_dofs)
-        selected_dofs = sorted(selected_dofs)
-
-        return selected_dofs, ignored_dofs
-
-    def separate_dofs(self, include_dofs=[], include_nodes=[], limit_percent=0.15):
+    def separate_dofs(self, include_dofs=[], include_nodes=[]):
         # Sort DOFs by mass-stiffness ratio (M/K)
         with np.errstate(divide="ignore"):
             diag_K = np.diag(self.K)
@@ -83,42 +87,55 @@ class ModelReduction:
 
         ordered_dofs = np.argsort(M_K)[::-1]
 
-        limit = int(self.ndof * limit_percent)
-
         selected_dofs = set()
-        selected_dofs.update(ordered_dofs[:limit])
         selected_dofs.update(include_dofs)
 
         for n in include_nodes:
             dofs = n * self.number_dof + np.arange(self.number_dof)
             selected_dofs.update(dofs)
 
+        n = self.ndof_limit - len(selected_dofs)
+        i = 0
+        while n > 0:
+            selected_dofs.update(ordered_dofs[i:n])
+            i += n
+            n = self.ndof_limit - len(selected_dofs)
+
         ignored_dofs = sorted(set(range(self.ndof)) - selected_dofs)
         selected_dofs = sorted(selected_dofs)
 
         return selected_dofs, ignored_dofs
 
-    @staticmethod
-    def rearrange_matrix(matrix, selected_dofs, ignored_dofs):
+    def get_transformation_matrix(self):
+        K = self.K
+
+        n_selected = len(self.selected_dofs)
+        I = np.eye(n_selected)
+
+        Kss = K[np.ix_(self.ignored_dofs, self.ignored_dofs)]
+        Ksm = K[np.ix_(self.ignored_dofs, self.selected_dofs)]
+
+        # Compute transformation matrix
+        Tg = np.vstack((I, -la.pinv(Kss) @ Ksm))
+
+        return Tg
+
+    def rearrange_matrix(self, matrix):
         return np.block(
             [
                 [
-                    matrix[np.ix_(selected_dofs, selected_dofs)],
-                    matrix[np.ix_(selected_dofs, ignored_dofs)],
+                    matrix[np.ix_(self.selected_dofs, self.selected_dofs)],
+                    matrix[np.ix_(self.selected_dofs, self.ignored_dofs)],
                 ],
                 [
-                    matrix[np.ix_(ignored_dofs, selected_dofs)],
-                    matrix[np.ix_(ignored_dofs, ignored_dofs)],
+                    matrix[np.ix_(self.ignored_dofs, self.selected_dofs)],
+                    matrix[np.ix_(self.ignored_dofs, self.ignored_dofs)],
                 ],
             ]
         )
 
     def reduce_matrix(self, array):
-        return (
-            self.transf_matrix.T
-            @ self.rearrange_matrix(array, self.selected_dofs, self.ignored_dofs)
-            @ self.transf_matrix
-        )
+        return self.transf_matrix.T @ self.rearrange_matrix(array) @ self.transf_matrix
 
     def reduce_vector(self, array):
         if array.ndim == 1:
@@ -138,89 +155,3 @@ class ModelReduction:
             array[self.reordering, :] = array_transf
 
         return array
-
-    def increment_nodes(self, add_nodes=[]):
-        num_dof = self.number_dof
-
-        for n in add_nodes:
-            dofs = range(n * num_dof + 0, n * num_dof + num_dof)
-            self.slaves_dofs.extend(dofs)
-
-            for dof in dofs:
-                self.selected_dofs.remove(dof)
-
-        self.reduce_model()
-
-    def reduce_model(self, include_dofs=[], include_nodes=[], limit_percent=0.15):
-        if self.selected_dofs is None:
-            self.selected_dofs, self.ignored_dofs = self.separate_dofs(
-                include_dofs, include_nodes, limit_percent
-            )
-        self.reordering = self.selected_dofs + self.ignored_dofs
-        self.transf_matrix = self.model_reduction_technique(
-            self.selected_dofs, self.ignored_dofs
-        )
-
-    def guyan(self, selected_dofs, ignored_dofs):
-        """
-        Standard Guyan Reduction method.
-        """
-        K = self.K
-
-        n_selected = len(selected_dofs)
-        I = np.eye(n_selected)
-
-        Kss = K[np.ix_(ignored_dofs, ignored_dofs)]
-        Ksm = K[np.ix_(ignored_dofs, selected_dofs)]
-
-        # Compute transformation matrix
-        Tg = np.vstack((I, -la.pinv(Kss) @ Ksm))
-
-        return Tg
-
-    def improved_guyan(self, selected_dofs, ignored_dofs):
-        M = self.M
-        K = self.K
-
-        Tg = self.guyan(selected_dofs, ignored_dofs)
-
-        Kss = K[np.ix_(ignored_dofs, ignored_dofs)]
-
-        # Build flexibility matrix
-        Kfi = np.zeros_like(K)
-        if Kss.shape == (1, 1):
-            Kfi[-1, -1] = Kss[0, 0]
-        else:
-            start = K.shape[0] - Kss.shape[0]
-            Kfi[start:, start:] = Kss
-
-        # Reduced mass and stiffness matrices via Guyan transformation
-        Mrr = self.rearrange_matrix(M, selected_dofs, ignored_dofs)
-        Krr = self.rearrange_matrix(K, selected_dofs, ignored_dofs)
-        Mr = Tg.T @ Mrr @ Tg
-        Kr = Tg.T @ Krr @ Tg
-
-        # IRS transformation (Improved Reduced System)
-        Tirs = Tg + la.pinv(Kfi) @ M @ Tg @ la.pinv(Mr) @ Kr
-
-        return Tirs
-
-    def serep(self, selected_dofs, ignored_dofs):
-        M = self.M
-        K = self.K
-
-        Mr = self.rearrange_matrix(M, selected_dofs, ignored_dofs)
-        Kr = self.rearrange_matrix(K, selected_dofs, ignored_dofs)
-
-        _, Phi_r = eigh(Kr, Mr)
-
-        n_selected = len(selected_dofs)
-
-        Phi_mm = Phi_r[:n_selected, :n_selected]
-        Phi_sm = Phi_r[n_selected:, :n_selected]
-
-        I = np.eye(n_selected)
-
-        Ts = np.vstack((I, Phi_sm @ la.pinv(Phi_mm)))
-
-        return Ts
