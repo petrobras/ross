@@ -409,19 +409,19 @@ class MultiRotor(Rotor):
 
         pitch_radius_1 = self.gears[0].pitch_diameter / 2  # driving gear
         pitch_radius_2 = self.gears[1].pitch_diameter / 2  # driven gear
-        Pressure_Angle = self.gears[0].pressure_angle
-        Helical_Angle = (
+        pressure_angle = self.gears[0].pressure_angle
+        helical_angle = (
             self.gears[0].helix_angle - 180 * np.pi / 180
         )  # correction done for adjusting with the formulation
-        Orientation_Angle = self.orientation_angle
+        orientation_angle = self.orientation_angle
 
         # Direction Cosine angles
-        cx = np.cos(Pressure_Angle) * np.cos(Helical_Angle)
-        cy = np.sin(Pressure_Angle)
-        cz = np.sin(Pressure_Angle) * np.sin(Helical_Angle)
+        cx = np.cos(pressure_angle) * np.cos(helical_angle)
+        cy = np.sin(pressure_angle)
+        cz = np.sin(pressure_angle) * np.sin(helical_angle)
 
-        cp = np.cos(Orientation_Angle)
-        sp = np.sin(Orientation_Angle)
+        cp = np.cos(orientation_angle)
+        sp = np.sin(orientation_angle)
 
         # Submatrices
 
