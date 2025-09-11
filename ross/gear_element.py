@@ -41,7 +41,7 @@ class GearElement(DiskElement):
         Pitch diameter of the gear (m).
         If given base_diameter is not necessary.
     pressure_angle : float, pint.Quantity, optional
-        The normal pressure angle of the gear (rad). Defautl is 20 degree.
+        The normal pressure angle of the gear (rad).
         Default is 20 deg (converted to rad).
     material: ross.material, optional
         material of the gear. Default is steel.
@@ -167,18 +167,16 @@ class GearElement(DiskElement):
             Inner diameter (the diameter of the shaft on which the gear is mounted).
         o_d : float, pint.Quantity
             Outer pitch diameter (m).
-        width: float, pint.Quantity
-            width of the gear (mm).
-        n_teth: int, pint.Quantity
-            number of teeth from the gear
+        n_teeth: int, pint.Quantity
+            Number of teeth of the gear.
         pressure_angle : float, pint.Quantity, optional
             The normal pressure angle of the gear (rad).
             Default is 20 deg (converted to rad).
         tag : str, optional
-            A tag to name the element
-            Default is None
+            A tag to name the element. 
+            Default is None.
         helix_angle: float, pint.Quantity, optional
-            value of helix angle for helical gears. Default is 0 representing spur gear.
+            Value of helix angle for helical gears. Default is 0 representing spur gear.
         scale_factor: float, optional
             The scale factor is used to scale the gear drawing.
             Default is 1.
@@ -193,7 +191,7 @@ class GearElement(DiskElement):
         Id : float
             Diametral moment of inertia.
         Ip : float
-            Polar moment of inertia
+            Polar moment of inertia.
 
         Examples
         --------
