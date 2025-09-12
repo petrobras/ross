@@ -24,6 +24,38 @@ class ModelReduction:
 
 
 class PseudoModal(ModelReduction):
+    """Pseudo-modal method.
+
+    This method can be used to apply modal transformation to reduce model
+    of the rotor system.
+
+    Parameters
+    ----------
+    rotor: rs.Rotor
+        The rotor object.
+    speed : float
+        Rotor speed.
+    num_modes : int
+        The number of eigenvectors to consider in the modal transformation
+        with model reduction. Default is 24.
+
+    Examples
+    --------
+    >>> import ross as rs
+    >>> rotor = rs.rotor_example()
+    >>> size = 10000
+    >>> node = 3
+    >>> speed = 500.0
+    >>> t = np.linspace(0, 10, size)
+    >>> F = np.zeros((size, rotor.ndof))
+    >>> F[:, rotor.number_dof * node + 0] = 10 * np.cos(2 * t)
+    >>> F[:, rotor.number_dof * node + 1] = 10 * np.sin(2 * t)
+    >>> reduction = ModelReduction(rotor, speed, method='pseudomodal', num_modes=12)
+    >>> F_modal = reduction[1](F.T).T
+    >>> la.norm(F_modal) # doctest: +ELLIPSIS
+    195.466...
+    """
+
     def __init__(self, rotor, speed, num_modes=24, **kwargs):
         self.num_modes = num_modes
         self.bearings = [
@@ -34,6 +66,18 @@ class PseudoModal(ModelReduction):
         self.transf_matrix = self.get_transformation_matrix(speed)
 
     def get_transformation_matrix(self, speed):
+        """Build modal matrix
+
+        Parameters
+        ----------
+        speed: np.ndarray
+            Rotor speed
+
+        Returns
+        -------
+        modal_matrix : np.ndarray
+            Modal matrix for the pseudo-modal method.
+        """
         M = self.M
         K_aux = self.K.copy()
 
@@ -55,17 +99,100 @@ class PseudoModal(ModelReduction):
         return modal_matrix
 
     def reduce_matrix(self, array):
+        """Transform a square matrix from physical to modal space.
+
+        Parameters
+        ----------
+        array: np.ndarray
+            Square matrix to be transformed.
+
+        Returns
+        -------
+        array_reduced : np.ndarray
+            Reduced matrix.
+        """
         return self.transf_matrix.T @ array @ self.transf_matrix
 
     def reduce_vector(self, array):
+        """Transform a vector from physical to modal space.
+
+        Parameters
+        ----------
+        array: np.ndarray
+            Vector to be transformed.
+
+        Returns
+        -------
+        array_reduced : np.ndarray
+            Reduced vector.
+        """
         return self.transf_matrix.T @ array
 
     def revert_vector(self, array_reduced):
+        """Transform a vector from modal to physical space.
+
+        Parameters
+        ----------
+        array_reduced: np.ndarray
+            Reduced vector to be reverted.
+
+        Returns
+        -------
+        array : np.ndarray
+            Vector in physical space.
+        """
         return self.transf_matrix @ array_reduced
 
 
 class Guyan(ModelReduction):
-    def __init__(self, rotor, speed, ndof_limit, include_dofs=[], include_nodes=[]):
+    """Guyan reduction method.
+
+    This method can be used to reduce model of the rotor system
+    to a defined list of degrees of freedom (DOF).
+
+    Parameters
+    ----------
+    rotor: rs.Rotor
+        The rotor object.
+    speed : float
+        Rotor speed.
+    ndof_limit : int
+        The number of DOFs to be considered in the reduction.
+        Default is 24.
+    include_dofs : list of int, optional
+        List of DOFs to be included in the reduction,
+        e.g., DOFs with applied forces or probe locations.
+    include_nodes : list of int, optional
+        List of the nodes to be included in the reduction.
+
+    Examples
+    --------
+    >>> import ross as rs
+    >>> rotor = rs.rotor_example()
+    >>> size = 10000
+    >>> node = 3
+    >>> speed = 500.0
+    >>> t = np.linspace(0, 10, size)
+    >>> F = np.zeros((size, rotor.ndof))
+    >>> dofx = rotor.number_dof * node + 0
+    >>> dofy = rotor.number_dof * node + 1
+    >>> F[:, dofx] = 10 * np.cos(2 * t)
+    >>> F[:, dofy] = 10 * np.sin(2 * t)
+    >>> reduction = ModelReduction(
+    ...     rotor,
+    ...     speed,
+    ...     method='guyan',
+    ...     ndof_limit=12,
+    ...     include_dofs=[dofx, dofy]
+    ... )
+    >>> F_reduct = reduction[1](F.T).T
+    >>> la.norm(F_reduct) # doctest: +ELLIPSIS
+    195.466...
+    """
+
+    def __init__(
+        self, rotor, speed, ndof_limit=24, include_dofs=[], include_nodes=[], **kwargs
+    ):
         self.ndof = rotor.ndof
         self.number_dof = rotor.number_dof
         self.M = rotor.M(speed)
@@ -73,13 +200,15 @@ class Guyan(ModelReduction):
 
         self.ndof_limit = int(self.ndof * 0.15) if ndof_limit is None else ndof_limit
 
-        self.selected_dofs, self.ignored_dofs = self.separate_dofs(
+        self.selected_dofs, self.ignored_dofs = self._separate_dofs(
             include_dofs, include_nodes
         )
         self.reordering = self.selected_dofs + self.ignored_dofs
         self.transf_matrix = self.get_transformation_matrix()
 
-    def separate_dofs(self, include_dofs=[], include_nodes=[]):
+    def _separate_dofs(self, include_dofs=[], include_nodes=[]):
+        """Separate the selected DOFs from the ignored DOFs."""
+
         # Sort DOFs by mass-stiffness ratio (M/K)
         with np.errstate(divide="ignore"):
             diag_K = np.diag(self.K)
@@ -107,6 +236,13 @@ class Guyan(ModelReduction):
         return selected_dofs, ignored_dofs
 
     def get_transformation_matrix(self):
+        """Build transformation matrix
+
+        Returns
+        -------
+        Tg : np.ndarray
+            Transformation matrix for Guyan method.
+        """
         K = self.K
 
         n_selected = len(self.selected_dofs)
@@ -120,7 +256,8 @@ class Guyan(ModelReduction):
 
         return Tg
 
-    def rearrange_matrix(self, matrix):
+    def _rearrange_matrix(self, matrix):
+        """Rearrange matrix based on selected and ignored DOFs"""
         return np.block(
             [
                 [
@@ -135,9 +272,33 @@ class Guyan(ModelReduction):
         )
 
     def reduce_matrix(self, array):
-        return self.transf_matrix.T @ self.rearrange_matrix(array) @ self.transf_matrix
+        """Transform a square matrix from complete to reduced model.
+
+        Parameters
+        ----------
+        array: np.ndarray
+            Square matrix to be transformed.
+
+        Returns
+        -------
+        array_reduced : np.ndarray
+            Reduced matrix.
+        """
+        return self.transf_matrix.T @ self._rearrange_matrix(array) @ self.transf_matrix
 
     def reduce_vector(self, array):
+        """Transform a vector from complete to reduced model.
+
+        Parameters
+        ----------
+        array: np.ndarray
+            Vector to be transformed.
+
+        Returns
+        -------
+        array_reduced : np.ndarray
+            Reduced vector.
+        """
         if array.ndim == 1:
             array_reduced = self.transf_matrix.T @ array[self.reordering]
         else:
@@ -146,6 +307,18 @@ class Guyan(ModelReduction):
         return array_reduced
 
     def revert_vector(self, array_reduced):
+        """Transform a vector from complete to reduced model.
+
+        Parameters
+        ----------
+        array_reduced: np.ndarray
+            Reduced vector to be reverted.
+
+        Returns
+        -------
+        array : np.ndarray
+            Vector of complete model.
+        """
         array_transf = self.transf_matrix @ array_reduced
         array = np.zeros_like(array_transf)
 
