@@ -8,7 +8,7 @@ from ross.units import Q_, check_units
 from ross.plotly_theme import tableau_colors
 from ross.bearings.lubricants import lubricants_dict
 
-class THDTilting(BearingElement):
+class TiltingPad(BearingElement):
 
     """This class calculates the pressure and temperature fields, equilibrium
     position of a tilting-pad journal bearing. It is also possible to obtain the
@@ -59,6 +59,9 @@ class THDTilting(BearingElement):
         Type of equilibrium calculation. Options:
         - 'match_eccentricity': Calculate equilibrium based on eccentricity
         - 'determine_eccentricity': Determine equilibrium position completely
+    model_type : str, optional
+        Type of model to be used. Options:
+        - 'thermo_hydro_dynamic': Thermo-Hydro-Dynamic model
     eccentricity : float, optional
         Eccentricity ratio. Dimensionless.
     attitude_angle : float, optional
@@ -115,9 +118,9 @@ class THDTilting(BearingElement):
 
     Examples
     --------
-    >>> from ross.bearings.tilting_pad import THDTilting
+    >>> from ross.bearings.tilting_pad import TiltingPad
     >>> from ross.units import Q_
-    >>> bearing = THDTilting(
+    >>> bearing = TiltingPad(
     ...     n=1,
     ...     frequency=Q_([3000], "RPM"),
     ...     equilibrium_type="match_eccentricity", 
@@ -167,11 +170,13 @@ class THDTilting(BearingElement):
         print_result=False,
         print_progress=False,
         print_time=False,
+        model_type="thermo_hydro_dynamic",
         **kwargs,
     ):
 
         self.n = n
         self.n_link = n_link
+        self.model_type = model_type
 
         # Bearing Geometry
         self.journal_radius = journal_diameter / 2
@@ -273,7 +278,8 @@ class THDTilting(BearingElement):
         for i in range(n_freq):
             self.speed = self.frequency[i]
 
-            self.run()
+            if self.model_type == "thermo_hydro_dynamic":
+                self.run_thermo_hydro_dynamic()
             
             kxx[i], kxy[i], kyx[i], kyy[i] = self.kxx, self.kxy, self.kyx, self.kyy
             cxx[i], cxy[i], cyx[i], cyy[i] = self.cxx, self.cxy, self.cyx, self.cyy
@@ -282,7 +288,7 @@ class THDTilting(BearingElement):
             n, kxx=kxx, cxx=cxx, kyy=kyy, kxy=kxy, kyx=kyx, cyy=cyy, cxy=cxy, cyx=cyx, frequency=frequency, **kwargs
             )
     
-    def run(self):
+    def run_thermo_hydro_dynamic(self):
         """
         Execute the complete thermo-hydrodynamic analysis for the tilting pad bearing.
 
@@ -3266,13 +3272,13 @@ class THDTilting(BearingElement):
 def tilting_pad_example():
     """Create an example of a tilting pad bearing with Thermo-Hydro-Dynamic effects.
     
-    This function creates and returns a THDTilting bearing instance with predefined
+    This function creates and returns a TiltingPad bearing instance with predefined
     parameters for demonstration purposes. The bearing is configured with 5 pads
     and operates at two different frequencies.
     
     Returns
     -------
-    bearing : THDTilting
+    bearing : TiltingPad
         A configured tilting pad bearing instance ready for analysis.
         
     Examples
@@ -3299,10 +3305,11 @@ def tilting_pad_example():
     specified eccentricity and attitude angle.
     """
 
-    bearing = THDTilting(
+    bearing = TiltingPad(
             n = 1,
             frequency = Q_([3000], "RPM"),
             equilibrium_type = "match_eccentricity",
+            model_type = "thermo_hydro_dynamic",
             journal_diameter = 101.6e-3,
             radial_clearance = 74.9e-6,
             pad_thickness = 12.7e-3,

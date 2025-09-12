@@ -1,7 +1,7 @@
 import pytest
 from numpy.testing import assert_allclose
 
-from ross.bearings.tilting_pad import THDTilting
+from ross.bearings.tilting_pad import TiltingPad
 from ross.units import Q_
 
 
@@ -14,7 +14,7 @@ def tilting_pad():
     oil_supply_temperature = Q_(40, "degC")
     attitude_angle = Q_(267.5, "deg")
     
-    bearing = THDTilting(
+    bearing = TiltingPad(
         n=1,
         frequency=frequency,
         equilibrium_type="match_eccentricity",
