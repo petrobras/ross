@@ -81,17 +81,11 @@ class PseudoModal(ModelReduction):
         M = self.M
         K_aux = self.K.copy()
 
-        # Cancel cross-coupled coefficients of bearing stiffness matrix
-        cancel_cross_coeffs = np.array([[0, 1, 0], [1, 0, 0], [0, 0, 0]])
-
+        # Eliminate cross-coupled coefficients of bearing stiffness matrix
         for elm in self.bearings:
             dofs = list(elm.dof_global_index.values())
-            if elm.n_link is None:
-                K_aux[np.ix_(dofs, dofs)] -= elm.K(speed) * cancel_cross_coeffs
-            else:
-                K_aux[np.ix_(dofs, dofs)] -= elm.K(speed) * np.tile(
-                    cancel_cross_coeffs, (2, 2)
-                )
+            elim_factor = 1 - np.eye(len(dofs))
+            K_aux[np.ix_(dofs, dofs)] -= elm.K(speed) * elim_factor
 
         _, modal_matrix = eigh(K_aux, M)
         modal_matrix = modal_matrix[:, : self.num_modes]
