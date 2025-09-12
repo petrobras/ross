@@ -50,8 +50,8 @@ class PseudoModal(ModelReduction):
     >>> F = np.zeros((size, rotor.ndof))
     >>> F[:, rotor.number_dof * node + 0] = 10 * np.cos(2 * t)
     >>> F[:, rotor.number_dof * node + 1] = 10 * np.sin(2 * t)
-    >>> reduction = ModelReduction(rotor, speed, method='pseudomodal', num_modes=12)
-    >>> F_modal = reduction[1](F.T).T
+    >>> mr = ModelReduction(rotor=rotor, speed=speed, method="pseudomodal", num_modes=12)
+    >>> F_modal = mr.reduce_vector(F.T).T
     >>> la.norm(F_modal) # doctest: +ELLIPSIS
     195.466...
     """
@@ -151,7 +151,7 @@ class Guyan(ModelReduction):
     speed : float
         Rotor speed.
     ndof_limit : int
-        The number of DOFs to be considered in the reduction.
+        The number of DOFs to be considered in the model reduction.
         Default is 24.
     include_dofs : list of int, optional
         List of DOFs to be included in the reduction,
@@ -172,16 +172,16 @@ class Guyan(ModelReduction):
     >>> dofy = rotor.number_dof * node + 1
     >>> F[:, dofx] = 10 * np.cos(2 * t)
     >>> F[:, dofy] = 10 * np.sin(2 * t)
-    >>> reduction = ModelReduction(
-    ...     rotor,
-    ...     speed,
-    ...     method='guyan',
+    >>> mr = ModelReduction(
+    ...     rotor=rotor,
+    ...     speed=speed,
+    ...     method="guyan",
     ...     ndof_limit=12,
     ...     include_dofs=[dofx, dofy]
     ... )
-    >>> F_reduct = reduction[1](F.T).T
+    >>> F_reduct = mr.reduce_vector(F.T).T
     >>> la.norm(F_reduct) # doctest: +ELLIPSIS
-    195.466...
+    1000.0...
     """
 
     def __init__(
