@@ -6,6 +6,7 @@ This module returns graphs for each type of analyses in rotor_assembly.py.
 import copy
 import inspect
 from abc import ABC
+from prettytable import PrettyTable
 from collections.abc import Iterable
 from warnings import warn
 
@@ -1520,7 +1521,7 @@ class CriticalSpeedResults(Results):
     _wn : array
         Undamped critical speeds array.
     _wd : array
-        Undamped critical speeds array.
+        Damped critical speeds array.
     log_dec : array
         Logarithmic decrement for each critical speed.
     damping_ratio : array
@@ -1781,7 +1782,6 @@ class ModalResults(Results):
     def data_mode(
         self,
         mode=None,
-        length_units="m",
         frequency_units="rad/s",
         damping_parameter="log_dec",
     ):
@@ -1791,9 +1791,9 @@ class ModalResults(Results):
         ----------
         mode : int
             The n'th vibration mode
-        length_units : str, optional
-            length units.
-            Default is 'm'.
+        frequency_units : str, optional
+            Frequency units.
+            Default is "rad/s".
         damping_parameter : str, optional
             Define which value to show for damping. We can use "log_dec" or "damping_ratio".
             Default is "log_dec".
@@ -1824,6 +1824,44 @@ class ModalResults(Results):
         df = pd.DataFrame(data)
 
         return df
+
+    def format_table(
+        self,
+        frequency_units="rad/s",
+    ):
+        """Return natural frequencies and damping ratios of modes in table format
+
+        Parameters
+        ----------
+        frequency_units : str, optional
+            Frequency units.
+            Default is "rad/s".
+
+        Returns
+        -------
+        table : PrettyTable object
+            Table object with natural frequencies and damping ratios of modes.
+        """
+
+        wn = Q_(self.wn, "rad/s").to(frequency_units).m
+        wd = Q_(self.wd, "rad/s").to(frequency_units).m
+        damping_ratio = self.damping_ratio
+        log_dec = self.log_dec
+
+        headers = [
+            "Mode",
+            f"Undamped natural frequencies [{frequency_units}]",
+            f"Damped natural frequencies [{frequency_units}]",
+            "Damping ratio",
+            "Logarithmic decrement",
+        ]
+
+        table = PrettyTable()
+        table.field_names = headers
+        for row in zip(range(len(wn)), wn, wd, damping_ratio, log_dec):
+            table.add_row(row)
+
+        return table
 
     def plot_mode_3d(
         self,
@@ -1883,7 +1921,7 @@ class ModalResults(Results):
         if fig is None:
             fig = go.Figure()
 
-        df = self.data_mode(mode, length_units, frequency_units, damping_parameter)
+        df = self.data_mode(mode, frequency_units, damping_parameter)
 
         damping_name = df["damping_name"].values[0]
         damping_value = df["damping_value"].values[0]
@@ -1962,7 +2000,6 @@ class ModalResults(Results):
         orientation="major",
         frequency_type="wd",
         title=None,
-        length_units="m",
         frequency_units="rad/s",
         damping_parameter="log_dec",
         **kwargs,
@@ -1986,9 +2023,6 @@ class ModalResults(Results):
             A brief title to the mode shape plot, it will be displayed above other
             relevant data in the plot area. It does not modify the figure layout from
             Plotly.
-        length_units : str, optional
-            length units.
-            Default is 'm'.
         frequency_units : str, optional
             Frequency units that will be used in the plot title.
             Default is rad/s.
@@ -2006,7 +2040,7 @@ class ModalResults(Results):
             The figure object with the plot.
         """
 
-        df = self.data_mode(mode, length_units, frequency_units, damping_parameter)
+        df = self.data_mode(mode, frequency_units, damping_parameter)
 
         damping_name = df["damping_name"].values[0]
         damping_value = df["damping_value"].values[0]
@@ -2059,9 +2093,6 @@ class ModalResults(Results):
         mode=None,
         nodes=None,
         fig=None,
-        frequency_type="wd",
-        title=None,
-        frequency_units="rad/s",
         **kwargs,
     ):
         """Plot (2D view) the mode shapes.
@@ -2075,17 +2106,6 @@ class ModalResults(Results):
             Int or list of ints with the nodes selected to be plotted.
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
-        frequency_type : str, optional
-            "wd" calculates de map for the damped natural frequencies.
-            "wn" calculates de map for the undamped natural frequencies.
-            Defaults is "wd".
-        title : str, optional
-            A brief title to the mode shape plot, it will be displayed above other
-            relevant data in the plot area. It does not modify the figure layout from
-            Plotly.
-        frequency_units : str, optional
-            Frequency units that will be used in the plot title.
-            Default is rad/s.
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -4470,7 +4490,6 @@ class ForcedResponseResults(Results):
     def plot_deflected_shape(
         self,
         speed,
-        samples=101,
         frequency_units="rad/s",
         amplitude_units="m",
         phase_units="rad",
@@ -4493,9 +4512,6 @@ class ForcedResponseResults(Results):
         speed : float, pint.Quantity
             The rotor rotation speed. Must be an element from the speed_range argument
             passed to the class (rad/s).
-        samples : int, optional
-            Number of samples to generate the orbit for each node.
-            Default is 101.
         frequency_units : str, optional
             Frequency units.
             Default is "rad/s"
