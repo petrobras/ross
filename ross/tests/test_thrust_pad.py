@@ -31,7 +31,7 @@ def thrust_pad():
         n_radial=10,
         frequency=frequency,
         equilibrium_position_mode="calculate",
-        model_type="thermo-hydro-dynamic",
+        model_type="thermo_hydro_dynamic",
         fzs_load=13.320e6,
         radial_inclination_angle=radial_inclination_angle,
         circumferential_inclination_angle=circumferential_inclination_angle,

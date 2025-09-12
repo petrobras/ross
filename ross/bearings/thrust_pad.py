@@ -54,6 +54,9 @@ class ThrustPad(BearingElement):
         Equilibrium position calculation mode:
         - 'calculate': Calculate film thickness and inclination angles
         - 'imposed': Use imposed film thickness, calculate inclination angles
+    model_type : str, optional
+        Type of model to be used. Options:
+        - 'thermo_hydro_dynamic': Thermo-Hydro-Dynamic model
     radial_inclination_angle : float or Quantity
         Initial radial inclination angle. Default unit is radians.
     circumferential_inclination_angle : float or Quantity
@@ -169,7 +172,7 @@ class ThrustPad(BearingElement):
         radial_inclination_angle,
         circumferential_inclination_angle,
         initial_film_thickness,
-        model_type="thermo-hydro-dynamic",
+        model_type="thermo_hydro_dynamic",
         fzs_load=None,
         print_result=False,
         print_progress=False,
@@ -247,7 +250,7 @@ class ThrustPad(BearingElement):
         for i in range(n_freq):
             self.speed = self.frequency[i]
 
-            if self.model_type == "thermo-hydro-dynamic":
+            if self.model_type == "thermo_hydro_dynamic":
                 self.run_thermo_hydro_dynamic()
 
             kzz[i], czz[i] = self.kzz, self.czz
@@ -2010,7 +2013,7 @@ def thrust_pad_example():
         n_radial = 10,
         frequency = Q_([90], "RPM"),
         equilibrium_position_mode = "calculate",
-        model_type = "thermo-hydro-dynamic",
+        model_type = "thermo_hydro_dynamic",
         fzs_load = 13.320e6,
         radial_inclination_angle = Q_(-2.75e-04, "rad"),
         circumferential_inclination_angle = Q_(-1.70e-05, "rad"),
