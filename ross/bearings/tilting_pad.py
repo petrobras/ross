@@ -2,6 +2,7 @@ import time
 import numpy as np
 from scipy.optimize import fmin
 from plotly import graph_objects as go
+from prettytable import PrettyTable
 
 from ross.bearing_seal_element import BearingElement
 from ross.units import Q_, check_units
@@ -78,6 +79,8 @@ class TiltingPad(BearingElement):
         Print calculation progress. Default is False.
     print_time : bool, optional
         Print calculation time. Default is False.
+    compare_coefficients : bool, optional
+        Whether to compare dynamic coefficients by each frequency in a table. Default is False.
     **kwargs : dict, optional
         Additional keyword arguments.
 
@@ -171,6 +174,7 @@ class TiltingPad(BearingElement):
         print_progress=False,
         print_time=False,
         model_type="thermo_hydro_dynamic",
+        compare_coefficients=False,
         **kwargs,
     ):
 
@@ -230,6 +234,7 @@ class TiltingPad(BearingElement):
         self.print_result = print_result
         self.print_progress = print_progress
         self.print_time = print_time        
+        self.compare_coefficients = compare_coefficients
 
         # Lubricant properties setup
         if isinstance(lubricant, str):
@@ -287,6 +292,19 @@ class TiltingPad(BearingElement):
         super().__init__(
             n, kxx=kxx, cxx=cxx, kyy=kyy, kxy=kxy, kyx=kyx, cyy=cyy, cxy=cxy, cyx=cyx, frequency=frequency, **kwargs
             )
+        
+        if self.compare_coefficients:
+
+            comparison_table = self.format_table(
+                frequency=self.frequency,
+                coefficients=["kxx", "kxy", "kyx", "kyy", "cxx", "cxy", "cyx", "cyy"],
+                frequency_units="RPM",
+                stiffness_units="N/m",
+                damping_units="N*s/m"
+            )
+            
+            print(comparison_table)
+            print("="*60)
     
     def run_thermo_hydro_dynamic(self):
         """
