@@ -3,6 +3,7 @@ import numpy as np
 from scipy.optimize import fmin
 from scipy.interpolate import griddata
 import plotly.graph_objects as go
+from prettytable import PrettyTable
 
 from ross.bearing_seal_element import BearingElement
 from ross.units import Q_, check_units
@@ -10,111 +11,143 @@ from ross.plotly_theme import tableau_colors
 from ross.bearings.lubricants import lubricants_dict
 
 
-class THDThrust(BearingElement):
-    """ This class calculates the pressure and temperature fields, equilibrium
-    position of a tilting-pad thrust bearing. It is also possible to obtain the
-    stiffness and damping coefficients.
-    
+class ThrustPad(BearingElement):
+    """Thermo-Hydro-Dynamic (THD) Tilting Pad Thrust Bearing.
+
+    This class implements a comprehensive thermo-hydro-dynamic analysis for
+    tilting pad thrust bearings, calculating pressure and temperature fields,
+    equilibrium position, and dynamic coefficients (stiffness and damping).
+
+    The analysis solves the Reynolds equation for pressure distribution and
+    the energy equation for temperature field, considering viscosity variations
+    with temperature and turbulent effects.
+
     Parameters
     ----------
-    Bearing Geometry
-    ^^^^^^^^^^^^^^^^
-    Describes the geometric characteristics.
-    pad_inner_radius : float
-        Inner pad radius. Default unit is meter.
-    pad_outer_radius : float
-        Outer pad radius. Default unit is meter.
-    pad_pivot_radius : float
-        Pivot pad radius. Default unit is meter.
-    pad_arc_length : float
-          Arc length of each pad. The unit is degree.
-    angular_pivot_position : float
-          Angular pivot position. The unit is degree.
-    n_pad : integer
-         Number of pads
-    
-    Operating conditions
-    ^^^^^^^^^^^^^^^^^^^^
-    Describes the operating conditions of the bearing
-    frequency : float
-        Rotor rotating frequency. Default unit is rad/s
-    fz : Float
-        Axial load. The unit is Newton.
-    oil_supply_temperature : Float
-        Oil bath temperature. The unit is °C
-    x0  : array
-        Initial Equilibrium Position
-    
-    choice_CAIMP : string
-        Choose the operating condition that bearing is operating.
-        - "calc_h0"
-        - "impos_h0"
-    
-    if calc_h0
-        x0[2] is self.pivot_film_thickness -> optimization of radial_inclination_angle and circumferential_inclination_angle
-    
-    if impos_h0
-        x0 is overall initial values -> optimization of self.pivot_film_thickness, radial_inclination_angle and circumferential_inclination_angle
-    
-    Fluid properties
-    ^^^^^^^^^^^^^^^^
-    Describes the fluid characteristics.
-    
-    lubricant : str
-        Lubricant type. Can be:
-        - 'ISOVG32'
-        - 'ISOVG46'
-        - 'ISOVG68'
-        With it, we get:
-        rho :  Fluid specific mass. Default unit is kg/m^3.
-        kt  :  Fluid thermal conductivity. The unit is J/(s*m*°C).
-        cp  :  Fluid specific heat. The unit is J/(kg*°C).
-        
-        
-    k1, k2, and k3 : float
-        Oil coefficients for the viscosity interpolation.
-
-    Mesh discretization
-    ^^^^^^^^^^^^^^^^^^^
-    Describes the discretization of the fluid film
-    n_radial : int
-        Number of volumes along the radius direction.
+    n : int
+        Node number for the bearing element.
+    pad_inner_radius : float or Quantity
+        Inner radius of the pad. Default unit is meter.
+    pad_outer_radius : float or Quantity
+        Outer radius of the pad. Default unit is meter.
+    pad_pivot_radius : float or Quantity
+        Radius of the pivot point. Default unit is meter.
+    pad_arc_length : float or Quantity
+        Arc length of each pad. Default unit is degrees.
+    angular_pivot_position : float or Quantity
+        Angular position of the pivot point. Default unit is degrees.
+    oil_supply_temperature : float or Quantity
+        Oil supply temperature. Default unit is degrees Celsius.
+    lubricant : str or dict
+        Lubricant specification. Can be:
+        - String: 'ISOVG32', 'ISOVG46', 'ISOVG68'
+        - Dictionary: Custom lubricant properties
+    n_pad : int
+        Number of pads in the bearing.
     n_theta : int
-        Number of volumes along the theta direction. 
-    
-    
-    Returns
-    -------
-    Pmax : float
-          Maximum pressure. The unit is Pa.
-    Tmax : float
-          Maximum temperature. The unit is °C.
-    self.pivot_film_thickness : float
-          oil film thickness at the pivot point. The unit is m.
+        Number of mesh elements in circumferential direction.
+    n_radial : int
+        Number of mesh elements in radial direction.
+    frequency : array_like or Quantity
+        Rotor rotating frequency(ies). Default unit is rad/s.
+    equilibrium_position_mode : str
+        Equilibrium position calculation mode:
+        - 'calculate': Calculate film thickness and inclination angles
+        - 'imposed': Use imposed film thickness, calculate inclination angles
+    radial_inclination_angle : float or Quantity
+        Initial radial inclination angle. Default unit is radians.
+    circumferential_inclination_angle : float or Quantity
+        Initial circumferential inclination angle. Default unit is radians.
+    initial_film_thickness : float or Quantity
+        Initial film thickness at pivot point. Default unit is meters.
+    fzs_load : float, optional
+        Axial load applied to the bearing. Default is None.
+    print_result : bool, optional
+        Whether to print calculation results. Default is False.
+    print_progress : bool, optional
+        Whether to print convergence progress. Default is False.
+    print_time : bool, optional
+        Whether to print calculation time. Default is False.
+    compare_coefficients : bool, optional
+        Whether to compare dynamic coefficients by each frequency in a table. Default is False.
+    **kwargs
+        Additional keyword arguments passed to BearingElement.
+
+    Attributes
+    ----------
+    pressure_field_dimensional : ndarray
+        Dimensional pressure field [Pa]. Shape: (n_radial+2, n_theta+2)
+    temperature_field : ndarray
+        Temperature field [°C]. Shape: (n_radial+2, n_theta+2)
+    pivot_film_thickness : float
+        Oil film thickness at the pivot point [m]
     max_thickness : float
-         maximum oil film thickness. The unit is m.
+        Maximum oil film thickness [m]
     min_thickness : float
-         minimum oil film thickness. The unit is m.
-    K : float
-         bearing stiffness coefficient. The unit is N/m.
-    C : float
-         bearing damping coefficient. The unit is N.s/m.
-    pressure_field_dimensional : array
-         pressure field. The unit is Pa.
-    XH,YH : array
-         mesh grid. The uni is m.
-    TT : array
-         temperature field. The unit is °C.
-    dPdR : array 
+        Minimum oil film thickness [m]
+    kzz : ndarray
+        Axial stiffness coefficient [N/m]. Shape: (n_frequencies,)
+    czz : ndarray
+        Axial damping coefficient [N*s/m]. Shape: (n_frequencies,)
+    viscosity_field : ndarray
+        Viscosity field [Pa*s]. Shape: (n_radial, n_theta)
+    film_thickness_center_array : ndarray
+        Film thickness at cell centers. Shape: (n_radial, n_theta)
+
+    Notes
+    -----
+    The class implements a finite volume method to solve the Reynolds equation
+    and energy equation simultaneously. The solution includes:
+
+    1. Pressure Field: Solved using finite volume discretization of the
+       Reynolds equation with appropriate boundary conditions.
+
+    2. Temperature Field: Solved using the energy equation considering
+       viscous heating, convection, and conduction effects.
+
+    3. Viscosity Variation: Temperature-dependent viscosity using
+       exponential interpolation: μ = a * exp(b * T)
+
+    4. Equilibrium Position: Found by minimizing residual forces and
+       moments using scipy.optimize.fmin.
+
+    5. Dynamic Coefficients: Calculated using perturbation method
+       for stiffness and damping coefficients.
+
+    The mesh discretization uses a structured grid with n_radial by n_theta
+    control volumes. Boundary conditions include atmospheric pressure at
+    pad edges and oil supply temperature at boundaries.
+
+    Examples
+    --------
+    >>> from ross.bearings.thrust_pad import ThrustPad
+    >>> from ross.units import Q_
+    >>> bearing = ThrustPad(
+    ...     n=1,
+    ...     pad_inner_radius=Q_(1150, "mm"),
+    ...     pad_outer_radius=Q_(1725, "mm"),
+    ...     pad_pivot_radius=Q_(1442.5, "mm"),
+    ...     pad_arc_length=Q_(26, "deg"),
+    ...     angular_pivot_position=Q_(15, "deg"),
+    ...     oil_supply_temperature=Q_(40, "degC"),
+    ...     lubricant="ISOVG68",
+    ...     n_pad=12,
+    ...     n_theta=10,
+    ...     n_radial=10,
+    ...     frequency=Q_([90], "RPM"),
+    ...     equilibrium_position_mode="calculate",
+    ...     fzs_load=13.320e6,
+    ...     radial_inclination_angle=Q_(-2.75e-04, "rad"),
+    ...     circumferential_inclination_angle=Q_(-1.70e-05, "rad"),
+    ...     initial_film_thickness=Q_(0.2, "mm")
+    ... )
 
     References
     ----------
-    .. [1] BARBOSA, J.S. Analise de Modelos Termohidrodinamicos para Mancais de unidades geradoras Francis. 2016. Dissertacao de Mestrado. Universidade Federal de Uberlandia, Uberlandia. ..
-    .. [2] HEINRICHSON, N.; SANTOS, I. F.; FUERST, A., The Influence of Injection Pockets on the Performance of Tilting Pad Thrust Bearings Part I Theory. Journal of Tribology, 2007. .. 
-    .. [3] NICOLETTI, radius., Efeitos Termicos em Mancais Segmentados Hibridos Teoria e Experimento. 1999. Dissertacao de Mestrado. Universidade Estadual de Campinas, Campinas. ..
-    .. [4] LUND, J. W.; THOMSEN, K. K. A calculation method and data for the dynamic coefficients of oil lubricated journal bearings. Topics in fluid film bearing and rotor bearing system design and optimization, n. 1000118, 1978. ..
-    Attributes
-    ----------
+    .. [1] BARBOSA, J.S. Analise de Modelos Termohidrodinamicos para Mancais de unidades geradoras Francis. 2016. Dissertacao de Mestrado. Universidade Federal de Uberlandia, Uberlandia.
+    .. [2] HEINRICHSON, N.; SANTOS, I. F.; FUERST, A., The Influence of Injection Pockets on the Performance of Tilting Pad Thrust Bearings Part I Theory. Journal of Tribology, 2007.
+    .. [3] NICOLETTI, R., Efeitos Termicos em Mancais Segmentados Hibridos Teoria e Experimento. 1999. Dissertacao de Mestrado. Universidade Estadual de Campinas, Campinas.
+    .. [4] LUND, J. W.; THOMSEN, K. K. A calculation method and data for the dynamic coefficients of oil lubricated journal bearings. Topics in fluid film bearing and rotor bearing system design and optimization, n. 1000118, 1978.
     """
 
     @check_units
@@ -136,15 +169,20 @@ class THDThrust(BearingElement):
         radial_inclination_angle,
         circumferential_inclination_angle,
         initial_film_thickness,
+        model_type="thermo-hydro-dynamic",
         fzs_load=None,
         print_result=False,
         print_progress=False,
         print_time=False,
+        compare_coefficients=False,
+        **kwargs,
     ):
         self.print_result = print_result
         self.print_progress = print_progress
         self.print_time = print_time
+        self.compare_coefficients = compare_coefficients
 
+        self.model_type = model_type
         self.pad_inner_radius = pad_inner_radius
         self.pad_outer_radius = pad_outer_radius
         self.pad_pivot_radius = pad_pivot_radius
@@ -170,19 +208,6 @@ class THDThrust(BearingElement):
         self.initial_film_thickness = initial_film_thickness
         self.initial_position = np.array([radial_inclination_angle, circumferential_inclination_angle, initial_film_thickness])
         
-        # # Viscosity interpolation coefficients
-        # lubricant_properties = self.lub_selector()
-        # T_muI = lubricant_properties["temp1"] 
-        # T_muF = lubricant_properties["temp2"] 
-        # mu_I = lubricant_properties["viscosity1"]
-        # mu_F = lubricant_properties["viscosity2"]
-        # self.rho = lubricant_properties["lube_density"]
-        # self.kt = lubricant_properties["lube_conduct"]
-        # self.cp = lubricant_properties["lube_cp"]
-
-        # self.b_b = np.log(mu_I / mu_F) / (T_muI - T_muF)
-        # self.a_a = mu_I / (np.exp(T_muI * self.b_b))
-
         if isinstance(lubricant, str):
             if lubricant not in lubricants_dict:
                 raise KeyError(f"Lubricant {lubricant} not found in the database.")
@@ -209,23 +234,106 @@ class THDThrust(BearingElement):
         # Discretization of the mesh
         self.radius_array = np.linspace(1 + 0.5 * self.d_radius, 
                         1 + (self.n_radial - 0.5) * self.d_radius, 
-                        n_radial)
+                        self.n_radial)
         self.theta_array = np.linspace(0.5 * self.d_theta, 
                            (self.n_theta - 0.5) * self.d_theta, 
-                           n_theta)
+                           self.n_theta)
 
-        # n_freq = np.shape(frequency)[0]
+        n_freq = np.shape(frequency)[0]
 
-        # Run the calculation
-        self.run()
-        
+        kzz = np.zeros(n_freq)
+        czz = np.zeros(n_freq)
 
-    def run(self):
-        
-        """This method runs the calculation of the pressure and temperature field
-        in oil film of a tilting pad thrust bearing. It is also possible to obtain
-        the stiffness and damping coefficients. The inputs are the operation
-        conditions (see documentation)
+        for i in range(n_freq):
+            self.speed = self.frequency[i]
+
+            if self.model_type == "thermo-hydro-dynamic":
+                self.run_thermo_hydro_dynamic()
+
+            kzz[i], czz[i] = self.kzz, self.czz
+
+        super().__init__(
+            n, kxx = 0, cxx = 0, kzz=kzz, czz=czz, frequency=frequency, **kwargs
+        )
+
+        if self.compare_coefficients:
+            print("\n" + "="*60)
+            print("           DYNAMIC COEFFICIENTS COMPARISON TABLE")
+            print("="*60)
+
+            comparison_table = self.format_table(
+                frequency=self.frequency,
+                coefficients=["kzz", "czz"],
+                frequency_units="RPM",
+                stiffness_units="N/m",
+                damping_units="N*s/m"
+            )
+            
+            print(comparison_table)
+            print("="*60)
+
+    def run_thermo_hydro_dynamic(self):
+        """
+        Execute the complete thermo-hydrodynamic analysis for the tilting pad thrust bearing.
+
+        This method performs the main computational sequence for analyzing a tilting pad
+        thrust bearing, including pressure and temperature field calculations, equilibrium
+        position determination, and dynamic coefficient computation for each operating
+        frequency.
+
+        The analysis includes:
+        - Initialization of field arrays (pressure, temperature, film thickness)
+        - Iterative solution of Reynolds and energy equations
+        - Calculation of hydrodynamic forces and moments
+        - Computation of stiffness and damping coefficients
+        - Optional display of results
+
+        Parameters
+        ----------
+        None
+            This method uses the bearing parameters defined during initialization.
+
+        Returns
+        -------
+        None
+            Results are stored as instance attributes and optionally displayed.
+
+        Attributes
+        ----------
+        pressure_field_dimensional : ndarray
+            Dimensional pressure field [Pa]. Shape: (n_radial+2, n_theta+2).
+        temperature_field : ndarray
+            Temperature field [°C]. Shape: (n_radial+2, n_theta+2).
+        pivot_film_thickness : float
+            Oil film thickness at pivot point [m].
+        max_thickness : float
+            Maximum oil film thickness [m].
+        min_thickness : float
+            Minimum oil film thickness [m].
+        kzz : ndarray
+            Axial stiffness coefficient [N/m]. Shape: (n_frequencies,).
+        czz : ndarray
+            Axial damping coefficient [N*s/m]. Shape: (n_frequencies,).
+        viscosity_field : ndarray
+            Viscosity field [Pa*s]. Shape: (n_radial, n_theta).
+
+        Notes
+        -----
+        The method processes each frequency in the frequency array sequentially.
+        For each frequency, it:
+        1. Solves the pressure field using Reynolds equation with finite volume method
+        2. Solves the temperature field using energy equation considering viscous heating
+        3. Calculates dynamic coefficients using perturbation method
+        4. Stores results in instance attributes
+
+        The solution includes viscosity variation with temperature using exponential
+        interpolation: μ = a * exp(b * T), where a and b are temperature-dependent
+        coefficients calculated from lubricant properties.
+
+        Examples
+        --------
+        >>> from ross.bearings.thrust_pad import thrust_pad_example
+        >>> bearing = thrust_pad_example()
         """
         if self.print_time:
             t1 = time.time()
@@ -236,35 +344,100 @@ class THDThrust(BearingElement):
         # Calculate the dynamic coefficients
         self.coefficients()
 
+        # Display the results
         if self.print_result:
-            print("\n" + "="*75)
-            print("                         THRUST BEARING RESULTS")
-            print("="*75)
-            print("Operating Speed: {0:.1f} RPM".format(self.frequency * 30 / np.pi))
-            print("Equilibrium Mode: {0}".format(self.equilibrium_position_mode))
-            print("-" * 75)
-            print("Maximum Pressure: {0:.2f} Pa".format(self.pressure_field_dimensional.max()))
-            print("Maximum Temperature: {0:.1f}°C".format(self.temperature_field.max()))
-            print("Maximum Film Thickness: {0:.6f} m".format(self.max_thickness))
-            print("Minimum Film Thickness: {0:.6f} m".format(self.min_thickness))
-            print("Pivot Film Thickness: {0:.6f} m".format(self.pivot_film_thickness))
-            print("-" * 75)
-            
-            if self.equilibrium_position_mode == "imposed":
-                print("Axial Load: {0:.2f} N".format(self.fzs_load.sum()))
-            elif self.equilibrium_position_mode == "calculate":
-                print("Axial Load: {0:.2f} N".format(self.fzs_load))
-            
-            print("-" * 75)
-            print("Dynamic Coefficients:")
-            print("kzz = {0}".format(self.kzz))
-            print("czz = {0}".format(self.czz))
-            print("="*75)
-            # self.plot_results()
+            self.show_results()
+            self.plot_results()
     
         if self.print_time:
             t2 = time.time()
-            print("Calculation time spent: {0:.2f} seconds".format(t2 - t1))         
+            print("Calculation time spent: {0:.2f} seconds".format(t2 - t1))       
+
+    def show_results(self):
+        """Display thrust bearing calculation results in a formatted table.
+        
+        This method prints the main results from the thrust bearing analysis
+        using PrettyTable, including operating conditions, field results,
+        load information, and dynamic coefficients.
+        
+        Parameters
+        ----------
+        None
+            This method uses the bearing parameters and results stored as
+            instance attributes.
+        
+        Returns
+        -------
+        None
+            Results are printed to the console in a formatted table.
+        
+        Notes
+        -----
+        The displayed results include:
+        - Operating speed in RPM
+        - Equilibrium position mode
+        - Maximum and minimum pressure values
+        - Maximum and minimum temperature values
+        - Film thickness values (maximum, minimum, and pivot)
+        - Axial load information
+        - Dynamic coefficients (stiffness kzz and damping czz)
+        
+        Examples
+        --------
+        >>> from ross.bearings.thrust_pad import thrust_pad_example
+        >>> bearing = thrust_pad_example()
+        >>> bearing.show_results()
+        <BLANKLINE>
+        ================================================
+                    THRUST BEARING RESULTS
+        ================================================
+        +------------------------+-------------+-------+
+        |       Parameter        |    Value    |  Unit |
+        +------------------------+-------------+-------+
+        |    Operating Speed     |     90.0    |  RPM  |
+        |    Equilibrium Mode    |  calculate  |   -   |
+        |    Maximum Pressure    |  6957021.42 |   Pa  |
+        |  Maximum Temperature   |     70.4    |   °C  |
+        | Maximum Film Thickness |   0.000207  |   m   |
+        | Minimum Film Thickness |   0.000082  |   m   |
+        |  Pivot Film Thickness  |   0.000131  |   m   |
+        |       Axial Load       | 13320000.00 |   N   |
+        |    kzz (Stiffness)     |  3.1763e+11 |  N/m  |
+        |     czz (Damping)      |  1.0806e+10 | N*s/m |
+        +------------------------+-------------+-------+
+        ================================================
+        """
+
+        print("\n" + "="*48)
+        print("            THRUST BEARING RESULTS")
+        print("="*48)
+        
+        table = PrettyTable()
+        table.field_names = ["Parameter", "Value", "Unit"]
+        
+        # Operating conditions
+        table.add_row(["Operating Speed", f"{self.speed * 30 / np.pi:.1f}", "RPM"])
+        table.add_row(["Equilibrium Mode", self.equilibrium_position_mode, "-"])
+        
+        # Field results
+        table.add_row(["Maximum Pressure", f"{self.pressure_field_dimensional.max():.2f}", "Pa"])
+        table.add_row(["Maximum Temperature", f"{self.temperature_field.max():.1f}", "°C"])
+        table.add_row(["Maximum Film Thickness", f"{self.max_thickness:.6f}", "m"])
+        table.add_row(["Minimum Film Thickness", f"{self.min_thickness:.6f}", "m"])
+        table.add_row(["Pivot Film Thickness", f"{self.pivot_film_thickness:.6f}", "m"])
+        
+        # Load results
+        if self.equilibrium_position_mode == "imposed":
+            table.add_row(["Axial Load", f"{self.fzs_load.sum():.2f}", "N"])
+        elif self.equilibrium_position_mode == "calculate":
+            table.add_row(["Axial Load", f"{self.fzs_load:.2f}", "N"])
+        
+        # Dynamic coefficients
+        table.add_row(["kzz (Stiffness)", f"{self.kzz.item():.4e}", "N/m"])
+        table.add_row(["czz (Damping)", f"{self.czz.item():.4e}", "N*s/m"])
+        
+        print(table)
+        print("="*48)
 
     def solve_fields(self):
 
@@ -317,7 +490,7 @@ class THDThrust(BearingElement):
             dh_dT = 0
             mi_i = np.zeros((self.n_radial, self.n_theta))
 
-            # initial temperature field
+            # Initial temperature field
             T_i = self.initial_temperature
 
             for ii in range(0, self.n_radial):
@@ -342,7 +515,7 @@ class THDThrust(BearingElement):
                 radial_param = radial_inclination_angle * self.pad_inner_radius / self.pivot_film_thickness
                 circum_param = circumferential_inclination_angle * self.pad_inner_radius / self.pivot_film_thickness
 
-                # volumes number
+                # Volumes number
                 volumes_number = (self.n_radial) * (self.n_theta)
 
                 # Variable initialization
@@ -367,7 +540,7 @@ class THDThrust(BearingElement):
                 try:
                     self._solve_pressure_field(circum_param, radial_param, mat_coeff, source_term_vector)
                     if self.pressure_field is not None and self.pressure_field.ndim >= 1:
-                        pressure_field_dimensional[1:-1, 1:-1] = (self.pad_inner_radius ** 2 * self.frequency * 
+                        pressure_field_dimensional[1:-1, 1:-1] = (self.pad_inner_radius ** 2 * self.speed * 
                                              self.reference_viscosity / self.pivot_film_thickness ** 2) * np.flipud(self.pressure_field)
                     else:
                         raise ValueError("pressure_field is not a valid array")
@@ -378,10 +551,10 @@ class THDThrust(BearingElement):
                 radial_idx = 0
                 angular_idx = 0
 
-                # pressure vectorization index
+                # Pressure vectorization index
                 vectorization_idx = -1
 
-                # volumes number
+                # Volumes number
                 volumes_number = (self.n_radial) * (self.n_theta)
 
                 # Coefficients Matrix
@@ -484,14 +657,14 @@ class THDThrust(BearingElement):
                         # Difusive terms - central differences
                         diffusion_n = (
                             self.kt
-                            / (self.rho * self.cp * self.frequency * self.pad_inner_radius ** 2)
+                            / (self.rho * self.cp * self.speed * self.pad_inner_radius ** 2)
                             * (self.d_theta * radius_n)
                             / (self.d_radius)
                             * self.film_thickness_center_array[radial_idx, angular_idx]
                         )
                         diffusion_s = (
                             self.kt
-                            / (self.rho * self.cp * self.frequency * self.pad_inner_radius ** 2)
+                            / (self.rho * self.cp * self.speed * self.pad_inner_radius ** 2)
                             * (self.d_theta * radius_s)
                             / (self.d_radius)
                             * self.film_thickness_center_array[radial_idx, angular_idx]
@@ -499,7 +672,7 @@ class THDThrust(BearingElement):
                         diffusion_c1 = -(diffusion_n + diffusion_s)
                         diffusion_e = (
                             self.kt
-                            / (self.rho * self.cp * self.frequency * self.pad_inner_radius ** 2)
+                            / (self.rho * self.cp * self.speed * self.pad_inner_radius ** 2)
                             * self.d_radius
                             / (self.pad_arc_length ** 2 * self.d_theta)
                             * self.film_thickness_center_array[radial_idx, angular_idx]
@@ -507,7 +680,7 @@ class THDThrust(BearingElement):
                         )
                         diffusion_w = (
                             self.kt
-                            / (self.rho * self.cp * self.frequency * self.pad_inner_radius ** 2)
+                            / (self.rho * self.cp * self.speed * self.pad_inner_radius ** 2)
                             * self.d_radius
                             / (self.pad_arc_length ** 2 * self.d_theta)
                             * self.film_thickness_center_array[radial_idx, angular_idx]
@@ -576,9 +749,9 @@ class THDThrust(BearingElement):
 
                         source_term_vector[vectorization_idx, 0] = (
                             -source_f
-                            + (self.frequency * self.reference_viscosity * self.pad_inner_radius ** 2 / (self.rho * self.cp * self.pivot_film_thickness ** 2 * self.reference_temperature))
+                            + (self.speed * self.reference_viscosity * self.pad_inner_radius ** 2 / (self.rho * self.cp * self.pivot_film_thickness ** 2 * self.reference_temperature))
                             * (source_g - source_h - source_i - source_j)
-                            + (self.reference_viscosity * self.frequency / (self.rho * self.cp * self.reference_temperature))
+                            + (self.reference_viscosity * self.speed / (self.rho * self.cp * self.reference_temperature))
                             * (source_k - source_l - source_m - source_n - source_o)
                         )
 
@@ -668,7 +841,7 @@ class THDThrust(BearingElement):
             self.initial_temperature = temperature * self.reference_temperature
 
             # Dimensional pressure
-            pressure_dim = self.pressure_field* (self.pad_inner_radius ** 2) * self.frequency * self.reference_viscosity / (self.pivot_film_thickness ** 2)
+            pressure_dim = self.pressure_field* (self.pad_inner_radius ** 2) * self.speed * self.reference_viscosity / (self.pivot_film_thickness ** 2)
 
             # Resulting force and momentum: Equilibrium position
             radius_coords = self.pad_inner_radius * self.radius_array
@@ -739,7 +912,7 @@ class THDThrust(BearingElement):
         self._solve_pressure_field(circum_param, radial_param,  mat_coeff, source_term_vector)
 
         pressure_field_dimensional = np.zeros((self.n_radial + 2, self.n_theta + 2))
-        pressure_field_dimensional[1:-1, 1:-1] = (self.pad_inner_radius ** 2 * self.frequency * self.reference_viscosity / self.pivot_film_thickness ** 2) * np.flipud(self.pressure_field)
+        pressure_field_dimensional[1:-1, 1:-1] = (self.pad_inner_radius ** 2 * self.speed * self.reference_viscosity / self.pivot_film_thickness ** 2) * np.flipud(self.pressure_field)
         self.pressure_field_dimensional = pressure_field_dimensional
 
         self.max_thickness = np.max(self.pivot_film_thickness * self.film_thickness_center_array)
@@ -973,7 +1146,7 @@ class THDThrust(BearingElement):
                     pressure[ii, jj] = 0
 
         # Dimensional pressure
-        pressure_dim = pressure * (self.pad_inner_radius ** 2) * self.frequency *self. reference_viscosity / (self.pivot_film_thickness ** 2)
+        pressure_dim = pressure * (self.pad_inner_radius ** 2) * self.speed *self. reference_viscosity / (self.pivot_film_thickness ** 2)
 
         radius_coords = self.pad_inner_radius * self.radius_array
         theta_coords = self.pad_arc_length * self.theta_array
@@ -1214,48 +1387,6 @@ class THDThrust(BearingElement):
                 if self.pressure_field[ii, jj] < 0:
                     self.pressure_field[ii, jj] = 0
 
-
-    # def lub_selector(self):
-    #     lubricant_dict = {
-    #         "ISOVG32": {
-    #             "viscosity1": 0.027968,                               # Pa.s
-    #             "temp1": 40.0,                                    # degC
-    #             "viscosity2": 0.004667,                               # Pa. s
-    #             "temp2": 100.0,                                   # degC
-    #             "lube_density": 873.99629,                            # kg/m³
-    #             "lube_cp": 1948.7995685758851,                        # J/(kg*degC)
-    #             "lube_conduct": 0.13126,                              # W/(m*degC)
-    #         },
-    #         "ISOVG46": {
-    #             "viscosity1": 0.039693,                               # Pa.s
-    #             "temp1": 40.0,                                    # degC
-    #             "viscosity2": 0.006075,                               # Pa.s
-    #             "temp2": 100.00000,                                   # degC
-    #             "lube_density": 862.9,                                # kg/m³ 
-    #             "lube_cp": 1950,                                      # J/(kg*degC)
-    #             "lube_conduct": 0.15,                                 # W/(m*degC)
-    #         },
-    #         "ISOVG68": {
-    #             "viscosity1": 0.060248,                               # Pa.s = N*s/m²
-    #             "temp1": 40.00000,                                    # degC
-    #             "viscosity2": 0.0076196,                              # Pa.s = N*s/m²
-    #             "temp2": 100.00000,                                   # degC
-    #             "lube_density": 886.00,                               # kg/m³ 
-    #             "lube_cp": 1890.00,                                   # J/(kg*degC)
-    #             "lube_conduct": 0.1316,                               # W/(m*degC)
-    #         },
-    #         "TEST": {
-    #             "viscosity1": 0.02,                                   # Pa.s = N*s/m²
-    #             "temp1": 50.00,                                       # degC
-    #             "viscosity2": 0.01,                                   # Pa.s = N*s/m²
-    #             "temp2": 80.00,                                       # degC
-    #             "lube_density": 880.60,                               # kg/m³ 
-    #             "lube_cp": 1800,                                      # J/(kg*degC)
-    #             "lube_conduct": 0.1304                                # J/s*m*degC  --W/(m*degC)--
-    #         },
-    #     }
-    #     return lubricant_dict[self.lubricant]
-
     def _get_interp_coeffs(self, T_muI, T_muF, mu_I, mu_F):
         """
         Calculate viscosity interpolation coefficients.
@@ -1282,8 +1413,8 @@ class THDThrust(BearingElement):
 
     def coefficients(self):
 
-        perturbation_frequency = self.frequency
-        normalized_frequency = perturbation_frequency / self.frequency
+        perturbation_frequency = self.speed
+        normalized_frequency = perturbation_frequency / self.speed
 
         self.mu = (1 / self.reference_viscosity) * self.viscosity_field
 
@@ -1567,7 +1698,7 @@ class THDThrust(BearingElement):
                 pressure_field_coeff[ii, jj] = pressure_vector[pressure_idx, 0]
 
         # Dimensional pressure
-        pressure_coeff_dim = pressure_field_coeff * (self.pad_inner_radius ** 2) * self.frequency * self.reference_viscosity / (self.pivot_film_thickness ** 3)
+        pressure_coeff_dim = pressure_field_coeff * (self.pad_inner_radius ** 2) * self.speed * self.reference_viscosity / (self.pivot_film_thickness ** 3)
 
         # Resulting force and momentum: Equilibrium position
         radius_coords = self.pad_inner_radius * self.radius_array
@@ -1831,22 +1962,22 @@ class THDThrust(BearingElement):
         
         fig.show()
 
-def thrust_example():
+def thrust_pad_example():
     """Create an example of a thrust bearing with Thermo-Hydro-Dynamic effects.
     
-    This function creates and returns a THDThrust bearing instance with predefined
+    This function creates and returns a ThrustPad bearing instance with predefined
     parameters for demonstration purposes. The bearing is configured with 12 pads
     and operates at 90 RPM.
     
     Returns
     -------
-    bearing : THDThrust
+    bearing : ThrustPad
         A configured thrust bearing instance ready for analysis.
         
     Examples
     --------
-    >>> from ross.bearings.thrust import thrust_example
-    >>> bearing = thrust_example()
+    >>> from ross.bearings.thrust_pad import thrust_pad_example
+    >>> bearing = thrust_pad_example()
     
     Notes
     -----
@@ -1865,7 +1996,7 @@ def thrust_example():
     - Circumferential inclination angle: -1.70e-05 rad
     """
 
-    bearing = THDThrust(
+    bearing = ThrustPad(
         n = 1,      
         pad_inner_radius = Q_(1150, "mm"),
         pad_outer_radius = Q_(1725, "mm"),
@@ -1877,18 +2008,17 @@ def thrust_example():
         n_pad = 12,
         n_theta = 10,
         n_radial = 10,
-        frequency = Q_(90, "RPM"),
+        frequency = Q_([90], "RPM"),
         equilibrium_position_mode = "calculate",
+        model_type = "thermo-hydro-dynamic",
         fzs_load = 13.320e6,
         radial_inclination_angle = Q_(-2.75e-04, "rad"),
         circumferential_inclination_angle = Q_(-1.70e-05, "rad"),
         initial_film_thickness = Q_(0.2, "mm"),
-        print_result=True,
+        print_result=False,
         print_progress=False,
         print_time=False,
+        compare_coefficients=False,
     )
 
     return bearing
-
-if __name__ == "__main__":
-    thrust_example()
