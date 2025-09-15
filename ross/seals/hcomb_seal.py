@@ -3,6 +3,10 @@ import multiprocessing
 from ross import SealElement
 from ross.units import Q_, check_units
 from scipy.optimize import curve_fit
+try:    
+    import ccp
+except:
+    ccp = None
 
 __all__ = ["HoneycombSeal"]
 
@@ -145,7 +149,6 @@ class HoneycombSeal(SealElement):
         self.frequency = Q_(self.frequency, "rad/s").to("RPM").m
 
         if self.gas_composition is not None:
-            import ccp
             def sutherland_formula(T, b, S):
                 return (b * T ** (3 / 2)) / (S + T)
 

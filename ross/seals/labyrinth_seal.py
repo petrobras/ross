@@ -6,6 +6,10 @@ import multiprocessing
 from ross import SealElement
 from ross.units import check_units
 import multiprocessing
+try:    
+    import ccp
+except:
+    ccp = None
 
 __all__ = ["LabyrinthSeal"]
 
@@ -130,7 +134,6 @@ class LabyrinthSeal(SealElement):
         self.print_results = print_results
         self.gas_composition = gas_composition
         if self.gas_composition is not None:
-            import ccp
             state_in = ccp.State(
                 p=inlet_pressure, T=inlet_temperature, fluid=self.gas_composition
             )
