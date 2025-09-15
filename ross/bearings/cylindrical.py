@@ -234,14 +234,13 @@ class THDCylindrical(BearingElement):
         self.thetaF = self.betha_s
         self.dtheta = (self.thetaF - self.thetaI) / (self.elements_circumferential)
 
-        if self.method == "perturbation":
-            pad_ct = np.arange(0, 360, int(360 / self.n_pad))
-            self.thetaI = np.radians(pad_ct + 180 / self.n_pad - self.betha_s_dg / 2)
-            self.thetaF = np.radians(pad_ct + 180 / self.n_pad + self.betha_s_dg / 2)
-            self.theta_range = [
-                np.arange(start_rad + (self.dtheta / 2), end_rad, self.dtheta)
-                for start_rad, end_rad in zip(self.thetaI, self.thetaF)
-            ]
+        pad_ct = np.arange(0, 360, int(360 / self.n_pad))
+        self.thetaI = np.radians(pad_ct + 180 / self.n_pad - self.betha_s_dg / 2)
+        self.thetaF = np.radians(pad_ct + 180 / self.n_pad + self.betha_s_dg / 2)
+        self.theta_range = [
+            np.arange(start_rad + (self.dtheta / 2), end_rad, self.dtheta)
+            for start_rad, end_rad in zip(self.thetaI, self.thetaF)
+        ]
 
         # Dimensionless discretization variables
         self.dY = 1 / self.elements_circumferential
@@ -289,7 +288,7 @@ class THDCylindrical(BearingElement):
         )  # Interpolation function
         self.reference_viscosity = self.interpolate(self.reference_temperature)
 
-        # if self.geometry == "lobe":
+        # Pivot angle for lobe geometry
         self.theta_pivot = np.array([90, 270]) * np.pi / 180
 
         n_freq = np.shape(frequency)[0]
@@ -608,12 +607,12 @@ class THDCylindrical(BearingElement):
                     if self.theta_vol_groove[n_p] > 1:
                         self.theta_vol_groove[n_p] = 1
 
-        self.P = Pdim
-        self.T = Tdim
+        # self.P must receive the adimensional pressure field
+        self.P = Pdim * (self.radial_clearance**2) / (self.reference_viscosity * speed * (self.journal_radius**2))
         self.Theta_vol = Theta_vol
 
-        PPlot = self.P.reshape(self.elements_axial, -1, order="F")
-        TPlot = self.T.reshape(self.elements_axial, -1, order="F")
+        # Reshape dimensional pressure field from (axial, circumferential, pads) to (axial, all_other_dims)
+        PPlot = Pdim.reshape(self.elements_axial, -1, order="F")
 
         Ytheta = np.sort(
             np.linspace(
@@ -682,7 +681,7 @@ class THDCylindrical(BearingElement):
         def viscosity(x, a, b):
             return a * (x**b)
 
-        xdata = [T_muI, T_muF]  # changed boundary conditions to avoid division by ]
+        xdata = [T_muI, T_muF]  # changed boundary conditions to avoid division by zero
         ydata = [mu_I, mu_F]
 
         popt, pcov = curve_fit(viscosity, xdata, ydata, p0=(6.0, 1.0))
