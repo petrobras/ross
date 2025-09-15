@@ -3271,9 +3271,9 @@ class Rotor(object):
         ...    mis_distance=2e-4,
         ...    input_torque=0,
         ...    load_torque=0,
-        ...    num_modes=12,  # Pseudo-modal method
+        ...    model_reduction={"num_modes": 12},  # Pseudo-modal method
         ... )
-        Running pseudo-modal method, number of modes = 12
+        Running with model reduction: pseudomodal
         >>> probe1 = Probe(14, 0)
         >>> probe2 = Probe(22, 0)
         >>> fig1 = results.plot_1d([probe1, probe2])
@@ -3398,9 +3398,9 @@ class Rotor(object):
         ...    unbalance_phase=[-np.pi / 2, 0],
         ...    speed=Q_(1200, "RPM"),
         ...    t=np.arange(0, 0.5, 0.0001),
-        ...    num_modes=12,  # Pseudo-modal method
+        ...    model_reduction={"num_modes": 12},  # Pseudo-modal method
         ... )
-        Running pseudo-modal method, number of modes = 12
+        Running with model reduction: pseudomodal
         >>> probe1 = Probe(14, 0)
         >>> probe2 = Probe(22, 0)
         >>> fig1 = results.plot_1d([probe1, probe2])
@@ -3501,9 +3501,9 @@ class Rotor(object):
         ...    crack_model="Mayes",
         ...    speed=Q_(1200, "RPM"),
         ...    t=np.arange(0, 0.5, 0.0001),
-        ...    num_modes=12, # Pseudo-modal method
+        ...    model_reduction={"num_modes": 12},  # Pseudo-modal method
         ... )
-        Running pseudo-modal method, number of modes = 12
+        Running with model reduction: pseudomodal
         >>> probe1 = Probe(14, 0)
         >>> probe2 = Probe(22, 0)
         >>> fig1 = results.plot_1d([probe1, probe2])
