@@ -322,3 +322,36 @@ class Guyan(ModelReduction):
             array[self.reordering, :] = array_transf
 
         return array
+
+
+class Serep(Guyan):
+    def __init__(
+        self, rotor, speed, ndof_limit=24, include_dofs=[], include_nodes=[], **kwargs
+    ):
+        super().__init__(
+            rotor, speed, ndof_limit, include_dofs, include_nodes, **kwargs
+        )
+
+    def get_transformation_matrix(self):
+        """Build transformation matrix
+
+        Returns
+        -------
+        Tg : np.ndarray
+            Transformation matrix for Guyan method.
+        """
+        K = self.K
+        M = self.M
+
+        _, Phi = eigh(self._rearrange_matrix(K), self._rearrange_matrix(M))
+
+        n_selected = len(self.selected_dofs)
+        I = np.eye(n_selected)
+
+        Phi_mm = Phi[0:n_selected, 0:n_selected]
+        Phi_sm = Phi[n_selected:, 0:n_selected]
+
+        # Compute transformation matrix
+        Tserep = np.vstack((I, Phi_sm @ la.pinv(Phi_mm)))
+
+        return Tserep
