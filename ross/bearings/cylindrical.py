@@ -46,6 +46,9 @@ class PlainJournal(BearingElement):
         Choose the method to calculate the dynamics coefficients. Options are:
         - 'lund'
         - 'perturbation'
+    model_type : str, optional
+        Type of model to be used. Options:
+        - 'thermo_hydro_dynamic': Thermo-Hydro-Dynamic model
     print_progress : bool
         Set it True to print the score and forces on each iteration.
         False by default.
@@ -193,6 +196,7 @@ class PlainJournal(BearingElement):
         sommerfeld_type=2,
         initial_guess=[0.1, -0.1],
         method="perturbation",
+        model_type="thermo_hydro_dynamic",
         operating_type="flooded",
         oil_supply_pressure=None,
         oil_flow_v=None,
@@ -220,6 +224,7 @@ class PlainJournal(BearingElement):
         self.initial_guess = initial_guess
         self.method = method
         self.operating_type = operating_type
+        self.model_type = model_type
         self.oil_supply_pressure = oil_supply_pressure
         self.oil_flow_v = oil_flow_v
         self.show_coeffs = show_coeffs
@@ -306,7 +311,8 @@ class PlainJournal(BearingElement):
         for i in range(n_freq):
             speed = frequency[i]
 
-            self.run(speed)
+            if self.model_type == "thermo_hydro_dynamic":
+                self.run_thermo_hydro_dynamic(speed)
 
             coeffs = self.coefficients(speed)
             kxx[i], kxy[i], kyx[i], kyy[i] = coeffs[0]
@@ -631,7 +637,7 @@ class PlainJournal(BearingElement):
 
         return Fhx, Fhy
 
-    def run(self, speed):
+    def run_thermo_hydro_dynamic(self, speed):
         """This method runs the optimization to find the equilibrium position of
         the rotor's center.
         """
@@ -712,7 +718,7 @@ class PlainJournal(BearingElement):
         """
 
         if self.equilibrium_pos is None:
-            self.run(speed)
+            self.run_thermo_hydro_dynamic(speed)
             self.coefficients(speed)
         else:
             if self.method == "lund":
