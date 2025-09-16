@@ -180,8 +180,8 @@ class Guyan(ModelReduction):
     ...     include_dofs=[dofx, dofy]
     ... )
     >>> F_reduct = mr.reduce_vector(F.T).T
-    >>> la.norm(F_reduct) # doctest: +ELLIPSIS
-    1000.0...
+    >>> np.where(F_reduct[5000, :] != 0)[0] # doctest: +ELLIPSIS
+    array([5, 6])
     """
 
     def __init__(
