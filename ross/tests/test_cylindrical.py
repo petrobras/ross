@@ -1,7 +1,7 @@
 import pytest
 from numpy.testing import assert_allclose
 
-from ross.bearings.cylindrical import THDCylindrical
+from ross.bearings.cylindrical import PlainJournal
 from ross.units import Q_
 
 
@@ -11,7 +11,7 @@ def cylindrical():
     L = Q_(10.3600055944, "in")
     oil_flow = Q_(37.86, "l/min")
 
-    bearing = THDCylindrical(
+    bearing = PlainJournal(
         n=3,
         axial_length=L,
         journal_radius=0.2,

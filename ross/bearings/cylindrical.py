@@ -12,7 +12,7 @@ from ross.plotly_theme import tableau_colors
 from ross.bearings.lubricants import lubricants_dict
 
 
-class THDCylindrical(BearingElement):
+class PlainJournal(BearingElement):
     """This class calculates the pressure and temperature field in oil film of
     a cylindrical bearing. It is also possible to obtain the stiffness and
     damping coefficients.
@@ -111,7 +111,7 @@ class THDCylindrical(BearingElement):
 
     Returns
     -------
-    A THDCylindrical object.
+    A PlainJournal object.
 
     References
     ----------
@@ -138,8 +138,8 @@ class THDCylindrical(BearingElement):
 
     Example
     --------
-    >>> from ross.bearings.cylindrical import THDCylindrical
-    >>> bearing = THDCylindrical(
+    >>> from ross.bearings.cylindrical import PlainJournal
+    >>> bearing = PlainJournal(
     ...    n=3,
     ...    axial_length=0.263144,
     ...    journal_radius=0.2,
