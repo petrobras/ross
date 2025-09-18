@@ -134,10 +134,10 @@ def multi_rotor():
 
 def test_multi_rotor(multi_rotor):
     assert multi_rotor.contact_ratio == 1.6377334309511224
-    assert multi_rotor.gear_mesh_stiffness == 1.9188719759364796
+    assert multi_rotor.gear_mesh_stiffness == 1918871975.9364796
 
 
-def test_mass_matrix_gear(gear):
+def test_coupling_matrix_gear(multi_rotor):
     coupling_matrix = np.array(
         [
             [
@@ -311,4 +311,4 @@ def test_mass_matrix_gear(gear):
         ]
     )
 
-    assert_almost_equal(gear.coupling_matrix(), coupling_matrix, decimal=5)
+    assert_almost_equal(multi_rotor.coupling_matrix(), coupling_matrix, decimal=5)

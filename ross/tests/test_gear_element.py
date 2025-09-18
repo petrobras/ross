@@ -18,12 +18,12 @@ def gear():
         width=0.101,
         n_teeth=328,
         pitch_diameter=1.1,
-        pr_angle=Q_(22.5, "deg"),
+        pressure_angle=Q_(22.5, "deg"),
     )
 
 
 def test_gear_params(gear):
-    assert gear.pr_angle == 0.39269908169872414
+    assert gear.pressure_angle == 0.39269908169872414
     assert gear.base_radius == 0.5081337428812077
     assert gear.helix_angle == 0.0
     assert gear.material == steel
