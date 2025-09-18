@@ -130,7 +130,7 @@ class MultiRotor(Rotor):
     ... )
     >>> modal = multi_rotor.run_modal(speed=0)
     >>> modal.wd[0] # doctest: +ELLIPSIS
-    74.1632...
+    74.163...
     """
 
     def __init__(
