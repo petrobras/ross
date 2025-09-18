@@ -769,12 +769,12 @@ class Rotor(object):
         """Run modal analysis.
 
         Method to calculate eigenvalues and eigvectors for a given rotor system.
-        Tthe natural frequencies and dampings ratios are calculated for a given
+        The natural frequencies and dampings ratios are calculated for a given
         rotor speed. It means that for each speed input there's a different set of
         eigenvalues and eigenvectors, hence, different natural frequencies and damping
         ratios are returned.
         This method will return a ModalResults object which stores all data generated
-        and also provides so methods for plotting.
+        and also provides methods for plotting.
 
         Available plotting methods:
             .plot_mode_2d()

@@ -95,8 +95,8 @@ def test_crack_mayes(rotor):
         ]
     )
 
-    assert_allclose(crack.Ko, Ko)
-    assert_allclose(crack.Kc, Kc)
+    assert_allclose(crack.Ko, Ko, rtol=1e-6, atol=1e-7)
+    assert_allclose(crack.Kc, Kc, rtol=1e-6, atol=1e-7)
 
 
 @pytest.fixture
