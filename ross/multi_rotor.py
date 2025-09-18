@@ -178,13 +178,13 @@ class MultiRotor(Rotor):
 
         module_1 = gear_1.pitch_diameter / gear_1.n_teeth
         addendum_1 = 1 * module_1
-        radii_ad_1 = gear_1.pitch_diameter + addendum_1
-        radii_base_1 = gear_1.pitch_diameter * np.cos(gear_1.pressure_angle)
+        radii_ad_1 = (gear_1.pitch_diameter / 2) + addendum_1
+        radii_base_1 = (gear_1.pitch_diameter / 2) * np.cos(gear_1.pressure_angle)
 
         module_2 = gear_2.pitch_diameter / gear_2.n_teeth
         addendum_2 = 1 * module_2
-        radii_ad_2 = gear_2.pitch_diameter + addendum_2
-        radii_base_2 = gear_2.pitch_diameter * np.cos(gear_2.pressure_angle)
+        radii_ad_2 = (gear_2.pitch_diameter / 2) + addendum_2
+        radii_base_2 = (gear_2.pitch_diameter / 2) * np.cos(gear_2.pressure_angle)
 
         if round(module_1, 4) != round(module_2, 4):
             raise ValueError(
@@ -196,7 +196,7 @@ class MultiRotor(Rotor):
                 "The gear preasure angle must be the same for both gears in order to mesh properly."
             )
 
-        center_distance = gear_1.pitch_diameter + gear_2.pitch_diameter
+        center_distance = (gear_1.pitch_diameter / 2) + (gear_2.pitch_diameter / 2)
 
         contact_length = (
             np.sqrt(radii_ad_1**2 - radii_base_1**2)
