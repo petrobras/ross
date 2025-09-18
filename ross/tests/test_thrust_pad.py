@@ -4,6 +4,7 @@ from numpy.testing import assert_allclose
 from ross.bearings.thrust_pad import ThrustPad
 from ross.units import Q_
 
+
 @pytest.fixture
 def thrust_pad():
     frequency = Q_([90], "RPM")
@@ -16,7 +17,7 @@ def thrust_pad():
     radial_inclination_angle = Q_(-2.75e-04, "rad")
     circumferential_inclination_angle = Q_(-1.70e-05, "rad")
     initial_film_thickness = Q_(0.2, "mm")
-    
+
     bearing = ThrustPad(
         n=1,
         pad_inner_radius=pad_inner_radius,
@@ -68,18 +69,25 @@ def test_thrust_pad_coefficients(thrust_pad):
 def test_thrust_pad_field_results(thrust_pad):
     # Test pressure field results
     assert thrust_pad.pressure_field_dimensional is not None
-    assert thrust_pad.pressure_field_dimensional.shape == (thrust_pad.n_radial + 2, thrust_pad.n_theta + 2)
+    assert thrust_pad.pressure_field_dimensional.shape == (
+        thrust_pad.n_radial + 2,
+        thrust_pad.n_theta + 2,
+    )
     assert_allclose(thrust_pad.pressure_field_dimensional.max(), 6957021.42, rtol=0.01)
-    
+
     # Test temperature field results
     assert thrust_pad.temperature_field is not None
-    assert thrust_pad.temperature_field.shape == (thrust_pad.n_radial + 2, thrust_pad.n_theta + 2)
+    assert thrust_pad.temperature_field.shape == (
+        thrust_pad.n_radial + 2,
+        thrust_pad.n_theta + 2,
+    )
     assert_allclose(thrust_pad.temperature_field.max(), 70.4, rtol=0.01)
-    
+
     # Test film thickness results
     assert_allclose(thrust_pad.max_thickness, 0.000207, rtol=0.01)
     assert_allclose(thrust_pad.min_thickness, 0.000082, rtol=0.01)
     assert_allclose(thrust_pad.pivot_film_thickness, 0.000131, rtol=0.01)
+
 
 def test_thrust_pad_load(thrust_pad):
     assert_allclose(thrust_pad.fzs_load, 13320000.0, rtol=0.0001)
