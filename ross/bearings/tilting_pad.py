@@ -9,12 +9,12 @@ from ross.units import Q_, check_units
 from ross.plotly_theme import tableau_colors
 from ross.bearings.lubricants import lubricants_dict
 
-class TiltingPad(BearingElement):
 
+class TiltingPad(BearingElement):
     """This class calculates the pressure and temperature fields, equilibrium
     position of a tilting-pad journal bearing. It is also possible to obtain the
     stiffness and damping coefficients.
-    
+
     Parameters
     ----------
     n : int
@@ -34,7 +34,7 @@ class TiltingPad(BearingElement):
     lubricant : str or dict
         Lubricant type. Can be:
         - 'ISOVG32'
-        - 'ISOVG46' 
+        - 'ISOVG46'
         - 'ISOVG68'
         Or a dictionary with lubricant properties.
     oil_supply_temperature : float
@@ -95,7 +95,7 @@ class TiltingPad(BearingElement):
     .. [2] HEINRICHSON, N.; SANTOS, I. F.; FUERST, A., The Influence of Injection Pockets on the Performance of Tilting Pad Thrust Bearings Part I Theory. Journal of Tribology, 2007.
     .. [3] NICOLETTI, R., Efeitos Termicos em Mancais Segmentados Hibridos Teoria e Experimento. 1999. Dissertacao de Mestrado. Universidade Estadual de Campinas, Campinas.
     .. [4] LUND, J. W.; THOMSEN, K. K. A calculation method and data for the dynamic coefficients of oil lubricated journal bearings. Topics in fluid film bearing and rotor bearing system design and optimization, n. 1000118, 1978.
-    
+
     Attributes
     ----------
     kxx, kyy, kxy, kyx : float
@@ -126,7 +126,7 @@ class TiltingPad(BearingElement):
     >>> bearing = TiltingPad(
     ...     n=1,
     ...     frequency=Q_([3000], "RPM"),
-    ...     equilibrium_type="match_eccentricity", 
+    ...     equilibrium_type="match_eccentricity",
     ...     journal_diameter=101.6e-3,
     ...     radial_clearance=74.9e-6,
     ...     pad_thickness=12.7e-3,
@@ -145,7 +145,6 @@ class TiltingPad(BearingElement):
 
     @check_units
     def __init__(
-
         self,
         n,
         journal_diameter,
@@ -177,7 +176,6 @@ class TiltingPad(BearingElement):
         compare_coefficients=False,
         **kwargs,
     ):
-
         self.n = n
         self.n_link = n_link
         self.model_type = model_type
@@ -185,15 +183,17 @@ class TiltingPad(BearingElement):
         # Bearing Geometry
         self.journal_radius = journal_diameter / 2
         self.n_pad = len(pre_load)
-        self.radial_clearance = radial_clearance 
-        self.pad_radius = self.journal_radius + self.radial_clearance / (1 - pre_load[0])
+        self.radial_clearance = radial_clearance
+        self.pad_radius = self.journal_radius + self.radial_clearance / (
+            1 - pre_load[0]
+        )
         self.pad_thickness = pad_thickness
         self.pivot_angle = pivot_angle
         self.eccentricity = eccentricity
         self.attitude_angle = attitude_angle
         # Get the first value of the arrays
         self.pad_arc = pad_arc[0]
-        self.offset = offset[0] 
+        self.offset = offset[0]
         self.pad_axial_length = pad_axial_length[0]
 
         # Initial position of the journal
@@ -201,13 +201,13 @@ class TiltingPad(BearingElement):
         self.yj = yj
 
         # Initial position of the pivot
-        self.x_pt = 0  
+        self.x_pt = 0
         self.y_pt = 0
 
         # Operating conditions
         self.equilibrium_type = equilibrium_type
         self.oil_supply_temperature = Q_(oil_supply_temperature, "degK").m_as("degC")
-        self.reference_temperature = self.oil_supply_temperature 
+        self.reference_temperature = self.oil_supply_temperature
         self.lubricant = lubricant
         self.frequency = frequency
         self.speed = None
@@ -220,7 +220,7 @@ class TiltingPad(BearingElement):
         self.nz = nz
         self.z1 = -0.5
         self.z2 = 0.5
-        self.theta_1 = - self.offset * self.pad_arc
+        self.theta_1 = -self.offset * self.pad_arc
         self.theta_2 = (1 - self.offset) * self.pad_arc
         self.dtheta = (self.theta_2 - self.theta_1) / self.nx
         self.dz = (self.z2 - self.z1) / self.nz
@@ -233,7 +233,7 @@ class TiltingPad(BearingElement):
         # Print results
         self.print_result = print_result
         self.print_progress = print_progress
-        self.print_time = print_time        
+        self.print_time = print_time
         self.compare_coefficients = compare_coefficients
 
         # Lubricant properties setup
@@ -258,7 +258,7 @@ class TiltingPad(BearingElement):
         # Viscosity interpolation coefficients
         self.a_a, self.b_b = self._get_interp_coeffs(T_1, T_2, mu_1, mu_2)
         self.mu_0 = self.a_a * np.exp(self.b_b * self.oil_supply_temperature)
-        
+
         # Discretization of the mesh
         for ii in range(1, self.nz):
             self.xz[ii] = self.xz[ii - 1] + self.dz
@@ -285,27 +285,36 @@ class TiltingPad(BearingElement):
 
             if self.model_type == "thermo_hydro_dynamic":
                 self.run_thermo_hydro_dynamic()
-            
+
             kxx[i], kxy[i], kyx[i], kyy[i] = self.kxx, self.kxy, self.kyx, self.kyy
             cxx[i], cxy[i], cyx[i], cyy[i] = self.cxx, self.cxy, self.cyx, self.cyy
 
         super().__init__(
-            n, kxx=kxx, cxx=cxx, kyy=kyy, kxy=kxy, kyx=kyx, cyy=cyy, cxy=cxy, cyx=cyx, frequency=frequency, **kwargs
-            )
-        
-        if self.compare_coefficients:
+            n,
+            kxx=kxx,
+            cxx=cxx,
+            kyy=kyy,
+            kxy=kxy,
+            kyx=kyx,
+            cyy=cyy,
+            cxy=cxy,
+            cyx=cyx,
+            frequency=frequency,
+            **kwargs,
+        )
 
+        if self.compare_coefficients:
             comparison_table = self.format_table(
                 frequency=self.frequency,
                 coefficients=["kxx", "kxy", "kyx", "kyy", "cxx", "cxy", "cyx", "cyy"],
                 frequency_units="RPM",
                 stiffness_units="N/m",
-                damping_units="N*s/m"
+                damping_units="N*s/m",
             )
-            
+
             print(comparison_table)
-            print("="*60)
-    
+            print("=" * 60)
+
     def run_thermo_hydro_dynamic(self):
         """
         Execute the complete thermo-hydrodynamic analysis for the tilting pad bearing.
@@ -369,14 +378,21 @@ class TiltingPad(BearingElement):
         """
 
         if self.print_time:
-            t1 = time.time()        
+            t1 = time.time()
 
-        self.dimensionless_force = np.full(self.n_pad, 1 / (self.radial_clearance ** 2 / (self.pad_radius ** 3 * self.mu_0 * self.speed * self.pad_axial_length)))
-            
+        self.dimensionless_force = np.full(
+            self.n_pad,
+            1
+            / (
+                self.radial_clearance**2
+                / (self.pad_radius**3 * self.mu_0 * self.speed * self.pad_axial_length)
+            ),
+        )
+
         self._reset_force_arrays()
-                        
+
         maxP, medP, maxT, medT, h_pivot, ecc = self.solve_fields()
-            
+
         if self.print_result:
             print("Maximum Values:")
             print("-" * 75)
@@ -385,9 +401,9 @@ class TiltingPad(BearingElement):
             print("Eccentricity              : {:15.4f} [-]".format(ecc))
             print("Minimum Film Thickness    : {:15.8f} m".format(h_pivot))
             print("=" * 75)
-            
+
         self.coefficients()
-            
+
         if self.print_result:
             print("kxx = {0}".format(self.kxx))
             print("kxy = {0}".format(self.kxy))
@@ -398,10 +414,10 @@ class TiltingPad(BearingElement):
             print("cyx = {0}".format(self.cyx))
             print("cyy = {0}".format(self.cyy))
             self.plot_results()
-                    
+
         if self.print_time:
             t2 = time.time()
-            print("Calculation time spent: {0:.2f} seconds".format(t2-t1))
+            print("Calculation time spent: {0:.2f} seconds".format(t2 - t1))
 
     def coefficients(self):
         """
@@ -413,7 +429,7 @@ class TiltingPad(BearingElement):
         and calculating the resulting force changes.
 
         The method performs the following steps:
-        1. Applies four types of perturbations (x-displacement, y-displacement, 
+        1. Applies four types of perturbations (x-displacement, y-displacement,
         x-velocity, y-velocity) to each pad
         2. Solves the Reynolds and energy equations for each perturbation
         3. Calculates force differences due to perturbations
@@ -454,10 +470,10 @@ class TiltingPad(BearingElement):
         The perturbation method uses:
         - Space perturbation: 0.5% of radial clearance
         - Speed perturbation: 2.5% of operating speed × space perturbation
-        
+
         The method applies four perturbation types:
         - a_p = 0: X-displacement perturbation
-        - a_p = 1: Y-displacement perturbation  
+        - a_p = 1: Y-displacement perturbation
         - a_p = 2: X-velocity perturbation
         - a_p = 3: Y-velocity perturbation
 
@@ -534,7 +550,10 @@ class TiltingPad(BearingElement):
                 temperature_iteration = 1.1 * temperature_referance
                 cont_temp = 0
 
-                while abs((temperature_referance - temperature_iteration).max()) >= temperature_tolerance:
+                while (
+                    abs((temperature_referance - temperature_iteration).max())
+                    >= temperature_tolerance
+                ):
                     cont_temp += 1
                     temperature_iteration = np.array(temperature_referance)
 
@@ -569,9 +588,18 @@ class TiltingPad(BearingElement):
                                 self.pad_radius
                                 - self.journal_radius
                                 - (
-                                    np.sin(self.xtheta[jj]) * (yr + alpha * (self.pad_radius + self.pad_thickness))
+                                    np.sin(self.xtheta[jj])
+                                    * (
+                                        yr
+                                        + alpha * (self.pad_radius + self.pad_thickness)
+                                    )
                                     + np.cos(self.xtheta[jj])
-                                    * (xr + self.pad_radius - self.journal_radius - self.radial_clearance)
+                                    * (
+                                        xr
+                                        + self.pad_radius
+                                        - self.journal_radius
+                                        - self.radial_clearance
+                                    )
                                 )
                             ) / self.radial_clearance
 
@@ -579,8 +607,18 @@ class TiltingPad(BearingElement):
                                 self.pad_radius
                                 - self.journal_radius
                                 - (
-                                    np.sin(teta_e) * (yr + alpha * (self.pad_radius + self.pad_thickness))
-                                    + np.cos(teta_e) * (xr + self.pad_radius - self.journal_radius - self.radial_clearance)
+                                    np.sin(teta_e)
+                                    * (
+                                        yr
+                                        + alpha * (self.pad_radius + self.pad_thickness)
+                                    )
+                                    + np.cos(teta_e)
+                                    * (
+                                        xr
+                                        + self.pad_radius
+                                        - self.journal_radius
+                                        - self.radial_clearance
+                                    )
                                 )
                             ) / self.radial_clearance
 
@@ -588,20 +626,30 @@ class TiltingPad(BearingElement):
                                 self.pad_radius
                                 - self.journal_radius
                                 - (
-                                    np.sin(teta_w) * (yr + alpha * (self.pad_radius + self.pad_thickness))
-                                    + np.cos(teta_w) * (xr + self.pad_radius - self.journal_radius - self.radial_clearance)
+                                    np.sin(teta_w)
+                                    * (
+                                        yr
+                                        + alpha * (self.pad_radius + self.pad_thickness)
+                                    )
+                                    + np.cos(teta_w)
+                                    * (
+                                        xr
+                                        + self.pad_radius
+                                        - self.journal_radius
+                                        - self.radial_clearance
+                                    )
                                 )
                             ) / self.radial_clearance
 
                             h_n = h_p
                             h_s = h_p
 
-                            h_pt = -(
-                                1 / (self.radial_clearance * self.speed)
-                            ) * (
+                            h_pt = -(1 / (self.radial_clearance * self.speed)) * (
                                 np.cos(self.xtheta[jj]) * xrpt
                                 + np.sin(self.xtheta[jj]) * yrpt
-                                + np.sin(self.xtheta[jj]) * (self.pad_radius + self.pad_thickness) * alphapt
+                                + np.sin(self.xtheta[jj])
+                                * (self.pad_radius + self.pad_thickness)
+                                * alphapt
                             )
 
                             self.h[ii, jj] = h_p
@@ -661,15 +709,31 @@ class TiltingPad(BearingElement):
                                 mi_n = mi[ii, jj]
                                 mi_s = 0.5 * (mi[ii, jj] + mi[ii - 1, jj])
 
-                            c_e = (1 / (self.pad_arc**2)) * (h_e**3 / (12 * mi_e)) * (self.dz / self.dx)
-                            c_w = (1 / (self.pad_arc**2)) * (h_w**3 / (12 * mi_w)) * (self.dz / self.dx)
-                            c_n = (self.pad_radius / self.pad_axial_length) ** 2 * (self.dx / self.dz) * (h_n**3 / (12 * mi_n))
-                            c_s = (self.pad_radius / self.pad_axial_length) ** 2 * (self.dx / self.dz) * (h_s**3 / (12 * mi_s))
+                            c_e = (
+                                (1 / (self.pad_arc**2))
+                                * (h_e**3 / (12 * mi_e))
+                                * (self.dz / self.dx)
+                            )
+                            c_w = (
+                                (1 / (self.pad_arc**2))
+                                * (h_w**3 / (12 * mi_w))
+                                * (self.dz / self.dx)
+                            )
+                            c_n = (
+                                (self.pad_radius / self.pad_axial_length) ** 2
+                                * (self.dx / self.dz)
+                                * (h_n**3 / (12 * mi_n))
+                            )
+                            c_s = (
+                                (self.pad_radius / self.pad_axial_length) ** 2
+                                * (self.dx / self.dz)
+                                * (h_s**3 / (12 * mi_s))
+                            )
                             c_p = -(c_e + c_w + c_n + c_s)
                             b_val = (
-                                (self.journal_radius / (2 * self.pad_radius * self.pad_arc)) * self.dz * (h_e - h_w)
-                                + h_pt * self.dx * self.dz
-                            )
+                                self.journal_radius
+                                / (2 * self.pad_radius * self.pad_arc)
+                            ) * self.dz * (h_e - h_w) + h_pt * self.dx * self.dz
                             b_vec[k_idx] = b_val
 
                             # fill mat_coef according to mesh location
@@ -742,46 +806,82 @@ class TiltingPad(BearingElement):
                     n_k = self.nx * self.nz
                     mat_coef_t = np.zeros((n_k, n_k))
                     b_t = np.zeros(n_k)
-                    test_diag = np.zeros(n_k)  
+                    test_diag = np.zeros(n_k)
 
-                    k_t_idx = 0 
+                    k_t_idx = 0
                     for ii in range(self.nz):
                         for jj in range(self.nx):
                             if jj == 0 and ii == 0:
-                                self.dp_dx[ii, jj] = (self.pressure[ii, jj + 1] - self.pressure[ii, jj]) / self.dx
-                                self.dp_dz[ii, jj] = (self.pressure[ii + 1, jj] - self.pressure[ii, jj]) / self.dz
+                                self.dp_dx[ii, jj] = (
+                                    self.pressure[ii, jj + 1] - self.pressure[ii, jj]
+                                ) / self.dx
+                                self.dp_dz[ii, jj] = (
+                                    self.pressure[ii + 1, jj] - self.pressure[ii, jj]
+                                ) / self.dz
 
                             if jj == 0 and 0 < ii < self.nz - 1:
-                                self.dp_dx[ii, jj] = (self.pressure[ii, jj + 1] - self.pressure[ii, jj]) / self.dx
-                                self.dp_dz[ii, jj] = (self.pressure[ii + 1, jj] - self.pressure[ii, jj]) / self.dz
+                                self.dp_dx[ii, jj] = (
+                                    self.pressure[ii, jj + 1] - self.pressure[ii, jj]
+                                ) / self.dx
+                                self.dp_dz[ii, jj] = (
+                                    self.pressure[ii + 1, jj] - self.pressure[ii, jj]
+                                ) / self.dz
 
                             if jj == 0 and ii == self.nz - 1:
-                                self.dp_dx[ii, jj] = (self.pressure[ii, jj + 1] - self.pressure[ii, jj]) / self.dx
-                                self.dp_dz[ii, jj] = (0 - self.pressure[ii, jj]) / self.dz
+                                self.dp_dx[ii, jj] = (
+                                    self.pressure[ii, jj + 1] - self.pressure[ii, jj]
+                                ) / self.dx
+                                self.dp_dz[ii, jj] = (
+                                    0 - self.pressure[ii, jj]
+                                ) / self.dz
 
                             if ii == 0 and 0 < jj < self.nx - 1:
-                                self.dp_dx[ii, jj] = (self.pressure[ii, jj + 1] - self.pressure[ii, jj]) / self.dx
-                                self.dp_dz[ii, jj] = (self.pressure[ii + 1, jj] - self.pressure[ii, jj]) / self.dz
+                                self.dp_dx[ii, jj] = (
+                                    self.pressure[ii, jj + 1] - self.pressure[ii, jj]
+                                ) / self.dx
+                                self.dp_dz[ii, jj] = (
+                                    self.pressure[ii + 1, jj] - self.pressure[ii, jj]
+                                ) / self.dz
 
                             if 0 < jj < self.nx - 1 and 0 < ii < self.nz - 1:
-                                self.dp_dx[ii, jj] = (self.pressure[ii, jj + 1] - self.pressure[ii, jj]) / self.dx
-                                self.dp_dz[ii, jj] = (self.pressure[ii + 1, jj] - self.pressure[ii, jj]) / self.dz
+                                self.dp_dx[ii, jj] = (
+                                    self.pressure[ii, jj + 1] - self.pressure[ii, jj]
+                                ) / self.dx
+                                self.dp_dz[ii, jj] = (
+                                    self.pressure[ii + 1, jj] - self.pressure[ii, jj]
+                                ) / self.dz
 
                             if ii == self.nz - 1 and 0 < jj < self.nx - 1:
-                                self.dp_dx[ii, jj] = (self.pressure[ii, jj + 1] - self.pressure[ii, jj]) / self.dx
-                                self.dp_dz[ii, jj] = (0 - self.pressure[ii, jj]) / self.dz
+                                self.dp_dx[ii, jj] = (
+                                    self.pressure[ii, jj + 1] - self.pressure[ii, jj]
+                                ) / self.dx
+                                self.dp_dz[ii, jj] = (
+                                    0 - self.pressure[ii, jj]
+                                ) / self.dz
 
                             if ii == 0 and jj == self.nx - 1:
-                                self.dp_dx[ii, jj] = (0 - self.pressure[ii, jj]) / self.dx
-                                self.dp_dz[ii, jj] = (self.pressure[ii + 1, jj] - self.pressure[ii, jj]) / self.dz
+                                self.dp_dx[ii, jj] = (
+                                    0 - self.pressure[ii, jj]
+                                ) / self.dx
+                                self.dp_dz[ii, jj] = (
+                                    self.pressure[ii + 1, jj] - self.pressure[ii, jj]
+                                ) / self.dz
 
                             if jj == self.nx - 1 and 0 < ii < self.nz - 1:
-                                self.dp_dx[ii, jj] = (0 - self.pressure[ii, jj]) / self.dx
-                                self.dp_dz[ii, jj] = (self.pressure[ii + 1, jj] - self.pressure[ii, jj]) / self.dz
+                                self.dp_dx[ii, jj] = (
+                                    0 - self.pressure[ii, jj]
+                                ) / self.dx
+                                self.dp_dz[ii, jj] = (
+                                    self.pressure[ii + 1, jj] - self.pressure[ii, jj]
+                                ) / self.dz
 
                             if jj == self.nx - 1 and ii == self.nz - 1:
-                                self.dp_dx[ii, jj] = (0 - self.pressure[ii, jj]) / self.dx
-                                self.dp_dz[ii, jj] = (0 - self.pressure[ii, jj]) / self.dz
+                                self.dp_dx[ii, jj] = (
+                                    0 - self.pressure[ii, jj]
+                                ) / self.dx
+                                self.dp_dz[ii, jj] = (
+                                    0 - self.pressure[ii, jj]
+                                ) / self.dz
 
                             # Turbulence modeling (Eddy viscosity)
                             h_p_loc = self.h[ii, jj]
@@ -799,14 +899,23 @@ class TiltingPad(BearingElement):
                             if self.reynolds_field[ii, jj, n_p] <= 500:
                                 delta_turb = 0
                             elif 400 < self.reynolds_field[ii, jj, n_p] <= 1000:
-                                delta_turb = 1 - ((1000 - self.reynolds_field[ii, jj, n_p]) / 500) ** (1 / 8)
+                                delta_turb = 1 - (
+                                    (1000 - self.reynolds_field[ii, jj, n_p]) / 500
+                                ) ** (1 / 8)
                             else:
                                 delta_turb = 1
 
-                            du_dx = ((h_p_loc / self.mu_turb[ii, jj, n_p]) * self.dp_dx[ii, jj]) - (self.speed / h_p_loc)
-                            dw_dx = (h_p_loc / self.mu_turb[ii, jj, n_p]) * self.dp_dz[ii, jj]
+                            du_dx = (
+                                (h_p_loc / self.mu_turb[ii, jj, n_p])
+                                * self.dp_dx[ii, jj]
+                            ) - (self.speed / h_p_loc)
+                            dw_dx = (h_p_loc / self.mu_turb[ii, jj, n_p]) * self.dp_dz[
+                                ii, jj
+                            ]
 
-                            tau = self.mu_turb[ii, jj, n_p] * np.sqrt(du_dx**2 + dw_dx**2)
+                            tau = self.mu_turb[ii, jj, n_p] * np.sqrt(
+                                du_dx**2 + dw_dx**2
+                            )
                             y_wall = (
                                 (h_p_loc * self.radial_clearance * 2)
                                 / (self.mu_0 * self.mu_turb[ii, jj, n_p] / self.rho)
@@ -822,38 +931,75 @@ class TiltingPad(BearingElement):
                                 aux_up = 0
 
                             a_e = -(self.kt * h_p_loc * self.dz) / (
-                                self.rho * self.cp * self.speed * ((self.pad_arc * self.pad_radius) ** 2) * self.dx
+                                self.rho
+                                * self.cp
+                                * self.speed
+                                * ((self.pad_arc * self.pad_radius) ** 2)
+                                * self.dx
                             )
 
                             a_w = (
-                                ((h_p_loc**3) * self.dp_dx[ii, jj] * self.dz) / (12 * mi_t * (self.pad_arc**2))
-                                - ((self.journal_radius * h_p_loc * self.dz) / (2 * self.pad_radius * self.pad_arc))
+                                ((h_p_loc**3) * self.dp_dx[ii, jj] * self.dz)
+                                / (12 * mi_t * (self.pad_arc**2))
+                                - (
+                                    (self.journal_radius * h_p_loc * self.dz)
+                                    / (2 * self.pad_radius * self.pad_arc)
+                                )
                                 - (self.kt * h_p_loc * self.dz)
-                                / (self.rho * self.cp * self.speed * ((self.pad_arc * self.pad_radius) ** 2) * self.dx)
+                                / (
+                                    self.rho
+                                    * self.cp
+                                    * self.speed
+                                    * ((self.pad_arc * self.pad_radius) ** 2)
+                                    * self.dx
+                                )
                             )
 
                             a_n_1 = (aux_up - 1) * (
-                                ((self.pad_radius**2) * (h_p_loc**3) * self.dp_dz[ii, jj] * self.dx)
+                                (
+                                    (self.pad_radius**2)
+                                    * (h_p_loc**3)
+                                    * self.dp_dz[ii, jj]
+                                    * self.dx
+                                )
                                 / (12 * (self.pad_axial_length**2) * mi_t)
                             )
                             a_s_1 = (aux_up) * (
-                                ((self.pad_radius**2) * (h_p_loc**3) * self.dp_dz[ii, jj] * self.dx)
+                                (
+                                    (self.pad_radius**2)
+                                    * (h_p_loc**3)
+                                    * self.dp_dz[ii, jj]
+                                    * self.dx
+                                )
                                 / (12 * (self.pad_axial_length**2) * mi_t)
                             )
 
-                            a_n_2 = -(
-                                self.kt * h_p_loc * self.dx
-                            ) / (self.rho * self.cp * self.speed * (self.pad_axial_length**2) * self.dz)
+                            a_n_2 = -(self.kt * h_p_loc * self.dx) / (
+                                self.rho
+                                * self.cp
+                                * self.speed
+                                * (self.pad_axial_length**2)
+                                * self.dz
+                            )
 
-                            a_s_2 = -(
-                                self.kt * h_p_loc * self.dx
-                            ) / (self.rho * self.cp * self.speed * (self.pad_axial_length**2) * self.dz)
+                            a_s_2 = -(self.kt * h_p_loc * self.dx) / (
+                                self.rho
+                                * self.cp
+                                * self.speed
+                                * (self.pad_axial_length**2)
+                                * self.dz
+                            )
 
                             a_n = a_n_1 + a_n_2
                             a_s = a_s_1 + a_s_2
                             a_p_coef = -(a_e + a_w + a_n + a_s)
 
-                            aux_b_t = (self.speed * self.mu_0) / (self.rho * self.cp * self.oil_supply_temperature * self.radial_clearance)
+                            aux_b_t = (self.speed * self.mu_0) / (
+                                self.rho
+                                * self.cp
+                                * self.oil_supply_temperature
+                                * self.radial_clearance
+                            )
 
                             b_t_g = (
                                 self.mu_0
@@ -863,7 +1009,12 @@ class TiltingPad(BearingElement):
                                 * self.dz
                                 * self.pressure[ii, jj]
                                 * h_pt
-                            ) / (self.rho * self.cp * self.reference_temperature * (self.radial_clearance ** 2))
+                            ) / (
+                                self.rho
+                                * self.cp
+                                * self.reference_temperature
+                                * (self.radial_clearance**2)
+                            )
 
                             b_t_h = (
                                 self.speed
@@ -873,19 +1024,59 @@ class TiltingPad(BearingElement):
                                 * mi_t
                                 * self.dx
                                 * self.dz
-                            ) / (self.rho * self.cp * self.reference_temperature * 3 * h_p_loc)
-
-                            b_t_i = aux_b_t * (1 * mi_t * (self.journal_radius**2) * self.dx * self.dz) / (
-                                h_p_loc * self.radial_clearance
+                            ) / (
+                                self.rho
+                                * self.cp
+                                * self.reference_temperature
+                                * 3
+                                * h_p_loc
                             )
 
-                            b_t_j = aux_b_t * (
-                                (self.pad_radius**2) * (h_p_loc**3) * (self.dp_dx[ii, jj] ** 2) * self.dx * self.dz
-                            ) / (12 * self.radial_clearance * (self.pad_arc**2) * mi_t)
+                            b_t_i = (
+                                aux_b_t
+                                * (
+                                    1
+                                    * mi_t
+                                    * (self.journal_radius**2)
+                                    * self.dx
+                                    * self.dz
+                                )
+                                / (h_p_loc * self.radial_clearance)
+                            )
 
-                            b_t_k = aux_b_t * (
-                                (self.pad_radius**4) * (h_p_loc**3) * (self.dp_dz[ii, jj] ** 2) * self.dx * self.dz
-                            ) / (12 * self.radial_clearance * (self.pad_axial_length**2) * mi_t)
+                            b_t_j = (
+                                aux_b_t
+                                * (
+                                    (self.pad_radius**2)
+                                    * (h_p_loc**3)
+                                    * (self.dp_dx[ii, jj] ** 2)
+                                    * self.dx
+                                    * self.dz
+                                )
+                                / (
+                                    12
+                                    * self.radial_clearance
+                                    * (self.pad_arc**2)
+                                    * mi_t
+                                )
+                            )
+
+                            b_t_k = (
+                                aux_b_t
+                                * (
+                                    (self.pad_radius**4)
+                                    * (h_p_loc**3)
+                                    * (self.dp_dz[ii, jj] ** 2)
+                                    * self.dx
+                                    * self.dz
+                                )
+                                / (
+                                    12
+                                    * self.radial_clearance
+                                    * (self.pad_axial_length**2)
+                                    * mi_t
+                                )
+                            )
 
                             b_t_val = b_t_g + b_t_h + b_t_i + b_t_j + b_t_k
                             b_t[k_t_idx] = b_t_val
@@ -895,10 +1086,13 @@ class TiltingPad(BearingElement):
                                 mat_coef_t[k_t_idx, k_t_idx] = a_p_coef + a_s - a_w
                                 mat_coef_t[k_t_idx, k_t_idx + 1] = a_e
                                 mat_coef_t[k_t_idx, k_t_idx + self.nx] = a_n
-                                b_t[k_t_idx] = b_t[k_t_idx] - 2 * a_w * (self.oil_supply_temperature / self.reference_temperature)
-                                test_diag[k_t_idx] = (
-                                    mat_coef_t[k_t_idx, k_t_idx]
-                                    - (mat_coef_t[k_t_idx, k_t_idx + 1] + mat_coef_t[k_t_idx, k_t_idx + self.nx])
+                                b_t[k_t_idx] = b_t[k_t_idx] - 2 * a_w * (
+                                    self.oil_supply_temperature
+                                    / self.reference_temperature
+                                )
+                                test_diag[k_t_idx] = mat_coef_t[k_t_idx, k_t_idx] - (
+                                    mat_coef_t[k_t_idx, k_t_idx + 1]
+                                    + mat_coef_t[k_t_idx, k_t_idx + self.nx]
                                 )
 
                             if ii == 0 and 0 < jj < self.nx - 1:
@@ -906,22 +1100,19 @@ class TiltingPad(BearingElement):
                                 mat_coef_t[k_t_idx, k_t_idx + 1] = a_e
                                 mat_coef_t[k_t_idx, k_t_idx - 1] = a_w
                                 mat_coef_t[k_t_idx, k_t_idx + self.nx] = a_n
-                                test_diag[k_t_idx] = (
-                                    mat_coef_t[k_t_idx, k_t_idx]
-                                    - (
-                                        mat_coef_t[k_t_idx, k_t_idx + 1]
-                                        + mat_coef_t[k_t_idx, k_t_idx - 1]
-                                        + mat_coef_t[k_t_idx, k_t_idx + self.nx]
-                                    )
+                                test_diag[k_t_idx] = mat_coef_t[k_t_idx, k_t_idx] - (
+                                    mat_coef_t[k_t_idx, k_t_idx + 1]
+                                    + mat_coef_t[k_t_idx, k_t_idx - 1]
+                                    + mat_coef_t[k_t_idx, k_t_idx + self.nx]
                                 )
 
                             if ii == 0 and jj == self.nx - 1:
                                 mat_coef_t[k_t_idx, k_t_idx] = a_p_coef + a_e + a_s
                                 mat_coef_t[k_t_idx, k_t_idx - 1] = a_w
                                 mat_coef_t[k_t_idx, k_t_idx + self.nx] = a_n
-                                test_diag[k_t_idx] = (
-                                    mat_coef_t[k_t_idx, k_t_idx]
-                                    - (mat_coef_t[k_t_idx, k_t_idx - 1] + mat_coef_t[k_t_idx, k_t_idx + self.nx])
+                                test_diag[k_t_idx] = mat_coef_t[k_t_idx, k_t_idx] - (
+                                    mat_coef_t[k_t_idx, k_t_idx - 1]
+                                    + mat_coef_t[k_t_idx, k_t_idx + self.nx]
                                 )
 
                             if jj == 0 and 0 < ii < self.nz - 1:
@@ -929,14 +1120,14 @@ class TiltingPad(BearingElement):
                                 mat_coef_t[k_t_idx, k_t_idx + 1] = a_e
                                 mat_coef_t[k_t_idx, k_t_idx - self.nx] = a_s
                                 mat_coef_t[k_t_idx, k_t_idx + self.nx] = a_n
-                                b_t[k_t_idx] = b_t[k_t_idx] - 2 * a_w * (self.oil_supply_temperature / self.reference_temperature)
-                                test_diag[k_t_idx] = (
-                                    mat_coef_t[k_t_idx, k_t_idx]
-                                    - (
-                                        mat_coef_t[k_t_idx, k_t_idx + 1]
-                                        + mat_coef_t[k_t_idx, k_t_idx - 1]
-                                        + mat_coef_t[k_t_idx, k_t_idx + self.nx]
-                                    )
+                                b_t[k_t_idx] = b_t[k_t_idx] - 2 * a_w * (
+                                    self.oil_supply_temperature
+                                    / self.reference_temperature
+                                )
+                                test_diag[k_t_idx] = mat_coef_t[k_t_idx, k_t_idx] - (
+                                    mat_coef_t[k_t_idx, k_t_idx + 1]
+                                    + mat_coef_t[k_t_idx, k_t_idx - 1]
+                                    + mat_coef_t[k_t_idx, k_t_idx + self.nx]
                                 )
 
                             if 0 < ii < self.nz - 1 and 0 < jj < self.nx - 1:
@@ -945,14 +1136,11 @@ class TiltingPad(BearingElement):
                                 mat_coef_t[k_t_idx, k_t_idx - self.nx] = a_s
                                 mat_coef_t[k_t_idx, k_t_idx + self.nx] = a_n
                                 mat_coef_t[k_t_idx, k_t_idx + 1] = a_e
-                                test_diag[k_t_idx] = (
-                                    mat_coef_t[k_t_idx, k_t_idx]
-                                    - (
-                                        mat_coef_t[k_t_idx, k_t_idx + 1]
-                                        + mat_coef_t[k_t_idx, k_t_idx - 1]
-                                        + mat_coef_t[k_t_idx, k_t_idx - self.nx]
-                                        + mat_coef_t[k_t_idx, k_t_idx + self.nx]
-                                    )
+                                test_diag[k_t_idx] = mat_coef_t[k_t_idx, k_t_idx] - (
+                                    mat_coef_t[k_t_idx, k_t_idx + 1]
+                                    + mat_coef_t[k_t_idx, k_t_idx - 1]
+                                    + mat_coef_t[k_t_idx, k_t_idx - self.nx]
+                                    + mat_coef_t[k_t_idx, k_t_idx + self.nx]
                                 )
 
                             if jj == self.nx - 1 and 0 < ii < self.nz - 1:
@@ -960,23 +1148,23 @@ class TiltingPad(BearingElement):
                                 mat_coef_t[k_t_idx, k_t_idx - 1] = a_w
                                 mat_coef_t[k_t_idx, k_t_idx - self.nx] = a_s
                                 mat_coef_t[k_t_idx, k_t_idx + self.nx] = a_n
-                                test_diag[k_t_idx] = (
-                                    mat_coef_t[k_t_idx, k_t_idx]
-                                    - (
-                                        mat_coef_t[k_t_idx, k_t_idx - 1]
-                                        + mat_coef_t[k_t_idx, k_t_idx - self.nx]
-                                        + mat_coef_t[k_t_idx, k_t_idx + self.nx]
-                                    )
+                                test_diag[k_t_idx] = mat_coef_t[k_t_idx, k_t_idx] - (
+                                    mat_coef_t[k_t_idx, k_t_idx - 1]
+                                    + mat_coef_t[k_t_idx, k_t_idx - self.nx]
+                                    + mat_coef_t[k_t_idx, k_t_idx + self.nx]
                                 )
 
                             if jj == 0 and ii == self.nz - 1:
                                 mat_coef_t[k_t_idx, k_t_idx] = a_p_coef + a_n - a_w
                                 mat_coef_t[k_t_idx, k_t_idx + 1] = a_e
                                 mat_coef_t[k_t_idx, k_t_idx - self.nx] = a_s
-                                b_t[k_t_idx] = b_t[k_t_idx] - 2 * a_w * (self.oil_supply_temperature / self.reference_temperature)
-                                test_diag[k_t_idx] = (
-                                    mat_coef_t[k_t_idx, k_t_idx]
-                                    - (mat_coef_t[k_t_idx, k_t_idx + 1] + mat_coef_t[k_t_idx, k_t_idx - self.nx])
+                                b_t[k_t_idx] = b_t[k_t_idx] - 2 * a_w * (
+                                    self.oil_supply_temperature
+                                    / self.reference_temperature
+                                )
+                                test_diag[k_t_idx] = mat_coef_t[k_t_idx, k_t_idx] - (
+                                    mat_coef_t[k_t_idx, k_t_idx + 1]
+                                    + mat_coef_t[k_t_idx, k_t_idx - self.nx]
                                 )
 
                             if ii == self.nz - 1 and 0 < jj < self.nx - 1:
@@ -984,22 +1172,19 @@ class TiltingPad(BearingElement):
                                 mat_coef_t[k_t_idx, k_t_idx + 1] = a_e
                                 mat_coef_t[k_t_idx, k_t_idx - 1] = a_w
                                 mat_coef_t[k_t_idx, k_t_idx - self.nx] = a_s
-                                test_diag[k_t_idx] = (
-                                    mat_coef_t[k_t_idx, k_t_idx]
-                                    - (
-                                        mat_coef_t[k_t_idx, k_t_idx + 1]
-                                        + mat_coef_t[k_t_idx, k_t_idx - 1]
-                                        + mat_coef_t[k_t_idx, k_t_idx - self.nx]
-                                    )
+                                test_diag[k_t_idx] = mat_coef_t[k_t_idx, k_t_idx] - (
+                                    mat_coef_t[k_t_idx, k_t_idx + 1]
+                                    + mat_coef_t[k_t_idx, k_t_idx - 1]
+                                    + mat_coef_t[k_t_idx, k_t_idx - self.nx]
                                 )
 
                             if ii == self.nz - 1 and jj == self.nx - 1:
                                 mat_coef_t[k_t_idx, k_t_idx] = a_p_coef + a_e + a_n
                                 mat_coef_t[k_t_idx, k_t_idx - 1] = a_w
                                 mat_coef_t[k_t_idx, k_t_idx - self.nx] = a_s
-                                test_diag[k_t_idx] = (
-                                    mat_coef_t[k_t_idx, k_t_idx]
-                                    - (mat_coef_t[k_t_idx, k_t_idx - 1] + mat_coef_t[k_t_idx, k_t_idx - self.nx])
+                                test_diag[k_t_idx] = mat_coef_t[k_t_idx, k_t_idx] - (
+                                    mat_coef_t[k_t_idx, k_t_idx - 1]
+                                    + mat_coef_t[k_t_idx, k_t_idx - self.nx]
                                 )
 
                             k_t_idx += 1
@@ -1010,11 +1195,17 @@ class TiltingPad(BearingElement):
                     cont = 0
                     for i_lin in np.arange(self.nz):
                         for j_col in np.arange(self.nx):
-                            temperature_referance[i_lin, j_col] = self.reference_temperature * t_vec[cont]
+                            temperature_referance[i_lin, j_col] = (
+                                self.reference_temperature * t_vec[cont]
+                            )
                             cont += 1
 
                     # Hydrodynamic forces
-                    p_dimen = self.pressure * (self.mu_0 * self.speed * self.pad_radius**2) / (self.radial_clearance ** 2)
+                    p_dimen = (
+                        self.pressure
+                        * (self.mu_0 * self.speed * self.pad_radius**2)
+                        / (self.radial_clearance**2)
+                    )
 
                     aux_f1 = np.zeros((self.nz, self.nx))
                     aux_f2 = np.zeros((self.nz, self.nx))
@@ -1030,7 +1221,9 @@ class TiltingPad(BearingElement):
                     f2_teta = np.trapezoid(y_teta_f2, self.xtheta)
                     self.force_2_new[n_p] = -np.trapezoid(f2_teta, self.xz)
 
-                    self.moment_j_new[n_p] = self.force_2_new[n_p] * (self.pad_radius + self.pad_thickness)
+                    self.moment_j_new[n_p] = self.force_2_new[n_p] * (
+                        self.pad_radius + self.pad_thickness
+                    )
 
                     # Dynamic loads
                     del_force_x[n_p] = -(self.force_new[n_p] - self.force_1[n_p])
@@ -1039,19 +1232,37 @@ class TiltingPad(BearingElement):
 
                     # X-axis perturbation
                     if a_p == 0:
-                        k_xx[n_p] = del_force_x[n_p] / self.space_perturbation * self.dimensionless_force[n_p]
-                        k_yx[n_p] = del_force_y[n_p] / self.space_perturbation * self.dimensionless_force[n_p]
+                        k_xx[n_p] = (
+                            del_force_x[n_p]
+                            / self.space_perturbation
+                            * self.dimensionless_force[n_p]
+                        )
+                        k_yx[n_p] = (
+                            del_force_y[n_p]
+                            / self.space_perturbation
+                            * self.dimensionless_force[n_p]
+                        )
                         self.K[n_p, 0, 0] = k_xx[n_p]
                         self.K[n_p, 1, 0] = k_yx[n_p]
 
                     # Angular (pad) perturbation
                     elif a_p == 1:
-                        k_yy[n_p] = del_force_y[n_p] / self.space_perturbation * self.dimensionless_force[n_p]
-                        k_xy[n_p] = del_force_x[n_p] / self.space_perturbation * self.dimensionless_force[n_p]
+                        k_yy[n_p] = (
+                            del_force_y[n_p]
+                            / self.space_perturbation
+                            * self.dimensionless_force[n_p]
+                        )
+                        k_xy[n_p] = (
+                            del_force_x[n_p]
+                            / self.space_perturbation
+                            * self.dimensionless_force[n_p]
+                        )
                         self.K[n_p, 1, 1] = k_yy[n_p]
                         self.K[n_p, 0, 1] = k_xy[n_p]
 
-                        k_tt[n_p] = k_yy[n_p] * ((self.pad_radius + self.pad_thickness) ** 2)
+                        k_tt[n_p] = k_yy[n_p] * (
+                            (self.pad_radius + self.pad_thickness) ** 2
+                        )
                         k_tx[n_p] = -k_yx[n_p] * (self.pad_radius + self.pad_thickness)
                         k_xt[n_p] = -k_xy[n_p] * (self.pad_radius + self.pad_thickness)
                         k_ty[n_p] = -k_yy[n_p] * (self.pad_radius + self.pad_thickness)
@@ -1064,19 +1275,37 @@ class TiltingPad(BearingElement):
 
                     # X-axis speed perturbation
                     elif a_p == 2:
-                        c_xx[n_p] = del_force_x[n_p] / self.speed_perturbation * self.dimensionless_force[n_p]
-                        c_yx[n_p] = del_force_y[n_p] / self.speed_perturbation * self.dimensionless_force[n_p]
+                        c_xx[n_p] = (
+                            del_force_x[n_p]
+                            / self.speed_perturbation
+                            * self.dimensionless_force[n_p]
+                        )
+                        c_yx[n_p] = (
+                            del_force_y[n_p]
+                            / self.speed_perturbation
+                            * self.dimensionless_force[n_p]
+                        )
                         self.C[n_p, 0, 0] = c_xx[n_p]
                         self.C[n_p, 1, 0] = c_yx[n_p]
 
                     # Angular speed perturbation
                     elif a_p == 3:
-                        c_yy[n_p] = del_force_y[n_p] / self.speed_perturbation * self.dimensionless_force[n_p]
-                        c_xy[n_p] = del_force_x[n_p] / self.speed_perturbation * self.dimensionless_force[n_p]
+                        c_yy[n_p] = (
+                            del_force_y[n_p]
+                            / self.speed_perturbation
+                            * self.dimensionless_force[n_p]
+                        )
+                        c_xy[n_p] = (
+                            del_force_x[n_p]
+                            / self.speed_perturbation
+                            * self.dimensionless_force[n_p]
+                        )
                         self.C[n_p, 1, 1] = c_yy[n_p]
                         self.C[n_p, 0, 1] = c_xy[n_p]
 
-                        c_tt[n_p] = c_yy[n_p] * ((self.pad_radius + self.pad_thickness) ** 2)
+                        c_tt[n_p] = c_yy[n_p] * (
+                            (self.pad_radius + self.pad_thickness) ** 2
+                        )
                         c_tx[n_p] = -c_yx[n_p] * (self.pad_radius + self.pad_thickness)
                         c_xt[n_p] = -c_xy[n_p] * (self.pad_radius + self.pad_thickness)
                         c_ty[n_p] = -c_yy[n_p] * (self.pad_radius + self.pad_thickness)
@@ -1104,9 +1333,7 @@ class TiltingPad(BearingElement):
                                 [0, 0, 1],
                             ]
                         )
-                        self.Sjipt[n_p] = (
-                            self.Tj[n_p].T @ self.Sjpt[n_p] @ self.Tj[n_p]
-                        )
+                        self.Sjipt[n_p] = self.Tj[n_p].T @ self.Sjpt[n_p] @ self.Tj[n_p]
 
                         # Add 2x2 block in Aj and gyro term in Bj
                         self.Aj += np.array(
@@ -1135,29 +1362,39 @@ class TiltingPad(BearingElement):
 
         k_r = np.real(self.Sw)
         c_r = np.imag(self.Sw) / self.speed
-        self.kxx, self.kyy, self.kxy, self.kyx = k_r[0, 0], k_r[1, 1], 2 * k_r[0, 1], 2 * k_r[1, 0]
-        self.cxx, self.cyy, self.cxy, self.cyx = c_r[0, 0], c_r[1, 1], c_r[0, 1], c_r[1, 0]
+        self.kxx, self.kyy, self.kxy, self.kyx = (
+            k_r[0, 0],
+            k_r[1, 1],
+            2 * k_r[0, 1],
+            2 * k_r[1, 0],
+        )
+        self.cxx, self.cyy, self.cxy, self.cyx = (
+            c_r[0, 0],
+            c_r[1, 1],
+            c_r[0, 1],
+            c_r[1, 0],
+        )
 
     def solve_fields(self):
         """Solve the thermo-hydrodynamic equations to determine equilibrium position and field distributions.
-        
+
         This method performs the complete thermo-hydrodynamic analysis for tilting pad bearings,
         including equilibrium position calculation and field solution for pressure and temperature.
-        
+
         The method supports two equilibrium calculation types:
         - 'match_eccentricity': Imposes eccentricity and optimizes only pad angles
         - 'determine_eccentricity': Determines complete equilibrium position including eccentricity
-        
+
         For each pad, the method solves:
         1. Reynolds equation for pressure field using finite difference method
         2. Energy equation for temperature field with turbulent viscosity modeling
         3. Iterative convergence between pressure and temperature fields
-        
+
         Parameters
         ----------
         None
             This method uses the bearing parameters defined during initialization.
-        
+
         Returns
         -------
         tuple
@@ -1165,7 +1402,7 @@ class TiltingPad(BearingElement):
             - max_p : float
                 Maximum pressure in Pa
             - med_p : float
-                Mean pressure in Pa  
+                Mean pressure in Pa
             - max_t : float
                 Maximum temperature in °C
             - med_t : float
@@ -1174,34 +1411,34 @@ class TiltingPad(BearingElement):
                 Oil film thickness at pivot point in m
             - ecc : float
                 Eccentricity ratio (dimensionless)
-        
+
         Notes
         -----
         The method performs the following steps:
-        
+
         1. Equilibrium Calculation:
         - For 'match_eccentricity': Optimizes pad rotation angles using fmin
         - For 'determine_eccentricity': Optimizes complete system (eccentricity, attitude angle, pad angles)
-        
+
         2. Field Solution:
         - Iterative solution of Reynolds and energy equations for each pad
         - Temperature convergence tolerance: 0.1°C
         - Pressure field with non-negative constraint
-        
+
         3. Results Processing:
         - Stores pressure and temperature fields for all pads
         - Calculates dimensional quantities
         - Determines pad with maximum pressure
-        
+
         The method assumes steady-state operation and uses finite difference
         methods with upwind scheme for energy equation.
-        
+
         See Also
         --------
         run : Execute complete analysis including dynamic coefficients
         coefficients : Calculate stiffness and damping coefficients
         """
-        
+
         # Choose equilibrium calculation method
         if self.equilibrium_type == "match_eccentricity":
             ang_rot = np.zeros(self.n_pad)
@@ -1211,35 +1448,65 @@ class TiltingPad(BearingElement):
 
             for n_pad in range(self.n_pad):
                 if self.xj is None or self.yj is None:
-                    xx_alpha = self.eccentricity * self.radial_clearance * np.cos(self.attitude_angle)
-                    yy_alpha = self.eccentricity * self.radial_clearance * np.sin(self.attitude_angle)
+                    xx_alpha = (
+                        self.eccentricity
+                        * self.radial_clearance
+                        * np.cos(self.attitude_angle)
+                    )
+                    yy_alpha = (
+                        self.eccentricity
+                        * self.radial_clearance
+                        * np.sin(self.attitude_angle)
+                    )
                 else:
                     xx_alpha = self.xj
                     yy_alpha = self.yj
-                    self.eccentricity = np.sqrt(self.xj**2 + self.yj**2)/self.radial_clearance
+                    self.eccentricity = (
+                        np.sqrt(self.xj**2 + self.yj**2) / self.radial_clearance
+                    )
                     self.attitude_angle = np.arctan2(self.yj, self.xj)
 
                 xryr_alpha = np.dot(
                     [
-                        [np.cos(self.pivot_angle[n_pad]), np.sin(self.pivot_angle[n_pad])],
-                        [-np.sin(self.pivot_angle[n_pad]), np.cos(self.pivot_angle[n_pad])],
+                        [
+                            np.cos(self.pivot_angle[n_pad]),
+                            np.sin(self.pivot_angle[n_pad]),
+                        ],
+                        [
+                            -np.sin(self.pivot_angle[n_pad]),
+                            np.cos(self.pivot_angle[n_pad]),
+                        ],
                     ],
                     [[xx_alpha], [yy_alpha]],
                 )
 
                 self.alpha_max_chut[n_pad] = (
-                    (self.pad_radius - self.journal_radius - np.cos(self.theta_2)
-                    * (xryr_alpha[0, 0] + self.pad_radius - self.journal_radius - self.radial_clearance))
-                    / (np.sin(self.theta_2) * (self.pad_radius + self.pad_thickness))
-                    - (xryr_alpha[1, 0]) / (self.pad_radius + self.pad_thickness)
-                )
+                    self.pad_radius
+                    - self.journal_radius
+                    - np.cos(self.theta_2)
+                    * (
+                        xryr_alpha[0, 0]
+                        + self.pad_radius
+                        - self.journal_radius
+                        - self.radial_clearance
+                    )
+                ) / (np.sin(self.theta_2) * (self.pad_radius + self.pad_thickness)) - (
+                    xryr_alpha[1, 0]
+                ) / (self.pad_radius + self.pad_thickness)
 
                 self.alpha_min_chut[n_pad] = (
-                    (self.pad_radius - self.journal_radius - np.cos(self.theta_1)
-                    * (xryr_alpha[0, 0] + self.pad_radius - self.journal_radius - self.radial_clearance))
-                    / (np.sin(self.theta_1) * (self.pad_radius + self.pad_thickness))
-                    - (xryr_alpha[1, 0]) / (self.pad_radius + self.pad_thickness)
-                )
+                    self.pad_radius
+                    - self.journal_radius
+                    - np.cos(self.theta_1)
+                    * (
+                        xryr_alpha[0, 0]
+                        + self.pad_radius
+                        - self.journal_radius
+                        - self.radial_clearance
+                    )
+                ) / (np.sin(self.theta_1) * (self.pad_radius + self.pad_thickness)) - (
+                    xryr_alpha[1, 0]
+                ) / (self.pad_radius + self.pad_thickness)
 
             self.x_0 = 0.4 * self.alpha_max_chut
 
@@ -1268,30 +1535,44 @@ class TiltingPad(BearingElement):
             self.xdin = [self.eccentricity, self.attitude_angle] + list(ang_rot)
 
             if self.print_result:
-                print("\n" + "="*75)
+                print("\n" + "=" * 75)
                 print("                    TILTING PAD BEARING RESULTS")
-                print("="*75)
+                print("=" * 75)
                 print("Operating Speed: {0:.1f} RPM".format(self.speed))
                 print("Eccentricity: {0:.4f}".format(self.eccentricity))
-                print("Attitude Angle: {0:.1f}°".format(np.degrees(self.attitude_angle)))
+                print(
+                    "Attitude Angle: {0:.1f}°".format(np.degrees(self.attitude_angle))
+                )
                 print("-" * 75)
-                print("Pad #    Moment [N.m]    Rotation Angle [RAD]    Rotation Angle [DEG]")
+                print(
+                    "Pad #    Moment [N.m]    Rotation Angle [RAD]    Rotation Angle [DEG]"
+                )
                 print("-" * 75)
                 for i in range(len(momen_rot)):
                     angle_deg = np.degrees(ang_rot[i])
-                    print("{0:2d}    {1:15.6f}     {2:15.6f}     {3:15.6f}".format(i+1, momen_rot[i], ang_rot[i], angle_deg))
+                    print(
+                        "{0:2d}    {1:15.6f}     {2:15.6f}     {3:15.6f}".format(
+                            i + 1, momen_rot[i], ang_rot[i], angle_deg
+                        )
+                    )
                 print("-" * 75)
                 print("Total    force_x [N]    force_y [N]    Pads:")
-                print("        {0:15.6f}     {1:15.6f}     {2:15d}".format(self.force_x_dim, self.force_y_dim, self.n_pad))
-                print("="*75)
+                print(
+                    "        {0:15.6f}     {1:15.6f}     {2:15d}".format(
+                        self.force_x_dim, self.force_y_dim, self.n_pad
+                    )
+                )
+                print("=" * 75)
 
         elif self.equilibrium_type == "determine_eccentricity":
             # Initial guess: [eccentricity, attitude_angle, pad_angles...]
             if self.initial_pads_angles is not None:
-                x0 = [self.eccentricity, self.attitude_angle] + list(self.initial_pads_angles)
+                x0 = [self.eccentricity, self.attitude_angle] + list(
+                    self.initial_pads_angles
+                )
             else:
                 x0 = [self.eccentricity, self.attitude_angle] + [0.0] * self.n_pad
-            
+
             # Optimize complete system
             x_opt = fmin(
                 self._equilibrium_objective,
@@ -1301,30 +1582,44 @@ class TiltingPad(BearingElement):
                 maxiter=100000,
                 disp=False,
             )
-            
+
             # Update state variables with optimized values
-            self.eccentricity, self.attitude_angle, self.psi_pad = x_opt[0], x_opt[1], x_opt[2:]
-            
+            self.eccentricity, self.attitude_angle, self.psi_pad = (
+                x_opt[0],
+                x_opt[1],
+                x_opt[2:],
+            )
+
             # Update state vector
             self.xdin = x_opt.copy()
-            
+
             if self.print_result:
-                print("\n" + "="*75)
+                print("\n" + "=" * 75)
                 print("                    TILTING PAD BEARING RESULTS")
-                print("="*75)
+                print("=" * 75)
                 print("Operating Speed: {0:.1f} RPM".format(self.speed))
                 print("Eccentricity: {0:.4f}".format(self.eccentricity))
-                print("Attitude Angle: {0:.1f}°".format(np.degrees(self.attitude_angle)))
+                print(
+                    "Attitude Angle: {0:.1f}°".format(np.degrees(self.attitude_angle))
+                )
                 print("-" * 75)
                 print("Pad #    Rotation Angle [RAD]    Rotation Angle [DEG]")
                 print("-" * 75)
                 for i in range(self.n_pad):
                     angle_deg = np.degrees(self.psi_pad[i])
-                    print("{0:2d}    {1:15.6f}     {2:15.6f}".format(i+1, self.psi_pad[i], angle_deg))
+                    print(
+                        "{0:2d}    {1:15.6f}     {2:15.6f}".format(
+                            i + 1, self.psi_pad[i], angle_deg
+                        )
+                    )
                 print("-" * 75)
                 print("Total    force_x [N]    force_y [N]    Pads:")
-                print("        {0:15.6f}     {1:15.6f}     {2:15d}".format(np.sum(self.force_x_dim), np.sum(self.force_y_dim), self.n_pad))
-                print("="*75)
+                print(
+                    "        {0:15.6f}     {1:15.6f}     {2:15d}".format(
+                        np.sum(self.force_x_dim), np.sum(self.force_y_dim), self.n_pad
+                    )
+                )
+                print("=" * 75)
 
         # Continue with thermo-hydrodynamic field solution
         psi_pad = np.zeros(self.n_pad)
@@ -1339,7 +1634,10 @@ class TiltingPad(BearingElement):
             temperature_iteration = 1.1 * temperature_referance
             cont_temp = 0
 
-            while abs((temperature_referance - temperature_iteration).max()) >= temperature_tolerance:
+            while (
+                abs((temperature_referance - temperature_iteration).max())
+                >= temperature_tolerance
+            ):
                 cont_temp += 1
                 temperature_iteration = np.array(temperature_referance)
 
@@ -1364,9 +1662,15 @@ class TiltingPad(BearingElement):
                             self.pad_radius
                             - self.journal_radius
                             - (
-                                np.sin(self.xtheta[jj]) * (yr + alpha * (self.pad_radius + self.pad_thickness))
+                                np.sin(self.xtheta[jj])
+                                * (yr + alpha * (self.pad_radius + self.pad_thickness))
                                 + np.cos(self.xtheta[jj])
-                                * (xr + self.pad_radius - self.journal_radius - self.radial_clearance)
+                                * (
+                                    xr
+                                    + self.pad_radius
+                                    - self.journal_radius
+                                    - self.radial_clearance
+                                )
                             )
                         ) / self.radial_clearance
 
@@ -1374,8 +1678,15 @@ class TiltingPad(BearingElement):
                             self.pad_radius
                             - self.journal_radius
                             - (
-                                np.sin(teta_e) * (yr + alpha * (self.pad_radius + self.pad_thickness))
-                                + np.cos(teta_e) * (xr + self.pad_radius - self.journal_radius - self.radial_clearance)
+                                np.sin(teta_e)
+                                * (yr + alpha * (self.pad_radius + self.pad_thickness))
+                                + np.cos(teta_e)
+                                * (
+                                    xr
+                                    + self.pad_radius
+                                    - self.journal_radius
+                                    - self.radial_clearance
+                                )
                             )
                         ) / self.radial_clearance
 
@@ -1383,20 +1694,27 @@ class TiltingPad(BearingElement):
                             self.pad_radius
                             - self.journal_radius
                             - (
-                                np.sin(teta_w) * (yr + alpha * (self.pad_radius + self.pad_thickness))
-                                + np.cos(teta_w) * (xr + self.pad_radius - self.journal_radius - self.radial_clearance)
+                                np.sin(teta_w)
+                                * (yr + alpha * (self.pad_radius + self.pad_thickness))
+                                + np.cos(teta_w)
+                                * (
+                                    xr
+                                    + self.pad_radius
+                                    - self.journal_radius
+                                    - self.radial_clearance
+                                )
                             )
                         ) / self.radial_clearance
 
                         h_n = h_p
                         h_s = h_p
 
-                        h_pt = -(
-                            1 / (self.radial_clearance * self.speed)
-                        ) * (
+                        h_pt = -(1 / (self.radial_clearance * self.speed)) * (
                             np.cos(self.xtheta[jj]) * xrpt
                             + np.sin(self.xtheta[jj]) * yrpt
-                            + np.sin(self.xtheta[jj]) * (self.pad_radius + self.pad_thickness) * alphapt
+                            + np.sin(self.xtheta[jj])
+                            * (self.pad_radius + self.pad_thickness)
+                            * alphapt
                         )
 
                         self.h[ii, jj] = h_p
@@ -1455,15 +1773,30 @@ class TiltingPad(BearingElement):
                             mi_n = mi[ii, jj]
                             mi_s = 0.5 * (mi[ii, jj] + mi[ii - 1, jj])
 
-                        c_e = (1 / (self.pad_arc**2)) * (h_e**3 / (12 * mi_e)) * (self.dz / self.dx)
-                        c_w = (1 / (self.pad_arc**2)) * (h_w**3 / (12 * mi_w)) * (self.dz / self.dx)
-                        c_n = (self.pad_radius / self.pad_axial_length) ** 2 * (self.dx / self.dz) * (h_n**3 / (12 * mi_n))
-                        c_s = (self.pad_radius / self.pad_axial_length) ** 2 * (self.dx / self.dz) * (h_s**3 / (12 * mi_s))
+                        c_e = (
+                            (1 / (self.pad_arc**2))
+                            * (h_e**3 / (12 * mi_e))
+                            * (self.dz / self.dx)
+                        )
+                        c_w = (
+                            (1 / (self.pad_arc**2))
+                            * (h_w**3 / (12 * mi_w))
+                            * (self.dz / self.dx)
+                        )
+                        c_n = (
+                            (self.pad_radius / self.pad_axial_length) ** 2
+                            * (self.dx / self.dz)
+                            * (h_n**3 / (12 * mi_n))
+                        )
+                        c_s = (
+                            (self.pad_radius / self.pad_axial_length) ** 2
+                            * (self.dx / self.dz)
+                            * (h_s**3 / (12 * mi_s))
+                        )
                         c_p = -(c_e + c_w + c_n + c_s)
                         b_val = (
-                            (self.journal_radius / (2 * self.pad_radius * self.pad_arc)) * self.dz * (h_e - h_w)
-                            + h_pt * self.dx * self.dz
-                        )
+                            self.journal_radius / (2 * self.pad_radius * self.pad_arc)
+                        ) * self.dz * (h_e - h_w) + h_pt * self.dx * self.dz
                         b_vec[k_idx] = b_val
 
                         if ii == 0 and jj == 0:
@@ -1538,7 +1871,9 @@ class TiltingPad(BearingElement):
             self.h_0[:, :, n_p] = self.h
 
             self.pressure_dim[:, :, n_p] = (
-                self.pressure_nd[:, :, n_p] * (self.mu_0 * self.speed * self.pad_radius**2) / (self.radial_clearance ** 2)
+                self.pressure_nd[:, :, n_p]
+                * (self.mu_0 * self.speed * self.pad_radius**2)
+                / (self.radial_clearance**2)
             )
             self.h_dim[:, :, n_p] = self.h * self.radial_clearance
             self.h_pivot[n_p] = (
@@ -1547,18 +1882,29 @@ class TiltingPad(BearingElement):
                     self.pad_radius
                     - self.journal_radius
                     - (
-                        np.sin(0) * (yr + alpha * (self.pad_radius + self.pad_thickness))
-                        + np.cos(0) * (xr + self.pad_radius - self.journal_radius - self.radial_clearance)
+                        np.sin(0)
+                        * (yr + alpha * (self.pad_radius + self.pad_thickness))
+                        + np.cos(0)
+                        * (
+                            xr
+                            + self.pad_radius
+                            - self.journal_radius
+                            - self.radial_clearance
+                        )
                     )
                 )
                 / self.radial_clearance
             )
 
         max_p = (
-            self.pressure_nd[:, :, self.pad_in].max() * (self.mu_0 * self.speed * self.pad_radius**2) / (self.radial_clearance ** 2)
+            self.pressure_nd[:, :, self.pad_in].max()
+            * (self.mu_0 * self.speed * self.pad_radius**2)
+            / (self.radial_clearance**2)
         )
         med_p = (
-            self.pressure_nd[:, :, self.pad_in].mean() * (self.mu_0 * self.speed * self.pad_radius**2) / (self.radial_clearance ** 2)
+            self.pressure_nd[:, :, self.pad_in].mean()
+            * (self.mu_0 * self.speed * self.pad_radius**2)
+            / (self.radial_clearance**2)
         )
         max_t = self.temperature_init[:, :, self.pad_in].max()
         med_t = self.temperature_init[:, :, self.pad_in].mean()
@@ -1569,40 +1915,40 @@ class TiltingPad(BearingElement):
 
     def _equilibrium_objective(self, x):
         """Objective function for complete equilibrium optimization.
-        
+
         This method serves as the objective function for optimization algorithms
         to find the complete equilibrium position of a tilting pad bearing,
         including eccentricity, attitude angle, and pad rotation angles.
-        
+
         Parameters
         ----------
         x : array_like
             State vector containing [eccentricity, attitude_angle, pad_angles...].
             The first two elements are the journal position parameters, followed
             by the rotation angles for each pad.
-        
+
         Returns
         -------
         score : float
             The equilibrium residual (norm of force and moment residuals).
             Lower values indicate better equilibrium convergence.
-        
+
         Notes
         -----
         The method performs the following steps:
-        
+
         1. State Extraction: Extracts eccentricity, attitude angle, and pad angles
         2. Field Solution: For each pad, solves Reynolds and energy equations
         3. Force Calculation: Computes hydrodynamic forces and moments
         4. Residual Evaluation: Calculates force and moment equilibrium residuals
-        
+
         The objective function evaluates the equilibrium condition by minimizing
         the sum of squared residuals for:
         - Force equilibrium in X and Y directions
         - Moment equilibrium for each pad
-        
+
         Temperature convergence tolerance is set to 0.1°C for field calculations.
-                
+
         See Also
         --------
         solve_fields : Main method for equilibrium calculation
@@ -1612,90 +1958,112 @@ class TiltingPad(BearingElement):
         if not hasattr(self, "iteration_count"):
             self.iteration_count = 0
         self.iteration_count += 1
-        
+
         # Extract state variables
         eccentricity = x[0]
         attitude_angle = x[1]
-        
+
         psi_pad = np.zeros(self.n_pad)
         for kp in range(self.n_pad):
             psi_pad[kp] = x[kp + 2]  # Tilting angles of each pad
-        
+
         n_k = self.nx * self.nz
         tol_T = 0.1  # Celsius degree
-        
+
         # Reset force arrays
         self._reset_force_arrays()
-        
+
         for n_p in range(self.n_pad):
             T_new = self.temperature_init[:, :, n_p]
             T_i = 1.1 * T_new
             cont_Temp = 0
-            
+
             while abs((T_new - T_i).max()) >= tol_T:
                 cont_Temp += 1
                 T_i = np.array(T_new)
-                
+
                 # Calculate viscosity
                 mi_i = self.a_a * np.exp(self.b_b * T_i)  # [Pa.s]
                 MI = mi_i / self.mu_0  # Dimensionless viscosity field
-                
+
                 k = 0  # vectorization index
                 Mat_coef = np.zeros((n_k, n_k))
                 b = np.zeros(n_k)
-                
+
                 # Transformation of coordinates - inertial to pivot referential
-                xryr, xryrpt, xr, yr, xrpt, yrpt = self._transform_coordinates(n_p, eccentricity, attitude_angle)
-                
+                xryr, xryrpt, xr, yr, xrpt, yrpt = self._transform_coordinates(
+                    n_p, eccentricity, attitude_angle
+                )
+
                 alpha = psi_pad[n_p]
                 alphapt = 0
-                
+
                 for ii in range(self.nz):
                     for jj in range(self.nx):
                         teta_e = self.xtheta[jj] + 0.5 * self.dtheta
                         teta_w = self.xtheta[jj] - 0.5 * self.dtheta
-                        
+
                         h_p = (
                             self.pad_radius
                             - self.journal_radius
                             - (
-                                np.sin(self.xtheta[jj]) * (yr + alpha * (self.pad_radius + self.pad_thickness))
+                                np.sin(self.xtheta[jj])
+                                * (yr + alpha * (self.pad_radius + self.pad_thickness))
                                 + np.cos(self.xtheta[jj])
-                                * (xr + self.pad_radius - self.journal_radius - self.radial_clearance)
+                                * (
+                                    xr
+                                    + self.pad_radius
+                                    - self.journal_radius
+                                    - self.radial_clearance
+                                )
                             )
                         ) / self.radial_clearance
-                        
+
                         h_e = (
                             self.pad_radius
                             - self.journal_radius
                             - (
-                                np.sin(teta_e) * (yr + alpha * (self.pad_radius + self.pad_thickness))
-                                + np.cos(teta_e) * (xr + self.pad_radius - self.journal_radius - self.radial_clearance)
+                                np.sin(teta_e)
+                                * (yr + alpha * (self.pad_radius + self.pad_thickness))
+                                + np.cos(teta_e)
+                                * (
+                                    xr
+                                    + self.pad_radius
+                                    - self.journal_radius
+                                    - self.radial_clearance
+                                )
                             )
                         ) / self.radial_clearance
-                        
+
                         h_w = (
                             self.pad_radius
                             - self.journal_radius
                             - (
-                                np.sin(teta_w) * (yr + alpha * (self.pad_radius + self.pad_thickness))
-                                + np.cos(teta_w) * (xr + self.pad_radius - self.journal_radius - self.radial_clearance)
+                                np.sin(teta_w)
+                                * (yr + alpha * (self.pad_radius + self.pad_thickness))
+                                + np.cos(teta_w)
+                                * (
+                                    xr
+                                    + self.pad_radius
+                                    - self.journal_radius
+                                    - self.radial_clearance
+                                )
                             )
                         ) / self.radial_clearance
-                        
+
                         h_n = h_p
                         h_s = h_p
-                        
-                        h_pt = -(
-                            1 / (self.radial_clearance * self.speed)
-                        ) * (
+
+                        h_pt = -(1 / (self.radial_clearance * self.speed)) * (
                             np.cos(self.xtheta[jj]) * xrpt
                             + np.sin(self.xtheta[jj]) * yrpt
-                            + np.sin(self.xtheta[jj]) * (self.pad_radius + self.pad_thickness) * alphapt
+                            + np.sin(self.xtheta[jj])
+                            * (self.pad_radius + self.pad_thickness)
+                            * alphapt
                         )
-                        
+
                         self.h[ii, jj] = h_p
-                        
+
                         # Viscosity at faces
                         if jj == 0 and ii == 0:
                             mi_e = 0.5 * (MI[ii, jj] + MI[ii, jj + 1])
@@ -1742,18 +2110,33 @@ class TiltingPad(BearingElement):
                             mi_w = 0.5 * (MI[ii, jj] + MI[ii, jj - 1])
                             mi_n = MI[ii, jj]
                             mi_s = 0.5 * (MI[ii, jj] + MI[ii - 1, jj])
-                        
-                        c_e = (1 / (self.pad_arc**2)) * (h_e**3 / (12 * mi_e)) * (self.dz / self.dx)
-                        c_w = (1 / (self.pad_arc**2)) * (h_w**3 / (12 * mi_w)) * (self.dz / self.dx)
-                        c_n = (self.pad_radius / self.pad_axial_length) ** 2 * (self.dx / self.dz) * (h_n**3 / (12 * mi_n))
-                        c_s = (self.pad_radius / self.pad_axial_length) ** 2 * (self.dx / self.dz) * (h_s**3 / (12 * mi_s))
+
+                        c_e = (
+                            (1 / (self.pad_arc**2))
+                            * (h_e**3 / (12 * mi_e))
+                            * (self.dz / self.dx)
+                        )
+                        c_w = (
+                            (1 / (self.pad_arc**2))
+                            * (h_w**3 / (12 * mi_w))
+                            * (self.dz / self.dx)
+                        )
+                        c_n = (
+                            (self.pad_radius / self.pad_axial_length) ** 2
+                            * (self.dx / self.dz)
+                            * (h_n**3 / (12 * mi_n))
+                        )
+                        c_s = (
+                            (self.pad_radius / self.pad_axial_length) ** 2
+                            * (self.dx / self.dz)
+                            * (h_s**3 / (12 * mi_s))
+                        )
                         c_p = -(c_e + c_w + c_n + c_s)
                         b_val = (
-                            (self.journal_radius / (2 * self.pad_radius * self.pad_arc)) * self.dz * (h_e - h_w)
-                            + h_pt * self.dx * self.dz
-                        )
+                            self.journal_radius / (2 * self.pad_radius * self.pad_arc)
+                        ) * self.dz * (h_e - h_w) + h_pt * self.dx * self.dz
                         b[k] = b_val
-                        
+
                         # Fill matrix coefficients
                         if ii == 0 and jj == 0:
                             Mat_coef[k, k] = c_p - c_s - c_w
@@ -1797,13 +2180,13 @@ class TiltingPad(BearingElement):
                             Mat_coef[k, k] = c_p - c_e - c_n
                             Mat_coef[k, k - 1] = c_w
                             Mat_coef[k, k - self.nx] = c_s
-                        
+
                         k += 1
-                
+
                 # Solve pressure field
                 Mat_coef = self._check_diagonal(Mat_coef)
                 p_vec = np.linalg.solve(Mat_coef, b)
-                
+
                 cont = 0
                 for i_lin in range(self.nz):
                     for j_col in np.arange(self.nx):
@@ -1811,55 +2194,59 @@ class TiltingPad(BearingElement):
                         cont += 1
                         if self.pressure[i_lin, j_col] < 0:
                             self.pressure[i_lin, j_col] = 0
-                
+
                 # Calculate temperature field using energy equation
                 T_new = self._solve_energy_equation(MI, n_p, is_equilibrium=True)
-            
+
             # Calculate hydrodynamic forces and moments
             self._calculate_hydrodynamic_forces(n_p, psi_pad, is_equilibrium=True)
-        
+
         # Calculate equilibrium residuals
         FM = np.zeros(self.n_pad + 2)
-        
+
         # Force equilibrium in X and Y directions
         Fhx = np.sum(self.force_x_dim)
         Fhy = np.sum(self.force_y_dim)
-        
+
         FM[0] = Fhx + (self.fxs_load if self.fxs_load is not None else 0)
         FM[1] = Fhy + (self.fys_load if self.fys_load is not None else 0)
         FM[2:] = self.moment_j_dim
-        
+
         score = np.linalg.norm(FM)
-        
+
         if self.print_progress:
             # Clear screen and rewrite
             print("\033[2J\033[H", end="")
-            
+
             # Organized optimization display
-            print("="*80)
-            print(f"                    EQUILIBRIUM OPTIMIZATION - ITERATION {self.iteration_count}")
-            print("="*80)
+            print("=" * 80)
+            print(
+                f"                    EQUILIBRIUM OPTIMIZATION - ITERATION {self.iteration_count}"
+            )
+            print("=" * 80)
             print(f"Eccentricity:     {eccentricity:12.6f}")
-            print(f"Attitude Angle:   {np.degrees(attitude_angle):12.2f}° ({attitude_angle:12.6f} rad)")
-            print("-"*80)
+            print(
+                f"Attitude Angle:   {np.degrees(attitude_angle):12.2f}° ({attitude_angle:12.6f} rad)"
+            )
+            print("-" * 80)
             print("Pad #    Rotation Angle [RAD]    Rotation Angle [DEG]")
-            print("-"*80)
+            print("-" * 80)
             for i in range(self.n_pad):
                 angle_deg = np.degrees(psi_pad[i])
-                print(f"{i+1:2d}    {psi_pad[i]:15.6f}     {angle_deg:15.6f}")
-            print("-"*80)
+                print(f"{i + 1:2d}    {psi_pad[i]:15.6f}     {angle_deg:15.6f}")
+            print("-" * 80)
             print(f"Force Residuals:")
             print(f"  Fx + Fx_load:  {FM[0]:15.6f} N")
             print(f"  Fy + Fy_load:  {FM[1]:15.6f} N")
             print(f"Moment Residuals:")
             for i in range(self.n_pad):
-                print(f"  Pad {i+1}:      {FM[i+2]:15.6f} N·m")
-            print("-"*80)
+                print(f"  Pad {i + 1}:      {FM[i + 2]:15.6f} N·m")
+            print("-" * 80)
             print(f"Total Score:      {score:15.6f}")
-            print("="*80)
-        
+            print("=" * 80)
+
         return score
-    
+
     def get_equilibrium_position(self, x):
         """
         Calculate the equilibrium position for a single pad.
@@ -1880,21 +2267,23 @@ class TiltingPad(BearingElement):
         """
         n_p = self.con_np
         temperature_referance = self.reference_temperature * np.ones((self.nz, self.nx))
-        
+
         # Validation and adjustment of x limits
         x = self._validate_and_adjust_x(x, n_p)
         psi_pad = np.zeros(self.n_pad)
         psi_pad[n_p] = x.item() if hasattr(x, "item") else x
-        
+
         # Temperature convergence loop (main loop)
-        temperature_referance = self._temperature_convergence_loop(temperature_referance, n_p, psi_pad)
-        
+        temperature_referance = self._temperature_convergence_loop(
+            temperature_referance, n_p, psi_pad
+        )
+
         # Save updated temperature
         self.temperature_init[:, :, n_p] = temperature_referance
-        
+
         # Calculation of hydrodynamic forces
         self._calculate_hydrodynamic_forces(n_p, psi_pad)
-        
+
         return abs(self.score_dim)
 
     def _validate_and_adjust_x(self, x, n_p):
@@ -1922,7 +2311,7 @@ class TiltingPad(BearingElement):
     def _temperature_convergence_loop(self, temperature_referance, n_p, psi_pad):
         """
         Perform temperature convergence loop for thermo-hydrodynamic analysis.
-        
+
         Parameters
         ----------
         temperature_referance : ndarray
@@ -1931,7 +2320,7 @@ class TiltingPad(BearingElement):
             Pad index for the current analysis.
         psi_pad : ndarray
             Pad rotation angles [rad]. Shape: (n_pad,).
-        
+
         Returns
         -------
         ndarray
@@ -1940,34 +2329,37 @@ class TiltingPad(BearingElement):
         temperature_tolerance = 0.1  # Celsius degrees (tolerance)
         temperature_iteration = 1.1 * temperature_referance
         cont_temp = 0
-        
-        while abs((temperature_referance - temperature_iteration).max()) >= temperature_tolerance:
+
+        while (
+            abs((temperature_referance - temperature_iteration).max())
+            >= temperature_tolerance
+        ):
             cont_temp += 1
             temperature_iteration = np.array(temperature_referance)
-            
+
             # Calculate viscosity
             mi = self._calculate_viscosity(temperature_iteration)
-            
+
             # Assembly and solution of Reynolds equation
             self._solve_reynolds_equation(mi, n_p, psi_pad)
-            
+
             # Calculate pressure gradients
             self._calculate_pressure_gradients()
-            
+
             # Solve energy equation
             temperature_referance = self._solve_energy_equation(mi, n_p)
-        
+
         return temperature_referance
 
     def _calculate_viscosity(self, temperature_iteration):
         """
         Calculate dimensionless viscosity based on temperature.
-        
+
         Parameters
         ----------
         temperature_iteration : ndarray
             Temperature field [°C]. Shape: (nz, nx).
-        
+
         Returns
         -------
         ndarray
@@ -1981,7 +2373,7 @@ class TiltingPad(BearingElement):
     def _solve_reynolds_equation(self, mi, n_p, psi_pad):
         """
         Solve Reynolds equation for pressure field using finite difference method.
-        
+
         Parameters
         ----------
         mi : ndarray
@@ -1990,7 +2382,7 @@ class TiltingPad(BearingElement):
             Pad index for the current analysis.
         psi_pad : ndarray
             Pad rotation angles [rad]. Shape: (n_pad,).
-        
+
         Returns
         -------
         None
@@ -1999,44 +2391,46 @@ class TiltingPad(BearingElement):
         n_k = self.nx * self.nz
         mat_coef = np.zeros((n_k, n_k))
         b_vec = np.zeros(n_k)
-        
+
         # Transformation of coordinates (inertial -> pivot)
         xryr, xryrpt, xr, yr, xrpt, yrpt = self._transform_coordinates(n_p)
         alpha = psi_pad[n_p]
         alphapt = 0
-        
+
         # Vectorization index
         k_idx = 0
-        
+
         for ii in range(self.nz):
             for jj in range(self.nx):
                 # Film thicknesses
                 h_p, h_e, h_w, h_n, h_s = self._calculate_film_thicknesses(
                     ii, jj, xr, yr, alpha, n_p
                 )
-                
+
                 # Temporal derivative of thickness
                 h_pt = self._calculate_h_pt(ii, jj, xrpt, yrpt, alphapt, n_p)
-                
+
                 self.h[ii, jj] = h_p
-                
+
                 # Viscosities at faces (boundary conditions)
                 mi_e, mi_w, mi_n, mi_s = self._calculate_face_viscosities(mi, ii, jj)
-                
+
                 # Reynolds equation coefficients (main terms)
                 c_e, c_w, c_n, c_s, c_p = self._calculate_reynolds_coefficients(
                     h_e, h_w, h_n, h_s, mi_e, mi_w, mi_n, mi_s
                 )
-                
+
                 # Source term (right hand side)
                 b_val = self._calculate_reynolds_source_term(h_e, h_w, h_pt, ii, jj)
                 b_vec[k_idx] = b_val
-                
+
                 # Fill coefficients matrix (left hand side)
-                self._fill_reynolds_matrix(mat_coef, k_idx, ii, jj, c_e, c_w, c_n, c_s, c_p)
-                
+                self._fill_reynolds_matrix(
+                    mat_coef, k_idx, ii, jj, c_e, c_w, c_n, c_s, c_p
+                )
+
                 k_idx += 1
-        
+
         # Solution of pressure field
         mat_coef = self._check_diagonal(mat_coef)
         p_vec = np.linalg.solve(mat_coef, b_vec)
@@ -2071,25 +2465,35 @@ class TiltingPad(BearingElement):
             - h_n: thickness at north face
             - h_s: thickness at south face
         """
+
         def _thickness_at_angle(theta):
             """Calculate thickness at a specific angle."""
             return (
-                self.pad_radius - self.journal_radius - (
-                    np.sin(theta) * (yr + alpha * (self.pad_radius + self.pad_thickness)) +
-                    np.cos(theta) * (xr + self.pad_radius - self.journal_radius - self.radial_clearance)
+                self.pad_radius
+                - self.journal_radius
+                - (
+                    np.sin(theta)
+                    * (yr + alpha * (self.pad_radius + self.pad_thickness))
+                    + np.cos(theta)
+                    * (
+                        xr
+                        + self.pad_radius
+                        - self.journal_radius
+                        - self.radial_clearance
+                    )
                 )
             ) / self.radial_clearance
-        
+
         theta_center = self.xtheta[jj]
         theta_e = theta_center + 0.5 * self.dtheta
         theta_w = theta_center - 0.5 * self.dtheta
-        
+
         h_p = _thickness_at_angle(theta_center)
         h_e = _thickness_at_angle(theta_e)
         h_w = _thickness_at_angle(theta_w)
         h_n = h_p  # Simplified for north face
         h_s = h_p  # Simplified for south face
-        
+
         return h_p, h_e, h_w, h_n, h_s
 
     def _calculate_h_pt(self, ii, jj, xrpt, yrpt, alphapt, n_p):
@@ -2117,9 +2521,9 @@ class TiltingPad(BearingElement):
             Temporal derivative of film thickness [1/s].
         """
         h_pt = -(1 / (self.radial_clearance * self.speed)) * (
-            np.cos(self.xtheta[jj]) * xrpt +
-            np.sin(self.xtheta[jj]) * yrpt +
-            np.sin(self.xtheta[jj]) * (self.pad_radius + self.pad_thickness) * alphapt
+            np.cos(self.xtheta[jj]) * xrpt
+            + np.sin(self.xtheta[jj]) * yrpt
+            + np.sin(self.xtheta[jj]) * (self.pad_radius + self.pad_thickness) * alphapt
         )
         return h_pt
 
@@ -2145,6 +2549,7 @@ class TiltingPad(BearingElement):
             - mi_n: viscosity at north face
             - mi_s: viscosity at south face
         """
+
         def _get_face_viscosity(direction):
             """Helper function to calculate viscosity at a specific face."""
             if direction == "east":
@@ -2167,15 +2572,17 @@ class TiltingPad(BearingElement):
                     return 0.5 * (mi[ii, jj] + mi[ii - 1, jj])
                 else:
                     return mi[ii, jj]
-        
+
         mi_e = _get_face_viscosity("east")
         mi_w = _get_face_viscosity("west")
         mi_n = _get_face_viscosity("north")
         mi_s = _get_face_viscosity("south")
-        
+
         return mi_e, mi_w, mi_n, mi_s
 
-    def _calculate_reynolds_coefficients(self, h_e, h_w, h_n, h_s, mi_e, mi_w, mi_n, mi_s):
+    def _calculate_reynolds_coefficients(
+        self, h_e, h_w, h_n, h_s, mi_e, mi_w, mi_n, mi_s
+    ):
         """
         Calculate finite difference coefficients for Reynolds equation.
 
@@ -2198,10 +2605,18 @@ class TiltingPad(BearingElement):
         """
         c_e = (1 / (self.pad_arc**2)) * (h_e**3 / (12 * mi_e)) * (self.dz / self.dx)
         c_w = (1 / (self.pad_arc**2)) * (h_w**3 / (12 * mi_w)) * (self.dz / self.dx)
-        c_n = (self.pad_radius / self.pad_axial_length) ** 2 * (self.dx / self.dz) * (h_n**3 / (12 * mi_n))
-        c_s = (self.pad_radius / self.pad_axial_length) ** 2 * (self.dx / self.dz) * (h_s**3 / (12 * mi_s))
+        c_n = (
+            (self.pad_radius / self.pad_axial_length) ** 2
+            * (self.dx / self.dz)
+            * (h_n**3 / (12 * mi_n))
+        )
+        c_s = (
+            (self.pad_radius / self.pad_axial_length) ** 2
+            * (self.dx / self.dz)
+            * (h_s**3 / (12 * mi_s))
+        )
         c_p = -(c_e + c_w + c_n + c_s)
-        
+
         return c_e, c_w, c_n, c_s, c_p
 
     def _calculate_reynolds_source_term(self, h_e, h_w, h_pt, ii, jj):
@@ -2223,9 +2638,8 @@ class TiltingPad(BearingElement):
             Source term value for Reynolds equation.
         """
         b_val = (
-            (self.journal_radius / (2 * self.pad_radius * self.pad_arc)) * self.dz * (h_e - h_w) +
-            h_pt * self.dx * self.dz
-        )
+            self.journal_radius / (2 * self.pad_radius * self.pad_arc)
+        ) * self.dz * (h_e - h_w) + h_pt * self.dx * self.dz
         return b_val
 
     def _fill_reynolds_matrix(self, mat_coef, k_idx, ii, jj, c_e, c_w, c_n, c_s, c_p):
@@ -2316,7 +2730,7 @@ class TiltingPad(BearingElement):
     def _calculate_pressure_gradients(self):
         """
         Calculate pressure gradients using finite differences.
-        
+
         Returns
         -------
         None
@@ -2326,24 +2740,32 @@ class TiltingPad(BearingElement):
             for jj in range(self.nx):
                 # Gradient in X direction
                 if jj == 0:
-                    self.dp_dx[ii, jj] = (self.pressure[ii, jj + 1] - self.pressure[ii, jj]) / self.dx
+                    self.dp_dx[ii, jj] = (
+                        self.pressure[ii, jj + 1] - self.pressure[ii, jj]
+                    ) / self.dx
                 elif jj == self.nx - 1:
                     self.dp_dx[ii, jj] = (0 - self.pressure[ii, jj]) / self.dx
                 else:
-                    self.dp_dx[ii, jj] = (self.pressure[ii, jj + 1] - self.pressure[ii, jj]) / self.dx
-                
+                    self.dp_dx[ii, jj] = (
+                        self.pressure[ii, jj + 1] - self.pressure[ii, jj]
+                    ) / self.dx
+
                 # Gradient in Z direction
                 if ii == 0:
-                    self.dp_dz[ii, jj] = (self.pressure[ii + 1, jj] - self.pressure[ii, jj]) / self.dz
+                    self.dp_dz[ii, jj] = (
+                        self.pressure[ii + 1, jj] - self.pressure[ii, jj]
+                    ) / self.dz
                 elif ii == self.nz - 1:
                     self.dp_dz[ii, jj] = (0 - self.pressure[ii, jj]) / self.dz
                 else:
-                    self.dp_dz[ii, jj] = (self.pressure[ii + 1, jj] - self.pressure[ii, jj]) / self.dz
+                    self.dp_dz[ii, jj] = (
+                        self.pressure[ii + 1, jj] - self.pressure[ii, jj]
+                    ) / self.dz
 
     def _solve_energy_equation(self, mi, n_p, is_equilibrium=False):
         """
         Solve energy equation for temperature field using finite difference method.
-        
+
         Parameters
         ----------
         mi : ndarray
@@ -2352,7 +2774,7 @@ class TiltingPad(BearingElement):
             Pad index for the current analysis.
         is_equilibrium : bool, optional
             Whether this is called during equilibrium optimization. Default is False.
-        
+
         Returns
         -------
         ndarray
@@ -2361,35 +2783,36 @@ class TiltingPad(BearingElement):
         n_k = self.nx * self.nz
         mat_coef_t = np.zeros((n_k, n_k))
         b_t = np.zeros(n_k)
-        
+
         k_t_idx = 0
         for ii in range(self.nz):
             for jj in range(self.nx):
                 # Turbulence and turbulent viscosity
-                mi_t = self._calculate_turbulent_viscosity(mi, ii, jj, n_p, is_equilibrium)
-                
+                mi_t = self._calculate_turbulent_viscosity(
+                    mi, ii, jj, n_p, is_equilibrium
+                )
+
                 # Energy equation coefficients
                 a_e, a_w, a_n, a_s, a_p_coef = self._calculate_energy_coefficients(
                     ii, jj, mi_t
                 )
-                
+
                 # Energy equation source term (right hand side)
                 b_t_val = self._calculate_energy_source_term(ii, jj, mi_t, n_p)
                 b_t[k_t_idx] = b_t_val
-                
+
                 # Fill coefficients matrix of energy equation (left hand side)
                 self._fill_energy_matrix(
-                    mat_coef_t, b_t, k_t_idx, ii, jj, 
-                    a_e, a_w, a_n, a_s, a_p_coef
+                    mat_coef_t, b_t, k_t_idx, ii, jj, a_e, a_w, a_n, a_s, a_p_coef
                 )
-                
+
                 k_t_idx += 1
-        
+
         # Solution of temperature field
         mat_coef_t = self._check_diagonal(mat_coef_t)
         t_vec = np.linalg.solve(mat_coef_t, b_t)
         temperature_referance = self._update_temperature_field(t_vec)
-        
+
         return temperature_referance
 
     def _calculate_turbulent_viscosity(self, mi, ii, jj, n_p, is_equilibrium=False):
@@ -2414,17 +2837,21 @@ class TiltingPad(BearingElement):
         """
         h_p_loc = self.h[ii, jj]
         mi_p = mi[ii, jj]
-        
+
         # Local Reynolds number
         reynolds_local = (
-            self.rho * self.speed * self.journal_radius * (h_p_loc / self.pad_axial_length) * 
-            self.radial_clearance / (self.mu_0 * mi_p)
+            self.rho
+            * self.speed
+            * self.journal_radius
+            * (h_p_loc / self.pad_axial_length)
+            * self.radial_clearance
+            / (self.mu_0 * mi_p)
         )
-        
+
         if not is_equilibrium:
             # Store in instance attribute for normal calculation
             self.reynolds_field[ii, jj, n_p] = reynolds_local
-        
+
         # Transition factor for turbulence
         if reynolds_local <= 500:
             delta_turb = 0
@@ -2432,7 +2859,7 @@ class TiltingPad(BearingElement):
             delta_turb = 1 - ((1000 - reynolds_local) / 500) ** (1 / 8)
         else:
             delta_turb = 1
-        
+
         # Calculate velocity derivatives
         if is_equilibrium:
             # Use mi_p directly for equilibrium
@@ -2441,31 +2868,32 @@ class TiltingPad(BearingElement):
             tau = mi_p * np.sqrt(du_dx**2 + dw_dx**2)
         else:
             # Use turbulent viscosity for normal calculation
-            du_dx = ((h_p_loc / self.mu_turb[ii, jj, n_p]) * self.dp_dx[ii, jj]) - (self.speed / h_p_loc)
+            du_dx = ((h_p_loc / self.mu_turb[ii, jj, n_p]) * self.dp_dx[ii, jj]) - (
+                self.speed / h_p_loc
+            )
             dw_dx = (h_p_loc / self.mu_turb[ii, jj, n_p]) * self.dp_dz[ii, jj]
             tau = self.mu_turb[ii, jj, n_p] * np.sqrt(du_dx**2 + dw_dx**2)
-        
+
         # Dimensionless distance from wall
         if is_equilibrium:
             y_wall = (
-                (h_p_loc * self.radial_clearance * 2) /
-                (self.mu_0 * mi_p / self.rho)
+                (h_p_loc * self.radial_clearance * 2) / (self.mu_0 * mi_p / self.rho)
             ) * ((abs(tau) / self.rho) ** 0.5)
         else:
             y_wall = (
-                (h_p_loc * self.radial_clearance * 2) /
-                (self.mu_0 * self.mu_turb[ii, jj, n_p] / self.rho)
+                (h_p_loc * self.radial_clearance * 2)
+                / (self.mu_0 * self.mu_turb[ii, jj, n_p] / self.rho)
             ) * ((abs(tau) / self.rho) ** 0.5)
-        
+
         # Turbulent viscosity (van Driest model)
         emv = 0.4 * (y_wall - (10.7 * np.tanh(y_wall / 10.7)))
-        
+
         if is_equilibrium:
             mi_t = mi_p * (1 + (delta_turb * emv))
         else:
             self.mu_turb[ii, jj, n_p] = mi_p * (1 + (delta_turb * emv))
             mi_t = self.mu_turb[ii, jj, n_p]
-        
+
         return mi_t
 
     def _calculate_energy_coefficients(self, ii, jj, mi_t):
@@ -2490,44 +2918,57 @@ class TiltingPad(BearingElement):
             - a_p_coef: center point coefficient
         """
         h_p_loc = self.h[ii, jj]
-        
+
         # Auxiliary factor for flow direction
         aux_up = 1 if self.xz[ii] >= 0 else 0
-        
+
         # Convection and conduction coefficients
         a_e = -(self.kt * h_p_loc * self.dz) / (
-            self.rho * self.cp * self.speed * ((self.pad_arc * self.pad_radius) ** 2) * self.dx
+            self.rho
+            * self.cp
+            * self.speed
+            * ((self.pad_arc * self.pad_radius) ** 2)
+            * self.dx
         )
-        
+
         a_w = (
-            ((h_p_loc**3) * self.dp_dx[ii, jj] * self.dz) / (12 * mi_t * (self.pad_arc**2)) -
-            ((self.journal_radius * h_p_loc * self.dz) / (2 * self.pad_radius * self.pad_arc)) -
-            (self.kt * h_p_loc * self.dz) / (
-                self.rho * self.cp * self.speed * ((self.pad_arc * self.pad_radius) ** 2) * self.dx
+            ((h_p_loc**3) * self.dp_dx[ii, jj] * self.dz)
+            / (12 * mi_t * (self.pad_arc**2))
+            - (
+                (self.journal_radius * h_p_loc * self.dz)
+                / (2 * self.pad_radius * self.pad_arc)
+            )
+            - (self.kt * h_p_loc * self.dz)
+            / (
+                self.rho
+                * self.cp
+                * self.speed
+                * ((self.pad_arc * self.pad_radius) ** 2)
+                * self.dx
             )
         )
-        
+
         # North and south coefficients (with upwind scheme)
         a_n_1 = (aux_up - 1) * (
-            ((self.pad_radius**2) * (h_p_loc**3) * self.dp_dz[ii, jj] * self.dx) /
-            (12 * (self.pad_axial_length**2) * mi_t)
+            ((self.pad_radius**2) * (h_p_loc**3) * self.dp_dz[ii, jj] * self.dx)
+            / (12 * (self.pad_axial_length**2) * mi_t)
         )
         a_s_1 = (aux_up) * (
-            ((self.pad_radius**2) * (h_p_loc**3) * self.dp_dz[ii, jj] * self.dx) /
-            (12 * (self.pad_axial_length**2) * mi_t)
+            ((self.pad_radius**2) * (h_p_loc**3) * self.dp_dz[ii, jj] * self.dx)
+            / (12 * (self.pad_axial_length**2) * mi_t)
         )
-        
+
         a_n_2 = -(self.kt * h_p_loc * self.dx) / (
             self.rho * self.cp * self.speed * (self.pad_axial_length**2) * self.dz
         )
         a_s_2 = -(self.kt * h_p_loc * self.dx) / (
             self.rho * self.cp * self.speed * (self.pad_axial_length**2) * self.dz
         )
-        
+
         a_n = a_n_1 + a_n_2
         a_s = a_s_1 + a_s_2
         a_p_coef = -(a_e + a_w + a_n + a_s)
-        
+
         return a_e, a_w, a_n, a_s, a_p_coef
 
     def _calculate_energy_source_term(self, ii, jj, mi_t, n_p):
@@ -2550,43 +2991,70 @@ class TiltingPad(BearingElement):
         """
         h_p_loc = self.h[ii, jj]
         h_pt = -(1 / (self.radial_clearance * self.speed)) * (
-            np.cos(self.xtheta[jj]) * 0 +  # xrpt
-            np.sin(self.xtheta[jj]) * 0 +  # yrpt
-            np.sin(self.xtheta[jj]) * (self.pad_radius + self.pad_thickness) * 0  # alphapt
+            np.cos(self.xtheta[jj]) * 0  # xrpt
+            + np.sin(self.xtheta[jj]) * 0  # yrpt
+            + np.sin(self.xtheta[jj])
+            * (self.pad_radius + self.pad_thickness)
+            * 0  # alphapt
         )
-        
+
         aux_b_t = (self.speed * self.mu_0) / (
             self.rho * self.cp * self.oil_supply_temperature * self.radial_clearance
         )
-        
+
         # Heat generation terms by viscous dissipation (right hand side)
         b_t_g = (
-            self.mu_0 * self.speed * (self.journal_radius**2) * self.dx * self.dz * 
-            self.pressure[ii, jj] * h_pt
-        ) / (self.rho * self.cp * self.reference_temperature * (self.radial_clearance ** 2))
-        
-        b_t_h = (
-            self.speed * self.mu_0 * (h_pt**2) * 4 * mi_t * self.dx * self.dz
-        ) / (self.rho * self.cp * self.reference_temperature * 3 * h_p_loc)
-        
-        b_t_i = aux_b_t * (
-            mi_t * (self.journal_radius**2) * self.dx * self.dz
-        ) / (h_p_loc * self.radial_clearance)
-        
-        b_t_j = aux_b_t * (
-            (self.pad_radius**2) * (h_p_loc**3) * (self.dp_dx[ii, jj] ** 2) * 
-            self.dx * self.dz
-        ) / (12 * self.radial_clearance * (self.pad_arc**2) * mi_t)
-        
-        b_t_k = aux_b_t * (
-            (self.pad_radius**4) * (h_p_loc**3) * (self.dp_dz[ii, jj] ** 2) * 
-            self.dx * self.dz
-        ) / (12 * self.radial_clearance * (self.pad_axial_length**2) * mi_t)
-        
+            self.mu_0
+            * self.speed
+            * (self.journal_radius**2)
+            * self.dx
+            * self.dz
+            * self.pressure[ii, jj]
+            * h_pt
+        ) / (
+            self.rho * self.cp * self.reference_temperature * (self.radial_clearance**2)
+        )
+
+        b_t_h = (self.speed * self.mu_0 * (h_pt**2) * 4 * mi_t * self.dx * self.dz) / (
+            self.rho * self.cp * self.reference_temperature * 3 * h_p_loc
+        )
+
+        b_t_i = (
+            aux_b_t
+            * (mi_t * (self.journal_radius**2) * self.dx * self.dz)
+            / (h_p_loc * self.radial_clearance)
+        )
+
+        b_t_j = (
+            aux_b_t
+            * (
+                (self.pad_radius**2)
+                * (h_p_loc**3)
+                * (self.dp_dx[ii, jj] ** 2)
+                * self.dx
+                * self.dz
+            )
+            / (12 * self.radial_clearance * (self.pad_arc**2) * mi_t)
+        )
+
+        b_t_k = (
+            aux_b_t
+            * (
+                (self.pad_radius**4)
+                * (h_p_loc**3)
+                * (self.dp_dz[ii, jj] ** 2)
+                * self.dx
+                * self.dz
+            )
+            / (12 * self.radial_clearance * (self.pad_axial_length**2) * mi_t)
+        )
+
         b_t_val = b_t_g + b_t_h + b_t_i + b_t_j + b_t_k
         return b_t_val
 
-    def _fill_energy_matrix(self, mat_coef_t, b_t, k_t_idx, ii, jj, a_e, a_w, a_n, a_s, a_p_coef):
+    def _fill_energy_matrix(
+        self, mat_coef_t, b_t, k_t_idx, ii, jj, a_e, a_w, a_n, a_s, a_p_coef
+    ):
         """
         Fill coefficients matrix for energy equation finite difference system.
 
@@ -2613,51 +3081,57 @@ class TiltingPad(BearingElement):
             mat_coef_t[k_t_idx, k_t_idx] = a_p_coef + a_s - a_w
             mat_coef_t[k_t_idx, k_t_idx + 1] = a_e
             mat_coef_t[k_t_idx, k_t_idx + self.nx] = a_n
-            b_t[k_t_idx] = b_t[k_t_idx] - 2 * a_w * (self.oil_supply_temperature / self.reference_temperature)
-            
+            b_t[k_t_idx] = b_t[k_t_idx] - 2 * a_w * (
+                self.oil_supply_temperature / self.reference_temperature
+            )
+
         elif ii == 0 and 0 < jj < self.nx - 1:
             mat_coef_t[k_t_idx, k_t_idx] = a_p_coef + a_s
             mat_coef_t[k_t_idx, k_t_idx + 1] = a_e
             mat_coef_t[k_t_idx, k_t_idx - 1] = a_w
             mat_coef_t[k_t_idx, k_t_idx + self.nx] = a_n
-            
+
         elif ii == 0 and jj == self.nx - 1:
             mat_coef_t[k_t_idx, k_t_idx] = a_p_coef + a_e + a_s
             mat_coef_t[k_t_idx, k_t_idx - 1] = a_w
             mat_coef_t[k_t_idx, k_t_idx + self.nx] = a_n
-            
+
         elif jj == 0 and 0 < ii < self.nz - 1:
             mat_coef_t[k_t_idx, k_t_idx] = a_p_coef - a_w
             mat_coef_t[k_t_idx, k_t_idx + 1] = a_e
             mat_coef_t[k_t_idx, k_t_idx - self.nx] = a_s
             mat_coef_t[k_t_idx, k_t_idx + self.nx] = a_n
-            b_t[k_t_idx] = b_t[k_t_idx] - 2 * a_w * (self.oil_supply_temperature / self.reference_temperature)
-            
+            b_t[k_t_idx] = b_t[k_t_idx] - 2 * a_w * (
+                self.oil_supply_temperature / self.reference_temperature
+            )
+
         elif 0 < ii < self.nz - 1 and 0 < jj < self.nx - 1:
             mat_coef_t[k_t_idx, k_t_idx] = a_p_coef
             mat_coef_t[k_t_idx, k_t_idx - 1] = a_w
             mat_coef_t[k_t_idx, k_t_idx - self.nx] = a_s
             mat_coef_t[k_t_idx, k_t_idx + self.nx] = a_n
             mat_coef_t[k_t_idx, k_t_idx + 1] = a_e
-            
+
         elif jj == self.nx - 1 and 0 < ii < self.nz - 1:
             mat_coef_t[k_t_idx, k_t_idx] = a_p_coef + a_e
             mat_coef_t[k_t_idx, k_t_idx - 1] = a_w
             mat_coef_t[k_t_idx, k_t_idx - self.nx] = a_s
             mat_coef_t[k_t_idx, k_t_idx + self.nx] = a_n
-            
+
         elif jj == 0 and ii == self.nz - 1:
             mat_coef_t[k_t_idx, k_t_idx] = a_p_coef + a_n - a_w
             mat_coef_t[k_t_idx, k_t_idx + 1] = a_e
             mat_coef_t[k_t_idx, k_t_idx - self.nx] = a_s
-            b_t[k_t_idx] = b_t[k_t_idx] - 2 * a_w * (self.oil_supply_temperature / self.reference_temperature)
-            
+            b_t[k_t_idx] = b_t[k_t_idx] - 2 * a_w * (
+                self.oil_supply_temperature / self.reference_temperature
+            )
+
         elif ii == self.nz - 1 and 0 < jj < self.nx - 1:
             mat_coef_t[k_t_idx, k_t_idx] = a_p_coef + a_n
             mat_coef_t[k_t_idx, k_t_idx + 1] = a_e
             mat_coef_t[k_t_idx, k_t_idx - 1] = a_w
             mat_coef_t[k_t_idx, k_t_idx - self.nx] = a_s
-            
+
         else:  # ii == self.nz - 1 and jj == self.nx - 1
             mat_coef_t[k_t_idx, k_t_idx] = a_p_coef + a_e + a_n
             mat_coef_t[k_t_idx, k_t_idx - 1] = a_w
@@ -2681,7 +3155,9 @@ class TiltingPad(BearingElement):
         cont = 0
         for i_lin in range(self.nz):
             for j_col in range(self.nx):
-                temperature_referance[i_lin, j_col] = self.reference_temperature * t_vec[cont]
+                temperature_referance[i_lin, j_col] = (
+                    self.reference_temperature * t_vec[cont]
+                )
                 cont += 1
         return temperature_referance
 
@@ -2705,37 +3181,49 @@ class TiltingPad(BearingElement):
         """
         # Dimensional pressure
         if is_equilibrium:
-            p_dimen = self.pressure * (self.mu_0 * self.speed * self.pad_radius**2) / (self.radial_clearance ** 2)
+            p_dimen = (
+                self.pressure
+                * (self.mu_0 * self.speed * self.pad_radius**2)
+                / (self.radial_clearance**2)
+            )
         else:
-            self.P_dimen = self.pressure * (self.mu_0 * self.speed * self.pad_radius**2) / (self.radial_clearance ** 2)
-        
+            self.P_dimen = (
+                self.pressure
+                * (self.mu_0 * self.speed * self.pad_radius**2)
+                / (self.radial_clearance**2)
+            )
+
         # Auxiliary matrices for integration
         aux_f1 = np.zeros((self.nz, self.nx))
         aux_f2 = np.zeros((self.nz, self.nx))
         for ni in range(self.nz):
             aux_f1[ni, :] = np.cos(self.xtheta)
             aux_f2[ni, :] = np.sin(self.xtheta)
-        
+
         # Forces in pad coordinate system
         y_teta_f1 = self.pressure * aux_f1
         f1_teta = np.trapezoid(y_teta_f1, self.xtheta)
         self.force_1[n_p] = -np.trapezoid(f1_teta, self.xz)
-        
+
         y_teta_f2 = self.pressure * aux_f2
         f2_teta = np.trapezoid(y_teta_f2, self.xtheta)
         self.force_2[n_p] = -np.trapezoid(f2_teta, self.xz)
-        
+
         # Resultant forces in inertial coordinate system
-        self.force_x[n_p] = self.force_1[n_p] * np.cos(psi_pad[n_p] + self.pivot_angle[n_p])
-        self.force_y[n_p] = self.force_1[n_p] * np.sin(psi_pad[n_p] + self.pivot_angle[n_p])
+        self.force_x[n_p] = self.force_1[n_p] * np.cos(
+            psi_pad[n_p] + self.pivot_angle[n_p]
+        )
+        self.force_y[n_p] = self.force_1[n_p] * np.sin(
+            psi_pad[n_p] + self.pivot_angle[n_p]
+        )
         self.moment_j[n_p] = self.force_2[n_p] * (self.pad_radius + self.pad_thickness)
-        
+
         # Dimensional forces
         self.force_x_dim[n_p] = self.force_x[n_p] * self.dimensionless_force[n_p]
         self.force_y_dim[n_p] = self.force_y[n_p] * self.dimensionless_force[n_p]
         self.moment_j_dim[n_p] = self.moment_j[n_p] * self.dimensionless_force[n_p]
         self.force_j_dim[n_p] = self.force_1[n_p] * self.dimensionless_force[n_p]
-        
+
         # Dimensional score for return (only for normal calculation)
         if not is_equilibrium:
             self.score_dim = self.moment_j[n_p] * self.dimensionless_force[n_p]
@@ -2758,7 +3246,7 @@ class TiltingPad(BearingElement):
         tuple
             Coordinate transformation results (xryr, xryrpt, xr, yr, xrpt, yrpt) where:
             - xryr: position vector in pad coordinates
-            - xryrpt: velocity vector in pad coordinates  
+            - xryrpt: velocity vector in pad coordinates
             - xr, yr: journal position in pad coordinates [m]
             - xrpt, yrpt: journal velocity in pad coordinates [m/s]
         """
@@ -2768,17 +3256,9 @@ class TiltingPad(BearingElement):
             yy = eccentricity * self.radial_clearance * np.sin(attitude_angle)
         else:
             # Use instance attributes for normal calculation
-            xx = (
-                self.eccentricity
-                * self.radial_clearance
-                * np.cos(self.attitude_angle)
-            )
-            yy = (
-                self.eccentricity
-                * self.radial_clearance
-                * np.sin(self.attitude_angle)
-            )
-    
+            xx = self.eccentricity * self.radial_clearance * np.cos(self.attitude_angle)
+            yy = self.eccentricity * self.radial_clearance * np.sin(self.attitude_angle)
+
         xryr = np.dot(
             [
                 [np.cos(self.pivot_angle[n_p]), np.sin(self.pivot_angle[n_p])],
@@ -2794,21 +3274,21 @@ class TiltingPad(BearingElement):
             ],
             [[self.x_pt], [self.y_pt]],
         )
-        
+
         xr = xryr[0, 0]
         yr = xryr[1, 0]
 
         xrpt = xryrpt[0, 0]
         yrpt = xryrpt[1, 0]
-        
+
         return xryr, xryrpt, xr, yr, xrpt, yrpt
 
     def _initialize_arrays(self):
         """Initialize all arrays used in the thermo-hydrodynamic analysis.
-        
+
         This method creates and initializes all the arrays needed for the analysis,
         including pressure, temperature, film thickness, forces, and other field variables.
-        
+
         Returns
         -------
         None
@@ -2825,18 +3305,18 @@ class TiltingPad(BearingElement):
         self.pressure = np.zeros(shape_2d)
         self.pressure_nd = np.zeros(shape_3d)
         self.pressure_prev = np.zeros(shape_2d)
-        
+
         # Temperature and thermal arrays
         self.temperature_init = self.reference_temperature * np.ones(shape_3d)
-        
+
         # Pressure gradients
         self.dp_dx = np.zeros(shape_2d)
         self.dp_dz = np.zeros(shape_2d)
-        
+
         # Turbulence and Reynolds arrays
         self.reynolds_field = np.zeros(shape_3d)
         self.mu_turb = 1.3 * np.ones(shape_3d)
-        
+
         # Force and moment arrays
         self.force_x = np.zeros(self.n_pad)
         self.force_y = np.zeros(self.n_pad)
@@ -2850,7 +3330,7 @@ class TiltingPad(BearingElement):
         self.force_j_dim = np.zeros(self.n_pad)
         self.force_2 = np.zeros(self.n_pad)
         self.force_2_new = np.zeros(self.n_pad)
-        
+
         # Pivot film thickness
         self.h_pivot = np.zeros(self.n_pad)
 
@@ -2873,7 +3353,7 @@ class TiltingPad(BearingElement):
     def _get_interp_coeffs(self, T_muI, T_muF, mu_I, mu_F):
         """
         Calculate viscosity interpolation coefficients.
-        
+
         Parameters
         ----------
         T_muI : float
@@ -2884,26 +3364,26 @@ class TiltingPad(BearingElement):
             Viscosity at first temperature [Pa·s]
         mu_F : float
             Viscosity at second temperature [Pa·s]
-        
+
         Returns
         -------
         tuple
             Coefficients (a, b) for viscosity equation: μ = a * exp(b * T)
         """
-        b = np.log(mu_F/mu_I)/(T_muF - T_muI)
-        a = mu_I/np.exp(b * T_muI)
+        b = np.log(mu_F / mu_I) / (T_muF - T_muI)
+        a = mu_I / np.exp(b * T_muI)
         return a, b
 
     def _check_diagonal(self, matrix, residual=1e-10):
         """Check matrix diagonal for zero elements and replace them with a small residual value.
-        
+
         Parameters
         ----------
         matrix : np.ndarray
             Matrix to be checked
         residual : float, optional
             Small value to replace zeros in diagonal. Default is 1e-10.
-            
+
         Returns
         -------
         np.ndarray
@@ -2937,16 +3417,16 @@ class TiltingPad(BearingElement):
             fig = go.Figure()
 
         XH, YH = np.meshgrid(self.xtheta, self.xz)
-        
+
         # Surface plot for pressure
         fig.add_trace(
             go.Surface(
                 x=XH,
                 y=YH,
-                z=1e-6*self.pressure_dim[:,:,self.pad_in],
+                z=1e-6 * self.pressure_dim[:, :, self.pad_in],
                 colorscale="jet",
                 name="Pressure field",
-                showscale=True
+                showscale=True,
             )
         )
 
@@ -2955,11 +3435,11 @@ class TiltingPad(BearingElement):
             scene=dict(
                 xaxis_title=dict(text="X direction [rad]", font=dict(size=14)),
                 yaxis_title=dict(text="Z direction [-]", font=dict(size=14)),
-                zaxis_title=dict(text="Pressure [MPa]", font=dict(size=14))
+                zaxis_title=dict(text="Pressure [MPa]", font=dict(size=14)),
             ),
             plot_bgcolor="white",
             paper_bgcolor="white",
-            **kwargs
+            **kwargs,
         )
 
         return fig
@@ -2985,17 +3465,17 @@ class TiltingPad(BearingElement):
             fig = go.Figure()
 
         XH, YH = np.meshgrid(self.xtheta, self.xz)
-        
+
         # Contour plot for temperature
         fig.add_trace(
             go.Contour(
                 x=XH[0],
-                y=YH[:,0],
-                z=self.temperature_init[:,:,self.pad_in],
+                y=YH[:, 0],
+                z=self.temperature_init[:, :, self.pad_in],
                 colorscale="jet",
                 name="Temperature field",
                 showscale=True,
-                colorbar=dict(title="Temperature [°C]", titleside="right")
+                colorbar=dict(title="Temperature [°C]", titleside="right"),
             )
         )
 
@@ -3005,17 +3485,17 @@ class TiltingPad(BearingElement):
                 title=dict(text="X direction [rad]", font=dict(size=14)),
                 showgrid=True,
                 gridwidth=1,
-                gridcolor=tableau_colors["gray"]
+                gridcolor=tableau_colors["gray"],
             ),
             yaxis=dict(
                 title=dict(text="Z direction [-]", font=dict(size=14)),
                 showgrid=True,
                 gridwidth=1,
-                gridcolor=tableau_colors["gray"]
+                gridcolor=tableau_colors["gray"],
             ),
             plot_bgcolor="white",
             paper_bgcolor="white",
-            **kwargs
+            **kwargs,
         )
 
         return fig
@@ -3044,9 +3524,13 @@ class TiltingPad(BearingElement):
             fig.add_trace(
                 go.Scatter(
                     x=self.xtheta,
-                    y=self.pressure_dim[:,i],
-                    name=f"Pad {i+1}",
-                    line=dict(color=tableau_colors[list(tableau_colors.keys())[i % len(tableau_colors)]])
+                    y=self.pressure_dim[:, i],
+                    name=f"Pad {i + 1}",
+                    line=dict(
+                        color=tableau_colors[
+                            list(tableau_colors.keys())[i % len(tableau_colors)]
+                        ]
+                    ),
                 )
             )
 
@@ -3056,18 +3540,18 @@ class TiltingPad(BearingElement):
                 title=dict(text="Angle [rad]", font=dict(size=14)),
                 showgrid=True,
                 gridwidth=1,
-                gridcolor=tableau_colors["gray"]
+                gridcolor=tableau_colors["gray"],
             ),
             yaxis=dict(
                 title=dict(text="Pressure [Pa]", font=dict(size=14)),
                 showgrid=True,
                 gridwidth=1,
-                gridcolor=tableau_colors["gray"]
+                gridcolor=tableau_colors["gray"],
             ),
             plot_bgcolor="white",
             paper_bgcolor="white",
             showlegend=True,
-            **kwargs
+            **kwargs,
         )
 
         return fig
@@ -3108,7 +3592,10 @@ class TiltingPad(BearingElement):
         )
 
         fig_CP = self.plot_contourT(
-            x_data=ang, y_data=axial, z_data=self.temperature_init, z_title="Temperature (ºC)"
+            x_data=ang,
+            y_data=axial,
+            z_data=self.temperature_init,
+            z_title="Temperature (ºC)",
         )
 
     def plot_scatter(self, x_data, y_data, pos, y_title):
@@ -3136,7 +3623,7 @@ class TiltingPad(BearingElement):
             fig.add_trace(
                 go.Scatter(
                     x=x_data[i],
-                    y=y_data[pos][:, i], 
+                    y=y_data[pos][:, i],
                     name=f"Pad{i}",
                 )
             )
@@ -3286,24 +3773,25 @@ class TiltingPad(BearingElement):
         fig.update_layout(plot_bgcolor="white")
         fig.show()
         return fig
-    
+
+
 def tilting_pad_example():
     """Create an example of a tilting pad bearing with Thermo-Hydro-Dynamic effects.
-    
+
     This function creates and returns a TiltingPad bearing instance with predefined
     parameters for demonstration purposes. The bearing is configured with 5 pads
     and operates at two different frequencies.
-    
+
     Returns
     -------
     bearing : TiltingPad
         A configured tilting pad bearing instance ready for analysis.
-        
+
     Examples
     --------
     >>> from ross.bearings.tilting_pad import tilting_pad_example
     >>> bearing = tilting_pad_example()
-    
+
     Notes
     -----
     This example uses the following configuration:
@@ -3317,34 +3805,34 @@ def tilting_pad_example():
     - Operating frequencies: 3000 RPM
     - Pre-load factor: 0.5 for all pads
     - Pivot offset: 0.5 (centered) for all pads
-    
+
     The bearing is configured for "match_eccentricity" equilibrium type,
     which automatically calculates the equilibrium position based on the
     specified eccentricity and attitude angle.
     """
 
     bearing = TiltingPad(
-            n = 1,
-            frequency = Q_([3000], "RPM"),
-            equilibrium_type = "match_eccentricity",
-            model_type = "thermo_hydro_dynamic",
-            journal_diameter = 101.6e-3,
-            radial_clearance = 74.9e-6,
-            pad_thickness = 12.7e-3,
-            pivot_angle = Q_([18, 90, 162, 234, 306], "deg"),
-            pad_arc = Q_([60, 60, 60, 60, 60], "deg"),
-            pad_axial_length = Q_([50.8e-3, 50.8e-3, 50.8e-3, 50.8e-3, 50.8e-3], "m"),
-            pre_load = [0.5, 0.5, 0.5, 0.5, 0.5],
-            offset = [0.5, 0.5, 0.5, 0.5, 0.5],
-            lubricant = "ISOVG32",
-            oil_supply_temperature = Q_(40, "degC"),
-            nx = 30,
-            nz = 30,
-            print_result=False,
-            print_progress=False,
-            print_time=False,
-            eccentricity = 0.483,
-            attitude_angle = Q_(267.5, "deg")
-        )
+        n=1,
+        frequency=Q_([3000], "RPM"),
+        equilibrium_type="match_eccentricity",
+        model_type="thermo_hydro_dynamic",
+        journal_diameter=101.6e-3,
+        radial_clearance=74.9e-6,
+        pad_thickness=12.7e-3,
+        pivot_angle=Q_([18, 90, 162, 234, 306], "deg"),
+        pad_arc=Q_([60, 60, 60, 60, 60], "deg"),
+        pad_axial_length=Q_([50.8e-3, 50.8e-3, 50.8e-3, 50.8e-3, 50.8e-3], "m"),
+        pre_load=[0.5, 0.5, 0.5, 0.5, 0.5],
+        offset=[0.5, 0.5, 0.5, 0.5, 0.5],
+        lubricant="ISOVG32",
+        oil_supply_temperature=Q_(40, "degC"),
+        nx=30,
+        nz=30,
+        print_result=False,
+        print_progress=False,
+        print_time=False,
+        eccentricity=0.483,
+        attitude_angle=Q_(267.5, "deg"),
+    )
 
     return bearing

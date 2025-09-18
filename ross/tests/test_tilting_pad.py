@@ -13,7 +13,7 @@ def tilting_pad():
     pad_axial_length = Q_([50.8e-3, 50.8e-3, 50.8e-3, 50.8e-3, 50.8e-3], "m")
     oil_supply_temperature = Q_(40, "degC")
     attitude_angle = Q_(267.5, "deg")
-    
+
     bearing = TiltingPad(
         n=1,
         frequency=frequency,
@@ -34,7 +34,7 @@ def tilting_pad():
         print_progress=False,
         print_time=False,
         eccentricity=0.483,
-        attitude_angle=attitude_angle
+        attitude_angle=attitude_angle,
     )
 
     return bearing
@@ -51,7 +51,7 @@ def test_tilting_pad_parameters(tilting_pad):
 def test_tilting_pad_equilibrium_pos(tilting_pad):
     assert_allclose(tilting_pad.eccentricity, 0.483, rtol=0.01)
     assert_allclose(tilting_pad.attitude_angle, 4.667, rtol=0.01)
-    
+
     expected_angles = [0.001135, -0.000726, 0.000095, 0.000372, 0.001039]
     for i, expected_angle in enumerate(expected_angles):
         assert_allclose(tilting_pad.psi_pad[i], expected_angle, rtol=0.1)
@@ -62,7 +62,7 @@ def test_tilting_pad_coefficients(tilting_pad):
     assert_allclose(tilting_pad.kxy, 24935707.314652264, rtol=0.001)
     assert_allclose(tilting_pad.kyx, 24935707.314652324, rtol=0.001)
     assert_allclose(tilting_pad.kyy, 242414350.50060275, rtol=0.001)
-    
+
     assert_allclose(tilting_pad.cxx, 464269.3452154938, rtol=0.001)
     assert_allclose(tilting_pad.cxy, 12498.24122981852, rtol=0.001)
     assert_allclose(tilting_pad.cyx, 12498.241229842806, rtol=0.001)
