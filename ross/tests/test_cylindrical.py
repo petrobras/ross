@@ -1,12 +1,12 @@
 import pytest
 from numpy.testing import assert_allclose
 
-from ross.bearings.cylindrical import PlainJournal
+from ross.bearings.plain_journal import PlainJournal
 from ross.units import Q_
 
 
 @pytest.fixture
-def cylindrical():
+def plain_journal():
     frequency = Q_([900], "RPM")
     L = Q_(10.3600055944, "in")
     oil_flow = Q_(37.86, "l/min")
@@ -43,22 +43,22 @@ def cylindrical():
     return bearing
 
 
-def test_cylindrical_parameters(cylindrical):
-    assert_allclose(cylindrical.axial_length, 0.263144, rtol=0.0001)
-    assert_allclose(cylindrical.journal_radius, 0.2)
-    assert_allclose(cylindrical.frequency, 94.24777961)
-    assert_allclose(cylindrical.rho, 873.99629)
-    assert_allclose(cylindrical.reference_temperature, 50)
+def test_plain_journal_parameters(plain_journal):
+    assert_allclose(plain_journal.axial_length, 0.263144, rtol=0.0001)
+    assert_allclose(plain_journal.journal_radius, 0.2)
+    assert_allclose(plain_journal.frequency, 94.24777961)
+    assert_allclose(plain_journal.rho, 873.99629)
+    assert_allclose(plain_journal.reference_temperature, 50)
 
 
-def test_cylindrical_equilibrium_pos(cylindrical):
-    assert_allclose(cylindrical.equilibrium_pos[0], 0.68733194, rtol=0.01)
-    assert_allclose(cylindrical.equilibrium_pos[1], -0.79394211, rtol=0.01)
+def test_plain_journal_equilibrium_pos(plain_journal):
+    assert_allclose(plain_journal.equilibrium_pos[0], 0.68733194, rtol=0.01)
+    assert_allclose(plain_journal.equilibrium_pos[1], -0.79394211, rtol=0.01)
 
 
-def test_cylindrical_coefficients(cylindrical):
+def test_plain_journal_coefficients(plain_journal):
     frequency = Q_(900, "RPM")
-    coeffs = cylindrical.coefficients(frequency)
+    coeffs = plain_journal.coefficients(frequency)
     kxx, kxy, kyx, kyy = coeffs[0]
     cxx, cxy, cyx, cyy = coeffs[1]
 

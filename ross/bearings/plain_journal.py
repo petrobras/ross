@@ -14,7 +14,7 @@ from ross.bearings.lubricants import lubricants_dict
 
 class PlainJournal(BearingElement):
     """This class calculates the pressure and temperature field in oil film of
-    a cylindrical bearing. It is also possible to obtain the stiffness and
+    a plain journal bearing. It is also possible to obtain the stiffness and
     damping coefficients.
     The basic references for the code is found in :cite:t:`barbosa2018`, :cite:t:`daniel2012` and :cite:t:`nicoletti1999`.
 
@@ -141,7 +141,7 @@ class PlainJournal(BearingElement):
 
     Example
     --------
-    >>> from ross.bearings.cylindrical import PlainJournal
+    >>> from ross.bearings.plain_journal import PlainJournal
     >>> bearing = PlainJournal(
     ...    n=3,
     ...    axial_length=0.263144,
@@ -1966,7 +1966,7 @@ class PlainJournal(BearingElement):
         )
 
         fig.update_layout(
-            title="Cylindrical Bearing",
+            title="Plain Journal Bearing",
             xaxis=dict(
                 showgrid=False,
                 zeroline=False,
