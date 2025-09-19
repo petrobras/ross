@@ -1,9 +1,12 @@
+import warnings
 import numpy as np
+import numpy.linalg as la
 from scipy.fft import fft
+from collections.abc import Iterable
 
 from ross.units import Q_, check_units
 from ross.results import (
-    FrequencyResponseResults,
+    ForcedResponseResults,
     TimeResponseResults,
 )
 
@@ -22,20 +25,19 @@ class HarmonicBalance:
         unb_phase,
         speed,
         t,
-        n_harmonics=6,
+        n_harmonics=1,
         F_ext=None,
         points=None,
     ):
         rotor = self.rotor
-        accel = 0
 
         self.noh = n_harmonics
+
         if points is None or points > len(t):
             points = int(len(t) / 2)
-
         self.points = points
 
-        W = rotor.gravitational_force()
+        W = rotor.gravitational_force() * 0
         F_unb, F_unb_s = self._unbalance_force(node, unb_magnitude, unb_phase, speed)
 
         if F_ext is None:
@@ -48,7 +50,6 @@ class HarmonicBalance:
 
         H = self._build_harmonic_balance_matrix(
             speed,
-            accel,
             rotor.M(speed),
             rotor.K(speed),
             rotor.Ksdt(),
@@ -59,23 +60,51 @@ class HarmonicBalance:
         _, Qo, dQ, dQ_s = self._solve_freq_response(H, F)
 
         y, ydot, y2dot = self._reconstruct_time_domain(speed, t, Qo, dQ)
+        time_resp = TimeResponseResults(rotor, t, y.T, [])
 
-        return TimeResponseResults(rotor, t, y.T, [])
+        return time_resp
 
-    def _unbalance_force(self, node, magnitude, phase, omega):
+    def _unbalance_force(self, node, magnitude, phase, omega, alpha=0):
         ndof = self.rotor.ndof
         number_dof = self.rotor.number_dof
 
         F0 = np.zeros((ndof), dtype=np.complex128)
 
         for n, m, p in zip(node, magnitude, phase):
-            Fa = m * omega**2 * np.array([np.cos(p), np.sin(p)])
-            Fb = m * omega**2 * np.array([np.sin(p), -np.cos(p)])
+            cos = np.cos(p)
+            sin = np.sin(p)
+
+            Fa = m * omega**2 * np.array([cos, sin])
+            Fa += m * alpha * np.array([-sin, cos])
+
+            Fb = m * omega**2 * np.array([-sin, cos])
+            Fb += m * alpha * np.array([cos, -sin])
 
             dofs = [number_dof * n, number_dof * n + 1]
             F0[dofs] += Fa - 1j * Fb
 
         F0_s = np.conjugate(F0)
+
+        return F0, F0_s
+
+    def _unbalance_force_over_time(self, node, magnitude, phase, omega, t):
+        ndof = self.rotor.ndof
+
+        F0 = np.zeros((len(t), ndof))
+        F0_s = np.zeros((len(t), ndof))
+
+        if isinstance(omega, Iterable):
+            alpha = np.gradient(omega, t)
+
+            for i, w in enumerate(omega):
+                F0[i, :], F0_s[i, :] = self._unbalance_force(
+                    node, magnitude, phase, w, alpha[i]
+                )
+
+        else:
+            F0[:, :], F0_s[:, :] = self._unbalance_force(
+                node, magnitude, phase, omega, 0
+            )
 
         return F0, F0_s
 
@@ -89,7 +118,7 @@ class HarmonicBalance:
         F = np.zeros((ndof, self.noh), dtype=complex)
         F_s = np.zeros((ndof, self.noh), dtype=complex)
 
-        if self.probeForce is not None:
+        if self.probeForce:
             for i in range(len(self.probeForce)):
                 idx = slice(
                     (self.probeForce[i]) * number_dof - 6,
@@ -130,8 +159,8 @@ class HarmonicBalance:
         ndof = self.rotor.ndof
 
         F0 = np.zeros(((self.noh * 2 + 1) * ndof), dtype=complex)
-        # F0[0 : 3 * ndof] = [4 * W + 2 * Fo, 2 * F_unb + 2 * Fn[:, 0], 2 * F_unb_s + 2 * Fn_s[:, 0]]
-        F0[0:ndof] = 4 * W + 2 * Fo
+
+        F0[:ndof] = 4 * W + 2 * Fo
         F0[ndof : 2 * ndof] = 2 * F_unb + 2 * Fn[:, 0]
         F0[2 * ndof : 3 * ndof] = 2 * F_unb_s + 2 * Fn_s[:, 0]
 
@@ -144,7 +173,6 @@ class HarmonicBalance:
     def _build_harmonic_balance_matrix(
         self,
         speed,
-        accel,
         M,
         K,
         Ksdt,
@@ -156,6 +184,7 @@ class HarmonicBalance:
         Co=None,
         Cn=None,
         Cn_s=None,
+        accel=0,
     ):
         ndof = self.rotor.ndof
         alpha = self.rotor.shaft_elements[0].alpha
@@ -290,8 +319,13 @@ class HarmonicBalance:
     def _solve_freq_response(self, H, F):
         ndof = self.rotor.ndof
 
-        # Qt = np.linalg.solve(H, F)
-        Qt = F @ np.linalg.pinv(H)
+        try:
+            Qt = np.linalg.solve(H, F)
+        except np.linalg.LinAlgError as err:
+            warnings.warn(
+                f"{err} error. Using the pseudo-inverse to proceed.", UserWarning
+            )
+            Qt = F @ np.linalg.pinv(H)
 
         Qo = np.real(Qt[:ndof])
         Qn = np.zeros((ndof, self.noh), dtype=complex)
