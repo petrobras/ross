@@ -21,6 +21,7 @@ from .utils import get_data_from_figure, visualize_matrix
 from ross.bearings.lubricants import lubricants_dict
 from ross.bearings.cylindrical import *
 from ross.seals.labyrinth_seal import *
+from ross.bearings.thrust_pad import *
 
 _pio.templates.default = "ross"
 if "ipykernel" in sys.modules:
