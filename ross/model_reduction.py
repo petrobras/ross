@@ -209,22 +209,17 @@ class Guyan(ModelReduction):
         self.reordering = self.selected_dofs + self.ignored_dofs
         self.transf_matrix = self.get_transformation_matrix()
 
-    def _get_elem_dofs(self):
-        local_dofs = [0, 1]
+    def _select_elem_dofs(self):
+        """Select DOFs from rotor bearings and disks"""
+        local_dofs = [0, 1]  # Only dofx and dofy
+        selected_dofs = []
 
-        brg_dofs = [
-            dof
-            for el in self.bearings
-            for dof in np.array(list(el.dof_global_index.values()))[local_dofs]
-        ]
+        for elm in self.bearings + self.disks:
+            dofs = list(elm.dof_global_index.values())
+            for dof in np.array(dofs)[local_dofs]:
+                selected_dofs.append(dof)
 
-        disk_dofs = [
-            dof
-            for el in self.disks
-            for dof in np.array(list(el.dof_global_index.values()))[local_dofs]
-        ]
-
-        return brg_dofs + disk_dofs
+        return selected_dofs
 
     def _separate_dofs(self, include_dofs=[], include_nodes=[]):
         """Separate the selected DOFs from the ignored DOFs."""
@@ -238,7 +233,7 @@ class Guyan(ModelReduction):
 
         selected_dofs = set()
         selected_dofs.update(include_dofs)
-        selected_dofs.update(self._get_elem_dofs())
+        selected_dofs.update(self._select_elem_dofs())
 
         for n in include_nodes:
             dofs = n * self.number_dof + np.arange(self.number_dof)
