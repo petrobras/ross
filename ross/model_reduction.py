@@ -1,3 +1,4 @@
+import warnings
 import numpy as np
 from numpy import linalg as la
 from scipy.linalg import eigh
@@ -64,6 +65,8 @@ class PseudoModal(ModelReduction):
         self.M = rotor.M(speed)
         self.K = rotor.K(speed)
         self.transf_matrix = self.get_transformation_matrix(speed)
+
+        print(f"Number of modes: {self.num_modes}")
 
     def get_transformation_matrix(self, speed):
         """Build modal matrix
@@ -192,13 +195,36 @@ class Guyan(ModelReduction):
         self.M = rotor.M(speed)
         self.K = rotor.K(speed)
 
+        self.bearings = [b for b in rotor.bearing_elements]
+        self.disks = [d for d in rotor.disk_elements]
+
         self.ndof_limit = int(self.ndof * 0.15) if ndof_limit is None else ndof_limit
 
         self.selected_dofs, self.ignored_dofs = self._separate_dofs(
             include_dofs, include_nodes
         )
+
+        print(f"Min ndofs: {len(self.selected_dofs)}")
+
         self.reordering = self.selected_dofs + self.ignored_dofs
         self.transf_matrix = self.get_transformation_matrix()
+
+    def _get_elem_dofs(self):
+        local_dofs = [0, 1]
+
+        brg_dofs = [
+            dof
+            for el in self.bearings
+            for dof in np.array(list(el.dof_global_index.values()))[local_dofs]
+        ]
+
+        disk_dofs = [
+            dof
+            for el in self.disks
+            for dof in np.array(list(el.dof_global_index.values()))[local_dofs]
+        ]
+
+        return brg_dofs + disk_dofs
 
     def _separate_dofs(self, include_dofs=[], include_nodes=[]):
         """Separate the selected DOFs from the ignored DOFs."""
@@ -212,6 +238,7 @@ class Guyan(ModelReduction):
 
         selected_dofs = set()
         selected_dofs.update(include_dofs)
+        selected_dofs.update(self._get_elem_dofs())
 
         for n in include_nodes:
             dofs = n * self.number_dof + np.arange(self.number_dof)
@@ -220,7 +247,7 @@ class Guyan(ModelReduction):
         n = self.ndof_limit - len(selected_dofs)
         i = 0
         while n > 0:
-            selected_dofs.update(ordered_dofs[i:n])
+            selected_dofs.update(ordered_dofs[i : i + n])
             i += n
             n = self.ndof_limit - len(selected_dofs)
 
@@ -246,7 +273,15 @@ class Guyan(ModelReduction):
         Ksm = K[np.ix_(self.ignored_dofs, self.selected_dofs)]
 
         # Compute transformation matrix
-        Tg = np.vstack((I, -la.pinv(Kss) @ Ksm))
+        try:
+            inv_Kss = la.inv(Kss)
+        except np.linalg.LinAlgError as err:
+            warnings.warn(
+                f"{err} error. Using the pseudo-inverse to proceed.", UserWarning
+            )
+            inv_Kss = la.pinv(Kss)
+
+        Tg = np.vstack((I, -inv_Kss @ Ksm))
 
         return Tg
 
@@ -352,6 +387,14 @@ class Serep(Guyan):
         Phi_sm = Phi[n_selected:, 0:n_selected]
 
         # Compute transformation matrix
-        Tserep = np.vstack((I, Phi_sm @ la.pinv(Phi_mm)))
+        try:
+            inv_Phi_mm = la.inv(Phi_mm)
+        except np.linalg.LinAlgError as err:
+            warnings.warn(
+                f"{err} error. Using the pseudo-inverse to proceed.", UserWarning
+            )
+            inv_Phi_mm = la.pinv(Phi_mm)
+
+        Tserep = np.vstack((I, Phi_sm @ inv_Phi_mm))
 
         return Tserep
