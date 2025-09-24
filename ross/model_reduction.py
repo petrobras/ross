@@ -153,9 +153,6 @@ class Guyan(ModelReduction):
         The rotor object.
     speed : float
         Rotor speed.
-    ndof_limit : int
-        The number of DOFs to be considered in the model reduction.
-        Default is 24.
     include_dofs : list of int, optional
         List of DOFs to be included in the reduction,
         e.g., DOFs with applied forces or probe locations.
@@ -179,7 +176,6 @@ class Guyan(ModelReduction):
     ...     rotor=rotor,
     ...     speed=speed,
     ...     method="guyan",
-    ...     ndof_limit=12,
     ...     include_dofs=[dofx, dofy]
     ... )
     >>> F_reduct = mr.reduce_vector(F.T).T
@@ -187,9 +183,7 @@ class Guyan(ModelReduction):
     array([5, 6])
     """
 
-    def __init__(
-        self, rotor, speed, ndof_limit=24, include_dofs=[], include_nodes=[], **kwargs
-    ):
+    def __init__(self, rotor, speed, include_dofs=[], include_nodes=[], **kwargs):
         self.ndof = rotor.ndof
         self.number_dof = rotor.number_dof
         self.M = rotor.M(speed)
@@ -197,8 +191,6 @@ class Guyan(ModelReduction):
 
         self.bearings = [b for b in rotor.bearing_elements]
         self.disks = [d for d in rotor.disk_elements]
-
-        self.ndof_limit = int(self.ndof * 0.15) if ndof_limit is None else ndof_limit
 
         self.selected_dofs, self.ignored_dofs = self._separate_dofs(
             include_dofs, include_nodes
@@ -211,26 +203,17 @@ class Guyan(ModelReduction):
 
     def _select_elem_dofs(self):
         """Select DOFs from rotor bearings and disks"""
-        local_dofs = [0, 1]  # Only dofx and dofy
+        local_dofs = [0, 1, 5]  # Only dofx and dofy
         selected_dofs = []
 
         for elm in self.bearings + self.disks:
-            dofs = list(elm.dof_global_index.values())
-            for dof in np.array(dofs)[local_dofs]:
-                selected_dofs.append(dof)
+            for i in local_dofs:
+                selected_dofs.append(elm.n * self.number_dof + i)
 
         return selected_dofs
 
     def _separate_dofs(self, include_dofs=[], include_nodes=[]):
         """Separate the selected DOFs from the ignored DOFs."""
-
-        # Sort DOFs by mass-stiffness ratio (M/K)
-        with np.errstate(divide="ignore"):
-            diag_K = np.diag(self.K)
-            M_K = np.where(diag_K != 0, np.diag(self.M) / diag_K, 0)
-
-        ordered_dofs = np.argsort(M_K)[::-1]
-
         selected_dofs = set()
         selected_dofs.update(include_dofs)
         selected_dofs.update(self._select_elem_dofs())
@@ -238,13 +221,6 @@ class Guyan(ModelReduction):
         for n in include_nodes:
             dofs = n * self.number_dof + np.arange(self.number_dof)
             selected_dofs.update(dofs)
-
-        n = self.ndof_limit - len(selected_dofs)
-        i = 0
-        while n > 0:
-            selected_dofs.update(ordered_dofs[i : i + n])
-            i += n
-            n = self.ndof_limit - len(selected_dofs)
 
         ignored_dofs = sorted(set(range(self.ndof)) - selected_dofs)
         selected_dofs = sorted(selected_dofs)
