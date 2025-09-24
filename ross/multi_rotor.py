@@ -1,6 +1,8 @@
 import numpy as np
 from re import search
 from copy import deepcopy as copy
+from collections.abc import Iterable
+from scipy.integrate import cumulative_trapezoid as integrate
 
 import ross as rs
 from ross.gear_element import GearElement
@@ -269,6 +271,61 @@ class MultiRotor(Rotor):
         speed = self.check_speed(node, omega)
 
         return super()._unbalance_force(node, magnitude, phase, speed)
+
+    def unbalance_force_over_time(self, node, magnitude, phase, omega, t):
+        """Calculate unbalance forces for each time step.
+
+        This auxiliary function calculates the unbalanced forces by taking
+        into account the magnitude and phase of the force. It generates an
+        array of force values at each degree of freedom for the specified
+        nodes at each time step, while also considering a range of
+        frequencies.
+
+        Parameters
+        ----------
+        node : list, int
+            Nodes where the unbalance is applied.
+        magnitude : list, float
+            Unbalance magnitude (kg.m) for each node.
+        phase : list, float
+            Unbalance phase (rad) for each node.
+        omega : float, np.darray
+            Constant velocity or desired range of velocities (rad/s).
+        t : np.darray
+            Time array (s).
+
+        Returns
+        -------
+        F0 : np.ndarray
+            Unbalance force at each degree of freedom for each time step.
+        theta : np.ndarray
+            Angular positions for each time step.
+        omega : np.ndarray
+            Angular velocities for each time step.
+        alpha : np.ndarray
+            Angular accelerations for each time step.
+        """
+
+        if not isinstance(omega, Iterable):
+            omega = np.full_like(t, omega)
+
+        theta = integrate(omega, t, initial=0)
+        alpha = np.gradient(omega, t)
+
+        F0 = np.zeros((self.ndof, len(t)))
+
+        for i, n in enumerate(node):
+            phi = phase[i] + theta
+
+            w = self.check_speed(n, omega)
+
+            Fx = magnitude[i] * ((w**2) * np.cos(phi) + alpha * np.sin(phi))
+            Fy = magnitude[i] * ((w**2) * np.sin(phi) - alpha * np.cos(phi))
+
+            F0[n * self.number_dof + 0, :] += Fx
+            F0[n * self.number_dof + 1, :] += Fy
+
+        return F0, theta, omega, alpha
 
     def check_speed(self, node, omega):
         """Adjusts the speed for the specified node based on the rotor configuration.
