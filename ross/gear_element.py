@@ -476,8 +476,10 @@ class GearElementTVMS(GearElement):
         alpha_a = self.pr_angles_dict["addendum"]
         rb = self.base_radius
 
+        theta_norm = normalize(theta, 2 * np.pi / self.n_teeth)
+
         s_total = rb * (np.tan(alpha_a) - np.tan(alpha_c))
-        s = np.mod(rb * theta, s_total)
+        s = normalize(rb * theta_norm, s_total)
 
         tan_alpha = np.tan(alpha_c) + (s / s_total) * (
             np.tan(alpha_a) - np.tan(alpha_c)
@@ -1006,16 +1008,14 @@ class Mesh:
         alpha_c = self.driving_gear.pr_angles_dict["start_point"]
         alpha_a = self.driving_gear.pr_angles_dict["addendum"]
 
-        theta = normalize(angular_position, 2 * np.pi / self.driving_gear.n_teeth)
-
-        alpha = self.driving_gear._to_pressure_angle(theta)
+        alpha = self.driving_gear._to_pressure_angle(angular_position)
         dmeshing = (alpha_a - alpha_c) / contact_ratio
-        alpha_norm = normalize(alpha - alpha_c, dmeshing)
+        dalpha = normalize(alpha - alpha_c, dmeshing)
 
-        stiffness = self._angular_equivalent_stiffness(alpha_norm)
+        stiffness = self._angular_equivalent_stiffness(dalpha)
 
-        if alpha_norm <= (contact_ratio - 1) * dmeshing:
-            stiffness += self._angular_equivalent_stiffness(alpha_norm + dmeshing)
+        if dalpha <= (contact_ratio - 1) * dmeshing:
+            stiffness += self._angular_equivalent_stiffness(dalpha + dmeshing)
 
         return stiffness
 
