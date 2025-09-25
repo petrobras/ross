@@ -359,7 +359,7 @@ def _init_orbit(ru_e, rv_e):
     nv = nv
     # fmt: off
     T = np.array([[ru * np.cos(nu), -ru * np.sin(nu)],
-                    [rv * np.cos(nv), -rv * np.sin(nv)]])
+                  [rv * np.cos(nv), -rv * np.sin(nv)]])
     # fmt: on
     H = T @ T.T
 
@@ -3232,6 +3232,33 @@ class ForcedResponseResults(Results):
             "[length] / [time]": ["m/s", "velc_resp"],
             "[length] / [time] ** 2": ["m/s**2", "accl_resp"],
         }
+        
+    def _calculate_amplitude(self,**kwargs):
+        
+        if  kwargs['angle'] == "major" or  kwargs['angle'] == "minor":            
+            forward_whirl = 0.5 * (kwargs['ru_e'] + 1j * kwargs['rv_e'])
+            backward_whirl = 0.5 * (kwargs['ru_e'] - 1j * kwargs['rv_e'])  
+            
+            amp_fw = np.abs(forward_whirl)
+            amp_bw = np.abs(backward_whirl)  
+            major_axis = amp_fw + amp_bw
+            minor_axis = np.abs(amp_fw - amp_bw)
+            phase_fw_rad = np.angle(forward_whirl)
+            phase_bw_rad = np.angle(backward_whirl)
+            major_angle = 0.5*(phase_fw_rad + phase_bw_rad)
+            minor_angle= major_angle+np.pi/2
+             # find closest angle index
+            if kwargs['angle'] == "major":
+                return major_axis, major_angle               
+            elif kwargs['angle'] == "minor":                #
+                 return minor_axis, minor_angle
+        else:                
+            amp_complex=kwargs['ru_e']* np.cos(kwargs['angle'])+kwargs['rv_e'] * np.sin(kwargs['angle'])
+            amp_abs=np.abs(kwargs['ru_e']* np.cos(kwargs['angle'])+kwargs['rv_e'] * np.sin(kwargs['angle']))
+            phase=2*np.pi - np.mod(np.angle(amp_complex), 2*np.pi)
+               
+        return amp_abs, phase
+    
 
     def data_magnitude(
         self,
@@ -3309,15 +3336,18 @@ class ForcedResponseResults(Results):
 
             amplitude = []
             for speed_idx in range(len(self.speed_range)):
-                ru_e, rv_e = response[:, speed_idx][
-                    self.rotor.number_dof * node : self.rotor.number_dof * node + 2
-                ]
-                orbit = Orbit(
-                    node=node, node_pos=self.rotor.nodes_pos[node], ru_e=ru_e, rv_e=rv_e
-                )
-                amp, phase = orbit.calculate_amplitude(angle=angle)
+                try:
+                    ru_e, rv_e = response[:, speed_idx][
+                        self.rotor.number_dof * node : self.rotor.number_dof * node + 2
+                    ]
+                except:
+                    ru_e, rv_e = response[:, speed_idx][
+                        self.rotor.number_dof * node -3: self.rotor.number_dof * node + 2 -3
+                    ]
+                    
+                amp, phase=self._calculate_amplitude(ru_e=ru_e, rv_e=rv_e,angle=angle)
                 amplitude.append(amp)
-
+            #input('pause')
             data[probe_tag] = Q_(amplitude, base_unit).to(amplitude_units).m
 
         df = pd.DataFrame(data)
@@ -3404,15 +3434,20 @@ class ForcedResponseResults(Results):
 
             phase_values = []
             for speed_idx in range(len(self.speed_range)):
-                ru_e, rv_e = response[:, speed_idx][
-                    self.rotor.number_dof * node : self.rotor.number_dof * node + 2
-                ]
-                orbit = Orbit(
-                    node=node, node_pos=self.rotor.nodes_pos[node], ru_e=ru_e, rv_e=rv_e
-                )
-                amp, phase = orbit.calculate_amplitude(angle=angle)
+                try:
+                    ru_e, rv_e = response[:, speed_idx][
+                        self.rotor.number_dof * node : self.rotor.number_dof * node + 2
+                    ]
+                except:
+                    ru_e, rv_e = response[:, speed_idx][
+                        self.rotor.number_dof * node -3: self.rotor.number_dof * node + 2 -3
+                    ]
+                
+                amp, phase=self._calculate_amplitude(ru_e=ru_e, rv_e=rv_e,angle=angle)                
                 phase_values.append(phase)
-
+            
+            # aux=np.unwrap(np.array(phase_values)+np.pi)%(2*np.pi)-np.pi    
+            # phase_values=list(aux)
             data[probe_tag] = Q_(phase_values, "rad").to(phase_units).m
 
         df = pd.DataFrame(data)

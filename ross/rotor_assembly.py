@@ -6,7 +6,7 @@ from copy import copy, deepcopy
 from itertools import chain, cycle
 from pathlib import Path
 from methodtools import lru_cache
-
+from scipy.linalg import lu_factor, lu_solve
 import numpy as np
 import pandas as pd
 import toml
@@ -1693,34 +1693,12 @@ class Rotor(object):
         if frequency is None:
             frequency = speed
 
-        lti = self._lti(speed=speed)
-        B = lti.B
-        C = lti.C
-        D = lti.D
 
-        # calculate eigenvalues and eigenvectors using la.eig to get
-        # left and right eigenvectors.
-        evals, psi = self._eigen(speed=speed, frequency=frequency)
-
-        psi_inv = la.inv(psi)
-
-        if modes is not None:
-            n = self.ndof  # n dof -> number of modes
-            m = len(modes)  # -> number of desired modes
-            # idx to get each evalue/evector and its conjugate
-            idx = np.zeros((2 * m), int)
-            idx[0:m] = modes  # modes
-            idx[m:] = range(2 * n)[-m:]  # conjugates (see how evalues are ordered)
-            evals = evals[np.ix_(idx)]
-            psi = psi[np.ix_(range(2 * n), idx)]
-            psi_inv = psi_inv[np.ix_(idx, range(2 * n))]
-
-        with np.errstate(divide="ignore", invalid="ignore"):
-            diag = np.diag([1 / (1j * frequency - lam) for lam in evals])
-            diag[np.isnan(diag)] = 0
-
-        H = C @ psi @ diag @ psi_inv @ B + D
-
+        if frequency==0:
+            frequency=1e-15
+        I = np.eye(self.M().shape[0]) 
+        lu, piv = lu_factor(-frequency**2 * self.M(frequency=frequency) + 1j * frequency *(self.C(frequency=frequency)+frequency*self.G()) + self.K(frequency=frequency))
+        H = lu_solve((lu, piv), I)
         return H
 
     @check_units
@@ -2006,7 +1984,6 @@ class Rotor(object):
             forced_resp[:, i] = freq_resp.freq_resp[..., i] @ force[..., i]
             velc_resp[:, i] = freq_resp.velc_resp[..., i] @ force[..., i]
             accl_resp[:, i] = freq_resp.accl_resp[..., i] @ force[..., i]
-
         forced_resp = ForcedResponseResults(
             rotor=self,
             forced_resp=forced_resp,
