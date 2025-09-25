@@ -66,8 +66,6 @@ class PseudoModal(ModelReduction):
         self.K = rotor.K(speed)
         self.transf_matrix = self.get_transformation_matrix(speed)
 
-        print(f"Number of modes: {self.num_modes}")
-
     def get_transformation_matrix(self, speed):
         """Build modal matrix
 
@@ -196,14 +194,12 @@ class Guyan(ModelReduction):
             include_dofs, include_nodes
         )
 
-        print(f"Min ndofs: {len(self.selected_dofs)}")
-
         self.reordering = self.selected_dofs + self.ignored_dofs
         self.transf_matrix = self.get_transformation_matrix()
 
     def _select_elem_dofs(self):
         """Select DOFs from rotor bearings and disks"""
-        local_dofs = [0, 1, 5]  # Only dofx and dofy
+        local_dofs = [0, 1]  # Only dofx and dofy
         selected_dofs = []
 
         for elm in self.bearings + self.disks:
