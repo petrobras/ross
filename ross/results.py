@@ -3233,11 +3233,23 @@ class ForcedResponseResults(Results):
             "[length] / [time] ** 2": ["m/s**2", "accl_resp"],
         }
         
-    def _calculate_amplitude(self,**kwargs):
+    def _calculate_amplitude(self,angle,ru_e,rv_e):
+        """Calculates the amplitude for a given angle of the orbit.
+
+        Parameters
+        ----------
+        angle : float, str, pint.Quantity
+
+        Returns
+        -------
+        amplitude, phase : tuple
+            Tuple with (amplitude, phase) value.
+            The amplitude units are the same as the ru_e and rv_e used to create the orbit.
+        """
         
-        if  kwargs['angle'] == "major" or  kwargs['angle'] == "minor":            
-            forward_whirl = 0.5 * (kwargs['ru_e'] + 1j * kwargs['rv_e'])
-            backward_whirl = 0.5 * (kwargs['ru_e'] - 1j * kwargs['rv_e'])  
+        if  angle == "major" or  angle == "minor":            
+            forward_whirl = 0.5 * (ru_e + 1j * rv_e)
+            backward_whirl = 0.5 * (ru_e - 1j * rv_e)  
             
             amp_fw = np.abs(forward_whirl)
             amp_bw = np.abs(backward_whirl)  
@@ -3248,15 +3260,14 @@ class ForcedResponseResults(Results):
             major_angle = 0.5*(phase_fw_rad + phase_bw_rad)
             minor_angle= major_angle+np.pi/2
              # find closest angle index
-            if kwargs['angle'] == "major":
+            if angle == "major":
                 return major_axis, major_angle               
-            elif kwargs['angle'] == "minor":                #
+            elif angle == "minor":                #
                  return minor_axis, minor_angle
         else:                
-            amp_complex=kwargs['ru_e']* np.cos(kwargs['angle'])+kwargs['rv_e'] * np.sin(kwargs['angle'])
-            amp_abs=np.abs(kwargs['ru_e']* np.cos(kwargs['angle'])+kwargs['rv_e'] * np.sin(kwargs['angle']))
-            phase=2*np.pi - np.mod(np.angle(amp_complex), 2*np.pi)
-               
+            amp_complex=ru_e* np.cos(angle)+rv_e * np.sin(angle)
+            amp_abs=np.abs(ru_e* np.cos(angle)+rv_e * np.sin(angle))
+            phase=2*np.pi - np.mod(np.angle(amp_complex), 2*np.pi)               
         return amp_abs, phase
     
 
@@ -3347,7 +3358,6 @@ class ForcedResponseResults(Results):
                     
                 amp, phase=self._calculate_amplitude(ru_e=ru_e, rv_e=rv_e,angle=angle)
                 amplitude.append(amp)
-            #input('pause')
             data[probe_tag] = Q_(amplitude, base_unit).to(amplitude_units).m
 
         df = pd.DataFrame(data)
