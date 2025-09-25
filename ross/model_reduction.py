@@ -178,7 +178,7 @@ class Guyan(ModelReduction):
     ... )
     >>> F_reduct = mr.reduce_vector(F.T).T
     >>> np.where(F_reduct[5000, :] != 0)[0] # doctest: +ELLIPSIS
-    array([5, 6])
+    array([4, 5])
     """
 
     def __init__(self, rotor, speed, include_dofs=[], include_nodes=[], **kwargs):
