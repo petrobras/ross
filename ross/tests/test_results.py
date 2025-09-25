@@ -154,7 +154,14 @@ def test_save_load_timeresponse(rotor1):
 
 def test_save_load_sensitivity(rotor_amb):
     result = rotor_amb.run_amb_sensitivity(
-        speed=1200, t_max=5, dt=0.001, disturbance_amplitude=1
+        speed=0,
+        t_max=5e-4,
+        dt=1e-4,
+        disturbance_amplitude=10e-6,
+        disturbance_min_frequency=0.001,
+        disturbance_max_frequency=150,
+        amb_tags=["Magnetic Bearing 0"],
+        sensors_theta=45,
     )
 
     file_amb = Path(tempdir) / "amb_sensitivities.toml"

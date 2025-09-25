@@ -57,8 +57,10 @@ from ross.utils import (
     convert_6dof_to_4dof,
     convert_6dof_to_torsional,
     compute_freq_resp,
+    compute_pid_amb,
 )
 from ross.seals.labyrinth_seal import LabyrinthSeal
+from scipy.signal import chirp
 
 __all__ = [
     "Rotor",
@@ -1902,84 +1904,131 @@ class Rotor(object):
 
         return results
 
-    def run_amb_sensitivity(self, speed, t_max, dt, disturbance_amplitude=1):
-        """Sensitivity to disturbances in Active Magnetic Bearings (AMBs).
+    def run_amb_sensitivity(
+        self,
+        speed,
+        t_max,
+        dt,
+        disturbance_amplitude=10e-6,
+        disturbance_min_frequency=0.001,
+        disturbance_max_frequency=150,
+        amb_tags=None,
+        sensors_theta=0.7853981633974483,
+        verbose=1,
+    ):
+        """Run Active Magnetic Bearing (AMB) sensitivity analysis.
 
-        This method calculates the sensitivity of a rotor system sustened by Active
-        Magnetic Bearings (AMBs) to disturbances. It performs a time-domain simulation
-        applying an impulse disturbance sequentially at each AMB's degrees of freedom
-        (x and y directions). The frequency response function (FRF) between the
-        disturbance and the sensor signal is then computed to assess the system's
-        sensitivity.
-
-        This analysis is useful for evaluating the impact of disturbances on the
-        rotor system, particularly in applications involving AMBs, and can aid
-        in the design and tuning of AMB controllers.
+        This method performs a frequency-domain sensitivity analysis of the rotor system
+        equipped with active magnetic bearings (AMBs). The analysis uses a logarithmic
+        chirp excitation applied as an external disturbance force to compute the system's
+        frequency response at the AMB-controlled degrees of freedom (DoFs). The results
+        provide magnitude and phase sensitivity functions for each AMB in both x and y
+        directions.
 
         Parameters
         ----------
         speed : float
-            Rotor speed in rad/s.
+            Rotational speed of the rotor in rad/s.
         t_max : float
-            Maximum simulation time in seconds.
+            Total time duration of the simulation in seconds.
         dt : float
             Time step for the simulation in seconds.
         disturbance_amplitude : float, optional
-            Amplitude of the impulse disturbance applied to the AMBs.
-            Default is 1.
+            Amplitude of the excitation chirp signal applied as a disturbance.
+            Default is 10e-6.
+        disturbance_min_frequency : float, optional
+            Minimum frequency (in Hz) of the logarithmic chirp signal used for excitation.
+            The chirp sweeps from this frequency up to `disturbance_max_frequency`.
+            Default is 1e-3 Hz.
+        disturbance_max_frequency : float, optional
+            Maximum frequency (in Hz) of the logarithmic chirp signal used for excitation.
+            Default is 150 Hz.
+        amb_tags : list of str, optional
+            List of magnetic bearing tags to include in the sensitivity analysis.
+            If None or empty, all `MagneticBearingElement` instances in the rotor are used.
+            If provided, only the AMBs matching the specified tags will be analyzed.
+            Raises a RuntimeError if no AMB with the given tag is found.
+        sensors_theta : float, optional
+            Angular position of the Active Magnetic Bearing (AMB) sensors, in radians.
+            This angle defines the orientation of the sensor coordinate system (v, w)
+            relative to the global coordinate system (x, y). A positive angle
+            corresponds to a counter-clockwise rotation. Default is 45 degrees (π/4 rad).
+        verbose : int, optional
+            Controls the verbosity of the method. If `1` or greater, both the simulation
+            time and the forces produced by the AMBs are presented. If `0`, no output is
+            shown. Default is `1`.
 
         Returns
         -------
-        results : ross.SensitivityResults
-            An object containing the sensitivity analysis results. This object
-            includes:
-            - max_abs_sensitivities : dict
-              Maximum absolute sensitivity for each AMB and axis (x, y).
-            - sensitivities : dict
-              Complex sensitivity FRF for each AMB and axis.
-            - sensitivities_abs : dict
-              Absolute value of sensitivity FRF for each AMB and axis.
-            - sensitivities_phase : dict
-              Phase of sensitivity FRF for each AMB and axis.
-            - sensitivity_compute_dofs : dict
-              Mapping of AMB tags to their corresponding DOFs.
-            - sensitivities_frequencies : array
-              Frequencies at which the sensitivity FRF is computed.
-            - number_dof : int
-              Number of degrees of freedom of the rotor system.
-            - sensitivity_run_time_results : dict
-              Time-domain simulation results including excitation, disturbed,
-              and sensor signals for each AMB and axis.
+        results : SensitivityResults
+            Object containing sensitivity magnitude, phase, and frequency vectors
+            for each magnetic bearing tag and direction ('x', 'y'). Also includes
+            the excitation, disturbed, and sensor signals used in the computation.
 
-            For more information on attributes and methods available see:
-            :py:class:`ross.SensitivityResults`
+        Notes
+        -----
+        - The excitation is a logarithmic chirp sweeping from `disturbance_min_frequency`
+          to `disturbance_max_frequency` (Hz).
+        - The excitation is applied individually to each DoF controlled by an AMB.
+        - The method assumes that the rotor contains `MagneticBearingElement` instances.
+        - A Newmark time integration scheme is used internally via `run_time_response()`.
 
         Examples
         --------
         >>> import ross as rs
         >>> rotor = rs.rotor_amb_example()
-        >>> sensitivity_results = rotor.run_amb_sensitivity(speed=1200, t_max=5, dt=0.001, disturbance_amplitude=1) # doctest: +ELLIPSIS
+
+        >>> # Run sensitivity for all magnetic bearings in the rotor (default sweep)
+        >>> sensitivity_results = rotor.run_amb_sensitivity(speed=314.16, t_max=5e-4, dt=1e-4) # doctest: +ELLIPSIS
         Running direct method...
 
-        >>> # Accessing maximum absolute sensitivities for a specific AMB tag 'Bearing 0'
+        >>> # Run sensitivity only for a specific AMB tag (e.g., "Magnetic Bearing 0")
+        >>> sensitivity_results = rotor.run_amb_sensitivity(
+        ...     speed=314.16, t_max=5e-4, dt=1e-4, amb_tags=["Magnetic Bearing 0"]
+        ... ) # doctest: +ELLIPSIS
+        Running direct method...
+
+        >>> # Run sensitivity with a custom chirp band (0.1 Hz to 200 Hz)
+        >>> sensitivity_results = rotor.run_amb_sensitivity(
+        ...     speed=314.16, t_max=5e-4, dt=1e-4,
+        ...     disturbance_min_frequency=0.1, disturbance_max_frequency=200.0
+        ... ) # doctest: +ELLIPSIS
+        Running direct method...
+
+        >>> # Accessing maximum absolute sensitivities for "Magnetic Bearing 0"
         >>> max_sens_bearing_0_x = sensitivity_results.max_abs_sensitivities["Magnetic Bearing 0"]["x"]
-        >>> max_sens_bearing_0_y = sensitivity_results.max_abs_sensitivities["Magnetic Bearing 0"]['y']
+        >>> max_sens_bearing_0_y = sensitivity_results.max_abs_sensitivities["Magnetic Bearing 0"]["y"]
 
         >>> # Plotting the sensitivities for all AMBs and axes
-        >>> fig = sensitivity_results.plot(frequency_units="Hz", phase_unit="degree", magnitude_scale="decibel", xaxis_type="log")
+        >>> fig = sensitivity_results.plot(
+        ...     frequency_units="Hz", phase_unit="degree",
+        ...     magnitude_scale="decibel", xaxis_type="log"
+        ... )
 
         >>> # Plotting the time results used in sensitivity calculation
         >>> fig = sensitivity_results.plot_run_time_results()
         """
 
+        if amb_tags is not None and not isinstance(amb_tags, list):
+            raise ValueError("`amb_tags` must be a list of strings.")
+
         t = np.arange(0, t_max, dt)
         f = np.zeros((len(t), self.ndof))
 
-        magnetic_bearings = [
+        all_magnetic_bearings = [
             brg
             for brg in self.bearing_elements
             if isinstance(brg, MagneticBearingElement)
         ]
+
+        if amb_tags is not None and len(amb_tags) > 0:
+            magnetic_bearings = [
+                amb for amb in all_magnetic_bearings if amb.tag in amb_tags
+            ]
+            if len(magnetic_bearings) == 0:
+                raise RuntimeError("No Magnetic Bearing with the given tag was found.")
+        else:
+            magnetic_bearings = all_magnetic_bearings
 
         sensitivity_compute_dofs = {
             magnetic_bearing.tag: {
@@ -1997,6 +2046,17 @@ class Rotor(object):
             for magnetic_bearing in magnetic_bearings
         }
 
+        chirp_signal = disturbance_amplitude * chirp(
+            t,
+            f0=disturbance_min_frequency,  # frequência no instante t = 0
+            f1=disturbance_max_frequency,  # frequência no instante t = t_f
+            t1=t[-1],  # instante final
+            method="logarithmic",
+            phi=-90,
+        )
+
+        progress_interval = t_max / 25 if verbose >= 1 else 2 * t_max
+
         for amb_tag in sensitivity_compute_dofs.keys():
             for axis in sensitivity_compute_dofs[amb_tag].keys():
                 sensitivity_result_values = {}
@@ -2004,10 +2064,12 @@ class Rotor(object):
                     speed,
                     f,
                     t,
+                    progress_interval=progress_interval,
                     method="newmark",
-                    sensitivity_impulse_amplitude=disturbance_amplitude,
+                    sensitivity_disturbance=chirp_signal,
                     sensitivity_result_values=sensitivity_result_values,
                     sensitivity_compute_dof=sensitivity_compute_dofs[amb_tag][axis],
+                    sensors_theta=sensors_theta,
                 )
                 sensitivity_data[amb_tag][axis] = dict(sensitivity_result_values)
 
@@ -2053,15 +2115,15 @@ class Rotor(object):
                 sensitivities_abs[amb_tag][axis] = abs_g_s
                 sensitivities_phase[amb_tag][axis] = phase_g_s
                 max_abs_sensitivities[amb_tag][axis] = np.max(abs_g_s)
-                sensitivity_run_time_results[amb_tag][axis][
-                    "excitation_signal"
-                ] = excitation_signal
-                sensitivity_run_time_results[amb_tag][axis][
-                    "disturbed_signal"
-                ] = disturbed_signal
-                sensitivity_run_time_results[amb_tag][axis][
-                    "sensor_signal"
-                ] = sensor_signal
+                sensitivity_run_time_results[amb_tag][axis]["excitation_signal"] = (
+                    excitation_signal
+                )
+                sensitivity_run_time_results[amb_tag][axis]["disturbed_signal"] = (
+                    disturbed_signal
+                )
+                sensitivity_run_time_results[amb_tag][axis]["sensor_signal"] = (
+                    sensor_signal
+                )
                 sensitivity_run_time_results["t"] = t
 
         results = SensitivityResults(
@@ -2458,146 +2520,180 @@ class Rotor(object):
     def magnetic_bearing_controller(
         self, step, magnetic_bearings, time_step, disp_resp, **kwargs
     ):
-        """Calculates the force produced by the magnetic bearings (AMBs) present in the rotor.
+        """Compute control forces for Active Magnetic Bearings (AMBs).
 
-        This method calculates the magnetic forces produced by the AMBs based on a
-        Proportional-Integral-Derivative (PID) control law. It iterates through each
-        magnetic bearing element, calculates the control signal based on the displacement
-        response, and applies the corresponding magnetic force to the rotor's degrees of
-        freedom (DOFs).
-        The method also incorporates sensitivity analysis features. If keyword arguments
-        related to sensitivity analysis are provided, the controller can inject an impulse
-        signal at a specified DOF and record the excitation, disturbed, and sensor signals
-        for sensitivity analysis purposes.
+        This method calculates the magnetic control forces generated by active
+        magnetic bearings (AMBs) at each time step using a PID control law. The
+        forces are based on the measured displacements and can optionally include
+        external disturbances for sensitivity analysis.
 
-        Keyword Args:
-            sensitivity_result_values (dict, optional):
-                A dictionary to store sensitivity analysis results. If provided as an empty
-                dictionary, it will be initialized with keys 'excitation_signal',
-                'disturbed_signal', and 'sensor_signal', all with empty lists as values.
-            sensitivity_impulse_amplitude (float, optional):
-                The amplitude of the impulse signal used for sensitivity analysis.
-                Defaults to 1 if not provided.
-            sensitivity_compute_dof (int, optional):
-                The degree-of-freedom (DOF) index for which sensitivity is to be computed.
-                Defaults to None if not provided, implying sensitivity analysis is disabled
-                or performed for a default DOF.
+        If sensitivity analysis is enabled via keyword arguments, the method injects
+        a known disturbance at a specific DoF and logs excitation, disturbed, and
+        sensor signals for post-processing.
 
         Parameters
         ----------
         step : int
-            Current simulation step. Used to trigger impulse excitation for sensitivity analysis
-            at the first step (step == 1).
+            Current time step index in the simulation.
         magnetic_bearings : list
-            List of magnetic bearing elements in the rotor system. Each element should be an
-            instance of a `MagneticBearing` class or similar, with attributes like `kp_pid`,
-            `ki_pid`, `kd_pid`, `ki`, `ks`, `n`, `integral`, `e0`, `control_signal`, and
-            `magnetic_force`.
+            List of `MagneticBearingElement` objects used for force computation.
         time_step : float
-            Time step of the simulation. Used in the integral and derivative terms of the PID
-            controller.
-        disp_resp : np.ndarray
-            Displacement response vector of the rotor system at the current time step.
-            Should be a NumPy array of shape (ndof,), where ndof is the total number of DOFs
-            in the rotor system.
+            Time increment used in the numerical integration scheme (in seconds).
+        disp_resp : ndarray
+            Displacement response vector of the rotor at the current time step.
+            The size must match the number of rotor DoFs.
+
+        Other Parameters
+        ----------------
+        sensitivity_compute_dof : int, optional
+            Index of the DoF where a disturbance signal is applied (for sensitivity analysis).
+        sensitivity_disturbance : ndarray, optional
+            Disturbance signal array (e.g., chirp) to be injected at the specified DoF.
+        sensitivity_result_values : dict, optional
+            Dictionary to store the time history of:
+                - "excitation_signal"
+                - "disturbed_signal"
+                - "sensor_signal"
+            for post-processing in sensitivity computations.
 
         Returns
         -------
-        np.ndarray
-            Magnetic force vector to be applied to the rotor system.
-            A NumPy array of shape (ndof,).
+        magnetic_force : ndarray
+            Force vector containing control forces applied by each magnetic bearing
+            in the rotor system. Has the same length as `self.ndof`.
+
+        Notes
+        -----
+        - The control forces are applied in both x and y directions at each AMB location.
+        - The actual PID computation is delegated to the `compute_pid_amb` function.
+        - If `sensitivity_compute_dof` is provided, the excitation is applied to that DoF only.
 
         Examples
         --------
         >>> import ross as rs
-        >>> rotor = rs.rotor_assembly.rotor_amb_example()
-        >>> size = 40001
-        >>> speed = 1200.0
-        >>> step = 1
-        >>> t = np.linspace(0, 1, size)
-        >>> dt = t[1] - t[0]
+        >>> import numpy as np
+        >>> rotor = rs.rotor_amb_example()
+        >>> dt, speed, step = 1e-4, 1000, 1
+        >>> t = np.arange(0, 5 * dt, dt)
         >>> node = [27, 29]
         >>> mass = [10, 10]
         >>> F = np.zeros((len(t), rotor.ndof))
         >>> for n, m in zip(node,mass):
-        ...     F[:, 4 * n + 0] = m * np.cos((speed * t))
-        ...     F[:, 4 * n + 1] = (m-5) * np.sin((speed * t))
+        ...     F[:, 6 * n + 0] = m * np.cos((speed * t))
+        ...     F[:, 6 * n + 1] = (m-5) * np.sin((speed * t))
         >>> response = rotor.run_time_response(speed, F, t, method = "newmark")
         Running direct method
-        >>> magnetic_bearings = [
-        ...    brg
-        ...    for brg in rotor.bearing_elements
-        ...    if isinstance(brg, MagneticBearingElement)
-        ... ]
+        >>> magnetic_bearings = [brg for brg in rotor.bearing_elements if isinstance(brg, rs.bearing_seal_element.MagneticBearingElement)]
         >>> magnetic_force = rotor.magnetic_bearing_controller(step, magnetic_bearings, dt, response.yout[-1,:])
         >>> np.nonzero(magnetic_force)[0]
         array([ 72,  73, 258, 259])
         >>> magnetic_force[np.nonzero(magnetic_force)[0]]
-        array([ 0.0624658 ,  0.10038879, -0.04578678, -0.01133342])
+        array([-7.24276404e-04, -1.42153354e-05, -1.17641699e-04,  2.39844354e-05])
         """
-        if (
-            "sensitivity_result_values" in kwargs.keys()
-            and kwargs["sensitivity_result_values"] == {}
-        ):
+
+        if kwargs.get("sensitivity_result_values", None) == {}:
             kwargs["sensitivity_result_values"].update(
                 {"excitation_signal": [], "disturbed_signal": [], "sensor_signal": []}
             )
 
-        impulse_amplitude = (
-            kwargs["sensitivity_impulse_amplitude"]
-            if "sensitivity_impulse_amplitude" in kwargs.keys()  # is not None
-            else 1
+        sensitivity_compute_dof: None | int = kwargs.get(
+            "sensitivity_compute_dof", None
         )
-
-        sensitivity_compute_dof = (
-            kwargs["sensitivity_compute_dof"]
-            if "sensitivity_compute_dof" in kwargs.keys()  # is not None
-            else None
+        sensitivity_disturbance: None | np.ndarray = kwargs.get(
+            "sensitivity_disturbance", None
         )
+        sensors_theta: None | float = kwargs.get("sensors_theta", np.deg2rad(45))
+        progress_interval: None | float = kwargs.get("progress_interval", None)
 
-        offset = 0
-        setpoint = 1e-6
+        current_offset = 0
+        setpoint = 0
         dt = time_step
         magnetic_force = np.zeros(self.ndof)
 
         for elm in magnetic_bearings:
-            dofs = [self.number_dof * elm.n, self.number_dof * elm.n + 1]
-            for idx_dofs, value_dofs in enumerate(dofs):
-                if value_dofs == sensitivity_compute_dof:
-                    if step == 1:
-                        excitation_signal = impulse_amplitude
-                    else:
-                        excitation_signal = 0
+            x_dof = self.number_dof * elm.n
+            y_dof = self.number_dof * elm.n + 1
 
-                    sensor_signal = disp_resp[value_dofs]
-                    disturbed_signal = sensor_signal + excitation_signal
-                    err = setpoint - disturbed_signal
+            x_disp = disp_resp[x_dof]
+            y_disp = disp_resp[y_dof]
 
-                    if "sensitivity_result_values" in kwargs.keys():
-                        kwargs["sensitivity_result_values"]["excitation_signal"].append(
-                            excitation_signal
-                        )
-                        kwargs["sensitivity_result_values"]["disturbed_signal"].append(
-                            disturbed_signal
-                        )
-                        kwargs["sensitivity_result_values"]["sensor_signal"].append(
-                            sensor_signal
-                        )
-                else:
-                    err = setpoint - disp_resp[value_dofs]
+            # Transforming the displacements to the sensor reference frame
+            v_disp = x_disp * np.cos(sensors_theta) + y_disp * np.sin(sensors_theta)
+            w_disp = -x_disp * np.sin(sensors_theta) + y_disp * np.cos(sensors_theta)
 
-                P = elm.kp_pid * err
-                elm.integral[idx_dofs] += elm.ki_pid * err * dt
-                D = elm.kd_pid * (err - elm.e0[idx_dofs]) / dt
+            if sensitivity_compute_dof is not None and sensitivity_compute_dof in [
+                x_dof,
+                y_dof,
+            ]:
+                sensor_signal = v_disp if x_dof == sensitivity_compute_dof else w_disp
 
-                signal_pid = offset + P + elm.integral[idx_dofs] + D
-                magnetic_force[value_dofs] = (
-                    elm.ki * signal_pid + elm.ks * disp_resp[value_dofs]
+                excitation_signal = sensitivity_disturbance[step]
+                v_disp = (
+                    v_disp + excitation_signal
+                    if x_dof == sensitivity_compute_dof
+                    else v_disp
+                )
+                w_disp = (
+                    w_disp + excitation_signal
+                    if y_dof == sensitivity_compute_dof
+                    else w_disp
                 )
 
-                elm.e0[idx_dofs] = err
-                elm.control_signal[idx_dofs].append(signal_pid)
-                elm.magnetic_force[idx_dofs].append(magnetic_force[value_dofs])
+                disturbed_signal = (
+                    v_disp if x_dof == sensitivity_compute_dof else w_disp
+                )
+
+                if "sensitivity_result_values" in kwargs.keys():
+                    kwargs["sensitivity_result_values"]["excitation_signal"].append(
+                        excitation_signal
+                    )
+                    kwargs["sensitivity_result_values"]["disturbed_signal"].append(
+                        disturbed_signal
+                    )
+                    kwargs["sensitivity_result_values"]["sensor_signal"].append(
+                        sensor_signal
+                    )
+
+            # The method compute_pid_amb updates the magnetic_force array internally
+            magnetic_force_v = compute_pid_amb(
+                dt,
+                amb=elm,
+                current_offset=current_offset,
+                setpoint=setpoint,
+                disp=v_disp,
+                dof_index=0,
+            )
+
+            magnetic_force_w = compute_pid_amb(
+                dt,
+                amb=elm,
+                current_offset=current_offset,
+                setpoint=setpoint,
+                disp=w_disp,
+                dof_index=1,
+            )
+
+            magnetic_force_x = magnetic_force_v * np.cos(
+                sensors_theta
+            ) - magnetic_force_w * np.sin(sensors_theta)
+            magnetic_force_y = magnetic_force_v * np.sin(
+                sensors_theta
+            ) + magnetic_force_w * np.cos(sensors_theta)
+
+            elm.magnetic_force_xy[-1][0].append(magnetic_force_x)
+            elm.magnetic_force_xy[-1][1].append(magnetic_force_y)
+            elm.magnetic_force_vw[-1][0].append(magnetic_force_v)
+            elm.magnetic_force_vw[-1][1].append(magnetic_force_w)
+
+            magnetic_force[x_dof] = magnetic_force_x
+            magnetic_force[y_dof] = magnetic_force_y
+
+            if progress_interval is not None:
+                time_progress_ratio = round((step * dt) / progress_interval, 8)
+                if time_progress_ratio.is_integer():
+                    print(
+                        f"Force x / y (N): {magnetic_force_x:.6f} / {magnetic_force_y:.6f} ({elm.tag})"
+                    )
 
         return magnetic_force
 
@@ -2730,6 +2826,14 @@ class Rotor(object):
                     step, magnetic_bearings, time_step, disp_resp, **kwargs
                 )
             )
+
+            # Initialize storage attributes for magnetic bearings
+            for brg in magnetic_bearings:
+                brg.magnetic_force_xy.append([[], []])
+                brg.magnetic_force_vw.append([[], []])
+                brg.control_signal.append([[], []])
+                brg.integral = [0, 0]
+                brg.e0 = [0, 0]
         else:
             magnetic_force = lambda step, time_step, disp_resp: np.zeros((self.ndof))
 
@@ -5517,9 +5621,9 @@ def rotor_amb_example():
     i0 = 1.0
     s0 = 1e-3
     alpha = 0.392
-    Kp = 2
-    Ki = 2
-    Kd = 2
+    Kp = 1000
+    Ki = 0
+    Kd = 5
     k_amp = 1.0
     k_sense = 1.0
     bearing_elements = [
@@ -5535,6 +5639,7 @@ def rotor_amb_example():
             kp_pid=Kp,
             kd_pid=Kd,
             ki_pid=Ki,
+            tag="Magnetic Bearing 0",
         ),
         MagneticBearingElement(
             n=n_list[1],
@@ -5548,6 +5653,7 @@ def rotor_amb_example():
             kp_pid=Kp,
             kd_pid=Kd,
             ki_pid=Ki,
+            tag="Magnetic Bearing 1",
         ),
     ]
 

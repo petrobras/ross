@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 from numpy.testing import assert_allclose, assert_almost_equal, assert_equal
 
+from ross import SensitivityResults
 from ross.bearing_seal_element import *
 from ross.disk_element import *
 from ross.materials import Material, steel
@@ -2681,244 +2682,225 @@ def test_amb_controller():
     assert_allclose(np.array(mean_max), np.array(7.31786978e-07), rtol=1e-6, atol=1e-6)
 
 
-def test_compute_sensitivity():
-    # Computing the sensitivities
+def test_run_amb_sensitivity():
+    """
+    Tests the run_amb_sensitivity method for correctness of outputs and handling of various scenarios.
+    """
+    EXPECTED_SENSITIVITY_RESULTS = {
+        "max_abs": {
+            "Magnetic Bearing 0": {"x": 0.9923569675, "y": 0.9923569675},
+            "Magnetic Bearing 1": {"x": 0.9887683386, "y": 0.9887683386},
+        },
+        "abs_slice": {
+            "Magnetic Bearing 0": {
+                "x": np.array(
+                    [0.99235697, 0.99233957, 0.99230551, 0.99225879, 0.99220789]
+                ),
+                "y": np.array(
+                    [0.99235697, 0.99233957, 0.99230551, 0.99225879, 0.99220789]
+                ),
+            },
+            "Magnetic Bearing 1": {
+                "x": np.array(
+                    [0.98876834, 0.9887427, 0.98869053, 0.9886187, 0.98854049]
+                ),
+                "y": np.array(
+                    [0.98876834, 0.9887427, 0.98869053, 0.9886187, 0.98854049]
+                ),
+            },
+        },
+        "phase_slice": {
+            "Magnetic Bearing 0": {
+                "x": np.array(
+                    [
+                        0.00000000e00,
+                        7.85012531e-05,
+                        1.42240165e-04,
+                        1.89476176e-04,
+                        2.18884978e-04,
+                    ]
+                ),
+                "y": np.array(
+                    [
+                        0.00000000e00,
+                        7.85012531e-05,
+                        1.42240165e-04,
+                        1.89476176e-04,
+                        2.18884978e-04,
+                    ]
+                ),
+            },
+            "Magnetic Bearing 1": {
+                "x": np.array([0.0, 0.00012036, 0.00021924, 0.00029226, 0.00033777]),
+                "y": np.array([0.0, 0.00012036, 0.00021924, 0.00029226, 0.00033777]),
+            },
+        },
+        "dofs": {
+            "Magnetic Bearing 0": {"x": 72, "y": 73},
+            "Magnetic Bearing 1": {"x": 258, "y": 259},
+        },
+        "time_results_slice": {
+            "t": np.array([0.0, 0.0001, 0.0002, 0.0003, 0.0004]),
+            "excitation": np.array(
+                [
+                    0.00000000e00,
+                    6.67703996e-12,
+                    1.42083014e-11,
+                    2.27030685e-11,
+                    3.22846065e-11,
+                ]
+            ),
+            "disturbed": np.array(
+                [
+                    0.00000000e00,
+                    6.67703996e-12,
+                    1.42056160e-11,
+                    2.26909785e-11,
+                    3.22543193e-11,
+                ]
+            ),
+            "sensor": np.array(
+                [
+                    0.00000000e00,
+                    0.00000000e00,
+                    -2.68539903e-15,
+                    -1.20899721e-14,
+                    -3.02872183e-14,
+                ]
+            ),
+        },
+        "frequencies_slice": np.array([0.0, 100.0, 200.0, 300.0, 400.0]),
+    }
+
+    r_tol = 0
+    a_tol = 1e-8
+
+    # Setup - run the analysis
     rotor = rotor_amb_example()
-    result = rotor.run_amb_sensitivity(
-        speed=1200, t_max=5, dt=0.001, disturbance_amplitude=1
+    results = rotor.run_amb_sensitivity(
+        speed=0,
+        t_max=1e-2,
+        dt=1e-4,
+        disturbance_amplitude=10e-6,
+        disturbance_min_frequency=0.001,
+        disturbance_max_frequency=150,
+        sensors_theta=45,
     )
 
-    # Getting the plots
-    fig_sensitivities = result.plot(
-        frequency_units="Hz",
-        phase_unit="degree",
-        magnitude_scale="decibel",
-        xaxis_type="log",
-    )
-    fig_run_time = result.plot_run_time_results()
+    # Scenario 1: Default run verification
+    # ------------------------------------
+    assert isinstance(results, SensitivityResults)
 
-    # Checking the results
-    assert_allclose(
-        result.sensitivities_frequencies[0:5],
-        np.array([0.0, 0.2, 0.4, 0.6, 0.8]),
+    # Check types and shapes
+    assert isinstance(results.sensitivities_frequencies, np.ndarray)
+    assert isinstance(results.sensitivities_abs, dict)
+    assert len(results.sensitivities_frequencies) == len(
+        results.sensitivities_abs["Magnetic Bearing 0"]["x"]
     )
 
-    assert_equal(result.number_dof, 6)
+    # Check numerical values against golden values
+    assert_allclose(
+        results.sensitivities_frequencies[:5],
+        EXPECTED_SENSITIVITY_RESULTS["frequencies_slice"],
+        atol=a_tol,
+        rtol=r_tol,
+    )
+    for amb_tag in results.max_abs_sensitivities:
+        for axis in ["x", "y"]:
+            assert_allclose(
+                results.max_abs_sensitivities[amb_tag][axis],
+                EXPECTED_SENSITIVITY_RESULTS["max_abs"][amb_tag][axis],
+                atol=a_tol,
+                rtol=r_tol,
+            )
+            assert_allclose(
+                results.sensitivities_abs[amb_tag][axis][:5],
+                EXPECTED_SENSITIVITY_RESULTS["abs_slice"][amb_tag][axis],
+                atol=a_tol,
+                rtol=r_tol,
+            )
+            assert_allclose(
+                results.sensitivities_phase[amb_tag][axis][:5],
+                EXPECTED_SENSITIVITY_RESULTS["phase_slice"][amb_tag][axis],
+                atol=a_tol,
+                rtol=r_tol,
+            )
 
-    assert_allclose(
-        result.sensitivity_run_time_results["t"][0:5],
-        np.array([0.0, 0.001, 0.002, 0.003, 0.004]),
-    )
+    assert_equal(results.sensitivity_compute_dofs, EXPECTED_SENSITIVITY_RESULTS["dofs"])
 
+    time_results_amb_0_x = results.sensitivity_run_time_results["Magnetic Bearing 0"][
+        "x"
+    ]
     assert_allclose(
-        result.max_abs_sensitivities["Magnetic Bearing 0"]["x"], 1.2119599621437027
+        results.sensitivity_run_time_results["t"][:5],
+        EXPECTED_SENSITIVITY_RESULTS["time_results_slice"]["t"],
+        atol=a_tol,
+        rtol=r_tol,
     )
     assert_allclose(
-        result.max_abs_sensitivities["Magnetic Bearing 0"]["y"], 1.2119928743521797
+        time_results_amb_0_x["excitation_signal"][:5],
+        EXPECTED_SENSITIVITY_RESULTS["time_results_slice"]["excitation"],
+        atol=a_tol,
+        rtol=r_tol,
     )
     assert_allclose(
-        result.max_abs_sensitivities["Magnetic Bearing 1"]["x"], 1.314234139503943
+        time_results_amb_0_x["disturbed_signal"][:5],
+        EXPECTED_SENSITIVITY_RESULTS["time_results_slice"]["disturbed"],
+        atol=a_tol,
+        rtol=r_tol,
     )
     assert_allclose(
-        result.max_abs_sensitivities["Magnetic Bearing 1"]["y"], 1.3134105330582597
-    )
-
-    assert_allclose(
-        result.sensitivities_abs["Magnetic Bearing 0"]["x"][0:5],
-        np.array(
-            [
-                0.9883760486,
-                0.9982456745690073,
-                0.9982270940638911,
-                0.9981957600548607,
-                0.9981511889752995,
-            ]
-        ),
-    )
-
-    assert_allclose(
-        result.sensitivities_abs["Magnetic Bearing 0"]["y"][0:5],
-        np.array(
-            [
-                0.988017155,
-                0.9978338763301414,
-                0.9978136090832413,
-                0.9977794292141084,
-                0.9977307989250374,
-            ]
-        ),
-    )
-
-    assert_allclose(
-        result.sensitivities_abs["Magnetic Bearing 1"]["x"][0:5],
-        np.array(
-            [
-                0.987790366,
-                0.9975472335527478,
-                0.9975240538133789,
-                0.9974850281986164,
-                0.9974296332332683,
-            ]
-        ),
-    )
-
-    assert_allclose(
-        result.sensitivities_abs["Magnetic Bearing 1"]["y"][0:5],
-        np.array(
-            [
-                0.9889398554,
-                0.9986625293793935,
-                0.9986429157954464,
-                0.9986098929664428,
-                0.9985630287097683,
-            ]
-        ),
+        time_results_amb_0_x["sensor_signal"][:5],
+        EXPECTED_SENSITIVITY_RESULTS["time_results_slice"]["sensor"],
+        atol=a_tol,
+        rtol=r_tol,
     )
 
-    assert_allclose(
-        result.sensitivities_phase["Magnetic Bearing 0"]["x"][0:5],
-        np.array(
-            [
-                0.0,
-                -0.0025150822196298734,
-                -0.005085650162873036,
-                -0.0076888662820187295,
-                -0.010352393290516248,
-            ]
-        ),
+    # Scenario 2: Test with `amb_tags` argument
+    # -----------------------------------------
+    results_tagged = rotor.run_amb_sensitivity(
+        speed=1200, t_max=1e-2, dt=1e-4, amb_tags=["Magnetic Bearing 1"]
+    )
+    assert "Magnetic Bearing 1" in results_tagged.sensitivities
+    assert "Magnetic Bearing 0" not in results_tagged.sensitivities
+    assert len(results_tagged.sensitivities) == 1
+
+    # Test for non-existent tag
+    with pytest.raises(RuntimeError) as excinfo:
+        rotor.run_amb_sensitivity(
+            speed=1200, t_max=1e-2, dt=1e-4, amb_tags=["NonExistentAMB"]
+        )
+    assert "No Magnetic Bearing with the given tag was found" in str(excinfo.value)
+
+    # Test for incorrect type for amb_tags
+    with pytest.raises(ValueError) as excinfo:
+        rotor.run_amb_sensitivity(
+            speed=1200, t_max=1e-2, dt=1e-4, amb_tags="Magnetic Bearing 0"
+        )
+    assert "`amb_tags` must be a list of strings" in str(excinfo.value)
+
+    # Scenario 3: Test with custom disturbance parameters
+    # ----------------------------------------------------
+    results_custom_freq = rotor.run_amb_sensitivity(
+        speed=1200,
+        t_max=1e-2,
+        dt=1e-4,
+        disturbance_min_frequency=10,
+        disturbance_max_frequency=200,
+    )
+    # Check if max sensitivity differs, indicating parameters were used
+    assert not np.allclose(
+        results.max_abs_sensitivities["Magnetic Bearing 0"]["x"],
+        results_custom_freq.max_abs_sensitivities["Magnetic Bearing 0"]["x"],
     )
 
-    assert_allclose(
-        result.sensitivities_phase["Magnetic Bearing 0"]["y"][0:5],
-        np.array(
-            [
-                0.0,
-                -0.002518810512694276,
-                -0.005093047763408985,
-                -0.007700063657938908,
-                -0.010367560886349172,
-            ]
-        ),
+    # Scenario 4: Test with custom `sensors_theta`
+    # --------------------------------------------
+    results_theta0 = rotor.run_amb_sensitivity(
+        speed=1200, t_max=1e-2, dt=1e-4, sensors_theta=0
     )
-
-    assert_allclose(
-        result.sensitivities_phase["Magnetic Bearing 1"]["x"][0:5],
-        np.array(
-            [
-                0.0,
-                -0.0024925382888705905,
-                -0.005036117190485316,
-                -0.007603794115590629,
-                -0.0102183833610238,
-            ]
-        ),
-    )
-
-    assert_allclose(
-        result.sensitivities_phase["Magnetic Bearing 1"]["y"][0:5],
-        np.array(
-            [
-                0.0,
-                -0.0024869729134451377,
-                -0.005024789378314054,
-                -0.0075865814346599645,
-                -0.010195061367001441,
-            ]
-        ),
-    )
-
-    assert_equal(result.sensitivity_compute_dofs["Magnetic Bearing 0"]["x"], 72)
-    assert_equal(result.sensitivity_compute_dofs["Magnetic Bearing 0"]["y"], 73)
-    assert_equal(result.sensitivity_compute_dofs["Magnetic Bearing 1"]["x"], 258)
-    assert_equal(result.sensitivity_compute_dofs["Magnetic Bearing 1"]["y"], 259)
-
-    assert_allclose(
-        result.sensitivity_run_time_results["Magnetic Bearing 0"]["x"][
-            "excitation_signal"
-        ][0:5],
-        np.array([0.0, 1.0, 0.0, 0.0, 0.0]),
-    )
-    assert_allclose(
-        result.sensitivity_run_time_results["Magnetic Bearing 0"]["x"][
-            "disturbed_signal"
-        ][0:5],
-        np.array(
-            [
-                0.0,
-                1.0,
-                -0.0008667838833187341,
-                -0.00223996982786251,
-                -0.0027057605670893466,
-            ]
-        ),
-    )
-    assert_allclose(
-        result.sensitivity_run_time_results["Magnetic Bearing 0"]["x"]["sensor_signal"][
-            0:5
-        ],
-        np.array(
-            [
-                0.0,
-                0.0,
-                -0.0008667838833187341,
-                -0.00223996982786251,
-                -0.0027057605670893466,
-            ]
-        ),
-    )
-
-    # Checking time data plots (Bearing 0 - x axis)
-    # x - Sensor signal (time)
-    assert_allclose(
-        fig_run_time.data[0]["x"][0:5],
-        np.array([0.0, 0.001, 0.002, 0.003, 0.004]),
-        atol=1e-8,
-    )
-
-    # y - Sensor signal
-    assert_allclose(
-        fig_run_time.data[0]["y"][0:5],
-        np.array([0.0, 0.0, -0.00086678, -0.00223997, -0.00270576]),
-        atol=1e-8,
-    )
-
-    # x - Excitation signal (time)
-    assert_allclose(
-        fig_run_time.data[1]["x"][0:5],
-        np.array([0.0, 0.001, 0.002, 0.003, 0.004]),
-        atol=1e-8,
-    )
-
-    # y - Excitation signal
-    assert_allclose(
-        fig_run_time.data[1]["y"][0:5], np.array([0.0, 1.0, 0.0, 0.0, 0.0]), atol=1e-8
-    )
-
-    # Checking sensitivities data plots (Bearing 0 - x axis)
-    # y - Sensitivity magnitude
-    assert_allclose(
-        fig_sensitivities.data[0]["y"][0:5],
-        np.array([-0.10155575, -0.01525126, -0.01541293, -0.01568558, -0.01607343]),
-        atol=1e-8,
-    )
-
-    # x - Sensitivity magnitude (frequency)
-    assert_allclose(
-        fig_sensitivities.data[0]["x"][0:5],
-        np.array([0.0, 0.2, 0.4, 0.6, 0.8]),
-        atol=1e-8,
-    )
-
-    # y - Sensitivity phase
-    assert_allclose(
-        fig_sensitivities.data[1]["y"][0:5],
-        np.array([0.0, -0.1441036, -0.29138629, -0.44053959, -0.59314844]),
-        atol=1e-8,
-    )
-
-    # x - Sensitivity phase (frequency)
-    assert_allclose(
-        fig_sensitivities.data[1]["x"][0:5],
-        np.array([0.0, 0.2, 0.4, 0.6, 0.8]),
-        atol=1e-8,
+    # Check if results differ from the default 45-degree case
+    assert not np.allclose(
+        results.max_abs_sensitivities["Magnetic Bearing 0"]["x"],
+        results_theta0.max_abs_sensitivities["Magnetic Bearing 0"]["x"],
     )

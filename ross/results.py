@@ -19,6 +19,8 @@ from scipy.fft import fft
 from numpy import linalg as la
 from numba import njit
 
+from pathlib import Path
+
 from ross.plotly_theme import tableau_colors, coolwarm_r
 from ross.units import Q_, check_units
 from ross.utils import intersection
@@ -652,8 +654,8 @@ class Shape(Results):
         intersecting_nodes = np.where(nodes_pos[:-1] >= nodes_pos[1:])[0] + 1
         n_plot = len(intersecting_nodes) + 1
 
-        get_node_index = (
-            lambda i: intersecting_nodes[i] if i + 1 < n_plot else len(nodes_pos)
+        get_node_index = lambda i: (
+            intersecting_nodes[i] if i + 1 < n_plot else len(nodes_pos)
         )
 
         symbols = [
@@ -3306,7 +3308,7 @@ class ForcedResponseResults(Results):
                 try:
                     probe_tag = p[2]
                 except IndexError:
-                    probe_tag = f"Probe {i+1} - Node {p[0]}"
+                    probe_tag = f"Probe {i + 1} - Node {p[0]}"
 
             amplitude = []
             for speed_idx in range(len(self.speed_range)):
@@ -3401,7 +3403,7 @@ class ForcedResponseResults(Results):
                 try:
                     probe_tag = p[2]
                 except IndexError:
-                    probe_tag = f"Probe {i+1} - Node {p[0]}"
+                    probe_tag = f"Probe {i + 1} - Node {p[0]}"
 
             phase_values = []
             for speed_idx in range(len(self.speed_range)):
@@ -5455,7 +5457,7 @@ class TimeResponseResults(Results):
                 try:
                     probe_tag = p[2]
                 except IndexError:
-                    probe_tag = f"Probe {i+1} - Node {p[0]}"
+                    probe_tag = f"Probe {i + 1} - Node {p[0]}"
 
             data[f"angle[{i}]"] = angle
             data[f"probe_tag[{i}]"] = probe_tag
@@ -6312,11 +6314,19 @@ class SensitivityResults(Results):
         --------
         >>> import ross as rs
         >>> rotor = rs.rotor_amb_example()
-        >>> sensitivity_results = rotor.run_amb_sensitivity(speed=1200, t_max=5, dt=0.001, disturbance_amplitude=1) # doctest: +ELLIPSIS
+        >>> sensitivity_results = rotor.run_amb_sensitivity(
+        ...     speed=0,
+        ...     t_max=5e-4,
+        ...     dt=1e-4,
+        ...     disturbance_amplitude=10e-6,
+        ...     disturbance_min_frequency=0.001,
+        ...     disturbance_max_frequency=150,
+        ...     amb_tags=["Magnetic Bearing 0"],
+        ...     sensors_theta=45) # doctest: +ELLIPSIS
         Running direct method...
 
         >>> # Generate the sensitivity plot
-        >>> fig = sensitivity_results.plot()
+        >>> fig_sensitivity = sensitivity_results.plot()
 
         >>> # Customize the plot appearance
         >>> fig_custom = sensitivity_results.plot(
@@ -6538,11 +6548,19 @@ class SensitivityResults(Results):
         --------
         >>> import ross as rs
         >>> rotor = rs.rotor_amb_example()
-        >>> sensitivity_results = rotor.run_amb_sensitivity(speed=1200, t_max=5, dt=0.001, disturbance_amplitude=1) # doctest: +ELLIPSIS
+        >>> sensitivity_results = rotor.run_amb_sensitivity(
+        ...     speed=0,
+        ...     t_max=5e-4,
+        ...     dt=1e-4,
+        ...     disturbance_amplitude=10e-6,
+        ...     disturbance_min_frequency=0.001,
+        ...     disturbance_max_frequency=150,
+        ...     amb_tags=["Magnetic Bearing 0"],
+        ...     sensors_theta=45) # doctest: +ELLIPSIS
         Running direct method...
 
         >>> # Generate the time-domain results plot
-        >>> fig = sensitivity_results.plot_run_time_results()
+        >>> fig_sensitivity = sensitivity_results.plot_run_time_results()
 
         >>> # Customize the plot appearance
         >>> fig_custom = sensitivity_results.plot_run_time_results(
@@ -6708,7 +6726,7 @@ class SensitivityResults(Results):
         )
 
     @classmethod
-    def load(cls, file):
+    def load(cls, file: Path):
         """Load sensitivity results from a TOML file.
 
         This class method loads sensitivity analysis results that have been
@@ -6737,16 +6755,24 @@ class SensitivityResults(Results):
         >>> from pathlib import Path
         >>> from tempfile import tempdir
         >>> rotor = rs.rotor_amb_example()
-        >>> sensitivity_results = rotor.run_amb_sensitivity(speed=1200, t_max=5, dt=0.001, disturbance_amplitude=1) # doctest: +ELLIPSIS
+        >>> sensitivity_results = rotor.run_amb_sensitivity(
+        ...     speed=0,
+        ...     t_max=5e-4,
+        ...     dt=1e-4,
+        ...     disturbance_amplitude=10e-6,
+        ...     disturbance_min_frequency=0.001,
+        ...     disturbance_max_frequency=150,
+        ...     amb_tags=["Magnetic Bearing 0"],
+        ...     sensors_theta=45) # doctest: +ELLIPSIS
         Running direct method...
 
-        >>> file = Path(tempdir) / "sensitivity_results.toml"
-        >>> sensitivity_results.save(file)
-        >>> loaded_results = rs.SensitivityResults.load(file)
+        >>> file_path = Path(tempdir) / "sensitivity_results.toml"
+        >>> sensitivity_results.save(file_path)
+        >>> loaded_results = rs.SensitivityResults.load(file_path)
         >>> type(loaded_results)
         <class 'ross.results.SensitivityResults'>
         >>> loaded_results.max_abs_sensitivities["Magnetic Bearing 0"]["x"] # doctest: +ELLIPSIS
-        1.21195...
+        0.9999769883...
         """
         data = toml.load(file)
         sensitivity_results = data["SensitivityResults"]

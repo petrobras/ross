@@ -1741,9 +1741,10 @@ class MagneticBearingElement(BearingElement):
         self.ks = ks
         self.ki = ki
         self.integral = [0, 0]
-        self.e0 = [1e-6, 1e-6]
-        self.control_signal = [[], []]
-        self.magnetic_force = [[], []]
+        self.e0 = [0, 0]
+        self.control_signal = []
+        self.magnetic_force_xy = []
+        self.magnetic_force_vw = []
 
         k = ki * pA[7] * pA[8] * (pA[5] + np.divide(ks, ki * pA[7] * pA[8]))
         c = ki * pA[7] * pA[6] * pA[8]

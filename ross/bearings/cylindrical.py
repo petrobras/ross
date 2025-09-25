@@ -655,7 +655,7 @@ class THDCylindrical(BearingElement):
             print(res)
 
         if self.print_time:
-            print(f"Time Spent: {t2-t1} seconds")
+            print(f"Time Spent: {t2 - t1} seconds")
 
     def _get_interp_coeffs(self, T_muI, T_muF, mu_I, mu_F):
         """
