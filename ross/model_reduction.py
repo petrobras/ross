@@ -181,41 +181,55 @@ class Guyan(ModelReduction):
     array([4, 5])
     """
 
-    def __init__(self, rotor, speed, include_dofs=[], include_nodes=[], **kwargs):
+    def __init__(
+        self,
+        rotor,
+        speed,
+        include_nodes=[],
+        dof_mapping=["x", "y"],
+        include_dofs=[],
+        **kwargs,
+    ):
+        self.rotor = rotor
         self.ndof = rotor.ndof
         self.number_dof = rotor.number_dof
         self.M = rotor.M(speed)
         self.K = rotor.K(speed)
 
-        self.bearings = [b for b in rotor.bearing_elements]
-        self.disks = [d for d in rotor.disk_elements]
+        self.dof_dict = {"x": 0, "y": 1, "z": 2, "alpha": 3, "beta": 4, "theta": 5}
 
         self.selected_dofs, self.ignored_dofs = self._separate_dofs(
-            include_dofs, include_nodes
+            include_nodes, dof_mapping, include_dofs
         )
 
         self.reordering = self.selected_dofs + self.ignored_dofs
         self.transf_matrix = self.get_transformation_matrix()
 
-    def _select_elem_dofs(self):
+    def _select_elem_dofs(self, local_dofs):
         """Select DOFs from rotor bearings and disks"""
-        local_dofs = [0, 1]  # Only dofx and dofy
         selected_dofs = []
+        elements = self.rotor.bearing_elements + self.rotor.disk_elements
 
-        for elm in self.bearings + self.disks:
+        for elm in elements:
             for i in local_dofs:
-                selected_dofs.append(elm.n * self.number_dof + i)
+                if elm.n in self.rotor.link_nodes:
+                    if i < 3:
+                        selected_dofs.append(elm.n * int(self.number_dof / 2) + i)
+                else:
+                    selected_dofs.append(elm.n * self.number_dof + i)
 
         return selected_dofs
 
-    def _separate_dofs(self, include_dofs=[], include_nodes=[]):
+    def _separate_dofs(self, include_nodes=[], dof_mapping=["x", "y"], include_dofs=[]):
         """Separate the selected DOFs from the ignored DOFs."""
+        local_dofs = [self.dof_dict[dof] for dof in dof_mapping]
+
         selected_dofs = set()
         selected_dofs.update(include_dofs)
-        selected_dofs.update(self._select_elem_dofs())
+        selected_dofs.update(self._select_elem_dofs(local_dofs))
 
         for n in include_nodes:
-            dofs = n * self.number_dof + np.arange(self.number_dof)
+            dofs = n * self.number_dof + np.array(local_dofs)
             selected_dofs.update(dofs)
 
         ignored_dofs = sorted(set(range(self.ndof)) - selected_dofs)
