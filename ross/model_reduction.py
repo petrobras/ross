@@ -151,11 +151,20 @@ class Guyan(ModelReduction):
         The rotor object.
     speed : float
         Rotor speed.
+    include_nodes : list of int, optional
+        List of the nodes to be included in the reduction.
+    dof_mapping : list of str, optional
+        List of the local DOFs to be considered in the reduction.
+        Valid values are: 'x', 'y', 'z', 'alpha', 'beta', 'theta', corresponding to:
+            - 'x' and 'y': lateral translations
+            - 'z': axial translation
+            - 'alpha': rotation about the x-axis
+            - 'beta': rotation about the y-axis
+            - 'theta': torsional rotation (about the z-axis)
+        Default is ['x', 'y'].
     include_dofs : list of int, optional
         List of DOFs to be included in the reduction,
         e.g., DOFs with applied forces or probe locations.
-    include_nodes : list of int, optional
-        List of the nodes to be included in the reduction.
 
     Examples
     --------
@@ -196,10 +205,11 @@ class Guyan(ModelReduction):
         self.M = rotor.M(speed)
         self.K = rotor.K(speed)
 
-        self.dof_dict = {"x": 0, "y": 1, "z": 2, "alpha": 3, "beta": 4, "theta": 5}
+        dof_dict = {"x": 0, "y": 1, "z": 2, "alpha": 3, "beta": 4, "theta": 5}
+        local_dofs = [dof_dict[dof] for dof in dof_mapping]
 
         self.selected_dofs, self.ignored_dofs = self._separate_dofs(
-            include_nodes, dof_mapping, include_dofs
+            include_nodes, local_dofs, include_dofs
         )
 
         self.reordering = self.selected_dofs + self.ignored_dofs
@@ -211,18 +221,22 @@ class Guyan(ModelReduction):
         elements = self.rotor.bearing_elements + self.rotor.disk_elements
 
         for elm in elements:
-            for i in local_dofs:
-                if elm.n in self.rotor.link_nodes:
-                    if i < 3:
-                        selected_dofs.append(elm.n * int(self.number_dof / 2) + i)
-                else:
+            if elm.n in self.rotor.link_nodes:
+                dofs = np.array(list(elm.dof_global_index.values()))
+                local_dofs_l = list(filter(lambda dof: dof < 3, local_dofs))
+                include_dofs = dofs[local_dofs_l]
+                for dof in include_dofs:
+                    selected_dofs.append(dof)
+            else:
+                for i in local_dofs:
                     selected_dofs.append(elm.n * self.number_dof + i)
 
         return selected_dofs
 
-    def _separate_dofs(self, include_nodes=[], dof_mapping=["x", "y"], include_dofs=[]):
+    def _separate_dofs(self, include_nodes=[], local_dofs=None, include_dofs=[]):
         """Separate the selected DOFs from the ignored DOFs."""
-        local_dofs = [self.dof_dict[dof] for dof in dof_mapping]
+        if not local_dofs:
+            local_dofs = [0, 1]
 
         selected_dofs = set()
         selected_dofs.update(include_dofs)

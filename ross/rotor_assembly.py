@@ -2274,21 +2274,27 @@ class Rotor(object):
             See `newmark` for more details. Other optional arguments are listed
             below.
         model_reduction : dict, optional
-            If `num_modes` is passed as argument, the pseudo-modal method is applied reducing
-            the model to the chosen number of modes.
-        model_reduction : dict, optional
             When `model_reduction` is provided, the corresponding reduction method is initialized.
-            Keys:
+            Dict keys:
                 method : str, optional
                     Reduction method to use, e.g., "guyan" or "pseudomodal".
                     Defaults to "guyan".
                 num_modes : int, optional
                     Number of modes to reduce the model to, if pseudo-modal method is considered.
-                ndof_limit : int, optional
-                    The number of DOFs to be considered in the model reduction.
+                include_nodes : list of int, optional
+                    List of the nodes to be included, if Guyan reduction method is considered.
+                dof_mapping : list of str, optional
+                    List of the local DOFs to be considered when using Guyan reduction method.
+                    Valid values are: 'x', 'y', 'z', 'alpha', 'beta', 'theta', corresponding to:
+                        - 'x' and 'y': lateral translations
+                        - 'z': axial translation
+                        - 'alpha': rotation about the x-axis
+                        - 'beta': rotation about the y-axis
+                        - 'theta': torsional rotation (about the z-axis)
+                    Default is ['x', 'y'].
                 include_dofs (list of int, optional):
                     Additional degrees of freedom (DOFs) to include in the reduction, such as DOFs
-                    with applied forces or probe locations, if Guyan reduction method is used.
+                    with applied forces or probe locations when using Guyan reduction method.
         add_to_RHS : callable, optional
             An optional function that computes and returns an additional array to be added to
             the right-hand side of the equation of motion. This function should take the time
@@ -2461,7 +2467,7 @@ class Rotor(object):
             of the Newmark method if it is used (e.g. gamma, beta, tol, ...).
             See `ross.utils.newmark` for more details.
             Other keyword arguments can also be passed to be used in numerical
-            integration (e.g. num_modes, add_to_RHS).
+            integration (e.g. model_reduction, add_to_RHS).
             See `Rotor.integrate_system` for more details.
 
         Returns
@@ -3130,7 +3136,7 @@ class Rotor(object):
             of the Newmark method if it is used (e.g. gamma, beta, tol, ...).
             See `ross.utils.newmark` for more details.
             Other keyword arguments can also be passed to be used in numerical
-            integration (e.g. num_modes, add_to_RHS).
+            integration (e.g. model_reduction, add_to_RHS).
             See `Rotor.integrate_system` for more details.
 
         Returns
@@ -3243,7 +3249,7 @@ class Rotor(object):
             of the Newmark method if it is used (e.g. gamma, beta, tol, ...).
             See `ross.utils.newmark` for more details.
             Other keyword arguments can also be passed to be used in numerical
-            integration (e.g. num_modes).
+            integration (e.g. model_reduction).
             See `Rotor.integrate_system` for more details.
 
         Returns
@@ -3369,7 +3375,7 @@ class Rotor(object):
             of the Newmark method if it is used (e.g. gamma, beta, tol, ...).
             See `ross.utils.newmark` for more details.
             Other keyword arguments can also be passed to be used in numerical
-            integration (e.g. num_modes).
+            integration (e.g. model_reduction).
             See `Rotor.integrate_system` for more details.
 
         Returns
@@ -3475,7 +3481,7 @@ class Rotor(object):
             of the Newmark method if it is used (e.g. gamma, beta, tol, ...).
             See `ross.utils.newmark` for more details.
             Other keyword arguments can also be passed to be used in numerical
-            integration (e.g. num_modes).
+            integration (e.g. model_reduction).
             See `Rotor.integrate_system` for more details.
 
         Returns
