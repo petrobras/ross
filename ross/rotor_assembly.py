@@ -1147,13 +1147,15 @@ class Rotor(object):
 
         return M0
 
-    def K(self, frequency):
+    def K(self, frequency, ignore=[]):
         """Stiffness matrix for an instance of a rotor.
 
         Parameters
         ----------
         frequency : float, optional
             Excitation frequency.
+        ignore : list, optional
+            List of elements to leave out of the matrix.
 
         Returns
         -------
@@ -1169,11 +1171,16 @@ class Rotor(object):
                [ 0.000e+00,  0.000e+00,  1.657e+03,  0.000e+00],
                [ 0.000e+00, -6.000e+00,  0.000e+00,  1.000e+00]])
         """
-        K0 = self.K0.copy()
+        K0 = np.zeros((self.ndof, self.ndof))
 
-        for elm in self.bearing_elements:
+        elements = list(set(self.elements).difference(ignore))
+
+        for elm in elements:
             dofs = list(elm.dof_global_index.values())
-            K0[np.ix_(dofs, dofs)] += elm.K(frequency)
+            try:
+                K0[np.ix_(dofs, dofs)] += elm.K(frequency)
+            except TypeError:
+                K0[np.ix_(dofs, dofs)] += elm.K()
 
         return K0
 
@@ -1204,13 +1211,15 @@ class Rotor(object):
 
         return Ksdt0
 
-    def C(self, frequency):
+    def C(self, frequency, ignore=[]):
         """Damping matrix for an instance of a rotor.
 
         Parameters
         ----------
         frequency : float
             Excitation frequency.
+        ignore : list, optional
+            List of elements to leave out of the matrix.
 
         Returns
         -------
@@ -1226,11 +1235,16 @@ class Rotor(object):
                [0., 0., 0., 0.],
                [0., 0., 0., 0.]])
         """
-        C0 = self.C0.copy()
+        C0 = np.zeros((self.ndof, self.ndof))
 
-        for elm in self.bearing_elements:
+        elements = list(set(self.elements).difference(ignore))
+
+        for elm in elements:
             dofs = list(elm.dof_global_index.values())
-            C0[np.ix_(dofs, dofs)] += elm.C(frequency)
+            try:
+                C0[np.ix_(dofs, dofs)] += elm.C(frequency)
+            except TypeError:
+                C0[np.ix_(dofs, dofs)] += elm.C()
 
         return C0
 
