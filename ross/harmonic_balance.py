@@ -14,8 +14,9 @@ from ross.results import (
 class HarmonicBalance:
     def __init__(self, rotor):
         self.rotor = rotor
-
+        self.ndof = rotor.ndof
         self.probeForce = None
+        self.noh = 1
 
     @check_units
     def run(
@@ -30,19 +31,22 @@ class HarmonicBalance:
         points=None,
     ):
         rotor = self.rotor
-
+        dt = t[1] - t[0]
+        accel = 0
+        ndof = rotor.ndof
         self.noh = n_harmonics
 
         if points is None or points > len(t):
             points = int(len(t) / 2)
         self.points = points
 
+        # Forces
         W = rotor.gravitational_force() * 0
         F_unb, F_unb_s = self._unbalance_force(node, unb_magnitude, unb_phase, speed)
 
         if F_ext is None:
-            F_ext = np.zeros((len(t), rotor.ndof))
-        dt = t[1] - t[0]
+            F_ext = np.zeros((len(t), ndof))
+
         freq = Q_(speed, "rad/s").to("Hz").m
         Fo, Fn, Fn_s = self._external_force(F_ext, dt, freq)
 
@@ -57,10 +61,76 @@ class HarmonicBalance:
             rotor.G(),
         )
 
-        _, Qo, dQ, dQ_s = self._solve_freq_response(H, F)
+        Qt, Qo, dQ, dQ_s = self._solve_freq_response(H, F)
+
+        return Qt, Qo, dQ, dQ_s
+
+    def run_freq_response(
+        self,
+        node,
+        unb_magnitude,
+        unb_phase,
+        speed_range,
+        n_harmonics=1,
+        F_ext=None,
+        points=None,
+    ):
+        ndof = self.rotor.ndof
+        t = np.linspace(0, 2 * np.pi / speed_range[-1], 1000)  # ??
+
+        forced_resp = np.zeros((ndof, len(speed_range)), dtype=complex)
+        velc_resp = np.zeros((ndof, len(speed_range)), dtype=complex)
+        accl_resp = np.zeros((ndof, len(speed_range)), dtype=complex)
+
+        for i, speed in enumerate(speed_range):
+            Qt, Qo, dQ, dQ_s = self.run(
+                node,
+                unb_magnitude,
+                unb_phase,
+                speed,
+                t,
+                n_harmonics=n_harmonics,
+                F_ext=F_ext,
+                points=points,
+            )
+
+        unbalance = np.vstack((node, unb_magnitude, unb_phase))
+
+        forced_resp = ForcedResponseResults(
+            rotor=self.rotor,
+            forced_resp=forced_resp,
+            velc_resp=velc_resp,
+            accl_resp=accl_resp,
+            speed_range=speed_range,
+            unbalance=unbalance,
+        )
+
+        return forced_resp
+
+    def run_time_response(
+        self,
+        node,
+        unb_magnitude,
+        unb_phase,
+        speed,
+        t,
+        n_harmonics=1,
+        F_ext=None,
+        points=None,
+    ):
+        _, Qo, dQ, _ = self.run(
+            node,
+            unb_magnitude,
+            unb_phase,
+            speed,
+            t,
+            n_harmonics=n_harmonics,
+            F_ext=F_ext,
+            points=points,
+        )
 
         y, ydot, y2dot = self._reconstruct_time_domain(speed, t, Qo, dQ)
-        time_resp = TimeResponseResults(rotor, t, y.T, [])
+        time_resp = TimeResponseResults(self.rotor, t, y.T, [])
 
         return time_resp
 
