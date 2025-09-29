@@ -2425,16 +2425,9 @@ class Rotor(object):
                         "The bearing coefficients vary with speed. Therefore, C and K matrices are not being replaced by the matrices defined as input arguments."
                     )
 
-                C0 = self.C0
-                K0 = self.K0
-
                 def rotor_system(step, **current_state):
-                    Cb, Kb = assemble_C_K_matrices(
-                        brgs_with_var_coeffs, C0.copy(), K0.copy(), speed[step]
-                    )
-
-                    C1 = get_array[0](Cb)
-                    K1 = get_array[0](Kb)
+                    C1 = get_array[0](self.C(speed[step]))
+                    K1 = get_array[0](self.K(speed[step]))
 
                     return (
                         M,
