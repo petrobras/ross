@@ -210,7 +210,7 @@ class HoneycombSeal(SealElement):
         self.R = self.R_univ / self.molar
         self.gamma1 = self.gamma - 1.0
         self.gamma12 = self.gamma1 / 2.0
-        self.omega = 2.0 * np.pi * self.rpm / 60.0
+        self.omega = Q_(frequency, "RPM").to("rad/s").m
         self.area = np.pi * 2.0 * self.radius * self.clearance
 
         try:
