@@ -146,8 +146,6 @@ class HoneycombSeal(SealElement):
             if k != "self":
                 setattr(self, k, v)
 
-        self.frequency = Q_(self.frequency, "rad/s").to("RPM").m
-
         if self.gas_composition is not None:
             def sutherland_formula(T, b, S):
                 return (b * T ** (3 / 2)) / (S + T)
@@ -204,13 +202,12 @@ class HoneycombSeal(SealElement):
         )
 
     def run(self, frequency):
-        self.rpm = frequency
         self.dz = self.length / float(self.nz)
         self.z = np.arange(self.nz + 1) * self.dz
         self.R = self.R_univ / self.molar
         self.gamma1 = self.gamma - 1.0
         self.gamma12 = self.gamma1 / 2.0
-        self.omega = Q_(frequency, "RPM").to("rad/s").m
+        self.omega = frequency
         self.area = np.pi * 2.0 * self.radius * self.clearance
 
         try:
