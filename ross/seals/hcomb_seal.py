@@ -182,6 +182,10 @@ class HoneycombSeal(SealElement):
         self.t = np.zeros(self.nmx + 1)
         self.mz2 = np.zeros(self.nmx + 1)
         self.mt = np.zeros(self.nmx + 1)
+        self.i_t = np.array([1, 0, 3, 2])
+        self.i_th = np.array([2, 3, 0, 1])
+        self.sgn_t = np.array([-1.0, 1.0, -1.0, 1.0])
+        self.sgn_th = np.array([-1.0, -1.0, 1.0, 1.0])
 
         coefficients_dict = {}
         if kwargs.get("kxx") is None:
@@ -201,9 +205,15 @@ class HoneycombSeal(SealElement):
 
     def run(self, frequency):
         self.rpm = frequency
+        self.dz = self.length / float(self.nz)
+        self.z = np.arange(self.nz + 1) * self.dz
+        self.R = self.R_univ / self.molar
+        self.gamma1 = self.gamma - 1.0
+        self.gamma12 = self.gamma1 / 2.0
+        self.omega = 2.0 * np.pi * self.rpm / 60.0
+        self.area = np.pi * 2.0 * self.radius * self.clearance
 
         try:
-            self.preproc()
             base_state_results = self.calculate_leakage()
             if not base_state_results:
                 raise RuntimeError("Error calculating leakage.")
@@ -229,15 +239,6 @@ class HoneycombSeal(SealElement):
         except Exception as e:
             print(f"Error calculating for frequency {frequency} RPM: {e}")
             return dict.fromkeys(["kxx", "kyy", "kxy", "kyx", "cxx", "cyy", "cxy", "cyx", "leakage"], 0)
-
-    def preproc(self):
-        self.dz = self.length / float(self.nz)
-        self.z = np.arange(self.nz + 1) * self.dz
-        self.R = self.R_univ / self.molar
-        self.gamma1 = self.gamma - 1.0
-        self.gamma12 = self.gamma1 / 2.0
-        self.omega = 2.0 * np.pi * self.rpm / 60.0
-        self.area = np.pi * 2.0 * self.radius * self.clearance
 
     def inlet_loss(self, p2):
         if p2 >= self.inlet_pressure:
@@ -447,12 +448,6 @@ class HoneycombSeal(SealElement):
             ):
                 break
         return {"mdot": self.mdot, "t": self.t, "mz2": self.mz2, "mt": self.mt}
-
-    def _preproc_force(self):
-        self.i_t = np.array([1, 0, 3, 2])
-        self.i_th = np.array([2, 3, 0, 1])
-        self.sgn_t = np.array([-1.0, 1.0, -1.0, 1.0])
-        self.sgn_th = np.array([-1.0, -1.0, 1.0, 1.0])
 
     def _one_step_perturbed(
         self,
@@ -909,7 +904,6 @@ class HoneycombSeal(SealElement):
             w_base[iz] = mt_base[iz] * sqrt_term
             rho_base[iz] = mdot / (self.area * u_base[iz]) if u_base[iz] > 1e-9 else 0
         p_base = rho_base * self.R * t_base[: self.nz + 1]
-        self._preproc_force()
         xcos, pi_radius, deep = 1.0, np.pi * self.radius, self.cell_depth / self.gamma
         pert = np.zeros((5, 4, self.nz + 1))
         whirl_freq = 0.0
