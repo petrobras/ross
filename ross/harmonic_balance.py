@@ -29,6 +29,7 @@ class HarmonicBalance:
         n_harmonics=1,
         F_ext=None,
         points=None,
+        crack=None,
     ):
         rotor = self.rotor
         dt = t[1] - t[0]
@@ -52,13 +53,26 @@ class HarmonicBalance:
 
         F = self._assemble_forces(W, F_unb, F_unb_s, Fo, Fn, Fn_s)
 
+        # Crack stiffness matrices
+        if crack:
+            Ko, Kn, Kn_s = self._crack_stiffness_matrices()
+        else:
+            Ko = np.zeros((ndof, ndof), dtype=complex)
+            Kn = np.zeros((ndof, ndof, 2 * self.noh), dtype=complex)
+            Kn_s = np.zeros((ndof, ndof, 2 * self.noh), dtype=complex)
+
+        # Harmonic Balance Matrix
         H = self._build_harmonic_balance_matrix(
             speed,
+            accel,
             rotor.M(speed),
             rotor.K(speed),
             rotor.Ksdt(),
             rotor.C(speed),
             rotor.G(),
+            Ko,
+            Kn,
+            Kn_s,
         )
 
         Qt, Qo, dQ, dQ_s = self._solve_freq_response(H, F)
@@ -204,10 +218,36 @@ class HarmonicBalance:
 
         return Fo, F, F_s
 
+    def _crack_stiffness_matrices(self, dt, freq):
+        ndof = self.rotor.ndof
+        n_aux = 2 * self.noh
+
+        Ko = np.zeros((ndof, ndof), dtype=complex)
+        Kn = np.zeros((ndof, ndof, n_aux), dtype=complex)
+        Kn_s = np.zeros((ndof, ndof, n_aux), dtype=complex)
+
+        idx = self.crack.dof_crack
+        coeff_flex = self.crack.coeff_flex
+
+        Kco, Kcn, Kcn_s = self._expand_Fourier(coeff_flex, dt, freq, n_aux)
+        Ko[idx, idx] = self.crack._Kflex(Kco.reshape(-1, 1))[:, :, 0]
+
+        Kn_flex = self.crack._Kflex(Kcn)
+        Kn_flex_s = self.crack._Kflex(Kcn_s)
+
+        for i in range(n_aux):
+            Kn[idx, idx, i] = Kn_flex[:, :, i]
+            Kn_s[idx, idx, i] = Kn_flex_s[:, :, i]
+
+        return Ko, Kn, Kn_s
+
     @check_units
-    def _expand_Fourier(self, F, dt, fo):
+    def _expand_Fourier(self, F, dt, fo, noh=None):
+        if noh is None:
+            noh = self.noh
+
         row, N = F.shape
-        Fn = np.array(np.zeros((row, self.noh)), dtype=complex)
+        Fn = np.array(np.zeros((row, noh)), dtype=complex)
 
         b = int(np.floor(N / 2))
         df = 1 / (N * dt)
@@ -219,7 +259,7 @@ class HarmonicBalance:
         an = 1 * np.real(X)
         bn = -1 * np.imag(X)
 
-        for n in range(1, self.noh + 1):
+        for n in range(1, noh + 1):
             idx = int(n * fo / df)
             Fn[:, n - 1] = an[:, idx] - 1j * bn[:, idx]
 
@@ -243,35 +283,26 @@ class HarmonicBalance:
     def _build_harmonic_balance_matrix(
         self,
         speed,
+        accel,
         M,
         K,
         Ksdt,
         C,
         G,
-        Ko=None,
-        Kn=None,
-        Kn_s=None,
-        Co=None,
-        Cn=None,
-        Cn_s=None,
-        accel=0,
+        Ko,
+        Kn,
+        Kn_s,
     ):
         ndof = self.rotor.ndof
-        alpha = self.rotor.shaft_elements[0].alpha
-        beta = self.rotor.shaft_elements[0].beta
 
-        if Ko is None:
-            Ko = np.zeros((ndof, ndof), dtype=complex)
-        if Co is None:
-            Co = np.zeros((ndof, ndof), dtype=complex)
-        if Kn is None:
-            Kn = np.zeros((ndof, ndof, 2 * self.noh), dtype=complex)
-        if Kn_s is None:
-            Kn_s = np.zeros((ndof, ndof, 2 * self.noh), dtype=complex)
-        if Cn is None:
-            Cn = np.zeros((ndof, ndof, 2 * self.noh), dtype=complex)
-        if Cn_s is None:
-            Cn_s = np.zeros((ndof, ndof, 2 * self.noh), dtype=complex)
+        # alpha and beta are already considered in C matrix (shaft elements)
+        alpha = 0
+        beta = 0
+
+        # Co, Cn, Cn_s are already considered in C matrix (bearing elements)
+        Co = np.zeros((ndof, ndof), dtype=complex)
+        Cn = np.zeros((ndof, ndof, 2 * self.noh), dtype=complex)
+        Cn_s = np.zeros((ndof, ndof, 2 * self.noh), dtype=complex)
 
         size = ndof * (2 * self.noh + 1)
         H0 = np.zeros((size, size), dtype=complex)
