@@ -662,7 +662,7 @@ class Crack(ABC):
 
         # Unbalance force
         F, ang_pos, _, _ = rotor.unbalance_force_over_time(
-            node, unb_magnitude, unb_phase, speed, t
+            node, unb_magnitude, unb_phase, speed, t, return_all=True
         )
 
         # Weight

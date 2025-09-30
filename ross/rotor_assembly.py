@@ -2062,7 +2062,9 @@ class Rotor(object):
 
         return F0
 
-    def unbalance_force_over_time(self, node, magnitude, phase, omega, t):
+    def unbalance_force_over_time(
+        self, node, magnitude, phase, omega, t, return_all=False
+    ):
         """Calculate unbalance forces for each time step.
 
         This auxiliary function calculates the unbalanced forces by taking
@@ -2083,6 +2085,10 @@ class Rotor(object):
             Constant velocity or desired range of velocities (rad/s).
         t : np.darray
             Time array (s).
+        return_all : bool, optional
+            If True, returns F0, theta, omega, and alpha.
+            If False, returns only F0.
+            Default is False.
 
         Returns
         -------
@@ -2100,7 +2106,7 @@ class Rotor(object):
         >>> rotor = rotor_example()
         >>> t = np.linspace(0, 10, 31)
         >>> omega = np.linspace(0, 1000, 31)
-        >>> F, _, _, _ = rotor.unbalance_force_over_time([3], [10.0], [0.0], omega, t)
+        >>> F = rotor.unbalance_force_over_time([3], [10.0], [0.0], omega, t)
         >>> F[18, :3]
         array([     0.        ,   7632.15353293, -43492.18127561])
         """
@@ -2122,7 +2128,10 @@ class Rotor(object):
             F0[n * self.number_dof + 0, :] += Fx
             F0[n * self.number_dof + 1, :] += Fy
 
-        return F0, theta, omega, alpha
+        if return_all:
+            return F0, theta, omega, alpha
+        else:
+            return F0
 
     @check_units
     def run_unbalance_response(
