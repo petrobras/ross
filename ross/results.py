@@ -6,20 +6,20 @@ This module returns graphs for each type of analyses in rotor_assembly.py.
 import copy
 import inspect
 from abc import ABC
-from prettytable import PrettyTable
 from collections.abc import Iterable
 from warnings import warn
 
 import numpy as np
 import pandas as pd
 import toml
+from numba import njit
+from numpy import linalg as la
 from plotly import graph_objects as go
 from plotly.subplots import make_subplots
+from prettytable import PrettyTable
 from scipy.fft import fft
-from numpy import linalg as la
-from numba import njit
 
-from ross.plotly_theme import tableau_colors, coolwarm_r
+from ross.plotly_theme import coolwarm_r, tableau_colors
 from ross.units import Q_, check_units
 from ross.utils import intersection
 
@@ -2625,8 +2625,8 @@ class CampbellResults(Results):
     ):
         try:
             import random
-            from dash import Dash
-            from dash import dcc, html
+
+            from dash import Dash, dcc, html
             from dash.dependencies import Input, Output
         except ImportError:
             raise ImportError("Please install dash to use this feature.")
@@ -3232,8 +3232,8 @@ class ForcedResponseResults(Results):
             "[length] / [time]": ["m/s", "velc_resp"],
             "[length] / [time] ** 2": ["m/s**2", "accl_resp"],
         }
-        
-    def _calculate_amplitude(self,angle,ru_e,rv_e):
+
+    def _calculate_amplitude(self, angle, ru_e, rv_e):
         """Calculates the amplitude for a given angle of the orbit.
 
         Parameters
@@ -3246,30 +3246,29 @@ class ForcedResponseResults(Results):
             Tuple with (amplitude, phase) value.
             The amplitude units are the same as the ru_e and rv_e used to create the orbit.
         """
-        
-        if  angle == "major" or  angle == "minor":            
+
+        if angle == "major" or angle == "minor":
             forward_whirl = 0.5 * (ru_e + 1j * rv_e)
-            backward_whirl = 0.5 * (ru_e - 1j * rv_e)  
-            
+            backward_whirl = 0.5 * (ru_e - 1j * rv_e)
+
             amp_fw = np.abs(forward_whirl)
-            amp_bw = np.abs(backward_whirl)  
+            amp_bw = np.abs(backward_whirl)
             major_axis = amp_fw + amp_bw
             minor_axis = np.abs(amp_fw - amp_bw)
             phase_fw_rad = np.angle(forward_whirl)
             phase_bw_rad = np.angle(backward_whirl)
-            major_angle = 0.5*(phase_fw_rad + phase_bw_rad)
-            minor_angle= major_angle+np.pi/2
-             # find closest angle index
+            major_angle = 0.5 * (phase_fw_rad + phase_bw_rad)
+            minor_angle = major_angle + np.pi / 2
+
             if angle == "major":
-                return major_axis, major_angle               
-            elif angle == "minor":                #
-                 return minor_axis, minor_angle
-        else:                
-            amp_complex=ru_e* np.cos(angle)+rv_e * np.sin(angle)
-            amp_abs=np.abs(ru_e* np.cos(angle)+rv_e * np.sin(angle))
-            phase=2*np.pi - np.mod(np.angle(amp_complex), 2*np.pi)               
+                return major_axis, major_angle
+            elif angle == "minor":
+                return minor_axis, minor_angle
+        else:
+            amp_complex = ru_e * np.cos(angle) + rv_e * np.sin(angle)
+            amp_abs = np.abs(ru_e * np.cos(angle) + rv_e * np.sin(angle))
+            phase = 2 * np.pi - np.mod(np.angle(amp_complex), 2 * np.pi)
         return amp_abs, phase
-    
 
     def data_magnitude(
         self,
@@ -3343,7 +3342,7 @@ class ForcedResponseResults(Results):
                 try:
                     probe_tag = p[2]
                 except IndexError:
-                    probe_tag = f"Probe {i+1} - Node {p[0]}"
+                    probe_tag = f"Probe {i + 1} - Node {p[0]}"
 
             amplitude = []
             for speed_idx in range(len(self.speed_range)):
@@ -3353,10 +3352,13 @@ class ForcedResponseResults(Results):
                     ]
                 except:
                     ru_e, rv_e = response[:, speed_idx][
-                        self.rotor.number_dof * node -3: self.rotor.number_dof * node + 2 -3
+                        self.rotor.number_dof * node - 3 : self.rotor.number_dof * node
+                        + 2
+                        - 3
                     ]
-                    
-                amp, phase=self._calculate_amplitude(ru_e=ru_e, rv_e=rv_e,angle=angle)
+                amp, phase = self._calculate_amplitude(
+                    ru_e=ru_e, rv_e=rv_e, angle=angle
+                )
                 amplitude.append(amp)
             data[probe_tag] = Q_(amplitude, base_unit).to(amplitude_units).m
 
@@ -3440,7 +3442,7 @@ class ForcedResponseResults(Results):
                 try:
                     probe_tag = p[2]
                 except IndexError:
-                    probe_tag = f"Probe {i+1} - Node {p[0]}"
+                    probe_tag = f"Probe {i + 1} - Node {p[0]}"
 
             phase_values = []
             for speed_idx in range(len(self.speed_range)):
@@ -3450,16 +3452,16 @@ class ForcedResponseResults(Results):
                     ]
                 except:
                     ru_e, rv_e = response[:, speed_idx][
-                        self.rotor.number_dof * node -3: self.rotor.number_dof * node + 2 -3
+                        self.rotor.number_dof * node - 3 : self.rotor.number_dof * node
+                        + 2
+                        - 3
                     ]
-                
-                amp, phase=self._calculate_amplitude(ru_e=ru_e, rv_e=rv_e,angle=angle)                
-                phase_values.append(phase)
-            
-            # aux=np.unwrap(np.array(phase_values)+np.pi)%(2*np.pi)-np.pi    
-            # phase_values=list(aux)
-            data[probe_tag] = Q_(phase_values, "rad").to(phase_units).m
 
+                amp, phase = self._calculate_amplitude(
+                    ru_e=ru_e, rv_e=rv_e, angle=angle
+                )
+                phase_values.append(phase)
+            data[probe_tag] = Q_(phase_values, "rad").to(phase_units).m
         df = pd.DataFrame(data)
 
         return df
@@ -5499,7 +5501,7 @@ class TimeResponseResults(Results):
                 try:
                     probe_tag = p[2]
                 except IndexError:
-                    probe_tag = f"Probe {i+1} - Node {p[0]}"
+                    probe_tag = f"Probe {i + 1} - Node {p[0]}"
 
             data[f"angle[{i}]"] = angle
             data[f"probe_tag[{i}]"] = probe_tag
