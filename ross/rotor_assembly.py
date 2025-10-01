@@ -1694,21 +1694,19 @@ class Rotor(object):
         if frequency is None:
             frequency = speed
 
-        # if frequency == 0:
-        #     frequency = 1e-14
-
         I = np.eye(self.M().shape[0])
+
         lu, piv = lu_factor(
             -(frequency**2) * self.M(frequency=frequency)
             + 1j * frequency * (self.C(frequency=frequency) + frequency * self.G())
             + self.K(frequency=frequency)
         )
         H = lu_solve((lu, piv), I)
+
         if np.isnan(H).any():
             H = np.zeros((H.shape))
-            return H
-        else:
-            return H
+
+        return H
 
     @check_units
     def run_freq_response(

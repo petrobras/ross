@@ -272,34 +272,6 @@ class Orbit(Results):
             tableau_colors["blue"] if self.whirl == "Forward" else tableau_colors["red"]
         )
 
-    @check_units
-    def calculate_amplitude(self, angle):
-        """Calculates the amplitude for a given angle of the orbit.
-
-        Parameters
-        ----------
-        angle : float, str, pint.Quantity
-
-        Returns
-        -------
-        amplitude, phase : tuple
-            Tuple with (amplitude, phase) value.
-            The amplitude units are the same as the ru_e and rv_e used to create the orbit.
-        """
-        # find closest angle index
-        if angle == "major":
-            return self.major_axis, self.major_angle
-        elif angle == "minor":
-            return self.minor_axis, self.minor_angle
-
-        idx = (np.abs(self.angle - angle)).argmin()
-        amplitude = np.sqrt(self.x_circle[idx] ** 2 + self.y_circle[idx] ** 2)
-        phase = self.angle[0] + angle
-        if phase > 2 * np.pi:
-            phase -= 2 * np.pi
-
-        return amplitude, phase
-
     def plot_orbit(self, fig=None):
         if fig is None:
             fig = go.Figure()
