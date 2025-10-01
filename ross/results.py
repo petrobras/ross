@@ -23,7 +23,7 @@ from pathlib import Path
 
 from ross.plotly_theme import tableau_colors, coolwarm_r
 from ross.units import Q_, check_units
-from ross.utils import intersection
+from ross.utils import intersection, compute_freq_resp
 
 __all__ = [
     "Orbit",
@@ -6187,7 +6187,7 @@ class SensitivityResults(Results):
     This class holds the results of a sensitivity analysis performed to evaluate
     the impact of disturbances on a rotor system with Active Magnetic Bearings
     (AMBs). It stores frequency-domain sensitivity functions and time-domain
-    simulation results obtained by applying impulse disturbances at each AMB.
+    simulation results obtained by applying log chirp disturbances at each AMB.
 
     The attributes store the computed sensitivities, maximum sensitivity values,
     frequencies at which sensitivities are evaluated, and time-domain signals
@@ -6196,33 +6196,19 @@ class SensitivityResults(Results):
 
     Parameters
     ----------
-    max_abs_sensitivities : dict
-        Maximum absolute sensitivity for each AMB and axis (x, y).
-        Keys are AMB tags and axes ('x', 'y'). Values are floats.
-    sensitivities : dict
-        Complex sensitivity Frequency Response Function (FRF) for each AMB and axis.
-        Keys are AMB tags and axes ('x', 'y'). Values are NumPy arrays of complex numbers.
-    sensitivities_abs : dict
-        Absolute value of sensitivity FRF for each AMB and axis.
-        Keys are AMB tags and axes ('x', 'y'). Values are NumPy arrays of floats.
-    sensitivities_phase : dict
-        Phase of sensitivity FRF for each AMB and axis.
-        Keys are AMB tags and axes ('x', 'y'). Values are NumPy arrays of floats (radians).
+    sensitivity_data : dict
+        A nested dictionary containing the results of the time-domain simulation.
+        The structure is {amb_tag: {axis: {'excitation_signal': array,
+        'disturbed_signal': array, 'sensor_signal': array}}}.
+        'amb_tag' is the identifier of the active magnetic bearing (AMB),
+        and 'axis' can be either 'x' or 'y'. The arrays are time-domain signals
+        from the chirp disturbance simulation.
     sensitivity_compute_dofs : dict
         Mapping of AMB tags to their corresponding degrees of freedom (DOFs).
-        Keys are AMB tags, and values are dictionaries with axes ('x', 'y')
+        The keys are the AMB tags, and the values are dictionaries with axes ('x', 'y')
         mapping to the DOF index.
-    sensitivities_frequencies : numpy.ndarray
-        Frequencies (in Hz) at which the sensitivity FRF is computed.
     number_dof : int
         Number of degrees of freedom of the rotor system.
-    sensitivity_run_time_results : dict
-        Time-domain simulation results including excitation, disturbed,
-        and sensor signals for each AMB and axis.
-        Keys are AMB tags and axes ('x', 'y'). Values are dictionaries
-        containing 'excitation_signal', 'disturbed_signal', and 'sensor_signal'
-        as NumPy arrays representing time-domain signals. Also includes 't' key
-        with the time vector.
 
     Attributes
     ----------
@@ -6248,23 +6234,92 @@ class SensitivityResults(Results):
         .plot_run_time_results()
     """
 
-    def __init__(
-        self,
-        max_abs_sensitivities,
-        sensitivities,
-        sensitivities_abs,
-        sensitivities_phase,
-        sensitivity_compute_dofs,
-        sensitivities_frequencies,
-        number_dof,
-        sensitivity_run_time_results,
-    ):
+    def __init__(self, sensitivity_data, sensitivity_compute_dofs, number_dof, t):
+        """Initialize the SensitivityResults instance.
+
+        This constructor processes the time-domain data from sensitivity
+        analysis simulations to calculate the frequency-domain sensitivity
+        functions and stores the results from both domains.
+
+        Parameters
+        ----------
+        sensitivity_data : dict
+            A nested dictionary containing the time-domain simulation results.
+            The structure is {amb_tag: {axis: {'excitation_signal': array,
+            'disturbed_signal': array, 'sensor_signal': array}}}.
+            'amb_tag' is the identifier for the active magnetic bearing (AMB),
+            and 'axis' can be 'x' or 'y'. The arrays are the time-domain signals
+            from the impulse disturbance simulation.
+        sensitivity_compute_dofs : dict
+            Mapping of AMB tags to their corresponding degrees of freedom (DOFs).
+            Keys are AMB tags, and values are dictionaries with axes ('x', 'y')
+            mapping to the DOF index.
+        number_dof : int
+            Number of degrees of freedom of the rotor system.
+        t : array_like
+            Time vector associated with the simulation signals. It is used to
+            compute the frequency response function (FRF) from the time-domain data.
+        """
+
+        max_abs_sensitivities = {
+            amb_tag: {"x": 0, "y": 0} for amb_tag in sensitivity_data.keys()
+        }
+        sensitivities = {
+            amb_tag: {"x": [], "y": []} for amb_tag in sensitivity_data.keys()
+        }
+        sensitivities_abs = {
+            amb_tag: {"x": [], "y": []} for amb_tag in sensitivity_data.keys()
+        }
+        sensitivities_phase = {
+            amb_tag: {"x": [], "y": []} for amb_tag in sensitivity_data.keys()
+        }
+        sensitivity_run_time_results = {
+            amb_tag: {"x": {}, "y": {}} for amb_tag in sensitivity_data.keys()
+        }
+        frequency_g_s = []
+
+        for amb_tag in sensitivity_data.keys():
+            for axis in sensitivity_data[amb_tag].keys():
+                # Outputs at t=0 are not computed by Newmark (considered to be 0)
+                excitation_signal = np.array(
+                    [0] + sensitivity_data[amb_tag][axis]["excitation_signal"],
+                    dtype=np.float64,
+                )
+                disturbed_signal = np.array(
+                    [0] + sensitivity_data[amb_tag][axis]["disturbed_signal"],
+                    dtype=np.float64,
+                )
+                sensor_signal = np.array(
+                    [0] + sensitivity_data[amb_tag][axis]["sensor_signal"],
+                    dtype=np.float64,
+                )
+
+                # Sensitivity computation
+                frequency_g_s, abs_g_s, phase_g_s, g_s, _ = compute_freq_resp(
+                    t, disturbed_signal, excitation_signal
+                )
+
+                sensitivities[amb_tag][axis] = g_s
+                sensitivities_abs[amb_tag][axis] = abs_g_s
+                sensitivities_phase[amb_tag][axis] = phase_g_s
+                max_abs_sensitivities[amb_tag][axis] = np.max(abs_g_s)
+                sensitivity_run_time_results[amb_tag][axis]["excitation_signal"] = (
+                    excitation_signal
+                )
+                sensitivity_run_time_results[amb_tag][axis]["disturbed_signal"] = (
+                    disturbed_signal
+                )
+                sensitivity_run_time_results[amb_tag][axis]["sensor_signal"] = (
+                    sensor_signal
+                )
+                sensitivity_run_time_results["t"] = t
+
         self.max_abs_sensitivities = max_abs_sensitivities
         self.sensitivities = sensitivities
         self.sensitivities_abs = sensitivities_abs
         self.sensitivities_phase = sensitivities_phase
         self.sensitivity_compute_dofs = sensitivity_compute_dofs
-        self.sensitivities_frequencies = sensitivities_frequencies
+        self.sensitivities_frequencies = frequency_g_s
         self.number_dof = number_dof
         self.sensitivity_run_time_results = sensitivity_run_time_results
 
@@ -6510,7 +6565,7 @@ class SensitivityResults(Results):
         )
         return mag_sensitivity, phase_sensitivity, scale_string, xaxis_range
 
-    def plot_run_time_results(
+    def plot_time_results(
         self,
         fig=None,
         fig_kwargs=None,
@@ -6560,10 +6615,10 @@ class SensitivityResults(Results):
         Running direct method...
 
         >>> # Generate the time-domain results plot
-        >>> fig_sensitivity = sensitivity_results.plot_run_time_results()
+        >>> fig_sensitivity = sensitivity_results.plot_time_results()
 
         >>> # Customize the plot appearance
-        >>> fig_custom = sensitivity_results.plot_run_time_results(
+        >>> fig_custom = sensitivity_results.plot_time_results(
         ...     fig_kwargs={"title": "Time-Domain Signals from Sensitivity Analysis",
         ...                 "height": 800}
         ... )
@@ -6587,7 +6642,7 @@ class SensitivityResults(Results):
                 sensor_signal = self.sensitivity_run_time_results[amb_tag][axis][
                     "sensor_signal"
                 ]
-                self.build_plot_run_time_results(
+                self.build_plot_time_results(
                     sensor_signal,
                     fig,
                     amb_tag,
@@ -6603,7 +6658,7 @@ class SensitivityResults(Results):
                 excitation_signal = self.sensitivity_run_time_results[amb_tag][axis][
                     "excitation_signal"
                 ]
-                self.build_plot_run_time_results(
+                self.build_plot_time_results(
                     excitation_signal,
                     fig,
                     amb_tag,
@@ -6621,7 +6676,7 @@ class SensitivityResults(Results):
         fig.update_layout(**fig_kwargs)
         return fig
 
-    def build_plot_run_time_results(
+    def build_plot_time_results(
         self,
         data,
         fig,
@@ -6725,150 +6780,271 @@ class SensitivityResults(Results):
             col=1,
         )
 
-    @classmethod
-    def load(cls, file: Path):
-        """Load sensitivity results from a TOML file.
-
-        This class method loads sensitivity analysis results that have been
-        previously saved to a TOML file using the :py:meth:`~ross.SensitivityResults.save`
-        method. It reads the TOML file, parses the data, and reconstructs a
-        :py:class:`ross.SensitivityResults` object.
-
-        This is useful for persisting sensitivity analysis results and reloading
-        them later for further analysis or plotting without re-running the
-        simulation.
+    @staticmethod
+    def _ndarray_to_list(a):
+        """
+        Convert a NumPy ndarray to a Python list.
 
         Parameters
         ----------
-        file : str
-            Path to the TOML file from which to load the sensitivity results.
+        a : np.ndarray
+            The array to be converted.
 
         Returns
         -------
-        results : ross.SensitivityResults
-            An instance of :py:class:`ross.SensitivityResults` object populated
-            with the data loaded from the TOML file.
-
-        Examples
-        --------
-        >>> import ross as rs
-        >>> from pathlib import Path
-        >>> from tempfile import tempdir
-        >>> rotor = rs.rotor_amb_example()
-        >>> sensitivity_results = rotor.run_amb_sensitivity(
-        ...     speed=0,
-        ...     t_max=5e-4,
-        ...     dt=1e-4,
-        ...     disturbance_amplitude=10e-6,
-        ...     disturbance_min_frequency=0.001,
-        ...     disturbance_max_frequency=150,
-        ...     amb_tags=["Magnetic Bearing 0"],
-        ...     sensors_theta=45) # doctest: +ELLIPSIS
-        Running direct method...
-
-        >>> file_path = Path(tempdir) / "sensitivity_results.toml"
-        >>> sensitivity_results.save(file_path)
-        >>> loaded_results = rs.SensitivityResults.load(file_path)
-        >>> type(loaded_results)
-        <class 'ross.results.SensitivityResults'>
-        >>> loaded_results.max_abs_sensitivities["Magnetic Bearing 0"]["x"] # doctest: +ELLIPSIS
-        0.9999769883...
+        list
+            The converted list.
         """
-        data = toml.load(file)
-        sensitivity_results = data["SensitivityResults"]
+        return np.asarray(a).tolist()
 
-        amb_tags = sensitivity_results["sensitivities"].keys()
+    @staticmethod
+    def _list_to_ndarray(lst, dtype=None):
+        """
+        Convert a Python list to a NumPy ndarray.
+
+        Parameters
+        ----------
+        lst : list
+            The list to be converted.
+        dtype : data-type, optional
+            Desired data-type for the array.
+
+        Returns
+        -------
+        np.ndarray
+            The resulting NumPy array.
+        """
+        return np.array(lst, dtype=dtype) if dtype is not None else np.array(lst)
+
+    @staticmethod
+    def _complex_array_to_pairs(a: np.ndarray):
+        """
+        Convert a NumPy array of complex numbers to a list of [real, imag] pairs.
+
+        Parameters
+        ----------
+        a : np.ndarray
+            Array of complex numbers.
+
+        Returns
+        -------
+        list
+            List of [real, imag] pairs.
+        """
+        a = np.asarray(a, dtype=np.complex128)
+        return [[float(z.real), float(z.imag)] for z in a]
+
+    @staticmethod
+    def _pairs_to_complex_array(pairs):
+        """
+        Convert a list of [real, imag] pairs to a NumPy array of complex numbers.
+
+        Parameters
+        ----------
+        pairs : list
+            List of [real, imag] pairs.
+
+        Returns
+        -------
+        np.ndarray
+            Array of complex numbers.
+        """
+        return np.array([complex(r, i) for r, i in pairs], dtype=np.complex128)
+
+    def save(self, file: Path):
+        """
+        Save the sensitivity analysis results to a TOML file.
+
+        This method serializes all relevant attributes of the SensitivityResults object,
+        including the number of degrees of freedom, sensitivity computation DOFs, maximum
+        absolute sensitivities, frequency response data (complex, magnitude, and phase),
+        and time-domain results. The data is converted to standard Python types and
+        written to the specified file in TOML format, creating parent directories if needed.
+
+        Parameters
+        ----------
+        file : Path
+            The path to the TOML file where the results will be saved.
+
+        Returns
+        -------
+        None
+            The method does not return anything. The results are written to disk.
+        """
+        file = Path(file)
+        file.parent.mkdir(parents=True, exist_ok=True)
+
+        out = {"SensitivityResults": {}}
+        payload = out["SensitivityResults"]
+
+        # Numbers of DOFs
+        payload["number_dof"] = int(self.number_dof)
+        payload["sensitivity_compute_dofs"] = {
+            amb_tag: {axis: int(val) for axis, val in axes.items()}
+            for amb_tag, axes in self.sensitivity_compute_dofs.items()
+        }
+
+        # Maximum absolute values
+        payload["max_abs_sensitivities"] = {
+            amb_tag: {axis: float(val) for axis, val in axes.items()}
+            for amb_tag, axes in self.max_abs_sensitivities.items()
+        }
+
+        # Frequencies
+        payload["sensitivities_frequencies"] = self._ndarray_to_list(
+            self.sensitivities_frequencies
+        )
+
+        # Complex FRFs
+        payload["sensitivities"] = {
+            amb_tag: {
+                axis: self._complex_array_to_pairs(vals) for axis, vals in axes.items()
+            }
+            for amb_tag, axes in self.sensitivities.items()
+        }
+
+        # |FRF| and phase
+        payload["sensitivities_abs"] = {
+            amb_tag: {axis: self._ndarray_to_list(vals) for axis, vals in axes.items()}
+            for amb_tag, axes in self.sensitivities_abs.items()
+        }
+        payload["sensitivities_phase"] = {
+            amb_tag: {axis: self._ndarray_to_list(vals) for axis, vals in axes.items()}
+            for amb_tag, axes in self.sensitivities_phase.items()
+        }
+
+        # Time results
+        payload["sensitivity_run_time_results"] = {
+            amb_tag: {
+                axis: {
+                    "excitation_signal": self._ndarray_to_list(
+                        time_signal_dict["excitation_signal"]
+                    ),
+                    "disturbed_signal": self._ndarray_to_list(
+                        time_signal_dict["disturbed_signal"]
+                    ),
+                    "sensor_signal": self._ndarray_to_list(
+                        time_signal_dict["sensor_signal"]
+                    ),
+                }
+                for axis, time_signal_dict in axes.items()
+            }
+            for amb_tag, axes in self.sensitivity_run_time_results.items()
+            if amb_tag != "t"
+        }
+
+        payload["sensitivity_run_time_results"]["t"] = self._ndarray_to_list(
+            self.sensitivity_run_time_results["t"]
+        )
+
+        with file.open("w", encoding="utf-8") as f:
+            toml.dump(out, f)
+
+    @classmethod
+    def load(cls, file: Path):
+        """
+        Load a SensitivityResults object from a TOML file.
+
+        This method reconstructs a SensitivityResults instance from data stored in a TOML file,
+        restoring all relevant attributes such as sensitivities, maximum absolute sensitivities,
+        frequency arrays, and time-domain results.
+
+        Parameters
+        ----------
+        file : Path
+            Path to the TOML file containing the serialized SensitivityResults data.
+
+        Returns
+        -------
+        SensitivityResults
+            An instance of SensitivityResults with all data loaded from the file.
+        """
+        file = Path(file)
+        data = toml.load(file)
+        sr = data["SensitivityResults"]
+
+        amb_tags = list(sr["sensitivities"].keys())
         axes = ["x", "y"]
 
-        # Converting the maximum absolute values of sensitivities
-        sensitivity_results["max_abs_sensitivities"] = {
+        # Numbers of DOFs
+        number_dof = int(sr["number_dof"])
+        sensitivity_compute_dofs = {
             amb_tag: {
-                axis: np.float64(
-                    sensitivity_results["max_abs_sensitivities"][amb_tag][axis]
-                )
+                axis: int(sr["sensitivity_compute_dofs"][amb_tag][axis])
                 for axis in axes
             }
             for amb_tag in amb_tags
         }
 
-        # Converting (complex) sensitivity values
-        sensitivity_results["sensitivities"] = {
+        # Maximum absolute values
+        max_abs_sensitivities = {
             amb_tag: {
-                axis: np.array(
-                    [
-                        z.replace("np.complex128", "").replace("(", "").replace(")", "")
-                        for z in sensitivity_results["sensitivities"][amb_tag][axis]
-                    ],
-                    dtype=np.complex128,
-                )
+                axis: float(sr["max_abs_sensitivities"][amb_tag][axis]) for axis in axes
+            }
+            for amb_tag in amb_tags
+        }
+
+        # Frequencies
+        sensitivities_frequencies = np.array(
+            sr["sensitivities_frequencies"], dtype=float
+        )
+
+        # Complex FRFs
+        sensitivities = {
+            amb_tag: {
+                axis: cls._pairs_to_complex_array(sr["sensitivities"][amb_tag][axis])
                 for axis in axes
             }
             for amb_tag in amb_tags
         }
 
-        # Converting the results obtained from executing the run_time_response() method
-        t = np.array(sensitivity_results["sensitivity_run_time_results"]["t"])
-        sensitivity_results["sensitivity_run_time_results"] = {
+        # |FRF| and phase
+        sensitivities_abs = {
+            amb_tag: {
+                axis: np.array(sr["sensitivities_abs"][amb_tag][axis], dtype=float)
+                for axis in axes
+            }
+            for amb_tag in amb_tags
+        }
+
+        sensitivities_phase = {
+            amb_tag: {
+                axis: np.array(sr["sensitivities_phase"][amb_tag][axis], dtype=float)
+                for axis in axes
+            }
+            for amb_tag in amb_tags
+        }
+
+        # Time results
+        rt = sr["sensitivity_run_time_results"]
+        t = np.array(rt["t"], dtype=float)
+        sensitivity_run_time_results = {
             amb_tag: {
                 axis: {
                     "excitation_signal": np.array(
-                        sensitivity_results["sensitivity_run_time_results"][amb_tag][
-                            axis
-                        ]["excitation_signal"]
+                        rt[amb_tag][axis]["excitation_signal"], dtype=float
                     ),
                     "disturbed_signal": np.array(
-                        sensitivity_results["sensitivity_run_time_results"][amb_tag][
-                            axis
-                        ]["disturbed_signal"]
+                        rt[amb_tag][axis]["disturbed_signal"], dtype=float
                     ),
                     "sensor_signal": np.array(
-                        sensitivity_results["sensitivity_run_time_results"][amb_tag][
-                            axis
-                        ]["sensor_signal"]
+                        rt[amb_tag][axis]["sensor_signal"], dtype=float
                     ),
                 }
                 for axis in axes
             }
             for amb_tag in amb_tags
         }
-        sensitivity_results["sensitivity_run_time_results"]["t"] = t
+        sensitivity_run_time_results["t"] = t
 
-        # Converting absolute values for sensitivities
-        sensitivity_results["sensitivities_abs"] = {
-            amb_tag: {
-                axis: np.array(sensitivity_results["sensitivities_abs"][amb_tag][axis])
-                for axis in axes
-            }
-            for amb_tag in amb_tags
-        }
+        loaded_result = cls.__new__(cls)
+        loaded_result.max_abs_sensitivities = max_abs_sensitivities
+        loaded_result.sensitivities = sensitivities
+        loaded_result.sensitivities_abs = sensitivities_abs
+        loaded_result.sensitivities_phase = sensitivities_phase
+        loaded_result.sensitivity_compute_dofs = sensitivity_compute_dofs
+        loaded_result.sensitivities_frequencies = sensitivities_frequencies
+        loaded_result.number_dof = number_dof
+        loaded_result.sensitivity_run_time_results = sensitivity_run_time_results
 
-        # Converting phase values for sensitivities
-        sensitivity_results["sensitivities_phase"] = {
-            amb_tag: {
-                axis: np.array(
-                    sensitivity_results["sensitivities_phase"][amb_tag][axis]
-                )
-                for axis in axes
-            }
-            for amb_tag in amb_tags
-        }
-
-        # Converting frequency values
-        sensitivity_results["sensitivities_frequencies"] = np.array(
-            sensitivity_results["sensitivities_frequencies"]
-        )
-
-        results = SensitivityResults(
-            max_abs_sensitivities=sensitivity_results["max_abs_sensitivities"],
-            sensitivities=sensitivity_results["sensitivities"],
-            sensitivities_abs=sensitivity_results["sensitivities_abs"],
-            sensitivities_phase=sensitivity_results["sensitivities_phase"],
-            sensitivity_compute_dofs=sensitivity_results["sensitivity_compute_dofs"],
-            sensitivities_frequencies=sensitivity_results["sensitivities_frequencies"],
-            number_dof=sensitivity_results["number_dof"],
-            sensitivity_run_time_results=sensitivity_results[
-                "sensitivity_run_time_results"
-            ],
-        )
-
-        return results
+        return loaded_result

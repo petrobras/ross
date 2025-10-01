@@ -1,36 +1,31 @@
-import inspect
-import sys
+import copy as cp
 import warnings
 from collections.abc import Iterable
 from copy import copy, deepcopy
 from itertools import chain, cycle
 from pathlib import Path
-from methodtools import lru_cache
 
 import numpy as np
 import pandas as pd
 import toml
+from methodtools import lru_cache
 from plotly import express as px
 from plotly import graph_objects as go
 from scipy import io as sio
 from scipy import linalg as la
 from scipy import signal as signal
-from scipy.optimize import newton
-from scipy.sparse import linalg as las
 from scipy.integrate import cumulative_trapezoid as integrate
+from scipy.optimize import newton
+from scipy.signal import chirp
+from scipy.sparse import linalg as las
 
 from ross.bearing_seal_element import (
-    BallBearingElement,
     BearingElement,
-    BearingFluidFlow,
     MagneticBearingElement,
-    RollerBearingElement,
     SealElement,
-    CylindricalBearing,
 )
-from ross.faults import Crack, MisalignmentFlex, MisalignmentRigid, Rubbing
 from ross.disk_element import DiskElement
-from ross.coupling_element import CouplingElement
+from ross.faults import Crack, MisalignmentFlex, MisalignmentRigid, Rubbing
 from ross.materials import Material, steel
 from ross.point_mass import PointMass
 from ross.results import (
@@ -56,11 +51,7 @@ from ross.utils import (
     remove_dofs,
     convert_6dof_to_4dof,
     convert_6dof_to_torsional,
-    compute_freq_resp,
-    compute_pid_amb,
 )
-from ross.seals.labyrinth_seal import LabyrinthSeal
-from scipy.signal import chirp
 
 __all__ = [
     "Rotor",
@@ -1147,15 +1138,13 @@ class Rotor(object):
 
         return M0
 
-    def K(self, frequency, ignore=[]):
+    def K(self, frequency):
         """Stiffness matrix for an instance of a rotor.
 
         Parameters
         ----------
         frequency : float, optional
             Excitation frequency.
-        ignore : list, optional
-            List of elements to leave out of the matrix.
 
         Returns
         -------
@@ -1171,16 +1160,11 @@ class Rotor(object):
                [ 0.000e+00,  0.000e+00,  1.657e+03,  0.000e+00],
                [ 0.000e+00, -6.000e+00,  0.000e+00,  1.000e+00]])
         """
-        K0 = np.zeros((self.ndof, self.ndof))
+        K0 = self.K0.copy()
 
-        elements = list(set(self.elements).difference(ignore))
-
-        for elm in elements:
+        for elm in self.bearing_elements:
             dofs = list(elm.dof_global_index.values())
-            try:
-                K0[np.ix_(dofs, dofs)] += elm.K(frequency)
-            except TypeError:
-                K0[np.ix_(dofs, dofs)] += elm.K()
+            K0[np.ix_(dofs, dofs)] += elm.K(frequency)
 
         return K0
 
@@ -1211,15 +1195,13 @@ class Rotor(object):
 
         return Ksdt0
 
-    def C(self, frequency, ignore=[]):
+    def C(self, frequency):
         """Damping matrix for an instance of a rotor.
 
         Parameters
         ----------
         frequency : float
             Excitation frequency.
-        ignore : list, optional
-            List of elements to leave out of the matrix.
 
         Returns
         -------
@@ -1235,16 +1217,11 @@ class Rotor(object):
                [0., 0., 0., 0.],
                [0., 0., 0., 0.]])
         """
-        C0 = np.zeros((self.ndof, self.ndof))
+        C0 = self.C0.copy()
 
-        elements = list(set(self.elements).difference(ignore))
-
-        for elm in elements:
+        for elm in self.bearing_elements:
             dofs = list(elm.dof_global_index.values())
-            try:
-                C0[np.ix_(dofs, dofs)] += elm.C(frequency)
-            except TypeError:
-                C0[np.ix_(dofs, dofs)] += elm.C()
+            C0[np.ix_(dofs, dofs)] += elm.C(frequency)
 
         return C0
 
@@ -2020,7 +1997,7 @@ class Rotor(object):
         ... )
 
         >>> # Plotting the time results used in sensitivity calculation
-        >>> fig = sensitivity_results.plot_run_time_results()
+        >>> fig = sensitivity_results.plot_time_results()
         """
 
         if amb_tags is not None and not isinstance(amb_tags, list):
@@ -2064,7 +2041,7 @@ class Rotor(object):
             t,
             f0=disturbance_min_frequency,  # frequência no instante t = 0
             f1=disturbance_max_frequency,  # frequência no instante t = t_f
-            t1=t[-1],  # instante final
+            t1=float(t[-1]),  # instante final
             method="logarithmic",
             phi=-90,
         )
@@ -2087,68 +2064,11 @@ class Rotor(object):
                 )
                 sensitivity_data[amb_tag][axis] = dict(sensitivity_result_values)
 
-        max_abs_sensitivities = {
-            amb_tag: {"x": 0, "y": 0} for amb_tag in sensitivity_data.keys()
-        }
-        sensitivities = {
-            amb_tag: {"x": [], "y": []} for amb_tag in sensitivity_data.keys()
-        }
-        sensitivities_abs = {
-            amb_tag: {"x": [], "y": []} for amb_tag in sensitivity_data.keys()
-        }
-        sensitivities_phase = {
-            amb_tag: {"x": [], "y": []} for amb_tag in sensitivity_data.keys()
-        }
-        sensitivity_run_time_results = {
-            amb_tag: {"x": {}, "y": {}} for amb_tag in sensitivity_data.keys()
-        }
-        frequency_g_s = []
-
-        for amb_tag in sensitivity_data.keys():
-            for axis in sensitivity_data[amb_tag].keys():
-                # Outputs at t=0 are not computed by Newmark (considered to be 0)
-                excitation_signal = np.array(
-                    [0] + sensitivity_data[amb_tag][axis]["excitation_signal"],
-                    dtype=np.float64,
-                )
-                disturbed_signal = np.array(
-                    [0] + sensitivity_data[amb_tag][axis]["disturbed_signal"],
-                    dtype=np.float64,
-                )
-                sensor_signal = np.array(
-                    [0] + sensitivity_data[amb_tag][axis]["sensor_signal"],
-                    dtype=np.float64,
-                )
-
-                # Sensitivity computation
-                frequency_g_s, abs_g_s, phase_g_s, g_s, _ = compute_freq_resp(
-                    t, disturbed_signal, excitation_signal
-                )
-
-                sensitivities[amb_tag][axis] = g_s
-                sensitivities_abs[amb_tag][axis] = abs_g_s
-                sensitivities_phase[amb_tag][axis] = phase_g_s
-                max_abs_sensitivities[amb_tag][axis] = np.max(abs_g_s)
-                sensitivity_run_time_results[amb_tag][axis]["excitation_signal"] = (
-                    excitation_signal
-                )
-                sensitivity_run_time_results[amb_tag][axis]["disturbed_signal"] = (
-                    disturbed_signal
-                )
-                sensitivity_run_time_results[amb_tag][axis]["sensor_signal"] = (
-                    sensor_signal
-                )
-                sensitivity_run_time_results["t"] = t
-
         results = SensitivityResults(
-            max_abs_sensitivities=max_abs_sensitivities,
-            sensitivities=sensitivities,
-            sensitivities_abs=sensitivities_abs,
-            sensitivities_phase=sensitivities_phase,
+            sensitivity_data=sensitivity_data,
             sensitivity_compute_dofs=sensitivity_compute_dofs,
-            sensitivities_frequencies=frequency_g_s,
             number_dof=self.number_dof,
-            sensitivity_run_time_results=sensitivity_run_time_results,
+            t=t,
         )
 
         return results
@@ -2669,18 +2589,16 @@ class Rotor(object):
                     )
 
             # The method compute_pid_amb updates the magnetic_force array internally
-            magnetic_force_v = compute_pid_amb(
+            magnetic_force_v = elm.compute_pid_amb(
                 dt,
-                amb=elm,
                 current_offset=current_offset,
                 setpoint=setpoint,
                 disp=v_disp,
                 dof_index=0,
             )
 
-            magnetic_force_w = compute_pid_amb(
+            magnetic_force_w = elm.compute_pid_amb(
                 dt,
-                amb=elm,
                 current_offset=current_offset,
                 setpoint=setpoint,
                 disp=w_disp,
@@ -2834,6 +2752,9 @@ class Rotor(object):
             for brg in self.bearing_elements
             if isinstance(brg, MagneticBearingElement)
         ]
+
+        rotor = cp.deepcopy(self)
+
         if len(magnetic_bearings):
             magnetic_force = (
                 lambda step, time_step, disp_resp: self.magnetic_bearing_controller(
@@ -2848,8 +2769,13 @@ class Rotor(object):
                 brg.control_signal.append([[], []])
                 brg.integral = [0, 0]
                 brg.e0 = [0, 0]
+
+            rotor.bearing_elements = [
+                brg for brg in rotor.bearing_elements if brg not in magnetic_bearings
+            ]
+
         else:
-            magnetic_force = lambda step, time_step, disp_resp: np.zeros((self.ndof))
+            magnetic_force = lambda step, time_step, disp_resp: np.zeros(self.ndof)
 
         # Consider any additional RHS function (extra forces)
         add_to_RHS = kwargs.get("add_to_RHS")
@@ -2893,10 +2819,8 @@ class Rotor(object):
                         "The bearing coefficients vary with speed. Therefore, C and K matrices are not being replaced by the matrices defined as input arguments."
                     )
 
-                ignore_elements = [*magnetic_bearings, *brgs_with_var_coeffs]
-
-                C0 = self.C(speed_ref, ignore=ignore_elements)
-                K0 = self.K(speed_ref, ignore=ignore_elements)
+                C0 = rotor.C0
+                K0 = rotor.K0
 
                 def rotor_system(step, **current_state):
                     Cb, Kb = assemble_C_K_matrices(
@@ -2914,12 +2838,8 @@ class Rotor(object):
                     )
 
             else:  # Option 2
-                C1 = get_array[0](
-                    kwargs.get("C", self.C(speed_ref, ignore=magnetic_bearings))
-                )
-                K1 = get_array[0](
-                    kwargs.get("K", self.K(speed_ref, ignore=magnetic_bearings))
-                )
+                C1 = get_array[0](kwargs.get("C", rotor.C(speed_ref)))
+                K1 = get_array[0](kwargs.get("K", rotor.K(speed_ref)))
 
                 rotor_system = lambda step, **current_state: (
                     M,
@@ -2929,12 +2849,8 @@ class Rotor(object):
                 )
 
         else:  # Option 3
-            C1 = get_array[0](
-                kwargs.get("C", self.C(speed_ref, ignore=magnetic_bearings))
-            )
-            K1 = get_array[0](
-                kwargs.get("K", self.K(speed_ref, ignore=magnetic_bearings))
-            )
+            C1 = get_array[0](kwargs.get("C", rotor.C(speed_ref)))
+            K1 = get_array[0](kwargs.get("K", rotor.K(speed_ref)))
 
             rotor_system = lambda step, **current_state: (
                 M,
