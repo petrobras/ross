@@ -7,6 +7,7 @@ from collections.abc import Iterable
 from ross.units import Q_, check_units
 from ross.results import (
     ForcedResponseResults,
+    FrequencyResponseResults,
     TimeResponseResults,
 )
 
@@ -64,13 +65,35 @@ class HarmonicBalance:
 
         return Qt, Qo, dQ, dQ_s
 
+    def run_freq_response(
+        self,
+        speed_range,
+    ):
+        ndof = self.rotor.ndof
+
+        samples = 20
+        omega_max = max(self.noh * np.max(speed_range), 1e-6)
+        dt = 2 * np.pi / (omega_max * samples)
+
+        freq_resp = np.zeros((ndof, ndof, len(speed_range)), dtype=complex)
+        velc_resp = np.zeros((ndof, ndof, len(speed_range)), dtype=complex)
+        accl_resp = np.zeros((ndof, ndof, len(speed_range)), dtype=complex)
+
+        results = FrequencyResponseResults(
+            freq_resp=freq_resp,
+            velc_resp=velc_resp,
+            accl_resp=accl_resp,
+            speed_range=np.array(speed_range),
+            number_dof=self.rotor.number_dof,
+        )
+
+        return results
+
     def run_forced_response(
         self,
-        node,
-        unb_magnitude,
-        unb_phase,
+        force,
         speed_range,
-        F_ext=None,
+        unbalance=None,
     ):
         ndof = self.rotor.ndof
 
@@ -82,27 +105,46 @@ class HarmonicBalance:
         velc_resp = np.zeros((ndof, len(speed_range)), dtype=complex)
         accl_resp = np.zeros((ndof, len(speed_range)), dtype=complex)
 
+        if unbalance is None:
+            unbalance = np.vstack(([0], [0], [0]))
+
         for i, speed in enumerate(speed_range):
             _, Qo, dQ, _ = self.run(
-                node,
-                unb_magnitude,
-                unb_phase,
-                speed,
-                dt,
-                F_ext=F_ext,
+                node=np.int_(unbalance[0]),
+                unb_magnitude=unbalance[1],
+                unb_phase=unbalance[2],
+                speed=speed,
+                dt=dt,
+                F_ext=force[:, i] if force is not None else None,
             )
 
             forced_resp[:, i] = Qo / 2 + np.sum(dQ, axis=1)
             velc_resp[:, i] = 1j * speed * np.sum(dQ, axis=1)
             accl_resp[:, i] = -(speed**2) * np.sum(dQ, axis=1)
 
-        unbalance = np.vstack((node, unb_magnitude, unb_phase))
-
         forced_resp = ForcedResponseResults(
             rotor=self.rotor,
             forced_resp=forced_resp,
             velc_resp=velc_resp,
             accl_resp=accl_resp,
+            speed_range=speed_range,
+            unbalance=unbalance,
+        )
+
+        return forced_resp
+
+    def run_unbalance_response(
+        self,
+        node,
+        unb_magnitude,
+        unb_phase,
+        speed_range,
+        force=None,
+    ):
+        unbalance = np.vstack((node, unb_magnitude, unb_phase))
+
+        forced_resp = self.run_forced_response(
+            force=force,
             speed_range=speed_range,
             unbalance=unbalance,
         )
