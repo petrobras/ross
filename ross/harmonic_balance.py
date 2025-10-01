@@ -92,7 +92,7 @@ class HarmonicBalance:
 
         return Qt, Qo, dQ, dQ_s
 
-    def run_freq_response(
+    def run_forced_response(
         self,
         node,
         unb_magnitude,
@@ -102,14 +102,21 @@ class HarmonicBalance:
         F_ext=None,
     ):
         ndof = self.rotor.ndof
-        t = np.linspace(0, 2 * np.pi / speed_range[-1], 1000)  # ??
+
+        samples_per_cycle = 20
+        n_cycles = 5
+        omega_min = max(n_harmonics * np.min(speed_range), 1e-6)
+        omega_max = max(n_harmonics * np.max(speed_range), 1e-6)
+        dt = 2 * np.pi / (omega_max * samples_per_cycle)
+        tf = 2 * np.pi * n_cycles / omega_min
+        t = np.arange(0, tf, dt)
 
         forced_resp = np.zeros((ndof, len(speed_range)), dtype=complex)
         velc_resp = np.zeros((ndof, len(speed_range)), dtype=complex)
         accl_resp = np.zeros((ndof, len(speed_range)), dtype=complex)
 
         for i, speed in enumerate(speed_range):
-            Qt, Qo, dQ, dQ_s = self.run(
+            _, Qo, dQ, _ = self.run(
                 node,
                 unb_magnitude,
                 unb_phase,
@@ -118,6 +125,10 @@ class HarmonicBalance:
                 n_harmonics=n_harmonics,
                 F_ext=F_ext,
             )
+
+            forced_resp[:, i] = Qo / 2 + np.sum(dQ, axis=1)
+            velc_resp[:, i] = 1j * speed * np.sum(dQ, axis=1)
+            accl_resp[:, i] = -(speed**2) * np.sum(dQ, axis=1)
 
         unbalance = np.vstack((node, unb_magnitude, unb_phase))
 
