@@ -12,11 +12,11 @@ from ross.results import (
 
 
 class HarmonicBalance:
-    def __init__(self, rotor):
+    def __init__(self, rotor, n_harmonics=1):
         self.rotor = rotor
         self.ndof = rotor.ndof
         self.probe_force = None
-        self.noh = 1
+        self.noh = n_harmonics
 
     @check_units
     def run(
@@ -25,52 +25,29 @@ class HarmonicBalance:
         unb_magnitude,
         unb_phase,
         speed,
-        t,
-        n_harmonics=1,
+        dt,
         F_ext=None,
     ):
         rotor = self.rotor
-        dt = t[1] - t[0]
-        ndof = rotor.ndof
-        self.noh = n_harmonics
 
         accel = 0
         has_gravity = 0
-        has_crack = None
+        has_crack = False
 
         # Forces
         W = rotor.gravitational_force() * has_gravity
         F_unb, F_unb_s = self._unbalance_force(node, unb_magnitude, unb_phase, speed)
 
-        if F_ext is None:
-            F_ext = np.zeros((len(t), ndof))
-
         freq = Q_(speed, "rad/s").to("Hz").m
-        Fo, Fn, Fn_s = self._external_force(F_ext, dt, freq)
+        Fo, Fn, Fn_s = self._external_force(dt, freq, F_ext)
 
         F = self._assemble_forces(W, F_unb, F_unb_s, Fo, Fn, Fn_s)
 
         # Crack stiffness matrices
-        if has_crack:
-            Ko, Kn, Kn_s = self._crack_stiffness_matrices()
-        else:
-            Ko = np.zeros((ndof, ndof), dtype=complex)
-            Kn = np.zeros((ndof, ndof, 2 * self.noh), dtype=complex)
-            Kn_s = np.zeros((ndof, ndof, 2 * self.noh), dtype=complex)
-
-        # Co, Cn, Cn_s are already considered in C matrix (bearing elements)
-        Co = np.zeros((ndof, ndof), dtype=complex)
-        Cn = np.zeros((ndof, ndof, 2 * self.noh), dtype=complex)
-        Cn_s = np.zeros((ndof, ndof, 2 * self.noh), dtype=complex)
-
-        # alpha and beta are already considered in C matrix (shaft elements)
-        alpha = 0
-        beta = 0
+        Ko, Kn, Kn_s = self._crack_stiffness_matrices(dt, freq, has_crack)
 
         # Harmonic Balance Matrix
         H = self._build_harmonic_balance_matrix(
-            ndof,
-            self.noh,
             speed,
             accel,
             rotor.M(speed),
@@ -81,11 +58,6 @@ class HarmonicBalance:
             Ko,
             Kn,
             Kn_s,
-            Co,
-            Cn,
-            Cn_s,
-            alpha,
-            beta,
         )
 
         Qt, Qo, dQ, dQ_s = self._solve_freq_response(H, F)
@@ -98,18 +70,13 @@ class HarmonicBalance:
         unb_magnitude,
         unb_phase,
         speed_range,
-        n_harmonics=1,
         F_ext=None,
     ):
         ndof = self.rotor.ndof
 
-        samples_per_cycle = 20
-        n_cycles = 5
-        omega_min = max(n_harmonics * np.min(speed_range), 1e-6)
-        omega_max = max(n_harmonics * np.max(speed_range), 1e-6)
-        dt = 2 * np.pi / (omega_max * samples_per_cycle)
-        tf = 2 * np.pi * n_cycles / omega_min
-        t = np.arange(0, tf, dt)
+        samples = 20
+        omega_max = max(self.noh * np.max(speed_range), 1e-6)
+        dt = 2 * np.pi / (omega_max * samples)
 
         forced_resp = np.zeros((ndof, len(speed_range)), dtype=complex)
         velc_resp = np.zeros((ndof, len(speed_range)), dtype=complex)
@@ -121,8 +88,7 @@ class HarmonicBalance:
                 unb_magnitude,
                 unb_phase,
                 speed,
-                t,
-                n_harmonics=n_harmonics,
+                dt,
                 F_ext=F_ext,
             )
 
@@ -150,16 +116,16 @@ class HarmonicBalance:
         unb_phase,
         speed,
         t,
-        n_harmonics=1,
         F_ext=None,
     ):
+        dt = t[1] - t[0]
+
         _, Qo, dQ, _ = self.run(
             node,
             unb_magnitude,
             unb_phase,
             speed,
-            t,
-            n_harmonics=n_harmonics,
+            dt,
             F_ext=F_ext,
         )
 
@@ -212,28 +178,30 @@ class HarmonicBalance:
 
         return F0, F0_s
 
-    def _external_force(self, F_ext, dt, freq):
+    def _external_force(self, dt, freq, F_ext=None):
         ndof = self.rotor.ndof
         number_dof = self.rotor.number_dof
-        points = F_ext.shape[0] // 2
 
         Fo = np.zeros(ndof, dtype=complex)
         F = np.zeros((ndof, self.noh), dtype=complex)
         F_s = np.zeros((ndof, self.noh), dtype=complex)
 
-        if self.probe_force:
-            for i in range(len(self.probe_force)):
-                idx = slice(
-                    (self.probe_force[i]) * number_dof - 6,
-                    (self.probe_force[i]) * number_dof,
-                )
+        if F_ext is not None:
+            points = F_ext.shape[0] // 2
 
-                Fnew = F_ext[idx, points:]
-                Fo, Fn = self._expand_Fourier(Fnew, dt, freq, self.noh)
+            if self.probe_force:
+                for i in range(len(self.probe_force)):
+                    idx = slice(
+                        (self.probe_force[i]) * number_dof - 6,
+                        (self.probe_force[i]) * number_dof,
+                    )
 
-                Fo[idx] += Fo
-                F[idx, :] += Fn
-                F_s[idx, :] += np.conjugate(Fn)
+                    Fnew = F_ext[idx, points:]
+                    Fo, Fn = self._expand_Fourier(Fnew, dt, freq, self.noh)
+
+                    Fo[idx] += Fo
+                    F[idx, :] += Fn
+                    F_s[idx, :] += np.conjugate(Fn)
 
         return Fo, F, F_s
 
@@ -251,7 +219,7 @@ class HarmonicBalance:
 
         return F0
 
-    def _crack_stiffness_matrices(self, dt, freq):
+    def _crack_stiffness_matrices(self, dt, freq, has_crack=True):
         ndof = self.rotor.ndof
         n_aux = 2 * self.noh
 
@@ -259,103 +227,24 @@ class HarmonicBalance:
         Kn = np.zeros((ndof, ndof, n_aux), dtype=complex)
         Kn_s = np.zeros((ndof, ndof, n_aux), dtype=complex)
 
-        idx = self.crack.dof_crack
-        coeff_flex = self.crack.coeff_flex
+        if has_crack:
+            idx = self.crack.dof_crack
+            coeff_flex = self.crack.coeff_flex
 
-        Kco, Kcn, Kcn_s = self._expand_Fourier(coeff_flex, dt, freq, n_aux)
-        Ko[idx, idx] = self.crack._Kflex(Kco.reshape(-1, 1))[:, :, 0]
+            Kco, Kcn, Kcn_s = self._expand_Fourier(coeff_flex, dt, freq, n_aux)
+            Ko[idx, idx] = self.crack._Kflex(Kco.reshape(-1, 1))[:, :, 0]
 
-        Kn_flex = self.crack._Kflex(Kcn)
-        Kn_flex_s = self.crack._Kflex(Kcn_s)
+            Kn_flex = self.crack._Kflex(Kcn)
+            Kn_flex_s = self.crack._Kflex(Kcn_s)
 
-        for i in range(n_aux):
-            Kn[idx, idx, i] = Kn_flex[:, :, i]
-            Kn_s[idx, idx, i] = Kn_flex_s[:, :, i]
+            for i in range(n_aux):
+                Kn[idx, idx, i] = Kn_flex[:, :, i]
+                Kn_s[idx, idx, i] = Kn_flex_s[:, :, i]
 
         return Ko, Kn, Kn_s
 
-    def _solve_freq_response(self, H, F):
-        ndof = self.rotor.ndof
-
-        try:
-            Qt = np.linalg.solve(H, F)
-        except np.linalg.LinAlgError as err:
-            warnings.warn(
-                f"{err} error. Using the pseudo-inverse to proceed.", UserWarning
-            )
-            Qt = F @ np.linalg.pinv(H)
-
-        Qo = np.real(Qt[:ndof])
-        Qn = np.zeros((ndof, self.noh), dtype=complex)
-        Qn_s = np.zeros((ndof, self.noh), dtype=complex)
-
-        for i in range(1, self.noh + 1):
-            Qn[:ndof, i - 1] = Qt[(2 * i - 1) * ndof : (2 * i) * ndof]
-            Qn_s[:ndof, i - 1] = Qt[(2 * i) * ndof : (2 * i + 1) * ndof]
-
-        return Qt, Qo, Qn, Qn_s
-
-    def _reconstruct_time_domain(self, omega, t, Qo, dQ, aux=None):
-        shape = (np.size(Qo), len(t))
-
-        sum_y = np.zeros(shape)
-        sum_ydot = np.zeros(shape)
-        sum_y2dot = np.zeros(shape)
-
-        # --------------------------------------------------------------------------
-        # ---------------------------------------------- Solution in the time domain
-        # --------------------- yyHB=Qo/2+an*cos(n*Omega*time)+bn*sin(n*Omega*time)
-        # ------ yyptHB=-n*Omega*an*sin(n*Omega*time)+n*Omega*bn*cos(n*Omega*time)
-        # yy2ptHB=-n**2*Omega**2*an*cos(n*Omega*time)-n**2*Omega**2*bn*sin(n*Omega*time)
-        # --------------------------------------------------------------------------
-        # -- dQ=[Q1   Q1s]
-        # -- Q1  = a1 -I*b1
-        # -- Q1s = a1 +I*b1
-
-        for i in range(1, self.noh + 1):
-            an = np.transpose(np.array([np.real(dQ[:, i - 1])]))
-            bn = np.transpose(np.array([-np.imag(dQ[:, i - 1])]))
-
-            cos = np.array([np.cos(i * omega * t)])
-            sin = np.array([np.sin(i * omega * t)])
-
-            sum_y += np.dot(an, cos) + np.dot(bn, sin)
-
-            if aux is None:
-                sum_ydot += i * omega * (np.dot(bn, cos) - np.dot(an, sin))
-                sum_y2dot -= (i * omega) ** 2 * (np.dot(an, cos) + np.dot(bn, sin))
-
-        y = Qo[:, np.newaxis] / 2 + sum_y
-        ydot = sum_ydot
-        y2dot = sum_y2dot
-
-        return y, ydot, y2dot
-
-    @staticmethod
-    def _expand_Fourier(F, dt, fo, size):
-        row, N = F.shape
-        Fn = np.array(np.zeros((row, size)), dtype=complex)
-
-        b = int(np.floor(N / 2))
-        df = 1 / (N * dt)
-
-        A = fft(F)
-        X = A[:, :b]
-        X = X * 2 / N
-        Fo = 1 * np.real(X[:, 0])
-        an = 1 * np.real(X)
-        bn = -1 * np.imag(X)
-
-        for n in range(1, size + 1):
-            idx = int(n * fo / df)
-            Fn[:, n - 1] = an[:, idx] - 1j * bn[:, idx]
-
-        return Fo, Fn
-
-    @staticmethod
     def _build_harmonic_balance_matrix(
-        ndof,
-        noh,
+        self,
         speed,
         accel,
         M,
@@ -366,12 +255,22 @@ class HarmonicBalance:
         Ko,
         Kn,
         Kn_s,
-        Co,
-        Cn,
-        Cn_s,
-        alpha,
-        beta,
+        Co=None,
+        Cn=None,
+        Cn_s=None,
     ):
+        ndof = self.rotor.ndof
+        noh = self.noh
+
+        # Co, Cn, Cn_s are already considered in C matrix (bearing elements)
+        Co = np.zeros((ndof, ndof), dtype=complex)
+        Cn = np.zeros((ndof, ndof, 2 * noh), dtype=complex)
+        Cn_s = np.zeros((ndof, ndof, 2 * noh), dtype=complex)
+
+        # alpha and beta are already considered in C matrix (shaft elements)
+        alpha = 0
+        beta = 0
+
         size = ndof * (2 * noh + 1)
         H0 = np.zeros((size, size), dtype=complex)
 
@@ -489,3 +388,81 @@ class HarmonicBalance:
             aux11 = aux11 - 2
 
         return H0
+
+    def _solve_freq_response(self, H, F):
+        ndof = self.rotor.ndof
+
+        try:
+            Qt = np.linalg.solve(H, F)
+        except np.linalg.LinAlgError as err:
+            warnings.warn(
+                f"{err} error. Using the pseudo-inverse to proceed.", UserWarning
+            )
+            Qt = F @ np.linalg.pinv(H)
+
+        Qo = np.real(Qt[:ndof])
+        Qn = np.zeros((ndof, self.noh), dtype=complex)
+        Qn_s = np.zeros((ndof, self.noh), dtype=complex)
+
+        for i in range(1, self.noh + 1):
+            Qn[:ndof, i - 1] = Qt[(2 * i - 1) * ndof : (2 * i) * ndof]
+            Qn_s[:ndof, i - 1] = Qt[(2 * i) * ndof : (2 * i + 1) * ndof]
+
+        return Qt, Qo, Qn, Qn_s
+
+    def _reconstruct_time_domain(self, omega, t, Qo, dQ, aux=None):
+        shape = (np.size(Qo), len(t))
+
+        sum_y = np.zeros(shape)
+        sum_ydot = np.zeros(shape)
+        sum_y2dot = np.zeros(shape)
+
+        # --------------------------------------------------------------------------
+        # ---------------------------------------------- Solution in the time domain
+        # --------------------- yyHB=Qo/2+an*cos(n*Omega*time)+bn*sin(n*Omega*time)
+        # ------ yyptHB=-n*Omega*an*sin(n*Omega*time)+n*Omega*bn*cos(n*Omega*time)
+        # yy2ptHB=-n**2*Omega**2*an*cos(n*Omega*time)-n**2*Omega**2*bn*sin(n*Omega*time)
+        # --------------------------------------------------------------------------
+        # -- dQ=[Q1   Q1s]
+        # -- Q1  = a1 -I*b1
+        # -- Q1s = a1 +I*b1
+
+        for i in range(1, self.noh + 1):
+            an = np.transpose(np.array([np.real(dQ[:, i - 1])]))
+            bn = np.transpose(np.array([-np.imag(dQ[:, i - 1])]))
+
+            cos = np.array([np.cos(i * omega * t)])
+            sin = np.array([np.sin(i * omega * t)])
+
+            sum_y += np.dot(an, cos) + np.dot(bn, sin)
+
+            if aux is None:
+                sum_ydot += i * omega * (np.dot(bn, cos) - np.dot(an, sin))
+                sum_y2dot -= (i * omega) ** 2 * (np.dot(an, cos) + np.dot(bn, sin))
+
+        y = Qo[:, np.newaxis] / 2 + sum_y
+        ydot = sum_ydot
+        y2dot = sum_y2dot
+
+        return y, ydot, y2dot
+
+    @staticmethod
+    def _expand_Fourier(F, dt, fo, size):
+        row, N = F.shape
+        Fn = np.array(np.zeros((row, size)), dtype=complex)
+
+        b = int(np.floor(N / 2))
+        df = 1 / (N * dt)
+
+        A = fft(F)
+        X = A[:, :b]
+        X = X * 2 / N
+        Fo = 1 * np.real(X[:, 0])
+        an = 1 * np.real(X)
+        bn = -1 * np.imag(X)
+
+        for n in range(1, size + 1):
+            idx = int(n * fo / df)
+            Fn[:, n - 1] = an[:, idx] - 1j * bn[:, idx]
+
+        return Fo, Fn
