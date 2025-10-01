@@ -272,6 +272,31 @@ class Orbit(Results):
             tableau_colors["blue"] if self.whirl == "Forward" else tableau_colors["red"]
         )
 
+    @check_units
+    def calculate_amplitude(self, angle):
+        """Calculates the amplitude for a given angle of the orbit.
+
+        Parameters
+        ----------
+        angle : float, str, pint.Quantity
+
+        Returns
+        -------
+        amplitude, phase : tuple
+            Tuple with (amplitude, phase) value.
+            The amplitude units are the same as the ru_e and rv_e used to create the orbit.
+        """
+
+        if angle == "major":
+            return self.major_axis, self.major_angle
+        elif angle == "minor":
+            return self.minor_axis, self.minor_angle
+
+        amp_complex = self.ru_e * np.cos(angle) + self.rv_e * np.sin(angle)
+        amp_abs = np.abs(self.ru_e * np.cos(angle) + self.rv_e * np.sin(angle))
+        phase = 2 * np.pi - np.mod(np.angle(amp_complex), 2 * np.pi)
+        return amp_abs, phase
+
     def plot_orbit(self, fig=None):
         if fig is None:
             fig = go.Figure()
@@ -309,17 +334,29 @@ def _init_orbit(ru_e, rv_e):
     # data for plotting
     x_circle = np.real(ru_e * CIRCLE)
     y_circle = np.real(rv_e * CIRCLE)
+
     angle = np.arctan2(y_circle, x_circle)
     angle[angle < 0] = angle[angle < 0] + 2 * np.pi
 
-    # find major axis index looking at the first half circle
-    half = NUM_POINTS // 2
-    r_circle = np.sqrt(x_circle[:half] ** 2 + y_circle[:half] ** 2)
-    major_index = np.argmax(r_circle)
-    major_x = x_circle[major_index]
-    major_y = y_circle[major_index]
-    major_angle = angle[major_index]
+    forward_whirl = 0.5 * (ru_e + 1j * rv_e)
+    backward_whirl = 0.5 * (ru_e - 1j * rv_e)
+
+    amp_fw = np.abs(forward_whirl)
+    amp_bw = np.abs(backward_whirl)
+
+    major_axis = amp_fw + amp_bw
+    minor_axis = np.abs(amp_fw - amp_bw)
+
+    phase_fw_rad = np.angle(forward_whirl)
+    phase_bw_rad = np.angle(backward_whirl)
+
+    major_angle = 0.5 * (phase_fw_rad + phase_bw_rad)
     minor_angle = major_angle + np.pi / 2
+
+    major_x = major_axis * np.cos(major_angle)
+    major_y = major_axis * np.sin(major_angle)
+
+    major_index = 1  # np.argmax(major_axis)
 
     # calculate T matrix
     ru = np.absolute(ru_e)
@@ -3205,43 +3242,6 @@ class ForcedResponseResults(Results):
             "[length] / [time] ** 2": ["m/s**2", "accl_resp"],
         }
 
-    def _calculate_amplitude(self, angle, ru_e, rv_e):
-        """Calculates the amplitude for a given angle of the orbit.
-
-        Parameters
-        ----------
-        angle : float, str, pint.Quantity
-
-        Returns
-        -------
-        amplitude, phase : tuple
-            Tuple with (amplitude, phase) value.
-            The amplitude units are the same as the ru_e and rv_e used to create the orbit.
-        """
-
-        if angle == "major" or angle == "minor":
-            forward_whirl = 0.5 * (ru_e + 1j * rv_e)
-            backward_whirl = 0.5 * (ru_e - 1j * rv_e)
-
-            amp_fw = np.abs(forward_whirl)
-            amp_bw = np.abs(backward_whirl)
-            major_axis = amp_fw + amp_bw
-            minor_axis = np.abs(amp_fw - amp_bw)
-            phase_fw_rad = np.angle(forward_whirl)
-            phase_bw_rad = np.angle(backward_whirl)
-            major_angle = 0.5 * (phase_fw_rad + phase_bw_rad)
-            minor_angle = major_angle + np.pi / 2
-
-            if angle == "major":
-                return major_axis, major_angle
-            elif angle == "minor":
-                return minor_axis, minor_angle
-        else:
-            amp_complex = ru_e * np.cos(angle) + rv_e * np.sin(angle)
-            amp_abs = np.abs(ru_e * np.cos(angle) + rv_e * np.sin(angle))
-            phase = 2 * np.pi - np.mod(np.angle(amp_complex), 2 * np.pi)
-        return amp_abs, phase
-
     def data_magnitude(
         self,
         probe,
@@ -3318,19 +3318,31 @@ class ForcedResponseResults(Results):
 
             amplitude = []
             for speed_idx in range(len(self.speed_range)):
-                try:
+                if node not in self.rotor.link_nodes:
                     ru_e, rv_e = response[:, speed_idx][
                         self.rotor.number_dof * node : self.rotor.number_dof * node + 2
                     ]
-                except:
-                    ru_e, rv_e = response[:, speed_idx][
-                        self.rotor.number_dof * node - 3 : self.rotor.number_dof * node
-                        + 2
-                        - 3
-                    ]
-                amp, phase = self._calculate_amplitude(
-                    ru_e=ru_e, rv_e=rv_e, angle=angle
-                )
+                    orbit = Orbit(
+                        node=node,
+                        node_pos=self.rotor.nodes_pos[node],
+                        ru_e=ru_e,
+                        rv_e=rv_e,
+                    )
+                else:
+                    position_in_link = node - len(self.rotor.nodes_pos)
+                    start_index = len(self.rotor.nodes_pos) * self.rotor.number_dof + (
+                        position_in_link * 3
+                    )
+                    ru_e, rv_e = response[:, speed_idx][start_index : start_index + 2]
+
+                    orbit = Orbit(
+                        node=None,
+                        node_pos=None,
+                        ru_e=ru_e,
+                        rv_e=rv_e,
+                    )
+
+                amp, phase = orbit.calculate_amplitude(angle=angle)
                 amplitude.append(amp)
             data[probe_tag] = Q_(amplitude, base_unit).to(amplitude_units).m
 
@@ -3418,21 +3430,34 @@ class ForcedResponseResults(Results):
 
             phase_values = []
             for speed_idx in range(len(self.speed_range)):
-                try:
+                if node not in self.rotor.link_nodes:
                     ru_e, rv_e = response[:, speed_idx][
                         self.rotor.number_dof * node : self.rotor.number_dof * node + 2
                     ]
-                except:
-                    ru_e, rv_e = response[:, speed_idx][
-                        self.rotor.number_dof * node - 3 : self.rotor.number_dof * node
-                        + 2
-                        - 3
-                    ]
+                    orbit = Orbit(
+                        node=node,
+                        node_pos=self.rotor.nodes_pos[node],
+                        ru_e=ru_e,
+                        rv_e=rv_e,
+                    )
+                else:
+                    position_in_link = node - len(self.rotor.nodes_pos)
+                    start_index = len(self.rotor.nodes_pos) * self.rotor.number_dof + (
+                        position_in_link * 3
+                    )
+                    ru_e, rv_e = response[:, speed_idx][start_index : start_index + 2]
 
-                amp, phase = self._calculate_amplitude(
-                    ru_e=ru_e, rv_e=rv_e, angle=angle
-                )
+                    orbit = Orbit(
+                        node=None,
+                        node_pos=None,
+                        ru_e=ru_e,
+                        rv_e=rv_e,
+                    )
+
+                amp, phase = orbit.calculate_amplitude(angle=angle)
+
                 phase_values.append(phase)
+
             data[probe_tag] = Q_(phase_values, "rad").to(phase_units).m
         df = pd.DataFrame(data)
 
