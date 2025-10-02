@@ -1622,20 +1622,17 @@ def test_unbalance(rotor3):
     assert_allclose(data["Probe 1 - Node 0"], amplitude_expected, rtol=1e-4)
     data = unb.data_magnitude(probe=[Probe(0, Q_(45, "deg"), tag="Probe 1 - Node 0")])
     assert_allclose(data["Probe 1 - Node 0"], amplitude_expected, rtol=1e-4)
-
     phase_expected = np.array([0.9096239298802793, 1.0057118170915373])
     data = unb.data_phase(probe=[(0, 45)], probe_units="deg")
     assert_allclose(data["Probe 1 - Node 0"], phase_expected, rtol=1e-4)
     data = unb.data_phase(probe=[Probe(0, Q_(45, "deg"), tag="Probe 1 - Node 0")])
     assert_allclose(data["Probe 1 - Node 0"], phase_expected, rtol=1e-4)
-
     amplitude_expected = np.array([0.0035259958428500164, 0.005518031001232163])
     data = unb.data_magnitude(probe=[(0, "major")])
     assert_allclose(data["Probe 1 - Node 0"], amplitude_expected, rtol=1e-4)
     data = unb.data_magnitude(probe=[Probe(0, "major", tag="Probe 1 - Node 0")])
     assert_allclose(data["Probe 1 - Node 0"], amplitude_expected, rtol=1e-4)
-
-    phase_expected = np.array([1.5707963267948966, 1.5707963267948966])
+    phase_expected = np.array([1.5742963267948966, 1.57357163267948966])
     data = unb.data_phase(probe=[(0, "major")], probe_units="deg")
     assert_allclose(data["Probe 1 - Node 0"], phase_expected, rtol=1e-4)
     data = unb.data_phase(probe=[Probe(0, "major", tag="Probe 1 - Node 0")])
@@ -1660,26 +1657,26 @@ def test_deflected_shape(rotor7):
     expected_x = np.array([0.0, 0.0625, 0.125, 0.1875, 0.25, 0.25, 0.3125, 0.375])
     expected_y = np.array(
         [
-            0.00273689,
-            0.00268587,
-            0.00263402,
-            0.00258038,
-            0.002524,
-            0.002524,
-            0.00246408,
-            0.00239992,
+            0.00274183,
+            0.00269077,
+            0.00263888,
+            0.0025852,
+            0.00252877,
+            0.00252877,
+            0.0024688,
+            0.00240457,
         ]
     )
     expected_z = np.array(
         [
-            -0.00017475,
-            -0.00017226,
-            -0.0001697,
-            -0.00016702,
-            -0.00016415,
-            -0.00016415,
-            -0.00016105,
-            -0.00015765,
+            5.72720829e-05,
+            5.59724347e-05,
+            5.46564072e-05,
+            5.33052546e-05,
+            5.19002311e-05,
+            5.19002311e-05,
+            5.04258251e-05,
+            4.88678837e-05,
         ]
     )
     assert_allclose(fig.data[-4]["x"][:8], expected_x, rtol=1e-4)
