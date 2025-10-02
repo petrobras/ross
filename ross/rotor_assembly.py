@@ -1676,9 +1676,6 @@ class Rotor(object):
             Excitation frequency. Default is rotor speed.
         speed : float, optional
             Rotating speed. Default is rotor speed (frequency).
-        modes : list, optional
-            List with modes used to calculate the matrix.
-            (all modes will be used if a list is not given).
 
         Returns
         -------
