@@ -334,29 +334,17 @@ def _init_orbit(ru_e, rv_e):
     # data for plotting
     x_circle = np.real(ru_e * CIRCLE)
     y_circle = np.real(rv_e * CIRCLE)
-
     angle = np.arctan2(y_circle, x_circle)
     angle[angle < 0] = angle[angle < 0] + 2 * np.pi
 
-    forward_whirl = 0.5 * (ru_e + 1j * rv_e)
-    backward_whirl = 0.5 * (ru_e - 1j * rv_e)
-
-    amp_fw = np.abs(forward_whirl)
-    amp_bw = np.abs(backward_whirl)
-
-    major_axis = amp_fw + amp_bw
-    minor_axis = np.abs(amp_fw - amp_bw)
-
-    phase_fw_rad = np.angle(forward_whirl)
-    phase_bw_rad = np.angle(backward_whirl)
-
-    major_angle = 0.5 * (phase_fw_rad + phase_bw_rad)
+    # find major axis index looking at the first half circle
+    half = NUM_POINTS // 2
+    r_circle = np.sqrt(x_circle[:half] ** 2 + y_circle[:half] ** 2)
+    major_index = np.argmax(r_circle)
+    major_x = x_circle[major_index]
+    major_y = y_circle[major_index]
+    major_angle = angle[major_index]
     minor_angle = major_angle + np.pi / 2
-
-    major_x = major_axis * np.cos(major_angle)
-    major_y = major_axis * np.sin(major_angle)
-
-    major_index = 1  # np.argmax(major_axis)
 
     # calculate T matrix
     ru = np.absolute(ru_e)
@@ -3328,6 +3316,8 @@ class ForcedResponseResults(Results):
                         ru_e=ru_e,
                         rv_e=rv_e,
                     )
+                    amp, phase = orbit.calculate_amplitude(angle=angle)
+
                 else:
                     position_in_link = node - len(self.rotor.nodes_pos)
                     start_index = len(self.rotor.nodes_pos) * self.rotor.number_dof + (
@@ -3342,7 +3332,8 @@ class ForcedResponseResults(Results):
                         rv_e=rv_e,
                     )
 
-                amp, phase = orbit.calculate_amplitude(angle=angle)
+                    amp, phase = orbit.calculate_amplitude(angle=angle)
+
                 amplitude.append(amp)
             data[probe_tag] = Q_(amplitude, base_unit).to(amplitude_units).m
 
@@ -3440,6 +3431,9 @@ class ForcedResponseResults(Results):
                         ru_e=ru_e,
                         rv_e=rv_e,
                     )
+
+                    amp, phase = orbit.calculate_amplitude(angle=angle)
+
                 else:
                     position_in_link = node - len(self.rotor.nodes_pos)
                     start_index = len(self.rotor.nodes_pos) * self.rotor.number_dof + (
@@ -3454,7 +3448,7 @@ class ForcedResponseResults(Results):
                         rv_e=rv_e,
                     )
 
-                amp, phase = orbit.calculate_amplitude(angle=angle)
+                    amp, phase = orbit.calculate_amplitude(angle=angle)
 
                 phase_values.append(phase)
 
