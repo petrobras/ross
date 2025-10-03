@@ -23,7 +23,7 @@ Elements
     SealElement
     BallBearingElement
     RollerBearingElement
-    THDCylindrical
+    PlainJournal
     BearingFluidFlow
     MagneticBearingElement
     GearElement
