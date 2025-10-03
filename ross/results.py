@@ -6,20 +6,20 @@ This module returns graphs for each type of analyses in rotor_assembly.py.
 import copy
 import inspect
 from abc import ABC
-from prettytable import PrettyTable
 from collections.abc import Iterable
 from warnings import warn
 
 import numpy as np
 import pandas as pd
 import toml
+from numba import njit
+from numpy import linalg as la
 from plotly import graph_objects as go
 from plotly.subplots import make_subplots
+from prettytable import PrettyTable
 from scipy.fft import fft
-from numpy import linalg as la
-from numba import njit
 
-from ross.plotly_theme import tableau_colors, coolwarm_r
+from ross.plotly_theme import coolwarm_r, tableau_colors
 from ross.units import Q_, check_units
 from ross.utils import intersection
 
@@ -286,19 +286,16 @@ class Orbit(Results):
             Tuple with (amplitude, phase) value.
             The amplitude units are the same as the ru_e and rv_e used to create the orbit.
         """
-        # find closest angle index
+
         if angle == "major":
             return self.major_axis, self.major_angle
         elif angle == "minor":
             return self.minor_axis, self.minor_angle
 
-        idx = (np.abs(self.angle - angle)).argmin()
-        amplitude = np.sqrt(self.x_circle[idx] ** 2 + self.y_circle[idx] ** 2)
-        phase = self.angle[0] + angle
-        if phase > 2 * np.pi:
-            phase -= 2 * np.pi
-
-        return amplitude, phase
+        amp_complex = self.ru_e * np.cos(angle) + self.rv_e * np.sin(angle)
+        amp_abs = np.abs(self.ru_e * np.cos(angle) + self.rv_e * np.sin(angle))
+        phase = 2 * np.pi - np.mod(np.angle(amp_complex), 2 * np.pi)
+        return amp_abs, phase
 
     def plot_orbit(self, fig=None):
         if fig is None:
@@ -359,7 +356,7 @@ def _init_orbit(ru_e, rv_e):
     nv = nv
     # fmt: off
     T = np.array([[ru * np.cos(nu), -ru * np.sin(nu)],
-                    [rv * np.cos(nv), -rv * np.sin(nv)]])
+                  [rv * np.cos(nv), -rv * np.sin(nv)]])
     # fmt: on
     H = T @ T.T
 
@@ -2625,8 +2622,8 @@ class CampbellResults(Results):
     ):
         try:
             import random
-            from dash import Dash
-            from dash import dcc, html
+
+            from dash import Dash, dcc, html
             from dash.dependencies import Input, Output
         except ImportError:
             raise ImportError("Please install dash to use this feature.")
@@ -3305,19 +3302,39 @@ class ForcedResponseResults(Results):
                 try:
                     probe_tag = p[2]
                 except IndexError:
-                    probe_tag = f"Probe {i+1} - Node {p[0]}"
+                    probe_tag = f"Probe {i + 1} - Node {p[0]}"
 
             amplitude = []
             for speed_idx in range(len(self.speed_range)):
-                ru_e, rv_e = response[:, speed_idx][
-                    self.rotor.number_dof * node : self.rotor.number_dof * node + 2
-                ]
-                orbit = Orbit(
-                    node=node, node_pos=self.rotor.nodes_pos[node], ru_e=ru_e, rv_e=rv_e
-                )
-                amp, phase = orbit.calculate_amplitude(angle=angle)
-                amplitude.append(amp)
+                if node not in self.rotor.link_nodes:
+                    ru_e, rv_e = response[:, speed_idx][
+                        self.rotor.number_dof * node : self.rotor.number_dof * node + 2
+                    ]
+                    orbit = Orbit(
+                        node=node,
+                        node_pos=self.rotor.nodes_pos[node],
+                        ru_e=ru_e,
+                        rv_e=rv_e,
+                    )
+                    amp, phase = orbit.calculate_amplitude(angle=angle)
 
+                else:
+                    position_in_link = node - len(self.rotor.nodes_pos)
+                    start_index = len(self.rotor.nodes_pos) * self.rotor.number_dof + (
+                        position_in_link * 3
+                    )
+                    ru_e, rv_e = response[:, speed_idx][start_index : start_index + 2]
+
+                    orbit = Orbit(
+                        node=None,
+                        node_pos=None,
+                        ru_e=ru_e,
+                        rv_e=rv_e,
+                    )
+
+                    amp, phase = orbit.calculate_amplitude(angle=angle)
+
+                amplitude.append(amp)
             data[probe_tag] = Q_(amplitude, base_unit).to(amplitude_units).m
 
         df = pd.DataFrame(data)
@@ -3400,21 +3417,42 @@ class ForcedResponseResults(Results):
                 try:
                     probe_tag = p[2]
                 except IndexError:
-                    probe_tag = f"Probe {i+1} - Node {p[0]}"
+                    probe_tag = f"Probe {i + 1} - Node {p[0]}"
 
             phase_values = []
             for speed_idx in range(len(self.speed_range)):
-                ru_e, rv_e = response[:, speed_idx][
-                    self.rotor.number_dof * node : self.rotor.number_dof * node + 2
-                ]
-                orbit = Orbit(
-                    node=node, node_pos=self.rotor.nodes_pos[node], ru_e=ru_e, rv_e=rv_e
-                )
-                amp, phase = orbit.calculate_amplitude(angle=angle)
+                if node not in self.rotor.link_nodes:
+                    ru_e, rv_e = response[:, speed_idx][
+                        self.rotor.number_dof * node : self.rotor.number_dof * node + 2
+                    ]
+                    orbit = Orbit(
+                        node=node,
+                        node_pos=self.rotor.nodes_pos[node],
+                        ru_e=ru_e,
+                        rv_e=rv_e,
+                    )
+
+                    amp, phase = orbit.calculate_amplitude(angle=angle)
+
+                else:
+                    position_in_link = node - len(self.rotor.nodes_pos)
+                    start_index = len(self.rotor.nodes_pos) * self.rotor.number_dof + (
+                        position_in_link * 3
+                    )
+                    ru_e, rv_e = response[:, speed_idx][start_index : start_index + 2]
+
+                    orbit = Orbit(
+                        node=None,
+                        node_pos=None,
+                        ru_e=ru_e,
+                        rv_e=rv_e,
+                    )
+
+                    amp, phase = orbit.calculate_amplitude(angle=angle)
+
                 phase_values.append(phase)
 
             data[probe_tag] = Q_(phase_values, "rad").to(phase_units).m
-
         df = pd.DataFrame(data)
 
         return df
@@ -5454,7 +5492,7 @@ class TimeResponseResults(Results):
                 try:
                     probe_tag = p[2]
                 except IndexError:
-                    probe_tag = f"Probe {i+1} - Node {p[0]}"
+                    probe_tag = f"Probe {i + 1} - Node {p[0]}"
 
             data[f"angle[{i}]"] = angle
             data[f"probe_tag[{i}]"] = probe_tag
