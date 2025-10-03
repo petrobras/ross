@@ -61,33 +61,9 @@ class HarmonicBalance:
             Kn_s,
         )
 
-        Qt, Qo, dQ, dQ_s = self._solve_freq_response(H, F)
+        Qt, Qo, dQ, dQ_s = self._solve_freq_domain(H, F)
 
         return Qt, Qo, dQ, dQ_s
-
-    def run_freq_response(
-        self,
-        speed_range,
-    ):
-        ndof = self.rotor.ndof
-
-        samples = 20
-        omega_max = max(self.noh * np.max(speed_range), 1e-6)
-        dt = 2 * np.pi / (omega_max * samples)
-
-        freq_resp = np.zeros((ndof, ndof, len(speed_range)), dtype=complex)
-        velc_resp = np.zeros((ndof, ndof, len(speed_range)), dtype=complex)
-        accl_resp = np.zeros((ndof, ndof, len(speed_range)), dtype=complex)
-
-        results = FrequencyResponseResults(
-            freq_resp=freq_resp,
-            velc_resp=velc_resp,
-            accl_resp=accl_resp,
-            speed_range=np.array(speed_range),
-            number_dof=self.rotor.number_dof,
-        )
-
-        return results
 
     def run_forced_response(
         self,
@@ -106,13 +82,17 @@ class HarmonicBalance:
         accl_resp = np.zeros((ndof, len(speed_range)), dtype=complex)
 
         if unbalance is None:
-            unbalance = np.vstack(([0], [0], [0]))
+            node = [0]
+            unb_magnitude = [0]
+            unb_phase = [0]
+        else:
+            node, unb_magnitude, unb_phase = unbalance
 
         for i, speed in enumerate(speed_range):
             _, Qo, dQ, _ = self.run(
-                node=np.int_(unbalance[0]),
-                unb_magnitude=unbalance[1],
-                unb_phase=unbalance[2],
+                node=np.int_(node),
+                unb_magnitude=unb_magnitude,
+                unb_phase=unb_phase,
                 speed=speed,
                 dt=dt,
                 F_ext=force[:, i] if force is not None else None,
@@ -139,12 +119,11 @@ class HarmonicBalance:
         unb_magnitude,
         unb_phase,
         speed_range,
-        force=None,
     ):
         unbalance = np.vstack((node, unb_magnitude, unb_phase))
 
         forced_resp = self.run_forced_response(
-            force=force,
+            force=None,
             speed_range=speed_range,
             unbalance=unbalance,
         )
@@ -153,22 +132,42 @@ class HarmonicBalance:
 
     def run_time_response(
         self,
+        speed,
+        F,
+        t,
+    ):
+        dt = t[1] - t[0]
+
+        _, Qo, dQ, _ = self.run(
+            node=[0],
+            unb_magnitude=[0],
+            unb_phase=[0],
+            speed=speed,
+            dt=dt,
+            F_ext=F.T,
+        )
+
+        y, ydot, y2dot = self._reconstruct_time_domain(speed, t, Qo, dQ)
+        time_resp = TimeResponseResults(self.rotor, t, y.T, [])
+
+        return time_resp
+
+    def run_unbalance_time_response(
+        self,
         node,
         unb_magnitude,
         unb_phase,
         speed,
         t,
-        F_ext=None,
     ):
         dt = t[1] - t[0]
 
         _, Qo, dQ, _ = self.run(
-            node,
-            unb_magnitude,
-            unb_phase,
-            speed,
-            dt,
-            F_ext=F_ext,
+            node=node,
+            unb_magnitude=unb_magnitude,
+            unb_phase=unb_phase,
+            speed=speed,
+            dt=dt,
         )
 
         y, ydot, y2dot = self._reconstruct_time_domain(speed, t, Qo, dQ)
@@ -186,14 +185,14 @@ class HarmonicBalance:
             cos = np.cos(p)
             sin = np.sin(p)
 
-            Fa = m * omega**2 * np.array([cos, sin])
-            Fa += m * alpha * np.array([-sin, cos])
+            an = m * omega**2 * np.array([cos, sin])
+            an += m * alpha * np.array([-sin, cos])
 
-            Fb = m * omega**2 * np.array([-sin, cos])
-            Fb += m * alpha * np.array([cos, -sin])
+            bn = m * omega**2 * np.array([-sin, cos])
+            bn += m * alpha * np.array([cos, -sin])
 
             dofs = [number_dof * n, number_dof * n + 1]
-            F0[dofs] += Fa - 1j * Fb
+            F0[dofs] += an - 1j * bn
 
         F0_s = np.conjugate(F0)
 
@@ -225,27 +224,22 @@ class HarmonicBalance:
         number_dof = self.rotor.number_dof
 
         Fo = np.zeros(ndof, dtype=complex)
-        F = np.zeros((ndof, self.noh), dtype=complex)
-        F_s = np.zeros((ndof, self.noh), dtype=complex)
+        Fn = np.zeros((ndof, self.noh), dtype=complex)
+        Fn_s = np.zeros((ndof, self.noh), dtype=complex)
 
         if F_ext is not None:
-            points = F_ext.shape[0] // 2
+            points = -int(0.5 * F_ext.shape[1])
+            dofs = list(set(np.where(F_ext != 0)[0]))
 
-            if self.probe_force:
-                for i in range(len(self.probe_force)):
-                    idx = slice(
-                        (self.probe_force[i]) * number_dof - 6,
-                        (self.probe_force[i]) * number_dof,
-                    )
+            if dofs:
+                Fnew = F_ext[dofs, points:]
+                Fo_, Fn_ = self._Fourier_expansion(Fnew, dt, freq, self.noh)
 
-                    Fnew = F_ext[idx, points:]
-                    Fo, Fn = self._expand_Fourier(Fnew, dt, freq, self.noh)
+                Fo[dofs] += Fo_
+                Fn[dofs, :] += Fn_
+                Fn_s[dofs, :] += np.conjugate(Fn_)
 
-                    Fo[idx] += Fo
-                    F[idx, :] += Fn
-                    F_s[idx, :] += np.conjugate(Fn)
-
-        return Fo, F, F_s
+        return Fo, Fn, Fn_s
 
     def _assemble_forces(self, W, F_unb, F_unb_s, Fo, Fn, Fn_s):
         ndof = self.rotor.ndof
@@ -273,7 +267,7 @@ class HarmonicBalance:
             idx = self.crack.dof_crack
             coeff_flex = self.crack.coeff_flex
 
-            Kco, Kcn, Kcn_s = self._expand_Fourier(coeff_flex, dt, freq, n_aux)
+            Kco, Kcn, Kcn_s = self._Fourier_expansion(coeff_flex, dt, freq, n_aux)
             Ko[idx, idx] = self.crack._Kflex(Kco.reshape(-1, 1))[:, :, 0]
 
             Kn_flex = self.crack._Kflex(Kcn)
@@ -409,6 +403,7 @@ class HarmonicBalance:
 
             if aux11 < 2:
                 aux11 = 1
+
             aux13 = 2 * n + 1
 
             for k in range(aux12, aux11, -1):
@@ -431,7 +426,7 @@ class HarmonicBalance:
 
         return H0
 
-    def _solve_freq_response(self, H, F):
+    def _solve_freq_domain(self, H, F):
         ndof = self.rotor.ndof
 
         try:
@@ -489,20 +484,19 @@ class HarmonicBalance:
         return y, ydot, y2dot
 
     @staticmethod
-    def _expand_Fourier(F, dt, fo, size):
+    def _Fourier_expansion(F, dt, fo, size):
         row, N = F.shape
-        Fn = np.array(np.zeros((row, size)), dtype=complex)
-
         b = int(np.floor(N / 2))
         df = 1 / (N * dt)
 
         A = fft(F)
-        X = A[:, :b]
-        X = X * 2 / N
-        Fo = 1 * np.real(X[:, 0])
-        an = 1 * np.real(X)
-        bn = -1 * np.imag(X)
+        X = A[:, :b] * 2 / N
 
+        Fo = np.real(X[:, 0])
+        an = np.real(X)
+        bn = -np.imag(X)
+
+        Fn = np.zeros((row, size), dtype=complex)
         for n in range(1, size + 1):
             idx = int(n * fo / df)
             Fn[:, n - 1] = an[:, idx] - 1j * bn[:, idx]
