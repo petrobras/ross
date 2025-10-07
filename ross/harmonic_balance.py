@@ -72,10 +72,18 @@ class HarmonicBalance:
         unbalance=None,
     ):
         ndof = self.rotor.ndof
+        tsamples = 10001
+        np = 20
 
-        samples = 20
-        speed_max = max(self.noh * np.max(speed_range), 1e-6)
-        dt = 2 * np.pi / (speed_max * samples)
+        speed_max = max(np.max(speed_range), 1e-3)
+        tf = np * (2 * np.pi) / speed_max
+        t = np.linspace(0, tf, tsamples)
+        dt = t[1] - t[0]
+
+        if force is None:
+            F = None
+        else:
+            F = np.zeros((ndof, len(t)))
 
         forced_resp = np.zeros((ndof, len(speed_range)), dtype=complex)
         velc_resp = np.zeros((ndof, len(speed_range)), dtype=complex)
@@ -89,13 +97,16 @@ class HarmonicBalance:
             node, unb_magnitude, unb_phase = unbalance
 
         for i, speed in enumerate(speed_range):
+            if force is not None:
+                F += np.real(force[:, i][:, np.newaxis] * np.exp(1j * speed * t))
+
             _, Qo, dQ, _ = self.run(
                 node=np.int_(node),
                 unb_magnitude=unb_magnitude,
                 unb_phase=unb_phase,
                 speed=speed,
                 dt=dt,
-                F_ext=force[:, i] if force is not None else None,
+                F_ext=F,
             )
 
             forced_resp[:, i] = Qo / 2 + np.sum(dQ, axis=1)
