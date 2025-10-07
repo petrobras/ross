@@ -15,6 +15,8 @@ class HarmonicBalance:
         self.rotor = rotor
         self.ndof = rotor.ndof
         self.noh = n_harmonics if n_harmonics else 1
+        self.t_samples = 10001
+        self.n_period = 20
 
     @check_units
     def run(
@@ -69,33 +71,31 @@ class HarmonicBalance:
         unbalance=None,
     ):
         ndof = self.rotor.ndof
-        tsamples = 10001
-        np = 20
-
-        speed_max = max(np.max(speed_range), 1e-3)
-        tf = np * (2 * np.pi) / speed_max
-        t = np.linspace(0, tf, tsamples)
-        dt = t[1] - t[0]
-
-        if force is None:
-            F = None
-        else:
-            F = np.zeros((ndof, len(t)))
+        t_samples = self.t_samples
+        n_p = self.n_period
 
         forced_resp = np.zeros((ndof, len(speed_range)), dtype=complex)
         velc_resp = np.zeros((ndof, len(speed_range)), dtype=complex)
         accl_resp = np.zeros((ndof, len(speed_range)), dtype=complex)
 
         if unbalance is None:
-            node = [0]
-            unb_magnitude = [0]
-            unb_phase = [0]
+            node, unb_magnitude, unb_phase = ([0], [0], [0])
         else:
             node, unb_magnitude, unb_phase = unbalance
 
+        if force is None:
+            force_in_time = lambda i, speed, t: None
+        else:
+            force_in_time = lambda i, speed, t: np.real(
+                force[:, i][:, np.newaxis] * np.exp(1j * speed * t)
+            )
+
         for i, speed in enumerate(speed_range):
-            if force is not None:
-                F += np.real(force[:, i][:, np.newaxis] * np.exp(1j * speed * t))
+            tf = n_p * (2 * np.pi) / max(speed, 1e-6)
+            t = np.linspace(0, tf, t_samples)
+            dt = t[1] - t[0]
+
+            F = force_in_time(i, speed, t)
 
             _, Qo, dQ, _ = self.run(
                 node=np.int_(node),
@@ -144,7 +144,21 @@ class HarmonicBalance:
         F,
         t,
     ):
-        dt = t[1] - t[0]
+        tf = t[-1]
+        t0 = t[0]
+        dt = t[1] - t0
+
+        t_samples = int(self.t_samples / self.n_period * tf * speed / (2 * np.pi))
+        t_ = np.linspace(t0, tf, t_samples)
+        dt_ = t_[1] - t0
+
+        if dt > dt_:
+            warnings.warn(
+                "The time step is large for the given speed. Recalculating time array.",
+                UserWarning,
+            )
+            dt = dt_
+            t = t_
 
         _, Qo, dQ, _ = self.run(
             node=[0],
