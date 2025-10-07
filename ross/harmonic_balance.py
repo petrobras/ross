@@ -1,7 +1,7 @@
 import warnings
 import numpy as np
 import numpy.linalg as la
-from scipy.fft import fft
+from scipy.fft import fft, fftfreq
 from collections.abc import Iterable
 
 from ross.units import Q_, check_units
@@ -221,23 +221,19 @@ class HarmonicBalance:
 
     def _external_force(self, dt, freq, F_ext=None):
         ndof = self.rotor.ndof
-        number_dof = self.rotor.number_dof
 
         Fo = np.zeros(ndof, dtype=complex)
         Fn = np.zeros((ndof, self.noh), dtype=complex)
         Fn_s = np.zeros((ndof, self.noh), dtype=complex)
 
         if F_ext is not None:
-            points = -int(0.5 * F_ext.shape[1])
             dofs = list(set(np.where(F_ext != 0)[0]))
 
-            if dofs:
-                Fnew = F_ext[dofs, points:]
-                Fo_, Fn_ = self._Fourier_expansion(Fnew, dt, freq, self.noh)
+            Fo_, Fn_ = self._Fourier_expansion(F_ext[dofs, :], dt, freq, self.noh)
 
-                Fo[dofs] += Fo_
-                Fn[dofs, :] += Fn_
-                Fn_s[dofs, :] += np.conjugate(Fn_)
+            Fo[dofs] += Fo_
+            Fn[dofs, :] += Fn_
+            Fn_s[dofs, :] += np.conjugate(Fn_)
 
         return Fo, Fn, Fn_s
 
@@ -246,8 +242,8 @@ class HarmonicBalance:
         F0 = np.zeros(((self.noh * 2 + 1) * ndof), dtype=complex)
 
         F0[:ndof] = 4 * W + 2 * Fo
-        F0[ndof : 2 * ndof] = 2 * F_unb + 2 * Fn[:, 0]
-        F0[2 * ndof : 3 * ndof] = 2 * F_unb_s + 2 * Fn_s[:, 0]
+        F0[ndof : 2 * ndof] = 2 * (F_unb + Fn[:, 0])
+        F0[2 * ndof : 3 * ndof] = 2 * (F_unb_s + Fn_s[:, 0])
 
         for i in range(2, self.noh + 1):
             F0[(2 * i - 1) * ndof : 2 * i * ndof] = 2 * Fn[:, i - 1]
@@ -486,11 +482,11 @@ class HarmonicBalance:
     @staticmethod
     def _Fourier_expansion(F, dt, fo, size):
         row, N = F.shape
-        b = int(np.floor(N / 2))
-        df = 1 / (N * dt)
+        b = N // 2
 
-        A = fft(F)
-        X = A[:, :b] * 2 / N
+        X = fft(F)[:, :b]
+        X *= 2 / N
+        freq = fftfreq(N, dt)[:b]
 
         Fo = np.real(X[:, 0])
         an = np.real(X)
@@ -498,7 +494,7 @@ class HarmonicBalance:
 
         Fn = np.zeros((row, size), dtype=complex)
         for n in range(1, size + 1):
-            idx = int(n * fo / df)
+            idx = np.argmin(np.abs(freq - n * fo))
             Fn[:, n - 1] = an[:, idx] - 1j * bn[:, idx]
 
         return Fo, Fn
