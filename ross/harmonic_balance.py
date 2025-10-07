@@ -74,8 +74,8 @@ class HarmonicBalance:
         ndof = self.rotor.ndof
 
         samples = 20
-        omega_max = max(self.noh * np.max(speed_range), 1e-6)
-        dt = 2 * np.pi / (omega_max * samples)
+        speed_max = max(self.noh * np.max(speed_range), 1e-6)
+        dt = 2 * np.pi / (speed_max * samples)
 
         forced_resp = np.zeros((ndof, len(speed_range)), dtype=complex)
         velc_resp = np.zeros((ndof, len(speed_range)), dtype=complex)
@@ -185,14 +185,14 @@ class HarmonicBalance:
             cos = np.cos(p)
             sin = np.sin(p)
 
-            an = m * omega**2 * np.array([cos, sin])
-            an += m * alpha * np.array([-sin, cos])
+            Fa = m * omega**2 * np.array([cos, sin])
+            Fa += m * alpha * np.array([-sin, cos])
 
-            bn = m * omega**2 * np.array([-sin, cos])
-            bn += m * alpha * np.array([cos, -sin])
+            Fb = m * omega**2 * np.array([-sin, cos])
+            Fb += m * alpha * np.array([cos, -sin])
 
             dofs = [number_dof * n, number_dof * n + 1]
-            F0[dofs] += an - 1j * bn
+            F0[dofs] += Fa - 1j * Fb
 
         F0_s = np.conjugate(F0)
 
@@ -219,17 +219,17 @@ class HarmonicBalance:
 
         return F0, F0_s
 
-    def _external_force(self, dt, freq, F_ext=None):
+    def _external_force(self, dt, freq, F=None):
         ndof = self.rotor.ndof
 
         Fo = np.zeros(ndof, dtype=complex)
         Fn = np.zeros((ndof, self.noh), dtype=complex)
         Fn_s = np.zeros((ndof, self.noh), dtype=complex)
 
-        if F_ext is not None:
-            dofs = list(set(np.where(F_ext != 0)[0]))
+        if F is not None:
+            dofs = list(set(np.where(F != 0)[0]))
 
-            Fo_, Fn_ = self._Fourier_expansion(F_ext[dofs, :], dt, freq, self.noh)
+            Fo_, Fn_ = self._Fourier_expansion(F[dofs, :], dt, freq, self.noh)
 
             Fo[dofs] += Fo_
             Fn[dofs, :] += Fn_
@@ -486,7 +486,7 @@ class HarmonicBalance:
 
         X = fft(F)[:, :b]
         X *= 2 / N
-        freq = fftfreq(N, dt)[:b]
+        freqs = fftfreq(N, dt)[:b]
 
         Fo = np.real(X[:, 0])
         an = np.real(X)
@@ -494,7 +494,7 @@ class HarmonicBalance:
 
         Fn = np.zeros((row, size), dtype=complex)
         for n in range(1, size + 1):
-            idx = np.argmin(np.abs(freq - n * fo))
+            idx = np.argmin(np.abs(freqs - n * fo))
             Fn[:, n - 1] = an[:, idx] - 1j * bn[:, idx]
 
         return Fo, Fn
