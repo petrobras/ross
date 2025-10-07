@@ -1,23 +1,20 @@
 import warnings
 import numpy as np
-import numpy.linalg as la
 from scipy.fft import fft, fftfreq
 from collections.abc import Iterable
 
 from ross.units import Q_, check_units
 from ross.results import (
     ForcedResponseResults,
-    FrequencyResponseResults,
     TimeResponseResults,
 )
 
 
 class HarmonicBalance:
-    def __init__(self, rotor, n_harmonics=1):
+    def __init__(self, rotor, n_harmonics=None):
         self.rotor = rotor
         self.ndof = rotor.ndof
-        self.probe_force = None
-        self.noh = n_harmonics
+        self.noh = n_harmonics if n_harmonics else 1
 
     @check_units
     def run(
@@ -460,16 +457,6 @@ class HarmonicBalance:
         sum_y = np.zeros(shape)
         sum_ydot = np.zeros(shape)
         sum_y2dot = np.zeros(shape)
-
-        # --------------------------------------------------------------------------
-        # ---------------------------------------------- Solution in the time domain
-        # --------------------- yyHB=Qo/2+an*cos(n*Omega*time)+bn*sin(n*Omega*time)
-        # ------ yyptHB=-n*Omega*an*sin(n*Omega*time)+n*Omega*bn*cos(n*Omega*time)
-        # yy2ptHB=-n**2*Omega**2*an*cos(n*Omega*time)-n**2*Omega**2*bn*sin(n*Omega*time)
-        # --------------------------------------------------------------------------
-        # -- dQ=[Q1   Q1s]
-        # -- Q1  = a1 -I*b1
-        # -- Q1s = a1 +I*b1
 
         for i in range(1, self.noh + 1):
             an = np.transpose(np.array([np.real(dQ[:, i - 1])]))
