@@ -60,7 +60,6 @@ from ross.utils import (
 )
 from ross.seals.labyrinth_seal import LabyrinthSeal
 from ross.seals.holepattern_seal import HolePatternSeal
-from ross.bearings.cylindrical import THDCylindrical
 
 
 __all__ = [
