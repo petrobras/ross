@@ -5,11 +5,11 @@ from ross.units import Q_, check_units
 from scipy.optimize import curve_fit
 import ccp
 
-__all__ = ["HoneycombSeal"]
+__all__ = ["HolePatternSeal"]
 
 
-class HoneycombSeal(SealElement):
-    """Calculate seal with honeycomb (hcomb).
+class HolePatternSeal(SealElement):
+    """Calculate seal with hole pattern.
 
     Parameters
     ----------
@@ -82,9 +82,9 @@ class HoneycombSeal(SealElement):
 
     Examples
     --------
-    >>> from ross.seals.hcomb_seal import HoneycombSeal
+    >>> from ross.seals.holepattern_seal import HolePatternSeal
     >>> from ross.units import Q_
-    >>> hcomb = HoneycombSeal(
+    >>> holepattern = HolePatternSeal(
     ...     n=0,
     ...     frequency=Q_([8000], "RPM"),  # RPM
     ...     length=0.04699,
