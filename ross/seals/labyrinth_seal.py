@@ -88,16 +88,13 @@ class LabyrinthSeal(SealElement):
     ...     pre_swirl_ratio=0.98,
     ...     frequency=Q_([5000, 8000, 11000], "RPM"),
     ...     n_teeth=16,
-    ...     shaft_radius=Q_(72.5,"mm"),
-    ...     radial_clearance=Q_(0.3,"mm"),
-    ...     pitch=Q_(3.175,"mm"),
-    ...     tooth_height=Q_(3.175,"mm"),
-    ...     tooth_width=Q_(0.1524,"mm"),
+    ...     shaft_radius=Q_(72.5, "mm"),
+    ...     radial_clearance=Q_(0.3, "mm"),
+    ...     pitch=Q_(3.175, "mm"),
+    ...     tooth_height=Q_(3.175, "mm"),
+    ...     tooth_width=Q_(0.1524, "mm"),
     ...     seal_type="inter",
-    ...     r=287.05,
-    ...     tz=[283.15, 282.60903080958565],
-    ...     muz=[1.7746561138374613e-05, 1.7687886306966975e-05],
-    ...     gamma=1.41,
+    ...     gas_composition={"Nitrogen": 0.79, "Oxygen": 0.21},
     ... )
     """
 

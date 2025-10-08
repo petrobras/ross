@@ -86,7 +86,7 @@ class HolePatternSeal(SealElement):
     >>> from ross.units import Q_
     >>> holepattern = HolePatternSeal(
     ...     n=0,
-    ...     frequency=Q_([8000], "RPM"),  # RPM
+    ...     frequency=Q_([8000], "RPM"),
     ...     length=0.04699,
     ...     radius=0.0725,
     ...     clearance=0.0003,
@@ -97,10 +97,7 @@ class HolePatternSeal(SealElement):
     ...     inlet_pressure=689000.0,
     ...     outlet_pressure=94300.0,
     ...     inlet_temperature=322.0,
-    ...     b_suther=1.458e-6,
-    ...     s_suther=110.4,
-    ...     molar=29.0,
-    ...     gamma=1.4,
+    ...     gas_composition={"Nitrogen": 0.79, "Oxygen": 0.21},
     ...     preswirl=0.8,
     ...     entr_coef=0.5,
     ...     exit_coef=1.0,
