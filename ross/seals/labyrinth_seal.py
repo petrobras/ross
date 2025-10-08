@@ -1,12 +1,12 @@
 import numpy as np
 import sys
-import ccp
 from scipy.linalg import lu_factor, lu_solve
 from numpy.linalg import cond
 import multiprocessing
 from ross import SealElement
 from ross.units import check_units
 import multiprocessing
+import ccp
 
 __all__ = ["LabyrinthSeal"]
 
@@ -50,7 +50,7 @@ class LabyrinthSeal(SealElement):
         Specify 'inter' for interlocking type labyrinths.
     gas_composition : dict
         Gas composition as a dictionary {component: molar_fraction}.
-    if gas composition not 'AIR':
+    if gas_composition not use ccp:
         r: float
             gas constant
         gamma: float
@@ -88,16 +88,13 @@ class LabyrinthSeal(SealElement):
     ...     pre_swirl_ratio=0.98,
     ...     frequency=Q_([5000, 8000, 11000], "RPM"),
     ...     n_teeth=16,
-    ...     shaft_radius=Q_(72.5,"mm"),
-    ...     radial_clearance=Q_(0.3,"mm"),
-    ...     pitch=Q_(3.175,"mm"),
-    ...     tooth_height=Q_(3.175,"mm"),
-    ...     tooth_width=Q_(0.1524,"mm"),
+    ...     shaft_radius=Q_(72.5, "mm"),
+    ...     radial_clearance=Q_(0.3, "mm"),
+    ...     pitch=Q_(3.175, "mm"),
+    ...     tooth_height=Q_(3.175, "mm"),
+    ...     tooth_width=Q_(0.1524, "mm"),
     ...     seal_type="inter",
-    ...     r=287.05,
-    ...     tz=[283.15, 282.60903080958565],
-    ...     muz=[1.7746561138374613e-05, 1.7687886306966975e-05],
-    ...     gamma=1.41,
+    ...     gas_composition={"Nitrogen": 0.79, "Oxygen": 0.21},
     ... )
     """
 
@@ -131,10 +128,10 @@ class LabyrinthSeal(SealElement):
         self.print_results = print_results
         self.gas_composition = gas_composition
         if self.gas_composition is not None:
-            state_in = ccp.State.define(
+            state_in = ccp.State(
                 p=inlet_pressure, T=inlet_temperature, fluid=self.gas_composition
             )
-            state_out = ccp.State.define(
+            state_out = ccp.State(
                 p=outlet_pressure, h=state_in.h(), fluid=self.gas_composition
             )
 

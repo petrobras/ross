@@ -58,6 +58,9 @@ from ross.utils import (
     newmark,
     remove_dofs,
 )
+from ross.seals.labyrinth_seal import LabyrinthSeal
+from ross.seals.holepattern_seal import HolePatternSeal
+
 
 __all__ = [
     "Rotor",
