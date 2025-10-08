@@ -6,10 +6,7 @@ import multiprocessing
 from ross import SealElement
 from ross.units import check_units
 import multiprocessing
-try:    
-    import ccp
-except:
-    ccp = None
+import ccp
 
 __all__ = ["LabyrinthSeal"]
 

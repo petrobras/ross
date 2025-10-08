@@ -3,10 +3,7 @@ import multiprocessing
 from ross import SealElement
 from ross.units import Q_, check_units
 from scipy.optimize import curve_fit
-try:    
-    import ccp
-except:
-    ccp = None
+import ccp
 
 __all__ = ["HoneycombSeal"]
 
@@ -147,6 +144,7 @@ class HoneycombSeal(SealElement):
                 setattr(self, k, v)
 
         if self.gas_composition is not None:
+
             def sutherland_formula(T, b, S):
                 return (b * T ** (3 / 2)) / (S + T)
 
@@ -160,9 +158,20 @@ class HoneycombSeal(SealElement):
             x = []
             y = []
             for T in range(260, 400, 20):
-                state.update(p=state.p(), T=T)
-                x.append(T)
-                y.append(state.viscosity().m)
+                try:
+                    state.update(p=state.p(), T=T)
+                    x.append(T)
+                    y.append(state.viscosity().m)
+                except ValueError:
+                    # Skip temperatures where state update fails (e.g., HEOS convergence issues)
+                    continue
+
+            if len(x) < 3:
+                raise RuntimeError(
+                    f"Could not collect enough viscosity data points ({len(x)} points) "
+                    f"to fit Sutherland coefficients. Try providing b_suther, s_suther, "
+                    f"molar, and gamma manually."
+                )
 
             popt, pcov = curve_fit(sutherland_formula, x, y)
             self.b_suther, self.s_suther = popt
@@ -235,7 +244,9 @@ class HoneycombSeal(SealElement):
             return attribute_coef
         except Exception as e:
             print(f"Error calculating for frequency {frequency} RPM: {e}")
-            return dict.fromkeys(["kxx", "kyy", "kxy", "kyx", "cxx", "cyy", "cxy", "cyx", "leakage"], 0)
+            return dict.fromkeys(
+                ["kxx", "kyy", "kxy", "kyx", "cxx", "cyy", "cxy", "cyx", "leakage"], 0
+            )
 
     def inlet_loss(self, p2):
         if p2 >= self.inlet_pressure:
