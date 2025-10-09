@@ -102,7 +102,7 @@ def run_mis_combined(rotor, flex_params):
         unbalance_phase=Q_([-90.0, 0.0], "degrees"),
         speed=Q_(1200, "RPM"),
         t=np.arange(0, 0.5, 0.0001),
-        num_modes=12,
+        model_reduction={"num_modes": 12},
         method="newmark",
         **flex_params,
     )
@@ -148,7 +148,7 @@ def run_mis_parallel(rotor, flex_params):
         unbalance_phase=Q_([-90.0, 0.0], "degrees"),
         speed=Q_(1200, "RPM"),
         t=np.arange(0, 0.5, 0.0001),
-        num_modes=12,
+        model_reduction={"num_modes": 12},
         **flex_params,
     )
 
@@ -187,7 +187,7 @@ def run_mis_angular(rotor, flex_params):
         unbalance_phase=Q_([-90.0, 0.0], "degrees"),
         speed=Q_(1200, "RPM"),
         t=np.arange(0, 0.5, 0.0001),
-        num_modes=12,
+        model_reduction={"num_modes": 12},
         **flex_params,
     )
 
@@ -223,7 +223,7 @@ def mis_rigid(rotor):
         unbalance_phase=Q_([-90.0, 0.0], "degrees"),
         speed=Q_(1200, "RPM"),
         t=np.arange(0, 0.5, 0.0001),
-        num_modes=12,
+        model_reduction={"num_modes": 12},
     )
 
     return results

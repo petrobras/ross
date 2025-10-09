@@ -85,7 +85,7 @@ def run_rubbing(rotor):
         friction_coeff=0.3,
         speed=Q_(1200, "RPM"),
         t=np.arange(0, 0.5, 0.0001),
-        num_modes=12,
+        model_reduction={"num_modes": 12},
     )
 
     return results
