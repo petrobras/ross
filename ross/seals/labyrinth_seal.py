@@ -194,8 +194,14 @@ class LabyrinthSeal(SealElement):
 
         coefficients_dict = {}
         if kwargs.get("kxx") is None:
-            pool = multiprocessing.Pool()
-            coefficients_dict_list = pool.map(self.run, frequency)
+            # Use multiprocessing only when beneficial (>4 frequencies)
+            # For small workloads, sequential execution avoids process spawn overhead
+            if len(frequency) > 4:
+                with multiprocessing.Pool() as pool:
+                    coefficients_dict_list = pool.map(self.run, frequency)
+            else:
+                coefficients_dict_list = [self.run(freq) for freq in frequency]
+
             coefficients_dict = {k: [] for k in coefficients_dict_list[0].keys()}
             for d in coefficients_dict_list:
                 for k in coefficients_dict:
@@ -256,13 +262,8 @@ class LabyrinthSeal(SealElement):
         self.nc = self.n_teeth - 1
         self.np = self.n_teeth + 1
 
-        for i in range(1, self.n_teeth):
-            self.radial_clearance[i] = self.radial_clearance[0]
-            self.tooth_height[i] = self.tooth_height[0]
-            self.tooth_width[i] = self.tooth_width[0]
-
-        for i in range(1, self.nc):
-            self.pitch[i] = self.pitch[0]
+        # Arrays already initialized with np.full() in __init__
+        # No need to re-assign values that are already set
 
         self.ndof = 8 * self.nc
         self.nbw = 33
@@ -1088,11 +1089,7 @@ class LabyrinthSeal(SealElement):
                     cont = 1
                 else:
                     gmfull[i][i + j - 16] = self.gm[i][j]
-        maux = [[0 for j in range(8 * self.nc)] for i in range(8 * self.nc)]
-        for i in range(0, self.nc * 8):
-            for j in range(0, self.nc * 8):
-                maux[i][j] = gmfull[i][j]
-        A = np.array(maux)
+        A = gmfull[: 8 * self.nc, : 8 * self.nc].copy()
         lu, piv = lu_factor(A)
         for i in range(0, 8 * self.nc):
             rhs1[i] = self.rhs[i][0]
