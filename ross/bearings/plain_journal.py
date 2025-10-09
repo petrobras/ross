@@ -614,7 +614,11 @@ class PlainJournal(BearingElement):
                         self.theta_vol_groove[n_p] = 1
 
         # self.P must receive the adimensional pressure field
-        self.P = Pdim * (self.radial_clearance**2) / (self.reference_viscosity * speed * (self.journal_radius**2))
+        self.P = (
+            Pdim
+            * (self.radial_clearance**2)
+            / (self.reference_viscosity * speed * (self.journal_radius**2))
+        )
         self.Theta_vol = Theta_vol
 
         # Reshape dimensional pressure field from (axial, circumferential, pads) to (axial, all_other_dims)

@@ -2725,35 +2725,7 @@ class Rotor(object):
         F = get_array[1](F.T).T
 
         # Check if there is any magnetic bearing
-        magnetic_bearings = [
-            brg
-            for brg in self.bearing_elements
-            if isinstance(brg, MagneticBearingElement)
-        ]
-
-        rotor = deepcopy(self)
-
-        if len(magnetic_bearings):
-            magnetic_force = (
-                lambda step, time_step, disp_resp: self.magnetic_bearing_controller(
-                    step, magnetic_bearings, time_step, disp_resp, **kwargs
-                )
-            )
-
-            # Initialize storage attributes for magnetic bearings
-            for brg in magnetic_bearings:
-                brg.magnetic_force_xy.append([[], []])
-                brg.magnetic_force_vw.append([[], []])
-                brg.control_signal.append([[], []])
-                brg.integral = [0, 0]
-                brg.e0 = [0, 0]
-
-            rotor.bearing_elements = [
-                brg for brg in rotor.bearing_elements if brg not in magnetic_bearings
-            ]
-
-        else:
-            magnetic_force = lambda step, time_step, disp_resp: np.zeros(self.ndof)
+        rotor, magnetic_force = self.init_ambs_for_integrate(**kwargs)
 
         # Consider any additional RHS function (extra forces)
         add_to_RHS = kwargs.get("add_to_RHS")
@@ -2841,6 +2813,37 @@ class Rotor(object):
         response = newmark(rotor_system, t, size, **kwargs)
         yout = get_array[2](response.T).T
         return t, yout
+
+    def init_ambs_for_integrate(self, **kwargs):
+        magnetic_bearings = [
+            brg
+            for brg in self.bearing_elements
+            if isinstance(brg, MagneticBearingElement)
+        ]
+        rotor = deepcopy(self)
+        if len(magnetic_bearings):
+            magnetic_force = (
+                lambda step, time_step, disp_resp: self.magnetic_bearing_controller(
+                    step, magnetic_bearings, time_step, disp_resp, **kwargs
+                )
+            )
+
+            # Initialize storage attributes for magnetic bearings
+            for brg in magnetic_bearings:
+                brg.magnetic_force_xy.append([[], []])
+                brg.magnetic_force_vw.append([[], []])
+                brg.control_signal.append([[], []])
+                brg.integral = [0, 0]
+                brg.e0 = [0, 0]
+
+            rotor.bearing_elements = [
+                brg for brg in rotor.bearing_elements if brg not in magnetic_bearings
+            ]
+
+        else:
+            magnetic_force = lambda step, time_step, disp_resp: np.zeros(self.ndof)
+
+        return rotor, magnetic_force
 
     def time_response(self, speed, F, t, ic=None, method="default", **kwargs):
         """Time response for a rotor.
