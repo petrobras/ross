@@ -193,8 +193,14 @@ class HolePatternSeal(SealElement):
 
         coefficients_dict = {}
         if kwargs.get("kxx") is None:
-            pool = multiprocessing.Pool()
-            coefficients_dict_list = pool.map(self.run, self.frequency)
+            # Use multiprocessing only when beneficial (>2 frequencies)
+            # For small workloads, sequential execution avoids process spawn overhead
+            if len(self.frequency) > 2:
+                with multiprocessing.Pool() as pool:
+                    coefficients_dict_list = pool.map(self.run, self.frequency)
+            else:
+                coefficients_dict_list = [self.run(freq) for freq in self.frequency]
+
             coefficients_dict = {k: [] for k in coefficients_dict_list[0].keys()}
             for d in coefficients_dict_list:
                 for k in coefficients_dict:
@@ -215,6 +221,12 @@ class HolePatternSeal(SealElement):
         self.gamma12 = self.gamma1 / 2.0
         self.omega = frequency
         self.area = np.pi * 2.0 * self.radius * self.clearance
+
+        # Cache constants for form_rhs() optimization
+        self._gamma_R = self.gamma * self.R
+        self._radius_omega = self.radius * self.omega
+        self._rough_factor = 1.0e4 * self.roughness
+        self._mu_factor = 5.0e5
 
         try:
             base_state_results = self.calculate_leakage()
@@ -292,32 +304,40 @@ class HolePatternSeal(SealElement):
         if mz2 <= 0:
             mz2 = 1e-9
 
-        mz, mt2 = np.sqrt(mz2), mt**2
-        c = np.sqrt(self.gamma * self.R * T)
+        # Optimized: cache repeated calculations
+        mz = np.sqrt(mz2)
+        mt2 = mt**2
+        c = np.sqrt(self._gamma_R * T)
         u = mz * c
         if u == 0:
             u = 1e-9
-        w, rho = mt * c, self.mdot / (self.area * u)
-        Romega = self.radius * self.omega
+        w = mt * c
+        rho = self.mdot / (self.area * u)
+        Romega = self._radius_omega
         mr = Romega / c if c > 0 else 0
-        utot = np.sqrt(u**2 + w**2) / 2.0
-        utot_rotor = np.sqrt(u**2 + (w - Romega) ** 2)
+        u2 = u**2
+        w_minus_Romega = w - Romega
+        utot = np.sqrt(u2 + w**2) * 0.5
+        utot_rotor = np.sqrt(u2 + w_minus_Romega**2)
         if utot == 0:
             utot = 1e-9
         if utot_rotor == 0:
             utot_rotor = 1e-9
-        mu = self.b_suther * T**1.5 / (self.s_suther + T)
-        fs_term = (5.0e5 * mu) / (rho * self.clearance * utot)
-        fs = (1.375e-3) * (1.0 + fs_term ** (1.0 / 3.0))
+        # Pre-compute T**1.5 and shared divisor
+        T_15 = T**1.5
+        mu = self.b_suther * T_15 / (self.s_suther + T)
+        mu_factor_mu = self._mu_factor * mu
+        fs_term = mu_factor_mu / (rho * self.clearance * utot)
+        fs = 1.375e-3 * (1.0 + fs_term ** (1.0 / 3.0))
         fs_geom = (
             np.sqrt(1.0 + mt2 / mz2) / (4.0 * self.clearance) * fs
             if self.clearance > 0
             else 0
         )
-        fr_term = 1.0e4 * self.roughness + (5.0e5 * mu) / (
+        fr_term = self._rough_factor + mu_factor_mu / (
             rho * self.clearance * utot_rotor
         )
-        fr = (1.375e-3) * (1.0 + fr_term ** (1.0 / 3.0))
+        fr = 1.375e-3 * (1.0 + fr_term ** (1.0 / 3.0))
         fr_geom = (
             np.sqrt(1.0 + (mt - mr) ** 2 / mz2) / self.clearance * fr
             if self.clearance > 0
