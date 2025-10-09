@@ -194,9 +194,9 @@ class Guyan(ModelReduction):
         self,
         rotor,
         speed,
-        include_nodes=[],
-        dof_mapping=["x", "y"],
-        include_dofs=[],
+        include_nodes=None,
+        dof_mapping=None,
+        include_dofs=None,
         **kwargs,
     ):
         self.rotor = rotor
@@ -204,6 +204,13 @@ class Guyan(ModelReduction):
         self.number_dof = rotor.number_dof
         self.M = rotor.M(speed)
         self.K = rotor.K(speed)
+
+        if include_nodes is None:
+            include_nodes = []
+        if dof_mapping is None:
+            dof_mapping = ["x", "y"]
+        if include_dofs is None:
+            include_dofs = []
 
         dof_dict = {"x": 0, "y": 1, "z": 2, "alpha": 3, "beta": 4, "theta": 5}
         local_dofs = [dof_dict[dof] for dof in dof_mapping]
@@ -233,8 +240,12 @@ class Guyan(ModelReduction):
 
         return selected_dofs
 
-    def _separate_dofs(self, include_nodes=[], local_dofs=None, include_dofs=[]):
+    def _separate_dofs(self, include_nodes=None, local_dofs=None, include_dofs=None):
         """Separate the selected DOFs from the ignored DOFs."""
+        if include_nodes is None:
+            include_nodes = []
+        if include_dofs is None:
+            include_dofs = []
         if not local_dofs:
             local_dofs = [0, 1]
 
@@ -331,7 +342,7 @@ class Guyan(ModelReduction):
         return array_reduced
 
     def revert_vector(self, array_reduced):
-        """Transform a vector from complete to reduced model.
+        """Transform a vector from reduced to complete model.
 
         Parameters
         ----------
