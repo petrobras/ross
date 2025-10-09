@@ -262,13 +262,8 @@ class LabyrinthSeal(SealElement):
         self.nc = self.n_teeth - 1
         self.np = self.n_teeth + 1
 
-        for i in range(1, self.n_teeth):
-            self.radial_clearance[i] = self.radial_clearance[0]
-            self.tooth_height[i] = self.tooth_height[0]
-            self.tooth_width[i] = self.tooth_width[0]
-
-        for i in range(1, self.nc):
-            self.pitch[i] = self.pitch[0]
+        # Arrays already initialized with np.full() in __init__
+        # No need to re-assign values that are already set
 
         self.ndof = 8 * self.nc
         self.nbw = 33
