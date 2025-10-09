@@ -1012,7 +1012,7 @@ class BearingElement(Element):
 class BearingFluidFlow(BearingElement):
     """Instantiate a bearing using inputs from its fluid flow.
 
-    .. deprecated:: 2.1.0
+    .. deprecated:: 2.0.0
         `BearingFluidFlow` is deprecated and will be removed in a future version.
         Use `PlainJournal` for advanced thermo-hydro-dynamic analysis with thermal
         effects, or `CylindricalBearing` for fast analytical calculations.

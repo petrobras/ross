@@ -11,9 +11,42 @@ from ross.bearings.lubricants import lubricants_dict
 
 
 class TiltingPad(BearingElement):
-    """This class calculates the pressure and temperature fields, equilibrium
-    position of a tilting-pad journal bearing. It is also possible to obtain the
-    stiffness and damping coefficients.
+    """Tilting-pad journal bearing - Thermo-Hydro-Dynamic (THD) model.
+
+    This class provides a **comprehensive numerical model** for tilting-pad journal
+    bearings using thermo-hydro-dynamic (THD) analysis. Each pad is treated independently
+    with its own pressure and temperature fields, pivot mechanics, and load distribution.
+
+    **Theoretical Approach:**
+
+    The model solves the **complete THD problem** for each pad using:
+
+    1. **Reynolds Equation** (for pressure field):
+       - 2D finite difference method on a structured grid (nx × nz)
+       - Accounts for pad rotation and journal motion
+       - Enforces zero pressure at pad edges (cavitation boundary)
+       - Viscosity varies spatially due to temperature field
+
+    2. **Energy Equation** (for temperature field):
+       - 2D finite difference with upwind scheme
+       - Includes viscous dissipation and heat conduction
+       - Models turbulent effects using Reynolds number-dependent viscosity
+       - Oil supply temperature as boundary condition
+
+    3. **Equilibrium Calculation**:
+       - Iterative optimization to find journal equilibrium position
+       - Two modes: match specified eccentricity or determine complete equilibrium
+       - Minimizes pad moment imbalance using Nelder-Mead optimization (fmin)
+       - Each pad rotates independently about its pivot point
+
+    4. **Dynamic Coefficients** (stiffness and damping):
+       - Uses Lund's perturbation method :cite:`lund1978`
+       - Applies small perturbations to journal position (0.5% of clearance)
+       - Applies small perturbations to journal velocity (2.5% of operating speed)
+       - Solves complete THD problem for each perturbation state
+       - Extracts coefficients from force differences
+
+    For reference check :cite:`barbosa2018`, :cite:`heinrichson2007influence` and :cite:`nicoletti1999`.
 
     Parameters
     ----------
@@ -91,10 +124,8 @@ class TiltingPad(BearingElement):
 
     References
     ----------
-    .. [1] BARBOSA, J.S. Analise de Modelos Termohidrodinamicos para Mancais de unidades geradoras Francis. 2016. Dissertacao de Mestrado. Universidade Federal de Uberlandia, Uberlandia.
-    .. [2] HEINRICHSON, N.; SANTOS, I. F.; FUERST, A., The Influence of Injection Pockets on the Performance of Tilting Pad Thrust Bearings Part I Theory. Journal of Tribology, 2007.
-    .. [3] NICOLETTI, R., Efeitos Termicos em Mancais Segmentados Hibridos Teoria e Experimento. 1999. Dissertacao de Mestrado. Universidade Estadual de Campinas, Campinas.
-    .. [4] LUND, J. W.; THOMSEN, K. K. A calculation method and data for the dynamic coefficients of oil lubricated journal bearings. Topics in fluid film bearing and rotor bearing system design and optimization, n. 1000118, 1978.
+    .. bibliography::
+        :filter: docname in docnames
 
     Attributes
     ----------
