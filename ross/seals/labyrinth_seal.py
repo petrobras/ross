@@ -85,7 +85,7 @@ class LabyrinthSeal(SealElement):
         Specify 'inter' for interlocking type labyrinths.
     gas_composition : dict
         Gas composition as a dictionary {component: molar_fraction}.
-    if gas_composition not use ccp:
+        If gas_composition is None, provide the following parameters:
         r: float
             gas constant
         gamma: float
