@@ -1012,9 +1012,21 @@ class BearingElement(Element):
 class BearingFluidFlow(BearingElement):
     """Instantiate a bearing using inputs from its fluid flow.
 
+    .. deprecated:: 2.0.0
+        `BearingFluidFlow` is deprecated and will be removed in a future version.
+        Use `PlainJournal` for advanced thermo-hydro-dynamic analysis with thermal
+        effects, or `CylindricalBearing` for fast analytical calculations.
+
     This method always creates elements with frequency-dependent coefficients.
     It calculates a set of coefficients for each frequency value appendend to
     "omega".
+
+    **Recommended alternatives:**
+
+    - For advanced analysis with thermal effects, multi-pad configurations, and
+      turbulence models, use :class:`PlainJournal` instead.
+    - For quick calculations and preliminary design, use :class:`CylindricalBearing`
+      instead.
 
     Parameters
     ----------
@@ -1126,6 +1138,14 @@ class BearingFluidFlow(BearingElement):
         scale_factor=1.0,
         color="#355d7a",
     ):
+        warnings.warn(
+            "BearingFluidFlow is deprecated and will be removed in a future version. "
+            "Use PlainJournal for advanced thermo-hydro-dynamic analysis with thermal effects, "
+            "or CylindricalBearing for fast analytical calculations.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
         self.nz = nz
         self.ntheta = ntheta
         self.length = length
@@ -1773,18 +1793,34 @@ class MagneticBearingElement(BearingElement):
 
 
 class CylindricalBearing(BearingElement):
-    """Cylindrical hydrodynamic bearing.
+    """Cylindrical hydrodynamic bearing - Simplified analytical model.
 
-    A cylindrical hydrodynamic bearing modeled as per
-    :cite:`friswell2010dynamics` (page 177) assuming the following:
+    This class provides a **fast, simplified** bearing model suitable for preliminary
+    design and basic analysis. Uses closed-form analytical solutions from
+    :cite:`friswell2010dynamics` (page 177).
 
-    - the flow is laminar and Reynolds’s equation applies
+    **When to use this class:**
+    - Quick calculations and preliminary design
+    - Educational purposes and basic understanding
+    - Simple bearing geometries
+    - When computational speed is critical
+
+    **For advanced analysis, consider using PlainJournal instead, which provides:**
+    - Thermo-hydro-dynamic (THD) effects
+    - Multiple bearing geometries (circular, lobe, elliptical)
+    - Multi-pad configurations
+    - Turbulence models
+    - Oil starvation/flooding conditions
+
+    Assumptions
+    -----------
+    - the flow is laminar and Reynolds's equation applies
     - the bearing is very short, so that L /D << 1, where L is the bearing length and
     D is the bearing diameter, which means that the pressure gradients are much
     larger in the axial than in the circumferential direction
     - the lubricant pressure is zero at the edges of the bearing
     - the bearing is operating under steady running conditions
-    - the lubricant properties do not vary substantially throughout the oil film
+    - the lubricant properties do not vary substantially throughout the oil film (isothermal)
     - the shaft does not tilt in the bearing
 
     Parameters

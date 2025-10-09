@@ -13,10 +13,29 @@ from ross.bearings.lubricants import lubricants_dict
 
 
 class PlainJournal(BearingElement):
-    """This class calculates the pressure and temperature field in oil film of
-    a plain journal bearing. It is also possible to obtain the stiffness and
-    damping coefficients.
-    The basic references for the code is found in :cite:t:`barbosa2018`, :cite:t:`daniel2012` and :cite:t:`nicoletti1999`.
+    """Plain journal bearing - Advanced thermo-hydro-dynamic model.
+
+    This class provides a **comprehensive numerical bearing model** for detailed design
+    and optimization. Solves full Reynolds equation with thermal effects on a discretized
+    grid to calculate pressure, temperature fields, and bearing coefficients.
+
+    **When to use this class:**
+    - Detailed bearing design and optimization
+    - Thermo-hydro-dynamic (THD) analysis
+    - Complex bearing geometries (circular, lobe, elliptical)
+    - Multi-pad configurations with preload
+    - High-speed applications requiring turbulence models
+    - Oil starvation or flooded conditions
+    - When accuracy is more important than computational speed
+
+    **For quick calculations and preliminary design, consider using CylindricalBearing
+    instead, which provides:**
+    - Fast analytical solutions
+    - Simple geometry assumptions
+    - Closed-form coefficients
+
+    The basic references for the code are found in :cite:t:`barbosa2018`,
+    :cite:t:`daniel2012` and :cite:t:`nicoletti1999`.
 
     Parameters
     ----------
@@ -614,7 +633,11 @@ class PlainJournal(BearingElement):
                         self.theta_vol_groove[n_p] = 1
 
         # self.P must receive the adimensional pressure field
-        self.P = Pdim * (self.radial_clearance**2) / (self.reference_viscosity * speed * (self.journal_radius**2))
+        self.P = (
+            Pdim
+            * (self.radial_clearance**2)
+            / (self.reference_viscosity * speed * (self.journal_radius**2))
+        )
         self.Theta_vol = Theta_vol
 
         # Reshape dimensional pressure field from (axial, circumferential, pads) to (axial, all_other_dims)
