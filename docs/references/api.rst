@@ -23,8 +23,12 @@ Elements
     SealElement
     BallBearingElement
     RollerBearingElement
+    CylindricalBearing
     PlainJournal
-    BearingFluidFlow
+    TiltingPad
+    ThrustPad
+    LabyrinthSeal
+    HolePatternSeal
     MagneticBearingElement
     GearElement
     CouplingElement
@@ -74,3 +78,12 @@ These are classes used to store results and to provide useful methods such as pl
     TimeResponseResults
     Level1Results
     UCSResults
+
+Deprecated Classes
+------------------
+These classes are deprecated and will be removed in a future version. Use the recommended alternatives instead.
+
+.. autosummary::
+    :toctree: generated/deprecated
+
+    BearingFluidFlow

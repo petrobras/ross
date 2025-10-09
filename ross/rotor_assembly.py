@@ -2758,8 +2758,8 @@ class Rotor(object):
                     )
 
                 def rotor_system(step, **current_state):
-                    C1 = reduction[0](rotor.C(speed[step]))
-                    K1 = reduction[0](rotor.K(speed[step]))
+                    C1 = reduction[0](self.C(speed[step]))
+                    K1 = reduction[0](self.K(speed[step]))
 
                     return (
                         M,

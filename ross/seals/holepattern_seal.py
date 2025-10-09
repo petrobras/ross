@@ -9,7 +9,51 @@ __all__ = ["HolePatternSeal"]
 
 
 class HolePatternSeal(SealElement):
-    """Calculate seal with hole pattern.
+    """Hole-pattern annular seal - Bulk flow model with dynamic coefficients.
+
+    This class provides a **comprehensive numerical model** for annular seals with
+    hole (pocket) patterns using bulk flow theory. The model solves 1D compressible
+    flow equations with perturbation analysis to calculate leakage and rotordynamic
+    force coefficients.
+
+    **Theoretical Approach:**
+
+    The model solves the **1D bulk flow problem** using:
+
+    1. **Base State Calculation** (equilibrium flow):
+       - Compressible flow through annular clearance with hole patterns
+       - Governing equations for axial Mach number, temperature, and tangential Mach number
+       - Predictor-corrector integration (modified Euler method)
+       - Friction effects from both stator and rotor surfaces
+       - Inlet and exit loss modeling with adjustable coefficients
+       - Reynolds number-dependent friction factors
+       - Iterative solution to match outlet pressure using relaxation method
+
+    2. **Leakage Calculation**:
+       - Mass flow rate determined from pressure balance
+       - Choke detection (critical Mach number checking)
+       - Accounts for entrance losses, friction, and exit losses
+       - Temperature-dependent viscosity using Sutherland's law
+
+    3. **Perturbation Analysis** (for dynamic coefficients):
+       - Small harmonic perturbations in clearance (4 directions: ±X, ±Y)
+       - Linearized perturbation equations for density, temperature, velocities
+       - 4×4 system of equations solved at each axial station
+       - Predictor-corrector integration for perturbed variables
+       - Accounts for:
+         * Temporal inertia effects (mass matrix)
+         * Fluid inertia and convection
+         * Compressibility effects
+         * Friction perturbations
+         * Pressure gradient perturbations
+         * Preswirl and rotation effects
+
+    4. **Force Coefficients Extraction**:
+       - Stiffness (K): From static displacement perturbations
+       - Damping (C): From velocity perturbations at whirl frequency
+       - Mass (M): From acceleration perturbations (inertia effects)
+       - Direct and cross-coupled terms
+       - Integrated over seal length using trapezoidal rule
 
     Parameters
     ----------
@@ -47,7 +91,7 @@ class HolePatternSeal(SealElement):
         Exit loss coefficient. Default is 0.5
     gas_composition : dict
         Gas composition as a dictionary {component: molar_fraction}.
-    if gas_composition not use ccp:
+        If gas_composition is None, provide the following parameters:
         b_suther: float
             b coefficient for the Suther viscosity model
         s_suther: float
