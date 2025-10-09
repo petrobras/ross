@@ -60,6 +60,8 @@ extensions = [
 bibtex_bibfiles = ["references.bib"]
 bibtex_default_style = "alpha"
 bibtex_reference_style = "author_year"
+# Allow duplicate citations in different files
+bibtex_duplicates = "allow"
 
 # Generate the API documentation when building
 autosummary_generate = True
@@ -83,6 +85,9 @@ master_doc = "index"
 # This is also used if you do content translation via gettext catalogs.
 # Usually you set "language" from the command line for these cases.
 language = "en"
+
+# Suppress specific warnings
+suppress_warnings = ["bibtex.duplicate_citation"]
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
@@ -110,8 +115,6 @@ html_sidebars = {}
 html_theme_options = {
     "github_url": "https://github.com/petrobras/ross",
     "repository_url": "https://github.com/petrobras/ross",
-    "extra_navbar": "",
-    "navbar_footer_text": "",
 }
 html_sourcelink_suffix = ""
 html_static_path = ["_static"]
