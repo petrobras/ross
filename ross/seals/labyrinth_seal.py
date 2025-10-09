@@ -1088,11 +1088,7 @@ class LabyrinthSeal(SealElement):
                     cont = 1
                 else:
                     gmfull[i][i + j - 16] = self.gm[i][j]
-        maux = [[0 for j in range(8 * self.nc)] for i in range(8 * self.nc)]
-        for i in range(0, self.nc * 8):
-            for j in range(0, self.nc * 8):
-                maux[i][j] = gmfull[i][j]
-        A = np.array(maux)
+        A = gmfull[: 8 * self.nc, : 8 * self.nc].copy()
         lu, piv = lu_factor(A)
         for i in range(0, 8 * self.nc):
             rhs1[i] = self.rhs[i][0]
