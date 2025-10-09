@@ -5,32 +5,33 @@ from collections.abc import Iterable
 from copy import copy, deepcopy
 from itertools import chain, cycle
 from pathlib import Path
-from methodtools import lru_cache
 
 import numpy as np
 import pandas as pd
 import toml
+from methodtools import lru_cache
 from plotly import express as px
 from plotly import graph_objects as go
 from scipy import io as sio
 from scipy import linalg as la
 from scipy import signal as signal
+from scipy.integrate import cumulative_trapezoid as integrate
+from scipy.linalg import lu_factor, lu_solve
 from scipy.optimize import newton
 from scipy.sparse import linalg as las
-from scipy.integrate import cumulative_trapezoid as integrate
 
 from ross.bearing_seal_element import (
     BallBearingElement,
     BearingElement,
     BearingFluidFlow,
+    CylindricalBearing,
     MagneticBearingElement,
     RollerBearingElement,
     SealElement,
-    CylindricalBearing,
 )
-from ross.faults import Crack, MisalignmentFlex, MisalignmentRigid, Rubbing
-from ross.disk_element import DiskElement
 from ross.coupling_element import CouplingElement
+from ross.disk_element import DiskElement
+from ross.faults import Crack, MisalignmentFlex, MisalignmentRigid, Rubbing
 from ross.materials import Material, steel
 from ross.point_mass import PointMass
 from ross.results import (
@@ -46,17 +47,20 @@ from ross.results import (
     TimeResponseResults,
     UCSResults,
 )
+from ross.seals.labyrinth_seal import LabyrinthSeal
 from ross.shaft_element import ShaftElement
 from ross.units import Q_, check_units
 from ross.utils import (
-    intersection,
-    newmark,
     assemble_C_K_matrices,
-    remove_dofs,
     convert_6dof_to_4dof,
     convert_6dof_to_torsional,
+    intersection,
+    newmark,
+    remove_dofs,
 )
 from ross.seals.labyrinth_seal import LabyrinthSeal
+
+from ross.model_reduction import ModelReduction
 
 __all__ = [
     "Rotor",
@@ -826,6 +830,7 @@ class Rotor(object):
         evalues, evectors = self._eigen(
             speed, num_modes=num_modes, sparse=sparse, synchronous=synchronous
         )
+
         wn_len = num_modes // 2
         wn = (np.absolute(evalues))[:wn_len]
         wd = (np.imag(evalues))[:wn_len]
@@ -1285,10 +1290,11 @@ class Rotor(object):
         if frequency is None:
             frequency = speed
 
-        Z = np.zeros((self.ndof, self.ndof))
-        I = np.eye(self.ndof)
-
         M = self.M(frequency, synchronous=synchronous)
+        size = M.shape[0]
+
+        Z = np.zeros((size, size))
+        I = np.eye(size)
 
         # fmt: off
         A = np.vstack(
@@ -1602,70 +1608,6 @@ class Rotor(object):
 
         return sys
 
-    def _pseudo_modal(self, speed, num_modes):
-        """Pseudo-modal method.
-
-        This method can be used to apply modal transformation to reduce model
-        of the rotor system.
-
-        Parameters
-        ----------
-        speed : float
-            Rotor speed.
-        num_modes : int
-            The number of eigenvectors to consider in the modal transformation
-            with model reduction.
-
-        Returns
-        -------
-        matrix_to_modal : callable
-            Function to transform a square matrix from physical to modal space.
-        vector_to_modal : callable
-            Function to transform a vector from physical to modal space.
-        vector_from_modal : callable
-            Function to transform a vector from modal to physical space.
-
-        Examples
-        --------
-        >>> import ross as rs
-        >>> rotor = rs.rotor_example()
-        >>> size = 10000
-        >>> node = 3
-        >>> speed = 500.0
-        >>> t = np.linspace(0, 10, size)
-        >>> F = np.zeros((size, rotor.ndof))
-        >>> F[:, rotor.number_dof * node + 0] = 10 * np.cos(2 * t)
-        >>> F[:, rotor.number_dof * node + 1] = 10 * np.sin(2 * t)
-        >>> get_array = rotor._pseudo_modal(speed, num_modes=12)
-        >>> F_modal = get_array[1](F.T).T
-        >>> la.norm(F_modal) # doctest: +ELLIPSIS
-        195.466...
-        """
-
-        M = self.M(speed)
-        K_aux = self.K(speed)
-
-        # Cancel cross-coupled coefficients of bearing stiffness matrix
-        cancel_cross_coeffs = np.array([[0, 1, 0], [1, 0, 0], [0, 0, 0]])
-
-        for elm in self.bearing_elements:
-            dofs = list(elm.dof_global_index.values())
-            if elm.n_link is None:
-                K_aux[np.ix_(dofs, dofs)] -= elm.K(speed) * cancel_cross_coeffs
-            else:
-                K_aux[np.ix_(dofs, dofs)] -= elm.K(speed) * np.tile(
-                    cancel_cross_coeffs, (2, 2)
-                )
-
-        _, modal_matrix = la.eigh(K_aux, M)
-        modal_matrix = modal_matrix[:, :num_modes]
-
-        matrix_to_modal = lambda array: (modal_matrix.T @ array) @ modal_matrix
-        vector_to_modal = lambda array: modal_matrix.T @ array
-        vector_from_modal = lambda array: modal_matrix @ array
-
-        return matrix_to_modal, vector_to_modal, vector_from_modal
-
     def transfer_matrix(self, speed=None, frequency=None, modes=None):
         """Calculate the fer matrix for the frequency response function (FRF).
 
@@ -1675,9 +1617,6 @@ class Rotor(object):
             Excitation frequency. Default is rotor speed.
         speed : float, optional
             Rotating speed. Default is rotor speed (frequency).
-        modes : list, optional
-            List with modes used to calculate the matrix.
-            (all modes will be used if a list is not given).
 
         Returns
         -------
@@ -1693,33 +1632,17 @@ class Rotor(object):
         if frequency is None:
             frequency = speed
 
-        lti = self._lti(speed=speed)
-        B = lti.B
-        C = lti.C
-        D = lti.D
+        I = np.eye(self.M().shape[0])
 
-        # calculate eigenvalues and eigenvectors using la.eig to get
-        # left and right eigenvectors.
-        evals, psi = self._eigen(speed=speed, frequency=frequency)
+        lu, piv = lu_factor(
+            -(frequency**2) * self.M(frequency=frequency)
+            + 1j * frequency * (self.C(frequency=frequency) + frequency * self.G())
+            + self.K(frequency=frequency)
+        )
+        H = lu_solve((lu, piv), I)
 
-        psi_inv = la.inv(psi)
-
-        if modes is not None:
-            n = self.ndof  # n dof -> number of modes
-            m = len(modes)  # -> number of desired modes
-            # idx to get each evalue/evector and its conjugate
-            idx = np.zeros((2 * m), int)
-            idx[0:m] = modes  # modes
-            idx[m:] = range(2 * n)[-m:]  # conjugates (see how evalues are ordered)
-            evals = evals[np.ix_(idx)]
-            psi = psi[np.ix_(range(2 * n), idx)]
-            psi_inv = psi_inv[np.ix_(idx, range(2 * n))]
-
-        with np.errstate(divide="ignore", invalid="ignore"):
-            diag = np.diag([1 / (1j * frequency - lam) for lam in evals])
-            diag[np.isnan(diag)] = 0
-
-        H = C @ psi @ diag @ psi_inv @ B + D
+        if np.isnan(H).any():
+            H = np.zeros((H.shape))
 
         return H
 
@@ -1788,12 +1711,12 @@ class Rotor(object):
         --------
         >>> import ross as rs
         >>> rotor = rs.rotor_example()
-        >>> speed = np.linspace(0, 1000, 101)
+        >>> speed =np.linspace(0, 1000, 101)
         >>> response = rotor.run_freq_response(speed_range=speed)
 
         Return the response amplitude
         >>> abs(response.freq_resp) # doctest: +ELLIPSIS
-        array([[[1.00000000e-06, 1.00261725e-06, 1.01076952e-06, ...
+        array([[[0.00000000e+00, 1.00261725e-06, 1.01076952e-06, ...
 
         Return the response phase
         >>> np.angle(response.freq_resp) # doctest: +ELLIPSIS
@@ -1810,7 +1733,7 @@ class Rotor(object):
         Selecting the disirable modes, if you want a reduced model:
         >>> response = rotor.run_freq_response(speed_range=speed, modes=[0, 1, 2, 3, 4])
         >>> abs(response.freq_resp) # doctest: +ELLIPSIS
-        array([[[2.00154633e-07, 2.02422522e-07, 2.09522044e-07, ...
+        array([[[0.00000000e+00, 1.00261725e-06, 1.01076952e-06, ...
 
         Plotting frequency response function:
         >>> fig = response.plot(inp=13, out=13)
@@ -1877,14 +1800,12 @@ class Rotor(object):
         accl_resp = np.empty((self.ndof, self.ndof, len(speed_range)), dtype=complex)
 
         if free_free:
-            transfer_matrix = lambda s, m: self.transfer_matrix(
-                speed=0, modes=m, frequency=s
-            )
+            transfer_matrix = lambda s: self.transfer_matrix(speed=0, frequency=s)
         else:
-            transfer_matrix = lambda s, m: self.transfer_matrix(speed=s, modes=m)
+            transfer_matrix = lambda s: self.transfer_matrix(speed=s)
 
         for i, speed in enumerate(speed_range):
-            H = transfer_matrix(speed, modes)
+            H = transfer_matrix(speed)
             freq_resp[..., i] = H
             velc_resp[..., i] = 1j * speed * H
             accl_resp[..., i] = -(speed**2) * H
@@ -2006,7 +1927,6 @@ class Rotor(object):
             forced_resp[:, i] = freq_resp.freq_resp[..., i] @ force[..., i]
             velc_resp[:, i] = freq_resp.velc_resp[..., i] @ force[..., i]
             accl_resp[:, i] = freq_resp.accl_resp[..., i] @ force[..., i]
-
         forced_resp = ForcedResponseResults(
             rotor=self,
             forced_resp=forced_resp,
@@ -2219,7 +2139,7 @@ class Rotor(object):
 
         Return the response phase
         >>> np.angle(response.forced_resp) # doctest: +ELLIPSIS
-        array([[ 0.00000000e+00, ...
+        array([[ 0.        ,  0.        ,  0.        , ...
 
         Using clustered points option.
         Set `cluster_points=True` and choose how many modes the method must search and
@@ -2342,9 +2262,28 @@ class Rotor(object):
             of the Newmark method if it is used (e.g. `gamma`, `beta`, `tol`, ...).
             See `newmark` for more details. Other optional arguments are listed
             below.
-        num_modes : int, optional
-            If `num_modes` is passed as argument, the pseudo-modal method is applied reducing
-            the model to the chosen number of modes.
+        model_reduction : dict, optional
+            When `model_reduction` is provided, the corresponding reduction method is initialized.
+            Dict keys:
+                method : str, optional
+                    Reduction method to use, e.g., "guyan" or "pseudomodal".
+                    Defaults to "guyan".
+                num_modes : int, optional
+                    Number of modes to reduce the model to, if pseudo-modal method is considered.
+                include_nodes : list of int, optional
+                    List of the nodes to be included, if Guyan reduction method is considered.
+                dof_mapping : list of str, optional
+                    List of the local DOFs to be considered when using Guyan reduction method.
+                    Valid values are: 'x', 'y', 'z', 'alpha', 'beta', 'theta', corresponding to:
+                        - 'x' and 'y': lateral translations
+                        - 'z': axial translation
+                        - 'alpha': rotation about the x-axis
+                        - 'beta': rotation about the y-axis
+                        - 'theta': torsional rotation (about the z-axis)
+                    Default is ['x', 'y'].
+                include_dofs (list of int, optional):
+                    Additional degrees of freedom (DOFs) to include in the reduction, such as DOFs
+                    with applied forces or probe locations when using Guyan reduction method.
         add_to_RHS : callable, optional
             An optional function that computes and returns an additional array to be added to
             the right-hand side of the equation of motion. This function should take the time
@@ -2385,23 +2324,37 @@ class Rotor(object):
         speed_is_array = isinstance(speed, Iterable)
         speed_ref = np.mean(speed) if speed_is_array else speed
 
-        # Check if the pseudo-modal method has to be applied
-        num_modes = kwargs.get("num_modes")
+        # Check if the model reduction has to be applied
+        model_reduction = kwargs.get("model_reduction")
+        if model_reduction:
+            num_modes = model_reduction.get("num_modes")
+            method = model_reduction.get("method", "guyan")
 
-        if num_modes and num_modes > 0:
-            kwargs.pop("num_modes")
-            print("Running pseudo-modal method, number of modes =", num_modes)
-            get_array = self._pseudo_modal(speed_ref, num_modes)
+            if num_modes or method == "pseudomodal":
+                method = "pseudomodal"
+            else:
+                force_dofs = list(set(np.where(F != 0)[1]))
+                add_dofs = list(model_reduction.get("include_dofs", []))
+                model_reduction["include_dofs"] = force_dofs + add_dofs
+
+            model_reduction["method"] = method
+
+            print(f"Running with model reduction: {method}")
+            mr = ModelReduction(rotor=self, speed=speed_ref, **model_reduction)
+            reduction = [mr.reduce_matrix, mr.reduce_vector, mr.revert_vector]
+
+            kwargs.pop("model_reduction")
+
         else:
             print("Running direct method")
             return_array = lambda array: array
-            get_array = [return_array for j in range(3)]
+            reduction = [return_array for j in range(3)]
 
         # Assemble matrices
-        M = get_array[0](kwargs.get("M", self.M()))
-        C2 = get_array[0](kwargs.get("G", self.G()))
-        K2 = get_array[0](kwargs.get("Ksdt", self.Ksdt()))
-        F = get_array[1](F.T).T
+        M = reduction[0](kwargs.get("M", self.M()))
+        C2 = reduction[0](kwargs.get("G", self.G()))
+        K2 = reduction[0](kwargs.get("Ksdt", self.Ksdt()))
+        F = reduction[1](F.T).T
 
         # Consider any additional RHS function (extra forces)
         add_to_RHS = kwargs.get("add_to_RHS")
@@ -2409,13 +2362,13 @@ class Rotor(object):
         if add_to_RHS is None:
             forces = lambda step, **curr_state: F[step, :]
         else:
-            forces = lambda step, **curr_state: F[step, :] + get_array[1](
+            forces = lambda step, **curr_state: F[step, :] + reduction[1](
                 add_to_RHS(
                     step,
                     time_step=curr_state.get("dt"),
-                    disp_resp=get_array[2](curr_state.get("y")),
-                    velc_resp=get_array[2](curr_state.get("ydot")),
-                    accl_resp=get_array[2](curr_state.get("y2dot")),
+                    disp_resp=reduction[2](curr_state.get("y")),
+                    velc_resp=reduction[2](curr_state.get("ydot")),
+                    accl_resp=reduction[2](curr_state.get("y2dot")),
                 )
             )
 
@@ -2446,8 +2399,8 @@ class Rotor(object):
                     )
 
             else:  # Option 2
-                C1 = get_array[0](kwargs.get("C", self.C(speed_ref)))
-                K1 = get_array[0](kwargs.get("K", self.K(speed_ref)))
+                C1 = reduction[0](kwargs.get("C", self.C(speed_ref)))
+                K1 = reduction[0](kwargs.get("K", self.K(speed_ref)))
 
                 rotor_system = lambda step, **current_state: (
                     M,
@@ -2457,8 +2410,8 @@ class Rotor(object):
                 )
 
         else:  # Option 3
-            C1 = get_array[0](kwargs.get("C", self.C(speed_ref)))
-            K1 = get_array[0](kwargs.get("K", self.K(speed_ref)))
+            C1 = reduction[0](kwargs.get("C", self.C(speed_ref)))
+            K1 = reduction[0](kwargs.get("K", self.K(speed_ref)))
 
             rotor_system = lambda step, **current_state: (
                 M,
@@ -2469,7 +2422,7 @@ class Rotor(object):
 
         size = len(M)
         response = newmark(rotor_system, t, size, **kwargs)
-        yout = get_array[2](response.T).T
+        yout = reduction[2](response.T).T
         return t, yout
 
     def time_response(self, speed, F, t, ic=None, method="default", **kwargs):
@@ -2496,7 +2449,7 @@ class Rotor(object):
             of the Newmark method if it is used (e.g. gamma, beta, tol, ...).
             See `ross.utils.newmark` for more details.
             Other keyword arguments can also be passed to be used in numerical
-            integration (e.g. num_modes, add_to_RHS).
+            integration (e.g. model_reduction, add_to_RHS).
             See `Rotor.integrate_system` for more details.
 
         Returns
@@ -3165,7 +3118,7 @@ class Rotor(object):
             of the Newmark method if it is used (e.g. gamma, beta, tol, ...).
             See `ross.utils.newmark` for more details.
             Other keyword arguments can also be passed to be used in numerical
-            integration (e.g. num_modes, add_to_RHS).
+            integration (e.g. model_reduction, add_to_RHS).
             See `Rotor.integrate_system` for more details.
 
         Returns
@@ -3278,7 +3231,7 @@ class Rotor(object):
             of the Newmark method if it is used (e.g. gamma, beta, tol, ...).
             See `ross.utils.newmark` for more details.
             Other keyword arguments can also be passed to be used in numerical
-            integration (e.g. num_modes).
+            integration (e.g. model_reduction).
             See `Rotor.integrate_system` for more details.
 
         Returns
@@ -3306,9 +3259,9 @@ class Rotor(object):
         ...    mis_distance=2e-4,
         ...    input_torque=0,
         ...    load_torque=0,
-        ...    num_modes=12,  # Pseudo-modal method
+        ...    model_reduction={"num_modes": 12},  # Pseudo-modal method
         ... )
-        Running pseudo-modal method, number of modes = 12
+        Running with model reduction: pseudomodal
         >>> probe1 = Probe(14, 0)
         >>> probe2 = Probe(22, 0)
         >>> fig1 = results.plot_1d([probe1, probe2])
@@ -3404,7 +3357,7 @@ class Rotor(object):
             of the Newmark method if it is used (e.g. gamma, beta, tol, ...).
             See `ross.utils.newmark` for more details.
             Other keyword arguments can also be passed to be used in numerical
-            integration (e.g. num_modes).
+            integration (e.g. model_reduction).
             See `Rotor.integrate_system` for more details.
 
         Returns
@@ -3433,9 +3386,9 @@ class Rotor(object):
         ...    unbalance_phase=[-np.pi / 2, 0],
         ...    speed=Q_(1200, "RPM"),
         ...    t=np.arange(0, 0.5, 0.0001),
-        ...    num_modes=12,  # Pseudo-modal method
+        ...    model_reduction={"num_modes": 12},  # Pseudo-modal method
         ... )
-        Running pseudo-modal method, number of modes = 12
+        Running with model reduction: pseudomodal
         >>> probe1 = Probe(14, 0)
         >>> probe2 = Probe(22, 0)
         >>> fig1 = results.plot_1d([probe1, probe2])
@@ -3510,7 +3463,7 @@ class Rotor(object):
             of the Newmark method if it is used (e.g. gamma, beta, tol, ...).
             See `ross.utils.newmark` for more details.
             Other keyword arguments can also be passed to be used in numerical
-            integration (e.g. num_modes).
+            integration (e.g. model_reduction).
             See `Rotor.integrate_system` for more details.
 
         Returns
@@ -3536,9 +3489,9 @@ class Rotor(object):
         ...    crack_model="Mayes",
         ...    speed=Q_(1200, "RPM"),
         ...    t=np.arange(0, 0.5, 0.0001),
-        ...    num_modes=12, # Pseudo-modal method
+        ...    model_reduction={"num_modes": 12},  # Pseudo-modal method
         ... )
-        Running pseudo-modal method, number of modes = 12
+        Running with model reduction: pseudomodal
         >>> probe1 = Probe(14, 0)
         >>> probe2 = Probe(22, 0)
         >>> fig1 = results.plot_1d([probe1, probe2])

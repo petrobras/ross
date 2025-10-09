@@ -1,12 +1,12 @@
 import numpy as np
 import sys
-import ccp
 from scipy.linalg import lu_factor, lu_solve
 from numpy.linalg import cond
 import multiprocessing
 from ross import SealElement
 from ross.units import check_units
 import multiprocessing
+import ccp
 
 __all__ = ["LabyrinthSeal"]
 
@@ -50,7 +50,7 @@ class LabyrinthSeal(SealElement):
         Specify 'inter' for interlocking type labyrinths.
     gas_composition : dict
         Gas composition as a dictionary {component: molar_fraction}.
-    if gas composition not 'AIR':
+    if gas_composition not use ccp:
         r: float
             gas constant
         gamma: float
@@ -88,16 +88,13 @@ class LabyrinthSeal(SealElement):
     ...     pre_swirl_ratio=0.98,
     ...     frequency=Q_([5000, 8000, 11000], "RPM"),
     ...     n_teeth=16,
-    ...     shaft_radius=Q_(72.5,"mm"),
-    ...     radial_clearance=Q_(0.3,"mm"),
-    ...     pitch=Q_(3.175,"mm"),
-    ...     tooth_height=Q_(3.175,"mm"),
-    ...     tooth_width=Q_(0.1524,"mm"),
+    ...     shaft_radius=Q_(72.5, "mm"),
+    ...     radial_clearance=Q_(0.3, "mm"),
+    ...     pitch=Q_(3.175, "mm"),
+    ...     tooth_height=Q_(3.175, "mm"),
+    ...     tooth_width=Q_(0.1524, "mm"),
     ...     seal_type="inter",
-    ...     r=287.05,
-    ...     tz=[283.15, 282.60903080958565],
-    ...     muz=[1.7746561138374613e-05, 1.7687886306966975e-05],
-    ...     gamma=1.41,
+    ...     gas_composition={"Nitrogen": 0.79, "Oxygen": 0.21},
     ... )
     """
 
@@ -131,10 +128,10 @@ class LabyrinthSeal(SealElement):
         self.print_results = print_results
         self.gas_composition = gas_composition
         if self.gas_composition is not None:
-            state_in = ccp.State.define(
+            state_in = ccp.State(
                 p=inlet_pressure, T=inlet_temperature, fluid=self.gas_composition
             )
-            state_out = ccp.State.define(
+            state_out = ccp.State(
                 p=outlet_pressure, h=state_in.h(), fluid=self.gas_composition
             )
 
@@ -197,8 +194,14 @@ class LabyrinthSeal(SealElement):
 
         coefficients_dict = {}
         if kwargs.get("kxx") is None:
-            pool = multiprocessing.Pool()
-            coefficients_dict_list = pool.map(self.run, frequency)
+            # Use multiprocessing only when beneficial (>4 frequencies)
+            # For small workloads, sequential execution avoids process spawn overhead
+            if len(frequency) > 4:
+                with multiprocessing.Pool() as pool:
+                    coefficients_dict_list = pool.map(self.run, frequency)
+            else:
+                coefficients_dict_list = [self.run(freq) for freq in frequency]
+
             coefficients_dict = {k: [] for k in coefficients_dict_list[0].keys()}
             for d in coefficients_dict_list:
                 for k in coefficients_dict:
@@ -259,13 +262,8 @@ class LabyrinthSeal(SealElement):
         self.nc = self.n_teeth - 1
         self.np = self.n_teeth + 1
 
-        for i in range(1, self.n_teeth):
-            self.radial_clearance[i] = self.radial_clearance[0]
-            self.tooth_height[i] = self.tooth_height[0]
-            self.tooth_width[i] = self.tooth_width[0]
-
-        for i in range(1, self.nc):
-            self.pitch[i] = self.pitch[0]
+        # Arrays already initialized with np.full() in __init__
+        # No need to re-assign values that are already set
 
         self.ndof = 8 * self.nc
         self.nbw = 33
@@ -1091,11 +1089,7 @@ class LabyrinthSeal(SealElement):
                     cont = 1
                 else:
                     gmfull[i][i + j - 16] = self.gm[i][j]
-        maux = [[0 for j in range(8 * self.nc)] for i in range(8 * self.nc)]
-        for i in range(0, self.nc * 8):
-            for j in range(0, self.nc * 8):
-                maux[i][j] = gmfull[i][j]
-        A = np.array(maux)
+        A = gmfull[: 8 * self.nc, : 8 * self.nc].copy()
         lu, piv = lu_factor(A)
         for i in range(0, 8 * self.nc):
             rhs1[i] = self.rhs[i][0]
