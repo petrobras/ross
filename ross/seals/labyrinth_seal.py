@@ -194,8 +194,14 @@ class LabyrinthSeal(SealElement):
 
         coefficients_dict = {}
         if kwargs.get("kxx") is None:
-            pool = multiprocessing.Pool()
-            coefficients_dict_list = pool.map(self.run, frequency)
+            # Use multiprocessing only when beneficial (>4 frequencies)
+            # For small workloads, sequential execution avoids process spawn overhead
+            if len(frequency) > 4:
+                with multiprocessing.Pool() as pool:
+                    coefficients_dict_list = pool.map(self.run, frequency)
+            else:
+                coefficients_dict_list = [self.run(freq) for freq in frequency]
+
             coefficients_dict = {k: [] for k in coefficients_dict_list[0].keys()}
             for d in coefficients_dict_list:
                 for k in coefficients_dict:
