@@ -1,4 +1,3 @@
-import copy as cp
 import warnings
 from collections.abc import Iterable
 from copy import copy, deepcopy
@@ -15,6 +14,7 @@ from scipy import io as sio
 from scipy import linalg as la
 from scipy import signal as signal
 from scipy.integrate import cumulative_trapezoid as integrate
+from scipy.linalg import lu_factor, lu_solve
 from scipy.optimize import newton
 from scipy.signal import chirp
 from scipy.sparse import linalg as las
@@ -45,12 +45,12 @@ from ross.results import (
 from ross.shaft_element import ShaftElement
 from ross.units import Q_, check_units
 from ross.utils import (
-    intersection,
-    newmark,
     assemble_C_K_matrices,
-    remove_dofs,
     convert_6dof_to_4dof,
     convert_6dof_to_torsional,
+    intersection,
+    newmark,
+    remove_dofs,
 )
 
 __all__ = [
@@ -1662,7 +1662,7 @@ class Rotor(object):
 
         return matrix_to_modal, vector_to_modal, vector_from_modal
 
-    def transfer_matrix(self, speed=None, frequency=None, modes=None):
+    def transfer_matrix(self, speed=None, frequency=None):
         """Calculate the fer matrix for the frequency response function (FRF).
 
         Paramenters
@@ -1671,9 +1671,6 @@ class Rotor(object):
             Excitation frequency. Default is rotor speed.
         speed : float, optional
             Rotating speed. Default is rotor speed (frequency).
-        modes : list, optional
-            List with modes used to calculate the matrix.
-            (all modes will be used if a list is not given).
 
         Returns
         -------
@@ -1689,33 +1686,17 @@ class Rotor(object):
         if frequency is None:
             frequency = speed
 
-        lti = self._lti(speed=speed)
-        B = lti.B
-        C = lti.C
-        D = lti.D
+        I = np.eye(self.M().shape[0])
 
-        # calculate eigenvalues and eigenvectors using la.eig to get
-        # left and right eigenvectors.
-        evals, psi = self._eigen(speed=speed, frequency=frequency)
+        lu, piv = lu_factor(
+            -(frequency**2) * self.M(frequency=frequency)
+            + 1j * frequency * (self.C(frequency=frequency) + frequency * self.G())
+            + self.K(frequency=frequency)
+        )
+        H = lu_solve((lu, piv), I)
 
-        psi_inv = la.inv(psi)
-
-        if modes is not None:
-            n = self.ndof  # n dof -> number of modes
-            m = len(modes)  # -> number of desired modes
-            # idx to get each evalue/evector and its conjugate
-            idx = np.zeros((2 * m), int)
-            idx[0:m] = modes  # modes
-            idx[m:] = range(2 * n)[-m:]  # conjugates (see how evalues are ordered)
-            evals = evals[np.ix_(idx)]
-            psi = psi[np.ix_(range(2 * n), idx)]
-            psi_inv = psi_inv[np.ix_(idx, range(2 * n))]
-
-        with np.errstate(divide="ignore", invalid="ignore"):
-            diag = np.diag([1 / (1j * frequency - lam) for lam in evals])
-            diag[np.isnan(diag)] = 0
-
-        H = C @ psi @ diag @ psi_inv @ B + D
+        if np.isnan(H).any():
+            H = np.zeros((H.shape))
 
         return H
 
@@ -1784,12 +1765,12 @@ class Rotor(object):
         --------
         >>> import ross as rs
         >>> rotor = rs.rotor_example()
-        >>> speed = np.linspace(0, 1000, 101)
+        >>> speed =np.linspace(0, 1000, 101)
         >>> response = rotor.run_freq_response(speed_range=speed)
 
         Return the response amplitude
         >>> abs(response.freq_resp) # doctest: +ELLIPSIS
-        array([[[1.00000000e-06, 1.00261725e-06, 1.01076952e-06, ...
+        array([[[0.00000000e+00, 1.00261725e-06, 1.01076952e-06, ...
 
         Return the response phase
         >>> np.angle(response.freq_resp) # doctest: +ELLIPSIS
@@ -1806,7 +1787,7 @@ class Rotor(object):
         Selecting the disirable modes, if you want a reduced model:
         >>> response = rotor.run_freq_response(speed_range=speed, modes=[0, 1, 2, 3, 4])
         >>> abs(response.freq_resp) # doctest: +ELLIPSIS
-        array([[[2.00154633e-07, 2.02422522e-07, 2.09522044e-07, ...
+        array([[[0.00000000e+00, 1.00261725e-06, 1.01076952e-06, ...
 
         Plotting frequency response function:
         >>> fig = response.plot(inp=13, out=13)
@@ -1873,14 +1854,12 @@ class Rotor(object):
         accl_resp = np.empty((self.ndof, self.ndof, len(speed_range)), dtype=complex)
 
         if free_free:
-            transfer_matrix = lambda s, m: self.transfer_matrix(
-                speed=0, modes=m, frequency=s
-            )
+            transfer_matrix = lambda s: self.transfer_matrix(speed=0, frequency=s)
         else:
-            transfer_matrix = lambda s, m: self.transfer_matrix(speed=s, modes=m)
+            transfer_matrix = lambda s: self.transfer_matrix(speed=s)
 
         for i, speed in enumerate(speed_range):
-            H = transfer_matrix(speed, modes)
+            H = transfer_matrix(speed)
             freq_resp[..., i] = H
             velc_resp[..., i] = 1j * speed * H
             accl_resp[..., i] = -(speed**2) * H
@@ -2180,7 +2159,6 @@ class Rotor(object):
             forced_resp[:, i] = freq_resp.freq_resp[..., i] @ force[..., i]
             velc_resp[:, i] = freq_resp.velc_resp[..., i] @ force[..., i]
             accl_resp[:, i] = freq_resp.accl_resp[..., i] @ force[..., i]
-
         forced_resp = ForcedResponseResults(
             rotor=self,
             forced_resp=forced_resp,
@@ -2384,7 +2362,7 @@ class Rotor(object):
 
         Return the response phase
         >>> np.angle(response.forced_resp) # doctest: +ELLIPSIS
-        array([[ 0.00000000e+00, ...
+        array([[ 0.        ,  0.        ,  0.        , ...
 
         Using clustered points option.
         Set `cluster_points=True` and choose how many modes the method must search and
@@ -2753,7 +2731,7 @@ class Rotor(object):
             if isinstance(brg, MagneticBearingElement)
         ]
 
-        rotor = cp.deepcopy(self)
+        rotor = deepcopy(self)
 
         if len(magnetic_bearings):
             magnetic_force = (

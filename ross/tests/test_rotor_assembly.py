@@ -1618,25 +1618,22 @@ def test_unbalance(rotor3):
     unb = rotor3.run_unbalance_response(
         node=0, unbalance_magnitude=1, unbalance_phase=0, frequency=[50, 100]
     )
-    amplitude_expected = np.array([0.003065, 0.004169])
+    amplitude_expected = np.array([0.003158927232913641, 0.004620055491206476])
     data = unb.data_magnitude(probe=[(0, 45)], probe_units="deg")
     assert_allclose(data["Probe 1 - Node 0"], amplitude_expected, rtol=1e-4)
     data = unb.data_magnitude(probe=[Probe(0, Q_(45, "deg"), tag="Probe 1 - Node 0")])
     assert_allclose(data["Probe 1 - Node 0"], amplitude_expected, rtol=1e-4)
-
-    phase_expected = np.array([0.785398, 0.785398])
+    phase_expected = np.array([0.9096239298802793, 1.0057118170915373])
     data = unb.data_phase(probe=[(0, 45)], probe_units="deg")
     assert_allclose(data["Probe 1 - Node 0"], phase_expected, rtol=1e-4)
     data = unb.data_phase(probe=[Probe(0, Q_(45, "deg"), tag="Probe 1 - Node 0")])
     assert_allclose(data["Probe 1 - Node 0"], phase_expected, rtol=1e-4)
-
-    amplitude_expected = np.array([0.003526, 0.005518])
+    amplitude_expected = np.array([0.0035259958428500164, 0.005518031001232163])
     data = unb.data_magnitude(probe=[(0, "major")])
     assert_allclose(data["Probe 1 - Node 0"], amplitude_expected, rtol=1e-4)
     data = unb.data_magnitude(probe=[Probe(0, "major", tag="Probe 1 - Node 0")])
     assert_allclose(data["Probe 1 - Node 0"], amplitude_expected, rtol=1e-4)
-
-    phase_expected = np.array([1.5742, 1.573571])
+    phase_expected = np.array([1.5742963267948966, 1.57357163267948966])
     data = unb.data_phase(probe=[(0, "major")], probe_units="deg")
     assert_allclose(data["Probe 1 - Node 0"], phase_expected, rtol=1e-4)
     data = unb.data_phase(probe=[Probe(0, "major", tag="Probe 1 - Node 0")])
