@@ -173,7 +173,7 @@ class GearElement(DiskElement):
             The normal pressure angle of the gear (rad).
             Default is 20 deg (converted to rad).
         tag : str, optional
-            A tag to name the element. 
+            A tag to name the element.
             Default is None.
         helix_angle: float, pint.Quantity, optional
             Value of helix angle for helical gears. Default is 0 representing spur gear.

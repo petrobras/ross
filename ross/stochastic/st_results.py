@@ -1160,7 +1160,7 @@ class ST_TimeResponseResults(ST_Results):
                 try:
                     probe_tag = p[2]
                 except IndexError:
-                    probe_tag = f"Probe {i+1} - Node {p[0]}"
+                    probe_tag = f"Probe {i + 1} - Node {p[0]}"
 
             fix_dof = (node - nodes[-1] - 1) * ndof // 2 if node in link_nodes else 0
             dofx = ndof * node - fix_dof
@@ -1757,7 +1757,7 @@ class ST_ForcedResponseResults(ST_Results):
                 try:
                     probe_tag = p[2]
                 except IndexError:
-                    probe_tag = f"Probe {i+1} - Node {p[0]}"
+                    probe_tag = f"Probe {i + 1} - Node {p[0]}"
 
             vector = self._calculate_major_axis_per_node(
                 node=node, angle=angle, amplitude_units=amplitude_units
@@ -1921,7 +1921,7 @@ class ST_ForcedResponseResults(ST_Results):
                 try:
                     probe_tag = p[2]
                 except IndexError:
-                    probe_tag = f"Probe {i+1} - Node {p[0]}"
+                    probe_tag = f"Probe {i + 1} - Node {p[0]}"
 
             vector = self._calculate_major_axis_per_node(
                 node=node, angle=angle, amplitude_units=amplitude_units
@@ -2088,7 +2088,7 @@ class ST_ForcedResponseResults(ST_Results):
                 try:
                     probe_tag = p[2]
                 except IndexError:
-                    probe_tag = f"Probe {i+1} - Node {p[0]}"
+                    probe_tag = f"Probe {i + 1} - Node {p[0]}"
 
             mag = self._calculate_major_axis_per_node(
                 node=node, angle=angle, amplitude_units=amplitude_units
