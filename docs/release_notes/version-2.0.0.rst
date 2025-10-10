@@ -156,6 +156,41 @@ Added animation capability to orbit plots with ``animation=True`` parameter. Vis
 - Easier identification of motion patterns
 
 
+AMB Sensitivity Analysis
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Added ``run_amb_sensitivity()`` method for computing Active Magnetic Bearing (AMB) sensitivities according to ISO 14839-3 standard. This enables:
+
+- Open-loop, closed-loop, and sensitivity transfer functions calculation
+- Compliance with API STANDARD 617 stability assessment requirements
+- Chirp disturbance signal injection for frequency response analysis
+- Multiple AMB analysis with configurable sensor positions
+- Time-domain and frequency-domain visualization
+
+The method returns a ``SensitivityResults`` object with attributes for magnitude, phase, and maximum sensitivities, plus plotting methods for both frequency-domain (``plot()``) and time-domain (``plot_run_time_results()``) visualization.
+
+.. code-block:: python
+
+   rotor_amb = rs.rotor_amb_example()
+
+   sensitivity_results = rotor_amb.run_amb_sensitivity(
+       speed=0,
+       t_max=5,
+       dt=1e-4,
+       disturbance_amplitude=10e-6,
+       disturbance_min_frequency=0.01,
+       disturbance_max_frequency=150,
+       amb_tags=["Magnetic Bearing 0", "Magnetic Bearing 1"],
+       sensors_theta=45,
+   )
+
+   # Access maximum sensitivity for a specific bearing
+   max_sens = sensitivity_results.max_abs_sensitivities["Magnetic Bearing 0"]["x"]
+
+   # Plot frequency response
+   fig = sensitivity_results.plot()
+
+
 ROSS GPT Integration
 ^^^^^^^^^^^^^^^^^^^^
 
