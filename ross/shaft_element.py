@@ -398,7 +398,7 @@ class ShaftElement(Element):
             f"\nLeft Out. Diam.  (m): {self.odl:{10}.{5}}"
             f"\nRight Int. Diam. (m): {self.idr:{10}.{5}}"
             f"\nRight Out. Diam. (m): {self.odr:{10}.{5}}"
-            f'\n{35*"-"}'
+            f"\n{35 * '-'}"
             f"\n{self.material}"
         )
 
