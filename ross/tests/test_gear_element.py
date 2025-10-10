@@ -54,6 +54,7 @@ def test_gyroscopic_matrix_gear(gear):
 
     assert_almost_equal(gear.G(), Gg, decimal=5)
 
+
 def test_gyroscopic_matrix_gear(gear):
     # fmt: off
     Gg = np.array([[0., 0., 0.,     0.,    0., 0.],
@@ -65,5 +66,3 @@ def test_gyroscopic_matrix_gear(gear):
     # fmt: on
 
     assert_almost_equal(gear.G(), Gg, decimal=5)
-
-
