@@ -20,15 +20,34 @@ The ``ModelReduction`` class provides methods to reduce matrices and vectors, an
 
    import ross as rs
 
-   rotor = rs.rotor_example()
-   mr = rs.ModelReduction(
-       rotor=rotor,
-       speed=500.0,
-       method="guyan",
-       include_dofs=[dofx, dofy]
-   )
-   F_reduced = mr.reduce_vector(F.T).T
+    compressor = rs.compressor_example()
 
+    dt = 1e-4
+    t = np.arange(0, 10, dt)
+    speed = 600
+
+    node = [29]
+    unb_mag = [0.003]
+    unb_phase = [0]
+
+    probe_nodes = [30]
+
+    # Unbalance force
+    F = compressor.unbalance_force_over_time(
+        node=node, magnitude=unb_mag, phase=unb_phase, omega=speed, t=t
+    )
+
+    response = compressor.run_time_response(
+        speed,
+        F.T,
+        t,
+        method="newmark",
+        model_reduction={
+            "method": "guyan",
+            "include_nodes": probe_nodes, # Make sure to include output nodes
+            "dof_mapping": ["x", "y"],
+        },
+    )
 
 Thermo-Hydro-Dynamic Tilting-Pad Bearings
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
