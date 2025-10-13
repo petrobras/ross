@@ -726,8 +726,14 @@ class Rotor(object):
         for i in range(len(target_elements)):
             elem = target_elements[i]
 
-            left_elem = elem.create_modified(L=(elem.L - new_elems_length[i]))
-            right_elem = elem.create_modified(L=new_elems_length[i], n=(elem.n + 1))
+            left_length = elem.L - new_elems_length[i]
+            id_interp = np.interp(left_length, [0, elem.L], [elem.idl, elem.idr])
+            od_interp = np.interp(left_length, [0, elem.L], [elem.odl, elem.odr])
+
+            left_elem = elem.copy(L=left_length, idr=id_interp, odr=od_interp)
+            right_elem = elem.copy(
+                L=new_elems_length[i], idl=id_interp, odl=od_interp, n=(elem.n + 1)
+            )
 
             if left_elem.n != prev_left_node:
                 for elm in elements:
