@@ -17,13 +17,6 @@ from ross.disk_element import DiskElement
 __all__ = ["GearElement", "GearElementTVMS", "Mesh"]
 
 
-def normalize(val, max_val):
-    mod = np.mod(val, max_val)
-    return np.where(
-        np.isclose(mod, 0) & (np.isclose(val % max_val, 0)) & (val != 0), max_val, mod
-    )
-
-
 class GearElement(DiskElement):
     """A gear element.
 
@@ -457,36 +450,6 @@ class GearElementTVMS(GearElement):
         used to describe the contact region of the gear profile.
         """
         return np.tan(angle) - float(angle)
-
-    def _to_pressure_angle(self, theta):
-        """
-        Converts the gear rotation angle into the instantaneous pressure angle.
-
-        Parameters
-        ----------
-        theta : float
-            Gear rotation angle (rad).
-
-        Returns
-        -------
-        alpha : float
-            Corresponding pressure angle (rad).
-        """
-        alpha_c = self.pr_angles_dict["start_point"]
-        alpha_a = self.pr_angles_dict["addendum"]
-        rb = self.base_radius
-
-        theta_norm = normalize(theta, 2 * np.pi / self.n_teeth)
-
-        s_total = rb * (np.tan(alpha_a) - np.tan(alpha_c))
-        s = normalize(rb * theta_norm, s_total)
-
-        tan_alpha = np.tan(alpha_c) + (s / s_total) * (
-            np.tan(alpha_a) - np.tan(alpha_c)
-        )
-        alpha = np.arctan(tan_alpha)
-
-        return alpha
 
     def _to_tau(self, pr_angle):
         """Transforms the pressure angle, used to build the involute profile,
@@ -961,11 +924,11 @@ class Mesh:
         else:
             self.stiffness = gear_mesh_stiffness
 
-    def _angular_equivalent_stiffness(self, dalpha):
+    def _angular_equivalent_stiffness(self, d_alpha):
         """
         Parameters
         ---------
-        dalpha : float
+        d_alpha : float
             The angular displacement of the driving gear in radians.
 
         Returns
@@ -974,8 +937,10 @@ class Mesh:
             The angular equivalent stiffness of mesh contact.
         """
         # Angular displacements
-        alpha_1 = self.driving_gear.pr_angles_dict["start_point"] + dalpha
-        alpha_2 = self.driven_gear.pr_angles_dict["addendum"] - self.gear_ratio * dalpha
+        alpha_1 = self.driving_gear.pr_angles_dict["start_point"] + d_alpha
+        alpha_2 = (
+            self.driven_gear.pr_angles_dict["addendum"] - self.gear_ratio * d_alpha
+        )
 
         # Contact stiffness
         k1 = self.driving_gear._compute_stiffness(alpha_1)
@@ -1008,14 +973,16 @@ class Mesh:
         alpha_c = self.driving_gear.pr_angles_dict["start_point"]
         alpha_a = self.driving_gear.pr_angles_dict["addendum"]
 
-        alpha = self.driving_gear._to_pressure_angle(angular_position)
-        dmeshing = (alpha_a - alpha_c) / contact_ratio
-        dalpha = normalize(alpha - alpha_c, dmeshing)
+        tm_om = 2 * np.pi / self.driven_gear.n_teeth
+        theta = np.mod(angular_position, tm_om)
 
-        stiffness = self._angular_equivalent_stiffness(dalpha)
+        d_meshing = (alpha_a - alpha_c) / contact_ratio
+        d_alpha = d_meshing / tm_om * theta
 
-        if dalpha <= (contact_ratio - 1) * dmeshing:
-            stiffness += self._angular_equivalent_stiffness(dalpha + dmeshing)
+        stiffness = self._angular_equivalent_stiffness(d_alpha)
+
+        if d_alpha <= d_meshing * (contact_ratio - 1):
+            stiffness += self._angular_equivalent_stiffness(d_alpha + d_meshing)
 
         return stiffness
 
@@ -1060,7 +1027,7 @@ class Mesh:
         stiffness : float or np.ndarray
             Interpolated stiffness value(s) in N/m.
         """
-        theta = normalize(angular_position, max(self.theta_range))
+        theta = np.mod(angular_position, max(self.theta_range))
         stiffness = np.interp(theta, self.theta_range, self.stiffness_range)
 
         return stiffness
