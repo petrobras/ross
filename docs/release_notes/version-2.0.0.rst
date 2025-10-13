@@ -52,7 +52,7 @@ The ``ModelReduction`` class provides methods to reduce matrices and vectors, an
 Thermo-Hydro-Dynamic Tilting-Pad Bearings
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Added two new advanced bearing classes with full THD (Thermo-Hydro-Dynamic) analysis:
+Added two new bearing classes with full THD (Thermo-Hydro-Dynamic) analysis:
 
 **TiltingPad**: Tilting-pad journal bearing with individual pad analysis, pivot mechanics, and thermal effects. Uses Reynolds equation and energy equation with finite difference methods, Lund's perturbation method for dynamic coefficients.
 
@@ -64,7 +64,7 @@ Both classes support multiple lubricant types, turbulence modeling, and provide 
 HolePatternSeal (Annular Seals)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Added ``HolePatternSeal`` class for modeling annular seals with hole (pocket) patterns. Uses bulk flow theory with:
+Added ``HolePatternSeal`` class for modeling annular seals with holepattern. Uses bulk flow theory with:
 
 - 1D compressible flow through annular clearance
 - Perturbation analysis for dynamic coefficients
@@ -80,7 +80,7 @@ LabyrinthSeal Enhancements
 
 Significant improvements to the ``LabyrinthSeal`` class:
 
-- Integration with CCP (Codebase for Calculation of Properties) for gas properties
+- Integration with ccp for gas properties
 - Support for custom gas mixtures via composition dictionary
 - Improved numerical methods for pressure distribution
 - Enhanced velocity field calculations with swirl effects
