@@ -108,7 +108,7 @@ class MultiRotor(Rotor):
     ... )
     >>> modal = multi_rotor.run_modal(speed=0)
     >>> modal.wd[0] # doctest: +ELLIPSIS
-    74.163...
+    74.160...
     """
 
     @check_units

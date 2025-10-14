@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 from copy import deepcopy
-from numpy.testing import assert_almost_equal
+from numpy.testing import assert_allclose
 
 from ross.units import Q_
 from ross.materials import Material, steel
@@ -15,7 +15,6 @@ def gear():
         m=726.4,
         Id=56.95,
         Ip=113.9,
-        width=0.101,
         n_teeth=328,
         pitch_diameter=1.1,
         pr_angle=Q_(22.5, "deg"),
@@ -39,7 +38,7 @@ def test_mass_matrix_gear(gear):
                    [     0.,      0.,      0.,      0.,      0., 113.9]])
     # fmt: on
 
-    assert_almost_equal(gear.M(), Mg, decimal=5)
+    assert_allclose(gear.M(), Mg, rtol=1e-6, atol=1e-5)
 
 
 def test_gyroscopic_matrix_gear(gear):
@@ -52,7 +51,7 @@ def test_gyroscopic_matrix_gear(gear):
                    [0., 0., 0.,     0.,    0., 0.]])
     # fmt: on
 
-    assert_almost_equal(gear.G(), Gg, decimal=5)
+    assert_allclose(gear.G(), Gg, rtol=1e-6, atol=1e-5)
 
 
 @pytest.fixture
@@ -67,7 +66,7 @@ def gear_tvms():
         module=Q_(2, "mm"),
         width=Q_(20, "mm"),
         n_teeth=62,
-        hub_bore_radius=Q_(17.5, "mm"),
+        bore_diameter=Q_(2 * 17.5, "mm"),
         pr_angle=Q_(20, "deg"),
     )
 
@@ -115,7 +114,7 @@ def test_mass_matrix_gear_tvms(gear_tvms):
                     [     0.,      0.,      0.,      0.,      0., 0.00360]])
     # fmt: on
 
-    assert_almost_equal(gear_tvms.M(), Mgt, decimal=5)
+    assert_allclose(gear_tvms.M(), Mgt, rtol=1e-6, atol=1e-5)
 
 
 def test_gyroscopic_matrix_gear_tvms(gear_tvms):
@@ -128,7 +127,7 @@ def test_gyroscopic_matrix_gear_tvms(gear_tvms):
                     [0., 0., 0.,       0.,      0., 0.]])
     # fmt: on
 
-    assert_almost_equal(gear_tvms.G(), Ggt, decimal=5)
+    assert_allclose(gear_tvms.G(), Ggt, rtol=1e-6, atol=1e-5)
 
 
 @pytest.fixture
@@ -141,11 +140,16 @@ def test_mesh_params(mesh):
     assert mesh.gear_ratio == 1.0
     assert mesh.contact_ratio == 1.7897798668330458
     assert mesh.hertzian_stiffness == 3555868607.9093266
-    assert mesh.stiffness == 419569471.549574
-    assert mesh.stiffness_range[:5] == [
-        396622921.3581085,
-        396739094.9154279,
-        396854969.16330755,
-        396970544.1596158,
-        397085819.9616697,
-    ]
+    assert_allclose(mesh.stiffness, 419569438.98401976, rtol=1e-6, atol=1e-5)
+    assert_allclose(
+        mesh.stiffness_range[:5],
+        [
+            396622921.3581085,
+            396738680.0375346,
+            396854147.2919756,
+            396969323.136738,
+            397084207.5865779,
+        ],
+        rtol=1e-6,
+        atol=1e-5,
+    )

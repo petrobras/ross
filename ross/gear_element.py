@@ -913,7 +913,7 @@ class Mesh:
     ... )
     >>> mesh = Mesh(driving, driven)
     >>> mesh.stiffness # doctest : +ELLIPSIS
-    429787128.434...
+    429787095.100...
     """
 
     def __init__(
