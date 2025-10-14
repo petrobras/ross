@@ -117,6 +117,8 @@ class GearElement(DiskElement):
                 "At least one of the following must be informed for GearElement: base_diameter or pitch_diameter"
             )
 
+        self.module = self.pitch_diameter / self.n_teeth
+
         self.material = material
         self.bore_radius = float(bore_radius)
         self.width = None
@@ -397,12 +399,11 @@ class GearElementTVMS(GearElement):
         self.material = material
         self.width = float(width)
         self.bore_radius = float(bore_radius)
-        self.module = float(module)
 
         self.addendum_coeff = float(addendum_coeff)
         self.tip_clearance_coeff = float(tip_clearance_coeff)
 
-        o_d = self.module * n_teeth
+        o_d = float(module) * n_teeth
         i_d = 2 * self.bore_radius
 
         m = self.calculate_mass(material.rho, width, o_d, i_d)
@@ -920,21 +921,20 @@ class Mesh:
         self.driven_gear = driven_gear
         self.gear_ratio = (
             driving_gear.n_teeth / driven_gear.n_teeth
-        )  # According Shigley Machine Elements
+        )  # Shigley Machine Elements
         self.pressure_angle = driving_gear.pr_angle
         self.helix_angle = driving_gear.helix_angle
 
-        module_1 = driving_gear.pitch_diameter / driving_gear.n_teeth
-        module_2 = driven_gear.pitch_diameter / driven_gear.n_teeth
-
-        if round(module_1, 4) != round(module_2, 4):
-            raise ValueError(
-                "The gear module must be the same for both gears in order to mesh properly."
+        if round(driving_gear.module, 4) != round(driven_gear.module, 4):
+            warn(
+                "Gear modules must match for proper meshing | "
+                f"Driving gear: {driving_gear.module}, Driven gear: {driven_gear.module}"
             )
 
         if driving_gear.width != driven_gear.width:
-            raise ValueError(
-                "The gear width must be the same for both gears in order to mesh properly."
+            warn(
+                "Gear widths must match for proper meshing | "
+                f"Driving gear: {driving_gear.width}, Driven gear: {driven_gear.width}"
             )
 
         if gear_mesh_stiffness is None:
@@ -942,23 +942,9 @@ class Mesh:
                 type(driving_gear) == GearElementTVMS
                 and type(driven_gear) == GearElementTVMS
             ):
-                # Contact ratio
-                center_distance = (
-                    driving_gear.radii_dict["pitch"] + driven_gear.radii_dict["pitch"]
-                )
-                contact_length = (
-                    np.sqrt(
-                        driving_gear.radii_dict["addendum"] ** 2
-                        - driving_gear.radii_dict["base"] ** 2
-                    )
-                    + np.sqrt(
-                        driven_gear.radii_dict["addendum"] ** 2
-                        - driven_gear.radii_dict["base"] ** 2
-                    )
-                    - center_distance * np.sin(driving_gear.pr_angle)
-                )
-                base_pitch = 2 * np.pi * driving_gear.base_radius / driving_gear.n_teeth
-                self.contact_ratio = contact_length / base_pitch
+                ra1 = driving_gear.radii_dict["addendum"]
+                ra2 = driven_gear.radii_dict["addendum"]
+                self.contact_ratio = self._calculate_contact_ratio(ra1, ra2)
 
                 self.hertzian_stiffness = (
                     np.pi
@@ -975,11 +961,16 @@ class Mesh:
 
             else:
                 if driving_gear.bore_radius:
-                    c = self.contact_ratio
+                    ra1 = driving_gear.pitch_diameter * (0.5 + 1 / driving_gear.n_teeth)
+                    ra2 = driven_gear.pitch_diameter * (0.5 + 1 / driven_gear.n_teeth)
+                    cr = self._calculate_contact_ratio(ra1, ra2)
+
                     w = driving_gear.width
                     E1 = driving_gear.material.E
                     E2 = driven_gear.material.E
-                    self.stiffness = (c * w * E1 * E2) / (9 * (E1 + E2))
+
+                    self.contact_ratio = cr
+                    self.stiffness = (cr * w * E1 * E2) / (9 * (E1 + E2))
 
                 else:
                     raise TypeError(
@@ -990,6 +981,26 @@ class Mesh:
 
         else:
             self.stiffness = gear_mesh_stiffness
+
+    def _calculate_contact_ratio(self, driving_addendum_radius, driven_addendum_radius):
+        rb1 = self.driving_gear.base_radius
+        rb2 = self.driven_gear.base_radius
+
+        center_distance = (
+            self.driving_gear.pitch_diameter + self.driven_gear.pitch_diameter
+        ) / 2
+
+        contact_length = (
+            np.sqrt(driving_addendum_radius**2 - rb1**2)
+            + np.sqrt(driven_addendum_radius**2 - rb2**2)
+            - center_distance * np.sin(self.pressure_angle)
+        )
+
+        base_pitch = 2 * np.pi * rb1 / self.driving_gear.n_teeth
+
+        contact_ratio = contact_length / base_pitch
+
+        return contact_ratio
 
     def _angular_equivalent_stiffness(self, d_alpha):
         """
@@ -1036,19 +1047,19 @@ class Mesh:
         stiffness : float
             The total equivalent meshing stiffness at the given angular position.
         """
-        contact_ratio = self.contact_ratio
+        cr = self.contact_ratio
         alpha_c = self.driving_gear.pr_angles_dict["start_point"]
         alpha_a = self.driving_gear.pr_angles_dict["addendum"]
 
         tm_om = 2 * np.pi / self.driven_gear.n_teeth
         theta = np.mod(angular_position, tm_om)
 
-        d_meshing = (alpha_a - alpha_c) / contact_ratio
+        d_meshing = (alpha_a - alpha_c) / cr
         d_alpha = d_meshing / tm_om * theta
 
         stiffness = self._angular_equivalent_stiffness(d_alpha)
 
-        if d_alpha <= d_meshing * (contact_ratio - 1):
+        if d_alpha <= d_meshing * (cr - 1):
             stiffness += self._angular_equivalent_stiffness(d_alpha + d_meshing)
 
         return stiffness
