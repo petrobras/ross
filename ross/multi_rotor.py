@@ -130,8 +130,7 @@ class MultiRotor(Rotor):
         position="above",
         tag=None,
     ):
-        self.rotors = [driving_rotor, driven_rotor]
-        self.gear_mesh_stiffness = gear_mesh_stiffness
+        self.rotors = {"driving": driving_rotor, "driven": driven_rotor}
         self.orientation_angle = float(orientation_angle)
 
         R1 = copy(driving_rotor)
@@ -159,56 +158,6 @@ class MultiRotor(Rotor):
             gear_2,
             gear_mesh_stiffness=gear_mesh_stiffness,
         )
-
-        self.gear_ratio = (
-            gear_1.n_teeth / gear_2.n_teeth
-        )  # gear ratio according Shigley Machine Elements (driving/driven)
-
-        # Contact ratio
-        module_1 = gear_1.pitch_diameter / gear_1.n_teeth
-        addendum_1 = 1 * module_1
-        radii_ad_1 = (gear_1.pitch_diameter / 2) + addendum_1
-        radii_base_1 = (gear_1.pitch_diameter / 2) * np.cos(gear_1.pressure_angle)
-
-        module_2 = gear_2.pitch_diameter / gear_2.n_teeth
-        addendum_2 = 1 * module_2
-        radii_ad_2 = (gear_2.pitch_diameter / 2) + addendum_2
-        radii_base_2 = (gear_2.pitch_diameter / 2) * np.cos(gear_2.pressure_angle)
-
-        if round(module_1, 4) != round(module_2, 4):
-            raise ValueError(
-                "The gear module must be the same for both gears in order to mesh properly."
-            )
-
-        if gear_1.pressure_angle != gear_2.pressure_angle:
-            raise ValueError(
-                "The gear preasure angle must be the same for both gears in order to mesh properly."
-            )
-
-        center_distance = (gear_1.pitch_diameter / 2) + (gear_2.pitch_diameter / 2)
-
-        contact_length = (
-            np.sqrt(radii_ad_1**2 - radii_base_1**2)
-            + np.sqrt(radii_ad_2**2 - radii_base_2**2)
-            - center_distance * np.sin(gear_1.pressure_angle)
-        )
-        base_pitch = np.pi * module_1 * np.cos(gear_1.pressure_angle)
-        self.contact_ratio = contact_length / base_pitch
-
-        if gear_1.width != gear_2.width:
-            raise ValueError(
-                "The gear width must be the same for both gears in order to mesh properly."
-            )
-
-        # If mesh stiffneess is already not defined
-        if gear_mesh_stiffness is None:
-            c = self.contact_ratio
-            w = gear_1.width
-            E1 = gear_1.material.E
-            E2 = gear_2.material.E
-            gear_mesh_stiffness = (c * w * E1 * E2) / (9 * (E1 + E2))
-
-        self.gear_mesh_stiffness = gear_mesh_stiffness
 
         gear1_plot = next(
             (
@@ -255,7 +204,7 @@ class MultiRotor(Rotor):
                 except:
                     pass
 
-        self.R2_nodes = [int(n + d_node) for n in R2.nodes]
+        self.driven_nodes = [int(n + d_node) for n in R2.nodes]
 
         shaft_elements = [*R1.shaft_elements, *R2.shaft_elements]
         disk_elements = [*R1.disk_elements, *R2.disk_elements]
@@ -271,21 +220,26 @@ class MultiRotor(Rotor):
         )
 
     def _fix_nodes_pos(self, index, node, nodes_pos_l):
-        if node < self.R2_nodes[0]:
-            nodes_pos_l[index] = self.rotors[0].nodes_pos[
-                self.rotors[0].nodes.index(node)
+        if node < self.driven_nodes[0]:
+            nodes_pos_l[index] = self.rotors["driving"].nodes_pos[
+                self.rotors["driving"].nodes.index(node)
             ]
-        elif node == self.R2_nodes[0]:
-            nodes_pos_l[index] = self.rotors[1].nodes_pos[0] + self.dz_pos
+        elif node == self.driven_nodes[0]:
+            nodes_pos_l[index] = self.rotors["driven"].nodes_pos[0] + self.dz_pos
 
     def _fix_nodes(self):
-        self.nodes = [*self.rotors[0].nodes, *self.R2_nodes]
+        self.nodes = [*self.rotors["driving"].nodes, *self.driven_nodes]
 
-        R2_nodes_pos = [pos + self.dz_pos for pos in self.rotors[1].nodes_pos]
-        self.nodes_pos = [*self.rotors[0].nodes_pos, *R2_nodes_pos]
+        R2_nodes_pos = [pos + self.dz_pos for pos in self.rotors["driven"].nodes_pos]
+        self.nodes_pos = [*self.rotors["driving"].nodes_pos, *R2_nodes_pos]
 
-        R2_center_line = [pos + self.dy_pos for pos in self.rotors[1].center_line_pos]
-        self.center_line_pos = [*self.rotors[0].center_line_pos, *R2_center_line]
+        R2_center_line = [
+            pos + self.dy_pos for pos in self.rotors["driven"].center_line_pos
+        ]
+        self.center_line_pos = [
+            *self.rotors["driving"].center_line_pos,
+            *R2_center_line,
+        ]
 
     def _join_matrices(self, driving_matrix, driven_matrix):
         """Join matrices from the driving rotor and driven rotor to form the matrix of
@@ -306,7 +260,7 @@ class MultiRotor(Rotor):
 
         global_matrix = np.zeros((self.ndof, self.ndof))
 
-        first_ndof = self.rotors[0].ndof
+        first_ndof = self.rotors["driving"].ndof
         global_matrix[:first_ndof, :first_ndof] = driving_matrix
         global_matrix[first_ndof:, first_ndof:] = driven_matrix
 
@@ -440,11 +394,11 @@ class MultiRotor(Rotor):
         """
 
         speed = omega
-        rotor = self.rotors[0]
+        rotor = self.rotors["driving"]
 
-        if node in self.R2_nodes:
+        if node in self.driven_nodes:
             speed = -self.mesh.gear_ratio * omega
-            rotor = self.rotors[1]
+            rotor = self.rotors["driven"]
 
         if isinstance(rotor, MultiRotor):
             return rotor.check_speed(node, speed)
@@ -473,178 +427,155 @@ class MultiRotor(Rotor):
                [-0.        , -0.        ,  0.        ,  0.        ]])
         """
 
-        # Note:  Pressure angle is the normal pressure angle (not transverse)
+        pressure_angle = self.mesh.pressure_angle  # normal angle
 
-        # Angles start in degrees
+        helix_angle = self.mesh.helix_angle
+        helix_angle -= np.pi  # adjusted according to formulation
 
-        pitch_radius_1 = self.gears[0].pitch_diameter / 2  # driving gear
-        pitch_radius_2 = self.gears[1].pitch_diameter / 2  # driven gear
-        pressure_angle = self.gears[0].pressure_angle
-        helical_angle = (
-            self.gears[0].helix_angle - 180 * np.pi / 180
-        )  # correction done for adjusting with the formulation
-        orientation_angle = self.orientation_angle
-
-        # Direction Cosine angles
-        cx = np.cos(pressure_angle) * np.cos(helical_angle)
+        cx = np.cos(pressure_angle) * np.cos(helix_angle)
         cy = np.sin(pressure_angle)
-        cz = np.sin(pressure_angle) * np.sin(helical_angle)
+        cz = np.sin(pressure_angle) * np.sin(helix_angle)
 
-        cp = np.cos(orientation_angle)
-        sp = np.sin(orientation_angle)
+        cp = np.cos(self.orientation_angle)
+        sp = np.sin(self.orientation_angle)
 
-        # Submatrices
+        r1 = self.mesh.driving_gear.pitch_diameter / 2
+        r2 = self.mesh.driven_gear.pitch_diameter / 2
 
-        # --- Matrix Kii ---
-        Kii = np.zeros((6, 6))
+        Kii = np.zeros((self.number_dof, self.number_dof))
+        Kji = np.zeros((self.number_dof, self.number_dof))
+        Kjj = np.zeros((self.number_dof, self.number_dof))
 
+        # Kii
         Kii[0, 0] = (sp * cx + cp * cy) ** 2
         Kii[1, 0] = (sp * cx + cp * cy) * (sp * cy - cp * cx)
         Kii[2, 0] = cz * (sp * cx + cp * cy)
-        Kii[3, 0] = sp * cz * pitch_radius_1 * (sp * cx + cp * cy)
-        Kii[4, 0] = -1 * cp * cz * pitch_radius_1 * (sp * cx + cp * cy)
-        Kii[5, 0] = -1 * cx * pitch_radius_1 * (cp**2 + sp**2) * (sp * cx + cp * cy)
+        Kii[3, 0] = sp * cz * r1 * (sp * cx + cp * cy)
+        Kii[4, 0] = -cp * cz * r1 * (sp * cx + cp * cy)
+        Kii[5, 0] = -cx * r1 * (cp**2 + sp**2) * (sp * cx + cp * cy)
 
         Kii[0, 1] = Kii[1, 0]
         Kii[1, 1] = (sp * cy - cp * cx) ** 2
         Kii[2, 1] = cz * (sp * cy - cp * cx)
-        Kii[3, 1] = sp * cz * pitch_radius_1 * (sp * cy - cp * cx)
-        Kii[4, 1] = -1 * cp * cz * pitch_radius_1 * (sp * cy - cp * cx)
-        Kii[5, 1] = -1 * cx * pitch_radius_1 * (cp**2 + sp**2) * (sp * cy - cp * cx)
+        Kii[3, 1] = sp * cz * r1 * (sp * cy - cp * cx)
+        Kii[4, 1] = -cp * cz * r1 * (sp * cy - cp * cx)
+        Kii[5, 1] = -cx * r1 * (cp**2 + sp**2) * (sp * cy - cp * cx)
 
         Kii[0, 2] = Kii[2, 0]
         Kii[1, 2] = Kii[2, 1]
         Kii[2, 2] = cz**2
-        Kii[3, 2] = sp * (cz**2) * pitch_radius_1
-        Kii[4, 2] = -1 * cp * (cz**2) * pitch_radius_1
-        Kii[5, 2] = -1 * cx * cz * pitch_radius_1 * (cp**2 + sp**2)
+        Kii[3, 2] = sp * (cz**2) * r1
+        Kii[4, 2] = -cp * (cz**2) * r1
+        Kii[5, 2] = -cx * cz * r1 * (cp**2 + sp**2)
 
         Kii[0, 3] = Kii[3, 0]
         Kii[1, 3] = Kii[3, 1]
         Kii[2, 3] = Kii[3, 2]
-        Kii[3, 3] = (sp * cz * pitch_radius_1) ** 2
-        Kii[4, 3] = -1 * cp * sp * (cz * pitch_radius_1) ** 2
-        Kii[5, 3] = -1 * sp * cx * cz * (pitch_radius_1**2) * (cp**2 + sp**2)
+        Kii[3, 3] = (sp * cz * r1) ** 2
+        Kii[4, 3] = -cp * sp * (cz * r1) ** 2
+        Kii[5, 3] = -sp * cx * cz * (r1**2) * (cp**2 + sp**2)
 
         Kii[0, 4] = Kii[4, 0]
         Kii[1, 4] = Kii[4, 1]
         Kii[2, 4] = Kii[4, 2]
         Kii[3, 4] = Kii[4, 3]
-        Kii[4, 4] = (cp * cz * pitch_radius_1) ** 2
-        Kii[5, 4] = cp * cx * cz * (pitch_radius_1**2) * (cp**2 + sp**2)
+        Kii[4, 4] = (cp * cz * r1) ** 2
+        Kii[5, 4] = cp * cx * cz * (r1**2) * (cp**2 + sp**2)
 
         Kii[0, 5] = Kii[5, 0]
         Kii[1, 5] = Kii[5, 1]
         Kii[2, 5] = Kii[5, 2]
         Kii[3, 5] = Kii[5, 3]
         Kii[4, 5] = Kii[5, 4]
-        Kii[5, 5] = ((cx * pitch_radius_1) ** 2) * (cp**4 + 2 * (cp * sp) ** 2 + sp**4)
+        Kii[5, 5] = ((cx * r1) ** 2) * (cp**4 + 2 * (cp * sp) ** 2 + sp**4)
 
-        # --- Matrix Kji ---
-        Kji = np.zeros((6, 6))
-
-        Kji[0, 0] = -1 * (sp * cx + cp * cy) ** 2
-        Kji[1, 0] = -1 * (sp * cx + cp * cy) * (sp * cy - cp * cx)
-        Kji[2, 0] = -1 * cz * (sp * cx + cp * cy)
-        Kji[3, 0] = -1 * sp * cz * pitch_radius_2 * (sp * cx + cp * cy)
-        Kji[4, 0] = cp * cz * pitch_radius_2 * (sp * cx + cp * cy)
-        Kji[5, 0] = cx * pitch_radius_2 * (cp**2 + sp**2) * (sp * cx + cp * cy)
+        # Kji
+        Kji[0, 0] = -((sp * cx + cp * cy) ** 2)
+        Kji[1, 0] = -(sp * cx + cp * cy) * (sp * cy - cp * cx)
+        Kji[2, 0] = -cz * (sp * cx + cp * cy)
+        Kji[3, 0] = -sp * cz * r2 * (sp * cx + cp * cy)
+        Kji[4, 0] = cp * cz * r2 * (sp * cx + cp * cy)
+        Kji[5, 0] = cx * r2 * (cp**2 + sp**2) * (sp * cx + cp * cy)
 
         Kji[0, 1] = Kji[1, 0]
-        Kji[1, 1] = -1 * (sp * cy - cp * cx) ** 2
-        Kji[2, 1] = -1 * cz * (sp * cy - cp * cx)
-        Kji[3, 1] = -1 * sp * cz * pitch_radius_2 * (sp * cy - cp * cx)
-        Kji[4, 1] = cp * cz * pitch_radius_2 * (sp * cy - cp * cx)
-        Kji[5, 1] = cx * pitch_radius_2 * (cp**2 + sp**2) * (sp * cy - cp * cx)
+        Kji[1, 1] = -((sp * cy - cp * cx) ** 2)
+        Kji[2, 1] = -cz * (sp * cy - cp * cx)
+        Kji[3, 1] = -sp * cz * r2 * (sp * cy - cp * cx)
+        Kji[4, 1] = cp * cz * r2 * (sp * cy - cp * cx)
+        Kji[5, 1] = cx * r2 * (cp**2 + sp**2) * (sp * cy - cp * cx)
 
         Kji[0, 2] = Kji[2, 0]
         Kji[1, 2] = Kji[2, 1]
-        Kji[2, 2] = -1 * (cz**2)
-        Kji[3, 2] = -1 * sp * (cz**2) * pitch_radius_2
-        Kji[4, 2] = cp * (cz**2) * pitch_radius_2
-        Kji[5, 2] = cx * cz * pitch_radius_2 * (cp**2 + sp**2)
+        Kji[2, 2] = -(cz**2)
+        Kji[3, 2] = -sp * (cz**2) * r2
+        Kji[4, 2] = cp * (cz**2) * r2
+        Kji[5, 2] = cx * cz * r2 * (cp**2 + sp**2)
 
-        Kji[0, 3] = -1 * sp * cz * pitch_radius_1 * (sp * cx + cp * cy)
-        Kji[1, 3] = -1 * sp * cz * pitch_radius_1 * (sp * cy - cp * cx)
-        Kji[2, 3] = -1 * sp * (cz**2) * pitch_radius_1
-        Kji[3, 3] = -1 * ((sp * cz) ** 2) * pitch_radius_1 * pitch_radius_2
-        Kji[4, 3] = cp * sp * (cz**2) * pitch_radius_1 * pitch_radius_2
-        Kji[5, 3] = sp * cx * cz * pitch_radius_1 * pitch_radius_2 * (cp**2 + sp**2)
+        Kji[0, 3] = -sp * cz * r1 * (sp * cx + cp * cy)
+        Kji[1, 3] = -sp * cz * r1 * (sp * cy - cp * cx)
+        Kji[2, 3] = -sp * (cz**2) * r1
+        Kji[3, 3] = -((sp * cz) ** 2) * r1 * r2
+        Kji[4, 3] = cp * sp * (cz**2) * r1 * r2
+        Kji[5, 3] = sp * cx * cz * r1 * r2 * (cp**2 + sp**2)
 
-        Kji[0, 4] = cp * cz * pitch_radius_1 * (sp * cx + cp * cy)
-        Kji[1, 4] = cp * cz * pitch_radius_1 * (sp * cy - cp * cx)
-        Kji[2, 4] = cp * (cz**2) * pitch_radius_1
-        Kji[3, 4] = cp * sp * (cz**2) * pitch_radius_1 * pitch_radius_2
-        Kji[4, 4] = -1 * ((cp * cz) ** 2) * pitch_radius_1 * pitch_radius_2
-        Kji[5, 4] = (
-            -1 * cp * cx * cz * pitch_radius_1 * pitch_radius_2 * (cp**2 + sp**2)
-        )
+        Kji[0, 4] = cp * cz * r1 * (sp * cx + cp * cy)
+        Kji[1, 4] = cp * cz * r1 * (sp * cy - cp * cx)
+        Kji[2, 4] = cp * (cz**2) * r1
+        Kji[3, 4] = cp * sp * (cz**2) * r1 * r2
+        Kji[4, 4] = -((cp * cz) ** 2) * r1 * r2
+        Kji[5, 4] = -cp * cx * cz * r1 * r2 * (cp**2 + sp**2)
 
-        Kji[0, 5] = cx * pitch_radius_1 * (cp**2 + sp**2) * (sp * cx + cp * cy)
-        Kji[1, 5] = cx * pitch_radius_1 * (cp**2 + sp**2) * (sp * cy - cp * cx)
-        Kji[2, 5] = cx * cz * pitch_radius_1 * (cp**2 + sp**2)
-        Kji[3, 5] = sp * cx * cz * pitch_radius_1 * pitch_radius_2 * (cp**2 + sp**2)
-        Kji[4, 5] = (
-            -1 * cp * cx * cz * pitch_radius_1 * pitch_radius_2 * (cp**2 + sp**2)
-        )
-        Kji[5, 5] = (
-            -1
-            * (cx**2)
-            * pitch_radius_1
-            * pitch_radius_2
-            * (cp**4 + 2 * (cp * sp) ** 2 + sp**4)
-        )
+        Kji[0, 5] = cx * r1 * (cp**2 + sp**2) * (sp * cx + cp * cy)
+        Kji[1, 5] = cx * r1 * (cp**2 + sp**2) * (sp * cy - cp * cx)
+        Kji[2, 5] = cx * cz * r1 * (cp**2 + sp**2)
+        Kji[3, 5] = sp * cx * cz * r1 * r2 * (cp**2 + sp**2)
+        Kji[4, 5] = -cp * cx * cz * r1 * r2 * (cp**2 + sp**2)
+        Kji[5, 5] = -(cx**2) * r1 * r2 * (cp**4 + 2 * (cp * sp) ** 2 + sp**4)
 
-        # --- Matrix Kij ---
-        Kij = Kji.T
-
-        # --- Matrix Kjj ---
-        Kjj = np.zeros((6, 6))
-
+        # Kjj
         Kjj[0, 0] = (sp * cx + cp * cy) ** 2
         Kjj[1, 0] = (sp * cx + cp * cy) * (sp * cy - cp * cx)
         Kjj[2, 0] = cz * (sp * cx + cp * cy)
-        Kjj[3, 0] = sp * cz * pitch_radius_2 * (sp * cx + cp * cy)
-        Kjj[4, 0] = -1 * cp * cz * pitch_radius_2 * (sp * cx + cp * cy)
-        Kjj[5, 0] = -1 * cx * pitch_radius_2 * (cp**2 + sp**2) * (sp * cx + cp * cy)
+        Kjj[3, 0] = sp * cz * r2 * (sp * cx + cp * cy)
+        Kjj[4, 0] = -cp * cz * r2 * (sp * cx + cp * cy)
+        Kjj[5, 0] = -cx * r2 * (cp**2 + sp**2) * (sp * cx + cp * cy)
 
         Kjj[0, 1] = Kjj[1, 0]
         Kjj[1, 1] = (sp * cy - cp * cx) ** 2
         Kjj[2, 1] = cz * (sp * cy - cp * cx)
-        Kjj[3, 1] = sp * cz * pitch_radius_2 * (sp * cy - cp * cx)
-        Kjj[4, 1] = -1 * cp * cz * pitch_radius_2 * (sp * cy - cp * cx)
-        Kjj[5, 1] = -1 * cx * pitch_radius_2 * (cp**2 + sp**2) * (sp * cy - cp * cx)
+        Kjj[3, 1] = sp * cz * r2 * (sp * cy - cp * cx)
+        Kjj[4, 1] = -cp * cz * r2 * (sp * cy - cp * cx)
+        Kjj[5, 1] = -cx * r2 * (cp**2 + sp**2) * (sp * cy - cp * cx)
 
         Kjj[0, 2] = Kjj[2, 0]
         Kjj[1, 2] = Kjj[2, 1]
         Kjj[2, 2] = cz**2
-        Kjj[3, 2] = sp * (cz**2) * pitch_radius_2
-        Kjj[4, 2] = -1 * cp * (cz**2) * pitch_radius_2
-        Kjj[5, 2] = -1 * cx * cz * pitch_radius_2 * (cp**2 + sp**2)
+        Kjj[3, 2] = sp * (cz**2) * r2
+        Kjj[4, 2] = -cp * (cz**2) * r2
+        Kjj[5, 2] = -cx * cz * r2 * (cp**2 + sp**2)
 
         Kjj[0, 3] = Kjj[3, 0]
         Kjj[1, 3] = Kjj[3, 1]
         Kjj[2, 3] = Kjj[3, 2]
-        Kjj[3, 3] = (sp * cz * pitch_radius_2) ** 2
-        Kjj[4, 3] = -1 * cp * sp * (cz * pitch_radius_2) ** 2
-        Kjj[5, 3] = -1 * sp * cx * cz * (pitch_radius_2**2) * (cp**2 + sp**2)
+        Kjj[3, 3] = (sp * cz * r2) ** 2
+        Kjj[4, 3] = -cp * sp * (cz * r2) ** 2
+        Kjj[5, 3] = -sp * cx * cz * (r2**2) * (cp**2 + sp**2)
 
         Kjj[0, 4] = Kjj[4, 0]
         Kjj[1, 4] = Kjj[4, 1]
         Kjj[2, 4] = Kjj[4, 2]
         Kjj[3, 4] = Kjj[4, 3]
-        Kjj[4, 4] = (cp * cz * pitch_radius_2) ** 2
-        Kjj[5, 4] = cp * cx * cz * (pitch_radius_2**2) * (cp**2 + sp**2)
+        Kjj[4, 4] = (cp * cz * r2) ** 2
+        Kjj[5, 4] = cp * cx * cz * (r2**2) * (cp**2 + sp**2)
 
         Kjj[0, 5] = Kjj[5, 0]
         Kjj[1, 5] = Kjj[5, 1]
         Kjj[2, 5] = Kjj[5, 2]
         Kjj[3, 5] = Kjj[5, 3]
         Kjj[4, 5] = Kjj[5, 4]
-        Kjj[5, 5] = ((cx * pitch_radius_2) ** 2) * (cp**4 + 2 * (cp * sp) ** 2 + sp**4)
+        Kjj[5, 5] = ((cx * r2) ** 2) * (cp**4 + 2 * (cp * sp) ** 2 + sp**4)
 
-        # --- Full Stiffness Matix  ---
-        coupling_matrix = np.block([[Kii, Kij], [Kji, Kjj]])
+        coupling_matrix = np.block([[Kii, Kji.T], [Kji, Kjj]])
 
         return coupling_matrix
 
@@ -674,13 +605,13 @@ class MultiRotor(Rotor):
 
         if frequency is None:
             return self._join_matrices(
-                self.rotors[0].M(synchronous=synchronous),
-                self.rotors[1].M(synchronous=synchronous),
+                self.rotors["driving"].M(synchronous=synchronous),
+                self.rotors["driven"].M(synchronous=synchronous),
             )
         else:
             return self._join_matrices(
-                self.rotors[0].M(frequency, synchronous),
-                self.rotors[1].M(frequency * self.mesh.gear_ratio, synchronous),
+                self.rotors["driving"].M(frequency, synchronous),
+                self.rotors["driven"].M(frequency * self.mesh.gear_ratio, synchronous),
             )
 
     def K(self, frequency):
@@ -707,8 +638,8 @@ class MultiRotor(Rotor):
         """
 
         K0 = self._join_matrices(
-            self.rotors[0].K(frequency),
-            self.rotors[1].K(frequency * self.gear_ratio),
+            self.rotors["driving"].K(frequency),
+            self.rotors["driven"].K(frequency * self.mesh.gear_ratio),
         )
 
         if not self.update_mesh_stiffness:
@@ -767,7 +698,8 @@ class MultiRotor(Rotor):
         """
 
         return self._join_matrices(
-            self.rotors[0].Ksdt(), -self.mesh.gear_ratio * self.rotors[1].Ksdt()
+            self.rotors["driving"].Ksdt(),
+            -self.mesh.gear_ratio * self.rotors["driven"].Ksdt(),
         )
 
     def C(self, frequency):
@@ -794,8 +726,8 @@ class MultiRotor(Rotor):
         """
 
         return self._join_matrices(
-            self.rotors[0].C(frequency),
-            self.rotors[1].C(frequency * self.gear_ratio),
+            self.rotors["driving"].C(frequency),
+            self.rotors["driven"].C(frequency * self.mesh.gear_ratio),
         )
 
     def G(self):
@@ -821,7 +753,8 @@ class MultiRotor(Rotor):
         """
 
         return self._join_matrices(
-            self.rotors[0].G(), -self.mesh.gear_ratio * self.rotors[1].G()
+            self.rotors["driving"].G(),
+            -self.mesh.gear_ratio * self.rotors["driven"].G(),
         )
 
 
