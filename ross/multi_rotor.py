@@ -7,6 +7,7 @@ from scipy.integrate import cumulative_trapezoid as integrate
 import ross as rs
 from ross.gear_element import Mesh
 from ross.rotor_assembly import Rotor
+from ross.units import Q_, check_units
 
 __all__ = ["MultiRotor"]
 
@@ -89,7 +90,7 @@ class MultiRotor(Rotor):
     ... ]
     >>> gear2 = rs.GearElement(
     ...     n=0, m=5, Id=0.002, Ip=0.004, n_teeth=23,
-    ...     base_radius=0.03567, pr_angle=rs.Q_(22.5, 'deg'),
+    ...     base_diameter=0.03567 * 2, pr_angle=rs.Q_(22.5, 'deg'),
     ... )
     >>> turbine = rs.DiskElement(n=2, m=7.45, Id=0.0745, Ip=0.149)
     >>> bearing3 = rs.BearingElement(n=1, kxx=10.1e6, kyy=41.6e6, cxx=3e3)
@@ -110,6 +111,7 @@ class MultiRotor(Rotor):
     74.163...
     """
 
+    @check_units
     def __init__(
         self,
         driving_rotor,
@@ -122,7 +124,7 @@ class MultiRotor(Rotor):
         tag=None,
     ):
         self.rotors = {"driving": driving_rotor, "driven": driven_rotor}
-        self.orientation_angle = float(orientation_angle)
+        self.orientation_angle = orientation_angle
 
         R1 = copy(driving_rotor)
         R2 = copy(driven_rotor)
@@ -310,7 +312,9 @@ class MultiRotor(Rotor):
 
         return super()._unbalance_force(node, magnitude, phase, speed)
 
-    def unbalance_force_over_time(self, node, magnitude, phase, omega, t):
+    def unbalance_force_over_time(
+        self, node, magnitude, phase, omega, t, return_all=False
+    ):
         """Calculate unbalance forces for each time step.
 
         This auxiliary function calculates the unbalanced forces by taking
@@ -331,6 +335,10 @@ class MultiRotor(Rotor):
             Constant velocity or desired range of velocities (rad/s).
         t : np.darray
             Time array (s).
+        return_all : bool, optional
+            If True, returns F0, theta, omega, and alpha.
+            If False, returns only F0.
+            Default is False.
 
         Returns
         -------
@@ -363,7 +371,10 @@ class MultiRotor(Rotor):
             F0[n * self.number_dof + 0, :] += Fx
             F0[n * self.number_dof + 1, :] += Fy
 
-        return F0, theta, omega, alpha
+        if return_all:
+            return F0, theta, omega, alpha
+        else:
+            return F0
 
     def check_speed(self, node, omega):
         """Adjusts the speed for the specified node based on the rotor configuration.
@@ -810,7 +821,7 @@ def two_shaft_rotor_example():
         Ip=6.23,
     )
 
-    pressure_angle = rs.Q_(22.5, "deg")
+    pressure_angle = Q_(22.5, "deg")
 
     gear1 = rs.GearElement(
         n=4,
@@ -818,7 +829,7 @@ def two_shaft_rotor_example():
         Id=56.95,
         Ip=113.9,
         n_teeth=328,
-        base_radius=0.5086,
+        base_diameter=0.5086 * 2,
         pr_angle=pressure_angle,
     )
 
@@ -853,7 +864,7 @@ def two_shaft_rotor_example():
         Id=0.002,
         Ip=0.004,
         n_teeth=23,
-        base_radius=0.03567,
+        base_diameter=0.03567 * 2,
         pr_angle=pressure_angle,
     )
 
