@@ -33,26 +33,31 @@ class GearElement(DiskElement):
         Diametral moment of inertia.
     Ip : float, pint.Quantity
         Polar moment of inertia.
-    width: float, pint.Quantity
-        width of the gear (mm).
     n_teeth : int
         Number of teeth.
     base_diameter : float, pint.Quantity
-        Base diameter of the gear (m).
-        If given pitch_diameter is not necessary.
+        Base diameter (m).
+        If given `pitch_diameter` is not necessary.
     pitch_diameter : float, pint.Quantity
-        Pitch diameter of the gear (m).
-        If given base_diameter is not necessary.
+        Pitch diameter (m).
+        If given `base_diameter` is not necessary.
     pr_angle : float, pint.Quantity, optional
-        The normal pressure angle of the gear (rad).
+        The normal pressure angle (rad).
         Default is 20 deg (converted to rad).
-    material: ross.material, optional
-        material of the gear. Default is steel.
+    helix_angle: float, pint.Quantity, optional
+        Helix angle for helical gears (rad).
+        Default is 0, representing spur gear.
+    bore_radius : float, pint.Quantity, optional
+        Inner radius, the radius of the shaft on which the gear is mounted (m).
+        If provided, it could be used to calculate gear mesh stiffness.
+        Default is None.
+    material : ross.Material, optional
+        Gear's construction material. If provided, it could be used to calculate
+        gear mesh stiffness.
+        Default is steel.
     tag : str, optional
         A tag to name the element.
         Default is None.
-    helix_angle: float, pint.Quantity, optional
-        value of helix angle for helical gears. Default is 0 representing spur gear.
     scale_factor: float or str, optional
         The scale factor is used to scale the gear drawing.
         For gears it is also possible to provide 'mass' as the scale factor.
@@ -68,7 +73,7 @@ class GearElement(DiskElement):
     --------
     >>> gear = GearElement(
     ...        n=0, m=4.67, Id=0.015, Ip=0.030,
-    ...        pitch_diameter=0.187, n_teeth=26, width=0.07,
+    ...        pitch_diameter=0.187, n_teeth=26,
     ...        pr_angle=Q_(22.5, "deg"), helix_angle=0,
     ... )
     >>> gear.base_radius # doctest: +ELLIPSIS
@@ -82,43 +87,44 @@ class GearElement(DiskElement):
         m,
         Id,
         Ip,
-        width,
         n_teeth,
         pitch_diameter=None,
         base_diameter=None,
         pr_angle=None,
+        helix_angle=0,
+        bore_radius=None,
         material=steel,
         tag=None,
-        helix_angle=0,
         scale_factor=1.0,
         color="Goldenrod",
     ):
+        self.n_teeth = n_teeth
+
         if pr_angle is None:
             pr_angle = Q_(20, "deg").to_base_units().m
 
         self.pr_angle = float(pr_angle)
-        self.n_teeth = n_teeth
+        self.helix_angle = float(helix_angle)
 
         if base_diameter:
             self.base_radius = float(base_diameter) / 2
+            self.pitch_diameter = 2 * self.base_radius / np.cos(self.pr_angle)
         elif pitch_diameter:
-            self.base_radius = float(pitch_diameter) * np.cos(self.pr_angle) / 2
+            self.pitch_diameter = float(pitch_diameter)
+            self.base_radius = self.pitch_diameter * np.cos(self.pr_angle) / 2
         else:
             raise TypeError(
                 "At least one of the following must be informed for GearElement: base_diameter or pitch_diameter"
             )
 
-        if not pitch_diameter:
-            self.pitch_diameter = (self.base_radius * 2) / np.cos(self.pressure_angle)
-        else:
-            self.pitch_diameter = float(pitch_diameter)
-
-        self.helix_angle = float(helix_angle)
-        self.width = float(width)
-
         self.material = material
+        self.bore_radius = float(bore_radius)
+        self.width = None
 
-        self.n_teeth = n_teeth
+        if bore_radius:
+            self.width = self.calculate_width(
+                material.rho, m, 2 * self.bore_radius, self.pitch_diameter
+            )
 
         super().__init__(n, m, Id, Ip, tag, scale_factor, color)
 
@@ -132,8 +138,8 @@ class GearElement(DiskElement):
         o_d,
         n_teeth,
         pr_angle=None,
-        tag=None,
         helix_angle=0,
+        tag=None,
         scale_factor=1.0,
         color="Goldenrod",
     ):
@@ -162,25 +168,27 @@ class GearElement(DiskElement):
         ----------
         n : int
             Node in which the gear will be inserted.
-        material: ross.Material
-            Gear material.
+        material : ross.Material
+            Gear's construction material.
         width : float, pint.Quantity
             The face width of the gear considering that the gear body has the
             same thickness (m).
         i_d : float, pint.Quantity
-            Inner diameter (the diameter of the shaft on which the gear is mounted).
+            Bore, inner diameter, the diameter of the shaft on which the gear
+            is mounted (m).
         o_d : float, pint.Quantity
-            Outer pitch diameter (m).
+            Pitch diameter (m).
         n_teeth : int
-            Number of teeth of the gear.
+            Number of teeth.
         pr_angle : float, pint.Quantity, optional
-            The normal pressure angle of the gear (rad).
+            The normal pressure angle (rad).
             Default is 20 deg (converted to rad).
+        helix_angle: float, pint.Quantity, optional
+            Helix angle for helical gears (rad).
+            Default is 0, representing spur gear.
         tag : str, optional
             A tag to name the element.
             Default is None.
-        helix_angle: float, pint.Quantity, optional
-            Value of helix angle for helical gears. Default is 0 representing spur gear.
         scale_factor: float, optional
             The scale factor is used to scale the gear drawing.
             Default is 1.
@@ -205,22 +213,22 @@ class GearElement(DiskElement):
         0.131556...
         >>>
         """
-        m = material.rho * np.pi * width * (o_d**2 - i_d**2) / 4
-        Ip = m * (o_d**2 + i_d**2) / 8
-        Id = 1 / 2 * Ip + 1 / 12 * m * width**2
+        m = cls.calculate_mass(material.rho, width, o_d, i_d)
+        Ip = cls.calculate_Ip(m, o_d, i_d)
+        Id = cls.calculate_Id(Ip, m, width)
 
         return cls(
             n,
             m,
             Id,
             Ip,
-            width=width,
             n_teeth=n_teeth,
             pitch_diameter=o_d,
             pr_angle=pr_angle,
+            helix_angle=helix_angle,
+            bore_radius=i_d / 2,
             material=material,
             tag=tag,
-            helix_angle=helix_angle,
             scale_factor=scale_factor,
             color=color,
         )
@@ -317,21 +325,24 @@ class GearElementTVMS(GearElement):
     ----------
     n : int
         Node in which the gear will be inserted.
-    module : float
+    material : ross.Material
+        Gear's construction material.
+    width : float, pint.Quantity
+        Tooth width (m).
+    bore_radius : float, pint.Quantity
+        Inner radius, radius of the shaft on which the gear is mounted (m).
+    module : float, pint.Quantity
         Gear module (m).
     n_teeth : int
         Number of teeth.
-    width : float
-        Tooth width (m).
-    hub_bore_radius : float
-        The hub bore radius (m).
-    material : ross.Material
-        Gear's construction material.
-    pr_angle : float, optional
-        The normal pressure angle of the gear (rad).
+    pr_angle : float, pint.Quantity, optional
+        The normal pressure angle (rad).
         Default is 20 deg (converted to rad).
+    helix_angle: float, pint.Quantity, optional
+        Helix angle for helical gears (rad).
+        Default is 0, representing spur gear.
     addendum_coeff : float, optional
-        Addendum coefficient of the gear.
+        Addendum coefficient.
         Default is 1.
     tip_clearance_coeff : float, optional
         Gear's clearance coefficient.
@@ -356,10 +367,10 @@ class GearElementTVMS(GearElement):
     >>> gear = GearElementTVMS(
     ...    n=0,
     ...    material=steel,
-    ...    module=0.002,
     ...    width=0.02,
+    ...    bore_radius=0.035,
+    ...    module=0.002,
     ...    n_teeth=62,
-    ...    hub_bore_radius=0.0175,
     ...    pr_angle=0.349066
     ... )
     >>> gear.base_radius # doctest : +ELLIPSIS
@@ -370,24 +381,33 @@ class GearElementTVMS(GearElement):
     def __init__(
         self,
         n,
+        material,
+        width,
+        bore_radius,
         module,
         n_teeth,
-        width,
-        hub_bore_radius,
-        material=steel,
         pr_angle=None,
+        helix_angle=0,
         addendum_coeff=1,
         tip_clearance_coeff=0.25,
         tag=None,
         scale_factor=1.0,
         color="Goldenrod",
     ):
-        o_d = module * n_teeth
-        i_d = 2 * hub_bore_radius
+        self.material = material
+        self.width = float(width)
+        self.bore_radius = float(bore_radius)
+        self.module = float(module)
 
-        m = material.rho * np.pi * width * (o_d**2 - i_d**2) / 4
-        Ip = m * (o_d**2 + i_d**2) / 8
-        Id = 1 / 2 * Ip + 1 / 12 * m * width**2
+        self.addendum_coeff = float(addendum_coeff)
+        self.tip_clearance_coeff = float(tip_clearance_coeff)
+
+        o_d = self.module * n_teeth
+        i_d = 2 * self.bore_radius
+
+        m = self.calculate_mass(material.rho, width, o_d, i_d)
+        Ip = self.calculate_Ip(m, o_d, i_d)
+        Id = self.calculate_Id(Ip, m, width)
 
         super().__init__(
             n,
@@ -397,18 +417,11 @@ class GearElementTVMS(GearElement):
             n_teeth=n_teeth,
             pitch_diameter=o_d,
             pr_angle=pr_angle,
+            helix_angle=helix_angle,
             tag=tag,
             scale_factor=scale_factor,
             color=color,
         )
-
-        self.hub_bore_radius = float(hub_bore_radius)
-        self.module = float(module)
-        self.width = float(width)
-        self.addendum_coeff = float(addendum_coeff)
-        self.tip_clearance_coeff = float(tip_clearance_coeff)
-
-        self.material = material
 
         # Initialize geometry related dictionaries
         a_coeff_mod = self.addendum_coeff * self.module
@@ -657,7 +670,7 @@ class GearElementTVMS(GearElement):
 
         r_f = self.radii_dict["root"]
         theta_f = self.tooth_dict["root_angle"]
-        h = r_f / self.hub_bore_radius
+        h = r_f / self.bore_radius
 
         # curve-fitted by polynomial functions
         poly_func = lambda A, B, C, D, E, F: (
@@ -794,7 +807,6 @@ class GearElementTVMS(GearElement):
         return inv_k_t
 
     def _integrate_invol_term(self, func, beta):
-        # tau_c = self._to_tau(self.pr_angles_dict["start_point"])
         tau_c = self.tau_c
         inv_k_i, error = sp.integrate.quad(
             lambda tau: func(tau, self._compute_involute_curve, self._diff_tau),
@@ -878,19 +890,19 @@ class Mesh:
     >>> driving = GearElementTVMS(
     ...    n=0,
     ...    material=steel,
-    ...    module=0.002,
     ...    width=0.02,
+    ...    bore_radius=0.0175,
+    ...    module=0.002,
     ...    n_teeth=62,
-    ...    hub_bore_radius=0.0175,
     ...    pr_angle=0.349066
     ... )
     >>> driven = GearElementTVMS(
     ...    n=2,
     ...    material=steel,
-    ...    module=0.002,
     ...    width=0.02,
+    ...    bore_radius=0.0175,
+    ...    module=0.002,
     ...    n_teeth=62,
-    ...    hub_bore_radius=0.0175,
     ...    pr_angle=0.349066
     ... )
     >>> mesh = Mesh(driving, driven)
@@ -906,48 +918,75 @@ class Mesh:
     ):
         self.driving_gear = driving_gear
         self.driven_gear = driven_gear
-        self.gear_ratio = driving_gear.n_teeth / driven_gear.n_teeth
+        self.gear_ratio = (
+            driving_gear.n_teeth / driven_gear.n_teeth
+        )  # According Shigley Machine Elements
         self.pressure_angle = driving_gear.pr_angle
+        self.helix_angle = driving_gear.helix_angle
+
+        module_1 = driving_gear.pitch_diameter / driving_gear.n_teeth
+        module_2 = driven_gear.pitch_diameter / driven_gear.n_teeth
+
+        if round(module_1, 4) != round(module_2, 4):
+            raise ValueError(
+                "The gear module must be the same for both gears in order to mesh properly."
+            )
+
+        if driving_gear.width != driven_gear.width:
+            raise ValueError(
+                "The gear width must be the same for both gears in order to mesh properly."
+            )
 
         if gear_mesh_stiffness is None:
             if (
-                type(driving_gear) != GearElementTVMS
-                or type(driven_gear) != GearElementTVMS
+                type(driving_gear) == GearElementTVMS
+                and type(driven_gear) == GearElementTVMS
             ):
-                raise TypeError(
-                    "Missing gear_mesh_stiffness. Please use GearElementTVMS instead if this value is not provided."
+                # Contact ratio
+                center_distance = (
+                    driving_gear.radii_dict["pitch"] + driven_gear.radii_dict["pitch"]
+                )
+                contact_length = (
+                    np.sqrt(
+                        driving_gear.radii_dict["addendum"] ** 2
+                        - driving_gear.radii_dict["base"] ** 2
+                    )
+                    + np.sqrt(
+                        driven_gear.radii_dict["addendum"] ** 2
+                        - driven_gear.radii_dict["base"] ** 2
+                    )
+                    - center_distance * np.sin(driving_gear.pr_angle)
+                )
+                base_pitch = 2 * np.pi * driving_gear.base_radius / driving_gear.n_teeth
+                self.contact_ratio = contact_length / base_pitch
+
+                self.hertzian_stiffness = (
+                    np.pi
+                    * driving_gear.material.E
+                    * driving_gear.width
+                    / (4 * (1 - driving_gear.material.Poisson**2))
                 )
 
-            # Contact ratio
-            center_distance = (
-                driving_gear.radii_dict["pitch"] + driven_gear.radii_dict["pitch"]
-            )
-            contact_length = (
-                np.sqrt(
-                    driving_gear.radii_dict["addendum"] ** 2
-                    - driving_gear.radii_dict["base"] ** 2
-                )
-                + np.sqrt(
-                    driven_gear.radii_dict["addendum"] ** 2
-                    - driven_gear.radii_dict["base"] ** 2
-                )
-                - center_distance * np.sin(driving_gear.pr_angle)
-            )
-            base_pitch = 2 * np.pi * driving_gear.base_radius / driving_gear.n_teeth
-            self.contact_ratio = contact_length / base_pitch
+                theta_range, stiffness_range = self.get_stiffness_for_mesh_period()
 
-            self.hertzian_stiffness = (
-                np.pi
-                * driving_gear.material.E
-                * driving_gear.width
-                / (4 * (1 - driving_gear.material.Poisson**2))
-            )
+                self.theta_range = theta_range
+                self.stiffness_range = stiffness_range
+                self.stiffness = max(stiffness_range)
 
-            theta_range, stiffness_range = self.get_stiffness_for_mesh_period()
+            else:
+                if driving_gear.bore_radius:
+                    c = self.contact_ratio
+                    w = driving_gear.width
+                    E1 = driving_gear.material.E
+                    E2 = driven_gear.material.E
+                    self.stiffness = (c * w * E1 * E2) / (9 * (E1 + E2))
 
-            self.theta_range = theta_range
-            self.stiffness_range = stiffness_range
-            self.stiffness = max(stiffness_range)
+                else:
+                    raise TypeError(
+                        "Missing 'gear_mesh_stiffness'. You have two options if you don't set this value:\n"
+                        "1) Provide 'material' and 'bore_radius' for 'GearElement'\n"
+                        "2) Use 'GearElementTVMS' instead"
+                    )
 
         else:
             self.stiffness = gear_mesh_stiffness
