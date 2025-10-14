@@ -12,6 +12,7 @@ from warnings import warn
 from ross.units import Q_, check_units
 from ross.materials import steel
 from ross.disk_element import DiskElement
+from ross.materials import steel
 
 
 __all__ = ["GearElement", "GearElementTVMS", "Mesh"]
@@ -32,6 +33,8 @@ class GearElement(DiskElement):
         Diametral moment of inertia.
     Ip : float, pint.Quantity
         Polar moment of inertia.
+    width: float, pint.Quantity
+        width of the gear (mm).
     n_teeth : int
         Number of teeth.
     base_diameter : float, pint.Quantity
@@ -41,11 +44,15 @@ class GearElement(DiskElement):
         Pitch diameter of the gear (m).
         If given base_diameter is not necessary.
     pr_angle : float, pint.Quantity, optional
-        The pressure angle of the gear (rad).
+        The normal pressure angle of the gear (rad).
         Default is 20 deg (converted to rad).
+    material: ross.material, optional
+        material of the gear. Default is steel.
     tag : str, optional
         A tag to name the element.
         Default is None.
+    helix_angle: float, pint.Quantity, optional
+        value of helix angle for helical gears. Default is 0 representing spur gear.
     scale_factor: float or str, optional
         The scale factor is used to scale the gear drawing.
         For gears it is also possible to provide 'mass' as the scale factor.
@@ -61,8 +68,8 @@ class GearElement(DiskElement):
     --------
     >>> gear = GearElement(
     ...        n=0, m=4.67, Id=0.015, Ip=0.030,
-    ...        pitch_diameter=0.187, n_teeth=26,
-    ...        pr_angle=Q_(22.5, "deg")
+    ...        pitch_diameter=0.187, n_teeth=26, width=0.07,
+    ...        pr_angle=Q_(22.5, "deg"), helix_angle=0,
     ... )
     >>> gear.base_radius # doctest: +ELLIPSIS
     0.086382...
@@ -75,11 +82,14 @@ class GearElement(DiskElement):
         m,
         Id,
         Ip,
+        width,
         n_teeth,
         pitch_diameter=None,
         base_diameter=None,
         pr_angle=None,
+        material=steel,
         tag=None,
+        helix_angle=0,
         scale_factor=1.0,
         color="Goldenrod",
     ):
@@ -98,6 +108,18 @@ class GearElement(DiskElement):
                 "At least one of the following must be informed for GearElement: base_diameter or pitch_diameter"
             )
 
+        if not pitch_diameter:
+            self.pitch_diameter = (self.base_radius * 2) / np.cos(self.pressure_angle)
+        else:
+            self.pitch_diameter = float(pitch_diameter)
+
+        self.helix_angle = float(helix_angle)
+        self.width = float(width)
+
+        self.material = material
+
+        self.n_teeth = n_teeth
+
         super().__init__(n, m, Id, Ip, tag, scale_factor, color)
 
     @classmethod
@@ -111,6 +133,7 @@ class GearElement(DiskElement):
         n_teeth,
         pr_angle=None,
         tag=None,
+        helix_angle=0,
         scale_factor=1.0,
         color="Goldenrod",
     ):
@@ -149,13 +172,15 @@ class GearElement(DiskElement):
         o_d : float, pint.Quantity
             Outer pitch diameter (m).
         n_teeth : int
-            Number of teeth.
+            Number of teeth of the gear.
         pr_angle : float, pint.Quantity, optional
-            The pressure angle of the gear (rad).
+            The normal pressure angle of the gear (rad).
             Default is 20 deg (converted to rad).
         tag : str, optional
-            A tag to name the element
-            Default is None
+            A tag to name the element.
+            Default is None.
+        helix_angle: float, pint.Quantity, optional
+            Value of helix angle for helical gears. Default is 0 representing spur gear.
         scale_factor: float, optional
             The scale factor is used to scale the gear drawing.
             Default is 1.
@@ -170,14 +195,14 @@ class GearElement(DiskElement):
         Id : float
             Diametral moment of inertia.
         Ip : float
-            Polar moment of inertia
+            Polar moment of inertia.
 
         Examples
         --------
         >>> from ross.materials import steel
-        >>> gear = GearElement.from_geometry(0, steel, 0.07, 0.05, 0.28, 20)
-        >>> gear.Ip # doctest: +ELLIPSIS
-        0.329563...
+        >>> gear = GearElement.from_geometry(0, steel, 0.07, 0.05, 0.28, 50)
+        >>> gear.base_radius # doctest: +ELLIPSIS
+        0.131556...
         >>>
         """
         m = material.rho * np.pi * width * (o_d**2 - i_d**2) / 4
@@ -189,10 +214,13 @@ class GearElement(DiskElement):
             m,
             Id,
             Ip,
-            n_teeth,
+            width=width,
+            n_teeth=n_teeth,
             pitch_diameter=o_d,
             pr_angle=pr_angle,
+            material=material,
             tag=tag,
+            helix_angle=helix_angle,
             scale_factor=scale_factor,
             color=color,
         )
@@ -300,7 +328,7 @@ class GearElementTVMS(GearElement):
     material : ross.Material
         Gear's construction material.
     pr_angle : float, optional
-        The pressure angle of the gear (rad).
+        The normal pressure angle of the gear (rad).
         Default is 20 deg (converted to rad).
     addendum_coeff : float, optional
         Addendum coefficient of the gear.

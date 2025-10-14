@@ -60,7 +60,16 @@ class Material:
 
     @check_units
     def __init__(
-        self, name, rho, E=None, G_s=None, Poisson=None, specific_heat=None, thermal_conductivity=None, color="#525252", **kwargs
+        self,
+        name,
+        rho,
+        E=None,
+        G_s=None,
+        Poisson=None,
+        specific_heat=None,
+        thermal_conductivity=None,
+        color="#525252",
+        **kwargs,
     ):
         self.name = str(name)
         if " " in name:
@@ -86,7 +95,9 @@ class Material:
         self.G_s = float(G_s)
         self.Poisson = float(Poisson)
         self.specific_heat = float(specific_heat) if specific_heat is not None else 0.0
-        self.thermal_conductivity = float(thermal_conductivity) if thermal_conductivity is not None else 0.0
+        self.thermal_conductivity = (
+            float(thermal_conductivity) if thermal_conductivity is not None else 0.0
+        )
         self.color = color
 
     def __eq__(self, other):
@@ -141,7 +152,7 @@ class Material:
         return (
             f"Material"
             f'(name="{self.name}", rho={selfrho}, G_s={selfGs}, '
-            f'E={selfE}, specific_heat = {selfspecific_heat}, thermal_conductivity = {selfthermal_conductivity},'
+            f"E={selfE}, specific_heat = {selfspecific_heat}, thermal_conductivity = {selfthermal_conductivity},"
             f"color={self.color!r})"
         )
 
@@ -167,7 +178,7 @@ class Material:
         """
         return (
             f"{self.name}"
-            f'\n{35*"-"}'
+            f"\n{35 * '-'}"
             f"\nDensity         (kg/m**3): {self.rho:{2}.{8}}"
             f"\nYoung`s modulus (N/m**2):  {self.E:{2}.{8}}"
             f"\nShear modulus   (N/m**2):  {self.G_s:{2}.{8}}"

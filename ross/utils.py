@@ -6,6 +6,7 @@ from numpy import linalg as la
 from plotly import graph_objects as go
 from copy import deepcopy as copy
 from numba import njit
+from numpy.fft import fft
 
 
 class DataNotFoundError(Exception):
@@ -983,3 +984,234 @@ def convert_6dof_to_torsional(rotor):
     new_rotor.ndof = len(new_rotor.M())
 
     return new_rotor
+
+
+def compute_abs_phase(x_w):
+    """Compute absolute value and phase of a complex array.
+
+    This function calculates the absolute value (magnitude) and phase angle
+    for each element in a complex-valued NumPy array. It handles the case
+    where the input is zero, ensuring the phase is set to zero in such instances.
+    The input array is rounded to 10 decimal places before computation to
+    handle potential floating-point inaccuracies when checking for zero values.
+
+    Parameters
+    ----------
+    x_w : numpy.ndarray
+        A NumPy array of complex numbers.
+
+    Returns
+    -------
+    abs_x : numpy.ndarray
+        A NumPy array containing the absolute values (magnitudes) of the
+        input array `x_w`.
+    phase_x : numpy.ndarray
+        A NumPy array containing the phase angles (in radians) of the input
+        array `x_w`. The phase is set to 0 if the corresponding element in
+        `x_w` is zero (after rounding to 10 decimal places).
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> x_complex = np.array([1+1j, -2-2j, 0+0j, 1j])
+    >>> abs_val, phase_val = compute_abs_phase(x_complex)
+    >>> abs_val # doctest: +ELLIPSIS
+    array([1.41421356, 2.82842712, 0.        , 1.        ])
+    >>> phase_val # doctest: +ELLIPSIS
+    array([ 0.78539816, -2.35619449,  0.        ,  1.57079633])
+    """
+    x_w = np.round(x_w, 10)
+    abs_x = np.absolute(x_w)
+    phase_x = np.array([0 if np.absolute(z) == 0 else np.angle(z) for z in x_w])
+    return abs_x, phase_x
+
+
+def compute_fft(x, t):
+    """Compute Fast Fourier Transform (FFT) of a time signal.
+
+    This function calculates the Fast Fourier Transform (FFT) of a given
+    time-domain signal `x`. It computes the frequency spectrum, magnitude,
+    and phase of the signal for positive frequencies.
+
+    Parameters
+    ----------
+    x : numpy.ndarray
+        Time-domain signal as a NumPy array.
+    t : numpy.ndarray
+        Time vector corresponding to the signal `x` as a NumPy array.
+        The time step is inferred from the time vector.
+
+    Returns
+    -------
+    x_w : numpy.ndarray
+        Complex FFT of the signal `x` for positive frequencies.
+    f : numpy.ndarray
+        Frequency vector corresponding to `x_w`, containing positive
+        frequencies (in Hz).
+    abs_x : numpy.ndarray
+        Absolute value (magnitude) of the FFT for positive frequencies.
+    phase_x : numpy.ndarray
+        Phase angle of the FFT for positive frequencies (in radians).
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> t = np.linspace(0, 1, 1000, endpoint=False)  # 1 second duration
+    >>> x = np.sin(2*np.pi*5*t) + 0.5*np.sin(2*np.pi*20*t) # Signal with 5Hz and 20Hz components
+    >>> x_w, f, abs_x, phase_x = compute_fft(x, t)
+    >>> f # doctest: +ELLIPSIS
+    array([  0.,   1.,   2.,   3.,   4.,...
+    >>> abs_x # doctest: +ELLIPSIS
+    array([0. , 0. , 0. , 0. , 0. , 1. ,...
+    """
+    dt = t[1] - t[0]
+    n = len(x)
+    f = np.fft.fftfreq(n, dt)
+
+    x_w = fft(x) * 2 / n
+    abs_x, phase_x = compute_abs_phase(x_w)
+
+    x_w = x_w[f >= 0]
+    abs_x = abs_x[f >= 0]
+    phase_x = phase_x[f >= 0]
+    f = f[f >= 0]
+
+    return x_w, f, abs_x, phase_x
+
+
+def compute_freq_resp(t, y, u):
+    """Compute Frequency Response Function (FRF) between two signals.
+
+    This function calculates the Frequency Response Function (FRF) between an
+    input signal `u` and an output signal `y` in the frequency domain. It uses
+    Fast Fourier Transform (FFT) to transform both signals into the frequency
+    domain and then computes the FRF. Coherence is also calculated.
+
+    Parameters
+    ----------
+    t : numpy.ndarray
+        Time vector corresponding to signals `y` and `u`.
+    y : numpy.ndarray
+        Output time-domain signal.
+    u : numpy.ndarray
+        Input time-domain signal.
+
+    Returns
+    -------
+    f : numpy.ndarray
+        Frequency vector (in Hz).
+    abs_h : numpy.ndarray
+        Magnitude of the FRF.
+    phase_h : numpy.ndarray
+        Phase of the FRF (in radians).
+    h_w : numpy.ndarray
+        Complex FRF.
+    coe : numpy.ndarray
+        Coherence function.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> t = np.linspace(0, 1, 1000, endpoint=False)
+    >>> u = np.sin(2*np.pi*5*t)  # Input signal at 5Hz
+    >>> y = 2*np.sin(2*np.pi*5*t + np.pi/4) # Output signal with gain 2 and phase shift pi/4
+    >>> f, abs_h, phase_h, h_w, coe = compute_freq_resp(t, y, u)
+    >>> f # doctest: +ELLIPSIS
+    array([  0.,   1.,   2.,   3.,   4.,...
+    >>> abs_h.size
+    500
+    """
+    y_w, _, _, _ = compute_fft(y, t)
+    u_w, f, _, _ = compute_fft(u, t)
+
+    g_yy = np.conj(y_w) * y_w
+    g_uu = np.conj(u_w) * u_w
+    g_uy = np.conj(u_w) * y_w
+    h_w = g_uy / g_uu
+    coe = np.absolute(g_uy) ** 2 / (g_yy * g_uu)
+
+    abs_h, phase_h = compute_abs_phase(h_w)
+
+    return f, abs_h, phase_h, h_w, coe
+
+
+def equal_dicts(dict_1, dict_2):
+    """Recursively compare two dictionaries to check if they are equal.
+
+    The comparison includes checking if both dictionaries have the same keys,
+    if the types of the values for corresponding keys are the same, and if the
+    values themselves are equal. For NumPy arrays, equality is checked using
+    `np.isclose` to account for potential floating-point inaccuracies. For
+    nested dictionaries, the function calls itself recursively.
+
+    Parameters
+    ----------
+    dict_1 : dict
+        The first dictionary to compare.
+    dict_2 : dict
+        The second dictionary to compare.
+
+    Returns
+    -------
+    tuple : (bool, dict)
+        A tuple containing two elements:
+        - bool: `True` if the dictionaries are considered equal, `False` otherwise.
+        - dict: A dictionary with the same keys as `dict_1` (and `dict_2`).
+          The values in this dictionary indicate the equality status for each
+          corresponding key-value pair. The value can be a boolean for simple
+          types or another dictionary for nested dictionaries, reflecting the
+          result of the recursive comparison.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> dict1 = {'a': 1, 'b': 'hello', 'c': np.array([1, 2, 3])}
+    >>> dict2 = {'a': 1, 'b': 'hello', 'c': np.array([1, 2, 3])}
+    >>> dict3 = {'a': 1, 'b': 'world', 'c': np.array([1, 2, 3])}
+    >>> dict4 = {'a': 1, 'b': 'hello'}  # Different keys
+
+    >>> are_equal, equality_details = equal_dicts(dict1, dict2)
+    >>> are_equal
+    True
+    >>> equality_details # doctest: +SKIP
+    {'a': True, 'b': True, 'c': np.True_}
+
+    >>> are_equal, equality_details = equal_dicts(dict1, dict3)
+    >>> are_equal
+    False
+    >>> equality_details # doctest: +SKIP
+    {'a': True, 'b': False, 'c': np.True_}
+
+    >>> are_equal, equality_details = equal_dicts(dict1, dict4)
+    >>> are_equal
+    False
+
+    >>> # Example with nested dictionaries and NumPy arrays
+    >>> nested_dict1 = {'x': {'y': np.array([4, 5, 6]), 'z': 10}, 'w': 'test'}
+    >>> nested_dict2 = {'x': {'y': np.array([4, 5, 6]), 'z': 10}, 'w': 'test'}
+    >>> are_equal, equality_details = equal_dicts(nested_dict1, nested_dict2)
+    >>> are_equal
+    True
+    >>> equality_details # doctest: +SKIP
+    {'x': {'y': np.True_, 'z': True}, 'w': True}
+    """
+    # Compare the keys
+    if dict_1.keys() != dict_2.keys():
+        return False, {}
+
+    # Compare the values
+    is_equal = []
+    is_equal_key = {}
+    for key in dict_1.keys():
+        if isinstance(dict_1[key], np.ndarray):
+            is_equal.append(np.all(np.isclose(dict_1[key], dict_2[key])))
+            is_equal_key.update({key: is_equal[-1]})
+        elif isinstance(dict_1[key], dict):
+            equal_dicts_result = equal_dicts(dict_1[key], dict_2[key])
+            is_equal.append(equal_dicts_result[0])
+            is_equal_key.update({key: equal_dicts_result[1]})
+        else:
+            is_equal.append(dict_1[key] == dict_2[key])
+            is_equal_key.update({key: is_equal[-1]})
+
+    return all(is_equal), is_equal_key

@@ -1,19 +1,53 @@
 import numpy as np
-import math
 import sys
-import ccp
 from scipy.linalg import lu_factor, lu_solve
 from numpy.linalg import cond
 import multiprocessing
 from ross import SealElement
 from ross.units import check_units
 import multiprocessing
+import ccp
 
 __all__ = ["LabyrinthSeal"]
 
 
 class LabyrinthSeal(SealElement):
-    """Calculate labyrinth seal with model based on Laby3.
+    """Labyrinth seal - Compressible flow model with rotordynamic coefficients.
+
+    This class provides a **comprehensive analytical model** for labyrinth seals
+    based on compressible gas flow through multiple throttling stages (teeth). The
+    model calculates leakage rates and dynamic coefficients for rotordynamic analysis.
+
+    **Theoretical Approach:**
+
+    The model solves the **1D compressible flow problem** through a series of teeth using:
+
+    1. **Mass Flow Calculation**:
+       - Iterative solution for mass flow rate through multiple throttling stages
+       - Accounts for choked flow conditions at each tooth
+       - Uses discharge coefficients based on tooth geometry
+       - Isentropic relations for pressure drops across teeth
+       - Carry-over factor (ν) for flow momentum between cavities
+
+    2. **Pressure Distribution**:
+       - Solves for static pressure at each cavity using regula falsi method
+       - Handles both choked and unchoked flow conditions
+       - Critical pressure ratio check at each throttle
+       - Pressure balance ensures outlet pressure match
+
+    3. **Velocity Field (Swirl)**:
+       - Tangential velocity calculated at each cavity
+       - Accounts for inlet pre-swirl conditions
+       - Rotor and stator shear stress effects (friction factors)
+       - Reynolds number-dependent shear coefficients
+       - Jenny and Kanki parameters for improved tangential momentum (optional)
+
+    4. **Dynamic Coefficients** (stiffness and damping):
+       - Perturbation method applied to continuity and momentum equations
+       - Small perturbations in radial displacement and clearance
+       - Linearized system of equations solved using LU decomposition
+       - Cross-coupled stiffness terms capture destabilizing forces
+       - Frequency-dependent coefficients for each operating speed
 
     Parameters
     ----------
@@ -51,7 +85,7 @@ class LabyrinthSeal(SealElement):
         Specify 'inter' for interlocking type labyrinths.
     gas_composition : dict
         Gas composition as a dictionary {component: molar_fraction}.
-    if gas composition not 'AIR':
+        If gas_composition is None, provide the following parameters:
         r: float
             gas constant
         gamma: float
@@ -74,11 +108,13 @@ class LabyrinthSeal(SealElement):
         Use or no use of tangential momentum parameters introduced by Jenny and Kanki
         Specify value 0 to not use parameters
         Specify value 1 to use parameters
-
+    print_results : bool
+        If True, print results to console. Default is False.
 
     Examples
     --------
     >>> from ross.seals.labyrinth_seal import LabyrinthSeal
+    >>> from ross.units import Q_
     >>> seal = LabyrinthSeal(
     ...     n=0,
     ...     inlet_pressure=308000,
@@ -87,12 +123,13 @@ class LabyrinthSeal(SealElement):
     ...     pre_swirl_ratio=0.98,
     ...     frequency=Q_([5000, 8000, 11000], "RPM"),
     ...     n_teeth=16,
-    ...     shaft_radius=Q_(72.5,"mm"),
-    ...     radial_clearance=Q_(0.3,"mm"),
-    ...     pitch=Q_(3.175,"mm"),
-    ...     tooth_height=Q_(3.175,"mm"),
-    ...     tooth_width=Q_(0.1524,"mm"),
+    ...     shaft_radius=Q_(72.5, "mm"),
+    ...     radial_clearance=Q_(0.3, "mm"),
+    ...     pitch=Q_(3.175, "mm"),
+    ...     tooth_height=Q_(3.175, "mm"),
+    ...     tooth_width=Q_(0.1524, "mm"),
     ...     seal_type="inter",
+    ...     gas_composition={"Nitrogen": 0.79, "Oxygen": 0.21},
     ... )
     """
 
@@ -112,32 +149,38 @@ class LabyrinthSeal(SealElement):
         tooth_height=None,
         tooth_width=None,
         seal_type=None,
-        gas_composition="AIR",
-        r = None,
-        gamma= None,
+        gas_composition=None,
+        r=None,
+        gamma=None,
         tz=None,
         muz=None,
         analz="FULL",
         nprt=1,
         iopt1=0,
+        print_results=False,
         **kwargs,
     ):
-        
+        self.print_results = print_results
         self.gas_composition = gas_composition
-        state_in = ccp.State.define(p=inlet_pressure, T=inlet_temperature, fluid=self.gas_composition)
-        state_out = ccp.State.define(p=outlet_pressure, h=state_in.h(), fluid=self.gas_composition)
+        if self.gas_composition is not None:
+            state_in = ccp.State(
+                p=inlet_pressure, T=inlet_temperature, fluid=self.gas_composition
+            )
+            state_out = ccp.State(
+                p=outlet_pressure, h=state_in.h(), fluid=self.gas_composition
+            )
 
-        if(gamma is None):
-            gamma = round((state_in.cp() / state_in.cv()).m, 2)        
-        if(r is None):
-            r = round((state_in.gas_constant() / state_in.molar_mass()).m, 2)        
-        if(tz is None):
+        if gamma is None:
+            gamma = round((state_in.cp() / state_in.cv()).m, 2)
+        if r is None:
+            r = round((state_in.gas_constant() / state_in.molar_mass()).m, 2)
+        if tz is None:
             # tz: Temperature at state 1 e 2 (deg K)
             tz = [state_in.T().m, state_out.T().m]
-        if(muz is None):
+        if muz is None:
             # muz: Dynamic viscosity at state 1 e 2 (kg/(m s))
             muz = [state_in.viscosity().m, state_out.viscosity().m]
-                
+
         self.tz = tz
         self.muz = muz
         self.r = r
@@ -186,8 +229,14 @@ class LabyrinthSeal(SealElement):
 
         coefficients_dict = {}
         if kwargs.get("kxx") is None:
-            pool = multiprocessing.Pool()
-            coefficients_dict_list = pool.map(self.run, frequency)
+            # Use multiprocessing only when beneficial (>4 frequencies)
+            # For small workloads, sequential execution avoids process spawn overhead
+            if len(frequency) > 4:
+                with multiprocessing.Pool() as pool:
+                    coefficients_dict_list = pool.map(self.run, frequency)
+            else:
+                coefficients_dict_list = [self.run(freq) for freq in frequency]
+
             coefficients_dict = {k: [] for k in coefficients_dict_list[0].keys()}
             for d in coefficients_dict_list:
                 for k in coefficients_dict:
@@ -209,8 +258,8 @@ class LabyrinthSeal(SealElement):
         n = 0
         while n < self.n_teeth:
             r = guess
-            deriv_num = -2 * (n + 1) + 2 * r * math.log(r) + 1 / r - r
-            deriv_den = ((1 - r**2) ** 0.5) * ((n - math.log(r)) ** 1.5)
+            deriv_num = -2 * (n + 1) + 2 * r * np.log(r) + 1 / r - r
+            deriv_den = ((1 - r**2) ** 0.5) * ((n - np.log(r)) ** 1.5)
             deriv = deriv_num / deriv_den
             error = -deriv
             while abs(error) > tol:
@@ -221,13 +270,13 @@ class LabyrinthSeal(SealElement):
                     guess_high = guess
                     guess = (guess + guess_low) / 2
                 r = guess
-                deriv_num = -2 * (n + 1) + 2 * r * math.log(r) + 1 / r - r
-                deriv_den = ((1 - r**2) ** 0.5) * ((n - math.log(r)) ** 1.5)
+                deriv_num = -2 * (n + 1) + 2 * r * np.log(r) + 1 / r - r
+                deriv_den = ((1 - r**2) ** 0.5) * ((n - np.log(r)) ** 1.5)
                 deriv = deriv_num / deriv_den
                 error = -deriv
             self.r_choke[n] = guess
             self.tooth_height_choke[n] = (
-                (1 - self.r_choke[n] ** 2) / ((n + 1) - math.log(self.r_choke[n]))
+                (1 - self.r_choke[n] ** 2) / ((n + 1) - np.log(self.r_choke[n]))
             ) ** 0.5
             n += 1
             error = 10000
@@ -238,9 +287,8 @@ class LabyrinthSeal(SealElement):
             self.tooth_heighteta_nt = self.tooth_height_choke[self.n_teeth]
         else:
             self.tooth_heighteta_nt = (
-                (1 - self.pg**2) / (self.n_teeth - math.log(self.pg))
+                (1 - self.pg**2) / (self.n_teeth - np.log(self.pg))
             ) ** 0.5
-        return
 
     def setup(self):
         self.epslon = 0.6
@@ -249,13 +297,8 @@ class LabyrinthSeal(SealElement):
         self.nc = self.n_teeth - 1
         self.np = self.n_teeth + 1
 
-        for i in range(1, self.n_teeth):
-            self.radial_clearance[i] = self.radial_clearance[0]
-            self.tooth_height[i] = self.tooth_height[0]
-            self.tooth_width[i] = self.tooth_width[0]
-
-        for i in range(1, self.nc):
-            self.pitch[i] = self.pitch[0]
+        # Arrays already initialized with np.full() in __init__
+        # No need to re-assign values that are already set
 
         self.ndof = 8 * self.nc
         self.nbw = 33
@@ -271,11 +314,8 @@ class LabyrinthSeal(SealElement):
             self.rho[i] = 0
             self.t[i] = self.inlet_temperature
 
-        self.pi = math.pi
         self.pg = self.outlet_pressure / self.inlet_pressure
         self.omega = self.frequency
-
-        return
 
     def vermes(self):
         sg = self.tooth_width[0] / self.radial_clearance[0]
@@ -311,10 +351,11 @@ class LabyrinthSeal(SealElement):
         leakv = (
             self.mdotv
             * 2
-            * self.pi
+            * np.pi
             * (self.shaft_radius + 0.5 * self.radial_clearance[0])
         )
-        print(f"{'   Leakage':<40} {leakv:>15.8f} kg/s \n \n")
+        if self.print_results:
+            print(f"{'   Leakage':<40} {leakv:>15.8f} kg/s \n \n")
         self.mdot = self.mdotv
 
     def zpres(self):
@@ -338,11 +379,10 @@ class LabyrinthSeal(SealElement):
 
         tol_p = 1 * 10 ** (-4)
         a2998 = True
-        c = 0
 
         while True:
             asaida = True
-            if a2998 == True:
+            if a2998:
                 mdot_high = self.mdot * 5
                 mdot_low = 0
                 a2998 = False
@@ -359,7 +399,7 @@ class LabyrinthSeal(SealElement):
                 )
                 chok2 = chok1**gam5
             for i in range(1, self.n_teeth + 1):
-                if i == self.n_teeth:
+                if i is self.n_teeth:
                     prgs[0] = chok2
                 else:
                     prgs[0] = chok2
@@ -387,7 +427,7 @@ class LabyrinthSeal(SealElement):
                         * self.radial_clearance[i - 1]
                         * self.rho[i - 1]
                         * (prgs[2] ** gam1)
-                        * math.sqrt(
+                        * np.sqrt(
                             (self.vnu * self.w[i - 1] * self.w[i - 1])
                             + (gam4 * self.t[i - 1] * (1.0 - (prgs[2] ** gam2)))
                         )
@@ -421,10 +461,10 @@ class LabyrinthSeal(SealElement):
                         break
                     prold = prgs[2]
 
-                if a2001 == False:
+                if not a2001:
                     break
                 if abs(fpr[2]) > tol_p:
-                    print("Pressuere Convergence Error at Station", i)
+                    print(f"Pressuere Convergence Error at Station {i}")
                 self.pr[i - 1] = prgs[2]
                 self.p[i] = self.pr[i - 1] * self.p[i - 1]
                 self.w[i] = (self.mdot * self.r * self.t[i - 1]) / (
@@ -436,7 +476,7 @@ class LabyrinthSeal(SealElement):
                 self.rho[i] = self.rho[i - 1] * (self.pr[i - 1] ** gam1)
                 self.t[i] = self.t[i - 1] * (self.pr[i - 1] ** gam2)
 
-            if a2001 == True:
+            if a2001:
                 i = self.np - 1
                 chock1 = gam7 + (
                     self.vnu * self.w[i - 1] * self.w[i - 1] / (gam4 * self.t[i - 1])
@@ -450,13 +490,14 @@ class LabyrinthSeal(SealElement):
             if (
                 abs(error_outlet_pressure) >= tol_outlet_pressure
                 and abs(self.pr[self.np - 2] - chock2) / chock2 > tol_choked
-            ) or a2001 == False:
-                if error_outlet_pressure < 0 or a2001 == False:
+            ) or not a2001:
+                if error_outlet_pressure < 0 or not a2001:
                     mdot_tmp = self.mdot
                     self.mdot = (mdot_low + self.mdot) / 2
                     mdot_high = mdot_tmp
                     if (self.mdot - mdot_tmp) / self.mdot == 0:
-                        print("reset iteration")
+                        if self.print_results:
+                            print("Reset iteration")
                         ndex1 = 2
                         a2998 = True
                 elif error_outlet_pressure >= 0:
@@ -464,11 +505,12 @@ class LabyrinthSeal(SealElement):
                     self.mdot = (mdot_high + self.mdot) / 2
                     mdot_low = mdot_tmp
                     if (self.mdot - mdot_tmp) / self.mdot == 0:
-                        print("reset iteration")
+                        if self.print_results:
+                            print("Reset iteration")
                         ndex1 = 2
                         a2998 = True
                 asaida = False
-            if asaida == True:
+            if asaida:
                 break
 
         i = self.np - 1
@@ -481,7 +523,7 @@ class LabyrinthSeal(SealElement):
             leak = (
                 self.mdot
                 * 2
-                * self.pi
+                * np.pi
                 * (self.shaft_radius + 0.5 * self.radial_clearance[0])
             )
 
@@ -493,9 +535,8 @@ class LabyrinthSeal(SealElement):
         if self.nprt > 4:
             return
 
-        print(f"{'   Leakage':<40} {leak:>15.8f} kg/s \n")
-
-        return
+        if self.print_results:
+            print(f"{'   Leakage':<40} {leak:>15.8f} kg/s \n")
 
     def zvel_jen(self):
         vgs = np.zeros(3)
@@ -506,15 +547,16 @@ class LabyrinthSeal(SealElement):
 
         if self.omega == 0 and self.inlet_swirl_velocity == 0:
             return
+
         jc = 0
         if self.seal_type == "stator":
             jc = 0.15
-        if self.seal_type == "rotor":
+        elif self.seal_type == "rotor":
             jc = 0.35
-        if self.seal_type == "inter":
+        elif self.seal_type == "inter":
             jc = 0.90
         if jc == 0:
-            print("Improper selection of labyrinth type")
+            print("Improper selection of labyrinth type.")
             sys.exit()
         bmr = -0.25
         bms = -0.25
@@ -574,7 +616,7 @@ class LabyrinthSeal(SealElement):
                     * rov[j]
                     * bnr
                     * ((abs(rov[j]) * dh / self.nu) ** bmr)
-                    * math.copysign(1, rov[j])
+                    * np.copysign(1, rov[j])
                 )
                 ts[j] = (
                     0.5
@@ -583,7 +625,7 @@ class LabyrinthSeal(SealElement):
                     * vgs[j]
                     * bns
                     * ((abs(vgs[j]) * dh / self.nu) ** bms)
-                    * math.copysign(1, vgs[j])
+                    * np.copysign(1, vgs[j])
                 )
                 fv[j] = (self.mdot * jc * (vgs[j] - self.vin[i])) - (
                     self.pitch[0] * (tr[j] * ar - ts[j] * as_py)
@@ -599,7 +641,7 @@ class LabyrinthSeal(SealElement):
                     * rov[2]
                     * bnr
                     * ((abs(rov[2]) * dh / self.nu) ** bmr)
-                    * math.copysign(1, rov[2])
+                    * np.copysign(1, rov[2])
                 )
                 ts[2] = (
                     0.5
@@ -608,7 +650,7 @@ class LabyrinthSeal(SealElement):
                     * vgs[2]
                     * bns
                     * ((abs(vgs[2]) * dh / self.nu) ** bms)
-                    * math.copysign(1, vgs[2])
+                    * np.copysign(1, vgs[2])
                 )
                 fv[2] = (self.mdot * (vgs[2] - self.vin[i])) - (
                     self.pitch[0] * (tr[2] * ar - ts[2] * as_py)
@@ -663,7 +705,7 @@ class LabyrinthSeal(SealElement):
                     else:
                         break
             if abs(fv[2] > 0.001):
-                print("Velocity Convergence Error at station", i)
+                print(f"Velocity Convergence Error at station {i}")
             self.v[i] = vgs[2]
             self.vout[i] = self.vin[i] * (1 - jc) + self.v[i] * jc
             self.kout[i] = self.vout[i] / self.v[i]
@@ -716,7 +758,6 @@ class LabyrinthSeal(SealElement):
 
         if self.nprt > 3:
             return
-        return
 
     def zvel(self):
         vgs = np.zeros(3)
@@ -783,7 +824,7 @@ class LabyrinthSeal(SealElement):
                     * rov[j]
                     * bnr
                     * ((abs(rov[j]) * dh / self.nu) ** bmr)
-                    * math.copysign(1, rov[j])
+                    * np.copysign(1, rov[j])
                 )
                 ts[j] = (
                     0.5
@@ -792,7 +833,7 @@ class LabyrinthSeal(SealElement):
                     * vgs[j]
                     * bns
                     * ((abs(vgs[j]) * dh / self.nu) ** bms)
-                    * math.copysign(1, vgs[j])
+                    * np.copysign(1, vgs[j])
                 )
                 fv[j] = (self.mdot * (vgs[j] - self.v[i - 1])) - (
                     self.pitch[0] * (tr[j] * ar - ts[j] * as_py)
@@ -807,7 +848,7 @@ class LabyrinthSeal(SealElement):
                     * rov[2]
                     * bnr
                     * ((abs(rov[2]) * dh / self.nu) ** bmr)
-                    * math.copysign(1, rov[2])
+                    * np.copysign(1, rov[2])
                 )
                 ts[2] = (
                     0.5
@@ -816,7 +857,7 @@ class LabyrinthSeal(SealElement):
                     * vgs[2]
                     * bns
                     * ((abs(vgs[2]) * dh / self.nu) ** bms)
-                    * math.copysign(1, vgs[2])
+                    * np.copysign(1, vgs[2])
                 )
                 fv[2] = (self.mdot * (vgs[2] - self.v[i - 1])) - (
                     self.pitch[0] * (tr[2] * ar - ts[2] * as_py)
@@ -867,8 +908,8 @@ class LabyrinthSeal(SealElement):
                         vold = vgs[2]
                     else:
                         break
-            if abs(fv[2] > 0.001):
-                print("Velocity Convergence Error at station", i)
+            if abs(fv[2] > 0.001) and self.print_results:
+                print(f"Velocity Convergence Error at station {i}")
             self.v[i] = vgs[2]
             self.taur[i] = tr[2]
             self.taus[i] = ts[2]
@@ -914,7 +955,6 @@ class LabyrinthSeal(SealElement):
             self.cx[7][i] = (self.mdot / self.radial_clearance[0]) * (
                 self.v[i - 1] - self.v[i]
             ) + cxx3
-        return
 
     def pert(self):
         gmfull = np.zeros((1000, 1000))
@@ -1084,11 +1124,7 @@ class LabyrinthSeal(SealElement):
                     cont = 1
                 else:
                     gmfull[i][i + j - 16] = self.gm[i][j]
-        maux = [[0 for j in range(8 * self.nc)] for i in range(8 * self.nc)]
-        for i in range(0, self.nc * 8):
-            for j in range(0, self.nc * 8):
-                maux[i][j] = gmfull[i][j]
-        A = np.array(maux)
+        A = gmfull[: 8 * self.nc, : 8 * self.nc].copy()
         lu, piv = lu_factor(A)
         for i in range(0, 8 * self.nc):
             rhs1[i] = self.rhs[i][0]
@@ -1097,15 +1133,11 @@ class LabyrinthSeal(SealElement):
         rcond = 1 / cnd
 
         if rcond <= 1 / 3.0e8:
-            print(
-                "Matriz quase singular \n Sem previsão para os coeficientes dinâmicos"
-            )
+            print("Almost singular matrix. \n No prediction for dynamic coefficients.")
             quit()
         if rcond <= 1 / 1.0e6:
-            print(
-                "Número de condição da Matriz é alto \n número de condição de matriz e:",
-                cnd,
-            )
+            print(f"Array condition number is high \n array condition number e:{cnd}")
+
         sol1 = lu_solve((lu, piv), rhs1)
         sol2 = lu_solve((lu, piv), rhs2)
         for i in range(0, 8 * self.nc):
@@ -1125,14 +1157,14 @@ class LabyrinthSeal(SealElement):
             self.cxy = self.cxy + self.rhs[icnt + 2][1] + self.rhs[icnt + 4][1]
 
         self.kxx = (
-            self.pi
+            np.pi
             * self.shaft_radius
             * self.pitch[1]
             * (self.epslon / self.awrl)
             * self.kxx
         )
         self.kxy = (
-            self.pi
+            np.pi
             * self.shaft_radius
             * self.pitch[1]
             * (self.epslon / self.tooth_heightwrl)
@@ -1141,7 +1173,7 @@ class LabyrinthSeal(SealElement):
         self.kyx = -self.kxy
         if self.omega != 0:
             self.cxx = (
-                -self.pi
+                -np.pi
                 * self.shaft_radius
                 * self.pitch[1]
                 * (self.epslon / self.awrl)
@@ -1149,7 +1181,7 @@ class LabyrinthSeal(SealElement):
                 * self.cxx
             )
             self.cxy = (
-                self.pi
+                np.pi
                 * self.shaft_radius
                 * self.pitch[1]
                 * (self.epslon / self.tooth_heightwrl)
@@ -1176,16 +1208,18 @@ class LabyrinthSeal(SealElement):
             self.zvel_jen()
         if self.analz != "LEAKAGE":
             self.pert()
-        keys = ["kxx", "kyy", "kxy", "kyx", "cxx", "cyy", "cxy", "cyx", "leakage"]
-        coefficients_dict = {}
-        coefficients_dict["kxx"] = self.kxx
-        coefficients_dict["kyy"] = self.kxx
-        coefficients_dict["kxy"] = self.kxy
-        coefficients_dict["kyx"] = self.kyx
-        coefficients_dict["cxx"] = self.cxx
-        coefficients_dict["cyy"] = self.cxx
-        coefficients_dict["cxy"] = self.cxy
-        coefficients_dict["cyx"] = self.cyx
-        coefficients_dict["leakage"] = self.mdot
+
+        attrbute_coef = {
+            "kxx": "kxx",
+            "kyy": "kxx",
+            "kxy": "kxy",
+            "kyx": "kyx",
+            "cxx": "cxx",
+            "cyy": "cxx",
+            "cxy": "cxy",
+            "cyx": "cyx",
+            "seal_leakage": "mdot",
+        }
+        coefficients_dict = {k: getattr(self, v) for k, v in attrbute_coef.items()}
 
         return coefficients_dict

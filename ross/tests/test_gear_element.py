@@ -4,7 +4,7 @@ from copy import deepcopy
 from numpy.testing import assert_almost_equal
 
 from ross.units import Q_
-from ross.materials import Material
+from ross.materials import Material, steel
 from ross.gear_element import GearElement, GearElementTVMS, Mesh
 
 
@@ -15,6 +15,7 @@ def gear():
         m=726.4,
         Id=56.95,
         Ip=113.9,
+        width=0.101,
         n_teeth=328,
         pitch_diameter=1.1,
         pr_angle=Q_(22.5, "deg"),
@@ -24,6 +25,8 @@ def gear():
 def test_gear_params(gear):
     assert gear.pr_angle == 0.39269908169872414
     assert gear.base_radius == 0.5081337428812077
+    assert gear.helix_angle == 0.0
+    assert gear.material == steel
 
 
 def test_mass_matrix_gear(gear):

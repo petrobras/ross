@@ -8,6 +8,7 @@ import numpy as np
 import toml
 import warnings
 from inspect import signature
+from prettytable import PrettyTable
 from numpy.polynomial import Polynomial
 from plotly import graph_objects as go
 from scipy import interpolate as interpolate
@@ -259,6 +260,19 @@ class BearingElement(Element):
 
         return coefficient, interpolated
 
+    def _get_coefficient_list(self, ignore_mass=False):
+        """List with all bearing coefficients as strings"""
+        coefficients = [
+            attr.replace("_interpolated", "")
+            for attr in self.__dict__.keys()
+            if "_interpolated" in attr
+        ]
+
+        if ignore_mass:
+            coefficients = [coeff for coeff in coefficients if "m" not in coeff]
+
+        return coefficients
+
     def plot(
         self,
         coefficients=None,
@@ -357,6 +371,97 @@ class BearingElement(Element):
 
         return fig
 
+    @check_units
+    def format_table(
+        self,
+        frequency=None,
+        coefficients=None,
+        frequency_units="rad/s",
+        stiffness_units="N/m",
+        damping_units="N*s/m",
+        mass_units="kg",
+    ):
+        """Return frequency vs coefficients in table format.
+
+        Parameters
+        ----------
+        frequency : array, pint.Quantity, optional
+            Array with frequencies (rad/s).
+            Default is 5 values from min to max frequency.
+        coefficients : list, str, optional
+            List or str with the coefficients to include.
+            Defaults is a list of stiffness and damping coefficients.
+        frequency_units : str, optional
+            Frequency units.
+            Default is rad/s.
+        stiffness_units : str, optional
+            Stiffness units.
+            Default is N/m.
+        damping_units : str, optional
+            Damping units.
+            Default is N*s/m.
+        mass_units : str, optional
+            Mass units.
+            Default is kg.
+
+        Returns
+        -------
+        table : PrettyTable object
+            Table object with bearing coefficients to be printed.
+
+        Example
+        -------
+        >>> bearing = bearing_example()
+        >>> table = bearing.format_table(
+        ...     frequency=[0, 50, 100, 150, 200],
+        ...     coefficients=['kxx', 'kxy', 'cxx', 'cxy']
+        ... )
+        >>> print(table)
+        +-------------------+-----------+-----------+-------------+-------------+
+        | Frequency [rad/s] | kxx [N/m] | kxy [N/m] | cxx [N*s/m] | cxy [N*s/m] |
+        +-------------------+-----------+-----------+-------------+-------------+
+        |        0.0        | 1000000.0 |    0.0    |    200.0    |     0.0     |
+        |        50.0       | 1000000.0 |    0.0    |    200.0    |     0.0     |
+        |       100.0       | 1000000.0 |    0.0    |    200.0    |     0.0     |
+        |       150.0       | 1000000.0 |    0.0    |    200.0    |     0.0     |
+        |       200.0       | 1000000.0 |    0.0    |    200.0    |     0.0     |
+        +-------------------+-----------+-----------+-------------+-------------+
+        """
+        if isinstance(coefficients, str):
+            coefficients = [coefficients]
+        elif coefficients is None:
+            coefficients = self._get_coefficient_list(ignore_mass=True)
+
+        default_units = {"k": "N/m", "c": "N*s/m", "m": "kg"}
+        y_units = {"k": stiffness_units, "c": damping_units, "m": mass_units}
+
+        if frequency is None:
+            frequency = np.linspace(min(self.frequency), max(self.frequency), 5)
+        frequency_range = Q_(frequency, "rad/s").to(frequency_units).m
+
+        headers = [f"Frequency [{frequency_units}]"]
+        data = [frequency_range]
+
+        table = PrettyTable()
+
+        for coeff in coefficients:
+            headers.append(f"{coeff} [{default_units[coeff[0]]}]")
+            columns = (
+                Q_(
+                    getattr(self, f"{coeff}_interpolated")(frequency),
+                    default_units[coeff[0]],
+                )
+                .to(y_units[coeff[0]])
+                .m
+            )
+            data.append(columns)
+
+        table.field_names = headers
+        for row in np.array(data).T:
+            table.add_row(row.round(5))
+
+        return table
+
     def __repr__(self):
         """Return a string representation of a bearing element.
 
@@ -412,11 +517,7 @@ class BearingElement(Element):
                 self.__dict__.keys()
             )
 
-            coefficients = {
-                attr.replace("_interpolated", "")
-                for attr in self.__dict__.keys()
-                if "_interpolated" in attr
-            }
+            coefficients = set(self._get_coefficient_list())
 
             compared_attributes = list(coefficients.union(init_args))
             compared_attributes.sort()
@@ -449,11 +550,7 @@ class BearingElement(Element):
             self.__dict__.keys()
         )
 
-        coefficients = {
-            attr.replace("_interpolated", "")
-            for attr in self.__dict__.keys()
-            if "_interpolated" in attr
-        }
+        coefficients = set(self._get_coefficient_list())
 
         args = list(coefficients.union(init_args))
         args.sort()
@@ -915,9 +1012,21 @@ class BearingElement(Element):
 class BearingFluidFlow(BearingElement):
     """Instantiate a bearing using inputs from its fluid flow.
 
+    .. deprecated:: 2.0.0
+        `BearingFluidFlow` is deprecated and will be removed in a future version.
+        Use `PlainJournal` for advanced thermo-hydro-dynamic analysis with thermal
+        effects, or `CylindricalBearing` for fast analytical calculations.
+
     This method always creates elements with frequency-dependent coefficients.
     It calculates a set of coefficients for each frequency value appendend to
     "omega".
+
+    **Recommended alternatives:**
+
+    - For advanced analysis with thermal effects, multi-pad configurations, and
+      turbulence models, use :class:`PlainJournal` instead.
+    - For quick calculations and preliminary design, use :class:`CylindricalBearing`
+      instead.
 
     Parameters
     ----------
@@ -1029,6 +1138,14 @@ class BearingFluidFlow(BearingElement):
         scale_factor=1.0,
         color="#355d7a",
     ):
+        warnings.warn(
+            "BearingFluidFlow is deprecated and will be removed in a future version. "
+            "Use PlainJournal for advanced thermo-hydro-dynamic analysis with thermal effects, "
+            "or CylindricalBearing for fast analytical calculations.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
         self.nz = nz
         self.ntheta = ntheta
         self.length = length
@@ -1520,6 +1637,9 @@ class MagneticBearingElement(BearingElement):
         Proportional gain of the PID controller.
     kd_pid : float or int
         Derivative gain of the PID controller.
+    ki_pid : float or int, optional
+        Integrative gain of the PID controller, must be provided
+        if using closed-loop response
     k_amp : float or int
         Gain of the amplifier model.
     k_sense : float or int
@@ -1572,10 +1692,11 @@ class MagneticBearingElement(BearingElement):
         ag,
         nw,
         alpha,
-        kp_pid,
-        kd_pid,
         k_amp,
         k_sense,
+        kp_pid,
+        kd_pid,
+        ki_pid=None,
         tag=None,
         n_link=None,
         scale_factor=1,
@@ -1589,6 +1710,7 @@ class MagneticBearingElement(BearingElement):
         self.alpha = alpha
         self.kp_pid = kp_pid
         self.kd_pid = kd_pid
+        self.ki_pid = ki_pid
         self.k_amp = k_amp
         self.k_sense = k_sense
 
@@ -1635,6 +1757,15 @@ class MagneticBearingElement(BearingElement):
             * pA[2]
             / (4.0 * pA[0] ** 2)
         )
+
+        self.ks = ks
+        self.ki = ki
+        self.integral = [0, 0]
+        self.e0 = [0, 0]
+        self.control_signal = []
+        self.magnetic_force_xy = []
+        self.magnetic_force_vw = []
+
         k = ki * pA[7] * pA[8] * (pA[5] + np.divide(ks, ki * pA[7] * pA[8]))
         c = ki * pA[7] * pA[6] * pA[8]
         # k = ki * k_amp*k_sense*(kp_pid+ np.divide(ks, ki*k_amp*k_sense))
@@ -1674,20 +1805,112 @@ class MagneticBearingElement(BearingElement):
             color=color,
         )
 
+    def compute_pid_amb(self, dt, current_offset, setpoint, disp, dof_index):
+        """Compute PID control force for a single AMB DoF (x or y).
+
+        This function calculates the control force generated by an Active Magnetic
+        Bearing (AMB) in a specific degree of freedom (DoF) using a PID
+        (Proportional-Integral-Derivative) control algorithm. The force is computed
+        based on the displacement error with respect to a desired setpoint and the
+        dynamic characteristics of the PID controller.
+
+        The control signal is computed as:
+
+            signal_pid = current_offset + P + I + D
+
+        where:
+            - P = kp_pid * error
+            - I = ki_pid * ∫error dt
+            - D = kd_pid * d(error)/dt
+
+        The resulting magnetic force applied is:
+
+            F = ki * signal_pid + ks * disp
+
+        Parameters
+        ----------
+        dt : float
+            Time step of the simulation in seconds.
+        current_offset : float
+            Static offset added to the control signal (e.g., initial bias current).
+        setpoint : float
+            Desired reference position for the controlled DoF (typically zero).
+        disp : float
+            Current displacement measurement at the controlled DoF.
+        dof_index : int
+            Local index (0 for x-direction, 1 for y-direction) identifying the axis within the AMB element.
+
+        Returns
+        -------
+        magnetic_force : float
+            The control force computed for the specified AMB direction.
+
+        Notes
+        -----
+        - This function updates internal state variables of the `amb` object in-place:
+            * `integral[dof_index]`: integral error accumulator.
+            * `e0[dof_index]`: previous error value for derivative computation.
+            * `control_signal[dof_index]`: control signal history.
+            * `magnetic_force[dof_index]`: computed magnetic force history.
+        - The output force must be assigned externally to the appropriate index
+          in the global force vector of the rotor system.
+
+        Examples
+        --------
+        >>> import ross as rs
+        >>> rotor = rs.rotor_assembly.rotor_amb_example()
+        >>> amb = rotor.bearing_elements[0]
+        >>> amb.control_signal.append([[], []])
+        >>> force = amb.compute_pid_amb(
+        ...     dt=0.001,
+        ...     current_offset=0.0,
+        ...     setpoint=0.0,
+        ...     disp=0.0002,
+        ...     dof_index=0
+        ... )
+        >>> round(force, 6)
+        -6.503376
+        """
+        err = setpoint - disp
+        p = self.kp_pid * err
+        self.integral[dof_index] += self.ki_pid * err * dt
+        d = self.kd_pid * (err - self.e0[dof_index]) / dt
+        signal_pid = current_offset + p + self.integral[dof_index] + d
+        magnetic_force = self.ki * signal_pid + self.ks * disp
+        self.e0[dof_index] = err
+        self.control_signal[-1][dof_index].append(signal_pid)
+        return magnetic_force
+
 
 class CylindricalBearing(BearingElement):
-    """Cylindrical hydrodynamic bearing.
+    """Cylindrical hydrodynamic bearing - Simplified analytical model.
 
-    A cylindrical hydrodynamic bearing modeled as per
-    :cite:`friswell2010dynamics` (page 177) assuming the following:
+    This class provides a **fast, simplified** bearing model suitable for preliminary
+    design and basic analysis. Uses closed-form analytical solutions from
+    :cite:`friswell2010dynamics` (page 177).
 
-    - the flow is laminar and Reynolds’s equation applies
+    **When to use this class:**
+    - Quick calculations and preliminary design
+    - Educational purposes and basic understanding
+    - Simple bearing geometries
+    - When computational speed is critical
+
+    **For advanced analysis, consider using PlainJournal instead, which provides:**
+    - Thermo-hydro-dynamic (THD) effects
+    - Multiple bearing geometries (circular, lobe, elliptical)
+    - Multi-pad configurations
+    - Turbulence models
+    - Oil starvation/flooding conditions
+
+    Assumptions
+    -----------
+    - the flow is laminar and Reynolds's equation applies
     - the bearing is very short, so that L /D << 1, where L is the bearing length and
     D is the bearing diameter, which means that the pressure gradients are much
     larger in the axial than in the circumferential direction
     - the lubricant pressure is zero at the edges of the bearing
     - the bearing is operating under steady running conditions
-    - the lubricant properties do not vary substantially throughout the oil film
+    - the lubricant properties do not vary substantially throughout the oil film (isothermal)
     - the shaft does not tilt in the bearing
 
     Parameters

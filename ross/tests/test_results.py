@@ -8,11 +8,18 @@ from numpy.testing import assert_allclose, assert_almost_equal, assert_equal
 from ross import Q_, Probe
 from ross.results import *
 from ross.rotor_assembly import *
+from ross.rotor_assembly import rotor_amb_example
+from ross.utils import equal_dicts
 
 
 @pytest.fixture
 def rotor1():
     return rotor_example()
+
+
+@pytest.fixture
+def rotor_amb():
+    return rotor_amb_example()
 
 
 def test_save_load_campbell(rotor1):
@@ -145,6 +152,31 @@ def test_save_load_timeresponse(rotor1):
     assert response2.rotor == response.rotor
 
 
+def test_save_load_sensitivity(rotor_amb):
+    result = rotor_amb.run_amb_sensitivity(
+        speed=0,
+        t_max=5e-4,
+        dt=1e-4,
+        disturbance_amplitude=10e-6,
+        disturbance_min_frequency=0.001,
+        disturbance_max_frequency=150,
+        amb_tags=["Magnetic Bearing 0"],
+        sensors_theta=45,
+    )
+
+    file_amb = Path(tempdir) / "amb_sensitivities.toml"
+
+    result.save(file_amb)
+    result_load = SensitivityResults.load(file_amb)
+    compare_results = equal_dicts(vars(result), vars(result_load))
+
+    # Show what is different between results
+    if not compare_results[0]:
+        print(f"The results are different: {compare_results[1]}")
+
+    assert compare_results[0]
+
+
 def test_campbell_plot(rotor1):
     speed = np.linspace(0, 400, 101)
     camp = rotor1.run_campbell(speed)
@@ -195,7 +227,7 @@ def test_orbit_calculate_amplitude():
     # create orbit with major axis at 45deg
     orb = Orbit(node=0, node_pos=0, ru_e=(2 + 1j), rv_e=(2 - 1j))
 
-    assert_allclose(orb.calculate_amplitude(Q_(0, "deg"))[0], 1.7949401413591568)
+    assert_allclose(orb.calculate_amplitude(Q_(0, "deg"))[0], 2.23606797749979)
     assert_allclose(orb.calculate_amplitude(Q_(45, "deg"))[0], 2.8284271247461903)
     assert_allclose(
         orb.calculate_amplitude(Q_(135, "deg"))[0], 1.4142135623730947, rtol=1e-3

@@ -67,7 +67,7 @@ class Probe:
             else ""
         )
 
-        return f"{tag_str}" f"\n{20*'-'}" f"{nod_str}" f"{dir_str}" f"{ang_str}"
+        return f"{tag_str}\n{20 * '-'}{nod_str}{dir_str}{ang_str}"
 
     def get_label(self, id=None):
         label = "Probe" if id is None else f"Probe {id}"

@@ -264,8 +264,8 @@ class MisalignmentFlex(ABC):
         kwargs.pop("method", None)
 
         # Unbalance force
-        F, ang_pos, _, _ = rotor._unbalance_force_over_time(
-            node, unb_magnitude, unb_phase, speed, t
+        F, ang_pos, _, _ = rotor.unbalance_force_over_time(
+            node, unb_magnitude, unb_phase, speed, t, return_all=True
         )
 
         self.forces = self.compute_reaction_force(ang_pos)
@@ -507,8 +507,8 @@ class MisalignmentRigid(ABC):
 
         rotor = self.rotor
 
-        F, ang_pos, speed, _ = rotor._unbalance_force_over_time(
-            node, unb_magnitude, unb_phase, speed, t
+        F, ang_pos, speed, _ = rotor.unbalance_force_over_time(
+            node, unb_magnitude, unb_phase, speed, t, return_all=True
         )
 
         self.forces = np.zeros((rotor.ndof, len(t)))

@@ -208,8 +208,8 @@ class Rubbing(ABC):
         rotor = self.rotor
 
         # Unbalance force
-        F, _, speed, _ = rotor._unbalance_force_over_time(
-            node, unb_magnitude, unb_phase, speed, t
+        F, _, speed, _ = rotor.unbalance_force_over_time(
+            node, unb_magnitude, unb_phase, speed, t, return_all=True
         )
 
         self.forces = np.zeros((rotor.ndof, len(t)))

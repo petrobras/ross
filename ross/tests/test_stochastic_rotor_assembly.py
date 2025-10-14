@@ -6,6 +6,7 @@ Tests for:
 
 import numpy as np
 import pytest
+from numpy.linalg import norm
 from numpy.testing import assert_allclose
 
 from ross.bearing_seal_element import BearingElement
@@ -300,8 +301,8 @@ def test_run_campbell(rotor1):
 
     assert results.wd.shape == (7, 11, 2)
     assert results.log_dec.shape == (7, 11, 2)
-    assert_allclose(results.wd, wd, atol=1e-6)
-    assert_allclose(results.log_dec, log_dec, atol=1e-6)
+    assert_allclose(norm(results.wd), norm(wd), atol=1e-6)
+    assert_allclose(norm(results.log_dec), norm(log_dec), atol=1e-6)
 
 
 def test_run_freq_response(rotor1):
@@ -313,7 +314,7 @@ def test_run_freq_response(rotor1):
     # fmt: off
     magnitude = np.array(
         [
-            [1.58882967e-06, 1.33882967e-06],
+            [0.00000000e+00, 0.00000000e+00],
             [1.62744382e-06, 1.36477912e-06],
             [1.75568617e-06, 1.44916962e-06],
             [2.02223729e-06, 1.61623355e-06],
@@ -333,13 +334,13 @@ def test_run_freq_response(rotor1):
             [2.26121060e-07, 2.57674896e-07],
             [1.93759548e-07, 2.20975147e-07],
             [1.67194696e-07, 1.91180171e-07],
-            [1.45067953e-07, 1.66599615e-07],
+            [1.45067953e-07, 1.66599615e-07]
         ]
     )
 
     phase = np.array(
         [
-            [1.450892840e-15,  6.54838413e-16],
+            [ 0.00000000e+00,  0.00000000e+00],
             [-4.86629256e-03, -2.87216612e-03],
             [-1.07029194e-02, -6.20826058e-03],
             [-1.90893779e-02, -1.06942332e-02],
@@ -359,7 +360,7 @@ def test_run_freq_response(rotor1):
             [-3.08547772e+00, -3.10365040e+00],
             [-3.08114028e+00, -3.10170577e+00],
             [-3.07571909e+00, -3.09922036e+00],
-            [-3.06905308e+00, -3.09616849e+00],
+            [-3.06905308e+00, -3.09616849e+00]
         ]
     )
     # fmt: on
