@@ -221,8 +221,8 @@ class GearElement(DiskElement):
         0.131556...
         >>>
         """
-        m = cls.calculate_mass(material.rho, width, o_d, i_d)
-        Ip = cls.calculate_Ip(m, o_d, i_d)
+        m = cls.calculate_mass(material.rho, width, i_d, o_d)
+        Ip = cls.calculate_Ip(m, i_d, o_d)
         Id = cls.calculate_Id(Ip, m, width)
 
         return cls(
@@ -404,8 +404,8 @@ class GearElementTVMS(GearElement):
     ):
         pitch_diameter = float(module) * n_teeth
 
-        m = self.calculate_mass(material.rho, width, pitch_diameter, bore_diameter)
-        Ip = self.calculate_Ip(m, pitch_diameter, bore_diameter)
+        m = self.calculate_mass(material.rho, width, bore_diameter, pitch_diameter)
+        Ip = self.calculate_Ip(m, bore_diameter, pitch_diameter)
         Id = self.calculate_Id(Ip, m, width)
 
         super().__init__(

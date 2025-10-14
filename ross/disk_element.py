@@ -516,8 +516,8 @@ class DiskElement(Element):
         >>> disk.Ip
         0.32956362089137037
         """
-        m = cls.calculate_mass(material.rho, width, o_d, i_d)
-        Ip = cls.calculate_Ip(m, o_d, i_d)
+        m = cls.calculate_mass(material.rho, width, i_d, o_d)
+        Ip = cls.calculate_Ip(m, i_d, o_d)
         Id = cls.calculate_Id(Ip, m, width)
 
         return cls(n, m, Id, Ip, tag, scale_factor, color)
