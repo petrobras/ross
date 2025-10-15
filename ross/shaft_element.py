@@ -1171,7 +1171,7 @@ class ShaftElement(Element):
 
         return fig
 
-    def create_modified(self, **attributes):
+    def copy(self, **attributes):
         """Return a new shaft element based on the current instance.
 
         Any attribute passed as an argument will be used to modify the corresponding
