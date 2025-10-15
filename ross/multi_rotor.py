@@ -212,7 +212,16 @@ class MultiRotor(Rotor):
             tag=tag,
         )
 
+    def _set_tag(self, tag):
+        """Set the tag for the current multi-rotor."""
+        self.tag = tag or "MultiRotor 0"
+
+    def _set_element_tag(self, elm, index):
+        """Set a tag for the given element."""
+        elm.tag = elm.get_class_name_prefix(index)
+
     def _fix_nodes_pos(self, index, node, nodes_pos_l):
+        """Adjust node positions of the driven rotor."""
         if node < self.driven_nodes[0]:
             nodes_pos_l[index] = self.rotors["driving"].nodes_pos[
                 self.rotors["driving"].nodes.index(node)
@@ -220,7 +229,8 @@ class MultiRotor(Rotor):
         elif node == self.driven_nodes[0]:
             nodes_pos_l[index] = self.rotors["driven"].nodes_pos[0] + self.dz_pos
 
-    def _fix_nodes(self):
+    def _set_nodes(self, df_shaft):
+        """Set nodes and nodes_pos lists."""
         self.nodes = [*self.rotors["driving"].nodes, *self.driven_nodes]
 
         R2_nodes_pos = [pos + self.dz_pos for pos in self.rotors["driven"].nodes_pos]
@@ -258,32 +268,6 @@ class MultiRotor(Rotor):
         global_matrix[first_ndof:, first_ndof:] = driven_matrix
 
         return global_matrix
-
-    def _update_mesh_stiffness(self, speed, t):
-        """Update the mesh stiffness based on the current speed and time.
-
-        Parameters
-        ----------
-        speed : array_like
-            Rotor speed.
-        t : ndarray
-            Time array.
-
-        Returns
-        -------
-        couple_K_matrix : callable
-            A function `couple_K_matrix(step, K)` that returns the modified or original
-            stiffness matrix `K` at the given time step.
-        """
-        if self.update_mesh_stiffness:
-            theta = integrate(speed, t, initial=0)
-            couple_K_matrix = lambda step, K: self._couple_K(
-                K, self.mesh.interpolate_stiffness(theta[step])
-            )
-        else:
-            couple_K_matrix = lambda step, K: K
-
-        return couple_K_matrix
 
     def _unbalance_force(self, node, magnitude, phase, omega):
         """Calculate unbalance forces.
@@ -758,6 +742,45 @@ class MultiRotor(Rotor):
             self.rotors["driving"].G(),
             -self.mesh.gear_ratio * self.rotors["driven"].G(),
         )
+
+    def _rotor_system_for_integrate(
+        self, rotor, speed, t, reduce_matrix, forces, **kwargs
+    ):
+        """Build rotor system for integrate method."""
+        if self.update_mesh_stiffness:
+            # Check if speed is array
+            speed_is_array = isinstance(speed, Iterable)
+            if not speed_is_array:
+                speed = np.full_like(t, speed)
+
+            accel = np.gradient(speed, t)
+            theta = integrate(speed, t, initial=0)
+
+            # Assemble matrices
+            M = reduce_matrix(kwargs.get("M", self.M()))
+            C2 = reduce_matrix(kwargs.get("G", self.G()))
+            K2 = reduce_matrix(kwargs.get("Ksdt", self.Ksdt()))
+
+            def rotor_system(step, **current_state):
+                C1 = reduce_matrix(self.C(speed[step]))
+
+                mesh_stiffness = self.mesh.interpolate_stiffness(theta[step])
+                K_coupled = self._couple_K(self.K(speed[step]), mesh_stiffness)
+                K1 = reduce_matrix(K_coupled)
+
+                return (
+                    M,
+                    C1 + C2 * speed[step],
+                    K1 + K2 * accel[step],
+                    forces(step, **current_state),
+                )
+
+            return rotor_system
+
+        else:
+            return super()._rotor_system_for_integrate(
+                rotor, speed, t, reduce_matrix, forces, **kwargs
+            )
 
 
 def two_shaft_rotor_example():

@@ -1035,12 +1035,13 @@ class Mesh:
 
         This method computes the equivalent stiffness of a gear mesh at a given
         angular position, taking into account the periodic nature of the meshing
-        process and the contact ratio of the gear pair.
+        process and the contact ratio of the gear pair. It is assumed constant
+        rotor speed.
 
         Parameters
         ----------
         angular_position : float
-            Gear angular position for which the meshing stiffness is calculated.
+            Gear angular position for which the meshing stiffness is calculated (rad).
 
         Returns
         -------
@@ -1097,8 +1098,7 @@ class Mesh:
         Parameters
         ----------
         angular_position : float or array-like
-            Angular position(s) at which to evaluate the stiffness. Should be in
-            the radians.
+            Angular position(s) at which to evaluate the stiffness (rad).
 
         Returns
         -------
