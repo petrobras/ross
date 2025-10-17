@@ -936,6 +936,13 @@ class Mesh:
                 f"Driving gear: {driving_gear.module:.4f}, Driven gear: {driven_gear.module:.4f}"
             )
 
+        if driving_gear.width and driven_gear.width:
+            if not math.isclose(driving_gear.width, driven_gear.width, rel_tol=0.05):
+                warn(
+                    "Gear widths must match for proper meshing | "
+                    f"Driving gear: {driving_gear.width:.4f}, Driven gear: {driven_gear.width:.4f}"
+                )
+
         if gear_mesh_stiffness is None:
             if (
                 type(driving_gear) == GearElementTVMS
@@ -1052,7 +1059,7 @@ class Mesh:
         alpha_c = self.driving_gear.pr_angles_dict["start_point"]
         alpha_a = self.driving_gear.pr_angles_dict["addendum"]
 
-        tm_om = 2 * np.pi / self.driven_gear.n_teeth
+        tm_om = 2 * np.pi / self.driving_gear.n_teeth
         theta = mod(angular_position, tm_om)
 
         d_meshing = (alpha_a - alpha_c) / cr
