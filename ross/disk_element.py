@@ -436,6 +436,22 @@ class DiskElement(Element):
 
         return fig
 
+    @staticmethod
+    def calculate_mass(rho, width, i_d, o_d):
+        return rho * np.pi * width * (o_d**2 - i_d**2) / 4
+
+    @staticmethod
+    def calculate_Ip(m, i_d, o_d):
+        return m * (o_d**2 + i_d**2) / 8
+
+    @staticmethod
+    def calculate_Id(Ip, m, width):
+        return 1 / 2 * Ip + 1 / 12 * m * width**2
+
+    @staticmethod
+    def calculate_width(rho, m, i_d, o_d):
+        return 4 * m / (rho * np.pi * (o_d**2 - i_d**2))
+
     @classmethod
     @check_units
     def from_geometry(
@@ -500,11 +516,9 @@ class DiskElement(Element):
         >>> disk.Ip
         0.32956362089137037
         """
-        m = material.rho * np.pi * width * (o_d**2 - i_d**2) / 4
-        Ip = m * (o_d**2 + i_d**2) / 8
-        Id = 1 / 2 * Ip + 1 / 12 * m * width**2
-
-        tag = tag
+        m = cls.calculate_mass(material.rho, width, i_d, o_d)
+        Ip = cls.calculate_Ip(m, i_d, o_d)
+        Id = cls.calculate_Id(Ip, m, width)
 
         return cls(n, m, Id, Ip, tag, scale_factor, color)
 

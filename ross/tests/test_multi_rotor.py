@@ -1,14 +1,9 @@
 import numpy as np
 import pytest
 from copy import deepcopy
-from numpy.testing import assert_almost_equal
+from numpy.testing import assert_allclose
 
 import ross as rs
-
-from ross.units import Q_
-from ross.materials import Material, steel
-from ross.gear_element import GearElement
-from ross.multi_rotor import MultiRotor
 
 
 @pytest.fixture
@@ -45,26 +40,25 @@ def multi_rotor():
         Ip=6.23,
     )
 
-    pressure_angle = rs.Q_(22.5, "deg")
+    pressure_angle = rs.Q_(22.5, "deg").to_base_units().m
     base_radius = 0.5086
     pitch_diameter = 2 * base_radius / np.cos(pressure_angle)
 
-    N1 = 328  # Number of teeth of gear 1
+    N1 = 328
     m = 726.4
     Id = 56.95
     Ip = 113.9
-    width = (4 * m) / (material.rho * np.pi * (pitch_diameter**2 - d1[-1] ** 2))
+
     gear1 = rs.GearElement(
         n=4,
         m=m,
         Id=Id,
         Ip=Ip,
-        width=width,
         n_teeth=N1,
         pitch_diameter=pitch_diameter,
-        pressure_angle=pressure_angle,
+        pr_angle=pressure_angle,
+        bore_diameter=d1[-1],
         material=material,
-        helix_angle=0,
     )
 
     bearing1 = rs.BearingElement(n=0, kxx=183.9e6, kyy=200.4e6, cxx=3e3)
@@ -95,21 +89,19 @@ def multi_rotor():
     base_radius = 0.03567
     pitch_diameter = 2 * base_radius / np.cos(pressure_angle)
 
-    N2 = 23  # Number of teeth of gear 2
+    N2 = 23
     m = 5
     Id = 0.002
     Ip = 0.004
+
     gear2 = rs.GearElement(
         n=0,
         m=m,
         Id=Id,
         Ip=Ip,
-        width=width,
         n_teeth=N2,
         pitch_diameter=pitch_diameter,
-        pressure_angle=pressure_angle,
-        material=material,
-        helix_angle=0,
+        pr_angle=pressure_angle,
     )
 
     turbine = rs.DiskElement(n=2, m=7.45, Id=0.0745, Ip=0.149)
@@ -123,7 +115,7 @@ def multi_rotor():
         [bearing3, bearing4],
     )
 
-    return MultiRotor(
+    return rs.MultiRotor(
         rotor1,
         rotor2,
         coupled_nodes=(4, 0),
@@ -132,9 +124,11 @@ def multi_rotor():
     )
 
 
-def test_multi_rotor(multi_rotor):
-    assert multi_rotor.contact_ratio == 1.6377334309511224
-    assert multi_rotor.gear_mesh_stiffness == 1918871975.9364796
+def test_mesh(multi_rotor):
+    assert_allclose(
+        multi_rotor.mesh.contact_ratio, 1.6377334309511222, rtol=1e-6, atol=1e-5
+    )
+    assert_allclose(multi_rotor.mesh.stiffness, 1937234387.18946, rtol=1e-6, atol=1e-5)
 
 
 def test_coupling_matrix_gear(multi_rotor):
@@ -311,4 +305,6 @@ def test_coupling_matrix_gear(multi_rotor):
         ]
     )
 
-    assert_almost_equal(multi_rotor.coupling_matrix(), coupling_matrix, decimal=5)
+    assert_allclose(
+        multi_rotor.coupling_matrix(), coupling_matrix, rtol=1e-6, atol=1e-5
+    )
