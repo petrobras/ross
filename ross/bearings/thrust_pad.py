@@ -67,8 +67,6 @@ class ThrustPad(BearingElement):
         Axial load applied to the bearing. Default is None.
     print_progress : bool, optional
         Whether to print convergence progress. Default is False.
-    print_time : bool, optional
-        Whether to print calculation time. Default is False.
     compare_coefficients : bool, optional
         Whether to compare dynamic coefficients by each frequency in a table. Default is False.
     **kwargs
@@ -173,12 +171,10 @@ class ThrustPad(BearingElement):
         model_type="thermo_hydro_dynamic",
         fzs_load=None,
         print_progress=False,
-        print_time=False,
         compare_coefficients=False,
         **kwargs,
     ):
         self.print_progress = print_progress
-        self.print_time = print_time
         self.compare_coefficients = compare_coefficients
 
         self.model_type = model_type
@@ -257,6 +253,7 @@ class ThrustPad(BearingElement):
         kzz = np.zeros(n_freq)
         czz = np.zeros(n_freq)
 
+        self.initial_time = time.time()
         for i in range(n_freq):
             self.speed = self.frequency[i]
 
@@ -268,6 +265,7 @@ class ThrustPad(BearingElement):
         super().__init__(
             n, kxx=0, cxx=0, kzz=kzz, czz=czz, frequency=frequency, **kwargs
         )
+        self.final_time = time.time()
 
         if self.compare_coefficients:
             print("\n" + "=" * 60)
@@ -348,8 +346,6 @@ class ThrustPad(BearingElement):
         >>> from ross.bearings.thrust_pad import thrust_pad_example
         >>> bearing = thrust_pad_example()
         """
-        if self.print_time:
-            t1 = time.time()
 
         # Solve the fields (pressure and temperature fields)
         self.solve_fields()
@@ -357,9 +353,7 @@ class ThrustPad(BearingElement):
         # Calculate the dynamic coefficients
         self.coefficients()
 
-        if self.print_time:
-            t2 = time.time()
-            print("Calculation time spent: {0:.2f} seconds".format(t2 - t1))
+        final_time = time.time()
 
     def show_results(self):
         """Display thrust bearing calculation results in a formatted table.
@@ -3025,6 +3019,30 @@ class ThrustPad(BearingElement):
         
         return fig
 
+    def show_execution_time(self):
+        """Display the simulation execution time.
+
+        This method calculates and displays the total time spent during the
+        complete bearing analysis execution, including all frequency calculations.
+
+        Parameters
+        ----------
+        None
+            This method uses the initial_time and final_time attributes
+            stored during the simulation execution.
+
+        Returns
+        -------
+        float
+            Total simulation time in seconds. Returns None if simulation
+            hasn't been executed yet.
+        """
+        if hasattr(self, "initial_time") and hasattr(self, "final_time"):
+            total_time = self.final_time - self.initial_time
+            print(f"Execution time: {total_time:.2f} seconds")
+        else:
+            print("Simulation hasn't been executed yet.")
+
 def thrust_pad_example():
     """Create an example of a thrust bearing with Thermo-Hydro-Dynamic effects.
 
@@ -3079,7 +3097,6 @@ def thrust_pad_example():
         circumferential_inclination_angle=Q_(-1.70e-05, "rad"),
         initial_film_thickness=Q_(0.2, "mm"),
         print_progress=False,
-        print_time=False,
         compare_coefficients=False,
     )
 

@@ -37,9 +37,6 @@ def thrust_pad():
         radial_inclination_angle=radial_inclination_angle,
         circumferential_inclination_angle=circumferential_inclination_angle,
         initial_film_thickness=initial_film_thickness,
-        print_progress=False,
-        print_time=False,
-        compare_coefficients=False,
     )
 
     return bearing
