@@ -65,8 +65,6 @@ class ThrustPad(BearingElement):
         Initial film thickness at pivot point. Default unit is meters.
     fzs_load : float, optional
         Axial load applied to the bearing. Default is None.
-    print_result : bool, optional
-        Whether to print calculation results. Default is False.
     print_progress : bool, optional
         Whether to print convergence progress. Default is False.
     print_time : bool, optional
@@ -174,13 +172,11 @@ class ThrustPad(BearingElement):
         initial_film_thickness,
         model_type="thermo_hydro_dynamic",
         fzs_load=None,
-        print_result=False,
         print_progress=False,
         print_time=False,
         compare_coefficients=False,
         **kwargs,
     ):
-        self.print_result = print_result
         self.print_progress = print_progress
         self.print_time = print_time
         self.compare_coefficients = compare_coefficients
@@ -360,11 +356,6 @@ class ThrustPad(BearingElement):
 
         # Calculate the dynamic coefficients
         self.coefficients()
-
-        # Display the results
-        if self.print_result:
-            self.show_results()
-            self.plot_results()
 
         if self.print_time:
             t2 = time.time()
@@ -3069,7 +3060,6 @@ def thrust_pad_example():
         radial_inclination_angle=Q_(-2.75e-04, "rad"),
         circumferential_inclination_angle=Q_(-1.70e-05, "rad"),
         initial_film_thickness=Q_(0.2, "mm"),
-        print_result=False,
         print_progress=False,
         print_time=False,
         compare_coefficients=False,
