@@ -2764,12 +2764,33 @@ class ThrustPad(BearingElement):
         self.kzz = self.n_pad * np.real(force_axial)
         self.czz = self.n_pad * 1 / perturbation_frequency * np.imag(force_axial)
 
-    def plot_results(self):
+    def plot_results(self, show_plots=False):
         """Plot pressure and temperature field results.
 
         Creates 3D surface plots and 2D contour plots for both pressure
         and temperature fields using Plotly.
+
+        Parameters
+        ----------
+        show_plots : bool, optional
+            Whether to automatically display the plots. Default is False.
+            Set to True to display plots automatically.
+
+        Returns
+        -------
+        dict or None
+            Dictionary containing figure objects if show_plots=False, None otherwise.
+            Keys: "pressure_3d", "temperature_3d", "pressure_contour", "temperature_contour"
+
+        Examples
+        --------
+        >>> # doctest: +SKIP 
+        >>> from ross.bearings.thrust_pad import thrust_pad_example
+        >>> bearing = thrust_pad_example()
+        >>> figures = bearing.plot_results()
+        >>> figures["pressure_3d"].show()
         """
+
         # Define coordinate vectors and matrices
         radial_coords = np.zeros(self.n_radial + 2)
         angular_coords = np.zeros(self.n_theta + 2)
@@ -2811,26 +2832,27 @@ class ThrustPad(BearingElement):
         )
 
         # Plot 3D pressure field
-        self._plot_3d_surface(
+        pressure_3d_fig = self._plot_3d_surface(
             x_coords,
             y_coords,
             self.pressure_field_dimensional,
             "Pressure field",
             "Pressure [Pa]",
             angle_range,
+            show_plot=False
         )
 
         # Plot 3D temperature field
-        self._plot_3d_surface(
+        temperature_3d_fig = self._plot_3d_surface(
             x_coords,
             y_coords,
             self.temperature_field,
             "Temperature field",
             "Temperature [°C]",
             angle_range,
+            show_plot=False
         )
 
-        # Create interpolation grid for contour plots
         x_min, x_max = x_coords.min(), x_coords.max()
         y_min, y_max = y_coords.min(), y_coords.max()
 
@@ -2838,104 +2860,115 @@ class ThrustPad(BearingElement):
         y_interp = np.linspace(y_min, y_max, 800)
         x_grid, y_grid = np.meshgrid(x_interp, y_interp)
 
-        # Plot 2D temperature contour
         temp_interpolated = griddata(
             (x_coords.flatten(), y_coords.flatten()),
             self.temperature_field.flatten(),
             (x_grid, y_grid),
             method="cubic",
         )
-        self._plot_2d_contour(
-            x_grid, y_grid, temp_interpolated, "Temperature field", "Temperature (°C)"
+        temperature_contour_fig = self._plot_2d_contour(
+            x_grid, y_grid, temp_interpolated, "Temperature field", "Temperature (°C)",
+            show_plot=False
         )
 
-        # Plot 2D pressure contour
         pressure_interpolated = griddata(
             (x_coords.flatten(), y_coords.flatten()),
             self.pressure_field_dimensional.flatten(),
             (x_grid, y_grid),
             method="cubic",
         )
-        self._plot_2d_contour(
-            x_grid, y_grid, pressure_interpolated, "Pressure field", "Pressure (Pa)"
+        pressure_contour_fig = self._plot_2d_contour(
+            x_grid, y_grid, pressure_interpolated, "Pressure field", "Pressure (Pa)",
+            show_plot=False
         )
 
-    def _plot_3d_surface(self, x_coords, y_coords, z_data, title, z_label, angle_range):
+        figures = {
+            "pressure_3d": pressure_3d_fig,
+            "temperature_3d": temperature_3d_fig,
+            "pressure_contour": pressure_contour_fig,
+            "temperature_contour": temperature_contour_fig
+        }
+
+        if show_plots:
+            try:
+                for fig in figures.values():
+                    fig.show()
+            except Exception as e:
+                print(f"Warning: Could not display plots automatically. Error: {e}")
+                print("The figure objects are still available for manual display.")
+        
+        return figures
+
+    def _plot_3d_surface(self, x_coords, y_coords, z_data, title, z_label, angle_range, show_plot=False):
         """Create 3D surface plot using Plotly with tableau colors.
 
         Parameters
         ----------
         x_coords : ndarray
-            X coordinates mesh
+            X coordinates
         y_coords : ndarray
-            Y coordinates mesh
+            Y coordinates
         z_data : ndarray
             Z data for surface plot
         title : str
             Plot title
         z_label : str
             Z-axis label
-        angle_range : ndarray
-            Angle range for axis limits
+        angle_range : array
+            Angle range for plotting
+        show_plot : bool, optional
+            Whether to automatically display the plot. Default is False.
+
+        Returns
+        -------
+        fig : plotly.graph_objects.Figure
+            The figure object
         """
         fig = go.Figure()
-        fig.update_layout(
-            autosize=True,
-            margin=dict(l=0, r=0, t=0, b=0),
-            title=title,
-            plot_bgcolor="white",
-        )
-
-        colorscale = [
-            [0, tableau_colors["blue"]],
-            [0.25, tableau_colors["cyan"]],
-            [0.5, tableau_colors["green"]],
-            [0.75, tableau_colors["orange"]],
-            [1, tableau_colors["red"]],
-        ]
 
         fig.add_trace(
             go.Surface(
                 x=x_coords,
                 y=y_coords,
                 z=z_data,
-                colorscale=colorscale,
-                colorbar=dict(
-                    title=z_label,
-                    tickfont=dict(size=22),
-                ),
+                colorscale="Viridis",
+                name=title,
+                hovertemplate=f"<b>{title}</b><br>"
+                + "X: %{x:.3f}<br>"
+                + "Y: %{y:.3f}<br>"
+                + f"{z_label}: %{{z:.3f}}<br>"
+                + "<extra></extra>",
             )
         )
 
         fig.update_layout(
-            xaxis_range=[np.min(angle_range), np.max(angle_range)],
-            yaxis_range=[np.min(y_coords), np.max(y_coords)],
+            title=title,
+            scene=dict(
+                xaxis_title="X [m]",
+                yaxis_title="Y [m]",
+                zaxis_title=z_label,
+                camera=dict(
+                    eye=dict(x=-1.5, y=-4, z=1.5),
+                    center=dict(x=0, y=0, z=0)
+                ),
+            ),
+            width=800,
+            height=600,
         )
 
-        fig.update_scenes(
-            xaxis_title=dict(
-                text="Angular length [rad]",
-                font=dict(family="Times New Roman", size=22),
-            ),
-            xaxis_tickfont=dict(family="Times New Roman", size=14),
-            yaxis_title=dict(
-                text="Radial length [m]", font=dict(family="Times New Roman", size=22)
-            ),
-            yaxis_tickfont=dict(family="Times New Roman", size=14),
-            zaxis_title=dict(
-                text=z_label, font=dict(family="Times New Roman", size=22)
-            ),
-            zaxis_tickfont=dict(family="Times New Roman", size=14),
-            aspectratio=dict(x=1.8, y=1.8, z=1.8),
-        )
-
-        # Camera position
         camera = dict(eye=dict(x=-1.5, y=-4, z=1.5), center=dict(x=0, y=0, z=0))
         fig.update_layout(scene_camera=camera)
 
-        fig.show()
+        if show_plot:
+            try:
+                fig.show()
+            except Exception as e:
+                print(f"Warning: Could not display plot '{title}' automatically. Error: {e}")
+                print("The figure object is still available for manual display.")
+        
+        return fig
 
-    def _plot_2d_contour(self, x_grid, y_grid, z_data, title, colorbar_title):
+    def _plot_2d_contour(self, x_grid, y_grid, z_data, title, colorbar_title, show_plot=False):
         """Create 2D contour plot using Plotly with tableau colors.
 
         Parameters
@@ -2950,62 +2983,47 @@ class ThrustPad(BearingElement):
             Plot title
         colorbar_title : str
             Colorbar title
+        show_plot : bool, optional
+            Whether to automatically display the plot. Default is False.
+
+        Returns
+        -------
+        fig : plotly.graph_objects.Figure
+            The figure object
         """
         fig = go.Figure()
 
-        colorscale = [
-            [0, tableau_colors["blue"]],
-            [0.25, tableau_colors["cyan"]],
-            [0.5, tableau_colors["green"]],
-            [0.75, tableau_colors["orange"]],
-            [1, tableau_colors["red"]],
-        ]
-
         fig.add_trace(
             go.Contour(
-                x=x_grid[0],
+                x=x_grid[0, :],
                 y=y_grid[:, 0],
                 z=z_data,
-                ncontours=15,
-                contours=dict(start=np.nanmin(z_data), end=np.nanmax(z_data)),
-                colorscale=colorscale,
-                colorbar=dict(
-                    title=colorbar_title,
-                    tickfont=dict(size=22),
-                ),
+                colorscale="Viridis",
+                name=title,
+                hovertemplate=f"<b>{title}</b><br>"
+                + "X: %{x:.3f}<br>"
+                + "Y: %{y:.3f}<br>"
+                + f"{colorbar_title}: %{{z:.3f}}<br>"
+                + "<extra></extra>",
             )
         )
 
         fig.update_layout(
-            autosize=True,
-            margin=dict(l=0, r=0, t=0, b=0),
             title=title,
-            plot_bgcolor="white",
+            xaxis_title="X [m]",
+            yaxis_title="Y [m]",
+            width=800,
+            height=600,
         )
 
-        fig.update_traces(
-            contours_coloring="fill",
-            contours_showlabels=True,
-            contours_labelfont=dict(size=20),
-        )
-
-        fig.update_layout(xaxis_range=[np.min(x_grid), np.max(x_grid)])
-        fig.update_xaxes(
-            tickfont=dict(size=22),
-            title=dict(
-                text="X Direction (m)", font=dict(family="Times New Roman", size=30)
-            ),
-            range=[np.min(x_grid), np.max(x_grid)],
-        )
-        fig.update_yaxes(
-            tickfont=dict(size=22),
-            title=dict(
-                text="Y Direction (m)", font=dict(family="Times New Roman", size=30)
-            ),
-        )
-
-        fig.show()
-
+        if show_plot:
+            try:
+                fig.show()
+            except Exception as e:
+                print(f"Warning: Could not display plot '{title}' automatically. Error: {e}")
+                print("The figure object is still available for manual display.")
+        
+        return fig
 
 def thrust_pad_example():
     """Create an example of a thrust bearing with Thermo-Hydro-Dynamic effects.
