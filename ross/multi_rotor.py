@@ -628,32 +628,11 @@ class MultiRotor(Rotor):
             self.rotors["driven"].K(frequency * self.mesh.gear_ratio),
         )
 
-        if not self.update_mesh_stiffness:
-            K0 = self._couple_K(K0, self.mesh.stiffness)
-
-        return K0
-
-    def _couple_K(self, K0, mesh_stiffness):
-        """Assembles the coupling stiffness matrix for a gear mesh and adds it to
-        the global stiffness matrix.
-
-        Parameters
-        ----------
-        K0 : ndarray
-            The global stiffness matrix to be updated.
-        mesh_stiffness : float
-            The scalar stiffness coefficient for the gear mesh.
-
-        Returns
-        -------
-        K0 : ndarray
-            The updated global stiffness matrix with the gear coupling contributions.
-        """
         dofs_1 = self.mesh.driving_gear.dof_global_index.values()
         dofs_2 = self.mesh.driven_gear.dof_global_index.values()
         dofs = [*dofs_1, *dofs_2]
 
-        K0[np.ix_(dofs, dofs)] += self.coupling_matrix() * mesh_stiffness
+        K0[np.ix_(dofs, dofs)] += self.coupling_matrix() * self.mesh.stiffness
 
         return K0
 
@@ -764,9 +743,9 @@ class MultiRotor(Rotor):
             def rotor_system(step, **current_state):
                 C1 = reduce_matrix(self.C(speed[step]))
 
-                mesh_stiffness = self.mesh.interpolate_stiffness(theta[step])
-                K_coupled = self._couple_K(self.K(speed[step]), mesh_stiffness)
-                K1 = reduce_matrix(K_coupled)
+                # Update mesh stiffness
+                self.mesh.stiffness = self.mesh.interpolate_stiffness(theta[step])
+                K1 = reduce_matrix(self.K(speed[step]))
 
                 return (
                     M,
