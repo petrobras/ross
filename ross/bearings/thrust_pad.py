@@ -245,7 +245,6 @@ class ThrustPad(BearingElement):
         kzz = np.zeros(n_freq)
         czz = np.zeros(n_freq)
 
-        # Initialize data structures to store fields information for each frequency
         self._initialize_field_storage(n_freq)
 
         self.initial_time = time.time()
@@ -257,7 +256,6 @@ class ThrustPad(BearingElement):
 
             kzz[i], czz[i] = self.kzz, self.czz
 
-            # Store fields information for each frequency
             self._store_frequency_fields()
 
         super().__init__(
@@ -397,11 +395,9 @@ class ThrustPad(BearingElement):
 
         # Check if single or multiple frequencies
         if self.frequency.size == 1:
-            # Single frequency case
             self._print_single_frequency_results(0)
         else:
-            # Multiple frequencies case
-            for i, freq in enumerate(self.frequency):
+            for i in range(self.frequency.size):
                 self._print_single_frequency_results(i)
 
     def _print_single_frequency_results(self, freq_index):
@@ -416,11 +412,9 @@ class ThrustPad(BearingElement):
         table = PrettyTable()
         table.field_names = ["Parameter", "Value", "Unit"]
 
-        # Operating conditions
         table.add_row(["Operating Speed", f"{freq * 30 / np.pi:.1f}", "RPM"])
         table.add_row(["Equilibrium Mode", self.equilibrium_position_mode, "-"])
 
-        # Field results para esta frequência específica
         table.add_row(
             ["Maximum Pressure", f"{self.pressure_fields[freq_index].max():.2f}", "Pa"]
         )
@@ -431,13 +425,11 @@ class ThrustPad(BearingElement):
         table.add_row(["Minimum Film Thickness", f"{self.min_thicknesses[freq_index]:.6f}", "m"])
         table.add_row(["Pivot Film Thickness", f"{self.pivot_film_thicknesses[freq_index]:.6f}", "m"])
 
-        # Load results
         if self.equilibrium_position_mode == "imposed":
             table.add_row(["Axial Load", f"{self.fzs_load.sum():.2f}", "N"])
         elif self.equilibrium_position_mode == "calculate":
             table.add_row(["Axial Load", f"{self.fzs_load:.2f}", "N"])
 
-        # Dynamic coefficients for this frequency
         table.add_row(["kzz (Stiffness)", f"{self.kzz[freq_index]:.4e}", "N/m"])
         table.add_row(["czz (Damping)", f"{self.czz[freq_index]:.4e}", "N*s/m"])
 
@@ -528,7 +520,6 @@ class ThrustPad(BearingElement):
                     / self.pivot_film_thickness
                 )
 
-                # Volumes number
                 volumes_number = (self.n_radial) * (self.n_theta)
 
                 # Variable initialization
