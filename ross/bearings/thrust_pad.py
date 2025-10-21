@@ -65,10 +65,6 @@ class ThrustPad(BearingElement):
         Initial film thickness at pivot point. Default unit is meters.
     fzs_load : float, optional
         Axial load applied to the bearing. Default is None.
-    print_progress : bool, optional
-        Whether to print convergence progress. Default is False.
-    compare_coefficients : bool, optional
-        Whether to compare dynamic coefficients by each frequency in a table. Default is False.
     **kwargs
         Additional keyword arguments passed to BearingElement.
 
@@ -170,12 +166,8 @@ class ThrustPad(BearingElement):
         initial_film_thickness,
         model_type="thermo_hydro_dynamic",
         fzs_load=None,
-        print_progress=False,
-        compare_coefficients=False,
         **kwargs,
     ):
-        self.print_progress = print_progress
-        self.compare_coefficients = compare_coefficients
 
         self.model_type = model_type
         self.pad_inner_radius = pad_inner_radius
@@ -253,6 +245,13 @@ class ThrustPad(BearingElement):
         kzz = np.zeros(n_freq)
         czz = np.zeros(n_freq)
 
+        # Initialize data structures to store fields information for each frequency
+        self.pressure_fields = []
+        self.temperature_fields = []
+        self.max_thicknesses = []
+        self.min_thicknesses = []
+        self.pivot_film_thicknesses = []
+
         self.initial_time = time.time()
         for i in range(n_freq):
             self.speed = self.frequency[i]
@@ -262,26 +261,17 @@ class ThrustPad(BearingElement):
 
             kzz[i], czz[i] = self.kzz, self.czz
 
+            # Store fields information for each frequency
+            self.pressure_fields.append(self.pressure_field_dimensional.copy())
+            self.temperature_fields.append(self.temperature_field.copy())
+            self.max_thicknesses.append(self.max_thickness)
+            self.min_thicknesses.append(self.min_thickness)
+            self.pivot_film_thicknesses.append(self.pivot_film_thickness)
+
         super().__init__(
             n, kxx=0, cxx=0, kzz=kzz, czz=czz, frequency=frequency, **kwargs
         )
         self.final_time = time.time()
-
-        if self.compare_coefficients:
-            print("\n" + "=" * 60)
-            print("           DYNAMIC COEFFICIENTS COMPARISON TABLE")
-            print("=" * 60)
-
-            comparison_table = self.format_table(
-                frequency=self.frequency,
-                coefficients=["kzz", "czz"],
-                frequency_units="RPM",
-                stiffness_units="N/m",
-                damping_units="N*s/m",
-            )
-
-            print(comparison_table)
-            print("=" * 60)
 
     def run_thermo_hydro_dynamic(self):
         """
@@ -353,14 +343,12 @@ class ThrustPad(BearingElement):
         # Calculate the dynamic coefficients
         self.coefficients()
 
-        final_time = time.time()
-
     def show_results(self):
         """Display thrust bearing calculation results in a formatted table.
 
         This method prints the main results from the thrust bearing analysis
         using PrettyTable, including operating conditions, field results,
-        load information, and dynamic coefficients.
+        load information, and dynamic coefficients for each frequency.
 
         Parameters
         ----------
@@ -372,65 +360,43 @@ class ThrustPad(BearingElement):
         -------
         None
             Results are printed to the console in a formatted table.
-
-        Notes
-        -----
-        The displayed results include:
-        - Operating speed in RPM
-        - Equilibrium position mode
-        - Maximum and minimum pressure values
-        - Maximum and minimum temperature values
-        - Film thickness values (maximum, minimum, and pivot)
-        - Axial load information
-        - Dynamic coefficients (stiffness kzz and damping czz)
-
-        Examples
-        --------
-        >>> from ross.bearings.thrust_pad import thrust_pad_example
-        >>> bearing = thrust_pad_example()
-        >>> bearing.show_results()
-        <BLANKLINE>
-        ================================================
-                    THRUST BEARING RESULTS
-        ================================================
-        +------------------------+-------------+-------+
-        |       Parameter        |    Value    |  Unit |
-        +------------------------+-------------+-------+
-        |    Operating Speed     |     90.0    |  RPM  |
-        |    Equilibrium Mode    |  calculate  |   -   |
-        |    Maximum Pressure    |  6957021.42 |   Pa  |
-        |  Maximum Temperature   |     70.4    |   °C  |
-        | Maximum Film Thickness |   0.000207  |   m   |
-        | Minimum Film Thickness |   0.000082  |   m   |
-        |  Pivot Film Thickness  |   0.000131  |   m   |
-        |       Axial Load       | 13320000.00 |   N   |
-        |    kzz (Stiffness)     |  3.1763e+11 |  N/m  |
-        |     czz (Damping)      |  1.0806e+10 | N*s/m |
-        +------------------------+-------------+-------+
-        ================================================
         """
 
+        # Check if single or multiple frequencies
+        if self.frequency.size == 1:
+            # Single frequency case
+            self._print_single_frequency_results(0)
+        else:
+            # Multiple frequencies case
+            for i, freq in enumerate(self.frequency):
+                self._print_single_frequency_results(i)
+
+    def _print_single_frequency_results(self, freq_index):
+        """Print results for a single frequency."""
+        
+        freq = self.frequency[freq_index]
+        
         print("\n" + "=" * 48)
-        print("            THRUST BEARING RESULTS")
+        print(f"       THRUST BEARING RESULTS - {freq * 30 / np.pi:.1f} RPM")
         print("=" * 48)
 
         table = PrettyTable()
         table.field_names = ["Parameter", "Value", "Unit"]
 
         # Operating conditions
-        table.add_row(["Operating Speed", f"{self.speed * 30 / np.pi:.1f}", "RPM"])
+        table.add_row(["Operating Speed", f"{freq * 30 / np.pi:.1f}", "RPM"])
         table.add_row(["Equilibrium Mode", self.equilibrium_position_mode, "-"])
 
-        # Field results
+        # Field results para esta frequência específica
         table.add_row(
-            ["Maximum Pressure", f"{self.pressure_field_dimensional.max():.2f}", "Pa"]
+            ["Maximum Pressure", f"{self.pressure_fields[freq_index].max():.2f}", "Pa"]
         )
         table.add_row(
-            ["Maximum Temperature", f"{self.temperature_field.max():.1f}", "°C"]
+            ["Maximum Temperature", f"{self.temperature_fields[freq_index].max():.1f}", "°C"]
         )
-        table.add_row(["Maximum Film Thickness", f"{self.max_thickness:.6f}", "m"])
-        table.add_row(["Minimum Film Thickness", f"{self.min_thickness:.6f}", "m"])
-        table.add_row(["Pivot Film Thickness", f"{self.pivot_film_thickness:.6f}", "m"])
+        table.add_row(["Maximum Film Thickness", f"{self.max_thicknesses[freq_index]:.6f}", "m"])
+        table.add_row(["Minimum Film Thickness", f"{self.min_thicknesses[freq_index]:.6f}", "m"])
+        table.add_row(["Pivot Film Thickness", f"{self.pivot_film_thicknesses[freq_index]:.6f}", "m"])
 
         # Load results
         if self.equilibrium_position_mode == "imposed":
@@ -438,9 +404,9 @@ class ThrustPad(BearingElement):
         elif self.equilibrium_position_mode == "calculate":
             table.add_row(["Axial Load", f"{self.fzs_load:.2f}", "N"])
 
-        # Dynamic coefficients
-        table.add_row(["kzz (Stiffness)", f"{self.kzz.item():.4e}", "N/m"])
-        table.add_row(["czz (Damping)", f"{self.czz.item():.4e}", "N*s/m"])
+        # Dynamic coefficients for this frequency
+        table.add_row(["kzz (Stiffness)", f"{self.kzz[freq_index]:.4e}", "N/m"])
+        table.add_row(["czz (Damping)", f"{self.czz[freq_index]:.4e}", "N*s/m"])
 
         print(table)
         print("=" * 48)
@@ -453,10 +419,10 @@ class ThrustPad(BearingElement):
         iteration = 0
         while residual_force_moment >= tolerance_force_moment:
             iteration += 1
-            if self.print_progress:
-                print(
-                    f"Iteration {iteration} - Residual Force & Moment: {residual_force_moment:.6f}"
-                )
+            # if self.print_progress:
+            #     print(
+            #         f"Iteration {iteration} - Residual Force & Moment: {residual_force_moment:.6f}"
+            #     )
 
             if self.equilibrium_position_mode == "imposed":
                 self.h0i = self.initial_position[2]
@@ -468,7 +434,7 @@ class ThrustPad(BearingElement):
                     maxiter=100000,
                     maxfun=100000,
                     full_output=0,
-                    disp=self.print_progress,
+                    # disp=self.print_progress,
                     retall=0,
                     callback=None,
                     initial_simplex=None,
@@ -1225,7 +1191,7 @@ class ThrustPad(BearingElement):
             * self.reference_viscosity
             / self.pivot_film_thickness**2
         ) * np.flipud(self.pressure_field)
-        self.pressure_field_dimensional = pressure_field_dimensional
+        self.pressure_field_dimensional = pressure_field_dimensional.copy()
 
         self.max_thickness = np.max(
             self.pivot_film_thickness * self.film_thickness_center_array
@@ -2758,33 +2724,13 @@ class ThrustPad(BearingElement):
         self.kzz = self.n_pad * np.real(force_axial)
         self.czz = self.n_pad * 1 / perturbation_frequency * np.imag(force_axial)
 
-    def plot_results(self, show_plots=False):
-        """Plot pressure and temperature field results.
-
-        Creates 3D surface plots and 2D contour plots for both pressure
-        and temperature fields using Plotly.
-
-        Parameters
-        ----------
-        show_plots : bool, optional
-            Whether to automatically display the plots. Default is False.
-            Set to True to display plots automatically.
-
-        Returns
-        -------
-        dict or None
-            Dictionary containing figure objects if show_plots=False, None otherwise.
-            Keys: "pressure_3d", "temperature_3d", "pressure_contour", "temperature_contour"
-
-        Examples
-        --------
-        >>> # doctest: +SKIP 
-        >>> from ross.bearings.thrust_pad import thrust_pad_example
-        >>> bearing = thrust_pad_example()
-        >>> figures = bearing.plot_results()
-        >>> figures["pressure_3d"].show()
-        """
-
+    def plot_results(self, show_plots=False, freq_index=0):
+        """Plot pressure and temperature field results for a specific frequency."""
+        
+        # Usar os campos da frequência especificada
+        pressure_field = self.pressure_fields[freq_index]
+        temperature_field = self.temperature_fields[freq_index]
+        
         # Define coordinate vectors and matrices
         radial_coords = np.zeros(self.n_radial + 2)
         angular_coords = np.zeros(self.n_theta + 2)
@@ -2829,7 +2775,7 @@ class ThrustPad(BearingElement):
         pressure_3d_fig = self._plot_3d_surface(
             x_coords,
             y_coords,
-            self.pressure_field_dimensional,
+            pressure_field,
             "Pressure field",
             "Pressure [Pa]",
             angle_range,
@@ -2840,7 +2786,7 @@ class ThrustPad(BearingElement):
         temperature_3d_fig = self._plot_3d_surface(
             x_coords,
             y_coords,
-            self.temperature_field,
+            temperature_field,
             "Temperature field",
             "Temperature [°C]",
             angle_range,
@@ -2856,7 +2802,7 @@ class ThrustPad(BearingElement):
 
         temp_interpolated = griddata(
             (x_coords.flatten(), y_coords.flatten()),
-            self.temperature_field.flatten(),
+            temperature_field.flatten(),
             (x_grid, y_grid),
             method="cubic",
         )
@@ -2867,7 +2813,7 @@ class ThrustPad(BearingElement):
 
         pressure_interpolated = griddata(
             (x_coords.flatten(), y_coords.flatten()),
-            self.pressure_field_dimensional.flatten(),
+            pressure_field.flatten(),
             (x_grid, y_grid),
             method="cubic",
         )
@@ -3043,6 +2989,55 @@ class ThrustPad(BearingElement):
         else:
             print("Simulation hasn't been executed yet.")
 
+    def show_coefficients_comparison(self):
+        """Display dynamic coefficients comparison table.
+
+        This method creates and displays a formatted table comparing dynamic
+        coefficients (stiffness and damping) across different frequencies.
+
+        Parameters
+        ----------
+        None
+            This method uses the frequency array and coefficients stored as
+            instance attributes.
+
+        Returns
+        -------
+        None
+            Results are printed to the console in a formatted table.
+
+        Examples
+        --------
+        >>> from ross.bearings.thrust_pad import thrust_pad_example
+        >>> bearing = thrust_pad_example()
+        >>> bearing.show_coefficients_comparison()
+        <BLANKLINE>
+        ============================================================
+                DYNAMIC COEFFICIENTS COMPARISON TABLE
+        ============================================================
+        +----------+-------------+-------------+
+        | Frequency| kzz (N/m)   | czz (N*s/m) |
+        +----------+-------------+-------------+
+        |   90.0   | 3.1763e+11  | 1.0806e+10  |
+        +----------+-------------+-------------+
+        ============================================================
+        """
+
+        print("\n" + "=" * 60)
+        print("           DYNAMIC COEFFICIENTS COMPARISON TABLE")
+        print("=" * 60)
+
+        comparison_table = self.format_table(
+            frequency=self.frequency,
+            coefficients=["kzz", "czz"],
+            frequency_units="RPM",
+            stiffness_units="N/m",
+            damping_units="N*s/m",
+        )
+
+        print(comparison_table)
+        print("=" * 60)
+
 def thrust_pad_example():
     """Create an example of a thrust bearing with Thermo-Hydro-Dynamic effects.
 
@@ -3096,8 +3091,6 @@ def thrust_pad_example():
         radial_inclination_angle=Q_(-2.75e-04, "rad"),
         circumferential_inclination_angle=Q_(-1.70e-05, "rad"),
         initial_film_thickness=Q_(0.2, "mm"),
-        print_progress=False,
-        compare_coefficients=False,
     )
 
     return bearing
