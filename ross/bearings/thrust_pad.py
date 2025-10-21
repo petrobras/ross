@@ -7,7 +7,7 @@ from prettytable import PrettyTable
 
 from ross.bearing_seal_element import BearingElement
 from ross.units import Q_, check_units
-from ross.plotly_theme import tableau_colors
+from ross.plotly_theme import coolwarm_r
 from ross.bearings.lubricants import lubricants_dict
 
 
@@ -2904,7 +2904,7 @@ class ThrustPad(BearingElement):
                 x=x_coords,
                 y=y_coords,
                 z=z_data,
-                colorscale="Viridis",
+                colorscale=coolwarm_r[::-1],
                 name=title,
                 hovertemplate=f"<b>{title}</b><br>"
                 + "X: %{x:.3f}<br>"
@@ -2971,7 +2971,7 @@ class ThrustPad(BearingElement):
                 x=x_grid[0, :],
                 y=y_grid[:, 0],
                 z=z_data,
-                colorscale="Viridis",
+                colorscale=coolwarm_r[::-1],
                 name=title,
                 hovertemplate=f"<b>{title}</b><br>"
                 + "X: %{x:.3f}<br>"
