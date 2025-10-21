@@ -246,11 +246,7 @@ class ThrustPad(BearingElement):
         czz = np.zeros(n_freq)
 
         # Initialize data structures to store fields information for each frequency
-        self.pressure_fields = []
-        self.temperature_fields = []
-        self.max_thicknesses = []
-        self.min_thicknesses = []
-        self.pivot_film_thicknesses = []
+        self._initialize_field_storage(n_freq)
 
         self.initial_time = time.time()
         for i in range(n_freq):
@@ -262,11 +258,7 @@ class ThrustPad(BearingElement):
             kzz[i], czz[i] = self.kzz, self.czz
 
             # Store fields information for each frequency
-            self.pressure_fields.append(self.pressure_field_dimensional.copy())
-            self.temperature_fields.append(self.temperature_field.copy())
-            self.max_thicknesses.append(self.max_thickness)
-            self.min_thicknesses.append(self.min_thickness)
-            self.pivot_film_thicknesses.append(self.pivot_film_thickness)
+            self._store_frequency_fields()
 
         super().__init__(
             n, kxx=0, cxx=0, kzz=kzz, czz=czz, frequency=frequency, **kwargs
@@ -342,6 +334,47 @@ class ThrustPad(BearingElement):
 
         # Calculate the dynamic coefficients
         self.coefficients()
+
+    def _initialize_field_storage(self, n_freq):
+        """Initialize data structures to store fields information for each frequency.
+        
+        Parameters
+        ----------
+        n_freq : int
+            Number of frequencies to analyze
+            
+        Returns
+        -------
+        None
+            Initializes instance attributes for field storage
+        """
+        self.pressure_fields = []
+        self.temperature_fields = []
+        self.max_thicknesses = []
+        self.min_thicknesses = []
+        self.pivot_film_thicknesses = []
+
+    def _store_frequency_fields(self):
+        """Store field results for the current frequency.
+        
+        This method stores the calculated pressure, temperature, and film thickness
+        fields for the current frequency being analyzed.
+        
+        Parameters
+        ----------
+        None
+            Uses current instance attributes from field calculations
+            
+        Returns
+        -------
+        None
+            Appends current field results to storage lists
+        """
+        self.pressure_fields.append(self.pressure_field_dimensional.copy())
+        self.temperature_fields.append(self.temperature_field.copy())
+        self.max_thicknesses.append(self.max_thickness)
+        self.min_thicknesses.append(self.min_thickness)
+        self.pivot_film_thicknesses.append(self.pivot_film_thickness)
 
     def show_results(self):
         """Display thrust bearing calculation results in a formatted table.
