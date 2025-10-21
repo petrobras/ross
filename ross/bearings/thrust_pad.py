@@ -2749,13 +2749,41 @@ class ThrustPad(BearingElement):
         self.czz = self.n_pad * 1 / perturbation_frequency * np.imag(force_axial)
 
     def plot_results(self, show_plots=False, freq_index=0):
-        """Plot pressure and temperature field results for a specific frequency."""
+        """Plot pressure and temperature field results for thrust bearing analysis.
         
-        # Usar os campos da frequência especificada
+        This method generates comprehensive visualization plots for the calculated
+        pressure and temperature fields at a specific frequency. It creates both
+        3D surface plots and 2D contour plots for visualization of the field
+        properties distributions across the bearing pad.
+        
+        Parameters
+        ----------
+        show_plots : bool, optional
+            Whether to automatically display the plots. If True, attempts to show
+            all plots using the default display method. If False, returns figure
+            objects for manual display. Default is False.
+        freq_index : int, optional
+            Index of the frequency to plot results for. Must be within the range
+            of calculated frequencies. Default is 0 (first frequency).
+            
+        Returns
+        -------
+        dict
+            Dictionary containing four Plotly figure objects:
+            - 'pressure_3d': 3D surface plot of pressure field
+            - 'temperature_3d': 3D surface plot of temperature field  
+            - 'pressure_2d': 2D contour plot of pressure field
+            - 'temperature_2d': 2D contour plot of temperature field
+            
+        Notes
+        -----
+        The method interpolates the field data using cubic interpolation for
+        smoother contour plots. Coordinate transformation from polar to Cartesian
+        coordinates is performed for visualization purposes.
+        """
         pressure_field = self.pressure_fields[freq_index]
         temperature_field = self.temperature_fields[freq_index]
         
-        # Define coordinate vectors and matrices
         radial_coords = np.zeros(self.n_radial + 2)
         angular_coords = np.zeros(self.n_theta + 2)
         x_coords = np.zeros((self.n_radial + 2, self.n_theta + 2))
@@ -2849,8 +2877,8 @@ class ThrustPad(BearingElement):
         figures = {
             "pressure_3d": pressure_3d_fig,
             "temperature_3d": temperature_3d_fig,
-            "pressure_contour": pressure_contour_fig,
-            "temperature_contour": temperature_contour_fig
+            "pressure_2d": pressure_contour_fig,
+            "temperature_2d": temperature_contour_fig
         }
 
         if show_plots:
