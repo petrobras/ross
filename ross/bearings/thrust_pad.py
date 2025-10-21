@@ -393,7 +393,6 @@ class ThrustPad(BearingElement):
             Results are printed to the console in a formatted table.
         """
 
-        # Check if single or multiple frequencies
         if self.frequency.size == 1:
             self._print_single_frequency_results(0)
         else:
@@ -2891,7 +2890,7 @@ class ThrustPad(BearingElement):
         
         return figures
 
-    def _plot_3d_surface(self, x_coords, y_coords, z_data, title, z_label, angle_range, show_plot=False):
+    def _plot_3d_surface(self, x_coords, y_coords, z_data, title, z_label, show_plot=False):
         """Create 3D surface plot using Plotly with tableau colors.
 
         Parameters
@@ -2906,8 +2905,6 @@ class ThrustPad(BearingElement):
             Plot title
         z_label : str
             Z-axis label
-        angle_range : array
-            Angle range for plotting
         show_plot : bool, optional
             Whether to automatically display the plot. Default is False.
 
