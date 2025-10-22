@@ -5,20 +5,32 @@ from collections.abc import Iterable
 
 from ross.units import Q_, check_units
 from ross.results import (
-    ForcedResponseResults,
     TimeResponseResults,
 )
 
 
 class HarmonicBalance:
     def __init__(self, rotor, n_harmonics=None):
+        """
+        Harmonic Balance method for nonlinear rotor dynamic systems.
+
+        This class implements the Harmonic Balance (HB) method to compute
+        steady-state responses of rotor systems under periodic excitations.
+        It supports gravitational loads, external harmonic forces, and
+        potential crack-induced stiffness variations.
+
+        Parameters
+        ----------
+        rotor : ross.Rotor
+            Rotor object representing the system model.
+        n_harmonics : int, optional
+            Number of harmonics to include in the analysis.
+            Default is 1.
+        """
         self.rotor = rotor
         self.ndof = rotor.ndof
         self.noh = n_harmonics if n_harmonics else 1
-        self.t_samples = 10001
-        self.n_period = 20
 
-    @check_units
     def run(
         self,
         node,
@@ -30,6 +42,57 @@ class HarmonicBalance:
         gravity=False,
         F_ext=None,
     ):
+        """
+        Solve the rotor system in the frequency domain using the
+        Harmonic Balance (HB) method.
+
+        Parameters
+        ----------
+        node : list, int
+            Node indices where the harmonic forces are applied.
+        magnitude : list, float
+            Magnitudes of the applied harmonic forces [N].
+            Interpretation depends on the excitation type:
+                - For direct harmonic forces: force amplitudes [N].
+                - For unbalance excitation: product ``m * e * speed**2`` [N],
+                where ``m`` is the unbalance mass [kg], ``e`` is the eccentricity [m],
+                and ``speed`` is the rotational speed [rad/s].
+        phase : list, float
+            Phase angles of the applied forces [rad].
+        harmonic : list, int
+            Harmonic order(s) of the excitation (1 for fundamental, 2 for second,
+            etc.).
+        speed : float
+            Rotor rotational speed [rad/s].
+        dt : float
+            Time step used for Fourier expansion [s].
+        gravity : bool, optional
+            If True, include gravitational forces. Default is False.
+        F_ext : ndarray, optional
+            External force array of shape (ndof, N), where N is the number of time
+            samples.
+
+        Returns
+        -------
+        Qt : ndarray
+            Complex displacement vector in frequency domain.
+        Qo : ndarray
+            Static (mean) displacement vector.
+        dQ : ndarray
+            Harmonic displacement coefficients.
+        dQ_s : ndarray
+            Complex conjugate of harmonic coefficients.
+
+        Notes
+        -----
+        This method constructs and solves the HB system:
+
+        .. math::
+            H Q = F
+
+        where `H` is the harmonic balance matrix and `F` is the
+        assembled force vector containing both static and harmonic components.
+        """
         rotor = self.rotor
 
         accel = 0  # Assuming always constant speed
@@ -74,6 +137,7 @@ class HarmonicBalance:
 
         return Qt, Qo, dQ, dQ_s
 
+    @check_units
     def run_time_response(
         self,
         speed,
@@ -84,6 +148,31 @@ class HarmonicBalance:
         harmonic,
         gravity=False,
     ):
+        """
+        Compute the steady-state time response from Harmonic Balance solution.
+
+        Parameters
+        ----------
+        speed : float, pint.Quantity
+            Rotor speed [rad/s].
+        t : array_like
+            Time vector [s].
+        node : list, int
+            Node indices of applied harmonic forces.
+        magnitude : list, float
+            Magnitudes of harmonic forces [N].
+        phase : list, float
+            Phase angles of applied forces [rad].
+        harmonic : list, int
+            Harmonic order(s) of excitation.
+        gravity : bool, optional
+            Include gravitational effects. Default is False.
+
+        Returns
+        -------
+        time_resp : ross.results.TimeResponseResults
+            Object containing time, displacement, and metadata of the time response.
+        """
         dt = t[1] - t[0]
 
         _, Qo, dQ, _ = self.run(
@@ -102,6 +191,27 @@ class HarmonicBalance:
         return time_resp
 
     def _harmonic_force(self, node, magnitude, phase, harmonic):
+        """
+        Construct the harmonic force components in the frequency domain.
+
+        Parameters
+        ----------
+        node : list, int
+            Node indices where harmonic loads are applied.
+        magnitude : list, float
+            Force magnitudes [N].
+        phase : list, float
+            Force phase angles [rad].
+        harmonic : list, int
+            Harmonic orders of each excitation.
+
+        Returns
+        -------
+        F : ndarray, complex
+            Harmonic force array of shape (ndof, noh).
+        F_s : ndarray, complex
+            Complex conjugate of the harmonic forces.
+        """
         ndof = self.rotor.ndof
         number_dof = self.rotor.number_dof
 
@@ -123,6 +233,29 @@ class HarmonicBalance:
         return F, F_s
 
     def _unbalance_force(self, node, magnitude, phase, omega, alpha=0):
+        """
+        Compute unbalance forces in the frequency domain.
+
+        Parameters
+        ----------
+        node : list, int
+            Node indices with unbalance.
+        magnitude : list, float
+            Unbalance magnitudes [kg·m].
+        phase : list, float
+            Phase angles of unbalance [rad].
+        omega : float
+            Angular speed [rad/s].
+        alpha : float, optional
+            Angular acceleration [rad/s²], default is 0.
+
+        Returns
+        -------
+        F : ndarray, complex
+            Unbalance force vector.
+        F_s : ndarray, complex
+            Complex conjugate of the unbalance force.
+        """
         ndof = self.rotor.ndof
         number_dof = self.rotor.number_dof
 
@@ -146,6 +279,27 @@ class HarmonicBalance:
         return F, F_s
 
     def _external_force(self, dt, freq, F=None):
+        """
+        Compute Fourier expansion of external time-domain forces.
+
+        Parameters
+        ----------
+        dt : float
+            Time step [s].
+        freq : float
+            Fundamental excitation frequency [Hz].
+        F : ndarray, optional
+            External force time history of shape (ndof, N).
+
+        Returns
+        -------
+        Fo : ndarray
+            Static (mean) force component.
+        Fn : ndarray
+            Harmonic force coefficients.
+        Fn_s : ndarray
+            Complex conjugate of harmonic force coefficients.
+        """
         ndof = self.rotor.ndof
 
         Fo = np.zeros(ndof, dtype=complex)
@@ -164,17 +318,60 @@ class HarmonicBalance:
         return Fo, Fn, Fn_s
 
     def _assemble_forces(self, W, Fo, Fn, Fn_s):
+        """
+        Assemble the total complex force vector for the HB system.
+
+        Parameters
+        ----------
+        W : ndarray
+            Static gravitational force vector.
+        Fo : ndarray
+            Static external force component.
+        Fn : ndarray
+            Harmonic force coefficients.
+        Fn_s : ndarray
+            Conjugate harmonic force coefficients.
+
+        Returns
+        -------
+        F : ndarray, complex
+            Combined force vector for harmonic balance analysis.
+        """
         ndof = self.rotor.ndof
 
         F = np.zeros(((self.noh * 2 + 1) * ndof), dtype=complex)
 
         F[:ndof] = 4 * W + 2 * Fo
+
         for i in range(1, self.noh + 1):
             F[(2 * i - 1) * ndof : 2 * i * ndof] = 2 * Fn[:, i - 1]
             F[2 * i * ndof : (2 * i + 1) * ndof] = 2 * Fn_s[:, i - 1]
+
         return F
 
     def _crack_stiffness_matrices(self, dt, freq, crack=None):
+        """
+        Compute Fourier-expanded stiffness matrices for cracked shafts.
+
+        Parameters
+        ----------
+        dt : float
+            Time step [s].
+        freq : float
+            Rotational frequency [Hz].
+        crack : object, optional
+            Crack model object providing `dofs`, `crack_coeff`, and `_Kflex()`
+            methods.
+
+        Returns
+        -------
+        Ko : ndarray
+            Static stiffness correction matrix.
+        Kn : ndarray
+            Harmonic stiffness correction matrices.
+        Kn_s : ndarray
+            Conjugate harmonic stiffness matrices.
+        """
         ndof = self.rotor.ndof
         n_aux = 2 * self.noh
 
@@ -214,6 +411,30 @@ class HarmonicBalance:
         Cn=None,
         Cn_s=None,
     ):
+        """
+        Construct the Harmonic Balance matrix `H`.
+
+        Parameters
+        ----------
+        speed : float
+            Rotational speed [rad/s].
+        accel : float
+            Angular acceleration [rad/s²].
+        M, K, Ksdt, C, G : ndarray
+            Rotor mass, stiffness, stiffness time-derivative, damping, and
+            gyroscopic matrices.
+        Ko : ndarray
+            Static crack stiffness correction.
+        Kn, Kn_s : ndarray
+            Harmonic stiffness correction and its conjugate.
+        Co, Cn, Cn_s : ndarray, optional
+            Damping correction matrices. Default: zeros.
+
+        Returns
+        -------
+        H0 : ndarray, complex
+            Full harmonic balance system matrix.
+        """
         ndof = self.rotor.ndof
         noh = self.noh
 
@@ -346,6 +567,31 @@ class HarmonicBalance:
         return H0
 
     def _solve_freq_domain(self, H, F):
+        """
+        Solve the Harmonic Balance system in frequency domain.
+
+        Parameters
+        ----------
+        H : ndarray
+            Harmonic Balance matrix.
+        F : ndarray
+            Force vector.
+
+        Returns
+        -------
+        Qt : ndarray
+            Full frequency-domain displacement vector.
+        Qo : ndarray
+            Static displacement component.
+        Qn : ndarray
+            Harmonic displacement components.
+        Qn_s : ndarray
+            Conjugate harmonic displacement components.
+
+        Notes
+        -----
+        If the system is singular, the pseudo-inverse is used instead of direct solve.
+        """
         ndof = self.rotor.ndof
 
         try:
@@ -366,7 +612,30 @@ class HarmonicBalance:
 
         return Qt, Qo, Qn, Qn_s
 
-    def _reconstruct_time_domain(self, omega, t, Qo, dQ, aux=None):
+    def _reconstruct_time_domain(self, omega, t, Qo, dQ):
+        """
+        Reconstruct the time-domain response from frequency-domain results.
+
+        Parameters
+        ----------
+        omega : float
+            Rotational speed [rad/s].
+        t : array_like
+            Time vector [s].
+        Qo : ndarray
+            Static displacement vector.
+        dQ : ndarray
+            Harmonic displacement coefficients.
+
+        Returns
+        -------
+        y : ndarray
+            Displacement response over time.
+        ydot : ndarray
+            Velocity response over time.
+        y2dot : ndarray
+            Acceleration response over time.
+        """
         shape = (np.size(Qo), len(t))
 
         sum_y = np.zeros(shape)
@@ -381,10 +650,8 @@ class HarmonicBalance:
             sin = np.array([np.sin(i * omega * t)])
 
             sum_y += np.dot(an, cos) + np.dot(bn, sin)
-
-            if aux is None:
-                sum_ydot += i * omega * (np.dot(bn, cos) - np.dot(an, sin))
-                sum_y2dot -= (i * omega) ** 2 * (np.dot(an, cos) + np.dot(bn, sin))
+            sum_ydot += i * omega * (np.dot(bn, cos) - np.dot(an, sin))
+            sum_y2dot -= (i * omega) ** 2 * (np.dot(an, cos) + np.dot(bn, sin))
 
         y = Qo[:, np.newaxis] / 2 + sum_y
         ydot = sum_ydot
@@ -394,6 +661,32 @@ class HarmonicBalance:
 
     @staticmethod
     def _Fourier_expansion(F, dt, fo, size):
+        """
+        Perform Fourier expansion of a time-domain signal.
+
+        Parameters
+        ----------
+        F : ndarray
+            Input force array of shape (ndof, N).
+        dt : float
+            Time step [s].
+        fo : float
+            Fundamental frequency [Hz].
+        size : int
+            Number of harmonic components to compute.
+
+        Returns
+        -------
+        Fo : ndarray
+            Mean (static) component.
+        Fn : ndarray
+            Complex harmonic coefficients.
+
+        Notes
+        -----
+        Uses FFT to compute coefficients corresponding to multiples of fundamental
+        frequency.
+        """
         row, N = F.shape
         b = N // 2
 

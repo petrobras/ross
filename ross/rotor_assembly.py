@@ -3181,25 +3181,85 @@ class Rotor(object):
 
         return results
 
+    @check_units
     def run_harmonic_balance_response(
         self,
         speed,
         t,
-        node,
-        magnitude,
-        phase,
-        harmonic,
+        force_node,
+        force_magnitude,
+        force_phase,
+        force_harmonic,
         gravity=False,
         n_harmonics=1,
     ):
+        """
+        Compute the steady-state response of the rotor using the Harmonic Balance
+        method.
+
+        Parameters
+        ----------
+        speed : float, pint.Quantity
+            Rotational speed of the rotor [rad/s].
+        t : array_like
+            Time vector [s].
+        force_node : list, int
+            Node indices where the excitation forces are applied.
+        force_magnitude : list, float, pint.Quantity
+            Excitation magnitudes. Interpretation depends on the type of excitation:
+            - For direct harmonic forces: force amplitudes [N].
+            - For unbalance-type excitations: ``m * e * speed**2`` [N],
+            where ``m`` is the unbalance mass [kg] and ``e`` is the eccentricity [m].
+        force_phase : list, float, pint.Quantity
+            Phase angles of the applied excitations [rad].
+        force_harmonic : list, int
+            Harmonic order(s) of the excitation (1 for fundamental, 2 for second,
+            etc.).
+        gravity : bool, optional
+            If True, include the effect of gravity in the response.
+            Default is False.
+        n_harmonics : int, optional
+            Number of harmonics to consider in the Harmonic Balance solution.
+            Default is 1 (fundamental harmonic only).
+
+        Returns
+        -------
+        results : ross.results.TimeResponseResults
+            Object containing the reconstructed steady-state time response.
+
+        Examples
+        --------
+        >>> rotor = rotor_example()
+        >>> speed = 200.0
+        >>> unb_node 3
+        >>> unb_mag = 0.05 * speed**2
+        >>> unb_phase = 0.0
+        >>> unb_harmonic = 1 # For unbalance, always 1x
+        >>> response = rotor.run_harmonic_balance_response(
+        ...     speed=200.0,
+        ...     t=np.linspace(0, 0.5, 1001),
+        ...     force_node=[unb_node],
+        ...     force_magnitude=[unb_mag],
+        ...     force_phase=[unb_phase],
+        ...     force_harmonic=[unb_harmonic],
+        ...     gravity=False,
+        ...     n_harmonics=1,
+        ... )
+        >>> probe1 = Probe(3, 0)
+        >>> # plot time response for a given probe:
+        >>> fig1 = response.plot_1d(probe=[probe1])
+        >>> # plot also dfft:
+        >>> fig2 = response.plot_dfft(probe=[probe1])
+        """
         hb = HarmonicBalance(self, n_harmonics=n_harmonics)
+
         results = hb.run_time_response(
             speed=speed,
             t=t,
-            node=node,
-            magnitude=magnitude,
-            phase=phase,
-            harmonic=harmonic,
+            node=force_node,
+            magnitude=force_magnitude,
+            phase=force_phase,
+            harmonic=force_harmonic,
             gravity=gravity,
         )
 
