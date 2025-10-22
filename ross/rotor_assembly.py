@@ -1892,7 +1892,6 @@ class Rotor(object):
         num_points=10,
         rtol=0.005,
         unbalance=None,
-        n_harmonics=None,
     ):
         """Forced response for a mdof system.
 
@@ -1977,37 +1976,27 @@ class Rotor(object):
                     num_modes, num_points, modes, rtol
                 )
 
-        if n_harmonics is None:
-            freq_resp = self.run_freq_response(
-                speed_range, modes, cluster_points, num_modes, num_points, rtol
-            )
+        freq_resp = self.run_freq_response(
+            speed_range, modes, cluster_points, num_modes, num_points, rtol
+        )
 
-            forced_resp = np.zeros(
-                (self.ndof, len(freq_resp.speed_range)), dtype=complex
-            )
-            velc_resp = np.zeros((self.ndof, len(freq_resp.speed_range)), dtype=complex)
-            accl_resp = np.zeros((self.ndof, len(freq_resp.speed_range)), dtype=complex)
+        forced_resp = np.zeros((self.ndof, len(freq_resp.speed_range)), dtype=complex)
+        velc_resp = np.zeros((self.ndof, len(freq_resp.speed_range)), dtype=complex)
+        accl_resp = np.zeros((self.ndof, len(freq_resp.speed_range)), dtype=complex)
 
-            for i in range(len(freq_resp.speed_range)):
-                forced_resp[:, i] = freq_resp.freq_resp[..., i] @ force[..., i]
-                velc_resp[:, i] = freq_resp.velc_resp[..., i] @ force[..., i]
-                accl_resp[:, i] = freq_resp.accl_resp[..., i] @ force[..., i]
+        for i in range(len(freq_resp.speed_range)):
+            forced_resp[:, i] = freq_resp.freq_resp[..., i] @ force[..., i]
+            velc_resp[:, i] = freq_resp.velc_resp[..., i] @ force[..., i]
+            accl_resp[:, i] = freq_resp.accl_resp[..., i] @ force[..., i]
 
-            forced_resp = ForcedResponseResults(
-                rotor=self,
-                forced_resp=forced_resp,
-                velc_resp=velc_resp,
-                accl_resp=accl_resp,
-                speed_range=speed_range,
-                unbalance=unbalance,
-            )
-
-        else:
-            hb = HarmonicBalance(self, n_harmonics)
-            forced_resp = hb.run_forced_response(
-                force,
-                speed_range,
-            )
+        forced_resp = ForcedResponseResults(
+            rotor=self,
+            forced_resp=forced_resp,
+            velc_resp=velc_resp,
+            accl_resp=accl_resp,
+            speed_range=speed_range,
+            unbalance=unbalance,
+        )
 
         return forced_resp
 
@@ -2129,7 +2118,6 @@ class Rotor(object):
         num_modes=12,
         num_points=10,
         rtol=0.005,
-        n_harmonics=None,
     ):
         """Unbalanced response for a mdof system.
 
@@ -2252,32 +2240,22 @@ class Rotor(object):
             if cluster_points:
                 frequency = self._clustering_points(num_modes, num_points, modes, rtol)
 
-        if n_harmonics is None:
             force = np.zeros((self.ndof, len(frequency)), dtype=complex)
 
-            try:
-                for n, m, p in zip(node, unbalance_magnitude, unbalance_phase):
-                    force += self._unbalance_force(n, m, p, frequency)
-            except TypeError:
-                force = self._unbalance_force(
-                    node, unbalance_magnitude, unbalance_phase, frequency
-                )
-
-            # fmt: off
-            ub = np.vstack((node, unbalance_magnitude, unbalance_phase))
-            forced_response = self.run_forced_response(
-                force, frequency, modes, cluster_points, num_modes, num_points, rtol, ub
+        try:
+            for n, m, p in zip(node, unbalance_magnitude, unbalance_phase):
+                force += self._unbalance_force(n, m, p, frequency)
+        except TypeError:
+            force = self._unbalance_force(
+                node, unbalance_magnitude, unbalance_phase, frequency
             )
-            # fmt: on
 
-        else:
-            hb = HarmonicBalance(self, n_harmonics)
-            forced_response = hb.run_unbalance_response(
-                node,
-                unbalance_magnitude,
-                unbalance_phase,
-                frequency,
-            )
+        # fmt: off
+        ub = np.vstack((node, unbalance_magnitude, unbalance_phase))
+        forced_response = self.run_forced_response(
+            force, frequency, modes, cluster_points, num_modes, num_points, rtol, ub
+        )
+        # fmt: on
 
         return forced_response
 
@@ -3139,9 +3117,7 @@ class Rotor(object):
         return results
 
     @check_units
-    def run_time_response(
-        self, speed, F, t, method="default", n_harmonics=None, **kwargs
-    ):
+    def run_time_response(self, speed, F, t, method="default", **kwargs):
         """Calculate the time response.
 
         This function will take a rotor object and calculate its time response
@@ -3200,13 +3176,32 @@ class Rotor(object):
         >>> # plot orbit response - plotting 3D orbits - full rotor model:
         >>> fig3 = response.plot_3d()
         """
-        if isinstance(speed, Iterable) or n_harmonics is None:
-            t_, yout, xout = self.time_response(speed, F, t, method=method, **kwargs)
-            results = TimeResponseResults(self, t, yout, xout)
+        t_, yout, xout = self.time_response(speed, F, t, method=method, **kwargs)
+        results = TimeResponseResults(self, t, yout, xout)
 
-        else:
-            hb = HarmonicBalance(self, n_harmonics)
-            results = hb.run_time_response(speed, F, t)
+        return results
+
+    def run_harmonic_balance_response(
+        self,
+        speed,
+        t,
+        node,
+        magnitude,
+        phase,
+        harmonic,
+        gravity=False,
+        n_harmonics=1,
+    ):
+        hb = HarmonicBalance(self, n_harmonics=n_harmonics)
+        results = hb.run_time_response(
+            speed=speed,
+            t=t,
+            node=node,
+            magnitude=magnitude,
+            phase=phase,
+            harmonic=harmonic,
+            gravity=gravity,
+        )
 
         return results
 

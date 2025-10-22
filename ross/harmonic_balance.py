@@ -22,26 +22,59 @@ class HarmonicBalance:
     def run(
         self,
         node,
-        unb_magnitude,
-        unb_phase,
+        magnitude,
+        phase,
+        harmonic,
         speed,
         dt,
+        gravity=False,
         F_ext=None,
     ):
         rotor = self.rotor
 
         accel = 0
-        has_gravity = 0
         has_crack = False
 
-        # Forces
-        W = rotor.gravitational_force() * has_gravity
-        F_unb, F_unb_s = self._unbalance_force(node, unb_magnitude, unb_phase, speed)
+        node = np.array(node)
+        magnitude = np.array(magnitude)
+        phase = np.array(phase)
+        harmonic = np.array(harmonic)
 
+        unb_node = []
+        unb_magnitude = []
+        unb_phase = []
+
+        idx = np.where(harmonic == "unbalance")[0]
+        if idx.size > 0:
+            unb_node = node[idx]
+            unb_magnitude = magnitude[idx]
+            unb_phase = phase[idx]
+
+            node = np.delete(node, idx)
+            magnitude = np.delete(magnitude, idx)
+            phase = np.delete(phase, idx)
+            harmonic = np.delete(harmonic, idx)
+
+        for h in harmonic:
+            if h > self.noh:
+                self.noh = h
+
+        # Weigth
+        W = rotor.gravitational_force() * int(gravity)
+
+        # Unbalance force
+        Fu, Fu_s = self._unbalance_force(unb_node, unb_magnitude, unb_phase, speed)
+
+        # External force
         freq = Q_(speed, "rad/s").to("Hz").m
         Fo, Fn, Fn_s = self._external_force(dt, freq, F_ext)
 
-        F = self._assemble_forces(W, F_unb, F_unb_s, Fo, Fn, Fn_s)
+        # Harmonic force
+        Fh, Fh_s = self._harmonic_force(node, magnitude, phase, harmonic)
+        Fn += Fh
+        Fn_s += Fh_s
+
+        F = self._assemble_forces(W, Fu, Fu_s, Fo, Fn, Fn_s)
 
         # Crack stiffness matrices
         Ko, Kn, Kn_s = self._crack_stiffness_matrices(dt, freq, has_crack)
@@ -64,132 +97,26 @@ class HarmonicBalance:
 
         return Qt, Qo, dQ, dQ_s
 
-    def run_forced_response(
-        self,
-        force,
-        speed_range,
-        unbalance=None,
-    ):
-        ndof = self.rotor.ndof
-        t_samples = self.t_samples
-        n_p = self.n_period
-
-        forced_resp = np.zeros((ndof, len(speed_range)), dtype=complex)
-        velc_resp = np.zeros((ndof, len(speed_range)), dtype=complex)
-        accl_resp = np.zeros((ndof, len(speed_range)), dtype=complex)
-
-        if unbalance is None:
-            node, unb_magnitude, unb_phase = ([0], [0], [0])
-        else:
-            node, unb_magnitude, unb_phase = unbalance
-
-        if force is None:
-            force_in_time = lambda i, speed, t: None
-        else:
-            force_in_time = lambda i, speed, t: np.real(
-                force[:, i][:, np.newaxis] * np.exp(1j * speed * t)
-            )
-
-        for i, speed in enumerate(speed_range):
-            tf = n_p * (2 * np.pi) / max(speed, 1e-6)
-            t = np.linspace(0, tf, t_samples)
-            dt = t[1] - t[0]
-
-            F = force_in_time(i, speed, t)
-
-            _, Qo, dQ, _ = self.run(
-                node=np.int_(node),
-                unb_magnitude=unb_magnitude,
-                unb_phase=unb_phase,
-                speed=speed,
-                dt=dt,
-                F_ext=F,
-            )
-
-            forced_resp[:, i] = Qo / 2 + np.sum(dQ, axis=1)
-            velc_resp[:, i] = 1j * speed * np.sum(dQ, axis=1)
-            accl_resp[:, i] = -(speed**2) * np.sum(dQ, axis=1)
-
-        forced_resp = ForcedResponseResults(
-            rotor=self.rotor,
-            forced_resp=forced_resp,
-            velc_resp=velc_resp,
-            accl_resp=accl_resp,
-            speed_range=speed_range,
-            unbalance=unbalance,
-        )
-
-        return forced_resp
-
-    def run_unbalance_response(
-        self,
-        node,
-        unb_magnitude,
-        unb_phase,
-        speed_range,
-    ):
-        unbalance = np.vstack((node, unb_magnitude, unb_phase))
-
-        forced_resp = self.run_forced_response(
-            force=None,
-            speed_range=speed_range,
-            unbalance=unbalance,
-        )
-
-        return forced_resp
-
     def run_time_response(
         self,
         speed,
-        F,
         t,
-    ):
-        tf = t[-1]
-        t0 = t[0]
-        dt = t[1] - t0
-
-        t_samples = int(self.t_samples / self.n_period * tf * speed / (2 * np.pi))
-        t_ = np.linspace(t0, tf, t_samples)
-        dt_ = t_[1] - t0
-
-        if dt > dt_:
-            warnings.warn(
-                "The time step is large for the given speed. Recalculating time array.",
-                UserWarning,
-            )
-            dt = dt_
-            t = t_
-
-        _, Qo, dQ, _ = self.run(
-            node=[0],
-            unb_magnitude=[0],
-            unb_phase=[0],
-            speed=speed,
-            dt=dt,
-            F_ext=F.T,
-        )
-
-        y, ydot, y2dot = self._reconstruct_time_domain(speed, t, Qo, dQ)
-        time_resp = TimeResponseResults(self.rotor, t, y.T, [])
-
-        return time_resp
-
-    def run_unbalance_time_response(
-        self,
         node,
-        unb_magnitude,
-        unb_phase,
-        speed,
-        t,
+        magnitude,
+        phase,
+        harmonic,
+        gravity=False,
     ):
         dt = t[1] - t[0]
 
         _, Qo, dQ, _ = self.run(
             node=node,
-            unb_magnitude=unb_magnitude,
-            unb_phase=unb_phase,
+            magnitude=magnitude,
+            phase=phase,
+            harmonic=harmonic,
             speed=speed,
             dt=dt,
+            gravity=gravity,
         )
 
         y, ydot, y2dot = self._reconstruct_time_domain(speed, t, Qo, dQ)
@@ -201,7 +128,7 @@ class HarmonicBalance:
         ndof = self.rotor.ndof
         number_dof = self.rotor.number_dof
 
-        F0 = np.zeros((ndof), dtype=np.complex128)
+        F = np.zeros((ndof), dtype=np.complex128)
 
         for n, m, p in zip(node, magnitude, phase):
             cos = np.cos(p)
@@ -214,32 +141,32 @@ class HarmonicBalance:
             Fb += m * alpha * np.array([cos, -sin])
 
             dofs = [number_dof * n, number_dof * n + 1]
-            F0[dofs] += Fa - 1j * Fb
+            F[dofs] += Fa - 1j * Fb
 
-        F0_s = np.conjugate(F0)
+        F_s = np.conjugate(F)
 
-        return F0, F0_s
+        return F, F_s
 
-    def _unbalance_force_over_time(self, node, magnitude, phase, omega, t):
+    def _harmonic_force(self, node, magnitude, phase, harmonic):
         ndof = self.rotor.ndof
+        number_dof = self.rotor.number_dof
 
-        F0 = np.zeros((len(t), ndof))
-        F0_s = np.zeros((len(t), ndof))
+        F = np.zeros((ndof, self.noh), dtype=np.complex128)
 
-        if isinstance(omega, Iterable):
-            alpha = np.gradient(omega, t)
+        for n, m, p, h in zip(node, magnitude, phase, harmonic):
+            print(n, m, p, h)
+            cos = np.cos(p)
+            sin = np.sin(p)
 
-            for i, w in enumerate(omega):
-                F0[i, :], F0_s[i, :] = self._unbalance_force(
-                    node, magnitude, phase, w, alpha[i]
-                )
+            Fa = m * np.array([cos, sin])
+            Fb = m * np.array([-sin, cos])
 
-        else:
-            F0[:, :], F0_s[:, :] = self._unbalance_force(
-                node, magnitude, phase, omega, 0
-            )
+            dofs = [number_dof * n, number_dof * n + 1]
+            F[dofs, h - 1] += Fa - 1j * Fb
 
-        return F0, F0_s
+        F_s = np.conjugate(F)
+
+        return F, F_s
 
     def _external_force(self, dt, freq, F=None):
         ndof = self.rotor.ndof
