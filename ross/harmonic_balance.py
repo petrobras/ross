@@ -32,8 +32,9 @@ class HarmonicBalance:
     ):
         rotor = self.rotor
 
-        accel = 0
-        has_crack = False
+        accel = 0  # Assuming always constant speed
+        crack = None  # Assuming there's no crack, crack model needs to be integrated
+        freq = Q_(speed, "rad/s").to("Hz").m
 
         for h in harmonic:
             if h > self.noh:
@@ -43,7 +44,6 @@ class HarmonicBalance:
         W = rotor.gravitational_force() * int(gravity)
 
         # External force
-        freq = Q_(speed, "rad/s").to("Hz").m
         Fo, Fn, Fn_s = self._external_force(dt, freq, F_ext)
 
         # Harmonic force
@@ -54,7 +54,7 @@ class HarmonicBalance:
         F = self._assemble_forces(W, Fo, Fn, Fn_s)
 
         # Crack stiffness matrices
-        Ko, Kn, Kn_s = self._crack_stiffness_matrices(dt, freq, has_crack)
+        Ko, Kn, Kn_s = self._crack_stiffness_matrices(dt, freq, crack)
 
         # Harmonic Balance Matrix
         H = self._build_harmonic_balance_matrix(
@@ -174,7 +174,7 @@ class HarmonicBalance:
             F[2 * i * ndof : (2 * i + 1) * ndof] = 2 * Fn_s[:, i - 1]
         return F
 
-    def _crack_stiffness_matrices(self, dt, freq, has_crack=True):
+    def _crack_stiffness_matrices(self, dt, freq, crack=None):
         ndof = self.rotor.ndof
         n_aux = 2 * self.noh
 
@@ -182,19 +182,19 @@ class HarmonicBalance:
         Kn = np.zeros((ndof, ndof, n_aux), dtype=complex)
         Kn_s = np.zeros((ndof, ndof, n_aux), dtype=complex)
 
-        if has_crack:
-            idx = self.crack.dof_crack
-            coeff_flex = self.crack.coeff_flex
+        if crack:
+            dof = crack.dofs
+            crack_coeff = crack.crack_coeff
 
-            Kco, Kcn, Kcn_s = self._Fourier_expansion(coeff_flex, dt, freq, n_aux)
-            Ko[idx, idx] = self.crack._Kflex(Kco.reshape(-1, 1))[:, :, 0]
+            Kco, Kcn, Kcn_s = self._Fourier_expansion(crack_coeff, dt, freq, n_aux)
 
-            Kn_flex = self.crack._Kflex(Kcn)
-            Kn_flex_s = self.crack._Kflex(Kcn_s)
+            Ko[dof, dof] = crack._Kflex(Kco.reshape(-1, 1))[:, :, 0]
+            Kn_ = crack._Kflex(Kcn)
+            Kn_s_ = crack._Kflex(Kcn_s)
 
             for i in range(n_aux):
-                Kn[idx, idx, i] = Kn_flex[:, :, i]
-                Kn_s[idx, idx, i] = Kn_flex_s[:, :, i]
+                Kn[dof, dof, i] = Kn_[:, :, i]
+                Kn_s[dof, dof, i] = Kn_s_[:, :, i]
 
         return Ko, Kn, Kn_s
 
@@ -216,7 +216,6 @@ class HarmonicBalance:
     ):
         ndof = self.rotor.ndof
         noh = self.noh
-        accel = 0
 
         # Co, Cn, Cn_s are already considered in C matrix (bearing elements)
         Co = np.zeros((ndof, ndof), dtype=complex)
