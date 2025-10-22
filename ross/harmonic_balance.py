@@ -35,35 +35,12 @@ class HarmonicBalance:
         accel = 0
         has_crack = False
 
-        node = np.array(node)
-        magnitude = np.array(magnitude)
-        phase = np.array(phase)
-        harmonic = np.array(harmonic)
-
-        unb_node = []
-        unb_magnitude = []
-        unb_phase = []
-
-        idx = np.where(harmonic == "unbalance")[0]
-        if idx.size > 0:
-            unb_node = node[idx]
-            unb_magnitude = magnitude[idx]
-            unb_phase = phase[idx]
-
-            node = np.delete(node, idx)
-            magnitude = np.delete(magnitude, idx)
-            phase = np.delete(phase, idx)
-            harmonic = np.delete(harmonic, idx)
-
         for h in harmonic:
             if h > self.noh:
                 self.noh = h
 
-        # Weigth
+        # Weight
         W = rotor.gravitational_force() * int(gravity)
-
-        # Unbalance force
-        Fu, Fu_s = self._unbalance_force(unb_node, unb_magnitude, unb_phase, speed)
 
         # External force
         freq = Q_(speed, "rad/s").to("Hz").m
@@ -74,7 +51,7 @@ class HarmonicBalance:
         Fn += Fh
         Fn_s += Fh_s
 
-        F = self._assemble_forces(W, Fu, Fu_s, Fo, Fn, Fn_s)
+        F = self._assemble_forces(W, Fo, Fn, Fn_s)
 
         # Crack stiffness matrices
         Ko, Kn, Kn_s = self._crack_stiffness_matrices(dt, freq, has_crack)
@@ -124,6 +101,27 @@ class HarmonicBalance:
 
         return time_resp
 
+    def _harmonic_force(self, node, magnitude, phase, harmonic):
+        ndof = self.rotor.ndof
+        number_dof = self.rotor.number_dof
+
+        F = np.zeros((ndof, self.noh), dtype=np.complex128)
+
+        for n, m, p, h in zip(node, magnitude, phase, harmonic):
+            print(n, m, p, h)
+            cos = np.cos(p)
+            sin = np.sin(p)
+
+            Fa = m * np.array([cos, sin])
+            Fb = m * np.array([-sin, cos])
+
+            dofs = [number_dof * n, number_dof * n + 1]
+            F[dofs, h - 1] += Fa - 1j * Fb
+
+        F_s = np.conjugate(F)
+
+        return F, F_s
+
     def _unbalance_force(self, node, magnitude, phase, omega, alpha=0):
         ndof = self.rotor.ndof
         number_dof = self.rotor.number_dof
@@ -147,27 +145,6 @@ class HarmonicBalance:
 
         return F, F_s
 
-    def _harmonic_force(self, node, magnitude, phase, harmonic):
-        ndof = self.rotor.ndof
-        number_dof = self.rotor.number_dof
-
-        F = np.zeros((ndof, self.noh), dtype=np.complex128)
-
-        for n, m, p, h in zip(node, magnitude, phase, harmonic):
-            print(n, m, p, h)
-            cos = np.cos(p)
-            sin = np.sin(p)
-
-            Fa = m * np.array([cos, sin])
-            Fb = m * np.array([-sin, cos])
-
-            dofs = [number_dof * n, number_dof * n + 1]
-            F[dofs, h - 1] += Fa - 1j * Fb
-
-        F_s = np.conjugate(F)
-
-        return F, F_s
-
     def _external_force(self, dt, freq, F=None):
         ndof = self.rotor.ndof
 
@@ -186,19 +163,16 @@ class HarmonicBalance:
 
         return Fo, Fn, Fn_s
 
-    def _assemble_forces(self, W, F_unb, F_unb_s, Fo, Fn, Fn_s):
+    def _assemble_forces(self, W, Fo, Fn, Fn_s):
         ndof = self.rotor.ndof
-        F0 = np.zeros(((self.noh * 2 + 1) * ndof), dtype=complex)
 
-        F0[:ndof] = 4 * W + 2 * Fo
-        F0[ndof : 2 * ndof] = 2 * (F_unb + Fn[:, 0])
-        F0[2 * ndof : 3 * ndof] = 2 * (F_unb_s + Fn_s[:, 0])
+        F = np.zeros(((self.noh * 2 + 1) * ndof), dtype=complex)
 
-        for i in range(2, self.noh + 1):
-            F0[(2 * i - 1) * ndof : 2 * i * ndof] = 2 * Fn[:, i - 1]
-            F0[2 * i * ndof : (2 * i + 1) * ndof] = 2 * Fn_s[:, i - 1]
-
-        return F0
+        F[:ndof] = 4 * W + 2 * Fo
+        for i in range(1, self.noh + 1):
+            F[(2 * i - 1) * ndof : 2 * i * ndof] = 2 * Fn[:, i - 1]
+            F[2 * i * ndof : (2 * i + 1) * ndof] = 2 * Fn_s[:, i - 1]
+        return F
 
     def _crack_stiffness_matrices(self, dt, freq, has_crack=True):
         ndof = self.rotor.ndof
@@ -242,6 +216,7 @@ class HarmonicBalance:
     ):
         ndof = self.rotor.ndof
         noh = self.noh
+        accel = 0
 
         # Co, Cn, Cn_s are already considered in C matrix (bearing elements)
         Co = np.zeros((ndof, ndof), dtype=complex)
