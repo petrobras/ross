@@ -1,12 +1,9 @@
 import warnings
 import numpy as np
 from scipy.fft import fft, fftfreq
-from collections.abc import Iterable
 
-from ross.units import Q_, check_units
-from ross.results import (
-    TimeResponseResults,
-)
+from ross.units import Q_
+from ross.results import HarmonicBalanceResults
 
 
 class HarmonicBalance:
@@ -28,7 +25,6 @@ class HarmonicBalance:
             Default is 1.
         """
         self.rotor = rotor
-        self.ndof = rotor.ndof
         self.noh = n_harmonics if n_harmonics else 1
 
     def run(
@@ -38,7 +34,7 @@ class HarmonicBalance:
         phase,
         harmonic,
         speed,
-        dt,
+        t,
         gravity=False,
         F_ext=None,
     ):
@@ -64,8 +60,8 @@ class HarmonicBalance:
             etc.).
         speed : float
             Rotor rotational speed [rad/s].
-        dt : float
-            Time step used for Fourier expansion [s].
+        t : float
+            Time array used for Fourier expansion [s].
         gravity : bool, optional
             If True, include gravitational forces. Default is False.
         F_ext : ndarray, optional
@@ -98,6 +94,7 @@ class HarmonicBalance:
         accel = 0  # Assuming always constant speed
         crack = None  # Assuming there's no crack, crack model needs to be integrated
         freq = Q_(speed, "rad/s").to("Hz").m
+        dt = t[1] - t[0]
 
         for h in harmonic:
             if h > self.noh:
@@ -135,60 +132,7 @@ class HarmonicBalance:
 
         Qt, Qo, dQ, dQ_s = self._solve_freq_domain(H, F)
 
-        return Qt, Qo, dQ, dQ_s
-
-    @check_units
-    def run_time_response(
-        self,
-        speed,
-        t,
-        node,
-        magnitude,
-        phase,
-        harmonic,
-        gravity=False,
-    ):
-        """
-        Compute the steady-state time response from Harmonic Balance solution.
-
-        Parameters
-        ----------
-        speed : float, pint.Quantity
-            Rotor speed [rad/s].
-        t : array_like
-            Time vector [s].
-        node : list, int
-            Node indices of applied harmonic forces.
-        magnitude : list, float
-            Magnitudes of harmonic forces [N].
-        phase : list, float
-            Phase angles of applied forces [rad].
-        harmonic : list, int
-            Harmonic order(s) of excitation.
-        gravity : bool, optional
-            Include gravitational effects. Default is False.
-
-        Returns
-        -------
-        time_resp : ross.results.TimeResponseResults
-            Object containing time, displacement, and metadata of the time response.
-        """
-        dt = t[1] - t[0]
-
-        _, Qo, dQ, _ = self.run(
-            node=node,
-            magnitude=magnitude,
-            phase=phase,
-            harmonic=harmonic,
-            speed=speed,
-            dt=dt,
-            gravity=gravity,
-        )
-
-        y, ydot, y2dot = self._reconstruct_time_domain(speed, t, Qo, dQ)
-        time_resp = TimeResponseResults(self.rotor, t, y.T, [])
-
-        return time_resp
+        return HarmonicBalanceResults(rotor, speed, t, Qt, Qo, dQ, dQ_s, self.noh)
 
     def _harmonic_force(self, node, magnitude, phase, harmonic):
         """
@@ -218,7 +162,6 @@ class HarmonicBalance:
         F = np.zeros((ndof, self.noh), dtype=np.complex128)
 
         for n, m, p, h in zip(node, magnitude, phase, harmonic):
-            print(n, m, p, h)
             cos = np.cos(p)
             sin = np.sin(p)
 
@@ -579,13 +522,13 @@ class HarmonicBalance:
 
         Returns
         -------
-        Qt : ndarray
+        Qt : ndarray, complex
             Full frequency-domain displacement vector.
-        Qo : ndarray
+        Qo : ndarray, complex
             Static displacement component.
-        Qn : ndarray
+        Qn : ndarray, complex
             Harmonic displacement components.
-        Qn_s : ndarray
+        Qn_s : ndarray, complex
             Conjugate harmonic displacement components.
 
         Notes
@@ -612,7 +555,8 @@ class HarmonicBalance:
 
         return Qt, Qo, Qn, Qn_s
 
-    def _reconstruct_time_domain(self, omega, t, Qo, dQ):
+    @staticmethod
+    def _reconstruct_time_domain(omega, t, Qo, dQ, n_harmonics):
         """
         Reconstruct the time-domain response from frequency-domain results.
 
@@ -626,6 +570,8 @@ class HarmonicBalance:
             Static displacement vector.
         dQ : ndarray
             Harmonic displacement coefficients.
+        n_harmonics : int, optional
+            Number of harmonics to include in the analysis.
 
         Returns
         -------
@@ -642,7 +588,7 @@ class HarmonicBalance:
         sum_ydot = np.zeros(shape)
         sum_y2dot = np.zeros(shape)
 
-        for i in range(1, self.noh + 1):
+        for i in range(1, n_harmonics + 1):
             an = np.transpose(np.array([np.real(dQ[:, i - 1])]))
             bn = np.transpose(np.array([-np.imag(dQ[:, i - 1])]))
 

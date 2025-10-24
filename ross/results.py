@@ -6154,6 +6154,264 @@ class UCSResults(Results):
         return fig
 
 
+class HarmonicBalanceResults(Results):
+    def __init__(self, rotor, speed, t, Qt, Qo, dQ, dQ_s, n_harmonics):
+        self.rotor = rotor
+        self.speed = speed
+        self.t = t
+        self.Qt = Qt
+        self.Qo = Qo
+        self.dQ = dQ
+        self.dQ_s = dQ_s
+        self.noh = n_harmonics
+
+        self.forced_resp = self.Qo / 2 + np.sum(self.dQ, axis=1)
+        self.velc_resp = 1j * self.speed * np.sum(self.dQ, axis=1)
+        self.accl_resp = -(self.speed**2) * np.sum(self.dQ, axis=1)
+        self.frequency = np.array([h * self.speed for h in range(1, self.noh + 1)])
+
+        self.default_units = {
+            "[length]": ["m", "forced_resp"],
+            "[length] / [time]": ["m/s", "velc_resp"],
+            "[length] / [time] ** 2": ["m/s**2", "accl_resp"],
+        }
+
+    def data2(
+        self,
+        probe,
+        amplitude_units="m",
+        phase_units="rad",
+    ):
+        """Return the forced response in DataFrame format.
+
+        Parameters
+        ----------
+        probe : list
+            List with rs.Probe objects.
+        amplitude_units : str, optional
+            Units for the response magnitude.
+            Acceptable units dimensionality are:
+
+            '[length]' - Displays the displacement;
+
+            '[speed]' - Displays the velocity;
+
+            '[acceleration]' - Displays the acceleration.
+
+            Default is "m" 0 to peak.
+            To use peak to peak use '<unit> pkpk' (e.g. 'm pkpk')
+        phase_units : str, optional
+            Units for the response phase.
+            Default is "rad".
+
+        Returns
+        -------
+        df : pd.DataFrame
+            DataFrame storing magnitude and phase data arrays. The columns are set based on the
+            probe's tag.
+        """
+        rotor = self.rotor
+
+        unit_type = str(Q_(1, amplitude_units).dimensionality)
+        try:
+            base_unit = self.default_units[unit_type][0]
+            response = getattr(self, self.default_units[unit_type][1])
+        except KeyError:
+            raise ValueError(
+                "Not supported unit. Dimensionality options are '[length]', '[speed]', '[acceleration]'"
+            )
+
+        data = {}
+
+        for i, p in enumerate(probe):
+            try:
+                node = p.node
+                angle = p.angle
+                probe_tag = p.tag or p.get_label(i + 1)
+                if p.direction == "axial":
+                    continue
+            except AttributeError:
+                raise AttributeError(
+                    "The use of tuples in the probe argument is deprecated. Use the Probe class instead.",
+                )
+
+            if node not in rotor.link_nodes:
+                ru_e, rv_e = response[
+                    rotor.number_dof * node : rotor.number_dof * node + 2
+                ]
+                orbit = Orbit(
+                    node=node,
+                    node_pos=rotor.nodes_pos[node],
+                    ru_e=ru_e,
+                    rv_e=rv_e,
+                )
+                amplitude, phase = orbit.calculate_amplitude(angle=angle)
+
+            else:
+                position_in_link = node - len(rotor.nodes_pos)
+                start_index = len(rotor.nodes_pos) * rotor.number_dof + (
+                    position_in_link * 3
+                )
+                ru_e, rv_e = response[start_index : start_index + 2]
+
+                orbit = Orbit(
+                    node=None,
+                    node_pos=None,
+                    ru_e=ru_e,
+                    rv_e=rv_e,
+                )
+
+                amplitude, phase = orbit.calculate_amplitude(angle=angle)
+
+            amplitude = Q_(amplitude, base_unit).to(amplitude_units).m
+            phase = Q_(phase, "rad").to(phase_units).m
+
+            data[probe_tag] = {"amplitude": amplitude, "phase": phase}
+
+        df = pd.DataFrame(data)
+
+        return df
+
+    def data(self, probe, amplitude_units="m", frequency_units="rad/s"):
+        data = {}
+
+        nodes = self.rotor.nodes
+        link_nodes = self.rotor.link_nodes
+        ndof = self.rotor.number_dof
+
+        for i, p in enumerate(probe):
+            try:
+                node = p.node
+                angle = p.angle
+                probe_tag = p.tag or p.get_label(i + 1)
+                probe_direction = p.direction
+                if probe_direction == "axial":
+                    continue
+            except AttributeError:
+                raise AttributeError(
+                    "The use of tuples in the probe argument is deprecated. Use the Probe class instead.",
+                )
+
+            data[f"angle[{i}]"] = angle
+            data[f"probe_tag[{i}]"] = probe_tag
+            data[f"probe_dir[{i}]"] = probe_direction
+
+            fix_dof = (node - nodes[-1] - 1) * ndof // 2 if node in link_nodes else 0
+
+            if probe_direction == "radial":
+                dofx = ndof * node - fix_dof
+                dofy = ndof * node + 1 - fix_dof
+
+                # fmt: off
+                operator = np.array(
+                    [[np.cos(angle), np.sin(angle)],
+                    [-np.sin(angle), np.cos(angle)]]
+                )
+
+                _probe_resp = operator @ np.vstack((self.dQ[dofx, :], self.dQ[dofy, :]))
+                probe_resp = _probe_resp[:, 0]
+                # fmt: on
+            else:
+                dofz = ndof * node + 2 - fix_dof
+                probe_resp = self.dQ[dofz, :]
+
+            probe_resp = Q_(np.abs(probe_resp), "m").to(amplitude_units).m
+            data[f"probe_resp[{i}]"] = probe_resp
+
+        data["frequency"] = Q_(self.frequency, "rad/s").to(frequency_units).m
+        df = pd.DataFrame(data)
+
+        return df
+
+    def plot(
+        self, probe, amplitude_units="m", frequency_units="rad/s", fig=None, **kwargs
+    ):
+        if fig is None:
+            fig = go.Figure()
+
+        df = self.data(probe, amplitude_units, frequency_units)
+        frequency = df["frequency"].values
+        for i, p in enumerate(probe):
+            try:
+                probe_tag = df[f"probe_tag[{i}]"].values[0]
+                probe_resp = df[f"probe_resp[{i}]"].values
+
+                fig.add_trace(
+                    go.Scatter(
+                        x=frequency,
+                        y=probe_resp,
+                        mode="markers",
+                        name=probe_tag,
+                        legendgroup=probe_tag,
+                        showlegend=True,
+                        hovertemplate=f"Frequency ({frequency_units}): %{{x:.2f}}<br>Amplitude ({amplitude_units}): %{{y:.2e}}",
+                    )
+                )
+
+                for j, freq in enumerate(frequency):
+                    fig.add_trace(
+                        go.Scatter(
+                            x=[freq, freq],
+                            y=[0, probe_resp[j]],
+                            mode="lines",
+                            name=probe_tag,
+                            legendgroup=probe_tag,
+                            showlegend=False,
+                        )
+                    )
+            except KeyError:
+                pass
+
+        fig.update_xaxes(title_text=f"Frequency ({frequency_units})")
+        fig.update_yaxes(title_text=f"Amplitude ({amplitude_units})")
+        fig.update_layout(**kwargs)
+
+        return fig
+
+    def _reconstruct_time_domain(self):
+        """
+        Reconstruct the time-domain response from frequency-domain results.
+
+        Returns
+        -------
+        y : ndarray
+            Displacement response over time.
+        ydot : ndarray
+            Velocity response over time.
+        y2dot : ndarray
+            Acceleration response over time.
+        """
+        shape = (len(self.Qo), len(self.t))
+
+        sum_y = np.zeros(shape)
+        sum_ydot = np.zeros(shape)
+        sum_y2dot = np.zeros(shape)
+
+        for i, w in enumerate(self.frequency):
+            an = np.transpose(np.array([np.real(self.dQ[:, i])]))
+            bn = np.transpose(np.array([-np.imag(self.dQ[:, i])]))
+
+            cos = np.array([np.cos(w * self.t)])
+            sin = np.array([np.sin(w * self.t)])
+
+            sum_y += np.dot(an, cos) + np.dot(bn, sin)
+            sum_ydot += w * (np.dot(bn, cos) - np.dot(an, sin))
+            sum_y2dot -= w**2 * (np.dot(an, cos) + np.dot(bn, sin))
+
+        y = self.Qo[:, np.newaxis] / 2 + sum_y
+        ydot = sum_ydot
+        y2dot = sum_y2dot
+
+        return y, ydot, y2dot
+
+    def get_time_response(self):
+        """ """
+        y, ydot, y2dot = self._reconstruct_time_domain()
+        time_resp = TimeResponseResults(self.rotor, self.t, y.T, [])
+
+        return time_resp
+
+
 class Level1Results(Results):
     """Class used to store results and provide plots for Level 1 Stability Analysis.
 

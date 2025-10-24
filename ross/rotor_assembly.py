@@ -3224,8 +3224,8 @@ class Rotor(object):
 
         Returns
         -------
-        results : ross.results.TimeResponseResults
-            Object containing the reconstructed steady-state time response.
+        results : ross.results.HarmonicBalanceResponse
+            Object containing the steady-state response.
 
         Examples
         --------
@@ -3235,7 +3235,7 @@ class Rotor(object):
         >>> unb_mag = 0.05 * speed**2
         >>> unb_phase = 0.0
         >>> unb_harmonic = 1 # For unbalance, always 1x
-        >>> response = rotor.run_harmonic_balance_response(
+        >>> results = rotor.run_harmonic_balance_response(
         ...     speed=200.0,
         ...     t=np.linspace(0, 0.5, 1001),
         ...     force_node=[unb_node],
@@ -3245,15 +3245,16 @@ class Rotor(object):
         ...     gravity=False,
         ...     n_harmonics=1,
         ... )
+        >>> time_resp = results.get_time_response()
         >>> probe1 = Probe(3, 0)
         >>> # plot time response for a given probe:
-        >>> fig1 = response.plot_1d(probe=[probe1])
-        >>> # plot also dfft:
-        >>> fig2 = response.plot_dfft(probe=[probe1])
+        >>> fig1 = time_resp.plot_1d(probe=[probe1])
+        >>> # plot dfft:
+        >>> fig2 = time_resp.plot_dfft(probe=[probe1])
         """
         hb = HarmonicBalance(self, n_harmonics=n_harmonics)
 
-        results = hb.run_time_response(
+        results = hb.run(
             speed=speed,
             t=t,
             node=force_node,
