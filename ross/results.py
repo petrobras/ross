@@ -36,6 +36,7 @@ __all__ = [
     "ConvergenceResults",
     "TimeResponseResults",
     "UCSResults",
+    "HarmonicBalanceResults",
     "Level1Results",
 ]
 
@@ -6309,7 +6310,7 @@ class HarmonicBalanceResults(Results):
                 )
 
                 _probe_resp = operator @ np.vstack((self.dQ[dofx, :], self.dQ[dofy, :]))
-                probe_resp = _probe_resp[:, 0]
+                probe_resp = _probe_resp[0, :]
                 # fmt: on
             else:
                 dofz = ndof * node + 2 - fix_dof
@@ -6332,35 +6333,34 @@ class HarmonicBalanceResults(Results):
         df = self.data(probe, amplitude_units, frequency_units)
         frequency = df["frequency"].values
         for i, p in enumerate(probe):
-            try:
-                probe_tag = df[f"probe_tag[{i}]"].values[0]
-                probe_resp = df[f"probe_resp[{i}]"].values
+            probe_tag = df[f"probe_tag[{i}]"].values[0]
+            probe_resp = df[f"probe_resp[{i}]"].values
 
-                fig.add_trace(
-                    go.Scatter(
-                        x=frequency,
-                        y=probe_resp,
-                        mode="markers",
-                        name=probe_tag,
-                        legendgroup=probe_tag,
-                        showlegend=True,
-                        hovertemplate=f"Frequency ({frequency_units}): %{{x:.2f}}<br>Amplitude ({amplitude_units}): %{{y:.2e}}",
-                    )
+            x = []
+            y = []
+            marker_size = []
+            for j, freq in enumerate(frequency):
+                x.extend([freq, freq, None])
+                y.extend([0, probe_resp[j], None])
+                marker_size.extend([0, 8, 0])
+
+            fig.add_trace(
+                go.Scatter(
+                    x=x,
+                    y=y,
+                    mode="lines+markers",
+                    marker=dict(
+                        symbol="circle",
+                        size=marker_size,
+                        line=dict(width=0),
+                        opacity=1.0,
+                    ),
+                    name=probe_tag,
+                    legendgroup=probe_tag,
+                    showlegend=True,
+                    hovertemplate=f"Frequency ({frequency_units}): %{{x:.2f}}<br>Amplitude ({amplitude_units}): %{{y:.2e}}",
                 )
-
-                for j, freq in enumerate(frequency):
-                    fig.add_trace(
-                        go.Scatter(
-                            x=[freq, freq],
-                            y=[0, probe_resp[j]],
-                            mode="lines",
-                            name=probe_tag,
-                            legendgroup=probe_tag,
-                            showlegend=False,
-                        )
-                    )
-            except KeyError:
-                pass
+            )
 
         fig.update_xaxes(title_text=f"Frequency ({frequency_units})")
         fig.update_yaxes(title_text=f"Amplitude ({amplitude_units})")
