@@ -2813,15 +2813,6 @@ class ThrustPad(BearingElement):
                 x_coords[i, j] = radial_coords[i] * np.cos(angular_coords[j])
                 y_coords[i, j] = radial_coords[i] * np.sin(angular_coords[j])
 
-        # Calculate angle range for plotting
-        angle_per_pad = 360 / self.n_pad
-        angle_step = 20 / 10
-        angle_range = np.arange(
-            angle_per_pad + (angle_per_pad - 20) - 40,
-            angle_per_pad + angle_per_pad + angle_step - 40,
-            angle_step,
-        )
-
         # Plot 3D pressure field
         pressure_3d_fig = self._plot_3d_surface(
             x_coords,
@@ -2829,7 +2820,6 @@ class ThrustPad(BearingElement):
             pressure_field,
             "Pressure field",
             "Pressure [Pa]",
-            angle_range,
             show_plot=False
         )
 
@@ -2840,7 +2830,6 @@ class ThrustPad(BearingElement):
             temperature_field,
             "Temperature field",
             "Temperature [°C]",
-            angle_range,
             show_plot=False
         )
 
@@ -2874,10 +2863,10 @@ class ThrustPad(BearingElement):
         )
 
         figures = {
-            "pressure_3d": pressure_3d_fig,
-            "temperature_3d": temperature_3d_fig,
             "pressure_2d": pressure_contour_fig,
-            "temperature_2d": temperature_contour_fig
+            "pressure_3d": pressure_3d_fig,
+            "temperature_2d": temperature_contour_fig,
+            "temperature_3d": temperature_3d_fig
         }
 
         if show_plots:
