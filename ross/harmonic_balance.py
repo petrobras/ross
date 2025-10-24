@@ -29,10 +29,7 @@ class HarmonicBalance:
 
     def run(
         self,
-        node,
-        magnitude,
-        phase,
-        harmonic,
+        forces,
         speed,
         t,
         gravity=False,
@@ -96,9 +93,8 @@ class HarmonicBalance:
         freq = Q_(speed, "rad/s").to("Hz").m
         dt = t[1] - t[0]
 
-        for h in harmonic:
-            if h > self.noh:
-                self.noh = h
+        # Harmonic force
+        Fh, Fh_s = self._harmonic_force(forces)
 
         # Weight
         W = rotor.gravitational_force() * int(gravity)
@@ -106,11 +102,8 @@ class HarmonicBalance:
         # External force
         Fo, Fn, Fn_s = self._external_force(dt, freq, F_ext)
 
-        # Harmonic force
-        Fh, Fh_s = self._harmonic_force(node, magnitude, phase, harmonic)
         Fn += Fh
         Fn_s += Fh_s
-
         F = self._assemble_forces(W, Fo, Fn, Fn_s)
 
         # Crack stiffness matrices
@@ -134,7 +127,7 @@ class HarmonicBalance:
 
         return HarmonicBalanceResults(rotor, speed, t, Qt, Qo, dQ, dQ_s, self.noh)
 
-    def _harmonic_force(self, node, magnitude, phase, harmonic):
+    def _harmonic_force(self, forces):
         """
         Construct the harmonic force components in the frequency domain.
 
@@ -159,9 +152,18 @@ class HarmonicBalance:
         ndof = self.rotor.ndof
         number_dof = self.rotor.number_dof
 
+        for f in forces:
+            if f["harmonic"] > self.noh:
+                self.noh = f["harmonic"]
+
         F = np.zeros((ndof, self.noh), dtype=np.complex128)
 
-        for n, m, p, h in zip(node, magnitude, phase, harmonic):
+        for f in forces:
+            n = f["node"]
+            p = f["phase"]
+            m = f["magnitude"]
+            h = f["harmonic"]
+
             cos = np.cos(p)
             sin = np.sin(p)
 

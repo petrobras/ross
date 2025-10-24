@@ -3186,10 +3186,7 @@ class Rotor(object):
         self,
         speed,
         t,
-        force_node,
-        force_magnitude,
-        force_phase,
-        force_harmonic,
+        harmonic_forces,
         gravity=False,
         n_harmonics=1,
     ):
@@ -3257,10 +3254,7 @@ class Rotor(object):
         results = hb.run(
             speed=speed,
             t=t,
-            node=force_node,
-            magnitude=force_magnitude,
-            phase=force_phase,
-            harmonic=force_harmonic,
+            forces=harmonic_forces,
             gravity=gravity,
         )
 
