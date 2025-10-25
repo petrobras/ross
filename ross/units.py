@@ -87,6 +87,7 @@ units = {
     "head": "joule/kilogram",
     "eff": "dimensionless",
     "power": "watt",
+    "module": "meter"
 }
 for i, unit in zip(["k", "c", "m"], ["N/m", "N*s/m", "kg"]):
     for j in ["x", "y", "z"]:
