@@ -2538,7 +2538,6 @@ class Rotor(object):
 
             # The method compute_pid_amb updates the magnetic_force array internally
             magnetic_force_v = elm.compute_pid_amb(
-                dt,
                 current_offset=current_offset,
                 setpoint=setpoint,
                 disp=v_disp,
@@ -2546,7 +2545,6 @@ class Rotor(object):
             )
 
             magnetic_force_w = elm.compute_pid_amb(
-                dt,
                 current_offset=current_offset,
                 setpoint=setpoint,
                 disp=w_disp,
@@ -2569,7 +2567,7 @@ class Rotor(object):
             magnetic_force[y_dof] = magnetic_force_y
 
             if progress_interval is not None:
-                time_progress_ratio = round((step * dt) / progress_interval, 8)
+                time_progress_ratio = round((step * dt) / progress_interval, 4)
                 if time_progress_ratio.is_integer():
                     print(
                         f"Force x / y (N): {magnetic_force_x:.6f} / {magnetic_force_y:.6f} ({elm.tag})"
@@ -2724,7 +2722,7 @@ class Rotor(object):
         F = reduction[1](F.T).T
 
         # Check if there is any magnetic bearing
-        rotor, magnetic_force = self._init_ambs_for_integrate(**kwargs)
+        rotor, magnetic_force = self._init_ambs_for_integrate(dt=t[1] - t[0], **kwargs)
 
         # Consider any additional RHS function (extra forces)
         add_to_RHS = kwargs.get("add_to_RHS")
@@ -2825,7 +2823,8 @@ class Rotor(object):
 
         return rotor_system
 
-    def _init_ambs_for_integrate(self, **kwargs):
+    # TODO: Melhorar essa docstring (sem exemplos)
+    def _init_ambs_for_integrate(self, dt, **kwargs):
         """Initialize ambs for integrate method."""
         magnetic_bearings = [
             brg
@@ -2849,6 +2848,7 @@ class Rotor(object):
                 brg.control_signal.append([[], []])
                 brg.integral = [0, 0]
                 brg.e0 = [0, 0]
+                brg.build_controller(dt=dt)
 
             rotor.bearing_elements = [
                 brg for brg in rotor.bearing_elements if brg not in magnetic_bearings
