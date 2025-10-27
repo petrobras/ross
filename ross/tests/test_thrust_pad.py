@@ -33,7 +33,7 @@ def thrust_pad():
         frequency=frequency,
         equilibrium_position_mode="calculate",
         model_type="thermo_hydro_dynamic",
-        fzs_load=13.320e6,
+        axial_load=13.320e6,
         radial_inclination_angle=radial_inclination_angle,
         circumferential_inclination_angle=circumferential_inclination_angle,
         initial_film_thickness=initial_film_thickness,
@@ -86,4 +86,4 @@ def test_thrust_pad_field_results(thrust_pad):
 
 
 def test_thrust_pad_load(thrust_pad):
-    assert_allclose(thrust_pad.fzs_load, 13320000.0, rtol=0.0001)
+    assert_allclose(thrust_pad.axial_load, 13320000.0, rtol=0.0001)

@@ -63,7 +63,7 @@ class ThrustPad(BearingElement):
         Initial circumferential inclination angle. Default unit is radians.
     initial_film_thickness : float or Quantity
         Initial film thickness at pivot point. Default unit is meters.
-    fzs_load : float, optional
+    axial_load : float, optional
         Axial load applied to the bearing. Default is None.
     **kwargs
         Additional keyword arguments passed to BearingElement.
@@ -131,7 +131,7 @@ class ThrustPad(BearingElement):
     ...     n_radial=10,
     ...     frequency=Q_([90], "RPM"),
     ...     equilibrium_position_mode="calculate",
-    ...     fzs_load=13.320e6,
+    ...     axial_load=13.320e6,
     ...     radial_inclination_angle=Q_(-2.75e-04, "rad"),
     ...     circumferential_inclination_angle=Q_(-1.70e-05, "rad"),
     ...     initial_film_thickness=Q_(0.2, "mm")
@@ -165,7 +165,7 @@ class ThrustPad(BearingElement):
         circumferential_inclination_angle,
         initial_film_thickness,
         model_type="thermo_hydro_dynamic",
-        fzs_load=None,
+        axial_load=None,
         **kwargs,
     ):
 
@@ -193,7 +193,7 @@ class ThrustPad(BearingElement):
         )
 
         self.equilibrium_position_mode = equilibrium_position_mode
-        self.fzs_load = fzs_load
+        self.axial_load = axial_load
         self.radial_inclination_angle = radial_inclination_angle
         self.circumferential_inclination_angle = circumferential_inclination_angle
         self.initial_film_thickness = initial_film_thickness
@@ -425,9 +425,9 @@ class ThrustPad(BearingElement):
         table.add_row(["Pivot Film Thickness", f"{self.pivot_film_thicknesses[freq_index]:.6f}", "m"])
 
         if self.equilibrium_position_mode == "imposed":
-            table.add_row(["Axial Load", f"{self.fzs_load.sum():.2f}", "N"])
+            table.add_row(["Axial Load", f"{self.axial_load.sum():.2f}", "N"])
         elif self.equilibrium_position_mode == "calculate":
-            table.add_row(["Axial Load", f"{self.fzs_load:.2f}", "N"])
+            table.add_row(["Axial Load", f"{self.axial_load:.2f}", "N"])
 
         table.add_row(["kzz (Stiffness)", f"{self.kzz[freq_index]:.4e}", "N/m"])
         table.add_row(["czz (Damping)", f"{self.czz[freq_index]:.4e}", "N*s/m"])
@@ -1145,12 +1145,12 @@ class ThrustPad(BearingElement):
                 residual_force_moment = np.linalg.norm(
                     np.array([residual_moment_x, residual_moment_y])
                 )
-                self.fzs_load = force_radial
+                self.axial_load = force_radial
 
             else:
                 axial_force_residual = (
                     -np.trapezoid(force_radial, radius_coords)
-                    + self.fzs_load / self.n_pad
+                    + self.axial_load / self.n_pad
                 )
                 residual_force_moment = np.linalg.norm(
                     np.array(
@@ -1688,7 +1688,7 @@ class ThrustPad(BearingElement):
 
         else:  # "calculate" operation mode
             axial_force_residual = (
-                -np.trapezoid(force_radial, radius_coords) + self.fzs_load / self.n_pad
+                -np.trapezoid(force_radial, radius_coords) + self.axial_load / self.n_pad
             )
             score = np.linalg.norm([mom_x_total, mom_y_total, axial_force_residual])
 
@@ -3125,7 +3125,7 @@ def thrust_pad_example():
         frequency=Q_([90], "RPM"),
         equilibrium_position_mode="calculate",
         model_type="thermo_hydro_dynamic",
-        fzs_load=13.320e6,
+        axial_load=13.320e6,
         radial_inclination_angle=Q_(-2.75e-04, "rad"),
         circumferential_inclination_angle=Q_(-1.70e-05, "rad"),
         initial_film_thickness=Q_(0.2, "mm"),
