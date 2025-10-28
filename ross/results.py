@@ -5818,7 +5818,7 @@ class TimeResponseResults(Results):
             fig = go.Figure()
 
         if frequency_range is not None:
-            frequency_range = Q_(frequency_range, "rad/s").to("Hz").m
+            frequency_range = Q_(frequency_range, frequency_units).to("Hz").m
 
         rows, cols = self.yout.shape
         init_step = int(2 * rows / 3)
@@ -6248,7 +6248,7 @@ class HarmonicBalanceResults(Results):
         return df
 
     def plot(
-        self, probe, amplitude_units="m", frequency_units="rad/s", fig=None, **kwargs
+        self, probe, amplitude_units="m", frequency_units="Hz", fig=None, **kwargs
     ):
         """Plot frequency response.
 
@@ -6263,7 +6263,7 @@ class HarmonicBalanceResults(Results):
             Default is "m".
         frequency_units : str
             Frequency units.
-            Default is "rad/s".
+            Default is "Hz".
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         kwargs : optional
