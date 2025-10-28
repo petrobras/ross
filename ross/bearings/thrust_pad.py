@@ -436,17 +436,81 @@ class ThrustPad(BearingElement):
         print("=" * 48)
 
     def solve_fields(self):
-        residual_force_moment = 10
-        tolerance_force_moment = 1
+        """Solve pressure and temperature fields iteratively until convergence.
+        
+        This method performs the main iterative solution loop for thrust pad bearing
+        analysis, solving the coupled pressure-temperature-viscosity problem. The
+        method iterates between equilibrium position optimization and field equations
+        until convergence criteria are met.
+        
+        The solution process consists of two nested loops:
+        
+        1. Outer Loop (Force-Moment Convergence):
+        - Minimizes residual forces and moments to find equilibrium position
+        - Updates pad inclination angles and film thickness
+        - Uses scipy.optimize.fmin with Nelder-Mead method
+        - Mode-dependent optimization:
+            * 'imposed': Film thickness is fixed, only angles are optimized
+            * 'calculate': Film thickness, radial and circumferential angles are optimized
+        
+        2. Inner Loop (Viscosity Convergence):
+        - Solves temperature field using energy equation
+        - Updates viscosity field based on temperature-dependent viscosity model
+        - Iterates until viscosity variation is below tolerance
+        - Uses finite volume method with upwind convection scheme
+        
+        For each iteration, the method:
+        
+        - Calculates pressure field using Reynolds equation with boundary conditions
+        - Computes pressure gradients (dp/dr and dp/dtheta) at all control volumes
+        - Solves energy equation for temperature field considering viscous heating
+        - Updates viscosity using exponential model: μ = a * exp(b * T)
+        - Computes hydrodynamic forces, moments, and residuals
+        - Checks convergence of both force/moment balance and viscosity variation
+        
+        The method modifies instance attributes including pressure_field_dimensional,
+        temperature_field, viscosity_field, pivot_film_thickness, and film thickness
+        arrays. Final results are stored for coefficient calculation and visualization.
+        
+        Convergence Criteria:
+            - Force-moment residual < tolerance_force_moment (default: 50 N or N*m)
+            - Viscosity variation < viscosity_convergence_tolerance (default: 1e-5)
+        
+        Optimization Parameters:
+            - 'imposed' mode: xtol=1, ftol=1, maxiter=100000
+            - 'calculate' mode: xtol=0.1, ftol=0.1, maxiter=100
+        
+        Notes
+        -----
+        The method uses dimensional analysis where film thickness, pressure, and 
+        temperature are solved simultaneously. The viscosity model is temperature-
+        dependent and causes strong coupling between the fields. The method may
+        require multiple outer loop iterations if the coupling is strong.
+        
+        Examples
+        --------
+        This method is automatically called by run_thermo_hydro_dynamic() and should
+        not be called directly by users.
+        
+        See Also
+        --------
+        _equilibrium_objective : Objective function for equilibrium position
+        _solve_pressure_field : Solves Reynolds equation for pressure
+        coefficients : Calculates dynamic coefficients after field solution
+        """
+
+        # Initialize with a high value to enter the loop
+        residual_force_moment = 1000
+        # Set a tolerance to exit the loop
+        tolerance_force_moment = 50
 
         # Residual force and moment convergence loop
         iteration = 0
         while residual_force_moment >= tolerance_force_moment:
             iteration += 1
-            # if self.print_progress:
-            #     print(
-            #         f"Iteration {iteration} - Residual Force & Moment: {residual_force_moment:.6f}"
-            #     )
+            print(
+                f"Iteration {iteration} - Residual Force & Moment: {residual_force_moment:.6f}"
+            )
 
             if self.equilibrium_position_mode == "imposed":
                 self.h0i = self.initial_position[2]
@@ -458,7 +522,6 @@ class ThrustPad(BearingElement):
                     maxiter=100000,
                     maxfun=100000,
                     full_output=0,
-                    # disp=self.print_progress,
                     retall=0,
                     callback=None,
                     initial_simplex=None,
