@@ -3200,24 +3200,27 @@ class Rotor(object):
             Rotational speed of the rotor [rad/s].
         t : array_like
             Time vector [s].
-        force_node : list, int
-            Node indices where the excitation forces are applied.
-        force_magnitude : list, float, pint.Quantity
-            Excitation magnitudes. Interpretation depends on the type of excitation:
-            - For direct harmonic forces: force amplitudes [N].
-            - For unbalance-type excitations: ``m * e * speed**2`` [N],
-            where ``m`` is the unbalance mass [kg] and ``e`` is the eccentricity [m].
-        force_phase : list, float, pint.Quantity
-            Phase angles of the applied excitations [rad].
-        force_harmonic : list, int
-            Harmonic order(s) of the excitation (1 for fundamental, 2 for second,
-            etc.).
+        harmonic_forces : list of dict
+            List of harmonic force definitions. Each dictionary should contain the
+            following keys:
+            - 'node': int
+                Node index where the force is applied.
+            - 'magnitudes': list, float
+                List of excitation magnitudes.
+                Interpretation depends on the type of excitation:
+                    - For direct harmonic forces: force amplitudes [N].
+                    - For unbalance-type excitations: ``m * e * speed**2`` [N],
+                    where ``m`` is the unbalance mass [kg] and ``e`` is the eccentricity [m].
+            - 'phases': list of float
+                List of phase angles [rad].
+            - 'harmonics': list of int
+                List of harmonic orders (1 for fundamental, 2 for second, etc.).
         gravity : bool, optional
             If True, include the effect of gravity in the response.
             Default is False.
         n_harmonics : int, optional
             Number of harmonics to consider in the Harmonic Balance solution.
-            Default is 1 (fundamental harmonic only).
+            Default is 1 (only fundamental harmonic is considered).
 
         Returns
         -------
@@ -3235,10 +3238,12 @@ class Rotor(object):
         >>> results = rotor.run_harmonic_balance_response(
         ...     speed=200.0,
         ...     t=np.linspace(0, 0.5, 1001),
-        ...     force_node=[unb_node],
-        ...     force_magnitude=[unb_mag],
-        ...     force_phase=[unb_phase],
-        ...     force_harmonic=[unb_harmonic],
+        ...     harmonic_forces=[{
+        ...         "node": unb_node,
+        ...         "magnitudes": [unb_mag],
+        ...         "phases": [unb_phase],
+        ...         "harmonics": [unb_harmonic],
+        ...     }],
         ...     gravity=False,
         ...     n_harmonics=1,
         ... )

@@ -41,20 +41,21 @@ class HarmonicBalance:
 
         Parameters
         ----------
-        node : list, int
-            Node indices where the harmonic forces are applied.
-        magnitude : list, float
-            Magnitudes of the applied harmonic forces [N].
-            Interpretation depends on the excitation type:
-                - For direct harmonic forces: force amplitudes [N].
-                - For unbalance excitation: product ``m * e * speed**2`` [N],
-                where ``m`` is the unbalance mass [kg], ``e`` is the eccentricity [m],
-                and ``speed`` is the rotational speed [rad/s].
-        phase : list, float
-            Phase angles of the applied forces [rad].
-        harmonic : list, int
-            Harmonic order(s) of the excitation (1 for fundamental, 2 for second,
-            etc.).
+        forces : list of dict
+            List of harmonic force definitions. Each dictionary should contain the
+            following keys:
+            - 'node': int
+                Node index where the force is applied.
+            - 'magnitudes': list, float
+                List of excitation magnitudes.
+                Interpretation depends on the type of excitation:
+                    - For direct harmonic forces: force amplitudes [N].
+                    - For unbalance-type excitations: ``m * e * speed**2`` [N],
+                    where ``m`` is the unbalance mass [kg] and ``e`` is the eccentricity [m].
+            - 'phases': list of float
+                List of phase angles [rad].
+            - 'harmonics': list of int
+                List of harmonic orders (1 for fundamental, 2 for second, etc.).
         speed : float
             Rotor rotational speed [rad/s].
         t : float
@@ -133,14 +134,21 @@ class HarmonicBalance:
 
         Parameters
         ----------
-        node : list, int
-            Node indices where harmonic loads are applied.
-        magnitude : list, float
-            Force magnitudes [N].
-        phase : list, float
-            Force phase angles [rad].
-        harmonic : list, int
-            Harmonic orders of each excitation.
+        forces : list of dict
+            List of harmonic force definitions. Each dictionary should contain the
+            following keys:
+            - 'node': int
+                Node index where the force is applied.
+            - 'magnitudes': list, float
+                List of excitation magnitudes.
+                Interpretation depends on the type of excitation:
+                    - For direct harmonic forces: force amplitudes [N].
+                    - For unbalance-type excitations: ``m * e * speed**2`` [N],
+                    where ``m`` is the unbalance mass [kg] and ``e`` is the eccentricity [m].
+            - 'phases': list of float
+                List of phase angles [rad].
+            - 'harmonics': list of int
+                List of harmonic orders (1 for fundamental, 2 for second, etc.).
 
         Returns
         -------
@@ -152,26 +160,24 @@ class HarmonicBalance:
         ndof = self.rotor.ndof
         number_dof = self.rotor.number_dof
 
-        for f in forces:
-            if f["harmonic"] > self.noh:
-                self.noh = f["harmonic"]
+        max_harmonic = max(h for f in forces for h in f["harmonics"])
+        if max_harmonic > self.noh:
+            self.noh = max_harmonic
 
         F = np.zeros((ndof, self.noh), dtype=np.complex128)
 
         for f in forces:
             n = f["node"]
-            p = f["phase"]
-            m = f["magnitude"]
-            h = f["harmonic"]
 
-            cos = np.cos(p)
-            sin = np.sin(p)
+            for p, m, h in zip(f["phases"], f["magnitudes"], f["harmonics"]):
+                cos = np.cos(p)
+                sin = np.sin(p)
 
-            Fa = m * np.array([cos, sin])
-            Fb = m * np.array([-sin, cos])
+                Fa = m * np.array([cos, sin])
+                Fb = m * np.array([-sin, cos])
 
-            dofs = [number_dof * n, number_dof * n + 1]
-            F[dofs, h - 1] += Fa - 1j * Fb
+                dofs = [number_dof * n, number_dof * n + 1]
+                F[dofs, h - 1] += Fa - 1j * Fb
 
         F_s = np.conjugate(F)
 
