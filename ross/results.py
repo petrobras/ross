@@ -4344,45 +4344,46 @@ class ForcedResponseResults(Results):
         )
 
         # plot unbalance markers
-        for i, n, amplitude, phase in zip(
-            range(unbalance.shape[1]), unbalance[0], unbalance[1], unbalance[2]
-        ):
-            # scale unbalance marker to half the maximum major axis
-            n = int(n)
-            scaled_amplitude = np.max(shape.major_axis) / 2
-            x = scaled_amplitude * np.cos(phase)
-            y = scaled_amplitude * np.sin(phase)
-            z_pos = Q_(shape.nodes_pos[n], "m").to(rotor_length_units).m
+        if unbalance is not None:
+            for i, n, amplitude, phase in zip(
+                range(unbalance.shape[1]), unbalance[0], unbalance[1], unbalance[2]
+            ):
+                # scale unbalance marker to half the maximum major axis
+                n = int(n)
+                scaled_amplitude = np.max(shape.major_axis) / 2
+                x = scaled_amplitude * np.cos(phase)
+                y = scaled_amplitude * np.sin(phase)
+                z_pos = Q_(shape.nodes_pos[n], "m").to(rotor_length_units).m
 
-            fig.add_trace(
-                go.Scatter3d(
-                    x=[z_pos, z_pos],
-                    y=[0, Q_(x, "m").to(amplitude_units).m],
-                    z=[0, Q_(y, "m").to(amplitude_units).m],
-                    mode="lines",
-                    line=dict(color=tableau_colors["red"]),
-                    legendgroup="Unbalance",
-                    hoverinfo="none",
-                    showlegend=False,
+                fig.add_trace(
+                    go.Scatter3d(
+                        x=[z_pos, z_pos],
+                        y=[0, Q_(x, "m").to(amplitude_units).m],
+                        z=[0, Q_(y, "m").to(amplitude_units).m],
+                        mode="lines",
+                        line=dict(color=tableau_colors["red"]),
+                        legendgroup="Unbalance",
+                        hoverinfo="none",
+                        showlegend=False,
+                    )
                 )
-            )
-            fig.add_trace(
-                go.Scatter3d(
-                    x=[z_pos],
-                    y=[Q_(x, "m").to(amplitude_units).m],
-                    z=[Q_(y, "m").to(amplitude_units).m],
-                    mode="markers",
-                    marker=dict(color=tableau_colors["red"], symbol="diamond"),
-                    name="Unbalance",
-                    legendgroup="Unbalance",
-                    showlegend=True if i == 0 else False,
-                    hovertemplate=(
-                        f"Node: {n}<br>"
-                        + f"Magnitude: {amplitude:.2e}<br>"
-                        + f"Phase: {phase:.2f}"
-                    ),
+                fig.add_trace(
+                    go.Scatter3d(
+                        x=[z_pos],
+                        y=[Q_(x, "m").to(amplitude_units).m],
+                        z=[Q_(y, "m").to(amplitude_units).m],
+                        mode="markers",
+                        marker=dict(color=tableau_colors["red"], symbol="diamond"),
+                        name="Unbalance",
+                        legendgroup="Unbalance",
+                        showlegend=True if i == 0 else False,
+                        hovertemplate=(
+                            f"Node: {n}<br>"
+                            + f"Magnitude: {amplitude:.2e}<br>"
+                            + f"Phase: {phase:.2f}"
+                        ),
+                    )
                 )
-            )
 
         # customize hovertemplate
         fig.update_traces(
@@ -6177,13 +6178,8 @@ class HarmonicBalanceResults(Results):
             "[length] / [time] ** 2": ["m/s**2", "accl_resp"],
         }
 
-    def data2(
-        self,
-        probe,
-        amplitude_units="m",
-        phase_units="rad",
-    ):
-        """Return the forced response in DataFrame format.
+    def data(self, probe, amplitude_units="m", frequency_units="rad/s"):
+        """Return the frequency response given a list of probes in DataFrame format.
 
         Parameters
         ----------
@@ -6191,89 +6187,16 @@ class HarmonicBalanceResults(Results):
             List with rs.Probe objects.
         amplitude_units : str, optional
             Units for the response magnitude.
-            Acceptable units dimensionality are:
-
-            '[length]' - Displays the displacement;
-
-            '[speed]' - Displays the velocity;
-
-            '[acceleration]' - Displays the acceleration.
-
-            Default is "m" 0 to peak.
-            To use peak to peak use '<unit> pkpk' (e.g. 'm pkpk')
-        phase_units : str, optional
-            Units for the response phase.
-            Default is "rad".
+            Default is "m".
+        frequency_units : str
+            Frequency units.
+            Default is "rad/s".
 
         Returns
         -------
-        df : pd.DataFrame
-            DataFrame storing magnitude and phase data arrays. The columns are set based on the
-            probe's tag.
+         df : pd.DataFrame
+            DataFrame storing the frequency response measured by probes.
         """
-        rotor = self.rotor
-
-        unit_type = str(Q_(1, amplitude_units).dimensionality)
-        try:
-            base_unit = self.default_units[unit_type][0]
-            response = getattr(self, self.default_units[unit_type][1])
-        except KeyError:
-            raise ValueError(
-                "Not supported unit. Dimensionality options are '[length]', '[speed]', '[acceleration]'"
-            )
-
-        data = {}
-
-        for i, p in enumerate(probe):
-            try:
-                node = p.node
-                angle = p.angle
-                probe_tag = p.tag or p.get_label(i + 1)
-                if p.direction == "axial":
-                    continue
-            except AttributeError:
-                raise AttributeError(
-                    "The use of tuples in the probe argument is deprecated. Use the Probe class instead.",
-                )
-
-            if node not in rotor.link_nodes:
-                ru_e, rv_e = response[
-                    rotor.number_dof * node : rotor.number_dof * node + 2
-                ]
-                orbit = Orbit(
-                    node=node,
-                    node_pos=rotor.nodes_pos[node],
-                    ru_e=ru_e,
-                    rv_e=rv_e,
-                )
-                amplitude, phase = orbit.calculate_amplitude(angle=angle)
-
-            else:
-                position_in_link = node - len(rotor.nodes_pos)
-                start_index = len(rotor.nodes_pos) * rotor.number_dof + (
-                    position_in_link * 3
-                )
-                ru_e, rv_e = response[start_index : start_index + 2]
-
-                orbit = Orbit(
-                    node=None,
-                    node_pos=None,
-                    ru_e=ru_e,
-                    rv_e=rv_e,
-                )
-
-                amplitude, phase = orbit.calculate_amplitude(angle=angle)
-
-            amplitude = Q_(amplitude, base_unit).to(amplitude_units).m
-            phase = Q_(phase, "rad").to(phase_units).m
-
-            data[probe_tag] = {"amplitude": amplitude, "phase": phase}
-
-        df = pd.DataFrame(data)
-
-        return df
-
-    def data(self, probe, amplitude_units="m", frequency_units="rad/s"):
         data = {}
 
         nodes = self.rotor.nodes
@@ -6327,6 +6250,33 @@ class HarmonicBalanceResults(Results):
     def plot(
         self, probe, amplitude_units="m", frequency_units="rad/s", fig=None, **kwargs
     ):
+        """Plot frequency response.
+
+        This method plots the frequency response using Plotly.
+
+        Parameters
+        ----------
+        probe : list
+            List with rs.Probe objects.
+        amplitude_units : str, optional
+            Units for the response magnitude.
+            Default is "m".
+        frequency_units : str
+            Frequency units.
+            Default is "rad/s".
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        kwargs : optional
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+
+        Returns
+        -------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        """
+
         if fig is None:
             fig = go.Figure()
 
@@ -6368,6 +6318,102 @@ class HarmonicBalanceResults(Results):
 
         return fig
 
+    def plot_deflected_shape(
+        self,
+        frequency_units="rad/s",
+        amplitude_units="m",
+        phase_units="rad",
+        rotor_length_units="m",
+        moment_units="N*m",
+        shape2d_kwargs=None,
+        shape3d_kwargs=None,
+        bm_kwargs=None,
+        subplot_kwargs=None,
+    ):
+        """Plot deflected shape diagrams.
+
+        This method returns a subplot with:
+            - 3D view deflected shape;
+            - 2D view deflected shape - Major Axis;
+            - Bending Moment Diagram;
+
+        Parameters
+        ----------
+        frequency_units : str, optional
+            Frequency units.
+            Default is "rad/s"
+        amplitude_units : str, optional
+            Units for the response magnitude.
+            Acceptable units dimensionality are:
+
+            '[length]' - Displays the displacement;
+
+            '[speed]' - Displays the velocity;
+
+            '[acceleration]' - Displays the acceleration.
+
+            Default is "m/N" 0 to peak.
+            To use peak to peak use '<unit> pkpk' (e.g. 'm/N pkpk')
+        phase_untis : str, optional
+            Phase units.
+            Default is "rad".
+        rotor_length_units : str, optional
+            Rotor length units.
+            Default is 'm'.
+        moment_units : str
+            Moment units.
+            Default is 'N*m'
+        shape2d_kwargs : optional
+            Additional key word arguments can be passed to change the 2D deflected shape
+            plot layout only (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+        shape3d_kwargs : optional
+            Additional key word arguments can be passed to change the 3D deflected shape
+            plot layout only (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+        bm_kwargs : optional
+            Additional key word arguments can be passed to change the bending moment
+            diagram plot layout only (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+        subplot_kwargs : optional
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. width=1000, height=800, ...). This kwargs override "mag_kwargs" and
+            "phase_kwargs" dictionaries.
+            *See Plotly Python Figure Reference for more information.
+
+        Returns
+        -------
+        subplots : Plotly graph_objects.make_subplots()
+            Plotly figure with Amplitude vs Frequency and Phase vs Frequency and
+            polar Amplitude vs Phase plots.
+        """
+
+        forced_resp = np.atleast_2d(self.forced_resp).T
+        velc_resp = np.atleast_2d(self.velc_resp).T
+        accl_resp = np.atleast_2d(self.accl_resp).T
+
+        speed = self.frequency[0]
+        speed_range = np.array([speed])
+
+        forced_resp = ForcedResponseResults(
+            self.rotor, forced_resp, velc_resp, accl_resp, speed_range, unbalance=None
+        )
+
+        fig = forced_resp.plot_deflected_shape(
+            speed,
+            frequency_units=frequency_units,
+            amplitude_units=amplitude_units,
+            phase_units=phase_units,
+            rotor_length_units=rotor_length_units,
+            moment_units=moment_units,
+            shape2d_kwargs=shape2d_kwargs,
+            shape3d_kwargs=shape3d_kwargs,
+            bm_kwargs=bm_kwargs,
+            subplot_kwargs=subplot_kwargs,
+        )
+
+        return fig
+
     def _reconstruct_time_domain(self):
         """
         Reconstruct the time-domain response from frequency-domain results.
@@ -6405,7 +6451,13 @@ class HarmonicBalanceResults(Results):
         return y, ydot, y2dot
 
     def get_time_response(self):
-        """ """
+        """Get the time response results.
+
+        Returns
+        -------
+        time_resp : TimeResponseResults
+            Time response results object.
+        """
         y, ydot, y2dot = self._reconstruct_time_domain()
         time_resp = TimeResponseResults(self.rotor, self.t, y.T, [])
 
