@@ -159,6 +159,7 @@ class ShaftElement(Element):
         tag=None,
         alpha=0,
         beta=0,
+        qsi=None,
     ):
         if idr is None:
             idr = idl
@@ -181,11 +182,13 @@ class ShaftElement(Element):
         self._n = n
         self.n_l = n
         self.n_r = None
+        self.qsi = qsi
         if n is not None:
             self.n_r = n + 1
 
         self.tag = tag
         self.shear_method_calc = shear_method_calc
+        self.damping_type = "proportional" if qsi == None else "modal"
 
         self.L = float(L)
         self.o_d = (float(odl) + float(odr)) / 2
