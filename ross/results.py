@@ -6320,11 +6320,13 @@ class HarmonicBalanceResults(Results):
 
     def plot_deflected_shape(
         self,
+        harmonic,
         frequency_units="rad/s",
         amplitude_units="m",
         phase_units="rad",
         rotor_length_units="m",
         moment_units="N*m",
+        unbalance=None,
         shape2d_kwargs=None,
         shape3d_kwargs=None,
         bm_kwargs=None,
@@ -6339,9 +6341,11 @@ class HarmonicBalanceResults(Results):
 
         Parameters
         ----------
+        harmonic : int
+            Harmonic number to plot the deflected shape.
         frequency_units : str, optional
             Frequency units.
-            Default is "rad/s"
+            Default is "rad/s".
         amplitude_units : str, optional
             Units for the response magnitude.
             Acceptable units dimensionality are:
@@ -6363,6 +6367,18 @@ class HarmonicBalanceResults(Results):
         moment_units : str
             Moment units.
             Default is 'N*m'
+        unbalance : array, optional
+            Array containing unbalance information in the format:
+            `np.array([nodes, magnitudes, phases])`, where:
+
+            - nodes : list of int
+                Node or list of nodes where the unbalance is located.
+
+            - magnitudes : list of float
+                Unbalance magnitudes (kg·m).
+
+            - phases : list of float
+                Unbalance phase angles (rad).
         shape2d_kwargs : optional
             Additional key word arguments can be passed to change the 2D deflected shape
             plot layout only (e.g. width=1000, height=800, ...).
@@ -6392,11 +6408,22 @@ class HarmonicBalanceResults(Results):
         velc_resp = np.atleast_2d(self.velc_resp).T
         accl_resp = np.atleast_2d(self.accl_resp).T
 
-        speed = self.frequency[0]
+        if harmonic > self.noh:
+            raise ValueError(
+                f"Harmonic number exceeds the number of harmonics in the "
+                f"solution (max value is {self.noh})."
+            )
+
+        speed = self.frequency[harmonic - 1]
         speed_range = np.array([speed])
 
         forced_resp = ForcedResponseResults(
-            self.rotor, forced_resp, velc_resp, accl_resp, speed_range, unbalance=None
+            self.rotor,
+            forced_resp,
+            velc_resp,
+            accl_resp,
+            speed_range,
+            unbalance=unbalance,
         )
 
         fig = forced_resp.plot_deflected_shape(

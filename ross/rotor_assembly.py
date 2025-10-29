@@ -3197,22 +3197,26 @@ class Rotor(object):
         Parameters
         ----------
         speed : float, pint.Quantity
-            Rotational speed of the rotor [rad/s].
+            Rotational speed of the rotor (rad/s).
         t : array_like
-            Time vector [s].
+            Time vector (s).
         harmonic_forces : list of dict
             List of harmonic force definitions. Each dictionary should contain the
             following keys:
+
             - 'node': int
                 Node index where the force is applied.
+
             - 'magnitudes': list, float
                 List of excitation magnitudes.
                 Interpretation depends on the type of excitation:
-                    - For direct harmonic forces: force amplitudes [N].
-                    - For unbalance-type excitations: ``m * e * speed**2`` [N],
-                    where ``m`` is the unbalance mass [kg] and ``e`` is the eccentricity [m].
+                    - For direct harmonic forces: force amplitudes (N).
+                    - For unbalance-type excitations: ``m * e * speed**2`` (N),
+                    where ``m`` is the unbalance mass (kg) and ``e`` is the eccentricity (m).
+
             - 'phases': list of float
-                List of phase angles [rad].
+                List of phase angles (rad).
+
             - 'harmonics': list of int
                 List of harmonic orders (1 for fundamental, 2 for second, etc.).
         gravity : bool, optional

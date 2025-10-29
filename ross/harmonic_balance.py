@@ -44,22 +44,26 @@ class HarmonicBalance:
         forces : list of dict
             List of harmonic force definitions. Each dictionary should contain the
             following keys:
+
             - 'node': int
                 Node index where the force is applied.
+
             - 'magnitudes': list, float
                 List of excitation magnitudes.
                 Interpretation depends on the type of excitation:
-                    - For direct harmonic forces: force amplitudes [N].
-                    - For unbalance-type excitations: ``m * e * speed**2`` [N],
-                    where ``m`` is the unbalance mass [kg] and ``e`` is the eccentricity [m].
+                    - For direct harmonic forces: force amplitudes (N).
+                    - For unbalance-type excitations: ``m * e * speed**2`` (N),
+                    where ``m`` is the unbalance mass (kg) and ``e`` is the eccentricity (m).
+
             - 'phases': list of float
-                List of phase angles [rad].
+                List of phase angles (rad).
+
             - 'harmonics': list of int
                 List of harmonic orders (1 for fundamental, 2 for second, etc.).
         speed : float
-            Rotor rotational speed [rad/s].
+            Rotor rotational speed (rad/s).
         t : float
-            Time array used for Fourier expansion [s].
+            Time array used for Fourier expansion (s).
         gravity : bool, optional
             If True, include gravitational forces. Default is False.
         F_ext : ndarray, optional
@@ -137,16 +141,20 @@ class HarmonicBalance:
         forces : list of dict
             List of harmonic force definitions. Each dictionary should contain the
             following keys:
+
             - 'node': int
                 Node index where the force is applied.
+
             - 'magnitudes': list, float
                 List of excitation magnitudes.
                 Interpretation depends on the type of excitation:
-                    - For direct harmonic forces: force amplitudes [N].
-                    - For unbalance-type excitations: ``m * e * speed**2`` [N],
-                    where ``m`` is the unbalance mass [kg] and ``e`` is the eccentricity [m].
+                    - For direct harmonic forces: force amplitudes (N).
+                    - For unbalance-type excitations: ``m * e * speed**2`` (N),
+                    where ``m`` is the unbalance mass (kg) and ``e`` is the eccentricity (m).
+
             - 'phases': list of float
-                List of phase angles [rad].
+                List of phase angles (rad).
+
             - 'harmonics': list of int
                 List of harmonic orders (1 for fundamental, 2 for second, etc.).
 
@@ -192,13 +200,13 @@ class HarmonicBalance:
         node : list, int
             Node indices with unbalance.
         magnitude : list, float
-            Unbalance magnitudes [kg·m].
+            Unbalance magnitudes (kg·m).
         phase : list, float
-            Phase angles of unbalance [rad].
+            Phase angles of unbalance (rad).
         omega : float
-            Angular speed [rad/s].
+            Angular speed (rad/s).
         alpha : float, optional
-            Angular acceleration [rad/s²], default is 0.
+            Angular acceleration (rad/s²). Default is 0.
 
         Returns
         -------
@@ -236,9 +244,9 @@ class HarmonicBalance:
         Parameters
         ----------
         dt : float
-            Time step [s].
+            Time step (s).
         freq : float
-            Fundamental excitation frequency [Hz].
+            Fundamental excitation frequency (Hz).
         F : ndarray, optional
             External force time history of shape (ndof, N).
 
@@ -307,9 +315,9 @@ class HarmonicBalance:
         Parameters
         ----------
         dt : float
-            Time step [s].
+            Time step (s).
         freq : float
-            Rotational frequency [Hz].
+            Rotational frequency (Hz).
         crack : object, optional
             Crack model object providing `dofs`, `crack_coeff`, and `_Kflex()`
             methods.
@@ -368,9 +376,9 @@ class HarmonicBalance:
         Parameters
         ----------
         speed : float
-            Rotational speed [rad/s].
+            Rotational speed (rad/s).
         accel : float
-            Angular acceleration [rad/s²].
+            Angular acceleration (rad/s²).
         M, K, Ksdt, C, G : ndarray
             Rotor mass, stiffness, stiffness time-derivative, damping, and
             gyroscopic matrices.
@@ -571,9 +579,9 @@ class HarmonicBalance:
         Parameters
         ----------
         omega : float
-            Rotational speed [rad/s].
+            Rotational speed (rad/s).
         t : array_like
-            Time vector [s].
+            Time vector (s).
         Qo : ndarray
             Static displacement vector.
         dQ : ndarray
@@ -623,9 +631,9 @@ class HarmonicBalance:
         F : ndarray
             Input force array of shape (ndof, N).
         dt : float
-            Time step [s].
+            Time step (s).
         fo : float
-            Fundamental frequency [Hz].
+            Fundamental frequency (Hz).
         size : int
             Number of harmonic components to compute.
 
