@@ -3235,7 +3235,7 @@ class Rotor(object):
         --------
         >>> rotor = rotor_example()
         >>> speed = 200.0
-        >>> unb_node 3
+        >>> unb_node = 3
         >>> unb_mag = 0.05 * speed**2
         >>> unb_phase = 0.0
         >>> unb_harmonic = 1 # For unbalance, always 1x

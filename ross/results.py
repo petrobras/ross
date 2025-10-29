@@ -6167,10 +6167,13 @@ class HarmonicBalanceResults(Results):
         self.dQ_s = dQ_s
         self.noh = n_harmonics
 
-        self.forced_resp = self.Qo / 2 + np.sum(self.dQ, axis=1)
-        self.velc_resp = 1j * self.speed * np.sum(self.dQ, axis=1)
-        self.accl_resp = -(self.speed**2) * np.sum(self.dQ, axis=1)
-        self.frequency = np.array([h * self.speed for h in range(1, self.noh + 1)])
+        self.unbalance = None
+        self.forced_response = None
+        self.time_response = None
+
+        self.frequency_harmonics = np.array(
+            [h * self.speed for h in range(1, self.noh + 1)]
+        )
 
         self.default_units = {
             "[length]": ["m", "forced_resp"],
@@ -6242,7 +6245,7 @@ class HarmonicBalanceResults(Results):
             probe_resp = Q_(np.abs(probe_resp), "m").to(amplitude_units).m
             data[f"probe_resp[{i}]"] = probe_resp
 
-        data["frequency"] = Q_(self.frequency, "rad/s").to(frequency_units).m
+        data["frequency"] = Q_(self.frequency_harmonics, "rad/s").to(frequency_units).m
         df = pd.DataFrame(data)
 
         return df
@@ -6320,7 +6323,6 @@ class HarmonicBalanceResults(Results):
 
     def plot_deflected_shape(
         self,
-        harmonic,
         frequency_units="rad/s",
         amplitude_units="m",
         phase_units="rad",
@@ -6404,30 +6406,28 @@ class HarmonicBalanceResults(Results):
             polar Amplitude vs Phase plots.
         """
 
-        forced_resp = np.atleast_2d(self.forced_resp).T
-        velc_resp = np.atleast_2d(self.velc_resp).T
-        accl_resp = np.atleast_2d(self.accl_resp).T
+        if (self.forced_response is None) or (self.unbalance is None and unbalance):
+            forced_resp = self.Qo / 2 + np.sum(self.dQ, axis=1)
+            velc_resp = 1j * self.speed * np.sum(self.dQ, axis=1)
+            accl_resp = -(self.speed**2) * np.sum(self.dQ, axis=1)
 
-        if harmonic > self.noh:
-            raise ValueError(
-                f"Harmonic number exceeds the number of harmonics in the "
-                f"solution (max value is {self.noh})."
+            forced_resp = np.reshape(forced_resp, (-1, 1))
+            velc_resp = np.reshape(velc_resp, (-1, 1))
+            accl_resp = np.reshape(accl_resp, (-1, 1))
+
+            self.forced_response = ForcedResponseResults(
+                self.rotor,
+                forced_resp,
+                velc_resp,
+                accl_resp,
+                speed_range=[self.speed],
+                unbalance=unbalance,
             )
 
-        speed = self.frequency[harmonic - 1]
-        speed_range = np.array([speed])
+            self.unbalance = unbalance
 
-        forced_resp = ForcedResponseResults(
-            self.rotor,
-            forced_resp,
-            velc_resp,
-            accl_resp,
-            speed_range,
-            unbalance=unbalance,
-        )
-
-        fig = forced_resp.plot_deflected_shape(
-            speed,
+        fig = self.forced_response.plot_deflected_shape(
+            speed=self.speed,
             frequency_units=frequency_units,
             amplitude_units=amplitude_units,
             phase_units=phase_units,
@@ -6460,7 +6460,7 @@ class HarmonicBalanceResults(Results):
         sum_ydot = np.zeros(shape)
         sum_y2dot = np.zeros(shape)
 
-        for i, w in enumerate(self.frequency):
+        for i, w in enumerate(self.frequency_harmonics):
             an = np.transpose(np.array([np.real(self.dQ[:, i])]))
             bn = np.transpose(np.array([-np.imag(self.dQ[:, i])]))
 
@@ -6485,10 +6485,12 @@ class HarmonicBalanceResults(Results):
         time_resp : TimeResponseResults
             Time response results object.
         """
-        y, ydot, y2dot = self._reconstruct_time_domain()
-        time_resp = TimeResponseResults(self.rotor, self.t, y.T, [])
 
-        return time_resp
+        if self.time_response is None:
+            y, ydot, y2dot = self._reconstruct_time_domain()
+            self.time_response = TimeResponseResults(self.rotor, self.t, y.T, [])
+
+        return self.time_response
 
 
 class Level1Results(Results):
