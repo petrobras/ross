@@ -2240,7 +2240,7 @@ class Rotor(object):
             if cluster_points:
                 frequency = self._clustering_points(num_modes, num_points, modes, rtol)
 
-            force = np.zeros((self.ndof, len(frequency)), dtype=complex)
+        force = np.zeros((self.ndof, len(frequency)), dtype=complex)
 
         try:
             for n, m, p in zip(node, unbalance_magnitude, unbalance_phase):
@@ -3233,7 +3233,9 @@ class Rotor(object):
 
         Examples
         --------
-        >>> rotor = rotor_example()
+        >>> import ross as rs
+        >>> from ross.probe import Probe
+        >>> rotor = rs.rotor_example()
         >>> speed = 200.0
         >>> unb_node = 3
         >>> unb_mag = 0.05 * speed**2
