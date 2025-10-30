@@ -168,7 +168,6 @@ class ThrustPad(BearingElement):
         axial_load=None,
         **kwargs,
     ):
-
         self.model_type = model_type
         self.pad_inner_radius = pad_inner_radius
         self.pad_outer_radius = pad_outer_radius
@@ -246,10 +245,13 @@ class ThrustPad(BearingElement):
         czz = np.zeros(n_freq)
 
         self._initialize_field_storage(n_freq)
+        self.optimization_history = {}
 
         self.initial_time = time.time()
         for i in range(n_freq):
             self.speed = self.frequency[i]
+            self._current_freq_index = i
+            self.optimization_history[i] = []
 
             if self.model_type == "thermo_hydro_dynamic":
                 self.run_thermo_hydro_dynamic()
@@ -335,12 +337,12 @@ class ThrustPad(BearingElement):
 
     def _initialize_field_storage(self, n_freq):
         """Initialize data structures to store fields information for each frequency.
-        
+
         Parameters
         ----------
         n_freq : int
             Number of frequencies to analyze
-            
+
         Returns
         -------
         None
@@ -354,15 +356,15 @@ class ThrustPad(BearingElement):
 
     def _store_frequency_fields(self):
         """Store field results for the current frequency.
-        
+
         This method stores the calculated pressure, temperature, and film thickness
         fields for the current frequency being analyzed.
-        
+
         Parameters
         ----------
         None
             Uses current instance attributes from field calculations
-            
+
         Returns
         -------
         None
@@ -401,9 +403,9 @@ class ThrustPad(BearingElement):
 
     def _print_single_frequency_results(self, freq_index):
         """Print results for a single frequency."""
-        
+
         freq = self.frequency[freq_index]
-        
+
         print("\n" + "=" * 48)
         print(f"       THRUST BEARING RESULTS - {freq * 30 / np.pi:.1f} RPM")
         print("=" * 48)
@@ -418,11 +420,25 @@ class ThrustPad(BearingElement):
             ["Maximum Pressure", f"{self.pressure_fields[freq_index].max():.2f}", "Pa"]
         )
         table.add_row(
-            ["Maximum Temperature", f"{self.temperature_fields[freq_index].max():.1f}", "°C"]
+            [
+                "Maximum Temperature",
+                f"{self.temperature_fields[freq_index].max():.1f}",
+                "°C",
+            ]
         )
-        table.add_row(["Maximum Film Thickness", f"{self.max_thicknesses[freq_index]:.6f}", "m"])
-        table.add_row(["Minimum Film Thickness", f"{self.min_thicknesses[freq_index]:.6f}", "m"])
-        table.add_row(["Pivot Film Thickness", f"{self.pivot_film_thicknesses[freq_index]:.6f}", "m"])
+        table.add_row(
+            ["Maximum Film Thickness", f"{self.max_thicknesses[freq_index]:.6f}", "m"]
+        )
+        table.add_row(
+            ["Minimum Film Thickness", f"{self.min_thicknesses[freq_index]:.6f}", "m"]
+        )
+        table.add_row(
+            [
+                "Pivot Film Thickness",
+                f"{self.pivot_film_thicknesses[freq_index]:.6f}",
+                "m",
+            ]
+        )
 
         if self.equilibrium_position_mode == "imposed":
             table.add_row(["Axial Load", f"{self.axial_load.sum():.2f}", "N"])
@@ -437,14 +453,14 @@ class ThrustPad(BearingElement):
 
     def solve_fields(self):
         """Solve pressure and temperature fields iteratively until convergence.
-        
+
         This method performs the main iterative solution loop for thrust pad bearing
         analysis, solving the coupled pressure-temperature-viscosity problem. The
         method iterates between equilibrium position optimization and field equations
         until convergence criteria are met.
-        
+
         The solution process consists of two nested loops:
-        
+
         1. Outer Loop (Force-Moment Convergence):
         - Minimizes residual forces and moments to find equilibrium position
         - Updates pad inclination angles and film thickness
@@ -452,65 +468,65 @@ class ThrustPad(BearingElement):
         - Mode-dependent optimization:
             * 'imposed': Film thickness is fixed, only angles are optimized
             * 'calculate': Film thickness, radial and circumferential angles are optimized
-        
+
         2. Inner Loop (Viscosity Convergence):
         - Solves temperature field using energy equation
         - Updates viscosity field based on temperature-dependent viscosity model
         - Iterates until viscosity variation is below tolerance
         - Uses finite volume method with upwind convection scheme
-        
+
         For each iteration, the method:
-        
+
         - Calculates pressure field using Reynolds equation with boundary conditions
         - Computes pressure gradients (dp/dr and dp/dtheta) at all control volumes
         - Solves energy equation for temperature field considering viscous heating
         - Updates viscosity using exponential model: μ = a * exp(b * T)
         - Computes hydrodynamic forces, moments, and residuals
         - Checks convergence of both force/moment balance and viscosity variation
-        
+
         The method modifies instance attributes including pressure_field_dimensional,
         temperature_field, viscosity_field, pivot_film_thickness, and film thickness
         arrays. Final results are stored for coefficient calculation and visualization.
-        
+
         Convergence Criteria:
             - Force-moment residual < tolerance_force_moment (default: 50 N or N*m)
             - Viscosity variation < viscosity_convergence_tolerance (default: 1e-5)
-        
+
         Optimization Parameters:
             - 'imposed' mode: xtol=1, ftol=1, maxiter=100000
             - 'calculate' mode: xtol=0.1, ftol=0.1, maxiter=100
-        
+
         Notes
         -----
-        The method uses dimensional analysis where film thickness, pressure, and 
+        The method uses dimensional analysis where film thickness, pressure, and
         temperature are solved simultaneously. The viscosity model is temperature-
         dependent and causes strong coupling between the fields. The method may
         require multiple outer loop iterations if the coupling is strong.
-        
+
         Examples
         --------
         This method is automatically called by run_thermo_hydro_dynamic() and should
         not be called directly by users.
-        
+
         See Also
         --------
-        _equilibrium_objective : Objective function for equilibrium position
+        _equilibrium_objective : Objective function for shaft/rotor equilibrium position
         _solve_pressure_field : Solves Reynolds equation for pressure
         coefficients : Calculates dynamic coefficients after field solution
         """
 
         # Initialize with a high value to enter the loop
-        residual_force_moment = 1000
+        residual_force_moment = 50
         # Set a tolerance to exit the loop
-        tolerance_force_moment = 50
+        tolerance_force_moment = 30
 
         # Residual force and moment convergence loop
         iteration = 0
         while residual_force_moment >= tolerance_force_moment:
             iteration += 1
-            print(
-                f"Iteration {iteration} - Residual Force & Moment: {residual_force_moment:.6f}"
-            )
+
+            # Store optimization history
+            self.record_optimization_residual(residual_force_moment, iteration)
 
             if self.equilibrium_position_mode == "imposed":
                 self.h0i = self.initial_position[2]
@@ -1286,6 +1302,80 @@ class ThrustPad(BearingElement):
             self.pivot_film_thickness * self.film_thickness_center_array
         )
 
+    def record_optimization_residual(
+        self, residual_value: float, iteration: int | None = None
+    ) -> None:
+        """
+        Store the residual value for the current frequency.
+
+        - If 'iteration' is provided, the value is placed at that index.
+        - If 'iteration' is None, the value is appended.
+
+        Notes
+        -----
+        Requires 'self._current_freq_index' to be set (done in the frequency loop).
+        """
+        idx = getattr(self, "_current_freq_index", None)
+        if idx is None:
+            return
+
+        if idx not in self.optimization_history:
+            self.optimization_history[idx] = []
+
+        if iteration is None:
+            self.optimization_history[idx].append(residual_value)
+        else:
+            if len(self.optimization_history[idx]) <= iteration:
+                self.optimization_history[idx] += [None] * (
+                    iteration + 1 - len(self.optimization_history[idx])
+                )
+            self.optimization_history[idx][iteration] = residual_value
+
+    def show_optimization_convergence(self, by: str = "index") -> None:
+        """
+        Display the optimization residuals per iteration for each processed frequency.
+
+        Parameters
+        ----------
+        by : str
+            'index' -> show frequencies by their index (default)
+            'value' -> show frequencies by their value (as stored in self.frequency)
+
+        Notes
+        -----
+        Requires 'self.optimization_history' to be populated during the solve.
+        """
+        if not hasattr(self, "optimization_history") or not self.optimization_history:
+            print("No residual history available. Run the analysis first.")
+            return
+
+        for i, res_list in self.optimization_history.items():
+            if not res_list:
+                continue
+
+            freq = self.frequency[i]
+            rpm = freq * 30 / np.pi
+
+            print("\n" + "=" * 48)
+            print(f"       OPTIMIZATION CONVERGENCE - {rpm:.1f} RPM")
+            print("=" * 48)
+
+            table = PrettyTable()
+            table.field_names = ["Iteration", "Residual"]
+
+            table.min_width["Iteration"] = 20
+            table.max_width["Iteration"] = 20
+            table.min_width["Residual"] = 21
+            table.max_width["Residual"] = 21
+
+            # Avoid None entries
+            for it, res in enumerate(res_list):
+                if res is not None:
+                    table.add_row([it, f"{res:.6f}"])
+
+            print(table)
+            print("=" * 48)
+
     def _equilibrium_objective(self, x):
         """Calculates the equilibrium position of the bearing
 
@@ -1751,7 +1841,8 @@ class ThrustPad(BearingElement):
 
         else:  # "calculate" operation mode
             axial_force_residual = (
-                -np.trapezoid(force_radial, radius_coords) + self.axial_load / self.n_pad
+                -np.trapezoid(force_radial, radius_coords)
+                + self.axial_load / self.n_pad
             )
             score = np.linalg.norm([mom_x_total, mom_y_total, axial_force_residual])
 
@@ -2812,12 +2903,12 @@ class ThrustPad(BearingElement):
 
     def plot_results(self, show_plots=False, freq_index=0):
         """Plot pressure and temperature field results for thrust bearing analysis.
-        
+
         This method generates comprehensive visualization plots for the calculated
         pressure and temperature fields at a specific frequency. It creates both
         3D surface plots and 2D contour plots for visualization of the field
         properties distributions across the bearing pad.
-        
+
         Parameters
         ----------
         show_plots : bool, optional
@@ -2827,16 +2918,16 @@ class ThrustPad(BearingElement):
         freq_index : int, optional
             Index of the frequency to plot results for. Must be within the range
             of calculated frequencies. Default is 0 (first frequency).
-            
+
         Returns
         -------
         dict
             Dictionary containing four Plotly figure objects:
             - 'pressure_3d': 3D surface plot of pressure field
-            - 'temperature_3d': 3D surface plot of temperature field  
+            - 'temperature_3d': 3D surface plot of temperature field
             - 'pressure_2d': 2D contour plot of pressure field
             - 'temperature_2d': 2D contour plot of temperature field
-            
+
         Notes
         -----
         The method interpolates the field data using cubic interpolation for
@@ -2845,7 +2936,7 @@ class ThrustPad(BearingElement):
         """
         pressure_field = self.pressure_fields[freq_index]
         temperature_field = self.temperature_fields[freq_index]
-        
+
         radial_coords = np.zeros(self.n_radial + 2)
         angular_coords = np.zeros(self.n_theta + 2)
         x_coords = np.zeros((self.n_radial + 2, self.n_theta + 2))
@@ -2883,7 +2974,7 @@ class ThrustPad(BearingElement):
             pressure_field,
             "Pressure field",
             "Pressure [Pa]",
-            show_plot=False
+            show_plot=False,
         )
 
         # Plot 3D temperature field
@@ -2893,7 +2984,7 @@ class ThrustPad(BearingElement):
             temperature_field,
             "Temperature field",
             "Temperature [°C]",
-            show_plot=False
+            show_plot=False,
         )
 
         x_min, x_max = x_coords.min(), x_coords.max()
@@ -2910,8 +3001,12 @@ class ThrustPad(BearingElement):
             method="cubic",
         )
         temperature_contour_fig = self._plot_2d_contour(
-            x_grid, y_grid, temp_interpolated, "Temperature field", "Temperature (°C)",
-            show_plot=False
+            x_grid,
+            y_grid,
+            temp_interpolated,
+            "Temperature field",
+            "Temperature (°C)",
+            show_plot=False,
         )
 
         pressure_interpolated = griddata(
@@ -2921,15 +3016,19 @@ class ThrustPad(BearingElement):
             method="cubic",
         )
         pressure_contour_fig = self._plot_2d_contour(
-            x_grid, y_grid, pressure_interpolated, "Pressure field", "Pressure (Pa)",
-            show_plot=False
+            x_grid,
+            y_grid,
+            pressure_interpolated,
+            "Pressure field",
+            "Pressure (Pa)",
+            show_plot=False,
         )
 
         figures = {
             "pressure_2d": pressure_contour_fig,
             "pressure_3d": pressure_3d_fig,
             "temperature_2d": temperature_contour_fig,
-            "temperature_3d": temperature_3d_fig
+            "temperature_3d": temperature_3d_fig,
         }
 
         if show_plots:
@@ -2939,10 +3038,12 @@ class ThrustPad(BearingElement):
             except Exception as e:
                 print(f"Warning: Could not display plots automatically. Error: {e}")
                 print("The figure objects are still available for manual display.")
-        
+
         return figures
 
-    def _plot_3d_surface(self, x_coords, y_coords, z_data, title, z_label, show_plot=False):
+    def _plot_3d_surface(
+        self, x_coords, y_coords, z_data, title, z_label, show_plot=False
+    ):
         """Create 3D surface plot using Plotly with tableau colors.
 
         Parameters
@@ -2988,10 +3089,7 @@ class ThrustPad(BearingElement):
                 xaxis_title="X [m]",
                 yaxis_title="Y [m]",
                 zaxis_title=z_label,
-                camera=dict(
-                    eye=dict(x=-1.5, y=-4, z=1.5),
-                    center=dict(x=0, y=0, z=0)
-                ),
+                camera=dict(eye=dict(x=-1.5, y=-4, z=1.5), center=dict(x=0, y=0, z=0)),
             ),
             width=800,
             height=600,
@@ -3004,12 +3102,16 @@ class ThrustPad(BearingElement):
             try:
                 fig.show()
             except Exception as e:
-                print(f"Warning: Could not display plot '{title}' automatically. Error: {e}")
+                print(
+                    f"Warning: Could not display plot '{title}' automatically. Error: {e}"
+                )
                 print("The figure object is still available for manual display.")
-        
+
         return fig
 
-    def _plot_2d_contour(self, x_grid, y_grid, z_data, title, colorbar_title, show_plot=False):
+    def _plot_2d_contour(
+        self, x_grid, y_grid, z_data, title, colorbar_title, show_plot=False
+    ):
         """Create 2D contour plot using Plotly with tableau colors.
 
         Parameters
@@ -3061,9 +3163,11 @@ class ThrustPad(BearingElement):
             try:
                 fig.show()
             except Exception as e:
-                print(f"Warning: Could not display plot '{title}' automatically. Error: {e}")
+                print(
+                    f"Warning: Could not display plot '{title}' automatically. Error: {e}"
+                )
                 print("The figure object is still available for manual display.")
-        
+
         return fig
 
     def show_execution_time(self):
@@ -3114,13 +3218,13 @@ class ThrustPad(BearingElement):
         >>> bearing.show_coefficients_comparison()
         <BLANKLINE>
         ============================================================
-                DYNAMIC COEFFICIENTS COMPARISON TABLE
+                   DYNAMIC COEFFICIENTS COMPARISON TABLE
         ============================================================
-        +----------+-------------+-------------+
-        | Frequency| kzz (N/m)   | czz (N*s/m) |
-        +----------+-------------+-------------+
-        |   90.0   | 3.1763e+11  | 1.0806e+10  |
-        +----------+-------------+-------------+
+        +-----------------+-------------------+-------------------+
+        | Frequency [RPM] |     kzz [N/m]     |    czz [N*s/m]    |
+        +-----------------+-------------------+-------------------+
+        |       90.0      | 317639857094.2357 | 10805717455.19912 |
+        +-----------------+-------------------+-------------------+
         ============================================================
         """
 
@@ -3138,6 +3242,7 @@ class ThrustPad(BearingElement):
 
         print(comparison_table)
         print("=" * 60)
+
 
 def thrust_pad_example():
     """Create an example of a thrust bearing with Thermo-Hydro-Dynamic effects.
