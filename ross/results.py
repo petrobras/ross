@@ -6228,6 +6228,7 @@ class HarmonicBalanceResults(Results):
             data[f"probe_dir[{i}]"] = probe_direction
 
             fix_dof = (node - nodes[-1] - 1) * ndof // 2 if node in link_nodes else 0
+            y = self.Qo[:, np.newaxis] / 2 + self.dQ
 
             if probe_direction == "radial":
                 dofx = ndof * node - fix_dof
@@ -6239,12 +6240,12 @@ class HarmonicBalanceResults(Results):
                     [-np.sin(angle), np.cos(angle)]]
                 )
 
-                _probe_resp = operator @ np.vstack((self.dQ[dofx, :], self.dQ[dofy, :]))
+                _probe_resp = operator @ np.vstack((y[dofx, :], y[dofy, :]))
                 probe_resp = _probe_resp[0, :]
                 # fmt: on
             else:
                 dofz = ndof * node + 2 - fix_dof
-                probe_resp = self.dQ[dofz, :]
+                probe_resp = y[dofz, :]
 
             probe_resp = Q_(np.abs(probe_resp), "m").to(amplitude_units).m
             data[f"probe_resp[{i}]"] = probe_resp
