@@ -5822,6 +5822,7 @@ class TimeResponseResults(Results):
             fig = go.Figure()
 
         if frequency_range is not None:
+            min_freq, max_freq = frequency_range
             frequency_range = Q_(frequency_range, frequency_units).to("Hz").m
 
         rows, cols = self.yout.shape
@@ -5841,12 +5842,12 @@ class TimeResponseResults(Results):
                 freq, amp, _ = self._dfft(probe_resp, dt)
 
                 if frequency_range is not None:
-                    amp = amp[
-                        (freq >= frequency_range[0]) & (freq <= frequency_range[1])
-                    ]
-                    freq = freq[
-                        (freq >= frequency_range[0]) & (freq <= frequency_range[1])
-                    ]
+                    delta = 0.01 * (frequency_range[1] - frequency_range[0])
+                    mask = (freq >= frequency_range[0] - delta) & (
+                        freq <= frequency_range[1] + delta
+                    )
+                    amp = amp[mask]
+                    freq = freq[mask]
 
                 fig.add_trace(
                     go.Scatter(
@@ -5861,6 +5862,9 @@ class TimeResponseResults(Results):
                 )
             except KeyError:
                 pass
+
+        if frequency_range is not None:
+            fig.update_xaxes(range=[min_freq, max_freq])
 
         fig.update_xaxes(title_text=f"Frequency ({frequency_units})")
         fig.update_yaxes(title_text=f"Amplitude ({displacement_units})")
