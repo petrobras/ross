@@ -2093,11 +2093,12 @@ class PlainJournal(BearingElement):
         if exec_time is not None:
             table.add_row(["Execution Time", f"{exec_time:.3f}", "s"])
 
-        print("\n" + "=" * 47)
-        print(f"       PLAIN JOURNAL RESULTS - {rpm_display:.1f} RPM")
-        print("=" * 47)
+        width = 47
+        print("\n" + "=" * width)
+        print(f"PLAIN JOURNAL RESULTS - {rpm_display:.1f} RPM".center(width))
+        print("=" * width)
         print(table)
-        print("=" * 47)
+        print("=" * width)
 
     def show_coefficients_comparison(self):
         """Display dynamic coefficients comparison table for all speeds."""
@@ -2108,11 +2109,10 @@ class PlainJournal(BearingElement):
 
         freq_rpm = np.atleast_1d(self.frequency).astype(float) * 30.0 / np.pi
 
-        print("\n" + "=" * 128)
-        print(
-            "                                            DYNAMIC COEFFICIENTS COMPARISON TABLE"
-        )
-        print("=" * 128)
+        width = 128
+        print("\n" + "=" * width)
+        print("DYNAMIC COEFFICIENTS COMPARISON TABLE".center(width))
+        print("=" * width)
 
         table = PrettyTable()
         headers = [
@@ -2143,7 +2143,7 @@ class PlainJournal(BearingElement):
             table.add_row(row)
 
         print(table)
-        print("=" * 128)
+        print("=" * width)
 
 
 @njit

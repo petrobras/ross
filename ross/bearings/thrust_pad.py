@@ -406,9 +406,10 @@ class ThrustPad(BearingElement):
 
         freq = self.frequency[freq_index]
 
-        print("\n" + "=" * 48)
-        print(f"       THRUST BEARING RESULTS - {freq * 30 / np.pi:.1f} RPM")
-        print("=" * 48)
+        width = 48
+        print("\n" + "=" * width)
+        print(f"THRUST BEARING RESULTS - {freq * 30 / np.pi:.1f} RPM".center(width))
+        print("=" * width)
 
         table = PrettyTable()
         table.field_names = ["Parameter", "Value", "Unit"]
@@ -449,7 +450,7 @@ class ThrustPad(BearingElement):
         table.add_row(["czz (Damping)", f"{self.czz[freq_index]:.4e}", "N*s/m"])
 
         print(table)
-        print("=" * 48)
+        print("=" * width)
 
     def solve_fields(self):
         """Solve pressure and temperature fields iteratively until convergence.
@@ -1356,9 +1357,10 @@ class ThrustPad(BearingElement):
             freq = self.frequency[i]
             rpm = freq * 30 / np.pi
 
-            print("\n" + "=" * 48)
-            print(f"       OPTIMIZATION CONVERGENCE - {rpm:.1f} RPM")
-            print("=" * 48)
+            width = 48
+            print("\n" + "=" * width)
+            print(f"OPTIMIZATION CONVERGENCE - {rpm:.1f} RPM".center(width))
+            print("=" * width)
 
             table = PrettyTable()
             table.field_names = ["Iteration", "Residual"]
@@ -1374,7 +1376,7 @@ class ThrustPad(BearingElement):
                     table.add_row([it, f"{res:.6f}"])
 
             print(table)
-            print("=" * 48)
+            print("=" * width)
 
     def _equilibrium_objective(self, x):
         """Calculates the equilibrium position of the bearing
@@ -3228,9 +3230,10 @@ class ThrustPad(BearingElement):
         ===========================================================
         """
 
-        print("\n" + "=" * 59)
-        print("           DYNAMIC COEFFICIENTS COMPARISON TABLE")
-        print("=" * 59)
+        width = 59
+        print("\n" + "=" * width)
+        print("DYNAMIC COEFFICIENTS COMPARISON TABLE".center(width))
+        print("=" * width)
 
         comparison_table = self.format_table(
             frequency=self.frequency,
@@ -3241,7 +3244,7 @@ class ThrustPad(BearingElement):
         )
 
         print(comparison_table)
-        print("=" * 59)
+        print("=" * width)
 
 
 def thrust_pad_example():
