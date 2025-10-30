@@ -310,6 +310,7 @@ class PlainJournal(BearingElement):
         # Store optimization results for later reporting
         self._opt_results = {}
         self._exec_times = {}
+        self._equilibrium_pos_by_speed = {}
 
         n_freq = np.shape(frequency)[0]
 
@@ -334,7 +335,17 @@ class PlainJournal(BearingElement):
             cxx[i], cxy[i], cyx[i], cyy[i] = coeffs[1]
 
         super().__init__(
-            n, kxx, cxx, kyy, kxy, kyx, cyy, cxy, cyx, frequency=frequency, **kwargs
+            n=n,
+            kxx=kxx,
+            cxx=cxx,
+            kyy=kyy,
+            kxy=kxy,
+            kyx=kyx,
+            cyy=cyy,
+            cxy=cxy,
+            cyx=cyx,
+            frequency=frequency,
+            **kwargs,
         )
 
     def _forces(self, initial_guess, speed, y0=None, xpt0=None, ypt0=None):
@@ -679,8 +690,12 @@ class PlainJournal(BearingElement):
             self._opt_results = {}
         if not hasattr(self, "_exec_times"):
             self._exec_times = {}
-        self._opt_results[speed] = res
-        self._exec_times[speed] = t2 - t1
+        if not hasattr(self, "_equilibrium_pos_by_speed"):
+            self._equilibrium_pos_by_speed = {}
+
+        self._opt_results[float(speed)] = res
+        self._exec_times[float(speed)] = t2 - t1
+        self._equilibrium_pos_by_speed[float(speed)] = res.x
 
         if self.print_time:
             print(f"Time Spent: {t2 - t1} seconds")
@@ -2000,7 +2015,9 @@ class PlainJournal(BearingElement):
         Prints a formatted table for each speed in `self.frequency`.
         """
         if getattr(self, "frequency", None) is None:
-            raise ValueError("No frequency array available. Provide `frequency` when creating the bearing.")
+            raise ValueError(
+                "No frequency array available. Provide `frequency` when creating the bearing."
+            )
 
         freq_arr = np.atleast_1d(self.frequency)
         if freq_arr.size == 0:
@@ -2009,20 +2026,25 @@ class PlainJournal(BearingElement):
         for speed_rad in freq_arr:
             self._print_single_frequency_results(float(speed_rad))
 
-
     def _print_single_frequency_results(self, speed_rad):
         """Print results for a single speed (rad/s)."""
-        # Ensure we have equilibrium and coefficients for this speed
-        coeffs = self.coefficients(speed_rad)
-        k, c = coeffs
 
-        rpm_display = speed_rad * 30.0 / np.pi
-        ecc = float(self.equilibrium_pos[0]) if self.equilibrium_pos is not None else None
-        attitude_deg = (
-            float(self.equilibrium_pos[1]) * 180.0 / np.pi
-            if self.equilibrium_pos is not None
-            else None
-        )
+        # map speed to nearest index in self.frequency
+        freq_arr = np.atleast_1d(self.frequency).astype(float)
+        idx = int(np.argmin(np.abs(freq_arr - float(speed_rad))))
+
+        # coefficients from precomputed arrays
+        k = (self.kxx[idx], self.kxy[idx], self.kyx[idx], self.kyy[idx])
+        c = (self.cxx[idx], self.cxy[idx], self.cyx[idx], self.cyy[idx])
+
+        rpm_display = float(speed_rad) * 30.0 / np.pi
+
+        # equilibrium per speed (if available)
+        eq = None
+        if hasattr(self, "_equilibrium_pos_by_speed"):
+            eq = self._equilibrium_pos_by_speed.get(float(speed_rad))
+        ecc = float(eq[0]) if eq is not None else None
+        attitude_deg = float(eq[1]) * 180.0 / np.pi if eq is not None else None
 
         table = PrettyTable()
         table.field_names = ["Parameter", "Value", "Unit"]
@@ -2045,7 +2067,7 @@ class PlainJournal(BearingElement):
         table.add_row(["Load Fx", f"{fx:.3f}", "N"])
         table.add_row(["Load Fy", f"{fy:.3f}", "N"])
 
-        # Stiffness/Damping
+        # Stiffness/Damping (formatted like show_results)
         table.add_row(["kxx (Stiffness)", f"{k[0]:.4e}", "N/m"])
         table.add_row(["kxy (Stiffness)", f"{k[1]:.4e}", "N/m"])
         table.add_row(["kyx (Stiffness)", f"{k[2]:.4e}", "N/m"])
@@ -2076,6 +2098,52 @@ class PlainJournal(BearingElement):
         print("=" * 47)
         print(table)
         print("=" * 47)
+
+    def show_coefficients_comparison(self):
+        """Display dynamic coefficients comparison table for all speeds."""
+        if getattr(self, "frequency", None) is None or len(self.frequency) == 0:
+            raise ValueError(
+                "No frequency array available. Provide `frequency` when creating the bearing."
+            )
+
+        freq_rpm = np.atleast_1d(self.frequency).astype(float) * 30.0 / np.pi
+
+        print("\n" + "=" * 128)
+        print(
+            "                                            DYNAMIC COEFFICIENTS COMPARISON TABLE"
+        )
+        print("=" * 128)
+
+        table = PrettyTable()
+        headers = [
+            "Frequency [RPM]",
+            "kxx [N/m]",
+            "kxy [N/m]",
+            "kyx [N/m]",
+            "kyy [N/m]",
+            "cxx [N*s/m]",
+            "cxy [N*s/m]",
+            "cyx [N*s/m]",
+            "cyy [N*s/m]",
+        ]
+        table.field_names = headers
+
+        for i in range(len(freq_rpm)):
+            row = [
+                f"{freq_rpm[i]:.1f}",
+                f"{self.kxx[i]:.4e}",
+                f"{self.kxy[i]:.4e}",
+                f"{self.kyx[i]:.4e}",
+                f"{self.kyy[i]:.4e}",
+                f"{self.cxx[i]:.4e}",
+                f"{self.cxy[i]:.4e}",
+                f"{self.cyx[i]:.4e}",
+                f"{self.cyy[i]:.4e}",
+            ]
+            table.add_row(row)
+
+        print(table)
+        print("=" * 128)
 
 
 @njit
