@@ -3217,20 +3217,20 @@ class ThrustPad(BearingElement):
         >>> bearing = thrust_pad_example()
         >>> bearing.show_coefficients_comparison()
         <BLANKLINE>
-        ============================================================
+        ===========================================================
                    DYNAMIC COEFFICIENTS COMPARISON TABLE
-        ============================================================
+        ===========================================================
         +-----------------+-------------------+-------------------+
         | Frequency [RPM] |     kzz [N/m]     |    czz [N*s/m]    |
         +-----------------+-------------------+-------------------+
         |       90.0      | 317639857094.2357 | 10805717455.19912 |
         +-----------------+-------------------+-------------------+
-        ============================================================
+        ===========================================================
         """
 
-        print("\n" + "=" * 60)
+        print("\n" + "=" * 59)
         print("           DYNAMIC COEFFICIENTS COMPARISON TABLE")
-        print("=" * 60)
+        print("=" * 59)
 
         comparison_table = self.format_table(
             frequency=self.frequency,
@@ -3241,7 +3241,7 @@ class ThrustPad(BearingElement):
         )
 
         print(comparison_table)
-        print("=" * 60)
+        print("=" * 59)
 
 
 def thrust_pad_example():
