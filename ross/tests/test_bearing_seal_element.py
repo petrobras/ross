@@ -161,9 +161,8 @@ def test_bearing_error_speed_not_given():
     cx = 1e8 * speed
     with pytest.raises(Exception) as excinfo:
         BearingElement(-1, kxx=kx, cxx=cx)
-    assert (
-        "Arguments (coefficients and frequency)"
-        " must have the same dimension" in str(excinfo.value)
+    assert "Arguments (coefficients and frequency) must have the same dimension" in str(
+        excinfo.value
     )
 
 
@@ -172,16 +171,14 @@ def test_bearing_error2():
         BearingElement(
             4, kxx=[7e8, 8e8, 9e8], cxx=[0, 0, 0, 0], frequency=[10, 100, 1000, 10000]
         )
-    assert (
-        "Arguments (coefficients and frequency) "
-        "must have the same dimension" in str(excinfo.value)
+    assert "Arguments (coefficients and frequency) must have the same dimension" in str(
+        excinfo.value
     )
 
     with pytest.raises(ValueError) as excinfo:
         BearingElement(4, kxx=[6e8, 7e8, 8e8, 9e8], cxx=[0, 0, 0, 0, 0])
-    assert (
-        "Arguments (coefficients and frequency) "
-        "must have the same dimension" in str(excinfo.value)
+    assert "Arguments (coefficients and frequency) must have the same dimension" in str(
+        excinfo.value
     )
 
 

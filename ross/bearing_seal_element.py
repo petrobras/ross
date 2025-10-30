@@ -760,6 +760,64 @@ class BearingElement(Element):
 
         return G
 
+    def _hover_info(self, frequency=None):
+        """Generate hover information for bearing element.
+
+        This method can be overridden by subclasses to customize the hover
+        information displayed when hovering over the bearing element in plots.
+
+        Parameters
+        ----------
+        frequency : float, optional
+            Frequency at which to display coefficients (rad/s).
+            Not used - displays coefficients at first and last frequencies.
+
+        Returns
+        -------
+        customdata : list
+            Data to attach to hover trace.
+        hovertemplate : str
+            Template string for hover display with HTML formatting.
+
+        Examples
+        --------
+        >>> bearing = bearing_example()
+        >>> customdata, hovertemplate = bearing._hover_info()
+        >>> customdata[0]  # node number
+        0
+        """
+        # Get first and last frequencies
+        if self.frequency is not None:
+            if hasattr(self.frequency, "__iter__"):
+                freq_0 = self.frequency[0]
+                freq_1 = self.frequency[-1]
+            else:
+                freq_0 = freq_1 = self.frequency
+        else:
+            freq_0 = freq_1 = 0
+
+        # Convert frequencies to RPM
+        freq_0_rpm = Q_(freq_0, "rad/s").to("RPM").m
+        freq_1_rpm = Q_(freq_1, "rad/s").to("RPM").m
+
+        # Build hover template directly without intermediate list
+        hovertemplate = f"Bearing at Node: {self.n}<br>"
+        if self.tag is not None:
+            hovertemplate = f"Tag: {self.tag}<br>" + hovertemplate
+
+        hovertemplate += f"Frequency: {freq_0_rpm:.2f} ... {freq_1_rpm:.2f} RPM<br>"
+        hovertemplate += (
+            f"Kxx: {self.kxx_interpolated(freq_0):.3e} ... {self.kxx_interpolated(freq_1):.3e} N/m<br>"
+            f"Kyy: {self.kyy_interpolated(freq_0):.3e} ... {self.kyy_interpolated(freq_1):.3e} N/m<br>"
+            f"Cxx: {self.cxx_interpolated(freq_0):.3e} ... {self.cxx_interpolated(freq_1):.3e} N·s/m<br>"
+            f"Cyy: {self.cyy_interpolated(freq_0):.3e} ... {self.cyy_interpolated(freq_1):.3e} N·s/m<br>"
+        )
+
+        # customdata is still needed for plotly, but can be minimal
+        customdata = [self.n]
+
+        return customdata, hovertemplate
+
     def _patch(self, position, fig):
         """Bearing element patch.
 
@@ -805,6 +863,29 @@ class BearingElement(Element):
         yu_bot = [-y for y in yl_bot]
         fig.add_trace(go.Scatter(x=x_bot, y=np.add(yl_bot, yc_pos), **default_values))
         fig.add_trace(go.Scatter(x=x_bot, y=np.add(yu_bot, yc_pos), **default_values))
+
+        # Add hover information marker at the center of bottom base
+        customdata, hovertemplate = self._hover_info()
+        # Scale marker size proportionally to the bearing icon height
+        # icon_h already includes the scale_factor effect from rotor assembly
+        marker_size = icon_h * 200  # proportional to actual bearing size
+        hover_marker_values_top = dict(
+            mode="markers",
+            x=[zpos],
+            y=[ypos + icon_h / 2],
+            marker=dict(size=marker_size, color=self.color, opacity=0),
+            customdata=[customdata],
+            hovertemplate=hovertemplate,
+            hoverinfo="text",
+            name=self.tag,
+            legendgroup="bearings",
+            showlegend=False,
+        )
+        fig.add_trace(go.Scatter(**hover_marker_values_top))
+        # copy the customdata and hovertemplate from the top marker just multiplying the y value by -1
+        hover_marker_values_bottom = hover_marker_values_top.copy()
+        hover_marker_values_bottom["y"] = [-1 * hover_marker_values_top["y"][0]]
+        fig.add_trace(go.Scatter(**hover_marker_values_bottom))
 
         # plot top base
         x_top = [zpos, zpos, zs0, zs1]
@@ -1012,9 +1093,21 @@ class BearingElement(Element):
 class BearingFluidFlow(BearingElement):
     """Instantiate a bearing using inputs from its fluid flow.
 
+    .. deprecated:: 2.0.0
+        `BearingFluidFlow` is deprecated and will be removed in a future version.
+        Use `PlainJournal` for advanced thermo-hydro-dynamic analysis with thermal
+        effects, or `CylindricalBearing` for fast analytical calculations.
+
     This method always creates elements with frequency-dependent coefficients.
     It calculates a set of coefficients for each frequency value appendend to
     "omega".
+
+    **Recommended alternatives:**
+
+    - For advanced analysis with thermal effects, multi-pad configurations, and
+      turbulence models, use :class:`PlainJournal` instead.
+    - For quick calculations and preliminary design, use :class:`CylindricalBearing`
+      instead.
 
     Parameters
     ----------
@@ -1126,6 +1219,14 @@ class BearingFluidFlow(BearingElement):
         scale_factor=1.0,
         color="#355d7a",
     ):
+        warnings.warn(
+            "BearingFluidFlow is deprecated and will be removed in a future version. "
+            "Use PlainJournal for advanced thermo-hydro-dynamic analysis with thermal effects, "
+            "or CylindricalBearing for fast analytical calculations.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
         self.nz = nz
         self.ntheta = ntheta
         self.length = length
@@ -1343,6 +1444,63 @@ class SealElement(BearingElement):
         # make seals with half the bearing size as a default
         self.scale_factor = scale_factor if scale_factor else self.scale_factor / 2
 
+    def _hover_info(self, frequency=None):
+        """Generate hover information for seal element.
+
+        Overrides the base class method to include seal-specific information
+        such as cross-coupled coefficients and seal leakage.
+
+        Parameters
+        ----------
+        frequency : float, optional
+            Frequency at which to display coefficients (rad/s).
+            Not used - displays coefficients at first and last frequencies.
+
+        Returns
+        -------
+        customdata : list
+            Data to attach to hover trace.
+        hovertemplate : str
+            Template string for hover display with HTML formatting.
+        """
+        # Get first and last frequencies
+        if self.frequency is not None:
+            if hasattr(self.frequency, "__iter__"):
+                freq_0 = self.frequency[0]
+                freq_1 = self.frequency[-1]
+            else:
+                freq_0 = freq_1 = self.frequency
+        else:
+            freq_0 = freq_1 = 0
+
+        # Convert frequencies to RPM
+        freq_0_rpm = Q_(freq_0, "rad/s").to("RPM").m
+        freq_1_rpm = Q_(freq_1, "rad/s").to("RPM").m
+
+        # Build hover template directly
+        hovertemplate = f"Seal at Node: {self.n}<br>"
+        if self.tag is not None:
+            hovertemplate = f"Tag: {self.tag}<br>" + hovertemplate
+
+        hovertemplate += f"Frequency: {freq_0_rpm:.2f} ... {freq_1_rpm:.2f} RPM<br>"
+        hovertemplate += (
+            f"Kxx: {self.kxx_interpolated(freq_0):.3e} ... {self.kxx_interpolated(freq_1):.3e} N/m<br>"
+            f"Kyy: {self.kyy_interpolated(freq_0):.3e} ... {self.kyy_interpolated(freq_1):.3e} N/m<br>"
+            f"Kxy: {self.kxy_interpolated(freq_0):.3e} ... {self.kxy_interpolated(freq_1):.3e} N/m<br>"
+            f"Kyx: {self.kyx_interpolated(freq_0):.3e} ... {self.kyx_interpolated(freq_1):.3e} N/m<br>"
+            f"Cxx: {self.cxx_interpolated(freq_0):.3e} ... {self.cxx_interpolated(freq_1):.3e} N·s/m<br>"
+            f"Cyy: {self.cyy_interpolated(freq_0):.3e} ... {self.cyy_interpolated(freq_1):.3e} N·s/m<br>"
+            f"Cxy: {self.cxy_interpolated(freq_0):.3e} ... {self.cxy_interpolated(freq_1):.3e} N·s/m<br>"
+            f"Cyx: {self.cyx_interpolated(freq_0):.3e} ... {self.cyx_interpolated(freq_1):.3e} N·s/m<br>"
+        )
+
+        if self.seal_leakage is not None:
+            hovertemplate += f"Seal Leakage: {self.seal_leakage:.3e}<br>"
+
+        customdata = [self.n]
+
+        return customdata, hovertemplate
+
 
 class BallBearingElement(BearingElement):
     """A bearing element for ball bearings.
@@ -1469,6 +1627,44 @@ class BallBearingElement(BearingElement):
             scale_factor=scale_factor,
             color=color,
         )
+
+    def _hover_info(self, frequency=None):
+        """Generate hover information for ball bearing element.
+
+        Overrides the base class method to include ball bearing-specific
+        geometric and operating parameters.
+
+        Parameters
+        ----------
+        frequency : float, optional
+            Frequency at which to display coefficients (rad/s).
+            Not used for ball bearings (frequency-independent).
+
+        Returns
+        -------
+        customdata : list
+            Data to attach to hover trace.
+        hovertemplate : str
+            Template string for hover display with HTML formatting.
+        """
+        hovertemplate = f"Ball Bearing at Node: {self.n}<br>"
+        if self.tag is not None:
+            hovertemplate = f"Tag: {self.tag}<br>" + hovertemplate
+
+        hovertemplate += (
+            f"Number of Balls: {self.n_balls:.0f}<br>"
+            f"Ball Diameter: {self.d_balls:.4f} m<br>"
+            f"Static Load: {self.fs:.2f} N<br>"
+            f"Contact Angle: {self.alpha:.3f} rad<br>"
+            f"Kxx: {self.kxx[0]:.3e} N/m<br>"
+            f"Kyy: {self.kyy[0]:.3e} N/m<br>"
+            f"Cxx: {self.cxx[0]:.3e} N·s/m<br>"
+            f"Cyy: {self.cyy[0]:.3e} N·s/m<br>"
+        )
+
+        customdata = [self.n]
+
+        return customdata, hovertemplate
 
 
 class RollerBearingElement(BearingElement):
@@ -1617,6 +1813,9 @@ class MagneticBearingElement(BearingElement):
         Proportional gain of the PID controller.
     kd_pid : float or int
         Derivative gain of the PID controller.
+    ki_pid : float or int, optional
+        Integrative gain of the PID controller, must be provided
+        if using closed-loop response
     k_amp : float or int
         Gain of the amplifier model.
     k_sense : float or int
@@ -1669,10 +1868,11 @@ class MagneticBearingElement(BearingElement):
         ag,
         nw,
         alpha,
-        kp_pid,
-        kd_pid,
         k_amp,
         k_sense,
+        kp_pid,
+        kd_pid,
+        ki_pid=None,
         tag=None,
         n_link=None,
         scale_factor=1,
@@ -1686,6 +1886,7 @@ class MagneticBearingElement(BearingElement):
         self.alpha = alpha
         self.kp_pid = kp_pid
         self.kd_pid = kd_pid
+        self.ki_pid = ki_pid
         self.k_amp = k_amp
         self.k_sense = k_sense
 
@@ -1732,6 +1933,15 @@ class MagneticBearingElement(BearingElement):
             * pA[2]
             / (4.0 * pA[0] ** 2)
         )
+
+        self.ks = ks
+        self.ki = ki
+        self.integral = [0, 0]
+        self.e0 = [0, 0]
+        self.control_signal = []
+        self.magnetic_force_xy = []
+        self.magnetic_force_vw = []
+
         k = ki * pA[7] * pA[8] * (pA[5] + np.divide(ks, ki * pA[7] * pA[8]))
         c = ki * pA[7] * pA[6] * pA[8]
         # k = ki * k_amp*k_sense*(kp_pid+ np.divide(ks, ki*k_amp*k_sense))
@@ -1771,20 +1981,152 @@ class MagneticBearingElement(BearingElement):
             color=color,
         )
 
+    def _hover_info(self, frequency=None):
+        """Generate hover information for magnetic bearing element.
+
+        Overrides the base class method to include magnetic bearing-specific
+        electromagnetic and control parameters.
+
+        Parameters
+        ----------
+        frequency : float, optional
+            Frequency at which to display coefficients (rad/s).
+            Not used for magnetic bearings (frequency-independent).
+
+        Returns
+        -------
+        customdata : list
+            Data to attach to hover trace.
+        hovertemplate : str
+            Template string for hover display with HTML formatting.
+        """
+        hovertemplate = f"Magnetic Bearing at Node: {self.n}<br>"
+        if self.tag is not None:
+            hovertemplate = f"Tag: {self.tag}<br>" + hovertemplate
+
+        hovertemplate += (
+            f"Air Gap (g0): {self.g0:.4e} m<br>"
+            f"Bias Current (i0): {self.i0:.2f} A<br>"
+            f"Pole Area: {self.ag:.4e} m²<br>"
+            f"Windings: {self.nw:.0f}<br>"
+            f"PID Kp: {self.kp_pid:.3e}<br>"
+            f"PID Kd: {self.kd_pid:.3e}<br>"
+            f"Kxx: {self.kxx[0]:.3e} N/m<br>"
+            f"Kyy: {self.kyy[0]:.3e} N/m<br>"
+            f"Cxx: {self.cxx[0]:.3e} N·s/m<br>"
+            f"Cyy: {self.cyy[0]:.3e} N·s/m<br>"
+        )
+
+        customdata = [self.n]
+
+        return customdata, hovertemplate
+
+    def compute_pid_amb(self, dt, current_offset, setpoint, disp, dof_index):
+        """Compute PID control force for a single AMB DoF (x or y).
+
+        This function calculates the control force generated by an Active Magnetic
+        Bearing (AMB) in a specific degree of freedom (DoF) using a PID
+        (Proportional-Integral-Derivative) control algorithm. The force is computed
+        based on the displacement error with respect to a desired setpoint and the
+        dynamic characteristics of the PID controller.
+
+        The control signal is computed as:
+
+            signal_pid = current_offset + P + I + D
+
+        where:
+            - P = kp_pid * error
+            - I = ki_pid * ∫error dt
+            - D = kd_pid * d(error)/dt
+
+        The resulting magnetic force applied is:
+
+            F = ki * signal_pid + ks * disp
+
+        Parameters
+        ----------
+        dt : float
+            Time step of the simulation in seconds.
+        current_offset : float
+            Static offset added to the control signal (e.g., initial bias current).
+        setpoint : float
+            Desired reference position for the controlled DoF (typically zero).
+        disp : float
+            Current displacement measurement at the controlled DoF.
+        dof_index : int
+            Local index (0 for x-direction, 1 for y-direction) identifying the axis within the AMB element.
+
+        Returns
+        -------
+        magnetic_force : float
+            The control force computed for the specified AMB direction.
+
+        Notes
+        -----
+        - This function updates internal state variables of the `amb` object in-place:
+            * `integral[dof_index]`: integral error accumulator.
+            * `e0[dof_index]`: previous error value for derivative computation.
+            * `control_signal[dof_index]`: control signal history.
+            * `magnetic_force[dof_index]`: computed magnetic force history.
+        - The output force must be assigned externally to the appropriate index
+          in the global force vector of the rotor system.
+
+        Examples
+        --------
+        >>> import ross as rs
+        >>> rotor = rs.rotor_assembly.rotor_amb_example()
+        >>> amb = rotor.bearing_elements[0]
+        >>> amb.control_signal.append([[], []])
+        >>> force = amb.compute_pid_amb(
+        ...     dt=0.001,
+        ...     current_offset=0.0,
+        ...     setpoint=0.0,
+        ...     disp=0.0002,
+        ...     dof_index=0
+        ... )
+        >>> round(force, 6)
+        -6.503376
+        """
+        err = setpoint - disp
+        p = self.kp_pid * err
+        self.integral[dof_index] += self.ki_pid * err * dt
+        d = self.kd_pid * (err - self.e0[dof_index]) / dt
+        signal_pid = current_offset + p + self.integral[dof_index] + d
+        magnetic_force = self.ki * signal_pid + self.ks * disp
+        self.e0[dof_index] = err
+        self.control_signal[-1][dof_index].append(signal_pid)
+        return magnetic_force
+
 
 class CylindricalBearing(BearingElement):
-    """Cylindrical hydrodynamic bearing.
+    """Cylindrical hydrodynamic bearing - Simplified analytical model.
 
-    A cylindrical hydrodynamic bearing modeled as per
-    :cite:`friswell2010dynamics` (page 177) assuming the following:
+    This class provides a **fast, simplified** bearing model suitable for preliminary
+    design and basic analysis. Uses closed-form analytical solutions from
+    :cite:`friswell2010dynamics` (page 177).
 
-    - the flow is laminar and Reynolds’s equation applies
+    **When to use this class:**
+    - Quick calculations and preliminary design
+    - Educational purposes and basic understanding
+    - Simple bearing geometries
+    - When computational speed is critical
+
+    **For advanced analysis, consider using PlainJournal instead, which provides:**
+    - Thermo-hydro-dynamic (THD) effects
+    - Multiple bearing geometries (circular, lobe, elliptical)
+    - Multi-pad configurations
+    - Turbulence models
+    - Oil starvation/flooding conditions
+
+    Assumptions
+    -----------
+    - the flow is laminar and Reynolds's equation applies
     - the bearing is very short, so that L /D << 1, where L is the bearing length and
     D is the bearing diameter, which means that the pressure gradients are much
     larger in the axial than in the circumferential direction
     - the lubricant pressure is zero at the edges of the bearing
     - the bearing is operating under steady running conditions
-    - the lubricant properties do not vary substantially throughout the oil film
+    - the lubricant properties do not vary substantially throughout the oil film (isothermal)
     - the shaft does not tilt in the bearing
 
     Parameters
@@ -1953,6 +2295,59 @@ class CylindricalBearing(BearingElement):
             **coefficients_dict,
             **kwargs,
         )
+
+    def _hover_info(self, frequency=None):
+        """Generate hover information for cylindrical bearing element.
+
+        Overrides the base class method to include cylindrical bearing-specific
+        fluid film parameters and operating conditions.
+
+        Parameters
+        ----------
+        frequency : float, optional
+            Frequency at which to display coefficients (rad/s).
+            Not used - displays coefficients at first and last speeds.
+
+        Returns
+        -------
+        customdata : list
+            Data to attach to hover trace.
+        hovertemplate : str
+            Template string for hover display with HTML formatting.
+        """
+        # Get first and last speeds
+        freq_0 = self.speed[0]
+        freq_1 = self.speed[-1]
+        idx_0 = 0
+        idx_1 = -1
+
+        # Convert speeds to RPM
+        freq_0_rpm = Q_(freq_0, "rad/s").to("RPM").m
+        freq_1_rpm = Q_(freq_1, "rad/s").to("RPM").m
+
+        hovertemplate = f"Cylindrical Bearing at Node: {self.n}<br>"
+        if self.tag is not None:
+            hovertemplate = f"Tag: {self.tag}<br>" + hovertemplate
+
+        hovertemplate += (
+            f"Length: {self.bearing_length:.4f} m<br>"
+            f"Journal Diameter: {self.journal_diameter:.4f} m<br>"
+            f"Radial Clearance: {self.radial_clearance:.4e} m<br>"
+            f"Oil Viscosity: {self.oil_viscosity:.4f} Pa·s<br>"
+            f"Load: {self.weight:.2f} N<br>"
+            f"Speed: {freq_0_rpm:.2f} ... {freq_1_rpm:.2f} RPM<br>"
+            f"Eccentricity: {self.eccentricity[idx_0]:.4f} ... {self.eccentricity[idx_1]:.4f}<br>"
+            f"Attitude Angle: {self.attitude_angle[idx_0]:.4f} ... {self.attitude_angle[idx_1]:.4f} rad<br>"
+            f"Sommerfeld: {self.sommerfeld[idx_0]:.3e} ... {self.sommerfeld[idx_1]:.3e}<br>"
+            f"Kxx: {self.kxx_interpolated(freq_0):.3e} ... {self.kxx_interpolated(freq_1):.3e} N/m<br>"
+            f"Kyy: {self.kyy_interpolated(freq_0):.3e} ... {self.kyy_interpolated(freq_1):.3e} N/m<br>"
+            f"Cxx: {self.cxx_interpolated(freq_0):.3e} ... {self.cxx_interpolated(freq_1):.3e} N·s/m<br>"
+            f"Cyy: {self.cyy_interpolated(freq_0):.3e} ... {self.cyy_interpolated(freq_1):.3e} N·s/m<br>"
+        )
+
+        customdata = [self.n]
+
+        return customdata, hovertemplate
 
 
 def bearing_example():

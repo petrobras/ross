@@ -171,7 +171,9 @@ def test_for_var_speed_1(rotor1):
     resp_common = rotor1.run_time_response(speed, F, t)
 
     # Running with pseudo-modal method
-    resp_pseudo_modal = rotor1.run_time_response(speed, F, t, num_modes=24)
+    resp_pseudo_modal = rotor1.run_time_response(
+        speed, F, t, model_reduction={"num_modes": 24}
+    )
 
     # Running with pseudo-modal method and add_to_RHS callable function
     def unb_force(step, **curr_state):
@@ -181,8 +183,8 @@ def test_for_var_speed_1(rotor1):
         speed,
         np.zeros((len(t), rotor1.ndof)),
         t,
-        num_modes=24,
         add_to_RHS=unb_force,
+        model_reduction={"num_modes": 24},
         progress_interval=5,
     )
 
@@ -227,7 +229,9 @@ def test_for_var_speed_2(rotor2):
     resp_common = rotor2.run_time_response(speed, F, t)
 
     # Running with pseudo-modal method
-    resp_pseudo_modal = rotor2.run_time_response(speed, F, t, num_modes=24)
+    resp_pseudo_modal = rotor2.run_time_response(
+        speed, F, t, model_reduction={"num_modes": 24}
+    )
 
     # Running with pseudo-modal method and add_to_RHS callable function
     def unb_force(step, **curr_state):
@@ -237,8 +241,8 @@ def test_for_var_speed_2(rotor2):
         speed,
         np.zeros((len(t), rotor2.ndof)),
         t,
-        num_modes=24,
         add_to_RHS=unb_force,
+        model_reduction={"num_modes": 24},
         progress_interval=5,
     )
 
