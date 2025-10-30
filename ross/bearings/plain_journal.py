@@ -5,6 +5,7 @@ from scipy.optimize import curve_fit, minimize
 from plotly import graph_objects as go
 from numba import njit
 from scipy import sparse
+from prettytable import PrettyTable
 
 from ross.bearing_seal_element import BearingElement
 from ross.units import Q_, check_units
@@ -70,9 +71,6 @@ class PlainJournal(BearingElement):
         - 'thermo_hydro_dynamic': Thermo-Hydro-Dynamic model
     print_progress : bool
         Set it True to print the score and forces on each iteration.
-        False by default.
-    print_result : bool
-        Set it True to print result at the end.
         False by default.
     print_time : bool
         Set it True to print the time at the end.
@@ -184,8 +182,6 @@ class PlainJournal(BearingElement):
     ...    operating_type="flooded",
     ...    oil_supply_pressure=0,
     ...    oil_flow_v=Q_(37.86, "l/min"),
-    ...    show_coeffs=False,
-    ...    print_result=False,
     ...    print_progress=False,
     ...    print_time=False,
     ... )
@@ -219,8 +215,6 @@ class PlainJournal(BearingElement):
         operating_type="flooded",
         oil_supply_pressure=None,
         oil_flow_v=None,
-        show_coeffs=False,
-        print_result=False,
         print_progress=False,
         print_time=False,
         **kwargs,
@@ -246,8 +240,6 @@ class PlainJournal(BearingElement):
         self.model_type = model_type
         self.oil_supply_pressure = oil_supply_pressure
         self.oil_flow_v = oil_flow_v
-        self.show_coeffs = show_coeffs
-        self.print_result = print_result
         self.print_progress = print_progress
         self.print_time = print_time
 
@@ -314,6 +306,10 @@ class PlainJournal(BearingElement):
 
         # Pivot angle for lobe geometry
         self.theta_pivot = np.array([90, 270]) * np.pi / 180
+
+        # Store optimization results for later reporting
+        self._opt_results = {}
+        self._exec_times = {}
 
         n_freq = np.shape(frequency)[0]
 
@@ -679,8 +675,12 @@ class PlainJournal(BearingElement):
         self.equilibrium_pos = res.x
         t2 = time.time()
 
-        if self.print_result:
-            print(res)
+        if not hasattr(self, "_opt_results"):
+            self._opt_results = {}
+        if not hasattr(self, "_exec_times"):
+            self._exec_times = {}
+        self._opt_results[speed] = res
+        self._exec_times[speed] = t2 - t1
 
         if self.print_time:
             print(f"Time Spent: {t2 - t1} seconds")
@@ -748,17 +748,6 @@ class PlainJournal(BearingElement):
                 k, c = self._lund_method(speed)
             elif self.method == "perturbation":
                 k, c = self._perturbation_method(speed)
-
-            if self.show_coeffs:
-                print(f"kxx = {k[0]}")
-                print(f"kxy = {k[1]}")
-                print(f"kyx = {k[2]}")
-                print(f"kyy = {k[3]}")
-
-                print(f"cxx = {c[0]}")
-                print(f"cxy = {c[1]}")
-                print(f"cyx = {c[2]}")
-                print(f"cyy = {c[3]}")
 
             coeffs = (k, c)
 
@@ -2004,6 +1993,89 @@ class PlainJournal(BearingElement):
         )
 
         return fig
+
+    def show_results(self):
+        """Display plain journal bearing calculation results for all speeds.
+
+        Prints a formatted table for each speed in `self.frequency`.
+        """
+        if getattr(self, "frequency", None) is None:
+            raise ValueError("No frequency array available. Provide `frequency` when creating the bearing.")
+
+        freq_arr = np.atleast_1d(self.frequency)
+        if freq_arr.size == 0:
+            raise ValueError("Frequency array is empty.")
+
+        for speed_rad in freq_arr:
+            self._print_single_frequency_results(float(speed_rad))
+
+
+    def _print_single_frequency_results(self, speed_rad):
+        """Print results for a single speed (rad/s)."""
+        # Ensure we have equilibrium and coefficients for this speed
+        coeffs = self.coefficients(speed_rad)
+        k, c = coeffs
+
+        rpm_display = speed_rad * 30.0 / np.pi
+        ecc = float(self.equilibrium_pos[0]) if self.equilibrium_pos is not None else None
+        attitude_deg = (
+            float(self.equilibrium_pos[1]) * 180.0 / np.pi
+            if self.equilibrium_pos is not None
+            else None
+        )
+
+        table = PrettyTable()
+        table.field_names = ["Parameter", "Value", "Unit"]
+
+        table.add_row(["Operating Speed", f"{rpm_display:.1f}", "RPM"])
+        if ecc is not None:
+            table.add_row(["Eccentricity Ratio", f"{ecc:.6f}", "-"])
+        if attitude_deg is not None:
+            table.add_row(["Attitude Angle", f"{attitude_deg:.3f}", "deg"])
+
+        # Loads
+        try:
+            fx = float(getattr(self.fxs_load, "m", self.fxs_load))
+        except Exception:
+            fx = float(self.fxs_load)
+        try:
+            fy = float(getattr(self.fys_load, "m", self.fys_load))
+        except Exception:
+            fy = float(self.fys_load)
+        table.add_row(["Load Fx", f"{fx:.3f}", "N"])
+        table.add_row(["Load Fy", f"{fy:.3f}", "N"])
+
+        # Stiffness/Damping
+        table.add_row(["kxx (Stiffness)", f"{k[0]:.4e}", "N/m"])
+        table.add_row(["kxy (Stiffness)", f"{k[1]:.4e}", "N/m"])
+        table.add_row(["kyx (Stiffness)", f"{k[2]:.4e}", "N/m"])
+        table.add_row(["kyy (Stiffness)", f"{k[3]:.4e}", "N/m"])
+        table.add_row(["cxx (Damping)", f"{c[0]:.4e}", "N*s/m"])
+        table.add_row(["cxy (Damping)", f"{c[1]:.4e}", "N*s/m"])
+        table.add_row(["cyx (Damping)", f"{c[2]:.4e}", "N*s/m"])
+        table.add_row(["cyy (Damping)", f"{c[3]:.4e}", "N*s/m"])
+
+        # Optimization info per speed
+        res = None
+        exec_time = None
+        if hasattr(self, "_opt_results"):
+            res = self._opt_results.get(float(speed_rad))
+        if hasattr(self, "_exec_times"):
+            exec_time = self._exec_times.get(float(speed_rad))
+
+        if res is not None:
+            table.add_row(["Optimization Success", f"{bool(res.success)}", "-"])
+            table.add_row(["Function Value", f"{float(res.fun):.6e}", "-"])
+            table.add_row(["Iterations", f"{int(res.nit)}", "-"])
+            table.add_row(["Evaluations", f"{int(res.nfev)}", "-"])
+        if exec_time is not None:
+            table.add_row(["Execution Time", f"{exec_time:.3f}", "s"])
+
+        print("\n" + "=" * 47)
+        print(f"       PLAIN JOURNAL RESULTS - {rpm_display:.1f} RPM")
+        print("=" * 47)
+        print(table)
+        print("=" * 47)
 
 
 @njit
