@@ -40,7 +40,7 @@ class TiltingPad(BearingElement):
        - Each pad rotates independently about its pivot point
 
     4. **Dynamic Coefficients** (stiffness and damping):
-       - Uses Lund's perturbation method :cite:`lund1978`
+       - Uses virtual perturbations of displacements and speeds to determine the coefficients
        - Applies small perturbations to journal position (0.5% of clearance)
        - Applies small perturbations to journal velocity (2.5% of operating speed)
        - Solves complete THD problem for each perturbation state
