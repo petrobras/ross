@@ -311,6 +311,7 @@ class PlainJournal(BearingElement):
         self._opt_results = {}
         self._exec_times = {}
         self._equilibrium_pos_by_speed = {}
+        self.optimization_history = {}
 
         n_freq = np.shape(frequency)[0]
 
@@ -673,6 +674,18 @@ class PlainJournal(BearingElement):
         """
 
         args = (speed, self.print_progress)
+
+        # Initialize optimization history for the current speed
+        if not hasattr(self, "optimization_history"):
+            self.optimization_history = {}
+        if speed not in self.optimization_history:
+            self.optimization_history[speed] = []
+
+        def _callback(xk):
+            # Store the score value for the current speed
+            res_val = float(self._score(xk, speed))
+            self.optimization_history[speed].append(res_val)
+
         t1 = time.time()
         res = minimize(
             self._score,
@@ -682,6 +695,7 @@ class PlainJournal(BearingElement):
             bounds=[(0, 1), (-2 * np.pi, 2 * np.pi)],
             tol=0.8,
             options={"maxiter": 1e10},
+            callback=_callback,
         )
         self.equilibrium_pos = res.x
         t2 = time.time()
@@ -1782,7 +1796,6 @@ class PlainJournal(BearingElement):
                 * (np.sqrt((force_x**2) + (force_y**2)))
             )
 
-        # Ss = S * ((self.axial_length / (2 * self.journal_radius)) ** 2)
         Ss = S
 
         return Ss
@@ -1833,7 +1846,7 @@ class PlainJournal(BearingElement):
             axref="x",
             ayref="y",
             showarrow=True,
-            arrowhead=3,  # style arrow
+            arrowhead=3,
             arrowsize=2.5,
             arrowwidth=3,
             arrowcolor="green",
@@ -2144,6 +2157,54 @@ class PlainJournal(BearingElement):
 
         print(table)
         print("=" * width)
+
+    def show_optimization_convergence(self, by: str = "value") -> None:
+        """
+        Display the optimization residuals per iteration for each processed speed.
+
+        Parameters
+        ----------
+        by : str
+            'index' -> show speeds by their index in self.frequency
+            'value' -> show speeds by their numeric value (RPM)
+        """
+        if not hasattr(self, "optimization_history") or not self.optimization_history:
+            print("No residual history available. Run the analysis first.")
+            return
+
+        # map each speed_key to its index in frequency (best-effort)
+        freq_arr = np.atleast_1d(self.frequency).astype(float) if getattr(self, "frequency", None) is not None else None
+
+        items = list(self.optimization_history.items())
+        # order by index if possible and requested
+        if by == "index" and freq_arr is not None and len(freq_arr) > 0:
+            items.sort(key=lambda kv: int(np.argmin(np.abs(freq_arr - kv[0]))))
+        else:
+            items.sort(key=lambda kv: kv[0])  # sort by speed value (rad/s)
+
+        for speed_key, res_list in items:
+            if not res_list:
+                continue
+            rpm = speed_key * 30.0 / np.pi
+
+            width = 48
+            print("\n" + "=" * width)
+            print(f"OPTIMIZATION CONVERGENCE - {rpm:.1f} RPM".center(width).rstrip())
+            print("=" * width)
+
+            table = PrettyTable()
+            table.field_names = ["Iteration", "Residual"]
+            table.min_width["Iteration"] = 20
+            table.max_width["Iteration"] = 20
+            table.min_width["Residual"] = 21
+            table.max_width["Residual"] = 21
+
+            for it, res in enumerate(res_list):
+                if res is not None:
+                    table.add_row([it, f"{res:.4e}"])
+
+            print(table)
+            print("=" * width)
 
 
 @njit
