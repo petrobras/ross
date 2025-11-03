@@ -151,12 +151,8 @@ class Rotor(object):
         tag=None,
     ):
         self.parameters = {"min_w": min_w, "max_w": max_w, "rated_w": rated_w}
-        isMultiRotor = type(self) not in (Rotor, CoAxialRotor)
 
-        if tag is None:
-            self.tag = "MultiRotor 0" if isMultiRotor else "Rotor 0"
-        else:
-            self.tag = tag
+        self._set_tag(tag)
 
         ####################################################
         # Config attributes
@@ -186,8 +182,7 @@ class Rotor(object):
         for i, sh in enumerate(shaft_elements):
             if sh.n is None:
                 sh.n = i
-            if sh.tag is None or isMultiRotor:
-                sh.tag = sh.get_class_name_prefix(i)
+            self._set_element_tag(sh, i)
 
         if disk_elements is None:
             disk_elements = []
@@ -197,19 +192,16 @@ class Rotor(object):
             point_mass_elements = []
 
         for i, disk in enumerate(disk_elements):
-            if disk.tag is None or isMultiRotor:
-                disk.tag = disk.get_class_name_prefix(i)
+            self._set_element_tag(disk, i)
 
         for i, brg in enumerate(bearing_elements):
             # add n_l and n_r to bearing elements
             brg.n_l = brg.n
             brg.n_r = brg.n
-            if brg.tag is None or isMultiRotor:
-                brg.tag = brg.get_class_name_prefix(i)
+            self._set_element_tag(brg, i)
 
         for i, p_mass in enumerate(point_mass_elements):
-            if p_mass.tag is None or isMultiRotor:
-                p_mass.tag = p_mass.get_class_name_prefix(i)
+            self._set_element_tag(p_mass, i)
 
         self.shaft_elements = sorted(shaft_elements, key=lambda el: el.n)
         self.bearing_elements = sorted(bearing_elements, key=lambda el: el.n)
@@ -293,8 +285,7 @@ class Rotor(object):
                 nodes_pos_r[i] = nodes_pos_r[i - 1]
             else:
                 nodes_pos_l[i] = nodes_pos_r[i - 1]
-                if isMultiRotor:
-                    self._fix_nodes_pos(i, sh.n, nodes_pos_l)
+                self._fix_nodes_pos(i, sh.n, nodes_pos_l)
                 nodes_pos_r[i] = nodes_pos_l[i] + df_shaft.loc[i, "L"]
             axial_cg_pos[i] = sh.beam_cg + nodes_pos_l[i]
             sh.axial_cg_pos = axial_cg_pos[i]
@@ -332,16 +323,7 @@ class Rotor(object):
             raise ValueError("Trying to set disk or bearing outside shaft")
 
         # nodes axial position and diameter
-        self.nodes_pos = list(df_shaft.groupby("n_l")["nodes_pos_l"].max())
-        self.nodes_pos.append(df_shaft["nodes_pos_r"].iloc[-1])
-
-        self.nodes = list(df_shaft.groupby("n_l")["n_l"].max())
-        self.nodes.append(df_shaft["n_r"].iloc[-1])
-
-        self.center_line_pos = [0] * len(self.nodes)
-
-        if isMultiRotor:
-            self._fix_nodes()
+        self._set_nodes(df_shaft)
 
         nodes_i_d = []
         for n in self.nodes:
@@ -587,6 +569,33 @@ class Rotor(object):
         )
         self.G0 = G0
         self.Ksdt0 = Ksdt0
+
+    def _set_tag(self, tag):
+        """Set the tag for the current rotor."""
+        self.tag = tag or "Rotor 0"
+
+    def _set_element_tag(self, elm, index):
+        """Set a tag for the given element if it doesn't have one."""
+        if elm.tag is None:
+            elm.tag = elm.get_class_name_prefix(index)
+
+    def _fix_nodes_pos(self, index, node, nodes_pos_l):
+        """Optional override to adjust node positions.
+
+        Default implementation does nothing.
+        Useful for MultiRotor.
+        """
+        pass
+
+    def _set_nodes(self, df_shaft):
+        """Set nodes and nodes_pos lists."""
+        self.nodes = list(df_shaft.groupby("n_l")["n_l"].max())
+        self.nodes.append(df_shaft["n_r"].iloc[-1])
+
+        self.nodes_pos = list(df_shaft.groupby("n_l")["nodes_pos_l"].max())
+        self.nodes_pos.append(df_shaft["nodes_pos_r"].iloc[-1])
+
+        self.center_line_pos = [0] * len(self.nodes)
 
     def _check_number_dof(self):
         """Verify the consistency of degrees of freedom.
@@ -2753,14 +2762,10 @@ class Rotor(object):
             return_array = lambda array: array
             reduction = [return_array for j in range(3)]
 
-        # Assemble matrices
-        M = reduction[0](kwargs.get("M", self.M()))
-        C2 = reduction[0](kwargs.get("G", self.G()))
-        K2 = reduction[0](kwargs.get("Ksdt", self.Ksdt()))
         F = reduction[1](F.T).T
 
         # Check if there is any magnetic bearing
-        rotor, magnetic_force = self.init_ambs_for_integrate(**kwargs)
+        rotor, magnetic_force = self._init_ambs_for_integrate(**kwargs)
 
         # Consider any additional RHS function (extra forces)
         add_to_RHS = kwargs.get("add_to_RHS")
@@ -2789,6 +2794,28 @@ class Rotor(object):
                 )
             )
 
+        rotor_system = self._rotor_system_for_integrate(
+            rotor, speed, t, reduction[0], forces, **kwargs
+        )
+
+        size = F.shape[1]
+        response = newmark(rotor_system, t, size, **kwargs)
+        yout = reduction[2](response.T).T
+        return t, yout
+
+    def _rotor_system_for_integrate(
+        self, rotor, speed, t, reduce_matrix, forces, **kwargs
+    ):
+        """Build rotor system for integrate method."""
+        # Check if speed is array
+        speed_is_array = isinstance(speed, Iterable)
+        speed_ref = np.mean(speed) if speed_is_array else speed
+
+        # Assemble matrices
+        M = reduce_matrix(kwargs.get("M", self.M()))
+        C2 = reduce_matrix(kwargs.get("G", self.G()))
+        K2 = reduce_matrix(kwargs.get("Ksdt", self.Ksdt()))
+
         # Depending on the conditions of the analysis,
         # one of the three options below will be chosen.
         if speed_is_array:
@@ -2805,8 +2832,8 @@ class Rotor(object):
                     )
 
                 def rotor_system(step, **current_state):
-                    C1 = reduction[0](self.C(speed[step]))
-                    K1 = reduction[0](self.K(speed[step]))
+                    C1 = reduce_matrix(self.C(speed[step]))
+                    K1 = reduce_matrix(self.K(speed[step]))
 
                     return (
                         M,
@@ -2816,8 +2843,8 @@ class Rotor(object):
                     )
 
             else:  # Option 2
-                C1 = reduction[0](kwargs.get("C", rotor.C(speed_ref)))
-                K1 = reduction[0](kwargs.get("K", rotor.K(speed_ref)))
+                C1 = reduce_matrix(kwargs.get("C", rotor.C(speed_ref)))
+                K1 = reduce_matrix(kwargs.get("K", rotor.K(speed_ref)))
 
                 rotor_system = lambda step, **current_state: (
                     M,
@@ -2827,8 +2854,8 @@ class Rotor(object):
                 )
 
         else:  # Option 3
-            C1 = reduction[0](kwargs.get("C", rotor.C(speed_ref)))
-            K1 = reduction[0](kwargs.get("K", rotor.K(speed_ref)))
+            C1 = reduce_matrix(kwargs.get("C", rotor.C(speed_ref)))
+            K1 = reduce_matrix(kwargs.get("K", rotor.K(speed_ref)))
 
             rotor_system = lambda step, **current_state: (
                 M,
@@ -2837,18 +2864,18 @@ class Rotor(object):
                 forces(step, **current_state),
             )
 
-        size = len(M)
-        response = newmark(rotor_system, t, size, **kwargs)
-        yout = reduction[2](response.T).T
-        return t, yout
+        return rotor_system
 
-    def init_ambs_for_integrate(self, **kwargs):
+    def _init_ambs_for_integrate(self, **kwargs):
+        """Initialize ambs for integrate method."""
         magnetic_bearings = [
             brg
             for brg in self.bearing_elements
             if isinstance(brg, MagneticBearingElement)
         ]
+
         rotor = deepcopy(self)
+
         if len(magnetic_bearings):
             magnetic_force = (
                 lambda step, time_step, disp_resp: self.magnetic_bearing_controller(
