@@ -2051,9 +2051,9 @@ class PlainJournal(BearingElement):
 
         table.add_row(["Operating Speed", f"{rpm_display:.1f}", "RPM"])
         if ecc is not None:
-            table.add_row(["Eccentricity Ratio", f"{ecc:.6f}", "-"])
+            table.add_row(["Eccentricity Ratio", f"{ecc:.4e}", "-"])
         if attitude_deg is not None:
-            table.add_row(["Attitude Angle", f"{attitude_deg:.3f}", "deg"])
+            table.add_row(["Attitude Angle", f"{attitude_deg:.4e}", "deg"])
 
         # Loads
         try:
@@ -2064,8 +2064,8 @@ class PlainJournal(BearingElement):
             fy = float(getattr(self.fys_load, "m", self.fys_load))
         except Exception:
             fy = float(self.fys_load)
-        table.add_row(["Load Fx", f"{fx:.3f}", "N"])
-        table.add_row(["Load Fy", f"{fy:.3f}", "N"])
+        table.add_row(["Load Fx", f"{fx:.4e}", "N"])
+        table.add_row(["Load Fy", f"{fy:.4e}", "N"])
 
         # Stiffness/Damping (formatted like show_results)
         table.add_row(["kxx (Stiffness)", f"{k[0]:.4e}", "N/m"])
@@ -2087,11 +2087,11 @@ class PlainJournal(BearingElement):
 
         if res is not None:
             table.add_row(["Optimization Success", f"{bool(res.success)}", "-"])
-            table.add_row(["Function Value", f"{float(res.fun):.6e}", "-"])
+            table.add_row(["Function Value", f"{float(res.fun):.4e}", "-"])
             table.add_row(["Iterations", f"{int(res.nit)}", "-"])
             table.add_row(["Evaluations", f"{int(res.nfev)}", "-"])
         if exec_time is not None:
-            table.add_row(["Execution Time", f"{exec_time:.3f}", "s"])
+            table.add_row(["Execution Time", f"{exec_time:.4e}", "s"])
 
         width = 47
         print("\n" + "=" * width)
