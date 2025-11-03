@@ -69,9 +69,6 @@ class PlainJournal(BearingElement):
     model_type : str, optional
         Type of model to be used. Options:
         - 'thermo_hydro_dynamic': Thermo-Hydro-Dynamic model
-    print_time : bool
-        Set it True to print the time at the end.
-        False by default.
 
     Operation conditions
     ^^^^^^^^^^^^^^^^^^^^
@@ -179,7 +176,6 @@ class PlainJournal(BearingElement):
     ...    operating_type="flooded",
     ...    oil_supply_pressure=0,
     ...    oil_flow_v=Q_(37.86, "l/min"),
-    ...    print_time=False,
     ... )
     >>> bearing.equilibrium_pos
     array([ 0.68733194, -0.79394211])
@@ -235,7 +231,6 @@ class PlainJournal(BearingElement):
         self.model_type = model_type
         self.oil_supply_pressure = oil_supply_pressure
         self.oil_flow_v = oil_flow_v
-        self.print_time = print_time
 
         self.betha_s_dg = pad_arc_length
         self.betha_s = pad_arc_length * np.pi / 180
@@ -2189,7 +2184,11 @@ class PlainJournal(BearingElement):
             return
 
         # map each speed_key to its index in frequency
-        freq_arr = np.atleast_1d(self.frequency).astype(float) if getattr(self, "frequency", None) is not None else None
+        freq_arr = (
+            np.atleast_1d(self.frequency).astype(float)
+            if getattr(self, "frequency", None) is not None
+            else None
+        )
 
         items = list(self.optimization_history.items())
         # order by index if possible and requested
@@ -2243,14 +2242,16 @@ class PlainJournal(BearingElement):
         pressure_3d = go.Figure(
             data=[
                 go.Surface(
-                    x=theta_grid, y=z_grid, z=P,
+                    x=theta_grid,
+                    y=z_grid,
+                    z=P,
                     colorscale=coolwarm_r[::-1],
                     colorbar=dict(title="Pressure [Pa]"),
                     hovertemplate="<b>Pressure field</b><br>"
-                                + "Theta: %{x:.3f} rad<br>"
-                                + "z: %{y:.3f} m<br>"
-                                + "Pressure: %{z:.3f} Pa<br>"
-                                + "<extra></extra>",
+                    + "Theta: %{x:.3f} rad<br>"
+                    + "z: %{y:.3f} m<br>"
+                    + "Pressure: %{z:.3f} Pa<br>"
+                    + "<extra></extra>",
                 )
             ]
         )
@@ -2268,14 +2269,16 @@ class PlainJournal(BearingElement):
         temperature_3d = go.Figure(
             data=[
                 go.Surface(
-                    x=theta_grid, y=z_grid, z=T,
+                    x=theta_grid,
+                    y=z_grid,
+                    z=T,
                     colorscale=coolwarm_r[::-1],
                     colorbar=dict(title="Temperature [°C]"),
                     hovertemplate="<b>Temperature field</b><br>"
-                                + "Theta: %{x:.3f} rad<br>"
-                                + "z: %{y:.3f} m<br>"
-                                + "Temperature: %{z:.3f} °C<br>"
-                                + "<extra></extra>",
+                    + "Theta: %{x:.3f} rad<br>"
+                    + "z: %{y:.3f} m<br>"
+                    + "Temperature: %{z:.3f} °C<br>"
+                    + "<extra></extra>",
                 )
             ]
         )
@@ -2293,42 +2296,50 @@ class PlainJournal(BearingElement):
         pressure_2d = go.Figure(
             data=[
                 go.Contour(
-                    x=theta_grid[0, :], y=z_grid[:, 0], z=P,
+                    x=theta_grid[0, :],
+                    y=z_grid[:, 0],
+                    z=P,
                     colorscale=coolwarm_r[::-1],
                     colorbar=dict(title="Pressure [Pa]"),
                     contours=dict(coloring="heatmap"),
                     hovertemplate="<b>Pressure field</b><br>"
-                                + "Theta: %{x:.3f} rad<br>"
-                                + "z: %{y:.3f} m<br>"
-                                + "Pressure: %{z:.3f} Pa<br>"
-                                + "<extra></extra>",
+                    + "Theta: %{x:.3f} rad<br>"
+                    + "z: %{y:.3f} m<br>"
+                    + "Pressure: %{z:.3f} Pa<br>"
+                    + "<extra></extra>",
                 )
             ]
         )
         pressure_2d.update_layout(
-            xaxis_title="Theta [rad]", yaxis_title="z [m]",
-            title="Pressure field (theta vs z)", showlegend=False,
+            xaxis_title="Theta [rad]",
+            yaxis_title="z [m]",
+            title="Pressure field (theta vs z)",
+            showlegend=False,
         )
 
         # 2D Temperature
         temperature_2d = go.Figure(
             data=[
                 go.Contour(
-                    x=theta_grid[0, :], y=z_grid[:, 0], z=T,
+                    x=theta_grid[0, :],
+                    y=z_grid[:, 0],
+                    z=T,
                     colorscale=coolwarm_r[::-1],
                     colorbar=dict(title="Temperature [°C]"),
                     contours=dict(coloring="heatmap"),
                     hovertemplate="<b>Temperature field</b><br>"
-                                + "Theta: %{x:.3f} rad<br>"
-                                + "z: %{y:.3f} m<br>"
-                                + "Temperature: %{z:.3f} °C<br>"
-                                + "<extra></extra>",
+                    + "Theta: %{x:.3f} rad<br>"
+                    + "z: %{y:.3f} m<br>"
+                    + "Temperature: %{z:.3f} °C<br>"
+                    + "<extra></extra>",
                 )
             ]
         )
         temperature_2d.update_layout(
-            xaxis_title="Theta [rad]", yaxis_title="z [m]",
-            title="Temperature field (theta vs z)", showlegend=False,
+            xaxis_title="Theta [rad]",
+            yaxis_title="z [m]",
+            title="Temperature field (theta vs z)",
+            showlegend=False,
         )
 
         figures = {
@@ -2347,6 +2358,7 @@ class PlainJournal(BearingElement):
                 print("The figure objects are still available for manual display.")
 
         return figures
+
 
 @njit
 def _evaluate_bearing_clearance(X, Y, theta, dtheta, geometry, preload, theta_pivot):
