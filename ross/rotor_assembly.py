@@ -5439,7 +5439,7 @@ def rotor_example_with_damping():
 
 
 def rotor_amb_example():
-    r"""This function creates the model of a test rig rotor supported by magnetic bearings.
+    """This function creates the model of a test rig rotor supported by magnetic bearings.
     Details of the model can be found at doi.org/10.14393/ufu.di.2015.186.
 
     Returns
@@ -5449,34 +5449,37 @@ def rotor_amb_example():
 
     from ross.materials import Material
 
-    steel_amb = Material(name="Steel", rho=7850, E=2e11, Poisson=0.3)
+    steel_amb = Material(name="steel", rho=7850, E=1.9e11, Poisson=0.30)
+    steel_m12_amb = Material(name="steel", rho=7600, E=2e11, Poisson=0.31, color="red")
 
     # Shaft elements:
     # fmt: off
     Li = [
-        0.0, 0.012, 0.032, 0.052, 0.072, 0.092, 0.112, 0.1208, 0.12724,
-        0.13475, 0.14049, 0.14689, 0.15299, 0.159170, 0.16535, 0.180350,
-        0.1905, 0.2063, 0.2221, 0.2379, 0.2537, 0.2695, 0.2853, 0.3011,
-        0.3169, 0.3327, 0.3363, 0.3485, 0.361, 0.3735, 0.3896, 0.4057,
-        0.4218, 0.4379, 0.454, 0.4701, 0.4862, 0.5023, 0.5184, 0.5345,
-        0.54465, 0.559650, 0.565830, 0.572010, 0.57811, 0.58451, 0.590250,
-        0.59776, 0.6042, 0.613, 0.633, 0.645,
+        0.0, 0.012, 0.032, 0.052, 0.072, 0.092, 0.112, 0.1208,
+        0.12724, 0.13475, 0.14049, 0.14689, 0.15299, 0.159170,
+        0.16535, 0.180350, 0.1905, 0.2063, 0.2221, 0.2379, 0.2537,
+        0.2695, 0.2853, 0.3011, 0.3169, 0.3243, 0.3363, 0.358,
+        0.364, 0.3705, 0.3825, 0.3986, 0.4147, 0.4308, 0.4469, 
+        0.4630, 0.4791, 0.4952, 0.5113, 0.5274, 0.5356, 0.5457,
+        0.5607, 0.5669, 0.5731, 0.5792, 0.5856, 0.5913, 0.5989,
+        0.6053, 0.6141, 0.6341, 0.6461,
     ]
+
     Li = [round(i, 4) for i in Li]
     L = [Li[i + 1] - Li[i] for i in range(len(Li) - 1)]
+
     i_d = [0.0 for i in L]
     o_d1 = [0.0 for i in L]
     o_d1[0] = 6.35
     o_d1[1:5] = [32 for i in range(4)]
     o_d1[5:14] = [34.8 for i in range(9)]
-    o_d1[14:16] = [1.2 * 49.9 for i in range(2)]
+    o_d1[14:16] = [49.9 for i in range(2)]
     o_d1[16:27] = [19.05 for i in range(11)]
-    o_d1[27:29] = [0.8 * 49.9 for i in range(2)]
-    o_d1[29:39] = [19.05 for i in range(10)]
-    o_d1[39:41] = [1.2 * 49.9 for i in range(2)]
-    o_d1[41:49] = [34.8 for i in range(8)]
-    o_d1[49] = 34.8
-    o_d1[50] = 6.35
+    o_d1[27:29] = [54 for i in range(2)]
+    o_d1[29:40] = [19.05 for i in range(12)]
+    o_d1[40:42] = [49.9 for i in range(2)]
+    o_d1[42:51] = [34.8 for i in range(9)]
+    o_d1[51] = 6.35
     o_d = [i * 1e-3 for i in o_d1]
 
     shaft_elements = [
@@ -5488,55 +5491,36 @@ def rotor_amb_example():
             shear_effects=True,
             rotary_inertia=True,
             gyroscopic=True,
+            alpha=2.5,
         )
         for l, idl, odl in zip(L, i_d, o_d)
     ]
 
     # Disk elements:
-    n_list = [6, 7, 8, 9, 10, 11, 12, 13, 27, 29, 41, 42, 43, 44, 45, 46, 47, 48]
-    width = [
-        0.0088, 0.0064, 0.0075, 0.0057,
-        0.0064, 0.0061, 0.0062, 0.0062,
-        0.0124, 0.0124, 0.0062, 0.0062,
-        0.0061, 0.0064, 0.0057, 0.0075,
-        0.0064, 0.0088,
+    n_list = [27, 28, 29]
+    n_list_2 = [6, 7, 8, 9, 10, 11, 12, 13, 43, 44, 45, 46, 47, 48, 49, 50]
+    width = [0.004, 0.007, 0.014]
+    width_2 = [
+        0.0088, 0.0064, 0.0075, 0.0057, 0.0064, 0.0061, 
+        0.0062, 0.0062, 0.0062, 0.0062,0.0061, 0.0064, 
+        0.0057, 0.0075, 0.0064, 0.0088,
     ]
-    o_disc = [
-        0.0249, 0.0249, 0.0249, 0.0249,
-        0.0249, 0.0249, 0.0249, 0.0249,
-        0.0600, 0.0600, 0.0249, 0.0249,
-        0.0249, 0.0249, 0.0249, 0.0249,
-        0.0249, 0.0249,
-    ]
-    i_disc = [
-        0.0139, 0.0139, 0.0139, 0.0139,
-        0.0139, 0.0139, 0.0139, 0.0139,
-        0.0200, 0.0200, 0.0139, 0.0139,
-        0.0139, 0.0139, 0.0139, 0.0139,
-        0.0139, 0.0139,
-    ]
+    i_disc_1 = [0.054, 0.054, 0.054]
+    i_disc_2 = [0.0348] * 16
+    o_disc = [0.1200] * 3
+    o_disc_2 = [0.0498] * 16
     # fmt: on
-    m_list = [
-        np.pi * 7850 * w * ((odisc) ** 2 - (idisc) ** 2)
-        for w, odisc, idisc in zip(width, o_disc, i_disc)
-    ]
-    Id_list = [
-        m / 12 * (3 * idisc**2 + 3 * odisc**2 + w**2)
-        for m, idisc, odisc, w in zip(m_list, i_disc, o_disc, width)
-    ]
-    Ip_list = [
-        m / 2 * (idisc**2 + odisc**2) for m, idisc, odisc in zip(m_list, i_disc, o_disc)
+    disk_elements_1 = [
+        DiskElement.from_geometry(n=n, material=steel_amb, width=m, i_d=Id, o_d=Od)
+        for n, m, Id, Od in zip(n_list, width, i_disc_1, o_disc)
     ]
 
-    disk_elements = [
-        DiskElement(
-            n=n,
-            m=m,
-            Id=Id,
-            Ip=Ip,
-        )
-        for n, m, Id, Ip in zip(n_list, m_list, Id_list, Ip_list)
+    disk_elements_2 = [
+        DiskElement.from_geometry(n=n, material=steel_m12_amb, width=m, i_d=Id, o_d=Od)
+        for n, m, Id, Od in zip(n_list_2, width_2, i_disc_2, o_disc_2)
     ]
+
+    disk_elements = [*disk_elements_1, *disk_elements_2]
 
     # Bearing elements:
     n_list = [12, 43]
