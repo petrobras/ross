@@ -6,7 +6,7 @@ from prettytable import PrettyTable
 
 from ross.bearing_seal_element import BearingElement
 from ross.units import Q_, check_units
-from ross.plotly_theme import tableau_colors
+from ross.plotly_theme import tableau_colors, coolwarm_r
 from ross.bearings.lubricants import lubricants_dict
 
 
@@ -106,8 +106,6 @@ class TiltingPad(BearingElement):
         External load in Y direction. Default unit is Newton.
     initial_pads_angles : array_like, optional
         Initial pad angles. Default unit is radians.
-    print_result : bool, optional
-        Print calculation results. Default is False.
     print_progress : bool, optional
         Print calculation progress. Default is False.
     print_time : bool, optional
@@ -168,7 +166,6 @@ class TiltingPad(BearingElement):
     ...     offset=[0.5]*5,
     ...     lubricant="ISOVG32",
     ...     oil_supply_temperature=Q_(40, "degC"),
-    ...     print_result=False,
     ...     eccentricity=0.483,
     ...     attitude_angle=Q_(267.5, "deg")
     ... )
@@ -200,7 +197,6 @@ class TiltingPad(BearingElement):
         fxs_load=None,
         fys_load=None,
         initial_pads_angles=None,
-        print_result=False,
         print_progress=False,
         print_time=False,
         model_type="thermo_hydro_dynamic",
@@ -262,7 +258,6 @@ class TiltingPad(BearingElement):
         self.xtheta[0] = self.theta_1 + 0.5 * self.dtheta
 
         # Print results
-        self.print_result = print_result
         self.print_progress = print_progress
         self.print_time = print_time
         self.compare_coefficients = compare_coefficients
@@ -309,6 +304,10 @@ class TiltingPad(BearingElement):
         self.force_x_total_list = []
         self.force_y_total_list = []
         self.momen_rot_list = []
+
+        # Storage lists for field data at each frequency
+        self.pressure_fields = []
+        self.temperature_fields = []
 
         n_freq = np.shape(self.frequency)[0]
 
@@ -419,8 +418,7 @@ class TiltingPad(BearingElement):
         >>> bearing = tilting_pad_example()
         """
 
-        if self.print_time:
-            t1 = time.time()
+        self.initial_time = time.time()
 
         self.dimensionless_force = np.full(
             self.n_pad,
@@ -435,31 +433,9 @@ class TiltingPad(BearingElement):
 
         maxP, medP, maxT, medT, h_pivot, ecc = self.solve_fields()
 
-        if self.print_result:
-            print("Maximum Values:")
-            print("-" * 75)
-            print("Maximum Pressure (Pmax)    : {:15.4f} Pa".format(maxP))
-            print("Maximum Temperature (Tmax)  : {:15.2f} °C".format(maxT))
-            print("Eccentricity              : {:15.4f} [-]".format(ecc))
-            print("Minimum Film Thickness    : {:15.8f} m".format(h_pivot))
-            print("=" * 75)
-
         self.coefficients()
 
-        if self.print_result:
-            print("kxx = {0}".format(self.kxx))
-            print("kxy = {0}".format(self.kxy))
-            print("kyx = {0}".format(self.kyx))
-            print("kyy = {0}".format(self.kyy))
-            print("cxx = {0}".format(self.cxx))
-            print("cxy = {0}".format(self.cxy))
-            print("cyx = {0}".format(self.cyx))
-            print("cyy = {0}".format(self.cyy))
-            # self.plot_results()
-
-        if self.print_time:
-            t2 = time.time()
-            print("Calculation time spent: {0:.2f} seconds".format(t2 - t1))
+        self.final_time = time.time()
 
     def coefficients(self):
         """
@@ -1583,36 +1559,6 @@ class TiltingPad(BearingElement):
             self.xdin = np.zeros(self.n_pad + 2)
             self.xdin = [self.eccentricity, self.attitude_angle] + list(ang_rot)
 
-            if self.print_result:
-                print("\n" + "=" * 75)
-                print("                    TILTING PAD BEARING RESULTS")
-                print("=" * 75)
-                print("Operating Speed: {0:.1f} RPM".format(self.speed))
-                print("Eccentricity: {0:.4f}".format(self.eccentricity))
-                print(
-                    "Attitude Angle: {0:.1f}°".format(np.degrees(self.attitude_angle))
-                )
-                print("-" * 75)
-                print(
-                    "Pad #    Moment [N.m]    Rotation Angle [RAD]    Rotation Angle [DEG]"
-                )
-                print("-" * 75)
-                for i in range(len(momen_rot)):
-                    angle_deg = np.degrees(ang_rot[i])
-                    print(
-                        "{0:2d}    {1:15.6f}     {2:15.6f}     {3:15.6f}".format(
-                            i + 1, momen_rot[i], ang_rot[i], angle_deg
-                        )
-                    )
-                print("-" * 75)
-                print("Total    force_x [N]    force_y [N]    Pads:")
-                print(
-                    "        {0:15.6f}     {1:15.6f}     {2:15d}".format(
-                        self.force_x_dim, self.force_y_dim, self.n_pad
-                    )
-                )
-                print("=" * 75)
-
         elif self.equilibrium_type == "determine_eccentricity":
             # Initial guess: [eccentricity, attitude_angle, pad_angles...]
             if self.initial_pads_angles is not None:
@@ -1641,34 +1587,6 @@ class TiltingPad(BearingElement):
 
             # Update state vector
             self.xdin = x_opt.copy()
-
-            if self.print_result:
-                print("\n" + "=" * 75)
-                print("                    TILTING PAD BEARING RESULTS")
-                print("=" * 75)
-                print("Operating Speed: {0:.1f} RPM".format(self.speed))
-                print("Eccentricity: {0:.4f}".format(self.eccentricity))
-                print(
-                    "Attitude Angle: {0:.1f}°".format(np.degrees(self.attitude_angle))
-                )
-                print("-" * 75)
-                print("Pad #    Rotation Angle [RAD]    Rotation Angle [DEG]")
-                print("-" * 75)
-                for i in range(self.n_pad):
-                    angle_deg = np.degrees(self.psi_pad[i])
-                    print(
-                        "{0:2d}    {1:15.6f}     {2:15.6f}".format(
-                            i + 1, self.psi_pad[i], angle_deg
-                        )
-                    )
-                print("-" * 75)
-                print("Total    force_x [N]    force_y [N]    Pads:")
-                print(
-                    "        {0:15.6f}     {1:15.6f}     {2:15d}".format(
-                        np.sum(self.force_x_dim), np.sum(self.force_y_dim), self.n_pad
-                    )
-                )
-                print("=" * 75)
 
             self.ecc_list.append(self.eccentricity)
             self.attitude_angle_list.append(self.attitude_angle)
@@ -1970,6 +1888,10 @@ class TiltingPad(BearingElement):
         self.maxP_list.append(max_p)
         self.maxT_list.append(max_t)
         self.minH_list.append(h_pivot)
+
+        # Store complete fields for plotting
+        self.pressure_fields.append(self.pressure_dim.copy())
+        self.temperature_fields.append(self.temperature_init.copy())
 
         return max_p, med_p, max_t, med_t, h_pivot, ecc
 
@@ -3484,7 +3406,7 @@ class TiltingPad(BearingElement):
                 x=XH,
                 y=YH,
                 z=1e-6 * self.pressure_dim[:, :, self.pad_in],
-                colorscale="jet",
+                colorscale=coolwarm_r[::-1],
                 name="Pressure field",
                 showscale=True,
             )
@@ -3532,7 +3454,7 @@ class TiltingPad(BearingElement):
                 x=XH[0],
                 y=YH[:, 0],
                 z=self.temperature_init[:, :, self.pad_in],
-                colorscale="jet",
+                colorscale=coolwarm_r[::-1],
                 name="Temperature field",
                 showscale=True,
                 colorbar=dict(title="Temperature [°C]", titleside="right"),
@@ -3616,18 +3538,43 @@ class TiltingPad(BearingElement):
 
         return fig
 
-    def plot_results(self):
+    def plot_results(self, show_plots=False, freq_index=0):
         """
-        Generate and display all result plots for the tilting pad bearing.
+        Plot pressure and temperature field results for tilting pad bearing analysis.
 
-        This method creates scatter plots and contour plots for pressure and
-        temperature distributions across all pads.
+        This method generates comprehensive visualization plots for the calculated
+        pressure and temperature fields at a specific frequency. It creates scatter 
+        plots and contour plots for pressure and temperature distributions across 
+        all pads.
+
+        Parameters
+        ----------
+        show_plots : bool, optional
+            Whether to automatically display the plots. If True, attempts to show
+            all plots using the default display method. If False, returns figure
+            objects for manual display. Default is False.
+        freq_index : int, optional
+            Index of the frequency to plot results for. Must be within the range
+            of calculated frequencies. Default is 0 (first frequency).
 
         Returns
         -------
-        None
-            Plots are displayed directly.
+        dict
+            Dictionary containing four Plotly figure objects:
+            - 'pressure_scatter': Scatter plot of pressure distribution
+            - 'temperature_scatter': Scatter plot of temperature distribution
+            - 'pressure_contour': 2D contour plot of pressure field
+            - 'temperature_contour': 2D contour plot of temperature field
+
+        Notes
+        -----
+        The method creates visualizations for all pads showing the pressure and
+        temperature distributions in both scatter and contour formats for the
+        selected frequency.
         """
+        # Get fields for the selected frequency
+        pressure_field = self.pressure_fields[freq_index]
+        temperature_field = self.temperature_fields[freq_index]
 
         d_axial = self.pad_axial_length / self.nz
         axial = np.arange(0, self.pad_axial_length + d_axial, d_axial)
@@ -3640,23 +3587,40 @@ class TiltingPad(BearingElement):
             ang.append(ang1)
 
         fig_SP = self.plot_scatter(
-            x_data=ang, y_data=self.pressure_dim, pos=15, y_title="Pressure (Pa)"
+            x_data=ang, y_data=pressure_field, pos=15, y_title="Pressure (Pa)"
         )
 
         fig_ST = self.plot_scatter(
-            x_data=ang, y_data=self.temperature_init, pos=15, y_title="Temperature (ºC)"
+            x_data=ang, y_data=temperature_field, pos=15, y_title="Temperature (ºC)"
         )
 
         fig_CP = self.plot_contourP(
-            x_data=ang, y_data=axial, z_data=self.pressure_dim, z_title="Pressure (Pa)"
+            x_data=ang, y_data=axial, z_data=pressure_field, z_title="Pressure (Pa)"
         )
 
-        fig_CP = self.plot_contourT(
+        fig_CT = self.plot_contourT(
             x_data=ang,
             y_data=axial,
-            z_data=self.temperature_init,
+            z_data=temperature_field,
             z_title="Temperature (ºC)",
         )
+
+        figures = {
+            "pressure_scatter": fig_SP,
+            "temperature_scatter": fig_ST,
+            "pressure_contour": fig_CP,
+            "temperature_contour": fig_CT,
+        }
+
+        if show_plots:
+            try:
+                for fig in figures.values():
+                    fig.show()
+            except Exception as e:
+                print(f"Warning: Could not display plots automatically. Error: {e}")
+                print("The figure objects are still available for manual display.")
+
+        return figures
 
     def plot_scatter(self, x_data, y_data, pos, y_title):
         """This method plot a scatter(x,y) graph.
@@ -3741,6 +3705,7 @@ class TiltingPad(BearingElement):
                     zmin=0,
                     zmax=max_val,
                     ncontours=15,
+                    colorscale=coolwarm_r[::-1],
                     colorbar=dict(
                         title=z_title,
                         tickfont=dict(size=22),
@@ -3803,6 +3768,7 @@ class TiltingPad(BearingElement):
                     zmin=40,
                     zmax=max_val,
                     ncontours=25,
+                    colorscale=coolwarm_r[::-1],
                     colorbar=dict(
                         title=z_title,
                         tickfont=dict(size=22),
@@ -3859,92 +3825,6 @@ class TiltingPad(BearingElement):
             for i in range(self.frequency.size):
                 self._print_single_frequency_results(i)
 
-    # def _print_single_frequency_results(self, freq_index):
-    #     """Print results for a single frequency."""
-
-    #     freq = self.frequency[freq_index]
-
-    #     width = 60
-    #     print("\n" + "=" * width)
-    #     print(f"TILTING PAD BEARING RESULTS - {freq * 30 / np.pi:.1f} RPM".center(width))
-    #     print("=" * width)
-
-    #     table = PrettyTable()
-    #     table.field_names = ["Parameter", "Value", "Unit"]
-
-    #     # Operating conditions
-    #     table.add_row(["Operating Speed", f"{freq * 30 / np.pi:.1f}", "RPM"])
-    #     table.add_row(["Equilibrium Type", self.equilibrium_type, "-"])
-    #     table.add_row(["Number of Pads", f"{self.n_pad}", "-"])
-
-    #     # Field results
-    #     table.add_row(
-    #         ["Maximum Pressure", f"{self.maxP_list[freq_index]:.4e}", "Pa"]
-    #     )
-    #     table.add_row(
-    #         [
-    #             "Maximum Temperature",
-    #             f"{self.maxT_list[freq_index]:.1f}",
-    #             "°C",
-    #         ]
-    #     )
-    #     table.add_row(
-    #         ["Minimum Film Thickness", f"{self.minH_list[freq_index]:.4e}", "m"]
-    #     )
-        
-    #     # Equilibrium results
-    #     table.add_row(["Eccentricity", f"{self.ecc_list[freq_index]:.4f}", "-"])
-    #     table.add_row(
-    #         ["Attitude Angle", f"{np.degrees(self.attitude_angle_list[freq_index]):.2f}", "°"]
-    #     )
-
-    #     # Load information
-    #     table.add_row(["Total Force X", f"{self.force_x_total_list[freq_index]:.4e}", "N"])
-    #     table.add_row(["Total Force Y", f"{self.force_y_total_list[freq_index]:.4e}", "N"])
-
-    #     # Stiffness coefficients
-    #     table.add_row(["kxx (Stiffness)", f"{self.kxx[freq_index]:.4e}", "N/m"])
-    #     table.add_row(["kxy (Stiffness)", f"{self.kxy[freq_index]:.4e}", "N/m"])
-    #     table.add_row(["kyx (Stiffness)", f"{self.kyx[freq_index]:.4e}", "N/m"])
-    #     table.add_row(["kyy (Stiffness)", f"{self.kyy[freq_index]:.4e}", "N/m"])
-
-    #     # Damping coefficients
-    #     table.add_row(["cxx (Damping)", f"{self.cxx[freq_index]:.4e}", "N*s/m"])
-    #     table.add_row(["cxy (Damping)", f"{self.cxy[freq_index]:.4e}", "N*s/m"])
-    #     table.add_row(["cyx (Damping)", f"{self.cyx[freq_index]:.4e}", "N*s/m"])
-    #     table.add_row(["cyy (Damping)", f"{self.cyy[freq_index]:.4e}", "N*s/m"])
-
-    #     print(table)
-        
-    #     # Print pad rotation angles
-    #     print("\n" + "-" * width)
-    #     print("PAD ROTATION ANGLES".center(width))
-    #     print("-" * width)
-    #     pad_table = PrettyTable()
-        
-    #     # Check if moment data is available (match_eccentricity mode)
-    #     if (self.momen_rot_list[freq_index] is not None and 
-    #         self.equilibrium_type == "match_eccentricity"):
-    #         pad_table.field_names = ["Pad #", "Moment [N·m]", "Angle [rad]", "Angle [°]"]
-    #         for i in range(self.n_pad):
-    #             pad_table.add_row([
-    #                 i + 1,
-    #                 f"{self.momen_rot_list[freq_index][i]:.4e}",
-    #                 f"{self.psi_pad_list[freq_index][i]:.4e}",
-    #                 f"{np.degrees(self.psi_pad_list[freq_index][i]):.4e}"
-    #             ])
-    #     else:
-    #         # determine_eccentricity mode
-    #         pad_table.field_names = ["Pad #", "Angle [rad]", "Angle [°]"]
-    #         for i in range(self.n_pad):
-    #             pad_table.add_row([
-    #                 i + 1,
-    #                 f"{self.psi_pad_list[freq_index][i]:.4e}",
-    #                 f"{np.degrees(self.psi_pad_list[freq_index][i]):.4e}"
-    #             ])
-        
-    #     print(pad_table)
-    #     print("=" * width)
     def _print_single_frequency_results(self, freq_index):
         """Print results for a single frequency."""
 
@@ -4047,6 +3927,29 @@ class TiltingPad(BearingElement):
         print(pad_table)
         print("=" * width)
 
+    def show_execution_time(self):
+        """Display the simulation execution time.
+
+        This method calculates and displays the total time spent during the
+        complete bearing analysis execution, including all frequency calculations.
+
+        Parameters
+        ----------
+        None
+            This method uses the initial_time and final_time attributes
+            stored during the simulation execution.
+
+        Returns
+        -------
+        float
+            Total simulation time in seconds. Returns None if simulation
+            hasn't been executed yet.
+        """
+        if hasattr(self, "initial_time") and hasattr(self, "final_time"):
+            total_time = self.final_time - self.initial_time
+            print(f"Execution time: {total_time:.2f} seconds")
+        else:
+            print("Simulation hasn't been executed yet.")
 
 def tilting_pad_example():
     """Create an example of a tilting pad bearing with Thermo-Hydro-Dynamic effects.
@@ -4101,7 +4004,6 @@ def tilting_pad_example():
         oil_supply_temperature=Q_(40, "degC"),
         nx=30,
         nz=30,
-        print_result=False,
         print_progress=False,
         print_time=False,
         eccentricity=0.483,
