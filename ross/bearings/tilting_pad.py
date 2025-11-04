@@ -295,6 +295,9 @@ class TiltingPad(BearingElement):
         self.pressure_fields = []
         self.temperature_fields = []
 
+        # Optimization convergence tracking
+        self.optimization_history = {}        
+
         n_freq = np.shape(self.frequency)[0]
 
         kxx = np.zeros(n_freq)
@@ -309,6 +312,8 @@ class TiltingPad(BearingElement):
 
         for i in range(n_freq):
             self.speed = self.frequency[i]
+            self._current_freq_index = i
+            self.optimization_history[i] = []
 
             if self.model_type == "thermo_hydro_dynamic":
                 self.run_thermo_hydro_dynamic()
@@ -2170,36 +2175,8 @@ class TiltingPad(BearingElement):
 
         score = np.linalg.norm(FM)
 
-        if self.print_progress:
-            # Clear screen and rewrite
-            print("\033[2J\033[H", end="")
-
-            # Organized optimization display
-            print("=" * 80)
-            print(
-                f"                    EQUILIBRIUM OPTIMIZATION - ITERATION {self.iteration_count}"
-            )
-            print("=" * 80)
-            print(f"Eccentricity:     {eccentricity:12.6f}")
-            print(
-                f"Attitude Angle:   {np.degrees(attitude_angle):12.2f}° ({attitude_angle:12.6f} rad)"
-            )
-            print("-" * 80)
-            print("Pad #    Rotation Angle [RAD]    Rotation Angle [DEG]")
-            print("-" * 80)
-            for i in range(self.n_pad):
-                angle_deg = np.degrees(psi_pad[i])
-                print(f"{i + 1:2d}    {psi_pad[i]:15.6f}     {angle_deg:15.6f}")
-            print("-" * 80)
-            print(f"Force Residuals:")
-            print(f"  Fx + Fx_load:  {FM[0]:15.6f} N")
-            print(f"  Fy + Fy_load:  {FM[1]:15.6f} N")
-            print(f"Moment Residuals:")
-            for i in range(self.n_pad):
-                print(f"  Pad {i + 1}:      {FM[i + 2]:15.6f} N·m")
-            print("-" * 80)
-            print(f"Total Score:      {score:15.6f}")
-            print("=" * 80)
+        # Record optimization residual
+        self.record_optimization_residual(score)
 
         return score
 
@@ -2240,7 +2217,12 @@ class TiltingPad(BearingElement):
         # Calculation of hydrodynamic forces
         self._calculate_hydrodynamic_forces(n_p, psi_pad)
 
-        return abs(self.score_dim)
+        residual = abs(self.score_dim)
+        
+        # Record optimization residual
+        self.record_optimization_residual(residual)
+
+        return residual
 
     def _validate_and_adjust_x(self, x, n_p):
         """
@@ -3958,6 +3940,81 @@ class TiltingPad(BearingElement):
 
         print(comparison_table)
         print("=" * width)
+
+    def record_optimization_residual(
+        self, residual_value: float, iteration: int | None = None
+    ) -> None:
+        """
+        Store the residual value for the current frequency.
+
+        - If 'iteration' is provided, the value is placed at that index.
+        - If 'iteration' is None, the value is appended.
+
+        Notes
+        -----
+        Requires 'self._current_freq_index' to be set (done in the frequency loop).
+        """
+        idx = getattr(self, "_current_freq_index", None)
+        if idx is None:
+            return
+
+        if idx not in self.optimization_history:
+            self.optimization_history[idx] = []
+
+        if iteration is None:
+            self.optimization_history[idx].append(residual_value)
+        else:
+            if len(self.optimization_history[idx]) <= iteration:
+                self.optimization_history[idx] += [None] * (
+                    iteration + 1 - len(self.optimization_history[idx])
+                )
+            self.optimization_history[idx][iteration] = residual_value
+
+    def show_optimization_convergence(self, by: str = "index") -> None:
+        """
+        Display the optimization residuals per iteration for each processed frequency.
+
+        Parameters
+        ----------
+        by : str
+            'index' -> show frequencies by their index (default)
+            'value' -> show frequencies by their value (as stored in self.frequency)
+
+        Notes
+        -----
+        Requires 'self.optimization_history' to be populated during the solve.
+        """
+        if not hasattr(self, "optimization_history") or not self.optimization_history:
+            print("No residual history available. Run the analysis first.")
+            return
+
+        for i, res_list in self.optimization_history.items():
+            if not res_list:
+                continue
+
+            freq = self.frequency[i]
+            rpm = freq * 30 / np.pi
+
+            width = 48
+            print("\n" + "=" * width)
+            print(f"OPTIMIZATION CONVERGENCE - {rpm:.1f} RPM".center(width))
+            print("=" * width)
+
+            table = PrettyTable()
+            table.field_names = ["Iteration", "Residual"]
+
+            table.min_width["Iteration"] = 20
+            table.max_width["Iteration"] = 20
+            table.min_width["Residual"] = 21
+            table.max_width["Residual"] = 21
+
+            # Avoid None entries
+            for it, res in enumerate(res_list):
+                if res is not None:
+                    table.add_row([it, f"{res:.6f}"])
+
+            print(table)
+            print("=" * width)
 
 def tilting_pad_example():
     """Create an example of a tilting pad bearing with Thermo-Hydro-Dynamic effects.
