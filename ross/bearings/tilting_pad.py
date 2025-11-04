@@ -299,6 +299,17 @@ class TiltingPad(BearingElement):
 
         self._initialize_arrays()
 
+        # Storage lists for results at each frequency
+        self.maxP_list = []
+        self.maxT_list = []
+        self.minH_list = []
+        self.ecc_list = []
+        self.attitude_angle_list = []
+        self.psi_pad_list = []
+        self.force_x_total_list = []
+        self.force_y_total_list = []
+        self.momen_rot_list = []
+
         n_freq = np.shape(self.frequency)[0]
 
         kxx = np.zeros(n_freq)
@@ -444,7 +455,7 @@ class TiltingPad(BearingElement):
             print("cxy = {0}".format(self.cxy))
             print("cyx = {0}".format(self.cyx))
             print("cyy = {0}".format(self.cyy))
-            self.plot_results()
+            # self.plot_results()
 
         if self.print_time:
             t2 = time.time()
@@ -1562,6 +1573,13 @@ class TiltingPad(BearingElement):
             self.force_x_dim = np.sum(self.force_x_dim)
             self.force_y_dim = np.sum(self.force_y_dim)
 
+            self.ecc_list.append(self.eccentricity)
+            self.attitude_angle_list.append(self.attitude_angle)
+            self.psi_pad_list.append(ang_rot.copy())
+            self.force_x_total_list.append(self.force_x_dim)
+            self.force_y_total_list.append(self.force_y_dim)
+            self.momen_rot_list.append(momen_rot.copy())
+
             self.xdin = np.zeros(self.n_pad + 2)
             self.xdin = [self.eccentricity, self.attitude_angle] + list(ang_rot)
 
@@ -1651,6 +1669,13 @@ class TiltingPad(BearingElement):
                     )
                 )
                 print("=" * 75)
+
+            self.ecc_list.append(self.eccentricity)
+            self.attitude_angle_list.append(self.attitude_angle)
+            self.psi_pad_list.append(self.psi_pad.copy())
+            self.force_x_total_list.append(np.sum(self.force_x_dim))
+            self.force_y_total_list.append(np.sum(self.force_y_dim))
+            self.momen_rot_list.append(None)
 
         # Continue with thermo-hydrodynamic field solution
         psi_pad = np.zeros(self.n_pad)
@@ -1941,6 +1966,10 @@ class TiltingPad(BearingElement):
         med_t = self.temperature_init[:, :, self.pad_in].mean()
         h_pivot = self.h_pivot[self.pad_in]
         ecc = np.sqrt(xr**2 + yr**2) / self.radial_clearance
+
+        self.maxP_list.append(max_p)
+        self.maxT_list.append(max_t)
+        self.minH_list.append(h_pivot)
 
         return max_p, med_p, max_t, med_t, h_pivot, ecc
 
@@ -3804,6 +3833,219 @@ class TiltingPad(BearingElement):
         fig.update_layout(plot_bgcolor="white")
         fig.show()
         return fig
+
+    def show_results(self):
+        """Display tilting pad bearing calculation results in a formatted table.
+
+        This method prints the main results from the tilting pad bearing analysis
+        using PrettyTable, including operating conditions, field results,
+        load information, and dynamic coefficients for each frequency.
+
+        Parameters
+        ----------
+        None
+            This method uses the bearing parameters and results stored as
+            instance attributes.
+
+        Returns
+        -------
+        None
+            Results are printed to the console in a formatted table.
+        """
+
+        if self.frequency.size == 1:
+            self._print_single_frequency_results(0)
+        else:
+            for i in range(self.frequency.size):
+                self._print_single_frequency_results(i)
+
+    # def _print_single_frequency_results(self, freq_index):
+    #     """Print results for a single frequency."""
+
+    #     freq = self.frequency[freq_index]
+
+    #     width = 60
+    #     print("\n" + "=" * width)
+    #     print(f"TILTING PAD BEARING RESULTS - {freq * 30 / np.pi:.1f} RPM".center(width))
+    #     print("=" * width)
+
+    #     table = PrettyTable()
+    #     table.field_names = ["Parameter", "Value", "Unit"]
+
+    #     # Operating conditions
+    #     table.add_row(["Operating Speed", f"{freq * 30 / np.pi:.1f}", "RPM"])
+    #     table.add_row(["Equilibrium Type", self.equilibrium_type, "-"])
+    #     table.add_row(["Number of Pads", f"{self.n_pad}", "-"])
+
+    #     # Field results
+    #     table.add_row(
+    #         ["Maximum Pressure", f"{self.maxP_list[freq_index]:.4e}", "Pa"]
+    #     )
+    #     table.add_row(
+    #         [
+    #             "Maximum Temperature",
+    #             f"{self.maxT_list[freq_index]:.1f}",
+    #             "°C",
+    #         ]
+    #     )
+    #     table.add_row(
+    #         ["Minimum Film Thickness", f"{self.minH_list[freq_index]:.4e}", "m"]
+    #     )
+        
+    #     # Equilibrium results
+    #     table.add_row(["Eccentricity", f"{self.ecc_list[freq_index]:.4f}", "-"])
+    #     table.add_row(
+    #         ["Attitude Angle", f"{np.degrees(self.attitude_angle_list[freq_index]):.2f}", "°"]
+    #     )
+
+    #     # Load information
+    #     table.add_row(["Total Force X", f"{self.force_x_total_list[freq_index]:.4e}", "N"])
+    #     table.add_row(["Total Force Y", f"{self.force_y_total_list[freq_index]:.4e}", "N"])
+
+    #     # Stiffness coefficients
+    #     table.add_row(["kxx (Stiffness)", f"{self.kxx[freq_index]:.4e}", "N/m"])
+    #     table.add_row(["kxy (Stiffness)", f"{self.kxy[freq_index]:.4e}", "N/m"])
+    #     table.add_row(["kyx (Stiffness)", f"{self.kyx[freq_index]:.4e}", "N/m"])
+    #     table.add_row(["kyy (Stiffness)", f"{self.kyy[freq_index]:.4e}", "N/m"])
+
+    #     # Damping coefficients
+    #     table.add_row(["cxx (Damping)", f"{self.cxx[freq_index]:.4e}", "N*s/m"])
+    #     table.add_row(["cxy (Damping)", f"{self.cxy[freq_index]:.4e}", "N*s/m"])
+    #     table.add_row(["cyx (Damping)", f"{self.cyx[freq_index]:.4e}", "N*s/m"])
+    #     table.add_row(["cyy (Damping)", f"{self.cyy[freq_index]:.4e}", "N*s/m"])
+
+    #     print(table)
+        
+    #     # Print pad rotation angles
+    #     print("\n" + "-" * width)
+    #     print("PAD ROTATION ANGLES".center(width))
+    #     print("-" * width)
+    #     pad_table = PrettyTable()
+        
+    #     # Check if moment data is available (match_eccentricity mode)
+    #     if (self.momen_rot_list[freq_index] is not None and 
+    #         self.equilibrium_type == "match_eccentricity"):
+    #         pad_table.field_names = ["Pad #", "Moment [N·m]", "Angle [rad]", "Angle [°]"]
+    #         for i in range(self.n_pad):
+    #             pad_table.add_row([
+    #                 i + 1,
+    #                 f"{self.momen_rot_list[freq_index][i]:.4e}",
+    #                 f"{self.psi_pad_list[freq_index][i]:.4e}",
+    #                 f"{np.degrees(self.psi_pad_list[freq_index][i]):.4e}"
+    #             ])
+    #     else:
+    #         # determine_eccentricity mode
+    #         pad_table.field_names = ["Pad #", "Angle [rad]", "Angle [°]"]
+    #         for i in range(self.n_pad):
+    #             pad_table.add_row([
+    #                 i + 1,
+    #                 f"{self.psi_pad_list[freq_index][i]:.4e}",
+    #                 f"{np.degrees(self.psi_pad_list[freq_index][i]):.4e}"
+    #             ])
+        
+    #     print(pad_table)
+    #     print("=" * width)
+    def _print_single_frequency_results(self, freq_index):
+        """Print results for a single frequency."""
+
+        freq = self.frequency[freq_index]
+
+        width = 55
+        print("\n" + "=" * width)
+        print(f"TILTING PAD BEARING RESULTS - {freq * 30 / np.pi:.1f} RPM".center(width))
+        print("=" * width)
+
+        table = PrettyTable()
+        table.field_names = ["Parameter", "Value", "Unit"]
+        
+        # Set column alignment and width
+        table.align["Parameter"] = "l"
+        table.align["Value"] = "r"
+        table.align["Unit"] = "c"
+        
+        # Operating conditions
+        table.add_row(["Operating Speed", f"{freq * 30 / np.pi:12.1f}", "RPM"])
+        table.add_row(["Equilibrium Type", f"{self.equilibrium_type:>12}", "-"])
+        table.add_row(["Number of Pads", f"{self.n_pad:12d}", "-"])
+
+        # Field results
+        table.add_row(
+            ["Maximum Pressure", f"{self.maxP_list[freq_index]:12.4e}", "Pa"]
+        )
+        table.add_row(
+            [
+                "Maximum Temperature",
+                f"{self.maxT_list[freq_index]:12.2f}",
+                "°C",
+            ]
+        )
+        table.add_row(
+            ["Minimum Film Thickness", f"{self.minH_list[freq_index]:12.4e}", "m"]
+        )
+        
+        # Equilibrium results
+        table.add_row(["Eccentricity", f"{self.ecc_list[freq_index]:12.4f}", "-"])
+        table.add_row(
+            ["Attitude Angle", f"{np.degrees(self.attitude_angle_list[freq_index]):12.2f}", "°"]
+        )
+
+        # Load information
+        table.add_row(["Total Force X", f"{self.force_x_total_list[freq_index]:12.4e}", "N"])
+        table.add_row(["Total Force Y", f"{self.force_y_total_list[freq_index]:12.4e}", "N"])
+
+        # Stiffness coefficients
+        table.add_row(["kxx (Stiffness)", f"{self.kxx[freq_index]:12.4e}", "N/m"])
+        table.add_row(["kxy (Stiffness)", f"{self.kxy[freq_index]:12.4e}", "N/m"])
+        table.add_row(["kyx (Stiffness)", f"{self.kyx[freq_index]:12.4e}", "N/m"])
+        table.add_row(["kyy (Stiffness)", f"{self.kyy[freq_index]:12.4e}", "N/m"])
+
+        # Damping coefficients
+        table.add_row(["cxx (Damping)", f"{self.cxx[freq_index]:12.4e}", "N*s/m"])
+        table.add_row(["cxy (Damping)", f"{self.cxy[freq_index]:12.4e}", "N*s/m"])
+        table.add_row(["cyx (Damping)", f"{self.cyx[freq_index]:12.4e}", "N*s/m"])
+        table.add_row(["cyy (Damping)", f"{self.cyy[freq_index]:12.4e}", "N*s/m"])
+
+        print(table)
+        
+        # Print pad rotation angles
+        print("\n" + "-" * width)
+        print("PAD ROTATION ANGLES".center(width))
+        print("-" * width)
+        pad_table = PrettyTable()
+        
+        # Set alignment for pad table
+        pad_table.align["Pad #"] = "c"
+        
+        # Check if moment data is available (match_eccentricity mode)
+        if (self.momen_rot_list[freq_index] is not None and 
+            self.equilibrium_type == "match_eccentricity"):
+            pad_table.field_names = ["Pad #", "Moment [N·m]", "Angle [rad]", "Angle [°]"]
+            pad_table.align["Moment [N·m]"] = "r"
+            pad_table.align["Angle [rad]"] = "r"
+            pad_table.align["Angle [°]"] = "r"
+            
+            for i in range(self.n_pad):
+                pad_table.add_row([
+                    i + 1,
+                    f"{self.momen_rot_list[freq_index][i]:12.4e}",
+                    f"{self.psi_pad_list[freq_index][i]:12.4e}",
+                    f"{np.degrees(self.psi_pad_list[freq_index][i]):12.4e}"
+                ])
+        else:
+            # determine_eccentricity mode
+            pad_table.field_names = ["Pad #", "Angle [rad]", "Angle [°]"]
+            pad_table.align["Angle [rad]"] = "r"
+            pad_table.align["Angle [°]"] = "r"
+            
+            for i in range(self.n_pad):
+                pad_table.add_row([
+                    i + 1,
+                    f"{self.psi_pad_list[freq_index][i]:12.4e}",
+                    f"{np.degrees(self.psi_pad_list[freq_index][i]):12.4e}"
+                ])
+        
+        print(pad_table)
+        print("=" * width)
 
 
 def tilting_pad_example():
