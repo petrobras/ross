@@ -3246,7 +3246,6 @@ class ThrustPad(BearingElement):
         print(comparison_table)
         print("=" * width)
 
-
 def thrust_pad_example():
     """Create an example of a thrust bearing with Thermo-Hydro-Dynamic effects.
 

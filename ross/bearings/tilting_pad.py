@@ -106,12 +106,6 @@ class TiltingPad(BearingElement):
         External load in Y direction. Default unit is Newton.
     initial_pads_angles : array_like, optional
         Initial pad angles. Default unit is radians.
-    print_progress : bool, optional
-        Print calculation progress. Default is False.
-    print_time : bool, optional
-        Print calculation time. Default is False.
-    compare_coefficients : bool, optional
-        Whether to compare dynamic coefficients by each frequency in a table. Default is False.
     **kwargs : dict, optional
         Additional keyword arguments.
 
@@ -197,10 +191,7 @@ class TiltingPad(BearingElement):
         fxs_load=None,
         fys_load=None,
         initial_pads_angles=None,
-        print_progress=False,
-        print_time=False,
         model_type="thermo_hydro_dynamic",
-        compare_coefficients=False,
         **kwargs,
     ):
         self.n = n
@@ -256,11 +247,6 @@ class TiltingPad(BearingElement):
         self.xz[0] = self.z1 + 0.5 * self.dz
         self.xtheta = np.zeros(self.nx)
         self.xtheta[0] = self.theta_1 + 0.5 * self.dtheta
-
-        # Print results
-        self.print_progress = print_progress
-        self.print_time = print_time
-        self.compare_coefficients = compare_coefficients
 
         # Lubricant properties setup
         if isinstance(lubricant, str):
@@ -343,18 +329,6 @@ class TiltingPad(BearingElement):
             frequency=frequency,
             **kwargs,
         )
-
-        if self.compare_coefficients:
-            comparison_table = self.format_table(
-                frequency=self.frequency,
-                coefficients=["kxx", "kxy", "kyx", "kyy", "cxx", "cxy", "cyx", "cyy"],
-                frequency_units="RPM",
-                stiffness_units="N/m",
-                damping_units="N*s/m",
-            )
-
-            print(comparison_table)
-            print("=" * 60)
 
     def run_thermo_hydro_dynamic(self):
         """
@@ -3951,6 +3925,40 @@ class TiltingPad(BearingElement):
         else:
             print("Simulation hasn't been executed yet.")
 
+    def show_coefficients_comparison(self):
+        """Display dynamic coefficients comparison table.
+
+        This method creates and displays a formatted table comparing dynamic
+        coefficients (stiffness and damping) across different frequencies.
+
+        Parameters
+        ----------
+        None
+            This method uses the frequency array and coefficients stored as
+            instance attributes.
+
+        Returns
+        -------
+        None
+            Results are printed to the console in a formatted table.
+        """
+
+        width = 147
+        print("\n" + "=" * width)
+        print("DYNAMIC COEFFICIENTS COMPARISON TABLE".center(width))
+        print("=" * width)
+
+        comparison_table = self.format_table(
+            frequency=self.frequency,
+            coefficients=["kxx", "kxy", "kyx", "kyy", "cxx", "cxy", "cyx", "cyy"],
+            frequency_units="RPM",
+            stiffness_units="N/m",
+            damping_units="N*s/m",
+        )
+
+        print(comparison_table)
+        print("=" * width)
+
 def tilting_pad_example():
     """Create an example of a tilting pad bearing with Thermo-Hydro-Dynamic effects.
 
@@ -4004,8 +4012,6 @@ def tilting_pad_example():
         oil_supply_temperature=Q_(40, "degC"),
         nx=30,
         nz=30,
-        print_progress=False,
-        print_time=False,
         eccentricity=0.483,
         attitude_angle=Q_(267.5, "deg"),
     )
