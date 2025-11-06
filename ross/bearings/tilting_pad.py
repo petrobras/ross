@@ -296,7 +296,7 @@ class TiltingPad(BearingElement):
         self.temperature_fields = []
 
         # Optimization convergence tracking
-        self.optimization_history = {}        
+        self.optimization_history = {}
 
         n_freq = np.shape(self.frequency)[0]
 
@@ -2218,7 +2218,7 @@ class TiltingPad(BearingElement):
         self._calculate_hydrodynamic_forces(n_p, psi_pad)
 
         residual = abs(self.score_dim)
-        
+
         # Record optimization residual
         self.record_optimization_residual(residual)
 
@@ -3499,8 +3499,8 @@ class TiltingPad(BearingElement):
         Plot pressure and temperature field results for tilting pad bearing analysis.
 
         This method generates comprehensive visualization plots for the calculated
-        pressure and temperature fields at a specific frequency. It creates scatter 
-        plots and contour plots for pressure and temperature distributions across 
+        pressure and temperature fields at a specific frequency. It creates scatter
+        plots and contour plots for pressure and temperature distributions across
         all pads.
 
         Parameters
@@ -3788,26 +3788,26 @@ class TiltingPad(BearingElement):
 
         width = 55
         print("\n" + "=" * width)
-        print(f"TILTING PAD BEARING RESULTS - {freq * 30 / np.pi:.1f} RPM".center(width))
+        print(
+            f"TILTING PAD BEARING RESULTS - {freq * 30 / np.pi:.1f} RPM".center(width)
+        )
         print("=" * width)
 
         table = PrettyTable()
         table.field_names = ["Parameter", "Value", "Unit"]
-        
+
         # Set column alignment and width
         table.align["Parameter"] = "l"
         table.align["Value"] = "r"
         table.align["Unit"] = "c"
-        
+
         # Operating conditions
         table.add_row(["Operating Speed", f"{freq * 30 / np.pi:12.1f}", "RPM"])
         table.add_row(["Equilibrium Type", f"{self.equilibrium_type:>12}", "-"])
         table.add_row(["Number of Pads", f"{self.n_pad:12d}", "-"])
 
         # Field results
-        table.add_row(
-            ["Maximum Pressure", f"{self.maxP_list[freq_index]:12.4e}", "Pa"]
-        )
+        table.add_row(["Maximum Pressure", f"{self.maxP_list[freq_index]:12.4e}", "Pa"])
         table.add_row(
             [
                 "Maximum Temperature",
@@ -3818,16 +3818,24 @@ class TiltingPad(BearingElement):
         table.add_row(
             ["Minimum Film Thickness", f"{self.minH_list[freq_index]:12.4e}", "m"]
         )
-        
+
         # Equilibrium results
         table.add_row(["Eccentricity", f"{self.ecc_list[freq_index]:12.4f}", "-"])
         table.add_row(
-            ["Attitude Angle", f"{np.degrees(self.attitude_angle_list[freq_index]):12.2f}", "°"]
+            [
+                "Attitude Angle",
+                f"{np.degrees(self.attitude_angle_list[freq_index]):12.2f}",
+                "°",
+            ]
         )
 
         # Load information
-        table.add_row(["Total Force X", f"{self.force_x_total_list[freq_index]:12.4e}", "N"])
-        table.add_row(["Total Force Y", f"{self.force_y_total_list[freq_index]:12.4e}", "N"])
+        table.add_row(
+            ["Total Force X", f"{self.force_x_total_list[freq_index]:12.4e}", "N"]
+        )
+        table.add_row(
+            ["Total Force Y", f"{self.force_y_total_list[freq_index]:12.4e}", "N"]
+        )
 
         # Stiffness coefficients
         table.add_row(["kxx (Stiffness)", f"{self.kxx[freq_index]:12.4e}", "N/m"])
@@ -3842,44 +3850,55 @@ class TiltingPad(BearingElement):
         table.add_row(["cyy (Damping)", f"{self.cyy[freq_index]:12.4e}", "N*s/m"])
 
         print(table)
-        
+
         # Print pad rotation angles
         print("\n" + "-" * width)
         print("PAD ROTATION ANGLES".center(width))
         print("-" * width)
         pad_table = PrettyTable()
-        
+
         # Set alignment for pad table
         pad_table.align["Pad #"] = "c"
-        
+
         # Check if moment data is available (match_eccentricity mode)
-        if (self.momen_rot_list[freq_index] is not None and 
-            self.equilibrium_type == "match_eccentricity"):
-            pad_table.field_names = ["Pad #", "Moment [N·m]", "Angle [rad]", "Angle [°]"]
+        if (
+            self.momen_rot_list[freq_index] is not None
+            and self.equilibrium_type == "match_eccentricity"
+        ):
+            pad_table.field_names = [
+                "Pad #",
+                "Moment [N·m]",
+                "Angle [rad]",
+                "Angle [°]",
+            ]
             pad_table.align["Moment [N·m]"] = "r"
             pad_table.align["Angle [rad]"] = "r"
             pad_table.align["Angle [°]"] = "r"
-            
+
             for i in range(self.n_pad):
-                pad_table.add_row([
-                    i + 1,
-                    f"{self.momen_rot_list[freq_index][i]:12.4e}",
-                    f"{self.psi_pad_list[freq_index][i]:12.4e}",
-                    f"{np.degrees(self.psi_pad_list[freq_index][i]):12.4e}"
-                ])
+                pad_table.add_row(
+                    [
+                        i + 1,
+                        f"{self.momen_rot_list[freq_index][i]:12.4e}",
+                        f"{self.psi_pad_list[freq_index][i]:12.4e}",
+                        f"{np.degrees(self.psi_pad_list[freq_index][i]):12.4e}",
+                    ]
+                )
         else:
             # determine_eccentricity mode
             pad_table.field_names = ["Pad #", "Angle [rad]", "Angle [°]"]
             pad_table.align["Angle [rad]"] = "r"
             pad_table.align["Angle [°]"] = "r"
-            
+
             for i in range(self.n_pad):
-                pad_table.add_row([
-                    i + 1,
-                    f"{self.psi_pad_list[freq_index][i]:12.4e}",
-                    f"{np.degrees(self.psi_pad_list[freq_index][i]):12.4e}"
-                ])
-        
+                pad_table.add_row(
+                    [
+                        i + 1,
+                        f"{self.psi_pad_list[freq_index][i]:12.4e}",
+                        f"{np.degrees(self.psi_pad_list[freq_index][i]):12.4e}",
+                    ]
+                )
+
         print(pad_table)
         print("=" * width)
 
@@ -4015,6 +4034,7 @@ class TiltingPad(BearingElement):
 
             print(table)
             print("=" * width)
+
 
 def tilting_pad_example():
     """Create an example of a tilting pad bearing with Thermo-Hydro-Dynamic effects.

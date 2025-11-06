@@ -3220,7 +3220,7 @@ class ThrustPad(BearingElement):
         >>> bearing.show_coefficients_comparison()
         <BLANKLINE>
         ===========================================================
-                   DYNAMIC COEFFICIENTS COMPARISON TABLE
+                   DYNAMIC COEFFICIENTS COMPARISON TABLE           
         ===========================================================
         +-----------------+-------------------+-------------------+
         | Frequency [RPM] |     kzz [N/m]     |    czz [N*s/m]    |
@@ -3245,6 +3245,7 @@ class ThrustPad(BearingElement):
 
         print(comparison_table)
         print("=" * width)
+
 
 def thrust_pad_example():
     """Create an example of a thrust bearing with Thermo-Hydro-Dynamic effects.
