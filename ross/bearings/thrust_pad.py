@@ -3217,7 +3217,7 @@ class ThrustPad(BearingElement):
         --------
         >>> from ross.bearings.thrust_pad import thrust_pad_example
         >>> bearing = thrust_pad_example()
-        >>> bearing.show_coefficients_comparison()
+        >>> bearing.show_coefficients_comparison()  # doctest: +ELLIPSIS
         <BLANKLINE>
         ===========================================================
                    DYNAMIC COEFFICIENTS COMPARISON TABLE           
