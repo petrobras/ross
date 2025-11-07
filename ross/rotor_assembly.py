@@ -1650,7 +1650,7 @@ class Rotor(object):
 
         lu, piv = lu_factor(
             -(frequency**2) * self.M(frequency=speed)
-            + 1j * frequency * (self.C(frequency=speed) + frequency * self.G())
+            + 1j * frequency * (self.C(frequency=speed) + speed * self.G())
             + self.K(frequency=speed)
         )
         H = lu_solve((lu, piv), I)
