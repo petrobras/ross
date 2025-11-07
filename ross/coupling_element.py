@@ -171,8 +171,11 @@ class CouplingElement(ShaftElement):
         self.cr_y = float(cr_y)
         self.cr_z = float(cr_z)
 
-        self.o_d = 100e-3 if o_d is None else float(o_d)
-        self.L = 0.3 if o_d is None else float(L)
+        self.o_d = 0.2 if o_d is None else float(o_d)
+        self.L = 0.2 if L is None else float(L)
+        self.odl = self.o_d
+        self.odr = self.o_d
+
         self.tag = tag
         self.scale_factor = scale_factor
         self.color = color
@@ -479,13 +482,13 @@ class CouplingElement(ShaftElement):
         """
         zpos, ypos = position
         L = self.L
-        scale = self.scale_factor * 0.3
+        od = self.o_d * self.scale_factor
 
         # plot the coupling
         z_upper = [zpos, zpos, zpos + L, zpos + L, zpos]
-        y_upper = [ypos, ypos + scale, ypos + scale, ypos, ypos]
+        y_upper = [0, od / 2, od / 2, 0, 0]
         z_lower = [zpos, zpos, zpos + L, zpos + L, zpos]
-        y_lower = [ypos, ypos - scale, ypos - scale, ypos, ypos]
+        y_lower = [0, -od / 2, -od / 2, 0, 0]
 
         z_pos = z_upper
         z_pos.extend(z_lower)
