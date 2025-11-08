@@ -32,6 +32,7 @@ from ross.coupling_element import CouplingElement
 from ross.disk_element import DiskElement
 from ross.faults import Crack, MisalignmentFlex, MisalignmentRigid, Rubbing
 from ross.materials import Material, steel
+from ross.model_reduction import ModelReduction
 from ross.point_mass import PointMass
 from ross.results import (
     CampbellResults,
@@ -41,12 +42,13 @@ from ross.results import (
     FrequencyResponseResults,
     Level1Results,
     ModalResults,
+    SensitivityResults,
     StaticResults,
     SummaryResults,
     TimeResponseResults,
     UCSResults,
-    SensitivityResults,
 )
+from ross.seals.labyrinth_seal import LabyrinthSeal
 from ross.shaft_element import ShaftElement
 from ross.units import Q_, check_units
 from ross.utils import (
@@ -57,9 +59,6 @@ from ross.utils import (
     newmark,
     remove_dofs,
 )
-from ross.seals.labyrinth_seal import LabyrinthSeal
-
-from ross.model_reduction import ModelReduction
 
 __all__ = [
     "Rotor",
@@ -562,8 +561,12 @@ class Rotor(object):
                 Ksdt0[np.ix_(dofs, dofs)] += elm.Kdt()
 
         self.M0 = M0
-        self.C0 = C0
         self.K0 = K0
+        self.C0 = (
+            C0
+            if self.elements[0].damping_type == "proportional"
+            else self._modal_damping(self.elements[0].qsi)
+        )
         self.G0 = G0
         self.Ksdt0 = Ksdt0
 
@@ -655,6 +658,44 @@ class Rotor(object):
                 else:
                     return brg.n
         return None
+
+    def _modal_damping(self, qsi):
+        """Compute the physical damping matrix from modal damping ratios.
+
+        Parameters
+        ----------
+        qsi : float or array-like
+            Modal damping ratio(s) to apply to flexible modes (ξ).
+        Returns
+        -------
+        C0 : np.ndarray
+            The physical damping matrix (in physical coordinates) that corresponds
+            to the specified modal damping ratios.
+        """
+
+        evals, evecs = np.linalg.eig(np.linalg.inv(self.M(0)) @ self.K(0))
+        stable = evals >= 0
+        evals = evals[stable]
+        evecs = evecs[:, stable]
+
+        w = np.sqrt(evals.real)
+        below_1rpm = Q_(np.sort(w), "rad/s").to("RPM").m < 1
+        modal_damping = np.block([np.zeros(below_1rpm.sum()), np.array(qsi)])
+        idx = np.argsort(w)
+        w = w[idx]
+        phi = evecs[:, idx]
+
+        # Full damping vector (pad with zeros if needed)
+        full_xi = np.zeros_like(w)
+        full_xi[: len(modal_damping)] = modal_damping
+
+        # Modal damping matrix: C_modal = diag(2 * ξ_i * ω_i)
+        C_modal = np.diag(2 * full_xi * w)
+        M_modal = phi.T @ self.M0 @ phi
+        T = np.linalg.solve(M_modal, phi.T)
+        C0 = self.M0 @ phi @ C_modal @ T @ self.M0
+
+        return C0
 
     def __eq__(self, other):
         """Equality method for comparasions.
