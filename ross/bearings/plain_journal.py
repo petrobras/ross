@@ -2116,12 +2116,21 @@ class PlainJournal(BearingElement):
         if exec_time is not None:
             table.add_row(["Execution Time", f"{exec_time:.4e}", "s"])
 
-        width = 47
-        print("\n" + "=" * width)
-        print(f"PLAIN JOURNAL RESULTS - {rpm_display:.1f} RPM".center(width))
-        print("=" * width)
+        # Table width
+        desired_width = 25
+
+        table.max_width = desired_width
+        table.min_width = desired_width
+
+        table_str = table.get_string()
+        table_lines = table_str.split("\n")
+        actual_width = len(table_lines[0])
+
+        print("\n" + "=" * actual_width)
+        print(f"PLAIN JOURNAL RESULTS - {rpm_display:.1f} RPM".center(actual_width))
+        print("=" * actual_width)
         print(table)
-        print("=" * width)
+        print("=" * actual_width)
 
     def show_coefficients_comparison(self):
         """Display dynamic coefficients comparison table for all speeds."""
@@ -2131,11 +2140,6 @@ class PlainJournal(BearingElement):
             )
 
         freq_rpm = np.atleast_1d(self.frequency).astype(float) * 30.0 / np.pi
-
-        width = 128
-        print("\n" + "=" * width)
-        print("DYNAMIC COEFFICIENTS COMPARISON TABLE".center(width))
-        print("=" * width)
 
         table = PrettyTable()
         headers = [
@@ -2165,8 +2169,21 @@ class PlainJournal(BearingElement):
             ]
             table.add_row(row)
 
+        # Table width
+        desired_width = 25
+
+        table.max_width = desired_width
+        table.min_width = desired_width
+
+        table_str = table.get_string()
+        table_lines = table_str.split("\n")
+        actual_width = len(table_lines[0])
+
+        print("\n" + "=" * actual_width)
+        print("DYNAMIC COEFFICIENTS COMPARISON TABLE".center(actual_width))
+        print("=" * actual_width)
         print(table)
-        print("=" * width)
+        print("=" * actual_width)
 
     def show_optimization_convergence(
         self, by: str = "value", show_plots: bool = False
@@ -2378,10 +2395,10 @@ class PlainJournal(BearingElement):
         )
 
         figures = {
-            "pressure_2d": pressure_2d,
-            "pressure_3d": pressure_3d,
-            "temperature_2d": temperature_2d,
-            "temperature_3d": temperature_3d,
+            "pressure_2D": pressure_2d,
+            "pressure_3D": pressure_3d,
+            "temperature_2D": temperature_2d,
+            "temperature_3D": temperature_3d,
         }
 
         if show_plots:
