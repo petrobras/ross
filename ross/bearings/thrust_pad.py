@@ -405,11 +405,6 @@ class ThrustPad(BearingElement):
 
         freq = self.frequency[freq_index]
 
-        width = 48
-        print("\n" + "=" * width)
-        print(f"THRUST BEARING RESULTS - {freq * 30 / np.pi:.1f} RPM".center(width))
-        print("=" * width)
-
         table = PrettyTable()
         table.field_names = ["Parameter", "Value", "Unit"]
 
@@ -448,8 +443,23 @@ class ThrustPad(BearingElement):
         table.add_row(["kzz (Stiffness)", f"{self.kzz[freq_index]:.4e}", "N/m"])
         table.add_row(["czz (Damping)", f"{self.czz[freq_index]:.4e}", "N*s/m"])
 
+        # Table width
+        desired_width = 25
+
+        table.max_width = desired_width
+        table.min_width = desired_width
+
+        table_str = table.get_string()
+        table_lines = table_str.split("\n")
+        actual_width = len(table_lines[0])
+
+        print("\n" + "=" * actual_width)
+        print(
+            f"THRUST BEARING RESULTS - {freq * 30 / np.pi:.1f} RPM".center(actual_width)
+        )
+        print("=" * actual_width)
         print(table)
-        print("=" * width)
+        print("=" * actual_width)
 
     def solve_fields(self):
         """Solve pressure and temperature fields iteratively until convergence.
@@ -2954,10 +2964,10 @@ class ThrustPad(BearingElement):
         -------
         dict
             Dictionary containing four Plotly figure objects:
-            - 'pressure_3d': 3D surface plot of pressure field
-            - 'temperature_3d': 3D surface plot of temperature field
-            - 'pressure_2d': 2D contour plot of pressure field
-            - 'temperature_2d': 2D contour plot of temperature field
+            - 'pressure_3D': 3D surface plot of pressure field
+            - 'temperature_3D': 3D surface plot of temperature field
+            - 'pressure_2D': 2D contour plot of pressure field
+            - 'temperature_2D': 2D contour plot of temperature field
 
         Notes
         -----
@@ -3056,10 +3066,10 @@ class ThrustPad(BearingElement):
         )
 
         figures = {
-            "pressure_2d": pressure_contour_fig,
-            "pressure_3d": pressure_3d_fig,
-            "temperature_2d": temperature_contour_fig,
-            "temperature_3d": temperature_3d_fig,
+            "pressure_2D": pressure_contour_fig,
+            "pressure_3D": pressure_3d_fig,
+            "temperature_2D": temperature_contour_fig,
+            "temperature_3D": temperature_3d_fig,
         }
 
         if show_plots:
@@ -3105,6 +3115,7 @@ class ThrustPad(BearingElement):
                 y=y_coords,
                 z=z_data,
                 colorscale="Viridis",
+                colorbar=dict(title=z_label),
                 name=title,
                 hovertemplate=f"<b>{title}</b><br>"
                 + "X: %{x:.3f}<br>"
@@ -3173,6 +3184,7 @@ class ThrustPad(BearingElement):
                 y=y_grid[:, 0],
                 z=z_data,
                 colorscale="Viridis",
+                colorbar=dict(title=colorbar_title),
                 name=title,
                 hovertemplate=f"<b>{title}</b><br>"
                 + "X: %{x:.3f}<br>"
@@ -3241,39 +3253,41 @@ class ThrustPad(BearingElement):
         -------
         None
             Results are printed to the console in a formatted table.
-
-        Examples
-        --------
-        >>> from ross.bearings.thrust_pad import thrust_pad_example
-        >>> bearing = thrust_pad_example()
-        >>> bearing.show_coefficients_comparison()  # doctest: +ELLIPSIS
-        <BLANKLINE>
-        ===========================================================
-                   DYNAMIC COEFFICIENTS COMPARISON TABLE
-        ===========================================================
-        +-----------------+-------------------+-------------------+
-        | Frequency [RPM] |     kzz [N/m]     |    czz [N*s/m]    |
-        +-----------------+-------------------+-------------------+
-        |       90.0      | 317639857094.23... | 10805717455.199... |
-        +-----------------+-------------------+-------------------+
-        ===========================================================
         """
 
-        width = 59
-        print("\n" + "=" * width)
-        print("DYNAMIC COEFFICIENTS COMPARISON TABLE".center(width))
-        print("=" * width)
+        freq_rpm = np.atleast_1d(self.frequency).astype(float) * 30.0 / np.pi
 
-        comparison_table = self.format_table(
-            frequency=self.frequency,
-            coefficients=["kzz", "czz"],
-            frequency_units="RPM",
-            stiffness_units="N/m",
-            damping_units="N*s/m",
-        )
+        table = PrettyTable()
+        headers = [
+            "Frequency [RPM]",
+            "kzz [N/m]",
+            "czz [N*s/m]",
+        ]
+        table.field_names = headers
 
-        print(comparison_table)
-        print("=" * width)
+        for i in range(len(freq_rpm)):
+            row = [
+                f"{freq_rpm[i]:.1f}",
+                f"{self.kzz[i]:.4e}",
+                f"{self.czz[i]:.4e}",
+            ]
+            table.add_row(row)
+
+        # Table width
+        desired_width = 25
+
+        table.max_width = desired_width
+        table.min_width = desired_width
+
+        table_str = table.get_string()
+        table_lines = table_str.split("\n")
+        actual_width = len(table_lines[0])
+
+        print("\n" + "=" * actual_width)
+        print("DYNAMIC COEFFICIENTS COMPARISON TABLE".center(actual_width))
+        print("=" * actual_width)
+        print(table)
+        print("=" * actual_width)
 
 
 def thrust_pad_example():
