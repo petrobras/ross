@@ -3519,8 +3519,8 @@ class TiltingPad(BearingElement):
             Dictionary containing four Plotly figure objects:
             - 'pressure_scatter': Scatter plot of pressure distribution
             - 'temperature_scatter': Scatter plot of temperature distribution
-            - 'pressure_contour': 2D contour plot of pressure field
-            - 'temperature_contour': 2D contour plot of temperature field
+            - 'pressure_2D': 2D contour plot of pressure field
+            - 'temperature_2D': 2D contour plot of temperature field
 
         Notes
         -----
@@ -3564,8 +3564,8 @@ class TiltingPad(BearingElement):
         figures = {
             "pressure_scatter": fig_SP,
             "temperature_scatter": fig_ST,
-            "pressure_contour": fig_CP,
-            "temperature_contour": fig_CT,
+            "pressure_2D": fig_CP,
+            "temperature_2D": fig_CT,
         }
 
         if show_plots:
