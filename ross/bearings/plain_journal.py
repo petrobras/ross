@@ -9,7 +9,7 @@ from prettytable import PrettyTable
 
 from ross.bearing_seal_element import BearingElement
 from ross.units import Q_, check_units
-from ross.plotly_theme import coolwarm_r, tableau_colors
+from ross.plotly_theme import tableau_colors
 from ross.bearings.lubricants import lubricants_dict
 
 
@@ -207,7 +207,6 @@ class PlainJournal(BearingElement):
         operating_type="flooded",
         oil_supply_pressure=None,
         oil_flow_v=None,
-        print_time=False,
         **kwargs,
     ):
         self.axial_length = axial_length
@@ -2245,7 +2244,7 @@ class PlainJournal(BearingElement):
                     x=theta_grid,
                     y=z_grid,
                     z=P,
-                    colorscale=coolwarm_r[::-1],
+                    colorscale="Viridis",
                     colorbar=dict(title="Pressure [Pa]"),
                     hovertemplate="<b>Pressure field</b><br>"
                     + "Theta: %{x:.3f} rad<br>"
@@ -2272,7 +2271,7 @@ class PlainJournal(BearingElement):
                     x=theta_grid,
                     y=z_grid,
                     z=T,
-                    colorscale=coolwarm_r[::-1],
+                    colorscale="Viridis",
                     colorbar=dict(title="Temperature [°C]"),
                     hovertemplate="<b>Temperature field</b><br>"
                     + "Theta: %{x:.3f} rad<br>"
@@ -2299,7 +2298,7 @@ class PlainJournal(BearingElement):
                     x=theta_grid[0, :],
                     y=z_grid[:, 0],
                     z=P,
-                    colorscale=coolwarm_r[::-1],
+                    colorscale="Viridis",
                     colorbar=dict(title="Pressure [Pa]"),
                     contours=dict(coloring="heatmap"),
                     hovertemplate="<b>Pressure field</b><br>"
@@ -2324,7 +2323,7 @@ class PlainJournal(BearingElement):
                     x=theta_grid[0, :],
                     y=z_grid[:, 0],
                     z=T,
-                    colorscale=coolwarm_r[::-1],
+                    colorscale="Viridis",
                     colorbar=dict(title="Temperature [°C]"),
                     contours=dict(coloring="heatmap"),
                     hovertemplate="<b>Temperature field</b><br>"

@@ -6,7 +6,7 @@ from prettytable import PrettyTable
 
 from ross.bearing_seal_element import BearingElement
 from ross.units import Q_, check_units
-from ross.plotly_theme import tableau_colors, coolwarm_r
+from ross.plotly_theme import tableau_colors
 from ross.bearings.lubricants import lubricants_dict
 
 
@@ -3362,7 +3362,7 @@ class TiltingPad(BearingElement):
                 x=XH,
                 y=YH,
                 z=1e-6 * self.pressure_dim[:, :, self.pad_in],
-                colorscale=coolwarm_r[::-1],
+                colorscale="Viridis",
                 name="Pressure field",
                 showscale=True,
             )
@@ -3410,7 +3410,7 @@ class TiltingPad(BearingElement):
                 x=XH[0],
                 y=YH[:, 0],
                 z=self.temperature_init[:, :, self.pad_in],
-                colorscale=coolwarm_r[::-1],
+                colorscale="Viridis",
                 name="Temperature field",
                 showscale=True,
                 colorbar=dict(title="Temperature [°C]", titleside="right"),
@@ -3661,7 +3661,7 @@ class TiltingPad(BearingElement):
                     zmin=0,
                     zmax=max_val,
                     ncontours=15,
-                    colorscale=coolwarm_r[::-1],
+                    colorscale="Viridis",
                     colorbar=dict(
                         title=z_title,
                         tickfont=dict(size=22),
@@ -3724,7 +3724,7 @@ class TiltingPad(BearingElement):
                     zmin=40,
                     zmax=max_val,
                     ncontours=25,
-                    colorscale=coolwarm_r[::-1],
+                    colorscale="Viridis",
                     colorbar=dict(
                         title=z_title,
                         tickfont=dict(size=22),

@@ -7,7 +7,6 @@ from prettytable import PrettyTable
 
 from ross.bearing_seal_element import BearingElement
 from ross.units import Q_, check_units
-from ross.plotly_theme import coolwarm_r
 from ross.bearings.lubricants import lubricants_dict
 
 
@@ -3075,7 +3074,7 @@ class ThrustPad(BearingElement):
                 x=x_coords,
                 y=y_coords,
                 z=z_data,
-                colorscale=coolwarm_r[::-1],
+                colorscale="Viridis",
                 name=title,
                 hovertemplate=f"<b>{title}</b><br>"
                 + "X: %{x:.3f}<br>"
@@ -3143,7 +3142,7 @@ class ThrustPad(BearingElement):
                 x=x_grid[0, :],
                 y=y_grid[:, 0],
                 z=z_data,
-                colorscale=coolwarm_r[::-1],
+                colorscale="Viridis",
                 name=title,
                 hovertemplate=f"<b>{title}</b><br>"
                 + "X: %{x:.3f}<br>"
@@ -3220,7 +3219,7 @@ class ThrustPad(BearingElement):
         >>> bearing.show_coefficients_comparison()  # doctest: +ELLIPSIS
         <BLANKLINE>
         ===========================================================
-                   DYNAMIC COEFFICIENTS COMPARISON TABLE           
+                   DYNAMIC COEFFICIENTS COMPARISON TABLE
         ===========================================================
         +-----------------+-------------------+-------------------+
         | Frequency [RPM] |     kzz [N/m]     |    czz [N*s/m]    |
