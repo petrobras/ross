@@ -1331,7 +1331,9 @@ class ThrustPad(BearingElement):
                 )
             self.optimization_history[idx][iteration] = residual_value
 
-    def show_optimization_convergence(self, by: str = "index") -> None:
+    def show_optimization_convergence(
+        self, by: str = "index", show_plots: bool = False
+    ) -> None:
         """
         Display the optimization residuals per iteration for each processed frequency.
 
@@ -1340,6 +1342,8 @@ class ThrustPad(BearingElement):
         by : str
             'index' -> show frequencies by their index (default)
             'value' -> show frequencies by their value (as stored in self.frequency)
+        show_plots : bool
+            Whether to show the convergence plot. Default is False.
 
         Notes
         -----
@@ -1356,26 +1360,52 @@ class ThrustPad(BearingElement):
             freq = self.frequency[i]
             rpm = freq * 30 / np.pi
 
-            width = 48
-            print("\n" + "=" * width)
-            print(f"OPTIMIZATION CONVERGENCE - {rpm:.1f} RPM".center(width))
-            print("=" * width)
+            # Table width
+            desired_width = 25
 
             table = PrettyTable()
-            table.field_names = ["Iteration", "Residual"]
+            table.field_names = ["Iteration", "Residual [N]"]
 
-            table.min_width["Iteration"] = 20
-            table.max_width["Iteration"] = 20
-            table.min_width["Residual"] = 21
-            table.max_width["Residual"] = 21
-
-            # Avoid None entries
             for it, res in enumerate(res_list):
                 if res is not None:
                     table.add_row([it, f"{res:.6f}"])
 
+            table.max_width = desired_width
+            table.min_width = desired_width
+
+            table_str = table.get_string()
+            table_lines = table_str.split("\n")
+            actual_width = len(table_lines[0])
+
+            print("\n" + "=" * actual_width)
+            print(f"OPTIMIZATION CONVERGENCE - {rpm:.1f} RPM".center(actual_width))
+            print("=" * actual_width)
             print(table)
-            print("=" * width)
+            print("=" * actual_width)
+
+            # Display plot if requested
+            if show_plots:
+                iterations = list(range(len(res_list)))
+                residuals = [res if res is not None else 0 for res in res_list]
+
+                fig = go.Figure()
+                fig.add_trace(
+                    go.Scatter(
+                        x=iterations,
+                        y=residuals,
+                        mode="lines+markers",
+                        name=f"Convergence - {rpm:.1f} RPM",
+                        line=dict(width=2),
+                        marker=dict(size=6),
+                    )
+                )
+                fig.update_layout(
+                    title=f"Optimization Convergence - {rpm:.1f} RPM",
+                    xaxis_title="Iteration",
+                    yaxis_title="Residual [N]",
+                    template="ross",
+                )
+                fig.show()
 
     def _equilibrium_objective(self, x):
         """Calculates the equilibrium position of the bearing
