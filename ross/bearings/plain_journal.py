@@ -2168,7 +2168,9 @@ class PlainJournal(BearingElement):
         print(table)
         print("=" * width)
 
-    def show_optimization_convergence(self, by: str = "value") -> None:
+    def show_optimization_convergence(
+        self, by: str = "value", show_plots: bool = False
+    ) -> None:
         """
         Display the optimization residuals per iteration for each processed speed.
 
@@ -2177,6 +2179,8 @@ class PlainJournal(BearingElement):
         by : str
             'index' -> show speeds by their index in self.frequency
             'value' -> show speeds by their numeric value (RPM)
+        show_plots : bool
+            Whether to show the convergence plot. Default is False.
         """
         if not hasattr(self, "optimization_history") or not self.optimization_history:
             print("No residual history available. Run the analysis first.")
@@ -2201,24 +2205,56 @@ class PlainJournal(BearingElement):
                 continue
             rpm = speed_key * 30.0 / np.pi
 
-            width = 48
-            print("\n" + "=" * width)
-            print(f"OPTIMIZATION CONVERGENCE - {rpm:.1f} RPM".center(width).rstrip())
-            print("=" * width)
+            # Table width
+            desired_width = 25
 
             table = PrettyTable()
-            table.field_names = ["Iteration", "Residual"]
-            table.min_width["Iteration"] = 20
-            table.max_width["Iteration"] = 20
-            table.min_width["Residual"] = 21
-            table.max_width["Residual"] = 21
+            table.field_names = ["Iteration", "Residual [N]"]
 
             for it, res in enumerate(res_list):
                 if res is not None:
                     table.add_row([it, f"{res:.4e}"])
 
+            table.max_width = desired_width
+            table.min_width = desired_width
+
+            table_str = table.get_string()
+            table_lines = table_str.split("\n")
+            actual_width = len(table_lines[0])
+
+            print("\n" + "=" * actual_width)
+            print(
+                f"OPTIMIZATION CONVERGENCE - {rpm:.1f} RPM".center(
+                    actual_width
+                ).rstrip()
+            )
+            print("=" * actual_width)
             print(table)
-            print("=" * width)
+            print("=" * actual_width)
+
+            # Display plot if requested
+            if show_plots:
+                iterations = list(range(len(res_list)))
+                residuals = [res if res is not None else 0 for res in res_list]
+
+                fig = go.Figure()
+                fig.add_trace(
+                    go.Scatter(
+                        x=iterations,
+                        y=residuals,
+                        mode="lines+markers",
+                        name=f"Convergence - {rpm:.1f} RPM",
+                        line=dict(width=2),
+                        marker=dict(size=6),
+                    )
+                )
+                fig.update_layout(
+                    title=f"Optimization Convergence - {rpm:.1f} RPM",
+                    xaxis_title="Iteration",
+                    yaxis_title="Residual [N]",
+                    template="ross",
+                )
+                fig.show()
 
     def plot_results(self, show_plots=False):
         """Plot pressure and temperature fields for the plain journal analysis.
