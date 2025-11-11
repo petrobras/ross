@@ -3627,7 +3627,6 @@ class TiltingPad(BearingElement):
         fig.update_layout(
             legend=dict(font=dict(family="Times New Roman", size=22, color="black"))
         )
-        fig.show()
         return fig
 
     def plot_contourP(self, x_data, y_data, z_data, z_title):
@@ -3690,7 +3689,6 @@ class TiltingPad(BearingElement):
             ),
         )
         fig.update_layout(plot_bgcolor="white")
-        fig.show()
         return fig
 
     def plot_contourT(self, x_data, y_data, z_data, z_title):
@@ -3753,7 +3751,6 @@ class TiltingPad(BearingElement):
             ),
         )
         fig.update_layout(plot_bgcolor="white")
-        fig.show()
         return fig
 
     def show_results(self):
@@ -3786,17 +3783,17 @@ class TiltingPad(BearingElement):
 
         freq = self.frequency[freq_index]
 
-        width = 55
-        print("\n" + "=" * width)
-        print(
-            f"TILTING PAD BEARING RESULTS - {freq * 30 / np.pi:.1f} RPM".center(width)
-        )
-        print("=" * width)
+        # Define a fixed width for all columns
+        column_width = 20
 
         table = PrettyTable()
         table.field_names = ["Parameter", "Value", "Unit"]
 
-        # Set column alignment and width
+        for field in table.field_names:
+            table.max_width[field] = column_width
+            table.min_width[field] = column_width
+
+        # Set column alignment
         table.align["Parameter"] = "l"
         table.align["Value"] = "r"
         table.align["Unit"] = "c"
@@ -3849,15 +3846,7 @@ class TiltingPad(BearingElement):
         table.add_row(["cyx (Damping)", f"{self.cyx[freq_index]:12.4e}", "N*s/m"])
         table.add_row(["cyy (Damping)", f"{self.cyy[freq_index]:12.4e}", "N*s/m"])
 
-        print(table)
-
-        # Print pad rotation angles
-        print("\n" + "-" * width)
-        print("PAD ROTATION ANGLES".center(width))
-        print("-" * width)
         pad_table = PrettyTable()
-
-        # Set alignment for pad table
         pad_table.align["Pad #"] = "c"
 
         # Check if moment data is available (match_eccentricity mode)
@@ -3899,8 +3888,29 @@ class TiltingPad(BearingElement):
                     ]
                 )
 
+        column_width = 14
+        for field in pad_table.field_names:
+            pad_table.max_width[field] = column_width
+            pad_table.min_width[field] = column_width
+
+        table_str = table.get_string()
+        final_width = len(table_str.split("\n")[0])
+
+        print("\n" + "=" * final_width)
+        print(
+            f"TILTING PAD BEARING RESULTS - {freq * 30 / np.pi:.1f} RPM".center(
+                final_width
+            )
+        )
+        print("=" * final_width)
+        print(table)
+
+        # Print pad rotation angles
+        print("\n" + "-" * final_width)
+        print("PAD ROTATION ANGLES".center(final_width))
+        print("-" * final_width)
         print(pad_table)
-        print("=" * width)
+        print("=" * final_width)
 
     def show_execution_time(self):
         """Display the simulation execution time.
@@ -3944,21 +3954,51 @@ class TiltingPad(BearingElement):
             Results are printed to the console in a formatted table.
         """
 
-        width = 147
-        print("\n" + "=" * width)
-        print("DYNAMIC COEFFICIENTS COMPARISON TABLE".center(width))
-        print("=" * width)
+        freq_rpm = np.atleast_1d(self.frequency).astype(float) * 30.0 / np.pi
 
-        comparison_table = self.format_table(
-            frequency=self.frequency,
-            coefficients=["kxx", "kxy", "kyx", "kyy", "cxx", "cxy", "cyx", "cyy"],
-            frequency_units="RPM",
-            stiffness_units="N/m",
-            damping_units="N*s/m",
-        )
+        table = PrettyTable()
+        headers = [
+            "Frequency [RPM]",
+            "kxx [N/m]",
+            "kxy [N/m]",
+            "kyx [N/m]",
+            "kyy [N/m]",
+            "cxx [N*s/m]",
+            "cxy [N*s/m]",
+            "cyx [N*s/m]",
+            "cyy [N*s/m]",
+        ]
+        table.field_names = headers
 
-        print(comparison_table)
-        print("=" * width)
+        for i in range(len(freq_rpm)):
+            row = [
+                f"{freq_rpm[i]:.1f}",
+                f"{self.kxx[i]:.4e}",
+                f"{self.kxy[i]:.4e}",
+                f"{self.kyx[i]:.4e}",
+                f"{self.kyy[i]:.4e}",
+                f"{self.cxx[i]:.4e}",
+                f"{self.cxy[i]:.4e}",
+                f"{self.cyx[i]:.4e}",
+                f"{self.cyy[i]:.4e}",
+            ]
+            table.add_row(row)
+
+        # Table width
+        desired_width = 25
+
+        table.max_width = desired_width
+        table.min_width = desired_width
+
+        table_str = table.get_string()
+        table_lines = table_str.split("\n")
+        actual_width = len(table_lines[0])
+
+        print("\n" + "=" * actual_width)
+        print("DYNAMIC COEFFICIENTS COMPARISON TABLE".center(actual_width))
+        print("=" * actual_width)
+        print(table)
+        print("=" * actual_width)
 
     def record_optimization_residual(
         self, residual_value: float, iteration: int | None = None
@@ -4018,52 +4058,133 @@ class TiltingPad(BearingElement):
             freq = self.frequency[i]
             rpm = freq * 30 / np.pi
 
-            # Table width
-            desired_width = 25
+            # Check equilibrium type
+            if self.equilibrium_type == "match_eccentricity":
+                # Separate residuals by pad
+                n_pads = self.n_pad
 
-            table = PrettyTable()
-            table.field_names = ["Iteration", "Residual [N]"]
+                # Split residuals by pad (estimate iterations per pad)
+                total_iters = len(res_list)
+                approx_iters_per_pad = total_iters // n_pads
 
-            for it, res in enumerate(res_list):
-                if res is not None:
-                    table.add_row([it, f"{res:.6f}"])
+                # Create table
+                table = PrettyTable()
+                table.field_names = ["Pad", "Iterations", "Final Residual [N]"]
 
-            table.max_width = desired_width
-            table.min_width = desired_width
-
-            table_str = table.get_string()
-            table_lines = table_str.split("\n")
-            actual_width = len(table_lines[0])
-
-            print("\n" + "=" * actual_width)
-            print(f"OPTIMIZATION CONVERGENCE - {rpm:.1f} RPM".center(actual_width))
-            print("=" * actual_width)
-            print(table)
-            print("=" * actual_width)
-
-            # Display plot if requested
-            if show_plots:
-                iterations = list(range(len(res_list)))
-                residuals = [res if res is not None else 0 for res in res_list]
-
-                fig = go.Figure()
-                fig.add_trace(
-                    go.Scatter(
-                        x=iterations,
-                        y=residuals,
-                        mode="lines+markers",
-                        name=f"Convergence - {rpm:.1f} RPM",
-                        line=dict(width=2),
-                        marker=dict(size=6),
+                pad_residuals = []
+                for pad_idx in range(n_pads):
+                    start_idx = pad_idx * approx_iters_per_pad
+                    end_idx = (
+                        (pad_idx + 1) * approx_iters_per_pad
+                        if pad_idx < n_pads - 1
+                        else total_iters
                     )
-                )
-                fig.update_layout(
-                    title=f"Optimization Convergence - {rpm:.1f} RPM",
-                    xaxis_title="Iteration",
-                    yaxis_title="Residual [N]",
-                    template="ross",
-                )
-                fig.show()
+                    pad_res = [r for r in res_list[start_idx:end_idx] if r is not None]
+
+                    if pad_res:
+                        final_res = pad_res[-1]
+                        table.add_row([pad_idx + 1, len(pad_res), f"{final_res:.6f}"])
+                        pad_residuals.append((pad_idx + 1, pad_res))
+
+                desired_width = 25
+                table.max_width = desired_width
+                table.min_width = desired_width
+
+                table_str = table.get_string()
+                table_lines = table_str.split("\n")
+                actual_width = len(table_lines[0])
+
+                print("\n" + "=" * actual_width)
+                print(f"OPTIMIZATION CONVERGENCE - {rpm:.1f} RPM".center(actual_width))
+                print("=" * actual_width)
+                print(table)
+                print("=" * actual_width)
+
+                # Display plot if requested - one subplot per pad
+                if show_plots:
+                    import plotly.graph_objects as go
+                    from plotly.subplots import make_subplots
+
+                    n_rows = (n_pads + 1) // 2  # 2 columns
+                    fig = make_subplots(
+                        rows=n_rows,
+                        cols=2,
+                        subplot_titles=[f"Pad {p[0]}" for p in pad_residuals],
+                    )
+
+                    for idx, (pad_num, pad_res) in enumerate(pad_residuals):
+                        row = (idx // 2) + 1
+                        col = (idx % 2) + 1
+
+                        fig.add_trace(
+                            go.Scatter(
+                                x=list(range(len(pad_res))),
+                                y=pad_res,
+                                mode="lines+markers",
+                                name=f"Pad {pad_num}",
+                                line=dict(width=2),
+                                marker=dict(size=4),
+                            ),
+                            row=row,
+                            col=col,
+                        )
+
+                        fig.update_xaxes(title_text="Iteration", row=row, col=col)
+                        fig.update_yaxes(title_text="Residual [N]", row=row, col=col)
+
+                    fig.update_layout(
+                        title=f"Optimization Convergence by Pad - {rpm:.1f} RPM",
+                        template="ross",
+                        showlegend=False,
+                        height=300 * n_rows,
+                    )
+                    fig.show()
+
+            else:  # determine_eccentricity - single global optimization
+                table = PrettyTable()
+                table.field_names = ["Iteration", "Residual [N]"]
+
+                for it, res in enumerate(res_list):
+                    if res is not None:
+                        table.add_row([it, f"{res:.6f}"])
+
+                desired_width = 25
+                table.max_width = desired_width
+                table.min_width = desired_width
+
+                table_str = table.get_string()
+                table_lines = table_str.split("\n")
+                actual_width = len(table_lines[0])
+
+                print("\n" + "=" * actual_width)
+                print(f"OPTIMIZATION CONVERGENCE - {rpm:.1f} RPM".center(actual_width))
+                print("=" * actual_width)
+                print(table)
+                print("=" * actual_width)
+
+                # Display plot if requested
+                if show_plots:
+                    iterations = list(range(len(res_list)))
+                    residuals = [res if res is not None else 0 for res in res_list]
+
+                    fig = go.Figure()
+                    fig.add_trace(
+                        go.Scatter(
+                            x=iterations,
+                            y=residuals,
+                            mode="lines+markers",
+                            name=f"Convergence - {rpm:.1f} RPM",
+                            line=dict(width=2),
+                            marker=dict(size=6),
+                        )
+                    )
+                    fig.update_layout(
+                        title=f"Global Optimization Convergence - {rpm:.1f} RPM",
+                        xaxis_title="Iteration",
+                        yaxis_title="Residual [N]",
+                        template="ross",
+                    )
+                    fig.show()
 
 
 def tilting_pad_example():
