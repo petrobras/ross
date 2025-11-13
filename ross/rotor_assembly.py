@@ -60,6 +60,8 @@ from ross.utils import (
     remove_dofs,
 )
 
+from ross.harmonic_balance import HarmonicBalance
+
 __all__ = [
     "Rotor",
     "CoAxialRotor",
@@ -2119,6 +2121,7 @@ class Rotor(object):
             forced_resp[:, i] = freq_resp.freq_resp[..., i] @ force[..., i]
             velc_resp[:, i] = freq_resp.velc_resp[..., i] @ force[..., i]
             accl_resp[:, i] = freq_resp.accl_resp[..., i] @ force[..., i]
+
         forced_resp = ForcedResponseResults(
             rotor=self,
             forced_resp=forced_resp,
@@ -3583,8 +3586,97 @@ class Rotor(object):
         >>> fig3 = response.plot_3d()
         """
         t_, yout, xout = self.time_response(speed, F, t, method=method, **kwargs)
-
         results = TimeResponseResults(self, t, yout, xout)
+
+        return results
+
+    @check_units
+    def run_harmonic_balance_response(
+        self,
+        speed,
+        t,
+        harmonic_forces,
+        gravity=False,
+        n_harmonics=1,
+    ):
+        """
+        Compute the steady-state response of the rotor using the Harmonic Balance
+        method.
+
+        Parameters
+        ----------
+        speed : float, pint.Quantity
+            Rotational speed of the rotor (rad/s).
+        t : array_like
+            Time vector (s).
+        harmonic_forces : list of dict
+            List of harmonic force definitions. Each dictionary should contain the
+            following keys:
+
+            - 'node': int
+                Node index where the force is applied.
+
+            - 'magnitudes': list, float
+                List of excitation magnitudes.
+                Interpretation depends on the type of excitation:
+                    - For direct harmonic forces: force amplitudes (N).
+                    - For unbalance-type excitations: ``m * e * speed**2`` (N),
+                    where ``m`` is the unbalance mass (kg) and ``e`` is the eccentricity (m).
+
+            - 'phases': list of float
+                List of phase angles (rad).
+
+            - 'harmonics': list of int
+                List of harmonic orders (1 for fundamental, 2 for second, etc.).
+        gravity : bool, optional
+            If True, include the effect of gravity in the response.
+            Default is False.
+        n_harmonics : int, optional
+            Number of harmonics to consider in the Harmonic Balance solution.
+            Default is 1 (only fundamental harmonic is considered).
+
+        Returns
+        -------
+        results : ross.results.HarmonicBalanceResponse
+            Object containing the steady-state response.
+
+        Examples
+        --------
+        >>> import ross as rs
+        >>> from ross.probe import Probe
+        >>> rotor = rs.rotor_example()
+        >>> speed = 200.0
+        >>> unb_node = 3
+        >>> unb_mag = 0.05 * speed**2
+        >>> unb_phase = 0.0
+        >>> unb_harmonic = 1 # For unbalance, always 1x
+        >>> results = rotor.run_harmonic_balance_response(
+        ...     speed=200.0,
+        ...     t=np.linspace(0, 0.5, 1001),
+        ...     harmonic_forces=[{
+        ...         "node": unb_node,
+        ...         "magnitudes": [unb_mag],
+        ...         "phases": [unb_phase],
+        ...         "harmonics": [unb_harmonic],
+        ...     }],
+        ...     gravity=False,
+        ...     n_harmonics=1,
+        ... )
+        >>> time_resp = results.get_time_response()
+        >>> probe1 = Probe(3, 0)
+        >>> # plot time response for a given probe:
+        >>> fig1 = time_resp.plot_1d(probe=[probe1])
+        >>> # plot dfft:
+        >>> fig2 = time_resp.plot_dfft(probe=[probe1])
+        """
+        hb = HarmonicBalance(self, n_harmonics=n_harmonics)
+
+        results = hb.run(
+            speed=speed,
+            t=t,
+            forces=harmonic_forces,
+            gravity=gravity,
+        )
 
         return results
 
