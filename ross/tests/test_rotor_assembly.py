@@ -4,6 +4,7 @@ from tempfile import tempdir
 
 import numpy as np
 import pytest
+from scipy.signal import find_peaks
 from numpy.testing import assert_allclose, assert_almost_equal, assert_equal
 
 from ross import SensitivityResults
@@ -2530,6 +2531,70 @@ def test_rotor_conical_frequencies(rotor_conical):
         ]
     )
     assert_allclose(modal.wn, expected_wn, rtol=1e-5)
+
+
+def test_harmonic_response(rotor9):
+    speed = 200.0
+    t = np.arange(0, 10, 1e-4)
+
+    A1, A2, A3 = 1.0, 10.0, 5.0
+    p1, p2, p3 = 0.0, 0.0, 0.0
+    m, e = 0.2, 0.01
+
+    probe = Probe(15, Q_(45, "deg"))
+
+    hb_results = rotor9.run_harmonic_balance_response(
+        speed=speed,
+        t=t,
+        harmonic_forces=[
+            {
+                "node": 29,
+                "magnitudes": [A1, A2, A3],
+                "phases": [p1, p2, p3],
+                "harmonics": [1, 2, 3],
+            },
+            {
+                "node": 33,
+                "magnitudes": [m * e * speed**2],
+                "phases": [0],
+                "harmonics": [1],
+            },
+        ],
+        n_harmonics=3,
+    )
+
+    hb_fig = hb_results.plot([probe], frequency_units="Hz")
+
+    hb_time_resp = hb_results.get_time_response()
+    hb_fig = hb_time_resp.plot_dfft(
+        probe=[probe],
+        frequency_units="Hz",
+        frequency_range=(0, 100),
+        yaxis_type="log",
+        fig=hb_fig,
+    )
+
+    x_hb = np.nan_to_num(np.array(hb_fig.data[0].x, dtype=float), nan=0)
+    y_hb = np.nan_to_num(np.array(hb_fig.data[0].y, dtype=float), nan=0)
+    idx_hb = find_peaks(y_hb)[0]
+    x_hb = x_hb[idx_hb]
+    y_hb = y_hb[idx_hb]
+
+    x_dfft = np.array(hb_fig.data[1].x)
+    y_dfft = np.array(hb_fig.data[1].y)
+    idx_dfft = find_peaks(y_dfft)[0]
+    x_dfft = x_dfft[idx_dfft]
+    y_dfft = y_dfft[idx_dfft]
+
+    x = np.array([31.83098861837907, 63.66197723675814, 95.49296585513721])
+    y = np.array(
+        [2.1140161650605384e-07, 3.479347424205027e-08, 2.1467969724866964e-08]
+    )
+
+    assert_allclose(x_hb, x_dfft, rtol=1e-3, atol=1e-6)
+    assert_allclose(x_hb, x, rtol=1e-3, atol=1e-6)
+    assert_allclose(y_hb, y_dfft, rtol=1e-3, atol=1e-6)
+    assert_allclose(y_hb, y, rtol=1e-3, atol=1e-6)
 
 
 def test_amb_controller():
