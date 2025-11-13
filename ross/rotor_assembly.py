@@ -32,6 +32,7 @@ from ross.coupling_element import CouplingElement
 from ross.disk_element import DiskElement
 from ross.faults import Crack, MisalignmentFlex, MisalignmentRigid, Rubbing
 from ross.materials import Material, steel
+from ross.model_reduction import ModelReduction
 from ross.point_mass import PointMass
 from ross.results import (
     CampbellResults,
@@ -41,12 +42,13 @@ from ross.results import (
     FrequencyResponseResults,
     Level1Results,
     ModalResults,
+    SensitivityResults,
     StaticResults,
     SummaryResults,
     TimeResponseResults,
     UCSResults,
-    SensitivityResults,
 )
+from ross.seals.labyrinth_seal import LabyrinthSeal
 from ross.shaft_element import ShaftElement
 from ross.units import Q_, check_units
 from ross.utils import (
@@ -57,9 +59,6 @@ from ross.utils import (
     newmark,
     remove_dofs,
 )
-from ross.seals.labyrinth_seal import LabyrinthSeal
-
-from ross.model_reduction import ModelReduction
 
 __all__ = [
     "Rotor",
@@ -1650,9 +1649,9 @@ class Rotor(object):
         I = np.eye(self.M().shape[0])
 
         lu, piv = lu_factor(
-            -(frequency**2) * self.M(frequency=frequency)
-            + 1j * frequency * (self.C(frequency=frequency) + frequency * self.G())
-            + self.K(frequency=frequency)
+            -(frequency**2) * self.M(frequency=speed)
+            + 1j * frequency * (self.C(frequency=speed) + speed * self.G())
+            + self.K(frequency=speed)
         )
         H = lu_solve((lu, piv), I)
 
