@@ -7,48 +7,75 @@ from prettytable import PrettyTable
 
 from ross.bearing_seal_element import BearingElement
 from ross.units import Q_, check_units
-from ross.plotly_theme import tableau_colors
 from ross.bearings.lubricants import lubricants_dict
 
 
 class ThrustPad(BearingElement):
     """Thermo-Hydro-Dynamic (THD) Tilting Pad Thrust Bearing.
 
-    This class implements a comprehensive thermo-hydro-dynamic analysis for
-    tilting pad thrust bearings, calculating pressure and temperature fields,
-    equilibrium position, and dynamic coefficients (stiffness and damping).
+    This class provides a **comprehensive numerical model** for tilting pad thrust
+    bearings using thermo-hydro-dynamic (THD) analysis. Each pad is analyzed with
+    its own pressure and temperature fields, pivot mechanics, and load distribution.
 
-    The analysis solves the Reynolds equation for pressure distribution and
-    the energy equation for temperature field, considering viscosity variations
-    with temperature and turbulent effects.
+    **Theoretical Approach:**
+
+    The model solves the **complete THD problem** for each pad using:
+
+    1. **Reynolds Equation** (for pressure field):
+       - 2D finite volume method on a structured grid (n_radial × n_theta)
+       - Accounts for pad rotation and surface velocities
+       - Enforces atmospheric pressure at pad edges (cavitation boundary)
+       - Viscosity varies spatially due to temperature field
+
+    2. **Energy Equation** (for temperature field):
+       - 2D finite volume with upwind scheme
+       - Includes viscous dissipation and heat conduction
+       - Models turbulent effects using Reynolds number-dependent viscosity
+       - Oil supply temperature as boundary condition
+
+    3. **Equilibrium Calculation**:
+       - Iterative optimization to find pad equilibrium position
+       - Two modes: calculate film thickness or use imposed thickness
+       - Minimizes residual forces and moments using Nelder-Mead optimization (fmin)
+       - Determines radial and circumferential inclination angles
+
+    4. **Dynamic Coefficients** (stiffness and damping):
+       - Uses virtual perturbations of displacements and speeds to determine the coefficients
+       - Applies small perturbations to axial position and velocity
+       - Solves complete THD problem for each perturbation state
+       - Extracts coefficients from force differences
+
+    For reference check :cite:`barbosa2016`, :cite:`heinrichson2007` and :cite:`nicoletti1999`.
 
     Parameters
     ----------
     n : int
         Node number for the bearing element.
-    pad_inner_radius : float or Quantity
+    pad_inner_radius : float
         Inner radius of the pad. Default unit is meter.
-    pad_outer_radius : float or Quantity
+    pad_outer_radius : float
         Outer radius of the pad. Default unit is meter.
-    pad_pivot_radius : float or Quantity
+    pad_pivot_radius : float
         Radius of the pivot point. Default unit is meter.
-    pad_arc_length : float or Quantity
+    pad_arc_length : float
         Arc length of each pad. Default unit is degrees.
-    angular_pivot_position : float or Quantity
+    angular_pivot_position : float
         Angular position of the pivot point. Default unit is degrees.
-    oil_supply_temperature : float or Quantity
-        Oil supply temperature. Default unit is degrees Celsius.
+    oil_supply_temperature : float
+        Oil supply temperature. Default unit is °C.
     lubricant : str or dict
-        Lubricant specification. Can be:
-        - String: 'ISOVG32', 'ISOVG46', 'ISOVG68'
-        - Dictionary: Custom lubricant properties
+        Lubricant type. Can be:
+        - 'ISOVG32'
+        - 'ISOVG46'
+        - 'ISOVG68'
+        Or a dictionary with lubricant properties.
     n_pad : int
         Number of pads in the bearing.
     n_theta : int
         Number of mesh elements in circumferential direction.
     n_radial : int
         Number of mesh elements in radial direction.
-    frequency : array_like or Quantity
+    frequency : array_like
         Rotor rotating frequency(ies). Default unit is rad/s.
     equilibrium_position_mode : str
         Equilibrium position calculation mode:
@@ -57,69 +84,55 @@ class ThrustPad(BearingElement):
     model_type : str, optional
         Type of model to be used. Options:
         - 'thermo_hydro_dynamic': Thermo-Hydro-Dynamic model
-    radial_inclination_angle : float or Quantity
+    radial_inclination_angle : float, optional
         Initial radial inclination angle. Default unit is radians.
-    circumferential_inclination_angle : float or Quantity
+    circumferential_inclination_angle : float, optional
         Initial circumferential inclination angle. Default unit is radians.
-    initial_film_thickness : float or Quantity
+    initial_film_thickness : float, optional
         Initial film thickness at pivot point. Default unit is meters.
-    fzs_load : float, optional
-        Axial load applied to the bearing. Default is None.
-    print_result : bool, optional
-        Whether to print calculation results. Default is False.
-    print_progress : bool, optional
-        Whether to print convergence progress. Default is False.
-    print_time : bool, optional
-        Whether to print calculation time. Default is False.
-    compare_coefficients : bool, optional
-        Whether to compare dynamic coefficients by each frequency in a table. Default is False.
-    **kwargs
-        Additional keyword arguments passed to BearingElement.
+    tolerance_force_moment : float, optional
+        Convergence tolerance for residual forces and moments in N.
+        The optimization stops when residual_force_moment < tolerance_force_moment.
+        Default is 0.1.
+    residual_force_moment : float, optional
+        Initial value for residual forces and moments in N.
+        Used as starting point for the iterative equilibrium calculation.
+        Default is 50.
+    axial_load : float, optional
+        Axial load applied to the bearing. Default unit is Newton.
+    **kwargs : dict, optional
+        Additional keyword arguments.
+
+    Returns
+    -------
+    None
+        The class instance contains all calculated results as attributes.
+
+    References
+    ----------
+    .. bibliography::
+        :filter: docname in docnames
 
     Attributes
     ----------
-    pressure_field_dimensional : ndarray
-        Dimensional pressure field [Pa]. Shape: (n_radial+2, n_theta+2)
-    temperature_field : ndarray
-        Temperature field [°C]. Shape: (n_radial+2, n_theta+2)
-    pivot_film_thickness : float
-        Oil film thickness at the pivot point [m]
-    max_thickness : float
-        Maximum oil film thickness [m]
-    min_thickness : float
-        Minimum oil film thickness [m]
     kzz : ndarray
-        Axial stiffness coefficient [N/m]. Shape: (n_frequencies,)
+        Axial stiffness coefficient in N/m.
     czz : ndarray
-        Axial damping coefficient [N*s/m]. Shape: (n_frequencies,)
+        Axial damping coefficient in N·s/m.
+    pressure_field_dimensional : ndarray
+        Dimensional pressure field in Pa. Shape: (n_radial+2, n_theta+2)
+    temperature_field : ndarray
+        Temperature field in °C. Shape: (n_radial+2, n_theta+2)
+    pivot_film_thickness : float
+        Oil film thickness at the pivot point in m.
+    max_thickness : float
+        Maximum oil film thickness in m.
+    min_thickness : float
+        Minimum oil film thickness in m.
     viscosity_field : ndarray
-        Viscosity field [Pa*s]. Shape: (n_radial, n_theta)
+        Viscosity field in Pa·s. Shape: (n_radial, n_theta)
     film_thickness_center_array : ndarray
-        Film thickness at cell centers. Shape: (n_radial, n_theta)
-
-    Notes
-    -----
-    The class implements a finite volume method to solve the Reynolds equation
-    and energy equation simultaneously. The solution includes:
-
-    1. Pressure Field: Solved using finite volume discretization of the
-       Reynolds equation with appropriate boundary conditions.
-
-    2. Temperature Field: Solved using the energy equation considering
-       viscous heating, convection, and conduction effects.
-
-    3. Viscosity Variation: Temperature-dependent viscosity using
-       exponential interpolation: μ = a * exp(b * T)
-
-    4. Equilibrium Position: Found by minimizing residual forces and
-       moments using scipy.optimize.fmin.
-
-    5. Dynamic Coefficients: Calculated using perturbation method
-       for stiffness and damping coefficients.
-
-    The mesh discretization uses a structured grid with n_radial by n_theta
-    control volumes. Boundary conditions include atmospheric pressure at
-    pad edges and oil supply temperature at boundaries.
+        Film thickness at cell centers in m. Shape: (n_radial, n_theta)
 
     Examples
     --------
@@ -139,18 +152,11 @@ class ThrustPad(BearingElement):
     ...     n_radial=10,
     ...     frequency=Q_([90], "RPM"),
     ...     equilibrium_position_mode="calculate",
-    ...     fzs_load=13.320e6,
+    ...     axial_load=13.320e6,
     ...     radial_inclination_angle=Q_(-2.75e-04, "rad"),
     ...     circumferential_inclination_angle=Q_(-1.70e-05, "rad"),
     ...     initial_film_thickness=Q_(0.2, "mm")
     ... )
-
-    References
-    ----------
-    .. [1] BARBOSA, J.S. Analise de Modelos Termohidrodinamicos para Mancais de unidades geradoras Francis. 2016. Dissertacao de Mestrado. Universidade Federal de Uberlandia, Uberlandia.
-    .. [2] HEINRICHSON, N.; SANTOS, I. F.; FUERST, A., The Influence of Injection Pockets on the Performance of Tilting Pad Thrust Bearings Part I Theory. Journal of Tribology, 2007.
-    .. [3] NICOLETTI, R., Efeitos Termicos em Mancais Segmentados Hibridos Teoria e Experimento. 1999. Dissertacao de Mestrado. Universidade Estadual de Campinas, Campinas.
-    .. [4] LUND, J. W.; THOMSEN, K. K. A calculation method and data for the dynamic coefficients of oil lubricated journal bearings. Topics in fluid film bearing and rotor bearing system design and optimization, n. 1000118, 1978.
     """
 
     @check_units
@@ -172,19 +178,12 @@ class ThrustPad(BearingElement):
         radial_inclination_angle,
         circumferential_inclination_angle,
         initial_film_thickness,
+        tolerance_force_moment=0.1,
+        residual_force_moment=50,
         model_type="thermo_hydro_dynamic",
-        fzs_load=None,
-        print_result=False,
-        print_progress=False,
-        print_time=False,
-        compare_coefficients=False,
+        axial_load=None,
         **kwargs,
     ):
-        self.print_result = print_result
-        self.print_progress = print_progress
-        self.print_time = print_time
-        self.compare_coefficients = compare_coefficients
-
         self.model_type = model_type
         self.pad_inner_radius = pad_inner_radius
         self.pad_outer_radius = pad_outer_radius
@@ -209,7 +208,7 @@ class ThrustPad(BearingElement):
         )
 
         self.equilibrium_position_mode = equilibrium_position_mode
-        self.fzs_load = fzs_load
+        self.axial_load = axial_load
         self.radial_inclination_angle = radial_inclination_angle
         self.circumferential_inclination_angle = circumferential_inclination_angle
         self.initial_film_thickness = initial_film_thickness
@@ -261,33 +260,30 @@ class ThrustPad(BearingElement):
         kzz = np.zeros(n_freq)
         czz = np.zeros(n_freq)
 
+        self._initialize_field_storage(n_freq)
+
+        # Optimization data
+        self.optimization_history = {}
+        self.tolerance_force_moment = tolerance_force_moment
+        self.residual_force_moment = residual_force_moment
+
+        self.initial_time = time.time()
         for i in range(n_freq):
             self.speed = self.frequency[i]
+            self._current_freq_index = i
+            self.optimization_history[i] = []
 
             if self.model_type == "thermo_hydro_dynamic":
                 self.run_thermo_hydro_dynamic()
 
             kzz[i], czz[i] = self.kzz, self.czz
 
+            self._store_frequency_fields()
+
         super().__init__(
             n, kxx=0, cxx=0, kzz=kzz, czz=czz, frequency=frequency, **kwargs
         )
-
-        if self.compare_coefficients:
-            print("\n" + "=" * 60)
-            print("           DYNAMIC COEFFICIENTS COMPARISON TABLE")
-            print("=" * 60)
-
-            comparison_table = self.format_table(
-                frequency=self.frequency,
-                coefficients=["kzz", "czz"],
-                frequency_units="RPM",
-                stiffness_units="N/m",
-                damping_units="N*s/m",
-            )
-
-            print(comparison_table)
-            print("=" * 60)
+        self.final_time = time.time()
 
     def run_thermo_hydro_dynamic(self):
         """
@@ -352,8 +348,6 @@ class ThrustPad(BearingElement):
         >>> from ross.bearings.thrust_pad import thrust_pad_example
         >>> bearing = thrust_pad_example()
         """
-        if self.print_time:
-            t1 = time.time()
 
         # Solve the fields (pressure and temperature fields)
         self.solve_fields()
@@ -361,21 +355,53 @@ class ThrustPad(BearingElement):
         # Calculate the dynamic coefficients
         self.coefficients()
 
-        # Display the results
-        if self.print_result:
-            self.show_results()
-            self.plot_results()
+    def _initialize_field_storage(self, n_freq):
+        """Initialize data structures to store fields information for each frequency.
 
-        if self.print_time:
-            t2 = time.time()
-            print("Calculation time spent: {0:.2f} seconds".format(t2 - t1))
+        Parameters
+        ----------
+        n_freq : int
+            Number of frequencies to analyze
+
+        Returns
+        -------
+        None
+            Initializes instance attributes for field storage
+        """
+        self.pressure_fields = []
+        self.temperature_fields = []
+        self.max_thicknesses = []
+        self.min_thicknesses = []
+        self.pivot_film_thicknesses = []
+
+    def _store_frequency_fields(self):
+        """Store field results for the current frequency.
+
+        This method stores the calculated pressure, temperature, and film thickness
+        fields for the current frequency being analyzed.
+
+        Parameters
+        ----------
+        None
+            Uses current instance attributes from field calculations
+
+        Returns
+        -------
+        None
+            Appends current field results to storage lists
+        """
+        self.pressure_fields.append(self.pressure_field_dimensional.copy())
+        self.temperature_fields.append(self.temperature_field.copy())
+        self.max_thicknesses.append(self.max_thickness)
+        self.min_thicknesses.append(self.min_thickness)
+        self.pivot_film_thicknesses.append(self.pivot_film_thickness)
 
     def show_results(self):
         """Display thrust bearing calculation results in a formatted table.
 
         This method prints the main results from the thrust bearing analysis
         using PrettyTable, including operating conditions, field results,
-        load information, and dynamic coefficients.
+        load information, and dynamic coefficients for each frequency.
 
         Parameters
         ----------
@@ -387,91 +413,148 @@ class ThrustPad(BearingElement):
         -------
         None
             Results are printed to the console in a formatted table.
-
-        Notes
-        -----
-        The displayed results include:
-        - Operating speed in RPM
-        - Equilibrium position mode
-        - Maximum and minimum pressure values
-        - Maximum and minimum temperature values
-        - Film thickness values (maximum, minimum, and pivot)
-        - Axial load information
-        - Dynamic coefficients (stiffness kzz and damping czz)
-
-        Examples
-        --------
-        >>> from ross.bearings.thrust_pad import thrust_pad_example
-        >>> bearing = thrust_pad_example()
-        >>> bearing.show_results()
-        <BLANKLINE>
-        ================================================
-                    THRUST BEARING RESULTS
-        ================================================
-        +------------------------+-------------+-------+
-        |       Parameter        |    Value    |  Unit |
-        +------------------------+-------------+-------+
-        |    Operating Speed     |     90.0    |  RPM  |
-        |    Equilibrium Mode    |  calculate  |   -   |
-        |    Maximum Pressure    |  6957021.42 |   Pa  |
-        |  Maximum Temperature   |     70.4    |   °C  |
-        | Maximum Film Thickness |   0.000207  |   m   |
-        | Minimum Film Thickness |   0.000082  |   m   |
-        |  Pivot Film Thickness  |   0.000131  |   m   |
-        |       Axial Load       | 13320000.00 |   N   |
-        |    kzz (Stiffness)     |  3.1763e+11 |  N/m  |
-        |     czz (Damping)      |  1.0806e+10 | N*s/m |
-        +------------------------+-------------+-------+
-        ================================================
         """
 
-        print("\n" + "=" * 48)
-        print("            THRUST BEARING RESULTS")
-        print("=" * 48)
+        if self.frequency.size == 1:
+            self._print_single_frequency_results(0)
+        else:
+            for i in range(self.frequency.size):
+                self._print_single_frequency_results(i)
+
+    def _print_single_frequency_results(self, freq_index):
+        """Print results for a single frequency."""
+
+        freq = self.frequency[freq_index]
 
         table = PrettyTable()
         table.field_names = ["Parameter", "Value", "Unit"]
 
-        # Operating conditions
-        table.add_row(["Operating Speed", f"{self.speed * 30 / np.pi:.1f}", "RPM"])
+        table.add_row(["Operating Speed", f"{freq * 30 / np.pi:.1f}", "RPM"])
         table.add_row(["Equilibrium Mode", self.equilibrium_position_mode, "-"])
 
-        # Field results
         table.add_row(
-            ["Maximum Pressure", f"{self.pressure_field_dimensional.max():.2f}", "Pa"]
+            ["Maximum Pressure", f"{self.pressure_fields[freq_index].max():.4e}", "Pa"]
         )
         table.add_row(
-            ["Maximum Temperature", f"{self.temperature_field.max():.1f}", "°C"]
+            [
+                "Maximum Temperature",
+                f"{self.temperature_fields[freq_index].max():.1f}",
+                "°C",
+            ]
         )
-        table.add_row(["Maximum Film Thickness", f"{self.max_thickness:.6f}", "m"])
-        table.add_row(["Minimum Film Thickness", f"{self.min_thickness:.6f}", "m"])
-        table.add_row(["Pivot Film Thickness", f"{self.pivot_film_thickness:.6f}", "m"])
+        table.add_row(
+            ["Maximum Film Thickness", f"{self.max_thicknesses[freq_index]:.4e}", "m"]
+        )
+        table.add_row(
+            ["Minimum Film Thickness", f"{self.min_thicknesses[freq_index]:.4e}", "m"]
+        )
+        table.add_row(
+            [
+                "Pivot Film Thickness",
+                f"{self.pivot_film_thicknesses[freq_index]:.4e}",
+                "m",
+            ]
+        )
 
-        # Load results
         if self.equilibrium_position_mode == "imposed":
-            table.add_row(["Axial Load", f"{self.fzs_load.sum():.2f}", "N"])
+            table.add_row(["Axial Load", f"{self.axial_load.sum():.4e}", "N"])
         elif self.equilibrium_position_mode == "calculate":
-            table.add_row(["Axial Load", f"{self.fzs_load:.2f}", "N"])
+            table.add_row(["Axial Load", f"{self.axial_load:.4e}", "N"])
 
-        # Dynamic coefficients
-        table.add_row(["kzz (Stiffness)", f"{self.kzz.item():.4e}", "N/m"])
-        table.add_row(["czz (Damping)", f"{self.czz.item():.4e}", "N*s/m"])
+        table.add_row(["kzz (Stiffness)", f"{self.kzz[freq_index]:.4e}", "N/m"])
+        table.add_row(["czz (Damping)", f"{self.czz[freq_index]:.4e}", "N*s/m"])
 
+        # Table width
+        desired_width = 25
+
+        table.max_width = desired_width
+        table.min_width = desired_width
+
+        table_str = table.get_string()
+        table_lines = table_str.split("\n")
+        actual_width = len(table_lines[0])
+
+        print("\n" + "=" * actual_width)
+        print(
+            f"THRUST BEARING RESULTS - {freq * 30 / np.pi:.1f} RPM".center(actual_width)
+        )
+        print("=" * actual_width)
         print(table)
-        print("=" * 48)
+        print("=" * actual_width)
 
     def solve_fields(self):
-        residual_force_moment = 10
-        tolerance_force_moment = 1
+        """Solve pressure and temperature fields iteratively until convergence.
+
+        This method performs the main iterative solution loop for thrust pad bearing
+        analysis, solving the coupled pressure-temperature-viscosity problem. The
+        method iterates between equilibrium position optimization and field equations
+        until convergence criteria are met.
+
+        The solution process consists of two nested loops:
+
+        1. Outer Loop (Force-Moment Convergence):
+        - Minimizes residual forces and moments to find equilibrium position
+        - Updates pad inclination angles and film thickness
+        - Uses scipy.optimize.fmin with Nelder-Mead method
+        - Mode-dependent optimization:
+            * 'imposed': Film thickness is fixed, only angles are optimized
+            * 'calculate': Film thickness, radial and circumferential angles are optimized
+
+        2. Inner Loop (Viscosity Convergence):
+        - Solves temperature field using energy equation
+        - Updates viscosity field based on temperature-dependent viscosity model
+        - Iterates until viscosity variation is below tolerance
+        - Uses finite volume method with upwind convection scheme
+
+        For each iteration, the method:
+
+        - Calculates pressure field using Reynolds equation with boundary conditions
+        - Computes pressure gradients (dp/dr and dp/dtheta) at all control volumes
+        - Solves energy equation for temperature field considering viscous heating
+        - Updates viscosity using exponential model: μ = a * exp(b * T)
+        - Computes hydrodynamic forces, moments, and residuals
+        - Checks convergence of both force/moment balance and viscosity variation
+
+        The method modifies instance attributes including pressure_field_dimensional,
+        temperature_field, viscosity_field, pivot_film_thickness, and film thickness
+        arrays. Final results are stored for coefficient calculation and visualization.
+
+        Convergence Criteria:
+            - Force-moment residual < tolerance_force_moment (default: 50 N or N*m)
+            - Viscosity variation < viscosity_convergence_tolerance (default: 1e-5)
+
+        Optimization Parameters:
+            - 'imposed' mode: xtol=1, ftol=1, maxiter=100000
+            - 'calculate' mode: xtol=0.1, ftol=0.1, maxiter=100
+
+        Notes
+        -----
+        The method uses dimensional analysis where film thickness, pressure, and
+        temperature are solved simultaneously. The viscosity model is temperature-
+        dependent and causes strong coupling between the fields. The method may
+        require multiple outer loop iterations if the coupling is strong.
+
+        Examples
+        --------
+        This method is automatically called by run_thermo_hydro_dynamic() and should
+        not be called directly by users.
+
+        See Also
+        --------
+        _equilibrium_objective : Objective function for shaft/rotor equilibrium position
+        _solve_pressure_field : Solves Reynolds equation for pressure
+        coefficients : Calculates dynamic coefficients after field solution
+        """
+
+        # Initialize with a high value to enter the loop
+        residual_force_moment = self.residual_force_moment
+        # Set a tolerance to exit the loop
+        tolerance_force_moment = self.tolerance_force_moment
 
         # Residual force and moment convergence loop
         iteration = 0
         while residual_force_moment >= tolerance_force_moment:
             iteration += 1
-            if self.print_progress:
-                print(
-                    f"Iteration {iteration} - Residual Force & Moment: {residual_force_moment:.6f}"
-                )
 
             if self.equilibrium_position_mode == "imposed":
                 self.h0i = self.initial_position[2]
@@ -483,7 +566,6 @@ class ThrustPad(BearingElement):
                     maxiter=100000,
                     maxfun=100000,
                     full_output=0,
-                    disp=self.print_progress,
                     retall=0,
                     callback=None,
                     initial_simplex=None,
@@ -544,7 +626,6 @@ class ThrustPad(BearingElement):
                     / self.pivot_film_thickness
                 )
 
-                # Volumes number
                 volumes_number = (self.n_radial) * (self.n_theta)
 
                 # Variable initialization
@@ -1171,12 +1252,12 @@ class ThrustPad(BearingElement):
                 residual_force_moment = np.linalg.norm(
                     np.array([residual_moment_x, residual_moment_y])
                 )
-                self.fzs_load = force_radial
+                self.axial_load = force_radial
 
             else:
                 axial_force_residual = (
                     -np.trapezoid(force_radial, radius_coords)
-                    + self.fzs_load / self.n_pad
+                    + self.axial_load / self.n_pad
                 )
                 residual_force_moment = np.linalg.norm(
                     np.array(
@@ -1186,6 +1267,9 @@ class ThrustPad(BearingElement):
 
             self.initial_position = np.array([x[0], x[1], self.pivot_film_thickness])
             self.score = residual_force_moment
+
+            # Store optimization history
+            self.record_optimization_residual(residual_force_moment, iteration)
 
         temperature_field_full = np.ones((self.n_radial + 2, self.n_theta + 2))
 
@@ -1240,7 +1324,7 @@ class ThrustPad(BearingElement):
             * self.reference_viscosity
             / self.pivot_film_thickness**2
         ) * np.flipud(self.pressure_field)
-        self.pressure_field_dimensional = pressure_field_dimensional
+        self.pressure_field_dimensional = pressure_field_dimensional.copy()
 
         self.max_thickness = np.max(
             self.pivot_film_thickness * self.film_thickness_center_array
@@ -1248,6 +1332,111 @@ class ThrustPad(BearingElement):
         self.min_thickness = np.min(
             self.pivot_film_thickness * self.film_thickness_center_array
         )
+
+    def record_optimization_residual(
+        self, residual_value: float, iteration: int | None = None
+    ) -> None:
+        """
+        Store the residual value for the current frequency.
+
+        - If 'iteration' is provided, the value is placed at that index.
+        - If 'iteration' is None, the value is appended.
+
+        Notes
+        -----
+        Requires 'self._current_freq_index' to be set (done in the frequency loop).
+        """
+        idx = getattr(self, "_current_freq_index", None)
+        if idx is None:
+            return
+
+        if idx not in self.optimization_history:
+            self.optimization_history[idx] = []
+
+        if iteration is None:
+            self.optimization_history[idx].append(residual_value)
+        else:
+            if len(self.optimization_history[idx]) <= iteration:
+                self.optimization_history[idx] += [None] * (
+                    iteration + 1 - len(self.optimization_history[idx])
+                )
+            self.optimization_history[idx][iteration] = residual_value
+
+    def show_optimization_convergence(
+        self, by: str = "index", show_plots: bool = False
+    ) -> None:
+        """
+        Display the optimization residuals per iteration for each processed frequency.
+
+        Parameters
+        ----------
+        by : str
+            'index' -> show frequencies by their index (default)
+            'value' -> show frequencies by their value (as stored in self.frequency)
+        show_plots : bool
+            Whether to show the convergence plot. Default is False.
+
+        Notes
+        -----
+        Requires 'self.optimization_history' to be populated during the solve.
+        """
+        if not hasattr(self, "optimization_history") or not self.optimization_history:
+            print("No residual history available. Run the analysis first.")
+            return
+
+        for i, res_list in self.optimization_history.items():
+            if not res_list:
+                continue
+
+            freq = self.frequency[i]
+            rpm = freq * 30 / np.pi
+
+            # Table width
+            desired_width = 25
+
+            table = PrettyTable()
+            table.field_names = ["Iteration", "Residual [N]"]
+
+            for it, res in enumerate(res_list):
+                if res is not None:
+                    table.add_row([it, f"{res:.6f}"])
+
+            table.max_width = desired_width
+            table.min_width = desired_width
+
+            table_str = table.get_string()
+            table_lines = table_str.split("\n")
+            actual_width = len(table_lines[0])
+
+            print("\n" + "=" * actual_width)
+            print(f"OPTIMIZATION CONVERGENCE - {rpm:.1f} RPM".center(actual_width))
+            print("=" * actual_width)
+            print(table)
+            print("=" * actual_width)
+
+            # Display plot if requested
+            if show_plots:
+                iterations = list(range(1, len(res_list) + 1))
+                residuals = [res for res in res_list if res is not None]
+
+                fig = go.Figure()
+                fig.add_trace(
+                    go.Scatter(
+                        x=iterations,
+                        y=residuals,
+                        mode="lines+markers",
+                        name=f"Convergence - {rpm:.1f} RPM",
+                        line=dict(width=2),
+                        marker=dict(size=6),
+                    )
+                )
+                fig.update_layout(
+                    title=f"Optimization Convergence - {rpm:.1f} RPM",
+                    xaxis_title="Iteration",
+                    yaxis_title="Residual [N]",
+                    template="ross",
+                )
+                fig.show()
 
     def _equilibrium_objective(self, x):
         """Calculates the equilibrium position of the bearing
@@ -1714,7 +1903,8 @@ class ThrustPad(BearingElement):
 
         else:  # "calculate" operation mode
             axial_force_residual = (
-                -np.trapezoid(force_radial, radius_coords) + self.fzs_load / self.n_pad
+                -np.trapezoid(force_radial, radius_coords)
+                + self.axial_load / self.n_pad
             )
             score = np.linalg.norm([mom_x_total, mom_y_total, axial_force_residual])
 
@@ -2773,13 +2963,42 @@ class ThrustPad(BearingElement):
         self.kzz = self.n_pad * np.real(force_axial)
         self.czz = self.n_pad * 1 / perturbation_frequency * np.imag(force_axial)
 
-    def plot_results(self):
-        """Plot pressure and temperature field results.
+    def plot_results(self, show_plots=False, freq_index=0):
+        """Plot pressure and temperature field results for thrust bearing analysis.
 
-        Creates 3D surface plots and 2D contour plots for both pressure
-        and temperature fields using Plotly.
+        This method generates comprehensive visualization plots for the calculated
+        pressure and temperature fields at a specific frequency. It creates both
+        3D surface plots and 2D contour plots for visualization of the field
+        properties distributions across the bearing pad.
+
+        Parameters
+        ----------
+        show_plots : bool, optional
+            Whether to automatically display the plots. If True, attempts to show
+            all plots using the default display method. If False, returns figure
+            objects for manual display. Default is False.
+        freq_index : int, optional
+            Index of the frequency to plot results for. Must be within the range
+            of calculated frequencies. Default is 0 (first frequency).
+
+        Returns
+        -------
+        dict
+            Dictionary containing four Plotly figure objects:
+            - 'pressure_3D': 3D surface plot of pressure field
+            - 'temperature_3D': 3D surface plot of temperature field
+            - 'pressure_2D': 2D contour plot of pressure field
+            - 'temperature_2D': 2D contour plot of temperature field
+
+        Notes
+        -----
+        The method interpolates the field data using cubic interpolation for
+        smoother contour plots. Coordinate transformation from polar to Cartesian
+        coordinates is performed for visualization purposes.
         """
-        # Define coordinate vectors and matrices
+        pressure_field = self.pressure_fields[freq_index]
+        temperature_field = self.temperature_fields[freq_index]
+
         radial_coords = np.zeros(self.n_radial + 2)
         angular_coords = np.zeros(self.n_theta + 2)
         x_coords = np.zeros((self.n_radial + 2, self.n_theta + 2))
@@ -2810,36 +3029,26 @@ class ThrustPad(BearingElement):
                 x_coords[i, j] = radial_coords[i] * np.cos(angular_coords[j])
                 y_coords[i, j] = radial_coords[i] * np.sin(angular_coords[j])
 
-        # Calculate angle range for plotting
-        angle_per_pad = 360 / self.n_pad
-        angle_step = 20 / 10
-        angle_range = np.arange(
-            angle_per_pad + (angle_per_pad - 20) - 40,
-            angle_per_pad + angle_per_pad + angle_step - 40,
-            angle_step,
-        )
-
         # Plot 3D pressure field
-        self._plot_3d_surface(
+        pressure_3d_fig = self._plot_3d_surface(
             x_coords,
             y_coords,
-            self.pressure_field_dimensional,
+            pressure_field,
             "Pressure field",
             "Pressure [Pa]",
-            angle_range,
+            show_plot=False,
         )
 
         # Plot 3D temperature field
-        self._plot_3d_surface(
+        temperature_3d_fig = self._plot_3d_surface(
             x_coords,
             y_coords,
-            self.temperature_field,
+            temperature_field,
             "Temperature field",
             "Temperature [°C]",
-            angle_range,
+            show_plot=False,
         )
 
-        # Create interpolation grid for contour plots
         x_min, x_max = x_coords.min(), x_coords.max()
         y_min, y_max = y_coords.min(), y_coords.max()
 
@@ -2847,104 +3056,125 @@ class ThrustPad(BearingElement):
         y_interp = np.linspace(y_min, y_max, 800)
         x_grid, y_grid = np.meshgrid(x_interp, y_interp)
 
-        # Plot 2D temperature contour
         temp_interpolated = griddata(
             (x_coords.flatten(), y_coords.flatten()),
-            self.temperature_field.flatten(),
+            temperature_field.flatten(),
             (x_grid, y_grid),
             method="cubic",
         )
-        self._plot_2d_contour(
-            x_grid, y_grid, temp_interpolated, "Temperature field", "Temperature (°C)"
+        temperature_contour_fig = self._plot_2d_contour(
+            x_grid,
+            y_grid,
+            temp_interpolated,
+            "Temperature field",
+            "Temperature (°C)",
+            show_plot=False,
         )
 
-        # Plot 2D pressure contour
         pressure_interpolated = griddata(
             (x_coords.flatten(), y_coords.flatten()),
-            self.pressure_field_dimensional.flatten(),
+            pressure_field.flatten(),
             (x_grid, y_grid),
             method="cubic",
         )
-        self._plot_2d_contour(
-            x_grid, y_grid, pressure_interpolated, "Pressure field", "Pressure (Pa)"
+        pressure_contour_fig = self._plot_2d_contour(
+            x_grid,
+            y_grid,
+            pressure_interpolated,
+            "Pressure field",
+            "Pressure (Pa)",
+            show_plot=False,
         )
 
-    def _plot_3d_surface(self, x_coords, y_coords, z_data, title, z_label, angle_range):
+        figures = {
+            "pressure_2D": pressure_contour_fig,
+            "pressure_3D": pressure_3d_fig,
+            "temperature_2D": temperature_contour_fig,
+            "temperature_3D": temperature_3d_fig,
+        }
+
+        if show_plots:
+            try:
+                for fig in figures.values():
+                    fig.show()
+            except Exception as e:
+                print(f"Warning: Could not display plots automatically. Error: {e}")
+                print("The figure objects are still available for manual display.")
+
+        return figures
+
+    def _plot_3d_surface(
+        self, x_coords, y_coords, z_data, title, z_label, show_plot=False
+    ):
         """Create 3D surface plot using Plotly with tableau colors.
 
         Parameters
         ----------
         x_coords : ndarray
-            X coordinates mesh
+            X coordinates
         y_coords : ndarray
-            Y coordinates mesh
+            Y coordinates
         z_data : ndarray
             Z data for surface plot
         title : str
             Plot title
         z_label : str
             Z-axis label
-        angle_range : ndarray
-            Angle range for axis limits
+        show_plot : bool, optional
+            Whether to automatically display the plot. Default is False.
+
+        Returns
+        -------
+        fig : plotly.graph_objects.Figure
+            The figure object
         """
         fig = go.Figure()
-        fig.update_layout(
-            autosize=True,
-            margin=dict(l=0, r=0, t=0, b=0),
-            title=title,
-            plot_bgcolor="white",
-        )
-
-        colorscale = [
-            [0, tableau_colors["blue"]],
-            [0.25, tableau_colors["cyan"]],
-            [0.5, tableau_colors["green"]],
-            [0.75, tableau_colors["orange"]],
-            [1, tableau_colors["red"]],
-        ]
 
         fig.add_trace(
             go.Surface(
                 x=x_coords,
                 y=y_coords,
                 z=z_data,
-                colorscale=colorscale,
-                colorbar=dict(
-                    title=z_label,
-                    tickfont=dict(size=22),
-                ),
+                colorscale="Viridis",
+                colorbar=dict(title=z_label),
+                name=title,
+                hovertemplate=f"<b>{title}</b><br>"
+                + "X: %{x:.3f}<br>"
+                + "Y: %{y:.3f}<br>"
+                + f"{z_label}: %{{z:.3f}}<br>"
+                + "<extra></extra>",
             )
         )
 
         fig.update_layout(
-            xaxis_range=[np.min(angle_range), np.max(angle_range)],
-            yaxis_range=[np.min(y_coords), np.max(y_coords)],
+            title=title,
+            scene=dict(
+                xaxis_title="X [m]",
+                yaxis_title="Y [m]",
+                zaxis_title=z_label,
+                camera=dict(eye=dict(x=-1.5, y=-4, z=1.5), center=dict(x=0, y=0, z=0)),
+            ),
+            width=800,
+            height=600,
         )
 
-        fig.update_scenes(
-            xaxis_title=dict(
-                text="Angular length [rad]",
-                font=dict(family="Times New Roman", size=22),
-            ),
-            xaxis_tickfont=dict(family="Times New Roman", size=14),
-            yaxis_title=dict(
-                text="Radial length [m]", font=dict(family="Times New Roman", size=22)
-            ),
-            yaxis_tickfont=dict(family="Times New Roman", size=14),
-            zaxis_title=dict(
-                text=z_label, font=dict(family="Times New Roman", size=22)
-            ),
-            zaxis_tickfont=dict(family="Times New Roman", size=14),
-            aspectratio=dict(x=1.8, y=1.8, z=1.8),
-        )
-
-        # Camera position
         camera = dict(eye=dict(x=-1.5, y=-4, z=1.5), center=dict(x=0, y=0, z=0))
         fig.update_layout(scene_camera=camera)
 
-        fig.show()
+        if show_plot:
+            try:
+                fig.show()
+            except Exception as e:
+                print(
+                    f"Warning: Could not display plot '{title}' automatically. Error: {e}"
+                )
+                print("The figure object is still available for manual display.")
 
-    def _plot_2d_contour(self, x_grid, y_grid, z_data, title, colorbar_title):
+        return fig
+
+    def _plot_2d_contour(
+        self, x_grid, y_grid, z_data, title, colorbar_title, show_plot=False
+    ):
         """Create 2D contour plot using Plotly with tableau colors.
 
         Parameters
@@ -2959,61 +3189,126 @@ class ThrustPad(BearingElement):
             Plot title
         colorbar_title : str
             Colorbar title
+        show_plot : bool, optional
+            Whether to automatically display the plot. Default is False.
+
+        Returns
+        -------
+        fig : plotly.graph_objects.Figure
+            The figure object
         """
         fig = go.Figure()
 
-        colorscale = [
-            [0, tableau_colors["blue"]],
-            [0.25, tableau_colors["cyan"]],
-            [0.5, tableau_colors["green"]],
-            [0.75, tableau_colors["orange"]],
-            [1, tableau_colors["red"]],
-        ]
-
         fig.add_trace(
             go.Contour(
-                x=x_grid[0],
+                x=x_grid[0, :],
                 y=y_grid[:, 0],
                 z=z_data,
-                ncontours=15,
-                contours=dict(start=np.nanmin(z_data), end=np.nanmax(z_data)),
-                colorscale=colorscale,
-                colorbar=dict(
-                    title=colorbar_title,
-                    tickfont=dict(size=22),
-                ),
+                colorscale="Viridis",
+                colorbar=dict(title=colorbar_title),
+                name=title,
+                hovertemplate=f"<b>{title}</b><br>"
+                + "X: %{x:.3f}<br>"
+                + "Y: %{y:.3f}<br>"
+                + f"{colorbar_title}: %{{z:.3f}}<br>"
+                + "<extra></extra>",
             )
         )
 
         fig.update_layout(
-            autosize=True,
-            margin=dict(l=0, r=0, t=0, b=0),
             title=title,
-            plot_bgcolor="white",
+            xaxis_title="X [m]",
+            yaxis_title="Y [m]",
+            width=800,
+            height=600,
         )
 
-        fig.update_traces(
-            contours_coloring="fill",
-            contours_showlabels=True,
-            contours_labelfont=dict(size=20),
-        )
+        if show_plot:
+            try:
+                fig.show()
+            except Exception as e:
+                print(
+                    f"Warning: Could not display plot '{title}' automatically. Error: {e}"
+                )
+                print("The figure object is still available for manual display.")
 
-        fig.update_layout(xaxis_range=[np.min(x_grid), np.max(x_grid)])
-        fig.update_xaxes(
-            tickfont=dict(size=22),
-            title=dict(
-                text="X Direction (m)", font=dict(family="Times New Roman", size=30)
-            ),
-            range=[np.min(x_grid), np.max(x_grid)],
-        )
-        fig.update_yaxes(
-            tickfont=dict(size=22),
-            title=dict(
-                text="Y Direction (m)", font=dict(family="Times New Roman", size=30)
-            ),
-        )
+        return fig
 
-        fig.show()
+    def show_execution_time(self):
+        """Display the simulation execution time.
+
+        This method calculates and displays the total time spent during the
+        complete bearing analysis execution, including all frequency calculations.
+
+        Parameters
+        ----------
+        None
+            This method uses the initial_time and final_time attributes
+            stored during the simulation execution.
+
+        Returns
+        -------
+        float
+            Total simulation time in seconds. Returns None if simulation
+            hasn't been executed yet.
+        """
+        if hasattr(self, "initial_time") and hasattr(self, "final_time"):
+            total_time = self.final_time - self.initial_time
+            print(f"Execution time: {total_time:.2f} seconds")
+        else:
+            print("Simulation hasn't been executed yet.")
+
+    def show_coefficients_comparison(self):
+        """Display dynamic coefficients comparison table.
+
+        This method creates and displays a formatted table comparing dynamic
+        coefficients (stiffness and damping) across different frequencies.
+
+        Parameters
+        ----------
+        None
+            This method uses the frequency array and coefficients stored as
+            instance attributes.
+
+        Returns
+        -------
+        None
+            Results are printed to the console in a formatted table.
+        """
+
+        freq_rpm = np.atleast_1d(self.frequency).astype(float) * 30.0 / np.pi
+
+        table = PrettyTable()
+        headers = [
+            "Frequency [RPM]",
+            "kzz [N/m]",
+            "czz [N*s/m]",
+        ]
+        table.field_names = headers
+
+        for i in range(len(freq_rpm)):
+            row = [
+                f"{freq_rpm[i]:.1f}",
+                f"{self.kzz[i]:.4e}",
+                f"{self.czz[i]:.4e}",
+            ]
+            table.add_row(row)
+
+        # Table width
+        desired_width = 25
+
+        table.max_width = desired_width
+        table.min_width = desired_width
+
+        table_str = table.get_string()
+        table_lines = table_str.split("\n")
+        actual_width = len(table_lines[0])
+
+        print("\n" + "=" * actual_width)
+        print("DYNAMIC COEFFICIENTS COMPARISON TABLE".center(actual_width))
+        print("=" * actual_width)
+        print(table)
+        print("=" * actual_width)
 
 
 def thrust_pad_example():
@@ -3065,14 +3360,10 @@ def thrust_pad_example():
         frequency=Q_([90], "RPM"),
         equilibrium_position_mode="calculate",
         model_type="thermo_hydro_dynamic",
-        fzs_load=13.320e6,
+        axial_load=13.320e6,
         radial_inclination_angle=Q_(-2.75e-04, "rad"),
         circumferential_inclination_angle=Q_(-1.70e-05, "rad"),
         initial_film_thickness=Q_(0.2, "mm"),
-        print_result=False,
-        print_progress=False,
-        print_time=False,
-        compare_coefficients=False,
     )
 
     return bearing

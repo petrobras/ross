@@ -5,6 +5,7 @@ from scipy.optimize import curve_fit, minimize
 from plotly import graph_objects as go
 from numba import njit
 from scipy import sparse
+from prettytable import PrettyTable
 
 from ross.bearing_seal_element import BearingElement
 from ross.units import Q_, check_units
@@ -68,15 +69,6 @@ class PlainJournal(BearingElement):
     model_type : str, optional
         Type of model to be used. Options:
         - 'thermo_hydro_dynamic': Thermo-Hydro-Dynamic model
-    print_progress : bool
-        Set it True to print the score and forces on each iteration.
-        False by default.
-    print_result : bool
-        Set it True to print result at the end.
-        False by default.
-    print_time : bool
-        Set it True to print the time at the end.
-        False by default.
 
     Operation conditions
     ^^^^^^^^^^^^^^^^^^^^
@@ -184,10 +176,6 @@ class PlainJournal(BearingElement):
     ...    operating_type="flooded",
     ...    oil_supply_pressure=0,
     ...    oil_flow_v=Q_(37.86, "l/min"),
-    ...    show_coeffs=False,
-    ...    print_result=False,
-    ...    print_progress=False,
-    ...    print_time=False,
     ... )
     >>> bearing.equilibrium_pos
     array([ 0.68733194, -0.79394211])
@@ -219,10 +207,6 @@ class PlainJournal(BearingElement):
         operating_type="flooded",
         oil_supply_pressure=None,
         oil_flow_v=None,
-        show_coeffs=False,
-        print_result=False,
-        print_progress=False,
-        print_time=False,
         **kwargs,
     ):
         self.axial_length = axial_length
@@ -246,10 +230,6 @@ class PlainJournal(BearingElement):
         self.model_type = model_type
         self.oil_supply_pressure = oil_supply_pressure
         self.oil_flow_v = oil_flow_v
-        self.show_coeffs = show_coeffs
-        self.print_result = print_result
-        self.print_progress = print_progress
-        self.print_time = print_time
 
         self.betha_s_dg = pad_arc_length
         self.betha_s = pad_arc_length * np.pi / 180
@@ -315,6 +295,12 @@ class PlainJournal(BearingElement):
         # Pivot angle for lobe geometry
         self.theta_pivot = np.array([90, 270]) * np.pi / 180
 
+        # Store optimization results for later reporting
+        self._opt_results = {}
+        self._exec_times = {}
+        self._equilibrium_pos_by_speed = {}
+        self.optimization_history = {}
+
         n_freq = np.shape(frequency)[0]
 
         kxx = np.zeros(n_freq)
@@ -338,7 +324,17 @@ class PlainJournal(BearingElement):
             cxx[i], cxy[i], cyx[i], cyy[i] = coeffs[1]
 
         super().__init__(
-            n, kxx, cxx, kyy, kxy, kyx, cyy, cxy, cyx, frequency=frequency, **kwargs
+            n=n,
+            kxx=kxx,
+            cxx=cxx,
+            kyy=kyy,
+            kxy=kxy,
+            kyx=kyx,
+            cyy=cyy,
+            cxy=cxy,
+            cyx=cyx,
+            frequency=frequency,
+            **kwargs,
         )
 
     def _forces(self, initial_guess, speed, y0=None, xpt0=None, ypt0=None):
@@ -640,6 +636,17 @@ class PlainJournal(BearingElement):
         )
         self.Theta_vol = Theta_vol
 
+        # Store fields for plot
+        self.Pdim_last = Pdim
+        self.Tdim_last = Tdim
+
+        # Grades for plot
+        theta_concat = np.concatenate(self.theta_range)
+        z_vec = self.Zdim[1 : self.elements_axial + 1]
+        self._theta_grid, self._z_grid = np.meshgrid(theta_concat, z_vec)
+
+        self._last_speed = speed
+
         # Reshape dimensional pressure field from (axial, circumferential, pads) to (axial, all_other_dims)
         PPlot = Pdim.reshape(self.elements_axial, -1, order="F")
 
@@ -665,25 +672,41 @@ class PlainJournal(BearingElement):
         the rotor's center.
         """
 
-        args = (speed, self.print_progress)
-        t1 = time.time()
+        # Initialize optimization history for the current speed
+        if not hasattr(self, "optimization_history"):
+            self.optimization_history = {}
+        if speed not in self.optimization_history:
+            self.optimization_history[speed] = []
+
+        def _callback(xk):
+            # Store the score value for the current speed
+            res_val = float(self._score(xk, speed))
+            self.optimization_history[speed].append(res_val)
+
+        self.initial_time = time.time()
         res = minimize(
             self._score,
             self.initial_guess,
-            args,
+            args=(speed,),
             method="Nelder-Mead",
             bounds=[(0, 1), (-2 * np.pi, 2 * np.pi)],
             tol=0.8,
             options={"maxiter": 1e10},
+            callback=_callback,
         )
         self.equilibrium_pos = res.x
-        t2 = time.time()
+        self.final_time = time.time()
 
-        if self.print_result:
-            print(res)
+        if not hasattr(self, "_opt_results"):
+            self._opt_results = {}
+        if not hasattr(self, "_exec_times"):
+            self._exec_times = {}
+        if not hasattr(self, "_equilibrium_pos_by_speed"):
+            self._equilibrium_pos_by_speed = {}
 
-        if self.print_time:
-            print(f"Time Spent: {t2 - t1} seconds")
+        self._opt_results[float(speed)] = res
+        self._exec_times[float(speed)] = self.final_time - self.initial_time
+        self._equilibrium_pos_by_speed[float(speed)] = res.x
 
     def _get_interp_coeffs(self, T_muI, T_muF, mu_I, mu_F):
         """
@@ -748,17 +771,6 @@ class PlainJournal(BearingElement):
                 k, c = self._lund_method(speed)
             elif self.method == "perturbation":
                 k, c = self._perturbation_method(speed)
-
-            if self.show_coeffs:
-                print(f"kxx = {k[0]}")
-                print(f"kxy = {k[1]}")
-                print(f"kyx = {k[2]}")
-                print(f"kyy = {k[3]}")
-
-                print(f"cxx = {c[0]}")
-                print(f"cxy = {c[1]}")
-                print(f"cyx = {c[2]}")
-                print(f"cyy = {c[3]}")
 
             coeffs = (k, c)
 
@@ -1711,7 +1723,7 @@ class PlainJournal(BearingElement):
 
         return (kxx, kxy, kyx, kyy), (cxx, cxy, cyx, cyy)
 
-    def _score(self, x, speed, print_progress=False):
+    def _score(self, x, speed):
         """This method used to set the objective function of minimize optimization.
 
         Parameters
@@ -1729,14 +1741,6 @@ class PlainJournal(BearingElement):
 
         Fhx, Fhy = self._forces(x, speed)
         score = np.sqrt(((self.fxs_load + Fhx) ** 2) + ((self.fys_load + Fhy) ** 2))
-        if print_progress:
-            print(x)
-            print(f"Score: ", score)
-            print("============================================")
-            print(f"Force x direction: ", Fhx)
-            print("============================================")
-            print(f"Force y direction: ", Fhy)
-            print("")
 
         return score
 
@@ -1778,7 +1782,6 @@ class PlainJournal(BearingElement):
                 * (np.sqrt((force_x**2) + (force_y**2)))
             )
 
-        # Ss = S * ((self.axial_length / (2 * self.journal_radius)) ** 2)
         Ss = S
 
         return Ss
@@ -1829,7 +1832,7 @@ class PlainJournal(BearingElement):
             axref="x",
             ayref="y",
             showarrow=True,
-            arrowhead=3,  # style arrow
+            arrowhead=3,
             arrowsize=2.5,
             arrowwidth=3,
             arrowcolor="green",
@@ -2004,6 +2007,409 @@ class PlainJournal(BearingElement):
         )
 
         return fig
+
+    def show_execution_time(self):
+        """Display the simulation execution time.
+
+        This method calculates and displays the total time spent during the
+        complete bearing analysis execution, including all frequency calculations.
+
+        Parameters
+        ----------
+        None
+            This method uses the initial_time and final_time attributes
+            stored during the simulation execution.
+
+        Returns
+        -------
+        float
+            Total simulation time in seconds. Returns None if simulation
+            hasn't been executed yet.
+        """
+        if hasattr(self, "initial_time") and hasattr(self, "final_time"):
+            total_time = self.final_time - self.initial_time
+            print(f"Execution time: {total_time:.2f} seconds")
+        else:
+            print("Simulation hasn't been executed yet.")
+
+    def show_results(self):
+        """Display plain journal bearing calculation results for all speeds.
+
+        Prints a formatted table for each speed in `self.frequency`.
+        """
+        if getattr(self, "frequency", None) is None:
+            raise ValueError(
+                "No frequency array available. Provide `frequency` when creating the bearing."
+            )
+
+        freq_arr = np.atleast_1d(self.frequency)
+        if freq_arr.size == 0:
+            raise ValueError("Frequency array is empty.")
+
+        for speed_rad in freq_arr:
+            self._print_single_frequency_results(float(speed_rad))
+
+    def _print_single_frequency_results(self, speed_rad):
+        """Print results for a single speed (rad/s)."""
+
+        # map speed to nearest index in self.frequency
+        freq_arr = np.atleast_1d(self.frequency).astype(float)
+        idx = int(np.argmin(np.abs(freq_arr - float(speed_rad))))
+
+        # coefficients from precomputed arrays
+        k = (self.kxx[idx], self.kxy[idx], self.kyx[idx], self.kyy[idx])
+        c = (self.cxx[idx], self.cxy[idx], self.cyx[idx], self.cyy[idx])
+
+        rpm_display = float(speed_rad) * 30.0 / np.pi
+
+        # equilibrium per speed (if available)
+        eq = None
+        if hasattr(self, "_equilibrium_pos_by_speed"):
+            eq = self._equilibrium_pos_by_speed.get(float(speed_rad))
+        ecc = float(eq[0]) if eq is not None else None
+        attitude_deg = float(eq[1]) * 180.0 / np.pi if eq is not None else None
+
+        table = PrettyTable()
+        table.field_names = ["Parameter", "Value", "Unit"]
+
+        table.add_row(["Operating Speed", f"{rpm_display:.1f}", "RPM"])
+        if ecc is not None:
+            table.add_row(["Eccentricity Ratio", f"{ecc:.4e}", "-"])
+        if attitude_deg is not None:
+            table.add_row(["Attitude Angle", f"{attitude_deg:.4e}", "deg"])
+
+        # Loads
+        try:
+            fx = float(getattr(self.fxs_load, "m", self.fxs_load))
+        except Exception:
+            fx = float(self.fxs_load)
+        try:
+            fy = float(getattr(self.fys_load, "m", self.fys_load))
+        except Exception:
+            fy = float(self.fys_load)
+        table.add_row(["Load Fx", f"{fx:.4e}", "N"])
+        table.add_row(["Load Fy", f"{fy:.4e}", "N"])
+
+        # Stiffness/Damping values
+        table.add_row(["kxx (Stiffness)", f"{k[0]:.4e}", "N/m"])
+        table.add_row(["kxy (Stiffness)", f"{k[1]:.4e}", "N/m"])
+        table.add_row(["kyx (Stiffness)", f"{k[2]:.4e}", "N/m"])
+        table.add_row(["kyy (Stiffness)", f"{k[3]:.4e}", "N/m"])
+        table.add_row(["cxx (Damping)", f"{c[0]:.4e}", "N*s/m"])
+        table.add_row(["cxy (Damping)", f"{c[1]:.4e}", "N*s/m"])
+        table.add_row(["cyx (Damping)", f"{c[2]:.4e}", "N*s/m"])
+        table.add_row(["cyy (Damping)", f"{c[3]:.4e}", "N*s/m"])
+
+        # Optimization info per speed
+        res = None
+        exec_time = None
+        if hasattr(self, "_opt_results"):
+            res = self._opt_results.get(float(speed_rad))
+        if hasattr(self, "_exec_times"):
+            exec_time = self._exec_times.get(float(speed_rad))
+
+        if res is not None:
+            table.add_row(["Optimization Success", f"{bool(res.success)}", "-"])
+            table.add_row(["Function Value", f"{float(res.fun):.4e}", "-"])
+            table.add_row(["Iterations", f"{int(res.nit)}", "-"])
+            table.add_row(["Evaluations", f"{int(res.nfev)}", "-"])
+        if exec_time is not None:
+            table.add_row(["Execution Time", f"{exec_time:.4e}", "s"])
+
+        # Table width
+        desired_width = 25
+
+        table.max_width = desired_width
+        table.min_width = desired_width
+
+        table_str = table.get_string()
+        table_lines = table_str.split("\n")
+        actual_width = len(table_lines[0])
+
+        print("\n" + "=" * actual_width)
+        print(f"PLAIN JOURNAL RESULTS - {rpm_display:.1f} RPM".center(actual_width))
+        print("=" * actual_width)
+        print(table)
+        print("=" * actual_width)
+
+    def show_coefficients_comparison(self):
+        """Display dynamic coefficients comparison table for all speeds."""
+        if getattr(self, "frequency", None) is None or len(self.frequency) == 0:
+            raise ValueError(
+                "No frequency array available. Provide `frequency` when creating the bearing."
+            )
+
+        freq_rpm = np.atleast_1d(self.frequency).astype(float) * 30.0 / np.pi
+
+        table = PrettyTable()
+        headers = [
+            "Frequency [RPM]",
+            "kxx [N/m]",
+            "kxy [N/m]",
+            "kyx [N/m]",
+            "kyy [N/m]",
+            "cxx [N*s/m]",
+            "cxy [N*s/m]",
+            "cyx [N*s/m]",
+            "cyy [N*s/m]",
+        ]
+        table.field_names = headers
+
+        for i in range(len(freq_rpm)):
+            row = [
+                f"{freq_rpm[i]:.1f}",
+                f"{self.kxx[i]:.4e}",
+                f"{self.kxy[i]:.4e}",
+                f"{self.kyx[i]:.4e}",
+                f"{self.kyy[i]:.4e}",
+                f"{self.cxx[i]:.4e}",
+                f"{self.cxy[i]:.4e}",
+                f"{self.cyx[i]:.4e}",
+                f"{self.cyy[i]:.4e}",
+            ]
+            table.add_row(row)
+
+        # Table width
+        desired_width = 25
+
+        table.max_width = desired_width
+        table.min_width = desired_width
+
+        table_str = table.get_string()
+        table_lines = table_str.split("\n")
+        actual_width = len(table_lines[0])
+
+        print("\n" + "=" * actual_width)
+        print("DYNAMIC COEFFICIENTS COMPARISON TABLE".center(actual_width))
+        print("=" * actual_width)
+        print(table)
+        print("=" * actual_width)
+
+    def show_optimization_convergence(
+        self, by: str = "value", show_plots: bool = False
+    ) -> None:
+        """
+        Display the optimization residuals per iteration for each processed speed.
+
+        Parameters
+        ----------
+        by : str
+            'index' -> show speeds by their index in self.frequency
+            'value' -> show speeds by their numeric value (RPM)
+        show_plots : bool
+            Whether to show the convergence plot. Default is False.
+        """
+        if not hasattr(self, "optimization_history") or not self.optimization_history:
+            print("No residual history available. Run the analysis first.")
+            return
+
+        # map each speed_key to its index in frequency
+        freq_arr = (
+            np.atleast_1d(self.frequency).astype(float)
+            if getattr(self, "frequency", None) is not None
+            else None
+        )
+
+        items = list(self.optimization_history.items())
+        # order by index if possible and requested
+        if by == "index" and freq_arr is not None and len(freq_arr) > 0:
+            items.sort(key=lambda kv: int(np.argmin(np.abs(freq_arr - kv[0]))))
+        else:
+            items.sort(key=lambda kv: kv[0])  # sort by speed value (rad/s)
+
+        for speed_key, res_list in items:
+            if not res_list:
+                continue
+            rpm = speed_key * 30.0 / np.pi
+
+            # Table width
+            desired_width = 25
+
+            table = PrettyTable()
+            table.field_names = ["Iteration", "Residual [N]"]
+
+            for it, res in enumerate(res_list):
+                if res is not None:
+                    table.add_row([it, f"{res:.4e}"])
+
+            table.max_width = desired_width
+            table.min_width = desired_width
+
+            table_str = table.get_string()
+            table_lines = table_str.split("\n")
+            actual_width = len(table_lines[0])
+
+            print("\n" + "=" * actual_width)
+            print(
+                f"OPTIMIZATION CONVERGENCE - {rpm:.1f} RPM".center(
+                    actual_width
+                ).rstrip()
+            )
+            print("=" * actual_width)
+            print(table)
+            print("=" * actual_width)
+
+            # Display plot if requested
+            if show_plots:
+                iterations = list(range(len(res_list)))
+                residuals = [res if res is not None else 0 for res in res_list]
+
+                fig = go.Figure()
+                fig.add_trace(
+                    go.Scatter(
+                        x=iterations,
+                        y=residuals,
+                        mode="lines+markers",
+                        name=f"Convergence - {rpm:.1f} RPM",
+                        line=dict(width=2),
+                        marker=dict(size=6),
+                    )
+                )
+                fig.update_layout(
+                    title=f"Optimization Convergence - {rpm:.1f} RPM",
+                    xaxis_title="Iteration",
+                    yaxis_title="Residual [N]",
+                    template="ross",
+                )
+                fig.show()
+
+    def plot_results(self, show_plots=False):
+        """Plot pressure and temperature fields for the plain journal analysis.
+
+        Returns a dict with:
+        - 'pressure_3d': 3D surface (theta vs z)
+        - 'temperature_3d': 3D surface (theta vs z)
+        - 'pressure_2d': 2D contour (theta vs z)
+        - 'temperature_2d': 2D contour (theta vs z)
+        """
+        if not hasattr(self, "Pdim_last") or not hasattr(self, "Tdim_last"):
+            raise RuntimeError("No field data available. Run the analysis first.")
+
+        P = self.Pdim_last.reshape(self.elements_axial, -1, order="F")
+        T = self.Tdim_last.reshape(self.elements_axial, -1, order="F")
+        theta_grid = self._theta_grid
+        z_grid = self._z_grid
+
+        # 3D Pressure
+        pressure_3d = go.Figure(
+            data=[
+                go.Surface(
+                    x=theta_grid,
+                    y=z_grid,
+                    z=P,
+                    colorscale="Viridis",
+                    colorbar=dict(title="Pressure [Pa]"),
+                    hovertemplate="<b>Pressure field</b><br>"
+                    + "Theta: %{x:.3f} rad<br>"
+                    + "z: %{y:.3f} m<br>"
+                    + "Pressure: %{z:.3f} Pa<br>"
+                    + "<extra></extra>",
+                )
+            ]
+        )
+        pressure_3d.update_layout(
+            scene=dict(
+                xaxis_title="Theta [rad]",
+                yaxis_title="z [m]",
+                zaxis_title="Pressure [Pa]",
+            ),
+            title="Pressure field (theta vs z)",
+            showlegend=False,
+        )
+
+        # 3D Temperature
+        temperature_3d = go.Figure(
+            data=[
+                go.Surface(
+                    x=theta_grid,
+                    y=z_grid,
+                    z=T,
+                    colorscale="Viridis",
+                    colorbar=dict(title="Temperature [°C]"),
+                    hovertemplate="<b>Temperature field</b><br>"
+                    + "Theta: %{x:.3f} rad<br>"
+                    + "z: %{y:.3f} m<br>"
+                    + "Temperature: %{z:.3f} °C<br>"
+                    + "<extra></extra>",
+                )
+            ]
+        )
+        temperature_3d.update_layout(
+            scene=dict(
+                xaxis_title="Theta [rad]",
+                yaxis_title="z [m]",
+                zaxis_title="Temperature [°C]",
+            ),
+            title="Temperature field (theta vs z)",
+            showlegend=False,
+        )
+
+        # 2D Pressure
+        pressure_2d = go.Figure(
+            data=[
+                go.Contour(
+                    x=theta_grid[0, :],
+                    y=z_grid[:, 0],
+                    z=P,
+                    colorscale="Viridis",
+                    colorbar=dict(title="Pressure [Pa]"),
+                    contours=dict(coloring="heatmap"),
+                    hovertemplate="<b>Pressure field</b><br>"
+                    + "Theta: %{x:.3f} rad<br>"
+                    + "z: %{y:.3f} m<br>"
+                    + "Pressure: %{z:.3f} Pa<br>"
+                    + "<extra></extra>",
+                )
+            ]
+        )
+        pressure_2d.update_layout(
+            xaxis_title="Theta [rad]",
+            yaxis_title="z [m]",
+            title="Pressure field (theta vs z)",
+            showlegend=False,
+        )
+
+        # 2D Temperature
+        temperature_2d = go.Figure(
+            data=[
+                go.Contour(
+                    x=theta_grid[0, :],
+                    y=z_grid[:, 0],
+                    z=T,
+                    colorscale="Viridis",
+                    colorbar=dict(title="Temperature [°C]"),
+                    contours=dict(coloring="heatmap"),
+                    hovertemplate="<b>Temperature field</b><br>"
+                    + "Theta: %{x:.3f} rad<br>"
+                    + "z: %{y:.3f} m<br>"
+                    + "Temperature: %{z:.3f} °C<br>"
+                    + "<extra></extra>",
+                )
+            ]
+        )
+        temperature_2d.update_layout(
+            xaxis_title="Theta [rad]",
+            yaxis_title="z [m]",
+            title="Temperature field (theta vs z)",
+            showlegend=False,
+        )
+
+        figures = {
+            "pressure_2D": pressure_2d,
+            "pressure_3D": pressure_3d,
+            "temperature_2D": temperature_2d,
+            "temperature_3D": temperature_3d,
+        }
+
+        if show_plots:
+            try:
+                for fig in figures.values():
+                    fig.show()
+            except Exception as e:
+                print(f"Warning: Could not display plots automatically. Error: {e}")
+                print("The figure objects are still available for manual display.")
+
+        return figures
 
 
 @njit

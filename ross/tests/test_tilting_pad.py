@@ -30,9 +30,6 @@ def tilting_pad():
         oil_supply_temperature=oil_supply_temperature,
         nx=30,
         nz=30,
-        print_result=False,
-        print_progress=False,
-        print_time=False,
         eccentricity=0.483,
         attitude_angle=attitude_angle,
     )
