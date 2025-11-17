@@ -70,9 +70,9 @@ class HybridSeal(SealElement):
         p_low = outlet_pressure
         p_high = inlet_pressure
         iteration = 0
-        convergence_mdot = 1
+        convergence_leakage = 1
 
-        while convergence_mdot > tolerance and iteration < max_iterations:
+        while convergence_leakage > tolerance and iteration < max_iterations:
             intermediate_pressure = (p_low + p_high) / 2
 
             laby = LabyrinthSeal(
@@ -128,9 +128,11 @@ class HybridSeal(SealElement):
                 whirl_ratio=whirl_ratio,
             )
 
-            convergence_mdot = abs(hole.mdot - laby.mdot) / laby.mdot
+            convergence_leakage = (
+                abs(hole.seal_leakage[0] - laby.seal_leakage[0]) / laby.seal_leakage[0]
+            )
 
-            if laby.mdot > hole.mdot:
+            if laby.seal_leakage[0] > hole.seal_leakage[0]:
                 p_low = intermediate_pressure
             else:
                 p_high = intermediate_pressure
@@ -138,31 +140,23 @@ class HybridSeal(SealElement):
             iteration += 1
 
             print(
-                f"{iteration:0.0f} | {convergence_mdot:.9e} | {intermediate_pressure:.9e} | {laby.mdot:.9e} | {hole.mdot:.9e}"
+                f"{iteration:0.0f} | {convergence_leakage:.9e} | {intermediate_pressure:.9e} | {laby.seal_leakage[0]:.9e} | {hole.seal_leakage[0]:.9e}"
             )
 
-        kxx = list(np.array(laby.kxx) + np.array(hole.kxx))
-        kyy = list(np.array(laby.kyy) + np.array(hole.kyy))
-        kxy = list(np.array(laby.kxy) + np.array(hole.kxy))
-        kyx = list(np.array(laby.kyx) + np.array(hole.kyx))
-        cxx = list(np.array(laby.cxx) + np.array(hole.cxx))
-        cyy = list(np.array(laby.cyy) + np.array(hole.cyy))
-        cxy = list(np.array(laby.cxy) + np.array(hole.cxy))
-        cyx = list(np.array(laby.cyx) + np.array(hole.cyx))
+        coefficients_dict = {
+            c: [l + h for l, h in zip(getattr(laby, c), getattr(hole, c))]
+            for c in laby._get_coefficient_list()
+        }
+
+        seal_leakage = laby.seal_leakage[0]
 
         super().__init__(
             n,
             frequency=frequency,
-            kxx=kxx,
-            kyy=kyy,
-            kxy=kxy,
-            kyx=kyx,
-            cxx=cxx,
-            cyy=cyy,
-            cxy=cxy,
-            cyx=cyx,
+            seal_leakage=seal_leakage,
             color=color,
             scale_factor=scale_factor,
+            **coefficients_dict,
             **kwargs,
         )
 
@@ -203,10 +197,6 @@ class HybridSeal(SealElement):
 
 
 # import ross as rs
-# from ross.seals.hybrid_seal import HybridSeal
-# from ross.units import Q_
-# import numpy as np
-
 # # Criar eixo
 # steel = rs.materials.steel
 # shaft = [rs.ShaftElement(0.25, 0, 0.05, material=steel) for _ in range(6)]
@@ -225,7 +215,7 @@ class HybridSeal(SealElement):
 #     inlet_pressure=500000,
 #     outlet_pressure=100000,
 #     inlet_temperature=300,
-#     frequency=Q_([5000], "RPM"),
+#     frequency=Q_([1000, 2000,5000], "RPM"),
 #     gas_composition={"Nitrogen": 0.79, "Oxygen": 0.21},
 #     # LabyrinthSeal params
 #     n_teeth=10,
