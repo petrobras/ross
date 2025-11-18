@@ -2,9 +2,7 @@ from ross import SealElement, HolePatternSeal, LabyrinthSeal
 from ross.units import check_units
 from prettytable import PrettyTable
 from plotly import graph_objects as go
-import plotly.express as px
 from plotly.subplots import make_subplots
-import numpy as np
 
 __all__ = ["HybridSeal"]
 
@@ -152,31 +150,30 @@ class HybridSeal(SealElement):
     >>> from ross.seals.hybrid_seal import HybridSeal
     >>> from ross.units import Q_
     >>> hybrid = HybridSeal(
-    ...     n=0,
-    ...     # Common parameters
-    ...     inlet_pressure=500000.0,
-    ...     outlet_pressure=100000.0,
-    ...     inlet_temperature=300.0,
-    ...     frequency=Q_([6000, 8000], "RPM"),
-    ...     gas_composition={"Nitrogen": 0.79, "Oxygen": 0.21},
-    ...     # Labyrinth seal parameters
-    ...     n_teeth=12,
-    ...     shaft_radius=Q_(75, "mm"),
-    ...     radial_clearance=Q_(0.25, "mm"),
-    ...     pitch=Q_(3.0, "mm"),
-    ...     tooth_height=Q_(3.0, "mm"),
-    ...     tooth_width=Q_(0.15, "mm"),
-    ...     seal_type="inter",
-    ...     pre_swirl_ratio=0.95,
-    ...     # Hole-pattern seal parameters
-    ...     length=0.050,
-    ...     radius=0.075,
-    ...     clearance=0.0003,
-    ...     roughness=0.0001,
-    ...     cell_length=0.003,
-    ...     cell_width=0.003,
-    ...     cell_depth=0.002,
-    ...     preswirl=0.8,
+    ...   n=0,
+    ...   inlet_pressure=500000,
+    ...   outlet_pressure=100000,
+    ...   inlet_temperature=300,
+    ...   frequency=Q_([1000, 2000, 5000], "RPM"),
+    ...   gas_composition={"Nitrogen": 0.79, "Oxygen": 0.21},
+    ...   n_teeth=10,
+    ...   shaft_radius=Q_(25, "mm"),
+    ...   radial_clearance=Q_(0.25, "mm"),
+    ...   pitch=Q_(3, "mm"),
+    ...   tooth_height=Q_(3, "mm"),
+    ...   tooth_width=Q_(0.15, "mm"),
+    ...   seal_type="inter",
+    ...   pre_swirl_ratio=0.9,
+    ...   length=0.04,
+    ...   radius=0.025,
+    ...   clearance=0.0003,
+    ...   roughness=0.0001,
+    ...   cell_length=0.003,
+    ...   cell_width=0.003,
+    ...   cell_depth=0.002,
+    ...   preswirl=0.8,
+    ...   entr_coef=0.5,
+    ...   exit_coef=1.0,
     ... )
     """
 
