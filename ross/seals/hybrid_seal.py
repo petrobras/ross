@@ -1,30 +1,189 @@
-import numpy as np
 from ross import SealElement, HolePatternSeal, LabyrinthSeal
-from ross.units import check_units, Q_
+from ross.units import check_units
 
 
 class HybridSeal(SealElement):
     """Hybrid seal - Compressible flow model with rotordynamic coefficients.
 
-    This class provides a **comprehensive analytical model** for hybrid seals
-    based on compressible gas flow through multiple throttling stages (teeth). The
-    model calculates leakage rates and dynamic coefficients for rotordynamic analysis.
+    This class provides a model for hybrid seals that combine a labyrinth seal
+    (throttling section) with a hole-pattern seal (damping section).
+    The model iteratively determines the interface pressure between the two seal stages
+    by matching their leakage rates, then combines their rotordynamic coefficients.
 
     **Theoretical Approach:**
 
-    The model solves the **1D compressible flow problem** through a series of teeth using:
+    1. **Iterative Pressure Matching**:
+       - Uses bisection method to find intermediate pressure between seal stages
+       - Ensures mass conservation: leakage from labyrinth = leakage into hole-pattern
+       - Convergence criterion based on relative leakage difference
+
+    2. **Combined Rotordynamic Coefficients**:
+       - Direct and cross-coupled stiffness (K), damping (C), and mass (M) coefficients
+       - Series combination: forces from both seals are added
+       - Frequency-dependent coefficients for each operating speed
+
+    Parameters
+    ----------
+    n : int
+        Node in which the hybrid seal will be located.
+
+    **Common Parameters (both seal stages):**
+
+    inlet_pressure : float
+        Total inlet pressure at labyrinth entrance (Pa).
+    outlet_pressure : float
+        Final outlet pressure at hole-pattern exit (Pa).
+    inlet_temperature : float
+        Inlet temperature (K).
+    frequency : float, pint.Quantity, list
+        Shaft rotational speed(s) (rad/s).
+        Can be a single value or list of frequencies.
+    gas_composition : dict
+        Gas composition as a dictionary {component: molar_fraction}.
+        Example: {"Nitrogen": 0.79, "Oxygen": 0.21} for air.
+
+    **Labyrinth Seal Parameters (upstream throttling stage):**
+
+    n_teeth : int
+        Number of labyrinth teeth (throttlings). Must be <= 30.
+    shaft_radius : float, pint.Quantity
+        Radius of shaft at labyrinth section (m).
+    radial_clearance : float, pint.Quantity
+        Nominal radial clearance at labyrinth teeth (m).
+    pitch : float, pint.Quantity
+        Seal pitch (axial cavity length between teeth) (m).
+    tooth_height : float, pint.Quantity
+        Height of labyrinth teeth (m).
+    tooth_width : float, pint.Quantity
+        Axial thickness of tooth tips (m).
+    seal_type : str
+        Location of labyrinth teeth.
+        Options: 'rotor' (teeth on rotor), 'stator' (teeth on stator),
+        'inter' (interlocking teeth).
+    pre_swirl_ratio : float
+        Inlet tangential velocity ratio at labyrinth entrance.
+        Positive for co-rotation, negative for counter-rotation.
+    r : float, optional
+        Gas constant (J/(kg·K)). Calculated from gas_composition if not provided.
+    gamma : float, optional
+        Ratio of specific heats (Cp/Cv). Calculated from gas_composition if not provided.
+    tz : list of float, optional
+        [T1, T2] temperatures for viscosity interpolation (K).
+    muz : list of float, optional
+        [mu1, mu2] dynamic viscosities for interpolation (Pa·s).
+    analz : str, optional
+        Analysis type. 'FULL' for coefficients + leakage, 'LEAKAGE' for leakage only.
+        Default is 'FULL'.
+    nprt : int, optional
+        Print verbosity level (1=max, 5=min). Default is 1.
+    iopt1 : int, optional
+        Use Jenny-Kanki tangential momentum parameters (0=no, 1=yes). Default is 0.
+
+    **Hole-Pattern Seal Parameters (downstream damping stage):**
+
+    length : float, pint.Quantity
+        Axial length of hole-pattern seal (m).
+    radius : float, pint.Quantity
+        Radius of shaft at hole-pattern section (m).
+    clearance : float, pint.Quantity
+        Radial clearance at hole-pattern seal (m).
+    roughness : float
+        Relative surface roughness (roughness/diameter).
+    cell_length : float, pint.Quantity
+        Typical axial length of a hole/pocket (m).
+    cell_width : float, pint.Quantity
+        Typical circumferential width of a hole/pocket (m).
+    cell_depth : float, pint.Quantity
+        Depth of holes/pockets (m).
+    preswirl : float, optional
+        Inlet tangential velocity ratio for hole-pattern section.
+        Different from pre_swirl_ratio as flow has been throttled through labyrinth.
+    entr_coef : float, optional
+        Entrance loss coefficient. Default is 0.1.
+    exit_coef : float, optional
+        Exit loss coefficient. Default is 0.5.
+    b_suther : float, optional
+        Sutherland viscosity coefficient b. Calculated from gas_composition if not provided.
+    s_suther : float, optional
+        Sutherland viscosity coefficient S. Calculated from gas_composition if not provided.
+    molar : float, optional
+        Molecular mass (kg/kmol). Calculated from gas_composition if not provided.
+    nz : int, optional
+        Number of axial discretization points. Default is 80.
+    itrmx : int, optional
+        Maximum iterations for base state calculation. Default is 180.
+    stopcriterion : float, optional
+        Convergence tolerance (fraction of pressure differential). Default is 0.0001.
+    toler : float, optional
+        Initial step tolerance. Default is 0.01.
+    rlx : float, optional
+        Relaxation factor for iterations. Default is 0.1.
+    whirl_ratio : float, optional
+        Whirl frequency ratio (whirl_freq/shaft_freq). Default is 1.0.
+
+    **Hybrid Seal Control Parameters:**
+
+    tolerance : float, optional
+        Convergence tolerance for leakage matching between stages. Default is 1e-6.
+    max_iterations : int, optional
+        Maximum iterations for pressure matching. Default is 1e20.
+
+    **Display Parameters:**
+
+    print_results : bool, optional
+        If True, print convergence information. Default is False.
+    color : str, optional
+        Color for element visualization. Default is "#787FF6".
+    scale_factor : float, optional
+        Scale factor for element drawing. Default is 0.75.
+
+    **kwargs : dict, optional
+        Additional keyword arguments passed to parent SealElement.
+
+    Examples
+    --------
+    >>> from ross.seals.hybrid_seal import HybridSeal
+    >>> from ross.units import Q_
+    >>> hybrid = HybridSeal(
+    ...     n=0,
+    ...     # Common parameters
+    ...     inlet_pressure=500000.0,
+    ...     outlet_pressure=100000.0,
+    ...     inlet_temperature=300.0,
+    ...     frequency=Q_([6000, 8000], "RPM"),
+    ...     gas_composition={"Nitrogen": 0.79, "Oxygen": 0.21},
+    ...     # Labyrinth seal parameters
+    ...     n_teeth=12,
+    ...     shaft_radius=Q_(75, "mm"),
+    ...     radial_clearance=Q_(0.25, "mm"),
+    ...     pitch=Q_(3.0, "mm"),
+    ...     tooth_height=Q_(3.0, "mm"),
+    ...     tooth_width=Q_(0.15, "mm"),
+    ...     seal_type="inter",
+    ...     pre_swirl_ratio=0.95,
+    ...     # Hole-pattern seal parameters
+    ...     length=0.050,
+    ...     radius=0.075,
+    ...     clearance=0.0003,
+    ...     roughness=0.0001,
+    ...     cell_length=0.003,
+    ...     cell_width=0.003,
+    ...     cell_depth=0.002,
+    ...     preswirl=0.8,
+    ... )
     """
 
     @check_units
     def __init__(
         self,
         n=None,
-        # Parameters for LabyrinthSeal
+        # Common parameters (both seals)
         inlet_pressure=None,
         outlet_pressure=None,
         inlet_temperature=None,
-        pre_swirl_ratio=None,
         frequency=None,
+        gas_composition=None,
+        # Labyrinth seal parameters
         n_teeth=None,
         shaft_radius=None,
         radial_clearance=None,
@@ -32,7 +191,7 @@ class HybridSeal(SealElement):
         tooth_height=None,
         tooth_width=None,
         seal_type=None,
-        gas_composition=None,
+        pre_swirl_ratio=None,
         r=None,
         gamma=None,
         tz=None,
@@ -40,7 +199,7 @@ class HybridSeal(SealElement):
         analz="FULL",
         nprt=1,
         iopt1=0,
-        # Parameters for HolePatternSeal
+        # Hole-pattern seal parameters
         length=None,
         radius=None,
         clearance=None,
@@ -48,20 +207,22 @@ class HybridSeal(SealElement):
         cell_length=None,
         cell_width=None,
         cell_depth=None,
-        b_suther=None,
-        s_suther=None,
-        molar=None,
         preswirl=None,
         entr_coef=None,
         exit_coef=None,
+        b_suther=None,
+        s_suther=None,
+        molar=None,
         nz=80,
         itrmx=180,
         stopcriterion=0.0001,
         toler=0.01,
         rlx=0.1,
         whirl_ratio=1.0,
+        # Hybrid seal control parameters
         tolerance=1e-6,
         max_iterations=1e20,
+        # Display parameters
         print_results=False,
         color="#787FF6",
         scale_factor=0.75,
@@ -129,10 +290,10 @@ class HybridSeal(SealElement):
             )
 
             convergence_leakage = (
-                abs(hole.seal_leakage[0] - laby.seal_leakage[0]) / laby.seal_leakage[0]
+                abs(hole.seal_leakage - laby.seal_leakage) / laby.seal_leakage
             )
 
-            if laby.seal_leakage[0] > hole.seal_leakage[0]:
+            if laby.seal_leakage > hole.seal_leakage:
                 p_low = intermediate_pressure
             else:
                 p_high = intermediate_pressure
@@ -140,7 +301,7 @@ class HybridSeal(SealElement):
             iteration += 1
 
             print(
-                f"{iteration:0.0f} | {convergence_leakage:.9e} | {intermediate_pressure:.9e} | {laby.seal_leakage[0]:.9e} | {hole.seal_leakage[0]:.9e}"
+                f"{iteration:0.0f} | {convergence_leakage:.9e} | {intermediate_pressure:.9e} | {laby.seal_leakage:.9e} | {hole.seal_leakage:.9e}"
             )
 
         coefficients_dict = {
@@ -148,7 +309,7 @@ class HybridSeal(SealElement):
             for c in laby._get_coefficient_list()
         }
 
-        seal_leakage = laby.seal_leakage[0]
+        seal_leakage = laby.seal_leakage
 
         super().__init__(
             n,
@@ -159,88 +320,3 @@ class HybridSeal(SealElement):
             **coefficients_dict,
             **kwargs,
         )
-
-
-# hybrid_seal = HybridSeal(
-#     n=0,
-
-#     # Parâmetros compartilhados
-#     inlet_pressure=500000.0,            # 5 bar entrada
-#     outlet_pressure=100000.0,           # 1 bar saída
-#     inlet_temperature=300.0,            # 300 K (27°C)
-#     frequency=Q_([6000, 8000, 10000], "RPM"),
-#     gas_composition={"Nitrogen": 0.79, "Oxygen": 0.21},
-
-#     # LabyrinthSeal - Primeira seção (throttling)
-#     n_teeth=12,
-#     shaft_radius=Q_(75, "mm"),
-#     radial_clearance=Q_(0.25, "mm"),
-#     pitch=Q_(3.0, "mm"),
-#     tooth_height=Q_(3.0, "mm"),
-#     tooth_width=Q_(0.15, "mm"),
-#     seal_type="inter",                  # Interlocking
-#     pre_swirl_ratio=0.95,
-
-#     # HolePatternSeal - Segunda seção (dampening)
-#     length=0.050,                       # 50 mm
-#     radius=0.075,                       # 75 mm (mesmo que shaft_radius)
-#     clearance=0.0003,                   # 0.3 mm
-#     roughness=0.0001,
-#     cell_length=0.003,
-#     cell_width=0.003,
-#     cell_depth=0.002,
-#     preswirl=0.8,
-#     entr_coef=0.5,
-#     exit_coef=1.0,
-#     nz=20,            # Para debug
-# )
-
-
-# import ross as rs
-# # Criar eixo
-# steel = rs.materials.steel
-# shaft = [rs.ShaftElement(0.25, 0, 0.05, material=steel) for _ in range(6)]
-
-# # Criar discos
-# disk0 = rs.DiskElement.from_geometry(2, steel, 0.07, 0.05, 0.28)
-# disk1 = rs.DiskElement.from_geometry(4, steel, 0.07, 0.05, 0.28)
-
-# # Criar mancais
-# bearing0 = rs.BearingElement(0, kxx=1e6, cxx=1e3)
-# bearing1 = rs.BearingElement(6, kxx=1e6, cxx=1e3)
-
-# # Criar selo híbrido
-# hybrid_seal = HybridSeal(
-#     n=3,
-#     inlet_pressure=500000,
-#     outlet_pressure=100000,
-#     inlet_temperature=300,
-#     frequency=Q_([1000, 2000,5000], "RPM"),
-#     gas_composition={"Nitrogen": 0.79, "Oxygen": 0.21},
-#     # LabyrinthSeal params
-#     n_teeth=10,
-#     shaft_radius=Q_(25, "mm"),
-#     radial_clearance=Q_(0.25, "mm"),
-#     pitch=Q_(3, "mm"),
-#     tooth_height=Q_(3, "mm"),
-#     tooth_width=Q_(0.15, "mm"),
-#     seal_type="inter",
-#     pre_swirl_ratio=0.9,
-#     # HolePatternSeal params
-#     length=0.04,
-#     radius=0.025,
-#     clearance=0.0003,
-#     roughness=0.0001,
-#     cell_length=0.003,
-#     cell_width=0.003,
-#     cell_depth=0.002,
-#     preswirl=0.8,
-#     entr_coef=0.5,
-#     exit_coef=1.0,
-# )
-
-# # Montar rotor
-# rotor = rs.Rotor(shaft, [disk0, disk1], [bearing0, bearing1, hybrid_seal])
-
-# rotor.plot_rotor().show()
-# print("dd")
