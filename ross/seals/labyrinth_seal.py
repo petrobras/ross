@@ -241,14 +241,11 @@ class LabyrinthSeal(SealElement):
             coefficients_dict = {
                 c: [k[c] for k in coefficients_dict_list]
                 for c in coefficients_dict_list[0].keys()
-                if c != "seal_leakage"
             }
-            seal_leakage = coefficients_dict_list[0]["seal_leakage"]
 
         super().__init__(
             self.n,
             frequency=frequency,
-            seal_leakage=seal_leakage,
             **coefficients_dict,
             **kwargs,
         )

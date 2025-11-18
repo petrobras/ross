@@ -298,10 +298,10 @@ class HybridSeal(SealElement):
             )
 
             convergence_leakage = (
-                abs(hole.seal_leakage - laby.seal_leakage) / laby.seal_leakage
+                abs(hole.seal_leakage[0] - laby.seal_leakage[0]) / laby.seal_leakage[0]
             )
 
-            if laby.seal_leakage > hole.seal_leakage:
+            if laby.seal_leakage[0] > hole.seal_leakage[0]:
                 p_low = interface_pressure
             else:
                 p_high = interface_pressure
@@ -310,8 +310,8 @@ class HybridSeal(SealElement):
 
             self.convergence_history.append(convergence_leakage)
             self.pressure_history.append(interface_pressure)
-            self.leakage_laby_history.append(laby.seal_leakage)
-            self.leakage_hole_history.append(hole.seal_leakage)
+            self.leakage_laby_history.append(laby.seal_leakage[0])
+            self.leakage_hole_history.append(hole.seal_leakage[0])
 
         self.interface_pressure = interface_pressure
         self.n_iterations = iteration
@@ -324,7 +324,7 @@ class HybridSeal(SealElement):
         super().__init__(
             n,
             frequency=frequency,
-            seal_leakage=laby.seal_leakage,
+            seal_leakage=laby.seal_leakage[0],
             color=color,
             scale_factor=scale_factor,
             **coefficients_dict,
