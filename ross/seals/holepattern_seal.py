@@ -235,6 +235,7 @@ class HolePatternSeal(SealElement):
         self.sgn_t = np.array([-1.0, 1.0, -1.0, 1.0])
         self.sgn_th = np.array([-1.0, -1.0, 1.0, 1.0])
 
+        seal_leakage = None
         coefficients_dict = {}
         if kwargs.get("kxx") is None:
             # Use multiprocessing only when beneficial (>2 frequencies)
@@ -245,14 +246,17 @@ class HolePatternSeal(SealElement):
             else:
                 coefficients_dict_list = [self.run(freq) for freq in self.frequency]
 
-            coefficients_dict = {k: [] for k in coefficients_dict_list[0].keys()}
-            for d in coefficients_dict_list:
-                for k in coefficients_dict:
-                    coefficients_dict[k].append(d[k])
+            coefficients_dict = {
+                c: [k[c] for k in coefficients_dict_list]
+                for c in coefficients_dict_list[0].keys()
+                if c != "seal_leakage"
+            }
+            seal_leakage = coefficients_dict_list[0]["seal_leakage"]
 
         super().__init__(
             self.n,
             frequency=frequency,
+            seal_leakage=seal_leakage,
             **coefficients_dict,
             **kwargs,
         )
@@ -298,7 +302,18 @@ class HolePatternSeal(SealElement):
         except Exception as e:
             print(f"Error calculating for frequency {frequency} RPM: {e}")
             return dict.fromkeys(
-                ["kxx", "kyy", "kxy", "kyx", "cxx", "cyy", "cxy", "cyx", "leakage"], 0
+                [
+                    "kxx",
+                    "kyy",
+                    "kxy",
+                    "kyx",
+                    "cxx",
+                    "cyy",
+                    "cxy",
+                    "cyx",
+                    "seal_leakage",
+                ],
+                0,
             )
 
     def inlet_loss(self, p2):

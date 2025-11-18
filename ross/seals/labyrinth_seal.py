@@ -227,6 +227,7 @@ class LabyrinthSeal(SealElement):
         self.vout = np.zeros(self.m_x)
         self.kout = np.zeros(self.m_x)
 
+        seal_leakage = None
         coefficients_dict = {}
         if kwargs.get("kxx") is None:
             # Use multiprocessing only when beneficial (>4 frequencies)
@@ -237,14 +238,17 @@ class LabyrinthSeal(SealElement):
             else:
                 coefficients_dict_list = [self.run(freq) for freq in frequency]
 
-            coefficients_dict = {k: [] for k in coefficients_dict_list[0].keys()}
-            for d in coefficients_dict_list:
-                for k in coefficients_dict:
-                    coefficients_dict[k].append(d[k])
+            coefficients_dict = {
+                c: [k[c] for k in coefficients_dict_list]
+                for c in coefficients_dict_list[0].keys()
+                if c != "seal_leakage"
+            }
+            seal_leakage = coefficients_dict_list[0]["seal_leakage"]
 
         super().__init__(
             self.n,
             frequency=frequency,
+            seal_leakage=seal_leakage,
             **coefficients_dict,
             **kwargs,
         )
