@@ -3,6 +3,7 @@ import multiprocessing
 from ross import SealElement
 from ross.units import Q_, check_units
 from scipy.optimize import curve_fit
+import plotly.graph_objects as go
 import ccp
 
 __all__ = ["HolePatternSeal"]
@@ -234,6 +235,7 @@ class HolePatternSeal(SealElement):
         self.i_th = np.array([2, 3, 0, 1])
         self.sgn_t = np.array([-1.0, 1.0, -1.0, 1.0])
         self.sgn_th = np.array([-1.0, -1.0, 1.0, 1.0])
+        self.p = np.zeros(nz + 1)
 
         coefficients_dict = {}
         if kwargs.get("kxx") is None:
@@ -245,10 +247,10 @@ class HolePatternSeal(SealElement):
             else:
                 coefficients_dict_list = [self.run(freq) for freq in self.frequency]
 
-            coefficients_dict = {k: [] for k in coefficients_dict_list[0].keys()}
-            for d in coefficients_dict_list:
-                for k in coefficients_dict:
-                    coefficients_dict[k].append(d[k])
+            coefficients_dict = {
+                c: [k[c] for k in coefficients_dict_list]
+                for c in coefficients_dict_list[0].keys()
+            }
 
         super().__init__(
             self.n,
@@ -298,7 +300,18 @@ class HolePatternSeal(SealElement):
         except Exception as e:
             print(f"Error calculating for frequency {frequency} RPM: {e}")
             return dict.fromkeys(
-                ["kxx", "kyy", "kxy", "kyx", "cxx", "cyy", "cxy", "cyx", "leakage"], 0
+                [
+                    "kxx",
+                    "kyy",
+                    "kxy",
+                    "kyx",
+                    "cxx",
+                    "cyy",
+                    "cxy",
+                    "cyx",
+                    "seal_leakage",
+                ],
+                0,
             )
 
     def inlet_loss(self, p2):
@@ -973,6 +986,9 @@ class HolePatternSeal(SealElement):
             w_base[iz] = mt_base[iz] * sqrt_term
             rho_base[iz] = mdot / (self.area * u_base[iz]) if u_base[iz] > 1e-9 else 0
         p_base = rho_base * self.R * t_base[: self.nz + 1]
+
+        self.p = p_base
+
         xcos, pi_radius, deep = 1.0, np.pi * self.radius, self.cell_depth / self.gamma
         pert = np.zeros((5, 4, self.nz + 1))
         whirl_freq = 0.0
@@ -1128,3 +1144,58 @@ class HolePatternSeal(SealElement):
             "k_cross": k_cross,
         }
         return force_coeffs
+
+    def plot_pressure_distribution(
+        self, pressure_units="MPa", length_units="m", fig=None, **kwargs
+    ):
+        """Plot pressure distribution for the hole pattern seal.
+
+        Parameters
+        ----------
+        pressure_units : str, optional
+            Pressure units for plotting.
+            Default is "MPa".
+        length_units : str, optional
+            Length units for axial position.
+            Default is "m".
+        fig : Plotly graph_objects.Figure(), optional
+            The figure object with the plot. If None, creates a new figure.
+        kwargs : optional
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+
+        Returns
+        -------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        """
+        if fig is None:
+            fig = go.Figure()
+
+        fig.add_trace(
+            go.Scatter(
+                x=Q_(self.z, "m").to(length_units).m,
+                y=Q_(self.p, "Pa").to(pressure_units).m,
+                mode="lines+markers",
+                name="Hole Pattern Seal",
+                line=dict(width=2),
+                hovertemplate="<b>Position:</b> %{x:.3f} "
+                + length_units
+                + "<br>"
+                + f"<b>Pressure:</b> %{{y:.3f}} {pressure_units}<br>"
+                + "<extra></extra>",
+            )
+        )
+
+        fig.update_layout(
+            title=dict(
+                text="Pressure Distribution - Hole Pattern Seal",
+            ),
+            xaxis_title=f"Axial Position ({length_units})",
+            yaxis_title=f"Pressure ({pressure_units})",
+            showlegend=False,
+            **kwargs,
+        )
+
+        return fig

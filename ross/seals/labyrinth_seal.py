@@ -4,8 +4,8 @@ from scipy.linalg import lu_factor, lu_solve
 from numpy.linalg import cond
 import multiprocessing
 from ross import SealElement
-from ross.units import check_units
-import multiprocessing
+from ross.units import check_units, Q_
+import plotly.graph_objects as go
 import ccp
 
 __all__ = ["LabyrinthSeal"]
@@ -219,6 +219,7 @@ class LabyrinthSeal(SealElement):
         self.rho = np.zeros(self.m_x)
         self.taus = np.zeros(self.m_x)
         self.taur = np.zeros(self.m_x)
+        self.z = np.zeros(self.m_x)
         self.gm = np.zeros((1000, 500))
         self.rhs = np.zeros((1000, 2))
         self.cg = np.zeros((9, self.m_x))
@@ -237,10 +238,10 @@ class LabyrinthSeal(SealElement):
             else:
                 coefficients_dict_list = [self.run(freq) for freq in frequency]
 
-            coefficients_dict = {k: [] for k in coefficients_dict_list[0].keys()}
-            for d in coefficients_dict_list:
-                for k in coefficients_dict:
-                    coefficients_dict[k].append(d[k])
+            coefficients_dict = {
+                c: [k[c] for k in coefficients_dict_list]
+                for c in coefficients_dict_list[0].keys()
+            }
 
         super().__init__(
             self.n,
@@ -313,6 +314,7 @@ class LabyrinthSeal(SealElement):
             self.v1[i] = 0
             self.rho[i] = 0
             self.t[i] = self.inlet_temperature
+            self.z[i] = i * self.pitch[0]
 
         self.pg = self.outlet_pressure / self.inlet_pressure
         self.omega = self.frequency
@@ -1223,3 +1225,60 @@ class LabyrinthSeal(SealElement):
         coefficients_dict = {k: getattr(self, v) for k, v in attrbute_coef.items()}
 
         return coefficients_dict
+
+    def plot_pressure_distribution(
+        self, pressure_units="MPa", length_units="m", fig=None, **kwargs
+    ):
+        """Plot pressure distribution for the labyrinth seal.
+
+        Parameters
+        ----------
+        pressure_units : str, optional
+            Pressure units for plotting.
+            Default is "MPa".
+        length_units : str, optional
+            Length units for axial position.
+            Default is "m".
+        fig : Plotly graph_objects.Figure(), optional
+            The figure object with the plot. If None, creates a new figure.
+        kwargs : optional
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+
+        Returns
+        -------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        """
+        if fig is None:
+            fig = go.Figure()
+
+        n_cavities = self.n_teeth + 1
+
+        fig.add_trace(
+            go.Scatter(
+                x=Q_(self.z[:n_cavities], "m").to(length_units).m,
+                y=Q_(self.p[:n_cavities], "Pa").to(pressure_units).m,
+                mode="lines+markers",
+                name="Labyrinth Seal",
+                line=dict(width=2),
+                hovertemplate="<b>Position:</b> %{x:.3f} "
+                + length_units
+                + "<br>"
+                + f"<b>Pressure:</b> %{{y:.3f}} {pressure_units}<br>"
+                + "<extra></extra>",
+            )
+        )
+
+        fig.update_layout(
+            title=dict(
+                text="Pressure Distribution - Labyrinth Seal",
+            ),
+            xaxis_title=f"Axial Position ({length_units})",
+            yaxis_title=f"Pressure ({pressure_units})",
+            showlegend=False,
+            **kwargs,
+        )
+
+        return fig
