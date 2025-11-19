@@ -297,11 +297,12 @@ class HybridSeal(SealElement):
                 whirl_ratio=whirl_ratio,
             )
 
-            convergence_leakage = (
-                abs(hole.seal_leakage[0] - laby.seal_leakage[0]) / laby.seal_leakage[0]
-            )
+            laby_leakage = laby.seal_leakage[0]
+            hole_leakage = hole.seal_leakage[0]
 
-            if laby.seal_leakage[0] > hole.seal_leakage[0]:
+            convergence_leakage = abs(hole_leakage - laby_leakage) / laby_leakage
+
+            if laby_leakage > hole_leakage:
                 p_low = interface_pressure
             else:
                 p_high = interface_pressure
@@ -310,9 +311,11 @@ class HybridSeal(SealElement):
 
             self.convergence_history.append(convergence_leakage)
             self.pressure_history.append(interface_pressure)
-            self.leakage_laby_history.append(laby.seal_leakage[0])
-            self.leakage_hole_history.append(hole.seal_leakage[0])
+            self.leakage_laby_history.append(laby_leakage)
+            self.leakage_hole_history.append(hole_leakage)
 
+        self.laby = laby
+        self.hole = hole
         self.interface_pressure = interface_pressure
         self.n_iterations = iteration
 
@@ -324,7 +327,7 @@ class HybridSeal(SealElement):
         super().__init__(
             n,
             frequency=frequency,
-            seal_leakage=laby.seal_leakage[0],
+            seal_leakage=laby_leakage,
             color=color,
             scale_factor=scale_factor,
             **coefficients_dict,
@@ -469,11 +472,40 @@ class HybridSeal(SealElement):
         fig.update_layout(
             height=900,
             showlegend=True,
-            template="plotly_white",
-            hovermode="x unified",
             title_text="Hybrid Seal Analysis Results",
             title_x=0.5,
             title_font=dict(size=18),
+        )
+
+        return fig
+
+    def plot_pressure_distribution(
+        self, pressure_units="MPa", length_units="m", fig=None, **kwargs
+    ):
+        """Plot pressure distribution for the hybrid seal."""
+
+        if fig is None:
+            fig = go.Figure()
+
+        laby_data = self.laby.plot_pressure_distribution(
+            pressure_units=pressure_units, length_units=length_units
+        ).data[0]
+        hole_data = self.hole.plot_pressure_distribution(
+            pressure_units=pressure_units, length_units=length_units
+        ).data[0]
+
+        hole_data["x"] += laby_data["x"][-1]
+
+        fig.add_trace(laby_data)
+        fig.add_trace(hole_data)
+
+        fig.update_xaxes(title_text=f"Axial Position ({length_units})")
+        fig.update_yaxes(title_text=f"Pressure ({pressure_units})")
+
+        fig.update_layout(
+            title_text="Pressure Distribution - Hybrid Seal",
+            title_font=dict(size=18),
+            **kwargs,
         )
 
         return fig
