@@ -2652,31 +2652,78 @@ def test_rotor_conical_frequencies(rotor_conical):
 
 
 def test_amb_controller():
-    # Test for the magnetic_bearing_controller method.
     from ross.rotor_assembly import rotor_amb_example
 
+    rot_speed = 1200
+    dt = 0.001
+    t = np.arange(0.0, 500 * dt, dt)
+    unbalance_node = 27
+    probe_node = 12
+
     rotor = rotor_amb_example()
+    n = len(t)
+    F = np.zeros((n, rotor.ndof))
+    m_u = 0.010  # kg
+    ex = 0.002  # m
+    F0 = m_u * ex * rot_speed**2
+    F[:, rotor.number_dof * unbalance_node + 0] = F0 * np.sin(rot_speed * t)
+    F[:, rotor.number_dof * unbalance_node + 1] = F0 * np.cos(rot_speed * t)
 
-    speed = 1200
-    t = np.linspace(0, 10, 40001)
-    node = [27, 29]
-    mass = [10, 10]
-    probes = [12, 43]
+    response = rotor.run_time_response(rot_speed, F, t, method="newmark")
 
-    F = np.zeros((len(t), rotor.ndof))
-    for n, m in zip(node, mass):
-        F[:, 4 * n + 0] = m * np.cos((speed * t))
-        F[:, 4 * n + 1] = (m - 5) * np.sin((speed * t))
+    response_x = response.yout[:, rotor.number_dof * probe_node + 0]
+    response_y = response.yout[:, rotor.number_dof * probe_node + 1]
 
-    response = rotor.run_time_response(speed, F, t, method="newmark")
+    mse_x = 1 / n * np.sum(response_x**2)
+    mse_y = 1 / n * np.sum(response_y**2)
 
-    mean_response = []
-    for ii in probes:
-        for jj in range(2):
-            mean_response.append(np.mean(response.yout[:, 4 * ii + jj]))
-    mean_max = np.max(np.array(mean_response))
+    assert_allclose(mse_x, np.array(9.228097168398774e-10), rtol=1e-6, atol=1e-6)
+    assert_allclose(mse_y, np.array(2.2135792430227363e-10), rtol=1e-6, atol=1e-6)
 
-    assert_allclose(np.array(mean_max), np.array(7.31786978e-07), rtol=1e-6, atol=1e-6)
+
+def test_amb_generic_controller():
+    from ross.rotor_assembly import rotor_amb_example
+
+    kp = 100.0
+    ki = 0
+    kd = 10.0
+    n_f = 10_000
+
+    s = MagneticBearingElement.s
+    pid_controller = kp + ki / s + kd * s * (1 / (1 + (1 / n_f) * s))
+
+    k_lead = 1
+    T_lead = 0.5
+    alpha_lead = 0.1
+    lead_controller = k_lead * (T_lead * s + 1) / (alpha_lead * T_lead * s + 1)
+
+    controller_transfer_function = pid_controller * lead_controller
+
+    rot_speed = 1200
+    dt = 0.001
+    t = np.arange(0.0, 500 * dt, dt)
+    unbalance_node = 27
+    probe_node = 12
+
+    rotor = rotor_amb_example(controller_transfer_function)
+    n = len(t)
+    F = np.zeros((n, rotor.ndof))
+    m_u = 0.010  # kg
+    ex = 0.002  # m
+    F0 = m_u * ex * rot_speed**2
+    F[:, rotor.number_dof * unbalance_node + 0] = F0 * np.sin(rot_speed * t)
+    F[:, rotor.number_dof * unbalance_node + 1] = F0 * np.cos(rot_speed * t)
+
+    response = rotor.run_time_response(rot_speed, F, t, method="newmark")
+
+    response_x = response.yout[:, rotor.number_dof * probe_node + 0]
+    response_y = response.yout[:, rotor.number_dof * probe_node + 1]
+
+    mse_x = 1 / n * np.sum(response_x**2)
+    mse_y = 1 / n * np.sum(response_y**2)
+
+    assert_allclose(mse_x, np.array(7.934767106972457e-11), rtol=1e-6, atol=1e-6)
+    assert_allclose(mse_y, np.array(3.6781959914042914e-11), rtol=1e-6, atol=1e-6)
 
 
 def test_run_amb_sensitivity():

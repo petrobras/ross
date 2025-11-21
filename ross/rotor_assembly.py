@@ -2823,9 +2823,48 @@ class Rotor(object):
 
         return rotor_system
 
-    # TODO: Melhorar essa docstring (sem exemplos)
     def _init_ambs_for_integrate(self, dt, **kwargs):
-        """Initialize ambs for integrate method."""
+        """
+        Prepare the magnetic bearing components and force function used during
+        time-domain integration.
+
+        This method scans the bearing elements of the rotor to identify which
+        components are active magnetic bearings. When such elements are present,
+        their internal storage arrays and controller states are initialized.
+        A callable is then created to compute the magnetic forces at each
+        integration step, using the controller associated with the magnetic
+        bearings. If no magnetic bearing is found, a force function returning
+        a zero vector is generated instead.
+
+        Parameters
+        ----------
+        dt : float
+            Time increment used by the integration routine. This value is passed
+            to each magnetic bearing so it can configure its control law.
+        **kwargs : dict
+            Additional parameters forwarded to the magnetic bearing controller
+            when the magnetic forces are computed.
+
+        Returns
+        -------
+        rotor : object
+            A deep copy of the rotor where the magnetic bearings have been removed
+            from the bearing list, ensuring that their forces are supplied only
+            through the controller during integration.
+        magnetic_force : callable
+            A function that receives the current step index, the time step,
+            and the displacement response vector. It returns the magnetic
+            force vector to be applied at that step. If no magnetic bearings
+            exist, the function returns a vector of zeros with the appropriate
+            number of degrees of freedom.
+
+        Notes
+        -----
+        The method also resets internal states of each magnetic bearing,
+        including control signals, integrated error terms, and initial error
+        vectors. Each bearing's controller is rebuilt based on the provided
+        time increment.
+        """
         magnetic_bearings = [
             brg
             for brg in self.bearing_elements
@@ -5438,7 +5477,7 @@ def rotor_example_with_damping():
     return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
 
 
-def rotor_amb_example():
+def rotor_amb_example(controller_transfer_function=None):
     r"""This function creates the model of a test rig rotor supported by magnetic bearings.
     Details of the model can be found at doi.org/10.14393/ufu.di.2015.186.
 
@@ -5517,7 +5556,7 @@ def rotor_amb_example():
     ]
     # fmt: on
     m_list = [
-        np.pi * 7850 * w * ((odisc) ** 2 - (idisc) ** 2)
+        np.pi * 7850 * w * (odisc**2 - idisc**2)
         for w, odisc, idisc in zip(width, o_disc, i_disc)
     ]
     Id_list = [
@@ -5540,46 +5579,76 @@ def rotor_amb_example():
 
     # Bearing elements:
     n_list = [12, 43]
-    u0 = 4 * np.pi * 1e-7
     n = 200
     A = 1e-4
     i0 = 1.0
     s0 = 1e-3
     alpha = 0.392
-    Kp = 1000
-    Ki = 0
-    Kd = 5
     k_amp = 1.0
     k_sense = 1.0
-    bearing_elements = [
-        MagneticBearingElement(
-            n=n_list[0],
-            g0=s0,
-            i0=i0,
-            ag=A,
-            nw=n,
-            alpha=alpha,
-            k_amp=k_amp,
-            k_sense=k_sense,
-            kp_pid=Kp,
-            kd_pid=Kd,
-            ki_pid=Ki,
-            tag="Magnetic Bearing 0",
-        ),
-        MagneticBearingElement(
-            n=n_list[1],
-            g0=s0,
-            i0=i0,
-            ag=A,
-            nw=n,
-            alpha=alpha,
-            k_amp=k_amp,
-            k_sense=k_sense,
-            kp_pid=Kp,
-            kd_pid=Kd,
-            ki_pid=Ki,
-            tag="Magnetic Bearing 1",
-        ),
-    ]
+
+    if controller_transfer_function is None:
+        Kp = 1000
+        Ki = 0
+        Kd = 5
+
+        bearing_elements = [
+            MagneticBearingElement(
+                n=n_list[0],
+                g0=s0,
+                i0=i0,
+                ag=A,
+                nw=n,
+                alpha=alpha,
+                k_amp=k_amp,
+                k_sense=k_sense,
+                kp_pid=Kp,
+                kd_pid=Kd,
+                ki_pid=Ki,
+                tag="Magnetic Bearing 0",
+            ),
+            MagneticBearingElement(
+                n=n_list[1],
+                g0=s0,
+                i0=i0,
+                ag=A,
+                nw=n,
+                alpha=alpha,
+                k_amp=k_amp,
+                k_sense=k_sense,
+                kp_pid=Kp,
+                kd_pid=Kd,
+                ki_pid=Ki,
+                tag="Magnetic Bearing 1",
+            ),
+        ]
+
+    else:
+        bearing_elements = [
+            MagneticBearingElement(
+                n=n_list[0],
+                g0=s0,
+                i0=i0,
+                ag=A,
+                nw=n,
+                alpha=alpha,
+                k_amp=k_amp,
+                k_sense=k_sense,
+                controller_transfer_function=controller_transfer_function,
+                tag="Magnetic Bearing 0",
+            ),
+            MagneticBearingElement(
+                n=n_list[1],
+                g0=s0,
+                i0=i0,
+                ag=A,
+                nw=n,
+                alpha=alpha,
+                k_amp=k_amp,
+                k_sense=k_sense,
+                controller_transfer_function=controller_transfer_function,
+                tag="Magnetic Bearing 1",
+            ),
+        ]
 
     return Rotor(shaft_elements, disk_elements, bearing_elements)
