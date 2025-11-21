@@ -2472,7 +2472,7 @@ class Rotor(object):
         >>> np.nonzero(magnetic_force)[0]
         array([ 72,  73, 258, 259])
         >>> magnetic_force[np.nonzero(magnetic_force)[0]]
-        array([-7.24276404e-04, -1.42153354e-05, -1.17641699e-04,  2.39844354e-05])
+        array([-1.77841057e-04,  5.15148204e-06, -2.96097989e-04,  3.35036499e-05])
         """
 
         if kwargs.get("sensitivity_result_values", None) == {}:

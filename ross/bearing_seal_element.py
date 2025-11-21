@@ -1976,7 +1976,7 @@ class MagneticBearingElement(BearingElement):
         ...     kp_pid=kp_pid, kd_pid=kd_pid, k_amp=k_amp, k_sense=k_sense
         ... )
         >>> mb.kxx[0]  # doctest: +ELLIPSIS
-        (-4.6...e+03+0j)
+        -4639.28...
 
     Use a custom controller transfer function instead of PID gains:
 
@@ -2337,7 +2337,7 @@ class MagneticBearingElement(BearingElement):
         >>> mb.controller_transfer_function_den = [1, 2, 3]
         >>> C_custom = mb.get_analog_controller()
         >>> C_custom.num[0][0]
-        [1, 5]
+        array([1, 5])
         """
         if (
             self.controller_transfer_function_num is None

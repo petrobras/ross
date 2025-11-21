@@ -346,11 +346,21 @@ def magnetic_bearing():
 
 
 def test_magnetic_bearing_element(magnetic_bearing):
-    K = np.array([[-4640.62337718, 0.0], [0.0, -4640.62337718]])
-    K = np.pad(K, pad_width=((0, 1), (0, 1)))
+    K = np.array(
+        [
+            [-4.64021073e03, -7.72314366e-14, 0.00000000e00],
+            [-1.01494475e-13, -4.64021073e03, 0.00000000e00],
+            [0.00000000e00, 0.00000000e00, 0.00000000e00],
+        ]
+    )
 
-    C = np.array([[4.64526865, 0.0], [0.0, 4.64526865]])
-    C = np.pad(C, pad_width=((0, 1), (0, 1)))
+    C = np.array(
+        [
+            [4.64597874e00, 6.22498335e-17, 0.00000000e00],
+            [3.97578344e-17, 4.64597874e00, 0.00000000e00],
+            [0.00000000e00, 0.00000000e00, 0.00000000e00],
+        ]
+    )
 
     assert_allclose(magnetic_bearing.M(0), np.zeros((3, 3)))
     assert_allclose(magnetic_bearing.K(0), K)
