@@ -2281,7 +2281,7 @@ class MagneticBearingElement(BearingElement):
         signal_pid = current_offset + u
         magnetic_force = self.ki * signal_pid + self.ks * disp
 
-        self.control_signal[-1][dof_index].append(signal_pid)
+        self.control_signal[dof_index].append(signal_pid.item())
         return magnetic_force.item()
 
     def get_analog_controller(self):

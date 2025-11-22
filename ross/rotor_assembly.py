@@ -1987,22 +1987,35 @@ class Rotor(object):
             phi=-90,
         )
 
-        progress_interval = t_max / 25 if verbose >= 1 else 2 * t_max
+        progress_interval = t_max / 25 if verbose >= 1 else None
 
         for amb_tag in sensitivity_compute_dofs.keys():
             for axis in sensitivity_compute_dofs[amb_tag].keys():
                 sensitivity_result_values = {}
-                self.run_time_response(
-                    speed,
-                    f,
-                    t,
-                    progress_interval=progress_interval,
-                    method="newmark",
-                    sensitivity_disturbance=chirp_signal,
-                    sensitivity_result_values=sensitivity_result_values,
-                    sensitivity_compute_dof=sensitivity_compute_dofs[amb_tag][axis],
-                    sensors_theta=sensors_theta,
-                )
+                if progress_interval is not None:
+                    self.run_time_response(
+                        speed,
+                        f,
+                        t,
+                        progress_interval=progress_interval,
+                        method="newmark",
+                        sensitivity_disturbance=chirp_signal,
+                        sensitivity_result_values=sensitivity_result_values,
+                        sensitivity_compute_dof=sensitivity_compute_dofs[amb_tag][axis],
+                        sensors_theta=sensors_theta,
+                    )
+                else:
+                    self.run_time_response(
+                        speed,
+                        f,
+                        t,
+                        method="newmark",
+                        sensitivity_disturbance=chirp_signal,
+                        sensitivity_result_values=sensitivity_result_values,
+                        sensitivity_compute_dof=sensitivity_compute_dofs[amb_tag][axis],
+                        sensors_theta=sensors_theta,
+                    )
+
                 sensitivity_data[amb_tag][axis] = dict(sensitivity_result_values)
 
         results = SensitivityResults(
@@ -2560,10 +2573,10 @@ class Rotor(object):
                 sensors_theta
             ) + magnetic_force_w * np.cos(sensors_theta)
 
-            elm.magnetic_force_xy[-1][0].append(magnetic_force_x)
-            elm.magnetic_force_xy[-1][1].append(magnetic_force_y)
-            elm.magnetic_force_vw[-1][0].append(magnetic_force_v)
-            elm.magnetic_force_vw[-1][1].append(magnetic_force_w)
+            elm.magnetic_force_xy[0].append(magnetic_force_x)
+            elm.magnetic_force_xy[1].append(magnetic_force_y)
+            elm.magnetic_force_vw[0].append(magnetic_force_v)
+            elm.magnetic_force_vw[1].append(magnetic_force_w)
 
             magnetic_force[x_dof] = magnetic_force_x
             magnetic_force[y_dof] = magnetic_force_y
@@ -2884,9 +2897,15 @@ class Rotor(object):
 
             # Initialize storage attributes for magnetic bearings
             for brg in magnetic_bearings:
-                brg.magnetic_force_xy.append([[], []])
-                brg.magnetic_force_vw.append([[], []])
-                brg.control_signal.append([[], []])
+                brg.magnetic_force_xy.append([])
+                brg.magnetic_force_xy.append([])
+
+                brg.magnetic_force_vw.append([])
+                brg.magnetic_force_vw.append([])
+
+                brg.control_signal.append([])
+                brg.control_signal.append([])
+
                 brg.integral = [0, 0]
                 brg.e0 = [0, 0]
                 brg.build_controller(dt=dt)
