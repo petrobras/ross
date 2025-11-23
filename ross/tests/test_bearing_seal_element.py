@@ -362,10 +362,13 @@ def test_magnetic_bearing_element(magnetic_bearing):
         ]
     )
 
-    assert_allclose(magnetic_bearing.M(0), np.zeros((3, 3)))
-    assert_allclose(magnetic_bearing.K(0), K)
-    assert_allclose(magnetic_bearing.C(0), C)
-    assert_allclose(magnetic_bearing.G(), np.zeros((3, 3)))
+    atol = 0
+    rtol = 1e-8
+
+    assert_allclose(magnetic_bearing.M(0), np.zeros((3, 3)), atol=atol, rtol=rtol)
+    assert_allclose(magnetic_bearing.K(0), K, atol=atol, rtol=rtol)
+    assert_allclose(magnetic_bearing.C(0), C, atol=atol, rtol=rtol)
+    assert_allclose(magnetic_bearing.G(), np.zeros((3, 3)), atol=atol, rtol=rtol)
 
 
 def _to_real_array(list_of_scalars):
