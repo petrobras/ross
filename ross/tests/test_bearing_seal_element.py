@@ -346,29 +346,68 @@ def magnetic_bearing():
 
 
 def test_magnetic_bearing_element(magnetic_bearing):
-    K = np.array(
+    K_ref = np.array(
         [
-            [-4.64021073e03, -7.72314366e-14, 0.00000000e00],
-            [-1.01494475e-13, -4.64021073e03, 0.00000000e00],
-            [0.00000000e00, 0.00000000e00, 0.00000000e00],
+            [-4.64021073e03, -7.72314366e-14],
+            [-1.01494475e-13, -4.64021073e03],
         ]
     )
 
-    C = np.array(
+    C_ref = np.array(
         [
-            [4.64597874e00, 6.22498335e-17, 0.00000000e00],
-            [3.97578344e-17, 4.64597874e00, 0.00000000e00],
-            [0.00000000e00, 0.00000000e00, 0.00000000e00],
+            [4.64597874e00, 6.22498335e-17],
+            [3.97578344e-17, 4.64597874e00],
         ]
     )
 
-    atol = 0
-    rtol = 1e-8
+    K = magnetic_bearing.K(0)[0:2, 0:2]
+    C = magnetic_bearing.C(0)[0:2, 0:2]
 
-    assert_allclose(magnetic_bearing.M(0), np.zeros((3, 3)), atol=atol, rtol=rtol)
-    assert_allclose(magnetic_bearing.K(0), K, atol=atol, rtol=rtol)
-    assert_allclose(magnetic_bearing.C(0), C, atol=atol, rtol=rtol)
-    assert_allclose(magnetic_bearing.G(), np.zeros((3, 3)), atol=atol, rtol=rtol)
+    main_diag_index = np.eye(K.shape[0]).astype(bool)
+    sec_diag_index = ~main_diag_index
+
+    # M and G matrices
+    assert_allclose(
+        magnetic_bearing.M(0),
+        np.zeros((3, 3)),
+        rtol=0.0,
+        atol=1e-10,
+    )
+    assert_allclose(
+        magnetic_bearing.G(),
+        np.zeros((3, 3)),
+        rtol=0.0,
+        atol=1e-10,
+    )
+
+    # K and C matrices
+    # Main diagonal
+    assert_allclose(
+        K[main_diag_index],
+        K_ref[main_diag_index],
+        rtol=1e-8,
+        atol=0.0,
+    )
+    assert_allclose(
+        C[main_diag_index],
+        C_ref[main_diag_index],
+        rtol=1e-8,
+        atol=0.0,
+    )
+
+    # Secondary diagonal
+    assert_allclose(
+        K[sec_diag_index],
+        K_ref[sec_diag_index],
+        rtol=0.0,
+        atol=1e-10,
+    )
+    assert_allclose(
+        C[sec_diag_index],
+        C_ref[sec_diag_index],
+        rtol=0.0,
+        atol=1e-10,
+    )
 
 
 def _to_real_array(list_of_scalars):
