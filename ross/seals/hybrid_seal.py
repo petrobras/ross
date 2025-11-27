@@ -142,7 +142,7 @@ class HybridSeal(SealElement):
     scale_factor : float, optional
         Scale factor for element drawing. Default is 0.75.
 
-    **kwargs : dict, optional
+    kwargs : optional
         Additional keyword arguments passed to parent SealElement.
 
     Examples
@@ -335,8 +335,7 @@ class HybridSeal(SealElement):
         )
 
     def summary_results(self):
-        """
-        Print summary of hybrid seal analysis results.
+        """Print summary of hybrid seal analysis results.
 
         This method displays a comprehensive summary of the hybrid seal calculation,
         including convergence information, seal leakage, interface pressure.
@@ -360,18 +359,14 @@ class HybridSeal(SealElement):
         return table
 
     def plot_convergence(self):
-        """
-        Plot convergence history.
+        """Plot convergence history.
 
         This method creates a unified figure with three subplots showing:
         convergence history, interface pressure evolution, and leakage comparison.
 
-        Parameters
-        ----------
-
         Returns
         -------
-        fig : go.Figure
+        fig : Plotly graph_objects.Figure()
             Plotly figure object with combined subplots.
         """
 
@@ -482,7 +477,29 @@ class HybridSeal(SealElement):
     def plot_pressure_distribution(
         self, pressure_units="MPa", length_units="m", fig=None, **kwargs
     ):
-        """Plot pressure distribution for the hybrid seal."""
+        """Plot pressure distribution for the hybrid seal.
+
+        Parameters
+        ----------
+        pressure_units : str, optional
+            Units for the pressure.
+            Default is "MPa".
+        length_units : str, optional
+            Units for the length.
+            Default is "m".
+        fig : go.Figure, optional
+            Plotly figure object with the plot.
+            Default is None.
+        kwargs : optional
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+
+        Returns
+        -------
+        fig : Plotly graph_objects.Figure()
+            Plotly figure object.
+        """
 
         if fig is None:
             fig = go.Figure()
