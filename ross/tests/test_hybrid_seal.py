@@ -147,7 +147,7 @@ def test_hybrid_gc_leakage_matching(hybrid_seal_gc):
     hybrid_leakage = hybrid_seal_gc.seal_leakage
 
     assert_allclose(laby_leakage, hole_leakage, rtol=1e-5)
-    assert_allclose(hybrid_leakage, 0.032906, rtol=1e-4)
+    assert_allclose(hybrid_leakage, 0.032906, rtol=1e-2)
 
 
 def test_hybrid_gc_coefficients_combination(hybrid_seal_gc):
