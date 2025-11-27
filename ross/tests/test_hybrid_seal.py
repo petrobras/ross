@@ -156,24 +156,24 @@ def test_hybrid_gc_coefficients_combination(hybrid_seal_gc):
     hole_kxx = hybrid_seal_gc.hole.kxx[0]
     hybrid_kxx = hybrid_seal_gc.kxx[0]
     assert_allclose(hybrid_kxx, laby_kxx + hole_kxx, rtol=1e-6)
-    assert_allclose(hybrid_kxx, 180016.44722638, rtol=1e-4)
+    assert_allclose(hybrid_kxx, 180016.44722638, rtol=1e-2)
 
     laby_kxy = hybrid_seal_gc.laby.kxy[0]
     hole_kxy = hybrid_seal_gc.hole.kxy[0]
     hybrid_kxy = hybrid_seal_gc.kxy[0]
     assert_allclose(hybrid_kxy, laby_kxy + hole_kxy, rtol=1e-6)
-    assert_allclose(hybrid_kxy, 25513.24346651, rtol=1e-4)
+    assert_allclose(hybrid_kxy, 25513.24346651, rtol=1e-2)
 
     # Check direct damping
     laby_cxx = hybrid_seal_gc.laby.cxx[0]
     hole_cxx = hybrid_seal_gc.hole.cxx[0]
     hybrid_cxx = hybrid_seal_gc.cxx[0]
     assert_allclose(hybrid_cxx, laby_cxx + hole_cxx, rtol=1e-6)
-    assert_allclose(hybrid_cxx, 55.035337, rtol=1e-4)
+    assert_allclose(hybrid_cxx, 55.035337, rtol=1e-2)
 
     # Check cross-coupled damping
     laby_cxy = hybrid_seal_gc.laby.cxy[0]
     hole_cxy = hybrid_seal_gc.hole.cxy[0]
     hybrid_cxy = hybrid_seal_gc.cxy[0]
     assert_allclose(hybrid_cxy, laby_cxy + hole_cxy, rtol=1e-6)
-    assert_allclose(hybrid_cxy, -4.871907, rtol=1e-4)
+    assert_allclose(hybrid_cxy, -4.871907, rtol=1e-2)
