@@ -62,9 +62,9 @@ class HolePatternSeal(SealElement):
         Node in which the bearing will be located.
     length : float, pint.Quantity
         Length of the seal (m).
-    radius : float, pint.Quantity
+    journal_radius : float, pint.Quantity
         Radius of the journal (m).
-    clearance : float, pint.Quantity
+    radial_clearance : float, pint.Quantity
         Seal clearance (m).
     roughness : float
         E / D (roughness / diameter) of the shaft.
@@ -103,14 +103,16 @@ class HolePatternSeal(SealElement):
             gas constant gamma (Cp/Cv)(For Air gamma=1.4)
     nz : int
         Number of discretization points in the axial direction.
-    itrmx : int
+    max_iterations : int
         Maximum number of iterations for basic state calculation
     stop_criterion : float
         Tolerance of the solution expressed as a percentage of the pressure differential across the seal.
-    toler : float
-    Initial step for the solution method. It should not be more than 0.01.
-    rlx : float
+    first_step_size : float
+        Initial step for the solution method. It should not be more than 0.01.
+    rlx_factor : float
         Relaxation factor. Should be smaller than 0.1.
+    whirl_ratio : float, optional
+        Ratio of whirl frequency to rotational speed. Default is 1.0.
     tag : str, optional
         A tag to name the element
         Default is None.
@@ -133,8 +135,8 @@ class HolePatternSeal(SealElement):
     ...     n=0,
     ...     frequency=Q_([8000], "RPM"),
     ...     length=0.04699,
-    ...     radius=0.0725,
-    ...     clearance=0.0003,
+    ...     journal_radius=0.0725,
+    ...     radial_clearance=0.0003,
     ...     roughness=0.0001,
     ...     cell_length=0.003175,
     ...     cell_width=0.003175,
@@ -156,8 +158,8 @@ class HolePatternSeal(SealElement):
         n=None,
         frequency=None,
         length=None,
-        radius=None,
-        clearance=None,
+        journal_radius=None,
+        radial_clearance=None,
         roughness=None,
         cell_length=None,
         cell_width=None,
@@ -174,10 +176,10 @@ class HolePatternSeal(SealElement):
         entr_coef=None,
         exit_coef=None,
         nz=80,
-        itrmx=180,
+        max_iterations=180,
         stopcriterion=0.0001,
-        toler=0.01,
-        rlx=0.1,
+        first_step_size=0.01,
+        rlx_factor=0.1,
         whirl_ratio=1.0,
         **kwargs,
     ):
@@ -266,11 +268,11 @@ class HolePatternSeal(SealElement):
         self.gamma1 = self.gamma - 1.0
         self.gamma12 = self.gamma1 / 2.0
         self.omega = frequency
-        self.area = np.pi * 2.0 * self.radius * self.clearance
+        self.area = np.pi * 2.0 * self.journal_radius * self.radial_clearance
 
         # Cache constants for form_rhs() optimization
         self._gamma_R = self.gamma * self.R
-        self._radius_omega = self.radius * self.omega
+        self._radius_omega = self.journal_radius * self.omega
         self._rough_factor = 1.0e4 * self.roughness
         self._mu_factor = 5.0e5
 
@@ -328,7 +330,7 @@ class HolePatternSeal(SealElement):
         )
         c2 = np.sqrt(self.gamma * self.R * T2)
         mdot = (p2 / (self.R * T2)) * self.area * (m2 * c2)
-        mt2 = self.preswirl * (self.radius * self.omega) / c2
+        mt2 = self.preswirl * (self.journal_radius * self.omega) / c2
         p30_denom = (1.0 + self.gamma12 * m2**2) ** (self.gamma / self.gamma1)
         if p30_denom == 0:
             p30_denom = 1e-9
@@ -384,20 +386,20 @@ class HolePatternSeal(SealElement):
         T_15 = T**1.5
         mu = self.b_suther * T_15 / (self.s_suther + T)
         mu_factor_mu = self._mu_factor * mu
-        fs_term = mu_factor_mu / (rho * self.clearance * utot)
+        fs_term = mu_factor_mu / (rho * self.radial_clearance * utot)
         fs = 1.375e-3 * (1.0 + fs_term ** (1.0 / 3.0))
         fs_geom = (
-            np.sqrt(1.0 + mt2 / mz2) / (4.0 * self.clearance) * fs
-            if self.clearance > 0
+            np.sqrt(1.0 + mt2 / mz2) / (4.0 * self.radial_clearance) * fs
+            if self.radial_clearance > 0
             else 0
         )
         fr_term = self._rough_factor + mu_factor_mu / (
-            rho * self.clearance * utot_rotor
+            rho * self.radial_clearance * utot_rotor
         )
         fr = 1.375e-3 * (1.0 + fr_term ** (1.0 / 3.0))
         fr_geom = (
-            np.sqrt(1.0 + (mt - mr) ** 2 / mz2) / self.clearance * fr
-            if self.clearance > 0
+            np.sqrt(1.0 + (mt - mr) ** 2 / mz2) / self.radial_clearance * fr
+            if self.radial_clearance > 0
             else 0
         )
         RH1 = -self.gamma * mz2 / (1.0 + self.gamma * mz2) * (fs_geom + fr_geom)
@@ -490,27 +492,27 @@ class HolePatternSeal(SealElement):
 
     def calculate_leakage(self):
         iglobalchoke = 0
-        p2_old = (1.0 - self.toler) * self.inlet_pressure
+        p2_old = (1.0 - self.first_step_size) * self.inlet_pressure
         self.mdot, self.mz2[0], self.t[0], self.mt[0] = self.inlet_loss(p2_old)
         ichoke = self._integrate_base_state()
         if ichoke:
             return None
         p5, _, _ = self.exit_loss(self.mz2[self.nz], self.t[self.nz])
         delp_old = p5 - self.outlet_pressure
-        p2 = (1.0 - 2.0 * self.toler) * self.inlet_pressure
+        p2 = (1.0 - 2.0 * self.first_step_size) * self.inlet_pressure
         self.mdot, self.mz2[0], self.t[0], self.mt[0] = self.inlet_loss(p2)
         ichoke = self._integrate_base_state()
         if ichoke:
             return None
         p5, _, _ = self.exit_loss(self.mz2[self.nz], self.t[self.nz])
         delp = p5 - self.outlet_pressure
-        for itr in range(1, self.itrmx + 1):
+        for itr in range(1, self.max_iterations + 1):
             if abs(delp - delp_old) < 1e-12:
                 break
             temp_delp, temp_p = delp, p2
             p2 = (
-                self.rlx * (delp * p2_old - delp_old * p2) / (delp - delp_old)
-                + (1.0 - self.rlx) * p2
+                self.rlx_factor * (delp * p2_old - delp_old * p2) / (delp - delp_old)
+                + (1.0 - self.rlx_factor) * p2
             )
             p2_old, delp_old = temp_p, temp_delp
             while True:
@@ -992,7 +994,7 @@ class HolePatternSeal(SealElement):
         xcos, pi_radius, deep = 1.0, np.pi * self.radius, self.cell_depth / self.gamma
         pert = np.zeros((5, 4, self.nz + 1))
         whirl_freq = 0.0
-        h_pert = np.array([self.clearance, 0.0, 0.0, 0.0, xcos])
+        h_pert = np.array([self.radial_clearance, 0.0, 0.0, 0.0, xcos])
         fx_c, fy_c = 0.0, 0.0
         shear_end = np.zeros(4)
         for iz in range(1, self.nz + 1):
@@ -1021,7 +1023,7 @@ class HolePatternSeal(SealElement):
             pert_new, shear = self._one_step_perturbed(
                 self.dz,
                 h_pert,
-                self.radius,
+                self.journal_radius,
                 self.gamma,
                 self.R,
                 self.roughness,
@@ -1065,7 +1067,7 @@ class HolePatternSeal(SealElement):
             }
         pert.fill(0)
         fx_s, fx_c_dyn, fy_s, fy_c_dyn = 0.0, 0.0, 0.0, 0.0
-        h_pert = np.array([self.clearance, 0.0, 0.0, 0.0, xcos])
+        h_pert = np.array([self.radial_clearance, 0.0, 0.0, 0.0, xcos])
         for iz in range(1, self.nz + 1):
             iz1 = iz - 1
             base_old = {
@@ -1092,7 +1094,7 @@ class HolePatternSeal(SealElement):
             pert_new, shear = self._one_step_perturbed(
                 self.dz,
                 h_pert,
-                self.radius,
+                self.journal_radius,
                 self.gamma,
                 self.R,
                 self.roughness,
