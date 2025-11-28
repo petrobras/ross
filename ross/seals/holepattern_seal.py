@@ -177,7 +177,7 @@ class HolePatternSeal(SealElement):
         exit_coef=None,
         nz=80,
         max_iterations=180,
-        stopcriterion=0.0001,
+        stop_criterion=0.0001,
         first_step_size=0.01,
         rlx_factor=0.1,
         whirl_ratio=1.0,
@@ -229,15 +229,27 @@ class HolePatternSeal(SealElement):
         self.dz = 0.0
         self.area = 0.0
         self.mdot = 0.0
-        self.z = np.zeros(self.nmx + 1)
+
+        self.dz = self.length / float(self.nz)
+        self.z = np.zeros(nz + 4)
+        self.z[0] = -self.dz
+        self.z[1] = 0.0
+        self.z[2:-1] = np.arange(self.nz + 1) * self.dz
+        self.z[-1] = self.z[-2]
+
         self.t = np.zeros(self.nmx + 1)
+
+        self.p = np.zeros(nz + 4)
+        self.p[0] = self.inlet_pressure
+        self.p[-1] = self.outlet_pressure
+
         self.mz2 = np.zeros(self.nmx + 1)
         self.mt = np.zeros(self.nmx + 1)
+
         self.i_t = np.array([1, 0, 3, 2])
         self.i_th = np.array([2, 3, 0, 1])
         self.sgn_t = np.array([-1.0, 1.0, -1.0, 1.0])
         self.sgn_th = np.array([-1.0, -1.0, 1.0, 1.0])
-        self.p = np.zeros(nz + 1)
 
         coefficients_dict = {}
         if kwargs.get("kxx") is None:
@@ -262,8 +274,6 @@ class HolePatternSeal(SealElement):
         )
 
     def run(self, frequency):
-        self.dz = self.length / float(self.nz)
-        self.z = np.arange(self.nz + 1) * self.dz
         self.R = self.R_univ / self.molar
         self.gamma1 = self.gamma - 1.0
         self.gamma12 = self.gamma1 / 2.0
@@ -527,10 +537,13 @@ class HolePatternSeal(SealElement):
                 p2 = p2_old + 0.5 * (p2 - p2_old)
             if (
                 abs(delp)
-                < self.stopcriterion * (self.inlet_pressure - self.outlet_pressure)
+                < self.stop_criterion * (self.inlet_pressure - self.outlet_pressure)
                 or iglobalchoke
             ):
                 break
+
+        self.p[1] = p2
+        self.p[-1] = p5
         return {"mdot": self.mdot, "t": self.t, "mz2": self.mz2, "mt": self.mt}
 
     def _one_step_perturbed(
@@ -989,9 +1002,13 @@ class HolePatternSeal(SealElement):
             rho_base[iz] = mdot / (self.area * u_base[iz]) if u_base[iz] > 1e-9 else 0
         p_base = rho_base * self.R * t_base[: self.nz + 1]
 
-        self.p = p_base
+        self.p[2:-1] = p_base
 
-        xcos, pi_radius, deep = 1.0, np.pi * self.radius, self.cell_depth / self.gamma
+        xcos, pi_radius, deep = (
+            1.0,
+            np.pi * self.journal_radius,
+            self.cell_depth / self.gamma,
+        )
         pert = np.zeros((5, 4, self.nz + 1))
         whirl_freq = 0.0
         h_pert = np.array([self.radial_clearance, 0.0, 0.0, 0.0, xcos])
