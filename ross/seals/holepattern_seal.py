@@ -3,6 +3,7 @@ import multiprocessing
 from ross import SealElement
 from ross.units import Q_, check_units
 from scipy.optimize import curve_fit
+from warnings import warn
 import plotly.graph_objects as go
 import ccp
 
@@ -320,7 +321,7 @@ class HolePatternSeal(SealElement):
             }
             return attribute_coef
         except Exception as e:
-            print(f"Error calculating for frequency {frequency} RPM: {e}")
+            warn(f"Error calculating for frequency {frequency} RPM: {e}")
             return dict.fromkeys(
                 [
                     "kxx",
@@ -878,7 +879,7 @@ class HolePatternSeal(SealElement):
             try:
                 derivs = np.linalg.solve(cof, rhs)
             except np.linalg.LinAlgError:
-                print(f"ERROR: Singular matrix in step {step}, iz={iz}")
+                warn(f"Singular matrix in step {step}, iz={iz}")
                 derivs = np.zeros((4, 4))
             derivs_store[step] = derivs
             if step == "predictor":

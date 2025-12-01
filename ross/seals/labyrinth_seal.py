@@ -2,6 +2,7 @@ import numpy as np
 import sys
 from scipy.linalg import lu_factor, lu_solve
 from numpy.linalg import cond
+from warnings import warn
 import multiprocessing
 from ross import SealElement
 from ross.units import check_units, Q_
@@ -484,7 +485,8 @@ class LabyrinthSeal(SealElement):
                 if not a2001:
                     break
                 if abs(fpr[2]) > tol_p:
-                    print(f"Pressuere Convergence Error at Station {i}")
+                    warn(f"Pressuere Convergence Error at Station {i}")
+
                 self.pr[i - 1] = prgs[2]
                 self.p[i] = self.pr[i - 1] * self.p[i - 1]
                 self.w[i] = (self.mdot * self.r * self.t[i - 1]) / (
@@ -548,10 +550,11 @@ class LabyrinthSeal(SealElement):
             )
 
         if ndex1 != 1 and abs(self.pr[self.np - 2] - chok2) / chok2 <= tol_choked:
-            print("Flow Chocked in Last Thottle")
+            warn("Flow Chocked in Last Thottle")
             ndex1 = 1
         if (self.pr[self.n_teeth - 1]) > 1:
-            print("ERROR IN LEAKAGE CALCULATION")
+            raise ValueError("Error in Leakage Calculation")
+
         if self.nprt > 4:
             return
 
@@ -575,9 +578,9 @@ class LabyrinthSeal(SealElement):
             jc = 0.35
         elif self.seal_type == "inter":
             jc = 0.90
-        if jc == 0:
-            print("Improper selection of labyrinth type.")
-            sys.exit()
+        else:
+            raise ValueError("Improper selection of labyrinth type.")
+
         bmr = -0.25
         bms = -0.25
         bnr = 0.079
@@ -725,7 +728,8 @@ class LabyrinthSeal(SealElement):
                     else:
                         break
             if abs(fv[2] > 0.001):
-                print(f"Velocity Convergence Error at station {i}")
+                warn(f"Velocity Convergence Error at station {i}")
+
             self.v[i] = vgs[2]
             self.vout[i] = self.vin[i] * (1 - jc) + self.v[i] * jc
             self.kout[i] = self.vout[i] / self.v[i]
@@ -929,7 +933,8 @@ class LabyrinthSeal(SealElement):
                     else:
                         break
             if abs(fv[2] > 0.001) and self.print_results:
-                print(f"Velocity Convergence Error at station {i}")
+                warn(f"Velocity Convergence Error at station {i}")
+
             self.v[i] = vgs[2]
             self.taur[i] = tr[2]
             self.taus[i] = ts[2]
@@ -1153,10 +1158,11 @@ class LabyrinthSeal(SealElement):
         rcond = 1 / cnd
 
         if rcond <= 1 / 3.0e8:
-            print("Almost singular matrix. \n No prediction for dynamic coefficients.")
+            warn("Almost singular matrix. \n No prediction for dynamic coefficients.")
             quit()
+
         if rcond <= 1 / 1.0e6:
-            print(f"Array condition number is high \n array condition number e:{cnd}")
+            warn(f"Array condition number is high \n array condition number e:{cnd}")
 
         sol1 = lu_solve((lu, piv), rhs1)
         sol2 = lu_solve((lu, piv), rhs2)
