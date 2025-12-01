@@ -53,25 +53,12 @@ class LabyrinthSeal(SealElement):
     ----------
     n : int
         Node in which the seal will be located.
-    frequency : float, pint.Quantity
-        Shaft rotational speed (rad/s).
-    inlet_pressure : float
-        Inlet pressure (Pa).
-    outlet_pressure : float
-        Outlet pressure (Pa).
-    inlet_temperature : float
-        Inlet temperature (deg K).
-    pre_swirl_ratio : float
-        Inlet swirl velocity ratio.
-        Positive values for swirl with shaft rotation and negative values for
-        swirl against shaft rotations.
-    n_teeth : int
-        Number of teeth (throttlings).
-        Needs to be <= 30.
     shaft_radius : float, pint.Quantity
         Radius of shaft (m).
     radial_clearance : float, pint.Quantity
-        Nominal radial clearance (m)
+        Nominal radial clearance (m).
+    n_teeth : int
+        Number of teeth (throttlings). Needs to be <= 30.
     pitch : float, pint.Quantity
         Seal pitch (length of land) or axial cavity length (m).
     tooth_height : float, pint.Quantity
@@ -83,33 +70,64 @@ class LabyrinthSeal(SealElement):
         Specify 'rotor' if teeth are on rotor only.
         Specify 'stator' if teeth are on stator only.
         Specify 'inter' for interlocking type labyrinths.
-    gas_composition : dict
+    inlet_pressure : float
+        Inlet pressure (Pa).
+    outlet_pressure : float
+        Outlet pressure (Pa).
+    inlet_temperature : float
+        Inlet temperature (deg K).
+    frequency : float, pint.Quantity
+        Shaft rotational speed (rad/s).
+    preswirl : float
+        Inlet swirl velocity ratio. Positive values for swirl with shaft rotation
+        and negative values for swirl against shaft rotations.
+    gas_composition : dict, optional
         Gas composition as a dictionary {component: molar_fraction}.
-        If gas_composition is None, provide the following parameters:
-        r: float
-            gas constant
-        gamma: float
-            ratio of specific heats
-        tz: list float
-            tz[0]: temperature at state 1
-            tz[1]: temperature at state 2
-        muz: list float
-            muz[0]: dynamic viscoosity at state 1
-            muz[1]: dynamic viscoosity at state 2
-    analz: string
-        analz indicates what will be analysed.
-        Specify "FULL" for rotordynamic calculation and leakage analysis
-        Specify "LEAKAGE" for leakage analysis only
-    nprt: integer
-        Number of parameters to be printed in the output.
-        1 maximum
-        5 minimum
-    iopt1: integer
-        Use or no use of tangential momentum parameters introduced by Jenny and Kanki
-        Specify value 0 to not use parameters
-        Specify value 1 to use parameters
-    print_results : bool
-        If True, print results to console. Default is False.
+        If gas_composition is None, provide r, gamma, tz, and muz parameters.
+        Default is None.
+    r : float, optional
+        Gas constant. Required if gas_composition is None.
+        Default is None.
+    gamma : float, optional
+        Ratio of specific heats. Required if gas_composition is None.
+        Default is None.
+    tz : list of float, optional
+        Temperature at states: [T_state1, T_state2] (deg K).
+        Required if gas_composition is None.
+        Default is None.
+    muz : list of float, optional
+        Dynamic viscosity at states: [mu_state1, mu_state2] (kg/(m·s)).
+        Required if gas_composition is None.
+        Default is None.
+    analz : str, optional
+        Indicates what will be analysed.
+        Specify "FULL" for rotordynamic calculation and leakage analysis.
+        Specify "LEAKAGE" for leakage analysis only.
+        Default is "FULL".
+    nprt : int, optional
+        Number of parameters to be printed in the output: 1 maximum, 5 minimum.
+        Default is 1.
+    iopt1 : int, optional
+        Use or no use of tangential momentum parameters introduced by Jenny and Kanki.
+        Specify value 0 to not use parameters.
+        Specify value 1 to use parameters.
+        Default is 0.
+    print_results : bool, optional
+        If True, print results to console.
+        Default is False.
+    tag : str, optional
+        A tag to name the element.
+        Default is None.
+    n_link : int, optional
+        Node to which the bearing will connect. If None the bearing is
+        connected to ground.
+        Default is None.
+    scale_factor : float, optional
+        The scale factor is used to scale the bearing drawing.
+        Default is 1.
+    color : str, optional
+        A color to be used when the element is represented.
+        Default is "#77ACA2".
 
     Examples
     --------
@@ -117,18 +135,18 @@ class LabyrinthSeal(SealElement):
     >>> from ross.units import Q_
     >>> seal = LabyrinthSeal(
     ...     n=0,
-    ...     inlet_pressure=308000,
-    ...     outlet_pressure=94300,
-    ...     inlet_temperature=283.15,
-    ...     pre_swirl_ratio=0.98,
-    ...     frequency=Q_([5000, 8000, 11000], "RPM"),
-    ...     n_teeth=16,
     ...     shaft_radius=Q_(72.5, "mm"),
     ...     radial_clearance=Q_(0.3, "mm"),
+    ...     n_teeth=16,
     ...     pitch=Q_(3.175, "mm"),
     ...     tooth_height=Q_(3.175, "mm"),
     ...     tooth_width=Q_(0.1524, "mm"),
     ...     seal_type="inter",
+    ...     inlet_pressure=308000,
+    ...     outlet_pressure=94300,
+    ...     inlet_temperature=283.15,
+    ...     frequency=Q_([5000, 8000, 11000], "RPM"),
+    ...     preswirl=0.98,
     ...     gas_composition={"Nitrogen": 0.79, "Oxygen": 0.21},
     ... )
     """
@@ -136,19 +154,19 @@ class LabyrinthSeal(SealElement):
     @check_units
     def __init__(
         self,
-        n=None,
-        inlet_pressure=None,
-        outlet_pressure=None,
-        inlet_temperature=None,
-        pre_swirl_ratio=None,
-        frequency=None,
-        n_teeth=None,
-        shaft_radius=None,
-        radial_clearance=None,
-        pitch=None,
-        tooth_height=None,
-        tooth_width=None,
-        seal_type=None,
+        n,
+        shaft_radius,
+        radial_clearance,
+        n_teeth,
+        pitch,
+        tooth_height,
+        tooth_width,
+        seal_type,
+        inlet_pressure,
+        outlet_pressure,
+        inlet_temperature,
+        frequency,
+        preswirl,
         gas_composition=None,
         r=None,
         gamma=None,
@@ -190,7 +208,7 @@ class LabyrinthSeal(SealElement):
         self.inlet_pressure = inlet_pressure
         self.outlet_pressure = outlet_pressure
         self.inlet_temperature = inlet_temperature
-        self.pre_swirl_ratio = pre_swirl_ratio
+        self.preswirl = preswirl
         self.n_teeth = n_teeth
         self.shaft_radius = shaft_radius
         self.radial_clearance = radial_clearance
@@ -314,7 +332,7 @@ class LabyrinthSeal(SealElement):
             self.v1[i] = 0
             self.rho[i] = 0
             self.t[i] = self.inlet_temperature
-            self.z[i] = i * self.pitch[0]
+            self.z[i] = i / 2 * self.pitch[i]
 
         self.pg = self.outlet_pressure / self.inlet_pressure
         self.omega = self.frequency
@@ -1198,9 +1216,7 @@ class LabyrinthSeal(SealElement):
 
     def run(self, frequency):
         self.frequency = frequency
-        self.inlet_swirl_velocity = (
-            self.pre_swirl_ratio * self.frequency * self.shaft_radius
-        )
+        self.inlet_swirl_velocity = self.preswirl * self.frequency * self.shaft_radius
         self.setup()
         self.vermes()
         self.zpres()
