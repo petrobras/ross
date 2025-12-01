@@ -141,8 +141,7 @@ class HybridSeal(SealElement):
     >>> from ross.units import Q_
     >>> holep_params = {
     ...   "length": 0.04,
-    ...   "radius": 0.025,
-    ...   "clearance": 0.0003,
+    ...   "radial_clearance": 0.0003,
     ...   "roughness": 0.0001,
     ...   "cell_length": 0.003,
     ...   "cell_width": 0.003,
@@ -158,10 +157,11 @@ class HybridSeal(SealElement):
     ...   "tooth_height": 3,
     ...   "tooth_width": 0.15,
     ...   "seal_type": "inter",
-    ...   "pre_swirl_ratio": 0.9,
+    ...   "preswirl": 0.9,
     ... }
     >>> hybrid = HybridSeal(
     ...   n=0,
+    ...   shaft_radius=0.0725,
     ...   inlet_pressure=500000,
     ...   outlet_pressure=100000,
     ...   inlet_temperature=300,
@@ -225,12 +225,12 @@ class HybridSeal(SealElement):
                 **labyrinth_parameters,
             )
 
-            laby_leakage = laby.seal_leakage[0]
             hole_leakage = holep.seal_leakage[0]
+            laby_leakage = laby.seal_leakage[0]
 
-            convergence_leakage = abs(hole_leakage - laby_leakage) / laby_leakage
+            convergence_leakage = abs(laby_leakage - hole_leakage) / hole_leakage
 
-            if laby_leakage > hole_leakage:
+            if hole_leakage > laby_leakage:
                 p_low = interface_pressure
             else:
                 p_high = interface_pressure
