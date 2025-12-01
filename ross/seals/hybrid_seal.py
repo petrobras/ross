@@ -10,16 +10,16 @@ __all__ = ["HybridSeal"]
 class HybridSeal(SealElement):
     """Hybrid seal - Compressible flow model with rotordynamic coefficients.
 
-    This class provides a model for hybrid seals that combine a labyrinth seal
-    (throttling section) with a hole-pattern seal (damping section).
-    The model iteratively determines the interface pressure between the two seal stages
-    by matching their leakage rates, then combines their rotordynamic coefficients.
+    This class provides a model for hybrid seals that combine a hole-pattern seal
+    (damping section) with a labyrinth seal (throttling section). The model iteratively
+    determines the interface pressure between the two seal stages by matching their leakage
+    rates, then combines their rotordynamic coefficients.
 
     **Theoretical Approach:**
 
     1. **Iterative Pressure Matching**:
        - Uses bisection method to find intermediate pressure between seal stages
-       - Ensures mass conservation: leakage from labyrinth = leakage into hole-pattern
+       - Ensures mass conservation: leakage into hole-pattern = leakage from labyrinth
        - Convergence criterion based on relative leakage difference
 
     2. **Combined Rotordynamic Coefficients**:
@@ -140,8 +140,8 @@ class HybridSeal(SealElement):
     >>> from ross.seals.hybrid_seal import HybridSeal
     >>> from ross.units import Q_
     >>> holep_params = {
-    ...   "length": 0.04,
     ...   "radial_clearance": 0.0003,
+    ...   "length": 0.04,
     ...   "roughness": 0.0001,
     ...   "cell_length": 0.003,
     ...   "cell_width": 0.003,
@@ -149,24 +149,31 @@ class HybridSeal(SealElement):
     ...   "preswirl": 0.8,
     ...   "entr_coef": 0.5,
     ...   "exit_coef": 1.0,
+    ...   "b_suther": 1.458e-6,
+    ...   "s_suther": 110.4,
+    ...   "molar": 29.0,
+    ...   "gamma": 1.4,
     ... }
     >>> laby_params = {
+    ...   "radial_clearance": Q_(0.25, "mm"),
     ...   "n_teeth": 10,
-    ...   "radial_clearance": 0.25,
-    ...   "pitch": 3,
-    ...   "tooth_height": 3,
-    ...   "tooth_width": 0.15,
+    ...   "pitch": Q_(3, "mm"),
+    ...   "tooth_height": Q_(3, "mm"),
+    ...   "tooth_width": Q_(0.15, "mm"),
     ...   "seal_type": "inter",
     ...   "preswirl": 0.9,
+    ...   "r": 287.05,
+    ...   "gamma": 1.4,
+    ...   "tz": [300.0, 299.5],
+    ...   "muz": [1.85e-05, 1.84e-05],
     ... }
     >>> hybrid = HybridSeal(
     ...   n=0,
-    ...   shaft_radius=0.0725,
+    ...   shaft_radius=Q_(25, "mm"),
     ...   inlet_pressure=500000,
     ...   outlet_pressure=100000,
-    ...   inlet_temperature=300,
-    ...   frequency=Q_([1000, 2000, 5000], "RPM"),
-    ...   gas_composition={"Nitrogen": 0.79, "Oxygen": 0.21},
+    ...   inlet_temperature=300.0,
+    ...   frequency=Q_([2000, 3000, 5000], "RPM"),
     ...   hole_pattern_parameters=holep_params,
     ...   labyrinth_parameters=laby_params,
     ... )

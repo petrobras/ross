@@ -485,7 +485,7 @@ class LabyrinthSeal(SealElement):
                 if not a2001:
                     break
                 if abs(fpr[2]) > tol_p:
-                    warn(f"Pressuere Convergence Error at Station {i}")
+                    warn(f"Pressure Convergence Error at Station {i}")
 
                 self.pr[i - 1] = prgs[2]
                 self.p[i] = self.pr[i - 1] * self.p[i - 1]
