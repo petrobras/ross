@@ -229,6 +229,10 @@ class LabyrinthSeal(SealElement):
         self.pr = np.zeros(self.m_x)
         self.tooth_width = np.full(self.m_x, tooth_width)
 
+        self.z = np.zeros(self.m_x)
+        for i in range(0, self.n_teeth + 1):
+            self.z[i] = i * self.pitch[i]
+
         self.p = np.zeros(self.m_x)
         self.v = np.zeros(self.m_x)
         self.w = np.zeros(self.m_x)
@@ -238,7 +242,6 @@ class LabyrinthSeal(SealElement):
         self.rho = np.zeros(self.m_x)
         self.taus = np.zeros(self.m_x)
         self.taur = np.zeros(self.m_x)
-        self.z = np.zeros(self.m_x)
         self.gm = np.zeros((1000, 500))
         self.rhs = np.zeros((1000, 2))
         self.cg = np.zeros((9, self.m_x))
@@ -253,13 +256,16 @@ class LabyrinthSeal(SealElement):
             # For small workloads, sequential execution avoids process spawn overhead
             if len(frequency) > 4:
                 with multiprocessing.Pool() as pool:
-                    coefficients_dict_list = pool.map(self.run, frequency)
+                    results = pool.map(self.run, frequency)
             else:
-                coefficients_dict_list = [self.run(freq) for freq in frequency]
+                results = [self.run(freq) for freq in frequency]
+
+            self.p = [r["pressure"] for r in results]
 
             coefficients_dict = {
-                c: [k[c] for k in coefficients_dict_list]
-                for c in coefficients_dict_list[0].keys()
+                c: [k[c] for k in results]
+                for c in results[0].keys()
+                if c not in ["pressure"]
             }
 
         super().__init__(
@@ -333,7 +339,6 @@ class LabyrinthSeal(SealElement):
             self.v1[i] = 0
             self.rho[i] = 0
             self.t[i] = self.inlet_temperature
-            self.z[i] = i / 2 * self.pitch[i]
 
         self.pg = self.outlet_pressure / self.inlet_pressure
         self.omega = self.frequency
@@ -1243,6 +1248,7 @@ class LabyrinthSeal(SealElement):
             "cxy": "cxy",
             "cyx": "cyx",
             "seal_leakage": "mdot",
+            "pressure": "p",
         }
         coefficients_dict = {k: getattr(self, v) for k, v in attrbute_coef.items()}
 
@@ -1281,7 +1287,7 @@ class LabyrinthSeal(SealElement):
         fig.add_trace(
             go.Scatter(
                 x=Q_(self.z[:n_cavities], "m").to(length_units).m,
-                y=Q_(self.p[:n_cavities], "Pa").to(pressure_units).m,
+                y=Q_(self.p[0][:n_cavities], "Pa").to(pressure_units).m,
                 mode="lines+markers",
                 name="Labyrinth Seal",
                 line=dict(width=2),

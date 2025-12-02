@@ -250,10 +250,6 @@ class HolePatternSeal(SealElement):
 
         self.t = np.zeros(self.nmx + 1)
 
-        self.p = np.zeros(nz + 4)
-        self.p[0] = self.inlet_pressure
-        self.p[-1] = self.outlet_pressure
-
         self.mz2 = np.zeros(self.nmx + 1)
         self.mt = np.zeros(self.nmx + 1)
 
@@ -268,13 +264,16 @@ class HolePatternSeal(SealElement):
             # For small workloads, sequential execution avoids process spawn overhead
             if len(self.frequency) > 2:
                 with multiprocessing.Pool() as pool:
-                    coefficients_dict_list = pool.map(self.run, self.frequency)
+                    results = pool.map(self.run, self.frequency)
             else:
-                coefficients_dict_list = [self.run(freq) for freq in self.frequency]
+                results = [self.run(freq) for freq in self.frequency]
+
+            self.p = [r["pressure"] for r in results]
 
             coefficients_dict = {
-                c: [k[c] for k in coefficients_dict_list]
-                for c in coefficients_dict_list[0].keys()
+                c: [k[c] for k in results]
+                for c in results[0].keys()
+                if c not in ["pressure"]
             }
 
         super().__init__(
@@ -302,7 +301,11 @@ class HolePatternSeal(SealElement):
             if not base_state_results:
                 raise RuntimeError("Error calculating leakage.")
 
-            force_coeffs = self.calculate_forces(base_state_results)
+            force_coeffs, p_base = self.calculate_forces(base_state_results)
+
+            pressure = np.insert(p_base, 0, self.inlet_pressure)
+            pressure = np.insert(pressure, 1, base_state_results.get("p2", 0))
+            pressure = np.append(pressure, base_state_results.get("p5", 0))
 
             attribute_coef = {
                 "kxx": force_coeffs.get("K_dir", 0),
@@ -318,6 +321,7 @@ class HolePatternSeal(SealElement):
                 "mxy": force_coeffs.get("m_cross", 0),
                 "myx": -force_coeffs.get("m_cross", 0),
                 "seal_leakage": base_state_results.get("mdot", 0),
+                "pressure": pressure,
             }
             return attribute_coef
         except Exception as e:
@@ -332,7 +336,12 @@ class HolePatternSeal(SealElement):
                     "cyy",
                     "cxy",
                     "cyx",
+                    "mxx",
+                    "myy",
+                    "mxy",
+                    "myx",
                     "seal_leakage",
+                    "pressure",
                 ],
                 0,
             )
@@ -553,9 +562,14 @@ class HolePatternSeal(SealElement):
             ):
                 break
 
-        self.p[1] = p2
-        self.p[-1] = p5
-        return {"mdot": self.mdot, "t": self.t, "mz2": self.mz2, "mt": self.mt}
+        return {
+            "mdot": self.mdot,
+            "t": self.t,
+            "mz2": self.mz2,
+            "mt": self.mt,
+            "p2": p2,
+            "p5": p5,
+        }
 
     def _one_step_perturbed(
         self,
@@ -1013,8 +1027,6 @@ class HolePatternSeal(SealElement):
             rho_base[iz] = mdot / (self.area * u_base[iz]) if u_base[iz] > 1e-9 else 0
         p_base = rho_base * self.R * t_base[: self.nz + 1]
 
-        self.p[2:-1] = p_base
-
         xcos, pi_radius, deep = (
             1.0,
             np.pi * self.shaft_radius,
@@ -1173,8 +1185,9 @@ class HolePatternSeal(SealElement):
             "K_dir": K_dir,
             "k_cross": k_cross,
         }
-        return force_coeffs
+        return force_coeffs, p_base
 
+    @check_units
     def plot_pressure_distribution(
         self, pressure_units="MPa", length_units="m", fig=None, **kwargs
     ):
@@ -1206,7 +1219,7 @@ class HolePatternSeal(SealElement):
         fig.add_trace(
             go.Scatter(
                 x=Q_(self.z, "m").to(length_units).m,
-                y=Q_(self.p, "Pa").to(pressure_units).m,
+                y=Q_(self.p[0], "Pa").to(pressure_units).m,
                 mode="lines+markers",
                 name="Hole Pattern Seal",
                 line=dict(width=2),
