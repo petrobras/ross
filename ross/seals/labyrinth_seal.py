@@ -84,11 +84,11 @@ class LabyrinthSeal(SealElement):
         and negative values for swirl against shaft rotations.
     gas_composition : dict, optional
         Gas composition as a dictionary {component: molar_fraction}.
-        If gas_composition is None, provide r, gamma, tz, and muz parameters.
+        If gas_composition is None, provide molar, gamma, tz, and muz parameters.
         Default is None.
-    r : float, optional
-        Gas constant. Required if gas_composition is None.
-        Default is None.
+    molar : float, pint.Quantity, optional
+        Molecular mass (kg/kgmol). For Air: molar=28.97 kg/kgmol.
+        Required if gas_composition is None. Default is None.
     gamma : float, optional
         Ratio of specific heats. Required if gas_composition is None.
         Default is None.
@@ -169,7 +169,7 @@ class LabyrinthSeal(SealElement):
         frequency,
         preswirl,
         gas_composition=None,
-        r=None,
+        molar=None,
         gamma=None,
         tz=None,
         muz=None,
@@ -181,6 +181,7 @@ class LabyrinthSeal(SealElement):
     ):
         self.print_results = print_results
         self.gas_composition = gas_composition
+
         if self.gas_composition is not None:
             state_in = ccp.State(
                 p=inlet_pressure, T=inlet_temperature, fluid=self.gas_composition
@@ -189,10 +190,13 @@ class LabyrinthSeal(SealElement):
                 p=outlet_pressure, h=state_in.h(), fluid=self.gas_composition
             )
 
-        if gamma is None:
-            gamma = round((state_in.cp() / state_in.cv()).m, 2)
-        if r is None:
-            r = round((state_in.gas_constant() / state_in.molar_mass()).m, 2)
+            molar = state_in.molar_mass("g/mol").m
+            gamma = (state_in.cp() / state_in.cv()).m
+
+        R_univ = 8314.0  # Universal gas constant (J/(kmol·K))
+        self.R = R_univ / molar
+        self.gamma = gamma
+
         if tz is None:
             # tz: Temperature at state 1 e 2 (deg K)
             tz = [state_in.T().m, state_out.T().m]
@@ -202,8 +206,6 @@ class LabyrinthSeal(SealElement):
 
         self.tz = tz
         self.muz = muz
-        self.r = r
-        self.gamma = gamma
 
         self.n = n
         self.inlet_pressure = inlet_pressure
@@ -372,7 +374,7 @@ class LabyrinthSeal(SealElement):
             self.gve
             * self.inlet_pressure
             * self.radial_clearance[0]
-            / (self.r * self.inlet_temperature) ** 0.5
+            / (self.R * self.inlet_temperature) ** 0.5
         )
         leakv = (
             self.mdotv
@@ -390,7 +392,7 @@ class LabyrinthSeal(SealElement):
         gam1 = 1 / self.gamma
         gam2 = (self.gamma - 1) / self.gamma
         gam3 = 2 / gam2
-        gam4 = self.r * gam3
+        gam4 = self.R * gam3
         gam5 = 1 / gam2
         gam6 = 1 / (self.gamma - 1)
         gam7 = 2 / (self.gamma + 1)
@@ -415,7 +417,7 @@ class LabyrinthSeal(SealElement):
             if ndex1 < 1:
                 self.w[0] = 0
                 self.p[0] = self.inlet_pressure
-                self.rho[0] = self.p[0] / (self.r * self.t[0])
+                self.rho[0] = self.p[0] / (self.R * self.t[0])
                 prold = 1 * 10 ** (10)
                 chok1 = gam7 + (
                     self.vnu
@@ -494,7 +496,7 @@ class LabyrinthSeal(SealElement):
 
                 self.pr[i - 1] = prgs[2]
                 self.p[i] = self.pr[i - 1] * self.p[i - 1]
-                self.w[i] = (self.mdot * self.r * self.t[i - 1]) / (
+                self.w[i] = (self.mdot * self.R * self.t[i - 1]) / (
                     self.alphav
                     * self.p[i - 1]
                     * (self.pr[i - 1] ** gam1)
@@ -630,7 +632,7 @@ class LabyrinthSeal(SealElement):
             self.vin[i] = self.vout[i - 1]
             mu = sb * (self.t[i]) ** 0.5 / (1 + (ss / self.t[i]))
             self.nu = mu / self.rho[i]
-            vgs[1] = (self.gamma * self.r * self.t[i]) ** 0.5
+            vgs[1] = (self.gamma * self.R * self.t[i]) ** 0.5
             vgs[0] = -vgs[1]
 
             rov[0] = (self.shaft_radius * self.omega) - vgs[0]
@@ -741,7 +743,7 @@ class LabyrinthSeal(SealElement):
             self.taur[i] = tr[2]
             self.taus[i] = ts[2]
 
-            self.cg[0][i] = area / (self.r * self.t[i])
+            self.cg[0][i] = area / (self.R * self.t[i])
             self.cg[1][i] = (self.v[i] / self.shaft_radius) * self.cg[0][i]
             self.cg[2][i] = (self.p[i] / self.shaft_radius) * self.cg[0][i]
             self.cg[3][i] = (
@@ -840,7 +842,7 @@ class LabyrinthSeal(SealElement):
         for i in range(1, self.n_teeth):
             mu = sb * (self.t[i]) ** 0.5 / (1 + (ss / self.t[i]))
             self.nu = mu / self.rho[i]
-            vgs[1] = (self.gamma * self.r * self.t[i]) ** 0.5
+            vgs[1] = (self.gamma * self.R * self.t[i]) ** 0.5
             vgs[0] = -vgs[1]
 
             rov[0] = (self.shaft_radius * self.omega) - vgs[0]
@@ -944,7 +946,7 @@ class LabyrinthSeal(SealElement):
             self.taur[i] = tr[2]
             self.taus[i] = ts[2]
 
-            self.cg[0][i] = area / (self.r * self.t[i])
+            self.cg[0][i] = area / (self.R * self.t[i])
             self.cg[1][i] = (self.v[i] / self.shaft_radius) * self.cg[0][i]
             self.cg[2][i] = (self.p[i] / self.shaft_radius) * self.cg[0][i]
             self.cg[3][i] = (

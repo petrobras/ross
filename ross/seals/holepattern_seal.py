@@ -85,17 +85,17 @@ class HolePatternSeal(SealElement):
         List with whirl frequency (rad/s).
     gas_composition : dict, optional
         Gas composition as a dictionary {component: molar_fraction}.
-    b_suther : float, optional
-        b coefficient for the Sutherland viscosity model. Required if gas_composition is None.
-        Default is None.
-    s_suther : float, optional
-        s coefficient for the Sutherland viscosity model. Required if gas_composition is None.
-        Default is None.
     molar : float, pint.Quantity, optional
         Molecular mass (kg/kgmol). For Air: molar=28.97 kg/kgmol. Required if gas_composition is None.
         Default is None.
     gamma : float, optional
         Gas constant gamma (Cp/Cv). For Air: gamma=1.4. Required if gas_composition is None.
+        Default is None.
+    b_suther : float, optional
+        b coefficient for the Sutherland viscosity model. Required if gas_composition is None.
+        Default is None.
+    s_suther : float, optional
+        s coefficient for the Sutherland viscosity model. Required if gas_composition is None.
         Default is None.
     preswirl : float, optional
         Ratio of the circumferential velocity of the gas to the surface velocity of the shaft.
@@ -179,10 +179,10 @@ class HolePatternSeal(SealElement):
         inlet_temperature,
         frequency,
         gas_composition=None,
-        b_suther=None,
-        s_suther=None,
         molar=None,
         gamma=None,
+        b_suther=None,
+        s_suther=None,
         preswirl=0.0,
         entr_coef=0.1,
         exit_coef=0.5,
@@ -208,8 +208,10 @@ class HolePatternSeal(SealElement):
                 T=self.inlet_temperature,
                 fluid=self.gas_composition,
             )
-            self.molar = state.molar_mass("g/mol").m
-            self.gamma = (state.cp() / state.cv()).m
+
+            molar = state.molar_mass("g/mol").m
+            gamma = (state.cp() / state.cv()).m
+
             x = []
             y = []
             for T in range(260, 400, 20):
@@ -231,9 +233,11 @@ class HolePatternSeal(SealElement):
             popt, pcov = curve_fit(sutherland_formula, x, y)
             self.b_suther, self.s_suther = popt
 
+        R_univ = 8314.0  # Universal gas constant (J/(kmol·K))
+        self.R = R_univ / molar
+        self.gamma = gamma
+
         self.nmx = 2000
-        self.R_univ = 8314.0
-        self.R = 0.0
         self.omega = 0.0
         self.gamma1 = 0.0
         self.gamma12 = 0.0
@@ -284,7 +288,6 @@ class HolePatternSeal(SealElement):
         )
 
     def run(self, frequency):
-        self.R = self.R_univ / self.molar
         self.gamma1 = self.gamma - 1.0
         self.gamma12 = self.gamma1 / 2.0
         self.omega = frequency

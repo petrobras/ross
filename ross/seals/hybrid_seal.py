@@ -48,79 +48,106 @@ class HybridSeal(SealElement):
     gas_composition : dict, optional
         Gas composition as a dictionary {component: molar_fraction}.
         Example: {"Nitrogen": 0.79, "Oxygen": 0.21} for air.
+    molar : float, pint.Quantity, optional
+        Molecular mass (kg/kgmol). For Air: molar=28.97 kg/kgmol.
+        Required if gas_composition is None. Default is None.
+    gamma : float, optional
+        Gas constant gamma (Cp/Cv). For Air: gamma=1.4.
+        Required if gas_composition is None. Default is None.
 
     **Hole-Pattern Seal Parameters (downstream damping stage):**
 
     hole_pattern_parameters : dict
-        Other parameters for hole-pattern seal.
-
-        - length : float, pint.Quantity
-            Axial length of hole-pattern seal (m).
+        Other parameters for hole-pattern seal with the following keys:
         - radial_clearance : float, pint.Quantity
-            Radial clearance at hole-pattern seal (m).
+            Seal clearance (m).
+        - length : float, pint.Quantity
+            Length of the seal (m).
         - roughness : float
-            Relative surface roughness (roughness/diameter).
+            E / D (roughness / diameter) of the shaft.
         - cell_length : float, pint.Quantity
-            Typical axial length of a hole/pocket (m).
+            Typical length of a cell in the axial direction (m).
         - cell_width : float, pint.Quantity
-            Typical circumferential width of a hole/pocket (m).
+            Typical length of a cell in the azimuthal direction (m).
         - cell_depth : float, pint.Quantity
-            Depth of holes/pockets (m).
-        - preswirl : float, optional
-            Sutherland viscosity coefficient b. Calculated from gas_composition if not provided.
+            Depth of a cell (m).
+        - b_suther : float, optional
+            b coefficient for the Sutherland viscosity model.
+            Required if gas_composition is None. Default is None.
         - s_suther : float, optional
-            Sutherland viscosity coefficient S. Calculated from gas_composition if not provided.
-        - molar : float, optional
-            Molecular mass (kg/kmol). Calculated from gas_composition if not provided.
-        - nz : int, optional
-            Number of axial discretization points. Default is 80.
-        - itrmx : int, optional
-            Maximum iterations for base state calculation. Default is 180.
-        - tolerance : float, optional
-            Convergence tolerance (fraction of pressure differential). Default is 0.0001.
-        - first_step_size : float, optional
-            Initial step tolerance. Default is 0.01.
-        - rlx_factor : float, optional
-            Relaxation factor for iterations. Default is 0.1.
+            s coefficient for the Sutherland viscosity model.
+            Required if gas_composition is None. Default is None.
+        - preswirl : float, optional
+            Ratio of the circumferential velocity of the gas to the surface velocity of the shaft.
+            Default is 0.0.
+        - entr_coef : float, optional
+            Entrance loss coefficient.
+            Default is 0.1.
+        - exit_coef : float, optional
+            Exit loss coefficient.
+            Default is 0.5.
         - whirl_ratio : float, optional
-            Whirl frequency ratio (whirl_freq/shaft_freq). Default is 1.0.
+            Ratio of whirl frequency to rotational speed.
+            Default is 1.0.
+        - nz : int, optional
+            Number of discretization points in the axial direction.
+            Default is 80.
+        - max_iterations : int, optional
+            Maximum number of iterations for basic state calculation.
+            Default is 180.
+        - tolerance : float, optional
+            Tolerance of the solution expressed as a percentage of the pressure differential
+            across the seal. Default is 0.0001.
+        - first_step_size : float, optional
+            Initial step for the solution method. It should not be more than 0.01.
+            Default is 0.01.
+        - rlx_factor : float, optional
+            Relaxation factor. Should be smaller than 0.1.
+            Default is 0.1.
 
     **Labyrinth Seal Parameters (upstream throttling stage):**
 
     labyrinth_parameters : dict
         Other parameters for labyrinth seal with the following keys:
-        - n_teeth : int
-            Number of labyrinth teeth (throttlings). Must be <= 30.
         - radial_clearance : float, pint.Quantity
-            Nominal radial clearance at labyrinth teeth (m).
+            Nominal radial clearance (m).
+        - n_teeth : int
+            Number of teeth (throttlings). Needs to be <= 30.
         - pitch : float, pint.Quantity
-            Seal pitch (axial cavity length between teeth) (m).
+            Seal pitch (length of land) or axial cavity length (m).
         - tooth_height : float, pint.Quantity
-            Height of labyrinth teeth (m).
+            Height of seal strip (m).
         - tooth_width : float, pint.Quantity
-            Axial thickness of tooth tips (m).
+            Thickness of throttle (tip-width) (m), used in mass flow calculation.
         - seal_type : str
-            Location of labyrinth teeth.
-            Options: 'rotor' (teeth on rotor), 'stator' (teeth on stator),
-            'inter' (interlocking teeth).
+            Indicates where labyrinth teeth are located.
+            Specify 'rotor' if teeth are on rotor only.
+            Specify 'stator' if teeth are on stator only.
+            Specify 'inter' for interlocking type labyrinths.
         - preswirl : float
-            Inlet tangential velocity ratio at labyrinth entrance.
-            Positive for co-rotation, negative for counter-rotation.
-        - r : float, optional
-            Gas constant (J/(kg·K)). Calculated from gas_composition if not provided.
-        - gamma : float, optional
-            Ratio of specific heats (Cp/Cv). Calculated from gas_composition if not provided.
+            Inlet swirl velocity ratio. Positive values for swirl with shaft rotation
+            and negative values for swirl against shaft rotations.
         - tz : list of float, optional
-            [T1, T2] temperatures for viscosity interpolation (K).
+            Temperature at states: [T_state1, T_state2] (deg K).
+            Required if gas_composition is None.
+            Default is None.
         - muz : list of float, optional
-            [mu1, mu2] dynamic viscosities for interpolation (Pa·s).
+            Dynamic viscosity at states: [mu_state1, mu_state2] (kg/(m·s)).
+            Required if gas_composition is None.
+            Default is None.
         - analz : str, optional
-            Analysis type. 'FULL' for coefficients + leakage, 'LEAKAGE' for leakage only.
-            Default is 'FULL'.
+            Indicates what will be analysed.
+            Specify "FULL" for rotordynamic calculation and leakage analysis.
+            Specify "LEAKAGE" for leakage analysis only.
+            Default is "FULL".
         - nprt : int, optional
-            Print verbosity level (1=max, 5=min). Default is 1.
+            Number of parameters to be printed in the output: 1 maximum, 5 minimum.
+            Default is 1.
         - iopt1 : int, optional
-            Use Jenny-Kanki tangential momentum parameters (0=no, 1=yes). Default is 0.
+            Use or no use of tangential momentum parameters introduced by Jenny and Kanki.
+            Specify value 0 to not use parameters.
+            Specify value 1 to use parameters.
+            Default is 0.
 
     **Hybrid Seal Control Parameters:**
 
@@ -139,6 +166,11 @@ class HybridSeal(SealElement):
     --------
     >>> from ross.seals.hybrid_seal import HybridSeal
     >>> from ross.units import Q_
+    >>> gas_composition = {
+    ...   "Nitrogen": 0.7812,
+    ...   "Oxygen": 0.2096,
+    ...   "Argon": 0.0092,
+    ... }
     >>> holep_params = {
     ...   "radial_clearance": 0.0003,
     ...   "length": 0.04,
@@ -151,8 +183,6 @@ class HybridSeal(SealElement):
     ...   "exit_coef": 1.0,
     ...   "b_suther": 1.458e-6,
     ...   "s_suther": 110.4,
-    ...   "molar": 29.0,
-    ...   "gamma": 1.4,
     ... }
     >>> laby_params = {
     ...   "radial_clearance": Q_(0.25, "mm"),
@@ -162,8 +192,6 @@ class HybridSeal(SealElement):
     ...   "tooth_width": Q_(0.15, "mm"),
     ...   "seal_type": "inter",
     ...   "preswirl": 0.9,
-    ...   "r": 287.05,
-    ...   "gamma": 1.4,
     ...   "tz": [300.0, 299.5],
     ...   "muz": [1.85e-05, 1.84e-05],
     ... }
@@ -174,6 +202,7 @@ class HybridSeal(SealElement):
     ...   outlet_pressure=100000,
     ...   inlet_temperature=300.0,
     ...   frequency=Q_([2000, 3000, 5000], "RPM"),
+    ...   gas_composition=gas_composition,
     ...   hole_pattern_parameters=holep_params,
     ...   labyrinth_parameters=laby_params,
     ... )
@@ -191,6 +220,8 @@ class HybridSeal(SealElement):
         hole_pattern_parameters,
         labyrinth_parameters,
         gas_composition=None,
+        molar=None,
+        gamma=None,
         tolerance=1e-6,
         max_iterations=1e20,
         color="#787FF6",
@@ -218,6 +249,8 @@ class HybridSeal(SealElement):
                 frequency=frequency,
                 shaft_radius=shaft_radius,
                 gas_composition=gas_composition,
+                molar=molar,
+                gamma=gamma,
                 **hole_pattern_parameters,
             )
 
@@ -229,6 +262,8 @@ class HybridSeal(SealElement):
                 frequency=frequency,
                 shaft_radius=shaft_radius,
                 gas_composition=gas_composition,
+                molar=molar,
+                gamma=gamma,
                 **labyrinth_parameters,
             )
 
@@ -448,8 +483,8 @@ class HybridSeal(SealElement):
 
         laby_data["x"] += hole_data["x"][-1]
 
-        fig.add_trace(laby_data)
         fig.add_trace(hole_data)
+        fig.add_trace(laby_data)
 
         fig.update_xaxes(title_text=f"Axial Position ({length_units})")
         fig.update_yaxes(title_text=f"Pressure ({pressure_units})")
