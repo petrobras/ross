@@ -235,6 +235,7 @@ class HolePatternSeal(SealElement):
 
         R_univ = 8314.0  # Universal gas constant (J/(kmol·K))
         self.R = R_univ / molar
+        self.molar = molar
         self.gamma = gamma
 
         self.nmx = 2000
