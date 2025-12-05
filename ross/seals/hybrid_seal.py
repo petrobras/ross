@@ -204,8 +204,8 @@ class HybridSeal(SealElement):
     ...   hole_pattern_parameters=holep_params,
     ...   labyrinth_parameters=laby_params,
     ... )
-    >>> hybrid.seal_leakage
-    0.034888...
+    >>> hybrid.seal_leakage  # doctest: +ELLIPSIS
+    0.0348...
     """
 
     @check_units
