@@ -2,10 +2,11 @@ import numpy as np
 import sys
 from scipy.linalg import lu_factor, lu_solve
 from numpy.linalg import cond
+from warnings import warn
 import multiprocessing
 from ross import SealElement
-from ross.units import check_units
-import multiprocessing
+from ross.units import check_units, Q_
+import plotly.graph_objects as go
 import ccp
 
 __all__ = ["LabyrinthSeal"]
@@ -53,25 +54,12 @@ class LabyrinthSeal(SealElement):
     ----------
     n : int
         Node in which the seal will be located.
-    frequency : float, pint.Quantity
-        Shaft rotational speed (rad/s).
-    inlet_pressure : float
-        Inlet pressure (Pa).
-    outlet_pressure : float
-        Outlet pressure (Pa).
-    inlet_temperature : float
-        Inlet temperature (deg K).
-    pre_swirl_ratio : float
-        Inlet swirl velocity ratio.
-        Positive values for swirl with shaft rotation and negative values for
-        swirl against shaft rotations.
-    n_teeth : int
-        Number of teeth (throttlings).
-        Needs to be <= 30.
     shaft_radius : float, pint.Quantity
         Radius of shaft (m).
     radial_clearance : float, pint.Quantity
-        Nominal radial clearance (m)
+        Nominal radial clearance (m).
+    n_teeth : int
+        Number of teeth (throttlings). Needs to be <= 30.
     pitch : float, pint.Quantity
         Seal pitch (length of land) or axial cavity length (m).
     tooth_height : float, pint.Quantity
@@ -83,33 +71,64 @@ class LabyrinthSeal(SealElement):
         Specify 'rotor' if teeth are on rotor only.
         Specify 'stator' if teeth are on stator only.
         Specify 'inter' for interlocking type labyrinths.
-    gas_composition : dict
+    inlet_pressure : float
+        Inlet pressure (Pa).
+    outlet_pressure : float
+        Outlet pressure (Pa).
+    inlet_temperature : float
+        Inlet temperature (deg K).
+    frequency : float, pint.Quantity
+        Shaft rotational speed (rad/s).
+    preswirl : float
+        Inlet swirl velocity ratio. Positive values for swirl with shaft rotation
+        and negative values for swirl against shaft rotations.
+    gas_composition : dict, optional
         Gas composition as a dictionary {component: molar_fraction}.
-        If gas_composition is None, provide the following parameters:
-        r: float
-            gas constant
-        gamma: float
-            ratio of specific heats
-        tz: list float
-            tz[0]: temperature at state 1
-            tz[1]: temperature at state 2
-        muz: list float
-            muz[0]: dynamic viscoosity at state 1
-            muz[1]: dynamic viscoosity at state 2
-    analz: string
-        analz indicates what will be analysed.
-        Specify "FULL" for rotordynamic calculation and leakage analysis
-        Specify "LEAKAGE" for leakage analysis only
-    nprt: integer
-        Number of parameters to be printed in the output.
-        1 maximum
-        5 minimum
-    iopt1: integer
-        Use or no use of tangential momentum parameters introduced by Jenny and Kanki
-        Specify value 0 to not use parameters
-        Specify value 1 to use parameters
-    print_results : bool
-        If True, print results to console. Default is False.
+        If gas_composition is None, provide molar, gamma, tz, and muz parameters.
+        Default is None.
+    molar : float, pint.Quantity, optional
+        Molecular mass (kg/kgmol). For Air: molar=28.97 kg/kgmol.
+        Required if gas_composition is None. Default is None.
+    gamma : float, optional
+        Ratio of specific heats. Required if gas_composition is None.
+        Default is None.
+    tz : list of float, optional
+        Temperature at states: [T_state1, T_state2] (deg K).
+        Required if gas_composition is None.
+        Default is None.
+    muz : list of float, optional
+        Dynamic viscosity at states: [mu_state1, mu_state2] (kg/(m·s)).
+        Required if gas_composition is None.
+        Default is None.
+    analz : str, optional
+        Indicates what will be analysed.
+        Specify "FULL" for rotordynamic calculation and leakage analysis.
+        Specify "LEAKAGE" for leakage analysis only.
+        Default is "FULL".
+    nprt : int, optional
+        Number of parameters to be printed in the output: 1 maximum, 5 minimum.
+        Default is 1.
+    iopt1 : int, optional
+        Use or no use of tangential momentum parameters introduced by Jenny and Kanki.
+        Specify value 0 to not use parameters.
+        Specify value 1 to use parameters.
+        Default is 0.
+    print_results : bool, optional
+        If True, print results to console.
+        Default is False.
+    tag : str, optional
+        A tag to name the element.
+        Default is None.
+    n_link : int, optional
+        Node to which the bearing will connect. If None the bearing is
+        connected to ground.
+        Default is None.
+    scale_factor : float, optional
+        The scale factor is used to scale the bearing drawing.
+        Default is 1.
+    color : str, optional
+        A color to be used when the element is represented.
+        Default is "#77ACA2".
 
     Examples
     --------
@@ -117,18 +136,18 @@ class LabyrinthSeal(SealElement):
     >>> from ross.units import Q_
     >>> seal = LabyrinthSeal(
     ...     n=0,
-    ...     inlet_pressure=308000,
-    ...     outlet_pressure=94300,
-    ...     inlet_temperature=283.15,
-    ...     pre_swirl_ratio=0.98,
-    ...     frequency=Q_([5000, 8000, 11000], "RPM"),
-    ...     n_teeth=16,
     ...     shaft_radius=Q_(72.5, "mm"),
     ...     radial_clearance=Q_(0.3, "mm"),
+    ...     n_teeth=16,
     ...     pitch=Q_(3.175, "mm"),
     ...     tooth_height=Q_(3.175, "mm"),
     ...     tooth_width=Q_(0.1524, "mm"),
     ...     seal_type="inter",
+    ...     inlet_pressure=308000,
+    ...     outlet_pressure=94300,
+    ...     inlet_temperature=283.15,
+    ...     frequency=Q_([5000, 8000, 11000], "RPM"),
+    ...     preswirl=0.98,
     ...     gas_composition={"Nitrogen": 0.79, "Oxygen": 0.21},
     ... )
     """
@@ -136,21 +155,21 @@ class LabyrinthSeal(SealElement):
     @check_units
     def __init__(
         self,
-        n=None,
-        inlet_pressure=None,
-        outlet_pressure=None,
-        inlet_temperature=None,
-        pre_swirl_ratio=None,
-        frequency=None,
-        n_teeth=None,
-        shaft_radius=None,
-        radial_clearance=None,
-        pitch=None,
-        tooth_height=None,
-        tooth_width=None,
-        seal_type=None,
+        n,
+        shaft_radius,
+        radial_clearance,
+        n_teeth,
+        pitch,
+        tooth_height,
+        tooth_width,
+        seal_type,
+        inlet_pressure,
+        outlet_pressure,
+        inlet_temperature,
+        frequency,
+        preswirl,
         gas_composition=None,
-        r=None,
+        molar=None,
         gamma=None,
         tz=None,
         muz=None,
@@ -162,6 +181,7 @@ class LabyrinthSeal(SealElement):
     ):
         self.print_results = print_results
         self.gas_composition = gas_composition
+
         if self.gas_composition is not None:
             state_in = ccp.State(
                 p=inlet_pressure, T=inlet_temperature, fluid=self.gas_composition
@@ -170,10 +190,14 @@ class LabyrinthSeal(SealElement):
                 p=outlet_pressure, h=state_in.h(), fluid=self.gas_composition
             )
 
-        if gamma is None:
-            gamma = round((state_in.cp() / state_in.cv()).m, 2)
-        if r is None:
-            r = round((state_in.gas_constant() / state_in.molar_mass()).m, 2)
+            molar = state_in.molar_mass("g/mol").m
+            gamma = (state_in.cp() / state_in.cv()).m
+
+        R_univ = 8314.0  # Universal gas constant (J/(kmol·K))
+        self.R = R_univ / molar
+        self.molar = molar
+        self.gamma = gamma
+
         if tz is None:
             # tz: Temperature at state 1 e 2 (deg K)
             tz = [state_in.T().m, state_out.T().m]
@@ -183,14 +207,12 @@ class LabyrinthSeal(SealElement):
 
         self.tz = tz
         self.muz = muz
-        self.r = r
-        self.gamma = gamma
 
         self.n = n
         self.inlet_pressure = inlet_pressure
         self.outlet_pressure = outlet_pressure
         self.inlet_temperature = inlet_temperature
-        self.pre_swirl_ratio = pre_swirl_ratio
+        self.preswirl = preswirl
         self.n_teeth = n_teeth
         self.shaft_radius = shaft_radius
         self.radial_clearance = radial_clearance
@@ -209,6 +231,10 @@ class LabyrinthSeal(SealElement):
         self.tooth_height = np.full(self.m_x, tooth_height)
         self.pr = np.zeros(self.m_x)
         self.tooth_width = np.full(self.m_x, tooth_width)
+
+        self.z = np.zeros(self.m_x)
+        for i in range(0, self.n_teeth + 1):
+            self.z[i] = i * self.pitch[i]
 
         self.p = np.zeros(self.m_x)
         self.v = np.zeros(self.m_x)
@@ -233,14 +259,17 @@ class LabyrinthSeal(SealElement):
             # For small workloads, sequential execution avoids process spawn overhead
             if len(frequency) > 4:
                 with multiprocessing.Pool() as pool:
-                    coefficients_dict_list = pool.map(self.run, frequency)
+                    results = pool.map(self.run, frequency)
             else:
-                coefficients_dict_list = [self.run(freq) for freq in frequency]
+                results = [self.run(freq) for freq in frequency]
 
-            coefficients_dict = {k: [] for k in coefficients_dict_list[0].keys()}
-            for d in coefficients_dict_list:
-                for k in coefficients_dict:
-                    coefficients_dict[k].append(d[k])
+            self.p = [r["pressure"] for r in results]
+
+            coefficients_dict = {
+                c: [k[c] for k in results]
+                for c in results[0].keys()
+                if c not in ["pressure"]
+            }
 
         super().__init__(
             self.n,
@@ -346,7 +375,7 @@ class LabyrinthSeal(SealElement):
             self.gve
             * self.inlet_pressure
             * self.radial_clearance[0]
-            / (self.r * self.inlet_temperature) ** 0.5
+            / (self.R * self.inlet_temperature) ** 0.5
         )
         leakv = (
             self.mdotv
@@ -364,7 +393,7 @@ class LabyrinthSeal(SealElement):
         gam1 = 1 / self.gamma
         gam2 = (self.gamma - 1) / self.gamma
         gam3 = 2 / gam2
-        gam4 = self.r * gam3
+        gam4 = self.R * gam3
         gam5 = 1 / gam2
         gam6 = 1 / (self.gamma - 1)
         gam7 = 2 / (self.gamma + 1)
@@ -389,7 +418,7 @@ class LabyrinthSeal(SealElement):
             if ndex1 < 1:
                 self.w[0] = 0
                 self.p[0] = self.inlet_pressure
-                self.rho[0] = self.p[0] / (self.r * self.t[0])
+                self.rho[0] = self.p[0] / (self.R * self.t[0])
                 prold = 1 * 10 ** (10)
                 chok1 = gam7 + (
                     self.vnu
@@ -464,10 +493,11 @@ class LabyrinthSeal(SealElement):
                 if not a2001:
                     break
                 if abs(fpr[2]) > tol_p:
-                    print(f"Pressuere Convergence Error at Station {i}")
+                    warn(f"Pressure Convergence Error at Station {i}")
+
                 self.pr[i - 1] = prgs[2]
                 self.p[i] = self.pr[i - 1] * self.p[i - 1]
-                self.w[i] = (self.mdot * self.r * self.t[i - 1]) / (
+                self.w[i] = (self.mdot * self.R * self.t[i - 1]) / (
                     self.alphav
                     * self.p[i - 1]
                     * (self.pr[i - 1] ** gam1)
@@ -528,10 +558,11 @@ class LabyrinthSeal(SealElement):
             )
 
         if ndex1 != 1 and abs(self.pr[self.np - 2] - chok2) / chok2 <= tol_choked:
-            print("Flow Chocked in Last Thottle")
+            warn("Flow Chocked in Last Thottle")
             ndex1 = 1
         if (self.pr[self.n_teeth - 1]) > 1:
-            print("ERROR IN LEAKAGE CALCULATION")
+            raise ValueError("Error in Leakage Calculation")
+
         if self.nprt > 4:
             return
 
@@ -555,9 +586,9 @@ class LabyrinthSeal(SealElement):
             jc = 0.35
         elif self.seal_type == "inter":
             jc = 0.90
-        if jc == 0:
-            print("Improper selection of labyrinth type.")
-            sys.exit()
+        else:
+            raise ValueError("Improper selection of labyrinth type.")
+
         bmr = -0.25
         bms = -0.25
         bnr = 0.079
@@ -602,7 +633,7 @@ class LabyrinthSeal(SealElement):
             self.vin[i] = self.vout[i - 1]
             mu = sb * (self.t[i]) ** 0.5 / (1 + (ss / self.t[i]))
             self.nu = mu / self.rho[i]
-            vgs[1] = (self.gamma * self.r * self.t[i]) ** 0.5
+            vgs[1] = (self.gamma * self.R * self.t[i]) ** 0.5
             vgs[0] = -vgs[1]
 
             rov[0] = (self.shaft_radius * self.omega) - vgs[0]
@@ -705,14 +736,15 @@ class LabyrinthSeal(SealElement):
                     else:
                         break
             if abs(fv[2] > 0.001):
-                print(f"Velocity Convergence Error at station {i}")
+                warn(f"Velocity Convergence Error at station {i}")
+
             self.v[i] = vgs[2]
             self.vout[i] = self.vin[i] * (1 - jc) + self.v[i] * jc
             self.kout[i] = self.vout[i] / self.v[i]
             self.taur[i] = tr[2]
             self.taus[i] = ts[2]
 
-            self.cg[0][i] = area / (self.r * self.t[i])
+            self.cg[0][i] = area / (self.R * self.t[i])
             self.cg[1][i] = (self.v[i] / self.shaft_radius) * self.cg[0][i]
             self.cg[2][i] = (self.p[i] / self.shaft_radius) * self.cg[0][i]
             self.cg[3][i] = (
@@ -811,7 +843,7 @@ class LabyrinthSeal(SealElement):
         for i in range(1, self.n_teeth):
             mu = sb * (self.t[i]) ** 0.5 / (1 + (ss / self.t[i]))
             self.nu = mu / self.rho[i]
-            vgs[1] = (self.gamma * self.r * self.t[i]) ** 0.5
+            vgs[1] = (self.gamma * self.R * self.t[i]) ** 0.5
             vgs[0] = -vgs[1]
 
             rov[0] = (self.shaft_radius * self.omega) - vgs[0]
@@ -909,12 +941,13 @@ class LabyrinthSeal(SealElement):
                     else:
                         break
             if abs(fv[2] > 0.001) and self.print_results:
-                print(f"Velocity Convergence Error at station {i}")
+                warn(f"Velocity Convergence Error at station {i}")
+
             self.v[i] = vgs[2]
             self.taur[i] = tr[2]
             self.taus[i] = ts[2]
 
-            self.cg[0][i] = area / (self.r * self.t[i])
+            self.cg[0][i] = area / (self.R * self.t[i])
             self.cg[1][i] = (self.v[i] / self.shaft_radius) * self.cg[0][i]
             self.cg[2][i] = (self.p[i] / self.shaft_radius) * self.cg[0][i]
             self.cg[3][i] = (
@@ -1133,10 +1166,11 @@ class LabyrinthSeal(SealElement):
         rcond = 1 / cnd
 
         if rcond <= 1 / 3.0e8:
-            print("Almost singular matrix. \n No prediction for dynamic coefficients.")
+            warn("Almost singular matrix. \n No prediction for dynamic coefficients.")
             quit()
+
         if rcond <= 1 / 1.0e6:
-            print(f"Array condition number is high \n array condition number e:{cnd}")
+            warn(f"Array condition number is high \n array condition number e:{cnd}")
 
         sol1 = lu_solve((lu, piv), rhs1)
         sol2 = lu_solve((lu, piv), rhs2)
@@ -1196,9 +1230,7 @@ class LabyrinthSeal(SealElement):
 
     def run(self, frequency):
         self.frequency = frequency
-        self.inlet_swirl_velocity = (
-            self.pre_swirl_ratio * self.frequency * self.shaft_radius
-        )
+        self.inlet_swirl_velocity = self.preswirl * self.frequency * self.shaft_radius
         self.setup()
         self.vermes()
         self.zpres()
@@ -1219,7 +1251,65 @@ class LabyrinthSeal(SealElement):
             "cxy": "cxy",
             "cyx": "cyx",
             "seal_leakage": "mdot",
+            "pressure": "p",
         }
         coefficients_dict = {k: getattr(self, v) for k, v in attrbute_coef.items()}
 
         return coefficients_dict
+
+    def plot_pressure_distribution(
+        self, pressure_units="MPa", length_units="m", fig=None, **kwargs
+    ):
+        """Plot pressure distribution for the labyrinth seal.
+
+        Parameters
+        ----------
+        pressure_units : str, optional
+            Pressure units for plotting.
+            Default is "MPa".
+        length_units : str, optional
+            Length units for axial position.
+            Default is "m".
+        fig : Plotly graph_objects.Figure(), optional
+            The figure object with the plot. If None, creates a new figure.
+        kwargs : optional
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+
+        Returns
+        -------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        """
+        if fig is None:
+            fig = go.Figure()
+
+        n_cavities = self.n_teeth + 1
+
+        fig.add_trace(
+            go.Scatter(
+                x=Q_(self.z[:n_cavities], "m").to(length_units).m,
+                y=Q_(self.p[0][:n_cavities], "Pa").to(pressure_units).m,
+                mode="lines+markers",
+                name="Labyrinth Seal",
+                line=dict(width=2),
+                hovertemplate="<b>Position:</b> %{x:.3f} "
+                + length_units
+                + "<br>"
+                + f"<b>Pressure:</b> %{{y:.3f}} {pressure_units}<br>"
+                + "<extra></extra>",
+            )
+        )
+
+        fig.update_layout(
+            title=dict(
+                text="Pressure Distribution - Labyrinth Seal",
+            ),
+            xaxis_title=f"Axial Position ({length_units})",
+            yaxis_title=f"Pressure ({pressure_units})",
+            showlegend=False,
+            **kwargs,
+        )
+
+        return fig
