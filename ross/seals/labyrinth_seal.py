@@ -195,6 +195,7 @@ class LabyrinthSeal(SealElement):
 
         R_univ = 8314.0  # Universal gas constant (J/(kmol·K))
         self.R = R_univ / molar
+        self.molar = molar
         self.gamma = gamma
 
         if tz is None:

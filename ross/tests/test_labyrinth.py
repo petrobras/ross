@@ -32,7 +32,7 @@ COMMON_PARAMS = {
 }
 
 MANUAL_PARAMS = {
-    "r": 287.05,
+    "molar": 28.96807,
     "tz": [283.15, 282.60903080958565],
     "muz": [1.7746561138374613e-05, 1.7687886306966975e-05],
     "gamma": 1.41,
@@ -64,19 +64,20 @@ def test_labyrinth_manual_coefficients(labyrinth_manual):
 
     This test should always work regardless of REFPROP availability.
     """
-    assert_allclose(labyrinth_manual.kxx, -50448.19591, rtol=1e-4)
-    assert_allclose(labyrinth_manual.kxy, 35536.953463, rtol=1e-4)
-    assert_allclose(labyrinth_manual.kyx, -35536.953463, rtol=1e-4)
-    assert_allclose(labyrinth_manual.kyy, -50448.19591, rtol=1e-4)
-    assert_allclose(labyrinth_manual.cxx, 23.821095, rtol=1e-4)
-    assert_allclose(labyrinth_manual.cxy, 56.246427, rtol=1e-4)
-    assert_allclose(labyrinth_manual.cyx, -56.246427, rtol=1e-4)
-    assert_allclose(labyrinth_manual.cyy, 23.821095, rtol=1e-4)
+    assert_allclose(labyrinth_manual.kxx, -50456.586597, rtol=1e-4)
+    assert_allclose(labyrinth_manual.kxy, 35541.605312, rtol=1e-4)
+    assert_allclose(labyrinth_manual.kyx, -35541.605312, rtol=1e-4)
+    assert_allclose(labyrinth_manual.kyy, -50456.586597, rtol=1e-4)
+    assert_allclose(labyrinth_manual.cxx, 23.825111, rtol=1e-4)
+    assert_allclose(labyrinth_manual.cxy, 56.255682, rtol=1e-4)
+    assert_allclose(labyrinth_manual.cyx, -56.255682, rtol=1e-4)
+    assert_allclose(labyrinth_manual.cyy, 23.825111, rtol=1e-4)
 
 
 def test_labyrinth_manual_attributes(labyrinth_manual):
     """Test that manual parameters are correctly stored."""
-    assert labyrinth_manual.r == 287.05
+    assert_allclose(labyrinth_manual.molar, 28.96807, rtol=1e-6)
+    assert_allclose(labyrinth_manual.R, 287.005658, rtol=1e-4)
     assert labyrinth_manual.gamma == 1.41
     assert_allclose(labyrinth_manual.tz[0], 283.15, rtol=1e-6)
     assert_allclose(labyrinth_manual.tz[1], 282.60903080958565, rtol=1e-6)
@@ -97,12 +98,12 @@ def test_labyrinth_gas_composition_creation(labyrinth_gas_composition):
 def test_labyrinth_gas_composition_derived_properties(labyrinth_gas_composition):
     """Test that thermodynamic properties are auto-derived correctly."""
     # Check that properties were derived
-    assert labyrinth_gas_composition.r is not None
+    assert labyrinth_gas_composition.R is not None
     assert labyrinth_gas_composition.gamma is not None
     assert labyrinth_gas_composition.tz is not None
     assert labyrinth_gas_composition.muz is not None
 
-    assert_allclose(labyrinth_gas_composition.r, 287, rtol=0.02)
+    assert_allclose(labyrinth_gas_composition.R, 287, rtol=0.02)
     assert_allclose(labyrinth_gas_composition.gamma, 1.4, rtol=0.03)
     assert len(labyrinth_gas_composition.tz) == 2
     assert_allclose(labyrinth_gas_composition.tz[0], 283.15, rtol=1e-4)
@@ -163,8 +164,8 @@ def test_labyrinth_refprop_backend():
         assert_allclose(labyrinth.seal_leakage[0], 0.051951, rtol=1e-3)
 
         # Check derived properties
-        assert_allclose(labyrinth.r, 287.12, rtol=1e-3)
-        assert_allclose(labyrinth.gamma, 1.41, rtol=1e-3)
+        assert_allclose(labyrinth.R, 287.12, rtol=1e-3)
+        assert_allclose(labyrinth.gamma, 1.406521, rtol=1e-3)
 
     finally:
         ccp.config.EOS = original_eos
@@ -188,8 +189,8 @@ def test_labyrinth_heos_backend():
         assert_allclose(labyrinth.seal_leakage[0], 0.051951, rtol=1e-3)
 
         # Check derived properties
-        assert_allclose(labyrinth.r, 287.12, rtol=1e-3)
-        assert_allclose(labyrinth.gamma, 1.41, rtol=1e-3)
+        assert_allclose(labyrinth.R, 287.12, rtol=1e-3)
+        assert_allclose(labyrinth.gamma, 1.40652, rtol=1e-3)
 
     finally:
         ccp.config.EOS = original_eos
@@ -235,7 +236,7 @@ def test_labyrinth_refprop_vs_heos_consistency():
         )
 
         # Derived properties should match closely
-        assert_allclose(labyrinth_refprop.r, labyrinth_heos.r, rtol=1e-3)
+        assert_allclose(labyrinth_refprop.R, labyrinth_heos.R, rtol=1e-3)
         assert_allclose(labyrinth_refprop.gamma, labyrinth_heos.gamma, rtol=1e-2)
 
     finally:
@@ -267,7 +268,7 @@ def labyrinth():
         tooth_height=Q_(3.175, "mm"),
         tooth_width=Q_(0.1524, "mm"),
         seal_type="inter",
-        r=287.05,
+        molar=28.96807,
         tz=[283.15, 282.60903080958565],
         muz=[1.7746561138374613e-05, 1.7687886306966975e-05],
         gamma=1.41,
@@ -278,11 +279,11 @@ def labyrinth():
 
 def test_labyrinth_coefficients(labyrinth):
     """Original test - kept for backward compatibility."""
-    assert_allclose(labyrinth.kxx, -50448.19591, rtol=1e-4)
-    assert_allclose(labyrinth.kxy, 35536.953463, rtol=1e-4)
-    assert_allclose(labyrinth.kyx, -35536.953463, rtol=1e-4)
-    assert_allclose(labyrinth.kyy, -50448.19591, rtol=1e-4)
-    assert_allclose(labyrinth.cxx, 23.821095, rtol=1e-4)
-    assert_allclose(labyrinth.cxy, 56.246427, rtol=1e-4)
-    assert_allclose(labyrinth.cyx, -56.246427, rtol=1e-4)
-    assert_allclose(labyrinth.cyy, 23.821095, rtol=1e-4)
+    assert_allclose(labyrinth.kxx, -50456.586597, rtol=1e-4)
+    assert_allclose(labyrinth.kxy, 35541.605312, rtol=1e-4)
+    assert_allclose(labyrinth.kyx, -35541.605312, rtol=1e-4)
+    assert_allclose(labyrinth.kyy, -50456.586597, rtol=1e-4)
+    assert_allclose(labyrinth.cxx, 23.825111, rtol=1e-4)
+    assert_allclose(labyrinth.cxy, 56.255682, rtol=1e-4)
+    assert_allclose(labyrinth.cyx, -56.255682, rtol=1e-4)
+    assert_allclose(labyrinth.cyy, 23.825111, rtol=1e-4)

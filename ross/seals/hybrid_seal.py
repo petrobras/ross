@@ -181,8 +181,6 @@ class HybridSeal(SealElement):
     ...   "preswirl": 0.8,
     ...   "entr_coef": 0.5,
     ...   "exit_coef": 1.0,
-    ...   "b_suther": 1.458e-6,
-    ...   "s_suther": 110.4,
     ... }
     >>> laby_params = {
     ...   "radial_clearance": Q_(0.25, "mm"),
@@ -206,6 +204,8 @@ class HybridSeal(SealElement):
     ...   hole_pattern_parameters=holep_params,
     ...   labyrinth_parameters=laby_params,
     ... )
+    >>> hybrid.seal_leakage
+    0.034888...
     """
 
     @check_units

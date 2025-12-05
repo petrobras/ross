@@ -15,6 +15,8 @@ COMMON_PARAMS = {
     "outlet_pressure": 100000,
     "inlet_temperature": 300.0,
     "frequency": Q_([5000], "RPM"),
+    "molar": 28.96807,
+    "gamma": 1.4,
 }
 
 # Labyrinth seal parameters (to be passed via labyrinth_parameters dict)
@@ -26,8 +28,6 @@ LABYRINTH_PARAMS = {
     "tooth_width": Q_(0.15, "mm"),
     "seal_type": "inter",
     "preswirl": 0.9,
-    "r": 287.05,
-    "gamma": 1.4,
     "tz": [300.0, 299.5],
     "muz": [1.85e-05, 1.84e-05],
 }
@@ -46,8 +46,6 @@ HOLEPATTERN_PARAMS = {
     "exit_coef": 1.0,
     "b_suther": 1.458e-6,
     "s_suther": 110.4,
-    "molar": 29.0,
-    "gamma": 1.4,
 }
 
 # Hole-pattern seal parameters for gas composition tests
