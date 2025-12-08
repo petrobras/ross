@@ -436,7 +436,13 @@ class BearingElement(Element):
         y_units = {"k": stiffness_units, "c": damping_units, "m": mass_units}
 
         if frequency is None:
-            frequency = np.linspace(min(self.frequency), max(self.frequency), 5)
+            if self.frequency is None:
+                frequency = np.array([0])
+            else:
+                min_freq = min(self.frequency)
+                max_freq = max(self.frequency)
+                nf = 1 if min_freq == max_freq else 5
+                frequency = np.linspace(min_freq, max_freq, nf)
         frequency_range = Q_(frequency, "rad/s").to(frequency_units).m
 
         headers = [f"Frequency [{frequency_units}]"]
@@ -445,7 +451,7 @@ class BearingElement(Element):
         table = PrettyTable()
 
         for coeff in coefficients:
-            headers.append(f"{coeff} [{default_units[coeff[0]]}]")
+            headers.append(f"{coeff} [{y_units[coeff[0]]}]")
             columns = (
                 Q_(
                     getattr(self, f"{coeff}_interpolated")(frequency),
