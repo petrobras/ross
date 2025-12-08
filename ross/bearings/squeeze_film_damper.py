@@ -77,3 +77,7 @@ class SqueezeFilmDamper(BearingElement):
 
         return CO, KO, THETA, PMAX
 
+
+
+    def calculate_coeficients_with_groove(self):
+        print("")
