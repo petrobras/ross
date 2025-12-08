@@ -80,4 +80,4 @@ class SqueezeFilmDamper(BearingElement):
 
 
     def calculate_coeficients_with_groove(self):
-        print("")
+        print("oi")
