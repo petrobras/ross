@@ -24,7 +24,8 @@ class SqueezeFilmDamper(BearingElement):
             END_SEALS = True,
             CAV= True, 
             tag=None, 
-            scale_factor=1.0):  
+            scale_factor=1.0
+            ):  
         
         self.axial_length = axial_length
         self.journal_radius = journal_radius
@@ -39,9 +40,9 @@ class SqueezeFilmDamper(BearingElement):
         if (not GROOVE) and END_SEALS:
             CO, KO, THETA, PMAX = self.calculate_coeficients_with_end_seals()
         elif GROOVE and (not END_SEALS):
-            TYP_equiv = 1
+            CO, KO, THETA, PMAX = self.calculate_coeficients_with_groove()
         elif GROOVE and END_SEALS:
-            TYP_equiv = 2
+            CO, KO, THETA, PMAX = self.calculate_coeficientes_with_groove_and_endseals()
 
          
     
@@ -80,4 +81,54 @@ class SqueezeFilmDamper(BearingElement):
 
 
     def calculate_coeficients_with_groove(self):
-        print("oi")
+        if self.CAV:
+            CO = self.MU * (self.axial_length**3) * self.journal_radius / (2.0 * self.radial_clearance**3)
+            CO *= np.pi / ((1.0 - self.eccentricity_ratio**2)**(3.0/2.0))
+            CO /= 4
+
+            KO = 2.0 * self.MU * self.frequency * self.journal_radius * (self.axial_length / self.radial_clearance)**3 * self.eccentricity_ratio
+            KO /= (1.0 - self.eccentricity_ratio**2)**2
+            KO /=4
+
+        THETAM = (270.443
+                  - 191.831*self.eccentricity_ratio
+                  + 218.223*self.eccentricity_ratio**2
+                  - 114.803*self.eccentricity_ratio**3)
+        THETA = math.radians(THETAM)
+
+        PMAX = -1.5 * (self.axial_length / self.radial_clearance)**2 * self.MU * self.frequency * self.eccentricity_ratio * np.sin(THETA)
+        PMAX /= (1.0 + self.eccentricity_ratio*np.cos(THETA))**3
+        PMAX /= 2
+
+        if not self.CAV:
+            KO = 0.0
+            CO = self.MU * (self.axial_length / self.radial_clearance)**3 * self.journal_radius * np.pi
+            CO /= ((1.0 - self.eccentricity_ratio**2)**(3.0/2.0))
+    
+        return CO, KO, THETA, PMAX
+
+        
+
+    def calculate_coeficientes_with_groove_and_endseals(self):
+        if self.CAV:
+            CO = self.MU * (self.axial_length**3) * self.journal_radius / (2.0 * self.radial_clearance**3)
+            CO *= np.pi / ((1.0 - self.eccentricity_ratio**2)**(3.0/2.0))
+
+            KO = 2.0 * self.MU * self.frequency * self.journal_radius * (self.axial_length / self.radial_clearance)**3 * self.eccentricity_ratio
+            KO /= (1.0 - self.eccentricity_ratio**2)**2
+
+        THETAM = (270.443
+                  - 191.831*self.eccentricity_ratio
+                  + 218.223*self.eccentricity_ratio**2
+                  - 114.803*self.eccentricity_ratio**3)
+        THETA = math.radians(THETAM)
+
+        PMAX = -1.5 * (self.axial_length / self.radial_clearance)**2 * self.MU * self.frequency * self.eccentricity_ratio * np.sin(THETA)
+        PMAX /= (1.0 + self.eccentricity_ratio*np.cos(THETA))**3
+
+        if not self.CAV:
+            KO = 0.0
+            CO = self.MU * (self.axial_length / self.radial_clearance)**3 * self.journal_radius * np.pi
+            CO /= ((1.0 - self.eccentricity_ratio**2)**(3.0/2.0))
+    
+        return CO, KO, THETA, PMAX
