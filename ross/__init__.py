@@ -24,6 +24,7 @@ from ross.seals.labyrinth_seal import *
 from ross.seals.holepattern_seal import *
 from ross.bearings.thrust_pad import *
 from ross.bearings.tilting_pad import *
+from ross.bearings.squeeze_film_damper import *
 from ross.model_reduction import *
 
 _pio.templates.default = "ross"
