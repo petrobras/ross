@@ -11,25 +11,38 @@ class SqueezeFilmDamperElement(BearingElement):
 
 def __init__(
             self,
-            n, 
-            L,
-            R, 
-            C,
+            frequency, 
+            axial_lenght,
+            journal_radius, 
+            radial_clearance,
+            eccentricity_ratio,
             MU,
-            TYP=0, 
-            CAV=1, 
+            GROOVE = True, 
+            END_SEALS = True,
+            CAV= True, 
             tag=None, 
-            scale_factor=1.0):
+            scale_factor=1.0):  
+    
+
+
+
+
+
     super().__init__(
-            n=n,
+            frequency=frequency,
             kxx=None,  
             cxx=None,
             tag=tag,
             scale_factor=scale_factor,
         )
-    self.L = L
-    self.R = R
-    self.C = C
+    
+    self.axial_lenght = axial_lenght
+    self.journal_radius = journal_radius
+    self.radial_clearance = radial_clearance
+    self.eccentricity_ratio = eccentricity_ratio
+    self.frequency = frequency
     self.MU = MU
-    self.TYP = TYP
+    self.GROOVE = GROOVE
+    self.END_SEALS = END_SEALS
     self.CAV = CAV
+
