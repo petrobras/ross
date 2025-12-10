@@ -89,10 +89,13 @@ class TiltingPad(BearingElement):
         Journal position in X direction. Default unit is meter.
     yj : float, optional
         Journal position in Y direction. Default unit is meter.
-    equilibrium_type : str, optional
+    equilibrium_type: str, optional
         Type of equilibrium calculation. Options:
-        - 'match_eccentricity': Calculate equilibrium based on eccentricity
-        - 'determine_eccentricity': Determine equilibrium position completely
+        - 'match_eccentricity': Uses the provided eccentricity and
+        attitude_angle and optimizes only the pad rotation angles.
+        - 'determine_eccentricity': Optimizes eccentricity, attitude_angle,
+        and pad rotation angles to balance the applied loads; requires
+        both fxs_load and fys_load to be provided.
     model_type : str, optional
         Type of model to be used. Options:
         - 'thermo_hydro_dynamic': Thermo-Hydro-Dynamic model
@@ -224,6 +227,14 @@ class TiltingPad(BearingElement):
 
         # Operating conditions
         self.equilibrium_type = equilibrium_type
+
+        if self.equilibrium_type == "determine_eccentricity":
+            if fxs_load is None or fys_load is None:
+                raise ValueError(
+                    "fxs_load and fys_load must be provided when"
+                    " equilibrium_type is 'determine_eccentricity'."
+                )
+
         self.oil_supply_temperature = Q_(oil_supply_temperature, "degK").m_as("degC")
         self.reference_temperature = self.oil_supply_temperature
         self.lubricant = lubricant
