@@ -1,7 +1,8 @@
 import time
 import numpy as np
-from scipy.optimize import fmin
+from scipy.optimize import fmin, minimize
 from plotly import graph_objects as go
+from plotly.subplots import make_subplots
 from prettytable import PrettyTable
 
 from ross.bearing_seal_element import BearingElement
@@ -189,8 +190,8 @@ class TiltingPad(BearingElement):
         xj=None,
         yj=None,
         equilibrium_type=None,
-        eccentricity=None,
-        attitude_angle=None,
+        eccentricity=0.3,
+        attitude_angle=np.pi * 3/2,  # 270°
         fxs_load=None,
         fys_load=None,
         initial_pads_angles=None,
@@ -1234,9 +1235,9 @@ class TiltingPad(BearingElement):
                     )
 
                     # Dynamic loads
-                    del_force_x[n_p] = -(self.force_new[n_p] - self.force_1[n_p])
-                    del_moment_j[n_p] = -(self.moment_j_new[n_p] - self.moment_j[n_p])
-                    del_force_y[n_p] = -(self.force_2_new[n_p] - self.force_2[n_p])
+                    del_force_x[n_p] = (self.force_new[n_p] - self.force_1[n_p]) # here
+                    del_moment_j[n_p] = (self.moment_j_new[n_p] - self.moment_j[n_p])
+                    del_force_y[n_p] = (self.force_2_new[n_p] - self.force_2[n_p])
 
                     # X-axis perturbation
                     if a_p == 0:
@@ -1556,17 +1557,94 @@ class TiltingPad(BearingElement):
                     self.initial_pads_angles
                 )
             else:
-                x0 = [self.eccentricity, self.attitude_angle] + [0.0] * self.n_pad
+                x0 = [0.3, np.deg2rad(270)] + [1e-4] * self.n_pad
 
+            def _nm_callback(xk):
+                print(f"[determine_ecc] callback x={xk}")
             # Optimize complete system
-            x_opt = fmin(
+            result = fmin(
                 self._equilibrium_objective,
                 x0,
-                xtol=1e-4,
-                ftol=1e-2,
-                maxiter=100000,
+                xtol=1e-3,
+                ftol=1e-3,
+                maxiter=1000,
                 disp=False,
+                full_output=True,
+                callback=_nm_callback,
             )
+            # def _optimization_callback(xk):
+            #     """Monitor optimization progress"""
+            #     if not hasattr(self, "iteration_count"):
+            #         self.iteration_count = 0
+            #     self.iteration_count += 1
+                
+            #     # Calculate current score
+            #     score = self._equilibrium_objective(xk)
+                
+            #     # Extract state variables
+            #     ecc, att = xk[0], xk[1]
+            #     pads = xk[2:]
+                
+            #     # Format output
+            #     pads_str = "[" + ", ".join(f"{np.degrees(p):.2f}" for p in pads) + "]°"
+                
+            #     # Print every iteration
+            #     print(f"[Powell] iter={self.iteration_count:4d} "
+            #         f"ecc={ecc:.4f} att={np.degrees(att):6.2f}° "
+            #         f"pads={pads_str} score={score:.4e}")
+                
+            #     # Record in history
+            #     self.record_optimization_residual(score)
+
+            # Optimize complete system
+            # result = minimize(
+            #     self._equilibrium_objective,
+            #     x0,
+            #     # method="Powell",
+            #     callback=_optimization_callback,
+            #     options={
+            #         "xtol": 1e-6,
+            #         "ftol": 1e-6,
+            #         "maxiter": 5000,
+            #         "disp": True,
+            #     }
+            # )
+            # result = minimize(
+            #     self._equilibrium_objective,
+            #     x0,
+            #     method='L-BFGS-B',  # Método com gradiente numérico + bounds
+            #     bounds=[
+            #         (1e-3, 1),        # eccentricity: longe de 0 e 1
+            #         (0, 2*np.pi),      # attitude_angle
+            #         (-1e-5, 1e-5),     # pad angles (pequenos)
+            #         (-1e-5, 1e-5),
+            #         (-1e-5, 1e-5),
+            #         (-1e-5, 1e-5),
+            #         (-1e-5, 1e-5),
+            #     ],
+            #     callback=_optimization_callback,
+            #     options={
+            #         'ftol': 1e-8,
+            #         'maxiter': 1000,
+            #         'disp': True,
+            #     }
+            # )
+
+            # Extract only x_opt from tuple
+            if isinstance(result, tuple):
+                x_opt = result[0]
+            else:
+                x_opt = result
+
+            # Update state variables with optimized values
+            self.eccentricity, self.attitude_angle, self.psi_pad = (
+                x_opt[0],
+                x_opt[1],
+                x_opt[2:],
+            )
+
+            # Update state vector
+            self.xdin = x_opt.copy()
 
             # Update state variables with optimized values
             self.eccentricity, self.attitude_angle, self.psi_pad = (
@@ -1585,7 +1663,14 @@ class TiltingPad(BearingElement):
             self.force_y_total_list.append(np.sum(self.force_y_dim))
             self.momen_rot_list.append(None)
 
-        # Continue with thermo-hydrodynamic field solution
+            print(
+                "[determine_ecc] optimization done: "
+                f"ecc={self.eccentricity:.4f}, "
+                f"att={np.degrees(self.attitude_angle):.2f}deg, "
+                f"final_score={self.optimization_history.get(self._current_freq_index, [])[-1]:.3e}"
+            )
+
+        # Thermo-hydrodynamic field solution
         psi_pad = np.zeros(self.n_pad)
         for k_pad in range(self.n_pad):
             psi_pad[k_pad] = self.xdin[k_pad + 2]
@@ -1926,6 +2011,9 @@ class TiltingPad(BearingElement):
         solve_fields : Main method for equilibrium calculation
         get_equilibrium_position : Single pad equilibrium optimization
         """
+
+        t0 = time.time()
+
         # Increment iteration counter
         if not hasattr(self, "iteration_count"):
             self.iteration_count = 0
@@ -2174,20 +2262,68 @@ class TiltingPad(BearingElement):
             self._calculate_hydrodynamic_forces(n_p, psi_pad, is_equilibrium=True)
 
         # Calculate equilibrium residuals
+        # FM = np.zeros(self.n_pad + 2)
+
+        # # Force equilibrium in X and Y directions
+        # Fhx = np.sum(self.force_x_dim)
+        # Fhy = np.sum(self.force_y_dim)
+
+        # FM[0] = Fhx + (self.fxs_load if self.fxs_load is not None else 0)
+        # FM[1] = Fhy + (self.fys_load if self.fys_load is not None else 0)
+        # FM[2:] = self.moment_j_dim
+
+        # score = np.linalg.norm(FM)
+
+        # Calculate equilibrium residuals
         FM = np.zeros(self.n_pad + 2)
 
         # Force equilibrium in X and Y directions
         Fhx = np.sum(self.force_x_dim)
         Fhy = np.sum(self.force_y_dim)
 
-        FM[0] = Fhx + (self.fxs_load if self.fxs_load is not None else 0)
-        FM[1] = Fhy + (self.fys_load if self.fys_load is not None else 0)
-        FM[2:] = self.moment_j_dim
+        # Raw residuals
+        force_x_res = Fhx + (self.fxs_load if self.fxs_load is not None else 0)
+        force_y_res = Fhy + (self.fys_load if self.fys_load is not None else 0)
+        moment_res = self.moment_j_dim
 
+        # Characteristic scales for normalization
+        F_scale = max(abs(self.fxs_load) if self.fxs_load is not None else 0,
+                    abs(self.fys_load) if self.fys_load is not None else 0,
+                    100.0)  # Minimum 100 N to avoid division by very small numbers
+
+        M_scale = F_scale * (self.pad_radius)  # N·m (force × lever arm)
+
+        # Normalized residuals (dimensionless)
+        FM[0] = force_x_res / F_scale
+        FM[1] = force_y_res / F_scale
+        FM[2:] = moment_res / M_scale
+
+        # Single scalar objective (dimensionless)
         score = np.linalg.norm(FM)
 
         # Record optimization residual
         self.record_optimization_residual(score)
+
+        psi_deg = np.degrees(psi_pad)
+        psi_str = "[" + ", ".join(f"{v:.2f}" for v in psi_deg) + "]deg"
+        print(
+            f"[determine_ecc] iter={getattr(self, 'iteration_count', -1)} "
+            f"ecc={eccentricity:.4f} att={np.degrees(attitude_angle):.2f}deg "
+            f"{psi_str} "
+            f"Fx={Fhx:.3e} Fy={Fhy:.3e} "
+            f"Mpads={[f'{m:.3e}' for m in self.moment_j_dim]} "
+            f"score={score:.3e}"
+        )
+
+        print(f"[determine_ecc] obj_time={time.time()-t0:.2f}s score={score:.3e}")
+        if self.iteration_count % 10 == 0:
+            ecc, att, pads = x[0], x[1], x[2:]
+            print(
+                f"[determine_ecc] iter={self.iteration_count} "
+                f"ecc={ecc:.4f} att_deg={np.degrees(att):.2f} "
+                f"pads_deg={[f'{v:.2f}' for v in np.degrees(pads)]} "
+                f"score={score:.3e}"
+            )
 
         return score
 
@@ -2759,8 +2895,11 @@ class TiltingPad(BearingElement):
 
         # Solution of temperature field
         mat_coef_t = self._check_diagonal(mat_coef_t)
+        t0 = time.time()
         t_vec = np.linalg.solve(mat_coef_t, b_t)
         temperature_referance = self._update_temperature_field(t_vec)
+
+        print(f"[solve_energy_equation] solve_time={time.time()-t0:.2f}s")
 
         return temperature_referance
 
@@ -4039,6 +4178,9 @@ class TiltingPad(BearingElement):
                     iteration + 1 - len(self.optimization_history[idx])
                 )
             self.optimization_history[idx][iteration] = residual_value
+        
+        if self.equilibrium_type == "determine_eccentricity":
+            print(f"[determine_ecc] freq_idx={idx} iter={iteration or len(self.optimization_history[idx])} residual={residual_value:.3e}")
 
     def show_optimization_convergence(
         self, by: str = "index", show_plots: bool = False
@@ -4113,8 +4255,6 @@ class TiltingPad(BearingElement):
 
                 # Display plot if requested - one subplot per pad
                 if show_plots:
-                    import plotly.graph_objects as go
-                    from plotly.subplots import make_subplots
 
                     n_rows = (n_pads + 1) // 2  # 2 columns
                     fig = make_subplots(
