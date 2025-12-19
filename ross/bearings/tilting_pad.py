@@ -193,7 +193,7 @@ class TiltingPad(BearingElement):
         yj=None,
         equilibrium_type=None,
         eccentricity=0.3,
-        attitude_angle=np.pi * 3/2,  # 270°
+        attitude_angle=np.pi * 3 / 2,  # 270°
         load=None,
         initial_pads_angles=None,
         model_type="thermo_hydro_dynamic",
@@ -552,37 +552,41 @@ class TiltingPad(BearingElement):
         n_k = self.nx * self.nz
 
         temperature_tolerance = 0.1
-        
+
         # Extract equilibrium pad angles
         eq_psi_pad = np.zeros(self.n_pad)
         for k_pad in range(self.n_pad):
             eq_psi_pad[k_pad] = self.xdin[k_pad + 2]
-        
+
         # Calculate forces for each pad at equilibrium (no perturbation)
         for n_p_eq in range(self.n_pad):
             # Solve THD for equilibrium state
             temperature_ref = self.temperature_init[:, :, n_p_eq]
             temperature_iter = 1.1 * temperature_ref
             cont_temp = 0
-            
-            while abs((temperature_ref - temperature_iter).max()) >= temperature_tolerance:
+
+            while (
+                abs((temperature_ref - temperature_iter).max()) >= temperature_tolerance
+            ):
                 cont_temp += 1
                 temperature_iter = np.array(temperature_ref)
-                
+
                 mi_i = self.a_a * np.exp(self.b_b * temperature_iter)
                 mi = mi_i / self.mu_0
-                
+
                 # Solve Reynolds equation (reuse existing method)
                 self._solve_reynolds_equation(mi, n_p_eq, eq_psi_pad)
-                
+
                 # Calculate pressure gradients
                 self._calculate_pressure_gradients()
-                
+
                 # Solve energy equation
                 temperature_ref = self._solve_energy_equation(mi, n_p_eq)
-            
+
             # Calculate hydrodynamic forces at equilibrium
-            self._calculate_hydrodynamic_forces(n_p_eq, eq_psi_pad, is_equilibrium=False)
+            self._calculate_hydrodynamic_forces(
+                n_p_eq, eq_psi_pad, is_equilibrium=False
+            )
 
         for a_p in range(4):
             for n_p in range(self.n_pad):
@@ -1271,7 +1275,9 @@ class TiltingPad(BearingElement):
                     )
 
                     # Dynamic loads
-                    del_force_x[n_p] = -(self.force_new[n_p] - self.force_1[n_p]) # here
+                    del_force_x[n_p] = -(
+                        self.force_new[n_p] - self.force_1[n_p]
+                    )  # here
                     del_force_y[n_p] = -(self.force_2_new[n_p] - self.force_2[n_p])
                     del_moment_j[n_p] = -(self.moment_j_new[n_p] - self.moment_j[n_p])
 
@@ -1405,12 +1411,12 @@ class TiltingPad(BearingElement):
 
         # Final reduction: Sw = Aj - Hj * Bj^{-1} * Vj
         Bj_checked = self._check_diagonal(self.Bj)
-        
+
         self.Sw = self.Aj - (self.Hj @ np.linalg.inv(Bj_checked) @ self.Vj)
 
         k_r = np.real(self.Sw)
         c_r = np.imag(self.Sw) / self.speed
-        
+
         self.kxx, self.kyy, self.kxy, self.kyx = (
             k_r[0, 0],
             k_r[1, 1],
@@ -1609,7 +1615,7 @@ class TiltingPad(BearingElement):
                 ftol=1e-3,
                 maxiter=1000,
                 disp=False,
-                full_output=True
+                full_output=True,
             )
 
             # Extract only x_opt from tuple
@@ -2293,7 +2299,7 @@ class TiltingPad(BearingElement):
         FM = np.zeros(self.n_pad + 2)
         FM[0] = force_x_res / Fx_scale  # Normalize X by its own load
         FM[1] = force_y_res / Fy_scale  # Normalize Y by its own load
-        FM[2:] = moment_res / M_scale   # Normalize moments
+        FM[2:] = moment_res / M_scale  # Normalize moments
 
         # Single scalar objective (all components have similar magnitude now)
         score = np.linalg.norm(FM)
@@ -4226,7 +4232,6 @@ class TiltingPad(BearingElement):
 
                 # Display plot if requested - one subplot per pad
                 if show_plots:
-
                     n_rows = (n_pads + 1) // 2  # 2 columns
                     fig = make_subplots(
                         rows=n_rows,
@@ -4371,7 +4376,7 @@ def tilting_pad_example():
         nz=30,
         eccentricity=0.35,
         attitude_angle=Q_(287.5, "deg"),
-        load = [8.8405e+02, -2.6704e+03],
+        load=[8.8405e02, -2.6704e03],
     )
 
     return bearing

@@ -33,7 +33,7 @@ def tilting_pad():
         nz=30,
         eccentricity=0.35,
         attitude_angle=attitude_angle,
-        load=[8.8405e+02, -2.6704e+03],
+        load=[8.8405e02, -2.6704e03],
     )
 
     return bearing
@@ -57,10 +57,10 @@ def test_tilting_pad_equilibrium_pos(tilting_pad):
 
 
 def test_tilting_pad_coefficients(tilting_pad):
-    assert_allclose(tilting_pad.kxx, 1.0610558e+08, rtol=0.001)
+    assert_allclose(tilting_pad.kxx, 1.0610558e08, rtol=0.001)
     assert_allclose(tilting_pad.kxy, -15541286.94696261, rtol=0.001)
     assert_allclose(tilting_pad.kyx, -15541286.94696259, rtol=0.001)
-    assert_allclose(tilting_pad.kyy, 1.32419151e+08, rtol=0.001)
+    assert_allclose(tilting_pad.kyy, 1.32419151e08, rtol=0.001)
 
     assert_allclose(tilting_pad.cxx, 346412.55090644, rtol=0.001)
     assert_allclose(tilting_pad.cxy, -42275.28969383, rtol=0.001)
@@ -70,13 +70,11 @@ def test_tilting_pad_coefficients(tilting_pad):
 
 def test_tilting_pad_forces(tilting_pad):
     # force_x_dim and force_y_dim are arrays (one value per pad)
-    expected_force_x = np.array([
-        -9.22582848e+02, 3.02996821e-01, 5.51054460e+02, 
-        1.04734115e+03, -1.57342924e+03
-    ])
-    expected_force_y = np.array([
-        -300.86140003, -420.36660054, -178.8695415, 
-        1442.6020094, 2161.92734728
-    ])
+    expected_force_x = np.array(
+        [-9.22582848e02, 3.02996821e-01, 5.51054460e02, 1.04734115e03, -1.57342924e03]
+    )
+    expected_force_y = np.array(
+        [-300.86140003, -420.36660054, -178.8695415, 1442.6020094, 2161.92734728]
+    )
     assert_allclose(tilting_pad.force_x_dim, expected_force_x, rtol=0.01)
     assert_allclose(tilting_pad.force_y_dim, expected_force_y, rtol=0.01)
