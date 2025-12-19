@@ -548,6 +548,20 @@ class TiltingPad(BearingElement):
 
         temperature_tolerance = 0.1
 
+        # DIAGNOSTIC: Check equilibrium forces BEFORE perturbations
+        print(f"\n[DIAG EQ] ========== EQUILIBRIUM STATE CHECK ==========")
+        print(f"  xdin (equilibrium state) = {self.xdin}")
+        print(f"  eccentricity = {self.eccentricity:.6f}")
+        print(f"  attitude_angle = {np.degrees(self.attitude_angle):.2f}°")
+        print(f"  psi_pad (deg) = {[np.degrees(p) for p in self.xdin[2:]]}")
+        print(f"  force_1 (all pads) = {self.force_1}")
+        print(f"  force_2 (all pads) = {self.force_2}")
+        print(f"  force_x_dim (all pads) = {self.force_x_dim}")
+        print(f"  force_y_dim (all pads) = {self.force_y_dim}")
+        print(f"  Total Fx = {np.sum(self.force_x_dim):.2f} N (expected: {self.fxs_load if self.fxs_load is not None else 'N/A'})")
+        print(f"  Total Fy = {np.sum(self.force_y_dim):.2f} N (expected: {self.fys_load if self.fys_load is not None else 'N/A'})")
+        print(f"[DIAG EQ] ============================================\n")
+
         for a_p in range(4):
             for n_p in range(self.n_pad):
                 xx_coef = self.xdin[:2]
@@ -1235,9 +1249,9 @@ class TiltingPad(BearingElement):
                     )
 
                     # Dynamic loads
-                    del_force_x[n_p] = (self.force_new[n_p] - self.force_1[n_p]) # here
-                    del_moment_j[n_p] = (self.moment_j_new[n_p] - self.moment_j[n_p])
-                    del_force_y[n_p] = (self.force_2_new[n_p] - self.force_2[n_p])
+                    del_force_x[n_p] = -(self.force_new[n_p] - self.force_1[n_p]) # here
+                    del_force_y[n_p] = -(self.force_2_new[n_p] - self.force_2[n_p])
+                    del_moment_j[n_p] = -(self.moment_j_new[n_p] - self.moment_j[n_p])
 
                     # X-axis perturbation
                     if a_p == 0:
@@ -1251,6 +1265,13 @@ class TiltingPad(BearingElement):
                             / self.space_perturbation
                             * self.dimensionless_force[n_p]
                         )
+
+                        if n_p == 0:
+                            print(f"[DIAG] force_1[{n_p}]={self.force_1[n_p]:.2e}")
+                            print(f"[DIAG] force_new[{n_p}]={self.force_new[n_p]:.2e}")
+                            print(f"[DIAG] del_force_x[{n_p}]={del_force_x[n_p]:.2e}")
+                            print(f"[DIAG] k_xx[{n_p}]={k_xx[n_p]:.2e}")
+
                         self.K[n_p, 0, 0] = k_xx[n_p]
                         self.K[n_p, 1, 0] = k_yx[n_p]
 
@@ -1266,6 +1287,13 @@ class TiltingPad(BearingElement):
                             / self.space_perturbation
                             * self.dimensionless_force[n_p]
                         )
+
+                        if n_p == 0:
+                            print(f"[DIAG Y] force_2[{n_p}]={self.force_2[n_p]:.2e}")
+                            print(f"[DIAG Y] force_2_new[{n_p}]={self.force_2_new[n_p]:.2e}")
+                            print(f"[DIAG Y] del_force_y[{n_p}]={del_force_y[n_p]:.2e}")
+                            print(f"[DIAG Y] k_yy[{n_p}]={k_yy[n_p]:.2e}")
+
                         self.K[n_p, 1, 1] = k_yy[n_p]
                         self.K[n_p, 0, 1] = k_xy[n_p]
 
@@ -1343,6 +1371,20 @@ class TiltingPad(BearingElement):
                             ]
                         )
                         self.Sjipt[n_p] = self.Tj[n_p].T @ self.Sjpt[n_p] @ self.Tj[n_p]
+
+                        # DIAGNOSTIC: Check transformation for first pad
+                        if n_p == 0 and a_p == 3:  # Last perturbation, first pad
+                            print(f"\n[DIAG TRANS] ========== COORDINATE TRANSFORMATION (Pad {n_p}) ==========")
+                            print(f"  Pivot angle = {np.degrees(self.pivot_angle[n_p]):.2f}°")
+                            print(f"  Pad angle (psi) = {np.degrees(psi_pad[n_p]):.6f}°")
+                            print(f"  Total angle (psi + pivot) = {np.degrees(psi_pad[n_p] + self.pivot_angle[n_p]):.2f}°")
+                            print(f"  K[pad] (before transform):")
+                            print(f"    k_xx={self.K[n_p, 0, 0]:.2e}, k_xy={self.K[n_p, 0, 1]:.2e}")
+                            print(f"    k_yx={self.K[n_p, 1, 0]:.2e}, k_yy={self.K[n_p, 1, 1]:.2e}")
+                            print(f"  Sjipt[pad] (after transform):")
+                            print(f"    Sjipt[0,0]={self.Sjipt[n_p, 0, 0]:.2e}, Sjipt[0,1]={self.Sjipt[n_p, 0, 1]:.2e}")
+                            print(f"    Sjipt[1,0]={self.Sjipt[n_p, 1, 0]:.2e}, Sjipt[1,1]={self.Sjipt[n_p, 1, 1]:.2e}")
+                            print(f"[DIAG TRANS] ===================================================\n")
 
                         # Add 2x2 block in Aj and gyro term in Bj
                         self.Aj += np.array(
@@ -1527,8 +1569,8 @@ class TiltingPad(BearingElement):
                 x_opt = fmin(
                     self.get_equilibrium_position,
                     self.x_0[con_np],
-                    xtol=0.1,
-                    ftol=0.1,
+                    xtol=1e-6,
+                    ftol=1e-6,
                     maxiter=1000,
                     disp=False,
                 )
@@ -2275,9 +2317,32 @@ class TiltingPad(BearingElement):
         # score = np.linalg.norm(FM)
 
         # Calculate equilibrium residuals
-        FM = np.zeros(self.n_pad + 2)
+        # FM = np.zeros(self.n_pad + 2)
 
-        # Force equilibrium in X and Y directions
+        # # Force equilibrium in X and Y directions
+        # Fhx = np.sum(self.force_x_dim)
+        # Fhy = np.sum(self.force_y_dim)
+
+        # # Raw residuals
+        # force_x_res = Fhx + (self.fxs_load if self.fxs_load is not None else 0)
+        # force_y_res = Fhy + (self.fys_load if self.fys_load is not None else 0)
+        # moment_res = self.moment_j_dim
+
+        # # Characteristic scales for normalization
+        # F_scale = max(abs(self.fxs_load) if self.fxs_load is not None else 0,
+        #             abs(self.fys_load) if self.fys_load is not None else 0,
+        #             100.0)  # Minimum 100 N to avoid division by very small numbers
+
+        # M_scale = F_scale * (self.pad_radius)  # N·m (force × lever arm)
+
+        # # Normalized residuals (dimensionless)
+        # FM[0] = force_x_res / F_scale
+        # FM[1] = force_y_res / F_scale
+        # FM[2:] = moment_res / M_scale
+
+        # # Single scalar objective (dimensionless)
+        # score = np.linalg.norm(FM)
+        # Calculate equilibrium residuals
         Fhx = np.sum(self.force_x_dim)
         Fhy = np.sum(self.force_y_dim)
 
@@ -2286,19 +2351,18 @@ class TiltingPad(BearingElement):
         force_y_res = Fhy + (self.fys_load if self.fys_load is not None else 0)
         moment_res = self.moment_j_dim
 
-        # Characteristic scales for normalization
-        F_scale = max(abs(self.fxs_load) if self.fxs_load is not None else 0,
-                    abs(self.fys_load) if self.fys_load is not None else 0,
-                    100.0)  # Minimum 100 N to avoid division by very small numbers
+        # INDEPENDENT NORMALIZATION - each residual by its own scale
+        Fx_scale = max(abs(self.fxs_load) if self.fxs_load is not None else 0, 100.0)
+        Fy_scale = max(abs(self.fys_load) if self.fys_load is not None else 0, 100.0)
+        M_scale = max(Fx_scale, Fy_scale) * self.pad_radius  # Use max for moment scale
 
-        M_scale = F_scale * (self.pad_radius)  # N·m (force × lever arm)
+        # Build residual vector
+        FM = np.zeros(self.n_pad + 2)
+        FM[0] = force_x_res / Fx_scale  # Normalize X by its own load
+        FM[1] = force_y_res / Fy_scale  # Normalize Y by its own load
+        FM[2:] = moment_res / M_scale   # Normalize moments
 
-        # Normalized residuals (dimensionless)
-        FM[0] = force_x_res / F_scale
-        FM[1] = force_y_res / F_scale
-        FM[2:] = moment_res / M_scale
-
-        # Single scalar objective (dimensionless)
+        # Single scalar objective (all components have similar magnitude now)
         score = np.linalg.norm(FM)
 
         # Record optimization residual
