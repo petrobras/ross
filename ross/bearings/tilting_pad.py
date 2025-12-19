@@ -548,12 +548,46 @@ class TiltingPad(BearingElement):
 
         temperature_tolerance = 0.1
 
-        # DIAGNOSTIC: Check equilibrium forces BEFORE perturbations
-        print(f"\n[DIAG EQ] ========== EQUILIBRIUM STATE CHECK ==========")
+        # Calculate reference forces at equilibrium state (BEFORE perturbations)
+        # This ensures force_1 and force_2 are from the true equilibrium state
+        print(f"\n[DIAG EQ] ========== CALCULATING EQUILIBRIUM FORCES ==========")
         print(f"  xdin (equilibrium state) = {self.xdin}")
         print(f"  eccentricity = {self.eccentricity:.6f}")
         print(f"  attitude_angle = {np.degrees(self.attitude_angle):.2f}°")
-        print(f"  psi_pad (deg) = {[np.degrees(p) for p in self.xdin[2:]]}")
+        
+        # Extract equilibrium pad angles
+        eq_psi_pad = np.zeros(self.n_pad)
+        for k_pad in range(self.n_pad):
+            eq_psi_pad[k_pad] = self.xdin[k_pad + 2]
+        
+        print(f"  psi_pad (deg) = {[np.degrees(p) for p in eq_psi_pad]}")
+        
+        # Calculate forces for each pad at equilibrium (no perturbation)
+        for n_p_eq in range(self.n_pad):
+            # Solve THD for equilibrium state
+            temperature_ref = self.temperature_init[:, :, n_p_eq]
+            temperature_iter = 1.1 * temperature_ref
+            cont_temp = 0
+            
+            while abs((temperature_ref - temperature_iter).max()) >= temperature_tolerance:
+                cont_temp += 1
+                temperature_iter = np.array(temperature_ref)
+                
+                mi_i = self.a_a * np.exp(self.b_b * temperature_iter)
+                mi = mi_i / self.mu_0
+                
+                # Solve Reynolds equation (reuse existing method)
+                self._solve_reynolds_equation(mi, n_p_eq, eq_psi_pad)
+                
+                # Calculate pressure gradients
+                self._calculate_pressure_gradients()
+                
+                # Solve energy equation
+                temperature_ref = self._solve_energy_equation(mi, n_p_eq)
+            
+            # Calculate hydrodynamic forces at equilibrium
+            self._calculate_hydrodynamic_forces(n_p_eq, eq_psi_pad, is_equilibrium=False)
+        
         print(f"  force_1 (all pads) = {self.force_1}")
         print(f"  force_2 (all pads) = {self.force_2}")
         print(f"  force_x_dim (all pads) = {self.force_x_dim}")
@@ -1248,6 +1282,16 @@ class TiltingPad(BearingElement):
                         self.pad_radius + self.pad_thickness
                     )
 
+                    # DIAGNOSTIC: Verify reference forces are preserved (first pad, first perturbation only)
+                    if a_p == 0 and n_p == 0:
+                        print(f"\n[DIAG PERT] ========== PERTURBATION CHECK (a_p={a_p}, pad={n_p}) ==========")
+                        print(f"  Reference force_1[{n_p}] = {self.force_1[n_p]:.6e} (should be from equilibrium)")
+                        print(f"  Reference force_2[{n_p}] = {self.force_2[n_p]:.6e} (should be from equilibrium)")
+                        print(f"  Perturbed force_new[{n_p}] = {self.force_new[n_p]:.6e}")
+                        print(f"  Perturbed force_2_new[{n_p}] = {self.force_2_new[n_p]:.6e}")
+                        print(f"  Space perturbation = {self.space_perturbation:.6e} m")
+                        print(f"[DIAG PERT] ===================================================\n")
+
                     # Dynamic loads
                     del_force_x[n_p] = -(self.force_new[n_p] - self.force_1[n_p]) # here
                     del_force_y[n_p] = -(self.force_2_new[n_p] - self.force_2[n_p])
@@ -1409,10 +1453,31 @@ class TiltingPad(BearingElement):
 
         # Final reduction: Sw = Aj - Hj * Bj^{-1} * Vj
         Bj_checked = self._check_diagonal(self.Bj)
+        
+        # DIAGNOSTIC: Check matrices before reduction
+        print(f"\n[DIAG REDUCE] ========== MATRIX REDUCTION ==========")
+        print(f"  Aj (sum of all pads):")
+        print(f"    Aj[0,0]={self.Aj[0, 0]:.2e}, Aj[0,1]={self.Aj[0, 1]:.2e}")
+        print(f"    Aj[1,0]={self.Aj[1, 0]:.2e}, Aj[1,1]={self.Aj[1, 1]:.2e}")
+        print(f"  Bj (diagonal): {np.diag(self.Bj)}")
+        print(f"  Hj shape: {self.Hj.shape}, Vj shape: {self.Vj.shape}")
+        
         self.Sw = self.Aj - (self.Hj @ np.linalg.inv(Bj_checked) @ self.Vj)
+        
+        print(f"  Sw (after reduction):")
+        print(f"    Sw[0,0]={self.Sw[0, 0]:.2e}, Sw[0,1]={self.Sw[0, 1]:.2e}")
+        print(f"    Sw[1,0]={self.Sw[1, 0]:.2e}, Sw[1,1]={self.Sw[1, 1]:.2e}")
+        print(f"[DIAG REDUCE] ======================================\n")
 
         k_r = np.real(self.Sw)
         c_r = np.imag(self.Sw) / self.speed
+        
+        # DIAGNOSTIC: Check final coefficients
+        print(f"\n[DIAG FINAL] ========== FINAL COEFFICIENTS ==========")
+        print(f"  k_r (real part of Sw):")
+        print(f"    k_r[0,0]={k_r[0, 0]:.2e}, k_r[0,1]={k_r[0, 1]:.2e}")
+        print(f"    k_r[1,0]={k_r[1, 0]:.2e}, k_r[1,1]={k_r[1, 1]:.2e}")
+        
         self.kxx, self.kyy, self.kxy, self.kyx = (
             k_r[0, 0],
             k_r[1, 1],
@@ -1425,6 +1490,14 @@ class TiltingPad(BearingElement):
             c_r[0, 1],
             c_r[1, 0],
         )
+        
+        print(f"  Final stiffness coefficients:")
+        print(f"    kxx={self.kxx:.2e}, kxy={self.kxy:.2e}")
+        print(f"    kyx={self.kyx:.2e}, kyy={self.kyy:.2e}")
+        print(f"  Final damping coefficients:")
+        print(f"    cxx={self.cxx:.2e}, cxy={self.cxy:.2e}")
+        print(f"    cyx={self.cyx:.2e}, cyy={self.cyy:.2e}")
+        print(f"[DIAG FINAL] ========================================\n")
 
     def solve_fields(self):
         """Solve the thermo-hydrodynamic equations to determine equilibrium position and field distributions.
