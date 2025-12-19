@@ -166,7 +166,8 @@ class TiltingPad(BearingElement):
     ...     lubricant="ISOVG32",
     ...     oil_supply_temperature=Q_(40, "degC"),
     ...     eccentricity=0.35,
-    ...     attitude_angle=Q_(287.5, "deg")
+    ...     attitude_angle=Q_(287.5, "deg"),
+    ...     load = [8.8405e+02, -2.6704e+03],
     ... )
     """
 
@@ -4313,17 +4314,28 @@ def tilting_pad_example():
 
     This function creates and returns a TiltingPad bearing instance with predefined
     parameters for demonstration purposes. The bearing is configured with 5 pads
-    and operates at two different frequencies.
+    and operates at 3000 RPM.
+
+    The example is configured with ``equilibrium_type="match_eccentricity"`` by default.
+    You can modify the bearing configuration to use ``equilibrium_type="determine_eccentricity"``
+    if you want to optimize the journal position based on applied loads.
+
+    **Difference between equilibrium types:**
+
+    - **match_eccentricity**: You specify the journal position (eccentricity and attitude
+      angle) and the code optimizes only the pad rotation angles to achieve moment
+      equilibrium. Use this when you know the journal position and want to find the
+      corresponding pad angles and hydrodynamic forces.
+
+    - **determine_eccentricity**: You specify the external loads applied to the journal
+      (via the ``load`` parameter) and the code optimizes the journal position
+      (eccentricity, attitude angle) and pad rotation angles to balance the applied
+      loads. Use this when you know the loads and want to find the equilibrium position.
 
     Returns
     -------
     bearing : TiltingPad
         A configured tilting pad bearing instance ready for analysis.
-
-    Examples
-    --------
-    >>> from ross.bearings.tilting_pad import tilting_pad_example
-    >>> bearing = tilting_pad_example()
 
     Notes
     -----
@@ -4335,13 +4347,9 @@ def tilting_pad_example():
     - Pad arc: 60° per pad
     - Pad axial length: 50.8 mm
     - ISOVG32 lubricant at 40°C
-    - Operating frequencies: 3000 RPM
+    - Operating frequency: 3000 RPM
     - Pre-load factor: 0.5 for all pads
     - Pivot offset: 0.5 (centered) for all pads
-
-    The bearing is configured for "match_eccentricity" equilibrium type,
-    which automatically calculates the equilibrium position based on the
-    specified eccentricity and attitude angle.
     """
 
     bearing = TiltingPad(
@@ -4361,8 +4369,9 @@ def tilting_pad_example():
         oil_supply_temperature=Q_(40, "degC"),
         nx=30,
         nz=30,
-        eccentricity=0.483,
-        attitude_angle=Q_(267.5, "deg"),
+        eccentricity=0.35,
+        attitude_angle=Q_(287.5, "deg"),
+        load = [8.8405e+02, -2.6704e+03],
     )
 
     return bearing

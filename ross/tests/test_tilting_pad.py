@@ -1,5 +1,6 @@
 import pytest
 from numpy.testing import assert_allclose
+import numpy as np
 
 from ross.bearings.tilting_pad import TiltingPad
 from ross.units import Q_
@@ -12,7 +13,7 @@ def tilting_pad():
     pad_arc = Q_([60, 60, 60, 60, 60], "deg")
     pad_axial_length = Q_([50.8e-3, 50.8e-3, 50.8e-3, 50.8e-3, 50.8e-3], "m")
     oil_supply_temperature = Q_(40, "degC")
-    attitude_angle = Q_(267.5, "deg")
+    attitude_angle = Q_(287.5, "deg")
 
     bearing = TiltingPad(
         n=1,
@@ -30,8 +31,9 @@ def tilting_pad():
         oil_supply_temperature=oil_supply_temperature,
         nx=30,
         nz=30,
-        eccentricity=0.483,
+        eccentricity=0.35,
         attitude_angle=attitude_angle,
+        load=[8.8405e+02, -2.6704e+03],
     )
 
     return bearing
@@ -46,26 +48,35 @@ def test_tilting_pad_parameters(tilting_pad):
 
 
 def test_tilting_pad_equilibrium_pos(tilting_pad):
-    assert_allclose(tilting_pad.eccentricity, 0.483, rtol=0.01)
-    assert_allclose(tilting_pad.attitude_angle, 4.667, rtol=0.01)
+    assert_allclose(tilting_pad.eccentricity, 0.35, rtol=0.01)
+    assert_allclose(tilting_pad.attitude_angle, 5.017821599483698, rtol=0.01)
 
-    expected_angles = [0.001135, -0.000726, 0.000095, 0.000372, 0.001039]
+    expected_angles = [0.00107421, 0.00072079, 0.00029369, 0.00034969, 0.00081604]
     for i, expected_angle in enumerate(expected_angles):
         assert_allclose(tilting_pad.psi_pad[i], expected_angle, rtol=0.1)
 
 
 def test_tilting_pad_coefficients(tilting_pad):
-    assert_allclose(tilting_pad.kxx, 166388569.24521738, rtol=0.001)
-    assert_allclose(tilting_pad.kxy, 24935707.314652264, rtol=0.001)
-    assert_allclose(tilting_pad.kyx, 24935707.314652324, rtol=0.001)
-    assert_allclose(tilting_pad.kyy, 242414350.50060275, rtol=0.001)
+    assert_allclose(tilting_pad.kxx, 1.0610558e+08, rtol=0.001)
+    assert_allclose(tilting_pad.kxy, -15541286.94696261, rtol=0.001)
+    assert_allclose(tilting_pad.kyx, -15541286.94696259, rtol=0.001)
+    assert_allclose(tilting_pad.kyy, 1.32419151e+08, rtol=0.001)
 
-    assert_allclose(tilting_pad.cxx, 464269.3452154938, rtol=0.001)
-    assert_allclose(tilting_pad.cxy, 12498.24122981852, rtol=0.001)
-    assert_allclose(tilting_pad.cyx, 12498.241229842806, rtol=0.001)
-    assert_allclose(tilting_pad.cyy, 568361.6809310445, rtol=0.001)
+    assert_allclose(tilting_pad.cxx, 346412.55090644, rtol=0.001)
+    assert_allclose(tilting_pad.cxy, -42275.28969383, rtol=0.001)
+    assert_allclose(tilting_pad.cyx, -42275.28969383, rtol=0.001)
+    assert_allclose(tilting_pad.cyy, 431798.87147673, rtol=0.001)
 
 
 def test_tilting_pad_forces(tilting_pad):
-    assert_allclose(tilting_pad.force_x_dim, 186.968026, rtol=0.01)
-    assert_allclose(tilting_pad.force_y_dim, 4835.829052, rtol=0.01)
+    # force_x_dim and force_y_dim are arrays (one value per pad)
+    expected_force_x = np.array([
+        -9.22582848e+02, 3.02996821e-01, 5.51054460e+02, 
+        1.04734115e+03, -1.57342924e+03
+    ])
+    expected_force_y = np.array([
+        -300.86140003, -420.36660054, -178.8695415, 
+        1442.6020094, 2161.92734728
+    ])
+    assert_allclose(tilting_pad.force_x_dim, expected_force_x, rtol=0.01)
+    assert_allclose(tilting_pad.force_y_dim, expected_force_y, rtol=0.01)
