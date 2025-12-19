@@ -96,7 +96,7 @@ class TiltingPad(BearingElement):
         attitude_angle and optimizes only the pad rotation angles.
         - 'determine_eccentricity': Optimizes eccentricity, attitude_angle,
         and pad rotation angles to balance the applied loads; requires
-        both fxs_load and fys_load to be provided.
+        load to be provided.
     model_type : str, optional
         Type of model to be used. Options:
         - 'thermo_hydro_dynamic': Thermo-Hydro-Dynamic model
@@ -104,10 +104,11 @@ class TiltingPad(BearingElement):
         Eccentricity ratio. Dimensionless.
     attitude_angle : float, optional
         Attitude angle. Default unit is degrees.
-    fxs_load : float, optional
-        External load in X direction. Default unit is Newton.
-    fys_load : float, optional
-        External load in Y direction. Default unit is Newton.
+    load : array_like, optional
+        External loads applied to the journal. Must be a list or array with
+        two elements [fx, fy], where fx is the load in X direction and fy
+        is the load in Y direction. Default unit is Newton. Required when
+        equilibrium_type is 'determine_eccentricity'.
     initial_pads_angles : array_like, optional
         Initial pad angles. Default unit is radians.
     **kwargs : dict, optional
@@ -164,8 +165,8 @@ class TiltingPad(BearingElement):
     ...     offset=[0.5]*5,
     ...     lubricant="ISOVG32",
     ...     oil_supply_temperature=Q_(40, "degC"),
-    ...     eccentricity=0.483,
-    ...     attitude_angle=Q_(267.5, "deg")
+    ...     eccentricity=0.35,
+    ...     attitude_angle=Q_(287.5, "deg")
     ... )
     """
 
@@ -192,8 +193,7 @@ class TiltingPad(BearingElement):
         equilibrium_type=None,
         eccentricity=0.3,
         attitude_angle=np.pi * 3/2,  # 270°
-        fxs_load=None,
-        fys_load=None,
+        load=None,
         initial_pads_angles=None,
         model_type="thermo_hydro_dynamic",
         **kwargs,
@@ -229,20 +229,24 @@ class TiltingPad(BearingElement):
         # Operating conditions
         self.equilibrium_type = equilibrium_type
 
-        if self.equilibrium_type == "determine_eccentricity":
-            if fxs_load is None or fys_load is None:
-                raise ValueError(
-                    "fxs_load and fys_load must be provided when"
-                    " equilibrium_type is 'determine_eccentricity'."
-                )
+        if load is None and self.equilibrium_type == "determine_eccentricity":
+            raise ValueError(
+                "The 'load' parameter is required when equilibrium_type='determine_eccentricity'.\n"
+                "Expected format: load=[fx, fy] where fx and fy are the external loads in X and Y directions.\n"
+                "For more details, see the 'load' parameter documentation in the TiltingPad class docstring."
+            )
 
         self.oil_supply_temperature = Q_(oil_supply_temperature, "degK").m_as("degC")
         self.reference_temperature = self.oil_supply_temperature
         self.lubricant = lubricant
         self.frequency = frequency
         self.speed = None
-        self.fxs_load = fxs_load
-        self.fys_load = fys_load
+        if load is not None:
+            self.fxs_load = load[0]
+            self.fys_load = load[1]
+        else:
+            self.fxs_load = None
+            self.fys_load = None
         self.initial_pads_angles = initial_pads_angles
 
         # Mesh discretization and equation's terms setup
@@ -547,20 +551,11 @@ class TiltingPad(BearingElement):
         n_k = self.nx * self.nz
 
         temperature_tolerance = 0.1
-
-        # Calculate reference forces at equilibrium state (BEFORE perturbations)
-        # This ensures force_1 and force_2 are from the true equilibrium state
-        print(f"\n[DIAG EQ] ========== CALCULATING EQUILIBRIUM FORCES ==========")
-        print(f"  xdin (equilibrium state) = {self.xdin}")
-        print(f"  eccentricity = {self.eccentricity:.6f}")
-        print(f"  attitude_angle = {np.degrees(self.attitude_angle):.2f}°")
         
         # Extract equilibrium pad angles
         eq_psi_pad = np.zeros(self.n_pad)
         for k_pad in range(self.n_pad):
             eq_psi_pad[k_pad] = self.xdin[k_pad + 2]
-        
-        print(f"  psi_pad (deg) = {[np.degrees(p) for p in eq_psi_pad]}")
         
         # Calculate forces for each pad at equilibrium (no perturbation)
         for n_p_eq in range(self.n_pad):
@@ -587,14 +582,6 @@ class TiltingPad(BearingElement):
             
             # Calculate hydrodynamic forces at equilibrium
             self._calculate_hydrodynamic_forces(n_p_eq, eq_psi_pad, is_equilibrium=False)
-        
-        print(f"  force_1 (all pads) = {self.force_1}")
-        print(f"  force_2 (all pads) = {self.force_2}")
-        print(f"  force_x_dim (all pads) = {self.force_x_dim}")
-        print(f"  force_y_dim (all pads) = {self.force_y_dim}")
-        print(f"  Total Fx = {np.sum(self.force_x_dim):.2f} N (expected: {self.fxs_load if self.fxs_load is not None else 'N/A'})")
-        print(f"  Total Fy = {np.sum(self.force_y_dim):.2f} N (expected: {self.fys_load if self.fys_load is not None else 'N/A'})")
-        print(f"[DIAG EQ] ============================================\n")
 
         for a_p in range(4):
             for n_p in range(self.n_pad):
@@ -1282,16 +1269,6 @@ class TiltingPad(BearingElement):
                         self.pad_radius + self.pad_thickness
                     )
 
-                    # DIAGNOSTIC: Verify reference forces are preserved (first pad, first perturbation only)
-                    if a_p == 0 and n_p == 0:
-                        print(f"\n[DIAG PERT] ========== PERTURBATION CHECK (a_p={a_p}, pad={n_p}) ==========")
-                        print(f"  Reference force_1[{n_p}] = {self.force_1[n_p]:.6e} (should be from equilibrium)")
-                        print(f"  Reference force_2[{n_p}] = {self.force_2[n_p]:.6e} (should be from equilibrium)")
-                        print(f"  Perturbed force_new[{n_p}] = {self.force_new[n_p]:.6e}")
-                        print(f"  Perturbed force_2_new[{n_p}] = {self.force_2_new[n_p]:.6e}")
-                        print(f"  Space perturbation = {self.space_perturbation:.6e} m")
-                        print(f"[DIAG PERT] ===================================================\n")
-
                     # Dynamic loads
                     del_force_x[n_p] = -(self.force_new[n_p] - self.force_1[n_p]) # here
                     del_force_y[n_p] = -(self.force_2_new[n_p] - self.force_2[n_p])
@@ -1310,12 +1287,6 @@ class TiltingPad(BearingElement):
                             * self.dimensionless_force[n_p]
                         )
 
-                        if n_p == 0:
-                            print(f"[DIAG] force_1[{n_p}]={self.force_1[n_p]:.2e}")
-                            print(f"[DIAG] force_new[{n_p}]={self.force_new[n_p]:.2e}")
-                            print(f"[DIAG] del_force_x[{n_p}]={del_force_x[n_p]:.2e}")
-                            print(f"[DIAG] k_xx[{n_p}]={k_xx[n_p]:.2e}")
-
                         self.K[n_p, 0, 0] = k_xx[n_p]
                         self.K[n_p, 1, 0] = k_yx[n_p]
 
@@ -1331,12 +1302,6 @@ class TiltingPad(BearingElement):
                             / self.space_perturbation
                             * self.dimensionless_force[n_p]
                         )
-
-                        if n_p == 0:
-                            print(f"[DIAG Y] force_2[{n_p}]={self.force_2[n_p]:.2e}")
-                            print(f"[DIAG Y] force_2_new[{n_p}]={self.force_2_new[n_p]:.2e}")
-                            print(f"[DIAG Y] del_force_y[{n_p}]={del_force_y[n_p]:.2e}")
-                            print(f"[DIAG Y] k_yy[{n_p}]={k_yy[n_p]:.2e}")
 
                         self.K[n_p, 1, 1] = k_yy[n_p]
                         self.K[n_p, 0, 1] = k_xy[n_p]
@@ -1416,20 +1381,6 @@ class TiltingPad(BearingElement):
                         )
                         self.Sjipt[n_p] = self.Tj[n_p].T @ self.Sjpt[n_p] @ self.Tj[n_p]
 
-                        # DIAGNOSTIC: Check transformation for first pad
-                        if n_p == 0 and a_p == 3:  # Last perturbation, first pad
-                            print(f"\n[DIAG TRANS] ========== COORDINATE TRANSFORMATION (Pad {n_p}) ==========")
-                            print(f"  Pivot angle = {np.degrees(self.pivot_angle[n_p]):.2f}°")
-                            print(f"  Pad angle (psi) = {np.degrees(psi_pad[n_p]):.6f}°")
-                            print(f"  Total angle (psi + pivot) = {np.degrees(psi_pad[n_p] + self.pivot_angle[n_p]):.2f}°")
-                            print(f"  K[pad] (before transform):")
-                            print(f"    k_xx={self.K[n_p, 0, 0]:.2e}, k_xy={self.K[n_p, 0, 1]:.2e}")
-                            print(f"    k_yx={self.K[n_p, 1, 0]:.2e}, k_yy={self.K[n_p, 1, 1]:.2e}")
-                            print(f"  Sjipt[pad] (after transform):")
-                            print(f"    Sjipt[0,0]={self.Sjipt[n_p, 0, 0]:.2e}, Sjipt[0,1]={self.Sjipt[n_p, 0, 1]:.2e}")
-                            print(f"    Sjipt[1,0]={self.Sjipt[n_p, 1, 0]:.2e}, Sjipt[1,1]={self.Sjipt[n_p, 1, 1]:.2e}")
-                            print(f"[DIAG TRANS] ===================================================\n")
-
                         # Add 2x2 block in Aj and gyro term in Bj
                         self.Aj += np.array(
                             [
@@ -1454,29 +1405,10 @@ class TiltingPad(BearingElement):
         # Final reduction: Sw = Aj - Hj * Bj^{-1} * Vj
         Bj_checked = self._check_diagonal(self.Bj)
         
-        # DIAGNOSTIC: Check matrices before reduction
-        print(f"\n[DIAG REDUCE] ========== MATRIX REDUCTION ==========")
-        print(f"  Aj (sum of all pads):")
-        print(f"    Aj[0,0]={self.Aj[0, 0]:.2e}, Aj[0,1]={self.Aj[0, 1]:.2e}")
-        print(f"    Aj[1,0]={self.Aj[1, 0]:.2e}, Aj[1,1]={self.Aj[1, 1]:.2e}")
-        print(f"  Bj (diagonal): {np.diag(self.Bj)}")
-        print(f"  Hj shape: {self.Hj.shape}, Vj shape: {self.Vj.shape}")
-        
         self.Sw = self.Aj - (self.Hj @ np.linalg.inv(Bj_checked) @ self.Vj)
-        
-        print(f"  Sw (after reduction):")
-        print(f"    Sw[0,0]={self.Sw[0, 0]:.2e}, Sw[0,1]={self.Sw[0, 1]:.2e}")
-        print(f"    Sw[1,0]={self.Sw[1, 0]:.2e}, Sw[1,1]={self.Sw[1, 1]:.2e}")
-        print(f"[DIAG REDUCE] ======================================\n")
 
         k_r = np.real(self.Sw)
         c_r = np.imag(self.Sw) / self.speed
-        
-        # DIAGNOSTIC: Check final coefficients
-        print(f"\n[DIAG FINAL] ========== FINAL COEFFICIENTS ==========")
-        print(f"  k_r (real part of Sw):")
-        print(f"    k_r[0,0]={k_r[0, 0]:.2e}, k_r[0,1]={k_r[0, 1]:.2e}")
-        print(f"    k_r[1,0]={k_r[1, 0]:.2e}, k_r[1,1]={k_r[1, 1]:.2e}")
         
         self.kxx, self.kyy, self.kxy, self.kyx = (
             k_r[0, 0],
@@ -1490,14 +1422,6 @@ class TiltingPad(BearingElement):
             c_r[0, 1],
             c_r[1, 0],
         )
-        
-        print(f"  Final stiffness coefficients:")
-        print(f"    kxx={self.kxx:.2e}, kxy={self.kxy:.2e}")
-        print(f"    kyx={self.kyx:.2e}, kyy={self.kyy:.2e}")
-        print(f"  Final damping coefficients:")
-        print(f"    cxx={self.cxx:.2e}, cxy={self.cxy:.2e}")
-        print(f"    cyx={self.cyx:.2e}, cyy={self.cyy:.2e}")
-        print(f"[DIAG FINAL] ========================================\n")
 
     def solve_fields(self):
         """Solve the thermo-hydrodynamic equations to determine equilibrium position and field distributions.
@@ -1652,14 +1576,16 @@ class TiltingPad(BearingElement):
                 momen_rot[idx] = self.score_dim
 
             self.psi_pad = ang_rot
-            self.force_x_dim = np.sum(self.force_x_dim)
-            self.force_y_dim = np.sum(self.force_y_dim)
+            # Store totals but preserve arrays for coefficients() method
+            force_x_total = np.sum(self.force_x_dim)
+            force_y_total = np.sum(self.force_y_dim)
+            # Keep force_x_dim and force_y_dim as arrays for coefficients() to use
 
             self.ecc_list.append(self.eccentricity)
             self.attitude_angle_list.append(self.attitude_angle)
             self.psi_pad_list.append(ang_rot.copy())
-            self.force_x_total_list.append(self.force_x_dim)
-            self.force_y_total_list.append(self.force_y_dim)
+            self.force_x_total_list.append(force_x_total)
+            self.force_y_total_list.append(force_y_total)
             self.momen_rot_list.append(momen_rot.copy())
 
             self.xdin = np.zeros(self.n_pad + 2)
@@ -1674,8 +1600,6 @@ class TiltingPad(BearingElement):
             else:
                 x0 = [0.3, np.deg2rad(270)] + [1e-4] * self.n_pad
 
-            def _nm_callback(xk):
-                print(f"[determine_ecc] callback x={xk}")
             # Optimize complete system
             result = fmin(
                 self._equilibrium_objective,
@@ -1684,66 +1608,8 @@ class TiltingPad(BearingElement):
                 ftol=1e-3,
                 maxiter=1000,
                 disp=False,
-                full_output=True,
-                callback=_nm_callback,
+                full_output=True
             )
-            # def _optimization_callback(xk):
-            #     """Monitor optimization progress"""
-            #     if not hasattr(self, "iteration_count"):
-            #         self.iteration_count = 0
-            #     self.iteration_count += 1
-                
-            #     # Calculate current score
-            #     score = self._equilibrium_objective(xk)
-                
-            #     # Extract state variables
-            #     ecc, att = xk[0], xk[1]
-            #     pads = xk[2:]
-                
-            #     # Format output
-            #     pads_str = "[" + ", ".join(f"{np.degrees(p):.2f}" for p in pads) + "]°"
-                
-            #     # Print every iteration
-            #     print(f"[Powell] iter={self.iteration_count:4d} "
-            #         f"ecc={ecc:.4f} att={np.degrees(att):6.2f}° "
-            #         f"pads={pads_str} score={score:.4e}")
-                
-            #     # Record in history
-            #     self.record_optimization_residual(score)
-
-            # Optimize complete system
-            # result = minimize(
-            #     self._equilibrium_objective,
-            #     x0,
-            #     # method="Powell",
-            #     callback=_optimization_callback,
-            #     options={
-            #         "xtol": 1e-6,
-            #         "ftol": 1e-6,
-            #         "maxiter": 5000,
-            #         "disp": True,
-            #     }
-            # )
-            # result = minimize(
-            #     self._equilibrium_objective,
-            #     x0,
-            #     method='L-BFGS-B',  # Método com gradiente numérico + bounds
-            #     bounds=[
-            #         (1e-3, 1),        # eccentricity: longe de 0 e 1
-            #         (0, 2*np.pi),      # attitude_angle
-            #         (-1e-5, 1e-5),     # pad angles (pequenos)
-            #         (-1e-5, 1e-5),
-            #         (-1e-5, 1e-5),
-            #         (-1e-5, 1e-5),
-            #         (-1e-5, 1e-5),
-            #     ],
-            #     callback=_optimization_callback,
-            #     options={
-            #         'ftol': 1e-8,
-            #         'maxiter': 1000,
-            #         'disp': True,
-            #     }
-            # )
 
             # Extract only x_opt from tuple
             if isinstance(result, tuple):
@@ -1777,13 +1643,6 @@ class TiltingPad(BearingElement):
             self.force_x_total_list.append(np.sum(self.force_x_dim))
             self.force_y_total_list.append(np.sum(self.force_y_dim))
             self.momen_rot_list.append(None)
-
-            print(
-                "[determine_ecc] optimization done: "
-                f"ecc={self.eccentricity:.4f}, "
-                f"att={np.degrees(self.attitude_angle):.2f}deg, "
-                f"final_score={self.optimization_history.get(self._current_freq_index, [])[-1]:.3e}"
-            )
 
         # Thermo-hydrodynamic field solution
         psi_pad = np.zeros(self.n_pad)
@@ -2441,27 +2300,6 @@ class TiltingPad(BearingElement):
         # Record optimization residual
         self.record_optimization_residual(score)
 
-        psi_deg = np.degrees(psi_pad)
-        psi_str = "[" + ", ".join(f"{v:.2f}" for v in psi_deg) + "]deg"
-        print(
-            f"[determine_ecc] iter={getattr(self, 'iteration_count', -1)} "
-            f"ecc={eccentricity:.4f} att={np.degrees(attitude_angle):.2f}deg "
-            f"{psi_str} "
-            f"Fx={Fhx:.3e} Fy={Fhy:.3e} "
-            f"Mpads={[f'{m:.3e}' for m in self.moment_j_dim]} "
-            f"score={score:.3e}"
-        )
-
-        print(f"[determine_ecc] obj_time={time.time()-t0:.2f}s score={score:.3e}")
-        if self.iteration_count % 10 == 0:
-            ecc, att, pads = x[0], x[1], x[2:]
-            print(
-                f"[determine_ecc] iter={self.iteration_count} "
-                f"ecc={ecc:.4f} att_deg={np.degrees(att):.2f} "
-                f"pads_deg={[f'{v:.2f}' for v in np.degrees(pads)]} "
-                f"score={score:.3e}"
-            )
-
         return score
 
     def get_equilibrium_position(self, x):
@@ -3035,8 +2873,6 @@ class TiltingPad(BearingElement):
         t0 = time.time()
         t_vec = np.linalg.solve(mat_coef_t, b_t)
         temperature_referance = self._update_temperature_field(t_vec)
-
-        print(f"[solve_energy_equation] solve_time={time.time()-t0:.2f}s")
 
         return temperature_referance
 
@@ -4315,9 +4151,6 @@ class TiltingPad(BearingElement):
                     iteration + 1 - len(self.optimization_history[idx])
                 )
             self.optimization_history[idx][iteration] = residual_value
-        
-        if self.equilibrium_type == "determine_eccentricity":
-            print(f"[determine_ecc] freq_idx={idx} iter={iteration or len(self.optimization_history[idx])} residual={residual_value:.3e}")
 
     def show_optimization_convergence(
         self, by: str = "index", show_plots: bool = False
