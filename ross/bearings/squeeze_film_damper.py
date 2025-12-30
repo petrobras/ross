@@ -49,6 +49,24 @@ class SqueezeFilmDamper(BearingElement):
     Theta = list
         Pressure angle. The unit is radian.
 
+    Example
+    >>> import ross as rs
+    >>> Q_ = rs.units.Q_
+    >>> SFD = rs.SqueezeFilmDamper(
+    ... n=0,
+    ... frequency=Q_([18600], "rpm"),
+    ... axial_length=Q_(0.9, "inches"),
+    ... journal_radius=Q_(2.55, "inches"),
+    ... radial_clearance=Q_(0.003, "inches"),
+    ... eccentricity_ratio=0.5,
+    ... MU=6894.757e-6 * 0.382,
+    ... Groove=True,
+    ... End_Seals=True,
+    ... Cav=True,
+    ... )
+    >>> print(SFD.format_table(damping_units="lbf*s/inches"))
+
+
     """
 
     @check_units
@@ -248,3 +266,5 @@ class SqueezeFilmDamper(BearingElement):
             CO /= (1.0 - self.eccentricity_ratio**2) ** (3.0 / 2.0)
 
         return CO, KO, Theta, P_max
+
+
