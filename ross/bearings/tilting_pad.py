@@ -1595,7 +1595,6 @@ class TiltingPad(BearingElement):
             self.force_y_total_list.append(force_y_total)
             self.momen_rot_list.append(momen_rot.copy())
 
-            self.xdin = np.zeros(self.n_pad + 2)
             self.xdin = [self.eccentricity, self.attitude_angle] + list(ang_rot)
 
         elif self.equilibrium_type == "determine_eccentricity":
@@ -1623,16 +1622,6 @@ class TiltingPad(BearingElement):
                 x_opt = result[0]
             else:
                 x_opt = result
-
-            # Update state variables with optimized values
-            self.eccentricity, self.attitude_angle, self.psi_pad = (
-                x_opt[0],
-                x_opt[1],
-                x_opt[2:],
-            )
-
-            # Update state vector
-            self.xdin = x_opt.copy()
 
             # Update state variables with optimized values
             self.eccentricity, self.attitude_angle, self.psi_pad = (
@@ -1993,8 +1982,6 @@ class TiltingPad(BearingElement):
         get_equilibrium_position : Single pad equilibrium optimization
         """
 
-        t0 = time.time()
-
         # Increment iteration counter
         if not hasattr(self, "iteration_count"):
             self.iteration_count = 0
@@ -2242,45 +2229,6 @@ class TiltingPad(BearingElement):
             # Calculate hydrodynamic forces and moments
             self._calculate_hydrodynamic_forces(n_p, psi_pad, is_equilibrium=True)
 
-        # Calculate equilibrium residuals
-        # FM = np.zeros(self.n_pad + 2)
-
-        # # Force equilibrium in X and Y directions
-        # Fhx = np.sum(self.force_x_dim)
-        # Fhy = np.sum(self.force_y_dim)
-
-        # FM[0] = Fhx + (self.fxs_load if self.fxs_load is not None else 0)
-        # FM[1] = Fhy + (self.fys_load if self.fys_load is not None else 0)
-        # FM[2:] = self.moment_j_dim
-
-        # score = np.linalg.norm(FM)
-
-        # Calculate equilibrium residuals
-        # FM = np.zeros(self.n_pad + 2)
-
-        # # Force equilibrium in X and Y directions
-        # Fhx = np.sum(self.force_x_dim)
-        # Fhy = np.sum(self.force_y_dim)
-
-        # # Raw residuals
-        # force_x_res = Fhx + (self.fxs_load if self.fxs_load is not None else 0)
-        # force_y_res = Fhy + (self.fys_load if self.fys_load is not None else 0)
-        # moment_res = self.moment_j_dim
-
-        # # Characteristic scales for normalization
-        # F_scale = max(abs(self.fxs_load) if self.fxs_load is not None else 0,
-        #             abs(self.fys_load) if self.fys_load is not None else 0,
-        #             100.0)  # Minimum 100 N to avoid division by very small numbers
-
-        # M_scale = F_scale * (self.pad_radius)  # N·m (force × lever arm)
-
-        # # Normalized residuals (dimensionless)
-        # FM[0] = force_x_res / F_scale
-        # FM[1] = force_y_res / F_scale
-        # FM[2:] = moment_res / M_scale
-
-        # # Single scalar objective (dimensionless)
-        # score = np.linalg.norm(FM)
         # Calculate equilibrium residuals
         Fhx = np.sum(self.force_x_dim)
         Fhy = np.sum(self.force_y_dim)
@@ -2877,7 +2825,6 @@ class TiltingPad(BearingElement):
 
         # Solution of temperature field
         mat_coef_t = self._check_diagonal(mat_coef_t)
-        t0 = time.time()
         t_vec = np.linalg.solve(mat_coef_t, b_t)
         temperature_referance = self._update_temperature_field(t_vec)
 
