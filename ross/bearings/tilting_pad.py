@@ -1275,9 +1275,7 @@ class TiltingPad(BearingElement):
                     )
 
                     # Dynamic loads
-                    del_force_x[n_p] = -(
-                        self.force_new[n_p] - self.force_1[n_p]
-                    )  # here
+                    del_force_x[n_p] = -(self.force_new[n_p] - self.force_1[n_p])
                     del_force_y[n_p] = -(self.force_2_new[n_p] - self.force_2[n_p])
                     del_moment_j[n_p] = -(self.moment_j_new[n_p] - self.moment_j[n_p])
 
