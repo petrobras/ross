@@ -2234,14 +2234,14 @@ class TiltingPad(BearingElement):
         Fhy = np.sum(self.force_y_dim)
 
         # Raw residuals
-        force_x_res = Fhx + (self.fxs_load if self.fxs_load is not None else 0)
-        force_y_res = Fhy + (self.fys_load if self.fys_load is not None else 0)
+        force_x_res = Fhx + self.fxs_load
+        force_y_res = Fhy + self.fys_load
         moment_res = self.moment_j_dim
 
         # INDEPENDENT NORMALIZATION - each residual by its own scale
-        Fx_scale = max(abs(self.fxs_load) if self.fxs_load is not None else 0, 100.0)
-        Fy_scale = max(abs(self.fys_load) if self.fys_load is not None else 0, 100.0)
-        M_scale = max(Fx_scale, Fy_scale) * self.pad_radius  # Use max for moment scale
+        Fx_scale = max(abs(self.fxs_load), 1e-6)
+        Fy_scale = max(abs(self.fys_load), 1e-6)
+        M_scale = max(Fx_scale, Fy_scale) * self.pad_radius
 
         # Build residual vector
         FM = np.zeros(self.n_pad + 2)
@@ -2249,7 +2249,7 @@ class TiltingPad(BearingElement):
         FM[1] = force_y_res / Fy_scale  # Normalize Y by its own load
         FM[2:] = moment_res / M_scale  # Normalize moments
 
-        # Single scalar objective (all components have similar magnitude now)
+        # Single scalar objective
         score = np.linalg.norm(FM)
 
         # Record optimization residual
