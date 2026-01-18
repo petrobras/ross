@@ -491,7 +491,7 @@ class BearingElement(Element):
         )
 
     def __eq__(self, other):
-        """Equality method for comparasions.
+        """Equality method for comparisons.
 
         Parameters
         ----------

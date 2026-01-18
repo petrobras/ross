@@ -136,7 +136,7 @@ Bug fixes
 Fix copying a bearing and setting node
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Fixed a bug for when the user tried to copy a bearing and try to set to a different node.
+Fixed a bug when the user tried to copy a bearing and then set it to a different node.
 
 A common requirement is to run an expensive bearing calculation and then copy this bearing and just set a different node where it will be located in the rotor:
 
@@ -149,7 +149,7 @@ A common requirement is to run an expensive bearing calculation and then copy th
    bearing_nde = copy(bearing_de)
    bearing_nde.n = 20
 
-The above code would give an error, since in the rotor assembly we have a code which relies on bearings having n_l and n_d attributes (although this only make senses to shaft elements).
+The above code would give an error, since in the rotor assembly we have code which relies on bearings having n_l and n_d attributes (although this only makes sense for shaft elements).
 
 This code removes the attribute from bearing initialization and sets it at rotor initialization. This way it is possible to modify the attribute before creating the rotor.
 
