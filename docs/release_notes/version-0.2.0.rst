@@ -14,11 +14,11 @@ This PR make some modifications in results.py
 
 
 * Add show(camp) to show campbell bokeh plotting
-* Add command to allign ColorBar axis for better looking
+* Add command to align ColorBar axis for better appearance
 * Add figure dimensions for campbell bokeh plotting
 * increases the font size of all axis labels 
 
-Some bokeh figures have the attribute ``sizing_mode="stretch_both``.  This command line is used so that the plotting of the graphics is always the maximum size of the browse. However, this creates a bug in jupyter notebook, and the graphs does not appears. So it should be replaced  by ``width`` and ``height`` command lines
+Some bokeh figures have the attribute ``sizing_mode="stretch_both``.  This command line is used so that the plotting of the graphics is always the maximum size of the browser. However, this creates a bug in jupyter notebook, and the graphs does not appears. So it should be replaced  by ``width`` and ``height`` command lines
 
 
 * adds an interpolation function to highlight to the user the intersection between the critical frequency curves and the speed line
@@ -177,7 +177,7 @@ Add API_report
 
 Work in Progress
 
-This PR adds some plotting styles follwing the API reference:
+This PR adds some plotting styles following the API reference:
 
 
 * Separation Margin
@@ -274,7 +274,7 @@ And now, spliting bearings and seals:
 
 
 Also, fix a bug when modeling too flexible bearings, displacement were getting larger than acceptable.
-It uses axuliar bearings with high stiffness, considering almost zero displacement in bearing nodes.
+It uses auxiliary bearings with high stiffness, considering almost zero displacement in bearing nodes.
 
 
 Split StaticResults plot method
@@ -301,7 +301,7 @@ This PR adds two new classes:
 
 These classes create a bearing element for ball and roller bearings models. They are instantiated based os some geometric and constructive parameters like: number of rotating elements, size (diameter for ballbearing; length for rollerbearing) of the rotating elements, contact angle, and static loading force. 
 
-The direct stiffness coefficientes are calculated using these parameters.
+The direct stiffness coefficients are calculated using these parameters.
 
 I also left an opened option to instantiate the direct damping coefficients. But if it's set as None, they are calculated based on the stiffness coefficient as the literature suggests.
 However the cross-coupling coefficients are set to zero, and the coefficients are not dependent on speed.
@@ -406,7 +406,7 @@ This commit adds the following methods to PointMass class:
 
 
 * **repr** - representative method;
-* **eq** - comparasion method;
+* **eq** - comparison method;
 * point_mass_example() - to run some doctests.
 
 
@@ -434,12 +434,12 @@ This is related to Issues #326 and #328.
 * In _plot_bokeh:
 
   * Change colormap from viridis to Red-Blue
-  * Add diferent colors to harmonics lines
+  * Add different colors to harmonics lines
   * Make glyphs on legend with same color
 
 * In _plot_matplotlib:
 
-  * Add diferent colors to harmonics lines
+  * Add different colors to harmonics lines
 
 * For both methods:
   Restructure code to increase efficiency (reduce plotting time): I could the plot time in an half by rearranging some routines.
@@ -496,14 +496,14 @@ Add Stability Level 1 analysis
 
 
   * This attribute is necessary to distinguish overhung and between bearings rotors.
-  * The unbalance forces and and the respective nodes where they are introduced depends on this information.
+  * The unbalance forces and the respective nodes where they are introduced depend on this information.
 
 * 
   Improve unbalance force method.
 
 
-  * With this improvement, the unbalance forces are calculated according to the rotor_type and 
-    consideres the disks and shaft wheight (if overhung).
+  * With this improvement, the unbalance forces are calculated according to the rotor_type and
+    considers the disks and shaft weight (if overhung).
 
 * 
   Change mode_shape to find nodes according to rotor_type
@@ -645,11 +645,11 @@ This PR make some modifications in results.py
 
 
 * Add show(camp) to show campbell bokeh plotting
-* Add command to allign ColorBar axis for better looking
+* Add command to align ColorBar axis for better appearance
 * Add figure dimensions for campbell bokeh plotting
 * increases the font size of all axis labels 
 
-Some bokeh figures have the attribute ``sizing_mode="stretch_both``.  This command line is used so that the plotting of the graphics is always the maximum size of the browse. However, this creates a bug in jupyter notebook, and the graphs does not appears. So it should be replaced  by ``width`` and ``height`` command lines
+Some bokeh figures have the attribute ``sizing_mode="stretch_both``.  This command line is used so that the plotting of the graphics is always the maximum size of the browser. However, this creates a bug in jupyter notebook, and the graphs does not appears. So it should be replaced  by ``width`` and ``height`` command lines
 
 
 * adds an interpolation function to highlight to the user the intersection between the critical frequency curves and the speed line
@@ -747,7 +747,7 @@ And now, spliting bearings and seals:
 
 
 Also, fix a bug when modeling too flexible bearings, displacement were getting larger than acceptable.
-It uses axuliar bearings with high stiffness, considering almost zero displacement in bearing nodes.
+It uses auxiliary bearings with high stiffness, considering almost zero displacement in bearing nodes.
 
 
 Fix warning when changing number of nodes to be plotted 

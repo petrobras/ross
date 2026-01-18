@@ -9,4 +9,4 @@ Enhancements
 Python 3.10 support
 ^^^^^^^^^^^^^^^^^^^
 
-This release adds python 3.10 support.
+This release adds Python 3.10 support.
