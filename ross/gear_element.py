@@ -998,6 +998,68 @@ class Mesh:
         else:
             self.stiffness = gear_mesh_stiffness
 
+    def _square_varying_stiffness(self, theta_range):
+
+        Fourier_Series_Expansion_Number = 100
+
+        Contact_Ratio = self.contact_ratio
+        Phase = self.orientation_angle
+        Kg = self.Kg
+
+        Ka = Kg*self.square_stiffness_amplitude_ratio
+
+        stiff_phase =  2 * np.pi / self.driving_gear.n_teeth
+
+        Kv_unit = []
+
+        stiffness = []
+
+        for angular_position in theta_range:
+            # fourrier coefficients
+            A = [0]
+            B = [0]
+            Kv = 0 
+
+            for s in range(1, Fourier_Series_Expansion_Number + 2):
+                A.append((-2/(s*np.pi))*np.sin(s*np.pi*(Contact_Ratio-2*Phase))*np.sin(s*np.pi*Contact_Ratio))
+                B.append((-2/(s*np.pi))*np.cos(s*np.pi*(Contact_Ratio-2*Phase))*np.sin(s*np.pi*Contact_Ratio))
+
+                Kv = Kv + A[s]*np.sin(s*self.driving_gear.n_teeth * (angular_position) )+B[s]*np.cos(s*self.driving_gear.n_teeth * (angular_position))
+            
+            # stiffness.append(Kg - 2*Ka*Kv)
+            Kv_unit.append(Kv)
+
+        mean_kv = np.mean(Kv_unit)
+
+        Kv_aux = []
+
+        minus_multiplier = []
+        maximus_multiplier = []
+
+        for ii in range(len(Kv_unit)):
+            if Kv_unit[ii] < mean_kv:
+                Kv_aux.append(-1)
+                minus_multiplier.append(Kv_unit[ii]/-1)
+            elif Kv_unit[ii] > mean_kv:
+                Kv_aux.append(1)
+                maximus_multiplier.append(Kv_unit[ii]/1)
+            else:
+                Kv_aux.append(0)
+
+
+        minus_multiplier_value = np.median(sorted(minus_multiplier))
+        maximus_multiplier_value = np.median(sorted(maximus_multiplier))
+
+        Kv_aux = np.array(Kv_aux, dtype=float)
+
+        Kv_aux[Kv_aux==-1] *= minus_multiplier_value
+        Kv_aux[Kv_aux==1] *= maximus_multiplier_value
+
+        for ii in range(len(Kv_aux)):
+            stiffness.append(Kg - 2*Ka*Kv_aux[ii])
+
+        return stiffness
+    
     def _calculate_contact_ratio(self, driving_addendum_radius, driven_addendum_radius):
         rb1 = self.driving_gear.base_radius
         rb2 = self.driven_gear.base_radius
@@ -1104,7 +1166,10 @@ class Mesh:
         theta_end = 2 * np.pi / self.driving_gear.n_teeth * n_mesh_period
         theta_range = np.linspace(0, theta_end, n_points)
 
-        stiffness_range = [self.get_variable_stiffness(theta) for theta in theta_range]
+        if self.square_varying_stiffness:
+            stiffness_range = self._square_varying_stiffness(theta_range)
+        else:
+            stiffness_range = [self.get_variable_stiffness(theta) for theta in theta_range]
 
         return theta_range, stiffness_range
 
