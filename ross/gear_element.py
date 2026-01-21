@@ -965,6 +965,13 @@ class Mesh:
                 ra2 = driven_gear.radii_dict["addendum"]
                 self.contact_ratio = self._calculate_contact_ratio(ra1, ra2)
 
+                E1 = driving_gear.material.E
+                E2 = driven_gear.material.E
+
+                self.stiffness = (self.contact_ratio * driving_gear.width * E1 * E2) / (
+                    9 * (E1 + E2)
+                )
+
                 self.hertzian_stiffness = (
                     np.pi
                     * driving_gear.material.E
@@ -976,7 +983,9 @@ class Mesh:
 
                 self.theta_range = theta_range
                 self.stiffness_range = stiffness_range
-                self.stiffness = max(stiffness_range)
+
+                # swap from maximum value to calculated value
+                # self.stiffness = max(stiffness_range) 
 
             else:
                 if driving_gear.width:
