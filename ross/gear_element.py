@@ -1008,7 +1008,7 @@ class Mesh:
 
         Contact_Ratio = self.contact_ratio
         Phase = self.orientation_angle
-        Kg = self.Kg
+        Kg = self.stiffness
 
         Ka = Kg*self.square_stiffness_amplitude_ratio
 
