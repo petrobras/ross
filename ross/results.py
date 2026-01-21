@@ -1575,7 +1575,7 @@ class CriticalSpeedResults(Results):
 class ModalResults(Results):
     """Class used to store results and provide plots for Modal Analysis.
 
-    Two options for plottting are available: plot_mode3D (mode shape 3D view)
+    Two options for plotting are available: plot_mode3D (mode shape 3D view)
     and plot_mode2D (mode shape 2D view). The user chooses between them using
     the respective methods.
 
@@ -1886,8 +1886,8 @@ class ModalResults(Results):
             The n'th vibration mode
             Default is None
         frequency_type : str, optional
-            "wd" calculates de map for the damped natural frequencies.
-            "wn" calculates de map for the undamped natural frequencies.
+            "wd" calculates the map for the damped natural frequencies.
+            "wn" calculates the map for the undamped natural frequencies.
             Defaults is "wd".
         title : str, optional
             A brief title to the mode shape plot, it will be displayed above other
@@ -5310,11 +5310,11 @@ class ConvergenceResults(Results):
     Parameters
     ----------
     el_num : array
-        Array with number of elements in each iteraction
+        Array with number of elements in each iteration
     eigv_arr : array
-        Array with the n'th natural frequency in each iteraction
+        Array with the n'th natural frequency in each iteration
     error_arr : array
-        Array with the relative error in each iteraction
+        Array with the relative error in each iteration
 
     Returns
     -------
@@ -6057,8 +6057,8 @@ class UCSResults(Results):
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         frequency_type : str, optional
-            "wd" calculates de map for the damped natural frequencies.
-            "wn" calculates de map for the undamped natural frequencies.
+            "wd" calculates the map for the damped natural frequencies.
+            "wn" calculates the map for the undamped natural frequencies.
             Defaults is "wd".
         title : str, optional
             A brief title to the mode shape plot, it will be displayed above other
@@ -6120,8 +6120,8 @@ class UCSResults(Results):
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         frequency_type : str, optional
-            "wd" calculates de map for the damped natural frequencies.
-            "wn" calculates de map for the undamped natural frequencies.
+            "wd" calculates the map for the damped natural frequencies.
+            "wn" calculates the map for the undamped natural frequencies.
             Defaults is "wd".
         title : str, optional
             A brief title to the mode shape plot, it will be displayed above other

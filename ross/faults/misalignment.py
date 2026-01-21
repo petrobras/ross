@@ -29,7 +29,7 @@ class MisalignmentFlex(ABC):
         Number of shaft element where the misalignment is ocurring.
     mis_type: string
         Name of the chosen misalignment type.
-        The avaible types are: "parallel", "angular" and "combined".
+        The available types are: "parallel", "angular" and "combined".
     mis_distance_x : float, pint.Quantity
         Parallel misalignment distance between driving rotor and driven rotor along X direction.
     mis_distance_y : float, pint.Quantity
@@ -540,7 +540,7 @@ def misalignment_flex_example(mis_type="parallel"):
 
     mis_type: string
         Name of the chosen misalignment type.
-        The avaible types are: "parallel", "angular" and "combined".
+        The available types are: "parallel", "angular" and "combined".
         Default is "parallel".
 
     Returns

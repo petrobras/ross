@@ -87,12 +87,12 @@ class PointMass(Element):
         return hash(self.tag)
 
     def __eq__(self, other):
-        """Equality method for comparasions.
+        """Equality method for comparisons.
 
         Parameters
         ----------
         other : obj
-            parameter for comparasion
+            parameter for comparison
 
         Returns
         -------

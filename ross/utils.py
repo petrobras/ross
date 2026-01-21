@@ -569,7 +569,7 @@ def intersection(x1, y1, x2, y2):
 
 
 def get_data_from_figure(fig):
-    """Get data from a Plotly ccatter plot (XY) and convert to a pd.DataFrame.
+    """Get data from a Plotly scatter plot (XY) and convert to a pd.DataFrame.
 
     This function takes a go.Figure() object from Plotly and converts the data to a
     DataFrame from Pandas. It works only for Scatter Plots (XY) and does no support

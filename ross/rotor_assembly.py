@@ -618,19 +618,19 @@ class Rotor(object):
 
         if any(len(sh.dof_mapping()) != number_dof * 2 for sh in self.shaft_elements):
             raise Exception(
-                "The number of degrees o freedom of all elements must be the same! There are SHAFT elements with discrepant DoFs."
+                "The number of degrees of freedom of all elements must be the same! There are SHAFT elements with discrepant DoFs."
             )
 
         if any(len(disk.dof_mapping()) != number_dof for disk in self.disk_elements):
             raise Exception(
-                "The number of degrees o freedom of all elements must be the same! There are DISK elements with discrepant DoFs."
+                "The number of degrees of freedom of all elements must be the same! There are DISK elements with discrepant DoFs."
             )
 
         if any(
             len(brg.dof_mapping()) != number_dof / 2 for brg in self.bearing_elements
         ):
             raise Exception(
-                "The number of degrees o freedom of all elements must be the same! There are BEARING elements with discrepant DoFs."
+                "The number of degrees of freedom of all elements must be the same! There are BEARING elements with discrepant DoFs."
             )
 
         return int(number_dof)
@@ -658,12 +658,12 @@ class Rotor(object):
         return None
 
     def __eq__(self, other):
-        """Equality method for comparasions.
+        """Equality method for comparisons.
 
         Parameters
         ----------
         other : obj
-            parameter for comparasion
+            parameter for comparison
 
         Returns
         -------
@@ -788,7 +788,7 @@ class Rotor(object):
     def run_modal(self, speed, num_modes=12, sparse=True, synchronous=False):
         """Run modal analysis.
 
-        Method to calculate eigenvalues and eigvectors for a given rotor system.
+        Method to calculate eigenvalues and eigenvectors for a given rotor system.
         The natural frequencies and dampings ratios are calculated for a given
         rotor speed. It means that for each speed input there's a different set of
         eigenvalues and eigenvectors, hence, different natural frequencies and damping
@@ -882,7 +882,7 @@ class Rotor(object):
 
         Differently from run_modal(), this function doesn't take a speed input because
         it iterates over the natural frequencies calculated in the last iteration.
-        The initial value is considered to be the undamped natural frequecies for
+        The initial value is considered to be the undamped natural frequencies for
         speed = 0 (no gyroscopic effect).
 
         Once the error is within an acceptable range defined by "rtol", it returns the
@@ -979,7 +979,7 @@ class Rotor(object):
         """Run convergence analysis.
 
         Function to analyze the eigenvalues convergence through the number of
-        shaft elements. Every new run doubles the number os shaft elements.
+        shaft elements. Every new run doubles the number of shaft elements.
 
         Parameters
         ----------
@@ -995,11 +995,11 @@ class Rotor(object):
         results : An instance of ConvergenceResults class, which is used to post-process
         results. Attributes stored:
             el_num : array
-                Array with number of elements in each iteraction
+                Array with number of elements in each iteration
             eigv_arr : array
-                Array with the n'th natural frequency in each iteraction
+                Array with the n'th natural frequency in each iteration
             error_arr : array
-                Array with the relative error in each iteraction
+                Array with the relative error in each iteration
 
         Example
         -------
@@ -1746,7 +1746,7 @@ class Rotor(object):
         >>> response.speed_range.shape
         (61,)
 
-        Selecting the disirable modes, if you want a reduced model:
+        Selecting the desirable modes, if you want a reduced model:
         >>> response = rotor.run_freq_response(speed_range=speed, modes=[0, 1, 2, 3, 4])
         >>> abs(response.freq_resp) # doctest: +ELLIPSIS
         array([[[0.00000000e+00, 1.00261725e-06, 1.01076952e-06, ...
@@ -3772,7 +3772,7 @@ class Rotor(object):
         t : array
             Time array.
         coupling : str
-            Coupling type. The avaible types are: "flex" and "rigid".
+            Coupling type. The available types are: "flex" and "rigid".
             Default is "flex".
 
         **kwargs : dictionary
@@ -3781,7 +3781,7 @@ class Rotor(object):
                     Number of shaft element where the misalignment is ocurring.
                 mis_type: string
                     Name of the chosen misalignment type.
-                    The avaible types are: "parallel", "angular" and "combined".
+                    The available types are: "parallel", "angular" and "combined".
                 mis_distance_x : float, pint.Quantity
                     Parallel misalignment distance between driving rotor and driven
                     rotor along X direction.
