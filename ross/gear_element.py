@@ -879,6 +879,8 @@ class Mesh:
         Set the square shape time varying mesh stiffness
     square_stiffness_amplitude_ratio: float, optional
         Ratio of stiffness amplitude based on the mean value of stiffness.
+    orientation_angle : float, pint.Quantity, optional
+        The angle between the line of gear centers and x-axis. Default is 0.0 rad.
 
     Attributes:
     -----------
@@ -927,6 +929,7 @@ class Mesh:
         gear_mesh_stiffness=None,
         square_varying_stiffness = False,
         square_stiffness_amplitude_ratio = 0,
+        orientation_angle = 0,
     ):
         self.driving_gear = driving_gear
         self.driven_gear = driven_gear
@@ -938,6 +941,7 @@ class Mesh:
 
         self.square_varying_stiffness = square_varying_stiffness
         self.square_stiffness_amplitude_ratio = square_stiffness_amplitude_ratio
+        self.orientation_angle = orientation_angle
 
         if not math.isclose(driving_gear.module, driven_gear.module, rel_tol=0.05):
             warn(

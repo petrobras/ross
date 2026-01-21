@@ -160,8 +160,8 @@ class MultiRotor(Rotor):
             gear_2,
             gear_mesh_stiffness=gear_mesh_stiffness,
             square_varying_stiffness = self.square_varying_stiffness,
-            square_stiffness_amplitude_ratio = square_stiffness_amplitude_ratio
-
+            square_stiffness_amplitude_ratio = square_stiffness_amplitude_ratio,
+            orientation_angle = self.orientation_angle,
         )
 
         gear1_plot = next(
