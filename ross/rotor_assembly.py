@@ -1845,7 +1845,6 @@ class Rotor(object):
         disturbance_min_frequency=0.001,
         disturbance_max_frequency=150,
         amb_tags=None,
-        sensors_theta=0.7853981633974483,
         verbose=1,
     ):
         """Run Active Magnetic Bearing (AMB) sensitivity analysis.
@@ -1880,11 +1879,6 @@ class Rotor(object):
             If None or empty, all `MagneticBearingElement` instances in the rotor are used.
             If provided, only the AMBs matching the specified tags will be analyzed.
             Raises a RuntimeError if no AMB with the given tag is found.
-        sensors_theta : float, optional
-            Angular position of the Active Magnetic Bearing (AMB) sensors, in radians.
-            This angle defines the orientation of the sensor coordinate system (v, w)
-            relative to the global coordinate system (x, y). A positive angle
-            corresponds to a counter-clockwise rotation. Default is 45 degrees (π/4 rad).
         verbose : int, optional
             Controls the verbosity of the method. If `1` or greater, both the simulation
             time and the forces produced by the AMBs are presented. If `0`, no output is
@@ -1980,18 +1974,24 @@ class Rotor(object):
 
         chirp_signal = disturbance_amplitude * chirp(
             t,
-            f0=disturbance_min_frequency,  # frequência no instante t = 0
-            f1=disturbance_max_frequency,  # frequência no instante t = t_f
-            t1=float(t[-1]),  # instante final
+            f0=disturbance_min_frequency,
+            f1=disturbance_max_frequency,
+            t1=float(t[-1]),
             method="logarithmic",
             phi=-90,
         )
 
         progress_interval = t_max / 25 if verbose >= 1 else None
 
+        bearings_by_tag = {bearing.tag: bearing for bearing in magnetic_bearings}
+
         for amb_tag in sensitivity_compute_dofs.keys():
             for axis in sensitivity_compute_dofs[amb_tag].keys():
                 sensitivity_result_values = {}
+
+                bearing = bearings_by_tag[amb_tag]
+                sensor_angle = bearing.sensors_axis_rotation
+
                 if progress_interval is not None:
                     self.run_time_response(
                         speed,
@@ -2002,7 +2002,7 @@ class Rotor(object):
                         sensitivity_disturbance=chirp_signal,
                         sensitivity_result_values=sensitivity_result_values,
                         sensitivity_compute_dof=sensitivity_compute_dofs[amb_tag][axis],
-                        sensors_theta=sensors_theta,
+                        sensor_angle=sensor_angle,
                     )
                 else:
                     self.run_time_response(
@@ -2013,7 +2013,7 @@ class Rotor(object):
                         sensitivity_disturbance=chirp_signal,
                         sensitivity_result_values=sensitivity_result_values,
                         sensitivity_compute_dof=sensitivity_compute_dofs[amb_tag][axis],
-                        sensors_theta=sensors_theta,
+                        sensor_angle=sensor_angle,
                     )
 
                 sensitivity_data[amb_tag][axis] = dict(sensitivity_result_values)
@@ -2499,7 +2499,7 @@ class Rotor(object):
         sensitivity_disturbance: None | np.ndarray = kwargs.get(
             "sensitivity_disturbance", None
         )
-        sensors_theta: None | float = kwargs.get("sensors_theta", np.deg2rad(45))
+        sensor_angle: None | float = kwargs.get("sensor_angle", np.deg2rad(45))
         progress_interval: None | float = kwargs.get("progress_interval", None)
 
         current_offset = 0
@@ -2515,8 +2515,8 @@ class Rotor(object):
             y_disp = disp_resp[y_dof]
 
             # Transforming the displacements to the sensor reference frame
-            v_disp = x_disp * np.cos(sensors_theta) + y_disp * np.sin(sensors_theta)
-            w_disp = -x_disp * np.sin(sensors_theta) + y_disp * np.cos(sensors_theta)
+            v_disp = x_disp * np.cos(sensor_angle) + y_disp * np.sin(sensor_angle)
+            w_disp = -x_disp * np.sin(sensor_angle) + y_disp * np.cos(sensor_angle)
 
             if sensitivity_compute_dof is not None and sensitivity_compute_dof in [
                 x_dof,
@@ -2567,11 +2567,11 @@ class Rotor(object):
             )
 
             magnetic_force_x = magnetic_force_v * np.cos(
-                sensors_theta
-            ) - magnetic_force_w * np.sin(sensors_theta)
+                sensor_angle
+            ) - magnetic_force_w * np.sin(sensor_angle)
             magnetic_force_y = magnetic_force_v * np.sin(
-                sensors_theta
-            ) + magnetic_force_w * np.cos(sensors_theta)
+                sensor_angle
+            ) + magnetic_force_w * np.cos(sensor_angle)
 
             elm.magnetic_force_xy[0].append(magnetic_force_x)
             elm.magnetic_force_xy[1].append(magnetic_force_y)

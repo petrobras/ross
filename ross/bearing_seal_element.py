@@ -2104,8 +2104,8 @@ class MagneticBearingElement(BearingElement):
         C_real = Hjw.real
         C_imag = Hjw.imag
 
-        k_eq = ks + ki * C_real
-        c_eq = np.divide(ki, omega) * C_imag
+        k_eq = ks + ki * self.k_amp * self.k_sense * C_real
+        c_eq = ki * self.k_amp * self.k_sense * C_imag * np.divide(1, omega)
 
         rotation_matrix = np.matrix(
             [

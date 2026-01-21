@@ -2791,7 +2791,6 @@ def test_run_amb_sensitivity():
         disturbance_amplitude=10e-6,
         disturbance_min_frequency=0.001,
         disturbance_max_frequency=150,
-        sensors_theta=45,
     )
 
     # Scenario 1: Default run verification
@@ -2899,15 +2898,4 @@ def test_run_amb_sensitivity():
     assert not np.allclose(
         results.max_abs_sensitivities["Magnetic Bearing 0"]["x"],
         results_custom_freq.max_abs_sensitivities["Magnetic Bearing 0"]["x"],
-    )
-
-    # Scenario 4: Test with custom `sensors_theta`
-    # --------------------------------------------
-    results_theta0 = rotor.run_amb_sensitivity(
-        speed=1200, t_max=1e-2, dt=1e-4, sensors_theta=0
-    )
-    # Check if results differ from the default 45-degree case
-    assert not np.allclose(
-        results.max_abs_sensitivities["Magnetic Bearing 0"]["x"],
-        results_theta0.max_abs_sensitivities["Magnetic Bearing 0"]["x"],
     )
