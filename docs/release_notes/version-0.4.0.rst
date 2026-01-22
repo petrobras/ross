@@ -13,7 +13,7 @@ This class creates a magnetic bearing element.
 The element can be created by:
 
 * defining directly the stifness and damping coefficients with the method **\ **init**\ **\ ;
-* defining the magnetic parameters g0, i0, ag, nw, alpha and the porportional and derivative gains of a PID controller  kp_pid, kd_pid with the method **param_to_coef**.
+* defining the magnetic parameters g0, i0, ag, nw, alpha and the proportional and derivative gains of a PID controller  kp_pid, kd_pid with the method **param_to_coef**.
 
 The reference for the equations is:
 **Book**\ : Magnetic Bearings. Theory, Design, and Application to Rotating Machinery
@@ -23,9 +23,9 @@ The reference for the equations is:
 Stochastic Ross module
 ^^^^^^^^^^^^^^^^^^^^^^
 
-The files follows the hierarchy than ROSS: different files to build the elements and a main file to build the rotors.
+The files follow the hierarchy of ROSS: different files to build the elements and a main file to build the rotors.
 
-The main difference between these new files and and the element files from ROSS is that the stochastic elements files build list of elements instead a single one.
+The main difference between these new files and the element files from ROSS is that the stochastic elements files build a list of elements instead of a single one.
 
 The analysis will also follow the ROSS structure, but it's not added yet.
 
@@ -56,7 +56,7 @@ Add methods to plot the deflected shape
 Move "sparse" argument to run_modal()
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The eigenvalue / eigenvector solver is chosen when running the run_modal() method, and not anymore an parameter from the rotor model
+The eigenvalue / eigenvector solver is chosen when running the run_modal() method, and is no longer a parameter from the rotor model
 
 Set default values to log_dec color scale
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -105,7 +105,7 @@ Add probe argument to ForcedResponseResults
 
 
 Replace ``dof`` by ``probe``\ argument probe is a list of tuples.
-Each tuple refers to a probe, which must include de node and the
+Each tuple refers to a probe, which must include the node and the
 orientation.
 
 The orientation units is set by ``probe_units`` argument.
@@ -122,7 +122,7 @@ instead of 'get', 'use' etc.
 Move "sparse" argument to run_modal()
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The eigenvalue / eigenvector solver is chosen when running the run_modal() method, and not anymore an parameter from the rotor model
+The eigenvalue / eigenvector solver is chosen when running the run_modal() method, and is no longer a parameter from the rotor model
 
 
 Bug fixes
