@@ -20,6 +20,7 @@ pmip
 *.tmp
 *.vim
 .vscode
+.cursor
 tags
 cscope.out
 # gnu global
