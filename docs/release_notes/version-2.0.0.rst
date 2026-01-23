@@ -181,7 +181,6 @@ The method returns a ``SensitivityResults`` object with attributes for magnitude
        disturbance_min_frequency=0.01,
        disturbance_max_frequency=150,
        amb_tags=["Magnetic Bearing 0", "Magnetic Bearing 1"],
-       sensors_theta=45,
    )
 
    # Access maximum sensitivity for a specific bearing

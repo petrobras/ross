@@ -4,6 +4,7 @@ This module defines the BearingElement classes which will be used to represent t
 bearings and seals. There are 7 different classes to represent bearings options.
 """
 
+import control as ct
 import numpy as np
 import toml
 import warnings
@@ -19,7 +20,13 @@ from ross.bearings.fluid_flow_coefficients import (
     calculate_stiffness_and_damping_coefficients,
 )
 from ross.units import Q_, check_units
-from ross.utils import read_table_file
+from ross.utils import (
+    read_table_file,
+    is_scalar,
+    is_scalar_or_list,
+    is_transfer_function_or_none,
+    is_list_or_none,
+)
 
 __all__ = [
     "BearingElement",
@@ -1789,76 +1796,202 @@ class RollerBearingElement(BearingElement):
 
 
 class MagneticBearingElement(BearingElement):
-    """Magnetic bearing.
+    """
+    Magnetic Bearing Element.
 
-    This class creates a magnetic bearing element.
-    Converts electromagnetic parameters and PID gains to stiffness and damping
-    coefficients.
+    This class represents an active magnetic bearing (AMB) modeled from
+    its electromagnetic and control parameters. It automatically converts
+    the physical parameters of the electromagnet and the controller
+    (PID or custom transfer function) into equivalent stiffness and damping
+    coefficients as functions of frequency.
+
+    If a transfer function is not supplied, the user must define the
+    proportional, integral, and derivative gains of the PID controller,
+    including the cutoff frequency of the derivative filter.
+    The class also computes the transformation of the stiffness and damping
+    matrices according to the magnetic pole angle.
 
     Parameters
     ----------
     n : int
-        The node in which the magnetic bearing will be located in the rotor.
+        Node index where the magnetic bearing is mounted on the rotor.
     g0 : float
-        Air gap in m^2.
-    i0 : float
-        Bias current in Ampere
+        Nominal air gap (m).
+    i0 : float or list of float
+        Bias current applied to the coils (A). Can be a scalar value
+        or a list of two values for the x and y axes.
     ag : float
-        Pole area in m^2.
-    nw : float or int
-        Number of windings
-    alpha : float or int
-        Pole angle in radians.
-    kp_pid : float or int
-        Proportional gain of the PID controller.
-    kd_pid : float or int
-        Derivative gain of the PID controller.
+        Effective pole area (m²).
+    nw : int or float
+        Number of turns per coil (windings).
+    frequency : array_like, optional
+        Frequency vector in rad/s used to evaluate the controller
+        frequency response and build the equivalent stiffness and damping
+        coefficients. If not provided, it is set automatically as a
+        logarithmic vector between 10⁰ and 10⁴ rad/s.
+    alpha : float, optional
+        Angular position of the magnetic pole relative to the rotor x
+        axis (radians). Default is 0.39269908 (approximately 22.5°).
+    k_amp : float or list of float, optional
+        Power amplifier gain (V/A). Can be a scalar value or a list of
+        two values, one for each axis. Default is 1.
+    k_sense : float or list of float, optional
+        Displacement sensor gain (V/m). Can be a scalar value or a list
+        of two values, one for each axis. Default is 1.
+    kp_pid : float or int, optional
+        Proportional gain of the PID controller. Default is 0.
+    kd_pid : float or int, optional
+        Derivative gain of the PID controller. Default is 0.
     ki_pid : float or int, optional
-        Integrative gain of the PID controller, must be provided
-        if using closed-loop response
-    k_amp : float or int
-        Gain of the amplifier model.
-    k_sense : float or int
-        Gain of the sensor model.
+        Integral gain of the PID controller. Default is 0.
+    n_f : float, optional
+        Cutoff frequency of the derivative low-pass filter (rad/s)
+        used in the PID controller. Default is 10 000.
+    controller_transfer_function : control.TransferFunction, optional
+        Continuous-time transfer function that represents a custom
+        controller associated with the AMB. When provided, it overrides
+        the PID gains for the computation of the controller frequency
+        response and the equivalent coefficients.
+    sensors_axis_rotation : float, optional
+        Angular rotation between the rotor x–y axes and the sensor/actuator
+        axes (radians). This angle is used to transform the equivalent
+        isotropic stiffness and damping into the anisotropic matrices
+        in the rotor coordinates. Default is 0.78539816
+        (approximately 45°).
     tag : str, optional
-        A tag to name the element
-        Default is None.
+        Label used to identify the element in the rotor model.
     n_link : int, optional
-        Node to which the bearing will connect. If None the bearing is
-        connected to ground.
-        Default is None.
+        Node connected to the bearing. If not specified, the bearing
+        is considered grounded. Default is None.
     scale_factor : float, optional
-        The scale factor is used to scale the bearing drawing.
-        Default is 1.
+        Scale factor for graphical representation. Default is 1.
     color : str, optional
-        A color to be used when the element is represented.
-        Default is '#355d7a'.
+        Color used for graphical representation. Default is "#355d7a".
+    **kwargs
+        Additional keyword arguments forwarded to the base class
+        constructor.
 
+    Attributes
     ----------
-    See the following reference for the electromagnetic parameters g0, i0, ag, nw, alpha:
-    Book: Magnetic Bearings. Theory, Design, and Application to Rotating Machinery
-    Authors: Gerhard Schweitzer and Eric H. Maslen
-    Page: 69-80
+    g0 : float
+        Nominal air gap (m).
+    i0 : float or numpy.ndarray
+        Bias current applied to the coils (A) in each controlled axis.
+    ag : float
+        Effective pole area (m²).
+    nw : float
+        Number of turns per coil (windings).
+    alpha : float
+        Magnetic pole angle relative to the rotor x axis (radians).
+    k_amp : numpy.ndarray
+        Amplifier gains for each axis (V/A).
+    k_sense : numpy.ndarray
+        Sensor gains for each axis (V/m).
+    kp_pid, kd_pid, ki_pid : float
+        PID controller gains.
+    n_f : float
+        Cutoff frequency of the derivative filter (rad/s).
+    sensors_axis_rotation : float
+        Rotation angle between rotor and sensor/actuator axes (radians).
+    frequency : numpy.ndarray
+        Frequency vector in rad/s used to compute the equivalent
+        stiffness and damping matrices.
+    ks : float
+        Negative electromagnetic stiffness constant obtained from the
+        linearization of the magnetic force.
+    ki : float
+        Electromagnetic current-to-force gain.
+    kxx, kxy, kyx, kyy : numpy.ndarray
+        Frequency-dependent stiffness coefficients in the rotor x–y
+        coordinates (N/m).
+    cxx, cxy, cyx, cyy : numpy.ndarray
+        Frequency-dependent damping coefficients in the rotor x–y
+        coordinates (N·s/m).
+    controller_transfer_function_num : numpy.ndarray or None
+        Numerator coefficients of the custom controller transfer
+        function, if provided.
+    controller_transfer_function_den : numpy.ndarray or None
+        Denominator coefficients of the custom controller transfer
+        function, if provided.
+    A_c, B_c, C_c, D_c : numpy.ndarray or None
+        Discrete-time state-space matrices of the controller model
+        obtained after discretization.
+    x_c : list of numpy.matrix or None
+        List with two state vectors (one for each AMB axis) used in
+        the discrete-time controller update.
+    control_signal : list
+        Time history of the control current signals, stored as a list
+        of pairs of lists, one pair for each time step.
+    magnetic_force_xy : list
+        Time history of the magnetic forces expressed in the rotor
+        x–y coordinates.
+    magnetic_force_vw : list
+        Time history of the magnetic forces expressed in the local
+        pole coordinates.
+
+    Notes
+    -----
+    - The electromagnetic coefficients ks and ki are computed following
+      Schweitzer and Maslen, Magnetic Bearings: Theory, Design, and
+      Application to Rotating Machinery, Springer, pages 69–80 and 343.
+    - The frequency-dependent stiffness and damping coefficients are
+      obtained from the real and imaginary parts of the closed-loop
+      controller frequency response.
+    - The same controller is assumed for both controlled axes.
+    - The method get_analog_controller builds the continuous-time
+      controller associated with the element, build_controller creates
+      the discrete-time state-space representation, and compute_pid_amb
+      uses this representation to compute the magnetic forces for
+      time-domain simulations.
+
+    See Also
+    --------
+    get_analog_controller
+        Build or retrieve the analog controller transfer function.
+    build_controller
+        Discretize the analog controller and initialize the internal
+        state-space representation.
+    compute_pid_amb
+        Compute the control force generated by the AMB controller
+        for a single axis.
 
     Examples
     --------
-    >>> n = 0
-    >>> g0 = 1e-3
-    >>> i0 = 1.0
-    >>> ag = 1e-4
-    >>> nw = 200
-    >>> alpha = 0.392
-    >>> kp_pid = 1.0
-    >>> kd_pid = 1.0
-    >>> k_amp = 1.0
-    >>> k_sense = 1.0
-    >>> tag = "magneticbearing"
-    >>> mbearing = MagneticBearingElement(n=n, g0=g0, i0=i0, ag=ag, nw=nw,alpha=alpha,
-    ...                                   kp_pid=kp_pid, kd_pid=kd_pid, k_amp=k_amp,
-    ...                                   k_sense=k_sense)
-    >>> mbearing.kxx
-    [-4640.623377181318]
+    Create an AMB element using PID gains and inspect one of the
+    equivalent stiffness coefficients:
+
+        >>> import ross as rs
+        >>> n = 0
+        >>> g0 = 1e-3
+        >>> i0 = 1.0
+        >>> ag = 1e-4
+        >>> nw = 200
+        >>> alpha = 0.39269908
+        >>> kp_pid = 1.0
+        >>> kd_pid = 1.0
+        >>> k_amp = 1.0
+        >>> k_sense = 1.0
+        >>> mb = rs.MagneticBearingElement(
+        ...     n=n, g0=g0, i0=i0, ag=ag, nw=nw, alpha=alpha,
+        ...     kp_pid=kp_pid, kd_pid=kd_pid, k_amp=k_amp, k_sense=k_sense
+        ... )
+        >>> mb.kxx[0]  # doctest: +ELLIPSIS
+        -4639.28...
+
+    Use a custom controller transfer function instead of PID gains:
+
+        >>> import control as ct
+        >>> import numpy as np
+        >>> C_s = ct.TransferFunction([1.0, 10.0], [1.0, 2.0, 3.0])
+        >>> mb_custom = rs.MagneticBearingElement(
+        ...     n=0, g0=1e-3, i0=1.0, ag=1e-4, nw=200,
+        ...     controller_transfer_function=C_s
+        ... )
+        >>> isinstance(mb_custom.get_analog_controller(), ct.TransferFunction)
+        True
     """
+
+    s = ct.TransferFunction.s
 
     def __init__(
         self,
@@ -1867,114 +2000,167 @@ class MagneticBearingElement(BearingElement):
         i0,
         ag,
         nw,
-        alpha,
-        k_amp,
-        k_sense,
-        kp_pid,
-        kd_pid,
-        ki_pid=None,
+        frequency=None,
+        alpha=0.39269908,
+        k_amp=1,
+        k_sense=1,
+        kp_pid=0,
+        kd_pid=0,
+        ki_pid=0,
+        n_f=10_000,
+        controller_transfer_function=None,
+        sensors_axis_rotation=0.78539816,
         tag=None,
         n_link=None,
         scale_factor=1,
         color="#355d7a",
         **kwargs,
     ):
-        self.g0 = g0
-        self.i0 = i0
-        self.ag = ag
-        self.nw = nw
-        self.alpha = alpha
-        self.kp_pid = kp_pid
-        self.kd_pid = kd_pid
-        self.ki_pid = ki_pid
-        self.k_amp = k_amp
-        self.k_sense = k_sense
+        self.g0 = is_scalar(g0, "g0")
+        self.i0 = is_scalar_or_list(i0, 2, "i0")
+        self.ag = is_scalar(ag, "ag")
+        self.nw = is_scalar(nw, "nw")
+        self.alpha = is_scalar(alpha, "alpha")
+        self.kp_pid = is_scalar(kp_pid, "kp_pid")
+        self.kd_pid = is_scalar(kd_pid, "kd_pid")
+        self.ki_pid = is_scalar(ki_pid, "ki_pid")
+        self.n_f = is_scalar(n_f, "n_f")
+        self.k_amp = is_scalar_or_list(k_amp, 2, "k_amp")
+        self.k_sense = is_scalar_or_list(k_sense, 2, "k_sense")
+        is_transfer_function_or_none(
+            controller_transfer_function, "controller_transfer_function"
+        )
+        self.sensors_axis_rotation = is_scalar(
+            sensors_axis_rotation, "sensors_axis_rotation"
+        )
+        is_list_or_none(frequency, "frequency")
 
-        pL = [g0, i0, ag, nw, alpha, kp_pid, kd_pid, k_amp, k_sense]
-        pA = [0, 0, 0, 0, 0, 0, 0, 0, 0]
+        self.controller_transfer_function_num = (
+            np.array(controller_transfer_function.num).squeeze()
+            if controller_transfer_function is not None
+            else None
+        )
+        self.controller_transfer_function_den = (
+            np.array(controller_transfer_function.den).squeeze()
+            if controller_transfer_function is not None
+            else None
+        )
 
-        # Check if it is a number or a list with 2 items
-        for i in range(9):
-            if type(pL[i]) == float or int:
-                pA[i] = np.array(pL[i])
-            else:
-                if type(pL[i]) == list:
-                    if len(pL[i]) > 2:
-                        raise ValueError(
-                            "Parameters must be scalar or a list with 2 items"
-                        )
-                    else:
-                        pA[i] = np.array(pL[i])
-                else:
-                    raise ValueError("Parameters must be scalar or a list with 2 items")
+        # Control system (state matrices and state vector)
+        self.A_c = None
+        self.B_c = None
+        self.C_c = None
+        self.D_c = None
+        self.x_c = None
+
+        if (
+            self.kp_pid == 0
+            and self.ki_pid == 0
+            and self.kd_pid == 0
+            and controller_transfer_function is None
+        ):
+            raise ValueError(
+                "You need to provide either the gains k_p, k_i, and k_d, or the transfer function of the "
+                "controller you intend to associate with the Magnetic Bearing. Neither has been provided."
+            )
 
         # From: "Magnetic Bearings. Theory, Design, and Application to Rotating Machinery"
         # Authors: Gerhard Schweitzer and Eric H. Maslen
         # Page: 343
         ks = (
             -4.0
-            * pA[1] ** 2.0
-            * np.cos(pA[4])
+            * self.i0**2.0
+            * np.cos(self.alpha)
             * 4.0
             * np.pi
             * 1e-7
-            * pA[3] ** 2.0
-            * pA[2]
-            / (4.0 * pA[0] ** 3)
+            * self.nw**2.0
+            * self.ag
+            / (4.0 * self.g0**3)
         )
+
         ki = (
             4.0
-            * pA[1]
-            * np.cos(pA[4])
+            * self.i0
+            * np.cos(self.alpha)
             * 4.0
             * np.pi
             * 1e-7
-            * pA[3] ** 2.0
-            * pA[2]
-            / (4.0 * pA[0] ** 2)
+            * self.nw**2.0
+            * self.ag
+            / (4.0 * self.g0**2)
         )
 
         self.ks = ks
         self.ki = ki
-        self.integral = [0, 0]
-        self.e0 = [0, 0]
         self.control_signal = []
         self.magnetic_force_xy = []
         self.magnetic_force_vw = []
 
-        k = ki * pA[7] * pA[8] * (pA[5] + np.divide(ks, ki * pA[7] * pA[8]))
-        c = ki * pA[7] * pA[6] * pA[8]
-        # k = ki * k_amp*k_sense*(kp_pid+ np.divide(ks, ki*k_amp*k_sense))
-        # c = ki*k_amp*kd_pid*k_sense
+        C_s = self.get_analog_controller()
+        omega = frequency if frequency is not None else np.logspace(0, 4)
+        mag, phase, _ = ct.frequency_response(C_s, omega)
+        Hjw = (mag * np.exp(1j * phase)).squeeze()
+        C_real = Hjw.real
+        C_imag = Hjw.imag
 
-        # Get the parameters from k and c
-        if np.isscalar(k):
-            # If k is scalar, symmetry is assumed
-            kxx = k
-            kyy = k
-        else:
-            kxx = k[0]
-            kyy = k[1]
+        k_eq = ks + ki * self.k_amp * self.k_sense * C_real
+        c_eq = ki * self.k_amp * self.k_sense * C_imag * np.divide(1, omega)
 
-        if np.isscalar(c):
-            # If c is scalar, symmetry is assumed
-            cxx = c
-            cyy = c
-        else:
-            cxx = c[0]
-            cyy = c[1]
+        rotation_matrix = np.matrix(
+            [
+                [
+                    np.cos(self.sensors_axis_rotation),
+                    np.sin(self.sensors_axis_rotation),
+                ],
+                [
+                    -np.sin(self.sensors_axis_rotation),
+                    np.cos(self.sensors_axis_rotation),
+                ],
+            ]
+        )
+        inv_rotation_matrix = rotation_matrix.I
+
+        k_xx = []
+        k_xy = []
+        k_yx = []
+        k_yy = []
+        c_xx = []
+        c_xy = []
+        c_yx = []
+        c_yy = []
+        for omega_i, k, c in zip(omega, k_eq, c_eq):
+            k_equivalent_matrix = np.matrix([[k, 0], [0, k]])
+            c_equivalent_matrix = np.matrix([[c, 0], [0, c]])
+
+            k_xy_axis_matrix = (
+                inv_rotation_matrix * k_equivalent_matrix * rotation_matrix
+            )
+            c_xy_axis_matrix = (
+                inv_rotation_matrix * c_equivalent_matrix * rotation_matrix
+            )
+
+            k_xx.append(k_xy_axis_matrix[0, 0])
+            k_xy.append(k_xy_axis_matrix[0, 1])
+            k_yx.append(k_xy_axis_matrix[1, 0])
+            k_yy.append(k_xy_axis_matrix[1, 1])
+
+            c_xx.append(c_xy_axis_matrix[0, 0])
+            c_xy.append(c_xy_axis_matrix[0, 1])
+            c_yx.append(c_xy_axis_matrix[1, 0])
+            c_yy.append(c_xy_axis_matrix[1, 1])
 
         super().__init__(
             n=n,
-            frequency=None,
-            kxx=kxx,
-            kxy=0.0,
-            kyx=0.0,
-            kyy=kyy,
-            cxx=cxx,
-            cxy=0.0,
-            cyx=0.0,
-            cyy=cyy,
+            frequency=omega,
+            kxx=k_xx,
+            kxy=k_xy,
+            kyx=k_yx,
+            kyy=k_yy,
+            cxx=c_xx,
+            cxy=c_xy,
+            cyx=c_yx,
+            cyy=c_yy,
             tag=tag,
             n_link=n_link,
             scale_factor=scale_factor,
@@ -2021,81 +2207,223 @@ class MagneticBearingElement(BearingElement):
 
         return customdata, hovertemplate
 
-    def compute_pid_amb(self, dt, current_offset, setpoint, disp, dof_index):
-        """Compute PID control force for a single AMB DoF (x or y).
+    def compute_pid_amb(self, current_offset, setpoint, disp, dof_index):
+        """Compute AMB control force for one axis using the discrete controller.
 
-        This function calculates the control force generated by an Active Magnetic
-        Bearing (AMB) in a specific degree of freedom (DoF) using a PID
-        (Proportional-Integral-Derivative) control algorithm. The force is computed
-        based on the displacement error with respect to a desired setpoint and the
-        dynamic characteristics of the PID controller.
+        This routine evaluates the discrete-time controller output for the selected
+        degree of freedom (x or y) and converts it to the corresponding magnetic
+        force. The controller must have been previously discretized and initialized
+        with build_controller so that the internal state-space matrices and
+        state vectors are available.
 
-        The control signal is computed as:
-
-            signal_pid = current_offset + P + I + D
-
-        where:
-            - P = kp_pid * error
-            - I = ki_pid * ∫error dt
-            - D = kd_pid * d(error)/dt
-
-        The resulting magnetic force applied is:
-
-            F = ki * signal_pid + ks * disp
+        The calculation follows:
+        1) Compute the control output for the current error
+           u = C_c @ x_c[dof_index] + D_c * error, where
+           error = setpoint - disp.
+        2) Update the controller state
+           x_c[dof_index] = A_c @ x_c[dof_index] + B_c * error.
+        3) Form the coil signal
+           signal_pid = current_offset + u.
+        4) Map current to force
+           F = ki * signal_pid + ks * disp.
 
         Parameters
         ----------
-        dt : float
-            Time step of the simulation in seconds.
         current_offset : float
-            Static offset added to the control signal (e.g., initial bias current).
+            Static offset added to the controller signal (for example, bias current).
         setpoint : float
-            Desired reference position for the controlled DoF (typically zero).
+            Reference position for the controlled axis (usually zero).
         disp : float
-            Current displacement measurement at the controlled DoF.
+            Measured displacement at the controlled axis.
         dof_index : int
-            Local index (0 for x-direction, 1 for y-direction) identifying the axis within the AMB element.
+            Axis selector within the AMB element: 0 for x, 1 for y.
 
         Returns
         -------
-        magnetic_force : float
-            The control force computed for the specified AMB direction.
+        float
+            Magnetic force for the selected AMB axis.
 
         Notes
         -----
-        - This function updates internal state variables of the `amb` object in-place:
-            * `integral[dof_index]`: integral error accumulator.
-            * `e0[dof_index]`: previous error value for derivative computation.
-            * `control_signal[dof_index]`: control signal history.
-            * `magnetic_force[dof_index]`: computed magnetic force history.
-        - The output force must be assigned externally to the appropriate index
-          in the global force vector of the rotor system.
+        - build_controller(dt) must be called beforehand; this method expects
+          the attributes A_c, B_c, C_c, D_c and the list
+          x_c to be initialized.
+        - The electromagnetic coefficients ki (current-to-force gain) and
+          ks (negative stiffness) must be defined in the element.
+        - This method appends the latest control signal to
+          self.control_signal[-1][dof_index]. Ensure that
+          self.control_signal has a trailing item shaped like [[], []]
+          (one list per axis) before the first call in a new time step.
 
         Examples
         --------
         >>> import ross as rs
-        >>> rotor = rs.rotor_assembly.rotor_amb_example()
-        >>> amb = rotor.bearing_elements[0]
-        >>> amb.control_signal.append([[], []])
-        >>> force = amb.compute_pid_amb(
-        ...     dt=0.001,
-        ...     current_offset=0.0,
-        ...     setpoint=0.0,
-        ...     disp=0.0002,
-        ...     dof_index=0
+        >>> import numpy as np
+        >>> mb = rs.MagneticBearingElement(
+        ...     n=0, g0=1e-3, i0=1.0, ag=1e-4, nw=200,
+        ...     kp_pid=1.0, ki_pid=5.0, kd_pid=0.01, n_f=1e4
         ... )
-        >>> round(force, 6)
-        -6.503376
+        >>> mb.build_controller(dt=1e-3)
+        >>> # start a new logging bucket for this time step (x and y)
+        >>> mb.control_signal.append([[], []])
+        >>> # compute force for x-axis given a small measured displacement
+        >>> force_x = mb.compute_pid_amb(
+        ...     current_offset=0.0, setpoint=0.0, disp=2e-4, dof_index=0
+        ... )
+        >>> isinstance(force_x, float)
+        True
+
         """
         err = setpoint - disp
-        p = self.kp_pid * err
-        self.integral[dof_index] += self.ki_pid * err * dt
-        d = self.kd_pid * (err - self.e0[dof_index]) / dt
-        signal_pid = current_offset + p + self.integral[dof_index] + d
+        u = self.C_c * self.x_c[dof_index] + self.D_c * err
+        self.x_c[dof_index] = self.A_c * self.x_c[dof_index] + self.B_c * err
+
+        signal_pid = current_offset + u
         magnetic_force = self.ki * signal_pid + self.ks * disp
-        self.e0[dof_index] = err
-        self.control_signal[-1][dof_index].append(signal_pid)
-        return magnetic_force
+
+        self.control_signal[dof_index].append(signal_pid.item())
+        return magnetic_force.item()
+
+    def get_analog_controller(self):
+        """
+        Return the continuous-time (analog) controller transfer function.
+
+        This method builds or retrieves the analog controller C(s) associated with
+        the magnetic bearing element. If a custom controller transfer function has
+        been provided, it will be returned directly. Otherwise, the method constructs
+        a PID controller with a low-pass filter applied to the derivative term,
+        expressed as:
+
+            C(s) = Kp + Ki / s + Kd * s * (1 / (1 + (1 / n_f) * s))
+
+        where:
+            - Kp is the proportional gain
+            - Ki is the integral gain
+            - Kd is the derivative gain
+            - n_f is the cutoff frequency of the derivative filter
+
+        Returns
+        -------
+        control.TransferFunction
+            Continuous-time controller transfer function C(s).
+
+        Notes
+        -----
+        - If both a custom transfer function and PID gains are defined,
+          the custom transfer function takes precedence.
+        - The Laplace variable 's' is obtained from MagneticBearingElement.s.
+        - The output of this method is used in build_controller() to generate
+          the corresponding discrete-time (sampled) version of the controller.
+
+        See Also
+        --------
+        build_controller : Discretizes the analog controller and initializes its state matrices.
+        compute_pid_amb : Uses the controller to compute active magnetic bearing control forces.
+
+        Examples
+        --------
+        >>> import control as ct
+        >>> import ross as rs
+        >>> mb = rs.MagneticBearingElement(
+        ...     n=0, g0=1e-3, i0=1.0, ag=1e-4, nw=200,
+        ...     kp_pid=1.0, ki_pid=10.0, kd_pid=0.01, n_f=1e4
+        ... )
+        >>> C_s = mb.get_analog_controller()
+        >>> isinstance(C_s, ct.TransferFunction)
+        True
+
+        >>> # Example with custom transfer function
+        >>> mb.controller_transfer_function_num = [1, 5]
+        >>> mb.controller_transfer_function_den = [1, 2, 3]
+        >>> C_custom = mb.get_analog_controller()
+        >>> C_custom.num[0][0]
+        array([1, 5])
+        """
+        if (
+            self.controller_transfer_function_num is None
+            or self.controller_transfer_function_den is None
+        ):
+            s = MagneticBearingElement.s
+            C_s = (
+                self.kp_pid
+                + self.ki_pid / s
+                + self.kd_pid * s * (1 / (1 + (1 / self.n_f) * s))
+            )
+        else:
+            C_s = ct.TransferFunction(
+                self.controller_transfer_function_num,
+                self.controller_transfer_function_den,
+            )
+
+        return C_s
+
+    def build_controller(self, dt):
+        """
+        Discretize the analog controller and initialize its state-space representation.
+
+        This method retrieves the continuous-time (analog) controller from the
+        get_analog_controller() method, discretizes it using the Tustin (bilinear)
+        transformation for the specified sampling period, converts it to a
+        state-space representation, and initializes the internal controller states
+        for the two active magnetic bearing (AMB) axes (x and y).
+
+        Parameters
+        ----------
+        dt : float
+            Sampling period in seconds used to discretize the controller.
+
+        Effects
+        --------
+        This method updates the following object attributes:
+
+        - A_c : numpy.ndarray
+          Discrete-time state matrix of the controller (shape: (n_x, n_x)).
+        - B_c : numpy.ndarray
+          Discrete-time input matrix (shape: (n_x, n_u)).
+        - C_c : numpy.ndarray
+          Discrete-time output matrix (shape: (n_y, n_x)).
+        - D_c : numpy.ndarray
+          Discrete-time feedthrough matrix (shape: (n_y, n_u)).
+        - x_c : list of numpy.matrix
+          List with two zero-initialized state vectors (one for each AMB axis), each
+          of size (n_x, 1).
+
+        Notes
+        -----
+        - The controller is discretized using control.sample_system() with the
+          method set to "tustin".
+        - The resulting discrete-time controller is represented in state-space form
+          using control.ss().
+        - This method must be called before executing any function that updates the
+          controller states, such as compute_pid_amb().
+
+        See Also
+        --------
+        get_analog_controller : Builds or returns the analog controller transfer function.
+        compute_pid_amb : Computes the control force generated by the AMB controller.
+
+        Examples
+        --------
+        >>> import ross as rs
+        >>> mb = rs.MagneticBearingElement(
+        ...     n=0, g0=1e-3, i0=1.0, ag=1e-4, nw=200,
+        ...     kp_pid=1.0, kd_pid=0.1, ki_pid=0.5, n_f=1e4
+        ... )
+        >>> mb.build_controller(dt=1e-3)
+        >>> mb.A_c.shape[0] == mb.x_c[0].shape[0]
+        True
+        """
+        C_s = self.get_analog_controller()
+        C_z = ct.sample_system(C_s, dt, method="tustin")
+        C_z_ss = ct.ss(C_z)
+        self.A_c = C_z_ss.A
+        self.B_c = C_z_ss.B
+        self.C_c = C_z_ss.C
+        self.D_c = C_z_ss.D
+
+        self.x_c = [
+            np.matrix(np.zeros((self.A_c.shape[0], 1))) for _ in range(2)
+        ]  # for x and y directions
 
 
 class CylindricalBearing(BearingElement):
