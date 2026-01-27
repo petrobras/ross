@@ -2,6 +2,8 @@ import numpy as np
 import math
 from ross.bearing_seal_element import BearingElement
 from ross.units import Q_, check_units
+from ross.bearings.lubricants import lubricants_dict
+
 
 
 class SqueezeFilmDamper(BearingElement):
@@ -28,26 +30,23 @@ class SqueezeFilmDamper(BearingElement):
     eccentricity_ratio : float
         Normal cases, utilize the eccentricity radio < 0.4, because this
         gap has better propieties. It's a dimensioneless parametre.
-    Mu : float
-        Lubricants viscosity. The unit is N*s/m².
-    Groove : boolean
+    lubricant : str or dict
+        Lubricant type. Can be:
+        - 'ISOVG32'
+        - 'ISOVG46'
+        - 'ISOVG68'
+        Or a dictionary with lubricant properties.
+    groove : boolean
         It can be true or false, depends
-    End_Seals : boolean
+    end_seals : boolean
         It can be true or false, depending on configuration of the squeeze film damper.
-    Cav : boolean
+    cav : boolean
         It can be true or false, depending on configuration of the flow type.
 
     Returns
     -------
 
-    CO = list
-        Damping coefficients. The unit is N*s/m.
-    KO = list
-        Stiffness coefficients. The unit is N/m.
-    P_max = list
-        Maximum pressure. The unit is MPa.
-    Theta = list
-        Pressure angle. The unit is radian.
+    Bearing Elements
 
     Example
     >>> import ross as rs
@@ -59,12 +58,11 @@ class SqueezeFilmDamper(BearingElement):
     ... journal_radius=Q_(2.55, "inches"),
     ... radial_clearance=Q_(0.003, "inches"),
     ... eccentricity_ratio=0.5,
-    ... MU=6894.757e-6 * 0.382,
-    ... Groove=True,
-    ... End_Seals=True,
-    ... Cav=True,
+    ... lubricant = "TEST",
+    ... groove=True,
+    ... end_seals=True,
+    ... cav=True,
     ... )
-    >>> print(SFD.format_table(damping_units="lbf*s/inches"))
 
 
     """
@@ -78,10 +76,10 @@ class SqueezeFilmDamper(BearingElement):
         journal_radius,
         radial_clearance,
         eccentricity_ratio,
-        MU,
-        Groove=True,
-        End_Seals=True,
-        Cav=True,
+        lubricant,
+        groove=True,
+        end_seals=True,
+        cav=True,
         tag=None,
         scale_factor=1.0,
     ):
@@ -90,18 +88,18 @@ class SqueezeFilmDamper(BearingElement):
         self.radial_clearance = radial_clearance
         self.eccentricity_ratio = eccentricity_ratio
         self.frequency = frequency
-        self.MU = MU
-        self.Groove = Groove
-        self.End_Seals = End_Seals
-        self.Cav = Cav
+        self.lubricant = lubricants_dict[lubricant]["liquid_viscosity1"]
+        self.groove = groove
+        self.end_seals = end_seals
+        self.cav = cav
 
-        if (not Groove) and End_Seals:
-            CO, KO, Theta, P_max = self.calculate_coeficients_with_End_Seals()
-        elif Groove and (not End_Seals):
-            CO, KO, Theta, P_max = self.calculate_coeficients_with_Groove()
-        elif Groove and End_Seals:
+        if (not groove) and end_seals:
+            CO, KO, Theta, P_max = self.calculate_coeficients_with_end_seals()
+        elif groove and (not end_seals):
+            CO, KO, Theta, P_max = self.calculate_coeficients_with_groove()
+        elif groove and end_seals:
             CO, KO, Theta, P_max = (
-                self.calculate_coeficientes_with_Groove_and_endseals()
+                self.calculate_coeficientes_with_groove_and_end_seals()
             )
 
         super().__init__(
@@ -113,13 +111,13 @@ class SqueezeFilmDamper(BearingElement):
             scale_factor=scale_factor,
         )
 
-    def calculate_coeficients_with_End_Seals(self):
+    def calculate_coeficients_with_end_seals(self):
         CO = (
             12.0
             * np.pi
             * self.axial_length
             * (self.journal_radius / self.radial_clearance) ** 3
-            * self.MU
+            * self.lubricant
         )
         CO /= (2.0 + self.eccentricity_ratio**2) * np.sqrt(
             1.0 - self.eccentricity_ratio**2
@@ -127,7 +125,7 @@ class SqueezeFilmDamper(BearingElement):
 
         KO = (
             24.0
-            * self.MU
+            * self.lubricant
             * self.axial_length
             * (self.journal_radius / self.radial_clearance) ** 3
             * self.eccentricity_ratio
@@ -151,12 +149,12 @@ class SqueezeFilmDamper(BearingElement):
             -P_max_NUM
             / P_max_DEN
             * 6.0
-            * self.MU
+            * self.lubricant
             * self.frequency
             * (self.journal_radius / self.radial_clearance) ** 2
         )
 
-        if self.Cav:
+        if self.cav:
             KO = 0.0
         else:
             CO = 2.0 * CO
@@ -164,10 +162,10 @@ class SqueezeFilmDamper(BearingElement):
 
         return CO, KO, Theta, P_max
 
-    def calculate_coeficients_with_Groove(self):
+    def calculate_coeficients_with_groove(self):
         if self.Cav:
             CO = (
-                self.MU
+                self.lubricant
                 * (self.axial_length**3)
                 * self.journal_radius
                 / (2.0 * self.radial_clearance**3)
@@ -177,7 +175,7 @@ class SqueezeFilmDamper(BearingElement):
 
             KO = (
                 2.0
-                * self.MU
+                * self.lubricant
                 * self.frequency
                 * self.journal_radius
                 * (self.axial_length / self.radial_clearance) ** 3
@@ -197,7 +195,7 @@ class SqueezeFilmDamper(BearingElement):
         P_max = (
             -1.5
             * (self.axial_length / self.radial_clearance) ** 2
-            * self.MU
+            * self.lubricant
             * self.frequency
             * self.eccentricity_ratio
             * np.sin(Theta)
@@ -205,10 +203,10 @@ class SqueezeFilmDamper(BearingElement):
         P_max /= (1.0 + self.eccentricity_ratio * np.cos(Theta)) ** 3
         P_max /= 2
 
-        if not self.Cav:
+        if not self.cav:
             KO = 0.0
             CO = (
-                self.MU
+                self.lubricant
                 * (self.axial_length / self.radial_clearance) ** 3
                 * self.journal_radius
                 * np.pi
@@ -217,10 +215,10 @@ class SqueezeFilmDamper(BearingElement):
 
         return CO, KO, Theta, P_max
 
-    def calculate_coeficientes_with_Groove_and_endseals(self):
-        if self.Cav:
+    def calculate_coeficientes_with_groove_and_end_seals(self):
+        if self.cav:
             CO = (
-                self.MU
+                self.lubricant
                 * (self.axial_length**3)
                 * self.journal_radius
                 / (2.0 * self.radial_clearance**3)
@@ -229,7 +227,7 @@ class SqueezeFilmDamper(BearingElement):
 
             KO = (
                 2.0
-                * self.MU
+                * self.lubricant
                 * self.frequency
                 * self.journal_radius
                 * (self.axial_length / self.radial_clearance) ** 3
@@ -248,17 +246,17 @@ class SqueezeFilmDamper(BearingElement):
         P_max = (
             -1.5
             * (self.axial_length / self.radial_clearance) ** 2
-            * self.MU
+            * self.lubricant
             * self.frequency
             * self.eccentricity_ratio
             * np.sin(Theta)
         )
         P_max /= (1.0 + self.eccentricity_ratio * np.cos(Theta)) ** 3
 
-        if not self.Cav:
+        if not self.cav:
             KO = 0.0
             CO = (
-                self.MU
+                self.lubricant
                 * (self.axial_length / self.radial_clearance) ** 3
                 * self.journal_radius
                 * np.pi
