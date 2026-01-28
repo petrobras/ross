@@ -2368,7 +2368,8 @@ class TiltingPad(BearingElement):
         Solve Reynolds equation for pressure field using finite difference method.
         
         This is a wrapper that calls the Numba-optimized assembly function and
-        handles the linear system solution.
+        handles the linear system solution. Uses PHASE 2 optimizations with
+        pre-computed trigonometric arrays.
 
         Parameters
         ----------
@@ -2389,8 +2390,8 @@ class TiltingPad(BearingElement):
         alpha = psi_pad[n_p]
         alphapt = 0.0
         
-        # Call Numba-compiled assembly function
-        mat_coef, b_vec, self.h = _assemble_reynolds_system_numba(
+        # Call optimized Numba function with pre-computed trig arrays (PHASE 2 - Step 2.3)
+        mat_coef, b_vec, self.h = _assemble_reynolds_system_numba_v2(
             self.nx, self.nz, 
             self.xtheta, self.xz, 
             self.dx, self.dz, self.dtheta,
@@ -2400,7 +2401,10 @@ class TiltingPad(BearingElement):
             self.pad_radius, self.journal_radius, 
             self.radial_clearance, self.pad_thickness,
             self.pad_arc, self.pad_axial_length, 
-            self.speed
+            self.speed,
+            self.sin_theta, self.cos_theta,
+            self.sin_theta_e, self.cos_theta_e,
+            self.sin_theta_w, self.cos_theta_w
         )
         
         # Solve linear system (outside Numba - uses LAPACK)
@@ -3251,30 +3255,23 @@ class TiltingPad(BearingElement):
                 / (self.radial_clearance**2)
             )
 
-        # Auxiliary matrices for integration
-        aux_f1 = np.zeros((self.nz, self.nx))
-        aux_f2 = np.zeros((self.nz, self.nx))
-        for ni in range(self.nz):
-            aux_f1[ni, :] = np.cos(self.xtheta)
-            aux_f2[ni, :] = np.sin(self.xtheta)
-
-        # Forces in pad coordinate system
-        y_teta_f1 = self.pressure * aux_f1
-        f1_teta = np.trapezoid(y_teta_f1, self.xtheta)
-        self.force_1[n_p] = -np.trapezoid(f1_teta, self.xz)
-
-        y_teta_f2 = self.pressure * aux_f2
-        f2_teta = np.trapezoid(y_teta_f2, self.xtheta)
-        self.force_2[n_p] = -np.trapezoid(f2_teta, self.xz)
-
-        # Resultant forces in inertial coordinate system
-        self.force_x[n_p] = self.force_1[n_p] * np.cos(
-            psi_pad[n_p] + self.pivot_angle[n_p]
+        # Calculate forces using optimized Numba function (PHASE 2 - Step 2.3)
+        force_1, force_2, force_x, force_y, moment_j_base = _calculate_hydrodynamic_forces_numba(
+            self.pressure,
+            self.xtheta,
+            self.xz,
+            self.nz,
+            self.nx,
+            self.pivot_angle[n_p],
+            psi_pad[n_p]
         )
-        self.force_y[n_p] = self.force_1[n_p] * np.sin(
-            psi_pad[n_p] + self.pivot_angle[n_p]
-        )
-        self.moment_j[n_p] = self.force_2[n_p] * (self.pad_radius + self.pad_thickness)
+        
+        # Store results
+        self.force_1[n_p] = force_1
+        self.force_2[n_p] = force_2
+        self.force_x[n_p] = force_x
+        self.force_y[n_p] = force_y
+        self.moment_j[n_p] = moment_j_base * (self.pad_radius + self.pad_thickness)
 
         # Dimensional forces
         self.force_x_dim[n_p] = self.force_x[n_p] * self.dimensionless_force[n_p]
@@ -4380,6 +4377,154 @@ def tilting_pad_example():
     )
 
     return bearing
+
+@njit
+def _assemble_reynolds_system_numba_v2(
+    nx, nz, xtheta, xz, dx, dz, dtheta,
+    mi, xr, yr, xrpt, yrpt, alpha, alphapt,
+    pad_radius, journal_radius, radial_clearance, pad_thickness,
+    pad_arc, pad_axial_length, speed,
+    sin_theta, cos_theta, sin_theta_e, cos_theta_e, sin_theta_w, cos_theta_w
+):
+    """
+    Assemble Reynolds equation system using Numba with pre-computed trig (PHASE 2 - Step 2.3).
+    
+    This is an optimized version that accepts pre-computed trigonometric arrays
+    to avoid redundant calculations of sin/cos functions.
+    
+    Parameters
+    ----------
+    ... (same as original)
+    sin_theta, cos_theta : ndarray
+        Pre-computed sin and cos of xtheta. Shape: (nx,).
+    sin_theta_e, cos_theta_e : ndarray
+        Pre-computed sin and cos of xtheta + 0.5*dtheta. Shape: (nx,).
+    sin_theta_w, cos_theta_w : ndarray
+        Pre-computed sin and cos of xtheta - 0.5*dtheta. Shape: (nx,).
+    
+    Returns
+    -------
+    mat_coef : ndarray
+        Coefficient matrix (n_k, n_k)
+    b_vec : ndarray
+        Right-hand side vector (n_k,)
+    h : ndarray
+        Film thickness field (nz, nx)
+    """
+    n_k = nx * nz
+    mat_coef = np.zeros((n_k, n_k))
+    b_vec = np.zeros(n_k)
+    h = np.zeros((nz, nx))
+    
+    k_idx = 0
+    
+    yr_eff = yr + alpha * (pad_radius + pad_thickness)
+    xr_eff = xr + pad_radius - journal_radius - radial_clearance
+    inv_rc_speed = 1.0 / (radial_clearance * speed)
+    pad_arc_sq = pad_arc * pad_arc
+    aspect_ratio_sq = (pad_radius / pad_axial_length) ** 2
+    
+    for ii in range(nz):
+        for jj in range(nx):
+            # Use pre-computed trigonometric functions (PHASE 2 optimization)
+            h_p = (
+                pad_radius - journal_radius - 
+                (sin_theta[jj] * yr_eff + cos_theta[jj] * xr_eff)
+            ) / radial_clearance
+            
+            h_e = (
+                pad_radius - journal_radius - 
+                (sin_theta_e[jj] * yr_eff + cos_theta_e[jj] * xr_eff)
+            ) / radial_clearance
+            
+            h_w = (
+                pad_radius - journal_radius - 
+                (sin_theta_w[jj] * yr_eff + cos_theta_w[jj] * xr_eff)
+            ) / radial_clearance
+            
+            h_n = h_p
+            h_s = h_p
+            
+            h[ii, jj] = h_p
+            
+            # Temporal derivative of thickness
+            h_pt = -inv_rc_speed * (
+                cos_theta[jj] * xrpt + 
+                sin_theta[jj] * yrpt + 
+                sin_theta[jj] * (pad_radius + pad_thickness) * alphapt
+            )
+            
+            # Face viscosities (inlined boundary conditions)
+            mi_p = mi[ii, jj]
+            
+            # East face
+            if jj < nx - 1:
+                mi_e = 0.5 * (mi_p + mi[ii, jj + 1])
+            else:
+                mi_e = mi_p
+            
+            # West face
+            if jj > 0:
+                mi_w = 0.5 * (mi_p + mi[ii, jj - 1])
+            else:
+                mi_w = mi_p
+            
+            # North face
+            if ii < nz - 1:
+                mi_n = 0.5 * (mi_p + mi[ii + 1, jj])
+            else:
+                mi_n = mi_p
+            
+            # South face
+            if ii > 0:
+                mi_s = 0.5 * (mi_p + mi[ii - 1, jj])
+            else:
+                mi_s = mi_p
+            
+            # Reynolds equation coefficients
+            c_e = (1.0 / pad_arc_sq) * (h_e**3 / (12.0 * mi_e)) * (dz / dx)
+            c_w = (1.0 / pad_arc_sq) * (h_w**3 / (12.0 * mi_w)) * (dz / dx)
+            c_n = aspect_ratio_sq * (dx / dz) * (h_n**3 / (12.0 * mi_n))
+            c_s = aspect_ratio_sq * (dx / dz) * (h_s**3 / (12.0 * mi_s))
+            c_p = -(c_e + c_w + c_n + c_s)
+            
+            # Source term
+            b_vec[k_idx] = (
+                (journal_radius / (2.0 * pad_radius * pad_arc)) * dz * (h_e - h_w) + 
+                h_pt * dx * dz
+            )
+            
+            # Fill coefficient matrix based on position
+            mat_coef[k_idx, k_idx] = c_p
+            
+            # Boundary conditions - South (axial)
+            if ii == 0:
+                mat_coef[k_idx, k_idx] -= c_s
+            else:
+                mat_coef[k_idx, k_idx - nx] = c_s
+            
+            # Boundary conditions - North (axial)
+            if ii == nz - 1:
+                mat_coef[k_idx, k_idx] -= c_n
+            else:
+                mat_coef[k_idx, k_idx + nx] = c_n
+            
+            # Boundary conditions - West (circumferential)
+            if jj == 0:
+                mat_coef[k_idx, k_idx] -= c_w
+            else:
+                mat_coef[k_idx, k_idx - 1] = c_w
+            
+            # Boundary conditions - East (circumferential)
+            if jj == nx - 1:
+                mat_coef[k_idx, k_idx] -= c_e
+            else:
+                mat_coef[k_idx, k_idx + 1] = c_e
+            
+            k_idx += 1
+    
+    return mat_coef, b_vec, h
+
 
 @njit
 def _assemble_reynolds_system_numba(
