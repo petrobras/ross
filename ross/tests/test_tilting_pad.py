@@ -57,15 +57,17 @@ def test_tilting_pad_equilibrium_pos(tilting_pad):
 
 
 def test_tilting_pad_coefficients(tilting_pad):
-    assert_allclose(tilting_pad.kxx, 1.0610558e08, rtol=0.001)
-    assert_allclose(tilting_pad.kxy, -15541286.94696261, rtol=0.001)
-    assert_allclose(tilting_pad.kyx, -15541286.94696259, rtol=0.001)
-    assert_allclose(tilting_pad.kyy, 1.32419151e08, rtol=0.001)
+    # Stiffness coefficients
+    assert_allclose(tilting_pad.kxx,  1.06151681e+08, rtol=0.001)
+    assert_allclose(tilting_pad.kxy, -1.59240211e+07, rtol=0.001)
+    assert_allclose(tilting_pad.kyx, -1.59240211e+07, rtol=0.001)
+    assert_allclose(tilting_pad.kyy,  1.32123081e+08, rtol=0.001)
 
-    assert_allclose(tilting_pad.cxx, 346412.55090644, rtol=0.001)
-    assert_allclose(tilting_pad.cxy, -42275.28969383, rtol=0.001)
-    assert_allclose(tilting_pad.cyx, -42275.28969383, rtol=0.001)
-    assert_allclose(tilting_pad.cyy, 431798.87147673, rtol=0.001)
+    # Damping coefficients
+    assert_allclose(tilting_pad.cxx,  355116.7381765,  rtol=0.001)
+    assert_allclose(tilting_pad.cxy, -43069.39477648,  rtol=0.001)
+    assert_allclose(tilting_pad.cyx, -43069.39477648,  rtol=0.001)
+    assert_allclose(tilting_pad.cyy,  439616.8694803,  rtol=0.001)
 
 
 def test_tilting_pad_forces(tilting_pad):
