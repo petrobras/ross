@@ -1896,10 +1896,16 @@ class TiltingPad(BearingElement):
 
         Temperature convergence tolerance is set to 0.1°C for field calculations.
 
+        This method has been optimized (PHASE 4A) to use the same Numba-accelerated
+        and sparse matrix solvers as the main solve_fields() method, providing
+        significant performance improvements for determine_eccentricity mode.
+
         See Also
         --------
         solve_fields : Main method for equilibrium calculation
         get_equilibrium_position : Single pad equilibrium optimization
+        _solve_reynolds_equation : Optimized Reynolds equation solver
+        _solve_energy_equation : Optimized Energy equation solver
         """
 
         # Increment iteration counter
@@ -1915,7 +1921,6 @@ class TiltingPad(BearingElement):
         for kp in range(self.n_pad):
             psi_pad[kp] = x[kp + 2]  # Tilting angles of each pad
 
-        n_k = self.nx * self.nz
         tol_T = 0.1  # Celsius degree
 
         # Reset force arrays
@@ -1924,227 +1929,26 @@ class TiltingPad(BearingElement):
         for n_p in range(self.n_pad):
             T_new = self.temperature_init[:, :, n_p]
             T_i = 1.1 * T_new
-            cont_Temp = 0
 
             while abs((T_new - T_i).max()) >= tol_T:
-                cont_Temp += 1
                 T_i = np.array(T_new)
 
-                # Calculate viscosity
+                # Calculate dimensionless viscosity
                 mi_i = self.a_a * np.exp(self.b_b * T_i)  # [Pa.s]
-                MI = mi_i / self.mu_0  # Dimensionless viscosity field
+                mi = mi_i / self.mu_0  # Dimensionless viscosity field
 
-                k = 0  # vectorization index
-                Mat_coef = np.zeros((n_k, n_k))
-                b = np.zeros(n_k)
-
-                # Transformation of coordinates - inertial to pivot referential
-                xryr, xryrpt, xr, yr, xrpt, yrpt = self._transform_coordinates(
-                    n_p, eccentricity, attitude_angle
+                # PHASE 4A: Use optimized Reynolds equation solver
+                # This uses Numba-accelerated assembly and sparse matrices (if enabled)
+                self._solve_reynolds_equation(
+                    mi, n_p, psi_pad, eccentricity, attitude_angle
                 )
 
-                alpha = psi_pad[n_p]
-                alphapt = 0
+                # Calculate pressure gradients (required for energy equation)
+                self._calculate_pressure_gradients()
 
-                for ii in range(self.nz):
-                    for jj in range(self.nx):
-                        teta_e = self.xtheta[jj] + 0.5 * self.dtheta
-                        teta_w = self.xtheta[jj] - 0.5 * self.dtheta
-
-                        h_p = (
-                            self.pad_radius
-                            - self.journal_radius
-                            - (
-                                np.sin(self.xtheta[jj])
-                                * (yr + alpha * (self.pad_radius + self.pad_thickness))
-                                + np.cos(self.xtheta[jj])
-                                * (
-                                    xr
-                                    + self.pad_radius
-                                    - self.journal_radius
-                                    - self.radial_clearance
-                                )
-                            )
-                        ) / self.radial_clearance
-
-                        h_e = (
-                            self.pad_radius
-                            - self.journal_radius
-                            - (
-                                np.sin(teta_e)
-                                * (yr + alpha * (self.pad_radius + self.pad_thickness))
-                                + np.cos(teta_e)
-                                * (
-                                    xr
-                                    + self.pad_radius
-                                    - self.journal_radius
-                                    - self.radial_clearance
-                                )
-                            )
-                        ) / self.radial_clearance
-
-                        h_w = (
-                            self.pad_radius
-                            - self.journal_radius
-                            - (
-                                np.sin(teta_w)
-                                * (yr + alpha * (self.pad_radius + self.pad_thickness))
-                                + np.cos(teta_w)
-                                * (
-                                    xr
-                                    + self.pad_radius
-                                    - self.journal_radius
-                                    - self.radial_clearance
-                                )
-                            )
-                        ) / self.radial_clearance
-
-                        h_n = h_p
-                        h_s = h_p
-
-                        h_pt = -(1 / (self.radial_clearance * self.speed)) * (
-                            np.cos(self.xtheta[jj]) * xrpt
-                            + np.sin(self.xtheta[jj]) * yrpt
-                            + np.sin(self.xtheta[jj])
-                            * (self.pad_radius + self.pad_thickness)
-                            * alphapt
-                        )
-
-                        self.h[ii, jj] = h_p
-
-                        # Viscosity at faces
-                        if jj == 0 and ii == 0:
-                            mi_e = 0.5 * (MI[ii, jj] + MI[ii, jj + 1])
-                            mi_w = MI[ii, jj]
-                            mi_n = 0.5 * (MI[ii, jj] + MI[ii + 1, jj])
-                            mi_s = MI[ii, jj]
-                        elif jj == 0 and 0 < ii < self.nz - 1:
-                            mi_e = 0.5 * (MI[ii, jj] + MI[ii, jj + 1])
-                            mi_w = MI[ii, jj]
-                            mi_n = 0.5 * (MI[ii, jj] + MI[ii + 1, jj])
-                            mi_s = 0.5 * (MI[ii, jj] + MI[ii - 1, jj])
-                        elif jj == 0 and ii == self.nz - 1:
-                            mi_e = 0.5 * (MI[ii, jj] + MI[ii, jj + 1])
-                            mi_w = MI[ii, jj]
-                            mi_n = MI[ii, jj]
-                            mi_s = 0.5 * (MI[ii, jj] + MI[ii - 1, jj])
-                        elif ii == 0 and 0 < jj < self.nx - 1:
-                            mi_e = 0.5 * (MI[ii, jj] + MI[ii, jj + 1])
-                            mi_w = 0.5 * (MI[ii, jj] + MI[ii, jj - 1])
-                            mi_n = 0.5 * (MI[ii, jj] + MI[ii + 1, jj])
-                            mi_s = MI[ii, jj]
-                        elif 0 < jj < self.nx - 1 and 0 < ii < self.nz - 1:
-                            mi_e = 0.5 * (MI[ii, jj] + MI[ii, jj + 1])
-                            mi_w = 0.5 * (MI[ii, jj] + MI[ii, jj - 1])
-                            mi_n = 0.5 * (MI[ii, jj] + MI[ii + 1, jj])
-                            mi_s = 0.5 * (MI[ii, jj] + MI[ii - 1, jj])
-                        elif ii == self.nz - 1 and 0 < jj < self.nx - 1:
-                            mi_e = 0.5 * (MI[ii, jj] + MI[ii, jj + 1])
-                            mi_w = 0.5 * (MI[ii, jj] + MI[ii, jj - 1])
-                            mi_n = MI[ii, jj]
-                            mi_s = 0.5 * (MI[ii, jj] + MI[ii - 1, jj])
-                        elif ii == 0 and jj == self.nx - 1:
-                            mi_e = MI[ii, jj]
-                            mi_w = 0.5 * (MI[ii, jj] + MI[ii, jj - 1])
-                            mi_n = 0.5 * (MI[ii, jj] + MI[ii + 1, jj])
-                            mi_s = MI[ii, jj]
-                        elif jj == self.nx - 1 and 0 < ii < self.nz - 1:
-                            mi_e = MI[ii, jj]
-                            mi_w = 0.5 * (MI[ii, jj] + MI[ii, jj - 1])
-                            mi_n = 0.5 * (MI[ii, jj] + MI[ii + 1, jj])
-                            mi_s = 0.5 * (MI[ii, jj] + MI[ii - 1, jj])
-                        else:  # jj == self.nx - 1 and ii == self.nz - 1
-                            mi_e = MI[ii, jj]
-                            mi_w = 0.5 * (MI[ii, jj] + MI[ii, jj - 1])
-                            mi_n = MI[ii, jj]
-                            mi_s = 0.5 * (MI[ii, jj] + MI[ii - 1, jj])
-
-                        c_e = (
-                            (1 / (self.pad_arc**2))
-                            * (h_e**3 / (12 * mi_e))
-                            * (self.dz / self.dx)
-                        )
-                        c_w = (
-                            (1 / (self.pad_arc**2))
-                            * (h_w**3 / (12 * mi_w))
-                            * (self.dz / self.dx)
-                        )
-                        c_n = (
-                            (self.pad_radius / self.pad_axial_length) ** 2
-                            * (self.dx / self.dz)
-                            * (h_n**3 / (12 * mi_n))
-                        )
-                        c_s = (
-                            (self.pad_radius / self.pad_axial_length) ** 2
-                            * (self.dx / self.dz)
-                            * (h_s**3 / (12 * mi_s))
-                        )
-                        c_p = -(c_e + c_w + c_n + c_s)
-                        b_val = (
-                            self.journal_radius / (2 * self.pad_radius * self.pad_arc)
-                        ) * self.dz * (h_e - h_w) + h_pt * self.dx * self.dz
-                        b[k] = b_val
-
-                        # Fill matrix coefficients
-                        if ii == 0 and jj == 0:
-                            Mat_coef[k, k] = c_p - c_s - c_w
-                            Mat_coef[k, k + 1] = c_e
-                            Mat_coef[k, k + self.nx] = c_n
-                        elif ii == 0 and 0 < jj < self.nx - 1:
-                            Mat_coef[k, k] = c_p - c_s
-                            Mat_coef[k, k + 1] = c_e
-                            Mat_coef[k, k - 1] = c_w
-                            Mat_coef[k, k + self.nx] = c_n
-                        elif ii == 0 and jj == self.nx - 1:
-                            Mat_coef[k, k] = c_p - c_e - c_s
-                            Mat_coef[k, k - 1] = c_w
-                            Mat_coef[k, k + self.nx] = c_n
-                        elif jj == 0 and 0 < ii < self.nz - 1:
-                            Mat_coef[k, k] = c_p - c_w
-                            Mat_coef[k, k + 1] = c_e
-                            Mat_coef[k, k - self.nx] = c_s
-                            Mat_coef[k, k + self.nx] = c_n
-                        elif 0 < ii < self.nz - 1 and 0 < jj < self.nx - 1:
-                            Mat_coef[k, k] = c_p
-                            Mat_coef[k, k - 1] = c_w
-                            Mat_coef[k, k - self.nx] = c_s
-                            Mat_coef[k, k + self.nx] = c_n
-                            Mat_coef[k, k + 1] = c_e
-                        elif jj == self.nx - 1 and 0 < ii < self.nz - 1:
-                            Mat_coef[k, k] = c_p - c_e
-                            Mat_coef[k, k - 1] = c_w
-                            Mat_coef[k, k - self.nx] = c_s
-                            Mat_coef[k, k + self.nx] = c_n
-                        elif jj == 0 and ii == self.nz - 1:
-                            Mat_coef[k, k] = c_p - c_n - c_w
-                            Mat_coef[k, k + 1] = c_e
-                            Mat_coef[k, k - self.nx] = c_s
-                        elif ii == self.nz - 1 and 0 < jj < self.nx - 1:
-                            Mat_coef[k, k] = c_p - c_n
-                            Mat_coef[k, k + 1] = c_e
-                            Mat_coef[k, k - 1] = c_w
-                            Mat_coef[k, k - self.nx] = c_s
-                        else:  # ii == self.nz - 1 and jj == self.nx - 1
-                            Mat_coef[k, k] = c_p - c_e - c_n
-                            Mat_coef[k, k - 1] = c_w
-                            Mat_coef[k, k - self.nx] = c_s
-
-                        k += 1
-
-                # Solve pressure field
-                Mat_coef = self._check_diagonal(Mat_coef)
-                p_vec = np.linalg.solve(Mat_coef, b)
-
-                cont = 0
-                for i_lin in range(self.nz):
-                    for j_col in np.arange(self.nx):
-                        self.pressure[i_lin, j_col] = p_vec[cont]
-                        cont += 1
-                        if self.pressure[i_lin, j_col] < 0:
-                            self.pressure[i_lin, j_col] = 0
-
-                # Calculate temperature field using energy equation
-                T_new = self._solve_energy_equation(MI, n_p, is_equilibrium=True)
+                # PHASE 4A: Use optimized Energy equation solver
+                # This uses Numba-accelerated assembly and sparse matrices (if enabled)
+                T_new = self._solve_energy_equation(mi, n_p, is_equilibrium=True)
 
             # Calculate hydrodynamic forces and moments
             self._calculate_hydrodynamic_forces(n_p, psi_pad, is_equilibrium=True)
@@ -2371,7 +2175,7 @@ class TiltingPad(BearingElement):
     #     p_vec = np.linalg.solve(mat_coef, b_vec)
     #     self._update_pressure_field(p_vec)
 
-    def _solve_reynolds_equation(self, mi, n_p, psi_pad):
+    def _solve_reynolds_equation(self, mi, n_p, psi_pad, eccentricity=None, attitude_angle=None):
         """
         Solve Reynolds equation for pressure field using finite difference method.
         
@@ -2387,14 +2191,20 @@ class TiltingPad(BearingElement):
             Pad index for the current analysis.
         psi_pad : ndarray
             Pad rotation angles [rad]. Shape: (n_pad,).
+        eccentricity : float, optional
+            Eccentricity ratio for equilibrium calculation. If None, uses self.eccentricity.
+        attitude_angle : float, optional
+            Attitude angle [rad] for equilibrium calculation. If None, uses self.attitude_angle.
 
         Returns
         -------
         None
             Results are stored in self.pressure and self.h fields.
         """
-        # Transform coordinates
-        xryr, xryrpt, xr, yr, xrpt, yrpt = self._transform_coordinates(n_p)
+        # Transform coordinates (pass eccentricity/attitude_angle if provided)
+        xryr, xryrpt, xr, yr, xrpt, yrpt = self._transform_coordinates(
+            n_p, eccentricity, attitude_angle
+        )
         alpha = psi_pad[n_p]
         alphapt = 0.0
         
