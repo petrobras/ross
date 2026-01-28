@@ -17,7 +17,7 @@ def squeeze_film_damper():
     lubricant = "ISOVG32",
     groove=True,
     end_seals=True,
-    cav=True,
+    cavitation=True,
 )
 
     return bearing
