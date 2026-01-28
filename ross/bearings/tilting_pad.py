@@ -1,5 +1,6 @@
 import time
 import numpy as np
+from numba import njit
 from scipy.optimize import fmin, minimize
 from plotly import graph_objects as go
 from plotly.subplots import make_subplots
@@ -2383,9 +2384,78 @@ class TiltingPad(BearingElement):
         mi = mi_i / self.mu_0
         return mi
 
+    # def _solve_reynolds_equation(self, mi, n_p, psi_pad):
+    #     """
+    #     Solve Reynolds equation for pressure field using finite difference method.
+
+    #     Parameters
+    #     ----------
+    #     mi : ndarray
+    #         Dimensionless viscosity field. Shape: (nz, nx).
+    #     n_p : int
+    #         Pad index for the current analysis.
+    #     psi_pad : ndarray
+    #         Pad rotation angles [rad]. Shape: (n_pad,).
+
+    #     Returns
+    #     -------
+    #     None
+    #         Results are stored in self.pressure field.
+    #     """
+    #     n_k = self.nx * self.nz
+    #     mat_coef = np.zeros((n_k, n_k))
+    #     b_vec = np.zeros(n_k)
+
+    #     # Transformation of coordinates (inertial -> pivot)
+    #     xryr, xryrpt, xr, yr, xrpt, yrpt = self._transform_coordinates(n_p)
+    #     alpha = psi_pad[n_p]
+    #     alphapt = 0
+
+    #     # Vectorization index
+    #     k_idx = 0
+
+    #     for ii in range(self.nz):
+    #         for jj in range(self.nx):
+    #             # Film thicknesses
+    #             h_p, h_e, h_w, h_n, h_s = self._calculate_film_thicknesses(
+    #                 ii, jj, xr, yr, alpha, n_p
+    #             )
+
+    #             # Temporal derivative of thickness
+    #             h_pt = self._calculate_h_pt(ii, jj, xrpt, yrpt, alphapt, n_p)
+
+    #             self.h[ii, jj] = h_p
+
+    #             # Viscosities at faces (boundary conditions)
+    #             mi_e, mi_w, mi_n, mi_s = self._calculate_face_viscosities(mi, ii, jj)
+
+    #             # Reynolds equation coefficients (main terms)
+    #             c_e, c_w, c_n, c_s, c_p = self._calculate_reynolds_coefficients(
+    #                 h_e, h_w, h_n, h_s, mi_e, mi_w, mi_n, mi_s
+    #             )
+
+    #             # Source term (right hand side)
+    #             b_val = self._calculate_reynolds_source_term(h_e, h_w, h_pt, ii, jj)
+    #             b_vec[k_idx] = b_val
+
+    #             # Fill coefficients matrix (left hand side)
+    #             self._fill_reynolds_matrix(
+    #                 mat_coef, k_idx, ii, jj, c_e, c_w, c_n, c_s, c_p
+    #             )
+
+    #             k_idx += 1
+
+    #     # Solution of pressure field
+    #     mat_coef = self._check_diagonal(mat_coef)
+    #     p_vec = np.linalg.solve(mat_coef, b_vec)
+    #     self._update_pressure_field(p_vec)
+
     def _solve_reynolds_equation(self, mi, n_p, psi_pad):
         """
         Solve Reynolds equation for pressure field using finite difference method.
+        
+        This is a wrapper that calls the Numba-optimized assembly function and
+        handles the linear system solution.
 
         Parameters
         ----------
@@ -2399,54 +2469,32 @@ class TiltingPad(BearingElement):
         Returns
         -------
         None
-            Results are stored in self.pressure field.
+            Results are stored in self.pressure and self.h fields.
         """
-        n_k = self.nx * self.nz
-        mat_coef = np.zeros((n_k, n_k))
-        b_vec = np.zeros(n_k)
-
-        # Transformation of coordinates (inertial -> pivot)
+        # Transform coordinates
         xryr, xryrpt, xr, yr, xrpt, yrpt = self._transform_coordinates(n_p)
         alpha = psi_pad[n_p]
-        alphapt = 0
-
-        # Vectorization index
-        k_idx = 0
-
-        for ii in range(self.nz):
-            for jj in range(self.nx):
-                # Film thicknesses
-                h_p, h_e, h_w, h_n, h_s = self._calculate_film_thicknesses(
-                    ii, jj, xr, yr, alpha, n_p
-                )
-
-                # Temporal derivative of thickness
-                h_pt = self._calculate_h_pt(ii, jj, xrpt, yrpt, alphapt, n_p)
-
-                self.h[ii, jj] = h_p
-
-                # Viscosities at faces (boundary conditions)
-                mi_e, mi_w, mi_n, mi_s = self._calculate_face_viscosities(mi, ii, jj)
-
-                # Reynolds equation coefficients (main terms)
-                c_e, c_w, c_n, c_s, c_p = self._calculate_reynolds_coefficients(
-                    h_e, h_w, h_n, h_s, mi_e, mi_w, mi_n, mi_s
-                )
-
-                # Source term (right hand side)
-                b_val = self._calculate_reynolds_source_term(h_e, h_w, h_pt, ii, jj)
-                b_vec[k_idx] = b_val
-
-                # Fill coefficients matrix (left hand side)
-                self._fill_reynolds_matrix(
-                    mat_coef, k_idx, ii, jj, c_e, c_w, c_n, c_s, c_p
-                )
-
-                k_idx += 1
-
-        # Solution of pressure field
+        alphapt = 0.0
+        
+        # Call Numba-compiled assembly function
+        mat_coef, b_vec, self.h = _assemble_reynolds_system_numba(
+            self.nx, self.nz, 
+            self.xtheta, self.xz, 
+            self.dx, self.dz, self.dtheta,
+            mi, 
+            xr, yr, xrpt, yrpt, 
+            alpha, alphapt,
+            self.pad_radius, self.journal_radius, 
+            self.radial_clearance, self.pad_thickness,
+            self.pad_arc, self.pad_axial_length, 
+            self.speed
+        )
+        
+        # Solve linear system (outside Numba - uses LAPACK)
         mat_coef = self._check_diagonal(mat_coef)
         p_vec = np.linalg.solve(mat_coef, b_vec)
+        
+        # Update pressure field with non-negative constraint
         self._update_pressure_field(p_vec)
 
     def _calculate_film_thicknesses(self, ii, jj, xr, yr, alpha, n_p):
@@ -2740,94 +2788,124 @@ class TiltingPad(BearingElement):
                 if self.pressure[i_lin, j_col] < 0:
                     self.pressure[i_lin, j_col] = 0
 
+    # def _calculate_pressure_gradients(self):
+    #     """
+    #     Calculate pressure gradients using finite differences.
+
+    #     Returns
+    #     -------
+    #     None
+    #         Pressure gradients are stored in self.dp_dx and self.dp_dz.
+    #     """
+    #     for ii in range(self.nz):
+    #         for jj in range(self.nx):
+    #             # Gradient in X direction
+    #             if jj == 0:
+    #                 self.dp_dx[ii, jj] = (
+    #                     self.pressure[ii, jj + 1] - self.pressure[ii, jj]
+    #                 ) / self.dx
+    #             elif jj == self.nx - 1:
+    #                 self.dp_dx[ii, jj] = (0 - self.pressure[ii, jj]) / self.dx
+    #             else:
+    #                 self.dp_dx[ii, jj] = (
+    #                     self.pressure[ii, jj + 1] - self.pressure[ii, jj]
+    #                 ) / self.dx
+
+    #             # Gradient in Z direction
+    #             if ii == 0:
+    #                 self.dp_dz[ii, jj] = (
+    #                     self.pressure[ii + 1, jj] - self.pressure[ii, jj]
+    #                 ) / self.dz
+    #             elif ii == self.nz - 1:
+    #                 self.dp_dz[ii, jj] = (0 - self.pressure[ii, jj]) / self.dz
+    #             else:
+    #                 self.dp_dz[ii, jj] = (
+    #                     self.pressure[ii + 1, jj] - self.pressure[ii, jj]
+    #                 ) / self.dz
+
     def _calculate_pressure_gradients(self):
-        """
-        Calculate pressure gradients using finite differences.
+        """Calculate pressure gradients using finite differences."""
+        self.dp_dx, self.dp_dz = _calculate_pressure_gradients_numba(
+            self.pressure, self.nx, self.nz, self.dx, self.dz
+        )
+        # print("I'm here after the pressure gradients")
 
-        Returns
-        -------
-        None
-            Pressure gradients are stored in self.dp_dx and self.dp_dz.
-        """
-        for ii in range(self.nz):
-            for jj in range(self.nx):
-                # Gradient in X direction
-                if jj == 0:
-                    self.dp_dx[ii, jj] = (
-                        self.pressure[ii, jj + 1] - self.pressure[ii, jj]
-                    ) / self.dx
-                elif jj == self.nx - 1:
-                    self.dp_dx[ii, jj] = (0 - self.pressure[ii, jj]) / self.dx
-                else:
-                    self.dp_dx[ii, jj] = (
-                        self.pressure[ii, jj + 1] - self.pressure[ii, jj]
-                    ) / self.dx
+    # def _solve_energy_equation(self, mi, n_p, is_equilibrium=False):
+    #     """
+    #     Solve energy equation for temperature field using finite difference method.
 
-                # Gradient in Z direction
-                if ii == 0:
-                    self.dp_dz[ii, jj] = (
-                        self.pressure[ii + 1, jj] - self.pressure[ii, jj]
-                    ) / self.dz
-                elif ii == self.nz - 1:
-                    self.dp_dz[ii, jj] = (0 - self.pressure[ii, jj]) / self.dz
-                else:
-                    self.dp_dz[ii, jj] = (
-                        self.pressure[ii + 1, jj] - self.pressure[ii, jj]
-                    ) / self.dz
+    #     Parameters
+    #     ----------
+    #     mi : ndarray
+    #         Dimensionless viscosity field. Shape: (nz, nx).
+    #     n_p : int
+    #         Pad index for the current analysis.
+    #     is_equilibrium : bool, optional
+    #         Whether this is called during equilibrium optimization. Default is False.
 
+    #     Returns
+    #     -------
+    #     ndarray
+    #         Temperature field [°C]. Shape: (nz, nx).
+    #     """
+    #     n_k = self.nx * self.nz
+    #     mat_coef_t = np.zeros((n_k, n_k))
+    #     b_t = np.zeros(n_k)
+
+    #     k_t_idx = 0
+    #     for ii in range(self.nz):
+    #         for jj in range(self.nx):
+    #             # Turbulence and turbulent viscosity
+    #             mi_t = self._calculate_turbulent_viscosity(
+    #                 mi, ii, jj, n_p, is_equilibrium
+    #             )
+
+    #             # Energy equation coefficients
+    #             a_e, a_w, a_n, a_s, a_p_coef = self._calculate_energy_coefficients(
+    #                 ii, jj, mi_t
+    #             )
+
+    #             # Energy equation source term (right hand side)
+    #             b_t_val = self._calculate_energy_source_term(ii, jj, mi_t, n_p)
+    #             b_t[k_t_idx] = b_t_val
+
+    #             # Fill coefficients matrix of energy equation (left hand side)
+    #             self._fill_energy_matrix(
+    #                 mat_coef_t, b_t, k_t_idx, ii, jj, a_e, a_w, a_n, a_s, a_p_coef
+    #             )
+
+    #             k_t_idx += 1
+
+    #     # Solution of temperature field
+    #     mat_coef_t = self._check_diagonal(mat_coef_t)
+    #     t_vec = np.linalg.solve(mat_coef_t, b_t)
+    #     temperature_referance = self._update_temperature_field(t_vec)
+
+    #     return temperature_referance
     def _solve_energy_equation(self, mi, n_p, is_equilibrium=False):
-        """
-        Solve energy equation for temperature field using finite difference method.
-
-        Parameters
-        ----------
-        mi : ndarray
-            Dimensionless viscosity field. Shape: (nz, nx).
-        n_p : int
-            Pad index for the current analysis.
-        is_equilibrium : bool, optional
-            Whether this is called during equilibrium optimization. Default is False.
-
-        Returns
-        -------
-        ndarray
-            Temperature field [°C]. Shape: (nz, nx).
-        """
-        n_k = self.nx * self.nz
-        mat_coef_t = np.zeros((n_k, n_k))
-        b_t = np.zeros(n_k)
-
-        k_t_idx = 0
-        for ii in range(self.nz):
-            for jj in range(self.nx):
-                # Turbulence and turbulent viscosity
-                mi_t = self._calculate_turbulent_viscosity(
-                    mi, ii, jj, n_p, is_equilibrium
-                )
-
-                # Energy equation coefficients
-                a_e, a_w, a_n, a_s, a_p_coef = self._calculate_energy_coefficients(
-                    ii, jj, mi_t
-                )
-
-                # Energy equation source term (right hand side)
-                b_t_val = self._calculate_energy_source_term(ii, jj, mi_t, n_p)
-                b_t[k_t_idx] = b_t_val
-
-                # Fill coefficients matrix of energy equation (left hand side)
-                self._fill_energy_matrix(
-                    mat_coef_t, b_t, k_t_idx, ii, jj, a_e, a_w, a_n, a_s, a_p_coef
-                )
-
-                k_t_idx += 1
-
-        # Solution of temperature field
+        """Solve energy equation for temperature field."""
+        mat_coef_t, b_t, mu_turb_updated, reynolds_field = _assemble_energy_system_numba(
+            self.nx, self.nz, self.xtheta, self.xz,
+            self.dx, self.dz,
+            self.h, self.pressure, self.dp_dx, self.dp_dz,
+            mi, self.mu_turb[:, :, n_p],
+            self.speed, self.mu_0, self.rho, self.cp, self.kt,
+            self.oil_supply_temperature, self.reference_temperature,
+            self.radial_clearance, self.journal_radius,
+            self.pad_radius, self.pad_arc, self.pad_axial_length,
+            self.pad_thickness
+        )
+        
+        if not is_equilibrium:
+            self.mu_turb[:, :, n_p] = mu_turb_updated
+            self.reynolds_field[:, :, n_p] = reynolds_field
+        
+        # Solve linear system
         mat_coef_t = self._check_diagonal(mat_coef_t)
         t_vec = np.linalg.solve(mat_coef_t, b_t)
         temperature_referance = self._update_temperature_field(t_vec)
-
+        
         return temperature_referance
-
     def _calculate_turbulent_viscosity(self, mi, ii, jj, n_p, is_equilibrium=False):
         """
         Calculate turbulent viscosity using van Driest turbulence model.
@@ -4325,3 +4403,428 @@ def tilting_pad_example():
     )
 
     return bearing
+
+@njit
+def _assemble_reynolds_system_numba(
+    nx, nz, xtheta, xz, dx, dz, dtheta,
+    mi, xr, yr, xrpt, yrpt, alpha, alphapt,
+    pad_radius, journal_radius, radial_clearance, pad_thickness,
+    pad_arc, pad_axial_length, speed
+):
+    """
+    Assemble complete Reynolds equation system using Numba JIT compilation.
+    
+    This function constructs the coefficient matrix and right-hand side vector
+    for the Reynolds equation using finite difference method.
+    
+    Parameters
+    ----------
+    nx, nz : int
+        Number of grid points in circumferential and axial directions
+    xtheta : ndarray
+        Circumferential coordinate array (nx,)
+    xz : ndarray
+        Axial coordinate array (nz,)
+    dx, dz, dtheta : float
+        Grid spacings
+    mi : ndarray
+        Dimensionless viscosity field (nz, nx)
+    xr, yr : float
+        Journal position in pad coordinates [m]
+    xrpt, yrpt : float
+        Journal velocity in pad coordinates [m/s]
+    alpha : float
+        Pad rotation angle [rad]
+    alphapt : float
+        Pad angular velocity [rad/s]
+    pad_radius, journal_radius, radial_clearance, pad_thickness : float
+        Geometric parameters [m]
+    pad_arc, pad_axial_length : float
+        Pad dimensions [rad], [m]
+    speed : float
+        Operating speed [rad/s]
+    
+    Returns
+    -------
+    mat_coef : ndarray
+        Coefficient matrix (n_k, n_k)
+    b_vec : ndarray
+        Right-hand side vector (n_k,)
+    h : ndarray
+        Film thickness field (nz, nx)
+    """
+    n_k = nx * nz
+    mat_coef = np.zeros((n_k, n_k))
+    b_vec = np.zeros(n_k)
+    h = np.zeros((nz, nx))
+    
+    k_idx = 0
+
+    # print("I'm here before the loops")
+    
+    for ii in range(nz):
+        for jj in range(nx):
+            theta_center = xtheta[jj]
+            theta_e = theta_center + 0.5 * dtheta
+            theta_w = theta_center - 0.5 * dtheta
+            
+            # Film thickness calculations (inlined for performance)
+            sin_center = np.sin(theta_center)
+            cos_center = np.cos(theta_center)
+            sin_e = np.sin(theta_e)
+            cos_e = np.cos(theta_e)
+            sin_w = np.sin(theta_w)
+            cos_w = np.cos(theta_w)
+            
+            yr_eff = yr + alpha * (pad_radius + pad_thickness)
+            xr_eff = xr + pad_radius - journal_radius - radial_clearance
+            
+            h_p = (
+                pad_radius - journal_radius - 
+                (sin_center * yr_eff + cos_center * xr_eff)
+            ) / radial_clearance
+            
+            h_e = (
+                pad_radius - journal_radius - 
+                (sin_e * yr_eff + cos_e * xr_eff)
+            ) / radial_clearance
+            
+            h_w = (
+                pad_radius - journal_radius - 
+                (sin_w * yr_eff + cos_w * xr_eff)
+            ) / radial_clearance
+            
+            h_n = h_p
+            h_s = h_p
+            
+            h[ii, jj] = h_p
+            
+            # Temporal derivative of thickness
+            h_pt = -(1.0 / (radial_clearance * speed)) * (
+                cos_center * xrpt + 
+                sin_center * yrpt + 
+                sin_center * (pad_radius + pad_thickness) * alphapt
+            )
+            
+            # Face viscosities (inlined boundary conditions)
+            mi_p = mi[ii, jj]
+            
+            # East face
+            if jj < nx - 1:
+                mi_e = 0.5 * (mi_p + mi[ii, jj + 1])
+            else:
+                mi_e = mi_p
+            
+            # West face
+            if jj > 0:
+                mi_w = 0.5 * (mi_p + mi[ii, jj - 1])
+            else:
+                mi_w = mi_p
+            
+            # North face
+            if ii < nz - 1:
+                mi_n = 0.5 * (mi_p + mi[ii + 1, jj])
+            else:
+                mi_n = mi_p
+            
+            # South face
+            if ii > 0:
+                mi_s = 0.5 * (mi_p + mi[ii - 1, jj])
+            else:
+                mi_s = mi_p
+            
+            # Reynolds equation coefficients
+            pad_arc_sq = pad_arc * pad_arc
+            aspect_ratio_sq = (pad_radius / pad_axial_length) ** 2
+            
+            c_e = (1.0 / pad_arc_sq) * (h_e**3 / (12.0 * mi_e)) * (dz / dx)
+            c_w = (1.0 / pad_arc_sq) * (h_w**3 / (12.0 * mi_w)) * (dz / dx)
+            c_n = aspect_ratio_sq * (dx / dz) * (h_n**3 / (12.0 * mi_n))
+            c_s = aspect_ratio_sq * (dx / dz) * (h_s**3 / (12.0 * mi_s))
+            c_p = -(c_e + c_w + c_n + c_s)
+            
+            # Source term
+            b_vec[k_idx] = (
+                (journal_radius / (2.0 * pad_radius * pad_arc)) * dz * (h_e - h_w) + 
+                h_pt * dx * dz
+            )
+            
+            # Fill coefficient matrix based on position
+            mat_coef[k_idx, k_idx] = c_p
+            
+            # Boundary conditions - South (axial)
+            if ii == 0:
+                mat_coef[k_idx, k_idx] -= c_s
+            else:
+                mat_coef[k_idx, k_idx - nx] = c_s
+            
+            # Boundary conditions - North (axial)
+            if ii == nz - 1:
+                mat_coef[k_idx, k_idx] -= c_n
+            else:
+                mat_coef[k_idx, k_idx + nx] = c_n
+            
+            # Boundary conditions - West (circumferential)
+            if jj == 0:
+                mat_coef[k_idx, k_idx] -= c_w
+            else:
+                mat_coef[k_idx, k_idx - 1] = c_w
+            
+            # Boundary conditions - East (circumferential)
+            if jj == nx - 1:
+                mat_coef[k_idx, k_idx] -= c_e
+            else:
+                mat_coef[k_idx, k_idx + 1] = c_e
+            
+            k_idx += 1
+    
+    return mat_coef, b_vec, h
+
+@njit
+def _calculate_pressure_gradients_numba(pressure, nx, nz, dx, dz):
+    """
+    Calculate pressure gradients using finite differences with Numba.
+    
+    Parameters
+    ----------
+    pressure : ndarray
+        Pressure field (nz, nx)
+    nx, nz : int
+        Grid dimensions
+    dx, dz : float
+        Grid spacings
+    
+    Returns
+    -------
+    dp_dx, dp_dz : ndarray
+        Pressure gradients (nz, nx)
+    """
+    dp_dx = np.zeros((nz, nx))
+    dp_dz = np.zeros((nz, nx))
+    
+    for ii in range(nz):
+        for jj in range(nx):
+            # Gradient in X direction
+            if jj == 0:
+                dp_dx[ii, jj] = (pressure[ii, jj + 1] - pressure[ii, jj]) / dx
+            elif jj == nx - 1:
+                dp_dx[ii, jj] = (0.0 - pressure[ii, jj]) / dx
+            else:
+                dp_dx[ii, jj] = (pressure[ii, jj + 1] - pressure[ii, jj]) / dx
+            
+            # Gradient in Z direction
+            if ii == 0:
+                dp_dz[ii, jj] = (pressure[ii + 1, jj] - pressure[ii, jj]) / dz
+            elif ii == nz - 1:
+                dp_dz[ii, jj] = (0.0 - pressure[ii, jj]) / dz
+            else:
+                dp_dz[ii, jj] = (pressure[ii + 1, jj] - pressure[ii, jj]) / dz
+    
+    return dp_dx, dp_dz
+
+@njit
+def _assemble_energy_system_numba(
+    nx, nz, xtheta, xz, dx, dz,
+    h, pressure, dp_dx, dp_dz, mi, mu_turb_field,
+    speed, mu_0, rho, cp, kt, oil_supply_temperature,
+    reference_temperature, radial_clearance, journal_radius,
+    pad_radius, pad_arc, pad_axial_length, pad_thickness
+):
+    """
+    Assemble complete energy equation system using Numba JIT compilation.
+    
+    Parameters
+    ----------
+    nx, nz : int
+        Grid dimensions
+    h : ndarray
+        Film thickness field (nz, nx)
+    pressure : ndarray
+        Pressure field (nz, nx)
+    dp_dx, dp_dz : ndarray
+        Pressure gradients (nz, nx)
+    mi : ndarray
+        Dimensionless viscosity field (nz, nx)
+    mu_turb_field : ndarray
+        Turbulent viscosity field (nz, nx) - will be updated
+    ... other parameters
+    
+    Returns
+    -------
+    mat_coef_t : ndarray
+        Coefficient matrix (n_k, n_k)
+    b_t : ndarray
+        Right-hand side vector (n_k,)
+    mu_turb_updated : ndarray
+        Updated turbulent viscosity field (nz, nx)
+    reynolds_field : ndarray
+        Reynolds number field (nz, nx)
+    """
+    n_k = nx * nz
+    mat_coef_t = np.zeros((n_k, n_k))
+    b_t = np.zeros(n_k)
+    mu_turb_updated = np.zeros((nz, nx))
+    reynolds_field = np.zeros((nz, nx))
+    
+    k_t_idx = 0
+    
+    for ii in range(nz):
+        for jj in range(nx):
+            h_p_loc = h[ii, jj]
+            mi_p = mi[ii, jj]
+            
+            # Calculate turbulent viscosity
+            mi_t, reynolds_local = _calculate_turbulent_viscosity_numba(
+                h_p_loc, mi_p, dp_dx[ii, jj], dp_dz[ii, jj],
+                speed, rho, mu_0, radial_clearance,
+                journal_radius, pad_axial_length
+            )
+            
+            mu_turb_updated[ii, jj] = mi_t
+            reynolds_field[ii, jj] = reynolds_local
+            
+            # Auxiliary factor for flow direction
+            aux_up = 1.0 if xz[ii] >= 0.0 else 0.0
+            
+            # Energy equation coefficients
+            a_e = -(kt * h_p_loc * dz) / (
+                rho * cp * speed * ((pad_arc * pad_radius) ** 2) * dx
+            )
+            
+            a_w = (
+                ((h_p_loc**3) * dp_dx[ii, jj] * dz) / (12.0 * mi_t * (pad_arc**2))
+                - ((journal_radius * h_p_loc * dz) / (2.0 * pad_radius * pad_arc))
+                - (kt * h_p_loc * dz) / (
+                    rho * cp * speed * ((pad_arc * pad_radius) ** 2) * dx
+                )
+            )
+            
+            # North and south coefficients (upwind scheme)
+            a_n_1 = (aux_up - 1.0) * (
+                ((pad_radius**2) * (h_p_loc**3) * dp_dz[ii, jj] * dx)
+                / (12.0 * (pad_axial_length**2) * mi_t)
+            )
+            a_s_1 = (aux_up) * (
+                ((pad_radius**2) * (h_p_loc**3) * dp_dz[ii, jj] * dx)
+                / (12.0 * (pad_axial_length**2) * mi_t)
+            )
+            
+            a_n_2 = -(kt * h_p_loc * dx) / (
+                rho * cp * speed * (pad_axial_length**2) * dz
+            )
+            a_s_2 = -(kt * h_p_loc * dx) / (
+                rho * cp * speed * (pad_axial_length**2) * dz
+            )
+            
+            a_n = a_n_1 + a_n_2
+            a_s = a_s_1 + a_s_2
+            a_p_coef = -(a_e + a_w + a_n + a_s)
+            
+            # Source terms
+            h_pt = 0.0  # Static analysis (no time derivative)
+            
+            aux_b_t = (speed * mu_0) / (rho * cp * oil_supply_temperature * radial_clearance)
+            
+            b_t_g = (
+                mu_0 * speed * (journal_radius**2) * dx * dz * pressure[ii, jj] * h_pt
+            ) / (rho * cp * reference_temperature * (radial_clearance**2))
+            
+            b_t_h = (
+                speed * mu_0 * (h_pt**2) * 4.0 * mi_t * dx * dz
+            ) / (rho * cp * reference_temperature * 3.0 * h_p_loc)
+            
+            b_t_i = (
+                aux_b_t * (mi_t * (journal_radius**2) * dx * dz)
+                / (h_p_loc * radial_clearance)
+            )
+            
+            b_t_j = (
+                aux_b_t * (
+                    (pad_radius**2) * (h_p_loc**3) * (dp_dx[ii, jj] ** 2) * dx * dz
+                ) / (12.0 * radial_clearance * (pad_arc**2) * mi_t)
+            )
+            
+            b_t_k = (
+                aux_b_t * (
+                    (pad_radius**4) * (h_p_loc**3) * (dp_dz[ii, jj] ** 2) * dx * dz
+                ) / (12.0 * radial_clearance * (pad_axial_length**2) * mi_t)
+            )
+            
+            b_t_val = b_t_g + b_t_h + b_t_i + b_t_j + b_t_k
+            b_t[k_t_idx] = b_t_val
+            
+            # Fill matrix coefficients based on position
+            mat_coef_t[k_t_idx, k_t_idx] = a_p_coef
+            
+            # Boundary conditions
+            if ii == 0:
+                mat_coef_t[k_t_idx, k_t_idx] += a_s
+            else:
+                mat_coef_t[k_t_idx, k_t_idx - nx] = a_s
+            
+            if ii == nz - 1:
+                mat_coef_t[k_t_idx, k_t_idx] += a_n
+            else:
+                mat_coef_t[k_t_idx, k_t_idx + nx] = a_n
+            
+            if jj == 0:
+                mat_coef_t[k_t_idx, k_t_idx] -= a_w
+                b_t[k_t_idx] -= 2.0 * a_w * (oil_supply_temperature / reference_temperature)
+            else:
+                mat_coef_t[k_t_idx, k_t_idx - 1] = a_w
+            
+            if jj == nx - 1:
+                mat_coef_t[k_t_idx, k_t_idx] += a_e
+            else:
+                mat_coef_t[k_t_idx, k_t_idx + 1] = a_e
+            
+            k_t_idx += 1
+    
+    return mat_coef_t, b_t, mu_turb_updated, reynolds_field
+
+@njit
+def _calculate_turbulent_viscosity_numba(
+    h_p_loc, mi_p, dp_dx, dp_dz, speed, rho, mu_0,
+    radial_clearance, journal_radius, pad_axial_length
+):
+    """
+    Calculate turbulent viscosity using van Driest model with Numba.
+    
+    Returns
+    -------
+    mi_t : float
+        Turbulent viscosity
+    reynolds_local : float
+        Local Reynolds number
+    """
+    # Local Reynolds number
+    reynolds_local = (
+        rho * speed * journal_radius
+        * (h_p_loc / pad_axial_length)
+        * radial_clearance
+        / (mu_0 * mi_p)
+    )
+    
+    # Transition factor for turbulence
+    if reynolds_local <= 500.0:
+        delta_turb = 0.0
+    elif reynolds_local <= 1000.0:
+        delta_turb = 1.0 - ((1000.0 - reynolds_local) / 500.0) ** (1.0 / 8.0)
+    else:
+        delta_turb = 1.0
+    
+    # Calculate velocity derivatives
+    du_dx = ((h_p_loc / mi_p) * dp_dx) - (speed / h_p_loc)
+    dw_dx = (h_p_loc / mi_p) * dp_dz
+    tau = mi_p * np.sqrt(du_dx**2 + dw_dx**2)
+    
+    # Dimensionless distance from wall
+    y_wall = (
+        (h_p_loc * radial_clearance * 2.0) / (mu_0 * mi_p / rho)
+    ) * ((abs(tau) / rho) ** 0.5)
+    
+    # Turbulent viscosity (van Driest model)
+    emv = 0.4 * (y_wall - (10.7 * np.tanh(y_wall / 10.7)))
+    mi_t = mi_p * (1.0 + (delta_turb * emv))
+    
+    return mi_t, reynolds_local
