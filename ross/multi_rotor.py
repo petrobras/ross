@@ -123,8 +123,8 @@ class MultiRotor(Rotor):
         coupled_nodes,
         gear_mesh_stiffness=None,
         update_mesh_stiffness=False,
-        square_varying_stiffness = False,
-        square_stiffness_amplitude_ratio = 0,
+        square_varying_stiffness=False,
+        square_stiffness_amplitude_ratio=0,
         orientation_angle=0.0,
         position="above",
         tag=None,
@@ -159,9 +159,9 @@ class MultiRotor(Rotor):
             gear_1,
             gear_2,
             gear_mesh_stiffness=gear_mesh_stiffness,
-            square_varying_stiffness = self.square_varying_stiffness,
-            square_stiffness_amplitude_ratio = square_stiffness_amplitude_ratio,
-            orientation_angle = self.orientation_angle,
+            square_varying_stiffness=self.square_varying_stiffness,
+            square_stiffness_amplitude_ratio=square_stiffness_amplitude_ratio,
+            orientation_angle=self.orientation_angle,
         )
 
         gear1_plot = next(
