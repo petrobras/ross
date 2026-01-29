@@ -7,6 +7,7 @@ from plotly import graph_objects as go
 from copy import deepcopy as copy
 from numba import njit
 from numpy.fft import fft
+import control as ct
 
 
 class DataNotFoundError(Exception):
@@ -1215,3 +1216,155 @@ def equal_dicts(dict_1, dict_2):
             is_equal_key.update({key: is_equal[-1]})
 
     return all(is_equal), is_equal_key
+
+
+def is_scalar_or_list(parameter, list_len, parameter_name):
+    """
+    Check whether a given parameter is a scalar or a list with the specified length.
+
+    This function validates that the input parameter is either a single scalar value
+    or a list containing the expected number of elements. If the parameter does not
+    satisfy these conditions, a ValueError is raised.
+
+    Parameters
+    ----------
+    parameter : any
+        The value to be validated. It can be a scalar or a list.
+    list_len : int
+        The expected number of elements if the parameter is provided as a list.
+    parameter_name : str
+        The name of the parameter, used in the error message for clarity.
+
+    Returns
+    -------
+    numpy.ndarray
+        The validated parameter converted into a NumPy array.
+
+    Raises
+    ------
+    ValueError
+        If the parameter is neither a scalar nor a list with the specified number of elements.
+    """
+    raise_ex = False
+    if not is_scalar(parameter, parameter_name):
+        raise_ex = True
+
+    if isinstance(parameter, list) and len(parameter) != list_len:
+        raise_ex = True
+
+    if raise_ex:
+        raise ValueError(
+            f"{parameter_name} must be scalar or a list with {list_len} items."
+        )
+
+    return np.array(parameter)
+
+
+def is_transfer_function_or_none(parameter, parameter_name):
+    """
+    Validate whether an input is either None or a TransferFunction object.
+
+    This function checks if the provided input is acceptable as a transfer
+    function. The value must be either a valid TransferFunction instance
+    from the control library or None. If the value is None, it is returned
+    directly. If the value is not a TransferFunction, an exception is raised.
+
+    Parameters
+    ----------
+    parameter : any
+        Value to be validated. It must be either None or an instance of
+        a TransferFunction from the control library.
+    parameter_name : str
+        Name of the parameter, used to compose informative error messages.
+
+    Returns
+    -------
+    object or None
+        The original TransferFunction object if the input is valid,
+        or None if the input value is None.
+
+    Raises
+    ------
+    ValueError
+        Raised when the input value is neither None nor a TransferFunction.
+    """
+    if parameter is None:
+        return None
+
+    if not isinstance(parameter, ct.TransferFunction):
+        raise ValueError(f"{parameter_name} must be None or a TransferFunction")
+
+    return parameter
+
+
+def is_list_or_none(parameter, parameter_name):
+    """
+    Validate whether the given parameter is None, a list, or a NumPy array.
+
+    This function checks if the input parameter is of an acceptable type:
+    either None, a list, or a NumPy array. If the parameter is a list,
+    it is converted to a NumPy array. If the parameter is already a NumPy
+    array, it is returned unchanged. If the parameter is None, the function
+    simply returns None. Any other type will result in a ValueError.
+
+    Parameters
+    ----------
+    parameter : any
+        The value to be validated. Must be None, a list, or a NumPy array.
+    parameter_name : str
+        The name of the parameter, included in the error message for clarity.
+
+    Returns
+    -------
+    numpy.ndarray or None
+        The validated parameter as a NumPy array if it was a list or an
+        ndarray, or None if the parameter was None.
+
+    Raises
+    ------
+    ValueError
+        If the parameter is not None, a list, or a NumPy array.
+    """
+    if parameter is None:
+        return None
+
+    if isinstance(parameter, np.ndarray):
+        return parameter
+
+    if isinstance(parameter, list):
+        return np.array(parameter)
+
+    raise ValueError(f"{parameter_name} must be None, a list or a numpy.ndarray.")
+
+
+def is_scalar(parameter, parameter_name):
+    """
+    Check whether a given parameter is a scalar value.
+
+    This function verifies that the provided parameter is a scalar,
+    meaning it must be either an integer or a floating-point number.
+    If the parameter does not satisfy this condition, a ValueError
+    is raised. The scalar is returned as a NumPy array for consistency
+    with numerical processing routines.
+
+    Parameters
+    ----------
+    parameter : any
+        The value to be validated. It must be an integer or a float.
+    parameter_name : str
+        The name of the parameter, used in the error message for clarity.
+
+    Returns
+    -------
+    numpy.ndarray
+        The scalar value converted into a NumPy array.
+
+    Raises
+    ------
+    ValueError
+        If the parameter is not a scalar value.
+    """
+    if not isinstance(parameter, float) and not isinstance(parameter, int):
+        raise ValueError(f"{parameter_name} must be a scalar.")
+
+    return np.array(parameter)

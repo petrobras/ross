@@ -1,7 +1,8 @@
 import time
 import numpy as np
-from scipy.optimize import fmin
+from scipy.optimize import fmin, minimize
 from plotly import graph_objects as go
+from plotly.subplots import make_subplots
 from prettytable import PrettyTable
 
 from ross.bearing_seal_element import BearingElement
@@ -89,10 +90,13 @@ class TiltingPad(BearingElement):
         Journal position in X direction. Default unit is meter.
     yj : float, optional
         Journal position in Y direction. Default unit is meter.
-    equilibrium_type : str, optional
+    equilibrium_type: str, optional
         Type of equilibrium calculation. Options:
-        - 'match_eccentricity': Calculate equilibrium based on eccentricity
-        - 'determine_eccentricity': Determine equilibrium position completely
+        - 'match_eccentricity': Uses the provided eccentricity and
+        attitude_angle and optimizes only the pad rotation angles.
+        - 'determine_eccentricity': Optimizes eccentricity, attitude_angle,
+        and pad rotation angles to balance the applied loads; requires
+        load to be provided.
     model_type : str, optional
         Type of model to be used. Options:
         - 'thermo_hydro_dynamic': Thermo-Hydro-Dynamic model
@@ -100,10 +104,11 @@ class TiltingPad(BearingElement):
         Eccentricity ratio. Dimensionless.
     attitude_angle : float, optional
         Attitude angle. Default unit is degrees.
-    fxs_load : float, optional
-        External load in X direction. Default unit is Newton.
-    fys_load : float, optional
-        External load in Y direction. Default unit is Newton.
+    load : array_like, optional
+        External loads applied to the journal. Must be a list or array with
+        two elements [fx, fy], where fx is the load in X direction and fy
+        is the load in Y direction. Default unit is Newton. Required when
+        equilibrium_type is 'determine_eccentricity'.
     initial_pads_angles : array_like, optional
         Initial pad angles. Default unit is radians.
     **kwargs : dict, optional
@@ -160,8 +165,9 @@ class TiltingPad(BearingElement):
     ...     offset=[0.5]*5,
     ...     lubricant="ISOVG32",
     ...     oil_supply_temperature=Q_(40, "degC"),
-    ...     eccentricity=0.483,
-    ...     attitude_angle=Q_(267.5, "deg")
+    ...     eccentricity=0.35,
+    ...     attitude_angle=Q_(287.5, "deg"),
+    ...     load = [8.8405e+02, -2.6704e+03],
     ... )
     """
 
@@ -186,10 +192,9 @@ class TiltingPad(BearingElement):
         xj=None,
         yj=None,
         equilibrium_type=None,
-        eccentricity=None,
-        attitude_angle=None,
-        fxs_load=None,
-        fys_load=None,
+        eccentricity=0.3,
+        attitude_angle=np.pi * 3 / 2,  # 270°
+        load=None,
         initial_pads_angles=None,
         model_type="thermo_hydro_dynamic",
         **kwargs,
@@ -224,13 +229,25 @@ class TiltingPad(BearingElement):
 
         # Operating conditions
         self.equilibrium_type = equilibrium_type
+
+        if load is None and self.equilibrium_type == "determine_eccentricity":
+            raise ValueError(
+                "The 'load' parameter is required when equilibrium_type='determine_eccentricity'.\n"
+                "Expected format: load=[fx, fy] where fx and fy are the external loads in X and Y directions.\n"
+                "For more details, see the 'load' parameter documentation in the TiltingPad class docstring."
+            )
+
         self.oil_supply_temperature = Q_(oil_supply_temperature, "degK").m_as("degC")
         self.reference_temperature = self.oil_supply_temperature
         self.lubricant = lubricant
         self.frequency = frequency
         self.speed = None
-        self.fxs_load = fxs_load
-        self.fys_load = fys_load
+        if load is not None:
+            self.fxs_load = load[0]
+            self.fys_load = load[1]
+        else:
+            self.fxs_load = None
+            self.fys_load = None
         self.initial_pads_angles = initial_pads_angles
 
         # Mesh discretization and equation's terms setup
@@ -535,6 +552,41 @@ class TiltingPad(BearingElement):
         n_k = self.nx * self.nz
 
         temperature_tolerance = 0.1
+
+        # Extract equilibrium pad angles
+        eq_psi_pad = np.zeros(self.n_pad)
+        for k_pad in range(self.n_pad):
+            eq_psi_pad[k_pad] = self.xdin[k_pad + 2]
+
+        # Calculate forces for each pad at equilibrium (no perturbation)
+        for n_p_eq in range(self.n_pad):
+            # Solve THD for equilibrium state
+            temperature_ref = self.temperature_init[:, :, n_p_eq]
+            temperature_iter = 1.1 * temperature_ref
+            cont_temp = 0
+
+            while (
+                abs((temperature_ref - temperature_iter).max()) >= temperature_tolerance
+            ):
+                cont_temp += 1
+                temperature_iter = np.array(temperature_ref)
+
+                mi_i = self.a_a * np.exp(self.b_b * temperature_iter)
+                mi = mi_i / self.mu_0
+
+                # Solve Reynolds equation (reuse existing method)
+                self._solve_reynolds_equation(mi, n_p_eq, eq_psi_pad)
+
+                # Calculate pressure gradients
+                self._calculate_pressure_gradients()
+
+                # Solve energy equation
+                temperature_ref = self._solve_energy_equation(mi, n_p_eq)
+
+            # Calculate hydrodynamic forces at equilibrium
+            self._calculate_hydrodynamic_forces(
+                n_p_eq, eq_psi_pad, is_equilibrium=False
+            )
 
         for a_p in range(4):
             for n_p in range(self.n_pad):
@@ -1224,8 +1276,8 @@ class TiltingPad(BearingElement):
 
                     # Dynamic loads
                     del_force_x[n_p] = -(self.force_new[n_p] - self.force_1[n_p])
-                    del_moment_j[n_p] = -(self.moment_j_new[n_p] - self.moment_j[n_p])
                     del_force_y[n_p] = -(self.force_2_new[n_p] - self.force_2[n_p])
+                    del_moment_j[n_p] = -(self.moment_j_new[n_p] - self.moment_j[n_p])
 
                     # X-axis perturbation
                     if a_p == 0:
@@ -1239,6 +1291,7 @@ class TiltingPad(BearingElement):
                             / self.space_perturbation
                             * self.dimensionless_force[n_p]
                         )
+
                         self.K[n_p, 0, 0] = k_xx[n_p]
                         self.K[n_p, 1, 0] = k_yx[n_p]
 
@@ -1254,6 +1307,7 @@ class TiltingPad(BearingElement):
                             / self.space_perturbation
                             * self.dimensionless_force[n_p]
                         )
+
                         self.K[n_p, 1, 1] = k_yy[n_p]
                         self.K[n_p, 0, 1] = k_xy[n_p]
 
@@ -1355,10 +1409,12 @@ class TiltingPad(BearingElement):
 
         # Final reduction: Sw = Aj - Hj * Bj^{-1} * Vj
         Bj_checked = self._check_diagonal(self.Bj)
+
         self.Sw = self.Aj - (self.Hj @ np.linalg.inv(Bj_checked) @ self.Vj)
 
         k_r = np.real(self.Sw)
         c_r = np.imag(self.Sw) / self.speed
+
         self.kxx, self.kyy, self.kxy, self.kyx = (
             k_r[0, 0],
             k_r[1, 1],
@@ -1515,8 +1571,8 @@ class TiltingPad(BearingElement):
                 x_opt = fmin(
                     self.get_equilibrium_position,
                     self.x_0[con_np],
-                    xtol=0.1,
-                    ftol=0.1,
+                    xtol=1e-6,
+                    ftol=1e-6,
                     maxiter=1000,
                     disp=False,
                 )
@@ -1525,17 +1581,18 @@ class TiltingPad(BearingElement):
                 momen_rot[idx] = self.score_dim
 
             self.psi_pad = ang_rot
-            self.force_x_dim = np.sum(self.force_x_dim)
-            self.force_y_dim = np.sum(self.force_y_dim)
+            # Store totals but preserve arrays for coefficients() method
+            force_x_total = np.sum(self.force_x_dim)
+            force_y_total = np.sum(self.force_y_dim)
+            # Keep force_x_dim and force_y_dim as arrays for coefficients() to use
 
             self.ecc_list.append(self.eccentricity)
             self.attitude_angle_list.append(self.attitude_angle)
             self.psi_pad_list.append(ang_rot.copy())
-            self.force_x_total_list.append(self.force_x_dim)
-            self.force_y_total_list.append(self.force_y_dim)
+            self.force_x_total_list.append(force_x_total)
+            self.force_y_total_list.append(force_y_total)
             self.momen_rot_list.append(momen_rot.copy())
 
-            self.xdin = np.zeros(self.n_pad + 2)
             self.xdin = [self.eccentricity, self.attitude_angle] + list(ang_rot)
 
         elif self.equilibrium_type == "determine_eccentricity":
@@ -1545,17 +1602,24 @@ class TiltingPad(BearingElement):
                     self.initial_pads_angles
                 )
             else:
-                x0 = [self.eccentricity, self.attitude_angle] + [0.0] * self.n_pad
+                x0 = [0.3, np.deg2rad(270)] + [1e-4] * self.n_pad
 
             # Optimize complete system
-            x_opt = fmin(
+            result = fmin(
                 self._equilibrium_objective,
                 x0,
-                xtol=1e-4,
-                ftol=1e-2,
-                maxiter=100000,
+                xtol=1e-3,
+                ftol=1e-3,
+                maxiter=1000,
                 disp=False,
+                full_output=True,
             )
+
+            # Extract only x_opt from tuple
+            if isinstance(result, tuple):
+                x_opt = result[0]
+            else:
+                x_opt = result
 
             # Update state variables with optimized values
             self.eccentricity, self.attitude_angle, self.psi_pad = (
@@ -1574,7 +1638,7 @@ class TiltingPad(BearingElement):
             self.force_y_total_list.append(np.sum(self.force_y_dim))
             self.momen_rot_list.append(None)
 
-        # Continue with thermo-hydrodynamic field solution
+        # Thermo-hydrodynamic field solution
         psi_pad = np.zeros(self.n_pad)
         for k_pad in range(self.n_pad):
             psi_pad[k_pad] = self.xdin[k_pad + 2]
@@ -1915,6 +1979,7 @@ class TiltingPad(BearingElement):
         solve_fields : Main method for equilibrium calculation
         get_equilibrium_position : Single pad equilibrium optimization
         """
+
         # Increment iteration counter
         if not hasattr(self, "iteration_count"):
             self.iteration_count = 0
@@ -2163,16 +2228,26 @@ class TiltingPad(BearingElement):
             self._calculate_hydrodynamic_forces(n_p, psi_pad, is_equilibrium=True)
 
         # Calculate equilibrium residuals
-        FM = np.zeros(self.n_pad + 2)
-
-        # Force equilibrium in X and Y directions
         Fhx = np.sum(self.force_x_dim)
         Fhy = np.sum(self.force_y_dim)
 
-        FM[0] = Fhx + (self.fxs_load if self.fxs_load is not None else 0)
-        FM[1] = Fhy + (self.fys_load if self.fys_load is not None else 0)
-        FM[2:] = self.moment_j_dim
+        # Raw residuals
+        force_x_res = Fhx + self.fxs_load
+        force_y_res = Fhy + self.fys_load
+        moment_res = self.moment_j_dim
 
+        # INDEPENDENT NORMALIZATION - each residual by its own scale
+        Fx_scale = max(abs(self.fxs_load), 1e-6)
+        Fy_scale = max(abs(self.fys_load), 1e-6)
+        M_scale = max(Fx_scale, Fy_scale) * self.pad_radius
+
+        # Build residual vector
+        FM = np.zeros(self.n_pad + 2)
+        FM[0] = force_x_res / Fx_scale  # Normalize X by its own load
+        FM[1] = force_y_res / Fy_scale  # Normalize Y by its own load
+        FM[2:] = moment_res / M_scale  # Normalize moments
+
+        # Single scalar objective
         score = np.linalg.norm(FM)
 
         # Record optimization residual
@@ -4102,9 +4177,6 @@ class TiltingPad(BearingElement):
 
                 # Display plot if requested - one subplot per pad
                 if show_plots:
-                    import plotly.graph_objects as go
-                    from plotly.subplots import make_subplots
-
                     n_rows = (n_pads + 1) // 2  # 2 columns
                     fig = make_subplots(
                         rows=n_rows,
@@ -4192,17 +4264,28 @@ def tilting_pad_example():
 
     This function creates and returns a TiltingPad bearing instance with predefined
     parameters for demonstration purposes. The bearing is configured with 5 pads
-    and operates at two different frequencies.
+    and operates at 3000 RPM.
+
+    The example is configured with ``equilibrium_type="match_eccentricity"`` by default.
+    You can modify the bearing configuration to use ``equilibrium_type="determine_eccentricity"``
+    if you want to optimize the journal position based on applied loads.
+
+    **Difference between equilibrium types:**
+
+    - **match_eccentricity**: You specify the journal position (eccentricity and attitude
+      angle) and the code optimizes only the pad rotation angles to achieve moment
+      equilibrium. Use this when you know the journal position and want to find the
+      corresponding pad angles and hydrodynamic forces.
+
+    - **determine_eccentricity**: You specify the external loads applied to the journal
+      (via the ``load`` parameter) and the code optimizes the journal position
+      (eccentricity, attitude angle) and pad rotation angles to balance the applied
+      loads. Use this when you know the loads and want to find the equilibrium position.
 
     Returns
     -------
     bearing : TiltingPad
         A configured tilting pad bearing instance ready for analysis.
-
-    Examples
-    --------
-    >>> from ross.bearings.tilting_pad import tilting_pad_example
-    >>> bearing = tilting_pad_example()
 
     Notes
     -----
@@ -4214,13 +4297,9 @@ def tilting_pad_example():
     - Pad arc: 60° per pad
     - Pad axial length: 50.8 mm
     - ISOVG32 lubricant at 40°C
-    - Operating frequencies: 3000 RPM
+    - Operating frequency: 3000 RPM
     - Pre-load factor: 0.5 for all pads
     - Pivot offset: 0.5 (centered) for all pads
-
-    The bearing is configured for "match_eccentricity" equilibrium type,
-    which automatically calculates the equilibrium position based on the
-    specified eccentricity and attitude angle.
     """
 
     bearing = TiltingPad(
@@ -4240,8 +4319,9 @@ def tilting_pad_example():
         oil_supply_temperature=Q_(40, "degC"),
         nx=30,
         nz=30,
-        eccentricity=0.483,
-        attitude_angle=Q_(267.5, "deg"),
+        eccentricity=0.35,
+        attitude_angle=Q_(287.5, "deg"),
+        load=[8.8405e02, -2.6704e03],
     )
 
     return bearing

@@ -6759,8 +6759,7 @@ class SensitivityResults(Results):
         ...     disturbance_amplitude=10e-6,
         ...     disturbance_min_frequency=0.001,
         ...     disturbance_max_frequency=150,
-        ...     amb_tags=["Magnetic Bearing 0"],
-        ...     sensors_theta=45) # doctest: +ELLIPSIS
+        ...     amb_tags=["Magnetic Bearing 0"]) # doctest: +ELLIPSIS
         Running direct method...
 
         >>> # Generate the sensitivity plot
@@ -6993,8 +6992,7 @@ class SensitivityResults(Results):
         ...     disturbance_amplitude=10e-6,
         ...     disturbance_min_frequency=0.001,
         ...     disturbance_max_frequency=150,
-        ...     amb_tags=["Magnetic Bearing 0"],
-        ...     sensors_theta=45) # doctest: +ELLIPSIS
+        ...     amb_tags=["Magnetic Bearing 0"]) # doctest: +ELLIPSIS
         Running direct method...
 
         >>> # Generate the time-domain results plot

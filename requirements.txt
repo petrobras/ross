@@ -9,3 +9,4 @@ methodtools
 numba
 ccp-performance
 prettytable
+control
