@@ -956,6 +956,8 @@ class Mesh:
                     f"Driving gear: {driving_gear.width:.4f}, Driven gear: {driven_gear.width:.4f}"
                 )
 
+        self.flag_cte_stiff = False
+
         if gear_mesh_stiffness is None:
             if (
                 type(driving_gear) == GearElementTVMS
@@ -1010,6 +1012,13 @@ class Mesh:
 
         else:
             self.stiffness = gear_mesh_stiffness
+
+            self.flag_cte_stiff = True
+
+            theta_range, stiffness_range = self.get_stiffness_for_mesh_period()
+
+            self.theta_range = theta_range
+            self.stiffness_range = stiffness_range
 
     def _square_varying_stiffness(self, theta_range):
 
@@ -1179,10 +1188,13 @@ class Mesh:
         theta_end = 2 * np.pi / self.driving_gear.n_teeth * n_mesh_period
         theta_range = np.linspace(0, theta_end, n_points)
 
-        if self.square_varying_stiffness:
-            stiffness_range = self._square_varying_stiffness(theta_range)
+        if self.flag_cte_stiff:
+            stiffness_range = np.array([self.stiffness for theta in theta_range])
         else:
-            stiffness_range = [self.get_variable_stiffness(theta) for theta in theta_range]
+            if self.square_varying_stiffness:
+                stiffness_range = self._square_varying_stiffness(theta_range)
+            else:
+                stiffness_range = [self.get_variable_stiffness(theta) for theta in theta_range]
 
         return theta_range, stiffness_range
 
