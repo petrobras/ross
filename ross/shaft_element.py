@@ -22,7 +22,7 @@ class ShaftElement(Element):
     r"""A shaft element with 12 degrees of freedom.
 
     This class will create a shaft element that may take into
-    account shear, rotary inertia an gyroscopic effects. The object can be
+    account shear, rotary inertia and gyroscopic effects. The object can be
     cylindrical or conical and the formulation is based on :cite:`genta1988conical`
     The matrices will be defined considering the following local
     coordinate vector:
@@ -271,7 +271,7 @@ class ShaftElement(Element):
         # fmt: on
 
         # picking a method to calculate the shear coefficient
-        # List of avaible methods:
+        # List of available methods:
         # hutchinson - kappa as per Hutchinson (2001)
         # cowper - kappa as per Cowper (1996)
         if shear_effects:
@@ -308,12 +308,12 @@ class ShaftElement(Element):
         self.dof_global_index = None
 
     def __eq__(self, other):
-        """Equality method for comparasions.
+        """Equality method for comparisons.
 
         Parameters
         ----------
         other : obj
-            parameter for comparasion
+            parameter for comparison
 
         Returns
         -------
@@ -376,7 +376,7 @@ class ShaftElement(Element):
         >>> from ross.materials import steel
         >>> print(ShaftElement(L=0.25, idl=0, odl=0.05, odr=0.08, material=steel))
         Element Number:             None
-        Element Lenght   (m):       0.25
+        Element Length   (m):       0.25
         Left Int. Diam.  (m):        0.0
         Left Out. Diam.  (m):       0.05
         Right Int. Diam. (m):        0.0
@@ -393,7 +393,7 @@ class ShaftElement(Element):
         """
         return (
             f"Element Number:             {self.n}"
-            f"\nElement Lenght   (m): {self.L:{10}.{5}}"
+            f"\nElement Length   (m): {self.L:{10}.{5}}"
             f"\nLeft Int. Diam.  (m): {self.idl:{10}.{5}}"
             f"\nLeft Out. Diam.  (m): {self.odl:{10}.{5}}"
             f"\nRight Int. Diam. (m): {self.idr:{10}.{5}}"

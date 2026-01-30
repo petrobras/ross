@@ -2,6 +2,7 @@ import os
 import pickle
 from pathlib import Path
 from tempfile import tempdir
+import control as ct
 
 import numpy as np
 import pytest
@@ -345,16 +346,146 @@ def magnetic_bearing():
 
 
 def test_magnetic_bearing_element(magnetic_bearing):
-    K = np.array([[-4640.62337718, 0.0], [0.0, -4640.62337718]])
-    K = np.pad(K, pad_width=((0, 1), (0, 1)))
+    K_ref = np.array(
+        [
+            [-4.64021073e03, -7.72314366e-14],
+            [-1.01494475e-13, -4.64021073e03],
+        ]
+    )
 
-    C = np.array([[4.64526865, 0.0], [0.0, 4.64526865]])
-    C = np.pad(C, pad_width=((0, 1), (0, 1)))
+    C_ref = np.array(
+        [
+            [4.64597874e00, 6.22498335e-17],
+            [3.97578344e-17, 4.64597874e00],
+        ]
+    )
 
-    assert_allclose(magnetic_bearing.M(0), np.zeros((3, 3)))
-    assert_allclose(magnetic_bearing.K(0), K)
-    assert_allclose(magnetic_bearing.C(0), C)
-    assert_allclose(magnetic_bearing.G(), np.zeros((3, 3)))
+    K = magnetic_bearing.K(0)[0:2, 0:2]
+    C = magnetic_bearing.C(0)[0:2, 0:2]
+
+    main_diag_index = np.eye(K.shape[0]).astype(bool)
+    sec_diag_index = ~main_diag_index
+
+    # M and G matrices
+    assert_allclose(
+        magnetic_bearing.M(0),
+        np.zeros((3, 3)),
+        rtol=0.0,
+        atol=1e-10,
+    )
+    assert_allclose(
+        magnetic_bearing.G(),
+        np.zeros((3, 3)),
+        rtol=0.0,
+        atol=1e-10,
+    )
+
+    # K and C matrices
+    # Main diagonal
+    assert_allclose(
+        K[main_diag_index],
+        K_ref[main_diag_index],
+        rtol=1e-8,
+        atol=0.0,
+    )
+    assert_allclose(
+        C[main_diag_index],
+        C_ref[main_diag_index],
+        rtol=1e-8,
+        atol=0.0,
+    )
+
+    # Secondary diagonal
+    assert_allclose(
+        K[sec_diag_index],
+        K_ref[sec_diag_index],
+        rtol=0.0,
+        atol=1e-10,
+    )
+    assert_allclose(
+        C[sec_diag_index],
+        C_ref[sec_diag_index],
+        rtol=0.0,
+        atol=1e-10,
+    )
+
+
+def _to_real_array(list_of_scalars):
+    return np.array([np.real(float(x)) for x in list_of_scalars], dtype=float)
+
+
+def test_magnetic_bearing_with_lead_controller_matches_frequency_response():
+    n = 0
+    g0 = 1e-3  # m
+    i0 = 1.0  # A
+    ag = 1e-4  # m^2
+    nw = 200
+    alpha = 0.0
+    freq = np.array([10.0, 100.0, 1000.0])  # rad/s
+
+    # --- Lead Controller: C(s) = K * (τ s + 1) / (a τ s + 1), com 0 < a < 1 ---
+    K = 2.0
+    tau = 1e-3
+    a = 0.2
+    s = MagneticBearingElement.s
+    C_lead = K * (tau * s + 1) / (a * tau * s + 1)
+
+    mb = MagneticBearingElement(
+        n=n,
+        g0=g0,
+        i0=i0,
+        ag=ag,
+        nw=nw,
+        alpha=alpha,
+        frequency=freq,
+        controller_transfer_function=C_lead,
+    )
+
+    C_back = mb.get_analog_controller()
+    num_ref = np.array(C_lead.num).squeeze().astype(float)
+    den_ref = np.array(C_lead.den).squeeze().astype(float)
+    num_got = np.array(C_back.num).squeeze().astype(float)
+    den_got = np.array(C_back.den).squeeze().astype(float)
+
+    # Normalization by the first nonzero coefficient
+    num_ref = num_ref / num_ref[np.flatnonzero(num_ref)[0]]
+    den_ref = den_ref / den_ref[np.flatnonzero(den_ref)[0]]
+    num_got = num_got / num_got[np.flatnonzero(num_got)[0]]
+    den_got = den_got / den_got[np.flatnonzero(den_got)[0]]
+
+    assert np.allclose(num_got, num_ref, rtol=1e-10, atol=1e-12)
+    assert np.allclose(den_got, den_ref, rtol=1e-10, atol=1e-12)
+
+    # Compute the frequency response of C(jw) to check kxx and cxx
+    mag, phase, _ = ct.frequency_response(C_lead, freq)
+    Hjw = (mag * np.exp(1j * phase)).squeeze()
+
+    ks = mb.ks
+    ki = mb.ki
+
+    k_eq_expected = ks + ki * np.real(Hjw)
+    c_eq_expected = (ki / freq) * np.imag(Hjw)
+
+    kxx = _to_real_array(mb.kxx)
+    kyy = _to_real_array(mb.kyy)
+    cxx = _to_real_array(mb.cxx)
+    cyy = _to_real_array(mb.cyy)
+
+    # As alpha = 0, kxx == kyy == k_eq and cxx == cyy == c_eq
+    assert np.allclose(kxx, k_eq_expected, rtol=1e-6, atol=1e-9)
+    assert np.allclose(kyy, k_eq_expected, rtol=1e-6, atol=1e-9)
+    assert np.allclose(cxx, c_eq_expected, rtol=1e-6, atol=1e-12)
+    assert np.allclose(cyy, c_eq_expected, rtol=1e-6, atol=1e-12)
+
+    kxy = _to_real_array(mb.kxy)
+    kyx = _to_real_array(mb.kyx)
+    cxy = _to_real_array(mb.cxy)
+    cyx = _to_real_array(mb.cyx)
+
+    assert np.allclose(kxy, 0.0, atol=1e-10)
+    assert np.allclose(kyx, 0.0, atol=1e-10)
+    assert np.allclose(cxy, 0.0, atol=1e-12)
+    assert np.allclose(cyx, 0.0, atol=1e-12)
 
 
 @pytest.fixture

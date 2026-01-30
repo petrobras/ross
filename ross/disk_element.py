@@ -65,7 +65,7 @@ class DiskElement(Element):
         self.dof_global_index = None
 
     def __eq__(self, other):
-        """Equality method for comparasions.
+        """Equality method for comparisons.
 
         Parameters
         ----------
