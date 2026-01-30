@@ -1,8 +1,8 @@
 import time
 import numpy as np
 from numba import njit
-from scipy.optimize import fmin, minimize
-from scipy.sparse import coo_matrix, csr_matrix
+from scipy.optimize import fmin
+from scipy.sparse import coo_matrix
 from scipy.sparse.linalg import spsolve
 from plotly import graph_objects as go
 from plotly.subplots import make_subplots
@@ -114,10 +114,6 @@ class TiltingPad(BearingElement):
         equilibrium_type is 'determine_eccentricity'.
     initial_pads_angles : array_like, optional
         Initial pad angles. Default unit is radians.
-    use_sparse_matrices : bool, optional
-        If True, uses sparse matrix solvers for Reynolds and Energy equations.
-        Provides significant speedup (5-15x) for large meshes (nx*nz > 500).
-        Default is True (PHASE 3 optimization).
     **kwargs : dict, optional
         Additional keyword arguments.
 
@@ -204,13 +200,11 @@ class TiltingPad(BearingElement):
         load=None,
         initial_pads_angles=None,
         model_type="thermo_hydro_dynamic",
-        use_sparse_matrices=True,  # PHASE 3: Sparse matrix solvers for Reynolds and Energy equations
         **kwargs,
     ):
         self.n = n
         self.n_link = n_link
         self.model_type = model_type
-        self.use_sparse_matrices = use_sparse_matrices  # PHASE 3: Enable sparse matrix solvers
 
         # Bearing Geometry
         self.journal_radius = journal_diameter / 2
@@ -1860,6 +1854,74 @@ class TiltingPad(BearingElement):
 
         return max_p, med_p, max_t, med_t, h_pivot, ecc
 
+    def _solve_single_pad_equilibrium_sequential(self, n_p, psi_pad, eccentricity, attitude_angle, tol_T=0.1):
+        """
+        Solve thermo-hydrodynamic fields for a single pad in equilibrium optimization.
+        
+        This method is designed to be called sequentially or in parallel for each pad
+        during equilibrium optimization. It solves the coupled Reynolds and Energy
+        equations until temperature convergence.
+
+        Parameters
+        ----------
+        n_p : int
+            Pad index.
+        psi_pad : ndarray
+            Pad rotation angles [rad] for all pads. Shape: (n_pad,).
+        eccentricity : float
+            Journal eccentricity ratio.
+        attitude_angle : float
+            Journal attitude angle [rad].
+        tol_T : float, optional
+            Temperature convergence tolerance [°C]. Default is 0.1.
+
+        Returns
+        -------
+        dict
+            Dictionary containing computed fields and forces:
+            - 'force_x': X-direction hydrodynamic force [N]
+            - 'force_y': Y-direction hydrodynamic force [N]
+            - 'moment': Moment on pad [N·m]
+            - 'temperature': Final temperature field [°C]
+            - 'pressure': Final pressure field [Pa]
+            - 'n_p': Pad index (for ordering in parallel execution)
+        """
+        T_new = self.temperature_init[:, :, n_p].copy()
+        T_i = 1.1 * T_new
+        max_temp_iterations = 50
+
+        temp_iter = 0
+        while abs((T_new - T_i).max()) >= tol_T and temp_iter < max_temp_iterations:
+            temp_iter += 1
+            T_i = np.array(T_new)
+
+            # Calculate dimensionless viscosity
+            mi_i = self.a_a * np.exp(self.b_b * T_i)  # [Pa.s]
+            mi = mi_i / self.mu_0  # Dimensionless viscosity field
+
+            # PHASE 4A: Use optimized Reynolds equation solver
+            self._solve_reynolds_equation(mi, n_p, psi_pad, eccentricity, attitude_angle)
+
+            # Calculate pressure gradients (required for energy equation)
+            self._calculate_pressure_gradients()
+
+            # PHASE 4A: Use optimized Energy equation solver
+            T_new = self._solve_energy_equation(mi, n_p, is_equilibrium=True)
+
+        # Calculate hydrodynamic forces and moments for this pad
+        # Store temporarily as we need to aggregate across all pads
+        self._calculate_hydrodynamic_forces(n_p, psi_pad, is_equilibrium=True)
+
+        # Return results for this pad
+        return {
+            "n_p": n_p,
+            "force_x": self.force_x_dim[n_p],
+            "force_y": self.force_y_dim[n_p],
+            "moment": self.moment_j_dim[n_p],
+            "temperature": T_new.copy(),
+            "pressure": self.pressure.copy(),
+        }
+
     def _equilibrium_objective(self, x):
         """Objective function for complete equilibrium optimization.
 
@@ -1896,9 +1958,9 @@ class TiltingPad(BearingElement):
 
         Temperature convergence tolerance is set to 0.1°C for field calculations.
 
-        This method has been optimized (PHASE 4A) to use the same Numba-accelerated
-        and sparse matrix solvers as the main solve_fields() method, providing
-        significant performance improvements for determine_eccentricity mode.
+        This method has been optimized:
+        - PHASE 4A: Uses Numba-accelerated and sparse matrix solvers
+        - PHASE 4C: Sequential execution (multiprocessing overhead not beneficial for 5 pads)
 
         See Also
         --------
@@ -1926,32 +1988,18 @@ class TiltingPad(BearingElement):
         # Reset force arrays
         self._reset_force_arrays()
 
+        # PHASE 4C: Process each pad sequentially
+        # Note: For typical tilting pad bearings (5 pads), sequential execution
+        # is faster than multiprocessing due to process spawn overhead.
+        # Multiprocessing becomes beneficial only for >10 pads.
         for n_p in range(self.n_pad):
-            T_new = self.temperature_init[:, :, n_p]
-            T_i = 1.1 * T_new
-
-            while abs((T_new - T_i).max()) >= tol_T:
-                T_i = np.array(T_new)
-
-                # Calculate dimensionless viscosity
-                mi_i = self.a_a * np.exp(self.b_b * T_i)  # [Pa.s]
-                mi = mi_i / self.mu_0  # Dimensionless viscosity field
-
-                # PHASE 4A: Use optimized Reynolds equation solver
-                # This uses Numba-accelerated assembly and sparse matrices (if enabled)
-                self._solve_reynolds_equation(
-                    mi, n_p, psi_pad, eccentricity, attitude_angle
-                )
-
-                # Calculate pressure gradients (required for energy equation)
-                self._calculate_pressure_gradients()
-
-                # PHASE 4A: Use optimized Energy equation solver
-                # This uses Numba-accelerated assembly and sparse matrices (if enabled)
-                T_new = self._solve_energy_equation(mi, n_p, is_equilibrium=True)
-
-            # Calculate hydrodynamic forces and moments
-            self._calculate_hydrodynamic_forces(n_p, psi_pad, is_equilibrium=True)
+            # Solve THD fields for this pad
+            result = self._solve_single_pad_equilibrium_sequential(
+                n_p, psi_pad, eccentricity, attitude_angle, tol_T
+            )
+            
+            # Results are already stored in self.force_x_dim, self.force_y_dim, etc.
+            # by _calculate_hydrodynamic_forces called inside the method
 
         # Calculate equilibrium residuals
         Fhx = np.sum(self.force_x_dim)
@@ -2109,72 +2157,6 @@ class TiltingPad(BearingElement):
         mi = mi_i / self.mu_0
         return mi
 
-    # def _solve_reynolds_equation(self, mi, n_p, psi_pad):
-    #     """
-    #     Solve Reynolds equation for pressure field using finite difference method.
-
-    #     Parameters
-    #     ----------
-    #     mi : ndarray
-    #         Dimensionless viscosity field. Shape: (nz, nx).
-    #     n_p : int
-    #         Pad index for the current analysis.
-    #     psi_pad : ndarray
-    #         Pad rotation angles [rad]. Shape: (n_pad,).
-
-    #     Returns
-    #     -------
-    #     None
-    #         Results are stored in self.pressure field.
-    #     """
-    #     n_k = self.nx * self.nz
-    #     mat_coef = np.zeros((n_k, n_k))
-    #     b_vec = np.zeros(n_k)
-
-    #     # Transformation of coordinates (inertial -> pivot)
-    #     xryr, xryrpt, xr, yr, xrpt, yrpt = self._transform_coordinates(n_p)
-    #     alpha = psi_pad[n_p]
-    #     alphapt = 0
-
-    #     # Vectorization index
-    #     k_idx = 0
-
-    #     for ii in range(self.nz):
-    #         for jj in range(self.nx):
-    #             # Film thicknesses
-    #             h_p, h_e, h_w, h_n, h_s = self._calculate_film_thicknesses(
-    #                 ii, jj, xr, yr, alpha, n_p
-    #             )
-
-    #             # Temporal derivative of thickness
-    #             h_pt = self._calculate_h_pt(ii, jj, xrpt, yrpt, alphapt, n_p)
-
-    #             self.h[ii, jj] = h_p
-
-    #             # Viscosities at faces (boundary conditions)
-    #             mi_e, mi_w, mi_n, mi_s = self._calculate_face_viscosities(mi, ii, jj)
-
-    #             # Reynolds equation coefficients (main terms)
-    #             c_e, c_w, c_n, c_s, c_p = self._calculate_reynolds_coefficients(
-    #                 h_e, h_w, h_n, h_s, mi_e, mi_w, mi_n, mi_s
-    #             )
-
-    #             # Source term (right hand side)
-    #             b_val = self._calculate_reynolds_source_term(h_e, h_w, h_pt, ii, jj)
-    #             b_vec[k_idx] = b_val
-
-    #             # Fill coefficients matrix (left hand side)
-    #             self._fill_reynolds_matrix(
-    #                 mat_coef, k_idx, ii, jj, c_e, c_w, c_n, c_s, c_p
-    #             )
-
-    #             k_idx += 1
-
-    #     # Solution of pressure field
-    #     mat_coef = self._check_diagonal(mat_coef)
-    #     p_vec = np.linalg.solve(mat_coef, b_vec)
-    #     self._update_pressure_field(p_vec)
-
     def _solve_reynolds_equation(self, mi, n_p, psi_pad, eccentricity=None, attitude_angle=None):
         """
         Solve Reynolds equation for pressure field using finite difference method.
@@ -2207,54 +2189,29 @@ class TiltingPad(BearingElement):
         )
         alpha = psi_pad[n_p]
         alphapt = 0.0
-        
-        if self.use_sparse_matrices:
-            # PHASE 3: Use sparse matrix solver (5-15x faster for large meshes)
-            row_idx, col_idx, vals, b_vec, self.h, nnz = _assemble_reynolds_sparse_numba(
-                self.nx, self.nz, 
-                self.xtheta, self.xz, 
-                self.dx, self.dz, self.dtheta,
-                mi, 
-                xr, yr, xrpt, yrpt, 
-                alpha, alphapt,
-                self.pad_radius, self.journal_radius, 
-                self.radial_clearance, self.pad_thickness,
-                self.pad_arc, self.pad_axial_length, 
-                self.speed,
-                self.sin_theta, self.cos_theta,
-                self.sin_theta_e, self.cos_theta_e,
-                self.sin_theta_w, self.cos_theta_w
-            )
-            
-            # Create sparse matrix in COO format and convert to CSR for solving
-            n_k = self.nx * self.nz
-            mat_sparse = coo_matrix((vals, (row_idx, col_idx)), shape=(n_k, n_k))
-            mat_csr = mat_sparse.tocsr()
-            
-            # Solve using sparse solver (much faster than dense for large systems)
-            p_vec = spsolve(mat_csr, b_vec)
-        else:
-            # PHASE 2: Use dense matrix with optimized Numba assembly
-            mat_coef, b_vec, self.h = _assemble_reynolds_system_numba_v2(
-                self.nx, self.nz, 
-                self.xtheta, self.xz, 
-                self.dx, self.dz, self.dtheta,
-                mi, 
-                xr, yr, xrpt, yrpt, 
-                alpha, alphapt,
-                self.pad_radius, self.journal_radius, 
-                self.radial_clearance, self.pad_thickness,
-                self.pad_arc, self.pad_axial_length, 
-                self.speed,
-                self.sin_theta, self.cos_theta,
-                self.sin_theta_e, self.cos_theta_e,
-                self.sin_theta_w, self.cos_theta_w
-            )
-            
-            # Solve using dense solver
-            mat_coef = self._check_diagonal(mat_coef)
-            p_vec = np.linalg.solve(mat_coef, b_vec)
-        
+
+        # Sparse matrix solver for Reynolds equation (default and only path)
+        row_idx, col_idx, vals, b_vec, self.h, nnz = _assemble_reynolds_sparse_numba(
+            self.nx, self.nz,
+            self.xtheta, self.xz,
+            self.dx, self.dz, self.dtheta,
+            mi,
+            xr, yr, xrpt, yrpt,
+            alpha, alphapt,
+            self.pad_radius, self.journal_radius,
+            self.radial_clearance, self.pad_thickness,
+            self.pad_arc, self.pad_axial_length,
+            self.speed,
+            self.sin_theta, self.cos_theta,
+            self.sin_theta_e, self.cos_theta_e,
+            self.sin_theta_w, self.cos_theta_w
+        )
+
+        n_k = self.nx * self.nz
+        mat_sparse = coo_matrix((vals, (row_idx, col_idx)), shape=(n_k, n_k))
+        mat_csr = mat_sparse.tocsr()
+        p_vec = spsolve(mat_csr, b_vec)
+
         # Update pressure field with non-negative constraint
         self._update_pressure_field(p_vec)
 
@@ -2603,151 +2560,40 @@ class TiltingPad(BearingElement):
                 if self.pressure[i_lin, j_col] < 0:
                     self.pressure[i_lin, j_col] = 0
 
-    # def _calculate_pressure_gradients(self):
-    #     """
-    #     Calculate pressure gradients using finite differences.
-
-    #     Returns
-    #     -------
-    #     None
-    #         Pressure gradients are stored in self.dp_dx and self.dp_dz.
-    #     """
-    #     for ii in range(self.nz):
-    #         for jj in range(self.nx):
-    #             # Gradient in X direction
-    #             if jj == 0:
-    #                 self.dp_dx[ii, jj] = (
-    #                     self.pressure[ii, jj + 1] - self.pressure[ii, jj]
-    #                 ) / self.dx
-    #             elif jj == self.nx - 1:
-    #                 self.dp_dx[ii, jj] = (0 - self.pressure[ii, jj]) / self.dx
-    #             else:
-    #                 self.dp_dx[ii, jj] = (
-    #                     self.pressure[ii, jj + 1] - self.pressure[ii, jj]
-    #                 ) / self.dx
-
-    #             # Gradient in Z direction
-    #             if ii == 0:
-    #                 self.dp_dz[ii, jj] = (
-    #                     self.pressure[ii + 1, jj] - self.pressure[ii, jj]
-    #                 ) / self.dz
-    #             elif ii == self.nz - 1:
-    #                 self.dp_dz[ii, jj] = (0 - self.pressure[ii, jj]) / self.dz
-    #             else:
-    #                 self.dp_dz[ii, jj] = (
-    #                     self.pressure[ii + 1, jj] - self.pressure[ii, jj]
-    #                 ) / self.dz
-
     def _calculate_pressure_gradients(self):
         """Calculate pressure gradients using finite differences."""
         self.dp_dx, self.dp_dz = _calculate_pressure_gradients_numba(
             self.pressure, self.nx, self.nz, self.dx, self.dz
         )
-        # print("I'm here after the pressure gradients")
-
-    # def _solve_energy_equation(self, mi, n_p, is_equilibrium=False):
-    #     """
-    #     Solve energy equation for temperature field using finite difference method.
-
-    #     Parameters
-    #     ----------
-    #     mi : ndarray
-    #         Dimensionless viscosity field. Shape: (nz, nx).
-    #     n_p : int
-    #         Pad index for the current analysis.
-    #     is_equilibrium : bool, optional
-    #         Whether this is called during equilibrium optimization. Default is False.
-
-    #     Returns
-    #     -------
-    #     ndarray
-    #         Temperature field [°C]. Shape: (nz, nx).
-    #     """
-    #     n_k = self.nx * self.nz
-    #     mat_coef_t = np.zeros((n_k, n_k))
-    #     b_t = np.zeros(n_k)
-
-    #     k_t_idx = 0
-    #     for ii in range(self.nz):
-    #         for jj in range(self.nx):
-    #             # Turbulence and turbulent viscosity
-    #             mi_t = self._calculate_turbulent_viscosity(
-    #                 mi, ii, jj, n_p, is_equilibrium
-    #             )
-
-    #             # Energy equation coefficients
-    #             a_e, a_w, a_n, a_s, a_p_coef = self._calculate_energy_coefficients(
-    #                 ii, jj, mi_t
-    #             )
-
-    #             # Energy equation source term (right hand side)
-    #             b_t_val = self._calculate_energy_source_term(ii, jj, mi_t, n_p)
-    #             b_t[k_t_idx] = b_t_val
-
-    #             # Fill coefficients matrix of energy equation (left hand side)
-    #             self._fill_energy_matrix(
-    #                 mat_coef_t, b_t, k_t_idx, ii, jj, a_e, a_w, a_n, a_s, a_p_coef
-    #             )
-
-    #             k_t_idx += 1
-
-    #     # Solution of temperature field
-    #     mat_coef_t = self._check_diagonal(mat_coef_t)
-    #     t_vec = np.linalg.solve(mat_coef_t, b_t)
-    #     temperature_referance = self._update_temperature_field(t_vec)
 
     #     return temperature_referance
     def _solve_energy_equation(self, mi, n_p, is_equilibrium=False):
         """
         Solve energy equation for temperature field.
-        
-        Uses PHASE 3 sparse matrix solver when enabled for improved performance.
+
+        Uses sparse matrix solver for Reynolds and Energy equations.
         """
-        if self.use_sparse_matrices:
-            # PHASE 3: Use sparse matrix solver for energy equation
-            row_idx, col_idx, vals, b_t, mu_turb_updated, reynolds_field, nnz = _assemble_energy_sparse_numba(
-                self.nx, self.nz, self.xtheta, self.xz,
-                self.dx, self.dz,
-                self.h, self.pressure, self.dp_dx, self.dp_dz,
-                mi, self.mu_turb[:, :, n_p],
-                self.speed, self.mu_0, self.rho, self.cp, self.kt,
-                self.oil_supply_temperature, self.reference_temperature,
-                self.radial_clearance, self.journal_radius,
-                self.pad_radius, self.pad_arc, self.pad_axial_length,
-                self.pad_thickness
-            )
-            
-            if not is_equilibrium:
-                self.mu_turb[:, :, n_p] = mu_turb_updated
-                self.reynolds_field[:, :, n_p] = reynolds_field
-            
-            # Create sparse matrix and solve
-            n_k = self.nx * self.nz
-            mat_sparse = coo_matrix((vals, (row_idx, col_idx)), shape=(n_k, n_k))
-            mat_csr = mat_sparse.tocsr()
-            t_vec = spsolve(mat_csr, b_t)
-        else:
-            # Use dense matrix assembly (PHASE 2)
-            mat_coef_t, b_t, mu_turb_updated, reynolds_field = _assemble_energy_system_numba(
-                self.nx, self.nz, self.xtheta, self.xz,
-                self.dx, self.dz,
-                self.h, self.pressure, self.dp_dx, self.dp_dz,
-                mi, self.mu_turb[:, :, n_p],
-                self.speed, self.mu_0, self.rho, self.cp, self.kt,
-                self.oil_supply_temperature, self.reference_temperature,
-                self.radial_clearance, self.journal_radius,
-                self.pad_radius, self.pad_arc, self.pad_axial_length,
-                self.pad_thickness
-            )
-            
-            if not is_equilibrium:
-                self.mu_turb[:, :, n_p] = mu_turb_updated
-                self.reynolds_field[:, :, n_p] = reynolds_field
-            
-            # Solve using dense solver
-            mat_coef_t = self._check_diagonal(mat_coef_t)
-            t_vec = np.linalg.solve(mat_coef_t, b_t)
-        
+        row_idx, col_idx, vals, b_t, mu_turb_updated, reynolds_field, nnz = _assemble_energy_sparse_numba(
+            self.nx, self.nz, self.xtheta, self.xz,
+            self.dx, self.dz,
+            self.h, self.pressure, self.dp_dx, self.dp_dz,
+            mi, self.mu_turb[:, :, n_p],
+            self.speed, self.mu_0, self.rho, self.cp, self.kt,
+            self.oil_supply_temperature, self.reference_temperature,
+            self.radial_clearance, self.journal_radius,
+            self.pad_radius, self.pad_arc, self.pad_axial_length,
+            self.pad_thickness
+        )
+
+        if not is_equilibrium:
+            self.mu_turb[:, :, n_p] = mu_turb_updated
+            self.reynolds_field[:, :, n_p] = reynolds_field
+
+        n_k = self.nx * self.nz
+        mat_sparse = coo_matrix((vals, (row_idx, col_idx)), shape=(n_k, n_k))
+        mat_csr = mat_sparse.tocsr()
+        t_vec = spsolve(mat_csr, b_t)
+
         temperature_referance = self._update_temperature_field(t_vec)
         
         return temperature_referance
