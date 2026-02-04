@@ -120,7 +120,13 @@ def tilting_pad_determine():
         eccentricity=0.35,
         attitude_angle=Q_(287.5, "deg"),
         load=[8.8405e02, -2.6704e03],
-        initial_pads_angles=[1.0742e-03, 7.2080e-04, 2.9369e-04, 3.4969e-04, 8.1604e-04],
+        initial_pads_angles=[
+            1.0742e-03,
+            7.2080e-04,
+            2.9369e-04,
+            3.4969e-04,
+            8.1604e-04,
+        ],
         solver_options={"xtol": 1e-2, "ftol": 1e-2, "maxiter": 1000},
     )
 
