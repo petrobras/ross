@@ -93,7 +93,7 @@ class TiltingPad(BearingElement):
         Journal position in X direction. Default unit is meter.
     yj : float, optional
         Journal position in Y direction. Default unit is meter.
-    equilibrium_type: str, optional
+    equilibrium_type : str, optional
         Type of equilibrium calculation. Options:
         - 'match_eccentricity': Uses the provided eccentricity and
         attitude_angle and optimizes only the pad rotation angles.
@@ -114,6 +114,20 @@ class TiltingPad(BearingElement):
         equilibrium_type is 'determine_eccentricity'.
     initial_pads_angles : array_like, optional
         Initial pad angles. Default unit is radians.
+    solver_options : dict, optional
+        Options for the Nelder-Mead optimization solver used in equilibrium
+        calculation. Keys (SciPy fmin convention):
+        - 'xtol' : float
+            Convergence tolerance for solution parameters (eccentricity,
+            attitude angle, pad angles). Solver stops when parameter changes
+            between iterations fall below this value. Default is 1e-3.
+        - 'ftol' : float
+            Convergence tolerance for the objective function (force and moment
+            residuals). Solver stops when objective change falls below this
+            value. Default is 1e-3.
+        - 'maxiter' : int
+            Maximum number of iterations allowed. Default is 1000.
+        If None, uses default values: ``{"xtol": 1e-3, "ftol": 1e-3, "maxiter": 1000}``.
     **kwargs : dict, optional
         Additional keyword arguments.
 
@@ -130,9 +144,9 @@ class TiltingPad(BearingElement):
     Attributes
     ----------
     kxx, kyy, kxy, kyx : float
-        Stiffness coefficients in N/m.
+        Stiffness coefficients in N/m. Shape: (n_freq,).
     cxx, cyy, cxy, cyx : float
-        Damping coefficients in N·s/m.
+        Damping coefficients in N·s/m. Shape: (n_freq,).
     pressure_dim : array
         Dimensional pressure field in Pa.
     temperature_init : array
@@ -200,11 +214,17 @@ class TiltingPad(BearingElement):
         load=None,
         initial_pads_angles=None,
         model_type="thermo_hydro_dynamic",
+        solver_options=None,
         **kwargs,
     ):
         self.n = n
         self.n_link = n_link
         self.model_type = model_type
+
+        # Setup values for equilibrium optimization process
+        if solver_options is None:
+            solver_options = {"xtol": 1e-3, "ftol": 1e-3, "maxiter": 1000}
+        self.solver_options = solver_options.copy()
 
         # Bearing Geometry
         self.journal_radius = journal_diameter / 2
@@ -238,6 +258,14 @@ class TiltingPad(BearingElement):
                 "The 'load' parameter is required when equilibrium_type='determine_eccentricity'.\n"
                 "Expected format: load=[fx, fy] where fx and fy are the external loads in X and Y directions.\n"
                 "For more details, see the 'load' parameter documentation in the TiltingPad class docstring."
+            )
+
+        if (
+            initial_pads_angles is None
+            and self.equilibrium_type == "determine_eccentricity"
+        ):
+            raise Warning(
+                "No initial pads angles provided for equilibrium optimization. Using default values. Better results may be obtained if initial pads angles are provided."
             )
 
         self.oil_supply_temperature = Q_(oil_supply_temperature, "degK").m_as("degC")
@@ -298,7 +326,7 @@ class TiltingPad(BearingElement):
         for jj in range(1, self.nx):
             self.xtheta[jj] = self.xtheta[jj - 1] + self.dtheta
 
-        # Pre-compute trigonometric functions for performance optimization (PHASE 1 - Step 1.1)
+        # Pre-compute trigonometric functions
         self.sin_theta = np.sin(self.xtheta)
         self.cos_theta = np.cos(self.xtheta)
         self.sin_theta_e = np.sin(self.xtheta + 0.5 * self.dtheta)
@@ -381,7 +409,6 @@ class TiltingPad(BearingElement):
         - Iterative solution of Reynolds and energy equations for each frequency
         - Calculation of hydrodynamic forces and moments
         - Computation of stiffness and damping coefficients
-        - Generation of result plots and output
 
         Parameters
         ----------
@@ -456,68 +483,6 @@ class TiltingPad(BearingElement):
         tilting pad bearing using a perturbation approach. The coefficients are
         determined by applying small perturbations to the journal position and velocity
         and calculating the resulting force changes.
-
-        The method performs the following steps:
-        1. Applies four types of perturbations (x-displacement, y-displacement,
-        x-velocity, y-velocity) to each pad
-        2. Solves the Reynolds and energy equations for each perturbation
-        3. Calculates force differences due to perturbations
-        4. Computes per-pad stiffness and damping coefficients
-        5. Transforms coefficients from pad coordinate system to inertial system
-        6. Reduces the multi-pad system to equivalent 2x2 coefficient matrices
-
-        Parameters
-        ----------
-        None
-            This method uses the bearing parameters and equilibrium position from
-            the solve_fields() method.
-
-        Returns
-        -------
-        None
-            Results are stored as instance attributes.
-
-        Attributes
-        ----------
-        kxx, kyy, kxy, kyx : float
-            Stiffness coefficients in inertial coordinate system [N/m].
-        cxx, cyy, cxy, cyx : float
-            Damping coefficients in inertial coordinate system [N·s/m].
-        K : ndarray
-            Per-pad stiffness matrix. Shape: (n_pad, 3, 3).
-        C : ndarray
-            Per-pad damping matrix. Shape: (n_pad, 3, 3).
-        Sjpt : ndarray
-            Complex dynamic matrix for each pad. Shape: (n_pad, 3, 3).
-        Sjipt : ndarray
-            Transformed complex dynamic matrix for each pad. Shape: (n_pad, 3, 3).
-        Sw : ndarray
-            Final reduced complex dynamic matrix. Shape: (2, 2).
-
-        Notes
-        -----
-        The perturbation method uses:
-        - Space perturbation: 0.5% of radial clearance
-        - Speed perturbation: 2.5% of operating speed × space perturbation
-
-        The method applies four perturbation types:
-        - a_p = 0: X-displacement perturbation
-        - a_p = 1: Y-displacement perturbation
-        - a_p = 2: X-velocity perturbation
-        - a_p = 3: Y-velocity perturbation
-
-        For each perturbation, the method:
-        1. Solves Reynolds equation for pressure field
-        2. Solves energy equation for temperature field
-        3. Calculates hydrodynamic forces and moments
-        4. Computes force differences and coefficients
-
-        The final coefficients are obtained by matrix reduction from the
-        multi-pad system to an equivalent 2x2 system representing the
-        overall bearing behavior.
-
-        The method assumes the equilibrium position has been previously
-        calculated by the solve_fields() method.
         """
 
         # Loads initialization
@@ -603,769 +568,267 @@ class TiltingPad(BearingElement):
                 n_p_eq, eq_psi_pad, is_equilibrium=False
             )
 
+        # Perturbation loop: 4 perturbation types × n_pad pads
         for a_p in range(4):
             for n_p in range(self.n_pad):
-                xx_coef = self.xdin[:2]
-
+                # Extract pad angles from equilibrium state
                 for k_pad in range(self.n_pad):
                     psi_pad[k_pad] = self.xdin[k_pad + 2]
 
-                temperature_referance = self.temperature_init[:, :, n_p]
-                temperature_iteration = 1.1 * temperature_referance
+                temperature_reference = self.temperature_init[:, :, n_p]
+                temperature_iteration = 1.1 * temperature_reference
                 cont_temp = 0
 
                 while (
-                    abs((temperature_referance - temperature_iteration).max())
+                    abs((temperature_reference - temperature_iteration).max())
                     >= temperature_tolerance
                 ):
                     cont_temp += 1
-                    # temperature_iteration = np.array(temperature_referance)
-                    temperature_iteration = temperature_referance.copy()
+                    temperature_iteration = temperature_reference.copy()
 
                     mi_i = self.a_a * np.exp(self.b_b * temperature_iteration)
                     mi = mi_i / self.mu_0
 
-                    k_idx = 0
-                    mat_coef = np.zeros((n_k, n_k))
-                    b_vec = np.zeros(n_k)
-
+                    # Get base coordinates (without perturbation)
                     xryr, xryrpt, xr, yr, xrpt, yrpt = self._transform_coordinates(n_p)
 
-                    alphapt = 0
-
+                    # Apply perturbations based on perturbation type
                     if a_p == 0:
                         xr += self.space_perturbation
                     elif a_p == 1:
                         yr += self.space_perturbation
-                    if a_p == 2:
+                    elif a_p == 2:
                         xrpt += self.speed_perturbation
-                    if a_p == 3:
+                    elif a_p == 3:
                         yrpt += self.speed_perturbation
 
                     alpha = psi_pad[n_p]
+                    alphapt = 0.0
 
-                    # Calculate face viscosities once for entire mesh (PHASE 1 - Step 1.3)
-                    mi_e_all, mi_w_all, mi_n_all, mi_s_all = self._calculate_face_viscosities_vectorized(mi)
-
-                    for ii in range(self.nz):
-                        for jj in range(self.nx):
-                            # Use pre-computed trigonometric functions (PHASE 1 - Step 1.1)
-                            h_p = (
-                                self.pad_radius
-                                - self.journal_radius
-                                - (
-                                    self.sin_theta[jj]
-                                    * (
-                                        yr
-                                        + alpha * (self.pad_radius + self.pad_thickness)
-                                    )
-                                    + self.cos_theta[jj]
-                                    * (
-                                        xr
-                                        + self.pad_radius
-                                        - self.journal_radius
-                                        - self.radial_clearance
-                                    )
-                                )
-                            ) / self.radial_clearance
-
-                            h_e = (
-                                self.pad_radius
-                                - self.journal_radius
-                                - (
-                                    self.sin_theta_e[jj]
-                                    * (
-                                        yr
-                                        + alpha * (self.pad_radius + self.pad_thickness)
-                                    )
-                                    + self.cos_theta_e[jj]
-                                    * (
-                                        xr
-                                        + self.pad_radius
-                                        - self.journal_radius
-                                        - self.radial_clearance
-                                    )
-                                )
-                            ) / self.radial_clearance
-
-                            h_w = (
-                                self.pad_radius
-                                - self.journal_radius
-                                - (
-                                    self.sin_theta_w[jj]
-                                    * (
-                                        yr
-                                        + alpha * (self.pad_radius + self.pad_thickness)
-                                    )
-                                    + self.cos_theta_w[jj]
-                                    * (
-                                        xr
-                                        + self.pad_radius
-                                        - self.journal_radius
-                                        - self.radial_clearance
-                                    )
-                                )
-                            ) / self.radial_clearance
-
-                            h_n = h_p
-                            h_s = h_p
-
-                            h_pt = -(1 / (self.radial_clearance * self.speed)) * (
-                                self.cos_theta[jj] * xrpt
-                                + self.sin_theta[jj] * yrpt
-                                + self.sin_theta[jj]
-                                * (self.pad_radius + self.pad_thickness)
-                                * alphapt
-                            )
-
-                            self.h[ii, jj] = h_p
-
-                            # Get face viscosities from pre-computed arrays (PHASE 1 - Step 1.3)
-                            mi_e = mi_e_all[ii, jj]
-                            mi_w = mi_w_all[ii, jj]
-                            mi_n = mi_n_all[ii, jj]
-                            mi_s = mi_s_all[ii, jj]
-
-                            c_e = (
-                                (1 / (self.pad_arc**2))
-                                * (h_e**3 / (12 * mi_e))
-                                * (self.dz / self.dx)
-                            )
-                            c_w = (
-                                (1 / (self.pad_arc**2))
-                                * (h_w**3 / (12 * mi_w))
-                                * (self.dz / self.dx)
-                            )
-                            c_n = (
-                                (self.pad_radius / self.pad_axial_length) ** 2
-                                * (self.dx / self.dz)
-                                * (h_n**3 / (12 * mi_n))
-                            )
-                            c_s = (
-                                (self.pad_radius / self.pad_axial_length) ** 2
-                                * (self.dx / self.dz)
-                                * (h_s**3 / (12 * mi_s))
-                            )
-                            c_p = -(c_e + c_w + c_n + c_s)
-                            b_val = (
-                                self.journal_radius
-                                / (2 * self.pad_radius * self.pad_arc)
-                            ) * self.dz * (h_e - h_w) + h_pt * self.dx * self.dz
-                            b_vec[k_idx] = b_val
-
-                            # fill mat_coef according to mesh location
-                            if ii == 0 and jj == 0:
-                                mat_coef[k_idx, k_idx] = c_p - c_s - c_w
-                                mat_coef[k_idx, k_idx + 1] = c_e
-                                mat_coef[k_idx, k_idx + self.nx] = c_n
-
-                            if ii == 0 and 0 < jj < self.nx - 1:
-                                mat_coef[k_idx, k_idx] = c_p - c_s
-                                mat_coef[k_idx, k_idx + 1] = c_e
-                                mat_coef[k_idx, k_idx - 1] = c_w
-                                mat_coef[k_idx, k_idx + self.nx] = c_n
-
-                            if ii == 0 and jj == self.nx - 1:
-                                mat_coef[k_idx, k_idx] = c_p - c_e - c_s
-                                mat_coef[k_idx, k_idx - 1] = c_w
-                                mat_coef[k_idx, k_idx + self.nx] = c_n
-
-                            if jj == 0 and 0 < ii < self.nz - 1:
-                                mat_coef[k_idx, k_idx] = c_p - c_w
-                                mat_coef[k_idx, k_idx + 1] = c_e
-                                mat_coef[k_idx, k_idx - self.nx] = c_s
-                                mat_coef[k_idx, k_idx + self.nx] = c_n
-
-                            if 0 < ii < self.nz - 1 and 0 < jj < self.nx - 1:
-                                mat_coef[k_idx, k_idx] = c_p
-                                mat_coef[k_idx, k_idx - 1] = c_w
-                                mat_coef[k_idx, k_idx - self.nx] = c_s
-                                mat_coef[k_idx, k_idx + self.nx] = c_n
-                                mat_coef[k_idx, k_idx + 1] = c_e
-
-                            if jj == self.nx - 1 and 0 < ii < self.nz - 1:
-                                mat_coef[k_idx, k_idx] = c_p - c_e
-                                mat_coef[k_idx, k_idx - 1] = c_w
-                                mat_coef[k_idx, k_idx - self.nx] = c_s
-                                mat_coef[k_idx, k_idx + self.nx] = c_n
-
-                            if jj == 0 and ii == self.nz - 1:
-                                mat_coef[k_idx, k_idx] = c_p - c_n - c_w
-                                mat_coef[k_idx, k_idx + 1] = c_e
-                                mat_coef[k_idx, k_idx - self.nx] = c_s
-
-                            if ii == self.nz - 1 and 0 < jj < self.nx - 1:
-                                mat_coef[k_idx, k_idx] = c_p - c_n
-                                mat_coef[k_idx, k_idx + 1] = c_e
-                                mat_coef[k_idx, k_idx - 1] = c_w
-                                mat_coef[k_idx, k_idx - self.nx] = c_s
-
-                            if ii == self.nz - 1 and jj == self.nx - 1:
-                                mat_coef[k_idx, k_idx] = c_p - c_e - c_n
-                                mat_coef[k_idx, k_idx - 1] = c_w
-                                mat_coef[k_idx, k_idx - self.nx] = c_s
-
-                            k_idx += 1
-
-                    # Pressure field solution
-                    mat_coef = self._check_diagonal(mat_coef)
-                    p_vec = np.linalg.solve(mat_coef, b_vec)
-
-                    cont = 0
-                    for i_lin in np.arange(self.nz):
-                        for j_col in np.arange(self.nx):
-                            self.pressure[i_lin, j_col] = p_vec[cont]
-                            cont += 1
-                            if self.pressure[i_lin, j_col] < 0:
-                                self.pressure[i_lin, j_col] = 0
-
-                    # Energy equation & pressure gradients
-                    n_k = self.nx * self.nz
-                    mat_coef_t = np.zeros((n_k, n_k))
-                    b_t = np.zeros(n_k)
-                    test_diag = np.zeros(n_k)
-
-                    k_t_idx = 0
-                    for ii in range(self.nz):
-                        for jj in range(self.nx):
-                            if jj == 0 and ii == 0:
-                                self.dp_dx[ii, jj] = (
-                                    self.pressure[ii, jj + 1] - self.pressure[ii, jj]
-                                ) / self.dx
-                                self.dp_dz[ii, jj] = (
-                                    self.pressure[ii + 1, jj] - self.pressure[ii, jj]
-                                ) / self.dz
-
-                            if jj == 0 and 0 < ii < self.nz - 1:
-                                self.dp_dx[ii, jj] = (
-                                    self.pressure[ii, jj + 1] - self.pressure[ii, jj]
-                                ) / self.dx
-                                self.dp_dz[ii, jj] = (
-                                    self.pressure[ii + 1, jj] - self.pressure[ii, jj]
-                                ) / self.dz
-
-                            if jj == 0 and ii == self.nz - 1:
-                                self.dp_dx[ii, jj] = (
-                                    self.pressure[ii, jj + 1] - self.pressure[ii, jj]
-                                ) / self.dx
-                                self.dp_dz[ii, jj] = (
-                                    0 - self.pressure[ii, jj]
-                                ) / self.dz
-
-                            if ii == 0 and 0 < jj < self.nx - 1:
-                                self.dp_dx[ii, jj] = (
-                                    self.pressure[ii, jj + 1] - self.pressure[ii, jj]
-                                ) / self.dx
-                                self.dp_dz[ii, jj] = (
-                                    self.pressure[ii + 1, jj] - self.pressure[ii, jj]
-                                ) / self.dz
-
-                            if 0 < jj < self.nx - 1 and 0 < ii < self.nz - 1:
-                                self.dp_dx[ii, jj] = (
-                                    self.pressure[ii, jj + 1] - self.pressure[ii, jj]
-                                ) / self.dx
-                                self.dp_dz[ii, jj] = (
-                                    self.pressure[ii + 1, jj] - self.pressure[ii, jj]
-                                ) / self.dz
-
-                            if ii == self.nz - 1 and 0 < jj < self.nx - 1:
-                                self.dp_dx[ii, jj] = (
-                                    self.pressure[ii, jj + 1] - self.pressure[ii, jj]
-                                ) / self.dx
-                                self.dp_dz[ii, jj] = (
-                                    0 - self.pressure[ii, jj]
-                                ) / self.dz
-
-                            if ii == 0 and jj == self.nx - 1:
-                                self.dp_dx[ii, jj] = (
-                                    0 - self.pressure[ii, jj]
-                                ) / self.dx
-                                self.dp_dz[ii, jj] = (
-                                    self.pressure[ii + 1, jj] - self.pressure[ii, jj]
-                                ) / self.dz
-
-                            if jj == self.nx - 1 and 0 < ii < self.nz - 1:
-                                self.dp_dx[ii, jj] = (
-                                    0 - self.pressure[ii, jj]
-                                ) / self.dx
-                                self.dp_dz[ii, jj] = (
-                                    self.pressure[ii + 1, jj] - self.pressure[ii, jj]
-                                ) / self.dz
-
-                            if jj == self.nx - 1 and ii == self.nz - 1:
-                                self.dp_dx[ii, jj] = (
-                                    0 - self.pressure[ii, jj]
-                                ) / self.dx
-                                self.dp_dz[ii, jj] = (
-                                    0 - self.pressure[ii, jj]
-                                ) / self.dz
-
-                            # Turbulence modeling (Eddy viscosity)
-                            h_p_loc = self.h[ii, jj]
-                            mi_p = mi[ii, jj]
-
-                            self.reynolds_field[ii, jj, n_p] = (
-                                self.rho
-                                * self.speed
-                                * self.journal_radius
-                                * (h_p_loc / self.pad_axial_length)
-                                * self.radial_clearance
-                                / (self.mu_0 * mi_p)
-                            )
-
-                            if self.reynolds_field[ii, jj, n_p] <= 500:
-                                delta_turb = 0
-                            elif 400 < self.reynolds_field[ii, jj, n_p] <= 1000:
-                                delta_turb = 1 - (
-                                    (1000 - self.reynolds_field[ii, jj, n_p]) / 500
-                                ) ** (1 / 8)
-                            else:
-                                delta_turb = 1
-
-                            du_dx = (
-                                (h_p_loc / self.mu_turb[ii, jj, n_p])
-                                * self.dp_dx[ii, jj]
-                            ) - (self.speed / h_p_loc)
-                            dw_dx = (h_p_loc / self.mu_turb[ii, jj, n_p]) * self.dp_dz[
-                                ii, jj
-                            ]
-
-                            tau = self.mu_turb[ii, jj, n_p] * np.sqrt(
-                                du_dx**2 + dw_dx**2
-                            )
-                            y_wall = (
-                                (h_p_loc * self.radial_clearance * 2)
-                                / (self.mu_0 * self.mu_turb[ii, jj, n_p] / self.rho)
-                            ) * ((abs(tau) / self.rho) ** 0.5)
-
-                            emv = 0.4 * (y_wall - (10.7 * np.tanh(y_wall / 10.7)))
-                            self.mu_turb[ii, jj, n_p] = mi_p * (1 + (delta_turb * emv))
-                            mi_t = self.mu_turb[ii, jj, n_p]
-
-                            # Coefficients for the energy equation
-                            aux_up = 1
-                            if self.xz[ii] < 0:
-                                aux_up = 0
-
-                            a_e = -(self.kt * h_p_loc * self.dz) / (
-                                self.rho
-                                * self.cp
-                                * self.speed
-                                * ((self.pad_arc * self.pad_radius) ** 2)
-                                * self.dx
-                            )
-
-                            a_w = (
-                                ((h_p_loc**3) * self.dp_dx[ii, jj] * self.dz)
-                                / (12 * mi_t * (self.pad_arc**2))
-                                - (
-                                    (self.journal_radius * h_p_loc * self.dz)
-                                    / (2 * self.pad_radius * self.pad_arc)
-                                )
-                                - (self.kt * h_p_loc * self.dz)
-                                / (
-                                    self.rho
-                                    * self.cp
-                                    * self.speed
-                                    * ((self.pad_arc * self.pad_radius) ** 2)
-                                    * self.dx
-                                )
-                            )
-
-                            a_n_1 = (aux_up - 1) * (
-                                (
-                                    (self.pad_radius**2)
-                                    * (h_p_loc**3)
-                                    * self.dp_dz[ii, jj]
-                                    * self.dx
-                                )
-                                / (12 * (self.pad_axial_length**2) * mi_t)
-                            )
-                            a_s_1 = (aux_up) * (
-                                (
-                                    (self.pad_radius**2)
-                                    * (h_p_loc**3)
-                                    * self.dp_dz[ii, jj]
-                                    * self.dx
-                                )
-                                / (12 * (self.pad_axial_length**2) * mi_t)
-                            )
-
-                            a_n_2 = -(self.kt * h_p_loc * self.dx) / (
-                                self.rho
-                                * self.cp
-                                * self.speed
-                                * (self.pad_axial_length**2)
-                                * self.dz
-                            )
-
-                            a_s_2 = -(self.kt * h_p_loc * self.dx) / (
-                                self.rho
-                                * self.cp
-                                * self.speed
-                                * (self.pad_axial_length**2)
-                                * self.dz
-                            )
-
-                            a_n = a_n_1 + a_n_2
-                            a_s = a_s_1 + a_s_2
-                            a_p_coef = -(a_e + a_w + a_n + a_s)
-
-                            aux_b_t = (self.speed * self.mu_0) / (
-                                self.rho
-                                * self.cp
-                                * self.oil_supply_temperature
-                                * self.radial_clearance
-                            )
-
-                            b_t_g = (
-                                self.mu_0
-                                * self.speed
-                                * (self.journal_radius**2)
-                                * self.dx
-                                * self.dz
-                                * self.pressure[ii, jj]
-                                * h_pt
-                            ) / (
-                                self.rho
-                                * self.cp
-                                * self.reference_temperature
-                                * (self.radial_clearance**2)
-                            )
-
-                            b_t_h = (
-                                self.speed
-                                * self.mu_0
-                                * (h_pt**2)
-                                * 4
-                                * mi_t
-                                * self.dx
-                                * self.dz
-                            ) / (
-                                self.rho
-                                * self.cp
-                                * self.reference_temperature
-                                * 3
-                                * h_p_loc
-                            )
-
-                            b_t_i = (
-                                aux_b_t
-                                * (
-                                    1
-                                    * mi_t
-                                    * (self.journal_radius**2)
-                                    * self.dx
-                                    * self.dz
-                                )
-                                / (h_p_loc * self.radial_clearance)
-                            )
-
-                            b_t_j = (
-                                aux_b_t
-                                * (
-                                    (self.pad_radius**2)
-                                    * (h_p_loc**3)
-                                    * (self.dp_dx[ii, jj] ** 2)
-                                    * self.dx
-                                    * self.dz
-                                )
-                                / (
-                                    12
-                                    * self.radial_clearance
-                                    * (self.pad_arc**2)
-                                    * mi_t
-                                )
-                            )
-
-                            b_t_k = (
-                                aux_b_t
-                                * (
-                                    (self.pad_radius**4)
-                                    * (h_p_loc**3)
-                                    * (self.dp_dz[ii, jj] ** 2)
-                                    * self.dx
-                                    * self.dz
-                                )
-                                / (
-                                    12
-                                    * self.radial_clearance
-                                    * (self.pad_axial_length**2)
-                                    * mi_t
-                                )
-                            )
-
-                            b_t_val = b_t_g + b_t_h + b_t_i + b_t_j + b_t_k
-                            b_t[k_t_idx] = b_t_val
-
-                            # fill mat_coef_t according to mesh location
-                            if ii == 0 and jj == 0:
-                                mat_coef_t[k_t_idx, k_t_idx] = a_p_coef + a_s - a_w
-                                mat_coef_t[k_t_idx, k_t_idx + 1] = a_e
-                                mat_coef_t[k_t_idx, k_t_idx + self.nx] = a_n
-                                b_t[k_t_idx] = b_t[k_t_idx] - 2 * a_w * (
-                                    self.oil_supply_temperature
-                                    / self.reference_temperature
-                                )
-                                test_diag[k_t_idx] = mat_coef_t[k_t_idx, k_t_idx] - (
-                                    mat_coef_t[k_t_idx, k_t_idx + 1]
-                                    + mat_coef_t[k_t_idx, k_t_idx + self.nx]
-                                )
-
-                            if ii == 0 and 0 < jj < self.nx - 1:
-                                mat_coef_t[k_t_idx, k_t_idx] = a_p_coef + a_s
-                                mat_coef_t[k_t_idx, k_t_idx + 1] = a_e
-                                mat_coef_t[k_t_idx, k_t_idx - 1] = a_w
-                                mat_coef_t[k_t_idx, k_t_idx + self.nx] = a_n
-                                test_diag[k_t_idx] = mat_coef_t[k_t_idx, k_t_idx] - (
-                                    mat_coef_t[k_t_idx, k_t_idx + 1]
-                                    + mat_coef_t[k_t_idx, k_t_idx - 1]
-                                    + mat_coef_t[k_t_idx, k_t_idx + self.nx]
-                                )
-
-                            if ii == 0 and jj == self.nx - 1:
-                                mat_coef_t[k_t_idx, k_t_idx] = a_p_coef + a_e + a_s
-                                mat_coef_t[k_t_idx, k_t_idx - 1] = a_w
-                                mat_coef_t[k_t_idx, k_t_idx + self.nx] = a_n
-                                test_diag[k_t_idx] = mat_coef_t[k_t_idx, k_t_idx] - (
-                                    mat_coef_t[k_t_idx, k_t_idx - 1]
-                                    + mat_coef_t[k_t_idx, k_t_idx + self.nx]
-                                )
-
-                            if jj == 0 and 0 < ii < self.nz - 1:
-                                mat_coef_t[k_t_idx, k_t_idx] = a_p_coef - a_w
-                                mat_coef_t[k_t_idx, k_t_idx + 1] = a_e
-                                mat_coef_t[k_t_idx, k_t_idx - self.nx] = a_s
-                                mat_coef_t[k_t_idx, k_t_idx + self.nx] = a_n
-                                b_t[k_t_idx] = b_t[k_t_idx] - 2 * a_w * (
-                                    self.oil_supply_temperature
-                                    / self.reference_temperature
-                                )
-                                test_diag[k_t_idx] = mat_coef_t[k_t_idx, k_t_idx] - (
-                                    mat_coef_t[k_t_idx, k_t_idx + 1]
-                                    + mat_coef_t[k_t_idx, k_t_idx - 1]
-                                    + mat_coef_t[k_t_idx, k_t_idx + self.nx]
-                                )
-
-                            if 0 < ii < self.nz - 1 and 0 < jj < self.nx - 1:
-                                mat_coef_t[k_t_idx, k_t_idx] = a_p_coef
-                                mat_coef_t[k_t_idx, k_t_idx - 1] = a_w
-                                mat_coef_t[k_t_idx, k_t_idx - self.nx] = a_s
-                                mat_coef_t[k_t_idx, k_t_idx + self.nx] = a_n
-                                mat_coef_t[k_t_idx, k_t_idx + 1] = a_e
-                                test_diag[k_t_idx] = mat_coef_t[k_t_idx, k_t_idx] - (
-                                    mat_coef_t[k_t_idx, k_t_idx + 1]
-                                    + mat_coef_t[k_t_idx, k_t_idx - 1]
-                                    + mat_coef_t[k_t_idx, k_t_idx - self.nx]
-                                    + mat_coef_t[k_t_idx, k_t_idx + self.nx]
-                                )
-
-                            if jj == self.nx - 1 and 0 < ii < self.nz - 1:
-                                mat_coef_t[k_t_idx, k_t_idx] = a_p_coef + a_e
-                                mat_coef_t[k_t_idx, k_t_idx - 1] = a_w
-                                mat_coef_t[k_t_idx, k_t_idx - self.nx] = a_s
-                                mat_coef_t[k_t_idx, k_t_idx + self.nx] = a_n
-                                test_diag[k_t_idx] = mat_coef_t[k_t_idx, k_t_idx] - (
-                                    mat_coef_t[k_t_idx, k_t_idx - 1]
-                                    + mat_coef_t[k_t_idx, k_t_idx - self.nx]
-                                    + mat_coef_t[k_t_idx, k_t_idx + self.nx]
-                                )
-
-                            if jj == 0 and ii == self.nz - 1:
-                                mat_coef_t[k_t_idx, k_t_idx] = a_p_coef + a_n - a_w
-                                mat_coef_t[k_t_idx, k_t_idx + 1] = a_e
-                                mat_coef_t[k_t_idx, k_t_idx - self.nx] = a_s
-                                b_t[k_t_idx] = b_t[k_t_idx] - 2 * a_w * (
-                                    self.oil_supply_temperature
-                                    / self.reference_temperature
-                                )
-                                test_diag[k_t_idx] = mat_coef_t[k_t_idx, k_t_idx] - (
-                                    mat_coef_t[k_t_idx, k_t_idx + 1]
-                                    + mat_coef_t[k_t_idx, k_t_idx - self.nx]
-                                )
-
-                            if ii == self.nz - 1 and 0 < jj < self.nx - 1:
-                                mat_coef_t[k_t_idx, k_t_idx] = a_p_coef + a_n
-                                mat_coef_t[k_t_idx, k_t_idx + 1] = a_e
-                                mat_coef_t[k_t_idx, k_t_idx - 1] = a_w
-                                mat_coef_t[k_t_idx, k_t_idx - self.nx] = a_s
-                                test_diag[k_t_idx] = mat_coef_t[k_t_idx, k_t_idx] - (
-                                    mat_coef_t[k_t_idx, k_t_idx + 1]
-                                    + mat_coef_t[k_t_idx, k_t_idx - 1]
-                                    + mat_coef_t[k_t_idx, k_t_idx - self.nx]
-                                )
-
-                            if ii == self.nz - 1 and jj == self.nx - 1:
-                                mat_coef_t[k_t_idx, k_t_idx] = a_p_coef + a_e + a_n
-                                mat_coef_t[k_t_idx, k_t_idx - 1] = a_w
-                                mat_coef_t[k_t_idx, k_t_idx - self.nx] = a_s
-                                test_diag[k_t_idx] = mat_coef_t[k_t_idx, k_t_idx] - (
-                                    mat_coef_t[k_t_idx, k_t_idx - 1]
-                                    + mat_coef_t[k_t_idx, k_t_idx - self.nx]
-                                )
-
-                            k_t_idx += 1
-
-                    # Solution of temperature field
-                    mat_coef_t = self._check_diagonal(mat_coef_t)
-                    t_vec = np.linalg.solve(mat_coef_t, b_t)
-                    cont = 0
-                    for i_lin in np.arange(self.nz):
-                        for j_col in np.arange(self.nx):
-                            temperature_referance[i_lin, j_col] = (
-                                self.reference_temperature * t_vec[cont]
-                            )
-                            cont += 1
-
-                    # Hydrodynamic forces
-                    p_dimen = (
-                        self.pressure
-                        * (self.mu_0 * self.speed * self.pad_radius**2)
-                        / (self.radial_clearance**2)
+                    # Use the Numba function for Reynolds equation
+                    row_idx, col_idx, vals, b_vec, self.h, nnz = (
+                        _assemble_reynolds_sparse_numba(
+                            self.nx,
+                            self.nz,
+                            self.dx,
+                            self.dz,
+                            mi,
+                            xr,
+                            yr,
+                            xrpt,
+                            yrpt,
+                            alpha,
+                            alphapt,
+                            self.pad_radius,
+                            self.journal_radius,
+                            self.radial_clearance,
+                            self.pad_thickness,
+                            self.pad_arc,
+                            self.pad_axial_length,
+                            self.speed,
+                            self.sin_theta,
+                            self.cos_theta,
+                            self.sin_theta_e,
+                            self.cos_theta_e,
+                            self.sin_theta_w,
+                            self.cos_theta_w,
+                        )
                     )
 
-                    # aux_f1 = np.zeros((self.nz, self.nx))
-                    # aux_f2 = np.zeros((self.nz, self.nx))
-                    # for ni in np.arange(self.nz):
-                    #     aux_f1[ni, :] = np.cos(self.xtheta)
-                    #     aux_f2[ni, :] = np.sin(self.xtheta)
+                    # Solve Reynolds equation using sparse matrix
+                    mat_sparse = coo_matrix(
+                        (vals, (row_idx, col_idx)), shape=(n_k, n_k)
+                    )
+                    mat_csr = mat_sparse.tocsr()
+                    p_vec = spsolve(mat_csr, b_vec)
 
-                    y_teta_f1 = self.pressure * self.cos_theta_broadcast
-                    y_teta_f2 = self.pressure * self.sin_theta_broadcast
+                    # Update pressure field with non-negative constraint
+                    self._update_pressure_field(p_vec)
 
-                    # y_teta_f1 = self.pressure * aux_f1
-                    f1_teta = np.trapezoid(y_teta_f1, self.xtheta)
-                    self.force_new[n_p] = -np.trapezoid(f1_teta, self.xz)
+                    # Calculate pressure gradients (required for energy equation)
+                    self._calculate_pressure_gradients()
 
-                    # y_teta_f2 = self.pressure * aux_f2
-                    f2_teta = np.trapezoid(y_teta_f2, self.xtheta)
-                    self.force_2_new[n_p] = -np.trapezoid(f2_teta, self.xz)
-
-                    self.moment_j_new[n_p] = self.force_2_new[n_p] * (
-                        self.pad_radius + self.pad_thickness
+                    # Solve energy equation using sparse Numba function
+                    (
+                        row_idx_t,
+                        col_idx_t,
+                        vals_t,
+                        b_t,
+                        mu_turb_updated,
+                        reynolds_field_updated,
+                        nnz_t,
+                    ) = _assemble_energy_sparse_numba(
+                        self.nx,
+                        self.nz,
+                        self.xz,
+                        self.dx,
+                        self.dz,
+                        self.h,
+                        self.pressure,
+                        self.dp_dx,
+                        self.dp_dz,
+                        mi,
+                        self.speed,
+                        self.mu_0,
+                        self.rho,
+                        self.cp,
+                        self.kt,
+                        self.oil_supply_temperature,
+                        self.reference_temperature,
+                        self.radial_clearance,
+                        self.journal_radius,
+                        self.pad_radius,
+                        self.pad_arc,
+                        self.pad_axial_length,
                     )
 
-                    # Dynamic loads
-                    del_force_x[n_p] = -(self.force_new[n_p] - self.force_1[n_p])
-                    del_force_y[n_p] = -(self.force_2_new[n_p] - self.force_2[n_p])
-                    del_moment_j[n_p] = -(self.moment_j_new[n_p] - self.moment_j[n_p])
+                    # Update turbulence fields
+                    self.mu_turb[:, :, n_p] = mu_turb_updated
+                    self.reynolds_field[:, :, n_p] = reynolds_field_updated
 
-                    # X-axis perturbation
-                    if a_p == 0:
-                        k_xx[n_p] = (
-                            del_force_x[n_p]
-                            / self.space_perturbation
-                            * self.dimensionless_force[n_p]
-                        )
-                        k_yx[n_p] = (
-                            del_force_y[n_p]
-                            / self.space_perturbation
-                            * self.dimensionless_force[n_p]
-                        )
+                    # Solve temperature using sparse matrix
+                    mat_sparse_t = coo_matrix(
+                        (vals_t, (row_idx_t, col_idx_t)), shape=(n_k, n_k)
+                    )
+                    mat_csr_t = mat_sparse_t.tocsr()
+                    t_vec = spsolve(mat_csr_t, b_t)
 
-                        self.K[n_p, 0, 0] = k_xx[n_p]
-                        self.K[n_p, 1, 0] = k_yx[n_p]
+                    # Update temperature field
+                    temperature_reference = self._update_temperature_field(t_vec)
 
-                    # Angular (pad) perturbation
-                    elif a_p == 1:
-                        k_yy[n_p] = (
-                            del_force_y[n_p]
-                            / self.space_perturbation
-                            * self.dimensionless_force[n_p]
-                        )
-                        k_xy[n_p] = (
-                            del_force_x[n_p]
-                            / self.space_perturbation
-                            * self.dimensionless_force[n_p]
-                        )
+                # Calculate hydrodynamic forces after temperature convergence
+                y_teta_f1 = self.pressure * self.cos_theta_broadcast
+                y_teta_f2 = self.pressure * self.sin_theta_broadcast
 
-                        self.K[n_p, 1, 1] = k_yy[n_p]
-                        self.K[n_p, 0, 1] = k_xy[n_p]
+                f1_teta = np.trapezoid(y_teta_f1, self.xtheta)
+                self.force_new[n_p] = -np.trapezoid(f1_teta, self.xz)
 
-                        k_tt[n_p] = k_yy[n_p] * (
-                            (self.pad_radius + self.pad_thickness) ** 2
-                        )
-                        k_tx[n_p] = -k_yx[n_p] * (self.pad_radius + self.pad_thickness)
-                        k_xt[n_p] = -k_xy[n_p] * (self.pad_radius + self.pad_thickness)
-                        k_ty[n_p] = -k_yy[n_p] * (self.pad_radius + self.pad_thickness)
-                        k_yt[n_p] = -k_yy[n_p] * (self.pad_radius + self.pad_thickness)
-                        self.K[n_p, 2, 2] = k_tt[n_p]
-                        self.K[n_p, 0, 2] = k_xt[n_p]
-                        self.K[n_p, 2, 0] = k_tx[n_p]
-                        self.K[n_p, 1, 2] = k_yt[n_p]
-                        self.K[n_p, 2, 1] = k_ty[n_p]
+                f2_teta = np.trapezoid(y_teta_f2, self.xtheta)
+                self.force_2_new[n_p] = -np.trapezoid(f2_teta, self.xz)
 
-                    # X-axis speed perturbation
-                    elif a_p == 2:
-                        c_xx[n_p] = (
-                            del_force_x[n_p]
-                            / self.speed_perturbation
-                            * self.dimensionless_force[n_p]
-                        )
-                        c_yx[n_p] = (
-                            del_force_y[n_p]
-                            / self.speed_perturbation
-                            * self.dimensionless_force[n_p]
-                        )
-                        self.C[n_p, 0, 0] = c_xx[n_p]
-                        self.C[n_p, 1, 0] = c_yx[n_p]
+                self.moment_j_new[n_p] = self.force_2_new[n_p] * (
+                    self.pad_radius + self.pad_thickness
+                )
 
-                    # Angular speed perturbation
-                    elif a_p == 3:
-                        c_yy[n_p] = (
-                            del_force_y[n_p]
-                            / self.speed_perturbation
-                            * self.dimensionless_force[n_p]
-                        )
-                        c_xy[n_p] = (
-                            del_force_x[n_p]
-                            / self.speed_perturbation
-                            * self.dimensionless_force[n_p]
-                        )
-                        self.C[n_p, 1, 1] = c_yy[n_p]
-                        self.C[n_p, 0, 1] = c_xy[n_p]
+                # Dynamic loads (force difference due to perturbation)
+                del_force_x[n_p] = -(self.force_new[n_p] - self.force_1[n_p])
+                del_force_y[n_p] = -(self.force_2_new[n_p] - self.force_2[n_p])
+                del_moment_j[n_p] = -(self.moment_j_new[n_p] - self.moment_j[n_p])
 
-                        c_tt[n_p] = c_yy[n_p] * (
-                            (self.pad_radius + self.pad_thickness) ** 2
-                        )
-                        c_tx[n_p] = -c_yx[n_p] * (self.pad_radius + self.pad_thickness)
-                        c_xt[n_p] = -c_xy[n_p] * (self.pad_radius + self.pad_thickness)
-                        c_ty[n_p] = -c_yy[n_p] * (self.pad_radius + self.pad_thickness)
-                        c_yt[n_p] = -c_yy[n_p] * (self.pad_radius + self.pad_thickness)
-                        self.C[n_p, 2, 2] = c_tt[n_p]
-                        self.C[n_p, 0, 2] = c_xt[n_p]
-                        self.C[n_p, 2, 0] = c_tx[n_p]
-                        self.C[n_p, 1, 2] = c_yt[n_p]
-                        self.C[n_p, 2, 1] = c_ty[n_p]
+                # Extract coefficients based on perturbation type
+                if a_p == 0:  # X-displacement perturbation
+                    k_xx[n_p] = (
+                        del_force_x[n_p]
+                        / self.space_perturbation
+                        * self.dimensionless_force[n_p]
+                    )
+                    k_yx[n_p] = (
+                        del_force_y[n_p]
+                        / self.space_perturbation
+                        * self.dimensionless_force[n_p]
+                    )
 
-                        # Coefficient matrix reduction (per-pad contribution)
-                        self.Sjpt[n_p] = self.K[n_p] + self.C[n_p] * self.speed * 1j
-                        self.Tj[n_p] = np.array(
+                    self.K[n_p, 0, 0] = k_xx[n_p]
+                    self.K[n_p, 1, 0] = k_yx[n_p]
+
+                elif a_p == 1:  # Y-displacement perturbation
+                    k_yy[n_p] = (
+                        del_force_y[n_p]
+                        / self.space_perturbation
+                        * self.dimensionless_force[n_p]
+                    )
+                    k_xy[n_p] = (
+                        del_force_x[n_p]
+                        / self.space_perturbation
+                        * self.dimensionless_force[n_p]
+                    )
+
+                    self.K[n_p, 1, 1] = k_yy[n_p]
+                    self.K[n_p, 0, 1] = k_xy[n_p]
+
+                    k_tt[n_p] = k_yy[n_p] * (
+                        (self.pad_radius + self.pad_thickness) ** 2
+                    )
+                    k_tx[n_p] = -k_yx[n_p] * (self.pad_radius + self.pad_thickness)
+                    k_xt[n_p] = -k_xy[n_p] * (self.pad_radius + self.pad_thickness)
+                    k_ty[n_p] = -k_yy[n_p] * (self.pad_radius + self.pad_thickness)
+                    k_yt[n_p] = -k_yy[n_p] * (self.pad_radius + self.pad_thickness)
+                    self.K[n_p, 2, 2] = k_tt[n_p]
+                    self.K[n_p, 0, 2] = k_xt[n_p]
+                    self.K[n_p, 2, 0] = k_tx[n_p]
+                    self.K[n_p, 1, 2] = k_yt[n_p]
+                    self.K[n_p, 2, 1] = k_ty[n_p]
+
+                elif a_p == 2:  # X-velocity perturbation
+                    c_xx[n_p] = (
+                        del_force_x[n_p]
+                        / self.speed_perturbation
+                        * self.dimensionless_force[n_p]
+                    )
+                    c_yx[n_p] = (
+                        del_force_y[n_p]
+                        / self.speed_perturbation
+                        * self.dimensionless_force[n_p]
+                    )
+                    self.C[n_p, 0, 0] = c_xx[n_p]
+                    self.C[n_p, 1, 0] = c_yx[n_p]
+
+                elif a_p == 3:  # Y-velocity perturbation
+                    c_yy[n_p] = (
+                        del_force_y[n_p]
+                        / self.speed_perturbation
+                        * self.dimensionless_force[n_p]
+                    )
+                    c_xy[n_p] = (
+                        del_force_x[n_p]
+                        / self.speed_perturbation
+                        * self.dimensionless_force[n_p]
+                    )
+                    self.C[n_p, 1, 1] = c_yy[n_p]
+                    self.C[n_p, 0, 1] = c_xy[n_p]
+
+                    c_tt[n_p] = c_yy[n_p] * (
+                        (self.pad_radius + self.pad_thickness) ** 2
+                    )
+                    c_tx[n_p] = -c_yx[n_p] * (self.pad_radius + self.pad_thickness)
+                    c_xt[n_p] = -c_xy[n_p] * (self.pad_radius + self.pad_thickness)
+                    c_ty[n_p] = -c_yy[n_p] * (self.pad_radius + self.pad_thickness)
+                    c_yt[n_p] = -c_yy[n_p] * (self.pad_radius + self.pad_thickness)
+                    self.C[n_p, 2, 2] = c_tt[n_p]
+                    self.C[n_p, 0, 2] = c_xt[n_p]
+                    self.C[n_p, 2, 0] = c_tx[n_p]
+                    self.C[n_p, 1, 2] = c_yt[n_p]
+                    self.C[n_p, 2, 1] = c_ty[n_p]
+
+                    # Coefficient matrix reduction (per-pad contribution)
+                    self.Sjpt[n_p] = self.K[n_p] + self.C[n_p] * self.speed * 1j
+                    self.Tj[n_p] = np.array(
+                        [
                             [
-                                [
-                                    np.cos(psi_pad[n_p] + self.pivot_angle[n_p]),
-                                    np.sin(psi_pad[n_p] + self.pivot_angle[n_p]),
-                                    0,
-                                ],
-                                [
-                                    -np.sin(psi_pad[n_p] + self.pivot_angle[n_p]),
-                                    np.cos(psi_pad[n_p] + self.pivot_angle[n_p]),
-                                    0,
-                                ],
-                                [0, 0, 1],
-                            ]
-                        )
-                        self.Sjipt[n_p] = self.Tj[n_p].T @ self.Sjpt[n_p] @ self.Tj[n_p]
-
-                        # Add 2x2 block in Aj and gyro term in Bj
-                        self.Aj += np.array(
+                                np.cos(psi_pad[n_p] + self.pivot_angle[n_p]),
+                                np.sin(psi_pad[n_p] + self.pivot_angle[n_p]),
+                                0,
+                            ],
                             [
-                                [self.Sjipt[n_p, 0, 0], self.Sjipt[n_p, 0, 1]],
-                                [self.Sjipt[n_p, 1, 0], self.Sjipt[n_p, 1, 1]],
-                            ]
-                        )
-                        self.Bj[n_p, n_p] = self.Sjipt[n_p, 2, 2]
+                                -np.sin(psi_pad[n_p] + self.pivot_angle[n_p]),
+                                np.cos(psi_pad[n_p] + self.pivot_angle[n_p]),
+                                0,
+                            ],
+                            [0, 0, 1],
+                        ]
+                    )
+                    self.Sjipt[n_p] = self.Tj[n_p].T @ self.Sjpt[n_p] @ self.Tj[n_p]
 
+                    # Add 2x2 block in Aj and gyro term in Bj
+                    self.Aj += np.array(
+                        [
+                            [self.Sjipt[n_p, 0, 0], self.Sjipt[n_p, 0, 1]],
+                            [self.Sjipt[n_p, 1, 0], self.Sjipt[n_p, 1, 1]],
+                        ]
+                    )
+                    self.Bj[n_p, n_p] = self.Sjipt[n_p, 2, 2]
+
+        # Build Hj and Vj matrices from per-pad results
         self.Hj = np.array(
             [
                 [self.Sjipt[m, 0, 2] for m in range(self.n_pad)],
@@ -1459,7 +922,7 @@ class TiltingPad(BearingElement):
 
         See Also
         --------
-        run : Execute complete analysis including dynamic coefficients
+        run_thermo_hydro_dynamic : Execute complete analysis including dynamic coefficients
         coefficients : Calculate stiffness and damping coefficients
         """
 
@@ -1546,9 +1009,9 @@ class TiltingPad(BearingElement):
                 x_opt = fmin(
                     self.get_equilibrium_position,
                     self.x_0[con_np],
-                    xtol=1e-6,
-                    ftol=1e-6,
-                    maxiter=1000,
+                    xtol=self.solver_options["xtol"],
+                    ftol=self.solver_options["ftol"],
+                    maxiter=self.solver_options["maxiter"],
                     disp=False,
                 )
 
@@ -1559,7 +1022,6 @@ class TiltingPad(BearingElement):
             # Store totals but preserve arrays for coefficients() method
             force_x_total = np.sum(self.force_x_dim)
             force_y_total = np.sum(self.force_y_dim)
-            # Keep force_x_dim and force_y_dim as arrays for coefficients() to use
 
             self.ecc_list.append(self.eccentricity)
             self.attitude_angle_list.append(self.attitude_angle)
@@ -1577,15 +1039,15 @@ class TiltingPad(BearingElement):
                     self.initial_pads_angles
                 )
             else:
-                x0 = [0.3, np.deg2rad(270)] + [1e-4] * self.n_pad
+                x0 = [0.3, np.deg2rad(270)] + [1.0e-4] * self.n_pad
 
             # Optimize complete system
             result = fmin(
                 self._equilibrium_objective,
                 x0,
-                xtol=1e-3,
-                ftol=1e-3,
-                maxiter=1000,
+                xtol=self.solver_options["xtol"],
+                ftol=self.solver_options["ftol"],
+                maxiter=self.solver_options["maxiter"],
                 disp=False,
                 full_output=True,
             )
@@ -1595,6 +1057,9 @@ class TiltingPad(BearingElement):
                 x_opt = result[0]
             else:
                 x_opt = result
+
+            # Re-evaluate the objective function at best solution
+            self._equilibrium_objective(x_opt)
 
             # Update state variables with optimized values
             self.eccentricity, self.attitude_angle, self.psi_pad = (
@@ -1622,17 +1087,17 @@ class TiltingPad(BearingElement):
         temperature_tolerance = 0.1
 
         for n_p in range(self.n_pad):
-            temperature_referance = self.temperature_init[:, :, n_p]
-            temperature_iteration = 1.1 * temperature_referance
+            temperature_reference = self.temperature_init[:, :, n_p]
+            temperature_iteration = 1.1 * temperature_reference
             cont_temp = 0
 
             while (
-                abs((temperature_referance - temperature_iteration).max())
+                abs((temperature_reference - temperature_iteration).max())
                 >= temperature_tolerance
             ):
                 cont_temp += 1
-                # temperature_iteration = np.array(temperature_referance)
-                temperature_iteration = temperature_referance.copy()
+                # temperature_iteration = np.array(temperature_reference)
+                temperature_iteration = temperature_reference.copy()
 
                 mi_i = self.a_a * np.exp(self.b_b * temperature_iteration)
                 mi = mi_i / self.mu_0
@@ -1646,12 +1111,14 @@ class TiltingPad(BearingElement):
                 alpha = psi_pad[n_p]
                 alphapt = 0
 
-                # Calculate face viscosities once for entire mesh (PHASE 1 - Step 1.4)
-                mi_e_all, mi_w_all, mi_n_all, mi_s_all = self._calculate_face_viscosities_vectorized(mi)
+                # Calculate face viscosities once for entire mesh
+                mi_e_all, mi_w_all, mi_n_all, mi_s_all = (
+                    self._calculate_face_viscosities_vectorized(mi)
+                )
 
                 for ii in range(self.nz):
                     for jj in range(self.nx):
-                        # Use pre-computed trigonometric functions (PHASE 1 - Step 1.1)
+                        # Use pre-computed trigonometric functions
                         h_p = (
                             self.pad_radius
                             - self.journal_radius
@@ -1713,7 +1180,7 @@ class TiltingPad(BearingElement):
 
                         self.h[ii, jj] = h_p
 
-                        # Get face viscosities from pre-computed arrays (PHASE 1 - Step 1.4)
+                        # Get face viscosities from pre-computed arrays
                         mi_e = mi_e_all[ii, jj]
                         mi_w = mi_w_all[ii, jj]
                         mi_n = mi_n_all[ii, jj]
@@ -1867,10 +1334,12 @@ class TiltingPad(BearingElement):
 
         return max_p, med_p, max_t, med_t, h_pivot, ecc
 
-    def _solve_single_pad_equilibrium_sequential(self, n_p, psi_pad, eccentricity, attitude_angle, tol_T=0.1):
+    def _solve_single_pad_equilibrium_sequential(
+        self, n_p, psi_pad, eccentricity, attitude_angle, tol_T=0.1
+    ):
         """
         Solve thermo-hydrodynamic fields for a single pad in equilibrium optimization.
-        
+
         This method is designed to be called sequentially or in parallel for each pad
         during equilibrium optimization. It solves the coupled Reynolds and Energy
         equations until temperature convergence.
@@ -1897,7 +1366,7 @@ class TiltingPad(BearingElement):
             - 'moment': Moment on pad [N·m]
             - 'temperature': Final temperature field [°C]
             - 'pressure': Final pressure field [Pa]
-            - 'n_p': Pad index (for ordering in parallel execution)
+            - 'n_p': Pad index
         """
         T_new = self.temperature_init[:, :, n_p].copy()
         T_i = 1.1 * T_new
@@ -1912,18 +1381,20 @@ class TiltingPad(BearingElement):
             mi_i = self.a_a * np.exp(self.b_b * T_i)  # [Pa.s]
             mi = mi_i / self.mu_0  # Dimensionless viscosity field
 
-            # PHASE 4A: Use optimized Reynolds equation solver
-            self._solve_reynolds_equation(mi, n_p, psi_pad, eccentricity, attitude_angle)
+            # Use Reynolds equation solver
+            self._solve_reynolds_equation(
+                mi, n_p, psi_pad, eccentricity, attitude_angle
+            )
 
             # Calculate pressure gradients (required for energy equation)
             self._calculate_pressure_gradients()
 
-            # PHASE 4A: Use optimized Energy equation solver
+            # Use Energy equation solver
             T_new = self._solve_energy_equation(mi, n_p, is_equilibrium=True)
 
         # Calculate hydrodynamic forces and moments for this pad
-        # Store temporarily as we need to aggregate across all pads
         self._calculate_hydrodynamic_forces(n_p, psi_pad, is_equilibrium=True)
+        self.temperature_init[:, :, n_p] = T_new
 
         # Return results for this pad
         return {
@@ -1971,16 +1442,12 @@ class TiltingPad(BearingElement):
 
         Temperature convergence tolerance is set to 0.1°C for field calculations.
 
-        This method has been optimized:
-        - PHASE 4A: Uses Numba-accelerated and sparse matrix solvers
-        - PHASE 4C: Sequential execution (multiprocessing overhead not beneficial for 5 pads)
-
         See Also
         --------
         solve_fields : Main method for equilibrium calculation
         get_equilibrium_position : Single pad equilibrium optimization
-        _solve_reynolds_equation : Optimized Reynolds equation solver
-        _solve_energy_equation : Optimized Energy equation solver
+        _solve_reynolds_equation : Reynolds equation solver
+        _solve_energy_equation : Energy equation solver
         """
 
         # Increment iteration counter
@@ -1996,23 +1463,53 @@ class TiltingPad(BearingElement):
         for kp in range(self.n_pad):
             psi_pad[kp] = x[kp + 2]  # Tilting angles of each pad
 
+        # Clamp pad angles to physical limits
+        alpha_min, alpha_max = self._compute_pad_angle_bounds(
+            eccentricity, attitude_angle
+        )
+
+        for kp in range(self.n_pad):
+            if psi_pad[kp] > 0.95 * alpha_max[kp]:
+                psi_pad[kp] = 0.90 * alpha_max[kp]
+            elif psi_pad[kp] < 1.2 * alpha_min[kp]:
+                psi_pad[kp] = 1.1 * alpha_min[kp]
+
         tol_T = 0.1  # Celsius degree
 
         # Reset force arrays
         self._reset_force_arrays()
 
-        # PHASE 4C: Process each pad sequentially
-        # Note: For typical tilting pad bearings (5 pads), sequential execution
-        # is faster than multiprocessing due to process spawn overhead.
-        # Multiprocessing becomes beneficial only for >10 pads.
+        # Process each pad sequentially
         for n_p in range(self.n_pad):
             # Solve THD fields for this pad
-            result = self._solve_single_pad_equilibrium_sequential(
-                n_p, psi_pad, eccentricity, attitude_angle, tol_T
-            )
-            
-            # Results are already stored in self.force_x_dim, self.force_y_dim, etc.
-            # by _calculate_hydrodynamic_forces called inside the method
+            T_new = self.temperature_init[:, :, n_p].copy()
+            T_i = 1.1 * T_new
+            temp_iter = 0
+
+            while abs((T_new - T_i).max()) >= tol_T and temp_iter < 50:
+                temp_iter += 1
+                T_i = np.array(T_new)
+
+                # Calculate viscosity
+                mi_i = self.a_a * np.exp(self.b_b * T_i)
+                mi = mi_i / self.mu_0
+
+                # Solve Reynolds equation
+                self._solve_reynolds_equation(
+                    mi, n_p, psi_pad, eccentricity, attitude_angle
+                )
+
+                # Calculate pressure gradients
+                self._calculate_pressure_gradients()
+
+                # Solve energy equation
+                T_new = self._solve_energy_equation(mi, n_p, is_equilibrium=True)
+
+            # Update temperature
+            self.temperature_init[:, :, n_p] = T_new
+
+            # Calculate hydrodynamic forces
+            self._calculate_hydrodynamic_forces(n_p, psi_pad, is_equilibrium=False)
 
         # Calculate equilibrium residuals
         Fhx = np.sum(self.force_x_dim)
@@ -2023,7 +1520,7 @@ class TiltingPad(BearingElement):
         force_y_res = Fhy + self.fys_load
         moment_res = self.moment_j_dim
 
-        # INDEPENDENT NORMALIZATION - each residual by its own scale
+        # Independent normalization - each residual by its own scale
         Fx_scale = max(abs(self.fxs_load), 1e-6)
         Fy_scale = max(abs(self.fys_load), 1e-6)
         M_scale = max(Fx_scale, Fy_scale) * self.pad_radius
@@ -2061,7 +1558,7 @@ class TiltingPad(BearingElement):
             Absolute value of the dimensional moment [N·m] acting on the pad.
         """
         n_p = self.con_np
-        temperature_referance = self.reference_temperature * np.ones((self.nz, self.nx))
+        temperature_reference = self.reference_temperature * np.ones((self.nz, self.nx))
 
         # Validation and adjustment of x limits
         x = self._validate_and_adjust_x(x, n_p)
@@ -2069,12 +1566,12 @@ class TiltingPad(BearingElement):
         psi_pad[n_p] = x.item() if hasattr(x, "item") else x
 
         # Temperature convergence loop (main loop)
-        temperature_referance = self._temperature_convergence_loop(
-            temperature_referance, n_p, psi_pad
+        temperature_reference = self._temperature_convergence_loop(
+            temperature_reference, n_p, psi_pad
         )
 
         # Save updated temperature
-        self.temperature_init[:, :, n_p] = temperature_referance
+        self.temperature_init[:, :, n_p] = temperature_reference
 
         # Calculation of hydrodynamic forces
         self._calculate_hydrodynamic_forces(n_p, psi_pad)
@@ -2085,6 +1582,71 @@ class TiltingPad(BearingElement):
         self.record_optimization_residual(residual)
 
         return residual
+
+    def _compute_pad_angle_bounds(self, eccentricity, attitude_angle):
+        """
+        Compute physical limits (alpha_min, alpha_max) for pad rotation angles
+        given the journal position. Used by determine_eccentricity to clamp pad
+        angles within valid range.
+
+        Parameters
+        ----------
+        eccentricity : float
+            Journal eccentricity ratio.
+        attitude_angle : float
+            Journal attitude angle [rad].
+
+        Returns
+        -------
+        alpha_min_chut : ndarray
+            Minimum valid pad angle [rad] for each pad. Shape: (n_pad,).
+        alpha_max_chut : ndarray
+            Maximum valid pad angle [rad] for each pad. Shape: (n_pad,).
+        """
+        xx_alpha = eccentricity * self.radial_clearance * np.cos(attitude_angle)
+        yy_alpha = eccentricity * self.radial_clearance * np.sin(attitude_angle)
+
+        alpha_min_chut = np.zeros(self.n_pad)
+        alpha_max_chut = np.zeros(self.n_pad)
+
+        for n_pad in range(self.n_pad):
+            xryr_alpha = np.dot(
+                [
+                    [self.cos_pivot_angle[n_pad], self.sin_pivot_angle[n_pad]],
+                    [-self.sin_pivot_angle[n_pad], self.cos_pivot_angle[n_pad]],
+                ],
+                [[xx_alpha], [yy_alpha]],
+            )
+
+            alpha_max_chut[n_pad] = (
+                self.pad_radius
+                - self.journal_radius
+                - np.cos(self.theta_2)
+                * (
+                    xryr_alpha[0, 0]
+                    + self.pad_radius
+                    - self.journal_radius
+                    - self.radial_clearance
+                )
+            ) / (np.sin(self.theta_2) * (self.pad_radius + self.pad_thickness)) - (
+                xryr_alpha[1, 0]
+            ) / (self.pad_radius + self.pad_thickness)
+
+            alpha_min_chut[n_pad] = (
+                self.pad_radius
+                - self.journal_radius
+                - np.cos(self.theta_1)
+                * (
+                    xryr_alpha[0, 0]
+                    + self.pad_radius
+                    - self.journal_radius
+                    - self.radial_clearance
+                )
+            ) / (np.sin(self.theta_1) * (self.pad_radius + self.pad_thickness)) - (
+                xryr_alpha[1, 0]
+            ) / (self.pad_radius + self.pad_thickness)
+
+        return alpha_min_chut, alpha_max_chut
 
     def _validate_and_adjust_x(self, x, n_p):
         """
@@ -2108,13 +1670,13 @@ class TiltingPad(BearingElement):
             x = 0.8 * self.alpha_min_chut[n_p]
         return x
 
-    def _temperature_convergence_loop(self, temperature_referance, n_p, psi_pad):
+    def _temperature_convergence_loop(self, temperature_reference, n_p, psi_pad):
         """
         Perform temperature convergence loop for thermo-hydrodynamic analysis.
 
         Parameters
         ----------
-        temperature_referance : ndarray
+        temperature_reference : ndarray
             Initial temperature field [°C]. Shape: (nz, nx).
         n_p : int
             Pad index for the current analysis.
@@ -2127,16 +1689,16 @@ class TiltingPad(BearingElement):
             Converged temperature field [°C]. Shape: (nz, nx).
         """
         temperature_tolerance = 0.1  # Celsius degrees (tolerance)
-        temperature_iteration = 1.1 * temperature_referance
+        temperature_iteration = 1.1 * temperature_reference
         cont_temp = 0
 
         while (
-            abs((temperature_referance - temperature_iteration).max())
+            abs((temperature_reference - temperature_iteration).max())
             >= temperature_tolerance
         ):
             cont_temp += 1
-            # temperature_iteration = np.array(temperature_referance)
-            temperature_iteration = temperature_referance.copy()
+
+            temperature_iteration = temperature_reference.copy()
 
             # Calculate viscosity
             mi = self._calculate_viscosity(temperature_iteration)
@@ -2148,9 +1710,9 @@ class TiltingPad(BearingElement):
             self._calculate_pressure_gradients()
 
             # Solve energy equation
-            temperature_referance = self._solve_energy_equation(mi, n_p)
+            temperature_reference = self._solve_energy_equation(mi, n_p)
 
-        return temperature_referance
+        return temperature_reference
 
     def _calculate_viscosity(self, temperature_iteration):
         """
@@ -2171,13 +1733,14 @@ class TiltingPad(BearingElement):
         mi = mi_i / self.mu_0
         return mi
 
-    def _solve_reynolds_equation(self, mi, n_p, psi_pad, eccentricity=None, attitude_angle=None):
+    def _solve_reynolds_equation(
+        self, mi, n_p, psi_pad, eccentricity=None, attitude_angle=None
+    ):
         """
         Solve Reynolds equation for pressure field using finite difference method.
-        
-        This is a wrapper that calls the Numba-optimized assembly function and
-        handles the linear system solution. Uses PHASE 2 optimizations with
-        pre-computed trigonometric arrays and PHASE 3 sparse matrix solvers.
+
+        This is a wrapper that calls the assembly function and
+        handles the linear system solution.
 
         Parameters
         ----------
@@ -2204,21 +1767,32 @@ class TiltingPad(BearingElement):
         alpha = psi_pad[n_p]
         alphapt = 0.0
 
-        # Sparse matrix solver for Reynolds equation (default and only path)
+        # Sparse matrix solver for Reynolds equation
         row_idx, col_idx, vals, b_vec, self.h, nnz = _assemble_reynolds_sparse_numba(
-            self.nx, self.nz,
-            self.xtheta, self.xz,
-            self.dx, self.dz, self.dtheta,
+            self.nx,
+            self.nz,
+            self.dx,
+            self.dz,
             mi,
-            xr, yr, xrpt, yrpt,
-            alpha, alphapt,
-            self.pad_radius, self.journal_radius,
-            self.radial_clearance, self.pad_thickness,
-            self.pad_arc, self.pad_axial_length,
+            xr,
+            yr,
+            xrpt,
+            yrpt,
+            alpha,
+            alphapt,
+            self.pad_radius,
+            self.journal_radius,
+            self.radial_clearance,
+            self.pad_thickness,
+            self.pad_arc,
+            self.pad_axial_length,
             self.speed,
-            self.sin_theta, self.cos_theta,
-            self.sin_theta_e, self.cos_theta_e,
-            self.sin_theta_w, self.cos_theta_w
+            self.sin_theta,
+            self.cos_theta,
+            self.sin_theta_e,
+            self.cos_theta_e,
+            self.sin_theta_w,
+            self.cos_theta_w,
         )
 
         n_k = self.nx * self.nz
@@ -2376,16 +1950,12 @@ class TiltingPad(BearingElement):
     def _calculate_face_viscosities_vectorized(self, mi):
         """
         Calculate viscosities at all control volume faces using vectorized operations.
-        
-        This is an optimized version of _calculate_face_viscosities that computes
-        all face viscosities at once using NumPy array operations, avoiding expensive
-        Python loops. This method is part of PHASE 1 optimization (Step 1.2).
-        
+
         Parameters
         ----------
         mi : ndarray
             Dimensionless viscosity field. Shape: (nz, nx).
-        
+
         Returns
         -------
         tuple of ndarrays
@@ -2394,21 +1964,20 @@ class TiltingPad(BearingElement):
             - mi_w: viscosity at west faces. Shape: (nz, nx).
             - mi_n: viscosity at north faces. Shape: (nz, nx).
             - mi_s: viscosity at south faces. Shape: (nz, nx).
-        
+
         Notes
         -----
         This method computes face viscosities using interpolation for interior points
-        and boundary conditions for edge points. The vectorized implementation provides
-        significant performance improvements (2-3x) compared to the point-by-point approach.
+        and boundary conditions for edge points.
         """
         nz, nx = mi.shape
-        
+
         # Initialize arrays
         mi_e = np.zeros_like(mi)
         mi_w = np.zeros_like(mi)
         mi_n = np.zeros_like(mi)
         mi_s = np.zeros_like(mi)
-        
+
         # Interior points (vectorized - average of adjacent cells)
         # East faces: average of current and right cell
         mi_e[:, :-1] = 0.5 * (mi[:, :-1] + mi[:, 1:])
@@ -2418,13 +1987,13 @@ class TiltingPad(BearingElement):
         mi_n[:-1, :] = 0.5 * (mi[:-1, :] + mi[1:, :])
         # South faces: average of current and bottom cell
         mi_s[1:, :] = 0.5 * (mi[1:, :] + mi[:-1, :])
-        
+
         # Boundary conditions (use cell-centered values at boundaries)
-        mi_e[:, -1] = mi[:, -1]   # Right boundary (east face of rightmost cells)
-        mi_w[:, 0] = mi[:, 0]     # Left boundary (west face of leftmost cells)
-        mi_n[-1, :] = mi[-1, :]   # Top boundary (north face of topmost cells)
-        mi_s[0, :] = mi[0, :]     # Bottom boundary (south face of bottommost cells)
-        
+        mi_e[:, -1] = mi[:, -1]  # Right boundary (east face of rightmost cells)
+        mi_w[:, 0] = mi[:, 0]  # Left boundary (west face of leftmost cells)
+        mi_n[-1, :] = mi[-1, :]  # Top boundary (north face of topmost cells)
+        mi_s[0, :] = mi[0, :]  # Bottom boundary (south face of bottommost cells)
+
         return mi_e, mi_w, mi_n, mi_s
 
     def _calculate_reynolds_coefficients(
@@ -2509,6 +2078,7 @@ class TiltingPad(BearingElement):
         None
             Matrix is modified in place.
         """
+        # Fill matrix coefficients for Reynolds equation
         if ii == 0 and jj == 0:
             mat_coef[k_idx, k_idx] = c_p - c_s - c_w
             mat_coef[k_idx, k_idx + 1] = c_e
@@ -2552,28 +2122,6 @@ class TiltingPad(BearingElement):
             mat_coef[k_idx, k_idx - 1] = c_w
             mat_coef[k_idx, k_idx - self.nx] = c_s
 
-    # def _update_pressure_field(self, p_vec):
-    #     """
-    #     Update pressure field from solution vector with non-negative constraint.
-
-    #     Parameters
-    #     ----------
-    #     p_vec : ndarray
-    #         Solution vector from linear system. Shape: (n_k,).
-
-    #     Returns
-    #     -------
-    #     None
-    #         Pressure field is updated in self.pressure.
-    #     """
-    #     cont = 0
-    #     for i_lin in range(self.nz):
-    #         for j_col in range(self.nx):
-    #             self.pressure[i_lin, j_col] = p_vec[cont]
-    #             cont += 1
-    #             if self.pressure[i_lin, j_col] < 0:
-    #                 self.pressure[i_lin, j_col] = 0
-
     def _update_pressure_field(self, p_vec):
         self.pressure = np.maximum(p_vec.reshape(self.nz, self.nx), 0.0)
 
@@ -2583,23 +2131,37 @@ class TiltingPad(BearingElement):
             self.pressure, self.nx, self.nz, self.dx, self.dz
         )
 
-    #     return temperature_referance
     def _solve_energy_equation(self, mi, n_p, is_equilibrium=False):
         """
         Solve energy equation for temperature field.
 
         Uses sparse matrix solver for Reynolds and Energy equations.
         """
-        row_idx, col_idx, vals, b_t, mu_turb_updated, reynolds_field, nnz = _assemble_energy_sparse_numba(
-            self.nx, self.nz, self.xtheta, self.xz,
-            self.dx, self.dz,
-            self.h, self.pressure, self.dp_dx, self.dp_dz,
-            mi, self.mu_turb[:, :, n_p],
-            self.speed, self.mu_0, self.rho, self.cp, self.kt,
-            self.oil_supply_temperature, self.reference_temperature,
-            self.radial_clearance, self.journal_radius,
-            self.pad_radius, self.pad_arc, self.pad_axial_length,
-            self.pad_thickness
+        row_idx, col_idx, vals, b_t, mu_turb_updated, reynolds_field, nnz = (
+            _assemble_energy_sparse_numba(
+                self.nx,
+                self.nz,
+                self.xz,
+                self.dx,
+                self.dz,
+                self.h,
+                self.pressure,
+                self.dp_dx,
+                self.dp_dz,
+                mi,
+                self.speed,
+                self.mu_0,
+                self.rho,
+                self.cp,
+                self.kt,
+                self.oil_supply_temperature,
+                self.reference_temperature,
+                self.radial_clearance,
+                self.journal_radius,
+                self.pad_radius,
+                self.pad_arc,
+                self.pad_axial_length,
+            )
         )
 
         if not is_equilibrium:
@@ -2611,9 +2173,10 @@ class TiltingPad(BearingElement):
         mat_csr = mat_sparse.tocsr()
         t_vec = spsolve(mat_csr, b_t)
 
-        temperature_referance = self._update_temperature_field(t_vec)
-        
-        return temperature_referance
+        temperature_reference = self._update_temperature_field(t_vec)
+
+        return temperature_reference
+
     def _calculate_turbulent_viscosity(self, mi, ii, jj, n_p, is_equilibrium=False):
         """
         Calculate turbulent viscosity using van Driest turbulence model.
@@ -2936,29 +2499,6 @@ class TiltingPad(BearingElement):
             mat_coef_t[k_t_idx, k_t_idx - 1] = a_w
             mat_coef_t[k_t_idx, k_t_idx - self.nx] = a_s
 
-    # def _update_temperature_field(self, t_vec):
-    #     """
-    #     Update temperature field from solution vector.
-
-    #     Parameters
-    #     ----------
-    #     t_vec : ndarray
-    #         Solution vector from linear system. Shape: (n_k,).
-
-    #     Returns
-    #     -------
-    #     ndarray
-    #         Temperature field [°C]. Shape: (nz, nx).
-    #     """
-    #     temperature_referance = self.reference_temperature * np.ones((self.nz, self.nx))
-    #     cont = 0
-    #     for i_lin in range(self.nz):
-    #         for j_col in range(self.nx):
-    #             temperature_referance[i_lin, j_col] = (
-    #                 self.reference_temperature * t_vec[cont]
-    #             )
-    #             cont += 1
-    #     return temperature_referance
     def _update_temperature_field(self, t_vec):
         """
         Update temperature field from solution vector.
@@ -3002,17 +2542,19 @@ class TiltingPad(BearingElement):
                 / (self.radial_clearance**2)
             )
 
-        # Calculate forces using optimized Numba function (PHASE 2 - Step 2.3)
-        force_1, force_2, force_x, force_y, moment_j_base = _calculate_hydrodynamic_forces_numba(
-            self.pressure,
-            self.xtheta,
-            self.xz,
-            self.nz,
-            self.nx,
-            self.pivot_angle[n_p],
-            psi_pad[n_p]
+        # Calculate forces using Numba function
+        force_1, force_2, force_x, force_y, moment_j_base = (
+            _calculate_hydrodynamic_forces_numba(
+                self.pressure,
+                self.xtheta,
+                self.xz,
+                self.nz,
+                self.nx,
+                self.pivot_angle[n_p],
+                psi_pad[n_p],
+            )
         )
-        
+
         # Store results
         self.force_1[n_p] = force_1
         self.force_2[n_p] = force_2
@@ -3029,61 +2571,6 @@ class TiltingPad(BearingElement):
         # Dimensional score for return (only for normal calculation)
         if not is_equilibrium:
             self.score_dim = self.moment_j[n_p] * self.dimensionless_force[n_p]
-
-    # def _transform_coordinates(self, n_p, eccentricity=None, attitude_angle=None):
-    #     """
-    #     Transform coordinates from inertial to pad coordinate system.
-
-    #     Parameters
-    #     ----------
-    #     n_p : int
-    #         Pad index for the current analysis.
-    #     eccentricity : float, optional
-    #         Eccentricity ratio for equilibrium calculation.
-    #     attitude_angle : float, optional
-    #         Attitude angle [rad] for equilibrium calculation.
-
-    #     Returns
-    #     -------
-    #     tuple
-    #         Coordinate transformation results (xryr, xryrpt, xr, yr, xrpt, yrpt) where:
-    #         - xryr: position vector in pad coordinates
-    #         - xryrpt: velocity vector in pad coordinates
-    #         - xr, yr: journal position in pad coordinates [m]
-    #         - xrpt, yrpt: journal velocity in pad coordinates [m/s]
-    #     """
-    #     if eccentricity is not None and attitude_angle is not None:
-    #         # Use provided parameters for equilibrium calculation
-    #         xx = eccentricity * self.radial_clearance * np.cos(attitude_angle)
-    #         yy = eccentricity * self.radial_clearance * np.sin(attitude_angle)
-    #     else:
-    #         # Use instance attributes for normal calculation
-    #         xx = self.eccentricity * self.radial_clearance * np.cos(self.attitude_angle)
-    #         yy = self.eccentricity * self.radial_clearance * np.sin(self.attitude_angle)
-
-    #     xryr = np.dot(
-    #         [
-    #             [np.cos(self.pivot_angle[n_p]), np.sin(self.pivot_angle[n_p])],
-    #             [-np.sin(self.pivot_angle[n_p]), np.cos(self.pivot_angle[n_p])],
-    #         ],
-    #         [[xx], [yy]],
-    #     )
-
-    #     xryrpt = np.dot(
-    #         [
-    #             [np.cos(self.pivot_angle[n_p]), np.sin(self.pivot_angle[n_p])],
-    #             [-np.sin(self.pivot_angle[n_p]), np.cos(self.pivot_angle[n_p])],
-    #         ],
-    #         [[self.x_pt], [self.y_pt]],
-    #     )
-
-    #     xr = xryr[0, 0]
-    #     yr = xryr[1, 0]
-
-    #     xrpt = xryrpt[0, 0]
-    #     yrpt = xryrpt[1, 0]
-
-    #     return xryr, xryrpt, xr, yr, xrpt, yrpt
 
     def _transform_coordinates(self, n_p, eccentricity=None, attitude_angle=None):
         """
@@ -3114,9 +2601,7 @@ class TiltingPad(BearingElement):
             xx = self.eccentricity * self.radial_clearance * np.cos(self.attitude_angle)
             yy = self.eccentricity * self.radial_clearance * np.sin(self.attitude_angle)
 
-        # Pre-compute trig (computed once, used twice)
-        # cos_piv = np.cos(self.pivot_angle[n_p])
-        # sin_piv = np.sin(self.pivot_angle[n_p])
+        # Pre-compute trig
         cos_piv = self.cos_pivot_angle[n_p]
         sin_piv = self.sin_pivot_angle[n_p]
 
@@ -3184,9 +2669,7 @@ class TiltingPad(BearingElement):
         # Pivot film thickness
         self.h_pivot = np.zeros(self.n_pad)
 
-        # Reusable buffers for memory optimization (PHASE 1 - Step 1.6)
-        # These buffers are pre-allocated once and reused throughout iterations
-        # to avoid repeated memory allocations in hot loops
+        # Reusable buffers for memory optimization
         n_k = self.nx * self.nz
         self._mat_coef_buffer = np.zeros((n_k, n_k))
         self._b_vec_buffer = np.zeros(n_k)
@@ -3501,7 +2984,7 @@ class TiltingPad(BearingElement):
         return figures
 
     def plot_scatter(self, x_data, y_data, pos, y_title):
-        """This method plot a scatter(x,y) graph.
+        """This method plots a scatter(x,y) graph.
 
         Parameters
         ----------
@@ -3552,7 +3035,7 @@ class TiltingPad(BearingElement):
         return fig
 
     def plot_contourP(self, x_data, y_data, z_data, z_title):
-        """This method plot a contour(x,y,z) graph.
+        """This method plots a contour(x,y,z) graph.
 
         Parameters
         ----------
@@ -3614,7 +3097,7 @@ class TiltingPad(BearingElement):
         return fig
 
     def plot_contourT(self, x_data, y_data, z_data, z_title):
-        """This method plot a contour(x,y,z) graph.
+        """This method plots a contour(x,y,z) graph.
 
         Parameters
         ----------
@@ -3931,9 +3414,17 @@ class TiltingPad(BearingElement):
         - If 'iteration' is provided, the value is placed at that index.
         - If 'iteration' is None, the value is appended.
 
-        Notes
-        -----
-        Requires 'self._current_freq_index' to be set (done in the frequency loop).
+        Parameters
+        ----------
+        residual_value : float
+            Residual value to be stored.
+        iteration : int, optional
+            Iteration index. If None, the value is appended.
+
+        Returns
+        -------
+        None
+            The residual value is stored in the optimization history.
         """
         idx = getattr(self, "_current_freq_index", None)
         if idx is None:
@@ -4173,340 +3664,12 @@ def tilting_pad_example():
 
     return bearing
 
-@njit
-def _assemble_reynolds_system_numba_v2(
-    nx, nz, xtheta, xz, dx, dz, dtheta,
-    mi, xr, yr, xrpt, yrpt, alpha, alphapt,
-    pad_radius, journal_radius, radial_clearance, pad_thickness,
-    pad_arc, pad_axial_length, speed,
-    sin_theta, cos_theta, sin_theta_e, cos_theta_e, sin_theta_w, cos_theta_w
-):
-    """
-    Assemble Reynolds equation system using Numba with pre-computed trig (PHASE 2 - Step 2.3).
-    
-    This is an optimized version that accepts pre-computed trigonometric arrays
-    to avoid redundant calculations of sin/cos functions.
-    
-    Parameters
-    ----------
-    ... (same as original)
-    sin_theta, cos_theta : ndarray
-        Pre-computed sin and cos of xtheta. Shape: (nx,).
-    sin_theta_e, cos_theta_e : ndarray
-        Pre-computed sin and cos of xtheta + 0.5*dtheta. Shape: (nx,).
-    sin_theta_w, cos_theta_w : ndarray
-        Pre-computed sin and cos of xtheta - 0.5*dtheta. Shape: (nx,).
-    
-    Returns
-    -------
-    mat_coef : ndarray
-        Coefficient matrix (n_k, n_k)
-    b_vec : ndarray
-        Right-hand side vector (n_k,)
-    h : ndarray
-        Film thickness field (nz, nx)
-    """
-    n_k = nx * nz
-    mat_coef = np.zeros((n_k, n_k))
-    b_vec = np.zeros(n_k)
-    h = np.zeros((nz, nx))
-    
-    k_idx = 0
-    
-    yr_eff = yr + alpha * (pad_radius + pad_thickness)
-    xr_eff = xr + pad_radius - journal_radius - radial_clearance
-    inv_rc_speed = 1.0 / (radial_clearance * speed)
-    pad_arc_sq = pad_arc * pad_arc
-    aspect_ratio_sq = (pad_radius / pad_axial_length) ** 2
-    dx_over_dz = dx / dz
-    dx_over_dz = dx / dz
-    
-    for ii in range(nz):
-        for jj in range(nx):
-            # Use pre-computed trigonometric functions (PHASE 2 optimization)
-            h_p = (
-                pad_radius - journal_radius - 
-                (sin_theta[jj] * yr_eff + cos_theta[jj] * xr_eff)
-            ) / radial_clearance
-            
-            h_e = (
-                pad_radius - journal_radius - 
-                (sin_theta_e[jj] * yr_eff + cos_theta_e[jj] * xr_eff)
-            ) / radial_clearance
-            
-            h_w = (
-                pad_radius - journal_radius - 
-                (sin_theta_w[jj] * yr_eff + cos_theta_w[jj] * xr_eff)
-            ) / radial_clearance
-            
-            h_n = h_p
-            h_s = h_p
-            
-            h[ii, jj] = h_p
-            
-            # Temporal derivative of thickness
-            h_pt = -inv_rc_speed * (
-                cos_theta[jj] * xrpt + 
-                sin_theta[jj] * yrpt + 
-                sin_theta[jj] * (pad_radius + pad_thickness) * alphapt
-            )
-            
-            # Face viscosities (inlined boundary conditions)
-            mi_p = mi[ii, jj]
-            
-            # East face
-            if jj < nx - 1:
-                mi_e = 0.5 * (mi_p + mi[ii, jj + 1])
-            else:
-                mi_e = mi_p
-            
-            # West face
-            if jj > 0:
-                mi_w = 0.5 * (mi_p + mi[ii, jj - 1])
-            else:
-                mi_w = mi_p
-            
-            # North face
-            if ii < nz - 1:
-                mi_n = 0.5 * (mi_p + mi[ii + 1, jj])
-            else:
-                mi_n = mi_p
-            
-            # South face
-            if ii > 0:
-                mi_s = 0.5 * (mi_p + mi[ii - 1, jj])
-            else:
-                mi_s = mi_p
-            
-            # Reynolds equation coefficients
-            c_e = (1.0 / pad_arc_sq) * (h_e**3 / (12.0 * mi_e)) * dx_over_dz
-            c_w = (1.0 / pad_arc_sq) * (h_w**3 / (12.0 * mi_w)) * dx_over_dz
-            c_n = aspect_ratio_sq * dx_over_dz * (h_n**3 / (12.0 * mi_n))
-            c_s = aspect_ratio_sq * dx_over_dz * (h_s**3 / (12.0 * mi_s))
-            c_p = -(c_e + c_w + c_n + c_s)
-            
-            # Source term
-            b_vec[k_idx] = (
-                (journal_radius / (2.0 * pad_radius * pad_arc)) * dz * (h_e - h_w) + 
-                h_pt * dx * dz
-            )
-            
-            # Fill coefficient matrix based on position
-            mat_coef[k_idx, k_idx] = c_p
-            
-            # Boundary conditions - South (axial)
-            if ii == 0:
-                mat_coef[k_idx, k_idx] -= c_s
-            else:
-                mat_coef[k_idx, k_idx - nx] = c_s
-            
-            # Boundary conditions - North (axial)
-            if ii == nz - 1:
-                mat_coef[k_idx, k_idx] -= c_n
-            else:
-                mat_coef[k_idx, k_idx + nx] = c_n
-            
-            # Boundary conditions - West (circumferential)
-            if jj == 0:
-                mat_coef[k_idx, k_idx] -= c_w
-            else:
-                mat_coef[k_idx, k_idx - 1] = c_w
-            
-            # Boundary conditions - East (circumferential)
-            if jj == nx - 1:
-                mat_coef[k_idx, k_idx] -= c_e
-            else:
-                mat_coef[k_idx, k_idx + 1] = c_e
-            
-            k_idx += 1
-    
-    return mat_coef, b_vec, h
-
-
-@njit
-def _assemble_reynolds_system_numba(
-    nx, nz, xtheta, xz, dx, dz, dtheta,
-    mi, xr, yr, xrpt, yrpt, alpha, alphapt,
-    pad_radius, journal_radius, radial_clearance, pad_thickness,
-    pad_arc, pad_axial_length, speed
-):
-    """
-    Assemble complete Reynolds equation system using Numba JIT compilation.
-    
-    This function constructs the coefficient matrix and right-hand side vector
-    for the Reynolds equation using finite difference method.
-    
-    Parameters
-    ----------
-    nx, nz : int
-        Number of grid points in circumferential and axial directions
-    xtheta : ndarray
-        Circumferential coordinate array (nx,)
-    xz : ndarray
-        Axial coordinate array (nz,)
-    dx, dz, dtheta : float
-        Grid spacings
-    mi : ndarray
-        Dimensionless viscosity field (nz, nx)
-    xr, yr : float
-        Journal position in pad coordinates [m]
-    xrpt, yrpt : float
-        Journal velocity in pad coordinates [m/s]
-    alpha : float
-        Pad rotation angle [rad]
-    alphapt : float
-        Pad angular velocity [rad/s]
-    pad_radius, journal_radius, radial_clearance, pad_thickness : float
-        Geometric parameters [m]
-    pad_arc, pad_axial_length : float
-        Pad dimensions [rad], [m]
-    speed : float
-        Operating speed [rad/s]
-    
-    Returns
-    -------
-    mat_coef : ndarray
-        Coefficient matrix (n_k, n_k)
-    b_vec : ndarray
-        Right-hand side vector (n_k,)
-    h : ndarray
-        Film thickness field (nz, nx)
-    """
-    n_k = nx * nz
-    mat_coef = np.zeros((n_k, n_k))
-    b_vec = np.zeros(n_k)
-    h = np.zeros((nz, nx))
-    
-    k_idx = 0
-
-    # print("I'm here before the loops")
-
-    pad_arc_sq = pad_arc * pad_arc
-    aspect_ratio_sq = (pad_radius / pad_axial_length) ** 2
-    
-    for ii in range(nz):
-        for jj in range(nx):
-            theta_center = xtheta[jj]
-            theta_e = theta_center + 0.5 * dtheta
-            theta_w = theta_center - 0.5 * dtheta
-            
-            # Film thickness calculations (inlined for performance)
-            sin_center = np.sin(theta_center)
-            cos_center = np.cos(theta_center)
-            sin_e = np.sin(theta_e)
-            cos_e = np.cos(theta_e)
-            sin_w = np.sin(theta_w)
-            cos_w = np.cos(theta_w)
-            
-            yr_eff = yr + alpha * (pad_radius + pad_thickness)
-            xr_eff = xr + pad_radius - journal_radius - radial_clearance
-            
-            h_p = (
-                pad_radius - journal_radius - 
-                (sin_center * yr_eff + cos_center * xr_eff)
-            ) / radial_clearance
-            
-            h_e = (
-                pad_radius - journal_radius - 
-                (sin_e * yr_eff + cos_e * xr_eff)
-            ) / radial_clearance
-            
-            h_w = (
-                pad_radius - journal_radius - 
-                (sin_w * yr_eff + cos_w * xr_eff)
-            ) / radial_clearance
-            
-            h_n = h_p
-            h_s = h_p
-            
-            h[ii, jj] = h_p
-            
-            # Temporal derivative of thickness
-            h_pt = -(1.0 / (radial_clearance * speed)) * (
-                cos_center * xrpt + 
-                sin_center * yrpt + 
-                sin_center * (pad_radius + pad_thickness) * alphapt
-            )
-            
-            # Face viscosities (inlined boundary conditions)
-            mi_p = mi[ii, jj]
-            
-            # East face
-            if jj < nx - 1:
-                mi_e = 0.5 * (mi_p + mi[ii, jj + 1])
-            else:
-                mi_e = mi_p
-            
-            # West face
-            if jj > 0:
-                mi_w = 0.5 * (mi_p + mi[ii, jj - 1])
-            else:
-                mi_w = mi_p
-            
-            # North face
-            if ii < nz - 1:
-                mi_n = 0.5 * (mi_p + mi[ii + 1, jj])
-            else:
-                mi_n = mi_p
-            
-            # South face
-            if ii > 0:
-                mi_s = 0.5 * (mi_p + mi[ii - 1, jj])
-            else:
-                mi_s = mi_p
-            
-            # Reynolds equation coefficients
-            # pad_arc_sq = pad_arc * pad_arc
-            # aspect_ratio_sq = (pad_radius / pad_axial_length) ** 2
-            
-            c_e = (1.0 / pad_arc_sq) * (h_e**3 / (12.0 * mi_e)) * (dz / dx)
-            c_w = (1.0 / pad_arc_sq) * (h_w**3 / (12.0 * mi_w)) * (dz / dx)
-            c_n = aspect_ratio_sq * (dx / dz) * (h_n**3 / (12.0 * mi_n))
-            c_s = aspect_ratio_sq * (dx / dz) * (h_s**3 / (12.0 * mi_s))
-            c_p = -(c_e + c_w + c_n + c_s)
-            
-            # Source term
-            b_vec[k_idx] = (
-                (journal_radius / (2.0 * pad_radius * pad_arc)) * dz * (h_e - h_w) + 
-                h_pt * dx * dz
-            )
-            
-            # Fill coefficient matrix based on position
-            mat_coef[k_idx, k_idx] = c_p
-            
-            # Boundary conditions - South (axial)
-            if ii == 0:
-                mat_coef[k_idx, k_idx] -= c_s
-            else:
-                mat_coef[k_idx, k_idx - nx] = c_s
-            
-            # Boundary conditions - North (axial)
-            if ii == nz - 1:
-                mat_coef[k_idx, k_idx] -= c_n
-            else:
-                mat_coef[k_idx, k_idx + nx] = c_n
-            
-            # Boundary conditions - West (circumferential)
-            if jj == 0:
-                mat_coef[k_idx, k_idx] -= c_w
-            else:
-                mat_coef[k_idx, k_idx - 1] = c_w
-            
-            # Boundary conditions - East (circumferential)
-            if jj == nx - 1:
-                mat_coef[k_idx, k_idx] -= c_e
-            else:
-                mat_coef[k_idx, k_idx + 1] = c_e
-            
-            k_idx += 1
-    
-    return mat_coef, b_vec, h
 
 @njit
 def _calculate_pressure_gradients_numba(pressure, nx, nz, dx, dz):
     """
     Calculate pressure gradients using finite differences with Numba.
-    
+
     Parameters
     ----------
     pressure : ndarray
@@ -4515,7 +3678,7 @@ def _calculate_pressure_gradients_numba(pressure, nx, nz, dx, dz):
         Grid dimensions
     dx, dz : float
         Grid spacings
-    
+
     Returns
     -------
     dp_dx, dp_dz : ndarray
@@ -4523,7 +3686,7 @@ def _calculate_pressure_gradients_numba(pressure, nx, nz, dx, dz):
     """
     dp_dx = np.zeros((nz, nx))
     dp_dz = np.zeros((nz, nx))
-    
+
     for ii in range(nz):
         for jj in range(nx):
             # Gradient in X direction
@@ -4533,7 +3696,7 @@ def _calculate_pressure_gradients_numba(pressure, nx, nz, dx, dz):
                 dp_dx[ii, jj] = (0.0 - pressure[ii, jj]) / dx
             else:
                 dp_dx[ii, jj] = (pressure[ii, jj + 1] - pressure[ii, jj]) / dx
-            
+
             # Gradient in Z direction
             if ii == 0:
                 dp_dz[ii, jj] = (pressure[ii + 1, jj] - pressure[ii, jj]) / dz
@@ -4541,177 +3704,26 @@ def _calculate_pressure_gradients_numba(pressure, nx, nz, dx, dz):
                 dp_dz[ii, jj] = (0.0 - pressure[ii, jj]) / dz
             else:
                 dp_dz[ii, jj] = (pressure[ii + 1, jj] - pressure[ii, jj]) / dz
-    
+
     return dp_dx, dp_dz
 
-@njit
-def _assemble_energy_system_numba(
-    nx, nz, xtheta, xz, dx, dz,
-    h, pressure, dp_dx, dp_dz, mi, mu_turb_field,
-    speed, mu_0, rho, cp, kt, oil_supply_temperature,
-    reference_temperature, radial_clearance, journal_radius,
-    pad_radius, pad_arc, pad_axial_length, pad_thickness
-):
-    """
-    Assemble complete energy equation system using Numba JIT compilation.
-    
-    Parameters
-    ----------
-    nx, nz : int
-        Grid dimensions
-    h : ndarray
-        Film thickness field (nz, nx)
-    pressure : ndarray
-        Pressure field (nz, nx)
-    dp_dx, dp_dz : ndarray
-        Pressure gradients (nz, nx)
-    mi : ndarray
-        Dimensionless viscosity field (nz, nx)
-    mu_turb_field : ndarray
-        Turbulent viscosity field (nz, nx) - will be updated
-    ... other parameters
-    
-    Returns
-    -------
-    mat_coef_t : ndarray
-        Coefficient matrix (n_k, n_k)
-    b_t : ndarray
-        Right-hand side vector (n_k,)
-    mu_turb_updated : ndarray
-        Updated turbulent viscosity field (nz, nx)
-    reynolds_field : ndarray
-        Reynolds number field (nz, nx)
-    """
-    n_k = nx * nz
-    mat_coef_t = np.zeros((n_k, n_k))
-    b_t = np.zeros(n_k)
-    mu_turb_updated = np.zeros((nz, nx))
-    reynolds_field = np.zeros((nz, nx))
-    
-    k_t_idx = 0
-    
-    for ii in range(nz):
-        for jj in range(nx):
-            h_p_loc = h[ii, jj]
-            mi_p = mi[ii, jj]
-            
-            # Calculate turbulent viscosity
-            mi_t, reynolds_local = _calculate_turbulent_viscosity_numba(
-                h_p_loc, mi_p, dp_dx[ii, jj], dp_dz[ii, jj],
-                speed, rho, mu_0, radial_clearance,
-                journal_radius, pad_axial_length
-            )
-            
-            mu_turb_updated[ii, jj] = mi_t
-            reynolds_field[ii, jj] = reynolds_local
-            
-            # Auxiliary factor for flow direction
-            aux_up = 1.0 if xz[ii] >= 0.0 else 0.0
-            
-            # Energy equation coefficients
-            a_e = -(kt * h_p_loc * dz) / (
-                rho * cp * speed * ((pad_arc * pad_radius) ** 2) * dx
-            )
-            
-            a_w = (
-                ((h_p_loc**3) * dp_dx[ii, jj] * dz) / (12.0 * mi_t * (pad_arc**2))
-                - ((journal_radius * h_p_loc * dz) / (2.0 * pad_radius * pad_arc))
-                - (kt * h_p_loc * dz) / (
-                    rho * cp * speed * ((pad_arc * pad_radius) ** 2) * dx
-                )
-            )
-            
-            # North and south coefficients (upwind scheme)
-            a_n_1 = (aux_up - 1.0) * (
-                ((pad_radius**2) * (h_p_loc**3) * dp_dz[ii, jj] * dx)
-                / (12.0 * (pad_axial_length**2) * mi_t)
-            )
-            a_s_1 = (aux_up) * (
-                ((pad_radius**2) * (h_p_loc**3) * dp_dz[ii, jj] * dx)
-                / (12.0 * (pad_axial_length**2) * mi_t)
-            )
-            
-            a_n_2 = -(kt * h_p_loc * dx) / (
-                rho * cp * speed * (pad_axial_length**2) * dz
-            )
-            a_s_2 = -(kt * h_p_loc * dx) / (
-                rho * cp * speed * (pad_axial_length**2) * dz
-            )
-            
-            a_n = a_n_1 + a_n_2
-            a_s = a_s_1 + a_s_2
-            a_p_coef = -(a_e + a_w + a_n + a_s)
-            
-            # Source terms
-            h_pt = 0.0  # Static analysis (no time derivative)
-            
-            aux_b_t = (speed * mu_0) / (rho * cp * oil_supply_temperature * radial_clearance)
-            
-            b_t_g = (
-                mu_0 * speed * (journal_radius**2) * dx * dz * pressure[ii, jj] * h_pt
-            ) / (rho * cp * reference_temperature * (radial_clearance**2))
-            
-            b_t_h = (
-                speed * mu_0 * (h_pt**2) * 4.0 * mi_t * dx * dz
-            ) / (rho * cp * reference_temperature * 3.0 * h_p_loc)
-            
-            b_t_i = (
-                aux_b_t * (mi_t * (journal_radius**2) * dx * dz)
-                / (h_p_loc * radial_clearance)
-            )
-            
-            b_t_j = (
-                aux_b_t * (
-                    (pad_radius**2) * (h_p_loc**3) * (dp_dx[ii, jj] ** 2) * dx * dz
-                ) / (12.0 * radial_clearance * (pad_arc**2) * mi_t)
-            )
-            
-            b_t_k = (
-                aux_b_t * (
-                    (pad_radius**4) * (h_p_loc**3) * (dp_dz[ii, jj] ** 2) * dx * dz
-                ) / (12.0 * radial_clearance * (pad_axial_length**2) * mi_t)
-            )
-            
-            b_t_val = b_t_g + b_t_h + b_t_i + b_t_j + b_t_k
-            b_t[k_t_idx] = b_t_val
-            
-            # Fill matrix coefficients based on position
-            mat_coef_t[k_t_idx, k_t_idx] = a_p_coef
-            
-            # Boundary conditions
-            if ii == 0:
-                mat_coef_t[k_t_idx, k_t_idx] += a_s
-            else:
-                mat_coef_t[k_t_idx, k_t_idx - nx] = a_s
-            
-            if ii == nz - 1:
-                mat_coef_t[k_t_idx, k_t_idx] += a_n
-            else:
-                mat_coef_t[k_t_idx, k_t_idx + nx] = a_n
-            
-            if jj == 0:
-                mat_coef_t[k_t_idx, k_t_idx] -= a_w
-                b_t[k_t_idx] -= 2.0 * a_w * (oil_supply_temperature / reference_temperature)
-            else:
-                mat_coef_t[k_t_idx, k_t_idx - 1] = a_w
-            
-            if jj == nx - 1:
-                mat_coef_t[k_t_idx, k_t_idx] += a_e
-            else:
-                mat_coef_t[k_t_idx, k_t_idx + 1] = a_e
-            
-            k_t_idx += 1
-    
-    return mat_coef_t, b_t, mu_turb_updated, reynolds_field
 
 @njit
 def _calculate_turbulent_viscosity_numba(
-    h_p_loc, mi_p, dp_dx, dp_dz, speed, rho, mu_0,
-    radial_clearance, journal_radius, pad_axial_length
+    h_p_loc,
+    mi_p,
+    dp_dx,
+    dp_dz,
+    speed,
+    rho,
+    mu_0,
+    radial_clearance,
+    journal_radius,
+    pad_axial_length,
 ):
     """
     Calculate turbulent viscosity using van Driest model with Numba.
-    
+
     Returns
     -------
     mi_t : float
@@ -4721,12 +3733,14 @@ def _calculate_turbulent_viscosity_numba(
     """
     # Local Reynolds number
     reynolds_local = (
-        rho * speed * journal_radius
+        rho
+        * speed
+        * journal_radius
         * (h_p_loc / pad_axial_length)
         * radial_clearance
         / (mu_0 * mi_p)
     )
-    
+
     # Transition factor for turbulence
     if reynolds_local <= 500.0:
         delta_turb = 0.0
@@ -4734,21 +3748,21 @@ def _calculate_turbulent_viscosity_numba(
         delta_turb = 1.0 - ((1000.0 - reynolds_local) / 500.0) ** (1.0 / 8.0)
     else:
         delta_turb = 1.0
-    
+
     # Calculate velocity derivatives
     du_dx = ((h_p_loc / mi_p) * dp_dx) - (speed / h_p_loc)
     dw_dx = (h_p_loc / mi_p) * dp_dz
     tau = mi_p * np.sqrt(du_dx**2 + dw_dx**2)
-    
+
     # Dimensionless distance from wall
-    y_wall = (
-        (h_p_loc * radial_clearance * 2.0) / (mu_0 * mi_p / rho)
-    ) * ((abs(tau) / rho) ** 0.5)
-    
+    y_wall = ((h_p_loc * radial_clearance * 2.0) / (mu_0 * mi_p / rho)) * (
+        (abs(tau) / rho) ** 0.5
+    )
+
     # Turbulent viscosity (van Driest model)
     emv = 0.4 * (y_wall - (10.7 * np.tanh(y_wall / 10.7)))
     mi_t = mi_p * (1.0 + (delta_turb * emv))
-    
+
     return mi_t, reynolds_local
 
 
@@ -4757,12 +3771,11 @@ def _calculate_hydrodynamic_forces_numba(
     pressure, xtheta, xz, nz, nx, pivot_angle, psi_pad_angle
 ):
     """
-    Calculate hydrodynamic forces and moments using Numba optimization (PHASE 2 - Step 2.2).
-    
+    Calculate hydrodynamic forces and moments using Numba.
+
     This function computes forces using trapezoidal integration directly in Numba
-    for maximum performance. It calculates forces in pad coordinates and transforms
-    them to the inertial reference frame.
-    
+    It calculates forces in pad coordinates and transforms them to the inertial reference frame.
+
     Parameters
     ----------
     pressure : ndarray
@@ -4777,7 +3790,7 @@ def _calculate_hydrodynamic_forces_numba(
         Pivot angle for coordinate transformation [rad].
     psi_pad_angle : float
         Pad rotation angle [rad].
-    
+
     Returns
     -------
     force_1 : float
@@ -4790,7 +3803,7 @@ def _calculate_hydrodynamic_forces_numba(
         Force in Y direction in inertial frame (dimensionless).
     moment_j : float
         Moment about pivot (dimensionless).
-    
+
     Notes
     -----
     Uses trapezoidal rule for integration:
@@ -4801,133 +3814,153 @@ def _calculate_hydrodynamic_forces_numba(
     # Pre-compute cos and sin for all theta values
     cos_theta = np.cos(xtheta)
     sin_theta = np.sin(xtheta)
-    
+
     # Integrate over circumferential direction first (theta)
     # Using trapezoidal rule: ∫f(x)dx ≈ Σ[(f(i) + f(i+1))/2 * Δx]
     dtheta = xtheta[1] - xtheta[0] if nx > 1 else 0.0
-    
+
     f1_integrated_theta = np.zeros(nz)
     f2_integrated_theta = np.zeros(nz)
-    
+
     for ii in range(nz):
         # Force component 1: integrate pressure * cos(theta)
         integral_1 = 0.0
         for jj in range(nx - 1):
-            integral_1 += 0.5 * (
-                pressure[ii, jj] * cos_theta[jj] + 
-                pressure[ii, jj + 1] * cos_theta[jj + 1]
-            ) * dtheta
+            integral_1 += (
+                0.5
+                * (
+                    pressure[ii, jj] * cos_theta[jj]
+                    + pressure[ii, jj + 1] * cos_theta[jj + 1]
+                )
+                * dtheta
+            )
         f1_integrated_theta[ii] = integral_1
-        
+
         # Force component 2: integrate pressure * sin(theta)
         integral_2 = 0.0
         for jj in range(nx - 1):
-            integral_2 += 0.5 * (
-                pressure[ii, jj] * sin_theta[jj] + 
-                pressure[ii, jj + 1] * sin_theta[jj + 1]
-            ) * dtheta
+            integral_2 += (
+                0.5
+                * (
+                    pressure[ii, jj] * sin_theta[jj]
+                    + pressure[ii, jj + 1] * sin_theta[jj + 1]
+                )
+                * dtheta
+            )
         f2_integrated_theta[ii] = integral_2
-    
+
     # Now integrate over axial direction (z)
     dz = xz[1] - xz[0] if nz > 1 else 0.0
-    
+
     force_1 = 0.0
     force_2 = 0.0
-    
+
     for ii in range(nz - 1):
         force_1 += 0.5 * (f1_integrated_theta[ii] + f1_integrated_theta[ii + 1]) * dz
         force_2 += 0.5 * (f2_integrated_theta[ii] + f2_integrated_theta[ii + 1]) * dz
-    
+
     # Apply negative sign (pressure acts inward)
     force_1 = -force_1
     force_2 = -force_2
-    
+
     # Transform to inertial coordinate system
     total_angle = psi_pad_angle + pivot_angle
     cos_total = np.cos(total_angle)
     sin_total = np.sin(total_angle)
-    
+
     force_x = force_1 * cos_total
     force_y = force_1 * sin_total
-    
+
     # Moment is force_2 scaled by geometry (will be done outside with pad_radius + pad_thickness)
     moment_j = force_2
-    
+
     return force_1, force_2, force_x, force_y, moment_j
 
 
 @njit
-def _precompute_trig_arrays_numba(xtheta, dtheta):
-    """
-    Pre-compute trigonometric function arrays using Numba (PHASE 2 - Step 2.1).
-    
-    This function computes all trigonometric functions needed for the mesh
-    calculations in a single optimized pass.
-    
-    Parameters
-    ----------
-    xtheta : ndarray
-        Circumferential coordinate array. Shape: (nx,).
-    dtheta : float
-        Circumferential grid spacing [rad].
-    
-    Returns
-    -------
-    sin_theta : ndarray
-        sin(xtheta). Shape: (nx,).
-    cos_theta : ndarray
-        cos(xtheta). Shape: (nx,).
-    sin_theta_e : ndarray
-        sin(xtheta + 0.5*dtheta). Shape: (nx,).
-    cos_theta_e : ndarray
-        cos(xtheta + 0.5*dtheta). Shape: (nx,).
-    sin_theta_w : ndarray
-        sin(xtheta - 0.5*dtheta). Shape: (nx,).
-    cos_theta_w : ndarray
-        cos(xtheta - 0.5*dtheta). Shape: (nx,).
-    """
-    nx = len(xtheta)
-    
-    sin_theta = np.zeros(nx)
-    cos_theta = np.zeros(nx)
-    sin_theta_e = np.zeros(nx)
-    cos_theta_e = np.zeros(nx)
-    sin_theta_w = np.zeros(nx)
-    cos_theta_w = np.zeros(nx)
-    
-    half_dtheta = 0.5 * dtheta
-    
-    for jj in range(nx):
-        theta = xtheta[jj]
-        sin_theta[jj] = np.sin(theta)
-        cos_theta[jj] = np.cos(theta)
-        sin_theta_e[jj] = np.sin(theta + half_dtheta)
-        cos_theta_e[jj] = np.cos(theta + half_dtheta)
-        sin_theta_w[jj] = np.sin(theta - half_dtheta)
-        cos_theta_w[jj] = np.cos(theta - half_dtheta)
-    
-    return sin_theta, cos_theta, sin_theta_e, cos_theta_e, sin_theta_w, cos_theta_w
-
-
-@njit
 def _assemble_reynolds_sparse_numba(
-    nx, nz, xtheta, xz, dx, dz, dtheta,
-    mi, xr, yr, xrpt, yrpt, alpha, alphapt,
-    pad_radius, journal_radius, radial_clearance, pad_thickness,
-    pad_arc, pad_axial_length, speed,
-    sin_theta, cos_theta, sin_theta_e, cos_theta_e, sin_theta_w, cos_theta_w
+    nx,
+    nz,
+    dx,
+    dz,
+    mi,
+    xr,
+    yr,
+    xrpt,
+    yrpt,
+    alpha,
+    alphapt,
+    pad_radius,
+    journal_radius,
+    radial_clearance,
+    pad_thickness,
+    pad_arc,
+    pad_axial_length,
+    speed,
+    sin_theta,
+    cos_theta,
+    sin_theta_e,
+    cos_theta_e,
+    sin_theta_w,
+    cos_theta_w,
 ):
     """
-    Assemble Reynolds equation as sparse matrix using COO format (PHASE 3 - Step 3.2).
-    
+    Assemble Reynolds equation as sparse matrix using COO format.
+
     This function creates a sparse matrix representation of the Reynolds equation
     using COO (Coordinate) format, which is efficient for assembly and later
     conversion to CSR format for solving.
-    
+
     Parameters
     ----------
-    ... (same as _assemble_reynolds_system_numba_v2)
-    
+    nx : int
+        Number of grid points in the circumferential direction.
+    nz : int
+        Number of grid points in the axial direction.
+    dx : float
+        Grid spacing in the circumferential direction.
+    dz : float
+        Grid spacing in the axial direction.
+    mi : ndarray
+        Dimensionless viscosity field. Shape: (nz, nx).
+    xr : float
+        Radial coordinate of the journal center.
+    yr : float
+        Axial coordinate of the journal center.
+    xrpt : float
+        Radial coordinate of the pivot point.
+    yrpt : float
+    alpha : float
+        Pad rotation angle [rad].
+    alphapt : float
+        Pivot angle for coordinate transformation [rad].
+    pad_radius : float
+        Radius of the pad.
+    journal_radius : float
+        Radius of the journal.
+    radial_clearance : float
+        Radial clearance between the pad and the journal.
+    pad_thickness : float
+        Thickness of the pad.
+    pad_arc : float
+        Arc of the pad.
+    pad_axial_length : float
+        Axial length of the pad.
+    speed : float
+        Speed of the journal.
+    sin_theta : ndarray
+        Pre-computed sin of xtheta. Shape: (nz, nx).
+    cos_theta : ndarray
+        Pre-computed cos of xtheta. Shape: (nz, nx).
+    sin_theta_e : ndarray
+        Pre-computed sin of xtheta + 0.5*dtheta. Shape: (nz, nx).
+    cos_theta_e : ndarray
+        Pre-computed cos of xtheta + 0.5*dtheta. Shape: (nz, nx).
+    sin_theta_w : ndarray
+        Pre-computed sin of xtheta - 0.5*dtheta. Shape: (nz, nx).
+    cos_theta_w : ndarray
+        Pre-computed cos of xtheta - 0.5*dtheta. Shape: (nz, nx).
+
     Returns
     -------
     row_indices : ndarray
@@ -4942,7 +3975,6 @@ def _assemble_reynolds_sparse_numba(
         Film thickness field (nz, nx).
     nnz : int
         Number of non-zero entries.
-    
     Notes
     -----
     The Reynolds equation has a pentadiagonal structure (5 diagonals), so the
@@ -4950,78 +3982,79 @@ def _assemble_reynolds_sparse_numba(
     maximum nnz is 5 * n_k.
     """
     n_k = nx * nz
-    max_nnz = 5 * n_k  # Maximum non-zeros: 5 per row (pentadiagonal)
-    
+    max_nnz = 5 * n_k
+
     # Pre-allocate arrays for COO format
     row_indices = np.zeros(max_nnz, dtype=np.int32)
     col_indices = np.zeros(max_nnz, dtype=np.int32)
     values = np.zeros(max_nnz)
     b_vec = np.zeros(n_k)
     h = np.zeros((nz, nx))
-    
+
     # Pre-compute common factors
     yr_eff = yr + alpha * (pad_radius + pad_thickness)
     xr_eff = xr + pad_radius - journal_radius - radial_clearance
     inv_rc_speed = 1.0 / (radial_clearance * speed)
     pad_arc_sq = pad_arc * pad_arc
     aspect_ratio_sq = (pad_radius / pad_axial_length) ** 2
-    
+
     k_idx = 0
     nnz = 0  # Counter for non-zero entries
-    
+
     for ii in range(nz):
         for jj in range(nx):
             # Film thickness calculations (using pre-computed trig)
             h_p = (
-                pad_radius - journal_radius - 
-                (sin_theta[jj] * yr_eff + cos_theta[jj] * xr_eff)
+                pad_radius
+                - journal_radius
+                - (sin_theta[jj] * yr_eff + cos_theta[jj] * xr_eff)
             ) / radial_clearance
-            
+
             h_e = (
-                pad_radius - journal_radius - 
-                (sin_theta_e[jj] * yr_eff + cos_theta_e[jj] * xr_eff)
+                pad_radius
+                - journal_radius
+                - (sin_theta_e[jj] * yr_eff + cos_theta_e[jj] * xr_eff)
             ) / radial_clearance
-            
+
             h_w = (
-                pad_radius - journal_radius - 
-                (sin_theta_w[jj] * yr_eff + cos_theta_w[jj] * xr_eff)
+                pad_radius
+                - journal_radius
+                - (sin_theta_w[jj] * yr_eff + cos_theta_w[jj] * xr_eff)
             ) / radial_clearance
-            
+
             h_n = h_p
             h_s = h_p
             h[ii, jj] = h_p
-            
+
             # Temporal derivative
             h_pt = -inv_rc_speed * (
-                cos_theta[jj] * xrpt + 
-                sin_theta[jj] * yrpt + 
-                sin_theta[jj] * (pad_radius + pad_thickness) * alphapt
+                cos_theta[jj] * xrpt
+                + sin_theta[jj] * yrpt
+                + sin_theta[jj] * (pad_radius + pad_thickness) * alphapt
             )
-            
+
             # Face viscosities
             mi_p = mi[ii, jj]
             mi_e = 0.5 * (mi_p + mi[ii, jj + 1]) if jj < nx - 1 else mi_p
             mi_w = 0.5 * (mi_p + mi[ii, jj - 1]) if jj > 0 else mi_p
             mi_n = 0.5 * (mi_p + mi[ii + 1, jj]) if ii < nz - 1 else mi_p
             mi_s = 0.5 * (mi_p + mi[ii - 1, jj]) if ii > 0 else mi_p
-            
+
             # Reynolds coefficients
             c_e = (1.0 / pad_arc_sq) * (h_e**3 / (12.0 * mi_e)) * (dz / dx)
             c_w = (1.0 / pad_arc_sq) * (h_w**3 / (12.0 * mi_w)) * (dz / dx)
             c_n = aspect_ratio_sq * (dx / dz) * (h_n**3 / (12.0 * mi_n))
             c_s = aspect_ratio_sq * (dx / dz) * (h_s**3 / (12.0 * mi_s))
             c_p = -(c_e + c_w + c_n + c_s)
-            
+
             # Source term
-            b_vec[k_idx] = (
-                (journal_radius / (2.0 * pad_radius * pad_arc)) * dz * (h_e - h_w) + 
-                h_pt * dx * dz
-            )
-            
-            # Fill sparse matrix (COO format) - CORRECTED VERSION
-            # Pre-calculate diagonal value with boundary condition adjustments
+            b_vec[k_idx] = (journal_radius / (2.0 * pad_radius * pad_arc)) * dz * (
+                h_e - h_w
+            ) + h_pt * dx * dz
+
+            # Fill sparse matrix (COO format)
             c_p_adjusted = c_p  # Start with base diagonal value
-            
+
             # Apply boundary condition adjustments to diagonal
             if ii == 0:
                 c_p_adjusted -= c_s  # South boundary
@@ -5031,13 +4064,13 @@ def _assemble_reynolds_sparse_numba(
                 c_p_adjusted -= c_w  # West boundary
             if jj == nx - 1:
                 c_p_adjusted -= c_e  # East boundary
-            
-            # Add diagonal element (always present, with adjusted value)
+
+            # Add diagonal element
             row_indices[nnz] = k_idx
             col_indices[nnz] = k_idx
             values[nnz] = c_p_adjusted
             nnz += 1
-            
+
             # Add off-diagonal elements only when neighbors exist
             # South neighbor (ii > 0)
             if ii > 0:
@@ -5045,51 +4078,111 @@ def _assemble_reynolds_sparse_numba(
                 col_indices[nnz] = k_idx - nx
                 values[nnz] = c_s
                 nnz += 1
-            
+
             # North neighbor (ii < nz - 1)
             if ii < nz - 1:
                 row_indices[nnz] = k_idx
                 col_indices[nnz] = k_idx + nx
                 values[nnz] = c_n
                 nnz += 1
-            
+
             # West neighbor (jj > 0)
             if jj > 0:
                 row_indices[nnz] = k_idx
                 col_indices[nnz] = k_idx - 1
                 values[nnz] = c_w
                 nnz += 1
-            
+
             # East neighbor (jj < nx - 1)
             if jj < nx - 1:
                 row_indices[nnz] = k_idx
                 col_indices[nnz] = k_idx + 1
                 values[nnz] = c_e
                 nnz += 1
-            
+
             k_idx += 1
-    
+
     return row_indices[:nnz], col_indices[:nnz], values[:nnz], b_vec, h, nnz
 
 
 @njit
 def _assemble_energy_sparse_numba(
-    nx, nz, xtheta, xz, dx, dz,
-    h, pressure, dp_dx, dp_dz, mi, mu_turb_field,
-    speed, mu_0, rho, cp, kt, oil_supply_temperature,
-    reference_temperature, radial_clearance, journal_radius,
-    pad_radius, pad_arc, pad_axial_length, pad_thickness
+    nx,
+    nz,
+    xz,
+    dx,
+    dz,
+    h,
+    pressure,
+    dp_dx,
+    dp_dz,
+    mi,
+    speed,
+    mu_0,
+    rho,
+    cp,
+    kt,
+    oil_supply_temperature,
+    reference_temperature,
+    radial_clearance,
+    journal_radius,
+    pad_radius,
+    pad_arc,
+    pad_axial_length,
 ):
     """
-    Assemble energy equation as sparse matrix using COO format (PHASE 3 - Step 3.3).
-    
+    Assemble energy equation as sparse matrix using COO format.
+
     This function creates a sparse matrix representation of the energy equation
-    using COO format for efficient assembly and solving.
-    
+    using COO format.
+
     Parameters
     ----------
-    ... (same as _assemble_energy_system_numba)
-    
+    nx : int
+        Number of grid points in the circumferential direction.
+    nz : int
+        Number of grid points in the axial direction.
+    xz : ndarray
+        Grid points in the axial direction. Shape: (nz,).
+    dx : float
+        Grid spacing in the circumferential direction.
+    dz : float
+        Grid spacing in the axial direction.
+    h : ndarray
+        Film thickness field (nz, nx).
+    pressure : ndarray
+        Pressure field (nz, nx).
+    dp_dx : ndarray
+        Pressure gradient in the circumferential direction.
+    dp_dz : ndarray
+        Pressure gradient in the axial direction.
+    mi : ndarray
+        Dimensionless viscosity field. Shape: (nz, nx).
+    speed : float
+        Speed of the journal.
+    mu_0 : float
+        Dynamic viscosity of the oil at the oil supply temperature.
+    rho : float
+        Density of the oil.
+    cp : float
+        Specific heat capacity of the oil.
+    kt : float
+        Thermal conductivity of the oil.
+    oil_supply_temperature : float
+        Oil supply temperature.
+    reference_temperature : float
+        Reference temperature.
+    radial_clearance : float
+        Radial clearance between the pad and the journal.
+    journal_radius : float
+        Radius of the journal.
+    pad_radius : float
+        Radius of the pad.
+    pad_arc : float
+        Arc of the pad.
+    pad_axial_length : float
+        Axial length of the pad.
+
     Returns
     -------
     row_indices : ndarray
@@ -5107,9 +4200,10 @@ def _assemble_energy_sparse_numba(
     nnz : int
         Number of non-zero entries.
     """
+
     n_k = nx * nz
     max_nnz = 5 * n_k  # Pentadiagonal structure
-    
+
     # Pre-allocate arrays for COO format
     row_indices = np.zeros(max_nnz, dtype=np.int32)
     col_indices = np.zeros(max_nnz, dtype=np.int32)
@@ -5117,41 +4211,47 @@ def _assemble_energy_sparse_numba(
     b_t = np.zeros(n_k)
     mu_turb_updated = np.zeros((nz, nx))
     reynolds_field = np.zeros((nz, nx))
-    
+
     k_t_idx = 0
     nnz = 0
-    
+
     for ii in range(nz):
         for jj in range(nx):
             h_p_loc = h[ii, jj]
             mi_p = mi[ii, jj]
-            
+
             # Calculate turbulent viscosity
             mi_t, reynolds_local = _calculate_turbulent_viscosity_numba(
-                h_p_loc, mi_p, dp_dx[ii, jj], dp_dz[ii, jj],
-                speed, rho, mu_0, radial_clearance,
-                journal_radius, pad_axial_length
+                h_p_loc,
+                mi_p,
+                dp_dx[ii, jj],
+                dp_dz[ii, jj],
+                speed,
+                rho,
+                mu_0,
+                radial_clearance,
+                journal_radius,
+                pad_axial_length,
             )
-            
+
             mu_turb_updated[ii, jj] = mi_t
             reynolds_field[ii, jj] = reynolds_local
-            
+
             # Auxiliary factor for flow direction
             aux_up = 1.0 if xz[ii] >= 0.0 else 0.0
-            
+
             # Energy equation coefficients
             a_e = -(kt * h_p_loc * dz) / (
                 rho * cp * speed * ((pad_arc * pad_radius) ** 2) * dx
             )
-            
+
             a_w = (
                 ((h_p_loc**3) * dp_dx[ii, jj] * dz) / (12.0 * mi_t * (pad_arc**2))
                 - ((journal_radius * h_p_loc * dz) / (2.0 * pad_radius * pad_arc))
-                - (kt * h_p_loc * dz) / (
-                    rho * cp * speed * ((pad_arc * pad_radius) ** 2) * dx
-                )
+                - (kt * h_p_loc * dz)
+                / (rho * cp * speed * ((pad_arc * pad_radius) ** 2) * dx)
             )
-            
+
             # North and south coefficients (upwind scheme)
             a_n_1 = (aux_up - 1.0) * (
                 ((pad_radius**2) * (h_p_loc**3) * dp_dz[ii, jj] * dx)
@@ -5161,62 +4261,64 @@ def _assemble_energy_sparse_numba(
                 ((pad_radius**2) * (h_p_loc**3) * dp_dz[ii, jj] * dx)
                 / (12.0 * (pad_axial_length**2) * mi_t)
             )
-            
+
             a_n_2 = -(kt * h_p_loc * dx) / (
                 rho * cp * speed * (pad_axial_length**2) * dz
             )
             a_s_2 = -(kt * h_p_loc * dx) / (
                 rho * cp * speed * (pad_axial_length**2) * dz
             )
-            
+
             a_n = a_n_1 + a_n_2
             a_s = a_s_1 + a_s_2
             a_p_coef = -(a_e + a_w + a_n + a_s)
-            
+
             # Source terms
             h_pt = 0.0  # Static analysis
-            aux_b_t = (speed * mu_0) / (rho * cp * oil_supply_temperature * radial_clearance)
-            
+            aux_b_t = (speed * mu_0) / (
+                rho * cp * oil_supply_temperature * radial_clearance
+            )
+
             b_t_g = (
                 mu_0 * speed * (journal_radius**2) * dx * dz * pressure[ii, jj] * h_pt
             ) / (rho * cp * reference_temperature * (radial_clearance**2))
-            
-            b_t_h = (
-                speed * mu_0 * (h_pt**2) * 4.0 * mi_t * dx * dz
-            ) / (rho * cp * reference_temperature * 3.0 * h_p_loc)
-            
+
+            b_t_h = (speed * mu_0 * (h_pt**2) * 4.0 * mi_t * dx * dz) / (
+                rho * cp * reference_temperature * 3.0 * h_p_loc
+            )
+
             b_t_i = (
-                aux_b_t * (mi_t * (journal_radius**2) * dx * dz)
+                aux_b_t
+                * (mi_t * (journal_radius**2) * dx * dz)
                 / (h_p_loc * radial_clearance)
             )
-            
+
             b_t_j = (
-                aux_b_t * (
-                    (pad_radius**2) * (h_p_loc**3) * (dp_dx[ii, jj] ** 2) * dx * dz
-                ) / (12.0 * radial_clearance * (pad_arc**2) * mi_t)
+                aux_b_t
+                * ((pad_radius**2) * (h_p_loc**3) * (dp_dx[ii, jj] ** 2) * dx * dz)
+                / (12.0 * radial_clearance * (pad_arc**2) * mi_t)
             )
-            
+
             b_t_k = (
-                aux_b_t * (
-                    (pad_radius**4) * (h_p_loc**3) * (dp_dz[ii, jj] ** 2) * dx * dz
-                ) / (12.0 * radial_clearance * (pad_axial_length**2) * mi_t)
+                aux_b_t
+                * ((pad_radius**4) * (h_p_loc**3) * (dp_dz[ii, jj] ** 2) * dx * dz)
+                / (12.0 * radial_clearance * (pad_axial_length**2) * mi_t)
             )
-            
+
             b_t_val = b_t_g + b_t_h + b_t_i + b_t_j + b_t_k
-            
+
             # Boundary condition for west face (oil supply) - modify source term
             if jj == 0:
-                b_t[k_t_idx] = b_t_val - 2.0 * a_w * (oil_supply_temperature / reference_temperature)
+                b_t[k_t_idx] = b_t_val - 2.0 * a_w * (
+                    oil_supply_temperature / reference_temperature
+                )
             else:
                 b_t[k_t_idx] = b_t_val
-            
-            # Fill sparse matrix (COO format) - CORRECTED VERSION
-            # Pre-calculate diagonal value with boundary condition adjustments
-            # Note: Energy equation has DIFFERENT signs than Reynolds equation!
+
+            # Fill sparse matrix (COO format)
             a_p_adjusted = a_p_coef  # Start with base diagonal value
-            
+
             # Apply boundary condition adjustments to diagonal
-            # Based on dense version in _assemble_energy_system_numba (lines 4946-4963)
             if ii == 0:
                 a_p_adjusted += a_s  # South boundary (ADD)
             if ii == nz - 1:
@@ -5225,13 +4327,13 @@ def _assemble_energy_sparse_numba(
                 a_p_adjusted -= a_w  # West boundary (SUBTRACT)
             if jj == nx - 1:
                 a_p_adjusted += a_e  # East boundary (ADD)
-            
-            # Add diagonal element (always present, with adjusted value)
+
+            # Add diagonal element
             row_indices[nnz] = k_t_idx
             col_indices[nnz] = k_t_idx
             values[nnz] = a_p_adjusted
             nnz += 1
-            
+
             # Add off-diagonal elements only when neighbors exist
             # South neighbor (ii > 0)
             if ii > 0:
@@ -5239,28 +4341,36 @@ def _assemble_energy_sparse_numba(
                 col_indices[nnz] = k_t_idx - nx
                 values[nnz] = a_s
                 nnz += 1
-            
+
             # North neighbor (ii < nz - 1)
             if ii < nz - 1:
                 row_indices[nnz] = k_t_idx
                 col_indices[nnz] = k_t_idx + nx
                 values[nnz] = a_n
                 nnz += 1
-            
+
             # West neighbor (jj > 0)
             if jj > 0:
                 row_indices[nnz] = k_t_idx
                 col_indices[nnz] = k_t_idx - 1
                 values[nnz] = a_w
                 nnz += 1
-            
+
             # East neighbor (jj < nx - 1)
             if jj < nx - 1:
                 row_indices[nnz] = k_t_idx
                 col_indices[nnz] = k_t_idx + 1
                 values[nnz] = a_e
                 nnz += 1
-            
+
             k_t_idx += 1
-    
-    return row_indices[:nnz], col_indices[:nnz], values[:nnz], b_t, mu_turb_updated, reynolds_field, nnz
+
+    return (
+        row_indices[:nnz],
+        col_indices[:nnz],
+        values[:nnz],
+        b_t,
+        mu_turb_updated,
+        reynolds_field,
+        nnz,
+    )
