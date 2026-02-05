@@ -37,6 +37,10 @@ class MultiRotor(Rotor):
         If True, the gear mesh stiffness is recalculated
         at each time step. If False, the maximum stiffness
         value is used throughout the simulation.
+    square_varying_stiffness: boll, optional
+        Set the square shape time varying mesh stiffness
+    square_stiffness_amplitude_ratio: float, optional
+        Ratio of stiffness amplitude based on the mean value of stiffness.
     orientation_angle : float, pint.Quantity, optional
         The angle between the line of gear centers and x-axis. Default is 0.0 rad.
     position : {'above', 'below'}, optional
@@ -119,6 +123,8 @@ class MultiRotor(Rotor):
         coupled_nodes,
         gear_mesh_stiffness=None,
         update_mesh_stiffness=False,
+        square_varying_stiffness=False,
+        square_stiffness_amplitude_ratio=0,
         orientation_angle=0.0,
         position="above",
         tag=None,
@@ -146,10 +152,16 @@ class MultiRotor(Rotor):
             gear_2 = gear_2[0]
 
         self.update_mesh_stiffness = update_mesh_stiffness
+        self.square_varying_stiffness = square_varying_stiffness
+        self.square_stiffness_amplitude_ratio = square_stiffness_amplitude_ratio
+
         self.mesh = Mesh(
             gear_1,
             gear_2,
             gear_mesh_stiffness=gear_mesh_stiffness,
+            square_varying_stiffness=self.square_varying_stiffness,
+            square_stiffness_amplitude_ratio=square_stiffness_amplitude_ratio,
+            orientation_angle=self.orientation_angle,
         )
 
         gear1_plot = next(

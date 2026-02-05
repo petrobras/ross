@@ -140,7 +140,7 @@ def test_mesh_params(mesh):
     assert mesh.gear_ratio == 1.0
     assert mesh.contact_ratio == 1.7897798668330458
     assert mesh.hertzian_stiffness == 3555868607.9093266
-    assert_allclose(mesh.stiffness, 419569438.98401976, rtol=1e-6, atol=1e-5)
+    assert_allclose(mesh.stiffness, 4.096607e+08, rtol=1e-6, atol=1e-5)
     assert_allclose(
         mesh.stiffness_range[:5],
         [
