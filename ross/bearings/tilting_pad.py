@@ -253,7 +253,7 @@ class TiltingPad(BearingElement):
         # Operating conditions
         self.equilibrium_type = equilibrium_type
 
-        if load is None and self.equilibrium_type == "determine_eccentricity":
+        if load is None and equilibrium_type == "determine_eccentricity":
             raise ValueError(
                 "The 'load' parameter is required when equilibrium_type='determine_eccentricity'.\n"
                 "Expected format: load=[fx, fy] where fx and fy are the external loads in X and Y directions.\n"
@@ -265,7 +265,9 @@ class TiltingPad(BearingElement):
             and self.equilibrium_type == "determine_eccentricity"
         ):
             raise Warning(
-                "No initial pads angles provided for equilibrium optimization. Using default values. Better results may be obtained if initial pads angles are provided."
+                "No initial pad angles provided for equilibrium optimization. Using default values.\n"
+                "Better results may be obtained if initial pad angles are provided via 'initial_pads_angles'.\n"
+                "For more details, see the 'initial_pads_angles' parameter documentation in the TiltingPad class docstring."
             )
 
         self.oil_supply_temperature = Q_(oil_supply_temperature, "degK").m_as("degC")
