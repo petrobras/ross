@@ -19,7 +19,7 @@ Using the terminal (or the Anaconda prompt if on Windows) you can install the la
 pip install ross-rotordynamics
 ```
 
-Alternatively, you can install the development version from github:
+Alternatively, you can install the development version from GitHub:
 
 ```{code-block}
 pip install git+https://github.com/petrobras/ross.git

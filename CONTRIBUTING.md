@@ -7,8 +7,7 @@ section for questions and further information.
 
 ## Code style: Ruff
 
-To format our code we use [Ruff](https://docs.astral.sh/ruff/), which is the *"An extremely fast Python linter and code formatter"*. You can configure your development environment to use Ruff before a commit. More information on how
-to set this is given at [Ruff's documentation](https://docs.astral.sh/ruff/integrations/).
+To format our code we use [Ruff](https://docs.astral.sh/ruff/), which is described as *"An extremely fast Python linter and code formatter"*. You can configure your development environment to use Ruff before a commit. More information on how to set this is given at [Ruff's documentation](https://docs.astral.sh/ruff/integrations/).
 
 We also recommend using the [pre-commit](https://docs.astral.sh/ruff/integrations/#pre-commit) tool so that Ruff is automatically run when doing a commit.
 
@@ -19,8 +18,7 @@ We also recommend using the [pre-commit](https://docs.astral.sh/ruff/integration
 Git is a version control system (VCS) for tracking changes in code during software development.
 To download the ROSS source code and contribute to its development,
 you need Git installed in your machine. Refer to the [Git website](https://git-scm.com/) and follow the instructions to download and install it.
-Once you have Git installed, you will be able to follow the instructions in [How to contribute to ROSS using git],
-which explains how to download and contribute to ROSS.
+Once you have Git installed, you will be able to follow the instructions in [How to contribute to ROSS using git](#how-to-contribute-to-ross-using-git), which explains how to download and contribute to ROSS.
 
 To use git to contribute to ROSS project, follow the steps below:
 *For Windows users: commands provided here can be executed using Git Bash instead of Git GUI.*
@@ -124,8 +122,7 @@ If you want to run all the tests you can do it with (from the `~/ross/ross` fold
 pytest
 ```
 
-Code is only merged to main if tests pass. This is checked by services GitHub Actions, so make sure
-tests are passing before pushing your code to github.
+Code is only merged to main if tests pass. This is checked by GitHub Actions, so make sure tests are passing before pushing your code to GitHub.
 
 ### Step 6: Push changes to your git repository
 
@@ -150,8 +147,8 @@ To create a Pull Request (PR), refer to [the github PR guide](https://help.githu
 ## Docstrings for class and methods
 
 A new method must have a docstring presenting a summary for what the method does.
-ROSS' docstrings follows the Numpy [docstring style](https://numpydoc.readthedocs.io/en/latest/format.html).
-It's important to follow the Numpy's template due to the formatting that will be presented on the ROSS website.
+ROSS' docstrings follow the NumPy [docstring style](https://numpydoc.readthedocs.io/en/latest/format.html).
+It's important to follow the NumPy's template due to the formatting that will be presented on the ROSS website.
 
 Example of docstring:
 
@@ -281,13 +278,13 @@ git push upstream --tags
 Pushing the new tag to the GitHub repository will start a new build on GitHub actions. If all the tests succeed, GitHub will
 upload the new package to PyPI (see the deploy command on .github/workflows/publish-to-pypi.yml).
 
-It is recommended to first use release candidates version (e.g. v1.1.2rc1). These will only be installed with:
+It is recommended to first use release candidate versions (e.g. v1.1.2rc1). These will only be installed with:
 
 ```
 pip install --pre ross-rotordynamics
 ```
 
-and it is usefull to test the installation process before the final release.
+and it is useful to test the installation process before the final release.
 
 ## ROSS structure
 
