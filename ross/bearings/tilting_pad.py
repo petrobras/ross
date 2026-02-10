@@ -2877,6 +2877,485 @@ class TiltingPad(BearingElement):
         
         return self.h_film_pad[n_p]
 
+    def _solve_pad_conduction_2D(self, n_p):
+        """
+        Solve 2D steady-state heat conduction equation in pad.
+        
+        Equation in cylindrical coordinates:
+        ∂/∂r(k ∂T/∂r) + (k/r²) ∂²T/∂θ² = 0
+        
+        Discretization using finite differences on a structured mesh (θ, r).
+        
+        Boundary Conditions:
+        - Inner surface (r=R_in): Robin BC with film convection
+        -k_pad * ∂T/∂r = h_film * (T_film - T_pad_surface)
+        - Back surface (r=R_back): Robin BC with sump convection
+        -k_pad * ∂T/∂r = h_back * (T_sump - T_pad_back)
+        - Leading edge (θ=θ_min): Robin BC with ambient convection
+        -k_pad * ∂T/∂θ = h_edge * (T_ambient - T_edge)
+        - Trailing edge (θ=θ_max): Robin BC with ambient convection
+        -k_pad * ∂T/∂θ = h_edge * (T_ambient - T_edge)
+        
+        Parameters
+        ----------
+        n_p : int
+            Pad index
+            
+        Returns
+        -------
+        T_pad : ndarray
+            Temperature field in pad [°C]. Shape: (ntheta_pad, nr_pad)
+        T_pad_surface : ndarray
+            Temperature at inner surface [°C]. Shape: (ntheta_pad,)
+            
+        Notes
+        -----
+        - Uses central differences for interior points
+        - Uses one-sided differences for boundary conditions
+        - Solves linear system A*T = b using sparse matrix solver
+        - Temperature field is averaged axially (2D approximation)
+        """
+        
+        # Grid dimensions
+        ntheta = self.ntheta_pad  # Circumferential points
+        nr = self.nr_pad  # Radial points
+        n_nodes = ntheta * nr  # Total number of nodes
+        
+        # Grid spacings
+        dr = self.dr_pad
+        dtheta = self.dtheta_pad
+        
+        # Thermal properties
+        k_pad = self.k_pad  # Pad thermal conductivity [W/(m·K)]
+        
+        # Boundary conditions temperatures
+        T_sump = self.oil_supply_temperature  # Assume sump = supply temp
+        T_ambient = self.oil_supply_temperature  # Ambient oil temperature
+        
+        # Convection coefficients
+        h_back = self.h_back  # Back surface [W/(m²·K)]
+        h_edge = self.h_edge  # Side edges [W/(m²·K)]
+        
+        # Film temperature (averaged over axial direction for 2D model)
+        # Average T_film over z-direction at each θ position
+        T_film = np.mean(self.temperature_init[:, :, n_p], axis=0)  # Shape: (nx,)
+        
+        # Convection coefficient with film (averaged over z)
+        h_film = np.mean(self.h_film_pad[n_p, :, :], axis=1)  # Shape: (nx,)
+        
+        # Build sparse matrix using COO format
+        # Estimate max non-zeros: 5 per interior node + boundary nodes
+        max_nnz = 5 * n_nodes
+        row_idx = np.zeros(max_nnz, dtype=np.int32)
+        col_idx = np.zeros(max_nnz, dtype=np.int32)
+        vals = np.zeros(max_nnz)
+        b_vec = np.zeros(n_nodes)
+        
+        nnz = 0  # Counter for non-zero entries
+        
+        # Node numbering: linear index k = i_theta + i_r * ntheta
+        # where i_theta ∈ [0, ntheta-1], i_r ∈ [0, nr-1]
+        
+        for i_r in range(nr):
+            r = self.r_pad[i_r]  # Current radius
+            
+            for i_theta in range(ntheta):
+                k = i_theta + i_r * ntheta  # Linear node index
+                
+                # ============================================================
+                # INTERIOR POINTS (not on any boundary)
+                # ============================================================
+                if 0 < i_r < nr - 1 and 0 < i_theta < ntheta - 1:
+                    # Central differences for interior points
+                    # Second derivative in r: ∂²T/∂r² ≈ (T[i+1] - 2T[i] + T[i-1])/dr²
+                    # First derivative in r: ∂T/∂r ≈ (T[i+1] - T[i-1])/(2dr)
+                    # Second derivative in θ: ∂²T/∂θ² ≈ (T[j+1] - 2T[j] + T[j-1])/dtheta²
+                    
+                    # Finite difference equation:
+                    # k_pad * [∂²T/∂r² + (1/r)∂T/∂r + (1/r²)∂²T/∂θ²] = 0
+                    
+                    # Coefficients for 5-point stencil
+                    # Node indices: center (k), east (+1 in theta), west (-1 in theta),
+                    #               north (+ntheta in r), south (-ntheta in r)
+                    
+                    coef_center = -2.0 / (dr**2) - 2.0 / (r**2 * dtheta**2)
+                    coef_north = 1.0 / (dr**2) + 1.0 / (2.0 * r * dr)  # i_r + 1
+                    coef_south = 1.0 / (dr**2) - 1.0 / (2.0 * r * dr)  # i_r - 1
+                    coef_east = 1.0 / (r**2 * dtheta**2)  # i_theta + 1
+                    coef_west = 1.0 / (r**2 * dtheta**2)  # i_theta - 1
+                    
+                    # Multiply by k_pad
+                    coef_center *= k_pad
+                    coef_north *= k_pad
+                    coef_south *= k_pad
+                    coef_east *= k_pad
+                    coef_west *= k_pad
+                    
+                    # Fill matrix
+                    row_idx[nnz] = k
+                    col_idx[nnz] = k
+                    vals[nnz] = coef_center
+                    nnz += 1
+                    
+                    row_idx[nnz] = k
+                    col_idx[nnz] = k + ntheta  # North (r+1)
+                    vals[nnz] = coef_north
+                    nnz += 1
+                    
+                    row_idx[nnz] = k
+                    col_idx[nnz] = k - ntheta  # South (r-1)
+                    vals[nnz] = coef_south
+                    nnz += 1
+                    
+                    row_idx[nnz] = k
+                    col_idx[nnz] = k + 1  # East (theta+1)
+                    vals[nnz] = coef_east
+                    nnz += 1
+                    
+                    row_idx[nnz] = k
+                    col_idx[nnz] = k - 1  # West (theta-1)
+                    vals[nnz] = coef_west
+                    nnz += 1
+                    
+                    b_vec[k] = 0.0  # No source term
+                
+                # ============================================================
+                # INNER SURFACE (r = R_in, i_r = 0) - Robin BC with film
+                # ============================================================
+                elif i_r == 0:
+                    # Robin BC: -k_pad * ∂T/∂r = h_film * (T_film - T_pad)
+                    # Forward difference: ∂T/∂r ≈ (T[i+1] - T[i])/dr
+                    # -k_pad * (T[i+1] - T[i])/dr = h_film * (T_film - T[i])
+                    # Rearranging: (k_pad/dr + h_film)*T[i] - k_pad/dr*T[i+1] = h_film*T_film
+                    
+                    if 0 < i_theta < ntheta - 1:
+                        # Interior points on inner surface (not at edges)
+                        coef_center = k_pad / dr + h_film[i_theta]
+                        coef_north = -k_pad / dr
+                        
+                        # Also include circumferential diffusion
+                        coef_east = k_pad / (r**2 * dtheta**2)
+                        coef_west = k_pad / (r**2 * dtheta**2)
+                        coef_center -= 2.0 * k_pad / (r**2 * dtheta**2)
+                        
+                        row_idx[nnz] = k
+                        col_idx[nnz] = k
+                        vals[nnz] = coef_center
+                        nnz += 1
+                        
+                        row_idx[nnz] = k
+                        col_idx[nnz] = k + ntheta
+                        vals[nnz] = coef_north
+                        nnz += 1
+                        
+                        row_idx[nnz] = k
+                        col_idx[nnz] = k + 1
+                        vals[nnz] = coef_east
+                        nnz += 1
+                        
+                        row_idx[nnz] = k
+                        col_idx[nnz] = k - 1
+                        vals[nnz] = coef_west
+                        nnz += 1
+                        
+                        b_vec[k] = h_film[i_theta] * T_film[i_theta]
+                    
+                    else:
+                        # Corner nodes (inner surface + edge)
+                        # Simplified: just use film convection
+                        row_idx[nnz] = k
+                        col_idx[nnz] = k
+                        vals[nnz] = k_pad / dr + h_film[i_theta]
+                        nnz += 1
+                        
+                        row_idx[nnz] = k
+                        col_idx[nnz] = k + ntheta
+                        vals[nnz] = -k_pad / dr
+                        nnz += 1
+                        
+                        b_vec[k] = h_film[i_theta] * T_film[i_theta]
+                
+                # ============================================================
+                # BACK SURFACE (r = R_back, i_r = nr-1) - Robin BC with sump
+                # ============================================================
+                elif i_r == nr - 1:
+                    # Robin BC: -k_pad * ∂T/∂r = h_back * (T_sump - T_pad)
+                    # Backward difference: ∂T/∂r ≈ (T[i] - T[i-1])/dr
+                    # -k_pad * (T[i] - T[i-1])/dr = h_back * (T_sump - T[i])
+                    # Rearranging: (k_pad/dr + h_back)*T[i] - k_pad/dr*T[i-1] = h_back*T_sump
+                    
+                    if 0 < i_theta < ntheta - 1:
+                        # Interior points on back surface
+                        coef_center = k_pad / dr + h_back
+                        coef_south = -k_pad / dr
+                        
+                        # Circumferential diffusion
+                        coef_east = k_pad / (r**2 * dtheta**2)
+                        coef_west = k_pad / (r**2 * dtheta**2)
+                        coef_center -= 2.0 * k_pad / (r**2 * dtheta**2)
+                        
+                        row_idx[nnz] = k
+                        col_idx[nnz] = k
+                        vals[nnz] = coef_center
+                        nnz += 1
+                        
+                        row_idx[nnz] = k
+                        col_idx[nnz] = k - ntheta
+                        vals[nnz] = coef_south
+                        nnz += 1
+                        
+                        row_idx[nnz] = k
+                        col_idx[nnz] = k + 1
+                        vals[nnz] = coef_east
+                        nnz += 1
+                        
+                        row_idx[nnz] = k
+                        col_idx[nnz] = k - 1
+                        vals[nnz] = coef_west
+                        nnz += 1
+                        
+                        b_vec[k] = h_back * T_sump
+                    
+                    else:
+                        # Corner nodes (back surface + edge)
+                        row_idx[nnz] = k
+                        col_idx[nnz] = k
+                        vals[nnz] = k_pad / dr + h_back
+                        nnz += 1
+                        
+                        row_idx[nnz] = k
+                        col_idx[nnz] = k - ntheta
+                        vals[nnz] = -k_pad / dr
+                        nnz += 1
+                        
+                        b_vec[k] = h_back * T_sump
+                
+                # ============================================================
+                # LEADING EDGE (θ = θ_min, i_theta = 0) - Robin BC with ambient
+                # ============================================================
+                elif i_theta == 0 and 0 < i_r < nr - 1:
+                    # Robin BC: -k_pad * ∂T/∂θ = h_edge * (T_ambient - T_pad)
+                    # Forward difference: ∂T/∂θ ≈ (T[j+1] - T[j])/dtheta
+                    
+                    coef_center = k_pad / (r * dtheta) + h_edge
+                    coef_east = -k_pad / (r * dtheta)
+                    
+                    # Radial diffusion
+                    coef_north = k_pad / (dr**2) + k_pad / (2.0 * r * dr)
+                    coef_south = k_pad / (dr**2) - k_pad / (2.0 * r * dr)
+                    coef_center -= 2.0 * k_pad / (dr**2)
+                    
+                    row_idx[nnz] = k
+                    col_idx[nnz] = k
+                    vals[nnz] = coef_center
+                    nnz += 1
+                    
+                    row_idx[nnz] = k
+                    col_idx[nnz] = k + 1
+                    vals[nnz] = coef_east
+                    nnz += 1
+                    
+                    row_idx[nnz] = k
+                    col_idx[nnz] = k + ntheta
+                    vals[nnz] = coef_north
+                    nnz += 1
+                    
+                    row_idx[nnz] = k
+                    col_idx[nnz] = k - ntheta
+                    vals[nnz] = coef_south
+                    nnz += 1
+                    
+                    b_vec[k] = h_edge * T_ambient
+                
+                # ============================================================
+                # TRAILING EDGE (θ = θ_max, i_theta = ntheta-1) - Robin BC
+                # ============================================================
+                elif i_theta == ntheta - 1 and 0 < i_r < nr - 1:
+                    # Robin BC: -k_pad * ∂T/∂θ = h_edge * (T_ambient - T_pad)
+                    # Backward difference: ∂T/∂θ ≈ (T[j] - T[j-1])/dtheta
+                    
+                    coef_center = k_pad / (r * dtheta) + h_edge
+                    coef_west = -k_pad / (r * dtheta)
+                    
+                    # Radial diffusion
+                    coef_north = k_pad / (dr**2) + k_pad / (2.0 * r * dr)
+                    coef_south = k_pad / (dr**2) - k_pad / (2.0 * r * dr)
+                    coef_center -= 2.0 * k_pad / (dr**2)
+                    
+                    row_idx[nnz] = k
+                    col_idx[nnz] = k
+                    vals[nnz] = coef_center
+                    nnz += 1
+                    
+                    row_idx[nnz] = k
+                    col_idx[nnz] = k - 1
+                    vals[nnz] = coef_west
+                    nnz += 1
+                    
+                    row_idx[nnz] = k
+                    col_idx[nnz] = k + ntheta
+                    vals[nnz] = coef_north
+                    nnz += 1
+                    
+                    row_idx[nnz] = k
+                    col_idx[nnz] = k - ntheta
+                    vals[nnz] = coef_south
+                    nnz += 1
+                    
+                    b_vec[k] = h_edge * T_ambient
+        
+        # Build sparse matrix in COO format
+        mat_coo = coo_matrix(
+            (vals[:nnz], (row_idx[:nnz], col_idx[:nnz])),
+            shape=(n_nodes, n_nodes)
+        )
+        
+        # Convert to CSR for efficient solving
+        mat_csr = mat_coo.tocsr()
+        
+        # Solve linear system
+        T_vec = spsolve(mat_csr, b_vec)
+        
+        # Reshape to 2D grid (ntheta, nr)
+        T_pad_2D = T_vec.reshape(nr, ntheta).T  # Shape: (ntheta, nr)
+        
+        # Extract surface temperature (inner surface, i_r=0)
+        T_pad_surface_1D = T_pad_2D[:, 0]  # Shape: (ntheta,)
+        
+        # Store results
+        self.T_pad[n_p, :, :] = T_pad_2D
+        
+        # Expand T_pad_surface to 2D (repeat for all axial positions)
+        # Since we're using 2D approximation (averaged axially)
+        for ii in range(self.nz):
+            self.T_pad_surface[n_p, :, ii] = T_pad_surface_1D
+        
+        return T_pad_2D, T_pad_surface_1D
+
+    def _thermal_coupling_iteration(self, mi, n_p, psi_pad, eccentricity=None, attitude_angle=None):
+        """
+        Perform coupled film-pad thermal iteration until convergence.
+        
+        This method iteratively solves:
+        1. Reynolds equation (pressure field)
+        2. Energy equation (film temperature)
+        3. Convection coefficients (film-pad interface)
+        4. Pad conduction (pad temperature)
+        
+        The iteration continues until the pad surface temperature converges.
+        
+        Parameters
+        ----------
+        mi : ndarray
+            Initial dimensionless viscosity field. Shape: (nz, nx).
+        n_p : int
+            Pad index
+        psi_pad : ndarray
+            Pad rotation angles [rad]. Shape: (n_pad,)
+        eccentricity : float, optional
+            Eccentricity ratio for equilibrium calculation
+        attitude_angle : float, optional
+            Attitude angle [rad] for equilibrium calculation
+            
+        Returns
+        -------
+        T_film : ndarray
+            Converged film temperature field [°C]. Shape: (nz, nx)
+        T_pad_surface : ndarray
+            Converged pad surface temperature [°C]. Shape: (nx, nz)
+            
+        Notes
+        -----
+        Convergence criteria:
+        - Temperature change < thermal_tolerance (default 2°C)
+        - Maximum iterations: max_thermal_iter (default 50)
+        
+        Relaxation is applied to improve stability:
+        T_new = relax_factor * T_computed + (1 - relax_factor) * T_old
+        """
+        
+        # Initialize pad surface temperature with film temperature estimate
+        if not hasattr(self, 'T_pad_surface') or self.T_pad_surface is None:
+            # First time: initialize with supply temperature
+            T_pad_surface_old = np.full((self.nx, self.nz), self.oil_supply_temperature)
+        else:
+            # Use previous solution as initial guess
+            T_pad_surface_old = self.T_pad_surface[n_p, :, :].copy()
+        
+        # Convergence tracking
+        iter_count = 0
+        converged = False
+        
+        print(f"\n  Pad {n_p}: Starting thermal coupling iteration...")
+        
+        while not converged and iter_count < self.max_thermal_iter:
+            iter_count += 1
+            
+            # ============================================================
+            # STEP 1: Solve Reynolds equation for pressure field
+            # ============================================================
+            self._solve_reynolds_equation(mi, n_p, psi_pad, eccentricity, attitude_angle)
+            
+            # ============================================================
+            # STEP 2: Calculate pressure gradients
+            # ============================================================
+            self._calculate_pressure_gradients()
+            
+            # ============================================================
+            # STEP 3: Solve energy equation for film temperature
+            # ============================================================
+            # TODO: In future, modify energy equation to use T_pad_surface as BC
+            # For now, it uses adiabatic BC at pad surface
+            T_film = self._solve_energy_equation(mi, n_p, is_equilibrium=False)
+            
+            # Update temperature field
+            self.temperature_init[:, :, n_p] = T_film
+            
+            # ============================================================
+            # STEP 4: Calculate convection coefficients at film-pad interface
+            # ============================================================
+            self._calculate_convection_coefficient(n_p)
+            
+            # ============================================================
+            # STEP 5: Solve 2D heat conduction in pad
+            # ============================================================
+            T_pad_2D, T_pad_surface_1D = self._solve_pad_conduction_2D(n_p)
+            
+            # Extract surface temperature (already stored in self.T_pad_surface by solver)
+            T_pad_surface_new = self.T_pad_surface[n_p, :, :].copy()
+            
+            # ============================================================
+            # STEP 6: Check convergence
+            # ============================================================
+            T_diff = np.abs(T_pad_surface_new - T_pad_surface_old).max()
+            
+            if T_diff < self.thermal_tolerance:
+                converged = True
+                print(f"    Iteration {iter_count}: Converged! ΔT_max = {T_diff:.4f} °C")
+            else:
+                # Apply relaxation for stability
+                T_pad_surface_relaxed = (
+                    self.thermal_relax_factor * T_pad_surface_new +
+                    (1.0 - self.thermal_relax_factor) * T_pad_surface_old
+                )
+                
+                # Update for next iteration
+                self.T_pad_surface[n_p, :, :] = T_pad_surface_relaxed
+                T_pad_surface_old = T_pad_surface_relaxed.copy()
+                
+                if iter_count % 5 == 0:
+                    print(f"    Iteration {iter_count}: ΔT_max = {T_diff:.4f} °C")
+            
+            # Update viscosity for next iteration
+            mi_i = self.a_a * np.exp(self.b_b * T_film)
+            mi = mi_i / self.mu_0
+        
+        if not converged:
+            print(f"    WARNING: Thermal coupling did not converge after {iter_count} iterations!")
+            print(f"    Final ΔT_max = {T_diff:.4f} °C (tolerance = {self.thermal_tolerance} °C)")
+        
+        return T_film, self.T_pad_surface[n_p, :, :]
+
 # HERE
 
     def _check_diagonal(self, matrix, residual=1e-10):
