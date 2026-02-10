@@ -1,5 +1,6 @@
 import time
 import numpy as np
+import warnings
 from numba import njit
 from scipy.optimize import fmin
 from scipy.sparse import coo_matrix
@@ -264,10 +265,11 @@ class TiltingPad(BearingElement):
             initial_pads_angles is None
             and self.equilibrium_type == "determine_eccentricity"
         ):
-            raise Warning(
+            warnings.warn(
                 "No initial pad angles provided for equilibrium optimization. Using default values.\n"
                 "Better results may be obtained if initial pad angles are provided via 'initial_pads_angles'.\n"
-                "For more details, see the 'initial_pads_angles' parameter documentation in the TiltingPad class docstring."
+                "For more details, see the 'initial_pads_angles' parameter documentation in the TiltingPad class docstring.",
+                UserWarning,
             )
 
         self.oil_supply_temperature = Q_(oil_supply_temperature, "degK").m_as("degC")
