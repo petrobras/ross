@@ -298,6 +298,35 @@ class TiltingPad(BearingElement):
         self.xtheta = np.zeros(self.nx)
         self.xtheta[0] = self.theta_1 + 0.5 * self.dtheta
 
+        # Thermal mesh for each pad (θ̂, r)
+        self.nr_pad = 15  # Points in the radial direction
+        self.ntheta_pad = self.nx  # Reuse circumferential points
+        # Temperature 2D in pads [n_pad, ntheta_pad, nr_pad]
+        self.T_pad = None  # Will be initialized after setup        
+        # Temperature on the inner surface [n_pad, nx, nz]
+        self.T_pad_surface = None        
+        # Uniform initial temperature
+        self.T_pad_init = self.oil_supply_temperature
+
+        # Material properties of the pad (typical values for bronze/babbit)
+        self.k_pad = 50.0  # W/(m·K) - thermal conductivity
+        self.rho_pad = 8400.0  # kg/m³ - density
+        self.cp_pad = 380.0  # J/(kg·K) - specific heat
+        self.alpha_thermal_pad = 1.2e-5  # 1/K - thermal expansion coefficient
+
+        # Heat transfer coefficients [n_pad, nx, nz]
+        self.h_film_pad = None  # Interface film-pad (will be calculated)
+        self.h_back = 500.0  # W/(m²·K) - back surface (estimate)
+        self.h_edge = 1500.0  # W/(m²·K) - side edges
+
+        # Thermal convergence parameters
+        self.thermal_tolerance = 2.0  # °C - temperature tolerance
+        self.thermal_relax_factor = 0.4  # Relaxation factor
+        self.max_thermal_iter = 50  # Maximum number of thermal iterations
+
+        if self.model_type == "thermo_hydro_dynamic":
+            self._setup_pad_thermal_mesh()
+
         # Lubricant properties setup
         if isinstance(lubricant, str):
             if lubricant not in lubricants_dict:
@@ -564,6 +593,9 @@ class TiltingPad(BearingElement):
 
                 # Solve energy equation
                 temperature_ref = self._solve_energy_equation(mi, n_p_eq)
+
+                if hasattr(self, 'h_film_pad'):
+                    self._calculate_convection_coefficient(n_p_eq)
 
             # Calculate hydrodynamic forces at equilibrium
             self._calculate_hydrodynamic_forces(
@@ -1394,6 +1426,9 @@ class TiltingPad(BearingElement):
             # Use Energy equation solver
             T_new = self._solve_energy_equation(mi, n_p, is_equilibrium=True)
 
+            if hasattr(self, 'h_film_pad'):
+                self._calculate_convection_coefficient(n_p)
+
         # Calculate hydrodynamic forces and moments for this pad
         self._calculate_hydrodynamic_forces(n_p, psi_pad, is_equilibrium=True)
         self.temperature_init[:, :, n_p] = T_new
@@ -1506,6 +1541,9 @@ class TiltingPad(BearingElement):
 
                 # Solve energy equation
                 T_new = self._solve_energy_equation(mi, n_p, is_equilibrium=True)
+
+                if hasattr(self, 'h_film_pad'):
+                    self._calculate_convection_coefficient(n_p)
 
             # Update temperature
             self.temperature_init[:, :, n_p] = T_new
@@ -1713,6 +1751,9 @@ class TiltingPad(BearingElement):
 
             # Solve energy equation
             temperature_reference = self._solve_energy_equation(mi, n_p)
+
+            if hasattr(self, 'h_film_pad'):
+                self._calculate_convection_coefficient(n_p)
 
         return temperature_reference
 
@@ -2718,6 +2759,125 @@ class TiltingPad(BearingElement):
         b = np.log(mu_F / mu_I) / (T_muF - T_muI)
         a = mu_I / np.exp(b * T_muI)
         return a, b
+
+    def _setup_pad_thermal_mesh(self):
+        """
+        Create 2D mesh for thermal analysis of pads.
+        
+        Local coordinates:
+        - theta_hat (circumferential): pad local angle
+        - r (radial): from inner surface to back surface
+        
+        This method initializes:
+        - Radial mesh points and spacing
+        - Temperature fields for pads (2D and surface)
+        - Convection coefficient arrays
+        """
+        # Radial direction: from R_in (inner surface) to R_back (back surface)
+        self.r_pad = np.linspace(
+            self.pad_radius,  # Inner surface radius
+            self.pad_radius + self.pad_thickness,  # Back surface radius
+            self.nr_pad
+        )
+        self.dr_pad = self.r_pad[1] - self.r_pad[0]
+        
+        # Circumferential direction: reuse film mesh
+        # Already in local coordinates (theta_hat)
+        self.theta_pad = self.xtheta.copy()
+        self.dtheta_pad = self.dtheta
+        
+        # Initialize temperature fields
+        # 3D array: [n_pad, ntheta_pad, nr_pad]
+        self.T_pad = np.full(
+            (self.n_pad, self.ntheta_pad, self.nr_pad),
+            self.T_pad_init,
+            dtype=np.float64
+        )
+        
+        # Surface temperature (interface film-pad): [n_pad, nx, nz]
+        self.T_pad_surface = np.full(
+            (self.n_pad, self.nx, self.nz),
+            self.T_pad_init,
+            dtype=np.float64
+        )
+        
+        # Convection coefficient film-pad interface: [n_pad, nx, nz]
+        self.h_film_pad = np.zeros(
+            (self.n_pad, self.nx, self.nz),
+            dtype=np.float64
+        )
+        
+        print(f"Pad thermal mesh initialized:")
+        print(f"  - Radial points (nr_pad): {self.nr_pad}")
+        print(f"  - Circumferential points (ntheta_pad): {self.ntheta_pad}")
+        print(f"  - Radial spacing (dr_pad): {self.dr_pad*1e3:.4f} mm")
+        print(f"  - T_pad shape: {self.T_pad.shape}")
+        print(f"  - T_pad_surface shape: {self.T_pad_surface.shape}")
+
+    def _calculate_convection_coefficient(self, n_p):
+        """
+        Calculate convection coefficient at film-pad interface.
+        
+        Uses Nusselt number correlation based on local Reynolds number.
+        
+        References:
+        - Fitzgerald & Neal (1992): "Temperature distributions and heat 
+        transfer in journal bearings"
+        - Abdohalli et al. (2016): TPJB thermal analysis
+        
+        Correlations:
+        - Laminar (Re < 2000): Nu = 3.66
+        - Turbulent (Re >= 2000): Nu = 0.0225 * Re^0.8 * Pr^0.4
+        - Convection coeff: h = Nu * k_oil / h_local
+        
+        Parameters
+        ----------
+        n_p : int
+            Pad index
+            
+        Returns
+        -------
+        h_film_pad : ndarray
+            Convection coefficient array [nx, nz] in W/(m²·K)
+        """
+        # Prandtl number (oil thermal properties)
+        # Pr = μ * cp / k
+        Pr = self.mu_0 * self.cp / self.kt
+        
+        # Tangential velocity at journal surface (m/s)
+        U_journal = self.speed * self.journal_radius
+        
+        # Loop over mesh points
+        for ii in range(self.nz):  # Axial direction
+            for jj in range(self.nx):  # Circumferential direction
+                
+                # Local film thickness
+                h_local = self.h[ii, jj]
+                
+                # Skip if film thickness is too small (cavitation region)
+                if h_local < 1e-7:
+                    self.h_film_pad[n_p, jj, ii] = 0.0
+                    continue
+                
+                # Local Reynolds number
+                # Re = ρ * U * h / μ
+                Re_local = (self.rho * U_journal * h_local) / self.mu_0
+                
+                # Nusselt number (flow regime dependent)
+                if Re_local < 2000:
+                    # Laminar flow - constant Nu
+                    Nu = 3.66
+                else:
+                    # Turbulent flow - Dittus-Boelter correlation
+                    Nu = 0.0225 * (Re_local ** 0.8) * (Pr ** 0.4)
+                
+                # Convection coefficient: h = Nu * k / L_characteristic
+                # L_characteristic = h_local (film thickness)
+                self.h_film_pad[n_p, jj, ii] = Nu * self.kt / h_local
+        
+        return self.h_film_pad[n_p]
+
+# HERE
 
     def _check_diagonal(self, matrix, residual=1e-10):
         """Check matrix diagonal for zero elements and replace them with a small residual value.
