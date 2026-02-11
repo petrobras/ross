@@ -112,6 +112,19 @@ class SqueezeFilmDamper(BearingElement):
         )
 
     def calculate_coeficients_with_end_seals(self):
+        """Calculate coefficients for a sealed SFD without a groove.
+
+        Returns
+        -------
+        co : float
+            Damping coefficient.
+        ko : float
+            Stiffness coefficient.
+        theta : float
+            Pressure angle in radians.
+        p_max : float
+            Maximum pressure.
+        """
         co = (
             12.0
             * np.pi
@@ -163,6 +176,19 @@ class SqueezeFilmDamper(BearingElement):
         return co, ko, theta, p_max
 
     def calculate_coeficients_with_groove(self):
+        """Calculate coefficients for an SFD with a groove and no end seals.
+
+        Returns
+        -------
+        co : float
+            Damping coefficient.
+        ko : float
+            Stiffness coefficient.
+        theta : float
+            Pressure angle in radians.
+        p_max : float
+            Maximum pressure.
+        """
         if self.cavitation:
             co = (
                 self.lubricant
@@ -216,6 +242,19 @@ class SqueezeFilmDamper(BearingElement):
         return co, ko, theta, p_max
 
     def calculate_coeficientes_with_groove_and_end_seals(self):
+        """Calculate coefficients for an SFD with both a groove and end seals.
+
+        Returns
+        -------
+        co : float
+            Damping coefficient.
+        ko : float
+            Stiffness coefficient.
+        theta : float
+            Pressure angle in radians.
+        p_max : float
+            Maximum pressure.
+        """
         if self.cavitation:
             co = (
                 self.lubricant
