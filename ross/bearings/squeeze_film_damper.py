@@ -57,14 +57,14 @@ class SqueezeFilmDamper(BearingElement):
 
     Attributes
     ----------
-    cxx : float
-        Damping coefficient in N*s/m.
-    kxx : float
-        Stiffness coefficient in N/m.
-    theta : float
-        Pressure angle in radians.
-    p_max : float
-        Maximum pressure in Pa.
+    cxx : ndarray
+        Damping coefficient in N*s/m. Shape: (n_freq,).
+    kxx : ndarray
+        Stiffness coefficient in N/m. Shape: (n_freq,).
+    theta : ndarray
+        Pressure angle in radians. Shape: (n_freq,).
+    p_max : ndarray
+        Maximum pressure in Pa. Shape: (n_freq,).
 
     Example
     -------
@@ -72,7 +72,7 @@ class SqueezeFilmDamper(BearingElement):
     >>> Q_ = rs.units.Q_
     >>> SFD = rs.SqueezeFilmDamper(
     ...     n=0,
-    ...     frequency=Q_([18600], "rpm"),
+    ...     frequency=Q_([18600, 20000, 22000], "rpm"),
     ...     axial_length=Q_(0.9, "inches"),
     ...     journal_radius=Q_(2.55, "inches"),
     ...     radial_clearance=Q_(0.003, "inches"),
@@ -81,7 +81,6 @@ class SqueezeFilmDamper(BearingElement):
     ...     geometry="groove",
     ...     cavitation=True,
     ... )
-    >>> SFD.show_results()
     """
 
     @check_units
@@ -108,39 +107,66 @@ class SqueezeFilmDamper(BearingElement):
         self.cavitation = cavitation
         self.geometry = geometry
 
-        # Calculate coefficients based on geometry
-        if self.geometry == "groove":
-            co, ko, theta, p_max = self.calculate_coeficients_with_groove()
-        elif self.geometry == "end_seals":
-            co, ko, theta, p_max = self.calculate_coeficients_with_end_seals()
-        elif self.geometry == "groove-end_seals":
-            co, ko, theta, p_max = (
-                self.calculate_coeficientes_with_groove_and_end_seals()
-            )
-        else:
-            raise ValueError(
-                f"Invalid geometry type: {geometry}. "
-                "Must be 'groove', 'end_seals', or 'groove-end_seals'"
-            )
+        # Start timing
+        self.initial_time = time.time()
+
+        # Get number of frequencies
+        n_freq = np.shape(self.frequency)[0]
+
+        # Initialize arrays for storing results at each frequency
+        kxx = np.zeros(n_freq)
+        cxx = np.zeros(n_freq)
+        theta_array = np.zeros(n_freq)
+        p_max_array = np.zeros(n_freq)
+
+        # Calculate coefficients for each frequency
+        for i in range(n_freq):
+            freq = self.frequency[i]
+
+            # Calculate coefficients based on geometry
+            if self.geometry == "groove":
+                co, ko, theta, p_max = self.calculate_coeficients_with_groove(freq)
+            elif self.geometry == "end_seals":
+                co, ko, theta, p_max = self.calculate_coeficients_with_end_seals(freq)
+            elif self.geometry == "groove-end_seals":
+                co, ko, theta, p_max = (
+                    self.calculate_coeficientes_with_groove_and_end_seals(freq)
+                )
+            else:
+                raise ValueError(
+                    f"Invalid geometry type: {geometry}. "
+                    "Must be 'groove', 'end_seals', or 'groove-end_seals'"
+                )
+
+            # Store results for this frequency
+            kxx[i] = ko
+            cxx[i] = co
+            theta_array[i] = theta
+            p_max_array[i] = p_max
 
         # Store calculated values as instance attributes
-        self.theta = theta
-        self.p_max = p_max
+        self.theta = theta_array
+        self.p_max = p_max_array
 
-        self.initial_time = time.time()
+        # End timing
+        self.final_time = time.time()
 
         super().__init__(
             n=n,
             frequency=frequency,
-            kxx=ko,
-            cxx=co,
+            kxx=kxx,
+            cxx=cxx,
             tag=tag,
             scale_factor=scale_factor,
         )
-        self.final_time = time.time()
 
-    def calculate_coeficients_with_end_seals(self):
+    def calculate_coeficients_with_end_seals(self, freq):
         """Calculate coefficients for a sealed SFD without a groove.
+
+        Parameters
+        ----------
+        freq : float
+            Operating frequency in rad/s.
 
         Returns
         -------
@@ -170,7 +196,7 @@ class SqueezeFilmDamper(BearingElement):
             * self.axial_length
             * (self.journal_radius / self.radial_clearance) ** 3
             * self.eccentricity_ratio
-            * self.frequency
+            * freq
         )
         ko /= (2.0 + self.eccentricity_ratio**2) * (1.0 - self.eccentricity_ratio**2)
 
@@ -191,7 +217,7 @@ class SqueezeFilmDamper(BearingElement):
             / p_max_den
             * 6.0
             * self.lubricant
-            * self.frequency
+            * freq
             * (self.journal_radius / self.radial_clearance) ** 2
         )
 
@@ -203,8 +229,13 @@ class SqueezeFilmDamper(BearingElement):
 
         return co, ko, theta, p_max
 
-    def calculate_coeficients_with_groove(self):
+    def calculate_coeficients_with_groove(self, freq):
         """Calculate coefficients for an SFD with a groove and no end seals.
+
+        Parameters
+        ----------
+        freq : float
+            Operating frequency in rad/s.
 
         Returns
         -------
@@ -230,7 +261,7 @@ class SqueezeFilmDamper(BearingElement):
             ko = (
                 2.0
                 * self.lubricant
-                * self.frequency
+                * freq
                 * self.journal_radius
                 * (self.axial_length / self.radial_clearance) ** 3
                 * self.eccentricity_ratio
@@ -250,7 +281,7 @@ class SqueezeFilmDamper(BearingElement):
             -1.5
             * (self.axial_length / self.radial_clearance) ** 2
             * self.lubricant
-            * self.frequency
+            * freq
             * self.eccentricity_ratio
             * np.sin(theta)
         )
@@ -269,8 +300,13 @@ class SqueezeFilmDamper(BearingElement):
 
         return co, ko, theta, p_max
 
-    def calculate_coeficientes_with_groove_and_end_seals(self):
+    def calculate_coeficientes_with_groove_and_end_seals(self, freq):
         """Calculate coefficients for an SFD with both a groove and end seals.
+
+        Parameters
+        ----------
+        freq : float
+            Operating frequency in rad/s.
 
         Returns
         -------
@@ -295,7 +331,7 @@ class SqueezeFilmDamper(BearingElement):
             ko = (
                 2.0
                 * self.lubricant
-                * self.frequency
+                * freq
                 * self.journal_radius
                 * (self.axial_length / self.radial_clearance) ** 3
                 * self.eccentricity_ratio
@@ -314,7 +350,7 @@ class SqueezeFilmDamper(BearingElement):
             -1.5
             * (self.axial_length / self.radial_clearance) ** 2
             * self.lubricant
-            * self.frequency
+            * freq
             * self.eccentricity_ratio
             * np.sin(theta)
         )
@@ -393,16 +429,9 @@ class SqueezeFilmDamper(BearingElement):
         table.add_row(["Damping Coefficient", f"{self.cxx[freq_index]:12.4e}", "N*s/m"])
         table.add_row(["Stiffness Coefficient", f"{self.kxx[freq_index]:12.4e}", "N/m"])
 
-        # Display stored pressure angle and max pressure
-        # Handle both scalar and array cases
-        theta_val = self.theta if np.isscalar(self.theta) else self.theta
-        p_max_val = self.p_max if np.isscalar(self.p_max) else self.p_max
-
-        # Convert to scalar if it's a 0-d array
-        if isinstance(theta_val, np.ndarray):
-            theta_val = float(theta_val)
-        if isinstance(p_max_val, np.ndarray):
-            p_max_val = float(p_max_val)
+        # Display stored pressure angle and max pressure for this frequency
+        theta_val = self.theta[freq_index]
+        p_max_val = self.p_max[freq_index]
 
         table.add_row(["Pressure Angle", f"{np.degrees(theta_val):12.2f}", "°"])
         table.add_row(["Pressure Angle", f"{theta_val:12.4f}", "rad"])
@@ -452,17 +481,10 @@ class SqueezeFilmDamper(BearingElement):
 
         table.field_names = headers
 
-        # Handle both scalar and array cases
-        theta_val = self.theta if np.isscalar(self.theta) else float(self.theta)
-        p_max_val = self.p_max if np.isscalar(self.p_max) else float(self.p_max)
-
-        # Convert to scalar if it's a 0-d array
-        if isinstance(theta_val, np.ndarray):
-            theta_val = float(theta_val)
-        if isinstance(p_max_val, np.ndarray):
-            p_max_val = float(p_max_val)
-
         for i in range(len(freq_rpm)):
+            theta_val = self.theta[i]
+            p_max_val = self.p_max[i]
+
             row = [
                 f"{freq_rpm[i]:.1f}",
                 f"{self.cxx[i]:.4e}",
@@ -509,6 +531,6 @@ class SqueezeFilmDamper(BearingElement):
         """
         if hasattr(self, "initial_time") and hasattr(self, "final_time"):
             total_time = self.final_time - self.initial_time
-            print(f"Execution time: {total_time:.2f} seconds")
+            print(f"Execution time: {total_time:.6f} seconds")
         else:
             print("Simulation hasn't been executed yet.")
