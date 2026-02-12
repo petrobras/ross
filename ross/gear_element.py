@@ -875,6 +875,12 @@ class Mesh:
         Directly specify the stiffness of the gear mesh.
         If not provided, it can be calculated automatically
         when using `GearElementTVMS` instead of `GearElement`.
+    square_varying_stiffness: boll, optional
+        Set the square shape time varying mesh stiffness
+    square_stiffness_amplitude_ratio: float, optional
+        Ratio of stiffness amplitude based on the mean value of stiffness.
+    orientation_angle : float, pint.Quantity, optional
+        The angle between the line of gear centers and x-axis. Default is 0.0 rad.
 
     Attributes:
     -----------
@@ -913,7 +919,7 @@ class Mesh:
     ... )
     >>> mesh = Mesh(driving, driven)
     >>> mesh.stiffness # doctest : +ELLIPSIS
-    429787095.100...
+    419603831.338...
     """
 
     def __init__(
@@ -921,6 +927,9 @@ class Mesh:
         driving_gear,
         driven_gear,
         gear_mesh_stiffness=None,
+        square_varying_stiffness=False,
+        square_stiffness_amplitude_ratio=0,
+        orientation_angle=0,
     ):
         self.driving_gear = driving_gear
         self.driven_gear = driven_gear
@@ -929,6 +938,10 @@ class Mesh:
         )  # Shigley Machine Elements
         self.pressure_angle = driving_gear.pr_angle
         self.helix_angle = driving_gear.helix_angle
+
+        self.square_varying_stiffness = square_varying_stiffness
+        self.square_stiffness_amplitude_ratio = square_stiffness_amplitude_ratio
+        self.orientation_angle = orientation_angle
 
         if not math.isclose(driving_gear.module, driven_gear.module, rel_tol=0.05):
             warn(
@@ -943,6 +956,8 @@ class Mesh:
                     f"Driving gear: {driving_gear.width:.4f}, Driven gear: {driven_gear.width:.4f}"
                 )
 
+        self.flag_cte_stiff = False
+
         if gear_mesh_stiffness is None:
             if (
                 type(driving_gear) == GearElementTVMS
@@ -951,6 +966,13 @@ class Mesh:
                 ra1 = driving_gear.radii_dict["addendum"]
                 ra2 = driven_gear.radii_dict["addendum"]
                 self.contact_ratio = self._calculate_contact_ratio(ra1, ra2)
+
+                E1 = driving_gear.material.E
+                E2 = driven_gear.material.E
+
+                self.stiffness = (self.contact_ratio * driving_gear.width * E1 * E2) / (
+                    9 * (E1 + E2)
+                )
 
                 self.hertzian_stiffness = (
                     np.pi
@@ -963,7 +985,9 @@ class Mesh:
 
                 self.theta_range = theta_range
                 self.stiffness_range = stiffness_range
-                self.stiffness = max(stiffness_range)
+
+                # swap from maximum value to calculated value
+                # self.stiffness = max(stiffness_range)
 
             else:
                 if driving_gear.width:
@@ -988,6 +1012,85 @@ class Mesh:
 
         else:
             self.stiffness = gear_mesh_stiffness
+
+            self.flag_cte_stiff = True
+
+            theta_range, stiffness_range = self.get_stiffness_for_mesh_period()
+
+            self.theta_range = theta_range
+            self.stiffness_range = stiffness_range
+
+    def _square_varying_stiffness(self, theta_range):
+        Fourier_Series_Expansion_Number = 100
+
+        Contact_Ratio = self.contact_ratio
+        Phase = self.orientation_angle
+        Kg = self.stiffness
+
+        Ka = Kg * self.square_stiffness_amplitude_ratio
+
+        stiff_phase = 2 * np.pi / self.driving_gear.n_teeth
+
+        Kv_unit = []
+
+        stiffness = []
+
+        for angular_position in theta_range:
+            # fourrier coefficients
+            A = [0]
+            B = [0]
+            Kv = 0
+
+            for s in range(1, Fourier_Series_Expansion_Number + 2):
+                A.append(
+                    (-2 / (s * np.pi))
+                    * np.sin(s * np.pi * (Contact_Ratio - 2 * Phase))
+                    * np.sin(s * np.pi * Contact_Ratio)
+                )
+                B.append(
+                    (-2 / (s * np.pi))
+                    * np.cos(s * np.pi * (Contact_Ratio - 2 * Phase))
+                    * np.sin(s * np.pi * Contact_Ratio)
+                )
+
+                Kv = (
+                    Kv
+                    + A[s] * np.sin(s * self.driving_gear.n_teeth * (angular_position))
+                    + B[s] * np.cos(s * self.driving_gear.n_teeth * (angular_position))
+                )
+
+            # stiffness.append(Kg - 2*Ka*Kv)
+            Kv_unit.append(Kv)
+
+        mean_kv = np.mean(Kv_unit)
+
+        Kv_aux = []
+
+        minus_multiplier = []
+        maximus_multiplier = []
+
+        for ii in range(len(Kv_unit)):
+            if Kv_unit[ii] < mean_kv:
+                Kv_aux.append(-1)
+                minus_multiplier.append(Kv_unit[ii] / -1)
+            elif Kv_unit[ii] > mean_kv:
+                Kv_aux.append(1)
+                maximus_multiplier.append(Kv_unit[ii] / 1)
+            else:
+                Kv_aux.append(0)
+
+        minus_multiplier_value = np.median(sorted(minus_multiplier))
+        maximus_multiplier_value = np.median(sorted(maximus_multiplier))
+
+        Kv_aux = np.array(Kv_aux, dtype=float)
+
+        Kv_aux[Kv_aux == -1] *= minus_multiplier_value
+        Kv_aux[Kv_aux == 1] *= maximus_multiplier_value
+
+        for ii in range(len(Kv_aux)):
+            stiffness.append(Kg - 2 * Ka * Kv_aux[ii])
+
+        return stiffness
 
     def _calculate_contact_ratio(self, driving_addendum_radius, driven_addendum_radius):
         rb1 = self.driving_gear.base_radius
@@ -1095,7 +1198,15 @@ class Mesh:
         theta_end = 2 * np.pi / self.driving_gear.n_teeth * n_mesh_period
         theta_range = np.linspace(0, theta_end, n_points)
 
-        stiffness_range = [self.get_variable_stiffness(theta) for theta in theta_range]
+        if self.flag_cte_stiff:
+            stiffness_range = np.array([self.stiffness for theta in theta_range])
+        else:
+            if self.square_varying_stiffness:
+                stiffness_range = self._square_varying_stiffness(theta_range)
+            else:
+                stiffness_range = [
+                    self.get_variable_stiffness(theta) for theta in theta_range
+                ]
 
         return theta_range, stiffness_range
 
