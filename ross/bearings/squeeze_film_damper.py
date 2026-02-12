@@ -331,7 +331,7 @@ class SqueezeFilmDamper(BearingElement):
             co /= (1.0 - self.eccentricity_ratio**2) ** (3.0 / 2.0)
 
         return co, ko, theta, p_max
-    
+
     def show_results(self):
         """Display Squeeze Film Damper calculation results in a formatted table.
 
@@ -390,24 +390,20 @@ class SqueezeFilmDamper(BearingElement):
         table.add_row(["Lubricant Viscosity", f"{self.lubricant:12.4e}", "Pa*s"])
 
         # Display stored coefficients (already calculated during __init__)
-        table.add_row(
-            ["Damping Coefficient", f"{self.cxx[freq_index]:12.4e}", "N*s/m"]
-        )
-        table.add_row(
-            ["Stiffness Coefficient", f"{self.kxx[freq_index]:12.4e}", "N/m"]
-        )
+        table.add_row(["Damping Coefficient", f"{self.cxx[freq_index]:12.4e}", "N*s/m"])
+        table.add_row(["Stiffness Coefficient", f"{self.kxx[freq_index]:12.4e}", "N/m"])
 
         # Display stored pressure angle and max pressure
         # Handle both scalar and array cases
         theta_val = self.theta if np.isscalar(self.theta) else self.theta
         p_max_val = self.p_max if np.isscalar(self.p_max) else self.p_max
-        
+
         # Convert to scalar if it's a 0-d array
         if isinstance(theta_val, np.ndarray):
             theta_val = float(theta_val)
         if isinstance(p_max_val, np.ndarray):
             p_max_val = float(p_max_val)
-        
+
         table.add_row(["Pressure Angle", f"{np.degrees(theta_val):12.2f}", "°"])
         table.add_row(["Pressure Angle", f"{theta_val:12.4f}", "rad"])
         table.add_row(["Maximum Pressure", f"{p_max_val:12.4e}", "Pa"])
@@ -459,7 +455,7 @@ class SqueezeFilmDamper(BearingElement):
         # Handle both scalar and array cases
         theta_val = self.theta if np.isscalar(self.theta) else float(self.theta)
         p_max_val = self.p_max if np.isscalar(self.p_max) else float(self.p_max)
-        
+
         # Convert to scalar if it's a 0-d array
         if isinstance(theta_val, np.ndarray):
             theta_val = float(theta_val)
