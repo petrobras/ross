@@ -1,9 +1,10 @@
 import numpy as np
 import math
+import time
 from ross.bearing_seal_element import BearingElement
 from ross.units import Q_, check_units
 from ross.bearings.lubricants import lubricants_dict
-
+from prettytable import PrettyTable
 
 
 class SqueezeFilmDamper(BearingElement):
@@ -36,35 +37,51 @@ class SqueezeFilmDamper(BearingElement):
         - 'ISOVG46'
         - 'ISOVG68'
         Or a dictionary with lubricant properties.
-    groove : boolean
-        It can be true or false, depends
-    end_seals : boolean
-        It can be true or false, depending on configuration of the squeeze film damper.
+    geometry : str
+        Geometry type. Can be:
+        - 'groove': SFD with groove and no end seals
+        - 'end_seals': SFD with end seals and no groove
+        - 'groove-end_seals': SFD with both groove and end seals
+        Default is 'groove'.
     cavitation : boolean
         It can be true or false, depending on configuration of the flow type.
+        Default is True.
+    tag : str, optional
+        Tag for the element.
+    scale_factor : float, optional
+        Scale factor for the bearing. Default is 1.0.
 
     Returns
     -------
-
     Bearing Elements
 
+    Attributes
+    ----------
+    cxx : float
+        Damping coefficient in N*s/m.
+    kxx : float
+        Stiffness coefficient in N/m.
+    theta : float
+        Pressure angle in radians.
+    p_max : float
+        Maximum pressure in Pa.
+
     Example
+    -------
     >>> import ross as rs
     >>> Q_ = rs.units.Q_
     >>> SFD = rs.SqueezeFilmDamper(
-    ... n=0,
-    ... frequency=Q_([18600], "rpm"),
-    ... axial_length=Q_(0.9, "inches"),
-    ... journal_radius=Q_(2.55, "inches"),
-    ... radial_clearance=Q_(0.003, "inches"),
-    ... eccentricity_ratio=0.5,
-    ... lubricant = "TEST",
-    ... groove=True,
-    ... end_seals=True,
-    ... cavitation=True,
+    ...     n=0,
+    ...     frequency=Q_([18600], "rpm"),
+    ...     axial_length=Q_(0.9, "inches"),
+    ...     journal_radius=Q_(2.55, "inches"),
+    ...     radial_clearance=Q_(0.003, "inches"),
+    ...     eccentricity_ratio=0.5,
+    ...     lubricant="ISOVG32",
+    ...     geometry="groove",
+    ...     cavitation=True,
     ... )
-
-
+    >>> SFD.show_results()
     """
 
     @check_units
@@ -77,8 +94,7 @@ class SqueezeFilmDamper(BearingElement):
         radial_clearance,
         eccentricity_ratio,
         lubricant,
-        groove=True,
-        end_seals=True,
+        geometry="groove",
         cavitation=True,
         tag=None,
         scale_factor=1.0,
@@ -89,18 +105,29 @@ class SqueezeFilmDamper(BearingElement):
         self.eccentricity_ratio = eccentricity_ratio
         self.frequency = frequency
         self.lubricant = lubricants_dict[lubricant]["liquid_viscosity1"]
-        self.groove = groove
-        self.end_seals = end_seals
         self.cavitation = cavitation
+        self.geometry = geometry
 
-        if (not groove) and end_seals:
-            co, ko, theta, p_max = self.calculate_coeficients_with_end_seals()
-        elif groove and (not end_seals):
+        # Calculate coefficients based on geometry
+        if self.geometry == "groove":
             co, ko, theta, p_max = self.calculate_coeficients_with_groove()
-        elif groove and end_seals:
+        elif self.geometry == "end_seals":
+            co, ko, theta, p_max = self.calculate_coeficients_with_end_seals()
+        elif self.geometry == "groove-end_seals":
             co, ko, theta, p_max = (
                 self.calculate_coeficientes_with_groove_and_end_seals()
             )
+        else:
+            raise ValueError(
+                f"Invalid geometry type: {geometry}. "
+                "Must be 'groove', 'end_seals', or 'groove-end_seals'"
+            )
+
+        # Store calculated values as instance attributes
+        self.theta = theta
+        self.p_max = p_max
+
+        self.initial_time = time.time()
 
         super().__init__(
             n=n,
@@ -110,6 +137,7 @@ class SqueezeFilmDamper(BearingElement):
             tag=tag,
             scale_factor=scale_factor,
         )
+        self.final_time = time.time()
 
     def calculate_coeficients_with_end_seals(self):
         """Calculate coefficients for a sealed SFD without a groove.
@@ -303,5 +331,188 @@ class SqueezeFilmDamper(BearingElement):
             co /= (1.0 - self.eccentricity_ratio**2) ** (3.0 / 2.0)
 
         return co, ko, theta, p_max
+    
+    def show_results(self):
+        """Display Squeeze Film Damper calculation results in a formatted table.
 
+        This method prints the main results from the SFD analysis using PrettyTable,
+        including geometric parameters, operating conditions, and calculated coefficients
+        for each frequency.
 
+        Parameters
+        ----------
+        None
+            This method uses the damper parameters and results stored as
+            instance attributes.
+
+        Returns
+        -------
+        None
+            Results are printed to the console in a formatted table.
+        """
+        if self.frequency.size == 1:
+            self._print_single_frequency_results(0)
+        else:
+            for i in range(self.frequency.size):
+                self._print_single_frequency_results(i)
+
+    def _print_single_frequency_results(self, freq_index):
+        """Print results for a single frequency."""
+        freq = self.frequency[freq_index]
+
+        # Define a fixed width for all columns
+        column_width = 20
+
+        table = PrettyTable()
+        table.field_names = ["Parameter", "Value", "Unit"]
+
+        for field in table.field_names:
+            table.max_width[field] = column_width
+            table.min_width[field] = column_width
+
+        # Set column alignment
+        table.align["Parameter"] = "l"
+        table.align["Value"] = "r"
+        table.align["Unit"] = "c"
+
+        # Operating conditions
+        table.add_row(["Operating Speed", f"{freq * 30 / np.pi:12.1f}", "RPM"])
+        table.add_row(["Geometry Type", f"{self.geometry:>12}", "-"])
+        table.add_row(["Cavitation", f"{str(self.cavitation):>12}", "-"])
+
+        # Geometric parameters
+        table.add_row(["Axial Length", f"{self.axial_length:12.6f}", "m"])
+        table.add_row(["Journal Radius", f"{self.journal_radius:12.6f}", "m"])
+        table.add_row(["Radial Clearance", f"{self.radial_clearance:12.6e}", "m"])
+        table.add_row(["Eccentricity Ratio", f"{self.eccentricity_ratio:12.4f}", "-"])
+
+        # Lubricant viscosity
+        table.add_row(["Lubricant Viscosity", f"{self.lubricant:12.4e}", "Pa*s"])
+
+        # Display stored coefficients (already calculated during __init__)
+        table.add_row(
+            ["Damping Coefficient", f"{self.cxx[freq_index]:12.4e}", "N*s/m"]
+        )
+        table.add_row(
+            ["Stiffness Coefficient", f"{self.kxx[freq_index]:12.4e}", "N/m"]
+        )
+
+        # Display stored pressure angle and max pressure
+        # Handle both scalar and array cases
+        theta_val = self.theta if np.isscalar(self.theta) else self.theta
+        p_max_val = self.p_max if np.isscalar(self.p_max) else self.p_max
+        
+        # Convert to scalar if it's a 0-d array
+        if isinstance(theta_val, np.ndarray):
+            theta_val = float(theta_val)
+        if isinstance(p_max_val, np.ndarray):
+            p_max_val = float(p_max_val)
+        
+        table.add_row(["Pressure Angle", f"{np.degrees(theta_val):12.2f}", "°"])
+        table.add_row(["Pressure Angle", f"{theta_val:12.4f}", "rad"])
+        table.add_row(["Maximum Pressure", f"{p_max_val:12.4e}", "Pa"])
+
+        table_str = table.get_string()
+        final_width = len(table_str.split("\n")[0])
+
+        print("\n" + "=" * final_width)
+        print(
+            f"SQUEEZE FILM DAMPER RESULTS - {freq * 30 / np.pi:.1f} RPM".center(
+                final_width
+            )
+        )
+        print("=" * final_width)
+        print(table)
+        print("=" * final_width)
+
+    def show_coefficients_comparison(self):
+        """Display SFD coefficients comparison table across frequencies.
+
+        This method creates and displays a formatted table comparing damping
+        and stiffness coefficients across different frequencies.
+
+        Parameters
+        ----------
+        None
+            This method uses the frequency array and coefficients stored as
+            instance attributes.
+
+        Returns
+        -------
+        None
+            Results are printed to the console in a formatted table.
+        """
+        freq_rpm = np.atleast_1d(self.frequency).astype(float) * 30.0 / np.pi
+
+        table = PrettyTable()
+
+        headers = [
+            "Frequency [RPM]",
+            "cxx [N*s/m]",
+            "kxx [N/m]",
+            "Pressure [Pa]",
+            "Angle [°]",
+        ]
+
+        table.field_names = headers
+
+        # Handle both scalar and array cases
+        theta_val = self.theta if np.isscalar(self.theta) else float(self.theta)
+        p_max_val = self.p_max if np.isscalar(self.p_max) else float(self.p_max)
+        
+        # Convert to scalar if it's a 0-d array
+        if isinstance(theta_val, np.ndarray):
+            theta_val = float(theta_val)
+        if isinstance(p_max_val, np.ndarray):
+            p_max_val = float(p_max_val)
+
+        for i in range(len(freq_rpm)):
+            row = [
+                f"{freq_rpm[i]:.1f}",
+                f"{self.cxx[i]:.4e}",
+                f"{self.kxx[i]:.4e}",
+                f"{p_max_val:.4e}",
+                f"{np.degrees(theta_val):.2f}",
+            ]
+
+            table.add_row(row)
+
+        # Table width
+        desired_width = 20
+
+        table.max_width = desired_width
+        table.min_width = desired_width
+
+        table_str = table.get_string()
+        table_lines = table_str.split("\n")
+        actual_width = len(table_lines[0])
+
+        print("\n" + "=" * actual_width)
+        print("SFD COEFFICIENTS COMPARISON TABLE".center(actual_width))
+        print("=" * actual_width)
+        print(table)
+        print("=" * actual_width)
+
+    def show_execution_time(self):
+        """Display the simulation execution time.
+
+        This method calculates and displays the total time spent during the
+        complete bearing analysis execution, including all frequency calculations.
+
+        Parameters
+        ----------
+        None
+            This method uses the initial_time and final_time attributes
+            stored during the simulation execution.
+
+        Returns
+        -------
+        float
+            Total simulation time in seconds. Returns None if simulation
+            hasn't been executed yet.
+        """
+        if hasattr(self, "initial_time") and hasattr(self, "final_time"):
+            total_time = self.final_time - self.initial_time
+            print(f"Execution time: {total_time:.2f} seconds")
+        else:
+            print("Simulation hasn't been executed yet.")
