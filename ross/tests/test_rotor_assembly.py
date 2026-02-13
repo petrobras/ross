@@ -2378,6 +2378,14 @@ def test_save_load(rotor8):
     assert rotor8 == rotor8_loaded
 
 
+def test_save_load_json(rotor8):
+    file = Path(tempdir) / "rotor8.json"
+    rotor8.save(file)
+    rotor8_loaded = Rotor.load(file)
+
+    assert rotor8 == rotor8_loaded
+
+
 def test_plot_rotor(rotor8):
     fig = rotor8.plot_rotor()
 

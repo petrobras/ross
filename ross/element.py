@@ -3,8 +3,9 @@ from abc import ABC, abstractmethod
 from collections import namedtuple
 
 import pandas as pd
-import toml
 import re
+
+from ross.utils import load_data, dump_data
 
 
 class Element(ABC):
@@ -19,9 +20,9 @@ class Element(ABC):
         self.tag = tag
 
     def save(self, file):
-        """Save the element in a .toml file.
+        """Save the element in a .toml or .json file.
 
-        This function will save the element to a .toml file.
+        This function will save the element to a .toml or .json file.
         The file will have all the argument's names and values that are needed to
         reinstantiate the element.
 
@@ -29,6 +30,7 @@ class Element(ABC):
         ----------
         file : str, pathlib.Path
             The name of the file the element will be saved in.
+            The format is determined by the file extension (.toml or .json).
 
         Examples
         --------
@@ -45,25 +47,24 @@ class Element(ABC):
         args_list = list(signature(self.__init__).parameters)
         args = {arg: getattr(self, arg) for arg in args_list}
         try:
-            data = toml.load(file)
+            data = load_data(file)
         except FileNotFoundError:
             data = {}
 
         data[f"{self.__class__.__name__}_{self.tag}"] = args
-        with open(file, "w") as f:
-            toml.dump(data, f)
+        dump_data(data, file)
 
     @classmethod
     def read_toml_data(cls, data):
-        """Read and parse data stored in a .toml file.
+        """Read and parse data stored in a .toml or .json file.
 
         The data passed to this method needs to be according to the
-        format saved in the .toml file by the .save() method.
+        format saved by the .save() method.
 
         Parameters
         ----------
         data : dict
-            Dictionary obtained from toml.load().
+            Dictionary obtained from toml.load() or json.load().
 
         Returns
         -------
@@ -91,7 +92,7 @@ class Element(ABC):
 
     @classmethod
     def load(cls, file):
-        data = toml.load(file)
+        data = load_data(file)
         # extract single dictionary in the data
         data = list(data.values())[0]
         return cls.read_toml_data(data)

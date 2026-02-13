@@ -6,7 +6,6 @@ bearings and seals. There are 7 different classes to represent bearings options.
 
 import control as ct
 import numpy as np
-import toml
 import warnings
 from inspect import signature
 from prettytable import PrettyTable
@@ -553,8 +552,10 @@ class BearingElement(Element):
         return hash(self.tag)
 
     def save(self, file):
+        from ross.utils import load_data, dump_data
+
         try:
-            data = toml.load(file)
+            data = load_data(file)
         except FileNotFoundError:
             data = {}
 
@@ -570,7 +571,7 @@ class BearingElement(Element):
 
         brg_data = {arg: self.__dict__[arg] for arg in args}
 
-        # change np.array to lists so that we can save in .toml as list(floats)
+        # change np.array to lists so that we can save as list(floats)
         for k, v in brg_data.items():
             if isinstance(v, np.generic):
                 brg_data[k] = brg_data[k].item()
@@ -596,8 +597,7 @@ class BearingElement(Element):
 
         data[f"{class_name}_{self.tag}"] = brg_data
 
-        with open(file, "w") as f:
-            toml.dump(data, f)
+        dump_data(data, file)
 
     def dof_mapping(self):
         """Degrees of freedom mapping.

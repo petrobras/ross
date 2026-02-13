@@ -11,7 +11,6 @@ from pathlib import Path
 from warnings import warn
 
 import numpy as np
-import toml
 from plotly import express as px
 from plotly import graph_objects as go
 from plotly.subplots import make_subplots
@@ -40,9 +39,9 @@ class ST_Results(ABC):
     """
 
     def save(self, file):
-        """Save results in a .toml file.
+        """Save results in a .toml or .json file.
 
-        This function will save the simulation results to a .toml file.
+        This function will save the simulation results to a .toml or .json file.
         The file will have all the argument's names and values that are needed to
         reinstantiate the class.
 
@@ -50,6 +49,7 @@ class ST_Results(ABC):
         ----------
         file : str, pathlib.Path
             The name of the file the results will be saved in.
+            The format is determined by the file extension (.toml or .json).
 
         Examples
         --------
@@ -70,18 +70,19 @@ class ST_Results(ABC):
         >>> file = Path(tempdir) / 'results.toml'
         >>> results.save(file)
         """
+        from ross.utils import load_data, dump_data_numpy
+
         # get __init__ arguments
         signature = inspect.signature(self.__init__)
         args_list = list(signature.parameters)
         args = {arg: getattr(self, arg) for arg in args_list}
         try:
-            data = toml.load(file)
+            data = load_data(file)
         except FileNotFoundError:
             data = {}
 
         data[f"{self.__class__.__name__}"] = args
-        with open(file, "w") as f:
-            toml.dump(data, f, encoder=toml.TomlNumpyEncoder())
+        dump_data_numpy(data, file)
 
     @classmethod
     def read_toml_data(cls, data):
@@ -103,9 +104,9 @@ class ST_Results(ABC):
 
     @classmethod
     def load(cls, file):
-        """Load results from a .toml file.
+        """Load results from a .toml or .json file.
 
-        This function will load the simulation results from a .toml file.
+        This function will load the simulation results from a .toml or .json file.
         The file must have all the argument's names and values that are needed to
         reinstantiate the class.
 
@@ -138,7 +139,9 @@ class ST_Results(ABC):
         >>> results2.forced_resp.all() == results.forced_resp.all()
         True
         """
-        data = toml.load(file)
+        from ross.utils import load_data
+
+        data = load_data(file)
         # extract single dictionary in the data
         data = list(data.values())[0]
         for key, value in data.items():

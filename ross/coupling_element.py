@@ -5,7 +5,6 @@ between two rotor shafts, which add mainly stiffness, mass and inertia to the sy
 """
 
 import inspect
-import toml
 
 import numpy as np
 from plotly import graph_objects as go
@@ -212,18 +211,19 @@ class CouplingElement(ShaftElement):
         )
 
     def save(self, file):
+        from ross.utils import load_data, dump_data
+
         signature = inspect.signature(self.__init__)
         args_list = list(signature.parameters)
         args = {arg: getattr(self, arg) for arg in args_list}
 
         try:
-            data = toml.load(file)
+            data = load_data(file)
         except FileNotFoundError:
             data = {}
 
         data[f"{self.__class__.__name__}_{self.tag}"] = args
-        with open(file, "w") as f:
-            toml.dump(data, f)
+        dump_data(data, file)
 
     @classmethod
     def read_toml_data(cls, data):
