@@ -1,13 +1,99 @@
+import json
 import re
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import toml
 from numpy import linalg as la
 from plotly import graph_objects as go
 from copy import deepcopy as copy
 from numba import njit
 from numpy.fft import fft
 import control as ct
+
+
+class NumpyEncoder(json.JSONEncoder):
+    """JSON encoder that handles numpy types and non-serializable objects."""
+
+    def default(self, obj):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            return float(obj)
+        if isinstance(obj, np.complexfloating):
+            return {"real": float(obj.real), "imag": float(obj.imag)}
+        if isinstance(obj, np.bool_):
+            return bool(obj)
+        # Fallback for non-serializable objects (callables, custom objects, etc.)
+        # This matches TOML encoder behavior which silently handles such types.
+        return None
+
+
+def _is_json(file):
+    """Check if file has a .json extension."""
+    return Path(file).suffix.lower() == ".json"
+
+
+def load_data(file):
+    """Load data from a .toml or .json file.
+
+    Parameters
+    ----------
+    file : str or pathlib.Path
+        Path to the file. Format is determined by extension.
+
+    Returns
+    -------
+    data : dict
+    """
+    if _is_json(file):
+        with open(file, "r") as f:
+            return json.load(f)
+    else:
+        return toml.load(file)
+
+
+def dump_data(data, file):
+    """Dump data to a .toml or .json file.
+
+    Parameters
+    ----------
+    data : dict
+        Data to save.
+    file : str or pathlib.Path
+        Path to the file. Format is determined by extension.
+    """
+    if _is_json(file):
+        # Serialize to string first to prevent partial file writes on error
+        json_str = json.dumps(data, indent=2, cls=NumpyEncoder)
+        with open(file, "w") as f:
+            f.write(json_str)
+    else:
+        with open(file, "w") as f:
+            toml.dump(data, f)
+
+
+def dump_data_numpy(data, file):
+    """Dump data to a .toml or .json file with numpy-aware encoding.
+
+    Parameters
+    ----------
+    data : dict
+        Data to save (may contain numpy arrays/scalars).
+    file : str or pathlib.Path
+        Path to the file. Format is determined by extension.
+    """
+    if _is_json(file):
+        # Serialize to string first to prevent partial file writes on error
+        json_str = json.dumps(data, indent=2, cls=NumpyEncoder)
+        with open(file, "w") as f:
+            f.write(json_str)
+    else:
+        with open(file, "w") as f:
+            toml.dump(data, f, encoder=toml.TomlNumpyEncoder())
 
 
 class DataNotFoundError(Exception):

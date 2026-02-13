@@ -49,3 +49,12 @@ def test_save_load():
     p_loaded = p.load(file)
 
     assert p == p_loaded
+
+
+def test_save_load_json():
+    p = PointMass(n=0, m=10.0, tag="pointmass")
+    file = Path(tempdir) / "point_mass.json"
+    p.save(file)
+    p_loaded = p.load(file)
+
+    assert p == p_loaded

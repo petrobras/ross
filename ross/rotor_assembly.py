@@ -6,7 +6,6 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-import toml
 from methodtools import lru_cache
 from plotly import express as px
 from plotly import graph_objects as go
@@ -4128,11 +4127,12 @@ class Rotor(object):
         sio.savemat(file, dic)
 
     def save(self, file):
-        """Save the rotor to a .toml file.
+        """Save the rotor to a .toml or .json file.
 
         Parameters
         ----------
         file : str or pathlib.Path
+            The format is determined by the file extension (.toml or .json).
 
         Examples
         --------
@@ -4143,19 +4143,20 @@ class Rotor(object):
         >>> rotor = rotor_example()
         >>> rotor.save(file)
         """
-        with open(file, "w") as f:
-            toml.dump({"parameters": self.parameters}, f)
+        from ross.utils import dump_data
+
+        dump_data({"parameters": self.parameters}, file)
         for el in self.elements:
             el.save(file)
 
     @classmethod
     def load(cls, file):
-        """Load rotor from toml file.
+        """Load rotor from a .toml or .json file.
 
         Parameters
         ----------
         file : str or pathlib.Path
-            String or Path for a .toml file.
+            String or Path for a .toml or .json file.
 
         Returns
         -------
@@ -4173,7 +4174,9 @@ class Rotor(object):
         >>> rotor1 == rotor2
         True
         """
-        data = toml.load(file)
+        from ross.utils import load_data
+
+        data = load_data(file)
         parameters = data["parameters"]
 
         elements = []

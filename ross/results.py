@@ -11,7 +11,6 @@ from warnings import warn
 
 import numpy as np
 import pandas as pd
-import toml
 from numba import njit
 from numpy import linalg as la
 from plotly import graph_objects as go
@@ -57,9 +56,9 @@ class Results(ABC):
     """
 
     def save(self, file):
-        """Save results in a .toml file.
+        """Save results in a .toml or .json file.
 
-        This function will save the simulation results to a .toml file.
+        This function will save the simulation results to a .toml or .json file.
         The file will have all the argument's names and values that are needed to
         reinstantiate the class.
 
@@ -67,6 +66,7 @@ class Results(ABC):
         ----------
         file : str, pathlib.Path
             The name of the file the results will be saved in.
+            The format is determined by the file extension (.toml or .json).
 
         Examples
         --------
@@ -87,12 +87,14 @@ class Results(ABC):
         >>> file = Path(tempdir) / 'unb_resp.toml'
         >>> response.save(file)
         """
+        from ross.utils import load_data, dump_data_numpy
+
         # get __init__ arguments
         signature = inspect.signature(self.__init__)
         args_list = list(signature.parameters)
         args = {arg: getattr(self, arg) for arg in args_list}
         try:
-            data = toml.load(file)
+            data = load_data(file)
         except FileNotFoundError:
             data = {}
 
@@ -103,12 +105,18 @@ class Results(ABC):
         except KeyError:
             pass
 
-        with open(file, "w") as f:
-            toml.dump(data, f, encoder=toml.TomlNumpyEncoder())
+        # Replace rotor object with placeholder before dumping (saved separately)
+        rotor_obj = args.pop("rotor", None)
+        if rotor_obj is not None:
+            data[f"{self.__class__.__name__}"]["rotor"] = "__rotor__"
 
-        if "rotor" in args.keys():
-            aux_file = str(file)[:-5] + "_rotor" + str(file)[-5:]
-            args["rotor"].save(aux_file)
+        dump_data_numpy(data, file)
+
+        if rotor_obj is not None:
+            args["rotor"] = rotor_obj  # restore
+            file_path = Path(file)
+            aux_file = str(file_path.with_suffix("")) + "_rotor" + file_path.suffix
+            rotor_obj.save(aux_file)
 
     @classmethod
     def read_toml_data(cls, data):
@@ -130,9 +138,9 @@ class Results(ABC):
 
     @classmethod
     def load(cls, file):
-        """Load results from a .toml file.
+        """Load results from a .toml or .json file.
 
-        This function will load the simulation results from a .toml file.
+        This function will load the simulation results from a .toml or .json file.
         The file must have all the argument's names and values that are needed to
         reinstantiate the class.
 
@@ -162,6 +170,7 @@ class Results(ABC):
         >>> abs(results2.forced_resp).all() == abs(results.forced_resp).all()
         True
         """
+        from ross.utils import load_data
 
         def remove_npformat(v):  # remove type info related to numpy format
             if v.startswith("np."):
@@ -170,13 +179,14 @@ class Results(ABC):
                 idx = -1
             return v[idx:] if idx != -1 else v
 
-        data = toml.load(file)
+        data = load_data(file)
         data = list(data.values())[0]
         if cls == CampbellResults:
             data["modal_results"] = None
         for key, value in data.items():
             if key == "rotor":
-                aux_file = str(file)[:-5] + "_rotor" + str(file)[-5:]
+                file_path = Path(file)
+                aux_file = str(file_path.with_suffix("")) + "_rotor" + file_path.suffix
                 from ross.rotor_assembly import Rotor
 
                 data[key] = Rotor.load(aux_file)
@@ -7318,8 +7328,9 @@ class SensitivityResults(Results):
             self.sensitivity_run_time_results["t"]
         )
 
-        with file.open("w", encoding="utf-8") as f:
-            toml.dump(out, f)
+        from ross.utils import dump_data
+
+        dump_data(out, file)
 
     @classmethod
     def load(cls, file: Path):
@@ -7340,8 +7351,10 @@ class SensitivityResults(Results):
         SensitivityResults
             An instance of SensitivityResults with all data loaded from the file.
         """
+        from ross.utils import load_data
+
         file = Path(file)
-        data = toml.load(file)
+        data = load_data(file)
         sr = data["SensitivityResults"]
 
         amb_tags = list(sr["sensitivities"].keys())

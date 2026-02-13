@@ -176,6 +176,36 @@ def test_save_load_sensitivity(rotor_amb):
     assert compare_results[0]
 
 
+def test_save_load_campbell_json(rotor1):
+    speed = np.linspace(0, 1000, 51)
+    response = rotor1.run_campbell(speed)
+
+    file = Path(tempdir) / "campbell.json"
+    response.save(file)
+    response2 = CampbellResults.load(file)
+
+    assert response2.speed_range.all() == response.speed_range.all()
+    assert response2.wd.all() == response.wd.all()
+    assert response2.log_dec.all() == response.log_dec.all()
+    assert response2.whirl_values.all() == response.whirl_values.all()
+
+
+def test_save_load_unbalance_response_json(rotor1):
+    speed = np.linspace(0, 1000, 51)
+    response = rotor1.run_unbalance_response(3, 0.01, 0.0, speed)
+
+    file = Path(tempdir) / "unbalance.json"
+    response.save(file)
+    response2 = ForcedResponseResults.load(file)
+
+    assert response2.rotor == response.rotor
+    assert response2.forced_resp.all() == response.forced_resp.all()
+    assert response2.speed_range.all() == response.speed_range.all()
+    assert response2.velc_resp.all() == response.velc_resp.all()
+    assert response2.accl_resp.all() == response.accl_resp.all()
+    assert response2.unbalance.all() == response.unbalance.all()
+
+
 def test_campbell_plot(rotor1):
     speed = np.linspace(0, 400, 101)
     camp = rotor1.run_campbell(speed)

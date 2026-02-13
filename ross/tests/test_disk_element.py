@@ -68,6 +68,13 @@ def test_save_load(disk):
     assert disk == disk_loaded
 
 
+def test_save_load_json(disk):
+    file = Path(tempdir) / "disk.json"
+    disk.save(file)
+    disk_loaded = DiskElement.load(file)
+    assert disk == disk_loaded
+
+
 def test_disk_equality(disk_from_geometry, disk):
     assert disk != disk_from_geometry
 

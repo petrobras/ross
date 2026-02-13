@@ -515,6 +515,18 @@ def test_save_load(tim, tap_tim):
     assert tap_tim == tap_tim_loaded
 
 
+def test_save_load_json(tim, tap_tim):
+    file = Path(tempdir) / "tim.json"
+    tim.save(file)
+    tim_loaded = ShaftElement.load(file)
+    assert tim == tim_loaded
+
+    file = Path(tempdir) / "tap_tim.json"
+    tap_tim.save(file)
+    tap_tim_loaded = ShaftElement.load(file)
+    assert tap_tim == tap_tim_loaded
+
+
 @pytest.fixture
 def tim_6dof():
     #  Timoshenko element
@@ -754,6 +766,13 @@ def test_pickle_coupling(coupling):
 
 def test_save_load_coupling(coupling):
     file = Path(tempdir) / "coupling.toml"
+    coupling.save(file)
+    coupling_loaded = CouplingElement.load(file)
+    assert coupling == coupling_loaded
+
+
+def test_save_load_coupling_json(coupling):
+    file = Path(tempdir) / "coupling.json"
     coupling.save(file)
     coupling_loaded = CouplingElement.load(file)
     assert coupling == coupling_loaded
