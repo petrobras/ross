@@ -37,6 +37,32 @@ def _rotor_summary(name: str, rotor: rs.Rotor) -> str:
 
 
 @mcp.tool()
+def load_rotor_from_file(name: str, file_path: str) -> str:
+    """Load a rotor from a .json or .toml file into server state.
+
+    Parameters
+    ----------
+    name : str
+        Key to store the rotor under (used to reference it in other tools).
+    file_path : str
+        Absolute path to the .json or .toml file saved by ROSS.
+    """
+    from pathlib import Path
+
+    path = Path(file_path)
+    if not path.exists():
+        return f"File not found: {file_path}"
+    if path.suffix.lower() not in (".json", ".toml"):
+        return f"Unsupported file format '{path.suffix}'. Use .json or .toml."
+    try:
+        rotor = rs.Rotor.load(file_path)
+    except Exception as e:
+        return f"Error loading rotor from '{file_path}': {e}"
+    _rotors[name] = rotor
+    return _rotor_summary(name, rotor)
+
+
+@mcp.tool()
 def create_example_rotor(name: str, variant: str = "default") -> str:
     """Load a pre-built ROSS example rotor into server state.
 
