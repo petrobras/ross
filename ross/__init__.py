@@ -1,4 +1,4 @@
-__version__ = "2.1.0rc1"
+__version__ = "2.1.0"
 import sys
 from plotly import io as _pio
 
