@@ -4150,10 +4150,13 @@ class Rotor(object):
         >>> rotor = rotor_example()
         >>> rotor.save(file)
         """
+        import ross
         from ross.utils import dump_data
 
         file = Path(file)
-        dump_data({"parameters": self.parameters}, file)
+        dump_data(
+            {"ross_version": ross.__version__, "parameters": self.parameters}, file
+        )
         for el in self.elements:
             el.save(file)
 
@@ -4209,14 +4212,23 @@ class Rotor(object):
         >>> rotor1 == rotor2
         True
         """
+        import ross
         from ross.utils import load_data
 
         data = load_data(file)
+
+        saved_version = data.get("ross_version", "unknown")
+        if saved_version != ross.__version__:
+            warnings.warn(
+                f"File was created with ROSS {saved_version}, "
+                f"but current version is {ross.__version__}. "
+                f"This may lead to incompatibilities."
+            )
         parameters = data["parameters"]
 
         elements = []
         for el_name, el_data in data.items():
-            if el_name == "parameters" or el_name.startswith("_"):
+            if el_name in ("parameters", "ross_version") or el_name.startswith("_"):
                 continue
             class_name = el_name.split("_")[0]
             try:
