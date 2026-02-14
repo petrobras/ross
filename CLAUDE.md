@@ -4,6 +4,13 @@
 
 ROSS (Rotordynamic Open Source Software) is a Python library for rotordynamic analysis. Package name: `ross-rotordynamics`.
 
+## Git Workflow
+
+- **Main branch**: `main`
+- **Upstream remote**: `upstream` → `petrobras/ross` (PRs target this repo)
+- **Fork remote**: `origin` → `raphaeltimbo/ross-1`
+- Push development branches to `origin`, then open PRs against `upstream/main`
+
 ## Build & Install
 
 ```bash
