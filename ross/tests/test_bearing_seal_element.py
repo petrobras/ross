@@ -583,6 +583,94 @@ def test_save_load_json(bearing0, bearing_constant, bearing_6dof, magnetic_beari
     assert magnetic_bearing == magnetic_bearing_loaded
 
 
+def test_save_load_subclasses():
+    """Test save/load round-trip for bearing subclasses.
+
+    Verifies that subclass-specific attributes are preserved and that
+    loading from file skips expensive computation by using pre-computed
+    coefficients passed through kwargs.
+    """
+    # BallBearingElement
+    ball = BallBearingElement(
+        n=0, n_balls=8, d_balls=0.03, fs=500.0, alpha=np.pi / 6, tag="ball"
+    )
+    file = Path(tempdir) / "ball_bearing.json"
+    ball.save(file)
+    ball_loaded = BallBearingElement.load(file)
+    assert ball == ball_loaded
+    assert isinstance(ball_loaded, BallBearingElement)
+    assert ball_loaded.n_balls == 8
+
+    # RollerBearingElement
+    roller = RollerBearingElement(
+        n=0, n_rollers=8, l_rollers=0.03, fs=500.0, alpha=np.pi / 6, tag="roller"
+    )
+    file = Path(tempdir) / "roller_bearing.json"
+    roller.save(file)
+    roller_loaded = RollerBearingElement.load(file)
+    assert roller == roller_loaded
+    assert isinstance(roller_loaded, RollerBearingElement)
+    assert roller_loaded.n_rollers == 8
+
+    # CylindricalBearing
+    cylindrical = CylindricalBearing(
+        n=0,
+        speed=Q_([1500, 2000], "RPM"),
+        weight=525,
+        bearing_length=Q_(30, "mm"),
+        journal_diameter=Q_(100, "mm"),
+        radial_clearance=Q_(0.1, "mm"),
+        oil_viscosity=0.1,
+        tag="cylindrical",
+    )
+    file = Path(tempdir) / "cylindrical_bearing.json"
+    cylindrical.save(file)
+    cylindrical_loaded = CylindricalBearing.load(file)
+    assert cylindrical == cylindrical_loaded
+    assert isinstance(cylindrical_loaded, CylindricalBearing)
+    assert_allclose(cylindrical_loaded.weight, 525)
+    # verify derived attributes are preserved via _save_attrs
+    assert_allclose(cylindrical_loaded.eccentricity, cylindrical.eccentricity)
+    assert_allclose(cylindrical_loaded.attitude_angle, cylindrical.attitude_angle)
+    assert_allclose(cylindrical_loaded.sommerfeld, cylindrical.sommerfeld)
+    assert_allclose(
+        cylindrical_loaded.modified_sommerfeld, cylindrical.modified_sommerfeld
+    )
+
+    # MagneticBearingElement
+    magnetic = MagneticBearingElement(
+        n=0,
+        g0=1e-3,
+        i0=1.0,
+        ag=1e-4,
+        nw=200,
+        alpha=0.392,
+        kp_pid=1.0,
+        kd_pid=1.0,
+        k_amp=1.0,
+        k_sense=1.0,
+        tag="magnetic",
+    )
+    file = Path(tempdir) / "magnetic_bearing_subclass.json"
+    magnetic.save(file)
+    magnetic_loaded = MagneticBearingElement.load(file)
+    assert magnetic == magnetic_loaded
+    assert isinstance(magnetic_loaded, MagneticBearingElement)
+    assert_allclose(magnetic_loaded.g0, 1e-3)
+
+
+def test_save_load_skips_computation(magnetic_bearing):
+    """Test that loading from file skips computation and uses saved coefficients."""
+    file = Path(tempdir) / "magnetic_skip_test.json"
+    magnetic_bearing.save(file)
+
+    # verify that loading produces matching K and C matrices
+    loaded = MagneticBearingElement.load(file)
+    freq = magnetic_bearing.frequency[0]
+    assert_allclose(loaded.K(freq), magnetic_bearing.K(freq))
+    assert_allclose(loaded.C(freq), magnetic_bearing.C(freq))
+
+
 def test_bearing_fluid_flow():
     nz = 30
     ntheta = 20
