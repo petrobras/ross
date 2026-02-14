@@ -8,7 +8,7 @@ ROSS (Rotordynamic Open Source Software) is a Python library for rotordynamic an
 
 - **Main branch**: `main`
 - **Upstream remote**: `upstream` → `petrobras/ross` (PRs target this repo)
-- **Fork remote**: `origin` → `raphaeltimbo/ross-1`
+- **Fork remote**: `origin` → the developer's personal fork
 - Push development branches to `origin`, then open PRs against `upstream/main`
 
 ## Build & Install
