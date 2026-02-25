@@ -216,6 +216,8 @@ class TiltingPad(BearingElement):
         initial_pads_angles=None,
         model_type="thermo_hydro_dynamic",
         solver_options=None,
+        hot_oil_carry_over=1.0,
+        h_sump=500.0,
         **kwargs,
     ):
         self.n = n
@@ -231,13 +233,12 @@ class TiltingPad(BearingElement):
         self.journal_radius = journal_diameter / 2
         self.n_pad = len(pre_load)
         self.radial_clearance = radial_clearance
-        self.pad_radius = self.journal_radius + self.radial_clearance / (
-            1 - pre_load[0]
-        )
+        self.pad_radius = self.journal_radius + self.radial_clearance / (1 - pre_load[0])
         self.pad_thickness = pad_thickness
         self.pivot_angle = pivot_angle
         self.eccentricity = eccentricity
         self.attitude_angle = attitude_angle
+
         # Get the first value of the arrays
         self.pad_arc = pad_arc[0]
         self.offset = offset[0]
@@ -277,15 +278,17 @@ class TiltingPad(BearingElement):
         self.lubricant = lubricant
         self.frequency = frequency
         self.speed = None
+
         if load is not None:
             self.fxs_load = load[0]
             self.fys_load = load[1]
         else:
             self.fxs_load = None
             self.fys_load = None
+
         self.initial_pads_angles = initial_pads_angles
 
-        # Mesh discretization and equation's terms setup
+        # Mesh discretization
         self.nx = nx
         self.nz = nz
         self.z1 = -0.5
@@ -295,41 +298,47 @@ class TiltingPad(BearingElement):
         self.dtheta = (self.theta_2 - self.theta_1) / self.nx
         self.dz = (self.z2 - self.z1) / self.nz
         self.dx = self.dtheta / self.pad_arc
+
         self.xz = np.zeros(self.nz)
         self.xz[0] = self.z1 + 0.5 * self.dz
+
         self.xtheta = np.zeros(self.nx)
         self.xtheta[0] = self.theta_1 + 0.5 * self.dtheta
 
-        # Thermal mesh for each pad (θ̂, r)
-        self.nr_pad = 15  # Points in the radial direction
-        self.ntheta_pad = self.nx  # Reuse circumferential points
-        # Temperature 2D in pads [n_pad, ntheta_pad, nr_pad]
-        self.T_pad = None  # Will be initialized after setup        
-        # Temperature on the inner surface [n_pad, nx, nz]
-        self.T_pad_surface = None        
-        # Uniform initial temperature
+        # Thermal mesh
+        self.nr_pad = 15
+        self.ntheta_pad = self.nx
+        self.T_pad = None
+        self.T_pad_surface = None
         self.T_pad_init = self.oil_supply_temperature
 
-        # Material properties of the pad (STEEL to match MaxBrg)
-        self.k_pad = 116.0      # W/(m·K) - thermal conductivity (was 50.0)
-        self.rho_pad = 7810.0   # kg/m³ - density (was 8400.0)
-        self.cp_pad = 460.0     # J/(kg·K) - specific heat for steel (was 380.0)
-        self.alpha_thermal_pad = 11.7e-6  # 1/K - thermal expansion (was 1.2e-5)
+        # Material properties
+        self.k_pad = 116.0
+        self.rho_pad = 7810.0
+        self.cp_pad = 460.0
+        self.alpha_thermal_pad = 11.7e-6
 
-        # Heat transfer coefficients [n_pad, nx, nz]
-        self.h_film_pad = None  # Interface film-pad (will be calculated)
-        self.h_back = 500.0  # W/(m²·K) - back surface (estimate)
-        self.h_edge = 1500.0  # W/(m²·K) - side edges
+        # Heat transfer coefficients
+        self.h_film_pad = None
+        self.h_back = h_sump
+        self.h_edge = 1500.0
 
-        # Thermal convergence parameters
-        self.thermal_tolerance = 2.0  # °C - temperature tolerance
-        self.thermal_relax_factor = 0.4  # Relaxation factor
-        self.max_thermal_iter = 50  # Maximum number of thermal iterations
+        self.hot_oil_carry_over = hot_oil_carry_over
+        self.h_sump = h_sump
+
+        self.T_inlet = np.full(self.n_pad, self.oil_supply_temperature)
+        self.Q_outlet = np.zeros(self.n_pad)
+        self.T_outlet = np.full(self.n_pad, self.oil_supply_temperature)
+
+        # Thermal convergence
+        self.thermal_tolerance = 2.0
+        self.thermal_relax_factor = 0.4
+        self.max_thermal_iter = 50
 
         if self.model_type == "thermo_hydro_dynamic":
             self._setup_pad_thermal_mesh()
 
-        # Lubricant properties setup
+        # Lubricant properties
         if isinstance(lubricant, str):
             if lubricant not in lubricants_dict:
                 raise KeyError(f"Lubricant {lubricant} not found in the database.")
@@ -348,18 +357,15 @@ class TiltingPad(BearingElement):
         T_2 = Q_(self.lubricant_properties["temperature2"], "degK").m_as("degC")
         mu_2 = self.lubricant_properties["liquid_viscosity2"]
 
-        # Viscosity interpolation coefficients
         self.a_a, self.b_b = self._get_interp_coeffs(T_1, T_2, mu_1, mu_2)
         self.mu_0 = self.a_a * np.exp(self.b_b * self.oil_supply_temperature)
 
-        # Discretization of the mesh
         for ii in range(1, self.nz):
             self.xz[ii] = self.xz[ii - 1] + self.dz
 
         for jj in range(1, self.nx):
             self.xtheta[jj] = self.xtheta[jj - 1] + self.dtheta
 
-        # Pre-compute trigonometric functions
         self.sin_theta = np.sin(self.xtheta)
         self.cos_theta = np.cos(self.xtheta)
         self.sin_theta_e = np.sin(self.xtheta + 0.5 * self.dtheta)
@@ -368,6 +374,7 @@ class TiltingPad(BearingElement):
         self.cos_theta_w = np.cos(self.xtheta - 0.5 * self.dtheta)
         self.cos_pivot_angle = np.cos(self.pivot_angle)
         self.sin_pivot_angle = np.sin(self.pivot_angle)
+
         self.cos_theta_broadcast = np.broadcast_to(self.cos_theta, (self.nz, self.nx))
         self.sin_theta_broadcast = np.broadcast_to(self.sin_theta, (self.nz, self.nx))
 
@@ -2653,12 +2660,15 @@ class TiltingPad(BearingElement):
             self.pressure, self.nx, self.nz, self.dx, self.dz
         )
 
-    def _solve_energy_equation(self, mi, n_p, is_equilibrium=False):
+    def _solve_energy_equation(self, mi, n_p, is_equilibrium=False, T_inlet=None):
         """
         Solve energy equation for temperature field.
 
         Uses sparse matrix solver for Reynolds and Energy equations.
         """
+        if T_inlet is None:
+            T_inlet = self.oil_supply_temperature
+
         row_idx, col_idx, vals, b_t, mu_turb_updated, reynolds_field, nnz = (
             _assemble_energy_sparse_numba(
                 self.nx,
@@ -2683,6 +2693,7 @@ class TiltingPad(BearingElement):
                 self.pad_radius,
                 self.pad_arc,
                 self.pad_axial_length,
+                T_inlet,
             )
         )
 
@@ -3931,14 +3942,14 @@ class TiltingPad(BearingElement):
 
         # Contour plot for temperature
         fig.add_trace(
-            go.Contour(
+                go.Contour(
                 x=XH[0],
                 y=YH[:, 0],
                 z=self.temperature_init[:, :, self.pad_in],
                 colorscale="Viridis",
                 name="Temperature field",
                 showscale=True,
-                colorbar=dict(title="Temperature [°C]", titleside="right"),
+                colorbar=dict(title="Temperature [°C]"),
             )
         )
 
@@ -4129,7 +4140,7 @@ class TiltingPad(BearingElement):
                 go.Scatter(
                     x=x_data[i],
                     y=y_data[pos][:, i],
-                    name=f"Pad{i}",
+                    name=f"Pad {i + 1}",
                 )
             )
         fig.update_layout(
@@ -4716,6 +4727,359 @@ class TiltingPad(BearingElement):
                     )
                     fig.show()
 
+    def plot_thermal_pad_results(
+        self,
+        pad_index=None,
+        show_mesh=True,
+        mesh_style="lines",
+        fig=None,
+        **kwargs,
+    ):
+        """Plot pad thermal results (bulk temperature in pad) with optional mesh overlay.
+
+        Uses the 2D pad mesh: circumferential (theta_pad) vs radial (r_pad).
+        Requires that the pad thermal mesh and T_pad are available (run solve first
+        with thermal coupling).
+
+        Parameters
+        ----------
+        pad_index : int or list or None, optional
+            Pad index (0-based) or list of indices to plot. If None, plot all pads.
+        show_mesh : bool, optional
+            If True, overlay the pad mesh (grid) on the contour. Default is True.
+        mesh_style : str, optional
+            How to draw the mesh: "lines" (grid lines) or "points" (grid points).
+            Default is "lines".
+        fig : Plotly graph_objects.Figure(), optional
+            Existing figure. If None, a new figure is created.
+        kwargs : optional
+            Additional layout options (e.g. width=1000, height=800).
+
+        Returns
+        -------
+        fig : Plotly graph_objects.Figure()
+            Figure with contour(s) and optional mesh.
+        """
+        if not hasattr(self, "T_pad") or self.T_pad is None:
+            raise ValueError(
+                "Pad thermal results (T_pad) not available. "
+                "Run the bearing solution with thermal coupling first (e.g. run() or solve_fields())."
+            )
+
+        pads_to_plot = list(range(self.n_pad))
+        if pad_index is not None:
+            pads_to_plot = np.atleast_1d(pad_index).tolist()
+            if not all(0 <= p < self.n_pad for p in pads_to_plot):
+                raise ValueError(f"pad_index must be in [0, {self.n_pad - 1}].")
+
+        theta_pad = self.theta_pad   # (ntheta_pad,)
+        r_pad = self.r_pad           # (nr_pad,)
+        n_plots = len(pads_to_plot)
+
+        if fig is None:
+            if n_plots == 1:
+                fig = go.Figure()
+            else:
+                from plotly.subplots import make_subplots
+                rows = (n_plots + 1) // 2
+                cols = min(2, n_plots)
+                fig = make_subplots(
+                    rows=rows,
+                    cols=cols,
+                    subplot_titles=[f"Pad {p + 1}" for p in pads_to_plot],
+                )
+
+        # Plotly Contour expects z of shape (len(y), len(x)) -> z[i,j] at (x[j], y[i])
+        # T_pad[n_p, :, :] is (ntheta_pad, nr_pad) -> we need (nr_pad, ntheta_pad)
+        for idx, n_p in enumerate(pads_to_plot):
+            z = self.T_pad[n_p, :, :].T  # (nr_pad, ntheta_pad)
+
+            if n_plots == 1:
+                fig.add_trace(
+                    go.Contour(
+                        x=theta_pad,
+                        y=r_pad,
+                        z=z,
+                        colorscale="Viridis",
+                        colorbar=dict(title="Temperature [°C]"),
+                        name=f"Pad {n_p + 1}",
+                    ),
+                )
+            else:
+                row, col = idx // cols + 1, idx % cols + 1
+                fig.add_trace(
+                    go.Contour(
+                        x=theta_pad,
+                        y=r_pad,
+                        z=z,
+                        colorscale="Viridis",
+                        colorbar=dict(title="Temperature [°C]"),
+                        name=f"Pad {n_p + 1}",
+                    ),
+                    row=row,
+                    col=col,
+                )
+
+            if show_mesh:
+                if mesh_style == "points":
+                    theta_g, r_g = np.meshgrid(theta_pad, r_pad)
+                    if n_plots == 1:
+                        fig.add_trace(
+                            go.Scatter(
+                                x=theta_g.ravel(),
+                                y=r_g.ravel(),
+                                mode="markers",
+                                marker=dict(size=2, color="rgba(0,0,0,0.3)", symbol="square"),
+                                name="Mesh",
+                            ),
+                        )
+                    else:
+                        fig.add_trace(
+                            go.Scatter(
+                                x=theta_g.ravel(),
+                                y=r_g.ravel(),
+                                mode="markers",
+                                marker=dict(size=2, color="rgba(0,0,0,0.3)", symbol="square"),
+                                name="Mesh",
+                            ),
+                            row=row,
+                            col=col,
+                        )
+                else:
+                    # Grid lines: vertical (constant theta) and horizontal (constant r)
+                    for th in theta_pad:
+                        if n_plots == 1:
+                            fig.add_trace(
+                                go.Scatter(
+                                    x=[th, th],
+                                    y=[r_pad[0], r_pad[-1]],
+                                    mode="lines",
+                                    line=dict(color="rgba(0,0,0,0.2)", width=1, dash="dot"),
+                                    showlegend=False,
+                                ),
+                            )
+                        else:
+                            fig.add_trace(
+                                go.Scatter(
+                                    x=[th, th],
+                                    y=[r_pad[0], r_pad[-1]],
+                                    mode="lines",
+                                    line=dict(color="rgba(0,0,0,0.2)", width=1, dash="dot"),
+                                    showlegend=False,
+                                ),
+                                row=row,
+                                col=col,
+                            )
+                    for rv in r_pad:
+                        if n_plots == 1:
+                            fig.add_trace(
+                                go.Scatter(
+                                    x=[theta_pad[0], theta_pad[-1]],
+                                    y=[rv, rv],
+                                    mode="lines",
+                                    line=dict(color="rgba(0,0,0,0.2)", width=1, dash="dot"),
+                                    showlegend=False,
+                                ),
+                            )
+                        else:
+                            fig.add_trace(
+                                go.Scatter(
+                                    x=[theta_pad[0], theta_pad[-1]],
+                                    y=[rv, rv],
+                                    mode="lines",
+                                    line=dict(color="rgba(0,0,0,0.2)", width=1, dash="dot"),
+                                    showlegend=False,
+                                ),
+                                row=row,
+                                col=col,
+                            )
+
+        fig.update_layout(
+            title=dict(text="Pad thermal results (bulk temperature)", font=dict(size=24)),
+            xaxis=dict(
+                title=dict(text="θ (pad local) [rad]", font=dict(size=14)),
+                showgrid=True,
+                gridwidth=1,
+                gridcolor=tableau_colors["gray"],
+            ),
+            yaxis=dict(
+                title=dict(text="r [m]", font=dict(size=14)),
+                showgrid=True,
+                gridwidth=1,
+                gridcolor=tableau_colors["gray"],
+            ),
+            plot_bgcolor="white",
+            paper_bgcolor="white",
+            **kwargs,
+        )
+
+        # If using make_subplots, axes are named xaxis, xaxis2, ... and yaxis, yaxis2, ...
+        if n_plots > 1:
+            for i in range(1, n_plots + 1):
+                fig.update_xaxes(
+                    title_text="θ (pad local) [rad]",
+                    row=(i - 1) // cols + 1,
+                    col=(i - 1) % cols + 1,
+                )
+                fig.update_yaxes(
+                    title_text="r [m]",
+                    row=(i - 1) // cols + 1,
+                    col=(i - 1) % cols + 1,
+                )
+
+        return fig
+
+    def plot_film_average_temperature(
+        self, freq_index: int = 0, fig=None, print_data: bool = False, **kwargs
+    ):
+        """Plot film average temperature vs local pad angle for each pad."""
+
+        if fig is None:
+            fig = go.Figure()
+
+        # Campo de temperatura para a frequência escolhida: (nz, nx, n_pad)
+        temperature_field = self.temperature_fields[freq_index]
+
+        # Média axial → (nx, n_pad)
+        T_avg = temperature_field.mean(axis=0)
+
+        # Ângulo local do pad em graus (0 → pad_arc)
+        theta_local_deg = np.linspace(0.0, np.degrees(self.pad_arc), self.nx)
+
+        if print_data:
+            print("\nFilm average temperature data:")
+            print(f"  Frequency index: {freq_index}")
+            for i in range(self.n_pad):
+                print(f"  Pad {i + 1}:")
+                for theta, temp in zip(theta_local_deg, T_avg[:, i]):
+                    print(f"    theta_deg = {theta:8.3f}, T_C = {temp:8.3f}")
+            print()
+
+        for i in range(self.n_pad):
+            color = tableau_colors[
+                list(tableau_colors.keys())[i % len(tableau_colors)]
+            ]
+            fig.add_trace(
+                go.Scatter(
+                    x=theta_local_deg,
+                    y=T_avg[:, i],
+                    mode="lines+markers",
+                    name=f"Pad {i + 1}",
+                    line=dict(color=color),
+                    marker=dict(color=color),
+                )
+            )
+
+        fig.update_layout(
+            title=dict(
+                text="Tilting Pad Bearing Results<br>Film Average Temperature",
+                font=dict(size=24),
+            ),
+            xaxis=dict(
+                title=r"\u03b8 (pad local) [deg]",
+                showgrid=True,
+                gridwidth=1,
+                gridcolor=tableau_colors["gray"],
+            ),
+            yaxis=dict(
+                title="T [°C]",
+                showgrid=True,
+                gridwidth=1,
+                gridcolor=tableau_colors["gray"],
+            ),
+            plot_bgcolor="white",
+            paper_bgcolor="white",
+            **kwargs,
+        )
+
+        return fig
+
+    def plot_babbitt_surface_temperature(
+        self,
+        axial_index: int | None = None,
+        fig=None,
+        print_data: bool = False,
+        **kwargs,
+    ):
+        """Plot babbitt surface temperature vs local pad angle for each pad.
+
+        Parameters
+        ----------
+        axial_index : int or None, optional
+            Axial index to extract the surface temperature.
+            If None, use the axial mid-plane.
+        fig : plotly.graph_objects.Figure, optional
+            Existing figure. If None, a new one is created.
+        kwargs : optional
+            Extra layout options (e.g. width=1000, height=800).
+        """
+
+        if not hasattr(self, "T_pad_surface") or self.T_pad_surface is None:
+            raise ValueError(
+                "Pad surface temperatures (T_pad_surface) not available. "
+                "Run the bearing solution with thermal coupling first."
+            )
+
+        if axial_index is None:
+            axial_index = self.nz // 2  # axial mid-plane
+
+        if fig is None:
+            fig = go.Figure()
+
+        # Local pad angle in degrees: 0 -> pad_arc
+        theta_local_deg = np.linspace(0.0, np.degrees(self.pad_arc), self.nx)
+
+        if print_data:
+            print("\nBabbitt surface temperature data:")
+            print(f"  Axial index: {axial_index}")
+            for i in range(self.n_pad):
+                T_line = self.T_pad_surface[i, :, axial_index]
+                print(f"  Pad {i + 1}:")
+                for theta, temp in zip(theta_local_deg, T_line):
+                    print(f"    theta_deg = {theta:8.3f}, T_C = {temp:8.3f}")
+            print()
+
+        for i in range(self.n_pad):
+            T_line = self.T_pad_surface[i, :, axial_index]
+
+            color = tableau_colors[
+                list(tableau_colors.keys())[i % len(tableau_colors)]
+            ]
+
+            fig.add_trace(
+                go.Scatter(
+                    x=theta_local_deg,
+                    y=T_line,
+                    mode="lines+markers",
+                    name=f"Pad {i + 1}",
+                    line=dict(color=color),
+                    marker=dict(color=color),
+                )
+            )
+
+        fig.update_layout(
+            title=dict(
+                text="Tilting Pad Bearing Results<br>Babbitt Surface Temperature",
+                font=dict(size=24),
+            ),
+            xaxis=dict(
+                title=r"\u03b8 (pad local) [deg]",
+                showgrid=True,
+                gridwidth=1,
+                gridcolor=tableau_colors["gray"],
+            ),
+            yaxis=dict(
+                title="T [°C]",
+                showgrid=True,
+                gridwidth=1,
+                gridcolor=tableau_colors["gray"],
+            ),
+            plot_bgcolor="white",
+            paper_bgcolor="white",
+            **kwargs,
+        )
+
+        return fig
 
 def tilting_pad_example():
     """Create an example of a tilting pad bearing with Thermo-Hydro-Dynamic effects.
@@ -5249,6 +5613,7 @@ def _assemble_energy_sparse_numba(
     pad_radius,
     pad_arc,
     pad_axial_length,
+    T_inlet,
 ):
     """
     Assemble energy equation as sparse matrix using COO format.
@@ -5302,6 +5667,8 @@ def _assemble_energy_sparse_numba(
         Arc of the pad.
     pad_axial_length : float
         Axial length of the pad.
+    T_inlet : float
+        Oil inlet temperature for this pad [°C]. Used in west (leading edge) BC.
 
     Returns
     -------
@@ -5427,10 +5794,10 @@ def _assemble_energy_sparse_numba(
 
             b_t_val = b_t_g + b_t_h + b_t_i + b_t_j + b_t_k
 
-            # Boundary condition for west face (oil supply) - modify source term
+            # Boundary condition for west face (oil inlet temperature) - modify source term
             if jj == 0:
                 b_t[k_t_idx] = b_t_val - 2.0 * a_w * (
-                    oil_supply_temperature / reference_temperature
+                    T_inlet / reference_temperature
                 )
             else:
                 b_t[k_t_idx] = b_t_val
