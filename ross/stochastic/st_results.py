@@ -503,6 +503,7 @@ class ST_FrequencyResponseResults(ST_Results):
         frequency_units="rad/s",
         amplitude_units="m/N",
         fig=None,
+        line_shape="linear",
         **kwargs,
     ):
         """Plot stochastic frequency response (magnitude) using Plotly.
@@ -535,6 +536,9 @@ class ST_FrequencyResponseResults(ST_Results):
             To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m/N)
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
+        line_shape : str, optional
+            Line interpolation style for the Plotly traces (e.g. "linear", "spline").
+            Default is "linear".
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -577,7 +581,7 @@ class ST_FrequencyResponseResults(ST_Results):
                 y=np.mean(mag, axis=1),
                 mode="lines",
                 name="Mean",
-                line=dict(width=3, color="black"),
+                line=dict(width=3, color="black", shape=line_shape),
                 legendgroup="mean",
                 hovertemplate=("Frequency: %{x:.2f}<br>" + "Amplitude: %{y:.2e}"),
             )
@@ -589,7 +593,7 @@ class ST_FrequencyResponseResults(ST_Results):
                     y=np.percentile(mag, p, axis=1),
                     mode="lines",
                     opacity=0.6,
-                    line=dict(width=2.5, color=colors2[i]),
+                    line=dict(width=2.5, color=colors2[i], shape=line_shape),
                     name="percentile: {}%".format(p),
                     legendgroup="percentile{}".format(i),
                     hovertemplate=("Frequency: %{x:.2f}<br>" + "Amplitude: %{y:.2e}"),
@@ -605,7 +609,7 @@ class ST_FrequencyResponseResults(ST_Results):
                     x=x,
                     y=np.concatenate((p1, p2[::-1])),
                     mode="lines",
-                    line=dict(width=1, color=colors1[i]),
+                    line=dict(width=1, color=colors1[i], shape=line_shape),
                     fill="toself",
                     fillcolor=colors1[i],
                     opacity=0.5,
@@ -1673,6 +1677,7 @@ class ST_ForcedResponseResults(ST_Results):
         frequency_units="rad/s",
         amplitude_units="m",
         fig=None,
+        line_shape="linear",
         **kwargs,
     ):
         """Plot stochastic frequency response.
@@ -1720,6 +1725,9 @@ class ST_ForcedResponseResults(ST_Results):
         -------
         fig : Plotly graph_objects.Figure()
             Bokeh plot axes with magnitude plot.
+        line_shape : str, optional
+            Line interpolation style for the Plotly traces (e.g. "linear", "spline").
+            Default is "linear".
         """
         frequency_range = Q_(self.frequency_range, "rad/s").to(frequency_units).m
 
@@ -1774,7 +1782,7 @@ class ST_ForcedResponseResults(ST_Results):
                     .m,
                     opacity=1.0,
                     mode="lines",
-                    line=dict(width=3, color=list(tableau_colors)[i]),
+                    line=dict(width=3, color=list(tableau_colors)[i], shape=line_shape),
                     name=f"{probe_tag} - Mean",
                     legendgroup=f"{probe_tag} - Mean",
                     hovertemplate="Frequency: %{x:.2f}<br>Amplitude: %{y:.2e}",
@@ -1789,7 +1797,7 @@ class ST_ForcedResponseResults(ST_Results):
                         .m,
                         opacity=0.6,
                         mode="lines",
-                        line=dict(width=2.5, color=colors1[color_p]),
+                        line=dict(width=2.5, color=colors1[color_p], shape=line_shape),
                         name=f"{probe_tag} - percentile: {p}%",
                         legendgroup=f"{probe_tag} - percentile: {p}%",
                         hovertemplate="Frequency: %{x:.2f}<br>Amplitude: %{y:.2e}",
@@ -1809,7 +1817,7 @@ class ST_ForcedResponseResults(ST_Results):
                         .to(amplitude_units)
                         .m,
                         mode="lines",
-                        line=dict(width=1, color=colors2[color_i]),
+                        line=dict(width=1, color=colors2[color_i], shape=line_shape),
                         fill="toself",
                         fillcolor=colors2[color_i],
                         opacity=0.5,
