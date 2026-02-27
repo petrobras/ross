@@ -748,7 +748,9 @@ class ST_Rotor(object):
         ... )
         """
         if frequency_range is None:
-            frequency_range = list(self)[0].run_freq_response(speed_range=None).speed_range
+            frequency_range = (
+                list(self)[0].run_freq_response(speed_range=None).speed_range
+            )
 
         RV_size = self.RV_size
         freq_size = len(frequency_range)
