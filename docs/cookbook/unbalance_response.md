@@ -22,7 +22,6 @@ response = rotor.run_unbalance_response(
 - `unbalance_magnitude` (float): in kg·m (NOT kg — this is mass times eccentricity)
 - `unbalance_phase` (float): phase angle in rad
 - `frequency` (array): excitation frequencies in rad/s (if None, auto-selects with clustering around critical speeds)
-- `cluster_points` (bool): if True, adds points near critical speeds for resolution
 
 Multiple unbalance sources: pass arrays for `node`, `unbalance_magnitude`, `unbalance_phase`.
 
