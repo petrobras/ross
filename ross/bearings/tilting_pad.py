@@ -129,6 +129,19 @@ class TiltingPad(BearingElement):
         - 'maxiter' : int
             Maximum number of iterations allowed. Default is 1000.
         If None, uses default values: ``{"xtol": 1e-3, "ftol": 1e-3, "maxiter": 1000}``.
+    hot_oil_carry_over : float, optional
+        Hot oil carry-over factor (0 to 1). Fraction of outlet flow that is
+        carried to the next pad inlet. 1.0 = full carry-over (MaxBRG-style).
+        Default is 1.0.
+    inlet_temperature_tolerance : float, optional
+        Convergence tolerance for pad inlet temperatures [°C]. Outer iteration
+        stops when RMS change of T_inlet is below this value. Default is 0.5
+        (MaxBRG TempInlet_Error).
+    max_inlet_iterations : int, optional
+        Maximum number of outer iterations for inlet temperature convergence
+        (MaxBRG Max_Iteration = 100). Default is 100.
+    h_sump : float, optional
+        Convection coefficient at pad back (sump side). Default is 500 W/(m²·K).
     **kwargs : dict, optional
         Additional keyword arguments.
 
@@ -216,8 +229,11 @@ class TiltingPad(BearingElement):
         initial_pads_angles=None,
         model_type="thermo_hydro_dynamic",
         solver_options=None,
-        hot_oil_carry_over=1.0,
+        hot_oil_carry_over=0.8,
+        inlet_temperature_tolerance=0.5,
+        max_inlet_iterations=25,
         h_sump=500.0,
+        oil_supply_flow=None,
         **kwargs,
     ):
         self.n = n
@@ -324,11 +340,15 @@ class TiltingPad(BearingElement):
         self.h_edge = 1500.0
 
         self.hot_oil_carry_over = hot_oil_carry_over
+        self.inlet_temperature_tolerance = inlet_temperature_tolerance
+        self.max_inlet_iterations = max_inlet_iterations
         self.h_sump = h_sump
+        self.oil_supply_flow = oil_supply_flow.to("m**3/s").magnitude
 
         self.T_inlet = np.full(self.n_pad, self.oil_supply_temperature)
-        self.Q_outlet = np.zeros(self.n_pad)
         self.T_outlet = np.full(self.n_pad, self.oil_supply_temperature)
+        self.Q_inlet  = np.zeros(self.n_pad)
+        self.Q_outlet = np.zeros(self.n_pad)
 
         # Thermal convergence
         self.thermal_tolerance = 2.0
@@ -723,6 +743,7 @@ class TiltingPad(BearingElement):
                         self.pad_radius,
                         self.pad_arc,
                         self.pad_axial_length,
+                        self.oil_supply_temperature,
                     )
 
                     # Update turbulence fields
@@ -1598,57 +1619,147 @@ class TiltingPad(BearingElement):
             psi_pad[k_pad] = self.xdin[k_pad + 2]
 
         print("\n=== Starting Thermal Coupling Iteration ===")
-        
-        for n_p in range(self.n_pad):
-            # Initialize viscosity from current temperature
-            mi_i = self.a_a * np.exp(self.b_b * self.temperature_init[:, :, n_p])
-            mi = mi_i / self.mu_0
-            
-            # *** NEW: Call thermal coupling iteration (replaces old temperature loop) ***
-            T_film, T_pad_surface = self._thermal_coupling_iteration(
-                mi, n_p, psi_pad
-            )
-            
-            # Temperature is already updated inside _thermal_coupling_iteration
-            # Continue with storing results
-            
-            if np.max(self.pressure) > np.max(self.pressure_prev):
-                self.pad_in = n_p
-                self.pressure_prev = self.pressure.copy()
 
-            self.pressure_nd[:, :, n_p] = self.pressure
-            self.h_0[:, :, n_p] = self.h
+        # ---- Parâmetros do loop T_journal (estilo MaxBRG) ----
+        MAX_JTEMP_ITER   = 100
+        JTEMP_ERROR      = 1.0    # °C
+        RELAX_T          = 0.5
+        MAX_RELAX_CHANGE = 10.0   # °C
 
-            self.pressure_dim[:, :, n_p] = (
-                self.pressure_nd[:, :, n_p]
-                * (self.mu_0 * self.speed * self.pad_radius**2)
-                / (self.radial_clearance**2)
-            )
-            self.h_dim[:, :, n_p] = self.h * self.radial_clearance
-            
-            # Calculate pivot film thickness
-            xryr, xryrpt, xr, yr, xrpt, yrpt = self._transform_coordinates(n_p)
-            alpha = psi_pad[n_p]
-            
-            self.h_pivot[n_p] = (
-                self.radial_clearance
-                * (
-                    self.pad_radius
-                    - self.journal_radius
-                    - (
-                        np.sin(0)
-                        * (yr + alpha * (self.pad_radius + self.pad_thickness))
-                        + np.cos(0)
-                        * (
-                            xr
-                            + self.pad_radius
-                            - self.journal_radius
-                            - self.radial_clearance
-                        )
+        # ---- Inicialização ----
+        self.T_inlet  = np.full(self.n_pad, self.oil_supply_temperature)
+        self.T_outlet = np.full(self.n_pad, self.oil_supply_temperature)
+        self.Q_outlet = np.zeros(self.n_pad)
+        T_journal     = 25.0#self.oil_supply_temperature   # chute inicial
+
+        RMS_TempInlet_old = 0.0
+        diverge_count_tin = 0
+
+        # ---- Loop externo: converge T_inlet (hot oil carry-over) ----
+        for inlet_iter in range(self.max_inlet_iterations):
+            T_inlet_old = self.T_inlet.copy()
+
+            # ---- Loop médio: converge T_journal ----
+            dTj_old          = 0.0
+            diverge_count_tj = 0
+
+            for jtemp_iter in range(MAX_JTEMP_ITER):
+                T_journal_old = T_journal
+
+                # ---- Loop interno: resolve filme de cada pad ----
+                for n_p in range(self.n_pad):
+                    mi_i = self.a_a * np.exp(
+                        self.b_b * self.temperature_init[:, :, n_p]
                     )
+                    mi = mi_i / self.mu_0
+
+                    T_film, T_pad_surface = self._thermal_coupling_iteration(
+                        mi, n_p, psi_pad, T_journal=T_journal
+                    )
+
+                    # Update inlet temperature of next pad (hot oil carry-over)
+                    self._update_carry_over_temperature(n_p)
+
+                    if np.max(self.pressure) > np.max(self.pressure_prev):
+                        self.pad_in        = n_p
+                        self.pressure_prev = self.pressure.copy()
+
+                    self.pressure_nd[:, :, n_p] = self.pressure
+                    self.h_0[:, :, n_p]         = self.h
+
+                    self.pressure_dim[:, :, n_p] = (
+                        self.pressure_nd[:, :, n_p]
+                        * (self.mu_0 * self.speed * self.pad_radius**2)
+                        / (self.radial_clearance**2)
+                    )
+                    self.h_dim[:, :, n_p] = self.h * self.radial_clearance
+
+                    xryr, xryrpt, xr, yr, xrpt, yrpt = self._transform_coordinates(n_p)
+                    alpha = psi_pad[n_p]
+                    self.h_pivot[n_p] = (
+                        self.radial_clearance
+                        * (
+                            self.pad_radius
+                            - self.journal_radius
+                            - (
+                                np.sin(0)
+                                * (yr + alpha * (self.pad_radius + self.pad_thickness))
+                                + np.cos(0)
+                                * (
+                                    xr
+                                    + self.pad_radius
+                                    - self.journal_radius
+                                    - self.radial_clearance
+                                )
+                            )
+                        )
+                        / self.radial_clearance
+                    )
+                # ---- fim loop interno (pads) ----
+
+                # ---- Actualiza T_journal (Temp_Journal1 do MaxBRG) ----
+                T_journal_new = self._compute_journal_temperature()
+
+                dTj = abs(T_journal_new - T_journal_old)
+                if dTj > MAX_RELAX_CHANGE:
+                    relax = MAX_RELAX_CHANGE / dTj
+                else:
+                    relax = RELAX_T
+                T_journal = relax * T_journal_new + (1.0 - relax) * T_journal_old
+
+                print(
+                    f"  JTemp iter {jtemp_iter + 1}: "
+                    f"T_journal = {T_journal:.3f}°C  dTj = {dTj:.4f}°C"
                 )
-                / self.radial_clearance
+
+                if dTj < JTEMP_ERROR:
+                    print(f"  T_journal converged after {jtemp_iter + 1} iter(s)")
+                    break
+
+                if jtemp_iter > 0 and dTj >= 0.95 * dTj_old:
+                    diverge_count_tj += 1
+                    if diverge_count_tj > 10:
+                        print("  WARNING: T_journal did not converge; using last value.")
+                        break
+
+                dTj_old = dTj
+            # ---- fim loop médio (T_journal) ----
+
+            # ---- Verifica convergência do T_inlet ----
+            RMS_TempInlet = float(
+                np.sqrt(np.mean((self.T_inlet - T_inlet_old) ** 2))
             )
+            print(
+                f"  Inlet iter {inlet_iter + 1}: "
+                f"RMS_TempInlet = {RMS_TempInlet:.4f}°C"
+            )
+
+            if RMS_TempInlet < self.inlet_temperature_tolerance:
+                print(
+                    f"  Inlet temperature converged after {inlet_iter + 1} iter(s)."
+                )
+                break
+
+            if inlet_iter > 0 and RMS_TempInlet >= RMS_TempInlet_old:
+                diverge_count_tin += 1
+                if diverge_count_tin > 10:
+                    print("  WARNING: Inlet temperature did not converge.")
+                    break
+
+            # Relaxação no T_inlet (igual ao MaxBRG RelaxT)
+            self.T_inlet = (
+                self.thermal_relax_factor * self.T_inlet
+                + (1.0 - self.thermal_relax_factor) * T_inlet_old
+            )
+            RMS_TempInlet_old = RMS_TempInlet
+
+            if inlet_iter == self.max_inlet_iterations - 1:
+                print(
+                    f"  WARNING: Inlet temperature did not converge after "
+                    f"{self.max_inlet_iterations} iterations "
+                    f"(RMS_TempInlet = {RMS_TempInlet:.4f} °C)"
+                )
+        # ---- fim loop externo (T_inlet) ----
 
         max_p = (
             self.pressure_nd[:, :, self.pad_in].max()
@@ -2660,7 +2771,7 @@ class TiltingPad(BearingElement):
             self.pressure, self.nx, self.nz, self.dx, self.dz
         )
 
-    def _solve_energy_equation(self, mi, n_p, is_equilibrium=False, T_inlet=None):
+    def _solve_energy_equation(self, mi, n_p, is_equilibrium=False, T_inlet=None, T_journal=None):
         """
         Solve energy equation for temperature field.
 
@@ -2668,6 +2779,9 @@ class TiltingPad(BearingElement):
         """
         if T_inlet is None:
             T_inlet = self.oil_supply_temperature
+
+        if T_journal is None:
+            T_journal = self.oil_supply_temperature
 
         row_idx, col_idx, vals, b_t, mu_turb_updated, reynolds_field, nnz = (
             _assemble_energy_sparse_numba(
@@ -2694,6 +2808,7 @@ class TiltingPad(BearingElement):
                 self.pad_arc,
                 self.pad_axial_length,
                 T_inlet,
+                T_journal=T_journal,
             )
         )
 
@@ -2705,6 +2820,11 @@ class TiltingPad(BearingElement):
         mat_sparse = coo_matrix((vals, (row_idx, col_idx)), shape=(n_k, n_k))
         mat_csr = mat_sparse.tocsr()
         t_vec = spsolve(mat_csr, b_t)
+
+        # Logo depois de _solve_energy_equation, imprima:
+        print(f"  Pad {n_p}: t_vec min={t_vec.min():.4f}, max={t_vec.max():.4f}")
+        print(f"  T_inlet[{n_p}] = {self.T_inlet[n_p]:.2f}°C")
+        print(f"  reference_temperature = {self.reference_temperature:.2f}°C")
 
         temperature_reference = self._update_temperature_field(t_vec)
 
@@ -3722,131 +3842,332 @@ class TiltingPad(BearingElement):
         
         return T_pad_2D, T_pad_surface_1D
 
-    def _thermal_coupling_iteration(self, mi, n_p, psi_pad, eccentricity=None, attitude_angle=None):
+    def _compute_outlet_temperature(self, n_p):
         """
-        Perform coupled film-pad thermal iteration until convergence.
-        
-        This method iteratively solves:
-        1. Reynolds equation (pressure field)
-        2. Energy equation (film temperature)
-        3. Convection coefficients (film-pad interface)
-        4. Pad conduction (pad temperature)
-        
-        The iteration continues until the pad surface temperature converges.
-        
+        Compute outlet temperature for pad n_p.
+
+        Mean temperature at the trailing edge (jj = nx-1), weighted by film
+        thickness h so regions with more film contribute more.
+        """
+        T_exit_column = self.temperature_init[:, -1, n_p]  # shape (nz,)
+        h_exit_column = self.h[:, -1]  # shape (nz,)
+
+        if h_exit_column.sum() > 0:
+            T_out = np.average(T_exit_column, weights=h_exit_column)
+        else:
+            T_out = float(T_exit_column.mean())
+        return T_out
+
+    def _compute_outlet_flow(self, n_p):
+        """
+        Estimate volumetric outlet flow for pad n_p using a MaxBRG-style model.
+
+        The method computes the circumferential flow rate Q_x at each
+        circumferential station from a Couette+Poiseuille velocity profile and
+        takes Q_out as the flow at the minimum film thickness location.
+        """
+        # Dimensional film thickness [m]
+        h_dim = self.h * self.radial_clearance
+
+        # Dimensional viscosity field [Pa·s] at current pad
+        mu = self.a_a * np.exp(self.b_b * self.temperature_init[:, :, n_p])
+        mu = np.clip(mu, 1e-6 * self.mu_0, None)
+
+        # Dimensional pressure gradient in circumferential direction [Pa/m]
+        # pressure is non-dimensional; scale to dimensional and differentiate w.r.t. x = R_pad * theta
+        scale_dp = (
+            self.mu_0
+            * self.speed
+            * self.pad_radius
+            / (self.radial_clearance**2)
+        )
+        dp_dx_dim = scale_dp * self.dp_dx
+
+        # Mean circumferential velocity [m/s]:
+        # U_mean = U_journal/2 - (h_dim^2 / (12 * mu)) * (dp/dx)
+        U_j = self.speed * self.journal_radius
+        U_mean = 0.5 * U_j - (h_dim**2 / (12.0 * mu)) * dp_dx_dim
+
+        # Circumferential flow at each station jj: Q_x(jj) = ∫ U_mean * h_dim dz
+        dz_axial = self.pad_axial_length / self.nz
+        Q_x = np.sum(U_mean * h_dim, axis=0) * dz_axial  # shape: (nx,)
+
+        # Outlet flow at minimum film thickness location (circumferential index)
+        # h_mean_x = self.h.mean(axis=0)
+        # jj_hmin = int(np.argmin(h_mean_x))
+        Q_out = float(Q_x[-1])
+
+        # Avoid non-positive flow for mixing logic
+        return max(Q_out, 1.0e-12)
+
+    def _compute_flow_at_column(self, n_p, jj):
+        """
+        Calcula o fluxo volumétrico circunferencial Q_x na coluna `jj` do pad n_p.
+
+        Equivalente a Q_x(Pad_Index, jj) do MAXBRG:
+            Q_x = ∫ U_mean * h dz
+        onde U_mean = U_j/2 - (h² / 12µ) * dp/dx  (Couette + Poiseuille)
+
         Parameters
         ----------
-        mi : ndarray
-            Initial dimensionless viscosity field. Shape: (nz, nx).
         n_p : int
-            Pad index
-        psi_pad : ndarray
-            Pad rotation angles [rad]. Shape: (n_pad,)
-        eccentricity : float, optional
-            Eccentricity ratio for equilibrium calculation
-        attitude_angle : float, optional
-            Attitude angle [rad] for equilibrium calculation
-            
+            Índice do pad.
+        jj : int
+            Índice circunferencial (0 = leading edge, nx-1 = trailing edge).
+
         Returns
         -------
-        T_film : ndarray
-            Converged film temperature field [°C]. Shape: (nz, nx)
-        T_pad_surface : ndarray
-            Converged pad surface temperature [°C]. Shape: (nx, nz)
-            
-        Notes
-        -----
-        Convergence criteria:
-        - Temperature change < thermal_tolerance (default 2°C)
-        - Maximum iterations: max_thermal_iter (default 50)
-        
-        Relaxation is applied to improve stability:
-        T_new = relax_factor * T_computed + (1 - relax_factor) * T_old
+        float
+            Fluxo [m³/s], sempre >= 1e-12.
         """
-        
-        # Initialize pad surface temperature with film temperature estimate
-        if not hasattr(self, 'T_pad_surface') or self.T_pad_surface is None:
-            # First time: initialize with supply temperature
-            T_pad_surface_old = np.full((self.nx, self.nz), self.oil_supply_temperature)
-        else:
-            # Use previous solution as initial guess
-            T_pad_surface_old = self.T_pad_surface[n_p, :, :].copy()
-        
-        # Convergence tracking
-        iter_count = 0
-        converged = False
-        
-        print(f"\n  Pad {n_p}: Starting thermal coupling iteration...")
-        
-        while not converged and iter_count < self.max_thermal_iter:
-            iter_count += 1
-            
-            # ============================================================
-            # STEP 1: Solve Reynolds equation for pressure field
-            # ============================================================
-            self._solve_reynolds_equation(mi, n_p, psi_pad, eccentricity, attitude_angle)
-            
-            # ============================================================
-            # STEP 2: Calculate pressure gradients
-            # ============================================================
-            self._calculate_pressure_gradients()
-            
-            # ============================================================
-            # STEP 3: Solve energy equation for film temperature
-            # ============================================================
-            # TODO: In future, modify energy equation to use T_pad_surface as BC
-            # For now, it uses adiabatic BC at pad surface
-            T_film = self._solve_energy_equation(mi, n_p, is_equilibrium=False)
-            
-            # Update temperature field
-            self.temperature_init[:, :, n_p] = T_film
-            
-            # ============================================================
-            # STEP 4: Calculate convection coefficients at film-pad interface
-            # ============================================================
-            self._calculate_convection_coefficient(n_p)
-            
-            # ============================================================
-            # STEP 5: Solve 2D heat conduction in pad
-            # ============================================================
-            T_pad_2D, T_pad_surface_1D = self._solve_pad_conduction_2D(n_p)
-            
-            # Extract surface temperature (already stored in self.T_pad_surface by solver)
-            T_pad_surface_new = self.T_pad_surface[n_p, :, :].copy()
-            
-            # ============================================================
-            # STEP 6: Check convergence
-            # ============================================================
-            T_diff = np.abs(T_pad_surface_new - T_pad_surface_old).max()
-            
-            if T_diff < self.thermal_tolerance:
-                converged = True
-                print(f"    Iteration {iter_count}: Converged! ΔT_max = {T_diff:.4f} °C")
-            else:
-                # Apply relaxation for stability
-                T_pad_surface_relaxed = (
-                    self.thermal_relax_factor * T_pad_surface_new +
-                    (1.0 - self.thermal_relax_factor) * T_pad_surface_old
-                )
-                
-                # Update for next iteration
-                self.T_pad_surface[n_p, :, :] = T_pad_surface_relaxed
-                T_pad_surface_old = T_pad_surface_relaxed.copy()
-                
-                if iter_count % 5 == 0:
-                    print(f"    Iteration {iter_count}: ΔT_max = {T_diff:.4f} °C")
-            
-            # Update viscosity for next iteration
-            mi_i = self.a_a * np.exp(self.b_b * T_film)
-            mi = mi_i / self.mu_0
-        
-        if not converged:
-            print(f"    WARNING: Thermal coupling did not converge after {iter_count} iterations!")
-            print(f"    Final ΔT_max = {T_diff:.4f} °C (tolerance = {self.thermal_tolerance} °C)")
-        
-        return T_film, self.T_pad_surface[n_p, :, :]
+        h_dim = self.h * self.radial_clearance          # (nz, nx) [m]
+        mu    = self.a_a * np.exp(self.b_b * self.temperature_init[:, :, n_p])
+        mu    = np.clip(mu, 1e-6 * self.mu_0, None)     # [Pa·s]
 
-# HERE
+        scale_dp  = self.mu_0 * self.speed * self.pad_radius / (self.radial_clearance ** 2)
+        dp_dx_dim = scale_dp * self.dp_dx               # [Pa/m]
+
+        U_j    = self.speed * self.journal_radius        # [m/s]
+        U_mean = 0.5 * U_j - (h_dim ** 2 / (12.0 * mu)) * dp_dx_dim  # (nz, nx)
+
+        dz_axial = self.pad_axial_length / self.nz
+        Q_x = np.sum(U_mean * h_dim, axis=0) * dz_axial  # shape (nx,)
+
+        return max(float(Q_x[jj]), 1.0e-12)
+
+
+    def _compute_outlet_flow(self, n_p):
+        """
+        Q_out do pad n_p: fluxo na posição de filme mínimo (igual ao MAXBRG).
+        """
+        h_mean_x = self.h.mean(axis=0)
+        jj_hmin  = int(np.argmin(h_mean_x))
+        return self._compute_flow_at_column(n_p, jj_hmin)
+
+
+    def _compute_inlet_flow(self, n_p):
+        """
+        Q_in do pad n_p: fluxo na leading edge (coluna 0).
+
+        No MAXBRG (condição flooded):
+            Q_in(Pad_Index) = Q_x(Pad_Index, Film_Onset)
+        Para bearings carregados (Q_Sides > 0) Film_Onset = 1, ou seja, coluna 0.
+        """
+        return self._compute_flow_at_column(n_p, 0)
+
+
+    def _update_carry_over_temperature(self, n_p):
+        """
+        Temperatura de inlet do próximo pad — réplica exata de Temp_Mixing1 (MAXBRG).
+
+        MAXBRG (THD.FOR):
+            Q_CarryOver = HotOil_Lamda * Q_out(Pad_Index)
+
+            if Q_CarryOver > Q_in(next):
+                T_inlet(next) = T_outlet(current)
+            else:
+                T_inlet(next) = (Q_CarryOver * T_outlet(current)
+                                + (Q_in(next) - Q_CarryOver) * T_sump)
+                                / Q_in(next)
+
+        Diferença-chave vs. implementação anterior:
+            - Denominador = Q_in(next) calculado da solução de Reynolds (leading edge),
+            NÃO Q_available = Q_co + Q_supply/n_pad.
+            - Q_supply só afeta AvailableFlow (starved/flooded), não a mistura térmica.
+        """
+        lam      = self.hot_oil_carry_over
+        next_pad = (n_p + 1) % self.n_pad
+
+        # --- Q_out e Q_CarryOver do pad atual ---
+        Q_out = self.Q_outlet[n_p]          # já calculado em _thermal_coupling_iteration
+        Q_co  = lam * Q_out
+
+        # --- Q_in do PRÓXIMO pad (leading edge, solução de Reynolds) ---
+        # Nota: self.h e self.dp_dx referem-se ao pad atual (n_p), não ao next_pad.
+        # Por isso calculamos Q_in usando os campos do pad atual na coluna nx-1
+        # (trailing edge do atual ≈ leading edge do próximo), OU mantemos Q_in
+        # do próximo pad armazenado da iteração anterior.
+        #
+        # Opção mais fiel ao MAXBRG: usar Q_x na coluna 0 do próximo pad,
+        # que já foi resolvido na iteração anterior (ou na iteração atual se o
+        # loop percorre todos os pads antes de calcular o mixing).
+        #
+        # Como o loop de inlet itera até convergência, usamos Q_in do next_pad
+        # calculado com os campos armazenados de temperature_init e h_0.
+        #
+        # Para a primeira iteração (campos inicializados em T_supply), Q_in ≈ Q_available,
+        # e as iterações seguintes refinam progressivamente.
+
+        if hasattr(self, 'Q_inlet') and self.Q_inlet[next_pad] > 0:
+            Q_in_next = self.Q_inlet[next_pad]
+        else:
+            # Fallback conservador: leading edge do pad atual (trailing do anterior)
+            Q_in_next = self._compute_flow_at_column(n_p, self.nx - 1)
+
+        if Q_in_next <= 0:
+            self.T_inlet[next_pad] = self.oil_supply_temperature
+            return
+
+        # --- Temp_Mixing1 ---
+        if Q_co >= Q_in_next:
+            T_mix = self.T_outlet[n_p]
+        else:
+            T_mix = (
+                Q_co * self.T_outlet[n_p]
+                + (Q_in_next - Q_co) * self.oil_supply_temperature
+            ) / Q_in_next
+
+        self.T_inlet[next_pad] = max(T_mix, self.oil_supply_temperature)
+
+        print(f"    Pad {n_p}: Q_out={Q_out:.3e}, Q_co={Q_co:.3e}, "
+            f"Q_in_next={Q_in_next:.3e}, T_out={self.T_outlet[n_p]:.2f}°C, "
+            f"T_mix→Pad{next_pad}={self.T_inlet[next_pad]:.2f}°C")
+
+    def _thermal_coupling_iteration(
+            self, mi, n_p, psi_pad, eccentricity=None, attitude_angle=None, T_journal=None
+        ):
+            """
+            Perform coupled film-pad thermal iteration until convergence.
+
+            This method iteratively solves:
+            1. Reynolds equation (pressure field)
+            2. Energy equation (film temperature) — with prescribed T_journal on north BC
+            3. Convection coefficients (film-pad interface)
+            4. Pad conduction (pad temperature)
+
+            The iteration continues until the pad surface temperature converges.
+
+            Parameters
+            ----------
+            mi : ndarray
+                Initial dimensionless viscosity field. Shape: (nz, nx).
+            n_p : int
+                Pad index.
+            psi_pad : ndarray
+                Pad rotation angles [rad]. Shape: (n_pad,).
+            eccentricity : float, optional
+                Eccentricity ratio for equilibrium calculation.
+            attitude_angle : float, optional
+                Attitude angle [rad] for equilibrium calculation.
+            T_journal : float, optional
+                Prescribed journal surface temperature [°C].
+                If None, uses oil_supply_temperature (equivalent to previous adiabatic behaviour).
+
+            Returns
+            -------
+            T_film : ndarray
+                Converged film temperature field [°C]. Shape: (nz, nx).
+            T_pad_surface : ndarray
+                Converged pad surface temperature [°C]. Shape: (nx, nz).
+            """
+            if T_journal is None:
+                T_journal = self.oil_supply_temperature
+
+            # Initialize pad surface temperature
+            if not hasattr(self, 'T_pad_surface') or self.T_pad_surface is None:
+                T_pad_surface_old = np.full(
+                    (self.nx, self.nz), self.oil_supply_temperature
+                )
+            else:
+                T_pad_surface_old = self.T_pad_surface[n_p, :, :].copy()
+
+            iter_count = 0
+            converged  = False
+            T_diff     = np.inf
+
+            while not converged and iter_count < self.max_thermal_iter:
+                iter_count += 1
+
+                # ----------------------------------------------------------
+                # STEP 1: Reynolds equation → pressure field
+                # ----------------------------------------------------------
+                self._solve_reynolds_equation(
+                    mi, n_p, psi_pad, eccentricity, attitude_angle
+                )
+
+                # ----------------------------------------------------------
+                # STEP 2: Pressure gradients
+                # ----------------------------------------------------------
+                self._calculate_pressure_gradients()
+
+                # ----------------------------------------------------------
+                # STEP 3: Energy equation → film temperature
+                #         T_journal prescrito na fronteira norte (journal surface)
+                #         T_inlet[n_p] prescrito na fronteira oeste (pad inlet)
+                # ----------------------------------------------------------
+                T_film = self._solve_energy_equation(
+                    mi,
+                    n_p,
+                    is_equilibrium=False,
+                    T_inlet=self.T_inlet[n_p],
+                    T_journal=T_journal,          # <<< BC norte prescrita
+                )
+
+                # Actualiza campo de temperatura do pad
+                self.temperature_init[:, :, n_p] = T_film
+
+                # ----------------------------------------------------------
+                # STEP 4: Coeficiente de convecção filme-pad
+                # ----------------------------------------------------------
+                self._calculate_convection_coefficient(n_p)
+
+                # ----------------------------------------------------------
+                # STEP 5: Condução 2D no pad → temperatura da superfície
+                # ----------------------------------------------------------
+                T_pad_2D, T_pad_surface_1D = self._solve_pad_conduction_2D(n_p)
+
+                T_pad_surface_new = self.T_pad_surface[n_p, :, :].copy()
+
+                # ----------------------------------------------------------
+                # STEP 6: Verificação de convergência
+                # ----------------------------------------------------------
+                T_diff = np.abs(T_pad_surface_new - T_pad_surface_old).max()
+
+                if T_diff < self.thermal_tolerance:
+                    converged = True
+                else:
+                    # Relaxação para estabilidade
+                    T_pad_surface_relaxed = (
+                        self.thermal_relax_factor * T_pad_surface_new
+                        + (1.0 - self.thermal_relax_factor) * T_pad_surface_old
+                    )
+                    self.T_pad_surface[n_p, :, :] = T_pad_surface_relaxed
+                    T_pad_surface_old = T_pad_surface_relaxed.copy()
+
+                # ----------------------------------------------------------
+                # STEP 7: Actualiza viscosidade para próxima iteração
+                # ----------------------------------------------------------
+                mi_i = self.a_a * np.exp(self.b_b * T_film)
+                mi   = mi_i / self.mu_0
+
+            if not converged:
+                print(
+                    f"    WARNING: Thermal coupling did not converge after "
+                    f"{iter_count} iterations! Final ΔT_max = {T_diff:.4f} °C "
+                    f"(tolerance = {self.thermal_tolerance} °C)"
+                )
+
+            # Hot oil carry-over: guarda T_outlet e Q_outlet para o próximo pad
+            self.T_outlet[n_p] = self._compute_outlet_temperature(n_p)
+            self.Q_outlet[n_p] = self._compute_outlet_flow(n_p)
+            # ← NOVO: armazenar Q_in deste pad (usado como denominador quando
+            #          o pad anterior calcular o mixing para este pad)
+            self.Q_inlet[n_p] = self._compute_inlet_flow(n_p)
+
+            # Calcular temperatura de inlet do próximo pad
+            self._update_carry_over_temperature(n_p)
+
+            return T_film, self.T_pad_surface[n_p, :, :]
+
+    def _compute_journal_temperature(self):
+        """Média ponderada pela área do campo de temperatura de todos os pads."""
+        total_area = 0.0
+        sum_T_area = 0.0
+        for n_p in range(self.n_pad):
+            area_p = self.pad_arc * self.pad_axial_length
+            sum_T_area += float(self.temperature_init[:, :, n_p].mean()) * area_p
+            total_area  += area_p
+        return sum_T_area / total_area
 
     def _check_diagonal(self, matrix, residual=1e-10):
         """Check matrix diagonal for zero elements and replace them with a small residual value.
@@ -5589,6 +5910,278 @@ def _assemble_reynolds_sparse_numba(
     return row_indices[:nnz], col_indices[:nnz], values[:nnz], b_vec, h, nnz
 
 
+# @njit
+# def _assemble_energy_sparse_numba(
+#     nx,
+#     nz,
+#     xz,
+#     dx,
+#     dz,
+#     h,
+#     pressure,
+#     dp_dx,
+#     dp_dz,
+#     mi,
+#     speed,
+#     mu_0,
+#     rho,
+#     cp,
+#     kt,
+#     oil_supply_temperature,
+#     reference_temperature,
+#     radial_clearance,
+#     journal_radius,
+#     pad_radius,
+#     pad_arc,
+#     pad_axial_length,
+#     T_inlet,
+# ):
+#     """
+#     Assemble energy equation as sparse matrix using COO format.
+
+#     This function creates a sparse matrix representation of the energy equation
+#     using COO format.
+
+#     Parameters
+#     ----------
+#     nx : int
+#         Number of grid points in the circumferential direction.
+#     nz : int
+#         Number of grid points in the axial direction.
+#     xz : ndarray
+#         Grid points in the axial direction. Shape: (nz,).
+#     dx : float
+#         Grid spacing in the circumferential direction.
+#     dz : float
+#         Grid spacing in the axial direction.
+#     h : ndarray
+#         Film thickness field (nz, nx).
+#     pressure : ndarray
+#         Pressure field (nz, nx).
+#     dp_dx : ndarray
+#         Pressure gradient in the circumferential direction.
+#     dp_dz : ndarray
+#         Pressure gradient in the axial direction.
+#     mi : ndarray
+#         Dimensionless viscosity field. Shape: (nz, nx).
+#     speed : float
+#         Speed of the journal.
+#     mu_0 : float
+#         Dynamic viscosity of the oil at the oil supply temperature.
+#     rho : float
+#         Density of the oil.
+#     cp : float
+#         Specific heat capacity of the oil.
+#     kt : float
+#         Thermal conductivity of the oil.
+#     oil_supply_temperature : float
+#         Oil supply temperature.
+#     reference_temperature : float
+#         Reference temperature.
+#     radial_clearance : float
+#         Radial clearance between the pad and the journal.
+#     journal_radius : float
+#         Radius of the journal.
+#     pad_radius : float
+#         Radius of the pad.
+#     pad_arc : float
+#         Arc of the pad.
+#     pad_axial_length : float
+#         Axial length of the pad.
+#     T_inlet : float
+#         Oil inlet temperature for this pad [°C]. Used in west (leading edge) BC.
+
+#     Returns
+#     -------
+#     row_indices : ndarray
+#         Row indices for sparse matrix entries.
+#     col_indices : ndarray
+#         Column indices for sparse matrix entries.
+#     values : ndarray
+#         Values for sparse matrix entries.
+#     b_t : ndarray
+#         Right-hand side vector (n_k,).
+#     mu_turb_updated : ndarray
+#         Updated turbulent viscosity field (nz, nx).
+#     reynolds_field : ndarray
+#         Reynolds number field (nz, nx).
+#     nnz : int
+#         Number of non-zero entries.
+#     """
+
+#     n_k = nx * nz
+#     max_nnz = 5 * n_k  # Pentadiagonal structure
+
+#     # Pre-allocate arrays for COO format
+#     row_indices = np.zeros(max_nnz, dtype=np.int32)
+#     col_indices = np.zeros(max_nnz, dtype=np.int32)
+#     values = np.zeros(max_nnz)
+#     b_t = np.zeros(n_k)
+#     mu_turb_updated = np.zeros((nz, nx))
+#     reynolds_field = np.zeros((nz, nx))
+
+#     k_t_idx = 0
+#     nnz = 0
+
+#     for ii in range(nz):
+#         for jj in range(nx):
+#             h_p_loc = h[ii, jj]
+#             mi_p = mi[ii, jj]
+
+#             # Calculate turbulent viscosity
+#             mi_t, reynolds_local = _calculate_turbulent_viscosity_numba(
+#                 h_p_loc,
+#                 mi_p,
+#                 dp_dx[ii, jj],
+#                 dp_dz[ii, jj],
+#                 speed,
+#                 rho,
+#                 mu_0,
+#                 radial_clearance,
+#                 journal_radius,
+#                 pad_axial_length,
+#             )
+
+#             mu_turb_updated[ii, jj] = mi_t
+#             reynolds_field[ii, jj] = reynolds_local
+
+#             # Auxiliary factor for flow direction
+#             aux_up = 1.0 if xz[ii] >= 0.0 else 0.0
+
+#             # Energy equation coefficients
+#             a_e = -(kt * h_p_loc * dz) / (
+#                 rho * cp * speed * ((pad_arc * pad_radius) ** 2) * dx
+#             )
+
+#             a_w = (
+#                 ((h_p_loc**3) * dp_dx[ii, jj] * dz) / (12.0 * mi_t * (pad_arc**2))
+#                 - ((journal_radius * h_p_loc * dz) / (2.0 * pad_radius * pad_arc))
+#                 - (kt * h_p_loc * dz)
+#                 / (rho * cp * speed * ((pad_arc * pad_radius) ** 2) * dx)
+#             )
+
+#             # North and south coefficients (upwind scheme)
+#             a_n_1 = (aux_up - 1.0) * (
+#                 ((pad_radius**2) * (h_p_loc**3) * dp_dz[ii, jj] * dx)
+#                 / (12.0 * (pad_axial_length**2) * mi_t)
+#             )
+#             a_s_1 = (aux_up) * (
+#                 ((pad_radius**2) * (h_p_loc**3) * dp_dz[ii, jj] * dx)
+#                 / (12.0 * (pad_axial_length**2) * mi_t)
+#             )
+
+#             a_n_2 = -(kt * h_p_loc * dx) / (
+#                 rho * cp * speed * (pad_axial_length**2) * dz
+#             )
+#             a_s_2 = -(kt * h_p_loc * dx) / (
+#                 rho * cp * speed * (pad_axial_length**2) * dz
+#             )
+
+#             a_n = a_n_1 + a_n_2
+#             a_s = a_s_1 + a_s_2
+#             a_p_coef = -(a_e + a_w + a_n + a_s)
+
+#             # Source terms
+#             h_pt = 0.0  # Static analysis
+#             aux_b_t = (speed * mu_0) / (
+#                 rho * cp * oil_supply_temperature * radial_clearance
+#             )
+
+#             b_t_g = (
+#                 mu_0 * speed * (journal_radius**2) * dx * dz * pressure[ii, jj] * h_pt
+#             ) / (rho * cp * reference_temperature * (radial_clearance**2))
+
+#             b_t_h = (speed * mu_0 * (h_pt**2) * 4.0 * mi_t * dx * dz) / (
+#                 rho * cp * reference_temperature * 3.0 * h_p_loc
+#             )
+
+#             b_t_i = (
+#                 aux_b_t
+#                 * (mi_t * (journal_radius**2) * dx * dz)
+#                 / (h_p_loc * radial_clearance)
+#             )
+
+#             b_t_j = (
+#                 aux_b_t
+#                 * ((pad_radius**2) * (h_p_loc**3) * (dp_dx[ii, jj] ** 2) * dx * dz)
+#                 / (12.0 * radial_clearance * (pad_arc**2) * mi_t)
+#             )
+
+#             b_t_k = (
+#                 aux_b_t
+#                 * ((pad_radius**4) * (h_p_loc**3) * (dp_dz[ii, jj] ** 2) * dx * dz)
+#                 / (12.0 * radial_clearance * (pad_axial_length**2) * mi_t)
+#             )
+
+#             b_t_val = b_t_g + b_t_h + b_t_i + b_t_j + b_t_k
+
+#             # Boundary condition for west face (oil inlet temperature) - modify source term
+#             if jj == 0:
+#                 b_t[k_t_idx] = b_t_val - 2.0 * a_w * (
+#                     T_inlet / reference_temperature
+#                 )
+#             else:
+#                 b_t[k_t_idx] = b_t_val
+
+#             # Fill sparse matrix (COO format)
+#             a_p_adjusted = a_p_coef  # Start with base diagonal value
+
+#             # Apply boundary condition adjustments to diagonal
+#             if ii == 0:
+#                 a_p_adjusted += a_s  # South boundary (ADD)
+#             if ii == nz - 1:
+#                 a_p_adjusted += a_n  # North boundary (ADD)
+#             if jj == 0:
+#                 a_p_adjusted -= a_w  # West boundary (SUBTRACT)
+#             if jj == nx - 1:
+#                 a_p_adjusted += a_e  # East boundary (ADD)
+
+#             # Add diagonal element
+#             row_indices[nnz] = k_t_idx
+#             col_indices[nnz] = k_t_idx
+#             values[nnz] = a_p_adjusted
+#             nnz += 1
+
+#             # Add off-diagonal elements only when neighbors exist
+#             # South neighbor (ii > 0)
+#             if ii > 0:
+#                 row_indices[nnz] = k_t_idx
+#                 col_indices[nnz] = k_t_idx - nx
+#                 values[nnz] = a_s
+#                 nnz += 1
+
+#             # North neighbor (ii < nz - 1)
+#             if ii < nz - 1:
+#                 row_indices[nnz] = k_t_idx
+#                 col_indices[nnz] = k_t_idx + nx
+#                 values[nnz] = a_n
+#                 nnz += 1
+
+#             # West neighbor (jj > 0)
+#             if jj > 0:
+#                 row_indices[nnz] = k_t_idx
+#                 col_indices[nnz] = k_t_idx - 1
+#                 values[nnz] = a_w
+#                 nnz += 1
+
+#             # East neighbor (jj < nx - 1)
+#             if jj < nx - 1:
+#                 row_indices[nnz] = k_t_idx
+#                 col_indices[nnz] = k_t_idx + 1
+#                 values[nnz] = a_e
+#                 nnz += 1
+
+#             k_t_idx += 1
+
+#     return (
+#         row_indices[:nnz],
+#         col_indices[:nnz],
+#         values[:nnz],
+#         b_t,
+#         mu_turb_updated,
+#         reynolds_field,
+#         nnz,
+#     )
 @njit
 def _assemble_energy_sparse_numba(
     nx,
@@ -5614,250 +6207,176 @@ def _assemble_energy_sparse_numba(
     pad_arc,
     pad_axial_length,
     T_inlet,
+    T_journal=25.0,   # temperatura prescrita do journal [°C], mesmo denominador de reference_temperature
 ):
     """
-    Assemble energy equation as sparse matrix using COO format.
+    Assemble energy equation as sparse matrix (COO format).
 
-    This function creates a sparse matrix representation of the energy equation
-    using COO format.
+    Boundary conditions
+    -------------------
+    West  (jj == 0)    : Dirichlet  T = T_inlet   (entrada de óleo)
+    East  (jj == nx-1) : Neumann 0  (saída — adiabático)
+    South (ii == 0)    : Neumann 0  (superfície do pad — adiabático)
+    North (ii == nz-1) : Dirichlet  T = T_journal  (superfície do journal — PRESCRITA)
 
-    Parameters
-    ----------
-    nx : int
-        Number of grid points in the circumferential direction.
-    nz : int
-        Number of grid points in the axial direction.
-    xz : ndarray
-        Grid points in the axial direction. Shape: (nz,).
-    dx : float
-        Grid spacing in the circumferential direction.
-    dz : float
-        Grid spacing in the axial direction.
-    h : ndarray
-        Film thickness field (nz, nx).
-    pressure : ndarray
-        Pressure field (nz, nx).
-    dp_dx : ndarray
-        Pressure gradient in the circumferential direction.
-    dp_dz : ndarray
-        Pressure gradient in the axial direction.
-    mi : ndarray
-        Dimensionless viscosity field. Shape: (nz, nx).
-    speed : float
-        Speed of the journal.
-    mu_0 : float
-        Dynamic viscosity of the oil at the oil supply temperature.
-    rho : float
-        Density of the oil.
-    cp : float
-        Specific heat capacity of the oil.
-    kt : float
-        Thermal conductivity of the oil.
-    oil_supply_temperature : float
-        Oil supply temperature.
-    reference_temperature : float
-        Reference temperature.
-    radial_clearance : float
-        Radial clearance between the pad and the journal.
-    journal_radius : float
-        Radius of the journal.
-    pad_radius : float
-        Radius of the pad.
-    pad_arc : float
-        Arc of the pad.
-    pad_axial_length : float
-        Axial length of the pad.
-    T_inlet : float
-        Oil inlet temperature for this pad [°C]. Used in west (leading edge) BC.
-
-    Returns
-    -------
-    row_indices : ndarray
-        Row indices for sparse matrix entries.
-    col_indices : ndarray
-        Column indices for sparse matrix entries.
-    values : ndarray
-        Values for sparse matrix entries.
-    b_t : ndarray
-        Right-hand side vector (n_k,).
-    mu_turb_updated : ndarray
-        Updated turbulent viscosity field (nz, nx).
-    reynolds_field : ndarray
-        Reynolds number field (nz, nx).
-    nnz : int
-        Number of non-zero entries.
+    Para a BC norte só a parte de CONDUÇÃO de a_n é usada na imagem Dirichlet,
+    pois não há fluxo convectivo entrando pelo journal.
     """
+    n_k    = nx * nz
+    max_nnz = n_k * 5
 
-    n_k = nx * nz
-    max_nnz = 5 * n_k  # Pentadiagonal structure
+    row_indices = np.zeros(max_nnz, dtype=np.int64)
+    col_indices = np.zeros(max_nnz, dtype=np.int64)
+    values      = np.zeros(max_nnz, dtype=np.float64)
+    b_t         = np.zeros(n_k,     dtype=np.float64)
 
-    # Pre-allocate arrays for COO format
-    row_indices = np.zeros(max_nnz, dtype=np.int32)
-    col_indices = np.zeros(max_nnz, dtype=np.int32)
-    values = np.zeros(max_nnz)
-    b_t = np.zeros(n_k)
-    mu_turb_updated = np.zeros((nz, nx))
-    reynolds_field = np.zeros((nz, nx))
+    mu_turb_field  = np.zeros((nz, nx), dtype=np.float64)
+    reynolds_field = np.zeros((nz, nx), dtype=np.float64)
 
-    k_t_idx = 0
-    nnz = 0
+    # Adimensional temperatures
+    T_j_nd  = T_journal / reference_temperature
+    T_in_nd = T_inlet   / reference_temperature
+
+    aux_b = (speed * mu_0) / (rho * cp * oil_supply_temperature * radial_clearance)
+
+    nnz   = 0
+    k_idx = 0
 
     for ii in range(nz):
         for jj in range(nx):
-            h_p_loc = h[ii, jj]
+
+            h_p = h[ii, jj]
+
+            # ── Viscosidade turbulenta ─────────────────────────────────────
             mi_p = mi[ii, jj]
-
-            # Calculate turbulent viscosity
-            mi_t, reynolds_local = _calculate_turbulent_viscosity_numba(
-                h_p_loc,
-                mi_p,
-                dp_dx[ii, jj],
-                dp_dz[ii, jj],
-                speed,
-                rho,
-                mu_0,
-                radial_clearance,
-                journal_radius,
-                pad_axial_length,
+            mi_t, re_loc = _calculate_turbulent_viscosity_numba(
+                h_p, mi_p,
+                dp_dx[ii, jj], dp_dz[ii, jj],
+                speed, rho, mu_0,
+                radial_clearance, journal_radius, pad_axial_length,
             )
+            mu_turb_field[ii, jj]  = mi_t
+            reynolds_field[ii, jj] = re_loc
 
-            mu_turb_updated[ii, jj] = mi_t
-            reynolds_field[ii, jj] = reynolds_local
-
-            # Auxiliary factor for flow direction
+            # ── Upwind axial ───────────────────────────────────────────────
             aux_up = 1.0 if xz[ii] >= 0.0 else 0.0
 
-            # Energy equation coefficients
-            a_e = -(kt * h_p_loc * dz) / (
-                rho * cp * speed * ((pad_arc * pad_radius) ** 2) * dx
+            # ── Coeficientes circunferenciais (e/w) ───────────────────────
+            kt_cond = (kt * h_p * dz) / (
+                rho * cp * speed * (pad_arc * pad_radius) ** 2 * dx
             )
+
+            a_e = -kt_cond
 
             a_w = (
-                ((h_p_loc**3) * dp_dx[ii, jj] * dz) / (12.0 * mi_t * (pad_arc**2))
-                - ((journal_radius * h_p_loc * dz) / (2.0 * pad_radius * pad_arc))
-                - (kt * h_p_loc * dz)
-                / (rho * cp * speed * ((pad_arc * pad_radius) ** 2) * dx)
+                (h_p ** 3 * dp_dx[ii, jj] * dz) / (12.0 * mi_t * pad_arc ** 2)
+                - (journal_radius * h_p * dz) / (2.0 * pad_radius * pad_arc)
+                - kt_cond
             )
 
-            # North and south coefficients (upwind scheme)
-            a_n_1 = (aux_up - 1.0) * (
-                ((pad_radius**2) * (h_p_loc**3) * dp_dz[ii, jj] * dx)
-                / (12.0 * (pad_axial_length**2) * mi_t)
-            )
-            a_s_1 = (aux_up) * (
-                ((pad_radius**2) * (h_p_loc**3) * dp_dz[ii, jj] * dx)
-                / (12.0 * (pad_axial_length**2) * mi_t)
+            # ── Coeficientes axiais (n/s) ─────────────────────────────────
+            # Parte condutiva (sempre negativa — estabilizadora)
+            a_cond_axial = -(kt * h_p * dx) / (
+                rho * cp * speed * pad_axial_length ** 2 * dz
             )
 
-            a_n_2 = -(kt * h_p_loc * dx) / (
-                rho * cp * speed * (pad_axial_length**2) * dz
+            # Parte convectiva axial (upwind)
+            conv_coef = (
+                (pad_radius ** 2 * h_p ** 3 * dp_dz[ii, jj] * dx)
+                / (12.0 * pad_axial_length ** 2 * mi_t)
             )
-            a_s_2 = -(kt * h_p_loc * dx) / (
-                rho * cp * speed * (pad_axial_length**2) * dz
-            )
+            a_n_conv = (aux_up - 1.0) * conv_coef
+            a_s_conv =  aux_up        * conv_coef
 
-            a_n = a_n_1 + a_n_2
-            a_s = a_s_1 + a_s_2
-            a_p_coef = -(a_e + a_w + a_n + a_s)
+            a_n = a_n_conv + a_cond_axial
+            a_s = a_s_conv + a_cond_axial
 
-            # Source terms
-            h_pt = 0.0  # Static analysis
-            aux_b_t = (speed * mu_0) / (
-                rho * cp * oil_supply_temperature * radial_clearance
-            )
+            a_p = -(a_e + a_w + a_n + a_s)
 
-            b_t_g = (
-                mu_0 * speed * (journal_radius**2) * dx * dz * pressure[ii, jj] * h_pt
-            ) / (rho * cp * reference_temperature * (radial_clearance**2))
-
-            b_t_h = (speed * mu_0 * (h_pt**2) * 4.0 * mi_t * dx * dz) / (
-                rho * cp * reference_temperature * 3.0 * h_p_loc
-            )
-
+            # ── Termos fonte (dissipação viscosa) ─────────────────────────
             b_t_i = (
-                aux_b_t
-                * (mi_t * (journal_radius**2) * dx * dz)
-                / (h_p_loc * radial_clearance)
+                aux_b * (mi_t * journal_radius ** 2 * dx * dz)
+                / (h_p * radial_clearance)
             )
-
             b_t_j = (
-                aux_b_t
-                * ((pad_radius**2) * (h_p_loc**3) * (dp_dx[ii, jj] ** 2) * dx * dz)
-                / (12.0 * radial_clearance * (pad_arc**2) * mi_t)
+                aux_b
+                * (pad_radius ** 2 * h_p ** 3 * dp_dx[ii, jj] ** 2 * dx * dz)
+                / (12.0 * radial_clearance * pad_arc ** 2 * mi_t)
             )
-
             b_t_k = (
-                aux_b_t
-                * ((pad_radius**4) * (h_p_loc**3) * (dp_dz[ii, jj] ** 2) * dx * dz)
-                / (12.0 * radial_clearance * (pad_axial_length**2) * mi_t)
+                aux_b
+                * (pad_radius ** 4 * h_p ** 3 * dp_dz[ii, jj] ** 2 * dx * dz)
+                / (12.0 * radial_clearance * pad_axial_length ** 2 * mi_t)
             )
+            b_t[k_idx] = b_t_i + b_t_j + b_t_k
 
-            b_t_val = b_t_g + b_t_h + b_t_i + b_t_j + b_t_k
+            # ── Condições de contorno ─────────────────────────────────────
+            a_p_adj = a_p
 
-            # Boundary condition for west face (oil inlet temperature) - modify source term
-            if jj == 0:
-                b_t[k_t_idx] = b_t_val - 2.0 * a_w * (
-                    T_inlet / reference_temperature
-                )
-            else:
-                b_t[k_t_idx] = b_t_val
-
-            # Fill sparse matrix (COO format)
-            a_p_adjusted = a_p_coef  # Start with base diagonal value
-
-            # Apply boundary condition adjustments to diagonal
+            # South (ii == 0): Neumann 0 — pad adiabático
             if ii == 0:
-                a_p_adjusted += a_s  # South boundary (ADD)
-            if ii == nz - 1:
-                a_p_adjusted += a_n  # North boundary (ADD)
-            if jj == 0:
-                a_p_adjusted -= a_w  # West boundary (SUBTRACT)
-            if jj == nx - 1:
-                a_p_adjusted += a_e  # East boundary (ADD)
+                a_p_adj += a_s          # absorve a_s no diagonal
 
-            # Add diagonal element
-            row_indices[nnz] = k_t_idx
-            col_indices[nnz] = k_t_idx
-            values[nnz] = a_p_adjusted
+            # North (ii == nz-1): Dirichlet T_journal
+            # Usa APENAS a parte condutiva para montar a imagem (garante estabilidade)
+            if ii == nz - 1:
+                # a_cond_axial é sempre <= 0; a BC Dirichlet usa o módulo
+                a_p_adj    -= a_cond_axial                        # += |a_cond_axial|
+                b_t[k_idx] += -2.0 * a_cond_axial * T_j_nd       # += 2|a_cond|*T_j_nd
+                # A parte convectiva a_n_conv é zerada (não entra fluido pelo journal)
+                # → não adiciona off-diagonal norte e não precisa de correção extra
+
+            # West (jj == 0): Dirichlet T_inlet
+            if jj == 0:
+                a_p_adj    -= a_w
+                b_t[k_idx] += -2.0 * a_w * T_in_nd
+
+            # East (jj == nx-1): Neumann 0 — saída adiabática
+            if jj == nx - 1:
+                a_p_adj += a_e          # absorve a_e no diagonal
+
+            # ── Monta COO ─────────────────────────────────────────────────
+            row_indices[nnz] = k_idx
+            col_indices[nnz] = k_idx
+            values[nnz]      = a_p_adj
             nnz += 1
 
-            # Add off-diagonal elements only when neighbors exist
-            # South neighbor (ii > 0)
+            # South neighbor
             if ii > 0:
-                row_indices[nnz] = k_t_idx
-                col_indices[nnz] = k_t_idx - nx
-                values[nnz] = a_s
+                row_indices[nnz] = k_idx
+                col_indices[nnz] = k_idx - nx
+                values[nnz]      = a_s
                 nnz += 1
 
-            # North neighbor (ii < nz - 1)
+            # North neighbor — só se não for fronteira norte (Dirichlet → sem off-diagonal)
             if ii < nz - 1:
-                row_indices[nnz] = k_t_idx
-                col_indices[nnz] = k_t_idx + nx
-                values[nnz] = a_n
+                row_indices[nnz] = k_idx
+                col_indices[nnz] = k_idx + nx
+                values[nnz]      = a_n
                 nnz += 1
 
-            # West neighbor (jj > 0)
+            # West neighbor
             if jj > 0:
-                row_indices[nnz] = k_t_idx
-                col_indices[nnz] = k_t_idx - 1
-                values[nnz] = a_w
+                row_indices[nnz] = k_idx
+                col_indices[nnz] = k_idx - 1
+                values[nnz]      = a_w
                 nnz += 1
 
-            # East neighbor (jj < nx - 1)
+            # East neighbor
             if jj < nx - 1:
-                row_indices[nnz] = k_t_idx
-                col_indices[nnz] = k_t_idx + 1
-                values[nnz] = a_e
+                row_indices[nnz] = k_idx
+                col_indices[nnz] = k_idx + 1
+                values[nnz]      = a_e
                 nnz += 1
 
-            k_t_idx += 1
+            k_idx += 1
 
     return (
         row_indices[:nnz],
         col_indices[:nnz],
         values[:nnz],
         b_t,
-        mu_turb_updated,
+        mu_turb_field,
         reynolds_field,
         nnz,
     )
