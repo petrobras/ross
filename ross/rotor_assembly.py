@@ -567,6 +567,14 @@ class Rotor(object):
         self.G0 = G0
         self.Ksdt0 = Ksdt0
 
+        #set up a vector corresponding to rigid body rotation of the entire rotor
+        #[x_0, y_0, z_0, \alpha_0, \beta_0, \theta_0,
+        v = np.zeros( [self.ndof])
+        v[1::6] = -(self.nodes_pos - self.CG) #y
+        v[3::6] = 1 #alpha
+        #use the vector to compute diametral aka transverse inertia of the entire rotor. This is only calculating Iyy. assuming Ixx is the same.
+        self.It =  v @ ( self.M0 @ v.T ) 
+
     def _set_tag(self, tag):
         """Set the tag for the current rotor."""
         self.tag = tag or "Rotor 0"
@@ -4334,6 +4342,7 @@ class Rotor(object):
             forces,
             self.CG,
             self.Ip,
+            self.It,
             self.tag,
         )
         return results

@@ -2907,3 +2907,48 @@ def test_run_amb_sensitivity():
         results.max_abs_sensitivities["Magnetic Bearing 0"]["x"],
         results_custom_freq.max_abs_sensitivities["Magnetic Bearing 0"]["x"],
     )
+
+
+@pytest.fixture
+def rotor3a():
+    #  same as rotor 3 but no disks
+    i_d = 0
+    o_d = 0.05
+    n = 6
+    L = [0.25 for _ in range(n)]
+
+    shaft_elem = [
+        ShaftElement(
+            l,
+            i_d,
+            o_d,
+            material=steel,
+            shear_effects=True,
+            rotary_inertia=True,
+            gyroscopic=True,
+        )
+        for l in L
+    ]
+
+    stfx = 1e6
+    stfy = 0.8e6
+    bearing0 = BearingElement(0, kxx=stfx, kyy=stfy, cxx=0)
+    bearing1 = BearingElement(6, kxx=stfx, kyy=stfy, cxx=0)
+
+    return Rotor(shaft_elem, [], [bearing0, bearing1])
+
+
+def test_rotor_it(rotor1, rotor3a):
+    L = 0.5
+    od = 0.05
+    r = od / 2    
+    m = np.pi * (r**2) * L * steel.rho
+    It1 = (m / 12) * (3 * r**2 + L**2)
+
+    L = 0.25 * 6
+    m3 = np.pi * (r**2) * L * steel.rho
+    It3 = (m3 / 12) * (3 * r**2 + L**2)
+
+    assert( rotor1.It == pytest.approx(It1, rel=2e-3))
+    assert( rotor3a.It == pytest.approx(It3, rel=2e-3))
+
