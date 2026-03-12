@@ -91,6 +91,10 @@ class Rotor(object):
         List with the bearing elements
     point_mass_elements: list
         List with the point mass elements
+    modal_damping: list
+        List of modal damping ratios for the first modes
+    default_modes: list
+        Float of the remaining unknown modal damping ratios
     tag : str
         A tag for the rotor
 
@@ -148,7 +152,10 @@ class Rotor(object):
         min_w=None,
         max_w=None,
         rated_w=None,
+        modal_damping=[],
+        default_modes=None,
         tag=None,
+        
     ):
         self.parameters = {"min_w": min_w, "max_w": max_w, "rated_w": rated_w}
 
@@ -552,7 +559,7 @@ class Rotor(object):
 
             M0[np.ix_(dofs, dofs)] += elm.M()
             C0[np.ix_(dofs, dofs)] += elm.C()
-            K0[np.ix_(dofs, dofs)] += elm.K()
+            K0[np.ix_(dofs, dofs)] += elm.K()            
             G0[np.ix_(dofs, dofs)] += elm.G()
 
             if elm in self.shaft_elements:
@@ -562,11 +569,11 @@ class Rotor(object):
 
         self.M0 = M0
         self.K0 = K0
-        self.C0 = (
-            C0
-            if self.elements[0].damping_type == "proportional"
-            else self._modal_damping(self.elements[0].qsi)
-        )
+        # Damping configuration
+        self.modal_damping = modal_damping
+        self.default_modals = default_modes
+        damping = "modal" if len(self.modal_damping) != 0 else "proportional"
+        self.C0 = C0 if damping == "proportional" else self._modal_damping(self.modal_damping)
         self.G0 = G0
         self.Ksdt0 = Ksdt0
 
@@ -659,7 +666,7 @@ class Rotor(object):
                     return brg.n
         return None
 
-    def _modal_damping(self, qsi):
+    def _modal_damping(self, modal_damping ):
         """Compute the physical damping matrix from modal damping ratios.
 
         Parameters
@@ -673,27 +680,29 @@ class Rotor(object):
             to the specified modal damping ratios.
         """
 
-        evals, evecs = np.linalg.eig(np.linalg.inv(self.M(0)) @ self.K(0))
+        evals, evecs = np.linalg.eig(np.linalg.inv(self.M(0)) @ self.K0)
         stable = evals >= 0
         evals = evals[stable]
         evecs = evecs[:, stable]
 
         w = np.sqrt(evals.real)
         below_1rpm = Q_(np.sort(w), "rad/s").to("RPM").m < 1
-        modal_damping = np.block([np.zeros(below_1rpm.sum()), np.array(qsi)])
+        modal_damping = np.block(
+            [np.zeros(below_1rpm.sum()), np.array(modal_damping)]
+        )
         idx = np.argsort(w)
         w = w[idx]
         phi = evecs[:, idx]
 
         # Full damping vector (pad with zeros if needed)
-        full_xi = np.zeros_like(w)
+        full_xi = np.ones(w.shape) * np.array(self.default_modals)
         full_xi[: len(modal_damping)] = modal_damping
 
         # Modal damping matrix: C_modal = diag(2 * ξ_i * ω_i)
         C_modal = np.diag(2 * full_xi * w)
-        M_modal = phi.T @ self.M0 @ phi
+        M_modal = phi.T @ self.M(0) @ phi
         T = np.linalg.solve(M_modal, phi.T)
-        C0 = self.M0 @ phi @ C_modal @ T @ self.M0
+        C0 = self.M(0) @ phi @ C_modal @ T @ self.M0
 
         return C0
 
