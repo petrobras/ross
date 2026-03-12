@@ -489,10 +489,6 @@ class ST_Rotor(object):
         out,
         speed_range=None,
         modes=None,
-        cluster_points=False,
-        num_modes=12,
-        num_points=10,
-        rtol=0.005,
     ):
         """Stochastic frequency response for multiples rotor systems.
 
@@ -512,27 +508,6 @@ class ST_Rotor(object):
         modes : list, optional
             Modes that will be used to calculate the frequency response
             (all modes will be used if a list is not given).
-        cluster_points : bool, optional
-            boolean to activate the automatic frequency spacing method. If True, the
-            method uses _clustering_points() to create an speed_range.
-            Default is False
-        num_points : int, optional
-            The number of points generated per critical speed.
-            The method set the same number of points for slightly less and slightly
-            higher than the natural circular frequency. It means there'll be num_points
-            greater and num_points smaller than a given critical speed.
-            num_points may be between 2 and 12. Anything above this range defaults
-            to 10 and anything below this range defaults to 4.
-            The default is 10.
-        num_modes
-            The number of eigenvalues and eigenvectors to be calculated using ARPACK.
-            It also defines the range for the output array, since the method generates
-            points only for the critical speed calculated by run_critical_speed().
-            Default is 12.
-        rtol : float, optional
-            Tolerance (relative) for termination. Applied to scipy.optimize.newton to
-            calculate the approximated critical speeds.
-            Default is 0.005 (0.5%).
 
         Returns
         -------
@@ -560,6 +535,9 @@ class ST_Rotor(object):
         >>> fig = results.plot(conf_interval=[90])
         >>> # fig.show()
         """
+        if speed_range is None:
+            speed_range = list(self)[0].run_freq_response(speed_range=None).speed_range
+
         FRF_size = len(speed_range)
         RV_size = self.RV_size
 
@@ -569,14 +547,7 @@ class ST_Rotor(object):
 
         # Monte Carlo - results storage
         for i, rotor in enumerate(iter(self)):
-            results = rotor.run_freq_response(
-                speed_range,
-                modes,
-                cluster_points,
-                num_modes,
-                num_points,
-                rtol,
-            )
+            results = rotor.run_freq_response(speed_range, modes)
             freq_resp[:, i] = results.freq_resp[inp, out, :]
             velc_resp[:, i] = results.velc_resp[inp, out, :]
             accl_resp[:, i] = results.accl_resp[inp, out, :]
@@ -698,10 +669,6 @@ class ST_Rotor(object):
         unbalance_phase,
         frequency_range=None,
         modes=None,
-        cluster_points=False,
-        num_modes=12,
-        num_points=10,
-        rtol=0.005,
     ):
         """Stochastic unbalance response for multiples rotor systems.
 
@@ -729,32 +696,12 @@ class ST_Rotor(object):
             If there're multiple unbalances and not all of the phases are supposed
             to be stochastic, input a list with repeated values to the unbalance phase
             considered deterministic.
-        frequency_range : list, float
+        frequency_range : list, float, optional
             Array with the desired range of frequencies.
+            Default is 0 to 1.5 x highest damped natural frequency.
         modes : list, optional
             Modes that will be used to calculate the frequency response
             (all modes will be used if a list is not given).
-        cluster_points : bool, optional
-            boolean to activate the automatic frequency spacing method. If True, the
-            method uses _clustering_points() to create an speed_range.
-            Default is False
-        num_points : int, optional
-            The number of points generated per critical speed.
-            The method set the same number of points for slightly less and slightly
-            higher than the natural circular frequency. It means there'll be num_points
-            greater and num_points smaller than a given critical speed.
-            num_points may be between 2 and 12. Anything above this range defaults
-            to 10 and anything below this range defaults to 4.
-            The default is 10.
-        num_modes
-            The number of eigenvalues and eigenvectors to be calculated using ARPACK.
-            It also defines the range for the output array, since the method generates
-            points only for the critical speed calculated by run_critical_speed().
-            Default is 12.
-        rtol : float, optional
-            Tolerance (relative) for termination. Applied to scipy.optimize.newton to
-            calculate the approximated critical speeds.
-            Default is 0.005 (0.5%).
 
         Returns
         -------
@@ -800,6 +747,11 @@ class ST_Rotor(object):
         ...     amplitude_units="m/s**2"
         ... )
         """
+        if frequency_range is None:
+            frequency_range = (
+                list(self)[0].run_freq_response(speed_range=None).speed_range
+            )
+
         RV_size = self.RV_size
         freq_size = len(frequency_range)
         ndof = self.ndof
@@ -809,10 +761,6 @@ class ST_Rotor(object):
             unbalance_phase=unbalance_phase,
             frequency_range=frequency_range,
             modes=modes,
-            cluster_points=cluster_points,
-            num_modes=num_modes,
-            num_points=num_points,
-            rtol=rtol,
         )
 
         forced_resp = np.zeros((RV_size, ndof, freq_size), dtype=complex)
@@ -843,7 +791,7 @@ class ST_Rotor(object):
         else:
             for i, rotor in enumerate(iter(self)):
                 results = rotor.run_unbalance_response(
-                    node, unbalance_magnitude, unbalance_phase, frequency_range
+                    node, unbalance_magnitude, unbalance_phase, frequency_range, modes
                 )
                 forced_resp[i] = results.forced_resp
                 velc_resp[i] = results.velc_resp
