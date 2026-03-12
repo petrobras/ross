@@ -1546,7 +1546,13 @@ class SealElement(BearingElement):
         )
 
         if self.seal_leakage is not None:
-            hovertemplate += f"Seal Leakage: {self.seal_leakage:.3e}<br>"
+            if hasattr(self.seal_leakage, "__iter__"):
+                hovertemplate += (
+                    f"Seal Leakage: {self.seal_leakage[0]:.3e} ... "
+                    f"{self.seal_leakage[-1]:.3e}<br>"
+                )
+            else:
+                hovertemplate += f"Seal Leakage: {self.seal_leakage:.3e}<br>"
 
         customdata = [self.n]
 
