@@ -92,6 +92,17 @@ class Element(ABC):
 
     @classmethod
     def load(cls, file):
+        """Load an element from a .toml or .json file.
+
+        Parameters
+        ----------
+        file : str, pathlib.Path
+            The name of the file the element will be loaded from.
+
+        Returns
+        -------
+        The element object.
+        """
         data = load_data(file)
         # extract single dictionary in the data
         data = list(data.values())[0]
@@ -99,6 +110,13 @@ class Element(ABC):
 
     @classmethod
     def get_subclasses(cls):
+        """Get all subclasses of the Element class.
+
+        Returns
+        -------
+        subclasses : list
+            A list containing all subclasses of the Element class.
+        """
         subclasses = []
         for subclass in cls.__subclasses__():
             subclasses.append(subclass)

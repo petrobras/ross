@@ -8,10 +8,35 @@ class ModelReduction:
     subclasses = {}
 
     def __init_subclass__(cls, **kwargs):
+        """Register subclasses in the subclasses dictionary.
+
+        Parameters
+        ----------
+        cls : ModelReduction
+            The subclass to be registered.
+        **kwargs : dict
+            Additional keyword arguments.
+        """
         super().__init_subclass__(**kwargs)
         ModelReduction.subclasses[cls.__name__.lower()] = cls
 
     def __new__(cls, method="guyan", **kwargs):
+        """Factory method to return instances of subclasses based on the method argument.
+
+        Parameters
+        ----------
+        cls : ModelReduction
+            The ModelReduction class.
+        method : str, optional
+            The reduction method to be used ('guyan' or 'pseudomodal').
+            Default is 'guyan'.
+        **kwargs : dict
+            Additional keyword arguments to be passed to the subclass constructor.
+
+        Returns
+        -------
+        An instance of a ModelReduction subclass.
+        """
         if cls is ModelReduction:
             subcls = ModelReduction.subclasses.get(method.lower())
 
@@ -223,7 +248,18 @@ class Guyan(ModelReduction):
         self.transf_matrix = self.get_transformation_matrix()
 
     def _select_elem_dofs(self, local_dofs):
-        """Select DOFs from rotor bearings and disks"""
+        """Select DOFs from rotor bearings and disks.
+
+        Parameters
+        ----------
+        local_dofs : list of int
+            List of local DOFs to be selected.
+
+        Returns
+        -------
+        selected_dofs : list of int
+            List of selected global DOFs.
+        """
         selected_dofs = []
         elements = self.rotor.bearing_elements + self.rotor.disk_elements
 
@@ -292,7 +328,18 @@ class Guyan(ModelReduction):
         return Tg
 
     def _rearrange_matrix(self, matrix):
-        """Rearrange matrix based on selected and ignored DOFs"""
+        """Rearrange matrix based on selected and ignored DOFs.
+
+        Parameters
+        ----------
+        matrix : np.ndarray
+            The matrix to be rearranged.
+
+        Returns
+        -------
+        rearranged_matrix : np.ndarray
+            The rearranged matrix.
+        """
         return np.block(
             [
                 [

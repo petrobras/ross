@@ -1685,6 +1685,28 @@ class Rotor(object):
         was made to convert `speed_range` and `modes` to a tuple format and to enable
         the use of the `@lru_cache()` method, which requires hashable arguments to cache
         results effectively.
+
+        Parameters
+        ----------
+        speed_range : tuple, optional
+            Tuple with the desired range of frequencies.
+        modes : tuple, optional
+            Modes that will be used to calculate the frequency response.
+        cluster_points : bool, optional
+            If True, creates an speed_range with clustered points.
+        num_modes : int, optional
+            The number of eigenvalues and eigenvectors to be calculated.
+        num_points : int, optional
+            The number of points generated per critical speed.
+        rtol : float, optional
+            Tolerance (relative) for termination.
+        free_free : bool, optional
+            If True, the method will consider the rotor system as free-free.
+
+        Returns
+        -------
+        results : ross.FrequencyResponseResults
+            Frequency response results object.
         """
 
         if speed_range is None:
@@ -4528,7 +4550,21 @@ class Rotor(object):
 
     @classmethod
     def to_ross_only(cls, rotor):
-        """Convert rotor with rsxl objects to ross only."""
+        """Convert a rotor object to a ross-only rotor object.
+
+        This method removes any non-ross elements from the rotor object and returns
+        a new ross.Rotor instance.
+
+        Parameters
+        ----------
+        rotor : ross.Rotor
+            The rotor object to be converted.
+
+        Returns
+        -------
+        ross.Rotor
+            A new ross.Rotor instance with only ross elements.
+        """
         bearings_seals_rs = []
         for b in rotor.bearing_elements:
             if isinstance(b, SealElement):

@@ -20,6 +20,20 @@ __all__ = ["GearElement", "GearElementTVMS", "Mesh"]
 
 
 def mod(val, max_val):
+    """Calculates the remainder of a division, but replaces 0 with max_val.
+
+    Parameters
+    ----------
+    val : float or array-like
+        The value(s) to be divided.
+    max_val : float
+        The divisor.
+
+    Returns
+    -------
+    mod : float or array-like
+        The remainder of the division, or max_val if the remainder is 0 and val is not 0.
+    """
     mod = np.mod(val, max_val)
     return np.where((np.isclose(mod, 0)) & (val != 0), max_val, mod)
 
@@ -805,6 +819,19 @@ class GearElementTVMS(GearElement):
         return inv_ka
 
     def _integrate_transiction_term(self, func):
+        """Integrates a function over the transition region of the gear tooth.
+
+        Parameters
+        ----------
+        func : callable
+            The function to be integrated. It should accept the angle, the curve
+            computation method, and the differential method.
+
+        Returns
+        -------
+        inv_k_t : float
+            The integrated inverse stiffness value for the transition region.
+        """
         inv_k_t, _ = sp.integrate.quad(
             lambda gamma: func(gamma, self._compute_transition_curve, self._diff_gamma),
             np.pi / 2,
@@ -813,6 +840,21 @@ class GearElementTVMS(GearElement):
         return inv_k_t
 
     def _integrate_invol_term(self, func, beta):
+        """Integrates a function over the involute region of the gear tooth.
+
+        Parameters
+        ----------
+        func : callable
+            The function to be integrated. It should accept the angle, the curve
+            computation method, and the differential method.
+        beta : float
+            The upper limit of integration (current contact angle).
+
+        Returns
+        -------
+        inv_k_i : float
+            The integrated inverse stiffness value for the involute region.
+        """
         tau_c = self.tau_c
         inv_k_i, error = sp.integrate.quad(
             lambda tau: func(tau, self._compute_involute_curve, self._diff_tau),
@@ -1093,6 +1135,20 @@ class Mesh:
         return stiffness
 
     def _calculate_contact_ratio(self, driving_addendum_radius, driven_addendum_radius):
+        """Calculates the contact ratio of the gear pair.
+
+        Parameters
+        ----------
+        driving_addendum_radius : float
+            Addendum radius of the driving gear (m).
+        driven_addendum_radius : float
+            Addendum radius of the driven gear (m).
+
+        Returns
+        -------
+        contact_ratio : float
+            The calculated contact ratio.
+        """
         rb1 = self.driving_gear.base_radius
         rb2 = self.driven_gear.base_radius
 

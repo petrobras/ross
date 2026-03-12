@@ -819,6 +819,48 @@ def newmark(func, t, y_size, **options):
 
 @njit
 def _converge_newmark(ny, y0, ydot0, y2dot0, dt, M, C, K, RHS, gamma, beta, tol):
+    """Helper function for the Newmark method to handle convergence.
+
+    This function performs Newton-Raphson iterations to find the state of the system
+    at the next time step, ensuring that the equations of motion are satisfied
+    within a specified tolerance.
+
+    Parameters
+    ----------
+    ny : int
+        Size of the state vector.
+    y0 : ndarray
+        Displacement at the current time step.
+    ydot0 : ndarray
+        Velocity at the current time step.
+    y2dot0 : ndarray
+        Acceleration at the current time step.
+    dt : float
+        Time step.
+    M : ndarray
+        Mass matrix.
+    C : ndarray
+        Damping matrix.
+    K : ndarray
+        Stiffness matrix.
+    RHS : ndarray
+        Right-hand side vector.
+    gamma : float
+        Newmark integration parameter.
+    beta : float
+        Newmark integration parameter.
+    tol : float
+        Convergence tolerance.
+
+    Returns
+    -------
+    y0 : ndarray
+        Displacement at the next time step.
+    ydot0 : ndarray
+        Velocity at the next time step.
+    y2dot0 : ndarray
+        Acceleration at the next time step.
+    """
     y2dot = np.zeros(ny)
     ydot = ydot0 + y2dot0 * (1 - gamma) * dt
     y = y0 + ydot0 * dt + y2dot0 * (0.5 - beta) * (dt**2)

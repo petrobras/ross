@@ -23,7 +23,7 @@ class PointMass(Element):
     Parameters
     ----------
     n: int
-        Node which the bearing will be located in.
+        Node in which the point mass will be located.
     m: float, pint.Quantity, optional
         Mass for the element.
     mx: float, pint.Quantity, optional

@@ -346,6 +346,22 @@ class Orbit(Results):
 
 @njit
 def _init_orbit(ru_e, rv_e):
+    """Helper function to initialize orbit parameters for plotting.
+
+    Parameters
+    ----------
+    ru_e : complex
+        Element in the vector corresponding to the x direction.
+    rv_e : complex
+        Element in the vector corresponding to the y direction.
+
+    Returns
+    -------
+    tuple
+        A tuple containing (x_circle, y_circle, angle, major_x, major_y,
+        major_angle, minor_angle, major_index, nu, nv, minor_axis,
+        major_axis, kappa).
+    """
     # data for plotting
     x_circle = np.real(ru_e * CIRCLE)
     y_circle = np.real(rv_e * CIRCLE)
@@ -481,6 +497,11 @@ class Shape(Results):
             self._calculate()
 
     def _classify(self):
+        """Classify the mode type.
+
+        Classifies the mode type as Lateral, Axial, or Torsional based on the
+        predominant degree of freedom in the eigenvector.
+        """
         self.mode_type = "Lateral"
 
         if self.number_dof == 6:
@@ -510,6 +531,7 @@ class Shape(Results):
             self.color = tableau_colors["green"]
 
     def _calculate_orbits(self):
+        """Calculate orbits for each node in the shape."""
         orbits = []
         whirl = []
         for node, node_pos in zip(self.nodes, self.nodes_pos):
@@ -531,6 +553,10 @@ class Shape(Results):
             self.color = tableau_colors["gray"]
 
     def _calculate(self):
+        """Calculate shape data for plotting.
+
+        Includes calculation of orbits and node positions for visualization.
+        """
         if self.mode_type == "Lateral":
             evec = self._evec
             nodes = self.nodes
@@ -687,6 +713,26 @@ class Shape(Results):
     def _plot_axial(
         self, plot_dimension=None, animation=False, length_units="m", fig=None
     ):
+        """Plot axial mode shape.
+
+        Parameters
+        ----------
+        plot_dimension : int, optional
+            Dimension of the plot (2 or 3).
+        animation : bool, optional
+            If True, creates an animated plot.
+            Default is False.
+        length_units : str, optional
+            Length units for the plot.
+            Default is 'm'.
+        fig : plotly.graph_objects.Figure, optional
+            Plotly figure object to add the plot to.
+
+        Returns
+        -------
+        fig : plotly.graph_objects.Figure
+            The figure object with the axial plot.
+        """
         if fig is None:
             fig = go.Figure()
 
@@ -919,6 +965,26 @@ class Shape(Results):
     def _plot_torsional(
         self, plot_dimension=None, animation=False, length_units="m", fig=None
     ):
+        """Plot torsional mode shape.
+
+        Parameters
+        ----------
+        plot_dimension : int, optional
+            Dimension of the plot (2 or 3).
+        animation : bool, optional
+            If True, creates an animated plot.
+            Default is False.
+        length_units : str, optional
+            Length units for the plot.
+            Default is 'm'.
+        fig : plotly.graph_objects.Figure, optional
+            Plotly figure object to add the plot to.
+
+        Returns
+        -------
+        fig : plotly.graph_objects.Figure
+            The figure object with the torsional plot.
+        """
         if fig is None:
             fig = go.Figure()
 
@@ -1262,6 +1328,27 @@ class Shape(Results):
     def _plot_orbits(
         self, animation=False, length_units="m", phase_units="rad", fig=None
     ):
+        """Plot orbits in 3D.
+
+        Parameters
+        ----------
+        animation : bool, optional
+            If True, creates an animated plot.
+            Default is False.
+        length_units : str, optional
+            Length units for the plot.
+            Default is 'm'.
+        phase_units : str, optional
+            Phase units for the plot.
+            Default is 'rad'.
+        fig : plotly.graph_objects.Figure, optional
+            Plotly figure object to add the plot to.
+
+        Returns
+        -------
+        fig : plotly.graph_objects.Figure
+            The figure object with the orbits plot.
+        """
         if fig is None:
             fig = go.Figure()
 
@@ -1645,6 +1732,7 @@ class ModalResults(Results):
         self.update_mode_shapes()
 
     def update_mode_shapes(self):
+        """Update mode shapes based on eigenvectors."""
         self.modes = self.evectors[: self.ndof]
         self.shapes = []
         for mode in range(len(self.wn)):
@@ -2216,6 +2304,11 @@ class CampbellResults(Results):
         Sort the Campbell result arrays (`wd`, `log_dec`, `damping_ratio`, `whirl_values`)
         by mode type, so as to force the axial and torsional modes to be at the end
         of the arrays.
+
+        Returns
+        -------
+        mode_type : np.ndarray
+            Array with mode types after sorting.
         """
 
         wd = self.wd
@@ -2530,6 +2623,36 @@ class CampbellResults(Results):
         fig=None,
         **kwargs,
     ):
+        """Helper method to plot Campbell diagram with mode shape.
+
+        Parameters
+        ----------
+        harmonics : list, optional
+            List with the harmonics to be plotted.
+        frequency_units : str, optional
+            Frequency units.
+        speed_units : str, optional
+            Speed units.
+        damping_parameter : str, optional
+            Damping parameter to show.
+        frequency_range : tuple, optional
+            Frequency range to plot.
+        damping_range : tuple, optional
+            Damping range to plot.
+        campbell_layout : dict, optional
+            Layout for Campbell plot.
+        mode_3d_layout : dict, optional
+            Layout for 3D mode plot.
+        animation : bool, optional
+            If True, enables animation.
+        fig : plotly.graph_objects.Figure, optional
+            Plotly figure object.
+
+        Returns
+        -------
+        tuple
+            A tuple containing (camp_fig, update_mode_3d).
+        """
         camp_fig = self.plot(
             harmonics=harmonics,
             frequency_units=frequency_units,
@@ -2597,6 +2720,30 @@ class CampbellResults(Results):
         damping_parameter,
         animation,
     ):
+        """Helper method to update 3D mode shape plot.
+
+        Parameters
+        ----------
+        speed : float
+            Speed value.
+        natural_frequency : float
+            Natural frequency value.
+        modal_results_crit : dict
+            Modal results for critical speeds.
+        speed_units : str
+            Speed units.
+        frequency_units : str
+            Frequency units.
+        damping_parameter : str
+            Damping parameter to show.
+        animation : bool
+            If True, enables animation.
+
+        Returns
+        -------
+        fig : plotly.graph_objects.Figure
+            Updated 3D mode shape figure.
+        """
         try:
             speed_key = min(
                 self.modal_results.keys(),
@@ -6183,6 +6330,30 @@ class UCSResults(Results):
 
 
 class HarmonicBalanceResults(Results):
+    """Class used to store results and provide plots for Harmonic Balance Analysis.
+    Stores and provides methods for post-processing results from Harmonic Balance
+    analysis.
+
+    Parameters
+    ----------
+    rotor : ross.Rotor
+        Rotor object.
+    speed : float
+        Rotor rotational speed (rad/s).
+    t : array
+        Time array (s).
+    Qt : array
+        Complex displacement vector in frequency domain.
+    Qo : array
+        Static displacement vector.
+    dQ : array
+        Harmonic displacement coefficients.
+    dQ_s : array
+        Complex conjugate of harmonic coefficients.
+    n_harmonics : int
+        Number of harmonics.
+    """
+
     def __init__(self, rotor, speed, t, Qt, Qo, dQ, dQ_s, n_harmonics):
         self.rotor = rotor
         self.speed = speed

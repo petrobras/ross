@@ -233,7 +233,20 @@ class BearingElement(Element):
         self.dof_global_index = None
 
     def _process_coefficient(self, coefficient):
-        """Helper function used to process the coefficient data."""
+        """Helper function used to process the coefficient data.
+
+        Parameters
+        ----------
+        coefficient : float, array
+            The coefficient data to be processed.
+
+        Returns
+        -------
+        coefficient : float, array
+            The processed coefficient data.
+        interpolated : callable
+            A callable for interpolating the coefficient data.
+        """
         interpolated = None
 
         if isinstance(coefficient, (int, float)):
@@ -276,7 +289,14 @@ class BearingElement(Element):
         return coefficient, interpolated
 
     def _get_coefficient_list(self, ignore_mass=False):
-        """List with all bearing coefficients as strings"""
+        """List with all bearing coefficients as strings
+
+        Parameters
+        ----------
+        ignore_mass : bool, optional
+            If True, mass coefficients are excluded from the list.
+            Default is False.
+        """
         coefficients = [
             attr.replace("_interpolated", "")
             for attr in self.__dict__.keys()
@@ -1172,8 +1192,6 @@ class BearingFluidFlow(BearingElement):
         Number of points along the Z direction (direction of flow).
     ntheta: int
         Number of points along the direction theta. NOTE: ntheta must be odd.
-    nradius: int
-        Number of points along the direction r.
     length: float
         Length in the Z direction (m).
 
@@ -1413,7 +1431,7 @@ class SealElement(BearingElement):
         Default is None.
     scale_factor : float, optional
         The scale factor is used to scale the bearing drawing.
-        Default is 0.5.
+        Defaults to half the parent BearingElement's scale factor if not provided.
     color : str, optional
         A color to be used when the element is represented.
         Default is "#77ACA2".
@@ -1468,6 +1486,7 @@ class SealElement(BearingElement):
         **kwargs,
     ):
         self.seal_leakage = seal_leakage
+
 
         super().__init__(
             n=n,

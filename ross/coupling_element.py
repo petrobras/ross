@@ -77,10 +77,10 @@ class CouplingElement(ShaftElement):
         Default is 0.
     o_d : float, optional
         Outer diameter (m). This parameter is primarily used for visualization
-        purposes and does not affect calculations.
+        purposes and does not affect calculations. Default is 0.2.
     L : float, optional
         Element length (m). This parameter is primarily used for visualization
-        purposes and does not affect calculations.
+        purposes and does not affect calculations. Default is 0.2.
     n : int, optional
         Element number (coincident with it's first node).
         If not given, it will be set when the rotor is assembled
@@ -227,6 +227,17 @@ class CouplingElement(ShaftElement):
 
     @classmethod
     def read_toml_data(cls, data):
+        """Read and parse data stored in a .toml or .json file.
+
+        Parameters
+        ----------
+        data : dict
+            Dictionary obtained from toml.load() or json.load().
+
+        Returns
+        -------
+        The element object.
+        """
         return cls(**data)
 
     def M(self):
@@ -344,6 +355,15 @@ class CouplingElement(ShaftElement):
         return K
 
     def Kst(self):
+        """Stiffness matrix for an instance of a coupling element.
+
+        For a coupling element, the stiffness matrix is a 12x12 numpy array of zeros.
+
+        Returns
+        -------
+        Kst : np.ndarray
+            A 12x12 numpy array of zeros.
+        """
         return np.zeros((12, 12))
 
     def C(self):

@@ -431,6 +431,17 @@ class ShaftElement(Element):
 
     @classmethod
     def read_toml_data(cls, data):
+        """Read and parse data stored in a .toml or .json file.
+
+        Parameters
+        ----------
+        data : dict
+            Dictionary obtained from toml.load() or json.load().
+
+        Returns
+        -------
+        The element object.
+        """
         data["material"] = Material(**data["material"])
         return cls(**data)
 
