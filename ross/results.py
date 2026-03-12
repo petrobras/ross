@@ -2752,6 +2752,7 @@ class FrequencyResponseResults(Results):
         frequency_units="rad/s",
         amplitude_units="m/N",
         fig=None,
+        line_shape="linear",
         **mag_kwargs,
     ):
         """Plot frequency response (magnitude) using Plotly.
@@ -2783,6 +2784,9 @@ class FrequencyResponseResults(Results):
             To use peak to peak use '<unit> pkpk' (e.g. 'm/N pkpk')
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
+        line_shape : str, optional
+            Line interpolation style for the Plotly trace (e.g. "linear", "spline").
+            Default is "linear".
         mag_kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -2825,7 +2829,7 @@ class FrequencyResponseResults(Results):
                 x=frequency_range,
                 y=mag[inp, out, :],
                 mode="lines",
-                line=dict(color=list(tableau_colors)[idx]),
+                line=dict(color=list(tableau_colors)[idx], shape=line_shape),
                 name=f"inp: node {inpn} | dof: {idof}<br>out: node {outn} | dof: {odof}",
                 legendgroup=f"inp: node {inpn} | dof: {idof}<br>out: node {outn} | dof: {odof}",
                 showlegend=True,
@@ -3479,6 +3483,7 @@ class ForcedResponseResults(Results):
         frequency_units="rad/s",
         amplitude_units="m",
         fig=None,
+        line_shape="linear",
         **kwargs,
     ):
         """Plot forced response (magnitude) using Plotly.
@@ -3507,6 +3512,9 @@ class ForcedResponseResults(Results):
             To use peak to peak use '<unit> pkpk' (e.g. 'm pkpk')
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
+        line_shape : str, optional
+            Line interpolation style for the Plotly trace (e.g. "linear", "spline").
+            Default is "linear".
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -3528,7 +3536,7 @@ class ForcedResponseResults(Results):
                     x=df["frequency"],
                     y=df[column],
                     mode="lines",
-                    line=dict(color=list(tableau_colors)[i]),
+                    line=dict(color=list(tableau_colors)[i], shape=line_shape),
                     name=column,
                     legendgroup=column,
                     showlegend=True,

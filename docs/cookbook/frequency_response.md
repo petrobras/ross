@@ -16,7 +16,6 @@ frf = rotor.run_freq_response(speed_range=speed_range)
 ```
 
 - `speed_range` (array): frequency range in rad/s (auto-selected if None)
-- `cluster_points` (bool): add points near resonances
 - `free_free` (bool): if True, ignore bearing stiffness (free-free condition)
 
 ### DOF Indexing for FRF
