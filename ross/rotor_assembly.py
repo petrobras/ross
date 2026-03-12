@@ -4143,19 +4143,21 @@ class Rotor(object):
         aux_brg = []
         aux_brg_1 = []
         for elm in self.bearing_elements:
-            if not isinstance(elm, SealElement):
-                if elm.n not in self.nodes:
-                    pass
-                elif elm.n_link in self.nodes:
-                    aux_brg.append(
-                        elm.__class__(n=elm.n, n_link=elm.n_link, kxx=1e20, cxx=0)
-                    )
-                    aux_brg_1.append(
-                        elm.__class__(n=elm.n, n_link=elm.n_link, kxx=0, cxx=0)
-                    )
-                else:
-                    aux_brg.append(elm.__class__(n=elm.n, kxx=1e20, cxx=0))
-                    aux_brg_1.append(elm.__class__(n=elm.n, kxx=0, cxx=0))
+            # Static analysis uses only bearing supports; seals are skipped
+            # (see SealElement docstring in bearing_seal_element.py).
+            if isinstance(elm, SealElement):
+                continue
+
+            if elm.n not in self.nodes:
+                continue
+
+            n_link = (
+                elm.n_link
+                if (elm.n_link is not None and elm.n_link in self.nodes)
+                else None
+            )
+            aux_brg.append(BearingElement(n=elm.n, n_link=n_link, kxx=1e20, cxx=0))
+            aux_brg_1.append(BearingElement(n=elm.n, n_link=n_link, kxx=0, cxx=0))
 
         aux_rotor = Rotor(self.shaft_elements, self.disk_elements, aux_brg)
         aux_rotor_1 = Rotor(self.shaft_elements, self.disk_elements, aux_brg_1)
