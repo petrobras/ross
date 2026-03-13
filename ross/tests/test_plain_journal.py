@@ -35,10 +35,6 @@ def plain_journal_perturbation():
         operating_type="flooded",
         oil_supply_pressure=0,
         oil_flow_v=oil_flow,
-        show_coeffs=False,
-        print_result=False,
-        print_progress=False,
-        print_time=False,
     )
 
     return bearing
@@ -74,10 +70,6 @@ def plain_journal_lund():
         operating_type="flooded",
         oil_supply_pressure=0,
         oil_flow_v=oil_flow,
-        show_coeffs=False,
-        print_result=False,
-        print_progress=False,
-        print_time=False,
     )
 
     return bearing

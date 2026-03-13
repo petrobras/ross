@@ -40,7 +40,7 @@ class TiltingPad(BearingElement):
        - Each pad rotates independently about its pivot point
 
     4. **Dynamic Coefficients** (stiffness and damping):
-       - Uses Lund's perturbation method :cite:`lund1978`
+       - Uses virtual perturbations of displacements and speeds to determine the coefficients
        - Applies small perturbations to journal position (0.5% of clearance)
        - Applies small perturbations to journal velocity (2.5% of operating speed)
        - Solves complete THD problem for each perturbation state
@@ -106,14 +106,6 @@ class TiltingPad(BearingElement):
         External load in Y direction. Default unit is Newton.
     initial_pads_angles : array_like, optional
         Initial pad angles. Default unit is radians.
-    print_result : bool, optional
-        Print calculation results. Default is False.
-    print_progress : bool, optional
-        Print calculation progress. Default is False.
-    print_time : bool, optional
-        Print calculation time. Default is False.
-    compare_coefficients : bool, optional
-        Whether to compare dynamic coefficients by each frequency in a table. Default is False.
     **kwargs : dict, optional
         Additional keyword arguments.
 
@@ -168,7 +160,6 @@ class TiltingPad(BearingElement):
     ...     offset=[0.5]*5,
     ...     lubricant="ISOVG32",
     ...     oil_supply_temperature=Q_(40, "degC"),
-    ...     print_result=False,
     ...     eccentricity=0.483,
     ...     attitude_angle=Q_(267.5, "deg")
     ... )
@@ -200,11 +191,7 @@ class TiltingPad(BearingElement):
         fxs_load=None,
         fys_load=None,
         initial_pads_angles=None,
-        print_result=False,
-        print_progress=False,
-        print_time=False,
         model_type="thermo_hydro_dynamic",
-        compare_coefficients=False,
         **kwargs,
     ):
         self.n = n
@@ -261,12 +248,6 @@ class TiltingPad(BearingElement):
         self.xtheta = np.zeros(self.nx)
         self.xtheta[0] = self.theta_1 + 0.5 * self.dtheta
 
-        # Print results
-        self.print_result = print_result
-        self.print_progress = print_progress
-        self.print_time = print_time
-        self.compare_coefficients = compare_coefficients
-
         # Lubricant properties setup
         if isinstance(lubricant, str):
             if lubricant not in lubricants_dict:
@@ -299,6 +280,24 @@ class TiltingPad(BearingElement):
 
         self._initialize_arrays()
 
+        # Storage lists for results at each frequency
+        self.maxP_list = []
+        self.maxT_list = []
+        self.minH_list = []
+        self.ecc_list = []
+        self.attitude_angle_list = []
+        self.psi_pad_list = []
+        self.force_x_total_list = []
+        self.force_y_total_list = []
+        self.momen_rot_list = []
+
+        # Storage lists for field data at each frequency
+        self.pressure_fields = []
+        self.temperature_fields = []
+
+        # Optimization convergence tracking
+        self.optimization_history = {}
+
         n_freq = np.shape(self.frequency)[0]
 
         kxx = np.zeros(n_freq)
@@ -313,6 +312,8 @@ class TiltingPad(BearingElement):
 
         for i in range(n_freq):
             self.speed = self.frequency[i]
+            self._current_freq_index = i
+            self.optimization_history[i] = []
 
             if self.model_type == "thermo_hydro_dynamic":
                 self.run_thermo_hydro_dynamic()
@@ -333,18 +334,6 @@ class TiltingPad(BearingElement):
             frequency=frequency,
             **kwargs,
         )
-
-        if self.compare_coefficients:
-            comparison_table = self.format_table(
-                frequency=self.frequency,
-                coefficients=["kxx", "kxy", "kyx", "kyy", "cxx", "cxy", "cyx", "cyy"],
-                frequency_units="RPM",
-                stiffness_units="N/m",
-                damping_units="N*s/m",
-            )
-
-            print(comparison_table)
-            print("=" * 60)
 
     def run_thermo_hydro_dynamic(self):
         """
@@ -408,8 +397,7 @@ class TiltingPad(BearingElement):
         >>> bearing = tilting_pad_example()
         """
 
-        if self.print_time:
-            t1 = time.time()
+        self.initial_time = time.time()
 
         self.dimensionless_force = np.full(
             self.n_pad,
@@ -424,31 +412,9 @@ class TiltingPad(BearingElement):
 
         maxP, medP, maxT, medT, h_pivot, ecc = self.solve_fields()
 
-        if self.print_result:
-            print("Maximum Values:")
-            print("-" * 75)
-            print("Maximum Pressure (Pmax)    : {:15.4f} Pa".format(maxP))
-            print("Maximum Temperature (Tmax)  : {:15.2f} °C".format(maxT))
-            print("Eccentricity              : {:15.4f} [-]".format(ecc))
-            print("Minimum Film Thickness    : {:15.8f} m".format(h_pivot))
-            print("=" * 75)
-
         self.coefficients()
 
-        if self.print_result:
-            print("kxx = {0}".format(self.kxx))
-            print("kxy = {0}".format(self.kxy))
-            print("kyx = {0}".format(self.kyx))
-            print("kyy = {0}".format(self.kyy))
-            print("cxx = {0}".format(self.cxx))
-            print("cxy = {0}".format(self.cxy))
-            print("cyx = {0}".format(self.cyx))
-            print("cyy = {0}".format(self.cyy))
-            self.plot_results()
-
-        if self.print_time:
-            t2 = time.time()
-            print("Calculation time spent: {0:.2f} seconds".format(t2 - t1))
+        self.final_time = time.time()
 
     def coefficients(self):
         """
@@ -1562,38 +1528,15 @@ class TiltingPad(BearingElement):
             self.force_x_dim = np.sum(self.force_x_dim)
             self.force_y_dim = np.sum(self.force_y_dim)
 
+            self.ecc_list.append(self.eccentricity)
+            self.attitude_angle_list.append(self.attitude_angle)
+            self.psi_pad_list.append(ang_rot.copy())
+            self.force_x_total_list.append(self.force_x_dim)
+            self.force_y_total_list.append(self.force_y_dim)
+            self.momen_rot_list.append(momen_rot.copy())
+
             self.xdin = np.zeros(self.n_pad + 2)
             self.xdin = [self.eccentricity, self.attitude_angle] + list(ang_rot)
-
-            if self.print_result:
-                print("\n" + "=" * 75)
-                print("                    TILTING PAD BEARING RESULTS")
-                print("=" * 75)
-                print("Operating Speed: {0:.1f} RPM".format(self.speed))
-                print("Eccentricity: {0:.4f}".format(self.eccentricity))
-                print(
-                    "Attitude Angle: {0:.1f}°".format(np.degrees(self.attitude_angle))
-                )
-                print("-" * 75)
-                print(
-                    "Pad #    Moment [N.m]    Rotation Angle [RAD]    Rotation Angle [DEG]"
-                )
-                print("-" * 75)
-                for i in range(len(momen_rot)):
-                    angle_deg = np.degrees(ang_rot[i])
-                    print(
-                        "{0:2d}    {1:15.6f}     {2:15.6f}     {3:15.6f}".format(
-                            i + 1, momen_rot[i], ang_rot[i], angle_deg
-                        )
-                    )
-                print("-" * 75)
-                print("Total    force_x [N]    force_y [N]    Pads:")
-                print(
-                    "        {0:15.6f}     {1:15.6f}     {2:15d}".format(
-                        self.force_x_dim, self.force_y_dim, self.n_pad
-                    )
-                )
-                print("=" * 75)
 
         elif self.equilibrium_type == "determine_eccentricity":
             # Initial guess: [eccentricity, attitude_angle, pad_angles...]
@@ -1624,33 +1567,12 @@ class TiltingPad(BearingElement):
             # Update state vector
             self.xdin = x_opt.copy()
 
-            if self.print_result:
-                print("\n" + "=" * 75)
-                print("                    TILTING PAD BEARING RESULTS")
-                print("=" * 75)
-                print("Operating Speed: {0:.1f} RPM".format(self.speed))
-                print("Eccentricity: {0:.4f}".format(self.eccentricity))
-                print(
-                    "Attitude Angle: {0:.1f}°".format(np.degrees(self.attitude_angle))
-                )
-                print("-" * 75)
-                print("Pad #    Rotation Angle [RAD]    Rotation Angle [DEG]")
-                print("-" * 75)
-                for i in range(self.n_pad):
-                    angle_deg = np.degrees(self.psi_pad[i])
-                    print(
-                        "{0:2d}    {1:15.6f}     {2:15.6f}".format(
-                            i + 1, self.psi_pad[i], angle_deg
-                        )
-                    )
-                print("-" * 75)
-                print("Total    force_x [N]    force_y [N]    Pads:")
-                print(
-                    "        {0:15.6f}     {1:15.6f}     {2:15d}".format(
-                        np.sum(self.force_x_dim), np.sum(self.force_y_dim), self.n_pad
-                    )
-                )
-                print("=" * 75)
+            self.ecc_list.append(self.eccentricity)
+            self.attitude_angle_list.append(self.attitude_angle)
+            self.psi_pad_list.append(self.psi_pad.copy())
+            self.force_x_total_list.append(np.sum(self.force_x_dim))
+            self.force_y_total_list.append(np.sum(self.force_y_dim))
+            self.momen_rot_list.append(None)
 
         # Continue with thermo-hydrodynamic field solution
         psi_pad = np.zeros(self.n_pad)
@@ -1941,6 +1863,14 @@ class TiltingPad(BearingElement):
         med_t = self.temperature_init[:, :, self.pad_in].mean()
         h_pivot = self.h_pivot[self.pad_in]
         ecc = np.sqrt(xr**2 + yr**2) / self.radial_clearance
+
+        self.maxP_list.append(max_p)
+        self.maxT_list.append(max_t)
+        self.minH_list.append(h_pivot)
+
+        # Store complete fields for plotting
+        self.pressure_fields.append(self.pressure_dim.copy())
+        self.temperature_fields.append(self.temperature_init.copy())
 
         return max_p, med_p, max_t, med_t, h_pivot, ecc
 
@@ -2245,36 +2175,8 @@ class TiltingPad(BearingElement):
 
         score = np.linalg.norm(FM)
 
-        if self.print_progress:
-            # Clear screen and rewrite
-            print("\033[2J\033[H", end="")
-
-            # Organized optimization display
-            print("=" * 80)
-            print(
-                f"                    EQUILIBRIUM OPTIMIZATION - ITERATION {self.iteration_count}"
-            )
-            print("=" * 80)
-            print(f"Eccentricity:     {eccentricity:12.6f}")
-            print(
-                f"Attitude Angle:   {np.degrees(attitude_angle):12.2f}° ({attitude_angle:12.6f} rad)"
-            )
-            print("-" * 80)
-            print("Pad #    Rotation Angle [RAD]    Rotation Angle [DEG]")
-            print("-" * 80)
-            for i in range(self.n_pad):
-                angle_deg = np.degrees(psi_pad[i])
-                print(f"{i + 1:2d}    {psi_pad[i]:15.6f}     {angle_deg:15.6f}")
-            print("-" * 80)
-            print(f"Force Residuals:")
-            print(f"  Fx + Fx_load:  {FM[0]:15.6f} N")
-            print(f"  Fy + Fy_load:  {FM[1]:15.6f} N")
-            print(f"Moment Residuals:")
-            for i in range(self.n_pad):
-                print(f"  Pad {i + 1}:      {FM[i + 2]:15.6f} N·m")
-            print("-" * 80)
-            print(f"Total Score:      {score:15.6f}")
-            print("=" * 80)
+        # Record optimization residual
+        self.record_optimization_residual(score)
 
         return score
 
@@ -2315,7 +2217,12 @@ class TiltingPad(BearingElement):
         # Calculation of hydrodynamic forces
         self._calculate_hydrodynamic_forces(n_p, psi_pad)
 
-        return abs(self.score_dim)
+        residual = abs(self.score_dim)
+
+        # Record optimization residual
+        self.record_optimization_residual(residual)
+
+        return residual
 
     def _validate_and_adjust_x(self, x, n_p):
         """
@@ -3455,7 +3362,7 @@ class TiltingPad(BearingElement):
                 x=XH,
                 y=YH,
                 z=1e-6 * self.pressure_dim[:, :, self.pad_in],
-                colorscale="jet",
+                colorscale="Viridis",
                 name="Pressure field",
                 showscale=True,
             )
@@ -3503,7 +3410,7 @@ class TiltingPad(BearingElement):
                 x=XH[0],
                 y=YH[:, 0],
                 z=self.temperature_init[:, :, self.pad_in],
-                colorscale="jet",
+                colorscale="Viridis",
                 name="Temperature field",
                 showscale=True,
                 colorbar=dict(title="Temperature [°C]", titleside="right"),
@@ -3587,18 +3494,43 @@ class TiltingPad(BearingElement):
 
         return fig
 
-    def plot_results(self):
+    def plot_results(self, show_plots=False, freq_index=0):
         """
-        Generate and display all result plots for the tilting pad bearing.
+        Plot pressure and temperature field results for tilting pad bearing analysis.
 
-        This method creates scatter plots and contour plots for pressure and
-        temperature distributions across all pads.
+        This method generates comprehensive visualization plots for the calculated
+        pressure and temperature fields at a specific frequency. It creates scatter
+        plots and contour plots for pressure and temperature distributions across
+        all pads.
+
+        Parameters
+        ----------
+        show_plots : bool, optional
+            Whether to automatically display the plots. If True, attempts to show
+            all plots using the default display method. If False, returns figure
+            objects for manual display. Default is False.
+        freq_index : int, optional
+            Index of the frequency to plot results for. Must be within the range
+            of calculated frequencies. Default is 0 (first frequency).
 
         Returns
         -------
-        None
-            Plots are displayed directly.
+        dict
+            Dictionary containing four Plotly figure objects:
+            - 'pressure_scatter': Scatter plot of pressure distribution
+            - 'temperature_scatter': Scatter plot of temperature distribution
+            - 'pressure_2D': 2D contour plot of pressure field
+            - 'temperature_2D': 2D contour plot of temperature field
+
+        Notes
+        -----
+        The method creates visualizations for all pads showing the pressure and
+        temperature distributions in both scatter and contour formats for the
+        selected frequency.
         """
+        # Get fields for the selected frequency
+        pressure_field = self.pressure_fields[freq_index]
+        temperature_field = self.temperature_fields[freq_index]
 
         d_axial = self.pad_axial_length / self.nz
         axial = np.arange(0, self.pad_axial_length + d_axial, d_axial)
@@ -3611,23 +3543,40 @@ class TiltingPad(BearingElement):
             ang.append(ang1)
 
         fig_SP = self.plot_scatter(
-            x_data=ang, y_data=self.pressure_dim, pos=15, y_title="Pressure (Pa)"
+            x_data=ang, y_data=pressure_field, pos=15, y_title="Pressure (Pa)"
         )
 
         fig_ST = self.plot_scatter(
-            x_data=ang, y_data=self.temperature_init, pos=15, y_title="Temperature (ºC)"
+            x_data=ang, y_data=temperature_field, pos=15, y_title="Temperature (ºC)"
         )
 
         fig_CP = self.plot_contourP(
-            x_data=ang, y_data=axial, z_data=self.pressure_dim, z_title="Pressure (Pa)"
+            x_data=ang, y_data=axial, z_data=pressure_field, z_title="Pressure (Pa)"
         )
 
-        fig_CP = self.plot_contourT(
+        fig_CT = self.plot_contourT(
             x_data=ang,
             y_data=axial,
-            z_data=self.temperature_init,
+            z_data=temperature_field,
             z_title="Temperature (ºC)",
         )
+
+        figures = {
+            "pressure_scatter": fig_SP,
+            "temperature_scatter": fig_ST,
+            "pressure_2D": fig_CP,
+            "temperature_2D": fig_CT,
+        }
+
+        if show_plots:
+            try:
+                for fig in figures.values():
+                    fig.show()
+            except Exception as e:
+                print(f"Warning: Could not display plots automatically. Error: {e}")
+                print("The figure objects are still available for manual display.")
+
+        return figures
 
     def plot_scatter(self, x_data, y_data, pos, y_title):
         """This method plot a scatter(x,y) graph.
@@ -3678,7 +3627,6 @@ class TiltingPad(BearingElement):
         fig.update_layout(
             legend=dict(font=dict(family="Times New Roman", size=22, color="black"))
         )
-        fig.show()
         return fig
 
     def plot_contourP(self, x_data, y_data, z_data, z_title):
@@ -3712,6 +3660,7 @@ class TiltingPad(BearingElement):
                     zmin=0,
                     zmax=max_val,
                     ncontours=15,
+                    colorscale="Viridis",
                     colorbar=dict(
                         title=z_title,
                         tickfont=dict(size=22),
@@ -3740,7 +3689,6 @@ class TiltingPad(BearingElement):
             ),
         )
         fig.update_layout(plot_bgcolor="white")
-        fig.show()
         return fig
 
     def plot_contourT(self, x_data, y_data, z_data, z_title):
@@ -3774,6 +3722,7 @@ class TiltingPad(BearingElement):
                     zmin=40,
                     zmax=max_val,
                     ncontours=25,
+                    colorscale="Viridis",
                     colorbar=dict(
                         title=z_title,
                         tickfont=dict(size=22),
@@ -3802,8 +3751,440 @@ class TiltingPad(BearingElement):
             ),
         )
         fig.update_layout(plot_bgcolor="white")
-        fig.show()
         return fig
+
+    def show_results(self):
+        """Display tilting pad bearing calculation results in a formatted table.
+
+        This method prints the main results from the tilting pad bearing analysis
+        using PrettyTable, including operating conditions, field results,
+        load information, and dynamic coefficients for each frequency.
+
+        Parameters
+        ----------
+        None
+            This method uses the bearing parameters and results stored as
+            instance attributes.
+
+        Returns
+        -------
+        None
+            Results are printed to the console in a formatted table.
+        """
+
+        if self.frequency.size == 1:
+            self._print_single_frequency_results(0)
+        else:
+            for i in range(self.frequency.size):
+                self._print_single_frequency_results(i)
+
+    def _print_single_frequency_results(self, freq_index):
+        """Print results for a single frequency."""
+
+        freq = self.frequency[freq_index]
+
+        # Define a fixed width for all columns
+        column_width = 20
+
+        table = PrettyTable()
+        table.field_names = ["Parameter", "Value", "Unit"]
+
+        for field in table.field_names:
+            table.max_width[field] = column_width
+            table.min_width[field] = column_width
+
+        # Set column alignment
+        table.align["Parameter"] = "l"
+        table.align["Value"] = "r"
+        table.align["Unit"] = "c"
+
+        # Operating conditions
+        table.add_row(["Operating Speed", f"{freq * 30 / np.pi:12.1f}", "RPM"])
+        table.add_row(["Equilibrium Type", f"{self.equilibrium_type:>12}", "-"])
+        table.add_row(["Number of Pads", f"{self.n_pad:12d}", "-"])
+
+        # Field results
+        table.add_row(["Maximum Pressure", f"{self.maxP_list[freq_index]:12.4e}", "Pa"])
+        table.add_row(
+            [
+                "Maximum Temperature",
+                f"{self.maxT_list[freq_index]:12.2f}",
+                "°C",
+            ]
+        )
+        table.add_row(
+            ["Minimum Film Thickness", f"{self.minH_list[freq_index]:12.4e}", "m"]
+        )
+
+        # Equilibrium results
+        table.add_row(["Eccentricity", f"{self.ecc_list[freq_index]:12.4f}", "-"])
+        table.add_row(
+            [
+                "Attitude Angle",
+                f"{np.degrees(self.attitude_angle_list[freq_index]):12.2f}",
+                "°",
+            ]
+        )
+
+        # Load information
+        table.add_row(
+            ["Total Force X", f"{self.force_x_total_list[freq_index]:12.4e}", "N"]
+        )
+        table.add_row(
+            ["Total Force Y", f"{self.force_y_total_list[freq_index]:12.4e}", "N"]
+        )
+
+        # Stiffness coefficients
+        table.add_row(["kxx (Stiffness)", f"{self.kxx[freq_index]:12.4e}", "N/m"])
+        table.add_row(["kxy (Stiffness)", f"{self.kxy[freq_index]:12.4e}", "N/m"])
+        table.add_row(["kyx (Stiffness)", f"{self.kyx[freq_index]:12.4e}", "N/m"])
+        table.add_row(["kyy (Stiffness)", f"{self.kyy[freq_index]:12.4e}", "N/m"])
+
+        # Damping coefficients
+        table.add_row(["cxx (Damping)", f"{self.cxx[freq_index]:12.4e}", "N*s/m"])
+        table.add_row(["cxy (Damping)", f"{self.cxy[freq_index]:12.4e}", "N*s/m"])
+        table.add_row(["cyx (Damping)", f"{self.cyx[freq_index]:12.4e}", "N*s/m"])
+        table.add_row(["cyy (Damping)", f"{self.cyy[freq_index]:12.4e}", "N*s/m"])
+
+        pad_table = PrettyTable()
+        pad_table.align["Pad #"] = "c"
+
+        # Check if moment data is available (match_eccentricity mode)
+        if (
+            self.momen_rot_list[freq_index] is not None
+            and self.equilibrium_type == "match_eccentricity"
+        ):
+            pad_table.field_names = [
+                "Pad #",
+                "Moment [N·m]",
+                "Angle [rad]",
+                "Angle [°]",
+            ]
+            pad_table.align["Moment [N·m]"] = "r"
+            pad_table.align["Angle [rad]"] = "r"
+            pad_table.align["Angle [°]"] = "r"
+
+            for i in range(self.n_pad):
+                pad_table.add_row(
+                    [
+                        i + 1,
+                        f"{self.momen_rot_list[freq_index][i]:12.4e}",
+                        f"{self.psi_pad_list[freq_index][i]:12.4e}",
+                        f"{np.degrees(self.psi_pad_list[freq_index][i]):12.4e}",
+                    ]
+                )
+        else:
+            # determine_eccentricity mode
+            pad_table.field_names = ["Pad #", "Angle [rad]", "Angle [°]"]
+            pad_table.align["Angle [rad]"] = "r"
+            pad_table.align["Angle [°]"] = "r"
+
+            for i in range(self.n_pad):
+                pad_table.add_row(
+                    [
+                        i + 1,
+                        f"{self.psi_pad_list[freq_index][i]:12.4e}",
+                        f"{np.degrees(self.psi_pad_list[freq_index][i]):12.4e}",
+                    ]
+                )
+
+        column_width = 14
+        for field in pad_table.field_names:
+            pad_table.max_width[field] = column_width
+            pad_table.min_width[field] = column_width
+
+        table_str = table.get_string()
+        final_width = len(table_str.split("\n")[0])
+
+        print("\n" + "=" * final_width)
+        print(
+            f"TILTING PAD BEARING RESULTS - {freq * 30 / np.pi:.1f} RPM".center(
+                final_width
+            )
+        )
+        print("=" * final_width)
+        print(table)
+
+        # Print pad rotation angles
+        print("\n" + "-" * final_width)
+        print("PAD ROTATION ANGLES".center(final_width))
+        print("-" * final_width)
+        print(pad_table)
+        print("=" * final_width)
+
+    def show_execution_time(self):
+        """Display the simulation execution time.
+
+        This method calculates and displays the total time spent during the
+        complete bearing analysis execution, including all frequency calculations.
+
+        Parameters
+        ----------
+        None
+            This method uses the initial_time and final_time attributes
+            stored during the simulation execution.
+
+        Returns
+        -------
+        float
+            Total simulation time in seconds. Returns None if simulation
+            hasn't been executed yet.
+        """
+        if hasattr(self, "initial_time") and hasattr(self, "final_time"):
+            total_time = self.final_time - self.initial_time
+            print(f"Execution time: {total_time:.2f} seconds")
+        else:
+            print("Simulation hasn't been executed yet.")
+
+    def show_coefficients_comparison(self):
+        """Display dynamic coefficients comparison table.
+
+        This method creates and displays a formatted table comparing dynamic
+        coefficients (stiffness and damping) across different frequencies.
+
+        Parameters
+        ----------
+        None
+            This method uses the frequency array and coefficients stored as
+            instance attributes.
+
+        Returns
+        -------
+        None
+            Results are printed to the console in a formatted table.
+        """
+
+        freq_rpm = np.atleast_1d(self.frequency).astype(float) * 30.0 / np.pi
+
+        table = PrettyTable()
+        headers = [
+            "Frequency [RPM]",
+            "kxx [N/m]",
+            "kxy [N/m]",
+            "kyx [N/m]",
+            "kyy [N/m]",
+            "cxx [N*s/m]",
+            "cxy [N*s/m]",
+            "cyx [N*s/m]",
+            "cyy [N*s/m]",
+        ]
+        table.field_names = headers
+
+        for i in range(len(freq_rpm)):
+            row = [
+                f"{freq_rpm[i]:.1f}",
+                f"{self.kxx[i]:.4e}",
+                f"{self.kxy[i]:.4e}",
+                f"{self.kyx[i]:.4e}",
+                f"{self.kyy[i]:.4e}",
+                f"{self.cxx[i]:.4e}",
+                f"{self.cxy[i]:.4e}",
+                f"{self.cyx[i]:.4e}",
+                f"{self.cyy[i]:.4e}",
+            ]
+            table.add_row(row)
+
+        # Table width
+        desired_width = 25
+
+        table.max_width = desired_width
+        table.min_width = desired_width
+
+        table_str = table.get_string()
+        table_lines = table_str.split("\n")
+        actual_width = len(table_lines[0])
+
+        print("\n" + "=" * actual_width)
+        print("DYNAMIC COEFFICIENTS COMPARISON TABLE".center(actual_width))
+        print("=" * actual_width)
+        print(table)
+        print("=" * actual_width)
+
+    def record_optimization_residual(
+        self, residual_value: float, iteration: int | None = None
+    ) -> None:
+        """
+        Store the residual value for the current frequency.
+
+        - If 'iteration' is provided, the value is placed at that index.
+        - If 'iteration' is None, the value is appended.
+
+        Notes
+        -----
+        Requires 'self._current_freq_index' to be set (done in the frequency loop).
+        """
+        idx = getattr(self, "_current_freq_index", None)
+        if idx is None:
+            return
+
+        if idx not in self.optimization_history:
+            self.optimization_history[idx] = []
+
+        if iteration is None:
+            self.optimization_history[idx].append(residual_value)
+        else:
+            if len(self.optimization_history[idx]) <= iteration:
+                self.optimization_history[idx] += [None] * (
+                    iteration + 1 - len(self.optimization_history[idx])
+                )
+            self.optimization_history[idx][iteration] = residual_value
+
+    def show_optimization_convergence(
+        self, by: str = "index", show_plots: bool = False
+    ) -> None:
+        """
+        Display the optimization residuals per iteration for each processed frequency.
+
+        Parameters
+        ----------
+        by : str
+            'index' -> show frequencies by their index (default)
+            'value' -> show frequencies by their value (as stored in self.frequency)
+        show_plots : bool
+            Whether to show the convergence plot. Default is False.
+
+        Notes
+        -----
+        Requires 'self.optimization_history' to be populated during the solve.
+        """
+        if not hasattr(self, "optimization_history") or not self.optimization_history:
+            print("No residual history available. Run the analysis first.")
+            return
+
+        for i, res_list in self.optimization_history.items():
+            if not res_list:
+                continue
+
+            freq = self.frequency[i]
+            rpm = freq * 30 / np.pi
+
+            # Check equilibrium type
+            if self.equilibrium_type == "match_eccentricity":
+                # Separate residuals by pad
+                n_pads = self.n_pad
+
+                # Split residuals by pad (estimate iterations per pad)
+                total_iters = len(res_list)
+                approx_iters_per_pad = total_iters // n_pads
+
+                # Create table
+                table = PrettyTable()
+                table.field_names = ["Pad", "Iterations", "Final Residual [N]"]
+
+                pad_residuals = []
+                for pad_idx in range(n_pads):
+                    start_idx = pad_idx * approx_iters_per_pad
+                    end_idx = (
+                        (pad_idx + 1) * approx_iters_per_pad
+                        if pad_idx < n_pads - 1
+                        else total_iters
+                    )
+                    pad_res = [r for r in res_list[start_idx:end_idx] if r is not None]
+
+                    if pad_res:
+                        final_res = pad_res[-1]
+                        table.add_row([pad_idx + 1, len(pad_res), f"{final_res:.6f}"])
+                        pad_residuals.append((pad_idx + 1, pad_res))
+
+                desired_width = 25
+                table.max_width = desired_width
+                table.min_width = desired_width
+
+                table_str = table.get_string()
+                table_lines = table_str.split("\n")
+                actual_width = len(table_lines[0])
+
+                print("\n" + "=" * actual_width)
+                print(f"OPTIMIZATION CONVERGENCE - {rpm:.1f} RPM".center(actual_width))
+                print("=" * actual_width)
+                print(table)
+                print("=" * actual_width)
+
+                # Display plot if requested - one subplot per pad
+                if show_plots:
+                    import plotly.graph_objects as go
+                    from plotly.subplots import make_subplots
+
+                    n_rows = (n_pads + 1) // 2  # 2 columns
+                    fig = make_subplots(
+                        rows=n_rows,
+                        cols=2,
+                        subplot_titles=[f"Pad {p[0]}" for p in pad_residuals],
+                    )
+
+                    for idx, (pad_num, pad_res) in enumerate(pad_residuals):
+                        row = (idx // 2) + 1
+                        col = (idx % 2) + 1
+
+                        fig.add_trace(
+                            go.Scatter(
+                                x=list(range(len(pad_res))),
+                                y=pad_res,
+                                mode="lines+markers",
+                                name=f"Pad {pad_num}",
+                                line=dict(width=2),
+                                marker=dict(size=4),
+                            ),
+                            row=row,
+                            col=col,
+                        )
+
+                        fig.update_xaxes(title_text="Iteration", row=row, col=col)
+                        fig.update_yaxes(title_text="Residual [N]", row=row, col=col)
+
+                    fig.update_layout(
+                        title=f"Optimization Convergence by Pad - {rpm:.1f} RPM",
+                        template="ross",
+                        showlegend=False,
+                        height=300 * n_rows,
+                    )
+                    fig.show()
+
+            else:  # determine_eccentricity - single global optimization
+                table = PrettyTable()
+                table.field_names = ["Iteration", "Residual [N]"]
+
+                for it, res in enumerate(res_list):
+                    if res is not None:
+                        table.add_row([it, f"{res:.6f}"])
+
+                desired_width = 25
+                table.max_width = desired_width
+                table.min_width = desired_width
+
+                table_str = table.get_string()
+                table_lines = table_str.split("\n")
+                actual_width = len(table_lines[0])
+
+                print("\n" + "=" * actual_width)
+                print(f"OPTIMIZATION CONVERGENCE - {rpm:.1f} RPM".center(actual_width))
+                print("=" * actual_width)
+                print(table)
+                print("=" * actual_width)
+
+                # Display plot if requested
+                if show_plots:
+                    iterations = list(range(len(res_list)))
+                    residuals = [res if res is not None else 0 for res in res_list]
+
+                    fig = go.Figure()
+                    fig.add_trace(
+                        go.Scatter(
+                            x=iterations,
+                            y=residuals,
+                            mode="lines+markers",
+                            name=f"Convergence - {rpm:.1f} RPM",
+                            line=dict(width=2),
+                            marker=dict(size=6),
+                        )
+                    )
+                    fig.update_layout(
+                        title=f"Global Optimization Convergence - {rpm:.1f} RPM",
+                        xaxis_title="Iteration",
+                        yaxis_title="Residual [N]",
+                        template="ross",
+                    )
+                    fig.show()
 
 
 def tilting_pad_example():
@@ -3859,9 +4240,6 @@ def tilting_pad_example():
         oil_supply_temperature=Q_(40, "degC"),
         nx=30,
         nz=30,
-        print_result=False,
-        print_progress=False,
-        print_time=False,
         eccentricity=0.483,
         attitude_angle=Q_(267.5, "deg"),
     )
