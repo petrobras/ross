@@ -1,12 +1,99 @@
+import json
 import re
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import toml
 from numpy import linalg as la
 from plotly import graph_objects as go
 from copy import deepcopy as copy
 from numba import njit
 from numpy.fft import fft
+import control as ct
+
+
+class NumpyEncoder(json.JSONEncoder):
+    """JSON encoder that handles numpy types and non-serializable objects."""
+
+    def default(self, obj):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            return float(obj)
+        if isinstance(obj, np.complexfloating):
+            return {"real": float(obj.real), "imag": float(obj.imag)}
+        if isinstance(obj, np.bool_):
+            return bool(obj)
+        # Fallback for non-serializable objects (callables, custom objects, etc.)
+        # This matches TOML encoder behavior which silently handles such types.
+        return None
+
+
+def _is_json(file):
+    """Check if file has a .json extension."""
+    return Path(file).suffix.lower() == ".json"
+
+
+def load_data(file):
+    """Load data from a .toml or .json file.
+
+    Parameters
+    ----------
+    file : str or pathlib.Path
+        Path to the file. Format is determined by extension.
+
+    Returns
+    -------
+    data : dict
+    """
+    if _is_json(file):
+        with open(file, "r") as f:
+            return json.load(f)
+    else:
+        return toml.load(file)
+
+
+def dump_data(data, file):
+    """Dump data to a .toml or .json file.
+
+    Parameters
+    ----------
+    data : dict
+        Data to save.
+    file : str or pathlib.Path
+        Path to the file. Format is determined by extension.
+    """
+    if _is_json(file):
+        # Serialize to string first to prevent partial file writes on error
+        json_str = json.dumps(data, indent=2, cls=NumpyEncoder)
+        with open(file, "w") as f:
+            f.write(json_str)
+    else:
+        with open(file, "w") as f:
+            toml.dump(data, f)
+
+
+def dump_data_numpy(data, file):
+    """Dump data to a .toml or .json file with numpy-aware encoding.
+
+    Parameters
+    ----------
+    data : dict
+        Data to save (may contain numpy arrays/scalars).
+    file : str or pathlib.Path
+        Path to the file. Format is determined by extension.
+    """
+    if _is_json(file):
+        # Serialize to string first to prevent partial file writes on error
+        json_str = json.dumps(data, indent=2, cls=NumpyEncoder)
+        with open(file, "w") as f:
+            f.write(json_str)
+    else:
+        with open(file, "w") as f:
+            toml.dump(data, f, encoder=toml.TomlNumpyEncoder())
 
 
 class DataNotFoundError(Exception):
@@ -568,7 +655,7 @@ def intersection(x1, y1, x2, y2):
 
 
 def get_data_from_figure(fig):
-    """Get data from a Plotly ccatter plot (XY) and convert to a pd.DataFrame.
+    """Get data from a Plotly scatter plot (XY) and convert to a pd.DataFrame.
 
     This function takes a go.Figure() object from Plotly and converts the data to a
     DataFrame from Pandas. It works only for Scatter Plots (XY) and does no support
@@ -732,6 +819,48 @@ def newmark(func, t, y_size, **options):
 
 @njit
 def _converge_newmark(ny, y0, ydot0, y2dot0, dt, M, C, K, RHS, gamma, beta, tol):
+    """Helper function for the Newmark method to handle convergence.
+
+    This function performs Newton-Raphson iterations to find the state of the system
+    at the next time step, ensuring that the equations of motion are satisfied
+    within a specified tolerance.
+
+    Parameters
+    ----------
+    ny : int
+        Size of the state vector.
+    y0 : ndarray
+        Displacement at the current time step.
+    ydot0 : ndarray
+        Velocity at the current time step.
+    y2dot0 : ndarray
+        Acceleration at the current time step.
+    dt : float
+        Time step.
+    M : ndarray
+        Mass matrix.
+    C : ndarray
+        Damping matrix.
+    K : ndarray
+        Stiffness matrix.
+    RHS : ndarray
+        Right-hand side vector.
+    gamma : float
+        Newmark integration parameter.
+    beta : float
+        Newmark integration parameter.
+    tol : float
+        Convergence tolerance.
+
+    Returns
+    -------
+    y0 : ndarray
+        Displacement at the next time step.
+    ydot0 : ndarray
+        Velocity at the next time step.
+    y2dot0 : ndarray
+        Acceleration at the next time step.
+    """
     y2dot = np.zeros(ny)
     ydot = ydot0 + y2dot0 * (1 - gamma) * dt
     y = y0 + ydot0 * dt + y2dot0 * (0.5 - beta) * (dt**2)
@@ -1215,3 +1344,155 @@ def equal_dicts(dict_1, dict_2):
             is_equal_key.update({key: is_equal[-1]})
 
     return all(is_equal), is_equal_key
+
+
+def is_scalar_or_list(parameter, list_len, parameter_name):
+    """
+    Check whether a given parameter is a scalar or a list with the specified length.
+
+    This function validates that the input parameter is either a single scalar value
+    or a list containing the expected number of elements. If the parameter does not
+    satisfy these conditions, a ValueError is raised.
+
+    Parameters
+    ----------
+    parameter : any
+        The value to be validated. It can be a scalar or a list.
+    list_len : int
+        The expected number of elements if the parameter is provided as a list.
+    parameter_name : str
+        The name of the parameter, used in the error message for clarity.
+
+    Returns
+    -------
+    numpy.ndarray
+        The validated parameter converted into a NumPy array.
+
+    Raises
+    ------
+    ValueError
+        If the parameter is neither a scalar nor a list with the specified number of elements.
+    """
+    raise_ex = False
+    if not is_scalar(parameter, parameter_name):
+        raise_ex = True
+
+    if isinstance(parameter, list) and len(parameter) != list_len:
+        raise_ex = True
+
+    if raise_ex:
+        raise ValueError(
+            f"{parameter_name} must be scalar or a list with {list_len} items."
+        )
+
+    return np.array(parameter)
+
+
+def is_transfer_function_or_none(parameter, parameter_name):
+    """
+    Validate whether an input is either None or a TransferFunction object.
+
+    This function checks if the provided input is acceptable as a transfer
+    function. The value must be either a valid TransferFunction instance
+    from the control library or None. If the value is None, it is returned
+    directly. If the value is not a TransferFunction, an exception is raised.
+
+    Parameters
+    ----------
+    parameter : any
+        Value to be validated. It must be either None or an instance of
+        a TransferFunction from the control library.
+    parameter_name : str
+        Name of the parameter, used to compose informative error messages.
+
+    Returns
+    -------
+    object or None
+        The original TransferFunction object if the input is valid,
+        or None if the input value is None.
+
+    Raises
+    ------
+    ValueError
+        Raised when the input value is neither None nor a TransferFunction.
+    """
+    if parameter is None:
+        return None
+
+    if not isinstance(parameter, ct.TransferFunction):
+        raise ValueError(f"{parameter_name} must be None or a TransferFunction")
+
+    return parameter
+
+
+def is_list_or_none(parameter, parameter_name):
+    """
+    Validate whether the given parameter is None, a list, or a NumPy array.
+
+    This function checks if the input parameter is of an acceptable type:
+    either None, a list, or a NumPy array. If the parameter is a list,
+    it is converted to a NumPy array. If the parameter is already a NumPy
+    array, it is returned unchanged. If the parameter is None, the function
+    simply returns None. Any other type will result in a ValueError.
+
+    Parameters
+    ----------
+    parameter : any
+        The value to be validated. Must be None, a list, or a NumPy array.
+    parameter_name : str
+        The name of the parameter, included in the error message for clarity.
+
+    Returns
+    -------
+    numpy.ndarray or None
+        The validated parameter as a NumPy array if it was a list or an
+        ndarray, or None if the parameter was None.
+
+    Raises
+    ------
+    ValueError
+        If the parameter is not None, a list, or a NumPy array.
+    """
+    if parameter is None:
+        return None
+
+    if isinstance(parameter, np.ndarray):
+        return parameter
+
+    if isinstance(parameter, list):
+        return np.array(parameter)
+
+    raise ValueError(f"{parameter_name} must be None, a list or a numpy.ndarray.")
+
+
+def is_scalar(parameter, parameter_name):
+    """
+    Check whether a given parameter is a scalar value.
+
+    This function verifies that the provided parameter is a scalar,
+    meaning it must be either an integer or a floating-point number.
+    If the parameter does not satisfy this condition, a ValueError
+    is raised. The scalar is returned as a NumPy array for consistency
+    with numerical processing routines.
+
+    Parameters
+    ----------
+    parameter : any
+        The value to be validated. It must be an integer or a float.
+    parameter_name : str
+        The name of the parameter, used in the error message for clarity.
+
+    Returns
+    -------
+    numpy.ndarray
+        The scalar value converted into a NumPy array.
+
+    Raises
+    ------
+    ValueError
+        If the parameter is not a scalar value.
+    """
+    if not isinstance(parameter, float) and not isinstance(parameter, int):
+        raise ValueError(f"{parameter_name} must be a scalar.")
+
+    return np.array(parameter)

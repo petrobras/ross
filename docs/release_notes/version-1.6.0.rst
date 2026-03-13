@@ -50,7 +50,7 @@ Now, it's possible change the x axis (rotor speed) with variable ``speed_units``
            speed_units="RPM",
            )
 
-This PR resolve, issue #1087.
+This PR resolves issue #1087.
 
 
 Bug fixes

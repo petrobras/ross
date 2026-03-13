@@ -85,4 +85,4 @@ This code of conduct is adapted from the Go Community Code of Conduct, available
 * Treat everyone with respect and kindness;
 * Be thoughtful in how you communicate;
 * Don’t be destructive or inflammatory;
-* If necessary, register complaints directly one the official Petrobras' channels listed [here](https://prd.hotsitespetrobras.com.br/en/contact-us/).
+* If necessary, register complaints directly on the official Petrobras' channels listed [here](https://prd.hotsitespetrobras.com.br/en/contact-us/).

@@ -20,6 +20,7 @@ pmip
 *.tmp
 *.vim
 .vscode
+.cursor
 tags
 cscope.out
 # gnu global
@@ -135,3 +136,4 @@ pip-selfcheck.json
 !/tools/plots/index.html
 /docs/references/generated/
 /.claude
+.mcp.json

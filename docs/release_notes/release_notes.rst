@@ -1,6 +1,8 @@
 Release notes
 =============
 
+.. include:: version-2.2.0.rst
+.. include:: version-2.1.0.rst
 .. include:: version-2.0.0.rst
 .. include:: version-1.6.0.rst
 .. include:: version-1.5.0.rst

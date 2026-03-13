@@ -11,7 +11,6 @@ from warnings import warn
 
 import numpy as np
 import pandas as pd
-import toml
 from numba import njit
 from numpy import linalg as la
 from plotly import graph_objects as go
@@ -57,9 +56,9 @@ class Results(ABC):
     """
 
     def save(self, file):
-        """Save results in a .toml file.
+        """Save results in a .toml or .json file.
 
-        This function will save the simulation results to a .toml file.
+        This function will save the simulation results to a .toml or .json file.
         The file will have all the argument's names and values that are needed to
         reinstantiate the class.
 
@@ -67,6 +66,7 @@ class Results(ABC):
         ----------
         file : str, pathlib.Path
             The name of the file the results will be saved in.
+            The format is determined by the file extension (.toml or .json).
 
         Examples
         --------
@@ -87,12 +87,14 @@ class Results(ABC):
         >>> file = Path(tempdir) / 'unb_resp.toml'
         >>> response.save(file)
         """
+        from ross.utils import load_data, dump_data_numpy
+
         # get __init__ arguments
         signature = inspect.signature(self.__init__)
         args_list = list(signature.parameters)
         args = {arg: getattr(self, arg) for arg in args_list}
         try:
-            data = toml.load(file)
+            data = load_data(file)
         except FileNotFoundError:
             data = {}
 
@@ -103,12 +105,18 @@ class Results(ABC):
         except KeyError:
             pass
 
-        with open(file, "w") as f:
-            toml.dump(data, f, encoder=toml.TomlNumpyEncoder())
+        # Replace rotor object with placeholder before dumping (saved separately)
+        rotor_obj = args.pop("rotor", None)
+        if rotor_obj is not None:
+            data[f"{self.__class__.__name__}"]["rotor"] = "__rotor__"
 
-        if "rotor" in args.keys():
-            aux_file = str(file)[:-5] + "_rotor" + str(file)[-5:]
-            args["rotor"].save(aux_file)
+        dump_data_numpy(data, file)
+
+        if rotor_obj is not None:
+            args["rotor"] = rotor_obj  # restore
+            file_path = Path(file)
+            aux_file = str(file_path.with_suffix("")) + "_rotor" + file_path.suffix
+            rotor_obj.save(aux_file)
 
     @classmethod
     def read_toml_data(cls, data):
@@ -130,9 +138,9 @@ class Results(ABC):
 
     @classmethod
     def load(cls, file):
-        """Load results from a .toml file.
+        """Load results from a .toml or .json file.
 
-        This function will load the simulation results from a .toml file.
+        This function will load the simulation results from a .toml or .json file.
         The file must have all the argument's names and values that are needed to
         reinstantiate the class.
 
@@ -162,6 +170,7 @@ class Results(ABC):
         >>> abs(results2.forced_resp).all() == abs(results.forced_resp).all()
         True
         """
+        from ross.utils import load_data
 
         def remove_npformat(v):  # remove type info related to numpy format
             if v.startswith("np."):
@@ -170,13 +179,14 @@ class Results(ABC):
                 idx = -1
             return v[idx:] if idx != -1 else v
 
-        data = toml.load(file)
+        data = load_data(file)
         data = list(data.values())[0]
         if cls == CampbellResults:
             data["modal_results"] = None
         for key, value in data.items():
             if key == "rotor":
-                aux_file = str(file)[:-5] + "_rotor" + str(file)[-5:]
+                file_path = Path(file)
+                aux_file = str(file_path.with_suffix("")) + "_rotor" + file_path.suffix
                 from ross.rotor_assembly import Rotor
 
                 data[key] = Rotor.load(aux_file)
@@ -336,6 +346,22 @@ class Orbit(Results):
 
 @njit
 def _init_orbit(ru_e, rv_e):
+    """Helper function to initialize orbit parameters for plotting.
+
+    Parameters
+    ----------
+    ru_e : complex
+        Element in the vector corresponding to the x direction.
+    rv_e : complex
+        Element in the vector corresponding to the y direction.
+
+    Returns
+    -------
+    tuple
+        A tuple containing (x_circle, y_circle, angle, major_x, major_y,
+        major_angle, minor_angle, major_index, nu, nv, minor_axis,
+        major_axis, kappa).
+    """
     # data for plotting
     x_circle = np.real(ru_e * CIRCLE)
     y_circle = np.real(rv_e * CIRCLE)
@@ -471,6 +497,11 @@ class Shape(Results):
             self._calculate()
 
     def _classify(self):
+        """Classify the mode type.
+
+        Classifies the mode type as Lateral, Axial, or Torsional based on the
+        predominant degree of freedom in the eigenvector.
+        """
         self.mode_type = "Lateral"
 
         if self.number_dof == 6:
@@ -500,6 +531,7 @@ class Shape(Results):
             self.color = tableau_colors["green"]
 
     def _calculate_orbits(self):
+        """Calculate orbits for each node in the shape."""
         orbits = []
         whirl = []
         for node, node_pos in zip(self.nodes, self.nodes_pos):
@@ -521,6 +553,10 @@ class Shape(Results):
             self.color = tableau_colors["gray"]
 
     def _calculate(self):
+        """Calculate shape data for plotting.
+
+        Includes calculation of orbits and node positions for visualization.
+        """
         if self.mode_type == "Lateral":
             evec = self._evec
             nodes = self.nodes
@@ -677,6 +713,26 @@ class Shape(Results):
     def _plot_axial(
         self, plot_dimension=None, animation=False, length_units="m", fig=None
     ):
+        """Plot axial mode shape.
+
+        Parameters
+        ----------
+        plot_dimension : int, optional
+            Dimension of the plot (2 or 3).
+        animation : bool, optional
+            If True, creates an animated plot.
+            Default is False.
+        length_units : str, optional
+            Length units for the plot.
+            Default is 'm'.
+        fig : plotly.graph_objects.Figure, optional
+            Plotly figure object to add the plot to.
+
+        Returns
+        -------
+        fig : plotly.graph_objects.Figure
+            The figure object with the axial plot.
+        """
         if fig is None:
             fig = go.Figure()
 
@@ -909,6 +965,26 @@ class Shape(Results):
     def _plot_torsional(
         self, plot_dimension=None, animation=False, length_units="m", fig=None
     ):
+        """Plot torsional mode shape.
+
+        Parameters
+        ----------
+        plot_dimension : int, optional
+            Dimension of the plot (2 or 3).
+        animation : bool, optional
+            If True, creates an animated plot.
+            Default is False.
+        length_units : str, optional
+            Length units for the plot.
+            Default is 'm'.
+        fig : plotly.graph_objects.Figure, optional
+            Plotly figure object to add the plot to.
+
+        Returns
+        -------
+        fig : plotly.graph_objects.Figure
+            The figure object with the torsional plot.
+        """
         if fig is None:
             fig = go.Figure()
 
@@ -1252,6 +1328,27 @@ class Shape(Results):
     def _plot_orbits(
         self, animation=False, length_units="m", phase_units="rad", fig=None
     ):
+        """Plot orbits in 3D.
+
+        Parameters
+        ----------
+        animation : bool, optional
+            If True, creates an animated plot.
+            Default is False.
+        length_units : str, optional
+            Length units for the plot.
+            Default is 'm'.
+        phase_units : str, optional
+            Phase units for the plot.
+            Default is 'rad'.
+        fig : plotly.graph_objects.Figure, optional
+            Plotly figure object to add the plot to.
+
+        Returns
+        -------
+        fig : plotly.graph_objects.Figure
+            The figure object with the orbits plot.
+        """
         if fig is None:
             fig = go.Figure()
 
@@ -1575,7 +1672,7 @@ class CriticalSpeedResults(Results):
 class ModalResults(Results):
     """Class used to store results and provide plots for Modal Analysis.
 
-    Two options for plottting are available: plot_mode3D (mode shape 3D view)
+    Two options for plotting are available: plot_mode3D (mode shape 3D view)
     and plot_mode2D (mode shape 2D view). The user chooses between them using
     the respective methods.
 
@@ -1635,6 +1732,7 @@ class ModalResults(Results):
         self.update_mode_shapes()
 
     def update_mode_shapes(self):
+        """Update mode shapes based on eigenvectors."""
         self.modes = self.evectors[: self.ndof]
         self.shapes = []
         for mode in range(len(self.wn)):
@@ -1886,8 +1984,8 @@ class ModalResults(Results):
             The n'th vibration mode
             Default is None
         frequency_type : str, optional
-            "wd" calculates de map for the damped natural frequencies.
-            "wn" calculates de map for the undamped natural frequencies.
+            "wd" calculates the map for the damped natural frequencies.
+            "wn" calculates the map for the undamped natural frequencies.
             Defaults is "wd".
         title : str, optional
             A brief title to the mode shape plot, it will be displayed above other
@@ -2206,6 +2304,11 @@ class CampbellResults(Results):
         Sort the Campbell result arrays (`wd`, `log_dec`, `damping_ratio`, `whirl_values`)
         by mode type, so as to force the axial and torsional modes to be at the end
         of the arrays.
+
+        Returns
+        -------
+        mode_type : np.ndarray
+            Array with mode types after sorting.
         """
 
         wd = self.wd
@@ -2520,6 +2623,36 @@ class CampbellResults(Results):
         fig=None,
         **kwargs,
     ):
+        """Helper method to plot Campbell diagram with mode shape.
+
+        Parameters
+        ----------
+        harmonics : list, optional
+            List with the harmonics to be plotted.
+        frequency_units : str, optional
+            Frequency units.
+        speed_units : str, optional
+            Speed units.
+        damping_parameter : str, optional
+            Damping parameter to show.
+        frequency_range : tuple, optional
+            Frequency range to plot.
+        damping_range : tuple, optional
+            Damping range to plot.
+        campbell_layout : dict, optional
+            Layout for Campbell plot.
+        mode_3d_layout : dict, optional
+            Layout for 3D mode plot.
+        animation : bool, optional
+            If True, enables animation.
+        fig : plotly.graph_objects.Figure, optional
+            Plotly figure object.
+
+        Returns
+        -------
+        tuple
+            A tuple containing (camp_fig, update_mode_3d).
+        """
         camp_fig = self.plot(
             harmonics=harmonics,
             frequency_units=frequency_units,
@@ -2587,6 +2720,30 @@ class CampbellResults(Results):
         damping_parameter,
         animation,
     ):
+        """Helper method to update 3D mode shape plot.
+
+        Parameters
+        ----------
+        speed : float
+            Speed value.
+        natural_frequency : float
+            Natural frequency value.
+        modal_results_crit : dict
+            Modal results for critical speeds.
+        speed_units : str
+            Speed units.
+        frequency_units : str
+            Frequency units.
+        damping_parameter : str
+            Damping parameter to show.
+        animation : bool
+            If True, enables animation.
+
+        Returns
+        -------
+        fig : plotly.graph_objects.Figure
+            Updated 3D mode shape figure.
+        """
         try:
             speed_key = min(
                 self.modal_results.keys(),
@@ -2742,6 +2899,7 @@ class FrequencyResponseResults(Results):
         frequency_units="rad/s",
         amplitude_units="m/N",
         fig=None,
+        line_shape="linear",
         **mag_kwargs,
     ):
         """Plot frequency response (magnitude) using Plotly.
@@ -2773,6 +2931,9 @@ class FrequencyResponseResults(Results):
             To use peak to peak use '<unit> pkpk' (e.g. 'm/N pkpk')
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
+        line_shape : str, optional
+            Line interpolation style for the Plotly trace (e.g. "linear", "spline").
+            Default is "linear".
         mag_kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -2815,7 +2976,7 @@ class FrequencyResponseResults(Results):
                 x=frequency_range,
                 y=mag[inp, out, :],
                 mode="lines",
-                line=dict(color=list(tableau_colors)[idx]),
+                line=dict(color=list(tableau_colors)[idx], shape=line_shape),
                 name=f"inp: node {inpn} | dof: {idof}<br>out: node {outn} | dof: {odof}",
                 legendgroup=f"inp: node {inpn} | dof: {idof}<br>out: node {outn} | dof: {odof}",
                 showlegend=True,
@@ -3469,6 +3630,7 @@ class ForcedResponseResults(Results):
         frequency_units="rad/s",
         amplitude_units="m",
         fig=None,
+        line_shape="linear",
         **kwargs,
     ):
         """Plot forced response (magnitude) using Plotly.
@@ -3497,6 +3659,9 @@ class ForcedResponseResults(Results):
             To use peak to peak use '<unit> pkpk' (e.g. 'm pkpk')
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
+        line_shape : str, optional
+            Line interpolation style for the Plotly trace (e.g. "linear", "spline").
+            Default is "linear".
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -3518,7 +3683,7 @@ class ForcedResponseResults(Results):
                     x=df["frequency"],
                     y=df[column],
                     mode="lines",
-                    line=dict(color=list(tableau_colors)[i]),
+                    line=dict(color=list(tableau_colors)[i], shape=line_shape),
                     name=column,
                     legendgroup=column,
                     showlegend=True,
@@ -5310,11 +5475,11 @@ class ConvergenceResults(Results):
     Parameters
     ----------
     el_num : array
-        Array with number of elements in each iteraction
+        Array with number of elements in each iteration
     eigv_arr : array
-        Array with the n'th natural frequency in each iteraction
+        Array with the n'th natural frequency in each iteration
     error_arr : array
-        Array with the relative error in each iteraction
+        Array with the relative error in each iteration
 
     Returns
     -------
@@ -6057,8 +6222,8 @@ class UCSResults(Results):
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         frequency_type : str, optional
-            "wd" calculates de map for the damped natural frequencies.
-            "wn" calculates de map for the undamped natural frequencies.
+            "wd" calculates the map for the damped natural frequencies.
+            "wn" calculates the map for the undamped natural frequencies.
             Defaults is "wd".
         title : str, optional
             A brief title to the mode shape plot, it will be displayed above other
@@ -6120,8 +6285,8 @@ class UCSResults(Results):
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         frequency_type : str, optional
-            "wd" calculates de map for the damped natural frequencies.
-            "wn" calculates de map for the undamped natural frequencies.
+            "wd" calculates the map for the damped natural frequencies.
+            "wn" calculates the map for the undamped natural frequencies.
             Defaults is "wd".
         title : str, optional
             A brief title to the mode shape plot, it will be displayed above other
@@ -6165,6 +6330,30 @@ class UCSResults(Results):
 
 
 class HarmonicBalanceResults(Results):
+    """Class used to store results and provide plots for Harmonic Balance Analysis.
+    Stores and provides methods for post-processing results from Harmonic Balance
+    analysis.
+
+    Parameters
+    ----------
+    rotor : ross.Rotor
+        Rotor object.
+    speed : float
+        Rotor rotational speed (rad/s).
+    t : array
+        Time array (s).
+    Qt : array
+        Complex displacement vector in frequency domain.
+    Qo : array
+        Static displacement vector.
+    dQ : array
+        Harmonic displacement coefficients.
+    dQ_s : array
+        Complex conjugate of harmonic coefficients.
+    n_harmonics : int
+        Number of harmonics.
+    """
+
     def __init__(self, rotor, speed, t, Qt, Qo, dQ, dQ_s, n_harmonics):
         self.rotor = rotor
         self.speed = speed
@@ -6759,8 +6948,7 @@ class SensitivityResults(Results):
         ...     disturbance_amplitude=10e-6,
         ...     disturbance_min_frequency=0.001,
         ...     disturbance_max_frequency=150,
-        ...     amb_tags=["Magnetic Bearing 0"],
-        ...     sensors_theta=45) # doctest: +ELLIPSIS
+        ...     amb_tags=["Magnetic Bearing 0"]) # doctest: +ELLIPSIS
         Running direct method...
 
         >>> # Generate the sensitivity plot
@@ -6993,8 +7181,7 @@ class SensitivityResults(Results):
         ...     disturbance_amplitude=10e-6,
         ...     disturbance_min_frequency=0.001,
         ...     disturbance_max_frequency=150,
-        ...     amb_tags=["Magnetic Bearing 0"],
-        ...     sensors_theta=45) # doctest: +ELLIPSIS
+        ...     amb_tags=["Magnetic Bearing 0"]) # doctest: +ELLIPSIS
         Running direct method...
 
         >>> # Generate the time-domain results plot
@@ -7320,8 +7507,9 @@ class SensitivityResults(Results):
             self.sensitivity_run_time_results["t"]
         )
 
-        with file.open("w", encoding="utf-8") as f:
-            toml.dump(out, f)
+        from ross.utils import dump_data
+
+        dump_data(out, file)
 
     @classmethod
     def load(cls, file: Path):
@@ -7342,8 +7530,10 @@ class SensitivityResults(Results):
         SensitivityResults
             An instance of SensitivityResults with all data loaded from the file.
         """
+        from ross.utils import load_data
+
         file = Path(file)
-        data = toml.load(file)
+        data = load_data(file)
         sr = data["SensitivityResults"]
 
         amb_tags = list(sr["sensitivities"].keys())

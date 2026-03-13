@@ -35,7 +35,7 @@ API changes
 Change pkpk parameter used in plot
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The peak to peak parameter (pkpk) has been changed from prefixe to constant,
+The peak to peak parameter (pkpk) has been changed from prefix to constant,
 which simplifies it use. To use peak to peak use ‘<unit> pkpk’ (e.g. ‘m pkpk’)
 
 Remove coefficient class
@@ -75,7 +75,7 @@ Bug fixes
 Correct an error in the damping coefficient of the Magnetic Bearings Element
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-An small error in the magnetic bearing calculation has been corrected. See #816.
+A small error in the magnetic bearing calculation has been corrected. See #816.
 
 Fix error in static analysis for bearings with high stiffness
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
