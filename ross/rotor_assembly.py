@@ -154,7 +154,7 @@ class Rotor(object):
         min_w=None,
         max_w=None,
         rated_w=None,
-        modal_damping=[],
+        modal_damping=None,
         default_modes=None,
         tag=None,
         
@@ -574,8 +574,7 @@ class Rotor(object):
         # Damping configuration
         self.modal_damping = modal_damping
         self.default_modals = default_modes
-        damping = "modal" if len(self.modal_damping) != 0 else "proportional"
-        self.C0 = C0 if damping == "proportional" else self._modal_damping(self.modal_damping)
+        self.C0 = C0 if self.modal_damping == None else self._modal_damping(self.modal_damping)
         self.G0 = G0
         self.Ksdt0 = Ksdt0
 
