@@ -48,7 +48,7 @@ class HarmonicBalance:
             - 'node': int
                 Node index where the force is applied.
 
-            - 'magnitudes': list, float
+            - 'magnitudes': list of float
                 List of excitation magnitudes.
                 Interpretation depends on the type of excitation:
                     - For direct harmonic forces: force amplitudes (N).
@@ -62,7 +62,7 @@ class HarmonicBalance:
                 List of harmonic orders (1 for fundamental, 2 for second, etc.).
         speed : float
             Rotor rotational speed (rad/s).
-        t : float
+        t : numpy.ndarray
             Time array used for Fourier expansion (s).
         gravity : bool, optional
             If True, include gravitational forces. Default is False.
@@ -72,14 +72,14 @@ class HarmonicBalance:
 
         Returns
         -------
-        Qt : ndarray
-            Complex displacement vector in frequency domain.
+        Qt : ndarray, complex
+            Complex displacement vector in frequency domain of shape (ndof * (2 * noh + 1),).
         Qo : ndarray
-            Static (mean) displacement vector.
-        dQ : ndarray
-            Harmonic displacement coefficients.
-        dQ_s : ndarray
-            Complex conjugate of harmonic coefficients.
+            Static (mean) displacement vector of shape (ndof,).
+        dQ : ndarray, complex
+            Harmonic displacement coefficients of shape (ndof, noh).
+        dQ_s : ndarray, complex
+            Complex conjugate of harmonic coefficients of shape (ndof, noh).
 
         Notes
         -----
@@ -145,7 +145,7 @@ class HarmonicBalance:
             - 'node': int
                 Node index where the force is applied.
 
-            - 'magnitudes': list, float
+            - 'magnitudes': list of float
                 List of excitation magnitudes.
                 Interpretation depends on the type of excitation:
                     - For direct harmonic forces: force amplitudes (N).
@@ -163,7 +163,7 @@ class HarmonicBalance:
         F : ndarray, complex
             Harmonic force array of shape (ndof, noh).
         F_s : ndarray, complex
-            Complex conjugate of the harmonic forces.
+            Complex conjugate of the harmonic forces of shape (ndof, noh).
         """
         ndof = self.rotor.ndof
         number_dof = self.rotor.number_dof
@@ -366,9 +366,6 @@ class HarmonicBalance:
         Ko,
         Kn,
         Kn_s,
-        Co=None,
-        Cn=None,
-        Cn_s=None,
     ):
         """
         Construct the Harmonic Balance matrix `H`.
@@ -386,13 +383,11 @@ class HarmonicBalance:
             Static crack stiffness correction.
         Kn, Kn_s : ndarray
             Harmonic stiffness correction and its conjugate.
-        Co, Cn, Cn_s : ndarray, optional
-            Damping correction matrices. Default: zeros.
 
         Returns
         -------
         H0 : ndarray, complex
-            Full harmonic balance system matrix.
+            Full harmonic balance system matrix of shape ((2 * noh + 1) * ndof, (2 * noh + 1) * ndof).
         """
         ndof = self.rotor.ndof
         noh = self.noh

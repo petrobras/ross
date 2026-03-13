@@ -11,7 +11,6 @@ from pathlib import Path
 from warnings import warn
 
 import numpy as np
-import toml
 from plotly import express as px
 from plotly import graph_objects as go
 from plotly.subplots import make_subplots
@@ -40,9 +39,9 @@ class ST_Results(ABC):
     """
 
     def save(self, file):
-        """Save results in a .toml file.
+        """Save results in a .toml or .json file.
 
-        This function will save the simulation results to a .toml file.
+        This function will save the simulation results to a .toml or .json file.
         The file will have all the argument's names and values that are needed to
         reinstantiate the class.
 
@@ -50,6 +49,7 @@ class ST_Results(ABC):
         ----------
         file : str, pathlib.Path
             The name of the file the results will be saved in.
+            The format is determined by the file extension (.toml or .json).
 
         Examples
         --------
@@ -70,18 +70,19 @@ class ST_Results(ABC):
         >>> file = Path(tempdir) / 'results.toml'
         >>> results.save(file)
         """
+        from ross.utils import load_data, dump_data_numpy
+
         # get __init__ arguments
         signature = inspect.signature(self.__init__)
         args_list = list(signature.parameters)
         args = {arg: getattr(self, arg) for arg in args_list}
         try:
-            data = toml.load(file)
+            data = load_data(file)
         except FileNotFoundError:
             data = {}
 
         data[f"{self.__class__.__name__}"] = args
-        with open(file, "w") as f:
-            toml.dump(data, f, encoder=toml.TomlNumpyEncoder())
+        dump_data_numpy(data, file)
 
     @classmethod
     def read_toml_data(cls, data):
@@ -103,9 +104,9 @@ class ST_Results(ABC):
 
     @classmethod
     def load(cls, file):
-        """Load results from a .toml file.
+        """Load results from a .toml or .json file.
 
-        This function will load the simulation results from a .toml file.
+        This function will load the simulation results from a .toml or .json file.
         The file must have all the argument's names and values that are needed to
         reinstantiate the class.
 
@@ -138,7 +139,9 @@ class ST_Results(ABC):
         >>> results2.forced_resp.all() == results.forced_resp.all()
         True
         """
-        data = toml.load(file)
+        from ross.utils import load_data
+
+        data = load_data(file)
         # extract single dictionary in the data
         data = list(data.values())[0]
         for key, value in data.items():
@@ -500,6 +503,7 @@ class ST_FrequencyResponseResults(ST_Results):
         frequency_units="rad/s",
         amplitude_units="m/N",
         fig=None,
+        line_shape="linear",
         **kwargs,
     ):
         """Plot stochastic frequency response (magnitude) using Plotly.
@@ -532,6 +536,9 @@ class ST_FrequencyResponseResults(ST_Results):
             To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m/N)
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
+        line_shape : str, optional
+            Line interpolation style for the Plotly traces (e.g. "linear", "spline").
+            Default is "linear".
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -574,7 +581,7 @@ class ST_FrequencyResponseResults(ST_Results):
                 y=np.mean(mag, axis=1),
                 mode="lines",
                 name="Mean",
-                line=dict(width=3, color="black"),
+                line=dict(width=3, color="black", shape=line_shape),
                 legendgroup="mean",
                 hovertemplate=("Frequency: %{x:.2f}<br>" + "Amplitude: %{y:.2e}"),
             )
@@ -586,7 +593,7 @@ class ST_FrequencyResponseResults(ST_Results):
                     y=np.percentile(mag, p, axis=1),
                     mode="lines",
                     opacity=0.6,
-                    line=dict(width=2.5, color=colors2[i]),
+                    line=dict(width=2.5, color=colors2[i], shape=line_shape),
                     name="percentile: {}%".format(p),
                     legendgroup="percentile{}".format(i),
                     hovertemplate=("Frequency: %{x:.2f}<br>" + "Amplitude: %{y:.2e}"),
@@ -602,7 +609,7 @@ class ST_FrequencyResponseResults(ST_Results):
                     x=x,
                     y=np.concatenate((p1, p2[::-1])),
                     mode="lines",
-                    line=dict(width=1, color=colors1[i]),
+                    line=dict(width=1, color=colors1[i], shape=line_shape),
                     fill="toself",
                     fillcolor=colors1[i],
                     opacity=0.5,
@@ -1670,6 +1677,7 @@ class ST_ForcedResponseResults(ST_Results):
         frequency_units="rad/s",
         amplitude_units="m",
         fig=None,
+        line_shape="linear",
         **kwargs,
     ):
         """Plot stochastic frequency response.
@@ -1717,6 +1725,9 @@ class ST_ForcedResponseResults(ST_Results):
         -------
         fig : Plotly graph_objects.Figure()
             Bokeh plot axes with magnitude plot.
+        line_shape : str, optional
+            Line interpolation style for the Plotly traces (e.g. "linear", "spline").
+            Default is "linear".
         """
         frequency_range = Q_(self.frequency_range, "rad/s").to(frequency_units).m
 
@@ -1771,7 +1782,7 @@ class ST_ForcedResponseResults(ST_Results):
                     .m,
                     opacity=1.0,
                     mode="lines",
-                    line=dict(width=3, color=list(tableau_colors)[i]),
+                    line=dict(width=3, color=list(tableau_colors)[i], shape=line_shape),
                     name=f"{probe_tag} - Mean",
                     legendgroup=f"{probe_tag} - Mean",
                     hovertemplate="Frequency: %{x:.2f}<br>Amplitude: %{y:.2e}",
@@ -1786,7 +1797,7 @@ class ST_ForcedResponseResults(ST_Results):
                         .m,
                         opacity=0.6,
                         mode="lines",
-                        line=dict(width=2.5, color=colors1[color_p]),
+                        line=dict(width=2.5, color=colors1[color_p], shape=line_shape),
                         name=f"{probe_tag} - percentile: {p}%",
                         legendgroup=f"{probe_tag} - percentile: {p}%",
                         hovertemplate="Frequency: %{x:.2f}<br>Amplitude: %{y:.2e}",
@@ -1806,7 +1817,7 @@ class ST_ForcedResponseResults(ST_Results):
                         .to(amplitude_units)
                         .m,
                         mode="lines",
-                        line=dict(width=1, color=colors2[color_i]),
+                        line=dict(width=1, color=colors2[color_i], shape=line_shape),
                         fill="toself",
                         fillcolor=colors2[color_i],
                         opacity=0.5,

@@ -6,7 +6,6 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-import toml
 from methodtools import lru_cache
 from plotly import express as px
 from plotly import graph_objects as go
@@ -628,19 +627,19 @@ class Rotor(object):
 
         if any(len(sh.dof_mapping()) != number_dof * 2 for sh in self.shaft_elements):
             raise Exception(
-                "The number of degrees o freedom of all elements must be the same! There are SHAFT elements with discrepant DoFs."
+                "The number of degrees of freedom of all elements must be the same! There are SHAFT elements with discrepant DoFs."
             )
 
         if any(len(disk.dof_mapping()) != number_dof for disk in self.disk_elements):
             raise Exception(
-                "The number of degrees o freedom of all elements must be the same! There are DISK elements with discrepant DoFs."
+                "The number of degrees of freedom of all elements must be the same! There are DISK elements with discrepant DoFs."
             )
 
         if any(
             len(brg.dof_mapping()) != number_dof / 2 for brg in self.bearing_elements
         ):
             raise Exception(
-                "The number of degrees o freedom of all elements must be the same! There are BEARING elements with discrepant DoFs."
+                "The number of degrees of freedom of all elements must be the same! There are BEARING elements with discrepant DoFs."
             )
 
         return int(number_dof)
@@ -708,12 +707,12 @@ class Rotor(object):
         return C0
 
     def __eq__(self, other):
-        """Equality method for comparasions.
+        """Equality method for comparisons.
 
         Parameters
         ----------
         other : obj
-            parameter for comparasion
+            parameter for comparison
 
         Returns
         -------
@@ -838,7 +837,7 @@ class Rotor(object):
     def run_modal(self, speed, num_modes=12, sparse=True, synchronous=False):
         """Run modal analysis.
 
-        Method to calculate eigenvalues and eigvectors for a given rotor system.
+        Method to calculate eigenvalues and eigenvectors for a given rotor system.
         The natural frequencies and dampings ratios are calculated for a given
         rotor speed. It means that for each speed input there's a different set of
         eigenvalues and eigenvectors, hence, different natural frequencies and damping
@@ -932,7 +931,7 @@ class Rotor(object):
 
         Differently from run_modal(), this function doesn't take a speed input because
         it iterates over the natural frequencies calculated in the last iteration.
-        The initial value is considered to be the undamped natural frequecies for
+        The initial value is considered to be the undamped natural frequencies for
         speed = 0 (no gyroscopic effect).
 
         Once the error is within an acceptable range defined by "rtol", it returns the
@@ -1029,7 +1028,7 @@ class Rotor(object):
         """Run convergence analysis.
 
         Function to analyze the eigenvalues convergence through the number of
-        shaft elements. Every new run doubles the number os shaft elements.
+        shaft elements. Every new run doubles the number of shaft elements.
 
         Parameters
         ----------
@@ -1045,11 +1044,11 @@ class Rotor(object):
         results : An instance of ConvergenceResults class, which is used to post-process
         results. Attributes stored:
             el_num : array
-                Array with number of elements in each iteraction
+                Array with number of elements in each iteration
             eigv_arr : array
-                Array with the n'th natural frequency in each iteraction
+                Array with the n'th natural frequency in each iteration
             error_arr : array
-                Array with the relative error in each iteraction
+                Array with the relative error in each iteration
 
         Example
         -------
@@ -1402,77 +1401,6 @@ class Rotor(object):
                     )
                     break
 
-    def _clustering_points(self, num_modes=12, num_points=10, modes=None, rtol=0.005):
-        """Create an array with points clustered close to the natural frequencies.
-
-        This method generates an automatic array to run frequency response analyses.
-        The frequency points are calculated based on the damped natural frequencies and
-        their respective damping ratios. The greater the damping ratio, the more spread
-        the points are. If the damping ratio, for a given critical speed, is smaller
-        than 0.005, it is redefined to be 0.005 (for this method only).
-
-        Parameters
-        ----------
-        num_modes : int, optional
-            The number of eigenvalues and eigenvectors to be calculated using ARPACK.
-            It also defines the range for the output array, since the method generates
-            points only for the critical speed calculated by run_critical_speed().
-            Default is 12.
-        num_points : int, optional
-            The number of points generated for each critical speed.
-            The method set the same number of points for slightly less and slightly
-            higher than the natural circular frequency. It means there'll be num_points
-            greater and num_points smaller than a given critical speed.
-            num_points may be between 2 and 12. Anything above this range defaults
-            to 10 and anything below this range defaults to 4.
-            The default is 10.
-        modes : list, optional
-            Modes that will be used to calculate the frequency response.
-            The possibilities are limited by the num_modes argument.
-            (all modes will be used if a list is not given).
-        rtol : float, optional
-            Tolerance (relative) for termination. Applied to scipy.optimize.newton in
-            run_critical_speed() method.
-            Default is 0.005 (0.5%).
-
-        Returns
-        -------
-        speed_range : array
-            Range of frequencies (or speed).
-
-        Examples
-        --------
-        >>> rotor = rotor_example()
-        >>> speed_range = rotor._clustering_points(num_modes=12, num_points=5)
-        >>> speed_range.shape
-        (61,)
-        """
-        critical_speeds = self.run_critical_speed(num_modes=num_modes, rtol=rtol)
-        omega = critical_speeds._wd
-        damping = critical_speeds.damping_ratio
-        damping = np.array([d if d >= 0.005 else 0.005 for d in damping])
-
-        if num_points > 12:
-            num_points = 10
-        elif num_points < 2:
-            num_points = 4
-
-        if modes is not None:
-            omega = omega[modes]
-            damping = damping[modes]
-
-        a = np.zeros((len(omega), num_points))
-        for i in range(len(omega)):
-            for j in range(num_points):
-                b = 2 * (num_points - j + 1) / (num_points - 1)
-                a[i, j] = 1 + damping[i] ** b
-
-        omega = omega.reshape((len(omega), 1))
-        speed_range = np.sort(np.ravel(np.concatenate((omega / a, omega * a))))
-        speed_range = np.insert(speed_range, 0, 0)
-
-        return speed_range
-
     @staticmethod
     def _index(eigenvalues):
         """Generate indexes to sort eigenvalues and eigenvectors.
@@ -1717,10 +1645,6 @@ class Rotor(object):
         self,
         speed_range=None,
         modes=None,
-        cluster_points=False,
-        num_modes=12,
-        num_points=10,
-        rtol=0.005,
         free_free=False,
     ):
         """Frequency response for a mdof system.
@@ -1742,27 +1666,6 @@ class Rotor(object):
         modes : list, optional
             Modes that will be used to calculate the frequency response
             (all modes will be used if a list is not given).
-        cluster_points : bool, optional
-            boolean to activate the automatic frequency spacing method. If True, the
-            method uses _clustering_points() to create an speed_range.
-            Default is False
-        num_points : int, optional
-            The number of points generated per critical speed.
-            The method set the same number of points for slightly less and slightly
-            higher than the natural circular frequency. It means there'll be num_points
-            greater and num_points smaller than a given critical speed.
-            num_points may be between 2 and 12. Anything above this range defaults
-            to 10 and anything below this range defaults to 4.
-            The default is 10.
-        num_modes
-            The number of eigenvalues and eigenvectors to be calculated using ARPACK.
-            It also defines the range for the output array, since the method generates
-            points only for the critical speed calculated by run_critical_speed().
-            Default is 12.
-        rtol : float, optional
-            Tolerance (relative) for termination. Applied to scipy.optimize.newton to
-            calculate the approximated critical speeds.
-            Default is 0.005 (0.5%).
         free_free : bool, optional
             If True, the method will consider the rotor system as free-free.
             Default is False.
@@ -1788,15 +1691,7 @@ class Rotor(object):
         >>> np.angle(response.freq_resp) # doctest: +ELLIPSIS
         array([[[...
 
-        Using clustered points option.
-        Set `cluster_points=True` and choose how many modes the method must search and
-        how many points to add just before and after each critical speed.
-
-        >>> response = rotor.run_freq_response(cluster_points=True, num_points=5)
-        >>> response.speed_range.shape
-        (61,)
-
-        Selecting the disirable modes, if you want a reduced model:
+        Selecting the desirable modes, if you want a reduced model:
         >>> response = rotor.run_freq_response(speed_range=speed, modes=[0, 1, 2, 3, 4])
         >>> abs(response.freq_resp) # doctest: +ELLIPSIS
         array([[[0.00000000e+00, 1.00261725e-06, 1.01076952e-06, ...
@@ -1824,10 +1719,6 @@ class Rotor(object):
         return self._run_freq_response(
             speed_range=speed_range,
             modes=modes,
-            cluster_points=cluster_points,
-            num_modes=num_modes,
-            num_points=num_points,
-            rtol=rtol,
             free_free=free_free,
         )
 
@@ -1836,10 +1727,6 @@ class Rotor(object):
         self,
         speed_range=None,
         modes=None,
-        cluster_points=False,
-        num_modes=12,
-        num_points=10,
-        rtol=0.005,
         free_free=False,
     ):
         """Frequency response for a mdof system.
@@ -1848,16 +1735,33 @@ class Rotor(object):
         was made to convert `speed_range` and `modes` to a tuple format and to enable
         the use of the `@lru_cache()` method, which requires hashable arguments to cache
         results effectively.
+
+        Parameters
+        ----------
+        speed_range : tuple, optional
+            Tuple with the desired range of frequencies.
+        modes : tuple, optional
+            Modes that will be used to calculate the frequency response.
+        cluster_points : bool, optional
+            If True, creates an speed_range with clustered points.
+        num_modes : int, optional
+            The number of eigenvalues and eigenvectors to be calculated.
+        num_points : int, optional
+            The number of points generated per critical speed.
+        rtol : float, optional
+            Tolerance (relative) for termination.
+        free_free : bool, optional
+            If True, the method will consider the rotor system as free-free.
+
+        Returns
+        -------
+        results : ross.FrequencyResponseResults
+            Frequency response results object.
         """
 
         if speed_range is None:
-            if not cluster_points:
-                modal = self.run_modal(0)
-                speed_range = np.linspace(0, max(modal.evalues.imag) * 1.5, 1000)
-            else:
-                speed_range = self._clustering_points(
-                    num_modes, num_points, modes, rtol
-                )
+            modal = self.run_modal(0)
+            speed_range = np.linspace(0, max(modal.evalues.imag) * 1.5, 1000)
 
         self._check_frequency_array(speed_range)
 
@@ -1895,7 +1799,6 @@ class Rotor(object):
         disturbance_min_frequency=0.001,
         disturbance_max_frequency=150,
         amb_tags=None,
-        sensors_theta=0.7853981633974483,
         verbose=1,
     ):
         """Run Active Magnetic Bearing (AMB) sensitivity analysis.
@@ -1930,11 +1833,6 @@ class Rotor(object):
             If None or empty, all `MagneticBearingElement` instances in the rotor are used.
             If provided, only the AMBs matching the specified tags will be analyzed.
             Raises a RuntimeError if no AMB with the given tag is found.
-        sensors_theta : float, optional
-            Angular position of the Active Magnetic Bearing (AMB) sensors, in radians.
-            This angle defines the orientation of the sensor coordinate system (v, w)
-            relative to the global coordinate system (x, y). A positive angle
-            corresponds to a counter-clockwise rotation. Default is 45 degrees (π/4 rad).
         verbose : int, optional
             Controls the verbosity of the method. If `1` or greater, both the simulation
             time and the forces produced by the AMBs are presented. If `0`, no output is
@@ -2030,29 +1928,48 @@ class Rotor(object):
 
         chirp_signal = disturbance_amplitude * chirp(
             t,
-            f0=disturbance_min_frequency,  # frequência no instante t = 0
-            f1=disturbance_max_frequency,  # frequência no instante t = t_f
-            t1=float(t[-1]),  # instante final
+            f0=disturbance_min_frequency,
+            f1=disturbance_max_frequency,
+            t1=float(t[-1]),
             method="logarithmic",
             phi=-90,
         )
 
-        progress_interval = t_max / 25 if verbose >= 1 else 2 * t_max
+        progress_interval = t_max / 25 if verbose >= 1 else None
+
+        bearings_by_tag = {bearing.tag: bearing for bearing in magnetic_bearings}
 
         for amb_tag in sensitivity_compute_dofs.keys():
             for axis in sensitivity_compute_dofs[amb_tag].keys():
                 sensitivity_result_values = {}
-                self.run_time_response(
-                    speed,
-                    f,
-                    t,
-                    progress_interval=progress_interval,
-                    method="newmark",
-                    sensitivity_disturbance=chirp_signal,
-                    sensitivity_result_values=sensitivity_result_values,
-                    sensitivity_compute_dof=sensitivity_compute_dofs[amb_tag][axis],
-                    sensors_theta=sensors_theta,
-                )
+
+                bearing = bearings_by_tag[amb_tag]
+                sensor_angle = bearing.sensors_axis_rotation
+
+                if progress_interval is not None:
+                    self.run_time_response(
+                        speed,
+                        f,
+                        t,
+                        progress_interval=progress_interval,
+                        method="newmark",
+                        sensitivity_disturbance=chirp_signal,
+                        sensitivity_result_values=sensitivity_result_values,
+                        sensitivity_compute_dof=sensitivity_compute_dofs[amb_tag][axis],
+                        sensor_angle=sensor_angle,
+                    )
+                else:
+                    self.run_time_response(
+                        speed,
+                        f,
+                        t,
+                        method="newmark",
+                        sensitivity_disturbance=chirp_signal,
+                        sensitivity_result_values=sensitivity_result_values,
+                        sensitivity_compute_dof=sensitivity_compute_dofs[amb_tag][axis],
+                        sensor_angle=sensor_angle,
+                    )
+
                 sensitivity_data[amb_tag][axis] = dict(sensitivity_result_values)
 
         results = SensitivityResults(
@@ -2070,10 +1987,6 @@ class Rotor(object):
         force=None,
         speed_range=None,
         modes=None,
-        cluster_points=False,
-        num_modes=12,
-        num_points=10,
-        rtol=0.005,
         unbalance=None,
     ):
         """Forced response for a mdof system.
@@ -2106,27 +2019,6 @@ class Rotor(object):
             with deflected shape. This argument is set only if running an unbalance
             response analysis.
             Default is None.
-        cluster_points : bool, optional
-            boolean to activate the automatic frequency spacing method. If True, the
-            method uses _clustering_points() to create an speed_range.
-            Default is False
-        num_points : int, optional
-            The number of points generated per critical speed.
-            The method set the same number of points for slightly less and slightly
-            higher than the natural circular frequency. It means there'll be num_points
-            greater and num_points smaller than a given critical speed.
-            num_points may be between 2 and 12. Anything above this range defaults
-            to 10 and anything below this range defaults to 4.
-            The default is 10.
-        num_modes
-            The number of eigenvalues and eigenvectors to be calculated using ARPACK.
-            It also defines the range for the output array, since the method generates
-            points only for the critical speed calculated by run_critical_speed().
-            Default is 12.
-        rtol : float, optional
-            Tolerance (relative) for termination. Applied to scipy.optimize.newton to
-            calculate the approximated critical speeds.
-            Default is 0.005 (0.5%).
 
         Returns
         -------
@@ -2142,26 +2034,12 @@ class Rotor(object):
         >>> resp = rotor.run_forced_response(force=force, speed_range=speed)
         >>> abs(resp.forced_resp) # doctest: +ELLIPSIS
         array([[0.00000000e+00, 5.06073311e-04, 2.10044826e-03, ...
-
-        Using clustered points option.
-        Set `cluster_points=True` and choose how many modes the method must search and
-        how many points to add just before and after each critical speed.
-
-        >>> response = rotor.run_forced_response(
-        ...     force=force, cluster_points=True, num_modes=12, num_points=5
-        ... )
-        >>> response.speed_range.shape
-        (61,)
         """
         if speed_range is None:
-            if cluster_points:
-                speed_range = self._clustering_points(
-                    num_modes, num_points, modes, rtol
-                )
+            modal = self.run_modal(0)
+            speed_range = np.linspace(0, max(modal.evalues.imag) * 1.5, 1000)
 
-        freq_resp = self.run_freq_response(
-            speed_range, modes, cluster_points, num_modes, num_points, rtol
-        )
+        freq_resp = self.run_freq_response(speed_range, modes)
 
         forced_resp = np.zeros((self.ndof, len(freq_resp.speed_range)), dtype=complex)
         velc_resp = np.zeros((self.ndof, len(freq_resp.speed_range)), dtype=complex)
@@ -2306,10 +2184,6 @@ class Rotor(object):
         unbalance_phase,
         frequency=None,
         modes=None,
-        cluster_points=False,
-        num_modes=12,
-        num_points=10,
-        rtol=0.005,
     ):
         """Unbalanced response for a mdof system.
 
@@ -2337,30 +2211,10 @@ class Rotor(object):
             Unbalance phase (rad).
         frequency : list, pint.Quantity
             List with the desired range of frequencies (rad/s).
+            Default is 0 to 1.5 x highest damped natural frequency.
         modes : list, optional
             Modes that will be used to calculate the frequency response
             (all modes will be used if a list is not given).
-        cluster_points : bool, optional
-            boolean to activate the automatic frequency spacing method. If True, the
-            method uses _clustering_points() to create an speed_range.
-            Default is False
-        num_points : int, optional
-            The number of points generated per critical speed.
-            The method set the same number of points for slightly less and slightly
-            higher than the natural circular frequency. It means there'll be num_points
-            greater and num_points smaller than a given critical speed.
-            num_points may be between 2 and 12. Anything above this range defaults
-            to 10 and anything below this range defaults to 4.
-            The default is 10.
-        num_modes
-            The number of eigenvalues and eigenvectors to be calculated using ARPACK.
-            It also defines the range for the output array, since the method generates
-            points only for the critical speed calculated by run_critical_speed().
-            Default is 12.
-        rtol : float, optional
-            Tolerance (relative) for termination. Applied to scipy.optimize.newton to
-            calculate the approximated critical speeds.
-            Default is 0.005 (0.5%).
 
         Returns
         -------
@@ -2385,16 +2239,6 @@ class Rotor(object):
         Return the response phase
         >>> np.angle(response.forced_resp) # doctest: +ELLIPSIS
         array([[ 0.        ,  0.        ,  0.        , ...
-
-        Using clustered points option.
-        Set `cluster_points=True` and choose how many modes the method must search and
-        how many points to add just before and after each critical speed.
-
-        >>> response2 = rotor.run_unbalance_response(
-        ...     node=3, unbalance_magnitude=0.01, unbalance_phase=0.0, cluster_points=True, num_points=5
-        ... )
-        >>> response2.speed_range.shape
-        (61,)
 
         plot unbalance response:
         >>> probe_node = 3
@@ -2429,8 +2273,8 @@ class Rotor(object):
         >>> fig = response.plot_deflected_shape(speed=value)
         """
         if frequency is None:
-            if cluster_points:
-                frequency = self._clustering_points(num_modes, num_points, modes, rtol)
+            modal = self.run_modal(0)
+            frequency = np.linspace(0, max(modal.evalues.imag) * 1.5, 1000)
 
         force = np.zeros((self.ndof, len(frequency)), dtype=complex)
 
@@ -2445,7 +2289,10 @@ class Rotor(object):
         # fmt: off
         ub = np.vstack((node, unbalance_magnitude, unbalance_phase))
         forced_response = self.run_forced_response(
-            force, frequency, modes, cluster_points, num_modes, num_points, rtol, ub
+            force=force,
+            speed_range=frequency,
+            modes=modes,
+            unbalance=ub,
         )
         # fmt: on
 
@@ -2522,7 +2369,7 @@ class Rotor(object):
         >>> np.nonzero(magnetic_force)[0]
         array([ 72,  73, 258, 259])
         >>> magnetic_force[np.nonzero(magnetic_force)[0]]
-        array([-7.24276404e-04, -1.42153354e-05, -1.17641699e-04,  2.39844354e-05])
+        array([-1.77841057e-04,  5.15148204e-06, -2.96097989e-04,  3.35036499e-05])
         """
 
         if kwargs.get("sensitivity_result_values", None) == {}:
@@ -2536,7 +2383,7 @@ class Rotor(object):
         sensitivity_disturbance: None | np.ndarray = kwargs.get(
             "sensitivity_disturbance", None
         )
-        sensors_theta: None | float = kwargs.get("sensors_theta", np.deg2rad(45))
+        sensor_angle: None | float = kwargs.get("sensor_angle", np.deg2rad(45))
         progress_interval: None | float = kwargs.get("progress_interval", None)
 
         current_offset = 0
@@ -2552,8 +2399,8 @@ class Rotor(object):
             y_disp = disp_resp[y_dof]
 
             # Transforming the displacements to the sensor reference frame
-            v_disp = x_disp * np.cos(sensors_theta) + y_disp * np.sin(sensors_theta)
-            w_disp = -x_disp * np.sin(sensors_theta) + y_disp * np.cos(sensors_theta)
+            v_disp = x_disp * np.cos(sensor_angle) + y_disp * np.sin(sensor_angle)
+            w_disp = -x_disp * np.sin(sensor_angle) + y_disp * np.cos(sensor_angle)
 
             if sensitivity_compute_dof is not None and sensitivity_compute_dof in [
                 x_dof,
@@ -2590,7 +2437,6 @@ class Rotor(object):
 
             # The method compute_pid_amb updates the magnetic_force array internally
             magnetic_force_v = elm.compute_pid_amb(
-                dt,
                 current_offset=current_offset,
                 setpoint=setpoint,
                 disp=v_disp,
@@ -2598,7 +2444,6 @@ class Rotor(object):
             )
 
             magnetic_force_w = elm.compute_pid_amb(
-                dt,
                 current_offset=current_offset,
                 setpoint=setpoint,
                 disp=w_disp,
@@ -2606,22 +2451,22 @@ class Rotor(object):
             )
 
             magnetic_force_x = magnetic_force_v * np.cos(
-                sensors_theta
-            ) - magnetic_force_w * np.sin(sensors_theta)
+                sensor_angle
+            ) - magnetic_force_w * np.sin(sensor_angle)
             magnetic_force_y = magnetic_force_v * np.sin(
-                sensors_theta
-            ) + magnetic_force_w * np.cos(sensors_theta)
+                sensor_angle
+            ) + magnetic_force_w * np.cos(sensor_angle)
 
-            elm.magnetic_force_xy[-1][0].append(magnetic_force_x)
-            elm.magnetic_force_xy[-1][1].append(magnetic_force_y)
-            elm.magnetic_force_vw[-1][0].append(magnetic_force_v)
-            elm.magnetic_force_vw[-1][1].append(magnetic_force_w)
+            elm.magnetic_force_xy[0].append(magnetic_force_x)
+            elm.magnetic_force_xy[1].append(magnetic_force_y)
+            elm.magnetic_force_vw[0].append(magnetic_force_v)
+            elm.magnetic_force_vw[1].append(magnetic_force_w)
 
             magnetic_force[x_dof] = magnetic_force_x
             magnetic_force[y_dof] = magnetic_force_y
 
             if progress_interval is not None:
-                time_progress_ratio = round((step * dt) / progress_interval, 8)
+                time_progress_ratio = round((step * dt) / progress_interval, 4)
                 if time_progress_ratio.is_integer():
                     print(
                         f"Force x / y (N): {magnetic_force_x:.6f} / {magnetic_force_y:.6f} ({elm.tag})"
@@ -2776,7 +2621,7 @@ class Rotor(object):
         F = reduction[1](F.T).T
 
         # Check if there is any magnetic bearing
-        rotor, magnetic_force = self._init_ambs_for_integrate(**kwargs)
+        rotor, magnetic_force = self._init_ambs_for_integrate(dt=t[1] - t[0], **kwargs)
 
         # Consider any additional RHS function (extra forces)
         add_to_RHS = kwargs.get("add_to_RHS")
@@ -2877,8 +2722,48 @@ class Rotor(object):
 
         return rotor_system
 
-    def _init_ambs_for_integrate(self, **kwargs):
-        """Initialize ambs for integrate method."""
+    def _init_ambs_for_integrate(self, dt, **kwargs):
+        """
+        Prepare the magnetic bearing components and force function used during
+        time-domain integration.
+
+        This method scans the bearing elements of the rotor to identify which
+        components are active magnetic bearings. When such elements are present,
+        their internal storage arrays and controller states are initialized.
+        A callable is then created to compute the magnetic forces at each
+        integration step, using the controller associated with the magnetic
+        bearings. If no magnetic bearing is found, a force function returning
+        a zero vector is generated instead.
+
+        Parameters
+        ----------
+        dt : float
+            Time increment used by the integration routine. This value is passed
+            to each magnetic bearing so it can configure its control law.
+        **kwargs : dict
+            Additional parameters forwarded to the magnetic bearing controller
+            when the magnetic forces are computed.
+
+        Returns
+        -------
+        rotor : object
+            A deep copy of the rotor where the magnetic bearings have been removed
+            from the bearing list, ensuring that their forces are supplied only
+            through the controller during integration.
+        magnetic_force : callable
+            A function that receives the current step index, the time step,
+            and the displacement response vector. It returns the magnetic
+            force vector to be applied at that step. If no magnetic bearings
+            exist, the function returns a vector of zeros with the appropriate
+            number of degrees of freedom.
+
+        Notes
+        -----
+        The method also resets internal states of each magnetic bearing,
+        including control signals, integrated error terms, and initial error
+        vectors. Each bearing's controller is rebuilt based on the provided
+        time increment.
+        """
         magnetic_bearings = [
             brg
             for brg in self.bearing_elements
@@ -2896,11 +2781,18 @@ class Rotor(object):
 
             # Initialize storage attributes for magnetic bearings
             for brg in magnetic_bearings:
-                brg.magnetic_force_xy.append([[], []])
-                brg.magnetic_force_vw.append([[], []])
-                brg.control_signal.append([[], []])
+                brg.magnetic_force_xy.append([])
+                brg.magnetic_force_xy.append([])
+
+                brg.magnetic_force_vw.append([])
+                brg.magnetic_force_vw.append([])
+
+                brg.control_signal.append([])
+                brg.control_signal.append([])
+
                 brg.integral = [0, 0]
                 brg.e0 = [0, 0]
+                brg.build_controller(dt=dt)
 
             rotor.bearing_elements = [
                 brg for brg in rotor.bearing_elements if brg not in magnetic_bearings
@@ -3764,7 +3656,7 @@ class Rotor(object):
         t : array
             Time array.
         coupling : str
-            Coupling type. The avaible types are: "flex" and "rigid".
+            Coupling type. The available types are: "flex" and "rigid".
             Default is "flex".
 
         **kwargs : dictionary
@@ -3773,7 +3665,7 @@ class Rotor(object):
                     Number of shaft element where the misalignment is ocurring.
                 mis_type: string
                     Name of the chosen misalignment type.
-                    The avaible types are: "parallel", "angular" and "combined".
+                    The available types are: "parallel", "angular" and "combined".
                 mis_distance_x : float, pint.Quantity
                     Parallel misalignment distance between driving rotor and driven
                     rotor along X direction.
@@ -4120,11 +4012,19 @@ class Rotor(object):
         sio.savemat(file, dic)
 
     def save(self, file):
-        """Save the rotor to a .toml file.
+        """Save the rotor to a .toml or .json file.
+
+        This method persists the rotor's parameters and all element data
+        (including pre-computed coefficients) to a file. When the rotor is
+        loaded back, element coefficients are restored directly from the file
+        without recomputation. This means that manually editing values in the
+        saved file will NOT trigger recalculation of dependent quantities.
+        To modify the rotor, change parameters in Python and save again.
 
         Parameters
         ----------
         file : str or pathlib.Path
+            The format is determined by the file extension (.toml or .json).
 
         Examples
         --------
@@ -4135,19 +4035,51 @@ class Rotor(object):
         >>> rotor = rotor_example()
         >>> rotor.save(file)
         """
-        with open(file, "w") as f:
-            toml.dump({"parameters": self.parameters}, f)
+        import ross
+        from ross.utils import dump_data
+
+        file = Path(file)
+        dump_data(
+            {"ross_version": ross.__version__, "parameters": self.parameters}, file
+        )
         for el in self.elements:
             el.save(file)
 
+        warning_text = (
+            "This file is auto-generated by ROSS. Do not edit values directly.\n"
+            "When loading, element coefficients are read as-is without "
+            "recomputation.\n"
+            "Changing values here will NOT trigger recalculation of dependent "
+            "quantities.\n"
+            "To modify the rotor, change parameters in Python and save again."
+        )
+
+        if file.suffix.lower() == ".json":
+            from ross.utils import load_data
+
+            data = load_data(file)
+            data = {"_note": warning_text, **data}
+            dump_data(data, file)
+        else:
+            comment = "\n".join(f"# {line}" for line in warning_text.splitlines())
+            content = file.read_text()
+            file.write_text(comment + "\n\n" + content)
+
     @classmethod
     def load(cls, file):
-        """Load rotor from toml file.
+        """Load rotor from a .toml or .json file.
+
+        This method restores a rotor from a previously saved file. Element
+        coefficients are loaded directly without recomputation, so the rotor
+        is reconstructed much faster than building it from scratch. Because
+        of this, manually editing values in the saved file will NOT trigger
+        recalculation of dependent quantities. To modify the rotor, change
+        parameters in Python and save again.
 
         Parameters
         ----------
         file : str or pathlib.Path
-            String or Path for a .toml file.
+            String or Path for a .toml or .json file.
 
         Returns
         -------
@@ -4165,12 +4097,23 @@ class Rotor(object):
         >>> rotor1 == rotor2
         True
         """
-        data = toml.load(file)
+        import ross
+        from ross.utils import load_data
+
+        data = load_data(file)
+
+        saved_version = data.get("ross_version", "unknown")
+        if saved_version != ross.__version__:
+            warnings.warn(
+                f"File was created with ROSS {saved_version}, "
+                f"but current version is {ross.__version__}. "
+                f"This may lead to incompatibilities."
+            )
         parameters = data["parameters"]
 
         elements = []
         for el_name, el_data in data.items():
-            if el_name == "parameters":
+            if el_name in ("parameters", "ross_version") or el_name.startswith("_"):
                 continue
             class_name = el_name.split("_")[0]
             try:
@@ -4272,19 +4215,21 @@ class Rotor(object):
         aux_brg = []
         aux_brg_1 = []
         for elm in self.bearing_elements:
-            if not isinstance(elm, SealElement):
-                if elm.n not in self.nodes:
-                    pass
-                elif elm.n_link in self.nodes:
-                    aux_brg.append(
-                        elm.__class__(n=elm.n, n_link=elm.n_link, kxx=1e20, cxx=0)
-                    )
-                    aux_brg_1.append(
-                        elm.__class__(n=elm.n, n_link=elm.n_link, kxx=0, cxx=0)
-                    )
-                else:
-                    aux_brg.append(elm.__class__(n=elm.n, kxx=1e20, cxx=0))
-                    aux_brg_1.append(elm.__class__(n=elm.n, kxx=0, cxx=0))
+            # Static analysis uses only bearing supports; seals are skipped
+            # (see SealElement docstring in bearing_seal_element.py).
+            if isinstance(elm, SealElement):
+                continue
+
+            if elm.n not in self.nodes:
+                continue
+
+            n_link = (
+                elm.n_link
+                if (elm.n_link is not None and elm.n_link in self.nodes)
+                else None
+            )
+            aux_brg.append(BearingElement(n=elm.n, n_link=n_link, kxx=1e20, cxx=0))
+            aux_brg_1.append(BearingElement(n=elm.n, n_link=n_link, kxx=0, cxx=0))
 
         aux_rotor = Rotor(self.shaft_elements, self.disk_elements, aux_brg)
         aux_rotor_1 = Rotor(self.shaft_elements, self.disk_elements, aux_brg_1)
@@ -4655,7 +4600,21 @@ class Rotor(object):
 
     @classmethod
     def to_ross_only(cls, rotor):
-        """Convert rotor with rsxl objects to ross only."""
+        """Convert a rotor object to a ross-only rotor object.
+
+        This method removes any non-ross elements from the rotor object and returns
+        a new ross.Rotor instance.
+
+        Parameters
+        ----------
+        rotor : ross.Rotor
+            The rotor object to be converted.
+
+        Returns
+        -------
+        ross.Rotor
+            A new ross.Rotor instance with only ross elements.
+        """
         bearings_seals_rs = []
         for b in rotor.bearing_elements:
             if isinstance(b, SealElement):
@@ -5579,7 +5538,7 @@ def rotor_example_with_damping():
     return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
 
 
-def rotor_amb_example():
+def rotor_amb_example(controller_transfer_function=None):
     r"""This function creates the model of a test rig rotor supported by magnetic bearings.
     Details of the model can be found at doi.org/10.14393/ufu.di.2015.186.
 
@@ -5590,34 +5549,37 @@ def rotor_amb_example():
 
     from ross.materials import Material
 
-    steel_amb = Material(name="Steel", rho=7850, E=2e11, Poisson=0.3)
+    steel_amb = Material(name="steel", rho=7850, E=1.9e11, Poisson=0.30)
+    steel_m12_amb = Material(name="steel", rho=7600, E=2e11, Poisson=0.31, color="red")
 
     # Shaft elements:
     # fmt: off
     Li = [
-        0.0, 0.012, 0.032, 0.052, 0.072, 0.092, 0.112, 0.1208, 0.12724,
-        0.13475, 0.14049, 0.14689, 0.15299, 0.159170, 0.16535, 0.180350,
-        0.1905, 0.2063, 0.2221, 0.2379, 0.2537, 0.2695, 0.2853, 0.3011,
-        0.3169, 0.3327, 0.3363, 0.3485, 0.361, 0.3735, 0.3896, 0.4057,
-        0.4218, 0.4379, 0.454, 0.4701, 0.4862, 0.5023, 0.5184, 0.5345,
-        0.54465, 0.559650, 0.565830, 0.572010, 0.57811, 0.58451, 0.590250,
-        0.59776, 0.6042, 0.613, 0.633, 0.645,
+        0.0, 0.012, 0.032, 0.052, 0.072, 0.092, 0.112, 0.1208,
+        0.12724, 0.13475, 0.14049, 0.14689, 0.15299, 0.159170,
+        0.16535, 0.180350, 0.1905, 0.2063, 0.2221, 0.2379, 0.2537,
+        0.2695, 0.2853, 0.3011, 0.3169, 0.3243, 0.3363, 0.358,
+        0.364, 0.3705, 0.3825, 0.3986, 0.4147, 0.4308, 0.4469,
+        0.4630, 0.4791, 0.4952, 0.5113, 0.5274, 0.5356, 0.5457,
+        0.5607, 0.5669, 0.5731, 0.5792, 0.5856, 0.5913, 0.5989,
+        0.6053, 0.6141, 0.6341, 0.6461,
     ]
+
     Li = [round(i, 4) for i in Li]
     L = [Li[i + 1] - Li[i] for i in range(len(Li) - 1)]
+
     i_d = [0.0 for i in L]
     o_d1 = [0.0 for i in L]
     o_d1[0] = 6.35
     o_d1[1:5] = [32 for i in range(4)]
     o_d1[5:14] = [34.8 for i in range(9)]
-    o_d1[14:16] = [1.2 * 49.9 for i in range(2)]
+    o_d1[14:16] = [49.9 for i in range(2)]
     o_d1[16:27] = [19.05 for i in range(11)]
-    o_d1[27:29] = [0.8 * 49.9 for i in range(2)]
-    o_d1[29:39] = [19.05 for i in range(10)]
-    o_d1[39:41] = [1.2 * 49.9 for i in range(2)]
-    o_d1[41:49] = [34.8 for i in range(8)]
-    o_d1[49] = 34.8
-    o_d1[50] = 6.35
+    o_d1[27:29] = [54 for i in range(2)]
+    o_d1[29:40] = [19.05 for i in range(12)]
+    o_d1[40:42] = [49.9 for i in range(2)]
+    o_d1[42:51] = [34.8 for i in range(9)]
+    o_d1[51] = 6.35
     o_d = [i * 1e-3 for i in o_d1]
 
     shaft_elements = [
@@ -5629,98 +5591,109 @@ def rotor_amb_example():
             shear_effects=True,
             rotary_inertia=True,
             gyroscopic=True,
+            alpha=2.5,
         )
         for l, idl, odl in zip(L, i_d, o_d)
     ]
 
     # Disk elements:
-    n_list = [6, 7, 8, 9, 10, 11, 12, 13, 27, 29, 41, 42, 43, 44, 45, 46, 47, 48]
-    width = [
-        0.0088, 0.0064, 0.0075, 0.0057,
-        0.0064, 0.0061, 0.0062, 0.0062,
-        0.0124, 0.0124, 0.0062, 0.0062,
-        0.0061, 0.0064, 0.0057, 0.0075,
-        0.0064, 0.0088,
+    n_list = [27, 28, 29]
+    n_list_2 = [6, 7, 8, 9, 10, 11, 12, 13, 43, 44, 45, 46, 47, 48, 49, 50]
+    width = [0.004, 0.007, 0.014]
+    width_2 = [
+        0.0088, 0.0064, 0.0075, 0.0057, 0.0064, 0.0061,
+        0.0062, 0.0062, 0.0062, 0.0062,0.0061, 0.0064,
+        0.0057, 0.0075, 0.0064, 0.0088,
     ]
-    o_disc = [
-        0.0249, 0.0249, 0.0249, 0.0249,
-        0.0249, 0.0249, 0.0249, 0.0249,
-        0.0600, 0.0600, 0.0249, 0.0249,
-        0.0249, 0.0249, 0.0249, 0.0249,
-        0.0249, 0.0249,
-    ]
-    i_disc = [
-        0.0139, 0.0139, 0.0139, 0.0139,
-        0.0139, 0.0139, 0.0139, 0.0139,
-        0.0200, 0.0200, 0.0139, 0.0139,
-        0.0139, 0.0139, 0.0139, 0.0139,
-        0.0139, 0.0139,
-    ]
+    i_disc_1 = [0.054, 0.054, 0.054]
+    i_disc_2 = [0.0348] * 16
+    o_disc = [0.1200] * 3
+    o_disc_2 = [0.0498] * 16
     # fmt: on
-    m_list = [
-        np.pi * 7850 * w * ((odisc) ** 2 - (idisc) ** 2)
-        for w, odisc, idisc in zip(width, o_disc, i_disc)
-    ]
-    Id_list = [
-        m / 12 * (3 * idisc**2 + 3 * odisc**2 + w**2)
-        for m, idisc, odisc, w in zip(m_list, i_disc, o_disc, width)
-    ]
-    Ip_list = [
-        m / 2 * (idisc**2 + odisc**2) for m, idisc, odisc in zip(m_list, i_disc, o_disc)
+    disk_elements_1 = [
+        DiskElement.from_geometry(n=n, material=steel_amb, width=m, i_d=Id, o_d=Od)
+        for n, m, Id, Od in zip(n_list, width, i_disc_1, o_disc)
     ]
 
-    disk_elements = [
-        DiskElement(
-            n=n,
-            m=m,
-            Id=Id,
-            Ip=Ip,
-        )
-        for n, m, Id, Ip in zip(n_list, m_list, Id_list, Ip_list)
+    disk_elements_2 = [
+        DiskElement.from_geometry(n=n, material=steel_m12_amb, width=m, i_d=Id, o_d=Od)
+        for n, m, Id, Od in zip(n_list_2, width_2, i_disc_2, o_disc_2)
     ]
+
+    disk_elements = [*disk_elements_1, *disk_elements_2]
 
     # Bearing elements:
     n_list = [12, 43]
-    u0 = 4 * np.pi * 1e-7
     n = 200
     A = 1e-4
     i0 = 1.0
     s0 = 1e-3
     alpha = 0.392
-    Kp = 1000
-    Ki = 0
-    Kd = 5
     k_amp = 1.0
     k_sense = 1.0
-    bearing_elements = [
-        MagneticBearingElement(
-            n=n_list[0],
-            g0=s0,
-            i0=i0,
-            ag=A,
-            nw=n,
-            alpha=alpha,
-            k_amp=k_amp,
-            k_sense=k_sense,
-            kp_pid=Kp,
-            kd_pid=Kd,
-            ki_pid=Ki,
-            tag="Magnetic Bearing 0",
-        ),
-        MagneticBearingElement(
-            n=n_list[1],
-            g0=s0,
-            i0=i0,
-            ag=A,
-            nw=n,
-            alpha=alpha,
-            k_amp=k_amp,
-            k_sense=k_sense,
-            kp_pid=Kp,
-            kd_pid=Kd,
-            ki_pid=Ki,
-            tag="Magnetic Bearing 1",
-        ),
-    ]
+
+    if controller_transfer_function is None:
+        Kp = 1000
+        Ki = 0
+        Kd = 5
+
+        bearing_elements = [
+            MagneticBearingElement(
+                n=n_list[0],
+                g0=s0,
+                i0=i0,
+                ag=A,
+                nw=n,
+                alpha=alpha,
+                k_amp=k_amp,
+                k_sense=k_sense,
+                kp_pid=Kp,
+                kd_pid=Kd,
+                ki_pid=Ki,
+                tag="Magnetic Bearing 0",
+            ),
+            MagneticBearingElement(
+                n=n_list[1],
+                g0=s0,
+                i0=i0,
+                ag=A,
+                nw=n,
+                alpha=alpha,
+                k_amp=k_amp,
+                k_sense=k_sense,
+                kp_pid=Kp,
+                kd_pid=Kd,
+                ki_pid=Ki,
+                tag="Magnetic Bearing 1",
+            ),
+        ]
+
+    else:
+        bearing_elements = [
+            MagneticBearingElement(
+                n=n_list[0],
+                g0=s0,
+                i0=i0,
+                ag=A,
+                nw=n,
+                alpha=alpha,
+                k_amp=k_amp,
+                k_sense=k_sense,
+                controller_transfer_function=controller_transfer_function,
+                tag="Magnetic Bearing 0",
+            ),
+            MagneticBearingElement(
+                n=n_list[1],
+                g0=s0,
+                i0=i0,
+                ag=A,
+                nw=n,
+                alpha=alpha,
+                k_amp=k_amp,
+                k_sense=k_sense,
+                controller_transfer_function=controller_transfer_function,
+                tag="Magnetic Bearing 1",
+            ),
+        ]
 
     return Rotor(shaft_elements, disk_elements, bearing_elements)

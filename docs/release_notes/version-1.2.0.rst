@@ -29,7 +29,7 @@ Fix ucs map
 
 Fix calculation of bearing stiffness for plotting 
 
-Since we have removed the Coefficient class we no long calculate the
+Since we have removed the Coefficient class we no longer calculate the
 bearing coefficient with bearing.kxx.interpolated. Now we use
 bearing.kxx_interpolated.
 

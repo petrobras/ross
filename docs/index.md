@@ -47,7 +47,7 @@ key concepts of ROSS with useful background information and explanation.
 ```
 ### API Reference
 
-The api reference contains a detailed description of the functions,
+The API reference contains a detailed description of the functions,
 modules, and objects included in ROSS. The reference describes how the
 methods work and which parameters can be used.
 :::

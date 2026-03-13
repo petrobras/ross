@@ -1,4 +1,4 @@
-In order for us to accept contributions from you that is not a Petrobras' employee, we need that you accept and agree with one of the **Petrobras' Contributor License Agreements (CLAs)**:
+In order for us to accept contributions from you if you are not a Petrobras employee, we need you to accept and agree to one of the **Petrobras' Contributor License Agreements (CLAs)**:
 
 * ICLA: [Individual Contributor License Agreement](clas/individual_cla.md) on behalf of **only yourself**;
 * CCLA: [Corporate Contributor License Agreement](clas/corporate_cla.md) on behalf of **your employer**.

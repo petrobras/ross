@@ -101,7 +101,7 @@ class Material:
         self.color = color
 
     def __eq__(self, other):
-        """Equality method for comparasions.
+        """Equality method for comparisons.
 
         Parameters
         ----------

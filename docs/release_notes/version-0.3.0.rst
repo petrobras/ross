@@ -33,7 +33,7 @@ Fix links not working for more than one support
 
 Related to Issue #382.
 
-We were having problems to define de global indexes for the elements using this method intenally to a element class.
+We were having problems defining the global indexes for the elements using this method internally in an element class.
 It makes more sense to use .dof_global_index() when build the rotor model.
 The routine to calculate the elements' global indexes have been moved to rotor_assembly (\ ``.__init__()`` method).
 Now, each element has an attribute that keeps those index, instead of calling a function to this job.

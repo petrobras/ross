@@ -6,7 +6,7 @@ The following enhancements and bug fixes were implemented for this release:
 Enhancements
 ~~~~~~~~~~~~
 
-Add loop to calculate frequency-depedent coefficients in from_fluid_flow()
+Add loop to calculate frequency-dependent coefficients in from_fluid_flow()
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Users will be able to input as many frequency values as needed and ``from_fluid_flow()`` will run a loop calculating a set of coefficients for each given frequency.
@@ -41,7 +41,7 @@ We can now select the major and minor axis when plotting responses:
 
 The method ``run_freq_response()`` now returns, not only the displacement results,
 but also the velocity and acceleration. The data is then input to
-``FrequecyResponseResults`` and ``ForcedResponseResults`` classes.
+``FrequencyResponseResults`` and ``ForcedResponseResults`` classes.
 
 The user is able to choose the response by changing the amplitude_units argument.
  * Inputing '[length]/[force]', it displays the displacement;
@@ -57,7 +57,7 @@ Crack, rubbing and misalignment simulation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 It is now possible to run simulations for some defects such as cracks, rubbing
-and misalingment.
+and misalignment.
 
 API changes
 ~~~~~~~~~~~
@@ -65,8 +65,8 @@ API changes
 Change methods to `run_`
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-The plot_level1 and plot_ucs methods were refactore so that they behave as other run methods.
-Now we the run* prefix to call them and they will return Results objects.
+The plot_level1 and plot_ucs methods were refactored so that they behave as other run methods.
+Now we use the run* prefix to call them and they will return Results objects.
 
 .. code-block:: python
 
