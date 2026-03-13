@@ -287,8 +287,8 @@ class PlainJournal(BearingElement):
         a, b = self._get_interp_coeffs(
             T_muI, T_muF, mu_I, mu_F
         )  # Interpolation coefficients
-        self.interpolate = lambda reference: a * (
-            reference**b
+        self.interpolate = lambda reference: (
+            a * (reference**b)
         )  # Interpolation function
         self.reference_viscosity = self.interpolate(self.reference_temperature)
 

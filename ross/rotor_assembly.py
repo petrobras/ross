@@ -156,7 +156,6 @@ class Rotor(object):
         modal_damping=None,
         default_modes=None,
         tag=None,
-        
     ):
         self.parameters = {"min_w": min_w, "max_w": max_w, "rated_w": rated_w}
 
@@ -560,7 +559,7 @@ class Rotor(object):
 
             M0[np.ix_(dofs, dofs)] += elm.M()
             C0[np.ix_(dofs, dofs)] += elm.C()
-            K0[np.ix_(dofs, dofs)] += elm.K()            
+            K0[np.ix_(dofs, dofs)] += elm.K()
             G0[np.ix_(dofs, dofs)] += elm.G()
 
             if elm in self.shaft_elements:
@@ -573,7 +572,11 @@ class Rotor(object):
         # Damping configuration
         self.modal_damping = modal_damping
         self.default_modals = default_modes
-        self.C0 = C0 if self.modal_damping == None else self._modal_damping(self.modal_damping)
+        self.C0 = (
+            C0
+            if self.modal_damping == None
+            else self._modal_damping(self.modal_damping)
+        )
         self.G0 = G0
         self.Ksdt0 = Ksdt0
 
@@ -666,7 +669,7 @@ class Rotor(object):
                     return brg.n
         return None
 
-    def _modal_damping(self, modal_damping ):
+    def _modal_damping(self, modal_damping):
         """Compute the physical damping matrix from modal damping ratios.
 
         Parameters
@@ -687,9 +690,7 @@ class Rotor(object):
 
         w = np.sqrt(evals.real)
         below_1rpm = Q_(np.sort(w), "rad/s").to("RPM").m < 1
-        modal_damping = np.block(
-            [np.zeros(below_1rpm.sum()), np.array(modal_damping)]
-        )
+        modal_damping = np.block([np.zeros(below_1rpm.sum()), np.array(modal_damping)])
         idx = np.argsort(w)
         w = w[idx]
         phi = evecs[:, idx]
@@ -996,11 +997,11 @@ class Rotor(object):
         wd = np.zeros_like(_wd)
 
         for i in range(len(wn)):
-            wn_func = lambda s: (s - self.run_modal(s, num_modes).wn[i])
+            wn_func = lambda s: s - self.run_modal(s, num_modes).wn[i]
             wn[i] = newton(func=wn_func, x0=_wn[i], rtol=rtol)
 
         for i in range(len(wd)):
-            wd_func = lambda s: (s - self.run_modal(s, num_modes).wd[i])
+            wd_func = lambda s: s - self.run_modal(s, num_modes).wd[i]
             wd[i] = newton(func=wd_func, x0=_wd[i], rtol=rtol)
 
         log_dec = np.zeros_like(wn)
@@ -2627,26 +2628,32 @@ class Rotor(object):
         add_to_RHS = kwargs.get("add_to_RHS")
 
         if add_to_RHS is None:
-            forces = lambda step, **curr_state: F[step, :] + reduction[1](
-                magnetic_force(
-                    step,
-                    curr_state.get("dt"),
-                    reduction[2](curr_state.get("y")),
+            forces = lambda step, **curr_state: (
+                F[step, :]
+                + reduction[1](
+                    magnetic_force(
+                        step,
+                        curr_state.get("dt"),
+                        reduction[2](curr_state.get("y")),
+                    )
                 )
             )
         else:
-            forces = lambda step, **curr_state: F[step, :] + reduction[1](
-                add_to_RHS(
-                    step,
-                    time_step=curr_state.get("dt"),
-                    disp_resp=reduction[2](curr_state.get("y")),
-                    velc_resp=reduction[2](curr_state.get("ydot")),
-                    accl_resp=reduction[2](curr_state.get("y2dot")),
-                )
-                + magnetic_force(
-                    step,
-                    curr_state.get("dt"),
-                    reduction[2](curr_state.get("y")),
+            forces = lambda step, **curr_state: (
+                F[step, :]
+                + reduction[1](
+                    add_to_RHS(
+                        step,
+                        time_step=curr_state.get("dt"),
+                        disp_resp=reduction[2](curr_state.get("y")),
+                        velc_resp=reduction[2](curr_state.get("ydot")),
+                        accl_resp=reduction[2](curr_state.get("y2dot")),
+                    )
+                    + magnetic_force(
+                        step,
+                        curr_state.get("dt"),
+                        reduction[2](curr_state.get("y")),
+                    )
                 )
             )
 
@@ -2773,8 +2780,8 @@ class Rotor(object):
         rotor = deepcopy(self)
 
         if len(magnetic_bearings):
-            magnetic_force = (
-                lambda step, time_step, disp_resp: self.magnetic_bearing_controller(
+            magnetic_force = lambda step, time_step, disp_resp: (
+                self.magnetic_bearing_controller(
                     step, magnetic_bearings, time_step, disp_resp, **kwargs
                 )
             )
