@@ -1867,6 +1867,78 @@ def test_modal_6dof(rotor_6dof):
     assert_almost_equal(modal.wn[:5], wn, decimal=2)
     assert_almost_equal(modal.wd[:5], wd, decimal=2)
 
+def test_modal_damping():
+    #  Rotor with modal damping with 6 shaft elements 2 disks and 2 bearings
+    i_d = 0
+    o_d = 0.05
+    n = 6
+    L = [0.25 for _ in range(n)]
+
+    shaft_elem = [
+        ShaftElement(
+            l,
+            i_d,
+            o_d,
+            material=steel,
+            shear_effects=True,
+            rotary_inertia=True,
+            gyroscopic=True,
+        )
+        for l in L
+    ]
+
+    disk0 = DiskElement.from_geometry(2, steel, 0.07, 0.05, 0.28)
+    disk1 = DiskElement.from_geometry(4, steel, 0.07, 0.05, 0.35)
+
+    stfx = 1e6
+    stfy = 0.8e6
+    bearing0 = BearingElement(0, kxx=stfx, kyy=stfy, cxx=0)
+    bearing1 = BearingElement(6, kxx=stfx, kyy=stfy, cxx=0)
+
+    modal_damping=[0.001, 0.001]
+    default_modes=0.01
+
+    rotor=Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1],
+                modal_damping=modal_damping, default_modes=default_modes)
+    
+    speed = Q_(np.arange(0,10001,200), "RPM").to('rad/s').m
+    n1 = 2
+    m1 = Q_(11867,'g.mm').to('kg.m').m 
+    p1 = Q_(0,'rad')
+    n2 = 4
+    m2 = Q_(11867,'g.mm').to('kg.m').m 
+    p2 = Q_(0,'rad')
+
+    unb_response = rotor.run_freq_response(speed_range=speed)
+
+    actual_amp=abs(unb_response.freq_resp[n1*6,n1*6,:8])
+    actual_phase=np.angle(unb_response.freq_resp[n1*6,n1*6,:8])
+
+    expected_amp = [0.00000000e+00, 
+                    1.49507920e-06, 
+                    1.80340194e-06, 
+                    2.81943596e-06,
+                    1.91475919e-05, 
+                    2.54885361e-06, 
+                    9.41771898e-07, 
+                    4.55762869e-07]
+
+    expected_phase = [0.00000000e+00, 
+                     -8.06802391e-05, 
+                     -1.82013808e-04, 
+                     -3.91432201e-04,
+                     -3.59430355e-03, 
+                     -3.14083143e+00, 
+                     -3.14087742e+00, 
+                     -3.14029804e+00]
+
+
+
+    assert_allclose(actual_amp, expected_amp)
+    assert_allclose(actual_phase, expected_phase)
+
+
+
 
 @pytest.fixture
 def rotor8():
