@@ -503,6 +503,117 @@ class GearElementTVMS(GearElement):
 
         self.tau_c = self._to_tau(alpha_c)
 
+    @classmethod
+    def from_geometry(
+        cls,
+        n,
+        material,
+        width,
+        i_d,
+        o_d,
+        n_teeth,
+        pr_angle=None,
+        helix_angle=0,
+        addendum_coeff=1,
+        tip_clearance_coeff=0.25,
+        tag=None,
+        scale_factor=1.0,
+        color="Goldenrod",
+    ):
+        """Create a gear element from geometry properties.
+
+        This class method will create a gear element from geometry data.
+        Properties are calculated as per :cite:`friswell2010dynamics`, appendix 1
+        for a hollow cylinder:
+
+        Mass:
+
+        :math:`m = \\rho \\pi w (d_o^2 - d_i^2) / 4`
+
+        Polar moment of inertia:
+
+        :math:`I_p = m (d_o^2 + d_i^2) / 8`
+
+        Diametral moment of inertia:
+
+        :math:`I_d = \\frac{1}{2} I_p + \\frac{1}{12} m w^2`
+
+        Where :math:`\\rho` is the material density, :math:`w` is the gear width,
+        :math:`d_o` is the outer diameter and :math:`d_i` is the inner diameter.
+
+        Parameters
+        ----------
+        n : int
+            Node in which the gear will be inserted.
+        material : ross.Material
+            Gear's construction material.
+        width : float, pint.Quantity
+            The face width of the gear considering that the gear body has the
+            same thickness (m).
+        i_d : float, pint.Quantity
+            Bore, inner diameter, the diameter of the shaft on which the gear
+            is mounted (m).
+        o_d : float, pint.Quantity
+            Pitch diameter (m).
+        n_teeth : int
+            Number of teeth.
+        pr_angle : float, pint.Quantity, optional
+            The normal pressure angle (rad).
+            Default is 20 deg (converted to rad).
+        helix_angle: float, pint.Quantity, optional
+            Helix angle for helical gears (rad).
+            Default is 0, representing spur gear.
+        addendum_coeff : float, optional
+            Addendum coefficient.
+            Default is 1.
+        tip_clearance_coeff : float, optional
+            Gear's clearance coefficient.
+            Default is 0.25.
+        tag : str, optional
+            A tag to name the element.
+            Default is None.
+        scale_factor: float, optional
+            The scale factor is used to scale the gear drawing.
+            Default is 1.
+        color : str, optional
+            A color to be used when the element is represented.
+            Default is 'Goldenrod'.
+
+        Attributes
+        ----------
+        m : float
+            Mass of the gear element.
+        Id : float
+            Diametral moment of inertia.
+        Ip : float
+            Polar moment of inertia.
+
+        Examples
+        --------
+        >>> from ross.materials import steel
+        >>> gear = GearElementTVMS.from_geometry(0, steel, 0.07, 0.05, 0.28, 50)
+        >>> gear.base_radius # doctest: +ELLIPSIS
+        0.131556...
+        >>>
+        """
+        module = o_d / n_teeth
+
+        return cls(
+            n,
+            material=material,
+            width=width,
+            bore_diameter=i_d,
+            module=module,  
+            n_teeth=n_teeth,
+            pr_angle=pr_angle,
+            helix_angle=helix_angle,
+            addendum_coeff=addendum_coeff,
+            tip_clearance_coeff=tip_clearance_coeff,
+            tag=tag,
+            scale_factor=scale_factor,
+            color=color,
+        )
+
     @staticmethod
     def _involute(angle):
         """Involute function
