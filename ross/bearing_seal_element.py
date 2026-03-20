@@ -6,7 +6,6 @@ bearings and seals. There are 7 different classes to represent bearings options.
 
 import control as ct
 import numpy as np
-import toml
 import warnings
 from inspect import signature
 from prettytable import PrettyTable
@@ -44,6 +43,13 @@ class BearingElement(Element):
 
     This class will create a bearing element.
     Parameters can be a constant value or speed dependent.
+
+    Attributes
+    ----------
+    _save_attrs : list
+        Extra instance attributes to persist on save/load, beyond __init__
+        parameters and coefficients. Subclasses can extend this to include
+        derived quantities that are expensive to recompute.
     For speed dependent parameters, each argument should be passed
     as an array and the correspondent speed values should also be
     passed as an array.
@@ -133,6 +139,8 @@ class BearingElement(Element):
            [  0., 150.,   0.],
            [  0.,   0.,   0.]])
     """
+
+    _save_attrs = []
 
     @check_units
     def __init__(
@@ -225,7 +233,20 @@ class BearingElement(Element):
         self.dof_global_index = None
 
     def _process_coefficient(self, coefficient):
-        """Helper function used to process the coefficient data."""
+        """Helper function used to process the coefficient data.
+
+        Parameters
+        ----------
+        coefficient : float, array
+            The coefficient data to be processed.
+
+        Returns
+        -------
+        coefficient : float, array
+            The processed coefficient data.
+        interpolated : callable
+            A callable for interpolating the coefficient data.
+        """
         interpolated = None
 
         if isinstance(coefficient, (int, float)):
@@ -268,7 +289,14 @@ class BearingElement(Element):
         return coefficient, interpolated
 
     def _get_coefficient_list(self, ignore_mass=False):
-        """List with all bearing coefficients as strings"""
+        """List with all bearing coefficients as strings
+
+        Parameters
+        ----------
+        ignore_mass : bool, optional
+            If True, mass coefficients are excluded from the list.
+            Default is False.
+        """
         coefficients = [
             attr.replace("_interpolated", "")
             for attr in self.__dict__.keys()
@@ -553,8 +581,10 @@ class BearingElement(Element):
         return hash(self.tag)
 
     def save(self, file):
+        from ross.utils import load_data, dump_data
+
         try:
-            data = toml.load(file)
+            data = load_data(file)
         except FileNotFoundError:
             data = {}
 
@@ -565,12 +595,14 @@ class BearingElement(Element):
 
         coefficients = set(self._get_coefficient_list())
 
-        args = list(coefficients.union(init_args))
+        extra_attrs = {attr for attr in self._save_attrs if attr in self.__dict__}
+
+        args = list(coefficients.union(init_args).union(extra_attrs))
         args.sort()
 
         brg_data = {arg: self.__dict__[arg] for arg in args}
 
-        # change np.array to lists so that we can save in .toml as list(floats)
+        # change np.array to lists so that we can save as list(floats)
         for k, v in brg_data.items():
             if isinstance(v, np.generic):
                 brg_data[k] = brg_data[k].item()
@@ -596,8 +628,34 @@ class BearingElement(Element):
 
         data[f"{class_name}_{self.tag}"] = brg_data
 
-        with open(file, "w") as f:
-            toml.dump(data, f)
+        dump_data(data, file)
+
+    @classmethod
+    def read_toml_data(cls, data):
+        """Read and parse data stored in a .toml or .json file.
+
+        Overrides the base Element method to pass extra saved keys (e.g.
+        pre-computed coefficients) as kwargs to the constructor. This allows
+        subclasses to skip expensive computation when coefficients are already
+        available from a saved file.
+
+        Parameters
+        ----------
+        data : dict
+            Dictionary obtained from toml.load() or json.load().
+
+        Returns
+        -------
+        The element object.
+        """
+        init_params = set(signature(cls.__init__).parameters)
+        init_params.discard("kwargs")
+        init_params.discard("self")
+
+        matched = {k: v for k, v in data.items() if k in init_params}
+        extra = {k: v for k, v in data.items() if k not in init_params}
+
+        return cls(**matched, **extra)
 
     def dof_mapping(self):
         """Degrees of freedom mapping.
@@ -1134,8 +1192,6 @@ class BearingFluidFlow(BearingElement):
         Number of points along the Z direction (direction of flow).
     ntheta: int
         Number of points along the direction theta. NOTE: ntheta must be odd.
-    nradius: int
-        Number of points along the direction r.
     length: float
         Length in the Z direction (m).
 
@@ -1375,7 +1431,7 @@ class SealElement(BearingElement):
         Default is None.
     scale_factor : float, optional
         The scale factor is used to scale the bearing drawing.
-        Default is 0.5.
+        Defaults to half the parent BearingElement's scale factor if not provided.
     color : str, optional
         A color to be used when the element is represented.
         Default is "#77ACA2".
@@ -1430,6 +1486,7 @@ class SealElement(BearingElement):
         **kwargs,
     ):
         self.seal_leakage = seal_leakage
+
 
         super().__init__(
             n=n,
@@ -1508,7 +1565,13 @@ class SealElement(BearingElement):
         )
 
         if self.seal_leakage is not None:
-            hovertemplate += f"Seal Leakage: {self.seal_leakage:.3e}<br>"
+            if hasattr(self.seal_leakage, "__iter__"):
+                hovertemplate += (
+                    f"Seal Leakage: {self.seal_leakage[0]:.3e} ... "
+                    f"{self.seal_leakage[-1]:.3e}<br>"
+                )
+            else:
+                hovertemplate += f"Seal Leakage: {self.seal_leakage:.3e}<br>"
 
         customdata = [self.n]
 
@@ -1599,6 +1662,21 @@ class BallBearingElement(BearingElement):
         self.d_balls = d_balls
         self.fs = fs
         self.alpha = alpha
+
+        # if coefficients are provided (e.g. loading from saved file), skip computation
+        if kwargs.get("kxx") is not None:
+            super().__init__(
+                n=n,
+                frequency=None,
+                cxx=cxx,
+                cyy=cyy,
+                tag=tag,
+                n_link=n_link,
+                scale_factor=scale_factor,
+                color=color,
+                **kwargs,
+            )
+            return
 
         Kb = 13.0e6
         kyy = (
@@ -1764,6 +1842,21 @@ class RollerBearingElement(BearingElement):
         self.l_rollers = l_rollers
         self.fs = fs
         self.alpha = alpha
+
+        # if coefficients are provided (e.g. loading from saved file), skip computation
+        if kwargs.get("kxx") is not None:
+            super().__init__(
+                n=n,
+                frequency=None,
+                cxx=cxx,
+                cyy=cyy,
+                tag=tag,
+                n_link=n_link,
+                scale_factor=scale_factor,
+                color=color,
+                **kwargs,
+            )
+            return
 
         Kb = 1.0e9
         kyy = Kb * n_rollers**0.9 * l_rollers**0.8 * fs**0.1 * (np.cos(alpha)) ** 1.9
@@ -2059,17 +2152,6 @@ class MagneticBearingElement(BearingElement):
         self.D_c = None
         self.x_c = None
 
-        if (
-            self.kp_pid == 0
-            and self.ki_pid == 0
-            and self.kd_pid == 0
-            and controller_transfer_function is None
-        ):
-            raise ValueError(
-                "You need to provide either the gains k_p, k_i, and k_d, or the transfer function of the "
-                "controller you intend to associate with the Magnetic Bearing. Neither has been provided."
-            )
-
         # From: "Magnetic Bearings. Theory, Design, and Application to Rotating Machinery"
         # Authors: Gerhard Schweitzer and Eric H. Maslen
         # Page: 343
@@ -2102,6 +2184,30 @@ class MagneticBearingElement(BearingElement):
         self.control_signal = []
         self.magnetic_force_xy = []
         self.magnetic_force_vw = []
+
+        # if coefficients are provided (e.g. loading from saved file), skip computation
+        if kwargs.get("kxx") is not None:
+            super().__init__(
+                n=n,
+                frequency=frequency,
+                tag=tag,
+                n_link=n_link,
+                scale_factor=scale_factor,
+                color=color,
+                **kwargs,
+            )
+            return
+
+        if (
+            self.kp_pid == 0
+            and self.ki_pid == 0
+            and self.kd_pid == 0
+            and controller_transfer_function is None
+        ):
+            raise ValueError(
+                "You need to provide either the gains k_p, k_i, and k_d, or the transfer function of the "
+                "controller you intend to associate with the Magnetic Bearing. Neither has been provided."
+            )
 
         C_s = self.get_analog_controller()
         omega = frequency if frequency is not None else np.logspace(0, 4)
@@ -2518,6 +2624,13 @@ class CylindricalBearing(BearingElement):
            [-25060393...,   8815302...]])
     """
 
+    _save_attrs = [
+        "eccentricity",
+        "attitude_angle",
+        "sommerfeld",
+        "modified_sommerfeld",
+    ]
+
     @check_units
     def __init__(
         self,
@@ -2547,6 +2660,21 @@ class CylindricalBearing(BearingElement):
         self.journal_diameter = journal_diameter
         self.radial_clearance = radial_clearance
         self.oil_viscosity = oil_viscosity
+
+        # if coefficients are provided (e.g. loading from saved file), skip computation
+        if kwargs.get("kxx") is not None:
+            for attr in self._save_attrs:
+                if attr in kwargs:
+                    setattr(self, attr, kwargs.pop(attr))
+            super().__init__(
+                n,
+                frequency=self.speed,
+                tag=tag,
+                scale_factor=scale_factor,
+                color=color,
+                **kwargs,
+            )
+            return
 
         # modified Sommerfeld number or the Ocvirk number
         Ss = (
@@ -2673,6 +2801,9 @@ class CylindricalBearing(BearingElement):
             f"Eccentricity: {self.eccentricity[idx_0]:.4f} ... {self.eccentricity[idx_1]:.4f}<br>"
             f"Attitude Angle: {self.attitude_angle[idx_0]:.4f} ... {self.attitude_angle[idx_1]:.4f} rad<br>"
             f"Sommerfeld: {self.sommerfeld[idx_0]:.3e} ... {self.sommerfeld[idx_1]:.3e}<br>"
+        )
+
+        hovertemplate += (
             f"Kxx: {self.kxx_interpolated(freq_0):.3e} ... {self.kxx_interpolated(freq_1):.3e} N/m<br>"
             f"Kyy: {self.kyy_interpolated(freq_0):.3e} ... {self.kyy_interpolated(freq_1):.3e} N/m<br>"
             f"Cxx: {self.cxx_interpolated(freq_0):.3e} ... {self.cxx_interpolated(freq_1):.3e} N·s/m<br>"

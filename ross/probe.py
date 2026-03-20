@@ -55,6 +55,13 @@ class Probe:
 
     @property
     def info(self):
+        """Return the node, angle, and direction of the probe.
+
+        Returns
+        -------
+        tuple
+            A tuple containing (node, angle, direction).
+        """
         return self.node, self.angle, self.direction
 
     def __str__(self):

@@ -154,6 +154,13 @@ class DiskElement(Element):
         )
 
     def __hash__(self):
+        """Return the hash value of the disk element.
+
+        Returns
+        -------
+        int
+            Hash value based on the element tag.
+        """
         return hash(self.tag)
 
     def dof_mapping(self):
@@ -438,18 +445,86 @@ class DiskElement(Element):
 
     @staticmethod
     def calculate_mass(rho, width, i_d, o_d):
+        """Calculate the mass of a disk from its geometry.
+
+        Parameters
+        ----------
+        rho : float
+            Density of the disk material (kg/m^3).
+        width : float
+            Width of the disk (m).
+        i_d : float
+            Inner diameter of the disk (m).
+        o_d : float
+            Outer diameter of the disk (m).
+
+        Returns
+        -------
+        mass : float
+            Mass of the disk element (kg).
+        """
         return rho * np.pi * width * (o_d**2 - i_d**2) / 4
 
     @staticmethod
     def calculate_Ip(m, i_d, o_d):
+        """Calculate the polar moment of inertia of a disk from its geometry.
+
+        Parameters
+        ----------
+        m : float
+            Mass of the disk element (kg).
+        i_d : float
+            Inner diameter of the disk (m).
+        o_d : float
+            Outer diameter of the disk (m).
+
+        Returns
+        -------
+        Ip : float
+            Polar moment of inertia of the disk element (kg.m^2).
+        """
         return m * (o_d**2 + i_d**2) / 8
 
     @staticmethod
     def calculate_Id(Ip, m, width):
+        """Calculate the diametral moment of inertia of a disk from its geometry.
+
+        Parameters
+        ----------
+        Ip : float
+            Polar moment of inertia of the disk element (kg.m^2).
+        m : float
+            Mass of the disk element (kg).
+        width : float
+            Width of the disk (m).
+
+        Returns
+        -------
+        Id : float
+            Diametral moment of inertia of the disk element (kg.m^2).
+        """
         return 1 / 2 * Ip + 1 / 12 * m * width**2
 
     @staticmethod
     def calculate_width(rho, m, i_d, o_d):
+        """Calculate the width of a disk from its geometry and mass.
+
+        Parameters
+        ----------
+        rho : float
+            Density of the disk material (kg/m^3).
+        m : float
+            Mass of the disk element (kg).
+        i_d : float
+            Inner diameter of the disk (m).
+        o_d : float
+            Outer diameter of the disk (m).
+
+        Returns
+        -------
+        width : float
+            Width of the disk element (m).
+        """
         return 4 * m / (rho * np.pi * (o_d**2 - i_d**2))
 
     @classmethod
@@ -538,16 +613,16 @@ class DiskElement(Element):
         sheet_name : int or str, optional
             Position of the sheet in the file (starting from 0) or its name.
             If none is passed, it is assumed to be the first sheet in the file.
-        tag_list : list, optional
-            list of tags for the disk elements.
+        tag : list, str, optional
+            Tag or list of tags for the disk elements.
             Default is None
-        scale_factor: list, optional
-            List of scale factors for the disk elements patches.
+        scale_factor: list, float, optional
+            Scale factor or list of scale factors for the disk elements patches.
             The scale factor is used to scale the disk drawing.
-            Default is 1.
-        color : list, optional
-            A color to be used when the element is represented.
-            Default is 'Firebrick'.
+            If None, a default list of 1s is used.
+        color : list, str, optional
+            A color or list of colors to be used when the element is represented.
+            If None, a default list of 'Firebrick' is used.
 
         Returns
         -------

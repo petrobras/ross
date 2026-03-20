@@ -7,7 +7,6 @@ shaft.
 import inspect
 
 import numpy as np
-import toml
 from plotly import graph_objects as go
 
 from ross.element import Element
@@ -406,6 +405,8 @@ class ShaftElement(Element):
         return hash(self.tag)
 
     def save(self, file):
+        from ross.utils import load_data, dump_data
+
         signature = inspect.signature(self.__init__)
         args_list = list(signature.parameters)
         args = {arg: getattr(self, arg) for arg in args_list}
@@ -421,16 +422,26 @@ class ShaftElement(Element):
         }
 
         try:
-            data = toml.load(file)
+            data = load_data(file)
         except FileNotFoundError:
             data = {}
 
         data[f"{self.__class__.__name__}_{self.tag}"] = args
-        with open(file, "w") as f:
-            toml.dump(data, f)
+        dump_data(data, file)
 
     @classmethod
     def read_toml_data(cls, data):
+        """Read and parse data stored in a .toml or .json file.
+
+        Parameters
+        ----------
+        data : dict
+            Dictionary obtained from toml.load() or json.load().
+
+        Returns
+        -------
+        The element object.
+        """
         data["material"] = Material(**data["material"])
         return cls(**data)
 

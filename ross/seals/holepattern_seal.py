@@ -3,6 +3,8 @@ import multiprocessing
 from ross import SealElement
 from ross.units import Q_, check_units
 from scipy.optimize import curve_fit
+from warnings import warn
+import plotly.graph_objects as go
 import ccp
 
 __all__ = ["HolePatternSeal"]
@@ -59,12 +61,12 @@ class HolePatternSeal(SealElement):
     ----------
     n : int
         Node in which the bearing will be located.
+    shaft_radius : float, pint.Quantity
+        Radius of the shaft (m).
+    radial_clearance : float, pint.Quantity
+        Seal clearance (m).
     length : float, pint.Quantity
         Length of the seal (m).
-    radius : float, pint.Quantity
-        Radius of the journal (m).
-    clearance : float, pint.Quantity
-        Seal clearance (m).
     roughness : float
         E / D (roughness / diameter) of the shaft.
     cell_length : float, pint.Quantity
@@ -79,39 +81,51 @@ class HolePatternSeal(SealElement):
         Outlet pressure (Pa).
     inlet_temperature : float
         Inlet temperature (deg K).
-    frequency : list, pint.Quantity, optional
+    frequency : list, pint.Quantity
         List with whirl frequency (rad/s).
-        Must have the same size as speed.
-        Default is None, where the whirl frequencies are considered the same as the speed.
-    preswirl : float
-        Ratio of the circumferential velocity of the gas to the surface velocity of the shaft.
-    entr_coef : float, optional
-        Entrance loss coefficient. Default is 0.1.
-    exit_coef : float, optional
-        Exit loss coefficient. Default is 0.5
-    gas_composition : dict
+    gas_composition : dict, optional
         Gas composition as a dictionary {component: molar_fraction}.
-        If gas_composition is None, provide the following parameters:
-        b_suther: float
-            b coefficient for the Suther viscosity model
-        s_suther: float
-            s coefficient for the Suther viscosity model
-        molar: float, pint.Quantity
-            molecular mass (kg/kgmol)(For Air molar=28.97 kg/kgmol)
-        gamma: float
-            gas constant gamma (Cp/Cv)(For Air gamma=1.4)
-    nz : int
+    molar : float, pint.Quantity, optional
+        Molecular mass (kg/kgmol). For Air: molar=28.97 kg/kgmol. Required if gas_composition is None.
+        Default is None.
+    gamma : float, optional
+        Gas constant gamma (Cp/Cv). For Air: gamma=1.4. Required if gas_composition is None.
+        Default is None.
+    b_suther : float, optional
+        b coefficient for the Sutherland viscosity model. Required if gas_composition is None.
+        Default is None.
+    s_suther : float, optional
+        s coefficient for the Sutherland viscosity model. Required if gas_composition is None.
+        Default is None.
+    preswirl : float, optional
+        Ratio of the circumferential velocity of the gas to the surface velocity of the shaft.
+        Default is 0.0.
+    entr_coef : float, optional
+        Entrance loss coefficient.
+        Default is 0.1.
+    exit_coef : float, optional
+        Exit loss coefficient.
+        Default is 0.5.
+    whirl_ratio : float, optional
+        Ratio of whirl frequency to rotational speed.
+        Default is 1.0.
+    nz : int, optional
         Number of discretization points in the axial direction.
-    itrmx : int
-        Maximum number of iterations for basic state calculation
-    stop_criterion : float
+        Default is 80.
+    max_iterations : int, optional
+        Maximum number of iterations for basic state calculation.
+        Default is 180.
+    tolerance : float, optional
         Tolerance of the solution expressed as a percentage of the pressure differential across the seal.
-    toler : float
-    Initial step for the solution method. It should not be more than 0.01.
-    rlx : float
+        Default is 0.0001.
+    first_step_size : float, optional
+        Initial step for the solution method. It should not be more than 0.01.
+        Default is 0.01.
+    rlx_factor : float, optional
         Relaxation factor. Should be smaller than 0.1.
+        Default is 0.1.
     tag : str, optional
-        A tag to name the element
+        A tag to name the element.
         Default is None.
     n_link : int, optional
         Node to which the bearing will connect. If None the bearing is
@@ -130,10 +144,9 @@ class HolePatternSeal(SealElement):
     >>> from ross.units import Q_
     >>> holepattern = HolePatternSeal(
     ...     n=0,
-    ...     frequency=Q_([8000], "RPM"),
+    ...     shaft_radius=0.0725,
+    ...     radial_clearance=0.0003,
     ...     length=0.04699,
-    ...     radius=0.0725,
-    ...     clearance=0.0003,
     ...     roughness=0.0001,
     ...     cell_length=0.003175,
     ...     cell_width=0.003175,
@@ -141,6 +154,7 @@ class HolePatternSeal(SealElement):
     ...     inlet_pressure=689000.0,
     ...     outlet_pressure=94300.0,
     ...     inlet_temperature=322.0,
+    ...     frequency=Q_([8000], "RPM"),
     ...     gas_composition={"Nitrogen": 0.79, "Oxygen": 0.21},
     ...     preswirl=0.8,
     ...     entr_coef=0.5,
@@ -152,32 +166,32 @@ class HolePatternSeal(SealElement):
     @check_units
     def __init__(
         self,
-        n=None,
-        frequency=None,
-        length=None,
-        radius=None,
-        clearance=None,
-        roughness=None,
-        cell_length=None,
-        cell_width=None,
-        cell_depth=None,
-        inlet_pressure=None,
-        outlet_pressure=None,
-        inlet_temperature=None,
+        n,
+        shaft_radius,
+        radial_clearance,
+        length,
+        roughness,
+        cell_length,
+        cell_width,
+        cell_depth,
+        inlet_pressure,
+        outlet_pressure,
+        inlet_temperature,
+        frequency,
         gas_composition=None,
-        b_suther=None,
-        s_suther=None,
         molar=None,
         gamma=None,
-        preswirl=None,
-        entr_coef=None,
-        exit_coef=None,
-        nz=80,
-        itrmx=180,
-        stopcriterion=0.0001,
-        toler=0.01,
-        rlx=0.1,
+        b_suther=None,
+        s_suther=None,
+        preswirl=0.0,
+        entr_coef=0.1,
+        exit_coef=0.5,
         whirl_ratio=1.0,
+        nz=80,
+        max_iterations=180,
+        tolerance=0.0001,
+        first_step_size=0.01,
+        rlx_factor=0.1,
         **kwargs,
     ):
         for k, v in locals().items():
@@ -194,8 +208,10 @@ class HolePatternSeal(SealElement):
                 T=self.inlet_temperature,
                 fluid=self.gas_composition,
             )
-            self.molar = state.molar_mass("g/mol").m
-            self.gamma = (state.cp() / state.cv()).m
+
+            molar = state.molar_mass("g/mol").m
+            gamma = (state.cp() / state.cv()).m
+
             x = []
             y = []
             for T in range(260, 400, 20):
@@ -217,19 +233,31 @@ class HolePatternSeal(SealElement):
             popt, pcov = curve_fit(sutherland_formula, x, y)
             self.b_suther, self.s_suther = popt
 
+        R_univ = 8314.0  # Universal gas constant (J/(kmol·K))
+        self.R = R_univ / molar
+        self.molar = molar
+        self.gamma = gamma
+
         self.nmx = 2000
-        self.R_univ = 8314.0
-        self.R = 0.0
         self.omega = 0.0
         self.gamma1 = 0.0
         self.gamma12 = 0.0
         self.dz = 0.0
         self.area = 0.0
         self.mdot = 0.0
-        self.z = np.zeros(self.nmx + 1)
+
+        self.dz = self.length / float(self.nz)
+        self.z = np.zeros(nz + 4)
+        self.z[0] = -self.dz
+        self.z[1] = 0.0
+        self.z[2:-1] = np.arange(self.nz + 1) * self.dz
+        self.z[-1] = self.z[-2]
+
         self.t = np.zeros(self.nmx + 1)
+
         self.mz2 = np.zeros(self.nmx + 1)
         self.mt = np.zeros(self.nmx + 1)
+
         self.i_t = np.array([1, 0, 3, 2])
         self.i_th = np.array([2, 3, 0, 1])
         self.sgn_t = np.array([-1.0, 1.0, -1.0, 1.0])
@@ -241,14 +269,17 @@ class HolePatternSeal(SealElement):
             # For small workloads, sequential execution avoids process spawn overhead
             if len(self.frequency) > 2:
                 with multiprocessing.Pool() as pool:
-                    coefficients_dict_list = pool.map(self.run, self.frequency)
+                    results = pool.map(self.run, self.frequency)
             else:
-                coefficients_dict_list = [self.run(freq) for freq in self.frequency]
+                results = [self.run(freq) for freq in self.frequency]
 
-            coefficients_dict = {k: [] for k in coefficients_dict_list[0].keys()}
-            for d in coefficients_dict_list:
-                for k in coefficients_dict:
-                    coefficients_dict[k].append(d[k])
+            self.p = [r["pressure"] for r in results]
+
+            coefficients_dict = {
+                c: [k[c] for k in results]
+                for c in results[0].keys()
+                if c not in ["pressure"]
+            }
 
         super().__init__(
             self.n,
@@ -258,17 +289,14 @@ class HolePatternSeal(SealElement):
         )
 
     def run(self, frequency):
-        self.dz = self.length / float(self.nz)
-        self.z = np.arange(self.nz + 1) * self.dz
-        self.R = self.R_univ / self.molar
         self.gamma1 = self.gamma - 1.0
         self.gamma12 = self.gamma1 / 2.0
         self.omega = frequency
-        self.area = np.pi * 2.0 * self.radius * self.clearance
+        self.area = np.pi * 2.0 * self.shaft_radius * self.radial_clearance
 
         # Cache constants for form_rhs() optimization
         self._gamma_R = self.gamma * self.R
-        self._radius_omega = self.radius * self.omega
+        self._radius_omega = self.shaft_radius * self.omega
         self._rough_factor = 1.0e4 * self.roughness
         self._mu_factor = 5.0e5
 
@@ -277,7 +305,11 @@ class HolePatternSeal(SealElement):
             if not base_state_results:
                 raise RuntimeError("Error calculating leakage.")
 
-            force_coeffs = self.calculate_forces(base_state_results)
+            force_coeffs, p_base = self.calculate_forces(base_state_results)
+
+            pressure = np.insert(p_base, 0, self.inlet_pressure)
+            pressure = np.insert(pressure, 1, base_state_results.get("p2", 0))
+            pressure = np.append(pressure, base_state_results.get("p5", 0))
 
             attribute_coef = {
                 "kxx": force_coeffs.get("K_dir", 0),
@@ -293,12 +325,29 @@ class HolePatternSeal(SealElement):
                 "mxy": force_coeffs.get("m_cross", 0),
                 "myx": -force_coeffs.get("m_cross", 0),
                 "seal_leakage": base_state_results.get("mdot", 0),
+                "pressure": pressure,
             }
             return attribute_coef
         except Exception as e:
-            print(f"Error calculating for frequency {frequency} RPM: {e}")
+            warn(f"Error calculating for frequency {frequency} RPM: {e}")
             return dict.fromkeys(
-                ["kxx", "kyy", "kxy", "kyx", "cxx", "cyy", "cxy", "cyx", "leakage"], 0
+                [
+                    "kxx",
+                    "kyy",
+                    "kxy",
+                    "kyx",
+                    "cxx",
+                    "cyy",
+                    "cxy",
+                    "cyx",
+                    "mxx",
+                    "myy",
+                    "mxy",
+                    "myx",
+                    "seal_leakage",
+                    "pressure",
+                ],
+                0,
             )
 
     def inlet_loss(self, p2):
@@ -315,7 +364,7 @@ class HolePatternSeal(SealElement):
         )
         c2 = np.sqrt(self.gamma * self.R * T2)
         mdot = (p2 / (self.R * T2)) * self.area * (m2 * c2)
-        mt2 = self.preswirl * (self.radius * self.omega) / c2
+        mt2 = self.preswirl * (self.shaft_radius * self.omega) / c2
         p30_denom = (1.0 + self.gamma12 * m2**2) ** (self.gamma / self.gamma1)
         if p30_denom == 0:
             p30_denom = 1e-9
@@ -371,20 +420,20 @@ class HolePatternSeal(SealElement):
         T_15 = T**1.5
         mu = self.b_suther * T_15 / (self.s_suther + T)
         mu_factor_mu = self._mu_factor * mu
-        fs_term = mu_factor_mu / (rho * self.clearance * utot)
+        fs_term = mu_factor_mu / (rho * self.radial_clearance * utot)
         fs = 1.375e-3 * (1.0 + fs_term ** (1.0 / 3.0))
         fs_geom = (
-            np.sqrt(1.0 + mt2 / mz2) / (4.0 * self.clearance) * fs
-            if self.clearance > 0
+            np.sqrt(1.0 + mt2 / mz2) / (4.0 * self.radial_clearance) * fs
+            if self.radial_clearance > 0
             else 0
         )
         fr_term = self._rough_factor + mu_factor_mu / (
-            rho * self.clearance * utot_rotor
+            rho * self.radial_clearance * utot_rotor
         )
         fr = 1.375e-3 * (1.0 + fr_term ** (1.0 / 3.0))
         fr_geom = (
-            np.sqrt(1.0 + (mt - mr) ** 2 / mz2) / self.clearance * fr
-            if self.clearance > 0
+            np.sqrt(1.0 + (mt - mr) ** 2 / mz2) / self.radial_clearance * fr
+            if self.radial_clearance > 0
             else 0
         )
         RH1 = -self.gamma * mz2 / (1.0 + self.gamma * mz2) * (fs_geom + fr_geom)
@@ -477,27 +526,27 @@ class HolePatternSeal(SealElement):
 
     def calculate_leakage(self):
         iglobalchoke = 0
-        p2_old = (1.0 - self.toler) * self.inlet_pressure
+        p2_old = (1.0 - self.first_step_size) * self.inlet_pressure
         self.mdot, self.mz2[0], self.t[0], self.mt[0] = self.inlet_loss(p2_old)
         ichoke = self._integrate_base_state()
         if ichoke:
             return None
         p5, _, _ = self.exit_loss(self.mz2[self.nz], self.t[self.nz])
         delp_old = p5 - self.outlet_pressure
-        p2 = (1.0 - 2.0 * self.toler) * self.inlet_pressure
+        p2 = (1.0 - 2.0 * self.first_step_size) * self.inlet_pressure
         self.mdot, self.mz2[0], self.t[0], self.mt[0] = self.inlet_loss(p2)
         ichoke = self._integrate_base_state()
         if ichoke:
             return None
         p5, _, _ = self.exit_loss(self.mz2[self.nz], self.t[self.nz])
         delp = p5 - self.outlet_pressure
-        for itr in range(1, self.itrmx + 1):
+        for itr in range(1, self.max_iterations + 1):
             if abs(delp - delp_old) < 1e-12:
                 break
             temp_delp, temp_p = delp, p2
             p2 = (
-                self.rlx * (delp * p2_old - delp_old * p2) / (delp - delp_old)
-                + (1.0 - self.rlx) * p2
+                self.rlx_factor * (delp * p2_old - delp_old * p2) / (delp - delp_old)
+                + (1.0 - self.rlx_factor) * p2
             )
             p2_old, delp_old = temp_p, temp_delp
             while True:
@@ -512,11 +561,19 @@ class HolePatternSeal(SealElement):
                 p2 = p2_old + 0.5 * (p2 - p2_old)
             if (
                 abs(delp)
-                < self.stopcriterion * (self.inlet_pressure - self.outlet_pressure)
+                < self.tolerance * (self.inlet_pressure - self.outlet_pressure)
                 or iglobalchoke
             ):
                 break
-        return {"mdot": self.mdot, "t": self.t, "mz2": self.mz2, "mt": self.mt}
+
+        return {
+            "mdot": self.mdot,
+            "t": self.t,
+            "mz2": self.mz2,
+            "mt": self.mt,
+            "p2": p2,
+            "p5": p5,
+        }
 
     def _one_step_perturbed(
         self,
@@ -840,7 +897,7 @@ class HolePatternSeal(SealElement):
             try:
                 derivs = np.linalg.solve(cof, rhs)
             except np.linalg.LinAlgError:
-                print(f"ERROR: Singular matrix in step {step}, iz={iz}")
+                warn(f"Singular matrix in step {step}, iz={iz}")
                 derivs = np.zeros((4, 4))
             derivs_store[step] = derivs
             if step == "predictor":
@@ -973,10 +1030,15 @@ class HolePatternSeal(SealElement):
             w_base[iz] = mt_base[iz] * sqrt_term
             rho_base[iz] = mdot / (self.area * u_base[iz]) if u_base[iz] > 1e-9 else 0
         p_base = rho_base * self.R * t_base[: self.nz + 1]
-        xcos, pi_radius, deep = 1.0, np.pi * self.radius, self.cell_depth / self.gamma
+
+        xcos, pi_radius, deep = (
+            1.0,
+            np.pi * self.shaft_radius,
+            self.cell_depth / self.gamma,
+        )
         pert = np.zeros((5, 4, self.nz + 1))
         whirl_freq = 0.0
-        h_pert = np.array([self.clearance, 0.0, 0.0, 0.0, xcos])
+        h_pert = np.array([self.radial_clearance, 0.0, 0.0, 0.0, xcos])
         fx_c, fy_c = 0.0, 0.0
         shear_end = np.zeros(4)
         for iz in range(1, self.nz + 1):
@@ -1005,7 +1067,7 @@ class HolePatternSeal(SealElement):
             pert_new, shear = self._one_step_perturbed(
                 self.dz,
                 h_pert,
-                self.radius,
+                self.shaft_radius,
                 self.gamma,
                 self.R,
                 self.roughness,
@@ -1049,7 +1111,7 @@ class HolePatternSeal(SealElement):
             }
         pert.fill(0)
         fx_s, fx_c_dyn, fy_s, fy_c_dyn = 0.0, 0.0, 0.0, 0.0
-        h_pert = np.array([self.clearance, 0.0, 0.0, 0.0, xcos])
+        h_pert = np.array([self.radial_clearance, 0.0, 0.0, 0.0, xcos])
         for iz in range(1, self.nz + 1):
             iz1 = iz - 1
             base_old = {
@@ -1076,7 +1138,7 @@ class HolePatternSeal(SealElement):
             pert_new, shear = self._one_step_perturbed(
                 self.dz,
                 h_pert,
-                self.radius,
+                self.shaft_radius,
                 self.gamma,
                 self.R,
                 self.roughness,
@@ -1127,4 +1189,60 @@ class HolePatternSeal(SealElement):
             "K_dir": K_dir,
             "k_cross": k_cross,
         }
-        return force_coeffs
+        return force_coeffs, p_base
+
+    @check_units
+    def plot_pressure_distribution(
+        self, pressure_units="MPa", length_units="m", fig=None, **kwargs
+    ):
+        """Plot pressure distribution for the hole pattern seal.
+
+        Parameters
+        ----------
+        pressure_units : str, optional
+            Pressure units for plotting.
+            Default is "MPa".
+        length_units : str, optional
+            Length units for axial position.
+            Default is "m".
+        fig : Plotly graph_objects.Figure(), optional
+            The figure object with the plot. If None, creates a new figure.
+        kwargs : optional
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+
+        Returns
+        -------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        """
+        if fig is None:
+            fig = go.Figure()
+
+        fig.add_trace(
+            go.Scatter(
+                x=Q_(self.z, "m").to(length_units).m,
+                y=Q_(self.p[0], "Pa").to(pressure_units).m,
+                mode="lines+markers",
+                name="Hole Pattern Seal",
+                line=dict(width=2),
+                hovertemplate="<b>Position:</b> %{x:.3f} "
+                + length_units
+                + "<br>"
+                + f"<b>Pressure:</b> %{{y:.3f}} {pressure_units}<br>"
+                + "<extra></extra>",
+            )
+        )
+
+        fig.update_layout(
+            title=dict(
+                text="Pressure Distribution - Hole Pattern Seal",
+            ),
+            xaxis_title=f"Axial Position ({length_units})",
+            yaxis_title=f"Pressure ({pressure_units})",
+            showlegend=False,
+            **kwargs,
+        )
+
+        return fig

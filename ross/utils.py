@@ -1,13 +1,99 @@
+import json
 import re
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import toml
 from numpy import linalg as la
 from plotly import graph_objects as go
 from copy import deepcopy as copy
 from numba import njit
 from numpy.fft import fft
 import control as ct
+
+
+class NumpyEncoder(json.JSONEncoder):
+    """JSON encoder that handles numpy types and non-serializable objects."""
+
+    def default(self, obj):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            return float(obj)
+        if isinstance(obj, np.complexfloating):
+            return {"real": float(obj.real), "imag": float(obj.imag)}
+        if isinstance(obj, np.bool_):
+            return bool(obj)
+        # Fallback for non-serializable objects (callables, custom objects, etc.)
+        # This matches TOML encoder behavior which silently handles such types.
+        return None
+
+
+def _is_json(file):
+    """Check if file has a .json extension."""
+    return Path(file).suffix.lower() == ".json"
+
+
+def load_data(file):
+    """Load data from a .toml or .json file.
+
+    Parameters
+    ----------
+    file : str or pathlib.Path
+        Path to the file. Format is determined by extension.
+
+    Returns
+    -------
+    data : dict
+    """
+    if _is_json(file):
+        with open(file, "r") as f:
+            return json.load(f)
+    else:
+        return toml.load(file)
+
+
+def dump_data(data, file):
+    """Dump data to a .toml or .json file.
+
+    Parameters
+    ----------
+    data : dict
+        Data to save.
+    file : str or pathlib.Path
+        Path to the file. Format is determined by extension.
+    """
+    if _is_json(file):
+        # Serialize to string first to prevent partial file writes on error
+        json_str = json.dumps(data, indent=2, cls=NumpyEncoder)
+        with open(file, "w") as f:
+            f.write(json_str)
+    else:
+        with open(file, "w") as f:
+            toml.dump(data, f)
+
+
+def dump_data_numpy(data, file):
+    """Dump data to a .toml or .json file with numpy-aware encoding.
+
+    Parameters
+    ----------
+    data : dict
+        Data to save (may contain numpy arrays/scalars).
+    file : str or pathlib.Path
+        Path to the file. Format is determined by extension.
+    """
+    if _is_json(file):
+        # Serialize to string first to prevent partial file writes on error
+        json_str = json.dumps(data, indent=2, cls=NumpyEncoder)
+        with open(file, "w") as f:
+            f.write(json_str)
+    else:
+        with open(file, "w") as f:
+            toml.dump(data, f, encoder=toml.TomlNumpyEncoder())
 
 
 class DataNotFoundError(Exception):
@@ -733,6 +819,48 @@ def newmark(func, t, y_size, **options):
 
 @njit
 def _converge_newmark(ny, y0, ydot0, y2dot0, dt, M, C, K, RHS, gamma, beta, tol):
+    """Helper function for the Newmark method to handle convergence.
+
+    This function performs Newton-Raphson iterations to find the state of the system
+    at the next time step, ensuring that the equations of motion are satisfied
+    within a specified tolerance.
+
+    Parameters
+    ----------
+    ny : int
+        Size of the state vector.
+    y0 : ndarray
+        Displacement at the current time step.
+    ydot0 : ndarray
+        Velocity at the current time step.
+    y2dot0 : ndarray
+        Acceleration at the current time step.
+    dt : float
+        Time step.
+    M : ndarray
+        Mass matrix.
+    C : ndarray
+        Damping matrix.
+    K : ndarray
+        Stiffness matrix.
+    RHS : ndarray
+        Right-hand side vector.
+    gamma : float
+        Newmark integration parameter.
+    beta : float
+        Newmark integration parameter.
+    tol : float
+        Convergence tolerance.
+
+    Returns
+    -------
+    y0 : ndarray
+        Displacement at the next time step.
+    ydot0 : ndarray
+        Velocity at the next time step.
+    y2dot0 : ndarray
+        Acceleration at the next time step.
+    """
     y2dot = np.zeros(ny)
     ydot = ydot0 + y2dot0 * (1 - gamma) * dt
     y = y0 + ydot0 * dt + y2dot0 * (0.5 - beta) * (dt**2)
