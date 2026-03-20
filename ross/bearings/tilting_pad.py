@@ -131,17 +131,25 @@ class TiltingPad(BearingElement):
         If None, uses default values: ``{"xtol": 1e-3, "ftol": 1e-3, "maxiter": 1000}``.
     hot_oil_carry_over : float, optional
         Hot oil carry-over factor (0 to 1). Fraction of outlet flow that is
-        carried to the next pad inlet. 1.0 = full carry-over (MaxBRG-style).
-        Default is 1.0.
+        carried to the next pad inlet. Default is 0.8.
     inlet_temperature_tolerance : float, optional
         Convergence tolerance for pad inlet temperatures [°C]. Outer iteration
-        stops when RMS change of T_inlet is below this value. Default is 0.5
-        (MaxBRG TempInlet_Error).
+        stops when RMS change of T_inlet is below this value. Default is 0.5.
     max_inlet_iterations : int, optional
-        Maximum number of outer iterations for inlet temperature convergence
-        (MaxBRG Max_Iteration = 100). Default is 100.
+        Maximum number of outer iterations for inlet temperature convergence.
+        Default is 25.
     h_sump : float, optional
         Convection coefficient at pad back (sump side). Default is 500 W/(m²·K).
+    max_jtemp_iter : int, optional
+        Maximum number of iterations for journal temperature convergence.
+        Default is 100.
+    jtemp_error : float, optional
+        Convergence tolerance for journal temperature [°C]. Default is 1.0.
+    relax_t : float, optional
+        Relaxation factor for journal temperature update. Default is 0.5.
+    max_relax_change : float, optional
+        Maximum allowed temperature change per iteration [°C] before reducing
+        the relaxation factor. Default is 10.0.
     **kwargs : dict, optional
         Additional keyword arguments.
 
@@ -233,6 +241,11 @@ class TiltingPad(BearingElement):
         inlet_temperature_tolerance=0.5,
         max_inlet_iterations=25,
         h_sump=1.420,
+        max_jtemp_iter=100,
+        jtemp_error=1.0,
+        relax_t=0.5,
+        max_relax_change=10.0,
+        journal_temperature=25.0,
         **kwargs,
     ):
         self.n = n
@@ -342,6 +355,11 @@ class TiltingPad(BearingElement):
         self.inlet_temperature_tolerance = inlet_temperature_tolerance
         self.max_inlet_iterations = max_inlet_iterations
         self.h_sump = h_sump
+        self.max_jtemp_iter = max_jtemp_iter
+        self.jtemp_error = jtemp_error
+        self.relax_t = relax_t
+        self.max_relax_change = max_relax_change
+        self.journal_temperature = journal_temperature
 
         self.T_inlet = np.full(self.n_pad, self.oil_supply_temperature)
         self.T_outlet = np.full(self.n_pad, self.oil_supply_temperature)
@@ -1136,38 +1154,27 @@ class TiltingPad(BearingElement):
             self.force_y_total_list.append(np.sum(self.force_y_dim))
             self.momen_rot_list.append(None)
 
-        # Thermal coupling integration
         psi_pad = np.zeros(self.n_pad)
         for k_pad in range(self.n_pad):
             psi_pad[k_pad] = self.xdin[k_pad + 2]
 
-        # ---- Parâmetros do loop T_journal (estilo MaxBRG) ----
-        MAX_JTEMP_ITER   = 100
-        JTEMP_ERROR      = 1.0    # °C
-        RELAX_T          = 0.5
-        MAX_RELAX_CHANGE = 10.0   # °C
-
-        # ---- Inicialização ----
         self.T_inlet  = np.full(self.n_pad, self.oil_supply_temperature)
         self.T_outlet = np.full(self.n_pad, self.oil_supply_temperature)
         self.Q_outlet = np.zeros(self.n_pad)
-        T_journal     = 25.0#self.oil_supply_temperature   # chute inicial
+        T_journal     = self.journal_temperature
 
         RMS_TempInlet_old = 0.0
         diverge_count_tin = 0
 
-        # ---- Loop externo: converge T_inlet (hot oil carry-over) ----
         for inlet_iter in range(self.max_inlet_iterations):
             T_inlet_old = self.T_inlet.copy()
 
-            # ---- Loop médio: converge T_journal ----
             dTj_old          = 0.0
             diverge_count_tj = 0
 
-            for jtemp_iter in range(MAX_JTEMP_ITER):
+            for jtemp_iter in range(self.max_jtemp_iter):
                 T_journal_old = T_journal
 
-                # ---- Loop interno: resolve filme de cada pad ----
                 for n_p in range(self.n_pad):
                     mi_i = self.a_a * np.exp(
                         self.b_b * self.temperature_init[:, :, n_p]
@@ -1216,19 +1223,16 @@ class TiltingPad(BearingElement):
                         )
                         / self.radial_clearance
                     )
-                # ---- fim loop interno (pads) ----
-
-                # ---- Actualiza T_journal (Temp_Journal1 do MaxBRG) ----
                 T_journal_new = self._compute_journal_temperature()
 
                 dTj = abs(T_journal_new - T_journal_old)
-                if dTj > MAX_RELAX_CHANGE:
-                    relax = MAX_RELAX_CHANGE / dTj
+                if dTj > self.max_relax_change:
+                    relax = self.max_relax_change / dTj
                 else:
-                    relax = RELAX_T
+                    relax = self.relax_t
                 T_journal = relax * T_journal_new + (1.0 - relax) * T_journal_old
 
-                if dTj < JTEMP_ERROR:
+                if dTj < self.jtemp_error:
                     break
 
                 if jtemp_iter > 0 and dTj >= 0.95 * dTj_old:
@@ -1238,9 +1242,7 @@ class TiltingPad(BearingElement):
                         break
 
                 dTj_old = dTj
-            # ---- fim loop médio (T_journal) ----
 
-            # ---- Verifica convergência do T_inlet ----
             RMS_TempInlet = float(
                 np.sqrt(np.mean((self.T_inlet - T_inlet_old) ** 2))
             )
@@ -1254,7 +1256,6 @@ class TiltingPad(BearingElement):
                     print("  WARNING: Inlet temperature did not converge.")
                     break
 
-            # Relaxação no T_inlet (igual ao MaxBRG RelaxT)
             self.T_inlet = (
                 self.thermal_relax_factor * self.T_inlet
                 + (1.0 - self.thermal_relax_factor) * T_inlet_old
@@ -1267,7 +1268,6 @@ class TiltingPad(BearingElement):
                     f"{self.max_inlet_iterations} iterations "
                     f"(RMS_TempInlet = {RMS_TempInlet:.4f} °C)"
                 )
-        # ---- fim loop externo (T_inlet) ----
 
         max_p = (
             self.pressure_nd[:, :, self.pad_in].max()
