@@ -1616,8 +1616,6 @@ class TiltingPad(BearingElement):
         for k_pad in range(self.n_pad):
             psi_pad[k_pad] = self.xdin[k_pad + 2]
 
-        print("\n=== Starting Thermal Coupling Iteration ===")
-
         # ---- Parâmetros do loop T_journal (estilo MaxBRG) ----
         MAX_JTEMP_ITER   = 100
         JTEMP_ERROR      = 1.0    # °C
@@ -1705,13 +1703,7 @@ class TiltingPad(BearingElement):
                     relax = RELAX_T
                 T_journal = relax * T_journal_new + (1.0 - relax) * T_journal_old
 
-                print(
-                    f"  JTemp iter {jtemp_iter + 1}: "
-                    f"T_journal = {T_journal:.3f}°C  dTj = {dTj:.4f}°C"
-                )
-
                 if dTj < JTEMP_ERROR:
-                    print(f"  T_journal converged after {jtemp_iter + 1} iter(s)")
                     break
 
                 if jtemp_iter > 0 and dTj >= 0.95 * dTj_old:
@@ -1727,15 +1719,8 @@ class TiltingPad(BearingElement):
             RMS_TempInlet = float(
                 np.sqrt(np.mean((self.T_inlet - T_inlet_old) ** 2))
             )
-            print(
-                f"  Inlet iter {inlet_iter + 1}: "
-                f"RMS_TempInlet = {RMS_TempInlet:.4f}°C"
-            )
 
             if RMS_TempInlet < self.inlet_temperature_tolerance:
-                print(
-                    f"  Inlet temperature converged after {inlet_iter + 1} iter(s)."
-                )
                 break
 
             if inlet_iter > 0 and RMS_TempInlet >= RMS_TempInlet_old:
@@ -2819,11 +2804,6 @@ class TiltingPad(BearingElement):
         mat_csr = mat_sparse.tocsr()
         t_vec = spsolve(mat_csr, b_t)
 
-        # Logo depois de _solve_energy_equation, imprima:
-        print(f"  Pad {n_p}: t_vec min={t_vec.min():.4f}, max={t_vec.max():.4f}")
-        print(f"  T_inlet[{n_p}] = {self.T_inlet[n_p]:.2f}°C")
-        print(f"  reference_temperature = {self.reference_temperature:.2f}°C")
-
         temperature_reference = self._update_temperature_field(t_vec)
 
         return temperature_reference
@@ -3414,13 +3394,6 @@ class TiltingPad(BearingElement):
             (self.n_pad, self.nx, self.nz),
             dtype=np.float64
         )
-        
-        print(f"Pad thermal mesh initialized:")
-        print(f"  - Radial points (nr_pad): {self.nr_pad}")
-        print(f"  - Circumferential points (ntheta_pad): {self.ntheta_pad}")
-        print(f"  - Radial spacing (dr_pad): {self.dr_pad*1e3:.4f} mm")
-        print(f"  - T_pad shape: {self.T_pad.shape}")
-        print(f"  - T_pad_surface shape: {self.T_pad_surface.shape}")
 
     def _calculate_convection_coefficient(self, n_p):
         """
@@ -3989,10 +3962,6 @@ class TiltingPad(BearingElement):
             ) / Q_in_next
 
         self.T_inlet[next_pad] = max(T_mix, self.oil_supply_temperature)
-
-        print(f"    Pad {n_p}: Q_out={Q_out:.3e}, Q_co={Q_co:.3e}, "
-            f"Q_in_next={Q_in_next:.3e}, T_out={self.T_outlet[n_p]:.2f}°C, "
-            f"T_mix→Pad{next_pad}={self.T_inlet[next_pad]:.2f}°C")
 
     def _thermal_coupling_iteration(
             self, mi, n_p, psi_pad, eccentricity=None, attitude_angle=None, T_journal=None
