@@ -45,8 +45,7 @@ __all__ = [
 
 # Define reference circle for orbits
 NUM_POINTS = 360
-CIRCLE = np.exp(1j * np.linspace(0, 2 * np.pi, NUM_POINTS))
-
+CIRCLE = np.exp(1j * np.linspace(0, 2 * np.pi, NUM_POINTS, endpoint=False))
 
 class Results(ABC):
     """Results class.
@@ -598,6 +597,7 @@ class Shape(Results):
             e0 = 0
             k = 0
             for j in range(n_div):
+                new_div = True
                 n1 = get_node_index(j)
                 e1 = n1 - (j + 1)
 
@@ -636,10 +636,15 @@ class Shape(Results):
                         orb = Orbit(
                             node=0, node_pos=0, ru_e=xn_complex[i], rv_e=yn_complex[i]
                         )
+
+                        if new_div:
+                            major_index = orb.major_index
+                            new_div = False
+
                         major[i] = orb.major_axis
-                        major_x[i] = orb.major_x
-                        major_y[i] = orb.major_y
-                        major_angle[i] = orb.major_angle
+                        major_x[i] = orb.x_circle[major_index]
+                        major_y[i] = orb.y_circle[major_index]
+                        major_angle[i] = orb.angle[major_index]
 
                 n0 = n1
                 e0 = e1
@@ -1243,17 +1248,15 @@ class Shape(Results):
             self._plot_axial(plot_dimension=2, length_units=length_units, fig=fig)
 
         else:
-            xn = self.major_x.copy()
-            yn = self.major_y.copy()
             zn = self.zn.copy()
             nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
 
             if orientation == "major":
                 values = self.major_axis.copy()
             elif orientation == "x":
-                values = xn
+                values = self.major_x.copy()
             elif orientation == "y":
-                values = yn
+                values = self.major_y.copy()
             else:
                 raise ValueError(f"Invalid orientation {orientation}.")
 
