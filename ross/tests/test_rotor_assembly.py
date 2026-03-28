@@ -2937,8 +2937,113 @@ def rotor3a():
 
     return Rotor(shaft_elem, [], [bearing0, bearing1])
 
+@pytest.fixture
+def rotor3b():
+    #  #  same as rotor 3, disks at center.
+    i_d = 0
+    o_d = 0.05
+    n = 6
+    L = [0.25 for _ in range(n)]
 
-def test_rotor_it(rotor1, rotor3a):
+    shaft_elem = [
+        ShaftElement(
+            l,
+            i_d,
+            o_d,
+            material=steel,
+            shear_effects=True,
+            rotary_inertia=True,
+            gyroscopic=True,
+        )
+        for l in L
+    ]
+
+    disk0 = DiskElement.from_geometry(3, steel, 0.07, 0.05, 0.28)
+    disk1 = DiskElement.from_geometry(3, steel, 0.07, 0.05, 0.35)
+
+    stfx = 1e6
+    stfy = 0.8e6
+    bearing0 = BearingElement(0, kxx=stfx, kyy=stfy, cxx=0)
+    bearing1 = BearingElement(6, kxx=stfx, kyy=stfy, cxx=0)
+
+    return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
+
+
+
+@pytest.fixture
+def rotor3c():
+    #  no density on shaft elements.  test ONLY the It of the disks
+    i_d = 0
+    o_d = 0.05
+    n = 6
+    L = [0.25 for _ in range(n)]
+
+    mat0 = Material(name="Steel0", rho=0, E=211e9, Poisson=0.3)
+
+    shaft_elem = [
+        ShaftElement(
+            l,
+            i_d,
+            o_d,
+            material=mat0,
+            shear_effects=True,
+            rotary_inertia=True,
+            gyroscopic=True,
+        )
+        for l in L
+    ]
+
+    disk0 = DiskElement.from_geometry(0, steel, 0.07, 0.05, 0.28)
+    disk1 = DiskElement.from_geometry(6, steel, 0.07, 0.05, 0.35)
+
+    stfx = 1e6
+    stfy = 0.8e6
+    bearing0 = BearingElement(0, kxx=stfx, kyy=stfy, cxx=0)
+    bearing1 = BearingElement(6, kxx=stfx, kyy=stfy, cxx=0)
+
+    return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
+
+
+
+
+def test_rotor_m(rotor3a, rotor3):
+    od = 0.05
+    r = od / 2    
+    L = 0.25 * 6
+    m = np.pi * (r**2) * L * steel.rho + 32.58972765304033 + 51.5252611115262
+    m3 = np.pi * (r**2) * L * steel.rho
+
+    mm3 = rotor3a.M()[::6, ::6].sum()
+    mm = rotor3.M()[::6, ::6].sum()
+
+    assert( rotor3a.m == pytest.approx( m3, rel=1e-8) )
+    assert( rotor3a.m == pytest.approx( mm3, rel=1e-8) )
+
+    assert( rotor3.m == pytest.approx( m, rel=1e-8) )
+    assert( rotor3.m == pytest.approx( mm, rel=1e-8) )
+
+
+def test_rotor_CG(rotor3):
+    od = 0.05
+    r = od / 2    
+    L = 0.25 * 6
+    m = np.pi * (r**2) * L * steel.rho
+
+    CG = (m* 0.75 + 32.58972765304033 *0.5 + 51.5252611115262 * 1) / rotor3.m
+
+    assert( rotor3.CG == pytest.approx( CG, rel=1e-8) )
+
+    mm = rotor3.M()[::6, ::6]
+
+    mm2 = np.sum( mm, axis=0)
+    print(mm2)
+
+    CG2 = np.matmul( mm2, rotor3.nodes_pos ) / rotor3.m
+
+    assert( CG == pytest.approx(CG2, rel=1e-8))
+
+#def test_rotor_it(rotor1, rotor3a, rotor3b, rotor3):
+def test_rotor_it(rotor3, rotor3b, rotor3c, rotor3a):
     L = 0.5
     od = 0.05
     r = od / 2    
@@ -2947,8 +3052,25 @@ def test_rotor_it(rotor1, rotor3a):
 
     L = 0.25 * 6
     m3 = np.pi * (r**2) * L * steel.rho
-    It3 = (m3 / 12) * (3 * r**2 + L**2)
+    It3a = (m3 / 12) * (3 * r**2 + L**2)
 
-    assert( rotor1.It == pytest.approx(It1, rel=2e-3))
-    assert( rotor3a.It == pytest.approx(It3, rel=2e-3))
+    #disk0 0.17808928257067666, 32.58972765304033
+    #disk1 0.42358058405433824, 51.5252611115262
+
+    It3b = It3a + 0.17808928257067666 +  0.42358058405433824     
+    It3c = 0.17808928257067666 + 32.58972765304033 * (0 - rotor3c.CG)**2 + 0.42358058405433824 + 51.5252611115262 * (1.5-rotor3c.CG)**2    
+
+    #It3a is not directly applicable... because the CG is shifted
+    It3 = (It3a + (rotor3.CG - 0.75 )**2 * m3) + 0.17808928257067666 + 32.58972765304033 * (0.5 - rotor3.CG)**2 + 0.42358058405433824 + 51.5252611115262 * (1.0-rotor3.CG)**2    
+    
+    
+    tol = 2e-8
+
+#    assert( rotor1.It == pytest.approx(It1, rel=tol)) #check with no disks
+#    assert( rotor3a.It == pytest.approx(It3a, rel=tol)) #different length check with no disks, passes to rel=2e-8
+#    assert( rotor3b.It == pytest.approx(It3b, rel=tol)) #check with disks at CG, passes to rel 2e-8
+#    assert( rotor3c.It == pytest.approx(It3c, rel=tol)) #check with ONLY disks off CG, passes to rel 2e-8
+    assert( rotor3.It == pytest.approx(It3, rel=tol)) 
+    
+
 
