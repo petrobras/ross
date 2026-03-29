@@ -5290,7 +5290,7 @@ class SummaryResults(Results):
         The figure object with the tables plot.
     """
 
-    def __init__(self, df_shaft, df_disks, df_bearings, brg_forces, CG, Ip, It,tag):
+    def __init__(self, df_shaft, df_disks, df_bearings, brg_forces, CG, Ip, It, tag):
         self.df_shaft = df_shaft
         self.df_disks = df_disks
         self.df_bearings = df_bearings

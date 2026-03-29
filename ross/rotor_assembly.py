@@ -567,24 +567,23 @@ class Rotor(object):
         self.G0 = G0
         self.Ksdt0 = Ksdt0
 
-        #set up a vector corresponding to rigid body rotation of the entire rotor
-        #[x_0, y_0, z_0, \alpha_0, \beta_0, \theta_0,        
-        v = np.zeros( [self.ndof])
-        #this does not include the DOF for any point mass elements
+        # calculation of overall rotor transverse (diametral) inertia. (includes only shaft element DOF, excludes point mass DOF)
+        # This is only calculating Iyy. assuming Ixx is the same.
+        # First, set up a vector corresponding to rigid body rotation of the entire rotor
+        v = np.zeros([self.ndof])
         for i, elm in enumerate(self.shaft_elements):
-            dofs = list(elm.dof_global_index.values())            
+            dofs = list(elm.dof_global_index.values())
             y0 = elm.dof_mapping()["y_0"]
             a0 = elm.dof_mapping()["alpha_0"]
             y1 = elm.dof_mapping()["y_1"]
             a1 = elm.dof_mapping()["alpha_1"]
-                        
-            v[dofs[y0]] = -(nodes_pos_l[i] - self.CG) #y
-            v[dofs[y1]] = -(nodes_pos_r[i] - self.CG) #y
-            v[dofs[a0]] = 1 #alpha
-            v[dofs[a1]] = 1 #alpha
-        #use the vector to compute diametral aka transverse inertia of the entire rotor. This is only calculating Iyy. assuming Ixx is the same.        
-        
-        self.It =  v @ ( self.M0 @ v.T ) 
+
+            v[dofs[y0]] = -(nodes_pos_l[i] - self.CG)  # y
+            v[dofs[y1]] = -(nodes_pos_r[i] - self.CG)  # y
+            v[dofs[a0]] = 1  # alpha
+            v[dofs[a1]] = 1  # alpha
+        # Then, use the vector to compute transverse inertia of the entire rotor.
+        self.It = v @ (self.M0 @ v.T)
 
     def _set_tag(self, tag):
         """Set the tag for the current rotor."""
