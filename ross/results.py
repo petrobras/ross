@@ -259,7 +259,7 @@ class Orbit(Results):
         Element in the vector corresponding to the y direction.
     """
 
-    def __init__(self, *, node, node_pos, ru_e, rv_e):
+    def __init__(self, *, node, node_pos, ru_e, rv_e, ref_index=None):
         self.node = node
         self.node_pos = node_pos
         self.ru_e = ru_e
@@ -279,7 +279,7 @@ class Orbit(Results):
             self.minor_axis,
             self.major_axis,
             self.kappa,
-        ) = _init_orbit(ru_e, rv_e)  # separated call to use with numba
+        ) = _init_orbit(ru_e, rv_e, ref_index)  # separated call to use with numba
 
         self.whirl = "Forward" if self.kappa > 0 else "Backward"
         self.color = (
@@ -342,9 +342,8 @@ class Orbit(Results):
 
         return fig
 
-
 @njit
-def _init_orbit(ru_e, rv_e):
+def _init_orbit(ru_e, rv_e, ref_index=None):
     """Helper function to initialize orbit parameters for plotting.
 
     Parameters
@@ -371,6 +370,15 @@ def _init_orbit(ru_e, rv_e):
     half = NUM_POINTS // 2
     r_circle = np.sqrt(x_circle[:half] ** 2 + y_circle[:half] ** 2)
     major_index = np.argmax(r_circle)
+
+    # garantee continuity of the major axis in the mode shape plot by looking at the previous node major axis
+    if ref_index is not None:
+        # r_circle = np.sqrt(x_circle ** 2 + y_circle ** 2)
+        # idx = np.argsort(r_circle)[-2:]
+        idx = np.array([major_index, major_index + half])
+        diffs = (idx - ref_index + half) % NUM_POINTS - half
+        major_index = idx[np.argmin(np.abs(diffs))]
+        
     major_x = x_circle[major_index]
     major_y = y_circle[major_index]
     major_angle = angle[major_index]
@@ -533,9 +541,11 @@ class Shape(Results):
         """Calculate orbits for each node in the shape."""
         orbits = []
         whirl = []
+        ref_index = None
         for node, node_pos in zip(self.nodes, self.nodes_pos):
             ru_e, rv_e = self._evec[self.number_dof * node : self.number_dof * node + 2]
-            orbit = Orbit(node=node, node_pos=node_pos, ru_e=ru_e, rv_e=rv_e)
+            orbit = Orbit(node=node, node_pos=node_pos, ru_e=ru_e, rv_e=rv_e, ref_index=ref_index)
+            ref_index = orbit.major_index
             orbits.append(orbit)
             whirl.append(orbit.whirl)
 
@@ -597,7 +607,7 @@ class Shape(Results):
             e0 = 0
             k = 0
             for j in range(n_div):
-                new_div = True
+                ref_index = None
                 n1 = get_node_index(j)
                 e1 = n1 - (j + 1)
 
@@ -634,17 +644,15 @@ class Shape(Results):
                     k += 1
                     for i in range(pos0, pos1):
                         orb = Orbit(
-                            node=0, node_pos=0, ru_e=xn_complex[i], rv_e=yn_complex[i]
+                            node=0, node_pos=0, ru_e=xn_complex[i], rv_e=yn_complex[i], ref_index=ref_index
                         )
 
-                        if new_div:
-                            major_index = orb.major_index
-                            new_div = False
-
                         major[i] = orb.major_axis
-                        major_x[i] = orb.x_circle[major_index]
-                        major_y[i] = orb.y_circle[major_index]
-                        major_angle[i] = orb.angle[major_index]
+                        major_x[i] = orb.major_x
+                        major_y[i] = orb.major_y
+                        major_angle[i] = orb.major_angle
+                    
+                    ref_index = orb.major_index
 
                 n0 = n1
                 e0 = e1
