@@ -595,6 +595,9 @@ class Shape(Results):
             major_x = np.zeros(shape)
             major_y = np.zeros(shape)
             major_angle = np.zeros(shape)
+            mode_shape_x = np.zeros(shape)
+            mode_shape_y = np.zeros(shape)
+            mode_shape_angle = np.zeros(shape)
 
             N1 = onn - 3 * zeta**2 + 2 * zeta**3
             N2 = zeta - 2 * zeta**2 + zeta**3
@@ -647,10 +650,17 @@ class Shape(Results):
                             node=0, node_pos=0, ru_e=xn_complex[i], rv_e=yn_complex[i], ref_index=ref_index
                         )
 
+                        if i == 0:
+                            first_index = orb.major_index
+
                         major[i] = orb.major_axis
                         major_x[i] = orb.major_x
                         major_y[i] = orb.major_y
                         major_angle[i] = orb.major_angle
+ 
+                        mode_shape_x[i] = orb.x_circle[first_index]
+                        mode_shape_y[i] = orb.y_circle[first_index]
+                        mode_shape_angle[i] = orb.angle[first_index]
                     
                     ref_index = orb.major_index
 
@@ -664,6 +674,9 @@ class Shape(Results):
             self.major_x = major_x
             self.major_y = major_y
             self.major_angle = major_angle
+            self.mode_shape_x = mode_shape_x
+            self.mode_shape_y = mode_shape_y
+            self.mode_shape_angle = mode_shape_angle
 
         else:
             self.whirl = "None"
@@ -1256,15 +1269,15 @@ class Shape(Results):
             self._plot_axial(plot_dimension=2, length_units=length_units, fig=fig)
 
         else:
-            zn = self.zn.copy()
             nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
+            zn = self.zn.copy()
 
             if orientation == "major":
                 values = self.major_axis.copy()
             elif orientation == "x":
-                values = self.major_x.copy()
+                values = self.mode_shape_x.copy()
             elif orientation == "y":
-                values = self.major_y.copy()
+                values = self.mode_shape_y.copy()
             else:
                 raise ValueError(f"Invalid orientation {orientation}.")
 
@@ -1283,7 +1296,7 @@ class Shape(Results):
                         x=Q_(zn[n0:n1], "m").to(length_units).m,
                         y=values[n0:n1],
                         line=dict(color=self.color),
-                        customdata=Q_(self.major_angle[n0:n1], "rad").to(phase_units).m,
+                        customdata=Q_(self.mode_shape_angle[n0:n1], "rad").to(phase_units).m,
                         hovertemplate=(
                             f"Displacement: %{{y:.2f}}<br>"
                             + f"Angle {phase_units}: %{{customdata:.2f}}"
