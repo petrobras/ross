@@ -253,13 +253,15 @@ class Orbit(Results):
     ----------
     node : int
         Orbit node in the rotor.
+    node_pos : float
+        Orbit node position in the rotor.
     ru_e : complex
         Element in the vector corresponding to the x direction.
     rv_e : complex
         Element in the vector corresponding to the y direction.
     """
 
-    def __init__(self, *, node, node_pos, ru_e, rv_e, ref_index=None):
+    def __init__(self, *, node, node_pos, ru_e, rv_e):
         self.node = node
         self.node_pos = node_pos
         self.ru_e = ru_e
@@ -279,7 +281,7 @@ class Orbit(Results):
             self.minor_axis,
             self.major_axis,
             self.kappa,
-        ) = _init_orbit(ru_e, rv_e, ref_index)  # separated call to use with numba
+        ) = _init_orbit(ru_e, rv_e)  # separated call to use with numba
 
         self.whirl = "Forward" if self.kappa > 0 else "Backward"
         self.color = (
@@ -343,7 +345,7 @@ class Orbit(Results):
         return fig
 
 @njit
-def _init_orbit(ru_e, rv_e, ref_index=None):
+def _init_orbit(ru_e, rv_e):
     """Helper function to initialize orbit parameters for plotting.
 
     Parameters
@@ -366,24 +368,6 @@ def _init_orbit(ru_e, rv_e, ref_index=None):
     angle = np.arctan2(y_circle, x_circle)
     angle[angle < 0] = angle[angle < 0] + 2 * np.pi
 
-    # find major axis index looking at the first half circle
-    half = NUM_POINTS // 2
-    r_circle = np.sqrt(x_circle[:half] ** 2 + y_circle[:half] ** 2)
-    major_index = np.argmax(r_circle)
-
-    # garantee continuity of the major axis in the mode shape plot by looking at the previous node major axis
-    if ref_index is not None:
-        # r_circle = np.sqrt(x_circle ** 2 + y_circle ** 2)
-        # idx = np.argsort(r_circle)[-2:]
-        idx = np.array([major_index, major_index + half])
-        diffs = (idx - ref_index + half) % NUM_POINTS - half
-        major_index = idx[np.argmin(np.abs(diffs))]
-        
-    major_x = x_circle[major_index]
-    major_y = y_circle[major_index]
-    major_angle = angle[major_index]
-    minor_angle = major_angle + np.pi / 2
-
     # calculate T matrix
     ru = np.absolute(ru_e)
     rv = np.absolute(rv_e)
@@ -398,7 +382,7 @@ def _init_orbit(ru_e, rv_e, ref_index=None):
     # fmt: on
     H = T @ T.T
 
-    lam = la.eigvals(H).astype(np.complex128)
+    lam, vecs = la.eig(H)
     # lam is the eigenvalue -> sqrt(lam) is the minor/major axis.
     # kappa encodes the relation between the axis and the precession.
     minor = np.sqrt(lam.min())
@@ -424,6 +408,18 @@ def _init_orbit(ru_e, rv_e, ref_index=None):
     minor_axis = np.real(minor)
     major_axis = np.real(major)
     kappa = np.real(kappa)
+
+    major_index = np.argmax(lam)
+    v = vecs[:, major_index]
+    v = np.real(v)
+    v = v / la.norm(v)
+
+    major_x = major * v[0]
+    major_y = major * v[1]
+    major_angle = np.arctan2(major_y, major_x)
+    if major_angle < 0:
+        major_angle += 2 * np.pi
+    minor_angle = major_angle + np.pi / 2
 
     return (
         x_circle,
@@ -541,11 +537,10 @@ class Shape(Results):
         """Calculate orbits for each node in the shape."""
         orbits = []
         whirl = []
-        ref_index = None
+
         for node, node_pos in zip(self.nodes, self.nodes_pos):
             ru_e, rv_e = self._evec[self.number_dof * node : self.number_dof * node + 2]
-            orbit = Orbit(node=node, node_pos=node_pos, ru_e=ru_e, rv_e=rv_e, ref_index=ref_index)
-            ref_index = orbit.major_index
+            orbit = Orbit(node=node, node_pos=node_pos, ru_e=ru_e, rv_e=rv_e)
             orbits.append(orbit)
             whirl.append(orbit.whirl)
 
@@ -595,9 +590,9 @@ class Shape(Results):
             major_x = np.zeros(shape)
             major_y = np.zeros(shape)
             major_angle = np.zeros(shape)
-            mode_shape_x = np.zeros(shape)
-            mode_shape_y = np.zeros(shape)
-            mode_shape_angle = np.zeros(shape)
+            x0 = np.zeros(shape)
+            y0 = np.zeros(shape)
+            angle_0 = np.zeros(shape)
 
             N1 = onn - 3 * zeta**2 + 2 * zeta**3
             N2 = zeta - 2 * zeta**2 + zeta**3
@@ -610,7 +605,6 @@ class Shape(Results):
             e0 = 0
             k = 0
             for j in range(n_div):
-                ref_index = None
                 n1 = get_node_index(j)
                 e1 = n1 - (j + 1)
 
@@ -647,22 +641,17 @@ class Shape(Results):
                     k += 1
                     for i in range(pos0, pos1):
                         orb = Orbit(
-                            node=0, node_pos=0, ru_e=xn_complex[i], rv_e=yn_complex[i], ref_index=ref_index
+                            node=0, node_pos=0, ru_e=xn_complex[i], rv_e=yn_complex[i]
                         )
-
-                        if i == 0:
-                            first_index = orb.major_index
 
                         major[i] = orb.major_axis
                         major_x[i] = orb.major_x
                         major_y[i] = orb.major_y
                         major_angle[i] = orb.major_angle
- 
-                        mode_shape_x[i] = orb.x_circle[first_index]
-                        mode_shape_y[i] = orb.y_circle[first_index]
-                        mode_shape_angle[i] = orb.angle[first_index]
-                    
-                    ref_index = orb.major_index
+
+                        x0[i] = orb.x_circle[0]
+                        y0[i] = orb.y_circle[0]
+                        angle_0[i] = orb.angle[0]
 
                 n0 = n1
                 e0 = e1
@@ -674,9 +663,9 @@ class Shape(Results):
             self.major_x = major_x
             self.major_y = major_y
             self.major_angle = major_angle
-            self.mode_shape_x = mode_shape_x
-            self.mode_shape_y = mode_shape_y
-            self.mode_shape_angle = mode_shape_angle
+            self.x0 = x0
+            self.y0 = y0
+            self.angle_0 = angle_0
 
         else:
             self.whirl = "None"
@@ -1275,9 +1264,9 @@ class Shape(Results):
             if orientation == "major":
                 values = self.major_axis.copy()
             elif orientation == "x":
-                values = self.mode_shape_x.copy()
+                values = self.x0.copy()
             elif orientation == "y":
-                values = self.mode_shape_y.copy()
+                values = self.y0.copy()
             else:
                 raise ValueError(f"Invalid orientation {orientation}.")
 
@@ -1296,7 +1285,7 @@ class Shape(Results):
                         x=Q_(zn[n0:n1], "m").to(length_units).m,
                         y=values[n0:n1],
                         line=dict(color=self.color),
-                        customdata=Q_(self.mode_shape_angle[n0:n1], "rad").to(phase_units).m,
+                        customdata=Q_(self.angle_0[n0:n1], "rad").to(phase_units).m,
                         hovertemplate=(
                             f"Displacement: %{{y:.2f}}<br>"
                             + f"Angle {phase_units}: %{{customdata:.2f}}"
