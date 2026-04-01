@@ -654,7 +654,7 @@ class TiltingPad(BearingElement):
                 # Solve energy equation
                 temperature_ref = self._solve_energy_equation(mi, n_p_eq)
 
-                if hasattr(self, 'h_film_pad'):
+                if self.thermal_type == "full":
                     self._calculate_convection_coefficient(n_p_eq)
 
             # Calculate hydrodynamic forces at equilibrium
@@ -1637,7 +1637,7 @@ class TiltingPad(BearingElement):
             # Solve energy equation
             temperature_reference = self._solve_energy_equation(mi, n_p)
 
-            if hasattr(self, 'h_film_pad'):
+            if self.thermal_type == "full":
                 self._calculate_convection_coefficient(n_p)
 
         return temperature_reference
@@ -2723,6 +2723,11 @@ class TiltingPad(BearingElement):
         h_film_pad : ndarray
             Interface conductance array [nx, nz] in W/(m²·K)
         """
+        if self.thermal_type != "full":
+            raise RuntimeError(
+                "_calculate_convection_coefficient is only available for thermal_type='full'."
+            )
+
         k_int = (self.k_pad * self.kt) / (self.k_pad + self.kt)
         h_int = k_int / (self.dr_pad / 2.0)
         self.h_film_pad[n_p, :, :] = h_int
@@ -3270,6 +3275,10 @@ class TiltingPad(BearingElement):
                     T_journal=T_journal,
                 )
                 self.temperature_init[:, :, n_p] = T_film
+                # Keep return signature consistent when pad conduction is disabled.
+                T_pad_surface_out = np.full(
+                    (self.nx, self.nz), self.oil_supply_temperature
+                )
 
             else:
                 while not converged and iter_count < self.max_thermal_iter:
@@ -3327,6 +3336,9 @@ class TiltingPad(BearingElement):
             self.Q_inlet[n_p] = self._compute_inlet_flow(n_p)
 
             self._update_carry_over_temperature(n_p)
+
+            if self.thermal_type == "adiabatic":
+                return T_film, T_pad_surface_out
 
             return T_film, self.T_pad_surface[n_p, :, :]
 
