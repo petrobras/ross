@@ -87,6 +87,9 @@ class TiltingPad(BearingElement):
         Number of volumes along the circumferential direction. Default is 30.
     nz : int, optional
         Number of volumes along the axial direction. Default is 30.
+    nr_pad : int, optional
+        Number of radial nodes in the pad conduction mesh (``thermal_type='full'``).
+        Default is 15.
     n_link : int, optional
         Node to which the bearing will connect. If None the bearing is
         connected to ground.
@@ -150,6 +153,11 @@ class TiltingPad(BearingElement):
         Default is 25.
     h_sump : float, optional
         Convection coefficient at pad back (sump side). Default is 500 W/(m²·K).
+    k_pad : float, optional
+        Pad material thermal conductivity [W/(m·K)]. Default is 116.0.
+    h_edge : float, optional
+        Convection coefficient at pad circumferential edges [W/(m²·K)].
+        Default is 1500.0.
     max_jtemp_iter : int, optional
         Maximum number of iterations for journal temperature convergence.
         Default is 100.
@@ -237,6 +245,7 @@ class TiltingPad(BearingElement):
         frequency,
         nx=30,
         nz=30,
+        nr_pad=15,
         n_link=None,
         xj=None,
         yj=None,
@@ -251,6 +260,8 @@ class TiltingPad(BearingElement):
         inlet_temperature_tolerance=0.5,
         max_inlet_iterations=25,
         h_sump=1.420,
+        k_pad=116.0,
+        h_edge=1500.0,
         max_jtemp_iter=100,
         jtemp_error=1.0,
         relax_t=0.5,
@@ -344,19 +355,19 @@ class TiltingPad(BearingElement):
         self.xtheta[0] = self.theta_1 + 0.5 * self.dtheta
 
         # Thermal mesh
-        self.nr_pad = 15
+        self.nr_pad = nr_pad
         self.ntheta_pad = self.nx
         self.T_pad = None
         self.T_pad_surface = None
         self.T_pad_init = self.oil_supply_temperature
 
         # Material properties
-        self.k_pad = 116.0
+        self.k_pad = k_pad
 
         # Heat transfer coefficients
         self.h_film_pad = None
         self.h_back = h_sump
-        self.h_edge = 1500.0
+        self.h_edge = h_edge
 
         self.hot_oil_carry_over = hot_oil_carry_over
         self.inlet_temperature_tolerance = inlet_temperature_tolerance
