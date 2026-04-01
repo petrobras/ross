@@ -20,6 +20,7 @@ oil_supply_temp   = Q_(40, "degC")
 load              = [8.8405e02, -2.6704e03]                # N, [Fx, Fy]
 eccentricity      = 0.35
 attitude_angle    = Q_(287.5, "deg")
+thermal_type      = "full"
 
 base_kwargs = dict(
     n=1,
@@ -39,6 +40,7 @@ base_kwargs = dict(
     eccentricity=eccentricity,
     attitude_angle=attitude_angle,
     load=load,
+    thermal_type=thermal_type,
 )
 
 # Converged pad tilt angles [rad]
