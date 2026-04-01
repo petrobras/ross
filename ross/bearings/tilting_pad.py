@@ -4513,7 +4513,7 @@ class TiltingPad(BearingElement):
                 font=dict(size=24),
             ),
             xaxis=dict(
-                title=r"\u03b8 (pad local) [deg]",
+                title=r"θ (pad local) [deg]",
                 showgrid=True,
                 gridwidth=1,
                 gridcolor=tableau_colors["gray"],
@@ -4600,7 +4600,7 @@ class TiltingPad(BearingElement):
                 font=dict(size=24),
             ),
             xaxis=dict(
-                title=r"\u03b8 (pad local) [deg]",
+                title=r"θ (pad local) [deg]",
                 showgrid=True,
                 gridwidth=1,
                 gridcolor=tableau_colors["gray"],
