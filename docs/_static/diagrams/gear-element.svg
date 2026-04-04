@@ -1,0 +1,308 @@
+<?xml version="1.0" encoding="utf-8"?><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" data-d2-version="v0.7.1" preserveAspectRatio="xMinYMin meet" viewBox="0 0 1834 1066"><svg class="d2-1809400027 d2-svg" width="1834" height="1066" viewBox="-91 -157 1834 1066"><rect x="-91.000000" y="-157.000000" width="1834.000000" height="1066.000000" rx="0.000000" fill="#FFFFFF" class=" fill-N7" stroke-width="0" /><style type="text/css"><![CDATA[
+.d2-1809400027 .text {
+	font-family: "d2-1809400027-font-regular";
+}
+@font-face {
+	font-family: d2-1809400027-font-regular;
+	src: url("data:application/font-woff;base64,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");
+}
+.appendix-icon {
+	filter: drop-shadow(0px 0px 32px rgba(31, 36, 58, 0.1));
+}
+.d2-1809400027 .text-bold {
+	font-family: "d2-1809400027-font-bold";
+}
+@font-face {
+	font-family: d2-1809400027-font-bold;
+	src: url("data:application/font-woff;base64,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");
+}
+.d2-1809400027 .text-italic {
+	font-family: "d2-1809400027-font-italic";
+}
+@font-face {
+	font-family: d2-1809400027-font-italic;
+	src: url("data:application/font-woff;base64,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");
+}]]></style><style type="text/css"><![CDATA[.shape {
+  shape-rendering: geometricPrecision;
+  stroke-linejoin: round;
+}
+.connection {
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.blend {
+  mix-blend-mode: multiply;
+  opacity: 0.5;
+}
+
+		.d2-1809400027 .fill-N1{fill:#0A0F25;}
+		.d2-1809400027 .fill-N2{fill:#676C7E;}
+		.d2-1809400027 .fill-N3{fill:#9499AB;}
+		.d2-1809400027 .fill-N4{fill:#CFD2DD;}
+		.d2-1809400027 .fill-N5{fill:#DEE1EB;}
+		.d2-1809400027 .fill-N6{fill:#EEF1F8;}
+		.d2-1809400027 .fill-N7{fill:#FFFFFF;}
+		.d2-1809400027 .fill-B1{fill:#0D32B2;}
+		.d2-1809400027 .fill-B2{fill:#0D32B2;}
+		.d2-1809400027 .fill-B3{fill:#E3E9FD;}
+		.d2-1809400027 .fill-B4{fill:#E3E9FD;}
+		.d2-1809400027 .fill-B5{fill:#EDF0FD;}
+		.d2-1809400027 .fill-B6{fill:#F7F8FE;}
+		.d2-1809400027 .fill-AA2{fill:#4A6FF3;}
+		.d2-1809400027 .fill-AA4{fill:#EDF0FD;}
+		.d2-1809400027 .fill-AA5{fill:#F7F8FE;}
+		.d2-1809400027 .fill-AB4{fill:#EDF0FD;}
+		.d2-1809400027 .fill-AB5{fill:#F7F8FE;}
+		.d2-1809400027 .stroke-N1{stroke:#0A0F25;}
+		.d2-1809400027 .stroke-N2{stroke:#676C7E;}
+		.d2-1809400027 .stroke-N3{stroke:#9499AB;}
+		.d2-1809400027 .stroke-N4{stroke:#CFD2DD;}
+		.d2-1809400027 .stroke-N5{stroke:#DEE1EB;}
+		.d2-1809400027 .stroke-N6{stroke:#EEF1F8;}
+		.d2-1809400027 .stroke-N7{stroke:#FFFFFF;}
+		.d2-1809400027 .stroke-B1{stroke:#0D32B2;}
+		.d2-1809400027 .stroke-B2{stroke:#0D32B2;}
+		.d2-1809400027 .stroke-B3{stroke:#E3E9FD;}
+		.d2-1809400027 .stroke-B4{stroke:#E3E9FD;}
+		.d2-1809400027 .stroke-B5{stroke:#EDF0FD;}
+		.d2-1809400027 .stroke-B6{stroke:#F7F8FE;}
+		.d2-1809400027 .stroke-AA2{stroke:#4A6FF3;}
+		.d2-1809400027 .stroke-AA4{stroke:#EDF0FD;}
+		.d2-1809400027 .stroke-AA5{stroke:#F7F8FE;}
+		.d2-1809400027 .stroke-AB4{stroke:#EDF0FD;}
+		.d2-1809400027 .stroke-AB5{stroke:#F7F8FE;}
+		.d2-1809400027 .background-color-N1{background-color:#0A0F25;}
+		.d2-1809400027 .background-color-N2{background-color:#676C7E;}
+		.d2-1809400027 .background-color-N3{background-color:#9499AB;}
+		.d2-1809400027 .background-color-N4{background-color:#CFD2DD;}
+		.d2-1809400027 .background-color-N5{background-color:#DEE1EB;}
+		.d2-1809400027 .background-color-N6{background-color:#EEF1F8;}
+		.d2-1809400027 .background-color-N7{background-color:#FFFFFF;}
+		.d2-1809400027 .background-color-B1{background-color:#0D32B2;}
+		.d2-1809400027 .background-color-B2{background-color:#0D32B2;}
+		.d2-1809400027 .background-color-B3{background-color:#E3E9FD;}
+		.d2-1809400027 .background-color-B4{background-color:#E3E9FD;}
+		.d2-1809400027 .background-color-B5{background-color:#EDF0FD;}
+		.d2-1809400027 .background-color-B6{background-color:#F7F8FE;}
+		.d2-1809400027 .background-color-AA2{background-color:#4A6FF3;}
+		.d2-1809400027 .background-color-AA4{background-color:#EDF0FD;}
+		.d2-1809400027 .background-color-AA5{background-color:#F7F8FE;}
+		.d2-1809400027 .background-color-AB4{background-color:#EDF0FD;}
+		.d2-1809400027 .background-color-AB5{background-color:#F7F8FE;}
+		.d2-1809400027 .color-N1{color:#0A0F25;}
+		.d2-1809400027 .color-N2{color:#676C7E;}
+		.d2-1809400027 .color-N3{color:#9499AB;}
+		.d2-1809400027 .color-N4{color:#CFD2DD;}
+		.d2-1809400027 .color-N5{color:#DEE1EB;}
+		.d2-1809400027 .color-N6{color:#EEF1F8;}
+		.d2-1809400027 .color-N7{color:#FFFFFF;}
+		.d2-1809400027 .color-B1{color:#0D32B2;}
+		.d2-1809400027 .color-B2{color:#0D32B2;}
+		.d2-1809400027 .color-B3{color:#E3E9FD;}
+		.d2-1809400027 .color-B4{color:#E3E9FD;}
+		.d2-1809400027 .color-B5{color:#EDF0FD;}
+		.d2-1809400027 .color-B6{color:#F7F8FE;}
+		.d2-1809400027 .color-AA2{color:#4A6FF3;}
+		.d2-1809400027 .color-AA4{color:#EDF0FD;}
+		.d2-1809400027 .color-AA5{color:#F7F8FE;}
+		.d2-1809400027 .color-AB4{color:#EDF0FD;}
+		.d2-1809400027 .color-AB5{color:#F7F8FE;}.appendix text.text{fill:#0A0F25}.md{--color-fg-default:#0A0F25;--color-fg-muted:#676C7E;--color-fg-subtle:#9499AB;--color-canvas-default:#FFFFFF;--color-canvas-subtle:#EEF1F8;--color-border-default:#0D32B2;--color-border-muted:#0D32B2;--color-neutral-muted:#EEF1F8;--color-accent-fg:#0D32B2;--color-accent-emphasis:#0D32B2;--color-attention-subtle:#676C7E;--color-danger-fg:red;}.sketch-overlay-B1{fill:url(#streaks-darker-d2-1809400027);mix-blend-mode:lighten}.sketch-overlay-B2{fill:url(#streaks-darker-d2-1809400027);mix-blend-mode:lighten}.sketch-overlay-B3{fill:url(#streaks-bright-d2-1809400027);mix-blend-mode:darken}.sketch-overlay-B4{fill:url(#streaks-bright-d2-1809400027);mix-blend-mode:darken}.sketch-overlay-B5{fill:url(#streaks-bright-d2-1809400027);mix-blend-mode:darken}.sketch-overlay-B6{fill:url(#streaks-bright-d2-1809400027);mix-blend-mode:darken}.sketch-overlay-AA2{fill:url(#streaks-dark-d2-1809400027);mix-blend-mode:overlay}.sketch-overlay-AA4{fill:url(#streaks-bright-d2-1809400027);mix-blend-mode:darken}.sketch-overlay-AA5{fill:url(#streaks-bright-d2-1809400027);mix-blend-mode:darken}.sketch-overlay-AB4{fill:url(#streaks-bright-d2-1809400027);mix-blend-mode:darken}.sketch-overlay-AB5{fill:url(#streaks-bright-d2-1809400027);mix-blend-mode:darken}.sketch-overlay-N1{fill:url(#streaks-darker-d2-1809400027);mix-blend-mode:lighten}.sketch-overlay-N2{fill:url(#streaks-dark-d2-1809400027);mix-blend-mode:overlay}.sketch-overlay-N3{fill:url(#streaks-normal-d2-1809400027);mix-blend-mode:color-burn}.sketch-overlay-N4{fill:url(#streaks-normal-d2-1809400027);mix-blend-mode:color-burn}.sketch-overlay-N5{fill:url(#streaks-bright-d2-1809400027);mix-blend-mode:darken}.sketch-overlay-N6{fill:url(#streaks-bright-d2-1809400027);mix-blend-mode:darken}.sketch-overlay-N7{fill:url(#streaks-bright-d2-1809400027);mix-blend-mode:darken}.light-code{display: block}.dark-code{display: none}]]></style><g class="dGl0bGU="><g class="shape" ></g><text x="817.000000" y="-28.000000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:28px">GearElement - Gear Elements</text></g><g class="RGlza0VsZW1lbnQ="><g class="shape" ><rect x="1258.000000" y="2.000000" width="123.000000" height="63.000000" rx="8.000000" stroke="#757575" fill="#e0e0e0" style="stroke-width:2;" /></g><text x="1319.500000" y="38.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:14px">DiskElement</text><title>Base class - rigid disk with mass and inertia</title></g><a href="./ross-overview.svg" xlink:href="./ross-overview.svg"><g class="R2VhckVsZW1lbnQ="><g class="shape" ><rect x="1213.000000" y="237.000000" width="213.000000" height="68.000000" rx="10.000000" stroke="#6c8ebf" fill="#dae8fc" style="stroke-width:2;" /></g><text x="1319.500000" y="277.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:18px">GearElement</text><title>Gear modeled as a disk with mesh properties.&#xA;Inherits mass and inertia from DiskElement.&#xA;Connects to another GearElement via Mesh.</title></g></a><g class="cGFyYW1z"><g class="shape" ><rect x="643.000000" y="496.000000" width="737.000000" height="126.000000" rx="10.000000" stroke="#6c8ebf" fill="#e8f0fc" style="stroke-width:2;" /></g><text x="1011.500000" y="483.000000" fill="#0A0F25" class="text fill-N1" style="text-anchor:middle;font-size:28px">Mesh Parameters</text></g><g class="VFZNUw=="><g class="shape" ><rect x="1430.000000" y="526.000000" width="177.000000" height="66.000000" rx="8.000000" stroke="#6c8ebf" fill="#dae8fc" style="stroke-width:2;" /></g><text x="1518.500000" y="564.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">GearElementTVMS</text><title>Gear with time-varying mesh stiffness (TVMS).&#xA;Models the stiffness variation as teeth&#xA;enter and exit contact.</title></g><g class="dHZtc19tZXRvZG8="><g class="shape" ><rect x="1412.000000" y="742.000000" width="213.000000" height="66.000000" rx="8.000000" stroke="#9673a6" fill="#f3e5f5" style="stroke-width:2;" /></g><text x="1518.500000" y="780.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">get_variable_stiffness()</text><title>Returns the mesh stiffness as a function&#xA;of rotational angle.&#xA;Used in time-domain analyses to capture&#xA;parametric excitation.</title></g><g class="TWVzaA=="><g class="shape" ><rect x="792.000000" y="0.000000" width="81.000000" height="66.000000" rx="8.000000" stroke="#d6b656" fill="#fff2cc" style="stroke-width:2;" /></g><text x="832.500000" y="38.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">Mesh</text><title>Object that connects two GearElements.&#xA;Defines the stiffness and damping of&#xA;the tooth contact.&#xA;Calculates mesh forces&#xA;(tangential, radial, axial).</title></g><g class="bWVzaF9wYXJhbXM="><g class="shape" ><rect x="10.000000" y="208.000000" width="927.000000" height="126.000000" rx="10.000000" stroke="#d6b656" fill="#fef9e7" style="stroke-width:2;" /></g><text x="473.500000" y="195.000000" fill="#0A0F25" class="text fill-N1" style="text-anchor:middle;font-size:28px">Mesh Parameters</text></g><g class="bXVsdGlyb3Rvcg=="><g class="shape" ><rect x="987.000000" y="238.000000" width="122.000000" height="66.000000" rx="8.000000" stroke="#b85450" fill="#f8cecc" style="stroke-width:2;" /></g><text x="1048.000000" y="276.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">MultiRotor</text><title>GearElements and Mesh are used to&#xA;create multi-rotor systems coupled&#xA;by gears (gearboxes).</title></g><g class="cGFyYW1zLmRlbnRlcw=="><g class="shape" ><rect x="673.000000" y="526.000000" width="99.000000" height="66.000000" stroke="#6c8ebf" fill="#dae8fc" style="stroke-width:2;" /></g><text x="722.500000" y="564.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">n_teeth</text><title>Number of gear teeth.&#xA;Defines the transmission ratio&#xA;with the coupled gear.</title></g><g class="cGFyYW1zLnBpdGNo"><g class="shape" ><rect x="832.000000" y="526.000000" width="154.000000" height="66.000000" stroke="#6c8ebf" fill="#dae8fc" style="stroke-width:2;" /></g><text x="909.000000" y="564.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">pitch_diameter</text><title>Pitch diameter [m]&#xA;Circle where teeth mesh.&#xA;pitch_diameter = n_teeth / diametral_pitch</title></g><g class="cGFyYW1zLmJhc2U="><g class="shape" ><rect x="1046.000000" y="526.000000" width="151.000000" height="66.000000" stroke="#6c8ebf" fill="#dae8fc" style="stroke-width:2;" /></g><text x="1121.500000" y="564.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">base_diameter</text><title>Base diameter [m]&#xA;base_diameter = pitch_diameter × cos(pr_angle)&#xA;Defines the involute tooth profile</title></g><g class="cGFyYW1zLmFuZ3Vsb3M="><g class="shape" ><rect x="1257.000000" y="526.000000" width="93.000000" height="66.000000" stroke="#6c8ebf" fill="#dae8fc" style="stroke-width:2;" /></g><text x="1303.500000" y="564.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">Angles</text><title>pr_angle: pressure angle [rad]&#xA;(typically 20° = 0.349 rad)&#xA;helix_angle: helix angle [rad]&#xA;(0 for spur gears)</title></g><g class="bWVzaF9wYXJhbXMuZ2VhcjE="><g class="shape" ><rect x="40.000000" y="238.000000" width="191.000000" height="66.000000" stroke="#d6b656" fill="#fff2cc" style="stroke-width:2;" /></g><text x="135.500000" y="276.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">gear1 (GearElement)</text><title>First gear (driving)</title></g><g class="bWVzaF9wYXJhbXMuZ2VhcjI="><g class="shape" ><rect x="291.000000" y="238.000000" width="191.000000" height="66.000000" stroke="#d6b656" fill="#fff2cc" style="stroke-width:2;" /></g><text x="386.500000" y="276.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">gear2 (GearElement)</text><title>Second gear (driven)</title></g><g class="bWVzaF9wYXJhbXMuc3RpZmZuZXNz"><g class="shape" ><rect x="542.000000" y="238.000000" width="151.000000" height="66.000000" stroke="#d6b656" fill="#fff2cc" style="stroke-width:2;" /></g><text x="617.500000" y="276.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">mesh_stiffness</text><title>Mesh stiffness [N/m]&#xA;Can be constant or variable (TVMS)</title></g><g class="bWVzaF9wYXJhbXMuZGFtcGluZw=="><g class="shape" ><rect x="753.000000" y="238.000000" width="154.000000" height="66.000000" stroke="#d6b656" fill="#fff2cc" style="stroke-width:2;" /></g><text x="830.000000" y="276.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">mesh_damping</text><title>Mesh damping [N·s/m]</title></g><g class="KERpc2tFbGVtZW50IC0mZ3Q7IEdlYXJFbGVtZW50KVswXQ=="><marker id="mk-d2-1809400027-568348176" markerWidth="10.000000" markerHeight="12.000000" refX="7.000000" refY="6.000000" viewBox="0.000000 0.000000 10.000000 12.000000" orient="auto" markerUnits="userSpaceOnUse"> <polygon points="0.000000,0.000000 10.000000,6.000000 0.000000,12.000000" fill="#757575" class="connection" stroke-width="2" /> </marker><path d="M 1319.750000 67.500000 C 1319.750000 114.300003 1319.750000 197.000000 1319.750000 233.000000" stroke="#757575" fill="none" class="connection" style="stroke-width:2;" marker-end="url(#mk-d2-1809400027-568348176)" mask="url(#d2-1809400027)" /><text x="1319.500000" y="157.000000" fill="#676C7E" class="text-italic fill-N2" style="text-anchor:middle;font-size:16px">inheritance</text></g><g class="KEdlYXJFbGVtZW50IC0mZ3Q7IHBhcmFtcylbMF0="><marker id="mk-d2-1809400027-3488378134" markerWidth="10.000000" markerHeight="12.000000" refX="7.000000" refY="6.000000" viewBox="0.000000 0.000000 10.000000 12.000000" orient="auto" markerUnits="userSpaceOnUse"> <polygon points="0.000000,0.000000 10.000000,6.000000 0.000000,12.000000" fill="#0D32B2" class="connection fill-B1" stroke-width="2" /> </marker><path d="M 1237.408496 305.780298 C 1144.849976 345.000000 1121.250000 431.700012 1121.250000 492.500000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-1809400027-3488378134)" mask="url(#d2-1809400027)" /></g><g class="KEdlYXJFbGVtZW50IC0mZ3Q7IFRWTVMpWzBd"><marker id="mk-d2-1809400027-3225872988" markerWidth="10.000000" markerHeight="12.000000" refX="7.000000" refY="6.000000" viewBox="0.000000 0.000000 10.000000 12.000000" orient="auto" markerUnits="userSpaceOnUse"> <polygon points="0.000000,0.000000 10.000000,6.000000 0.000000,12.000000" fill="#6c8ebf" class="connection" stroke-width="2" /> </marker><path d="M 1402.091504 305.780298 C 1494.650024 345.000000 1518.250000 367.100006 1518.250000 385.250000 C 1518.250000 403.399994 1518.250000 486.000000 1518.250000 522.000000" stroke="#6c8ebf" fill="none" class="connection" style="stroke-width:2;" marker-end="url(#mk-d2-1809400027-3225872988)" mask="url(#d2-1809400027)" /><text x="1518.500000" y="385.000000" fill="#676C7E" class="text-italic fill-N2" style="text-anchor:middle;font-size:16px">inheritance</text></g><g class="KFRWTVMgLSZndDsgdHZtc19tZXRvZG8pWzBd"><path d="M 1518.250000 594.000000 C 1518.250000 632.000000 1518.250000 702.000000 1518.250000 738.000000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-1809400027-3488378134)" mask="url(#d2-1809400027)" /></g><g class="KE1lc2ggLSZndDsgbWVzaF9wYXJhbXMpWzBd"><path d="M 790.665527 51.296686 C 652.500000 111.300003 617.500000 142.899994 617.500000 204.500000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-1809400027-3488378134)" mask="url(#d2-1809400027)" /></g><g class="KE1lc2ggLSZndDsgbXVsdGlyb3RvcilbMF0="><marker id="mk-d2-1809400027-258330638" markerWidth="10.000000" markerHeight="12.000000" refX="7.000000" refY="6.000000" viewBox="0.000000 0.000000 10.000000 12.000000" orient="auto" markerUnits="userSpaceOnUse"> <polygon points="0.000000,0.000000 10.000000,6.000000 0.000000,12.000000" fill="#b85450" class="connection" stroke-width="2" /> </marker><path d="M 875.084412 51.388827 C 1013.049988 111.318001 1048.000000 197.199997 1048.000000 234.000000" stroke="#b85450" fill="none" class="connection" style="stroke-width:2;stroke-dasharray:6.000000,5.919384;" marker-end="url(#mk-d2-1809400027-258330638)" mask="url(#d2-1809400027)" /><text x="1004.500000" y="113.000000" fill="#676C7E" class="text-italic fill-N2" style="text-anchor:middle;font-size:16px">used in</text></g><g transform="translate(1365 -14)" class="appendix-icon"><title>Base class - rigid disk with mass and inertia</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-1809400027-IRUXG22FNRSW2ZLOOQ)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-1809400027-IRUXG22FNRSW2ZLOOQ">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(1410 221)" class="appendix-icon"><title>Gear modeled as a disk with mesh properties.&#xA;Inherits mass and inertia from DiskElement.&#xA;Connects to another GearElement via Mesh.</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-1809400027-I5SWC4SFNRSW2ZLOOQ)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-1809400027-I5SWC4SFNRSW2ZLOOQ">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(1378 221)" class="appendix-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3440_35088111-d2-1809400027-I5SWC4SFNRSW2ZLOOQ)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M14.3909 16.7965C14.7364 17.2584 15.1772 17.6406 15.6834 17.9171C16.1896 18.1938 16.7494 18.3582 17.3248 18.3993C17.9001 18.4405 18.4777 18.3575 19.0181 18.1559C19.5586 17.9543 20.0492 17.6389 20.4571 17.2309L22.8708 14.8173C23.6036 14.0586 24.0089 13.0425 23.9998 11.9877C23.9906 10.933 23.5676 9.92404 22.8217 9.17821C22.0759 8.43237 21.067 8.00931 20.0123 8.00015C18.9575 7.99098 17.9413 8.39644 17.1827 9.1292L15.7988 10.505" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M17.609 15.1874C17.2635 14.7255 16.8227 14.3433 16.3165 14.0667C15.8103 13.7902 15.2505 13.6257 14.6752 13.5845C14.0998 13.5433 13.5223 13.6263 12.9819 13.8279C12.4414 14.0295 11.9506 14.345 11.5428 14.753L9.1292 17.1666C8.39644 17.9252 7.99098 18.9414 8.00015 19.9962C8.00931 21.0509 8.43237 22.0598 9.17821 22.8056C9.92405 23.5515 10.933 23.9745 11.9877 23.9837C13.0425 23.9928 14.0586 23.5875 14.8173 22.8547L16.193 21.4788" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3440_35088111-d2-1809400027-I5SWC4SFNRSW2ZLOOQ">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(1591 510)" class="appendix-icon"><title>Gear with time-varying mesh stiffness (TVMS).&#xA;Models the stiffness variation as teeth&#xA;enter and exit contact.</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-1809400027-KRLE2UY)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-1809400027-KRLE2UY">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(1609 726)" class="appendix-icon"><title>Returns the mesh stiffness as a function&#xA;of rotational angle.&#xA;Used in time-domain analyses to capture&#xA;parametric excitation.</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-1809400027-OR3G2427NVSXI33EN4)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-1809400027-OR3G2427NVSXI33EN4">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(857 -16)" class="appendix-icon"><title>Object that connects two GearElements.&#xA;Defines the stiffness and damping of&#xA;the tooth contact.&#xA;Calculates mesh forces&#xA;(tangential, radial, axial).</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-1809400027-JVSXG2A)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-1809400027-JVSXG2A">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(1093 222)" class="appendix-icon"><title>GearElements and Mesh are used to&#xA;create multi-rotor systems coupled&#xA;by gears (gearboxes).</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-1809400027-NV2WY5DJOJXXI33S)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-1809400027-NV2WY5DJOJXXI33S">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(756 510)" class="appendix-icon"><title>Number of gear teeth.&#xA;Defines the transmission ratio&#xA;with the coupled gear.</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-1809400027-OBQXEYLNOMXGIZLOORSXG)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-1809400027-OBQXEYLNOMXGIZLOORSXG">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(970 510)" class="appendix-icon"><title>Pitch diameter [m]&#xA;Circle where teeth mesh.&#xA;pitch_diameter = n_teeth / diametral_pitch</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-1809400027-OBQXEYLNOMXHA2LUMNUA)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-1809400027-OBQXEYLNOMXHA2LUMNUA">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(1181 510)" class="appendix-icon"><title>Base diameter [m]&#xA;base_diameter = pitch_diameter × cos(pr_angle)&#xA;Defines the involute tooth profile</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-1809400027-OBQXEYLNOMXGEYLTMU)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-1809400027-OBQXEYLNOMXGEYLTMU">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(1334 510)" class="appendix-icon"><title>pr_angle: pressure angle [rad]&#xA;(typically 20° = 0.349 rad)&#xA;helix_angle: helix angle [rad]&#xA;(0 for spur gears)</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-1809400027-OBQXEYLNOMXGC3THOVWG64Y)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-1809400027-OBQXEYLNOMXGC3THOVWG64Y">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(215 222)" class="appendix-icon"><title>First gear (driving)</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-1809400027-NVSXG2C7OBQXEYLNOMXGOZLBOIYQ)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-1809400027-NVSXG2C7OBQXEYLNOMXGOZLBOIYQ">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(466 222)" class="appendix-icon"><title>Second gear (driven)</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-1809400027-NVSXG2C7OBQXEYLNOMXGOZLBOIZA)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-1809400027-NVSXG2C7OBQXEYLNOMXGOZLBOIZA">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(677 222)" class="appendix-icon"><title>Mesh stiffness [N/m]&#xA;Can be constant or variable (TVMS)</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-1809400027-NVSXG2C7OBQXEYLNOMXHG5DJMZTG4ZLTOM)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-1809400027-NVSXG2C7OBQXEYLNOMXHG5DJMZTG4ZLTOM">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(891 222)" class="appendix-icon"><title>Mesh damping [N·s/m]</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-1809400027-NVSXG2C7OBQXEYLNOMXGIYLNOBUW4ZY)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-1809400027-NVSXG2C7OBQXEYLNOMXGIYLNOBUW4ZY">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><mask id="d2-1809400027" maskUnits="userSpaceOnUse" x="-91" y="-157" width="1834" height="1066">
+<rect x="-91" y="-157" width="1834" height="1066" fill="white"></rect>
+<rect x="1280.000000" y="141.000000" width="79" height="21" fill="black"></rect>
+<rect x="1479.000000" y="369.000000" width="79" height="21" fill="black"></rect>
+<rect x="979.000000" y="97.000000" width="51" height="21" fill="black"></rect>
+</mask></svg></svg>

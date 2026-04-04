@@ -72,6 +72,7 @@ you through the process of improving ROSS.
 :maxdepth: 1
 :caption: Getting Started
 getting_started/overview
+getting_started/architecture
 getting_started/installation
 ```
 

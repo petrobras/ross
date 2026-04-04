@@ -1,0 +1,481 @@
+direction: down
+
+title: {
+  label: Available Analyses in ROSS
+  near: top-center
+  shape: text
+  style: {
+    font-size: 28
+    bold: true
+  }
+}
+
+# ============================================================
+# Main Node
+# ============================================================
+Analises: Analyses {
+  tooltip: |
+    All analysis types available in ROSS.
+    Each analysis is called via Rotor.run_*()
+    and returns a specific results object.
+  |
+  link: ./ross-overview.svg
+  style: {
+    fill: "#f3e5f5"
+    stroke: "#9673a6"
+    font-size: 18
+    bold: true
+    border-radius: 10
+  }
+}
+
+# ============================================================
+# Static
+# ============================================================
+estatica: run_static() {
+  style: {
+    fill: "#e1d5e7"
+    stroke: "#9673a6"
+    border-radius: 10
+  }
+
+  run_static: run_static() {
+    tooltip: |
+      Calculates the static deflection of the shaft
+      under self-weight and element loads.
+      Returns → StaticResults
+    |
+    style: {
+      fill: "#f3e5f5"
+      stroke: "#9673a6"
+    }
+  }
+
+  static_plots: Plots {
+    style: {
+      fill: "#e8f8f5"
+      stroke: "#27ae60"
+      border-radius: 8
+    }
+
+    deformation: plot_deformation() {
+      tooltip: "Static deflection curve of the shaft"
+      style: { fill: "#d5f5e3"; stroke: "#27ae60" }
+    }
+    shearing: plot_shearing_force() {
+      tooltip: "Shearing force diagram"
+      style: { fill: "#d5f5e3"; stroke: "#27ae60" }
+    }
+    bending: plot_bending_moment() {
+      tooltip: "Bending moment diagram"
+      style: { fill: "#d5f5e3"; stroke: "#27ae60" }
+    }
+    fbd: plot_free_body_diagram() {
+      tooltip: "Free body diagram with bearing reactions"
+      style: { fill: "#d5f5e3"; stroke: "#27ae60" }
+    }
+  }
+
+  run_static -> static_plots
+}
+
+Analises -> estatica
+
+# ============================================================
+# Modal
+# ============================================================
+modal: run_modal() {
+  style: {
+    fill: "#e1d5e7"
+    stroke: "#9673a6"
+    border-radius: 10
+  }
+
+  run_modal: run_modal() {
+    tooltip: |
+      Solves the complex eigenvalue problem:
+      [M]ẍ + ([C] + Ω[G])ẋ + [K]x = 0
+      Returns → ModalResults
+      Natural frequencies, damping ratios, mode shapes
+    |
+    style: {
+      fill: "#f3e5f5"
+      stroke: "#9673a6"
+    }
+  }
+
+  modal_plots: Plots {
+    style: {
+      fill: "#e8f8f5"
+      stroke: "#27ae60"
+      border-radius: 8
+    }
+
+    mode3d: plot_mode_3d() {
+      tooltip: "Animated 3D mode shape (precession)"
+      style: { fill: "#d5f5e3"; stroke: "#27ae60" }
+    }
+    mode2d: plot_mode_2d() {
+      tooltip: "2D mode shape (amplitude vs axial position)"
+      style: { fill: "#d5f5e3"; stroke: "#27ae60" }
+    }
+    orbit: plot_orbit() {
+      tooltip: "Mode orbit at a specific node"
+      style: { fill: "#d5f5e3"; stroke: "#27ae60" }
+    }
+  }
+
+  run_modal -> modal_plots
+}
+
+Analises -> modal
+
+# ============================================================
+# Campbell
+# ============================================================
+campbell: run_campbell() {
+  style: {
+    fill: "#e1d5e7"
+    stroke: "#9673a6"
+    border-radius: 10
+  }
+
+  run_campbell: run_campbell() {
+    tooltip: |
+      Sweeps rotational speeds and calculates
+      natural frequencies at each speed.
+      Returns → CampbellResults
+      Identifies critical speeds
+    |
+    style: {
+      fill: "#f3e5f5"
+      stroke: "#9673a6"
+    }
+  }
+
+  campbell_plots: Plots {
+    style: {
+      fill: "#e8f8f5"
+      stroke: "#27ae60"
+      border-radius: 8
+    }
+
+    campbell_plot: plot() {
+      tooltip: |
+        Full Campbell diagram
+        Frequencies vs. speed + synchronous line
+      |
+      style: { fill: "#d5f5e3"; stroke: "#27ae60" }
+    }
+    with_shape: plot(with_mode_shape=True) {
+      tooltip: |
+        Campbell with mode shape thumbnails
+        next to each curve. Identifies FW/BW.
+      |
+      style: { fill: "#d5f5e3"; stroke: "#27ae60" }
+    }
+  }
+
+  run_campbell -> campbell_plots
+}
+
+Analises -> campbell
+
+# ============================================================
+# Frequency Response
+# ============================================================
+frequencia: run_freq_response() {
+  style: {
+    fill: "#e1d5e7"
+    stroke: "#9673a6"
+    border-radius: 10
+  }
+
+  run_freq: run_freq_response() {
+    tooltip: |
+      Frequency response function (FRF).
+      H(ω) = [-ω²M + iω(C+ΩG) + K]⁻¹ F
+      Returns → FrequencyResponseResults
+    |
+    style: {
+      fill: "#f3e5f5"
+      stroke: "#9673a6"
+    }
+  }
+
+  freq_plots: Plots {
+    style: {
+      fill: "#e8f8f5"
+      stroke: "#27ae60"
+      border-radius: 8
+    }
+
+    magnitude: plot_magnitude() {
+      tooltip: "FRF amplitude vs. frequency"
+      style: { fill: "#d5f5e3"; stroke: "#27ae60" }
+    }
+    phase: plot_phase() {
+      tooltip: "FRF phase vs. frequency"
+      style: { fill: "#d5f5e3"; stroke: "#27ae60" }
+    }
+    polar: plot_polar_bode() {
+      tooltip: "Polar diagram (Nyquist) of the FRF"
+      style: { fill: "#d5f5e3"; stroke: "#27ae60" }
+    }
+  }
+
+  run_freq -> freq_plots
+}
+
+Analises -> frequencia
+
+# ============================================================
+# Unbalance Response
+# ============================================================
+unbalance: run_unbalance_response() {
+  style: {
+    fill: "#e1d5e7"
+    stroke: "#9673a6"
+    border-radius: 10
+  }
+
+  run_unbalance: run_unbalance_response() {
+    tooltip: |
+      Synchronous unbalance response.
+      Sweeps rotational speed with unbalance
+      mass at specific nodes.
+      Returns → ForcedResponseResults
+    |
+    style: {
+      fill: "#f3e5f5"
+      stroke: "#9673a6"
+    }
+  }
+
+  unb_plots: Plots {
+    style: {
+      fill: "#e8f8f5"
+      stroke: "#27ae60"
+      border-radius: 8
+    }
+
+    bode: plot_magnitude() / plot_phase() {
+      tooltip: "Bode diagrams (amplitude and phase vs. speed)"
+      style: { fill: "#d5f5e3"; stroke: "#27ae60" }
+    }
+    deflected2d: plot_deflected_shape_2d() {
+      tooltip: "2D deflected shape of the rotor"
+      style: { fill: "#d5f5e3"; stroke: "#27ae60" }
+    }
+    deflected3d: plot_deflected_shape_3d() {
+      tooltip: "3D deflected shape of the rotor with orbits"
+      style: { fill: "#d5f5e3"; stroke: "#27ae60" }
+    }
+  }
+
+  run_unbalance -> unb_plots
+}
+
+Analises -> unbalance
+
+# ============================================================
+# Time Response
+# ============================================================
+tempo: run_time_response() {
+  style: {
+    fill: "#e1d5e7"
+    stroke: "#9673a6"
+    border-radius: 10
+  }
+
+  run_time: run_time_response() {
+    tooltip: |
+      Time integration of the complete system.
+      Methods: state-space or Newmark.
+      Supports time-varying forces.
+      Returns → TimeResponseResults
+    |
+    style: {
+      fill: "#f3e5f5"
+      stroke: "#9673a6"
+    }
+  }
+
+  time_plots: Plots {
+    style: {
+      fill: "#e8f8f5"
+      stroke: "#27ae60"
+      border-radius: 8
+    }
+
+    time1d: plot_1d() {
+      tooltip: "Displacement vs. time for a single DOF"
+      style: { fill: "#d5f5e3"; stroke: "#27ae60" }
+    }
+    time2d: plot_2d() {
+      tooltip: "Orbit (x vs. y) at a node"
+      style: { fill: "#d5f5e3"; stroke: "#27ae60" }
+    }
+    time3d: plot_3d() {
+      tooltip: "Orbits along the shaft (3D)"
+      style: { fill: "#d5f5e3"; stroke: "#27ae60" }
+    }
+    dfft: plot_dfft() {
+      tooltip: "FFT of the time signal (frequency spectrum)"
+      style: { fill: "#d5f5e3"; stroke: "#27ae60" }
+    }
+  }
+
+  run_time -> time_plots
+}
+
+Analises -> tempo
+
+# ============================================================
+# UCS
+# ============================================================
+ucs: run_ucs() {
+  style: {
+    fill: "#e1d5e7"
+    stroke: "#9673a6"
+    border-radius: 10
+  }
+
+  run_ucs: run_ucs() {
+    tooltip: |
+      Undamped Critical Speed Map.
+      Varies bearing stiffness and calculates
+      undamped critical speeds.
+      Returns → UCSResults
+    |
+    style: {
+      fill: "#f3e5f5"
+      stroke: "#9673a6"
+    }
+  }
+
+  ucs_plot: plot() {
+    tooltip: |
+      Log-log map: critical speeds
+      vs. bearing stiffness.
+      Shows actual bearing stiffness as
+      a vertical reference line.
+    |
+    style: { fill: "#d5f5e3"; stroke: "#27ae60" }
+  }
+
+  run_ucs -> ucs_plot
+}
+
+Analises -> ucs
+
+# ============================================================
+# Level 1
+# ============================================================
+level1: run_level1() {
+  style: {
+    fill: "#e1d5e7"
+    stroke: "#9673a6"
+    border-radius: 10
+  }
+
+  run_level1: run_level1() {
+    tooltip: |
+      API 617 Level 1 stability analysis.
+      Calculates applied cross-coupled stiffness (Qa)
+      and compares with stability threshold (Q0).
+      If Qa < Q0, the rotor is stable.
+      Returns → Level1Results
+    |
+    style: {
+      fill: "#f3e5f5"
+      stroke: "#9673a6"
+    }
+  }
+
+  level1_plot: plot() {
+    tooltip: "Q0 vs. Qa plot with pass/fail criterion"
+    style: { fill: "#d5f5e3"; stroke: "#27ae60" }
+  }
+
+  run_level1 -> level1_plot
+}
+
+Analises -> level1
+
+# ============================================================
+# Harmonic Balance
+# ============================================================
+hbm: run_harmonic_balance_response() {
+  style: {
+    fill: "#e1d5e7"
+    stroke: "#9673a6"
+    border-radius: 10
+  }
+
+  run_hbm: run_harmonic_balance_response() {
+    tooltip: |
+      Harmonic Balance Method (HBM).
+      Periodic steady-state response
+      with nonlinearities (e.g., nonlinear bearings).
+      More efficient than time integration.
+      Returns → HarmonicBalanceResults
+    |
+    style: {
+      fill: "#f3e5f5"
+      stroke: "#9673a6"
+    }
+  }
+}
+
+Analises -> hbm
+
+# ============================================================
+# Fault Analysis
+# ============================================================
+falhas: Fault Analysis {
+  style: {
+    fill: "#e1d5e7"
+    stroke: "#9673a6"
+    border-radius: 10
+  }
+
+  rubbing: run_rubbing() {
+    tooltip: |
+      Rotor-stator contact.
+      Models radial impact and tangential friction.
+      Returns → TimeResponseResults
+    |
+    style: {
+      fill: "#f3e5f5"
+      stroke: "#9673a6"
+    }
+  }
+
+  crack: run_crack() {
+    tooltip: |
+      Transverse crack (breathing crack).
+      Stiffness varies with rotation.
+      Generates 2× and 3× speed harmonics.
+      Returns → TimeResponseResults
+    |
+    style: {
+      fill: "#f3e5f5"
+      stroke: "#9673a6"
+    }
+  }
+
+  misalignment: run_misalignment() {
+    tooltip: |
+      Angular or parallel misalignment.
+      1× and 2× excitation forces.
+      Returns → TimeResponseResults
+    |
+    style: {
+      fill: "#f3e5f5"
+      stroke: "#9673a6"
+    }
+  }
+}
+
+Analises -> falhas

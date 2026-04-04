@@ -1,0 +1,555 @@
+<?xml version="1.0" encoding="utf-8"?><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" data-d2-version="v0.7.1" preserveAspectRatio="xMinYMin meet" viewBox="0 0 2869 1478"><svg class="d2-676743313 d2-svg" width="2869" height="1478" viewBox="-91 -178 2869 1478"><rect x="-91.000000" y="-178.000000" width="2869.000000" height="1478.000000" rx="0.000000" fill="#FFFFFF" class=" fill-N7" stroke-width="0" /><style type="text/css"><![CDATA[
+.d2-676743313 .text {
+	font-family: "d2-676743313-font-regular";
+}
+@font-face {
+	font-family: d2-676743313-font-regular;
+	src: url("data:application/font-woff;base64,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");
+}
+.appendix-icon {
+	filter: drop-shadow(0px 0px 32px rgba(31, 36, 58, 0.1));
+}
+.d2-676743313 .text-bold {
+	font-family: "d2-676743313-font-bold";
+}
+@font-face {
+	font-family: d2-676743313-font-bold;
+	src: url("data:application/font-woff;base64,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");
+}
+.d2-676743313 .text-italic {
+	font-family: "d2-676743313-font-italic";
+}
+@font-face {
+	font-family: d2-676743313-font-italic;
+	src: url("data:application/font-woff;base64,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");
+}]]></style><style type="text/css"><![CDATA[.shape {
+  shape-rendering: geometricPrecision;
+  stroke-linejoin: round;
+}
+.connection {
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.blend {
+  mix-blend-mode: multiply;
+  opacity: 0.5;
+}
+
+		.d2-676743313 .fill-N1{fill:#0A0F25;}
+		.d2-676743313 .fill-N2{fill:#676C7E;}
+		.d2-676743313 .fill-N3{fill:#9499AB;}
+		.d2-676743313 .fill-N4{fill:#CFD2DD;}
+		.d2-676743313 .fill-N5{fill:#DEE1EB;}
+		.d2-676743313 .fill-N6{fill:#EEF1F8;}
+		.d2-676743313 .fill-N7{fill:#FFFFFF;}
+		.d2-676743313 .fill-B1{fill:#0D32B2;}
+		.d2-676743313 .fill-B2{fill:#0D32B2;}
+		.d2-676743313 .fill-B3{fill:#E3E9FD;}
+		.d2-676743313 .fill-B4{fill:#E3E9FD;}
+		.d2-676743313 .fill-B5{fill:#EDF0FD;}
+		.d2-676743313 .fill-B6{fill:#F7F8FE;}
+		.d2-676743313 .fill-AA2{fill:#4A6FF3;}
+		.d2-676743313 .fill-AA4{fill:#EDF0FD;}
+		.d2-676743313 .fill-AA5{fill:#F7F8FE;}
+		.d2-676743313 .fill-AB4{fill:#EDF0FD;}
+		.d2-676743313 .fill-AB5{fill:#F7F8FE;}
+		.d2-676743313 .stroke-N1{stroke:#0A0F25;}
+		.d2-676743313 .stroke-N2{stroke:#676C7E;}
+		.d2-676743313 .stroke-N3{stroke:#9499AB;}
+		.d2-676743313 .stroke-N4{stroke:#CFD2DD;}
+		.d2-676743313 .stroke-N5{stroke:#DEE1EB;}
+		.d2-676743313 .stroke-N6{stroke:#EEF1F8;}
+		.d2-676743313 .stroke-N7{stroke:#FFFFFF;}
+		.d2-676743313 .stroke-B1{stroke:#0D32B2;}
+		.d2-676743313 .stroke-B2{stroke:#0D32B2;}
+		.d2-676743313 .stroke-B3{stroke:#E3E9FD;}
+		.d2-676743313 .stroke-B4{stroke:#E3E9FD;}
+		.d2-676743313 .stroke-B5{stroke:#EDF0FD;}
+		.d2-676743313 .stroke-B6{stroke:#F7F8FE;}
+		.d2-676743313 .stroke-AA2{stroke:#4A6FF3;}
+		.d2-676743313 .stroke-AA4{stroke:#EDF0FD;}
+		.d2-676743313 .stroke-AA5{stroke:#F7F8FE;}
+		.d2-676743313 .stroke-AB4{stroke:#EDF0FD;}
+		.d2-676743313 .stroke-AB5{stroke:#F7F8FE;}
+		.d2-676743313 .background-color-N1{background-color:#0A0F25;}
+		.d2-676743313 .background-color-N2{background-color:#676C7E;}
+		.d2-676743313 .background-color-N3{background-color:#9499AB;}
+		.d2-676743313 .background-color-N4{background-color:#CFD2DD;}
+		.d2-676743313 .background-color-N5{background-color:#DEE1EB;}
+		.d2-676743313 .background-color-N6{background-color:#EEF1F8;}
+		.d2-676743313 .background-color-N7{background-color:#FFFFFF;}
+		.d2-676743313 .background-color-B1{background-color:#0D32B2;}
+		.d2-676743313 .background-color-B2{background-color:#0D32B2;}
+		.d2-676743313 .background-color-B3{background-color:#E3E9FD;}
+		.d2-676743313 .background-color-B4{background-color:#E3E9FD;}
+		.d2-676743313 .background-color-B5{background-color:#EDF0FD;}
+		.d2-676743313 .background-color-B6{background-color:#F7F8FE;}
+		.d2-676743313 .background-color-AA2{background-color:#4A6FF3;}
+		.d2-676743313 .background-color-AA4{background-color:#EDF0FD;}
+		.d2-676743313 .background-color-AA5{background-color:#F7F8FE;}
+		.d2-676743313 .background-color-AB4{background-color:#EDF0FD;}
+		.d2-676743313 .background-color-AB5{background-color:#F7F8FE;}
+		.d2-676743313 .color-N1{color:#0A0F25;}
+		.d2-676743313 .color-N2{color:#676C7E;}
+		.d2-676743313 .color-N3{color:#9499AB;}
+		.d2-676743313 .color-N4{color:#CFD2DD;}
+		.d2-676743313 .color-N5{color:#DEE1EB;}
+		.d2-676743313 .color-N6{color:#EEF1F8;}
+		.d2-676743313 .color-N7{color:#FFFFFF;}
+		.d2-676743313 .color-B1{color:#0D32B2;}
+		.d2-676743313 .color-B2{color:#0D32B2;}
+		.d2-676743313 .color-B3{color:#E3E9FD;}
+		.d2-676743313 .color-B4{color:#E3E9FD;}
+		.d2-676743313 .color-B5{color:#EDF0FD;}
+		.d2-676743313 .color-B6{color:#F7F8FE;}
+		.d2-676743313 .color-AA2{color:#4A6FF3;}
+		.d2-676743313 .color-AA4{color:#EDF0FD;}
+		.d2-676743313 .color-AA5{color:#F7F8FE;}
+		.d2-676743313 .color-AB4{color:#EDF0FD;}
+		.d2-676743313 .color-AB5{color:#F7F8FE;}.appendix text.text{fill:#0A0F25}.md{--color-fg-default:#0A0F25;--color-fg-muted:#676C7E;--color-fg-subtle:#9499AB;--color-canvas-default:#FFFFFF;--color-canvas-subtle:#EEF1F8;--color-border-default:#0D32B2;--color-border-muted:#0D32B2;--color-neutral-muted:#EEF1F8;--color-accent-fg:#0D32B2;--color-accent-emphasis:#0D32B2;--color-attention-subtle:#676C7E;--color-danger-fg:red;}.sketch-overlay-B1{fill:url(#streaks-darker-d2-676743313);mix-blend-mode:lighten}.sketch-overlay-B2{fill:url(#streaks-darker-d2-676743313);mix-blend-mode:lighten}.sketch-overlay-B3{fill:url(#streaks-bright-d2-676743313);mix-blend-mode:darken}.sketch-overlay-B4{fill:url(#streaks-bright-d2-676743313);mix-blend-mode:darken}.sketch-overlay-B5{fill:url(#streaks-bright-d2-676743313);mix-blend-mode:darken}.sketch-overlay-B6{fill:url(#streaks-bright-d2-676743313);mix-blend-mode:darken}.sketch-overlay-AA2{fill:url(#streaks-dark-d2-676743313);mix-blend-mode:overlay}.sketch-overlay-AA4{fill:url(#streaks-bright-d2-676743313);mix-blend-mode:darken}.sketch-overlay-AA5{fill:url(#streaks-bright-d2-676743313);mix-blend-mode:darken}.sketch-overlay-AB4{fill:url(#streaks-bright-d2-676743313);mix-blend-mode:darken}.sketch-overlay-AB5{fill:url(#streaks-bright-d2-676743313);mix-blend-mode:darken}.sketch-overlay-N1{fill:url(#streaks-darker-d2-676743313);mix-blend-mode:lighten}.sketch-overlay-N2{fill:url(#streaks-dark-d2-676743313);mix-blend-mode:overlay}.sketch-overlay-N3{fill:url(#streaks-normal-d2-676743313);mix-blend-mode:color-burn}.sketch-overlay-N4{fill:url(#streaks-normal-d2-676743313);mix-blend-mode:color-burn}.sketch-overlay-N5{fill:url(#streaks-bright-d2-676743313);mix-blend-mode:darken}.sketch-overlay-N6{fill:url(#streaks-bright-d2-676743313);mix-blend-mode:darken}.sketch-overlay-N7{fill:url(#streaks-bright-d2-676743313);mix-blend-mode:darken}.light-code{display: block}.dark-code{display: none}]]></style><g class="dGl0bGU="><g class="shape" ></g><text x="1335.000000" y="-49.000000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:28px">ROSS - Workflow</text></g><g class="ZWxlbWVudG9z"><g class="shape" ><rect x="10.000000" y="20.000000" width="1858.000000" height="292.000000" rx="10.000000" stroke="#2980b9" fill="#e8f4f8" style="stroke-width:2;" /></g><text x="939.000000" y="7.000000" fill="#0A0F25" class="text fill-N1" style="text-anchor:middle;font-size:28px">Element Definition</text></g><a href="./rotor.svg" xlink:href="./rotor.svg"><g class="cm90b3I="><g class="shape" ><rect x="733.000000" y="432.000000" width="154.000000" height="68.000000" rx="10.000000" stroke="#b85450" fill="#f8cecc" style="stroke-width:2;" /></g><text x="810.000000" y="472.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:18px">Rotor</text><title>Assembly: shaft + disks + bearings + seals</title></g></a><a href="./multirotor.svg" xlink:href="./multirotor.svg"><g class="bXVsdGlyb3Rvcg=="><g class="shape" ><rect x="1496.000000" y="621.000000" width="186.000000" height="66.000000" rx="10.000000" stroke="#b85450" fill="#f8cecc" style="stroke-width:2;" /></g><text x="1589.000000" y="659.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">MultiRotor</text><title>Multiple rotors coupled&#xA;by gears or couplings</title></g></a><a href="./analises.svg" xlink:href="./analises.svg"><g class="YW5hbGlzZXM="><g class="shape" ><rect x="183.000000" y="807.000000" width="2477.000000" height="126.000000" rx="10.000000" stroke="#9673a6" fill="#e1d5e7" style="stroke-width:2;" /></g><text x="1421.500000" y="794.000000" fill="#0A0F25" class="text fill-N1" style="text-anchor:middle;font-size:28px">Analyses</text></g></a><a href="./resultados.svg" xlink:href="./resultados.svg"><g class="cmVzdWx0YWRvcw=="><g class="shape" ><rect x="904.000000" y="1073.000000" width="490.000000" height="126.000000" rx="10.000000" stroke="#27ae60" fill="#d5f5e3" style="stroke-width:2;" /></g><text x="1149.000000" y="1060.000000" fill="#0A0F25" class="text fill-N1" style="text-anchor:middle;font-size:28px">Results and Visualization</text></g></a><a href="./material.svg" xlink:href="./material.svg"><g class="ZWxlbWVudG9zLm1hdGVyaWFs"><g class="shape" ><rect x="190.000000" y="50.000000" width="168.000000" height="66.000000" stroke="#82b366" fill="#d5e8d4" style="stroke-width:2;" /></g><text x="274.000000" y="88.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">Material</text><title>Mechanical properties: E, G, ρ, ν</title></g></a><a href="./shaft-element.svg" xlink:href="./shaft-element.svg"><g class="ZWxlbWVudG9zLnNoYWZ0"><g class="shape" ><rect x="40.000000" y="216.000000" width="206.000000" height="66.000000" stroke="#6c8ebf" fill="#dae8fc" style="stroke-width:2;" /></g><text x="143.000000" y="254.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">ShaftElement</text><title>Shaft elements (Timoshenko)&#xA;Cylindrical or tapered</title></g></a><a href="./disk-element.svg" xlink:href="./disk-element.svg"><g class="ZWxlbWVudG9zLmRpc2s="><g class="shape" ><rect x="306.000000" y="216.000000" width="198.000000" height="66.000000" stroke="#6c8ebf" fill="#dae8fc" style="stroke-width:2;" /></g><text x="405.000000" y="254.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">DiskElement</text><title>Rigid disks&#xA;Mass and moments of inertia</title></g></a><a href="./bearing-element.svg" xlink:href="./bearing-element.svg"><g class="ZWxlbWVudG9zLmJlYXJpbmc="><g class="shape" ><rect x="564.000000" y="216.000000" width="222.000000" height="66.000000" stroke="#d6b656" fill="#fff2cc" style="stroke-width:2;" /></g><text x="675.000000" y="254.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">BearingElement</text><title>Bearings: isotropic, anisotropic&#xA;Ball, Roller, Magnetic, PlainJournal, TiltingPad</title></g></a><a href="./seal-element.svg" xlink:href="./seal-element.svg"><g class="ZWxlbWVudG9zLnNlYWw="><g class="shape" ><rect x="846.000000" y="216.000000" width="198.000000" height="66.000000" stroke="#d6b656" fill="#fff2cc" style="stroke-width:2;" /></g><text x="945.000000" y="254.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">SealElement</text><title>Seals: Labyrinth, HolePattern, Hybrid</title></g></a><a href="./point-mass.svg" xlink:href="./point-mass.svg"><g class="ZWxlbWVudG9zLnBvaW50bWFzcw=="><g class="shape" ><rect x="1104.000000" y="216.000000" width="181.000000" height="66.000000" stroke="#6c8ebf" fill="#dae8fc" style="stroke-width:2;" /></g><text x="1194.500000" y="254.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">PointMass</text><title>Concentrated masses</title></g></a><a href="./coupling-element.svg" xlink:href="./coupling-element.svg"><g class="ZWxlbWVudG9zLmNvdXBsaW5n"><g class="shape" ><rect x="1345.000000" y="216.000000" width="231.000000" height="66.000000" stroke="#6c8ebf" fill="#dae8fc" style="stroke-width:2;" /></g><text x="1460.500000" y="254.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">CouplingElement</text><title>Coupling between shafts</title></g></a><a href="./gear-element.svg" xlink:href="./gear-element.svg"><g class="ZWxlbWVudG9zLmdlYXI="><g class="shape" ><rect x="1636.000000" y="216.000000" width="202.000000" height="66.000000" stroke="#6c8ebf" fill="#dae8fc" style="stroke-width:2;" /></g><text x="1737.000000" y="254.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">GearElement</text><title>Gears with mesh forces</title></g></a><g class="YW5hbGlzZXMuZXN0YXRpY2E="><g class="shape" ><rect x="213.000000" y="837.000000" width="127.000000" height="66.000000" stroke="#9673a6" fill="#f3e5f5" style="stroke-width:2;" /></g><text x="276.500000" y="875.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">run_static()</text><title>Static analysis&#xA;Deformation, reactions, internal forces</title></g><g class="YW5hbGlzZXMubW9kYWw="><g class="shape" ><rect x="400.000000" y="837.000000" width="132.000000" height="66.000000" stroke="#9673a6" fill="#f3e5f5" style="stroke-width:2;" /></g><text x="466.000000" y="875.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">run_modal()</text><title>Modal analysis&#xA;Natural frequencies, mode shapes&#xA;Damping, logarithmic decrement</title></g><g class="YW5hbGlzZXMuY2FtcGJlbGw="><g class="shape" ><rect x="592.000000" y="837.000000" width="153.000000" height="66.000000" stroke="#9673a6" fill="#f3e5f5" style="stroke-width:2;" /></g><text x="668.500000" y="875.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">run_campbell()</text><title>Campbell diagram&#xA;Natural frequencies vs. speed&#xA;Critical speed identification</title></g><g class="YW5hbGlzZXMuY3JpdGljYQ=="><g class="shape" ><rect x="805.000000" y="837.000000" width="187.000000" height="66.000000" stroke="#9673a6" fill="#f3e5f5" style="stroke-width:2;" /></g><text x="898.500000" y="875.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">run_critical_speed()</text><title>Critical speeds&#xA;Synchronous resonance speeds</title></g><g class="YW5hbGlzZXMudWNz"><g class="shape" ><rect x="1052.000000" y="837.000000" width="111.000000" height="66.000000" stroke="#9673a6" fill="#f3e5f5" style="stroke-width:2;" /></g><text x="1107.500000" y="875.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">run_ucs()</text><title>Undamped critical speed map&#xA;Critical speeds vs. bearing stiffness</title></g><g class="YW5hbGlzZXMubGV2ZWwx"><g class="shape" ><rect x="1223.000000" y="837.000000" width="130.000000" height="66.000000" stroke="#9673a6" fill="#f3e5f5" style="stroke-width:2;" /></g><text x="1288.000000" y="875.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">run_level1()</text><title>API 617 Level 1 stability analysis</title></g><g class="YW5hbGlzZXMuZnJlcQ=="><g class="shape" ><rect x="1413.000000" y="837.000000" width="189.000000" height="66.000000" stroke="#9673a6" fill="#f3e5f5" style="stroke-width:2;" /></g><text x="1507.500000" y="875.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">run_freq_response()</text><title>Frequency response function (FRF)</title></g><g class="YW5hbGlzZXMudW5iYWxhbmNl"><g class="shape" ><rect x="1662.000000" y="837.000000" width="234.000000" height="66.000000" stroke="#9673a6" fill="#f3e5f5" style="stroke-width:2;" /></g><text x="1779.000000" y="875.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">run_unbalance_response()</text><title>Unbalance response&#xA;Bode, deflected shape, orbits</title></g><g class="YW5hbGlzZXMudGVtcG8="><g class="shape" ><rect x="1956.000000" y="837.000000" width="192.000000" height="66.000000" stroke="#9673a6" fill="#f3e5f5" style="stroke-width:2;" /></g><text x="2052.000000" y="875.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">run_time_response()</text><title>Time response&#xA;Transient, run-up, coast-down&#xA;State-space or Newmark</title></g><g class="YW5hbGlzZXMuaGJt"><g class="shape" ><rect x="2208.000000" y="837.000000" width="219.000000" height="66.000000" stroke="#9673a6" fill="#f3e5f5" style="stroke-width:2;" /></g><text x="2317.500000" y="875.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">run_harmonic_balance()</text><title>Harmonic balance method&#xA;Periodic steady-state response</title></g><g class="YW5hbGlzZXMuZmFsaGFz"><g class="shape" ><rect x="2487.000000" y="837.000000" width="143.000000" height="66.000000" stroke="#9673a6" fill="#f3e5f5" style="stroke-width:2;" /></g><text x="2558.500000" y="875.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">Fault Analysis</text><title>run_rubbing() - Rotor-stator contact&#xA;run_crack() - Transverse crack&#xA;run_misalignment() - Misalignment</title></g><g class="cmVzdWx0YWRvcy5ncmFmaWNvcw=="><g class="shape" ><rect x="934.000000" y="1103.000000" width="217.000000" height="66.000000" stroke="#27ae60" fill="#e8f8f5" style="stroke-width:2;" /></g><text x="1042.500000" y="1141.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">Interactive Plots (Plotly)</text><title>Bode diagrams, Campbell, UCS&#xA;2D/3D mode shapes, orbits&#xA;Deflected shape, FFT</title></g><g class="cmVzdWx0YWRvcy5kYWRvcw=="><g class="shape" ><rect x="1211.000000" y="1103.000000" width="153.000000" height="66.000000" stroke="#27ae60" fill="#e8f8f5" style="stroke-width:2;" /></g><text x="1287.500000" y="1141.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">Numerical Data</text><title>Natural frequencies, damping ratios&#xA;Displacements, forces, moments&#xA;NumPy arrays for post-processing</title></g><g class="ZWxlbWVudG9zLihtYXRlcmlhbCAtJmd0OyBzaGFmdClbMF0="><marker id="mk-d2-676743313-3488378134" markerWidth="10.000000" markerHeight="12.000000" refX="7.000000" refY="6.000000" viewBox="0.000000 0.000000 10.000000 12.000000" orient="auto" markerUnits="userSpaceOnUse"> <polygon points="0.000000,0.000000 10.000000,6.000000 0.000000,12.000000" fill="#0D32B2" class="connection fill-B1" stroke-width="2" /> </marker><path d="M 220.310040 117.069595 C 158.800003 156.000000 143.000000 176.000000 143.000000 212.000000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-676743313-3488378134)" mask="url(#d2-676743313)" /></g><g class="ZWxlbWVudG9zLihtYXRlcmlhbCAtJmd0OyBkaXNrKVswXQ=="><path d="M 327.689960 117.069595 C 389.200012 156.000000 405.000000 176.000000 405.000000 212.000000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-676743313-3488378134)" mask="url(#d2-676743313)" /></g><g class="KGVsZW1lbnRvcy5zaGFmdCAtJmd0OyByb3RvcilbMF0="><path d="M 143.000000 284.000000 C 143.000000 322.000000 261.000000 396.799988 729.031096 455.502205" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-676743313-3488378134)" mask="url(#d2-676743313)" /></g><g class="KGVsZW1lbnRvcy5kaXNrIC0mZ3Q7IHJvdG9yKVswXQ=="><path d="M 405.000000 284.000000 C 405.000000 322.000000 470.600006 395.600006 729.083285 449.187998" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-676743313-3488378134)" mask="url(#d2-676743313)" /></g><g class="KGVsZW1lbnRvcy5iZWFyaW5nIC0mZ3Q7IHJvdG9yKVswXQ=="><path d="M 675.000000 284.000000 C 675.000000 322.000000 691.000000 392.000000 751.608007 429.880004" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-676743313-3488378134)" mask="url(#d2-676743313)" /></g><g class="KGVsZW1lbnRvcy5zZWFsIC0mZ3Q7IHJvdG9yKVswXQ=="><path d="M 945.000000 284.000000 C 945.000000 322.000000 929.000000 392.000000 868.391993 429.880004" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-676743313-3488378134)" mask="url(#d2-676743313)" /></g><g class="KGVsZW1lbnRvcy5wb2ludG1hc3MgLSZndDsgcm90b3IpWzBd"><path d="M 1194.500000 284.000000 C 1194.500000 322.000000 1132.900024 395.399994 890.408591 448.149755" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-676743313-3488378134)" mask="url(#d2-676743313)" /></g><g class="KGVsZW1lbnRvcy5jb3VwbGluZyAtJmd0OyByb3RvcilbMF0="><path d="M 1409.842822 283.119715 C 1352.300049 322.000000 1247.300049 396.399994 890.449981 453.369404" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-676743313-3488378134)" mask="url(#d2-676743313)" /></g><g class="KGVsZW1lbnRvcy5jb3VwbGluZyAtJmd0OyBtdWx0aXJvdG9yKVswXQ=="><path d="M 1513.427385 283.089211 C 1573.349976 322.000000 1588.750000 342.000000 1588.750000 357.000000 C 1588.750000 372.000000 1588.750000 398.799988 1588.750000 424.000000 C 1588.750000 449.200012 1588.750000 572.700012 1588.750000 617.500000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-676743313-3488378134)" mask="url(#d2-676743313)" /></g><g class="KGVsZW1lbnRvcy5nZWFyIC0mZ3Q7IG11bHRpcm90b3IpWzBd"><path d="M 1737.000000 284.000000 C 1737.000000 322.000000 1737.000000 342.000000 1737.000000 357.000000 C 1737.000000 372.000000 1737.000000 398.799988 1737.000000 424.000000 C 1737.000000 449.200012 1718.000000 572.700012 1645.365865 619.338761" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-676743313-3488378134)" mask="url(#d2-676743313)" /></g><g class="KHJvdG9yIC0mZ3Q7IG11bHRpcm90b3IpWzBd"><marker id="mk-d2-676743313-2177206569" markerWidth="10.000000" markerHeight="12.000000" refX="7.000000" refY="6.000000" viewBox="0.000000 0.000000 10.000000 12.000000" orient="auto" markerUnits="userSpaceOnUse"> <polygon points="0.000000,0.000000 10.000000,6.000000 0.000000,12.000000" fill="#0D32B2" class="connection fill-B2" stroke-width="2" /> </marker><path d="M 800.242575 501.434559 C 787.950012 548.299988 926.950012 577.036011 1491.776777 642.721959" stroke="#0D32B2" fill="none" class="connection stroke-B2" style="stroke-width:2;stroke-dasharray:10.000000,9.865639;" marker-end="url(#mk-d2-676743313-2177206569)" mask="url(#d2-676743313)" /><text x="1115.500000" y="604.000000" fill="#676C7E" class="text-italic fill-N2" style="text-anchor:middle;font-size:16px">coupling</text></g><g class="KHJvdG9yIC0mZ3Q7IGFuYWxpc2VzKVswXQ=="><path d="M 888.894562 492.140808 C 1050.199951 546.700012 1091.000000 579.200012 1091.000000 607.250000 C 1091.000000 635.299988 1091.000000 751.000000 1091.000000 803.000000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-676743313-3488378134)" mask="url(#d2-676743313)" /></g><g class="KG11bHRpcm90b3IgLSZndDsgYW5hbGlzZXMpWzBd"><path d="M 1588.750000 689.000000 C 1588.750000 727.000000 1588.750000 751.000000 1588.750000 803.000000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-676743313-3488378134)" mask="url(#d2-676743313)" /></g><g class="KGFuYWxpc2VzIC0mZ3Q7IHJlc3VsdGFkb3MpWzBd"><path d="M 1287.750000 935.000000 C 1287.750000 989.000000 1287.750000 1008.799988 1287.750000 1028.000000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-676743313-3488378134)" mask="url(#d2-676743313)" /></g><g transform="translate(871 416)" class="appendix-icon"><title>Assembly: shaft + disks + bearings + seals</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-676743313-OJXXI33S)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-676743313-OJXXI33S">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(839 416)" class="appendix-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3440_35088111-d2-676743313-OJXXI33S)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M14.3909 16.7965C14.7364 17.2584 15.1772 17.6406 15.6834 17.9171C16.1896 18.1938 16.7494 18.3582 17.3248 18.3993C17.9001 18.4405 18.4777 18.3575 19.0181 18.1559C19.5586 17.9543 20.0492 17.6389 20.4571 17.2309L22.8708 14.8173C23.6036 14.0586 24.0089 13.0425 23.9998 11.9877C23.9906 10.933 23.5676 9.92404 22.8217 9.17821C22.0759 8.43237 21.067 8.00931 20.0123 8.00015C18.9575 7.99098 17.9413 8.39644 17.1827 9.1292L15.7988 10.505" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M17.609 15.1874C17.2635 14.7255 16.8227 14.3433 16.3165 14.0667C15.8103 13.7902 15.2505 13.6257 14.6752 13.5845C14.0998 13.5433 13.5223 13.6263 12.9819 13.8279C12.4414 14.0295 11.9506 14.345 11.5428 14.753L9.1292 17.1666C8.39644 17.9252 7.99098 18.9414 8.00015 19.9962C8.00931 21.0509 8.43237 22.0598 9.17821 22.8056C9.92405 23.5515 10.933 23.9745 11.9877 23.9837C13.0425 23.9928 14.0586 23.5875 14.8173 22.8547L16.193 21.4788" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3440_35088111-d2-676743313-OJXXI33S">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(1666 605)" class="appendix-icon"><title>Multiple rotors coupled&#xA;by gears or couplings</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-676743313-NV2WY5DJOJXXI33S)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-676743313-NV2WY5DJOJXXI33S">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(1634 605)" class="appendix-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3440_35088111-d2-676743313-NV2WY5DJOJXXI33S)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M14.3909 16.7965C14.7364 17.2584 15.1772 17.6406 15.6834 17.9171C16.1896 18.1938 16.7494 18.3582 17.3248 18.3993C17.9001 18.4405 18.4777 18.3575 19.0181 18.1559C19.5586 17.9543 20.0492 17.6389 20.4571 17.2309L22.8708 14.8173C23.6036 14.0586 24.0089 13.0425 23.9998 11.9877C23.9906 10.933 23.5676 9.92404 22.8217 9.17821C22.0759 8.43237 21.067 8.00931 20.0123 8.00015C18.9575 7.99098 17.9413 8.39644 17.1827 9.1292L15.7988 10.505" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M17.609 15.1874C17.2635 14.7255 16.8227 14.3433 16.3165 14.0667C15.8103 13.7902 15.2505 13.6257 14.6752 13.5845C14.0998 13.5433 13.5223 13.6263 12.9819 13.8279C12.4414 14.0295 11.9506 14.345 11.5428 14.753L9.1292 17.1666C8.39644 17.9252 7.99098 18.9414 8.00015 19.9962C8.00931 21.0509 8.43237 22.0598 9.17821 22.8056C9.92405 23.5515 10.933 23.9745 11.9877 23.9837C13.0425 23.9928 14.0586 23.5875 14.8173 22.8547L16.193 21.4788" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3440_35088111-d2-676743313-NV2WY5DJOJXXI33S">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(2644 791)" class="appendix-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3440_35088111-d2-676743313-MFXGC3DJONSXG)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M14.3909 16.7965C14.7364 17.2584 15.1772 17.6406 15.6834 17.9171C16.1896 18.1938 16.7494 18.3582 17.3248 18.3993C17.9001 18.4405 18.4777 18.3575 19.0181 18.1559C19.5586 17.9543 20.0492 17.6389 20.4571 17.2309L22.8708 14.8173C23.6036 14.0586 24.0089 13.0425 23.9998 11.9877C23.9906 10.933 23.5676 9.92404 22.8217 9.17821C22.0759 8.43237 21.067 8.00931 20.0123 8.00015C18.9575 7.99098 17.9413 8.39644 17.1827 9.1292L15.7988 10.505" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M17.609 15.1874C17.2635 14.7255 16.8227 14.3433 16.3165 14.0667C15.8103 13.7902 15.2505 13.6257 14.6752 13.5845C14.0998 13.5433 13.5223 13.6263 12.9819 13.8279C12.4414 14.0295 11.9506 14.345 11.5428 14.753L9.1292 17.1666C8.39644 17.9252 7.99098 18.9414 8.00015 19.9962C8.00931 21.0509 8.43237 22.0598 9.17821 22.8056C9.92405 23.5515 10.933 23.9745 11.9877 23.9837C13.0425 23.9928 14.0586 23.5875 14.8173 22.8547L16.193 21.4788" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3440_35088111-d2-676743313-MFXGC3DJONSXG">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(1378 1057)" class="appendix-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3440_35088111-d2-676743313-OJSXG5LMORQWI33T)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M14.3909 16.7965C14.7364 17.2584 15.1772 17.6406 15.6834 17.9171C16.1896 18.1938 16.7494 18.3582 17.3248 18.3993C17.9001 18.4405 18.4777 18.3575 19.0181 18.1559C19.5586 17.9543 20.0492 17.6389 20.4571 17.2309L22.8708 14.8173C23.6036 14.0586 24.0089 13.0425 23.9998 11.9877C23.9906 10.933 23.5676 9.92404 22.8217 9.17821C22.0759 8.43237 21.067 8.00931 20.0123 8.00015C18.9575 7.99098 17.9413 8.39644 17.1827 9.1292L15.7988 10.505" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M17.609 15.1874C17.2635 14.7255 16.8227 14.3433 16.3165 14.0667C15.8103 13.7902 15.2505 13.6257 14.6752 13.5845C14.0998 13.5433 13.5223 13.6263 12.9819 13.8279C12.4414 14.0295 11.9506 14.345 11.5428 14.753L9.1292 17.1666C8.39644 17.9252 7.99098 18.9414 8.00015 19.9962C8.00931 21.0509 8.43237 22.0598 9.17821 22.8056C9.92405 23.5515 10.933 23.9745 11.9877 23.9837C13.0425 23.9928 14.0586 23.5875 14.8173 22.8547L16.193 21.4788" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3440_35088111-d2-676743313-OJSXG5LMORQWI33T">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(342 34)" class="appendix-icon"><title>Mechanical properties: E, G, ρ, ν</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-676743313-MVWGK3LFNZ2G64ZONVQXIZLSNFQWY)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-676743313-MVWGK3LFNZ2G64ZONVQXIZLSNFQWY">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(310 34)" class="appendix-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3440_35088111-d2-676743313-MVWGK3LFNZ2G64ZONVQXIZLSNFQWY)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M14.3909 16.7965C14.7364 17.2584 15.1772 17.6406 15.6834 17.9171C16.1896 18.1938 16.7494 18.3582 17.3248 18.3993C17.9001 18.4405 18.4777 18.3575 19.0181 18.1559C19.5586 17.9543 20.0492 17.6389 20.4571 17.2309L22.8708 14.8173C23.6036 14.0586 24.0089 13.0425 23.9998 11.9877C23.9906 10.933 23.5676 9.92404 22.8217 9.17821C22.0759 8.43237 21.067 8.00931 20.0123 8.00015C18.9575 7.99098 17.9413 8.39644 17.1827 9.1292L15.7988 10.505" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M17.609 15.1874C17.2635 14.7255 16.8227 14.3433 16.3165 14.0667C15.8103 13.7902 15.2505 13.6257 14.6752 13.5845C14.0998 13.5433 13.5223 13.6263 12.9819 13.8279C12.4414 14.0295 11.9506 14.345 11.5428 14.753L9.1292 17.1666C8.39644 17.9252 7.99098 18.9414 8.00015 19.9962C8.00931 21.0509 8.43237 22.0598 9.17821 22.8056C9.92405 23.5515 10.933 23.9745 11.9877 23.9837C13.0425 23.9928 14.0586 23.5875 14.8173 22.8547L16.193 21.4788" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3440_35088111-d2-676743313-MVWGK3LFNZ2G64ZONVQXIZLSNFQWY">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(230 200)" class="appendix-icon"><title>Shaft elements (Timoshenko)&#xA;Cylindrical or tapered</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-676743313-MVWGK3LFNZ2G64ZOONUGCZTU)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-676743313-MVWGK3LFNZ2G64ZOONUGCZTU">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(198 200)" class="appendix-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3440_35088111-d2-676743313-MVWGK3LFNZ2G64ZOONUGCZTU)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M14.3909 16.7965C14.7364 17.2584 15.1772 17.6406 15.6834 17.9171C16.1896 18.1938 16.7494 18.3582 17.3248 18.3993C17.9001 18.4405 18.4777 18.3575 19.0181 18.1559C19.5586 17.9543 20.0492 17.6389 20.4571 17.2309L22.8708 14.8173C23.6036 14.0586 24.0089 13.0425 23.9998 11.9877C23.9906 10.933 23.5676 9.92404 22.8217 9.17821C22.0759 8.43237 21.067 8.00931 20.0123 8.00015C18.9575 7.99098 17.9413 8.39644 17.1827 9.1292L15.7988 10.505" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M17.609 15.1874C17.2635 14.7255 16.8227 14.3433 16.3165 14.0667C15.8103 13.7902 15.2505 13.6257 14.6752 13.5845C14.0998 13.5433 13.5223 13.6263 12.9819 13.8279C12.4414 14.0295 11.9506 14.345 11.5428 14.753L9.1292 17.1666C8.39644 17.9252 7.99098 18.9414 8.00015 19.9962C8.00931 21.0509 8.43237 22.0598 9.17821 22.8056C9.92405 23.5515 10.933 23.9745 11.9877 23.9837C13.0425 23.9928 14.0586 23.5875 14.8173 22.8547L16.193 21.4788" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3440_35088111-d2-676743313-MVWGK3LFNZ2G64ZOONUGCZTU">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(488 200)" class="appendix-icon"><title>Rigid disks&#xA;Mass and moments of inertia</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-676743313-MVWGK3LFNZ2G64ZOMRUXG2Y)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-676743313-MVWGK3LFNZ2G64ZOMRUXG2Y">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(456 200)" class="appendix-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3440_35088111-d2-676743313-MVWGK3LFNZ2G64ZOMRUXG2Y)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M14.3909 16.7965C14.7364 17.2584 15.1772 17.6406 15.6834 17.9171C16.1896 18.1938 16.7494 18.3582 17.3248 18.3993C17.9001 18.4405 18.4777 18.3575 19.0181 18.1559C19.5586 17.9543 20.0492 17.6389 20.4571 17.2309L22.8708 14.8173C23.6036 14.0586 24.0089 13.0425 23.9998 11.9877C23.9906 10.933 23.5676 9.92404 22.8217 9.17821C22.0759 8.43237 21.067 8.00931 20.0123 8.00015C18.9575 7.99098 17.9413 8.39644 17.1827 9.1292L15.7988 10.505" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M17.609 15.1874C17.2635 14.7255 16.8227 14.3433 16.3165 14.0667C15.8103 13.7902 15.2505 13.6257 14.6752 13.5845C14.0998 13.5433 13.5223 13.6263 12.9819 13.8279C12.4414 14.0295 11.9506 14.345 11.5428 14.753L9.1292 17.1666C8.39644 17.9252 7.99098 18.9414 8.00015 19.9962C8.00931 21.0509 8.43237 22.0598 9.17821 22.8056C9.92405 23.5515 10.933 23.9745 11.9877 23.9837C13.0425 23.9928 14.0586 23.5875 14.8173 22.8547L16.193 21.4788" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3440_35088111-d2-676743313-MVWGK3LFNZ2G64ZOMRUXG2Y">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(770 200)" class="appendix-icon"><title>Bearings: isotropic, anisotropic&#xA;Ball, Roller, Magnetic, PlainJournal, TiltingPad</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-676743313-MVWGK3LFNZ2G64ZOMJSWC4TJNZTQ)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-676743313-MVWGK3LFNZ2G64ZOMJSWC4TJNZTQ">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(738 200)" class="appendix-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3440_35088111-d2-676743313-MVWGK3LFNZ2G64ZOMJSWC4TJNZTQ)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M14.3909 16.7965C14.7364 17.2584 15.1772 17.6406 15.6834 17.9171C16.1896 18.1938 16.7494 18.3582 17.3248 18.3993C17.9001 18.4405 18.4777 18.3575 19.0181 18.1559C19.5586 17.9543 20.0492 17.6389 20.4571 17.2309L22.8708 14.8173C23.6036 14.0586 24.0089 13.0425 23.9998 11.9877C23.9906 10.933 23.5676 9.92404 22.8217 9.17821C22.0759 8.43237 21.067 8.00931 20.0123 8.00015C18.9575 7.99098 17.9413 8.39644 17.1827 9.1292L15.7988 10.505" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M17.609 15.1874C17.2635 14.7255 16.8227 14.3433 16.3165 14.0667C15.8103 13.7902 15.2505 13.6257 14.6752 13.5845C14.0998 13.5433 13.5223 13.6263 12.9819 13.8279C12.4414 14.0295 11.9506 14.345 11.5428 14.753L9.1292 17.1666C8.39644 17.9252 7.99098 18.9414 8.00015 19.9962C8.00931 21.0509 8.43237 22.0598 9.17821 22.8056C9.92405 23.5515 10.933 23.9745 11.9877 23.9837C13.0425 23.9928 14.0586 23.5875 14.8173 22.8547L16.193 21.4788" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3440_35088111-d2-676743313-MVWGK3LFNZ2G64ZOMJSWC4TJNZTQ">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(1028 200)" class="appendix-icon"><title>Seals: Labyrinth, HolePattern, Hybrid</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-676743313-MVWGK3LFNZ2G64ZOONSWC3A)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-676743313-MVWGK3LFNZ2G64ZOONSWC3A">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(996 200)" class="appendix-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3440_35088111-d2-676743313-MVWGK3LFNZ2G64ZOONSWC3A)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M14.3909 16.7965C14.7364 17.2584 15.1772 17.6406 15.6834 17.9171C16.1896 18.1938 16.7494 18.3582 17.3248 18.3993C17.9001 18.4405 18.4777 18.3575 19.0181 18.1559C19.5586 17.9543 20.0492 17.6389 20.4571 17.2309L22.8708 14.8173C23.6036 14.0586 24.0089 13.0425 23.9998 11.9877C23.9906 10.933 23.5676 9.92404 22.8217 9.17821C22.0759 8.43237 21.067 8.00931 20.0123 8.00015C18.9575 7.99098 17.9413 8.39644 17.1827 9.1292L15.7988 10.505" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M17.609 15.1874C17.2635 14.7255 16.8227 14.3433 16.3165 14.0667C15.8103 13.7902 15.2505 13.6257 14.6752 13.5845C14.0998 13.5433 13.5223 13.6263 12.9819 13.8279C12.4414 14.0295 11.9506 14.345 11.5428 14.753L9.1292 17.1666C8.39644 17.9252 7.99098 18.9414 8.00015 19.9962C8.00931 21.0509 8.43237 22.0598 9.17821 22.8056C9.92405 23.5515 10.933 23.9745 11.9877 23.9837C13.0425 23.9928 14.0586 23.5875 14.8173 22.8547L16.193 21.4788" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3440_35088111-d2-676743313-MVWGK3LFNZ2G64ZOONSWC3A">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(1269 200)" class="appendix-icon"><title>Concentrated masses</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-676743313-MVWGK3LFNZ2G64ZOOBXWS3TUNVQXG4Y)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-676743313-MVWGK3LFNZ2G64ZOOBXWS3TUNVQXG4Y">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(1237 200)" class="appendix-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3440_35088111-d2-676743313-MVWGK3LFNZ2G64ZOOBXWS3TUNVQXG4Y)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M14.3909 16.7965C14.7364 17.2584 15.1772 17.6406 15.6834 17.9171C16.1896 18.1938 16.7494 18.3582 17.3248 18.3993C17.9001 18.4405 18.4777 18.3575 19.0181 18.1559C19.5586 17.9543 20.0492 17.6389 20.4571 17.2309L22.8708 14.8173C23.6036 14.0586 24.0089 13.0425 23.9998 11.9877C23.9906 10.933 23.5676 9.92404 22.8217 9.17821C22.0759 8.43237 21.067 8.00931 20.0123 8.00015C18.9575 7.99098 17.9413 8.39644 17.1827 9.1292L15.7988 10.505" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M17.609 15.1874C17.2635 14.7255 16.8227 14.3433 16.3165 14.0667C15.8103 13.7902 15.2505 13.6257 14.6752 13.5845C14.0998 13.5433 13.5223 13.6263 12.9819 13.8279C12.4414 14.0295 11.9506 14.345 11.5428 14.753L9.1292 17.1666C8.39644 17.9252 7.99098 18.9414 8.00015 19.9962C8.00931 21.0509 8.43237 22.0598 9.17821 22.8056C9.92405 23.5515 10.933 23.9745 11.9877 23.9837C13.0425 23.9928 14.0586 23.5875 14.8173 22.8547L16.193 21.4788" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3440_35088111-d2-676743313-MVWGK3LFNZ2G64ZOOBXWS3TUNVQXG4Y">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(1560 200)" class="appendix-icon"><title>Coupling between shafts</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-676743313-MVWGK3LFNZ2G64ZOMNXXK4DMNFXGO)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-676743313-MVWGK3LFNZ2G64ZOMNXXK4DMNFXGO">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(1528 200)" class="appendix-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3440_35088111-d2-676743313-MVWGK3LFNZ2G64ZOMNXXK4DMNFXGO)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M14.3909 16.7965C14.7364 17.2584 15.1772 17.6406 15.6834 17.9171C16.1896 18.1938 16.7494 18.3582 17.3248 18.3993C17.9001 18.4405 18.4777 18.3575 19.0181 18.1559C19.5586 17.9543 20.0492 17.6389 20.4571 17.2309L22.8708 14.8173C23.6036 14.0586 24.0089 13.0425 23.9998 11.9877C23.9906 10.933 23.5676 9.92404 22.8217 9.17821C22.0759 8.43237 21.067 8.00931 20.0123 8.00015C18.9575 7.99098 17.9413 8.39644 17.1827 9.1292L15.7988 10.505" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M17.609 15.1874C17.2635 14.7255 16.8227 14.3433 16.3165 14.0667C15.8103 13.7902 15.2505 13.6257 14.6752 13.5845C14.0998 13.5433 13.5223 13.6263 12.9819 13.8279C12.4414 14.0295 11.9506 14.345 11.5428 14.753L9.1292 17.1666C8.39644 17.9252 7.99098 18.9414 8.00015 19.9962C8.00931 21.0509 8.43237 22.0598 9.17821 22.8056C9.92405 23.5515 10.933 23.9745 11.9877 23.9837C13.0425 23.9928 14.0586 23.5875 14.8173 22.8547L16.193 21.4788" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3440_35088111-d2-676743313-MVWGK3LFNZ2G64ZOMNXXK4DMNFXGO">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(1822 200)" class="appendix-icon"><title>Gears with mesh forces</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-676743313-MVWGK3LFNZ2G64ZOM5SWC4Q)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-676743313-MVWGK3LFNZ2G64ZOM5SWC4Q">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(1790 200)" class="appendix-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3440_35088111-d2-676743313-MVWGK3LFNZ2G64ZOM5SWC4Q)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M14.3909 16.7965C14.7364 17.2584 15.1772 17.6406 15.6834 17.9171C16.1896 18.1938 16.7494 18.3582 17.3248 18.3993C17.9001 18.4405 18.4777 18.3575 19.0181 18.1559C19.5586 17.9543 20.0492 17.6389 20.4571 17.2309L22.8708 14.8173C23.6036 14.0586 24.0089 13.0425 23.9998 11.9877C23.9906 10.933 23.5676 9.92404 22.8217 9.17821C22.0759 8.43237 21.067 8.00931 20.0123 8.00015C18.9575 7.99098 17.9413 8.39644 17.1827 9.1292L15.7988 10.505" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M17.609 15.1874C17.2635 14.7255 16.8227 14.3433 16.3165 14.0667C15.8103 13.7902 15.2505 13.6257 14.6752 13.5845C14.0998 13.5433 13.5223 13.6263 12.9819 13.8279C12.4414 14.0295 11.9506 14.345 11.5428 14.753L9.1292 17.1666C8.39644 17.9252 7.99098 18.9414 8.00015 19.9962C8.00931 21.0509 8.43237 22.0598 9.17821 22.8056C9.92405 23.5515 10.933 23.9745 11.9877 23.9837C13.0425 23.9928 14.0586 23.5875 14.8173 22.8547L16.193 21.4788" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3440_35088111-d2-676743313-MVWGK3LFNZ2G64ZOM5SWC4Q">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(324 821)" class="appendix-icon"><title>Static analysis&#xA;Deformation, reactions, internal forces</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-676743313-MFXGC3DJONSXGLTFON2GC5DJMNQQ)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-676743313-MFXGC3DJONSXGLTFON2GC5DJMNQQ">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(516 821)" class="appendix-icon"><title>Modal analysis&#xA;Natural frequencies, mode shapes&#xA;Damping, logarithmic decrement</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-676743313-MFXGC3DJONSXGLTNN5SGC3A)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-676743313-MFXGC3DJONSXGLTNN5SGC3A">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(729 821)" class="appendix-icon"><title>Campbell diagram&#xA;Natural frequencies vs. speed&#xA;Critical speed identification</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-676743313-MFXGC3DJONSXGLTDMFWXAYTFNRWA)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-676743313-MFXGC3DJONSXGLTDMFWXAYTFNRWA">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(976 821)" class="appendix-icon"><title>Critical speeds&#xA;Synchronous resonance speeds</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-676743313-MFXGC3DJONSXGLTDOJUXI2LDME)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-676743313-MFXGC3DJONSXGLTDOJUXI2LDME">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(1147 821)" class="appendix-icon"><title>Undamped critical speed map&#xA;Critical speeds vs. bearing stiffness</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-676743313-MFXGC3DJONSXGLTVMNZQ)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-676743313-MFXGC3DJONSXGLTVMNZQ">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(1337 821)" class="appendix-icon"><title>API 617 Level 1 stability analysis</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-676743313-MFXGC3DJONSXGLTMMV3GK3BR)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-676743313-MFXGC3DJONSXGLTMMV3GK3BR">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(1586 821)" class="appendix-icon"><title>Frequency response function (FRF)</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-676743313-MFXGC3DJONSXGLTGOJSXC)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-676743313-MFXGC3DJONSXGLTGOJSXC">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(1880 821)" class="appendix-icon"><title>Unbalance response&#xA;Bode, deflected shape, orbits</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-676743313-MFXGC3DJONSXGLTVNZRGC3DBNZRWK)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-676743313-MFXGC3DJONSXGLTVNZRGC3DBNZRWK">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(2132 821)" class="appendix-icon"><title>Time response&#xA;Transient, run-up, coast-down&#xA;State-space or Newmark</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-676743313-MFXGC3DJONSXGLTUMVWXA3Y)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-676743313-MFXGC3DJONSXGLTUMVWXA3Y">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(2411 821)" class="appendix-icon"><title>Harmonic balance method&#xA;Periodic steady-state response</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-676743313-MFXGC3DJONSXGLTIMJWQ)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-676743313-MFXGC3DJONSXGLTIMJWQ">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(2614 821)" class="appendix-icon"><title>run_rubbing() - Rotor-stator contact&#xA;run_crack() - Transverse crack&#xA;run_misalignment() - Misalignment</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-676743313-MFXGC3DJONSXGLTGMFWGQYLT)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-676743313-MFXGC3DJONSXGLTGMFWGQYLT">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(1135 1087)" class="appendix-icon"><title>Bode diagrams, Campbell, UCS&#xA;2D/3D mode shapes, orbits&#xA;Deflected shape, FFT</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-676743313-OJSXG5LMORQWI33TFZTXEYLGNFRW64Y)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-676743313-OJSXG5LMORQWI33TFZTXEYLGNFRW64Y">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(1348 1087)" class="appendix-icon"><title>Natural frequencies, damping ratios&#xA;Displacements, forces, moments&#xA;NumPy arrays for post-processing</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-676743313-OJSXG5LMORQWI33TFZSGCZDPOM)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-676743313-OJSXG5LMORQWI33TFZSGCZDPOM">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><mask id="d2-676743313" maskUnits="userSpaceOnUse" x="-91" y="-178" width="2869" height="1478">
+<rect x="-91" y="-178" width="2869" height="1478" fill="white"></rect>
+<rect x="1085.000000" y="588.000000" width="61" height="21" fill="black"></rect>
+</mask></svg></svg>
