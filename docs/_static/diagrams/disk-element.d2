@@ -1,0 +1,206 @@
+direction: down
+
+title: {
+  label: DiskElement - Disk Elements
+  near: top-center
+  shape: text
+  style: {
+    font-size: 28
+    bold: true
+  }
+}
+
+# ============================================================
+# Main Class
+# ============================================================
+DiskElement: DiskElement {
+  tooltip: |
+    Rigid disk added to a rotor node.
+    Contributes mass and moments of inertia.
+    Can be created by direct inertia or geometry.
+  |
+  link: ./ross-overview.svg
+  style: {
+    fill: "#dae8fc"
+    stroke: "#6c8ebf"
+    font-size: 18
+    bold: true
+    border-radius: 10
+  }
+}
+
+# ============================================================
+# Creation Methods
+# ============================================================
+criacao: Creation Methods {
+  style: {
+    fill: "#e8f0fc"
+    stroke: "#6c8ebf"
+    border-radius: 10
+  }
+
+  por_inercia: By Inertia (direct constructor) {
+    tooltip: |
+      DiskElement(n, m, Id, Ip)
+      n: node where the disk is located
+      m: disk mass [kg]
+      Id: diametral moment of inertia [kg·m²]
+      Ip: polar moment of inertia [kg·m²]
+      Used when inertias are already known.
+    |
+    style: {
+      fill: "#dae8fc"
+      stroke: "#6c8ebf"
+    }
+  }
+
+  por_geometria: By Geometry (from_geometry) {
+    tooltip: |
+      DiskElement.from_geometry(n, material, width, i_d, o_d)
+      n: node where the disk is located
+      material: Material object (for ρ)
+      width: disk width/thickness [m]
+      i_d: inner diameter [m]
+      o_d: outer diameter [m]
+      Automatically calculates m, Id and Ip.
+    |
+    style: {
+      fill: "#d5e8d4"
+      stroke: "#82b366"
+    }
+  }
+}
+
+DiskElement -> criacao
+
+# ============================================================
+# Internal Calculations (from_geometry)
+# ============================================================
+calculos: Internal Calculations {
+  style: {
+    fill: "#e8f4e8"
+    stroke: "#82b366"
+    border-radius: 10
+  }
+
+  massa: calculate_mass() {
+    tooltip: |
+      m = ρ · π · width · (o_d² - i_d²) / 4
+      Mass from geometry and density
+    |
+    style: {
+      fill: "#d5e8d4"
+      stroke: "#82b366"
+    }
+  }
+
+  Ip: calculate_Ip() {
+    tooltip: |
+      Ip = m · (o_d² + i_d²) / 8
+      Polar moment of inertia
+      (resistance to rotor spin)
+    |
+    style: {
+      fill: "#d5e8d4"
+      stroke: "#82b366"
+    }
+  }
+
+  Id: calculate_Id() {
+    tooltip: |
+      Id = m · (3·(o_d² + i_d²) + 4·width²) / 48
+      Diametral moment of inertia
+      (resistance to tilting)
+    |
+    style: {
+      fill: "#d5e8d4"
+      stroke: "#82b366"
+    }
+  }
+}
+
+criacao.por_geometria -> calculos: calculates automatically {
+  style.stroke-dash: 3
+}
+
+# ============================================================
+# Element Matrices
+# ============================================================
+matrizes: Element Matrices {
+  style: {
+    fill: "#e1d5e7"
+    stroke: "#9673a6"
+    border-radius: 10
+  }
+
+  M: M() {
+    tooltip: |
+      Mass matrix [4×4]
+      Diagonal: [m, m, Id, Id]
+      Translational mass and diametral inertia
+    |
+    style: {
+      fill: "#f3e5f5"
+      stroke: "#9673a6"
+    }
+  }
+
+  K: K() {
+    tooltip: |
+      Stiffness matrix [4×4]
+      Null matrix (rigid disk)
+    |
+    style: {
+      fill: "#f3e5f5"
+      stroke: "#9673a6"
+    }
+  }
+
+  C: C() {
+    tooltip: |
+      Damping matrix [4×4]
+      Null matrix (rigid disk)
+    |
+    style: {
+      fill: "#f3e5f5"
+      stroke: "#9673a6"
+    }
+  }
+
+  G: G() {
+    tooltip: |
+      Gyroscopic matrix [4×4]
+      Gyroscopic effect proportional to Ip
+      Couples rotations θx and θy
+    |
+    style: {
+      fill: "#f3e5f5"
+      stroke: "#9673a6"
+    }
+  }
+}
+
+DiskElement -> matrizes
+
+# ============================================================
+# Ip/Id Relationship
+# ============================================================
+nota: Ip and Id Relationship {
+  tooltip: |
+    Ip > Id → "thin" disk (gyroscopic effect stiffens)
+    Ip < Id → "long" disk (gyroscopic effect softens)
+    The Ip/Id ratio determines the behavior
+    of critical speeds in the Campbell diagram.
+  |
+  style: {
+    fill: "#fff2cc"
+    stroke: "#d6b656"
+    border-radius: 8
+    font-size: 13
+  }
+}
+
+matrizes.G -> nota: influences {
+  style.stroke-dash: 3
+  style.stroke: "#d6b656"
+}

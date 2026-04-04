@@ -1,0 +1,209 @@
+direction: down
+
+title: {
+  label: Material - Material Properties
+  near: top-center
+  shape: text
+  style: {
+    font-size: 28
+    bold: true
+  }
+}
+
+# ============================================================
+# Main Class
+# ============================================================
+Material: Material {
+  tooltip: |
+    Class that defines the mechanical and thermal
+    properties of materials used in rotor elements.
+    Can load predefined materials or create new ones.
+  |
+  link: ./ross-overview.svg
+  style: {
+    fill: "#d5e8d4"
+    stroke: "#82b366"
+    font-size: 18
+    bold: true
+    border-radius: 10
+  }
+}
+
+# ============================================================
+# Properties
+# ============================================================
+props: Properties {
+  style: {
+    fill: "#e8f4e8"
+    stroke: "#82b366"
+    border-radius: 10
+  }
+
+  mecanicas: Mechanical Properties {
+    tooltip: |
+      name: material name (str)
+      rho: density [kg/m³]
+      E: Young's modulus [Pa]
+      G_s: shear modulus [Pa]
+      Poisson: Poisson's ratio [dimensionless]
+    |
+    style: {
+      fill: "#d5e8d4"
+      stroke: "#82b366"
+    }
+  }
+
+  termicas: Thermal Properties {
+    tooltip: |
+      specific_heat: specific heat [J/(kg·K)]
+      thermal_conductivity: thermal conductivity [W/(m·K)]
+      Used in thermo-mechanical analyses
+    |
+    style: {
+      fill: "#d5e8d4"
+      stroke: "#82b366"
+    }
+  }
+
+  color: Visual Identification {
+    tooltip: |
+      color: color for visualization in rotor plot
+      Assigned automatically or defined by user
+    |
+    style: {
+      fill: "#d5e8d4"
+      stroke: "#82b366"
+    }
+  }
+}
+
+Material -> props
+
+# ============================================================
+# Methods
+# ============================================================
+metodos: Methods {
+  style: {
+    fill: "#e8f4e8"
+    stroke: "#82b366"
+    border-radius: 10
+  }
+
+  available: available_materials() {
+    tooltip: |
+      Class method that returns the list
+      of all predefined materials
+      available in the ROSS library
+    |
+    style: {
+      fill: "#d5e8d4"
+      stroke: "#82b366"
+    }
+  }
+
+  load: load_material() {
+    tooltip: |
+      Loads a predefined material by name.
+      Ex: Material.load_material("Steel1020")
+      Returns a Material object with all properties.
+    |
+    style: {
+      fill: "#d5e8d4"
+      stroke: "#82b366"
+    }
+  }
+
+  save: save() {
+    tooltip: |
+      Saves a custom material to the local
+      database for future reuse.
+    |
+    style: {
+      fill: "#d5e8d4"
+      stroke: "#82b366"
+    }
+  }
+}
+
+Material -> metodos
+
+# ============================================================
+# Available Materials
+# ============================================================
+biblioteca: Predefined Materials {
+  style: {
+    fill: "#f0f8f0"
+    stroke: "#82b366"
+    border-radius: 10
+  }
+
+  acos: Steels {
+    tooltip: |
+      Steel1020: general purpose carbon steel
+      Steel4140: alloy steel (Cr-Mo), shafts
+      Steel4340: high strength alloy steel
+      AISI4340: similar to 4340
+      Stainless316: austenitic stainless steel
+    |
+    style: {
+      fill: "#d5e8d4"
+      stroke: "#82b366"
+    }
+  }
+
+  aluminio: Aluminum {
+    tooltip: |
+      Aluminum7075: Al-Zn alloy, high strength
+      Aluminum6061: Al-Mg-Si alloy, general purpose
+    |
+    style: {
+      fill: "#d5e8d4"
+      stroke: "#82b366"
+    }
+  }
+
+  outros: Other {
+    tooltip: |
+      Custom materials can be created
+      and saved by the user.
+      Just provide E, G_s, rho and Poisson.
+    |
+    style: {
+      fill: "#d5e8d4"
+      stroke: "#82b366"
+    }
+  }
+}
+
+metodos.load -> biblioteca: lookup {
+  style.stroke-dash: 3
+}
+
+# ============================================================
+# Usage in Elements
+# ============================================================
+uso: Used by {
+  style: {
+    fill: "#e8f4f8"
+    stroke: "#2980b9"
+    border-radius: 10
+  }
+
+  shaft: ShaftElement {
+    tooltip: "Material defines E, G, ρ for the shaft element matrices"
+    style: {
+      fill: "#dae8fc"
+      stroke: "#6c8ebf"
+    }
+  }
+
+  disk: DiskElement.from_geometry() {
+    tooltip: "Material required when the disk is created from geometry"
+    style: {
+      fill: "#dae8fc"
+      stroke: "#6c8ebf"
+    }
+  }
+}
+
+Material -> uso: provides properties

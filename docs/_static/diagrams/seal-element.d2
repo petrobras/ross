@@ -1,0 +1,157 @@
+direction: down
+
+title: {
+  label: SealElement - Seal Hierarchy
+  near: top-center
+  shape: text
+  style: {
+    font-size: 28
+    bold: true
+  }
+}
+
+# ============================================================
+# Base Class
+# ============================================================
+BearingElement: BearingElement {
+  tooltip: "Base class for bearings and seals (dynamic coefficients)"
+  style: {
+    fill: "#e0e0e0"
+    stroke: "#757575"
+    border-radius: 8
+    font-size: 14
+  }
+}
+
+SealElement: SealElement {
+  tooltip: |
+    Base class for seals. Inherits from BearingElement.
+    Same dynamic coefficients but with sealing
+    semantics instead of support (bearing).
+  |
+  link: ./ross-overview.svg
+  style: {
+    fill: "#fff2cc"
+    stroke: "#d6b656"
+    font-size: 18
+    bold: true
+    border-radius: 10
+  }
+}
+
+BearingElement -> SealElement: inheritance {
+  style.stroke: "#757575"
+}
+
+# ============================================================
+# Dynamic Coefficients
+# ============================================================
+coefs: Dynamic Coefficients {
+  style: {
+    fill: "#fef9e7"
+    stroke: "#d6b656"
+    border-radius: 10
+  }
+
+  rigidez: "Stiffness [N/m]" {
+    tooltip: |
+      kxx, kxy: direct and cross-coupled stiffness (x direction)
+      kyx, kyy: cross-coupled and direct stiffness (y direction)
+      Cross-coupled terms cause destabilizing forces
+      (cross-coupled stiffness)
+    |
+    style: {
+      fill: "#fff2cc"
+      stroke: "#d6b656"
+    }
+  }
+
+  amort: "Damping [N·s/m]" {
+    tooltip: |
+      cxx, cxy: direct and cross-coupled damping (x)
+      cyx, cyy: cross-coupled and direct damping (y)
+      Direct damping stabilizes;
+      cross-coupled can destabilize
+    |
+    style: {
+      fill: "#fff2cc"
+      stroke: "#d6b656"
+    }
+  }
+
+  freq: frequency {
+    tooltip: |
+      Reference frequency [rad/s]
+      Coefficients can vary with frequency.
+      If array, interpolates for each speed.
+    |
+    style: {
+      fill: "#fff2cc"
+      stroke: "#d6b656"
+    }
+  }
+}
+
+SealElement -> coefs
+
+# ============================================================
+# ROSS Seal Subclasses
+# ============================================================
+selos_ross: Seals in ROSS {
+  style: {
+    fill: "#fdebd0"
+    stroke: "#e67e22"
+    border-radius: 10
+  }
+
+  LabyrinthSeal: LabyrinthSeal {
+    tooltip: |
+      Labyrinth seal - the most common in turbomachinery
+      shaft_radius: shaft radius [m]
+      radial_clearance: radial clearance [m]
+      n_teeth: number of teeth
+      pitch: tooth pitch [m]
+      tooth_height: tooth height [m]
+      seal_type: "see_through" or "interlocking"
+      gas_composition: gas composition (dict)
+      Calculates leakage and dynamic coefficients
+    |
+    style: {
+      fill: "#fef9e7"
+      stroke: "#e67e22"
+    }
+  }
+
+  HolePatternSeal: HolePatternSeal {
+    tooltip: |
+      Hole pattern seal
+      shaft_radius: shaft radius [m]
+      length: seal length [m]
+      cell_length: cell length [m]
+      cell_width: cell width [m]
+      cell_depth: cell depth [m]
+      Used in high-pressure centrifugal compressors
+      Higher damping than labyrinth seals
+    |
+    style: {
+      fill: "#fef9e7"
+      stroke: "#e67e22"
+    }
+  }
+
+  HybridSeal: HybridSeal {
+    tooltip: |
+      Hybrid seal: combines labyrinth sections
+      with hole-pattern sections.
+      Aims to optimize sealing and stability.
+    |
+    style: {
+      fill: "#fef9e7"
+      stroke: "#e67e22"
+    }
+  }
+}
+
+SealElement -> selos_ross.LabyrinthSeal
+SealElement -> selos_ross.HolePatternSeal
+SealElement -> selos_ross.HybridSeal
