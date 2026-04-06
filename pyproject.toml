@@ -81,7 +81,7 @@ version = {attr = "ross.__version__"}
         "linkify-it-py",
         "numpydoc",
         "sphinxcontrib-bibtex>=2.2",
-        "ruff>=0.12.11",
+        "ruff",
         "sphinx-design",
     ]
 
