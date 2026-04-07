@@ -3014,6 +3014,7 @@ def test_rotor_m(rotor3):
 # this test checks if Rotor.CG calculates the CG same way as a direct vector calcution from the mass matrix
 def test_rotor_CG(rotor3):
     mm = rotor3.M()[::6, ::6]
+    mm2 = np.sum( mm, axis=0)
     CG2 = np.matmul(mm2, rotor3.nodes_pos) / rotor3.m
 
     assert rotor3.CG == pytest.approx(CG2, rel=1e-8)
