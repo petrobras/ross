@@ -582,7 +582,7 @@ class Rotor(object):
             v[dofs[y1]] = -(nodes_pos_r[i] - self.CG)  # y
             v[dofs[a0]] = 1  # alpha
             v[dofs[a1]] = 1  # alpha
-        # Then, use the vector to compute transverse inertia of the entire rotor.
+        # Then, use the vector to compute diametral aka transverse inertia of the entire rotor.
         self.It = v @ (self.M0 @ v.T)
 
     def _set_tag(self, tag):
