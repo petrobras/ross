@@ -51,7 +51,8 @@ class TiltingPad(BearingElement):
        - Solves complete THD problem for each perturbation state
        - Extracts coefficients from force differences
 
-    For reference check :cite:`barbosa2018`, :cite:`heinrichson2007influence` and :cite:`nicoletti1999`.
+    For reference check :cite:`barbosa2018`, :cite:`heinrichson2007influence`, :cite:`nicoletti1999`,
+    :cite:`daniel2013evaluation`, :cite:`fitzgerald1992temperature` and :cite:`yang2019inlet`.
 
     Parameters
     ----------
