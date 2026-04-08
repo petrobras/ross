@@ -249,7 +249,7 @@ class TiltingPad(BearingElement):
         n_link=None,
         xj=None,
         yj=None,
-        equilibrium_type=None,
+        equilibrium_type="match_eccentricity",
         eccentricity=0.3,
         attitude_angle=np.pi * 3 / 2,  # 270°
         load=None,
