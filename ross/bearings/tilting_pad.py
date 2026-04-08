@@ -546,8 +546,8 @@ class TiltingPad(BearingElement):
 
         Examples
         --------
-        >>> from ross.bearings.tilting_pad import tilting_pad_example
-        >>> bearing = tilting_pad_example()
+        >>> from ross.bearings.tilting_pad import tilting_pad_adiabatic_example
+        >>> bearing = tilting_pad_adiabatic_example()  # doctest: +ELLIPSIS
         """
 
         self.initial_time = time.time()
