@@ -85,7 +85,7 @@ def plot_frequency_response(*systems, **kwargs):
     ]
 
     if legends is None:
-        legends = [f"System {i+1}" for i in range(len(systems))]
+        legends = [f"System {i + 1}" for i in range(len(systems))]
     elif len(legends) != len(systems):
         raise ValueError("O número de legendas deve ser igual ao número de sistemas.")
 

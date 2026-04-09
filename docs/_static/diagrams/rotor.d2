@@ -1,0 +1,429 @@
+direction: down
+
+title: {
+  label: Rotor - Main ROSS Class
+  near: top-center
+  shape: text
+  style: {
+    font-size: 28
+    bold: true
+  }
+}
+
+# ============================================================
+# Rotor Class
+# ============================================================
+Rotor: Rotor {
+  tooltip: |
+    Main ROSS class.
+    Assembles the finite element model of the rotor
+    from individual elements.
+    Generates the global matrices M, K, C, G.
+  |
+  link: ./ross-overview.svg
+  style: {
+    fill: "#f8cecc"
+    stroke: "#b85450"
+    font-size: 20
+    bold: true
+    border-radius: 10
+  }
+}
+
+# ============================================================
+# Input Elements
+# ============================================================
+entradas: Input Elements {
+  style: {
+    fill: "#e8f4f8"
+    stroke: "#2980b9"
+    border-radius: 10
+  }
+
+  shaft: shaft_elements {
+    tooltip: |
+      List of ShaftElement
+      Defines the geometry and properties of the shaft
+      Required - at least 1 element
+    |
+    style: {
+      fill: "#dae8fc"
+      stroke: "#6c8ebf"
+    }
+  }
+
+  disk: disk_elements {
+    tooltip: |
+      List of DiskElement
+      Rigid disks at rotor nodes
+      Optional (can be empty list)
+    |
+    style: {
+      fill: "#dae8fc"
+      stroke: "#6c8ebf"
+    }
+  }
+
+  bearing: bearing_elements {
+    tooltip: |
+      List of BearingElement / SealElement
+      Bearings and seals at rotor nodes
+      Optional (can be empty list)
+    |
+    style: {
+      fill: "#fff2cc"
+      stroke: "#d6b656"
+    }
+  }
+
+  pointmass: point_mass_elements {
+    tooltip: |
+      List of PointMass
+      Additional concentrated masses
+      Optional (can be empty list)
+    |
+    style: {
+      fill: "#dae8fc"
+      stroke: "#6c8ebf"
+    }
+  }
+}
+
+entradas -> Rotor: assembly
+
+# ============================================================
+# Assembled Model Properties
+# ============================================================
+modelo: Assembled Model {
+  style: {
+    fill: "#fce4ec"
+    stroke: "#b85450"
+    border-radius: 10
+  }
+
+  nos: nodes / nodes_pos {
+    tooltip: |
+      nodes: list of nodes [0, 1, 2, ...]
+      nodes_pos: axial position of each node [m]
+      Automatically generated from ShaftElements
+    |
+    style: {
+      fill: "#f8cecc"
+      stroke: "#b85450"
+    }
+  }
+
+  gdl: number_dof {
+    tooltip: |
+      Total number of degrees of freedom
+      = 4 × number_of_nodes
+      (x, y, θx, θy per node)
+    |
+    style: {
+      fill: "#f8cecc"
+      stroke: "#b85450"
+    }
+  }
+
+  matrizes: Global Matrices {
+    tooltip: |
+      M(): global mass matrix
+      K(): global stiffness matrix
+      C(): global damping matrix
+      G(): global gyroscopic matrix
+      Assembled by element superposition
+    |
+    style: {
+      fill: "#f8cecc"
+      stroke: "#b85450"
+    }
+  }
+}
+
+Rotor -> modelo
+
+# ============================================================
+# Visualization
+# ============================================================
+viz: Visualization {
+  style: {
+    fill: "#d5f5e3"
+    stroke: "#27ae60"
+    border-radius: 10
+  }
+
+  plot_rotor: plot_rotor() {
+    tooltip: |
+      Interactive Plotly plot of the assembled rotor.
+      Shows shaft, disks, bearings, seals
+      with distinct colors by element type.
+    |
+    style: {
+      fill: "#e8f8f5"
+      stroke: "#27ae60"
+    }
+  }
+}
+
+Rotor -> viz
+
+# ============================================================
+# Analyses
+# ============================================================
+
+# --- Static ---
+estatica: Static Analysis {
+  style: {
+    fill: "#e1d5e7"
+    stroke: "#9673a6"
+    border-radius: 10
+  }
+
+  run_static: run_static() {
+    tooltip: |
+      → StaticResults
+      Calculates static deflection of the shaft under self-weight.
+      Returns: deflection, shearing force,
+      bending moment, free body diagram.
+    |
+    style: {
+      fill: "#f3e5f5"
+      stroke: "#9673a6"
+    }
+  }
+}
+
+Rotor -> estatica
+
+# --- Modal ---
+modal: Modal Analysis {
+  style: {
+    fill: "#e1d5e7"
+    stroke: "#9673a6"
+    border-radius: 10
+  }
+
+  run_modal: run_modal() {
+    tooltip: |
+      → ModalResults
+      Solves the complex eigenvalue problem.
+      Returns: natural frequencies, damping
+      ratios, mode shapes, log. dec.
+    |
+    style: {
+      fill: "#f3e5f5"
+      stroke: "#9673a6"
+    }
+  }
+
+  run_campbell: run_campbell() {
+    tooltip: |
+      → CampbellResults
+      Natural frequencies vs. rotational speed.
+      Identifies critical speeds (crossings
+      with the synchronous excitation line).
+    |
+    style: {
+      fill: "#f3e5f5"
+      stroke: "#9673a6"
+    }
+  }
+
+  run_critical: run_critical_speed() {
+    tooltip: |
+      → dict
+      Calculates synchronous critical speeds
+      directly (without sweeping speed).
+    |
+    style: {
+      fill: "#f3e5f5"
+      stroke: "#9673a6"
+    }
+  }
+}
+
+Rotor -> modal
+
+# --- Frequency Response ---
+freq: Frequency Response {
+  style: {
+    fill: "#e1d5e7"
+    stroke: "#9673a6"
+    border-radius: 10
+  }
+
+  run_freq: run_freq_response() {
+    tooltip: |
+      → FrequencyResponseResults
+      Transfer function (FRF) of the rotor.
+      Magnitude and phase of the response for
+      a range of excitation frequencies.
+    |
+    style: {
+      fill: "#f3e5f5"
+      stroke: "#9673a6"
+    }
+  }
+
+  run_unbalance: run_unbalance_response() {
+    tooltip: |
+      → ForcedResponseResults
+      Synchronous unbalance response.
+      Bode diagrams (amplitude and phase),
+      deflected shape, orbits.
+    |
+    style: {
+      fill: "#f3e5f5"
+      stroke: "#9673a6"
+    }
+  }
+
+  run_forced: run_forced_response() {
+    tooltip: |
+      → ForcedResponseResults
+      General forced response in the frequency
+      domain with arbitrary forces.
+    |
+    style: {
+      fill: "#f3e5f5"
+      stroke: "#9673a6"
+    }
+  }
+}
+
+Rotor -> freq
+
+# --- Time Response ---
+tempo: Time Response {
+  style: {
+    fill: "#e1d5e7"
+    stroke: "#9673a6"
+    border-radius: 10
+  }
+
+  run_time: run_time_response() {
+    tooltip: |
+      → TimeResponseResults
+      Time integration (state-space or Newmark).
+      Run-up, coast-down, transients,
+      time-varying loads.
+    |
+    style: {
+      fill: "#f3e5f5"
+      stroke: "#9673a6"
+    }
+  }
+}
+
+Rotor -> tempo
+
+# --- Stability ---
+estabilidade: Stability {
+  style: {
+    fill: "#e1d5e7"
+    stroke: "#9673a6"
+    border-radius: 10
+  }
+
+  run_ucs: run_ucs() {
+    tooltip: |
+      → UCSResults
+      Undamped critical speed map
+      vs. bearing stiffness. Identifies
+      sensitivity of critical speeds
+      to bearing stiffness.
+    |
+    style: {
+      fill: "#f3e5f5"
+      stroke: "#9673a6"
+    }
+  }
+
+  run_level1: run_level1() {
+    tooltip: |
+      → Level1Results
+      API 617 Level 1 stability analysis.
+      Calculates applied cross-coupled stiffness
+      and compares with stability threshold.
+    |
+    style: {
+      fill: "#f3e5f5"
+      stroke: "#9673a6"
+    }
+  }
+}
+
+Rotor -> estabilidade
+
+# --- Nonlinear ---
+naolinear: Nonlinear Analysis {
+  style: {
+    fill: "#e1d5e7"
+    stroke: "#9673a6"
+    border-radius: 10
+  }
+
+  run_hbm: run_harmonic_balance_response() {
+    tooltip: |
+      → HarmonicBalanceResults
+      Harmonic balance for periodic steady-state
+      response with nonlinearities.
+      More efficient than time integration
+      for steady state.
+    |
+    style: {
+      fill: "#f3e5f5"
+      stroke: "#9673a6"
+    }
+  }
+}
+
+Rotor -> naolinear
+
+# --- Faults ---
+falhas: Fault Analysis {
+  style: {
+    fill: "#e1d5e7"
+    stroke: "#9673a6"
+    border-radius: 10
+  }
+
+  run_rubbing: run_rubbing() {
+    tooltip: |
+      → TimeResponseResults
+      Rotor-stator contact (rubbing).
+      Models impact and friction in time domain.
+    |
+    style: {
+      fill: "#f3e5f5"
+      stroke: "#9673a6"
+    }
+  }
+
+  run_crack: run_crack() {
+    tooltip: |
+      → TimeResponseResults
+      Transverse shaft crack.
+      Variable stiffness (breathing crack).
+      Excites 2× and 3× speed components.
+    |
+    style: {
+      fill: "#f3e5f5"
+      stroke: "#9673a6"
+    }
+  }
+
+  run_misalignment: run_misalignment() {
+    tooltip: |
+      → TimeResponseResults
+      Angular or parallel misalignment.
+      Generates 1× and 2× excitation forces.
+    |
+    style: {
+      fill: "#f3e5f5"
+      stroke: "#9673a6"
+    }
+  }
+}
+
+Rotor -> falhas

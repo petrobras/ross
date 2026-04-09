@@ -1,0 +1,320 @@
+<?xml version="1.0" encoding="utf-8"?><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" data-d2-version="v0.7.1" preserveAspectRatio="xMinYMin meet" viewBox="0 0 2803 1041"><svg class="d2-3237088110 d2-svg" width="2803" height="1041" viewBox="-91 -157 2803 1041"><rect x="-91.000000" y="-157.000000" width="2803.000000" height="1041.000000" rx="0.000000" fill="#FFFFFF" class=" fill-N7" stroke-width="0" /><style type="text/css"><![CDATA[
+.d2-3237088110 .text {
+	font-family: "d2-3237088110-font-regular";
+}
+@font-face {
+	font-family: d2-3237088110-font-regular;
+	src: url("data:application/font-woff;base64,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");
+}
+.appendix-icon {
+	filter: drop-shadow(0px 0px 32px rgba(31, 36, 58, 0.1));
+}
+.d2-3237088110 .text-bold {
+	font-family: "d2-3237088110-font-bold";
+}
+@font-face {
+	font-family: d2-3237088110-font-bold;
+	src: url("data:application/font-woff;base64,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");
+}
+.d2-3237088110 .text-italic {
+	font-family: "d2-3237088110-font-italic";
+}
+@font-face {
+	font-family: d2-3237088110-font-italic;
+	src: url("data:application/font-woff;base64,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");
+}]]></style><style type="text/css"><![CDATA[.shape {
+  shape-rendering: geometricPrecision;
+  stroke-linejoin: round;
+}
+.connection {
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.blend {
+  mix-blend-mode: multiply;
+  opacity: 0.5;
+}
+
+		.d2-3237088110 .fill-N1{fill:#0A0F25;}
+		.d2-3237088110 .fill-N2{fill:#676C7E;}
+		.d2-3237088110 .fill-N3{fill:#9499AB;}
+		.d2-3237088110 .fill-N4{fill:#CFD2DD;}
+		.d2-3237088110 .fill-N5{fill:#DEE1EB;}
+		.d2-3237088110 .fill-N6{fill:#EEF1F8;}
+		.d2-3237088110 .fill-N7{fill:#FFFFFF;}
+		.d2-3237088110 .fill-B1{fill:#0D32B2;}
+		.d2-3237088110 .fill-B2{fill:#0D32B2;}
+		.d2-3237088110 .fill-B3{fill:#E3E9FD;}
+		.d2-3237088110 .fill-B4{fill:#E3E9FD;}
+		.d2-3237088110 .fill-B5{fill:#EDF0FD;}
+		.d2-3237088110 .fill-B6{fill:#F7F8FE;}
+		.d2-3237088110 .fill-AA2{fill:#4A6FF3;}
+		.d2-3237088110 .fill-AA4{fill:#EDF0FD;}
+		.d2-3237088110 .fill-AA5{fill:#F7F8FE;}
+		.d2-3237088110 .fill-AB4{fill:#EDF0FD;}
+		.d2-3237088110 .fill-AB5{fill:#F7F8FE;}
+		.d2-3237088110 .stroke-N1{stroke:#0A0F25;}
+		.d2-3237088110 .stroke-N2{stroke:#676C7E;}
+		.d2-3237088110 .stroke-N3{stroke:#9499AB;}
+		.d2-3237088110 .stroke-N4{stroke:#CFD2DD;}
+		.d2-3237088110 .stroke-N5{stroke:#DEE1EB;}
+		.d2-3237088110 .stroke-N6{stroke:#EEF1F8;}
+		.d2-3237088110 .stroke-N7{stroke:#FFFFFF;}
+		.d2-3237088110 .stroke-B1{stroke:#0D32B2;}
+		.d2-3237088110 .stroke-B2{stroke:#0D32B2;}
+		.d2-3237088110 .stroke-B3{stroke:#E3E9FD;}
+		.d2-3237088110 .stroke-B4{stroke:#E3E9FD;}
+		.d2-3237088110 .stroke-B5{stroke:#EDF0FD;}
+		.d2-3237088110 .stroke-B6{stroke:#F7F8FE;}
+		.d2-3237088110 .stroke-AA2{stroke:#4A6FF3;}
+		.d2-3237088110 .stroke-AA4{stroke:#EDF0FD;}
+		.d2-3237088110 .stroke-AA5{stroke:#F7F8FE;}
+		.d2-3237088110 .stroke-AB4{stroke:#EDF0FD;}
+		.d2-3237088110 .stroke-AB5{stroke:#F7F8FE;}
+		.d2-3237088110 .background-color-N1{background-color:#0A0F25;}
+		.d2-3237088110 .background-color-N2{background-color:#676C7E;}
+		.d2-3237088110 .background-color-N3{background-color:#9499AB;}
+		.d2-3237088110 .background-color-N4{background-color:#CFD2DD;}
+		.d2-3237088110 .background-color-N5{background-color:#DEE1EB;}
+		.d2-3237088110 .background-color-N6{background-color:#EEF1F8;}
+		.d2-3237088110 .background-color-N7{background-color:#FFFFFF;}
+		.d2-3237088110 .background-color-B1{background-color:#0D32B2;}
+		.d2-3237088110 .background-color-B2{background-color:#0D32B2;}
+		.d2-3237088110 .background-color-B3{background-color:#E3E9FD;}
+		.d2-3237088110 .background-color-B4{background-color:#E3E9FD;}
+		.d2-3237088110 .background-color-B5{background-color:#EDF0FD;}
+		.d2-3237088110 .background-color-B6{background-color:#F7F8FE;}
+		.d2-3237088110 .background-color-AA2{background-color:#4A6FF3;}
+		.d2-3237088110 .background-color-AA4{background-color:#EDF0FD;}
+		.d2-3237088110 .background-color-AA5{background-color:#F7F8FE;}
+		.d2-3237088110 .background-color-AB4{background-color:#EDF0FD;}
+		.d2-3237088110 .background-color-AB5{background-color:#F7F8FE;}
+		.d2-3237088110 .color-N1{color:#0A0F25;}
+		.d2-3237088110 .color-N2{color:#676C7E;}
+		.d2-3237088110 .color-N3{color:#9499AB;}
+		.d2-3237088110 .color-N4{color:#CFD2DD;}
+		.d2-3237088110 .color-N5{color:#DEE1EB;}
+		.d2-3237088110 .color-N6{color:#EEF1F8;}
+		.d2-3237088110 .color-N7{color:#FFFFFF;}
+		.d2-3237088110 .color-B1{color:#0D32B2;}
+		.d2-3237088110 .color-B2{color:#0D32B2;}
+		.d2-3237088110 .color-B3{color:#E3E9FD;}
+		.d2-3237088110 .color-B4{color:#E3E9FD;}
+		.d2-3237088110 .color-B5{color:#EDF0FD;}
+		.d2-3237088110 .color-B6{color:#F7F8FE;}
+		.d2-3237088110 .color-AA2{color:#4A6FF3;}
+		.d2-3237088110 .color-AA4{color:#EDF0FD;}
+		.d2-3237088110 .color-AA5{color:#F7F8FE;}
+		.d2-3237088110 .color-AB4{color:#EDF0FD;}
+		.d2-3237088110 .color-AB5{color:#F7F8FE;}.appendix text.text{fill:#0A0F25}.md{--color-fg-default:#0A0F25;--color-fg-muted:#676C7E;--color-fg-subtle:#9499AB;--color-canvas-default:#FFFFFF;--color-canvas-subtle:#EEF1F8;--color-border-default:#0D32B2;--color-border-muted:#0D32B2;--color-neutral-muted:#EEF1F8;--color-accent-fg:#0D32B2;--color-accent-emphasis:#0D32B2;--color-attention-subtle:#676C7E;--color-danger-fg:red;}.sketch-overlay-B1{fill:url(#streaks-darker-d2-3237088110);mix-blend-mode:lighten}.sketch-overlay-B2{fill:url(#streaks-darker-d2-3237088110);mix-blend-mode:lighten}.sketch-overlay-B3{fill:url(#streaks-bright-d2-3237088110);mix-blend-mode:darken}.sketch-overlay-B4{fill:url(#streaks-bright-d2-3237088110);mix-blend-mode:darken}.sketch-overlay-B5{fill:url(#streaks-bright-d2-3237088110);mix-blend-mode:darken}.sketch-overlay-B6{fill:url(#streaks-bright-d2-3237088110);mix-blend-mode:darken}.sketch-overlay-AA2{fill:url(#streaks-dark-d2-3237088110);mix-blend-mode:overlay}.sketch-overlay-AA4{fill:url(#streaks-bright-d2-3237088110);mix-blend-mode:darken}.sketch-overlay-AA5{fill:url(#streaks-bright-d2-3237088110);mix-blend-mode:darken}.sketch-overlay-AB4{fill:url(#streaks-bright-d2-3237088110);mix-blend-mode:darken}.sketch-overlay-AB5{fill:url(#streaks-bright-d2-3237088110);mix-blend-mode:darken}.sketch-overlay-N1{fill:url(#streaks-darker-d2-3237088110);mix-blend-mode:lighten}.sketch-overlay-N2{fill:url(#streaks-dark-d2-3237088110);mix-blend-mode:overlay}.sketch-overlay-N3{fill:url(#streaks-normal-d2-3237088110);mix-blend-mode:color-burn}.sketch-overlay-N4{fill:url(#streaks-normal-d2-3237088110);mix-blend-mode:color-burn}.sketch-overlay-N5{fill:url(#streaks-bright-d2-3237088110);mix-blend-mode:darken}.sketch-overlay-N6{fill:url(#streaks-bright-d2-3237088110);mix-blend-mode:darken}.sketch-overlay-N7{fill:url(#streaks-bright-d2-3237088110);mix-blend-mode:darken}.light-code{display: block}.dark-code{display: none}]]></style><g class="dGl0bGU="><g class="shape" ></g><text x="1310.500000" y="-28.000000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:28px">BearingElement Hierarchy</text></g><g class="RWxlbWVudA=="><g class="shape" ><rect x="1222.000000" y="0.000000" width="97.000000" height="63.000000" rx="8.000000" stroke="#757575" fill="#e0e0e0" style="stroke-width:2;" /></g><text x="1270.500000" y="36.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:14px">Element</text><title>Base class for all ROSS elements</title></g><a href="./ross-overview.svg" xlink:href="./ross-overview.svg"><g class="QmVhcmluZ0VsZW1lbnQ="><g class="shape" ><rect x="1159.000000" y="184.000000" width="222.000000" height="66.000000" rx="8.000000" stroke="#d6b656" fill="#fff2cc" style="stroke-width:2;" /></g><text x="1270.000000" y="222.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">BearingElement</text><title>Base class for bearings and seals&#xA;Coefficients: kxx, kxy, kyx, kyy, cxx, cxy, cyx, cyy&#xA;Supports constant or speed-dependent coefficients</title></g></a><g class="bWFuY2Fpcw=="><g class="shape" ><rect x="10.000000" y="391.000000" width="2063.000000" height="126.000000" rx="10.000000" stroke="#2980b9" fill="#e8f4f8" style="stroke-width:2;" /></g><text x="1041.500000" y="378.000000" fill="#0A0F25" class="text fill-N1" style="text-anchor:middle;font-size:28px">Bearings</text></g><g class="U2VhbEVsZW1lbnQ="><g class="shape" ><rect x="2250.000000" y="421.000000" width="134.000000" height="66.000000" rx="8.000000" stroke="#c0392b" fill="#fce4ec" style="stroke-width:2;" /></g><text x="2317.000000" y="459.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">SealElement</text><title>Base class for seals&#xA;Same coefficients as BearingElement&#xA;but with seal (sealing) semantics</title></g><g class="c2Vsb3M="><g class="shape" ><rect x="2001.000000" y="657.000000" width="610.000000" height="126.000000" rx="10.000000" stroke="#e67e22" fill="#fdebd0" style="stroke-width:2;" /></g><text x="2306.000000" y="644.000000" fill="#0A0F25" class="text fill-N1" style="text-anchor:middle;font-size:28px">Seals</text></g><g class="bWFuY2Fpcy5CZWFyaW5nRmx1aWRGbG93"><g class="shape" ><rect x="40.000000" y="421.000000" width="170.000000" height="66.000000" stroke="#6c8ebf" fill="#dae8fc" style="stroke-width:2;" /></g><text x="125.000000" y="459.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">BearingFluidFlow</text><title>Bearing with fluid flow calculation&#xA;Coefficients computed from fluid&#xA;properties and geometry</title></g><g class="bWFuY2Fpcy5CYWxsQmVhcmluZw=="><g class="shape" ><rect x="270.000000" y="421.000000" width="185.000000" height="66.000000" stroke="#6c8ebf" fill="#dae8fc" style="stroke-width:2;" /></g><text x="362.500000" y="459.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">BallBearingElement</text><title>Ball bearing&#xA;Parameters: number of balls, diameter,&#xA;contact angle, preload</title></g><g class="bWFuY2Fpcy5Sb2xsZXJCZWFyaW5n"><g class="shape" ><rect x="515.000000" y="421.000000" width="201.000000" height="66.000000" stroke="#6c8ebf" fill="#dae8fc" style="stroke-width:2;" /></g><text x="615.500000" y="459.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">RollerBearingElement</text><title>Roller bearing&#xA;Parameters: number of rollers, diameter,&#xA;length, radial clearance</title></g><g class="bWFuY2Fpcy5NYWduZXRpY0JlYXJpbmc="><g class="shape" ><rect x="776.000000" y="421.000000" width="223.000000" height="66.000000" stroke="#6c8ebf" fill="#dae8fc" style="stroke-width:2;" /></g><text x="887.500000" y="459.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">MagneticBearingElement</text><title>Active magnetic bearing (AMB)&#xA;Parameters: magnetic stiffness,&#xA;controller gains</title></g><g class="bWFuY2Fpcy5DeWxpbmRyaWNhbEJlYXJpbmc="><g class="shape" ><rect x="1059.000000" y="421.000000" width="177.000000" height="66.000000" stroke="#6c8ebf" fill="#dae8fc" style="stroke-width:2;" /></g><text x="1147.500000" y="459.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">CylindricalBearing</text><title>Cylindrical bearing with fluid&#xA;flow calculation</title></g><g class="bWFuY2Fpcy5TcXVlZXplRmlsbQ=="><g class="shape" ><rect x="1296.000000" y="421.000000" width="193.000000" height="66.000000" stroke="#6c8ebf" fill="#dae8fc" style="stroke-width:2;" /></g><text x="1392.500000" y="459.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">SqueezeFilmDamper</text><title>Squeeze film damper&#xA;Parameters: clearance, viscosity,&#xA;length, radius</title></g><g class="bWFuY2Fpcy5QbGFpbkpvdXJuYWw="><g class="shape" ><rect x="1549.000000" y="421.000000" width="136.000000" height="66.000000" stroke="#6c8ebf" fill="#dae8fc" style="stroke-width:2;" /></g><text x="1617.000000" y="459.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">PlainJournal</text><title>Hydrodynamic journal bearing&#xA;Pressure distribution calculation,&#xA;eccentricity and attitude angle</title></g><g class="bWFuY2Fpcy5UaWx0aW5nUGFk"><g class="shape" ><rect x="1745.000000" y="421.000000" width="119.000000" height="66.000000" stroke="#6c8ebf" fill="#dae8fc" style="stroke-width:2;" /></g><text x="1804.500000" y="459.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">TiltingPad</text><title>Tilting pad bearing&#xA;Parameters: number of pads, preload,&#xA;offset, clearance, lubricant</title></g><g class="bWFuY2Fpcy5UaHJ1c3RQYWQ="><g class="shape" ><rect x="1924.000000" y="421.000000" width="119.000000" height="66.000000" stroke="#6c8ebf" fill="#dae8fc" style="stroke-width:2;" /></g><text x="1983.500000" y="459.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">ThrustPad</text><title>Thrust bearing (axial)&#xA;Stiffness and damping in the Z direction</title></g><g class="c2Vsb3MuTGFieXJpbnRoU2VhbA=="><g class="shape" ><rect x="2031.000000" y="687.000000" width="145.000000" height="66.000000" stroke="#e67e22" fill="#fef9e7" style="stroke-width:2;" /></g><text x="2103.500000" y="725.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">LabyrinthSeal</text><title>Labyrinth seal&#xA;Parameters: number of teeth, clearance,&#xA;pitch, tooth height&#xA;Calculates leakage and dynamic coefficients</title></g><g class="c2Vsb3MuSG9sZVBhdHRlcm5TZWFs"><g class="shape" ><rect x="2236.000000" y="687.000000" width="162.000000" height="66.000000" stroke="#e67e22" fill="#fef9e7" style="stroke-width:2;" /></g><text x="2317.000000" y="725.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">HolePatternSeal</text><title>Hole pattern seal&#xA;Parameters: hole diameter and depth,&#xA;distribution&#xA;For centrifugal compressors</title></g><g class="c2Vsb3MuSHlicmlkU2VhbA=="><g class="shape" ><rect x="2458.000000" y="687.000000" width="123.000000" height="66.000000" stroke="#e67e22" fill="#fef9e7" style="stroke-width:2;" /></g><text x="2519.500000" y="725.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">HybridSeal</text><title>Hybrid seal (labyrinth + hole-pattern)&#xA;Combines labyrinth sections&#xA;with hole-pattern sections</title></g><g class="KEVsZW1lbnQgLSZndDsgQmVhcmluZ0VsZW1lbnQpWzBd"><marker id="mk-d2-3237088110-568348176" markerWidth="10.000000" markerHeight="12.000000" refX="7.000000" refY="6.000000" viewBox="0.000000 0.000000 10.000000 12.000000" orient="auto" markerUnits="userSpaceOnUse"> <polygon points="0.000000,0.000000 10.000000,6.000000 0.000000,12.000000" fill="#757575" class="connection" stroke-width="2" /> </marker><path d="M 1270.000000 64.500000 C 1270.000000 111.300003 1270.000000 135.699997 1270.000000 180.500000" stroke="#757575" fill="none" class="connection" style="stroke-width:2;" marker-end="url(#mk-d2-3237088110-568348176)" mask="url(#d2-3237088110)" /><text x="1270.500000" y="129.000000" fill="#676C7E" class="text-italic fill-N2" style="text-anchor:middle;font-size:16px">inheritance</text></g><g class="KEJlYXJpbmdFbGVtZW50IC0mZ3Q7IG1hbmNhaXMuQmVhcmluZ0ZsdWlkRmxvdylbMF0="><marker id="mk-d2-3237088110-3488378134" markerWidth="10.000000" markerHeight="12.000000" refX="7.000000" refY="6.000000" viewBox="0.000000 0.000000 10.000000 12.000000" orient="auto" markerUnits="userSpaceOnUse"> <polygon points="0.000000,0.000000 10.000000,6.000000 0.000000,12.000000" fill="#0D32B2" class="connection fill-B1" stroke-width="2" /> </marker><path d="M 1157.006567 226.661942 C 331.799011 293.700012 125.000000 381.000000 125.000000 417.000000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-3237088110-3488378134)" mask="url(#d2-3237088110)" /></g><g class="KEJlYXJpbmdFbGVtZW50IC0mZ3Q7IG1hbmNhaXMuQmFsbEJlYXJpbmcpWzBd"><path d="M 1157.510502 228.704691 C 521.900024 294.100006 362.500000 381.000000 362.500000 417.000000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-3237088110-3488378134)" mask="url(#d2-3237088110)" /></g><g class="KEJlYXJpbmdFbGVtZW50IC0mZ3Q7IG1hbmNhaXMuUm9sbGVyQmVhcmluZylbMF0="><path d="M 1157.520247 232.783862 C 724.299988 294.899994 615.500000 381.000000 615.500000 417.000000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-3237088110-3488378134)" mask="url(#d2-3237088110)" /></g><g class="KEJlYXJpbmdFbGVtZW50IC0mZ3Q7IG1hbmNhaXMuTWFnbmV0aWNCZWFyaW5nKVswXQ=="><path d="M 1157.556399 244.971609 C 941.900024 297.299988 887.500000 381.000000 887.500000 417.000000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-3237088110-3488378134)" mask="url(#d2-3237088110)" /></g><g class="KEJlYXJpbmdFbGVtZW50IC0mZ3Q7IG1hbmNhaXMuQ3lsaW5kcmljYWxCZWFyaW5nKVswXQ=="><path d="M 1224.916990 250.722325 C 1163.300049 298.299988 1147.500000 381.000000 1147.500000 417.000000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-3237088110-3488378134)" mask="url(#d2-3237088110)" /></g><g class="KEJlYXJpbmdFbGVtZW50IC0mZ3Q7IG1hbmNhaXMuU3F1ZWV6ZUZpbG0pWzBd"><path d="M 1315.083010 250.722325 C 1376.699951 298.299988 1392.500000 381.000000 1392.500000 417.000000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-3237088110-3488378134)" mask="url(#d2-3237088110)" /></g><g class="KEJlYXJpbmdFbGVtZW50IC0mZ3Q7IG1hbmNhaXMuUGxhaW5Kb3VybmFsKVswXQ=="><path d="M 1382.930281 247.023466 C 1569.800049 297.700012 1617.000000 381.000000 1617.000000 417.000000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-3237088110-3488378134)" mask="url(#d2-3237088110)" /></g><g class="KEJlYXJpbmdFbGVtZW50IC0mZ3Q7IG1hbmNhaXMuVGlsdGluZ1BhZClbMF0="><path d="M 1382.470219 236.843859 C 1719.699951 295.700012 1804.500000 381.000000 1804.500000 417.000000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-3237088110-3488378134)" mask="url(#d2-3237088110)" /></g><g class="KEJlYXJpbmdFbGVtZW50IC0mZ3Q7IG1hbmNhaXMuVGhydXN0UGFkKVswXQ=="><path d="M 1382.483054 231.759803 C 1862.900024 294.700012 1983.500000 381.000000 1983.500000 417.000000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-3237088110-3488378134)" mask="url(#d2-3237088110)" /></g><g class="KEJlYXJpbmdFbGVtZW50IC0mZ3Q7IFNlYWxFbGVtZW50KVswXQ=="><path d="M 1382.491994 226.678769 C 2129.300049 293.700012 2316.500000 381.000000 2316.500000 417.000000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-3237088110-3488378134)" mask="url(#d2-3237088110)" /><text x="1877.500000" y="277.000000" fill="#676C7E" class="text-italic fill-N2" style="text-anchor:middle;font-size:16px">inheritance</text></g><g class="KFNlYWxFbGVtZW50IC0mZ3Q7IHNlbG9zLkxhYnlyaW50aFNlYWwpWzBd"><path d="M 2247.635911 480.770679 C 2132.300049 525.609009 2103.000000 547.000000 2103.000000 562.000000 C 2103.000000 577.000000 2103.000000 647.000000 2103.000000 683.000000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-3237088110-3488378134)" mask="url(#d2-3237088110)" /></g><g class="KFNlYWxFbGVtZW50IC0mZ3Q7IHNlbG9zLkhvbGVQYXR0ZXJuU2VhbClbMF0="><path d="M 2316.500000 489.000000 C 2316.500000 527.000000 2316.500000 547.000000 2316.500000 562.000000 C 2316.500000 577.000000 2316.500000 647.000000 2316.500000 683.000000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-3237088110-3488378134)" mask="url(#d2-3237088110)" /></g><g class="KFNlYWxFbGVtZW50IC0mZ3Q7IHNlbG9zLkh5YnJpZFNlYWwpWzBd"><path d="M 2386.348599 482.224336 C 2492.100098 525.892029 2519.000000 547.000000 2519.000000 562.000000 C 2519.000000 577.000000 2519.000000 647.000000 2519.000000 683.000000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-3237088110-3488378134)" mask="url(#d2-3237088110)" /></g><g transform="translate(1303 -16)" class="appendix-icon"><title>Base class for all ROSS elements</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-3237088110-IVWGK3LFNZ2A)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-3237088110-IVWGK3LFNZ2A">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(1365 168)" class="appendix-icon"><title>Base class for bearings and seals&#xA;Coefficients: kxx, kxy, kyx, kyy, cxx, cxy, cyx, cyy&#xA;Supports constant or speed-dependent coefficients</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-3237088110-IJSWC4TJNZTUK3DFNVSW45A)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-3237088110-IJSWC4TJNZTUK3DFNVSW45A">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(1333 168)" class="appendix-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3440_35088111-d2-3237088110-IJSWC4TJNZTUK3DFNVSW45A)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M14.3909 16.7965C14.7364 17.2584 15.1772 17.6406 15.6834 17.9171C16.1896 18.1938 16.7494 18.3582 17.3248 18.3993C17.9001 18.4405 18.4777 18.3575 19.0181 18.1559C19.5586 17.9543 20.0492 17.6389 20.4571 17.2309L22.8708 14.8173C23.6036 14.0586 24.0089 13.0425 23.9998 11.9877C23.9906 10.933 23.5676 9.92404 22.8217 9.17821C22.0759 8.43237 21.067 8.00931 20.0123 8.00015C18.9575 7.99098 17.9413 8.39644 17.1827 9.1292L15.7988 10.505" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M17.609 15.1874C17.2635 14.7255 16.8227 14.3433 16.3165 14.0667C15.8103 13.7902 15.2505 13.6257 14.6752 13.5845C14.0998 13.5433 13.5223 13.6263 12.9819 13.8279C12.4414 14.0295 11.9506 14.345 11.5428 14.753L9.1292 17.1666C8.39644 17.9252 7.99098 18.9414 8.00015 19.9962C8.00931 21.0509 8.43237 22.0598 9.17821 22.8056C9.92405 23.5515 10.933 23.9745 11.9877 23.9837C13.0425 23.9928 14.0586 23.5875 14.8173 22.8547L16.193 21.4788" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3440_35088111-d2-3237088110-IJSWC4TJNZTUK3DFNVSW45A">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(2368 405)" class="appendix-icon"><title>Base class for seals&#xA;Same coefficients as BearingElement&#xA;but with seal (sealing) semantics</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-3237088110-KNSWC3CFNRSW2ZLOOQ)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-3237088110-KNSWC3CFNRSW2ZLOOQ">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(194 405)" class="appendix-icon"><title>Bearing with fluid flow calculation&#xA;Coefficients computed from fluid&#xA;properties and geometry</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-3237088110-NVQW4Y3BNFZS4QTFMFZGS3THIZWHK2LEIZWG65Y)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-3237088110-NVQW4Y3BNFZS4QTFMFZGS3THIZWHK2LEIZWG65Y">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(439 405)" class="appendix-icon"><title>Ball bearing&#xA;Parameters: number of balls, diameter,&#xA;contact angle, preload</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-3237088110-NVQW4Y3BNFZS4QTBNRWEEZLBOJUW4ZY)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-3237088110-NVQW4Y3BNFZS4QTBNRWEEZLBOJUW4ZY">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(700 405)" class="appendix-icon"><title>Roller bearing&#xA;Parameters: number of rollers, diameter,&#xA;length, radial clearance</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-3237088110-NVQW4Y3BNFZS4UTPNRWGK4SCMVQXE2LOM4)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-3237088110-NVQW4Y3BNFZS4UTPNRWGK4SCMVQXE2LOM4">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(983 405)" class="appendix-icon"><title>Active magnetic bearing (AMB)&#xA;Parameters: magnetic stiffness,&#xA;controller gains</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-3237088110-NVQW4Y3BNFZS4TLBM5XGK5DJMNBGKYLSNFXGO)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-3237088110-NVQW4Y3BNFZS4TLBM5XGK5DJMNBGKYLSNFXGO">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(1220 405)" class="appendix-icon"><title>Cylindrical bearing with fluid&#xA;flow calculation</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-3237088110-NVQW4Y3BNFZS4Q3ZNRUW4ZDSNFRWC3CCMVQXE2LOM4)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-3237088110-NVQW4Y3BNFZS4Q3ZNRUW4ZDSNFRWC3CCMVQXE2LOM4">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(1473 405)" class="appendix-icon"><title>Squeeze film damper&#xA;Parameters: clearance, viscosity,&#xA;length, radius</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-3237088110-NVQW4Y3BNFZS4U3ROVSWK6TFIZUWY3I)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-3237088110-NVQW4Y3BNFZS4U3ROVSWK6TFIZUWY3I">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(1669 405)" class="appendix-icon"><title>Hydrodynamic journal bearing&#xA;Pressure distribution calculation,&#xA;eccentricity and attitude angle</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-3237088110-NVQW4Y3BNFZS4UDMMFUW4STPOVZG4YLM)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-3237088110-NVQW4Y3BNFZS4UDMMFUW4STPOVZG4YLM">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(1848 405)" class="appendix-icon"><title>Tilting pad bearing&#xA;Parameters: number of pads, preload,&#xA;offset, clearance, lubricant</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-3237088110-NVQW4Y3BNFZS4VDJNR2GS3THKBQWI)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-3237088110-NVQW4Y3BNFZS4VDJNR2GS3THKBQWI">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(2027 405)" class="appendix-icon"><title>Thrust bearing (axial)&#xA;Stiffness and damping in the Z direction</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-3237088110-NVQW4Y3BNFZS4VDIOJ2XG5CQMFSA)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-3237088110-NVQW4Y3BNFZS4VDIOJ2XG5CQMFSA">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(2160 671)" class="appendix-icon"><title>Labyrinth seal&#xA;Parameters: number of teeth, clearance,&#xA;pitch, tooth height&#xA;Calculates leakage and dynamic coefficients</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-3237088110-ONSWY33TFZGGCYTZOJUW45DIKNSWC3A)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-3237088110-ONSWY33TFZGGCYTZOJUW45DIKNSWC3A">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(2382 671)" class="appendix-icon"><title>Hole pattern seal&#xA;Parameters: hole diameter and depth,&#xA;distribution&#xA;For centrifugal compressors</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-3237088110-ONSWY33TFZEG63DFKBQXI5DFOJXFGZLBNQ)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-3237088110-ONSWY33TFZEG63DFKBQXI5DFOJXFGZLBNQ">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(2565 671)" class="appendix-icon"><title>Hybrid seal (labyrinth + hole-pattern)&#xA;Combines labyrinth sections&#xA;with hole-pattern sections</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-3237088110-ONSWY33TFZEHSYTSNFSFGZLBNQ)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-3237088110-ONSWY33TFZEHSYTSNFSFGZLBNQ">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><mask id="d2-3237088110" maskUnits="userSpaceOnUse" x="-91" y="-157" width="2803" height="1041">
+<rect x="-91" y="-157" width="2803" height="1041" fill="white"></rect>
+<rect x="1231.000000" y="113.000000" width="79" height="21" fill="black"></rect>
+<rect x="1838.000000" y="261.000000" width="79" height="21" fill="black"></rect>
+</mask></svg></svg>

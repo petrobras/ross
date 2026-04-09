@@ -1,0 +1,244 @@
+direction: down
+
+title: {
+  label: BearingElement Hierarchy
+  near: top-center
+  shape: text
+  style: {
+    font-size: 28
+    bold: true
+  }
+}
+
+# ============================================================
+# Base Class
+# ============================================================
+Element: Element {
+  tooltip: "Base class for all ROSS elements"
+  style: {
+    fill: "#e0e0e0"
+    stroke: "#757575"
+    border-radius: 8
+    font-size: 14
+  }
+}
+
+BearingElement: BearingElement {
+  tooltip: |
+    Base class for bearings and seals
+    Coefficients: kxx, kxy, kyx, kyy, cxx, cxy, cyx, cyy
+    Supports constant or speed-dependent coefficients
+  |
+  link: ./ross-overview.svg
+  style: {
+    fill: "#fff2cc"
+    stroke: "#d6b656"
+    font-size: 16
+    bold: true
+    border-radius: 8
+  }
+}
+
+Element -> BearingElement: inheritance {
+  style.stroke: "#757575"
+}
+
+# ============================================================
+# Bearings (inherit from BearingElement)
+# ============================================================
+mancais: Bearings {
+  style: {
+    fill: "#e8f4f8"
+    stroke: "#2980b9"
+    border-radius: 10
+  }
+
+  BearingFluidFlow: BearingFluidFlow {
+    tooltip: |
+      Bearing with fluid flow calculation
+      Coefficients computed from fluid
+      properties and geometry
+    |
+    style: {
+      fill: "#dae8fc"
+      stroke: "#6c8ebf"
+    }
+  }
+
+  BallBearing: BallBearingElement {
+    tooltip: |
+      Ball bearing
+      Parameters: number of balls, diameter,
+      contact angle, preload
+    |
+    style: {
+      fill: "#dae8fc"
+      stroke: "#6c8ebf"
+    }
+  }
+
+  RollerBearing: RollerBearingElement {
+    tooltip: |
+      Roller bearing
+      Parameters: number of rollers, diameter,
+      length, radial clearance
+    |
+    style: {
+      fill: "#dae8fc"
+      stroke: "#6c8ebf"
+    }
+  }
+
+  MagneticBearing: MagneticBearingElement {
+    tooltip: |
+      Active magnetic bearing (AMB)
+      Parameters: magnetic stiffness,
+      controller gains
+    |
+    style: {
+      fill: "#dae8fc"
+      stroke: "#6c8ebf"
+    }
+  }
+
+  CylindricalBearing: CylindricalBearing {
+    tooltip: |
+      Cylindrical bearing with fluid
+      flow calculation
+    |
+    style: {
+      fill: "#dae8fc"
+      stroke: "#6c8ebf"
+    }
+  }
+
+  SqueezeFilm: SqueezeFilmDamper {
+    tooltip: |
+      Squeeze film damper
+      Parameters: clearance, viscosity,
+      length, radius
+    |
+    style: {
+      fill: "#dae8fc"
+      stroke: "#6c8ebf"
+    }
+  }
+
+  PlainJournal: PlainJournal {
+    tooltip: |
+      Hydrodynamic journal bearing
+      Pressure distribution calculation,
+      eccentricity and attitude angle
+    |
+    style: {
+      fill: "#dae8fc"
+      stroke: "#6c8ebf"
+    }
+  }
+
+  TiltingPad: TiltingPad {
+    tooltip: |
+      Tilting pad bearing
+      Parameters: number of pads, preload,
+      offset, clearance, lubricant
+    |
+    style: {
+      fill: "#dae8fc"
+      stroke: "#6c8ebf"
+    }
+  }
+
+  ThrustPad: ThrustPad {
+    tooltip: |
+      Thrust bearing (axial)
+      Stiffness and damping in the Z direction
+    |
+    style: {
+      fill: "#dae8fc"
+      stroke: "#6c8ebf"
+    }
+  }
+}
+
+BearingElement -> mancais.BearingFluidFlow
+BearingElement -> mancais.BallBearing
+BearingElement -> mancais.RollerBearing
+BearingElement -> mancais.MagneticBearing
+BearingElement -> mancais.CylindricalBearing
+BearingElement -> mancais.SqueezeFilm
+BearingElement -> mancais.PlainJournal
+BearingElement -> mancais.TiltingPad
+BearingElement -> mancais.ThrustPad
+
+# ============================================================
+# SealElement (inherits from BearingElement)
+# ============================================================
+SealElement: SealElement {
+  tooltip: |
+    Base class for seals
+    Same coefficients as BearingElement
+    but with seal (sealing) semantics
+  |
+  style: {
+    fill: "#fce4ec"
+    stroke: "#c0392b"
+    font-size: 16
+    bold: true
+    border-radius: 8
+  }
+}
+
+BearingElement -> SealElement: inheritance
+
+# ============================================================
+# Seals (inherit from SealElement)
+# ============================================================
+selos: Seals {
+  style: {
+    fill: "#fdebd0"
+    stroke: "#e67e22"
+    border-radius: 10
+  }
+
+  LabyrinthSeal: LabyrinthSeal {
+    tooltip: |
+      Labyrinth seal
+      Parameters: number of teeth, clearance,
+      pitch, tooth height
+      Calculates leakage and dynamic coefficients
+    |
+    style: {
+      fill: "#fef9e7"
+      stroke: "#e67e22"
+    }
+  }
+
+  HolePatternSeal: HolePatternSeal {
+    tooltip: |
+      Hole pattern seal
+      Parameters: hole diameter and depth,
+      distribution
+      For centrifugal compressors
+    |
+    style: {
+      fill: "#fef9e7"
+      stroke: "#e67e22"
+    }
+  }
+
+  HybridSeal: HybridSeal {
+    tooltip: |
+      Hybrid seal (labyrinth + hole-pattern)
+      Combines labyrinth sections
+      with hole-pattern sections
+    |
+    style: {
+      fill: "#fef9e7"
+      stroke: "#e67e22"
+    }
+  }
+}
+
+SealElement -> selos.LabyrinthSeal
+SealElement -> selos.HolePatternSeal
+SealElement -> selos.HybridSeal
