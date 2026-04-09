@@ -1,0 +1,261 @@
+direction: down
+
+title: {
+  label: Results and Visualization
+  near: top-center
+  shape: text
+  style: {
+    font-size: 28
+    bold: true
+  }
+}
+
+# ============================================================
+# Main Node
+# ============================================================
+Resultados: Results {
+  tooltip: |
+    Each Rotor.run_*() method returns a results
+    object with numerical data and visualization
+    methods (interactive plots via Plotly).
+  |
+  link: ./ross-overview.svg
+  style: {
+    fill: "#e8f8f5"
+    stroke: "#27ae60"
+    font-size: 18
+    bold: true
+    border-radius: 10
+  }
+}
+
+# ============================================================
+# Results Classes
+# ============================================================
+result_classes: Results Classes {
+  style: {
+    fill: "#d5f5e3"
+    stroke: "#27ae60"
+    border-radius: 10
+  }
+
+  StaticResults: StaticResults {
+    tooltip: |
+      Result of run_static()
+      Data: deflection, shear, moment, reactions
+      Plots: deformation, shearing_force,
+      bending_moment, free_body_diagram
+    |
+    style: {
+      fill: "#e8f8f5"
+      stroke: "#27ae60"
+    }
+  }
+
+  ModalResults: ModalResults {
+    tooltip: |
+      Result of run_modal()
+      Data: wn (natural freq.), wd (damped),
+      log_dec (logarithmic decrement),
+      damping_ratio, lam (eigenvalues)
+      Plots: mode_3d, mode_2d, orbit
+    |
+    style: {
+      fill: "#e8f8f5"
+      stroke: "#27ae60"
+    }
+  }
+
+  CampbellResults: CampbellResults {
+    tooltip: |
+      Result of run_campbell()
+      Data: frequencies vs. speed,
+      critical speeds, whirl direction (FW/BW)
+      Plots: campbell diagram, with_mode_shape
+    |
+    style: {
+      fill: "#e8f8f5"
+      stroke: "#27ae60"
+    }
+  }
+
+  FreqResponseResults: FrequencyResponseResults {
+    tooltip: |
+      Result of run_freq_response()
+      Data: magnitude, phase, complex FRF
+      Plots: magnitude, phase, polar_bode
+    |
+    style: {
+      fill: "#e8f8f5"
+      stroke: "#27ae60"
+    }
+  }
+
+  ForcedResponseResults: ForcedResponseResults {
+    tooltip: |
+      Result of run_unbalance_response()
+      and run_forced_response()
+      Data: magnitude, phase per node and speed
+      Plots: magnitude, phase, bode,
+      deflected_shape_2d, deflected_shape_3d
+    |
+    style: {
+      fill: "#e8f8f5"
+      stroke: "#27ae60"
+    }
+  }
+
+  TimeResponseResults: TimeResponseResults {
+    tooltip: |
+      Result of run_time_response(),
+      run_rubbing(), run_crack(), run_misalignment()
+      Data: t (time), yout (displacements),
+      xout (states)
+      Plots: 1d, 2d (orbit), 3d, dfft
+    |
+    style: {
+      fill: "#e8f8f5"
+      stroke: "#27ae60"
+    }
+  }
+
+  UCSResults: UCSResults {
+    tooltip: |
+      Result of run_ucs()
+      Data: critical speeds vs. stiffness
+      Plot: log-log map with bearing reference
+    |
+    style: {
+      fill: "#e8f8f5"
+      stroke: "#27ae60"
+    }
+  }
+
+  Level1Results: Level1Results {
+    tooltip: |
+      Result of run_level1()
+      Data: Q0 (threshold), Qa (applied)
+      Plot: Q0 vs. Qa comparison (API 617)
+    |
+    style: {
+      fill: "#e8f8f5"
+      stroke: "#27ae60"
+    }
+  }
+
+  HBMResults: HarmonicBalanceResults {
+    tooltip: |
+      Result of run_harmonic_balance_response()
+      Data: harmonic amplitudes, convergence
+      Plot: nonlinear frequency response
+    |
+    style: {
+      fill: "#e8f8f5"
+      stroke: "#27ae60"
+    }
+  }
+}
+
+Resultados -> result_classes
+
+# ============================================================
+# Common Methods
+# ============================================================
+comuns: Common Methods {
+  style: {
+    fill: "#e8f0fc"
+    stroke: "#6c8ebf"
+    border-radius: 10
+  }
+
+  save: save() {
+    tooltip: |
+      Saves results to file.
+      Format: pickle (.pkl) or JSON.
+      Allows re-analysis without re-running.
+    |
+    style: {
+      fill: "#dae8fc"
+      stroke: "#6c8ebf"
+    }
+  }
+
+  load: load() {
+    tooltip: |
+      Loads previously saved results.
+      Class method (classmethod).
+      Ex: results = ModalResults.load("file.pkl")
+    |
+    style: {
+      fill: "#dae8fc"
+      stroke: "#6c8ebf"
+    }
+  }
+}
+
+result_classes -> comuns
+
+# ============================================================
+# Plotly
+# ============================================================
+plotly: Plotly (Interactive Visualization) {
+  tooltip: |
+    All ROSS plots use Plotly.
+    Interactive plots: zoom, pan, hover,
+    PNG/SVG/HTML export.
+    Works in Jupyter Notebooks and scripts.
+  |
+  style: {
+    fill: "#fef9e7"
+    stroke: "#e67e22"
+    font-size: 14
+    border-radius: 8
+  }
+}
+
+features: Plot Features {
+  style: {
+    fill: "#fdebd0"
+    stroke: "#e67e22"
+    border-radius: 10
+  }
+
+  interativo: Interactivity {
+    tooltip: |
+      Zoom, pan, hover with values
+      Curve selection (legend toggle)
+      Comparison of multiple results
+    |
+    style: {
+      fill: "#fef9e7"
+      stroke: "#e67e22"
+    }
+  }
+
+  export: Export {
+    tooltip: |
+      PNG, SVG for publications
+      Interactive HTML for web reports
+      Plotly JSON for reuse
+    |
+    style: {
+      fill: "#fef9e7"
+      stroke: "#e67e22"
+    }
+  }
+
+  jupyter: Jupyter Integration {
+    tooltip: |
+      Inline rendering in notebooks
+      Interactive widgets for parameter
+      and mode exploration
+    |
+    style: {
+      fill: "#fef9e7"
+      stroke: "#e67e22"
+    }
+  }
+}
+
+plotly -> features
+result_classes -> plotly: generates plots via

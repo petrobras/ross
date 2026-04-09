@@ -1,0 +1,163 @@
+direction: down
+
+title: {
+  label: PointMass - Concentrated Mass
+  near: top-center
+  shape: text
+  style: {
+    font-size: 28
+    bold: true
+  }
+}
+
+# ============================================================
+# Main Class
+# ============================================================
+PointMass: PointMass {
+  tooltip: |
+    Concentrated mass added to a rotor node.
+    Has no stiffness or damping of its own.
+    Useful for modeling extra masses such as couplings,
+    impellers, bolts, etc.
+  |
+  link: ./ross-overview.svg
+  style: {
+    fill: "#dae8fc"
+    stroke: "#6c8ebf"
+    font-size: 18
+    bold: true
+    border-radius: 10
+  }
+}
+
+# ============================================================
+# Parameters
+# ============================================================
+params: Parameters {
+  style: {
+    fill: "#e8f0fc"
+    stroke: "#6c8ebf"
+    border-radius: 10
+  }
+
+  no: n (node) {
+    tooltip: |
+      Node number where the mass is added.
+      Must correspond to an existing rotor node.
+    |
+    style: {
+      fill: "#dae8fc"
+      stroke: "#6c8ebf"
+    }
+  }
+
+  massa_iso: m (isotropic mass) {
+    tooltip: |
+      m: concentrated mass [kg]
+      Applies the same mass in x and y directions.
+      Simplest form of usage.
+    |
+    style: {
+      fill: "#dae8fc"
+      stroke: "#6c8ebf"
+    }
+  }
+
+  massa_dir: mx, my, mz (directional mass) {
+    tooltip: |
+      mx: mass in x direction [kg]
+      my: mass in y direction [kg]
+      mz: mass in z direction [kg] (axial)
+      Allows different masses per direction.
+      Used when m is not specified.
+    |
+    style: {
+      fill: "#dae8fc"
+      stroke: "#6c8ebf"
+    }
+  }
+}
+
+PointMass -> params
+
+# ============================================================
+# Element Matrices
+# ============================================================
+matrizes: Element Matrices {
+  style: {
+    fill: "#e1d5e7"
+    stroke: "#9673a6"
+    border-radius: 10
+  }
+
+  M: M() {
+    tooltip: |
+      Mass matrix [4×4]
+      Diagonal: [mx, my, 0, 0]
+      Translation only, no rotary inertia
+    |
+    style: {
+      fill: "#f3e5f5"
+      stroke: "#9673a6"
+    }
+  }
+
+  K: K() {
+    tooltip: |
+      Stiffness matrix [4×4]
+      Null matrix (concentrated mass)
+    |
+    style: {
+      fill: "#f3e5f5"
+      stroke: "#9673a6"
+    }
+  }
+
+  C: C() {
+    tooltip: |
+      Damping matrix [4×4]
+      Null matrix (concentrated mass)
+    |
+    style: {
+      fill: "#f3e5f5"
+      stroke: "#9673a6"
+    }
+  }
+
+  G: G() {
+    tooltip: |
+      Gyroscopic matrix [4×4]
+      Null matrix (no gyroscopic effect)
+    |
+    style: {
+      fill: "#f3e5f5"
+      stroke: "#9673a6"
+    }
+  }
+}
+
+PointMass -> matrizes
+
+# ============================================================
+# Typical Usage
+# ============================================================
+uso: Typical Usage {
+  tooltip: |
+    Application examples:
+    - Coupling mass at an end node
+    - Impeller mass not modeled as DiskElement
+    - Bolt, key, balance weight mass
+    - Mass correction at a specific node
+  |
+  style: {
+    fill: "#fff2cc"
+    stroke: "#d6b656"
+    border-radius: 8
+    font-size: 13
+  }
+}
+
+PointMass -> uso: applications {
+  style.stroke-dash: 3
+  style.stroke: "#d6b656"
+}
