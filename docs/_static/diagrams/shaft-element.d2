@@ -1,0 +1,259 @@
+direction: down
+
+title: {
+  label: ShaftElement - Shaft Elements
+  near: top-center
+  shape: text
+  style: {
+    font-size: 28
+    bold: true
+  }
+}
+
+# ============================================================
+# Main Class
+# ============================================================
+ShaftElement: ShaftElement {
+  tooltip: |
+    Shaft element based on Timoshenko beam theory.
+    Models shaft segments with 4 DOF per node
+    (translation x, y and rotation θx, θy).
+    Supports cylindrical and tapered sections.
+  |
+  link: ./ross-overview.svg
+  style: {
+    fill: "#dae8fc"
+    stroke: "#6c8ebf"
+    font-size: 18
+    bold: true
+    border-radius: 10
+  }
+}
+
+# ============================================================
+# Geometric Parameters
+# ============================================================
+geometria: Geometric Parameters {
+  style: {
+    fill: "#e8f0fc"
+    stroke: "#6c8ebf"
+    border-radius: 10
+  }
+
+  principais: Main Parameters {
+    tooltip: |
+      L: element length [m]
+      idl: left inner diameter [m]
+      odl: left outer diameter [m]
+      idr: right inner diameter [m]
+      odr: right outer diameter [m]
+      material: Material object (E, G, ρ)
+    |
+    style: {
+      fill: "#dae8fc"
+      stroke: "#6c8ebf"
+    }
+  }
+
+  secoes: Section Types {
+    style: {
+      fill: "#f0f4fc"
+      stroke: "#6c8ebf"
+      border-radius: 8
+    }
+
+    cilindrica: Cylindrical {
+      tooltip: |
+        Constant cross-section along the length
+        idl = idr and odl = odr
+        Most common case for uniform shafts
+      |
+      style: {
+        fill: "#dae8fc"
+        stroke: "#6c8ebf"
+      }
+    }
+
+    conica: Tapered {
+      tooltip: |
+        Variable cross-section along the length
+        idl ≠ idr or odl ≠ odr
+        For transitions and shaft shoulders
+      |
+      style: {
+        fill: "#dae8fc"
+        stroke: "#6c8ebf"
+      }
+    }
+  }
+}
+
+ShaftElement -> geometria
+
+# ============================================================
+# Modeling Options
+# ============================================================
+opcoes: Modeling Options {
+  style: {
+    fill: "#e8f0fc"
+    stroke: "#6c8ebf"
+    border-radius: 10
+  }
+
+  shear: shear_effects {
+    tooltip: |
+      Includes shear effects (Timoshenko)
+      Default: True
+      If False, behaves as Euler-Bernoulli beam
+    |
+    style: {
+      fill: "#dae8fc"
+      stroke: "#6c8ebf"
+    }
+  }
+
+  rotary: rotary_inertia {
+    tooltip: |
+      Includes rotary inertia in mass matrix
+      Default: True
+    |
+    style: {
+      fill: "#dae8fc"
+      stroke: "#6c8ebf"
+    }
+  }
+
+  gyro: gyroscopic {
+    tooltip: |
+      Includes gyroscopic effect (G matrix)
+      Default: True
+      Fundamental for rotor analysis
+    |
+    style: {
+      fill: "#dae8fc"
+      stroke: "#6c8ebf"
+    }
+  }
+
+  axial: axial_force {
+    tooltip: |
+      Axial force on element [N]
+      Modifies lateral stiffness (stress stiffening)
+    |
+    style: {
+      fill: "#dae8fc"
+      stroke: "#6c8ebf"
+    }
+  }
+
+  torque: torque {
+    tooltip: |
+      Torque applied to element [N·m]
+      Affects stability and mode coupling
+    |
+    style: {
+      fill: "#dae8fc"
+      stroke: "#6c8ebf"
+    }
+  }
+}
+
+ShaftElement -> opcoes
+
+# ============================================================
+# Element Matrices
+# ============================================================
+matrizes: Element Matrices {
+  style: {
+    fill: "#e1d5e7"
+    stroke: "#9673a6"
+    border-radius: 10
+  }
+
+  M: M() {
+    tooltip: |
+      Mass matrix [8×8]
+      Translational mass + rotary inertia
+      Includes tapered section effects if applicable
+    |
+    style: {
+      fill: "#f3e5f5"
+      stroke: "#9673a6"
+    }
+  }
+
+  K: K() {
+    tooltip: |
+      Stiffness matrix [8×8]
+      Bending + shear (if enabled)
+      Includes stress stiffening (if axial_force ≠ 0)
+    |
+    style: {
+      fill: "#f3e5f5"
+      stroke: "#9673a6"
+    }
+  }
+
+  C: C() {
+    tooltip: |
+      Damping matrix [8×8]
+      Proportional damping (Rayleigh)
+      or null matrix if not specified
+    |
+    style: {
+      fill: "#f3e5f5"
+      stroke: "#9673a6"
+    }
+  }
+
+  G: G() {
+    tooltip: |
+      Gyroscopic matrix [8×8]
+      Coupling between xz and yz planes
+      Proportional to rotational speed
+    |
+    style: {
+      fill: "#f3e5f5"
+      stroke: "#9673a6"
+    }
+  }
+}
+
+ShaftElement -> matrizes
+
+# ============================================================
+# Constructors
+# ============================================================
+construtores: Creation {
+  style: {
+    fill: "#e8f0fc"
+    stroke: "#6c8ebf"
+    border-radius: 10
+  }
+
+  direto: Direct constructor {
+    tooltip: |
+      ShaftElement(L, idl, odl, idr, odr, material, ...)
+      Specifies all parameters directly
+    |
+    style: {
+      fill: "#dae8fc"
+      stroke: "#6c8ebf"
+    }
+  }
+
+  tabela: from_table() {
+    tooltip: |
+      Creates multiple ShaftElements from a
+      table (DataFrame) with the dimensions
+      of each shaft section. Useful for importing
+      geometries from spreadsheets or files.
+    |
+    style: {
+      fill: "#dae8fc"
+      stroke: "#6c8ebf"
+    }
+  }
+}
+
+ShaftElement -> construtores

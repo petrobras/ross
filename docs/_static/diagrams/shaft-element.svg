@@ -1,0 +1,312 @@
+<?xml version="1.0" encoding="utf-8"?><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" data-d2-version="v0.7.1" preserveAspectRatio="xMinYMin meet" viewBox="0 0 2789 652"><svg class="d2-3396187871 d2-svg" width="2789" height="652" viewBox="-91 -157 2789 652"><rect x="-91.000000" y="-157.000000" width="2789.000000" height="652.000000" rx="0.000000" fill="#FFFFFF" class=" fill-N7" stroke-width="0" /><style type="text/css"><![CDATA[
+.d2-3396187871 .text {
+	font-family: "d2-3396187871-font-regular";
+}
+@font-face {
+	font-family: d2-3396187871-font-regular;
+	src: url("data:application/font-woff;base64,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");
+}
+.appendix-icon {
+	filter: drop-shadow(0px 0px 32px rgba(31, 36, 58, 0.1));
+}
+.d2-3396187871 .text-bold {
+	font-family: "d2-3396187871-font-bold";
+}
+@font-face {
+	font-family: d2-3396187871-font-bold;
+	src: url("data:application/font-woff;base64,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");
+}]]></style><style type="text/css"><![CDATA[.shape {
+  shape-rendering: geometricPrecision;
+  stroke-linejoin: round;
+}
+.connection {
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.blend {
+  mix-blend-mode: multiply;
+  opacity: 0.5;
+}
+
+		.d2-3396187871 .fill-N1{fill:#0A0F25;}
+		.d2-3396187871 .fill-N2{fill:#676C7E;}
+		.d2-3396187871 .fill-N3{fill:#9499AB;}
+		.d2-3396187871 .fill-N4{fill:#CFD2DD;}
+		.d2-3396187871 .fill-N5{fill:#DEE1EB;}
+		.d2-3396187871 .fill-N6{fill:#EEF1F8;}
+		.d2-3396187871 .fill-N7{fill:#FFFFFF;}
+		.d2-3396187871 .fill-B1{fill:#0D32B2;}
+		.d2-3396187871 .fill-B2{fill:#0D32B2;}
+		.d2-3396187871 .fill-B3{fill:#E3E9FD;}
+		.d2-3396187871 .fill-B4{fill:#E3E9FD;}
+		.d2-3396187871 .fill-B5{fill:#EDF0FD;}
+		.d2-3396187871 .fill-B6{fill:#F7F8FE;}
+		.d2-3396187871 .fill-AA2{fill:#4A6FF3;}
+		.d2-3396187871 .fill-AA4{fill:#EDF0FD;}
+		.d2-3396187871 .fill-AA5{fill:#F7F8FE;}
+		.d2-3396187871 .fill-AB4{fill:#EDF0FD;}
+		.d2-3396187871 .fill-AB5{fill:#F7F8FE;}
+		.d2-3396187871 .stroke-N1{stroke:#0A0F25;}
+		.d2-3396187871 .stroke-N2{stroke:#676C7E;}
+		.d2-3396187871 .stroke-N3{stroke:#9499AB;}
+		.d2-3396187871 .stroke-N4{stroke:#CFD2DD;}
+		.d2-3396187871 .stroke-N5{stroke:#DEE1EB;}
+		.d2-3396187871 .stroke-N6{stroke:#EEF1F8;}
+		.d2-3396187871 .stroke-N7{stroke:#FFFFFF;}
+		.d2-3396187871 .stroke-B1{stroke:#0D32B2;}
+		.d2-3396187871 .stroke-B2{stroke:#0D32B2;}
+		.d2-3396187871 .stroke-B3{stroke:#E3E9FD;}
+		.d2-3396187871 .stroke-B4{stroke:#E3E9FD;}
+		.d2-3396187871 .stroke-B5{stroke:#EDF0FD;}
+		.d2-3396187871 .stroke-B6{stroke:#F7F8FE;}
+		.d2-3396187871 .stroke-AA2{stroke:#4A6FF3;}
+		.d2-3396187871 .stroke-AA4{stroke:#EDF0FD;}
+		.d2-3396187871 .stroke-AA5{stroke:#F7F8FE;}
+		.d2-3396187871 .stroke-AB4{stroke:#EDF0FD;}
+		.d2-3396187871 .stroke-AB5{stroke:#F7F8FE;}
+		.d2-3396187871 .background-color-N1{background-color:#0A0F25;}
+		.d2-3396187871 .background-color-N2{background-color:#676C7E;}
+		.d2-3396187871 .background-color-N3{background-color:#9499AB;}
+		.d2-3396187871 .background-color-N4{background-color:#CFD2DD;}
+		.d2-3396187871 .background-color-N5{background-color:#DEE1EB;}
+		.d2-3396187871 .background-color-N6{background-color:#EEF1F8;}
+		.d2-3396187871 .background-color-N7{background-color:#FFFFFF;}
+		.d2-3396187871 .background-color-B1{background-color:#0D32B2;}
+		.d2-3396187871 .background-color-B2{background-color:#0D32B2;}
+		.d2-3396187871 .background-color-B3{background-color:#E3E9FD;}
+		.d2-3396187871 .background-color-B4{background-color:#E3E9FD;}
+		.d2-3396187871 .background-color-B5{background-color:#EDF0FD;}
+		.d2-3396187871 .background-color-B6{background-color:#F7F8FE;}
+		.d2-3396187871 .background-color-AA2{background-color:#4A6FF3;}
+		.d2-3396187871 .background-color-AA4{background-color:#EDF0FD;}
+		.d2-3396187871 .background-color-AA5{background-color:#F7F8FE;}
+		.d2-3396187871 .background-color-AB4{background-color:#EDF0FD;}
+		.d2-3396187871 .background-color-AB5{background-color:#F7F8FE;}
+		.d2-3396187871 .color-N1{color:#0A0F25;}
+		.d2-3396187871 .color-N2{color:#676C7E;}
+		.d2-3396187871 .color-N3{color:#9499AB;}
+		.d2-3396187871 .color-N4{color:#CFD2DD;}
+		.d2-3396187871 .color-N5{color:#DEE1EB;}
+		.d2-3396187871 .color-N6{color:#EEF1F8;}
+		.d2-3396187871 .color-N7{color:#FFFFFF;}
+		.d2-3396187871 .color-B1{color:#0D32B2;}
+		.d2-3396187871 .color-B2{color:#0D32B2;}
+		.d2-3396187871 .color-B3{color:#E3E9FD;}
+		.d2-3396187871 .color-B4{color:#E3E9FD;}
+		.d2-3396187871 .color-B5{color:#EDF0FD;}
+		.d2-3396187871 .color-B6{color:#F7F8FE;}
+		.d2-3396187871 .color-AA2{color:#4A6FF3;}
+		.d2-3396187871 .color-AA4{color:#EDF0FD;}
+		.d2-3396187871 .color-AA5{color:#F7F8FE;}
+		.d2-3396187871 .color-AB4{color:#EDF0FD;}
+		.d2-3396187871 .color-AB5{color:#F7F8FE;}.appendix text.text{fill:#0A0F25}.md{--color-fg-default:#0A0F25;--color-fg-muted:#676C7E;--color-fg-subtle:#9499AB;--color-canvas-default:#FFFFFF;--color-canvas-subtle:#EEF1F8;--color-border-default:#0D32B2;--color-border-muted:#0D32B2;--color-neutral-muted:#EEF1F8;--color-accent-fg:#0D32B2;--color-accent-emphasis:#0D32B2;--color-attention-subtle:#676C7E;--color-danger-fg:red;}.sketch-overlay-B1{fill:url(#streaks-darker-d2-3396187871);mix-blend-mode:lighten}.sketch-overlay-B2{fill:url(#streaks-darker-d2-3396187871);mix-blend-mode:lighten}.sketch-overlay-B3{fill:url(#streaks-bright-d2-3396187871);mix-blend-mode:darken}.sketch-overlay-B4{fill:url(#streaks-bright-d2-3396187871);mix-blend-mode:darken}.sketch-overlay-B5{fill:url(#streaks-bright-d2-3396187871);mix-blend-mode:darken}.sketch-overlay-B6{fill:url(#streaks-bright-d2-3396187871);mix-blend-mode:darken}.sketch-overlay-AA2{fill:url(#streaks-dark-d2-3396187871);mix-blend-mode:overlay}.sketch-overlay-AA4{fill:url(#streaks-bright-d2-3396187871);mix-blend-mode:darken}.sketch-overlay-AA5{fill:url(#streaks-bright-d2-3396187871);mix-blend-mode:darken}.sketch-overlay-AB4{fill:url(#streaks-bright-d2-3396187871);mix-blend-mode:darken}.sketch-overlay-AB5{fill:url(#streaks-bright-d2-3396187871);mix-blend-mode:darken}.sketch-overlay-N1{fill:url(#streaks-darker-d2-3396187871);mix-blend-mode:lighten}.sketch-overlay-N2{fill:url(#streaks-dark-d2-3396187871);mix-blend-mode:overlay}.sketch-overlay-N3{fill:url(#streaks-normal-d2-3396187871);mix-blend-mode:color-burn}.sketch-overlay-N4{fill:url(#streaks-normal-d2-3396187871);mix-blend-mode:color-burn}.sketch-overlay-N5{fill:url(#streaks-bright-d2-3396187871);mix-blend-mode:darken}.sketch-overlay-N6{fill:url(#streaks-bright-d2-3396187871);mix-blend-mode:darken}.sketch-overlay-N7{fill:url(#streaks-bright-d2-3396187871);mix-blend-mode:darken}.light-code{display: block}.dark-code{display: none}]]></style><g class="dGl0bGU="><g class="shape" ></g><text x="1303.000000" y="-28.000000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:28px">ShaftElement - Shaft Elements</text></g><a href="./ross-overview.svg" xlink:href="./ross-overview.svg"><g class="U2hhZnRFbGVtZW50"><g class="shape" ><rect x="1439.000000" y="0.000000" width="219.000000" height="68.000000" rx="10.000000" stroke="#6c8ebf" fill="#dae8fc" style="stroke-width:2;" /></g><text x="1548.500000" y="40.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:18px">ShaftElement</text><title>Shaft element based on Timoshenko beam theory.&#xA;Models shaft segments with 4 DOF per node&#xA;(translation x, y and rotation θx, θy).&#xA;Supports cylindrical and tapered sections.</title></g></a><g class="Z2VvbWV0cmlh"><g class="shape" ><rect x="10.000000" y="197.000000" width="620.000000" height="197.000000" rx="10.000000" stroke="#6c8ebf" fill="#e8f0fc" style="stroke-width:2;" /></g><text x="320.000000" y="184.000000" fill="#0A0F25" class="text fill-N1" style="text-anchor:middle;font-size:28px">Geometric Parameters</text></g><g class="b3Bjb2Vz"><g class="shape" ><rect x="660.000000" y="238.000000" width="925.000000" height="126.000000" rx="10.000000" stroke="#6c8ebf" fill="#e8f0fc" style="stroke-width:2;" /></g><text x="1122.500000" y="225.000000" fill="#0A0F25" class="text fill-N1" style="text-anchor:middle;font-size:28px">Modeling Options</text></g><g class="bWF0cml6ZXM="><g class="shape" ><rect x="1625.000000" y="238.000000" width="503.000000" height="126.000000" rx="10.000000" stroke="#9673a6" fill="#e1d5e7" style="stroke-width:2;" /></g><text x="1876.500000" y="225.000000" fill="#0A0F25" class="text fill-N1" style="text-anchor:middle;font-size:28px">Element Matrices</text></g><g class="Y29uc3RydXRvcmVz"><g class="shape" ><rect x="2168.000000" y="238.000000" width="429.000000" height="126.000000" rx="10.000000" stroke="#6c8ebf" fill="#e8f0fc" style="stroke-width:2;" /></g><text x="2382.500000" y="225.000000" fill="#0A0F25" class="text fill-N1" style="text-anchor:middle;font-size:28px">Creation</text></g><g class="Z2VvbWV0cmlhLnByaW5jaXBhaXM="><g class="shape" ><rect x="40.000000" y="268.000000" width="164.000000" height="66.000000" stroke="#6c8ebf" fill="#dae8fc" style="stroke-width:2;" /></g><text x="122.000000" y="306.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">Main Parameters</text><title>L: element length [m]&#xA;idl: left inner diameter [m]&#xA;odl: left outer diameter [m]&#xA;idr: right inner diameter [m]&#xA;odr: right outer diameter [m]&#xA;material: Material object (E, G, ρ)</title></g><g class="Z2VvbWV0cmlhLnNlY29lcw=="><g class="shape" ><rect x="254.000000" y="238.000000" width="346.000000" height="126.000000" rx="8.000000" stroke="#6c8ebf" fill="#f0f4fc" style="stroke-width:2;" /></g><text x="427.000000" y="226.000000" fill="#0A0F25" class="text fill-N1" style="text-anchor:middle;font-size:24px">Section Types</text></g><g class="b3Bjb2VzLnNoZWFy"><g class="shape" ><rect x="690.000000" y="268.000000" width="141.000000" height="66.000000" stroke="#6c8ebf" fill="#dae8fc" style="stroke-width:2;" /></g><text x="760.500000" y="306.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">shear_effects</text><title>Includes shear effects (Timoshenko)&#xA;Default: True&#xA;If False, behaves as Euler-Bernoulli beam</title></g><g class="b3Bjb2VzLnJvdGFyeQ=="><g class="shape" ><rect x="891.000000" y="268.000000" width="144.000000" height="66.000000" stroke="#6c8ebf" fill="#dae8fc" style="stroke-width:2;" /></g><text x="963.000000" y="306.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">rotary_inertia</text><title>Includes rotary inertia in mass matrix&#xA;Default: True</title></g><g class="b3Bjb2VzLmd5cm8="><g class="shape" ><rect x="1095.000000" y="268.000000" width="123.000000" height="66.000000" stroke="#6c8ebf" fill="#dae8fc" style="stroke-width:2;" /></g><text x="1156.500000" y="306.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">gyroscopic</text><title>Includes gyroscopic effect (G matrix)&#xA;Default: True&#xA;Fundamental for rotor analysis</title></g><g class="b3Bjb2VzLmF4aWFs"><g class="shape" ><rect x="1278.000000" y="268.000000" width="124.000000" height="66.000000" stroke="#6c8ebf" fill="#dae8fc" style="stroke-width:2;" /></g><text x="1340.000000" y="306.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">axial_force</text><title>Axial force on element [N]&#xA;Modifies lateral stiffness (stress stiffening)</title></g><g class="b3Bjb2VzLnRvcnF1ZQ=="><g class="shape" ><rect x="1462.000000" y="268.000000" width="93.000000" height="66.000000" stroke="#6c8ebf" fill="#dae8fc" style="stroke-width:2;" /></g><text x="1508.500000" y="306.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">torque</text><title>Torque applied to element [N·m]&#xA;Affects stability and mode coupling</title></g><g class="bWF0cml6ZXMuTQ=="><g class="shape" ><rect x="1655.000000" y="268.000000" width="67.000000" height="66.000000" stroke="#9673a6" fill="#f3e5f5" style="stroke-width:2;" /></g><text x="1688.500000" y="306.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">M()</text><title>Mass matrix [8×8]&#xA;Translational mass + rotary inertia&#xA;Includes tapered section effects if applicable</title></g><g class="bWF0cml6ZXMuSw=="><g class="shape" ><rect x="1782.000000" y="268.000000" width="65.000000" height="66.000000" stroke="#9673a6" fill="#f3e5f5" style="stroke-width:2;" /></g><text x="1814.500000" y="306.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">K()</text><title>Stiffness matrix [8×8]&#xA;Bending + shear (if enabled)&#xA;Includes stress stiffening (if axial_force ≠ 0)</title></g><g class="bWF0cml6ZXMuQw=="><g class="shape" ><rect x="1907.000000" y="268.000000" width="65.000000" height="66.000000" stroke="#9673a6" fill="#f3e5f5" style="stroke-width:2;" /></g><text x="1939.500000" y="306.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">C()</text><title>Damping matrix [8×8]&#xA;Proportional damping (Rayleigh)&#xA;or null matrix if not specified</title></g><g class="bWF0cml6ZXMuRw=="><g class="shape" ><rect x="2032.000000" y="268.000000" width="66.000000" height="66.000000" stroke="#9673a6" fill="#f3e5f5" style="stroke-width:2;" /></g><text x="2065.000000" y="306.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">G()</text><title>Gyroscopic matrix [8×8]&#xA;Coupling between xz and yz planes&#xA;Proportional to rotational speed</title></g><g class="Y29uc3RydXRvcmVzLmRpcmV0bw=="><g class="shape" ><rect x="2198.000000" y="268.000000" width="174.000000" height="66.000000" stroke="#6c8ebf" fill="#dae8fc" style="stroke-width:2;" /></g><text x="2285.000000" y="306.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">Direct constructor</text><title>ShaftElement(L, idl, odl, idr, odr, material, ...)&#xA;Specifies all parameters directly</title></g><g class="Y29uc3RydXRvcmVzLnRhYmVsYQ=="><g class="shape" ><rect x="2432.000000" y="268.000000" width="135.000000" height="66.000000" stroke="#6c8ebf" fill="#dae8fc" style="stroke-width:2;" /></g><text x="2499.500000" y="306.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">from_table()</text><title>Creates multiple ShaftElements from a&#xA;table (DataFrame) with the dimensions&#xA;of each shaft section. Useful for importing&#xA;geometries from spreadsheets or files.</title></g><g class="Z2VvbWV0cmlhLnNlY29lcy5jaWxpbmRyaWNh"><g class="shape" ><rect x="284.000000" y="268.000000" width="122.000000" height="66.000000" stroke="#6c8ebf" fill="#dae8fc" style="stroke-width:2;" /></g><text x="345.000000" y="306.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">Cylindrical</text><title>Constant cross-section along the length&#xA;idl = idr and odl = odr&#xA;Most common case for uniform shafts</title></g><g class="Z2VvbWV0cmlhLnNlY29lcy5jb25pY2E="><g class="shape" ><rect x="466.000000" y="268.000000" width="104.000000" height="66.000000" stroke="#6c8ebf" fill="#dae8fc" style="stroke-width:2;" /></g><text x="518.000000" y="306.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">Tapered</text><title>Variable cross-section along the length&#xA;idl ≠ idr or odl ≠ odr&#xA;For transitions and shaft shoulders</title></g><g class="KFNoYWZ0RWxlbWVudCAtJmd0OyBnZW9tZXRyaWEpWzBd"><marker id="mk-d2-3396187871-3488378134" markerWidth="10.000000" markerHeight="12.000000" refX="7.000000" refY="6.000000" viewBox="0.000000 0.000000 10.000000 12.000000" orient="auto" markerUnits="userSpaceOnUse"> <polygon points="0.000000,0.000000 10.000000,6.000000 0.000000,12.000000" fill="#0D32B2" class="connection fill-B1" stroke-width="2" /> </marker><path d="M 1436.506618 43.092567 C 702.098999 102.986000 518.000000 133.800003 518.000000 193.000000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-3396187871-3488378134)" mask="url(#d2-3396187871)" /></g><g class="KFNoYWZ0RWxlbWVudCAtJmd0OyBvcGNvZXMpWzBd"><path d="M 1436.544504 57.913564 C 1212.900024 105.898003 1156.500000 133.800003 1156.500000 193.000000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-3396187871-3488378134)" mask="url(#d2-3396187871)" /></g><g class="KFNoYWZ0RWxlbWVudCAtJmd0OyBtYXRyaXplcylbMF0="><path d="M 1660.455189 57.914991 C 1883.300049 105.898003 1939.500000 133.800003 1939.500000 193.000000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-3396187871-3488378134)" mask="url(#d2-3396187871)" /></g><g class="KFNoYWZ0RWxlbWVudCAtJmd0OyBjb25zdHJ1dG9yZXMpWzBd"><path d="M 1660.492233 43.842089 C 2331.300049 103.133003 2499.500000 142.000000 2499.500000 234.000000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-3396187871-3488378134)" mask="url(#d2-3396187871)" /></g><g transform="translate(1642 -16)" class="appendix-icon"><title>Shaft element based on Timoshenko beam theory.&#xA;Models shaft segments with 4 DOF per node&#xA;(translation x, y and rotation θx, θy).&#xA;Supports cylindrical and tapered sections.</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-3396187871-KNUGCZTUIVWGK3LFNZ2A)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-3396187871-KNUGCZTUIVWGK3LFNZ2A">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(1610 -16)" class="appendix-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3440_35088111-d2-3396187871-KNUGCZTUIVWGK3LFNZ2A)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M14.3909 16.7965C14.7364 17.2584 15.1772 17.6406 15.6834 17.9171C16.1896 18.1938 16.7494 18.3582 17.3248 18.3993C17.9001 18.4405 18.4777 18.3575 19.0181 18.1559C19.5586 17.9543 20.0492 17.6389 20.4571 17.2309L22.8708 14.8173C23.6036 14.0586 24.0089 13.0425 23.9998 11.9877C23.9906 10.933 23.5676 9.92404 22.8217 9.17821C22.0759 8.43237 21.067 8.00931 20.0123 8.00015C18.9575 7.99098 17.9413 8.39644 17.1827 9.1292L15.7988 10.505" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M17.609 15.1874C17.2635 14.7255 16.8227 14.3433 16.3165 14.0667C15.8103 13.7902 15.2505 13.6257 14.6752 13.5845C14.0998 13.5433 13.5223 13.6263 12.9819 13.8279C12.4414 14.0295 11.9506 14.345 11.5428 14.753L9.1292 17.1666C8.39644 17.9252 7.99098 18.9414 8.00015 19.9962C8.00931 21.0509 8.43237 22.0598 9.17821 22.8056C9.92405 23.5515 10.933 23.9745 11.9877 23.9837C13.0425 23.9928 14.0586 23.5875 14.8173 22.8547L16.193 21.4788" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3440_35088111-d2-3396187871-KNUGCZTUIVWGK3LFNZ2A">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(188 252)" class="appendix-icon"><title>L: element length [m]&#xA;idl: left inner diameter [m]&#xA;odl: left outer diameter [m]&#xA;idr: right inner diameter [m]&#xA;odr: right outer diameter [m]&#xA;material: Material object (E, G, ρ)</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-3396187871-M5SW63LFORZGSYJOOBZGS3TDNFYGC2LT)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-3396187871-M5SW63LFORZGSYJOOBZGS3TDNFYGC2LT">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(815 252)" class="appendix-icon"><title>Includes shear effects (Timoshenko)&#xA;Default: True&#xA;If False, behaves as Euler-Bernoulli beam</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-3396187871-N5YGG33FOMXHG2DFMFZA)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-3396187871-N5YGG33FOMXHG2DFMFZA">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(1019 252)" class="appendix-icon"><title>Includes rotary inertia in mass matrix&#xA;Default: True</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-3396187871-N5YGG33FOMXHE33UMFZHS)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-3396187871-N5YGG33FOMXHE33UMFZHS">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(1202 252)" class="appendix-icon"><title>Includes gyroscopic effect (G matrix)&#xA;Default: True&#xA;Fundamental for rotor analysis</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-3396187871-N5YGG33FOMXGO6LSN4)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-3396187871-N5YGG33FOMXGO6LSN4">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(1386 252)" class="appendix-icon"><title>Axial force on element [N]&#xA;Modifies lateral stiffness (stress stiffening)</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-3396187871-N5YGG33FOMXGC6DJMFWA)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-3396187871-N5YGG33FOMXGC6DJMFWA">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(1539 252)" class="appendix-icon"><title>Torque applied to element [N·m]&#xA;Affects stability and mode coupling</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-3396187871-N5YGG33FOMXHI33SOF2WK)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-3396187871-N5YGG33FOMXHI33SOF2WK">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(1706 252)" class="appendix-icon"><title>Mass matrix [8×8]&#xA;Translational mass + rotary inertia&#xA;Includes tapered section effects if applicable</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-3396187871-NVQXI4TJPJSXGLSN)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-3396187871-NVQXI4TJPJSXGLSN">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(1831 252)" class="appendix-icon"><title>Stiffness matrix [8×8]&#xA;Bending + shear (if enabled)&#xA;Includes stress stiffening (if axial_force ≠ 0)</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-3396187871-NVQXI4TJPJSXGLSL)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-3396187871-NVQXI4TJPJSXGLSL">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(1956 252)" class="appendix-icon"><title>Damping matrix [8×8]&#xA;Proportional damping (Rayleigh)&#xA;or null matrix if not specified</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-3396187871-NVQXI4TJPJSXGLSD)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-3396187871-NVQXI4TJPJSXGLSD">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(2082 252)" class="appendix-icon"><title>Gyroscopic matrix [8×8]&#xA;Coupling between xz and yz planes&#xA;Proportional to rotational speed</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-3396187871-NVQXI4TJPJSXGLSH)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-3396187871-NVQXI4TJPJSXGLSH">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(2356 252)" class="appendix-icon"><title>ShaftElement(L, idl, odl, idr, odr, material, ...)&#xA;Specifies all parameters directly</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-3396187871-MNXW443UOJ2XI33SMVZS4ZDJOJSXI3Y)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-3396187871-MNXW443UOJ2XI33SMVZS4ZDJOJSXI3Y">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(2551 252)" class="appendix-icon"><title>Creates multiple ShaftElements from a&#xA;table (DataFrame) with the dimensions&#xA;of each shaft section. Useful for importing&#xA;geometries from spreadsheets or files.</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-3396187871-MNXW443UOJ2XI33SMVZS45DBMJSWYYI)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-3396187871-MNXW443UOJ2XI33SMVZS45DBMJSWYYI">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(390 252)" class="appendix-icon"><title>Constant cross-section along the length&#xA;idl = idr and odl = odr&#xA;Most common case for uniform shafts</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-3396187871-M5SW63LFORZGSYJOONSWG33FOMXGG2LMNFXGI4TJMNQQ)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-3396187871-M5SW63LFORZGSYJOONSWG33FOMXGG2LMNFXGI4TJMNQQ">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(554 252)" class="appendix-icon"><title>Variable cross-section along the length&#xA;idl ≠ idr or odl ≠ odr&#xA;For transitions and shaft shoulders</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-3396187871-M5SW63LFORZGSYJOONSWG33FOMXGG33ONFRWC)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-3396187871-M5SW63LFORZGSYJOONSWG33FOMXGG33ONFRWC">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><mask id="d2-3396187871" maskUnits="userSpaceOnUse" x="-91" y="-157" width="2789" height="652">
+<rect x="-91" y="-157" width="2789" height="652" fill="white"></rect>
+
+</mask></svg></svg>

@@ -137,3 +137,4 @@ pip-selfcheck.json
 /docs/references/generated/
 /.claude
 .mcp.json
+uv.lock
