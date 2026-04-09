@@ -603,7 +603,7 @@ class GearElementTVMS(GearElement):
             material=material,
             width=width,
             bore_diameter=i_d,
-            module=module,  
+            module=module,
             n_teeth=n_teeth,
             pr_angle=pr_angle,
             helix_angle=helix_angle,
