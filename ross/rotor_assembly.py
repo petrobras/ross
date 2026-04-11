@@ -567,8 +567,8 @@ class Rotor(object):
         self.G0 = G0
         self.Ksdt0 = Ksdt0
 
-        # calculation of overall rotor transverse (diametral) inertia. (includes only shaft element DOF, excludes point mass DOF)
-        # This is only calculating Iyy. assuming Ixx is the same.
+        # Calculation of overall rotor transverse (diametral) inertia (includes only DOFs located at the shaft element DOF, excludes point masses that are outside the shaft).
+        # This is only calculating Iyy. Assuming Ixx is the same.
         # First, set up a vector corresponding to rigid body rotation of the entire rotor
         v = np.zeros([self.ndof])
         for i, elm in enumerate(self.shaft_elements):
