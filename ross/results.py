@@ -5,6 +5,7 @@ This module returns graphs for each type of analyses in rotor_assembly.py.
 
 import copy
 import inspect
+import types
 from abc import ABC
 from collections.abc import Iterable
 from warnings import warn
@@ -2295,8 +2296,10 @@ class CampbellResults(Results):
         self.whirl_values = whirl_values
         self.modal_results = modal_results
         self.number_dof = number_dof
-        self.run_modal = run_modal
+        self.run_modal = types.MethodType(run_modal, self)
         self.campbell_torsional = campbell_torsional
+
+
 
     def sort_by_mode_type(self):
         """Sort by mode type.
