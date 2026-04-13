@@ -6,7 +6,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from methodtools import lru_cache
+from methodtools import lru_cache, _LruCacheWire
 from plotly import express as px
 from plotly import graph_objects as go
 from scipy import io as sio
@@ -4572,6 +4572,13 @@ class Rotor(object):
             rated_w=rated_w,
             tag=tag,
         )
+
+    def _unwrap_cached_methods(self):
+        """Unwrap lru_cache wrapped methods to make the rotor picklable and copyable."""
+        cached = [k for k, v in self.__dict__.items() if isinstance(v, _LruCacheWire)]
+
+        for key in cached:
+            setattr(self, key, getattr(self, key).__wrapped__)
 
     @classmethod
     def to_ross_only(cls, rotor):
