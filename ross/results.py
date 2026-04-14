@@ -5290,13 +5290,14 @@ class SummaryResults(Results):
         The figure object with the tables plot.
     """
 
-    def __init__(self, df_shaft, df_disks, df_bearings, brg_forces, CG, Ip, tag):
+    def __init__(self, df_shaft, df_disks, df_bearings, brg_forces, CG, Ip, It, tag):
         self.df_shaft = df_shaft
         self.df_disks = df_disks
         self.df_bearings = df_bearings
         self.brg_forces = brg_forces
         self.CG = CG
         self.Ip = Ip
+        self.It = It
         self.tag = tag
 
     def plot(self):
@@ -5334,6 +5335,7 @@ class SummaryResults(Results):
             "Total lenght": [self.df_shaft["nodes_pos_r"].iloc[-1]],
             "CG": ["{:.3f}".format(self.CG)],
             "Ip": ["{:.3e}".format(self.Ip)],
+            "It": ["{:.3e}".format(self.It)],
             "Rotor Mass": [
                 "{:.3f}".format(np.sum(self.df_shaft["m"]) + np.sum(self.df_disks["m"]))
             ],
