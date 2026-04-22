@@ -4,7 +4,8 @@
 :maxdepth: 1
 :caption: Tutorials
 tutorial_part_1_1
-tutorial_part_1_2
+<!-- tutorial_part_1_2 -->
+tutorial_seal
 tutorial_part_2_1
 tutorial_part_2_2
 tutorial_part_3
