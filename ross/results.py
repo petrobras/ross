@@ -7623,3 +7623,138 @@ class SensitivityResults(Results):
         loaded_result.sensitivity_run_time_results = sensitivity_run_time_results
 
         return loaded_result
+
+
+class ClearanceResults:
+    """
+    Results for clearance analysis.
+
+    This class stores vibration amplitudes at bearing locations and compares
+    them with bearing radial clearance limits.
+
+    Attributes
+    ----------
+    speed_rpm : float
+        Rotor speed in RPM.
+    bearing_nodes : list
+        List of bearing node numbers.
+    magnitudes : ndarray
+        Peak-to-peak vibration amplitudes (microns).
+    clearance : ndarray
+        Radial clearance (microns).
+    clearance_75 : ndarray
+        75% of radial clearance (microns).
+    """
+
+    def __init__(self, speed_rpm, bearing_nodes, magnitudes, clearance, clearance_75):
+        self.speed_rpm = speed_rpm
+        self.bearing_nodes = bearing_nodes
+        self.magnitudes = magnitudes
+        self.clearance = clearance
+        self.clearance_75 = clearance_75
+
+    def __getitem__(self, key):
+        """Enable dict-like access for backward compatibility."""
+        mapping = {
+            "speed_rpm": self.speed_rpm,
+            "bearing_nodes": self.bearing_nodes,
+            "magnitudes": self.magnitudes,
+            "clearance": self.clearance,
+            "clearance_75": self.clearance_75,
+        }
+        return mapping[key]
+
+    def plot(self, fig=None, **kwargs):
+        """
+        Plot vibration response against clearance limits.
+
+        Parameters
+        ----------
+        fig : plotly.graph_objects.Figure, optional
+            Existing figure to add traces to.
+        **kwargs : optional
+            Additional layout arguments.
+
+        Returns
+        -------
+        fig : plotly.graph_objects.Figure
+        """
+        import numpy as np
+        import plotly.graph_objects as go
+
+        if fig is None:
+            fig = go.Figure()
+
+        spacing = 4
+        x_positions = [i * spacing for i in range(len(self.bearing_nodes))]
+        x_labels = [str(n) for n in self.bearing_nodes]
+
+        # --- Background: Clearance 100%
+        fig.add_trace(
+            go.Bar(
+                x=x_positions,
+                y=self.clearance,
+                name="Radial Clearance Limit (100%)",
+                marker_color="red",
+                width=0.2,
+                hovertemplate="Clearance: %{y:.1f} µm<extra></extra>",
+                showlegend=True,
+                marker={"line": {"width": 0}},
+            )
+        )
+
+        # --- Background: Clearance 75%
+        fig.add_trace(
+            go.Bar(
+                x=x_positions,
+                y=self.clearance_75,
+                name="Alert Level (75%)",
+                marker_color="blue",
+                width=0.2,
+                hovertemplate="75% Limit: %{y:.1f} µm<extra></extra>",
+                showlegend=True,
+                marker={"line": {"width": 0}},
+            )
+        )
+
+        # --- Percentual
+        per_clr = self.clearance / self.magnitudes
+        per_clr_75 = self.clearance_75 / self.magnitudes
+
+        # --- Vibration response
+        fig.add_trace(
+            go.Scatter(
+                x=x_positions,
+                y=self.magnitudes,
+                mode="lines+markers+text",
+                text=[
+                    f"{c75:.1f}%<br>{c100:.1f}%"
+                    for c75, c100 in zip(per_clr_75, per_clr)
+                ],
+                textposition="top left",
+                name=f"Vibration ({self.speed_rpm:.1f} RPM)",
+                line={"shape": "spline", "color": "purple", "width": 3},
+                marker={"size": 6},
+                hovertemplate="Amplitude: %{y:.2f} µm pkpk<extra></extra>",
+            )
+        )
+
+        fig.update_layout(
+            title="Vibration Response vs Bearing Clearance",
+            xaxis_title="Station (Node)",
+            yaxis_title="Amplitude / Clearance [µm]",
+            barmode="overlay",
+            hovermode="x unified",
+            plot_bgcolor="white",
+            legend={"orientation": "h", "y": 1.05},
+            xaxis=dict(
+                tickmode="array",
+                tickvals=x_positions,
+                ticktext=x_labels,
+                type="category",
+            ),
+            yaxis=dict(showgrid=True, gridcolor="lightgray"),
+            **kwargs,
+        )
+
+        return fig
