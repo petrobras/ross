@@ -4660,12 +4660,13 @@ class Rotor(object):
         Parameters
         ----------
         speed : float, pint.Quantity
-            Rotor speed.
+            Rotor speed. A scalar value is expected. Arrays with a single
+            value are also accepted.
 
         Returns
         -------
-        results : dict
-            Dictionary containing:
+        results : ross.ClearanceResults
+            Results object containing:
                 - speed_rpm : float
                 - bearing_nodes : list
                 - magnitudes : ndarray
@@ -4683,6 +4684,18 @@ class Rotor(object):
         >>> result["magnitudes"]
         array([...])
         """
+
+        # Normalize speed to a scalar in rad/s.
+        speed = np.asarray(speed)
+        if speed.ndim == 0:
+            speed = float(speed)
+        elif speed.size == 1:
+            speed = float(speed.reshape(-1)[0])
+        else:
+            raise ValueError(
+                "'speed' must be a scalar (or an array with a single value) for "
+                "run_clearance_analysis."
+            )
 
         # Convert speed to rpm
         speed_rpm = Q_(speed, "rad/s").to("RPM").m
