@@ -46,6 +46,7 @@ from ross.results import (
     SummaryResults,
     TimeResponseResults,
     UCSResults,
+    ClearanceResults,
 )
 from ross.seals.labyrinth_seal import LabyrinthSeal
 from ross.shaft_element import ShaftElement
@@ -4639,6 +4640,127 @@ class Rotor(object):
             max_w=rotor.max_w,
             rated_w=rotor.rated_w,
             tag=rotor.tag,
+        )
+
+    @check_units
+    def run_clearance_analysis(self, speed):
+        """
+        Perform clearance analysis using unbalance response.
+
+        This method evaluates the vibration amplitude at bearing locations
+        and compares it with the available radial clearance.
+
+        The procedure involves:
+            - Modal analysis to identify forward whirl mode
+            - Selection of node with maximum modal displacement
+            - Unbalance response calculation
+            - Extraction of vibration amplitudes at bearings
+            - Comparison with clearance limits (100% and 75%)
+
+        Parameters
+        ----------
+        speed : float, pint.Quantity
+            Rotor speed.
+
+        Returns
+        -------
+        results : dict
+            Dictionary containing:
+                - speed_rpm : float
+                - bearing_nodes : list
+                - magnitudes : ndarray
+                    Peak-to-peak vibration amplitude (microns)
+                - clearance : ndarray
+                    Radial clearance (microns)
+                - clearance_75 : ndarray
+                    75% of radial clearance (microns)
+
+        Examples
+        --------
+        >>> import ross as rs
+        >>> rotor = rs.rotor_example()
+        >>> result = rotor.run_clearance_analysis(speed=3600)
+        >>> result["magnitudes"]
+        array([...])
+        """
+
+        # Convert speed to rpm
+        speed_rpm = Q_(speed, "rad/s").to("RPM").m
+
+        # --- Residual unbalance estimation ---
+        if speed_rpm < 25000:
+            residual_unbalance = 6350 * (self.m / speed_rpm)
+        else:
+            residual_unbalance = 6350 * (self.m / 3.937)
+
+        # --- Modal analysis ---
+        modal = self.run_modal(speed=speed)
+        whirl = modal.whirl_direction()
+
+        forward_modes = [i for i, d in enumerate(whirl) if d == "Forward"]
+
+        if len(forward_modes) == 0:
+            raise ValueError("No forward modes found for this rotor.")
+
+        first_forward_mode = forward_modes[0]
+
+        shape = modal.shapes[first_forward_mode]
+
+        node_max = np.argmax(shape.major_axis) // int(
+            len(shape.major_axis) / len(shape.shaft_elements_length)
+        )
+
+        # --- Unbalance response ---
+        # run_unbalance_response expects a frequency array, not a scalar.
+        response = self.run_unbalance_response(
+            node_max,
+            Q_(residual_unbalance, "g*mm"),
+            0,
+            np.asarray([speed]),
+        )
+
+        # --- Bearing nodes ---
+        bearing_nodes = [(b.n, 0) for b in self.bearing_elements]
+
+        df = response.data_magnitude(
+            probe=bearing_nodes,
+            amplitude_units="um pkpk",
+        )
+
+        magnitudes = df.loc[0, df.columns != "frequency"].to_numpy(copy=True)
+
+        # --- Correction factor ---
+        A1 = 25.4 * np.sqrt(12000 / speed_rpm)
+        A4x = max(magnitudes)
+
+        CF = A1 / A4x
+        magnitudes *= CF
+
+        # --- Clearance extraction ---
+        clearance = []
+        clearance_75 = []
+
+        for b in self.bearing_elements:
+            if hasattr(b, "radial_clearance"):
+                clr = Q_(b.radial_clearance, "m").to("micron").m
+
+                if isinstance(clr, np.ndarray):
+                    clr_val = max(clr)
+                else:
+                    clr_val = clr
+
+                clearance.append(clr_val)
+                clearance_75.append(0.75 * clr_val)
+            else:
+                clearance.append(np.nan)
+                clearance_75.append(np.nan)
+
+        return ClearanceResults(
+            speed_rpm=speed_rpm,
+            bearing_nodes=[b.n for b in self.bearing_elements],
+            magnitudes=magnitudes,
+            clearance=np.array(clearance),
+            clearance_75=np.array(clearance_75),
         )
 
 
