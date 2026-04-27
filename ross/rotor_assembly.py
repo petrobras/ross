@@ -1399,10 +1399,10 @@ class Rotor(object):
         """
         # avoid float point errors when sorting
         evals_truncated = np.around(eigenvalues, decimals=10)
-        
+
         wd = np.imag(evals_truncated)
         wn = np.absolute(evals_truncated)
-        
+
         sign = np.zeros_like(wd)
         sign[wd == 0] = 1
         sign[wd < 0] = 2

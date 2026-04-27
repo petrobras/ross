@@ -47,6 +47,7 @@ __all__ = [
 NUM_POINTS = 360
 CIRCLE = np.exp(1j * np.linspace(0, 2 * np.pi, NUM_POINTS, endpoint=False))
 
+
 class Results(ABC):
     """Results class.
 
@@ -343,6 +344,7 @@ class Orbit(Results):
         )
 
         return fig
+
 
 @njit
 def _init_orbit(ru_e, rv_e):
