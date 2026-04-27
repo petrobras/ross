@@ -1,0 +1,559 @@
+<?xml version="1.0" encoding="utf-8"?><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" data-d2-version="v0.7.1" preserveAspectRatio="xMinYMin meet" viewBox="0 0 6566 868"><svg class="d2-2247275507 d2-svg" width="6566" height="868" viewBox="-101 -157 6566 868"><rect x="-101.000000" y="-157.000000" width="6566.000000" height="868.000000" rx="0.000000" fill="#FFFFFF" class=" fill-N7" stroke-width="0" /><style type="text/css"><![CDATA[
+.d2-2247275507 .text {
+	font-family: "d2-2247275507-font-regular";
+}
+@font-face {
+	font-family: d2-2247275507-font-regular;
+	src: url("data:application/font-woff;base64,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");
+}
+.appendix-icon {
+	filter: drop-shadow(0px 0px 32px rgba(31, 36, 58, 0.1));
+}
+.d2-2247275507 .text-bold {
+	font-family: "d2-2247275507-font-bold";
+}
+@font-face {
+	font-family: d2-2247275507-font-bold;
+	src: url("data:application/font-woff;base64,d09GRgABAAAAABj0AAoAAAAAJQgAAguFAAAAAAAAAAAAAAAAAAAAAAAAAABPUy8yAAAA9AAAAGAAAABgXxHXrmNtYXAAAAFUAAABCwAAAYwwnTOeZ2x5ZgAAAmAAABEKAAAXnMrKkvJoZWFkAAATbAAAADYAAAA2G38e1GhoZWEAABOkAAAAJAAAACQKfwYWaG10eAAAE8gAAAETAAABXKrBDl5sb2NhAAAU3AAAALAAAACwFkUcYG1heHAAABWMAAAAIAAAACAAbwD3bmFtZQAAFawAAAMoAAAIKgjwVkFwb3N0AAAY1AAAAB0AAAAg/9EAMgADAioCvAAFAAACigJYAAAASwKKAlgAAAFeADIBKQAAAgsHAwMEAwICBGAAAvcAAAADAAAAAAAAAABBREJPACAAIP//Au7/BgAAA9gBESAAAZ8AAAAAAfAClAAAACAAA3iclNC7TpNxGMfxz+vbeqy21mq1Wn3rsZ6r1nOr1nOtyshACGHkAhgICyMbCQvXwMpCGEhgZGJkg8AE99DkT9J0oRvP/km+zw+RWISMVDSDukRKQeKhRx574qlnnnvvg4amtmEjRo2ZsmTFVrwYbyTTlfkQkKgeUbW+aun01figCrtKyhJ5l2QVxdLycmE9rIWDsB/2wnJYCHNhsjvbndjZ3F7t9R7/Il9980vHJ180/fRK3WtvvPWu999HDZ/9988JsZS0k0457Yyzzsk474KsnIu91oLLrij67oeWq64pue6GsptuSVTcdsdd99z3QHVgz5q23/564aU/hjgEAAD//wEAAP//tiY8bQB4nIR4e3Ab13X+uRcglgTBBwgsXsR7iV0AJEECiwX4Bh8g+BAAvsSXxJc5elAiRTEyZVI2Zec3lq1EgSzFVGQ6yi92VHuapnYqV+2MklZp68lLE3XSqeKq00lk5TGqE7cykzJpYpOLzu4CJKV0pn8Qq1ndvfe73znfd869kAO9AHgaXwIZ5EERlAAJwKodahfLMBQRZsNhSi8LM0hN9OIS/s03GI/c45F77Wu2pycnUWICX9qa25+Ynv7dZH09/+VvfJM/j578JgBOfwyA23AK8kANoCFYhqYZSqGQaVgNxVDEg+LPFRWUFshVxo9vv3P7S+7vuVF3Q4N/ng0e41/Aqa3FK1cAAGSQAMANOAVqMIFTwMYGdDpSqyBI8aGgZGwgxAVpilKzAfGZeD8611zpDrRFT3RMtof8gWBs4FRD4wBOWWKR8oEiecGelra9HnTWS9F2fmSk3AWAwJfewNV4DUoBcpw0zQVDITag0xM0TTkVClKrYwOhsF6BxvvPDQye748ccCSNYaqiq3yo0x0xJPtV8S8cm3u1j3VO6C2BidYDC2XGsSnAIv44ToFSYjaDXkExbCAk4BYA3zjwcl/vhalKc82AzzdQY8ap6IWFhZc7ltxjyeSoCwR8CQD0EU5Bvhgf0kGyJEU6yARa4z+5dw8V4dTK889cXtke+4HI/a6xCXSF//3PfoZTK6+sbAFk9xzFa2D73/ac2TJHcaxaoUDHRj8/OHxxuOOQPWGs8canxvZradXcQ+enMhsPOiZ01oXpAwtK5cIy/yOHT8KBB7OYWZLlWDWlptSJ1Z9euvRTnPrkk61FVMyvZzHDfZwCmThWnVgVkiAzxxxOgUp6z2pYmYaSEWRiVf7u1e/88iuvxXGK/y3K5zf5ZaQ58BfZ/f8MpyBH+sZBJlYRxqmt9RXIroXfxilh38KMOp2eDYXCGlZNCRSEKYKgGIayYpJMfOWIskQpV6qVh19/kciTybnxvvGgXJ5L4BR/z9xktTaZkXNr8SN7T6/tyh/+cMXW22P/KLuGEHeNtIaepWlO2L+MoXQ6kky88rVmubwwJTxyCnCK/9uLwU/XPdhaRO0vhVbq/h0AsBifZ/EaFD2WlWIGMVLai4FCQyMv7Nnzwoj025ZMtrUlk6r+V4/OfqGn5/LRo6/2P7c4PT0/Pz29CJmcrBY51T6SkxS5raH7nSdjscX2vs7l5oYoTjFjPfHpqp+g/hnWCxls3fh1vAb5QAO4dmNx0swjSAldRjsKNJSBhkyHL1IzpyXEC5P6Hg/pKjSV1M+dnBFQzpzk7x2M675+ToL//J+XOq2EfDavIIN9AKegEPS73UAwFQG9ZAWJD9tPRCPcpTdP98XrGhvr4jjlGkl2juv5Tz78EE35q6tpIUZUegMr8Rp4RXaZsAiUC9IM48N/JAa9XmIJaZufC+ylhty+SrZ80NFA1x+J1ix499ibGbqy1ru3PlY3r6r2HbTSTovNUlJWWBWrCo0EK7zjxlKb2WpVOw1720NjNYDACIA1OAWEsBOKc5CU+vZ19PF1XLyysrUu5WpXegP3iP4nYOTUrFrUpfgPBUo+9+KlunC44aXnVZffQBP86lQ8PoWO8VffuAwo/QcAzOIUFACwsl15LvvWd76ULNIXyQsNhYnL38Yp/p+4Q6HQIQ5Vi5orBJDZcQocj323awZKJvk5ITt76pVKRaFCrtQoY6djSo1SThQQlecXv9GcW5AjVxTkNuIU/0P2cDB4mEV+/of+GY47HED+rUXkphNlZQma/1fA4E1voB+hTTACBaB3CgkUFqknGDEQpJoS1gsLliT68beivWdWMeWxNZdxVbN1k4eWlXJbR67RpUk22FTDkeRIkYMxkE9YyuZP8L9gzdQJvWZYWW4x6MX8bUlvYB2+CdqM+zEUQalZknhMYJRTKDSo3dFmkaueXJVbos6GkaqGyRE6NFTh0bpVDjuHb74VN1maPhUfPBVZjsVfrPxBSaEYu7L0BrqJNsH0uL/u2KugCmP78ZbOp6K+DnM7ZecikWqDT1PnGlI1nuwfWGy06ict8ZbmBFk0ZS+VtMekN9AmvgkasGe5EidmBIPZZimbuL8ZO14/GfTUGBWry0q5KYYNTImmXEuFqlSfO9V3sslsiP/ZVpvfRC1rjT8oKWzr6GoHLGL/KdoEw2PVQVSbQ1CKgF3GirJHto4TrW1z9R3jVXLM31XG/FzIT0988TpT4Qypmhb7+xYjkdmoxpUXYh2jJiuq83BVUn4bANAiviU8BQ2EH9OdULrU+1pby3rbbMHi0gKTqtQ6OopOH8sp5YaCKsVcTo6Dtj7JPy/0Cs50JSbQJlRBPXSLzNBcUCBCSCYuuwU9S1IZw3MyYhyE9NIqFLJdLqbJOImTFof8pm6ipkNTajeYPHUTXIXjr3uIvOBI2GIrcXp6x56IrnRbGMZiYRhPoJlxsUaHqrTxjqmmosEtL3DbSgPF8pJoeUOPWzWb79TWdpcpi3Sakvo2ts+Hbnk9jMft9nj51TKjvlgmMxjNFombFiHYYo6K9ZPICkEtoiTULauEeU+gr2vVYje7DfjmW6PG8tlx/jZyhNxGPf8OpNMQBoCf4DuYFjo9IKAPzgGk0+l/TDfA++L7/sz71PaaVnxzu96GWcFbCbLlgvz/v/71v3ltIYJv8vPfuc3/+B86nhbGpzdQCb4JRVImZv1JSI7vx+tX1Xk5hKJE5VLt34Oprbv6EoSO5RDSOjIL2hQ9Rs0KtiJE/ZEdEtvPFkHbMT/XonF0+3v3rFrsrmrhpwqtN9sqy91Of3bb1fw7mUeWP7SZ4S+zxm7+lpVye2KbQLQesVY+wp+kAzGn/u8arIscj0aPRyLz0eh8pNLnq/RVVmY03Lg40H+ycSnR3BIXpCz5TyfWoU3QgBVAv4NOTEua0ZOaHfsRcFq6mH0zDZMhe4Mpp4cODZV7te4b+Kt+E/XZJweXI6XGns+jsm3zETyiE22K89sBcriwOG1WXGyYVct2ewQ6ojC2OiWjaBKc7hfbJnHjlbjBJhqFxe7fGkFlOy6RyRd0AW1CySNxlNQrMVwap0mz0lBgLDY3atH6cMCfk/OcXO4J8PcBAZneQK+hTWDE/NmpwbRUg7cnEyqwFZNaxR3/YbrVGbE5rBafyVrvPjJYO2xrNQVNtbW0vdEzo6JtY8ZSvUat0yhVZbWe9iHGMKLVMQZjYT5V62sbl7SlTm+gebwodBFCXeUoLhxmxUZ5x5hhrCcaVz+9tERZVEalXhNWHR26dUxx5syT3/O6FPJZhUqaqyG9gX6P1oU8e0QD6owd/0tf16rVbqZ1q8v5Mlu3anYcBfn3OY/Jgjr54nZXBSBBbyiN1jO1Wp+ptGFWdv1PLzULVTVPo2w5fxWt/8qVYJiE61d8cdY/8Tpaz9Tqne92zUBlzl4EcWnl5WqFUiEnCvLCz9XkFRFyIo+o+szSW5VEASEn8okKtP7A1UnT3dQD8dnpesAXf5eKud0x6rvieoUAaAOtC70Lq2F2LUPod9YpXLvw5QqlTinPLcl1rl189cvVKr1KnqfNYxB+2EuWk2Q52Zv+dT9ZQZLlun5hXlW6CW2hdUFlO3kQDj9CRSFe1jmKTERJrsutJP7uUkd+iVKeq85rOP+WvqbnXYV8AeWUWUzo5+85Yy6qg3qPz28a9EoxqgDAV/AauABYjuW2GzxRcQTJkg4utCNmPVkxT1ZYul8YHX2h21qum+d/G2AT0WgiEFiS69r3hfZ/Npn87P7QvnadfOlo1Yn44LFjg/ETVUfFtdzpDfwu2gTfdnUW0klMLKG7ZLPnSTHNwyIEQfOUQvGr0SNaSnfOxdhsLUTOlRzCajU7VaXGs07vE2MVPVq5tlP1mf/n2T9CBRvmm4It485QeXnIGfR0Rt2tbYw/dCrx6ZQ3GPSKfYIrvYE+xGchP+Ndkp5IreBb0tlTOtrqUO6h06cPCX9Gt17vNhrcBoNb9bWrV9988+rVr51wTQwPjzmdY8PDE+JZOQaA/g0/I9YIoeXgQqGwUKBi55aCnc65pSV0fL/SrN3aXJK4twKgX+CzYBbGN2GJ5UxfJ/EfCrEs6eo7HfN7nGFDb9V0NDLB1Y8FDQ26T+9NnD5SWeVnTD0BNrC/kTt+PCTLWRHm1aU30Pv4LHge9w6KyxpztnvcuTD4r8QxKmqJuatqzN3tQ81u2hm2dldM102fCrPhjpZZVcA9bi5jyswe3UwV7XBZTfvo8v0D/phOXpxoqh8ol3owDQD6PX4G8gTVa1ihwxBSX8M5OI3ABUW+/mIOkqtMhQH+Pz/4q64ulHvY1mc1hUr5+bWD6Fn+/MKasAd9egPdx88IXdYjexCxaxwkRWyz9N/JObrVEnX762oqzC5Lawma+WW+gw7vr2k5qgq6xk2ugL86UFjiRS0rS0Xe4WjsQFDE6klvoP8Q88ANgJyZExkXpGV/fNNBbJchpDGyWmWNw1FVZW2cb+862RYZsyaKw2aqjpIZuyz9s3WTyGVx7qn1hwJe/octnzu+tNZVaRspKXUNd9upyYOtk8Gs9tAD/IzobU047OAcZKGMeE3hjDXwP0ffDLe5iuVHv/rFgZV9bU89c3FcvPcRzgMfiDnDQHC78u50cbtDKnu8b6MZMa8RETlQF6l0VQfH6oePBhy+5pqDZsZTZvE2qFzVzgY3aa5TVfSwdd0GubkzEOrxTvb4OnRyYzIS6PWhZyurXZVlLqaCf49xm10WtYazeKsAgzO9gR6IfHoANJLXi+xptiMYkgruI93CV6vLjKxGGXbaqxsj49ZkcchcVluGjV2W0GCgbqq2SSAZ/WXAK3LKq3xWiUpbmXe4rXWKbTm38NSrXYCgMb0BH8HbkJ/1F4mOyzTL0jTLqjjGzXFuhpPueJoQwNtCfdYzoRDjdFK7Polba+oQlmMqFKIDwbF3k9oWV7mb9nW39C+D0CdKa6FfYwYaAVAUFMITEJTDLeRAfpABhDmWLP/drZkZyccX0Qfp7wnv9ZyDVKEfpwYGAEFnOoHc+H0hB/RSKCVL1N+OtLdHxsKBQPj64Xtnztw7TD9xd/bo3WlAUJ1OoOLMN4zoWBm3TI3VBAI1Y5H29uv09N2js3efoMVvAcFwegZ58beFM7VekKGaJYfvHDy4JhtLbjUns/deMwhlxoj+xap9hw7dWUviv09uviGNKUhPoRD+rrgPDSsruDV163XZoc0vCv9Ho3H0J/j7Qi3UMGEmrA+z+rCe0BPMpcb6Of1iQaLgScNcfWMvGq+Y8XcanloydvpnKkYFPuNoCZXgLUzAAABaEjkuRUsoKcvDBOzdfmfCJJrERzABgwCYEzE5YQI9xCEh7uK9HCc1LP987drctWsTN2Zu3Ji5IYyrhgV0H1PiOAmfCO5U10svdV24IP4udF+42H3xYvfFC90XxfWccBU9RL/BNAzBIihgKHMecMIMeoirIQ/A5eJcJEGQej16yAfR7Wtnz16beefQO6fqquRVdWLd+wgP4DxhbA4jyJwJIxI1xi7zV9DByzGkU/ecWTzTw/9Wvn2+gR+h9eydX8sqWueLAaXfxrUwgO8I+NW7ktXl87lcPh+u9VKUV/gTWibhHPMeWofiR/xTvB1RlNk8RSalRmnRr9oT385VzMnkjAf9mteE9oWF9eMAqAS9CLnS2VOsYm+OenzGIWRsVWjV/NMSzlIAlEQvize4210CwWRdiCUr90xZSzWUurFhtKUn4nmqrmnSZbEbdTW97ZGqYd8+QGBK30eTEMzqwoTa7Xv3CvwiHXqInhXeazgH6US3kU5QEvwPAAAA//8BAAD//5iyEo4AAAABAAAAAguFEDswh18PPPUAAQPoAAAAANhdoIQAAAAA3WYvNv43/sQIbQPxAAEAAwACAAAAAAAAAAEAAAPY/u8AAAiY/jf+NwhtAAEAAAAAAAAAAAAAAAAAAABXeJxcz7FKI1EchfHvfwJhl53N3sUYo0KKOGpMJkM6BTPFbYJCLggqjoWlgm8QEPQN7NNaa2PrA6iFlW9hbWOakYRUVr/mfMXRIwe8gLJiojOCBqS6IigmKCLomlR3BOsSdEFQmaAJQWOC7kl1NPecoIQ1JSxrzL6S4qvUpaJ/tJXh7Z1YGZsqE9sxddVoahdvVbatVrwpxlsDXzrFq49XZ7b308Zu8fbEot3wXzv09Yeo9Iu6REW/ifRMog9acqzLMZCjIUdNjgU5luTYkiORoy1H0xIyS0hnDunYJ5Hl7FlOz3JOLCe1Q/7aKxs2YmgjVm3EyrSVoze3qUtaVsVD8TD98HP7DQAA//8BAAD//xi3MqcAAAAALAAsAFAAhACwANQA6gD+AS4BRAFQAWoBegGsAc4B+gIcAlgCfgK+AtAC7gMKA0QDfAOuA9oEDARABGYEzgTwBPwFCAUgBTwFbgWQBbwF7AYgBkAGfAaiBsQG4AcYB0QHdAeqB+4IGggyCF4InAjACPIJMglMCZoJ2gnwChAKHAooCjQKTgpoCnoKjAqaCrgKwgrMCtYK6gsECxALJgs+C0oLYAt+C5ILtAvAC84AAQAAAFcAkAAMAGMABwABAAAAAAAAAAAAAAAAAAQAA3icnJTPbhtVFMZ/TmzTCsECRVW6ie6CRZHo2FRJ1TYrh9SKRRQHjwtCQkgTz/iPMp4ZeSYO4QlY8xa8RVc8BM+BWKP5fOzYBdEmipJ8d+75851zvnOBHf5mm0r1IfBHPTFcYa9+bniLB/UTw9u061uGqzyp/Wm4RlibG67zea1n+CPeVn8z/ID96k+GH7JbbRv+mGfVHcOfbDv+Mvwp+7xd4Aq84FfDFXbJDG+xw4+Gt3mExaxUeUTTcI3P2DNcZw/oM6EgZkLCCMeQCSOumBGR4xMxY8KQiBBHhxYxhb4mBEKO0X9+DfApmBEo4pgCR4xPTEDO2CL+Iq+Uc2Uc6jSzuxYFYwIu5HFJQIIjZURKQsSl4hQUZLyiQYOcgfhmFOR45EyI8UiZMaJBlzan9BkzIcfRVqSSmU/KkIJrAuV3ZlF2ZkBEQm6srkgIxdOJXyTvDqc4umSyXY98uhHhSxzfybvklsr2Kzz9ujVmm3mXbALm6mesrsS6udYEx7ot87b4VrjgFe5e/dlk8v4ehfpfKPIFV5p/qEklYpLg3C4tfCnId49xHOncwVdHvqdDnxO6vKGvc4sePVqc0afDa/l26eH4mi5nHMujI7y4a0sxZ/yA4xs6siljR9afxcQifiYzdefiOFMdUzL1vGTuqdZIFd59wuUOpRvqyOUz0B6Vlk7zS7RnASNTRSaGU/VyqY3c+heaIqaqpZzt7X25DXPbveUW35Bqh0u1LjiVk1swet9UvXc0c60fj4CQlAtZDEiZ0qDgRrzPCbgixnGs7p1oSwpaK58yz41UEjEVgw6J4szI9Dcw3fjGfbChe2dvSSj/kunlqqr7ZHHq1e2M3qh7yzvfuhytTaBhU03X1DQQ18S0H2mn1vn78s31uqU85YiUmPBfL8AzPJrsc8AhY2UY6GZur0NTL0STlxyq+ksiWQ2l58giHODxnAMOeMnzd/q4ZOKMi1txWc/d4pgjuhx+UBUL+y5HvF59+/+sv4tpU7U4nq5OL+49xSd3UOsX2rPb97KniZWTmFu02604I2BacnG76zW5x3j/AAAA//8BAAD///S3T1F4nGJgZgCD/+cYjBiwAAAAAAD//wEAAP//LwECAwAAAA==");
+}]]></style><style type="text/css"><![CDATA[.shape {
+  shape-rendering: geometricPrecision;
+  stroke-linejoin: round;
+}
+.connection {
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.blend {
+  mix-blend-mode: multiply;
+  opacity: 0.5;
+}
+
+		.d2-2247275507 .fill-N1{fill:#0A0F25;}
+		.d2-2247275507 .fill-N2{fill:#676C7E;}
+		.d2-2247275507 .fill-N3{fill:#9499AB;}
+		.d2-2247275507 .fill-N4{fill:#CFD2DD;}
+		.d2-2247275507 .fill-N5{fill:#DEE1EB;}
+		.d2-2247275507 .fill-N6{fill:#EEF1F8;}
+		.d2-2247275507 .fill-N7{fill:#FFFFFF;}
+		.d2-2247275507 .fill-B1{fill:#0D32B2;}
+		.d2-2247275507 .fill-B2{fill:#0D32B2;}
+		.d2-2247275507 .fill-B3{fill:#E3E9FD;}
+		.d2-2247275507 .fill-B4{fill:#E3E9FD;}
+		.d2-2247275507 .fill-B5{fill:#EDF0FD;}
+		.d2-2247275507 .fill-B6{fill:#F7F8FE;}
+		.d2-2247275507 .fill-AA2{fill:#4A6FF3;}
+		.d2-2247275507 .fill-AA4{fill:#EDF0FD;}
+		.d2-2247275507 .fill-AA5{fill:#F7F8FE;}
+		.d2-2247275507 .fill-AB4{fill:#EDF0FD;}
+		.d2-2247275507 .fill-AB5{fill:#F7F8FE;}
+		.d2-2247275507 .stroke-N1{stroke:#0A0F25;}
+		.d2-2247275507 .stroke-N2{stroke:#676C7E;}
+		.d2-2247275507 .stroke-N3{stroke:#9499AB;}
+		.d2-2247275507 .stroke-N4{stroke:#CFD2DD;}
+		.d2-2247275507 .stroke-N5{stroke:#DEE1EB;}
+		.d2-2247275507 .stroke-N6{stroke:#EEF1F8;}
+		.d2-2247275507 .stroke-N7{stroke:#FFFFFF;}
+		.d2-2247275507 .stroke-B1{stroke:#0D32B2;}
+		.d2-2247275507 .stroke-B2{stroke:#0D32B2;}
+		.d2-2247275507 .stroke-B3{stroke:#E3E9FD;}
+		.d2-2247275507 .stroke-B4{stroke:#E3E9FD;}
+		.d2-2247275507 .stroke-B5{stroke:#EDF0FD;}
+		.d2-2247275507 .stroke-B6{stroke:#F7F8FE;}
+		.d2-2247275507 .stroke-AA2{stroke:#4A6FF3;}
+		.d2-2247275507 .stroke-AA4{stroke:#EDF0FD;}
+		.d2-2247275507 .stroke-AA5{stroke:#F7F8FE;}
+		.d2-2247275507 .stroke-AB4{stroke:#EDF0FD;}
+		.d2-2247275507 .stroke-AB5{stroke:#F7F8FE;}
+		.d2-2247275507 .background-color-N1{background-color:#0A0F25;}
+		.d2-2247275507 .background-color-N2{background-color:#676C7E;}
+		.d2-2247275507 .background-color-N3{background-color:#9499AB;}
+		.d2-2247275507 .background-color-N4{background-color:#CFD2DD;}
+		.d2-2247275507 .background-color-N5{background-color:#DEE1EB;}
+		.d2-2247275507 .background-color-N6{background-color:#EEF1F8;}
+		.d2-2247275507 .background-color-N7{background-color:#FFFFFF;}
+		.d2-2247275507 .background-color-B1{background-color:#0D32B2;}
+		.d2-2247275507 .background-color-B2{background-color:#0D32B2;}
+		.d2-2247275507 .background-color-B3{background-color:#E3E9FD;}
+		.d2-2247275507 .background-color-B4{background-color:#E3E9FD;}
+		.d2-2247275507 .background-color-B5{background-color:#EDF0FD;}
+		.d2-2247275507 .background-color-B6{background-color:#F7F8FE;}
+		.d2-2247275507 .background-color-AA2{background-color:#4A6FF3;}
+		.d2-2247275507 .background-color-AA4{background-color:#EDF0FD;}
+		.d2-2247275507 .background-color-AA5{background-color:#F7F8FE;}
+		.d2-2247275507 .background-color-AB4{background-color:#EDF0FD;}
+		.d2-2247275507 .background-color-AB5{background-color:#F7F8FE;}
+		.d2-2247275507 .color-N1{color:#0A0F25;}
+		.d2-2247275507 .color-N2{color:#676C7E;}
+		.d2-2247275507 .color-N3{color:#9499AB;}
+		.d2-2247275507 .color-N4{color:#CFD2DD;}
+		.d2-2247275507 .color-N5{color:#DEE1EB;}
+		.d2-2247275507 .color-N6{color:#EEF1F8;}
+		.d2-2247275507 .color-N7{color:#FFFFFF;}
+		.d2-2247275507 .color-B1{color:#0D32B2;}
+		.d2-2247275507 .color-B2{color:#0D32B2;}
+		.d2-2247275507 .color-B3{color:#E3E9FD;}
+		.d2-2247275507 .color-B4{color:#E3E9FD;}
+		.d2-2247275507 .color-B5{color:#EDF0FD;}
+		.d2-2247275507 .color-B6{color:#F7F8FE;}
+		.d2-2247275507 .color-AA2{color:#4A6FF3;}
+		.d2-2247275507 .color-AA4{color:#EDF0FD;}
+		.d2-2247275507 .color-AA5{color:#F7F8FE;}
+		.d2-2247275507 .color-AB4{color:#EDF0FD;}
+		.d2-2247275507 .color-AB5{color:#F7F8FE;}.appendix text.text{fill:#0A0F25}.md{--color-fg-default:#0A0F25;--color-fg-muted:#676C7E;--color-fg-subtle:#9499AB;--color-canvas-default:#FFFFFF;--color-canvas-subtle:#EEF1F8;--color-border-default:#0D32B2;--color-border-muted:#0D32B2;--color-neutral-muted:#EEF1F8;--color-accent-fg:#0D32B2;--color-accent-emphasis:#0D32B2;--color-attention-subtle:#676C7E;--color-danger-fg:red;}.sketch-overlay-B1{fill:url(#streaks-darker-d2-2247275507);mix-blend-mode:lighten}.sketch-overlay-B2{fill:url(#streaks-darker-d2-2247275507);mix-blend-mode:lighten}.sketch-overlay-B3{fill:url(#streaks-bright-d2-2247275507);mix-blend-mode:darken}.sketch-overlay-B4{fill:url(#streaks-bright-d2-2247275507);mix-blend-mode:darken}.sketch-overlay-B5{fill:url(#streaks-bright-d2-2247275507);mix-blend-mode:darken}.sketch-overlay-B6{fill:url(#streaks-bright-d2-2247275507);mix-blend-mode:darken}.sketch-overlay-AA2{fill:url(#streaks-dark-d2-2247275507);mix-blend-mode:overlay}.sketch-overlay-AA4{fill:url(#streaks-bright-d2-2247275507);mix-blend-mode:darken}.sketch-overlay-AA5{fill:url(#streaks-bright-d2-2247275507);mix-blend-mode:darken}.sketch-overlay-AB4{fill:url(#streaks-bright-d2-2247275507);mix-blend-mode:darken}.sketch-overlay-AB5{fill:url(#streaks-bright-d2-2247275507);mix-blend-mode:darken}.sketch-overlay-N1{fill:url(#streaks-darker-d2-2247275507);mix-blend-mode:lighten}.sketch-overlay-N2{fill:url(#streaks-dark-d2-2247275507);mix-blend-mode:overlay}.sketch-overlay-N3{fill:url(#streaks-normal-d2-2247275507);mix-blend-mode:color-burn}.sketch-overlay-N4{fill:url(#streaks-normal-d2-2247275507);mix-blend-mode:color-burn}.sketch-overlay-N5{fill:url(#streaks-bright-d2-2247275507);mix-blend-mode:darken}.sketch-overlay-N6{fill:url(#streaks-bright-d2-2247275507);mix-blend-mode:darken}.sketch-overlay-N7{fill:url(#streaks-bright-d2-2247275507);mix-blend-mode:darken}.light-code{display: block}.dark-code{display: none}]]></style><g class="dGl0bGU="><g class="shape" ></g><text x="3182.000000" y="-28.000000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:28px">Available Analyses in ROSS</text></g><a href="./ross-overview.svg" xlink:href="./ross-overview.svg"><g class="QW5hbGlzZXM="><g class="shape" ><rect x="3358.000000" y="0.000000" width="180.000000" height="68.000000" rx="10.000000" stroke="#9673a6" fill="#f3e5f5" style="stroke-width:2;" /></g><text x="3448.000000" y="40.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:18px">Analyses</text><title>All analysis types available in ROSS.&#xA;Each analysis is called via Rotor.run_*()&#xA;and returns a specific results object.</title></g></a><g class="ZXN0YXRpY2E="><g class="shape" ><rect x="0.000000" y="188.000000" width="1128.000000" height="422.000000" rx="10.000000" stroke="#9673a6" fill="#e1d5e7" style="stroke-width:2;" /></g><text x="564.000000" y="175.000000" fill="#0A0F25" class="text fill-N1" style="text-anchor:middle;font-size:28px">run_static()</text></g><g class="bW9kYWw="><g class="shape" ><rect x="1148.000000" y="188.000000" width="681.000000" height="422.000000" rx="10.000000" stroke="#9673a6" fill="#e1d5e7" style="stroke-width:2;" /></g><text x="1488.500000" y="175.000000" fill="#0A0F25" class="text fill-N1" style="text-anchor:middle;font-size:28px">run_modal()</text></g><g class="Y2FtcGJlbGw="><g class="shape" ><rect x="1849.000000" y="188.000000" width="519.000000" height="422.000000" rx="10.000000" stroke="#9673a6" fill="#e1d5e7" style="stroke-width:2;" /></g><text x="2108.500000" y="175.000000" fill="#0A0F25" class="text fill-N1" style="text-anchor:middle;font-size:28px">run_campbell()</text></g><g class="ZnJlcXVlbmNpYQ=="><g class="shape" ><rect x="3454.000000" y="188.000000" width="716.000000" height="422.000000" rx="10.000000" stroke="#9673a6" fill="#e1d5e7" style="stroke-width:2;" /></g><text x="3812.000000" y="175.000000" fill="#0A0F25" class="text fill-N1" style="text-anchor:middle;font-size:28px">run_freq_response()</text></g><g class="dW5iYWxhbmNl"><g class="shape" ><rect x="4190.000000" y="188.000000" width="978.000000" height="422.000000" rx="10.000000" stroke="#9673a6" fill="#e1d5e7" style="stroke-width:2;" /></g><text x="4679.000000" y="175.000000" fill="#0A0F25" class="text fill-N1" style="text-anchor:middle;font-size:28px">run_unbalance_response()</text></g><g class="dGVtcG8="><g class="shape" ><rect x="5188.000000" y="188.000000" width="745.000000" height="422.000000" rx="10.000000" stroke="#9673a6" fill="#e1d5e7" style="stroke-width:2;" /></g><text x="5560.500000" y="175.000000" fill="#0A0F25" class="text fill-N1" style="text-anchor:middle;font-size:28px">run_time_response()</text></g><g class="dWNz"><g class="shape" ><rect x="5963.000000" y="188.000000" width="171.000000" height="392.000000" rx="10.000000" stroke="#9673a6" fill="#e1d5e7" style="stroke-width:2;" /></g><text x="6048.500000" y="175.000000" fill="#0A0F25" class="text fill-N1" style="text-anchor:middle;font-size:28px">run_ucs()</text></g><g class="bGV2ZWwx"><g class="shape" ><rect x="6174.000000" y="188.000000" width="190.000000" height="392.000000" rx="10.000000" stroke="#9673a6" fill="#e1d5e7" style="stroke-width:2;" /></g><text x="6269.000000" y="175.000000" fill="#0A0F25" class="text fill-N1" style="text-anchor:middle;font-size:28px">run_level1()</text></g><g class="aGJt"><g class="shape" ><rect x="2398.000000" y="188.000000" width="351.000000" height="126.000000" rx="10.000000" stroke="#9673a6" fill="#e1d5e7" style="stroke-width:2;" /></g><text x="2573.500000" y="175.000000" fill="#0A0F25" class="text fill-N1" style="text-anchor:middle;font-size:28px">run_harmonic_balance_response()</text></g><g class="ZmFsaGFz"><g class="shape" ><rect x="2789.000000" y="188.000000" width="635.000000" height="126.000000" rx="10.000000" stroke="#9673a6" fill="#e1d5e7" style="stroke-width:2;" /></g><text x="3106.500000" y="175.000000" fill="#0A0F25" class="text fill-N1" style="text-anchor:middle;font-size:28px">Fault Analysis</text></g><g class="ZXN0YXRpY2EucnVuX3N0YXRpYw=="><g class="shape" ><rect x="605.000000" y="218.000000" width="127.000000" height="66.000000" stroke="#9673a6" fill="#f3e5f5" style="stroke-width:2;" /></g><text x="668.500000" y="256.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">run_static()</text><title>Calculates the static deflection of the shaft&#xA;under self-weight and element loads.&#xA;Returns → StaticResults</title></g><g class="ZXN0YXRpY2Euc3RhdGljX3Bsb3Rz"><g class="shape" ><rect x="30.000000" y="454.000000" width="1068.000000" height="126.000000" rx="8.000000" stroke="#27ae60" fill="#e8f8f5" style="stroke-width:2;" /></g><text x="564.000000" y="442.000000" fill="#0A0F25" class="text fill-N1" style="text-anchor:middle;font-size:24px">Plots</text></g><g class="bW9kYWwucnVuX21vZGFs"><g class="shape" ><rect x="1438.000000" y="218.000000" width="132.000000" height="66.000000" stroke="#9673a6" fill="#f3e5f5" style="stroke-width:2;" /></g><text x="1504.000000" y="256.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">run_modal()</text><title>Solves the complex eigenvalue problem:&#xA;[M]ẍ + ([C] + Ω[G])ẋ + [K]x = 0&#xA;Returns → ModalResults&#xA;Natural frequencies, damping ratios, mode shapes</title></g><g class="bW9kYWwubW9kYWxfcGxvdHM="><g class="shape" ><rect x="1178.000000" y="454.000000" width="621.000000" height="126.000000" rx="8.000000" stroke="#27ae60" fill="#e8f8f5" style="stroke-width:2;" /></g><text x="1488.500000" y="442.000000" fill="#0A0F25" class="text fill-N1" style="text-anchor:middle;font-size:24px">Plots</text></g><g class="Y2FtcGJlbGwucnVuX2NhbXBiZWxs"><g class="shape" ><rect x="2104.000000" y="218.000000" width="153.000000" height="66.000000" stroke="#9673a6" fill="#f3e5f5" style="stroke-width:2;" /></g><text x="2180.500000" y="256.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">run_campbell()</text><title>Sweeps rotational speeds and calculates&#xA;natural frequencies at each speed.&#xA;Returns → CampbellResults&#xA;Identifies critical speeds</title></g><g class="Y2FtcGJlbGwuY2FtcGJlbGxfcGxvdHM="><g class="shape" ><rect x="1879.000000" y="454.000000" width="459.000000" height="126.000000" rx="8.000000" stroke="#27ae60" fill="#e8f8f5" style="stroke-width:2;" /></g><text x="2108.500000" y="442.000000" fill="#0A0F25" class="text fill-N1" style="text-anchor:middle;font-size:24px">Plots</text></g><g class="ZnJlcXVlbmNpYS5ydW5fZnJlcQ=="><g class="shape" ><rect x="3716.000000" y="218.000000" width="189.000000" height="66.000000" stroke="#9673a6" fill="#f3e5f5" style="stroke-width:2;" /></g><text x="3810.500000" y="256.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">run_freq_response()</text><title>Frequency response function (FRF).&#xA;H(ω) = [-ω²M + iω(C+ΩG) + K]⁻¹ F&#xA;Returns → FrequencyResponseResults</title></g><g class="ZnJlcXVlbmNpYS5mcmVxX3Bsb3Rz"><g class="shape" ><rect x="3484.000000" y="454.000000" width="656.000000" height="126.000000" rx="8.000000" stroke="#27ae60" fill="#e8f8f5" style="stroke-width:2;" /></g><text x="3812.000000" y="442.000000" fill="#0A0F25" class="text fill-N1" style="text-anchor:middle;font-size:24px">Plots</text></g><g class="dW5iYWxhbmNlLnJ1bl91bmJhbGFuY2U="><g class="shape" ><rect x="4580.000000" y="218.000000" width="234.000000" height="66.000000" stroke="#9673a6" fill="#f3e5f5" style="stroke-width:2;" /></g><text x="4697.000000" y="256.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">run_unbalance_response()</text><title>Synchronous unbalance response.&#xA;Sweeps rotational speed with unbalance&#xA;mass at specific nodes.&#xA;Returns → ForcedResponseResults</title></g><g class="dW5iYWxhbmNlLnVuYl9wbG90cw=="><g class="shape" ><rect x="4220.000000" y="454.000000" width="918.000000" height="126.000000" rx="8.000000" stroke="#27ae60" fill="#e8f8f5" style="stroke-width:2;" /></g><text x="4679.000000" y="442.000000" fill="#0A0F25" class="text fill-N1" style="text-anchor:middle;font-size:24px">Plots</text></g><g class="dGVtcG8ucnVuX3RpbWU="><g class="shape" ><rect x="5545.000000" y="218.000000" width="192.000000" height="66.000000" stroke="#9673a6" fill="#f3e5f5" style="stroke-width:2;" /></g><text x="5641.000000" y="256.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">run_time_response()</text><title>Time integration of the complete system.&#xA;Methods: state-space or Newmark.&#xA;Supports time-varying forces.&#xA;Returns → TimeResponseResults</title></g><g class="dGVtcG8udGltZV9wbG90cw=="><g class="shape" ><rect x="5218.000000" y="454.000000" width="685.000000" height="126.000000" rx="8.000000" stroke="#27ae60" fill="#e8f8f5" style="stroke-width:2;" /></g><text x="5560.500000" y="442.000000" fill="#0A0F25" class="text fill-N1" style="text-anchor:middle;font-size:24px">Plots</text></g><g class="dWNzLnJ1bl91Y3M="><g class="shape" ><rect x="5993.000000" y="218.000000" width="111.000000" height="66.000000" stroke="#9673a6" fill="#f3e5f5" style="stroke-width:2;" /></g><text x="6048.500000" y="256.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">run_ucs()</text><title>Undamped Critical Speed Map.&#xA;Varies bearing stiffness and calculates&#xA;undamped critical speeds.&#xA;Returns → UCSResults</title></g><g class="dWNzLnVjc19wbG90"><g class="shape" ><rect x="6007.000000" y="484.000000" width="84.000000" height="66.000000" stroke="#27ae60" fill="#d5f5e3" style="stroke-width:2;" /></g><text x="6049.000000" y="522.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">plot()</text><title>Log-log map: critical speeds&#xA;vs. bearing stiffness.&#xA;Shows actual bearing stiffness as&#xA;a vertical reference line.</title></g><g class="bGV2ZWwxLnJ1bl9sZXZlbDE="><g class="shape" ><rect x="6204.000000" y="218.000000" width="130.000000" height="66.000000" stroke="#9673a6" fill="#f3e5f5" style="stroke-width:2;" /></g><text x="6269.000000" y="256.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">run_level1()</text><title>API 617 Level 1 stability analysis.&#xA;Calculates applied cross-coupled stiffness (Qa)&#xA;and compares with stability threshold (Q0).&#xA;If Qa &lt; Q0, the rotor is stable.&#xA;Returns → Level1Results</title></g><g class="bGV2ZWwxLmxldmVsMV9wbG90"><g class="shape" ><rect x="6227.000000" y="484.000000" width="84.000000" height="66.000000" stroke="#27ae60" fill="#d5f5e3" style="stroke-width:2;" /></g><text x="6269.000000" y="522.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">plot()</text><title>Q0 vs. Qa plot with pass/fail criterion</title></g><g class="aGJtLnJ1bl9oYm0="><g class="shape" ><rect x="2428.000000" y="218.000000" width="291.000000" height="66.000000" stroke="#9673a6" fill="#f3e5f5" style="stroke-width:2;" /></g><text x="2573.500000" y="256.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">run_harmonic_balance_response()</text><title>Harmonic Balance Method (HBM).&#xA;Periodic steady-state response&#xA;with nonlinearities (e.g., nonlinear bearings).&#xA;More efficient than time integration.&#xA;Returns → HarmonicBalanceResults</title></g><g class="ZmFsaGFzLnJ1YmJpbmc="><g class="shape" ><rect x="2819.000000" y="218.000000" width="144.000000" height="66.000000" stroke="#9673a6" fill="#f3e5f5" style="stroke-width:2;" /></g><text x="2891.000000" y="256.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">run_rubbing()</text><title>Rotor-stator contact.&#xA;Models radial impact and tangential friction.&#xA;Returns → TimeResponseResults</title></g><g class="ZmFsaGFzLmNyYWNr"><g class="shape" ><rect x="3023.000000" y="218.000000" width="126.000000" height="66.000000" stroke="#9673a6" fill="#f3e5f5" style="stroke-width:2;" /></g><text x="3086.000000" y="256.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">run_crack()</text><title>Transverse crack (breathing crack).&#xA;Stiffness varies with rotation.&#xA;Generates 2× and 3× speed harmonics.&#xA;Returns → TimeResponseResults</title></g><g class="ZmFsaGFzLm1pc2FsaWdubWVudA=="><g class="shape" ><rect x="3209.000000" y="218.000000" width="185.000000" height="66.000000" stroke="#9673a6" fill="#f3e5f5" style="stroke-width:2;" /></g><text x="3301.500000" y="256.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">run_misalignment()</text><title>Angular or parallel misalignment.&#xA;1× and 2× excitation forces.&#xA;Returns → TimeResponseResults</title></g><g class="ZXN0YXRpY2Euc3RhdGljX3Bsb3RzLmRlZm9ybWF0aW9u"><g class="shape" ><rect x="60.000000" y="484.000000" width="181.000000" height="66.000000" stroke="#27ae60" fill="#d5f5e3" style="stroke-width:2;" /></g><text x="150.500000" y="522.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">plot_deformation()</text><title>Static deflection curve of the shaft</title></g><g class="ZXN0YXRpY2Euc3RhdGljX3Bsb3RzLnNoZWFyaW5n"><g class="shape" ><rect x="301.000000" y="484.000000" width="198.000000" height="66.000000" stroke="#27ae60" fill="#d5f5e3" style="stroke-width:2;" /></g><text x="400.000000" y="522.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">plot_shearing_force()</text><title>Shearing force diagram</title></g><g class="ZXN0YXRpY2Euc3RhdGljX3Bsb3RzLmJlbmRpbmc="><g class="shape" ><rect x="559.000000" y="484.000000" width="218.000000" height="66.000000" stroke="#27ae60" fill="#d5f5e3" style="stroke-width:2;" /></g><text x="668.000000" y="522.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">plot_bending_moment()</text><title>Bending moment diagram</title></g><g class="ZXN0YXRpY2Euc3RhdGljX3Bsb3RzLmZiZA=="><g class="shape" ><rect x="837.000000" y="484.000000" width="231.000000" height="66.000000" stroke="#27ae60" fill="#d5f5e3" style="stroke-width:2;" /></g><text x="952.500000" y="522.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">plot_free_body_diagram()</text><title>Free body diagram with bearing reactions</title></g><g class="bW9kYWwubW9kYWxfcGxvdHMubW9kZTNk"><g class="shape" ><rect x="1208.000000" y="484.000000" width="157.000000" height="66.000000" stroke="#27ae60" fill="#d5f5e3" style="stroke-width:2;" /></g><text x="1286.500000" y="522.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">plot_mode_3d()</text><title>Animated 3D mode shape (precession)</title></g><g class="bW9kYWwubW9kYWxfcGxvdHMubW9kZTJk"><g class="shape" ><rect x="1425.000000" y="484.000000" width="157.000000" height="66.000000" stroke="#27ae60" fill="#d5f5e3" style="stroke-width:2;" /></g><text x="1503.500000" y="522.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">plot_mode_2d()</text><title>2D mode shape (amplitude vs axial position)</title></g><g class="bW9kYWwubW9kYWxfcGxvdHMub3JiaXQ="><g class="shape" ><rect x="1642.000000" y="484.000000" width="127.000000" height="66.000000" stroke="#27ae60" fill="#d5f5e3" style="stroke-width:2;" /></g><text x="1705.500000" y="522.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">plot_orbit()</text><title>Mode orbit at a specific node</title></g><g class="Y2FtcGJlbGwuY2FtcGJlbGxfcGxvdHMuY2FtcGJlbGxfcGxvdA=="><g class="shape" ><rect x="1909.000000" y="484.000000" width="84.000000" height="66.000000" stroke="#27ae60" fill="#d5f5e3" style="stroke-width:2;" /></g><text x="1951.000000" y="522.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">plot()</text><title>Full Campbell diagram&#xA;Frequencies vs. speed + synchronous line</title></g><g class="Y2FtcGJlbGwuY2FtcGJlbGxfcGxvdHMud2l0aF9zaGFwZQ=="><g class="shape" ><rect x="2053.000000" y="484.000000" width="255.000000" height="66.000000" stroke="#27ae60" fill="#d5f5e3" style="stroke-width:2;" /></g><text x="2180.500000" y="522.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">plot(with_mode_shape=True)</text><title>Campbell with mode shape thumbnails&#xA;next to each curve. Identifies FW/BW.</title></g><g class="ZnJlcXVlbmNpYS5mcmVxX3Bsb3RzLm1hZ25pdHVkZQ=="><g class="shape" ><rect x="3514.000000" y="484.000000" width="169.000000" height="66.000000" stroke="#27ae60" fill="#d5f5e3" style="stroke-width:2;" /></g><text x="3598.500000" y="522.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">plot_magnitude()</text><title>FRF amplitude vs. frequency</title></g><g class="ZnJlcXVlbmNpYS5mcmVxX3Bsb3RzLnBoYXNl"><g class="shape" ><rect x="3743.000000" y="484.000000" width="134.000000" height="66.000000" stroke="#27ae60" fill="#d5f5e3" style="stroke-width:2;" /></g><text x="3810.000000" y="522.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">plot_phase()</text><title>FRF phase vs. frequency</title></g><g class="ZnJlcXVlbmNpYS5mcmVxX3Bsb3RzLnBvbGFy"><g class="shape" ><rect x="3937.000000" y="484.000000" width="173.000000" height="66.000000" stroke="#27ae60" fill="#d5f5e3" style="stroke-width:2;" /></g><text x="4023.500000" y="522.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">plot_polar_bode()</text><title>Polar diagram (Nyquist) of the FRF</title></g><g class="dW5iYWxhbmNlLnVuYl9wbG90cy5ib2Rl"><g class="shape" ><rect x="4250.000000" y="484.000000" width="270.000000" height="66.000000" stroke="#27ae60" fill="#d5f5e3" style="stroke-width:2;" /></g><text x="4385.000000" y="522.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">plot_magnitude() / plot_phase()</text><title>Bode diagrams (amplitude and phase vs. speed)</title></g><g class="dW5iYWxhbmNlLnVuYl9wbG90cy5kZWZsZWN0ZWQyZA=="><g class="shape" ><rect x="4580.000000" y="484.000000" width="234.000000" height="66.000000" stroke="#27ae60" fill="#d5f5e3" style="stroke-width:2;" /></g><text x="4697.000000" y="522.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">plot_deflected_shape_2d()</text><title>2D deflected shape of the rotor</title></g><g class="dW5iYWxhbmNlLnVuYl9wbG90cy5kZWZsZWN0ZWQzZA=="><g class="shape" ><rect x="4874.000000" y="484.000000" width="234.000000" height="66.000000" stroke="#27ae60" fill="#d5f5e3" style="stroke-width:2;" /></g><text x="4991.000000" y="522.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">plot_deflected_shape_3d()</text><title>3D deflected shape of the rotor with orbits</title></g><g class="dGVtcG8udGltZV9wbG90cy50aW1lMWQ="><g class="shape" ><rect x="5248.000000" y="484.000000" width="109.000000" height="66.000000" stroke="#27ae60" fill="#d5f5e3" style="stroke-width:2;" /></g><text x="5302.500000" y="522.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">plot_1d()</text><title>Displacement vs. time for a single DOF</title></g><g class="dGVtcG8udGltZV9wbG90cy50aW1lMmQ="><g class="shape" ><rect x="5417.000000" y="484.000000" width="109.000000" height="66.000000" stroke="#27ae60" fill="#d5f5e3" style="stroke-width:2;" /></g><text x="5471.500000" y="522.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">plot_2d()</text><title>Orbit (x vs. y) at a node</title></g><g class="dGVtcG8udGltZV9wbG90cy50aW1lM2Q="><g class="shape" ><rect x="5586.000000" y="484.000000" width="109.000000" height="66.000000" stroke="#27ae60" fill="#d5f5e3" style="stroke-width:2;" /></g><text x="5640.500000" y="522.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">plot_3d()</text><title>Orbits along the shaft (3D)</title></g><g class="dGVtcG8udGltZV9wbG90cy5kZmZ0"><g class="shape" ><rect x="5755.000000" y="484.000000" width="118.000000" height="66.000000" stroke="#27ae60" fill="#d5f5e3" style="stroke-width:2;" /></g><text x="5814.000000" y="522.500000" fill="#0A0F25" class="text-bold fill-N1" style="text-anchor:middle;font-size:16px">plot_dfft()</text><title>FFT of the time signal (frequency spectrum)</title></g><g class="ZXN0YXRpY2EuKHJ1bl9zdGF0aWMgLSZndDsgc3RhdGljX3Bsb3RzKVswXQ=="><marker id="mk-d2-2247275507-3488378134" markerWidth="10.000000" markerHeight="12.000000" refX="7.000000" refY="6.000000" viewBox="0.000000 0.000000 10.000000 12.000000" orient="auto" markerUnits="userSpaceOnUse"> <polygon points="0.000000,0.000000 10.000000,6.000000 0.000000,12.000000" fill="#0D32B2" class="connection fill-B1" stroke-width="2" /> </marker><path d="M 668.000000 286.000000 C 668.000000 324.000000 668.000000 398.000000 668.000000 450.000000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-2247275507-3488378134)" mask="url(#d2-2247275507)" /></g><g class="KEFuYWxpc2VzIC0mZ3Q7IGVzdGF0aWNhKVswXQ=="><path d="M 3356.000906 37.060196 C 1206.000000 101.800003 668.000000 132.000000 668.000000 184.000000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-2247275507-3488378134)" mask="url(#d2-2247275507)" /></g><g class="bW9kYWwuKHJ1bl9tb2RhbCAtJmd0OyBtb2RhbF9wbG90cylbMF0="><path d="M 1503.500000 286.000000 C 1503.500000 324.000000 1503.500000 390.799988 1503.500000 414.000000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-2247275507-3488378134)" mask="url(#d2-2247275507)" /></g><g class="KEFuYWxpc2VzIC0mZ3Q7IG1vZGFsKVswXQ=="><path d="M 3356.501857 38.086173 C 1874.500000 102.000000 1503.500000 123.800003 1503.500000 143.000000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-2247275507-3488378134)" mask="url(#d2-2247275507)" /></g><g class="Y2FtcGJlbGwuKHJ1bl9jYW1wYmVsbCAtJmd0OyBjYW1wYmVsbF9wbG90cylbMF0="><path d="M 2180.500000 286.000000 C 2180.500000 324.000000 2180.500000 398.000000 2180.500000 450.000000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-2247275507-3488378134)" mask="url(#d2-2247275507)" /></g><g class="KEFuYWxpc2VzIC0mZ3Q7IGNhbXBiZWxsKVswXQ=="><path d="M 3356.504370 40.132139 C 2416.100098 102.400002 2180.500000 123.800003 2180.500000 143.000000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-2247275507-3488378134)" mask="url(#d2-2247275507)" /></g><g class="ZnJlcXVlbmNpYS4ocnVuX2ZyZXEgLSZndDsgZnJlcV9wbG90cylbMF0="><path d="M 3810.000000 286.000000 C 3810.000000 324.000000 3810.000000 390.799988 3810.000000 414.000000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-2247275507-3488378134)" mask="url(#d2-2247275507)" /></g><g class="KEFuYWxpc2VzIC0mZ3Q7IGZyZXF1ZW5jaWEpWzBd"><path d="M 3539.948420 55.451288 C 3755.600098 105.400002 3810.000000 123.800003 3810.000000 143.000000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-2247275507-3488378134)" mask="url(#d2-2247275507)" /></g><g class="dW5iYWxhbmNlLihydW5fdW5iYWxhbmNlIC0mZ3Q7IHVuYl9wbG90cylbMF0="><path d="M 4697.000000 286.000000 C 4697.000000 324.000000 4697.000000 390.799988 4697.000000 414.000000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-2247275507-3488378134)" mask="url(#d2-2247275507)" /></g><g class="KEFuYWxpc2VzIC0mZ3Q7IHVuYmFsYW5jZSlbMF0="><path d="M 3539.995486 40.134295 C 4465.200195 102.400002 4697.000000 123.800003 4697.000000 143.000000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-2247275507-3488378134)" mask="url(#d2-2247275507)" /></g><g class="dGVtcG8uKHJ1bl90aW1lIC0mZ3Q7IHRpbWVfcGxvdHMpWzBd"><path d="M 5640.500000 286.000000 C 5640.500000 324.000000 5640.500000 398.000000 5640.500000 450.000000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-2247275507-3488378134)" mask="url(#d2-2247275507)" /></g><g class="KEFuYWxpc2VzIC0mZ3Q7IHRlbXBvKVswXQ=="><path d="M 3539.498518 37.076976 C 5219.899902 101.800003 5640.500000 123.800003 5640.500000 143.000000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-2247275507-3488378134)" mask="url(#d2-2247275507)" /></g><g class="dWNzLihydW5fdWNzIC0mZ3Q7IHVjc19wbG90KVswXQ=="><path d="M 6048.500000 286.000000 C 6048.500000 324.000000 6048.500000 344.000000 6048.500000 359.000000 C 6048.500000 374.000000 6048.500000 444.000000 6048.500000 480.000000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-2247275507-3488378134)" mask="url(#d2-2247275507)" /></g><g class="KEFuYWxpc2VzIC0mZ3Q7IHVjcylbMF0="><path d="M 3539.498960 37.064483 C 5546.299805 101.800003 6048.500000 123.800003 6048.500000 143.000000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-2247275507-3488378134)" mask="url(#d2-2247275507)" /></g><g class="bGV2ZWwxLihydW5fbGV2ZWwxIC0mZ3Q7IGxldmVsMV9wbG90KVswXQ=="><path d="M 6269.000000 286.000000 C 6269.000000 324.000000 6269.000000 344.000000 6269.000000 359.000000 C 6269.000000 374.000000 6269.000000 444.000000 6269.000000 480.000000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-2247275507-3488378134)" mask="url(#d2-2247275507)" /></g><g class="KEFuYWxpc2VzIC0mZ3Q7IGxldmVsMSlbMF0="><path d="M 3539.999121 37.059293 C 5722.799805 101.800003 6269.000000 123.800003 6269.000000 143.000000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-2247275507-3488378134)" mask="url(#d2-2247275507)" /></g><g class="KEFuYWxpc2VzIC0mZ3Q7IGhibSlbMF0="><path d="M 3356.509066 43.190217 C 2730.500000 103.000000 2573.500000 123.800003 2573.500000 143.000000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-2247275507-3488378134)" mask="url(#d2-2247275507)" /></g><g class="KEFuYWxpc2VzIC0mZ3Q7IGZhbGhhcylbMF0="><path d="M 3356.051580 55.451288 C 3140.399902 105.400002 3086.000000 123.800003 3086.000000 143.000000" stroke="#0D32B2" fill="none" class="connection stroke-B1" style="stroke-width:2;" marker-end="url(#mk-d2-2247275507-3488378134)" mask="url(#d2-2247275507)" /></g><g transform="translate(3522 -16)" class="appendix-icon"><title>All analysis types available in ROSS.&#xA;Each analysis is called via Rotor.run_*()&#xA;and returns a specific results object.</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-2247275507-IFXGC3DJONSXG)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-2247275507-IFXGC3DJONSXG">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(3490 -16)" class="appendix-icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3440_35088111-d2-2247275507-IFXGC3DJONSXG)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M14.3909 16.7965C14.7364 17.2584 15.1772 17.6406 15.6834 17.9171C16.1896 18.1938 16.7494 18.3582 17.3248 18.3993C17.9001 18.4405 18.4777 18.3575 19.0181 18.1559C19.5586 17.9543 20.0492 17.6389 20.4571 17.2309L22.8708 14.8173C23.6036 14.0586 24.0089 13.0425 23.9998 11.9877C23.9906 10.933 23.5676 9.92404 22.8217 9.17821C22.0759 8.43237 21.067 8.00931 20.0123 8.00015C18.9575 7.99098 17.9413 8.39644 17.1827 9.1292L15.7988 10.505" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M17.609 15.1874C17.2635 14.7255 16.8227 14.3433 16.3165 14.0667C15.8103 13.7902 15.2505 13.6257 14.6752 13.5845C14.0998 13.5433 13.5223 13.6263 12.9819 13.8279C12.4414 14.0295 11.9506 14.345 11.5428 14.753L9.1292 17.1666C8.39644 17.9252 7.99098 18.9414 8.00015 19.9962C8.00931 21.0509 8.43237 22.0598 9.17821 22.8056C9.92405 23.5515 10.933 23.9745 11.9877 23.9837C13.0425 23.9928 14.0586 23.5875 14.8173 22.8547L16.193 21.4788" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3440_35088111-d2-2247275507-IFXGC3DJONSXG">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(716 202)" class="appendix-icon"><title>Calculates the static deflection of the shaft&#xA;under self-weight and element loads.&#xA;Returns → StaticResults</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-2247275507-MVZXIYLUNFRWCLTSOVXF643UMF2GSYY)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-2247275507-MVZXIYLUNFRWCLTSOVXF643UMF2GSYY">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(1554 202)" class="appendix-icon"><title>Solves the complex eigenvalue problem:&#xA;[M]ẍ + ([C] + Ω[G])ẋ + [K]x = 0&#xA;Returns → ModalResults&#xA;Natural frequencies, damping ratios, mode shapes</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-2247275507-NVXWIYLMFZZHK3S7NVXWIYLM)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-2247275507-NVXWIYLMFZZHK3S7NVXWIYLM">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(2241 202)" class="appendix-icon"><title>Sweeps rotational speeds and calculates&#xA;natural frequencies at each speed.&#xA;Returns → CampbellResults&#xA;Identifies critical speeds</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-2247275507-MNQW24DCMVWGYLTSOVXF6Y3BNVYGEZLMNQ)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-2247275507-MNQW24DCMVWGYLTSOVXF6Y3BNVYGEZLMNQ">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(3889 202)" class="appendix-icon"><title>Frequency response function (FRF).&#xA;H(ω) = [-ω²M + iω(C+ΩG) + K]⁻¹ F&#xA;Returns → FrequencyResponseResults</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-2247275507-MZZGK4LVMVXGG2LBFZZHK3S7MZZGK4I)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-2247275507-MZZGK4LVMVXGG2LBFZZHK3S7MZZGK4I">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(4798 202)" class="appendix-icon"><title>Synchronous unbalance response.&#xA;Sweeps rotational speed with unbalance&#xA;mass at specific nodes.&#xA;Returns → ForcedResponseResults</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-2247275507-OVXGEYLMMFXGGZJOOJ2W4X3VNZRGC3DBNZRWK)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-2247275507-OVXGEYLMMFXGGZJOOJ2W4X3VNZRGC3DBNZRWK">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(5721 202)" class="appendix-icon"><title>Time integration of the complete system.&#xA;Methods: state-space or Newmark.&#xA;Supports time-varying forces.&#xA;Returns → TimeResponseResults</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-2247275507-ORSW24DPFZZHK3S7ORUW2ZI)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-2247275507-ORSW24DPFZZHK3S7ORUW2ZI">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(6088 202)" class="appendix-icon"><title>Undamped Critical Speed Map.&#xA;Varies bearing stiffness and calculates&#xA;undamped critical speeds.&#xA;Returns → UCSResults</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-2247275507-OVRXGLTSOVXF65LDOM)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-2247275507-OVRXGLTSOVXF65LDOM">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(6075 468)" class="appendix-icon"><title>Log-log map: critical speeds&#xA;vs. bearing stiffness.&#xA;Shows actual bearing stiffness as&#xA;a vertical reference line.</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-2247275507-OVRXGLTVMNZV64DMN52A)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-2247275507-OVRXGLTVMNZV64DMN52A">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(6318 202)" class="appendix-icon"><title>API 617 Level 1 stability analysis.&#xA;Calculates applied cross-coupled stiffness (Qa)&#xA;and compares with stability threshold (Q0).&#xA;If Qa &lt; Q0, the rotor is stable.&#xA;Returns → Level1Results</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-2247275507-NRSXMZLMGEXHE5LOL5WGK5TFNQYQ)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-2247275507-NRSXMZLMGEXHE5LOL5WGK5TFNQYQ">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(6295 468)" class="appendix-icon"><title>Q0 vs. Qa plot with pass/fail criterion</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-2247275507-NRSXMZLMGEXGYZLWMVWDCX3QNRXXI)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-2247275507-NRSXMZLMGEXGYZLWMVWDCX3QNRXXI">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(2703 202)" class="appendix-icon"><title>Harmonic Balance Method (HBM).&#xA;Periodic steady-state response&#xA;with nonlinearities (e.g., nonlinear bearings).&#xA;More efficient than time integration.&#xA;Returns → HarmonicBalanceResults</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-2247275507-NBRG2LTSOVXF62DCNU)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-2247275507-NBRG2LTSOVXF62DCNU">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(2947 202)" class="appendix-icon"><title>Rotor-stator contact.&#xA;Models radial impact and tangential friction.&#xA;Returns → TimeResponseResults</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-2247275507-MZQWY2DBOMXHE5LCMJUW4ZY)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-2247275507-MZQWY2DBOMXHE5LCMJUW4ZY">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(3133 202)" class="appendix-icon"><title>Transverse crack (breathing crack).&#xA;Stiffness varies with rotation.&#xA;Generates 2× and 3× speed harmonics.&#xA;Returns → TimeResponseResults</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-2247275507-MZQWY2DBOMXGG4TBMNVQ)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-2247275507-MZQWY2DBOMXGG4TBMNVQ">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(3378 202)" class="appendix-icon"><title>Angular or parallel misalignment.&#xA;1× and 2× excitation forces.&#xA;Returns → TimeResponseResults</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-2247275507-MZQWY2DBOMXG22LTMFWGSZ3ONVSW45A)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-2247275507-MZQWY2DBOMXG22LTMFWGSZ3ONVSW45A">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(225 468)" class="appendix-icon"><title>Static deflection curve of the shaft</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-2247275507-MVZXIYLUNFRWCLTTORQXI2LDL5YGY33UOMXGIZLGN5ZG2YLUNFXW4)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-2247275507-MVZXIYLUNFRWCLTTORQXI2LDL5YGY33UOMXGIZLGN5ZG2YLUNFXW4">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(483 468)" class="appendix-icon"><title>Shearing force diagram</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-2247275507-MVZXIYLUNFRWCLTTORQXI2LDL5YGY33UOMXHG2DFMFZGS3TH)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-2247275507-MVZXIYLUNFRWCLTTORQXI2LDL5YGY33UOMXHG2DFMFZGS3TH">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(761 468)" class="appendix-icon"><title>Bending moment diagram</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-2247275507-MVZXIYLUNFRWCLTTORQXI2LDL5YGY33UOMXGEZLOMRUW4ZY)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-2247275507-MVZXIYLUNFRWCLTTORQXI2LDL5YGY33UOMXGEZLOMRUW4ZY">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(1052 468)" class="appendix-icon"><title>Free body diagram with bearing reactions</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-2247275507-MVZXIYLUNFRWCLTTORQXI2LDL5YGY33UOMXGMYTE)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-2247275507-MVZXIYLUNFRWCLTTORQXI2LDL5YGY33UOMXGMYTE">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(1349 468)" class="appendix-icon"><title>Animated 3D mode shape (precession)</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-2247275507-NVXWIYLMFZWW6ZDBNRPXA3DPORZS43LPMRSTGZA)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-2247275507-NVXWIYLMFZWW6ZDBNRPXA3DPORZS43LPMRSTGZA">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(1566 468)" class="appendix-icon"><title>2D mode shape (amplitude vs axial position)</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-2247275507-NVXWIYLMFZWW6ZDBNRPXA3DPORZS43LPMRSTEZA)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-2247275507-NVXWIYLMFZWW6ZDBNRPXA3DPORZS43LPMRSTEZA">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(1753 468)" class="appendix-icon"><title>Mode orbit at a specific node</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-2247275507-NVXWIYLMFZWW6ZDBNRPXA3DPORZS433SMJUXI)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-2247275507-NVXWIYLMFZWW6ZDBNRPXA3DPORZS433SMJUXI">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(1977 468)" class="appendix-icon"><title>Full Campbell diagram&#xA;Frequencies vs. speed + synchronous line</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-2247275507-MNQW24DCMVWGYLTDMFWXAYTFNRWF64DMN52HGLTDMFWXAYTFNRWF64DMN52A)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-2247275507-MNQW24DCMVWGYLTDMFWXAYTFNRWF64DMN52HGLTDMFWXAYTFNRWF64DMN52A">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(2292 468)" class="appendix-icon"><title>Campbell with mode shape thumbnails&#xA;next to each curve. Identifies FW/BW.</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-2247275507-MNQW24DCMVWGYLTDMFWXAYTFNRWF64DMN52HGLTXNF2GQX3TNBQXAZI)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-2247275507-MNQW24DCMVWGYLTDMFWXAYTFNRWF64DMN52HGLTXNF2GQX3TNBQXAZI">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(3667 468)" class="appendix-icon"><title>FRF amplitude vs. frequency</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-2247275507-MZZGK4LVMVXGG2LBFZTHEZLRL5YGY33UOMXG2YLHNZUXI5LEMU)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-2247275507-MZZGK4LVMVXGG2LBFZTHEZLRL5YGY33UOMXG2YLHNZUXI5LEMU">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(3861 468)" class="appendix-icon"><title>FRF phase vs. frequency</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-2247275507-MZZGK4LVMVXGG2LBFZTHEZLRL5YGY33UOMXHA2DBONSQ)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-2247275507-MZZGK4LVMVXGG2LBFZTHEZLRL5YGY33UOMXHA2DBONSQ">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(4094 468)" class="appendix-icon"><title>Polar diagram (Nyquist) of the FRF</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-2247275507-MZZGK4LVMVXGG2LBFZTHEZLRL5YGY33UOMXHA33MMFZA)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-2247275507-MZZGK4LVMVXGG2LBFZTHEZLRL5YGY33UOMXHA33MMFZA">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(4504 468)" class="appendix-icon"><title>Bode diagrams (amplitude and phase vs. speed)</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-2247275507-OVXGEYLMMFXGGZJOOVXGEX3QNRXXI4ZOMJXWIZI)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-2247275507-OVXGEYLMMFXGGZJOOVXGEX3QNRXXI4ZOMJXWIZI">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(4798 468)" class="appendix-icon"><title>2D deflected shape of the rotor</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-2247275507-OVXGEYLMMFXGGZJOOVXGEX3QNRXXI4ZOMRSWM3DFMN2GKZBSMQ)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-2247275507-OVXGEYLMMFXGGZJOOVXGEX3QNRXXI4ZOMRSWM3DFMN2GKZBSMQ">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(5092 468)" class="appendix-icon"><title>3D deflected shape of the rotor with orbits</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-2247275507-OVXGEYLMMFXGGZJOOVXGEX3QNRXXI4ZOMRSWM3DFMN2GKZBTMQ)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-2247275507-OVXGEYLMMFXGGZJOOVXGEX3QNRXXI4ZOMRSWM3DFMN2GKZBTMQ">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(5341 468)" class="appendix-icon"><title>Displacement vs. time for a single DOF</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-2247275507-ORSW24DPFZ2GS3LFL5YGY33UOMXHI2LNMUYWI)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-2247275507-ORSW24DPFZ2GS3LFL5YGY33UOMXHI2LNMUYWI">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(5510 468)" class="appendix-icon"><title>Orbit (x vs. y) at a node</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-2247275507-ORSW24DPFZ2GS3LFL5YGY33UOMXHI2LNMUZGI)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-2247275507-ORSW24DPFZ2GS3LFL5YGY33UOMXHI2LNMUZGI">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(5679 468)" class="appendix-icon"><title>Orbits along the shaft (3D)</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-2247275507-ORSW24DPFZ2GS3LFL5YGY33UOMXHI2LNMUZWI)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-2247275507-ORSW24DPFZ2GS3LFL5YGY33UOMXHI2LNMUZWI">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><g transform="translate(5857 468)" class="appendix-icon"><title>FFT of the time signal (frequency spectrum)</title><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3427_35082111-d2-2247275507-ORSW24DPFZ2GS3LFL5YGY33UOMXGIZTGOQ)">
+<path d="M16 31.1109C24.3456 31.1109 31.1111 24.3454 31.1111 15.9998C31.1111 7.65415 24.3456 0.888672 16 0.888672C7.65436 0.888672 0.888885 7.65415 0.888885 15.9998C0.888885 24.3454 7.65436 31.1109 16 31.1109Z" fill="white" stroke="#DEE1EB"/>
+<path d="M16 26C21.5228 26 26 21.5228 26 16C26 10.4772 21.5228 6 16 6C10.4772 6 6 10.4772 6 16C6 21.5228 10.4772 26 16 26Z" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 19.998V15.998" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 12H16.0098" stroke="#2E3346" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<clipPath id="clip0_3427_35082111-d2-2247275507-ORSW24DPFZ2GS3LFL5YGY33UOMXGIZTGOQ">
+<rect width="32" height="32" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+</g><mask id="d2-2247275507" maskUnits="userSpaceOnUse" x="-101" y="-157" width="6566" height="868">
+<rect x="-101" y="-157" width="6566" height="868" fill="white"></rect>
+
+</mask></svg></svg>

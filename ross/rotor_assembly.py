@@ -567,6 +567,24 @@ class Rotor(object):
         self.G0 = G0
         self.Ksdt0 = Ksdt0
 
+        # Calculation of overall rotor transverse (diametral) inertia (includes only DOFs located at the shaft element DOF, excludes point masses that are outside the shaft).
+        # This is only calculating Iyy. Assuming Ixx is the same.
+        # First, set up a vector corresponding to rigid body rotation of the entire rotor
+        v = np.zeros([self.ndof])
+        for i, elm in enumerate(self.shaft_elements):
+            dofs = list(elm.dof_global_index.values())
+            y0 = elm.dof_mapping()["y_0"]
+            a0 = elm.dof_mapping()["alpha_0"]
+            y1 = elm.dof_mapping()["y_1"]
+            a1 = elm.dof_mapping()["alpha_1"]
+
+            v[dofs[y0]] = -(nodes_pos_l[i] - self.CG)  # y
+            v[dofs[y1]] = -(nodes_pos_r[i] - self.CG)  # y
+            v[dofs[a0]] = 1  # alpha
+            v[dofs[a1]] = 1  # alpha
+        # Then, use the vector to compute diametral aka transverse inertia of the entire rotor.
+        self.It = v @ (self.M0 @ v.T)
+
     def _set_tag(self, tag):
         """Set the tag for the current rotor."""
         self.tag = tag or "Rotor 0"
@@ -946,11 +964,11 @@ class Rotor(object):
         wd = np.zeros_like(_wd)
 
         for i in range(len(wn)):
-            wn_func = lambda s: (s - self.run_modal(s, num_modes).wn[i])
+            wn_func = lambda s: s - self.run_modal(s, num_modes).wn[i]
             wn[i] = newton(func=wn_func, x0=_wn[i], rtol=rtol)
 
         for i in range(len(wd)):
-            wd_func = lambda s: (s - self.run_modal(s, num_modes).wd[i])
+            wd_func = lambda s: s - self.run_modal(s, num_modes).wd[i]
             wd[i] = newton(func=wd_func, x0=_wd[i], rtol=rtol)
 
         log_dec = np.zeros_like(wn)
@@ -2579,26 +2597,32 @@ class Rotor(object):
         add_to_RHS = kwargs.get("add_to_RHS")
 
         if add_to_RHS is None:
-            forces = lambda step, **curr_state: F[step, :] + reduction[1](
-                magnetic_force(
-                    step,
-                    curr_state.get("dt"),
-                    reduction[2](curr_state.get("y")),
+            forces = lambda step, **curr_state: (
+                F[step, :]
+                + reduction[1](
+                    magnetic_force(
+                        step,
+                        curr_state.get("dt"),
+                        reduction[2](curr_state.get("y")),
+                    )
                 )
             )
         else:
-            forces = lambda step, **curr_state: F[step, :] + reduction[1](
-                add_to_RHS(
-                    step,
-                    time_step=curr_state.get("dt"),
-                    disp_resp=reduction[2](curr_state.get("y")),
-                    velc_resp=reduction[2](curr_state.get("ydot")),
-                    accl_resp=reduction[2](curr_state.get("y2dot")),
-                )
-                + magnetic_force(
-                    step,
-                    curr_state.get("dt"),
-                    reduction[2](curr_state.get("y")),
+            forces = lambda step, **curr_state: (
+                F[step, :]
+                + reduction[1](
+                    add_to_RHS(
+                        step,
+                        time_step=curr_state.get("dt"),
+                        disp_resp=reduction[2](curr_state.get("y")),
+                        velc_resp=reduction[2](curr_state.get("ydot")),
+                        accl_resp=reduction[2](curr_state.get("y2dot")),
+                    )
+                    + magnetic_force(
+                        step,
+                        curr_state.get("dt"),
+                        reduction[2](curr_state.get("y")),
+                    )
                 )
             )
 
@@ -2725,8 +2749,8 @@ class Rotor(object):
         rotor = deepcopy(self)
 
         if len(magnetic_bearings):
-            magnetic_force = (
-                lambda step, time_step, disp_resp: self.magnetic_bearing_controller(
+            magnetic_force = lambda step, time_step, disp_resp: (
+                self.magnetic_bearing_controller(
                     step, magnetic_bearings, time_step, disp_resp, **kwargs
                 )
             )
@@ -4330,6 +4354,7 @@ class Rotor(object):
             forces,
             self.CG,
             self.Ip,
+            self.It,
             self.tag,
         )
         return results

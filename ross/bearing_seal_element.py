@@ -1487,7 +1487,6 @@ class SealElement(BearingElement):
     ):
         self.seal_leakage = seal_leakage
 
-
         super().__init__(
             n=n,
             frequency=frequency,

@@ -36,9 +36,10 @@ jobs:
         run: |
           pip install pytest
           pytest ross --cov=ross
-      - name: Run Ruff 
+      - name: Run Ruff
         run: |
           ruff check ross
+          ruff format --check ross
         if: success()
       - name: Coverage and Deployment
         run: codecov

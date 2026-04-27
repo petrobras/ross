@@ -1,0 +1,268 @@
+direction: down
+
+title: {
+  label: MultiRotor - Multiple Coupled Rotors
+  near: top-center
+  shape: text
+  style: {
+    font-size: 28
+    bold: true
+  }
+}
+
+# ============================================================
+# Hierarchy
+# ============================================================
+Rotor: Rotor {
+  tooltip: |
+    Base class - single rotor with all
+    analysis methods (run_modal, run_campbell, etc.)
+  |
+  style: {
+    fill: "#e0e0e0"
+    stroke: "#757575"
+    border-radius: 8
+    font-size: 14
+  }
+}
+
+MultiRotor: MultiRotor {
+  tooltip: |
+    Multiple rotors coupled by gears or couplings.
+    Inherits all analysis methods from Rotor.
+    The assembled model combines the DOFs of
+    all rotors with the connections.
+  |
+  link: ./ross-overview.svg
+  style: {
+    fill: "#f8cecc"
+    stroke: "#b85450"
+    font-size: 18
+    bold: true
+    border-radius: 10
+  }
+}
+
+Rotor -> MultiRotor: inheritance {
+  style.stroke: "#757575"
+}
+
+# ============================================================
+# Inputs
+# ============================================================
+entradas: Inputs {
+  style: {
+    fill: "#e8f4f8"
+    stroke: "#2980b9"
+    border-radius: 10
+  }
+
+  driving: driving_rotor {
+    tooltip: |
+      Driving rotor (Rotor object)
+      The rotor that transmits power.
+      Must already be assembled with its elements.
+    |
+    style: {
+      fill: "#f8cecc"
+      stroke: "#b85450"
+    }
+  }
+
+  driven: driven_rotor {
+    tooltip: |
+      Driven rotor (Rotor object)
+      The rotor that receives power.
+      Must already be assembled with its elements.
+    |
+    style: {
+      fill: "#f8cecc"
+      stroke: "#b85450"
+    }
+  }
+
+  nodes: coupled_nodes {
+    tooltip: |
+      Coupling nodes (tuple)
+      Pair of nodes (driving_node, driven_node) where
+      the rotors are connected.
+    |
+    style: {
+      fill: "#dae8fc"
+      stroke: "#6c8ebf"
+    }
+  }
+
+  stiffness: gear_mesh_stiffness {
+    tooltip: |
+      Gear mesh stiffness [N/m]
+      Contact stiffness between teeth
+      of the gears at the coupled nodes.
+    |
+    style: {
+      fill: "#dae8fc"
+      stroke: "#6c8ebf"
+    }
+  }
+}
+
+entradas -> MultiRotor: assembly
+
+# ============================================================
+# Mesh
+# ============================================================
+Mesh: Mesh {
+  tooltip: |
+    Object that models the interaction between
+    the gears of the two rotors.
+    Calculates tangential, radial and axial
+    forces at the mesh point.
+  |
+  style: {
+    fill: "#fff2cc"
+    stroke: "#d6b656"
+    font-size: 16
+    bold: true
+    border-radius: 8
+  }
+}
+
+mesh_props: Mesh Properties {
+  style: {
+    fill: "#fef9e7"
+    stroke: "#d6b656"
+    border-radius: 10
+  }
+
+  gear1: GearElement (driving) {
+    tooltip: |
+      Gear on the driving rotor.
+      Defines n_teeth, pitch_diameter, etc.
+    |
+    style: {
+      fill: "#fff2cc"
+      stroke: "#d6b656"
+    }
+  }
+
+  gear2: GearElement (driven) {
+    tooltip: |
+      Gear on the driven rotor.
+      Transmission ratio = n_teeth_1 / n_teeth_2
+    |
+    style: {
+      fill: "#fff2cc"
+      stroke: "#d6b656"
+    }
+  }
+
+  ratio: Transmission Ratio {
+    tooltip: |
+      i = Z_driving / Z_driven
+      ω_driven = ω_driving / i
+      Rotational speeds are different!
+    |
+    style: {
+      fill: "#fff2cc"
+      stroke: "#d6b656"
+    }
+  }
+}
+
+Mesh -> mesh_props
+MultiRotor -> Mesh: contains
+
+# ============================================================
+# Inherited Methods
+# ============================================================
+metodos: Inherited Rotor Methods {
+  style: {
+    fill: "#e1d5e7"
+    stroke: "#9673a6"
+    border-radius: 10
+  }
+
+  estatica: run_static() {
+    tooltip: "→ StaticResults (deflection of coupled system)"
+    style: {
+      fill: "#f3e5f5"
+      stroke: "#9673a6"
+    }
+  }
+
+  modal_m: run_modal() {
+    tooltip: "→ ModalResults (modes of complete system)"
+    style: {
+      fill: "#f3e5f5"
+      stroke: "#9673a6"
+    }
+  }
+
+  campbell_m: run_campbell() {
+    tooltip: "→ CampbellResults (with transmission ratio)"
+    style: {
+      fill: "#f3e5f5"
+      stroke: "#9673a6"
+    }
+  }
+
+  freq_m: run_freq_response() {
+    tooltip: "→ FrequencyResponseResults"
+    style: {
+      fill: "#f3e5f5"
+      stroke: "#9673a6"
+    }
+  }
+
+  unbalance_m: run_unbalance_response() {
+    tooltip: "→ ForcedResponseResults"
+    style: {
+      fill: "#f3e5f5"
+      stroke: "#9673a6"
+    }
+  }
+
+  time_m: run_time_response() {
+    tooltip: "→ TimeResponseResults"
+    style: {
+      fill: "#f3e5f5"
+      stroke: "#9673a6"
+    }
+  }
+
+  outros: "ucs, level1, hbm, faults..." {
+    tooltip: |
+      All run_* methods from Rotor
+      are available in MultiRotor.
+    |
+    style: {
+      fill: "#f3e5f5"
+      stroke: "#9673a6"
+    }
+  }
+}
+
+MultiRotor -> metodos
+
+# ============================================================
+# Typical Application
+# ============================================================
+exemplo: Typical Application {
+  tooltip: |
+    Gearboxes
+    - Turbine + Compressor via reducer
+    - Motor + Pump via multiplier
+    - Multi-stage gear trains
+  |
+  style: {
+    fill: "#fef9e7"
+    stroke: "#e67e22"
+    border-radius: 8
+    font-size: 13
+  }
+}
+
+MultiRotor -> exemplo: used in {
+  style.stroke-dash: 3
+  style.stroke: "#e67e22"
+}

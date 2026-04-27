@@ -1,0 +1,230 @@
+direction: down
+
+title: {
+  label: GearElement - Gear Elements
+  near: top-center
+  shape: text
+  style: {
+    font-size: 28
+    bold: true
+  }
+}
+
+# ============================================================
+# Hierarchy
+# ============================================================
+DiskElement: DiskElement {
+  tooltip: "Base class - rigid disk with mass and inertia"
+  style: {
+    fill: "#e0e0e0"
+    stroke: "#757575"
+    border-radius: 8
+    font-size: 14
+  }
+}
+
+GearElement: GearElement {
+  tooltip: |
+    Gear modeled as a disk with mesh properties.
+    Inherits mass and inertia from DiskElement.
+    Connects to another GearElement via Mesh.
+  |
+  link: ./ross-overview.svg
+  style: {
+    fill: "#dae8fc"
+    stroke: "#6c8ebf"
+    font-size: 18
+    bold: true
+    border-radius: 10
+  }
+}
+
+DiskElement -> GearElement: inheritance {
+  style.stroke: "#757575"
+}
+
+# ============================================================
+# Gear Parameters
+# ============================================================
+params: Mesh Parameters {
+  style: {
+    fill: "#e8f0fc"
+    stroke: "#6c8ebf"
+    border-radius: 10
+  }
+
+  dentes: n_teeth {
+    tooltip: |
+      Number of gear teeth.
+      Defines the transmission ratio
+      with the coupled gear.
+    |
+    style: {
+      fill: "#dae8fc"
+      stroke: "#6c8ebf"
+    }
+  }
+
+  pitch: pitch_diameter {
+    tooltip: |
+      Pitch diameter [m]
+      Circle where teeth mesh.
+      pitch_diameter = n_teeth / diametral_pitch
+    |
+    style: {
+      fill: "#dae8fc"
+      stroke: "#6c8ebf"
+    }
+  }
+
+  base: base_diameter {
+    tooltip: |
+      Base diameter [m]
+      base_diameter = pitch_diameter × cos(pr_angle)
+      Defines the involute tooth profile
+    |
+    style: {
+      fill: "#dae8fc"
+      stroke: "#6c8ebf"
+    }
+  }
+
+  angulos: Angles {
+    tooltip: |
+      pr_angle: pressure angle [rad]
+      (typically 20° = 0.349 rad)
+      helix_angle: helix angle [rad]
+      (0 for spur gears)
+    |
+    style: {
+      fill: "#dae8fc"
+      stroke: "#6c8ebf"
+    }
+  }
+}
+
+GearElement -> params
+
+# ============================================================
+# GearElementTVMS
+# ============================================================
+TVMS: GearElementTVMS {
+  tooltip: |
+    Gear with time-varying mesh stiffness (TVMS).
+    Models the stiffness variation as teeth
+    enter and exit contact.
+  |
+  style: {
+    fill: "#dae8fc"
+    stroke: "#6c8ebf"
+    font-size: 16
+    bold: true
+    border-radius: 8
+  }
+}
+
+GearElement -> TVMS: inheritance {
+  style.stroke: "#6c8ebf"
+}
+
+tvms_metodo: get_variable_stiffness() {
+  tooltip: |
+    Returns the mesh stiffness as a function
+    of rotational angle.
+    Used in time-domain analyses to capture
+    parametric excitation.
+  |
+  style: {
+    fill: "#f3e5f5"
+    stroke: "#9673a6"
+    border-radius: 8
+  }
+}
+
+TVMS -> tvms_metodo
+
+# ============================================================
+# Mesh
+# ============================================================
+Mesh: Mesh {
+  tooltip: |
+    Object that connects two GearElements.
+    Defines the stiffness and damping of
+    the tooth contact.
+    Calculates mesh forces
+    (tangential, radial, axial).
+  |
+  style: {
+    fill: "#fff2cc"
+    stroke: "#d6b656"
+    font-size: 16
+    bold: true
+    border-radius: 8
+  }
+}
+
+mesh_params: Mesh Parameters {
+  style: {
+    fill: "#fef9e7"
+    stroke: "#d6b656"
+    border-radius: 10
+  }
+
+  gear1: gear1 (GearElement) {
+    tooltip: "First gear (driving)"
+    style: {
+      fill: "#fff2cc"
+      stroke: "#d6b656"
+    }
+  }
+
+  gear2: gear2 (GearElement) {
+    tooltip: "Second gear (driven)"
+    style: {
+      fill: "#fff2cc"
+      stroke: "#d6b656"
+    }
+  }
+
+  stiffness: mesh_stiffness {
+    tooltip: |
+      Mesh stiffness [N/m]
+      Can be constant or variable (TVMS)
+    |
+    style: {
+      fill: "#fff2cc"
+      stroke: "#d6b656"
+    }
+  }
+
+  damping: mesh_damping {
+    tooltip: "Mesh damping [N·s/m]"
+    style: {
+      fill: "#fff2cc"
+      stroke: "#d6b656"
+    }
+  }
+}
+
+Mesh -> mesh_params
+
+# ============================================================
+# Usage in MultiRotor
+# ============================================================
+multirotor: MultiRotor {
+  tooltip: |
+    GearElements and Mesh are used to
+    create multi-rotor systems coupled
+    by gears (gearboxes).
+  |
+  style: {
+    fill: "#f8cecc"
+    stroke: "#b85450"
+    border-radius: 8
+  }
+}
+
+Mesh -> multirotor: used in {
+  style.stroke-dash: 3
+  style.stroke: "#b85450"
+}
