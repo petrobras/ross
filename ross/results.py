@@ -31,6 +31,7 @@ __all__ = [
     "CriticalSpeedResults",
     "ModalResults",
     "CampbellResults",
+    "ClearanceResults",
     "FrequencyResponseResults",
     "ForcedResponseResults",
     "StaticResults",
@@ -7625,14 +7626,14 @@ class SensitivityResults(Results):
         return loaded_result
 
 
-class ClearanceResults:
-    """
-    Results for clearance analysis.
+class ClearanceResults(Results):
+    """Results for clearance analysis.
 
-    This class stores vibration amplitudes at bearing locations and compares
-    them with bearing radial clearance limits.
+    Stores vibration amplitudes at bearing locations and compares them with
+    bearing radial clearance limits. Inherits :class:`Results` for ``save`` /
+    ``load`` like other analysis result types.
 
-    Attributes
+    Parameters
     ----------
     speed_rpm : float
         Rotor speed in RPM.
@@ -7717,9 +7718,19 @@ class ClearanceResults:
             )
         )
 
-        # --- Percentual
-        per_clr = self.clearance / self.magnitudes
-        per_clr_75 = self.clearance_75 / self.magnitudes
+        # Percent of radial clearance limit used (vibration / limit × 100).
+        mag = np.asarray(self.magnitudes, dtype=float)
+        lim100 = np.asarray(self.clearance, dtype=float)
+        lim75 = np.asarray(self.clearance_75, dtype=float)
+        per_clr = np.full_like(mag, np.nan, dtype=float)
+        per_clr_75 = np.full_like(mag, np.nan, dtype=float)
+        ok100 = np.isfinite(mag) & np.isfinite(lim100) & (lim100 > 0)
+        ok75 = np.isfinite(mag) & np.isfinite(lim75) & (lim75 > 0)
+        per_clr[ok100] = 100.0 * mag[ok100] / lim100[ok100]
+        per_clr_75[ok75] = 100.0 * mag[ok75] / lim75[ok75]
+
+        def _pct_label(x):
+            return f"{x:.1f}%" if np.isfinite(x) else "—"
 
         # --- Vibration response
         fig.add_trace(
@@ -7728,7 +7739,7 @@ class ClearanceResults:
                 y=self.magnitudes,
                 mode="lines+markers+text",
                 text=[
-                    f"{c75:.1f}%<br>{c100:.1f}%"
+                    f"{_pct_label(c75)}<br>{_pct_label(c100)}"
                     for c75, c100 in zip(per_clr_75, per_clr)
                 ],
                 textposition="top left",
