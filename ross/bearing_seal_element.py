@@ -2609,7 +2609,7 @@ class CylindricalBearing(BearingElement):
     --------
     >>> import ross as rs
     >>> Q_ = rs.Q_
-    >>> cylindrical = CylindricalBearing(
+    >>> cylindrical = rs.CylindricalBearing(
     ...     n=0,
     ...     speed=Q_([1500, 2000], "RPM"),
     ...     weight=525,
