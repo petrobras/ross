@@ -33,6 +33,7 @@ from ross.faults import Crack, MisalignmentFlex, MisalignmentRigid, Rubbing
 from ross.materials import Material, steel
 from ross.model_reduction import ModelReduction
 from ross.point_mass import PointMass
+from ross.probe import Probe
 from ross.results import (
     CampbellResults,
     ConvergenceResults,
@@ -4719,9 +4720,7 @@ class Rotor(object):
 
         shape = modal.shapes[first_forward_mode]
 
-        node_max = np.argmax(shape.major_axis) // int(
-            len(shape.major_axis) / len(shape.shaft_elements_length)
-        )
+        node_max = max(shape.orbits, key=lambda orbit: orbit.major_axis).node
 
         # --- Unbalance response ---
         # run_unbalance_response expects a frequency array, not a scalar.
@@ -4732,11 +4731,13 @@ class Rotor(object):
             np.asarray([speed]),
         )
 
-        # --- Bearing nodes ---
-        bearing_nodes = [(b.n, 0) for b in self.bearing_elements]
+        bearing_probes = [
+            Probe(b.n, Q_(0, "rad"), tag=getattr(b, "tag", None))
+            for b in self.bearing_elements
+        ]
 
         df = response.data_magnitude(
-            probe=bearing_nodes,
+            probe=bearing_probes,
             amplitude_units="um pkpk",
         )
 
@@ -4744,7 +4745,13 @@ class Rotor(object):
 
         # --- Correction factor ---
         A1 = 25.4 * np.sqrt(12000 / speed_rpm)
-        A4x = max(magnitudes)
+        A4x = float(np.nanmax(magnitudes))
+        if magnitudes.size == 0 or not np.isfinite(A4x) or A4x <= 0:
+            raise ValueError(
+                "Cannot compute clearance correction factor A1/A4x: bearing "
+                "vibration magnitudes are missing, non-finite, or all non-positive. "
+                "Check bearing probes and the unbalance response at the analysis speed."
+            )
 
         CF = A1 / A4x
         magnitudes *= CF
@@ -4754,19 +4761,27 @@ class Rotor(object):
         clearance_75 = []
 
         for b in self.bearing_elements:
-            if hasattr(b, "radial_clearance"):
-                clr = Q_(b.radial_clearance, "m").to("micron").m
-
-                if isinstance(clr, np.ndarray):
-                    clr_val = max(clr)
-                else:
-                    clr_val = clr
-
-                clearance.append(clr_val)
-                clearance_75.append(0.75 * clr_val)
-            else:
+            rc = getattr(b, "radial_clearance", None)
+            if rc is None:
                 clearance.append(np.nan)
                 clearance_75.append(np.nan)
+                continue
+
+            try:
+                clr = Q_(rc, "m").to("micron").m
+            except (TypeError, ValueError):
+                clearance.append(np.nan)
+                clearance_75.append(np.nan)
+                continue
+
+            arr = np.asarray(clr, dtype=float)
+            if arr.size == 0:
+                clr_val = np.nan
+            else:
+                clr_val = float(np.nanmax(arr))
+
+            clearance.append(clr_val)
+            clearance_75.append(0.75 * clr_val)
 
         return ClearanceResults(
             speed_rpm=speed_rpm,
