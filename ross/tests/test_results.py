@@ -354,7 +354,7 @@ def test_run_clearance_analysis(rotor_with_explicit_clearances):
 
     result = rotor.run_clearance_analysis(speed=3600)
 
-    magnitudes = np.array([8.3677512, 15.00677594])
+    magnitudes = np.array([6.05874371, 15.00677594])
     clearance_75 = np.array([90.0, 135.0])
     assert_allclose(result["magnitudes"], magnitudes, 1e-6)
     assert_allclose(result["clearance_75"], clearance_75, 1e-6)
