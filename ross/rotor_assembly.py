@@ -70,6 +70,7 @@ __all__ = [
     "rotor_example_6dof",
     "rotor_example_with_damping",
     "rotor_amb_example",
+    "concatenate_rotor"
 ]
 
 # set Plotly palette of colors
@@ -5672,3 +5673,57 @@ def rotor_amb_example(controller_transfer_function=None):
         ]
 
     return Rotor(shaft_elements, disk_elements, bearing_elements)
+
+def concatenate_rotor(rotor_list):
+    shaft_elements = []
+    disk_elements = []
+    bearing_elements = []
+    point_mass_elements = []
+
+    node_offset = 0
+    rotor_id = 0  # Identificador incremental para tags
+
+    for rotor in rotor_list:
+        rotor = deepcopy(rotor)
+
+        # Reindexar elementos de eixo
+        for i, el in enumerate(rotor.shaft_elements):
+            el.n_l += node_offset
+            el.n_r += node_offset
+            el.n = el.n_l  # importante para elementos do ROSS
+            el.tag = f"shaft_r{rotor_id}_{i}"
+        shaft_elements.extend(rotor.shaft_elements)
+
+        # Reindexar discos
+        for i, el in enumerate(rotor.disk_elements):
+            el.n += node_offset
+            el.tag = f"disk_r{rotor_id}_{i}"
+        disk_elements.extend(rotor.disk_elements)
+
+        # Reindexar mancais
+        for i, el in enumerate(rotor.bearing_elements):
+            el.n += node_offset
+            el.tag = f"bearing_r{rotor_id}_{i}"
+        bearing_elements.extend(rotor.bearing_elements)
+
+        # Reindexar massas concentradas
+        for i, el in enumerate(rotor.point_mass_elements):
+            el.n += node_offset
+            el.tag = f"pmass_r{rotor_id}_{i}"
+        point_mass_elements.extend(rotor.point_mass_elements)
+
+        # Atualiza deslocamento para o próximo rotor
+        all_nodes = [el.n_r for el in rotor.shaft_elements] + [
+            el.n for el in rotor.disk_elements + rotor.bearing_elements
+        ]
+        node_offset = max(all_nodes)
+        rotor_id += 1
+
+    rotor_concat = Rotor(
+        shaft_elements=shaft_elements,
+        disk_elements=disk_elements,
+        bearing_elements=bearing_elements,
+        point_mass_elements=point_mass_elements,
+    )
+
+    return rotor_concat
