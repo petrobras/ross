@@ -70,7 +70,7 @@ __all__ = [
     "rotor_example_6dof",
     "rotor_example_with_damping",
     "rotor_amb_example",
-    "concatenate_rotor"
+    "concatenate_rotor",
 ]
 
 # set Plotly palette of colors
@@ -5673,6 +5673,7 @@ def rotor_amb_example(controller_transfer_function=None):
         ]
 
     return Rotor(shaft_elements, disk_elements, bearing_elements)
+
 
 def concatenate_rotor(rotor_list):
     shaft_elements = []
