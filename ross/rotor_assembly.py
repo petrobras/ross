@@ -5682,38 +5682,38 @@ def concatenate_rotor(rotor_list):
     point_mass_elements = []
 
     node_offset = 0
-    rotor_id = 0  # Identificador incremental para tags
+    rotor_id = 0  # Incremental identifier for tags
 
     for rotor in rotor_list:
         rotor = deepcopy(rotor)
 
-        # Reindexar elementos de eixo
+        # Reindex shaft elements
         for i, el in enumerate(rotor.shaft_elements):
             el.n_l += node_offset
             el.n_r += node_offset
-            el.n = el.n_l  # importante para elementos do ROSS
+            el.n = el.n_l  # Important for ROSS elements
             el.tag = f"shaft_r{rotor_id}_{i}"
         shaft_elements.extend(rotor.shaft_elements)
 
-        # Reindexar discos
+        # Reindex disk elements
         for i, el in enumerate(rotor.disk_elements):
             el.n += node_offset
             el.tag = f"disk_r{rotor_id}_{i}"
         disk_elements.extend(rotor.disk_elements)
 
-        # Reindexar mancais
+        # Reindex bearing elements
         for i, el in enumerate(rotor.bearing_elements):
             el.n += node_offset
             el.tag = f"bearing_r{rotor_id}_{i}"
         bearing_elements.extend(rotor.bearing_elements)
 
-        # Reindexar massas concentradas
+        # Reindex point mass elements
         for i, el in enumerate(rotor.point_mass_elements):
             el.n += node_offset
             el.tag = f"pmass_r{rotor_id}_{i}"
         point_mass_elements.extend(rotor.point_mass_elements)
 
-        # Atualiza deslocamento para o próximo rotor
+        # Update offset for the next rotor
         all_nodes = [el.n_r for el in rotor.shaft_elements] + [
             el.n for el in rotor.disk_elements + rotor.bearing_elements
         ]
