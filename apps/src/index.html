@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ROSS - Graphical Interface</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+</head>
+<body>
+
+    <div id="screen-home" class="screen active">
+        <div class="home-container">
+            <img src="logo.png" alt="ROSS Logo" class="logo-img-home" onerror="this.style.display='none'">
+            <h1 class="logo-text">ROSS</h1>
+            <p class="subtitle">Rotordynamic Open-Source Software</p>
+            <div class="home-buttons">
+                <button onclick="startNewRotor()" class="btn-primary">New Rotor</button>
+                <button onclick="document.getElementById('upload-rotor-home').click()" class="btn-secondary">Load Rotor</button>
+                <button onclick="document.getElementById('upload-analysis-home').click()" class="btn-secondary">Load Analysis</button>
+                <button onclick="exitApplication()" class="btn-exit" style="margin-top: 15px;"><i class="fas fa-power-off"></i> Exit Program</button>
+                
+                <input type="file" id="upload-rotor-home" accept=".json, .toml" style="display: none;" onchange="loadRotor(event)">
+                <input type="file" id="upload-analysis-home" accept=".json" style="display: none;" onchange="loadAnalysisDirect(event)">
+            </div>
+        </div>
+    </div>
+
+    <div id="screen-modeling" class="screen">
+        <div class="topbar">
+            <div class="topbar-left">
+                <button class="btn-back" onclick="switchScreen('screen-home')" title="Back to Home"><i class="fas fa-arrow-left"></i></button>
+                <button class="btn-toggle-sidebar" onclick="toggleSidebar()" title="Toggle Sidebar"><i class="fas fa-bars"></i></button>
+            </div>
+            <div class="topbar-center">
+                <img src="logo.png" alt="Logo" class="logo-img-topbar" onerror="this.style.display='none'"> ROSS - Modeling
+            </div>
+            <div class="topbar-actions">
+                <button class="btn-py" onclick="generatePythonFile()" title="Generate Python"><i class="fab fa-python"></i> <span class="btn-text">Generate Python</span></button>
+                <button class="btn-save" onclick="saveRotor(event)" title="Save Rotor"><i class="fas fa-save"></i> <span class="btn-text">Save Rotor</span></button>
+                <button class="btn-analysis-go" onclick="switchScreen('screen-analysis')" title="Go to Analysis"><span class="btn-text">Go to Analysis</span> <i class="fas fa-arrow-right"></i></button>
+                <button class="btn-exit-small" onclick="exitApplication()" title="Exit"><i class="fas fa-power-off"></i></button>
+            </div>
+        </div>
+
+        <div class="modeling-layout">
+            <div class="sidebar">
+                <button class="tab-btn" onclick="openTab('materials')">Material</button>
+                <button class="tab-btn" onclick="openTab('shafts')">Shaft</button>
+                <button class="tab-btn" onclick="openTab('disks')">Disk</button>
+                <button class="tab-btn" onclick="openTab('gears')">Gear</button>
+                <button class="tab-btn" onclick="openTab('couplings')">Coupling</button>
+                <button class="tab-btn" onclick="openTab('seals')">Seal</button>
+                <button class="tab-btn" onclick="openTab('bearings')">Bearing</button>
+                <button class="tab-btn" onclick="openTab('pointmasses')">Pointmass</button>
+            </div>
+
+            <div class="dynamic-panel">
+                <div id="empty-message" class="empty-message">Select a category on the left to start modeling.</div>
+                
+                <div id="list-area" style="display: none;">
+                    <h3 id="tab-title">Category</h3>
+                    <div id="element-list" class="dynamic-list"></div>
+                    <button class="btn-add" id="btn-add-item" onclick="openForm(true)"><i class="fas fa-plus"></i></button>
+                    
+                    <div id="insertion-form" class="form-box" style="display: none;">
+                        <div id="form-fields"></div>
+                        <div class="form-actions">
+                            <button class="btn-confirm" onclick="saveItem()"><i class="fas fa-check"></i></button>
+                            <button class="btn-cancel" onclick="closeForm()"><i class="fas fa-times"></i></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="plot-panel">
+                <div id="rotor-info" style="display:flex; justify-content:center; gap: 30px; margin-bottom: 15px; font-weight: 600; color: var(--text-main); font-size: 13px; background: var(--bg-card); padding: 10px; border-radius: var(--radius-ui); border: 1px solid var(--border-color); box-shadow: var(--shadow-card); opacity: 0; transition: opacity 0.3s;">
+                    <span>Total Mass: <span id="info-mass" style="color: var(--accent-primary); font-family: monospace; font-size: 14px;">-</span> kg</span>
+                    <span>Polar Inertia (Ip): <span id="info-ip" style="color: var(--accent-primary); font-family: monospace; font-size: 14px;">-</span> kg.m²</span>
+                </div>
+
+                <div id="plot-rotor" class="live-plot-area">
+                    <p style="color: #888; text-align: center; margin-top: 50%;">The rotor model will appear here...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="screen-analysis" class="screen">
+        <div class="topbar">
+            <div class="topbar-left">
+                <button class="btn-back" onclick="switchScreen('screen-modeling')" title="Back to Modeling"><i class="fas fa-arrow-left"></i></button>
+                <button class="btn-toggle-sidebar" onclick="toggleAnalysisSidebar()" title="Toggle Sidebar"><i class="fas fa-bars"></i></button>
+            </div>
+            <div class="topbar-center">
+                <img src="logo.png" alt="Logo" class="logo-img-topbar" onerror="this.style.display='none'"> ROSS - Analysis
+            </div>
+            <div class="topbar-actions">
+                <button class="btn-py" onclick="generatePythonFile()" title="Generate Python"><i class="fab fa-python"></i> <span class="btn-text">Generate Python</span></button>
+                <button class="btn-save" onclick="saveAnalysis(event)" title="Save Analysis"><i class="fas fa-save"></i> <span class="btn-text">Save Analysis</span></button>
+                <button class="btn-secondary" onclick="document.getElementById('upload-analysis-screen').click()" title="Load Analysis"><i class="fas fa-folder-open"></i> <span class="btn-text">Load</span></button>
+                <input type="file" id="upload-analysis-screen" accept=".json" style="display: none;" onchange="loadAnalysis(event)">
+                <button class="btn-exit-small" onclick="exitApplication()" title="Exit"><i class="fas fa-power-off"></i></button>
+            </div>
+        </div>
+
+        <div class="analysis-layout">
+            <div class="analysis-controls-panel">
+                <select id="analysis-type" class="analysis-select">
+                    <option value="">Select analysis type...</option>
+                    <option value="campbell">Campbell Diagram</option>
+                    <option value="ucs">UCS Diagram</option> 
+                    <option value="freq_response">Frequency Response</option>
+                    <option value="modes">Vibration Modes</option>
+                    <option value="unbalance">Unbalance Response</option>
+                    <option value="time_response">Time Response</option>
+                    <option value="static">Static</option>
+                </select>
+                <button type="button" class="btn-analysis-go" onclick="addAnalysis(event)" style="width: 100%; margin-top: 15px;">⚙️ Add Dashboard Card</button>
+            </div>
+            
+            <div class="analysis-plot-panel" id="analysis-list">
+                <p style="color: #888; text-align: center; margin-top: 20%;">Generated dashboards will appear here.</p>
+            </div>
+        </div>
+    </div>
+
+<script src="app.js"></script>
+</body>
+</html>
