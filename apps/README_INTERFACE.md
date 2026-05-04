@@ -59,7 +59,7 @@ Ensure you have Python 3.x installed on your machine. It is highly recommended t
 1. **Start the Backend Server:**
     Run the Flask server from your terminal
     ```bash
-    python .\apps\src\server.py
+    python .\apps\app.py
 
 2. **Access the Interface:**
     The server.py script is configured to automatically attempt to open index.html in your default web browser. If it doesn't open, simply open the index.html file manually in Chrome or Firefox.

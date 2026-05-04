@@ -1,0 +1,6 @@
+flask
+flask-cors
+ross-rotordynamics
+numpy
+toml
+pint

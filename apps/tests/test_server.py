@@ -2,7 +2,7 @@ import os
 import sys
 import pytest
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from src.server import app
+from app import *
 
 @pytest.fixture
 def client():
