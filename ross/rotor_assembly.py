@@ -4644,7 +4644,7 @@ class Rotor(object):
         )
 
     @check_units
-    def run_clearance_analysis(self, speed):
+    def run_clearance_analysis(self, speed, unbalance_node=None):
         """
         Perform clearance analysis using unbalance response.
 
@@ -4663,6 +4663,8 @@ class Rotor(object):
         speed : float, pint.Quantity
             Rotor speed. A scalar value is expected. Arrays with a single
             value are also accepted.
+        unbalance_node : int, optional
+            Node where the unbalance is applied. If None, the node with maximum modal displacement is used.
 
         Returns
         -------
@@ -4707,26 +4709,28 @@ class Rotor(object):
         else:
             residual_unbalance = 6350 * (self.m / 3.937)
 
+        # API 617 requirement
+        Ua = 2 * residual_unbalance
+
         # --- Modal analysis ---
         modal = self.run_modal(speed=speed)
         whirl = modal.whirl_direction()
 
         forward_modes = [i for i, d in enumerate(whirl) if d == "Forward"]
-
         if len(forward_modes) == 0:
             raise ValueError("No forward modes found for this rotor.")
+        
+        shape = modal.shapes[forward_modes[0]]
 
-        first_forward_mode = forward_modes[0]
+        if unbalance_node is None:
+            node_max = max(shape.orbits, key=lambda o: o.major_axis).node
+        else:
+            node_max = int(unbalance_node)
 
-        shape = modal.shapes[first_forward_mode]
-
-        node_max = max(shape.orbits, key=lambda orbit: orbit.major_axis).node
-
-        # --- Unbalance response ---
-        # run_unbalance_response expects a frequency array, not a scalar.
+        # ---  Unbalance response ---
         response = self.run_unbalance_response(
             node_max,
-            Q_(residual_unbalance, "g*mm"),
+            Q_(Ua, "g*mm"),
             0,
             np.asarray([speed]),
         )
@@ -4743,42 +4747,33 @@ class Rotor(object):
 
         magnitudes = df.loc[0, df.columns != "frequency"].to_numpy(copy=True)
 
-        # --- Correction factor ---
-        A1 = 25.4 * np.sqrt(12000 / speed_rpm)
-        A4x = float(np.nanmax(magnitudes))
-        if magnitudes.size == 0 or not np.isfinite(A4x) or A4x <= 0:
-            raise ValueError(
-                "Cannot compute clearance correction factor A1/A4x: bearing "
-                "vibration magnitudes are missing, non-finite, or all non-positive. "
-                "Check bearing probes and the unbalance response at the analysis speed."
-            )
+        # --- STEP 5: API 617 vibration limit (Avl) ---
+        Avl = 25.4 * (12000 / speed_rpm)
 
-        CF = A1 / A4x
-        magnitudes *= CF
+        Amax = np.nanmax(magnitudes)
 
-        # --- Clearance extraction ---
+        if not np.isfinite(Amax) or Amax <= 0:
+            raise ValueError("Invalid vibration response.")
+
+        # --- STEP 6: Scale factor (Scc) ---
+        Scc = min(Avl / Amax, 6.0)
+
+        magnitudes_scaled = magnitudes * Scc
+
+        # --- STEP 7: Clearance ---
         clearance = []
         clearance_75 = []
 
         for b in self.bearing_elements:
             rc = getattr(b, "radial_clearance", None)
+
             if rc is None:
                 clearance.append(np.nan)
                 clearance_75.append(np.nan)
                 continue
 
-            try:
-                clr = Q_(rc, "m").to("micron").m
-            except (TypeError, ValueError):
-                clearance.append(np.nan)
-                clearance_75.append(np.nan)
-                continue
-
-            arr = np.asarray(clr, dtype=float)
-            if arr.size == 0:
-                clr_val = np.nan
-            else:
-                clr_val = float(np.nanmax(arr))
+            clr = Q_(rc, "m").to("micron").m
+            clr_val = float(np.nanmax(np.asarray(clr)))
 
             clearance.append(clr_val)
             clearance_75.append(0.75 * clr_val)
@@ -4786,7 +4781,7 @@ class Rotor(object):
         return ClearanceResults(
             speed_rpm=speed_rpm,
             bearing_nodes=[b.n for b in self.bearing_elements],
-            magnitudes=magnitudes,
+            magnitudes=magnitudes_scaled,
             clearance=np.array(clearance),
             clearance_75=np.array(clearance_75),
         )
