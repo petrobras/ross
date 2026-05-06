@@ -45,7 +45,7 @@ __all__ = [
 
 # Define reference circle for orbits
 NUM_POINTS = 360
-CIRCLE = np.exp(1j * np.linspace(0, 2 * np.pi, NUM_POINTS))
+CIRCLE = np.exp(1j * np.linspace(0, 2 * np.pi, NUM_POINTS, endpoint=False))
 
 
 class Results(ABC):
@@ -254,6 +254,8 @@ class Orbit(Results):
     ----------
     node : int
         Orbit node in the rotor.
+    node_pos : float
+        Orbit node position in the rotor.
     ru_e : complex
         Element in the vector corresponding to the x direction.
     rv_e : complex
@@ -368,15 +370,6 @@ def _init_orbit(ru_e, rv_e):
     angle = np.arctan2(y_circle, x_circle)
     angle[angle < 0] = angle[angle < 0] + 2 * np.pi
 
-    # find major axis index looking at the first half circle
-    half = NUM_POINTS // 2
-    r_circle = np.sqrt(x_circle[:half] ** 2 + y_circle[:half] ** 2)
-    major_index = np.argmax(r_circle)
-    major_x = x_circle[major_index]
-    major_y = y_circle[major_index]
-    major_angle = angle[major_index]
-    minor_angle = major_angle + np.pi / 2
-
     # calculate T matrix
     ru = np.absolute(ru_e)
     rv = np.absolute(rv_e)
@@ -391,7 +384,7 @@ def _init_orbit(ru_e, rv_e):
     # fmt: on
     H = T @ T.T
 
-    lam = la.eigvals(H).astype(np.complex128)
+    lam, vecs = la.eig(H)
     # lam is the eigenvalue -> sqrt(lam) is the minor/major axis.
     # kappa encodes the relation between the axis and the precession.
     minor = np.sqrt(lam.min())
@@ -417,6 +410,18 @@ def _init_orbit(ru_e, rv_e):
     minor_axis = np.real(minor)
     major_axis = np.real(major)
     kappa = np.real(kappa)
+
+    major_index = np.argmax(lam)
+    v = vecs[:, major_index]
+    v = np.real(v)
+    v = v / la.norm(v)
+
+    major_x = major * v[0]
+    major_y = major * v[1]
+    major_angle = np.arctan2(major_y, major_x)
+    if major_angle < 0:
+        major_angle += 2 * np.pi
+    minor_angle = major_angle + np.pi / 2
 
     return (
         x_circle,
@@ -534,6 +539,7 @@ class Shape(Results):
         """Calculate orbits for each node in the shape."""
         orbits = []
         whirl = []
+
         for node, node_pos in zip(self.nodes, self.nodes_pos):
             ru_e, rv_e = self._evec[self.number_dof * node : self.number_dof * node + 2]
             orbit = Orbit(node=node, node_pos=node_pos, ru_e=ru_e, rv_e=rv_e)
@@ -586,6 +592,9 @@ class Shape(Results):
             major_x = np.zeros(shape)
             major_y = np.zeros(shape)
             major_angle = np.zeros(shape)
+            x0 = np.zeros(shape)
+            y0 = np.zeros(shape)
+            angle_0 = np.zeros(shape)
 
             N1 = onn - 3 * zeta**2 + 2 * zeta**3
             N2 = zeta - 2 * zeta**2 + zeta**3
@@ -636,10 +645,15 @@ class Shape(Results):
                         orb = Orbit(
                             node=0, node_pos=0, ru_e=xn_complex[i], rv_e=yn_complex[i]
                         )
+
                         major[i] = orb.major_axis
                         major_x[i] = orb.major_x
                         major_y[i] = orb.major_y
                         major_angle[i] = orb.major_angle
+
+                        x0[i] = orb.x_circle[0]
+                        y0[i] = orb.y_circle[0]
+                        angle_0[i] = orb.angle[0]
 
                 n0 = n1
                 e0 = e1
@@ -651,6 +665,9 @@ class Shape(Results):
             self.major_x = major_x
             self.major_y = major_y
             self.major_angle = major_angle
+            self.x0 = x0
+            self.y0 = y0
+            self.angle_0 = angle_0
 
         else:
             self.whirl = "None"
@@ -1243,17 +1260,15 @@ class Shape(Results):
             self._plot_axial(plot_dimension=2, length_units=length_units, fig=fig)
 
         else:
-            xn = self.major_x.copy()
-            yn = self.major_y.copy()
-            zn = self.zn.copy()
             nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
+            zn = self.zn.copy()
 
             if orientation == "major":
                 values = self.major_axis.copy()
             elif orientation == "x":
-                values = xn
+                values = self.x0.copy()
             elif orientation == "y":
-                values = yn
+                values = self.y0.copy()
             else:
                 raise ValueError(f"Invalid orientation {orientation}.")
 
@@ -1272,7 +1287,7 @@ class Shape(Results):
                         x=Q_(zn[n0:n1], "m").to(length_units).m,
                         y=values[n0:n1],
                         line=dict(color=self.color),
-                        customdata=Q_(self.major_angle[n0:n1], "rad").to(phase_units).m,
+                        customdata=Q_(self.angle_0[n0:n1], "rad").to(phase_units).m,
                         hovertemplate=(
                             f"Displacement: %{{y:.2f}}<br>"
                             + f"Angle {phase_units}: %{{customdata:.2f}}"
