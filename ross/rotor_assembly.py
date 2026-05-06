@@ -4721,7 +4721,7 @@ class Rotor(object):
         forward_modes = [i for i, d in enumerate(whirl) if d == "Forward"]
         if len(forward_modes) == 0:
             raise ValueError("No forward modes found for this rotor.")
-        
+
         shape = modal.shapes[forward_modes[0]]
 
         if unbalance_node is None:
