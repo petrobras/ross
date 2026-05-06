@@ -12,6 +12,7 @@ from .materials import *
 from .point_mass import *
 from .probe import *
 from .results import *
+from .motor_element import *
 from .rotor_assembly import *
 from .multi_rotor import *
 from .shaft_element import *
