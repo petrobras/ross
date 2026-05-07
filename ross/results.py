@@ -387,8 +387,8 @@ def _init_orbit(ru_e, rv_e):
     lam, vecs = la.eig(H)
     # lam is the eigenvalue -> sqrt(lam) is the minor/major axis.
     # kappa encodes the relation between the axis and the precession.
-    minor = np.sqrt(lam.min())
-    major = np.sqrt(lam.max())
+    minor = np.sqrt(max(np.real(lam.min()), 0.0))
+    major = np.sqrt(max(np.real(lam.max()), 0.0))
 
     diff = nv - nu
 
