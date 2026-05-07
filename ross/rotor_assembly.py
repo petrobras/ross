@@ -1399,16 +1399,18 @@ class Rotor(object):
         """
         # avoid float point errors when sorting
         evals_truncated = np.around(eigenvalues, decimals=10)
-        a = np.imag(evals_truncated)  # First column
-        b = np.absolute(evals_truncated)  # Second column
-        ind = np.lexsort((b, a))  # Sort by imag (wd), then by absolute (wn)
-        # Positive eigenvalues first
-        positive = [i for i in ind[len(a) // 2 :]]
-        negative = [i for i in ind[: len(a) // 2]]
 
-        idx = np.array([*positive, *negative])
+        wd = np.imag(evals_truncated)
+        wn = np.absolute(evals_truncated)
 
-        return idx
+        sign = np.zeros_like(wd)
+        sign[wd == 0] = 1
+        sign[wd < 0] = 2
+
+        # Sort by sign, then by imag (wd), then by absolute (wn)
+        ind = np.lexsort((wn, wd, sign))
+
+        return ind
 
     @check_units
     def _eigen(
