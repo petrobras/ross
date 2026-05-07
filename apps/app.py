@@ -624,8 +624,10 @@ if __name__ == '__main__':
     import time
     def open_interface():
         time.sleep(2.0) 
-        if getattr(sys, 'frozen', False): base_folder = os.path.dirname(sys.executable)
-        else: base_folder = os.path.dirname(os.path.abspath(__file__))
+        if getattr(sys, "frozen", False):
+            base_folder = getattr(sys, "_MEIPASS", os.path.dirname(sys.executable))
+        else:
+            base_folder = os.path.dirname(os.path.abspath(__file__))
         webbrowser.open('file://' + os.path.join(base_folder, 'frontend', 'index.html'))
     threading.Thread(target=open_interface).start()
     app.run(port=5001, use_reloader=False)
