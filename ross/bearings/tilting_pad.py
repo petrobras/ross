@@ -3446,7 +3446,7 @@ class TiltingPad(BearingElement):
             title=dict(text="Pressure Distribution", font=dict(size=24)),
             scene=dict(
                 xaxis_title=dict(text="X direction [rad]", font=dict(size=14)),
-                yaxis_title=dict(text="Z direction [-]", font=dict(size=14)),
+                yaxis_title=dict(text="Y direction [-]", font=dict(size=14)),
                 zaxis_title=dict(text="Pressure [MPa]", font=dict(size=14)),
             ),
             plot_bgcolor="white",
