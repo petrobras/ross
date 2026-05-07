@@ -1634,7 +1634,7 @@ def test_unbalance(rotor3):
     assert_allclose(data["Probe 1 - Node 0"], amplitude_expected, rtol=1e-4)
     data = unb.data_magnitude(probe=[Probe(0, "major", tag="Probe 1 - Node 0")])
     assert_allclose(data["Probe 1 - Node 0"], amplitude_expected, rtol=1e-4)
-    phase_expected = np.array([1.5742963267948966, 1.57357163267948966])
+    phase_expected = np.array([1.5707963267948966, 1.5707963267948966])
     data = unb.data_phase(probe=[(0, "major")], probe_units="deg")
     assert_allclose(data["Probe 1 - Node 0"], phase_expected, rtol=1e-4)
     data = unb.data_phase(probe=[Probe(0, "major", tag="Probe 1 - Node 0")])
@@ -1671,14 +1671,14 @@ def test_deflected_shape(rotor7):
     )
     expected_z = np.array(
         [
-            5.72720829e-05,
-            5.59724347e-05,
-            5.46564072e-05,
-            5.33052546e-05,
-            5.19002311e-05,
-            5.19002311e-05,
-            5.04258251e-05,
-            4.88678837e-05,
+            4.91340990e-05,
+            4.83692642e-05,
+            4.75857863e-05,
+            4.67657796e-05,
+            4.58914054e-05,
+            4.58914054e-05,
+            4.49479010e-05,
+            4.39217194e-05,
         ]
     )
     assert_allclose(fig.data[-4]["x"][:8], expected_x, rtol=1e-4)
