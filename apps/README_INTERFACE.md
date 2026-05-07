@@ -30,7 +30,7 @@ This is a web-based graphical interface for the **ROSS** library, designed to si
 
 - `app.js`: Handles frontend logic, including rotor data management, dynamic form generation, and API communication with the Flask server.
 
-- `server.py`: The Flask backend that interacts with the ROSS library to perform calculations and generate plot data.
+- `app.py`: The Flask backend that interacts with the ROSS library to perform calculations and generate plot data.
 
 - `requirements.txt`: List of Python dependencies required to run the server.
 
@@ -62,4 +62,16 @@ Ensure you have Python 3.x installed on your machine. It is highly recommended t
     python .\apps\app.py
 
 2. **Access the Interface:**
-    The server.py script is configured to automatically attempt to open index.html in your default web browser. If it doesn't open, simply open the index.html file manually in Chrome or Firefox.
+    `app.py` automatically tries to open `frontend/index.html` in your default web browser after a short delay. If it does not open, open `apps/frontend/index.html` manually in Chrome or Firefox.
+
+## 📦 Windows standalone bundle (PyInstaller)
+
+Use Python **3.10+** and install dependencies from the repository root:
+
+```bash
+pip install -e .
+pip install -r apps/requirements.txt pyinstaller
+pyinstaller apps/ross_interface.spec --noconfirm
+```
+
+This produces `dist/ROSS-Interface/` with `ROSS-Interface.exe` and bundled assets. Zip that folder for distribution, or rely on [GitHub Actions](https://github.com/petrobras/ross/actions/workflows/windows-interface-and-docs.yml), which builds the same bundle on `windows-latest` and attaches it to the documentation site.
