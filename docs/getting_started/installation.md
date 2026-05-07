@@ -36,3 +36,13 @@ Meet [**ROSS GPT**](https://bit.ly/rossgpt), a virtual assistant trained specifi
 - Understand technical aspects of ROSS elements like ShaftElement, DiskElement, BearingElement, etc.
 
 👉 [Click here to start using ROSS GPT](https://bit.ly/rossgpt).
+
+## ROSS graphical interface (Windows)
+
+A standalone Windows bundle (PyInstaller) is built on GitHub Actions with the source under `apps/`. Each successful run on `main` publishes `ROSS-Interface-Windows.zip` inside the documentation site’s static downloads folder so users can install the Flask backend and browser UI without a separate Python setup.
+
+[Download ROSS-Interface-Windows.zip](../_static/downloads/ROSS-Interface-Windows.zip)
+
+```{note}
+This ZIP is inserted during the **Windows interface bundle and documentation** workflow run and is only present in HTML builds produced by that pipeline (for example GitHub Pages). If you are viewing docs built elsewhere (local Sphinx or Read the Docs), download the ZIP from the latest workflow artifacts on [GitHub Actions](https://github.com/petrobras/ross/actions/workflows/windows-interface-and-docs.yml).
+```
