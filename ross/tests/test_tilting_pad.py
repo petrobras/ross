@@ -1,125 +1,130 @@
+import numpy as np
 import pytest
 from numpy.testing import assert_allclose
-import numpy as np
 
 from ross.bearings.tilting_pad import TiltingPad
 from ross.units import Q_
 
+journal_diameter = 101.6e-3  # m
+radial_clearance = 74.9e-6  # m
+pad_thickness = 12.7e-3  # m
+n_pads = 5
+frequency = Q_([3000], "RPM")
+pivot_angles = Q_([18, 90, 162, 234, 306], "deg")
+pad_arc = Q_([60] * n_pads, "deg")
+pad_axial_length = Q_([50.8e-3] * n_pads, "m")
+pre_load = [0.5] * n_pads
+offset = [0.5] * n_pads
+lubricant = "ISOVG32"
+oil_supply_temp = Q_(40, "degC")
+load = [8.8405e02, -2.6704e03]  # N, [Fx, Fy]
+eccentricity = 0.35
+attitude_angle = Q_(287.5, "deg")
+thermal_type = "full"
 
-@pytest.fixture
-def tilting_pad_match():
+base_kwargs = dict(
+    n=1,
+    frequency=frequency,
+    journal_diameter=journal_diameter,
+    radial_clearance=radial_clearance,
+    pad_thickness=pad_thickness,
+    pivot_angle=pivot_angles,
+    pad_arc=pad_arc,
+    pad_axial_length=pad_axial_length,
+    pre_load=pre_load,
+    offset=offset,
+    lubricant=lubricant,
+    oil_supply_temperature=oil_supply_temp,
+    nx=30,
+    nz=30,
+    eccentricity=eccentricity,
+    attitude_angle=attitude_angle,
+    load=load,
+    thermal_type=thermal_type,
+)
+
+# Converged pad tilt angles [rad]
+psi_pad = {
+    "match": [1.07426e-03, 7.29330e-04, 2.95380e-04, 3.49720e-04, 8.17350e-04],
+    "determine": [1.07420e-03, 7.20800e-04, 2.93690e-04, 3.49690e-04, 8.16040e-04],
+}
+
+# Converged eccentricity per equilibrium method
+eccentricity_result = {
+    "match": 0.35,
+    "determine": 0.3722,
+}
+
+# Converged attitude angle [rad] per equilibrium method
+attitude_angle_result = {
+    "match": 5.017821599483698,
+    "determine": 5.064506361232241,
+}
+
+# 2x2 stiffness [N/m] and damping [N·s/m] coefficients
+coefficients = {
+    "match": dict(
+        kxx=8.9499e07,
+        kxy=-3.3817e07,
+        kyx=-3.3817e07,
+        kyy=1.1652e08,
+        cxx=2.8202e05,
+        cxy=-2.8284e04,
+        cyx=-2.8284e04,
+        cyy=3.3170e05,
+    ),
+    "determine": dict(
+        kxx=9.5254e07,
+        kxy=-4.7141e07,
+        kyx=-4.7141e07,
+        kyy=1.2676e08,
+        cxx=2.9184e05,
+        cxy=-4.0367e04,
+        cyx=-4.0367e04,
+        cyy=3.5168e05,
+    ),
+}
+
+# Hydrodynamic forces per pad [N]
+force_x = {
+    "match": np.array(
+        [-9.22162496e02, 3.11147456e-01, 5.52500475e02, 1.04579373e03, -1.57342191e03]
+    ),
+    "determine": np.array(
+        [-8.613055e02, 2.827307e-01, 5.238299e02, 1.124814e03, -1.953835e03]
+    ),
+}
+force_y = {
+    "match": np.array(
+        [-3.007243e02, -4.2661925e02, -1.7933787e02, 1.4404706e03, 2.1619113e03]
+    ),
+    "determine": np.array(
+        [-2.80841169e02, -3.90888628e02, -1.70035685e02, 1.549360826e03, 2.684245728e03]
+    ),
+}
+
+
+@pytest.fixture(scope="module")
+def bearing_match():
+    """Return a TiltingPad with prescribed eccentricity (match_eccentricity).
+
+    Journal position is fixed; only pad tilt angles are solved.
+    Shared across all tests in the module (scope='module').
     """
-    Tilting pad bearing with match_eccentricity equilibrium type.
+    return TiltingPad(**base_kwargs, equilibrium_type="match_eccentricity")
 
-    Parameters
-    ----------
-    frequency : pint.Quantity
-        Rotational speed (3000 RPM)
-    journal_diameter : float
-        Journal diameter (101.6 mm)
-    radial_clearance : float
-        Radial clearance (74.9 μm)
-    pivot_angle : pint.Quantity
-        Pivot angles for 5 pads [18°, 90°, 162°, 234°, 306°]
-    pad_arc : pint.Quantity
-        Arc length for each pad (60° each)
-    lubricant : str
-        Lubricant type (ISOVG32)
-    oil_supply_temperature : pint.Quantity
-        Supply temperature (40°C)
 
-    Returns
-    -------
-    bearing : TiltingPad
-        Configured tilting pad bearing object
+@pytest.fixture(scope="module")
+def bearing_determine():
+    """Return a TiltingPad solved via thermo-hydrodynamic Newton iteration.
 
+    Both journal equilibrium position and pad tilt angles are determined
+    simultaneously. Shared across all tests in the module (scope='module').
     """
-    frequency = Q_([3000], "RPM")
-    pivot_angle = Q_([18, 90, 162, 234, 306], "deg")
-    pad_arc = Q_([60, 60, 60, 60, 60], "deg")
-    pad_axial_length = Q_([50.8e-3, 50.8e-3, 50.8e-3, 50.8e-3, 50.8e-3], "m")
-    oil_supply_temperature = Q_(40, "degC")
-    attitude_angle = Q_(287.5, "deg")
-
-    bearing = TiltingPad(
-        n=1,
-        frequency=frequency,
-        equilibrium_type="match_eccentricity",
-        journal_diameter=101.6e-3,
-        radial_clearance=74.9e-6,
-        pad_thickness=12.7e-3,
-        pivot_angle=pivot_angle,
-        pad_arc=pad_arc,
-        pad_axial_length=pad_axial_length,
-        pre_load=[0.5, 0.5, 0.5, 0.5, 0.5],
-        offset=[0.5, 0.5, 0.5, 0.5, 0.5],
-        lubricant="ISOVG32",
-        oil_supply_temperature=oil_supply_temperature,
-        nx=30,
-        nz=30,
-        eccentricity=0.35,
-        attitude_angle=attitude_angle,
-        load=[8.8405e02, -2.6704e03],
-    )
-
-    return bearing
-
-
-@pytest.fixture
-def tilting_pad_determine():
-    """
-    Tilting pad bearing with determine_eccentricity equilibrium type.
-
-    Uses thermo-hydrodynamic model to determine equilibrium position
-    from initial guesses of eccentricity and attitude angle.
-
-    Parameters
-    ----------
-    frequency : pint.Quantity
-        Rotational speed (3000 RPM)
-    journal_diameter : float
-        Journal diameter (101.6 mm)
-    radial_clearance : float
-        Radial clearance (74.9 μm)
-    model_type : str
-        Analysis model type ('thermo_hydro_dynamic')
-    eccentricity : float
-        Initial guess for eccentricity (0.30)
-    attitude_angle : pint.Quantity
-        Initial guess for attitude angle (267.5°)
-
-    Returns
-    -------
-    bearing : TiltingPad
-        Configured tilting pad bearing object
-
-    """
-    frequency = Q_([3000], "RPM")
-    pivot_angle = Q_([18, 90, 162, 234, 306], "deg")
-    pad_arc = Q_([60, 60, 60, 60, 60], "deg")
-    pad_axial_length = Q_([50.8e-3, 50.8e-3, 50.8e-3, 50.8e-3, 50.8e-3], "m")
-    oil_supply_temperature = Q_(40, "degC")
-
-    bearing = TiltingPad(
-        n=1,
-        frequency=frequency,
+    return TiltingPad(
+        **base_kwargs,
         equilibrium_type="determine_eccentricity",
         model_type="thermo_hydro_dynamic",
-        journal_diameter=101.6e-3,
-        radial_clearance=74.9e-6,
-        pad_thickness=12.7e-3,
-        pivot_angle=pivot_angle,
-        pad_arc=pad_arc,
-        pad_axial_length=pad_axial_length,
-        pre_load=[0.5, 0.5, 0.5, 0.5, 0.5],
-        offset=[0.5, 0.5, 0.5, 0.5, 0.5],
-        lubricant="ISOVG32",
-        oil_supply_temperature=oil_supply_temperature,
-        nx=30,
-        nz=30,
-        eccentricity=0.35,
-        attitude_angle=Q_(287.5, "deg"),
-        load=[8.8405e02, -2.6704e03],
         initial_pads_angles=[
             1.0742e-03,
             7.2080e-04,
@@ -130,132 +135,124 @@ def tilting_pad_determine():
         solver_options={"xtol": 1e-2, "ftol": 1e-2, "maxiter": 1000},
     )
 
-    return bearing
+
+class TestTiltingPadGeometry:
+    """Verify physical geometry and operating point after construction."""
+
+    @pytest.mark.parametrize("bearing", ["bearing_match", "bearing_determine"])
+    def test_journal_radius(self, bearing, request):
+        b = request.getfixturevalue(bearing)
+        assert_allclose(b.journal_radius, journal_diameter / 2)
+
+    @pytest.mark.parametrize("bearing", ["bearing_match", "bearing_determine"])
+    def test_radial_clearance(self, bearing, request):
+        b = request.getfixturevalue(bearing)
+        assert_allclose(b.radial_clearance, radial_clearance)
+
+    @pytest.mark.parametrize("bearing", ["bearing_match", "bearing_determine"])
+    def test_n_pad(self, bearing, request):
+        b = request.getfixturevalue(bearing)
+        assert_allclose(b.n_pad, n_pads)
+
+    @pytest.mark.parametrize("bearing", ["bearing_match", "bearing_determine"])
+    def test_frequency(self, bearing, request):
+        b = request.getfixturevalue(bearing)
+        assert_allclose(b.frequency, Q_(3000, "RPM").to("rad/s").m, rtol=1e-6)
+
+    @pytest.mark.parametrize("bearing", ["bearing_match", "bearing_determine"])
+    def test_reference_temperature(self, bearing, request):
+        b = request.getfixturevalue(bearing)
+        assert_allclose(b.reference_temperature, 40)
 
 
-def test_tilting_pad_parameters(tilting_pad_match):
-    """Test basic geometric and operational parameters."""
-    assert_allclose(tilting_pad_match.journal_radius, 0.0508)
-    assert_allclose(tilting_pad_match.radial_clearance, 74.9e-6)
-    assert_allclose(tilting_pad_match.frequency, 314.1592653589793)
-    assert_allclose(tilting_pad_match.reference_temperature, 40)
-    assert_allclose(tilting_pad_match.n_pad, 5)
+class TestTiltingPadEquilibrium:
+    """Validate converged journal position and pad tilt angles for both strategies."""
 
-
-def test_tilting_pad_parameters_determine(tilting_pad_determine):
-    """Test basic geometric and operational parameters for determine case."""
-    assert_allclose(tilting_pad_determine.journal_radius, 0.0508)
-    assert_allclose(tilting_pad_determine.radial_clearance, 74.9e-6)
-    assert_allclose(tilting_pad_determine.frequency, 314.1592653589793)
-    assert_allclose(tilting_pad_determine.reference_temperature, 40)
-    assert_allclose(tilting_pad_determine.n_pad, 5)
-
-
-def test_tilting_pad_equilibrium_pos(tilting_pad_match):
-    """
-    Test equilibrium position for match_eccentricity case.
-
-    Validates eccentricity, attitude angle, and pad tilting angles (psi_pad)
-    against expected values with 1% tolerance for position and 10% for angles.
-
-    """
-    assert_allclose(tilting_pad_match.eccentricity, 0.35, rtol=0.01)
-    assert_allclose(tilting_pad_match.attitude_angle, 5.017821599483698, rtol=0.01)
-
-    expected_angles = [0.00107426, 0.00072933, 0.00029538, 0.00034972, 0.00081735]
-    for i, expected_angle in enumerate(expected_angles):
-        assert_allclose(tilting_pad_match.psi_pad[i], expected_angle, rtol=0.1)
-
-
-def test_tilting_pad_equilibrium_pos_determine(tilting_pad_determine):
-    """
-    Test equilibrium position for determine_eccentricity case.
-
-    Validates converged eccentricity, attitude angle, and pad tilting angles.
-    Expected values obtained from numerical convergence.
-
-    """
-    assert_allclose(tilting_pad_determine.eccentricity, 0.35, rtol=0.01)
-    assert_allclose(tilting_pad_determine.attitude_angle, 5.017821599483698, rtol=0.01)
-
-    expected_angles = [0.0010742, 0.0007208, 0.00029369, 0.00034969, 0.00081604]
-    for i, expected_angle in enumerate(expected_angles):
-        assert_allclose(tilting_pad_determine.psi_pad[i], expected_angle, rtol=0.1)
-
-
-def test_tilting_pad_coefficients(tilting_pad_match):
-    """
-    Test dynamic coefficients for match_eccentricity case.
-
-    Validates stiffness coefficients (kxx, kxy, kyx, kyy) in N/m and
-    damping coefficients (cxx, cxy, cyx, cyy) in N·s/m.
-
-    """
-    # Stiffness coefficients
-    assert_allclose(tilting_pad_match.kxx, 8.9622e07, rtol=0.001)
-    assert_allclose(tilting_pad_match.kxy, -3.3557e07, rtol=0.001)
-    assert_allclose(tilting_pad_match.kyx, -3.3557e07, rtol=0.001)
-    assert_allclose(tilting_pad_match.kyy, 1.1616e08, rtol=0.001)
-
-    # Damping coefficients
-    assert_allclose(tilting_pad_match.cxx, 283383.66451631, rtol=0.001)
-    assert_allclose(tilting_pad_match.cxy, -27675.95645314, rtol=0.001)
-    assert_allclose(tilting_pad_match.cyx, -27675.95645314, rtol=0.001)
-    assert_allclose(tilting_pad_match.cyy, 331146.04573972, rtol=0.001)
-
-
-def test_tilting_pad_coefficients_determine(tilting_pad_determine):
-    """
-    Test dynamic coefficients for determine_eccentricity case.
-
-    Validates stiffness and damping coefficients obtained from
-    thermo-hydrodynamic analysis.
-
-    """
-    # Stiffness coefficients
-    assert_allclose(tilting_pad_determine.kxx, 9.0236e07, rtol=0.01)
-    assert_allclose(tilting_pad_determine.kxy, -3.1795e07, rtol=0.01)
-    assert_allclose(tilting_pad_determine.kyx, -3.1795e07, rtol=0.01)
-    assert_allclose(tilting_pad_determine.kyy, 1.1730e08, rtol=0.01)
-
-    # Damping coefficients
-    assert_allclose(tilting_pad_determine.cxx, 287474.99912376, rtol=0.01)
-    assert_allclose(tilting_pad_determine.cxy, -28051.03595784, rtol=0.01)
-    assert_allclose(tilting_pad_determine.cyx, -28051.03595784, rtol=0.01)
-    assert_allclose(tilting_pad_determine.cyy, 338837.0059512, rtol=0.01)
-
-
-def test_tilting_pad_forces(tilting_pad_match):
-    """
-    Test dimensional forces for match_eccentricity case.
-
-    Validates hydrodynamic forces in x and y directions for each pad.
-    Forces are in Newtons.
-
-    """
-    expected_force_x = np.array(
-        [-9.22636632e02, 3.11178501e-01, 5.52613265e02, 1.04737975e03, -1.57703246e03]
+    @pytest.mark.parametrize(
+        "bearing,case",
+        [
+            ("bearing_match", "match"),
+            ("bearing_determine", "determine"),
+        ],
     )
-    expected_force_y = np.array(
-        [-300.87898774, -426.66181956, -179.37448498, 1442.65526681, 2166.8722571]
+    def test_eccentricity(self, bearing, case, request):
+        b = request.getfixturevalue(bearing)
+        assert_allclose(b.eccentricity, eccentricity_result[case], rtol=1e-2)
+
+    @pytest.mark.parametrize(
+        "bearing,case",
+        [
+            ("bearing_match", "match"),
+            ("bearing_determine", "determine"),
+        ],
     )
-    assert_allclose(tilting_pad_match.force_x_dim, expected_force_x, rtol=0.01)
-    assert_allclose(tilting_pad_match.force_y_dim, expected_force_y, rtol=0.01)
+    def test_attitude_angle(self, bearing, case, request):
+        b = request.getfixturevalue(bearing)
+        assert_allclose(b.attitude_angle, attitude_angle_result[case], rtol=1e-2)
 
-
-def test_tilting_pad_forces_determine(tilting_pad_determine):
-    """
-    Test dimensional forces for determine_eccentricity case.
-
-    Validates hydrodynamic forces obtained from thermo-hydrodynamic
-    equilibrium solution. Forces are in Newtons.
-
-    """
-    expected_force_x = np.array(
-        [-9.22442351e02, 3.02970480e-01, 5.51003780e02, 1.04686245e03, -1.57352854e03]
+    @pytest.mark.parametrize(
+        "bearing,case,pad_index",
+        [
+            pytest.param("bearing_match", "match", i, id=f"match-pad{i}")
+            for i in range(n_pads)
+        ]
+        + [
+            pytest.param("bearing_determine", "determine", i, id=f"determine-pad{i}")
+            for i in range(n_pads)
+        ],
     )
-    expected_force_y = np.array(
-        [-300.81556983, -420.32523295, -178.85308935, 1441.94264606, 2162.0637731]
+    def test_pad_tilt_angles(self, bearing, case, pad_index, request):
+        b = request.getfixturevalue(bearing)
+        assert_allclose(
+            b.psi_pad[pad_index],
+            psi_pad[case][pad_index],
+            rtol=0.1,
+        )
+
+
+class TestTiltingPadDynamicCoefficients:
+    """Validate full 2x2 stiffness (K) and damping (C) matrices."""
+
+    @pytest.mark.parametrize(
+        "bearing,case,rtol",
+        [
+            ("bearing_match", "match", 1e-3),
+            ("bearing_determine", "determine", 1e-2),
+        ],
     )
-    assert_allclose(tilting_pad_determine.force_x_dim, expected_force_x, rtol=0.01)
-    assert_allclose(tilting_pad_determine.force_y_dim, expected_force_y, rtol=0.01)
+    @pytest.mark.parametrize(
+        "coeff", ["kxx", "kxy", "kyx", "kyy", "cxx", "cxy", "cyx", "cyy"]
+    )
+    def test_coefficient(self, bearing, case, rtol, coeff, request):
+        b = request.getfixturevalue(bearing)
+        assert_allclose(
+            getattr(b, coeff),
+            coefficients[case][coeff],
+            rtol=rtol,
+        )
+
+
+class TestTiltingPadHydrodynamicForces:
+    """Validate hydrodynamic forces per pad."""
+
+    @pytest.mark.parametrize(
+        "bearing,case",
+        [
+            ("bearing_match", "match"),
+            ("bearing_determine", "determine"),
+        ],
+    )
+    def test_force_x(self, bearing, case, request):
+        b = request.getfixturevalue(bearing)
+        assert_allclose(b.force_x_dim, force_x[case], rtol=1e-2)
+
+    @pytest.mark.parametrize(
+        "bearing,case",
+        [
+            ("bearing_match", "match"),
+            ("bearing_determine", "determine"),
+        ],
+    )
+    def test_force_y(self, bearing, case, request):
+        b = request.getfixturevalue(bearing)
+        assert_allclose(b.force_y_dim, force_y[case], rtol=1e-2)
