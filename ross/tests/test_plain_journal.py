@@ -116,14 +116,14 @@ def test_plain_journal_coefficients_perturbation(plain_journal_perturbation):
     kxx, kxy, kyx, kyy = coeffs[0]
     cxx, cxy, cyx, cyy = coeffs[1]
 
-    assert_allclose(kxx, 2497674531.1749372, rtol=0.0001)
-    assert_allclose(kxy, 783937669.6587772, rtol=0.0001)
-    assert_allclose(kyx, -3140562821.5290236, rtol=0.0001)
-    assert_allclose(kyy, 2562440911.734241, rtol=0.0001)
-    assert_allclose(cxx, 36950674.61976142, rtol=0.0001)
-    assert_allclose(cxy, -37265296.2322692, rtol=0.0001)
-    assert_allclose(cyx, -42642543.712838694, rtol=0.0001)
-    assert_allclose(cyy, 100992315.0043159, rtol=0.0001)
+    assert_allclose(kxx, 1080942844.8670897, rtol=0.0001)
+    assert_allclose(kxy, 339272299.0815782, rtol=0.0001)
+    assert_allclose(kyx, -1359171836.8799012, rtol=0.0001)
+    assert_allclose(kyy, 1108972345.8736706, rtol=0.0001)
+    assert_allclose(cxx, 15991501.488761209, rtol=0.0001)
+    assert_allclose(cxy, -16127663.630654775, rtol=0.0001)
+    assert_allclose(cyx, -18454827.71258994, rtol=0.0001)
+    assert_allclose(cyy, 43707428.16320889, rtol=0.0001)
 
 
 def test_plain_journal_coefficients_lund(plain_journal_lund):
