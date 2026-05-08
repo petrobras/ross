@@ -352,7 +352,26 @@ def rotor_with_explicit_clearances(speed_rpm=3600):
 def test_run_clearance_analysis(rotor_with_explicit_clearances):
     rotor = rotor_with_explicit_clearances
 
-    result = rotor.run_clearance_analysis(speed=3600)
+    speed = float(Q_(3600, "rad/s").m)
+    speed_rpm = Q_(speed, "rad/s").to("RPM").m
+    if speed_rpm < 25000:
+        residual_unbalance = 6350 * (rotor.m / speed_rpm)
+    else:
+        residual_unbalance = 6350 * (rotor.m / 3.937)
+    Ua = 2 * residual_unbalance
+    modal = rotor.run_modal(speed=speed)
+    whirl = modal.whirl_direction()
+    forward_modes = [i for i, d in enumerate(whirl) if d == "Forward"]
+    shape = modal.shapes[forward_modes[0]]
+    node = max(shape.orbits, key=lambda o: o.major_axis).node
+
+    result = rotor.run_clearance_analysis(
+        speed=speed,
+        node=node,
+        unbalance_magnitude=Q_(Ua, "g*mm"),
+        unbalance_phase=0.0,
+        frequency=np.asarray([speed]),
+    )
 
     magnitudes = np.array([3.5796145419750083, 8.866272600131191])
     clearance_75 = np.array([90.0, 135.0])

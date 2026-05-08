@@ -4646,27 +4646,51 @@ class Rotor(object):
         )
 
     @check_units
-    def run_clearance_analysis(self, speed, unbalance_node=None):
+    def run_clearance_analysis(
+        self,
+        speed,
+        node,
+        unbalance_magnitude,
+        unbalance_phase,
+        frequency=None,
+        modes=None,
+    ):
         """
         Perform clearance analysis using unbalance response.
 
         This method evaluates the vibration amplitude at bearing locations
-        and compares it with the available radial clearance.
+        and compares it with the available radial clearance. The unbalance
+        excitation is the same as in :meth:`run_unbalance_response` (node,
+        magnitude, phase, frequency range, and optional mode subset).
 
         The procedure involves:
-            - Modal analysis to identify forward whirl mode
-            - Selection of node with maximum modal displacement
-            - Unbalance response calculation
-            - Extraction of vibration amplitudes at bearings
-            - Comparison with clearance limits (100% and 75%)
+            - Unbalance response calculation at the requested frequencies
+            - Extraction of vibration amplitudes at bearings at the speed of
+              interest (see ``speed`` vs. ``frequency`` below)
+            - Comparison with clearance limits (100% and 75%) after API 617
+              amplitude scaling
 
         Parameters
         ----------
         speed : float, pint.Quantity
-            Rotor speed. A scalar value is expected. Arrays with a single
-            value are also accepted.
-        unbalance_node : int, optional
-            Node where the unbalance is applied. If None, the node with maximum modal displacement is used.
+            Operating speed used for API 617 limits and for picking the
+            frequency row when ``frequency`` contains more than one value.
+            Must be a scalar (or an array with a single value), in rad/s.
+        node : list, int
+            Node(s) where the unbalance is applied (same as
+            :meth:`run_unbalance_response`).
+        unbalance_magnitude : list, float, pint.Quantity
+            Unbalance magnitude in kg·m (same as :meth:`run_unbalance_response`).
+        unbalance_phase : list, float, pint.Quantity
+            Unbalance phase in rad (same as :meth:`run_unbalance_response`).
+        frequency : list, ndarray, pint.Quantity, optional
+            Frequency points for the unbalance response in rad/s. If omitted,
+            defaults to ``[speed]`` so the response is evaluated at the
+            operating speed only.
+        modes : list, optional
+            Modes passed to :meth:`run_unbalance_response` (and then to
+            :meth:`run_forced_response`). Use this to control which modes
+            enter the frequency response calculation.
 
         Returns
         -------
@@ -4684,12 +4708,19 @@ class Rotor(object):
         Examples
         --------
         >>> import ross as rs
+        >>> import numpy as np
         >>> rotor = rs.rotor_example()
-        >>> result = rotor.run_clearance_analysis(speed=3600)
-        >>> result["magnitudes"]
-        array([...])
+        >>> speed = 600.0
+        >>> result = rotor.run_clearance_analysis(
+        ...     speed=speed,
+        ...     node=3,
+        ...     unbalance_magnitude=0.05,
+        ...     unbalance_phase=0.0,
+        ...     frequency=np.array([speed]),
+        ... )
+        >>> len(result["bearing_nodes"]) == 2
+        True
         """
-
         # Normalize speed to a scalar in rad/s.
         speed = np.asarray(speed)
         if speed.ndim == 0:
@@ -4705,36 +4736,18 @@ class Rotor(object):
         # Convert speed to rpm
         speed_rpm = Q_(speed, "rad/s").to("RPM").m
 
-        # --- Residual unbalance estimation ---
-        if speed_rpm < 25000:
-            residual_unbalance = 6350 * (self.m / speed_rpm)
+        if frequency is None:
+            frequency = np.asarray([speed], dtype=float)
         else:
-            residual_unbalance = 6350 * (self.m / 3.937)
-
-        # API 617 requirement
-        Ua = 2 * residual_unbalance
-
-        # --- Modal analysis ---
-        modal = self.run_modal(speed=speed)
-        whirl = modal.whirl_direction()
-
-        forward_modes = [i for i, d in enumerate(whirl) if d == "Forward"]
-        if len(forward_modes) == 0:
-            raise ValueError("No forward modes found for this rotor.")
-
-        shape = modal.shapes[forward_modes[0]]
-
-        if unbalance_node is None:
-            node_max = max(shape.orbits, key=lambda o: o.major_axis).node
-        else:
-            node_max = int(unbalance_node)
+            frequency = np.asarray(frequency, dtype=float)
 
         # ---  Unbalance response ---
         response = self.run_unbalance_response(
-            node_max,
-            Q_(Ua, "g*mm"),
-            0,
-            np.asarray([speed]),
+            node,
+            unbalance_magnitude,
+            unbalance_phase,
+            frequency,
+            modes=modes,
         )
 
         bearing_probes = [
@@ -4747,7 +4760,9 @@ class Rotor(object):
             amplitude_units="um pkpk",
         )
 
-        magnitudes = df.loc[0, df.columns != "frequency"].to_numpy(copy=True)
+        freq_col = df["frequency"].to_numpy(dtype=float)
+        freq_row = int(np.argmin(np.abs(freq_col - speed)))
+        magnitudes = df.loc[freq_row, df.columns != "frequency"].to_numpy(copy=True)
 
         # --- STEP 5: API 617 vibration limit (Avl) ---
         Avl = 25.4 * (12000 / speed_rpm)
