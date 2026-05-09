@@ -94,8 +94,14 @@ class Rotor(object):
         List with the point mass elements
     modal_damping: list
         List of modal damping ratios for the first modes
-    default_modes: list
+    default_damping_ratio: list
         Float of the remaining unknown modal damping ratios
+    alpha : float, optional
+        Mass proportional damping factor.
+        Default is zero.
+    beta : float, optional
+        Stiffness proportional damping factor.
+        Default is zero.
     tag : str
         A tag for the rotor
 
@@ -155,6 +161,8 @@ class Rotor(object):
         rated_w=None,
         modal_damping=None,
         default_damping_ratio=[0.0],
+        alpha=0,
+        beta=0,
         tag=None,
     ):
         self.parameters = {"min_w": min_w, "max_w": max_w, "rated_w": rated_w}
@@ -570,10 +578,12 @@ class Rotor(object):
         self.M0 = M0
         self.K0 = K0
         # Damping configuration
+        self.alpha=alpha
+        self.beta=beta
         self.modal_damping = modal_damping
         self.default_damping_ratio = default_damping_ratio
         self.C0 = (
-            C0
+             self.alpha * self.M0 + self.beta * self.K0
             if self.modal_damping == None
             else self._modal_damping(self.modal_damping)
         )
