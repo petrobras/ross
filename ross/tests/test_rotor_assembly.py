@@ -1897,53 +1897,47 @@ def test_modal_damping():
     bearing1 = BearingElement(6, kxx=stfx, kyy=stfy, cxx=0)
 
     modal_damping = [0.001, 0.001]
-    default_modes = 0.01
+    default_damping_ratio = [0.01]
 
     rotor = Rotor(
         shaft_elem,
         [disk0, disk1],
         [bearing0, bearing1],
         modal_damping=modal_damping,
-        default_modes=default_modes,
+        default_damping_ratio=default_damping_ratio,
     )
 
     speed = Q_(np.arange(0, 10001, 200), "RPM").to("rad/s").m
-    n1 = 2
-    m1 = Q_(11867, "g.mm").to("kg.m").m
-    p1 = Q_(0, "rad")
-    n2 = 4
-    m2 = Q_(11867, "g.mm").to("kg.m").m
-    p2 = Q_(0, "rad")
 
-    unb_response = rotor.run_freq_response(speed_range=speed)
+    freq_response = rotor.run_freq_response(speed_range=speed)
 
-    actual_amp = abs(unb_response.freq_resp[n1 * 6, n1 * 6, :8])
-    actual_phase = np.angle(unb_response.freq_resp[n1 * 6, n1 * 6, :8])
+    actual_amp = abs(freq_response.freq_resp[2 * 6, 2 * 6, :8])
+    actual_phase = np.angle(freq_response.freq_resp[2 * 6, 2 * 6, :8])
 
     expected_amp = [
-        0.00000000e00,
-        1.49507920e-06,
-        1.80340194e-06,
-        2.81943596e-06,
-        1.91475919e-05,
-        2.54885361e-06,
-        9.41771898e-07,
-        4.55762869e-07,
-    ]
+        0.000000e+00, 
+        1.495079e-06, 
+        1.803400e-06,
+        2.819422e-06,
+        1.914051e-05, 
+        2.548842e-06, 
+        9.418038e-07, 
+        4.558292e-07,
+        ]
 
     expected_phase = [
-        0.00000000e00,
-        -8.06802391e-05,
-        -1.82013808e-04,
-        -3.91432201e-04,
-        -3.59430355e-03,
-        -3.14083143e00,
-        -3.14087742e00,
-        -3.14029804e00,
+        0.000000e+00, 
+        -6.188289e-04, 
+        -1.423301e-03, 
+        -3.157592e-03,
+        -3.001839e-02,
+        -3.135327e+00, 
+        -3.135999e+00,
+        -3.131778e+00
     ]
 
-    assert_allclose(actual_amp, expected_amp)
-    assert_allclose(actual_phase, expected_phase)
+    assert_allclose(actual_amp, expected_amp, rtol=1e-6)
+    assert_allclose(actual_phase, expected_phase, rtol=1e-6)
 
 
 @pytest.fixture

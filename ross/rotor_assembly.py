@@ -154,7 +154,7 @@ class Rotor(object):
         max_w=None,
         rated_w=None,
         modal_damping=None,
-        default_modes=None,
+        default_damping_ratio=[0.0],
         tag=None,
     ):
         self.parameters = {"min_w": min_w, "max_w": max_w, "rated_w": rated_w}
@@ -571,7 +571,7 @@ class Rotor(object):
         self.K0 = K0
         # Damping configuration
         self.modal_damping = modal_damping
-        self.default_modals = default_modes
+        self.default_damping_ratio = default_damping_ratio
         self.C0 = (
             C0
             if self.modal_damping == None
@@ -692,7 +692,7 @@ class Rotor(object):
 
         Parameters
         ----------
-        qsi : float or array-like
+        modal_damping : float or array-like
             Modal damping ratio(s) to apply to flexible modes (ξ).
         Returns
         -------
@@ -701,7 +701,7 @@ class Rotor(object):
             to the specified modal damping ratios.
         """
 
-        evals, evecs = np.linalg.eig(np.linalg.inv(self.M(0)) @ self.K0)
+        evals, evecs = np.linalg.eig(np.linalg.inv(self.M(0)) @ self.K(0))
         stable = evals >= 0
         evals = evals[stable]
         evecs = evecs[:, stable]
@@ -714,14 +714,14 @@ class Rotor(object):
         phi = evecs[:, idx]
 
         # Full damping vector (pad with zeros if needed)
-        full_xi = np.ones(w.shape) * np.array(self.default_modals)
+        full_xi = np.ones(w.shape) * np.array(self.default_damping_ratio)
         full_xi[: len(modal_damping)] = modal_damping
 
         # Modal damping matrix: C_modal = diag(2 * ξ_i * ω_i)
         C_modal = np.diag(2 * full_xi * w)
         M_modal = phi.T @ self.M(0) @ phi
         T = np.linalg.solve(M_modal, phi.T)
-        C0 = self.M(0) @ phi @ C_modal @ T @ self.M0
+        C0 = self.M(0) @ phi @ C_modal @ T @ self.M(0)
 
         return C0
 
