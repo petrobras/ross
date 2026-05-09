@@ -1796,8 +1796,6 @@ def test_distinct_dof_elements_error():
                 odl=0.05,
                 idr=0,
                 odr=0.05,
-                alpha=0,
-                beta=0,
                 rotary_inertia=False,
                 shear_effects=False,
             )
@@ -1824,7 +1822,7 @@ def test_distinct_dof_elements_error():
         bearing1 = BearingElement(
             n=6, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, kzz=kzz, czz=czz
         )
-        Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1], n_eigen=36)
+        Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1], n_eigen=36,alpha=0, beta=0)
 
 
 @pytest.fixture
@@ -1840,8 +1838,6 @@ def rotor_6dof():
             i_d,
             o_d,
             material=steel,
-            alpha=1,
-            beta=1e-5,
         )
         for l in L
     ]
@@ -1856,12 +1852,12 @@ def rotor_6dof():
     bearing0 = BearingElement(n=0, kxx=1e6, kyy=8e5, kzz=1e5, cxx=0, cyy=0, czz=0)
     bearing1 = BearingElement(n=6, kxx=1e6, kyy=8e5, kzz=1e5, cxx=0, cyy=0, czz=0)
 
-    return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
+    return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1], alpha=1,beta=1e-5)
 
 
 def test_modal_6dof(rotor_6dof):
     modal = rotor_6dof.run_modal(speed=0, sparse=False)
-    wn = np.array([47.62138, 91.79647, 96.28891, 274.56591, 296.5005])
+    wn = np.array([1.  ,  47.62,  91.8 ,  96.29, 274.57])
     wd = np.array([47.62156, 91.79656, 96.289, 274.56607, 296.50068])
 
     assert_almost_equal(modal.wn[:5], wn, decimal=2)

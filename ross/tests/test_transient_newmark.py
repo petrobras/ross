@@ -28,8 +28,6 @@ def rotor1():
             shear_effects=True,
             rotary_inertia=True,
             gyroscopic=True,
-            alpha=10,
-            beta=1e-4,
         )
         for l in L
     ]
@@ -43,7 +41,7 @@ def rotor1():
     bearing0 = BearingElement(0, kxx=stfx, kyy=stfy, cxx=c, cyy=c)
     bearing1 = BearingElement(6, kxx=stfx, kyy=stfy, cxx=c, cyy=c)
 
-    return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
+    return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1], alpha=10,beta=1e-4)
 
 
 @pytest.fixture
@@ -64,8 +62,6 @@ def rotor2():
             shear_effects=True,
             rotary_inertia=True,
             gyroscopic=True,
-            alpha=10,
-            beta=1e-4,
         )
         for l in L
     ]
@@ -80,7 +76,7 @@ def rotor2():
     bearing0 = BearingElement(0, kxx=stfx, kyy=stfy, cxx=c, cyy=c, frequency=frequency)
     bearing1 = BearingElement(6, kxx=stfx, kyy=stfy, cxx=c, cyy=c, frequency=frequency)
 
-    return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
+    return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1], alpha=10, beta=1e-4,)
 
 
 def simulation_parameters():

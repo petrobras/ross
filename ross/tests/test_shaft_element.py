@@ -533,7 +533,7 @@ def tim_6dof():
     L = 0.25
     i_d = 0
     o_d = 0.05
-    return ShaftElement(L, i_d, o_d, material=steel, alpha=1, beta=1e-5)
+    return ShaftElement(L, i_d, o_d, material=steel)
 
 
 def test_parameters_tim_6dof(tim_6dof):
