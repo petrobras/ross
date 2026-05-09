@@ -94,7 +94,7 @@ class Rotor(object):
         List with the point mass elements
     modal_damping: list
         List of modal damping ratios for the first modes
-    default_modes: list
+    default_damping_ratio: list
         Float of the remaining unknown modal damping ratios
     tag : str
         A tag for the rotor

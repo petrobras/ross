@@ -155,9 +155,9 @@ class ShaftElement(Element):
         rotary_inertia=True,
         gyroscopic=True,
         shear_method_calc="cowper",
-        tag=None,
         alpha=0,
         beta=0,
+        tag=None,   
 
     ):
         if idr is None:
