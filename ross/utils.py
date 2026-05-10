@@ -870,7 +870,7 @@ def _converge_newmark(ny, y0, ydot0, y2dot0, dt, M, C, K, RHS, gamma, beta, tol)
 
     while la.norm(res) >= tol:
         nr_iter += 1
-        if nr_iter > 1e5:
+        if nr_iter > 1e20:
             raise Warning(
                 "The Newton-Raphson algorithm is taking a long time to converge."
             )
