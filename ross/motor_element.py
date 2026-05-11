@@ -132,25 +132,21 @@ class MotorElement(Element):
         else:
             self.initial_angle_net = float(initial_angle_net)
 
-        # Internal model speed parameters derived from NOMP
-        self.snom = (
-            (self.frequency - self.speed * self.n_poles / 2) / self.frequency * 100
-        )
-
         # Internal model inductances parameters derived from CEMP
-        self.Lls = self.stator_reactance / self.frequency
-        self.Llr = self.rotor_reactance / self.frequency
+        Lls = self.stator_reactance / self.frequency
+        Llr = self.rotor_reactance / self.frequency
         self.Lm = self.mutual_reactance / self.frequency
-        self.Lss = self.Lls + self.Lm
-        self.Lrr = self.Llr + self.Lm
+        self.Lss = Lls + self.Lm
+        self.Lrr = Llr + self.Lm
 
         # Internal Electric Motor constants derived from NOMP and CEMP
-        self.wnom = (self.frequency * (1 - self.snom / 100)) / (self.n_poles / 2)
-        self.Tnom = self.power / self.wnom
-        self.sigma = 1 - self.Lm**2 / (self.Lss * self.Lrr)
-        self.a = 1 / (self.sigma * self.Lss)
-        self.b = 1 / (self.sigma * self.Lrr)
-        self.c = self.Lm / (self.sigma * self.Lss * self.Lrr)
+        snom = (1 - self.speed * self.n_poles / (2 * self.frequency)) * 100
+        wnom = (self.frequency * (1 - snom / 100)) / (self.n_poles / 2)
+        sigma = 1 - self.Lm**2 / (self.Lss * self.Lrr)
+        self.Tnom = self.power / wnom
+        self.a = 1 / (sigma * self.Lss)
+        self.b = 1 / (sigma * self.Lrr)
+        self.c = self.Lm / (sigma * self.Lss * self.Lrr)
 
         # Short-Circuit Power and Impedances parameters derived from SCIP
         SCC_net = self.short_circuit_ratio_net * self.power
