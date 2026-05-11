@@ -7,7 +7,7 @@ import numpy as np
 import plotly.graph_objects as go
 
 from ross.element import Element
-from ross.units import check_units
+from ross.units import Q_, check_units
 
 from .motor_sourceAC import SourceAC
 
@@ -28,7 +28,7 @@ class MotorElement(Element):
     voltage : float, pint.Quantity
         Nominal voltage [V].
     speed : float, pint.Quantity
-        Nominal machine rotation [RPM].
+        Nominal machine rotation [rad/s].
     stator_resistance : float, pint.Quantity
         Stator resistance [Ohm].
     rotor_resistance : float, pint.Quantity
@@ -42,7 +42,7 @@ class MotorElement(Element):
     Ip_motor : float, pint.Quantity
         Polar Moment of inertia related to motor axis [kg*m²].
     frequency : float, optional, pint.Quantity
-        Nominal frequency [Hz].
+        Nominal frequency [rad/s].
         Default is 60.0 Hz.
     n_poles: int, optional
         Number of machine's poles.
@@ -57,16 +57,16 @@ class MotorElement(Element):
         Electrical tension of Power Supply [V].
         Default is None, which adopts the motor's nominal voltage (`voltage`).
     frequency_net : float, optional, pint.Quantity
-        Electrical frequency of Power Supply [Hz].
+        Electrical frequency of Power Supply [rad/s].
         Default is None, which adopts the motor's nominal frequency (`frequency`).
     initial_angle_net : float, optional, pint.Quantity
-        Initial angular phase frequency of Power Supply [deg].
+        Initial angular phase frequency of Power Supply [rad].
         Default is 20.0 degrees.    
     short_circuit_ratio_net : float, optional
         Short-Circuit Ratio in Common Coupling Point with Power Supply.
         Default is 50.0.
-    reactance_ratio_net : float, optional
-        Reactance/Resistance Ratio in Coupling Point with Power Supply.
+    XR_ratio_net : float, optional
+        Reactance (X) / Resistance (R) Ratio in Coupling Point with Power Supply.
         Default is 80.0.
     tag : str, optional
         A tag to name the element.
@@ -91,17 +91,16 @@ class MotorElement(Element):
         Ip_load=0.0,
         voltage_net=None,
         frequency_net=None,
-        initial_angle_net=20.0,
+        initial_angle_net=None,
         short_circuit_ratio_net=50.0,
-        reactance_ratio_net=80.0,
+        XR_ratio_net=80.0,
         tag=None,
     ):
 
         # Numerical Validation of NOMP entries 
         self.power = float(power)
         self.voltage = float(voltage)
-        self.speed = float(speed) # check in RPM
-        self.frequency = float(frequency) # check in Hz
+        self.speed = float(speed)
         self.n_poles = int(n_poles)
         self.stator_resistance = float(stator_resistance)
         self.rotor_resistance = float(rotor_resistance)
@@ -111,28 +110,35 @@ class MotorElement(Element):
         self.Ip_motor = float(Ip_motor)
         self.viscosity_coeff = float(viscosity_coeff)
         self.Ip_load = float(Ip_load)
+
+        if frequency is None:
+            self.frequency = Q_(60.0, "Hz").to("rad/s").m
+        else:
+            self.frequency = float(frequency)
             
         # Numerical Validation of SCIP entries 
-        self.voltage_net = float(voltage_net)
-        self.frequency_net = float(frequency_net)
-        self.initial_angle_net = float(initial_angle_net)
+        self.voltage_net = self.voltage if voltage_net is None else float(voltage_net)
+        self.frequency_net = self.frequency if frequency_net is None else float(frequency_net)
         self.short_circuit_ratio_net = float(short_circuit_ratio_net)
-        self.reactance_ratio_net = float(reactance_ratio_net)
+        self.XR_ratio_net = float(XR_ratio_net)
+
+        if initial_angle_net is None:
+            self.initial_angle_net = Q_(20.0, "deg").to("rad").m
+        else:
+            self.initial_angle_net = float(initial_angle_net)
             
         # Internal model speed parameters derived from NOMP
-        self.ws = 2 * np.pi * self.frequency
-        self.wrnom = self.speed  * np.pi / 30 # Converting to rad/s
-        self.snom = (self.ws - self.wrnom * self.n_poles / 2) / self.ws * 100
+        self.snom = (self.frequency - self.speed * self.n_poles / 2) / self.frequency * 100
 
         # Internal model inductances parameters derived from CEMP
-        self.Lls = self.stator_reactance / (2 * np.pi * self.frequency)
-        self.Llr = self.rotor_reactance / (2 * np.pi * self.frequency)
-        self.Lm = self.mutual_reactance / (2 * np.pi * self.frequency)
+        self.Lls = self.stator_reactance / self.frequency
+        self.Llr = self.rotor_reactance / self.frequency
+        self.Lm = self.mutual_reactance / self.frequency
         self.Lss = self.Lls + self.Lm
         self.Lrr = self.Llr + self.Lm
 
         # Internal Electric Motor constants derived from NOMP and CEMP
-        self.wnom = (2 * np.pi * self.frequency * (1 - self.snom / 100)) / (self.n_poles / 2)
+        self.wnom = (self.frequency * (1 - self.snom / 100)) / (self.n_poles / 2)
         self.Tnom = self.power / self.wnom
         self.sigma = 1 - self.Lm**2 / (self.Lss * self.Lrr)
         self.a = 1 / (self.sigma * self.Lss)
@@ -140,25 +146,28 @@ class MotorElement(Element):
         self.c = self.Lm / (self.sigma * self.Lss * self.Lrr)
 
         # Short-Circuit Power and Impedances parameters derived from SCIP
-        self.thetai = -(90 - self.initial_angle_net) * np.pi / 180
-        self.SCCnet = self.short_circuit_ratio_net * self.power
-        self.Zsc = self.voltage_net**2 / self.SCCnet
-        self.Xsc = self.Zsc * self.reactance_ratio_net / np.sqrt(1 + self.reactance_ratio_net**2)
-        self.Rsc = self.Xsc / self.reactance_ratio_net
+        SCC_net = self.short_circuit_ratio_net * self.power
+        Zsc = self.voltage_net**2 / SCC_net
+        Xsc = Zsc * self.XR_ratio_net / np.sqrt(1 + self.XR_ratio_net**2)
+        self.short_circuit_resistance = Xsc / self.XR_ratio_net
+
+        self.n = n
+        self.tag = tag
 
         # Initial values of Rotor speed, Flux angle and Electrial Torque
         # Obs: a possible new feature is to insert non-null initial values user's parameters 
         self.wr = 0.0           # Rotor's angular speed in rad*s
         self.thetar = 0.0       # Rotor's angle in rad
+        self.thetai = self.initial_angle_net - np.pi / 2
         self.ro = self.thetai   # Flux's initial angle in rad
         self.Te = 0.0           # Electrical Torque in N*m
 
         # Initial alpha-beta and dq currents (based in nulled instantaneous phase currents)
         ias, ibs, ics = 0, 0, 0
-        ialfas = 2 / 3 * (ias - ibs / 2 - ics / 2)
-        ibetas = 2 / 3 * (ibs - ics) * np.sqrt(3) / 2
-        ids = ialfas * np.cos(self.ro) + ibetas * np.sin(self.ro)
-        iqs = -ialfas * np.sin(self.ro) + ibetas * np.cos(self.ro)
+        i_alpha = 2 / 3 * (ias - ibs / 2 - ics / 2)
+        i_beta = 2 / 3 * (ibs - ics) * np.sqrt(3) / 2
+        ids = i_alpha * np.cos(self.ro) + i_beta * np.sin(self.ro)
+        iqs = -i_alpha * np.sin(self.ro) + i_beta * np.cos(self.ro)
 
         # Initial rotor and stator's inductances
         self.Lds = self.Lss * ids + self.Lm * 0
@@ -167,7 +176,7 @@ class MotorElement(Element):
         self.Lqr = self.Lrr * 0 + self.Lm * iqs
         
         # Motor AC Source instance
-        self.sourceAC = SourceAC(voltage_net=self.voltage, frequency_net=self.frequency)        
+        self.sourceAC = SourceAC(voltage_net=self.voltage, frequency_net=Q_(self.frequency, "rad/s").to("Hz").m)       
 
         # Initial simulation parameters scheme
         self.tI = 0.0                # Initial time of simulation (tI)
@@ -185,9 +194,6 @@ class MotorElement(Element):
         itTL = np.abs(arr - self.tTL).argmin()  # Catching the near index to time do TLoad entrance
         self.TLoad_vector[0:itTL] = 0.0
 
-        self.n = n
-        self.tag = tag
-
     def __str__(self):
         """Convert object into string.
 
@@ -201,8 +207,8 @@ class MotorElement(Element):
             f"\n--- Nominal Parameters (NOMP) ---"
             f"\nNominal Power (W):                  {self.power}"
             f"\nNominal Voltage (V):                {self.voltage}"
-            f"\nNominal Rotation (RPM):             {self.speed}"
-            f"\nNominal Frequency (Hz):             {self.frequency}"
+            f"\nNominal Rotation (rad/s):           {self.speed}"
+            f"\nNominal Frequency (Hz):             {Q_(self.frequency, 'rad/s').to('Hz').m}"
             f"\nNumber of Poles:                    {self.n_poles}"
             f"\n--- Circuit Parameters (CEMP) ---"
             f"\nStator Resistance (Ohm):            {self.stator_resistance}"
@@ -218,26 +224,11 @@ class MotorElement(Element):
             f"\nSupply Frequency (Hz):              {self.frequency_net}"
             f"\nInitial Phase Angle (deg):          {self.initial_angle_net}"
             f"\nShort-Circuit Ratio (ad):           {self.short_circuit_ratio_net}"
-            f"\nX/R Ratio (ad):                     {self.reactance_ratio_net}"
+            f"\nX/R Ratio (ad):                     {self.XR_ratio_net}"
         )
 
     def __repr__(self):
-        """Return a string representation of a electric motor element.
-
-        Returns
-        -------
-        A string representation of a electric motor element object.
-        """
-        return (
-            f"{self.__class__.__name__}("
-            f"ws={self.ws:.4f}, wrnom={self.wrnom:.4f}, snom={self.snom:.4f}, "
-            f"Lls={self.Lls:.4e}, Llr={self.Llr:.4e}, Lm={self.Lm:.4e}, Lss={self.Lss:.4e}, Lrr={self.Lrr:.4e}, "
-            f"wnom={self.wnom:.4f}, Tnom={self.Tnom:.4f}, sigma={self.sigma:.4f}, "
-            f"a={self.a:.4e}, b={self.b:.4e}, c={self.c:.4e}, "
-            f"thetai={self.thetai:.4f}, SCCnet={self.SCCnet:.4f}, Zsc={self.Zsc:.4f}, Xsc={self.Xsc:.4f}, Rsc={self.Rsc:.4f}, "
-            f"wr={self.wr:.4f}, thetar={self.thetar:.4f}, ro={self.ro:.4f}, Te={self.Te:.4f}, "
-            f"Lds={self.Lds:.4e}, Lqs={self.Lqs:.4e}, Ldr={self.Ldr:.4e}, Lqr={self.Lqr:.4e})"
-        )
+        pass
     
     def __eq__(self, other):
         pass
@@ -301,8 +292,8 @@ class MotorElement(Element):
         vas, vbs, vcs = self.sourceAC(t)    
         
         # Updating angles
-        weixo = 2 * np.pi * self.frequency
-        self.ro += weixo * h
+        w_axis = self.frequency
+        self.ro += w_axis * h
         self.thetar += (self.wr * self.n_poles / 2) * h
 
         # Clarke & Park Transforms for Voltages
@@ -314,7 +305,7 @@ class MotorElement(Element):
         vdr, vqr = 0, 0
 
         # Constants for readability in RK4
-        Rs, Rsc = self.stator_resistance, self.Rsc
+        Rs, Rsc = self.stator_resistance, self.short_circuit_resistance
         Rr = self.rotor_resistance
         Lds, Lqs = self.Lds, self.Lqs
         Ldr, Lqr = self.Ldr, self.Lqr
@@ -328,37 +319,37 @@ class MotorElement(Element):
         # --- Runge-Kutta 4th Order Step ---
 
         # Step 1
-        k11 = h * (vds - (Rs + Rsc) * a * Lds + (Rs + Rsc) * c * Ldr + weixo * Lqs)
-        k21 = h * (vqs - (Rs + Rsc) * a * Lqs + (Rs + Rsc) * c * Lqr - weixo * Lds)
-        k31 = h * (vdr - Rr * b * Ldr + Rr * c * Lds + (weixo - wr * n_poles / 2) * Lqr)
-        k41 = h * (vqr - Rr * b * Lqr + Rr * c * Lqs - (weixo - wr * n_poles / 2) * Ldr)
+        k11 = h * (vds - (Rs + Rsc) * a * Lds + (Rs + Rsc) * c * Ldr + w_axis * Lqs)
+        k21 = h * (vqs - (Rs + Rsc) * a * Lqs + (Rs + Rsc) * c * Lqr - w_axis * Lds)
+        k31 = h * (vdr - Rr * b * Ldr + Rr * c * Lds + (w_axis - wr * n_poles / 2) * Lqr)
+        k41 = h * (vqr - Rr * b * Lqr + Rr * c * Lqs - (w_axis - wr * n_poles / 2) * Ldr)
         k51 = h * (Te / (Jm + Jl) - Bm * wr / (Jm + Jl) - Tload / (Jm + Jl))
 
         Te_rk = 1.5 * c * ((Lqs + k21 / 2) * (Ldr + k31 / 2) - (Lds + k11 / 2) * (Lqr + k41 / 2)) * n_poles / 2
 
         # Step 2
-        k12 = h * (vds - (Rs + Rsc) * a * (Lds + k11 / 2) + (Rs + Rsc) * c * (Ldr + k31 / 2) + weixo * (Lqs + k21 / 2))
-        k22 = h * (vqs - (Rs + Rsc) * a * (Lqs + k21 / 2) + (Rs + Rsc) * c * (Lqr + k41 / 2) - weixo * (Lds + k11 / 2))
-        k32 = h * (vdr - Rr * b * (Ldr + k31 / 2) + Rr * c * (Lds + k11 / 2) + (weixo - (wr + k51 / 2) * n_poles / 2) * (Lqr + k41 / 2))
-        k42 = h * (vqr - Rr * b * (Lqr + k41 / 2) + Rr * c * (Lqs + k21 / 2) - (weixo - (wr + k51 / 2) * n_poles / 2) * (Ldr + k31 / 2))
+        k12 = h * (vds - (Rs + Rsc) * a * (Lds + k11 / 2) + (Rs + Rsc) * c * (Ldr + k31 / 2) + w_axis * (Lqs + k21 / 2))
+        k22 = h * (vqs - (Rs + Rsc) * a * (Lqs + k21 / 2) + (Rs + Rsc) * c * (Lqr + k41 / 2) - w_axis * (Lds + k11 / 2))
+        k32 = h * (vdr - Rr * b * (Ldr + k31 / 2) + Rr * c * (Lds + k11 / 2) + (w_axis - (wr + k51 / 2) * n_poles / 2) * (Lqr + k41 / 2))
+        k42 = h * (vqr - Rr * b * (Lqr + k41 / 2) + Rr * c * (Lqs + k21 / 2) - (w_axis - (wr + k51 / 2) * n_poles / 2) * (Ldr + k31 / 2))
         k52 = h * (Te_rk / (Jm + Jl) - Bm * (wr + k51 / 2) / (Jm + Jl) - Tload / (Jm + Jl))
 
         Te_rk = 1.5 * c * ((Lqs + k22 / 2) * (Ldr + k32 / 2) - (Lds + k12 / 2) * (Lqr + k42 / 2)) * n_poles / 2
 
         # Step 3
-        k13 = h * (vds - (Rs + Rsc) * a * (Lds + k12 / 2) + (Rs + Rsc) * c * (Ldr + k32 / 2) + weixo * (Lqs + k22 / 2))
-        k23 = h * (vqs - (Rs + Rsc) * a * (Lqs + k22 / 2) + (Rs + Rsc) * c * (Lqr + k42 / 2) - weixo * (Lds + k12 / 2))
-        k33 = h * (vdr - Rr * b * (Ldr + k32 / 2) + Rr * c * (Lds + k12 / 2) + (weixo - (wr + k52 / 2) * n_poles / 2) * (Lqr + k42 / 2))
-        k43 = h * (vqr - Rr * b * (Lqr + k42 / 2) + Rr * c * (Lqs + k22 / 2) - (weixo - (wr + k52 / 2) * n_poles / 2) * (Ldr + k32 / 2))
+        k13 = h * (vds - (Rs + Rsc) * a * (Lds + k12 / 2) + (Rs + Rsc) * c * (Ldr + k32 / 2) + w_axis * (Lqs + k22 / 2))
+        k23 = h * (vqs - (Rs + Rsc) * a * (Lqs + k22 / 2) + (Rs + Rsc) * c * (Lqr + k42 / 2) - w_axis * (Lds + k12 / 2))
+        k33 = h * (vdr - Rr * b * (Ldr + k32 / 2) + Rr * c * (Lds + k12 / 2) + (w_axis - (wr + k52 / 2) * n_poles / 2) * (Lqr + k42 / 2))
+        k43 = h * (vqr - Rr * b * (Lqr + k42 / 2) + Rr * c * (Lqs + k22 / 2) - (w_axis - (wr + k52 / 2) * n_poles / 2) * (Ldr + k32 / 2))
         k53 = h * (Te_rk / (Jm + Jl) - Bm * (wr + k52 / 2) / (Jm + Jl) - Tload / (Jm + Jl))
 
         Te_rk = 1.5 * c * ((Lqs + k23) * (Ldr + k33) - (Lds + k13) * (Lqr + k43)) * n_poles / 2
 
         # Step 4
-        k14 = h * (vds - (Rs + Rsc) * a * (Lds + k13) + (Rs + Rsc) * c * (Ldr + k33) + weixo * (Lqs + k23))
-        k24 = h * (vqs - (Rs + Rsc) * a * (Lqs + k23) + (Rs + Rsc) * c * (Lqr + k43) - weixo * (Lds + k13))
-        k34 = h * (vdr - Rr * b * (Ldr + k33) + Rr * c * (Lds + k13) + (weixo - (wr + k53) * n_poles / 2) * (Lqr + k43))
-        k44 = h * (vqr - Rr * b * (Lqr + k43) + Rr * c * (Lqs + k23) - (weixo - (wr + k53) * n_poles / 2) * (Ldr + k33))
+        k14 = h * (vds - (Rs + Rsc) * a * (Lds + k13) + (Rs + Rsc) * c * (Ldr + k33) + w_axis * (Lqs + k23))
+        k24 = h * (vqs - (Rs + Rsc) * a * (Lqs + k23) + (Rs + Rsc) * c * (Lqr + k43) - w_axis * (Lds + k13))
+        k34 = h * (vdr - Rr * b * (Ldr + k33) + Rr * c * (Lds + k13) + (w_axis - (wr + k53) * n_poles / 2) * (Lqr + k43))
+        k44 = h * (vqr - Rr * b * (Lqr + k43) + Rr * c * (Lqs + k23) - (w_axis - (wr + k53) * n_poles / 2) * (Ldr + k33))
         k54 = h * (Te_rk / (Jm + Jl) - Bm * (wr + k53) / (Jm + Jl) - Tload / (Jm + Jl))
 
         # Update State Variables
@@ -373,11 +364,11 @@ class MotorElement(Element):
         iqs = a * self.Lqs - c * self.Lqr
         self.Te = 1.5 * c * (self.Lqs * self.Ldr - self.Lds * self.Lqr) * n_poles / 2
 
-        ialfas = ids * np.cos(self.ro) - iqs * np.sin(self.ro)
-        ibetas = ids * np.sin(self.ro) + iqs * np.cos(self.ro)
-        ias = ialfas
-        ibs = -ialfas / 2 + np.sqrt(3) * ibetas / 2
-        ics = -ialfas / 2 - np.sqrt(3) * ibetas / 2
+        i_alpha = ids * np.cos(self.ro) - iqs * np.sin(self.ro)
+        i_beta = ids * np.sin(self.ro) + iqs * np.cos(self.ro)
+        ias = i_alpha
+        ibs = -i_alpha / 2 + np.sqrt(3) * i_beta / 2
+        ics = -i_alpha / 2 - np.sqrt(3) * i_beta / 2
 
         self.current_time = t
 
@@ -389,8 +380,8 @@ class MotorElement(Element):
             'Ias': ias,
             'Ibs': ibs,
             'Ics': ics,
-            'Ialfas': ialfas,
-            'Ibetas': ibetas,
+            'Ialfas': i_alpha,
+            'Ibetas': i_beta,
             'Ids': ids,
             'Iqs': iqs,
             'TE': self.Te,
@@ -604,10 +595,10 @@ def motor_example():
     motor = MotorElement(
              n=0,
              tag=None,
-             power=1.5*735.499,  #Direct conversion cv --> W
+             power=Q_(1.5*735.499, "W"),  #Direct conversion cv --> W
              voltage=127,          #Volts      
-             speed=1725,       #RPM 
-             frequency=60.0,         #Hz
+             speed=Q_(1725, "RPM"),       #RPM 
+             frequency=Q_(60.0, "Hz"),         #Hz
              n_poles=4,            #Stator's poles
              stator_resistance=2.5,            #Ohm
              rotor_resistance=1.8,            #Ohm
@@ -618,11 +609,11 @@ def motor_example():
              viscosity_coeff=0.0,            #kg*m*s2   
              Ip_load=0.0,            #kg*m2
              voltage_net=127,          #Volts             
-             frequency_net=60.0,         #Hz
+             frequency_net=Q_(60.0, "Hz"),         #Hz
              #npts=1000
-             # initial_angle_net=20.0,        
+             # initial_angle_net=Q_(20.0, 'deg'),
              # short_circuit_ratio_net=50.0,
-             # reactance_ratio_net=80.0
+             # XR_ratio_net=80.0
              )
     # Adjusting simulation parameters
 
