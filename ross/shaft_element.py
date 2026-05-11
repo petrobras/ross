@@ -154,11 +154,10 @@ class ShaftElement(Element):
         shear_effects=True,
         rotary_inertia=True,
         gyroscopic=True,
-        shear_method_calc="cowper",      
-        tag=None,   
+        shear_method_calc="cowper",
+        tag=None,
         alpha=0,
         beta=0,
-
     ):
         if idr is None:
             idr = idl
@@ -186,7 +185,6 @@ class ShaftElement(Element):
 
         self.tag = tag
         self.shear_method_calc = shear_method_calc
-
 
         self.L = float(L)
         self.o_d = (float(odl) + float(odr)) / 2
