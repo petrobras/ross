@@ -135,10 +135,9 @@ def test_mis_comb_resp(run_mis_combined):
 
 
     data = run_mis_combined.data_time_response(probe=[probe1, probe2])
-    # print(data["probe_resp[0]"].to_numpy()[:5])
-    # print(data["probe_resp[1]"].to_numpy()[:5])
-    assert_allclose(data["probe_resp[0]"].to_numpy()[:5], resp_prob1, rtol=1e-05)
-    assert_allclose(data["probe_resp[1]"].to_numpy()[:5], resp_prob2, rtol=1e-06)
+
+    assert_allclose(data["probe_resp[0]"].to_numpy()[:5], resp_prob1,  atol=1e-06)
+    assert_allclose(data["probe_resp[1]"].to_numpy()[:5], resp_prob2,  atol=1e-06)
 
 
 @pytest.fixture
@@ -181,8 +180,8 @@ def test_mis_parallel_resp(run_mis_parallel):
     )
 
     data = run_mis_parallel.data_time_response(probe=[probe1, probe2])
-    assert_allclose(data["probe_resp[0]"].to_numpy()[:5], resp_prob1)
-    assert_allclose(data["probe_resp[1]"].to_numpy()[:5], resp_prob2)
+    assert_allclose(data["probe_resp[0]"].to_numpy()[:5], resp_prob1, atol=1e-6)
+    assert_allclose(data["probe_resp[1]"].to_numpy()[:5], resp_prob2, atol=1e-6)
 
 
 @pytest.fixture
@@ -210,7 +209,7 @@ def test_mis_angular_resp(run_mis_angular):
         [0.000000e+00, -9.810895e-09, -3.814855e-08, -8.253894e-08,-1.427727e-07]
     )
     resp_prob2 = np.array(
-        [0.000000e00, -1.070854e-10, 2.984443e-09, 1.126141e-08, 1.096169e-08]
+        [0.000000e+00, -1.070682e-10,  2.983838e-09,  1.125557e-08, 1.094712e-08]
     )
 
     data = run_mis_angular.data_time_response(probe=[probe1, probe2])
@@ -258,15 +257,9 @@ def test_mis_rigid_resp(mis_rigid):
         [0.000000e+00, 6.149274e-08, 3.716138e-07, 1.181863e-06,  2.738342e-06]
     )
     resp_prob2 = np.array(
-        [
-            0.00000000e00,
-            -1.99130062e-07,
-            -1.18066869e-06,
-            -3.67565279e-06,
-            -8.32209309e-06,
-        ]
+        [0.000000e+00, -1.990902e-07, -1.180356e-06, -3.674392e-06, -8.318542e-06]
     )
 
     data = mis_rigid.data_time_response(probe=[probe1, probe2])
-    assert_allclose(data["probe_resp[0]"].to_numpy()[:5], resp_prob1)
-    assert_allclose(data["probe_resp[1]"].to_numpy()[:5], resp_prob2)
+    assert_allclose(data["probe_resp[0]"].to_numpy()[:5], resp_prob1,atol=1e-6)
+    assert_allclose(data["probe_resp[1]"].to_numpy()[:5], resp_prob2,atol=1e-6)

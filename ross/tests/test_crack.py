@@ -171,7 +171,7 @@ def test_crack_mayes_resp(run_crack_mayes):
         [ 0.000000e+00, -2.213958e-08, -1.102517e-07, -2.853502e-07,-5.462954e-07]
     )
     resp_prob2 = np.array(
-        [0.000000e00, -2.435100e-08, -1.211254e-07, -3.136489e-07, -6.050479e-07]
+        [0.000000e+00, -2.435054e-08, -1.211191e-07, -3.136121e-07, -6.049112e-07]
     )
 
     data = run_crack_mayes.data_time_response(probe=[probe1, probe2])

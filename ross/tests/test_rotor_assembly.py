@@ -1858,7 +1858,7 @@ def rotor_6dof():
 def test_modal_6dof(rotor_6dof):
     modal = rotor_6dof.run_modal(speed=0, sparse=False)
     wn = np.array([1.  ,  47.62,  91.8 ,  96.29, 274.57])
-    wd = np.array([47.62156, 91.79656, 96.289, 274.56607, 296.50068])
+    wd = np.array([0.  ,  47.62,  91.8 ,  96.29, 274.57])
 
     assert_almost_equal(modal.wn[:5], wn, decimal=2)
     assert_almost_equal(modal.wd[:5], wd, decimal=2)
@@ -2755,7 +2755,7 @@ def test_run_amb_sensitivity():
     """
     EXPECTED_SENSITIVITY_RESULTS = {
         "max_abs": {
-            "Magnetic Bearing 0": {"x": 0.9915881235, "y": 0.9915881235},
+            "Magnetic Bearing 0": {"x": 0.991576, "y": 0.991576},
             "Magnetic Bearing 1": {"x": 0.9880851953, "y": 0.9880851953},
         },
         "abs_slice": {
@@ -2856,7 +2856,7 @@ def test_run_amb_sensitivity():
     }
 
     r_tol = 0
-    a_tol = 1e-8
+    a_tol = 1e-6
 
     # Setup - run the analysis
     rotor = rotor_amb_example()

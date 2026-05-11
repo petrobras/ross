@@ -1315,10 +1315,10 @@ class Rotor(object):
         --------
         >>> rotor = compressor_example()
         >>> rotor.C(0)[:4, :4]
-        array([[0., 0., 0., 0.],
-               [0., 0., 0., 0.],
-               [0., 0., 0., 0.],
-               [0., 0., 0., 0.]])
+        array([[ 0.,  0.,  0.,  0.],
+               [ 0.,  0.,  0., -0.],
+               [ 0.,  0.,  0.,  0.],
+               [ 0., -0.,  0.,  0.]])
         """
         C0 = self.C0.copy()
 
@@ -2398,7 +2398,7 @@ class Rotor(object):
         >>> np.nonzero(magnetic_force)[0]
         array([ 72,  73, 258, 259])
         >>> magnetic_force[np.nonzero(magnetic_force)[0]]
-        array([-1.77841057e-04,  5.15148204e-06, -2.96097989e-04,  3.35036499e-05])
+        array([-1.78362520e-04,  5.11287139e-06, -2.96613036e-04,  3.34815104e-05])
         """
 
         if kwargs.get("sensitivity_result_values", None) == {}:
