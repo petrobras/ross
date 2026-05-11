@@ -3,6 +3,7 @@
 This module defines the MotorElement class which represents a 3-phase Induction Electric Motor
 simulated using a 4th-order Runge-Kutta method, considering magnetic fluxes and currents.
 """
+
 import numpy as np
 import plotly.graph_objects as go
 
@@ -12,6 +13,7 @@ from ross.units import Q_, check_units
 from .motor_sourceAC import SourceAC
 
 __all__ = ["MotorElement"]
+
 
 class MotorElement(Element):
     """A 3-phase Induction Motor element.
@@ -61,7 +63,7 @@ class MotorElement(Element):
         Default is None, which adopts the motor's nominal frequency (`frequency`).
     initial_angle_net : float, optional, pint.Quantity
         Initial angular phase frequency of Power Supply [rad].
-        Default is 20.0 degrees.    
+        Default is 20.0 degrees.
     short_circuit_ratio_net : float, optional
         Short-Circuit Ratio in Common Coupling Point with Power Supply.
         Default is 50.0.
@@ -74,11 +76,12 @@ class MotorElement(Element):
     """
 
     @check_units
-    def __init__(self, 
+    def __init__(
+        self,
         n,
         power,
         voltage,
-        speed, 
+        speed,
         stator_resistance,
         rotor_resistance,
         stator_reactance,
@@ -97,7 +100,7 @@ class MotorElement(Element):
         tag=None,
     ):
 
-        # Numerical Validation of NOMP entries 
+        # Numerical Validation of NOMP entries
         self.power = float(power)
         self.voltage = float(voltage)
         self.speed = float(speed)
@@ -115,10 +118,12 @@ class MotorElement(Element):
             self.frequency = Q_(60.0, "Hz").to("rad/s").m
         else:
             self.frequency = float(frequency)
-            
-        # Numerical Validation of SCIP entries 
+
+        # Numerical Validation of SCIP entries
         self.voltage_net = self.voltage if voltage_net is None else float(voltage_net)
-        self.frequency_net = self.frequency if frequency_net is None else float(frequency_net)
+        self.frequency_net = (
+            self.frequency if frequency_net is None else float(frequency_net)
+        )
         self.short_circuit_ratio_net = float(short_circuit_ratio_net)
         self.XR_ratio_net = float(XR_ratio_net)
 
@@ -126,9 +131,11 @@ class MotorElement(Element):
             self.initial_angle_net = Q_(20.0, "deg").to("rad").m
         else:
             self.initial_angle_net = float(initial_angle_net)
-            
+
         # Internal model speed parameters derived from NOMP
-        self.snom = (self.frequency - self.speed * self.n_poles / 2) / self.frequency * 100
+        self.snom = (
+            (self.frequency - self.speed * self.n_poles / 2) / self.frequency * 100
+        )
 
         # Internal model inductances parameters derived from CEMP
         self.Lls = self.stator_reactance / self.frequency
@@ -155,12 +162,12 @@ class MotorElement(Element):
         self.tag = tag
 
         # Initial values of Rotor speed, Flux angle and Electrial Torque
-        # Obs: a possible new feature is to insert non-null initial values user's parameters 
-        self.wr = 0.0           # Rotor's angular speed in rad*s
-        self.thetar = 0.0       # Rotor's angle in rad
+        # Obs: a possible new feature is to insert non-null initial values user's parameters
+        self.wr = 0.0  # Rotor's angular speed in rad*s
+        self.thetar = 0.0  # Rotor's angle in rad
         self.thetai = self.initial_angle_net - np.pi / 2
-        self.ro = self.thetai   # Flux's initial angle in rad
-        self.Te = 0.0           # Electrical Torque in N*m
+        self.ro = self.thetai  # Flux's initial angle in rad
+        self.Te = 0.0  # Electrical Torque in N*m
 
         # Initial alpha-beta and dq currents (based in nulled instantaneous phase currents)
         ias, ibs, ics = 0, 0, 0
@@ -174,24 +181,33 @@ class MotorElement(Element):
         self.Lqs = self.Lss * iqs + self.Lm * 0
         self.Ldr = self.Lrr * 0 + self.Lm * ids
         self.Lqr = self.Lrr * 0 + self.Lm * iqs
-        
+
         # Motor AC Source instance
-        self.sourceAC = SourceAC(voltage_net=self.voltage, frequency_net=Q_(self.frequency, "rad/s").to("Hz").m)       
+        self.sourceAC = SourceAC(
+            voltage_net=self.voltage,
+            frequency_net=Q_(self.frequency, "rad/s").to("Hz").m,
+        )
 
         # Initial simulation parameters scheme
-        self.tI = 0.0                # Initial time of simulation (tI)
-        self.tF = 5.0                # Final time of simulation (tF)
-        self.step = 1e-4              # Resolution  (s)
-        self.npts = int((self.tF-self.tI)/self.step)      # Number of points in simulation
-        self.tTL = (self.tF-self.tI)/2       # TLoad entrance time
-        self.rTL = 1.0               # TLoad ratio related Tnom at entrance time tTL (1.0 ->100% Tnom)
+        self.tI = 0.0  # Initial time of simulation (tI)
+        self.tF = 5.0  # Final time of simulation (tF)
+        self.step = 1e-4  # Resolution  (s)
+        self.npts = int(
+            (self.tF - self.tI) / self.step
+        )  # Number of points in simulation
+        self.tTL = (self.tF - self.tI) / 2  # TLoad entrance time
+        self.rTL = (
+            1.0  # TLoad ratio related Tnom at entrance time tTL (1.0 ->100% Tnom)
+        )
 
         # Time vector and Load Torque vector for the simulation, considering the TLoad entrance time
-        self.t_vector, self.dt = np.linspace(self.tI,self.tF,self.npts,retstep=True)   
-        lenT= int(len(self.t_vector))
-        self.TLoad_vector = np.ones(lenT)*self.Tnom*self.rTL
+        self.t_vector, self.dt = np.linspace(self.tI, self.tF, self.npts, retstep=True)
+        lenT = int(len(self.t_vector))
+        self.TLoad_vector = np.ones(lenT) * self.Tnom * self.rTL
         arr = np.array(self.t_vector)
-        itTL = np.abs(arr - self.tTL).argmin()  # Catching the near index to time do TLoad entrance
+        itTL = np.abs(
+            arr - self.tTL
+        ).argmin()  # Catching the near index to time do TLoad entrance
         self.TLoad_vector[0:itTL] = 0.0
 
     def __str__(self):
@@ -229,13 +245,13 @@ class MotorElement(Element):
 
     def __repr__(self):
         pass
-    
+
     def __eq__(self, other):
         pass
 
     def __hash__(self):
         return hash(self.tag)
-    
+
     def dof_mapping(self):
         pass
 
@@ -244,13 +260,13 @@ class MotorElement(Element):
 
     def K(self):
         pass
-    
+
     def C(self):
         pass
 
     def G(self):
         pass
-    
+
     def _perform_single_step(self, h, t, Tload):
         """Perform a single iteration calculation for the motor dynamics.
 
@@ -287,10 +303,10 @@ class MotorElement(Element):
         # Note: The original logic relies on a fixed h for the RK coefficients.
         # We assume the user calls this sequentially or we rely on the internal h.
         self.h = float(h)
-        
+
         # Electrical 3-phase tensions
-        vas, vbs, vcs = self.sourceAC(t)    
-        
+        vas, vbs, vcs = self.sourceAC(t)
+
         # Updating angles
         w_axis = self.frequency
         self.ro += w_axis * h
@@ -321,35 +337,121 @@ class MotorElement(Element):
         # Step 1
         k11 = h * (vds - (Rs + Rsc) * a * Lds + (Rs + Rsc) * c * Ldr + w_axis * Lqs)
         k21 = h * (vqs - (Rs + Rsc) * a * Lqs + (Rs + Rsc) * c * Lqr - w_axis * Lds)
-        k31 = h * (vdr - Rr * b * Ldr + Rr * c * Lds + (w_axis - wr * n_poles / 2) * Lqr)
-        k41 = h * (vqr - Rr * b * Lqr + Rr * c * Lqs - (w_axis - wr * n_poles / 2) * Ldr)
+        k31 = h * (
+            vdr - Rr * b * Ldr + Rr * c * Lds + (w_axis - wr * n_poles / 2) * Lqr
+        )
+        k41 = h * (
+            vqr - Rr * b * Lqr + Rr * c * Lqs - (w_axis - wr * n_poles / 2) * Ldr
+        )
         k51 = h * (Te / (Jm + Jl) - Bm * wr / (Jm + Jl) - Tload / (Jm + Jl))
 
-        Te_rk = 1.5 * c * ((Lqs + k21 / 2) * (Ldr + k31 / 2) - (Lds + k11 / 2) * (Lqr + k41 / 2)) * n_poles / 2
+        Te_rk = (
+            1.5
+            * c
+            * ((Lqs + k21 / 2) * (Ldr + k31 / 2) - (Lds + k11 / 2) * (Lqr + k41 / 2))
+            * n_poles
+            / 2
+        )
 
         # Step 2
-        k12 = h * (vds - (Rs + Rsc) * a * (Lds + k11 / 2) + (Rs + Rsc) * c * (Ldr + k31 / 2) + w_axis * (Lqs + k21 / 2))
-        k22 = h * (vqs - (Rs + Rsc) * a * (Lqs + k21 / 2) + (Rs + Rsc) * c * (Lqr + k41 / 2) - w_axis * (Lds + k11 / 2))
-        k32 = h * (vdr - Rr * b * (Ldr + k31 / 2) + Rr * c * (Lds + k11 / 2) + (w_axis - (wr + k51 / 2) * n_poles / 2) * (Lqr + k41 / 2))
-        k42 = h * (vqr - Rr * b * (Lqr + k41 / 2) + Rr * c * (Lqs + k21 / 2) - (w_axis - (wr + k51 / 2) * n_poles / 2) * (Ldr + k31 / 2))
-        k52 = h * (Te_rk / (Jm + Jl) - Bm * (wr + k51 / 2) / (Jm + Jl) - Tload / (Jm + Jl))
+        k12 = h * (
+            vds
+            - (Rs + Rsc) * a * (Lds + k11 / 2)
+            + (Rs + Rsc) * c * (Ldr + k31 / 2)
+            + w_axis * (Lqs + k21 / 2)
+        )
+        k22 = h * (
+            vqs
+            - (Rs + Rsc) * a * (Lqs + k21 / 2)
+            + (Rs + Rsc) * c * (Lqr + k41 / 2)
+            - w_axis * (Lds + k11 / 2)
+        )
+        k32 = h * (
+            vdr
+            - Rr * b * (Ldr + k31 / 2)
+            + Rr * c * (Lds + k11 / 2)
+            + (w_axis - (wr + k51 / 2) * n_poles / 2) * (Lqr + k41 / 2)
+        )
+        k42 = h * (
+            vqr
+            - Rr * b * (Lqr + k41 / 2)
+            + Rr * c * (Lqs + k21 / 2)
+            - (w_axis - (wr + k51 / 2) * n_poles / 2) * (Ldr + k31 / 2)
+        )
+        k52 = h * (
+            Te_rk / (Jm + Jl) - Bm * (wr + k51 / 2) / (Jm + Jl) - Tload / (Jm + Jl)
+        )
 
-        Te_rk = 1.5 * c * ((Lqs + k22 / 2) * (Ldr + k32 / 2) - (Lds + k12 / 2) * (Lqr + k42 / 2)) * n_poles / 2
+        Te_rk = (
+            1.5
+            * c
+            * ((Lqs + k22 / 2) * (Ldr + k32 / 2) - (Lds + k12 / 2) * (Lqr + k42 / 2))
+            * n_poles
+            / 2
+        )
 
         # Step 3
-        k13 = h * (vds - (Rs + Rsc) * a * (Lds + k12 / 2) + (Rs + Rsc) * c * (Ldr + k32 / 2) + w_axis * (Lqs + k22 / 2))
-        k23 = h * (vqs - (Rs + Rsc) * a * (Lqs + k22 / 2) + (Rs + Rsc) * c * (Lqr + k42 / 2) - w_axis * (Lds + k12 / 2))
-        k33 = h * (vdr - Rr * b * (Ldr + k32 / 2) + Rr * c * (Lds + k12 / 2) + (w_axis - (wr + k52 / 2) * n_poles / 2) * (Lqr + k42 / 2))
-        k43 = h * (vqr - Rr * b * (Lqr + k42 / 2) + Rr * c * (Lqs + k22 / 2) - (w_axis - (wr + k52 / 2) * n_poles / 2) * (Ldr + k32 / 2))
-        k53 = h * (Te_rk / (Jm + Jl) - Bm * (wr + k52 / 2) / (Jm + Jl) - Tload / (Jm + Jl))
+        k13 = h * (
+            vds
+            - (Rs + Rsc) * a * (Lds + k12 / 2)
+            + (Rs + Rsc) * c * (Ldr + k32 / 2)
+            + w_axis * (Lqs + k22 / 2)
+        )
+        k23 = h * (
+            vqs
+            - (Rs + Rsc) * a * (Lqs + k22 / 2)
+            + (Rs + Rsc) * c * (Lqr + k42 / 2)
+            - w_axis * (Lds + k12 / 2)
+        )
+        k33 = h * (
+            vdr
+            - Rr * b * (Ldr + k32 / 2)
+            + Rr * c * (Lds + k12 / 2)
+            + (w_axis - (wr + k52 / 2) * n_poles / 2) * (Lqr + k42 / 2)
+        )
+        k43 = h * (
+            vqr
+            - Rr * b * (Lqr + k42 / 2)
+            + Rr * c * (Lqs + k22 / 2)
+            - (w_axis - (wr + k52 / 2) * n_poles / 2) * (Ldr + k32 / 2)
+        )
+        k53 = h * (
+            Te_rk / (Jm + Jl) - Bm * (wr + k52 / 2) / (Jm + Jl) - Tload / (Jm + Jl)
+        )
 
-        Te_rk = 1.5 * c * ((Lqs + k23) * (Ldr + k33) - (Lds + k13) * (Lqr + k43)) * n_poles / 2
+        Te_rk = (
+            1.5
+            * c
+            * ((Lqs + k23) * (Ldr + k33) - (Lds + k13) * (Lqr + k43))
+            * n_poles
+            / 2
+        )
 
         # Step 4
-        k14 = h * (vds - (Rs + Rsc) * a * (Lds + k13) + (Rs + Rsc) * c * (Ldr + k33) + w_axis * (Lqs + k23))
-        k24 = h * (vqs - (Rs + Rsc) * a * (Lqs + k23) + (Rs + Rsc) * c * (Lqr + k43) - w_axis * (Lds + k13))
-        k34 = h * (vdr - Rr * b * (Ldr + k33) + Rr * c * (Lds + k13) + (w_axis - (wr + k53) * n_poles / 2) * (Lqr + k43))
-        k44 = h * (vqr - Rr * b * (Lqr + k43) + Rr * c * (Lqs + k23) - (w_axis - (wr + k53) * n_poles / 2) * (Ldr + k33))
+        k14 = h * (
+            vds
+            - (Rs + Rsc) * a * (Lds + k13)
+            + (Rs + Rsc) * c * (Ldr + k33)
+            + w_axis * (Lqs + k23)
+        )
+        k24 = h * (
+            vqs
+            - (Rs + Rsc) * a * (Lqs + k23)
+            + (Rs + Rsc) * c * (Lqr + k43)
+            - w_axis * (Lds + k13)
+        )
+        k34 = h * (
+            vdr
+            - Rr * b * (Ldr + k33)
+            + Rr * c * (Lds + k13)
+            + (w_axis - (wr + k53) * n_poles / 2) * (Lqr + k43)
+        )
+        k44 = h * (
+            vqr
+            - Rr * b * (Lqr + k43)
+            + Rr * c * (Lqs + k23)
+            - (w_axis - (wr + k53) * n_poles / 2) * (Ldr + k33)
+        )
         k54 = h * (Te_rk / (Jm + Jl) - Bm * (wr + k53) / (Jm + Jl) - Tload / (Jm + Jl))
 
         # Update State Variables
@@ -358,7 +460,7 @@ class MotorElement(Element):
         self.Ldr += (k31 + 2 * k32 + 2 * k33 + k34) / 6
         self.Lqr += (k41 + 2 * k42 + 2 * k43 + k44) / 6
         self.wr += (k51 + 2 * k52 + 2 * k53 + k54) / 6
-        
+
         # Calculate Outputs
         ids = a * self.Lds - c * self.Ldr
         iqs = a * self.Lqs - c * self.Lqr
@@ -373,24 +475,23 @@ class MotorElement(Element):
         self.current_time = t
 
         return {
-            'time': t,
-            'Vas': vas,
-            'Vbs': vbs,
-            'Vcs': vcs,            
-            'Ias': ias,
-            'Ibs': ibs,
-            'Ics': ics,
-            'Ialfas': i_alpha,
-            'Ibetas': i_beta,
-            'Ids': ids,
-            'Iqs': iqs,
-            'TE': self.Te,
-            'Tl': Tload,
-            'wr': self.wr, 
-            'RPM': self.wr * 30 / np.pi
+            "time": t,
+            "Vas": vas,
+            "Vbs": vbs,
+            "Vcs": vcs,
+            "Ias": ias,
+            "Ibs": ibs,
+            "Ics": ics,
+            "Ialfas": i_alpha,
+            "Ibetas": i_beta,
+            "Ids": ids,
+            "Iqs": iqs,
+            "TE": self.Te,
+            "Tl": Tload,
+            "wr": self.wr,
+            "RPM": self.wr * 30 / np.pi,
         }
-    
-    
+
     def run(self):
         """Run the simulation for a series of time steps.
 
@@ -404,10 +505,21 @@ class MotorElement(Element):
             - tempo, Ias, Ibs, Ics, Ialfas, Ibetas, Ids, Iqs, TE, TC.
         """
         results = {
-            'time': [], 'Vas': [], 'Vbs': [], 'Vcs': [],
-            'Ias': [], 'Ibs': [], 'Ics': [],
-            'Ialfas': [], 'Ibetas': [], 'Ids': [], 'Iqs': [],
-            'TE': [], 'Tl': [], 'wr': [], 'RPM': []
+            "time": [],
+            "Vas": [],
+            "Vbs": [],
+            "Vcs": [],
+            "Ias": [],
+            "Ibs": [],
+            "Ics": [],
+            "Ialfas": [],
+            "Ibetas": [],
+            "Ids": [],
+            "Iqs": [],
+            "TE": [],
+            "Tl": [],
+            "wr": [],
+            "RPM": [],
         }
 
         # Ensure inputs are iterable/arrays
@@ -415,9 +527,8 @@ class MotorElement(Element):
         Tload_vector = np.array(self.TLoad_vector)
 
         for i, t in enumerate(time_vector):
-
             # Run single step calculation
-            step_result = self._perform_single_step(self.dt, t,  Tload_vector[i])
+            step_result = self._perform_single_step(self.dt, t, Tload_vector[i])
 
             # Append results
             for key in results:
@@ -427,12 +538,12 @@ class MotorElement(Element):
 
     def plot(self, results):
         """Plot the simulation results (Torque and Speed) in separate figures.
-        
+
         Parameters
         ----------
         results : dict
             Dictionary returned by the 'run' method containing lists of results.
-        
+
         Returns
         -------
         fig_torque, fig_speed, fig_currents, fig_voltages: tuple of plotly.graph_objects.Figure
@@ -442,140 +553,185 @@ class MotorElement(Element):
         # Figure 1: Torques
         fig_torque = go.Figure()
         fig_torque.add_trace(
-            go.Scatter(x=results['time'], y=results['TE'], name="Electromagnetic Torque(N.m)", line=dict(color='blue'))
+            go.Scatter(
+                x=results["time"],
+                y=results["TE"],
+                name="Electromagnetic Torque(N.m)",
+                line=dict(color="blue"),
+            )
         )
         fig_torque.add_trace(
-            go.Scatter(x=results['time'], y=results['Tl'], name="Load Torque (N.m)", line=dict(color='red'))
+            go.Scatter(
+                x=results["time"],
+                y=results["Tl"],
+                name="Load Torque (N.m)",
+                line=dict(color="red"),
+            )
         )
         fig_torque.update_layout(
             title="Motor operation: Electromagnetic Torque and Load Torque",
             xaxis_title="Time (s)",
-            yaxis_title="Torque (N.m)"
+            yaxis_title="Torque (N.m)",
         )
 
         # Figure 2: Shaft Motor Speed
         fig_speed = go.Figure()
         fig_speed.add_trace(
-            go.Scatter(x=results['time'], y=results['RPM'], name="Rotação (RPM)", line=dict(color='red'))
+            go.Scatter(
+                x=results["time"],
+                y=results["RPM"],
+                name="Rotação (RPM)",
+                line=dict(color="red"),
+            )
         )
         fig_speed.update_layout(
             title="Motor operation: Shaft Speed",
             xaxis_title="Time (s)",
-            yaxis_title="Motor speed (RPM)"
+            yaxis_title="Motor speed (RPM)",
         )
 
         # Figure 3: Phase Currents
         fig_currents = go.Figure()
         fig_currents.add_trace(
-            go.Scatter(x=results['time'], y=results['Ias'], name="Ia (A)", line=dict(color='blue'))
+            go.Scatter(
+                x=results["time"],
+                y=results["Ias"],
+                name="Ia (A)",
+                line=dict(color="blue"),
+            )
         )
         fig_currents.add_trace(
-            go.Scatter(x=results['time'], y=results['Ibs'], name="Ib (A)", line=dict(color='black'))
+            go.Scatter(
+                x=results["time"],
+                y=results["Ibs"],
+                name="Ib (A)",
+                line=dict(color="black"),
+            )
         )
         fig_currents.add_trace(
-            go.Scatter(x=results['time'], y=results['Ics'], name="Ic (A)", line=dict(color='red'))
+            go.Scatter(
+                x=results["time"],
+                y=results["Ics"],
+                name="Ic (A)",
+                line=dict(color="red"),
+            )
         )
         fig_currents.update_layout(
             title="Motor operation: Stator Currents",
             xaxis_title="Time (s)",
-            yaxis_title="Currents (A)"
+            yaxis_title="Currents (A)",
         )
 
         # Figure 4: Phase Tensions
         fig_voltages = go.Figure()
         fig_voltages.add_trace(
-            go.Scatter(x=results['time'], y=results['Vas'], name="Va (V)", line=dict(color='blue'))
+            go.Scatter(
+                x=results["time"],
+                y=results["Vas"],
+                name="Va (V)",
+                line=dict(color="blue"),
+            )
         )
         fig_voltages.add_trace(
-            go.Scatter(x=results['time'], y=results['Vbs'], name="Vb (V)", line=dict(color='black'))
+            go.Scatter(
+                x=results["time"],
+                y=results["Vbs"],
+                name="Vb (V)",
+                line=dict(color="black"),
+            )
         )
         fig_voltages.add_trace(
-            go.Scatter(x=results['time'], y=results['Vcs'], name="Vc (V)", line=dict(color='red'))
+            go.Scatter(
+                x=results["time"],
+                y=results["Vcs"],
+                name="Vc (V)",
+                line=dict(color="red"),
+            )
         )
         fig_voltages.update_layout(
             title="Motor operation: Stator Voltages",
             xaxis_title="Time (s)",
-            yaxis_title="Stator Voltages (V)"
+            yaxis_title="Stator Voltages (V)",
         )
         return fig_torque, fig_speed, fig_currents, fig_voltages
 
-    
-# def simulparams(self, tI, tF, tTL, rTL, npts):
-#     """Simulation Parameters control
+    # def simulparams(self, tI, tF, tTL, rTL, npts):
+    #     """Simulation Parameters control
 
-#     Parameters
-#     ----------
-#     time_vector : array_like
-#         Array of time steps.
-        
-#     Tload_vector : array_like
-#         Array of load torques.
+    #     Parameters
+    #     ----------
+    #     time_vector : array_like
+    #         Array of time steps.
 
-#     Returns
-#     -------
-#     results : dict
-#         A dictionary containing lists of results for the entire simulation:
-#         - tempo, Ias, Ibs, Ics, Ialfas, Ibetas, Ids, Iqs, TE, TC.
-#     """
+    #     Tload_vector : array_like
+    #         Array of load torques.
+
+    #     Returns
+    #     -------
+    #     results : dict
+    #         A dictionary containing lists of results for the entire simulation:
+    #         - tempo, Ias, Ibs, Ics, Ialfas, Ibetas, Ids, Iqs, TE, TC.
+    #     """
     def simulparams(self, tI=None, tF=None, step=None, npts=None, tTL=None, rTL=None):
-            # Checks if no arguments were passed to trigger the report (Requirement 3)
-            no_args = all(v is None for v in [tI, tF, step, npts, tTL, rTL])
-    
-            # Simulation parameters setup
-            self.tI = tI if tI is not None else 0.0
-            self.tF = tF if tF is not None else 5.0
-            
-            # Logic for step vs npts 
-            if step is not None:
-                if step == 0:
-                    raise ValueError("Parameter 'step' cannot be zero.")
-                self.step = step
-                self.npts = int((self.tF - self.tI) / self.step)
-                
-                if self.npts > 10**6:
-                    raise ValueError("Number of points (npts) cannot be greater than 10E6.")
-                    
-            elif npts is not None:
-                self.npts = int(npts)
-                self.step = (self.tF - self.tI) / self.npts
-                
-            else: # If neither is provided, assume defaults
-                self.step = 1E-4
-                self.npts = int((self.tF - self.tI) / self.step)
-    
-            # Sets tTL and rTL based on the resolved tI and tF values above
-            self.tTL = tTL if tTL is not None else (self.tF - self.tI) / 2
-            self.rTL = rTL if rTL is not None else 1.0
-    
-            # Report if no values were provided
-            if no_args:
-                print("=== Default Parameters Report ===")
-                print(f"tI   = {self.tI}")
-                print(f"tF   = {self.tF}")
-                print(f"step = {self.step}")
-                print(f"tTL  = {self.tTL}")
-                print(f"rTL  = {self.rTL}")
-                print("=================================\n")
-    
-            # Vector creation
-            # Time vector and deltaTime
-            self.t_vector, self.dt = np.linspace(self.tI, self.tF, self.npts, retstep=True)
-    
-            lenT = len(self.t_vector)
-            
-            # Creating TLoad vector     
-            self.TLoad_vector = np.ones(lenT) * self.Tnom * self.rTL
-    
-            arr = np.array(self.t_vector)
-            
-            # Catching the near index to the time of TLoad entrance
-            itTL = np.abs(arr - self.tTL).argmin()  
-            
-            # Setting TLoad vector      
-            self.TLoad_vector[0:itTL] = 0.0
-    
-        # return dt, time_vector, Tload_vector
-    
+        # Checks if no arguments were passed to trigger the report (Requirement 3)
+        no_args = all(v is None for v in [tI, tF, step, npts, tTL, rTL])
+
+        # Simulation parameters setup
+        self.tI = tI if tI is not None else 0.0
+        self.tF = tF if tF is not None else 5.0
+
+        # Logic for step vs npts
+        if step is not None:
+            if step == 0:
+                raise ValueError("Parameter 'step' cannot be zero.")
+            self.step = step
+            self.npts = int((self.tF - self.tI) / self.step)
+
+            if self.npts > 10**6:
+                raise ValueError("Number of points (npts) cannot be greater than 10E6.")
+
+        elif npts is not None:
+            self.npts = int(npts)
+            self.step = (self.tF - self.tI) / self.npts
+
+        else:  # If neither is provided, assume defaults
+            self.step = 1e-4
+            self.npts = int((self.tF - self.tI) / self.step)
+
+        # Sets tTL and rTL based on the resolved tI and tF values above
+        self.tTL = tTL if tTL is not None else (self.tF - self.tI) / 2
+        self.rTL = rTL if rTL is not None else 1.0
+
+        # Report if no values were provided
+        if no_args:
+            print("=== Default Parameters Report ===")
+            print(f"tI   = {self.tI}")
+            print(f"tF   = {self.tF}")
+            print(f"step = {self.step}")
+            print(f"tTL  = {self.tTL}")
+            print(f"rTL  = {self.rTL}")
+            print("=================================\n")
+
+        # Vector creation
+        # Time vector and deltaTime
+        self.t_vector, self.dt = np.linspace(self.tI, self.tF, self.npts, retstep=True)
+
+        lenT = len(self.t_vector)
+
+        # Creating TLoad vector
+        self.TLoad_vector = np.ones(lenT) * self.Tnom * self.rTL
+
+        arr = np.array(self.t_vector)
+
+        # Catching the near index to the time of TLoad entrance
+        itTL = np.abs(arr - self.tTL).argmin()
+
+        # Setting TLoad vector
+        self.TLoad_vector[0:itTL] = 0.0
+
+    # return dt, time_vector, Tload_vector
+
+
 def motor_example():
     """Create an example of notor element.
 
@@ -591,41 +747,40 @@ def motor_example():
     --------
 
     """
-    
+
     motor = MotorElement(
-             n=0,
-             tag=None,
-             power=Q_(1.5*735.499, "W"),  #Direct conversion cv --> W
-             voltage=127,          #Volts      
-             speed=Q_(1725, "RPM"),       #RPM 
-             frequency=Q_(60.0, "Hz"),         #Hz
-             n_poles=4,            #Stator's poles
-             stator_resistance=2.5,            #Ohm
-             rotor_resistance=1.8,            #Ohm
-             stator_reactance=1.3,           #Ohm
-             rotor_reactance=1.3,           #Ohm
-             mutual_reactance=43.08,          #Ohm 
-             Ip_motor=0.0372,         #kg*m2
-             viscosity_coeff=0.0,            #kg*m*s2   
-             Ip_load=0.0,            #kg*m2
-             voltage_net=127,          #Volts             
-             frequency_net=Q_(60.0, "Hz"),         #Hz
-             #npts=1000
-             # initial_angle_net=Q_(20.0, 'deg'),
-             # short_circuit_ratio_net=50.0,
-             # XR_ratio_net=80.0
-             )
+        n=0,
+        tag=None,
+        power=Q_(1.5 * 735.499, "W"),  # Direct conversion cv --> W
+        voltage=127,  # Volts
+        speed=Q_(1725, "RPM"),  # RPM
+        frequency=Q_(60.0, "Hz"),  # Hz
+        n_poles=4,  # Stator's poles
+        stator_resistance=2.5,  # Ohm
+        rotor_resistance=1.8,  # Ohm
+        stator_reactance=1.3,  # Ohm
+        rotor_reactance=1.3,  # Ohm
+        mutual_reactance=43.08,  # Ohm
+        Ip_motor=0.0372,  # kg*m2
+        viscosity_coeff=0.0,  # kg*m*s2
+        Ip_load=0.0,  # kg*m2
+        voltage_net=127,  # Volts
+        frequency_net=Q_(60.0, "Hz"),  # Hz
+        # npts=1000
+        # initial_angle_net=Q_(20.0, 'deg'),
+        # short_circuit_ratio_net=50.0,
+        # XR_ratio_net=80.0
+    )
     # Adjusting simulation parameters
 
-    motor.sourceAC.harmonics(fHO=[5,7],aHO=[5,5])
-    motor.sourceAC.voltage_net=90.0
-    motor.simulparams(tTL=3.0,rTL=1.5)
-    motor.sourceAC.harmonics('enable')
-    motor.sourceAC.unbalances('disable')
+    motor.sourceAC.harmonics(fHO=[5, 7], aHO=[5, 5])
+    motor.sourceAC.voltage_net = 90.0
+    motor.simulparams(tTL=3.0, rTL=1.5)
+    motor.sourceAC.harmonics("enable")
+    motor.sourceAC.unbalances("disable")
 
-    dataResults=motor.run()
-   
-    
+    dataResults = motor.run()
+
     fig_torque, fig_speed, fig_currents, fig_voltages = motor.plot(dataResults)
 
     return motor, fig_torque, fig_speed, fig_currents, fig_voltages
