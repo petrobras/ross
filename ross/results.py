@@ -8,6 +8,7 @@ import inspect
 from abc import ABC
 from collections.abc import Iterable
 from warnings import warn
+from types import MethodType
 
 import numpy as np
 import pandas as pd
@@ -31,6 +32,7 @@ __all__ = [
     "CriticalSpeedResults",
     "ModalResults",
     "CampbellResults",
+    "ClearanceResults",
     "FrequencyResponseResults",
     "ForcedResponseResults",
     "StaticResults",
@@ -45,7 +47,7 @@ __all__ = [
 
 # Define reference circle for orbits
 NUM_POINTS = 360
-CIRCLE = np.exp(1j * np.linspace(0, 2 * np.pi, NUM_POINTS))
+CIRCLE = np.exp(1j * np.linspace(0, 2 * np.pi, NUM_POINTS, endpoint=False))
 
 
 class Results(ABC):
@@ -254,6 +256,8 @@ class Orbit(Results):
     ----------
     node : int
         Orbit node in the rotor.
+    node_pos : float
+        Orbit node position in the rotor.
     ru_e : complex
         Element in the vector corresponding to the x direction.
     rv_e : complex
@@ -368,15 +372,6 @@ def _init_orbit(ru_e, rv_e):
     angle = np.arctan2(y_circle, x_circle)
     angle[angle < 0] = angle[angle < 0] + 2 * np.pi
 
-    # find major axis index looking at the first half circle
-    half = NUM_POINTS // 2
-    r_circle = np.sqrt(x_circle[:half] ** 2 + y_circle[:half] ** 2)
-    major_index = np.argmax(r_circle)
-    major_x = x_circle[major_index]
-    major_y = y_circle[major_index]
-    major_angle = angle[major_index]
-    minor_angle = major_angle + np.pi / 2
-
     # calculate T matrix
     ru = np.absolute(ru_e)
     rv = np.absolute(rv_e)
@@ -391,11 +386,11 @@ def _init_orbit(ru_e, rv_e):
     # fmt: on
     H = T @ T.T
 
-    lam = la.eigvals(H).astype(np.complex128)
+    lam, vecs = la.eig(H)
     # lam is the eigenvalue -> sqrt(lam) is the minor/major axis.
     # kappa encodes the relation between the axis and the precession.
-    minor = np.sqrt(lam.min())
-    major = np.sqrt(lam.max())
+    minor = np.sqrt(max(np.real(lam.min()), 0.0))
+    major = np.sqrt(max(np.real(lam.max()), 0.0))
 
     diff = nv - nu
 
@@ -417,6 +412,18 @@ def _init_orbit(ru_e, rv_e):
     minor_axis = np.real(minor)
     major_axis = np.real(major)
     kappa = np.real(kappa)
+
+    major_index = np.argmax(lam)
+    v = vecs[:, major_index]
+    v = np.real(v)
+    v = v / la.norm(v)
+
+    major_x = major * v[0]
+    major_y = major * v[1]
+    major_angle = np.arctan2(major_y, major_x)
+    if major_angle < 0:
+        major_angle += 2 * np.pi
+    minor_angle = major_angle + np.pi / 2
 
     return (
         x_circle,
@@ -534,6 +541,7 @@ class Shape(Results):
         """Calculate orbits for each node in the shape."""
         orbits = []
         whirl = []
+
         for node, node_pos in zip(self.nodes, self.nodes_pos):
             ru_e, rv_e = self._evec[self.number_dof * node : self.number_dof * node + 2]
             orbit = Orbit(node=node, node_pos=node_pos, ru_e=ru_e, rv_e=rv_e)
@@ -586,6 +594,9 @@ class Shape(Results):
             major_x = np.zeros(shape)
             major_y = np.zeros(shape)
             major_angle = np.zeros(shape)
+            x0 = np.zeros(shape)
+            y0 = np.zeros(shape)
+            angle_0 = np.zeros(shape)
 
             N1 = onn - 3 * zeta**2 + 2 * zeta**3
             N2 = zeta - 2 * zeta**2 + zeta**3
@@ -636,10 +647,15 @@ class Shape(Results):
                         orb = Orbit(
                             node=0, node_pos=0, ru_e=xn_complex[i], rv_e=yn_complex[i]
                         )
+
                         major[i] = orb.major_axis
                         major_x[i] = orb.major_x
                         major_y[i] = orb.major_y
                         major_angle[i] = orb.major_angle
+
+                        x0[i] = orb.x_circle[0]
+                        y0[i] = orb.y_circle[0]
+                        angle_0[i] = orb.angle[0]
 
                 n0 = n1
                 e0 = e1
@@ -651,6 +667,9 @@ class Shape(Results):
             self.major_x = major_x
             self.major_y = major_y
             self.major_angle = major_angle
+            self.x0 = x0
+            self.y0 = y0
+            self.angle_0 = angle_0
 
         else:
             self.whirl = "None"
@@ -1243,17 +1262,15 @@ class Shape(Results):
             self._plot_axial(plot_dimension=2, length_units=length_units, fig=fig)
 
         else:
-            xn = self.major_x.copy()
-            yn = self.major_y.copy()
-            zn = self.zn.copy()
             nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
+            zn = self.zn.copy()
 
             if orientation == "major":
                 values = self.major_axis.copy()
             elif orientation == "x":
-                values = xn
+                values = self.x0.copy()
             elif orientation == "y":
-                values = yn
+                values = self.y0.copy()
             else:
                 raise ValueError(f"Invalid orientation {orientation}.")
 
@@ -1272,7 +1289,7 @@ class Shape(Results):
                         x=Q_(zn[n0:n1], "m").to(length_units).m,
                         y=values[n0:n1],
                         line=dict(color=self.color),
-                        customdata=Q_(self.major_angle[n0:n1], "rad").to(phase_units).m,
+                        customdata=Q_(self.angle_0[n0:n1], "rad").to(phase_units).m,
                         hovertemplate=(
                             f"Displacement: %{{y:.2f}}<br>"
                             + f"Angle {phase_units}: %{{customdata:.2f}}"
@@ -2295,7 +2312,10 @@ class CampbellResults(Results):
         self.whirl_values = whirl_values
         self.modal_results = modal_results
         self.number_dof = number_dof
-        self.run_modal = run_modal
+        if callable(run_modal):
+            self.run_modal = MethodType(run_modal, self)
+        else:
+            self.run_modal = run_modal
         self.campbell_torsional = campbell_torsional
 
     def sort_by_mode_type(self):
@@ -7623,3 +7643,148 @@ class SensitivityResults(Results):
         loaded_result.sensitivity_run_time_results = sensitivity_run_time_results
 
         return loaded_result
+
+
+class ClearanceResults(Results):
+    """Results for clearance analysis.
+
+    Stores vibration amplitudes at bearing locations and compares them with
+    bearing radial clearance limits. Inherits :class:`Results` for ``save`` /
+    ``load`` like other analysis result types.
+
+    Parameters
+    ----------
+    speed_rpm : float
+        Rotor speed in RPM.
+    bearing_nodes : list
+        List of bearing node numbers.
+    magnitudes : ndarray
+        Peak-to-peak vibration amplitudes (microns).
+    clearance : ndarray
+        Radial clearance (microns).
+    clearance_75 : ndarray
+        75% of radial clearance (microns).
+    """
+
+    def __init__(self, speed_rpm, bearing_nodes, magnitudes, clearance, clearance_75):
+        self.speed_rpm = speed_rpm
+        self.bearing_nodes = bearing_nodes
+        self.magnitudes = magnitudes
+        self.clearance = clearance
+        self.clearance_75 = clearance_75
+
+    def __getitem__(self, key):
+        """Enable dict-like access for backward compatibility."""
+        mapping = {
+            "speed_rpm": self.speed_rpm,
+            "bearing_nodes": self.bearing_nodes,
+            "magnitudes": self.magnitudes,
+            "clearance": self.clearance,
+            "clearance_75": self.clearance_75,
+        }
+        return mapping[key]
+
+    def plot(self, fig=None, **kwargs):
+        """
+        Plot vibration response against clearance limits.
+
+        Parameters
+        ----------
+        fig : plotly.graph_objects.Figure, optional
+            Existing figure to add traces to.
+        **kwargs : optional
+            Additional layout arguments.
+
+        Returns
+        -------
+        fig : plotly.graph_objects.Figure
+        """
+        import numpy as np
+        import plotly.graph_objects as go
+
+        if fig is None:
+            fig = go.Figure()
+
+        spacing = 4
+        x_positions = [i * spacing for i in range(len(self.bearing_nodes))]
+        x_labels = [str(n) for n in self.bearing_nodes]
+
+        # --- Background: Clearance 100%
+        fig.add_trace(
+            go.Bar(
+                x=x_positions,
+                y=self.clearance,
+                name="Radial Clearance Limit (100%)",
+                marker_color="red",
+                width=0.2,
+                hovertemplate="Clearance: %{y:.1f} µm<extra></extra>",
+                showlegend=True,
+                marker={"line": {"width": 0}},
+            )
+        )
+
+        # --- Background: Clearance 75%
+        fig.add_trace(
+            go.Bar(
+                x=x_positions,
+                y=self.clearance_75,
+                name="Alert Level (75%)",
+                marker_color="blue",
+                width=0.2,
+                hovertemplate="75% Limit: %{y:.1f} µm<extra></extra>",
+                showlegend=True,
+                marker={"line": {"width": 0}},
+            )
+        )
+
+        # Percent of radial clearance limit used (vibration / limit × 100).
+        mag = np.asarray(self.magnitudes, dtype=float)
+        lim100 = np.asarray(self.clearance, dtype=float)
+        lim75 = np.asarray(self.clearance_75, dtype=float)
+        per_clr = np.full_like(mag, np.nan, dtype=float)
+        per_clr_75 = np.full_like(mag, np.nan, dtype=float)
+        ok100 = np.isfinite(mag) & np.isfinite(lim100) & (lim100 > 0)
+        ok75 = np.isfinite(mag) & np.isfinite(lim75) & (lim75 > 0)
+        per_clr[ok100] = 100.0 * mag[ok100] / lim100[ok100]
+        per_clr_75[ok75] = 100.0 * mag[ok75] / lim75[ok75]
+
+        def _pct_label(x):
+            return f"{x:.1f}%" if np.isfinite(x) else "—"
+
+        # --- Vibration response
+        fig.add_trace(
+            go.Scatter(
+                x=x_positions,
+                y=self.magnitudes,
+                mode="lines+markers+text",
+                text=[
+                    f"{_pct_label(c75)}<br>{_pct_label(c100)}"
+                    for c75, c100 in zip(per_clr_75, per_clr)
+                ],
+                textposition="top left",
+                name=f"Vibration ({self.speed_rpm:.1f} RPM)",
+                line={"shape": "spline", "color": "purple", "width": 3},
+                marker={"size": 6},
+                hovertemplate="Amplitude: %{y:.2f} µm pkpk<extra></extra>",
+            )
+        )
+
+        fig.update_layout(
+            title="Vibration Response vs Bearing Clearance",
+            xaxis_title="Station (Node)",
+            yaxis_title="Amplitude / Clearance [µm]",
+            barmode="overlay",
+            hovermode="x unified",
+            plot_bgcolor="white",
+            legend={"orientation": "h", "y": 1.05},
+            xaxis=dict(
+                tickmode="array",
+                tickvals=x_positions,
+                ticktext=x_labels,
+                type="category",
+            ),
+            yaxis=dict(showgrid=True, gridcolor="lightgray"),
+            **kwargs,
+        )
+
+        return fig

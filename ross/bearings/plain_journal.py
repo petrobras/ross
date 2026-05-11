@@ -56,8 +56,8 @@ class PlainJournal(BearingElement):
     pad_arc_length : float
         Arc length of each pad. The unit is degree.
     preload: float
-        Preload of the pad. The preload is defined as m=1-Cb/Cp where Cb is the radail clearance and Cp is
-        the pad ground-in clearance.Preload is dimensionless.
+        Preload of the pad. The preload is defined as m=1-Cb/Cp where Cb is the radial clearance and Cp is
+        the pad ground-in clearance. Preload is dimensionless.
     geometry: string
         Refers to bearing geometry. The options are: 'circular', 'lobe' or 'elliptical'.
     initial_guess : array
@@ -76,9 +76,9 @@ class PlainJournal(BearingElement):
     frequency : list, pint.Quantity
         Array with the frequencies (rad/s).
     fxs_load : float, pint.Quantity
-        Load in X direction. The unit is newton.
+        Load in X direction. The unit is Newton.
     fys_load : float, pint.Quantity
-        Load in Y direction. The unit is newton.
+        Load in Y direction. The unit is Newton.
     operating_type : string
         Choose the operating condition that bearing is operating.
         - 'flooded'
@@ -92,7 +92,7 @@ class PlainJournal(BearingElement):
         Lubricant type. Can be:
         - 'ISOVG46' (lubricants in ross.bearings.lubricants)
     reference_temperature : float
-        Oil reference temperature. The unit is celsius.
+        Oil reference temperature. The unit is Celsius.
     groove_factor : list, numpy array, tuple or float
         Ratio of oil in reservoir temperature that mixes with the circulating oil.
         Is required one factor per segment.
@@ -105,7 +105,7 @@ class PlainJournal(BearingElement):
 
     Turbulence Model
     ^^^^^^^^^^^^^^^^
-    Turbulence model to improve analysis in higher speed.The model represents
+    Turbulence model to improve analysis in higher speed. The model represents
     the turbulence by eddy diffusivities. The basic reference is found in :cite:t:`suganami1979`
 
     Reyn : Array
@@ -135,17 +135,17 @@ class PlainJournal(BearingElement):
     Attributes
     ----------
     Pdim : array
-        Dimensional pressure field. The unit is pascal.
+        Dimensional pressure field. The unit is Pascal.
     dPdz : array
         Differential pressure field in z direction.
     dPdy : array
         Differential pressure field in theta direction.
     Tdim : array
-        Dimensional temperature field. The unit is celsius.
+        Dimensional temperature field. The unit is Celsius.
     Fhx : float
-        Force in X direction. The unit is newton.
+        Force in X direction. The unit is Newton.
     Fhy : float
-        Force in Y direction. The unit is newton.
+        Force in Y direction. The unit is Newton.
     equilibrium_pos : array
         Array with excentricity ratio and attitude angle information.
         Its shape is: array([excentricity, angle])
@@ -198,13 +198,13 @@ class PlainJournal(BearingElement):
         frequency,
         fxs_load,
         fys_load,
-        groove_factor,
         lubricant,
         sommerfeld_type=2,
         initial_guess=[0.1, -0.1],
         method="perturbation",
         model_type="thermo_hydro_dynamic",
         operating_type="flooded",
+        groove_factor=None,
         oil_supply_pressure=None,
         oil_flow_v=None,
         **kwargs,
@@ -293,7 +293,7 @@ class PlainJournal(BearingElement):
         self.reference_viscosity = self.interpolate(self.reference_temperature)
 
         # Pivot angle for lobe geometry
-        self.theta_pivot = np.array([90, 270]) * np.pi / 180
+        self.theta_pivot = (self.thetaI + self.thetaF) / 2
 
         # Store optimization results for later reporting
         self._opt_results = {}
@@ -338,7 +338,7 @@ class PlainJournal(BearingElement):
         )
 
     def _forces(self, initial_guess, speed, y0=None, xpt0=None, ypt0=None):
-        """Calculates the forces in Y and X direction.
+        """Calculates the forces in Y and X directions.
 
         Parameters
         ----------
@@ -351,17 +351,17 @@ class PlainJournal(BearingElement):
         y0 : float
             The position of the center of the rotor in the y-axis.
         xpt0 : float
-            The speed of the center of the rotor in the x-axis.
+            The velocity of the center of the rotor in the x-axis.
         ypt0 : float
-            The speed of the center of the rotor in the y-axis.
+            The velocity of the center of the rotor in the y-axis.
 
 
         Returns
         -------
         Fhx : float
-            Force in X direction. The unit is newton.
+            Force in X direction. The unit is Newton.
         Fhy : float
-            Force in Y direction. The unit is newton.
+            Force in Y direction. The unit is Newton.
         """
 
         if y0 is None and xpt0 is None and ypt0 is None:
@@ -777,10 +777,9 @@ class PlainJournal(BearingElement):
             return coeffs
 
     def _perturbation_method(self, speed):
-        """In this method the formulation is based in application of virtual
-        displacements and speeds on the rotor from its equilibrium position to
-        determine the bearing stiffness and damping coefficients.
-
+        """In this method, small perturbations are applied to the rotor around its equilibrium position,
+        with the stiffness and damping coefficients calculated using finite-difference approximations of
+        the derivatives of the bearing forces with respect to rotor displacements and velocities.
         """
 
         xeq = (
@@ -802,15 +801,79 @@ class PlainJournal(BearingElement):
         epixpt = 0.000001 * np.abs(Va * np.sin(self.equilibrium_pos[1]))
         epiypt = 0.000001 * np.abs(Va * np.cos(self.equilibrium_pos[1]))
 
-        Auinitial_guess1 = self._forces(xeq + epix, speed, yeq, 0, 0)
-        Auinitial_guess2 = self._forces(xeq - epix, speed, yeq, 0, 0)
-        Auinitial_guess3 = self._forces(xeq, speed, yeq + epiy, 0, 0)
-        Auinitial_guess4 = self._forces(xeq, speed, yeq - epiy, 0, 0)
+        Auinitial_guess1 = self._forces(xeq + epix, speed, yeq, 0, 0) / (
+            (
+                self.reference_viscosity
+                * speed
+                * self.journal_radius
+                * self.axial_length**3
+            )
+            / (2 * np.pi * self.radial_clearance**2)
+        )
+        Auinitial_guess2 = self._forces(xeq - epix, speed, yeq, 0, 0) / (
+            (
+                self.reference_viscosity
+                * speed
+                * self.journal_radius
+                * self.axial_length**3
+            )
+            / (2 * np.pi * self.radial_clearance**2)
+        )
+        Auinitial_guess3 = self._forces(xeq, speed, yeq + epiy, 0, 0) / (
+            (
+                self.reference_viscosity
+                * speed
+                * self.journal_radius
+                * self.axial_length**3
+            )
+            / (2 * np.pi * self.radial_clearance**2)
+        )
+        Auinitial_guess4 = self._forces(xeq, speed, yeq - epiy, 0, 0) / (
+            (
+                self.reference_viscosity
+                * speed
+                * self.journal_radius
+                * self.axial_length**3
+            )
+            / (2 * np.pi * self.radial_clearance**2)
+        )
 
-        Auinitial_guess5 = self._forces(xeq, speed, yeq, epixpt, 0)
-        Auinitial_guess6 = self._forces(xeq, speed, yeq, -epixpt, 0)
-        Auinitial_guess7 = self._forces(xeq, speed, yeq, 0, epiypt)
-        Auinitial_guess8 = self._forces(xeq, speed, yeq, 0, -epiypt)
+        Auinitial_guess5 = self._forces(xeq, speed, yeq, epixpt, 0) / (
+            (
+                self.reference_viscosity
+                * speed
+                * self.journal_radius
+                * self.axial_length**3
+            )
+            / (2 * np.pi * self.radial_clearance**2)
+        )
+        Auinitial_guess6 = self._forces(xeq, speed, yeq, -epixpt, 0) / (
+            (
+                self.reference_viscosity
+                * speed
+                * self.journal_radius
+                * self.axial_length**3
+            )
+            / (2 * np.pi * self.radial_clearance**2)
+        )
+        Auinitial_guess7 = self._forces(xeq, speed, yeq, 0, epiypt) / (
+            (
+                self.reference_viscosity
+                * speed
+                * self.journal_radius
+                * self.axial_length**3
+            )
+            / (2 * np.pi * self.radial_clearance**2)
+        )
+        Auinitial_guess8 = self._forces(xeq, speed, yeq, 0, -epiypt) / (
+            (
+                self.reference_viscosity
+                * speed
+                * self.journal_radius
+                * self.axial_length**3
+            )
+            / (2 * np.pi * self.radial_clearance**2)
+        )
 
         Kxx = -self.sommerfeld(speed, Auinitial_guess1[0], Auinitial_guess2[1]) * (
             (Auinitial_guess1[0] - Auinitial_guess2[0]) / (epix / self.radial_clearance)
@@ -859,10 +922,9 @@ class PlainJournal(BearingElement):
         return (kxx, kxy, kyx, kyy), (cxx, cxy, cyx, cyy)
 
     def _lund_method(self, speed):
-        """In this method a small amplitude whirl of the journal center (a first
-        order perturbation solution) is aplied. The four stiffness coefficients,
-        and the four damping coefficients is obtained by integration of the pressure
-        field.
+        """In this method, the solution of the Reynolds equation is perturbed,
+        with the stiffness and damping coefficients determined by integrating
+        the dynamic pressure fields over the bearing surface.
         """
 
         Ytheta = [
@@ -1724,15 +1786,14 @@ class PlainJournal(BearingElement):
         return (kxx, kxy, kyx, kyy), (cxx, cxy, cyx, cyy)
 
     def _score(self, x, speed):
-        """This method used to set the objective function of minimize optimization.
+        """This method is used to set the objective function of minimize optimization.
 
         Parameters
         ----------
         x: array
-           Balanced Force expression between the load aplied in bearing and the
-           resultant force provide by oil film.
+           Rotor position at each iteration of the optimization process.
         speed: float
-            Rotational speed to evaluate bearing coefficients. The unit is rad/s.
+            Rotational speed to evaluate the bearing coefficients. The unit is rad/s.
 
         Returns
         -------
@@ -1746,16 +1807,17 @@ class PlainJournal(BearingElement):
 
     def sommerfeld(self, speed, force_x, force_y):
         """Calculate the sommerfeld number. This dimensionless number is used to
-        calculate the dynamic coeficients.
+        calculate the dynamic coefficients through the perturbation method.
+        Basic reference is found at :cite:t:`riul1988`
 
         Parameters
         ----------
         speed : float
             Rotor speed. The unit is rad/s.
         force_x : float
-            Force in x direction. The unit is newton.
+            Force in x direction. The unit is Newton.
         force_y : float
-            Force in y direction. The unit is newton.
+            Force in y direction. The unit is Newton.
 
         Returns
         -------
@@ -1782,7 +1844,7 @@ class PlainJournal(BearingElement):
                 * (np.sqrt((force_x**2) + (force_y**2)))
             )
 
-        Ss = S
+        Ss = S * (self.axial_length / (2 * self.journal_radius)) ** 2
 
         return Ss
 
@@ -1796,7 +1858,7 @@ class PlainJournal(BearingElement):
         subplots : Plotly graph_objects.make_subplots()
             The figure object with the plot.
         kwargs : optional
-            Additional key word arguments can be passed to change the plot layout only
+            Additional keyword arguments can be passed to change the plot layout only
             (e.g. plot_bgcolor="white", ...).
             *See Plotly Python make_subplot Reference for more information.
 
@@ -1867,7 +1929,7 @@ class PlainJournal(BearingElement):
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         kwargs : optional
-            Additional key word arguments can be passed to change the plot layout only
+            Additional keyword arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
             *See Plotly Python Figure Reference for more information.
 
@@ -1916,7 +1978,7 @@ class PlainJournal(BearingElement):
                 )
             )
 
-        P_distribution = self.P[axial_element_index, :, :]
+        P_distribution = self.Pdim_last[axial_element_index, :, :]
         points = {"x": [], "y": []}
         pressure_plot = []
 
@@ -2027,7 +2089,7 @@ class PlainJournal(BearingElement):
             hasn't been executed yet.
         """
         if hasattr(self, "initial_time") and hasattr(self, "final_time"):
-            total_time = self.final_time - self.initial_time
+            total_time = sum([self._exec_times[f] for f in self.frequency])
             print(f"Execution time: {total_time:.2f} seconds")
         else:
             print("Simulation hasn't been executed yet.")
@@ -2309,6 +2371,8 @@ class PlainJournal(BearingElement):
         )
         pressure_3d.update_layout(
             scene=dict(
+                xaxis=dict(autorange="reversed"),
+                yaxis=dict(autorange="reversed"),
                 xaxis_title="Theta [rad]",
                 yaxis_title="z [m]",
                 zaxis_title="Pressure [Pa]",
@@ -2336,6 +2400,8 @@ class PlainJournal(BearingElement):
         )
         temperature_3d.update_layout(
             scene=dict(
+                xaxis=dict(autorange="reversed"),
+                yaxis=dict(autorange="reversed"),
                 xaxis_title="Theta [rad]",
                 yaxis_title="z [m]",
                 zaxis_title="Temperature [°C]",
