@@ -88,6 +88,9 @@ units = {
     "eff": "dimensionless",
     "power": "watt",
     "module": "meter",
+    "voltage": "volt",
+    "resistance": "ohm",
+    "reactance": "ohm",
 }
 for i, unit in zip(["k", "c", "m"], ["N/m", "N*s/m", "kg"]):
     for j in ["x", "y", "z"]:

@@ -20,11 +20,11 @@ class SourceAC:
 
     Parameters
     ----------
-    Vnet  : float  – RMS phase voltage [V]
-    fnet  : float  – Fundamental frequency [Hz]
+    voltage_net  : float  – RMS phase voltage [V]
+    frequency_net  : float  – Fundamental frequency [Hz]
     theta0: float  – Initial phase angle [rad] (default 0)
     fHO   : list/array of int   – Harmonic orders  (e.g. [5, 7, 11])
-    aHO   : list/array of float – Harmonic amplitudes as % of Vnet (e.g. [10, 5, 2])
+    aHO   : list/array of float – Harmonic amplitudes as % of voltage_net (e.g. [10, 5, 2])
     Vunb  : list/array of float – Voltage magnitude unbalance per phase [%]
                                   Order: [phase_A, phase_B, phase_C]
                                   Positive → higher voltage; Negative → lower voltage.
@@ -43,12 +43,12 @@ class SourceAC:
     _PHASE_OFFSET = [0.0, -2*np.pi/3, +2*np.pi/3]
     _PHASE_LABEL  = ['A', 'B', 'C']
 
-    def __init__(self, Vnet, fnet, theta0=0.0,
+    def __init__(self, voltage_net, frequency_net, theta0=0.0,
                  fHO=None, aHO=None,
                  Vunb=None, Adev=None):
 
-        self.Vnet   = Vnet
-        self.fnet   = fnet
+        self.voltage_net   = voltage_net
+        self.frequency_net   = frequency_net
         self.theta0 = theta0
 
         # --- Harmonics ---
@@ -116,7 +116,7 @@ class SourceAC:
         phase_id : 0 → A, 1 → B, 2 → C
         """
         phi   = self._PHASE_OFFSET[phase_id]   # nominal phase shift
-        w = 2 * np.pi * self.fnet
+        w = 2 * np.pi * self.frequency_net
 
         # --- Unbalance factors for this phase ---
         if self._unbalances_on and self._Vunb_active is not None:
@@ -141,12 +141,12 @@ class SourceAC:
         
         harm_factor = ((100 - a_harm)/100)
         
-        v = np.sqrt(2)*self.Vnet * mag_factor * harm_factor * np.cos(w * t + self.theta0 + phi + angle_offset)
+        v = np.sqrt(2)*self.voltage_net * mag_factor * harm_factor * np.cos(w * t + self.theta0 + phi + angle_offset)
 
         # --- Harmonics ---
         if self._harmonics_on and self._fHO_active:
             for h, a in zip(self._fHO_active, self._aHO_active):
-                v += (a / 100.0) *np.sqrt(2)* self.Vnet * mag_factor * np.cos(
+                v += (a / 100.0) *np.sqrt(2)* self.voltage_net * mag_factor * np.cos(
                     h * w * t + self.theta0 + phi + angle_offset )
 
         return v
@@ -310,7 +310,7 @@ class SourceAC:
     # ------------------------------------------------------------------ #
     def __repr__(self):
         return (
-            f"SourceAC(Vnet={self.Vnet} V, fnet={self.fnet} Hz, "
+            f"SourceAC(voltage_net={self.voltage_net} V, frequency_net={self.frequency_net} Hz, "
             f"theta0={self.theta0:.4f} rad, "
             f"harmonics={'ON' if self._harmonics_on else 'OFF'}, "
             f"unbalances={'ON' if self._unbalances_on else 'OFF'})"
@@ -398,7 +398,7 @@ class SourceAC:
     def sourceAC_example():
         #if __name__ == '__main__':
         # --- Create source ---
-        src = SourceAC(Vnet=220.0, fnet=60.0)
+        src = SourceAC(voltage_net=220.0, frequency_net=60.0)
         print(src)
         print()
     

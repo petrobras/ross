@@ -3,18 +3,15 @@
 This module defines the MotorElement class which represents a 3-phase Induction Electric Motor
 simulated using a 4th-order Runge-Kutta method, considering magnetic fluxes and currents.
 """
-import plotly.io as pio
-# pio.renderers.default = 'svg' # ou 'png'
-# pio.renderers.default = 'browser'
-
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 import numpy as np
+import plotly.graph_objects as go
+
 from ross.element import Element
+from ross.units import check_units
+
 from .motor_sourceAC import SourceAC
 
 __all__ = ["MotorElement"]
-
 
 class MotorElement(Element):
     """A 3-phase Induction Motor element.
@@ -22,305 +19,214 @@ class MotorElement(Element):
     This class creates a electric Three-Phase Induction Motor (TPIM) assuming
     rotor flux as sinchronous reference
 
-
-    Attributes
+    Parameters
     ----------
     n: int
-        Node in which the motor will be couppled.
-    tag : str, optional
-        A tag to name the element
-        Default is None
-    
-    ----Nominal Operational Machine Parameters (NOMP)
-    Pnom : float
+        Node in which the motor will be coupled.
+    power : float, pint.Quantity
         Nominal power [W].
-    Vnom : float
+    voltage : float, pint.Quantity
         Nominal voltage [V].
-    RPMnom : float
+    speed : float, pint.Quantity
         Nominal machine rotation [RPM].
-    fnom : float
-        Nominal frequency [Hz].
-    npol: int
-        Number of machine's poles [ad].
-        
-    ----Circuit-Equivalent Model Parameters (CEMP)  
-    Rs : float
+    stator_resistance : float, pint.Quantity
         Stator resistance [Ohm].
-    Rr : float
+    rotor_resistance : float, pint.Quantity
         Rotor resistance [Ohm].
-    Xls : float
-        Stator self-reactance at fnom [Ohm].
-    Xlr : float
-        Rotor self-reactance at fnom [Ohm].
-    Xm : float
-        Mutual reactance at fnom [Ohm].
-    Jm : float
-        Polar Moment of inertia: motor axis [kg*m2].
-    Bm : float
-        Viscous friction coeficient [Pa*s].
-    Jl : float
-        Polar Moment of inertia: load [kg*m2].
-
-    ----Short-Circuit Impedance Parameters (SCIP)  
-    Vnet : float
+    stator_reactance : float
+        Stator self-reactance at frequency [Ohm].
+    rotor_reactance : float
+        Rotor self-reactance at frequency [Ohm].
+    mutual_reactance : float
+        Mutual reactance at frequency [Ohm].
+    Ip_motor : float, pint.Quantity
+        Polar Moment of inertia related to motor axis [kg*m²].
+    frequency : float, optional, pint.Quantity
+        Nominal frequency [Hz].
+        Default is 60.0 Hz.
+    n_poles: int, optional
+        Number of machine's poles.
+        Default is 4.
+    viscosity_coeff : float, optional, pint.Quantity
+        Viscosity coefficient [Pa*s].
+        Default is 0.0.
+    Ip_load : float, optional, pint.Quantity
+        Polar Moment of inertia related to load [kg*m²].
+        Default is 0.0.
+    voltage_net : float, optional, pint.Quantity
         Electrical tension of Power Supply [V].
-    fnet : float
+        Default is None, which adopts the motor's nominal voltage (`voltage`).
+    frequency_net : float, optional, pint.Quantity
         Electrical frequency of Power Supply [Hz].
-    ainet : float
-        Initial angular phase frequency of Power Supply [°].            
-    SCRnet : float
-        Short-Circuit Ratio in Common Coupling Point with Power Supply [ad].
-    XRRnet : float
-        Reactance/Resistance Ratio in Coupling Point with Power Supply [ad].
+        Default is None, which adopts the motor's nominal frequency (`frequency`).
+    initial_angle_net : float, optional, pint.Quantity
+        Initial angular phase frequency of Power Supply [deg].
+        Default is 20.0 degrees.    
+    short_circuit_ratio_net : float, optional
+        Short-Circuit Ratio in Common Coupling Point with Power Supply.
+        Default is 50.0.
+    reactance_ratio_net : float, optional
+        Reactance/Resistance Ratio in Coupling Point with Power Supply.
+        Default is 80.0.
+    tag : str, optional
+        A tag to name the element.
+        Default is None.
     """
+
+    @check_units
     def __init__(self, 
-             n,
-             tag=None,
-             Pnom=None,
-             Vnom=None,
-             RPMnom=None, 
-             fnom=60.0,
-             npol=4,
-             Rs=None,
-             Rr=None,
-             Xls=None,
-             Xlr=None,
-             Xm=None,
-             Jm=None,
-             Bm=0.0,
-             Jl=0.0,
-             Vnet=None,
-             fnet=None,
-             ainet=20.0,
-             SCRnet=50.0,
-             XRRnet=80.0
+        n,
+        power,
+        voltage,
+        speed, 
+        stator_resistance,
+        rotor_resistance,
+        stator_reactance,
+        rotor_reactance,
+        mutual_reactance,
+        Ip_motor,
+        frequency=60.0,
+        n_poles=4,
+        viscosity_coeff=0.0,
+        Ip_load=0.0,
+        voltage_net=None,
+        frequency_net=None,
+        initial_angle_net=20.0,
+        short_circuit_ratio_net=50.0,
+        reactance_ratio_net=80.0,
+        tag=None,
+    ):
 
-             ):
-        super().__init__(n, tag)
-
-        # ---------- Numerical Validation of NOMP entries 
-        if Pnom is None:
-            raise ValueError(
-                 "Nominal machine power (Pnom) must be a value in Watt greather than 0")
-        else:
-            self.Pnom = float(Pnom)
-
-        if Vnom is None:
-            raise ValueError(
-                 "Nominal electrical tension (Vnom) must be a value in Volt greather than 0")
-        else:
-            self.Vnom = float(Vnom)
-
-        if RPMnom is None:
-            raise ValueError(
-                 "Nominal machine rotation (RPMnom) must be a value in RPM greather than 0")
-        else:
-            self.RPMnom = float(RPMnom)
-
-        if fnom is None:
-            print ('Nominal electrical frequency (fnom) must be a value in Hertz greather than 0. \n Adopting fnom=60.0Hz')
-            self.fnom = 60.0
-        else:
-            self.fnom = float(fnom)
+        # Numerical Validation of NOMP entries 
+        self.power = float(power)
+        self.voltage = float(voltage)
+        self.speed = float(speed) # check in RPM
+        self.frequency = float(frequency) # check in Hz
+        self.n_poles = int(n_poles)
+        self.stator_resistance = float(stator_resistance)
+        self.rotor_resistance = float(rotor_resistance)
+        self.stator_reactance = float(stator_reactance)
+        self.rotor_reactance = float(rotor_reactance)
+        self.mutual_reactance = float(mutual_reactance)
+        self.Ip_motor = float(Ip_motor)
+        self.viscosity_coeff = float(viscosity_coeff)
+        self.Ip_load = float(Ip_load)
             
-        if npol is None:
-            print ('Number of machine poles (npol) must be a integer value greather than 0. \n Adopting npol=4')
-            self.npol = 4
-        else:
-            self.npol = int(npol)
-
-        # ---------- Numerical Validation of CEMP entries 
-        if Rs is None:           
-            raise ValueError(
-                 "Stator Resistance (Rs) must be a value in Ohm greather than 0")
-        else:
-            self.Rs = float(Rs)
-
-        if Rr is None:           
-            raise ValueError(
-                 "Rotor Resistance (Rr) must be a value in Ohm greather than 0")
-        else:
-            self.Rr = float(Rr)
-
-        if Xls is None:           
-            raise ValueError(
-                "Stator reactance at fnom (Xls) must be a value in Ohm greather than 0")
-        else:
-            self.Xls = float(Xls)
-
-        if Xlr is None:           
-            raise ValueError(
-                "Rotor reactance at fnom (Xlr) must be a value in Ohm greather than 0")
-        else:
-            self.Xlr = float(Xlr)
+        # Numerical Validation of SCIP entries 
+        self.voltage_net = float(voltage_net)
+        self.frequency_net = float(frequency_net)
+        self.initial_angle_net = float(initial_angle_net)
+        self.short_circuit_ratio_net = float(short_circuit_ratio_net)
+        self.reactance_ratio_net = float(reactance_ratio_net)
             
-        if Xm is None:           
-            raise ValueError(
-                "Mutual reactance at fnom (Xm) must be a value in Ohm greather than 0")
-        else:
-            self.Xm = float(Xm)
+        # Internal model speed parameters derived from NOMP
+        self.ws = 2 * np.pi * self.frequency
+        self.wrnom = self.speed  * np.pi / 30 # Converting to rad/s
+        self.snom = (self.ws - self.wrnom * self.n_poles / 2) / self.ws * 100
 
-        if Jm is None:           
-            raise ValueError(
-                "Motor Axis Polar Moment of inertia (Jm) must be a value in kg*m2  greather than 0")
-        else:
-            self.Jm = float(Jm)
-
-        if Bm is None:
-            print ('Viscous friction coeficient (Bm) not inputted. \n Adopting Bm=0.0 Pa*s')
-            self.Bm = 0.0
-        else:
-            self.Bm = float(Bm)
-            
-        if Jl is None:
-            print ('Load Axis Polar Moment of inertia (Jl) not inputted. \n Adopting Jl=0.0 kg*m2')
-            self.Jl = 0.0
-        else:
-            self.Jl = float(Jl)
-            
-        # ---------- Numerical Validation of SCIP entries 
-        if Vnet is None:
-            print('Electrical tension of Power Supply (Vnet) not inputted. \n Adopting Vnet=Vnom={:.1f}'.format(self.Vnom))
-            self.Vnet = self.Vnom
-        else:
-            self.Vnet = float(Vnet)
-            
-        if fnet is None:
-            print('Electrical frequency of Power Supply (fnet) not inputted. \n Adopting fnet=fnom={:.1f}'.format(self.fnom))
-            self.fnet = self.fnom
-        else:
-            self.fnet = float(fnet)
-
-        if ainet is None:
-            print('Initial angular phase frequency of Power Supply (ainet) not inputted. \n Adopting ainet=20.0deg')
-            self.ainet = 20.0
-        else:
-            self.ainet = float(ainet)
-
-        if SCRnet is None:
-            print ('Short-Circuit Ratio in Coupling Point with Power Supply (SCRnet) not inputted. \n Adopting SCRnet=50.0')
-            self.SCRnet = 50.0
-        else:
-            self.SCRnet = float(SCRnet)
-            
-        if XRRnet is None:
-            print ('Reactance/Resistance Ratio in Coupling Point with Power Supply (XRRnet) not inputted. \n Adopting XRRnet=80.0')
-            self.XRRnet = 80.0
-        else:
-            self.XRRnet = float(XRRnet)
-            
-        # ---------- Internal model speed parameters derived from NOMP
-        self.ws = 2 * np.pi * self.fnom
-        self.wrnom = self.RPMnom  * np.pi / 30 # Converting to rad/s
-        self.snom = (self.ws - self.wrnom * self.npol / 2) / self.ws * 100
-
-
-        # ---------- Internal model inductances parameters derived from CEMP
-        self.Lls = self.Xls / (2 * np.pi * self.fnom)
-        self.Llr = self.Xlr / (2 * np.pi * self.fnom)
-        self.Lm = self.Xm / (2 * np.pi * self.fnom)
+        # Internal model inductances parameters derived from CEMP
+        self.Lls = self.stator_reactance / (2 * np.pi * self.frequency)
+        self.Llr = self.rotor_reactance / (2 * np.pi * self.frequency)
+        self.Lm = self.mutual_reactance / (2 * np.pi * self.frequency)
         self.Lss = self.Lls + self.Lm
         self.Lrr = self.Llr + self.Lm
 
-
-        # ---------- Internal Electric Motor constants derived from NOMP and CEMP
-        self.wnom = (2 * np.pi * self.fnom * (1 - self.snom / 100)) / (self.npol / 2)
-        self.Tnom = self.Pnom / self.wnom
+        # Internal Electric Motor constants derived from NOMP and CEMP
+        self.wnom = (2 * np.pi * self.frequency * (1 - self.snom / 100)) / (self.n_poles / 2)
+        self.Tnom = self.power / self.wnom
         self.sigma = 1 - self.Lm**2 / (self.Lss * self.Lrr)
         self.a = 1 / (self.sigma * self.Lss)
         self.b = 1 / (self.sigma * self.Lrr)
         self.c = self.Lm / (self.sigma * self.Lss * self.Lrr)
 
-        # ---------- Short-Circuit Power and Impedances parameters derived from SCIP
-        self.thetai = -(90 - self.ainet) * np.pi / 180
-        self.SCCnet = self.SCRnet * self.Pnom
-        self.Zsc = self.Vnet**2 / self.SCCnet
-        self.Xsc = self.Zsc * self.XRRnet / np.sqrt(1 + self.XRRnet**2)
-        self.Rsc = self.Xsc / self.XRRnet
+        # Short-Circuit Power and Impedances parameters derived from SCIP
+        self.thetai = -(90 - self.initial_angle_net) * np.pi / 180
+        self.SCCnet = self.short_circuit_ratio_net * self.power
+        self.Zsc = self.voltage_net**2 / self.SCCnet
+        self.Xsc = self.Zsc * self.reactance_ratio_net / np.sqrt(1 + self.reactance_ratio_net**2)
+        self.Rsc = self.Xsc / self.reactance_ratio_net
 
-        # ---------- Initial values of Rotor speed, Flux angle and Electrial Torque
+        # Initial values of Rotor speed, Flux angle and Electrial Torque
         # Obs: a possible new feature is to insert non-null initial values user's parameters 
-        self.wr = 0.0           #Rotor's angular speed in rad*s
-        self.thetar = 0.0       #Rotor's angle in rad
-        self.ro = self.thetai   #Flux's initial angle in rad
-        self.Te = 0.0           #Electrical Torque in N*m
+        self.wr = 0.0           # Rotor's angular speed in rad*s
+        self.thetar = 0.0       # Rotor's angle in rad
+        self.ro = self.thetai   # Flux's initial angle in rad
+        self.Te = 0.0           # Electrical Torque in N*m
 
-        # ---------- Initial alpha-beta and dq currents (based in nulled instantaneous phase currents)
+        # Initial alpha-beta and dq currents (based in nulled instantaneous phase currents)
         ias, ibs, ics = 0, 0, 0
         ialfas = 2 / 3 * (ias - ibs / 2 - ics / 2)
         ibetas = 2 / 3 * (ibs - ics) * np.sqrt(3) / 2
         ids = ialfas * np.cos(self.ro) + ibetas * np.sin(self.ro)
         iqs = -ialfas * np.sin(self.ro) + ibetas * np.cos(self.ro)
 
-        # ---------- Initial rotor and stator's inductances
+        # Initial rotor and stator's inductances
         self.Lds = self.Lss * ids + self.Lm * 0
         self.Lqs = self.Lss * iqs + self.Lm * 0
         self.Ldr = self.Lrr * 0 + self.Lm * ids
         self.Lqr = self.Lrr * 0 + self.Lm * iqs
         
-        #---------- Motor AC Source instance
-        self.sourceAC = SourceAC(Vnet=self.Vnom, fnet=self.fnom)        
+        # Motor AC Source instance
+        self.sourceAC = SourceAC(voltage_net=self.voltage, frequency_net=self.frequency)        
 
-        # ---------- Initial simulation parameters scheme
-        self.tI=0.0                # Initial time of simulation (tI)
-        self.tF=5.0                # Final time of simulation (tF)
-        self.step=1E-4              # Resolution  (s)
+        # Initial simulation parameters scheme
+        self.tI = 0.0                # Initial time of simulation (tI)
+        self.tF = 5.0                # Final time of simulation (tF)
+        self.step = 1e-4              # Resolution  (s)
         self.npts = int((self.tF-self.tI)/self.step)      # Number of points in simulation
         self.tTL = (self.tF-self.tI)/2       # TLoad entrance time
         self.rTL = 1.0               # TLoad ratio related Tnom at entrance time tTL (1.0 ->100% Tnom)
 
-        # Time vector and deltaTime
-        self.t_vector, self.dt = np.linspace(self.tI,self.tF,self.npts,retstep=True)
-
+        # Time vector and Load Torque vector for the simulation, considering the TLoad entrance time
+        self.t_vector, self.dt = np.linspace(self.tI,self.tF,self.npts,retstep=True)   
         lenT= int(len(self.t_vector))
-        # Creating TLoad vector     
         self.TLoad_vector = np.ones(lenT)*self.Tnom*self.rTL
-
         arr = np.array(self.t_vector)
-        # Catching the near index to time do TLoad entrance
-        itTL = np.abs(arr - self.tTL).argmin()    
-        # Setting TLoad vector     
+        itTL = np.abs(arr - self.tTL).argmin()  # Catching the near index to time do TLoad entrance
         self.TLoad_vector[0:itTL] = 0.0
+
+        self.n = n
+        self.tag = tag
 
     def __str__(self):
         """Convert object into string.
 
         Returns
         -------
-        The object's user-defined parameters translated to strings
+        The object's parameters translated to strings.
         """
         return (
             f"Tag:                                {self.tag}"
             f"\nNode:                               {self.n}"
             f"\n--- Nominal Parameters (NOMP) ---"
-            f"\nNominal Power (W):                  {self.Pnom}"
-            f"\nNominal Voltage (V):                {self.Vnom}"
-            f"\nNominal Rotation (RPM):             {self.RPMnom}"
-            f"\nNominal Frequency (Hz):             {self.fnom}"
-            f"\nNumber of Poles:                    {self.npol}"
+            f"\nNominal Power (W):                  {self.power}"
+            f"\nNominal Voltage (V):                {self.voltage}"
+            f"\nNominal Rotation (RPM):             {self.speed}"
+            f"\nNominal Frequency (Hz):             {self.frequency}"
+            f"\nNumber of Poles:                    {self.n_poles}"
             f"\n--- Circuit Parameters (CEMP) ---"
-            f"\nStator Resistance (Ohm):            {self.Rs}"
-            f"\nRotor Resistance (Ohm):             {self.Rr}"
-            f"\nStator Reactance (Ohm):             {self.Xls}"
-            f"\nRotor Reactance (Ohm):              {self.Xlr}"
-            f"\nMutual Reactance (Ohm):             {self.Xm}"
-            f"\nMotor Inertia (kg*m2):              {self.Jm}"
-            f"\nFriction Coef (Pa*s):               {self.Bm}"
-            f"\nLoad Inertia (kg*m2):               {self.Jl}"
+            f"\nStator Resistance (Ohm):            {self.stator_resistance}"
+            f"\nRotor Resistance (Ohm):             {self.rotor_resistance}"
+            f"\nStator Reactance (Ohm):             {self.stator_reactance}"
+            f"\nRotor Reactance (Ohm):              {self.rotor_reactance}"
+            f"\nMutual Reactance (Ohm):             {self.mutual_reactance}"
+            f"\nMotor Inertia (kg*m2):              {self.Ip_motor}"
+            f"\nViscosity Coefficient (Pa*s):       {self.viscosity_coeff}"
+            f"\nLoad Inertia (kg*m2):               {self.Ip_load}"
             f"\n--- Power Supply Parameters (SCIP) ---"
-            f"\nSupply Voltage (V):                 {self.Vnet}"
-            f"\nSupply Frequency (Hz):              {self.fnet}"
-            f"\nInitial Phase Angle (deg):          {self.ainet}"
-            f"\nShort-Circuit Ratio (ad):           {self.SCRnet}"
-            f"\nX/R Ratio (ad):                     {self.XRRnet}"
+            f"\nSupply Voltage (V):                 {self.voltage_net}"
+            f"\nSupply Frequency (Hz):              {self.frequency_net}"
+            f"\nInitial Phase Angle (deg):          {self.initial_angle_net}"
+            f"\nShort-Circuit Ratio (ad):           {self.short_circuit_ratio_net}"
+            f"\nX/R Ratio (ad):                     {self.reactance_ratio_net}"
         )
 
     def __repr__(self):
-        """Return a string representation of the motor element's calculated internal parameters.
+        """Return a string representation of a electric motor element.
 
         Returns
         -------
-        A string representation of a motor element object containing calculated values.
+        A string representation of a electric motor element object.
         """
         return (
             f"{self.__class__.__name__}("
@@ -332,26 +238,29 @@ class MotorElement(Element):
             f"wr={self.wr:.4f}, thetar={self.thetar:.4f}, ro={self.ro:.4f}, Te={self.Te:.4f}, "
             f"Lds={self.Lds:.4e}, Lqs={self.Lqs:.4e}, Ldr={self.Ldr:.4e}, Lqr={self.Lqr:.4e})"
         )
+    
+    def __eq__(self, other):
+        pass
+
+    def __hash__(self):
+        return hash(self.tag)
+    
     def dof_mapping(self):
-        # Exemplo simples, precisa ajustar conforme a convenção de DOFs do ROSS (ex: torcional ou 6DOF)
-        return {"alpha": 0} # ou o índice correspondente ao DOF rotacional
+        pass
 
     def M(self):
-        # Deve retornar matriz com a inércia Jm na posição correta
-        m = np.zeros((1, 1)) # Dimensão depende do dof_mapping
-        m[0, 0] = self.Jm
-        return m
+        pass
 
     def K(self):
-        return np.zeros((1, 1))
+        pass
     
     def C(self):
-        return np.zeros((1, 1))
+        pass
 
     def G(self):
-        return np.zeros((1, 1))
+        pass
     
-    def calc(self, h, t, Tload):
+    def _perform_single_step(self, h, t, Tload):
         """Perform a single iteration calculation for the motor dynamics.
 
         This method calculates the state of the motor for a specific time point 't',
@@ -392,9 +301,9 @@ class MotorElement(Element):
         vas, vbs, vcs = self.sourceAC(t)    
         
         # Updating angles
-        weixo = 2 * np.pi * self.fnom
+        weixo = 2 * np.pi * self.frequency
         self.ro += weixo * h
-        self.thetar += (self.wr * self.npol / 2) * h
+        self.thetar += (self.wr * self.n_poles / 2) * h
 
         # Clarke & Park Transforms for Voltages
         valfas = 2 / 3 * (vas - vbs / 2 - vcs / 2)
@@ -405,51 +314,51 @@ class MotorElement(Element):
         vdr, vqr = 0, 0
 
         # Constants for readability in RK4
-        Rs, Rsc = self.Rs, self.Rsc
-        Rr = self.Rr
+        Rs, Rsc = self.stator_resistance, self.Rsc
+        Rr = self.rotor_resistance
         Lds, Lqs = self.Lds, self.Lqs
         Ldr, Lqr = self.Ldr, self.Lqr
         a, b, c = self.a, self.b, self.c
         wr = self.wr
-        npol = self.npol
+        n_poles = self.n_poles
         Te = self.Te
-        Jm, Jl = self.Jm, self.Jl
-        Bm = self.Bm
+        Jm, Jl = self.Ip_motor, self.Ip_load
+        Bm = self.viscosity_coeff
 
         # --- Runge-Kutta 4th Order Step ---
 
         # Step 1
         k11 = h * (vds - (Rs + Rsc) * a * Lds + (Rs + Rsc) * c * Ldr + weixo * Lqs)
         k21 = h * (vqs - (Rs + Rsc) * a * Lqs + (Rs + Rsc) * c * Lqr - weixo * Lds)
-        k31 = h * (vdr - Rr * b * Ldr + Rr * c * Lds + (weixo - wr * npol / 2) * Lqr)
-        k41 = h * (vqr - Rr * b * Lqr + Rr * c * Lqs - (weixo - wr * npol / 2) * Ldr)
+        k31 = h * (vdr - Rr * b * Ldr + Rr * c * Lds + (weixo - wr * n_poles / 2) * Lqr)
+        k41 = h * (vqr - Rr * b * Lqr + Rr * c * Lqs - (weixo - wr * n_poles / 2) * Ldr)
         k51 = h * (Te / (Jm + Jl) - Bm * wr / (Jm + Jl) - Tload / (Jm + Jl))
 
-        Te_rk = 1.5 * c * ((Lqs + k21 / 2) * (Ldr + k31 / 2) - (Lds + k11 / 2) * (Lqr + k41 / 2)) * npol / 2
+        Te_rk = 1.5 * c * ((Lqs + k21 / 2) * (Ldr + k31 / 2) - (Lds + k11 / 2) * (Lqr + k41 / 2)) * n_poles / 2
 
         # Step 2
         k12 = h * (vds - (Rs + Rsc) * a * (Lds + k11 / 2) + (Rs + Rsc) * c * (Ldr + k31 / 2) + weixo * (Lqs + k21 / 2))
         k22 = h * (vqs - (Rs + Rsc) * a * (Lqs + k21 / 2) + (Rs + Rsc) * c * (Lqr + k41 / 2) - weixo * (Lds + k11 / 2))
-        k32 = h * (vdr - Rr * b * (Ldr + k31 / 2) + Rr * c * (Lds + k11 / 2) + (weixo - (wr + k51 / 2) * npol / 2) * (Lqr + k41 / 2))
-        k42 = h * (vqr - Rr * b * (Lqr + k41 / 2) + Rr * c * (Lqs + k21 / 2) - (weixo - (wr + k51 / 2) * npol / 2) * (Ldr + k31 / 2))
+        k32 = h * (vdr - Rr * b * (Ldr + k31 / 2) + Rr * c * (Lds + k11 / 2) + (weixo - (wr + k51 / 2) * n_poles / 2) * (Lqr + k41 / 2))
+        k42 = h * (vqr - Rr * b * (Lqr + k41 / 2) + Rr * c * (Lqs + k21 / 2) - (weixo - (wr + k51 / 2) * n_poles / 2) * (Ldr + k31 / 2))
         k52 = h * (Te_rk / (Jm + Jl) - Bm * (wr + k51 / 2) / (Jm + Jl) - Tload / (Jm + Jl))
 
-        Te_rk = 1.5 * c * ((Lqs + k22 / 2) * (Ldr + k32 / 2) - (Lds + k12 / 2) * (Lqr + k42 / 2)) * npol / 2
+        Te_rk = 1.5 * c * ((Lqs + k22 / 2) * (Ldr + k32 / 2) - (Lds + k12 / 2) * (Lqr + k42 / 2)) * n_poles / 2
 
         # Step 3
         k13 = h * (vds - (Rs + Rsc) * a * (Lds + k12 / 2) + (Rs + Rsc) * c * (Ldr + k32 / 2) + weixo * (Lqs + k22 / 2))
         k23 = h * (vqs - (Rs + Rsc) * a * (Lqs + k22 / 2) + (Rs + Rsc) * c * (Lqr + k42 / 2) - weixo * (Lds + k12 / 2))
-        k33 = h * (vdr - Rr * b * (Ldr + k32 / 2) + Rr * c * (Lds + k12 / 2) + (weixo - (wr + k52 / 2) * npol / 2) * (Lqr + k42 / 2))
-        k43 = h * (vqr - Rr * b * (Lqr + k42 / 2) + Rr * c * (Lqs + k22 / 2) - (weixo - (wr + k52 / 2) * npol / 2) * (Ldr + k32 / 2))
+        k33 = h * (vdr - Rr * b * (Ldr + k32 / 2) + Rr * c * (Lds + k12 / 2) + (weixo - (wr + k52 / 2) * n_poles / 2) * (Lqr + k42 / 2))
+        k43 = h * (vqr - Rr * b * (Lqr + k42 / 2) + Rr * c * (Lqs + k22 / 2) - (weixo - (wr + k52 / 2) * n_poles / 2) * (Ldr + k32 / 2))
         k53 = h * (Te_rk / (Jm + Jl) - Bm * (wr + k52 / 2) / (Jm + Jl) - Tload / (Jm + Jl))
 
-        Te_rk = 1.5 * c * ((Lqs + k23) * (Ldr + k33) - (Lds + k13) * (Lqr + k43)) * npol / 2
+        Te_rk = 1.5 * c * ((Lqs + k23) * (Ldr + k33) - (Lds + k13) * (Lqr + k43)) * n_poles / 2
 
         # Step 4
         k14 = h * (vds - (Rs + Rsc) * a * (Lds + k13) + (Rs + Rsc) * c * (Ldr + k33) + weixo * (Lqs + k23))
         k24 = h * (vqs - (Rs + Rsc) * a * (Lqs + k23) + (Rs + Rsc) * c * (Lqr + k43) - weixo * (Lds + k13))
-        k34 = h * (vdr - Rr * b * (Ldr + k33) + Rr * c * (Lds + k13) + (weixo - (wr + k53) * npol / 2) * (Lqr + k43))
-        k44 = h * (vqr - Rr * b * (Lqr + k43) + Rr * c * (Lqs + k23) - (weixo - (wr + k53) * npol / 2) * (Ldr + k33))
+        k34 = h * (vdr - Rr * b * (Ldr + k33) + Rr * c * (Lds + k13) + (weixo - (wr + k53) * n_poles / 2) * (Lqr + k43))
+        k44 = h * (vqr - Rr * b * (Lqr + k43) + Rr * c * (Lqs + k23) - (weixo - (wr + k53) * n_poles / 2) * (Ldr + k33))
         k54 = h * (Te_rk / (Jm + Jl) - Bm * (wr + k53) / (Jm + Jl) - Tload / (Jm + Jl))
 
         # Update State Variables
@@ -462,7 +371,7 @@ class MotorElement(Element):
         # Calculate Outputs
         ids = a * self.Lds - c * self.Ldr
         iqs = a * self.Lqs - c * self.Lqr
-        self.Te = 1.5 * c * (self.Lqs * self.Ldr - self.Lds * self.Lqr) * npol / 2
+        self.Te = 1.5 * c * (self.Lqs * self.Ldr - self.Lds * self.Lqr) * n_poles / 2
 
         ialfas = ids * np.cos(self.ro) - iqs * np.sin(self.ro)
         ibetas = ids * np.sin(self.ro) + iqs * np.cos(self.ro)
@@ -517,7 +426,7 @@ class MotorElement(Element):
         for i, t in enumerate(time_vector):
 
             # Run single step calculation
-            step_result = self.calc(self.dt, t,  Tload_vector[i])
+            step_result = self._perform_single_step(self.dt, t,  Tload_vector[i])
 
             # Append results
             for key in results:
@@ -621,11 +530,11 @@ class MotorElement(Element):
             # Checks if no arguments were passed to trigger the report (Requirement 3)
             no_args = all(v is None for v in [tI, tF, step, npts, tTL, rTL])
     
-            # ---------- Simulation parameters setup
+            # Simulation parameters setup
             self.tI = tI if tI is not None else 0.0
             self.tF = tF if tF is not None else 5.0
             
-            # ---------- Logic for step vs npts 
+            # Logic for step vs npts 
             if step is not None:
                 if step == 0:
                     raise ValueError("Parameter 'step' cannot be zero.")
@@ -647,7 +556,7 @@ class MotorElement(Element):
             self.tTL = tTL if tTL is not None else (self.tF - self.tI) / 2
             self.rTL = rTL if rTL is not None else 1.0
     
-            # ---------- Report if no values were provided
+            # Report if no values were provided
             if no_args:
                 print("=== Default Parameters Report ===")
                 print(f"tI   = {self.tI}")
@@ -657,7 +566,7 @@ class MotorElement(Element):
                 print(f"rTL  = {self.rTL}")
                 print("=================================\n")
     
-            # ---------- Vector creation
+            # Vector creation
             # Time vector and deltaTime
             self.t_vector, self.dt = np.linspace(self.tI, self.tF, self.npts, retstep=True)
     
@@ -695,30 +604,30 @@ def motor_example():
     motor = MotorElement(
              n=0,
              tag=None,
-             Pnom=1.5*735.499,  #Direct conversion cv --> W
-             Vnom=127,          #Volts      
-             RPMnom=1725,       #RPM 
-             fnom=60.0,         #Hz
-             npol=4,            #Stator's poles
-             Rs=2.5,            #Ohm
-             Rr=1.8,            #Ohm
-             Xls=1.3,           #Ohm
-             Xlr=1.3,           #Ohm
-             Xm=43.08,          #Ohm 
-             Jm=0.0372,         #kg*m2
-             Bm=0.0,            #kg*m*s2   
-             Jl=0.0,            #kg*m2
-             Vnet=127,          #Volts             
-             fnet=60.0,         #Hz
+             power=1.5*735.499,  #Direct conversion cv --> W
+             voltage=127,          #Volts      
+             speed=1725,       #RPM 
+             frequency=60.0,         #Hz
+             n_poles=4,            #Stator's poles
+             stator_resistance=2.5,            #Ohm
+             rotor_resistance=1.8,            #Ohm
+             stator_reactance=1.3,           #Ohm
+             rotor_reactance=1.3,           #Ohm
+             mutual_reactance=43.08,          #Ohm 
+             Ip_motor=0.0372,         #kg*m2
+             viscosity_coeff=0.0,            #kg*m*s2   
+             Ip_load=0.0,            #kg*m2
+             voltage_net=127,          #Volts             
+             frequency_net=60.0,         #Hz
              #npts=1000
-             # ainet=20.0,        
-             # SCRnet=50.0,
-             # XRRnet=80.0
+             # initial_angle_net=20.0,        
+             # short_circuit_ratio_net=50.0,
+             # reactance_ratio_net=80.0
              )
     # Adjusting simulation parameters
 
     motor.sourceAC.harmonics(fHO=[5,7],aHO=[5,5])
-    motor.sourceAC.Vnet=90.0
+    motor.sourceAC.voltage_net=90.0
     motor.simulparams(tTL=3.0,rTL=1.5)
     motor.sourceAC.harmonics('enable')
     motor.sourceAC.unbalances('disable')
