@@ -309,6 +309,15 @@ class TiltingPadResults(BearingResults):
         nz,
         nx,
         optimization_history,
+        oil_supply_temperature=None,
+        pad_arc=None,
+        z1=None,
+        z2=None,
+        T_pad=None,
+        T_pad_surface=None,
+        r_pad=None,
+        ntheta_pad=None,
+        pad_radius=None,
         initial_time=None,
         final_time=None,
     ):
@@ -345,6 +354,15 @@ class TiltingPadResults(BearingResults):
         self.nz = nz
         self.nx = nx
         self.optimization_history = optimization_history
+        self.oil_supply_temperature = oil_supply_temperature
+        self.pad_arc = pad_arc
+        self.z1 = z1
+        self.z2 = z2
+        self.T_pad = T_pad
+        self.T_pad_surface = T_pad_surface
+        self.r_pad = r_pad
+        self.ntheta_pad = ntheta_pad
+        self.pad_radius = pad_radius
 
     def show_results(self):
         """Print a formatted summary of tilting pad bearing results.
@@ -842,6 +860,344 @@ class TiltingPadResults(BearingResults):
                     )
 
         return figures
+
+    def plot_film_temperature_results(
+        self,
+        freq_index=0,
+        pad_index=None,
+        **kwargs,
+    ):
+        """Plot 2D film temperature contours for the selected pads.
+
+        Each selected pad is plotted in its own figure using local pad angle on
+        the X axis and axial position on the Y axis.
+
+        Parameters
+        ----------
+        freq_index : int
+            Index into ``self.temperature_fields``. Default is 0.
+        pad_index : int or list[int] or None, optional
+            Pad index (0-based) or list of indices to plot. If None, plot all pads.
+
+        Returns
+        -------
+        go.Figure or list[go.Figure]
+            One figure when a single pad is selected, otherwise a list with one
+            figure per selected pad.
+        """
+        if not self.temperature_fields:
+            raise ValueError(
+                "Temperature fields not available. "
+                "Run the bearing solution with thermal coupling first."
+            )
+
+        pads_to_plot = self._get_selected_pad_indices(pad_index)
+        t_field = self.temperature_fields[freq_index]
+        max_val = t_field[:, :, pads_to_plot].max()
+
+        theta_deg = np.linspace(0.0, np.degrees(self.pad_arc), self.nx)
+        z_m = np.linspace(
+            self.z1 * self.pad_axial_length,
+            self.z2 * self.pad_axial_length,
+            self.nz,
+        )
+
+        figs = []
+        for i in pads_to_plot:
+            fig = go.Figure()
+            fig.add_trace(
+                go.Contour(
+                    x=theta_deg,
+                    y=z_m,
+                    z=t_field[:, :, i],
+                    zmin=self.oil_supply_temperature,
+                    zmax=max_val,
+                    ncontours=25,
+                    colorscale="Viridis",
+                    colorbar=dict(
+                        title="T [°C]",
+                        tickfont=dict(size=22),
+                    ),
+                )
+            )
+            fig.update_traces(
+                contours_coloring="fill",
+                contours_showlabels=True,
+                contours_labelfont=dict(size=20),
+            )
+            fig.update_xaxes(
+                tickfont=dict(size=22),
+                title=dict(
+                    text="θ (pad local) [deg]",
+                    font=dict(family="Times New Roman", size=30),
+                ),
+            )
+            fig.update_yaxes(
+                tickfont=dict(size=22),
+                title=dict(
+                    text="Pad length [m]",
+                    font=dict(family="Times New Roman", size=30),
+                ),
+            )
+            fig.update_layout(
+                title=dict(
+                    text=f"Pad {i + 1} — film temperature", font=dict(size=20)
+                ),
+                plot_bgcolor="white",
+                **kwargs,
+            )
+            figs.append(fig)
+
+        if len(figs) == 1:
+            return figs[0]
+
+        return figs
+
+    def plot_thermal_pad_results(self, freq_index=0, pad_index=None, **kwargs):
+        """Backward-compatible alias for ``plot_film_temperature_results()``."""
+        return self.plot_film_temperature_results(
+            freq_index=freq_index,
+            pad_index=pad_index,
+            **kwargs,
+        )
+
+    def plot_solid_pad_results(self, pad_index=None, **kwargs):
+        """Plot 2D solid pad temperature contours for the selected pads.
+
+        Each selected pad is plotted in its own figure using local pad angle on
+        the X axis and pad depth on the Y axis.
+
+        Parameters
+        ----------
+        pad_index : int or list[int] or None, optional
+            Pad index (0-based) or list of indices to plot. If None, plot all pads.
+
+        Returns
+        -------
+        go.Figure or list[go.Figure]
+            One figure when a single pad is selected, otherwise a list with one
+            figure per selected pad.
+        """
+        if self.T_pad is None:
+            raise ValueError(
+                "Pad solid temperatures (T_pad) not available. "
+                "Run the bearing solution with thermal coupling first."
+            )
+
+        pads_to_plot = self._get_selected_pad_indices(pad_index)
+        max_val = self.T_pad[pads_to_plot, :, :].max()
+        min_val = self.T_pad[pads_to_plot, :, :].min()
+
+        theta_deg = np.linspace(0.0, np.degrees(self.pad_arc), self.ntheta_pad)
+        depth_mm = (self.r_pad - self.pad_radius) * 1e3
+
+        figs = []
+        for i in pads_to_plot:
+            fig = go.Figure()
+            fig.add_trace(
+                go.Contour(
+                    x=theta_deg,
+                    y=depth_mm,
+                    z=self.T_pad[i, :, :].T,
+                    zmin=min_val,
+                    zmax=max_val,
+                    ncontours=25,
+                    colorscale="Viridis",
+                    colorbar=dict(
+                        title="T [°C]",
+                        tickfont=dict(size=22),
+                    ),
+                )
+            )
+            fig.update_traces(
+                contours_coloring="fill",
+                contours_showlabels=True,
+                contours_labelfont=dict(size=20),
+            )
+            fig.update_xaxes(
+                tickfont=dict(size=22),
+                title=dict(
+                    text="θ (pad local) [deg]",
+                    font=dict(family="Times New Roman", size=30),
+                ),
+            )
+            fig.update_yaxes(
+                tickfont=dict(size=22),
+                title=dict(
+                    text="Pad depth [mm]",
+                    font=dict(family="Times New Roman", size=30),
+                ),
+                autorange="reversed",
+            )
+            fig.update_layout(
+                title=dict(
+                    text=f"Pad {i + 1} — solid temperature", font=dict(size=20)
+                ),
+                plot_bgcolor="white",
+                **kwargs,
+            )
+            figs.append(fig)
+
+        if len(figs) == 1:
+            return figs[0]
+
+        return figs
+
+    def plot_film_average_temperature(
+        self, freq_index=0, fig=None, print_data=False, **kwargs
+    ):
+        """Plot film average temperature vs local pad angle for each pad.
+
+        Parameters
+        ----------
+        freq_index : int, optional
+            Index into ``self.temperature_fields``. Default is 0.
+        fig : go.Figure, optional
+            Existing figure to add traces to. If None, a new one is created.
+        print_data : bool, optional
+            When True, print the raw data to the console. Default is False.
+
+        Returns
+        -------
+        fig : go.Figure
+        """
+        if fig is None:
+            fig = go.Figure()
+
+        temperature_field = self.temperature_fields[freq_index]
+        T_avg = temperature_field.mean(axis=0)
+        theta_local_deg = np.linspace(0.0, np.degrees(self.pad_arc), self.nx)
+
+        if print_data:
+            print("\nFilm average temperature data:")
+            print(f"  Frequency index: {freq_index}")
+            for i in range(self.n_pad):
+                print(f"  Pad {i + 1}:")
+                for theta, temp in zip(theta_local_deg, T_avg[:, i]):
+                    print(f"    theta_deg = {theta:8.3f}, T_C = {temp:8.3f}")
+            print()
+
+        for i in range(self.n_pad):
+            color = tableau_colors[list(tableau_colors.keys())[i % len(tableau_colors)]]
+            fig.add_trace(
+                go.Scatter(
+                    x=theta_local_deg,
+                    y=T_avg[:, i],
+                    mode="lines+markers",
+                    name=f"Pad {i + 1}",
+                    line=dict(color=color),
+                    marker=dict(color=color),
+                )
+            )
+
+        fig.update_layout(
+            title=dict(
+                text="Tilting Pad Bearing Results<br>Film Average Temperature",
+                font=dict(size=24),
+            ),
+            xaxis=dict(
+                title=r"θ (pad local) [deg]",
+                showgrid=True,
+                gridwidth=1,
+                gridcolor=tableau_colors["gray"],
+            ),
+            yaxis=dict(
+                title="T [°C]",
+                showgrid=True,
+                gridwidth=1,
+                gridcolor=tableau_colors["gray"],
+            ),
+            plot_bgcolor="white",
+            paper_bgcolor="white",
+            **kwargs,
+        )
+
+        return fig
+
+    def plot_babbitt_surface_temperature(
+        self,
+        axial_index=None,
+        fig=None,
+        print_data=False,
+        **kwargs,
+    ):
+        """Plot babbitt surface temperature vs local pad angle for each pad.
+
+        Parameters
+        ----------
+        axial_index : int or None, optional
+            Axial index to extract the surface temperature.
+            If None, use the axial mid-plane.
+        fig : go.Figure, optional
+            Existing figure. If None, a new one is created.
+        print_data : bool, optional
+            When True, print the raw data to the console. Default is False.
+
+        Returns
+        -------
+        fig : go.Figure
+        """
+        if self.T_pad_surface is None:
+            raise ValueError(
+                "Pad surface temperatures (T_pad_surface) not available. "
+                "Run the bearing solution with thermal coupling first."
+            )
+
+        if axial_index is None:
+            axial_index = self.nz // 2
+
+        if fig is None:
+            fig = go.Figure()
+
+        theta_local_deg = np.linspace(0.0, np.degrees(self.pad_arc), self.nx)
+
+        if print_data:
+            print("\nBabbitt surface temperature data:")
+            print(f"  Axial index: {axial_index}")
+            for i in range(self.n_pad):
+                T_line = self.T_pad_surface[i, :, axial_index]
+                print(f"  Pad {i + 1}:")
+                for theta, temp in zip(theta_local_deg, T_line):
+                    print(f"    theta_deg = {theta:8.3f}, T_C = {temp:8.3f}")
+            print()
+
+        for i in range(self.n_pad):
+            T_line = self.T_pad_surface[i, :, axial_index]
+            color = tableau_colors[list(tableau_colors.keys())[i % len(tableau_colors)]]
+            fig.add_trace(
+                go.Scatter(
+                    x=theta_local_deg,
+                    y=T_line,
+                    mode="lines+markers",
+                    name=f"Pad {i + 1}",
+                    line=dict(color=color),
+                    marker=dict(color=color),
+                )
+            )
+
+        fig.update_layout(
+            title=dict(
+                text="Tilting Pad Bearing Results<br>Babbitt Surface Temperature",
+                font=dict(size=24),
+            ),
+            xaxis=dict(
+                title=r"θ (pad local) [deg]",
+                showgrid=True,
+                gridwidth=1,
+                gridcolor=tableau_colors["gray"],
+            ),
+            yaxis=dict(
+                title="T [°C]",
+                showgrid=True,
+                gridwidth=1,
+                gridcolor=tableau_colors["gray"],
+            ),
+            plot_bgcolor="white",
+            paper_bgcolor="white",
+            **kwargs,
+        )
+
+        return fig
 
     def show_optimization_convergence(
         self, by: str = "index", show_plots: bool = False
