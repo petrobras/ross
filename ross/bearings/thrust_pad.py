@@ -2829,6 +2829,7 @@ class ThrustPad(BearingElement):
         self.kzz = self.n_pad * np.real(force_axial)
         self.czz = self.n_pad * 1 / perturbation_frequency * np.imag(force_axial)
 
+
 def thrust_pad_example():
     """Create an example of a thrust bearing with Thermo-Hydro-Dynamic effects.
 

@@ -119,9 +119,7 @@ class BearingResults(ABC):
                 try:
                     fig.show()
                 except Exception as e:
-                    print(
-                        f"Warning: Could not display plot automatically. Error: {e}"
-                    )
+                    print(f"Warning: Could not display plot automatically. Error: {e}")
 
         return figures
 
@@ -411,9 +409,7 @@ class TiltingPadResults(BearingResults):
         table.add_row(["Equilibrium Type", f"{self.equilibrium_type:>12}", "-"])
         table.add_row(["Number of Pads", f"{self.n_pad:12d}", "-"])
 
-        table.add_row(
-            ["Maximum Pressure", f"{self.maxP_list[freq_index]:12.4e}", "Pa"]
-        )
+        table.add_row(["Maximum Pressure", f"{self.maxP_list[freq_index]:12.4e}", "Pa"])
         table.add_row(
             [
                 "Maximum Temperature",
@@ -429,9 +425,7 @@ class TiltingPadResults(BearingResults):
             ]
         )
 
-        table.add_row(
-            ["Eccentricity", f"{self.ecc_list[freq_index]:12.4f}", "-"]
-        )
+        table.add_row(["Eccentricity", f"{self.ecc_list[freq_index]:12.4f}", "-"])
         table.add_row(
             [
                 "Attitude Angle",
@@ -658,8 +652,7 @@ class TiltingPadResults(BearingResults):
         axial = axial[1:] - np.diff(axial) / 2
 
         ang = [
-            (self.xtheta + self.pivot_angle[k]) * 180 / np.pi
-            for k in range(self.n_pad)
+            (self.xtheta + self.pivot_angle[k]) * 180 / np.pi for k in range(self.n_pad)
         ]
 
         return self._plot_contour(
@@ -750,8 +743,7 @@ class TiltingPadResults(BearingResults):
         axial = axial[1:] - np.diff(axial) / 2
 
         ang = [
-            (self.xtheta + self.pivot_angle[k]) * 180 / np.pi
-            for k in range(self.n_pad)
+            (self.xtheta + self.pivot_angle[k]) * 180 / np.pi for k in range(self.n_pad)
         ]
 
         return self._plot_contour(
@@ -786,8 +778,7 @@ class TiltingPadResults(BearingResults):
         axial = axial[1:] - np.diff(axial) / 2
 
         ang = [
-            (self.xtheta + self.pivot_angle[k]) * 180 / np.pi
-            for k in range(self.n_pad)
+            (self.xtheta + self.pivot_angle[k]) * 180 / np.pi for k in range(self.n_pad)
         ]
 
         midplane_idx = self.nz // 2
@@ -831,8 +822,7 @@ class TiltingPadResults(BearingResults):
         axial = axial[1:] - np.diff(axial) / 2
 
         ang = [
-            (self.xtheta + self.pivot_angle[k]) * 180 / np.pi
-            for k in range(self.n_pad)
+            (self.xtheta + self.pivot_angle[k]) * 180 / np.pi for k in range(self.n_pad)
         ]
 
         midplane_idx = self.nz // 2
@@ -855,9 +845,7 @@ class TiltingPadResults(BearingResults):
                 try:
                     fig.show()
                 except Exception as e:
-                    print(
-                        f"Warning: Could not display plot automatically. Error: {e}"
-                    )
+                    print(f"Warning: Could not display plot automatically. Error: {e}")
 
         return figures
 
@@ -940,9 +928,7 @@ class TiltingPadResults(BearingResults):
                 ),
             )
             fig.update_layout(
-                title=dict(
-                    text=f"Pad {i + 1} — film temperature", font=dict(size=20)
-                ),
+                title=dict(text=f"Pad {i + 1} — film temperature", font=dict(size=20)),
                 plot_bgcolor="white",
                 **kwargs,
             )
@@ -1030,9 +1016,7 @@ class TiltingPadResults(BearingResults):
                 autorange="reversed",
             )
             fig.update_layout(
-                title=dict(
-                    text=f"Pad {i + 1} — solid temperature", font=dict(size=20)
-                ),
+                title=dict(text=f"Pad {i + 1} — solid temperature", font=dict(size=20)),
                 plot_bgcolor="white",
                 **kwargs,
             )
@@ -1732,9 +1716,7 @@ class ThrustPadResults(BearingResults):
 
         print("\n" + "=" * actual_width)
         print(
-            f"THRUST BEARING RESULTS - {freq * 30 / np.pi:.1f} RPM".center(
-                actual_width
-            )
+            f"THRUST BEARING RESULTS - {freq * 30 / np.pi:.1f} RPM".center(actual_width)
         )
         print("=" * actual_width)
         print(table)
@@ -1820,9 +1802,7 @@ class ThrustPadResults(BearingResults):
                 xaxis_title="X [m]",
                 yaxis_title="Y [m]",
                 zaxis_title="Pressure [Pa]",
-                camera=dict(
-                    eye=dict(x=-1.5, y=-4, z=1.5), center=dict(x=0, y=0, z=0)
-                ),
+                camera=dict(eye=dict(x=-1.5, y=-4, z=1.5), center=dict(x=0, y=0, z=0)),
             ),
             width=800,
             height=600,
@@ -1923,9 +1903,7 @@ class ThrustPadResults(BearingResults):
                 xaxis_title="X [m]",
                 yaxis_title="Y [m]",
                 zaxis_title="Temperature [°C]",
-                camera=dict(
-                    eye=dict(x=-1.5, y=-4, z=1.5), center=dict(x=0, y=0, z=0)
-                ),
+                camera=dict(eye=dict(x=-1.5, y=-4, z=1.5), center=dict(x=0, y=0, z=0)),
             ),
             width=800,
             height=600,
@@ -2621,9 +2599,7 @@ class PlainJournalResults(BearingResults):
         P_field = self.P_nondim_fields[freq_index]
 
         total_points = 1000
-        num_points = int(
-            self.dtheta * n_elements * total_points / (2 * np.pi)
-        )
+        num_points = int(self.dtheta * n_elements * total_points / (2 * np.pi))
 
         thetaI = 0
         theta_p = []
@@ -2631,9 +2607,7 @@ class PlainJournalResults(BearingResults):
 
         for n_p in range(self.n_pad):
             thetaF_pad = self.thetaF[n_p]
-            theta_ref = np.sort(
-                np.arange(thetaF_pad, thetaI, -self.dtheta)
-            )
+            theta_ref = np.sort(np.arange(thetaF_pad, thetaI, -self.dtheta))
             theta_p.append((theta_ref[0], theta_ref[-1]))
             thetaI = thetaF_pad
 
@@ -2689,9 +2663,7 @@ class PlainJournalResults(BearingResults):
                             y=[y_i, y_f],
                             mode="lines+markers",
                             line=dict(width=3, color=tableau_colors["orange"]),
-                            marker=dict(
-                                size=9, symbol="arrow", angleref="previous"
-                            ),
+                            marker=dict(size=9, symbol="arrow", angleref="previous"),
                             hoverinfo="text",
                             text=data_info,
                             name=name,
@@ -2957,27 +2929,17 @@ class SqueezeFilmDamperResults(BearingResults):
         table.add_row(["Axial Length", f"{self.axial_length:12.6f}", "m"])
         table.add_row(["Journal Radius", f"{self.journal_radius:12.6f}", "m"])
         table.add_row(["Radial Clearance", f"{self.radial_clearance:12.6e}", "m"])
-        table.add_row(
-            ["Eccentricity Ratio", f"{self.eccentricity_ratio:12.4f}", "-"]
-        )
+        table.add_row(["Eccentricity Ratio", f"{self.eccentricity_ratio:12.4f}", "-"])
         table.add_row(
             ["Lubricant Viscosity", f"{self.lubricant_viscosity:12.4e}", "Pa*s"]
         )
-        table.add_row(
-            ["Damping Coefficient", f"{self.cxx[freq_index]:12.4e}", "N*s/m"]
-        )
-        table.add_row(
-            ["Stiffness Coefficient", f"{self.kxx[freq_index]:12.4e}", "N/m"]
-        )
+        table.add_row(["Damping Coefficient", f"{self.cxx[freq_index]:12.4e}", "N*s/m"])
+        table.add_row(["Stiffness Coefficient", f"{self.kxx[freq_index]:12.4e}", "N/m"])
         table.add_row(
             ["Pressure Angle", f"{np.degrees(self.theta[freq_index]):12.2f}", "°"]
         )
-        table.add_row(
-            ["Pressure Angle", f"{self.theta[freq_index]:12.4f}", "rad"]
-        )
-        table.add_row(
-            ["Maximum Pressure", f"{self.p_max[freq_index]:12.4e}", "Pa"]
-        )
+        table.add_row(["Pressure Angle", f"{self.theta[freq_index]:12.4f}", "rad"])
+        table.add_row(["Maximum Pressure", f"{self.p_max[freq_index]:12.4e}", "Pa"])
 
         table_str = table.get_string()
         final_width = len(table_str.split("\n")[0])

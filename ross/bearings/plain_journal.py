@@ -1901,6 +1901,7 @@ class PlainJournal(BearingElement):
 
         return Ss
 
+
 @njit
 def _evaluate_bearing_clearance(X, Y, theta, dtheta, geometry, preload, theta_pivot):
     if geometry == "circular":
