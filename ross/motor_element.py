@@ -154,6 +154,12 @@ class MotorElement(Element):
         Xsc = Zsc * self.XR_ratio_net / np.sqrt(1 + self.XR_ratio_net**2)
         self.short_circuit_resistance = Xsc / self.XR_ratio_net
 
+        # Motor AC Source instance
+        self.sourceAC = SourceAC(
+            voltage_net=self.voltage,
+            frequency_net=Q_(self.frequency, "rad/s").to("Hz").m,
+        )
+
         self.n = n
         self.tag = tag
 
@@ -214,7 +220,7 @@ class MotorElement(Element):
     def G(self):
         pass
 
-    def _perform_single_step(self, h, t, Tload):
+    def _perform_single_step(self, t, load_torque, h=1e-4):
         """Perform a single iteration calculation for the motor dynamics.
 
         This method calculates the state of the motor for a specific time point 't',
@@ -223,16 +229,13 @@ class MotorElement(Element):
 
         Parameters
         ----------
+        t : float
+            Current simulation time [s].
+        load_torque : float
+            Load torque applied to the shaft [N.m].
         h : float, optional
             Simulation time step (step size) for the Runge-Kutta integration.
             Default is 1e-4.
-
-        t : float
-            Current simulation time [s].
-
-        Tload : float
-            Load torque applied to the shaft [N.m].
-
 
         Returns
         -------
@@ -249,7 +252,135 @@ class MotorElement(Element):
         # Determine step size h based on current time or use fixed internal h
         # Note: The original logic relies on a fixed h for the RK coefficients.
         # We assume the user calls this sequentially or we rely on the internal h.
-        self.h = float(h)
+
+        # Electrical 3-phase tensions
+        vas, vbs, vcs = self.sourceAC(t)
+
+        # Updating angles
+        w_axis = self.frequency
+        self.ro += w_axis * h
+        self.thetar += (self.wr * self.n_poles / 2) * h
+
+        # Clarke & Park Transforms for Voltages
+        valfas = 2 / 3 * (vas - vbs / 2 - vcs / 2)
+        vbetas = 2 / 3 * (vbs - vcs) * np.sqrt(3) / 2
+        vds = valfas * np.cos(self.ro) + vbetas * np.sin(self.ro)
+        vqs = -valfas * np.sin(self.ro) + vbetas * np.cos(self.ro)
+
+        vdr, vqr = 0, 0
+
+        # Constants for readability in RK4
+        Rs = self.stator_resistance
+        Rsc = self.short_circuit_resistance
+        Rr = self.rotor_resistance
+        a, b, c = self.a, self.b, self.c
+        n_poles = self.n_poles
+        Jm, Jl = self.Ip_motor, self.Ip_load
+        Bm = self.viscosity_coeff
+
+        # Define functions
+        Lds_fun = lambda Lds, Ldr, Lqs: vds - (Rs + Rsc) * a * Lds + (Rs + Rsc) * c * Ldr + w_axis * Lqs
+        Lqs_fun = lambda Lqs, Lds: vqs - (Rs + Rsc) * a * Lqs + (Rs + Rsc) * c * Lqr - w_axis * Lds
+        Ldr_fun = lambda Ldr, Lds, Lqr: vdr - Rr * b * Ldr + Rr * c * Lds + (w_axis - wr * n_poles / 2) * Lqr
+        Lqr_fun = lambda Lqr, Lqs, Ldr: vqr - Rr * b * Lqr + Rr * c * Lqs - (w_axis - wr * n_poles / 2) * Ldr
+        wr_fun = lambda wr, Te: Te / (Jm + Jl) - Bm * wr / (Jm + Jl) - load_torque / (Jm + Jl)
+        Te_fun = lambda Lds, Ldr, Lqs, Lqr: 1.5 * c * (Lqs * Ldr - Lds * Lqr) * n_poles / 2
+
+        # --- Runge-Kutta 4th Order Step ---
+        update_state = lambda h, y, k: y + k * h / 2
+        update_final_state = lambda h, y, k1, k2, k3, k4: y + (k1 + 2 * k2 + 2 * k3 + k4) * h / 6
+        k = np.zeros((4, 5))
+
+        Lds = self.Lds
+        Lqs = self.Lqs
+        Ldr = self.Ldr
+        Lqr = self.Lqr
+        wr = self.wr
+        Te = self.Te
+
+        for i in range(4):
+            k[i, 0] = Lds_fun(Lds, Ldr, Lqs)
+            k[i, 1] = Lqs_fun(Lqs, Lds)
+            k[i, 2] = Ldr_fun(Ldr, Lds, Lqr)
+            k[i, 3] = Lqr_fun(Lqr, Lqs, Ldr)
+            k[i, 4] = wr_fun(wr, Te)
+
+            Lds = update_state(h, self.Lds, k[i, 0])
+            Lqs = update_state(h, self.Lqs, k[i, 1])
+            Ldr = update_state(h, self.Ldr, k[i, 2])
+            Lqr = update_state(h, self.Lqr, k[i, 3])
+            wr = update_state(h, self.wr, k[i, 4])
+            Te = Te_fun(Lds, Ldr, Lqs, Lqr)
+
+        # Update State Variables
+        self.Lds = update_final_state(h, self.Lds, k[0, 0], k[1, 0], k[2, 0], k[3, 0])
+        self.Lqs = update_final_state(h, self.Lqs, k[0, 1], k[1, 1], k[2, 1], k[3, 1])
+        self.Ldr = update_final_state(h, self.Ldr, k[0, 2], k[1, 2], k[2, 2], k[3, 2])
+        self.Lqr = update_final_state(h, self.Lqr, k[0, 3], k[1, 3], k[2, 3], k[3, 3])
+        self.wr = update_final_state(h, self.wr, k[0, 4], k[1, 4], k[2, 4], k[3, 4])
+        self.Te = Te_fun(self.Lds, self.Ldr, self.Lqs, self.Lqr)
+
+        # Calculate Outputs
+        ids = a * self.Lds - c * self.Ldr
+        iqs = a * self.Lqs - c * self.Lqr
+        i_alpha = ids * np.cos(self.ro) - iqs * np.sin(self.ro)
+        i_beta = ids * np.sin(self.ro) + iqs * np.cos(self.ro)
+        ias = i_alpha
+        ibs = -i_alpha / 2 + np.sqrt(3) * i_beta / 2
+        ics = -i_alpha / 2 - np.sqrt(3) * i_beta / 2
+
+        self.current_time = t
+
+        return {
+            "time": t,
+            "Vas": vas,
+            "Vbs": vbs,
+            "Vcs": vcs,
+            "Ias": ias,
+            "Ibs": ibs,
+            "Ics": ics,
+            "Ialfas": i_alpha,
+            "Ibetas": i_beta,
+            "Ids": ids,
+            "Iqs": iqs,
+            "TE": self.Te,
+            "Tl": load_torque,
+            "wr": self.wr,
+            "RPM": self.wr * 30 / np.pi,
+        }
+
+    def perform_single_step(self, t, Tload, h=1e-4):
+        """Perform a single iteration calculation for the motor dynamics.
+
+        This method calculates the state of the motor for a specific time point 't',
+        given the input voltages and load torque. It uses a 4th-order Runge-Kutta
+        integration step.
+
+        Parameters
+        ----------
+        t : float
+            Current simulation time [s].
+        load_torque : float
+            Load torque applied to the shaft [N.m].
+        h : float, optional
+            Simulation time step (step size) for the Runge-Kutta integration.
+            Default is 1e-4.
+
+        Returns
+        -------
+        results : dict
+            A dictionary containing the calculated values for the current step:
+            - time: Time [s]
+            - Vas, Vbs, Vcs: Phase voltage [V]
+            - Ias, Ibs, Ics: Phase currents [A]
+            - Ialfas, Ibetas: Alpha-Beta currents [A]
+            - Ids, Iqs: d-q axis currents [A]
+            - TE: Electromagnetic Torque [N.m]
+            - TC: Load Torque [N.m]
+        """
+        # Determine step size h based on current time or use fixed internal h
+        # Note: The original logic relies on a fixed h for the RK coefficients.
+        # We assume the user calls this sequentially or we rely on the internal h.
 
         # Electrical 3-phase tensions
         vas, vbs, vcs = self.sourceAC(t)
@@ -473,12 +604,6 @@ class MotorElement(Element):
         self.Ldr = self.Lrr * 0 + self.Lm * ids
         self.Lqr = self.Lrr * 0 + self.Lm * iqs
 
-        # Motor AC Source instance
-        self.sourceAC = SourceAC(
-            voltage_net=self.voltage,
-            frequency_net=Q_(self.frequency, "rad/s").to("Hz").m,
-        )
-
         # Initial simulation parameters scheme
         self.tI = 0.0  # Initial time of simulation (tI)
         self.tF = 5.0  # Final time of simulation (tF)
@@ -486,19 +611,19 @@ class MotorElement(Element):
         self.npts = int(
             (self.tF - self.tI) / self.step
         )  # Number of points in simulation
-        self.tTL = (self.tF - self.tI) / 2  # TLoad entrance time
+        self.tTL = (self.tF - self.tI) / 2  # load_torque entrance time
         self.rTL = (
-            1.0  # TLoad ratio related Tnom at entrance time tTL (1.0 ->100% Tnom)
+            1.0  # load_torque ratio related Tnom at entrance time tTL (1.0 ->100% Tnom)
         )
 
-        # Time vector and Load Torque vector for the simulation, considering the TLoad entrance time
+        # Time vector and Load Torque vector for the simulation, considering the load_torque entrance time
         self.t_vector, self.dt = np.linspace(self.tI, self.tF, self.npts, retstep=True)
         lenT = int(len(self.t_vector))
         self.TLoad_vector = np.ones(lenT) * self.Tnom * self.rTL
         arr = np.array(self.t_vector)
         itTL = np.abs(
             arr - self.tTL
-        ).argmin()  # Catching the near index to time do TLoad entrance
+        ).argmin()  # Catching the near index to time do load_torque entrance
         self.TLoad_vector[0:itTL] = 0.0
 
 
@@ -526,7 +651,7 @@ class MotorElement(Element):
 
         for i, t in enumerate(time_vector):
             # Run single step calculation
-            step_result = self._perform_single_step(self.dt, t, Tload_vector[i])
+            step_result = self._perform_single_step(t, Tload_vector[i], self.dt)
 
             # Append results
             for key in results:
@@ -716,15 +841,15 @@ class MotorElement(Element):
 
         lenT = len(self.t_vector)
 
-        # Creating TLoad vector
+        # Creating load_torque vector
         self.TLoad_vector = np.ones(lenT) * self.Tnom * self.rTL
 
         arr = np.array(self.t_vector)
 
-        # Catching the near index to the time of TLoad entrance
+        # Catching the near index to the time of load_torque entrance
         itTL = np.abs(arr - self.tTL).argmin()
 
-        # Setting TLoad vector
+        # Setting load_torque vector
         self.TLoad_vector[0:itTL] = 0.0
 
     # return dt, time_vector, Tload_vector
