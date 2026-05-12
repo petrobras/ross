@@ -80,7 +80,7 @@ class BearingResults(ABC):
         """
         if self.initial_time is not None and self.final_time is not None:
             total_time = self.final_time - self.initial_time
-            print(f"Execution time: {total_time:.2f} seconds")
+            print(f"Execution time: {total_time:.6f} seconds")
         else:
             print("Simulation hasn't been executed yet.")
 
@@ -1077,11 +1077,11 @@ class TiltingPadResults(BearingResults):
 
         max_val = z_data.max()
 
-        for l in range(self.n_pad):
+        for pad_idx in range(self.n_pad):
             fig.add_trace(
                 go.Contour(
-                    z=z_data[:, :, l],
-                    x=x_data[l],
+                    z=z_data[:, :, pad_idx],
+                    x=x_data[pad_idx],
                     y=y_data,
                     zmin=zmin,
                     zmax=max_val,
@@ -2682,69 +2682,31 @@ class SqueezeFilmDamperResults(BearingResults):
         print(table)
         print("=" * actual_width)
 
-    def plot_coefficients(self, fig=None, **kwargs):
-        """Return a line plot of damping (cxx), stiffness (kxx) and maximum
-        pressure (p_max) as a function of operating speed.
+    def plot_results(self, show_plots=False, freq_index=0):
+        """Not available for SqueezeFilmDamper (analytical model).
+
+        The SFD does not solve numerical pressure or temperature fields, so no
+        standard field plots are produced.  Use ``show_results()`` or
+        ``show_coefficients_comparison()`` to inspect the computed coefficients.
 
         Parameters
         ----------
-        fig : go.Figure, optional
-            Existing figure to add traces to.
+        show_plots : bool, optional
+            Not used — included for API consistency with the base class.
+        freq_index : int, optional
+            Not used — included for API consistency with the base class.
 
         Returns
         -------
-        fig : go.Figure
+        figures : dict
+            Empty dictionary.
         """
-        if fig is None:
-            fig = go.Figure()
-
-        freq_rpm = self.frequency.astype(float) * 30.0 / np.pi
-
-        fig.add_trace(
-            go.Scatter(
-                x=freq_rpm,
-                y=self.cxx,
-                mode="lines+markers",
-                name="cxx [N·s/m]",
-                yaxis="y1",
-            )
+        print(
+            "SqueezeFilmDamper uses analytical formulas — no field plots are "
+            "available.  Use show_results() or show_coefficients_comparison() "
+            "to inspect the computed coefficients."
         )
-        fig.add_trace(
-            go.Scatter(
-                x=freq_rpm,
-                y=self.kxx,
-                mode="lines+markers",
-                name="kxx [N/m]",
-                yaxis="y2",
-            )
-        )
-        fig.add_trace(
-            go.Scatter(
-                x=freq_rpm,
-                y=self.p_max,
-                mode="lines+markers",
-                name="p_max [Pa]",
-                yaxis="y3",
-            )
-        )
-
-        fig.update_layout(
-            title="Squeeze Film Damper — Coefficients vs Speed",
-            xaxis=dict(title="Speed [RPM]"),
-            yaxis=dict(title="cxx [N·s/m]", side="left"),
-            yaxis2=dict(title="kxx [N/m]", overlaying="y", side="right"),
-            yaxis3=dict(
-                title="p_max [Pa]",
-                overlaying="y",
-                side="right",
-                anchor="free",
-                position=1.0,
-            ),
-            legend=dict(x=0.01, y=0.99),
-            **kwargs,
-        )
-
-        return fig
+        return {}
 
     def plot_pressure_3d(self, freq_index=0, fig=None, **kwargs):
         """Not available for SqueezeFilmDamper (analytical model).
