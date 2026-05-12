@@ -45,11 +45,10 @@ class BearingResults(ABC):
 
     Examples
     --------
-    >>> from ross.bearings.tilting_pad import tilting_pad_example
-    >>> bearing = tilting_pad_example()
-    >>> bearing.show_results()           # delegates to TiltingPadResults
-    >>> bearing.plot_pressure_3d()       # delegates to TiltingPadResults
-    >>> figs = bearing.plot_results()    # dict of go.Figure objects
+    >>> from ross.bearings.tilting_pad import tilting_pad_adiabatic_example
+    >>> bearing = tilting_pad_adiabatic_example()
+    >>> type(bearing).__name__
+    'TiltingPad'
     """
 
     def __init__(
