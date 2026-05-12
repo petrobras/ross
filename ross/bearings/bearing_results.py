@@ -4,12 +4,14 @@ import numpy as np
 from plotly import graph_objects as go
 from plotly.subplots import make_subplots
 from prettytable import PrettyTable
+from scipy.interpolate import griddata
 
 from ross.plotly_theme import tableau_colors
 
 __all__ = [
     "BearingResults",
     "TiltingPadResults",
+    "ThrustPadResults",
 ]
 
 
@@ -1115,3 +1117,583 @@ class TiltingPadResults(BearingResults):
         )
 
         return fig
+
+
+class ThrustPadResults(BearingResults):
+    """Post-processing results for a ThrustPad bearing.
+
+    Parameters
+    ----------
+    frequency : array_like
+        Operating frequencies in rad/s.
+    pressure_fields : list of ndarray, shape (n_radial + 2, n_theta + 2)
+        Pressure fields, one per frequency (Pa).
+    temperature_fields : list of ndarray, shape (n_radial + 2, n_theta + 2)
+        Temperature fields, one per frequency (°C).
+    max_thicknesses : list of float
+        Maximum film thickness per frequency (m).
+    min_thicknesses : list of float
+        Minimum film thickness per frequency (m).
+    pivot_film_thicknesses : list of float
+        Film thickness at the pivot per frequency (m).
+    equilibrium_position_mode : str
+        ``"imposed"`` or ``"calculate"``.
+    axial_load : float or ndarray
+        Applied axial load (N). Scalar when ``equilibrium_position_mode``
+        is ``"calculate"``; array when ``"imposed"``.
+    kzz : ndarray
+        Axial stiffness coefficient (N/m), one value per frequency.
+    czz : ndarray
+        Axial damping coefficient (N·s/m), one value per frequency.
+    n_radial : int
+        Number of radial mesh elements.
+    n_theta : int
+        Number of circumferential mesh elements.
+    pad_outer_radius : float
+        Pad outer radius (m).
+    pad_inner_radius : float
+        Pad inner radius (m).
+    d_radius : float
+        Radial mesh step size (non-dimensional).
+    d_theta : float
+        Angular mesh step size (non-dimensional).
+    pad_arc_length : float
+        Pad arc length (rad).
+    optimization_history : dict
+        Mapping ``{freq_index: [residuals]}``.
+    initial_time : float, optional
+        Solver start epoch timestamp.
+    final_time : float, optional
+        Solver end epoch timestamp.
+    """
+
+    def __init__(
+        self,
+        frequency,
+        pressure_fields,
+        temperature_fields,
+        max_thicknesses,
+        min_thicknesses,
+        pivot_film_thicknesses,
+        equilibrium_position_mode,
+        axial_load,
+        kzz,
+        czz,
+        n_radial,
+        n_theta,
+        pad_outer_radius,
+        pad_inner_radius,
+        d_radius,
+        d_theta,
+        pad_arc_length,
+        optimization_history,
+        initial_time=None,
+        final_time=None,
+    ):
+        super().__init__(
+            frequency=frequency,
+            pressure_fields=pressure_fields,
+            temperature_fields=temperature_fields,
+            initial_time=initial_time,
+            final_time=final_time,
+        )
+        self.max_thicknesses = max_thicknesses
+        self.min_thicknesses = min_thicknesses
+        self.pivot_film_thicknesses = pivot_film_thicknesses
+        self.equilibrium_position_mode = equilibrium_position_mode
+        self.axial_load = axial_load
+        self.kzz = np.atleast_1d(kzz)
+        self.czz = np.atleast_1d(czz)
+        self.n_radial = n_radial
+        self.n_theta = n_theta
+        self.pad_outer_radius = pad_outer_radius
+        self.pad_inner_radius = pad_inner_radius
+        self.d_radius = d_radius
+        self.d_theta = d_theta
+        self.pad_arc_length = pad_arc_length
+        self.optimization_history = optimization_history
+
+    def _build_cartesian_coords(self):
+        """Compute Cartesian coordinate grids from the polar mesh geometry.
+
+        Returns
+        -------
+        x_coords : ndarray, shape (n_radial + 2, n_theta + 2)
+        y_coords : ndarray, shape (n_radial + 2, n_theta + 2)
+        """
+        radial_coords = np.zeros(self.n_radial + 2)
+        angular_coords = np.zeros(self.n_theta + 2)
+        x_coords = np.zeros((self.n_radial + 2, self.n_theta + 2))
+        y_coords = np.zeros((self.n_radial + 2, self.n_theta + 2))
+
+        radial_coords[0] = self.pad_outer_radius
+        radial_coords[-1] = self.pad_inner_radius
+        radial_coords[1 : self.n_radial + 1] = np.arange(
+            self.pad_outer_radius - 0.5 * self.d_radius * self.pad_inner_radius,
+            self.pad_inner_radius,
+            -(self.d_radius * self.pad_inner_radius),
+        )
+
+        angular_coords[0] = np.pi / 2 + self.pad_arc_length / 2
+        angular_coords[-1] = np.pi / 2 - self.pad_arc_length / 2
+        angular_coords[1 : self.n_theta + 1] = np.arange(
+            np.pi / 2
+            + self.pad_arc_length / 2
+            - (0.5 * self.d_theta * self.pad_arc_length),
+            np.pi / 2 - self.pad_arc_length / 2,
+            -self.d_theta * self.pad_arc_length,
+        )
+
+        for i in range(self.n_radial + 2):
+            for j in range(self.n_theta + 2):
+                x_coords[i, j] = radial_coords[i] * np.cos(angular_coords[j])
+                y_coords[i, j] = radial_coords[i] * np.sin(angular_coords[j])
+
+        return x_coords, y_coords
+
+    def _build_interp_grid(self, x_coords, y_coords, z_data, resolution=800):
+        """Interpolate field data onto a regular Cartesian grid.
+
+        Parameters
+        ----------
+        x_coords : ndarray
+        y_coords : ndarray
+        z_data : ndarray
+            Field values on the polar mesh.
+        resolution : int, optional
+            Grid resolution for interpolation. Default is 800.
+
+        Returns
+        -------
+        x_grid : ndarray
+        y_grid : ndarray
+        z_interp : ndarray
+        """
+        x_min, x_max = x_coords.min(), x_coords.max()
+        y_min, y_max = y_coords.min(), y_coords.max()
+
+        x_interp = np.linspace(x_min, x_max, resolution)
+        y_interp = np.linspace(y_min, y_max, resolution)
+        x_grid, y_grid = np.meshgrid(x_interp, y_interp)
+
+        z_interp = griddata(
+            (x_coords.flatten(), y_coords.flatten()),
+            z_data.flatten(),
+            (x_grid, y_grid),
+            method="cubic",
+        )
+        return x_grid, y_grid, z_interp
+
+    def show_results(self):
+        """Print a formatted summary of thrust pad bearing results.
+
+        Iterates over all solved frequencies and prints a PrettyTable with
+        operating conditions, field extrema, film thicknesses, axial load,
+        and dynamic coefficients.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+        """
+        if self.frequency.size == 1:
+            self._print_single_frequency_results(0)
+        else:
+            for i in range(self.frequency.size):
+                self._print_single_frequency_results(i)
+
+    def _print_single_frequency_results(self, freq_index):
+        """Print results table for one frequency index.
+
+        Parameters
+        ----------
+        freq_index : int
+            Index into the frequency array.
+        """
+        freq = self.frequency[freq_index]
+
+        table = PrettyTable()
+        table.field_names = ["Parameter", "Value", "Unit"]
+
+        table.add_row(["Operating Speed", f"{freq * 30 / np.pi:.1f}", "RPM"])
+        table.add_row(["Equilibrium Mode", self.equilibrium_position_mode, "-"])
+
+        table.add_row(
+            [
+                "Maximum Pressure",
+                f"{self.pressure_fields[freq_index].max():.4e}",
+                "Pa",
+            ]
+        )
+        table.add_row(
+            [
+                "Maximum Temperature",
+                f"{self.temperature_fields[freq_index].max():.1f}",
+                "°C",
+            ]
+        )
+        table.add_row(
+            [
+                "Maximum Film Thickness",
+                f"{self.max_thicknesses[freq_index]:.4e}",
+                "m",
+            ]
+        )
+        table.add_row(
+            [
+                "Minimum Film Thickness",
+                f"{self.min_thicknesses[freq_index]:.4e}",
+                "m",
+            ]
+        )
+        table.add_row(
+            [
+                "Pivot Film Thickness",
+                f"{self.pivot_film_thicknesses[freq_index]:.4e}",
+                "m",
+            ]
+        )
+
+        if self.equilibrium_position_mode == "imposed":
+            table.add_row(["Axial Load", f"{self.axial_load.sum():.4e}", "N"])
+        elif self.equilibrium_position_mode == "calculate":
+            table.add_row(["Axial Load", f"{self.axial_load:.4e}", "N"])
+
+        table.add_row(["kzz (Stiffness)", f"{self.kzz[freq_index]:.4e}", "N/m"])
+        table.add_row(["czz (Damping)", f"{self.czz[freq_index]:.4e}", "N*s/m"])
+
+        desired_width = 25
+        table.max_width = desired_width
+        table.min_width = desired_width
+
+        table_str = table.get_string()
+        actual_width = len(table_str.split("\n")[0])
+
+        print("\n" + "=" * actual_width)
+        print(
+            f"THRUST BEARING RESULTS - {freq * 30 / np.pi:.1f} RPM".center(
+                actual_width
+            )
+        )
+        print("=" * actual_width)
+        print(table)
+        print("=" * actual_width)
+
+    def show_coefficients_comparison(self):
+        """Print a table comparing axial dynamic coefficients across all frequencies.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+        """
+        freq_rpm = self.frequency.astype(float) * 30.0 / np.pi
+
+        table = PrettyTable()
+        table.field_names = ["Frequency [RPM]", "kzz [N/m]", "czz [N*s/m]"]
+
+        for i in range(len(freq_rpm)):
+            table.add_row(
+                [
+                    f"{freq_rpm[i]:.1f}",
+                    f"{self.kzz[i]:.4e}",
+                    f"{self.czz[i]:.4e}",
+                ]
+            )
+
+        desired_width = 25
+        table.max_width = desired_width
+        table.min_width = desired_width
+
+        table_str = table.get_string()
+        actual_width = len(table_str.split("\n")[0])
+
+        print("\n" + "=" * actual_width)
+        print("DYNAMIC COEFFICIENTS COMPARISON TABLE".center(actual_width))
+        print("=" * actual_width)
+        print(table)
+        print("=" * actual_width)
+
+    def plot_pressure_3d(self, freq_index=0, fig=None, **kwargs):
+        """Return a 3-D surface plot of the pressure field.
+
+        Parameters
+        ----------
+        freq_index : int, optional
+            Frequency index.  Default is 0.
+        fig : go.Figure, optional
+            Existing figure to add the trace to.
+
+        Returns
+        -------
+        fig : go.Figure
+        """
+        if fig is None:
+            fig = go.Figure()
+
+        x_coords, y_coords = self._build_cartesian_coords()
+        pressure_field = self.pressure_fields[freq_index]
+
+        fig.add_trace(
+            go.Surface(
+                x=x_coords,
+                y=y_coords,
+                z=pressure_field,
+                colorscale="Viridis",
+                colorbar=dict(title="Pressure [Pa]"),
+                name="Pressure field",
+                hovertemplate="<b>Pressure field</b><br>"
+                + "X: %{x:.3f}<br>"
+                + "Y: %{y:.3f}<br>"
+                + "Pressure [Pa]: %{z:.3f}<br>"
+                + "<extra></extra>",
+            )
+        )
+
+        fig.update_layout(
+            title="Pressure field",
+            scene=dict(
+                xaxis_title="X [m]",
+                yaxis_title="Y [m]",
+                zaxis_title="Pressure [Pa]",
+                camera=dict(
+                    eye=dict(x=-1.5, y=-4, z=1.5), center=dict(x=0, y=0, z=0)
+                ),
+            ),
+            width=800,
+            height=600,
+            **kwargs,
+        )
+
+        return fig
+
+    def plot_pressure_2d(self, freq_index=0, fig=None, **kwargs):
+        """Return a 2-D contour plot of the pressure field.
+
+        Parameters
+        ----------
+        freq_index : int, optional
+            Frequency index.  Default is 0.
+        fig : go.Figure, optional
+            Existing figure to add the trace to.
+
+        Returns
+        -------
+        fig : go.Figure
+        """
+        if fig is None:
+            fig = go.Figure()
+
+        x_coords, y_coords = self._build_cartesian_coords()
+        pressure_field = self.pressure_fields[freq_index]
+        x_grid, y_grid, z_interp = self._build_interp_grid(
+            x_coords, y_coords, pressure_field
+        )
+
+        fig.add_trace(
+            go.Contour(
+                x=x_grid[0, :],
+                y=y_grid[:, 0],
+                z=z_interp,
+                colorscale="Viridis",
+                colorbar=dict(title="Pressure (Pa)"),
+                name="Pressure field",
+                hovertemplate="<b>Pressure field</b><br>"
+                + "X: %{x:.3f}<br>"
+                + "Y: %{y:.3f}<br>"
+                + "Pressure (Pa): %{z:.3f}<br>"
+                + "<extra></extra>",
+            )
+        )
+
+        fig.update_layout(
+            title="Pressure field",
+            xaxis_title="X [m]",
+            yaxis_title="Y [m]",
+            width=800,
+            height=600,
+            **kwargs,
+        )
+
+        return fig
+
+    def plot_temperature_3d(self, freq_index=0, fig=None, **kwargs):
+        """Return a 3-D surface plot of the temperature field.
+
+        Parameters
+        ----------
+        freq_index : int, optional
+            Frequency index.  Default is 0.
+        fig : go.Figure, optional
+            Existing figure to add the trace to.
+
+        Returns
+        -------
+        fig : go.Figure
+        """
+        if fig is None:
+            fig = go.Figure()
+
+        x_coords, y_coords = self._build_cartesian_coords()
+        temperature_field = self.temperature_fields[freq_index]
+
+        fig.add_trace(
+            go.Surface(
+                x=x_coords,
+                y=y_coords,
+                z=temperature_field,
+                colorscale="Viridis",
+                colorbar=dict(title="Temperature [°C]"),
+                name="Temperature field",
+                hovertemplate="<b>Temperature field</b><br>"
+                + "X: %{x:.3f}<br>"
+                + "Y: %{y:.3f}<br>"
+                + "Temperature [°C]: %{z:.3f}<br>"
+                + "<extra></extra>",
+            )
+        )
+
+        fig.update_layout(
+            title="Temperature field",
+            scene=dict(
+                xaxis_title="X [m]",
+                yaxis_title="Y [m]",
+                zaxis_title="Temperature [°C]",
+                camera=dict(
+                    eye=dict(x=-1.5, y=-4, z=1.5), center=dict(x=0, y=0, z=0)
+                ),
+            ),
+            width=800,
+            height=600,
+            **kwargs,
+        )
+
+        return fig
+
+    def plot_temperature_2d(self, freq_index=0, fig=None, **kwargs):
+        """Return a 2-D contour plot of the temperature field.
+
+        Parameters
+        ----------
+        freq_index : int, optional
+            Frequency index.  Default is 0.
+        fig : go.Figure, optional
+            Existing figure to add the trace to.
+
+        Returns
+        -------
+        fig : go.Figure
+        """
+        if fig is None:
+            fig = go.Figure()
+
+        x_coords, y_coords = self._build_cartesian_coords()
+        temperature_field = self.temperature_fields[freq_index]
+        x_grid, y_grid, z_interp = self._build_interp_grid(
+            x_coords, y_coords, temperature_field
+        )
+
+        fig.add_trace(
+            go.Contour(
+                x=x_grid[0, :],
+                y=y_grid[:, 0],
+                z=z_interp,
+                colorscale="Viridis",
+                colorbar=dict(title="Temperature (°C)"),
+                name="Temperature field",
+                hovertemplate="<b>Temperature field</b><br>"
+                + "X: %{x:.3f}<br>"
+                + "Y: %{y:.3f}<br>"
+                + "Temperature (°C): %{z:.3f}<br>"
+                + "<extra></extra>",
+            )
+        )
+
+        fig.update_layout(
+            title="Temperature field",
+            xaxis_title="X [m]",
+            yaxis_title="Y [m]",
+            width=800,
+            height=600,
+            **kwargs,
+        )
+
+        return fig
+
+    def show_optimization_convergence(
+        self, by: str = "index", show_plots: bool = False
+    ) -> None:
+        """Display the optimization residuals per iteration for each frequency.
+
+        Parameters
+        ----------
+        by : str, optional
+            ``"index"`` — label frequencies by their array index (default).
+            ``"value"`` — label frequencies by their value in rad/s.
+        show_plots : bool, optional
+            When *True* a convergence plot is shown for each frequency.
+            Default is False.
+
+        Returns
+        -------
+        None
+        """
+        if not self.optimization_history:
+            print("No residual history available. Run the analysis first.")
+            return
+
+        for i, res_list in self.optimization_history.items():
+            if not res_list:
+                continue
+
+            freq = self.frequency[i]
+            rpm = freq * 30 / np.pi
+
+            desired_width = 25
+            table = PrettyTable()
+            table.field_names = ["Iteration", "Residual [N]"]
+
+            for it, res in enumerate(res_list):
+                if res is not None:
+                    table.add_row([it, f"{res:.6f}"])
+
+            table.max_width = desired_width
+            table.min_width = desired_width
+
+            table_str = table.get_string()
+            actual_width = len(table_str.split("\n")[0])
+
+            print("\n" + "=" * actual_width)
+            print(f"OPTIMIZATION CONVERGENCE - {rpm:.1f} RPM".center(actual_width))
+            print("=" * actual_width)
+            print(table)
+            print("=" * actual_width)
+
+            if show_plots:
+                iterations = list(range(1, len(res_list) + 1))
+                residuals = [res for res in res_list if res is not None]
+
+                fig = go.Figure()
+                fig.add_trace(
+                    go.Scatter(
+                        x=iterations,
+                        y=residuals,
+                        mode="lines+markers",
+                        name=f"Convergence - {rpm:.1f} RPM",
+                        line=dict(width=2),
+                        marker=dict(size=6),
+                    )
+                )
+                fig.update_layout(
+                    title=f"Optimization Convergence - {rpm:.1f} RPM",
+                    xaxis_title="Iteration",
+                    yaxis_title="Residual [N]",
+                    template="ross",
+                )
+                fig.show()

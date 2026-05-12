@@ -1,13 +1,11 @@
 import time
 import numpy as np
 from scipy.optimize import fmin
-from scipy.interpolate import griddata
-import plotly.graph_objects as go
-from prettytable import PrettyTable
 
 from ross.bearing_seal_element import BearingElement
 from ross.units import Q_, check_units
 from ross.bearings.lubricants import lubricants_dict
+from ross.bearings.bearing_results import ThrustPadResults
 
 
 class ThrustPad(BearingElement):
@@ -285,6 +283,36 @@ class ThrustPad(BearingElement):
         )
         self.final_time = time.time()
 
+        self._results = ThrustPadResults(
+            frequency=self.frequency,
+            pressure_fields=self.pressure_fields,
+            temperature_fields=self.temperature_fields,
+            max_thicknesses=self.max_thicknesses,
+            min_thicknesses=self.min_thicknesses,
+            pivot_film_thicknesses=self.pivot_film_thicknesses,
+            equilibrium_position_mode=self.equilibrium_position_mode,
+            axial_load=self.axial_load,
+            kzz=self.kzz,
+            czz=self.czz,
+            n_radial=self.n_radial,
+            n_theta=self.n_theta,
+            pad_outer_radius=self.pad_outer_radius,
+            pad_inner_radius=self.pad_inner_radius,
+            d_radius=self.d_radius,
+            d_theta=self.d_theta,
+            pad_arc_length=self.pad_arc_length,
+            optimization_history=self.optimization_history,
+            initial_time=self.initial_time,
+            final_time=self.final_time,
+        )
+
+    def __getattr__(self, name):
+        if "_results" in self.__dict__ and hasattr(self._results, name):
+            return getattr(self._results, name)
+        raise AttributeError(
+            f"'{type(self).__name__}' object has no attribute '{name}'"
+        )
+
     def run_thermo_hydro_dynamic(self):
         """
         Execute the complete thermo-hydrodynamic analysis for the tilting pad thrust bearing.
@@ -395,92 +423,6 @@ class ThrustPad(BearingElement):
         self.max_thicknesses.append(self.max_thickness)
         self.min_thicknesses.append(self.min_thickness)
         self.pivot_film_thicknesses.append(self.pivot_film_thickness)
-
-    def show_results(self):
-        """Display thrust bearing calculation results in a formatted table.
-
-        This method prints the main results from the thrust bearing analysis
-        using PrettyTable, including operating conditions, field results,
-        load information, and dynamic coefficients for each frequency.
-
-        Parameters
-        ----------
-        None
-            This method uses the bearing parameters and results stored as
-            instance attributes.
-
-        Returns
-        -------
-        None
-            Results are printed to the console in a formatted table.
-        """
-
-        if self.frequency.size == 1:
-            self._print_single_frequency_results(0)
-        else:
-            for i in range(self.frequency.size):
-                self._print_single_frequency_results(i)
-
-    def _print_single_frequency_results(self, freq_index):
-        """Print results for a single frequency."""
-
-        freq = self.frequency[freq_index]
-
-        table = PrettyTable()
-        table.field_names = ["Parameter", "Value", "Unit"]
-
-        table.add_row(["Operating Speed", f"{freq * 30 / np.pi:.1f}", "RPM"])
-        table.add_row(["Equilibrium Mode", self.equilibrium_position_mode, "-"])
-
-        table.add_row(
-            ["Maximum Pressure", f"{self.pressure_fields[freq_index].max():.4e}", "Pa"]
-        )
-        table.add_row(
-            [
-                "Maximum Temperature",
-                f"{self.temperature_fields[freq_index].max():.1f}",
-                "°C",
-            ]
-        )
-        table.add_row(
-            ["Maximum Film Thickness", f"{self.max_thicknesses[freq_index]:.4e}", "m"]
-        )
-        table.add_row(
-            ["Minimum Film Thickness", f"{self.min_thicknesses[freq_index]:.4e}", "m"]
-        )
-        table.add_row(
-            [
-                "Pivot Film Thickness",
-                f"{self.pivot_film_thicknesses[freq_index]:.4e}",
-                "m",
-            ]
-        )
-
-        if self.equilibrium_position_mode == "imposed":
-            table.add_row(["Axial Load", f"{self.axial_load.sum():.4e}", "N"])
-        elif self.equilibrium_position_mode == "calculate":
-            table.add_row(["Axial Load", f"{self.axial_load:.4e}", "N"])
-
-        table.add_row(["kzz (Stiffness)", f"{self.kzz[freq_index]:.4e}", "N/m"])
-        table.add_row(["czz (Damping)", f"{self.czz[freq_index]:.4e}", "N*s/m"])
-
-        # Table width
-        desired_width = 25
-
-        table.max_width = desired_width
-        table.min_width = desired_width
-
-        table_str = table.get_string()
-        table_lines = table_str.split("\n")
-        actual_width = len(table_lines[0])
-
-        print("\n" + "=" * actual_width)
-        print(
-            f"THRUST BEARING RESULTS - {freq * 30 / np.pi:.1f} RPM".center(actual_width)
-        )
-        print("=" * actual_width)
-        print(table)
-        print("=" * actual_width)
 
     def solve_fields(self):
         """Solve pressure and temperature fields iteratively until convergence.
@@ -1361,82 +1303,6 @@ class ThrustPad(BearingElement):
                     iteration + 1 - len(self.optimization_history[idx])
                 )
             self.optimization_history[idx][iteration] = residual_value
-
-    def show_optimization_convergence(
-        self, by: str = "index", show_plots: bool = False
-    ) -> None:
-        """
-        Display the optimization residuals per iteration for each processed frequency.
-
-        Parameters
-        ----------
-        by : str
-            'index' -> show frequencies by their index (default)
-            'value' -> show frequencies by their value (as stored in self.frequency)
-        show_plots : bool
-            Whether to show the convergence plot. Default is False.
-
-        Notes
-        -----
-        Requires 'self.optimization_history' to be populated during the solve.
-        """
-        if not hasattr(self, "optimization_history") or not self.optimization_history:
-            print("No residual history available. Run the analysis first.")
-            return
-
-        for i, res_list in self.optimization_history.items():
-            if not res_list:
-                continue
-
-            freq = self.frequency[i]
-            rpm = freq * 30 / np.pi
-
-            # Table width
-            desired_width = 25
-
-            table = PrettyTable()
-            table.field_names = ["Iteration", "Residual [N]"]
-
-            for it, res in enumerate(res_list):
-                if res is not None:
-                    table.add_row([it, f"{res:.6f}"])
-
-            table.max_width = desired_width
-            table.min_width = desired_width
-
-            table_str = table.get_string()
-            table_lines = table_str.split("\n")
-            actual_width = len(table_lines[0])
-
-            print("\n" + "=" * actual_width)
-            print(f"OPTIMIZATION CONVERGENCE - {rpm:.1f} RPM".center(actual_width))
-            print("=" * actual_width)
-            print(table)
-            print("=" * actual_width)
-
-            # Display plot if requested
-            if show_plots:
-                iterations = list(range(1, len(res_list) + 1))
-                residuals = [res for res in res_list if res is not None]
-
-                fig = go.Figure()
-                fig.add_trace(
-                    go.Scatter(
-                        x=iterations,
-                        y=residuals,
-                        mode="lines+markers",
-                        name=f"Convergence - {rpm:.1f} RPM",
-                        line=dict(width=2),
-                        marker=dict(size=6),
-                    )
-                )
-                fig.update_layout(
-                    title=f"Optimization Convergence - {rpm:.1f} RPM",
-                    xaxis_title="Iteration",
-                    yaxis_title="Residual [N]",
-                    template="ross",
-                )
-                fig.show()
 
     def _equilibrium_objective(self, x):
         """Calculates the equilibrium position of the bearing
@@ -2962,354 +2828,6 @@ class ThrustPad(BearingElement):
 
         self.kzz = self.n_pad * np.real(force_axial)
         self.czz = self.n_pad * 1 / perturbation_frequency * np.imag(force_axial)
-
-    def plot_results(self, show_plots=False, freq_index=0):
-        """Plot pressure and temperature field results for thrust bearing analysis.
-
-        This method generates comprehensive visualization plots for the calculated
-        pressure and temperature fields at a specific frequency. It creates both
-        3D surface plots and 2D contour plots for visualization of the field
-        properties distributions across the bearing pad.
-
-        Parameters
-        ----------
-        show_plots : bool, optional
-            Whether to automatically display the plots. If True, attempts to show
-            all plots using the default display method. If False, returns figure
-            objects for manual display. Default is False.
-        freq_index : int, optional
-            Index of the frequency to plot results for. Must be within the range
-            of calculated frequencies. Default is 0 (first frequency).
-
-        Returns
-        -------
-        dict
-            Dictionary containing four Plotly figure objects:
-            - 'pressure_3D': 3D surface plot of pressure field
-            - 'temperature_3D': 3D surface plot of temperature field
-            - 'pressure_2D': 2D contour plot of pressure field
-            - 'temperature_2D': 2D contour plot of temperature field
-
-        Notes
-        -----
-        The method interpolates the field data using cubic interpolation for
-        smoother contour plots. Coordinate transformation from polar to Cartesian
-        coordinates is performed for visualization purposes.
-        """
-        pressure_field = self.pressure_fields[freq_index]
-        temperature_field = self.temperature_fields[freq_index]
-
-        radial_coords = np.zeros(self.n_radial + 2)
-        angular_coords = np.zeros(self.n_theta + 2)
-        x_coords = np.zeros((self.n_radial + 2, self.n_theta + 2))
-        y_coords = np.zeros((self.n_radial + 2, self.n_theta + 2))
-
-        # Set boundary values
-        radial_coords[0] = self.pad_outer_radius
-        radial_coords[-1] = self.pad_inner_radius
-        radial_coords[1 : self.n_radial + 1] = np.arange(
-            self.pad_outer_radius - 0.5 * self.d_radius * self.pad_inner_radius,
-            self.pad_inner_radius,
-            -(self.d_radius * self.pad_inner_radius),
-        )
-
-        angular_coords[0] = np.pi / 2 + self.pad_arc_length / 2
-        angular_coords[-1] = np.pi / 2 - self.pad_arc_length / 2
-        angular_coords[1 : self.n_theta + 1] = np.arange(
-            np.pi / 2
-            + self.pad_arc_length / 2
-            - (0.5 * self.d_theta * self.pad_arc_length),
-            np.pi / 2 - self.pad_arc_length / 2,
-            -self.d_theta * self.pad_arc_length,
-        )
-
-        # Create coordinate mesh
-        for i in range(self.n_radial + 2):
-            for j in range(self.n_theta + 2):
-                x_coords[i, j] = radial_coords[i] * np.cos(angular_coords[j])
-                y_coords[i, j] = radial_coords[i] * np.sin(angular_coords[j])
-
-        # Plot 3D pressure field
-        pressure_3d_fig = self._plot_3d_surface(
-            x_coords,
-            y_coords,
-            pressure_field,
-            "Pressure field",
-            "Pressure [Pa]",
-            show_plot=False,
-        )
-
-        # Plot 3D temperature field
-        temperature_3d_fig = self._plot_3d_surface(
-            x_coords,
-            y_coords,
-            temperature_field,
-            "Temperature field",
-            "Temperature [°C]",
-            show_plot=False,
-        )
-
-        x_min, x_max = x_coords.min(), x_coords.max()
-        y_min, y_max = y_coords.min(), y_coords.max()
-
-        x_interp = np.linspace(x_min, x_max, 800)
-        y_interp = np.linspace(y_min, y_max, 800)
-        x_grid, y_grid = np.meshgrid(x_interp, y_interp)
-
-        temp_interpolated = griddata(
-            (x_coords.flatten(), y_coords.flatten()),
-            temperature_field.flatten(),
-            (x_grid, y_grid),
-            method="cubic",
-        )
-        temperature_contour_fig = self._plot_2d_contour(
-            x_grid,
-            y_grid,
-            temp_interpolated,
-            "Temperature field",
-            "Temperature (°C)",
-            show_plot=False,
-        )
-
-        pressure_interpolated = griddata(
-            (x_coords.flatten(), y_coords.flatten()),
-            pressure_field.flatten(),
-            (x_grid, y_grid),
-            method="cubic",
-        )
-        pressure_contour_fig = self._plot_2d_contour(
-            x_grid,
-            y_grid,
-            pressure_interpolated,
-            "Pressure field",
-            "Pressure (Pa)",
-            show_plot=False,
-        )
-
-        figures = {
-            "pressure_2D": pressure_contour_fig,
-            "pressure_3D": pressure_3d_fig,
-            "temperature_2D": temperature_contour_fig,
-            "temperature_3D": temperature_3d_fig,
-        }
-
-        if show_plots:
-            try:
-                for fig in figures.values():
-                    fig.show()
-            except Exception as e:
-                print(f"Warning: Could not display plots automatically. Error: {e}")
-                print("The figure objects are still available for manual display.")
-
-        return figures
-
-    def _plot_3d_surface(
-        self, x_coords, y_coords, z_data, title, z_label, show_plot=False
-    ):
-        """Create 3D surface plot using Plotly with tableau colors.
-
-        Parameters
-        ----------
-        x_coords : ndarray
-            X coordinates
-        y_coords : ndarray
-            Y coordinates
-        z_data : ndarray
-            Z data for surface plot
-        title : str
-            Plot title
-        z_label : str
-            Z-axis label
-        show_plot : bool, optional
-            Whether to automatically display the plot. Default is False.
-
-        Returns
-        -------
-        fig : plotly.graph_objects.Figure
-            The figure object
-        """
-        fig = go.Figure()
-
-        fig.add_trace(
-            go.Surface(
-                x=x_coords,
-                y=y_coords,
-                z=z_data,
-                colorscale="Viridis",
-                colorbar=dict(title=z_label),
-                name=title,
-                hovertemplate=f"<b>{title}</b><br>"
-                + "X: %{x:.3f}<br>"
-                + "Y: %{y:.3f}<br>"
-                + f"{z_label}: %{{z:.3f}}<br>"
-                + "<extra></extra>",
-            )
-        )
-
-        fig.update_layout(
-            title=title,
-            scene=dict(
-                xaxis_title="X [m]",
-                yaxis_title="Y [m]",
-                zaxis_title=z_label,
-                camera=dict(eye=dict(x=-1.5, y=-4, z=1.5), center=dict(x=0, y=0, z=0)),
-            ),
-            width=800,
-            height=600,
-        )
-
-        camera = dict(eye=dict(x=-1.5, y=-4, z=1.5), center=dict(x=0, y=0, z=0))
-        fig.update_layout(scene_camera=camera)
-
-        if show_plot:
-            try:
-                fig.show()
-            except Exception as e:
-                print(
-                    f"Warning: Could not display plot '{title}' automatically. Error: {e}"
-                )
-                print("The figure object is still available for manual display.")
-
-        return fig
-
-    def _plot_2d_contour(
-        self, x_grid, y_grid, z_data, title, colorbar_title, show_plot=False
-    ):
-        """Create 2D contour plot using Plotly with tableau colors.
-
-        Parameters
-        ----------
-        x_grid : ndarray
-            X coordinates grid
-        y_grid : ndarray
-            Y coordinates grid
-        z_data : ndarray
-            Z data for contour plot
-        title : str
-            Plot title
-        colorbar_title : str
-            Colorbar title
-        show_plot : bool, optional
-            Whether to automatically display the plot. Default is False.
-
-        Returns
-        -------
-        fig : plotly.graph_objects.Figure
-            The figure object
-        """
-        fig = go.Figure()
-
-        fig.add_trace(
-            go.Contour(
-                x=x_grid[0, :],
-                y=y_grid[:, 0],
-                z=z_data,
-                colorscale="Viridis",
-                colorbar=dict(title=colorbar_title),
-                name=title,
-                hovertemplate=f"<b>{title}</b><br>"
-                + "X: %{x:.3f}<br>"
-                + "Y: %{y:.3f}<br>"
-                + f"{colorbar_title}: %{{z:.3f}}<br>"
-                + "<extra></extra>",
-            )
-        )
-
-        fig.update_layout(
-            title=title,
-            xaxis_title="X [m]",
-            yaxis_title="Y [m]",
-            width=800,
-            height=600,
-        )
-
-        if show_plot:
-            try:
-                fig.show()
-            except Exception as e:
-                print(
-                    f"Warning: Could not display plot '{title}' automatically. Error: {e}"
-                )
-                print("The figure object is still available for manual display.")
-
-        return fig
-
-    def show_execution_time(self):
-        """Display the simulation execution time.
-
-        This method calculates and displays the total time spent during the
-        complete bearing analysis execution, including all frequency calculations.
-
-        Parameters
-        ----------
-        None
-            This method uses the initial_time and final_time attributes
-            stored during the simulation execution.
-
-        Returns
-        -------
-        float
-            Total simulation time in seconds. Returns None if simulation
-            hasn't been executed yet.
-        """
-        if hasattr(self, "initial_time") and hasattr(self, "final_time"):
-            total_time = self.final_time - self.initial_time
-            print(f"Execution time: {total_time:.2f} seconds")
-        else:
-            print("Simulation hasn't been executed yet.")
-
-    def show_coefficients_comparison(self):
-        """Display dynamic coefficients comparison table.
-
-        This method creates and displays a formatted table comparing dynamic
-        coefficients (stiffness and damping) across different frequencies.
-
-        Parameters
-        ----------
-        None
-            This method uses the frequency array and coefficients stored as
-            instance attributes.
-
-        Returns
-        -------
-        None
-            Results are printed to the console in a formatted table.
-        """
-
-        freq_rpm = np.atleast_1d(self.frequency).astype(float) * 30.0 / np.pi
-
-        table = PrettyTable()
-        headers = [
-            "Frequency [RPM]",
-            "kzz [N/m]",
-            "czz [N*s/m]",
-        ]
-        table.field_names = headers
-
-        for i in range(len(freq_rpm)):
-            row = [
-                f"{freq_rpm[i]:.1f}",
-                f"{self.kzz[i]:.4e}",
-                f"{self.czz[i]:.4e}",
-            ]
-            table.add_row(row)
-
-        # Table width
-        desired_width = 25
-
-        table.max_width = desired_width
-        table.min_width = desired_width
-
-        table_str = table.get_string()
-        table_lines = table_str.split("\n")
-        actual_width = len(table_lines[0])
-
-        print("\n" + "=" * actual_width)
-        print("DYNAMIC COEFFICIENTS COMPARISON TABLE".center(actual_width))
-        print("=" * actual_width)
-        print(table)
-        print("=" * actual_width)
-
 
 def thrust_pad_example():
     """Create an example of a thrust bearing with Thermo-Hydro-Dynamic effects.
