@@ -13,6 +13,7 @@ __all__ = [
     "TiltingPadResults",
     "ThrustPadResults",
     "PlainJournalResults",
+    "SqueezeFilmDamperResults",
 ]
 
 
@@ -2475,3 +2476,320 @@ class PlainJournalResults(BearingResults):
                     template="ross",
                 )
                 fig.show()
+
+
+class SqueezeFilmDamperResults(BearingResults):
+    """Post-processing results for a SqueezeFilmDamper bearing.
+
+    The SFD uses closed-form analytical expressions; no numerical pressure or
+    temperature fields are solved.  The four abstract field-plot methods
+    (``plot_pressure_3d``, ``plot_pressure_2d``, ``plot_temperature_3d``,
+    ``plot_temperature_2d``) therefore raise ``NotImplementedError``.  Use
+    ``plot_coefficients()`` to visualise the computed results.
+
+    Parameters
+    ----------
+    frequency : array_like
+        Operating frequencies in rad/s.
+    kxx : array_like
+        Stiffness coefficient (N/m), one value per frequency.
+    cxx : array_like
+        Damping coefficient (N·s/m), one value per frequency.
+    theta : array_like
+        Pressure angle (rad), one value per frequency.
+    p_max : array_like
+        Maximum pressure (Pa), one value per frequency.
+    axial_length : float
+        Bearing axial length (m).
+    journal_radius : float
+        Journal radius (m).
+    radial_clearance : float
+        Radial clearance (m).
+    eccentricity_ratio : float
+        Ratio of journal eccentricity to radial clearance.
+    lubricant_viscosity : float
+        Dynamic viscosity of the lubricant (Pa·s).
+    geometry : str
+        Geometry type: ``"groove"``, ``"end_seals"``, or
+        ``"groove-end_seals"``.
+    cavitation : bool
+        Whether cavitation is modelled.
+    initial_time : float, optional
+        Solver start epoch timestamp.
+    final_time : float, optional
+        Solver end epoch timestamp.
+    """
+
+    def __init__(
+        self,
+        frequency,
+        kxx,
+        cxx,
+        theta,
+        p_max,
+        axial_length,
+        journal_radius,
+        radial_clearance,
+        eccentricity_ratio,
+        lubricant_viscosity,
+        geometry,
+        cavitation,
+        initial_time=None,
+        final_time=None,
+    ):
+        super().__init__(
+            frequency=frequency,
+            pressure_fields=[],
+            temperature_fields=[],
+            initial_time=initial_time,
+            final_time=final_time,
+        )
+        self.kxx = np.atleast_1d(kxx)
+        self.cxx = np.atleast_1d(cxx)
+        self.theta = np.atleast_1d(theta)
+        self.p_max = np.atleast_1d(p_max)
+        self.axial_length = axial_length
+        self.journal_radius = journal_radius
+        self.radial_clearance = radial_clearance
+        self.eccentricity_ratio = eccentricity_ratio
+        self.lubricant_viscosity = lubricant_viscosity
+        self.geometry = geometry
+        self.cavitation = cavitation
+
+    def show_results(self):
+        """Print a formatted summary of SFD results for all frequencies.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+        """
+        if self.frequency.size == 1:
+            self._print_single_frequency_results(0)
+        else:
+            for i in range(self.frequency.size):
+                self._print_single_frequency_results(i)
+
+    def _print_single_frequency_results(self, freq_index):
+        """Print results table for one frequency index.
+
+        Parameters
+        ----------
+        freq_index : int
+            Index into the frequency array.
+        """
+        freq = self.frequency[freq_index]
+        column_width = 20
+
+        table = PrettyTable()
+        table.field_names = ["Parameter", "Value", "Unit"]
+
+        for field in table.field_names:
+            table.max_width[field] = column_width
+            table.min_width[field] = column_width
+
+        table.align["Parameter"] = "l"
+        table.align["Value"] = "r"
+        table.align["Unit"] = "c"
+
+        table.add_row(["Operating Speed", f"{freq * 30 / np.pi:12.1f}", "RPM"])
+        table.add_row(["Geometry Type", f"{self.geometry:>12}", "-"])
+        table.add_row(["Cavitation", f"{str(self.cavitation):>12}", "-"])
+        table.add_row(["Axial Length", f"{self.axial_length:12.6f}", "m"])
+        table.add_row(["Journal Radius", f"{self.journal_radius:12.6f}", "m"])
+        table.add_row(["Radial Clearance", f"{self.radial_clearance:12.6e}", "m"])
+        table.add_row(
+            ["Eccentricity Ratio", f"{self.eccentricity_ratio:12.4f}", "-"]
+        )
+        table.add_row(
+            ["Lubricant Viscosity", f"{self.lubricant_viscosity:12.4e}", "Pa*s"]
+        )
+        table.add_row(
+            ["Damping Coefficient", f"{self.cxx[freq_index]:12.4e}", "N*s/m"]
+        )
+        table.add_row(
+            ["Stiffness Coefficient", f"{self.kxx[freq_index]:12.4e}", "N/m"]
+        )
+        table.add_row(
+            ["Pressure Angle", f"{np.degrees(self.theta[freq_index]):12.2f}", "°"]
+        )
+        table.add_row(
+            ["Pressure Angle", f"{self.theta[freq_index]:12.4f}", "rad"]
+        )
+        table.add_row(
+            ["Maximum Pressure", f"{self.p_max[freq_index]:12.4e}", "Pa"]
+        )
+
+        table_str = table.get_string()
+        final_width = len(table_str.split("\n")[0])
+
+        print("\n" + "=" * final_width)
+        print(
+            f"SQUEEZE FILM DAMPER RESULTS - {freq * 30 / np.pi:.1f} RPM".center(
+                final_width
+            )
+        )
+        print("=" * final_width)
+        print(table)
+        print("=" * final_width)
+
+    def show_coefficients_comparison(self):
+        """Print a table comparing SFD coefficients across all frequencies.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+        """
+        freq_rpm = self.frequency.astype(float) * 30.0 / np.pi
+
+        table = PrettyTable()
+        table.field_names = [
+            "Frequency [RPM]",
+            "cxx [N*s/m]",
+            "kxx [N/m]",
+            "Pressure [Pa]",
+            "Angle [°]",
+        ]
+
+        for i in range(len(freq_rpm)):
+            table.add_row(
+                [
+                    f"{freq_rpm[i]:.1f}",
+                    f"{self.cxx[i]:.4e}",
+                    f"{self.kxx[i]:.4e}",
+                    f"{self.p_max[i]:.4e}",
+                    f"{np.degrees(self.theta[i]):.2f}",
+                ]
+            )
+
+        desired_width = 20
+        table.max_width = desired_width
+        table.min_width = desired_width
+
+        table_str = table.get_string()
+        actual_width = len(table_str.split("\n")[0])
+
+        print("\n" + "=" * actual_width)
+        print("SFD COEFFICIENTS COMPARISON TABLE".center(actual_width))
+        print("=" * actual_width)
+        print(table)
+        print("=" * actual_width)
+
+    def plot_coefficients(self, fig=None, **kwargs):
+        """Return a line plot of damping (cxx), stiffness (kxx) and maximum
+        pressure (p_max) as a function of operating speed.
+
+        Parameters
+        ----------
+        fig : go.Figure, optional
+            Existing figure to add traces to.
+
+        Returns
+        -------
+        fig : go.Figure
+        """
+        if fig is None:
+            fig = go.Figure()
+
+        freq_rpm = self.frequency.astype(float) * 30.0 / np.pi
+
+        fig.add_trace(
+            go.Scatter(
+                x=freq_rpm,
+                y=self.cxx,
+                mode="lines+markers",
+                name="cxx [N·s/m]",
+                yaxis="y1",
+            )
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=freq_rpm,
+                y=self.kxx,
+                mode="lines+markers",
+                name="kxx [N/m]",
+                yaxis="y2",
+            )
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=freq_rpm,
+                y=self.p_max,
+                mode="lines+markers",
+                name="p_max [Pa]",
+                yaxis="y3",
+            )
+        )
+
+        fig.update_layout(
+            title="Squeeze Film Damper — Coefficients vs Speed",
+            xaxis=dict(title="Speed [RPM]"),
+            yaxis=dict(title="cxx [N·s/m]", side="left"),
+            yaxis2=dict(title="kxx [N/m]", overlaying="y", side="right"),
+            yaxis3=dict(
+                title="p_max [Pa]",
+                overlaying="y",
+                side="right",
+                anchor="free",
+                position=1.0,
+            ),
+            legend=dict(x=0.01, y=0.99),
+            **kwargs,
+        )
+
+        return fig
+
+    def plot_pressure_3d(self, freq_index=0, fig=None, **kwargs):
+        """Not available for SqueezeFilmDamper (analytical model).
+
+        Raises
+        ------
+        NotImplementedError
+        """
+        raise NotImplementedError(
+            "SqueezeFilmDamper uses analytical formulas — no 3D pressure field "
+            "is computed.  Use plot_coefficients() instead."
+        )
+
+    def plot_pressure_2d(self, freq_index=0, fig=None, **kwargs):
+        """Not available for SqueezeFilmDamper (analytical model).
+
+        Raises
+        ------
+        NotImplementedError
+        """
+        raise NotImplementedError(
+            "SqueezeFilmDamper uses analytical formulas — no 2D pressure field "
+            "is computed.  Use plot_coefficients() instead."
+        )
+
+    def plot_temperature_3d(self, freq_index=0, fig=None, **kwargs):
+        """Not available for SqueezeFilmDamper (analytical model).
+
+        Raises
+        ------
+        NotImplementedError
+        """
+        raise NotImplementedError(
+            "SqueezeFilmDamper uses analytical formulas — no temperature field "
+            "is computed."
+        )
+
+    def plot_temperature_2d(self, freq_index=0, fig=None, **kwargs):
+        """Not available for SqueezeFilmDamper (analytical model).
+
+        Raises
+        ------
+        NotImplementedError
+        """
+        raise NotImplementedError(
+            "SqueezeFilmDamper uses analytical formulas — no temperature field "
+            "is computed."
+        )
