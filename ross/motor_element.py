@@ -157,55 +157,6 @@ class MotorElement(Element):
         self.n = n
         self.tag = tag
 
-        # Initial values of Rotor speed, Flux angle and Electrial Torque
-        # Obs: a possible new feature is to insert non-null initial values user's parameters
-        self.wr = 0.0  # Rotor's angular speed in rad*s
-        self.thetar = 0.0  # Rotor's angle in rad
-        self.thetai = self.initial_angle_net - np.pi / 2
-        self.ro = self.thetai  # Flux's initial angle in rad
-        self.Te = 0.0  # Electrical Torque in N*m
-
-        # Initial alpha-beta and dq currents (based in nulled instantaneous phase currents)
-        ias, ibs, ics = 0, 0, 0
-        i_alpha = 2 / 3 * (ias - ibs / 2 - ics / 2)
-        i_beta = 2 / 3 * (ibs - ics) * np.sqrt(3) / 2
-        ids = i_alpha * np.cos(self.ro) + i_beta * np.sin(self.ro)
-        iqs = -i_alpha * np.sin(self.ro) + i_beta * np.cos(self.ro)
-
-        # Initial rotor and stator's inductances
-        self.Lds = self.Lss * ids + self.Lm * 0
-        self.Lqs = self.Lss * iqs + self.Lm * 0
-        self.Ldr = self.Lrr * 0 + self.Lm * ids
-        self.Lqr = self.Lrr * 0 + self.Lm * iqs
-
-        # Motor AC Source instance
-        self.sourceAC = SourceAC(
-            voltage_net=self.voltage,
-            frequency_net=Q_(self.frequency, "rad/s").to("Hz").m,
-        )
-
-        # Initial simulation parameters scheme
-        self.tI = 0.0  # Initial time of simulation (tI)
-        self.tF = 5.0  # Final time of simulation (tF)
-        self.step = 1e-4  # Resolution  (s)
-        self.npts = int(
-            (self.tF - self.tI) / self.step
-        )  # Number of points in simulation
-        self.tTL = (self.tF - self.tI) / 2  # TLoad entrance time
-        self.rTL = (
-            1.0  # TLoad ratio related Tnom at entrance time tTL (1.0 ->100% Tnom)
-        )
-
-        # Time vector and Load Torque vector for the simulation, considering the TLoad entrance time
-        self.t_vector, self.dt = np.linspace(self.tI, self.tF, self.npts, retstep=True)
-        lenT = int(len(self.t_vector))
-        self.TLoad_vector = np.ones(lenT) * self.Tnom * self.rTL
-        arr = np.array(self.t_vector)
-        itTL = np.abs(
-            arr - self.tTL
-        ).argmin()  # Catching the near index to time do TLoad entrance
-        self.TLoad_vector[0:itTL] = 0.0
-
     def __str__(self):
         """Convert object into string.
 
@@ -500,6 +451,57 @@ class MotorElement(Element):
             A dictionary containing lists of results for the entire simulation:
             - tempo, Ias, Ibs, Ics, Ialfas, Ibetas, Ids, Iqs, TE, TC.
         """
+
+        # Initial values of Rotor speed, Flux angle and Electrial Torque
+        # Obs: a possible new feature is to insert non-null initial values user's parameters
+        self.wr = 0.0  # Rotor's angular speed in rad*s
+        self.thetar = 0.0  # Rotor's angle in rad
+        self.thetai = self.initial_angle_net - np.pi / 2
+        self.ro = self.thetai  # Flux's initial angle in rad
+        self.Te = 0.0  # Electrical Torque in N*m
+
+        # Initial alpha-beta and dq currents (based in nulled instantaneous phase currents)
+        ias, ibs, ics = 0, 0, 0
+        i_alpha = 2 / 3 * (ias - ibs / 2 - ics / 2)
+        i_beta = 2 / 3 * (ibs - ics) * np.sqrt(3) / 2
+        ids = i_alpha * np.cos(self.ro) + i_beta * np.sin(self.ro)
+        iqs = -i_alpha * np.sin(self.ro) + i_beta * np.cos(self.ro)
+
+        # Initial rotor and stator's inductances
+        self.Lds = self.Lss * ids + self.Lm * 0
+        self.Lqs = self.Lss * iqs + self.Lm * 0
+        self.Ldr = self.Lrr * 0 + self.Lm * ids
+        self.Lqr = self.Lrr * 0 + self.Lm * iqs
+
+        # Motor AC Source instance
+        self.sourceAC = SourceAC(
+            voltage_net=self.voltage,
+            frequency_net=Q_(self.frequency, "rad/s").to("Hz").m,
+        )
+
+        # Initial simulation parameters scheme
+        self.tI = 0.0  # Initial time of simulation (tI)
+        self.tF = 5.0  # Final time of simulation (tF)
+        self.step = 1e-4  # Resolution  (s)
+        self.npts = int(
+            (self.tF - self.tI) / self.step
+        )  # Number of points in simulation
+        self.tTL = (self.tF - self.tI) / 2  # TLoad entrance time
+        self.rTL = (
+            1.0  # TLoad ratio related Tnom at entrance time tTL (1.0 ->100% Tnom)
+        )
+
+        # Time vector and Load Torque vector for the simulation, considering the TLoad entrance time
+        self.t_vector, self.dt = np.linspace(self.tI, self.tF, self.npts, retstep=True)
+        lenT = int(len(self.t_vector))
+        self.TLoad_vector = np.ones(lenT) * self.Tnom * self.rTL
+        arr = np.array(self.t_vector)
+        itTL = np.abs(
+            arr - self.tTL
+        ).argmin()  # Catching the near index to time do TLoad entrance
+        self.TLoad_vector[0:itTL] = 0.0
+
+
         results = {
             "time": [],
             "Vas": [],
