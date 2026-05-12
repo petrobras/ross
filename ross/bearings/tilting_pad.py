@@ -1,14 +1,18 @@
 import time
 import numpy as np
+import warnings
 from numba import njit
 from scipy.optimize import fmin
 from scipy.sparse import coo_matrix
 from scipy.sparse.linalg import spsolve
+from plotly import graph_objects as go
+from plotly.subplots import make_subplots
+from prettytable import PrettyTable
 
 from ross.bearing_seal_element import BearingElement
 from ross.units import Q_, check_units
+from ross.plotly_theme import tableau_colors
 from ross.bearings.lubricants import lubricants_dict
-from ross.bearings.bearing_results import TiltingPadResults
 
 
 class TiltingPad(BearingElement):
@@ -47,7 +51,8 @@ class TiltingPad(BearingElement):
        - Solves complete THD problem for each perturbation state
        - Extracts coefficients from force differences
 
-    For reference check :cite:`barbosa2018`, :cite:`heinrichson2007influence` and :cite:`nicoletti1999`.
+    For reference check :cite:`barbosa2018`, :cite:`heinrichson2007influence`, :cite:`nicoletti1999`,
+    :cite:`daniel2013evaluation`, :cite:`fitzgerald1992temperature` and :cite:`yang2019inlet`.
 
     Parameters
     ----------
@@ -83,6 +88,9 @@ class TiltingPad(BearingElement):
         Number of volumes along the circumferential direction. Default is 30.
     nz : int, optional
         Number of volumes along the axial direction. Default is 30.
+    nr_pad : int, optional
+        Number of radial nodes in the pad conduction mesh (``thermal_type='full'``).
+        Default is 15.
     n_link : int, optional
         Node to which the bearing will connect. If None the bearing is
         connected to ground.
@@ -97,9 +105,17 @@ class TiltingPad(BearingElement):
         - 'determine_eccentricity': Optimizes eccentricity, attitude_angle,
         and pad rotation angles to balance the applied loads; requires
         load to be provided.
-    model_type : str, optional
-        Type of model to be used. Options:
-        - 'thermo_hydro_dynamic': Thermo-Hydro-Dynamic model
+    thermal_type : str, optional
+        Thermal model variant. Options:
+
+        - ``'adiabatic'``: solves Reynolds + energy equations for the film only.
+          Pad conduction is not computed; the pad surface temperature is not
+          coupled back into the film boundary condition.
+        - ``'full'``: fully coupled thermo-hydrodynamic model. Reynolds and
+          energy equations are iterated together with 2D pad conduction until
+          the pad surface temperature converges.
+
+        Default is ``'full'``.
     eccentricity : float, optional
         Eccentricity ratio. Dimensionless.
     attitude_angle : float, optional
@@ -125,6 +141,34 @@ class TiltingPad(BearingElement):
         - 'maxiter' : int
             Maximum number of iterations allowed. Default is 1000.
         If None, uses default values: ``{"xtol": 1e-3, "ftol": 1e-3, "maxiter": 1000}``.
+    journal_temperature : float, optional
+        Journal temperature. Default is 25.0 °C.
+    hot_oil_carry_over : float, optional
+        Hot oil carry-over factor (0 to 1). Fraction of outlet flow that is
+        carried to the next pad inlet. Default is 0.8.
+    inlet_temperature_tolerance : float, optional
+        Convergence tolerance for pad inlet temperatures [°C]. Outer iteration
+        stops when RMS change of T_inlet is below this value. Default is 0.5.
+    max_inlet_iterations : int, optional
+        Maximum number of outer iterations for inlet temperature convergence.
+        Default is 25.
+    h_sump : float, optional
+        Convection coefficient at pad back (sump side). Default is 500 W/(m²·K).
+    k_pad : float, optional
+        Pad material thermal conductivity [W/(m·K)]. Default is 116.0.
+    h_edge : float, optional
+        Convection coefficient at pad circumferential edges [W/(m²·K)].
+        Default is 1500.0.
+    max_jtemp_iter : int, optional
+        Maximum number of iterations for journal temperature convergence.
+        Default is 100.
+    jtemp_error : float, optional
+        Convergence tolerance for journal temperature [°C]. Default is 1.0.
+    relax_t : float, optional
+        Relaxation factor for journal temperature update. Default is 0.5.
+    max_relax_change : float, optional
+        Maximum allowed temperature change per iteration [°C] before reducing
+        the relaxation factor. Default is 10.0.
     **kwargs : dict, optional
         Additional keyword arguments.
 
@@ -202,21 +246,33 @@ class TiltingPad(BearingElement):
         frequency,
         nx=30,
         nz=30,
+        nr_pad=15,
         n_link=None,
         xj=None,
         yj=None,
-        equilibrium_type=None,
+        equilibrium_type="match_eccentricity",
         eccentricity=0.3,
         attitude_angle=np.pi * 3 / 2,  # 270°
         load=None,
         initial_pads_angles=None,
-        model_type="thermo_hydro_dynamic",
+        thermal_type="full",
         solver_options=None,
+        hot_oil_carry_over=0.8,
+        inlet_temperature_tolerance=0.5,
+        max_inlet_iterations=25,
+        h_sump=1.420,
+        k_pad=116.0,
+        h_edge=1500.0,
+        max_jtemp_iter=100,
+        jtemp_error=1.0,
+        relax_t=0.5,
+        max_relax_change=10.0,
+        journal_temperature=25.0,
         **kwargs,
     ):
         self.n = n
         self.n_link = n_link
-        self.model_type = model_type
+        self.thermal_type = thermal_type
 
         # Setup values for equilibrium optimization process
         if solver_options is None:
@@ -234,6 +290,7 @@ class TiltingPad(BearingElement):
         self.pivot_angle = pivot_angle
         self.eccentricity = eccentricity
         self.attitude_angle = attitude_angle
+
         # Get the first value of the arrays
         self.pad_arc = pad_arc[0]
         self.offset = offset[0]
@@ -261,10 +318,11 @@ class TiltingPad(BearingElement):
             initial_pads_angles is None
             and self.equilibrium_type == "determine_eccentricity"
         ):
-            raise Warning(
+            warnings.warn(
                 "No initial pad angles provided for equilibrium optimization. Using default values.\n"
                 "Better results may be obtained if initial pad angles are provided via 'initial_pads_angles'.\n"
-                "For more details, see the 'initial_pads_angles' parameter documentation in the TiltingPad class docstring."
+                "For more details, see the 'initial_pads_angles' parameter documentation in the TiltingPad class docstring.",
+                UserWarning,
             )
 
         self.oil_supply_temperature = Q_(oil_supply_temperature, "degK").m_as("degC")
@@ -272,15 +330,17 @@ class TiltingPad(BearingElement):
         self.lubricant = lubricant
         self.frequency = frequency
         self.speed = None
+
         if load is not None:
             self.fxs_load = load[0]
             self.fys_load = load[1]
         else:
             self.fxs_load = None
             self.fys_load = None
+
         self.initial_pads_angles = initial_pads_angles
 
-        # Mesh discretization and equation's terms setup
+        # Mesh discretization
         self.nx = nx
         self.nz = nz
         self.z1 = -0.5
@@ -290,12 +350,52 @@ class TiltingPad(BearingElement):
         self.dtheta = (self.theta_2 - self.theta_1) / self.nx
         self.dz = (self.z2 - self.z1) / self.nz
         self.dx = self.dtheta / self.pad_arc
+
         self.xz = np.zeros(self.nz)
         self.xz[0] = self.z1 + 0.5 * self.dz
+
         self.xtheta = np.zeros(self.nx)
         self.xtheta[0] = self.theta_1 + 0.5 * self.dtheta
 
-        # Lubricant properties setup
+        # Thermal mesh
+        self.nr_pad = nr_pad
+        self.ntheta_pad = self.nx
+        self.T_pad = None
+        self.T_pad_surface = None
+        self.T_pad_init = self.oil_supply_temperature
+
+        # Material properties
+        self.k_pad = k_pad
+
+        # Heat transfer coefficients
+        self.h_film_pad = None
+        self.h_back = h_sump
+        self.h_edge = h_edge
+
+        self.hot_oil_carry_over = hot_oil_carry_over
+        self.inlet_temperature_tolerance = inlet_temperature_tolerance
+        self.max_inlet_iterations = max_inlet_iterations
+        self.h_sump = h_sump
+        self.max_jtemp_iter = max_jtemp_iter
+        self.jtemp_error = jtemp_error
+        self.relax_t = relax_t
+        self.max_relax_change = max_relax_change
+        self.journal_temperature = journal_temperature
+
+        self.T_inlet = np.full(self.n_pad, self.oil_supply_temperature)
+        self.T_outlet = np.full(self.n_pad, self.oil_supply_temperature)
+        self.Q_inlet = np.zeros(self.n_pad)
+        self.Q_outlet = np.zeros(self.n_pad)
+
+        # Thermal convergence
+        self.thermal_tolerance = 2.0
+        self.thermal_relax_factor = 0.4
+        self.max_thermal_iter = 50
+
+        if self.thermal_type == "full":
+            self._setup_pad_thermal_mesh()
+
+        # Lubricant properties
         if isinstance(lubricant, str):
             if lubricant not in lubricants_dict:
                 raise KeyError(f"Lubricant {lubricant} not found in the database.")
@@ -314,18 +414,15 @@ class TiltingPad(BearingElement):
         T_2 = Q_(self.lubricant_properties["temperature2"], "degK").m_as("degC")
         mu_2 = self.lubricant_properties["liquid_viscosity2"]
 
-        # Viscosity interpolation coefficients
         self.a_a, self.b_b = self._get_interp_coeffs(T_1, T_2, mu_1, mu_2)
         self.mu_0 = self.a_a * np.exp(self.b_b * self.oil_supply_temperature)
 
-        # Discretization of the mesh
         for ii in range(1, self.nz):
             self.xz[ii] = self.xz[ii - 1] + self.dz
 
         for jj in range(1, self.nx):
             self.xtheta[jj] = self.xtheta[jj - 1] + self.dtheta
 
-        # Pre-compute trigonometric functions
         self.sin_theta = np.sin(self.xtheta)
         self.cos_theta = np.cos(self.xtheta)
         self.sin_theta_e = np.sin(self.xtheta + 0.5 * self.dtheta)
@@ -334,6 +431,7 @@ class TiltingPad(BearingElement):
         self.cos_theta_w = np.cos(self.xtheta - 0.5 * self.dtheta)
         self.cos_pivot_angle = np.cos(self.pivot_angle)
         self.sin_pivot_angle = np.sin(self.pivot_angle)
+
         self.cos_theta_broadcast = np.broadcast_to(self.cos_theta, (self.nz, self.nx))
         self.sin_theta_broadcast = np.broadcast_to(self.sin_theta, (self.nz, self.nx))
 
@@ -374,7 +472,7 @@ class TiltingPad(BearingElement):
             self._current_freq_index = i
             self.optimization_history[i] = []
 
-            if self.model_type == "thermo_hydro_dynamic":
+            if self.thermal_type in ("adiabatic", "full"):
                 self.run_thermo_hydro_dynamic()
 
             kxx[i], kxy[i], kyx[i], kyy[i] = self.kxx, self.kxy, self.kyx, self.kyy
@@ -392,47 +490,6 @@ class TiltingPad(BearingElement):
             cyx=cyx,
             frequency=frequency,
             **kwargs,
-        )
-
-        self._results = TiltingPadResults(
-            frequency=self.frequency,
-            pressure_fields=self.pressure_fields,
-            temperature_fields=self.temperature_fields,
-            maxP_list=self.maxP_list,
-            maxT_list=self.maxT_list,
-            minH_list=self.minH_list,
-            ecc_list=self.ecc_list,
-            attitude_angle_list=self.attitude_angle_list,
-            psi_pad_list=self.psi_pad_list,
-            force_x_total_list=self.force_x_total_list,
-            force_y_total_list=self.force_y_total_list,
-            momen_rot_list=self.momen_rot_list,
-            kxx=self.kxx,
-            kxy=self.kxy,
-            kyx=self.kyx,
-            kyy=self.kyy,
-            cxx=self.cxx,
-            cxy=self.cxy,
-            cyx=self.cyx,
-            cyy=self.cyy,
-            equilibrium_type=self.equilibrium_type,
-            n_pad=self.n_pad,
-            xtheta=self.xtheta,
-            xz=self.xz,
-            pivot_angle=self.pivot_angle,
-            pad_axial_length=self.pad_axial_length,
-            nz=self.nz,
-            nx=self.nx,
-            optimization_history=self.optimization_history,
-            initial_time=getattr(self, "initial_time", None),
-            final_time=getattr(self, "final_time", None),
-        )
-
-    def __getattr__(self, name):
-        if "_results" in self.__dict__ and hasattr(self._results, name):
-            return getattr(self._results, name)
-        raise AttributeError(
-            f"'{type(self).__name__}' object has no attribute '{name}'"
         )
 
     def run_thermo_hydro_dynamic(self):
@@ -458,7 +515,7 @@ class TiltingPad(BearingElement):
         Returns
         -------
         None
-            Results are stored as instance attributes and plots are generated.
+            Results are stored as instance attributes.
 
         Attributes
         ----------
@@ -479,21 +536,18 @@ class TiltingPad(BearingElement):
 
         Notes
         -----
-        The method processes each frequency in the frequency array sequentially.
-        For each frequency, it:
-        1. Initializes field arrays and dimensionless parameters
-        2. Solves the thermo-hydrodynamic equations to find equilibrium
-        3. Calculates dynamic coefficients using perturbation methods
-        4. Updates the parent BearingElement with computed coefficients
-        5. Generates visualization plots
+        Processes each operating frequency sequentially. For each frequency:
+        1. Initializes field arrays and dimensionless parameters.
+        2. Solves the thermo-hydrodynamic equations to find equilibrium.
+        3. Calculates dynamic coefficients using perturbation methods.
 
         The analysis assumes steady-state operation and uses finite difference
         methods for solving the governing equations.
 
         Examples
         --------
-        >>> from ross.bearings.tilting_pad import tilting_pad_example
-        >>> bearing = tilting_pad_example()
+        >>> from ross.bearings.tilting_pad import tilting_pad_adiabatic_example
+        >>> bearing = tilting_pad_adiabatic_example()  # doctest: +ELLIPSIS
         """
 
         self.initial_time = time.time()
@@ -602,6 +656,9 @@ class TiltingPad(BearingElement):
 
                 # Solve energy equation
                 temperature_ref = self._solve_energy_equation(mi, n_p_eq)
+
+                if self.thermal_type == "full":
+                    self._calculate_convection_coefficient(n_p_eq)
 
             # Calculate hydrodynamic forces at equilibrium
             self._calculate_hydrodynamic_forces(
@@ -720,6 +777,7 @@ class TiltingPad(BearingElement):
                         self.pad_radius,
                         self.pad_arc,
                         self.pad_axial_length,
+                        self.oil_supply_temperature,
                     )
 
                     # Update turbulence fields
@@ -996,14 +1054,10 @@ class TiltingPad(BearingElement):
                 xryr_alpha = np.dot(
                     [
                         [
-                            # np.cos(self.pivot_angle[n_pad]),
-                            # np.sin(self.pivot_angle[n_pad]),
                             self.cos_pivot_angle[n_pad],
                             self.sin_pivot_angle[n_pad],
                         ],
                         [
-                            # -np.sin(self.pivot_angle[n_pad]),
-                            # np.cos(self.pivot_angle[n_pad]),
                             -self.sin_pivot_angle[n_pad],
                             self.cos_pivot_angle[n_pad],
                         ],
@@ -1118,236 +1172,120 @@ class TiltingPad(BearingElement):
             self.force_y_total_list.append(np.sum(self.force_y_dim))
             self.momen_rot_list.append(None)
 
-        # Thermo-hydrodynamic field solution
         psi_pad = np.zeros(self.n_pad)
         for k_pad in range(self.n_pad):
             psi_pad[k_pad] = self.xdin[k_pad + 2]
 
-        n_k = self.nx * self.nz
-        temperature_tolerance = 0.1
+        self.T_inlet = np.full(self.n_pad, self.oil_supply_temperature)
+        self.T_outlet = np.full(self.n_pad, self.oil_supply_temperature)
+        self.Q_outlet = np.zeros(self.n_pad)
+        T_journal = self.journal_temperature
 
-        for n_p in range(self.n_pad):
-            temperature_reference = self.temperature_init[:, :, n_p]
-            temperature_iteration = 1.1 * temperature_reference
-            cont_temp = 0
+        rms_T_inlet_old = 0.0
+        diverge_count_tin = 0
 
-            while (
-                abs((temperature_reference - temperature_iteration).max())
-                >= temperature_tolerance
-            ):
-                cont_temp += 1
-                # temperature_iteration = np.array(temperature_reference)
-                temperature_iteration = temperature_reference.copy()
+        for inlet_iter in range(self.max_inlet_iterations):
+            T_inlet_old = self.T_inlet.copy()
 
-                mi_i = self.a_a * np.exp(self.b_b * temperature_iteration)
-                mi = mi_i / self.mu_0
+            dTj_old = 0.0
+            diverge_count_tj = 0
 
-                k_idx = 0
-                mat_coef = np.zeros((n_k, n_k))
-                b_vec = np.zeros(n_k)
+            for jtemp_iter in range(self.max_jtemp_iter):
+                T_journal_old = T_journal
 
-                xryr, xryrpt, xr, yr, xrpt, yrpt = self._transform_coordinates(n_p)
-
-                alpha = psi_pad[n_p]
-                alphapt = 0
-
-                # Calculate face viscosities once for entire mesh
-                mi_e_all, mi_w_all, mi_n_all, mi_s_all = (
-                    self._calculate_face_viscosities_vectorized(mi)
-                )
-
-                for ii in range(self.nz):
-                    for jj in range(self.nx):
-                        # Use pre-computed trigonometric functions
-                        h_p = (
-                            self.pad_radius
-                            - self.journal_radius
-                            - (
-                                self.sin_theta[jj]
-                                * (yr + alpha * (self.pad_radius + self.pad_thickness))
-                                + self.cos_theta[jj]
-                                * (
-                                    xr
-                                    + self.pad_radius
-                                    - self.journal_radius
-                                    - self.radial_clearance
-                                )
-                            )
-                        ) / self.radial_clearance
-
-                        h_e = (
-                            self.pad_radius
-                            - self.journal_radius
-                            - (
-                                self.sin_theta_e[jj]
-                                * (yr + alpha * (self.pad_radius + self.pad_thickness))
-                                + self.cos_theta_e[jj]
-                                * (
-                                    xr
-                                    + self.pad_radius
-                                    - self.journal_radius
-                                    - self.radial_clearance
-                                )
-                            )
-                        ) / self.radial_clearance
-
-                        h_w = (
-                            self.pad_radius
-                            - self.journal_radius
-                            - (
-                                self.sin_theta_w[jj]
-                                * (yr + alpha * (self.pad_radius + self.pad_thickness))
-                                + self.cos_theta_w[jj]
-                                * (
-                                    xr
-                                    + self.pad_radius
-                                    - self.journal_radius
-                                    - self.radial_clearance
-                                )
-                            )
-                        ) / self.radial_clearance
-
-                        h_n = h_p
-                        h_s = h_p
-
-                        h_pt = -(1 / (self.radial_clearance * self.speed)) * (
-                            self.cos_theta[jj] * xrpt
-                            + self.sin_theta[jj] * yrpt
-                            + self.sin_theta[jj]
-                            * (self.pad_radius + self.pad_thickness)
-                            * alphapt
-                        )
-
-                        self.h[ii, jj] = h_p
-
-                        # Get face viscosities from pre-computed arrays
-                        mi_e = mi_e_all[ii, jj]
-                        mi_w = mi_w_all[ii, jj]
-                        mi_n = mi_n_all[ii, jj]
-                        mi_s = mi_s_all[ii, jj]
-
-                        c_e = (
-                            (1 / (self.pad_arc**2))
-                            * (h_e**3 / (12 * mi_e))
-                            * (self.dz / self.dx)
-                        )
-                        c_w = (
-                            (1 / (self.pad_arc**2))
-                            * (h_w**3 / (12 * mi_w))
-                            * (self.dz / self.dx)
-                        )
-                        c_n = (
-                            (self.pad_radius / self.pad_axial_length) ** 2
-                            * (self.dx / self.dz)
-                            * (h_n**3 / (12 * mi_n))
-                        )
-                        c_s = (
-                            (self.pad_radius / self.pad_axial_length) ** 2
-                            * (self.dx / self.dz)
-                            * (h_s**3 / (12 * mi_s))
-                        )
-                        c_p = -(c_e + c_w + c_n + c_s)
-                        b_val = (
-                            self.journal_radius / (2 * self.pad_radius * self.pad_arc)
-                        ) * self.dz * (h_e - h_w) + h_pt * self.dx * self.dz
-                        b_vec[k_idx] = b_val
-
-                        if ii == 0 and jj == 0:
-                            mat_coef[k_idx, k_idx] = c_p - c_s - c_w
-                            mat_coef[k_idx, k_idx + 1] = c_e
-                            mat_coef[k_idx, k_idx + self.nx] = c_n
-
-                        if ii == 0 and 0 < jj < self.nx - 1:
-                            mat_coef[k_idx, k_idx] = c_p - c_s
-                            mat_coef[k_idx, k_idx + 1] = c_e
-                            mat_coef[k_idx, k_idx - 1] = c_w
-                            mat_coef[k_idx, k_idx + self.nx] = c_n
-
-                        if ii == 0 and jj == self.nx - 1:
-                            mat_coef[k_idx, k_idx] = c_p - c_e - c_s
-                            mat_coef[k_idx, k_idx - 1] = c_w
-                            mat_coef[k_idx, k_idx + self.nx] = c_n
-
-                        if jj == 0 and 0 < ii < self.nz - 1:
-                            mat_coef[k_idx, k_idx] = c_p - c_w
-                            mat_coef[k_idx, k_idx + 1] = c_e
-                            mat_coef[k_idx, k_idx - self.nx] = c_s
-                            mat_coef[k_idx, k_idx + self.nx] = c_n
-
-                        if 0 < ii < self.nz - 1 and 0 < jj < self.nx - 1:
-                            mat_coef[k_idx, k_idx] = c_p
-                            mat_coef[k_idx, k_idx - 1] = c_w
-                            mat_coef[k_idx, k_idx - self.nx] = c_s
-                            mat_coef[k_idx, k_idx + self.nx] = c_n
-                            mat_coef[k_idx, k_idx + 1] = c_e
-
-                        if jj == self.nx - 1 and 0 < ii < self.nz - 1:
-                            mat_coef[k_idx, k_idx] = c_p - c_e
-                            mat_coef[k_idx, k_idx - 1] = c_w
-                            mat_coef[k_idx, k_idx - self.nx] = c_s
-                            mat_coef[k_idx, k_idx + self.nx] = c_n
-
-                        if jj == 0 and ii == self.nz - 1:
-                            mat_coef[k_idx, k_idx] = c_p - c_n - c_w
-                            mat_coef[k_idx, k_idx + 1] = c_e
-                            mat_coef[k_idx, k_idx - self.nx] = c_s
-
-                        if ii == self.nz - 1 and 0 < jj < self.nx - 1:
-                            mat_coef[k_idx, k_idx] = c_p - c_n
-                            mat_coef[k_idx, k_idx + 1] = c_e
-                            mat_coef[k_idx, k_idx - 1] = c_w
-                            mat_coef[k_idx, k_idx - self.nx] = c_s
-
-                        if ii == self.nz - 1 and jj == self.nx - 1:
-                            mat_coef[k_idx, k_idx] = c_p - c_e - c_n
-                            mat_coef[k_idx, k_idx - 1] = c_w
-                            mat_coef[k_idx, k_idx - self.nx] = c_s
-
-                        k_idx += 1
-
-                mat_coef = self._check_diagonal(mat_coef)
-                p_vec = np.linalg.solve(mat_coef, b_vec)
-
-                cont_lin = 0
-                for i_lin in np.arange(self.nz):
-                    for j_col in np.arange(self.nx):
-                        self.pressure[i_lin, j_col] = p_vec[cont_lin]
-                        cont_lin += 1
-                        if self.pressure[i_lin, j_col] < 0:
-                            self.pressure[i_lin, j_col] = 0
-
-            if np.max(self.pressure) > np.max(self.pressure_prev):
-                self.pad_in = n_p
-                self.pressure_prev = self.pressure.copy()
-
-            self.pressure_nd[:, :, n_p] = self.pressure
-            self.h_0[:, :, n_p] = self.h
-
-            self.pressure_dim[:, :, n_p] = (
-                self.pressure_nd[:, :, n_p]
-                * (self.mu_0 * self.speed * self.pad_radius**2)
-                / (self.radial_clearance**2)
-            )
-            self.h_dim[:, :, n_p] = self.h * self.radial_clearance
-            self.h_pivot[n_p] = (
-                self.radial_clearance
-                * (
-                    self.pad_radius
-                    - self.journal_radius
-                    - (
-                        np.sin(0)
-                        * (yr + alpha * (self.pad_radius + self.pad_thickness))
-                        + np.cos(0)
-                        * (
-                            xr
-                            + self.pad_radius
-                            - self.journal_radius
-                            - self.radial_clearance
-                        )
+                for n_p in range(self.n_pad):
+                    mi_i = self.a_a * np.exp(
+                        self.b_b * self.temperature_init[:, :, n_p]
                     )
-                )
-                / self.radial_clearance
+                    mi = mi_i / self.mu_0
+
+                    T_film, T_pad_surface = self._thermal_coupling_iteration(
+                        mi, n_p, psi_pad, T_journal=T_journal
+                    )
+
+                    # Update inlet temperature of next pad (hot oil carry-over)
+                    self._update_carry_over_temperature(n_p)
+
+                    if np.max(self.pressure) > np.max(self.pressure_prev):
+                        self.pad_in = n_p
+                        self.pressure_prev = self.pressure.copy()
+
+                    self.pressure_nd[:, :, n_p] = self.pressure
+                    self.h_0[:, :, n_p] = self.h
+
+                    self.pressure_dim[:, :, n_p] = (
+                        self.pressure_nd[:, :, n_p]
+                        * (self.mu_0 * self.speed * self.pad_radius**2)
+                        / (self.radial_clearance**2)
+                    )
+                    self.h_dim[:, :, n_p] = self.h * self.radial_clearance
+
+                    xryr, xryrpt, xr, yr, xrpt, yrpt = self._transform_coordinates(n_p)
+                    alpha = psi_pad[n_p]
+                    self.h_pivot[n_p] = (
+                        self.radial_clearance
+                        * (
+                            self.pad_radius
+                            - self.journal_radius
+                            - (
+                                np.sin(0)
+                                * (yr + alpha * (self.pad_radius + self.pad_thickness))
+                                + np.cos(0)
+                                * (
+                                    xr
+                                    + self.pad_radius
+                                    - self.journal_radius
+                                    - self.radial_clearance
+                                )
+                            )
+                        )
+                        / self.radial_clearance
+                    )
+                T_journal_new = self._compute_journal_temperature()
+
+                dTj = abs(T_journal_new - T_journal_old)
+                if dTj > self.max_relax_change:
+                    relax = self.max_relax_change / dTj
+                else:
+                    relax = self.relax_t
+                T_journal = relax * T_journal_new + (1.0 - relax) * T_journal_old
+
+                if dTj < self.jtemp_error:
+                    break
+
+                if jtemp_iter > 0 and dTj >= 0.95 * dTj_old:
+                    diverge_count_tj += 1
+                    if diverge_count_tj > 10:
+                        print(
+                            "  WARNING: T_journal did not converge; using last value."
+                        )
+                        break
+
+                dTj_old = dTj
+
+            rms_T_inlet = float(np.sqrt(np.mean((self.T_inlet - T_inlet_old) ** 2)))
+
+            if rms_T_inlet < self.inlet_temperature_tolerance:
+                break
+
+            if inlet_iter > 0 and rms_T_inlet >= rms_T_inlet_old:
+                diverge_count_tin += 1
+                if diverge_count_tin > 10:
+                    print("  WARNING: Inlet temperature did not converge.")
+                    break
+
+            self.T_inlet = (
+                self.thermal_relax_factor * self.T_inlet
+                + (1.0 - self.thermal_relax_factor) * T_inlet_old
             )
+            rms_T_inlet_old = rms_T_inlet
+
+            if inlet_iter == self.max_inlet_iterations - 1:
+                print(
+                    f"  WARNING: Inlet temperature did not converge after "
+                    f"{self.max_inlet_iterations} iterations "
+                    f"(rms_T_inlet = {rms_T_inlet:.4f} °C)"
+                )
 
         max_p = (
             self.pressure_nd[:, :, self.pad_in].max()
@@ -1373,78 +1311,6 @@ class TiltingPad(BearingElement):
         self.temperature_fields.append(self.temperature_init.copy())
 
         return max_p, med_p, max_t, med_t, h_pivot, ecc
-
-    def _solve_single_pad_equilibrium_sequential(
-        self, n_p, psi_pad, eccentricity, attitude_angle, tol_T=0.1
-    ):
-        """
-        Solve thermo-hydrodynamic fields for a single pad in equilibrium optimization.
-
-        This method is designed to be called sequentially or in parallel for each pad
-        during equilibrium optimization. It solves the coupled Reynolds and Energy
-        equations until temperature convergence.
-
-        Parameters
-        ----------
-        n_p : int
-            Pad index.
-        psi_pad : ndarray
-            Pad rotation angles [rad] for all pads. Shape: (n_pad,).
-        eccentricity : float
-            Journal eccentricity ratio.
-        attitude_angle : float
-            Journal attitude angle [rad].
-        tol_T : float, optional
-            Temperature convergence tolerance [°C]. Default is 0.1.
-
-        Returns
-        -------
-        dict
-            Dictionary containing computed fields and forces:
-            - 'force_x': X-direction hydrodynamic force [N]
-            - 'force_y': Y-direction hydrodynamic force [N]
-            - 'moment': Moment on pad [N·m]
-            - 'temperature': Final temperature field [°C]
-            - 'pressure': Final pressure field [Pa]
-            - 'n_p': Pad index
-        """
-        T_new = self.temperature_init[:, :, n_p].copy()
-        T_i = 1.1 * T_new
-        max_temp_iterations = 50
-
-        temp_iter = 0
-        while abs((T_new - T_i).max()) >= tol_T and temp_iter < max_temp_iterations:
-            temp_iter += 1
-            T_i = np.array(T_new)
-
-            # Calculate dimensionless viscosity
-            mi_i = self.a_a * np.exp(self.b_b * T_i)  # [Pa.s]
-            mi = mi_i / self.mu_0  # Dimensionless viscosity field
-
-            # Use Reynolds equation solver
-            self._solve_reynolds_equation(
-                mi, n_p, psi_pad, eccentricity, attitude_angle
-            )
-
-            # Calculate pressure gradients (required for energy equation)
-            self._calculate_pressure_gradients()
-
-            # Use Energy equation solver
-            T_new = self._solve_energy_equation(mi, n_p, is_equilibrium=True)
-
-        # Calculate hydrodynamic forces and moments for this pad
-        self._calculate_hydrodynamic_forces(n_p, psi_pad, is_equilibrium=True)
-        self.temperature_init[:, :, n_p] = T_new
-
-        # Return results for this pad
-        return {
-            "n_p": n_p,
-            "force_x": self.force_x_dim[n_p],
-            "force_y": self.force_y_dim[n_p],
-            "moment": self.moment_j_dim[n_p],
-            "temperature": T_new.copy(),
-            "pressure": self.pressure.copy(),
-        }
 
     def _equilibrium_objective(self, x):
         """Objective function for complete equilibrium optimization.
@@ -1514,70 +1380,92 @@ class TiltingPad(BearingElement):
             elif psi_pad[kp] < 1.2 * alpha_min[kp]:
                 psi_pad[kp] = 1.1 * alpha_min[kp]
 
-        tol_T = 0.1  # Celsius degree
-
         # Reset force arrays
         self._reset_force_arrays()
 
-        # Process each pad sequentially
         for n_p in range(self.n_pad):
-            # Solve THD fields for this pad
-            T_new = self.temperature_init[:, :, n_p].copy()
-            T_i = 1.1 * T_new
-            temp_iter = 0
+            mi_i = self.a_a * np.exp(self.b_b * self.temperature_init[:, :, n_p])
+            mi = mi_i / self.mu_0
 
-            while abs((T_new - T_i).max()) >= tol_T and temp_iter < 50:
-                temp_iter += 1
-                T_i = np.array(T_new)
+            T_new, T_pad_surface = self._thermal_coupling_iteration(
+                mi, n_p, psi_pad, eccentricity, attitude_angle
+            )
 
-                # Calculate viscosity
-                mi_i = self.a_a * np.exp(self.b_b * T_i)
-                mi = mi_i / self.mu_0
-
-                # Solve Reynolds equation
-                self._solve_reynolds_equation(
-                    mi, n_p, psi_pad, eccentricity, attitude_angle
-                )
-
-                # Calculate pressure gradients
-                self._calculate_pressure_gradients()
-
-                # Solve energy equation
-                T_new = self._solve_energy_equation(mi, n_p, is_equilibrium=True)
-
-            # Update temperature
-            self.temperature_init[:, :, n_p] = T_new
-
-            # Calculate hydrodynamic forces
             self._calculate_hydrodynamic_forces(n_p, psi_pad, is_equilibrium=False)
 
-        # Calculate equilibrium residuals
         Fhx = np.sum(self.force_x_dim)
         Fhy = np.sum(self.force_y_dim)
 
-        # Raw residuals
         force_x_res = Fhx + self.fxs_load
         force_y_res = Fhy + self.fys_load
         moment_res = self.moment_j_dim
 
-        # Independent normalization - each residual by its own scale
-        Fx_scale = max(abs(self.fxs_load), 1e-6)
-        Fy_scale = max(abs(self.fys_load), 1e-6)
-        M_scale = max(Fx_scale, Fy_scale) * self.pad_radius
-
-        # Build residual vector
         FM = np.zeros(self.n_pad + 2)
-        FM[0] = force_x_res / Fx_scale  # Normalize X by its own load
-        FM[1] = force_y_res / Fy_scale  # Normalize Y by its own load
-        FM[2:] = moment_res / M_scale  # Normalize moments
+        FM[0] = force_x_res
+        FM[1] = force_y_res
+        FM[2:] = moment_res
 
-        # Single scalar objective
         score = np.linalg.norm(FM)
 
         # Record optimization residual
         self.record_optimization_residual(score)
 
         return score
+
+    def _solve_single_pad_equilibrium_sequential(
+        self, n_p, psi_pad, eccentricity, attitude_angle, tol_T=0.1
+    ):
+        """
+        Solve thermo-hydrodynamic fields for a single pad in equilibrium optimization.
+
+        This method is designed to be called sequentially or in parallel for each pad
+        during equilibrium optimization. It solves the coupled Reynolds and Energy
+        equations until temperature convergence.
+
+        Parameters
+        ----------
+        n_p : int
+            Pad index.
+        psi_pad : ndarray
+            Pad rotation angles [rad] for all pads. Shape: (n_pad,).
+        eccentricity : float
+            Journal eccentricity ratio.
+        attitude_angle : float
+            Journal attitude angle [rad].
+        tol_T : float, optional
+            Temperature convergence tolerance [°C]. Default is 0.1.
+
+        Returns
+        -------
+        dict
+            Dictionary containing computed fields and forces:
+            - 'force_x': X-direction hydrodynamic force [N]
+            - 'force_y': Y-direction hydrodynamic force [N]
+            - 'moment': Moment on pad [N·m]
+            - 'temperature': Final temperature field [°C]
+            - 'pressure': Final pressure field [Pa]
+            - 'n_p': Pad index
+        """
+        mi_i = self.a_a * np.exp(self.b_b * self.temperature_init[:, :, n_p])
+        mi = mi_i / self.mu_0
+
+        T_new, T_pad_surface = self._thermal_coupling_iteration(
+            mi, n_p, psi_pad, eccentricity, attitude_angle
+        )
+
+        # Temperature is already updated inside _thermal_coupling_iteration
+        # Calculate hydrodynamic forces and moments for this pad
+        self._calculate_hydrodynamic_forces(n_p, psi_pad, is_equilibrium=True)
+
+        # Return results for this pad
+        return {
+            "n_p": n_p,
+            "force_x": self.force_x_dim[n_p],
+            "force_y": self.force_y_dim[n_p],
+            "moment": self.moment_j_dim[n_p],
+            "temperature": T_new.copy(),
+            "pressure": self.pressure.copy(),
+        }
 
     def get_equilibrium_position(self, x):
         """
@@ -1751,6 +1639,9 @@ class TiltingPad(BearingElement):
 
             # Solve energy equation
             temperature_reference = self._solve_energy_equation(mi, n_p)
+
+            if self.thermal_type == "full":
+                self._calculate_convection_coefficient(n_p)
 
         return temperature_reference
 
@@ -2171,12 +2062,16 @@ class TiltingPad(BearingElement):
             self.pressure, self.nx, self.nz, self.dx, self.dz
         )
 
-    def _solve_energy_equation(self, mi, n_p, is_equilibrium=False):
-        """
-        Solve energy equation for temperature field.
+    def _solve_energy_equation(
+        self, mi, n_p, is_equilibrium=False, T_inlet=None, T_journal=None
+    ):
+        """Solve energy equation for the film temperature field using a sparse matrix solver."""
+        if T_inlet is None:
+            T_inlet = self.oil_supply_temperature
 
-        Uses sparse matrix solver for Reynolds and Energy equations.
-        """
+        if T_journal is None:
+            T_journal = self.oil_supply_temperature
+
         row_idx, col_idx, vals, b_t, mu_turb_updated, reynolds_field, nnz = (
             _assemble_energy_sparse_numba(
                 self.nx,
@@ -2201,6 +2096,8 @@ class TiltingPad(BearingElement):
                 self.pad_radius,
                 self.pad_arc,
                 self.pad_axial_length,
+                T_inlet,
+                T_journal=T_journal,
             )
         )
 
@@ -2757,6 +2654,738 @@ class TiltingPad(BearingElement):
         a = mu_I / np.exp(b * T_muI)
         return a, b
 
+    def _setup_pad_thermal_mesh(self):
+        """
+        Create 2D mesh for thermal analysis of pads.
+
+        Local coordinates:
+        - theta_hat (circumferential): pad local angle
+        - r (radial): from inner surface to back surface
+
+        This method initializes:
+        - Radial mesh points and spacing
+        - Temperature fields for pads (2D and surface)
+        - Convection coefficient arrays
+        """
+        # Radial direction: from R_in (inner surface) to R_back (back surface)
+        self.r_pad = np.linspace(
+            self.pad_radius,  # Inner surface radius
+            self.pad_radius + self.pad_thickness,  # Back surface radius
+            self.nr_pad,
+        )
+        self.dr_pad = self.r_pad[1] - self.r_pad[0]
+
+        # Circumferential direction: reuse film mesh
+        # Already in local coordinates (theta_hat)
+        self.theta_pad = self.xtheta.copy()
+        self.dtheta_pad = self.dtheta
+
+        # Initialize temperature fields
+        # 3D array: [n_pad, ntheta_pad, nr_pad]
+        self.T_pad = np.full(
+            (self.n_pad, self.ntheta_pad, self.nr_pad),
+            self.T_pad_init,
+            dtype=np.float64,
+        )
+
+        # Surface temperature (interface film-pad): [n_pad, nx, nz]
+        self.T_pad_surface = np.full(
+            (self.n_pad, self.nx, self.nz), self.T_pad_init, dtype=np.float64
+        )
+
+        # Convection coefficient film-pad interface: [n_pad, nx, nz]
+        self.h_film_pad = np.zeros((self.n_pad, self.nx, self.nz), dtype=np.float64)
+
+    def _calculate_convection_coefficient(self, n_p):
+        """
+        Calculate interface conductance at film-pad inner surface.
+
+        Uses harmonic-mean conductivity between lubricant and pad material.
+
+        The harmonic mean conductivity at the interface is:
+            k_int = (k_pad * k_lube) / (k_pad + k_lube)
+
+        Since k_pad >> k_lube (steel vs oil), k_int ≈ k_lube, meaning the
+        oil film controls the interface resistance. The equivalent conductance
+        per unit area across half a radial cell (dr/2) is:
+            h_interface = k_int / (dr_pad / 2)
+
+        This replaces the Nusselt-correlation approach, which produced
+        excessively large h values that over-coupled film and pad temperatures.
+
+        Parameters
+        ----------
+        n_p : int
+            Pad index
+
+        Returns
+        -------
+        h_film_pad : ndarray
+            Interface conductance array [nx, nz] in W/(m²·K)
+        """
+        if self.thermal_type != "full":
+            raise RuntimeError(
+                "_calculate_convection_coefficient is only available for thermal_type='full'."
+            )
+
+        k_int = (self.k_pad * self.kt) / (self.k_pad + self.kt)
+        h_int = k_int / (self.dr_pad / 2.0)
+        self.h_film_pad[n_p, :, :] = h_int
+
+        return self.h_film_pad[n_p]
+
+    def _solve_pad_conduction_2D(self, n_p):
+        """
+        Solve 2D steady-state heat conduction equation in pad.
+
+        Equation in cylindrical coordinates:
+        ∂/∂r(k ∂T/∂r) + (k/r²) ∂²T/∂θ² = 0
+
+        Discretization using finite differences on a structured mesh (θ, r).
+
+        Boundary Conditions:
+        - Inner surface (r=R_in): Robin BC with film convection
+        -k_pad * ∂T/∂r = h_film * (T_film - T_pad_surface)
+        - Back surface (r=R_back): Robin BC with sump convection
+        -k_pad * ∂T/∂r = h_back * (T_sump - T_pad_back)
+        - Leading edge (θ=θ_min): Robin BC with ambient convection
+        -k_pad * ∂T/∂θ = h_edge * (T_ambient - T_edge)
+        - Trailing edge (θ=θ_max): Robin BC with ambient convection
+        -k_pad * ∂T/∂θ = h_edge * (T_ambient - T_edge)
+
+        Parameters
+        ----------
+        n_p : int
+            Pad index
+
+        Returns
+        -------
+        T_pad : ndarray
+            Temperature field in pad [°C]. Shape: (ntheta_pad, nr_pad)
+        T_pad_surface : ndarray
+            Temperature at inner surface [°C]. Shape: (ntheta_pad,)
+
+        Notes
+        -----
+        - Uses central differences for interior points
+        - Uses one-sided differences for boundary conditions
+        - Solves linear system A*T = b using sparse matrix solver
+        - Temperature field is averaged axially (2D approximation)
+        """
+
+        # Grid dimensions
+        ntheta = self.ntheta_pad  # Circumferential points
+        nr = self.nr_pad  # Radial points
+        n_nodes = ntheta * nr  # Total number of nodes
+
+        # Grid spacings
+        dr = self.dr_pad
+        dtheta = self.dtheta_pad
+
+        # Thermal properties
+        k_pad = self.k_pad  # Pad thermal conductivity [W/(m·K)]
+
+        # Boundary conditions temperatures
+        T_sump = self.oil_supply_temperature  # Assume sump = supply temp
+        T_ambient = self.oil_supply_temperature  # Ambient oil temperature
+
+        # Convection coefficients
+        h_back = self.h_back  # Back surface [W/(m²·K)]
+        h_edge = self.h_edge  # Side edges [W/(m²·K)]
+
+        # Film temperature at pad-surface layer (ii=0, South BC of film equation)
+        # This is the temperature the pad inner surface actually sees, not the depth average
+        # temperature_init shape: (nz, nx, n_pad) — ii=0 is the pad-side row
+        T_film = self.temperature_init[0, :, n_p]  # Shape: (nx,)
+
+        # Convection coefficient with film (averaged over axial direction)
+        # h_film_pad shape: (n_pad, nx, nz) — average over nz axis to get (nx,)
+        h_film = np.mean(self.h_film_pad[n_p, :, :], axis=1)  # Shape: (nx,)
+
+        # Build sparse matrix using COO format
+        # Estimate max non-zeros: 5 per interior node + boundary nodes
+        max_nnz = 5 * n_nodes
+        row_idx = np.zeros(max_nnz, dtype=np.int32)
+        col_idx = np.zeros(max_nnz, dtype=np.int32)
+        vals = np.zeros(max_nnz)
+        b_vec = np.zeros(n_nodes)
+
+        nnz = 0  # Counter for non-zero entries
+
+        # Node numbering: linear index k = i_theta + i_r * ntheta
+        # where i_theta ∈ [0, ntheta-1], i_r ∈ [0, nr-1]
+
+        for i_r in range(nr):
+            r = self.r_pad[i_r]  # Current radius
+
+            for i_theta in range(ntheta):
+                k = i_theta + i_r * ntheta  # Linear node index
+
+                # ============================================================
+                # INTERIOR POINTS (not on any boundary)
+                # ============================================================
+                if 0 < i_r < nr - 1 and 0 < i_theta < ntheta - 1:
+                    # Central differences for interior points
+                    # Second derivative in r: ∂²T/∂r² ≈ (T[i+1] - 2T[i] + T[i-1])/dr²
+                    # First derivative in r: ∂T/∂r ≈ (T[i+1] - T[i-1])/(2dr)
+                    # Second derivative in θ: ∂²T/∂θ² ≈ (T[j+1] - 2T[j] + T[j-1])/dtheta²
+
+                    # Finite difference equation:
+                    # k_pad * [∂²T/∂r² + (1/r)∂T/∂r + (1/r²)∂²T/∂θ²] = 0
+
+                    # Coefficients for 5-point stencil
+                    # Node indices: center (k), east (+1 in theta), west (-1 in theta),
+                    #               north (+ntheta in r), south (-ntheta in r)
+
+                    coef_center = -2.0 / (dr**2) - 2.0 / (r**2 * dtheta**2)
+                    coef_north = 1.0 / (dr**2) + 1.0 / (2.0 * r * dr)  # i_r + 1
+                    coef_south = 1.0 / (dr**2) - 1.0 / (2.0 * r * dr)  # i_r - 1
+                    coef_east = 1.0 / (r**2 * dtheta**2)  # i_theta + 1
+                    coef_west = 1.0 / (r**2 * dtheta**2)  # i_theta - 1
+
+                    # Multiply by k_pad
+                    coef_center *= k_pad
+                    coef_north *= k_pad
+                    coef_south *= k_pad
+                    coef_east *= k_pad
+                    coef_west *= k_pad
+
+                    # Fill matrix
+                    row_idx[nnz] = k
+                    col_idx[nnz] = k
+                    vals[nnz] = coef_center
+                    nnz += 1
+
+                    row_idx[nnz] = k
+                    col_idx[nnz] = k + ntheta  # North (r+1)
+                    vals[nnz] = coef_north
+                    nnz += 1
+
+                    row_idx[nnz] = k
+                    col_idx[nnz] = k - ntheta  # South (r-1)
+                    vals[nnz] = coef_south
+                    nnz += 1
+
+                    row_idx[nnz] = k
+                    col_idx[nnz] = k + 1  # East (theta+1)
+                    vals[nnz] = coef_east
+                    nnz += 1
+
+                    row_idx[nnz] = k
+                    col_idx[nnz] = k - 1  # West (theta-1)
+                    vals[nnz] = coef_west
+                    nnz += 1
+
+                    b_vec[k] = 0.0  # No source term
+
+                # ============================================================
+                # INNER SURFACE (r = R_in, i_r = 0) - Robin BC with film
+                # ============================================================
+                elif i_r == 0:
+                    # Robin BC: -k_pad * ∂T/∂r = h_film * (T_film - T_pad)
+                    # Forward difference: ∂T/∂r ≈ (T[i+1] - T[i])/dr
+                    # -k_pad * (T[i+1] - T[i])/dr = h_film * (T_film - T[i])
+                    # Rearranging: (k_pad/dr + h_film)*T[i] - k_pad/dr*T[i+1] = h_film*T_film
+
+                    if 0 < i_theta < ntheta - 1:
+                        # Interior points on inner surface (not at edges)
+                        coef_center = k_pad / dr + h_film[i_theta]
+                        coef_north = -k_pad / dr
+
+                        # Also include circumferential diffusion
+                        coef_east = k_pad / (r**2 * dtheta**2)
+                        coef_west = k_pad / (r**2 * dtheta**2)
+                        coef_center -= 2.0 * k_pad / (r**2 * dtheta**2)
+
+                        row_idx[nnz] = k
+                        col_idx[nnz] = k
+                        vals[nnz] = coef_center
+                        nnz += 1
+
+                        row_idx[nnz] = k
+                        col_idx[nnz] = k + ntheta
+                        vals[nnz] = coef_north
+                        nnz += 1
+
+                        row_idx[nnz] = k
+                        col_idx[nnz] = k + 1
+                        vals[nnz] = coef_east
+                        nnz += 1
+
+                        row_idx[nnz] = k
+                        col_idx[nnz] = k - 1
+                        vals[nnz] = coef_west
+                        nnz += 1
+
+                        b_vec[k] = h_film[i_theta] * T_film[i_theta]
+
+                    else:
+                        # Corner nodes (inner surface + edge)
+                        # Simplified: just use film convection
+                        row_idx[nnz] = k
+                        col_idx[nnz] = k
+                        vals[nnz] = k_pad / dr + h_film[i_theta]
+                        nnz += 1
+
+                        row_idx[nnz] = k
+                        col_idx[nnz] = k + ntheta
+                        vals[nnz] = -k_pad / dr
+                        nnz += 1
+
+                        b_vec[k] = h_film[i_theta] * T_film[i_theta]
+
+                # ============================================================
+                # BACK SURFACE (r = R_back, i_r = nr-1) - Robin BC with sump
+                # ============================================================
+                elif i_r == nr - 1:
+                    # Robin BC: -k_pad * ∂T/∂r = h_back * (T_sump - T_pad)
+                    # Backward difference: ∂T/∂r ≈ (T[i] - T[i-1])/dr
+                    # -k_pad * (T[i] - T[i-1])/dr = h_back * (T_sump - T[i])
+                    # Rearranging: (k_pad/dr + h_back)*T[i] - k_pad/dr*T[i-1] = h_back*T_sump
+
+                    if 0 < i_theta < ntheta - 1:
+                        # Interior points on back surface
+                        coef_center = k_pad / dr + h_back
+                        coef_south = -k_pad / dr
+
+                        # Circumferential diffusion
+                        coef_east = k_pad / (r**2 * dtheta**2)
+                        coef_west = k_pad / (r**2 * dtheta**2)
+                        coef_center -= 2.0 * k_pad / (r**2 * dtheta**2)
+
+                        row_idx[nnz] = k
+                        col_idx[nnz] = k
+                        vals[nnz] = coef_center
+                        nnz += 1
+
+                        row_idx[nnz] = k
+                        col_idx[nnz] = k - ntheta
+                        vals[nnz] = coef_south
+                        nnz += 1
+
+                        row_idx[nnz] = k
+                        col_idx[nnz] = k + 1
+                        vals[nnz] = coef_east
+                        nnz += 1
+
+                        row_idx[nnz] = k
+                        col_idx[nnz] = k - 1
+                        vals[nnz] = coef_west
+                        nnz += 1
+
+                        b_vec[k] = h_back * T_sump
+
+                    else:
+                        # Corner nodes (back surface + edge)
+                        row_idx[nnz] = k
+                        col_idx[nnz] = k
+                        vals[nnz] = k_pad / dr + h_back
+                        nnz += 1
+
+                        row_idx[nnz] = k
+                        col_idx[nnz] = k - ntheta
+                        vals[nnz] = -k_pad / dr
+                        nnz += 1
+
+                        b_vec[k] = h_back * T_sump
+
+                # ============================================================
+                # LEADING EDGE (θ = θ_min, i_theta = 0) - Robin BC with ambient
+                # ============================================================
+                elif i_theta == 0 and 0 < i_r < nr - 1:
+                    # Robin BC: -k_pad * ∂T/∂θ = h_edge * (T_ambient - T_pad)
+                    # Forward difference: ∂T/∂θ ≈ (T[j+1] - T[j])/dtheta
+
+                    coef_center = k_pad / (r * dtheta) + h_edge
+                    coef_east = -k_pad / (r * dtheta)
+
+                    # Radial diffusion
+                    coef_north = k_pad / (dr**2) + k_pad / (2.0 * r * dr)
+                    coef_south = k_pad / (dr**2) - k_pad / (2.0 * r * dr)
+                    coef_center -= 2.0 * k_pad / (dr**2)
+
+                    row_idx[nnz] = k
+                    col_idx[nnz] = k
+                    vals[nnz] = coef_center
+                    nnz += 1
+
+                    row_idx[nnz] = k
+                    col_idx[nnz] = k + 1
+                    vals[nnz] = coef_east
+                    nnz += 1
+
+                    row_idx[nnz] = k
+                    col_idx[nnz] = k + ntheta
+                    vals[nnz] = coef_north
+                    nnz += 1
+
+                    row_idx[nnz] = k
+                    col_idx[nnz] = k - ntheta
+                    vals[nnz] = coef_south
+                    nnz += 1
+
+                    b_vec[k] = h_edge * T_ambient
+
+                # ============================================================
+                # TRAILING EDGE (θ = θ_max, i_theta = ntheta-1) - Robin BC
+                # ============================================================
+                elif i_theta == ntheta - 1 and 0 < i_r < nr - 1:
+                    # Robin BC: -k_pad * ∂T/∂θ = h_edge * (T_ambient - T_pad)
+                    # Backward difference: ∂T/∂θ ≈ (T[j] - T[j-1])/dtheta
+
+                    coef_center = k_pad / (r * dtheta) + h_edge
+                    coef_west = -k_pad / (r * dtheta)
+
+                    # Radial diffusion
+                    coef_north = k_pad / (dr**2) + k_pad / (2.0 * r * dr)
+                    coef_south = k_pad / (dr**2) - k_pad / (2.0 * r * dr)
+                    coef_center -= 2.0 * k_pad / (dr**2)
+
+                    row_idx[nnz] = k
+                    col_idx[nnz] = k
+                    vals[nnz] = coef_center
+                    nnz += 1
+
+                    row_idx[nnz] = k
+                    col_idx[nnz] = k - 1
+                    vals[nnz] = coef_west
+                    nnz += 1
+
+                    row_idx[nnz] = k
+                    col_idx[nnz] = k + ntheta
+                    vals[nnz] = coef_north
+                    nnz += 1
+
+                    row_idx[nnz] = k
+                    col_idx[nnz] = k - ntheta
+                    vals[nnz] = coef_south
+                    nnz += 1
+
+                    b_vec[k] = h_edge * T_ambient
+
+        # Build sparse matrix in COO format
+        mat_coo = coo_matrix(
+            (vals[:nnz], (row_idx[:nnz], col_idx[:nnz])), shape=(n_nodes, n_nodes)
+        )
+
+        # Convert to CSR for efficient solving
+        mat_csr = mat_coo.tocsr()
+
+        # Solve linear system
+        T_vec = spsolve(mat_csr, b_vec)
+
+        # Reshape to 2D grid (ntheta, nr)
+        T_pad_2D = T_vec.reshape(nr, ntheta).T  # Shape: (ntheta, nr)
+
+        # Extract surface temperature (inner surface, i_r=0)
+        T_pad_surface_1D = T_pad_2D[:, 0]  # Shape: (ntheta,)
+
+        # Store results
+        self.T_pad[n_p, :, :] = T_pad_2D
+
+        # Expand T_pad_surface to 2D (repeat for all axial positions)
+        # Since we're using 2D approximation (averaged axially)
+        for ii in range(self.nz):
+            self.T_pad_surface[n_p, :, ii] = T_pad_surface_1D
+
+        return T_pad_2D, T_pad_surface_1D
+
+    def _compute_outlet_temperature(self, n_p):
+        """
+        Compute outlet temperature for pad n_p.
+
+        Mean temperature at the trailing edge (jj = nx-1), weighted by film
+        thickness h so regions with more film contribute more.
+        """
+        T_exit_column = self.temperature_init[:, -1, n_p]  # shape (nz,)
+        h_exit_column = self.h[:, -1]  # shape (nz,)
+
+        if h_exit_column.sum() > 0:
+            T_out = np.average(T_exit_column, weights=h_exit_column)
+        else:
+            T_out = float(T_exit_column.mean())
+        return T_out
+
+    def _compute_flow_at_column(self, n_p, jj):
+        """
+        Compute circumferential volumetric flow Q_x at column `jj` of pad n_p.
+
+            Q_x = ∫ U_mean * h dz
+        where U_mean = U_j/2 - (h² / 12µ) * dp/dx  (Couette + Poiseuille)
+
+        Parameters
+        ----------
+        n_p : int
+            Pad index.
+        jj : int
+            Circumferential index (0 = leading edge, nx-1 = trailing edge).
+
+        Returns
+        -------
+        float
+            Volumetric flow [m³/s], always >= 1e-12.
+        """
+        h_dim = self.h * self.radial_clearance  # (nz, nx) [m]
+        mu = self.a_a * np.exp(self.b_b * self.temperature_init[:, :, n_p])
+        mu = np.clip(mu, 1e-6 * self.mu_0, None)  # [Pa·s]
+
+        scale_dp = self.mu_0 * self.speed * self.pad_radius / (self.radial_clearance**2)
+        dp_dx_dim = scale_dp * self.dp_dx  # [Pa/m]
+
+        U_j = self.speed * self.journal_radius  # [m/s]
+        U_mean = 0.5 * U_j - (h_dim**2 / (12.0 * mu)) * dp_dx_dim  # (nz, nx)
+
+        dz_axial = self.pad_axial_length / self.nz
+        Q_x = np.sum(U_mean * h_dim, axis=0) * dz_axial  # shape (nx,)
+
+        return max(float(Q_x[jj]), 1.0e-12)
+
+    def _compute_outlet_flow(self, n_p):
+        """
+        Compute Q_out for pad n_p: flow at the minimum film thickness location.
+        """
+        h_mean_x = self.h.mean(axis=0)
+        jj_hmin = int(np.argmin(h_mean_x))
+        return self._compute_flow_at_column(n_p, jj_hmin)
+
+    def _compute_inlet_flow(self, n_p):
+        """
+        Compute Q_in for pad n_p: flow at the leading edge (column 0).
+
+        Under flooded conditions, Film_Onset = 1, i.e. column 0.
+        """
+        return self._compute_flow_at_column(n_p, 0)
+
+    def _update_carry_over_temperature(self, n_p):
+        """
+        Compute inlet temperature of the next pad via hot-oil carry-over mixing (Temp_Mixing1).
+
+        Mixing rule:
+            Q_CarryOver = hot_oil_carry_over * Q_out(current)
+
+            if Q_CarryOver >= Q_in(next):
+                T_inlet(next) = T_outlet(current)
+            else:
+                T_inlet(next) = (Q_CarryOver * T_outlet(current)
+                                + (Q_in(next) - Q_CarryOver) * T_sump)
+                                / Q_in(next)
+
+        Q_in(next) is taken from the Reynolds solution at the leading edge, not from
+        Q_available = Q_co + Q_supply/n_pad. Q_supply only affects starved/flooded flow
+        accounting, not the thermal mixing.
+        """
+        lam = self.hot_oil_carry_over
+        next_pad = (n_p + 1) % self.n_pad
+
+        Q_out = self.Q_outlet[n_p]
+        Q_co = lam * Q_out
+
+        # Q_in of the next pad: use the stored value from the previous iteration when
+        # available; the outer inlet loop iterates to convergence, so this refines
+        # progressively. On the first iteration Q_in ≈ Q_available.
+        if hasattr(self, "Q_inlet") and self.Q_inlet[next_pad] > 0:
+            Q_in_next = self.Q_inlet[next_pad]
+        else:
+            # Conservative fallback: use trailing edge of the current pad
+            Q_in_next = self._compute_flow_at_column(n_p, self.nx - 1)
+
+        if Q_in_next <= 0:
+            self.T_inlet[next_pad] = self.oil_supply_temperature
+            return
+
+        if Q_co >= Q_in_next:
+            T_mix = self.T_outlet[n_p]
+        else:
+            T_mix = (
+                Q_co * self.T_outlet[n_p]
+                + (Q_in_next - Q_co) * self.oil_supply_temperature
+            ) / Q_in_next
+
+        self.T_inlet[next_pad] = max(T_mix, self.oil_supply_temperature)
+
+    def _thermal_coupling_iteration(
+        self, mi, n_p, psi_pad, eccentricity=None, attitude_angle=None, T_journal=None
+    ):
+        """
+        Perform coupled film-pad thermal iteration until convergence.
+
+        This method iteratively solves:
+        1. Reynolds equation (pressure field)
+        2. Energy equation (film temperature) — with prescribed T_journal on north BC
+        3. Convection coefficients (film-pad interface)
+        4. Pad conduction (pad temperature)
+
+        The iteration continues until the pad surface temperature converges.
+
+        Parameters
+        ----------
+        mi : ndarray
+            Initial dimensionless viscosity field. Shape: (nz, nx).
+        n_p : int
+            Pad index.
+        psi_pad : ndarray
+            Pad rotation angles [rad]. Shape: (n_pad,).
+        eccentricity : float, optional
+            Eccentricity ratio for equilibrium calculation.
+        attitude_angle : float, optional
+            Attitude angle [rad] for equilibrium calculation.
+        T_journal : float, optional
+            Prescribed journal surface temperature [°C].
+            If None, uses oil_supply_temperature (equivalent to previous adiabatic behaviour).
+
+        Returns
+        -------
+        T_film : ndarray
+            Converged film temperature field [°C]. Shape: (nz, nx).
+        T_pad_surface : ndarray
+            Converged pad surface temperature [°C]. Shape: (nx, nz).
+        """
+        if T_journal is None:
+            T_journal = self.oil_supply_temperature
+
+        # Initialize pad surface temperature
+        if not hasattr(self, "T_pad_surface") or self.T_pad_surface is None:
+            T_pad_surface_old = np.full((self.nx, self.nz), self.oil_supply_temperature)
+        else:
+            T_pad_surface_old = self.T_pad_surface[n_p, :, :].copy()
+
+        iter_count = 0
+        converged = False
+        T_diff = np.inf
+
+        if self.thermal_type == "adiabatic":
+            self._solve_reynolds_equation(
+                mi, n_p, psi_pad, eccentricity, attitude_angle
+            )
+            self._calculate_pressure_gradients()
+
+            # T_journal prescribed on north boundary (journal surface)
+            # T_inlet[n_p] prescribed on west boundary (pad inlet)
+            T_film = self._solve_energy_equation(
+                mi,
+                n_p,
+                is_equilibrium=False,
+                T_inlet=self.T_inlet[n_p],
+                T_journal=T_journal,
+            )
+            self.temperature_init[:, :, n_p] = T_film
+            # Keep return signature consistent when pad conduction is disabled.
+            T_pad_surface_out = np.full((self.nx, self.nz), self.oil_supply_temperature)
+
+        else:
+            while not converged and iter_count < self.max_thermal_iter:
+                iter_count += 1
+
+                self._solve_reynolds_equation(
+                    mi, n_p, psi_pad, eccentricity, attitude_angle
+                )
+                self._calculate_pressure_gradients()
+
+                # T_journal prescribed on north boundary (journal surface)
+                # T_inlet[n_p] prescribed on west boundary (pad inlet)
+                T_film = self._solve_energy_equation(
+                    mi,
+                    n_p,
+                    is_equilibrium=False,
+                    T_inlet=self.T_inlet[n_p],
+                    T_journal=T_journal,
+                )
+
+                self.temperature_init[:, :, n_p] = T_film
+
+                self._calculate_convection_coefficient(n_p)
+                T_pad_2D, T_pad_surface_1D = self._solve_pad_conduction_2D(n_p)
+
+                T_pad_surface_new = self.T_pad_surface[n_p, :, :].copy()
+                T_diff = np.abs(T_pad_surface_new - T_pad_surface_old).max()
+
+                if T_diff < self.thermal_tolerance:
+                    converged = True
+                else:
+                    # Relaxation for numerical stability
+                    T_pad_surface_relaxed = (
+                        self.thermal_relax_factor * T_pad_surface_new
+                        + (1.0 - self.thermal_relax_factor) * T_pad_surface_old
+                    )
+                    self.T_pad_surface[n_p, :, :] = T_pad_surface_relaxed
+                    T_pad_surface_old = T_pad_surface_relaxed.copy()
+
+                mi_i = self.a_a * np.exp(self.b_b * T_film)
+                mi = mi_i / self.mu_0
+
+            if not converged:
+                print(
+                    f"    WARNING: Thermal coupling did not converge after "
+                    f"{iter_count} iterations! Final ΔT_max = {T_diff:.4f} °C "
+                    f"(tolerance = {self.thermal_tolerance} °C)"
+                )
+
+        # Store outlet quantities for carry-over mixing with next pad
+        self.T_outlet[n_p] = self._compute_outlet_temperature(n_p)
+        self.Q_outlet[n_p] = self._compute_outlet_flow(n_p)
+        # Store Q_in of this pad so the previous pad can use it as the denominator
+        # when computing the thermal mixing for this pad's inlet.
+        self.Q_inlet[n_p] = self._compute_inlet_flow(n_p)
+
+        self._update_carry_over_temperature(n_p)
+
+        if self.thermal_type == "adiabatic":
+            return T_film, T_pad_surface_out
+
+        return T_film, self.T_pad_surface[n_p, :, :]
+
+    def _solve_pad_conduction_1D(self, n_p):
+        """
+        Solve 1D radial conduction through pad thickness.
+
+        Produces a pad inner surface temperature higher than the film average
+        when the sump temperature is below the film temperature (loaded pads).
+        """
+        R_in = self.pad_radius  # inner surface radius
+        R_back = self.pad_radius + self.pad_thickness  # back surface radius
+        k_pad = self.k_pad
+        T_sump = self.oil_supply_temperature
+
+        # Eq. 9: circumferentially averaged film temperature at each axial slice
+        # temperature_init shape: (nz, nx, n_pad)
+        T_film_avg = self.temperature_init[:, :, n_p].mean(axis=1)  # (nz,)
+
+        # h_in from _calculate_convection_coefficient (average over circumferential)
+        # h_film_pad shape: (n_pad, nx, nz)
+        h_in = self.h_film_pad[n_p, :, :].mean(axis=0)  # (nz,)
+        h_sump = self.h_sump
+
+        # Eq. 14a: coefficient a
+        denom = (
+            k_pad / (R_in * h_in) - np.log(R_back / R_in) - k_pad / (R_back * h_sump)
+        )
+        # Protect against division by zero
+        denom = np.where(np.abs(denom) < 1e-12, 1e-12, denom)
+        a = (T_sump - T_film_avg) / denom  # (nz,) — negative for loaded pads
+
+        # Eq. 14b: coefficient b = T_inner
+        b = T_film_avg - k_pad * a / (R_in * h_in)  # (nz,) — > T_film_avg when a < 0
+
+        T_in = b  # T_bar(R_in)  — Babbitt temp
+        T_back = a * np.log(R_back / R_in) + b  # T_bar(R_back)
+
+        # Broadcast T_in over circumferential direction to fill T_pad_surface
+        # shape: (n_pad, nx, nz)
+        for iz in range(self.nz):
+            self.T_pad_surface[n_p, :, iz] = T_in[iz]
+
+        return T_in, T_back
+
+    def _compute_journal_temperature(self):
+        """Compute the area-weighted mean film temperature across all pads."""
+        total_area = 0.0
+        sum_T_area = 0.0
+        for n_p in range(self.n_pad):
+            area_p = self.pad_arc * self.pad_axial_length
+            sum_T_area += float(self.temperature_init[0, :, n_p].mean()) * area_p
+            total_area += area_p
+        return sum_T_area / total_area
+
     def _check_diagonal(self, matrix, residual=1e-10):
         """Check matrix diagonal for zero elements and replace them with a small residual value.
 
@@ -2778,6 +3407,672 @@ class TiltingPad(BearingElement):
         if np.any(zero_diag):
             matrix[diag_indices[0][zero_diag], diag_indices[1][zero_diag]] = residual
         return matrix
+
+    def plot_pressure_distribution(self, fig=None, **kwargs):
+        """Plot pressure distribution for the tilting pad bearing.
+
+        Parameters
+        ----------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        kwargs : optional
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+
+        Returns
+        -------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        """
+        if fig is None:
+            fig = go.Figure()
+
+        XH, YH = np.meshgrid(self.xtheta, self.xz)
+
+        # Surface plot for pressure
+        fig.add_trace(
+            go.Surface(
+                x=XH,
+                y=YH,
+                z=1e-6 * self.pressure_dim[:, :, self.pad_in],
+                colorscale="Viridis",
+                name="Pressure field",
+                showscale=True,
+            )
+        )
+
+        fig.update_layout(
+            title=dict(text="Pressure Distribution", font=dict(size=24)),
+            scene=dict(
+                xaxis_title=dict(text="X direction [rad]", font=dict(size=14)),
+                yaxis_title=dict(text="Y direction [-]", font=dict(size=14)),
+                zaxis_title=dict(text="Pressure [MPa]", font=dict(size=14)),
+            ),
+            plot_bgcolor="white",
+            paper_bgcolor="white",
+            **kwargs,
+        )
+
+        return fig
+
+    def plot_temperature_distribution(self, fig=None, **kwargs):
+        """Plot temperature distribution for the tilting pad bearing.
+
+        Parameters
+        ----------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        kwargs : optional
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+
+        Returns
+        -------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        """
+        if fig is None:
+            fig = go.Figure()
+
+        XH, YH = np.meshgrid(self.xtheta, self.xz)
+
+        # Contour plot for temperature
+        fig.add_trace(
+            go.Contour(
+                x=XH[0],
+                y=YH[:, 0],
+                z=self.temperature_init[:, :, self.pad_in],
+                colorscale="Viridis",
+                name="Temperature field",
+                showscale=True,
+                colorbar=dict(title="Temperature [°C]"),
+            )
+        )
+
+        fig.update_layout(
+            title=dict(text="Temperature Distribution", font=dict(size=24)),
+            xaxis=dict(
+                title=dict(text="X direction [rad]", font=dict(size=14)),
+                showgrid=True,
+                gridwidth=1,
+                gridcolor=tableau_colors["gray"],
+            ),
+            yaxis=dict(
+                title=dict(text="Z direction [-]", font=dict(size=14)),
+                showgrid=True,
+                gridwidth=1,
+                gridcolor=tableau_colors["gray"],
+            ),
+            plot_bgcolor="white",
+            paper_bgcolor="white",
+            **kwargs,
+        )
+
+        return fig
+
+    def plot_pad_results(self, fig=None, **kwargs):
+        """Plot pad results including forces and moments.
+
+        Parameters
+        ----------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        kwargs : optional
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+
+        Returns
+        -------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        """
+        if fig is None:
+            fig = go.Figure()
+
+        for i in range(self.n_pad):
+            fig.add_trace(
+                go.Scatter(
+                    x=self.xtheta,
+                    y=self.pressure_dim[:, i],
+                    name=f"Pad {i + 1}",
+                    line=dict(
+                        color=tableau_colors[
+                            list(tableau_colors.keys())[i % len(tableau_colors)]
+                        ]
+                    ),
+                )
+            )
+
+        fig.update_layout(
+            title=dict(text="Pad Results", font=dict(size=24)),
+            xaxis=dict(
+                title=dict(text="Angle [rad]", font=dict(size=14)),
+                showgrid=True,
+                gridwidth=1,
+                gridcolor=tableau_colors["gray"],
+            ),
+            yaxis=dict(
+                title=dict(text="Pressure [Pa]", font=dict(size=14)),
+                showgrid=True,
+                gridwidth=1,
+                gridcolor=tableau_colors["gray"],
+            ),
+            plot_bgcolor="white",
+            paper_bgcolor="white",
+            showlegend=True,
+            **kwargs,
+        )
+
+        return fig
+
+    def plot_results(self, show_plots=False, freq_index=0):
+        """
+        Plot pressure and temperature field results for tilting pad bearing analysis.
+
+        This method generates comprehensive visualization plots for the calculated
+        pressure and temperature fields at a specific frequency. It creates scatter
+        plots and contour plots for pressure and temperature distributions across
+        all pads.
+
+        Parameters
+        ----------
+        show_plots : bool, optional
+            Whether to automatically display the plots. If True, attempts to show
+            all plots using the default display method. If False, returns figure
+            objects for manual display. Default is False.
+        freq_index : int, optional
+            Index of the frequency to plot results for. Must be within the range
+            of calculated frequencies. Default is 0 (first frequency).
+
+        Returns
+        -------
+        dict
+            Dictionary containing four Plotly figure objects:
+            - 'pressure_scatter': Scatter plot of pressure distribution
+            - 'temperature_scatter': Scatter plot of temperature distribution
+            - 'pressure_2D': 2D contour plot of pressure field
+            - 'temperature_2D': 2D contour plot of temperature field
+
+        Notes
+        -----
+        The method creates visualizations for all pads showing the pressure and
+        temperature distributions in both scatter and contour formats for the
+        selected frequency.
+        """
+        # Get fields for the selected frequency
+        pressure_field = self.pressure_fields[freq_index]
+        temperature_field = self.temperature_fields[freq_index]
+
+        d_axial = self.pad_axial_length / self.nz
+        axial = np.arange(0, self.pad_axial_length + d_axial, d_axial)
+        axial = axial[1:] - np.diff(axial) / 2
+
+        ang = []
+
+        for k in range(self.n_pad):
+            ang1 = (self.xtheta + self.pivot_angle[k]) * 180 / np.pi
+            ang.append(ang1)
+
+        fig_SP = self.plot_scatter(
+            x_data=ang, y_data=pressure_field, pos=15, y_title="Pressure (Pa)"
+        )
+
+        fig_ST = self.plot_scatter(
+            x_data=ang, y_data=temperature_field, pos=15, y_title="Temperature (ºC)"
+        )
+
+        fig_CP = self.plot_contourP(
+            x_data=ang, y_data=axial, z_data=pressure_field, z_title="Pressure (Pa)"
+        )
+
+        fig_CT = self.plot_contourT(
+            x_data=ang,
+            y_data=axial,
+            z_data=temperature_field,
+            z_title="Temperature (ºC)",
+        )
+
+        figures = {
+            "pressure_scatter": fig_SP,
+            "temperature_scatter": fig_ST,
+            "pressure_2D": fig_CP,
+            "temperature_2D": fig_CT,
+        }
+
+        if show_plots:
+            try:
+                for fig in figures.values():
+                    fig.show()
+            except Exception as e:
+                print(f"Warning: Could not display plots automatically. Error: {e}")
+                print("The figure objects are still available for manual display.")
+
+        return figures
+
+    def plot_scatter(self, x_data, y_data, pos, y_title):
+        """This method plots a scatter(x,y) graph.
+
+        Parameters
+        ----------
+        x_data : float
+            X axis data.
+        y_data : float
+            Y axis data.
+        pos : float
+            Probe position.
+        y_title : str
+            Name of the Y axis
+
+        Returns
+        -------
+        fig : object
+            Scatter figure.
+        """
+
+        fig = go.Figure()
+        for i in range(self.n_pad):
+            fig.add_trace(
+                go.Scatter(
+                    x=x_data[i],
+                    y=y_data[pos][:, i],
+                    name=f"Pad {i + 1}",
+                )
+            )
+        fig.update_layout(
+            xaxis_range=[
+                np.array(x_data).min() * 1.1,
+                360 - abs(np.array(x_data).min()),
+            ]
+        )
+        fig.update_layout(plot_bgcolor="white")
+        fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor="LightGray")
+        fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor="LightGray")
+        fig.update_xaxes(
+            tickfont=dict(size=22),
+            title=dict(text="Angle (º)", font=dict(family="Times New Roman", size=30)),
+        )
+        fig.update_yaxes(
+            tickfont=dict(size=22),
+            title=dict(text=y_title, font=dict(family="Times New Roman", size=30)),
+        )
+        fig.update_layout(
+            legend=dict(font=dict(family="Times New Roman", size=22, color="black"))
+        )
+        return fig
+
+    def plot_contourP(self, x_data, y_data, z_data, z_title):
+        """This method plots a contour(x,y,z) graph.
+
+        Parameters
+        ----------
+        x_data : float
+            X axis data.
+        y_data : float
+            Y axis data.
+        z_data : float
+            Z axis data.
+        z_title : str
+            Name of the z axis
+
+        Returns
+        -------
+        fig : object
+            Contour figure.
+        """
+
+        fig = go.Figure()
+        max_val = z_data.max()
+        for l in range(self.n_pad):
+            fig.add_trace(
+                go.Contour(
+                    z=z_data[:, :, l],
+                    x=x_data[l],
+                    y=y_data,
+                    zmin=0,
+                    zmax=max_val,
+                    ncontours=15,
+                    colorscale="Viridis",
+                    colorbar=dict(
+                        title=z_title,
+                        tickfont=dict(size=22),
+                    ),
+                )
+            )
+        fig.update_traces(
+            contours_coloring="fill",
+            contours_showlabels=True,
+            contours_labelfont=dict(size=20),
+        )
+        fig.update_layout(
+            xaxis_range=[
+                np.array(x_data).min() * 1.1,
+                360 - abs(np.array(x_data).min()),
+            ]
+        )
+        fig.update_xaxes(
+            tickfont=dict(size=22),
+            title=dict(text="Angle (º)", font=dict(family="Times New Roman", size=30)),
+        )
+        fig.update_yaxes(
+            tickfont=dict(size=22),
+            title=dict(
+                text="Pad Length (m)", font=dict(family="Times New Roman", size=30)
+            ),
+        )
+        fig.update_layout(plot_bgcolor="white")
+        return fig
+
+    def plot_contourT(self, x_data, y_data, z_data, z_title):
+        """This method plots a contour(x,y,z) graph.
+
+        Parameters
+        ----------
+        x_data : float
+            X axis data.
+        y_data : float
+            Y axis data.
+        z_data : float
+            Z axis data.
+        z_title : str
+            Name of the z axis
+
+        Returns
+        -------
+        fig : object
+            Contour figure.
+        """
+
+        fig = go.Figure()
+        max_val = z_data.max()
+        for l in range(self.n_pad):
+            fig.add_trace(
+                go.Contour(
+                    z=z_data[:, :, l],
+                    x=x_data[l],
+                    y=y_data,
+                    zmin=40,
+                    zmax=max_val,
+                    ncontours=25,
+                    colorscale="Viridis",
+                    colorbar=dict(
+                        title=z_title,
+                        tickfont=dict(size=22),
+                    ),
+                )
+            )
+        fig.update_traces(
+            contours_coloring="fill",
+            contours_showlabels=True,
+            contours_labelfont=dict(size=20),
+        )
+        fig.update_layout(
+            xaxis_range=[
+                np.array(x_data).min() * 1.1,
+                360 - abs(np.array(x_data).min()),
+            ]
+        )
+        fig.update_xaxes(
+            tickfont=dict(size=22),
+            title=dict(text="Angle (º)", font=dict(family="Times New Roman", size=30)),
+        )
+        fig.update_yaxes(
+            tickfont=dict(size=22),
+            title=dict(
+                text="Pad Length (m)", font=dict(family="Times New Roman", size=30)
+            ),
+        )
+        fig.update_layout(plot_bgcolor="white")
+        return fig
+
+    def show_results(self):
+        """Display tilting pad bearing calculation results in a formatted table.
+
+        This method prints the main results from the tilting pad bearing analysis
+        using PrettyTable, including operating conditions, field results,
+        load information, and dynamic coefficients for each frequency.
+
+        Parameters
+        ----------
+        None
+            This method uses the bearing parameters and results stored as
+            instance attributes.
+
+        Returns
+        -------
+        None
+            Results are printed to the console in a formatted table.
+        """
+
+        if self.frequency.size == 1:
+            self._print_single_frequency_results(0)
+        else:
+            for i in range(self.frequency.size):
+                self._print_single_frequency_results(i)
+
+    def _print_single_frequency_results(self, freq_index):
+        """Print results for a single frequency."""
+
+        freq = self.frequency[freq_index]
+
+        # Define a fixed width for all columns
+        column_width = 20
+
+        table = PrettyTable()
+        table.field_names = ["Parameter", "Value", "Unit"]
+
+        for field in table.field_names:
+            table.max_width[field] = column_width
+            table.min_width[field] = column_width
+
+        # Set column alignment
+        table.align["Parameter"] = "l"
+        table.align["Value"] = "r"
+        table.align["Unit"] = "c"
+
+        # Operating conditions
+        table.add_row(["Operating Speed", f"{freq * 30 / np.pi:12.1f}", "RPM"])
+        table.add_row(["Equilibrium Type", f"{self.equilibrium_type:>12}", "-"])
+        table.add_row(["Number of Pads", f"{self.n_pad:12d}", "-"])
+
+        # Field results
+        table.add_row(["Maximum Pressure", f"{self.maxP_list[freq_index]:12.4e}", "Pa"])
+        table.add_row(
+            [
+                "Maximum Temperature",
+                f"{self.maxT_list[freq_index]:12.2f}",
+                "°C",
+            ]
+        )
+        table.add_row(
+            ["Minimum Film Thickness", f"{self.minH_list[freq_index]:12.4e}", "m"]
+        )
+
+        # Equilibrium results
+        table.add_row(["Eccentricity", f"{self.ecc_list[freq_index]:12.4f}", "-"])
+        table.add_row(
+            [
+                "Attitude Angle",
+                f"{np.degrees(self.attitude_angle_list[freq_index]):12.2f}",
+                "°",
+            ]
+        )
+
+        # Load information
+        table.add_row(
+            ["Total Force X", f"{self.force_x_total_list[freq_index]:12.4e}", "N"]
+        )
+        table.add_row(
+            ["Total Force Y", f"{self.force_y_total_list[freq_index]:12.4e}", "N"]
+        )
+
+        # Stiffness coefficients
+        table.add_row(["kxx (Stiffness)", f"{self.kxx[freq_index]:12.4e}", "N/m"])
+        table.add_row(["kxy (Stiffness)", f"{self.kxy[freq_index]:12.4e}", "N/m"])
+        table.add_row(["kyx (Stiffness)", f"{self.kyx[freq_index]:12.4e}", "N/m"])
+        table.add_row(["kyy (Stiffness)", f"{self.kyy[freq_index]:12.4e}", "N/m"])
+
+        # Damping coefficients
+        table.add_row(["cxx (Damping)", f"{self.cxx[freq_index]:12.4e}", "N*s/m"])
+        table.add_row(["cxy (Damping)", f"{self.cxy[freq_index]:12.4e}", "N*s/m"])
+        table.add_row(["cyx (Damping)", f"{self.cyx[freq_index]:12.4e}", "N*s/m"])
+        table.add_row(["cyy (Damping)", f"{self.cyy[freq_index]:12.4e}", "N*s/m"])
+
+        pad_table = PrettyTable()
+        pad_table.align["Pad #"] = "c"
+
+        # Check if moment data is available (match_eccentricity mode)
+        if (
+            self.momen_rot_list[freq_index] is not None
+            and self.equilibrium_type == "match_eccentricity"
+        ):
+            pad_table.field_names = [
+                "Pad #",
+                "Moment [N·m]",
+                "Angle [rad]",
+                "Angle [°]",
+            ]
+            pad_table.align["Moment [N·m]"] = "r"
+            pad_table.align["Angle [rad]"] = "r"
+            pad_table.align["Angle [°]"] = "r"
+
+            for i in range(self.n_pad):
+                pad_table.add_row(
+                    [
+                        i + 1,
+                        f"{self.momen_rot_list[freq_index][i]:12.4e}",
+                        f"{self.psi_pad_list[freq_index][i]:12.4e}",
+                        f"{np.degrees(self.psi_pad_list[freq_index][i]):12.4e}",
+                    ]
+                )
+        else:
+            # determine_eccentricity mode
+            pad_table.field_names = ["Pad #", "Angle [rad]", "Angle [°]"]
+            pad_table.align["Angle [rad]"] = "r"
+            pad_table.align["Angle [°]"] = "r"
+
+            for i in range(self.n_pad):
+                pad_table.add_row(
+                    [
+                        i + 1,
+                        f"{self.psi_pad_list[freq_index][i]:12.4e}",
+                        f"{np.degrees(self.psi_pad_list[freq_index][i]):12.4e}",
+                    ]
+                )
+
+        column_width = 14
+        for field in pad_table.field_names:
+            pad_table.max_width[field] = column_width
+            pad_table.min_width[field] = column_width
+
+        table_str = table.get_string()
+        final_width = len(table_str.split("\n")[0])
+
+        print("\n" + "=" * final_width)
+        print(
+            f"TILTING PAD BEARING RESULTS - {freq * 30 / np.pi:.1f} RPM".center(
+                final_width
+            )
+        )
+        print("=" * final_width)
+        print(table)
+
+        # Print pad rotation angles
+        print("\n" + "-" * final_width)
+        print("PAD ROTATION ANGLES".center(final_width))
+        print("-" * final_width)
+        print(pad_table)
+        print("=" * final_width)
+
+    def show_execution_time(self):
+        """Display the simulation execution time.
+
+        This method calculates and displays the total time spent during the
+        complete bearing analysis execution, including all frequency calculations.
+
+        Parameters
+        ----------
+        None
+            This method uses the initial_time and final_time attributes
+            stored during the simulation execution.
+
+        Returns
+        -------
+        float
+            Total simulation time in seconds. Returns None if simulation
+            hasn't been executed yet.
+        """
+        if hasattr(self, "initial_time") and hasattr(self, "final_time"):
+            total_time = self.final_time - self.initial_time
+            print(f"Execution time: {total_time:.2f} seconds")
+        else:
+            print("Simulation hasn't been executed yet.")
+
+    def show_coefficients_comparison(self):
+        """Display dynamic coefficients comparison table.
+
+        This method creates and displays a formatted table comparing dynamic
+        coefficients (stiffness and damping) across different frequencies.
+
+        Parameters
+        ----------
+        None
+            This method uses the frequency array and coefficients stored as
+            instance attributes.
+
+        Returns
+        -------
+        None
+            Results are printed to the console in a formatted table.
+        """
+
+        freq_rpm = np.atleast_1d(self.frequency).astype(float) * 30.0 / np.pi
+
+        table = PrettyTable()
+        headers = [
+            "Frequency [RPM]",
+            "kxx [N/m]",
+            "kxy [N/m]",
+            "kyx [N/m]",
+            "kyy [N/m]",
+            "cxx [N*s/m]",
+            "cxy [N*s/m]",
+            "cyx [N*s/m]",
+            "cyy [N*s/m]",
+        ]
+        table.field_names = headers
+
+        for i in range(len(freq_rpm)):
+            row = [
+                f"{freq_rpm[i]:.1f}",
+                f"{self.kxx[i]:.4e}",
+                f"{self.kxy[i]:.4e}",
+                f"{self.kyx[i]:.4e}",
+                f"{self.kyy[i]:.4e}",
+                f"{self.cxx[i]:.4e}",
+                f"{self.cxy[i]:.4e}",
+                f"{self.cyx[i]:.4e}",
+                f"{self.cyy[i]:.4e}",
+            ]
+            table.add_row(row)
+
+        # Table width
+        desired_width = 25
+
+        table.max_width = desired_width
+        table.min_width = desired_width
+
+        table_str = table.get_string()
+        table_lines = table_str.split("\n")
+        actual_width = len(table_lines[0])
+
+        print("\n" + "=" * actual_width)
+        print("DYNAMIC COEFFICIENTS COMPARISON TABLE".center(actual_width))
+        print("=" * actual_width)
+        print(table)
+        print("=" * actual_width)
 
     def record_optimization_residual(
         self, residual_value: float, iteration: int | None = None
@@ -2816,64 +4111,532 @@ class TiltingPad(BearingElement):
                 )
             self.optimization_history[idx][iteration] = residual_value
 
+    def show_optimization_convergence(
+        self, by: str = "index", show_plots: bool = False
+    ) -> None:
+        """
+        Display the optimization residuals per iteration for each processed frequency.
+
+        Parameters
+        ----------
+        by : str
+            'index' -> show frequencies by their index (default)
+            'value' -> show frequencies by their value (as stored in self.frequency)
+        show_plots : bool
+            Whether to show the convergence plot. Default is False.
+
+        Notes
+        -----
+        Requires 'self.optimization_history' to be populated during the solve.
+        """
+        if not hasattr(self, "optimization_history") or not self.optimization_history:
+            print("No residual history available. Run the analysis first.")
+            return
+
+        for i, res_list in self.optimization_history.items():
+            if not res_list:
+                continue
+
+            freq = self.frequency[i]
+            rpm = freq * 30 / np.pi
+
+            # Check equilibrium type
+            if self.equilibrium_type == "match_eccentricity":
+                # Separate residuals by pad
+                n_pads = self.n_pad
+
+                # Split residuals by pad (estimate iterations per pad)
+                total_iters = len(res_list)
+                approx_iters_per_pad = total_iters // n_pads
+
+                # Create table
+                table = PrettyTable()
+                table.field_names = ["Pad", "Iterations", "Final Residual [N]"]
+
+                pad_residuals = []
+                for pad_idx in range(n_pads):
+                    start_idx = pad_idx * approx_iters_per_pad
+                    end_idx = (
+                        (pad_idx + 1) * approx_iters_per_pad
+                        if pad_idx < n_pads - 1
+                        else total_iters
+                    )
+                    pad_res = [r for r in res_list[start_idx:end_idx] if r is not None]
+
+                    if pad_res:
+                        final_res = pad_res[-1]
+                        table.add_row([pad_idx + 1, len(pad_res), f"{final_res:.6f}"])
+                        pad_residuals.append((pad_idx + 1, pad_res))
+
+                desired_width = 25
+                table.max_width = desired_width
+                table.min_width = desired_width
+
+                table_str = table.get_string()
+                table_lines = table_str.split("\n")
+                actual_width = len(table_lines[0])
+
+                print("\n" + "=" * actual_width)
+                print(f"OPTIMIZATION CONVERGENCE - {rpm:.1f} RPM".center(actual_width))
+                print("=" * actual_width)
+                print(table)
+                print("=" * actual_width)
+
+                # Display plot if requested - one subplot per pad
+                if show_plots:
+                    n_rows = (n_pads + 1) // 2  # 2 columns
+                    fig = make_subplots(
+                        rows=n_rows,
+                        cols=2,
+                        subplot_titles=[f"Pad {p[0]}" for p in pad_residuals],
+                    )
+
+                    for idx, (pad_num, pad_res) in enumerate(pad_residuals):
+                        row = (idx // 2) + 1
+                        col = (idx % 2) + 1
+
+                        fig.add_trace(
+                            go.Scatter(
+                                x=list(range(len(pad_res))),
+                                y=pad_res,
+                                mode="lines+markers",
+                                name=f"Pad {pad_num}",
+                                line=dict(width=2),
+                                marker=dict(size=4),
+                            ),
+                            row=row,
+                            col=col,
+                        )
+
+                        fig.update_xaxes(title_text="Iteration", row=row, col=col)
+                        fig.update_yaxes(title_text="Residual [N]", row=row, col=col)
+
+                    fig.update_layout(
+                        title=f"Optimization Convergence by Pad - {rpm:.1f} RPM",
+                        template="ross",
+                        showlegend=False,
+                        height=300 * n_rows,
+                    )
+                    fig.show()
+
+            else:  # determine_eccentricity - single global optimization
+                table = PrettyTable()
+                table.field_names = ["Iteration", "Residual [N]"]
+
+                for it, res in enumerate(res_list):
+                    if res is not None:
+                        table.add_row([it, f"{res:.6f}"])
+
+                desired_width = 25
+                table.max_width = desired_width
+                table.min_width = desired_width
+
+                table_str = table.get_string()
+                table_lines = table_str.split("\n")
+                actual_width = len(table_lines[0])
+
+                print("\n" + "=" * actual_width)
+                print(f"OPTIMIZATION CONVERGENCE - {rpm:.1f} RPM".center(actual_width))
+                print("=" * actual_width)
+                print(table)
+                print("=" * actual_width)
+
+                # Display plot if requested
+                if show_plots:
+                    iterations = list(range(len(res_list)))
+                    residuals = [res if res is not None else 0 for res in res_list]
+
+                    fig = go.Figure()
+                    fig.add_trace(
+                        go.Scatter(
+                            x=iterations,
+                            y=residuals,
+                            mode="lines+markers",
+                            name=f"Convergence - {rpm:.1f} RPM",
+                            line=dict(width=2),
+                            marker=dict(size=6),
+                        )
+                    )
+                    fig.update_layout(
+                        title=f"Global Optimization Convergence - {rpm:.1f} RPM",
+                        xaxis_title="Iteration",
+                        yaxis_title="Residual [N]",
+                        template="ross",
+                    )
+                    fig.show()
+
+    def _get_selected_pad_indices(self, pad_index=None):
+        """Return validated pad indices for plotting helpers."""
+        pads_to_plot = list(range(self.n_pad))
+        if pad_index is not None:
+            pads_to_plot = np.atleast_1d(pad_index).tolist()
+            if not all(0 <= p < self.n_pad for p in pads_to_plot):
+                raise ValueError(f"pad_index must be in [0, {self.n_pad - 1}].")
+        return pads_to_plot
+
+    def plot_film_temperature_results(
+        self,
+        freq_index: int = 0,
+        pad_index=None,
+        **kwargs,
+    ):
+        """Plot 2D film temperature contours for the selected pads.
+
+        Each selected pad is plotted in its own figure using local pad angle on the
+        X axis and axial position on the Y axis.
+
+        Parameters
+        ----------
+        freq_index : int
+            Index into ``self.temperature_fields``. Default is 0.
+        pad_index : int or list[int] or None, optional
+            Pad index (0-based) or list of indices to plot. If None, plot all pads.
+        kwargs : optional
+            Extra layout options passed to each figure.
+
+        Returns
+        -------
+        go.Figure or list[go.Figure]
+            One figure when a single pad is selected, otherwise a list with one
+            figure per selected pad.
+        """
+        if not self.temperature_fields:
+            raise ValueError(
+                "Temperature fields not available. "
+                "Run the bearing solution with thermal coupling first."
+            )
+
+        pads_to_plot = self._get_selected_pad_indices(pad_index)
+        t_field = self.temperature_fields[freq_index]  # (nz, nx, n_pad)
+        max_val = t_field[:, :, pads_to_plot].max()
+
+        theta_deg = np.linspace(0.0, np.degrees(self.pad_arc), self.nx)
+        z_m = np.linspace(
+            self.z1 * self.pad_axial_length,
+            self.z2 * self.pad_axial_length,
+            self.nz,
+        )
+
+        figs = []
+        for i in pads_to_plot:
+            fig = go.Figure()
+            fig.add_trace(
+                go.Contour(
+                    x=theta_deg,
+                    y=z_m,
+                    z=t_field[:, :, i],
+                    zmin=self.oil_supply_temperature,
+                    zmax=max_val,
+                    ncontours=25,
+                    colorscale="Viridis",
+                    colorbar=dict(
+                        title="T [°C]",
+                        tickfont=dict(size=22),
+                    ),
+                )
+            )
+            fig.update_traces(
+                contours_coloring="fill",
+                contours_showlabels=True,
+                contours_labelfont=dict(size=20),
+            )
+            fig.update_xaxes(
+                tickfont=dict(size=22),
+                title=dict(
+                    text="θ (pad local) [deg]",
+                    font=dict(family="Times New Roman", size=30),
+                ),
+            )
+            fig.update_yaxes(
+                tickfont=dict(size=22),
+                title=dict(
+                    text="Pad length [m]",
+                    font=dict(family="Times New Roman", size=30),
+                ),
+            )
+            fig.update_layout(
+                title=dict(text=f"Pad {i + 1} — film temperature", font=dict(size=20)),
+                plot_bgcolor="white",
+                **kwargs,
+            )
+            figs.append(fig)
+
+        if len(figs) == 1:
+            return figs[0]
+
+        return figs
+
+    def plot_thermal_pad_results(self, freq_index: int = 0, pad_index=None, **kwargs):
+        """Backward-compatible alias for ``plot_film_temperature_results()``."""
+        return self.plot_film_temperature_results(
+            freq_index=freq_index,
+            pad_index=pad_index,
+            **kwargs,
+        )
+
+    def plot_solid_pad_results(self, pad_index=None, **kwargs):
+        """Plot 2D solid pad temperature contours for the selected pads.
+
+        Each selected pad is plotted in its own figure using local pad angle on the
+        X axis and pad depth on the Y axis.
+
+        Parameters
+        ----------
+        pad_index : int or list[int] or None, optional
+            Pad index (0-based) or list of indices to plot. If None, plot all pads.
+        kwargs : optional
+            Extra layout options passed to each figure.
+
+        Returns
+        -------
+        go.Figure or list[go.Figure]
+            One figure when a single pad is selected, otherwise a list with one
+            figure per selected pad.
+        """
+        if not hasattr(self, "T_pad") or self.T_pad is None:
+            raise ValueError(
+                "Pad solid temperatures (T_pad) not available. "
+                "Run the bearing solution with thermal coupling first."
+            )
+
+        pads_to_plot = self._get_selected_pad_indices(pad_index)
+        max_val = self.T_pad[pads_to_plot, :, :].max()
+        min_val = self.T_pad[pads_to_plot, :, :].min()
+
+        theta_deg = np.linspace(0.0, np.degrees(self.pad_arc), self.ntheta_pad)
+        depth_mm = (self.r_pad - self.pad_radius) * 1e3
+
+        figs = []
+        for i in pads_to_plot:
+            fig = go.Figure()
+            fig.add_trace(
+                go.Contour(
+                    x=theta_deg,
+                    y=depth_mm,
+                    z=self.T_pad[i, :, :].T,
+                    zmin=min_val,
+                    zmax=max_val,
+                    ncontours=25,
+                    colorscale="Viridis",
+                    colorbar=dict(
+                        title="T [°C]",
+                        tickfont=dict(size=22),
+                    ),
+                )
+            )
+            fig.update_traces(
+                contours_coloring="fill",
+                contours_showlabels=True,
+                contours_labelfont=dict(size=20),
+            )
+            fig.update_xaxes(
+                tickfont=dict(size=22),
+                title=dict(
+                    text="θ (pad local) [deg]",
+                    font=dict(family="Times New Roman", size=30),
+                ),
+            )
+            fig.update_yaxes(
+                tickfont=dict(size=22),
+                title=dict(
+                    text="Pad depth [mm]",
+                    font=dict(family="Times New Roman", size=30),
+                ),
+                autorange="reversed",
+            )
+            fig.update_layout(
+                title=dict(text=f"Pad {i + 1} — solid temperature", font=dict(size=20)),
+                plot_bgcolor="white",
+                **kwargs,
+            )
+            figs.append(fig)
+
+        if len(figs) == 1:
+            return figs[0]
+
+        return figs
+
+    def plot_film_average_temperature(
+        self, freq_index: int = 0, fig=None, print_data: bool = False, **kwargs
+    ):
+        """Plot film average temperature vs local pad angle for each pad."""
+
+        if fig is None:
+            fig = go.Figure()
+
+        # Temperature field for selected frequency index: shape (nz, nx, n_pad)
+        temperature_field = self.temperature_fields[freq_index]
+
+        # Axial average → shape (nx, n_pad)
+        T_avg = temperature_field.mean(axis=0)
+
+        # Local pad angle in degrees (0 → pad_arc)
+        theta_local_deg = np.linspace(0.0, np.degrees(self.pad_arc), self.nx)
+
+        if print_data:
+            print("\nFilm average temperature data:")
+            print(f"  Frequency index: {freq_index}")
+            for i in range(self.n_pad):
+                print(f"  Pad {i + 1}:")
+                for theta, temp in zip(theta_local_deg, T_avg[:, i]):
+                    print(f"    theta_deg = {theta:8.3f}, T_C = {temp:8.3f}")
+            print()
+
+        for i in range(self.n_pad):
+            color = tableau_colors[list(tableau_colors.keys())[i % len(tableau_colors)]]
+            fig.add_trace(
+                go.Scatter(
+                    x=theta_local_deg,
+                    y=T_avg[:, i],
+                    mode="lines+markers",
+                    name=f"Pad {i + 1}",
+                    line=dict(color=color),
+                    marker=dict(color=color),
+                )
+            )
+
+        fig.update_layout(
+            title=dict(
+                text="Tilting Pad Bearing Results<br>Film Average Temperature",
+                font=dict(size=24),
+            ),
+            xaxis=dict(
+                title=r"θ (pad local) [deg]",
+                showgrid=True,
+                gridwidth=1,
+                gridcolor=tableau_colors["gray"],
+            ),
+            yaxis=dict(
+                title="T [°C]",
+                showgrid=True,
+                gridwidth=1,
+                gridcolor=tableau_colors["gray"],
+            ),
+            plot_bgcolor="white",
+            paper_bgcolor="white",
+            **kwargs,
+        )
+
+        return fig
+
+    def plot_babbitt_surface_temperature(
+        self,
+        axial_index: int | None = None,
+        fig=None,
+        print_data: bool = False,
+        **kwargs,
+    ):
+        """Plot babbitt surface temperature vs local pad angle for each pad.
+
+        Parameters
+        ----------
+        axial_index : int or None, optional
+            Axial index to extract the surface temperature.
+            If None, use the axial mid-plane.
+        fig : plotly.graph_objects.Figure, optional
+            Existing figure. If None, a new one is created.
+        kwargs : optional
+            Extra layout options (e.g. width=1000, height=800).
+        """
+
+        if not hasattr(self, "T_pad_surface") or self.T_pad_surface is None:
+            raise ValueError(
+                "Pad surface temperatures (T_pad_surface) not available. "
+                "Run the bearing solution with thermal coupling first."
+            )
+
+        if axial_index is None:
+            axial_index = self.nz // 2  # axial mid-plane
+
+        if fig is None:
+            fig = go.Figure()
+
+        # Local pad angle in degrees: 0 -> pad_arc
+        theta_local_deg = np.linspace(0.0, np.degrees(self.pad_arc), self.nx)
+
+        if print_data:
+            print("\nBabbitt surface temperature data:")
+            print(f"  Axial index: {axial_index}")
+            for i in range(self.n_pad):
+                T_line = self.T_pad_surface[i, :, axial_index]
+                print(f"  Pad {i + 1}:")
+                for theta, temp in zip(theta_local_deg, T_line):
+                    print(f"    theta_deg = {theta:8.3f}, T_C = {temp:8.3f}")
+            print()
+
+        for i in range(self.n_pad):
+            T_line = self.T_pad_surface[i, :, axial_index]
+
+            color = tableau_colors[list(tableau_colors.keys())[i % len(tableau_colors)]]
+
+            fig.add_trace(
+                go.Scatter(
+                    x=theta_local_deg,
+                    y=T_line,
+                    mode="lines+markers",
+                    name=f"Pad {i + 1}",
+                    line=dict(color=color),
+                    marker=dict(color=color),
+                )
+            )
+
+        fig.update_layout(
+            title=dict(
+                text="Tilting Pad Bearing Results<br>Babbitt Surface Temperature",
+                font=dict(size=24),
+            ),
+            xaxis=dict(
+                title=r"θ (pad local) [deg]",
+                showgrid=True,
+                gridwidth=1,
+                gridcolor=tableau_colors["gray"],
+            ),
+            yaxis=dict(
+                title="T [°C]",
+                showgrid=True,
+                gridwidth=1,
+                gridcolor=tableau_colors["gray"],
+            ),
+            plot_bgcolor="white",
+            paper_bgcolor="white",
+            **kwargs,
+        )
+
+        return fig
 
 
-def tilting_pad_example():
-    """Create an example of a tilting pad bearing with Thermo-Hydro-Dynamic effects.
-
-    This function creates and returns a TiltingPad bearing instance with predefined
-    parameters for demonstration purposes. The bearing is configured with 5 pads
-    and operates at 3000 RPM.
-
-    The example is configured with ``equilibrium_type="match_eccentricity"`` by default.
-    You can modify the bearing configuration to use ``equilibrium_type="determine_eccentricity"``
-    if you want to optimize the journal position based on applied loads.
-
-    **Difference between equilibrium types:**
-
-    - **match_eccentricity**: You specify the journal position (eccentricity and attitude
-      angle) and the code optimizes only the pad rotation angles to achieve moment
-      equilibrium. Use this when you know the journal position and want to find the
-      corresponding pad angles and hydrodynamic forces.
-
-    - **determine_eccentricity**: You specify the external loads applied to the journal
-      (via the ``load`` parameter) and the code optimizes the journal position
-      (eccentricity, attitude angle) and pad rotation angles to balance the applied
-      loads. Use this when you know the loads and want to find the equilibrium position.
-
+def tilting_pad_adiabatic_example():
+    """Create adiabatic thermal model example - only oil film temperature is computed.
+    This example uses ``thermal_type='adiabatic'`` which:
+    - Solves Reynolds + energy equations for oil film only
+    - Skips pad conduction computation (no thermal coupling iteration)
     Returns
     -------
     bearing : TiltingPad
-        A configured tilting pad bearing instance ready for analysis.
-
+        A configured tilting pad bearing instance with adiabatic thermal model.
     Notes
     -----
-    This example uses the following configuration:
-    - 5 tilting pads arranged at 18°, 90°, 162°, 234°, and 306°
+    This example demonstrates operation at 3000 RPM with the configured loading.
+    Configuration:
+    - 5 tilting pads at standard angles (18, 90, 162, 234, 306 deg)
     - Journal diameter: 101.6 mm
     - Radial clearance: 74.9 μm
-    - Pad thickness: 12.7 mm
-    - Pad arc: 60° per pad
-    - Pad axial length: 50.8 mm
-    - ISOVG32 lubricant at 40°C
     - Operating frequency: 3000 RPM
-    - Pre-load factor: 0.5 for all pads
-    - Pivot offset: 0.5 (centered) for all pads
+    - Eccentricity: 0.35
     """
-
     bearing = TiltingPad(
         n=1,
         frequency=Q_([3000], "RPM"),
         equilibrium_type="match_eccentricity",
-        model_type="thermo_hydro_dynamic",
+        thermal_type="adiabatic",
         journal_diameter=101.6e-3,
         radial_clearance=74.9e-6,
         pad_thickness=12.7e-3,
         pivot_angle=Q_([18, 90, 162, 234, 306], "deg"),
         pad_arc=Q_([60, 60, 60, 60, 60], "deg"),
-        pad_axial_length=Q_([50.8e-3, 50.8e-3, 50.8e-3, 50.8e-3, 50.8e-3], "m"),
-        pre_load=[0.5, 0.5, 0.5, 0.5, 0.5],
-        offset=[0.5, 0.5, 0.5, 0.5, 0.5],
+        pad_axial_length=Q_([50.8e-3] * 5, "m"),
+        pre_load=[0.5] * 5,
+        offset=[0.5] * 5,
         lubricant="ISOVG32",
         oil_supply_temperature=Q_(40, "degC"),
         nx=30,
@@ -2881,8 +4644,78 @@ def tilting_pad_example():
         eccentricity=0.35,
         attitude_angle=Q_(287.5, "deg"),
         load=[8.8405e02, -2.6704e03],
+        initial_pads_angles=[
+            1.0747e-03,
+            7.2199e-04,
+            2.9340e-04,
+            3.4885e-04,
+            8.1554e-04,
+        ],
+        solver_options={"xtol": 1e-2, "ftol": 1e-2, "maxiter": 1000},
     )
+    return bearing
 
+
+def tilting_pad_full_thermal_example():
+    """Create full thermal model example - coupled film-pad thermal effects.
+    This example uses ``thermal_type='full'`` which:
+    - Solves Reynolds + energy + pad conduction equations
+    - Iterates until film-pad interface temperature converges
+    - Shows thermal mesh and material parameters (nr_pad, k_pad, h_edge)
+    Returns
+    -------
+    bearing : TiltingPad
+        A configured tilting pad bearing instance with full thermal coupling.
+    Notes
+    -----
+    This example demonstrates how to set up a full thermal model with thermal
+    coupling between the oil film and the pad material.
+    Configuration:
+    - 5 tilting pads with enhanced thermal mesh (nr_pad=20)
+    - Journal diameter: 101.6 mm
+    - Load: [884.05, -2670.4] N
+    - Steel pad material: k_pad=45 W/(m·K)
+    - Enhanced edge cooling: h_edge=2000 W/(m²·K)
+    - Operating frequency: 3000 RPM
+    """
+    bearing = TiltingPad(
+        n=1,
+        frequency=Q_([3000], "RPM"),
+        equilibrium_type="match_eccentricity",
+        thermal_type="full",
+        journal_diameter=101.6e-3,
+        radial_clearance=74.9e-6,
+        pad_thickness=12.7e-3,
+        pivot_angle=Q_([18, 90, 162, 234, 306], "deg"),
+        pad_arc=Q_([60, 60, 60, 60, 60], "deg"),
+        pad_axial_length=Q_([50.8e-3] * 5, "m"),
+        pre_load=[0.5] * 5,
+        offset=[0.5] * 5,
+        lubricant="ISOVG32",
+        oil_supply_temperature=Q_(40, "degC"),
+        nx=30,
+        nz=30,
+        nr_pad=20,
+        k_pad=45.0,
+        h_edge=2000.0,
+        eccentricity=0.35,
+        attitude_angle=Q_(287.5, "deg"),
+        load=[8.8405e02, -2.6704e03],
+        initial_pads_angles=[
+            1.0747e-03,
+            7.2199e-04,
+            2.9340e-04,
+            3.4885e-04,
+            8.1554e-04,
+        ],
+        solver_options={"xtol": 1e-2, "ftol": 1e-2, "maxiter": 1000},
+        hot_oil_carry_over=0.8,
+        journal_temperature=Q_(25, "degC"),
+        max_jtemp_iter=150,
+        jtemp_error=0.5,
+        max_inlet_iterations=40,
+        inlet_temperature_tolerance=0.3,
+    )
     return bearing
 
 
@@ -3350,100 +5183,48 @@ def _assemble_energy_sparse_numba(
     pad_radius,
     pad_arc,
     pad_axial_length,
+    T_inlet,
+    T_journal=25.0,
 ):
     """
-    Assemble energy equation as sparse matrix using COO format.
+    Assemble energy equation as sparse matrix (COO format).
 
-    This function creates a sparse matrix representation of the energy equation
-    using COO format.
+    Boundary conditions
+    -------------------
+    West  (jj == 0)    : Dirichlet  T = T_inlet   (oil inlet)
+    East  (jj == nx-1) : Neumann 0  (adiabatic outlet)
+    South (ii == 0)    : Neumann 0  (adiabatic pad surface)
+    North (ii == nz-1) : Dirichlet  T = T_journal  (prescribed journal surface)
 
-    Parameters
-    ----------
-    nx : int
-        Number of grid points in the circumferential direction.
-    nz : int
-        Number of grid points in the axial direction.
-    xz : ndarray
-        Grid points in the axial direction. Shape: (nz,).
-    dx : float
-        Grid spacing in the circumferential direction.
-    dz : float
-        Grid spacing in the axial direction.
-    h : ndarray
-        Film thickness field (nz, nx).
-    pressure : ndarray
-        Pressure field (nz, nx).
-    dp_dx : ndarray
-        Pressure gradient in the circumferential direction.
-    dp_dz : ndarray
-        Pressure gradient in the axial direction.
-    mi : ndarray
-        Dimensionless viscosity field. Shape: (nz, nx).
-    speed : float
-        Speed of the journal.
-    mu_0 : float
-        Dynamic viscosity of the oil at the oil supply temperature.
-    rho : float
-        Density of the oil.
-    cp : float
-        Specific heat capacity of the oil.
-    kt : float
-        Thermal conductivity of the oil.
-    oil_supply_temperature : float
-        Oil supply temperature.
-    reference_temperature : float
-        Reference temperature.
-    radial_clearance : float
-        Radial clearance between the pad and the journal.
-    journal_radius : float
-        Radius of the journal.
-    pad_radius : float
-        Radius of the pad.
-    pad_arc : float
-        Arc of the pad.
-    pad_axial_length : float
-        Axial length of the pad.
-
-    Returns
-    -------
-    row_indices : ndarray
-        Row indices for sparse matrix entries.
-    col_indices : ndarray
-        Column indices for sparse matrix entries.
-    values : ndarray
-        Values for sparse matrix entries.
-    b_t : ndarray
-        Right-hand side vector (n_k,).
-    mu_turb_updated : ndarray
-        Updated turbulent viscosity field (nz, nx).
-    reynolds_field : ndarray
-        Reynolds number field (nz, nx).
-    nnz : int
-        Number of non-zero entries.
+    Only the conductive part of a_n is used for the north Dirichlet image because
+    no convective flux enters through the journal surface.
     """
-
     n_k = nx * nz
-    max_nnz = 5 * n_k  # Pentadiagonal structure
+    max_nnz = n_k * 5
 
-    # Pre-allocate arrays for COO format
-    row_indices = np.zeros(max_nnz, dtype=np.int32)
-    col_indices = np.zeros(max_nnz, dtype=np.int32)
-    values = np.zeros(max_nnz)
-    b_t = np.zeros(n_k)
-    mu_turb_updated = np.zeros((nz, nx))
-    reynolds_field = np.zeros((nz, nx))
+    row_indices = np.zeros(max_nnz, dtype=np.int64)
+    col_indices = np.zeros(max_nnz, dtype=np.int64)
+    values = np.zeros(max_nnz, dtype=np.float64)
+    b_t = np.zeros(n_k, dtype=np.float64)
 
-    k_t_idx = 0
+    mu_turb_field = np.zeros((nz, nx), dtype=np.float64)
+    reynolds_field = np.zeros((nz, nx), dtype=np.float64)
+
+    T_j_nd = T_journal / reference_temperature
+    T_in_nd = T_inlet / reference_temperature
+
+    aux_b = (speed * mu_0) / (rho * cp * oil_supply_temperature * radial_clearance)
+
     nnz = 0
+    k_idx = 0
 
     for ii in range(nz):
         for jj in range(nx):
-            h_p_loc = h[ii, jj]
+            h_p = h[ii, jj]
             mi_p = mi[ii, jj]
 
-            # Calculate turbulent viscosity
-            mi_t, reynolds_local = _calculate_turbulent_viscosity_numba(
-                h_p_loc,
+            mi_t, re_loc = _calculate_turbulent_viscosity_numba(
+                h_p,
                 mi_p,
                 dp_dx[ii, jj],
                 dp_dz[ii, jj],
@@ -3454,144 +5235,117 @@ def _assemble_energy_sparse_numba(
                 journal_radius,
                 pad_axial_length,
             )
+            mu_turb_field[ii, jj] = mi_t
+            reynolds_field[ii, jj] = re_loc
 
-            mu_turb_updated[ii, jj] = mi_t
-            reynolds_field[ii, jj] = reynolds_local
-
-            # Auxiliary factor for flow direction
+            # Axial upwind direction flag
             aux_up = 1.0 if xz[ii] >= 0.0 else 0.0
 
-            # Energy equation coefficients
-            a_e = -(kt * h_p_loc * dz) / (
-                rho * cp * speed * ((pad_arc * pad_radius) ** 2) * dx
+            # Circumferential coefficients (east/west)
+            kt_cond = (kt * h_p * dz) / (
+                rho * cp * speed * (pad_arc * pad_radius) ** 2 * dx
             )
+
+            a_e = -kt_cond
 
             a_w = (
-                ((h_p_loc**3) * dp_dx[ii, jj] * dz) / (12.0 * mi_t * (pad_arc**2))
-                - ((journal_radius * h_p_loc * dz) / (2.0 * pad_radius * pad_arc))
-                - (kt * h_p_loc * dz)
-                / (rho * cp * speed * ((pad_arc * pad_radius) ** 2) * dx)
+                (h_p**3 * dp_dx[ii, jj] * dz) / (12.0 * mi_t * pad_arc**2)
+                - (journal_radius * h_p * dz) / (2.0 * pad_radius * pad_arc)
+                - kt_cond
             )
 
-            # North and south coefficients (upwind scheme)
-            a_n_1 = (aux_up - 1.0) * (
-                ((pad_radius**2) * (h_p_loc**3) * dp_dz[ii, jj] * dx)
-                / (12.0 * (pad_axial_length**2) * mi_t)
-            )
-            a_s_1 = (aux_up) * (
-                ((pad_radius**2) * (h_p_loc**3) * dp_dz[ii, jj] * dx)
-                / (12.0 * (pad_axial_length**2) * mi_t)
+            # Axial coefficients (north/south): conductive term is always negative (stabilising)
+            a_cond_axial = -(kt * h_p * dx) / (
+                rho * cp * speed * pad_axial_length**2 * dz
             )
 
-            a_n_2 = -(kt * h_p_loc * dx) / (
-                rho * cp * speed * (pad_axial_length**2) * dz
+            conv_coef = (pad_radius**2 * h_p**3 * dp_dz[ii, jj] * dx) / (
+                12.0 * pad_axial_length**2 * mi_t
             )
-            a_s_2 = -(kt * h_p_loc * dx) / (
-                rho * cp * speed * (pad_axial_length**2) * dz
-            )
+            a_n_conv = (aux_up - 1.0) * conv_coef
+            a_s_conv = aux_up * conv_coef
 
-            a_n = a_n_1 + a_n_2
-            a_s = a_s_1 + a_s_2
-            a_p_coef = -(a_e + a_w + a_n + a_s)
+            a_n = a_n_conv + a_cond_axial
+            a_s = a_s_conv + a_cond_axial
 
-            # Source terms
-            h_pt = 0.0  # Static analysis
-            aux_b_t = (speed * mu_0) / (
-                rho * cp * oil_supply_temperature * radial_clearance
-            )
+            a_p = -(a_e + a_w + a_n + a_s)
 
-            b_t_g = (
-                mu_0 * speed * (journal_radius**2) * dx * dz * pressure[ii, jj] * h_pt
-            ) / (rho * cp * reference_temperature * (radial_clearance**2))
-
-            b_t_h = (speed * mu_0 * (h_pt**2) * 4.0 * mi_t * dx * dz) / (
-                rho * cp * reference_temperature * 3.0 * h_p_loc
-            )
-
+            # Viscous dissipation source terms
             b_t_i = (
-                aux_b_t
-                * (mi_t * (journal_radius**2) * dx * dz)
-                / (h_p_loc * radial_clearance)
+                aux_b * (mi_t * journal_radius**2 * dx * dz) / (h_p * radial_clearance)
             )
-
             b_t_j = (
-                aux_b_t
-                * ((pad_radius**2) * (h_p_loc**3) * (dp_dx[ii, jj] ** 2) * dx * dz)
-                / (12.0 * radial_clearance * (pad_arc**2) * mi_t)
+                aux_b
+                * (pad_radius**2 * h_p**3 * dp_dx[ii, jj] ** 2 * dx * dz)
+                / (12.0 * radial_clearance * pad_arc**2 * mi_t)
             )
-
             b_t_k = (
-                aux_b_t
-                * ((pad_radius**4) * (h_p_loc**3) * (dp_dz[ii, jj] ** 2) * dx * dz)
-                / (12.0 * radial_clearance * (pad_axial_length**2) * mi_t)
+                aux_b
+                * (pad_radius**4 * h_p**3 * dp_dz[ii, jj] ** 2 * dx * dz)
+                / (12.0 * radial_clearance * pad_axial_length**2 * mi_t)
             )
+            b_t[k_idx] = b_t_i + b_t_j + b_t_k
 
-            b_t_val = b_t_g + b_t_h + b_t_i + b_t_j + b_t_k
+            # Boundary conditions
+            a_p_adj = a_p
 
-            # Boundary condition for west face (oil supply) - modify source term
-            if jj == 0:
-                b_t[k_t_idx] = b_t_val - 2.0 * a_w * (
-                    oil_supply_temperature / reference_temperature
-                )
-            else:
-                b_t[k_t_idx] = b_t_val
-
-            # Fill sparse matrix (COO format)
-            a_p_adjusted = a_p_coef  # Start with base diagonal value
-
-            # Apply boundary condition adjustments to diagonal
+            # South (ii == 0): Neumann 0 — adiabatic pad surface
             if ii == 0:
-                a_p_adjusted += a_s  # South boundary (ADD)
-            if ii == nz - 1:
-                a_p_adjusted += a_n  # North boundary (ADD)
-            if jj == 0:
-                a_p_adjusted -= a_w  # West boundary (SUBTRACT)
-            if jj == nx - 1:
-                a_p_adjusted += a_e  # East boundary (ADD)
+                a_p_adj += a_s
 
-            # Add diagonal element
-            row_indices[nnz] = k_t_idx
-            col_indices[nnz] = k_t_idx
-            values[nnz] = a_p_adjusted
+            # North (ii == nz-1): Dirichlet T_journal — only conductive part used for image
+            if ii == nz - 1:
+                a_p_adj -= a_cond_axial
+                b_t[k_idx] += -2.0 * a_cond_axial * T_j_nd
+
+            # West (jj == 0): Dirichlet T_inlet
+            if jj == 0:
+                a_p_adj -= a_w
+                b_t[k_idx] += -2.0 * a_w * T_in_nd
+
+            # East (jj == nx-1): Neumann 0 — adiabatic outlet
+            if jj == nx - 1:
+                a_p_adj += a_e
+
+            # Assemble COO entries
+            row_indices[nnz] = k_idx
+            col_indices[nnz] = k_idx
+            values[nnz] = a_p_adj
             nnz += 1
 
-            # Add off-diagonal elements only when neighbors exist
-            # South neighbor (ii > 0)
             if ii > 0:
-                row_indices[nnz] = k_t_idx
-                col_indices[nnz] = k_t_idx - nx
+                row_indices[nnz] = k_idx
+                col_indices[nnz] = k_idx - nx
                 values[nnz] = a_s
                 nnz += 1
 
-            # North neighbor (ii < nz - 1)
+            # North off-diagonal excluded at Dirichlet boundary (ii == nz-1)
             if ii < nz - 1:
-                row_indices[nnz] = k_t_idx
-                col_indices[nnz] = k_t_idx + nx
+                row_indices[nnz] = k_idx
+                col_indices[nnz] = k_idx + nx
                 values[nnz] = a_n
                 nnz += 1
 
-            # West neighbor (jj > 0)
             if jj > 0:
-                row_indices[nnz] = k_t_idx
-                col_indices[nnz] = k_t_idx - 1
+                row_indices[nnz] = k_idx
+                col_indices[nnz] = k_idx - 1
                 values[nnz] = a_w
                 nnz += 1
 
-            # East neighbor (jj < nx - 1)
             if jj < nx - 1:
-                row_indices[nnz] = k_t_idx
-                col_indices[nnz] = k_t_idx + 1
+                row_indices[nnz] = k_idx
+                col_indices[nnz] = k_idx + 1
                 values[nnz] = a_e
                 nnz += 1
 
-            k_t_idx += 1
+            k_idx += 1
 
     return (
         row_indices[:nnz],
         col_indices[:nnz],
         values[:nnz],
         b_t,
-        mu_turb_updated,
+        mu_turb_field,
         reynolds_field,
         nnz,
     )
