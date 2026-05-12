@@ -539,6 +539,40 @@ class TiltingPad(BearingElement):
             f"'{type(self).__name__}' object has no attribute '{name}'"
         )
 
+    def record_optimization_residual(
+        self, residual_value: float, iteration: int | None = None
+    ) -> None:
+        """
+        Store the residual value for the current frequency index.
+
+        Parameters
+        ----------
+        residual_value : float
+            Residual value to record.
+        iteration : int or None, optional
+            If provided, the value is placed at that index in the history list.
+            If None, the value is appended.
+
+        Notes
+        -----
+        Requires ``self._current_freq_index`` to be set (done in the frequency loop).
+        """
+        idx = getattr(self, "_current_freq_index", None)
+        if idx is None:
+            return
+
+        if idx not in self.optimization_history:
+            self.optimization_history[idx] = []
+
+        if iteration is None:
+            self.optimization_history[idx].append(residual_value)
+        else:
+            if len(self.optimization_history[idx]) <= iteration:
+                self.optimization_history[idx] += [None] * (
+                    iteration + 1 - len(self.optimization_history[idx])
+                )
+            self.optimization_history[idx][iteration] = residual_value
+
     def run_thermo_hydro_dynamic(self):
         """
         Execute the complete thermo-hydrodynamic analysis for the tilting pad bearing.
