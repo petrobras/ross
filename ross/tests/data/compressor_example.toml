@@ -21,8 +21,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 0"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 1"]
 L = 0.036000000000000004
@@ -38,8 +38,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 1"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 2"]
 L = 0.054000000000000006
@@ -55,8 +55,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 2"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 3"]
 L = 0.043000000000000003
@@ -72,8 +72,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 3"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 4"]
 L = 0.0165
@@ -89,8 +89,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 4"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 5"]
 L = 0.014
@@ -106,8 +106,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 5"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 6"]
 L = 0.036500000000000005
@@ -123,8 +123,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 6"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 7"]
 L = 0.051
@@ -140,8 +140,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 7"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 8"]
 L = 0.025
@@ -157,8 +157,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 8"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 9"]
 L = 0.025
@@ -174,8 +174,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 9"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 10"]
 L = 0.016
@@ -191,8 +191,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 10"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 11"]
 L = 0.016
@@ -208,8 +208,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 11"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 12"]
 L = 0.0242
@@ -225,8 +225,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 12"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 13"]
 L = 0.0242
@@ -242,8 +242,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 13"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 14"]
 L = 0.0045000000000000005
@@ -259,8 +259,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 14"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 15"]
 L = 0.0045000000000000005
@@ -276,8 +276,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 15"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 16"]
 L = 0.01257
@@ -293,8 +293,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 16"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 17"]
 L = 0.01257
@@ -310,8 +310,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 17"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 18"]
 L = 0.02
@@ -327,8 +327,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 18"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 19"]
 L = 0.02
@@ -344,8 +344,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 19"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 20"]
 L = 0.06273000000000001
@@ -361,8 +361,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 20"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 21"]
 L = 0.06273000000000001
@@ -378,8 +378,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 21"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 22"]
 L = 0.038
@@ -395,8 +395,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 22"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 23"]
 L = 0.038
@@ -412,8 +412,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 23"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 24"]
 L = 0.038
@@ -429,8 +429,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 24"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 25"]
 L = 0.038
@@ -446,8 +446,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 25"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 26"]
 L = 0.030000000000000002
@@ -463,8 +463,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 26"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 27"]
 L = 0.030000000000000002
@@ -480,8 +480,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 27"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 28"]
 L = 0.053000000000000005
@@ -497,8 +497,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 28"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 29"]
 L = 0.053000000000000005
@@ -514,8 +514,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 29"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 30"]
 L = 0.01949
@@ -531,8 +531,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 30"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 31"]
 L = 0.01949
@@ -548,8 +548,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 31"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 32"]
 L = 0.013510000000000003
@@ -565,8 +565,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 32"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 33"]
 L = 0.013510000000000003
@@ -582,8 +582,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 33"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 34"]
 L = 0.0495
@@ -599,8 +599,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 34"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 35"]
 L = 0.01959
@@ -616,8 +616,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 35"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 36"]
 L = 0.01959
@@ -633,8 +633,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 36"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 37"]
 L = 0.012410000000000001
@@ -650,8 +650,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 37"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 38"]
 L = 0.012410000000000001
@@ -667,8 +667,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 38"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 39"]
 L = 0.049
@@ -684,8 +684,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 39"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 40"]
 L = 0.019700000000000002
@@ -701,8 +701,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 40"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 41"]
 L = 0.019700000000000002
@@ -718,8 +718,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 41"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 42"]
 L = 0.0123
@@ -735,8 +735,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 42"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 43"]
 L = 0.0123
@@ -752,8 +752,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 43"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 44"]
 L = 0.0495
@@ -769,8 +769,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 44"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 45"]
 L = 0.019829999999999997
@@ -786,8 +786,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 45"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 46"]
 L = 0.019829999999999997
@@ -803,8 +803,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 46"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 47"]
 L = 0.011670000000000002
@@ -820,8 +820,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 47"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 48"]
 L = 0.011670000000000002
@@ -837,8 +837,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 48"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 49"]
 L = 0.0495
@@ -854,8 +854,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 49"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 50"]
 L = 0.01998
@@ -871,8 +871,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 50"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 51"]
 L = 0.01998
@@ -888,8 +888,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 51"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 52"]
 L = 0.01202
@@ -905,8 +905,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 52"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 53"]
 L = 0.01202
@@ -922,8 +922,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 53"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 54"]
 L = 0.0495
@@ -939,8 +939,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 54"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 55"]
 L = 0.020100000000000003
@@ -956,8 +956,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 55"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 56"]
 L = 0.020100000000000003
@@ -973,8 +973,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 56"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 57"]
 L = 0.012399999999999998
@@ -990,8 +990,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 57"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 58"]
 L = 0.012399999999999998
@@ -1007,8 +1007,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 58"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 59"]
 L = 0.056999999999999995
@@ -1024,8 +1024,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 59"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 60"]
 L = 0.026
@@ -1041,8 +1041,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 60"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 61"]
 L = 0.026
@@ -1058,8 +1058,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 61"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 62"]
 L = 0.038
@@ -1075,8 +1075,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 62"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 63"]
 L = 0.038
@@ -1092,8 +1092,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 63"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 64"]
 L = 0.038
@@ -1109,8 +1109,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 64"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 65"]
 L = 0.038
@@ -1126,8 +1126,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 65"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 66"]
 L = 0.06273000000000001
@@ -1143,8 +1143,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 66"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 67"]
 L = 0.06273000000000001
@@ -1160,8 +1160,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 67"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 68"]
 L = 0.02
@@ -1177,8 +1177,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 68"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 69"]
 L = 0.02
@@ -1194,8 +1194,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 69"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 70"]
 L = 0.01257
@@ -1211,8 +1211,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 70"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 71"]
 L = 0.01257
@@ -1228,8 +1228,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 71"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 72"]
 L = 0.0045000000000000005
@@ -1245,8 +1245,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 72"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 73"]
 L = 0.0045000000000000005
@@ -1262,8 +1262,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 73"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 74"]
 L = 0.0242
@@ -1279,8 +1279,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 74"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 75"]
 L = 0.0242
@@ -1296,8 +1296,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 75"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 76"]
 L = 0.016
@@ -1313,8 +1313,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 76"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 77"]
 L = 0.016
@@ -1330,8 +1330,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 77"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 78"]
 L = 0.025
@@ -1347,8 +1347,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 78"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 79"]
 L = 0.025
@@ -1364,8 +1364,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 79"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 80"]
 L = 0.051
@@ -1381,8 +1381,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 80"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 81"]
 L = 0.050499999999999996
@@ -1398,8 +1398,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 81"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 82"]
 L = 0.036375000000000005
@@ -1415,8 +1415,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 82"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 83"]
 L = 0.036375000000000005
@@ -1432,8 +1432,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 83"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 84"]
 L = 0.013500000000000002
@@ -1449,8 +1449,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 84"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 85"]
 L = 0.034999999999999996
@@ -1466,8 +1466,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 85"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 86"]
 L = 0.034999999999999996
@@ -1483,8 +1483,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 86"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 87"]
 L = 0.024
@@ -1500,8 +1500,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 87"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 88"]
 L = 0.024
@@ -1517,8 +1517,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 88"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 89"]
 L = 0.032
@@ -1534,8 +1534,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 89"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["ShaftElement_ShaftElement 90"]
 L = 0.032
@@ -1551,8 +1551,8 @@ rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
 tag = "ShaftElement 90"
-alpha = 0.0
-beta = 0.0
+
+
 
 ["DiskElement_Disk 0"]
 n = 3

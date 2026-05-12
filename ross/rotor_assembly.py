@@ -584,7 +584,7 @@ class Rotor(object):
         self.default_damping_ratio = default_damping_ratio
         self.C0 = (
              self.alpha * self.M0 + self.beta * self.K0
-            if self.modal_damping == None
+            if self.modal_damping is None
             else self._modal_damping(self.modal_damping)
         )
         self.G0 = G0
@@ -2398,7 +2398,7 @@ class Rotor(object):
         >>> np.nonzero(magnetic_force)[0]
         array([ 72,  73, 258, 259])
         >>> magnetic_force[np.nonzero(magnetic_force)[0]]
-        array([-1.78362520e-04,  5.11287139e-06, -2.96613036e-04,  3.34815104e-05])
+        array([-1.77967254e-04,  5.14171163e-06, -2.96211472e-04,  3.34865465e-05])
         """
 
         if kwargs.get("sensitivity_result_values", None) == {}:
@@ -5488,8 +5488,6 @@ def rotor_example_6dof():
             i_d,
             o_d,
             material=steel,
-            alpha=0,
-            beta=0,
             rotary_inertia=False,
             shear_effects=False,
         )
@@ -5509,7 +5507,7 @@ def rotor_example_6dof():
     bearing0 = BearingElement(n=0, kxx=kxx, kyy=kyy, kzz=kzz, cxx=0, cyy=0, czz=0)
     bearing1 = BearingElement(n=6, kxx=kxx, kyy=kyy, kzz=kzz, cxx=0, cyy=0, czz=0)
 
-    return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
+    return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1], alpha=0, beta=0)
 
 
 def rotor_example_with_damping():
@@ -5549,8 +5547,6 @@ def rotor_example_with_damping():
             i_d,
             o_d,
             material=steel2,
-            alpha=8.0501,
-            beta=1.0e-5,
             rotary_inertia=True,
             shear_effects=True,
         )
@@ -5571,7 +5567,7 @@ def rotor_example_with_damping():
         n=31, kxx=9.50e5, kyy=1.09e8, cxx=50.4, cyy=100.4553, kzz=0, czz=0
     )
 
-    return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
+    return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1], alpha=8.0501, beta=1.0e-5)
 
 
 def rotor_amb_example(controller_transfer_function=None):
@@ -5627,7 +5623,7 @@ def rotor_amb_example(controller_transfer_function=None):
             shear_effects=True,
             rotary_inertia=True,
             gyroscopic=True,
-            alpha=2.5,
+   
         )
         for l, idl, odl in zip(L, i_d, o_d)
     ]
@@ -5732,4 +5728,4 @@ def rotor_amb_example(controller_transfer_function=None):
             ),
         ]
 
-    return Rotor(shaft_elements, disk_elements, bearing_elements)
+    return Rotor(shaft_elements, disk_elements, bearing_elements,alpha=2.5)
