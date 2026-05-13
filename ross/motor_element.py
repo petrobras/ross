@@ -220,134 +220,128 @@ class MotorElement(Element):
     def G(self):
         pass
 
-    def _perform_single_step(self, t, load_torque, h=1e-4):
+    def _calculate_Lds(self, Lds, Ldr, Lqs, vds):
+        R = self.stator_resistance + self.short_circuit_resistance
+        w = self.frequency
+        
+        return vds - R * self.a * Lds + R * self.c * Ldr + w * Lqs
+    
+    def _calculate_Lqs(self, Lqs, Lds, Lqr, vqs):
+        R = self.stator_resistance + self.short_circuit_resistance
+        w = self.frequency
+        
+        return vqs - R * self.a * Lqs + R * self.c * Lqr - w * Lds
+    
+    def _calculate_Ldr(self, Ldr, Lds, Lqr, vdr, rotor_speed):
+        R = self.rotor_resistance
+        w = self.frequency - rotor_speed * self.n_poles / 2
+
+        return vdr - R * self.b * Ldr + R * self.c * Lds + w * Lqr
+    
+    def _calculate_Lqr(self, Lqr, Lqs, Ldr, vqr, rotor_speed):
+        R = self.rotor_resistance
+        w = self.frequency - rotor_speed * self.n_poles / 2
+
+        return vqr - R * self.b * Lqr + R * self.c * Lqs - w * Ldr
+    
+    def _calculate_rotor_speed(self, load_torque, electrical_torque, rotor_speed):
+        J = self.Ip_motor + self.Ip_load
+
+        return (electrical_torque - self.viscosity_coeff * rotor_speed - load_torque) / J
+    
+    def _calculate_electrical_torque(self, Lds, Ldr, Lqs, Lqr):
+        return 1.5 * self.c * (Lqs * Ldr - Lds * Lqr) * self.n_poles / 2
+
+    def _perform_single_step(self, dt, Tl, Te0, wr0, Lds0, Lqs0, Ldr0, Lqr0, vds, vqs, vdr, vqr):
         """Perform a single iteration calculation for the motor dynamics.
 
-        This method calculates the state of the motor for a specific time point 't',
+        This method calculates the state of the motor for a specific time step,
         given the input voltages and load torque. It uses a 4th-order Runge-Kutta
         integration step.
 
         Parameters
         ----------
-        t : float
-            Current simulation time [s].
-        load_torque : float
-            Load torque applied to the shaft [N.m].
-        h : float, optional
+        dt : float
             Simulation time step (step size) for the Runge-Kutta integration.
-            Default is 1e-4.
-
+        Tl : float
+            Load torque applied to the shaft [N.m].
+        Te0 : float
+            Initial estimate of electric torque [N.m].
+        wr0 : float
+            Initial estimate of rotor angular speed [rad/s].
+        Lds0 : float
+            Initial estimate of d-axis inductance for stator [Wb].
+        Lqs0 : float
+            Initial estimate of q-axis inductance for stator [Wb].
+        Ldr0 : float
+            Initial estimate of d-axis inductance for rotor [Wb].
+        Lqr0 : float
+            Initial estimate of q-axis inductance for rotor [Wb].
+        vds : float
+            d-axis voltage for stator [V].
+        vqs : float
+            q-axis voltage for stator [V].
+        vdr : float
+            d-axis voltage for rotor [V].
+        vqr : float
+            q-axis voltage for rotor [V].
+        
         Returns
         -------
-        results : dict
-            A dictionary containing the calculated values for the current step:
-            - time: Time [s]
-            - Vas, Vbs, Vcs: Phase voltage [V]
-            - Ias, Ibs, Ics: Phase currents [A]
-            - Ialfas, Ibetas: Alpha-Beta currents [A]
-            - Ids, Iqs: d-q axis currents [A]
-            - TE: Electromagnetic Torque [N.m]
-            - TC: Load Torque [N.m]
+        Te : float
+            Current electric torque [N.m].
+        wr : float
+            Current rotor angular speed [rad/s].
+        Lds : float
+            Current d-axis inductance for stator [Wb].
+        Lqs : float
+            Current q-axis inductance for stator [Wb].
+        Ldr : float
+            Current d-axis inductance for rotor [Wb].
+        Lqr : float
+            Current q-axis inductance for rotor [Wb].
         """
         # Determine step size h based on current time or use fixed internal h
         # Note: The original logic relies on a fixed h for the RK coefficients.
         # We assume the user calls this sequentially or we rely on the internal h.
 
-        # Electrical 3-phase tensions
-        vas, vbs, vcs = self.sourceAC(t)
-
-        # Updating angles
-        w_axis = self.frequency
-        self.ro += w_axis * h
-        self.thetar += (self.wr * self.n_poles / 2) * h
-
-        # Clarke & Park Transforms for Voltages
-        valfas = 2 / 3 * (vas - vbs / 2 - vcs / 2)
-        vbetas = 2 / 3 * (vbs - vcs) * np.sqrt(3) / 2
-        vds = valfas * np.cos(self.ro) + vbetas * np.sin(self.ro)
-        vqs = -valfas * np.sin(self.ro) + vbetas * np.cos(self.ro)
-
-        vdr, vqr = 0, 0
-
-        # Constants for readability in RK4
-        Rs = self.stator_resistance
-        Rsc = self.short_circuit_resistance
-        Rr = self.rotor_resistance
-        a, b, c = self.a, self.b, self.c
-        n_poles = self.n_poles
-        Jm, Jl = self.Ip_motor, self.Ip_load
-        Bm = self.viscosity_coeff
-
-        # Define functions
-        Lds_fun = lambda Lds, Ldr, Lqs: vds - (Rs + Rsc) * a * Lds + (Rs + Rsc) * c * Ldr + w_axis * Lqs
-        Lqs_fun = lambda Lqs, Lds: vqs - (Rs + Rsc) * a * Lqs + (Rs + Rsc) * c * Lqr - w_axis * Lds
-        Ldr_fun = lambda Ldr, Lds, Lqr: vdr - Rr * b * Ldr + Rr * c * Lds + (w_axis - wr * n_poles / 2) * Lqr
-        Lqr_fun = lambda Lqr, Lqs, Ldr: vqr - Rr * b * Lqr + Rr * c * Lqs - (w_axis - wr * n_poles / 2) * Ldr
-        wr_fun = lambda wr, Te: Te / (Jm + Jl) - Bm * wr / (Jm + Jl) - load_torque / (Jm + Jl)
-        Te_fun = lambda Lds, Ldr, Lqs, Lqr: 1.5 * c * (Lqs * Ldr - Lds * Lqr) * n_poles / 2
-
-        # --- Runge-Kutta 4th Order Step ---
+        # Runge-Kutta 4th Order Step
         update_state = lambda h, y, k: y + k * h / 2
         update_final_state = lambda h, y, k1, k2, k3, k4: y + (k1 + 2 * k2 + 2 * k3 + k4) * h / 6
+        
         k = np.zeros((4, 5))
 
-        Lds = self.Lds
-        Lqs = self.Lqs
-        Ldr = self.Ldr
-        Lqr = self.Lqr
-        wr = self.wr
-        Te = self.Te
+        Lds = Lds0
+        Lqs = Lqs0
+        Ldr = Ldr0
+        Lqr = Lqr0
+        wr = wr0
+        Te = Te0
 
+        # Calculating k1, k2, k3, k4 for each state variable
         for i in range(4):
-            k[i, 0] = Lds_fun(Lds, Ldr, Lqs)
-            k[i, 1] = Lqs_fun(Lqs, Lds)
-            k[i, 2] = Ldr_fun(Ldr, Lds, Lqr)
-            k[i, 3] = Lqr_fun(Lqr, Lqs, Ldr)
-            k[i, 4] = wr_fun(wr, Te)
+            k[i, 0] = self._calculate_Lds(Lds, Ldr, Lqs, vds)
+            k[i, 1] = self._calculate_Lqs(Lqs, Lds, Lqr, vqs)
+            k[i, 2] = self._calculate_Ldr(Ldr, Lds, Lqr, vdr, wr0)
+            k[i, 3] = self._calculate_Lqr(Lqr, Lqs, Ldr, vqr, wr0)
+            k[i, 4] = self._calculate_rotor_speed(Tl, Te, wr)
 
-            Lds = update_state(h, self.Lds, k[i, 0])
-            Lqs = update_state(h, self.Lqs, k[i, 1])
-            Ldr = update_state(h, self.Ldr, k[i, 2])
-            Lqr = update_state(h, self.Lqr, k[i, 3])
-            wr = update_state(h, self.wr, k[i, 4])
-            Te = Te_fun(Lds, Ldr, Lqs, Lqr)
+            Lds = update_state(dt, Lds0, k[i, 0])
+            Lqs = update_state(dt, Lqs0, k[i, 1])
+            Ldr = update_state(dt, Ldr0, k[i, 2])
+            Lqr = update_state(dt, Lqr0, k[i, 3])
+            wr = update_state(dt, wr0, k[i, 4])
+            Te = self._calculate_electrical_torque(Lds, Ldr, Lqs, Lqr)
 
-        # Update State Variables
-        self.Lds = update_final_state(h, self.Lds, k[0, 0], k[1, 0], k[2, 0], k[3, 0])
-        self.Lqs = update_final_state(h, self.Lqs, k[0, 1], k[1, 1], k[2, 1], k[3, 1])
-        self.Ldr = update_final_state(h, self.Ldr, k[0, 2], k[1, 2], k[2, 2], k[3, 2])
-        self.Lqr = update_final_state(h, self.Lqr, k[0, 3], k[1, 3], k[2, 3], k[3, 3])
-        self.wr = update_final_state(h, self.wr, k[0, 4], k[1, 4], k[2, 4], k[3, 4])
-        self.Te = Te_fun(self.Lds, self.Ldr, self.Lqs, self.Lqr)
+        # Calculating final state values using the RK4 formula
+        Lds = update_final_state(dt, Lds0, k[0, 0], k[1, 0], k[2, 0], k[3, 0])
+        Lqs = update_final_state(dt, Lqs0, k[0, 1], k[1, 1], k[2, 1], k[3, 1])
+        Ldr = update_final_state(dt, Ldr0, k[0, 2], k[1, 2], k[2, 2], k[3, 2])
+        Lqr = update_final_state(dt, Lqr0, k[0, 3], k[1, 3], k[2, 3], k[3, 3])
+        wr = update_final_state(dt, wr0, k[0, 4], k[1, 4], k[2, 4], k[3, 4])
+        Te = self._calculate_electrical_torque(Lds, Ldr, Lqs, Lqr)
 
-        # Calculate Outputs
-        ids = a * self.Lds - c * self.Ldr
-        iqs = a * self.Lqs - c * self.Lqr
-        i_alpha = ids * np.cos(self.ro) - iqs * np.sin(self.ro)
-        i_beta = ids * np.sin(self.ro) + iqs * np.cos(self.ro)
-        ias = i_alpha
-        ibs = -i_alpha / 2 + np.sqrt(3) * i_beta / 2
-        ics = -i_alpha / 2 - np.sqrt(3) * i_beta / 2
-
-        self.current_time = t
-
-        return {
-            "time": t,
-            "Vas": vas,
-            "Vbs": vbs,
-            "Vcs": vcs,
-            "Ias": ias,
-            "Ibs": ibs,
-            "Ics": ics,
-            "Ialfas": i_alpha,
-            "Ibetas": i_beta,
-            "Ids": ids,
-            "Iqs": iqs,
-            "TE": self.Te,
-            "Tl": load_torque,
-            "wr": self.wr,
-            "RPM": self.wr * 30 / np.pi,
-        }
+        return Te, wr, Lds, Lqs, Ldr, Lqr
 
     def perform_single_step(self, t, Tload, h=1e-4):
         """Perform a single iteration calculation for the motor dynamics.
@@ -570,11 +564,12 @@ class MotorElement(Element):
             "RPM": self.wr * 30 / np.pi,
         }
 
-    def run(self):
+    def run(self,):
         """Run the simulation for a series of time steps.
 
         Parameters
         ----------
+
 
         Returns
         -------
@@ -583,26 +578,25 @@ class MotorElement(Element):
             - tempo, Ias, Ibs, Ics, Ialfas, Ibetas, Ids, Iqs, TE, TC.
         """
 
-        # Initial values of Rotor speed, Flux angle and Electrial Torque
-        # Obs: a possible new feature is to insert non-null initial values user's parameters
-        self.wr = 0.0  # Rotor's angular speed in rad*s
-        self.thetar = 0.0  # Rotor's angle in rad
-        self.thetai = self.initial_angle_net - np.pi / 2
-        self.ro = self.thetai  # Flux's initial angle in rad
-        self.Te = 0.0  # Electrical Torque in N*m
+        # Initial values of Electrical Torque,Rotor speed and Flux angle
+        # Obs: a possible new feature is to insert non-null initial values user's parameters (VERIFICAR!)
+        Te = 0.0  # Electrical Torque in N*m
+        wr = 0.0  # Rotor's angular speed in rad*s
+        theta = 0.0  # Rotor's angle in rad
+        rho = self.initial_angle_net - np.pi / 2  # Flux's initial angle in rad
 
         # Initial alpha-beta and dq currents (based in nulled instantaneous phase currents)
         ias, ibs, ics = 0, 0, 0
         i_alpha = 2 / 3 * (ias - ibs / 2 - ics / 2)
         i_beta = 2 / 3 * (ibs - ics) * np.sqrt(3) / 2
-        ids = i_alpha * np.cos(self.ro) + i_beta * np.sin(self.ro)
-        iqs = -i_alpha * np.sin(self.ro) + i_beta * np.cos(self.ro)
+        ids = i_alpha * np.cos(rho) + i_beta * np.sin(rho)
+        iqs = -i_alpha * np.sin(rho) + i_beta * np.cos(rho)
 
         # Initial rotor and stator's inductances
-        self.Lds = self.Lss * ids + self.Lm * 0
-        self.Lqs = self.Lss * iqs + self.Lm * 0
-        self.Ldr = self.Lrr * 0 + self.Lm * ids
-        self.Lqr = self.Lrr * 0 + self.Lm * iqs
+        Lds = self.Lss * ids + self.Lm * 0
+        Lqs = self.Lss * iqs + self.Lm * 0
+        Ldr = self.Lrr * 0 + self.Lm * ids
+        Lqr = self.Lrr * 0 + self.Lm * iqs
 
         # Initial simulation parameters scheme
         self.tI = 0.0  # Initial time of simulation (tI)
@@ -617,7 +611,7 @@ class MotorElement(Element):
         )
 
         # Time vector and Load Torque vector for the simulation, considering the load_torque entrance time
-        self.t_vector, self.dt = np.linspace(self.tI, self.tF, self.npts, retstep=True)
+        self.t_vector, dt = np.linspace(self.tI, self.tF, self.npts, retstep=True)
         lenT = int(len(self.t_vector))
         self.TLoad_vector = np.ones(lenT) * self.Tnom * self.rTL
         arr = np.array(self.t_vector)
@@ -650,8 +644,51 @@ class MotorElement(Element):
         Tload_vector = np.array(self.TLoad_vector)
 
         for i, t in enumerate(time_vector):
+            # Updating angles
+            rho += self.frequency * dt
+            theta += (wr * self.n_poles / 2) * dt
+
+            # Electrical 3-phase tensions
+            vas, vbs, vcs = self.sourceAC(t)
+
+            # Clarke & Park Transforms for Voltages
+            v_alpha = 2 / 3 * (vas - vbs / 2 - vcs / 2)
+            v_beta = 2 / 3 * (vbs - vcs) * np.sqrt(3) / 2
+            vds = v_alpha * np.cos(rho) + v_beta * np.sin(rho)
+            vqs = -v_alpha * np.sin(rho) + v_beta * np.cos(rho)
+            vdr, vqr = 0, 0
+
+            Tl = Tload_vector[i]
+
             # Run single step calculation
-            step_result = self._perform_single_step(t, Tload_vector[i], self.dt)
+            Te, wr, Lds, Lqs, Ldr, Lqr = self._perform_single_step(dt, Tl, Te, wr, Lds, Lqs, Ldr, Lqr, vds, vqs, vdr, vqr)
+
+            # Calculate outputs
+            ids = self.a * Lds - self.c * Ldr
+            iqs = self.a * Lqs - self.c * Lqr
+            i_alpha = ids * np.cos(rho) - iqs * np.sin(rho)
+            i_beta = ids * np.sin(rho) + iqs * np.cos(rho)
+            ias = i_alpha
+            ibs = -i_alpha / 2 + np.sqrt(3) * i_beta / 2
+            ics = -i_alpha / 2 - np.sqrt(3) * i_beta / 2
+
+            step_result = {
+                "time": t,
+                "Vas": vas,
+                "Vbs": vbs,
+                "Vcs": vcs,
+                "Ias": ias,
+                "Ibs": ibs,
+                "Ics": ics,
+                "Ialfas": i_alpha,
+                "Ibetas": i_beta,
+                "Ids": ids,
+                "Iqs": iqs,
+                "TE": Te,
+                "Tl": Tl,
+                "wr": wr,
+                "RPM": wr * 30 / np.pi,
+            }
 
             # Append results
             for key in results:
