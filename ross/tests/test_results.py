@@ -286,3 +286,17 @@ def test_probe_response(rotor1):
     data = response.data_time_response(probe=[probe1, probe2])
     assert_allclose(data["probe_resp[0]"].to_numpy()[:5], resp_prob1)
     assert_allclose(data["probe_resp[1]"].to_numpy()[:5], resp_prob2)
+
+
+def test_summary_results(rotor1):
+    #check that summary results plot is created. not an easy way to check that the plot that is created is correct
+    #but we should at least check that it is created and no exceptions are thrown
+    s = rotor1.summary()
+
+    fig1 = s.plot(length_units='mm', mass_units='g', force_units='mN')
+    assert fig1 is not None
+
+    fig2 = s.plot(length_units='in', mass_units='lb', force_units='lbf')    
+    assert fig2 is not None
+
+    
