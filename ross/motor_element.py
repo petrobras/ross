@@ -25,11 +25,11 @@ class MotorElement(Element):
     ----------
     n: int
         Node in which the motor will be coupled.
-    power : float, pint.Quantity
+    power_nom : float, pint.Quantity
         Nominal power [W].
-    voltage : float, pint.Quantity
+    voltage_nom : float, pint.Quantity
         Nominal voltage [V].
-    speed : float, pint.Quantity
+    speed_nom : float, pint.Quantity
         Nominal machine rotation [rad/s].
     stator_resistance : float, pint.Quantity
         Stator resistance [Ohm].
@@ -79,9 +79,9 @@ class MotorElement(Element):
     def __init__(
         self,
         n,
-        power,
-        voltage,
-        speed,
+        power_nom,
+        voltage_nom,
+        speed_nom,
         stator_resistance,
         rotor_resistance,
         stator_reactance,
@@ -101,9 +101,9 @@ class MotorElement(Element):
     ):
 
         # Numerical Validation of NOMP entries
-        self.power = float(power)
-        self.voltage = float(voltage)
-        self.speed = float(speed)
+        self.power_nom = float(power_nom)
+        self.voltage_nom = float(voltage_nom)
+        self.speed_nom = float(speed_nom)
         self.n_poles = int(n_poles)
         self.stator_resistance = float(stator_resistance)
         self.rotor_resistance = float(rotor_resistance)
@@ -140,23 +140,23 @@ class MotorElement(Element):
         self.Lrr = Llr + self.Lm
 
         # Internal Electric Motor constants derived from NOMP and CEMP
-        snom = (1 - self.speed * self.n_poles / (2 * self.frequency)) * 100
+        snom = (1 - self.speed_nom * self.n_poles / (2 * self.frequency)) * 100
         wnom = (self.frequency * (1 - snom / 100)) / (self.n_poles / 2)
         sigma = 1 - self.Lm**2 / (self.Lss * self.Lrr)
-        self.Tnom = self.power / wnom
+        self.Tnom = self.power_nom / wnom
         self.a = 1 / (sigma * self.Lss)
         self.b = 1 / (sigma * self.Lrr)
         self.c = self.Lm / (sigma * self.Lss * self.Lrr)
 
         # Short-Circuit Power and Impedances parameters derived from SCIP
-        SCC_net = self.short_circuit_ratio_net * self.power
+        SCC_net = self.short_circuit_ratio_net * self.power_nom
         Zsc = self.voltage_net**2 / SCC_net
         Xsc = Zsc * self.XR_ratio_net / np.sqrt(1 + self.XR_ratio_net**2)
         self.short_circuit_resistance = Xsc / self.XR_ratio_net
 
         # Motor AC Source instance
         self.sourceAC = SourceAC(
-            voltage_net=self.voltage,
+            voltage_net=self.voltage_nom,
             frequency_net=Q_(self.frequency, "rad/s").to("Hz").m,
         )
 
@@ -174,9 +174,9 @@ class MotorElement(Element):
             f"Tag:                                {self.tag}"
             f"\nNode:                               {self.n}"
             f"\n--- Nominal Parameters (NOMP) ---"
-            f"\nNominal Power (W):                  {self.power}"
-            f"\nNominal Voltage (V):                {self.voltage}"
-            f"\nNominal Rotation (rad/s):           {self.speed}"
+            f"\nNominal Power (W):                  {self.power_nom}"
+            f"\nNominal Voltage (V):                {self.voltage_nom}"
+            f"\nNominal Rotation (rad/s):           {self.speed_nom}"
             f"\nNominal Frequency (Hz):             {Q_(self.frequency, 'rad/s').to('Hz').m}"
             f"\nNumber of Poles:                    {self.n_poles}"
             f"\n--- Circuit Parameters (CEMP) ---"
@@ -220,39 +220,40 @@ class MotorElement(Element):
     def G(self):
         pass
 
-    def _calculate_Lds(self, Lds, Ldr, Lqs, vds):
+    def _calculate_stator_inductance_d(self, Lds, Ldr, Lqs, vds):
         R = self.stator_resistance + self.short_circuit_resistance
         w = self.frequency
-        
+
         return vds - R * self.a * Lds + R * self.c * Ldr + w * Lqs
-    
-    def _calculate_Lqs(self, Lqs, Lds, Lqr, vqs):
+
+    def _calculate_stator_inductance_q(self, Lqs, Lds, Lqr, vqs):
         R = self.stator_resistance + self.short_circuit_resistance
         w = self.frequency
-        
+
         return vqs - R * self.a * Lqs + R * self.c * Lqr - w * Lds
-    
-    def _calculate_Ldr(self, Ldr, Lds, Lqr, vdr, rotor_speed):
+
+    def _calculate_rotor_inductance_d(self, Ldr, Lds, Lqr, vdr, wr):
         R = self.rotor_resistance
-        w = self.frequency - rotor_speed * self.n_poles / 2
+        w = self.frequency - wr * self.n_poles / 2
 
         return vdr - R * self.b * Ldr + R * self.c * Lds + w * Lqr
-    
-    def _calculate_Lqr(self, Lqr, Lqs, Ldr, vqr, rotor_speed):
+
+    def _calculate_rotor_inductance_q(self, Lqr, Lqs, Ldr, vqr, wr):
         R = self.rotor_resistance
-        w = self.frequency - rotor_speed * self.n_poles / 2
+        w = self.frequency - wr * self.n_poles / 2
 
         return vqr - R * self.b * Lqr + R * self.c * Lqs - w * Ldr
-    
-    def _calculate_rotor_speed(self, load_torque, electrical_torque, rotor_speed):
-        J = self.Ip_motor + self.Ip_load
 
-        return (electrical_torque - self.viscosity_coeff * rotor_speed - load_torque) / J
-    
+    def _calculate_rotor_speed(self, Tl, Te, wr):
+        J = self.Ip_motor + self.Ip_load
+        return (Te - self.viscosity_coeff * wr - Tl) / J
+
     def _calculate_electrical_torque(self, Lds, Ldr, Lqs, Lqr):
         return 1.5 * self.c * (Lqs * Ldr - Lds * Lqr) * self.n_poles / 2
 
-    def _perform_single_step(self, dt, Tl, Te0, wr0, Lds0, Lqs0, Ldr0, Lqr0, vds, vqs, vdr, vqr):
+    def _perform_single_step(
+        self, dt, Tl, Te0, wr0, Lds0, Lqs0, Ldr0, Lqr0, vds, vqs, vdr, vqr
+    ):
         """Perform a single iteration calculation for the motor dynamics.
 
         This method calculates the state of the motor for a specific time step,
@@ -285,7 +286,7 @@ class MotorElement(Element):
             d-axis voltage for rotor [V].
         vqr : float
             q-axis voltage for rotor [V].
-        
+
         Returns
         -------
         Te : float
@@ -307,8 +308,10 @@ class MotorElement(Element):
 
         # Runge-Kutta 4th Order Step
         update_state = lambda h, y, k: y + k * h / 2
-        update_final_state = lambda h, y, k1, k2, k3, k4: y + (k1 + 2 * k2 + 2 * k3 + k4) * h / 6
-        
+        update_final_state = lambda h, y, k1, k2, k3, k4: (
+            y + (k1 + 2 * k2 + 2 * k3 + k4) * h / 6
+        )
+
         k = np.zeros((4, 5))
 
         Lds = Lds0
@@ -320,10 +323,10 @@ class MotorElement(Element):
 
         # Calculating k1, k2, k3, k4 for each state variable
         for i in range(4):
-            k[i, 0] = self._calculate_Lds(Lds, Ldr, Lqs, vds)
-            k[i, 1] = self._calculate_Lqs(Lqs, Lds, Lqr, vqs)
-            k[i, 2] = self._calculate_Ldr(Ldr, Lds, Lqr, vdr, wr0)
-            k[i, 3] = self._calculate_Lqr(Lqr, Lqs, Ldr, vqr, wr0)
+            k[i, 0] = self._calculate_stator_inductance_d(Lds, Ldr, Lqs, vds)
+            k[i, 1] = self._calculate_stator_inductance_q(Lqs, Lds, Lqr, vqs)
+            k[i, 2] = self._calculate_rotor_inductance_d(Ldr, Lds, Lqr, vdr, wr0)
+            k[i, 3] = self._calculate_rotor_inductance_q(Lqr, Lqs, Ldr, vqr, wr0)
             k[i, 4] = self._calculate_rotor_speed(Tl, Te, wr)
 
             Lds = update_state(dt, Lds0, k[i, 0])
@@ -602,9 +605,11 @@ class MotorElement(Element):
         # Initial simulation parameters scheme
         t = np.array(t)
         load_torque_entrance_time = (t[-1] - t[0]) / 2  # load_torque entrance time
-        load_torque_ratio = 1.0  # load_torque ratio related Tnom at entrance time (1.0 -> 100% Tnom)
-        
-        idx = np.abs(t - load_torque_entrance_time).argmin()  # Catching the near index to time do load_torque entrance
+        # load_torque ratio related Tnom at entrance time (1.0 -> 100% Tnom)
+        load_torque_ratio = 1.0 
+
+        # Catching the near index to time do load_torque entrance
+        idx = np.abs(t - load_torque_entrance_time).argmin()  
         load_torque = np.ones_like(t) * self.Tnom * load_torque_ratio
         load_torque[0:idx] = 0.0
 
@@ -627,8 +632,7 @@ class MotorElement(Element):
         }
 
         for i in range(1, len(t)):
-
-            dt = t[i] - t[i-1]
+            dt = t[i] - t[i - 1]
 
             # Updating angles
             rho += self.frequency * dt
@@ -647,7 +651,9 @@ class MotorElement(Element):
             Tl = load_torque[i]
 
             # Run single step estimation
-            Te, wr, Lds, Lqs, Ldr, Lqr = self._perform_single_step(dt, Tl, Te, wr, Lds, Lqs, Ldr, Lqr, vds, vqs, vdr, vqr)
+            Te, wr, Lds, Lqs, Ldr, Lqr = self._perform_single_step(
+                dt, Tl, Te, wr, Lds, Lqs, Ldr, Lqr, vds, vqs, vdr, vqr
+            )
 
             # Calculate outputs
             ids = self.a * Lds - self.c * Ldr
@@ -800,7 +806,6 @@ class MotorElement(Element):
             yaxis_title="Stator Voltages (V)",
         )
         return fig_torque, fig_speed, fig_currents, fig_voltages
-
 
     def simulparams(self, tI=None, tF=None, step=None, npts=None, tTL=None, rTL=None):
         # Checks if no arguments were passed to trigger the report (Requirement 3)
