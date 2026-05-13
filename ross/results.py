@@ -5376,20 +5376,20 @@ class SummaryResults(Results):
             "Starting point (" + length_units + ")": Q_(
                 [self.df_shaft["nodes_pos_l"].iloc[0]], "m"
             ).to(length_units).m,
-            "Total lenght (" + length_units + ")": Q_(
+            "Total length (" + length_units + ")": Q_(
                 [self.df_shaft["nodes_pos_r"].iloc[-1]], "m"
             ).to(length_units).m,
             "CG (" + length_units + ")": [
-                "{:.3f}".format(float(Q_([self.CG], "m").to(length_units).m))
+                "{:.3f}".format(float(Q_(self.CG, "m").to(length_units).m))
             ],
             "Ip" + inertia_units_dis: [
-                "{:.3e}".format(float(Q_([self.Ip], "m**2*kg").to(inertia_units).m))
+                "{:.3e}".format(float(Q_(self.Ip, "m**2*kg").to(inertia_units).m))
             ],
             "It" + inertia_units_dis: [
-                "{:.3e}".format(float(Q_([self.It], "m**2*kg").to(inertia_units).m))
+                "{:.3e}".format(float(Q_(self.It, "m**2*kg").to(inertia_units).m))
             ],
             "Rotor Mass (" + mass_units + ")": [
-                "{:.3f}".format(float(Q_([rotor_mass], "kg").to(mass_units).m))
+                "{:.3f}".format(float(Q_(rotor_mass, "kg").to(mass_units).m))
             ],
         }
 
@@ -5409,7 +5409,7 @@ class SummaryResults(Results):
         }
 
         bearing_forces = [
-            "{:.4g}".format(float(Q_([float(v)], "N").to(force_units).m))
+            "{:.4g}".format(float(Q_(float(v), "N").to(force_units).m))
             for v in self.brg_forces.values()
         ]
         bearing_data = {
