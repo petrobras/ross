@@ -5315,7 +5315,7 @@ class SummaryResults(Results):
         self.It = It
         self.tag = tag
 
-    def plot(self, length_units='m', mass_units='kg', force_units='N'):
+    def plot(self, length_units="m", mass_units="kg", force_units="N"):
         """Plot the summary table.
 
         This method plots:
@@ -5323,7 +5323,7 @@ class SummaryResults(Results):
 
         Parameters
         ----------
-        length_units: str, 
+        length_units: str,
             Default is 'm'.
         mass_units: str,
             Default is 'kg'
@@ -5347,25 +5347,25 @@ class SummaryResults(Results):
             "Left station": self.df_shaft["n_l"],
             "Right station": self.df_shaft["n_r"],
             "Elem number": self.df_shaft["_n"],
-            "Beam left loc (" + length_units + ")": Q_(
-                self.df_shaft["nodes_pos_l"].to_list(), "m"
-            ).to(length_units).m,
-            "Length (" + length_units + ")": Q_(
-                self.df_shaft["L"].to_list(), "m"
-            ).to(length_units).m,
-            "Axial CG Pos (" + length_units + ")": Q_(
-                self.df_shaft["axial_cg_pos"].to_list(), "m"
-            ).to(length_units).m,
-            "Beam right loc (" + length_units + ")": Q_(
-                self.df_shaft["nodes_pos_r"].to_list(), "m"
-            ).to(length_units).m,
+            "Beam left loc (" + length_units + ")": pd.Series(
+                Q_(self.df_shaft["nodes_pos_l"].to_list(), "m").to(length_units).m
+            ).map("{:.3f}".format),
+            "Length (" + length_units + ")": pd.Series(
+                Q_(self.df_shaft["L"].to_list(), "m").to(length_units).m
+            ).map("{:.3f}".format),
+            "Axial CG Pos (" + length_units + ")": pd.Series(
+                Q_(self.df_shaft["axial_cg_pos"].to_list(), "m").to(length_units).m
+            ).map("{:.3f}".format),
+            "Beam right loc (" + length_units + ")": pd.Series(
+                Q_(self.df_shaft["nodes_pos_r"].to_list(), "m").to(length_units).m
+            ).map("{:.3f}".format),
             "Material": materials,
             "Mass (" + mass_units + ")": pd.Series(
                 Q_(self.df_shaft["m"].to_list(), "kg").to(mass_units).m
             ).map("{:.3f}".format),
             "Inertia" + inertia_units_dis: pd.Series(
                 Q_(self.df_shaft["Im"].to_list(), "m**2*kg").to(inertia_units).m
-            ).map("{:.2e}".format),
+            ).map("{:.3e}".format),
         }
 
         rotor_mass = np.sum(self.df_shaft["m"]) + np.sum(self.df_disks["m"])
@@ -5373,23 +5373,27 @@ class SummaryResults(Results):
             "Tag": [self.tag],
             "Starting node": [self.df_shaft["n_l"].iloc[0]],
             "Ending node": [self.df_shaft["n_r"].iloc[-1]],
-            "Starting point (" + length_units + ")": Q_(
-                [self.df_shaft["nodes_pos_l"].iloc[0]], "m"
-            ).to(length_units).m,
-            "Total length (" + length_units + ")": Q_(
-                [self.df_shaft["nodes_pos_r"].iloc[-1]], "m"
-            ).to(length_units).m,
+            "Starting point (" + length_units + ")": [
+                "{:.3f}".format(
+                    Q_(self.df_shaft["nodes_pos_l"].iloc[0], "m").to(length_units).m
+                )
+            ],
+            "Total length (" + length_units + ")": [
+                "{:.3f}".format(
+                    Q_(self.df_shaft["nodes_pos_r"].iloc[-1], "m").to(length_units).m
+                )
+            ],
             "CG (" + length_units + ")": [
-                "{:.3f}".format(float(Q_(self.CG, "m").to(length_units).m))
+                "{:.3f}".format(Q_(self.CG, "m").to(length_units).m)
             ],
             "Ip" + inertia_units_dis: [
-                "{:.3e}".format(float(Q_(self.Ip, "m**2*kg").to(inertia_units).m))
+                "{:.3e}".format(Q_(self.Ip, "m**2*kg").to(inertia_units).m)
             ],
             "It" + inertia_units_dis: [
-                "{:.3e}".format(float(Q_(self.It, "m**2*kg").to(inertia_units).m))
+                "{:.3e}".format(Q_(self.It, "m**2*kg").to(inertia_units).m)
             ],
             "Rotor Mass (" + mass_units + ")": [
-                "{:.3f}".format(float(Q_(rotor_mass, "kg").to(mass_units).m))
+                "{:.3f}".format(Q_(rotor_mass, "kg").to(mass_units).m)
             ],
         }
 
@@ -5397,9 +5401,9 @@ class SummaryResults(Results):
             "Tag": self.df_disks["tag"],
             "Shaft number": self.df_disks["shaft_number"],
             "Node": self.df_disks["n"],
-            "Nodal Position (" + length_units + ")": Q_(
-                self.df_disks["nodes_pos_l"].to_list(), "m"
-            ).to(length_units).m,
+            "Nodal Position (" + length_units + ")": pd.Series(
+                Q_(self.df_disks["nodes_pos_l"].to_list(), "m").to(length_units).m
+            ).map("{:.3f}".format),
             "Mass (" + mass_units + ")": pd.Series(
                 Q_(self.df_disks["m"].to_list(), "kg").to(mass_units).m
             ).map("{:.3f}".format),
@@ -5417,9 +5421,9 @@ class SummaryResults(Results):
             "Shaft number": self.df_bearings["shaft_number"],
             "Node": self.df_bearings["n"],
             "N_link": self.df_bearings["n_link"],
-            "Nodal Position (" + length_units + ")": Q_(
-                self.df_bearings["nodes_pos_l"].to_list(), "m"
-            ).to(length_units).m,
+            "Nodal Position (" + length_units + ")": pd.Series(
+                Q_(self.df_bearings["nodes_pos_l"].to_list(), "m").to(length_units).m
+            ).map("{:.3f}".format),
             "Bearing force (" + force_units + ")": bearing_forces,
         }
 
