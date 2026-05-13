@@ -564,12 +564,13 @@ class MotorElement(Element):
             "RPM": self.wr * 30 / np.pi,
         }
 
-    def run(self,):
+    def run(self, t):
         """Run the simulation for a series of time steps.
 
         Parameters
         ----------
-
+        t : array-like
+            An array of time points at which to perform the simulation steps.
 
         Returns
         -------
@@ -599,27 +600,13 @@ class MotorElement(Element):
         Lqr = self.Lrr * 0 + self.Lm * iqs
 
         # Initial simulation parameters scheme
-        self.tI = 0.0  # Initial time of simulation (tI)
-        self.tF = 5.0  # Final time of simulation (tF)
-        self.step = 1e-4  # Resolution  (s)
-        self.npts = int(
-            (self.tF - self.tI) / self.step
-        )  # Number of points in simulation
-        self.tTL = (self.tF - self.tI) / 2  # load_torque entrance time
-        self.rTL = (
-            1.0  # load_torque ratio related Tnom at entrance time tTL (1.0 ->100% Tnom)
-        )
-
-        # Time vector and Load Torque vector for the simulation, considering the load_torque entrance time
-        self.t_vector, dt = np.linspace(self.tI, self.tF, self.npts, retstep=True)
-        lenT = int(len(self.t_vector))
-        self.TLoad_vector = np.ones(lenT) * self.Tnom * self.rTL
-        arr = np.array(self.t_vector)
-        itTL = np.abs(
-            arr - self.tTL
-        ).argmin()  # Catching the near index to time do load_torque entrance
-        self.TLoad_vector[0:itTL] = 0.0
-
+        t = np.array(t)
+        load_torque_entrance_time = (t[-1] - t[0]) / 2  # load_torque entrance time
+        load_torque_ratio = 1.0  # load_torque ratio related Tnom at entrance time (1.0 -> 100% Tnom)
+        
+        idx = np.abs(t - load_torque_entrance_time).argmin()  # Catching the near index to time do load_torque entrance
+        load_torque = np.ones_like(t) * self.Tnom * load_torque_ratio
+        load_torque[0:idx] = 0.0
 
         results = {
             "time": [],
@@ -639,17 +626,16 @@ class MotorElement(Element):
             "RPM": [],
         }
 
-        # Ensure inputs are iterable/arrays
-        time_vector = np.array(self.t_vector)
-        Tload_vector = np.array(self.TLoad_vector)
+        for i in range(1, len(t)):
 
-        for i, t in enumerate(time_vector):
+            dt = t[i] - t[i-1]
+
             # Updating angles
             rho += self.frequency * dt
             theta += (wr * self.n_poles / 2) * dt
 
             # Electrical 3-phase tensions
-            vas, vbs, vcs = self.sourceAC(t)
+            vas, vbs, vcs = self.sourceAC(t[i])
 
             # Clarke & Park Transforms for Voltages
             v_alpha = 2 / 3 * (vas - vbs / 2 - vcs / 2)
@@ -658,9 +644,9 @@ class MotorElement(Element):
             vqs = -v_alpha * np.sin(rho) + v_beta * np.cos(rho)
             vdr, vqr = 0, 0
 
-            Tl = Tload_vector[i]
+            Tl = load_torque[i]
 
-            # Run single step calculation
+            # Run single step estimation
             Te, wr, Lds, Lqs, Ldr, Lqr = self._perform_single_step(dt, Tl, Te, wr, Lds, Lqs, Ldr, Lqr, vds, vqs, vdr, vqr)
 
             # Calculate outputs
@@ -673,7 +659,7 @@ class MotorElement(Element):
             ics = -i_alpha / 2 - np.sqrt(3) * i_beta / 2
 
             step_result = {
-                "time": t,
+                "time": t[i],
                 "Vas": vas,
                 "Vbs": vbs,
                 "Vcs": vcs,
@@ -815,23 +801,7 @@ class MotorElement(Element):
         )
         return fig_torque, fig_speed, fig_currents, fig_voltages
 
-    # def simulparams(self, tI, tF, tTL, rTL, npts):
-    #     """Simulation Parameters control
 
-    #     Parameters
-    #     ----------
-    #     time_vector : array_like
-    #         Array of time steps.
-
-    #     Tload_vector : array_like
-    #         Array of load torques.
-
-    #     Returns
-    #     -------
-    #     results : dict
-    #         A dictionary containing lists of results for the entire simulation:
-    #         - tempo, Ias, Ibs, Ics, Ialfas, Ibetas, Ids, Iqs, TE, TC.
-    #     """
     def simulparams(self, tI=None, tF=None, step=None, npts=None, tTL=None, rTL=None):
         # Checks if no arguments were passed to trigger the report (Requirement 3)
         no_args = all(v is None for v in [tI, tF, step, npts, tTL, rTL])
@@ -939,7 +909,12 @@ def motor_example():
     motor.sourceAC.harmonics("enable")
     motor.sourceAC.unbalances("disable")
 
-    dataResults = motor.run()
+    tI = 0.0  # Initial time of simulation (tI)
+    tF = 5.0  # Final time of simulation (tF)
+    step = 1e-4  # Resolution  (s)
+    t = np.arange(tI, tF, step)
+
+    dataResults = motor.run(t)
 
     fig_torque, fig_speed, fig_currents, fig_voltages = motor.plot(dataResults)
 
