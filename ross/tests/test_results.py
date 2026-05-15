@@ -290,17 +290,17 @@ def test_probe_response(rotor1):
 
 
 def test_summary_results(rotor1):
-    #check that summary results plot is created. not an easy way to check that the plot that is created is correct
-    #but we should at least check that it is created and no exceptions are thrown
+    # check that summary results plot is created. not an easy way to check that the plot that is created is correct
+    # but we should at least check that it is created and no exceptions are thrown
     s = rotor1.summary()
 
-    fig1 = s.plot(length_units='mm', mass_units='g', force_units='mN')
+    fig1 = s.plot(length_units="mm", mass_units="g", force_units="mN")
     assert fig1 is not None
 
-    fig2 = s.plot(length_units='in', mass_units='lb', force_units='lbf')    
+    fig2 = s.plot(length_units="in", mass_units="lb", force_units="lbf")
     assert fig2 is not None
 
-    
+
 @pytest.fixture
 def rotor_with_explicit_clearances(speed_rpm=3600):
     steel = rs.steel
