@@ -33,6 +33,7 @@ from ross.faults import Crack, MisalignmentFlex, MisalignmentRigid, Rubbing
 from ross.materials import Material, steel
 from ross.model_reduction import ModelReduction
 from ross.point_mass import PointMass
+from ross.probe import Probe
 from ross.results import (
     CampbellResults,
     ConvergenceResults,
@@ -46,6 +47,7 @@ from ross.results import (
     SummaryResults,
     TimeResponseResults,
     UCSResults,
+    ClearanceResults,
 )
 from ross.seals.labyrinth_seal import LabyrinthSeal
 from ross.shaft_element import ShaftElement
@@ -3430,7 +3432,7 @@ class Rotor(object):
 
         for i, Q in enumerate(stiffness):
             bearings = [copy(b) for b in self.bearing_elements]
-            cross_coupling = bearings[0].__class__(n=n, kxx=0, cxx=0, kxy=Q, kyx=-Q)
+            cross_coupling = BearingElement(n=n, kxx=0, cxx=0, kxy=Q, kyx=-Q)
             bearings.append(cross_coupling)
 
             rotor = self.__class__(self.shaft_elements, self.disk_elements, bearings)
@@ -4641,6 +4643,164 @@ class Rotor(object):
             max_w=rotor.max_w,
             rated_w=rotor.rated_w,
             tag=rotor.tag,
+        )
+
+    @check_units
+    def run_clearance_analysis(
+        self,
+        speed,
+        node,
+        unbalance_magnitude,
+        unbalance_phase,
+        frequency=None,
+        modes=None,
+    ):
+        """
+        Perform clearance analysis using unbalance response.
+
+        This method evaluates the vibration amplitude at bearing locations
+        and compares it with the available radial clearance. The unbalance
+        excitation is the same as in :meth:`run_unbalance_response` (node,
+        magnitude, phase, frequency range, and optional mode subset).
+
+        The procedure involves:
+            - Unbalance response calculation at the requested frequencies
+            - Extraction of vibration amplitudes at bearings at the speed of
+              interest (see ``speed`` vs. ``frequency`` below)
+            - Comparison with clearance limits (100% and 75%) after API 617
+              amplitude scaling
+
+        Parameters
+        ----------
+        speed : float, pint.Quantity
+            Operating speed used for API 617 limits and for picking the
+            frequency row when ``frequency`` contains more than one value.
+            Must be a scalar (or an array with a single value), in rad/s.
+        node : list, int
+            Node(s) where the unbalance is applied (same as
+            :meth:`run_unbalance_response`).
+        unbalance_magnitude : list, float, pint.Quantity
+            Unbalance magnitude in kg·m (same as :meth:`run_unbalance_response`).
+        unbalance_phase : list, float, pint.Quantity
+            Unbalance phase in rad (same as :meth:`run_unbalance_response`).
+        frequency : list, ndarray, pint.Quantity, optional
+            Frequency points for the unbalance response in rad/s. If omitted,
+            defaults to ``[speed]`` so the response is evaluated at the
+            operating speed only.
+        modes : list, optional
+            Modes passed to :meth:`run_unbalance_response` (and then to
+            :meth:`run_forced_response`). Use this to control which modes
+            enter the frequency response calculation.
+
+        Returns
+        -------
+        results : ross.ClearanceResults
+            Results object containing:
+                - speed_rpm : float
+                - bearing_nodes : list
+                - magnitudes : ndarray
+                    Peak-to-peak vibration amplitude (microns)
+                - clearance : ndarray
+                    Radial clearance (microns)
+                - clearance_75 : ndarray
+                    75% of radial clearance (microns)
+
+        Examples
+        --------
+        >>> import ross as rs
+        >>> import numpy as np
+        >>> rotor = rs.rotor_example()
+        >>> speed = 600.0
+        >>> result = rotor.run_clearance_analysis(
+        ...     speed=speed,
+        ...     node=3,
+        ...     unbalance_magnitude=0.05,
+        ...     unbalance_phase=0.0,
+        ...     frequency=np.array([speed]),
+        ... )
+        >>> len(result["bearing_nodes"]) == 2
+        True
+        """
+        # Normalize speed to a scalar in rad/s.
+        speed = np.asarray(speed)
+        if speed.ndim == 0:
+            speed = float(speed)
+        elif speed.size == 1:
+            speed = float(speed.reshape(-1)[0])
+        else:
+            raise ValueError(
+                "'speed' must be a scalar (or an array with a single value) for "
+                "run_clearance_analysis."
+            )
+
+        # Convert speed to rpm
+        speed_rpm = Q_(speed, "rad/s").to("RPM").m
+
+        if frequency is None:
+            frequency = np.asarray([speed], dtype=float)
+        else:
+            frequency = np.asarray(frequency, dtype=float)
+
+        # ---  Unbalance response ---
+        response = self.run_unbalance_response(
+            node,
+            unbalance_magnitude,
+            unbalance_phase,
+            frequency,
+            modes=modes,
+        )
+
+        bearing_probes = [
+            Probe(b.n, Q_(0, "rad"), tag=getattr(b, "tag", None))
+            for b in self.bearing_elements
+        ]
+
+        df = response.data_magnitude(
+            probe=bearing_probes,
+            amplitude_units="um pkpk",
+        )
+
+        freq_col = df["frequency"].to_numpy(dtype=float)
+        freq_row = int(np.argmin(np.abs(freq_col - speed)))
+        magnitudes = df.loc[freq_row, df.columns != "frequency"].to_numpy(copy=True)
+
+        # --- STEP 5: API 617 vibration limit (Avl) ---
+        Avl = 25.4 * (12000 / speed_rpm)
+
+        Amax = np.nanmax(magnitudes)
+
+        if not np.isfinite(Amax) or Amax <= 0:
+            raise ValueError("Invalid vibration response.")
+
+        # --- STEP 6: Scale factor (Scc) ---
+        Scc = min(Avl / Amax, 6.0)
+
+        magnitudes_scaled = magnitudes * Scc
+
+        # --- STEP 7: Clearance ---
+        clearance = []
+        clearance_75 = []
+
+        for b in self.bearing_elements:
+            rc = getattr(b, "radial_clearance", None)
+
+            if rc is None:
+                clearance.append(np.nan)
+                clearance_75.append(np.nan)
+                continue
+
+            clr = Q_(rc, "m").to("micron").m
+            clr_val = float(np.nanmax(np.asarray(clr)))
+
+            clearance.append(clr_val)
+            clearance_75.append(0.75 * clr_val)
+
+        return ClearanceResults(
+            speed_rpm=speed_rpm,
+            bearing_nodes=[b.n for b in self.bearing_elements],
+            magnitudes=magnitudes_scaled,
+            clearance=np.array(clearance),
+            clearance_75=np.array(clearance_75),
         )
 
 

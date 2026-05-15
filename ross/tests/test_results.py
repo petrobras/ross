@@ -5,6 +5,7 @@ import numpy as np
 import pytest
 from numpy.testing import assert_allclose, assert_almost_equal, assert_equal
 
+import ross as rs
 from ross import Q_, Probe
 from ross.results import *
 from ross.rotor_assembly import *
@@ -300,3 +301,91 @@ def test_summary_results(rotor1):
     assert fig2 is not None
 
     
+@pytest.fixture
+def rotor_with_explicit_clearances(speed_rpm=3600):
+    steel = rs.steel
+
+    shaft_elements = [
+        rs.ShaftElement(
+            L=0.25,
+            idl=0.0,
+            odl=0.05,
+            material=steel,
+            shear_effects=True,
+            rotary_inertia=True,
+            gyroscopic=True,
+        )
+        for _ in range(6)
+    ]
+
+    disk_elements = [
+        rs.DiskElement.from_geometry(
+            n=2,
+            material=steel,
+            width=0.07,
+            i_d=0.05,
+            o_d=0.28,
+        ),
+        rs.DiskElement.from_geometry(
+            n=4,
+            material=steel,
+            width=0.07,
+            i_d=0.05,
+            o_d=0.28,
+        ),
+    ]
+
+    bearing_elements = [
+        rs.CylindricalBearing(
+            n=0,
+            speed=rs.Q_([speed_rpm], "RPM"),
+            weight=525,
+            bearing_length=rs.Q_(30, "mm"),
+            journal_diameter=rs.Q_(100, "mm"),
+            radial_clearance=rs.Q_(120, "micrometer"),
+            oil_viscosity=0.1,
+            tag="BRG-0",
+        ),
+        rs.CylindricalBearing(
+            n=6,
+            speed=rs.Q_([speed_rpm], "RPM"),
+            weight=525,
+            bearing_length=rs.Q_(30, "mm"),
+            journal_diameter=rs.Q_(100, "mm"),
+            radial_clearance=rs.Q_(180, "micrometer"),
+            oil_viscosity=0.1,
+            tag="BRG-6",
+        ),
+    ]
+
+    return rs.Rotor(shaft_elements, disk_elements, bearing_elements)
+
+
+def test_run_clearance_analysis(rotor_with_explicit_clearances):
+    rotor = rotor_with_explicit_clearances
+
+    speed = float(Q_(3600, "rad/s").m)
+    speed_rpm = Q_(speed, "rad/s").to("RPM").m
+    if speed_rpm < 25000:
+        residual_unbalance = 6350 * (rotor.m / speed_rpm)
+    else:
+        residual_unbalance = 6350 * (rotor.m / 3.937)
+    Ua = 2 * residual_unbalance
+    modal = rotor.run_modal(speed=speed)
+    whirl = modal.whirl_direction()
+    forward_modes = [i for i, d in enumerate(whirl) if d == "Forward"]
+    shape = modal.shapes[forward_modes[0]]
+    node = max(shape.orbits, key=lambda o: o.major_axis).node
+
+    result = rotor.run_clearance_analysis(
+        speed=speed,
+        node=node,
+        unbalance_magnitude=Q_(Ua, "g*mm"),
+        unbalance_phase=0.0,
+        frequency=np.asarray([speed]),
+    )
+
+    magnitudes = np.array([3.5796145419750083, 8.866272600131191])
+    clearance_75 = np.array([90.0, 135.0])
+    assert_allclose(result["magnitudes"], magnitudes, 1e-6)
+    assert_allclose(result["clearance_75"], clearance_75, 1e-6)
