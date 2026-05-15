@@ -1,6 +1,7 @@
 RPM = rpm * 1
 Hz = rps
 hour = 60 * minute = h = hr
+cv = metric_horsepower
 
 # constant
 pkpk = 0.5
