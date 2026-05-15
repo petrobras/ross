@@ -39,7 +39,7 @@ Key sections:
 
 ## 🤖 ROSS GPT
 
-Meet [**ROSS GPT**](https://bit.ly/rossgpt), the official AI assistant for the ROSS package. With ROSS GPT, you can:
+Meet [**ROSS GPT**](https://chatgpt.com/g/g-6a0776b675588191a111daf172ecfcfe-ross-gpt-2-0), the official AI assistant for the ROSS package. With ROSS GPT, you can:
 - Create and modify rotor models using ROSS in Python.
 - Request practical examples for modal analysis, Campbell diagrams, unbalance response, and more.
 - Get detailed technical explanations on elements such as shafts, disks, bearings, and couplings.
