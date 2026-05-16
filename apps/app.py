@@ -601,11 +601,37 @@ def load_ross_file():
                         if mat_name not in seen_materials:
                             seen_materials.add(mat_name)
                             mat_obj = {'element_type': 'BASIC', 'name': mat_name}
+                            unit_map_mat = UNITS_MAPPING.get('Material', {})
+                            
                             for mk, mv in v.items():
                                 if mk != 'name': 
+                                    if mk in unit_map_mat and mv is not None:
+                                        try:
+                                            tgt_unit = unit_map_mat[mk]
+                                            base_u = Q_(1, tgt_unit).to_base_units().units
+                                            if isinstance(mv, list):
+                                                mv = [float(Q_(float(x), base_u).to(tgt_unit).m) for x in mv]
+                                            else:
+                                                mv = float(Q_(float(mv), base_u).to(tgt_unit).m)
+                                        except Exception: pass
+                                        
                                     mat_obj[mk] = str(mv)
                             project['materials'].append(mat_obj)
+                            
                     else:
+                        unit_map = UNITS_MAPPING.get(class_name, {})
+                        
+                        if k in unit_map and v is not None:
+                            try:
+                                tgt_unit = unit_map[k]
+                                base_u = Q_(1, tgt_unit).to_base_units().units
+                                if isinstance(v, list):
+                                    v = [float(Q_(float(x), base_u).to(tgt_unit).m) for x in v]
+                                else:
+                                    v = float(Q_(float(v), base_u).to(tgt_unit).m)
+                            except Exception:
+                                pass
+                                
                         if isinstance(v, list): item[k] = str(v)
                         else: item[k] = str(v)
                         
