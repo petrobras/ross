@@ -10,16 +10,7 @@ import struct
 import math
 import ast
 import toml
-
-try:
-    from ross.units import Q_
-except ImportError:
-    try:
-        from ross import Q_
-    except ImportError:
-        import pint
-        ureg = pint.UnitRegistry()
-        Q_ = ureg.Quantity
+from ross.units import Q_
 
 app = Flask(__name__)
 CORS(app) 

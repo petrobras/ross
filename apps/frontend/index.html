@@ -33,6 +33,7 @@
             <div class="topbar-left">
                 <button class="btn-back" onclick="switchScreen('screen-home')" title="Back to Home"><i class="fas fa-arrow-left"></i></button>
                 <button class="btn-toggle-sidebar" onclick="toggleSidebar()" title="Toggle Sidebar"><i class="fas fa-bars"></i></button>
+                <button class="btn-help-general" onclick="openGeneralHelp()" title="How to use"><i class="fas fa-question-circle"></i></button>
             </div>
             <div class="topbar-center">
                 <img src="../../docs/_static/ross-logo.svg" alt="Logo" class="logo-img-topbar" onerror="this.style.display='none'"> ROSS - Modeling
@@ -93,6 +94,7 @@
             <div class="topbar-left">
                 <button class="btn-back" onclick="switchScreen('screen-modeling')" title="Back to Modeling"><i class="fas fa-arrow-left"></i></button>
                 <button class="btn-toggle-sidebar" onclick="toggleAnalysisSidebar()" title="Toggle Sidebar"><i class="fas fa-bars"></i></button>
+                <button class="btn-help-general" onclick="openAnalysisHelp()" title="How to use Analysis"><i class="fas fa-question-circle"></i></button>
             </div>
             <div class="topbar-center">
                 <img src="../../docs/_static/ross-logo.svg" alt="Logo" class="logo-img-topbar" onerror="this.style.display='none'"> ROSS - Analysis
@@ -123,6 +125,17 @@
             
             <div class="analysis-plot-panel" id="analysis-list">
                 <p style="color: #888; text-align: center; margin-top: 20%;">Generated dashboards will appear here.</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="help-modal-overlay" class="modal-overlay" style="display: none;">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3 id="help-modal-title">Help</h3>
+                <button class="btn-close-modal" onclick="closeHelpModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body" id="help-modal-body">
             </div>
         </div>
     </div>

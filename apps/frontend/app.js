@@ -616,7 +616,7 @@ function openTab(category) {
     document.getElementById('list-area').style.display = 'block';
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     event.currentTarget.classList.add('active');
-    document.getElementById('tab-title').innerText = category;
+    document.getElementById('tab-title').innerHTML = `<span>${category}</span> <button class="btn-help-section" onclick="openSectionHelp('${category}')" title="Help about ${category}"><i class="fas fa-question-circle"></i></button>`;
     closeForm();
     renderList();    
     if (window.innerWidth <= 768) {
@@ -1276,6 +1276,7 @@ async function addAnalysis(event) {
             <div class="analysis-header" onclick="toggleAnalysis('${uniqueId}')">
                 <span class="analysis-title"><i class="fas fa-chart-line"></i> ${title}</span>
                 <div class="analysis-actions">
+                    <button class="btn-help-analysis" onclick="openAnalysisCardHelp(event, '${type}')"><i class="fas fa-question-circle"></i> Help</button>
                     <button class="btn-delete-analysis" onclick="deleteAnalysis(event, '${cardId}')"><i class="fas fa-trash"></i> Delete</button>
                     <span id="icon-${uniqueId}"><i class="fas fa-chevron-down"></i></span>
                 </div>
@@ -1405,11 +1406,13 @@ function loadAnalysis(event) {
                         controlsHTML = buildDashboardHTML(uniqueId, an.type);
                     }
                 }
+                let typeVal = an.type || 'campbell';                
                 container.insertAdjacentHTML('afterbegin', `
                     <div class="analysis-card" id="${cardId}">
                         <div class="analysis-header" onclick="toggleAnalysis('${uniqueId}')">
                             <span class="analysis-title">${an.title} (Loaded)</span>
                             <div class="analysis-actions">
+                                <button class="btn-help-analysis" onclick="openAnalysisCardHelp(event, '${typeVal}')"><i class="fas fa-question-circle"></i> Help</button>
                                 <button class="btn-delete-analysis" onclick="deleteAnalysis(event, '${cardId}')"><i class="fas fa-trash"></i> Delete</button>
                                 <span id="icon-${uniqueId}"><i class="fas fa-chevron-down"></i></span>
                             </div>
@@ -1526,12 +1529,11 @@ const ClassMap = {
 // Function to generate the Python file
 
 function generatePythonFile() {
-    let py = `import ross as rs\nimport numpy as np\n`;    
-    py += `\ntry:\n    from ross.units import Q_\nexcept ImportError:\n    try:\n        from ross import Q_\n    except ImportError:\n        import pint\n        ureg = pint.UnitRegistry()\n        Q_ = ureg.Quantity\n\n`;    
-    py += `# ==========================================\n`;
+    let py = `import ross as rs\nimport numpy as np\nfrom ross.units import Q_\n`;    
+    py += `\n# ==========================================\n`;
     py += `# Modeling \n`;
     py += `# ==========================================\n`;
-    py += `# Materials \n`;
+    py += `\n# Materials \n`;
     py += `materials_dict = {}\n`;
     projectData.materials.forEach(m => {
         let matCopy = Object.assign({}, m); 
@@ -1540,30 +1542,34 @@ function generatePythonFile() {
         let name = matCopy.name || 'MaterialCustom';
         py += `materials_dict['${name.toLowerCase()}'] = rs.Material(name='${name}', ${args})\n`;
     });
-    py += `default_mat = list(materials_dict.values())[0] if materials_dict else rs.materials.steel\n\n`;
-    py += `# Shafts \n`;
-    py += `shafts = []\n`;
+    py += `default_mat = list(materials_dict.values())[0] if materials_dict else rs.materials.steel\n`;
+    py += `\n# Shafts \n`;
+    py += `shafts_data = [\n`;
     let shaftNodes = getEffectiveNodes(projectData.shafts);
     projectData.shafts.forEach((s, index) => {
         let args = formatKwargs(s, ['material', 'element_type'], 'ShaftElement');
         let effN = shaftNodes[index];
         if (!args.includes('n=')) args = `n=${effN}` + (args.length > 0 ? `, ${args}` : ``);
         let mat = s.material ? `materials_dict.get('${s.material.toLowerCase()}', default_mat)` : `default_mat`;
-        py += `shafts.append(rs.ShaftElement(${args}, material=${mat}))\n`;
+        py += `    dict(${args}, material=${mat}),\n`;
     });
+    py += `]\n`;
+    py += `shafts = [rs.ShaftElement(**kwargs) for kwargs in shafts_data]\n`;
     
     py += `\n# Disks \n`;
-    py += `disks = []\n`;
+    py += `disks_data = [\n`;
     let diskNodes = getEffectiveNodes(projectData.disks);
     projectData.disks.forEach((d, index) => { 
         let args = formatKwargs(d, ['element_type'], 'DiskElement');
         let effN = diskNodes[index];
         if (!args.includes('n=')) args = `n=${effN}` + (args.length > 0 ? `, ${args}` : ``);
-        py += `disks.append(rs.DiskElement(${args}))\n`; 
+        py += `    dict(${args}),\n`; 
     });
+    py += `]\n`;
+    py += `disks = [rs.DiskElement(**kwargs) for kwargs in disks_data]\n`;
     
     py += `\n# Gears \n`;
-    py += `gears = []\n`;
+    py += `gears_data = [\n`;
     let gearNodes = getEffectiveNodes(projectData.gears);
     projectData.gears.forEach((g, index) => { 
         let cls = ClassMap[g.element_type] || ClassMap['BASIC_gears'];
@@ -1574,44 +1580,56 @@ function generatePythonFile() {
         let mat = g.material ? `materials_dict.get('${g.material.toLowerCase()}', default_mat)` : `default_mat`;
         let argStr = args.length > 0 ? `${args}, material=${mat}` : `material=${mat}`;
         
-        py += `gears.append(rs.${cls}(${argStr}))\n`; 
+        py += `    (rs.${cls}, dict(${argStr})),\n`; 
     });
+    py += `]\n`;
+    py += `gears = [cls(**kwargs) for cls, kwargs in gears_data]\n`;
 
     py += `\n# Bearings \n`;
-    py += `bearings = []\n`;
+    py += `bearings_data = [\n`;
     let bearingNodes = getEffectiveNodes(projectData.bearings);
     projectData.bearings.forEach((b, index) => { 
         let cls = ClassMap[b.element_type] || ClassMap['BASIC_bearings'];
         let args = formatKwargs(b, ['element_type'], cls);
         let effN = bearingNodes[index];
         if (!args.includes('n=')) args = `n=${effN}` + (args.length > 0 ? `, ${args}` : ``);
-        py += `bearings.append(rs.${cls}(${args}))\n`; 
+        py += `    (rs.${cls}, dict(${args})),\n`; 
     });
-    
+    py += `]\n`;
+    py += `bearings = [cls(**kwargs) for cls, kwargs in bearings_data]\n`;
+
     py += `\n# Seals \n`;
-    py += `seals = []\n`;
+    py += `seals_data = [\n`;
     let sealNodes = getEffectiveNodes(projectData.seals);
     projectData.seals.forEach((s, index) => { 
         let cls = ClassMap[s.element_type] || ClassMap['BASIC_seals'];
         let args = formatKwargs(s, ['element_type'], cls);
         let effN = sealNodes[index];
         if (!args.includes('n=')) args = `n=${effN}` + (args.length > 0 ? `, ${args}` : ``);
-        py += `seals.append(rs.${cls}(${args}))\n`; 
+        py += `    (rs.${cls}, dict(${args})),\n`; 
     });
-    
+    py += `]\n`;
+    py += `seals = [cls(**kwargs) for cls, kwargs in seals_data]\n`;
+
     py += `\n# Couplings \n`;
-    py += `couplings = []\n`;
-    projectData.couplings.forEach(c => { py += `couplings.append(rs.CouplingElement(${formatKwargs(c, ['element_type'], 'CouplingElement')}))\n`; });
+    py += `couplings_data = [\n`;
+    projectData.couplings.forEach(c => { 
+        py += `    dict(${formatKwargs(c, ['element_type'], 'CouplingElement')}),\n`; 
+    });
+    py += `]\n`;
+    py += `couplings = [rs.CouplingElement(**kwargs) for kwargs in couplings_data]\n`;
 
     py += `\n# Point Masses \n`;
-    py += `point_masses = []\n`;
+    py += `point_masses_data = [\n`;
     let pmNodes = getEffectiveNodes(projectData.pointmasses);
     projectData.pointmasses.forEach((p, index) => { 
         let args = formatKwargs(p, ['element_type'], 'PointMass');
         let effN = pmNodes[index];
         if (!args.includes('n=')) args = `n=${effN}` + (args.length > 0 ? `, ${args}` : ``);
-        py += `point_masses.append(rs.PointMass(${args}))\n`; 
+        py += `    dict(${args}),\n`; 
     });
+    py += `]\n`;
+    py += `point_masses = [rs.PointMass(**kwargs) for kwargs in point_masses_data]\n`;
 
     py += `\n# Rotor Assembly \n`;
     py += `rotor = rs.Rotor(\n    shaft_elements=shafts + couplings,\n    disk_elements=disks + gears,\n    bearing_elements=bearings + seals,\n    point_mass_elements=point_masses\n)\n`;
@@ -1733,3 +1751,204 @@ function generatePythonFile() {
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = "my_ross_script.py";
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
 }
+
+// Help Modal System
+
+const HelpContent = {
+    general: {
+        title: "<i class='fas fa-book'></i> Interface Guide",
+        body: `
+            <h4>Sidebar Navigation</h4>
+            <p>Use the buttons on the left sidebar to switch between different modeling categories (Materials, Shafts, Disks, etc.). Use the <i class="fas fa-bars"></i> button in the topbar to hide/show the sidebar.</p>
+            <h4>Adding Elements</h4>
+            <p>Click the <b>+ (Add)</b> button at the bottom of the list to create a new element. You can choose different models (like BASIC, TVMS for gears, etc.) if available for that specific component.</p>
+            <h4>BASIC vs LIST Creation</h4>
+            <p><b>BASIC:</b> Creates a single element.<br><b>LIST:</b> Allows batch creation. Enter comma-separated values (e.g., <code>0.1, 0.2, 0.3</code>) to generate multiple elements at once. Single values will be automatically copied for all elements in the batch.</p>
+            <h4>Managing the List</h4>
+            <ul>
+                <li><b>Confirm:</b> Click <i class="fas fa-check"></i> (green button) to save the element.</li>
+                <li><b>Cancel:</b> Click <i class="fas fa-times"></i> to discard changes.</li>
+                <li><b>Edit:</b> Click <i class="fas fa-pen"></i> to modify an existing element.</li>
+                <li><b>Copy:</b> Click <i class="fas fa-copy"></i> to duplicate an element exactly below it.</li>
+                <li><b>Delete:</b> Click <i class="fas fa-trash"></i> to remove an element permanently.</li>
+            </ul>
+            <h4>Export & Save Actions</h4>
+            <ul>
+                <li><b><i class="fab fa-python"></i> Generate Python:</b> Exports your entire rotor model and active analyses into a ready-to-run Python script.</li>
+                <li><b><i class="fas fa-save"></i> Save Rotor:</b> Saves your current rotor configuration as a .json file so you can load it later without losing progress.</li>
+            </ul>
+        `
+    },
+    analysis: {
+        title: "<i class='fas fa-chart-line'></i> Analysis Guide",
+        body: `
+            <h4>Choosing an Analysis</h4>
+            <p>Use the dropdown menu on the left sidebar to select the type of analysis you want to perform (e.g., Campbell Diagram, Unbalance Response). Click <b>⚙️ Add Dashboard Card</b> to generate it.</p>
+            <h4>Using Dashboards</h4>
+            <p>Each dashboard is an independent card containing a plot and its specific control parameters. When you change a parameter (like speed, node, or stiffness), the plot automatically updates in real-time. You can stack as many dashboards as you want.</p>
+            <h4>Managing Dashboards</h4>
+            <ul>
+                <li><b>Minimize/Expand:</b> Click the <i class="fas fa-chevron-down"></i> icon on the right side of the card header (or click the header itself) to hide or show the dashboard content.</li>
+                <li><b>Delete:</b> Click the <i class="fas fa-trash"></i> <b>Delete</b> button to permanently remove that specific analysis card.</li>
+            </ul>
+            <h4>Export & Save Actions</h4>
+            <ul>
+                <li><b><i class="fab fa-python"></i> Generate Python:</b> Exports your rotor model and all currently active analysis cards into a Python script.</li>
+                <li><b><i class="fas fa-save"></i> Save Analysis:</b> Saves all your current dashboard cards (and their parameters) as a .json file.</li>
+                <li><b><i class="fas fa-folder-open"></i> Load:</b> Loads previously saved analysis dashboards from a .json file so you don't have to configure them again.</li>
+            </ul>
+        `
+    },
+    materials: {
+        title: "<i class='fas fa-cube'></i> Materials Help",
+        body: "<p>Define the physical properties of the materials used in your rotor.</p><h4>Key Parameters:</h4><ul><li><b>Density (rho):</b> Material density [kg/m³].</li><li><b>Elastic Modulus (E):</b> Young's Modulus [Pa].</li><li><b>Shear Modulus (G_s):</b> Modulus of rigidity [Pa].</li><li><b>Poisson's Ratio:</b> Transverse strain ratio.</li></ul><p><i>Note: You can assign a custom hex color for visualization in the advanced options.</i></p>"
+    },
+    shafts: {
+        title: "<i class='fas fa-grip-lines'></i> Shafts Help",
+        body: "<p>Shaft elements connect nodes and provide stiffness, mass, and gyroscopic effects to the rotor.</p><h4>Key Parameters:</h4><ul><li><b>Length (L):</b> Axial length of the element [mm].</li><li><b>Outer/Inner Diameters (odl, idl, odr, idr):</b> Diameters at the left (l) and right (r) sides [mm].</li><li><b>Material:</b> Link to a previously defined material name.</li></ul>"
+    },
+    disks: {
+        title: "<i class='fas fa-compact-disc'></i> Disks Help",
+        body: "<p>Disks represent concentrated masses on the rotor, like impellers, couplings hubs, or turbine blades.</p><h4>Key Parameters:</h4><ul><li><b>Mass (m):</b> Disk mass [kg].</li><li><b>Polar Inertia (Ip):</b> Inertia around the rotational axis [kg.m²].</li><li><b>Diametral Inertia (Id):</b> Inertia around the transverse axis [kg.m²].</li></ul>"
+    },
+    gears: {
+        title: "<i class='fas fa-cog'></i> Gears Help",
+        body: "<p>Gears act as disks but can also include meshing stiffness effects. The <b>TVMS</b> model accounts for Time-Varying Mesh Stiffness.</p><h4>Key Parameters:</h4><ul><li><b>Number of Teeth (n_teeth):</b> Gear teeth count.</li><li><b>Pitch/Base Diameter:</b> Gear sizing [mm].</li><li><b>Pressure & Helix Angles:</b> Meshing geometry [deg].</li></ul>"
+    },
+    couplings: {
+        title: "<i class='fas fa-link'></i> Couplings Help",
+        body: "<p>Couplings connect two different shaft sections or rotors. They add mass, inertia, and can transmit forces based on defined stiffness and damping.</p><h4>Key Parameters:</h4><ul><li><b>m_l / m_r:</b> Mass assigned to the left/right node [kg].</li><li><b>Ip_l / Ip_r:</b> Polar inertia assigned to the left/right node [kg.m²].</li><li><b>Stiffness/Damping:</b> Advanced parameters to define connection flexibility.</li></ul>"
+    },
+    bearings: {
+        title: "<i class='fas fa-circle-notch'></i> Bearings Help",
+        body: "<p>Bearings support the rotor and dictate its dynamic behavior. You can use a <b>BASIC</b> spring-damper model or select specific geometries like Cylindrical, Tilting Pad, etc.</p><h4>Key Parameters (BASIC):</h4><ul><li><b>kxx, kyy, kxy, kyx:</b> Direct and cross-coupled stiffness coefficients [N/m].</li><li><b>cxx, cyy, cxy, cyx:</b> Direct and cross-coupled damping coefficients [N.s/m].</li></ul>"
+    },
+    seals: {
+        title: "<i class='fas fa-ring'></i> Seals Help",
+        body: "<p>Seals prevent fluid leakage but introduce cross-coupled forces that can cause instability (like the Lomakin effect). Models include Labyrinth, Hole-Pattern, and Hybrid.</p><h4>Key Parameters:</h4><ul><li><b>Clearance / Radius:</b> Seal geometry [mm].</li><li><b>Inlet/Outlet Pressures:</b> Operating conditions [Pa].</li><li><b>Fluid Properties:</b> Advanced tabs usually contain gas composition and temperatures.</li></ul>"
+    },
+    pointmasses: {
+        title: "<i class='fas fa-dot-circle'></i> Point Masses Help",
+        body: "<p>A simple concentrated mass attached to a single node, useful for modeling unbalanced weights or small components.</p><h4>Key Parameters:</h4><ul><li><b>Mass (m):</b> Total mass [kg].</li><li><b>mx, my, mz:</b> Advanced options for asymmetric mass properties.</li></ul>"
+    },
+    campbell: {
+        title: "<i class='fas fa-chart-line'></i> Campbell Diagram Help",
+        body: `
+            <p>A Campbell Diagram displays the system's natural frequencies as a function of the rotor's rotational speed. It is essential for tracking gyroscopic effects and predicting critical speeds.</p>
+            <h4>Key Parameters:</h4>
+            <ul>
+                <li><b>Start/End Speed:</b> Rotational speed range boundaries for the analysis sweep [rad/s].</li>
+                <li><b>Steps:</b> Number of evaluation intervals. Higher values generate smoother curves but slightly increase computation time.</li>
+            </ul>
+        `
+    },
+    ucs: {
+        title: "<i class='fas fa-map-marked-alt'></i> UCS Diagram Help",
+        body: `
+            <p>The Undamped Critical Speed (UCS) Map plots the rotor's natural frequencies against a broad logarithmic spectrum of support stiffness. It helps engineers identify optimal stiffness targets for bearings configuration.</p>
+            <h4>Key Parameters:</h4>
+            <ul>
+                <li><b>Min/Max Stiffness:</b> Bearing stiffness boundaries defined exponentially (10^x N/m). For example, 4 equals 10^4 N/m and 10 equals 10^10 N/m.</li>
+                <li><b>Nº Modes:</b> Total number of operational vibration modes solved and displayed on the plot grid.</li>
+            </ul>
+        `
+    },
+    freq_response: {
+        title: "<i class='fas fa-wave-square'></i> Frequency Response Help",
+        body: `
+            <p>Calculates the steady-state harmonic response of the assembly across a frequency range, plotting both amplitude and phase changes triggered by direct force excitations.</p>
+            <h4>Key Parameters:</h4>
+            <ul>
+                <li><b>Start/End Speed:</b> Frequency sweep interval boundaries [rad/s].</li>
+                <li><b>Input Probes:</b> Node positions and specific degrees of freedom (DoF) where external harmonic forces are applied.</li>
+                <li><b>Output Probes:</b> Node positions and specific degrees of freedom (DoF) monitored by displacement sensors to render the output response.</li>
+            </ul>
+        `
+    },
+    modes: {
+        title: "<i class='fas fa-project-diagram'></i> Vibration Modes Help",
+        body: `
+            <p>Performs a modal eigenvalue analysis at a static rotor speed to extract and display the specific deflected shape (mode shape) of the shaft structure.</p>
+            <h4>Key Parameters:</h4>
+            <ul>
+                <li><b>Shaft Speed:</b> Constant operational speed at which the gyroscopic and stiffness matrices are evaluated [rad/s].</li>
+                <li><b>Nº Modes:</b> Total number of modal points to resolve.</li>
+                <li><b>Mode Index:</b> The exact index of the mode shape to render on screen (0 represents the 1st natural mode, 1 the 2nd mode, etc.).</li>
+                <li><b>Plot Type:</b> Toggles visualization layout format between 2D or 3D isometric views.</li>
+            </ul>
+        `
+    },
+    unbalance: {
+        title: "<i class='fas fa-balance-scale-left'></i> Unbalance Response Help",
+        body: `
+            <p>Simulates the synchronous dynamic behavior of the rotor under forces generated by physical mass eccentricities distributed along the rotor profile.</p>
+            <h4>Key Parameters:</h4>
+            <ul>
+                <li><b>Start/End Speed:</b> Rotational speed scanning interval [rad/s].</li>
+                <li><b>Unbalance Excitations:</b> Target node containing the unbalance property, specifying its magnitude [kg.m] and spatial phase offset [rad].</li>
+                <li><b>Measurement Probes:</b> Target nodes and DoFs where virtual probes measure amplitude outputs.</li>
+            </ul>
+        `
+    },
+    time_response: {
+        title: "<i class='fas fa-hourglass-half'></i> Time Response Help",
+        body: `
+            <p>Integrates the system equations of motion step-by-step over a timeline, letting you test generic, transient, or custom non-harmonic forces.</p>
+            <h4>Key Parameters:</h4>
+            <ul>
+                <li><b>Rot. Speed:</b> Constant rotational speed during the physical simulation window [rad/s].</li>
+                <li><b>Max Time / Time Steps:</b> Total duration [s] and discretization grid density of the simulation timeline.</li>
+                <li><b>Applied Forces F(t):</b> Algebraic formula establishing forces. You can write equations using 't' (time), 'speed', or numpy functions (e.g., <code>1000 * np.cos(speed * t)</code>).</li>
+                <li><b>Measurement Probes:</b> Target nodes and DoFs mapped by virtual probes.</li>
+                <li><b>Plot Type:</b> Choose between 1D Time histories, 2D Trajectories/Orbits, 3D orbits, or DFFT spectral signatures.</li>
+            </ul>
+        `
+    },
+    static: {
+        title: "<i class='fas fa-compress-arrows-alt'></i> Static Analysis Help",
+        body: `
+            <p>Evaluates structural static deflections, internal shear stresses, and bending moments due to dead-weight (gravity) and fixed static boundary conditions.</p>
+            <h4>Key Parameters:</h4>
+            <ul>
+                <li><b>Plot Type:</b> Selects the diagram layer representation format: Free Body Diagram, Static Deformation curve, Shearing Force profile, or Bending Moment distribution.</li>
+            </ul>
+        `
+    }
+};
+
+// Functions for opening modals
+function openGeneralHelp() {
+    document.getElementById('help-modal-title').innerHTML = HelpContent.general.title;
+    document.getElementById('help-modal-body').innerHTML = HelpContent.general.body;
+    document.getElementById('help-modal-overlay').style.display = 'flex';
+}
+
+function openAnalysisHelp() {
+    document.getElementById('help-modal-title').innerHTML = HelpContent.analysis.title;
+    document.getElementById('help-modal-body').innerHTML = HelpContent.analysis.body;
+    document.getElementById('help-modal-overlay').style.display = 'flex';
+}
+
+function openSectionHelp(category) {
+    const data = HelpContent[category] || { title: category + " Help", body: "Documentation available soon." };
+    document.getElementById('help-modal-title').innerHTML = data.title;
+    document.getElementById('help-modal-body').innerHTML = data.body;
+    document.getElementById('help-modal-overlay').style.display = 'flex';
+}
+
+function closeHelpModal() {
+    document.getElementById('help-modal-overlay').style.display = 'none';
+}
+
+// Function to intercept the click on the card and trigger contextual help
+window.openAnalysisCardHelp = function(event, type) {
+    event.stopPropagation();
+    openSectionHelp(type);
+};
+
+// Close the modal by clicking outside the white box
+document.getElementById('help-modal-overlay').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeHelpModal();
+    }
+});
