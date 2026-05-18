@@ -230,11 +230,11 @@ class MotorElement(Element):
         Parameters
         ----------
         Lds : float
-            d-axis inductance for stator.
+            d-axis inductance for stator [H].
         Ldr : float
-            d-axis inductance for rotor.
+            d-axis inductance for rotor [H].
         Lqs : float
-            q-axis inductance for stator.
+            q-axis inductance for stator [H].
         vds : float
             d-axis voltage for stator [V].
 
@@ -258,11 +258,11 @@ class MotorElement(Element):
         Parameters
         ----------
         Lqs : float
-            q-axis inductance for stator.
+            q-axis inductance for stator [H].
         Lds : float
-            d-axis inductance for stator.
+            d-axis inductance for stator [H].
         Lqr : float
-            q-axis inductance for rotor.
+            q-axis inductance for rotor [H].
         vqs : float
             q-axis voltage for stator [V].
 
@@ -286,11 +286,11 @@ class MotorElement(Element):
         Parameters
         ----------
         Ldr : float
-            d-axis inductance for rotor.
+            d-axis inductance for rotor [H].
         Lds : float
-            d-axis inductance for stator.
+            d-axis inductance for stator [H].
         Lqr : float
-            q-axis inductance for rotor.
+            q-axis inductance for rotor [H].
         vdr : float
             d-axis voltage for rotor [V].
         wr : float
@@ -317,16 +317,16 @@ class MotorElement(Element):
         Parameters
         ----------
         Lqr : float
-            q-axis inductance for rotor.
+            q-axis inductance for rotor [H].
         Lqs : float
-            q-axis inductance for stator.
+            q-axis inductance for stator [H].
         Ldr : float
-            d-axis inductance for rotor.
+            d-axis inductance for rotor [H].
         vqr : float
             q-axis voltage for rotor [V].
         wr : float
             Rotor angular speed [rad/s].
-        
+
         Returns
         -------
         dLqr_dt : float
@@ -343,7 +343,7 @@ class MotorElement(Element):
         This method computes the rate of change of the rotor angular speed using
         the motor's current state variables, the input load torque, and the electric
         torque.
-        
+
         Parameters
         ----------
         Tl : float
@@ -371,14 +371,14 @@ class MotorElement(Element):
         Parameters
         ----------
         Lds : float
-            d-axis inductance for stator.
+            d-axis inductance for stator [H].
         Ldr : float
-            d-axis inductance for rotor.
+            d-axis inductance for rotor [H].
         Lqs : float
-            q-axis inductance for stator.
+            q-axis inductance for stator [H].
         Lqr : float
-            q-axis inductance for rotor.
-        
+            q-axis inductance for rotor [H].
+
         Returns
         -------
         Te : float
@@ -407,13 +407,13 @@ class MotorElement(Element):
         wr0 : float
             Initial estimate of rotor angular speed [rad/s].
         Lds0 : float
-            Initial estimate of d-axis inductance for stator.
+            Initial estimate of d-axis inductance for stator [H].
         Lqs0 : float
-            Initial estimate of q-axis inductance for stator.
+            Initial estimate of q-axis inductance for stator [H].
         Ldr0 : float
-            Initial estimate of d-axis inductance for rotor.
+            Initial estimate of d-axis inductance for rotor [H].
         Lqr0 : float
-            Initial estimate of q-axis inductance for rotor.
+            Initial estimate of q-axis inductance for rotor [H].
         vds : float
             d-axis voltage for stator [V].
         vqs : float
@@ -430,13 +430,13 @@ class MotorElement(Element):
         wr : float
             Current rotor angular speed [rad/s].
         Lds : float
-            Current d-axis inductance for stator.
+            Current d-axis inductance for stator [H].
         Lqs : float
-            Current q-axis inductance for stator.
+            Current q-axis inductance for stator [H].
         Ldr : float
-            Current d-axis inductance for rotor.
+            Current d-axis inductance for rotor [H].
         Lqr : float
-            Current q-axis inductance for rotor.
+            Current q-axis inductance for rotor [H].
         """
         # Determine step size h based on current time or use fixed internal h
         # Note: The original logic relies on a fixed h for the RK coefficients.
@@ -484,7 +484,6 @@ class MotorElement(Element):
 
     def run(self, t, load_torque_entrance_time=None, load_torque_ratio=1.0):
         """Run the motor simulation over a specified time vector.
-        
 
         Parameters
         ----------
@@ -527,12 +526,12 @@ class MotorElement(Element):
 
         # Initial simulation parameters scheme
         t = np.array(t)
-        
+
         if load_torque_entrance_time is None:
             load_torque_entrance_time = (t[-1] - t[0]) / 2
 
         # Catching the near index to time do load_torque entrance
-        idx = np.abs(t - load_torque_entrance_time).argmin()  
+        idx = np.abs(t - load_torque_entrance_time).argmin()
         load_torque = np.ones_like(t) * self.Tnom * load_torque_ratio
         load_torque[0:idx] = 0.0
 
@@ -730,6 +729,7 @@ class MotorElement(Element):
         )
         return fig_torque, fig_speed, fig_currents, fig_voltages
 
+
 def motor_example():
     """Create an example of notor element.
 
@@ -781,7 +781,7 @@ def run_motor_example():
     results = motor.run(t, load_torque_entrance_time=3.0, load_torque_ratio=1.5)
 
     fig_torque, fig_speed, fig_currents, fig_voltages = motor.plot(results)
-    
+
     fig_torque.show()
     fig_speed.show()
     fig_currents.show()
