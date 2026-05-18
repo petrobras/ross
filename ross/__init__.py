@@ -12,7 +12,6 @@ from .materials import *
 from .point_mass import *
 from .probe import *
 from .results import *
-from .motor_element import *
 from .rotor_assembly import *
 from .multi_rotor import *
 from .shaft_element import *
@@ -28,6 +27,7 @@ from ross.model_reduction import *
 from ross.seals.labyrinth_seal import *
 from ross.seals.holepattern_seal import *
 from ross.seals.hybrid_seal import *
+from ross.motors.motor_element import *
 
 _pio.templates.default = "ross"
 if "ipykernel" in sys.modules:

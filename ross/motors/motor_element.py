@@ -12,7 +12,7 @@ from ross.units import Q_, check_units
 
 from .motor_sourceAC import SourceAC
 
-__all__ = ["MotorElement"]
+__all__ = ["MotorElement", "motor_example", "run_motor_example"]
 
 
 class MotorElement(Element):
