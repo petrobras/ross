@@ -1090,9 +1090,9 @@ window.generateProbeRowHTML = function(uniqueId, id, type, node=0, dof=0) {
     return `
     <div class="probe-row" style="align-items:center;">
         <span style="font-size:11px; color:var(--text-muted);">Node:</span> 
-        <input type="number" class="probe-node" value="${node}" min="0" onchange="triggerCardUpdate('${uniqueId}', '${type}')">
+        <input type="number" class="probe-node" value="${node}" min="0">
         <span style="font-size:11px; color:var(--text-muted); margin-left:8px;">DoF:</span> 
-        <select class="probe-dof" onchange="triggerCardUpdate('${uniqueId}', '${type}')">
+        <select class="probe-dof">
             <option value="0" ${dof==0?'selected':''}>x</option>
             <option value="1" ${dof==1?'selected':''}>y</option>
             <option value="2" ${dof==2?'selected':''}>z</option>
@@ -1100,7 +1100,7 @@ window.generateProbeRowHTML = function(uniqueId, id, type, node=0, dof=0) {
             <option value="4" ${dof==4?'selected':''}>β</option>
             <option value="5" ${dof==5?'selected':''}>γ</option>
         </select>
-        <button type="button" class="btn-remove-probe" style="margin-left:auto;" onclick="this.parentElement.remove(); triggerCardUpdate('${uniqueId}', '${type}')"><i class="fas fa-times"></i></button>
+        <button type="button" class="btn-remove-probe" style="margin-left:auto;" onclick="this.parentElement.remove();"><i class="fas fa-times"></i></button>
     </div>`;
 }
 
@@ -1109,7 +1109,6 @@ window.generateProbeRowHTML = function(uniqueId, id, type, node=0, dof=0) {
 window.addProbeRow = function(uniqueId, id, type) {
     const container = document.getElementById(`probe-container-${id}-${uniqueId}`);
     container.insertAdjacentHTML('beforeend', window.generateProbeRowHTML(uniqueId, id, type));
-    triggerCardUpdate(uniqueId, type);
 }
 
 // Force generators
@@ -1119,9 +1118,9 @@ window.generateForceRowHTML = function(uniqueId, id, type, node=0, dof=0, func="
     <div class="probe-row" style="flex-direction:column; align-items:stretch; gap:8px;">
         <div style="display:flex; gap:6px; align-items:center;">
             <span style="font-size:11px; color:var(--text-muted);">Node:</span> 
-            <input type="number" class="force-node" value="${node}" min="0" onchange="triggerCardUpdate('${uniqueId}', '${type}')">
+            <input type="number" class="force-node" value="${node}" min="0">
             <span style="font-size:11px; color:var(--text-muted); margin-left:8px;">DoF:</span> 
-            <select class="force-dof" onchange="triggerCardUpdate('${uniqueId}', '${type}')">
+            <select class="force-dof">
                 <option value="0" ${dof==0?'selected':''}>x</option>
                 <option value="1" ${dof==1?'selected':''}>y</option>
                 <option value="2" ${dof==2?'selected':''}>z</option>
@@ -1129,11 +1128,11 @@ window.generateForceRowHTML = function(uniqueId, id, type, node=0, dof=0, func="
                 <option value="4" ${dof==4?'selected':''}>β</option>
                 <option value="5" ${dof==5?'selected':''}>γ</option>
             </select>
-            <button type="button" class="btn-remove-probe" style="margin-left:auto;" onclick="this.parentElement.parentElement.remove(); triggerCardUpdate('${uniqueId}', '${type}')"><i class="fas fa-times"></i></button>
+            <button type="button" class="btn-remove-probe" style="margin-left:auto;" onclick="this.parentElement.parentElement.remove();"><i class="fas fa-times"></i></button>
         </div>
         <div style="display:flex; gap:6px; align-items:center;">
             <span style="font-size:11px; color:var(--text-muted);">F(t):</span> 
-            <input type="text" class="force-func" value="${func}" onchange="triggerCardUpdate('${uniqueId}', '${type}')">
+            <input type="text" class="force-func" value="${func}">
         </div>
     </div>`;
 }
@@ -1143,7 +1142,6 @@ window.generateForceRowHTML = function(uniqueId, id, type, node=0, dof=0, func="
 window.addForceRow = function(uniqueId, id, type) {
     const container = document.getElementById(`force-container-${id}-${uniqueId}`);
     container.insertAdjacentHTML('beforeend', window.generateForceRowHTML(uniqueId, id, type));
-    triggerCardUpdate(uniqueId, type);
 }
 
 // Unbalance generators
@@ -1153,14 +1151,14 @@ window.generateUnbalanceRowHTML = function(uniqueId, id, type, node=0, mag=0.01,
     <div class="probe-row" style="flex-direction:column; align-items:stretch; gap:8px;">
         <div style="display:flex; gap:6px; align-items:center;">
             <span style="font-size:11px; color:var(--text-muted);">Node:</span> 
-            <input type="number" class="unb-node" value="${node}" min="0" onchange="triggerCardUpdate('${uniqueId}', '${type}')">
-            <button type="button" class="btn-remove-probe" style="margin-left:auto;" onclick="this.parentElement.parentElement.remove(); triggerCardUpdate('${uniqueId}', '${type}')"><i class="fas fa-times"></i></button>
+            <input type="number" class="unb-node" value="${node}" min="0">
+            <button type="button" class="btn-remove-probe" style="margin-left:auto;" onclick="this.parentElement.parentElement.remove();"><i class="fas fa-times"></i></button>
         </div>
         <div style="display:flex; gap:6px; align-items:center;">
             <span style="font-size:11px; color:var(--text-muted);">Mag(kg.m):</span> 
-            <input type="number" class="unb-mag" value="${mag}" step="0.001" min="0" onchange="triggerCardUpdate('${uniqueId}', '${type}')">
+            <input type="number" class="unb-mag" value="${mag}" step="0.001" min="0">
             <span style="font-size:11px; color:var(--text-muted); margin-left:8px;">Ph(rad):</span> 
-            <input type="number" class="unb-phase" value="${phase}" step="0.01" onchange="triggerCardUpdate('${uniqueId}', '${type}')">
+            <input type="number" class="unb-phase" value="${phase}" step="0.01">
         </div>
     </div>`;
 }
@@ -1170,7 +1168,6 @@ window.generateUnbalanceRowHTML = function(uniqueId, id, type, node=0, mag=0.01,
 window.addUnbalanceRow = function(uniqueId, id, type) {
     const container = document.getElementById(`unb-container-${id}-${uniqueId}`);
     container.insertAdjacentHTML('beforeend', window.generateUnbalanceRowHTML(uniqueId, id, type));
-    triggerCardUpdate(uniqueId, type);
 }
 
 // Function that evaluates when the analysis parameters have changed
@@ -1220,14 +1217,14 @@ function buildDashboardHTML(uniqueId, type) {
         } else {
             html += `<div class="dash-control-group"><label>${item.label}</label>`;
             if (item.type === 'range') {
-                html += `<input type="range" id="range-${item.id}-${uniqueId}" min="${item.min}" max="${item.max}" step="${item.step}" value="${item.val}" oninput="document.getElementById('num-${item.id}-${uniqueId}').value = this.value; triggerCardUpdate('${uniqueId}', '${type}')">`;
-                html += `<input type="number" id="num-${item.id}-${uniqueId}" value="${item.val}" oninput="document.getElementById('range-${item.id}-${uniqueId}').value = this.value; triggerCardUpdate('${uniqueId}', '${type}')">`;
+                html += `<input type="range" id="range-${item.id}-${uniqueId}" min="${item.min}" max="${item.max}" step="${item.step}" value="${item.val}" oninput="document.getElementById('num-${item.id}-${uniqueId}').value = this.value;">`;
+                html += `<input type="number" id="num-${item.id}-${uniqueId}" value="${item.val}" oninput="document.getElementById('range-${item.id}-${uniqueId}').value = this.value;">`;
             } else if (item.type === 'select') {
-                html += `<select id="input-${item.id}-${uniqueId}" onchange="triggerCardUpdate('${uniqueId}', '${type}')">`;
+                html += `<select id="input-${item.id}-${uniqueId}">`;
                 item.options.forEach(opt => { html += `<option value="${opt}" ${opt===item.val?'selected':''}>${opt}</option>`; });
                 html += `</select>`;
             } else {
-                html += `<input type="${item.type}" id="input-${item.id}-${uniqueId}" value="${item.val}" oninput="triggerCardUpdate('${uniqueId}', '${type}')">`;
+                html += `<input type="${item.type}" id="input-${item.id}-${uniqueId}" value="${item.val}">`;
             }
             html += `</div>`;
         }
@@ -1276,6 +1273,7 @@ async function addAnalysis(event) {
             <div class="analysis-header" onclick="toggleAnalysis('${uniqueId}')">
                 <span class="analysis-title"><i class="fas fa-chart-line"></i> ${title}</span>
                 <div class="analysis-actions">
+                    <button class="btn-update-analysis" onclick="event.stopPropagation(); runCardAnalysis('${uniqueId}', '${type}')"><i class="fas fa-sync-alt"></i> Update</button>
                     <button class="btn-help-analysis" onclick="openAnalysisCardHelp(event, '${type}')"><i class="fas fa-question-circle"></i> Help</button>
                     <button class="btn-delete-analysis" onclick="deleteAnalysis(event, '${cardId}')"><i class="fas fa-trash"></i> Delete</button>
                     <span id="icon-${uniqueId}"><i class="fas fa-chevron-down"></i></span>
@@ -1412,6 +1410,7 @@ function loadAnalysis(event) {
                         <div class="analysis-header" onclick="toggleAnalysis('${uniqueId}')">
                             <span class="analysis-title">${an.title} (Loaded)</span>
                             <div class="analysis-actions">
+                                <button class="btn-update-analysis" onclick="event.stopPropagation(); runCardAnalysis('${uniqueId}', '${typeVal}')"><i class="fas fa-sync-alt"></i> Update</button>
                                 <button class="btn-help-analysis" onclick="openAnalysisCardHelp(event, '${typeVal}')"><i class="fas fa-question-circle"></i> Help</button>
                                 <button class="btn-delete-analysis" onclick="deleteAnalysis(event, '${cardId}')"><i class="fas fa-trash"></i> Delete</button>
                                 <span id="icon-${uniqueId}"><i class="fas fa-chevron-down"></i></span>
@@ -1785,7 +1784,7 @@ const HelpContent = {
             <h4>Choosing an Analysis</h4>
             <p>Use the dropdown menu on the left sidebar to select the type of analysis you want to perform (e.g., Campbell Diagram, Unbalance Response). Click <b>⚙️ Add Dashboard Card</b> to generate it.</p>
             <h4>Using Dashboards</h4>
-            <p>Each dashboard is an independent card containing a plot and its specific control parameters. When you change a parameter (like speed, node, or stiffness), the plot automatically updates in real-time. You can stack as many dashboards as you want.</p>
+            <p>Each dashboard is an independent card containing a plot and its specific control parameters. <b>Manual Update System:</b> To prevent lag while setting up multiple parameters, the plot does not update automatically. Whenever you change values (like speed, node, or stiffness), you must click the <b><i class="fas fa-sync-alt"></i> Update</b> button at the top of the card to run the simulation and refresh the graph.</p>
             <h4>Managing Dashboards</h4>
             <ul>
                 <li><b>Minimize/Expand:</b> Click the <i class="fas fa-chevron-down"></i> icon on the right side of the card header (or click the header itself) to hide or show the dashboard content.</li>

@@ -891,3 +891,20 @@ button {
     color: var(--accent-primary); 
     border-color: #bfdbfe; 
 }
+
+/* Update Analysis button */
+.btn-update-analysis { 
+    background: transparent; 
+    color: var(--text-muted); 
+    padding: 4px 8px; 
+    border-radius: var(--radius-ui); 
+    font-size: 12px; 
+    cursor: pointer; 
+    border: 1px solid transparent; 
+    font-weight: 600;
+}
+.btn-update-analysis:hover { 
+    background: #f0fdf4; 
+    color: var(--accent-success); 
+    border-color: #bbf7d0; 
+}
