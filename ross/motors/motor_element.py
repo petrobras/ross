@@ -11,6 +11,7 @@ from ross.element import Element
 from ross.units import Q_, check_units
 
 from .motor_sourceAC import SourceAC
+from .motor_results import MotorTimeResponseResults
 
 __all__ = ["MotorElement", "motor_example", "run_motor_example"]
 
@@ -301,7 +302,6 @@ class MotorElement(Element):
         dLdr_dt : float
             Derivative of the d-axis rotor inductance with respect to time.
         """
-
         R = self.rotor_resistance
         w = self.frequency - wr * self.n_poles / 2
 
@@ -535,25 +535,22 @@ class MotorElement(Element):
         load_torque = np.ones_like(t) * self.Tnom * load_torque_ratio
         load_torque[0:idx] = 0.0
 
-        results = {
-            "time": [],
-            "Vas": [],
-            "Vbs": [],
-            "Vcs": [],
-            "Ias": [],
-            "Ibs": [],
-            "Ics": [],
-            "Ialfas": [],
-            "Ibetas": [],
-            "Ids": [],
-            "Iqs": [],
-            "TE": [],
-            "Tl": [],
-            "wr": [],
-            "RPM": [],
-        }
+        nt = len(t)
 
-        for i in range(1, len(t)):
+        speed = np.zeros(nt)
+        electric_torque = np.zeros(nt)
+        currents = {
+            "a": np.zeros(nt),
+            "b": np.zeros(nt),
+            "c": np.zeros(nt),
+            "alpha": np.zeros(nt),
+            "beta": np.zeros(nt),
+            "d": np.zeros(nt),
+            "q": np.zeros(nt),
+        }
+        voltages = {"a": np.zeros(nt), "b": np.zeros(nt), "c": np.zeros(nt)}
+
+        for i in range(1, nt):
             dt = t[i] - t[i - 1]
 
             # Updating angles
@@ -586,148 +583,24 @@ class MotorElement(Element):
             ibs = -i_alpha / 2 + np.sqrt(3) * i_beta / 2
             ics = -i_alpha / 2 - np.sqrt(3) * i_beta / 2
 
-            step_result = {
-                "time": t[i],
-                "Vas": vas,
-                "Vbs": vbs,
-                "Vcs": vcs,
-                "Ias": ias,
-                "Ibs": ibs,
-                "Ics": ics,
-                "Ialfas": i_alpha,
-                "Ibetas": i_beta,
-                "Ids": ids,
-                "Iqs": iqs,
-                "TE": Te,
-                "Tl": Tl,
-                "wr": wr,
-                "RPM": wr * 30 / np.pi,
-            }
+            speed[i] = wr
+            electric_torque[i] = Te
+            currents["a"][i] = ias
+            currents["b"][i] = ibs
+            currents["c"][i] = ics
+            currents["alpha"][i] = i_alpha
+            currents["beta"][i] = i_beta
+            currents["d"][i] = ids
+            currents["q"][i] = iqs
+            voltages["a"][i] = vas
+            voltages["b"][i] = vbs
+            voltages["c"][i] = vcs
 
-            # Append results
-            for key in results:
-                results[key].append(step_result[key])
+        results = MotorTimeResponseResults(
+            t, electric_torque, load_torque, speed, currents, voltages
+        )
 
         return results
-
-    def plot(self, results):
-        """Plot the simulation results (Torque and Speed) in separate figures.
-
-        Parameters
-        ----------
-        results : dict
-            Dictionary returned by the 'run' method containing lists of results.
-
-        Returns
-        -------
-        fig_torque, fig_speed, fig_currents, fig_voltages: tuple of plotly.graph_objects.Figure
-            Four separate figures for Torque, Speed, Electric Current and Tension.
-        """
-
-        # Figure 1: Torques
-        fig_torque = go.Figure()
-        fig_torque.add_trace(
-            go.Scatter(
-                x=results["time"],
-                y=results["TE"],
-                name="Electromagnetic Torque(N.m)",
-                line=dict(color="blue"),
-            )
-        )
-        fig_torque.add_trace(
-            go.Scatter(
-                x=results["time"],
-                y=results["Tl"],
-                name="Load Torque (N.m)",
-                line=dict(color="red"),
-            )
-        )
-        fig_torque.update_layout(
-            title="Motor operation: Electromagnetic Torque and Load Torque",
-            xaxis_title="Time (s)",
-            yaxis_title="Torque (N.m)",
-        )
-
-        # Figure 2: Shaft Motor Speed
-        fig_speed = go.Figure()
-        fig_speed.add_trace(
-            go.Scatter(
-                x=results["time"],
-                y=results["RPM"],
-                name="Rotação (RPM)",
-                line=dict(color="red"),
-            )
-        )
-        fig_speed.update_layout(
-            title="Motor operation: Shaft Speed",
-            xaxis_title="Time (s)",
-            yaxis_title="Motor speed (RPM)",
-        )
-
-        # Figure 3: Phase Currents
-        fig_currents = go.Figure()
-        fig_currents.add_trace(
-            go.Scatter(
-                x=results["time"],
-                y=results["Ias"],
-                name="Ia (A)",
-                line=dict(color="blue"),
-            )
-        )
-        fig_currents.add_trace(
-            go.Scatter(
-                x=results["time"],
-                y=results["Ibs"],
-                name="Ib (A)",
-                line=dict(color="black"),
-            )
-        )
-        fig_currents.add_trace(
-            go.Scatter(
-                x=results["time"],
-                y=results["Ics"],
-                name="Ic (A)",
-                line=dict(color="red"),
-            )
-        )
-        fig_currents.update_layout(
-            title="Motor operation: Stator Currents",
-            xaxis_title="Time (s)",
-            yaxis_title="Currents (A)",
-        )
-
-        # Figure 4: Phase Tensions
-        fig_voltages = go.Figure()
-        fig_voltages.add_trace(
-            go.Scatter(
-                x=results["time"],
-                y=results["Vas"],
-                name="Va (V)",
-                line=dict(color="blue"),
-            )
-        )
-        fig_voltages.add_trace(
-            go.Scatter(
-                x=results["time"],
-                y=results["Vbs"],
-                name="Vb (V)",
-                line=dict(color="black"),
-            )
-        )
-        fig_voltages.add_trace(
-            go.Scatter(
-                x=results["time"],
-                y=results["Vcs"],
-                name="Vc (V)",
-                line=dict(color="red"),
-            )
-        )
-        fig_voltages.update_layout(
-            title="Motor operation: Stator Voltages",
-            xaxis_title="Time (s)",
-            yaxis_title="Stator Voltages (V)",
-        )
-        return fig_torque, fig_speed, fig_currents, fig_voltages
 
 
 def motor_example():
@@ -780,7 +653,10 @@ def run_motor_example():
 
     results = motor.run(t, load_torque_entrance_time=3.0, load_torque_ratio=1.5)
 
-    fig_torque, fig_speed, fig_currents, fig_voltages = motor.plot(results)
+    fig_torque = results.plot_torque()
+    fig_speed = results.plot_speed()
+    fig_currents = results.plot_phase_currents(reference_frame="a-b-c")
+    fig_voltages = results.plot_phase_tensions()
 
     fig_torque.show()
     fig_speed.show()
