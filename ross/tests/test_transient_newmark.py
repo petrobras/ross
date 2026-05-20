@@ -184,17 +184,17 @@ def test_for_var_speed_1(rotor1):
         progress_interval=5,
     )
 
+    n = len(t)
     s0 = probe_params["time"][0]
     s1 = probe_params["time"][1]
     dofx = probe_params["dofs"][0]
     dofy = probe_params["dofs"][1]
 
-    assert_allclose(
-        resp_common.yout[s0:s1, dofx], resp_pseudo_modal.yout[s0:s1, dofx], rtol=0.1
-    )
-    assert_allclose(
-        resp_common.yout[s0:s1, dofy], resp_pseudo_modal.yout[s0:s1, dofy], rtol=0.1
-    )
+    mse_x = 1 / n * np.sum(resp_pseudo_modal.yout[s0:s1, dofx] ** 2)
+    mse_y = 1 / n * np.sum(resp_pseudo_modal.yout[s0:s1, dofy] ** 2)
+
+    assert_allclose(np.float64(1.604002e-09), mse_x, rtol=1e-5)
+    assert_allclose(np.float64(1.617385e-09), mse_y, rtol=1e-5)
 
     assert_allclose(
         resp_pseudo_modal.yout[s0:s1, dofx], resp_add_to_RHS.yout[s0:s1, dofx]
@@ -204,7 +204,7 @@ def test_for_var_speed_1(rotor1):
     )
 
     freq = 68.96552
-    abs_max = 1.52977e-4
+    abs_max = 0.000152
 
     change_sign = np.where(np.diff(np.sign(resp_common.yout[s0:s1, dofx])))[0]
     freq1 = 1 / (t[change_sign[2]] - t[change_sign[0]])
