@@ -84,11 +84,11 @@ class MotorTimeResponseResults(Results):
         reference_frame = reference_frame.split("-")
 
         greek_map = {
-            "alpha": "α",
-            "beta": "β",
             "a": "a",
             "b": "b",
             "c": "c",
+            "alpha": "α",
+            "beta": "β",
             "d": "d",
             "q": "q",
         }
