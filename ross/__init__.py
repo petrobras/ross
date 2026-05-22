@@ -1,4 +1,4 @@
-__version__ = "2.2.0"
+__version__ = "2.3.0"
 import sys
 from plotly import io as _pio
 
@@ -19,6 +19,7 @@ from .coupling_element import *
 from .units import Q_
 from .utils import get_data_from_figure, visualize_matrix
 from ross.bearings.lubricants import lubricants_dict
+from ross.bearings.bearing_results import *
 from ross.bearings.plain_journal import *
 from ross.bearings.thrust_pad import *
 from ross.bearings.tilting_pad import *
