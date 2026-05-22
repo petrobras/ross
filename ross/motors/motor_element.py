@@ -12,7 +12,7 @@ from ross.element import Element
 from ross.units import Q_, check_units
 
 from .motor_sourceAC import SourceAC
-from .motor_results import MotorTimeResponseResults
+from .motor_results import MotorResponseResults
 
 __all__ = ["MotorElement", "motor_example", "run_motor_example"]
 
@@ -414,7 +414,7 @@ class MotorElement(Element):
         return Tl
     
     def _calculate_electromagnetic_flux_angle(self, t, flux_angle_0):
-        """Calculate instant electromagnetic flux angle
+        """Calculate instantaneous electromagnetic flux angle
         
         This method computes the electromagnetic flux angle based on time.
 
@@ -469,7 +469,7 @@ class MotorElement(Element):
         Te = self._calculate_electrical_torque(Lds, Ldr, Lqs, Lqr)
 
         # Electrical 3-phase tensions
-        vas, vbs, vcs = self.sourceAC(t)
+        vas, vbs, vcs = self.sourceAC.get_phase_voltages(t)
 
         # Clarke & Park Transforms for Voltages
         v_alpha = 2 / 3 * (vas - vbs / 2 - vcs / 2)
@@ -489,8 +489,20 @@ class MotorElement(Element):
 
         return dLds_dt, dLqs_dt, dLdr_dt, dLqr_dt, dwr_dt
 
-    def run(self, t, load_torque_entrance_time=None, load_torque_ratio=1.0):
+    @check_units
+    def run_with_AC_source(self, 
+        t,
+        load_torque_entrance_time=None,
+        load_torque_ratio=1.0,
+        voltage_net=None,
+        frequency_net=None,
+        initial_phase_angle=0.0,
+        harmonics=None,
+        unbalances=None,
+    ):
         """Run the motor simulation over a specified time vector.
+
+        This method considers driving motor with AC source.
 
         Parameters
         ----------
@@ -507,10 +519,21 @@ class MotorElement(Element):
 
         Returns
         -------
-        results : ross.MotorTimeResponseResults
+        results : ross.MotorResponseResults
             For more information on attributes and methods available see:
-            :py:class:`ross.MotorTimeResponseResults`
+            :py:class:`ross.MotorResponseResults`
         """
+
+        voltage_net = voltage_net or self.voltage_nom
+        frequency_net = frequency_net or self.frequency
+
+        self.sourceAC = SourceAC(
+            voltage_net=voltage_net,
+            frequency_net=Q_(frequency_net, "rad/s").to("Hz").m,
+            initial_phase_angle=initial_phase_angle,
+            harmonics=harmonics,
+            unbalances=unbalances
+        )
 
         # Initial values
         wr0 = 0.0  # Rotor's angular speed
@@ -532,7 +555,6 @@ class MotorElement(Element):
 
         # Get solution in time
         t = np.array(t)
-        n_steps = len(t)
 
         solution = sp.integrate.solve_ivp(
             fun=self._ode_system,
@@ -560,7 +582,7 @@ class MotorElement(Element):
         ibs = -i_alpha / 2 + np.sqrt(3) * i_beta / 2
         ics = -i_alpha / 2 - np.sqrt(3) * i_beta / 2
 
-        vas, vbs, vcs = np.vectorize(self.sourceAC)(t)
+        vas, vbs, vcs = np.vectorize(self.sourceAC.get_phase_voltages)(t)
 
         # Save currents and voltages in dictionary
         currents = dict()
@@ -577,7 +599,7 @@ class MotorElement(Element):
         voltages["b"] = vbs
         voltages["c"] = vcs
 
-        results = MotorTimeResponseResults(
+        results = MotorResponseResults(
             t, electric_torque, load_torque, speed, currents, voltages
         )
 
@@ -585,7 +607,7 @@ class MotorElement(Element):
 
 
 def motor_example():
-    """Create an example of notor element.
+    """Create an example of motor element.
 
     This function returns an instance of a simple electric motor. The purpose is
     to make available a simple model so that doctest can be written using it.
@@ -621,18 +643,25 @@ def run_motor_example():
     """Run the motor example and plot the results."""
     motor = motor_example()
 
-    # Adjusting simulation parameters
-    motor.sourceAC.harmonics(fHO=[5, 7], aHO=[5, 5])
-    motor.sourceAC.voltage_net = 90.0
-    motor.sourceAC.harmonics("enable")
-    motor.sourceAC.unbalances("disable")
-
     tI = 0.0
     tF = 5.0
     dt = 1e-4
     t = np.arange(tI, tF, dt)
 
-    results = motor.run(t, load_torque_entrance_time=3.0, load_torque_ratio=1.5)
+    results = motor.run_with_AC_source(
+        t,
+        load_torque_entrance_time=3.0,
+        load_torque_ratio=1.5,
+        voltage_net=90.0,
+        harmonics={
+            "enable": True,
+            "orders": [5, 7],
+            "amplitudes": [5, 5],
+        },
+        unbalances={
+            "enable": False
+        }
+    )
 
     fig_torque = results.plot_torque()
     fig_speed = results.plot_speed()
