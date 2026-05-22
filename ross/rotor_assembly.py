@@ -557,7 +557,6 @@ class Rotor(object):
 
         # Base matrices:
         M0 = np.zeros((self.ndof, self.ndof))
-        # C0 = np.zeros((self.ndof, self.ndof))
         K0 = np.zeros((self.ndof, self.ndof))
         G0 = np.zeros((self.ndof, self.ndof))
         Ksdt0 = np.zeros((self.ndof, self.ndof))
@@ -568,7 +567,6 @@ class Rotor(object):
             dofs = list(elm.dof_global_index.values())
 
             M0[np.ix_(dofs, dofs)] += elm.M()
-            # C0[np.ix_(dofs, dofs)] += elm.C()
             K0[np.ix_(dofs, dofs)] += elm.K()
             G0[np.ix_(dofs, dofs)] += elm.G()
 
