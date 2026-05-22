@@ -9,7 +9,7 @@ from ross.results import Results
 from ross.units import Q_
 
 
-class MotorTimeResponseResults(Results):
+class MotorResponseResults(Results):
     """Class for time response results."""
 
     def __init__(self, t, electric_torque, load_torque, speed, currents, voltages):
@@ -20,7 +20,7 @@ class MotorTimeResponseResults(Results):
         self.currents = currents
         self.voltages = voltages
 
-    def plot_torque(self, torque_unit="N*m", fig=None):
+    def plot_torque(self, torque_unit="N*m", fig=None, **kwargs):
         """Plot the torque results."""
         if fig is None:
             fig = go.Figure()
@@ -46,9 +46,11 @@ class MotorTimeResponseResults(Results):
             yaxis_title=f"Torque ({torque_unit})",
         )
 
+        fig.update_layout(**kwargs)
+
         return fig
 
-    def plot_speed(self, speed_unit="RPM", fig=None):
+    def plot_speed(self, speed_unit="RPM", fig=None, **kwargs):
         """Plot the shaft motor speed."""
         if fig is None:
             fig = go.Figure()
@@ -67,9 +69,54 @@ class MotorTimeResponseResults(Results):
             yaxis_title=f"Motor speed ({speed_unit})",
         )
 
+        fig.update_layout(**kwargs)
+
         return fig
 
-    def plot_phase_currents(self, reference_frame="a-b-c", fig=None):
+    def plot_phase_currents(self, reference_frame="a-b-c", fig=None, **kwargs):
+        """Plot the phase currents.
+
+        Parameters
+        ----------
+        reference_frame : str, optional
+            Reference frame for current. Options available: 'a-b-c', 'alpha-beta', 'd-q'.
+            Default is 'a-b-c'.
+        """
+        if kwargs.get("title") is None:
+            kwargs["title"] = "Motor operation: Stator Currents"
+
+        current = CurrentTimeResults(self.t, self.currents)
+        fig = current.plot(reference_frame=reference_frame, fig=fig, **kwargs)
+
+        return fig
+
+    def plot_phase_tensions(self, fig=None, **kwargs):
+        """Plot the phase tensions."""
+        if kwargs.get("title") is None:
+            kwargs["title"] = "Motor operation: Stator Voltages"
+        
+        voltage = VoltageTimeResults(self.t, self.voltages)
+        fig = voltage.plot(fig=fig, **kwargs)
+
+        return fig
+
+class CurrentTimeResults(Results):
+
+    _REFERENCE_MAP = {
+        "a": "a",
+        "b": "b",
+        "c": "c",
+        "alpha": "α",
+        "beta": "β",
+        "d": "d",
+        "q": "q",
+    }
+            
+    def __init__(self, t, currents):
+        self.t = t
+        self.currents = currents
+
+    def plot(self, reference_frame="a-b-c", fig=None, **kwargs):
         """Plot the phase currents.
 
         Parameters
@@ -83,34 +130,32 @@ class MotorTimeResponseResults(Results):
 
         reference_frame = reference_frame.split("-")
 
-        greek_map = {
-            "a": "a",
-            "b": "b",
-            "c": "c",
-            "alpha": "α",
-            "beta": "β",
-            "d": "d",
-            "q": "q",
-        }
-
         for axis in reference_frame:
             fig.add_trace(
                 go.Scatter(
                     x=self.t,
                     y=self.currents[axis],
-                    name=f"I<sub>{greek_map[axis]}</sub>",
+                    name=f"I<sub>{self._REFERENCE_MAP[axis]}</sub>",
                 )
             )
 
         fig.update_layout(
-            title="Motor operation: Stator Currents",
+            title="Phase Currents",
             xaxis_title="Time (s)",
             yaxis_title="Current (A)",
         )
 
+        fig.update_layout(**kwargs)
+
         return fig
 
-    def plot_phase_tensions(self, fig=None):
+class VoltageTimeResults(Results):
+
+    def __init__(self, t, voltages):
+        self.t = t
+        self.voltages = voltages
+
+    def plot(self, fig=None, **kwargs):
         """Plot the phase tensions."""
         if fig is None:
             fig = go.Figure()
@@ -125,9 +170,12 @@ class MotorTimeResponseResults(Results):
             )
 
         fig.update_layout(
-            title="Motor operation: Stator Voltages",
+            title="3-phase Source Voltage",
             xaxis_title="Time (s)",
             yaxis_title="Voltage (V)",
         )
 
+        fig.update_layout(**kwargs)
+
         return fig
+    
