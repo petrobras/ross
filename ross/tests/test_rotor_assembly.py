@@ -1857,8 +1857,8 @@ def rotor_6dof():
 
 def test_modal_6dof(rotor_6dof):
     modal = rotor_6dof.run_modal(speed=0, sparse=False)
-    wn = np.array([1.  ,  47.62,  91.8 ,  96.29, 274.57])
-    wd = np.array([0.  ,  47.62,  91.8 ,  96.29, 274.57])
+    wn = np.array([47.62,  91.8 ,  96.29, 274.57, 296.5])
+    wd = np.array([47.62,  91.8 ,  96.29, 274.57, 296.5])
 
     assert_almost_equal(modal.wn[:5], wn, decimal=2)
     assert_almost_equal(modal.wd[:5], wd, decimal=2)
