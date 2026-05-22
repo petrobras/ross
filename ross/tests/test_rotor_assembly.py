@@ -1822,7 +1822,14 @@ def test_distinct_dof_elements_error():
         bearing1 = BearingElement(
             n=6, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, kzz=kzz, czz=czz
         )
-        Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1], n_eigen=36,alpha=0, beta=0)
+        Rotor(
+            shaft_elem,
+            [disk0, disk1],
+            [bearing0, bearing1],
+            n_eigen=36,
+            alpha=0,
+            beta=0,
+        )
 
 
 @pytest.fixture
@@ -1852,13 +1859,13 @@ def rotor_6dof():
     bearing0 = BearingElement(n=0, kxx=1e6, kyy=8e5, kzz=1e5, cxx=0, cyy=0, czz=0)
     bearing1 = BearingElement(n=6, kxx=1e6, kyy=8e5, kzz=1e5, cxx=0, cyy=0, czz=0)
 
-    return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1], alpha=1,beta=1e-5)
+    return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1], alpha=1, beta=1e-5)
 
 
 def test_modal_6dof(rotor_6dof):
     modal = rotor_6dof.run_modal(speed=0, sparse=False)
-    wn = np.array([47.62,  91.8 ,  96.29, 274.57, 296.5])
-    wd = np.array([47.62,  91.8 ,  96.29, 274.57, 296.5])
+    wn = np.array([47.62, 91.8, 96.29, 274.57, 296.5])
+    wd = np.array([47.62, 91.8, 96.29, 274.57, 296.5])
 
     assert_almost_equal(modal.wn[:5], wn, decimal=2)
     assert_almost_equal(modal.wd[:5], wd, decimal=2)
@@ -1911,25 +1918,25 @@ def test_modal_damping():
     actual_phase = np.angle(freq_response.freq_resp[2 * 6, 2 * 6, :8])
 
     expected_amp = [
-        0.000000e+00, 
-        1.495079e-06, 
+        0.000000e00,
+        1.495079e-06,
         1.803400e-06,
         2.819422e-06,
-        1.914051e-05, 
-        2.548842e-06, 
-        9.418038e-07, 
+        1.914051e-05,
+        2.548842e-06,
+        9.418038e-07,
         4.558292e-07,
-        ]
+    ]
 
     expected_phase = [
-        0.000000e+00, 
-        -6.188289e-04, 
-        -1.423301e-03, 
+        0.000000e00,
+        -6.188289e-04,
+        -1.423301e-03,
         -3.157592e-03,
         -3.001839e-02,
-        -3.135327e+00, 
-        -3.135999e+00,
-        -3.131778e+00
+        -3.135327e00,
+        -3.135999e00,
+        -3.131778e00,
     ]
 
     assert_allclose(actual_amp, expected_amp, rtol=1e-6)
@@ -2760,20 +2767,12 @@ def test_run_amb_sensitivity():
         },
         "abs_slice": {
             "Magnetic Bearing 0": {
-                "x": np.array(
-                    [0.991592, 0.991572, 0.991534, 0.991482, 0.991425]
-                ),
-                "y": np.array(
-                    [0.991592, 0.991572, 0.991534, 0.991482, 0.991425]
-                ),
+                "x": np.array([0.991592, 0.991572, 0.991534, 0.991482, 0.991425]),
+                "y": np.array([0.991592, 0.991572, 0.991534, 0.991482, 0.991425]),
             },
             "Magnetic Bearing 1": {
-                "x": np.array(
-                    [0.988093, 0.988065, 0.988009, 0.987932, 0.987848]
-                ),
-                "y": np.array(
-                    [0.988093, 0.988065, 0.988009, 0.987932, 0.987848]
-                ),
+                "x": np.array([0.988093, 0.988065, 0.988009, 0.987932, 0.987848]),
+                "y": np.array([0.988093, 0.988065, 0.988009, 0.987932, 0.987848]),
             },
         },
         "phase_slice": {

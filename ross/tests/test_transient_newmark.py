@@ -41,7 +41,7 @@ def rotor1():
     bearing0 = BearingElement(0, kxx=stfx, kyy=stfy, cxx=c, cyy=c)
     bearing1 = BearingElement(6, kxx=stfx, kyy=stfy, cxx=c, cyy=c)
 
-    return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1], alpha=10,beta=1e-4)
+    return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1], alpha=10, beta=1e-4)
 
 
 @pytest.fixture
@@ -76,7 +76,13 @@ def rotor2():
     bearing0 = BearingElement(0, kxx=stfx, kyy=stfy, cxx=c, cyy=c, frequency=frequency)
     bearing1 = BearingElement(6, kxx=stfx, kyy=stfy, cxx=c, cyy=c, frequency=frequency)
 
-    return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1], alpha=10, beta=1e-4,)
+    return Rotor(
+        shaft_elem,
+        [disk0, disk1],
+        [bearing0, bearing1],
+        alpha=10,
+        beta=1e-4,
+    )
 
 
 def simulation_parameters():
@@ -248,8 +254,8 @@ def test_for_var_speed_2(rotor2):
     dofx = probe_params["dofs"][0]
     dofy = probe_params["dofs"][1]
 
-    mse_x = 1 / n * np.sum(resp_pseudo_modal.yout[s0:s1, dofx]**2)
-    mse_y = 1 / n * np.sum(resp_pseudo_modal.yout[s0:s1, dofy]**2)
+    mse_x = 1 / n * np.sum(resp_pseudo_modal.yout[s0:s1, dofx] ** 2)
+    mse_y = 1 / n * np.sum(resp_pseudo_modal.yout[s0:s1, dofy] ** 2)
 
     assert_allclose(np.float64(1.621711e-09), mse_x, rtol=1e-5)
     assert_allclose(np.float64(1.635272e-09), mse_y, rtol=1e-5)

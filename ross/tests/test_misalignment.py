@@ -61,7 +61,9 @@ def rotor():
         n=31, kxx=kxx2, kyy=kyy2, kzz=kzz, cxx=cxx2, cyy=cyy2, czz=czz
     )
 
-    return rs.Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1],alpha=8.0501,beta=1.0e-5)
+    return rs.Rotor(
+        shaft_elem, [disk0, disk1], [bearing0, bearing1], alpha=8.0501, beta=1.0e-5
+    )
 
 
 @pytest.fixture
@@ -114,10 +116,10 @@ def test_mis_comb_resp(run_mis_combined):
 
     resp_prob1 = np.array(
         [
-            0.000000e+00, 
-           -4.003480e-09, 
-           -1.997145e-08, 
-           -5.176060e-08,
+            0.000000e00,
+            -4.003480e-09,
+            -1.997145e-08,
+            -5.176060e-08,
             9.915163e-08,
         ]
     )
@@ -130,14 +132,11 @@ def test_mis_comb_resp(run_mis_combined):
             -3.02555141e-08,
         ]
     )
- 
-    
-
 
     data = run_mis_combined.data_time_response(probe=[probe1, probe2])
 
-    assert_allclose(data["probe_resp[0]"].to_numpy()[:5], resp_prob1,  atol=1e-06)
-    assert_allclose(data["probe_resp[1]"].to_numpy()[:5], resp_prob2,  atol=1e-06)
+    assert_allclose(data["probe_resp[0]"].to_numpy()[:5], resp_prob1, atol=1e-06)
+    assert_allclose(data["probe_resp[1]"].to_numpy()[:5], resp_prob2, atol=1e-06)
 
 
 @pytest.fixture
@@ -162,21 +161,10 @@ def test_mis_parallel_resp(run_mis_parallel):
     probe2 = Probe(20, Q_(90, "deg"))
 
     resp_prob1 = np.array(
-        [
-           0.000000e+00, 
-           -9.821307e-09, 
-           -3.773491e-08, 
-           -8.551036e-08,
-            -1.504520e-07
-        ]
+        [0.000000e00, -9.821307e-09, -3.773491e-08, -8.551036e-08, -1.504520e-07]
     )
     resp_prob2 = np.array(
-        [0.00000000e00, 
-         -1.07085953e-10, 
-         2.98333170e-09,
-         1.12848038e-08,
-         1.09412616e-08
-         ]
+        [0.00000000e00, -1.07085953e-10, 2.98333170e-09, 1.12848038e-08, 1.09412616e-08]
     )
 
     data = run_mis_parallel.data_time_response(probe=[probe1, probe2])
@@ -206,10 +194,10 @@ def test_mis_angular_resp(run_mis_angular):
     probe2 = Probe(20, Q_(90, "deg"))
 
     resp_prob1 = np.array(
-        [0.000000e+00, -9.810895e-09, -3.814855e-08, -8.253894e-08,-1.427727e-07]
+        [0.000000e00, -9.810895e-09, -3.814855e-08, -8.253894e-08, -1.427727e-07]
     )
     resp_prob2 = np.array(
-        [0.000000e+00, -1.070682e-10,  2.983838e-09,  1.125557e-08, 1.094712e-08]
+        [0.000000e00, -1.070682e-10, 2.983838e-09, 1.125557e-08, 1.094712e-08]
     )
 
     data = run_mis_angular.data_time_response(probe=[probe1, probe2])
@@ -254,12 +242,12 @@ def test_mis_rigid_resp(mis_rigid):
     probe2 = Probe(20, Q_(90, "deg"))
 
     resp_prob1 = np.array(
-        [0.000000e+00, 6.149274e-08, 3.716138e-07, 1.181863e-06,  2.738342e-06]
+        [0.000000e00, 6.149274e-08, 3.716138e-07, 1.181863e-06, 2.738342e-06]
     )
     resp_prob2 = np.array(
-        [0.000000e+00, -1.990902e-07, -1.180356e-06, -3.674392e-06, -8.318542e-06]
+        [0.000000e00, -1.990902e-07, -1.180356e-06, -3.674392e-06, -8.318542e-06]
     )
 
     data = mis_rigid.data_time_response(probe=[probe1, probe2])
-    assert_allclose(data["probe_resp[0]"].to_numpy()[:5], resp_prob1,atol=1e-6)
-    assert_allclose(data["probe_resp[1]"].to_numpy()[:5], resp_prob2,atol=1e-6)
+    assert_allclose(data["probe_resp[0]"].to_numpy()[:5], resp_prob1, atol=1e-6)
+    assert_allclose(data["probe_resp[1]"].to_numpy()[:5], resp_prob2, atol=1e-6)

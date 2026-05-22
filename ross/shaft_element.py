@@ -178,7 +178,6 @@ class ShaftElement(Element):
         self.tag = tag
         self.shear_method_calc = shear_method_calc
 
-
         self.L = float(L)
         self.o_d = (float(odl) + float(odr)) / 2
         self.i_d = (float(idl) + float(idr)) / 2
@@ -187,7 +186,6 @@ class ShaftElement(Element):
         self.idr = float(idr)
         self.odr = float(odr)
         self.color = self.material.color
-
 
         # A_l = cross section area from the left side of the element
         # A_r = cross section area from the right side of the element
@@ -970,8 +968,8 @@ class ShaftElement(Element):
                [0., 0., 0., 0., 0., 0.],
                [0., 0., 0., 0., 0., 0.]])
         """
-            
-        C=np.zeros((12,12))
+
+        C = np.zeros((12, 12))
 
         return C
 
@@ -1378,7 +1376,7 @@ class ShaftElement(Element):
             Default is False.
         gyroscopic : bool
             Determine if gyroscopic effects are taken into account.
-            Default is False. 
+            Default is False.
 
         Returns
         -------
