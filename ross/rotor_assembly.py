@@ -4969,7 +4969,7 @@ class CoAxialRotor(Rotor):
         default_damping_ratio=[0.0],
         alpha=0,
         beta=0,
-        tag=None,             
+        tag=None,
     ):
         self.parameters = {"min_w": min_w, "max_w": max_w, "rated_w": rated_w}
         if tag is None:

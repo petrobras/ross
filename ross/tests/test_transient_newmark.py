@@ -76,7 +76,13 @@ def rotor2():
     bearing0 = BearingElement(0, kxx=stfx, kyy=stfy, cxx=c, cyy=c, frequency=frequency)
     bearing1 = BearingElement(6, kxx=stfx, kyy=stfy, cxx=c, cyy=c, frequency=frequency)
 
-    return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1], alpha=10, beta=1e-4,)
+    return Rotor(
+        shaft_elem,
+        [disk0, disk1],
+        [bearing0, bearing1],
+        alpha=10,
+        beta=1e-4,
+    )
 
 
 def simulation_parameters():
