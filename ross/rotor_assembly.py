@@ -626,52 +626,6 @@ class Rotor(object):
         """
         pass
 
-    def _damping(self, damping):
-        """Compute the physical damping matrix from modal damping ratios or proportional damping coefficients.
-
-        Parameters
-        ----------
-        damping : str or array-like
-            If "modal", computes damping matrix from modal damping ratios.
-            If array-like, computes proportional damping matrix using alpha and beta coefficients.
-
-        Returns
-        -------
-        C0 : np.ndarray
-            The physical damping matrix (in physical coordinates). For modal damping,
-            computed from specified modal damping ratios. For proportional damping,
-            computed as C0 = alpha * M0 + beta * K0.
-        """
-
-        if damping == "modal":
-            evals, evecs = np.linalg.eig(np.linalg.inv(self.M(0)) @ self.K0)
-            stable = evals >= 0
-            evals = evals[stable]
-            evecs = evecs[:, stable]
-
-            w = np.sqrt(evals.real)
-            below_1rpm = Q_(np.sort(w), "rad/s").to("RPM").m < 1
-            modal_damping = np.block(
-                [np.zeros(below_1rpm.sum()), np.array(self.modal_damping)]
-            )
-            idx = np.argsort(w)
-            w = w[idx]
-            phi = evecs[:, idx]
-
-            # Full damping vector (pad with zeros if needed)
-            full_xi = np.ones(w.shape) * np.array(self.default_modals)
-            full_xi[: len(modal_damping)] = modal_damping
-
-            # Modal damping matrix: C_modal = diag(2 * ξ_i * ω_i)
-            C_modal = np.diag(2 * full_xi * w)
-            M_modal = phi.T @ self.M(0) @ phi
-            T = np.linalg.solve(M_modal, phi.T)
-            C0 = self.M(0) @ phi @ C_modal @ T @ self.M0
-        else:
-            C0 = self.alpha * self.M0 + self.beta * self.K0
-
-        return C0
-
     def _set_nodes(self, df_shaft):
         """Set nodes and nodes_pos lists."""
         self.nodes = list(df_shaft.groupby("n_l")["n_l"].max())
