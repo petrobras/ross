@@ -908,3 +908,32 @@ button {
     color: var(--accent-success); 
     border-color: #bbf7d0; 
 }
+
+/* Advanced Buttons and Containers in Dashboards */
+.btn-adv-dash {
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px dashed var(--border-color);
+    width: 100%;
+    padding: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    border-radius: var(--radius-ui);
+    margin-top: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.btn-adv-dash:hover {
+    background: #f1f5f9;
+    color: var(--accent-primary);
+    border-color: var(--accent-primary);
+}
+.adv-dash-container {
+    display: none;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed var(--border-color);
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 12px;
+}

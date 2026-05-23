@@ -68,7 +68,7 @@ const FormTemplates = {
         <div class="input-group"><label>Length [mm]</label><input type="text" id="inp-L"></div>
         <div class="input-group"><label>Left Outer Diam. [mm]</label><input type="text" id="inp-odl"></div>
         <div class="input-group"><label>Left Inner Diam. [mm]</label><input type="text" id="inp-idl"></div>
-        <div class="input-group"><label>Material Name</label><input type="text" id="inp-material"></div>
+        <div class="input-group"><label>Material Name</label><select id="inp-material"></select></div>
         <button type="button" class="btn-advanced" onclick="toggleAdvanced(this)">Advanced <i class="fas fa-chevron-down"></i></button>
         <div class="advanced-fields" style="display: none; margin-top: 10px; border-top: 1px dashed #ccc; padding-top: 10px;">
             <div class="input-group"><label>Right Outer Diam. [mm]</label><input type="text" id="inp-odr"></div>
@@ -111,14 +111,14 @@ const FormTemplates = {
             <div class="input-group"><label>Pressure Angle [deg]</label><input type="text" id="inp-pr_angle"></div>
             <div class="input-group"><label>Helix Angle [deg]</label><input type="text" id="inp-helix_angle"></div>
             <div class="input-group"><label>Bore Diameter [mm]</label><input type="text" id="inp-bore_diameter"></div>
-            <div class="input-group"><label>Material Name</label><input type="text" id="inp-material"></div>
+            <div class="input-group"><label>Material Name</label><select id="inp-material"></select></div>
             <div class="input-group"><label>Scale Factor</label><input type="text" id="inp-scale_factor"></div>
             <div class="input-group"><label>Tag</label><input type="text" id="inp-tag"></div>
             <div class="input-group"><label>Hex Color</label><input type="text" id="inp-color"></div>
         </div>`,
         TVMS: `
         <div class="input-group"><label>Node # (Optional)</label><input type="text" id="inp-n"></div>
-        <div class="input-group"><label>Material Name</label><input type="text" id="inp-material"></div>
+        <div class="input-group"><label>Material Name</label><select id="inp-material"></select></div>
         <div class="input-group"><label>Tooth Width [mm]</label><input type="text" id="inp-width"></div>
         <div class="input-group"><label>Bore Diameter [mm]</label><input type="text" id="inp-bore_diameter"></div>
         <div class="input-group"><label>Module [mm]</label><input type="text" id="inp-module"></div>
@@ -756,9 +756,21 @@ function selectSubType(type) {
     currentSubType = type;
     document.getElementById('form-fields').innerHTML = FormTemplates[currentTab][type];
     document.querySelector('.form-actions').style.display = 'flex'; 
+    const matSelects = document.getElementById('form-fields').querySelectorAll('select#inp-material');
+    matSelects.forEach(sel => {
+        sel.innerHTML = '';
+        if (projectData.materials.length === 0) {
+            sel.innerHTML = '<option value="">-- No Materials Created --</option>';
+        } else {
+            projectData.materials.forEach(m => {
+                let mName = m.name || 'MaterialCustom';
+                sel.innerHTML += `<option value="${mName}">${mName}</option>`;
+            });
+        }
+    });
     if (editingIndex >= 0) {
         const item = projectData[currentTab][editingIndex];
-        const inputs = document.getElementById('form-fields').querySelectorAll('input');
+        const inputs = document.getElementById('form-fields').querySelectorAll('input, select');
         let hasAdvancedVal = false;
         inputs.forEach(inp => {
             const key = inp.id.replace('inp-', '');
@@ -836,7 +848,7 @@ function deleteItem(index) {
 // Function to save the element
 
 function saveItem() {
-    const inputs = document.getElementById('form-fields').querySelectorAll('input');    
+    const inputs = document.getElementById('form-fields').querySelectorAll('input, select');    
     if (currentSubType === 'LIST') {
         let parsedData = {};
         let maxLen = 0;        
@@ -1046,41 +1058,101 @@ const AnalysisDashboards = {
     campbell: [
         { id: 'speed_min', label: 'Start Speed (rad/s)', type: 'range', min: 0, max: 1000, step: 10, val: 0 },
         { id: 'speed_max', label: 'End Speed (rad/s)', type: 'range', min: 100, max: 4000, step: 10, val: 400 },
-        { id: 'speed_steps', label: 'Steps', type: 'range', min: 10, max: 200, step: 1, val: 50 }
+        { id: 'speed_steps', label: 'Steps', type: 'range', min: 10, max: 200, step: 1, val: 50 },
+        { id: 'plot_type', label: 'Plot Type', type: 'select', options: ['Default', 'Mode Shape'], val: 'Default' },
+        
+        { id: 'frequencies', label: 'Nº Frequencies', type: 'number', val: 6, adv: 'analysis' },
+        { id: 'frequency_type', label: 'Freq. Type', type: 'select', options: ['wd', 'wn'], val: 'wd', adv: 'analysis' },
+        { id: 'torsional_analysis', label: 'Torsional', type: 'select', options: ['False', 'True'], val: 'False', adv: 'analysis' },
+        
+        { id: 'harmonics', label: 'Harmonics [list]', type: 'text', val: '[1]', adv: 'plot' },
+        { id: 'frequency_units', label: 'Freq. Units', type: 'select', options: ['RPM', 'rad/s'], val: 'RPM', adv: 'plot' },
+        { id: 'speed_units', label: 'Speed Units', type: 'select', options: ['RPM', 'rad/s'], val: 'RPM', adv: 'plot' },
+        { id: 'damping_parameter', label: 'Damping Param', type: 'select', options: ['log_dec', 'damping_ratio'], val: 'log_dec', adv: 'plot' },
+        { id: 'animation', label: 'Animation', type: 'select', options: ['False', 'True'], val: 'False', adv: 'plot', deps: ['Mode Shape'] }
+    ],
+    ucs: [
+        { id: 'k_min', label: 'Min Stiffness (10^x N/m)', type: 'number', val: 4 },
+        { id: 'k_max', label: 'Max Stiffness (10^x N/m)', type: 'number', val: 10 },
+        { id: 'num_modes', label: 'Nº Modes', type: 'number', val: 4 },
+        
+        { id: 'bearing_frequency_range', label: 'Bearing Freq Range [list]', type: 'text', val: '', adv: 'analysis' },
+        { id: 'synchronous', label: 'Synchronous', type: 'select', options: ['False', 'True'], val: 'False', adv: 'analysis' },
+        
+        { id: 'stiffness_units', label: 'Stiffness Units', type: 'text', val: 'N/m', adv: 'plot' },
+        { id: 'frequency_units', label: 'Freq. Units', type: 'select', options: ['RPM', 'Hz', 'rad/s'], val: 'rad/s', adv: 'plot' }
+    ],
+    freq_response: [
+        { id: 'speed_min', label: 'Start Speed (rad/s)', type: 'range', min: 0, max: 1000, step: 10, val: 0 },
+        { id: 'speed_max', label: 'End Speed (rad/s)', type: 'range', min: 100, max: 4000, step: 10, val: 400 },
+        { id: 'plot_type', label: 'Plot Type', type: 'select', options: ['Default', 'Magnitude', 'Phase', 'Polar Bode'], val: 'Default' },
+        { id: 'inps', label: 'Input Probes', type: 'probe_list', val: [{node: 0, dof: 0}] },
+        { id: 'outs', label: 'Output Probes', type: 'probe_list', val: [{node: 0, dof: 0}] },
+        
+        { id: 'modes', label: 'Modes [list]', type: 'text', val: '', adv: 'analysis' },
+        { id: 'free_free', label: 'Free Free', type: 'select', options: ['False', 'True'], val: 'False', adv: 'analysis' },
+        
+        { id: 'frequency_units', label: 'Freq. Units', type: 'select', options: ['RPM', 'Hz', 'rad/s'], val: 'rad/s', adv: 'plot' },
+        { id: 'amplitude_units', label: 'Amplitude Units', type: 'select', options: ['m/N', 'mm/N', 'microm/N', 'm/(s*N)', 'm/(s**2*N)'], val: 'm/N', adv: 'plot' },
+        { id: 'phase_units', label: 'Phase Units', type: 'select', options: ['rad', 'deg'], val: 'rad', adv: 'plot', deps: ['Default', 'Phase', 'Polar Bode'] },
+        { id: 'line_shape', label: 'Line Shape', type: 'select', options: ['linear', 'log'], val: 'linear', adv: 'plot', deps: ['Magnitude'] }
+    ],
+    modes: [
+        { id: 'speed', label: 'Shaft Speed (rad/s)', type: 'range', min: 0, max: 2000, step: 10, val: 0 },
+        { id: 'num_modes', label: 'Nº Modes', type: 'number', val: 12 },
+        { id: 'plot_type', label: 'Plot Type', type: 'select', options: ['2D', '3D', 'Orbit'], val: '2D' },
+        { id: 'plot_idx', label: 'Mode Index', type: 'number', val: 0 },
+        
+        { id: 'sparse', label: 'Sparse', type: 'select', options: ['True', 'False'], val: 'True', adv: 'analysis' },
+        { id: 'synchronous', label: 'Synchronous', type: 'select', options: ['False', 'True'], val: 'False', adv: 'analysis' },
+        
+        { id: 'orientation', label: 'Orientation', type: 'select', options: ['major', 'x', 'y'], val: 'major', adv: 'plot', deps: ['2D'] },
+        { id: 'frequency_type', label: 'Freq Type', type: 'select', options: ['wd', 'wn'], val: 'wd', adv: 'plot', deps: ['2D', '3D'] },
+        { id: 'frequency_units', label: 'Freq. Units', type: 'select', options: ['RPM', 'Hz', 'rad/s'], val: 'rad/s', adv: 'plot', deps: ['2D', '3D'] },
+        { id: 'damping_parameter', label: 'Damping Param', type: 'select', options: ['log_dec', 'damping_ratio'], val: 'log_dec', adv: 'plot', deps: ['2D', '3D'] },
+        { id: 'length_units', label: 'Length Units', type: 'select', options: ['m', 'mm'], val: 'm', adv: 'plot', deps: ['3D'] },
+        { id: 'phase_units', label: 'Phase Units', type: 'select', options: ['rad', 'deg'], val: 'rad', adv: 'plot', deps: ['3D'] },
+        { id: 'animation', label: 'Animation', type: 'select', options: ['False', 'True'], val: 'False', adv: 'plot', deps: ['3D'] },
+        { id: 'nodes', label: 'Nodes [list]', type: 'text', val: '', adv: 'plot', deps: ['Orbit'] }
     ],
     unbalance: [
         { id: 'speed_min', label: 'Start Speed (rad/s)', type: 'range', min: 0, max: 1000, step: 10, val: 0 },
         { id: 'speed_max', label: 'End Speed (rad/s)', type: 'range', min: 100, max: 4000, step: 10, val: 400 },
+        { id: 'plot_type', label: 'Plot Type', type: 'select', options: ['Default', 'Magnitude', 'Phase', 'Bode', 'Polar Bode'], val: 'Default' },
         { id: 'unbalances', label: 'Unbalance Excitations', type: 'unbalance_list', val: [{node: 0, mag: 0.01, phase: 0}] },
-        { id: 'probes', label: 'Measurement Probes', type: 'probe_list', val: [{node: 0, dof: 0}] }
+        { id: 'probes', label: 'Measurement Probes', type: 'probe_list', val: [{node: 0, dof: 0}] },
+        
+        { id: 'modes', label: 'Modes [list]', type: 'text', val: '', adv: 'analysis' },
+        
+        { id: 'probe_units', label: 'Probe Units', type: 'select', options: ['rad', 'deg'], val: 'rad', adv: 'plot' },
+        { id: 'frequency_units', label: 'Freq. Units', type: 'select', options: ['RPM', 'Hz', 'rad/s'], val: 'rad/s', adv: 'plot' },
+        { id: 'amplitude_units', label: 'Amplitude Units', type: 'select', options: ['m', 'mm', 'microm'], val: 'm', adv: 'plot' },
+        { id: 'phase_units', label: 'Phase Units', type: 'select', options: ['rad', 'deg'], val: 'rad', adv: 'plot', deps: ['Default', 'Phase', 'Bode', 'Polar Bode'] },
+        { id: 'line_shape', label: 'Line Shape', type: 'select', options: ['linear', 'log'], val: 'linear', adv: 'plot', deps: ['Magnitude'] }
     ],
     time_response: [
         { id: 'speed', label: 'Rot. Speed (rad/s)', type: 'range', min: 0, max: 2000, step: 10, val: 100 },
         { id: 't_max', label: 'Max Time (s)', type: 'number', min: 0.1, max: 10, step: 0.1, val: 1 },
         { id: 'steps', label: 'Time Steps', type: 'number', min: 100, max: 10000, step: 100, val: 1000 },
+        { id: 'plot_type', label: 'Plot Type', type: 'select', options: ['1D', '2D', '3D', 'Frequency (DFFT)'], val: '1D' },
         { id: 'forces', label: 'Applied Forces F(t)', type: 'force_list', val: [{node: 0, dof: 0, func: "1000 * np.cos(speed * t)"}] },
         { id: 'probes', label: 'Measurement Probes', type: 'probe_list', val: [{node: 0, dof: 0}] },
-        { id: 'plot_type', label: 'Plot Type', type: 'select', options: ['1D', '2D', '3D', 'Frequency (DFFT)'], val: '1D' }
-    ],
-    ucs: [
-        { id: 'k_min', label: 'Min Stiffness (10^x N/m)', type: 'number', val: 4 },
-        { id: 'k_max', label: 'Max Stiffness (10^x N/m)', type: 'number', val: 10 },
-        { id: 'num_modes', label: 'Nº Modes', type: 'number', val: 4 }
-    ],
-    modes: [
-        { id: 'speed', label: 'Shaft Speed (rad/s)', type: 'range', min: 0, max: 2000, step: 10, val: 0 },
-        { id: 'num_modes', label: 'Nº Modes', type: 'number', val: 12 },
-        { id: 'plot_idx', label: 'Mode Index', type: 'number', val: 0 },
-        { id: 'plot_type', label: 'Plot Type', type: 'select', options: ['2D', '3D'], val: '2D' }
-    ],
-    freq_response: [
-        { id: 'speed_min', label: 'Start Speed (rad/s)', type: 'range', min: 0, max: 1000, step: 10, val: 0 },
-        { id: 'speed_max', label: 'End Speed (rad/s)', type: 'range', min: 100, max: 4000, step: 10, val: 400 },
-        { id: 'inps', label: 'Input Probes', type: 'probe_list', val: [{node: 0, dof: 0}] },
-        { id: 'outs', label: 'Output Probes', type: 'probe_list', val: [{node: 0, dof: 0}] }
+        
+        { id: 'method', label: 'Integration Method', type: 'select', options: ['default', 'newmark'], val: 'default', adv: 'analysis' },
+        
+        { id: 'probe_units', label: 'Probe Units', type: 'select', options: ['rad', 'deg'], val: 'rad', adv: 'plot', deps: ['1D', 'Frequency (DFFT)'] },
+        { id: 'displacement_units', label: 'Displacement Units', type: 'select', options: ['m', 'mm', 'microm'], val: 'm', adv: 'plot' },
+        { id: 'time_units', label: 'Time Units', type: 'select', options: ['s', 'min'], val: 's', adv: 'plot', deps: ['1D'] },
+        { id: 'rotor_length_units', label: 'Rotor Len Units', type: 'select', options: ['m', 'mm'], val: 'm', adv: 'plot', deps: ['3D'] },
+        { id: 'frequency_units', label: 'Freq. Units', type: 'select', options: ['RPM', 'Hz', 'rad/s'], val: 'Hz', adv: 'plot', deps: ['Frequency (DFFT)'] }
     ],
     static: [
-        { id: 'plot_type', label: 'Plot Type', type: 'select', options: ['Free Body Diagram', 'Deformation', 'Shearing Force', 'Bending Moment'], val: 'Free Body Diagram' }
+        { id: 'plot_type', label: 'Plot Type', type: 'select', options: ['Free Body Diagram', 'Deformation', 'Shearing Force', 'Bending Moment'], val: 'Free Body Diagram' },
+        
+        { id: 'deformation_units', label: 'Deformation Units', type: 'select', options: ['m', 'mm', 'microm'], val: 'm', adv: 'plot', deps: ['Deformation'] },
+        { id: 'rotor_length_units', label: 'Rotor Len Units', type: 'select', options: ['m', 'mm'], val: 'm', adv: 'plot' },
+        { id: 'force_units', label: 'Force Units', type: 'text', val: 'N', adv: 'plot', deps: ['Free Body Diagram', 'Shearing Force'] },
+        { id: 'moment_units', label: 'Moment Units', type: 'text', val: 'N*m', adv: 'plot', deps: ['Bending Moment'] }
     ]
 };
 
@@ -1180,47 +1252,72 @@ function triggerCardUpdate(uniqueId, type) {
     }, 500); 
 }
 
+// Auxiliary functions for advanced panels
+
+window.toggleDashAdv = function(btn) {
+    const container = btn.nextElementSibling;
+    if (container.style.display === 'grid') {
+        container.style.display = 'none';
+        btn.innerHTML = btn.dataset.textOriginal + ' <i class="fas fa-chevron-down"></i>';
+    } else {
+        container.style.display = 'grid';
+        btn.innerHTML = 'Hide ' + btn.dataset.textOriginal + ' <i class="fas fa-chevron-up"></i>';
+    }
+};
+
+window.checkPlotDeps = function(uniqueId) {
+    const plotSelect = document.getElementById(`input-plot_type-${uniqueId}`);
+    if(!plotSelect) return;
+    const currentVal = plotSelect.value;
+    const depsItems = document.querySelectorAll(`.plot-dep-${uniqueId}`);
+    depsItems.forEach(item => {
+        const allowed = item.dataset.deps.split(',').map(a => a.trim());
+        // Se a opção selecionada no Plot Type estiver na lista de deps do argumento, mostramos ele
+        if (allowed.includes(currentVal)) item.style.display = 'flex';
+        else item.style.display = 'none';
+    });
+};
+
 // Function to build the analysis dashboard
 
 function buildDashboardHTML(uniqueId, type) {
     const config = AnalysisDashboards[type];
     if(!config) return '';
-    let html = '<div class="light-dashboard-controls">';
+    
+    let htmlStandard = '';
+    let htmlAdvAnalysis = '';
+    let htmlAdvPlot = '';
+    
     config.forEach(item => {
-        if (item.type === 'probe_list') {
-            html += `<div class="dash-control-group" style="flex-direction: column; align-items: stretch;">
+        let html = '';
+        const depsAttr = item.deps ? `data-deps="${item.deps.join(',')}" class="dash-control-group plot-dep-${uniqueId}"` : `class="dash-control-group"`;
+        
+        if (item.type === 'probe_list' || item.type === 'force_list' || item.type === 'unbalance_list') {
+            const btnFunc = item.type === 'probe_list' ? 'addProbeRow' : (item.type === 'force_list' ? 'addForceRow' : 'addUnbalanceRow');
+            const contId = item.type === 'probe_list' ? 'probe' : (item.type === 'force_list' ? 'force' : 'unb');
+            
+            html += `<div ${depsAttr} style="flex-direction: column; align-items: stretch; grid-column: 1 / -1;">
                 <div style="display:flex; justify-content:space-between; align-items: center; width:100%; margin-bottom:8px;">
                     <label style="margin:0;">${item.label}</label>
-                    <button type="button" class="btn-add-probe" onclick="addProbeRow('${uniqueId}', '${item.id}', '${type}')"><i class="fas fa-plus"></i></button>
+                    <button type="button" class="btn-add-probe" onclick="${btnFunc}('${uniqueId}', '${item.id}', '${type}')"><i class="fas fa-plus"></i></button>
                 </div>
-                <div class="probe-list-container" id="probe-container-${item.id}-${uniqueId}">`;
-            item.val.forEach(probe => { html += window.generateProbeRowHTML(uniqueId, item.id, type, probe.node, probe.dof); });
-            html += `</div></div>`;
-        } else if (item.type === 'force_list') {
-            html += `<div class="dash-control-group" style="flex-direction: column; align-items: stretch;">
-                <div style="display:flex; justify-content:space-between; align-items: center; width:100%; margin-bottom:8px;">
-                    <label style="margin:0;">${item.label} (Use 't', 'speed', 'np')</label>
-                    <button type="button" class="btn-add-probe" onclick="addForceRow('${uniqueId}', '${item.id}', '${type}')"><i class="fas fa-plus"></i></button>
-                </div>
-                <div class="probe-list-container" id="force-container-${item.id}-${uniqueId}">`;
-            item.val.forEach(f => { html += window.generateForceRowHTML(uniqueId, item.id, type, f.node, f.dof, f.func); });
-            html += `</div></div>`;
-        } else if (item.type === 'unbalance_list') {
-            html += `<div class="dash-control-group" style="flex-direction: column; align-items: stretch;">
-                <div style="display:flex; justify-content:space-between; align-items: center; width:100%; margin-bottom:8px;">
-                    <label style="margin:0;">${item.label}</label>
-                    <button type="button" class="btn-add-probe" onclick="addUnbalanceRow('${uniqueId}', '${item.id}', '${type}')"><i class="fas fa-plus"></i></button>
-                </div>
-                <div class="probe-list-container" id="unb-container-${item.id}-${uniqueId}">`;
-            item.val.forEach(u => { html += window.generateUnbalanceRowHTML(uniqueId, item.id, type, u.node, u.mag, u.phase); });
+                <div class="probe-list-container" id="${contId}-container-${item.id}-${uniqueId}">`;
+            
+            if (item.type === 'probe_list') item.val.forEach(v => { html += window.generateProbeRowHTML(uniqueId, item.id, type, v.node, v.dof); });
+            else if (item.type === 'force_list') item.val.forEach(v => { html += window.generateForceRowHTML(uniqueId, item.id, type, v.node, v.dof, v.func); });
+            else item.val.forEach(v => { html += window.generateUnbalanceRowHTML(uniqueId, item.id, type, v.node, v.mag, v.phase); });
+            
             html += `</div></div>`;
         } else {
-            html += `<div class="dash-control-group"><label>${item.label}</label>`;
+            const changeEvent = item.id === 'plot_type' ? `onchange="checkPlotDeps('${uniqueId}')"` : ``;
+            
+            html += `<div ${depsAttr}><label>${item.label}</label>`;
             if (item.type === 'range') {
+                
                 html += `<input type="range" id="range-${item.id}-${uniqueId}" min="${item.min}" max="${item.max}" step="${item.step}" value="${item.val}" oninput="document.getElementById('num-${item.id}-${uniqueId}').value = this.value;">`;
                 html += `<input type="number" id="num-${item.id}-${uniqueId}" value="${item.val}" oninput="document.getElementById('range-${item.id}-${uniqueId}').value = this.value;">`;
             } else if (item.type === 'select') {
-                html += `<select id="input-${item.id}-${uniqueId}">`;
+                html += `<select id="input-${item.id}-${uniqueId}" ${changeEvent}>`;
                 item.options.forEach(opt => { html += `<option value="${opt}" ${opt===item.val?'selected':''}>${opt}</option>`; });
                 html += `</select>`;
             } else {
@@ -1228,9 +1325,34 @@ function buildDashboardHTML(uniqueId, type) {
             }
             html += `</div>`;
         }
+        
+        if (item.adv === 'analysis') htmlAdvAnalysis += html;
+        else if (item.adv === 'plot') htmlAdvPlot += html;
+        else htmlStandard += html;
     });
-    html += '</div>';
-    return html;
+
+    let finalHtml = `<div class="light-dashboard-controls">${htmlStandard}`;
+    
+    if (htmlAdvAnalysis) {
+        finalHtml += `
+        <div style="grid-column: 1 / -1;">
+            <button type="button" class="btn-adv-dash" data-text-original="Advanced Analysis" onclick="toggleDashAdv(this)">Advanced Analysis <i class="fas fa-chevron-down"></i></button>
+            <div class="adv-dash-container">${htmlAdvAnalysis}</div>
+        </div>`;
+    }
+    if (htmlAdvPlot) {
+        finalHtml += `
+        <div style="grid-column: 1 / -1;">
+            <button type="button" class="btn-adv-dash" data-text-original="Advanced Plot" onclick="toggleDashAdv(this)">Advanced Plot <i class="fas fa-chevron-down"></i></button>
+            <div class="adv-dash-container" id="adv-plot-${uniqueId}">${htmlAdvPlot}</div>
+        </div>`;
+    }
+    
+    finalHtml += '</div>';
+    
+    setTimeout(() => { checkPlotDeps(uniqueId); }, 100);
+    
+    return finalHtml;
 }
 
 // Function to hide the analysis
@@ -1262,9 +1384,9 @@ async function addAnalysis(event) {
     if(list.innerHTML.includes('Generated dashboards will appear')) list.innerHTML = '';
     const typeNames = {
         'campbell': 'Campbell Diagram', 'ucs': 'UCS Diagram',
-        'freq_response': 'Frequency Response', 'modes': 'Vibration Modes',
+        'freq_response': 'Frequency Response', 'modes': 'Modal Analysis',
         'unbalance': 'Unbalance Response', 'time_response': 'Time Response',
-        'static': 'Static'
+        'static': 'Static Analysis'
     };
     const title = typeNames[type] || type.toUpperCase();
     const controlsHTML = buildDashboardHTML(uniqueId, type);
@@ -1651,18 +1773,49 @@ function generatePythonFile() {
             
             if (a.type === 'campbell') {
                 py += `speed_rads = np.linspace(${p.speed_min}, ${p.speed_max}, ${p.speed_steps})\n`;
-                py += `camp_${i} = rotor.run_campbell(speed_rads)\n`;
-                py += `camp_${i}.plot().show()\n`;
+                py += `camp_${i} = rotor.run_campbell(speed_rads, frequencies=${p.frequencies || 6}, frequency_type='${p.frequency_type || 'wd'}', torsional_analysis=${p.torsional_analysis === 'True' ? 'True' : 'False'})\n`;
+                
+                let pArgs = [];
+                if(p.frequency_units) pArgs.push(`frequency_units='${p.frequency_units}'`);
+                if(p.speed_units) pArgs.push(`speed_units='${p.speed_units}'`);
+                if(p.damping_parameter) pArgs.push(`damping_parameter='${p.damping_parameter}'`);
+                if(p.harmonics) pArgs.push(`harmonics=${p.harmonics}`);
+                
+                if (p.plot_type === 'Mode Shape') {
+                    if(p.animation) pArgs.push(`animation=${p.animation === 'True' ? 'True' : 'False'}`);
+                    py += `camp_${i}.plot_with_mode_shape(${pArgs.join(', ')}).show()\n`;
+                } else {
+                    py += `camp_${i}.plot(${pArgs.join(', ')}).show()\n`;
+                }
+                
             } else if (a.type === 'ucs') {
-                py += `ucs_${i} = rotor.run_ucs(stiffness_range=(${p.k_min}, ${p.k_max}), num=50, num_modes=${p.num_modes})\n`;
-                py += `ucs_${i}.plot().show()\n`;
+                let brgFreq = p.bearing_frequency_range ? `, bearing_frequency_range=${p.bearing_frequency_range}` : '';
+                py += `ucs_${i} = rotor.run_ucs(stiffness_range=(${p.k_min}, ${p.k_max}), num=50, num_modes=${p.num_modes}, synchronous=${p.synchronous === 'True' ? 'True' : 'False'}${brgFreq})\n`;
+                
+                let pArgs = [];
+                if(p.stiffness_units) pArgs.push(`stiffness_units='${p.stiffness_units}'`);
+                if(p.frequency_units) pArgs.push(`frequency_units='${p.frequency_units}'`);
+                py += `ucs_${i}.plot(${pArgs.join(', ')}).show()\n`;
+                
             } else if (a.type === 'freq_response') {
                 py += `speed_rads = np.linspace(${p.speed_min}, ${p.speed_max}, 50)\n`;
+                let modesArg = p.modes ? `, modes=${p.modes}` : '';
+                py += `freq_${i} = rotor.run_freq_response(speed_rads${modesArg}, free_free=${p.free_free === 'True' ? 'True' : 'False'})\n`;
                 py += `dofs_per_node = rotor.ndof // len(rotor.nodes)\n`;
-                py += `freq_${i} = rotor.run_freq_response(speed_rads)\n`;
                 
-                const inps = p.inps.length > 0 ? p.inps : [{node:0, dof:0}];
-                const outs = p.outs.length > 0 ? p.outs : [{node:0, dof:0}];
+                let pMethod = 'plot';
+                if (p.plot_type === 'Magnitude') pMethod = 'plot_magnitude';
+                else if (p.plot_type === 'Phase') pMethod = 'plot_phase';
+                else if (p.plot_type === 'Polar Bode') pMethod = 'plot_polar_bode';
+                
+                let pArgs = [];
+                if(p.frequency_units) pArgs.push(`frequency_units='${p.frequency_units}'`);
+                if(p.amplitude_units) pArgs.push(`amplitude_units='${p.amplitude_units}'`);
+                if(['Default', 'Phase', 'Polar Bode'].includes(p.plot_type) && p.phase_units) pArgs.push(`phase_units='${p.phase_units}'`);
+                if(p.plot_type === 'Magnitude' && p.line_shape) pArgs.push(`line_shape='${p.line_shape}'`);
+                
+                const inps = p.inps && p.inps.length > 0 ? p.inps : [{node:0, dof:0}];
+                const outs = p.outs && p.outs.length > 0 ? p.outs : [{node:0, dof:0}];
                 const max_len = Math.max(inps.length, outs.length);
                 
                 py += `fig_freq_${i} = None\n`;
@@ -1672,7 +1825,7 @@ function generatePythonFile() {
                     const out = outs[Math.min(j, outs.length-1)];
                     py += `g_inp = ${inp.node} * dofs_per_node + ${inp.dof}\n`;
                     py += `g_out = ${out.node} * dofs_per_node + ${out.dof}\n`;
-                    py += `fig_temp = freq_${i}.plot(inp=g_inp, out=g_out)\n`;
+                    py += `fig_temp = freq_${i}.${pMethod}(inp=g_inp, out=g_out, ${pArgs.join(', ')})\n`;
                     py += `for k, trace in enumerate(fig_temp.data):\n`;
                     py += `    trace.name = f"In(N${inp.node} D${inp.dof}) | Out(N${out.node} D${out.dof})"\n`;
                     py += `    trace.legendgroup = f"group_${j}"\n`;
@@ -1684,28 +1837,57 @@ function generatePythonFile() {
                 py += `fig_freq_${i}.show()\n`;
                 
             } else if (a.type === 'modes') {
-                py += `modal_${i} = rotor.run_modal(speed=${p.speed}, num_modes=${p.num_modes})\n`;
+                py += `modal_${i} = rotor.run_modal(speed=${p.speed}, num_modes=${p.num_modes}, sparse=${p.sparse === 'False' ? 'False' : 'True'}, synchronous=${p.synchronous === 'True' ? 'True' : 'False'})\n`;
+                
                 if (p.plot_type === '3D') {
-                    py += `modal_${i}.plot_mode_3d(${p.plot_idx}).show()\n`;
+                    let pArgs = [];
+                    if(p.frequency_type) pArgs.push(`frequency_type='${p.frequency_type}'`);
+                    if(p.length_units) pArgs.push(`length_units='${p.length_units}'`);
+                    if(p.phase_units) pArgs.push(`phase_units='${p.phase_units}'`);
+                    if(p.frequency_units) pArgs.push(`frequency_units='${p.frequency_units}'`);
+                    if(p.damping_parameter) pArgs.push(`damping_parameter='${p.damping_parameter}'`);
+                    if(p.animation) pArgs.push(`animation=${p.animation === 'True' ? 'True' : 'False'}`);
+                    py += `modal_${i}.plot_mode_3d(${p.plot_idx}, ${pArgs.join(', ')}).show()\n`;
+                } else if (p.plot_type === 'Orbit') {
+                    let nodesArg = p.nodes ? `nodes=${p.nodes}` : '';
+                    py += `modal_${i}.plot_orbit(${p.plot_idx}, ${nodesArg}).show()\n`;
                 } else {
-                    py += `modal_${i}.plot_mode_2d(${p.plot_idx}).show()\n`;
+                    let pArgs = [];
+                    if(p.orientation) pArgs.push(`orientation='${p.orientation}'`);
+                    if(p.frequency_type) pArgs.push(`frequency_type='${p.frequency_type}'`);
+                    if(p.frequency_units) pArgs.push(`frequency_units='${p.frequency_units}'`);
+                    if(p.damping_parameter) pArgs.push(`damping_parameter='${p.damping_parameter}'`);
+                    py += `modal_${i}.plot_mode_2d(${p.plot_idx}, ${pArgs.join(', ')}).show()\n`;
                 }
+                
             } else if (a.type === 'unbalance') {
                 py += `speed_rads = np.linspace(${p.speed_min}, ${p.speed_max}, 50)\n`;
-                
                 const nodes = p.unbalances && p.unbalances.length > 0 ? p.unbalances.map(u => u.node).join(', ') : '0';
                 const mags = p.unbalances && p.unbalances.length > 0 ? p.unbalances.map(u => u.mag).join(', ') : '0.01';
                 const phases = p.unbalances && p.unbalances.length > 0 ? p.unbalances.map(u => u.phase).join(', ') : '0.0';
+                let modesArg = p.modes ? `, modes=${p.modes}` : '';
                 
-                py += `unb_${i} = rotor.run_unbalance_response(node=[${nodes}], unbalance_magnitude=[${mags}], unbalance_phase=[${phases}], frequency=speed_rads)\n`;
+                py += `unb_${i} = rotor.run_unbalance_response(node=[${nodes}], unbalance_magnitude=[${mags}], unbalance_phase=[${phases}], frequency=speed_rads${modesArg})\n`;
+                
+                let pMethod = 'plot';
+                if (p.plot_type === 'Magnitude') pMethod = 'plot_magnitude';
+                else if (p.plot_type === 'Phase') pMethod = 'plot_phase';
+                else if (p.plot_type === 'Bode') pMethod = 'plot_bode';
+                else if (p.plot_type === 'Polar Bode') pMethod = 'plot_polar_bode';
+                
+                let pArgs = [];
+                if(p.probe_units) pArgs.push(`probe_units='${p.probe_units}'`);
+                if(p.frequency_units) pArgs.push(`frequency_units='${p.frequency_units}'`);
+                if(p.amplitude_units) pArgs.push(`amplitude_units='${p.amplitude_units}'`);
+                if(['Default', 'Phase', 'Bode', 'Polar Bode'].includes(p.plot_type) && p.phase_units) pArgs.push(`phase_units='${p.phase_units}'`);
+                if(p.plot_type === 'Magnitude' && p.line_shape) pArgs.push(`line_shape='${p.line_shape}'`);
                 
                 const probesStr = p.probes && p.probes.length > 0 ? p.probes.map(pr => `(${pr.node}, ${pr.dof})`).join(', ') : '(0, 0)';
-                py += `unb_${i}.plot(probe=[${probesStr}]).show()\n`;
+                py += `unb_${i}.${pMethod}(probe=[${probesStr}], ${pArgs.join(', ')}).show()\n`;
                 
             } else if (a.type === 'time_response') {
                 py += `speed = ${p.speed}\n`;
                 py += `t = np.linspace(0, ${p.t_max}, ${p.steps})\n`;
-                
                 py += `dofs_per_node = rotor.ndof // len(rotor.nodes)\n`;
                 py += `F_${i} = np.zeros((len(t), rotor.ndof))\n`; 
                 
@@ -1717,30 +1899,47 @@ function generatePythonFile() {
                     });
                 }
                 
-                py += `resp_${i} = rotor.run_time_response(speed, F_${i}, t)\n`;
+                py += `resp_${i} = rotor.run_time_response(speed, F_${i}, t, method='${p.method || 'default'}')\n`;
                 
                 const probesStr = p.probes && p.probes.length > 0 ? p.probes.map(pr => `(${pr.node}, ${pr.dof})`).join(', ') : '(0, 0)';
                 const firstNode = p.probes && p.probes.length > 0 ? p.probes[0].node : 0;
                 
+                let pArgs = [];
+                if(p.displacement_units) pArgs.push(`displacement_units='${p.displacement_units}'`);
+                
                 if (p.plot_type === 'Frequency (DFFT)') {
-                    py += `resp_${i}.plot_dfft(probe=[${probesStr}]).show()\n`;
+                    if(p.probe_units) pArgs.push(`probe_units='${p.probe_units}'`);
+                    if(p.frequency_units) pArgs.push(`frequency_units='${p.frequency_units}'`);
+                    py += `resp_${i}.plot_dfft(probe=[${probesStr}], ${pArgs.join(', ')}).show()\n`;
                 } else if (p.plot_type === '2D') {
-                    py += `resp_${i}.plot_2d(node=${firstNode}).show()\n`;
+                    py += `resp_${i}.plot_2d(node=${firstNode}, ${pArgs.join(', ')}).show()\n`;
                 } else if (p.plot_type === '3D') {
-                    py += `resp_${i}.plot_3d().show()\n`;
+                    if(p.rotor_length_units) pArgs.push(`rotor_length_units='${p.rotor_length_units}'`);
+                    py += `resp_${i}.plot_3d(${pArgs.join(', ')}).show()\n`;
                 } else {
-                    py += `resp_${i}.plot_1d(probe=[${probesStr}]).show()\n`;
+                    if(p.probe_units) pArgs.push(`probe_units='${p.probe_units}'`);
+                    if(p.time_units) pArgs.push(`time_units='${p.time_units}'`);
+                    py += `resp_${i}.plot_1d(probe=[${probesStr}], ${pArgs.join(', ')}).show()\n`;
                 }
+                
             } else if (a.type === 'static') {
                 py += `static_${i} = rotor.run_static()\n`;
+                
+                let pArgs = [];
+                if(p.rotor_length_units) pArgs.push(`rotor_length_units='${p.rotor_length_units}'`);
+                
                 if (p.plot_type === 'Deformation') {
-                    py += `static_${i}.plot_deformation().show()\n`;
+                    if(p.deformation_units) pArgs.push(`deformation_units='${p.deformation_units}'`);
+                    py += `static_${i}.plot_deformation(${pArgs.join(', ')}).show()\n`;
                 } else if (p.plot_type === 'Shearing Force') {
-                    py += `static_${i}.plot_shearing_force().show()\n`;
+                    if(p.force_units) pArgs.push(`force_units='${p.force_units}'`);
+                    py += `static_${i}.plot_shearing_force(${pArgs.join(', ')}).show()\n`;
                 } else if (p.plot_type === 'Bending Moment') {
-                    py += `static_${i}.plot_bending_moment().show()\n`;
+                    if(p.moment_units) pArgs.push(`moment_units='${p.moment_units}'`);
+                    py += `static_${i}.plot_bending_moment(${pArgs.join(', ')}).show()\n`;
                 } else {
-                    py += `static_${i}.plot_free_body_diagram().show()\n`;
+                    if(p.force_units) pArgs.push(`force_units='${p.force_units}'`);
+                    py += `static_${i}.plot_free_body_diagram(${pArgs.join(', ')}).show()\n`;
                 }
             }
         });

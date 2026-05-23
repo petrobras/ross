@@ -378,6 +378,18 @@ def run_analysis():
     data = request.json
     analysis_type = data.get('analysis_type')
     params = data.get('params', {}) 
+    
+    # Helper functions to format string inputs
+    def get_bool(key, default=False): return str(params.get(key, default)).lower() == 'true'
+    def get_list(key):
+        val = params.get(key, '')
+        if not val: return None
+        try: return ast.literal_eval(val)
+        except: return None
+        
+    def get_kwargs(keys):
+        return {k: params[k] for k in keys if k in params and str(params[k]).strip() != ""}
+
     try:
         rotor = build_rotor_from_ui(data)
         dofs_per_node = rotor.ndof // len(rotor.nodes)
@@ -387,37 +399,65 @@ def run_analysis():
             s_max = float(params.get('speed_max', 400.0))
             s_steps = int(float(params.get('speed_steps', 50)))
             speed_rads = np.linspace(s_min, s_max, s_steps)
-            fig = rotor.run_campbell(speed_rads).plot()
+            
+            ana_kwargs = {'frequencies': int(float(params.get('frequencies', 6))), 
+                          'frequency_type': params.get('frequency_type', 'wd'), 
+                          'torsional_analysis': get_bool('torsional_analysis')}
+            plot_kwargs = get_kwargs(['frequency_units', 'speed_units', 'damping_parameter'])
+            if get_list('harmonics'): plot_kwargs['harmonics'] = get_list('harmonics')
+            
+            plot_type = params.get('plot_type', 'Default')
+            if plot_type == 'Mode Shape':
+                plot_kwargs['animation'] = get_bool('animation')
+                fig = rotor.run_campbell(speed_rads, **ana_kwargs).plot_with_mode_shape(**plot_kwargs)
+            else:
+                fig = rotor.run_campbell(speed_rads, **ana_kwargs).plot(**plot_kwargs)
             
         elif analysis_type == 'ucs':
             k_min = float(params.get('k_min', 4))
             k_max = float(params.get('k_max', 10))
             num_modes = int(float(params.get('num_modes', 4)))
-            fig = rotor.run_ucs(stiffness_range=(k_min, k_max), num=50, num_modes=num_modes).plot()
+            
+            ana_kwargs = {'synchronous': get_bool('synchronous')}
+            if get_list('bearing_frequency_range'): ana_kwargs['bearing_frequency_range'] = get_list('bearing_frequency_range')
+            plot_kwargs = get_kwargs(['stiffness_units', 'frequency_units'])
+
+            fig = rotor.run_ucs(stiffness_range=(k_min, k_max), num=50, num_modes=num_modes, **ana_kwargs).plot(**plot_kwargs)
             
         elif analysis_type == 'freq_response':
             s_min = float(params.get('speed_min', 0.0))
             s_max = float(params.get('speed_max', 400.0))
             speed_rads = np.linspace(s_min, s_max, 50)
             
-            inps = params.get('inps', [{'node': 0, 'dof': 0}])
-            outs = params.get('outs', [{'node': 0, 'dof': 0}])
+            ana_kwargs = {'free_free': get_bool('free_free')}
+            if get_list('modes'): ana_kwargs['modes'] = get_list('modes')
             
-            response = rotor.run_freq_response(speed_rads)
+            plot_type = params.get('plot_type', 'Default')
+            plot_method = {
+                'Default': 'plot', 'Magnitude': 'plot_magnitude', 
+                'Phase': 'plot_phase', 'Polar Bode': 'plot_polar_bode'
+            }.get(plot_type, 'plot')
+
+            plot_kwargs = get_kwargs(['frequency_units', 'amplitude_units'])
+            if plot_type in ['Default', 'Phase', 'Polar Bode']: plot_kwargs.update(get_kwargs(['phase_units']))
+            if plot_type == 'Magnitude': plot_kwargs.update(get_kwargs(['line_shape']))
+
+            response = rotor.run_freq_response(speed_rads, **ana_kwargs)
             fig = None
             colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b']
             
+            inps = params.get('inps', [{'node': 0, 'dof': 0}])
+            outs = params.get('outs', [{'node': 0, 'dof': 0}])
             max_len = max(len(inps), len(outs))
             inps_padded = inps + [inps[-1]] * (max_len - len(inps)) if inps else [{'node':0,'dof':0}]*max_len
             outs_padded = outs + [outs[-1]] * (max_len - len(outs)) if outs else [{'node':0,'dof':0}]*max_len
             
             for i in range(max_len):
-                inp = inps_padded[i]
-                out = outs_padded[i]
+                inp, out = inps_padded[i], outs_padded[i]
                 g_inp = inp['node'] * dofs_per_node + inp['dof']
                 g_out = out['node'] * dofs_per_node + out['dof']
                 
-                fig_i = response.plot(inp=g_inp, out=g_out)
+                fig_i = getattr(response, plot_method)(inp=g_inp, out=g_out, **plot_kwargs)
                 current_color = colors[i % len(colors)]
                 
                 for j, trace in enumerate(fig_i.data):
@@ -431,12 +471,22 @@ def run_analysis():
                 
         elif analysis_type == 'modes':
             plot_type = params.get('plot_type', '2D')
-            modal_res = rotor.run_modal(speed=float(params.get('speed', 0.0)), num_modes=int(float(params.get('num_modes', 12))))
+            idx = int(float(params.get('plot_idx', 0)))
+            
+            ana_kwargs = {'sparse': get_bool('sparse', True), 'synchronous': get_bool('synchronous')}
+            modal_res = rotor.run_modal(speed=float(params.get('speed', 0.0)), num_modes=int(float(params.get('num_modes', 12))), **ana_kwargs)
             
             if plot_type == '3D':
-                fig = modal_res.plot_mode_3d(int(float(params.get('plot_idx', 0))))
+                plot_kwargs = get_kwargs(['frequency_type', 'length_units', 'phase_units', 'frequency_units', 'damping_parameter'])
+                plot_kwargs['animation'] = get_bool('animation')
+                fig = modal_res.plot_mode_3d(idx, **plot_kwargs)
+            elif plot_type == 'Orbit':
+                plot_kwargs = {}
+                if get_list('nodes'): plot_kwargs['nodes'] = get_list('nodes')
+                fig = modal_res.plot_orbit(idx, **plot_kwargs)
             else:
-                fig = modal_res.plot_mode_2d(int(float(params.get('plot_idx', 0))))
+                plot_kwargs = get_kwargs(['orientation', 'frequency_type', 'frequency_units', 'damping_parameter'])
+                fig = modal_res.plot_mode_2d(idx, **plot_kwargs)
             
         elif analysis_type == 'unbalance':
             s_min = float(params.get('speed_min', 0.0))
@@ -444,22 +494,30 @@ def run_analysis():
             speed_rads = np.linspace(s_min, s_max, 50)
             
             unbalances = params.get('unbalances', [{'node': 0, 'mag': 0.01, 'phase': 0.0}])
-            nodes = [int(u.get('node', 0)) for u in unbalances]
+            nodes = [min(int(u.get('node', 0)), len(rotor.nodes) - 1) for u in unbalances]
             mags = [float(u.get('mag', 0.01)) for u in unbalances]
             phases = [float(u.get('phase', 0.0)) for u in unbalances]
             
-            max_node = len(rotor.nodes) - 1
-            nodes = [min(n, max_node) for n in nodes]
-            
+            ana_kwargs = {}
+            if get_list('modes'): ana_kwargs['modes'] = get_list('modes')
+
             probes = params.get('probes', [{'node': 0, 'dof': 0}])
             probe_tuples = [(int(p['node']), int(p['dof'])) for p in probes]
             
-            fig = rotor.run_unbalance_response(
-                node=nodes, 
-                unbalance_magnitude=mags, 
-                unbalance_phase=phases, 
-                frequency=speed_rads
-            ).plot(probe=probe_tuples) 
+            plot_type = params.get('plot_type', 'Default')
+            plot_method = {
+                'Default': 'plot', 'Magnitude': 'plot_magnitude', 
+                'Phase': 'plot_phase', 'Bode': 'plot_bode', 'Polar Bode': 'plot_polar_bode'
+            }.get(plot_type, 'plot')
+            
+            plot_kwargs = get_kwargs(['probe_units', 'frequency_units', 'amplitude_units'])
+            if plot_type in ['Default', 'Phase', 'Bode', 'Polar Bode']: plot_kwargs.update(get_kwargs(['phase_units']))
+            if plot_type == 'Magnitude': plot_kwargs.update(get_kwargs(['line_shape']))
+
+            response = rotor.run_unbalance_response(
+                node=nodes, unbalance_magnitude=mags, unbalance_phase=phases, frequency=speed_rads, **ana_kwargs
+            )
+            fig = getattr(response, plot_method)(probe=probe_tuples, **plot_kwargs) 
             
         elif analysis_type == 'time_response':
             speed = float(params.get('speed', 100))
@@ -469,62 +527,60 @@ def run_analysis():
 
             t = np.linspace(0, t_max, steps)
             F = np.zeros((len(t), rotor.ndof))
-            
             forces = params.get('forces', [])
-            
-            safe_dict = {
-                't': t, 'np': np, 'speed': speed, 
-                'sin': np.sin, 'cos': np.cos, 'pi': np.pi
-            }
+            safe_dict = {'t': t, 'np': np, 'speed': speed, 'sin': np.sin, 'cos': np.cos, 'pi': np.pi}
 
             for f in forces:
-                n = int(f.get('node', 0))
-                dof = int(f.get('dof', 0))
-                func_str = str(f.get('func', '0'))
-
-                if n >= len(rotor.nodes):
-                    n = len(rotor.nodes) - 1
-
+                n, dof = min(int(f.get('node', 0)), len(rotor.nodes) - 1), int(f.get('dof', 0))
                 g_dof = n * dofs_per_node + dof
-                
-                try:
-                    F_val = eval(func_str, {"__builtins__": None}, safe_dict)
-                    F[:, g_dof] += F_val
-                except Exception as e:
-                    print(f"Error evaluating force '{func_str}': {e}")
+                try: F[:, g_dof] += eval(str(f.get('func', '0')), {"__builtins__": None}, safe_dict)
+                except Exception: pass
 
-            response = rotor.run_time_response(speed, F, t)
+            ana_kwargs = {'method': params.get('method', 'default')}
+            response = rotor.run_time_response(speed, F, t, **ana_kwargs)
             
             probes = params.get('probes', [{'node': 0, 'dof': 0}])
             probe_tuples = [(p['node'], p['dof']) for p in probes]
-
             node_2d = probes[0]['node'] if probes else 0
 
             if plot_type == 'Frequency (DFFT)':
-                fig = response.plot_dfft(probe=probe_tuples)
+                plot_kwargs = get_kwargs(['probe_units', 'displacement_units', 'frequency_units'])
+                fig = response.plot_dfft(probe=probe_tuples, **plot_kwargs)
             elif plot_type == '2D':
-                fig = response.plot_2d(node=node_2d)
+                plot_kwargs = get_kwargs(['displacement_units'])
+                fig = response.plot_2d(node=node_2d, **plot_kwargs)
             elif plot_type == '3D':
-                fig = response.plot_3d()
+                plot_kwargs = get_kwargs(['displacement_units', 'rotor_length_units'])
+                fig = response.plot_3d(**plot_kwargs)
             else:
-                fig = response.plot_1d(probe=probe_tuples)
+                plot_kwargs = get_kwargs(['probe_units', 'displacement_units', 'time_units'])
+                fig = response.plot_1d(probe=probe_tuples, **plot_kwargs)
 
         elif analysis_type == 'static':
             plot_type = params.get('plot_type', 'Free Body Diagram')
             static_res = rotor.run_static()
             
             if plot_type == 'Deformation':
-                fig = static_res.plot_deformation()
+                plot_kwargs = get_kwargs(['deformation_units', 'rotor_length_units'])
+                fig = static_res.plot_deformation(**plot_kwargs)
             elif plot_type == 'Shearing Force':
-                fig = static_res.plot_shearing_force()
+                plot_kwargs = get_kwargs(['force_units', 'rotor_length_units'])
+                fig = static_res.plot_shearing_force(**plot_kwargs)
             elif plot_type == 'Bending Moment':
-                fig = static_res.plot_bending_moment()
+                plot_kwargs = get_kwargs(['moment_units', 'rotor_length_units'])
+                fig = static_res.plot_bending_moment(**plot_kwargs)
             else:
-                fig = static_res.plot_free_body_diagram()
+                plot_kwargs = get_kwargs(['force_units', 'rotor_length_units'])
+                fig = static_res.plot_free_body_diagram(**plot_kwargs)
                 
         else: raise ValueError("Analysis not implemented yet.")
             
-        fig.update_layout(margin=dict(l=60, r=60, t=50, b=50))
+        layout_update = dict(margin=dict(l=60, r=60, t=50, b=100))
+        
+        if analysis_type == 'campbell':
+            layout_update['legend'] = dict(yanchor="top", y=-0.25)
+            
+        fig.update_layout(**layout_update)        
         return jsonify({"status": "success", "plot_json": json.dumps(remove_nans(decode_bdata(fig.to_dict())), cls=NumpyEncoder)})
     except Exception as e:
         import traceback
