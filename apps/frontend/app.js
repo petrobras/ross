@@ -1120,10 +1120,9 @@ const AnalysisDashboards = {
         { id: 'speed_max', label: 'End Speed (rad/s)', type: 'range', min: 100, max: 4000, step: 10, val: 400 },
         { id: 'plot_type', label: 'Plot Type', type: 'select', options: ['Default', 'Magnitude', 'Phase', 'Bode', 'Polar Bode'], val: 'Default' },
         { id: 'unbalances', label: 'Unbalance Excitations', type: 'unbalance_list', val: [{node: 0, mag: 0.01, phase: 0}] },
-        { id: 'probes', label: 'Measurement Probes', type: 'probe_list', val: [{node: 0, dof: 0}] },
+        { id: 'probes', label: 'Measurement Probes', type: 'angle_probe_list', val: [{node: 0, angle: 0}] },
         
         { id: 'modes', label: 'Modes [list]', type: 'text', val: '', adv: 'analysis' },
-        
         { id: 'probe_units', label: 'Probe Units', type: 'select', options: ['rad', 'deg'], val: 'rad', adv: 'plot' },
         { id: 'frequency_units', label: 'Freq. Units', type: 'select', options: ['RPM', 'Hz', 'rad/s'], val: 'rad/s', adv: 'plot' },
         { id: 'amplitude_units', label: 'Amplitude Units', type: 'select', options: ['m', 'mm', 'microm'], val: 'm', adv: 'plot' },
@@ -1136,10 +1135,9 @@ const AnalysisDashboards = {
         { id: 'steps', label: 'Time Steps', type: 'number', min: 100, max: 10000, step: 100, val: 1000 },
         { id: 'plot_type', label: 'Plot Type', type: 'select', options: ['1D', '2D', '3D', 'Frequency (DFFT)'], val: '1D' },
         { id: 'forces', label: 'Applied Forces F(t)', type: 'force_list', val: [{node: 0, dof: 0, func: "1000 * np.cos(speed * t)"}] },
-        { id: 'probes', label: 'Measurement Probes', type: 'probe_list', val: [{node: 0, dof: 0}] },
+        { id: 'probes', label: 'Measurement Probes', type: 'angle_probe_list', val: [{node: 0, angle: 0}] },
         
         { id: 'method', label: 'Integration Method', type: 'select', options: ['default', 'newmark'], val: 'default', adv: 'analysis' },
-        
         { id: 'probe_units', label: 'Probe Units', type: 'select', options: ['rad', 'deg'], val: 'rad', adv: 'plot', deps: ['1D', 'Frequency (DFFT)'] },
         { id: 'displacement_units', label: 'Displacement Units', type: 'select', options: ['m', 'mm', 'microm'], val: 'm', adv: 'plot' },
         { id: 'time_units', label: 'Time Units', type: 'select', options: ['s', 'min'], val: 's', adv: 'plot', deps: ['1D'] },
@@ -1153,6 +1151,29 @@ const AnalysisDashboards = {
         { id: 'rotor_length_units', label: 'Rotor Len Units', type: 'select', options: ['m', 'mm'], val: 'm', adv: 'plot' },
         { id: 'force_units', label: 'Force Units', type: 'text', val: 'N', adv: 'plot', deps: ['Free Body Diagram', 'Shearing Force'] },
         { id: 'moment_units', label: 'Moment Units', type: 'text', val: 'N*m', adv: 'plot', deps: ['Bending Moment'] }
+    ],
+    harmonic_balance: [
+        { id: 'speed', label: 'Speed (rad/s)', type: 'range', min: 0, max: 2000, step: 10, val: 200 },
+        { id: 't_initial', label: 'Initial Time (s)', type: 'number', val: 0 },
+        { id: 't_final', label: 'Final Time (s)', type: 'number', val: 0.5 },
+        { id: 't_steps', label: 'Time Steps', type: 'number', val: 1001 },
+        { id: 'harmonic_forces', label: 'Harmonic Forces [{dict}]', type: 'text', val: "[{'node': 0, 'magnitudes': [2000], 'phases': [0], 'harmonics': [1]}]" },
+        { id: 'probes', label: 'Measurement Probes', type: 'angle_probe_list', val: [{node: 0, angle: 0}] },
+        
+        { id: 'gravity', label: 'Gravity', type: 'select', options: ['False', 'True'], val: 'False', adv: 'analysis' },
+        { id: 'n_harmonics', label: 'Nº Harmonics', type: 'number', val: 1, adv: 'analysis' },
+        
+        { id: 'amplitude_units', label: 'Amplitude Units', type: 'select', options: ['m', 'mm', 'microm'], val: 'm', adv: 'plot' },
+        { id: 'frequency_units', label: 'Freq. Units', type: 'select', options: ['Hz', 'RPM', 'rad/s'], val: 'Hz', adv: 'plot' }
+    ],
+    clearance: [
+        { id: 'speed', label: 'Speed (rad/s)', type: 'range', min: 0, max: 2000, step: 10, val: 600 },
+        { id: 'node', label: 'Node', type: 'number', val: 0 },
+        { id: 'unbalance_magnitude', label: 'Unb. Mag [list]', type: 'text', val: '[0.05]' },
+        { id: 'unbalance_phase', label: 'Unb. Phase [list]', type: 'text', val: '[0]' },
+        
+        { id: 'frequency', label: 'Frequency [list]', type: 'text', val: '[600]', adv: 'analysis' },
+        { id: 'modes', label: 'Modes [list]', type: 'text', val: '', adv: 'analysis' }
     ]
 };
 
@@ -1242,6 +1263,25 @@ window.addUnbalanceRow = function(uniqueId, id, type) {
     container.insertAdjacentHTML('beforeend', window.generateUnbalanceRowHTML(uniqueId, id, type));
 }
 
+// Angle Probe generators (Node + Angle)
+window.generateAngleProbeRowHTML = function(uniqueId, id, type, node=0, angle=0) {
+    return `
+    <div class="probe-row" style="align-items:center;">
+        <span style="font-size:11px; color:var(--text-muted);">Node:</span> 
+        <input type="number" class="probe-node" value="${node}" min="0">
+        <span style="font-size:11px; color:var(--text-muted); margin-left:8px;">Angle(rad):</span> 
+        <input type="number" class="probe-angle" value="${angle}" step="0.01">
+        <button type="button" class="btn-remove-probe" style="margin-left:auto;" onclick="this.parentElement.remove();"><i class="fas fa-times"></i></button>
+    </div>`;
+}
+
+// Function to add a probe
+
+window.addAngleProbeRow = function(uniqueId, id, type) {
+    const container = document.getElementById(`angle-probe-container-${id}-${uniqueId}`);
+    container.insertAdjacentHTML('beforeend', window.generateAngleProbeRowHTML(uniqueId, id, type));
+}
+
 // Function that evaluates when the analysis parameters have changed
 
 const cardTimers = {};
@@ -1292,9 +1332,11 @@ function buildDashboardHTML(uniqueId, type) {
         let html = '';
         const depsAttr = item.deps ? `data-deps="${item.deps.join(',')}" class="dash-control-group plot-dep-${uniqueId}"` : `class="dash-control-group"`;
         
-        if (item.type === 'probe_list' || item.type === 'force_list' || item.type === 'unbalance_list') {
-            const btnFunc = item.type === 'probe_list' ? 'addProbeRow' : (item.type === 'force_list' ? 'addForceRow' : 'addUnbalanceRow');
-            const contId = item.type === 'probe_list' ? 'probe' : (item.type === 'force_list' ? 'force' : 'unb');
+        if (item.type === 'probe_list' || item.type === 'force_list' || item.type === 'unbalance_list' || item.type === 'angle_probe_list') {
+            let btnFunc = 'addProbeRow'; let contId = 'probe';
+            if (item.type === 'force_list') { btnFunc = 'addForceRow'; contId = 'force'; }
+            else if (item.type === 'unbalance_list') { btnFunc = 'addUnbalanceRow'; contId = 'unb'; }
+            else if (item.type === 'angle_probe_list') { btnFunc = 'addAngleProbeRow'; contId = 'angle-probe'; }
             
             html += `<div ${depsAttr} style="flex-direction: column; align-items: stretch; grid-column: 1 / -1;">
                 <div style="display:flex; justify-content:space-between; align-items: center; width:100%; margin-bottom:8px;">
@@ -1305,6 +1347,7 @@ function buildDashboardHTML(uniqueId, type) {
             
             if (item.type === 'probe_list') item.val.forEach(v => { html += window.generateProbeRowHTML(uniqueId, item.id, type, v.node, v.dof); });
             else if (item.type === 'force_list') item.val.forEach(v => { html += window.generateForceRowHTML(uniqueId, item.id, type, v.node, v.dof, v.func); });
+            else if (item.type === 'angle_probe_list') item.val.forEach(v => { html += window.generateAngleProbeRowHTML(uniqueId, item.id, type, v.node, v.angle); });
             else item.val.forEach(v => { html += window.generateUnbalanceRowHTML(uniqueId, item.id, type, v.node, v.mag, v.phase); });
             
             html += `</div></div>`;
@@ -1385,7 +1428,8 @@ async function addAnalysis(event) {
         'campbell': 'Campbell Diagram', 'ucs': 'UCS Diagram',
         'freq_response': 'Frequency Response', 'modes': 'Modal Analysis',
         'unbalance': 'Unbalance Response', 'time_response': 'Time Response',
-        'static': 'Static Analysis'
+        'static': 'Static Analysis', 'harmonic_balance': 'Harmonic Balance',
+        'clearance': 'Clearance Analysis'
     };
     const title = typeNames[type] || type.toUpperCase();
     const controlsHTML = buildDashboardHTML(uniqueId, type);
@@ -1451,6 +1495,16 @@ async function runCardAnalysis(uniqueId, type) {
                 });
             });
             p[item.id] = unbList;
+        } else if (item.type === 'angle_probe_list') {
+            const container = document.getElementById(`angle-probe-container-${item.id}-${uniqueId}`);
+            const angleList = [];
+            container.querySelectorAll('.probe-row').forEach(row => {
+                angleList.push({
+                    node: parseInt(row.querySelector('.probe-node').value) || 0,
+                    angle: parseFloat(row.querySelector('.probe-angle').value) || 0
+                });
+            });
+            p[item.id] = angleList;
         } else if (item.type === 'range') {
             p[item.id] = parseFloat(document.getElementById(`num-${item.id}-${uniqueId}`).value);
         } else if (item.type === 'number') {
@@ -1908,7 +1962,7 @@ function generatePythonFile() {
                 if(['Default', 'Phase', 'Bode', 'Polar Bode'].includes(p.plot_type) && p.phase_units) pArgs.push(`phase_units='${p.phase_units}'`);
                 if(p.plot_type === 'Magnitude' && p.line_shape) pArgs.push(`line_shape='${p.line_shape}'`);
                 
-                const probesStr = p.probes && p.probes.length > 0 ? p.probes.map(pr => `(${pr.node}, ${pr.dof})`).join(', ') : '(0, 0)';
+                const probesStr = p.probes && p.probes.length > 0 ? p.probes.map(pr => `rs.Probe(${pr.node}, ${pr.angle})`).join(', ') : 'rs.Probe(0, 0)';
                 py += `unb_${i}.${pMethod}(probe=[${probesStr}], ${pArgs.join(', ')}).show()\n`;
                 
             } else if (a.type === 'time_response') {
@@ -1927,7 +1981,7 @@ function generatePythonFile() {
                 
                 py += `resp_${i} = rotor.run_time_response(speed, F_${i}, t, method='${p.method || 'default'}')\n`;
                 
-                const probesStr = p.probes && p.probes.length > 0 ? p.probes.map(pr => `(${pr.node}, ${pr.dof})`).join(', ') : '(0, 0)';
+                const probesStr = p.probes && p.probes.length > 0 ? p.probes.map(pr => `rs.Probe(${pr.node}, ${pr.angle})`).join(', ') : 'rs.Probe(0, 0)';
                 const firstNode = p.probes && p.probes.length > 0 ? p.probes[0].node : 0;
                 
                 let pArgs = [];
@@ -1967,6 +2021,27 @@ function generatePythonFile() {
                     if(p.force_units) pArgs.push(`force_units='${p.force_units}'`);
                     py += `static_${i}.plot_free_body_diagram(${pArgs.join(', ')}).show()\n`;
                 }
+            } else if (a.type === 'harmonic_balance') {
+                py += `t_hb = np.linspace(${p.t_initial || 0}, ${p.t_final || 0.5}, ${p.t_steps || 1001})\n`;
+                py += `harmonic_forces = ${p.harmonic_forces || '[]'}\n`;
+                py += `hb_${i} = rotor.run_harmonic_balance_response(speed=${p.speed}, t=t_hb, harmonic_forces=harmonic_forces, gravity=${p.gravity === 'True' ? 'True' : 'False'}, n_harmonics=${p.n_harmonics || 1})\n`;
+                
+                const probesStr = p.probes && p.probes.length > 0 ? p.probes.map(pr => `rs.Probe(${pr.node}, ${pr.angle})`).join(', ') : 'rs.Probe(0, 0)';
+                let pArgs = [];
+                if(p.amplitude_units) pArgs.push(`amplitude_units='${p.amplitude_units}'`);
+                if(p.frequency_units) pArgs.push(`frequency_units='${p.frequency_units}'`);
+                
+                py += `hb_${i}.plot(probe=[${probesStr}], ${pArgs.join(', ')}).show()\n`;
+                
+            } else if (a.type === 'clearance') {
+                py += `unb_mag = ${p.unbalance_magnitude || '[0.05]'}\n`;
+                py += `unb_phase = ${p.unbalance_phase || '[0]'}\n`;
+                let kwargs = [];
+                if(p.frequency) kwargs.push(`frequency=${p.frequency}`);
+                if(p.modes) kwargs.push(`modes=${p.modes}`);
+                
+                py += `clearance_${i} = rotor.run_clearance_analysis(speed=${p.speed}, node=${p.node}, unbalance_magnitude=unb_mag, unbalance_phase=unb_phase${kwargs.length > 0 ? ', ' + kwargs.join(', ') : ''})\n`;
+                py += `clearance_${i}.plot().show()\n`;
             }
         });
     }

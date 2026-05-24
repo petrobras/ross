@@ -596,8 +596,8 @@ def run_analysis():
                 )
                 ANALYSIS_CACHE[a_hash] = response
 
-            probes = params.get('probes', [{'node': 0, 'dof': 0}])
-            probe_tuples = [(int(p['node']), int(p['dof'])) for p in probes]
+            probes = params.get('probes', [{'node': 0, 'angle': 0.0}])
+            probe_objects = [rs.Probe(int(p['node']), float(p.get('angle', 0.0))) for p in probes]
             
             plot_type = params.get('plot_type', 'Default')
             plot_method = {
@@ -609,7 +609,15 @@ def run_analysis():
             if plot_type in ['Default', 'Phase', 'Bode', 'Polar Bode']: plot_kwargs.update(get_kwargs(['phase_units']))
             if plot_type == 'Magnitude': plot_kwargs.update(get_kwargs(['line_shape']))
 
-            fig = getattr(response, plot_method)(probe=probe_tuples, **plot_kwargs) 
+            if a_hash in ANALYSIS_CACHE:
+                response = ANALYSIS_CACHE[a_hash]
+            else:
+                response = rotor.run_unbalance_response(
+                    node=nodes, unbalance_magnitude=mags, unbalance_phase=phases, frequency=speed_rads, **ana_kwargs
+                )
+                ANALYSIS_CACHE[a_hash] = response
+
+            fig = getattr(response, plot_method)(probe=probe_objects, **plot_kwargs)
             
         elif analysis_type == 'time_response':
             speed = float(params.get('speed', 100))
@@ -636,13 +644,13 @@ def run_analysis():
                 response = rotor.run_time_response(speed, F, t, **ana_kwargs)
                 ANALYSIS_CACHE[a_hash] = response
             
-            probes = params.get('probes', [{'node': 0, 'dof': 0}])
-            probe_tuples = [(p['node'], p['dof']) for p in probes]
+            probes = params.get('probes', [{'node': 0, 'angle': 0.0}])
+            probe_objects = [rs.Probe(int(p['node']), float(p.get('angle', 0.0))) for p in probes]
             node_2d = probes[0]['node'] if probes else 0
 
             if plot_type == 'Frequency (DFFT)':
                 plot_kwargs = get_kwargs(['probe_units', 'displacement_units', 'frequency_units'])
-                fig = response.plot_dfft(probe=probe_tuples, **plot_kwargs)
+                fig = response.plot_dfft(probe=probe_objects, **plot_kwargs)
             elif plot_type == '2D':
                 plot_kwargs = get_kwargs(['displacement_units'])
                 fig = response.plot_2d(node=node_2d, **plot_kwargs)
@@ -651,7 +659,7 @@ def run_analysis():
                 fig = response.plot_3d(**plot_kwargs)
             else:
                 plot_kwargs = get_kwargs(['probe_units', 'displacement_units', 'time_units'])
-                fig = response.plot_1d(probe=probe_tuples, **plot_kwargs)
+                fig = response.plot_1d(probe=probe_objects, **plot_kwargs)
 
         elif analysis_type == 'static':
             plot_type = params.get('plot_type', 'Free Body Diagram')
@@ -674,6 +682,50 @@ def run_analysis():
             else:
                 plot_kwargs = get_kwargs(['force_units', 'rotor_length_units'])
                 fig = static_res.plot_free_body_diagram(**plot_kwargs)
+
+        elif analysis_type == 'harmonic_balance':
+            speed = float(params.get('speed', 200))
+            t_ini = float(params.get('t_initial', 0.0))
+            t_fin = float(params.get('t_final', 0.5))
+            t_steps = int(float(params.get('t_steps', 1001)))
+            t_hb = np.linspace(t_ini, t_fin, t_steps)
+            
+            h_forces = get_list('harmonic_forces') or []
+            
+            ana_kwargs = {
+                'gravity': get_bool('gravity', False),
+                'n_harmonics': int(float(params.get('n_harmonics', 1)))
+            }
+            
+            if a_hash in ANALYSIS_CACHE:
+                hb_res = ANALYSIS_CACHE[a_hash]
+            else:
+                hb_res = rotor.run_harmonic_balance_response(speed, t_hb, h_forces, **ana_kwargs)
+                ANALYSIS_CACHE[a_hash] = hb_res
+                
+            probes = params.get('probes', [{'node': 0, 'angle': 0.0}])
+            probe_tuples = [rs.Probe(int(p['node']), float(p.get('angle', 0.0))) for p in probes]
+            
+            plot_kwargs = get_kwargs(['amplitude_units', 'frequency_units'])
+            fig = hb_res.plot(probe=probe_tuples, **plot_kwargs)
+
+        elif analysis_type == 'clearance':
+            speed = float(params.get('speed', 600))
+            node = int(float(params.get('node', 0)))
+            unb_mag = get_list('unbalance_magnitude') or [0.05]
+            unb_phase = get_list('unbalance_phase') or [0.0]
+            
+            ana_kwargs = {}
+            if get_list('frequency'): ana_kwargs['frequency'] = get_list('frequency')
+            if get_list('modes'): ana_kwargs['modes'] = get_list('modes')
+            
+            if a_hash in ANALYSIS_CACHE:
+                clr_res = ANALYSIS_CACHE[a_hash]
+            else:
+                clr_res = rotor.run_clearance_analysis(speed, node, unb_mag, unb_phase, **ana_kwargs)
+                ANALYSIS_CACHE[a_hash] = clr_res
+                
+            fig = clr_res.plot()
                 
         else: raise ValueError("Analysis not implemented yet.")
         
