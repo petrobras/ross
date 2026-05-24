@@ -1157,7 +1157,12 @@ const AnalysisDashboards = {
         { id: 't_initial', label: 'Initial Time (s)', type: 'number', val: 0 },
         { id: 't_final', label: 'Final Time (s)', type: 'number', val: 0.5 },
         { id: 't_steps', label: 'Time Steps', type: 'number', val: 1001 },
-        { id: 'harmonic_forces', label: 'Harmonic Forces [{dict}]', type: 'text', val: "[{'node': 0, 'magnitudes': [2000], 'phases': [0], 'harmonics': [1]}]" },
+        
+        { id: 'hb_node', label: 'Force Node', type: 'number', val: 0 },
+        { id: 'hb_magnitudes', label: 'Magnitudes [list]', type: 'text', val: '[2000]' },
+        { id: 'hb_phases', label: 'Phases [list]', type: 'text', val: '[0]' },
+        { id: 'hb_harmonics', label: 'Harmonics [list]', type: 'text', val: '[1]' },
+        
         { id: 'probes', label: 'Measurement Probes', type: 'angle_probe_list', val: [{node: 0, angle: 0}] },
         
         { id: 'gravity', label: 'Gravity', type: 'select', options: ['False', 'True'], val: 'False', adv: 'analysis' },
@@ -2021,9 +2026,17 @@ function generatePythonFile() {
                     if(p.force_units) pArgs.push(`force_units='${p.force_units}'`);
                     py += `static_${i}.plot_free_body_diagram(${pArgs.join(', ')}).show()\n`;
                 }
+            
             } else if (a.type === 'harmonic_balance') {
                 py += `t_hb = np.linspace(${p.t_initial || 0}, ${p.t_final || 0.5}, ${p.t_steps || 1001})\n`;
-                py += `harmonic_forces = ${p.harmonic_forces || '[]'}\n`;
+                
+                py += `harmonic_forces = [{\n`;
+                py += `    'node': ${p.hb_node || 0},\n`;
+                py += `    'magnitudes': ${p.hb_magnitudes || '[2000]'},\n`;
+                py += `    'phases': ${p.hb_phases || '[0]'},\n`;
+                py += `    'harmonics': ${p.hb_harmonics || '[1]'}\n`;
+                py += `}]\n`;
+                
                 py += `hb_${i} = rotor.run_harmonic_balance_response(speed=${p.speed}, t=t_hb, harmonic_forces=harmonic_forces, gravity=${p.gravity === 'True' ? 'True' : 'False'}, n_harmonics=${p.n_harmonics || 1})\n`;
                 
                 const probesStr = p.probes && p.probes.length > 0 ? p.probes.map(pr => `rs.Probe(${pr.node}, ${pr.angle})`).join(', ') : 'rs.Probe(0, 0)';

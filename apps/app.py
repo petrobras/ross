@@ -690,7 +690,17 @@ def run_analysis():
             t_steps = int(float(params.get('t_steps', 1001)))
             t_hb = np.linspace(t_ini, t_fin, t_steps)
             
-            h_forces = get_list('harmonic_forces') or []
+            hb_node = int(float(params.get('hb_node', 0)))
+            hb_mags = get_list('hb_magnitudes') or [2000.0]
+            hb_phases = get_list('hb_phases') or [0.0]
+            hb_harmonics = get_list('hb_harmonics') or [1]
+            
+            h_forces = [{
+                'node': hb_node,
+                'magnitudes': hb_mags,
+                'phases': hb_phases,
+                'harmonics': hb_harmonics
+            }]
             
             ana_kwargs = {
                 'gravity': get_bool('gravity', False),
@@ -704,10 +714,10 @@ def run_analysis():
                 ANALYSIS_CACHE[a_hash] = hb_res
                 
             probes = params.get('probes', [{'node': 0, 'angle': 0.0}])
-            probe_tuples = [rs.Probe(int(p['node']), float(p.get('angle', 0.0))) for p in probes]
+            probe_objects = [rs.Probe(int(p['node']), float(p.get('angle', 0.0))) for p in probes]
             
             plot_kwargs = get_kwargs(['amplitude_units', 'frequency_units'])
-            fig = hb_res.plot(probe=probe_tuples, **plot_kwargs)
+            fig = hb_res.plot(probe=probe_objects, **plot_kwargs)
 
         elif analysis_type == 'clearance':
             speed = float(params.get('speed', 600))
