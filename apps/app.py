@@ -40,6 +40,16 @@ UNITS_MAPPING = {
     'PointMass': {'m': 'kg', 'mx': 'kg', 'my': 'kg', 'mz': 'kg'}
 }
 
+# List of parameters that do not alter the physics of the analysis, only the plotting
+PLOT_KEYS = {
+    'plot_type', 'plot_idx', 'frequency_units', 'speed_units',
+    'damping_parameter', 'animation', 'stiffness_units',
+    'amplitude_units', 'phase_units', 'line_shape',
+    'orientation', 'length_units', 'nodes', 'probe_units',
+    'displacement_units', 'time_units', 'rotor_length_units',
+    'deformation_units', 'force_units', 'moment_units', 'harmonics'
+}
+
 # Useful Functions
 
 class NumpyEncoder(json.JSONEncoder):
@@ -137,6 +147,17 @@ def extract_kwargs(d, mat_dict, element_type, ignore_keys=['element_type', 'n'])
 # Memory Cache
 
 ROSS_CACHE = {}
+ANALYSIS_CACHE = {}
+
+def get_analysis_hash(data):
+    hash_data = {k: v for k, v in data.items() if k != 'params'}
+    hash_data['analysis_type'] = data.get('analysis_type')    
+    params = data.get('params', {})
+    hash_params = {k: v for k, v in params.items() if k not in PLOT_KEYS}
+    hash_data['params'] = hash_params    
+    dict_str = json.dumps(hash_data, sort_keys=True)
+
+    return hashlib.md5(dict_str.encode('utf-8')).hexdigest()
 
 def get_eff_nodes(arr):
     eff = []
@@ -394,21 +415,33 @@ def run_analysis():
         rotor = build_rotor_from_ui(data)
         dofs_per_node = rotor.ndof // len(rotor.nodes)
         
+        a_hash = get_analysis_hash(data)
+        
+        if len(ANALYSIS_CACHE) > 15:
+            ANALYSIS_CACHE.pop(next(iter(ANALYSIS_CACHE)))
+            
+        fig = None
+        
         if analysis_type == 'campbell':
             s_min = float(params.get('speed_min', 0.0))
             s_max = float(params.get('speed_max', 400.0))
             s_steps = int(float(params.get('speed_steps', 50)))
-            
             plot_type = params.get('plot_type', 'Default')
             
             if plot_type == 'Mode Shape' and s_steps > 15:
                 s_steps = 15
                 
             speed_rads = np.linspace(s_min, s_max, s_steps)
-            
             ana_kwargs = {'frequencies': int(float(params.get('frequencies', 6))), 
                           'frequency_type': params.get('frequency_type', 'wd'), 
                           'torsional_analysis': get_bool('torsional_analysis')}
+            
+            if a_hash in ANALYSIS_CACHE:
+                camp = ANALYSIS_CACHE[a_hash]
+            else:
+                camp = rotor.run_campbell(speed_rads, **ana_kwargs)
+                ANALYSIS_CACHE[a_hash] = camp
+            
             plot_kwargs = get_kwargs(['frequency_units', 'speed_units', 'damping_parameter'])
             if get_list('harmonics'): plot_kwargs['harmonics'] = get_list('harmonics')
             
@@ -438,20 +471,19 @@ def run_analysis():
                     
                     sys.stdout = DashURLCatcher(sys.stdout)
 
-                def run_dash_thread(rot, s_rads, a_kw, p_kw):
+                def run_dash_thread(camp_obj, p_kw):
                     try:
-                        camp = rot.run_campbell(s_rads, **a_kw)
-                        camp.plot_with_mode_shape(**p_kw)
+                        camp_obj.plot_with_mode_shape(**p_kw)
                     except Exception as e:
                         print(f"Dash Campbell Error: {e}")
                         
-                t = threading.Thread(target=run_dash_thread, args=(rotor, speed_rads, ana_kwargs, plot_kwargs))
+                t = threading.Thread(target=run_dash_thread, args=(camp, plot_kwargs))
                 t.daemon = True
                 t.start()
                 
                 return jsonify({"status": "info", "message": "Interactive Campbell Diagram launched!<br><br>A new Dash server is running and should open automatically in a new browser tab."})
             else:
-                fig = rotor.run_campbell(speed_rads, **ana_kwargs).plot(**plot_kwargs)
+                fig = camp.plot(**plot_kwargs)
             
         elif analysis_type == 'ucs':
             k_min = float(params.get('k_min', 4))
@@ -460,9 +492,15 @@ def run_analysis():
             
             ana_kwargs = {'synchronous': get_bool('synchronous')}
             if get_list('bearing_frequency_range'): ana_kwargs['bearing_frequency_range'] = get_list('bearing_frequency_range')
-            plot_kwargs = get_kwargs(['stiffness_units', 'frequency_units'])
+            
+            if a_hash in ANALYSIS_CACHE:
+                ucs_res = ANALYSIS_CACHE[a_hash]
+            else:
+                ucs_res = rotor.run_ucs(stiffness_range=(k_min, k_max), num=50, num_modes=num_modes, **ana_kwargs)
+                ANALYSIS_CACHE[a_hash] = ucs_res
 
-            fig = rotor.run_ucs(stiffness_range=(k_min, k_max), num=50, num_modes=num_modes, **ana_kwargs).plot(**plot_kwargs)
+            plot_kwargs = get_kwargs(['stiffness_units', 'frequency_units'])
+            fig = ucs_res.plot(**plot_kwargs)
             
         elif analysis_type == 'freq_response':
             s_min = float(params.get('speed_min', 0.0))
@@ -472,6 +510,12 @@ def run_analysis():
             ana_kwargs = {'free_free': get_bool('free_free')}
             if get_list('modes'): ana_kwargs['modes'] = get_list('modes')
             
+            if a_hash in ANALYSIS_CACHE:
+                response = ANALYSIS_CACHE[a_hash]
+            else:
+                response = rotor.run_freq_response(speed_rads, **ana_kwargs)
+                ANALYSIS_CACHE[a_hash] = response
+
             plot_type = params.get('plot_type', 'Default')
             plot_method = {
                 'Default': 'plot', 'Magnitude': 'plot_magnitude', 
@@ -482,8 +526,6 @@ def run_analysis():
             if plot_type in ['Default', 'Phase', 'Polar Bode']: plot_kwargs.update(get_kwargs(['phase_units']))
             if plot_type == 'Magnitude': plot_kwargs.update(get_kwargs(['line_shape']))
 
-            response = rotor.run_freq_response(speed_rads, **ana_kwargs)
-            fig = None
             colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b']
             
             inps = params.get('inps', [{'node': 0, 'dof': 0}])
@@ -514,7 +556,12 @@ def run_analysis():
             idx = int(float(params.get('plot_idx', 0)))
             
             ana_kwargs = {'sparse': get_bool('sparse', True), 'synchronous': get_bool('synchronous')}
-            modal_res = rotor.run_modal(speed=float(params.get('speed', 0.0)), num_modes=int(float(params.get('num_modes', 12))), **ana_kwargs)
+            
+            if a_hash in ANALYSIS_CACHE:
+                modal_res = ANALYSIS_CACHE[a_hash]
+            else:
+                modal_res = rotor.run_modal(speed=float(params.get('speed', 0.0)), num_modes=int(float(params.get('num_modes', 12))), **ana_kwargs)
+                ANALYSIS_CACHE[a_hash] = modal_res
             
             if plot_type == '3D':
                 plot_kwargs = get_kwargs(['frequency_type', 'length_units', 'phase_units', 'frequency_units', 'damping_parameter'])
@@ -541,6 +588,14 @@ def run_analysis():
             ana_kwargs = {}
             if get_list('modes'): ana_kwargs['modes'] = get_list('modes')
 
+            if a_hash in ANALYSIS_CACHE:
+                response = ANALYSIS_CACHE[a_hash]
+            else:
+                response = rotor.run_unbalance_response(
+                    node=nodes, unbalance_magnitude=mags, unbalance_phase=phases, frequency=speed_rads, **ana_kwargs
+                )
+                ANALYSIS_CACHE[a_hash] = response
+
             probes = params.get('probes', [{'node': 0, 'dof': 0}])
             probe_tuples = [(int(p['node']), int(p['dof'])) for p in probes]
             
@@ -554,9 +609,6 @@ def run_analysis():
             if plot_type in ['Default', 'Phase', 'Bode', 'Polar Bode']: plot_kwargs.update(get_kwargs(['phase_units']))
             if plot_type == 'Magnitude': plot_kwargs.update(get_kwargs(['line_shape']))
 
-            response = rotor.run_unbalance_response(
-                node=nodes, unbalance_magnitude=mags, unbalance_phase=phases, frequency=speed_rads, **ana_kwargs
-            )
             fig = getattr(response, plot_method)(probe=probe_tuples, **plot_kwargs) 
             
         elif analysis_type == 'time_response':
@@ -577,7 +629,12 @@ def run_analysis():
                 except Exception: pass
 
             ana_kwargs = {'method': params.get('method', 'default')}
-            response = rotor.run_time_response(speed, F, t, **ana_kwargs)
+            
+            if a_hash in ANALYSIS_CACHE:
+                response = ANALYSIS_CACHE[a_hash]
+            else:
+                response = rotor.run_time_response(speed, F, t, **ana_kwargs)
+                ANALYSIS_CACHE[a_hash] = response
             
             probes = params.get('probes', [{'node': 0, 'dof': 0}])
             probe_tuples = [(p['node'], p['dof']) for p in probes]
@@ -598,7 +655,12 @@ def run_analysis():
 
         elif analysis_type == 'static':
             plot_type = params.get('plot_type', 'Free Body Diagram')
-            static_res = rotor.run_static()
+            
+            if a_hash in ANALYSIS_CACHE:
+                static_res = ANALYSIS_CACHE[a_hash]
+            else:
+                static_res = rotor.run_static()
+                ANALYSIS_CACHE[a_hash] = static_res
             
             if plot_type == 'Deformation':
                 plot_kwargs = get_kwargs(['deformation_units', 'rotor_length_units'])
@@ -614,13 +676,13 @@ def run_analysis():
                 fig = static_res.plot_free_body_diagram(**plot_kwargs)
                 
         else: raise ValueError("Analysis not implemented yet.")
-            
-        layout_update = dict(margin=dict(l=60, r=60, t=50, b=100))
         
+        layout_update = dict(margin=dict(l=60, r=60, t=50, b=100))
         if analysis_type == 'campbell':
             layout_update['legend'] = dict(yanchor="top", y=-0.25)
             
-        fig.update_layout(**layout_update)        
+        fig.update_layout(**layout_update)
+        
         return jsonify({"status": "success", "plot_json": json.dumps(remove_nans(decode_bdata(fig.to_dict())), cls=NumpyEncoder)})
     except Exception as e:
         import traceback

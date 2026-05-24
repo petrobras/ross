@@ -4,3 +4,4 @@ ross-rotordynamics
 numpy
 toml
 pint
+dash
