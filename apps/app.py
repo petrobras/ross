@@ -398,6 +398,12 @@ def run_analysis():
             s_min = float(params.get('speed_min', 0.0))
             s_max = float(params.get('speed_max', 400.0))
             s_steps = int(float(params.get('speed_steps', 50)))
+            
+            plot_type = params.get('plot_type', 'Default')
+            
+            if plot_type == 'Mode Shape' and s_steps > 15:
+                s_steps = 15
+                
             speed_rads = np.linspace(s_min, s_max, s_steps)
             
             ana_kwargs = {'frequencies': int(float(params.get('frequencies', 6))), 
@@ -406,10 +412,44 @@ def run_analysis():
             plot_kwargs = get_kwargs(['frequency_units', 'speed_units', 'damping_parameter'])
             if get_list('harmonics'): plot_kwargs['harmonics'] = get_list('harmonics')
             
-            plot_type = params.get('plot_type', 'Default')
             if plot_type == 'Mode Shape':
+                import threading
+                import webbrowser
+                import sys
+                import re
+                
                 plot_kwargs['animation'] = get_bool('animation')
-                fig = rotor.run_campbell(speed_rads, **ana_kwargs).plot_with_mode_shape(**plot_kwargs)
+                
+                if not hasattr(sys.stdout, '_is_dash_catcher'):
+                    class DashURLCatcher:
+                        def __init__(self, orig):
+                            self.orig = orig
+                            self._is_dash_catcher = True
+                        def write(self, msg):
+                            self.orig.write(msg)
+                            if "Dash is running on" in msg or "Running on http" in msg:
+                                match = re.search(r'(http://[0-9\.]+:\d+)', msg)
+                                if match:
+                                    url = match.group(1)
+                                    if "5001" not in url: 
+                                        webbrowser.open(url)
+                        def flush(self):
+                            self.orig.flush()
+                    
+                    sys.stdout = DashURLCatcher(sys.stdout)
+
+                def run_dash_thread(rot, s_rads, a_kw, p_kw):
+                    try:
+                        camp = rot.run_campbell(s_rads, **a_kw)
+                        camp.plot_with_mode_shape(**p_kw)
+                    except Exception as e:
+                        print(f"Dash Campbell Error: {e}")
+                        
+                t = threading.Thread(target=run_dash_thread, args=(rotor, speed_rads, ana_kwargs, plot_kwargs))
+                t.daemon = True
+                t.start()
+                
+                return jsonify({"status": "info", "message": "Interactive Campbell Diagram launched!<br><br>A new Dash server is running and should open automatically in a new browser tab."})
             else:
                 fig = rotor.run_campbell(speed_rads, **ana_kwargs).plot(**plot_kwargs)
             

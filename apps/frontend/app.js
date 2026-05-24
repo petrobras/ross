@@ -1313,7 +1313,6 @@ function buildDashboardHTML(uniqueId, type) {
             
             html += `<div ${depsAttr}><label>${item.label}</label>`;
             if (item.type === 'range') {
-                
                 html += `<input type="range" id="range-${item.id}-${uniqueId}" min="${item.min}" max="${item.max}" step="${item.step}" value="${item.val}" oninput="document.getElementById('num-${item.id}-${uniqueId}').value = this.value;">`;
                 html += `<input type="number" id="num-${item.id}-${uniqueId}" value="${item.val}" oninput="document.getElementById('range-${item.id}-${uniqueId}').value = this.value;">`;
             } else if (item.type === 'select') {
@@ -1495,9 +1494,20 @@ async function runCardAnalysis(uniqueId, type) {
         if(data.status === "success") {
             div.innerHTML = ""; div.rossType = type; div.rossParams = Object.assign({}, p);
             const fig = JSON.parse(data.plot_json);
+            if(fig.frames) div.rossFrames = fig.frames; 
             fig.layout.autosize = true;
-            Plotly.newPlot(plotId, fig.data, fig.layout, {responsive: true});
-        } else div.innerHTML = `<div style="color:red; text-align:center; padding: 20px;"><i class="fas fa-exclamation-triangle fa-2x"></i><br><b>Error:</b> ${data.message}</div>`;
+            Plotly.newPlot(plotId, {
+                data: fig.data, 
+                layout: fig.layout, 
+                frames: fig.frames || [], 
+                config: {responsive: true}
+            });
+        } else if(data.status === "info") {
+            div.rossType = type; div.rossParams = Object.assign({}, p);
+            div.innerHTML = `<div style="color:var(--accent-primary); text-align:center; padding: 40px 20px;"><i class="fas fa-external-link-alt fa-3x" style="margin-bottom:15px;"></i><br><span style="font-size: 15px; font-weight: 600;">${data.message}</span></div>`;
+        } else {
+            div.innerHTML = `<div style="color:red; text-align:center; padding: 20px;"><i class="fas fa-exclamation-triangle fa-2x"></i><br><b>Error:</b> ${data.message}</div>`;
+        }
     } catch(e) {
         div.style.opacity = '1'; if(loader) loader.style.display = 'none';
         div.innerHTML = "<p style='color:red; text-align:center;'>Server Connection Error.</p>"; 
@@ -1547,7 +1557,13 @@ function loadAnalysis(event) {
                 const divNode = document.getElementById(nid);
                 if (an.type && an.params) { divNode.rossType = an.type; divNode.rossParams = an.params; }
                 an.layout.autosize = true; 
-                Plotly.newPlot(nid, an.data, an.layout, {responsive: true}).then(() => window.dispatchEvent(new Event('resize')));
+                if (an.frames) divNode.rossFrames = an.frames;
+                Plotly.newPlot(nid, {
+                    data: an.data, 
+                    layout: an.layout, 
+                    frames: an.frames || [], 
+                    config: {responsive: true}
+                }).then(() => window.dispatchEvent(new Event('resize')));
             });
         } catch(err) { alert("Error reading JSON."); }
     };
@@ -1568,7 +1584,17 @@ function saveAnalysis(event) {
         const p = c.querySelector('div[id^="plot-"]');
         const titleEl = c.querySelector('.analysis-title');
         const titleStr = titleEl ? titleEl.innerText.trim() : "Analysis";
-        if(p && p.data && p.layout) saved.push({ title: titleStr, data: p.data, layout: p.layout, type: p.rossType, params: p.rossParams });
+        
+        if(p && p.rossType) {
+            saved.push({ 
+                title: titleStr, 
+                data: p.data || [], 
+                layout: p.layout || {}, 
+                frames: p.rossFrames || [], 
+                type: p.rossType, 
+                params: p.rossParams 
+            });
+        }
     });
     if(saved.length===0) return alert("No analysis to save!");
     const blob = new Blob([JSON.stringify(saved)], {type: "application/json"});
