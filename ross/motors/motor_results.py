@@ -94,14 +94,14 @@ class MotorResponseResults(Results):
         """Plot the phase tensions."""
         if kwargs.get("title") is None:
             kwargs["title"] = "Motor operation: Stator Voltages"
-        
+
         voltage = VoltageTimeResults(self.t, self.voltages)
         fig = voltage.plot(fig=fig, **kwargs)
 
         return fig
 
-class CurrentTimeResults(Results):
 
+class CurrentTimeResults(Results):
     _REFERENCE_MAP = {
         "a": "a",
         "b": "b",
@@ -111,7 +111,7 @@ class CurrentTimeResults(Results):
         "d": "d",
         "q": "q",
     }
-            
+
     def __init__(self, t, currents):
         self.t = t
         self.currents = currents
@@ -149,8 +149,8 @@ class CurrentTimeResults(Results):
 
         return fig
 
-class VoltageTimeResults(Results):
 
+class VoltageTimeResults(Results):
     def __init__(self, t, voltages):
         self.t = t
         self.voltages = voltages
@@ -178,4 +178,3 @@ class VoltageTimeResults(Results):
         fig.update_layout(**kwargs)
 
         return fig
-    

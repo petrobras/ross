@@ -18,21 +18,21 @@ __all__ = ["MotorElement", "motor_example", "run_motor_example"]
 
 
 class MotorElement(Element):
-    """A 3-phase Induction Motor element.
+    """Create a 3-phase induction motor element for rotordynamic analysis.
 
-    This class creates a electric Three-Phase Induction Motor (TPIM) assuming
-    rotor flux as sinchronous reference
+    This class represents a Three-Phase Induction Motor (TPIM) using a synchronous
+    reference frame for rotor flux orientation.
 
     Parameters
     ----------
-    n: int
-        Node in which the motor will be coupled.
+    n : int
+        Node at which the motor is coupled.
     power_nom : float, pint.Quantity
         Nominal power [W].
     voltage_nom : float, pint.Quantity
         Nominal voltage [V].
     speed_nom : float, pint.Quantity
-        Nominal machine rotation [rad/s].
+        Nominal machine speed [rad/s].
     stator_resistance : float, pint.Quantity
         Stator resistance [Ohm].
     rotor_resistance : float, pint.Quantity
@@ -44,19 +44,19 @@ class MotorElement(Element):
     mutual_reactance : float
         Mutual reactance at frequency [Ohm].
     Ip_motor : float, pint.Quantity
-        Polar Moment of inertia related to motor axis [kg*m²].
+        Polar Moment of inertia related to motor axis [kg.m²].
     frequency : float, optional, pint.Quantity
         Nominal frequency [rad/s].
-        Default is 60.0 Hz.
+        Default is 60 Hz.
     n_poles: int, optional
         Number of machine's poles.
         Default is 4.
     viscosity_coeff : float, optional, pint.Quantity
-        Viscosity coefficient [Pa*s].
-        Default is 0.0.
+        Viscosity coefficient [Pa.s].
+        Default is 0.
     Ip_load : float, optional, pint.Quantity
-        Polar Moment of inertia related to load [kg*m²].
-        Default is 0.0.
+        Polar Moment of inertia related to load [kg.m²].
+        Default is 0.
     voltage_net : float, optional, pint.Quantity
         Electrical tension of Power Supply [V].
         Default is None, which adopts the motor's nominal voltage (`voltage`).
@@ -65,16 +65,42 @@ class MotorElement(Element):
         Default is None, which adopts the motor's nominal frequency (`frequency`).
     initial_angle_net : float, optional, pint.Quantity
         Initial angular phase frequency of Power Supply [rad].
-        Default is 20.0 degrees.
+        Default is 20 degrees.
     short_circuit_ratio_net : float, optional
-        Short-Circuit Ratio in Common Coupling Point with Power Supply.
-        Default is 50.0.
+        Short-Circuit Ratio at common coupling point with power supply.
+        Default is 50.
     XR_ratio_net : float, optional
-        Reactance (X) / Resistance (R) Ratio in Coupling Point with Power Supply.
-        Default is 80.0.
+        Reactance (X) / Resistance (R) Ratio at coupling point with power supply.
+        Default is 80.
     tag : str, optional
-        A tag to name the element.
+        Tag to name the element.
         Default is None.
+
+    Examples
+    --------
+    >>> from ross import MotorElement
+    >>> from ross.units import Q_
+    >>> motor = MotorElement(
+    ...     n=0,
+    ...     tag=None,
+    ...     power_nom=Q_(1.5, "cv"),
+    ...     voltage_nom=127,
+    ...     speed_nom=Q_(1725, "RPM"),
+    ...     frequency=Q_(60.0, "Hz"),
+    ...     n_poles=4,
+    ...     stator_resistance=2.5,
+    ...     rotor_resistance=1.8,
+    ...     stator_reactance=1.3,
+    ...     rotor_reactance=1.3,
+    ...     mutual_reactance=43.08,
+    ...     Ip_motor=0.0372,
+    ...     viscosity_coeff=0.0,
+    ...     Ip_load=0.0,
+    ...     voltage_net=127,
+    ...     frequency_net=Q_(60.0, "Hz"),
+    ... )
+    >>> motor.power_nom
+    1103.248125
     """
 
     @check_units
@@ -90,7 +116,7 @@ class MotorElement(Element):
         rotor_reactance,
         mutual_reactance,
         Ip_motor,
-        frequency=60.0,
+        frequency=None,
         n_poles=4,
         viscosity_coeff=0.0,
         Ip_load=0.0,
@@ -170,7 +196,8 @@ class MotorElement(Element):
 
         Returns
         -------
-        The object's parameters translated to strings.
+        str
+            The object's parameters translated to strings.
         """
         return (
             f"Tag:                                {self.tag}"
@@ -187,9 +214,9 @@ class MotorElement(Element):
             f"\nStator Reactance (Ohm):             {self.stator_reactance}"
             f"\nRotor Reactance (Ohm):              {self.rotor_reactance}"
             f"\nMutual Reactance (Ohm):             {self.mutual_reactance}"
-            f"\nMotor Inertia (kg*m2):              {self.Ip_motor}"
-            f"\nViscosity Coefficient (Pa*s):       {self.viscosity_coeff}"
-            f"\nLoad Inertia (kg*m2):               {self.Ip_load}"
+            f"\nMotor Inertia (kg.m²):              {self.Ip_motor}"
+            f"\nViscosity Coefficient (Pa.s):       {self.viscosity_coeff}"
+            f"\nLoad Inertia (kg.m²):               {self.Ip_load}"
             f"\n--- Power Supply Parameters (SCIP) ---"
             f"\nSupply Voltage (V):                 {self.voltage_net}"
             f"\nSupply Frequency (Hz):              {self.frequency_net}"
@@ -223,8 +250,7 @@ class MotorElement(Element):
         pass
 
     def _calculate_dLds_dt(self, Lds, Ldr, Lqs, vds):
-        """Calculate the derivative of the d-axis stator inductance based on the
-        motor's state and input voltages.
+        """Calculate time derivative of the d-axis stator inductance.
 
         This method computes the rate of change of the d-axis stator inductance using
         the motor's current state variables and the input d-axis voltage.
@@ -232,18 +258,18 @@ class MotorElement(Element):
         Parameters
         ----------
         Lds : float
-            d-axis inductance for stator [H].
+            d-axis stator inductance [H].
         Ldr : float
-            d-axis inductance for rotor [H].
+            d-axis rotor inductance [H].
         Lqs : float
-            q-axis inductance for stator [H].
+            q-axis stator inductance [H].
         vds : float
-            d-axis voltage for stator [V].
+            d-axis stator voltage [V].
 
         Returns
         -------
-        dLds_dt : float
-            Derivative of the d-axis stator inductance with respect to time.
+        float
+            Time derivative of the d-axis stator inductance [H/s].
         """
         R = self.stator_resistance + self.short_circuit_resistance
         w = self.frequency
@@ -251,8 +277,7 @@ class MotorElement(Element):
         return vds - R * self.a * Lds + R * self.c * Ldr + w * Lqs
 
     def _calculate_dLqs_dt(self, Lqs, Lds, Lqr, vqs):
-        """Calculate the derivative of the q-axis stator inductance based on the
-        motor's state and input voltages.
+        """Calculate time derivative of the q-axis stator inductance.
 
         This method computes the rate of change of the q-axis stator inductance using
         the motor's current state variables and the input q-axis voltage.
@@ -260,18 +285,18 @@ class MotorElement(Element):
         Parameters
         ----------
         Lqs : float
-            q-axis inductance for stator [H].
+            q-axis stator inductance [H].
         Lds : float
-            d-axis inductance for stator [H].
+            d-axis stator inductance [H].
         Lqr : float
-            q-axis inductance for rotor [H].
+            q-axis rotor inductance [H].
         vqs : float
-            q-axis voltage for stator [V].
+            q-axis stator voltage [V].
 
         Returns
         -------
-        dLqs_dt : float
-            Derivative of the q-axis stator inductance with respect to time.
+        float
+            Time derivative of the q-axis stator inductance [H/s].
         """
         R = self.stator_resistance + self.short_circuit_resistance
         w = self.frequency
@@ -279,8 +304,7 @@ class MotorElement(Element):
         return vqs - R * self.a * Lqs + R * self.c * Lqr - w * Lds
 
     def _calculate_dLdr_dt(self, Ldr, Lds, Lqr, vdr, wr):
-        """Calculate the derivative of the d-axis rotor inductance based on the
-        motor's state and input voltages.
+        """Calculate time derivative of the d-axis rotor inductance.
 
         This method computes the rate of change of the d-axis rotor inductance using
         the motor's current state variables and the input d-axis voltage.
@@ -288,20 +312,20 @@ class MotorElement(Element):
         Parameters
         ----------
         Ldr : float
-            d-axis inductance for rotor [H].
+            d-axis rotor inductance [H].
         Lds : float
-            d-axis inductance for stator [H].
+            d-axis stator inductance [H].
         Lqr : float
-            q-axis inductance for rotor [H].
+            q-axis inductance [H].
         vdr : float
-            d-axis voltage for rotor [V].
+            d-axis voltage [V].
         wr : float
             Rotor angular speed [rad/s].
 
         Returns
         -------
-        dLdr_dt : float
-            Derivative of the d-axis rotor inductance with respect to time.
+        float
+            Time derivative of the d-axis rotor inductance [H/s].
         """
         R = self.rotor_resistance
         w = self.frequency - wr * self.n_poles / 2
@@ -309,8 +333,7 @@ class MotorElement(Element):
         return vdr - R * self.b * Ldr + R * self.c * Lds + w * Lqr
 
     def _calculate_dLqr_dt(self, Lqr, Lqs, Ldr, vqr, wr):
-        """Calculate the derivative of the q-axis rotor inductance based on the
-        motor's state and input voltages.
+        """Calculate time derivative of the q-axis rotor inductance.
 
         This method computes the rate of change of the q-axis rotor inductance using
         the motor's current state variables and the input q-axis voltage.
@@ -318,20 +341,20 @@ class MotorElement(Element):
         Parameters
         ----------
         Lqr : float
-            q-axis inductance for rotor [H].
+            q-axis rotor inductance [H].
         Lqs : float
-            q-axis inductance for stator [H].
+            q-axis stator inductance [H].
         Ldr : float
-            d-axis inductance for rotor [H].
+            d-axis rotor inductance [H].
         vqr : float
-            q-axis voltage for rotor [V].
+            q-axis rotor voltage [V].
         wr : float
             Rotor angular speed [rad/s].
 
         Returns
         -------
-        dLqr_dt : float
-            Derivative of the q-axis rotor inductance with respect to time.
+        float
+            Time derivative of the q-axis rotor inductance [H/s].
         """
         R = self.rotor_resistance
         w = self.frequency - wr * self.n_poles / 2
@@ -339,11 +362,7 @@ class MotorElement(Element):
         return vqr - R * self.b * Lqr + R * self.c * Lqs - w * Ldr
 
     def _calculate_dwr_dt(self, Tl, Te, wr):
-        """Calculate the derivative of the rotor angular speed
-
-        This method computes the rate of change of the rotor angular speed using
-        the motor's current state variables, the input load torque, and the electric
-        torque.
+        """Calculate the time derivative of rotor angular speed.
 
         Parameters
         ----------
@@ -356,8 +375,8 @@ class MotorElement(Element):
 
         Returns
         -------
-        dwr_dt : float
-            Derivative of the rotor angular speed with respect to time.
+        float
+            Time derivative of rotor angular speed [rad/s²].
         """
         J = self.Ip_motor + self.Ip_load
 
@@ -366,45 +385,40 @@ class MotorElement(Element):
     def _calculate_electrical_torque(self, Lds, Ldr, Lqs, Lqr):
         """Calculate the electric torque generated by the motor.
 
-        This method computes the electric torque based on the current inductances
-        of the stator and rotor.
-
         Parameters
         ----------
         Lds : float
-            d-axis inductance for stator [H].
+            d-axis stator inductance [H].
         Ldr : float
-            d-axis inductance for rotor [H].
+            d-axis rotor inductance [H].
         Lqs : float
-            q-axis inductance for stator [H].
+            q-axis stator inductance [H].
         Lqr : float
-            q-axis inductance for rotor [H].
+            q-axis rotor inductance [H].
 
         Returns
         -------
-        Te : float
-            Electric torque generated by the motor [N.m].
+        float
+            Electrical torque [N.m].
         """
         return 1.5 * self.c * (Lqs * Ldr - Lds * Lqr) * self.n_poles / 2
-    
-    def _calculate_load_torque(self, t, load_torque_entrance_time, load_torque_ratio):
-        """Calculate the load torque.
 
-        This method computes the load torque based on time.
+    def _calculate_load_torque(self, t, load_torque_entrance_time, load_torque_ratio):
+        """Calculate load torque as a function of time.
 
         Parameters
         ----------
         t : float
-            Specific time [s].
+            Time point [s].
         load_torque_entrance_time : float
-            Time at which the load torque is applied to the motor shaft [s].
+            Time at which load torque is applied to the motor shaft [s].
         load_torque_ratio : float
             Load torque ratio applied at the entrance time.
 
         Returns
         -------
         Tl : float
-            Load torque generated in time [N.m].
+            Load torque at time `t` [N.m].
         """
         if t < load_torque_entrance_time:
             Tl = 0.0
@@ -412,44 +426,44 @@ class MotorElement(Element):
             Tl = self.Tnom * load_torque_ratio
 
         return Tl
-    
+
     def _calculate_electromagnetic_flux_angle(self, t, flux_angle_0):
-        """Calculate instantaneous electromagnetic flux angle
-        
-        This method computes the electromagnetic flux angle based on time.
+        """Calculate electromagnetic flux angle at time point.
 
         Parameters
         ----------
         t : float
-            Specific time [s].
+            Time point [s].
         flux_angle_0 : float
             Initial electromagnetic flux angle [rad].
 
         Returns
         -------
-        flux_angle_0 : float
-            Magnetic flux angle [rad].
+        float
+            Magnetic flux angle at time `t` [rad].
         """
         return flux_angle_0 + self.frequency * t
-    
-    def _ode_system(self, t, y, flux_angle_0, load_torque_entrance_time, load_torque_ratio):
-        """
-        Defines the Ordinary Differential Equation (ODE) system for the motor simulation.
 
-        Calculates the time derivatives of the electromagnetic fluxes and rotor angular velocity 
-        based on the input voltages, electrical torque, and mechanical load torque. 
-        This method is designed to be passed directly to `scipy.integrate.solve_ivp`.
+    def _ode_system(
+        self, t, y, flux_angle_0, load_torque_entrance_time, load_torque_ratio
+    ):
+        """Define the ODE system for motor simulation.
+
+        Computes time derivatives of electromagnetic flux linkages and rotor angular
+        velocity based on input voltages, electrical torque, and load torque.
+        Designed for use with `scipy.integrate.solve_ivp`.
 
         Parameters
         ----------
         t : float
             Current simulation time [s].
         y : array_like
-            Current state vector containing the dynamic variables:
-            [Lds, Lqs, Ldr, Lqr, wr], where:
-            - Lds, Lqs: Stator flux linkages in the d and q axes.
-            - Ldr, Lqr: Rotor flux linkages in the d and q axes.
-            - wr: Rotor angular velocity.
+            State vector [Lds, Lqs, Ldr, Lqr, wr] where:
+
+            - Lds, Lqs : d- and q-axis stator flux linkages [H]
+            - Ldr, Lqr : d- and q-axis rotor flux linkages [H]
+            - wr : Rotor angular velocity [rad/s]
+
         flux_angle_0 : float
             Initial electromagnetic flux angle [rad].
         load_torque_entrance_time : float
@@ -459,13 +473,15 @@ class MotorElement(Element):
 
         Returns
         -------
-        dLds_dt, dLqs_dt, dLdr_dt, dLqr_dt, dwr_dt : tuple of float
-            The time derivatives of the state variables in the corresponding order.
+        tuple of float
+            Time derivatives `(dLds_dt, dLqs_dt, dLdr_dt, dLqr_dt, dwr_dt)`.
         """
 
         Lds, Lqs, Ldr, Lqr, wr = y
 
-        Tl = self._calculate_load_torque(t, load_torque_entrance_time, load_torque_ratio)
+        Tl = self._calculate_load_torque(
+            t, load_torque_entrance_time, load_torque_ratio
+        )
         Te = self._calculate_electrical_torque(Lds, Ldr, Lqs, Lqr)
 
         # Electrical 3-phase tensions
@@ -490,7 +506,8 @@ class MotorElement(Element):
         return dLds_dt, dLqs_dt, dLdr_dt, dLqr_dt, dwr_dt
 
     @check_units
-    def run_with_AC_source(self, 
+    def run_with_AC_source(
+        self,
         t,
         load_torque_entrance_time=None,
         load_torque_ratio=1.0,
@@ -500,40 +517,93 @@ class MotorElement(Element):
         harmonics=None,
         unbalances=None,
     ):
-        """Run the motor simulation over a specified time vector.
-
-        This method considers driving motor with AC source.
+        """Run motor simulation with AC source for specified time points.
 
         Parameters
         ----------
         t : array-like
-            Times at which to store the computed solution.
+            Time points to store the computed solution [s].
         load_torque_entrance_time : float, optional
-            Time at which the load torque is applied to the motor shaft.
+            Time when load torque is applied to the motor shaft [s].
             Default is half the simulation time.
         load_torque_ratio : float, optional
             Load torque ratio applied at the entrance time. This is a multiplier
             for the nominal load torque, e.g., a value of 1.0 applies 100% of the
-            nominal torque at entrance time.
-            Default is 1.0.
+            nominal torque at entrance time. Default is 1.0.
+        voltage_net : float, pint.Quantity, optional
+            Power supply voltage [V]. If None, uses motor nominal voltage.
+        frequency_net : float, pint.Quantity, optional
+            Power supply frequency [rad/s]. If None, uses motor nominal frequency.
+        initial_phase_angle : float, pint.Quantity, optional
+            Initial power supply phase angle [rad]. Default is 0.
+        harmonics : dict, optional
+            Harmonic configuration with keys:
+
+            - "orders" : list of int
+                Harmonic orders (e.g., [5, 7])
+            - "amplitudes" : list of float
+                Harmonic amplitudes as % of nominal voltage
+            - "enable" : bool
+                Enable harmonics
+
+        unbalances : dict, optional
+            Unbalance configuration with keys:
+
+            - "voltage_percent" : list of float
+                Voltage magnitude unbalance per phase [%]
+            - "angle_deviation" : list of float, pint.Quantity
+                Angle deviation per phase [rad]
+            - "enable" : bool
+                Enable unbalances
 
         Returns
         -------
         results : ross.MotorResponseResults
             For more information on attributes and methods available see:
             :py:class:`ross.MotorResponseResults`
+
+        Examples
+        --------
+        >>> motor = motor_example()
+        >>> t = np.arange(0, 1, 1e-3)
+        >>> results = motor.run_with_AC_source(
+        ...     t,
+        ...     load_torque_entrance_time=3.0,
+        ...     load_torque_ratio=1.5,
+        ...     voltage_net=90.0,
+        ...     harmonics={
+        ...         "enable": True,
+        ...         "orders": [5, 7],
+        ...         "amplitudes": [5, 5],
+        ...     },
+        ...     unbalances={"enable": False},
+        ... )
+        >>> results.speed.shape
+        (1000,)
+        >>> fig_torque = results.plot_torque()
+        >>> fig_speed = results.plot_speed()
+        >>> fig_currents = results.plot_phase_currents(reference_frame="a-b-c")
+        >>> fig_voltages = results.plot_phase_tensions()
         """
 
-        voltage_net = voltage_net or self.voltage_nom
+        # Updating AC source parameters
         frequency_net = frequency_net or self.frequency
+        self.sourceAC.frequency_net = Q_(frequency_net, "rad/s").to("Hz").m
+        self.sourceAC.voltage_net = voltage_net or self.voltage_nom
+        self.sourceAC.initial_phase_angle = initial_phase_angle
 
-        self.sourceAC = SourceAC(
-            voltage_net=voltage_net,
-            frequency_net=Q_(frequency_net, "rad/s").to("Hz").m,
-            initial_phase_angle=initial_phase_angle,
-            harmonics=harmonics,
-            unbalances=unbalances
-        )
+        if harmonics:
+            self.sourceAC.set_harmonics(
+                harmonics.get("orders"),
+                harmonics.get("amplitudes"),
+                enable=harmonics.get("enable"),
+            )
+        if unbalances:
+            self.sourceAC.set_unbalances(
+                unbalances.get("voltage_percent"),
+                unbalances.get("angle_deviation"),
+                unbalances.get("enable"),
+            )
 
         # Initial values
         wr0 = 0.0  # Rotor's angular speed
@@ -561,18 +631,25 @@ class MotorElement(Element):
             t_span=(t[0], t[-1]),
             y0=(Lds0, Lqs0, Ldr0, Lqr0, wr0),
             args=(flux_angle_0, load_torque_entrance_time, load_torque_ratio),
-            t_eval=t
+            t_eval=t,
         )
 
         Lds, Lqs, Ldr, Lqr, speed = solution.y
 
         # Compute outputs
         angular_position = thetar0 + (speed * self.n_poles / 2) * t
-        
-        load_torque = np.vectorize(self._calculate_load_torque)(t, load_torque_entrance_time, load_torque_ratio)
-        electric_torque = np.vectorize(self._calculate_electrical_torque)(Lds, Ldr, Lqs, Lqr)
 
-        flux_angle = np.vectorize(self._calculate_electromagnetic_flux_angle)(t, flux_angle_0)
+        load_torque = np.vectorize(self._calculate_load_torque)(
+            t, load_torque_entrance_time, load_torque_ratio
+        )
+
+        electric_torque = np.vectorize(self._calculate_electrical_torque)(
+            Lds, Ldr, Lqs, Lqr
+        )
+
+        flux_angle = np.vectorize(self._calculate_electromagnetic_flux_angle)(
+            t, flux_angle_0
+        )
 
         ids = self.a * Lds - self.c * Ldr
         iqs = self.a * Lqs - self.c * Lqr
@@ -616,6 +693,12 @@ def motor_example():
     -------
     motor : ross.MotorElement
         An instance of a motor object.
+
+    Examples
+    --------
+    >>> motor = motor_example()
+    >>> motor.power_nom
+    1103.248125
     """
 
     return MotorElement(
@@ -640,7 +723,12 @@ def motor_example():
 
 
 def run_motor_example():
-    """Run the motor example and plot the results."""
+    """Run and visualize motor example with harmonics and load transient.
+
+    This function demonstrates motor simulation with harmonics, voltage unbalance,
+    and transient load application, producing four plots: torque, speed, phase
+    currents, and phase voltages.
+    """
     motor = motor_example()
 
     tI = 0.0
@@ -658,9 +746,7 @@ def run_motor_example():
             "orders": [5, 7],
             "amplitudes": [5, 5],
         },
-        unbalances={
-            "enable": False
-        }
+        unbalances={"enable": False},
     )
 
     fig_torque = results.plot_torque()

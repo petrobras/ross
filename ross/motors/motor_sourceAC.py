@@ -3,37 +3,69 @@
 Ideal 3-phase AC source with harmonic distortion and voltage unbalance support.
 """
 
-import plotly.graph_objects as go
-
 import numpy as np
 
+from ross.units import Q_, check_units
 from .motor_results import VoltageTimeResults
 
+
 class SourceAC:
-    """
-    Ideal 3-phase AC source with support for:
-      - Arbitrary harmonic orders and amplitudes (harmonic_orders, harmonic_amplitudes)
-      - Per-phase voltage magnitude unbalance (voltage_unb_percent) [%]
-      - Per-phase voltage angle deviation (angle_deviation) [degrees]
+    """Create an ideal 3-phase AC source with harmonics and voltage unbalance support.
+
+    Supports arbitrary harmonic orders and amplitudes, per-phase voltage magnitude
+    unbalance, and per-phase voltage angle deviation.
 
     Parameters
     ----------
-    voltage_net  : float  – RMS phase voltage [V]
-    frequency_net  : float  – Fundamental frequency [Hz]
-    initial_phase_angle: float  – Initial phase angle [rad] (default 0)
-    harmonic_orders   : list/array of int   – Harmonic orders  (e.g. [5, 7, 11])
-    harmonic_amplitudes   : list/array of float – Harmonic amplitudes as % of voltage_net (e.g. [10, 5, 2])
-    voltage_unb_percent  : list/array of float – Voltage magnitude unbalance per phase [%]
-                                  Order: [phase_A, phase_B, phase_C]
-                                  Positive → higher voltage; Negative → lower voltage.
-    angle_deviation  : list/array of float – Angle deviation per phase [degrees]
-                                  Order: [phase_A, phase_B, phase_C]
-    Behaviour
-    ----------
-    Configuring Harmonics and Unbalances: set harmonic_orders,harmonic_amplitudes, voltage_unb_percent,angle_deviation --> _pending
-    Enabling disturbances: call .harmonics("enable") / .unbalances("enable") -->_active
-    Disabling disturbances: call .harmonics("disable") / .unbalances("disable"), keeping configuration
+    voltage_net : float, pint.Quantity
+        RMS phase voltage [V].
+    frequency_net : float, pint.Quantity
+        Fundamental frequency [rad/s].
+    initial_phase_angle : float, pint.Quantity, optional
+        Initial phase angle [rad]. Default is 0.
+    harmonic_orders : list of int
+        Harmonic orders (e.g., [5, 7, 11]).
+    harmonic_amplitudes : list of float
+        Harmonic amplitudes as % of voltage_net (e.g., [10, 5, 2]).
+    harmonic_enable : bool
+        Whether to enable harmonics. Default is False.
+    unbalance_voltage_percent : list of float
+        Voltage magnitude unbalance per phase [%] in order [phase_A, phase_B, phase_C].
+        Positive → higher voltage; Negative → lower voltage.
+    unbalance_angle_deviation : list of float, pint.Quantity
+        Angle deviation per phase [rad] in order [phase_A, phase_B, phase_C].
+    unbalance_enable : bool
+        Whether to enable unbalances. Default is False.
 
+    Notes
+    -----
+    Harmonics and unbalances can be configured via `.set_harmonics()` and `.set_unbalances()`.
+
+    Examples
+    --------
+    >>> src = SourceAC(voltage_net=220.0, frequency_net=Q_(60.0, "Hz"), initial_phase_angle=0.0)
+
+    Configure harmonics
+    >>> src.set_harmonics(
+    ...    harmonic_orders=[5, 7, 11, 13],
+    ...    harmonic_amplitudes=[10.0, 5.0, 3.0],
+    ...    enable=True,
+    ... )  # harmonic_amplitudes shorter → 13th = 0%
+
+    Configure unbalances
+    >>> src.set_unbalances(
+    ...    voltage_percent=[5.0, 0.0, -3.0],
+    ...    angle_deviation=Q_([2.0, 0.0, -2.0], "deg"),
+    ...    enable=True,
+    ... )
+
+    Compute a few voltages
+    >>> t_samples = np.linspace(0, 1 / 60, 5)
+    >>> resp = src.run(t_samples)
+    >>> fig = resp.plot()
+
+    Disable harmonics
+    >>> src.harmonics["enable"] = False
     """
 
     # Phase angle offsets for a balanced 3-phase system [rad]
@@ -41,81 +73,133 @@ class SourceAC:
     _PHASE_OFFSET = [0.0, -2 * np.pi / 3, +2 * np.pi / 3]
     _PHASE_LABEL = ["A", "B", "C"]
 
+    @check_units
     def __init__(
         self,
         voltage_net,
         frequency_net,
         initial_phase_angle=0.0,
-        harmonics=None,
-        unbalances=None,
+        harmonics_orders=None,
+        harmonics_amplitudes=None,
+        harmonics_enable=False,
+        unbalance_voltage_percent=None,
+        unbalance_angle_deviation=None,
+        unbalance_enable=False,
     ):
-
         self.voltage_net = voltage_net
         self.frequency_net = frequency_net
         self.initial_phase_angle = initial_phase_angle
 
-        # --- Harmonics ---
-        if harmonics:
-            self.set_harmonics(harmonics.get("orders"), harmonics.get("amplitudes"), harmonics.get("enable"))
+        if harmonics_orders:
+            self.set_harmonics(
+                harmonics_orders,
+                harmonics_amplitudes,
+                harmonics_enable,
+            )
         else:
             self.set_harmonics(None, None, False)
-        
-        # --- Unbalances ---
-        if unbalances:
-            self.set_unbalances(unbalances.get("voltage_percent"), unbalances.get("angle_deviation"), unbalances.get("enable"))
-        else:
-            self.set_unbalances(None, None, False)
 
-    def set_harmonics(self, harmonic_orders, harmonic_amplitudes, enable=True):
-        """Validate and align harmonic_orders / harmonic_amplitudes vectors."""
+        self.set_unbalances(
+            unbalance_voltage_percent,
+            unbalance_angle_deviation,
+            unbalance_enable,
+        )
+
+    def set_harmonics(self, harmonic_orders, harmonic_amplitudes=None, enable=True):
+        """Set harmonic orders and amplitudes for the AC source.
+
+        Parameters
+        ----------
+        harmonic_orders : list of int
+            Harmonic orders (e.g., [5, 7, 11]).
+        harmonic_amplitudes : list of float
+            Harmonic amplitudes as % of voltage_net. If shorter than harmonic_orders,
+            remaining amplitudes are set to 0.
+        enable : bool, optional
+            Enable harmonics. Default is True.
+        """
         if harmonic_orders is not None:
             harmonic_orders = list(harmonic_orders)
             n = len(harmonic_orders)
+
             # Adjust harmonic_amplitudes vector to the harmonic_orders length
             if harmonic_amplitudes is None:
                 harmonic_amplitudes = [0.0] * n
             else:
                 harmonic_amplitudes = list(harmonic_amplitudes)
                 if len(harmonic_amplitudes) < n:
-                    harmonic_amplitudes += [0.0] * (n - len(harmonic_amplitudes))  # filling up to the harmonic_orders length
+                    harmonic_amplitudes += [0.0] * (
+                        n - len(harmonic_amplitudes)
+                    )  # filling up to the harmonic_orders length
                 else:
-                    harmonic_amplitudes = harmonic_amplitudes[:n]  # truncate to harmonic_orders length
+                    harmonic_amplitudes = harmonic_amplitudes[
+                        :n
+                    ]  # truncate to harmonic_orders length
 
             # Clamp amplitudes to [0, 100]
-            harmonic_amplitudes = [float(np.clip(a, 0.0, 100.0)) for a in harmonic_amplitudes]
+            harmonic_amplitudes = [
+                float(np.clip(a, 0.0, 100.0)) for a in harmonic_amplitudes
+            ]
+
             # Truncate harmonic_orders to integer numbers
             harmonic_orders = [int(h) for h in harmonic_orders]
 
         self.harmonics = {
             "enable": enable or False,
             "orders": harmonic_orders,
-            "amplitudes": harmonic_amplitudes
+            "amplitudes": harmonic_amplitudes,
         }
 
     @staticmethod
     def _parse_3vec(v, default):
-        """Return a 3-element list. Fills missing entries with `default`."""
-        """Addresses both unbalances and deviations."""
+        """Parse input into a 3-element list, filling missing entries with default.
+
+        Parameters
+        ----------
+        v : list or None
+            Input vector (may have fewer than 3 elements).
+        default : float
+            Default value for missing entries.
+
+        Returns
+        -------
+        list
+            3-element list with float entries.
+        """
         if v is None:
             return [default, default, default]
+
         v = list(v)
+
         if len(v) < 3:
             v += [default] * (3 - len(v))
         elif len(v) > 3:
             v = v[:3]
+
         return [float(x) for x in v]
-    
+
+    @check_units
     def set_unbalances(self, voltage_percent, angle_deviation, enable=True):
-        
+        """Set voltage magnitude unbalance and angle deviation for the AC source.
+
+        Parameters
+        ----------
+        voltage_percent : list of float
+            Voltage magnitude unbalance per phase [%] in order [phase_A, phase_B, phase_C].
+            Positive → higher voltage; Negative → lower voltage.
+        angle_deviation : list of float, pint.Quantity
+            Angle deviation per phase [degrees] in order [phase_A, phase_B, phase_C].
+        enable : bool, optional
+            Enable unbalances. Default is True.
+        """
         voltage_percent = self._parse_3vec(voltage_percent, 0.0)
         angle_deviation = self._parse_3vec(angle_deviation, 0.0)
-    
+
         self.unbalances = {
             "enable": enable or False,
             "voltage_percent": voltage_percent,
             "angle_deviation": angle_deviation,
         }
-
 
     def __repr__(self):
         return (
@@ -124,25 +208,33 @@ class SourceAC:
             f"harmonics={'ON' if self.harmonics['enable'] else 'OFF'}, "
             f"unbalances={'ON' if self.unbalances['enable'] else 'OFF'})"
         )
-    
+
     def _build_phase_voltage(self, t, phase_id):
-        """
-        Compute instantaneous voltage for one phase at time `t`, applying
-        harmonics frequencies, unbalanced amplitudes and angle deviations
-        phase_id : 0 → A, 1 → B, 2 → C
+        """Compute instantaneous voltage for one phase at time t.
+
+        Parameters
+        ----------
+        t : float
+            Time [s].
+        phase_id : int
+            Phase identifier: 0 → A, 1 → B, 2 → C.
+
+        Returns
+        -------
+        float
+            Instantaneous voltage [V] with harmonics, unbalance, and angle deviations applied.
         """
         phi = self._PHASE_OFFSET[phase_id]  # nominal phase shift
         w = 2 * np.pi * self.frequency_net
 
         if self.unbalances["enable"]:
-            vd_pct = self.unbalances["voltage_percent"][phase_id]  # % magnitude deviation
-            ad_deg = self.unbalances["angle_deviation"][phase_id]  # angle deviation [°]
+            vd_pct = self.unbalances["voltage_percent"][phase_id]
+            angle_offset = self.unbalances["angle_deviation"][phase_id]
         else:
             vd_pct = 0.0
-            ad_deg = 0.0
+            angle_offset = 0.0
 
         mag_factor = (100.0 + vd_pct) / 100.0  # amplitude scale
-        angle_offset = ad_deg * np.pi / 180.0  # extra phase [rad]
 
         # Phase A gets +angle_deviation, Phase B neutral, Phase C gets –angle_deviation
         # (mirrors the sign convention used in the original snippet)
@@ -169,17 +261,30 @@ class SourceAC:
             np.sqrt(2)
             * self.voltage_net
             * mag_factor
-            * (100 - a_harm) / 100
+            * (100 - a_harm)
+            / 100
             * np.cos(w * t + self.initial_phase_angle + phi + angle_offset)
         )
 
         return v
 
     def get_phase_voltages(self, t):
-        """Return instantaneous phase voltages (vas, vbs, vcs) at time *t*."""
+        """Get instantaneous phase voltages at time `t`.
+
+        Parameters
+        ----------
+        t : float
+            Time [s].
+
+        Returns
+        -------
+        tuple of float
+            Instantaneous phase voltages `(vas, vbs, vcs)` [V].
+        """
         vas = self._build_phase_voltage(t, 0)
         vbs = self._build_phase_voltage(t, 1)
         vcs = self._build_phase_voltage(t, 2)
+
         return vas, vbs, vcs
 
     def run(self, t):
@@ -192,9 +297,9 @@ class SourceAC:
 
         Returns
         -------
-        results : dict
-            A dictionary containing lists of results for the entire simulation:
-            - time, Vas, Vbs, Vcs.
+        results : ross.VoltageTimeResults
+            For more information on attributes and methods available see:
+            :py:class:`ross.VoltageTimeResults`
         """
         vas, vbs, vcs = np.vectorize(self.get_phase_voltages)(t)
 
@@ -206,39 +311,3 @@ class SourceAC:
         results = VoltageTimeResults(t, voltages)
 
         return results
-
-def sourceAC_example():
-    src = SourceAC(voltage_net=220.0, frequency_net=60.0)
-    print(src)
-    print()
-
-    # --- Configure harmonics ---
-    src.harmonics(
-        harmonic_orders=[5, 7, 11, 13], harmonic_amplitudes=[10.0, 5.0, 3.0]
-    )  # harmonic_amplitudes shorter → 13th = 0%
-    src.harmonics("enable")
-    src.harmonics()  # print report
-
-    print()
-
-    # --- Configure unbalances ---
-    src.unbalances(voltage_unb_percent=[5.0, 0.0, -3.0], angle_deviation=[2.0, 0.0, -2.0])
-    src.unbalances("enable")
-    src.unbalances()  # print report
-
-    print()
-
-    # --- Compute a few voltages ---
-    t_samples = np.linspace(0, 1 / 60, 5)
-    resp = src.run(t_samples)
-    fig_V = resp.plot()
-
-    print()
-
-    # --- Disable harmonics ---
-    src.harmonics("disable")
-    src.harmonics()
-
-    fig_V.write_html("plot.html", auto_open=True)
-
-    return src, fig_V
