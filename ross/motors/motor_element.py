@@ -28,13 +28,13 @@ class MotorElement(Element):
         Node at which the motor is coupled.
     power_nom : float, pint.Quantity
         Nominal power [W].
-    voltage_nom : float, pint.Quantity
+    voltage_nom : float
         Nominal voltage [V].
     speed_nom : float, pint.Quantity
         Nominal machine speed [rad/s].
-    stator_resistance : float, pint.Quantity
+    stator_resistance : float
         Stator resistance [Ohm].
-    rotor_resistance : float, pint.Quantity
+    rotor_resistance : float
         Rotor resistance [Ohm].
     stator_reactance : float
         Stator self-reactance at frequency [Ohm].
@@ -56,7 +56,7 @@ class MotorElement(Element):
     Ip_load : float, optional, pint.Quantity
         Polar Moment of inertia related to load [kg.m²].
         Default is 0.
-    voltage_net : float, optional, pint.Quantity
+    voltage_net : float, optional
         Electrical tension of Power Supply [V].
         Default is None, which adopts the motor's nominal voltage (`voltage`).
     frequency_net : float, optional, pint.Quantity
