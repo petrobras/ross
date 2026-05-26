@@ -1,0 +1,343 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Wed May 13 08:39:10 2026
+
+@author: bruno
+"""
+""" Voltage Source Inverter (VSI) module with V/f control
+
+This module defines the inverter_vf class, which represents a three-phase VSI
+simulated using the Space Vector PWM (SVPWM) modulation technique together
+with scalar V/f speed control.
+
+SVPWM based on Wu, B. & Narimani, M. High-Power Converters and AC Drives, 2016.
+"""
+
+import numpy as np
+
+class InverterVF:
+
+    """ A three-phase VSI element with scalar V/f control.
+
+    This class creates a three-phase Voltage Source Inverter employing
+    the Space Vector PWM (SVPWM) modulation technique for phase voltage
+    synthesis together with scalar V/f speed control.
+
+    Input parameters:
+        Vcc : float
+            DC Link Voltage
+
+        fs : int
+            IGBT switching frequency
+
+        deltat : float
+            Simulation integration time step
+            (must be smaller than the switching period)
+
+        Vn : float
+            Nominal line voltage [V]
+
+        fn : float
+            Nominal frequency [Hz]
+
+        tramp : float
+            Acceleration ramp time [s]
+
+    Output parameters:
+        van, vbn and vcn : float
+            Inverter-synthesized three-phase voltages
+    """
+
+    def __init__(self, Vcc, fs, deltat, Vn, fn, tramp=1.0):
+
+        # ======================== Input Parameters ===========================
+        self.Vcc = Vcc
+        self.fs = fs
+        self.Ts = 1 / fs
+        self.deltat = deltat
+
+        self.Vn = Vn
+        self.fn = fn
+        self.tramp = tramp
+
+        # Nominal phase voltage peak value
+        self.Vn_fp = (Vn / np.sqrt(3)) * np.sqrt(2)
+
+        # Constant terms
+        self.pi3 = np.pi / 3
+        self.doispi = 2 * np.pi
+
+        # Current applied frequency
+        self.f_atual = 0.0
+
+        # Switching SVPWM table
+        # Each column represents the states of the upper switches
+        # for the space vectors V0, V1, V3, V2, V6, V4, V5 and V7
+        self.sw_table = np.array([
+            [0,1,1,0,0,0,1,1],
+            [0,0,1,1,1,0,0,1],
+            [0,0,0,0,1,1,1,1]
+        ])
+
+        # Active vectors according to the sector
+        self.actv_vet = np.array([
+            [2,3],
+            [3,4],
+            [4,5],
+            [5,6],
+            [6,7],
+            [7,2]
+        ])
+
+        self.V0 = 1  # Corresponding to the V0 vector
+        self.V7 = 8  # Corresponding to the V7 vector
+
+        # Clarke transformation matrix
+        self.C = (2/3) * np.array([
+            [1, -0.5, -0.5],
+            [0, np.sqrt(3)/2, -np.sqrt(3)/2]
+        ])
+
+        # Internal carrier state
+        self.k = 1
+
+        # Number of integration steps within one switching period
+        self.Ns = max(1, int(round(self.Ts / self.deltat)))
+
+        # Electrical angle accumulator
+        # self.theta = 0.0
+
+    # ===================== V/f Adjustment with Acceleration Ramp =============
+    def speed_control(self, fref):
+
+        # Reference saturation
+        if fref < 0:
+            fref = 0
+
+        if fref > self.fn:
+            fref = self.fn
+
+        # ------------------------ Acceleration Ramp --------------------------
+        # Maximum frequency variation per integration step
+        # to reach the reference frequency exactly in tramp seconds
+        df_max = (fref / self.tramp) * self.deltat
+
+        if self.f_atual < fref:
+
+            self.f_atual += df_max
+
+            if self.f_atual > fref:
+                self.f_atual = fref
+
+        elif self.f_atual > fref:
+
+            self.f_atual -= df_max
+
+            if self.f_atual < fref:
+                self.f_atual = fref
+
+        # --------------------- Scalar V/f Speed Control ----------------------
+        # Peak value of the phase voltage proportional
+        # to the V/f ratio
+        Vp = self.Vn_fp * (self.f_atual / self.fn)
+
+        # Saturation at the nominal value
+        Vp = min(Vp, self.Vn_fp)
+
+        # Desired peak voltage and frequency
+        return Vp, self.f_atual
+
+    # ===================== SVPWM Computation =================================
+    def calc(self, fref, tt):
+
+        # ------------- Reference peak voltage and frequency ------------------
+        Vp, freq = self.speed_control(fref)
+
+        # # ------------ Three-phase reference voltage generation ---------------
+        # self.theta += 2 * np.pi * freq * self.deltat
+
+        # if self.theta > self.doispi:
+        #     self.theta -= self.doispi
+
+        # # Reference voltages
+        # va_ref = Vp * np.sin(self.theta)
+
+        # vb_ref = Vp * np.sin(
+        #     self.theta - 2*np.pi/3
+        # )
+
+        # vc_ref = Vp * np.sin(
+        #     self.theta + 2*np.pi/3
+        # )
+        
+        # ========== Three-Phase Reference Voltage Generation ================
+        theta = 2 * np.pi * freq * tt
+
+        # Reference voltages
+        va_ref = Vp * np.sin(theta)
+
+        vb_ref = Vp * np.sin(
+            theta - 2*np.pi/3
+            )
+
+        vc_ref = Vp * np.sin(
+            theta + 2*np.pi/3
+            )
+
+        # ---------------------- Clarke transformation ------------------------
+        v_alpha = (
+            self.C[0,0]*va_ref +
+            self.C[0,1]*vb_ref +
+            self.C[0,2]*vc_ref
+        )
+
+        v_beta = (
+            self.C[1,0]*va_ref +
+            self.C[1,1]*vb_ref +
+            self.C[1,2]*vc_ref
+        )
+
+        # ------------- Space vector and SVPWM hexagon sector -----------------
+        vr = np.sqrt(v_alpha**2 + v_beta**2)  # Vector magnitude
+
+        theta = np.arctan2(v_beta, v_alpha)   # Vector angle
+
+        if theta < 0:
+            theta += self.doispi
+
+        S = int(np.floor(theta / self.pi3)) + 1
+        S = max(1, min(S, 6))
+
+        # Angle within the sector
+        thetak = theta - (S-1)*self.pi3
+
+        # ---------------- Modulation index and dwell times -------------------
+        M = (np.sqrt(3) * vr) / self.Vcc
+
+        # Dwell times for linear operation
+        T1 = self.Ts * M * np.sin(self.pi3 - thetak)
+        T2 = self.Ts * M * np.sin(thetak)
+        T0 = self.Ts - T1 - T2
+
+        eps = np.finfo(float).eps
+
+        # ------------ Correction for overmodulation conditions ---------------
+        if M > 0.907 and M <= 1:
+
+            # Region I (0.907 < M ≤ 1)
+            T0 = max(T0, 0)
+
+            fator = self.Ts / (T1 + T2 + T0 + eps)
+
+            T1 *= fator
+            T2 *= fator
+
+            T0 = self.Ts - T1 - T2
+
+        elif M > 1 and M <= 1.1547:
+
+            # Region II (1 < M ≤ 1.1547)
+            T0 = 0
+
+            fator = self.Ts / (T1 + T2 + eps)
+
+            T1 *= fator
+            T2 *= fator
+
+        elif M > 1.1547:
+
+            # Region III (Six-Step)
+            if thetak <= self.pi3/2:
+                T1, T2 = self.Ts, 0
+            else:
+                T1, T2 = 0, self.Ts
+
+            T0 = 0
+
+        # -------------------------- Normalization ----------------------------
+        # Ensures all values are non-negative
+        T1 = max(T1, 0)
+        T2 = max(T2, 0)
+        T0 = max(T0, 0)
+
+        # Total sum of the switching intervals
+        sumT = T1 + T2 + T0
+
+        if abs(sumT - self.Ts) > 1e-12:
+
+            # Rescales the switching intervals to fit within Ts
+            if sumT > 0:
+
+                T1 *= self.Ts / sumT
+                T2 *= self.Ts / sumT
+
+                T0 = self.Ts - T1 - T2
+
+            else:
+                # Extreme case: zero vector only
+                T1, T2, T0 = 0, 0, self.Ts
+
+        # ---------- Sequence and timing of vector application ----------------
+        # Symmetrical switching sequence
+        vetor_seq = np.array([
+            self.V0,
+            self.actv_vet[S-1,0],
+            self.actv_vet[S-1,1],
+            self.V7
+        ]) - 1
+
+        t_seq = np.array([T0/2, T1, T2, T0/2])
+
+        # ---------------------------- Switching ------------------------------
+        Sa_bits = self.sw_table[0, vetor_seq]
+        Sb_bits = self.sw_table[1, vetor_seq]
+        Sc_bits = self.sw_table[2, vetor_seq]
+
+        # Duty cycles
+        Da = np.dot(t_seq, Sa_bits) / self.Ts
+        Db = np.dot(t_seq, Sb_bits) / self.Ts
+        Dc = np.dot(t_seq, Sc_bits) / self.Ts
+
+        # Clamps values within the [0, 1] interval
+        Da = np.clip(Da, 0, 1)
+        Db = np.clip(Db, 0, 1)
+        Dc = np.clip(Dc, 0, 1)
+
+        # ------------------------ Triangular carrier -------------------------
+        n_in_period = (self.k - 1) % self.Ns
+
+        if self.Ns == 1:
+            u = 0
+        else:
+            u = n_in_period / (self.Ns - 1)
+
+        # Triangle centered at zero with a peak of +1
+        carrier = 1 - 4 * np.abs(u - 0.5)
+
+        # Thresholds derived from duty cycles
+        RefA = 2*Da - 1
+        RefB = 2*Db - 1
+        RefC = 2*Dc - 1
+
+        # Comparisons to determine switching states
+        Sa = float(carrier <= RefA)
+        Sb = float(carrier <= RefB)
+        Sc = float(carrier <= RefC)
+
+        # ------------------------ Voltage synthesis --------------------------
+        # Pole voltages
+        vao = (2*Sa - 1)*(self.Vcc/2)
+        vbo = (2*Sb - 1)*(self.Vcc/2)
+        vco = (2*Sc - 1)*(self.Vcc/2)
+
+        # Phase voltages
+        van = (2/3)*vao - (1/3)*(vbo + vco)
+
+        vbn = (2/3)*vbo - (1/3)*(vao + vco)
+
+        vcn = (2/3)*vco - (1/3)*(vbo + vao)
+
+        self.k += 1
+
+        # ----------------------------- Outputs -------------------------------
+        return van, vbn, vcn, freq

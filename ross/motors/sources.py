@@ -1,12 +1,12 @@
-"""SourceAC module
+"""Sources module
 
-Ideal 3-phase AC source with harmonic distortion and voltage unbalance support.
+Includes an ideal 3-phase AC source with harmonic distortion and voltage unbalance support.
 """
 
 import numpy as np
 
 from ross.units import Q_, check_units
-from .motor_results import VoltageTimeResults
+from .results import VoltageTimeResults
 
 
 class SourceAC:
@@ -79,9 +79,9 @@ class SourceAC:
         voltage_net,
         frequency_net,
         initial_phase_angle=0.0,
-        harmonics_orders=None,
-        harmonics_amplitudes=None,
-        harmonics_enable=False,
+        harmonic_orders=None,
+        harmonic_amplitudes=None,
+        harmonic_enable=False,
         unbalance_voltage_percent=None,
         unbalance_angle_deviation=None,
         unbalance_enable=False,
@@ -90,11 +90,11 @@ class SourceAC:
         self.frequency_net = frequency_net
         self.initial_phase_angle = initial_phase_angle
 
-        if harmonics_orders:
+        if harmonic_orders:
             self.set_harmonics(
-                harmonics_orders,
-                harmonics_amplitudes,
-                harmonics_enable,
+                harmonic_orders,
+                harmonic_amplitudes,
+                harmonic_enable,
             )
         else:
             self.set_harmonics(None, None, False)
@@ -188,7 +188,7 @@ class SourceAC:
             Voltage magnitude unbalance per phase [%] in order [phase_A, phase_B, phase_C].
             Positive → higher voltage; Negative → lower voltage.
         angle_deviation : list of float, pint.Quantity
-            Angle deviation per phase [degrees] in order [phase_A, phase_B, phase_C].
+            Angle deviation per phase [rad] in order [phase_A, phase_B, phase_C].
         enable : bool, optional
             Enable unbalances. Default is True.
         """
@@ -203,7 +203,7 @@ class SourceAC:
 
     def __repr__(self):
         return (
-            f"SourceAC(voltage_net={self.voltage_net} V, frequency_net={self.frequency_net} Hz, "
+            f"SourceAC(voltage_net={self.voltage_net} V, frequency_net={Q_(self.frequency_net, 'rad/s').to('Hz').m} Hz, "
             f"initial_phase_angle={self.initial_phase_angle:.4f} rad, "
             f"harmonics={'ON' if self.harmonics['enable'] else 'OFF'}, "
             f"unbalances={'ON' if self.unbalances['enable'] else 'OFF'})"
@@ -225,7 +225,7 @@ class SourceAC:
             Instantaneous voltage [V] with harmonics, unbalance, and angle deviations applied.
         """
         phi = self._PHASE_OFFSET[phase_id]  # nominal phase shift
-        w = 2 * np.pi * self.frequency_net
+        w = self.frequency_net
 
         if self.unbalances["enable"]:
             vd_pct = self.unbalances["voltage_percent"][phase_id]

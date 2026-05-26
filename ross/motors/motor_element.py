@@ -6,16 +6,15 @@ simulated using a 4th-order Runge-Kutta method, considering magnetic fluxes and 
 
 import numpy as np
 import scipy as sp
-import plotly.graph_objects as go
 
 from ross.element import Element
 from ross.units import Q_, check_units
 
-from .motor_sourceAC import SourceAC
-from .motor_results import MotorResponseResults
+from .sources import SourceAC
+from .inverters import InverterVF
+from .results import MotorResponseResults
 
 __all__ = ["MotorElement", "motor_example", "run_motor_example"]
-
 
 class MotorElement(Element):
     """Create a 3-phase induction motor element for rotordynamic analysis.
@@ -45,7 +44,7 @@ class MotorElement(Element):
         Mutual reactance at frequency [Ohm].
     Ip_motor : float, pint.Quantity
         Polar Moment of inertia related to motor axis [kg.m²].
-    frequency : float, optional, pint.Quantity
+    frequency_nom : float, optional, pint.Quantity
         Nominal frequency [rad/s].
         Default is 60 Hz.
     n_poles: int, optional
@@ -86,7 +85,7 @@ class MotorElement(Element):
     ...     power_nom=Q_(1.5, "cv"),
     ...     voltage_nom=127,
     ...     speed_nom=Q_(1725, "RPM"),
-    ...     frequency=Q_(60.0, "Hz"),
+    ...     frequency_nom=Q_(60.0, "Hz"),
     ...     n_poles=4,
     ...     stator_resistance=2.5,
     ...     rotor_resistance=1.8,
@@ -116,7 +115,7 @@ class MotorElement(Element):
         rotor_reactance,
         mutual_reactance,
         Ip_motor,
-        frequency=None,
+        frequency_nom=None,
         n_poles=4,
         viscosity_coeff=0.0,
         Ip_load=0.0,
@@ -142,15 +141,17 @@ class MotorElement(Element):
         self.viscosity_coeff = float(viscosity_coeff)
         self.Ip_load = float(Ip_load)
 
-        if frequency is None:
-            self.frequency = Q_(60.0, "Hz").to("rad/s").m
+        if frequency_nom is None:
+            self.frequency_nom = Q_(60.0, "Hz").to("rad/s").m
         else:
-            self.frequency = float(frequency)
+            self.frequency_nom = float(frequency_nom)
+
+        self.frequency_ref = self.frequency_nom
 
         # Numerical Validation of SCIP entries
         self.voltage_net = self.voltage if voltage_net is None else float(voltage_net)
         self.frequency_net = (
-            self.frequency if frequency_net is None else float(frequency_net)
+            self.frequency_nom if frequency_net is None else float(frequency_net)
         )
         self.short_circuit_ratio_net = float(short_circuit_ratio_net)
         self.XR_ratio_net = float(XR_ratio_net)
@@ -161,15 +162,15 @@ class MotorElement(Element):
             self.initial_angle_net = float(initial_angle_net)
 
         # Internal model inductances parameters derived from CEMP
-        Lls = self.stator_reactance / self.frequency
-        Llr = self.rotor_reactance / self.frequency
-        self.Lm = self.mutual_reactance / self.frequency
+        Lls = self.stator_reactance / self.frequency_nom
+        Llr = self.rotor_reactance / self.frequency_nom
+        self.Lm = self.mutual_reactance / self.frequency_nom
         self.Lss = Lls + self.Lm
         self.Lrr = Llr + self.Lm
 
         # Internal Electric Motor constants derived from NOMP and CEMP
-        snom = (1 - self.speed_nom * self.n_poles / (2 * self.frequency)) * 100
-        wnom = (self.frequency * (1 - snom / 100)) / (self.n_poles / 2)
+        snom = (1 - self.speed_nom * self.n_poles / (2 * self.frequency_nom)) * 100
+        wnom = (self.frequency_nom * (1 - snom / 100)) / (self.n_poles / 2)
         sigma = 1 - self.Lm**2 / (self.Lss * self.Lrr)
         self.Tnom = self.power_nom / wnom
         self.a = 1 / (sigma * self.Lss)
@@ -181,12 +182,6 @@ class MotorElement(Element):
         Zsc = self.voltage_net**2 / SCC_net
         Xsc = Zsc * self.XR_ratio_net / np.sqrt(1 + self.XR_ratio_net**2)
         self.short_circuit_resistance = Xsc / self.XR_ratio_net
-
-        # Motor AC Source instance
-        self.sourceAC = SourceAC(
-            voltage_net=self.voltage_nom,
-            frequency_net=Q_(self.frequency, "rad/s").to("Hz").m,
-        )
 
         self.n = n
         self.tag = tag
@@ -206,7 +201,7 @@ class MotorElement(Element):
             f"\nNominal Power (W):                  {self.power_nom}"
             f"\nNominal Voltage (V):                {self.voltage_nom}"
             f"\nNominal Rotation (rad/s):           {self.speed_nom}"
-            f"\nNominal Frequency (Hz):             {Q_(self.frequency, 'rad/s').to('Hz').m}"
+            f"\nNominal Frequency (Hz):             {Q_(self.frequency_nom, 'rad/s').to('Hz').m}"
             f"\nNumber of Poles:                    {self.n_poles}"
             f"\n--- Circuit Parameters (CEMP) ---"
             f"\nStator Resistance (Ohm):            {self.stator_resistance}"
@@ -249,7 +244,7 @@ class MotorElement(Element):
     def G(self):
         pass
 
-    def _calculate_dLds_dt(self, Lds, Ldr, Lqs, vds):
+    def _calculate_dLds_dt(self, Lds, Ldr, Lqs, vds, wref):
         """Calculate time derivative of the d-axis stator inductance.
 
         This method computes the rate of change of the d-axis stator inductance using
@@ -265,6 +260,8 @@ class MotorElement(Element):
             q-axis stator inductance [H].
         vds : float
             d-axis stator voltage [V].
+        wref : float
+            Reference frequency [rad/s].
 
         Returns
         -------
@@ -272,11 +269,11 @@ class MotorElement(Element):
             Time derivative of the d-axis stator inductance [H/s].
         """
         R = self.stator_resistance + self.short_circuit_resistance
-        w = self.frequency
+        w = wref
 
         return vds - R * self.a * Lds + R * self.c * Ldr + w * Lqs
 
-    def _calculate_dLqs_dt(self, Lqs, Lds, Lqr, vqs):
+    def _calculate_dLqs_dt(self, Lqs, Lds, Lqr, vqs, wref):
         """Calculate time derivative of the q-axis stator inductance.
 
         This method computes the rate of change of the q-axis stator inductance using
@@ -292,6 +289,8 @@ class MotorElement(Element):
             q-axis rotor inductance [H].
         vqs : float
             q-axis stator voltage [V].
+        wref : float
+            Reference frequency [rad/s].
 
         Returns
         -------
@@ -299,11 +298,11 @@ class MotorElement(Element):
             Time derivative of the q-axis stator inductance [H/s].
         """
         R = self.stator_resistance + self.short_circuit_resistance
-        w = self.frequency
+        w = wref
 
         return vqs - R * self.a * Lqs + R * self.c * Lqr - w * Lds
 
-    def _calculate_dLdr_dt(self, Ldr, Lds, Lqr, vdr, wr):
+    def _calculate_dLdr_dt(self, Ldr, Lds, Lqr, vdr, wr, wref):
         """Calculate time derivative of the d-axis rotor inductance.
 
         This method computes the rate of change of the d-axis rotor inductance using
@@ -316,11 +315,13 @@ class MotorElement(Element):
         Lds : float
             d-axis stator inductance [H].
         Lqr : float
-            q-axis inductance [H].
+            q-axis rotor inductance [H].
         vdr : float
-            d-axis voltage [V].
+            d-axis rotor voltage [V].
         wr : float
             Rotor angular speed [rad/s].
+        wref : float
+            Reference frequency [rad/s].
 
         Returns
         -------
@@ -328,11 +329,11 @@ class MotorElement(Element):
             Time derivative of the d-axis rotor inductance [H/s].
         """
         R = self.rotor_resistance
-        w = self.frequency - wr * self.n_poles / 2
+        w = wref - wr * self.n_poles / 2
 
         return vdr - R * self.b * Ldr + R * self.c * Lds + w * Lqr
 
-    def _calculate_dLqr_dt(self, Lqr, Lqs, Ldr, vqr, wr):
+    def _calculate_dLqr_dt(self, Lqr, Lqs, Ldr, vqr, wr, wref):
         """Calculate time derivative of the q-axis rotor inductance.
 
         This method computes the rate of change of the q-axis rotor inductance using
@@ -350,6 +351,8 @@ class MotorElement(Element):
             q-axis rotor voltage [V].
         wr : float
             Rotor angular speed [rad/s].
+        wref : float
+            Reference frequency [rad/s].
 
         Returns
         -------
@@ -357,7 +360,7 @@ class MotorElement(Element):
             Time derivative of the q-axis rotor inductance [H/s].
         """
         R = self.rotor_resistance
-        w = self.frequency - wr * self.n_poles / 2
+        w = wref - wr * self.n_poles / 2
 
         return vqr - R * self.b * Lqr + R * self.c * Lqs - w * Ldr
 
@@ -427,7 +430,7 @@ class MotorElement(Element):
 
         return Tl
 
-    def _calculate_electromagnetic_flux_angle(self, t, flux_angle_0):
+    def _calculate_electromagnetic_flux_angle(self, t, flux_angle_0, wref):
         """Calculate electromagnetic flux angle at time point.
 
         Parameters
@@ -436,16 +439,18 @@ class MotorElement(Element):
             Time point [s].
         flux_angle_0 : float
             Initial electromagnetic flux angle [rad].
+        wref : float
+            Reference frequency [rad/s].
 
         Returns
         -------
         float
             Magnetic flux angle at time `t` [rad].
         """
-        return flux_angle_0 + self.frequency * t
+        return flux_angle_0 + wref * t
 
     def _ode_system(
-        self, t, y, flux_angle_0, load_torque_entrance_time, load_torque_ratio
+        self, t, y, flux_angle_0, load_torque_entrance_time, load_torque_ratio, element
     ):
         """Define the ODE system for motor simulation.
 
@@ -484,26 +489,135 @@ class MotorElement(Element):
         )
         Te = self._calculate_electrical_torque(Lds, Ldr, Lqs, Lqr)
 
-        # Electrical 3-phase tensions
-        vas, vbs, vcs = self.sourceAC.get_phase_voltages(t)
+        # Electrical 3-phase voltages
+        vas, vbs, vcs = element.get_phase_voltages(t)
+
+        wref = self.frequency_ref
 
         # Clarke & Park Transforms for Voltages
         v_alpha = 2 / 3 * (vas - vbs / 2 - vcs / 2)
         v_beta = 2 / 3 * (vbs - vcs) * np.sqrt(3) / 2
 
-        flux_angle = self._calculate_electromagnetic_flux_angle(t, flux_angle_0)
+        flux_angle = self._calculate_electromagnetic_flux_angle(t, flux_angle_0, wref)
 
         vds = v_alpha * np.cos(flux_angle) + v_beta * np.sin(flux_angle)
         vqs = -v_alpha * np.sin(flux_angle) + v_beta * np.cos(flux_angle)
         vdr, vqr = 0, 0
 
-        dLds_dt = self._calculate_dLds_dt(Lds, Ldr, Lqs, vds)
-        dLqs_dt = self._calculate_dLqs_dt(Lqs, Lds, Lqr, vqs)
-        dLdr_dt = self._calculate_dLdr_dt(Ldr, Lds, Lqr, vdr, wr)
-        dLqr_dt = self._calculate_dLqr_dt(Lqr, Lqs, Ldr, vqr, wr)
+        dLds_dt = self._calculate_dLds_dt(Lds, Ldr, Lqs, vds, wref)
+        dLqs_dt = self._calculate_dLqs_dt(Lqs, Lds, Lqr, vqs, wref)
+        dLdr_dt = self._calculate_dLdr_dt(Ldr, Lds, Lqr, vdr, wr, wref)
+        dLqr_dt = self._calculate_dLqr_dt(Lqr, Lqs, Ldr, vqr, wr, wref)
         dwr_dt = self._calculate_dwr_dt(Tl, Te, wr)
 
         return dLds_dt, dLqs_dt, dLdr_dt, dLqr_dt, dwr_dt
+    
+    def _run(
+        self,
+        t,
+        load_torque_entrance_time=None,
+        load_torque_ratio=1.0,
+        element=None,
+    ):
+        """Run motor generical simulation for specified time points.
+
+        Parameters
+        ----------
+        t : array-like
+            Time points to store the computed solution [s].
+        load_torque_entrance_time : float, optional
+            Time when load torque is applied to the motor shaft [s].
+            Default is half the simulation time.
+        load_torque_ratio : float, optional
+            Load torque ratio applied at the entrance time. This is a multiplier
+            for the nominal load torque, e.g., a value of 1.0 applies 100% of the
+            nominal torque at entrance time. Default is 1.0.
+
+        Returns
+        -------
+        results : ross.MotorResponseResults
+            For more information on attributes and methods available see:
+            :py:class:`ross.MotorResponseResults`
+        """
+
+        if element is None:
+            raise ValueError("An element providing the 'get_phase_voltages(t)' method must be provided for simulation.")
+        
+        # Initial values
+        wr0 = 0.0  # Rotor's angular speed
+        thetar0 = 0.0  # Rotor's angular position
+        flux_angle_0 = self.initial_angle_net - np.pi / 2  # Flux initial angle
+
+        # Initial alpha-beta and dq currents (based in nulled instantaneous phase currents)
+        ias, ibs, ics = 0, 0, 0
+        i_alpha = 2 / 3 * (ias - ibs / 2 - ics / 2)
+        i_beta = 2 / 3 * (ibs - ics) * np.sqrt(3) / 2
+        ids = i_alpha * np.cos(flux_angle_0) + i_beta * np.sin(flux_angle_0)
+        iqs = -i_alpha * np.sin(flux_angle_0) + i_beta * np.cos(flux_angle_0)
+
+        # Initial rotor and stator's inductances
+        Lds0 = self.Lss * ids + self.Lm * 0
+        Lqs0 = self.Lss * iqs + self.Lm * 0
+        Ldr0 = self.Lrr * 0 + self.Lm * ids
+        Lqr0 = self.Lrr * 0 + self.Lm * iqs
+
+        # Get solution in time
+        t = np.array(t)
+
+        solution = sp.integrate.solve_ivp(
+            fun=self._ode_system,
+            t_span=(t[0], t[-1]),
+            y0=(Lds0, Lqs0, Ldr0, Lqr0, wr0),
+            args=(flux_angle_0, load_torque_entrance_time, load_torque_ratio, element),
+            t_eval=t,
+        )
+
+        Lds, Lqs, Ldr, Lqr, speed = solution.y
+
+        # Compute outputs
+        angular_position = thetar0 + (speed * self.n_poles / 2) * t
+
+        load_torque = np.vectorize(self._calculate_load_torque)(
+            t, load_torque_entrance_time, load_torque_ratio
+        )
+
+        electric_torque = np.vectorize(self._calculate_electrical_torque)(
+            Lds, Ldr, Lqs, Lqr
+        )
+
+        vas, vbs, vcs = np.vectorize(element.get_phase_voltages)(t)
+        
+        voltages = dict()
+        voltages["a"] = vas
+        voltages["b"] = vbs
+        voltages["c"] = vcs
+
+        flux_angle = np.vectorize(self._calculate_electromagnetic_flux_angle)(
+            t, flux_angle_0, self.frequency_ref
+        )
+
+        ids = self.a * Lds - self.c * Ldr
+        iqs = self.a * Lqs - self.c * Lqr
+        i_alpha = ids * np.cos(flux_angle) - iqs * np.sin(flux_angle)
+        i_beta = ids * np.sin(flux_angle) + iqs * np.cos(flux_angle)
+        ias = i_alpha
+        ibs = -i_alpha / 2 + np.sqrt(3) * i_beta / 2
+        ics = -i_alpha / 2 - np.sqrt(3) * i_beta / 2
+
+        currents = dict()
+        currents["a"] = ias
+        currents["b"] = ibs
+        currents["c"] = ics
+        currents["alpha"] = i_alpha
+        currents["beta"] = i_beta
+        currents["d"] = ids
+        currents["q"] = iqs
+
+        results = MotorResponseResults(
+            t, electric_torque, load_torque, speed, currents, voltages
+        )
+
+        return results
 
     @check_units
     def run_with_AC_source(
@@ -571,6 +685,8 @@ class MotorElement(Element):
         ...     load_torque_entrance_time=3.0,
         ...     load_torque_ratio=1.5,
         ...     voltage_net=90.0,
+        ...     frequency_net=Q_(60.0, "Hz"),
+        ...     initial_phase_angle=0.0,
         ...     harmonics={
         ...         "enable": True,
         ...         "orders": [5, 7],
@@ -583,102 +699,57 @@ class MotorElement(Element):
         >>> fig_torque = results.plot_torque()
         >>> fig_speed = results.plot_speed()
         >>> fig_currents = results.plot_phase_currents(reference_frame="a-b-c")
-        >>> fig_voltages = results.plot_phase_tensions()
+        >>> fig_voltages = results.plot_phase_voltages()
+        """
+        # Creating AC source instance
+        source = SourceAC(
+            voltage_net=voltage_net or self.voltage_nom,
+            frequency_net=frequency_net or self.frequency_nom,
+            initial_phase_angle=initial_phase_angle,
+            harmonic_orders=harmonics.get("orders") if harmonics else None,
+            harmonic_amplitudes=harmonics.get("amplitudes") if harmonics else None,
+            harmonic_enable=harmonics.get("enable") if harmonics else False,
+            unbalance_voltage_percent=unbalances.get("voltage_percent") if unbalances else None,
+            unbalance_angle_deviation=unbalances.get("angle_deviation") if unbalances else None,
+            unbalance_enable=unbalances.get("enable") if unbalances else False,
+        )
+
+        self.frequency_ref = self.frequency_nom
+
+        results = self._run(t, load_torque_entrance_time=load_torque_entrance_time, load_torque_ratio=load_torque_ratio, element=source)
+
+        return results
+    
+    def run_with_inverter(self, t, load_torque_entrance_time=None,
+        load_torque_ratio=1.0):
+        """Run the simulation for a series of time steps.
+
+        Parameters
+        ----------
+        t: array-like
+            Time vector.
+
+        Returns
+        -------
+        results : dict
+            A dictionary containing lists of results for the entire simulation:
+            - time, Ias, Ibs, Ics, Ialfas, Ibetas, Ids, Iqs, TE, TC.
         """
 
-        # Updating AC source parameters
-        frequency_net = frequency_net or self.frequency
-        self.sourceAC.frequency_net = Q_(frequency_net, "rad/s").to("Hz").m
-        self.sourceAC.voltage_net = voltage_net or self.voltage_nom
-        self.sourceAC.initial_phase_angle = initial_phase_angle
-
-        if harmonics:
-            self.sourceAC.set_harmonics(
-                harmonics.get("orders"),
-                harmonics.get("amplitudes"),
-                enable=harmonics.get("enable"),
-            )
-        if unbalances:
-            self.sourceAC.set_unbalances(
-                unbalances.get("voltage_percent"),
-                unbalances.get("angle_deviation"),
-                unbalances.get("enable"),
-            )
-
-        # Initial values
-        wr0 = 0.0  # Rotor's angular speed
-        thetar0 = 0.0  # Rotor's angular position
-        flux_angle_0 = self.initial_angle_net - np.pi / 2  # Flux initial angle
-
-        # Initial alpha-beta and dq currents (based in nulled instantaneous phase currents)
-        ias, ibs, ics = 0, 0, 0
-        i_alpha = 2 / 3 * (ias - ibs / 2 - ics / 2)
-        i_beta = 2 / 3 * (ibs - ics) * np.sqrt(3) / 2
-        ids = i_alpha * np.cos(flux_angle_0) + i_beta * np.sin(flux_angle_0)
-        iqs = -i_alpha * np.sin(flux_angle_0) + i_beta * np.cos(flux_angle_0)
-
-        # Initial rotor and stator's inductances
-        Lds0 = self.Lss * ids + self.Lm * 0
-        Lqs0 = self.Lss * iqs + self.Lm * 0
-        Ldr0 = self.Lrr * 0 + self.Lm * ids
-        Lqr0 = self.Lrr * 0 + self.Lm * iqs
-
-        # Get solution in time
-        t = np.array(t)
-
-        solution = sp.integrate.solve_ivp(
-            fun=self._ode_system,
-            t_span=(t[0], t[-1]),
-            y0=(Lds0, Lqs0, Ldr0, Lqr0, wr0),
-            args=(flux_angle_0, load_torque_entrance_time, load_torque_ratio),
-            t_eval=t,
+        phase_to_line = lambda v: v * np.sqrt(3)
+                
+        inverter = InverterVF(
+            Vcc=1.35*phase_to_line(self.voltage_nom),
+            fs=5000,
+            deltat=2E-6,
+            Vn=phase_to_line(self.voltage_nom),
+            fn=Q_(self.frequency_nom, "rad/s").to("Hz").m,
+            tramp=0.6667
         )
 
-        Lds, Lqs, Ldr, Lqr, speed = solution.y
+        self.frequency_ref = self.frequency_nom / 2
 
-        # Compute outputs
-        angular_position = thetar0 + (speed * self.n_poles / 2) * t
-
-        load_torque = np.vectorize(self._calculate_load_torque)(
-            t, load_torque_entrance_time, load_torque_ratio
-        )
-
-        electric_torque = np.vectorize(self._calculate_electrical_torque)(
-            Lds, Ldr, Lqs, Lqr
-        )
-
-        flux_angle = np.vectorize(self._calculate_electromagnetic_flux_angle)(
-            t, flux_angle_0
-        )
-
-        ids = self.a * Lds - self.c * Ldr
-        iqs = self.a * Lqs - self.c * Lqr
-        i_alpha = ids * np.cos(flux_angle) - iqs * np.sin(flux_angle)
-        i_beta = ids * np.sin(flux_angle) + iqs * np.cos(flux_angle)
-        ias = i_alpha
-        ibs = -i_alpha / 2 + np.sqrt(3) * i_beta / 2
-        ics = -i_alpha / 2 - np.sqrt(3) * i_beta / 2
-
-        vas, vbs, vcs = np.vectorize(self.sourceAC.get_phase_voltages)(t)
-
-        # Save currents and voltages in dictionary
-        currents = dict()
-        currents["a"] = ias
-        currents["b"] = ibs
-        currents["c"] = ics
-        currents["alpha"] = i_alpha
-        currents["beta"] = i_beta
-        currents["d"] = ids
-        currents["q"] = iqs
-
-        voltages = dict()
-        voltages["a"] = vas
-        voltages["b"] = vbs
-        voltages["c"] = vcs
-
-        results = MotorResponseResults(
-            t, electric_torque, load_torque, speed, currents, voltages
-        )
+        results = self._run(t, load_torque_entrance_time=load_torque_entrance_time, load_torque_ratio=load_torque_ratio, element=inverter)
 
         return results
 
@@ -707,7 +778,7 @@ def motor_example():
         power_nom=Q_(1.5, "cv"),
         voltage_nom=127,
         speed_nom=Q_(1725, "RPM"),
-        frequency=Q_(60.0, "Hz"),
+        frequency_nom=Q_(60.0, "Hz"),
         n_poles=4,
         stator_resistance=2.5,
         rotor_resistance=1.8,
@@ -752,7 +823,7 @@ def run_motor_example():
     fig_torque = results.plot_torque()
     fig_speed = results.plot_speed()
     fig_currents = results.plot_phase_currents(reference_frame="a-b-c")
-    fig_voltages = results.plot_phase_tensions()
+    fig_voltages = results.plot_phase_voltages()
 
     fig_torque.show()
     fig_speed.show()

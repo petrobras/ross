@@ -163,7 +163,7 @@ class MotorResponseResults(Results):
 
         return fig
 
-    def plot_phase_tensions(self, fig=None, **kwargs):
+    def plot_phase_voltages(self, fig=None, **kwargs):
         """Plot 3-phase voltages over time.
 
         Parameters
