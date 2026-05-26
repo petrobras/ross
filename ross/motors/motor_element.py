@@ -13,8 +13,10 @@ from ross.units import Q_, check_units
 from .sources import SourceAC
 from .inverters import InverterVF
 from .results import MotorResponseResults
+from .utils import phase_to_line, clarke_transform, park_transform
 
 __all__ = ["MotorElement", "motor_example", "run_motor_example"]
+
 
 class MotorElement(Element):
     """Create a 3-phase induction motor element for rotordynamic analysis.
@@ -492,16 +494,16 @@ class MotorElement(Element):
         # Electrical 3-phase voltages
         vas, vbs, vcs = element.get_phase_voltages(t)
 
-        wref = self.frequency_ref
+        try:
+            wref = element.get_wref()
+        except AttributeError:
+            wref = self.frequency_ref
 
         # Clarke & Park Transforms for Voltages
-        v_alpha = 2 / 3 * (vas - vbs / 2 - vcs / 2)
-        v_beta = 2 / 3 * (vbs - vcs) * np.sqrt(3) / 2
+        v_alpha, v_beta = clarke_transform(vas, vbs, vcs)
 
         flux_angle = self._calculate_electromagnetic_flux_angle(t, flux_angle_0, wref)
-
-        vds = v_alpha * np.cos(flux_angle) + v_beta * np.sin(flux_angle)
-        vqs = -v_alpha * np.sin(flux_angle) + v_beta * np.cos(flux_angle)
+        vds, vqs = park_transform(v_alpha, v_beta, flux_angle)
         vdr, vqr = 0, 0
 
         dLds_dt = self._calculate_dLds_dt(Lds, Ldr, Lqs, vds, wref)
@@ -511,7 +513,7 @@ class MotorElement(Element):
         dwr_dt = self._calculate_dwr_dt(Tl, Te, wr)
 
         return dLds_dt, dLqs_dt, dLdr_dt, dLqr_dt, dwr_dt
-    
+
     def _run(
         self,
         t,
@@ -541,8 +543,10 @@ class MotorElement(Element):
         """
 
         if element is None:
-            raise ValueError("An element providing the 'get_phase_voltages(t)' method must be provided for simulation.")
-        
+            raise ValueError(
+                "An element providing the 'get_phase_voltages(t)' method must be provided for simulation."
+            )
+
         # Initial values
         wr0 = 0.0  # Rotor's angular speed
         thetar0 = 0.0  # Rotor's angular position
@@ -550,10 +554,8 @@ class MotorElement(Element):
 
         # Initial alpha-beta and dq currents (based in nulled instantaneous phase currents)
         ias, ibs, ics = 0, 0, 0
-        i_alpha = 2 / 3 * (ias - ibs / 2 - ics / 2)
-        i_beta = 2 / 3 * (ibs - ics) * np.sqrt(3) / 2
-        ids = i_alpha * np.cos(flux_angle_0) + i_beta * np.sin(flux_angle_0)
-        iqs = -i_alpha * np.sin(flux_angle_0) + i_beta * np.cos(flux_angle_0)
+        i_alpha, i_beta = clarke_transform(ias, ibs, ics)
+        ids, iqs = park_transform(i_alpha, i_beta, flux_angle_0)
 
         # Initial rotor and stator's inductances
         Lds0 = self.Lss * ids + self.Lm * 0
@@ -586,7 +588,7 @@ class MotorElement(Element):
         )
 
         vas, vbs, vcs = np.vectorize(element.get_phase_voltages)(t)
-        
+
         voltages = dict()
         voltages["a"] = vas
         voltages["b"] = vbs
@@ -702,26 +704,42 @@ class MotorElement(Element):
         >>> fig_voltages = results.plot_phase_voltages()
         """
         # Creating AC source instance
+        if harmonics:
+            harmonic_orders = harmonics.get("orders")
+            harmonic_amplitudes = harmonics.get("amplitudes")
+        else:
+            harmonic_orders, harmonic_amplitudes = None, None
+
+        if unbalances:
+            unbalance_voltage_percent = unbalances.get("voltage_percent")
+            unbalance_angle_deviation = unbalances.get("angle_deviation")
+        else:
+            unbalance_voltage_percent, unbalance_angle_deviation = None, None
+
         source = SourceAC(
             voltage_net=voltage_net or self.voltage_nom,
             frequency_net=frequency_net or self.frequency_nom,
             initial_phase_angle=initial_phase_angle,
-            harmonic_orders=harmonics.get("orders") if harmonics else None,
-            harmonic_amplitudes=harmonics.get("amplitudes") if harmonics else None,
+            harmonic_orders=harmonic_orders,
+            harmonic_amplitudes=harmonic_amplitudes,
             harmonic_enable=harmonics.get("enable") if harmonics else False,
-            unbalance_voltage_percent=unbalances.get("voltage_percent") if unbalances else None,
-            unbalance_angle_deviation=unbalances.get("angle_deviation") if unbalances else None,
+            unbalance_voltage_percent=unbalance_voltage_percent,
+            unbalance_angle_deviation=unbalance_angle_deviation,
             unbalance_enable=unbalances.get("enable") if unbalances else False,
         )
 
-        self.frequency_ref = self.frequency_nom
-
-        results = self._run(t, load_torque_entrance_time=load_torque_entrance_time, load_torque_ratio=load_torque_ratio, element=source)
+        results = self._run(
+            t,
+            load_torque_entrance_time=load_torque_entrance_time,
+            load_torque_ratio=load_torque_ratio,
+            element=source,
+        )
 
         return results
-    
-    def run_with_inverter(self, t, load_torque_entrance_time=None,
-        load_torque_ratio=1.0):
+
+    def run_with_inverter(
+        self, t, load_torque_entrance_time=None, load_torque_ratio=1.0, frequency_ref=None
+    ):
         """Run the simulation for a series of time steps.
 
         Parameters
@@ -736,20 +754,24 @@ class MotorElement(Element):
             - time, Ias, Ibs, Ics, Ialfas, Ibetas, Ids, Iqs, TE, TC.
         """
 
-        phase_to_line = lambda v: v * np.sqrt(3)
-                
+        frequency_ref = frequency_ref or self.frequency_nom / 2
+
         inverter = InverterVF(
-            Vcc=1.35*phase_to_line(self.voltage_nom),
-            fs=5000,
-            deltat=2E-6,
-            Vn=phase_to_line(self.voltage_nom),
-            fn=Q_(self.frequency_nom, "rad/s").to("Hz").m,
-            tramp=0.6667
+            voltage_dc=1.35 * phase_to_line(self.voltage_nom),
+            frequency_s=5000,
+            deltat=2e-6,
+            voltage_nom=phase_to_line(self.voltage_nom),
+            frequency_nom=Q_(self.frequency_nom, "rad/s").to("Hz").m,
+            time_ramp=0.6667,
+            frequency_ref=Q_(frequency_ref, "rad/s").to("Hz").m,
         )
 
-        self.frequency_ref = self.frequency_nom / 2
-
-        results = self._run(t, load_torque_entrance_time=load_torque_entrance_time, load_torque_ratio=load_torque_ratio, element=inverter)
+        results = self._run(
+            t,
+            load_torque_entrance_time=load_torque_entrance_time,
+            load_torque_ratio=load_torque_ratio,
+            element=inverter,
+        )
 
         return results
 
