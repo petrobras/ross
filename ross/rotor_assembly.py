@@ -586,6 +586,9 @@ class Rotor(object):
         # Then, use the vector to compute diametral aka transverse inertia of the entire rotor.
         self.It = v @ (self.M0 @ v.T)
 
+    def __add__(self, rotor2):
+        return concatenate_rotor([self, rotor2])
+
     def _set_tag(self, tag):
         """Set the tag for the current rotor."""
         self.tag = tag or "Rotor 0"
