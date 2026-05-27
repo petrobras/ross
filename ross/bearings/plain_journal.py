@@ -80,7 +80,7 @@ class PlainJournal(BearingElement):
             - geometry
             - shaft speed
             - externally applied load (fxs_load, fys_load)
-        - 2 (default): Uses a force-based normalized formulation 
+        - 2 (default): Uses a force-based normalized formulation
         based on the calculated hydrodynamic reaction forces.
     fxs_load : float, pint.Quantity
         Load in X direction. The unit is Newton.
