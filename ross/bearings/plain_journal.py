@@ -73,6 +73,15 @@ class PlainJournal(BearingElement):
     Describes the operation conditions of the bearing.
     frequency : list, pint.Quantity
         Array with the frequencies (rad/s).
+    sommerfeld_type : int
+        Choose the method to calculate the sommerfeld number. Options are:
+        - 1 : Uses the classical Sommerfeld formulation bsed on:
+            - viscosity
+            - geometry
+            - shaft speed
+            - externally applied load (fxs_load, fys_load)
+        - 2 (default): Uses a force-based normalized formulation 
+        based on the calculated hydrodynamic reaction forces.
     fxs_load : float, pint.Quantity
         Load in X direction. The unit is Newton.
     fys_load : float, pint.Quantity
