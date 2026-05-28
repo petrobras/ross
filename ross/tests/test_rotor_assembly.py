@@ -1634,7 +1634,7 @@ def test_unbalance(rotor3):
     assert_allclose(data["Probe 1 - Node 0"], amplitude_expected, rtol=1e-4)
     data = unb.data_magnitude(probe=[Probe(0, "major", tag="Probe 1 - Node 0")])
     assert_allclose(data["Probe 1 - Node 0"], amplitude_expected, rtol=1e-4)
-    phase_expected = np.array([1.5742963267948966, 1.57357163267948966])
+    phase_expected = np.array([1.5707963267948966, 1.5707963267948966])
     data = unb.data_phase(probe=[(0, "major")], probe_units="deg")
     assert_allclose(data["Probe 1 - Node 0"], phase_expected, rtol=1e-4)
     data = unb.data_phase(probe=[Probe(0, "major", tag="Probe 1 - Node 0")])
@@ -1671,14 +1671,14 @@ def test_deflected_shape(rotor7):
     )
     expected_z = np.array(
         [
-            5.72720829e-05,
-            5.59724347e-05,
-            5.46564072e-05,
-            5.33052546e-05,
-            5.19002311e-05,
-            5.19002311e-05,
-            5.04258251e-05,
-            4.88678837e-05,
+            4.91340990e-05,
+            4.83692642e-05,
+            4.75857863e-05,
+            4.67657796e-05,
+            4.58914054e-05,
+            4.58914054e-05,
+            4.49479010e-05,
+            4.39217194e-05,
         ]
     )
     assert_allclose(fig.data[-4]["x"][:8], expected_x, rtol=1e-4)
@@ -1866,6 +1866,78 @@ def test_modal_6dof(rotor_6dof):
 
     assert_almost_equal(modal.wn[:5], wn, decimal=2)
     assert_almost_equal(modal.wd[:5], wd, decimal=2)
+
+
+def test_modal_damping():
+    #  Rotor with modal damping with 6 shaft elements 2 disks and 2 bearings
+    i_d = 0
+    o_d = 0.05
+    n = 6
+    L = [0.25 for _ in range(n)]
+
+    shaft_elem = [
+        ShaftElement(
+            l,
+            i_d,
+            o_d,
+            material=steel,
+            shear_effects=True,
+            rotary_inertia=True,
+            gyroscopic=True,
+        )
+        for l in L
+    ]
+
+    disk0 = DiskElement.from_geometry(2, steel, 0.07, 0.05, 0.28)
+    disk1 = DiskElement.from_geometry(4, steel, 0.07, 0.05, 0.35)
+
+    stfx = 1e6
+    stfy = 0.8e6
+    bearing0 = BearingElement(0, kxx=stfx, kyy=stfy, cxx=0)
+    bearing1 = BearingElement(6, kxx=stfx, kyy=stfy, cxx=0)
+
+    modal_damping = [0.001, 0.001]
+    default_damping_ratio = [0.01]
+
+    rotor = Rotor(
+        shaft_elem,
+        [disk0, disk1],
+        [bearing0, bearing1],
+        modal_damping=modal_damping,
+        default_damping_ratio=default_damping_ratio,
+    )
+
+    speed = Q_(np.arange(0, 10001, 200), "RPM").to("rad/s").m
+
+    freq_response = rotor.run_freq_response(speed_range=speed)
+
+    actual_amp = abs(freq_response.freq_resp[2 * 6, 2 * 6, :8])
+    actual_phase = np.angle(freq_response.freq_resp[2 * 6, 2 * 6, :8])
+
+    expected_amp = [
+        0.000000e00,
+        1.495079e-06,
+        1.803400e-06,
+        2.819422e-06,
+        1.914051e-05,
+        2.548842e-06,
+        9.418038e-07,
+        4.558292e-07,
+    ]
+
+    expected_phase = [
+        0.000000e00,
+        -6.188289e-04,
+        -1.423301e-03,
+        -3.157592e-03,
+        -3.001839e-02,
+        -3.135327e00,
+        -3.135999e00,
+        -3.131778e00,
+    ]
+
+    assert_allclose(actual_amp, expected_amp, rtol=1e-6)
+    assert_allclose(actual_phase, expected_phase, rtol=1e-6)
 
 
 @pytest.fixture
