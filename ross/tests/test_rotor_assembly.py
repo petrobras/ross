@@ -1868,6 +1868,78 @@ def test_modal_6dof(rotor_6dof):
     assert_almost_equal(modal.wd[:5], wd, decimal=2)
 
 
+def test_modal_damping():
+    #  Rotor with modal damping with 6 shaft elements 2 disks and 2 bearings
+    i_d = 0
+    o_d = 0.05
+    n = 6
+    L = [0.25 for _ in range(n)]
+
+    shaft_elem = [
+        ShaftElement(
+            l,
+            i_d,
+            o_d,
+            material=steel,
+            shear_effects=True,
+            rotary_inertia=True,
+            gyroscopic=True,
+        )
+        for l in L
+    ]
+
+    disk0 = DiskElement.from_geometry(2, steel, 0.07, 0.05, 0.28)
+    disk1 = DiskElement.from_geometry(4, steel, 0.07, 0.05, 0.35)
+
+    stfx = 1e6
+    stfy = 0.8e6
+    bearing0 = BearingElement(0, kxx=stfx, kyy=stfy, cxx=0)
+    bearing1 = BearingElement(6, kxx=stfx, kyy=stfy, cxx=0)
+
+    modal_damping = [0.001, 0.001]
+    default_damping_ratio = [0.01]
+
+    rotor = Rotor(
+        shaft_elem,
+        [disk0, disk1],
+        [bearing0, bearing1],
+        modal_damping=modal_damping,
+        default_damping_ratio=default_damping_ratio,
+    )
+
+    speed = Q_(np.arange(0, 10001, 200), "RPM").to("rad/s").m
+
+    freq_response = rotor.run_freq_response(speed_range=speed)
+
+    actual_amp = abs(freq_response.freq_resp[2 * 6, 2 * 6, :8])
+    actual_phase = np.angle(freq_response.freq_resp[2 * 6, 2 * 6, :8])
+
+    expected_amp = [
+        0.000000e00,
+        1.495079e-06,
+        1.803400e-06,
+        2.819422e-06,
+        1.914051e-05,
+        2.548842e-06,
+        9.418038e-07,
+        4.558292e-07,
+    ]
+
+    expected_phase = [
+        0.000000e00,
+        -6.188289e-04,
+        -1.423301e-03,
+        -3.157592e-03,
+        -3.001839e-02,
+        -3.135327e00,
+        -3.135999e00,
+        -3.131778e00,
+    ]
+
+    assert_allclose(actual_amp, expected_amp, rtol=1e-6)
+    assert_allclose(actual_phase, expected_phase, rtol=1e-6)
+
+
 @pytest.fixture
 def rotor8():
     #  Rotor with damping

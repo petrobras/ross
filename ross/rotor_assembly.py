@@ -72,6 +72,7 @@ __all__ = [
     "rotor_example_6dof",
     "rotor_example_with_damping",
     "rotor_amb_example",
+    "concatenate_rotor",
 ]
 
 # set Plotly palette of colors
@@ -94,6 +95,10 @@ class Rotor(object):
         List with the bearing elements
     point_mass_elements: list
         List with the point mass elements
+    modal_damping: list
+        List of modal damping ratios for the first modes
+    default_damping_ratio: list
+        Float of the remaining unknown modal damping ratios
     tag : str
         A tag for the rotor
 
@@ -151,6 +156,8 @@ class Rotor(object):
         min_w=None,
         max_w=None,
         rated_w=None,
+        modal_damping=None,
+        default_damping_ratio=[0.0],
         tag=None,
     ):
         self.parameters = {"min_w": min_w, "max_w": max_w, "rated_w": rated_w}
@@ -564,8 +571,15 @@ class Rotor(object):
                 Ksdt0[np.ix_(dofs, dofs)] += elm.Kdt()
 
         self.M0 = M0
-        self.C0 = C0
         self.K0 = K0
+        # Damping configuration
+        self.modal_damping = modal_damping
+        self.default_damping_ratio = default_damping_ratio
+        self.C0 = (
+            C0
+            if self.modal_damping == None
+            else self._modal_damping(self.modal_damping)
+        )
         self.G0 = G0
         self.Ksdt0 = Ksdt0
 
@@ -586,6 +600,9 @@ class Rotor(object):
             v[dofs[a1]] = 1  # alpha
         # Then, use the vector to compute diametral aka transverse inertia of the entire rotor.
         self.It = v @ (self.M0 @ v.T)
+
+    def __add__(self, rotor2):
+        return concatenate_rotor([self, rotor2])
 
     def _set_tag(self, tag):
         """Set the tag for the current rotor."""
@@ -675,6 +692,44 @@ class Rotor(object):
                 else:
                     return brg.n
         return None
+
+    def _modal_damping(self, modal_damping):
+        """Compute the physical damping matrix from modal damping ratios.
+
+        Parameters
+        ----------
+        modal_damping : float or array-like
+            Modal damping ratio(s) to apply to flexible modes (ξ).
+        Returns
+        -------
+        C0 : np.ndarray
+            The physical damping matrix (in physical coordinates) that corresponds
+            to the specified modal damping ratios.
+        """
+
+        evals, evecs = np.linalg.eig(np.linalg.inv(self.M(0)) @ self.K(0))
+        stable = evals >= 0
+        evals = evals[stable]
+        evecs = evecs[:, stable]
+
+        w = np.sqrt(evals.real)
+        below_1rpm = Q_(np.sort(w), "rad/s").to("RPM").m < 1
+        modal_damping = np.block([np.zeros(below_1rpm.sum()), np.array(modal_damping)])
+        idx = np.argsort(w)
+        w = w[idx]
+        phi = evecs[:, idx]
+
+        # Full damping vector (pad with zeros if needed)
+        full_xi = np.ones(w.shape) * np.array(self.default_damping_ratio)
+        full_xi[: len(modal_damping)] = modal_damping
+
+        # Modal damping matrix: C_modal = diag(2 * ξ_i * ω_i)
+        C_modal = np.diag(2 * full_xi * w)
+        M_modal = phi.T @ self.M(0) @ phi
+        T = np.linalg.solve(M_modal, phi.T)
+        C0 = self.M(0) @ phi @ C_modal @ T @ self.M(0)
+
+        return C0
 
     def __eq__(self, other):
         """Equality method for comparisons.
@@ -5835,3 +5890,58 @@ def rotor_amb_example(controller_transfer_function=None):
         ]
 
     return Rotor(shaft_elements, disk_elements, bearing_elements)
+
+
+def concatenate_rotor(rotor_list):
+    shaft_elements = []
+    disk_elements = []
+    bearing_elements = []
+    point_mass_elements = []
+
+    node_offset = 0
+    rotor_id = 0  # Incremental identifier for tags
+
+    for rotor in rotor_list:
+        rotor = deepcopy(rotor)
+
+        # Reindex shaft elements
+        for i, el in enumerate(rotor.shaft_elements):
+            el.n_l += node_offset
+            el.n_r += node_offset
+            el.n = el.n_l  # Important for ROSS elements
+            el.tag = f"shaft_r{rotor_id}_{i}"
+        shaft_elements.extend(rotor.shaft_elements)
+
+        # Reindex disk elements
+        for i, el in enumerate(rotor.disk_elements):
+            el.n += node_offset
+            el.tag = f"disk_r{rotor_id}_{i}"
+        disk_elements.extend(rotor.disk_elements)
+
+        # Reindex bearing elements
+        for i, el in enumerate(rotor.bearing_elements):
+            el.n += node_offset
+            el.tag = f"bearing_r{rotor_id}_{i}"
+        bearing_elements.extend(rotor.bearing_elements)
+
+        # Reindex point mass elements
+        for i, el in enumerate(rotor.point_mass_elements):
+            el.n += node_offset
+            el.tag = f"pmass_r{rotor_id}_{i}"
+        point_mass_elements.extend(rotor.point_mass_elements)
+
+        # Update offset for the next rotor
+        all_nodes = [el.n_r for el in rotor.shaft_elements] + [
+            el.n for el in rotor.disk_elements + rotor.bearing_elements
+        ]
+        node_offset = max(all_nodes)
+        rotor_id += 1
+
+    rotor_concat = Rotor(
+        shaft_elements=shaft_elements,
+        disk_elements=disk_elements,
+        bearing_elements=bearing_elements,
+        point_mass_elements=point_mass_elements,
+    )
+
+    return rotor_concat
