@@ -8,7 +8,6 @@ import inspect
 from abc import ABC
 from collections.abc import Iterable
 from warnings import warn
-from types import MethodType
 
 import numpy as np
 import pandas as pd
@@ -2312,10 +2311,7 @@ class CampbellResults(Results):
         self.whirl_values = whirl_values
         self.modal_results = modal_results
         self.number_dof = number_dof
-        if callable(run_modal):
-            self.run_modal = MethodType(run_modal, self)
-        else:
-            self.run_modal = run_modal
+        self.run_modal = run_modal
         self.campbell_torsional = campbell_torsional
 
     def sort_by_mode_type(self):
