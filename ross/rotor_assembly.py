@@ -3227,6 +3227,7 @@ class Rotor(object):
 
         return results
 
+    @check_units
     def run_ucs(
         self,
         stiffness_range=None,
