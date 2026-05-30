@@ -619,34 +619,109 @@ def run_analysis():
 
             fig = getattr(response, plot_method)(probe=probe_objects, **plot_kwargs)
             
-        elif analysis_type == 'time_response':
-            speed = float(params.get('speed', 100))
-            t_max = float(params.get('t_max', 1.0))
-            steps = int(float(params.get('steps', 1000)))
-            plot_type = params.get('plot_type', '1D')
-
-            t = np.linspace(0, t_max, steps)
-            F = np.zeros((len(t), rotor.ndof))
-            forces = params.get('forces', [])
-            safe_dict = {'t': t, 'np': np, 'speed': speed, 'sin': np.sin, 'cos': np.cos, 'pi': np.pi}
-
-            for f in forces:
-                n, dof = min(int(f.get('node', 0)), len(rotor.nodes) - 1), int(f.get('dof', 0))
-                g_dof = n * dofs_per_node + dof
-                try: F[:, g_dof] += eval(str(f.get('func', '0')), {"__builtins__": None}, safe_dict)
-                except Exception: pass
-
-            ana_kwargs = {'method': params.get('method', 'default')}
+        elif analysis_type in ['time_response', 'misalignment', 'rubbing', 'crack']:
             
-            if a_hash in ANALYSIS_CACHE:
-                response = ANALYSIS_CACHE[a_hash]
-            else:
-                response = rotor.run_time_response(speed, F, t, **ana_kwargs)
-                ANALYSIS_CACHE[a_hash] = response
-            
+            if analysis_type == 'time_response':
+                speed = float(params.get('speed', 100))
+                t_max = float(params.get('t_max', 1.0))
+                steps = int(float(params.get('steps', 1000)))
+                t_arr = np.linspace(0, t_max, steps)
+                F = np.zeros((len(t_arr), rotor.ndof))
+                forces = params.get('forces', [])
+                safe_dict = {'t': t_arr, 'np': np, 'speed': speed, 'sin': np.sin, 'cos': np.cos, 'pi': np.pi}
+
+                for f in forces:
+                    n_f, dof_f = min(int(f.get('node', 0)), len(rotor.nodes) - 1), int(f.get('dof', 0))
+                    g_dof = n_f * dofs_per_node + dof_f
+                    try: F[:, g_dof] += eval(str(f.get('func', '0')), {"__builtins__": None}, safe_dict)
+                    except Exception: pass
+
+                ana_kwargs = {'method': params.get('method', 'default')}
+                
+                if a_hash in ANALYSIS_CACHE: response = ANALYSIS_CACHE[a_hash]
+                else:
+                    response = rotor.run_time_response(speed, F, t_arr, **ana_kwargs)
+                    ANALYSIS_CACHE[a_hash] = response
+
+            elif analysis_type == 'misalignment':
+                speed = float(params.get('speed', 125.66))
+                t_arr = np.linspace(float(params.get('t_initial', 0.0)), float(params.get('t_final', 0.5)), int(float(params.get('t_steps', 5000))))
+                
+                unbalances = params.get('unbalances', [{'node': 7, 'mag': 5e-4, 'phase': -1.57}])
+                nodes = [int(u.get('node', 0)) for u in unbalances]
+                mags = [float(u.get('mag', 0.0)) for u in unbalances]
+                phases = [float(u.get('phase', 0.0)) for u in unbalances]
+                
+                coupling = params.get('coupling', 'flex')
+                ana_kwargs = {'coupling': coupling}
+                
+                if 'n' in params and str(params['n']).strip(): ana_kwargs['n'] = int(float(params['n']))
+                if 'input_torque' in params and str(params['input_torque']).strip(): ana_kwargs['input_torque'] = float(params['input_torque'])
+                if 'load_torque' in params and str(params['load_torque']).strip(): ana_kwargs['load_torque'] = float(params['load_torque'])
+                
+                if coupling == 'flex':
+                    if 'mis_type' in params: ana_kwargs['mis_type'] = params['mis_type']
+                    if 'mis_distance_x' in params and str(params['mis_distance_x']).strip(): ana_kwargs['mis_distance_x'] = float(params['mis_distance_x'])
+                    if 'mis_distance_y' in params and str(params['mis_distance_y']).strip(): ana_kwargs['mis_distance_y'] = float(params['mis_distance_y'])
+                    if 'mis_angle' in params and str(params['mis_angle']).strip(): ana_kwargs['mis_angle'] = float(params['mis_angle'])
+                    if 'radial_stiffness' in params and str(params['radial_stiffness']).strip(): ana_kwargs['radial_stiffness'] = float(params['radial_stiffness'])
+                    if 'bending_stiffness' in params and str(params['bending_stiffness']).strip(): ana_kwargs['bending_stiffness'] = float(params['bending_stiffness'])
+                else:
+                    if 'mis_distance' in params and str(params['mis_distance']).strip(): ana_kwargs['mis_distance'] = float(params['mis_distance'])
+                    
+                if a_hash in ANALYSIS_CACHE: response = ANALYSIS_CACHE[a_hash]
+                else:
+                    response = rotor.run_misalignment(node=nodes, unbalance_magnitude=mags, unbalance_phase=phases, speed=speed, t=t_arr, **ana_kwargs)
+                    ANALYSIS_CACHE[a_hash] = response
+
+            elif analysis_type == 'rubbing':
+                speed = float(params.get('speed', 125.66))
+                t_arr = np.linspace(float(params.get('t_initial', 0.0)), float(params.get('t_final', 0.5)), int(float(params.get('t_steps', 5000))))
+                
+                unbalances = params.get('unbalances', [{'node': 7, 'mag': 5e-4, 'phase': -1.57}])
+                nodes = [int(u.get('node', 0)) for u in unbalances]
+                mags = [float(u.get('mag', 0.0)) for u in unbalances]
+                phases = [float(u.get('phase', 0.0)) for u in unbalances]
+                
+                n_val = int(float(params.get('n', 0)))
+                distance = float(params.get('distance', 0))
+                c_stiff = float(params.get('contact_stiffness', 0))
+                c_damp = float(params.get('contact_damping', 0))
+                f_coeff = float(params.get('friction_coeff', 0))
+                torque = get_bool('torque', False)
+                
+                if a_hash in ANALYSIS_CACHE: response = ANALYSIS_CACHE[a_hash]
+                else:
+                    response = rotor.run_rubbing(n=n_val, distance=distance, contact_stiffness=c_stiff, contact_damping=c_damp, friction_coeff=f_coeff, node=nodes, unbalance_magnitude=mags, unbalance_phase=phases, speed=speed, t=t_arr, torque=torque)
+                    ANALYSIS_CACHE[a_hash] = response
+
+            elif analysis_type == 'crack':
+                speed = float(params.get('speed', 125.66))
+                t_arr = np.linspace(float(params.get('t_initial', 0.0)), float(params.get('t_final', 0.5)), int(float(params.get('t_steps', 5000))))
+                
+                unbalances = params.get('unbalances', [{'node': 7, 'mag': 5e-4, 'phase': -1.57}])
+                nodes = [int(u.get('node', 0)) for u in unbalances]
+                mags = [float(u.get('mag', 0.0)) for u in unbalances]
+                phases = [float(u.get('phase', 0.0)) for u in unbalances]
+                
+                n_val = int(float(params.get('n', 0)))
+                depth_ratio = float(params.get('depth_ratio', 0))
+                crack_model = params.get('crack_model', 'Mayes')
+                
+                ana_kwargs = {'crack_model': crack_model}
+                if 'cross_divisions' in params and str(params['cross_divisions']).strip() != '':
+                    ana_kwargs['cross_divisions'] = int(float(params['cross_divisions']))
+                    
+                if a_hash in ANALYSIS_CACHE: response = ANALYSIS_CACHE[a_hash]
+                else:
+                    response = rotor.run_crack(n=n_val, depth_ratio=depth_ratio, node=nodes, unbalance_magnitude=mags, unbalance_phase=phases, speed=speed, t=t_arr, **ana_kwargs)
+                    ANALYSIS_CACHE[a_hash] = response
+
             probes = params.get('probes', [{'node': 0, 'angle': 0.0}])
             probe_objects = [rs.Probe(int(p['node']), float(p.get('angle', 0.0))) for p in probes]
             node_2d = probes[0]['node'] if probes else 0
+
+            plot_type = params.get('plot_type', '1D')
 
             if plot_type == 'Frequency (DFFT)':
                 plot_kwargs = get_kwargs(['probe_units', 'displacement_units', 'frequency_units'])

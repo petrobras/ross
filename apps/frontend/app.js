@@ -1179,6 +1179,75 @@ const AnalysisDashboards = {
         
         { id: 'frequency', label: 'Frequency [list]', type: 'text', val: '[600]', adv: 'analysis' },
         { id: 'modes', label: 'Modes [list]', type: 'text', val: '', adv: 'analysis' }
+    ],
+    misalignment: [
+        { id: 'speed', label: 'Speed (rad/s)', type: 'range', min: 0, max: 2000, step: 10, val: 125.66 },
+        { id: 't_initial', label: 'Initial Time (s)', type: 'number', val: 0 },
+        { id: 't_final', label: 'Final Time (s)', type: 'number', val: 0.5 },
+        { id: 't_steps', label: 'Time Steps', type: 'number', val: 5000 },
+        { id: 'unbalances', label: 'Unbalance Excitations', type: 'unbalance_list', val: [{node: 7, mag: 5e-4, phase: -1.57}] },
+        { id: 'coupling', label: 'Coupling', type: 'select', options: ['flex', 'rigid'], val: 'flex' },
+        
+        { id: 'n', label: 'Shaft Element (n)', type: 'number', val: 0, adv: 'analysis' },
+        { id: 'mis_type', label: 'Mis. Type', type: 'select', options: ['parallel', 'angular', 'combined'], val: 'parallel', adv: 'analysis', deps: ['flex'] },
+        { id: 'mis_distance_x', label: 'Mis. Dist. X (m)', type: 'text', val: '0', adv: 'analysis', deps: ['flex'] },
+        { id: 'mis_distance_y', label: 'Mis. Dist. Y (m)', type: 'text', val: '2e-4', adv: 'analysis', deps: ['flex'] },
+        { id: 'mis_angle', label: 'Mis. Angle (rad)', type: 'text', val: '0', adv: 'analysis', deps: ['flex'] },
+        { id: 'radial_stiffness', label: 'Radial Stiff.', type: 'text', val: '1e6', adv: 'analysis', deps: ['flex'] },
+        { id: 'bending_stiffness', label: 'Bending Stiff.', type: 'text', val: '1e6', adv: 'analysis', deps: ['flex'] },
+        { id: 'mis_distance', label: 'Mis. Distance (m)', type: 'text', val: '2e-4', adv: 'analysis', deps: ['rigid'] },
+        { id: 'input_torque', label: 'Input Torque', type: 'text', val: '0', adv: 'analysis' },
+        { id: 'load_torque', label: 'Load Torque', type: 'text', val: '0', adv: 'analysis' },
+        
+        { id: 'plot_type', label: 'Plot Type', type: 'select', options: ['1D', '2D', '3D', 'Frequency (DFFT)'], val: '1D' },
+        { id: 'probes', label: 'Measurement Probes', type: 'angle_probe_list', val: [{node: 7, angle: 0}] },
+        { id: 'probe_units', label: 'Probe Units', type: 'select', options: ['rad', 'deg'], val: 'rad', adv: 'plot', deps: ['1D', 'Frequency (DFFT)'] },
+        { id: 'displacement_units', label: 'Displacement Units', type: 'select', options: ['m', 'mm', 'microm'], val: 'm', adv: 'plot' },
+        { id: 'time_units', label: 'Time Units', type: 'select', options: ['s', 'min'], val: 's', adv: 'plot', deps: ['1D'] },
+        { id: 'rotor_length_units', label: 'Rotor Len Units', type: 'select', options: ['m', 'mm'], val: 'm', adv: 'plot', deps: ['3D'] },
+        { id: 'frequency_units', label: 'Freq. Units', type: 'select', options: ['RPM', 'Hz', 'rad/s'], val: 'Hz', adv: 'plot', deps: ['Frequency (DFFT)'] }
+    ],
+    rubbing: [
+        { id: 'speed', label: 'Speed (rad/s)', type: 'range', min: 0, max: 2000, step: 10, val: 125.66 },
+        { id: 't_initial', label: 'Initial Time (s)', type: 'number', val: 0 },
+        { id: 't_final', label: 'Final Time (s)', type: 'number', val: 0.5 },
+        { id: 't_steps', label: 'Time Steps', type: 'number', val: 5000 },
+        { id: 'unbalances', label: 'Unbalance Excitations', type: 'unbalance_list', val: [{node: 7, mag: 5e-4, phase: -1.57}] },
+        
+        { id: 'n', label: 'Shaft Element (n)', type: 'number', val: 12, adv: 'analysis' },
+        { id: 'distance', label: 'Distance (m)', type: 'text', val: '7.95e-5', adv: 'analysis' },
+        { id: 'contact_stiffness', label: 'Contact Stiff.', type: 'text', val: '1.1e6', adv: 'analysis' },
+        { id: 'contact_damping', label: 'Contact Damp.', type: 'text', val: '40', adv: 'analysis' },
+        { id: 'friction_coeff', label: 'Friction Coeff.', type: 'text', val: '0.3', adv: 'analysis' },
+        { id: 'torque', label: 'Torque', type: 'select', options: ['False', 'True'], val: 'False', adv: 'analysis' },
+        
+        { id: 'plot_type', label: 'Plot Type', type: 'select', options: ['1D', '2D', '3D', 'Frequency (DFFT)'], val: '1D' },
+        { id: 'probes', label: 'Measurement Probes', type: 'angle_probe_list', val: [{node: 7, angle: 0}] },
+        { id: 'probe_units', label: 'Probe Units', type: 'select', options: ['rad', 'deg'], val: 'rad', adv: 'plot', deps: ['1D', 'Frequency (DFFT)'] },
+        { id: 'displacement_units', label: 'Displacement Units', type: 'select', options: ['m', 'mm', 'microm'], val: 'm', adv: 'plot' },
+        { id: 'time_units', label: 'Time Units', type: 'select', options: ['s', 'min'], val: 's', adv: 'plot', deps: ['1D'] },
+        { id: 'rotor_length_units', label: 'Rotor Len Units', type: 'select', options: ['m', 'mm'], val: 'm', adv: 'plot', deps: ['3D'] },
+        { id: 'frequency_units', label: 'Freq. Units', type: 'select', options: ['RPM', 'Hz', 'rad/s'], val: 'Hz', adv: 'plot', deps: ['Frequency (DFFT)'] }
+    ],
+    crack: [
+        { id: 'speed', label: 'Speed (rad/s)', type: 'range', min: 0, max: 2000, step: 10, val: 125.66 },
+        { id: 't_initial', label: 'Initial Time (s)', type: 'number', val: 0 },
+        { id: 't_final', label: 'Final Time (s)', type: 'number', val: 0.5 },
+        { id: 't_steps', label: 'Time Steps', type: 'number', val: 5000 },
+        { id: 'unbalances', label: 'Unbalance Excitations', type: 'unbalance_list', val: [{node: 7, mag: 5e-4, phase: -1.57}] },
+        { id: 'crack_model', label: 'Crack Model', type: 'select', options: ['Mayes', 'Gasch', 'Flex Open', 'Flex Breathing'], val: 'Mayes' },
+        
+        { id: 'n', label: 'Shaft Element (n)', type: 'number', val: 18, adv: 'analysis' },
+        { id: 'depth_ratio', label: 'Depth Ratio', type: 'text', val: '0.2', adv: 'analysis' },
+        { id: 'cross_divisions', label: 'Cross Divisions', type: 'text', val: '', adv: 'analysis' },
+        
+        { id: 'plot_type', label: 'Plot Type', type: 'select', options: ['1D', '2D', '3D', 'Frequency (DFFT)'], val: '1D' },
+        { id: 'probes', label: 'Measurement Probes', type: 'angle_probe_list', val: [{node: 7, angle: 0}] },
+        { id: 'probe_units', label: 'Probe Units', type: 'select', options: ['rad', 'deg'], val: 'rad', adv: 'plot', deps: ['1D', 'Frequency (DFFT)'] },
+        { id: 'displacement_units', label: 'Displacement Units', type: 'select', options: ['m', 'mm', 'microm'], val: 'm', adv: 'plot' },
+        { id: 'time_units', label: 'Time Units', type: 'select', options: ['s', 'min'], val: 's', adv: 'plot', deps: ['1D'] },
+        { id: 'rotor_length_units', label: 'Rotor Len Units', type: 'select', options: ['m', 'mm'], val: 'm', adv: 'plot', deps: ['3D'] },
+        { id: 'frequency_units', label: 'Freq. Units', type: 'select', options: ['RPM', 'Hz', 'rad/s'], val: 'Hz', adv: 'plot', deps: ['Frequency (DFFT)'] }
     ]
 };
 
@@ -1310,15 +1379,15 @@ window.toggleDashAdv = function(btn) {
     }
 };
 
-window.checkPlotDeps = function(uniqueId) {
-    const plotSelect = document.getElementById(`input-plot_type-${uniqueId}`);
-    if(!plotSelect) return;
-    const currentVal = plotSelect.value;
-    const depsItems = document.querySelectorAll(`.plot-dep-${uniqueId}`);
+window.checkDeps = function(uniqueId) {
+    const depsItems = document.querySelectorAll(`.dash-dep-${uniqueId}`);
     depsItems.forEach(item => {
         const allowed = item.dataset.deps.split(',').map(a => a.trim());
-        // Se a opção selecionada no Plot Type estiver na lista de deps do argumento, mostramos ele
-        if (allowed.includes(currentVal)) item.style.display = 'flex';
+        
+        const selects = document.querySelectorAll(`select[id$="-${uniqueId}"]`);
+        const activeVals = Array.from(selects).map(s => s.value);
+
+        if (allowed.some(v => activeVals.includes(v))) item.style.display = 'flex';
         else item.style.display = 'none';
     });
 };
@@ -1335,7 +1404,7 @@ function buildDashboardHTML(uniqueId, type) {
     
     config.forEach(item => {
         let html = '';
-        const depsAttr = item.deps ? `data-deps="${item.deps.join(',')}" class="dash-control-group plot-dep-${uniqueId}"` : `class="dash-control-group"`;
+        const depsAttr = item.deps ? `data-deps="${item.deps.join(',')}" class="dash-control-group dash-dep-${uniqueId}"` : `class="dash-control-group"`;
         
         if (item.type === 'probe_list' || item.type === 'force_list' || item.type === 'unbalance_list' || item.type === 'angle_probe_list') {
             let btnFunc = 'addProbeRow'; let contId = 'probe';
@@ -1357,7 +1426,7 @@ function buildDashboardHTML(uniqueId, type) {
             
             html += `</div></div>`;
         } else {
-            const changeEvent = item.id === 'plot_type' ? `onchange="checkPlotDeps('${uniqueId}')"` : ``;
+            const changeEvent = (item.id === 'plot_type' || item.id === 'coupling') ? `onchange="checkDeps('${uniqueId}')"` : ``;
             
             html += `<div ${depsAttr}><label>${item.label}</label>`;
             if (item.type === 'range') {
@@ -1397,7 +1466,7 @@ function buildDashboardHTML(uniqueId, type) {
     
     finalHtml += '</div>';
     
-    setTimeout(() => { checkPlotDeps(uniqueId); }, 100);
+    setTimeout(() => { checkDeps(uniqueId); }, 100);
     
     return finalHtml;
 }
@@ -1434,7 +1503,8 @@ async function addAnalysis(event) {
         'freq_response': 'Frequency Response', 'modes': 'Modal Analysis',
         'unbalance': 'Unbalance Response', 'time_response': 'Time Response',
         'static': 'Static Analysis', 'harmonic_balance': 'Harmonic Balance',
-        'clearance': 'Clearance Analysis'
+        'clearance': 'Clearance Analysis', 'misalignment': 'Misalignment Response',
+        'rubbing': 'Rubbing Response', 'crack': 'Crack Response'
     };
     const title = typeNames[type] || type.toUpperCase();
     const controlsHTML = buildDashboardHTML(uniqueId, type);
@@ -1970,12 +2040,13 @@ function generatePythonFile() {
                 const probesStr = p.probes && p.probes.length > 0 ? p.probes.map(pr => `rs.Probe(${pr.node}, ${pr.angle})`).join(', ') : 'rs.Probe(0, 0)';
                 py += `unb_${i}.${pMethod}(probe=[${probesStr}], ${pArgs.join(', ')}).show()\n`;
                 
-            } else if (a.type === 'time_response') {
+            } else if (['time_response', 'misalignment', 'rubbing', 'crack'].includes(a.type)) {
+                
+                if (a.type === 'time_response') {
                 py += `speed = ${p.speed}\n`;
-                py += `t = np.linspace(0, ${p.t_max}, ${p.steps})\n`;
+                    py += `t = np.linspace(0, ${p.t_max || 1.0}, ${p.steps || 1000})\n`;
                 py += `dofs_per_node = rotor.ndof // len(rotor.nodes)\n`;
                 py += `F_${i} = np.zeros((len(t), rotor.ndof))\n`; 
-                
                 if (p.forces && p.forces.length > 0) {
                     p.forces.forEach(f => {
                         py += `n_force = min(${f.node}, len(rotor.nodes) - 1)\n`;
@@ -1983,8 +2054,41 @@ function generatePythonFile() {
                         py += `F_${i}[:, g_dof] += ${f.func}\n`;
                     });
                 }
-                
                 py += `resp_${i} = rotor.run_time_response(speed, F_${i}, t, method='${p.method || 'default'}')\n`;
+                } 
+                else {
+                    py += `t_sim = np.linspace(${p.t_initial || 0}, ${p.t_final || 0.5}, ${p.t_steps || 5000})\n`;
+                    const nodes = p.unbalances && p.unbalances.length > 0 ? p.unbalances.map(u => u.node).join(', ') : '0';
+                    const mags = p.unbalances && p.unbalances.length > 0 ? p.unbalances.map(u => u.mag).join(', ') : '0.01';
+                    const phases = p.unbalances && p.unbalances.length > 0 ? p.unbalances.map(u => u.phase).join(', ') : '0.0';
+                    
+                    if (a.type === 'misalignment') {
+                        let kw = [];
+                        kw.push(`coupling='${p.coupling || 'flex'}'`);
+                        if (p.n !== undefined && p.n !== '') kw.push(`n=${p.n}`);
+                        if (p.input_torque) kw.push(`input_torque=${p.input_torque}`);
+                        if (p.load_torque) kw.push(`load_torque=${p.load_torque}`);
+                        if (p.coupling === 'flex') {
+                            if (p.mis_type) kw.push(`mis_type='${p.mis_type}'`);
+                            if (p.mis_distance_x) kw.push(`mis_distance_x=${p.mis_distance_x}`);
+                            if (p.mis_distance_y) kw.push(`mis_distance_y=${p.mis_distance_y}`);
+                            if (p.mis_angle) kw.push(`mis_angle=${p.mis_angle}`);
+                            if (p.radial_stiffness) kw.push(`radial_stiffness=${p.radial_stiffness}`);
+                            if (p.bending_stiffness) kw.push(`bending_stiffness=${p.bending_stiffness}`);
+                        } else {
+                            if (p.mis_distance) kw.push(`mis_distance=${p.mis_distance}`);
+                        }
+                        py += `resp_${i} = rotor.run_misalignment(node=[${nodes}], unbalance_magnitude=[${mags}], unbalance_phase=[${phases}], speed=${p.speed}, t=t_sim, ${kw.join(', ')})\n`;
+                    }
+                    else if (a.type === 'rubbing') {
+                        py += `resp_${i} = rotor.run_rubbing(n=${p.n || 0}, distance=${p.distance || 0}, contact_stiffness=${p.contact_stiffness || 0}, contact_damping=${p.contact_damping || 0}, friction_coeff=${p.friction_coeff || 0}, node=[${nodes}], unbalance_magnitude=[${mags}], unbalance_phase=[${phases}], speed=${p.speed}, t=t_sim, torque=${p.torque === 'True' ? 'True' : 'False'})\n`;
+                    }
+                    else if (a.type === 'crack') {
+                        let kw = [];
+                        if (p.cross_divisions) kw.push(`cross_divisions=${p.cross_divisions}`);
+                        py += `resp_${i} = rotor.run_crack(n=${p.n || 0}, depth_ratio=${p.depth_ratio || 0}, node=[${nodes}], unbalance_magnitude=[${mags}], unbalance_phase=[${phases}], speed=${p.speed}, t=t_sim, crack_model='${p.crack_model || 'Mayes'}'${kw.length > 0 ? ', ' + kw.join(', ') : ''})\n`;
+                    }
+                }
                 
                 const probesStr = p.probes && p.probes.length > 0 ? p.probes.map(pr => `rs.Probe(${pr.node}, ${pr.angle})`).join(', ') : 'rs.Probe(0, 0)';
                 const firstNode = p.probes && p.probes.length > 0 ? p.probes[0].node : 0;
