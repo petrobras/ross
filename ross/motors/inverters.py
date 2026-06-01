@@ -75,7 +75,7 @@ class InverterVF:
 
         self.voltage_dc = voltage_dc
         self.frequency_s = frequency_s
-        self.Ts = 1 / Q_(frequency_s, "rad/s").to("Hz").m
+        self.Ts = 2 * np.pi / frequency_s
 
         self.voltage_nom = float(voltage_nom)
         self.frequency_nom = float(frequency_nom)
@@ -168,7 +168,7 @@ class InverterVF:
         if theta < 0:
             theta += 2 * np.pi
 
-        S = int(np.floor(theta * np.pi / 3)) + 1
+        S = int(np.floor(theta / (np.pi / 3))) + 1
         S = max(1, min(S, 6))
 
         # Angle within the sector
@@ -241,7 +241,11 @@ class InverterVF:
         D = np.clip((S_bits @ t_seq) / self.Ts, 0, 1)
 
         # Triangular carrier
-        carrier = 1 - 4 * np.abs((t % self.Ts) / self.Ts - 0.5)
+        if self.Ts == 0:
+            u = 0
+        else:
+            u = (t % self.Ts) / self.Ts
+        carrier = 1 - 4 * np.abs(u - 0.5)
 
         # Thresholds derived from duty cycles
         Ref = 2 * D - 1
