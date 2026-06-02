@@ -6,7 +6,7 @@ Includes an ideal 3-phase AC source with harmonic distortion and voltage unbalan
 import numpy as np
 
 from ross.units import Q_, check_units
-from .results import VoltageTimeResults
+from .results import PhaseResults
 
 
 class SourceAC:
@@ -314,9 +314,9 @@ class SourceAC:
 
         Returns
         -------
-        results : ross.VoltageTimeResults
+        results : ross.PhaseResults
             For more information on attributes and methods available see:
-            :py:class:`ross.VoltageTimeResults`
+            :py:class:`ross.PhaseResults`
         """
         vas, vbs, vcs = np.vectorize(self.get_phase_voltages)(t)
 
@@ -325,6 +325,6 @@ class SourceAC:
         voltages["b"] = vbs
         voltages["c"] = vcs
 
-        results = VoltageTimeResults(t, voltages)
+        results = PhaseResults(t, voltages, "V")
 
         return results
