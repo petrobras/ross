@@ -93,7 +93,7 @@ def extract_kwargs(d, mat_dict, element_type, ignore_keys=['element_type', 'n'])
     unit_map = UNITS_MAPPING.get(element_type, {})
     
     for k, v in d.items():
-        if k in ignore_keys: continue
+        if k in ignore_keys or k.endswith('_unit'): continue
         if v is None: continue
         
         if k == 'material':
@@ -114,8 +114,9 @@ def extract_kwargs(d, mat_dict, element_type, ignore_keys=['element_type', 'n'])
                     val_parsed = ast.literal_eval(v_strip)
                     if isinstance(val_parsed, list): 
                         val_parsed = [float(x) for x in val_parsed]
-                        if k in unit_map:
-                            kwargs[k] = Q_(np.array(val_parsed), unit_map[k]).to_base_units()
+                        unit = d.get(f"{k}_unit", unit_map.get(k))
+                        if unit:
+                            kwargs[k] = Q_(np.array(val_parsed), unit).to_base_units()
                         else:
                             kwargs[k] = np.array(val_parsed)
                     else:
@@ -131,8 +132,9 @@ def extract_kwargs(d, mat_dict, element_type, ignore_keys=['element_type', 'n'])
                 if k in int_keys:
                     val_num = int(val_num)
                 
-                if k in unit_map:
-                    kwargs[k] = Q_(val_num, unit_map[k]).to_base_units()
+                unit = d.get(f"{k}_unit", unit_map.get(k))
+                if unit:
+                    kwargs[k] = Q_(val_num, unit).to_base_units()
                 else:
                     kwargs[k] = val_num
                 continue

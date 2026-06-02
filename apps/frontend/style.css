@@ -379,6 +379,8 @@ button {
     flex-direction: column; 
     width: 100%; 
     margin-bottom: 10px; 
+    min-width: 0; 
+    flex: 1;
 }
 .input-group label { 
     font-size: 11px; 
@@ -388,7 +390,7 @@ button {
     margin-bottom: 4px; 
     letter-spacing: 0.5px; 
 }
-.form-box input { 
+.form-box input, .form-box select:not(.unit-select) { 
     display: block; 
     width: 100%; 
     padding: 7px 10px; 
@@ -399,11 +401,11 @@ button {
     color: var(--text-main);
     font-family: monospace;
     transition: all 0.2s;
+    outline: none;
 }
-.form-box input:focus { 
+.form-box input:focus, .form-box select:not(.unit-select):focus { 
     border-color: var(--accent-primary); 
     background: #ffffff; 
-    outline: none; 
     box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2); 
 }
 
@@ -936,4 +938,35 @@ button {
     border-top: 1px dashed var(--border-color);
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: 12px;
+}
+
+/* --- Unit Selector Styles --- */
+.input-unit-wrapper {
+    display: flex;
+    gap: 5px;
+    width: 100%;
+}
+
+.input-unit-wrapper input {
+    flex: 1 1 0%; 
+    min-width: 0; 
+}
+
+.input-unit-wrapper .unit-select {
+    width: 72px; 
+    flex-shrink: 0; 
+    padding: 6px 2px; 
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-ui);
+    background: #e2e8f0;
+    color: var(--text-main);
+    font-size: 11px; 
+    font-weight: 600;
+    outline: none;
+    cursor: pointer;
+    text-overflow: ellipsis; 
+}
+
+.input-unit-wrapper .unit-select:focus {
+    border-color: var(--accent-primary);
 }

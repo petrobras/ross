@@ -156,7 +156,7 @@ const FormTemplates = {
                 <div class="input-group"><label>cyy [N.s/m]</label><input type="text" id="inp-cyy"></div>
             </div>
             <div class="input-group"><label>Link Node #</label><input type="text" id="inp-n_link"></div>
-            <div class="input-group"><label>Frequency [RPM] or array</label><input type="text" id="inp-frequency"></div>
+            <div class="input-group"><label>Frequency [RPM]</label><input type="text" id="inp-frequency"></div>
             <div style="display:flex;gap:5px;">
                 <div class="input-group"><label>mxx [kg]</label><input type="text" id="inp-mxx"></div>
                 <div class="input-group"><label>mxy [kg]</label><input type="text" id="inp-mxy"></div>
@@ -442,7 +442,7 @@ const FormTemplates = {
         <div class="input-group"><label>Seal Pitch [mm]</label><input type="text" id="inp-pitch"></div>
         <div class="input-group"><label>Tooth Height [mm]</label><input type="text" id="inp-tooth_height"></div>
         <div class="input-group"><label>Tooth Width [mm]</label><input type="text" id="inp-tooth_width"></div>
-        <div class="input-group"><label>Seal Type (rotor/stator/inter)</label><input type="text" id="inp-seal_type"></div>
+        <div class="input-group"><label>Seal Type</label><select id="inp-seal_type"><option value="inter">INTER</option><option value="rotor">ROTOR</option><option value="stator">STATOR</option></select></div>
         <div class="input-group"><label>Inlet Pressure [Pa]</label><input type="text" id="inp-inlet_pressure"></div>
         <div class="input-group"><label>Outlet Pressure [Pa]</label><input type="text" id="inp-outlet_pressure"></div>
         <div class="input-group"><label>Inlet Temp [°C]</label><input type="text" id="inp-inlet_temperature"></div>
@@ -534,11 +534,9 @@ const FormTemplates = {
         <div class="input-group"><label>Mass [kg]</label><input type="text" id="inp-m"></div>
         <button type="button" class="btn-advanced" onclick="toggleAdvanced(this)">Advanced <i class="fas fa-chevron-down"></i></button>
         <div class="advanced-fields" style="display: none; margin-top: 10px; border-top: 1px dashed #ccc; padding-top: 10px;">
-            <div style="display:flex;gap:5px;">
                 <div class="input-group"><label>mx [kg]</label><input type="text" id="inp-mx"></div>
                 <div class="input-group"><label>my [kg]</label><input type="text" id="inp-my"></div>
                 <div class="input-group"><label>mz [kg]</label><input type="text" id="inp-mz"></div>
-            </div>
             <div class="input-group"><label>Scale Factor</label><input type="text" id="inp-scale_factor"></div>
             <div class="input-group"><label>Tag</label><input type="text" id="inp-tag"></div>
             <div class="input-group"><label>Hex Color</label><input type="text" id="inp-color"></div>
@@ -754,7 +752,7 @@ function openForm(isNew = true) {
 
 function selectSubType(type) {
     currentSubType = type;
-    document.getElementById('form-fields').innerHTML = FormTemplates[currentTab][type];
+    document.getElementById('form-fields').innerHTML = injectUnits(FormTemplates[currentTab][type]);
     document.querySelector('.form-actions').style.display = 'flex'; 
     const matSelects = document.getElementById('form-fields').querySelectorAll('select#inp-material');
     matSelects.forEach(sel => {
@@ -1764,16 +1762,83 @@ const UNITS_MAPPING = {
     'PointMass': {'m': 'kg', 'mx': 'kg', 'my': 'kg', 'mz': 'kg'}
 };
 
+// Options for different types of units
+
+const UNIT_ALTERNATIVES = {
+    'kg/m**3': ['kg/m**3', 'g/cm**3', 'lb/in**3'],
+    'N/m**2': ['N/m**2', 'Pa', 'MPa', 'GPa', 'psi', 'bar'],
+    'Pa': ['Pa', 'MPa', 'bar', 'psi'],
+    'm': ['m', 'mm', 'cm', 'in'],
+    'mm': ['mm', 'm', 'cm', 'in'],
+    'kg': ['kg', 'g', 'lb'],
+    'kg*m**2': ['kg*m**2', 'lb*in**2', 'g*cm**2'],
+    'deg': ['deg', 'rad'],
+    'rad': ['rad', 'deg'],
+    'N/m': ['N/m', 'N/mm', 'lbf/in'],
+    'N*s/m': ['N*s/m', 'lbf*s/in'],
+    'RPM': ['RPM', 'rad/s', 'Hz'],
+    'N': ['N', 'lbf', 'kN'],
+    'Pa*s': ['Pa*s', 'cP'],
+    'degC': ['degC', 'kelvin', 'degF'],
+    'l/min': ['l/min', 'm**3/s']
+};
+
+// Function to enter the unit type
+
+function injectUnits(htmlString) {
+    let tempDiv = document.createElement('div');
+    tempDiv.innerHTML = htmlString;
+    
+    let inputs = tempDiv.querySelectorAll('input[id^="inp-"]');
+    inputs.forEach(inp => {
+        let key = inp.id.replace('inp-', '');
+        
+        let defaultUnit = null;
+        for (let cls in UNITS_MAPPING) {
+            if (UNITS_MAPPING[cls][key]) {
+                defaultUnit = UNITS_MAPPING[cls][key];
+                break;
+            }
+        }
+
+        if (defaultUnit && UNIT_ALTERNATIVES[defaultUnit]) {
+            let sel = document.createElement('select');
+            sel.id = `inp-${key}_unit`;
+            sel.className = 'unit-select';
+            
+            UNIT_ALTERNATIVES[defaultUnit].forEach(u => {
+                let opt = document.createElement('option');
+                opt.value = u;
+                opt.innerText = u;
+                if (u === defaultUnit) opt.selected = true;
+                sel.appendChild(opt);
+            });
+            
+            let wrapper = document.createElement('div');
+            wrapper.className = 'input-unit-wrapper';
+            inp.parentNode.insertBefore(wrapper, inp);
+            wrapper.appendChild(inp);
+            wrapper.appendChild(sel);
+            
+            let label = wrapper.previousElementSibling;
+            if (label && label.tagName === 'LABEL') {
+                label.innerText = label.innerText.replace(/\s*\[.*?\]\s*/g, ' ').trim();
+            }
+        }
+    });
+    return tempDiv.innerHTML;
+}
+
 // Format the kwargs
 
 function formatKwargs(obj, excludeKeys=[], className='') {
     let items = [];
     let unitMap = UNITS_MAPPING[className] || {};
     for (let key in obj) {
-        if (excludeKeys.includes(key)) continue;
+        if (excludeKeys.includes(key) || key.endsWith('_unit')) continue;        
         let val = obj[key];        
         if (val !== undefined && val !== null && val !== "") {
-            let unit = unitMap[key];            
+            let unit = obj[key + '_unit'] || unitMap[key];            
             if (typeof val === 'string' && isNaN(val) && !val.trim().startsWith('[') && !val.trim().startsWith('{')) {
                 if (val.toLowerCase() === 'true') items.push(`${key}=True`);
                 else if (val.toLowerCase() === 'false') items.push(`${key}=False`);
@@ -1784,7 +1849,7 @@ function formatKwargs(obj, excludeKeys=[], className='') {
                     if (unit) finalVal = `np.array(${val})`;
                 }                
                 if (unit) {
-                    items.push(`${key}=Q_(${finalVal}, '${unit}').to_base_units()`);
+                    items.push(`${key}=Q_(${finalVal}, '${unit}')`);
                 } else {
                     items.push(`${key}=${finalVal}`);
                 }
