@@ -268,8 +268,28 @@ class SourceAC:
 
         return v
 
-    def get_phase_voltages(self, t, *args):
+    def get_phase_voltages(self, t):
         """Get instantaneous phase voltages at time `t`.
+
+        Parameters
+        ----------
+        t : float
+            Time [s].
+
+        Returns
+        -------
+        vas, vbs, vcs : tuple of float
+            Instantaneous phase voltages [V].
+        """
+        vas = self._build_phase_voltage(t, 0)
+        vbs = self._build_phase_voltage(t, 1)
+        vcs = self._build_phase_voltage(t, 2)
+
+        return vas, vbs, vcs
+
+    def get_operating_state(self, t, *args):
+        """Get the fundamental frequency and phase voltages of
+        the source at time `t`.
 
         Parameters
         ----------
@@ -280,29 +300,15 @@ class SourceAC:
 
         Returns
         -------
-        tuple of float
-            Instantaneous phase voltages `(vas, vbs, vcs)` [V].
-        """
-        vas = self._build_phase_voltage(t, 0)
-        vbs = self._build_phase_voltage(t, 1)
-        vcs = self._build_phase_voltage(t, 2)
-
-        return vas, vbs, vcs
-
-    def get_frequency(self, t):
-        """Get the fundamental frequency of the source at time `t`.
-
-        Parameters
-        ----------
-        t : float
-            Time [s].
-
-        Returns
-        -------
-        float
+        frequency : float
             Fundamental frequency [rad/s].
+        vas, vbs, vcs : tuple of float
+            Instantaneous phase voltages [V].
         """
-        return self.frequency_net
+        frequency = self.frequency_net
+        vas, vbs, vcs = self.get_phase_voltages(t)
+
+        return frequency, vas, vbs, vcs
 
     def run(self, t):
         """Run the simulation for a series of time steps.

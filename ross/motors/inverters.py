@@ -10,7 +10,7 @@ Wu, B. & Narimani, M. (2016). High-Power Converters and AC Drives. Wiley.
 
 import numpy as np
 
-from ross.units import Q_, check_units
+from ross.units import check_units
 
 from .utils import clarke_transform
 
@@ -104,7 +104,6 @@ class InverterVF:
         self.V0 = 1
         self.V7 = 8
 
-    @check_units
     def speed_control(self, frequency):
         """Calculate the phase voltage peak for scalar V/f control.
 
@@ -113,7 +112,7 @@ class InverterVF:
 
         Parameters
         ----------
-        frequency : float or pint.Quantity
+        frequency : float
             Operating frequency [rad/s].
 
         Returns
@@ -128,7 +127,6 @@ class InverterVF:
         Vp = min(Vp, self.voltage_phase_peak_nom)
         return Vp
 
-    @check_units
     def get_phase_voltages(self, t, frequency):
         """Generate three-phase voltages using SVPWM modulation.
 
@@ -139,7 +137,7 @@ class InverterVF:
         ----------
         t : float
             Current simulation time [s].
-        frequency : float or pint.Quantity
+        frequency : float
             Operating frequency [rad/s].
 
         Returns
@@ -155,10 +153,10 @@ class InverterVF:
         Vp = self.speed_control(frequency)
 
         # Reference voltages
-        w = frequency
-        va_ref = Vp * np.sin(w * t)
-        vb_ref = Vp * np.sin(w * t - 2 * np.pi / 3)
-        vc_ref = Vp * np.sin(w * t + 2 * np.pi / 3)
+        theta = frequency * t
+        va_ref = Vp * np.sin(theta)
+        vb_ref = Vp * np.sin(theta - 2 * np.pi / 3)
+        vc_ref = Vp * np.sin(theta + 2 * np.pi / 3)
 
         v_alpha, v_beta = clarke_transform(va_ref, vb_ref, vc_ref)
 
@@ -263,7 +261,6 @@ class InverterVF:
 
         return van, vbn, vcn
 
-    @check_units
     def get_frequency(self, t, frequency_ref=None):
         """Calculate the current operating frequency with acceleration ramp.
 
@@ -275,7 +272,7 @@ class InverterVF:
         ----------
         t : float
             Current simulation time [s].
-        frequency_ref : float or pint.Quantity, optional
+        frequency_ref : float, optional
             Reference frequency [rad/s]. If None, uses `self.frequency_ref`.
 
         Returns
@@ -291,3 +288,26 @@ class InverterVF:
         f_curr = self.f_0 + fref / self.time_ramp * t
         f_curr = min(f_curr, fref)
         return f_curr
+
+    def get_operating_state(self, t, frequency_ref=None):
+        """Get the fundamental frequency and phase voltages of
+        the inverter at time `t`.
+
+        Parameters
+        ----------
+        t : float
+            Time [s].
+        frequency_ref : float, optional
+            Reference frequency [rad/s]. If None, uses `self.frequency_ref`.
+
+        Returns
+        -------
+        frequency : float
+            Fundamental frequency [rad/s].
+        vas, vbs, vcs : tuple of float
+            Instantaneous phase voltages [V].
+        """
+        freq = self.get_frequency(t, frequency_ref)
+        van, vbn, vcn = self.get_phase_voltages(t, freq)
+
+        return freq, van, vbn, vcn
