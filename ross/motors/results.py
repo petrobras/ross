@@ -4,17 +4,18 @@ This module returns graphs for each type of analyses in motors.
 """
 
 import plotly.graph_objects as go
+from scipy.interpolate import interp1d
 import numpy as np
 
 from ross.results import Results
 from ross.units import Q_, check_units
-from .utils import windowed_dfft
+from .utils import windowed_dfft, get_corresponding_indices
 
 
 class MotorResponseResults(Results):
     """Store and plot motor time response results.
 
-    Attributes
+    Parameters
     ----------
     t : array
         Time vector [s].
@@ -29,26 +30,17 @@ class MotorResponseResults(Results):
         (Clarke), and 'd', 'q' (Park) [A].
     voltages : dict
         Phase voltages with keys 'a', 'b', 'c' [V].
+    t_eval : array, optional
+        Time points at which the simulation results are returned [s].
+        All values must lie within the range of `t`. The spacing between
+        consecutive points may be larger than the time step used in `t`,
+        allowing the results to be sampled at a lower temporal resolution.
     """
 
-    def __init__(self, t, electric_torque, load_torque, speed, currents, voltages):
-        """Initialize motor response results.
-
-        Parameters
-        ----------
-        t : array_like
-            Time vector [s].
-        electric_torque : array_like
-            Electrical torque at each time step [N·m].
-        load_torque : array_like
-            Load torque at each time step [N·m].
-        speed : array_like
-            Rotor speed at each time step [rad/s].
-        currents : dict
-            Phase currents with keys for different reference frames.
-        voltages : dict
-            Phase voltages with keys for each phase.
-        """
+    def __init__(
+        self, t, electric_torque, load_torque, speed, currents, voltages, t_eval=None
+    ):
+        """Initialize motor response results."""
         self.t = t
         self.electric_torque = electric_torque
         self.load_torque = load_torque
@@ -61,7 +53,48 @@ class MotorResponseResults(Results):
         self.line_voltages["bc"] = self.voltages["b"] - self.voltages["c"]
         self.line_voltages["ca"] = self.voltages["c"] - self.voltages["a"]
 
-    @check_units
+        self.idx_eval = get_corresponding_indices(t, t_eval)
+        self.t_eval = t[self.idx_eval]
+
+    def sample_at(self, attr, t_eval=None):
+        """Sample a time-domain signal at specified time instants using
+        cubic interpolation.
+
+        Parameters
+        ----------
+        attr : str
+            Name of the attribute containing the signal. Must refer to a
+            time-series stored in the object. Common options include:
+            - electric_torque
+            - load_torque
+            - speed
+            - currents
+            - voltages
+            - line_voltages
+        t_eval : array_like, optional
+            Time instants at which to sample the signal. If None, the
+            evaluation grid specified during initialization is used.
+
+        Returns
+        -------
+        array_like or dict of ndarray
+            Interpolated signal evaluated at `t_eval`.
+        """
+        if t_eval is None:
+            t_eval = self.t_eval
+
+        def interp(y):
+            f = interp1d(self.t, y, kind="cubic")
+            y_eval = f(t_eval)
+            return y_eval
+
+        data = getattr(self, attr)
+
+        if isinstance(data, dict):
+            return {key: interp(value) for key, value in data.items()}
+
+        return interp(data)
+
     def _plot_dfft(
         self,
         result_dict,
@@ -80,7 +113,7 @@ class MotorResponseResults(Results):
         dt = self.t[1] - self.t[0]
 
         for name, signal in result_dict.items():
-            freq, mag = windowed_dfft(signal, dt)
+            freq, mag = windowed_dfft(signal, dt, self.idx_eval)
 
             if frequency_range is not None:
                 delta = 0.01 * (frequency_range[1] - frequency_range[0])
@@ -118,8 +151,8 @@ class MotorResponseResults(Results):
         for name, signal in result_dict.items():
             fig.add_trace(
                 go.Scatter(
-                    x=self.t,
-                    y=signal,
+                    x=self.t[self.idx_eval],
+                    y=signal[self.idx_eval],
                     name=name,
                 )
             )
@@ -303,7 +336,7 @@ class MotorResponseResults(Results):
         if kwargs.get("title") is None:
             kwargs["title"] = "Motor operation: Stator Currents"
 
-        current = PhaseResults(self.t, self.currents, "I")
+        current = PhaseResults(self.t, self.currents, "I", self.t_eval)
 
         if domain == "frequency":
             fig = current.plot_dfft(
@@ -353,7 +386,7 @@ class MotorResponseResults(Results):
         if kwargs.get("title") is None:
             kwargs["title"] = "Motor operation: Stator Phase Voltages"
 
-        voltage = PhaseResults(self.t, self.voltages, "V")
+        voltage = PhaseResults(self.t, self.voltages, "V", self.t_eval)
 
         if domain == "frequency":
             fig = voltage.plot_dfft(
@@ -450,7 +483,7 @@ class PhaseResults(Results):
         "V": {"units": "V", "name": "Voltage"},
     }
 
-    def __init__(self, t, data, data_type):
+    def __init__(self, t, data, data_type, t_eval=None):
         """Initialize results.
 
         Parameters
@@ -462,6 +495,11 @@ class PhaseResults(Results):
             (a, b, c, alpha, beta, d, q).
         data_type : str
             Type of data to store. Options: 'I' (Current), 'V' (Voltage).
+        t_eval : array, optional
+            Time points at which the simulation results are returned [s].
+            All values must lie within the range of `t`. The spacing between
+            consecutive points may be larger than the time step used in `t`,
+            allowing the results to be sampled at a lower temporal resolution.
         """
         self.t = t
         self.data = data
@@ -474,6 +512,21 @@ class PhaseResults(Results):
 
         self.name = self._DATA_TYPE_MAP[data_type]["name"]
         self.units = self._DATA_TYPE_MAP[data_type]["units"]
+
+        idx_eval = get_corresponding_indices(t, t_eval)
+
+        # Adaptive sampling preserving discontinuities
+        tol = 1e-6
+        d = np.diff(data["a"])
+        flat_fraction = np.mean(np.abs(d) < tol)
+        is_square_like = flat_fraction > 0.9
+
+        if is_square_like:
+            idx_edges = np.flatnonzero(np.abs(d) > tol) + 1
+            idx_eval = np.unique(np.concatenate((idx_eval, idx_edges)))
+
+        self.idx_eval = idx_eval
+        self.t_eval = t[self.idx_eval]
 
     def plot(self, reference_frame="a-b-c", fig=None, **kwargs):
         """Plot data over time in selected reference frame.
@@ -502,8 +555,8 @@ class PhaseResults(Results):
             try:
                 fig.add_trace(
                     go.Scatter(
-                        x=self.t,
-                        y=self.data[axis],
+                        x=self.t[self.idx_eval],
+                        y=self.data[axis][self.idx_eval],
                         name=f"{self.data_type}<sub>{self._REFERENCE_MAP[axis]}</sub>",
                     )
                 )
@@ -565,7 +618,7 @@ class PhaseResults(Results):
         dt = self.t[1] - self.t[0]
 
         for axis in reference_frame:
-            freq, mag = windowed_dfft(self.data[axis], dt)
+            freq, mag = windowed_dfft(self.data[axis], dt, self.idx_eval)
 
             if frequency_range is not None:
                 delta = 0.01 * (frequency_range[1] - frequency_range[0])

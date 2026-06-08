@@ -13,7 +13,7 @@ from ross.units import Q_, check_units
 from .sources import SourceAC
 from .inverters import InverterVF
 from .results import MotorResponseResults
-from .utils import phase_to_line, clarke_transform, park_transform
+from .utils import phase_to_line, clarke_transform, park_transform, rk4_step
 
 __all__ = ["MotorElement", "motor_example"]
 
@@ -307,22 +307,6 @@ class MotorElement(Element):
 
         return np.array([dLds_dt, dLqs_dt, dLdr_dt, dLqr_dt, dwr_dt])
 
-    def _rk4_step(self, dt, y0, args):
-
-        y = np.array(y0)
-
-        k1 = self._ode_system(*y, *args)
-
-        k2 = self._ode_system(*(y + 0.5 * dt * k1), *args)
-
-        k3 = self._ode_system(*(y + 0.5 * dt * k2), *args)
-
-        k4 = self._ode_system(*(y + dt * k3), *args)
-
-        y += dt * (k1 + 2 * k2 + 2 * k3 + k4) / 6
-
-        return tuple(y)
-
     def _run(
         self,
         t,
@@ -378,20 +362,22 @@ class MotorElement(Element):
         Lqr0 = self.Lrr * iqr + self.Lm * iqs
 
         # Get solution in time
-        t = np.array(t)
-        nt = len(t)
-
-        if load_torque_entrance_time is None:
-            load_torque_entrance_time = t[nt // 2]
+        t_eval = np.array(t)
 
         n_sub = 1
-        dt = t[1] - t[0]
+        dt = t_eval[1] - t_eval[0]
 
         if time_step is not None and time_step < dt:
             n_sub = int(np.round(dt / time_step))
             dt = dt / n_sub
 
+        nt = int((t_eval[-1] - t_eval[0]) / dt) + 1
+        t_simul = np.linspace(t_eval[0], t_eval[-1], nt)
+
         # Load torque
+        if load_torque_entrance_time is None:
+            load_torque_entrance_time = t_simul[nt // 2]
+
         Tl_full = self.Tnom * load_torque_ratio
         load_applied = False
         Tl = 0.0
@@ -415,25 +401,22 @@ class MotorElement(Element):
         vdr, vqr = 0, 0
 
         for step in range(1, nt):
-            t_sub = t[step]
+            t = t_simul[step]
 
-            for sub_step in range(n_sub):
-                if not load_applied:
-                    if t_sub >= load_torque_entrance_time:
-                        load_applied = True
-                        Tl = Tl_full
+            if not load_applied:
+                if t >= load_torque_entrance_time:
+                    load_applied = True
+                    Tl = Tl_full
 
-                w_shaft, va, vb, vc = element.get_operating_state(t_sub)
-                v_alpha, v_beta = clarke_transform(va, vb, vc)
+            w_shaft, va, vb, vc = element.get_operating_state(t)
+            v_alpha, v_beta = clarke_transform(va, vb, vc)
 
-                f_ang += w_shaft * dt
-                vds, vqs = park_transform(v_alpha, v_beta, f_ang)
+            f_ang += w_shaft * dt
+            vds, vqs = park_transform(v_alpha, v_beta, f_ang)
 
-                y = [Lds, Lqs, Ldr, Lqr, wr]
-                args = [vds, vqs, vdr, vqr, w_shaft, Tl]
-                Lds, Lqs, Ldr, Lqr, wr = self._rk4_step(dt, y, args)
-
-                t_sub += dt
+            y = [Lds, Lqs, Ldr, Lqr, wr]
+            args = [vds, vqs, vdr, vqr, w_shaft, Tl]
+            Lds, Lqs, Ldr, Lqr, wr = rk4_step(self._ode_system, dt, y, args)
 
             speed[step] = wr
             Lds_hist[step] = Lds
@@ -449,7 +432,7 @@ class MotorElement(Element):
             vcs[step] = vc
 
         # Compute outputs
-        angular_position = thetar0 + (speed * self.n_poles / 2) * t
+        angular_position = thetar0 + (speed * self.n_poles / 2) * t_simul
 
         electric_torque = np.vectorize(self._calculate_electrical_torque)(
             Lds_hist, Lqs_hist, Ldr_hist, Lqr_hist
@@ -478,7 +461,13 @@ class MotorElement(Element):
         currents["q"] = iqs
 
         results = MotorResponseResults(
-            t, electric_torque, load_torque, speed, currents, voltages
+            t_simul,
+            electric_torque,
+            load_torque,
+            speed,
+            currents,
+            voltages,
+            t_eval=t_eval,
         )
 
         return results
@@ -662,15 +651,13 @@ class MotorElement(Element):
         (1000,)
         """
 
-        frequency_ref = float(frequency_ref) or self.frequency_nom / 2
-
         inverter = InverterVF(
             voltage_dc=1.35 * phase_to_line(self.voltage_nom),  # 1.35?
             frequency_s=frequency_s,
             voltage_nom=phase_to_line(self.voltage_nom),
             frequency_nom=self.frequency_nom,
             time_ramp=time_ramp,
-            frequency_ref=frequency_ref,
+            frequency_ref=frequency_ref or self.frequency_nom / 2,
         )
 
         results = self._run(
