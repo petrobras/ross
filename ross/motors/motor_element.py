@@ -4,8 +4,13 @@ This module defines the MotorElement class which represents a 3-phase Induction 
 simulated using a 4th-order Runge-Kutta method, considering magnetic fluxes and currents.
 """
 
+import base64
+from pathlib import Path
+
 import numpy as np
-import scipy as sp
+from inspect import signature
+from plotly import graph_objects as go
+from plotly import colors
 
 from ross.element import Element
 from ross.units import Q_, check_units
@@ -16,6 +21,8 @@ from .results import MotorResponseResults
 from .utils import phase_to_line, clarke_transform, park_transform, rk4_step
 
 __all__ = ["MotorElement", "motor_example"]
+
+_MOTOR_SVG_PATH = Path(__file__).parent / "electric_motor.svg"
 
 
 class MotorElement(Element):
@@ -76,6 +83,12 @@ class MotorElement(Element):
     tag : str, optional
         Tag to name the element.
         Default is None.
+    scale_factor : float, optional
+        Scale factor used to draw the motor in the rotor plot.
+        Default is 1.
+    color : str, optional
+        Color used when the element is represented in the rotor plot. It needs to be in hex format.
+        Default is "#4682c9".
 
     Examples
     --------
@@ -129,6 +142,8 @@ class MotorElement(Element):
         short_circuit_ratio_net=50.0,
         XR_ratio_net=80.0,
         tag=None,
+        scale_factor=1,
+        color="#4682c9",
     ):
 
         # Numerical Validation of NOMP entries
@@ -194,7 +209,51 @@ class MotorElement(Element):
         self.short_circuit_resistance = Xsc / self.XR_ratio_net
 
         self.n = n
+        self.n_l = n
+        self.n_r = n
         self.tag = tag
+        self.scale_factor = scale_factor
+        self.color = color
+        self.dof_global_index = None
+
+    def __repr__(self):
+        """Return a string representation of a motor element.
+
+        Returns
+        -------
+        str
+            A string representation of a motor element object.
+
+        Examples
+        --------
+        >>> motor = motor_example()
+        >>> motor # doctest: +ELLIPSIS
+        MotorElement(n=0, tag=None...
+        """
+        return (
+            f"{self.__class__.__name__}"
+            f"(n={self.n}, tag={self.tag!r}, "
+            f"power_nom={self.power_nom:{0}.{5}}, "
+            f"voltage_nom={self.voltage_nom:{0}.{5}}, "
+            f"speed_nom={self.speed_nom:{0}.{5}}, "
+            f"frequency_nom={self.frequency_nom:{0}.{5}}, "
+            f"n_poles={self.n_poles}, "
+            f"stator_resistance={self.stator_resistance:{0}.{5}}, "
+            f"rotor_resistance={self.rotor_resistance:{0}.{5}}, "
+            f"stator_reactance={self.stator_reactance:{0}.{5}}, "
+            f"rotor_reactance={self.rotor_reactance:{0}.{5}}, "
+            f"mutual_reactance={self.mutual_reactance:{0}.{5}}, "
+            f"Ip_motor={self.Ip_motor:{0}.{5}}, "
+            f"viscosity_coeff={self.viscosity_coeff:{0}.{5}}, "
+            f"Ip_load={self.Ip_load:{0}.{5}}, "
+            f"voltage_net={self.voltage_net:{0}.{5}}, "
+            f"frequency_net={self.frequency_net:{0}.{5}}, "
+            f"initial_angle_net={self.initial_angle_net:{0}.{5}}, "
+            f"short_circuit_ratio_net={self.short_circuit_ratio_net:{0}.{5}}, "
+            f"XR_ratio_net={self.XR_ratio_net:{0}.{5}}, "
+            f"scale_factor={self.scale_factor}, "
+            f"color={self.color!r})"
+        )
 
     def __str__(self):
         """Convert object into string.
@@ -203,40 +262,99 @@ class MotorElement(Element):
         -------
         str
             The object's parameters translated to strings.
+
+        Examples
+        --------
+        >>> print(motor_example())  # doctest: +ELLIPSIS
+        Tag:                                None
+        Node:                               0
+        -------- Nominal Parameters (NOMP) -------
+        Nominal Power (W):                  1103.2
+        Nominal Voltage (V):                127.0
+        Nominal Rotation (rad/s):           179.07
+        Nominal Frequency (Hz):             60.0
+        Number of Poles:                    4
+        ...
         """
         return (
             f"Tag:                                {self.tag}"
             f"\nNode:                               {self.n}"
-            f"\n--- Nominal Parameters (NOMP) ---"
-            f"\nNominal Power (W):                  {self.power_nom}"
-            f"\nNominal Voltage (V):                {self.voltage_nom}"
-            f"\nNominal Rotation (rad/s):           {self.speed_nom}"
-            f"\nNominal Frequency (Hz):             {Q_(self.frequency_nom, 'rad/s').to('Hz').m}"
+            f"\n-------- Nominal Parameters (NOMP) -------"
+            f"\nNominal Power (W):                  {self.power_nom:{2}.{5}}"
+            f"\nNominal Voltage (V):                {self.voltage_nom:{2}.{5}}"
+            f"\nNominal Rotation (rad/s):           {self.speed_nom:{2}.{5}}"
+            f"\nNominal Frequency (Hz):             {Q_(self.frequency_nom, 'rad/s').to('Hz').m:{2}.{5}}"
             f"\nNumber of Poles:                    {self.n_poles}"
-            f"\n--- Circuit Parameters (CEMP) ---"
-            f"\nStator Resistance (Ohm):            {self.stator_resistance}"
-            f"\nRotor Resistance (Ohm):             {self.rotor_resistance}"
-            f"\nStator Reactance (Ohm):             {self.stator_reactance}"
-            f"\nRotor Reactance (Ohm):              {self.rotor_reactance}"
-            f"\nMutual Reactance (Ohm):             {self.mutual_reactance}"
-            f"\nMotor Inertia (kg.m²):              {self.Ip_motor}"
-            f"\nViscosity Coefficient (Pa.s):       {self.viscosity_coeff}"
-            f"\nLoad Inertia (kg.m²):               {self.Ip_load}"
-            f"\n--- Power Supply Parameters (SCIP) ---"
-            f"\nSupply Voltage (V):                 {self.voltage_net}"
-            f"\nSupply Frequency (Hz):              {self.frequency_net}"
-            f"\nInitial Phase Angle (deg):          {self.initial_angle_net}"
-            f"\nShort-Circuit Ratio (ad):           {self.short_circuit_ratio_net}"
-            f"\nX/R Ratio (ad):                     {self.XR_ratio_net}"
+            f"\n-------- Circuit Parameters (CEMP) -------"
+            f"\nStator Resistance (Ohm):            {self.stator_resistance:{2}.{5}}"
+            f"\nRotor Resistance (Ohm):             {self.rotor_resistance:{2}.{5}}"
+            f"\nStator Reactance (Ohm):             {self.stator_reactance:{2}.{5}}"
+            f"\nRotor Reactance (Ohm):              {self.rotor_reactance:{2}.{5}}"
+            f"\nMutual Reactance (Ohm):             {self.mutual_reactance:{2}.{5}}"
+            f"\nMotor Inertia (kg.m²):              {self.Ip_motor:{2}.{5}}"
+            f"\nViscosity Coefficient (Pa.s):       {self.viscosity_coeff:{2}.{5}}"
+            f"\nLoad Inertia (kg.m²):               {self.Ip_load:{2}.{5}}"
+            f"\n----- Power Supply Parameters (SCIP) -----"
+            f"\nSupply Voltage (V):                 {self.voltage_net:{2}.{5}}"
+            f"\nSupply Frequency (Hz):              {Q_(self.frequency_net, 'rad/s').to('Hz').m:{2}.{5}}"
+            f"\nInitial Phase Angle (deg):          {Q_(self.initial_angle_net, 'rad').to('deg').m:{2}.{5}}"
+            f"\nShort-Circuit Ratio (ad):           {self.short_circuit_ratio_net:{2}.{5}}"
+            f"\nX/R Ratio (ad):                     {self.XR_ratio_net:{2}.{5}}"
         )
 
-    def __repr__(self):
-        pass
-
     def __eq__(self, other):
-        pass
+        """Equality method for comparisons.
+
+        Node and tag are not considered when comparing motor elements.
+
+        Parameters
+        ----------
+        other : object
+            The second object to be compared with.
+
+        Returns
+        -------
+        bool
+            True if the comparison is true; False otherwise.
+
+        Examples
+        --------
+        >>> motor1 = motor_example()
+        >>> motor2 = motor_example()
+        >>> motor1 == motor2
+        True
+        """
+        if not isinstance(other, self.__class__):
+            return False
+
+        compared_attributes = set(signature(self.__init__).parameters) - {
+            "self",
+            "n",
+            "tag",
+        }
+        compared_attributes = compared_attributes.intersection(self.__dict__.keys())
+
+        for attr in compared_attributes:
+            self_attr = getattr(self, attr)
+            other_attr = getattr(other, attr)
+
+            try:
+                if not np.allclose(self_attr, other_attr):
+                    return False
+            except TypeError:
+                if self_attr != other_attr:
+                    return False
+
+        return True
 
     def __hash__(self):
+        """Return the hash value of the motor element.
+
+        Returns
+        -------
+        int
+            Hash value based on the element tag.
+        """
         return hash(self.tag)
 
     def dof_mapping(self):
@@ -254,8 +372,120 @@ class MotorElement(Element):
     def G(self):
         pass
 
-    def _patch(self):
-        pass
+    def _hover_info(self):
+        """Return hover information for the motor patch.
+
+        Returns
+        -------
+        customdata : list
+            Values displayed in the hover tooltip.
+        hovertemplate : str
+            Plotly hover template string.
+        """
+        frequency_hz = Q_(self.frequency_nom, "rad/s").to("Hz").m
+        customdata = [
+            self.n,
+            self.power_nom,
+            self.voltage_nom,
+            self.speed_nom,
+            frequency_hz,
+            self.n_poles,
+            self.Ip_motor,
+        ]
+        hovertemplate = (
+            f"Motor Node: {customdata[0]}<br>"
+            f"Nominal Power (W): {customdata[1]:.3f}<br>"
+            f"Nominal Voltage (V): {customdata[2]:.3f}<br>"
+            f"Nominal Speed (rad/s): {customdata[3]:.3f}<br>"
+            f"Nominal Frequency (Hz): {customdata[4]:.3f}<br>"
+            f"Number of Poles: {customdata[5]}<br>"
+            f"Motor Inertia (kg.m²): {customdata[6]:.3e}<br>"
+        )
+        return customdata, hovertemplate
+
+    def _patch(self, position, fig):
+        """Motor element patch.
+
+        Patch used to draw the motor element in the rotor plot using Plotly.
+        The motor icon is rendered from ``electric_motor.svg``.
+
+        Parameters
+        ----------
+        position : tuple
+            Position ``(zpos, ypos, yc_pos, scale_factor, side)`` in which the
+            patch will be drawn. ``side`` must be ``"left"`` or ``"right"`` and
+            defines the direction in which the motor extends from the node.
+        fig : plotly.graph_objects.Figure
+            The figure object which traces are added on.
+
+        Returns
+        -------
+        fig : plotly.graph_objects.Figure
+            The figure object which traces are added on.
+        """
+        zpos, ypos, yc_pos, scale_factor, side = position
+
+        yc_pos += 4e-3
+
+        customdata, hovertemplate = self._hover_info()
+
+        image_height = max(ypos * 8.0, scale_factor * 4.0)
+        image_width = image_height * 0.9
+        marker_size = image_height * 350
+
+        svg = _MOTOR_SVG_PATH.read_text(encoding="utf-8")
+
+        if side == "right":
+            x_anchor = "left"
+            z_hover = zpos + image_width / 2
+        else:
+            x_anchor = "right"
+            z_hover = zpos - image_width / 2
+            svg = svg.replace(
+                "<svg ",
+                '<svg transform="scale(-1,1)" ',
+                1,
+            )
+
+        svg = svg.replace("#61809A", f"{self.color}")
+
+        encoded = base64.b64encode(svg.encode("utf-8")).decode("ascii")
+        src_svg = f"data:image/svg+xml;base64,{encoded}"
+
+        fig.add_layout_image(
+            dict(
+                source=src_svg,
+                xref="x",
+                yref="y",
+                x=zpos,
+                y=yc_pos,
+                sizex=image_width,
+                sizey=image_height,
+                xanchor=x_anchor,
+                yanchor="middle",
+                sizing="stretch",
+                layer="below",
+                opacity=0.8,
+            )
+        )
+
+        fig.add_trace(
+            go.Scatter(
+                x=[z_hover],
+                y=[yc_pos],
+                mode="markers",
+                marker=dict(size=marker_size, color=self.color, opacity=0),
+                customdata=[customdata],
+                hovertemplate=hovertemplate,
+                hoverinfo="text",
+                name=self.tag,
+                legendgroup="motors",
+                showlegend=False,
+                hoverlabel=dict(bgcolor=self.color),
+            )
+        )
+
+        return fig
 
     def _calculate_electrical_torque(self, Lds, Lqs, Ldr, Lqr):
         """Calculate the electric torque generated by the motor.

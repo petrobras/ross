@@ -1,5 +1,4 @@
-"""Utility functions for electric motor simulation and signal processing.
-"""
+"""Utility functions for electric motor simulation and signal processing."""
 
 import numpy as np
 from numba import njit
