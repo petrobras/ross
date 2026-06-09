@@ -39,23 +39,30 @@ class InverterVF:
 
     Examples
     --------
+    >>> from ross.units import Q_
+
     >>> inverter = InverterVF(
     ...     voltage_dc=300, frequency_s=Q_(5000, "Hz"),
     ...     voltage_nom=220, frequency_nom=Q_(60, "Hz"),
     ...     time_ramp=1, frequency_ref=Q_(90, "Hz"),
     ... )
 
-    >>> Vp = inverter.speed_control(frequency=Q_(100, "Hz"))
+    >>> freq = Q_(100, "Hz").to("rad/s").m
+    >>> Vp = inverter.speed_control(frequency=freq)
     >>> np.round(Vp, 2)
     179.63
 
-    >>> van, vbn, vcn = inverter.get_phase_voltages(t=0.001, frequency=Q_(100, "Hz"))
+    >>> van, vbn, vcn = inverter.get_phase_voltages(t=0.001, frequency=freq)
     >>> np.round([van, vbn, vcn], 2)
     array([ 100., -200.,  100.])
 
-    >>> f = inverter.get_frequency(t=0.5, frequency_ref=Q_(100, "Hz"))
-    >>> np.round(f, 1)
-    188.5
+    >>> f = inverter.get_frequency(t=0.05, frequency_ref=freq)
+    >>> np.round(f, 2)
+    18.85
+
+    >>> f, van, vbn, vcn = inverter.get_operating_state(t=0.5, frequency_ref=freq)
+    >>> np.round([f, van, vbn, vcn], 2)
+    array([188.5,   0. ,   0. ,   0. ])
 
     References
     ----------

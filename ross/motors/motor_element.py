@@ -81,6 +81,7 @@ class MotorElement(Element):
     --------
     >>> from ross import MotorElement
     >>> from ross.units import Q_
+
     >>> motor = MotorElement(
     ...     n=0,
     ...     tag=None,
@@ -100,6 +101,7 @@ class MotorElement(Element):
     ...     voltage_net=127,
     ...     frequency_net=Q_(60.0, "Hz"),
     ... )
+
     >>> motor.power_nom
     1103.248125
     """
@@ -250,6 +252,9 @@ class MotorElement(Element):
         pass
 
     def G(self):
+        pass
+
+    def _patch(self):
         pass
 
     def _calculate_electrical_torque(self, Lds, Lqs, Ldr, Lqr):
@@ -535,8 +540,12 @@ class MotorElement(Element):
 
         Examples
         --------
+        >>> from ross.units import Q_
         >>> motor = motor_example()
-        >>> t = np.arange(0, 1, 1e-3)
+        >>> dt = 1e-3
+        >>> tf = 1.0
+        >>> t = np.arange(0, tf + dt, dt)
+
         >>> results = motor.run_with_AC_source(
         ...     t,
         ...     load_torque_entrance_time=3.0,
@@ -545,14 +554,26 @@ class MotorElement(Element):
         ...     harmonics={
         ...         "enable": True,
         ...         "orders": [5, 7],
-        ...         "amplitudes": [5, 5],
+        ...         "amplitudes": [3, 2],
         ...     },
-        ...     unbalances={"enable": False},
+        ...     unbalances={
+        ...         "enable": True,
+        ...         "voltage_percent": [-1, 2, 3],
+        ...         "angle_deviation": Q_([1, 0, -2], "deg"),
+        ...     },
         ... )
-        >>> fig_torque = results.plot_torque()
-        >>> fig_speed = results.plot_speed()
-        >>> fig_currents = results.plot_phase_currents(reference_frame="a-b-c")
-        >>> fig_voltages = results.plot_phase_voltages()
+
+        Time domain plots
+        >>> fig1 = results.plot_torque()
+        >>> fig2 = results.plot_speed()
+        >>> fig3 = results.plot_phase_currents(reference_frame="a-b-c")
+        >>> fig4 = results.plot_phase_voltages()
+
+        Frequency domain plots
+        >>> fig5 = results.plot_torque(domain="frequency")
+        >>> fig6 = results.plot_speed(domain="frequency")
+        >>> fig7 = results.plot_phase_currents(domain="frequency")
+        >>> fig8 = results.plot_phase_voltages(domain="frequency")
         """
         # Creating AC source instance
         if harmonics:
@@ -638,23 +659,41 @@ class MotorElement(Element):
         Examples
         --------
         >>> motor = motor_example()
-        >>> t = np.arange(0, 1, 1e-3)
+        >>> dt = 1e-3
+        >>> tf = 1.0
+        >>> size = int(tf / dt) + 1
+        >>> t = np.linspace(0, tf, size)
+
         >>> results = motor.run_with_inverter(
-        ...     t,
+        ...     t, # Evaluation time vector
+        ...     time_step=1e-4, # Simulation time step
         ...     load_torque_entrance_time=2.5,
         ...     load_torque_ratio=1.0,
         ...     frequency_s=Q_(5000, "Hz"),
         ...     time_ramp=0.6667,
         ...     frequency_ref=Q_(30.0, "Hz")
         ... )
-        >>> results.speed.shape
-        (1000,)
+
+        Time domain plots
+        >>> fig1 = results.plot_torque()
+        >>> fig2 = results.plot_speed()
+        >>> fig3 = results.plot_phase_currents(reference_frame="a-b-c")
+        >>> fig4 = results.plot_phase_voltages()
+
+        Frequency domain plots
+        >>> fig5 = results.plot_torque(domain="frequency")
+        >>> fig6 = results.plot_speed(domain="frequency")
+        >>> fig7 = results.plot_phase_currents(domain="frequency")
+        >>> fig8 = results.plot_phase_voltages(domain="frequency")
         """
 
+        Vnl = phase_to_line(self.voltage_nom)
+        line_to_dc_bus = 1.35
+
         inverter = InverterVF(
-            voltage_dc=1.35 * phase_to_line(self.voltage_nom),  # 1.35?
+            voltage_dc=line_to_dc_bus * Vnl,
             frequency_s=frequency_s,
-            voltage_nom=phase_to_line(self.voltage_nom),
+            voltage_nom=Vnl,
             frequency_nom=self.frequency_nom,
             time_ramp=time_ramp,
             frequency_ref=frequency_ref or self.frequency_nom / 2,
@@ -685,8 +724,8 @@ def motor_example():
     Examples
     --------
     >>> motor = motor_example()
-    >>> motor.power_nom
-    1103.248125
+    >>> motor.frequency_nom  # doctest: +ELLIPSIS
+    376.991...
     """
 
     return MotorElement(
