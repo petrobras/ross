@@ -155,6 +155,7 @@ def windowed_dfft(signal, dt):
     return freq, mag
 
 
+@njit
 def rk4_step(func, dt, y0, args):
     """Perform a single Runge-Kutta 4 (RK4) integration step.
 
@@ -177,21 +178,26 @@ def rk4_step(func, dt, y0, args):
 
     Examples
     --------
-    >>> def dydt(y):
-    ...     return np.array([y])
-    >>> y1 = rk4_step(dydt, dt=0.1, y0=(1.0,), args=())
+    >>> import numpy as np
+    >>> from numba import njit
+
+    >>> @njit
+    ... def dydt(y, args):
+    ...     return y
+
+    >>> y1 = rk4_step(dydt, dt=0.1, y0=[1.0,], args=[0])
     >>> y1[0]  # doctest: +ELLIPSIS
     1.105...
     """
     y = np.array(y0)
 
-    k1 = func(*y, *args)
+    k1 = func(y, args)
 
-    k2 = func(*(y + 0.5 * dt * k1), *args)
+    k2 = func(y + 0.5 * dt * k1, args)
 
-    k3 = func(*(y + 0.5 * dt * k2), *args)
+    k3 = func(y + 0.5 * dt * k2, args)
 
-    k4 = func(*(y + dt * k3), *args)
+    k4 = func(y + dt * k3, args)
 
     y += dt * (k1 + 2 * k2 + 2 * k3 + k4) / 6
 
