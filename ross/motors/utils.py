@@ -102,7 +102,7 @@ def park_transform(alpha, beta, theta):
     return d, q
 
 
-def windowed_dfft(signal, dt, idx_eval=None):
+def windowed_dfft(signal, dt):
     """Compute the windowed Discrete Fast Fourier Transform (DFFT) of a signal.
 
     The input signal is multiplied by a Hanning window before computing the FFT.
@@ -115,9 +115,6 @@ def windowed_dfft(signal, dt, idx_eval=None):
         Time domain signal.
     dt : float
         Sampling interval [s].
-    idx_eval : array_like of int, optional
-        Indices selecting frequency bins to return. If None, all non-negative
-        frequency bins are returned.
 
     Returns
     -------
@@ -146,10 +143,6 @@ def windowed_dfft(signal, dt, idx_eval=None):
 
     coherent_gain = np.mean(window)
     mag = np.abs(fft_values) / (N * coherent_gain)
-
-    if idx_eval is not None:
-        freq = freq[idx_eval]
-        mag = mag[idx_eval]
 
     idx = freq >= 0
     freq = freq[idx]
@@ -202,4 +195,4 @@ def rk4_step(func, dt, y0, args):
 
     y += dt * (k1 + 2 * k2 + 2 * k3 + k4) / 6
 
-    return tuple(y)
+    return y

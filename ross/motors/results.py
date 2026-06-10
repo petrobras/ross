@@ -237,13 +237,14 @@ class PhaseResults(Results):
         reference_frame = reference_frame.split("-")
 
         if frequency_range is not None:
-            min_freq, max_freq = frequency_range
+            min_freq, max_freq = Q_(frequency_range, "rad/s").to(frequency_units).m
             frequency_range = Q_(frequency_range, "rad/s").to("Hz").m
 
         dt = self.t[1] - self.t[0]
+        step = self.sample_idx[1] - self.sample_idx[0]
 
         for axis in reference_frame:
-            freq, mag = windowed_dfft(self.data[axis], dt, self.sample_idx)
+            freq, mag = windowed_dfft(self.data[axis], dt)
 
             if frequency_range is not None:
                 delta = 0.01 * (frequency_range[1] - frequency_range[0])
@@ -252,6 +253,9 @@ class PhaseResults(Results):
                 )
                 mag = mag[mask]
                 freq = freq[mask]
+            else:
+                mag = mag[::step]
+                freq = freq[::step]
 
             try:
                 fig.add_trace(
@@ -409,13 +413,14 @@ class MotorResponseResults(Results):
     ):
 
         if frequency_range is not None:
-            min_freq, max_freq = frequency_range
+            min_freq, max_freq = Q_(frequency_range, "rad/s").to(frequency_units).m
             frequency_range = Q_(frequency_range, "rad/s").to("Hz").m
 
         dt = self.t[1] - self.t[0]
+        step = self.sample_idx[1] - self.sample_idx[0]
 
         for name, signal in result_dict.items():
-            freq, mag = windowed_dfft(signal, dt, self.sample_idx)
+            freq, mag = windowed_dfft(signal, dt)
 
             if frequency_range is not None:
                 delta = 0.01 * (frequency_range[1] - frequency_range[0])
@@ -424,6 +429,9 @@ class MotorResponseResults(Results):
                 )
                 mag = mag[mask]
                 freq = freq[mask]
+            else:
+                mag = mag[::step]
+                freq = freq[::step]
 
             fig.add_trace(
                 go.Scatter(
