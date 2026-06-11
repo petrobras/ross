@@ -95,6 +95,21 @@ def safe_math_eval(expr):
         return float(eval(expr, {"__builtins__": None}, safe_dict))
     except Exception:
         raise ValueError(f"It was not possible to evaluate the mathematical expression: {expr}")
+    
+def get_converted_param(params, key, default_val, target_unit):
+    val = params.get(key)
+    if val is None or str(val).strip() == "":
+        val_num = default_val
+    else:
+        try:
+            val_num = float(val)
+        except ValueError:
+            val_num = safe_math_eval(str(val))
+            
+    unit = params.get(f"{key}_unit")
+    if unit and target_unit:
+        return float(Q_(val_num, unit).to(target_unit).m)
+    return float(val_num)
 
 def extract_kwargs(d, mat_dict, element_type, ignore_keys=['element_type', 'n']):
     kwargs = {}
@@ -446,8 +461,8 @@ def run_analysis():
         fig = None
         
         if analysis_type == 'campbell':
-            s_min = float(params.get('speed_min', 0.0))
-            s_max = float(params.get('speed_max', 400.0))
+            s_min = get_converted_param(params, 'speed_min', 0.0, 'rad/s')
+            s_max = get_converted_param(params, 'speed_max', 400.0, 'rad/s')
             s_steps = int(float(params.get('speed_steps', 50)))
             plot_type = params.get('plot_type', 'Default')
             
@@ -526,8 +541,8 @@ def run_analysis():
             fig = ucs_res.plot(**plot_kwargs)
             
         elif analysis_type == 'freq_response':
-            s_min = float(params.get('speed_min', 0.0))
-            s_max = float(params.get('speed_max', 400.0))
+            s_min = get_converted_param(params, 'speed_min', 0.0, 'rad/s')
+            s_max = get_converted_param(params, 'speed_max', 400.0, 'rad/s')
             speed_rads = np.linspace(s_min, s_max, 50)
             
             ana_kwargs = {'free_free': get_bool('free_free')}
@@ -580,10 +595,11 @@ def run_analysis():
             
             ana_kwargs = {'sparse': get_bool('sparse', True), 'synchronous': get_bool('synchronous')}
             
+            speed_val = get_converted_param(params, 'speed', 0.0, 'rad/s')
             if a_hash in ANALYSIS_CACHE:
                 modal_res = ANALYSIS_CACHE[a_hash]
             else:
-                modal_res = rotor.run_modal(speed=float(params.get('speed', 0.0)), num_modes=int(float(params.get('num_modes', 12))), **ana_kwargs)
+                modal_res = rotor.run_modal(speed=speed_val, num_modes=int(float(params.get('num_modes', 12))), **ana_kwargs)
                 ANALYSIS_CACHE[a_hash] = modal_res
             
             if plot_type == '3D':
@@ -599,8 +615,8 @@ def run_analysis():
                 fig = modal_res.plot_mode_2d(idx, **plot_kwargs)
             
         elif analysis_type == 'unbalance':
-            s_min = float(params.get('speed_min', 0.0))
-            s_max = float(params.get('speed_max', 400.0))
+            s_min = get_converted_param(params, 'speed_min', 0.0, 'rad/s')
+            s_max = get_converted_param(params, 'speed_max', 400.0, 'rad/s')
             speed_rads = np.linspace(s_min, s_max, 50)
             
             unbalances = params.get('unbalances', [{'node': 0, 'mag': 0.01, 'phase': 0.0}])
@@ -645,7 +661,7 @@ def run_analysis():
         elif analysis_type in ['time_response', 'misalignment', 'rubbing', 'crack']:
             
             if analysis_type == 'time_response':
-                speed = float(params.get('speed', 100))
+                speed = get_converted_param(params, 'speed', 100.0, 'rad/s')
                 t_max = float(params.get('t_max', 1.0))
                 steps = int(float(params.get('steps', 1000)))
                 t_arr = np.linspace(0, t_max, steps)
@@ -667,7 +683,7 @@ def run_analysis():
                     ANALYSIS_CACHE[a_hash] = response
 
             elif analysis_type == 'misalignment':
-                speed = float(params.get('speed', 125.66))
+                speed = get_converted_param(params, 'speed', 125.66, 'rad/s')
                 t_arr = np.linspace(float(params.get('t_initial', 0.0)), float(params.get('t_final', 0.5)), int(float(params.get('t_steps', 5000))))
                 
                 unbalances = params.get('unbalances', [{'node': 7, 'mag': 5e-4, 'phase': -1.57}])
@@ -698,7 +714,7 @@ def run_analysis():
                     ANALYSIS_CACHE[a_hash] = response
 
             elif analysis_type == 'rubbing':
-                speed = float(params.get('speed', 125.66))
+                speed = get_converted_param(params, 'speed', 125.66, 'rad/s')
                 t_arr = np.linspace(float(params.get('t_initial', 0.0)), float(params.get('t_final', 0.5)), int(float(params.get('t_steps', 5000))))
                 
                 unbalances = params.get('unbalances', [{'node': 7, 'mag': 5e-4, 'phase': -1.57}])
@@ -719,7 +735,7 @@ def run_analysis():
                     ANALYSIS_CACHE[a_hash] = response
 
             elif analysis_type == 'crack':
-                speed = float(params.get('speed', 125.66))
+                speed = get_converted_param(params, 'speed', 125.66, 'rad/s')
                 t_arr = np.linspace(float(params.get('t_initial', 0.0)), float(params.get('t_final', 0.5)), int(float(params.get('t_steps', 5000))))
                 
                 unbalances = params.get('unbalances', [{'node': 7, 'mag': 5e-4, 'phase': -1.57}])
@@ -782,7 +798,7 @@ def run_analysis():
                 fig = static_res.plot_free_body_diagram(**plot_kwargs)
 
         elif analysis_type == 'harmonic_balance':
-            speed = float(params.get('speed', 200))
+            speed = get_converted_param(params, 'speed', 200, 'rad/s')
             t_ini = float(params.get('t_initial', 0.0))
             t_fin = float(params.get('t_final', 0.5))
             t_steps = int(float(params.get('t_steps', 1001)))
@@ -818,7 +834,7 @@ def run_analysis():
             fig = hb_res.plot(probe=probe_objects, **plot_kwargs)
 
         elif analysis_type == 'clearance':
-            speed = float(params.get('speed', 600))
+            speed = get_converted_param(params, 'speed', 600, 'rad/s')
             node = int(float(params.get('node', 0)))
             unb_mag = get_list('unbalance_magnitude') or [0.05]
             unb_phase = get_list('unbalance_phase') or [0.0]

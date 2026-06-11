@@ -534,9 +534,9 @@ const FormTemplates = {
         <div class="input-group"><label>Mass [kg]</label><input type="text" id="inp-m"></div>
         <button type="button" class="btn-advanced" onclick="toggleAdvanced(this)">Advanced <i class="fas fa-chevron-down"></i></button>
         <div class="advanced-fields" style="display: none; margin-top: 10px; border-top: 1px dashed #ccc; padding-top: 10px;">
-                <div class="input-group"><label>mx [kg]</label><input type="text" id="inp-mx"></div>
-                <div class="input-group"><label>my [kg]</label><input type="text" id="inp-my"></div>
-                <div class="input-group"><label>mz [kg]</label><input type="text" id="inp-mz"></div>
+            <div class="input-group"><label>mx [kg]</label><input type="text" id="inp-mx"></div>
+            <div class="input-group"><label>my [kg]</label><input type="text" id="inp-my"></div>
+            <div class="input-group"><label>mz [kg]</label><input type="text" id="inp-mz"></div>
             <div class="input-group"><label>Scale Factor</label><input type="text" id="inp-scale_factor"></div>
             <div class="input-group"><label>Tag</label><input type="text" id="inp-tag"></div>
             <div class="input-group"><label>Hex Color</label><input type="text" id="inp-color"></div>
@@ -753,7 +753,7 @@ function openForm(isNew = true) {
 function selectSubType(type) {
     currentSubType = type;
     document.getElementById('form-fields').innerHTML = injectUnits(FormTemplates[currentTab][type]);
-    document.querySelector('.form-actions').style.display = 'flex'; 
+    document.querySelector('.form-actions').style.display = 'flex';
     const matSelects = document.getElementById('form-fields').querySelectorAll('select#inp-material');
     matSelects.forEach(sel => {
         sel.innerHTML = '';
@@ -1054,8 +1054,8 @@ const getTxt = (id, def) => document.getElementById(id) && document.getElementBy
 
 const AnalysisDashboards = {
     campbell: [
-        { id: 'speed_min', label: 'Start Speed (rad/s)', type: 'range', min: 0, max: 1000, step: 10, val: 0 },
-        { id: 'speed_max', label: 'End Speed (rad/s)', type: 'range', min: 100, max: 4000, step: 10, val: 400 },
+        { id: 'speed_min', label: 'Start Speed', type: 'range', min: 0, max: 1000, step: 10, val: 0, default_unit: 'rad/s' },
+        { id: 'speed_max', label: 'End Speed', type: 'range', min: 100, max: 4000, step: 10, val: 400, default_unit: 'rad/s' },
         { id: 'speed_steps', label: 'Steps', type: 'range', min: 10, max: 200, step: 1, val: 50 },
         { id: 'plot_type', label: 'Plot Type', type: 'select', options: ['Default', 'Mode Shape'], val: 'Default' },
         
@@ -1081,8 +1081,8 @@ const AnalysisDashboards = {
         { id: 'frequency_units', label: 'Freq. Units', type: 'select', options: ['RPM', 'Hz', 'rad/s'], val: 'rad/s', adv: 'plot' }
     ],
     freq_response: [
-        { id: 'speed_min', label: 'Start Speed (rad/s)', type: 'range', min: 0, max: 1000, step: 10, val: 0 },
-        { id: 'speed_max', label: 'End Speed (rad/s)', type: 'range', min: 100, max: 4000, step: 10, val: 400 },
+        { id: 'speed_min', label: 'Start Speed', type: 'range', min: 0, max: 1000, step: 10, val: 0, default_unit: 'rad/s' },
+        { id: 'speed_max', label: 'End Speed', type: 'range', min: 100, max: 4000, step: 10, val: 400, default_unit: 'rad/s' },
         { id: 'plot_type', label: 'Plot Type', type: 'select', options: ['Default', 'Magnitude', 'Phase', 'Polar Bode'], val: 'Default' },
         { id: 'inps', label: 'Input Probes', type: 'probe_list', val: [{node: 0, dof: 0}] },
         { id: 'outs', label: 'Output Probes', type: 'probe_list', val: [{node: 0, dof: 0}] },
@@ -1096,7 +1096,7 @@ const AnalysisDashboards = {
         { id: 'line_shape', label: 'Line Shape', type: 'select', options: ['linear', 'log'], val: 'linear', adv: 'plot', deps: ['Magnitude'] }
     ],
     modes: [
-        { id: 'speed', label: 'Shaft Speed (rad/s)', type: 'range', min: 0, max: 2000, step: 10, val: 0 },
+        { id: 'speed', label: 'Shaft Speed', type: 'range', min: 0, max: 2000, step: 10, val: 0, default_unit: 'rad/s' },
         { id: 'num_modes', label: 'Nº Modes', type: 'number', val: 12 },
         { id: 'plot_type', label: 'Plot Type', type: 'select', options: ['2D', '3D', 'Orbit'], val: '2D' },
         { id: 'plot_idx', label: 'Mode Index', type: 'number', val: 0 },
@@ -1114,8 +1114,8 @@ const AnalysisDashboards = {
         { id: 'nodes', label: 'Nodes [list]', type: 'text', val: '', adv: 'plot', deps: ['Orbit'] }
     ],
     unbalance: [
-        { id: 'speed_min', label: 'Start Speed (rad/s)', type: 'range', min: 0, max: 1000, step: 10, val: 0 },
-        { id: 'speed_max', label: 'End Speed (rad/s)', type: 'range', min: 100, max: 4000, step: 10, val: 400 },
+        { id: 'speed_min', label: 'Start Speed', type: 'range', min: 0, max: 1000, step: 10, val: 0, default_unit: 'rad/s' },
+        { id: 'speed_max', label: 'End Speed', type: 'range', min: 100, max: 4000, step: 10, val: 400, default_unit: 'rad/s' },
         { id: 'plot_type', label: 'Plot Type', type: 'select', options: ['Default', 'Magnitude', 'Phase', 'Bode', 'Polar Bode'], val: 'Default' },
         { id: 'unbalances', label: 'Unbalance Excitations', type: 'unbalance_list', val: [{node: 0, mag: 0.01, phase: 0}] },
         { id: 'probes', label: 'Measurement Probes', type: 'angle_probe_list', val: [{node: 0, angle: 0}] },
@@ -1128,7 +1128,7 @@ const AnalysisDashboards = {
         { id: 'line_shape', label: 'Line Shape', type: 'select', options: ['linear', 'log'], val: 'linear', adv: 'plot', deps: ['Magnitude'] }
     ],
     time_response: [
-        { id: 'speed', label: 'Rot. Speed (rad/s)', type: 'range', min: 0, max: 2000, step: 10, val: 100 },
+        { id: 'speed', label: 'Rot. Speed', type: 'range', min: 0, max: 2000, step: 10, val: 100, default_unit: 'rad/s' },
         { id: 't_max', label: 'Max Time (s)', type: 'number', min: 0.1, max: 10, step: 0.1, val: 1 },
         { id: 'steps', label: 'Time Steps', type: 'number', min: 100, max: 10000, step: 100, val: 1000 },
         { id: 'plot_type', label: 'Plot Type', type: 'select', options: ['1D', '2D', '3D', 'Frequency (DFFT)'], val: '1D' },
@@ -1151,7 +1151,7 @@ const AnalysisDashboards = {
         { id: 'moment_units', label: 'Moment Units', type: 'text', val: 'N*m', adv: 'plot', deps: ['Bending Moment'] }
     ],
     harmonic_balance: [
-        { id: 'speed', label: 'Speed (rad/s)', type: 'range', min: 0, max: 2000, step: 10, val: 200 },
+        { id: 'speed', label: 'Speed', type: 'range', min: 0, max: 2000, step: 10, val: 200, default_unit: 'rad/s' },
         { id: 't_initial', label: 'Initial Time (s)', type: 'number', val: 0 },
         { id: 't_final', label: 'Final Time (s)', type: 'number', val: 0.5 },
         { id: 't_steps', label: 'Time Steps', type: 'number', val: 1001 },
@@ -1170,7 +1170,7 @@ const AnalysisDashboards = {
         { id: 'frequency_units', label: 'Freq. Units', type: 'select', options: ['Hz', 'RPM', 'rad/s'], val: 'Hz', adv: 'plot' }
     ],
     clearance: [
-        { id: 'speed', label: 'Speed (rad/s)', type: 'range', min: 0, max: 2000, step: 10, val: 600 },
+        { id: 'speed', label: 'Speed', type: 'range', min: 0, max: 2000, step: 10, val: 600, default_unit: 'rad/s' },
         { id: 'node', label: 'Node', type: 'number', val: 0 },
         { id: 'unbalance_magnitude', label: 'Unb. Mag [list]', type: 'text', val: '[0.05]' },
         { id: 'unbalance_phase', label: 'Unb. Phase [list]', type: 'text', val: '[0]' },
@@ -1179,7 +1179,7 @@ const AnalysisDashboards = {
         { id: 'modes', label: 'Modes [list]', type: 'text', val: '', adv: 'analysis' }
     ],
     misalignment: [
-        { id: 'speed', label: 'Speed (rad/s)', type: 'range', min: 0, max: 2000, step: 10, val: 125.66 },
+        { id: 'speed', label: 'Speed', type: 'range', min: 0, max: 2000, step: 10, val: 125.66, default_unit: 'rad/s' },
         { id: 't_initial', label: 'Initial Time (s)', type: 'number', val: 0 },
         { id: 't_final', label: 'Final Time (s)', type: 'number', val: 0.5 },
         { id: 't_steps', label: 'Time Steps', type: 'number', val: 5000 },
@@ -1206,7 +1206,7 @@ const AnalysisDashboards = {
         { id: 'frequency_units', label: 'Freq. Units', type: 'select', options: ['RPM', 'Hz', 'rad/s'], val: 'Hz', adv: 'plot', deps: ['Frequency (DFFT)'] }
     ],
     rubbing: [
-        { id: 'speed', label: 'Speed (rad/s)', type: 'range', min: 0, max: 2000, step: 10, val: 125.66 },
+        { id: 'speed', label: 'Speed', type: 'range', min: 0, max: 2000, step: 10, val: 125.66, default_unit: 'rad/s' },
         { id: 't_initial', label: 'Initial Time (s)', type: 'number', val: 0 },
         { id: 't_final', label: 'Final Time (s)', type: 'number', val: 0.5 },
         { id: 't_steps', label: 'Time Steps', type: 'number', val: 5000 },
@@ -1228,7 +1228,7 @@ const AnalysisDashboards = {
         { id: 'frequency_units', label: 'Freq. Units', type: 'select', options: ['RPM', 'Hz', 'rad/s'], val: 'Hz', adv: 'plot', deps: ['Frequency (DFFT)'] }
     ],
     crack: [
-        { id: 'speed', label: 'Speed (rad/s)', type: 'range', min: 0, max: 2000, step: 10, val: 125.66 },
+        { id: 'speed', label: 'Speed', type: 'range', min: 0, max: 2000, step: 10, val: 125.66, default_unit: 'rad/s' },
         { id: 't_initial', label: 'Initial Time (s)', type: 'number', val: 0 },
         { id: 't_final', label: 'Final Time (s)', type: 'number', val: 0.5 },
         { id: 't_steps', label: 'Time Steps', type: 'number', val: 5000 },
@@ -1424,18 +1424,42 @@ function buildDashboardHTML(uniqueId, type) {
             
             html += `</div></div>`;
         } else {
-            const changeEvent = (item.id === 'plot_type' || item.id === 'coupling') ? `onchange="checkDeps('${uniqueId}')"` : ``;
+            const changeEvent = (item.id === 'plot_type' || item.id === 'coupling') ? `onchange="checkDeps('${uniqueId}')"` : ``;            
+            html += `<div ${depsAttr} style="flex-direction: column; align-items: stretch; gap: 6px;">`;
+            html += `<label style="margin: 0; min-width: auto;">${item.label}</label>`;
             
-            html += `<div ${depsAttr}><label>${item.label}</label>`;
             if (item.type === 'range') {
-                html += `<input type="range" id="range-${item.id}-${uniqueId}" min="${item.min}" max="${item.max}" step="${item.step}" value="${item.val}" oninput="document.getElementById('num-${item.id}-${uniqueId}').value = this.value;">`;
+                html += `<div style="display: flex; align-items: center; gap: 10px; width: 100%;">`;                
+                html += `<input type="range" id="range-${item.id}-${uniqueId}" min="${item.min}" max="${item.max}" step="${item.step}" value="${item.val}" oninput="document.getElementById('num-${item.id}-${uniqueId}').value = this.value;" style="flex: 1; margin: 0;">`;
+                html += `<div class="unified-input" style="width: 140px; flex-shrink: 0;">`;
                 html += `<input type="number" id="num-${item.id}-${uniqueId}" value="${item.val}" oninput="document.getElementById('range-${item.id}-${uniqueId}').value = this.value;">`;
+                
+                if (item.default_unit && UNIT_ALTERNATIVES[item.default_unit]) {
+                    html += `<select id="unit-${item.id}-${uniqueId}" class="unified-unit">`;
+                    UNIT_ALTERNATIVES[item.default_unit].forEach(u => {
+                        html += `<option value="${u}">${u}</option>`;
+                    });
+                    html += `</select>`;
+                }
+                html += `</div></div>`;
+
             } else if (item.type === 'select') {
-                html += `<select id="input-${item.id}-${uniqueId}" ${changeEvent}>`;
+                html += `<select id="input-${item.id}-${uniqueId}" style="width: 100%;" ${changeEvent}>`;
                 item.options.forEach(opt => { html += `<option value="${opt}" ${opt===item.val?'selected':''}>${opt}</option>`; });
                 html += `</select>`;
+
             } else {
+                html += `<div class="unified-input">`;
                 html += `<input type="${item.type}" id="input-${item.id}-${uniqueId}" value="${item.val}">`;
+                
+                if (item.default_unit && UNIT_ALTERNATIVES[item.default_unit]) {
+                    html += `<select id="unit-${item.id}-${uniqueId}" class="unified-unit">`;
+                    UNIT_ALTERNATIVES[item.default_unit].forEach(u => {
+                        html += `<option value="${u}">${u}</option>`;
+                    });
+                    html += `</select>`;
+                }
+                html += `</div>`;
             }
             html += `</div>`;
         }
@@ -1590,9 +1614,13 @@ async function runCardAnalysis(uniqueId, type) {
             });
             p[item.id] = angleList;
         } else if (item.type === 'range') {
-            p[item.id] = parseFloat(document.getElementById(`num-${item.id}-${uniqueId}`).value);
+            p[item.id] = document.getElementById(`num-${item.id}-${uniqueId}`).value;
+            const unitEl = document.getElementById(`unit-${item.id}-${uniqueId}`);
+            if (unitEl) p[item.id + '_unit'] = unitEl.value;
         } else if (item.type === 'number') {
-            p[item.id] = parseFloat(document.getElementById(`input-${item.id}-${uniqueId}`).value);
+            p[item.id] = document.getElementById(`input-${item.id}-${uniqueId}`).value;
+            const unitEl = document.getElementById(`unit-${item.id}-${uniqueId}`);
+            if (unitEl) p[item.id + '_unit'] = unitEl.value;
         } else {
             p[item.id] = document.getElementById(`input-${item.id}-${uniqueId}`).value;
         }
@@ -1675,7 +1703,7 @@ function loadAnalysis(event) {
                         config.forEach(item => { if(an.params[item.id] !== undefined) item.val = an.params[item.id]; });
                         controlsHTML = buildDashboardHTML(uniqueId, an.type);
                     }
-                }
+                }                
                 let typeVal = an.type || 'campbell';                
                 container.insertAdjacentHTML('afterbegin', `
                     <div class="analysis-card" id="${cardId}">
@@ -1793,7 +1821,8 @@ const UNIT_ALTERNATIVES = {
     'N': ['N', 'lbf', 'kN'],
     'Pa*s': ['Pa*s', 'cP'],
     'degC': ['degC', 'kelvin', 'degF'],
-    'l/min': ['l/min', 'm**3/s']
+    'l/min': ['l/min', 'm**3/s'],
+    'rad/s': ['rad/s', 'RPM', 'Hz']
 };
 
 // Function to enter the unit type
@@ -1904,7 +1933,7 @@ function generatePythonFile() {
         let args = formatKwargs(s, ['material', 'element_type'], 'ShaftElement');
         let effN = shaftNodes[index];
         if (!args.includes('n=')) args = `n=${effN}` + (args.length > 0 ? `, ${args}` : ``);
-        let mat = s.material ? `materials_dict.get('${s.material.toLowerCase()}', default_mat)` : `default_mat`;
+        let mat = s.material ? `materials_dict.get('${s.material.toLowerCase()}', default_mat)` : `default_mat`;        
         py += `    dict(${args}, material=${mat}),\n`;
     });
     py += `]\n`;
@@ -2133,18 +2162,18 @@ function generatePythonFile() {
             } else if (['time_response', 'misalignment', 'rubbing', 'crack'].includes(a.type)) {
                 
                 if (a.type === 'time_response') {
-                py += `speed = ${p.speed}\n`;
+                    py += `speed = ${p.speed}\n`;
                     py += `t = np.linspace(0, ${p.t_max || 1.0}, ${p.steps || 1000})\n`;
-                py += `dofs_per_node = rotor.ndof // len(rotor.nodes)\n`;
-                py += `F_${i} = np.zeros((len(t), rotor.ndof))\n`; 
-                if (p.forces && p.forces.length > 0) {
-                    p.forces.forEach(f => {
-                        py += `n_force = min(${f.node}, len(rotor.nodes) - 1)\n`;
-                        py += `g_dof = n_force * dofs_per_node + ${f.dof}\n`;
-                        py += `F_${i}[:, g_dof] += ${f.func}\n`;
-                    });
-                }
-                py += `resp_${i} = rotor.run_time_response(speed, F_${i}, t, method='${p.method || 'default'}')\n`;
+                    py += `dofs_per_node = rotor.ndof // len(rotor.nodes)\n`;
+                    py += `F_${i} = np.zeros((len(t), rotor.ndof))\n`; 
+                    if (p.forces && p.forces.length > 0) {
+                        p.forces.forEach(f => {
+                            py += `n_force = min(${f.node}, len(rotor.nodes) - 1)\n`;
+                            py += `g_dof = n_force * dofs_per_node + ${f.dof}\n`;
+                            py += `F_${i}[:, g_dof] += ${f.func}\n`;
+                        });
+                    }
+                    py += `resp_${i} = rotor.run_time_response(speed, F_${i}, t, method='${p.method || 'default'}')\n`;
                 } 
                 else {
                     py += `t_sim = np.linspace(${p.t_initial || 0}, ${p.t_final || 0.5}, ${p.t_steps || 5000})\n`;

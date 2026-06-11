@@ -989,3 +989,44 @@ button {
 .badge-torsional {
     background-color: #8b5cf6;
 }
+
+/* CSS for unified input with unity */
+.unified-input {
+    display: flex;
+    align-items: center;
+    background: #f8fafc;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-ui);
+    overflow: hidden;
+    width: 100%;
+}
+
+.unified-input:focus-within {
+    border-color: var(--accent-primary);
+    background: #fff;
+}
+
+.unified-input input {
+    flex: 1;
+    border: none !important;
+    background: transparent !important;
+    margin: 0 !important;
+    padding: 6px 10px !important;
+    outline: none !important;
+    width: 100% !important;
+    text-align: left !important;
+}
+
+/* Right-side dropdown style */
+.unified-input select.unified-unit {
+    width: 75px !important;
+    min-width: 75px !important;
+    border: none !important;
+    border-left: 1px solid var(--border-color) !important;
+    background: #e2e8f0 !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+    padding: 6px 4px !important;
+    outline: none !important;
+    cursor: pointer;
+}
