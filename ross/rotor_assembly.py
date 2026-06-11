@@ -857,6 +857,59 @@ class Rotor(object):
             tag=self.tag,
         )
 
+    def add_elements(self, new_elements):
+        """Add elements to rotor.
+
+        This method returns the modified rotor with additional elements.
+        This is not valid for shaft elements.
+
+        Parameters
+        ----------
+        new_elements : list
+            List with the new elements. It may be disks, gears, bearings,
+            seals and point masses.
+
+        Returns
+        -------
+        A rotor object.
+
+        Examples
+        --------
+        >>> import ross as rs
+        >>> rotor = rs.rotor_example()
+        >>> seal = rs.SealElement(n=3, kxx=1e6, kyy=0.8e6, cxx=2e2, cyy=1.5e2)
+        >>> disk = rs.DiskElement(n=5, m=32, Id=0.2, Ip=0.3)
+        >>> new_rotor = rotor.add_elements([seal, disk])
+        >>> len(new_rotor.elements)
+        12
+        """
+
+        shaft_elements = deepcopy(self.shaft_elements)
+        disk_elements = deepcopy(self.disk_elements)
+        bearing_elements = deepcopy(self.bearing_elements)
+        point_mass_elements = deepcopy(self.point_mass_elements)
+
+        for el in new_elements:
+            main_class = el.__class__.get_base_class()
+
+            if main_class == DiskElement:
+                disk_elements.append(el)
+            elif main_class == BearingElement:
+                bearing_elements.append(el)
+            elif main_class == PointMass:
+                point_mass_elements.append(el)
+
+        return Rotor(
+            shaft_elements,
+            disk_elements=disk_elements,
+            bearing_elements=bearing_elements,
+            point_mass_elements=point_mass_elements,
+            min_w=self.min_w,
+            max_w=self.max_w,
+            rated_w=self.rated_w,
+            tag=self.tag,
+        )
+
     @lru_cache()
     @check_units
     def run_modal(self, speed, num_modes=12, sparse=True, synchronous=False):
