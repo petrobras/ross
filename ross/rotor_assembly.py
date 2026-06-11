@@ -33,6 +33,7 @@ from ross.faults import Crack, MisalignmentFlex, MisalignmentRigid, Rubbing
 from ross.materials import Material, steel
 from ross.model_reduction import ModelReduction
 from ross.point_mass import PointMass
+from ross.probe import Probe
 from ross.results import (
     CampbellResults,
     ConvergenceResults,
@@ -46,6 +47,7 @@ from ross.results import (
     SummaryResults,
     TimeResponseResults,
     UCSResults,
+    ClearanceResults,
 )
 from ross.seals.labyrinth_seal import LabyrinthSeal
 from ross.shaft_element import ShaftElement
@@ -70,6 +72,7 @@ __all__ = [
     "rotor_example_6dof",
     "rotor_example_with_damping",
     "rotor_amb_example",
+    "concatenate_rotor",
 ]
 
 # set Plotly palette of colors
@@ -92,6 +95,10 @@ class Rotor(object):
         List with the bearing elements
     point_mass_elements: list
         List with the point mass elements
+    modal_damping: list
+        List of modal damping ratios for the first modes
+    default_damping_ratio: list
+        Float of the remaining unknown modal damping ratios
     tag : str
         A tag for the rotor
 
@@ -149,6 +156,8 @@ class Rotor(object):
         min_w=None,
         max_w=None,
         rated_w=None,
+        modal_damping=None,
+        default_damping_ratio=[0.0],
         tag=None,
     ):
         self.parameters = {"min_w": min_w, "max_w": max_w, "rated_w": rated_w}
@@ -562,8 +571,15 @@ class Rotor(object):
                 Ksdt0[np.ix_(dofs, dofs)] += elm.Kdt()
 
         self.M0 = M0
-        self.C0 = C0
         self.K0 = K0
+        # Damping configuration
+        self.modal_damping = modal_damping
+        self.default_damping_ratio = default_damping_ratio
+        self.C0 = (
+            C0
+            if self.modal_damping == None
+            else self._modal_damping(self.modal_damping)
+        )
         self.G0 = G0
         self.Ksdt0 = Ksdt0
 
@@ -584,6 +600,9 @@ class Rotor(object):
             v[dofs[a1]] = 1  # alpha
         # Then, use the vector to compute diametral aka transverse inertia of the entire rotor.
         self.It = v @ (self.M0 @ v.T)
+
+    def __add__(self, rotor2):
+        return concatenate_rotor([self, rotor2])
 
     def _set_tag(self, tag):
         """Set the tag for the current rotor."""
@@ -673,6 +692,44 @@ class Rotor(object):
                 else:
                     return brg.n
         return None
+
+    def _modal_damping(self, modal_damping):
+        """Compute the physical damping matrix from modal damping ratios.
+
+        Parameters
+        ----------
+        modal_damping : float or array-like
+            Modal damping ratio(s) to apply to flexible modes (ξ).
+        Returns
+        -------
+        C0 : np.ndarray
+            The physical damping matrix (in physical coordinates) that corresponds
+            to the specified modal damping ratios.
+        """
+
+        evals, evecs = np.linalg.eig(np.linalg.inv(self.M(0)) @ self.K(0))
+        stable = evals >= 0
+        evals = evals[stable]
+        evecs = evecs[:, stable]
+
+        w = np.sqrt(evals.real)
+        below_1rpm = Q_(np.sort(w), "rad/s").to("RPM").m < 1
+        modal_damping = np.block([np.zeros(below_1rpm.sum()), np.array(modal_damping)])
+        idx = np.argsort(w)
+        w = w[idx]
+        phi = evecs[:, idx]
+
+        # Full damping vector (pad with zeros if needed)
+        full_xi = np.ones(w.shape) * np.array(self.default_damping_ratio)
+        full_xi[: len(modal_damping)] = modal_damping
+
+        # Modal damping matrix: C_modal = diag(2 * ξ_i * ω_i)
+        C_modal = np.diag(2 * full_xi * w)
+        M_modal = phi.T @ self.M(0) @ phi
+        T = np.linalg.solve(M_modal, phi.T)
+        C0 = self.M(0) @ phi @ C_modal @ T @ self.M(0)
+
+        return C0
 
     def __eq__(self, other):
         """Equality method for comparisons.
@@ -3170,6 +3227,7 @@ class Rotor(object):
 
         return results
 
+    @check_units
     def run_ucs(
         self,
         stiffness_range=None,
@@ -3430,7 +3488,7 @@ class Rotor(object):
 
         for i, Q in enumerate(stiffness):
             bearings = [copy(b) for b in self.bearing_elements]
-            cross_coupling = bearings[0].__class__(n=n, kxx=0, cxx=0, kxy=Q, kyx=-Q)
+            cross_coupling = BearingElement(n=n, kxx=0, cxx=0, kxy=Q, kyx=-Q)
             bearings.append(cross_coupling)
 
             rotor = self.__class__(self.shaft_elements, self.disk_elements, bearings)
@@ -4643,6 +4701,164 @@ class Rotor(object):
             tag=rotor.tag,
         )
 
+    @check_units
+    def run_clearance_analysis(
+        self,
+        speed,
+        node,
+        unbalance_magnitude,
+        unbalance_phase,
+        frequency=None,
+        modes=None,
+    ):
+        """
+        Perform clearance analysis using unbalance response.
+
+        This method evaluates the vibration amplitude at bearing locations
+        and compares it with the available radial clearance. The unbalance
+        excitation is the same as in :meth:`run_unbalance_response` (node,
+        magnitude, phase, frequency range, and optional mode subset).
+
+        The procedure involves:
+            - Unbalance response calculation at the requested frequencies
+            - Extraction of vibration amplitudes at bearings at the speed of
+              interest (see ``speed`` vs. ``frequency`` below)
+            - Comparison with clearance limits (100% and 75%) after API 617
+              amplitude scaling
+
+        Parameters
+        ----------
+        speed : float, pint.Quantity
+            Operating speed used for API 617 limits and for picking the
+            frequency row when ``frequency`` contains more than one value.
+            Must be a scalar (or an array with a single value), in rad/s.
+        node : list, int
+            Node(s) where the unbalance is applied (same as
+            :meth:`run_unbalance_response`).
+        unbalance_magnitude : list, float, pint.Quantity
+            Unbalance magnitude in kg·m (same as :meth:`run_unbalance_response`).
+        unbalance_phase : list, float, pint.Quantity
+            Unbalance phase in rad (same as :meth:`run_unbalance_response`).
+        frequency : list, ndarray, pint.Quantity, optional
+            Frequency points for the unbalance response in rad/s. If omitted,
+            defaults to ``[speed]`` so the response is evaluated at the
+            operating speed only.
+        modes : list, optional
+            Modes passed to :meth:`run_unbalance_response` (and then to
+            :meth:`run_forced_response`). Use this to control which modes
+            enter the frequency response calculation.
+
+        Returns
+        -------
+        results : ross.ClearanceResults
+            Results object containing:
+                - speed_rpm : float
+                - bearing_nodes : list
+                - magnitudes : ndarray
+                    Peak-to-peak vibration amplitude (microns)
+                - clearance : ndarray
+                    Radial clearance (microns)
+                - clearance_75 : ndarray
+                    75% of radial clearance (microns)
+
+        Examples
+        --------
+        >>> import ross as rs
+        >>> import numpy as np
+        >>> rotor = rs.rotor_example()
+        >>> speed = 600.0
+        >>> result = rotor.run_clearance_analysis(
+        ...     speed=speed,
+        ...     node=3,
+        ...     unbalance_magnitude=0.05,
+        ...     unbalance_phase=0.0,
+        ...     frequency=np.array([speed]),
+        ... )
+        >>> len(result["bearing_nodes"]) == 2
+        True
+        """
+        # Normalize speed to a scalar in rad/s.
+        speed = np.asarray(speed)
+        if speed.ndim == 0:
+            speed = float(speed)
+        elif speed.size == 1:
+            speed = float(speed.reshape(-1)[0])
+        else:
+            raise ValueError(
+                "'speed' must be a scalar (or an array with a single value) for "
+                "run_clearance_analysis."
+            )
+
+        # Convert speed to rpm
+        speed_rpm = Q_(speed, "rad/s").to("RPM").m
+
+        if frequency is None:
+            frequency = np.asarray([speed], dtype=float)
+        else:
+            frequency = np.asarray(frequency, dtype=float)
+
+        # ---  Unbalance response ---
+        response = self.run_unbalance_response(
+            node,
+            unbalance_magnitude,
+            unbalance_phase,
+            frequency,
+            modes=modes,
+        )
+
+        bearing_probes = [
+            Probe(b.n, Q_(0, "rad"), tag=getattr(b, "tag", None))
+            for b in self.bearing_elements
+        ]
+
+        df = response.data_magnitude(
+            probe=bearing_probes,
+            amplitude_units="um pkpk",
+        )
+
+        freq_col = df["frequency"].to_numpy(dtype=float)
+        freq_row = int(np.argmin(np.abs(freq_col - speed)))
+        magnitudes = df.loc[freq_row, df.columns != "frequency"].to_numpy(copy=True)
+
+        # --- STEP 5: API 617 vibration limit (Avl) ---
+        Avl = 25.4 * (12000 / speed_rpm)
+
+        Amax = np.nanmax(magnitudes)
+
+        if not np.isfinite(Amax) or Amax <= 0:
+            raise ValueError("Invalid vibration response.")
+
+        # --- STEP 6: Scale factor (Scc) ---
+        Scc = min(Avl / Amax, 6.0)
+
+        magnitudes_scaled = magnitudes * Scc
+
+        # --- STEP 7: Clearance ---
+        clearance = []
+        clearance_75 = []
+
+        for b in self.bearing_elements:
+            rc = getattr(b, "radial_clearance", None)
+
+            if rc is None:
+                clearance.append(np.nan)
+                clearance_75.append(np.nan)
+                continue
+
+            clr = Q_(rc, "m").to("micron").m
+            clr_val = float(np.nanmax(np.asarray(clr)))
+
+            clearance.append(clr_val)
+            clearance_75.append(0.75 * clr_val)
+
+        return ClearanceResults(
+            speed_rpm=speed_rpm,
+            bearing_nodes=[b.n for b in self.bearing_elements],
+            magnitudes=magnitudes_scaled,
+            clearance=np.array(clearance),
+            clearance_75=np.array(clearance_75),
+        )
+
 
 class CoAxialRotor(Rotor):
     r"""A rotor object.
@@ -5674,3 +5890,58 @@ def rotor_amb_example(controller_transfer_function=None):
         ]
 
     return Rotor(shaft_elements, disk_elements, bearing_elements)
+
+
+def concatenate_rotor(rotor_list):
+    shaft_elements = []
+    disk_elements = []
+    bearing_elements = []
+    point_mass_elements = []
+
+    node_offset = 0
+    rotor_id = 0  # Incremental identifier for tags
+
+    for rotor in rotor_list:
+        rotor = deepcopy(rotor)
+
+        # Reindex shaft elements
+        for i, el in enumerate(rotor.shaft_elements):
+            el.n_l += node_offset
+            el.n_r += node_offset
+            el.n = el.n_l  # Important for ROSS elements
+            el.tag = f"shaft_r{rotor_id}_{i}"
+        shaft_elements.extend(rotor.shaft_elements)
+
+        # Reindex disk elements
+        for i, el in enumerate(rotor.disk_elements):
+            el.n += node_offset
+            el.tag = f"disk_r{rotor_id}_{i}"
+        disk_elements.extend(rotor.disk_elements)
+
+        # Reindex bearing elements
+        for i, el in enumerate(rotor.bearing_elements):
+            el.n += node_offset
+            el.tag = f"bearing_r{rotor_id}_{i}"
+        bearing_elements.extend(rotor.bearing_elements)
+
+        # Reindex point mass elements
+        for i, el in enumerate(rotor.point_mass_elements):
+            el.n += node_offset
+            el.tag = f"pmass_r{rotor_id}_{i}"
+        point_mass_elements.extend(rotor.point_mass_elements)
+
+        # Update offset for the next rotor
+        all_nodes = [el.n_r for el in rotor.shaft_elements] + [
+            el.n for el in rotor.disk_elements + rotor.bearing_elements
+        ]
+        node_offset = max(all_nodes)
+        rotor_id += 1
+
+    rotor_concat = Rotor(
+        shaft_elements=shaft_elements,
+        disk_elements=disk_elements,
+        bearing_elements=bearing_elements,
+        point_mass_elements=point_mass_elements,
+    )
+
+    return rotor_concat
