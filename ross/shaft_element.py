@@ -73,6 +73,12 @@ class ShaftElement(Element):
     shear_method_calc : str, optional
         Determines which shear calculation method the user will adopt
         Default is 'cowper'
+    alpha : float, optional
+        Mass proportional damping factor.
+        Default is zero.
+    beta : float, optional
+        Stiffness proportional damping factor.
+        Default is zero.
     tag : str, optional
         Element tag.
         Default is None.
@@ -150,6 +156,8 @@ class ShaftElement(Element):
         gyroscopic=True,
         shear_method_calc="cowper",
         tag=None,
+        alpha=0,
+        beta=0,
     ):
         if idr is None:
             idr = idl
@@ -186,6 +194,9 @@ class ShaftElement(Element):
         self.idr = float(idr)
         self.odr = float(odr)
         self.color = self.material.color
+
+        self.alpha = float(alpha)
+        self.beta = float(beta)
 
         # A_l = cross section area from the left side of the element
         # A_r = cross section area from the right side of the element
@@ -961,15 +972,15 @@ class ShaftElement(Element):
         ...                         rotary_inertia=True,
         ...                         shear_effects=True)
         >>> Timoshenko_Element.C()[:6, :6]
-        array([[0., 0., 0., 0., 0., 0.],
-               [0., 0., 0., 0., 0., 0.],
-               [0., 0., 0., 0., 0., 0.],
-               [0., 0., 0., 0., 0., 0.],
-               [0., 0., 0., 0., 0., 0.],
-               [0., 0., 0., 0., 0., 0.]])
+        array([[ 0.,  0.,  0.,  0.,  0.,  0.],
+               [ 0.,  0.,  0., -0.,  0.,  0.],
+               [ 0.,  0.,  0.,  0.,  0.,  0.],
+               [ 0., -0.,  0.,  0.,  0.,  0.],
+               [ 0.,  0.,  0.,  0.,  0.,  0.],
+               [ 0.,  0.,  0.,  0.,  0.,  0.]])
         """
-
-        C = np.zeros((12, 12))
+        # proportional damping matrix
+        C = self.alpha * self.M() + self.beta * self.K()
 
         return C
 
@@ -1215,6 +1226,12 @@ class ShaftElement(Element):
         shear_method_calc : str, optional
             Determines which shear calculation method the user will adopt
             Default is equal to value of current instance.
+        alpha : float, optional
+            Mass proportional damping factor.
+            Default is equal to value of current instance.
+        beta : float, optional
+            Stiffness proportional damping factor.
+            Default is equal to value of current instance.
         tag : str, optional
             Element tag.
             Default is None.
@@ -1240,6 +1257,8 @@ class ShaftElement(Element):
             shear_method_calc=attributes.get(
                 "shear_method_calc", self.shear_method_calc
             ),
+            alpha=attributes.get("alpha", self.alpha),
+            beta=attributes.get("beta", self.beta),
             tag=attributes.get("tag", None),
         )
 
@@ -1304,6 +1323,8 @@ class ShaftElement(Element):
                         rotary_inertia=parameters["rotary_inertia"][i],
                         gyroscopic=parameters["gyroscopic"][i],
                         shear_method_calc=parameters["shear_method_calc"][i],
+                        alpha=parameters["alpha"][i] if "alpha" in parameters else 0,
+                        beta=parameters["beta"][i] if "beta" in parameters else 0,
                     )
                 )
         elif sheet_type == "Simple":
@@ -1323,6 +1344,8 @@ class ShaftElement(Element):
                         rotary_inertia=parameters["rotary_inertia"][i],
                         gyroscopic=parameters["gyroscopic"][i],
                         shear_method_calc=parameters["shear_method_calc"][i],
+                        alpha=parameters["alpha"][i] if "alpha" in parameters else 0,
+                        beta=parameters["beta"][i] if "beta" in parameters else 0,
                     )
                 )
         return list_of_shafts
@@ -1341,6 +1364,8 @@ class ShaftElement(Element):
         shear_effects=True,
         rotary_inertia=True,
         gyroscopic=True,
+        alpha=0,
+        beta=0,
     ):
         """Shaft section constructor.
 
@@ -1377,6 +1402,12 @@ class ShaftElement(Element):
         gyroscopic : bool
             Determine if gyroscopic effects are taken into account.
             Default is False.
+        alpha : float, optional
+            Mass proportional damping factor.
+            Default is zero.
+        beta : float, optional
+            Stiffness proportional damping factor.
+            Default is zero.
 
         Returns
         -------
@@ -1415,6 +1446,8 @@ class ShaftElement(Element):
                 shear_effects=shear_effects,
                 rotary_inertia=rotary_inertia,
                 gyroscopic=gyroscopic,
+                alpha=alpha,
+                beta=beta,
             )
             for i in range(ne)
         ]
