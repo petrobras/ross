@@ -33,6 +33,8 @@ def rotor():
             i_d,
             o_d,
             material=steel2,
+            alpha=8.0501, 
+            beta=1.0e-5
         )
         for l in L
     ]
@@ -62,7 +64,7 @@ def rotor():
     )
 
     return rs.Rotor(
-        shaft_elem, [disk0, disk1], [bearing0, bearing1], alpha=8.0501, beta=1.0e-5
+        shaft_elem, [disk0, disk1], [bearing0, bearing1]
     )
 
 
@@ -194,10 +196,10 @@ def test_mis_angular_resp(run_mis_angular):
     probe2 = Probe(20, Q_(90, "deg"))
 
     resp_prob1 = np.array(
-        [0.000000e00, -9.810895e-09, -3.814855e-08, -8.253894e-08, -1.427727e-07]
+        [0.000000e+00, -9.854981e-09, -3.849144e-08, -8.278519e-08, -1.426022e-07]
     )
     resp_prob2 = np.array(
-        [0.000000e00, -1.070682e-10, 2.983838e-09, 1.125557e-08, 1.094712e-08]
+        [0.000000e+00, -1.776735e-10,  2.572261e-09,  1.308438e-08, 1.443712e-08]
     )
 
     data = run_mis_angular.data_time_response(probe=[probe1, probe2])

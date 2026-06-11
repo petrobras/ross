@@ -1798,6 +1798,8 @@ def test_distinct_dof_elements_error():
                 odr=0.05,
                 rotary_inertia=False,
                 shear_effects=False,
+                alpha=0,
+                beta=0
             )
             for l in L
         ]
@@ -1827,8 +1829,6 @@ def test_distinct_dof_elements_error():
             [disk0, disk1],
             [bearing0, bearing1],
             n_eigen=36,
-            alpha=0,
-            beta=0,
         )
 
 
@@ -1845,6 +1845,8 @@ def rotor_6dof():
             i_d,
             o_d,
             material=steel,
+            alpha=1,
+            beta=1e-5
         )
         for l in L
     ]
@@ -1859,7 +1861,7 @@ def rotor_6dof():
     bearing0 = BearingElement(n=0, kxx=1e6, kyy=8e5, kzz=1e5, cxx=0, cyy=0, czz=0)
     bearing1 = BearingElement(n=6, kxx=1e6, kyy=8e5, kzz=1e5, cxx=0, cyy=0, czz=0)
 
-    return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1], alpha=1, beta=1e-5)
+    return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
 
 
 def test_modal_6dof(rotor_6dof):

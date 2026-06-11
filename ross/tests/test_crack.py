@@ -37,6 +37,8 @@ def rotor():
             odr=o_d,
             rotary_inertia=True,
             shear_effects=True,
+            alpha=8.0501, 
+            beta=1.0e-5
         )
         for l in L
     ]
@@ -66,7 +68,7 @@ def rotor():
     )
 
     return rs.Rotor(
-        shaft_elem, [disk0, disk1], [bearing0, bearing1], alpha=8.0501, beta=1.0e-5
+        shaft_elem, [disk0, disk1], [bearing0, bearing1]
     )
 
 
@@ -170,10 +172,10 @@ def test_crack_mayes_resp(run_crack_mayes):
     probe2 = Probe(20, Q_(90, "deg"))
 
     resp_prob1 = np.array(
-        [0.000000e00, -2.213958e-08, -1.102517e-07, -2.853502e-07, -5.462954e-07]
+        [0.000000e+00, -2.216636e-08, -1.103837e-07, -2.857135e-07, -5.470770e-07]
     )
     resp_prob2 = np.array(
-        [0.000000e00, -2.435054e-08, -1.211191e-07, -3.136121e-07, -6.049112e-07]
+        [0.000000e+00, -2.439104e-08, -1.212799e-07, -3.134990e-07, -6.033949e-07]
     )
 
     data = run_crack_mayes.data_time_response(probe=[probe1, probe2])
@@ -201,10 +203,10 @@ def test_crack_gasch_resp(run_crack_gasch):
     probe2 = Probe(24, Q_(90, "deg"))
 
     resp_prob1 = np.array(
-        [0.000000e00, -1.719238e-08, -8.529932e-08, -2.191550e-07, -4.161900e-07]
+        [0.000000e+00, -1.721378e-08, -8.544818e-08, -2.194613e-07, -4.161038e-07]
     )
     resp_prob2 = np.array(
-        [0.000000e00, -2.453337e-08, -1.228001e-07, -3.197860e-07, -6.157187e-07]
+        [0.000000e+00, -2.453792e-08, -1.228394e-07, -3.200059e-07, -6.164974e-07]
     )
 
     data = run_crack_gasch.data_time_response(probe=[probe1, probe2])
