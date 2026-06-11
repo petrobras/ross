@@ -2042,11 +2042,21 @@ function generatePythonFile() {
         py += `# Analysis \n`;
         py += `# ==========================================\n`;
         activeAnalyses.forEach((a, i) => {
-            let p = a.params;
+            let p = a.params;            
+            const getPyVal = (key, targetUnit) => {
+                let val = p[key];
+                if (val === undefined || val === '') return '0';
+                let unit = p[key + '_unit'];
+                if (unit && targetUnit) {
+                    return `float(Q_(${val}, '${unit}').to('${targetUnit}').m)`;
+                }
+                return val; 
+            };
+
             py += `\n# Analysis ${i+1}: ${a.type.toUpperCase()}\n`;
             
             if (a.type === 'campbell') {
-                py += `speed_rads = np.linspace(${p.speed_min}, ${p.speed_max}, ${p.speed_steps})\n`;
+                py += `speed_rads = np.linspace(${getPyVal('speed_min', 'rad/s')}, ${getPyVal('speed_max', 'rad/s')}, ${p.speed_steps || 50})\n`;
                 py += `camp_${i} = rotor.run_campbell(speed_rads, frequencies=${p.frequencies || 6}, frequency_type='${p.frequency_type || 'wd'}', torsional_analysis=${p.torsional_analysis === 'True' ? 'True' : 'False'})\n`;
                 
                 let pArgs = [];
@@ -2072,7 +2082,7 @@ function generatePythonFile() {
                 py += `ucs_${i}.plot(${pArgs.join(', ')}).show()\n`;
                 
             } else if (a.type === 'freq_response') {
-                py += `speed_rads = np.linspace(${p.speed_min}, ${p.speed_max}, 50)\n`;
+                py += `speed_rads = np.linspace(${getPyVal('speed_min', 'rad/s')}, ${getPyVal('speed_max', 'rad/s')}, ${p.speed_steps || 50})\n`;
                 let modesArg = p.modes ? `, modes=${p.modes}` : '';
                 py += `freq_${i} = rotor.run_freq_response(speed_rads${modesArg}, free_free=${p.free_free === 'True' ? 'True' : 'False'})\n`;
                 py += `dofs_per_node = rotor.ndof // len(rotor.nodes)\n`;
@@ -2111,7 +2121,7 @@ function generatePythonFile() {
                 py += `fig_freq_${i}.show()\n`;
                 
             } else if (a.type === 'modes') {
-                py += `modal_${i} = rotor.run_modal(speed=${p.speed}, num_modes=${p.num_modes}, sparse=${p.sparse === 'False' ? 'False' : 'True'}, synchronous=${p.synchronous === 'True' ? 'True' : 'False'})\n`;
+                py += `modal_${i} = rotor.run_modal(speed=${getPyVal('speed', 'rad/s')}, num_modes=${p.num_modes}, sparse=${p.sparse === 'False' ? 'False' : 'True'}, synchronous=${p.synchronous === 'True' ? 'True' : 'False'})\n`;
                 
                 if (p.plot_type === '3D') {
                     let pArgs = [];
@@ -2135,7 +2145,7 @@ function generatePythonFile() {
                 }
                 
             } else if (a.type === 'unbalance') {
-                py += `speed_rads = np.linspace(${p.speed_min}, ${p.speed_max}, 50)\n`;
+                py += `speed_rads = np.linspace(${getPyVal('speed_min', 'rad/s')}, ${getPyVal('speed_max', 'rad/s')}, 50)\n`;
                 const nodes = p.unbalances && p.unbalances.length > 0 ? p.unbalances.map(u => u.node).join(', ') : '0';
                 const mags = p.unbalances && p.unbalances.length > 0 ? p.unbalances.map(u => u.mag).join(', ') : '0.01';
                 const phases = p.unbalances && p.unbalances.length > 0 ? p.unbalances.map(u => u.phase).join(', ') : '0.0';
@@ -2162,7 +2172,7 @@ function generatePythonFile() {
             } else if (['time_response', 'misalignment', 'rubbing', 'crack'].includes(a.type)) {
                 
                 if (a.type === 'time_response') {
-                    py += `speed = ${p.speed}\n`;
+                    py += `speed = ${getPyVal('speed', 'rad/s')}\n`;
                     py += `t = np.linspace(0, ${p.t_max || 1.0}, ${p.steps || 1000})\n`;
                     py += `dofs_per_node = rotor.ndof // len(rotor.nodes)\n`;
                     py += `F_${i} = np.zeros((len(t), rotor.ndof))\n`; 
@@ -2197,15 +2207,15 @@ function generatePythonFile() {
                         } else {
                             if (p.mis_distance) kw.push(`mis_distance=${p.mis_distance}`);
                         }
-                        py += `resp_${i} = rotor.run_misalignment(node=[${nodes}], unbalance_magnitude=[${mags}], unbalance_phase=[${phases}], speed=${p.speed}, t=t_sim, ${kw.join(', ')})\n`;
+                        py += `resp_${i} = rotor.run_misalignment(node=[${nodes}], unbalance_magnitude=[${mags}], unbalance_phase=[${phases}], speed=${getPyVal('speed', 'rad/s')}, t=t_sim, ${kw.join(', ')})\n`;
                     }
                     else if (a.type === 'rubbing') {
-                        py += `resp_${i} = rotor.run_rubbing(n=${p.n || 0}, distance=${p.distance || 0}, contact_stiffness=${p.contact_stiffness || 0}, contact_damping=${p.contact_damping || 0}, friction_coeff=${p.friction_coeff || 0}, node=[${nodes}], unbalance_magnitude=[${mags}], unbalance_phase=[${phases}], speed=${p.speed}, t=t_sim, torque=${p.torque === 'True' ? 'True' : 'False'})\n`;
+                        py += `resp_${i} = rotor.run_rubbing(n=${p.n || 0}, distance=${p.distance || 0}, contact_stiffness=${p.contact_stiffness || 0}, contact_damping=${p.contact_damping || 0}, friction_coeff=${p.friction_coeff || 0}, node=[${nodes}], unbalance_magnitude=[${mags}], unbalance_phase=[${phases}], speed=${getPyVal('speed', 'rad/s')}, t=t_sim, torque=${p.torque === 'True' ? 'True' : 'False'})\n`;
                     }
                     else if (a.type === 'crack') {
                         let kw = [];
                         if (p.cross_divisions) kw.push(`cross_divisions=${p.cross_divisions}`);
-                        py += `resp_${i} = rotor.run_crack(n=${p.n || 0}, depth_ratio=${p.depth_ratio || 0}, node=[${nodes}], unbalance_magnitude=[${mags}], unbalance_phase=[${phases}], speed=${p.speed}, t=t_sim, crack_model='${p.crack_model || 'Mayes'}'${kw.length > 0 ? ', ' + kw.join(', ') : ''})\n`;
+                        py += `resp_${i} = rotor.run_crack(n=${p.n || 0}, depth_ratio=${p.depth_ratio || 0}, node=[${nodes}], unbalance_magnitude=[${mags}], unbalance_phase=[${phases}], speed=${getPyVal('speed', 'rad/s')}, t=t_sim, crack_model='${p.crack_model || 'Mayes'}'${kw.length > 0 ? ', ' + kw.join(', ') : ''})\n`;
                     }
                 }
                 
@@ -2260,7 +2270,7 @@ function generatePythonFile() {
                 py += `    'harmonics': ${p.hb_harmonics || '[1]'}\n`;
                 py += `}]\n`;
                 
-                py += `hb_${i} = rotor.run_harmonic_balance_response(speed=${p.speed}, t=t_hb, harmonic_forces=harmonic_forces, gravity=${p.gravity === 'True' ? 'True' : 'False'}, n_harmonics=${p.n_harmonics || 1})\n`;
+                py += `hb_${i} = rotor.run_harmonic_balance_response(speed=${getPyVal('speed', 'rad/s')}, t=t_hb, harmonic_forces=harmonic_forces, gravity=${p.gravity === 'True' ? 'True' : 'False'}, n_harmonics=${p.n_harmonics || 1})\n`;
                 
                 const probesStr = p.probes && p.probes.length > 0 ? p.probes.map(pr => `rs.Probe(${pr.node}, ${pr.angle})`).join(', ') : 'rs.Probe(0, 0)';
                 let pArgs = [];
@@ -2276,7 +2286,7 @@ function generatePythonFile() {
                 if(p.frequency) kwargs.push(`frequency=${p.frequency}`);
                 if(p.modes) kwargs.push(`modes=${p.modes}`);
                 
-                py += `clearance_${i} = rotor.run_clearance_analysis(speed=${p.speed}, node=${p.node}, unbalance_magnitude=unb_mag, unbalance_phase=unb_phase${kwargs.length > 0 ? ', ' + kwargs.join(', ') : ''})\n`;
+                py += `clearance_${i} = rotor.run_clearance_analysis(speed=${getPyVal('speed', 'rad/s')}, node=${p.node}, unbalance_magnitude=unb_mag, unbalance_phase=unb_phase${kwargs.length > 0 ? ', ' + kwargs.join(', ') : ''})\n`;
                 py += `clearance_${i}.plot().show()\n`;
             }
         });
