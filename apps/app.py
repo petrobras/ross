@@ -86,6 +86,16 @@ def get_int(dictionary, key, default=0):
         return default
     return int(float(val))
 
+def safe_math_eval(expr):
+    safe_dict = {
+        'pi': math.pi, 'sin': math.sin, 'cos': math.cos, 'tan': math.tan,
+        'sqrt': math.sqrt, 'exp': math.exp, 'log': math.log, 'np': np
+    }
+    try:
+        return float(eval(expr, {"__builtins__": None}, safe_dict))
+    except Exception:
+        raise ValueError(f"It was not possible to evaluate the mathematical expression: {expr}")
+
 def extract_kwargs(d, mat_dict, element_type, ignore_keys=['element_type', 'n']):
     kwargs = {}
     int_keys = ['n_pad', 'n_theta', 'n_radial', 'n_teeth', 'n_rollers', 'n_balls', 'nx', 'nz', 'nr_pad', 'max_inlet_iterations', 'max_jtemp_iter', 'max_iterations', 'elements_circumferential', 'elements_axial', 'n_link', 'n_l', 'n_r']    
@@ -129,18 +139,22 @@ def extract_kwargs(d, mat_dict, element_type, ignore_keys=['element_type', 'n'])
             
             try:
                 val_num = float(v_strip)
-                if k in int_keys:
-                    val_num = int(val_num)
-                
-                unit = d.get(f"{k}_unit", unit_map.get(k))
-                if unit:
-                    kwargs[k] = Q_(val_num, unit).to_base_units()
-                else:
-                    kwargs[k] = val_num
-                continue
             except ValueError:
-                kwargs[k] = v_strip
-                continue
+                try:
+                    val_num = safe_math_eval(v_strip)
+                except ValueError:
+                    kwargs[k] = v_strip
+                    continue
+
+            if k in int_keys:
+                val_num = int(val_num)
+            
+            unit = d.get(f"{k}_unit", unit_map.get(k))
+            if unit:
+                kwargs[k] = Q_(val_num, unit).to_base_units()
+            else:
+                kwargs[k] = val_num
+            continue
         else:
             kwargs[k] = v
             
@@ -415,6 +429,13 @@ def run_analysis():
 
     try:
         rotor = build_rotor_from_ui(data)
+        
+        conversion_type = data.get('conversion_type', '')
+        if conversion_type == '4dof':
+            rotor = rs.utils.convert_6dof_to_4dof(rotor)
+        elif conversion_type == 'torsional':
+            rotor = rs.utils.convert_6dof_to_torsional(rotor)
+
         dofs_per_node = rotor.ndof // len(rotor.nodes)
         
         a_hash = get_analysis_hash(data)

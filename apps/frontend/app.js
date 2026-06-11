@@ -1491,6 +1491,17 @@ async function addAnalysis(event) {
     if(event) event.preventDefault();
     const type = document.getElementById('analysis-type').value;
     if(!type) return alert("Select an analysis.");
+    
+    const conversionNode = document.getElementById('rotor-conversion-type');
+    const conversionType = conversionNode ? conversionNode.value : '';
+
+    let conversionBadge = '';
+    if (conversionType === '4dof') {
+        conversionBadge = `<span class="badge-conversion" title="Model reduced to 4 Degrees of Freedom per node">4 DoF</span>`;
+    } else if (conversionType === 'torsional') {
+        conversionBadge = `<span class="badge-conversion badge-torsional" title="Model reduced to Torsional DoF only">Torsional</span>`;
+    }
+    
     const uniqueId = Date.now() + Math.random().toString().slice(2,8);
     const plotId = 'plot-' + uniqueId;
     const cardId = 'card-' + uniqueId;
@@ -1506,10 +1517,11 @@ async function addAnalysis(event) {
     };
     const title = typeNames[type] || type.toUpperCase();
     const controlsHTML = buildDashboardHTML(uniqueId, type);
+    
     list.insertAdjacentHTML('afterbegin', `
         <div class="analysis-card" id="${cardId}">
             <div class="analysis-header" onclick="toggleAnalysis('${uniqueId}')">
-                <span class="analysis-title"><i class="fas fa-chart-line"></i> ${title}</span>
+                <span class="analysis-title"><i class="fas fa-chart-line"></i> ${title} ${conversionBadge}</span>
                 <div class="analysis-actions">
                     <button class="btn-update-analysis" onclick="event.stopPropagation(); runCardAnalysis('${uniqueId}', '${type}')"><i class="fas fa-sync-alt"></i> Update</button>
                     <button class="btn-help-analysis" onclick="openAnalysisCardHelp(event, '${type}')"><i class="fas fa-question-circle"></i> Help</button>
@@ -1517,7 +1529,6 @@ async function addAnalysis(event) {
                     <span id="icon-${uniqueId}"><i class="fas fa-chevron-down"></i></span>
                 </div>
             </div>
-            <!-- ADICIONADO O POSITION: RELATIVE NA LINHA ABAIXO -->
             <div class="analysis-body" id="body-${uniqueId}" style="padding:0; background:var(--bg-workspace); position: relative;">
                 <div id="${plotId}" style="min-height: 400px; width: 100%; overflow: hidden; position:relative;"></div>
                 ${controlsHTML}
@@ -1612,7 +1623,9 @@ async function runCardAnalysis(uniqueId, type) {
     } else {
         loader.style.display = 'block';
     }
-    const payload = Object.assign({ analysis_type: type, params: p }, projectData);
+    const conversionNode = document.getElementById('rotor-conversion-type');
+    const conversionType = conversionNode ? conversionNode.value : '';
+    const payload = Object.assign({ analysis_type: type, params: p, conversion_type: conversionType }, projectData);
     try {
         const resp = await fetch('http://127.0.0.1:5001/run_analysis', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
         const data = await resp.json();
@@ -1974,6 +1987,18 @@ function generatePythonFile() {
 
     py += `\n# Rotor Assembly \n`;
     py += `rotor = rs.Rotor(\n    shaft_elements=shafts + couplings,\n    disk_elements=disks + gears,\n    bearing_elements=bearings + seals,\n    point_mass_elements=point_masses\n)\n`;
+
+    const conversionNode = document.getElementById('rotor-conversion-type');
+    const conversionType = conversionNode ? conversionNode.value : '';
+    
+    if (conversionType === '4dof') {
+        py += `rotor = rs.utils.convert_6dof_to_4dof(rotor)\n`;
+        py += `print("Rotor converted to 4 DoF!")\n`;
+    } else if (conversionType === 'torsional') {
+        py += `rotor = rs.utils.convert_6dof_to_torsional(rotor)\n`;
+        py += `print("Rotor converted to Torsional!")\n`;
+    }
+
     py += `print("Rotor Modeled Successfully!")\nrotor.plot_rotor().show()\n\n`;
 
     const cards = document.querySelectorAll('.analysis-card');
