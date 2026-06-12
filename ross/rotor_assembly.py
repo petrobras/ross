@@ -307,7 +307,7 @@ class Rotor(object):
             [df_shaft, df_disks, df_bearings, df_point_mass, df_seals], sort=True
         )
         df = df.sort_values(by="n_l")
-        df = df.reset_index(drop=True)
+        df = df.reset_index(drop=True).copy()
         df["shaft_number"] = np.zeros(len(df))
 
         df_shaft["shaft_number"] = np.zeros(len(df_shaft))
@@ -445,7 +445,9 @@ class Rotor(object):
             df.at[df.loc[df.tag == elm.tag].index[0], "dof_global_index"] = (
                 elm.dof_global_index
             )
-
+            
+        df = df.copy()
+        
         # define positions for disks
         for elm in self.disk_elements:
             i = self.nodes.index(elm.n)
