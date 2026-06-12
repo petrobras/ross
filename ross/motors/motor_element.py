@@ -22,8 +22,6 @@ from .utils import phase_to_line, clarke_transform, park_transform, rk4_step
 
 __all__ = ["MotorElement", "motor_example"]
 
-_MOTOR_SVG_PATH = Path(__file__).parent / "electric_motor.svg"
-
 
 class MotorElement(Element):
     """Create a 3-phase induction motor element for rotordynamic analysis.
@@ -34,7 +32,7 @@ class MotorElement(Element):
     Parameters
     ----------
     n : int
-        Node at which the motor is coupled.
+        Node at which the torque is applied to the shaft.
     power_nom : float, pint.Quantity
         Nominal power [W].
     voltage_nom : float
@@ -88,7 +86,18 @@ class MotorElement(Element):
         Default is 1.
     color : str, optional
         Color used when the element is represented in the rotor plot.
-        It needs to be in hex format. Default is "#4682c9".
+        It needs to be in hex format. Default is "#001969".
+
+    Notes
+    -----
+    This class models the electromechanical behavior of a TPIM and computes
+    electric torque in time. It is **not** a structural rotor element: it does
+    not contribute to the rotor global mass, stiffness, damping, or gyroscopic
+    matrices assembled by ``Rotor``.
+
+    The node ``n`` identifies where motor torque is applied on the shaft
+    (torsional DOF). Use ``.run_with_AC_source()`` / ``.run_with_inverter()`` to
+    obtain ``electric_torque``, then apply it in ``.run_time_response()``.
 
     Examples
     --------
@@ -143,7 +152,7 @@ class MotorElement(Element):
         XR_ratio_net=80.0,
         tag=None,
         scale_factor=1,
-        color="#4682c9",
+        color="#001969",
     ):
 
         # Numerical Validation of NOMP entries
@@ -407,14 +416,13 @@ class MotorElement(Element):
         """Motor element patch.
 
         Patch used to draw the motor element in the rotor plot using Plotly.
-        The motor icon is rendered from ``electric_motor.svg``.
+        The motor icon is rendered from ``motor_icon.svg``.
 
         Parameters
         ----------
         position : tuple
-            Position ``(zpos, ypos, yc_pos, scale_factor, side)`` in which the
-            patch will be drawn. ``side`` must be ``"left"`` or ``"right"`` and
-            defines the direction in which the motor extends from the node.
+            Position ``(zpos, ypos, yc_pos, scale_factor)`` in which the
+            patch will be drawn. The icon is centered on ``(zpos, yc_pos)``.
         fig : plotly.graph_objects.Figure
             The figure object which traces are added on.
 
@@ -423,30 +431,16 @@ class MotorElement(Element):
         fig : plotly.graph_objects.Figure
             The figure object which traces are added on.
         """
-        zpos, ypos, yc_pos, scale_factor, side = position
-
-        yc_pos += 4e-3
+        zpos, ypos, yc_pos, scale_factor = position
 
         customdata, hovertemplate = self._hover_info()
 
-        image_height = max(ypos * 8.0, scale_factor * 4.0)
-        image_width = image_height * 0.9
+        image_height = max(ypos, scale_factor * 0.9)
+        image_width = image_height
         marker_size = image_height * 350
 
-        svg = _MOTOR_SVG_PATH.read_text(encoding="utf-8")
-
-        if side == "right":
-            x_anchor = "left"
-            z_hover = zpos + image_width / 2
-        else:
-            x_anchor = "right"
-            z_hover = zpos - image_width / 2
-            svg = svg.replace(
-                "<svg ",
-                '<svg transform="scale(-1,1)" ',
-                1,
-            )
-
+        svg_path = Path(__file__).parent / "motor_icon.svg"
+        svg = svg_path.read_text(encoding="utf-8")
         svg = svg.replace("#61809A", f"{self.color}")
 
         encoded = base64.b64encode(svg.encode("utf-8")).decode("ascii")
@@ -461,17 +455,16 @@ class MotorElement(Element):
                 y=yc_pos,
                 sizex=image_width,
                 sizey=image_height,
-                xanchor=x_anchor,
+                xanchor="center",
                 yanchor="middle",
-                sizing="stretch",
-                layer="below",
-                opacity=0.8,
+                layer="above",
+                opacity=0.9,
             )
         )
 
         fig.add_trace(
             go.Scatter(
-                x=[z_hover],
+                x=[zpos],
                 y=[yc_pos],
                 mode="markers",
                 marker=dict(size=marker_size, color=self.color, opacity=0),

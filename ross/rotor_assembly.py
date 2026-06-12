@@ -95,6 +95,8 @@ class Rotor(object):
         List with the bearing elements
     point_mass_elements: list
         List with the point mass elements
+    motor_elements: list
+        List with the motor elements
     modal_damping: list
         List of modal damping ratios for the first modes
     default_damping_ratio: list
@@ -153,6 +155,7 @@ class Rotor(object):
         disk_elements=None,
         bearing_elements=None,
         point_mass_elements=None,
+        motor_elements=None,
         min_w=None,
         max_w=None,
         rated_w=None,
@@ -200,6 +203,8 @@ class Rotor(object):
             bearing_elements = []
         if point_mass_elements is None:
             point_mass_elements = []
+        if motor_elements is None:
+            motor_elements = []
 
         for i, disk in enumerate(disk_elements):
             self._set_element_tag(disk, i)
@@ -229,8 +234,11 @@ class Rotor(object):
             )
         ]
 
+        # not included in the elements list, because they are not structural elements
+        self.motor_elements = motor_elements
+
         # check if tags are unique
-        tags_list = [el.tag for el in self.elements]
+        tags_list = [el.tag for el in self.elements] + [m.tag for m in self.motor_elements]
         if len(tags_list) != len(set(tags_list)):
             raise ValueError("Tags should be unique.")
 
@@ -279,6 +287,7 @@ class Rotor(object):
             ]
         )
         df_point_mass = pd.DataFrame([el.summary() for el in self.point_mass_elements])
+        df_motors = pd.DataFrame([el.summary() for el in self.motor_elements])
 
         nodes_pos_l = np.zeros(len(df_shaft.n_l))
         nodes_pos_r = np.zeros(len(df_shaft.n_l))
@@ -305,7 +314,7 @@ class Rotor(object):
         df_shaft["axial_cg_pos"] = axial_cg_pos
 
         df = pd.concat(
-            [df_shaft, df_disks, df_bearings, df_point_mass, df_seals], sort=True
+            [df_shaft, df_disks, df_bearings, df_point_mass, df_seals, df_motors], sort=True
         )
         df = df.sort_values(by="n_l")
         df = df.reset_index(drop=True)
@@ -316,21 +325,23 @@ class Rotor(object):
         df_bearings["shaft_number"] = np.zeros(len(df_bearings))
         df_seals["shaft_number"] = np.zeros(len(df_seals))
         df_point_mass["shaft_number"] = np.zeros(len(df_point_mass))
+        df_motors["shaft_number"] = np.zeros(len(df_motors))
 
         self.df_disks = df_disks
         self.df_bearings = df_bearings
         self.df_shaft = df_shaft
         self.df_point_mass = df_point_mass
         self.df_seals = df_seals
+        self.df_motors = df_motors
 
-        # check consistence for disks and bearings location
+        # check consistence for elements location
         if len(df_point_mass) > 0:
             max_loc_point_mass = df_point_mass.n.max()
         else:
             max_loc_point_mass = 0
         max_location = max(df_shaft.n_r.max(), max_loc_point_mass)
         if df.n_l.max() > max_location:
-            raise ValueError("Trying to set disk or bearing outside shaft")
+            raise ValueError(f"Trying to set {df.tag.iloc[df.n_l.max()]} outside shaft")
 
         # nodes axial position and diameter
         self._set_nodes(df_shaft)
@@ -443,6 +454,14 @@ class Rotor(object):
             df.at[df.loc[df.tag == elm.tag].index[0], "dof_global_index"] = (
                 elm.dof_global_index
             )
+        
+        # define positions for motors
+        for elm in self.motor_elements:
+            i = self.nodes.index(elm.n)
+            z_pos = self.nodes_pos[i]
+            df.loc[df.tag == elm.tag, "nodes_pos_l"] = z_pos
+            df.loc[df.tag == elm.tag, "nodes_pos_r"] = z_pos
+            df.loc[df.tag == elm.tag, "y_pos"] = 0.0
 
         # define positions for disks
         for elm in self.disk_elements:
@@ -2996,8 +3015,8 @@ class Rotor(object):
             fig = sh_elm._patch(position, check_sld, fig, length_units)
 
         mean_od = np.mean(nodes_o_d)
-        # plot disk elements
 
+        # plot disk elements
         # calculate scale factor if disks have scale_factor='mass'
         if self.disk_elements:
             scaled_disks = [
@@ -3073,6 +3092,23 @@ class Rotor(object):
 
             position = (z_pos, y_pos, yc_pos)
             fig = p_mass._patch(position, fig)
+        
+        # plot_motors
+        if self.motor_elements:
+            for motor in self.motor_elements:
+                z_pos = (
+                    Q_(self.df[self.df.tag == motor.tag]["nodes_pos_l"].values[0], "m")
+                    .to(length_units)
+                    .m
+                )
+                y_pos = (
+                    Q_(self.df[self.df.tag == motor.tag]["y_pos"].values[0], "m")
+                    .to(length_units)
+                    .m
+                )
+                yc_pos = center_line_pos[self.nodes.index(motor.n)]
+                position = (z_pos, y_pos, yc_pos, mean_od)
+                fig = motor._patch(position, fig)
 
         fig.update_xaxes(
             title_text=f"Axial location ({length_units})",
