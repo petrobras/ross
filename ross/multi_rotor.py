@@ -202,7 +202,7 @@ class MultiRotor(Rotor):
         d_node = 0
         if R1_max_node >= R2_min_node:
             d_node = R1_max_node + 1
-            for elm in R2.elements:
+            for elm in R2.elements + R2.motor_elements:
                 elm.n += d_node
                 try:
                     elm.n_link += d_node
@@ -215,12 +215,14 @@ class MultiRotor(Rotor):
         disk_elements = [*R1.disk_elements, *R2.disk_elements]
         bearing_elements = [*R1.bearing_elements, *R2.bearing_elements]
         point_mass_elements = [*R1.point_mass_elements, *R2.point_mass_elements]
+        motor_elements = [*R1.motor_elements, *R2.motor_elements]
 
         super().__init__(
             shaft_elements,
             disk_elements,
             bearing_elements,
             point_mass_elements,
+            motor_elements,
             tag=tag,
         )
 

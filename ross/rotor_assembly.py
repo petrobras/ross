@@ -33,6 +33,7 @@ from ross.faults import Crack, MisalignmentFlex, MisalignmentRigid, Rubbing
 from ross.materials import Material, steel
 from ross.model_reduction import ModelReduction
 from ross.point_mass import PointMass
+from ross.motors.motor_element import MotorElement
 from ross.probe import Probe
 from ross.results import (
     CampbellResults,
@@ -218,6 +219,9 @@ class Rotor(object):
         for i, p_mass in enumerate(point_mass_elements):
             self._set_element_tag(p_mass, i)
 
+        for i, motor in enumerate(motor_elements):
+            self._set_element_tag(motor, i)
+
         self.shaft_elements = sorted(shaft_elements, key=lambda el: el.n)
         self.bearing_elements = sorted(bearing_elements, key=lambda el: el.n)
         self.disk_elements = disk_elements
@@ -234,11 +238,11 @@ class Rotor(object):
             )
         ]
 
-        # not included in the elements list, because they are not structural elements
+        # motor elements are not included in the elements list, they are not structural elements
         self.motor_elements = motor_elements
 
         # check if tags are unique
-        tags_list = [el.tag for el in self.elements] + [m.tag for m in self.motor_elements]
+        tags_list = [el.tag for el in self.elements + self.motor_elements]
         if len(tags_list) != len(set(tags_list)):
             raise ValueError("Tags should be unique.")
 
@@ -802,12 +806,14 @@ class Rotor(object):
         disk_elements = deepcopy(self.disk_elements)
         bearing_elements = deepcopy(self.bearing_elements)
         point_mass_elements = deepcopy(self.point_mass_elements)
+        motor_elements = deepcopy(self.motor_elements)
 
         elements = [
             *shaft_elements,
             *disk_elements,
             *bearing_elements,
             *point_mass_elements,
+            *motor_elements,
         ]
 
         target_elements = []
@@ -870,6 +876,7 @@ class Rotor(object):
             disk_elements=disk_elements,
             bearing_elements=bearing_elements,
             point_mass_elements=point_mass_elements,
+            motor_elements=motor_elements,
             min_w=self.min_w,
             max_w=self.max_w,
             rated_w=self.rated_w,
@@ -907,6 +914,7 @@ class Rotor(object):
         disk_elements = deepcopy(self.disk_elements)
         bearing_elements = deepcopy(self.bearing_elements)
         point_mass_elements = deepcopy(self.point_mass_elements)
+        motor_elements = deepcopy(self.motor_elements)
 
         for el in new_elements:
             main_class = el.__class__.get_base_class()
@@ -917,12 +925,17 @@ class Rotor(object):
                 bearing_elements.append(el)
             elif main_class == PointMass:
                 point_mass_elements.append(el)
+            elif main_class == MotorElement:
+                motor_elements.append(el)
+            else:
+                raise ValueError(f"{el} is not a valid element.")
 
         return Rotor(
             shaft_elements,
             disk_elements=disk_elements,
             bearing_elements=bearing_elements,
             point_mass_elements=point_mass_elements,
+            motor_elements=motor_elements,
             min_w=self.min_w,
             max_w=self.max_w,
             rated_w=self.rated_w,
@@ -4250,6 +4263,8 @@ class Rotor(object):
         disk_elements = []
         bearing_elements = []
         point_mass_elements = []
+        motor_elements = []
+        
         for el in elements:
             if isinstance(el, ShaftElement):
                 shaft_elements.append(el)
@@ -4259,12 +4274,15 @@ class Rotor(object):
                 bearing_elements.append(el)
             elif isinstance(el, PointMass):
                 point_mass_elements.append(el)
+            elif isinstance(el, MotorElement):
+                motor_elements.append(el)
 
         return cls(
             shaft_elements=shaft_elements,
             disk_elements=disk_elements,
             bearing_elements=bearing_elements,
             point_mass_elements=point_mass_elements,
+            motor_elements=motor_elements,
             **parameters,
         )
 
@@ -5037,6 +5055,7 @@ class CoAxialRotor(Rotor):
         disk_elements=None,
         bearing_elements=None,
         point_mass_elements=None,
+        motor_elements=None,
         min_w=None,
         max_w=None,
         rated_w=None,
@@ -5081,6 +5100,8 @@ class CoAxialRotor(Rotor):
             bearing_elements = []
         if point_mass_elements is None:
             point_mass_elements = []
+        if motor_elements is None:
+            motor_elements = []
 
         for i, disk in enumerate(disk_elements):
             if disk.tag is None:
@@ -5103,6 +5124,7 @@ class CoAxialRotor(Rotor):
         self.bearing_elements = sorted(bearing_elements, key=lambda el: el.n)
         self.disk_elements = disk_elements
         self.point_mass_elements = point_mass_elements
+        self.motor_elements = motor_elements
         self.elements = list(
             chain(
                 *[
@@ -5158,7 +5180,8 @@ class CoAxialRotor(Rotor):
             ]
         )
         df_point_mass = pd.DataFrame([el.summary() for el in self.point_mass_elements])
-
+        df_motors = pd.DataFrame([el.summary() for el in self.motor_elements])
+        
         nodes_pos_l = np.zeros(len(df_shaft.n_l))
         nodes_pos_r = np.zeros(len(df_shaft.n_l))
         axial_cg_pos = np.zeros(len(df_shaft.n_l))
@@ -5311,12 +5334,16 @@ class CoAxialRotor(Rotor):
         df_point_mass["shaft_number"] = df.loc[
             (df.type == "PointMass"), "shaft_number"
         ].values
+        df_motors["shaft_number"] = df.loc[
+            (df.type == "MotorElement"), "shaft_number"
+        ].values
 
         self.df_disks = df_disks
         self.df_bearings = df_bearings
         self.df_shaft = df_shaft
         self.df_point_mass = df_point_mass
         self.df_seals = df_seals
+        self.df_motors = df_motors
 
         if "n_link" in df.columns and df_point_mass.index.size > 0:
             aux_link = list(df["n_link"].dropna().unique().astype(int))
@@ -5986,7 +6013,8 @@ def concatenate_rotor(rotor_list):
     disk_elements = []
     bearing_elements = []
     point_mass_elements = []
-
+    motor_elements = []
+    
     node_offset = 0
     rotor_id = 0  # Incremental identifier for tags
 
@@ -6019,6 +6047,12 @@ def concatenate_rotor(rotor_list):
             el.tag = f"pmass_r{rotor_id}_{i}"
         point_mass_elements.extend(rotor.point_mass_elements)
 
+        # Reindex motor elements
+        for i, el in enumerate(rotor.motor_elements):
+            el.n += node_offset
+            el.tag = f"motor_r{rotor_id}_{i}"
+        motor_elements.extend(rotor.motor_elements)
+
         # Update offset for the next rotor
         all_nodes = [el.n_r for el in rotor.shaft_elements] + [
             el.n for el in rotor.disk_elements + rotor.bearing_elements
@@ -6031,6 +6065,7 @@ def concatenate_rotor(rotor_list):
         disk_elements=disk_elements,
         bearing_elements=bearing_elements,
         point_mass_elements=point_mass_elements,
+        motor_elements=motor_elements,
     )
 
     return rotor_concat
