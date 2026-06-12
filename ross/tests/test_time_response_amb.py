@@ -11,7 +11,7 @@ def test_run_time_amb_response():
     """
     # Setup the rotor model
     rotor = rotor_amb_example_with_complex_controllers()
-    sim = TimeResponseAmb(rotor)
+    sim = TimeResponseAmb(rotor, t_sim=10, dt=1e-5, speed=0)
 
     # Execute the simulation
     sim.run()

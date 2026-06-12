@@ -28,20 +28,34 @@ class TimeResponseAmb:
         Defaults to True.
     """
 
-    def __init__(self, rotor, weight=True):
+    def __init__(self, rotor, t_sim, dt, speed, weight=True):
         """
-        Initialize the RunTimeAmbResponse simulation.
+        Initialize the TimeResponseAmb simulation.
+
+        Parameters
+        ----------
+        rotor : ross.Rotor
+            The rotor model to be simulated.
+        t_sim : float
+            Simulation time in seconds.
+        dt : float
+            Simulation time step in seconds.
+        speed : float
+            Rotor speed in rad/s.
+        weight : bool, optional
+            Whether to include gravitational forces in the simulation.
+            Defaults to True.
 
         Examples
         --------
         >>> rotor = rotor_amb_example_with_complex_controllers()
-        >>> sim = TimeResponseAmb(rotor)
+        >>> sim = TimeResponseAmb(rotor, t_sim=10, dt=1e-5, speed=0)
         """
 
         # Simulation Parameters
-        self.t_sim = 10
-        self.dt = 1e-5
-        self.speed = 0
+        self.t_sim = t_sim
+        self.dt = dt
+        self.speed = speed
 
         # Rotor Physical Model
         self.rotor = deepcopy(rotor)
@@ -92,7 +106,7 @@ class TimeResponseAmb:
         Examples
         --------
         >>> rotor = rotor_amb_example_with_complex_controllers()
-        >>> sim = TimeResponseAmb(rotor)
+        >>> sim = TimeResponseAmb(rotor, t_sim=10, dt=1e-5, speed=0)
         >>> sim.setup_modal_domain()
         """
         M = self.rotor.M(self.speed)
@@ -128,7 +142,7 @@ class TimeResponseAmb:
         Examples
         --------
         >>> rotor = rotor_amb_example_with_complex_controllers()
-        >>> sim = TimeResponseAmb(rotor)
+        >>> sim = TimeResponseAmb(rotor, t_sim=10, dt=1e-5, speed=0)
         >>> sim.get_weigth_force()
         """
         if self.weight:
@@ -151,7 +165,7 @@ class TimeResponseAmb:
         Examples
         --------
         >>> rotor = rotor_amb_example_with_complex_controllers()
-        >>> sim = TimeResponseAmb(rotor)
+        >>> sim = TimeResponseAmb(rotor, t_sim=10, dt=1e-5, speed=0)
         >>> sim.process_rotor()
         """
         self.n_dof = self.rotor.ndof
@@ -208,7 +222,7 @@ class TimeResponseAmb:
         Examples
         --------
         >>> rotor = rotor_amb_example_with_complex_controllers()
-        >>> sim = TimeResponseAmb(rotor)
+        >>> sim = TimeResponseAmb(rotor, t_sim=10, dt=1e-5, speed=0)
         >>> sim.process_rotor()
         >>> sim.setup_modal_domain()
         >>> sim.build_matrices()
@@ -316,7 +330,7 @@ class TimeResponseAmb:
         Examples
         --------
         >>> rotor = rotor_amb_example_with_complex_controllers()
-        >>> sim = TimeResponseAmb(rotor)
+        >>> sim = TimeResponseAmb(rotor, t_sim=10, dt=1e-5, speed=0)
         >>> sim.run()
         """
         self.process_rotor()
