@@ -328,7 +328,7 @@ class Rotor(object):
         else:
             max_loc_point_mass = 0
         max_location = max(df_shaft.n_r.max(), max_loc_point_mass)
-        
+
         if df.n_l.max() > max_location:
             outside = df[df["n_l"] > max_location]
             tag = outside.iloc[0]["tag"]
@@ -445,9 +445,9 @@ class Rotor(object):
             df.at[df.loc[df.tag == elm.tag].index[0], "dof_global_index"] = (
                 elm.dof_global_index
             )
-            
+
         df = df.copy()
-        
+
         # define positions for disks
         for elm in self.disk_elements:
             i = self.nodes.index(elm.n)
@@ -5947,55 +5947,50 @@ def rotor_amb_example(controller_transfer_function=None):
 
 
 def concatenate_rotor(rotor_list):
+    """Concatenate a list of rotors into a single rotor.
+
+    The nodes of the concatenated rotor will be the maximum node of the last rotor in the list.
+
+    Parameters
+    ----------
+    rotor_list : list
+        List of rotor objects to concatenate.
+
+    Returns
+    -------
+    Rotor object.
+    """
     shaft_elements = []
     disk_elements = []
     bearing_elements = []
     point_mass_elements = []
 
     node_offset = 0
-    rotor_id = 0  # Incremental identifier for tags
 
-    for rotor in rotor_list:
+    for i, rotor in enumerate(rotor_list):
         rotor = deepcopy(rotor)
 
-        # Reindex shaft elements
-        for i, el in enumerate(rotor.shaft_elements):
-            el.n_l += node_offset
-            el.n_r += node_offset
-            el.n = el.n_l  # Important for ROSS elements
-            el.tag = f"shaft_r{rotor_id}_{i}"
+        # Reindex elements
+        elements = rotor.elements
+        for el in elements:
+            el.n += node_offset
+            try:
+                el.n_link += node_offset
+            except:
+                pass
+            el.tag = f"{el.tag} (R{i})"
+
         shaft_elements.extend(rotor.shaft_elements)
-
-        # Reindex disk elements
-        for i, el in enumerate(rotor.disk_elements):
-            el.n += node_offset
-            el.tag = f"disk_r{rotor_id}_{i}"
         disk_elements.extend(rotor.disk_elements)
-
-        # Reindex bearing elements
-        for i, el in enumerate(rotor.bearing_elements):
-            el.n += node_offset
-            el.tag = f"bearing_r{rotor_id}_{i}"
         bearing_elements.extend(rotor.bearing_elements)
-
-        # Reindex point mass elements
-        for i, el in enumerate(rotor.point_mass_elements):
-            el.n += node_offset
-            el.tag = f"pmass_r{rotor_id}_{i}"
         point_mass_elements.extend(rotor.point_mass_elements)
 
         # Update offset for the next rotor
-        all_nodes = [el.n_r for el in rotor.shaft_elements] + [
-            el.n for el in rotor.disk_elements + rotor.bearing_elements
-        ]
-        node_offset = max(all_nodes)
-        rotor_id += 1
+        node_offset = max(rotor.nodes)
 
-    rotor_concat = Rotor(
+    return Rotor(
         shaft_elements=shaft_elements,
         disk_elements=disk_elements,
         bearing_elements=bearing_elements,
         point_mass_elements=point_mass_elements,
     )
-
-    return rotor_concat
