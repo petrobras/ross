@@ -558,6 +558,7 @@ class Rotor(object):
         # Base matrices:
         M0 = np.zeros((self.ndof, self.ndof))
         K0 = np.zeros((self.ndof, self.ndof))
+        C0 = np.zeros((self.ndof, self.ndof))
         G0 = np.zeros((self.ndof, self.ndof))
         Ksdt0 = np.zeros((self.ndof, self.ndof))
 
@@ -568,7 +569,9 @@ class Rotor(object):
 
             M0[np.ix_(dofs, dofs)] += elm.M()
             K0[np.ix_(dofs, dofs)] += elm.K()
+            C0[np.ix_(dofs, dofs)] += elm.C()
             G0[np.ix_(dofs, dofs)] += elm.G()
+
 
             if elm in self.shaft_elements:
                 Ksdt0[np.ix_(dofs, dofs)] += elm.Kst()
@@ -577,16 +580,40 @@ class Rotor(object):
 
         self.M0 = M0
         self.K0 = K0
-        # Damping configuration
-        self.alpha = alpha
-        self.beta = beta
-        self.modal_damping = modal_damping
-        self.default_damping_ratio = default_damping_ratio
-        self.C0 = (
-            self.alpha * self.M0 + self.beta * self.K0
-            if self.modal_damping is None
-            else self._modal_damping(self.modal_damping)
-        )
+        # Damping configuration  
+        damping_global = (alpha is not None and alpha != 0) or (beta is not None and beta != 0)
+        damping_elemental = np.sum(C0)
+        damping_modal = modal_damping is not None
+
+        if sum([damping_global, damping_elemental, damping_modal]) > 1:
+
+            warnings.warn(
+                "More than one type of damping was provided. "
+                "Global proportional damping has been chosen as the default, "
+                "and the others will be ignored.",
+                category=UserWarning
+            )
+            self.alpha = float(alpha) if alpha is not None else 0.0
+            self.beta = float(beta) if beta is not None else 0.0
+            self.C0 = self.alpha * self.M0 + self.beta * self.K0
+
+        elif damping_global:
+  
+            self.alpha = float(alpha) if alpha is not None else 0.0
+            self.beta = float(beta) if beta is not None else 0.0
+            self.C0 = self.alpha * self.M0 + self.beta * self.K0
+
+        elif damping_elemental:
+      
+            self.alpha = 0.0
+            self.beta = 0.0
+            self.C0 = C0
+
+        elif damping_modal: 
+
+            self.alpha = 0.0
+            self.beta = 0.0
+            self.C0 = self._modal_damping(modal_damping)
 
         self.G0 = G0
         self.Ksdt0 = Ksdt0
