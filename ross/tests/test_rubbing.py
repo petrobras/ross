@@ -66,7 +66,6 @@ def rotor():
         shaft_elem,
         [disk0, disk1],
         [bearing0, bearing1],
-       
     )
 
 
@@ -116,10 +115,10 @@ def test_rubbing_resp(run_rubbing):
     probe2 = Probe(20, Q_(90, "deg"))
 
     resp_prob1 = np.array(
-        [0.000000e+00, -4.256750e-09, -2.121870e-08, -5.493772e-08, -1.051150e-07]
+        [0.000000e00, -4.256750e-09, -2.121870e-08, -5.493772e-08, -1.051150e-07]
     )
     resp_prob2 = np.array(
-        [0.000000e+00, -1.611743e-09, -8.080337e-09, -2.110323e-08, -4.084859e-08]
+        [0.000000e00, -1.611743e-09, -8.080337e-09, -2.110323e-08, -4.084859e-08]
     )
 
     data = run_rubbing.data_time_response(probe=[probe1, probe2])

@@ -28,14 +28,7 @@ def rotor():
     L = [L[i] - L[i - 1] for i in range(1, len(L))]
 
     shaft_elem = [
-        rs.ShaftElement(
-            l,
-            i_d,
-            o_d,
-            material=steel2,
-            alpha=8.0501, 
-            beta=1.0e-5
-        )
+        rs.ShaftElement(l, i_d, o_d, material=steel2, alpha=8.0501, beta=1.0e-5)
         for l in L
     ]
 
@@ -63,9 +56,7 @@ def rotor():
         n=31, kxx=kxx2, kyy=kyy2, kzz=kzz, cxx=cxx2, cyy=cyy2, czz=czz
     )
 
-    return rs.Rotor(
-        shaft_elem, [disk0, disk1], [bearing0, bearing1]
-    )
+    return rs.Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
 
 
 @pytest.fixture
@@ -196,10 +187,10 @@ def test_mis_angular_resp(run_mis_angular):
     probe2 = Probe(20, Q_(90, "deg"))
 
     resp_prob1 = np.array(
-        [0.000000e+00, -9.854981e-09, -3.849144e-08, -8.278519e-08, -1.426022e-07]
+        [0.000000e00, -9.854981e-09, -3.849144e-08, -8.278519e-08, -1.426022e-07]
     )
     resp_prob2 = np.array(
-        [0.000000e+00, -1.776735e-10,  2.572261e-09,  1.308438e-08, 1.443712e-08]
+        [0.000000e00, -1.776735e-10, 2.572261e-09, 1.308438e-08, 1.443712e-08]
     )
 
     data = run_mis_angular.data_time_response(probe=[probe1, probe2])

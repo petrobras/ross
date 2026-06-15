@@ -28,8 +28,8 @@ def rotor1():
             shear_effects=True,
             rotary_inertia=True,
             gyroscopic=True,
-            alpha=10, 
-            beta=1e-4
+            alpha=10,
+            beta=1e-4,
         )
         for l in L
     ]
@@ -83,7 +83,7 @@ def rotor2():
     return Rotor(
         shaft_elem,
         [disk0, disk1],
-        [bearing0, bearing1],        
+        [bearing0, bearing1],
     )
 
 
@@ -219,7 +219,7 @@ def test_for_var_speed_1(rotor1):
     abs_max1 = np.max(np.abs(resp_common.yout[s0:s1, dofx]))
 
     assert_allclose(freq, freq1, rtol=1e-3)
-    assert_allclose(abs_max, abs_max1,atol=1e-3, rtol=1e-3)
+    assert_allclose(abs_max, abs_max1, atol=1e-3, rtol=1e-3)
 
 
 def test_for_var_speed_2(rotor2):

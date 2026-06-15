@@ -1799,7 +1799,7 @@ def test_distinct_dof_elements_error():
                 rotary_inertia=False,
                 shear_effects=False,
                 alpha=0,
-                beta=0
+                beta=0,
             )
             for l in L
         ]
@@ -1840,15 +1840,7 @@ def rotor_6dof():
     L = [0.25 for _ in range(n)]
 
     shaft_elem = [
-        ShaftElement(
-            l,
-            i_d,
-            o_d,
-            material=steel,
-            alpha=1,
-            beta=1e-5
-        )
-        for l in L
+        ShaftElement(l, i_d, o_d, material=steel, alpha=1, beta=1e-5) for l in L
     ]
 
     disk0 = DiskElement.from_geometry(
