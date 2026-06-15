@@ -581,7 +581,7 @@ class Rotor(object):
         self.M0 = M0
         self.K0 = K0
         # Damping configuration  
-        damping_global = (alpha is not None and alpha != 0) or (beta is not None and beta != 0)
+        damping_global = (alpha != 0) or (beta != 0)
         damping_elemental = np.sum(C0)
         damping_modal = modal_damping is not None
 
@@ -613,6 +613,7 @@ class Rotor(object):
 
             self.alpha = 0.0
             self.beta = 0.0
+            self.default_damping_ratio=default_damping_ratio
             self.C0 = self._modal_damping(modal_damping)
 
         self.G0 = G0
