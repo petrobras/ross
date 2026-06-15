@@ -318,7 +318,8 @@ class Rotor(object):
         df_shaft["axial_cg_pos"] = axial_cg_pos
 
         df = pd.concat(
-            [df_shaft, df_disks, df_bearings, df_point_mass, df_seals, df_motors], sort=True
+            [df_shaft, df_disks, df_bearings, df_point_mass, df_seals, df_motors],
+            sort=True,
         )
         df = df.sort_values(by="n_l")
         df = df.reset_index(drop=True)
@@ -458,7 +459,7 @@ class Rotor(object):
             df.at[df.loc[df.tag == elm.tag].index[0], "dof_global_index"] = (
                 elm.dof_global_index
             )
-        
+
         # define positions for motors
         for elm in self.motor_elements:
             i = self.nodes.index(elm.n)
@@ -3158,7 +3159,7 @@ class Rotor(object):
 
             position = (z_pos, y_pos, yc_pos)
             fig = p_mass._patch(position, fig)
-        
+
         # plot_motors
         if self.motor_elements:
             for motor in self.motor_elements:
@@ -3759,6 +3760,169 @@ class Rotor(object):
         return results
 
     @check_units
+    def run_with_motor(
+        self,
+        t,
+        node,
+        unbalance_magnitude,
+        unbalance_phase,
+        drive_mode,
+        load_torque_entrance_time=None,
+        load_torque_ratio=1.0,
+        ac_source_harmonics=None,
+        ac_source_unbalances=None,
+        time_ramp=0.6667,
+        frequency_ref=None,
+        F=None,
+        solver_method="default",
+        **kwargs,
+    ):
+        """Run time response with electric motor torque at the motor node.
+
+        The motor is simulated independently and its electric torque is applied
+        to the torsional DOF at motor node. The motor does not contribute to
+        the rotor global structural matrices.
+
+        Parameters
+        ----------
+        t : array
+            Time array.
+        node : list, int
+            Nodes where the unbalance is applied.
+        unbalance_magnitude : list, float
+            Unbalance magnitude [kg.m] for each node.
+        unbalance_phase : list, float
+            Unbalance phase [rad] for each node.
+        drive_mode : str
+            Run motor with:
+            - 'DOL' (direct on line)
+            - 'VF' (V/f adjustment technique)
+        load_torque_entrance_time : float, optional
+            Time when load torque is applied to the motor shaft [s].
+            Default is half the simulation time.
+        load_torque_ratio : float, optional
+            Load torque ratio applied at the entrance time. This is a multiplier
+            for the nominal load torque, e.g., a value of 1.0 applies 100% of the
+            nominal torque at entrance time. Default is 1.0.
+        ac_source_harmonics : dict, optional
+            Configuration for grid harmonic injection. Active only when `drive_mode='DOL'`.
+            Expected keys:
+            - 'enable' : bool
+                Enable harmonics.
+            - 'orders' : list of int
+                Harmonic orders (e.g., [5, 7, 11] for 5th, 7th, and 11th harmonics).
+            - 'amplitudes' : list of float
+                Harmonic amplitudes as percentage of nominal voltage
+                (e.g., [10, 5, 2] for 10%, 5%, and 2%).
+        ac_source_unbalances : dict, optional
+            Configuration for three-phase grid unbalance. Active only when `drive_mode='DOL'`.
+            Expected keys:
+            - 'enable' : bool
+                Enable unbalances.
+            - 'voltage_percent' : list of float
+                Voltage magnitude deviation per phase (A, B, C) relative to nominal [%].
+                Must contain exactly 3 elements.
+                Positive → higher voltage; Negative → lower voltage.
+            - 'angle_deviation' : list of float, pint.Quantity
+                Angle deviation per phase (A, B, C) [rad]. Must contain exactly 3 elements.
+        time_ramp : float, optional
+            Acceleration ramp time [s] for frequency ramping.
+            Active only when `drive_mode='VF'`. Default is 0.6667.
+        frequency_ref : float, pint.Quantity, optional
+            Reference frequency for V/f adjustment technique [rad/s].
+            Active only when `drive_mode='VF'`.
+            Default is None, which uses half the motor nominal frequency.
+        F : array, optional
+            Force array (needs to have the same number of rows as time array).
+            Each column corresponds to a dof and each row to a time.
+        solver_method : str, optional
+            The Newmark method can be chosen by setting `solver_method='newmark'` for time
+            response analysis.
+        **kwargs : optional
+            Additional keyword arguments can be passed to define the parameters
+            of the Newmark method if it is used (e.g. gamma, beta, tol, ...).
+            See `ross.utils.newmark` for more details.
+            Other keyword arguments can also be passed to be used in numerical
+            integration (e.g. model_reduction, add_to_RHS).
+            See `Rotor.integrate_system` for more details.
+
+        Returns
+        -------
+        results : TimeResponseResults
+            For more information on attributes and methods available see:
+            :py:class:`ross.TimeResponseResults`
+
+        Examples
+        --------
+        >>> import ross as rs
+        >>> from ross.units import Q_
+        >>> motor = motor_example()
+        >>> rotor = rotor_example().add_elements([motor])
+
+        >>> n1 = rotor.disk_elements[0].n
+        >>> n2 = rotor.disk_elements[1].n
+
+        >>> results = rotor.run_with_motor(
+        ...     t=np.linspace(0, 1, 1000),
+        ...     node=[n1, n2],
+        ...     unbalance_magnitude=[5e-4, 0],
+        ...     unbalance_phase=[-np.pi / 2, 0],
+        ...     drive_mode="DOL",
+        ...     load_torque_entrance_time=0.5,
+        ...     load_torque_ratio=1.0,
+        ...     ac_source_harmonics={
+        ...         "enable": True,
+        ...         "orders": [5, 7, 11],
+        ...         "amplitudes": [10, 5, 2],
+        ...     },
+        ...     ac_source_unbalances={
+        ...         "enable": True,
+        ...         "voltage_percent": [-1, 2, 3],
+        ...         "angle_deviation": Q_([1, 0, -2], "deg"),
+        ...     },
+        ... )
+        """
+        if not self.motor_elements:
+            raise ValueError("No motor elements found in the rotor.")
+
+        if F is None:
+            F = np.zeros((len(t), self.ndof))
+
+        motor = self.motor_elements[0]
+
+        if drive_mode.upper() == "DOL":
+            motor_results = motor.run_direct_on_line(
+                t,
+                load_torque_entrance_time=load_torque_entrance_time,
+                load_torque_ratio=load_torque_ratio,
+                harmonics=ac_source_harmonics,
+                unbalances=ac_source_unbalances,
+            )
+        elif drive_mode.upper() == "VF":
+            motor_results = motor.run_with_vf(
+                t,
+                load_torque_entrance_time=load_torque_entrance_time,
+                load_torque_ratio=load_torque_ratio,
+                time_ramp=time_ramp,
+                frequency_ref=frequency_ref,
+            )
+        else:
+            raise ValueError("drive_mode must be 'DOL' or 'VF'.")
+
+        torque = motor_results.sample_at("electric_torque", t)
+        speed = motor_results.sample_at("speed", t)
+
+        F += self.unbalance_force_over_time(
+            node, unbalance_magnitude, unbalance_phase, speed, t
+        ).T
+
+        F[:, self.number_dof * motor.n + 5] += torque
+
+        results = self.run_time_response(speed, F, t, method=solver_method, **kwargs)
+
+        return results
+
+    @check_units
     def run_misalignment(
         self,
         node,
@@ -4264,7 +4428,7 @@ class Rotor(object):
         bearing_elements = []
         point_mass_elements = []
         motor_elements = []
-        
+
         for el in elements:
             if isinstance(el, ShaftElement):
                 shaft_elements.append(el)
@@ -5181,7 +5345,7 @@ class CoAxialRotor(Rotor):
         )
         df_point_mass = pd.DataFrame([el.summary() for el in self.point_mass_elements])
         df_motors = pd.DataFrame([el.summary() for el in self.motor_elements])
-        
+
         nodes_pos_l = np.zeros(len(df_shaft.n_l))
         nodes_pos_r = np.zeros(len(df_shaft.n_l))
         axial_cg_pos = np.zeros(len(df_shaft.n_l))
@@ -6014,7 +6178,7 @@ def concatenate_rotor(rotor_list):
     bearing_elements = []
     point_mass_elements = []
     motor_elements = []
-    
+
     node_offset = 0
     rotor_id = 0  # Incremental identifier for tags
 
