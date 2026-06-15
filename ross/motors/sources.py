@@ -23,19 +23,22 @@ class SourceAC:
         Fundamental frequency [rad/s].
     initial_phase_angle : float, pint.Quantity, optional
         Initial phase angle [rad]. Default is 0.
-    harmonic_orders : list of int, optional
-        Harmonic orders (e.g., [5, 7, 11]).
-    harmonic_amplitudes : list of float, optional
-        Harmonic amplitudes as % of voltage_net (e.g., [10, 5, 2]).
     harmonic_enable : bool, optional
         Whether to enable harmonics. Default is False.
-    unbalance_voltage_percent : list of float, optional
-        Voltage magnitude unbalance per phase [%] in order [phase_A, phase_B, phase_C].
-        Positive → higher voltage; Negative → lower voltage.
-    unbalance_angle_deviation : list of float, pint.Quantity, optional
-        Angle deviation per phase [rad] in order [phase_A, phase_B, phase_C].
+    harmonic_orders : list of int, optional
+        Harmonic orders (e.g., [5, 7, 11] for 5th, 7th, and 11th harmonics).
+    harmonic_amplitudes : list of float, optional
+        Harmonic amplitudes as percentage of voltage_net
+        (e.g., [10, 5, 2] for 10%, 5%, and 2%).
     unbalance_enable : bool, optional
         Whether to enable unbalances. Default is False.
+    unbalance_voltage_percent : list of float, optional
+        Voltage magnitude deviation per phase (A, B, C) relative to nominal [%].
+        Must contain exactly 3 elements.
+        Positive → higher voltage; Negative → lower voltage.
+    unbalance_angle_deviation : list of float, pint.Quantity, optional
+        Angle deviation per phase (A, B, C) [rad].
+        Must contain exactly 3 elements.
 
     Notes
     -----
@@ -87,12 +90,12 @@ class SourceAC:
         voltage_net,
         frequency_net,
         initial_phase_angle=0.0,
+        harmonic_enable=False,
         harmonic_orders=None,
         harmonic_amplitudes=None,
-        harmonic_enable=False,
+        unbalance_enable=False,
         unbalance_voltage_percent=None,
         unbalance_angle_deviation=None,
-        unbalance_enable=False,
     ):
         self.voltage_net = voltage_net
         self.frequency_net = frequency_net
@@ -119,10 +122,10 @@ class SourceAC:
         Parameters
         ----------
         harmonic_orders : list of int
-            Harmonic orders (e.g., [5, 7, 11]).
+            Harmonic orders (e.g., [5, 7, 11] for 5th, 7th, and 11th harmonics).
         harmonic_amplitudes : list of float, optional
-            Harmonic amplitudes as % of voltage_net. If shorter than harmonic_orders,
-            remaining amplitudes are set to 0.
+            Harmonic amplitudes as percentage of voltage_net (e.g., [10, 5, 2] for 10%, 5%, and 2%).
+            If shorter than harmonic_orders, remaining amplitudes are set to 0.
         enable : bool, optional
             Enable harmonics. Default is True.
         """
@@ -193,10 +196,11 @@ class SourceAC:
         Parameters
         ----------
         voltage_percent : list of float
-            Voltage magnitude unbalance per phase [%] in order [phase_A, phase_B, phase_C].
-            Positive → higher voltage; Negative → lower voltage.
+            Voltage magnitude deviation per phase (A, B, C) relative to nominal [%].
+            Must contain exactly 3 elements. Positive → higher voltage; Negative → lower voltage.
         angle_deviation : list of float, pint.Quantity
-            Angle deviation per phase [rad] in order [phase_A, phase_B, phase_C].
+            Angle deviation per phase (A, B, C) [rad].
+            Must contain exactly 3 elements.
         enable : bool, optional
             Enable unbalances. Default is True.
         """

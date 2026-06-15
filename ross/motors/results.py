@@ -25,7 +25,7 @@ class PhaseResults(Results):
     >>> dt = 1e-3
     >>> tf = 1.0
     >>> t = np.arange(0, tf + dt, dt)
-    >>> results = motor.run_with_AC_source(t)
+    >>> results = motor.run_direct_on_line(t)
     >>> current = PhaseResults(results.t, results.currents, "I", results.t_eval)
     >>> current.units
     'A'
@@ -155,7 +155,7 @@ class PhaseResults(Results):
         >>> dt = 1e-3
         >>> tf = 1.0
         >>> t = np.arange(0, tf + dt, dt)
-        >>> results = motor.run_with_AC_source(t)
+        >>> results = motor.run_direct_on_line(t)
         >>> voltage = PhaseResults(results.t, results.voltages, "V", results.t_eval)
         >>> fig = voltage.plot(reference_frame="a-b-c")
         """
@@ -226,7 +226,7 @@ class PhaseResults(Results):
         >>> dt = 1e-3
         >>> tf = 1.0
         >>> t = np.arange(0, tf + dt, dt)
-        >>> results = motor.run_with_AC_source(t)
+        >>> results = motor.run_direct_on_line(t)
         >>> current = PhaseResults(results.t, results.currents, "I", results.t_eval)
         >>> fig = current.plot_dfft(reference_frame="a-b-c")
         >>> fig = current.plot_dfft(reference_frame="d-q", frequency_units="Hz")
@@ -318,7 +318,7 @@ class MotorResponseResults(Results):
     >>> dt = 1e-3
     >>> tf = 1.0
     >>> t = np.arange(0, tf + dt, dt)
-    >>> results = motor.run_with_AC_source(t)
+    >>> results = motor.run_direct_on_line(t)
     >>> results.speed.shape == t.shape
     True
     >>> sorted(results.currents.keys())
@@ -377,7 +377,7 @@ class MotorResponseResults(Results):
         >>> dt = 1e-3
         >>> tf = 1.0
         >>> t = np.arange(0, tf + dt, dt)
-        >>> results = motor.run_with_AC_source(t)
+        >>> results = motor.run_direct_on_line(t)
         >>> t_sample = np.array([0.5])
         >>> speed = results.sample_at("speed", t_eval=t_sample)
         >>> speed  # doctest: +ELLIPSIS
@@ -520,7 +520,7 @@ class MotorResponseResults(Results):
         >>> dt = 1e-3
         >>> tf = 1.0
         >>> t = np.arange(0, tf + dt, dt)
-        >>> results = motor.run_with_AC_source(t)
+        >>> results = motor.run_direct_on_line(t)
         >>> fig = results.plot_torque()
         >>> fig = results.plot_torque(domain="frequency")
         """
@@ -598,7 +598,7 @@ class MotorResponseResults(Results):
         >>> dt = 1e-3
         >>> tf = 1.0
         >>> t = np.arange(0, tf + dt, dt)
-        >>> results = motor.run_with_AC_source(t)
+        >>> results = motor.run_direct_on_line(t)
         >>> fig = results.plot_speed()
         >>> fig = results.plot_speed(domain="frequency", speed_units="rad/s")
         """
@@ -672,7 +672,7 @@ class MotorResponseResults(Results):
         >>> dt = 1e-3
         >>> tf = 1.0
         >>> t = np.arange(0, tf + dt, dt)
-        >>> results = motor.run_with_AC_source(t)
+        >>> results = motor.run_direct_on_line(t)
         >>> fig = results.plot_phase_currents(reference_frame="a-b-c")
         >>> fig = results.plot_phase_currents(reference_frame="d-q", domain="frequency")
         """
@@ -733,7 +733,7 @@ class MotorResponseResults(Results):
         >>> dt = 1e-3
         >>> tf = 1.0
         >>> t = np.arange(0, tf + dt, dt)
-        >>> results = motor.run_with_AC_source(t)
+        >>> results = motor.run_direct_on_line(t)
         >>> fig = results.plot_phase_voltages()
         >>> fig = results.plot_phase_voltages(domain="frequency")
         """
@@ -793,7 +793,7 @@ class MotorResponseResults(Results):
         >>> dt = 1e-3
         >>> tf = 1.0
         >>> t = np.arange(0, tf + dt, dt)
-        >>> results = motor.run_with_AC_source(t)
+        >>> results = motor.run_direct_on_line(t)
         >>> fig = results.plot_line_voltages()
         >>> fig = results.plot_line_voltages(domain="frequency")
         """

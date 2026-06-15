@@ -1,11 +1,7 @@
-"""Simulate three-phase voltage source inverters with scalar V/f control.
+"""Inverter module
 
 This module provides implementations for modeling and simulating three-phase VSIs
-using Space Vector PWM (SVPWM) modulation with scalar V/f speed control.
-
-References
-----------
-Wu, B. & Narimani, M. (2016). High-Power Converters and AC Drives. Wiley.
+using Space Vector PWM (SVPWM) modulation with V/f adjustment technique.
 """
 
 import numpy as np
@@ -16,10 +12,10 @@ from .utils import clarke_transform
 
 
 class InverterVF:
-    """Simulate a three-phase voltage source inverter with scalar V/f control.
+    """Simulate a three-phase voltage source inverter with V/f adjustment technique.
 
     This class implements a three-phase VSI using Space Vector PWM (SVPWM)
-    modulation with scalar V/f speed control. The inverter generates three-phase
+    modulation with V/f adjustment technique. The inverter generates three-phase
     output voltages based on a reference frequency and DC link voltage.
 
     Parameters
@@ -33,9 +29,13 @@ class InverterVF:
     frequency_nom : float or pint.Quantity
         Nominal operating frequency [rad/s].
     time_ramp : float, optional
-        Acceleration ramp time [s] for frequency ramping. Default is 1.
+        Acceleration ramp time [s] for frequency ramping. Default is 0.6667.
     frequency_ref : float or pint.Quantity, optional
-        Reference frequency for V/f control [rad/s]. Default is 0.
+        Reference frequency for V/f adjustment [rad/s]. Default is 0.
+
+    References
+    ----------
+    Wu, B. & Narimani, M. (2016). High-Power Converters and AC Drives. Wiley.
 
     Examples
     --------
@@ -76,8 +76,8 @@ class InverterVF:
         frequency_s,
         voltage_nom,
         frequency_nom,
-        time_ramp=1.0,
-        frequency_ref=0.0,
+        time_ramp=0.6667,
+        frequency_ref=None,
     ):
 
         self.voltage_dc = voltage_dc
@@ -87,7 +87,7 @@ class InverterVF:
         self.voltage_nom = float(voltage_nom)
         self.frequency_nom = float(frequency_nom)
         self.time_ramp = float(time_ramp)
-        self.frequency_ref = float(frequency_ref)
+        self.frequency_ref = float(frequency_ref or frequency_nom / 2)
 
         # Nominal phase voltage peak value
         self.voltage_phase_peak_nom = (voltage_nom / np.sqrt(3)) * np.sqrt(2)
@@ -112,7 +112,7 @@ class InverterVF:
         self.V7 = 8
 
     def speed_control(self, frequency):
-        """Calculate the phase voltage peak for scalar V/f control.
+        """Calculate the phase voltage peak.
 
         Computes the peak voltage for the phase voltages based on the V/f ratio,
         ensuring proportional control between voltage and frequency.

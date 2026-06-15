@@ -95,10 +95,6 @@ class MotorElement(Element):
     not contribute to the rotor global mass, stiffness, damping, or gyroscopic
     matrices assembled by ``Rotor``.
 
-    The node ``n`` identifies where motor torque is applied on the shaft
-    (torsional DOF). Use ``.run_with_AC_source()`` / ``.run_with_inverter()`` to
-    obtain ``electric_torque``, then apply it in ``.run_time_response()``.
-
     Examples
     --------
     >>> from ross import MotorElement
@@ -644,7 +640,7 @@ class MotorElement(Element):
         return results
 
     @check_units
-    def run_with_AC_source(
+    def run_direct_on_line(
         self,
         t,
         time_step=None,
@@ -679,24 +675,26 @@ class MotorElement(Element):
         initial_phase_angle : float, pint.Quantity, optional
             Initial power supply phase angle [rad]. Default is 0.
         harmonics : dict, optional
-            Harmonic configuration with keys:
-
-            - "orders" : list of int
-                Harmonic orders (e.g., [5, 7])
-            - "amplitudes" : list of float
-                Harmonic amplitudes as % of nominal voltage
-            - "enable" : bool
-                Enable harmonics
-
+            Configuration for grid harmonic injection.
+            Expected keys:
+            - 'enable' : bool
+                Enable harmonics.
+            - 'orders' : list of int
+                Harmonic orders (e.g., [5, 7, 11] for 5th, 7th, and 11th harmonics).
+            - 'amplitudes' : list of float
+                Harmonic amplitudes as percentage of nominal voltage (e.g., [10, 5, 2] for 10%, 5%, and 2%).
         unbalances : dict, optional
-            Unbalance configuration with keys:
-
-            - "voltage_percent" : list of float
-                Voltage magnitude unbalance per phase [%]
-            - "angle_deviation" : list of float, pint.Quantity
-                Angle deviation per phase [rad]
-            - "enable" : bool
+            Configuration for three-phase grid unbalance.
+            Expected keys:
+            - 'enable' : bool
                 Enable unbalances
+            - 'voltage_percent' : list of float
+                Voltage magnitude deviation per phase (A, B, C) relative to nominal [%].
+                Must contain exactly 3 elements.
+                Positive → higher voltage; Negative → lower voltage.
+            - 'angle_deviation' : list of float, pint.Quantity
+                Angle deviation per phase (A, B, C) [rad].
+                Must contain exactly 3 elements.
 
         Returns
         -------
@@ -712,7 +710,7 @@ class MotorElement(Element):
         >>> tf = 1.0
         >>> t = np.arange(0, tf + dt, dt)
 
-        >>> results = motor.run_with_AC_source(
+        >>> results = motor.run_direct_on_line(
         ...     t,
         ...     load_torque_entrance_time=3.0,
         ...     load_torque_ratio=1.5,
@@ -777,20 +775,19 @@ class MotorElement(Element):
         return results
 
     @check_units
-    def run_with_inverter(
+    def run_with_vf(
         self,
         t,
         time_step=None,
         load_torque_entrance_time=None,
         load_torque_ratio=1.0,
-        frequency_s=None,
-        time_ramp=1.0,
+        time_ramp=0.6667,
         frequency_ref=None,
     ):
-        """Simulate motor with variable frequency inverter control.
+        """Simulate motor with V/f adjustment technique.
 
         Runs motor simulation with a three-phase voltage source inverter employing
-        Space Vector PWM modulation and scalar V/f speed control. The inverter
+        Space Vector PWM modulation and V/f adjustment technique. The inverter
         generates three-phase voltages based on the reference frequency.
 
         Parameters
@@ -807,13 +804,12 @@ class MotorElement(Element):
             Load torque ratio applied at the entrance time. This is a multiplier
             for the nominal load torque, e.g., a value of 1 applies 100% of the
             nominal torque. Default is 1.
-        frequency_s : float or pint.Quantity
-            IGBT switching frequency [rad/s].
         time_ramp : float, optional
-            Acceleration ramp time [s] for frequency ramping. Default is 1.
+            Acceleration ramp time [s] for frequency ramping. Default is 0.6667.
         frequency_ref : float or pint.Quantity, optional
-            Reference frequency for V/f control [rad/s]. If None, uses half the
-            motor nominal frequency. Default is None.
+            Reference frequency for V/f adjustment technique [rad/s].
+            If None, uses half the motor nominal frequency. Default is half the
+            motor nominal frequency.
 
         Returns
         -------
@@ -830,12 +826,11 @@ class MotorElement(Element):
         >>> size = int(tf / dt) + 1
         >>> t = np.linspace(0, tf, size)
 
-        >>> results = motor.run_with_inverter(
+        >>> results = motor.run_with_vf(
         ...     t, # Evaluation time vector
         ...     time_step=1e-4, # Simulation time step
-        ...     load_torque_entrance_time=2.5,
+        ...     load_torque_entrance_time=0.5,
         ...     load_torque_ratio=1.0,
-        ...     frequency_s=Q_(5000, "Hz"),
         ...     time_ramp=0.6667,
         ...     frequency_ref=Q_(30.0, "Hz")
         ... )
@@ -858,11 +853,11 @@ class MotorElement(Element):
 
         inverter = InverterVF(
             voltage_dc=line_to_dc_bus * Vnl,
-            frequency_s=frequency_s,
+            frequency_s=Q_(5000, "Hz"),
             voltage_nom=Vnl,
             frequency_nom=self.frequency_nom,
             time_ramp=time_ramp,
-            frequency_ref=frequency_ref or self.frequency_nom / 2,
+            frequency_ref=float(frequency_ref or self.frequency_nom / 2),
         )
 
         results = self.run(
