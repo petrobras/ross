@@ -346,7 +346,7 @@ class Rotor(object):
             max_loc_point_mass = 0
         max_location = max(df_shaft.n_r.max(), max_loc_point_mass)
         if df.n_l.max() > max_location:
-            raise ValueError(f"Trying to set {df.tag.iloc[df.n_l.max()]} outside shaft")
+            raise ValueError("Trying to set disk or bearing outside shaft")
 
         # nodes axial position and diameter
         self._set_nodes(df_shaft)
@@ -3856,8 +3856,8 @@ class Rotor(object):
         --------
         >>> import ross as rs
         >>> from ross.units import Q_
-        >>> motor = motor_example()
-        >>> rotor = rotor_example().add_elements([motor])
+        >>> motor = rs.motor_example()
+        >>> rotor = rs.rotor_example().add_elements([motor])
 
         >>> n1 = rotor.disk_elements[0].n
         >>> n2 = rotor.disk_elements[1].n
@@ -3881,14 +3881,15 @@ class Rotor(object):
         ...         "angle_deviation": Q_([1, 0, -2], "deg"),
         ...     },
         ... )
+        Running direct method
         """
-        if not self.motor_elements:
+        if len(self.motor_elements) < 1:
             raise ValueError("No motor elements found in the rotor.")
+
+        motor = self.motor_elements[0]
 
         if F is None:
             F = np.zeros((len(t), self.ndof))
-
-        motor = self.motor_elements[0]
 
         if drive_mode.upper() == "DOL":
             motor_results = motor.run_direct_on_line(

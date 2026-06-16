@@ -185,11 +185,11 @@ def rk4_step(func, dt, y0, args):
     ... def dydt(y, args):
     ...     return y
 
-    >>> y1 = rk4_step(dydt, dt=0.1, y0=[1.0,], args=[0])
+    >>> y1 = rk4_step(dydt, dt=0.1, y0=np.array([1.0]), args=np.array([]))
     >>> y1[0]  # doctest: +ELLIPSIS
     1.105...
     """
-    y = np.array(y0)
+    y = np.asarray(y0)
 
     k1 = func(y, args)
 
