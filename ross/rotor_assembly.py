@@ -611,6 +611,11 @@ class Rotor(object):
             self.default_damping_ratio = default_damping_ratio
             self.C0 = self._modal_damping(modal_damping)
 
+        else:
+            self.alpha = float(alpha) if alpha is not None else 0.0
+            self.beta = float(beta) if beta is not None else 0.0
+            self.C0 = self.alpha * self.M0 + self.beta * self.K0
+
         self.G0 = G0
         self.Ksdt0 = Ksdt0
 
