@@ -202,7 +202,7 @@ class MultiRotor(Rotor):
         d_node = 0
         if R1_max_node >= R2_min_node:
             d_node = R1_max_node + 1
-            for elm in R2.elements + R2.motor_elements:
+            for elm in R2.elements:
                 elm.n += d_node
                 try:
                     elm.n_link += d_node
@@ -215,14 +215,23 @@ class MultiRotor(Rotor):
         disk_elements = [*R1.disk_elements, *R2.disk_elements]
         bearing_elements = [*R1.bearing_elements, *R2.bearing_elements]
         point_mass_elements = [*R1.point_mass_elements, *R2.point_mass_elements]
-        motor_elements = [*R1.motor_elements, *R2.motor_elements]
+
+        motor_element = None
+        if R1.motor_element is not None and R2.motor_element is not None:
+            motor_element = R1.motor_element
+            raise Warning("""Rotor supports only one motor element.
+            Using the motor element of the driving rotor.\n""")
+        elif R1.motor_element is not None:
+            motor_element = R1.motor_element
+        elif R2.motor_element is not None:
+            motor_element = R2.motor_element
 
         super().__init__(
             shaft_elements,
             disk_elements,
             bearing_elements,
             point_mass_elements,
-            motor_elements,
+            motor_element,
             tag=tag,
         )
 

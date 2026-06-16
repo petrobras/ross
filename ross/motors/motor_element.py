@@ -363,19 +363,45 @@ class MotorElement(Element):
         return hash(self.tag)
 
     def dof_mapping(self):
-        pass
+        """Degrees of freedom mapping.
+
+        Returns a dictionary with a mapping between degree of freedom and its index.
+
+        Returns
+        -------
+        dof_mapping : dict
+            A dictionary containing the degrees of freedom and their indexes.
+
+        Examples
+        --------
+        The numbering of the degrees of freedom for each node.
+
+        Being the following their ordering for a node:
+
+        x_0 - horizontal translation
+        y_0 - vertical translation
+        z_0 - axial translation
+        alpha_0 - rotation around horizontal
+        beta_0  - rotation around vertical
+        theta_0 - torsion around axial
+
+        >>> motor = motor_example()
+        >>> motor.dof_mapping()
+        {'x_0': 0, 'y_0': 1, 'z_0': 2, 'alpha_0': 3, 'beta_0': 4, 'theta_0': 5}
+        """
+        return dict(x_0=0, y_0=1, z_0=2, alpha_0=3, beta_0=4, theta_0=5)
 
     def M(self):
-        pass
+        return np.zeros((6, 6))
 
     def K(self):
-        pass
+        return np.zeros((6, 6))
 
     def C(self):
-        pass
+        return np.zeros((6, 6))
 
     def G(self):
-        pass
+        return np.zeros((6, 6))
 
     def _hover_info(self):
         """Return hover information for the motor patch.
