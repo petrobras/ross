@@ -53,7 +53,6 @@ from ross.seals.labyrinth_seal import LabyrinthSeal
 from ross.shaft_element import ShaftElement
 from ross.units import Q_, check_units
 from ross.utils import (
-    assemble_C_K_matrices,
     convert_6dof_to_4dof,
     convert_6dof_to_torsional,
     intersection,
@@ -72,7 +71,6 @@ __all__ = [
     "rotor_example_6dof",
     "rotor_example_with_damping",
     "rotor_amb_example",
-    "concatenate_rotor",
 ]
 
 # set Plotly palette of colors
@@ -606,7 +604,58 @@ class Rotor(object):
         self.It = v @ (self.M0 @ v.T)
 
     def __add__(self, rotor2):
-        return concatenate_rotor([self, rotor2])
+        return Rotor.concatenate_rotors([self, rotor2])
+
+    @classmethod
+    def concatenate_rotors(cls, rotor_list):
+        """Concatenate a list of rotors into a single rotor.
+
+        The nodes of the concatenated rotor will be the maximum node of the last rotor
+        in the list.
+
+        Parameters
+        ----------
+        rotor_list : list
+            List of Rotor objects to concatenate.
+
+        Returns
+        -------
+        Rotor object.
+        """
+        shaft_elements = []
+        disk_elements = []
+        bearing_elements = []
+        point_mass_elements = []
+
+        node_offset = 0
+
+        for i, rotor in enumerate(rotor_list):
+            rotor = copy(rotor)
+
+            # Reindex elements
+            elements = rotor.elements
+            for el in elements:
+                el.n += node_offset
+                try:
+                    el.n_link += node_offset
+                except:
+                    pass
+                el.tag = f"{el.tag} (R{i})"
+
+            shaft_elements.extend(rotor.shaft_elements)
+            disk_elements.extend(rotor.disk_elements)
+            bearing_elements.extend(rotor.bearing_elements)
+            point_mass_elements.extend(rotor.point_mass_elements)
+
+            # Update offset for the next rotor
+            node_offset = max(rotor.nodes)
+
+        return cls(
+            shaft_elements=shaft_elements,
+            disk_elements=disk_elements,
+            bearing_elements=bearing_elements,
+            point_mass_elements=point_mass_elements,
+        )
 
     def set_tag(self, tag):
         """Set the tag for the current rotor."""
@@ -5944,53 +5993,3 @@ def rotor_amb_example(controller_transfer_function=None):
         ]
 
     return Rotor(shaft_elements, disk_elements, bearing_elements)
-
-
-def concatenate_rotor(rotor_list):
-    """Concatenate a list of rotors into a single rotor.
-
-    The nodes of the concatenated rotor will be the maximum node of the last rotor in the list.
-
-    Parameters
-    ----------
-    rotor_list : list
-        List of rotor objects to concatenate.
-
-    Returns
-    -------
-    Rotor object.
-    """
-    shaft_elements = []
-    disk_elements = []
-    bearing_elements = []
-    point_mass_elements = []
-
-    node_offset = 0
-
-    for i, rotor in enumerate(rotor_list):
-        rotor = deepcopy(rotor)
-
-        # Reindex elements
-        elements = rotor.elements
-        for el in elements:
-            el.n += node_offset
-            try:
-                el.n_link += node_offset
-            except:
-                pass
-            el.tag = f"{el.tag} (R{i})"
-
-        shaft_elements.extend(rotor.shaft_elements)
-        disk_elements.extend(rotor.disk_elements)
-        bearing_elements.extend(rotor.bearing_elements)
-        point_mass_elements.extend(rotor.point_mass_elements)
-
-        # Update offset for the next rotor
-        node_offset = max(rotor.nodes)
-
-    return Rotor(
-        shaft_elements=shaft_elements,
-        disk_elements=disk_elements,
-        bearing_elements=bearing_elements,
-        point_mass_elements=point_mass_elements,
-    )

@@ -28,7 +28,7 @@ def test_concatenate_rotor():
     rotor2 = rs.Rotor(shaft_elements=[shaft1_r2], disk_elements=[disk_r2])
 
     # 2. ACTION: Execute the function we want to test
-    rotor_concat = rs.concatenate_rotor([rotor1, rotor2])
+    rotor_concat = rs.Rotor.concatenate_rotors([rotor1, rotor2])
 
     # 3. ASSERTIONS: Check if the result is as expected
 
