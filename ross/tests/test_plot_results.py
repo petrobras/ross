@@ -55,7 +55,9 @@ def assert_trace_allclose(
     if r is not None:
         assert_allclose(np.asarray(trace.r), np.asarray(r), rtol=rtol, atol=atol)
     if theta is not None:
-        assert_allclose(np.asarray(trace.theta), np.asarray(theta), rtol=rtol, atol=atol)
+        assert_allclose(
+            np.asarray(trace.theta), np.asarray(theta), rtol=rtol, atol=atol
+        )
 
 
 def assert_surface_z_matches(trace, expected_z, rtol=1e-12, atol=0):
@@ -175,11 +177,21 @@ def level1_response():
 
 @pytest.fixture
 def bearing_element():
-    kxx = np.array([8.5e07, 1.1e08, 1.3e08, 1.6e08, 1.8e08, 2.0e08, 2.3e08, 2.5e08, 2.6e08])
-    kyy = np.array([9.2e07, 1.1e08, 1.4e08, 1.6e08, 1.9e08, 2.1e08, 2.3e08, 2.5e08, 2.6e08])
-    cxx = np.array([226837, 211247, 197996, 185523, 174610, 163697, 153563, 144209, 137973])
-    cyy = np.array([235837, 211247, 197996, 185523, 174610, 163697, 153563, 144209, 137973])
-    frequency = np.array([314.2, 418.9, 523.6, 628.3, 733.0, 837.8, 942.5, 1047.2, 1151.9])
+    kxx = np.array(
+        [8.5e07, 1.1e08, 1.3e08, 1.6e08, 1.8e08, 2.0e08, 2.3e08, 2.5e08, 2.6e08]
+    )
+    kyy = np.array(
+        [9.2e07, 1.1e08, 1.4e08, 1.6e08, 1.9e08, 2.1e08, 2.3e08, 2.5e08, 2.6e08]
+    )
+    cxx = np.array(
+        [226837, 211247, 197996, 185523, 174610, 163697, 153563, 144209, 137973]
+    )
+    cyy = np.array(
+        [235837, 211247, 197996, 185523, 174610, 163697, 153563, 144209, 137973]
+    )
+    frequency = np.array(
+        [314.2, 418.9, 523.6, 628.3, 733.0, 837.8, 942.5, 1047.2, 1151.9]
+    )
     return BearingElement(4, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, frequency=frequency)
 
 
@@ -228,7 +240,9 @@ def thrust_pad_results():
     d_radius, d_theta = 0.2, 0.2
     pad_arc_length = 0.4538
     pressure = (
-        np.arange((n_radial + 2) * (n_theta + 2), dtype=float).reshape(n_radial + 2, n_theta + 2)
+        np.arange((n_radial + 2) * (n_theta + 2), dtype=float).reshape(
+            n_radial + 2, n_theta + 2
+        )
         * 1000
     )
     temperature = pressure / 100
@@ -337,7 +351,9 @@ def _expected_frf_phase(freq_response, inp, out, phase_units="rad"):
 
 def _expected_bearing_coefficient_plot(bearing, coefficient, frequency_units="rad/s"):
     frequency_range = np.linspace(min(bearing.frequency), max(bearing.frequency), 30)
-    coefficient_values = getattr(bearing, f"{coefficient}_interpolated")(frequency_range)
+    coefficient_values = getattr(bearing, f"{coefficient}_interpolated")(
+        frequency_range
+    )
     if coefficient.startswith("k"):
         values = Q_(coefficient_values, "N/m").to("N/m").m
     else:
@@ -376,7 +392,9 @@ def test_frequency_response_plot_polar_bode(freq_response):
 
     expected_x, expected_r = _expected_frf_magnitude(freq_response, inp, out)
     _, expected_theta = _expected_frf_phase(freq_response, inp, out)
-    expected_theta = np.array([value + 2 * np.pi if value < 0 else value for value in expected_theta])
+    expected_theta = np.array(
+        [value + 2 * np.pi if value < 0 else value for value in expected_theta]
+    )
 
     assert_trace_allclose(fig.data[0], r=expected_r, theta=expected_theta)
     assert_allclose(fig.data[0].r[:3], expected_r[:3])
@@ -388,7 +406,9 @@ def test_forced_response_plot_magnitude(forced_response, probe_node3):
     assert_plotly_figure(fig)
 
     df = forced_response.data_magnitude(probe=probe)
-    assert_plot_traces_match_dataframe(fig, df, "frequency", dataframe_trace_columns(df))
+    assert_plot_traces_match_dataframe(
+        fig, df, "frequency", dataframe_trace_columns(df)
+    )
 
     expected_y = np.array([0.00202625, 0.00026848, 0.00019152, 0.00016191, 0.00014354])
     assert_allclose(fig.data[0].y[:5], expected_y, rtol=1e-4)
@@ -400,7 +420,9 @@ def test_forced_response_plot_phase(forced_response, probe_node3):
     assert_plotly_figure(fig)
 
     df = forced_response.data_phase(probe=probe)
-    assert_plot_traces_match_dataframe(fig, df, "frequency", dataframe_trace_columns(df))
+    assert_plot_traces_match_dataframe(
+        fig, df, "frequency", dataframe_trace_columns(df)
+    )
 
 
 def test_forced_response_plot_bode(forced_response, probe_node3):
@@ -412,7 +434,9 @@ def test_forced_response_plot_bode(forced_response, probe_node3):
     df_phase = forced_response.data_phase(probe=probe)
     y_cols = dataframe_trace_columns(df_mag)
     assert_plot_traces_match_dataframe(fig, df_mag, "frequency", y_cols, trace_offset=0)
-    assert_plot_traces_match_dataframe(fig, df_phase, "frequency", y_cols, trace_offset=1)
+    assert_plot_traces_match_dataframe(
+        fig, df_phase, "frequency", y_cols, trace_offset=1
+    )
 
 
 def test_forced_response_plot_polar_bode(forced_response, probe_node3):
