@@ -31,6 +31,7 @@ Elements
     HolePatternSeal
     MagneticBearingElement
     GearElement
+    GearElementTVMS
     CouplingElement
     Probe
     PointMass
