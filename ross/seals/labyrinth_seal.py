@@ -268,8 +268,10 @@ class LabyrinthSeal(SealElement):
             coefficients_dict = {
                 c: [k[c] for k in results]
                 for c in results[0].keys()
-                if c not in ["pressure"]
+                if c not in ["pressure", "pert_rcond", "pert_condition_number"]
             }
+            self.pert_rcond = [r["pert_rcond"] for r in results]
+            self.pert_condition_number = [r["pert_condition_number"] for r in results]
 
         super().__init__(
             self.n,
@@ -319,6 +321,20 @@ class LabyrinthSeal(SealElement):
                 (1 - self.pg**2) / (self.n_teeth - np.log(self.pg))
             ) ** 0.5
 
+    def _reset_perturbation_arrays(self):
+        """Clear arrays filled incrementally in zvel/zvel_jen and pert.
+
+        Without this reset, coefficients from a previous ``run(frequency)``
+        call can leak into the next speed when multiple frequencies are
+        computed on the same instance.
+        """
+        self.gm.fill(0)
+        self.rhs.fill(0)
+        self.cg.fill(0)
+        self.cx.fill(0)
+        self.taur.fill(0)
+        self.taus.fill(0)
+
     def setup(self):
         self.epslon = 0.6
         self.awrl = self.epslon * self.radial_clearance[0]
@@ -326,8 +342,7 @@ class LabyrinthSeal(SealElement):
         self.nc = self.n_teeth - 1
         self.np = self.n_teeth + 1
 
-        # Arrays already initialized with np.full() in __init__
-        # No need to re-assign values that are already set
+        self._reset_perturbation_arrays()
 
         self.ndof = 8 * self.nc
         self.nbw = 33
@@ -1164,6 +1179,8 @@ class LabyrinthSeal(SealElement):
             rhs2[i] = self.rhs[i][1]
         cnd = cond(A)
         rcond = 1 / cnd
+        self.pert_condition_number = cnd
+        self.pert_rcond = rcond
 
         if rcond <= 1 / 3.0e8:
             warn("Almost singular matrix. \n No prediction for dynamic coefficients.")
@@ -1254,6 +1271,8 @@ class LabyrinthSeal(SealElement):
             "pressure": "p",
         }
         coefficients_dict = {k: getattr(self, v) for k, v in attrbute_coef.items()}
+        coefficients_dict["pert_rcond"] = self.pert_rcond
+        coefficients_dict["pert_condition_number"] = self.pert_condition_number
 
         return coefficients_dict
 
