@@ -322,11 +322,9 @@ class LabyrinthSeal(SealElement):
             ) ** 0.5
 
     def _reset_perturbation_arrays(self):
-        """Clear arrays filled incrementally in zvel/zvel_jen and pert.
-
-        Without this reset, coefficients from a previous ``run(frequency)``
-        call can leak into the next speed when multiple frequencies are
-        computed on the same instance.
+        """Reset perturbation and velocity-coupling workspace arrays.
+        Zeros ``gm``, ``rhs``, ``cg``, ``cx``, ``taur``, and ``taus`` before
+        each base-flow and perturbation solve in ``setup()``.
         """
         self.gm.fill(0)
         self.rhs.fill(0)
