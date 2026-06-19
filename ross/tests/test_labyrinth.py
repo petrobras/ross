@@ -287,3 +287,99 @@ def test_labyrinth_coefficients(labyrinth):
     assert_allclose(labyrinth.cxy, 56.255682, rtol=1e-4)
     assert_allclose(labyrinth.cyx, -56.255682, rtol=1e-4)
     assert_allclose(labyrinth.cyy, 23.825111, rtol=1e-4)
+
+
+# Real-gas (gas_model) tests --------------------------------------------------
+
+# Dense-gas case (Z well below 1) used for the directional real-gas check.
+# Pure methane is robust under both the HEOS and REFPROP backends here.
+DENSE_GAS_PARAMS = {
+    "n": 0,
+    "inlet_pressure": 8e6,
+    "outlet_pressure": 3e6,
+    "inlet_temperature": 300,
+    "preswirl": 0.5,
+    "frequency": Q_([8000], "RPM"),
+    "n_teeth": 10,
+    "shaft_radius": Q_(72.5, "mm"),
+    "radial_clearance": Q_(0.3, "mm"),
+    "pitch": Q_(3.175, "mm"),
+    "tooth_height": Q_(3.175, "mm"),
+    "tooth_width": Q_(0.1524, "mm"),
+    "seal_type": "inter",
+}
+DENSE_GAS = {"Methane": 1.0}
+
+
+def test_labyrinth_gas_model_default_is_ideal(labyrinth_manual):
+    """The default backend is the perfect-gas model."""
+    assert labyrinth_manual.gas_model == "ideal"
+    assert labyrinth_manual._real_gas is False
+
+
+def test_labyrinth_ideal_backend_unchanged(labyrinth_manual):
+    """The ideal backend reproduces the legacy coefficients.
+
+    Routing the solver through the gas model must not perturb the ideal-gas
+    path. The reference values are bit-identical on the machine where they were
+    captured; the tolerance here is far tighter than the ``rtol=1e-4`` used by
+    the other tests (so any real perturbation is caught) while tolerating
+    last-bit floating-point differences between platforms/BLAS backends.
+    """
+    assert_allclose(labyrinth_manual.kxx[0], -50456.5865968456, rtol=1e-9)
+    assert_allclose(labyrinth_manual.kxy[0], 35541.605311914, rtol=1e-9)
+    assert_allclose(labyrinth_manual.cxx[0], 23.82511134106155, rtol=1e-9)
+    assert_allclose(labyrinth_manual.cxy[0], 56.255682475614, rtol=1e-9)
+    assert_allclose(labyrinth_manual.seal_leakage[0], 0.051961660704224755, rtol=1e-9)
+
+
+def test_labyrinth_real_requires_gas_composition():
+    """gas_model='real' without gas_composition raises a clear error."""
+    with pytest.raises(ValueError, match="requires gas_composition"):
+        LabyrinthSeal(**COMMON_PARAMS, **MANUAL_PARAMS, gas_model="real")
+
+
+def test_labyrinth_invalid_gas_model():
+    """An unknown gas_model value raises a clear error."""
+    with pytest.raises(ValueError, match="Invalid gas_model"):
+        LabyrinthSeal(
+            **COMMON_PARAMS, gas_composition=GAS_COMPOSITION, gas_model="bogus"
+        )
+
+
+def test_labyrinth_real_gas_near_ideal():
+    """For near-ideal gas (Z ~ 1) the real backend matches the ideal one.
+
+    The standard air case sits at Z ~ 0.999, so the real-gas coefficients and
+    leakage must stay within a few percent of the ideal-gas results.
+    """
+    ideal = LabyrinthSeal(**COMMON_PARAMS, gas_composition=GAS_COMPOSITION)
+    real = LabyrinthSeal(
+        **COMMON_PARAMS, gas_composition=GAS_COMPOSITION, gas_model="real"
+    )
+
+    assert real.gas_model == "real"
+    assert real._real_gas is True
+    assert_allclose(real.kxx[0], ideal.kxx[0], rtol=0.01)
+    assert_allclose(real.kxy[0], ideal.kxy[0], rtol=0.01)
+    assert_allclose(real.cxx[0], ideal.cxx[0], rtol=0.01)
+    assert_allclose(real.seal_leakage[0], ideal.seal_leakage[0], rtol=0.01)
+
+
+def test_labyrinth_real_gas_dense_gas_leakage():
+    """For a dense gas (Z < 1) the real backend predicts higher leakage.
+
+    Leakage scales with density rho = P / (Z R T); for Z < 1 the real density
+    exceeds the perfect-gas value, so the real-gas leakage must exceed the
+    ideal-gas leakage. Coefficients must remain finite.
+    """
+    ideal = LabyrinthSeal(**DENSE_GAS_PARAMS, gas_composition=DENSE_GAS)
+    real = LabyrinthSeal(
+        **DENSE_GAS_PARAMS, gas_composition=DENSE_GAS, gas_model="real"
+    )
+
+    assert np.isfinite(real.kxx[0])
+    assert np.isfinite(real.seal_leakage[0])
+    assert real.seal_leakage[0] > ideal.seal_leakage[0]
+    # Density correction at this state (Z ~ 0.88) lifts leakage by a few percent.
+    assert_allclose(real.seal_leakage[0], ideal.seal_leakage[0], rtol=0.15)
