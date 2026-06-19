@@ -204,6 +204,10 @@ class RealGas(IdealGas):
                 rho_k = state.rho().m
                 a_k = state.speed_sound().m
                 h_k = state.h().m
+                # (d rho / d p)_T = rho * kappa_T, read analytically at the same
+                # isentrope state, avoiding extra equation-of-state evaluations.
+                kappa_t = state.isothermal_compressibility()
+                kappa_t = kappa_t.m if hasattr(kappa_t, "m") else kappa_t
             except (ValueError, RuntimeError) as err:
                 raise RuntimeError(
                     f"Could not build the real-gas isentrope table at p={p:.1f} Pa. "
@@ -220,7 +224,7 @@ class RealGas(IdealGas):
             rho_grid[k] = rho_k
             a_grid[k] = a_k
             h_grid[k] = h_k
-            drhodp_grid[k] = self._isothermal_drhodp(state, float(p), T_k)
+            drhodp_grid[k] = rho_k * kappa_t
 
         self.p_grid = p_grid
         self.T_grid = T_grid
@@ -229,23 +233,6 @@ class RealGas(IdealGas):
         self.h_grid = h_grid
         self.drhodp_grid = drhodp_grid
         self.p_min = p_grid[0]
-
-    @staticmethod
-    def _isothermal_drhodp(state, p, T):
-        """Return ``(d rho / d p)_T`` at ``(p, T)`` by central finite difference."""
-        dp = max(p * 1e-4, 1.0)
-        try:
-            state.update(p=p + dp, T=T)
-            rho_hi = state.rho().m
-            state.update(p=p - dp, T=T)
-            rho_lo = state.rho().m
-            return (rho_hi - rho_lo) / (2 * dp)
-        except (ValueError, RuntimeError):
-            state.update(p=p, T=T)
-            rho_0 = state.rho().m
-            state.update(p=p + dp, T=T)
-            rho_hi = state.rho().m
-            return (rho_hi - rho_0) / dp
 
     def _rho(self, p):
         return np.interp(p, self.p_grid, self.rho_grid)
