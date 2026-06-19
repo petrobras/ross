@@ -318,16 +318,19 @@ def test_labyrinth_gas_model_default_is_ideal(labyrinth_manual):
 
 
 def test_labyrinth_ideal_backend_unchanged(labyrinth_manual):
-    """The ideal backend reproduces the legacy coefficients to full precision.
+    """The ideal backend reproduces the legacy coefficients.
 
     Routing the solver through the gas model must not perturb the ideal-gas
-    path, so the values match the reference at rtol=0 (bit-for-bit).
+    path. The reference values are bit-identical on the machine where they were
+    captured; the tolerance here is far tighter than the ``rtol=1e-4`` used by
+    the other tests (so any real perturbation is caught) while tolerating
+    last-bit floating-point differences between platforms/BLAS backends.
     """
-    assert labyrinth_manual.kxx[0] == -50456.5865968456
-    assert labyrinth_manual.kxy[0] == 35541.605311914
-    assert labyrinth_manual.cxx[0] == 23.82511134106155
-    assert labyrinth_manual.cxy[0] == 56.255682475614
-    assert labyrinth_manual.seal_leakage[0] == 0.051961660704224755
+    assert_allclose(labyrinth_manual.kxx[0], -50456.5865968456, rtol=1e-9)
+    assert_allclose(labyrinth_manual.kxy[0], 35541.605311914, rtol=1e-9)
+    assert_allclose(labyrinth_manual.cxx[0], 23.82511134106155, rtol=1e-9)
+    assert_allclose(labyrinth_manual.cxy[0], 56.255682475614, rtol=1e-9)
+    assert_allclose(labyrinth_manual.seal_leakage[0], 0.051961660704224755, rtol=1e-9)
 
 
 def test_labyrinth_real_requires_gas_composition():
