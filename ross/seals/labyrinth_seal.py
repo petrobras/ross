@@ -615,7 +615,7 @@ class LabyrinthSeal(SealElement):
                 self.p[i - 1], self.w[i - 1], self.vnu, self.t[i - 1]
             )
         else:
-            chock1 = gam7 + (
+            chok1 = gam7 + (
                 self.vnu * self.w[i - 1] * self.w[i - 1] / (gam4 * self.t[i - 1])
             )
             chok2 = chok1**gam5
