@@ -53,7 +53,6 @@ from ross.seals.labyrinth_seal import LabyrinthSeal
 from ross.shaft_element import ShaftElement
 from ross.units import Q_, check_units
 from ross.utils import (
-    assemble_C_K_matrices,
     convert_6dof_to_4dof,
     convert_6dof_to_torsional,
     intersection,
@@ -169,7 +168,7 @@ class Rotor(object):
     ):
         self.parameters = {"min_w": min_w, "max_w": max_w, "rated_w": rated_w}
 
-        self._set_tag(tag)
+        self.set_tag(tag)
 
         ####################################################
         # Config attributes
@@ -199,7 +198,7 @@ class Rotor(object):
         for i, sh in enumerate(shaft_elements):
             if sh.n is None:
                 sh.n = i
-            self._set_element_tag(sh, i)
+            sh.add_tag(i)
 
         if disk_elements is None:
             disk_elements = []
@@ -208,17 +207,16 @@ class Rotor(object):
         if point_mass_elements is None:
             point_mass_elements = []
 
-        for i, disk in enumerate(disk_elements):
-            self._set_element_tag(disk, i)
+        elm_dict = {}
+        for elm in disk_elements + bearing_elements + point_mass_elements:
+            class_name = elm.__class__.__name__
+            elm_dict[class_name] = elm_dict.get(class_name, 0) + 1
+            elm.add_tag(elm_dict[class_name] - 1)
 
-        for i, brg in enumerate(bearing_elements):
-            # add n_l and n_r to bearing elements
-            brg.n_l = brg.n
-            brg.n_r = brg.n
-            self._set_element_tag(brg, i)
-
-        for i, p_mass in enumerate(point_mass_elements):
-            self._set_element_tag(p_mass, i)
+            if isinstance(elm, BearingElement):
+                # add n_l and n_r to bearing elements
+                elm.n_l = elm.n
+                elm.n_r = elm.n
 
         self.shaft_elements = sorted(shaft_elements, key=lambda el: el.n)
         self.bearing_elements = sorted(bearing_elements, key=lambda el: el.n)
@@ -315,7 +313,7 @@ class Rotor(object):
             [df_shaft, df_disks, df_bearings, df_point_mass, df_seals], sort=True
         )
         df = df.sort_values(by="n_l")
-        df = df.reset_index(drop=True)
+        df = df.reset_index(drop=True).copy()
         df["shaft_number"] = np.zeros(len(df))
 
         df_shaft["shaft_number"] = np.zeros(len(df_shaft))
@@ -330,14 +328,17 @@ class Rotor(object):
         self.df_point_mass = df_point_mass
         self.df_seals = df_seals
 
-        # check consistence for disks and bearings location
+        # check consistence for elements location
         if len(df_point_mass) > 0:
             max_loc_point_mass = df_point_mass.n.max()
         else:
             max_loc_point_mass = 0
         max_location = max(df_shaft.n_r.max(), max_loc_point_mass)
+
         if df.n_l.max() > max_location:
-            raise ValueError("Trying to set disk or bearing outside shaft")
+            outside = df[df["n_l"] > max_location]
+            tag = outside.iloc[0]["tag"]
+            raise ValueError(f"Trying to set {tag} outside shaft")
 
         # nodes axial position and diameter
         self._set_nodes(df_shaft)
@@ -450,6 +451,8 @@ class Rotor(object):
             df.at[df.loc[df.tag == elm.tag].index[0], "dof_global_index"] = (
                 elm.dof_global_index
             )
+
+        df = df.copy()
 
         # define positions for disks
         for elm in self.disk_elements:
@@ -637,14 +640,63 @@ class Rotor(object):
         # Then, use the vector to compute diametral aka transverse inertia of the entire rotor.
         self.It = v @ (self.M0 @ v.T)
 
-    def _set_tag(self, tag):
+    def __add__(self, rotor2):
+        return Rotor.concatenate_rotors([self, rotor2])
+
+    @classmethod
+    def concatenate_rotors(cls, rotor_list):
+        """Concatenate a list of rotors into a single rotor.
+
+        The nodes of the concatenated rotor will be the maximum node of the last rotor
+        in the list.
+
+        Parameters
+        ----------
+        rotor_list : list
+            List of Rotor objects to concatenate.
+
+        Returns
+        -------
+        Rotor object.
+        """
+        shaft_elements = []
+        disk_elements = []
+        bearing_elements = []
+        point_mass_elements = []
+
+        node_offset = 0
+
+        for i, rotor in enumerate(rotor_list):
+            rotor = copy(rotor)
+
+            # Reindex elements
+            elements = rotor.elements
+            for el in elements:
+                el.n += node_offset
+                try:
+                    el.n_link += node_offset
+                except:
+                    pass
+                el.tag = f"{el.tag} (R{i})"
+
+            shaft_elements.extend(rotor.shaft_elements)
+            disk_elements.extend(rotor.disk_elements)
+            bearing_elements.extend(rotor.bearing_elements)
+            point_mass_elements.extend(rotor.point_mass_elements)
+
+            # Update offset for the next rotor
+            node_offset = max(rotor.nodes)
+
+        return cls(
+            shaft_elements=shaft_elements,
+            disk_elements=disk_elements,
+            bearing_elements=bearing_elements,
+            point_mass_elements=point_mass_elements,
+        )
+
+    def set_tag(self, tag):
         """Set the tag for the current rotor."""
         self.tag = tag or "Rotor 0"
-
-    def _set_element_tag(self, elm, index):
-        """Set a tag for the given element if it doesn't have one."""
-        if elm.tag is None:
-            elm.tag = elm.get_class_name_prefix(index)
 
     def _fix_nodes_pos(self, index, node, nodes_pos_l):
         """Optional override to adjust node positions.
@@ -878,6 +930,61 @@ class Rotor(object):
             shaft_elements.insert(idx_right, right_elem)
 
             prev_left_node = left_elem.n
+
+        return Rotor(
+            shaft_elements,
+            disk_elements=disk_elements,
+            bearing_elements=bearing_elements,
+            point_mass_elements=point_mass_elements,
+            min_w=self.min_w,
+            max_w=self.max_w,
+            rated_w=self.rated_w,
+            tag=self.tag,
+        )
+
+    def add_elements(self, new_elements):
+        """Add elements to rotor.
+
+        This method returns the modified rotor with additional elements.
+        This is not valid for shaft elements.
+
+        Parameters
+        ----------
+        new_elements : list
+            List with the new elements. It may be disks, gears, bearings,
+            seals and point masses.
+
+        Returns
+        -------
+        A rotor object.
+
+        Examples
+        --------
+        >>> import ross as rs
+        >>> rotor = rs.rotor_example()
+        >>> seal = rs.SealElement(n=3, kxx=1e6, kyy=0.8e6, cxx=2e2, cyy=1.5e2)
+        >>> disk = rs.DiskElement(n=5, m=32, Id=0.2, Ip=0.3)
+        >>> new_rotor = rotor.add_elements([seal, disk])
+        >>> len(new_rotor.elements)
+        12
+        """
+
+        shaft_elements = deepcopy(self.shaft_elements)
+        disk_elements = deepcopy(self.disk_elements)
+        bearing_elements = deepcopy(self.bearing_elements)
+        point_mass_elements = deepcopy(self.point_mass_elements)
+
+        for el in new_elements:
+            if isinstance(el, ShaftElement):
+                shaft_elements.append(el)
+            elif isinstance(el, DiskElement):
+                disk_elements.append(el)
+            elif isinstance(el, BearingElement):
+                bearing_elements.append(el)
+            elif isinstance(el, PointMass):
+                point_mass_elements.append(el)
+            else:
+                raise ValueError(f"{el} is not a valid element.")
 
         return Rotor(
             shaft_elements,
@@ -3029,8 +3136,8 @@ class Rotor(object):
             fig = sh_elm._patch(position, check_sld, fig, length_units)
 
         mean_od = np.mean(nodes_o_d)
-        # plot disk elements
 
+        # plot disk elements
         # calculate scale factor if disks have scale_factor='mass'
         if self.disk_elements:
             scaled_disks = [
@@ -3260,6 +3367,7 @@ class Rotor(object):
 
         return results
 
+    @check_units
     def run_ucs(
         self,
         stiffness_range=None,
