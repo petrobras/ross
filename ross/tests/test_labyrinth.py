@@ -289,6 +289,24 @@ def test_labyrinth_coefficients(labyrinth):
     assert_allclose(labyrinth.cyy, 23.825111, rtol=1e-4)
 
 
+def test_labyrinth_always_computes_coefficients(labyrinth_manual):
+    """The seal always computes rotordynamic coefficients.
+
+    The removed ``analz="LEAKAGE"`` option used to skip ``pert()`` and then
+    crash while assembling the (never created) coefficient attributes. There is
+    no longer a leakage-only mode: stiffness, damping and leakage are always
+    available after construction.
+    """
+    import inspect
+
+    assert "analz" not in inspect.signature(LabyrinthSeal.__init__).parameters
+
+    for coef in ("kxx", "kyy", "kxy", "kyx", "cxx", "cyy", "cxy", "cyx"):
+        value = getattr(labyrinth_manual, coef)
+        assert np.all(np.isfinite(value))
+    assert np.all(np.isfinite(labyrinth_manual.seal_leakage))
+
+
 # Real-gas (gas_model) tests --------------------------------------------------
 
 # Dense-gas case (Z well below 1) used for the directional real-gas check.

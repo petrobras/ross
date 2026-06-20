@@ -109,11 +109,6 @@ class LabyrinthSeal(SealElement):
         Dynamic viscosity at states: [mu_state1, mu_state2] (kg/(m·s)).
         Required if gas_composition is None.
         Default is None.
-    analz : str, optional
-        Indicates what will be analysed.
-        Specify "FULL" for rotordynamic calculation and leakage analysis.
-        Specify "LEAKAGE" for leakage analysis only.
-        Default is "FULL".
     nprt : int, optional
         Number of parameters to be printed in the output: 1 maximum, 5 minimum.
         Default is 1.
@@ -183,7 +178,6 @@ class LabyrinthSeal(SealElement):
         gamma=None,
         tz=None,
         muz=None,
-        analz="FULL",
         nprt=1,
         iopt1=0,
         print_results=False,
@@ -253,7 +247,6 @@ class LabyrinthSeal(SealElement):
         self.tooth_width = tooth_width
         self.seal_type = seal_type
 
-        self.analz = analz
         self.nprt = nprt
         self.iopt1 = iopt1
 
@@ -1311,8 +1304,7 @@ class LabyrinthSeal(SealElement):
             self.zvel()
         elif self.iopt1 == 1:
             self.zvel_jen()
-        if self.analz != "LEAKAGE":
-            self.pert()
+        self.pert()
 
         attrbute_coef = {
             "kxx": "kxx",
