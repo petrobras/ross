@@ -290,15 +290,35 @@ def test_probe_response(rotor1):
 
 
 def test_summary_results(rotor1):
-    # check that summary results plot is created. not an easy way to check that the plot that is created is correct
-    # but we should at least check that it is created and no exceptions are thrown
     s = rotor1.summary()
 
-    fig1 = s.plot(length_units="mm", mass_units="g", force_units="mN")
-    assert fig1 is not None
+    def column(fig, header):
+        for table in fig.data:
+            headers = list(table.header["values"])
+            if header in headers:
+                values = table.cells["values"][headers.index(header)]
+                return np.array([float(v) for v in values])
+        raise KeyError(header)
 
-    fig2 = s.plot(length_units="in", mass_units="lb", force_units="lbf")
-    assert fig2 is not None
+    fig_default = s.plot()
+    fig_mm = s.plot(length_units="mm", mass_units="g", force_units="mN")
+
+    assert "Length (m)" in list(fig_default.data[1].header["values"])
+    assert "Length (mm)" in list(fig_mm.data[1].header["values"])
+
+    assert_allclose(
+        column(fig_mm, "Length (mm)"),
+        column(fig_default, "Length (m)") * 1000,
+        rtol=1e-2,
+    )
+    assert_allclose(
+        column(fig_mm, "Mass (g)"),
+        column(fig_default, "Mass (kg)") * 1000,
+        rtol=1e-2,
+    )
+
+    fig_imperial = s.plot(length_units="in", mass_units="lb", force_units="lbf")
+    assert fig_imperial is not None
 
 
 @pytest.fixture
