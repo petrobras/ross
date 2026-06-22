@@ -2793,6 +2793,10 @@ class Rotor(object):
         M = reduce_matrix(kwargs.get("M", self.M()))
         C2 = reduce_matrix(kwargs.get("G", self.G()))
         K2 = reduce_matrix(kwargs.get("Ksdt", self.Ksdt()))
+        if self.Ktq is not None:
+            Ktq = reduce_matrix(self.Ktq)
+        else:
+            Ktq = np.zeros_like(M)
 
         # Depending on the conditions of the analysis,
         # one of the three options below will be chosen.
@@ -2816,7 +2820,7 @@ class Rotor(object):
                     return (
                         M,
                         C1 + C2 * speed[step],
-                        K1 + K2 * accel[step],
+                        K1 + K2 * accel[step] + Ktq * self.torque[step],
                         forces(step, **current_state),
                     )
 
@@ -2827,7 +2831,7 @@ class Rotor(object):
                 rotor_system = lambda step, **current_state: (
                     M,
                     C1 + C2 * speed[step],
-                    K1 + K2 * accel[step],
+                    K1 + K2 * accel[step] + Ktq * self.torque[step],
                     forces(step, **current_state),
                 )
 
@@ -2838,7 +2842,7 @@ class Rotor(object):
             rotor_system = lambda step, **current_state: (
                 M,
                 C1 + C2 * speed_ref,
-                K1,
+                K1 + Ktq * self.torque[step],
                 forces(step, **current_state),
             )
 
@@ -3177,7 +3181,8 @@ class Rotor(object):
                 .m
             )
             yc_pos = center_line_pos[self.nodes.index(motor.n)]
-            position = (z_pos, y_pos, yc_pos, mean_od)
+            diam = nodes_o_d[self.nodes.index(motor.n)]
+            position = (z_pos, y_pos, yc_pos, diam)
             fig = motor._patch(position, fig)
 
         fig.update_xaxes(
@@ -3798,8 +3803,9 @@ class Rotor(object):
             Unbalance phase [rad] for each node.
         drive_mode : str
             Run motor with:
-            - 'DOL' (direct on line)
-            - 'VF' (V/f adjustment technique)
+                - 'DOL': Direct on line start
+                - 'VFD_VF': Variable frequency drive with open-loop V/f adjustment technique
+                - 'VFD_FOC': Variable frequency drive with closed-loop field-oriented control
         load_torque_entrance_time : float, optional
             Time when load torque is applied to the motor shaft [s].
             Default is half the simulation time.
@@ -3830,10 +3836,10 @@ class Rotor(object):
                 Angle deviation per phase (A, B, C) [rad]. Must contain exactly 3 elements.
         time_ramp : float, optional
             Acceleration ramp time [s] for frequency ramping.
-            Active only when `drive_mode='VF'`. Default is 0.6667.
+            Active only when `drive_mode='VFD'`. Default is 0.6667.
         frequency_ref : float, pint.Quantity, optional
             Reference frequency for V/f adjustment technique [rad/s].
-            Active only when `drive_mode='VF'`.
+            Active only when `drive_mode='VFD'`.
             Default is None, which uses half the motor nominal frequency.
         F : array, optional
             Force array (needs to have the same number of rows as time array).
@@ -3901,8 +3907,8 @@ class Rotor(object):
                 harmonics=ac_source_harmonics,
                 unbalances=ac_source_unbalances,
             )
-        elif drive_mode.upper() == "VF":
-            motor_results = motor.run_with_vf(
+        elif drive_mode.upper() == "VFD":
+            motor_results = motor.run_open_loop_vf_adjustment(
                 t,
                 load_torque_entrance_time=load_torque_entrance_time,
                 load_torque_ratio=load_torque_ratio,
@@ -3910,7 +3916,7 @@ class Rotor(object):
                 frequency_ref=frequency_ref,
             )
         else:
-            raise ValueError("drive_mode must be 'DOL' or 'VF'.")
+            raise ValueError("drive_mode must be 'DOL' or 'VFD'.")
 
         torque = motor_results.sample_at("electric_torque", t)
         speed = motor_results.sample_at("speed", t)
@@ -3919,8 +3925,21 @@ class Rotor(object):
             node, unbalance_magnitude, unbalance_phase, speed, t
         ).T
 
-        dof = motor.dof_global_index[f"theta_{motor.n}"]
-        F[:, dof] += torque
+        # add torque to the rotor
+        dof_theta = motor.dof_global_index[f"theta_{motor.n}"]
+        F[:, dof_theta] += torque
+
+        Ktq = np.zeros((self.ndof, self.ndof))
+        for elm in self.shaft_elements:
+            dofs = list(elm.dof_global_index.values())
+            Ktq[np.ix_(dofs, dofs)] += elm.Ktq0
+
+        add_to_RHS = kwargs.get("add_to_RHS", lambda step, **state: 0)
+        add_to_RHS = lambda step, **state: (
+            add_to_RHS(step, **state)
+            - (Ktq * torque[step]) @ state.get("disp_resp")
+        )
+        kwargs["add_to_RHS"] = add_to_RHS
 
         results = self.run_time_response(speed, F, t, method=solver_method, **kwargs)
 

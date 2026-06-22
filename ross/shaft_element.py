@@ -306,6 +306,25 @@ class ShaftElement(Element):
         self.phi = phi
         self.dof_global_index = None
 
+        # Stiffness matrix for an instance of a shaft element due to torque.
+        # It needs to be multiplied by the torque when considered in time dependent analyses.
+        # fmt: off
+        self.Ktq0 = np.array([
+            [ 0,  0,  0,    1,    0,  0,  0,  0,  0,   -1,    0,  0],
+            [ 0,  0,  0,    0,    1,  0,  0,  0,  0,    0,   -1,  0],
+            [ 0,  0,  0,    0,    0,  0,  0,  0,  0,    0,    0,  0],
+            [ 1,  0,  0,    0, -L/2,  0, -1,  0,  0,    0,  L/2,  0],
+            [ 0,  1,  0,  L/2,    0,  0,  0, -1,  0, -L/2,    0,  0],
+            [ 0,  0,  0,    0,    0,  0,  0,  0,  0,    0,    0,  0],
+            [ 0,  0,  0,   -1,    0,  0,  0,  0,  0,    1,    0,  0],
+            [ 0,  0,  0,    0,   -1,  0,  0,  0,  0,    0,    1,  0],
+            [ 0,  0,  0,    0,    0,  0,  0,  0,  0,    0,    0,  0],
+            [-1,  0,  0,    0, -L/2,  0,  1,  0,  0,    0,  L/2,  0],
+            [ 0, -1,  0,  L/2,    0,  0,  0,  1,  0, -L/2,    0,  0],
+            [ 0,  0,  0,    0,    0,  0,  0,  0,  0,    0,    0,  0],
+        ]) / L
+        # fmt: on
+
     def __eq__(self, other):
         """Equality method for comparisons.
 
@@ -913,6 +932,7 @@ class ShaftElement(Element):
         K += Kts
 
         return K
+
 
     def Kst(self):
         """Dynamic stiffness matrix for an instance of a shaft element.

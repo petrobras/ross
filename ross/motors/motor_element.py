@@ -443,7 +443,7 @@ class MotorElement(Element):
         Parameters
         ----------
         position : tuple
-            Position ``(zpos, ypos, yc_pos, scale_factor)`` in which the
+            Position ``(zpos, ypos, yc_pos, outer_diameter)`` in which the
             patch will be drawn. The icon is centered on ``(zpos, yc_pos)``.
         fig : plotly.graph_objects.Figure
             The figure object which traces are added on.
@@ -453,11 +453,11 @@ class MotorElement(Element):
         fig : plotly.graph_objects.Figure
             The figure object which traces are added on.
         """
-        zpos, ypos, yc_pos, scale_factor = position
+        zpos, ypos, yc_pos, outer_diameter = position
 
         customdata, hovertemplate = self._hover_info()
 
-        image_height = max(ypos, scale_factor * 0.9)
+        image_height = outer_diameter * 0.9 * self.scale_factor
         image_width = image_height
         marker_size = image_height * 350
 
@@ -801,7 +801,7 @@ class MotorElement(Element):
         return results
 
     @check_units
-    def run_with_vf(
+    def run_open_loop_vf_adjustment(
         self,
         t,
         time_step=None,
@@ -852,7 +852,7 @@ class MotorElement(Element):
         >>> size = int(tf / dt) + 1
         >>> t = np.linspace(0, tf, size)
 
-        >>> results = motor.run_with_vf(
+        >>> results = motor.run_open_loop_vf_adjustment(
         ...     t, # Evaluation time vector
         ...     time_step=1e-4, # Simulation time step
         ...     load_torque_entrance_time=0.5,
@@ -921,7 +921,7 @@ def motor_ode_system(y, args):
         b,
         Rr,
         viscosity_coeff,
-        Ip_total,
+        Ip,
     ) = args
 
     Te = calculate_electric_torque(Lds, Lqs, Ldr, Lqr, c, n_poles)
@@ -934,7 +934,7 @@ def motor_ode_system(y, args):
     dLdr_dt = vdr - Rr * b * Ldr + Rr * c * Lds + w * Lqr
     dLqr_dt = vqr - Rr * b * Lqr + Rr * c * Lqs - w * Ldr
 
-    dwr_dt = (Te - viscosity_coeff * wr - Tl) / Ip_total
+    dwr_dt = (Te - viscosity_coeff * wr - Tl) / Ip
 
     return np.array([dLds_dt, dLqs_dt, dLdr_dt, dLqr_dt, dwr_dt])
 

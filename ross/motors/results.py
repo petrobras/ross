@@ -610,7 +610,7 @@ class MotorResponseResults(Results):
                 "Shaft Speed": Q_(self.speed, "rad/s").to(speed_units).m,
             },
             title="Motor operation: Shaft Speed",
-            yaxis_title=f"Motor speed ({speed_units})",
+            yaxis_title=f"Speed ({speed_units})",
             fig=fig,
         )
 
