@@ -6,6 +6,7 @@ from warnings import warn
 import multiprocessing
 from ross import SealElement
 from ross.units import check_units, Q_
+from ross.seals.gas_model import extract_gas_properties, IdealGas, RealGas
 import plotly.graph_objects as go
 import ccp
 
@@ -86,6 +87,14 @@ class LabyrinthSeal(SealElement):
         Gas composition as a dictionary {component: molar_fraction}.
         If gas_composition is None, provide molar, gamma, tz, and muz parameters.
         Default is None.
+    gas_model : str, optional
+        Thermodynamic model used by the internal flow solver.
+        Specify "ideal" for the perfect-gas model (Z = 1, constant gamma); results
+        are identical to previous versions.
+        Specify "real" for the equation-of-state (real-gas) model, which evaluates
+        density, temperature, sound speed, enthalpy and choking along the inlet
+        isentrope from a table built once at construction. Requires gas_composition.
+        Default is "ideal".
     molar : float, pint.Quantity, optional
         Molecular mass (kg/kgmol). For Air: molar=28.97 kg/kgmol.
         Required if gas_composition is None. Default is None.
@@ -100,11 +109,6 @@ class LabyrinthSeal(SealElement):
         Dynamic viscosity at states: [mu_state1, mu_state2] (kg/(m·s)).
         Required if gas_composition is None.
         Default is None.
-    analz : str, optional
-        Indicates what will be analysed.
-        Specify "FULL" for rotordynamic calculation and leakage analysis.
-        Specify "LEAKAGE" for leakage analysis only.
-        Default is "FULL".
     nprt : int, optional
         Number of parameters to be printed in the output: 1 maximum, 5 minimum.
         Default is 1.
@@ -169,11 +173,11 @@ class LabyrinthSeal(SealElement):
         frequency,
         preswirl,
         gas_composition=None,
+        gas_model="ideal",
         molar=None,
         gamma=None,
         tz=None,
         muz=None,
-        analz="FULL",
         nprt=1,
         iopt1=0,
         print_results=False,
@@ -181,22 +185,44 @@ class LabyrinthSeal(SealElement):
     ):
         self.print_results = print_results
         self.gas_composition = gas_composition
+        self.gas_model = gas_model
 
         if self.gas_composition is not None:
-            state_in = ccp.State(
-                p=inlet_pressure, T=inlet_temperature, fluid=self.gas_composition
+            state_in, molar, gamma, R = extract_gas_properties(
+                self.gas_composition, inlet_pressure, inlet_temperature
             )
             state_out = ccp.State(
                 p=outlet_pressure, h=state_in.h(), fluid=self.gas_composition
             )
+        else:
+            R = 8314.0 / molar  # Universal gas constant (J/(kmol·K)) over molar mass.
 
-            molar = state_in.molar_mass("g/mol").m
-            gamma = (state_in.cp() / state_in.cv()).m
-
-        R_univ = 8314.0  # Universal gas constant (J/(kmol·K))
-        self.R = R_univ / molar
+        self.R = R
         self.molar = molar
         self.gamma = gamma
+
+        if self.gas_model == "real":
+            if self.gas_composition is None:
+                raise ValueError(
+                    "gas_model='real' requires gas_composition to query the "
+                    "equation of state."
+                )
+            self.gas = RealGas(
+                self.R,
+                self.gamma,
+                self.gas_composition,
+                inlet_pressure,
+                outlet_pressure=outlet_pressure,
+                inlet_temperature=inlet_temperature,
+            )
+            self._real_gas = True
+        elif self.gas_model == "ideal":
+            self.gas = IdealGas(self.R, self.gamma)
+            self._real_gas = False
+        else:
+            raise ValueError(
+                f"Invalid gas_model {self.gas_model!r}; expected 'ideal' or 'real'."
+            )
 
         if tz is None:
             # tz: Temperature at state 1 e 2 (deg K)
@@ -221,7 +247,6 @@ class LabyrinthSeal(SealElement):
         self.tooth_width = tooth_width
         self.seal_type = seal_type
 
-        self.analz = analz
         self.nprt = nprt
         self.iopt1 = iopt1
 
@@ -268,8 +293,10 @@ class LabyrinthSeal(SealElement):
             coefficients_dict = {
                 c: [k[c] for k in results]
                 for c in results[0].keys()
-                if c not in ["pressure"]
+                if c not in ["pressure", "pert_rcond", "pert_condition_number"]
             }
+            self.pert_rcond = [r["pert_rcond"] for r in results]
+            self.pert_condition_number = [r["pert_condition_number"] for r in results]
 
         super().__init__(
             self.n,
@@ -319,6 +346,18 @@ class LabyrinthSeal(SealElement):
                 (1 - self.pg**2) / (self.n_teeth - np.log(self.pg))
             ) ** 0.5
 
+    def _reset_perturbation_arrays(self):
+        """Reset perturbation and velocity-coupling workspace arrays.
+        Zeros ``gm``, ``rhs``, ``cg``, ``cx``, ``taur``, and ``taus`` before
+        each base-flow and perturbation solve in ``setup()``.
+        """
+        self.gm.fill(0)
+        self.rhs.fill(0)
+        self.cg.fill(0)
+        self.cx.fill(0)
+        self.taur.fill(0)
+        self.taus.fill(0)
+
     def setup(self):
         self.epslon = 0.6
         self.awrl = self.epslon * self.radial_clearance[0]
@@ -326,8 +365,7 @@ class LabyrinthSeal(SealElement):
         self.nc = self.n_teeth - 1
         self.np = self.n_teeth + 1
 
-        # Arrays already initialized with np.full() in __init__
-        # No need to re-assign values that are already set
+        self._reset_perturbation_arrays()
 
         self.ndof = 8 * self.nc
         self.nbw = 33
@@ -418,15 +456,23 @@ class LabyrinthSeal(SealElement):
             if ndex1 < 1:
                 self.w[0] = 0
                 self.p[0] = self.inlet_pressure
-                self.rho[0] = self.p[0] / (self.R * self.t[0])
+                self.rho[0] = self.gas.inlet_density(self.p[0], self.t[0])
                 prold = 1 * 10 ** (10)
-                chok1 = gam7 + (
-                    self.vnu
-                    * self.w[self.n_teeth - 1]
-                    * self.w[self.n_teeth - 1]
-                    / (gam4 * self.t[self.n_teeth - 1])
-                )
-                chok2 = chok1**gam5
+                if self._real_gas:
+                    chok2 = self.gas.critical_pr(
+                        self.p[self.n_teeth - 1],
+                        self.w[self.n_teeth - 1],
+                        self.vnu,
+                        self.t[self.n_teeth - 1],
+                    )
+                else:
+                    chok1 = gam7 + (
+                        self.vnu
+                        * self.w[self.n_teeth - 1]
+                        * self.w[self.n_teeth - 1]
+                        / (gam4 * self.t[self.n_teeth - 1])
+                    )
+                    chok2 = chok1**gam5
             for i in range(1, self.n_teeth + 1):
                 if i is self.n_teeth:
                     prgs[0] = chok2
@@ -435,31 +481,30 @@ class LabyrinthSeal(SealElement):
 
                 prgs[1] = 0.9999999
                 for j in range(0, 2):
-                    fpr[j] = (
-                        self.alphav
-                        * self.radial_clearance[i - 1]
-                        * self.rho[i - 1]
-                        * (prgs[j] ** gam1)
-                        * (
-                            ((self.vnu * self.w[i - 1]) * self.w[i - 1])
-                            + (gam4 * self.t[i - 1] * (1 - (prgs[j] ** gam2)))
-                        )
-                        ** 0.5
+                    fpr[j] = self.gas.throttle_mass_flux(
+                        self.alphav,
+                        self.radial_clearance[i - 1],
+                        self.p[i - 1],
+                        prgs[j],
+                        self.rho[i - 1],
+                        self.t[i - 1],
+                        self.w[i - 1],
+                        self.vnu,
                     )
                     fpr[j] = self.mdot - fpr[j]
                 if fpr[0] > 0:
                     fpr[0] = 0
                 for itn in range(0, itmx1):
                     prgs[2] = (prgs[0] * fpr[1] - prgs[1] * fpr[0]) / (fpr[1] - fpr[0])
-                    fpr[2] = (
-                        self.alphav
-                        * self.radial_clearance[i - 1]
-                        * self.rho[i - 1]
-                        * (prgs[2] ** gam1)
-                        * np.sqrt(
-                            (self.vnu * self.w[i - 1] * self.w[i - 1])
-                            + (gam4 * self.t[i - 1] * (1.0 - (prgs[2] ** gam2)))
-                        )
+                    fpr[2] = self.gas.throttle_mass_flux(
+                        self.alphav,
+                        self.radial_clearance[i - 1],
+                        self.p[i - 1],
+                        prgs[2],
+                        self.rho[i - 1],
+                        self.t[i - 1],
+                        self.w[i - 1],
+                        self.vnu,
                     )
                     a2001 = True
                     if prgs[2] <= chok2:
@@ -497,21 +542,35 @@ class LabyrinthSeal(SealElement):
 
                 self.pr[i - 1] = prgs[2]
                 self.p[i] = self.pr[i - 1] * self.p[i - 1]
-                self.w[i] = (self.mdot * self.R * self.t[i - 1]) / (
-                    self.alphav
-                    * self.p[i - 1]
-                    * (self.pr[i - 1] ** gam1)
-                    * self.radial_clearance[i - 1]
+                self.w[i] = self.gas.throat_velocity(
+                    self.mdot,
+                    self.alphav,
+                    self.radial_clearance[i - 1],
+                    self.p[i - 1],
+                    self.pr[i - 1],
+                    self.t[i - 1],
                 )
-                self.rho[i] = self.rho[i - 1] * (self.pr[i - 1] ** gam1)
-                self.t[i] = self.t[i - 1] * (self.pr[i - 1] ** gam2)
+                self.rho[i] = self.gas.density_isentropic(
+                    self.p[i - 1], self.pr[i - 1], self.rho[i - 1]
+                )
+                self.t[i] = self.gas.temperature_isentropic(
+                    self.p[i - 1], self.pr[i - 1], self.t[i - 1]
+                )
 
             if a2001:
                 i = self.np - 1
-                chock1 = gam7 + (
-                    self.vnu * self.w[i - 1] * self.w[i - 1] / (gam4 * self.t[i - 1])
-                )
-                chock2 = chock1**gam5
+                if self._real_gas:
+                    chock2 = self.gas.critical_pr(
+                        self.p[i - 1], self.w[i - 1], self.vnu, self.t[i - 1]
+                    )
+                else:
+                    chock1 = gam7 + (
+                        self.vnu
+                        * self.w[i - 1]
+                        * self.w[i - 1]
+                        / (gam4 * self.t[i - 1])
+                    )
+                    chock2 = chock1**gam5
                 error_outlet_pressure = (
                     self.p[self.np - 1] - self.outlet_pressure
                 ) / self.outlet_pressure
@@ -544,10 +603,15 @@ class LabyrinthSeal(SealElement):
                 break
 
         i = self.np - 1
-        chock1 = gam7 + (
-            self.vnu * self.w[i - 1] * self.w[i - 1] / (gam4 * self.t[i - 1])
-        )
-        chok2 = chok1**gam5
+        if self._real_gas:
+            chok2 = self.gas.critical_pr(
+                self.p[i - 1], self.w[i - 1], self.vnu, self.t[i - 1]
+            )
+        else:
+            chok1 = gam7 + (
+                self.vnu * self.w[i - 1] * self.w[i - 1] / (gam4 * self.t[i - 1])
+            )
+            chok2 = chok1**gam5
 
         if ndex1 != 1:
             leak = (
@@ -633,7 +697,7 @@ class LabyrinthSeal(SealElement):
             self.vin[i] = self.vout[i - 1]
             mu = sb * (self.t[i]) ** 0.5 / (1 + (ss / self.t[i]))
             self.nu = mu / self.rho[i]
-            vgs[1] = (self.gamma * self.R * self.t[i]) ** 0.5
+            vgs[1] = self.gas.sound_speed(self.p[i], self.t[i])
             vgs[0] = -vgs[1]
 
             rov[0] = (self.shaft_radius * self.omega) - vgs[0]
@@ -744,7 +808,7 @@ class LabyrinthSeal(SealElement):
             self.taur[i] = tr[2]
             self.taus[i] = ts[2]
 
-            self.cg[0][i] = area / (self.R * self.t[i])
+            self.cg[0][i] = self.gas.cg0(area, self.p[i], self.t[i])
             self.cg[1][i] = (self.v[i] / self.shaft_radius) * self.cg[0][i]
             self.cg[2][i] = (self.p[i] / self.shaft_radius) * self.cg[0][i]
             self.cg[3][i] = (
@@ -843,7 +907,7 @@ class LabyrinthSeal(SealElement):
         for i in range(1, self.n_teeth):
             mu = sb * (self.t[i]) ** 0.5 / (1 + (ss / self.t[i]))
             self.nu = mu / self.rho[i]
-            vgs[1] = (self.gamma * self.R * self.t[i]) ** 0.5
+            vgs[1] = self.gas.sound_speed(self.p[i], self.t[i])
             vgs[0] = -vgs[1]
 
             rov[0] = (self.shaft_radius * self.omega) - vgs[0]
@@ -947,7 +1011,7 @@ class LabyrinthSeal(SealElement):
             self.taur[i] = tr[2]
             self.taus[i] = ts[2]
 
-            self.cg[0][i] = area / (self.R * self.t[i])
+            self.cg[0][i] = self.gas.cg0(area, self.p[i], self.t[i])
             self.cg[1][i] = (self.v[i] / self.shaft_radius) * self.cg[0][i]
             self.cg[2][i] = (self.p[i] / self.shaft_radius) * self.cg[0][i]
             self.cg[3][i] = (
@@ -1164,6 +1228,8 @@ class LabyrinthSeal(SealElement):
             rhs2[i] = self.rhs[i][1]
         cnd = cond(A)
         rcond = 1 / cnd
+        self.pert_condition_number = cnd
+        self.pert_rcond = rcond
 
         if rcond <= 1 / 3.0e8:
             warn("Almost singular matrix. \n No prediction for dynamic coefficients.")
@@ -1238,8 +1304,7 @@ class LabyrinthSeal(SealElement):
             self.zvel()
         elif self.iopt1 == 1:
             self.zvel_jen()
-        if self.analz != "LEAKAGE":
-            self.pert()
+        self.pert()
 
         attrbute_coef = {
             "kxx": "kxx",
@@ -1254,6 +1319,8 @@ class LabyrinthSeal(SealElement):
             "pressure": "p",
         }
         coefficients_dict = {k: getattr(self, v) for k, v in attrbute_coef.items()}
+        coefficients_dict["pert_rcond"] = self.pert_rcond
+        coefficients_dict["pert_condition_number"] = self.pert_condition_number
 
         return coefficients_dict
 

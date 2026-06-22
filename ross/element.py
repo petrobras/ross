@@ -333,3 +333,8 @@ class Element(ABC):
             return prefix
         else:
             return f"{prefix} {index}"
+
+    def add_tag(self, index):
+        """Add a tag to the given element."""
+        if self.tag is None:
+            self.tag = self.get_class_name_prefix(index)
