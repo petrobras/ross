@@ -289,6 +289,38 @@ def test_probe_response(rotor1):
     assert_allclose(data["probe_resp[1]"].to_numpy()[:5], resp_prob2)
 
 
+def test_summary_results(rotor1):
+    s = rotor1.summary()
+
+    def column(fig, header):
+        for table in fig.data:
+            headers = list(table.header["values"])
+            if header in headers:
+                values = table.cells["values"][headers.index(header)]
+                return np.array([float(v) for v in values])
+        raise KeyError(header)
+
+    fig_default = s.plot()
+    fig_mm = s.plot(length_units="mm", mass_units="g", force_units="mN")
+
+    assert "Length (m)" in list(fig_default.data[1].header["values"])
+    assert "Length (mm)" in list(fig_mm.data[1].header["values"])
+
+    assert_allclose(
+        column(fig_mm, "Length (mm)"),
+        column(fig_default, "Length (m)") * 1000,
+        rtol=1e-2,
+    )
+    assert_allclose(
+        column(fig_mm, "Mass (g)"),
+        column(fig_default, "Mass (kg)") * 1000,
+        rtol=1e-2,
+    )
+
+    fig_imperial = s.plot(length_units="in", mass_units="lb", force_units="lbf")
+    assert fig_imperial is not None
+
+
 @pytest.fixture
 def rotor_with_explicit_clearances(speed_rpm=3600):
     steel = rs.steel
