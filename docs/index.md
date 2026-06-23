@@ -40,6 +40,19 @@ key concepts of ROSS with useful background information and explanation.
 
 :::{grid-item-card} 
 :class-body: text-center
+:link: theory_and_code/theory_and_code
+:link-type: doc
+```{image} /_static/img/api.svg
+:height: 50
+```
+### Theory & Implementation
+
+Curious how ROSS works under the hood? These walkthroughs pair the
+rotordynamic theory with the actual implementation in the source code.
+:::
+
+:::{grid-item-card} 
+:class-body: text-center
 :link: references/api
 :link-type: doc
 ```{image} /_static/img/api.svg
@@ -80,6 +93,12 @@ getting_started/installation
 :maxdepth: 1
 :caption: User Guide
 user_guide/user_guide
+```
+
+```{toctree}
+:maxdepth: 1
+:caption: Theory & Implementation
+theory_and_code/theory_and_code
 ```
 
 ```{toctree}
