@@ -594,6 +594,7 @@ class ST_Rotor(object):
 
         Example
         -------
+        >>> from ross.probe import Probe
         >>> import ross.stochastic as srs
         >>> rotors = srs.st_rotor_example()
 
@@ -613,7 +614,7 @@ class ST_Rotor(object):
 
         # Plotting Time Response 1D, 2D and 3D
 
-        >>> fig = results.plot_1d(probe=[(3, np.pi / 2)], conf_interval=[90])
+        >>> fig = results.plot_1d(probe=[Probe(3, np.pi / 2)], conf_interval=[90])
         >>> # fig.show()
         >>> fig = results.plot_2d(node=node, conf_interval=[90])
         >>> # fig.show()
@@ -718,6 +719,7 @@ class ST_Rotor(object):
 
         Example
         -------
+        >>> from ross.probe import Probe
         >>> import ross.stochastic as srs
         >>> rotors = srs.st_rotor_example()
 
@@ -733,19 +735,19 @@ class ST_Rotor(object):
         >>> probe_node = 3
         >>> probe_angle = np.pi / 2
         >>> probe_tag = "my_probe"  # optional
-        >>> fig = results.plot(probe=[(probe_node, probe_angle, probe_tag)])
+        >>> fig = results.plot(probe=[Probe(probe_node, probe_angle, tag=probe_tag)])
 
         To plot velocity and acceleration responses, you must change amplitude_units
         from "[length]" units to "[length]/[time]" or "[length]/[time] ** 2" respectively
         Plotting velocity response:
         >>> fig = results.plot(
-        ...     probe=[(probe_node, probe_angle)],
+        ...     probe=[Probe(probe_node, probe_angle)],
         ...     amplitude_units="m/s"
         ... )
 
         Plotting acceleration response:
         >>> fig = results.plot(
-        ...     probe=[(probe_node, probe_angle)],
+        ...     probe=[Probe(probe_node, probe_angle)],
         ...     amplitude_units="m/s**2"
         ... )
         """

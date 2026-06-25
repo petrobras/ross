@@ -5319,17 +5319,37 @@ class SummaryResults(Results):
         self.It = It
         self.tag = tag
 
-    def plot(self):
+    def plot(self, length_units="m", mass_units="kg", force_units="N"):
         """Plot the summary table.
 
         This method plots:
             Table with summary of rotor parameters and attributes
 
+        Parameters
+        ----------
+        length_units : str, optional
+            Length units used for positions, lengths and CG.
+            Default is 'm'.
+        mass_units : str, optional
+            Mass units used for masses.
+            Default is 'kg'.
+        force_units : str, optional
+            Force units used for bearing forces.
+            Default is 'N'.
+
         Returns
         -------
         fig : Plotly graph_objects.make_subplots()
             The figure object with the tables plot.
+
+        Notes
+        -----
+        No check is made to ensure the provided units form a consistent unit
+        system. Inertia is always shown as ``length_units² * mass_units``.
         """
+        inertia_units = f"{length_units}**2*{mass_units}"
+        inertia_units_dis = f" ({length_units}²*{mass_units})"
+
         materials = [mat.name for mat in self.df_shaft["material"]]
 
         shaft_data = {
@@ -5337,26 +5357,53 @@ class SummaryResults(Results):
             "Left station": self.df_shaft["n_l"],
             "Right station": self.df_shaft["n_r"],
             "Elem number": self.df_shaft["_n"],
-            "Beam left loc": self.df_shaft["nodes_pos_l"],
-            "Length": self.df_shaft["L"],
-            "Axial CG Pos": self.df_shaft["axial_cg_pos"],
-            "Beam right loc": self.df_shaft["nodes_pos_r"],
+            f"Beam left loc ({length_units})": pd.Series(
+                Q_(self.df_shaft["nodes_pos_l"].to_list(), "m").to(length_units).m
+            ).map("{:.3f}".format),
+            f"Length ({length_units})": pd.Series(
+                Q_(self.df_shaft["L"].to_list(), "m").to(length_units).m
+            ).map("{:.3f}".format),
+            f"Axial CG Pos ({length_units})": pd.Series(
+                Q_(self.df_shaft["axial_cg_pos"].to_list(), "m").to(length_units).m
+            ).map("{:.3f}".format),
+            f"Beam right loc ({length_units})": pd.Series(
+                Q_(self.df_shaft["nodes_pos_r"].to_list(), "m").to(length_units).m
+            ).map("{:.3f}".format),
             "Material": materials,
-            "Mass": self.df_shaft["m"].map("{:.3f}".format),
-            "Inertia": self.df_shaft["Im"].map("{:.2e}".format),
+            f"Mass ({mass_units})": pd.Series(
+                Q_(self.df_shaft["m"].to_list(), "kg").to(mass_units).m
+            ).map("{:.3f}".format),
+            f"Inertia{inertia_units_dis}": pd.Series(
+                Q_(self.df_shaft["Im"].to_list(), "m**2*kg").to(inertia_units).m
+            ).map("{:.3e}".format),
         }
 
+        rotor_mass = np.sum(self.df_shaft["m"]) + np.sum(self.df_disks["m"])
         rotor_data = {
             "Tag": [self.tag],
             "Starting node": [self.df_shaft["n_l"].iloc[0]],
             "Ending node": [self.df_shaft["n_r"].iloc[-1]],
-            "Starting point": [self.df_shaft["nodes_pos_l"].iloc[0]],
-            "Total lenght": [self.df_shaft["nodes_pos_r"].iloc[-1]],
-            "CG": ["{:.3f}".format(self.CG)],
-            "Ip": ["{:.3e}".format(self.Ip)],
-            "It": ["{:.3e}".format(self.It)],
-            "Rotor Mass": [
-                "{:.3f}".format(np.sum(self.df_shaft["m"]) + np.sum(self.df_disks["m"]))
+            f"Starting point ({length_units})": [
+                "{:.3f}".format(
+                    Q_(self.df_shaft["nodes_pos_l"].iloc[0], "m").to(length_units).m
+                )
+            ],
+            f"Total length ({length_units})": [
+                "{:.3f}".format(
+                    Q_(self.df_shaft["nodes_pos_r"].iloc[-1], "m").to(length_units).m
+                )
+            ],
+            f"CG ({length_units})": [
+                "{:.3f}".format(Q_(self.CG, "m").to(length_units).m)
+            ],
+            f"Ip{inertia_units_dis}": [
+                "{:.3e}".format(Q_(self.Ip, "m**2*kg").to(inertia_units).m)
+            ],
+            f"It{inertia_units_dis}": [
+                "{:.3e}".format(Q_(self.It, "m**2*kg").to(inertia_units).m)
+            ],
+            f"Rotor Mass ({mass_units})": [
+                "{:.3f}".format(Q_(rotor_mass, "kg").to(mass_units).m)
             ],
         }
 
@@ -5364,18 +5411,30 @@ class SummaryResults(Results):
             "Tag": self.df_disks["tag"],
             "Shaft number": self.df_disks["shaft_number"],
             "Node": self.df_disks["n"],
-            "Nodal Position": self.df_disks["nodes_pos_l"],
-            "Mass": self.df_disks["m"].map("{:.3f}".format),
-            "Ip": self.df_disks["Ip"].map("{:.3e}".format),
+            f"Nodal Position ({length_units})": pd.Series(
+                Q_(self.df_disks["nodes_pos_l"].to_list(), "m").to(length_units).m
+            ).map("{:.3f}".format),
+            f"Mass ({mass_units})": pd.Series(
+                Q_(self.df_disks["m"].to_list(), "kg").to(mass_units).m
+            ).map("{:.3f}".format),
+            f"Ip{inertia_units_dis}": pd.Series(
+                Q_(self.df_disks["Ip"].to_list(), "m**2*kg").to(inertia_units).m
+            ).map("{:.3e}".format),
         }
 
+        bearing_forces = [
+            "{:.4g}".format(float(Q_(float(v), "N").to(force_units).m))
+            for v in self.brg_forces.values()
+        ]
         bearing_data = {
             "Tag": self.df_bearings["tag"],
             "Shaft number": self.df_bearings["shaft_number"],
             "Node": self.df_bearings["n"],
             "N_link": self.df_bearings["n_link"],
-            "Nodal Position": self.df_bearings["nodes_pos_l"],
-            "Bearing force": list(self.brg_forces.values()),
+            f"Nodal Position ({length_units})": pd.Series(
+                Q_(self.df_bearings["nodes_pos_l"].to_list(), "m").to(length_units).m
+            ).map("{:.3f}".format),
+            f"Bearing force ({force_units})": bearing_forces,
         }
 
         fig = make_subplots(

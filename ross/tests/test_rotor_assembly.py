@@ -128,19 +128,19 @@ def test_raise_if_element_outside_shaft():
     )
 
     shaft_elm = [tim0, tim1]
-    disk0 = DiskElement.from_geometry(3, steel, 0.07, 0.05, 0.28)
+    disk0 = DiskElement.from_geometry(3, steel, 0.07, 0.05, 0.28, tag="disk0")
     stf = 1e6
-    bearing0 = BearingElement(0, kxx=stf, cxx=0)
-    bearing1 = BearingElement(3, kxx=stf, cxx=0)
+    bearing0 = BearingElement(0, kxx=stf, cxx=0, tag="bearing0")
+    bearing1 = BearingElement(3, kxx=stf, cxx=0, tag="bearing1")
     bearings = [bearing0, bearing1]
 
     with pytest.raises(ValueError) as excinfo:
         Rotor(shaft_elm, [disk0])
-    assert "Trying to set disk or bearing outside shaft" == str(excinfo.value)
+    assert "Trying to set disk0 outside shaft" == str(excinfo.value)
 
     with pytest.raises(ValueError) as excinfo:
         Rotor(shaft_elm, bearing_elements=bearings)
-    assert "Trying to set disk or bearing outside shaft" == str(excinfo.value)
+    assert "Trying to set bearing1 outside shaft" == str(excinfo.value)
 
 
 @pytest.fixture

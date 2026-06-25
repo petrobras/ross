@@ -135,11 +135,6 @@ class HybridSeal(SealElement):
             Dynamic viscosity at states: [mu_state1, mu_state2] (kg/(m·s)).
             Required if gas_composition is None.
             Default is None.
-        - analz : str, optional
-            Indicates what will be analysed.
-            Specify "FULL" for rotordynamic calculation and leakage analysis.
-            Specify "LEAKAGE" for leakage analysis only.
-            Default is "FULL".
         - nprt : int, optional
             Number of parameters to be printed in the output: 1 maximum, 5 minimum.
             Default is 1.

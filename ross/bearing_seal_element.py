@@ -2218,7 +2218,7 @@ class MagneticBearingElement(BearingElement):
         k_eq = ks + ki * self.k_amp * self.k_sense * C_real
         c_eq = ki * self.k_amp * self.k_sense * C_imag * np.divide(1, omega)
 
-        rotation_matrix = np.matrix(
+        rotation_matrix = np.array(
             [
                 [
                     np.cos(self.sensors_axis_rotation),
@@ -2230,7 +2230,7 @@ class MagneticBearingElement(BearingElement):
                 ],
             ]
         )
-        inv_rotation_matrix = rotation_matrix.I
+        inv_rotation_matrix = np.linalg.inv(rotation_matrix)
 
         k_xx = []
         k_xy = []
@@ -2241,14 +2241,14 @@ class MagneticBearingElement(BearingElement):
         c_yx = []
         c_yy = []
         for omega_i, k, c in zip(omega, k_eq, c_eq):
-            k_equivalent_matrix = np.matrix([[k, 0], [0, k]])
-            c_equivalent_matrix = np.matrix([[c, 0], [0, c]])
+            k_equivalent_matrix = np.array([[k, 0], [0, k]])
+            c_equivalent_matrix = np.array([[c, 0], [0, c]])
 
             k_xy_axis_matrix = (
-                inv_rotation_matrix * k_equivalent_matrix * rotation_matrix
+                inv_rotation_matrix @ k_equivalent_matrix @ rotation_matrix
             )
             c_xy_axis_matrix = (
-                inv_rotation_matrix * c_equivalent_matrix * rotation_matrix
+                inv_rotation_matrix @ c_equivalent_matrix @ rotation_matrix
             )
 
             k_xx.append(k_xy_axis_matrix[0, 0])
@@ -2386,8 +2386,8 @@ class MagneticBearingElement(BearingElement):
 
         """
         err = setpoint - disp
-        u = self.C_c * self.x_c[dof_index] + self.D_c * err
-        self.x_c[dof_index] = self.A_c * self.x_c[dof_index] + self.B_c * err
+        u = self.C_c @ self.x_c[dof_index] + self.D_c * err
+        self.x_c[dof_index] = self.A_c @ self.x_c[dof_index] + self.B_c * err
 
         signal_pid = current_offset + u
         magnetic_force = self.ki * signal_pid + self.ks * disp
@@ -2533,7 +2533,7 @@ class MagneticBearingElement(BearingElement):
         self.D_c = C_z_ss.D
 
         self.x_c = [
-            np.matrix(np.zeros((self.A_c.shape[0], 1))) for _ in range(2)
+            np.zeros((self.A_c.shape[0], 1)) for _ in range(2)
         ]  # for x and y directions
 
 
