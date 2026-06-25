@@ -2,6 +2,7 @@ import numpy as np
 import multiprocessing
 from ross import SealElement
 from ross.units import Q_, check_units
+from ross.seals.gas_model import extract_gas_properties
 from scipy.optimize import curve_fit
 from warnings import warn
 import plotly.graph_objects as go
@@ -203,14 +204,9 @@ class HolePatternSeal(SealElement):
             def sutherland_formula(T, b, S):
                 return (b * T ** (3 / 2)) / (S + T)
 
-            state = ccp.State(
-                p=self.inlet_pressure,
-                T=self.inlet_temperature,
-                fluid=self.gas_composition,
+            state, molar, gamma, R = extract_gas_properties(
+                self.gas_composition, self.inlet_pressure, self.inlet_temperature
             )
-
-            molar = state.molar_mass("g/mol").m
-            gamma = (state.cp() / state.cv()).m
 
             x = []
             y = []
@@ -232,9 +228,10 @@ class HolePatternSeal(SealElement):
 
             popt, pcov = curve_fit(sutherland_formula, x, y)
             self.b_suther, self.s_suther = popt
+        else:
+            R = 8314.0 / molar  # Universal gas constant (J/(kmol·K)) over molar mass.
 
-        R_univ = 8314.0  # Universal gas constant (J/(kmol·K))
-        self.R = R_univ / molar
+        self.R = R
         self.molar = molar
         self.gamma = gamma
 
