@@ -9,6 +9,7 @@ from abc import ABC
 from collections.abc import Iterable
 from warnings import warn
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from numba import njit
@@ -20,6 +21,7 @@ from scipy.fft import fft
 
 from ross.plotly_theme import coolwarm_r, tableau_colors
 from pathlib import Path
+from ross.bearings.magnetic.amb_utils import get_ambs
 
 from ross.plotly_theme import tableau_colors, coolwarm_r
 from ross.units import Q_, check_units
@@ -38,6 +40,7 @@ __all__ = [
     "SummaryResults",
     "ConvergenceResults",
     "TimeResponseResults",
+    "AmbTimeResponseResults",
     "UCSResults",
     "HarmonicBalanceResults",
     "Level1Results",
@@ -6056,6 +6059,257 @@ class TimeResponseResults(Results):
         return fig
 
 
+class AmbTimeResponseResults(TimeResponseResults):
+    """Class used to store results and provide plots for Active Magnetic Bearings (AMB) Time Response Analysis.
+
+    This class extends TimeResponseResults to provide specific plotting capabilities for AMB systems,
+    allowing for the visualization of displacement, current, and force responses obtained from
+    time response simulations.
+
+    Parameters
+    ----------
+    rotor : Rotor.object
+        The Rotor object.
+    t : array
+        Time values for the output.
+    yout : array
+        System response.
+    xout : array
+        Time evolution of the state vector.
+    """
+
+    def __init__(self, rotor, t, yout, xout):
+        """Initialize the AmbTimeResponseResults instance.
+
+        Parameters
+        ----------
+        rotor : Rotor.object
+            The Rotor object.
+        t : array
+            Time values for the output.
+        yout : array
+            System response.
+        xout : array
+            Time evolution of the state vector.
+        """
+        super().__init__(rotor, t, yout, xout)
+        self.x_amb = self.xout[0]
+        self.v_amb = self.xout[1]
+        self.F_x = self.xout[2]
+        self.F_v = self.xout[3]
+        self.I = self.xout[4]
+
+    def plot_amb_disps(
+        self,
+        displacement_units="m",
+        time_units="s",
+        fig=None,
+        axes=0,
+        **kwargs,
+    ):
+        """Plot AMB displacement response.
+
+        Parameters
+        ----------
+        displacement_units : str, optional
+            Displacement units. Default is "m".
+        time_units : str, optional
+            Time units. Default is "s".
+        fig : Plotly graph_objects.Figure(), optional
+            The figure object with the plot.
+        axes : int, optional
+            0 for displacement (x, y), 1 for displacement (v, w). Default is 0.
+        **kwargs : optional
+            Additional key word arguments to change the plot layout.
+
+        Returns
+        -------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        """
+
+        ambs = get_ambs(self.rotor)
+
+        if axes == 0:
+            disp = self.x_amb
+            label_axis = ["x", "y"]
+        else:
+            disp = self.v_amb
+            label_axis = ["v", "w"]
+
+        if fig is None:
+            fig = go.Figure()
+
+        for i, amb in enumerate(ambs):
+            # Time axis in desired units
+            time = Q_(self.t, "s").to(time_units).m
+
+            # Displacement in desired units
+            disp_x = Q_(disp[:, 2 * i], "m").to(displacement_units).m
+            disp_y = Q_(disp[:, 2 * i + 1], "m").to(displacement_units).m
+
+            fig.add_trace(
+                go.Scatter(
+                    x=time,
+                    y=disp_x,
+                    mode="lines",
+                    name=f"{amb.tag} - {label_axis[0]}",
+                    hovertemplate=f"Time ({time_units}): %{{x:.2f}}<br>Amplitude ({displacement_units}): %{{y:.2e}}",
+                )
+            )
+            fig.add_trace(
+                go.Scatter(
+                    x=time,
+                    y=disp_y,
+                    mode="lines",
+                    name=f"{amb.tag} - {label_axis[1]}",
+                    hovertemplate=f"Time ({time_units}): %{{x:.2f}}<br>Amplitude ({displacement_units}): %{{y:.2e}}",
+                )
+            )
+
+        fig.update_xaxes(title_text=f"Time ({time_units})")
+        fig.update_yaxes(title_text=f"Amplitude ({displacement_units})")
+        fig.update_layout(title="AMB Displacement Response", **kwargs)
+
+        return fig
+
+    def plot_amb_currents(
+        self,
+        current_units="A",
+        time_units="s",
+        fig=None,
+        **kwargs,
+    ):
+        """Plot AMB current response.
+
+        Parameters
+        ----------
+        current_units : str, optional
+            Current units. Default is "A".
+        time_units : str, optional
+            Time units. Default is "s".
+        fig : Plotly graph_objects.Figure(), optional
+            The figure object with the plot.
+        **kwargs : optional
+            Additional key word arguments to change the plot layout.
+
+        Returns
+        -------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        """
+        ambs = get_ambs(self.rotor)
+
+        if fig is None:
+            fig = go.Figure()
+
+        for i, amb in enumerate(ambs):
+            # Time axis in desired units
+            time = Q_(self.t, "s").to(time_units).m
+
+            # Current in desired units
+            current_x = Q_(self.I[:, 2 * i], "A").to(current_units).m
+            current_y = Q_(self.I[:, 2 * i + 1], "A").to(current_units).m
+
+            fig.add_trace(
+                go.Scatter(
+                    x=time,
+                    y=current_x,
+                    mode="lines",
+                    name=f"{amb.tag} - Current v",
+                    hovertemplate=f"Time ({time_units}): %{{x:.2f}}<br>Current ({current_units}): %{{y:.2e}}",
+                )
+            )
+            fig.add_trace(
+                go.Scatter(
+                    x=time,
+                    y=current_y,
+                    mode="lines",
+                    name=f"{amb.tag} - Current w",
+                    hovertemplate=f"Time ({time_units}): %{{x:.2f}}<br>Current ({current_units}): %{{y:.2e}}",
+                )
+            )
+
+        fig.update_xaxes(title_text=f"Time ({time_units})")
+        fig.update_yaxes(title_text=f"Current ({current_units})")
+        fig.update_layout(title="AMB Current Response", **kwargs)
+
+        return fig
+
+    def plot_amb_forces(
+        self,
+        force_units="N",
+        time_units="s",
+        fig=None,
+        axes=0,
+        **kwargs,
+    ):
+        """Plot AMB force response.
+
+        Parameters
+        ----------
+        force_units : str, optional
+            Force units. Default is "N".
+        time_units : str, optional
+            Time units. Default is "s".
+        fig : Plotly graph_objects.Figure(), optional
+            The figure object with the plot.
+        axes : int, optional
+            0 for forces (x, y), 1 for forces (v, w). Default is 0.
+        **kwargs : optional
+            Additional key word arguments to change the plot layout.
+
+        Returns
+        -------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        """
+        ambs = get_ambs(self.rotor)
+
+        if axes == 0:
+            F = self.F_x
+            label_axis = ["x", "y"]
+        else:
+            F = self.F_v
+            label_axis = ["v", "w"]
+
+        if fig is None:
+            fig = go.Figure()
+
+        for i, amb in enumerate(ambs):
+            # Time axis in desired units
+            time = Q_(self.t, "s").to(time_units).m
+
+            # Force in desired units
+            force_x = Q_(F[:, 2 * i], "N").to(force_units).m
+            force_y = Q_(F[:, 2 * i + 1], "N").to(force_units).m
+
+            fig.add_trace(
+                go.Scatter(
+                    x=time,
+                    y=force_x,
+                    mode="lines",
+                    name=f"{amb.tag} - Force {label_axis[0]}",
+                    hovertemplate=f"Time ({time_units}): %{{x:.2f}}<br>Force ({force_units}): %{{y:.2e}}",
+                )
+            )
+            fig.add_trace(
+                go.Scatter(
+                    x=time,
+                    y=force_y,
+                    mode="lines",
+                    name=f"{amb.tag} - Force {label_axis[1]}",
+                    hovertemplate=f"Time ({time_units}): %{{x:.2f}}<br>Force ({force_units}): %{{y:.2e}}",
+                )
+            )
+
+        fig.update_xaxes(title_text=f"Time ({time_units})")
+        fig.update_yaxes(title_text=f"Force ({force_units})")
+        fig.update_layout(title="AMB Force Response", **kwargs)
+
+        return fig
+
+
 class UCSResults(Results):
     """Class used to store results and provide plots for UCS Analysis.
 
@@ -6958,7 +7212,7 @@ class SensitivityResults(Results):
         Examples
         --------
         >>> import ross as rs
-        >>> rotor = rs.rotor_amb_example()
+        >>> rotor = rs.rotor_example_amb_general_controllers()
         >>> sensitivity_results = rotor.run_amb_sensitivity(
         ...     speed=0,
         ...     t_max=5e-4,
@@ -7191,7 +7445,7 @@ class SensitivityResults(Results):
         Examples
         --------
         >>> import ross as rs
-        >>> rotor = rs.rotor_amb_example()
+        >>> rotor = rs.rotor_example_amb_general_controllers()
         >>> sensitivity_results = rotor.run_amb_sensitivity(
         ...     speed=0,
         ...     t_max=5e-4,

@@ -14,8 +14,13 @@ from ross.materials import Material, steel
 from ross.point_mass import *
 from ross.probe import Probe
 from ross.rotor_assembly import *
+from ross.rotor_assembly import (
+    rotor_example_amb_general_controllers,
+    rotor_example_amb_complex_controllers,
+)
 from ross.shaft_element import *
 from ross.units import Q_
+from ross.results import AmbTimeResponseResults
 
 
 def get_dofs(ndof):
@@ -2679,7 +2684,6 @@ def test_harmonic_response(rotor9):
 
 def test_amb_controller():
     # Test for the magnetic_bearing_controller method.
-    from ross.rotor_assembly import rotor_amb_example
 
     rot_speed = 1200
     dt = 0.001
@@ -2687,7 +2691,7 @@ def test_amb_controller():
     unbalance_node = 27
     probe_node = 12
 
-    rotor = rotor_amb_example()
+    rotor = rotor_example_amb_general_controllers()
     n = len(t)
     F = np.zeros((n, rotor.ndof))
     m_u = 0.010  # kg
@@ -2709,7 +2713,6 @@ def test_amb_controller():
 
 
 def test_amb_generic_controller():
-    from ross.rotor_assembly import rotor_amb_example
 
     kp = 100.0
     ki = 0
@@ -2732,7 +2735,7 @@ def test_amb_generic_controller():
     unbalance_node = 27
     probe_node = 12
 
-    rotor = rotor_amb_example(controller_transfer_function)
+    rotor = rotor_example_amb_general_controllers(controller_transfer_function)
     n = len(t)
     F = np.zeros((n, rotor.ndof))
     m_u = 0.010  # kg
@@ -2863,7 +2866,7 @@ def test_run_amb_sensitivity():
     a_tol = 1e-8
 
     # Setup - run the analysis
-    rotor = rotor_amb_example()
+    rotor = rotor_example_amb_general_controllers()
     results = rotor.run_amb_sensitivity(
         speed=0,
         t_max=1e-2,
@@ -3129,3 +3132,135 @@ def test_rotor_it(rotor1, rotor3, rotor3a, rotor3b, rotor3c):
         + 51.5252611115262 * (1.0 - rotor3.CG) ** 2
     )
     assert rotor3.It == pytest.approx(It3, rel=tol)
+
+
+def test_run_time_response_amb_values():
+    rotor = rotor_example_amb_complex_controllers()
+    t = np.linspace(0, 0.001, 20)
+    F = np.zeros((len(t), rotor.ndof))
+    speed = 0
+
+    response = rotor.run_time_response(speed, F, t, num_modes=10)
+
+    expected_yout = np.array(
+        [
+            0.00000000e00,
+            -1.35870226e-08,
+            -5.43468162e-08,
+            -1.22276734e-07,
+            -2.17373160e-07,
+            -3.39631510e-07,
+            -4.89046215e-07,
+            -6.65610691e-07,
+            -8.69317307e-07,
+            -1.10015734e-06,
+        ]
+    )
+
+    expected_x_amb_0 = np.array(
+        [
+            0.00000000e00,
+            4.46181913e-21,
+            1.33410087e-19,
+            1.27548125e-18,
+            6.49870582e-18,
+            2.26539866e-17,
+            6.17070495e-17,
+            1.41606727e-16,
+            2.86645700e-16,
+            5.27345226e-16,
+        ]
+    )
+
+    expected_v_amb_0 = np.array(
+        [
+            0.00000000e00,
+            -9.60721382e-09,
+            -3.84261329e-08,
+            -8.64504490e-08,
+            -1.53670968e-07,
+            -2.40075705e-07,
+            -3.45649977e-07,
+            -4.70376489e-07,
+            -6.14235414e-07,
+            -7.77204483e-07,
+        ]
+    )
+
+    expected_F_y_amb_0 = np.array(
+        [
+            0.0,
+            0.00173409,
+            0.00687111,
+            0.01533348,
+            0.02706642,
+            0.04203329,
+            0.06021138,
+            0.08158834,
+            0.10615907,
+            0.1339231,
+        ]
+    )
+
+    expected_F_v_amb_0 = np.array(
+        [
+            0.0,
+            0.00122618,
+            0.00485861,
+            0.01084241,
+            0.01913885,
+            0.02972201,
+            0.04257585,
+            0.05769162,
+            0.07506572,
+            0.09469781,
+        ]
+    )
+
+    expected_I_v_amb_0 = np.array(
+        [
+            0.00000000e00,
+            -2.38075102e-07,
+            -1.77367720e-06,
+            -5.57668112e-06,
+            -1.23206352e-05,
+            -2.24429039e-05,
+            -3.61975314e-05,
+            -5.37012420e-05,
+            -7.49729246e-05,
+            -9.99669222e-05,
+        ]
+    )
+
+    x_amb_0 = response.xout[0][:10, 0]
+    v_amb_0 = response.xout[1][:10, 0]
+    F_y_amb_0 = response.xout[2][:10, 1]
+    F_v_amb_0 = response.xout[3][:10, 0]
+    I_v_amb_0 = response.xout[4][:10, 0]
+    yout = response.yout[:10, 28 * 6 + 1]
+
+    assert_allclose(yout, expected_yout, atol=1e-6)
+    assert_allclose(x_amb_0, expected_x_amb_0, atol=1e-6)
+    assert_allclose(v_amb_0, expected_v_amb_0, atol=1e-6)
+    assert_allclose(F_y_amb_0, expected_F_y_amb_0, atol=1e-6)
+    assert_allclose(F_v_amb_0, expected_F_v_amb_0, atol=1e-6)
+    assert_allclose(I_v_amb_0, expected_I_v_amb_0, atol=1e-6)
+
+    fig1 = response.plot_amb_disps(axes=0)
+    assert fig1 is not None
+
+    fig2 = response.plot_amb_disps(axes=1)
+    assert fig2 is not None
+
+    fig3 = response.plot_amb_currents()
+    assert fig3 is not None
+
+    fig4 = response.plot_amb_forces(axes=0)
+    assert fig4 is not None
+
+    fig5 = response.plot_amb_forces(axes=1)
+    assert fig5 is not None
+
+    probe_disk_y = Probe(node=28, angle=Q_(90, "deg"), tag="Node 28 - Y")
+    fig6 = response.plot_1d(probe=[probe_disk_y])
+    assert fig6 is not None
