@@ -201,7 +201,7 @@ class MultiRotor(Rotor):
         R2_min_node = min([*R2.nodes, *R2.link_nodes])
         d_node = 0
 
-        tags_list = [el.tag for el in R1.elements]
+        tags_list = [elm.tag for elm in R1.elements]
 
         if R1_max_node >= R2_min_node:
             d_node = R1_max_node + 1
@@ -229,10 +229,6 @@ class MultiRotor(Rotor):
             point_mass_elements,
             tag=tag,
         )
-
-    def set_tag(self, tag):
-        """Set the tag for the current multi-rotor."""
-        self.tag = tag or "MultiRotor 0"
 
     def _fix_nodes_pos(self, index, node, nodes_pos_l):
         """Adjust node positions of the driven rotor."""

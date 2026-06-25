@@ -659,7 +659,7 @@ class Rotor(object):
 
     def set_tag(self, tag):
         """Set the tag for the current rotor."""
-        self.tag = tag or "Rotor 0"
+        self.tag = tag or f"{self.__class__.__name__} 0"
 
     def _fix_nodes_pos(self, index, node, nodes_pos_l):
         """Optional override to adjust node positions.
