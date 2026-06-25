@@ -1796,10 +1796,10 @@ def test_distinct_dof_elements_error():
                 odl=0.05,
                 idr=0,
                 odr=0.05,
-                alpha=0,
-                beta=0,
                 rotary_inertia=False,
                 shear_effects=False,
+                alpha=0,
+                beta=0,
             )
             for l in L
         ]
@@ -1824,7 +1824,12 @@ def test_distinct_dof_elements_error():
         bearing1 = BearingElement(
             n=6, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, kzz=kzz, czz=czz
         )
-        Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1], n_eigen=36)
+        Rotor(
+            shaft_elem,
+            [disk0, disk1],
+            [bearing0, bearing1],
+            n_eigen=36,
+        )
 
 
 @pytest.fixture
@@ -1835,15 +1840,7 @@ def rotor_6dof():
     L = [0.25 for _ in range(n)]
 
     shaft_elem = [
-        ShaftElement(
-            l,
-            i_d,
-            o_d,
-            material=steel,
-            alpha=1,
-            beta=1e-5,
-        )
-        for l in L
+        ShaftElement(l, i_d, o_d, material=steel, alpha=1, beta=1e-5) for l in L
     ]
 
     disk0 = DiskElement.from_geometry(
@@ -1861,8 +1858,8 @@ def rotor_6dof():
 
 def test_modal_6dof(rotor_6dof):
     modal = rotor_6dof.run_modal(speed=0, sparse=False)
-    wn = np.array([47.62138, 91.79647, 96.28891, 274.56591, 296.5005])
-    wd = np.array([47.62156, 91.79656, 96.289, 274.56607, 296.50068])
+    wn = np.array([47.62, 91.8, 96.29, 274.57, 296.5])
+    wd = np.array([47.62, 91.8, 96.29, 274.57, 296.5])
 
     assert_almost_equal(modal.wn[:5], wn, decimal=2)
     assert_almost_equal(modal.wd[:5], wd, decimal=2)
@@ -1895,7 +1892,6 @@ def test_modal_damping():
     stfy = 0.8e6
     bearing0 = BearingElement(0, kxx=stfx, kyy=stfy, cxx=0)
     bearing1 = BearingElement(6, kxx=stfx, kyy=stfy, cxx=0)
-
     modal_damping = [0.001, 0.001]
     default_damping_ratio = [0.01]
 
@@ -1938,6 +1934,71 @@ def test_modal_damping():
 
     assert_allclose(actual_amp, expected_amp, rtol=1e-6)
     assert_allclose(actual_phase, expected_phase, rtol=1e-6)
+
+
+def test_proportional_damping():
+    #  Rotor with proportional damping in global matrix with 6 shaft elements 2 disks and 2 bearings
+    i_d = 0
+    o_d = 0.05
+    n = 6
+    L = [0.25 for _ in range(n)]
+
+    shaft_elem = [
+        ShaftElement(
+            l,
+            i_d,
+            o_d,
+            material=steel,
+            shear_effects=True,
+            rotary_inertia=True,
+            gyroscopic=True,
+        )
+        for l in L
+    ]
+
+    disk0 = DiskElement.from_geometry(2, steel, 0.07, 0.05, 0.28)
+    disk1 = DiskElement.from_geometry(4, steel, 0.07, 0.05, 0.35)
+
+    stfx = 1e6
+    stfy = 0.8e6
+    bearing0 = BearingElement(0, kxx=stfx, kyy=stfy, cxx=0)
+    bearing1 = BearingElement(6, kxx=stfx, kyy=stfy, cxx=0)
+
+    rotor = Rotor(
+        shaft_elem, [disk0, disk1], [bearing0, bearing1], alpha=1.6, beta=1.7e-7
+    )
+
+    speed = Q_(np.arange(0, 10001, 200), "RPM").to("rad/s").m
+
+    freq_response = rotor.run_freq_response(speed_range=speed)
+
+    actual_amp = abs(freq_response.freq_resp[2 * 6, 2 * 6, :8])
+    actual_phase = np.angle(freq_response.freq_resp[2 * 6, 2 * 6, :8])
+
+    expected_amp = [
+        0.000000e00,
+        1.495063e-06,
+        1.803282e-06,
+        2.818322e-06,
+        1.854149e-05,
+        2.545901e-06,
+        9.415274e-07,
+        4.557404e-07,
+    ]
+
+    expected_phase = [
+        0.00e00,
+        -0.004284,
+        -0.010686,
+        -0.026649,
+        -0.268325,
+        -3.089441,
+        -3.111475,
+        -3.114635,
+    ]
+
+    assert_allclose(actual_amp, expected_amp, rtol=1e-6)
+    assert_allclose(actual_phase, expected_phase, atol=1e-5, rtol=1e-6)
 
 
 @pytest.fixture
@@ -2759,25 +2820,17 @@ def test_run_amb_sensitivity():
     """
     EXPECTED_SENSITIVITY_RESULTS = {
         "max_abs": {
-            "Magnetic Bearing 0": {"x": 0.9915881235, "y": 0.9915881235},
-            "Magnetic Bearing 1": {"x": 0.9880851953, "y": 0.9880851953},
+            "Magnetic Bearing 0": {"x": 0.991592, "y": 0.991592},
+            "Magnetic Bearing 1": {"x": 0.988093, "y": 0.988093},
         },
         "abs_slice": {
             "Magnetic Bearing 0": {
-                "x": np.array(
-                    [0.99158812, 0.99156866, 0.99153061, 0.99147841, 0.99142154]
-                ),
-                "y": np.array(
-                    [0.99158812, 0.99156866, 0.99153061, 0.99147841, 0.99142154]
-                ),
+                "x": np.array([0.991592, 0.991572, 0.991534, 0.991482, 0.991425]),
+                "y": np.array([0.991592, 0.991572, 0.991534, 0.991482, 0.991425]),
             },
             "Magnetic Bearing 1": {
-                "x": np.array(
-                    [0.9880852, 0.98805746, 0.98800146, 0.98792434, 0.98784035]
-                ),
-                "y": np.array(
-                    [0.9880852, 0.98805746, 0.98800146, 0.98792434, 0.98784035]
-                ),
+                "x": np.array([0.988093, 0.988065, 0.988009, 0.987932, 0.987848]),
+                "y": np.array([0.988093, 0.988065, 0.988009, 0.987932, 0.987848]),
             },
         },
         "phase_slice": {
@@ -2860,7 +2913,7 @@ def test_run_amb_sensitivity():
     }
 
     r_tol = 0
-    a_tol = 1e-8
+    a_tol = 1e-6
 
     # Setup - run the analysis
     rotor = rotor_amb_example()

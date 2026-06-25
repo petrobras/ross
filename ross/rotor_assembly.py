@@ -97,6 +97,12 @@ class Rotor(object):
         List of modal damping ratios for the first modes
     default_damping_ratio: list
         Float of the remaining unknown modal damping ratios
+    alpha : float, optional
+        Mass proportional damping factor.
+        Default is zero.
+    beta : float, optional
+        Stiffness proportional damping factor.
+        Default is zero.
     tag : str
         A tag for the rotor
 
@@ -156,6 +162,8 @@ class Rotor(object):
         rated_w=None,
         modal_damping=None,
         default_damping_ratio=[0.0],
+        alpha=0,
+        beta=0,
         tag=None,
     ):
         self.parameters = {"min_w": min_w, "max_w": max_w, "rated_w": rated_w}
@@ -552,8 +560,8 @@ class Rotor(object):
 
         # Base matrices:
         M0 = np.zeros((self.ndof, self.ndof))
-        C0 = np.zeros((self.ndof, self.ndof))
         K0 = np.zeros((self.ndof, self.ndof))
+        C0 = np.zeros((self.ndof, self.ndof))
         G0 = np.zeros((self.ndof, self.ndof))
         Ksdt0 = np.zeros((self.ndof, self.ndof))
 
@@ -563,8 +571,8 @@ class Rotor(object):
             dofs = list(elm.dof_global_index.values())
 
             M0[np.ix_(dofs, dofs)] += elm.M()
-            C0[np.ix_(dofs, dofs)] += elm.C()
             K0[np.ix_(dofs, dofs)] += elm.K()
+            C0[np.ix_(dofs, dofs)] += elm.C()
             G0[np.ix_(dofs, dofs)] += elm.G()
 
             if elm in self.shaft_elements:
@@ -575,13 +583,42 @@ class Rotor(object):
         self.M0 = M0
         self.K0 = K0
         # Damping configuration
-        self.modal_damping = modal_damping
-        self.default_damping_ratio = default_damping_ratio
-        self.C0 = (
-            C0
-            if self.modal_damping == None
-            else self._modal_damping(self.modal_damping)
-        )
+        damping_global = (alpha != 0) or (beta != 0)
+        damping_elemental = np.sum(C0)
+        damping_modal = modal_damping is not None
+
+        if sum([damping_global, damping_elemental, damping_modal]) > 1:
+            warnings.warn(
+                "More than one type of damping was provided. "
+                "Global proportional damping has been chosen as the default, "
+                "and the others will be ignored.",
+                category=UserWarning,
+            )
+            self.alpha = float(alpha) if alpha is not None else 0.0
+            self.beta = float(beta) if beta is not None else 0.0
+            self.C0 = self.alpha * self.M0 + self.beta * self.K0
+
+        elif damping_global:
+            self.alpha = float(alpha) if alpha is not None else 0.0
+            self.beta = float(beta) if beta is not None else 0.0
+            self.C0 = self.alpha * self.M0 + self.beta * self.K0
+
+        elif damping_elemental:
+            self.alpha = 0.0
+            self.beta = 0.0
+            self.C0 = C0
+
+        elif damping_modal:
+            self.alpha = 0.0
+            self.beta = 0.0
+            self.default_damping_ratio = default_damping_ratio
+            self.C0 = self._modal_damping(modal_damping)
+
+        else:
+            self.alpha = float(alpha) if alpha is not None else 0.0
+            self.beta = float(beta) if beta is not None else 0.0
+            self.C0 = self.alpha * self.M0 + self.beta * self.K0
+
         self.G0 = G0
         self.Ksdt0 = Ksdt0
 
@@ -1414,10 +1451,10 @@ class Rotor(object):
         --------
         >>> rotor = compressor_example()
         >>> rotor.C(0)[:4, :4]
-        array([[0., 0., 0., 0.],
-               [0., 0., 0., 0.],
-               [0., 0., 0., 0.],
-               [0., 0., 0., 0.]])
+        array([[ 0.,  0.,  0.,  0.],
+               [ 0.,  0.,  0., -0.],
+               [ 0.,  0.,  0.,  0.],
+               [ 0., -0.,  0.,  0.]])
         """
         C0 = self.C0.copy()
 
@@ -2499,7 +2536,7 @@ class Rotor(object):
         >>> np.nonzero(magnetic_force)[0]
         array([ 72,  73, 258, 259])
         >>> magnetic_force[np.nonzero(magnetic_force)[0]]
-        array([-1.77841057e-04,  5.15148204e-06, -2.96097989e-04,  3.35036499e-05])
+        array([-1.77967254e-04,  5.14171163e-06, -2.96211472e-04,  3.34865465e-05])
         """
 
         if kwargs.get("sensitivity_result_values", None) == {}:
@@ -4983,6 +5020,16 @@ class CoAxialRotor(Rotor):
     shaft_start_pos : list
         List indicating the initial node position for each shaft.
         Default is zero for each shaft created.
+    modal_damping: list
+        List of modal damping ratios for the first modes
+    default_damping_ratio: list
+        Float of the remaining unknown modal damping ratios
+    alpha : float, optional
+        Mass proportional damping factor.
+        Default is zero.
+    beta : float, optional
+        Stiffness proportional damping factor.
+        Default is zero.
     tag : str
         A tag for the rotor
 
@@ -5054,6 +5101,10 @@ class CoAxialRotor(Rotor):
         min_w=None,
         max_w=None,
         rated_w=None,
+        modal_damping=None,
+        default_damping_ratio=[0.0],
+        alpha=0,
+        beta=0,
         tag=None,
     ):
         self.parameters = {"min_w": min_w, "max_w": max_w, "rated_w": rated_w}
@@ -5525,7 +5576,6 @@ class CoAxialRotor(Rotor):
 
         # Build matrices considering all elements excluding bearing_elements:
         M0 = np.zeros((self.ndof, self.ndof))
-        C0 = np.zeros((self.ndof, self.ndof))
         K0 = np.zeros((self.ndof, self.ndof))
         G0 = np.zeros((self.ndof, self.ndof))
         Ksdt0 = np.zeros((self.ndof, self.ndof))
@@ -5536,7 +5586,6 @@ class CoAxialRotor(Rotor):
             dofs = list(elm.dof_global_index.values())
 
             M0[np.ix_(dofs, dofs)] += elm.M()
-            C0[np.ix_(dofs, dofs)] += elm.C()
             K0[np.ix_(dofs, dofs)] += elm.K()
             G0[np.ix_(dofs, dofs)] += elm.G()
 
@@ -5546,10 +5595,57 @@ class CoAxialRotor(Rotor):
                 Ksdt0[np.ix_(dofs, dofs)] += elm.Kdt()
 
         self.M0 = M0
-        self.C0 = C0
         self.K0 = K0
+        # Damping configuration
+        self.alpha = alpha
+        self.beta = beta
+        self.modal_damping = modal_damping
+        self.default_damping_ratio = default_damping_ratio
+        self.C0 = (
+            self.alpha * self.M0 + self.beta * self.K0
+            if self.modal_damping is None
+            else self._modal_damping(self.modal_damping)
+        )
         self.G0 = G0
         self.Ksdt0 = Ksdt0
+
+    def _modal_damping(self, modal_damping):
+        """Compute the physical damping matrix from modal damping ratios.
+
+        Parameters
+        ----------
+        modal_damping : float or array-like
+            Modal damping ratio(s) to apply to flexible modes (ξ).
+        Returns
+        -------
+        C0 : np.ndarray
+            The physical damping matrix (in physical coordinates) that corresponds
+            to the specified modal damping ratios.
+        """
+
+        evals, evecs = np.linalg.eig(np.linalg.inv(self.M(0)) @ self.K(0))
+        stable = evals >= 0
+        evals = evals[stable]
+        evecs = evecs[:, stable]
+
+        w = np.sqrt(evals.real)
+        below_1rpm = Q_(np.sort(w), "rad/s").to("RPM").m < 1
+        modal_damping = np.block([np.zeros(below_1rpm.sum()), np.array(modal_damping)])
+        idx = np.argsort(w)
+        w = w[idx]
+        phi = evecs[:, idx]
+
+        # Full damping vector (pad with zeros if needed)
+        full_xi = np.ones(w.shape) * np.array(self.default_damping_ratio)
+        full_xi[: len(modal_damping)] = modal_damping
+
+        # Modal damping matrix: C_modal = diag(2 * ξ_i * ω_i)
+        C_modal = np.diag(2 * full_xi * w)
+        M_modal = phi.T @ self.M(0) @ phi
+        T = np.linalg.solve(M_modal, phi.T)
+        C0 = self.M(0) @ phi @ C_modal @ T @ self.M(0)
+
+        return C0
 
 
 def rotor_example():
@@ -5748,8 +5844,6 @@ def rotor_example_6dof():
             i_d,
             o_d,
             material=steel,
-            alpha=0,
-            beta=0,
             rotary_inertia=False,
             shear_effects=False,
         )
@@ -5769,7 +5863,7 @@ def rotor_example_6dof():
     bearing0 = BearingElement(n=0, kxx=kxx, kyy=kyy, kzz=kzz, cxx=0, cyy=0, czz=0)
     bearing1 = BearingElement(n=6, kxx=kxx, kyy=kyy, kzz=kzz, cxx=0, cyy=0, czz=0)
 
-    return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
+    return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1], alpha=0, beta=0)
 
 
 def rotor_example_with_damping():
@@ -5809,8 +5903,6 @@ def rotor_example_with_damping():
             i_d,
             o_d,
             material=steel2,
-            alpha=8.0501,
-            beta=1.0e-5,
             rotary_inertia=True,
             shear_effects=True,
         )
@@ -5831,7 +5923,9 @@ def rotor_example_with_damping():
         n=31, kxx=9.50e5, kyy=1.09e8, cxx=50.4, cyy=100.4553, kzz=0, czz=0
     )
 
-    return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
+    return Rotor(
+        shaft_elem, [disk0, disk1], [bearing0, bearing1], alpha=8.0501, beta=1.0e-5
+    )
 
 
 def rotor_amb_example(controller_transfer_function=None):
@@ -5887,7 +5981,7 @@ def rotor_amb_example(controller_transfer_function=None):
             shear_effects=True,
             rotary_inertia=True,
             gyroscopic=True,
-            alpha=2.5,
+   
         )
         for l, idl, odl in zip(L, i_d, o_d)
     ]
@@ -5992,4 +6086,4 @@ def rotor_amb_example(controller_transfer_function=None):
             ),
         ]
 
-    return Rotor(shaft_elements, disk_elements, bearing_elements)
+    return Rotor(shaft_elements, disk_elements, bearing_elements, alpha=2.5)
