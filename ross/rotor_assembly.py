@@ -76,7 +76,6 @@ __all__ = [
     "rotor_example_with_damping",
     "rotor_example_amb_general_controllers",
     "rotor_example_amb_complex_controllers",
-    "concatenate_rotor",
 ]
 
 # set Plotly palette of colors
