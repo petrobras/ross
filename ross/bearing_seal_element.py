@@ -2180,9 +2180,6 @@ class MagneticBearingElement(BearingElement):
 
         self.ks = ks
         self.ki = ki
-        self.control_signal = []
-        self.magnetic_force_xy = []
-        self.magnetic_force_vw = []
 
         # if coefficients are provided (e.g. loading from saved file), skip computation
         if kwargs.get("kxx") is not None:
@@ -2215,8 +2212,8 @@ class MagneticBearingElement(BearingElement):
         C_real = Hjw.real
         C_imag = Hjw.imag
 
-        k_eq = ks + ki * self.k_amp * self.k_sense * C_real
-        c_eq = ki * self.k_amp * self.k_sense * C_imag * np.divide(1, omega)
+        self.k_eq = ks + ki * self.k_amp * self.k_sense * C_real
+        self.c_eq = ki * self.k_amp * self.k_sense * C_imag * np.divide(1, omega)
 
         rotation_matrix = np.array(
             [
@@ -2240,7 +2237,7 @@ class MagneticBearingElement(BearingElement):
         c_xy = []
         c_yx = []
         c_yy = []
-        for omega_i, k, c in zip(omega, k_eq, c_eq):
+        for omega_i, k, c in zip(omega, self.k_eq, self.c_eq):
             k_equivalent_matrix = np.array([[k, 0], [0, k]])
             c_equivalent_matrix = np.array([[c, 0], [0, c]])
 
@@ -2318,7 +2315,7 @@ class MagneticBearingElement(BearingElement):
 
         return customdata, hovertemplate
 
-    def compute_pid_amb(self, current_offset, setpoint, disp, dof_index):
+    def compute_amb_controller(self, current_offset, setpoint, disp, dof_index):
         """Compute AMB control force for one axis using the discrete controller.
 
         This routine evaluates the discrete-time controller output for the selected
@@ -2378,7 +2375,7 @@ class MagneticBearingElement(BearingElement):
         >>> # start a new logging bucket for this time step (x and y)
         >>> mb.control_signal.append([[], []])
         >>> # compute force for x-axis given a small measured displacement
-        >>> force_x = mb.compute_pid_amb(
+        >>> force_x = mb.compute_amb_controller(
         ...     current_offset=0.0, setpoint=0.0, disp=2e-4, dof_index=0
         ... )
         >>> isinstance(force_x, float)
@@ -2392,8 +2389,7 @@ class MagneticBearingElement(BearingElement):
         signal_pid = current_offset + u
         magnetic_force = self.ki * signal_pid + self.ks * disp
 
-        self.control_signal[dof_index].append(signal_pid.item())
-        return magnetic_force.item()
+        return magnetic_force.item(), signal_pid.item()
 
     def get_analog_controller(self):
         """

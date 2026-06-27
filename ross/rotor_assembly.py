@@ -2526,7 +2526,7 @@ class Rotor(object):
         dt = time_step
         magnetic_force = np.zeros(self.ndof)
 
-        for elm in magnetic_bearings:
+        for i, elm in enumerate(magnetic_bearings):
             x_dof = self.number_dof * elm.n
             y_dof = self.number_dof * elm.n + 1
 
@@ -2571,14 +2571,14 @@ class Rotor(object):
                     )
 
             # The method compute_pid_amb updates the magnetic_force array internally
-            magnetic_force_v = elm.compute_pid_amb(
+            magnetic_force_v, current_v = elm.compute_amb_controller(
                 current_offset=current_offset,
                 setpoint=setpoint,
                 disp=v_disp,
                 dof_index=0,
             )
 
-            magnetic_force_w = elm.compute_pid_amb(
+            magnetic_force_w, current_w = elm.compute_amb_controller(
                 current_offset=current_offset,
                 setpoint=setpoint,
                 disp=w_disp,
@@ -2592,10 +2592,16 @@ class Rotor(object):
                 sensor_angle
             ) + magnetic_force_w * np.cos(sensor_angle)
 
-            elm.magnetic_force_xy[0].append(magnetic_force_x)
-            elm.magnetic_force_xy[1].append(magnetic_force_y)
-            elm.magnetic_force_vw[0].append(magnetic_force_v)
-            elm.magnetic_force_vw[1].append(magnetic_force_w)
+            kwargs["amb_data"]["x_amb"][step - 1 : 2 * i] = x_disp
+            kwargs["amb_data"]["x_amb"][step - 1 : 2 * i + 1] = y_disp
+            kwargs["amb_data"]["v_amb"][step - 1 : 2 * i] = x_disp
+            kwargs["amb_data"]["v_amb"][step - 1 : 2 * i + 1] = y_disp
+            kwargs["amb_data"]["F_x"][step - 1 : 2 * i] = magnetic_force_x
+            kwargs["amb_data"]["F_x"][step - 1 : 2 * i + 1] = magnetic_force_y
+            kwargs["amb_data"]["F_v"][step - 1 : 2 * i] = magnetic_force_v
+            kwargs["amb_data"]["F_v"][step - 1 : 2 * i + 1] = magnetic_force_w
+            kwargs["amb_data"]["I"][step - 1 : 2 * i] = current_v
+            kwargs["amb_data"]["I"][step - 1 : 2 * i + 1] = current_w
 
             magnetic_force[x_dof] = magnetic_force_x
             magnetic_force[y_dof] = magnetic_force_y
@@ -2703,6 +2709,8 @@ class Rotor(object):
             Time values for the output.
         yout : ndarray
             System response.
+        xout : list
+            Time evolution of the state vector and auxiliary data.
 
         Examples
         --------
@@ -2722,6 +2730,7 @@ class Rotor(object):
         array([0.00000000e+00, 2.07239823e-10, 7.80952429e-10, ...,
                1.21848307e-07, 1.21957287e-07, 1.22065778e-07])
         """
+        xout = []
 
         # Check if speed is array
         speed_is_array = isinstance(speed, Iterable)
@@ -2736,7 +2745,7 @@ class Rotor(object):
             if num_modes or method == "pseudomodal":
                 method = "pseudomodal"
             else:
-                force_dofs = list(set(np.where(F != 0)[1]))
+                force_dofs = list(set(np.nonzero(F != 0)[1]))
                 add_dofs = list(model_reduction.get("include_dofs", []))
                 model_reduction["include_dofs"] = force_dofs + add_dofs
 
@@ -2751,12 +2760,14 @@ class Rotor(object):
         else:
             print("Running direct method")
             return_array = lambda array: array
-            reduction = [return_array for j in range(3)]
+            reduction = [return_array for _ in range(3)]
 
         F = reduction[1](F.T).T
 
         # Check if there is any magnetic bearing
-        rotor, magnetic_force = self._init_ambs_for_integrate(dt=t[1] - t[0], **kwargs)
+        amb_data = {}
+        xout.append(amb_data)
+        rotor, magnetic_force = self._init_ambs_for_integrate(t, amb_data=amb_data)
 
         # Consider any additional RHS function (extra forces)
         add_to_RHS = kwargs.get("add_to_RHS")
@@ -2798,7 +2809,8 @@ class Rotor(object):
         size = F.shape[1]
         response = newmark(rotor_system, t, size, **kwargs)
         yout = reduction[2](response.T).T
-        return t, yout
+
+        return t, yout, xout
 
     def _rotor_system_for_integrate(
         self, rotor, speed, t, reduce_matrix, forces, **kwargs
@@ -2863,7 +2875,7 @@ class Rotor(object):
 
         return rotor_system
 
-    def _init_ambs_for_integrate(self, dt, **kwargs):
+    def _init_ambs_for_integrate(self, t, **kwargs):
         """
         Prepare the magnetic bearing components and force function used during
         time-domain integration.
@@ -2878,9 +2890,10 @@ class Rotor(object):
 
         Parameters
         ----------
-        dt : float
-            Time increment used by the integration routine. This value is passed
-            to each magnetic bearing so it can configure its control law.
+        t : array_like
+            Time array. The time increment `dt` is derived from this array
+            (dt = t[1] - t[0]) and passed to each magnetic bearing so it
+            can configure its control law.
         **kwargs : dict
             Additional parameters forwarded to the magnetic bearing controller
             when the magnetic forces are computed.
@@ -2905,7 +2918,15 @@ class Rotor(object):
         vectors. Each bearing's controller is rebuilt based on the provided
         time increment.
         """
+        dt = t[1] - t[0]
         magnetic_bearings = get_ambs(self)
+
+        amb_data = kwargs.get("amb_data", {})
+        amb_data["x_amb"] = np.zeros((len(t), len(magnetic_bearings) * 2))
+        amb_data["v_amb"] = np.zeros((len(t), len(magnetic_bearings) * 2))
+        amb_data["F_x"] = np.zeros((len(t), len(magnetic_bearings) * 2))
+        amb_data["F_v"] = np.zeros((len(t), len(magnetic_bearings) * 2))
+        amb_data["I"] = np.zeros((len(t), len(magnetic_bearings) * 2))
 
         rotor = deepcopy(self)
 
@@ -2918,15 +2939,6 @@ class Rotor(object):
 
             # Initialize storage attributes for magnetic bearings
             for brg in magnetic_bearings:
-                brg.magnetic_force_xy.append([])
-                brg.magnetic_force_xy.append([])
-
-                brg.magnetic_force_vw.append([])
-                brg.magnetic_force_vw.append([])
-
-                brg.control_signal.append([])
-                brg.control_signal.append([])
-
                 brg.integral = [0, 0]
                 brg.e0 = [0, 0]
                 brg.build_controller(dt=dt)
@@ -2988,9 +3000,11 @@ class Rotor(object):
         array([[ 0.00000000e+00,  0.00000000e+00,  0.00000000e+00, ...
         """
 
+        F = self.introduce_weight_force(F, **kwargs)
+
         if isinstance(speed, Iterable) or method.lower() == "newmark":
-            t_, yout = self.integrate_system(speed, F, t, **kwargs)
-            return TimeResponseResults(self, t_, yout, [])
+            t_, yout, xout = self.integrate_system(speed, F, t, **kwargs)
+            return self.build_time_response(t_, yout, xout)
 
         elif has_ambs(self):
             sim = AmbTimeResponse(self, t=t, speed=speed, F=F, **kwargs)
@@ -3001,6 +3015,66 @@ class Rotor(object):
             lti = self._lti(speed)
             t_, yout, xout = signal.lsim(lti, F, t, X0=ic)
             return TimeResponseResults(self, t_, yout, xout)
+
+    def introduce_weight_force(self, F, **kwargs):
+        """Include the weight force in the force array.
+
+        This method adds the weight force of the rotor to the force array `F`
+        if the `weight` parameter is set to `True` in `**kwargs`.
+
+        Parameters
+        ----------
+        F : array
+            Force array.
+        **kwargs : optional
+            Additional keyword arguments. If `weight=True` is provided,
+            the weight force is added to `F`.
+
+        Returns
+        -------
+        F : array
+            Force array with the weight force included if applicable.
+        """
+        weight = kwargs.get("weight", False)
+        if weight:
+            W = self.gravitational_force()
+            F += np.tile(W, (F.shape[0], 1))
+
+        return F
+
+    def build_time_response(self, t, yout, xout):
+        """Build time response results object.
+
+        This method constructs and returns either a `TimeResponseResults`
+        or an `AmbTimeResponseResults` object based on whether active
+        magnetic bearing (AMB) data is provided.
+
+        Parameters
+        ----------
+        t : array
+            Time array.
+        yout : array
+            Time response output array.
+        xout : array or list
+            Time evolution of the state vector or list containing AMB data.
+
+        Returns
+        -------
+        results : ross.TimeResponseResults or ross.AmbTimeResponseResults
+            The constructed time response results object.
+        """
+        if len(xout) == 0:
+            return TimeResponseResults(self, t, yout, [])
+
+        else:
+            amb_data = xout[0]
+            x_amb = amb_data["x_amb"]
+            v_amb = amb_data["v_amb"]
+            F_x = amb_data["F_x"]
+            F_y = amb_data["F_v"]
+            I = amb_data["I"]
+            xout = [x_amb, v_amb, F_x, F_y, I]
+            return AmbTimeResponseResults(self, t, yout, xout)
 
     def plot_rotor(self, nodes=1, check_sld=False, length_units="m", **kwargs):
         """Plot a rotor object.

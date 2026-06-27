@@ -27,7 +27,7 @@ class AmbTimeResponse:
         Defaults to True.
     """
 
-    def __init__(self, rotor, t, speed, F=None, weight=True, **kwargs):
+    def __init__(self, rotor, t, speed, F=None, **kwargs):
         """
         Initialize the AmbTimeResponse simulation.
 
@@ -41,9 +41,6 @@ class AmbTimeResponse:
             Rotor speed in rad/s.
         F : array_like, optional
             External forces applied to the rotor.
-        weight : bool, optional
-            Whether to include gravitational forces in the simulation.
-            Defaults to True.
 
         Examples
         --------
@@ -60,7 +57,9 @@ class AmbTimeResponse:
 
         # Rotor Physical Model
         self.rotor = deepcopy(rotor)  # Copy of the rotor model
-        self.weight = weight  # Whether to include gravitational forces
+        self.weight = kwargs.get(
+            "weight", True
+        )  # Whether to include gravitational forces
         self.n_dof = None  # Number of rotor degrees of freedom
         self.n_x = None  # Dimension of physical state vector
         self.n_u = None  # Dimension of input vector (forces)
@@ -424,7 +423,7 @@ class AmbTimeResponse:
         x_amb = infos[1]
         v_amb = infos[2]
         F_x = infos[3]
-        F_y = infos[4]
+        F_v = infos[4]
         I = infos[5]
 
-        return self.t, x, [x_amb, v_amb, F_x, F_y, I]
+        return self.t, x, [x_amb, v_amb, F_x, F_v, I]
