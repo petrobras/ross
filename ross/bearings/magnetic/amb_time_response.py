@@ -311,7 +311,7 @@ class AmbTimeResponse:
                     -M_m_inv @ C_m,
                     M_m_inv @ Phi_T @ phi @ R_T @ K_i @ C_c,
                 ],
-                [-1e6 * B_c @ R @ phi_t @ Phi, zeros(n, m), A_c],
+                [-B_c @ R @ phi_t @ Phi, zeros(n, m), A_c],
             ]
         )
 
