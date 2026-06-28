@@ -2592,16 +2592,16 @@ class Rotor(object):
                 sensor_angle
             ) + magnetic_force_w * np.cos(sensor_angle)
 
-            kwargs["amb_data"]["x_amb"][step - 1 : 2 * i] = x_disp
-            kwargs["amb_data"]["x_amb"][step - 1 : 2 * i + 1] = y_disp
-            kwargs["amb_data"]["v_amb"][step - 1 : 2 * i] = x_disp
-            kwargs["amb_data"]["v_amb"][step - 1 : 2 * i + 1] = y_disp
-            kwargs["amb_data"]["F_x"][step - 1 : 2 * i] = magnetic_force_x
-            kwargs["amb_data"]["F_x"][step - 1 : 2 * i + 1] = magnetic_force_y
-            kwargs["amb_data"]["F_v"][step - 1 : 2 * i] = magnetic_force_v
-            kwargs["amb_data"]["F_v"][step - 1 : 2 * i + 1] = magnetic_force_w
-            kwargs["amb_data"]["I"][step - 1 : 2 * i] = current_v
-            kwargs["amb_data"]["I"][step - 1 : 2 * i + 1] = current_w
+            kwargs["amb_data"]["x_amb"][step - 1, 2 * i] = x_disp
+            kwargs["amb_data"]["x_amb"][step - 1, 2 * i + 1] = y_disp
+            kwargs["amb_data"]["v_amb"][step - 1, 2 * i] = x_disp
+            kwargs["amb_data"]["v_amb"][step - 1, 2 * i + 1] = y_disp
+            kwargs["amb_data"]["F_x"][step - 1, 2 * i] = magnetic_force_x
+            kwargs["amb_data"]["F_x"][step - 1, 2 * i + 1] = magnetic_force_y
+            kwargs["amb_data"]["F_v"][step - 1, 2 * i] = magnetic_force_v
+            kwargs["amb_data"]["F_v"][step - 1, 2 * i + 1] = magnetic_force_w
+            kwargs["amb_data"]["I"][step - 1, 2 * i] = current_v
+            kwargs["amb_data"]["I"][step - 1, 2 * i + 1] = current_w
 
             magnetic_force[x_dof] = magnetic_force_x
             magnetic_force[y_dof] = magnetic_force_y
