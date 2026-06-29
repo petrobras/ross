@@ -933,7 +933,6 @@ class ShaftElement(Element):
 
         return K
 
-
     def Kst(self):
         """Dynamic stiffness matrix for an instance of a shaft element.
 

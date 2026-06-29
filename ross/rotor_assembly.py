@@ -2793,7 +2793,7 @@ class Rotor(object):
         M = reduce_matrix(kwargs.get("M", self.M()))
         C2 = reduce_matrix(kwargs.get("G", self.G()))
         K2 = reduce_matrix(kwargs.get("Ksdt", self.Ksdt()))
-        if self.Ktq is not None:
+        if hasattr(self, "Ktq"):
             Ktq = reduce_matrix(self.Ktq)
         else:
             Ktq = np.zeros_like(M)
@@ -3936,8 +3936,7 @@ class Rotor(object):
 
         add_to_RHS = kwargs.get("add_to_RHS", lambda step, **state: 0)
         add_to_RHS = lambda step, **state: (
-            add_to_RHS(step, **state)
-            - (Ktq * torque[step]) @ state.get("disp_resp")
+            add_to_RHS(step, **state) - (Ktq * torque[step]) @ state.get("disp_resp")
         )
         kwargs["add_to_RHS"] = add_to_RHS
 

@@ -1,43 +1,38 @@
-"""Tests for the MotorElement class.
-
-Tests are based on the operating scenarios described in
-"Testes dos modelos do motor e conversor - ROSS.docx".
-
-All tests use the parameters from ``motor_example()`` and the default
-simulation parameters defined in the module.
-
-Motor under test
-----------------
-- Nominal power  : 1.5 cv  (≈ 1103.25 W)
-- Nominal voltage: 127 V (phase)
-- Nominal speed  : 1710 RPM
-- Nominal frequency: 60 Hz
-- Poles          : 4
-- Rs = 2.5 Ω, Rr = 1.8 Ω, Xs = Xr = 1.3 Ω, Xm = 43.08 Ω
-- Ip_motor = 0.0372 kg·m²
-"""
-
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose
+from copy import deepcopy
 
-from ross.motor.motor_element import MotorElement, motor_example
+from ross.motors.motor_element import MotorElement
 from ross.units import Q_
 
 
-# ---------------------------------------------------------------------------
-# Shared fixtures
-# ---------------------------------------------------------------------------
-
-
-@pytest.fixture(scope="module")
+@pytest.fixture
 def motor():
-    """Return the reference motor from motor_example()."""
-    return motor_example()
+    """Return the motor element."""
+    return MotorElement(
+        n=0,
+        tag="motor",
+        power_nom=Q_(1.5, "cv"),
+        voltage_nom=127,
+        speed_nom=Q_(1710, "RPM"),
+        frequency_nom=Q_(60.0, "Hz"),
+        n_poles=4,
+        stator_resistance=2.5,
+        rotor_resistance=1.8,
+        stator_reactance=1.3,
+        rotor_reactance=1.3,
+        mutual_reactance=43.08,
+        Ip_motor=0.0372,
+        viscosity_coeff=0.0,
+        Ip_load=0.0,
+        voltage_net=127,
+        frequency_net=Q_(60.0, "Hz"),
+    )
 
 
-@pytest.fixture(scope="module")
-def motor_high_inertia(motor):
+@pytest.fixture
+def motor_high_inertia():
     """Return the motor with Ip_motor × 10 000 to simulate a locked rotor.
 
     With such a large inertia the mechanical speed barely changes during the
@@ -45,29 +40,24 @@ def motor_high_inertia(motor):
     blocked-rotor (starting) operating point.
     """
     return MotorElement(
-        n=motor.n,
-        tag=motor.tag,
-        power_nom=motor.power_nom,
-        voltage_nom=motor.voltage_nom,
-        speed_nom=motor.speed_nom,
-        frequency_nom=motor.frequency_nom,
-        n_poles=motor.n_poles,
-        stator_resistance=motor.stator_resistance,
-        rotor_resistance=motor.rotor_resistance,
-        stator_reactance=motor.stator_reactance,
-        rotor_reactance=motor.rotor_reactance,
-        mutual_reactance=motor.mutual_reactance,
-        Ip_motor=motor.Ip_motor * 10_000,
-        viscosity_coeff=motor.viscosity_coeff,
-        Ip_load=motor.Ip_load,
-        voltage_net=motor.voltage_net,
-        frequency_net=motor.frequency_net,
+        n=0,
+        tag="motor_high_inertia",
+        power_nom=Q_(1.5, "cv"),
+        voltage_nom=127,
+        speed_nom=Q_(1710, "RPM"),
+        frequency_nom=Q_(60.0, "Hz"),
+        n_poles=4,
+        stator_resistance=2.5,
+        rotor_resistance=1.8,
+        stator_reactance=1.3,
+        rotor_reactance=1.3,
+        mutual_reactance=43.08,
+        Ip_motor=0.0372 * 10000,
+        viscosity_coeff=0.0,
+        Ip_load=0.0,
+        voltage_net=127,
+        frequency_net=Q_(60.0, "Hz"),
     )
-
-
-# ---------------------------------------------------------------------------
-# Helper
-# ---------------------------------------------------------------------------
 
 
 def rms(signal):
@@ -75,9 +65,9 @@ def rms(signal):
     return np.sqrt(np.mean(signal**2))
 
 
-# ---------------------------------------------------------------------------
-# Parameter tests (no simulation required)
-# ---------------------------------------------------------------------------
+def _steady_state_slice(results, fraction=0.85):
+    """Return the index at which steady state is considered to begin."""
+    return int(fraction * len(results.t))
 
 
 def test_motor_example_parameters(motor):
@@ -103,34 +93,25 @@ def test_motor_example_parameters(motor):
     assert_allclose(motor.Ip_motor, 0.0372, rtol=1e-9)
 
 
-def test_motor_example_equality():
+def test_motor_example_equality(motor):
     """Two calls to motor_example() must return equal objects."""
-    m1 = motor_example()
-    m2 = motor_example()
+    m1 = motor
+    m2 = deepcopy(motor)
+    m2.tag = "motor_2"
     assert m1 == m2
 
 
-# ---------------------------------------------------------------------------
-# Test 1 – No-load (vazio) operation at nominal voltage
-# ---------------------------------------------------------------------------
-
-
-@pytest.fixture(scope="module")
+@pytest.fixture
 def results_no_load(motor):
     """Simulate the motor at no load for 3 s (nominal voltage)."""
     dt = 1e-3
     tf = 3.0
     t = np.arange(0, tf + dt, dt)
-    return motor.run_with_AC_source(
+    return motor.run_direct_on_line(
         t,
         load_torque_entrance_time=tf + 1.0,  # load applied after simulation ends
         load_torque_ratio=0.0,
     )
-
-
-def _steady_state_slice(results, fraction=0.85):
-    """Return the index at which steady state is considered to begin."""
-    return int(fraction * len(results.t))
 
 
 def test_no_load_stator_current_rms(results_no_load):
@@ -138,8 +119,13 @@ def test_no_load_stator_current_rms(results_no_load):
     ss = _steady_state_slice(results_no_load)
     ia_rms = rms(results_no_load.currents["a"][ss:])
     # Document: ~2.8 A rms; tolerance set to ±10 % of expected value
-    assert_allclose(ia_rms, 2.85, rtol=0.10, atol=0.1,
-                    err_msg="No-load RMS current outside expected range (~2.8 A)")
+    assert_allclose(
+        ia_rms,
+        2.85,
+        rtol=0.10,
+        atol=0.1,
+        err_msg="No-load RMS current outside expected range (~2.8 A)",
+    )
 
 
 def test_no_load_stator_current_peak(results_no_load):
@@ -147,8 +133,13 @@ def test_no_load_stator_current_peak(results_no_load):
     ss = _steady_state_slice(results_no_load)
     ia_peak = np.max(np.abs(results_no_load.currents["a"][ss:]))
     # Document: ~4 A peak; tolerance ±10 %
-    assert_allclose(ia_peak, 4.04, rtol=0.10, atol=0.1,
-                    err_msg="No-load peak current outside expected range (~4 A)")
+    assert_allclose(
+        ia_peak,
+        4.04,
+        rtol=0.10,
+        atol=0.1,
+        err_msg="No-load peak current outside expected range (~4 A)",
+    )
 
 
 def test_no_load_speed(results_no_load):
@@ -156,22 +147,21 @@ def test_no_load_speed(results_no_load):
     ss = _steady_state_slice(results_no_load)
     speed_rpm = np.mean(results_no_load.speed[ss:]) * 60.0 / (2.0 * np.pi)
     # Document: 1799 RPM; tolerance ±5 RPM
-    assert_allclose(speed_rpm, 1800.0, atol=5.0,
-                    err_msg="No-load speed outside expected range (~1799 RPM)")
+    assert_allclose(
+        speed_rpm,
+        1800.0,
+        atol=5.0,
+        err_msg="No-load speed outside expected range (~1799 RPM)",
+    )
 
 
-# ---------------------------------------------------------------------------
-# Test 2 – Nominal load operation at nominal voltage
-# ---------------------------------------------------------------------------
-
-
-@pytest.fixture(scope="module")
+@pytest.fixture
 def results_nominal_load(motor):
     """Simulate the motor at nominal load for 3 s (nominal voltage)."""
     dt = 1e-3
     tf = 3.0
     t = np.arange(0, tf + dt, dt)
-    return motor.run_with_AC_source(
+    return motor.run_direct_on_line(
         t,
         load_torque_entrance_time=0.5,
         load_torque_ratio=1.0,
@@ -183,8 +173,13 @@ def test_nominal_load_stator_current_rms(results_nominal_load):
     ss = _steady_state_slice(results_nominal_load)
     ia_rms = rms(results_nominal_load.currents["a"][ss:])
     # Document: ~4.25 A rms; tolerance ±10 %
-    assert_allclose(ia_rms, 4.38, rtol=0.10, atol=0.15,
-                    err_msg="Nominal-load RMS current outside expected range (~4.25 A)")
+    assert_allclose(
+        ia_rms,
+        4.38,
+        rtol=0.10,
+        atol=0.15,
+        err_msg="Nominal-load RMS current outside expected range (~4.25 A)",
+    )
 
 
 def test_nominal_load_stator_current_peak(results_nominal_load):
@@ -192,8 +187,13 @@ def test_nominal_load_stator_current_peak(results_nominal_load):
     ss = _steady_state_slice(results_nominal_load)
     ia_peak = np.max(np.abs(results_nominal_load.currents["a"][ss:]))
     # Document: ~6.0 A peak; tolerance ±10 %
-    assert_allclose(ia_peak, 6.19, rtol=0.10, atol=0.2,
-                    err_msg="Nominal-load peak current outside expected range (~6.0 A)")
+    assert_allclose(
+        ia_peak,
+        6.19,
+        rtol=0.10,
+        atol=0.2,
+        err_msg="Nominal-load peak current outside expected range (~6.0 A)",
+    )
 
 
 def test_nominal_load_speed(results_nominal_load):
@@ -201,16 +201,15 @@ def test_nominal_load_speed(results_nominal_load):
     ss = _steady_state_slice(results_nominal_load)
     speed_rpm = np.mean(results_nominal_load.speed[ss:]) * 60.0 / (2.0 * np.pi)
     # Document: 1710 RPM; tolerance ±15 RPM
-    assert_allclose(speed_rpm, 1710.0, atol=15.0,
-                    err_msg="Nominal-load speed outside expected range (~1710 RPM)")
+    assert_allclose(
+        speed_rpm,
+        1710.0,
+        atol=15.0,
+        err_msg="Nominal-load speed outside expected range (~1710 RPM)",
+    )
 
 
-# ---------------------------------------------------------------------------
-# Test 3 – Locked-rotor / starting current and torque
-# ---------------------------------------------------------------------------
-
-
-@pytest.fixture(scope="module")
+@pytest.fixture
 def results_locked_rotor(motor_high_inertia):
     """Simulate starting current with very high inertia (rotor approximately locked).
 
@@ -220,7 +219,7 @@ def results_locked_rotor(motor_high_inertia):
     dt = 1e-4
     tf = 0.5
     t = np.arange(0, tf + dt, dt)
-    return motor_high_inertia.run_with_AC_source(
+    return motor_high_inertia.run_direct_on_line(
         t,
         load_torque_entrance_time=0.0,
         load_torque_ratio=1.0,
@@ -232,8 +231,13 @@ def test_starting_current_rms(results_locked_rotor):
     ss = int(0.5 * len(results_locked_rotor.t))
     ia_rms = rms(results_locked_rotor.currents["a"][ss:])
     # Document: ~25 A rms; tolerance ±10 %
-    assert_allclose(ia_rms, 25.64, rtol=0.10, atol=0.5,
-                    err_msg="Starting RMS current outside expected range (~25 A)")
+    assert_allclose(
+        ia_rms,
+        25.64,
+        rtol=0.10,
+        atol=0.5,
+        err_msg="Starting RMS current outside expected range (~25 A)",
+    )
 
 
 def test_starting_current_peak(results_locked_rotor):
@@ -241,8 +245,13 @@ def test_starting_current_peak(results_locked_rotor):
     ss = int(0.5 * len(results_locked_rotor.t))
     ia_peak = np.max(np.abs(results_locked_rotor.currents["a"][ss:]))
     # Document: ~35.25 A peak; tolerance ±10 %
-    assert_allclose(ia_peak, 36.26, rtol=0.10, atol=0.5,
-                    err_msg="Starting peak current outside expected range (~35.25 A)")
+    assert_allclose(
+        ia_peak,
+        36.26,
+        rtol=0.10,
+        atol=0.5,
+        err_msg="Starting peak current outside expected range (~35.25 A)",
+    )
 
 
 def test_starting_electromagnetic_torque(results_locked_rotor):
@@ -250,8 +259,13 @@ def test_starting_electromagnetic_torque(results_locked_rotor):
     ss = int(0.5 * len(results_locked_rotor.t))
     te_mean = np.mean(np.abs(results_locked_rotor.electric_torque[ss:]))
     # Document: ~17.7 N.m; tolerance ±10 %
-    assert_allclose(te_mean, 17.70, rtol=0.10, atol=0.3,
-                    err_msg="Starting electromagnetic torque outside expected range (~17.7 N·m)")
+    assert_allclose(
+        te_mean,
+        17.70,
+        rtol=0.10,
+        atol=0.3,
+        err_msg="Starting electromagnetic torque outside expected range (~17.7 N·m)",
+    )
 
 
 def test_speed_nearly_zero_during_locked_rotor(results_locked_rotor):
