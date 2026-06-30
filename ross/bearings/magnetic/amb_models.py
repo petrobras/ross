@@ -194,7 +194,8 @@ def rotor_example_amb_complex_controllers(ambs=True):
     s0 = 0.432e-3
     alpha = 0.392
     c_13 = (
-        0.0062
+        1e6
+        * 0.0062
         * (s + 46)
         / s
         * 0.0062
@@ -214,7 +215,8 @@ def rotor_example_amb_complex_controllers(ambs=True):
     )
 
     c_24 = (
-        0.0046
+        1e6
+        * 0.0046
         * 0.0046
         * (s + 35)
         / s
@@ -435,3 +437,52 @@ def rotor_example_amb_general_controllers(controller_transfer_function=None):
         ]
 
     return Rotor(shaft_elements, disk_elements, bearing_elements)
+
+
+def rotor_example_amb_simple():
+    steel = Material(name="steel", rho=7850, E=1.9e11, Poisson=0.30)
+
+    L = 0.1
+    idl = 0.0
+    odl = 0.05
+    n_elements = 10
+
+    shaft_elements = [
+        ShaftElement(
+            n=i,
+            L=L,
+            idl=idl,
+            odl=odl,
+            material=steel,
+            alpha=10,
+            beta=1e-4,
+        )
+        for i in range(n_elements)
+    ]
+
+    disk = DiskElement(
+        n=int(np.round(n_elements / 2)), m=10, Id=0.01, Ip=0.02, tag="Disk_1"
+    )
+
+    amb_params = {
+        "g0": 1e-3,
+        "i0": 1.0,
+        "ag": 1e-4,
+        "nw": 200,
+        "kp_pid": 1e5,
+        "kd_pid": -1e-5,
+        "ki_pid": 2e-1,
+        "k_amp": 1.0,
+        "k_sense": 1.0,
+    }
+
+    bearings = [
+        MagneticBearingElement(n=n, **amb_params, tag=f"AMB_{n}")
+        for n in [1, n_elements - 1]
+    ]
+
+    rotor = Rotor(
+        shaft_elements=shaft_elements, disk_elements=[disk], bearing_elements=bearings
+    )
+
+    return rotor

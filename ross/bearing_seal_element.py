@@ -2372,15 +2372,13 @@ class MagneticBearingElement(BearingElement):
         ...     kp_pid=1.0, ki_pid=5.0, kd_pid=0.01, n_f=1e4
         ... )
         >>> mb.build_controller(dt=1e-3)
-        >>> # start a new logging bucket for this time step (x and y)
-        >>> mb.control_signal.append([[], []])
-        >>> # compute force for x-axis given a small measured displacement
-        >>> force_x = mb.compute_amb_controller(
+        >>> force, current = mb.compute_amb_controller(
         ...     current_offset=0.0, setpoint=0.0, disp=2e-4, dof_index=0
         ... )
-        >>> isinstance(force_x, float)
-        True
-
+        >>> force  # doctest: +ELLIPSIS
+        -0.945195...
+        >>> current  # doctest: +ELLIPSIS
+        -0.003533...
         """
         err = setpoint - disp
         u = self.C_c @ self.x_c[dof_index] + self.D_c * err

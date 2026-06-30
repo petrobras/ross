@@ -29,7 +29,13 @@ from ross.bearing_seal_element import (
 )
 
 from ross.bearings.magnetic.amb_time_response import AmbTimeResponse
-from ross.bearings.magnetic.amb_utils import get_ambs, has_ambs
+from ross.bearings.magnetic.amb_utils import (
+    get_ambs,
+    has_ambs,
+    print_progress,
+    log_amb_data,
+    apply_sensitivity_disturbance,
+)
 from ross.coupling_element import CouplingElement
 from ross.disk_element import DiskElement
 from ross.faults import Crack, MisalignmentFlex, MisalignmentRigid, Rubbing
@@ -76,6 +82,7 @@ __all__ = [
     "rotor_example_with_damping",
     "rotor_example_amb_general_controllers",
     "rotor_example_amb_complex_controllers",
+    "rotor_example_amb_simple",
 ]
 
 # set Plotly palette of colors
@@ -2500,118 +2507,77 @@ class Rotor(object):
         >>> response = rotor.run_time_response(speed, F, t, method = "newmark")
         Running direct method
         >>> magnetic_bearings = [brg for brg in rotor.bearing_elements if isinstance(brg, rs.bearing_seal_element.MagneticBearingElement)]
-        >>> magnetic_force = rotor.magnetic_bearing_controller(step, magnetic_bearings, dt, response.yout[-1,:])
+        >>> amb_data = {key: np.zeros((len(t), len(magnetic_bearings) * 2)) for key in ["x_amb", "v_amb", "F_x", "F_v", "I"]}
+        >>> magnetic_force = rotor.magnetic_bearing_controller(step, magnetic_bearings, dt, response.yout[-1,:], amb_data=amb_data)
         >>> np.nonzero(magnetic_force)[0]
         array([ 72,  73, 258, 259])
         >>> magnetic_force[np.nonzero(magnetic_force)[0]]
         array([-1.77841057e-04,  5.15148204e-06, -2.96097989e-04,  3.35036499e-05])
         """
 
-        if kwargs.get("sensitivity_result_values", None) == {}:
-            kwargs["sensitivity_result_values"].update(
+        sens_results = kwargs.get("sensitivity_result_values")
+        if sens_results == {}:
+            sens_results.update(
                 {"excitation_signal": [], "disturbed_signal": [], "sensor_signal": []}
             )
 
-        sensitivity_compute_dof: None | int = kwargs.get(
-            "sensitivity_compute_dof", None
-        )
-        sensitivity_disturbance: None | np.ndarray = kwargs.get(
-            "sensitivity_disturbance", None
-        )
-        sensor_angle: None | float = kwargs.get("sensor_angle", np.deg2rad(45))
-        progress_interval: None | float = kwargs.get("progress_interval", None)
+        sens_dof = kwargs.get("sensitivity_compute_dof")
+        sens_dist = kwargs.get("sensitivity_disturbance")
+        sensor_angle = kwargs.get("sensor_angle", np.deg2rad(45))
+        progress_interval = kwargs.get("progress_interval")
+        amb_data = kwargs.get("amb_data")
 
-        current_offset = 0
-        setpoint = 0
-        dt = time_step
+        cos_angle = np.cos(sensor_angle)
+        sin_angle = np.sin(sensor_angle)
+
         magnetic_force = np.zeros(self.ndof)
 
         for i, elm in enumerate(magnetic_bearings):
             x_dof = self.number_dof * elm.n
             y_dof = self.number_dof * elm.n + 1
 
-            x_disp = disp_resp[x_dof]
-            y_disp = disp_resp[y_dof]
+            x_disp, y_disp = disp_resp[x_dof], disp_resp[y_dof]
 
-            # Transforming the displacements to the sensor reference frame
-            v_disp = x_disp * np.cos(sensor_angle) + y_disp * np.sin(sensor_angle)
-            w_disp = -x_disp * np.sin(sensor_angle) + y_disp * np.cos(sensor_angle)
+            v_disp = x_disp * cos_angle + y_disp * sin_angle
+            w_disp = -x_disp * sin_angle + y_disp * cos_angle
 
-            if sensitivity_compute_dof is not None and sensitivity_compute_dof in [
-                x_dof,
-                y_dof,
-            ]:
-                sensor_signal = v_disp if x_dof == sensitivity_compute_dof else w_disp
-
-                excitation_signal = sensitivity_disturbance[step]
-                v_disp = (
-                    v_disp + excitation_signal
-                    if x_dof == sensitivity_compute_dof
-                    else v_disp
-                )
-                w_disp = (
-                    w_disp + excitation_signal
-                    if y_dof == sensitivity_compute_dof
-                    else w_disp
+            if sens_dof in (x_dof, y_dof):
+                v_disp, w_disp = apply_sensitivity_disturbance(
+                    step, x_dof, v_disp, w_disp, sens_dof, sens_dist, sens_results
                 )
 
-                disturbed_signal = (
-                    v_disp if x_dof == sensitivity_compute_dof else w_disp
-                )
-
-                if "sensitivity_result_values" in kwargs.keys():
-                    kwargs["sensitivity_result_values"]["excitation_signal"].append(
-                        excitation_signal
-                    )
-                    kwargs["sensitivity_result_values"]["disturbed_signal"].append(
-                        disturbed_signal
-                    )
-                    kwargs["sensitivity_result_values"]["sensor_signal"].append(
-                        sensor_signal
-                    )
-
-            # The method compute_pid_amb updates the magnetic_force array internally
-            magnetic_force_v, current_v = elm.compute_amb_controller(
-                current_offset=current_offset,
-                setpoint=setpoint,
-                disp=v_disp,
-                dof_index=0,
+            force_v, current_v = elm.compute_amb_controller(
+                current_offset=0, setpoint=0, disp=v_disp, dof_index=0
+            )
+            force_w, current_w = elm.compute_amb_controller(
+                current_offset=0, setpoint=0, disp=w_disp, dof_index=1
             )
 
-            magnetic_force_w, current_w = elm.compute_amb_controller(
-                current_offset=current_offset,
-                setpoint=setpoint,
-                disp=w_disp,
-                dof_index=1,
-            )
+            force_x = force_v * cos_angle - force_w * sin_angle
+            force_y = force_v * sin_angle + force_w * cos_angle
 
-            magnetic_force_x = magnetic_force_v * np.cos(
-                sensor_angle
-            ) - magnetic_force_w * np.sin(sensor_angle)
-            magnetic_force_y = magnetic_force_v * np.sin(
-                sensor_angle
-            ) + magnetic_force_w * np.cos(sensor_angle)
-
-            kwargs["amb_data"]["x_amb"][step - 1, 2 * i] = x_disp
-            kwargs["amb_data"]["x_amb"][step - 1, 2 * i + 1] = y_disp
-            kwargs["amb_data"]["v_amb"][step - 1, 2 * i] = x_disp
-            kwargs["amb_data"]["v_amb"][step - 1, 2 * i + 1] = y_disp
-            kwargs["amb_data"]["F_x"][step - 1, 2 * i] = magnetic_force_x
-            kwargs["amb_data"]["F_x"][step - 1, 2 * i + 1] = magnetic_force_y
-            kwargs["amb_data"]["F_v"][step - 1, 2 * i] = magnetic_force_v
-            kwargs["amb_data"]["F_v"][step - 1, 2 * i + 1] = magnetic_force_w
-            kwargs["amb_data"]["I"][step - 1, 2 * i] = current_v
-            kwargs["amb_data"]["I"][step - 1, 2 * i + 1] = current_w
-
-            magnetic_force[x_dof] = magnetic_force_x
-            magnetic_force[y_dof] = magnetic_force_y
+            if amb_data is not None:
+                log_amb_data(
+                    amb_data,
+                    step,
+                    i,
+                    x_disp,
+                    y_disp,
+                    force_v,
+                    force_w,
+                    force_x,
+                    force_y,
+                    current_v,
+                    current_w,
+                )
 
             if progress_interval is not None:
-                time_progress_ratio = round((step * dt) / progress_interval, 4)
-                if time_progress_ratio.is_integer():
-                    print(
-                        f"Force x / y (N): {magnetic_force_x:.6f} / {magnetic_force_y:.6f} ({elm.tag})"
-                    )
+                print_progress(
+                    step, time_step, progress_interval, force_x, force_y, elm.tag
+                )
+
+            magnetic_force[x_dof] = force_x
+            magnetic_force[y_dof] = force_y
 
         return magnetic_force
 
@@ -2724,7 +2690,7 @@ class Rotor(object):
         >>> F = np.zeros((size, rotor.ndof))
         >>> F[:, rotor.number_dof * node + 0] = 10 * np.cos(2 * t)
         >>> F[:, rotor.number_dof * node + 1] = 10 * np.sin(2 * t)
-        >>> t, yout = rotor.integrate_system(speed, F, t)
+        >>> t, yout, xout = rotor.integrate_system(speed, F, t)
         Running direct method
         >>> yout[:, rotor.number_dof * node + 1] # doctest: +ELLIPSIS
         array([0.00000000e+00, 2.07239823e-10, 7.80952429e-10, ...,
@@ -2765,9 +2731,8 @@ class Rotor(object):
         F = reduction[1](F.T).T
 
         # Check if there is any magnetic bearing
-        amb_data = {}
+        rotor, magnetic_force, amb_data = self._init_ambs_for_integrate(t, **kwargs)
         xout.append(amb_data)
-        rotor, magnetic_force = self._init_ambs_for_integrate(t, amb_data=amb_data)
 
         # Consider any additional RHS function (extra forces)
         add_to_RHS = kwargs.get("add_to_RHS")
@@ -2921,12 +2886,12 @@ class Rotor(object):
         dt = t[1] - t[0]
         magnetic_bearings = get_ambs(self)
 
-        amb_data = kwargs.get("amb_data", {})
-        amb_data["x_amb"] = np.zeros((len(t), len(magnetic_bearings) * 2))
-        amb_data["v_amb"] = np.zeros((len(t), len(magnetic_bearings) * 2))
-        amb_data["F_x"] = np.zeros((len(t), len(magnetic_bearings) * 2))
-        amb_data["F_v"] = np.zeros((len(t), len(magnetic_bearings) * 2))
-        amb_data["I"] = np.zeros((len(t), len(magnetic_bearings) * 2))
+        amb_data = {
+            key: np.zeros((len(t), len(magnetic_bearings) * 2))
+            for key in ["x_amb", "v_amb", "F_x", "F_v", "I"]
+        }
+
+        kwargs["amb_data"] = amb_data
 
         rotor = deepcopy(self)
 
@@ -2950,7 +2915,7 @@ class Rotor(object):
         else:
             magnetic_force = lambda step, time_step, disp_resp: np.zeros(self.ndof)
 
-        return rotor, magnetic_force
+        return rotor, magnetic_force, amb_data
 
     def time_response(self, speed, F, t, ic=None, method="default", **kwargs):
         """Time response for a rotor.
@@ -3000,7 +2965,7 @@ class Rotor(object):
         array([[ 0.00000000e+00,  0.00000000e+00,  0.00000000e+00, ...
         """
 
-        F = self.introduce_weight_force(F, **kwargs)
+        F = self._introduce_weight_force(F, **kwargs)
 
         if isinstance(speed, Iterable) or method.lower() == "newmark":
             t_, yout, xout = self.integrate_system(speed, F, t, **kwargs)
@@ -3016,7 +2981,7 @@ class Rotor(object):
             t_, yout, xout = signal.lsim(lti, F, t, X0=ic)
             return TimeResponseResults(self, t_, yout, xout)
 
-    def introduce_weight_force(self, F, **kwargs):
+    def _introduce_weight_force(self, F, **kwargs):
         """Include the weight force in the force array.
 
         This method adds the weight force of the rotor to the force array `F`
@@ -5923,3 +5888,9 @@ def rotor_example_amb_general_controllers(controller_transfer_function=None):
     from ross.bearings.magnetic.amb_models import rotor_example_amb_general_controllers
 
     return rotor_example_amb_general_controllers(controller_transfer_function)
+
+
+def rotor_example_amb_simple():
+    from ross.bearings.magnetic.amb_models import rotor_example_amb_simple
+
+    return rotor_example_amb_simple()

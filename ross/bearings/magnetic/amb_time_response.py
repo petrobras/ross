@@ -63,7 +63,6 @@ class AmbTimeResponse:
         self.n_dof = None  # Number of rotor degrees of freedom
         self.n_x = None  # Dimension of physical state vector
         self.n_u = None  # Dimension of input vector (forces)
-        self.W = None  # Gravitational force vector
         self.n_amb = 0  # Number of magnetic bearings
         self.n_x_c = None  # Dimension of controllers state vector
         self.t = t  # Time vector for simulation
@@ -144,27 +143,6 @@ class AmbTimeResponse:
         self.M_m = self.Phi.T @ M @ self.Phi
         self.C_m = self.Phi.T @ C @ self.Phi
         self.K_m = self.Phi.T @ K @ self.Phi
-
-    def get_weight_force(self):
-        """
-        Compute the static gravitational force vector for the rotor.
-
-        Examples
-        --------
-        >>> from ross.bearings.magnetic.amb_models import rotor_example_amb_complex_controllers
-        >>> rotor = rotor_example_amb_complex_controllers()
-        >>> t_ = np.linspace(0, 10, 10)
-        >>> sim = AmbTimeResponse(rotor, t=t_, speed=0)
-        >>> sim.get_weight_force()
-        """
-        if self.weight:
-            g = -9.81
-        else:
-            g = 0
-
-        g_vec = np.zeros(self.rotor.ndof)
-        g_vec[1 :: self.rotor.number_dof] = g
-        self.W = self.rotor.M(0) @ g_vec
 
     def process_rotor(self):
         """
@@ -376,7 +354,6 @@ class AmbTimeResponse:
         Simulation time: ...
         """
         self.process_rotor()
-        self.get_weight_force()
         self.setup_modal_domain()
         self.build_matrices()
 
@@ -387,8 +364,6 @@ class AmbTimeResponse:
         M = self.rotor.M(self.speed)
 
         F_e = np.zeros((len(self.t), self.n_dof))
-        F_e += np.tile(self.W, (len(self.t), 1))
-
         if self.F is not None:
             F_e += self.F
 

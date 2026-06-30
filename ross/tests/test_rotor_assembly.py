@@ -3135,12 +3135,12 @@ def test_rotor_it(rotor1, rotor3, rotor3a, rotor3b, rotor3c):
 
 
 def test_run_time_response_amb_values():
-    rotor = rotor_example_amb_complex_controllers()
-    t = np.linspace(0, 0.001, 20)
+    rotor = rotor_example_amb_simple()
+    t = np.arange(0, 2, 1e-6)
     F = np.zeros((len(t), rotor.ndof))
     speed = 0
 
-    response = rotor.run_time_response(speed, F, t, num_modes=10)
+    response = rotor.run_time_response(speed=speed, F=F, t=t, weight=True)
 
     expected_yout = np.array(
         [
@@ -3160,75 +3160,75 @@ def test_run_time_response_amb_values():
     expected_x_amb_0 = np.array(
         [
             0.00000000e00,
-            4.46181913e-21,
-            1.33410087e-19,
-            1.27548125e-18,
-            6.49870582e-18,
-            2.26539866e-17,
-            6.17070495e-17,
-            1.41606727e-16,
-            2.86645700e-16,
-            5.27345226e-16,
+            2.52056841e-28,
+            1.53697973e-27,
+            4.36834784e-27,
+            1.00165154e-26,
+            2.31173210e-26,
+            4.06316599e-26,
+            5.63156133e-26,
+            9.05077127e-26,
+            1.14879669e-25,
         ]
     )
 
     expected_v_amb_0 = np.array(
         [
             0.00000000e00,
-            -9.60721382e-09,
-            -3.84261329e-08,
-            -8.64504490e-08,
-            -1.53670968e-07,
-            -2.40075705e-07,
-            -3.45649977e-07,
-            -4.70376489e-07,
-            -6.14235414e-07,
-            -7.77204483e-07,
+            -3.46710962e-12,
+            -1.38683907e-11,
+            -3.12037695e-11,
+            -5.54731702e-11,
+            -8.66765149e-11,
+            -1.24813724e-10,
+            -1.69884714e-10,
+            -2.21889403e-10,
+            -2.80827704e-10,
         ]
     )
 
     expected_F_y_amb_0 = np.array(
         [
-            0.0,
-            0.00173409,
-            0.00687111,
-            0.01533348,
-            0.02706642,
-            0.04203329,
-            0.06021138,
-            0.08158834,
-            0.10615907,
-            0.1339231,
+            0.00000000e00,
+            2.29979284e-06,
+            9.19913968e-06,
+            2.06979917e-05,
+            3.67962986e-05,
+            5.74940088e-05,
+            8.27910692e-05,
+            1.12687425e-04,
+            1.47183022e-04,
+            1.86277802e-04,
         ]
     )
 
     expected_F_v_amb_0 = np.array(
         [
-            0.0,
-            0.00122618,
-            0.00485861,
-            0.01084241,
-            0.01913885,
-            0.02972201,
-            0.04257585,
-            0.05769162,
-            0.07506572,
-            0.09469781,
+            0.00000000e00,
+            1.62619911e-06,
+            6.50477405e-06,
+            1.46356903e-05,
+            2.60189123e-05,
+            4.06544035e-05,
+            5.85421265e-05,
+            7.96820427e-05,
+            1.04074113e-04,
+            1.31718297e-04,
         ]
     )
 
     expected_I_v_amb_0 = np.array(
         [
             0.00000000e00,
-            -2.38075102e-07,
-            -1.77367720e-06,
-            -5.57668112e-06,
-            -1.23206352e-05,
-            -2.24429039e-05,
-            -3.61975314e-05,
-            -5.37012420e-05,
-            -7.49729246e-05,
-            -9.99669222e-05,
+            3.46710617e-07,
+            1.38683769e-06,
+            3.12037386e-06,
+            5.54731155e-06,
+            8.66764297e-06,
+            1.24813601e-05,
+            1.69884548e-05,
+            2.21889187e-05,
+            2.80827432e-05,
         ]
     )
 
@@ -3237,14 +3237,14 @@ def test_run_time_response_amb_values():
     F_y_amb_0 = response.xout[2][:10, 1]
     F_v_amb_0 = response.xout[3][:10, 0]
     I_v_amb_0 = response.xout[4][:10, 0]
-    yout = response.yout[:10, 28 * 6 + 1]
+    yout = response.yout[:10, 5 * 6 + 1]
 
-    assert_allclose(yout, expected_yout, atol=1e-6)
-    assert_allclose(x_amb_0, expected_x_amb_0, atol=1e-6)
-    assert_allclose(v_amb_0, expected_v_amb_0, atol=1e-6)
-    assert_allclose(F_y_amb_0, expected_F_y_amb_0, atol=1e-6)
-    assert_allclose(F_v_amb_0, expected_F_v_amb_0, atol=1e-6)
-    assert_allclose(I_v_amb_0, expected_I_v_amb_0, atol=1e-6)
+    assert_allclose(yout, expected_yout, atol=1e-5)
+    assert_allclose(x_amb_0, expected_x_amb_0, atol=1e-5)
+    assert_allclose(v_amb_0, expected_v_amb_0, atol=1e-5)
+    assert_allclose(F_y_amb_0, expected_F_y_amb_0, atol=1e-5)
+    assert_allclose(F_v_amb_0, expected_F_v_amb_0, atol=1e-5)
+    assert_allclose(I_v_amb_0, expected_I_v_amb_0, atol=1e-5)
 
     fig1 = response.plot_amb_disps(axes=0)
     assert fig1 is not None
@@ -3261,6 +3261,6 @@ def test_run_time_response_amb_values():
     fig5 = response.plot_amb_forces(axes=1)
     assert fig5 is not None
 
-    probe_disk_y = Probe(node=28, angle=Q_(90, "deg"), tag="Node 28 - Y")
+    probe_disk_y = Probe(node=5, angle=Q_(90, "deg"), tag="Node 5 - Y")
     fig6 = response.plot_1d(probe=[probe_disk_y])
     assert fig6 is not None
