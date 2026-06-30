@@ -720,7 +720,7 @@ class ShaftElement(Element):
         M += Mts
 
         return M
-    
+
     def Ktq(self):
         """Stiffness matrix for an instance of a shaft element due to torque.
 

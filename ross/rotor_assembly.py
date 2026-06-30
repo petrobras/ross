@@ -204,7 +204,6 @@ class Rotor(object):
             point_mass_elements = []
 
         elm_dict = {}
-        
         elements = disk_elements + bearing_elements + point_mass_elements
         if motor_element is not None:
             elements.append(motor_element)
@@ -221,9 +220,10 @@ class Rotor(object):
 
         self.shaft_elements = sorted(shaft_elements, key=lambda el: el.n)
         self.bearing_elements = sorted(bearing_elements, key=lambda el: el.n)
-        self.disk_elements = disk_elements
-        self.point_mass_elements = point_mass_elements
+        self.disk_elements = sorted(disk_elements, key=lambda el: el.n)
+        self.point_mass_elements = sorted(point_mass_elements, key=lambda el: el.n)
         self.motor_element = motor_element
+
         self.elements = [
             el
             for el in flatten(
@@ -232,10 +232,12 @@ class Rotor(object):
                     self.disk_elements,
                     self.bearing_elements,
                     self.point_mass_elements,
-                    self.motor_element if self.motor_element is not None else [],
                 ]
             )
         ]
+
+        if self.motor_element is not None:
+            self.elements.append(self.motor_element)
 
         # check if tags are unique
         tags_list = [el.tag for el in self.elements]
@@ -474,6 +476,15 @@ class Rotor(object):
             df.loc[df.tag == elm.tag, "nodes_pos_r"] = z_pos
             df.loc[df.tag == elm.tag, "y_pos"] = y_pos
 
+        # define positions for motor
+        if self.motor_element is not None:
+            elm = self.motor_element
+            i = self.nodes.index(elm.n)
+            z_pos = self.nodes_pos[i]
+            df.loc[df.tag == elm.tag, "nodes_pos_l"] = z_pos
+            df.loc[df.tag == elm.tag, "nodes_pos_r"] = z_pos
+            df.loc[df.tag == elm.tag, "y_pos"] = 0.0
+
         # define positions for bearings
         for elm in self.bearing_elements:
             node = elm.n
@@ -668,7 +679,7 @@ class Rotor(object):
             point_mass_elements.extend(rotor.point_mass_elements)
             if rotor.motor_element is not None:
                 motor_element = rotor.motor_element
-            
+
             # Update offset for the next rotor
             node_offset = max(rotor.nodes)
 
@@ -2836,7 +2847,7 @@ class Rotor(object):
         M = reduce_matrix(kwargs.get("M", self.M()))
         C2 = reduce_matrix(kwargs.get("G", self.G()))
         K2 = reduce_matrix(kwargs.get("Ksdt", self.Ksdt()))
-        if hasattr(self, "Ktq"): # modificar isso aqui!!!
+        if hasattr(self, "Ktq"):  # modificar isso aqui!!!
             Ktq = reduce_matrix(self.Ktq)
             torque = self.torque
         else:
@@ -6244,5 +6255,3 @@ def rotor_amb_example(controller_transfer_function=None):
         ]
 
     return Rotor(shaft_elements, disk_elements, bearing_elements)
-
-
