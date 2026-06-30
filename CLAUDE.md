@@ -55,14 +55,16 @@ Use `rs.Q_(value, "unit")` for pint-based unit conversion.
 
 ### Example Rotors
 
-| Function | Description |
-|----------|-------------|
-| `rs.rotor_example()` | Simple rotor: 6 shafts, 2 disks, 2 bearings |
+| Function | Description                                                 |
+|----------|-------------------------------------------------------------|
+| `rs.rotor_example()` | Simple rotor: 6 shafts, 2 disks, 2 bearings                 |
 | `rs.compressor_example()` | Industrial compressor: 91 shafts, 7 disks, 14 bearings/seals |
-| `rs.rotor_example_6dof()` | 6-DOF rotor with axial stiffness |
-| `rs.rotor_example_with_damping()` | Rotor with internal material damping |
-| `rs.coaxrotor_example()` | Coaxial rotor (two concentric shafts) |
-| `rs.rotor_amb_example()` | Rotor with active magnetic bearings |
+| `rs.rotor_example_6dof()` | 6-DOF rotor with axial stiffness                            |
+| `rs.rotor_example_with_damping()` | Rotor with internal material damping                        |
+| `rs.coaxrotor_example()` | Coaxial rotor (two concentric shafts)                       |
+| `rs.rotor_amb_example()` | Rotor with active magnetic bearings                         |
+| `rs.rotor_example_amb_complex_controllers()` | Rotor with active magnetic bearings and complex controllers |
+| `rs.rotor_example_amb_general_controllers()` | Rotor with active magnetic bearings and general controllers |
 
 ### Save / Load
 

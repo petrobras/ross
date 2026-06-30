@@ -28,6 +28,7 @@ from ross.model_reduction import *
 from ross.seals.labyrinth_seal import *
 from ross.seals.holepattern_seal import *
 from ross.seals.hybrid_seal import *
+from ross.bearings.magnetic.amb_utils import *
 
 _pio.templates.default = "ross"
 if "ipykernel" in sys.modules:
