@@ -2836,10 +2836,12 @@ class Rotor(object):
         M = reduce_matrix(kwargs.get("M", self.M()))
         C2 = reduce_matrix(kwargs.get("G", self.G()))
         K2 = reduce_matrix(kwargs.get("Ksdt", self.Ksdt()))
-        if hasattr(self, "Ktq"):
+        if hasattr(self, "Ktq"): # modificar isso aqui!!!
             Ktq = reduce_matrix(self.Ktq)
+            torque = self.torque
         else:
             Ktq = np.zeros_like(M)
+            torque = np.zeros_like(t)
 
         # Depending on the conditions of the analysis,
         # one of the three options below will be chosen.
@@ -2863,7 +2865,7 @@ class Rotor(object):
                     return (
                         M,
                         C1 + C2 * speed[step],
-                        K1 + K2 * accel[step] + Ktq * self.torque[step],
+                        K1 + K2 * accel[step] + Ktq * torque[step],
                         forces(step, **current_state),
                     )
 
@@ -2874,7 +2876,7 @@ class Rotor(object):
                 rotor_system = lambda step, **current_state: (
                     M,
                     C1 + C2 * speed[step],
-                    K1 + K2 * accel[step] + Ktq * self.torque[step],
+                    K1 + K2 * accel[step] + Ktq * torque[step],
                     forces(step, **current_state),
                 )
 
@@ -2885,7 +2887,7 @@ class Rotor(object):
             rotor_system = lambda step, **current_state: (
                 M,
                 C1 + C2 * speed_ref,
-                K1 + Ktq * self.torque[step],
+                K1 + Ktq * torque[step],
                 forces(step, **current_state),
             )
 
@@ -3975,13 +3977,13 @@ class Rotor(object):
         Ktq = np.zeros((self.ndof, self.ndof))
         for elm in self.shaft_elements:
             dofs = list(elm.dof_global_index.values())
-            Ktq[np.ix_(dofs, dofs)] += elm.Ktq0
+            Ktq[np.ix_(dofs, dofs)] += elm.Ktq()
 
-        add_to_RHS = kwargs.get("add_to_RHS", lambda step, **state: 0)
-        add_to_RHS = lambda step, **state: (
-            add_to_RHS(step, **state) - (Ktq * torque[step]) @ state.get("disp_resp")
-        )
-        kwargs["add_to_RHS"] = add_to_RHS
+        # add_to_RHS = kwargs.get("add_to_RHS", lambda step, **state: 0)
+        # add_to_RHS = lambda step, **state: (
+        #     add_to_RHS(step, **state) - (Ktq * torque[step]) @ state.get("disp_resp")
+        # )
+        # kwargs["add_to_RHS"] = add_to_RHS
 
         results = self.run_time_response(speed, F, t, method=solver_method, **kwargs)
 

@@ -306,25 +306,6 @@ class ShaftElement(Element):
         self.phi = phi
         self.dof_global_index = None
 
-        # Stiffness matrix for an instance of a shaft element due to torque.
-        # It needs to be multiplied by the torque when considered in time dependent analyses.
-        # fmt: off
-        self.Ktq0 = np.array([
-            [ 0,  0,  0,    1,    0,  0,  0,  0,  0,   -1,    0,  0],
-            [ 0,  0,  0,    0,    1,  0,  0,  0,  0,    0,   -1,  0],
-            [ 0,  0,  0,    0,    0,  0,  0,  0,  0,    0,    0,  0],
-            [ 1,  0,  0,    0, -L/2,  0, -1,  0,  0,    0,  L/2,  0],
-            [ 0,  1,  0,  L/2,    0,  0,  0, -1,  0, -L/2,    0,  0],
-            [ 0,  0,  0,    0,    0,  0,  0,  0,  0,    0,    0,  0],
-            [ 0,  0,  0,   -1,    0,  0,  0,  0,  0,    1,    0,  0],
-            [ 0,  0,  0,    0,   -1,  0,  0,  0,  0,    0,    1,  0],
-            [ 0,  0,  0,    0,    0,  0,  0,  0,  0,    0,    0,  0],
-            [-1,  0,  0,    0, -L/2,  0,  1,  0,  0,    0,  L/2,  0],
-            [ 0, -1,  0,  L/2,    0,  0,  0,  1,  0, -L/2,    0,  0],
-            [ 0,  0,  0,    0,    0,  0,  0,  0,  0,    0,    0,  0],
-        ]) / L
-        # fmt: on
-
     def __eq__(self, other):
         """Equality method for comparisons.
 
@@ -739,6 +720,36 @@ class ShaftElement(Element):
         M += Mts
 
         return M
+    
+    def Ktq(self):
+        """Stiffness matrix for an instance of a shaft element due to torque.
+
+        It needs to be multiplied by the torque when considered in time dependent analyses.
+
+        Returns
+        -------
+        Ktq : np.ndarray
+            Stiffness matrix for the shaft element.
+        """
+        L = self.L
+        # fmt: off
+        Ktq = np.array([
+            [ 0,  0,  0,    1,    0,  0,  0,  0,  0,   -1,    0,  0],
+            [ 0,  0,  0,    0,    1,  0,  0,  0,  0,    0,   -1,  0],
+            [ 0,  0,  0,    0,    0,  0,  0,  0,  0,    0,    0,  0],
+            [ 1,  0,  0,    0, -L/2,  0, -1,  0,  0,    0,  L/2,  0],
+            [ 0,  1,  0,  L/2,    0,  0,  0, -1,  0, -L/2,    0,  0],
+            [ 0,  0,  0,    0,    0,  0,  0,  0,  0,    0,    0,  0],
+            [ 0,  0,  0,   -1,    0,  0,  0,  0,  0,    1,    0,  0],
+            [ 0,  0,  0,    0,   -1,  0,  0,  0,  0,    0,    1,  0],
+            [ 0,  0,  0,    0,    0,  0,  0,  0,  0,    0,    0,  0],
+            [-1,  0,  0,    0, -L/2,  0,  1,  0,  0,    0,  L/2,  0],
+            [ 0, -1,  0,  L/2,    0,  0,  0,  1,  0, -L/2,    0,  0],
+            [ 0,  0,  0,    0,    0,  0,  0,  0,  0,    0,    0,  0],
+        ]) / L
+        # fmt: on
+
+        return Ktq
 
     def K(self):
         """Stiffness matrix for an instance of a shaft element.
@@ -873,23 +884,7 @@ class ShaftElement(Element):
         K += Kaf
 
         # torque
-        # fmt: off
-        Ktq = np.array([
-            [ 0,  0,  0,    1,    0,  0,  0,  0,  0,   -1,    0,  0],
-            [ 0,  0,  0,    0,    1,  0,  0,  0,  0,    0,   -1,  0],
-            [ 0,  0,  0,    0,    0,  0,  0,  0,  0,    0,    0,  0],
-            [ 1,  0,  0,    0, -L/2,  0, -1,  0,  0,    0,  L/2,  0],
-            [ 0,  1,  0,  L/2,    0,  0,  0, -1,  0, -L/2,    0,  0],
-            [ 0,  0,  0,    0,    0,  0,  0,  0,  0,    0,    0,  0],
-            [ 0,  0,  0,   -1,    0,  0,  0,  0,  0,    1,    0,  0],
-            [ 0,  0,  0,    0,   -1,  0,  0,  0,  0,    0,    1,  0],
-            [ 0,  0,  0,    0,    0,  0,  0,  0,  0,    0,    0,  0],
-            [-1,  0,  0,    0, -L/2,  0,  1,  0,  0,    0,  L/2,  0],
-            [ 0, -1,  0,  L/2,    0,  0,  0,  1,  0, -L/2,    0,  0],
-            [ 0,  0,  0,    0,    0,  0,  0,  0,  0,    0,    0,  0],
-        ]) * self.torque / L
-        # fmt: on
-        K += Ktq
+        K += self.Ktq() * self.torque
 
         # axial motion
         Ae = (self.A_l + self.A_r) / 2
