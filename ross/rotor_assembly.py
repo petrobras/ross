@@ -54,7 +54,6 @@ from ross.seals.labyrinth_seal import LabyrinthSeal
 from ross.shaft_element import ShaftElement
 from ross.units import Q_, check_units
 from ross.utils import (
-    assemble_C_K_matrices,
     convert_6dof_to_4dof,
     convert_6dof_to_torsional,
     intersection,
@@ -73,7 +72,6 @@ __all__ = [
     "rotor_example_6dof",
     "rotor_example_with_damping",
     "rotor_amb_example",
-    "concatenate_rotor",
 ]
 
 # set Plotly palette of colors
@@ -166,7 +164,7 @@ class Rotor(object):
     ):
         self.parameters = {"min_w": min_w, "max_w": max_w, "rated_w": rated_w}
 
-        self._set_tag(tag)
+        self.set_tag(tag)
 
         ####################################################
         # Config attributes
@@ -196,7 +194,7 @@ class Rotor(object):
         for i, sh in enumerate(shaft_elements):
             if sh.n is None:
                 sh.n = i
-            self._set_element_tag(sh, i)
+            sh.add_tag(i)
 
         if disk_elements is None:
             disk_elements = []
@@ -205,20 +203,21 @@ class Rotor(object):
         if point_mass_elements is None:
             point_mass_elements = []
 
-        for i, disk in enumerate(disk_elements):
-            self._set_element_tag(disk, i)
-
-        for i, brg in enumerate(bearing_elements):
-            # add n_l and n_r to bearing elements
-            brg.n_l = brg.n
-            brg.n_r = brg.n
-            self._set_element_tag(brg, i)
-
-        for i, p_mass in enumerate(point_mass_elements):
-            self._set_element_tag(p_mass, i)
-
+        elm_dict = {}
+        
+        elements = disk_elements + bearing_elements + point_mass_elements
         if motor_element is not None:
-            self._set_element_tag(motor_element, 0)
+            elements.append(motor_element)
+
+        for elm in elements:
+            class_name = elm.__class__.__name__
+            elm_dict[class_name] = elm_dict.get(class_name, 0) + 1
+            elm.add_tag(elm_dict[class_name] - 1)
+
+            if isinstance(elm, BearingElement):
+                # add n_l and n_r to bearing elements
+                elm.n_l = elm.n
+                elm.n_r = elm.n
 
         self.shaft_elements = sorted(shaft_elements, key=lambda el: el.n)
         self.bearing_elements = sorted(bearing_elements, key=lambda el: el.n)
@@ -323,7 +322,7 @@ class Rotor(object):
             sort=True,
         )
         df = df.sort_values(by="n_l")
-        df = df.reset_index(drop=True)
+        df = df.reset_index(drop=True).copy()
         df["shaft_number"] = np.zeros(len(df))
 
         df_shaft["shaft_number"] = np.zeros(len(df_shaft))
@@ -346,8 +345,11 @@ class Rotor(object):
         else:
             max_loc_point_mass = 0
         max_location = max(df_shaft.n_r.max(), max_loc_point_mass)
+
         if df.n_l.max() > max_location:
-            raise ValueError("Trying to set disk or bearing outside shaft")
+            outside = df[df["n_l"] > max_location]
+            tag = outside.iloc[0]["tag"]
+            raise ValueError(f"Trying to set {tag} outside shaft")
 
         # nodes axial position and diameter
         self._set_nodes(df_shaft)
@@ -461,14 +463,7 @@ class Rotor(object):
                 elm.dof_global_index
             )
 
-        # define positions for motor
-        if self.motor_element is not None:
-            elm = self.motor_element
-            i = self.nodes.index(elm.n)
-            z_pos = self.nodes_pos[i]
-            df.loc[df.tag == elm.tag, "nodes_pos_l"] = z_pos
-            df.loc[df.tag == elm.tag, "nodes_pos_r"] = z_pos
-            df.loc[df.tag == elm.tag, "y_pos"] = 0.0
+        df = df.copy()
 
         # define positions for disks
         for elm in self.disk_elements:
@@ -628,16 +623,66 @@ class Rotor(object):
         self.It = v @ (self.M0 @ v.T)
 
     def __add__(self, rotor2):
-        return concatenate_rotor([self, rotor2])
+        return Rotor.concatenate_rotors([self, rotor2])
 
-    def _set_tag(self, tag):
+    @classmethod
+    def concatenate_rotors(cls, rotor_list):
+        """Concatenate a list of rotors into a single rotor.
+
+        The nodes of the concatenated rotor will be the maximum node of the last rotor
+        in the list.
+
+        Parameters
+        ----------
+        rotor_list : list
+            List of Rotor objects to concatenate.
+
+        Returns
+        -------
+        Rotor object.
+        """
+        shaft_elements = []
+        disk_elements = []
+        bearing_elements = []
+        point_mass_elements = []
+        motor_element = None
+
+        node_offset = 0
+
+        for i, rotor in enumerate(rotor_list):
+            rotor = copy(rotor)
+
+            # Reindex elements
+            elements = rotor.elements
+            for el in elements:
+                el.n += node_offset
+                try:
+                    el.n_link += node_offset
+                except:
+                    pass
+                el.tag = f"{el.tag} (R{i})"
+
+            shaft_elements.extend(rotor.shaft_elements)
+            disk_elements.extend(rotor.disk_elements)
+            bearing_elements.extend(rotor.bearing_elements)
+            point_mass_elements.extend(rotor.point_mass_elements)
+            if rotor.motor_element is not None:
+                motor_element = rotor.motor_element
+            
+            # Update offset for the next rotor
+            node_offset = max(rotor.nodes)
+
+        return cls(
+            shaft_elements=shaft_elements,
+            disk_elements=disk_elements,
+            bearing_elements=bearing_elements,
+            point_mass_elements=point_mass_elements,
+            motor_element=motor_element,
+        )
+
+    def set_tag(self, tag):
         """Set the tag for the current rotor."""
         self.tag = tag or "Rotor 0"
-
-    def _set_element_tag(self, elm, index):
-        """Set a tag for the given element if it doesn't have one."""
-        if elm.tag is None:
-            elm.tag = elm.get_class_name_prefix(index)
 
     def _fix_nodes_pos(self, index, node, nodes_pos_l):
         """Optional override to adjust node positions.
@@ -921,18 +966,16 @@ class Rotor(object):
         motor_element = deepcopy(self.motor_element)
 
         for el in new_elements:
-            main_class = el.__class__.get_base_class()
-
-            if main_class == DiskElement:
+            if isinstance(el, ShaftElement):
+                shaft_elements.append(el)
+            elif isinstance(el, DiskElement):
                 disk_elements.append(el)
-            elif main_class == BearingElement:
+            elif isinstance(el, BearingElement):
                 bearing_elements.append(el)
-            elif main_class == PointMass:
+            elif isinstance(el, PointMass):
                 point_mass_elements.append(el)
-            elif main_class == MotorElement:
+            elif isinstance(el, MotorElement):
                 motor_element = el
-            else:
-                raise ValueError(f"{el} is not a valid element.")
 
         return Rotor(
             shaft_elements,
@@ -6201,64 +6244,3 @@ def rotor_amb_example(controller_transfer_function=None):
     return Rotor(shaft_elements, disk_elements, bearing_elements)
 
 
-def concatenate_rotor(rotor_list):
-    shaft_elements = []
-    disk_elements = []
-    bearing_elements = []
-    point_mass_elements = []
-    motor_element = None
-
-    node_offset = 0
-    rotor_id = 0  # Incremental identifier for tags
-
-    for rotor in rotor_list:
-        rotor = deepcopy(rotor)
-
-        # Reindex shaft elements
-        for i, el in enumerate(rotor.shaft_elements):
-            el.n_l += node_offset
-            el.n_r += node_offset
-            el.n = el.n_l  # Important for ROSS elements
-            el.tag = f"shaft_r{rotor_id}_{i}"
-        shaft_elements.extend(rotor.shaft_elements)
-
-        # Reindex disk elements
-        for i, el in enumerate(rotor.disk_elements):
-            el.n += node_offset
-            el.tag = f"disk_r{rotor_id}_{i}"
-        disk_elements.extend(rotor.disk_elements)
-
-        # Reindex bearing elements
-        for i, el in enumerate(rotor.bearing_elements):
-            el.n += node_offset
-            el.tag = f"bearing_r{rotor_id}_{i}"
-        bearing_elements.extend(rotor.bearing_elements)
-
-        # Reindex point mass elements
-        for i, el in enumerate(rotor.point_mass_elements):
-            el.n += node_offset
-            el.tag = f"pmass_r{rotor_id}_{i}"
-        point_mass_elements.extend(rotor.point_mass_elements)
-
-        # Reindex motor element
-        if rotor.motor_element is not None:
-            rotor.motor_element.n += node_offset
-            rotor.motor_element.tag = f"motor_r{rotor_id}"
-            motor_element = rotor.motor_element
-
-        # Update offset for the next rotor
-        all_nodes = [el.n_r for el in rotor.shaft_elements] + [
-            el.n for el in rotor.disk_elements + rotor.bearing_elements
-        ]
-        node_offset = max(all_nodes)
-        rotor_id += 1
-
-    rotor_concat = Rotor(
-        shaft_elements=shaft_elements,
-        disk_elements=disk_elements,
-        bearing_elements=bearing_elements,
-        point_mass_elements=point_mass_elements,
-        motor_element=motor_element,
-    )
-
-    return rotor_concat

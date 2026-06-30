@@ -5,7 +5,7 @@ from collections.abc import Iterable
 from scipy.integrate import cumulative_trapezoid as integrate
 
 import ross as rs
-from ross.gear_element import Mesh
+from ross.gear_element import GearElement, Mesh
 from ross.rotor_assembly import Rotor
 from ross.units import Q_, check_units
 
@@ -138,12 +138,12 @@ class MultiRotor(Rotor):
         gear_1 = [
             elm
             for elm in R1.disk_elements
-            if elm.n == coupled_nodes[0] and "GearElement" in type(elm).__name__
+            if elm.n == coupled_nodes[0] and isinstance(elm, GearElement)
         ]
         gear_2 = [
             elm
             for elm in R2.disk_elements
-            if elm.n == coupled_nodes[1] and "GearElement" in type(elm).__name__
+            if elm.n == coupled_nodes[1] and isinstance(elm, GearElement)
         ]
         if len(gear_1) == 0 or len(gear_2) == 0:
             raise TypeError("Each rotor needs a GearElement in the coupled nodes!")
@@ -200,6 +200,9 @@ class MultiRotor(Rotor):
         R1_max_node = max([*R1.nodes, *R1.link_nodes])
         R2_min_node = min([*R2.nodes, *R2.link_nodes])
         d_node = 0
+
+        tags_list = [el.tag for el in R1.elements]
+
         if R1_max_node >= R2_min_node:
             d_node = R1_max_node + 1
             for elm in R2.elements:
@@ -208,6 +211,9 @@ class MultiRotor(Rotor):
                     elm.n_link += d_node
                 except:
                     pass
+
+                if elm.tag in tags_list:
+                    elm.tag = None
 
         self.driven_nodes = [int(n + d_node) for n in R2.nodes]
 
@@ -235,13 +241,9 @@ class MultiRotor(Rotor):
             tag=tag,
         )
 
-    def _set_tag(self, tag):
+    def set_tag(self, tag):
         """Set the tag for the current multi-rotor."""
         self.tag = tag or "MultiRotor 0"
-
-    def _set_element_tag(self, elm, index):
-        """Set a tag for the given element."""
-        elm.tag = elm.get_class_name_prefix(index)
 
     def _fix_nodes_pos(self, index, node, nodes_pos_l):
         """Adjust node positions of the driven rotor."""
@@ -417,14 +419,17 @@ class MultiRotor(Rotor):
     def coupling_matrix(self):
         """Coupling matrix of two coupled gears.
 
-        coupling matrix according to:
-        STRINGER, D. B. Geared Rotor Dynamic Methodologies for Advancing Prognostic Modeling
-        Capabilities in Rotary-Wing Transmission Systems. Tese (Dissertation) — University of Virginia, Charlottesville, VA, 2008
 
         Returns
         -------
         coupling_matrix : np.ndarray
             Dimensionless coupling matrix of two coupled gears
+
+        References
+        ----------
+        STRINGER, D. B. Geared Rotor Dynamic Methodologies for Advancing Prognostic
+        Modeling Capabilities in Rotary-Wing Transmission Systems.
+        Thesis (Dissertation) — University of Virginia, Charlottesville, VA, 2008.
 
         Examples
         --------
@@ -804,8 +809,8 @@ def two_shaft_rotor_example():
     References
     ----------
     Rao, J. S., Shiau, T. N., chang, J. R. (1998). Theoretical analysis of lateral
-    response due to torsional excitation of geared rotors. Mechanism and Machine Theory,
-    33 (6), 761-783. doi: 10.1016/S0094-114X(97)00056-6
+    response due to torsional excitation of geared rotors. Mechanism and Machine
+    Theory, 33 (6), 761-783. doi: 10.1016/S0094-114X(97)00056-6
 
     Examples
     --------
