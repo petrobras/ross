@@ -222,11 +222,22 @@ class MultiRotor(Rotor):
         bearing_elements = [*R1.bearing_elements, *R2.bearing_elements]
         point_mass_elements = [*R1.point_mass_elements, *R2.point_mass_elements]
 
+        motor_element = None
+        if R1.motor_element is not None and R2.motor_element is not None:
+            motor_element = R1.motor_element
+            raise Warning("""Rotor supports only one motor element.
+            Using the motor element of the driving rotor.\n""")
+        elif R1.motor_element is not None:
+            motor_element = R1.motor_element
+        elif R2.motor_element is not None:
+            motor_element = R2.motor_element
+
         super().__init__(
             shaft_elements,
             disk_elements,
             bearing_elements,
             point_mass_elements,
+            motor_element,
             tag=tag,
         )
 
