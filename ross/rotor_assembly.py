@@ -581,15 +581,15 @@ class Rotor(object):
                 Ksdt0[np.ix_(dofs, dofs)] += elm.Kdt()
 
         self.M0 = M0
-        self.K0 = K0        
+        self.K0 = K0
         # Damping configuration
         damping_global = (alpha != 0) or (beta != 0)
         damping_elemental = np.sum(C0)
         damping_modal = modal_damping is not None
-        
+
         self.alpha = float(alpha) if alpha is not None else 0.0
         self.beta = float(beta) if beta is not None else 0.0
-        
+
         if sum((damping_global, damping_elemental, damping_modal)) > 1:
             warnings.warn(
                 "More than one type of damping was provided. "
@@ -599,7 +599,7 @@ class Rotor(object):
             )
             damping_elemental = False
             damping_modal = False
-        
+
         if damping_elemental:
             self.alpha = 0.0
             self.beta = 0.0
