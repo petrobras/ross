@@ -581,42 +581,35 @@ class Rotor(object):
                 Ksdt0[np.ix_(dofs, dofs)] += elm.Kdt()
 
         self.M0 = M0
-        self.K0 = K0
+        self.K0 = K0        
         # Damping configuration
         damping_global = (alpha != 0) or (beta != 0)
         damping_elemental = np.sum(C0)
         damping_modal = modal_damping is not None
-
-        if sum([damping_global, damping_elemental, damping_modal]) > 1:
+        
+        self.alpha = float(alpha) if alpha is not None else 0.0
+        self.beta = float(beta) if beta is not None else 0.0
+        
+        if sum((damping_global, damping_elemental, damping_modal)) > 1:
             warnings.warn(
                 "More than one type of damping was provided. "
                 "Global proportional damping has been chosen as the default, "
                 "and the others will be ignored.",
                 category=UserWarning,
             )
-            self.alpha = float(alpha) if alpha is not None else 0.0
-            self.beta = float(beta) if beta is not None else 0.0
-            self.C0 = self.alpha * self.M0 + self.beta * self.K0
-
-        elif damping_global:
-            self.alpha = float(alpha) if alpha is not None else 0.0
-            self.beta = float(beta) if beta is not None else 0.0
-            self.C0 = self.alpha * self.M0 + self.beta * self.K0
-
-        elif damping_elemental:
+            damping_elemental = False
+            damping_modal = False
+        
+        if damping_elemental:
             self.alpha = 0.0
             self.beta = 0.0
             self.C0 = C0
-
         elif damping_modal:
             self.alpha = 0.0
             self.beta = 0.0
             self.default_damping_ratio = default_damping_ratio
             self.C0 = self._modal_damping(modal_damping)
-
         else:
-            self.alpha = float(alpha) if alpha is not None else 0.0
-            self.beta = float(beta) if beta is not None else 0.0
             self.C0 = self.alpha * self.M0 + self.beta * self.K0
 
         self.G0 = G0

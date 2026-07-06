@@ -219,7 +219,7 @@ def test_for_var_speed_1(rotor1):
     abs_max1 = np.max(np.abs(resp_common.yout[s0:s1, dofx]))
 
     assert_allclose(freq, freq1, rtol=1e-3)
-    assert_allclose(abs_max, abs_max1, atol=1e-3, rtol=1e-3)
+    assert_allclose(abs_max, abs_max1, rtol=2e-3)
 
 
 def test_for_var_speed_2(rotor2):
