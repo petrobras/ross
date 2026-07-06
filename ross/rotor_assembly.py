@@ -661,7 +661,7 @@ class Rotor(object):
         node_offset = 0
 
         for i, rotor in enumerate(rotor_list):
-            rotor = copy(rotor)
+            rotor = deepcopy(rotor)
 
             # Reindex elements
             elements = rotor.elements
@@ -2847,16 +2847,37 @@ class Rotor(object):
         M = reduce_matrix(kwargs.get("M", self.M()))
         C2 = reduce_matrix(kwargs.get("G", self.G()))
         K2 = reduce_matrix(kwargs.get("Ksdt", self.Ksdt()))
-        if hasattr(self, "Ktq"):  # modificar isso aqui!!!
-            Ktq = reduce_matrix(self.Ktq)
-            torque = self.torque
-        else:
-            Ktq = np.zeros_like(M)
-            torque = np.zeros_like(t)
 
         # Depending on the conditions of the analysis,
         # one of the three options below will be chosen.
-        if speed_is_array:
+        if self.motor_element is not None:  # modificar isso aqui!!!
+            motor = self.motor_element
+            torque = self.torque
+            Ktq = np.zeros((rotor.ndof, rotor.ndof))
+            elm = [s for s in rotor.shaft_elements if s.n_l == motor.n][0]
+            dofs = list(elm.dof_global_index.values())
+            Ktq[np.ix_(dofs, dofs)] += elm.Ktq()
+            Ktq = reduce_matrix(Ktq)
+
+            doft = dofs[elm.dof_mapping()["theta_0"]]
+
+            accel = np.gradient(speed, t)
+
+            def rotor_system(step, **current_state):
+                wr = speed[step]#current_state.get("ydot")[doft]
+                ar = accel[step]#current_state.get("y2dot")[doft]
+                tr = torque[step]
+                C1 = reduce_matrix(self.C(wr)) 
+                K1 = reduce_matrix(self.K(wr))
+
+                return (
+                    M,
+                    C1 + C2 * wr,
+                    K1 + K2 * ar + Ktq * tr,
+                    forces(step, **current_state),
+                )
+        
+        elif speed_is_array:
             accel = np.gradient(speed, t)
 
             brgs_with_var_coeffs = tuple(
@@ -2876,7 +2897,7 @@ class Rotor(object):
                     return (
                         M,
                         C1 + C2 * speed[step],
-                        K1 + K2 * accel[step] + Ktq * torque[step],
+                        K1 + K2 * accel[step],
                         forces(step, **current_state),
                     )
 
@@ -2887,7 +2908,7 @@ class Rotor(object):
                 rotor_system = lambda step, **current_state: (
                     M,
                     C1 + C2 * speed[step],
-                    K1 + K2 * accel[step] + Ktq * torque[step],
+                    K1 + K2 * accel[step],
                     forces(step, **current_state),
                 )
 
@@ -2898,7 +2919,7 @@ class Rotor(object):
             rotor_system = lambda step, **current_state: (
                 M,
                 C1 + C2 * speed_ref,
-                K1 + Ktq * torque[step],
+                K1,
                 forces(step, **current_state),
             )
 
