@@ -560,7 +560,9 @@ class Rotor(object):
         self.df = df
 
         # Base matrices:
-        self._build_base_matrices(modal_damping_ratio, default_damping_ratio, alpha, beta)
+        self._build_base_matrices(
+            modal_damping_ratio, default_damping_ratio, alpha, beta
+        )
 
         # Calculation of overall rotor transverse (diametral) inertia (includes only DOFs located at the shaft element DOF, excludes point masses that are outside the shaft).
         # This is only calculating Iyy. Assuming Ixx is the same.
@@ -718,7 +720,9 @@ class Rotor(object):
                     return brg.n
         return None
 
-    def _build_base_matrices(self, modal_damping_ratio=None, default_damping_ratio=0.0, alpha=0.0, beta=0.0):
+    def _build_base_matrices(
+        self, modal_damping_ratio=None, default_damping_ratio=0.0, alpha=0.0, beta=0.0
+    ):
         """Build the base matrices for the rotor without bearings.
 
         Parameters
@@ -730,7 +734,7 @@ class Rotor(object):
             Default is zero.
         alpha : float, optional
             Mass proportional damping factor.
-            Default is zero.   
+            Default is zero.
         beta : float, optional
             Stiffness proportional damping factor.
             Default is zero.
@@ -791,9 +795,8 @@ class Rotor(object):
             C0 = self._compute_modal_damping(modal_damping_ratio, default_damping_ratio)
         else:
             C0 = self.alpha * M0 + self.beta * K0
-        
-        self.C0 = C0
 
+        self.C0 = C0
 
     def _compute_modal_damping(self, modal_damping_ratio, default_damping_ratio=0.0):
         """Compute the physical damping matrix from modal damping ratios.
@@ -820,7 +823,9 @@ class Rotor(object):
 
         w = np.sqrt(evals.real)
         below_1rpm = Q_(np.sort(w), "rad/s").to("RPM").m < 1
-        modal_damping = np.block([np.zeros(below_1rpm.sum()), np.array(modal_damping_ratio)])
+        modal_damping = np.block(
+            [np.zeros(below_1rpm.sum()), np.array(modal_damping_ratio)]
+        )
         idx = np.argsort(w)
         w = w[idx]
         phi = evecs[:, idx]
@@ -5597,7 +5602,9 @@ class CoAxialRotor(Rotor):
         self.df = df
 
         # Base matrices:
-        self._build_base_matrices(modal_damping_ratio, default_damping_ratio, alpha, beta)
+        self._build_base_matrices(
+            modal_damping_ratio, default_damping_ratio, alpha, beta
+        )
 
 
 def rotor_example():

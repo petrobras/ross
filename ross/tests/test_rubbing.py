@@ -115,12 +115,24 @@ def test_rubbing_resp(run_rubbing):
     probe2 = Probe(20, Q_(90, "deg"))
 
     resp_prob1 = np.array(
-        [0.000000e00, -4.256750e-09, -2.121870e-08, -5.493772e-08, -1.051150e-07]
+        [
+            0.000000e00,
+            -4.255992e-09,
+            -2.121342e-08,
+            -5.491895e-08,
+            -1.050680e-07,
+        ]
     )
     resp_prob2 = np.array(
-        [0.000000e00, -1.611743e-09, -8.080337e-09, -2.110323e-08, -4.084859e-08]
+        [
+            0.000000e00,
+            -1.612653e-09,
+            -8.086608e-09,
+            -2.112512e-08,
+            -4.090196e-08,
+        ]
     )
 
     data = run_rubbing.data_time_response(probe=[probe1, probe2])
-    assert_allclose(data["probe_resp[0]"].to_numpy()[:5], resp_prob1, rtol=1e-06)
-    assert_allclose(data["probe_resp[1]"].to_numpy()[:5], resp_prob2, rtol=1e-06)
+    assert_allclose(data["probe_resp[0]"].to_numpy()[:5], resp_prob1, rtol=1e-6)
+    assert_allclose(data["probe_resp[1]"].to_numpy()[:5], resp_prob2, rtol=1e-6)

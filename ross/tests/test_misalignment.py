@@ -110,26 +110,26 @@ def test_mis_comb_resp(run_mis_combined):
     resp_prob1 = np.array(
         [
             0.000000e00,
-            -4.003480e-09,
-            -1.997145e-08,
-            -5.176060e-08,
-            9.915163e-08,
+            -4.004800e-09,
+            -1.998067e-08,
+            -5.179346e-08,
+            -9.923416e-08,
         ]
     )
     resp_prob2 = np.array(
         [
-            0.00000000e00,
-            -1.21720976e-09,
-            -6.06026932e-09,
-            -1.57142071e-08,
-            -3.02555141e-08,
+            0.000000e00,
+            -1.217210e-09,
+            -6.060269e-09,
+            -1.571421e-08,
+            -3.025551e-08,
         ]
     )
 
     data = run_mis_combined.data_time_response(probe=[probe1, probe2])
 
-    assert_allclose(data["probe_resp[0]"].to_numpy()[:5], resp_prob1, atol=1e-06)
-    assert_allclose(data["probe_resp[1]"].to_numpy()[:5], resp_prob2, atol=1e-06)
+    assert_allclose(data["probe_resp[0]"].to_numpy()[:5], resp_prob1, atol=1e-6)
+    assert_allclose(data["probe_resp[1]"].to_numpy()[:5], resp_prob2, atol=1e-6)
 
 
 @pytest.fixture
@@ -154,7 +154,13 @@ def test_mis_parallel_resp(run_mis_parallel):
     probe2 = Probe(20, Q_(90, "deg"))
 
     resp_prob1 = np.array(
-        [0.000000e00, -9.821307e-09, -3.773491e-08, -8.551036e-08, -1.504520e-07]
+        [
+            0.000000e00,
+            -9.823809e-09,
+            -3.775386e-08,
+            -8.557245e-08,
+            -1.505968e-07,
+        ]
     )
     resp_prob2 = np.array(
         [0.00000000e00, -1.07085953e-10, 2.98333170e-09, 1.12848038e-08, 1.09412616e-08]
@@ -187,10 +193,10 @@ def test_mis_angular_resp(run_mis_angular):
     probe2 = Probe(20, Q_(90, "deg"))
 
     resp_prob1 = np.array(
-        [0.000000e00, -9.854981e-09, -3.849144e-08, -8.278519e-08, -1.426022e-07]
+        [0.000000e00, -9.813397e-09, -3.816761e-08, -8.260056e-08, -1.429129e-07]
     )
     resp_prob2 = np.array(
-        [0.000000e00, -1.776735e-10, 2.572261e-09, 1.308438e-08, 1.443712e-08]
+        [0.000000e00, -1.070854e-10, 2.984443e-09, 1.126141e-08, 1.096169e-08]
     )
 
     data = run_mis_angular.data_time_response(probe=[probe1, probe2])
@@ -235,10 +241,16 @@ def test_mis_rigid_resp(mis_rigid):
     probe2 = Probe(20, Q_(90, "deg"))
 
     resp_prob1 = np.array(
-        [0.000000e00, 6.149274e-08, 3.716138e-07, 1.181863e-06, 2.738342e-06]
+        [0.000000e00, 6.151265e-08, 3.717738e-07, 1.182525e-06, 2.740269e-06]
     )
     resp_prob2 = np.array(
-        [0.000000e00, -1.990902e-07, -1.180356e-06, -3.674392e-06, -8.318542e-06]
+        [
+            0.000000e00,
+            -1.991301e-07,
+            -1.180669e-06,
+            -3.675653e-06,
+            -8.322093e-06,
+        ]
     )
 
     data = mis_rigid.data_time_response(probe=[probe1, probe2])

@@ -1858,8 +1858,8 @@ def rotor_6dof():
 
 def test_modal_6dof(rotor_6dof):
     modal = rotor_6dof.run_modal(speed=0, sparse=False)
-    wn = np.array([47.62, 91.8, 96.29, 274.57, 296.5])
-    wd = np.array([47.62, 91.8, 96.29, 274.57, 296.5])
+    wn = np.array([47.62, 91.8, 96.29, 274.57, 296.50])
+    wd = np.array([47.62, 91.8, 96.29, 274.57, 296.50])
 
     assert_almost_equal(modal.wn[:5], wn, decimal=2)
     assert_almost_equal(modal.wd[:5], wd, decimal=2)
@@ -1892,15 +1892,13 @@ def test_modal_damping():
     stfy = 0.8e6
     bearing0 = BearingElement(0, kxx=stfx, kyy=stfy, cxx=0)
     bearing1 = BearingElement(6, kxx=stfx, kyy=stfy, cxx=0)
-    modal_damping = [0.001, 0.001]
-    default_damping_ratio = [0.01]
 
     rotor = Rotor(
         shaft_elem,
         [disk0, disk1],
         [bearing0, bearing1],
-        modal_damping=modal_damping,
-        default_damping_ratio=default_damping_ratio,
+        modal_damping_ratio=[0.001, 0.001],
+        default_damping_ratio=0.01,
     )
 
     speed = Q_(np.arange(0, 10001, 200), "RPM").to("rad/s").m
