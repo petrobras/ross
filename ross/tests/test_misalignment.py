@@ -109,27 +109,27 @@ def test_mis_comb_resp(run_mis_combined):
 
     resp_prob1 = np.array(
         [
-            0.000000e00,
-            -4.004800e-09,
-            -1.998067e-08,
-            -5.179346e-08,
-            -9.923416e-08,
+            0.00000000e00,
+            -4.00480050e-09,
+            -1.99806748e-08,
+            -5.17934582e-08,
+            -9.92341611e-08,
         ]
     )
     resp_prob2 = np.array(
         [
-            0.000000e00,
-            -1.217210e-09,
-            -6.060269e-09,
-            -1.571421e-08,
-            -3.025551e-08,
+            0.00000000e00,
+            -1.21720976e-09,
+            -6.06026932e-09,
+            -1.57142071e-08,
+            -3.02555141e-08,
         ]
     )
 
     data = run_mis_combined.data_time_response(probe=[probe1, probe2])
 
-    assert_allclose(data["probe_resp[0]"].to_numpy()[:5], resp_prob1, atol=1e-6)
-    assert_allclose(data["probe_resp[1]"].to_numpy()[:5], resp_prob2, atol=1e-6)
+    assert_allclose(data["probe_resp[0]"].to_numpy()[:5], resp_prob1)
+    assert_allclose(data["probe_resp[1]"].to_numpy()[:5], resp_prob2)
 
 
 @pytest.fixture
@@ -155,11 +155,11 @@ def test_mis_parallel_resp(run_mis_parallel):
 
     resp_prob1 = np.array(
         [
-            0.000000e00,
-            -9.823809e-09,
-            -3.775386e-08,
-            -8.557245e-08,
-            -1.505968e-07,
+            0.00000000e00,
+            -9.82380959e-09,
+            -3.77538576e-08,
+            -8.55724533e-08,
+            -1.50596848e-07,
         ]
     )
     resp_prob2 = np.array(
@@ -167,8 +167,8 @@ def test_mis_parallel_resp(run_mis_parallel):
     )
 
     data = run_mis_parallel.data_time_response(probe=[probe1, probe2])
-    assert_allclose(data["probe_resp[0]"].to_numpy()[:5], resp_prob1, atol=1e-6)
-    assert_allclose(data["probe_resp[1]"].to_numpy()[:5], resp_prob2, atol=1e-6)
+    assert_allclose(data["probe_resp[0]"].to_numpy()[:5], resp_prob1)
+    assert_allclose(data["probe_resp[1]"].to_numpy()[:5], resp_prob2)
 
 
 @pytest.fixture
@@ -241,18 +241,18 @@ def test_mis_rigid_resp(mis_rigid):
     probe2 = Probe(20, Q_(90, "deg"))
 
     resp_prob1 = np.array(
-        [0.000000e00, 6.151265e-08, 3.717738e-07, 1.182525e-06, 2.740269e-06]
+        [0.00000000e00, 6.15126513e-08, 3.71773834e-07, 1.18252510e-06, 2.74026919e-06]
     )
     resp_prob2 = np.array(
         [
-            0.000000e00,
-            -1.991301e-07,
-            -1.180669e-06,
-            -3.675653e-06,
-            -8.322093e-06,
+            0.00000000e00,
+            -1.99130062e-07,
+            -1.18066869e-06,
+            -3.67565279e-06,
+            -8.32209309e-06,
         ]
     )
 
     data = mis_rigid.data_time_response(probe=[probe1, probe2])
-    assert_allclose(data["probe_resp[0]"].to_numpy()[:5], resp_prob1, atol=1e-6)
-    assert_allclose(data["probe_resp[1]"].to_numpy()[:5], resp_prob2, atol=1e-6)
+    assert_allclose(data["probe_resp[0]"].to_numpy()[:5], resp_prob1)
+    assert_allclose(data["probe_resp[1]"].to_numpy()[:5], resp_prob2)

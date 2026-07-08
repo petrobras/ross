@@ -1858,8 +1858,8 @@ def rotor_6dof():
 
 def test_modal_6dof(rotor_6dof):
     modal = rotor_6dof.run_modal(speed=0, sparse=False)
-    wn = np.array([47.62, 91.8, 96.29, 274.57, 296.50])
-    wd = np.array([47.62, 91.8, 96.29, 274.57, 296.50])
+    wn = np.array([47.62138, 91.79647, 96.28891, 274.56591, 296.5005])
+    wd = np.array([47.62156, 91.79656, 96.289, 274.56607, 296.50068])
 
     assert_almost_equal(modal.wn[:5], wn, decimal=2)
     assert_almost_equal(modal.wd[:5], wd, decimal=2)
@@ -2818,17 +2818,17 @@ def test_run_amb_sensitivity():
     """
     EXPECTED_SENSITIVITY_RESULTS = {
         "max_abs": {
-            "Magnetic Bearing 0": {"x": 0.991592, "y": 0.991592},
-            "Magnetic Bearing 1": {"x": 0.988093, "y": 0.988093},
+             "Magnetic Bearing 0": {"x": 0.9915881235, "y": 0.9915881235},
+            "Magnetic Bearing 1": {"x": 0.9880851953, "y": 0.9880851953},
         },
         "abs_slice": {
             "Magnetic Bearing 0": {
-                "x": np.array([0.991592, 0.991572, 0.991534, 0.991482, 0.991425]),
-                "y": np.array([0.991592, 0.991572, 0.991534, 0.991482, 0.991425]),
+                "x": np.array([0.99158812, 0.99156866, 0.99153061, 0.99147841, 0.99142154]),
+                "y": np.array([0.99158812, 0.99156866, 0.99153061, 0.99147841, 0.99142154]),
             },
             "Magnetic Bearing 1": {
-                "x": np.array([0.988093, 0.988065, 0.988009, 0.987932, 0.987848]),
-                "y": np.array([0.988093, 0.988065, 0.988009, 0.987932, 0.987848]),
+                "x": np.array([0.9880852, 0.98805746, 0.98800146, 0.98792434, 0.98784035]),
+                "y": np.array([0.9880852, 0.98805746, 0.98800146, 0.98792434, 0.98784035]),
             },
         },
         "phase_slice": {
@@ -2911,7 +2911,7 @@ def test_run_amb_sensitivity():
     }
 
     r_tol = 0
-    a_tol = 1e-6
+    a_tol = 1e-8
 
     # Setup - run the analysis
     rotor = rotor_amb_example()
