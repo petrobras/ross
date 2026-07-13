@@ -5,9 +5,10 @@ from collections.abc import Iterable
 from scipy.integrate import cumulative_trapezoid as integrate
 
 import ross as rs
-from ross.gear_element import GearElement, Mesh
 from ross.rotor_assembly import Rotor
 from ross.units import Q_, check_units
+from .gear_element import GearElement
+from .mesh import Mesh
 
 __all__ = ["MultiRotor"]
 
@@ -403,7 +404,6 @@ class MultiRotor(Rotor):
 
     def coupling_matrix(self):
         """Coupling matrix of two coupled gears.
-
 
         Returns
         -------

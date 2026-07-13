@@ -4,7 +4,6 @@ This module defines the GearElement classes which can be used to represent
 gears or gearboxes used to couple different shafts in the MultiRotor class.
 """
 
-import math
 import numpy as np
 import scipy as sp
 from plotly import graph_objects as go
@@ -15,27 +14,10 @@ from ross.materials import steel
 from ross.disk_element import DiskElement
 from ross.materials import steel
 
+from .utils import involute
 
-__all__ = ["GearElement", "GearElementTVMS", "Mesh"]
 
-
-def mod(val, max_val):
-    """Calculates the remainder of a division, but replaces 0 with max_val.
-
-    Parameters
-    ----------
-    val : float or array-like
-        The value(s) to be divided.
-    max_val : float
-        The divisor.
-
-    Returns
-    -------
-    mod : float or array-like
-        The remainder of the division, or max_val if the remainder is 0 and val is not 0.
-    """
-    mod = np.mod(val, max_val)
-    return np.where((np.isclose(mod, 0)) & (val != 0), max_val, mod)
+__all__ = ["GearElement", "GearElementTVMS"]
 
 
 class GearElement(DiskElement):
@@ -138,6 +120,7 @@ class GearElement(DiskElement):
             )
 
         self.module = self.pitch_diameter / self.n_teeth
+        self.addendum_radius = self.pitch_diameter * (0.5 + 1 / self.n_teeth)
 
         self.material = material
         self.bore_diameter = bore_diameter
@@ -469,7 +452,7 @@ class GearElementTVMS(GearElement):
             + 2 * r_rho_ / np.cos(p_ang)
         ) / self.n_teeth
 
-        theta_b = np.pi / (2 * self.n_teeth) + self._involute(p_ang)
+        theta_b = np.pi / (2 * self.n_teeth) + involute(p_ang)
 
         # Add geometric constants of the tooth profile
         a1 = (a_coeff_mod + c_coeff_mod) - r_rho
@@ -479,6 +462,8 @@ class GearElementTVMS(GearElement):
             + a_coeff_mod * np.tan(p_ang)
             + r_rho * np.cos(p_ang)
         )
+
+        self.addendum_radius = r_a
 
         self.radii_dict = {
             "base": r_b,
@@ -614,15 +599,6 @@ class GearElementTVMS(GearElement):
             color=color,
         )
 
-    @staticmethod
-    def _involute(angle):
-        """Involute function
-
-        Calculates the involute function for a given angle. This function is
-        used to describe the contact region of the gear profile.
-        """
-        return np.tan(angle) - float(angle)
-
     def _to_tau(self, pr_angle):
         """Transforms the pressure angle, used to build the involute profile,
         into the integration variable tau.
@@ -637,7 +613,7 @@ class GearElementTVMS(GearElement):
         tau : float
             Corresponding tau angle (rad).
         """
-        tau = pr_angle + self._involute(pr_angle) - self.tooth_dict["base_angle"]
+        tau = pr_angle + involute(pr_angle) - self.tooth_dict["base_angle"]
         return tau
 
     def _diff_tau(self, tau):
@@ -1009,443 +985,6 @@ class GearElementTVMS(GearElement):
             title="Tooth Profile Geometry",
             xaxis_title="Y-axis (m)",
             yaxis_title="X-axis (m)",
-        )
-
-        return fig
-
-
-class Mesh:
-    """Represents the meshing behavior between two gears in contact
-    including stiffness and contact ratio calculations.
-
-    Parameters:
-    -----------
-    driving_gear : GearElement
-        The driving gear object used in the gear pair.
-    driven_gear : GearElement
-        The driven gear object used in the gear pair.
-    gear_mesh_stiffness : float, optional
-        Directly specify the stiffness of the gear mesh.
-        If not provided, it can be calculated automatically
-        when using `GearElementTVMS` instead of `GearElement`.
-    square_varying_stiffness: boll, optional
-        Set the square shape time varying mesh stiffness
-    square_stiffness_amplitude_ratio: float, optional
-        Ratio of stiffness amplitude based on the mean value of stiffness.
-    orientation_angle : float, pint.Quantity, optional
-        The angle between the line of gear centers and x-axis. Default is 0.0 rad.
-
-    Attributes:
-    -----------
-    driving_gear : GearElement
-        The driving_gear object, which contains information about the
-        geometry and properties of the driving gear.
-    driven_gear : GearElement
-        The driven gear object, which contains information about the
-        geometry and properties of the wheel gear.
-    gear_ratio : float
-        The transamission ratio, defined as the ratio of the radii between the
-        driving and driven gears.
-    pressure_angle : float
-        The pressure angle of the gear mesh (rad).
-
-    Examples
-    --------
-    >>> from ross.materials import steel
-    >>> driving = GearElementTVMS(
-    ...    n=0,
-    ...    material=steel,
-    ...    width=0.02,
-    ...    bore_diameter=0.0175 * 2,
-    ...    module=0.002,
-    ...    n_teeth=62,
-    ...    pr_angle=0.349066
-    ... )
-    >>> driven = GearElementTVMS(
-    ...    n=2,
-    ...    material=steel,
-    ...    width=0.02,
-    ...    bore_diameter=0.0175 * 2,
-    ...    module=0.002,
-    ...    n_teeth=62,
-    ...    pr_angle=0.349066
-    ... )
-    >>> mesh = Mesh(driving, driven)
-    >>> mesh.stiffness # doctest : +ELLIPSIS
-    419603831.338...
-    """
-
-    def __init__(
-        self,
-        driving_gear,
-        driven_gear,
-        gear_mesh_stiffness=None,
-        square_varying_stiffness=False,
-        square_stiffness_amplitude_ratio=0,
-        orientation_angle=0,
-    ):
-        self.driving_gear = driving_gear
-        self.driven_gear = driven_gear
-        self.gear_ratio = (
-            driving_gear.n_teeth / driven_gear.n_teeth
-        )  # Shigley Machine Elements
-        self.pressure_angle = driving_gear.pr_angle
-        self.helix_angle = driving_gear.helix_angle
-
-        self.square_stiffness_amplitude_ratio = square_stiffness_amplitude_ratio
-        self.orientation_angle = orientation_angle
-
-        if not math.isclose(driving_gear.module, driven_gear.module, rel_tol=0.05):
-            warn(
-                "Gear modules must match for proper meshing | "
-                f"Driving gear: {driving_gear.module:.4f}, Driven gear: {driven_gear.module:.4f}"
-            )
-
-        if driving_gear.width and driven_gear.width:
-            if not math.isclose(driving_gear.width, driven_gear.width, rel_tol=0.05):
-                warn(
-                    "Gear widths must match for proper meshing | "
-                    f"Driving gear: {driving_gear.width:.4f}, Driven gear: {driven_gear.width:.4f}"
-                )
-
-        stiffness_type = "constant"
-
-        if gear_mesh_stiffness is None:
-            if isinstance(driving_gear, GearElementTVMS) and isinstance(
-                driven_gear, GearElementTVMS
-            ):
-                stiffness_type = "equivalent"
-
-                ra1 = driving_gear.radii_dict["addendum"]
-                ra2 = driven_gear.radii_dict["addendum"]
-                self.contact_ratio = self._calculate_contact_ratio(ra1, ra2)
-
-                w1 = driving_gear.width
-                poisson = driving_gear.material.Poisson
-                E1 = driving_gear.material.E
-                E2 = driven_gear.material.E
-
-                self.stiffness = (self.contact_ratio * w1 * E1 * E2) / (9 * (E1 + E2))
-                self.hertzian_stiffness = np.pi * w1 * E1 / (4 * (1 - poisson**2))
-
-            else:
-                if driving_gear.width:
-                    ra1 = driving_gear.pitch_diameter * (0.5 + 1 / driving_gear.n_teeth)
-                    ra2 = driven_gear.pitch_diameter * (0.5 + 1 / driven_gear.n_teeth)
-                    self.contact_ratio = self._calculate_contact_ratio(ra1, ra2)
-
-                    w1 = driving_gear.width
-                    E1 = driving_gear.material.E
-                    E2 = driven_gear.material.E
-
-                    self.stiffness = (self.contact_ratio * w1 * E1 * E2) / (
-                        9 * (E1 + E2)
-                    )
-
-                else:
-                    raise TypeError(
-                        "Missing 'gear_mesh_stiffness'. You have two options if you don't set this value:\n"
-                        "1) Provide 'material' and 'bore_diameter' for 'GearElement', or\n"
-                        "2) Use 'GearElementTVMS' instead"
-                    )
-
-            if square_varying_stiffness:
-                stiffness_type = "square"
-
-        else:
-            self.stiffness = gear_mesh_stiffness
-
-        self.theta_range, self.stiffness_range = self.get_stiffness_for_mesh_period(
-            stiffness_type=stiffness_type
-        )
-
-    def _calculate_contact_ratio(self, driving_addendum_radius, driven_addendum_radius):
-        """Calculates the contact ratio of the gear pair.
-
-        Parameters
-        ----------
-        driving_addendum_radius : float
-            Addendum radius of the driving gear (m).
-        driven_addendum_radius : float
-            Addendum radius of the driven gear (m).
-
-        Returns
-        -------
-        contact_ratio : float
-            The calculated contact ratio.
-        """
-        rb1 = self.driving_gear.base_radius
-        rb2 = self.driven_gear.base_radius
-
-        center_distance = (
-            self.driving_gear.pitch_diameter + self.driven_gear.pitch_diameter
-        ) / 2
-
-        contact_length = (
-            np.sqrt(driving_addendum_radius**2 - rb1**2)
-            + np.sqrt(driven_addendum_radius**2 - rb2**2)
-            - center_distance * np.sin(self.pressure_angle)
-        )
-
-        base_pitch = 2 * np.pi * rb1 / self.driving_gear.n_teeth
-
-        contact_ratio = contact_length / base_pitch
-
-        return contact_ratio
-
-    def _angular_equivalent_stiffness(self, d_alpha):
-        """Calculate the angular equivalent stiffness of a gear pair.
-
-        Parameters
-        ---------
-        d_alpha : float
-            The angular displacement of the driving gear in radians.
-
-        Returns
-        -------
-        k : float
-            The angular equivalent stiffness of mesh contact.
-        """
-        # Angular displacements
-        alpha_1 = self.driving_gear.pr_angles_dict["start_point"] + d_alpha
-        alpha_2 = (
-            self.driven_gear.pr_angles_dict["addendum"] - self.gear_ratio * d_alpha
-        )
-
-        # Contact stiffness
-        k1 = self.driving_gear._compute_stiffness(alpha_1)
-        k2 = self.driven_gear._compute_stiffness(alpha_2)
-
-        # Evaluating the equivalent stiffness
-        kh = self.hertzian_stiffness
-        k = 1 / (1 / kh + 1 / k1 + 1 / k2)
-
-        return k
-
-    def get_variable_equivalent_stiffness(self, angular_position):
-        """Calculate the variable equivalent stiffness of a gear pair.
-
-        This method computes the equivalent stiffness of a gear mesh at a given
-        angular position, taking into account the periodic nature of the meshing
-        process and the contact ratio of the gear pair. It is assumed constant
-        rotor speed.
-
-        Parameters
-        ----------
-        angular_position : float
-            Gear angular position for which the meshing stiffness is calculated (rad).
-
-        Returns
-        -------
-        stiffness : float
-            The total equivalent meshing stiffness at the given angular position.
-        """
-        cr = self.contact_ratio
-        alpha_c = self.driving_gear.pr_angles_dict["start_point"]
-        alpha_a = self.driving_gear.pr_angles_dict["addendum"]
-
-        tm_om = 2 * np.pi / self.driving_gear.n_teeth
-        theta = mod(angular_position, tm_om)
-
-        d_meshing = (alpha_a - alpha_c) / cr
-        d_alpha = d_meshing / tm_om * theta
-
-        stiffness = self._angular_equivalent_stiffness(d_alpha)
-
-        if d_alpha <= d_meshing * (cr - 1):
-            stiffness += self._angular_equivalent_stiffness(d_alpha + d_meshing)
-
-        return stiffness
-
-    def get_square_varying_stiffness(self, theta_range):
-        """Calculate the square varying stiffness of a gear pair.
-
-        Parameters
-        ----------
-        theta_range : array-like
-            Angular positions at which to calculate the stiffness (rad).
-
-        Returns
-        -------
-        stiffness_range : array-like
-            Stiffness values at the given angular positions (N/m).
-        """
-        n_terms = 100  # number of terms in the Fourier series expansion
-
-        cr = self.contact_ratio
-        phase = self.orientation_angle
-        Kg = self.stiffness
-        Ka = Kg * self.square_stiffness_amplitude_ratio
-
-        Kv_unit = []
-        stiffness_range = []
-
-        for angular_position in theta_range:
-            # Fourier series coefficients
-            A = [0]
-            B = [0]
-            Kv = 0
-
-            for s in range(1, n_terms + 2):
-                A.append(
-                    (-2 / (s * np.pi))
-                    * np.sin(s * np.pi * (cr - 2 * phase))
-                    * np.sin(s * np.pi * cr)
-                )
-                B.append(
-                    (-2 / (s * np.pi))
-                    * np.cos(s * np.pi * (cr - 2 * phase))
-                    * np.sin(s * np.pi * cr)
-                )
-
-                Kv = (
-                    Kv
-                    + A[s] * np.sin(s * self.driving_gear.n_teeth * (angular_position))
-                    + B[s] * np.cos(s * self.driving_gear.n_teeth * (angular_position))
-                )
-
-            Kv_unit.append(Kv)
-
-        mean_kv = np.mean(Kv_unit)
-
-        Kv_aux = []
-        minus_multiplier = []
-        maximus_multiplier = []
-
-        for i in range(len(Kv_unit)):
-            if Kv_unit[i] < mean_kv:
-                Kv_aux.append(-1)
-                minus_multiplier.append(Kv_unit[i] / -1)
-            elif Kv_unit[i] > mean_kv:
-                Kv_aux.append(1)
-                maximus_multiplier.append(Kv_unit[i] / 1)
-            else:
-                Kv_aux.append(0)
-
-        minus_multiplier_value = np.median(sorted(minus_multiplier))
-        maximus_multiplier_value = np.median(sorted(maximus_multiplier))
-
-        Kv_aux = np.array(Kv_aux, dtype=float)
-
-        Kv_aux[Kv_aux == -1] *= minus_multiplier_value
-        Kv_aux[Kv_aux == 1] *= maximus_multiplier_value
-
-        for i in range(len(Kv_aux)):
-            stiffness_range.append(Kg - 2 * Ka * Kv_aux[i])
-
-        return stiffness_range
-
-    def get_stiffness_for_mesh_period(
-        self, stiffness_type="constant", n_mesh_period=1, n_points=1000
-    ):
-        """Computes the mesh stiffness profile over a specified number of gear
-        mesh periods.
-
-        Parameters
-        ----------
-        stiffness_type : str
-            Type of stiffness to compute. Available options are:
-            - "square": square varying stiffness
-            - "equivalent": variable equivalent stiffness
-            otherwise, constant stiffness is computed.
-        n_mesh_period : int, optional
-            Number of mesh periods to evaluate. Default is 1.
-        n_points : int, optional
-            Number of angular sample points to compute within the total range.
-            Default is 1000.
-
-        Returns
-        -------
-        theta_range : np.ndarray
-            Array of angular positions (rad) spanning the specified mesh
-            periods.
-        stiffness_range : list of float
-            List of stiffness values corresponding to each angular position.
-        """
-        theta_end = 2 * np.pi / self.driving_gear.n_teeth * n_mesh_period
-        theta_range = np.linspace(0, theta_end, n_points)
-
-        if stiffness_type == "square":
-            stiffness_range = self.get_square_varying_stiffness(theta_range)
-        elif stiffness_type == "equivalent":
-            stiffness_range = [
-                self.get_variable_equivalent_stiffness(theta) for theta in theta_range
-            ]
-        else:
-            stiffness_range = [self.stiffness for theta in theta_range]
-
-        return theta_range, stiffness_range
-
-    def interpolate_stiffness(self, angular_position):
-        """Interpolates the mesh stiffness value at a given angular position.
-
-        Parameters
-        ----------
-        angular_position : float or array-like
-            Angular position(s) at which to evaluate the stiffness (rad).
-
-        Returns
-        -------
-        stiffness : float or np.ndarray
-            Interpolated stiffness value(s) in N/m.
-        """
-        theta = mod(angular_position, max(self.theta_range))
-        stiffness = np.interp(theta, self.theta_range, self.stiffness_range)
-
-        return stiffness
-
-    def plot_stiffness_profile(
-        self,
-        n_mesh_period=1,
-        n_points=1000,
-        angle_units="rad",
-        stiffness_units="N/m",
-        **kwargs,
-    ):
-        """Plots the gear mesh stiffness profile over one or more meshing periods.
-
-        Parameters
-        ----------
-        n_mesh_period : int, optional
-            Number of mesh periods to plot. Default is 1.
-        n_points : int, optional
-            Number of data points to evaluate for the stiffness profile. Default is 1000.
-        angle_units : str, optional
-            Units for the angular position axis. Default is 'rad'.
-        stiffness_units : str, optional
-            Units for the stiffness axis. Default is 'N/m'.
-        **kwargs : dict, optional
-            Additional keyword arguments passed to `plotly.graph_objects.Figure.update_layout`
-            for customizing the figure (e.g., title, font, size, legend settings, etc.).
-        """
-        fig = go.Figure()
-
-        if n_mesh_period != 1 or n_points != 1000:
-            theta_range, stiffness_range = self.get_stiffness_for_mesh_period(
-                n_mesh_period, n_points
-            )
-        else:
-            theta_range = self.theta_range
-            stiffness_range = self.stiffness_range
-
-        fig.add_trace(
-            go.Scatter(
-                x=Q_(theta_range, "rad").to(angle_units).m,
-                y=Q_(stiffness_range, "N/m").to(stiffness_units).m,
-                mode="lines",
-                line=dict(color="black", width=3),
-            )
-        )
-
-        fig.update_layout(
-            xaxis=dict(
-                title=f"Angular position ({angle_units})",
-            ),
-            yaxis=dict(
-                title=f"Stiffness ({stiffness_units})",
-                tickformat=".1e",
-            ),
-            **kwargs,
         )
 
         return fig
