@@ -630,7 +630,7 @@ class Rotor(object):
         node_offset = 0
 
         for i, rotor in enumerate(rotor_list):
-            rotor = copy(rotor)
+            rotor = deepcopy(rotor)
 
             # Reindex elements
             elements = rotor.elements
@@ -2762,8 +2762,8 @@ class Rotor(object):
                 + reduction[1](
                     magnetic_force(
                         step,
-                        curr_state.get("dt"),
-                        reduction[2](curr_state.get("y")),
+                        curr_state.get("time_step"),
+                        reduction[2](curr_state.get("disp_resp")),
                     )
                 )
             )
@@ -2773,15 +2773,16 @@ class Rotor(object):
                 + reduction[1](
                     add_to_RHS(
                         step,
-                        time_step=curr_state.get("dt"),
-                        disp_resp=reduction[2](curr_state.get("y")),
-                        velc_resp=reduction[2](curr_state.get("ydot")),
-                        accl_resp=reduction[2](curr_state.get("y2dot")),
+                        time_step=curr_state.get("time_step"),
+                        disp_resp=reduction[2](curr_state.get("disp_resp")),
+                        velc_resp=reduction[2](curr_state.get("velc_resp")),
+                        accl_resp=reduction[2](curr_state.get("accl_resp")),
+                        args=curr_state.get("args"),
                     )
                     + magnetic_force(
                         step,
-                        curr_state.get("dt"),
-                        reduction[2](curr_state.get("y")),
+                        curr_state.get("time_step"),
+                        reduction[2](curr_state.get("disp_resp")),
                     )
                 )
             )
