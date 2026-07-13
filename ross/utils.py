@@ -8,10 +8,26 @@ import toml
 from numpy import linalg as la
 from plotly import graph_objects as go
 from copy import deepcopy as copy
-from numba import njit
 from numpy.fft import fft
 import control as ct
 
+from numba import njit
+from numba.core.dispatcher import Dispatcher
+import inspect
+
+def dynamic_njit(func):
+    sig = inspect.signature(func)
+
+    def wrapper(*args, **kwargs):
+        inputs = sig.bind(*args, **kwargs).arguments
+
+        if isinstance(inputs['func'], Dispatcher):
+            func_para_rodar = njit(func)
+        else:
+            func_para_rodar = func
+        return func_para_rodar(*args, **kwargs)
+        
+    return wrapper
 
 class NumpyEncoder(json.JSONEncoder):
     """JSON encoder that handles numpy types and non-serializable objects."""
@@ -715,7 +731,7 @@ def get_data_from_figure(fig):
     return df
 
 
-def newmark(func, t, y_size, **options):
+def newmark(func, t, y_size, newmark_type="simple", **options):
     """Transient solution of the dynamic behavior of the system.
 
     Perform numerical integration using the Newmark method with Newton-Raphson
@@ -786,108 +802,166 @@ def newmark(func, t, y_size, **options):
 
     gamma = options.get("gamma", 0.5)
     beta = options.get("beta", 0.25)
+    epsilon = options.get("epsilon", 1e-8)
     tol = options.get("tol", 1e-6)
     progress_interval = options.get("progress_interval", t[-1] + 1)
+    args = options.get("args", [])
 
     n_steps = len(t)
     ny = y_size
 
+    if newmark_type == "robust":
+        print("Using robust integration")
+        yout = _converge_robust_newmark(func, args, ny, n_steps, t, progress_interval, gamma, beta, epsilon, tol)
+    else:
+        print("Using simple integration")
+        yout = _converge_simple_newmark(func, args, ny, n_steps, t, progress_interval, gamma, beta, tol)
+    
+    return yout
+
+# @dynamic_njit
+@njit
+def _converge_simple_newmark(func, args, ny, n_steps, t, progress_interval, gamma, beta, tol):
     y0 = np.zeros(ny)
     ydot0 = np.zeros(ny)
     y2dot0 = np.zeros(ny)
 
-    yout = np.full((n_steps, ny), 1e-38, dtype=t.dtype)
+    yout = np.zeros((n_steps, ny))
     yout[0, :] = y0
-
+    
     for step in range(1, n_steps):
         aux = round(t[step] / progress_interval, 9)
         if aux - int(aux) == 0:
-            print(f"Time: {t[step]:.6f} seconds")
+            print("Time: ", t[step], " seconds")
 
         dt = t[step] - t[step - 1]
 
-        M, C, K, RHS = func(step, dt=dt, y=y0, ydot=ydot0, y2dot=y2dot0)
+        M, C, K, RHS = func(step, time_step=dt, disp_resp=y0, velc_resp=ydot0, accl_resp=y2dot0, args=args)
+        
+        y2dot = np.zeros(ny)
+        ydot = ydot0 + y2dot0 * (1.0 - gamma) * dt
+        y = y0 + ydot0 * dt + y2dot0 * (0.5 - beta) * (dt**2)
 
-        y0, ydot0, y2dot0 = _converge_newmark(
-            ny, y0, ydot0, y2dot0, dt, M, C, K, RHS, gamma, beta, tol
-        )  # separated call to use with numba
+        res = RHS - (M @ y2dot + C @ ydot + K @ y)
+        nr_iter = 0
+
+        while la.norm(res) >= tol:
+            nr_iter += 1
+            if nr_iter > 50:
+                raise RuntimeError(
+                    """Newton-Raphson algorithm diverged. Maximum number of iterations reached. 
+                    Try decreasing the time step or using robust integration."""
+                )
+
+            J = M + C * gamma * dt + K * beta * (dt**2)
+            dy2dot = la.solve(J, res)
+
+            y2dot += dy2dot
+            ydot += dy2dot * gamma * dt
+            y += dy2dot * beta * (dt**2)
+
+            M, C, K, RHS = func(step, time_step=dt, disp_resp=y, velc_resp=ydot, accl_resp=y2dot, args=args)
+            res = RHS - (M @ y2dot + C @ ydot + K @ y)
+
+        y0 = y
+        ydot0 = ydot
+        y2dot0 = y2dot
 
         yout[step, :] = y0
 
     return yout
 
-
 @njit
-def _converge_newmark(ny, y0, ydot0, y2dot0, dt, M, C, K, RHS, gamma, beta, tol):
-    """Helper function for the Newmark method to handle convergence.
+def _converge_robust_newmark(
+    func, args, ny, n_steps, t, progress_interval, gamma, beta, epsilon, tol
+):
+    y0 = np.zeros(ny)
+    ydot0 = np.zeros(ny)
+    y2dot0 = np.zeros(ny)
 
-    This function performs Newton-Raphson iterations to find the state of the system
-    at the next time step, ensuring that the equations of motion are satisfied
-    within a specified tolerance.
+    yout = np.zeros((n_steps, ny))
+    yout[0, :] = y0
 
-    Parameters
-    ----------
-    ny : int
-        Size of the state vector.
-    y0 : ndarray
-        Displacement at the current time step.
-    ydot0 : ndarray
-        Velocity at the current time step.
-    y2dot0 : ndarray
-        Acceleration at the current time step.
-    dt : float
-        Time step.
-    M : ndarray
-        Mass matrix.
-    C : ndarray
-        Damping matrix.
-    K : ndarray
-        Stiffness matrix.
-    RHS : ndarray
-        Right-hand side vector.
-    gamma : float
-        Newmark integration parameter.
-    beta : float
-        Newmark integration parameter.
-    tol : float
-        Convergence tolerance.
+    for step in range(1, n_steps):
+        aux = round(t[step] / progress_interval, 9)
+        if aux - int(aux) == 0:
+            print("Time: ", t[step], " seconds")
 
-    Returns
-    -------
-    y0 : ndarray
-        Displacement at the next time step.
-    ydot0 : ndarray
-        Velocity at the next time step.
-    y2dot0 : ndarray
-        Acceleration at the next time step.
-    """
-    y2dot = np.zeros(ny)
-    ydot = ydot0 + y2dot0 * (1 - gamma) * dt
-    y = y0 + ydot0 * dt + y2dot0 * (0.5 - beta) * (dt**2)
+        t_curr = t[step - 1]
+        t_target = t[step]
+        dt = t_target - t_curr
 
-    res = RHS - (K @ y + C @ ydot) - M @ y2dot
-    nr_iter = 0
+        dt_min = dt * 1e-4
+        dt_max = dt
 
-    while la.norm(res) >= tol:
-        nr_iter += 1
-        if nr_iter > 1e5:
-            raise Warning(
-                "The Newton-Raphson algorithm is taking a long time to converge."
-            )
+        while t_curr < t_target:
+            y2dot = np.zeros(ny)
+            ydot = ydot0 + y2dot0 * (1.0 - gamma) * dt
+            y = y0 + ydot0 * dt + y2dot0 * (0.5 - beta) * (dt**2)
 
-        dy2dot = la.solve(M + C * gamma * dt + K * beta * (dt**2), res)
+            M, C, K, RHS = func(step, time_step=dt, disp_resp=y, velc_resp=ydot, accl_resp=y2dot, args=args)
+            res = RHS - (M @ y2dot + C @ ydot + K @ y)
+            nr_iter = 0
 
-        y2dot += dy2dot
-        ydot += dy2dot * gamma * dt
-        y += dy2dot * beta * (dt**2)
+            active_dofs = np.where(RHS != 0)[0]
 
-        res = RHS - (K @ y + C @ ydot) - M @ y2dot
+            while la.norm(res) >= tol:
+                nr_iter += 1
+                converged = True
 
-    y0 = y
-    ydot0 = ydot
-    y2dot0 = y2dot
+                if nr_iter > 15:
+                    converged = False
+                    break
 
-    return y0, ydot0, y2dot0
+                J = M + C * gamma * dt + K * beta * (dt**2)
+
+                # update jacobian with perturbation
+                F_base = RHS
+
+                for i in active_dofs:
+                    y_i, ydot_i, y2dot_i = y[i], ydot[i], y2dot[i]
+
+                    y2dot[i] += epsilon
+                    ydot[i] += epsilon * gamma * dt
+                    y[i] += epsilon * beta * (dt**2)
+
+                    _, _, _, F_pert = func(step, time_step=dt, disp_resp=y, velc_resp=ydot, accl_resp=y2dot, args=args)
+            
+                    J[:, i] -= (F_pert - F_base) / epsilon
+
+                    y[i], ydot[i], y2dot[i] = y_i, ydot_i, y2dot_i
+
+                dy2dot = la.solve(J, res)
+
+                y2dot += dy2dot
+                ydot += dy2dot * gamma * dt
+                y += dy2dot * beta * (dt**2)
+
+                M, C, K, RHS = func(step, time_step=dt, disp_resp=y, velc_resp=ydot, accl_resp=y2dot, args=args)
+                res = RHS - (M @ y2dot + C @ ydot + K @ y)
+
+            if converged:
+                y0 = y
+                ydot0 = ydot
+                y2dot0 = y2dot
+                t_curr += dt
+
+                if nr_iter <= 5:
+                    dt = min(dt * 2.0, dt_max)
+                elif nr_iter >= 10:
+                    dt = max(dt * 0.5, dt_min)
+            else:
+                dt *= 0.25
+                if dt < dt_min:
+                    raise RuntimeError(
+                        f"Time step dropped below minimum threshold ({dt_min}) without convergence."
+                    )
+                if t_curr + dt > t_target:
+                    dt = t_target - t_curr
+
+        yout[step, :] = y0
+
+    return yout
 
 
 def assemble_C_K_matrices(elements, C0, K0, *args):
