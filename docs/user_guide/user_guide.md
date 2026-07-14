@@ -6,6 +6,7 @@
 tutorial_part_1_1
 tutorial_bearings_part_1
 tutorial_bearings_part_2
+tutorial_bearings_part_2_2
 tutorial_bearings_part_3
 tutorial_seal
 tutorial_faults
