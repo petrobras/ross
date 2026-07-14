@@ -1,12 +1,11 @@
 import numpy as np
 from re import search
 from copy import deepcopy as copy
-from collections.abc import Iterable
-from scipy.integrate import cumulative_trapezoid as integrate
 
 import ross as rs
 from ross.rotor_assembly import Rotor
 from ross.units import Q_, check_units
+from ross.utils import make_speed_array
 from .gear_element import GearElement
 from .mesh import Mesh
 
@@ -124,14 +123,13 @@ class MultiRotor(Rotor):
         coupled_nodes,
         gear_mesh_stiffness=None,
         update_mesh_stiffness=False,
-        square_varying_stiffness=False,
-        square_stiffness_amplitude_ratio=0,
+        square_varying_stiffness={"enable": False, "amplitude_ratio": 0},
+        backlash={"enable": False, "initial": 0.0, "error_amp": 0.0, "smooth_operator": False, "sigma": 1e4},
         orientation_angle=0.0,
         position="above",
         tag=None,
     ):
         self.rotors = {"driving": driving_rotor, "driven": driven_rotor}
-        self.orientation_angle = orientation_angle
 
         R1 = copy(driving_rotor)
         R2 = copy(driven_rotor)
@@ -151,19 +149,6 @@ class MultiRotor(Rotor):
         else:
             gear_1 = gear_1[0]
             gear_2 = gear_2[0]
-
-        self.update_mesh_stiffness = update_mesh_stiffness
-        self.square_varying_stiffness = square_varying_stiffness
-        self.square_stiffness_amplitude_ratio = square_stiffness_amplitude_ratio
-
-        self.mesh = Mesh(
-            gear_1,
-            gear_2,
-            gear_mesh_stiffness=gear_mesh_stiffness,
-            square_varying_stiffness=self.square_varying_stiffness,
-            square_stiffness_amplitude_ratio=square_stiffness_amplitude_ratio,
-            orientation_angle=self.orientation_angle,
-        )
 
         gear1_plot = next(
             (
@@ -230,6 +215,25 @@ class MultiRotor(Rotor):
             point_mass_elements,
             tag=tag,
         )
+
+        # Create mesh
+        self.update_mesh_stiffness = update_mesh_stiffness
+
+        self.mesh = Mesh(
+            gear_1,
+            gear_2,
+            gear_mesh_stiffness=gear_mesh_stiffness,
+            square_varying_stiffness=square_varying_stiffness,
+            backlash=backlash,
+            orientation_angle=orientation_angle,
+        )
+
+        self.K_coupling = self.calculate_coupling_matrix()
+
+        if self.mesh.backlash["enable"]:
+            self.add_coupling_stiffness = lambda K0: K0
+        else:
+            self.add_coupling_stiffness = self.K_mesh
 
     def _fix_nodes_pos(self, index, node, nodes_pos_l):
         """Adjust node positions of the driven rotor."""
@@ -347,11 +351,7 @@ class MultiRotor(Rotor):
             Angular accelerations for each time step.
         """
 
-        if not isinstance(omega, Iterable):
-            omega = np.full_like(t, omega)
-
-        theta = integrate(omega, t, initial=0)
-        alpha = np.gradient(omega, t)
+        omega, theta, alpha = make_speed_array(omega, t)
 
         F0 = np.zeros((self.ndof, len(t)))
 
@@ -402,7 +402,7 @@ class MultiRotor(Rotor):
 
         return speed
 
-    def coupling_matrix(self):
+    def calculate_coupling_matrix(self):
         """Coupling matrix of two coupled gears.
 
         Returns
@@ -435,8 +435,8 @@ class MultiRotor(Rotor):
         cy = np.sin(pressure_angle)
         cz = np.sin(pressure_angle) * np.sin(helix_angle)
 
-        cp = np.cos(self.orientation_angle)
-        sp = np.sin(self.orientation_angle)
+        cp = np.cos(self.mesh.orientation_angle)
+        sp = np.sin(self.mesh.orientation_angle)
 
         r1 = self.mesh.driving_gear.pitch_diameter / 2
         r2 = self.mesh.driven_gear.pitch_diameter / 2
@@ -577,7 +577,77 @@ class MultiRotor(Rotor):
         coupling_matrix = np.block([[Kii, Kji.T], [Kji, Kjj]])
 
         return coupling_matrix
+    
+    def K_mesh(self, K0):
+        dofs_1 = self.mesh.driving_gear.dof_global_index.values()
+        dofs_2 = self.mesh.driven_gear.dof_global_index.values()
+        dofs = [*dofs_1, *dofs_2]
 
+        K0[np.ix_(dofs, dofs)] += self.K_coupling * self.mesh.stiffness
+
+        return K0
+
+    def K(self, frequency):
+        """Stiffness matrix for a multi-rotor.
+
+        Parameters
+        ----------
+        frequency : float, optional
+            Excitation frequency.
+
+        Returns
+        -------
+        K0 : np.ndarray
+            Stiffness matrix for the multi-rotor.
+
+        Examples
+        --------
+        >>> multi_rotor = two_shaft_rotor_example()
+        >>> multi_rotor.K(0)[:4, :4] / 1e10
+        array([[ 4.7609372 ,  0.        ,  0.        ,  0.        ],
+               [ 0.        ,  4.7625872 ,  0.        , -0.23712736],
+               [ 0.        ,  0.        , 14.63196778,  0.        ],
+               [ 0.        , -0.23712736,  0.        ,  0.09416119]])
+        """
+
+        return self.add_coupling_stiffness(
+            self._join_matrices(
+                self.rotors["driving"].K(frequency),
+                self.rotors["driven"].K(frequency * self.mesh.gear_ratio),
+            )
+        )
+
+    def Ksdt(self):
+        """Dynamic stiffness matrix for a multi-rotor.
+
+        Stiffness matrix associated with the transient motion of the
+        shaft and disks. For time-dependent analyses, this matrix needs to be
+        multiplied by the angular acceleration. Therefore, the stiffness matrix
+        of the driven rotor is scaled by the gear ratio before being combined
+        with the driving rotor matrix.
+
+        Returns
+        -------
+        Ksdt0 : np.ndarray
+            Dynamic stiffness matrix for the multi-rotor.
+
+        Examples
+        --------
+        >>> multi_rotor = two_shaft_rotor_example()
+        >>> multi_rotor.Ksdt()[:6, :4]
+        array([[  0.        , -74.43218395,   0.        ,   0.6202682 ],
+               [  0.        ,   0.        ,   0.        ,   0.        ],
+               [  0.        ,   0.        ,   0.        ,   0.        ],
+               [  0.        ,   0.        ,   0.        ,   0.        ],
+               [  0.        ,  -0.6202682 ,   0.        ,   0.08270243],
+               [  0.        ,   0.        ,   0.        ,   0.        ]])
+        """
+
+        return self._join_matrices(
+            self.rotors["driving"].Ksdt(),
+            -self.mesh.gear_ratio * self.rotors["driven"].Ksdt(),
+        )
+    
     def M(self, frequency=None, synchronous=False):
         """Mass matrix for a multi-rotor.
 
@@ -612,73 +682,6 @@ class MultiRotor(Rotor):
                 self.rotors["driving"].M(frequency, synchronous),
                 self.rotors["driven"].M(frequency * self.mesh.gear_ratio, synchronous),
             )
-
-    def K(self, frequency):
-        """Stiffness matrix for a multi-rotor.
-
-        Parameters
-        ----------
-        frequency : float, optional
-            Excitation frequency.
-
-        Returns
-        -------
-        K0 : np.ndarray
-            Stiffness matrix for the multi-rotor.
-
-        Examples
-        --------
-        >>> multi_rotor = two_shaft_rotor_example()
-        >>> multi_rotor.K(0)[:4, :4] / 1e10
-        array([[ 4.7609372 ,  0.        ,  0.        ,  0.        ],
-               [ 0.        ,  4.7625872 ,  0.        , -0.23712736],
-               [ 0.        ,  0.        , 14.63196778,  0.        ],
-               [ 0.        , -0.23712736,  0.        ,  0.09416119]])
-        """
-
-        K0 = self._join_matrices(
-            self.rotors["driving"].K(frequency),
-            self.rotors["driven"].K(frequency * self.mesh.gear_ratio),
-        )
-
-        dofs_1 = self.mesh.driving_gear.dof_global_index.values()
-        dofs_2 = self.mesh.driven_gear.dof_global_index.values()
-        dofs = [*dofs_1, *dofs_2]
-
-        K0[np.ix_(dofs, dofs)] += self.coupling_matrix() * self.mesh.stiffness
-
-        return K0
-
-    def Ksdt(self):
-        """Dynamic stiffness matrix for a multi-rotor.
-
-        Stiffness matrix associated with the transient motion of the
-        shaft and disks. For time-dependent analyses, this matrix needs to be
-        multiplied by the angular acceleration. Therefore, the stiffness matrix
-        of the driven rotor is scaled by the gear ratio before being combined
-        with the driving rotor matrix.
-
-        Returns
-        -------
-        Ksdt0 : np.ndarray
-            Dynamic stiffness matrix for the multi-rotor.
-
-        Examples
-        --------
-        >>> multi_rotor = two_shaft_rotor_example()
-        >>> multi_rotor.Ksdt()[:6, :4]
-        array([[  0.        , -74.43218395,   0.        ,   0.6202682 ],
-               [  0.        ,   0.        ,   0.        ,   0.        ],
-               [  0.        ,   0.        ,   0.        ,   0.        ],
-               [  0.        ,   0.        ,   0.        ,   0.        ],
-               [  0.        ,  -0.6202682 ,   0.        ,   0.08270243],
-               [  0.        ,   0.        ,   0.        ,   0.        ]])
-        """
-
-        return self._join_matrices(
-            self.rotors["driving"].Ksdt(),
-            -self.mesh.gear_ratio * self.rotors["driven"].Ksdt(),
-        )
 
     def C(self, frequency):
         """Damping matrix for a multi-rotor rotor.
@@ -736,17 +739,28 @@ class MultiRotor(Rotor):
         )
 
     def _rotor_system_for_integrate(
-        self, rotor, speed, t, reduce_matrix, forces, **kwargs
+        self, rotor, speed, t, reduce_model, forces, **kwargs
     ):
         """Build rotor system for integrate method."""
-        if self.update_mesh_stiffness:
-            # Check if speed is array
-            speed_is_array = isinstance(speed, Iterable)
-            if not speed_is_array:
-                speed = np.full_like(t, speed)
 
-            accel = np.gradient(speed, t)
-            theta = integrate(speed, t, initial=0)
+        if self.mesh.backlash["enable"]:
+            speed, theta, _ = make_speed_array(speed, t)
+
+            forces = lambda step, **curr_state: (
+                forces(step, **curr_state)
+                + reduce_model[1](
+                        self.mesh.calculate_backlash_force(
+                        disp_resp=reduce_model[2](curr_state.get("disp_resp")),
+                        velc_resp=reduce_model[2](curr_state.get("velc_resp")),
+                        speed=speed[step],
+                        angular_position=theta[step],
+                    )
+                )
+            )
+
+        elif self.update_mesh_stiffness:
+            speed, theta, accel = make_speed_array(speed, t)
+            reduce_matrix = reduce_model[0]
 
             # Assemble matrices
             M = reduce_matrix(kwargs.get("M", self.M()))
@@ -764,15 +778,14 @@ class MultiRotor(Rotor):
                     M,
                     C1 + C2 * speed[step],
                     K1 + K2 * accel[step],
-                    forces(step, **current_state),
+                    forces(step, **current_state)
                 )
 
             return rotor_system
 
-        else:
-            return super()._rotor_system_for_integrate(
-                rotor, speed, t, reduce_matrix, forces, **kwargs
-            )
+        return super()._rotor_system_for_integrate(
+            rotor, speed, t, reduce_model, forces, **kwargs
+        )
 
 
 def two_shaft_rotor_example():

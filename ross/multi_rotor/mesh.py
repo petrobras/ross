@@ -2,9 +2,7 @@ import math
 import numpy as np
 from plotly import graph_objects as go
 from warnings import warn
-from numba import njit
 
-from docs.user_guide.tutorial_part_3 import speed_range
 from ross.units import Q_
 
 from .gear_element import GearElementTVMS
@@ -80,12 +78,10 @@ class Mesh:
         driving_gear,
         driven_gear,
         gear_mesh_stiffness=None,
-        square_varying_stiffness=False,
-        square_stiffness_amplitude_ratio=0,
+        square_varying_stiffness={"enable": False, "amplitude_ratio": 0},
+        backlash={"enable": False, "initial": 0.0, "error_amp": 0.0, "smooth_operator": False, "sigma": 1e4},
         damping_ratio=0.07,
         orientation_angle=0,
-        compute_backlash=False,
-        initial_backlash=0.0,
     ):
 
         if not math.isclose(driving_gear.module, driven_gear.module, rel_tol=0.05):
@@ -109,7 +105,7 @@ class Mesh:
         self.pressure_angle = driving_gear.pr_angle
         self.helix_angle = driving_gear.helix_angle
 
-        self.square_stiffness_amplitude_ratio = square_stiffness_amplitude_ratio
+        self.square_stiffness_amplitude_ratio = square_varying_stiffness["amplitude_ratio"]
         self.orientation_angle = orientation_angle
         self.module = driving_gear.module
         self.damping_ratio = damping_ratio
@@ -148,7 +144,7 @@ class Mesh:
                         "2) Use 'GearElementTVMS' instead"
                     )
 
-            if square_varying_stiffness:
+            if square_varying_stiffness["enable"]:
                 stiffness_type = "square"
 
         else:
@@ -157,6 +153,18 @@ class Mesh:
         self.theta_range, self.stiffness_range = self.get_stiffness_for_mesh_period(
             stiffness_type=stiffness_type
         )
+
+        if backlash["enable"]:
+            self.backlash = Backlash(
+                self,
+                initial_backlash=backlash["initial"],
+                error_amp=backlash["error_amp"],
+                smooth_operator=backlash["smooth_operator"],
+                sigma=backlash["sigma"],
+                stiffness_type=stiffness_type
+            )
+            self.calculate_backlash_force = self.backlash.calculate_backlash_force
+
 
     def calculate_contact_ratio(self):
         """Calculates the contact ratio of the gear pair.
@@ -367,10 +375,10 @@ class Mesh:
         theta_range = np.linspace(0, theta_end, n_points)
         cr = self.contact_ratio
 
-        if stiffness_type == "square":
-            stiffness_range = self.get_square_varying_stiffness(theta_range, cr)
-        elif stiffness_type == "equivalent":
+        if stiffness_type == "equivalent":
             stiffness_range = np.vectorize(self.get_variable_equivalent_stiffness)(theta_range, cr)
+        elif stiffness_type == "square":
+            stiffness_range = self.get_square_varying_stiffness(theta_range, cr)
         else:
             stiffness_range = np.full(n_points, self.stiffness)
 
@@ -393,6 +401,40 @@ class Mesh:
         stiffness = np.interp(theta, self.theta_range, self.stiffness_range)
 
         return stiffness
+
+    def generate_stiffness_table(self, stiffness_type="square", n_points=200):
+        """Generates a table of stiffness values for a gear pair.
+
+        Parameters
+        ----------
+        stiffness_type : str, optional
+            Type of stiffness to compute. Available options are:
+            - "square": square varying stiffness
+            - "equivalent": variable equivalent stiffness
+        n_points : int, optional
+            Number of data points to evaluate for the stiffness profile.
+            Default is 200.
+
+        Returns
+        -------
+        theta_range : np.ndarray
+            Array of angular positions (rad).
+        contact_ratio_range : np.ndarray
+            Array of contact ratios.
+        stiffness_table : np.ndarray
+            Array of stiffness values corresponding to each angular position and contact ratio.
+        """
+        theta_end = 2 * np.pi / self.driving_gear.n_teeth
+        theta_range = np.linspace(0, theta_end, n_points)
+        cr_range = np.linspace(0.8, 2.5, n_points)
+        cr_column = cr_range[:, np.newaxis]
+
+        if stiffness_type == "equivalent":
+            stiffness_table = np.vectorize(self.get_variable_equivalent_stiffness)(theta_range, cr_column)
+        else:
+            stiffness_table = np.vectorize(self.get_square_varying_stiffness)(theta_range, cr_column)
+        
+        return theta_range, cr_range, stiffness_table
 
     def plot_stiffness_profile(
         self,
@@ -497,48 +539,11 @@ class Backlash:
         Rb2 = self.driven_gear_base_radius
         self.M_eq = (Ip1 * Ip2) / (Ip2 * (Rb1**2) + Ip1 * (Rb2**2))
 
-        self.theta_range, self.contact_ratio_range, self.stiffness_table = self.generate_stiffness_table(
+        self.theta_range, self.contact_ratio_range, self.stiffness_table = self.mesh.generate_stiffness_table(
             stiffness_type=stiffness_type
         )
 
-
-    def generate_stiffness_table(self, stiffness_type="square", n_points=200):
-        """Generates a table of stiffness values for a gear pair.
-
-        Parameters
-        ----------
-        stiffness_type : str, optional
-            Type of stiffness to compute. Available options are:
-            - "square": square varying stiffness
-            - "equivalent": variable equivalent stiffness
-        n_points : int, optional
-            Number of data points to evaluate for the stiffness profile.
-            Default is 200.
-
-        Returns
-        -------
-        theta_range : np.ndarray
-            Array of angular positions (rad).
-        contact_ratio_range : np.ndarray
-            Array of contact ratios.
-        stiffness_table : np.ndarray
-            Array of stiffness values corresponding to each angular position and contact ratio.
-        """
-        theta_end = 2 * np.pi / self.driving_gear_n_teeth
-        theta_range = np.linspace(0, theta_end, n_points)
-        cr_range = np.linspace(0.8, 2.5, n_points)
-        cr_column = cr_range[:, np.newaxis]
-
-        if stiffness_type == "square":
-            stiffness_table = np.vectorize(self.mesh.get_square_varying_stiffness)(theta_range, cr_column)
-        elif stiffness_type == "equivalent":
-            stiffness_table = np.vectorize(self.mesh.get_variable_equivalent_stiffness)(theta_range, cr_column)
-        
-        return theta_range, cr_range, stiffness_table
-
-    def calculate_backlash_force(self, disp_resp, velc_resp, accl_resp, args):
-
-        speed, angular_position = args
+    def calculate_backlash_force(self, disp_resp, velc_resp, speed, angular_position):
 
         alpha0 = self.mesh_pressure_angle
         orientation_angle = self.mesh_orientation_angle
@@ -555,12 +560,10 @@ class Backlash:
 
         error = self.error_amp * np.sin(n_teeth * angular_position)
         error_dot = self.error_amp * (n_teeth * speed) * np.cos(n_teeth * angular_position)
-
         
         x1, y1, z1, rx1, ry1, t1 = disp_resp[dofs1] 
         vx1, vy1, vz1, vrx1, vry1, vt1 = velc_resp[dofs1]
 
-        
         x2, y2, z2, rx2, ry2, t2 = disp_resp[dofs2]
         vx2, vy2, vz2, vrx2, vry2, vt2 = velc_resp[dofs2]
 
