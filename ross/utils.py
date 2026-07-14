@@ -1,6 +1,7 @@
 import json
 import re
 from pathlib import Path
+from collections.abc import Iterable
 
 import numpy as np
 import pandas as pd
@@ -9,6 +10,7 @@ from numpy import linalg as la
 from plotly import graph_objects as go
 from copy import deepcopy as copy
 from numpy.fft import fft
+from scipy.integrate import cumulative_trapezoid as integrate
 import control as ct
 
 from numba import njit
@@ -820,7 +822,7 @@ def newmark(func, t, y_size, newmark_type="simple", **options):
     return yout
 
 # @dynamic_njit
-@njit
+# @njit
 def _converge_simple_newmark(func, args, ny, n_steps, t, progress_interval, gamma, beta, tol):
     y0 = np.zeros(ny)
     ydot0 = np.zeros(ny)
@@ -871,7 +873,7 @@ def _converge_simple_newmark(func, args, ny, n_steps, t, progress_interval, gamm
 
     return yout
 
-@njit
+# @njit
 def _converge_robust_newmark(
     func, args, ny, n_steps, t, progress_interval, gamma, beta, epsilon, tol
 ):
@@ -962,6 +964,35 @@ def _converge_robust_newmark(
         yout[step, :] = y0
 
     return yout
+
+def make_speed_array(speed, t):
+    """Make speed, displacement and acceleration arrays from speed and time array.
+
+    Parameters
+    ----------
+    speed : array_like
+        Speed array.
+    t : array_like
+        Time array.
+
+    Returns
+    -------
+    speed : array_like
+        Speed array.
+    displacement : array_like
+        Displacement array.
+    acceleration     : array_like
+        Acceleration array.
+    """
+
+    speed_is_array = isinstance(speed, Iterable)
+    if not speed_is_array:
+        speed = np.full_like(t, speed)
+
+    acceleration = np.gradient(speed, t)
+    displacement = integrate(speed, t, initial=0)
+
+    return speed, displacement, acceleration
 
 
 def assemble_C_K_matrices(elements, C0, K0, *args):

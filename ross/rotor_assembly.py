@@ -12,7 +12,6 @@ from plotly import graph_objects as go
 from scipy import io as sio
 from scipy import linalg as la
 from scipy import signal as signal
-from scipy.integrate import cumulative_trapezoid as integrate
 from scipy.linalg import lu_factor, lu_solve
 from scipy.optimize import newton
 from scipy.signal import chirp
@@ -58,6 +57,7 @@ from ross.utils import (
     intersection,
     newmark,
     remove_dofs,
+    make_speed_array,
 )
 
 from ross.harmonic_balance import HarmonicBalance
@@ -2284,11 +2284,7 @@ class Rotor(object):
         array([     0.        ,   7632.15353293, -43492.18127561])
         """
 
-        if not isinstance(omega, Iterable):
-            omega = np.full_like(t, omega)
-
-        theta = integrate(omega, t, initial=0)
-        alpha = np.gradient(omega, t)
+        omega, theta, alpha = make_speed_array(omega, t)
 
         F0 = np.zeros((self.ndof, len(t)))
 
@@ -2788,7 +2784,7 @@ class Rotor(object):
             )
 
         rotor_system = self._rotor_system_for_integrate(
-            rotor, speed, t, reduction[0], forces, **kwargs
+            rotor, speed, t, reduction, forces, **kwargs
         )
 
         size = F.shape[1]
@@ -2797,7 +2793,7 @@ class Rotor(object):
         return t, yout
 
     def _rotor_system_for_integrate(
-        self, rotor, speed, t, reduce_matrix, forces, **kwargs
+        self, rotor, speed, t, reduce_model, forces, **kwargs
     ):
         """Build rotor system for integrate method."""
         # Check if speed is array
@@ -2805,6 +2801,7 @@ class Rotor(object):
         speed_ref = np.mean(speed) if speed_is_array else speed
 
         # Assemble matrices
+        reduce_matrix = reduce_model[0]
         M = reduce_matrix(kwargs.get("M", self.M()))
         C2 = reduce_matrix(kwargs.get("G", self.G()))
         K2 = reduce_matrix(kwargs.get("Ksdt", self.Ksdt()))
