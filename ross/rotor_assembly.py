@@ -80,9 +80,6 @@ __all__ = [
     "coaxrotor_example",
     "rotor_example_6dof",
     "rotor_example_with_damping",
-    "rotor_example_amb_general_controllers",
-    "rotor_example_amb_complex_controllers",
-    "rotor_example_amb_simple",
 ]
 
 # set Plotly palette of colors
@@ -5876,21 +5873,3 @@ def rotor_example_with_damping():
     )
 
     return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
-
-
-def rotor_example_amb_complex_controllers():
-    from ross.bearings.magnetic.amb_models import rotor_example_amb_complex_controllers
-
-    return rotor_example_amb_complex_controllers()
-
-
-def rotor_example_amb_general_controllers(controller_transfer_function=None):
-    from ross.bearings.magnetic.amb_models import rotor_example_amb_general_controllers
-
-    return rotor_example_amb_general_controllers(controller_transfer_function)
-
-
-def rotor_example_amb_simple():
-    from ross.bearings.magnetic.amb_models import rotor_example_amb_simple
-
-    return rotor_example_amb_simple()
