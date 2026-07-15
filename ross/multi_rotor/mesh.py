@@ -520,6 +520,9 @@ class Mesh:
 class Backlash:
     """Backlash model for a gear pair.
 
+    The implementation was based on the work of Yi et al. (2019) and equations were
+    expanded using the works of Kubur et al. (2004) and Mo et al. (2025).
+
     Parameters
     ----------
     pressure_angle : float
@@ -555,6 +558,19 @@ class Backlash:
     sigma : float, optional
         Parameter related to the regularization of the smooth approach.
         Default is 1e4.
+
+    References
+    ----------
+    KUBUR, M.; KAHRAMAN, A.; ZINI, D. M.; KIENZLE, K. Dynamic analysis of a multi-shaft helical
+    gear transmission by finite elements: Model and experiment. Journal of Vibration and Acoustics,
+    American Society of Mechanical Engineers, v. 126, n. 3, p. 398–406, 2004.
+
+    MO, G.; LIU, C.; LIU, G.; LIU, F. Improved nonlinear dynamic model of helical gears considering
+    frictional excitation and fractal effects in backlash. Machines, MDPI, v. 13, n. 4, p. 262, 2025.
+
+    YI, Y.; HUANG, K.; XIONG, Y.; SANG, M. Nonlinear dynamic modelling and analysis for a spur gear
+    system with time-varying pressure angle and gear backlash. Mechanical Systems and Signal Processing,
+    Elsevier, v. 132, p. 18–34, 2019.
     """
 
     def __init__(
@@ -652,10 +668,6 @@ class Backlash:
 
         x2, y2, z2, rx2, ry2, t2 = disp_resp[dofs2]
         vx2, vy2, vz2, vrx2, vry2, vt2 = velc_resp[dofs2]
-
-        # ATTENTION: Testar esse valor!
-        angular_position = t1
-        speed = vt1
 
         error = self.error_amp * np.sin(n_teeth * angular_position)
         error_dot = (
