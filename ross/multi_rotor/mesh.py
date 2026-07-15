@@ -154,8 +154,9 @@ class Mesh:
             stiffness_type=stiffness_type
         )
 
+        self.backlash = backlash
         if backlash["enable"]:
-            self.backlash = Backlash(
+            self.backlash_model = Backlash(
                 self,
                 initial_backlash=backlash["initial"],
                 error_amp=backlash["error_amp"],
@@ -163,7 +164,7 @@ class Mesh:
                 sigma=backlash["sigma"],
                 stiffness_type=stiffness_type
             )
-            self.calculate_backlash_force = self.backlash.calculate_backlash_force
+            self.calculate_backlash_force = self.backlash_model.calculate_backlash_force
 
 
     def calculate_contact_ratio(self):
@@ -402,7 +403,7 @@ class Mesh:
 
         return stiffness
 
-    def generate_stiffness_table(self, stiffness_type="square", n_points=200):
+    def generate_stiffness_table(self, stiffness_type="square", n_points=1000):
         """Generates a table of stiffness values for a gear pair.
 
         Parameters
@@ -427,12 +428,11 @@ class Mesh:
         theta_end = 2 * np.pi / self.driving_gear.n_teeth
         theta_range = np.linspace(0, theta_end, n_points)
         cr_range = np.linspace(0.8, 2.5, n_points)
-        cr_column = cr_range[:, np.newaxis]
 
         if stiffness_type == "equivalent":
-            stiffness_table = np.vectorize(self.get_variable_equivalent_stiffness)(theta_range, cr_column)
+            stiffness_table = np.vectorize(self.get_variable_equivalent_stiffness)(theta_range[:, None], cr_range[None, :])
         else:
-            stiffness_table = np.vectorize(self.get_square_varying_stiffness)(theta_range, cr_column)
+            stiffness_table = np.array([self.get_square_varying_stiffness(theta_range, cr) for cr in cr_range]).T
         
         return theta_range, cr_range, stiffness_table
 
@@ -543,7 +543,7 @@ class Backlash:
             stiffness_type=stiffness_type
         )
 
-    def calculate_backlash_force(self, disp_resp, velc_resp, speed, angular_position):
+    def calculate_backlash_force(self, step, disp_resp, velc_resp, speed, angular_position):
 
         alpha0 = self.mesh_pressure_angle
         orientation_angle = self.mesh_orientation_angle
@@ -726,6 +726,41 @@ class Backlash:
         # backlash_force[idx2+3] = -Fm * f_rx2 
         # backlash_force[idx2+4] = -Fm * f_ry2 
         # backlash_force[idx2+5] = -Fm * f_t2 
+
+        # self.last_logs = {
+        #     "x1": x1,
+        #     "y1": y1,
+        #     "x2": x2,
+        #     "y2": y2,
+        #     "t1": t1,
+        #     "t2": t2,
+        #     "d": d_inst,
+        #     "beta": beta,
+        #     "alfa": alpha,
+        #     "contact_ratio": contact_ratio,
+        #     "delta": delta,
+        #     "bt": bt,
+        #     "f": f_val,
+        #     "K_time": k_m,
+        #     "Fm": Fm,
+        #     "delta_dot": delta_dot,
+        # }
+        self.last_logs["x1"][step] = x1
+        self.last_logs["y1"][step] = y1
+        self.last_logs["x2"][step] = x2
+        self.last_logs["y2"][step] = y2
+        self.last_logs["t1"][step] = t1
+        self.last_logs["t2"][step] = t2
+        self.last_logs["d"][step] = d_inst
+        self.last_logs["beta"][step] = beta
+        self.last_logs["alfa"][step] = alpha
+        self.last_logs["contact_ratio"][step] = contact_ratio
+        self.last_logs["delta"][step] = delta
+        self.last_logs["bt"][step] = bt
+        self.last_logs["f"][step] = f_val
+        self.last_logs["K_time"][step] = k_m
+        self.last_logs["Fm"][step] = Fm
+        self.last_logs["delta_dot"][step] = delta_dot
 
         return backlash_force
 
