@@ -230,7 +230,7 @@ class MultiRotor(Rotor):
 
         self.K_coupling = self.calculate_coupling_matrix()
 
-        if self.mesh.backlash["enable"]:
+        if self.mesh.backlash:
             self.add_coupling_stiffness = lambda K0: K0
         else:
             self.add_coupling_stiffness = self.K_mesh
@@ -428,8 +428,7 @@ class MultiRotor(Rotor):
 
         pressure_angle = self.mesh.pressure_angle  # normal angle
 
-        helix_angle = self.mesh.helix_angle
-        helix_angle -= np.pi  # adjusted according to formulation
+        helix_angle = self.mesh.helix_angle - np.pi # adjusted according to formulation
 
         cx = np.cos(pressure_angle) * np.cos(helix_angle)
         cy = np.sin(pressure_angle)
@@ -745,13 +744,13 @@ class MultiRotor(Rotor):
 
         updated_forces = forces
 
-        if self.mesh.backlash["enable"]:
+        if self.mesh.backlash:
             speed, theta, _ = make_speed_array(speed, t)
 
             updated_forces = lambda step, **curr_state: (
                 forces(step, **curr_state)
                 + reduce_model[1](
-                        self.mesh.calculate_backlash_force(
+                    self.mesh.backlash.calculate_force(
                         step=step,
                         disp_resp=reduce_model[2](curr_state.get("disp_resp")),
                         velc_resp=reduce_model[2](curr_state.get("velc_resp")),
