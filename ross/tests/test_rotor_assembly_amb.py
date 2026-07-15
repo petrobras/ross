@@ -2,12 +2,12 @@ import numpy as np
 import pytest
 from numpy.testing import assert_allclose, assert_equal
 
-from ross import SensitivityResults
-from ross.probe import Probe
-from ross.rotor_assembly import (
+from ross import SensitivityResults, MagneticBearingElement
+from ross.bearings.magnetic.amb_models import (
+    rotor_example_amb_simple,
     rotor_example_amb_general_controllers,
-    rotor_example_amb_complex_controllers,
 )
+from ross.probe import Probe
 from ross.units import Q_
 
 

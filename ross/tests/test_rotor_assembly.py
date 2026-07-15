@@ -14,10 +14,6 @@ from ross.materials import Material, steel
 from ross.point_mass import *
 from ross.probe import Probe
 from ross.rotor_assembly import *
-from ross.rotor_assembly import (
-    rotor_example_amb_general_controllers,
-    rotor_example_amb_complex_controllers,
-)
 from ross.shaft_element import *
 from ross.units import Q_
 from ross.results import AmbTimeResponseResults

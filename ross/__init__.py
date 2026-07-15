@@ -18,7 +18,7 @@ from .shaft_element import *
 from .coupling_element import *
 from .units import Q_
 from .utils import get_data_from_figure, visualize_matrix
-from .bearings.magnetic.amb_utils import *
+from .bearings.magnetic.amb_models import *
 from ross.bearings.lubricants import lubricants_dict
 from ross.bearings.bearing_results import *
 from ross.bearings.plain_journal import *
