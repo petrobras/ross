@@ -743,13 +743,16 @@ class MultiRotor(Rotor):
     ):
         """Build rotor system for integrate method."""
 
+        updated_forces = forces
+
         if self.mesh.backlash["enable"]:
             speed, theta, _ = make_speed_array(speed, t)
 
-            forces = lambda step, **curr_state: (
+            updated_forces = lambda step, **curr_state: (
                 forces(step, **curr_state)
                 + reduce_model[1](
                         self.mesh.calculate_backlash_force(
+                        step=step,
                         disp_resp=reduce_model[2](curr_state.get("disp_resp")),
                         velc_resp=reduce_model[2](curr_state.get("velc_resp")),
                         speed=speed[step],
@@ -778,13 +781,13 @@ class MultiRotor(Rotor):
                     M,
                     C1 + C2 * speed[step],
                     K1 + K2 * accel[step],
-                    forces(step, **current_state)
+                    updated_forces(step, **current_state)
                 )
 
             return rotor_system
 
         return super()._rotor_system_for_integrate(
-            rotor, speed, t, reduce_model, forces, **kwargs
+            rotor, speed, t, reduce_model, updated_forces, **kwargs
         )
 
 
