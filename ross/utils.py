@@ -17,19 +17,21 @@ from numba import njit
 from numba.core.dispatcher import Dispatcher
 import inspect
 
+
 def dynamic_njit(func):
     sig = inspect.signature(func)
 
     def wrapper(*args, **kwargs):
         inputs = sig.bind(*args, **kwargs).arguments
 
-        if isinstance(inputs['func'], Dispatcher):
+        if isinstance(inputs["func"], Dispatcher):
             func_para_rodar = njit(func)
         else:
             func_para_rodar = func
         return func_para_rodar(*args, **kwargs)
-        
+
     return wrapper
+
 
 class NumpyEncoder(json.JSONEncoder):
     """JSON encoder that handles numpy types and non-serializable objects."""
@@ -814,23 +816,30 @@ def newmark(func, t, y_size, newmark_type="simple", **options):
 
     if newmark_type == "robust":
         print("Using robust integration")
-        yout = _converge_robust_newmark(func, args, ny, n_steps, t, progress_interval, gamma, beta, epsilon, tol)
+        yout = _converge_robust_newmark(
+            func, args, ny, n_steps, t, progress_interval, gamma, beta, epsilon, tol
+        )
     else:
         print("Using simple integration")
-        yout = _converge_simple_newmark(func, args, ny, n_steps, t, progress_interval, gamma, beta, tol)
-    
+        yout = _converge_simple_newmark(
+            func, args, ny, n_steps, t, progress_interval, gamma, beta, tol
+        )
+
     return yout
+
 
 # @dynamic_njit
 # @njit
-def _converge_simple_newmark(func, args, ny, n_steps, t, progress_interval, gamma, beta, tol):
+def _converge_simple_newmark(
+    func, args, ny, n_steps, t, progress_interval, gamma, beta, tol
+):
     y0 = np.zeros(ny)
     ydot0 = np.zeros(ny)
     y2dot0 = np.zeros(ny)
 
     yout = np.zeros((n_steps, ny))
     yout[0, :] = y0
-    
+
     for step in range(1, n_steps):
         aux = round(t[step] / progress_interval, 9)
         if aux - int(aux) == 0:
@@ -838,8 +847,15 @@ def _converge_simple_newmark(func, args, ny, n_steps, t, progress_interval, gamm
 
         dt = t[step] - t[step - 1]
 
-        M, C, K, RHS = func(step, time_step=dt, disp_resp=y0, velc_resp=ydot0, accl_resp=y2dot0, args=args)
-        
+        M, C, K, RHS = func(
+            step,
+            time_step=dt,
+            disp_resp=y0,
+            velc_resp=ydot0,
+            accl_resp=y2dot0,
+            args=args,
+        )
+
         y2dot = np.zeros(ny)
         ydot = ydot0 + y2dot0 * (1.0 - gamma) * dt
         y = y0 + ydot0 * dt + y2dot0 * (0.5 - beta) * (dt**2)
@@ -862,7 +878,14 @@ def _converge_simple_newmark(func, args, ny, n_steps, t, progress_interval, gamm
             ydot += dy2dot * gamma * dt
             y += dy2dot * beta * (dt**2)
 
-            M, C, K, RHS = func(step, time_step=dt, disp_resp=y, velc_resp=ydot, accl_resp=y2dot, args=args)
+            M, C, K, RHS = func(
+                step,
+                time_step=dt,
+                disp_resp=y,
+                velc_resp=ydot,
+                accl_resp=y2dot,
+                args=args,
+            )
             res = RHS - (M @ y2dot + C @ ydot + K @ y)
 
         y0 = y
@@ -872,6 +895,7 @@ def _converge_simple_newmark(func, args, ny, n_steps, t, progress_interval, gamm
         yout[step, :] = y0
 
     return yout
+
 
 # @njit
 def _converge_robust_newmark(
@@ -901,7 +925,14 @@ def _converge_robust_newmark(
             ydot = ydot0 + y2dot0 * (1.0 - gamma) * dt
             y = y0 + ydot0 * dt + y2dot0 * (0.5 - beta) * (dt**2)
 
-            M, C, K, RHS = func(step, time_step=dt, disp_resp=y, velc_resp=ydot, accl_resp=y2dot, args=args)
+            M, C, K, RHS = func(
+                step,
+                time_step=dt,
+                disp_resp=y,
+                velc_resp=ydot,
+                accl_resp=y2dot,
+                args=args,
+            )
             res = RHS - (M @ y2dot + C @ ydot + K @ y)
             nr_iter = 0
 
@@ -927,8 +958,15 @@ def _converge_robust_newmark(
                     ydot[i] += epsilon * gamma * dt
                     y[i] += epsilon * beta * (dt**2)
 
-                    _, _, _, F_pert = func(step, time_step=dt, disp_resp=y, velc_resp=ydot, accl_resp=y2dot, args=args)
-            
+                    _, _, _, F_pert = func(
+                        step,
+                        time_step=dt,
+                        disp_resp=y,
+                        velc_resp=ydot,
+                        accl_resp=y2dot,
+                        args=args,
+                    )
+
                     J[:, i] -= (F_pert - F_base) / epsilon
 
                     y[i], ydot[i], y2dot[i] = y_i, ydot_i, y2dot_i
@@ -939,7 +977,14 @@ def _converge_robust_newmark(
                 ydot += dy2dot * gamma * dt
                 y += dy2dot * beta * (dt**2)
 
-                M, C, K, RHS = func(step, time_step=dt, disp_resp=y, velc_resp=ydot, accl_resp=y2dot, args=args)
+                M, C, K, RHS = func(
+                    step,
+                    time_step=dt,
+                    disp_resp=y,
+                    velc_resp=ydot,
+                    accl_resp=y2dot,
+                    args=args,
+                )
                 res = RHS - (M @ y2dot + C @ ydot + K @ y)
 
             if converged:
@@ -964,6 +1009,7 @@ def _converge_robust_newmark(
         yout[step, :] = y0
 
     return yout
+
 
 def make_speed_array(speed, t):
     """Make speed, displacement and acceleration arrays from speed and time array.

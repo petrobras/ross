@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def involute(angle):
     """Involute function
 
@@ -7,6 +8,7 @@ def involute(angle):
     used to describe the contact region of the gear profile.
     """
     return np.tan(angle) - float(angle)
+
 
 def mod(val, max_val):
     """Calculates the remainder of a division, but replaces 0 with max_val.

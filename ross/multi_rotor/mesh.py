@@ -79,7 +79,13 @@ class Mesh:
         driven_gear,
         gear_mesh_stiffness=None,
         square_varying_stiffness={"enable": False, "amplitude_ratio": 0},
-        backlash={"enable": False, "initial": 0.0, "error_amp": 0.0, "smooth_operator": False, "sigma": 1e4},
+        backlash={
+            "enable": False,
+            "initial_value": 0.0,
+            "error_amp": 0.0,
+            "smooth_operator": False,
+            "sigma": 1e4,
+        },
         damping_ratio=0.07,
         orientation_angle=0,
     ):
@@ -105,7 +111,9 @@ class Mesh:
         self.pressure_angle = driving_gear.pr_angle
         self.helix_angle = driving_gear.helix_angle
 
-        self.square_stiffness_amplitude_ratio = square_varying_stiffness["amplitude_ratio"]
+        self.square_stiffness_amplitude_ratio = square_varying_stiffness[
+            "amplitude_ratio"
+        ]
         self.orientation_angle = orientation_angle
         self.module = driving_gear.module
         self.damping_ratio = damping_ratio
@@ -128,7 +136,7 @@ class Mesh:
                 self.hertzian_stiffness = np.pi * w1 * E1 / (4 * (1 - poisson**2))
 
             else:
-                if driving_gear.width:                   
+                if driving_gear.width:
                     w1 = driving_gear.width
                     E1 = driving_gear.material.E
                     E2 = driven_gear.material.E
@@ -155,8 +163,8 @@ class Mesh:
         )
 
         if backlash["enable"]:
-            theta_range, contact_ratio_range, stiffness_table = self.generate_stiffness_table(
-                stiffness_type=stiffness_type
+            theta_range, contact_ratio_range, stiffness_table = (
+                self.generate_stiffness_table(stiffness_type=stiffness_type)
             )
             self.backlash = Backlash(
                 pressure_angle=self.pressure_angle,
@@ -169,14 +177,13 @@ class Mesh:
                 theta_range=theta_range,
                 contact_ratio_range=contact_ratio_range,
                 stiffness_table=stiffness_table,
-                initial_backlash=backlash["initial"],
+                initial_value=backlash["initial_value"],
                 error_amp=backlash["error_amp"],
                 smooth_operator=backlash["smooth_operator"],
                 sigma=backlash["sigma"],
             )
         else:
             self.backlash = None
-
 
     def calculate_contact_ratio(self):
         """Calculates the contact ratio of the gear pair.
@@ -188,7 +195,7 @@ class Mesh:
         """
         Ra1 = self.driving_gear.addendum_radius
         Ra2 = self.driven_gear.addendum_radius
-        
+
         Rb1 = self.driving_gear.base_radius
         Rb2 = self.driven_gear.base_radius
 
@@ -388,7 +395,9 @@ class Mesh:
         cr = self.contact_ratio
 
         if stiffness_type == "equivalent":
-            stiffness_range = np.vectorize(self.get_variable_equivalent_stiffness)(theta_range, cr)
+            stiffness_range = np.vectorize(self.get_variable_equivalent_stiffness)(
+                theta_range, cr
+            )
         elif stiffness_type == "square":
             stiffness_range = self.get_square_varying_stiffness(theta_range, cr)
         else:
@@ -441,10 +450,14 @@ class Mesh:
         cr_range = np.linspace(0.8, 2.5, n_points)
 
         if stiffness_type == "equivalent":
-            stiffness_table = np.vectorize(self.get_variable_equivalent_stiffness)(theta_range[:, None], cr_range[None, :])
+            stiffness_table = np.vectorize(self.get_variable_equivalent_stiffness)(
+                theta_range[:, None], cr_range[None, :]
+            )
         else:
-            stiffness_table = np.array([self.get_square_varying_stiffness(theta_range, cr) for cr in cr_range]).T
-        
+            stiffness_table = np.array(
+                [self.get_square_varying_stiffness(theta_range, cr) for cr in cr_range]
+            ).T
+
         return theta_range, cr_range, stiffness_table
 
     def plot_stiffness_profile(
@@ -505,6 +518,45 @@ class Mesh:
 
 
 class Backlash:
+    """Backlash model for a gear pair.
+
+    Parameters
+    ----------
+    pressure_angle : float
+        Pressure angle of the gear pair.
+    orientation_angle : float
+        Orientation angle of the gear pair.
+    helix_angle : float
+        Helix angle of the gear pair.
+    damping_ratio : float
+        Damping ratio of the gear pair.
+    module : float
+        Module of the gear pair.
+    driving_gear : Gear
+        Driving gear of the gear pair.
+    driven_gear : Gear
+        Driven gear of the gear pair.
+    theta_range : array-like
+        Angular positions at which the stiffness table is defined (rad).
+    contact_ratio_range : array-like
+        Contact ratios at which the stiffness table is defined.
+    stiffness_table : array-like
+        Stiffness values at the given angular positions and contact ratios.
+        It is a 2D array of shape `(len(theta_range), len(contact_ratio_range))`.
+    initial_value : float, optional
+        Initial backlash of the gear pair.
+        Default is 0.0.
+    error_amp : float, optional
+        Error amplitude used to calculate the backlash force model.
+        Default is 0.0.
+    smooth_operator : bool, optional
+        Whether to use a smooth operator.
+        Default is False.
+    sigma : float, optional
+        Parameter related to the regularization of the smooth approach.
+        Default is 1e4.
+    """
+
     def __init__(
         self,
         pressure_angle,
@@ -517,13 +569,13 @@ class Backlash:
         theta_range,
         contact_ratio_range,
         stiffness_table,
-        initial_backlash=0.0,
+        initial_value=0.0,
         error_amp=0.0,
         smooth_operator=False,
         sigma=1e4,
     ):
 
-        self.initial_backlash = initial_backlash
+        self.initial_value = initial_value
         self.error_amp = error_amp
 
         self.sigma = sigma
@@ -546,7 +598,7 @@ class Backlash:
         self.driven_gear_pitch_radius = driven_gear.pitch_diameter / 2
         self.driving_gear_addendum_radius = driving_gear.addendum_radius
         self.driven_gear_addendum_radius = driven_gear.addendum_radius
-        
+
         self.driving_gear_dofs = list(driving_gear.dof_global_index.values())
         self.driven_gear_dofs = list(driven_gear.dof_global_index.values())
 
@@ -560,8 +612,27 @@ class Backlash:
         self.contact_ratio_range = contact_ratio_range
         self.stiffness_table = stiffness_table
 
-
     def calculate_force(self, step, disp_resp, velc_resp, speed, angular_position):
+        """Calculates the backlash force to be used in time response integration with Newmark method.
+
+        Parameters
+        ----------
+        step : int
+            Step number.
+        disp_resp : array-like
+            Displacement response.
+        velc_resp : array-like
+            Velocity response.
+        speed : float
+            Speed of the rotor system.
+        angular_position : float
+            Angular position of rotor system.
+
+        Returns
+        -------
+        backlash_force : array-like
+            Backlash force.
+        """
 
         alpha0 = self.pressure_angle
         orientation_angle = self.orientation_angle
@@ -574,16 +645,22 @@ class Backlash:
         damping_ratio = self.damping_ratio
         dofs1 = self.driving_gear_dofs
         dofs2 = self.driven_gear_dofs
-        b0 = self.initial_backlash
+        b0 = self.initial_value
 
-        error = self.error_amp * np.sin(n_teeth * angular_position)
-        error_dot = self.error_amp * (n_teeth * speed) * np.cos(n_teeth * angular_position)
-        
-        x1, y1, z1, rx1, ry1, t1 = disp_resp[dofs1] 
+        x1, y1, z1, rx1, ry1, t1 = disp_resp[dofs1]
         vx1, vy1, vz1, vrx1, vry1, vt1 = velc_resp[dofs1]
 
         x2, y2, z2, rx2, ry2, t2 = disp_resp[dofs2]
         vx2, vy2, vz2, vrx2, vry2, vt2 = velc_resp[dofs2]
+
+        # ATTENTION: Testar esse valor!
+        angular_position = t1
+        speed = vt1
+
+        error = self.error_amp * np.sin(n_teeth * angular_position)
+        error_dot = (
+            self.error_amp * (n_teeth * speed) * np.cos(n_teeth * angular_position)
+        )
 
         # Calculation of the non-linear kinematics in the transverse plane
         d0 = Rp1 + Rp2
@@ -607,7 +684,7 @@ class Backlash:
 
         # Basic Geometric Derivatives
         d_pow2 = d_inst**2
-        term_in_sqrt = max(d_pow2 - (Rb1 + Rb2)**2, 1e-12)
+        term_in_sqrt = max(d_pow2 - (Rb1 + Rb2) ** 2, 1e-12)
         term_sqrt = np.sqrt(term_in_sqrt)
 
         alpha_1 = -((Rb1 + Rb2) * np.array([dx, dy])) / (d_pow2 * term_sqrt)
@@ -617,8 +694,14 @@ class Backlash:
 
         # Full DTE 3D Equation
         delta = (
-            ((x1 - x2) * sin_psi + (y1 - y2) * cos_psi + Rb1 * t1 + Rb2 * t2) * cos_beta_h +
-            ((-z1 + z2) + (Rb1 * rx1 + Rb2 * rx2) * sin_psi + (Rb1 * ry1 + Rb2 * ry2) * cos_psi) * sin_beta_h
+            ((x1 - x2) * sin_psi + (y1 - y2) * cos_psi + Rb1 * t1 + Rb2 * t2)
+            * cos_beta_h
+            + (
+                (-z1 + z2)
+                + (Rb1 * rx1 + Rb2 * rx2) * sin_psi
+                + (Rb1 * ry1 + Rb2 * ry2) * cos_psi
+            )
+            * sin_beta_h
             - error
         )
 
@@ -628,37 +711,48 @@ class Backlash:
 
         # Derivatives of delta with respect to the DOFs
         geo_tr = (x1 - x2) * cos_psi - (y1 - y2) * sin_psi
-        geo_rt   = (Rb1 * rx1 + Rb2 * rx2) * cos_psi - (Rb1 * ry1 + Rb2 * ry2) * sin_psi
-        
+        geo_rt = (Rb1 * rx1 + Rb2 * rx2) * cos_psi - (Rb1 * ry1 + Rb2 * ry2) * sin_psi
+
         psi_1 = alpha_1 - beta_1
         psi_2 = alpha_2 - beta_2
 
         tri_psi = np.array([sin_psi, cos_psi])
-        d_delta_dt1 = np.append((tri_psi + geo_tr * psi_1) * cos_beta_h + (geo_rt * psi_1) * sin_beta_h, -sin_beta_h)
+        d_delta_dt1 = np.append(
+            (tri_psi + geo_tr * psi_1) * cos_beta_h + (geo_rt * psi_1) * sin_beta_h,
+            -sin_beta_h,
+        )
         d_delta_dr1 = Rb1 * np.append(tri_psi * sin_beta_h, cos_beta_h)
         d_delta_d1 = np.append(d_delta_dt1, d_delta_dr1)
 
-        d_delta_dt2 = np.append((-tri_psi + geo_tr * psi_2) * cos_beta_h + (geo_rt * psi_2) * sin_beta_h, sin_beta_h)
+        d_delta_dt2 = np.append(
+            (-tri_psi + geo_tr * psi_2) * cos_beta_h + (geo_rt * psi_2) * sin_beta_h,
+            sin_beta_h,
+        )
         d_delta_dr2 = Rb2 * np.append(tri_psi * sin_beta_h, cos_beta_h)
         d_delta_d2 = np.append(d_delta_dt2, d_delta_dr2)
 
         # Derivatives of backlash with respect to the DOFs
-        tan2_alpha = np.tan(alpha)**2
+        tan2_alpha = np.tan(alpha) ** 2
         bt_1 = (Rb1 + Rb2) * tan2_alpha * alpha_1 * cos_beta_h
         bt_2 = (Rb1 + Rb2) * tan2_alpha * alpha_2 * cos_beta_h
 
         delta_dot = (
-            np.dot(d_delta_d1, np.array([vx1, vy1, vz1, vrx1, vry1, vt1])) +
-            np.dot(d_delta_d2, np.array([vx2, vy2, vz2, vrx2, vry2, vt2])) - error_dot
+            np.dot(d_delta_d1, np.array([vx1, vy1, vz1, vrx1, vry1, vt1]))
+            + np.dot(d_delta_d2, np.array([vx2, vy2, vz2, vrx2, vry2, vt2]))
+            - error_dot
         )
 
         # Derivative of alpha with respect to the DOFs
         # Only the translations affect alpha, so alpha_dot depends on vx and vy
-        alpha_dot = np.dot(alpha_1, np.array([vx1, vy1])) + np.dot(alpha_2, np.array([vx2, vy2]))
+        alpha_dot = np.dot(alpha_1, np.array([vx1, vy1])) + np.dot(
+            alpha_2, np.array([vx2, vy2])
+        )
         bt_dot = (Rb1 + Rb2) * tan2_alpha * alpha_dot * cos_beta_h
 
         # Penalty function application
-        f_val, f1_val, f1, f2 = self.apply_penalty_function(delta, delta_dot, bt, bt_dot, d_delta_d1, d_delta_d2, bt_1, bt_2)
+        f_val, f1_val, f1, f2 = self.apply_penalty_function(
+            delta, delta_dot, d_delta_d1, d_delta_d2, bt, bt_dot, bt_1, bt_2
+        )
 
         contact_ratio = self.calculate_contact_ratio(d_inst, alpha, alpha0)
 
@@ -674,26 +768,44 @@ class Backlash:
         backlash_force[dofs2] = -Fm * f2
 
         # ATTENTION: This is a hack to get the last logs of the backlash model.
-        self.last_logs["x1"][step] = x1
-        self.last_logs["y1"][step] = y1
-        self.last_logs["x2"][step] = x2
-        self.last_logs["y2"][step] = y2
-        self.last_logs["t1"][step] = t1
-        self.last_logs["t2"][step] = t2
-        self.last_logs["d"][step] = d_inst
-        self.last_logs["beta"][step] = beta
-        self.last_logs["alfa"][step] = alpha
-        self.last_logs["contact_ratio"][step] = contact_ratio
-        self.last_logs["delta"][step] = delta
-        self.last_logs["bt"][step] = bt
-        self.last_logs["f"][step] = f_val
-        self.last_logs["K_time"][step] = k_m
-        self.last_logs["Fm"][step] = Fm
-        self.last_logs["delta_dot"][step] = delta_dot
+        self.backlash_results["x1"][step] = x1
+        self.backlash_results["y1"][step] = y1
+        self.backlash_results["x2"][step] = x2
+        self.backlash_results["y2"][step] = y2
+        self.backlash_results["t1"][step] = t1
+        self.backlash_results["t2"][step] = t2
+        self.backlash_results["f"][step] = f_val
+        self.backlash_results["delta_dot"][step] = delta_dot
+
+        self.backlash_results["d"][step] = d_inst
+        self.backlash_results["beta"][step] = beta
+        self.backlash_results["alfa"][step] = alpha
+        self.backlash_results["contact_ratio"][step] = contact_ratio
+        self.backlash_results["delta"][step] = delta
+        self.backlash_results["bt"][step] = bt
+
+        self.backlash_results["K_time"][step] = k_m
+        self.backlash_results["Fm"][step] = Fm
 
         return backlash_force
 
-    def calculate_contact_ratio(self, distance, alpha, alpha0):
+    def calculate_contact_ratio(self, center_distance, pr_angle_op, pr_angle_nom):
+        """Calculates the contact ratio of the gear pair.
+
+        Parameters
+        ----------
+        center_distance : float
+            Distance between the gears (m).
+        pr_angle_op : float
+            Operating pressure angle (rad).
+        pr_angle_nom : float
+            Nominal pressure angle (rad).
+
+        Returns
+        -------
+        contact_ratio : float
+            Contact ratio of the gear pair.
+        """
         Ra1 = self.driving_gear_addendum_radius
         Ra2 = self.driven_gear_addendum_radius
 
@@ -703,23 +815,57 @@ class Backlash:
         contact_length = (
             np.sqrt(Ra1**2 - Rb1**2)
             + np.sqrt(Ra2**2 - Rb2**2)
-            - distance * np.sin(alpha)
+            - center_distance * np.sin(pr_angle_op)
         )
 
-        base_pitch = np.pi * self.module * np.cos(alpha0)
+        base_pitch = np.pi * self.module * np.cos(pr_angle_nom)
 
         contact_ratio = contact_length / base_pitch
 
         return contact_ratio
 
-    def rigid_approach(self, delta, delta_dot, bt, bt_dot, d_delta_d1, d_delta_d2, bt_1, bt_2):
+    def rigid_approach(
+        self, delta, delta_dot, d_delta_d1, d_delta_d2, bt, bt_dot, bt_1, bt_2
+    ):
+        """Rigid approach for the backlash force model.
+
+        Parameters
+        ----------
+        delta : float
+            Transmission error.
+        delta_dot : float
+            Transmission error derivative.
+        d_delta_d1 : array-like
+            Derivative of the transmission error with respect to the first gear DOFs.
+        d_delta_d2 : array-like
+            Derivative of the transmission error with respect to the second gear DOFs.
+        bt : float
+            Backlash.
+        bt_dot : float
+            Backlash derivative.
+        bt_1 : array-like
+            Derivative of the backlash with respect to the first gear DOFs.
+        bt_2 : array-like
+            Derivative of the backlash with respect to the second gear DOFs.
+
+        Returns
+        -------
+        f_val : float
+            Backlash force.
+        f1_val : float
+            Backlash force derivative with respect to the first gear DOFs.
+        f1 : array-like
+            Backlash force with respect to the first gear DOFs.
+        f2 : array-like
+            Backlash force with respect to the second gear DOFs.
+        """
         # Original rigid approach (Discrete conditional)
         # if bt = 0
-        if delta > bt: 
+        if delta > bt:
             f_val = delta - bt
             f1_val = delta_dot - bt_dot
             sgn = 1.0
-        elif delta < -bt: 
+        elif delta < -bt:
             f_val = delta + bt
             f1_val = delta_dot + bt_dot
             sgn = -1.0
@@ -728,37 +874,75 @@ class Backlash:
 
         f1 = d_delta_d1
         f1[:2] -= sgn * bt_1
-        
+
         f2 = d_delta_d2
         f2[:2] -= sgn * bt_2
 
         return f_val, f1_val, f1, f2
 
-    
-    def smooth_approach(self, delta, delta_dot, bt, bt_dot, d_delta_d1, d_delta_d2, bt_1, bt_2):
-        # Global smooth approach (Walha et al.)
+    def smooth_approach(
+        self, delta, delta_dot, d_delta_d1, d_delta_d2, bt, bt_dot, bt_1, bt_2
+    ):
+        """Smooth approach for the backlash force model.
+
+        Parameters
+        ----------
+        delta : float
+            Transmission error.
+        delta_dot : float
+            Transmission error derivative.
+        d_delta_d1 : array-like
+            Derivative of the transmission error with respect to the first gear DOFs.
+        d_delta_d2 : array-like
+            Derivative of the transmission error with respect to the second gear DOFs.
+        bt : float
+            Backlash.
+        bt_dot : float
+            Backlash derivative.
+        bt_1 : array-like
+            Derivative of the backlash with respect to the first gear DOFs.
+        bt_2 : array-like
+            Derivative of the backlash with respect to the second gear DOFs.
+
+        References
+        ----------
+        WALHA, L.; FAKHFAKH, T.; HADDAR, M. Backlash effect on dynamic analysis of
+        a two-stage spur gear system. Journal of Failure Analysis and Prevention,
+        ASM International, v. 6, p. 60-68, 2006.
+
+        Returns
+        -------
+        f_val : float
+            Backlash force.
+        f1_val : float
+            Backlash force derivative with respect to the first gear DOFs.
+        f1 : array-like
+            Backlash force with respect to the first gear DOFs.
+        f2 : array-like
+            Backlash force with respect to the second gear DOFs.
+        """
         x1_val = delta - bt
         x2_val = delta + bt
-        
+
         tanh_x1 = np.tanh(self.sigma * x1_val)
         tanh_x2 = np.tanh(self.sigma * x2_val)
-        
+
         g1 = x1_val * tanh_x1
         g2 = x2_val * tanh_x2
-        
+
         f_val = delta + 0.5 * (g1 - g2)
-        
+
         gp1 = tanh_x1 + self.sigma * x1_val * (1.0 - tanh_x1**2)
         gp2 = tanh_x2 + self.sigma * x2_val * (1.0 - tanh_x2**2)
-        
+
         df_ddelta = 1.0 + 0.5 * (gp1 - gp2)
-        df_dbt    = 0.5 * (-gp1 - gp2)
+        df_dbt = 0.5 * (-gp1 - gp2)
 
         f1_val = delta_dot * df_ddelta + bt_dot * df_dbt
-        
+
         f1 = d_delta_d1 * df_ddelta
         f1[:2] += bt_1 * df_dbt
-        
+
         f2 = d_delta_d2 * df_ddelta
         f2[:2] += bt_2 * df_dbt
 
@@ -782,21 +966,42 @@ class Backlash:
         """
         theta = angular_position % max(self.theta_range)
         cr = contact_ratio
-        
+
         i = np.searchsorted(self.theta_range, theta) - 1
         j = np.searchsorted(self.contact_ratio_range, cr) - 1
-        
+
         # Prevent "Index Out of Bounds"
         i = np.clip(i, 0, len(self.theta_range) - 2)
         j = np.clip(j, 0, len(self.contact_ratio_range) - 2)
-        
-        t1, t2 = self.theta_range[i:i+2]
-        c1, c2 = self.contact_ratio_range[j:j+2]
-        
+
+        t1, t2 = self.theta_range[i : i + 2]
+        c1, c2 = self.contact_ratio_range[j : j + 2]
+
         wt = (theta - t1) / (t2 - t1) if t2 != t1 else 0.0
         wc = (cr - c1) / (c2 - c1) if c2 != c1 else 0.0
 
-        k0, k1 = self.stiffness_table[i, j:j+2] * (1 - wt) + self.stiffness_table[i+1, j:j+2] * wt
+        k0, k1 = (
+            self.stiffness_table[i, j : j + 2] * (1 - wt)
+            + self.stiffness_table[i + 1, j : j + 2] * wt
+        )
         stiffness = k0 * (1 - wc) + k1 * wc
 
         return stiffness
+
+    # def plot_dashboard(self, results):
+    #     """Plots the dashboard of the gear pair.
+
+    #     Parameters
+    #     ----------
+    #     results : TimeResponseResults
+    #         Time response results with backlash applied.
+    #     """
+
+    #     t = results.t
+    #     disp_resp = results.yout
+    #     velc_resp = np.gradient(disp_resp, t)
+
+    #     i = np.linspace(5, len(t), 5)
+    #     angular_position = disp_resp[i, 0]
+
+    #     backlash_force = self.calculate_force(disp_resp, velc_resp, angular_position, spee)

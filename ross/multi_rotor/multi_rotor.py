@@ -124,7 +124,13 @@ class MultiRotor(Rotor):
         gear_mesh_stiffness=None,
         update_mesh_stiffness=False,
         square_varying_stiffness={"enable": False, "amplitude_ratio": 0},
-        backlash={"enable": False, "initial": 0.0, "error_amp": 0.0, "smooth_operator": False, "sigma": 1e4},
+        backlash={
+            "enable": False,
+            "initial_value": 0.0,
+            "error_amp": 0.0,
+            "smooth_operator": False,
+            "sigma": 1e4,
+        },
         orientation_angle=0.0,
         position="above",
         tag=None,
@@ -428,7 +434,7 @@ class MultiRotor(Rotor):
 
         pressure_angle = self.mesh.pressure_angle  # normal angle
 
-        helix_angle = self.mesh.helix_angle - np.pi # adjusted according to formulation
+        helix_angle = self.mesh.helix_angle - np.pi  # adjusted according to formulation
 
         cx = np.cos(pressure_angle) * np.cos(helix_angle)
         cy = np.sin(pressure_angle)
@@ -576,7 +582,7 @@ class MultiRotor(Rotor):
         coupling_matrix = np.block([[Kii, Kji.T], [Kji, Kjj]])
 
         return coupling_matrix
-    
+
     def K_mesh(self, K0):
         dofs_1 = self.mesh.driving_gear.dof_global_index.values()
         dofs_2 = self.mesh.driven_gear.dof_global_index.values()
@@ -646,7 +652,7 @@ class MultiRotor(Rotor):
             self.rotors["driving"].Ksdt(),
             -self.mesh.gear_ratio * self.rotors["driven"].Ksdt(),
         )
-    
+
     def M(self, frequency=None, synchronous=False):
         """Mass matrix for a multi-rotor.
 
@@ -780,7 +786,7 @@ class MultiRotor(Rotor):
                     M,
                     C1 + C2 * speed[step],
                     K1 + K2 * accel[step],
-                    updated_forces(step, **current_state)
+                    updated_forces(step, **current_state),
                 )
 
             return rotor_system
