@@ -2112,8 +2112,18 @@ class MagneticBearingElement(BearingElement):
         n_link=None,
         scale_factor=1,
         color="#355d7a",
+        sensor_node=None,
         **kwargs,
     ):
+        if sensor_node is not None:
+            if isinstance(sensor_node, bool) or not isinstance(
+                sensor_node, (int, np.integer)
+            ):
+                raise TypeError("sensor_node must be an integer or None.")
+            
+            sensor_node = int(sensor_node)
+        
+        self.sensor_node = sensor_node
         self.g0 = is_scalar(g0, "g0")
         self.i0 = is_scalar_or_list(i0, 2, "i0")
         self.ag = is_scalar(ag, "ag")
@@ -2274,6 +2284,19 @@ class MagneticBearingElement(BearingElement):
             scale_factor=scale_factor,
             color=color,
         )
+
+    @property
+    def measurement_node(self):
+        """Return the node where displacement is measured for feedback."""
+        if self.sensor_node is None:
+            return self.n
+
+        return self.sensor_node
+
+    @property
+    def is_non_colocated(self):
+        """Return whether sensor and actuator are located at different nodes."""
+        return self.measurement_node != self.n
 
     def _hover_info(self, frequency=None):
         """Generate hover information for magnetic bearing element.
