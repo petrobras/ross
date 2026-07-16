@@ -2485,7 +2485,7 @@ class Rotor(object):
         Notes
         -----
         - The control forces are applied in both x and y directions at each AMB location.
-        - The actual PID computation is delegated to the `compute_pid_amb` function.
+        - The actual PID computation is delegated to the `compute_amb_controller` function.
         - If `sensitivity_compute_dof` is provided, the excitation is applied to that DoF only.
 
         Examples
