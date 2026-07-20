@@ -410,6 +410,68 @@ def test_magnetic_bearing_element(magnetic_bearing):
     )
 
 
+def test_magnetic_bearing_default_sensor_node():
+    amb = MagneticBearingElement(
+        n=12,
+        g0=1e-3,
+        i0=1.0,
+        ag=1e-4,
+        nw=200,
+        kp_pid=1000,
+    )
+
+    assert amb.sensor_node is None
+    assert amb.measurement_node == 12
+    assert amb.is_non_colocated is False
+
+
+def test_magnetic_bearing_non_colocated_sensor_node():
+    amb = MagneticBearingElement(
+        n=12,
+        sensor_node=10,
+        g0=1e-3,
+        i0=1.0,
+        ag=1e-4,
+        nw=200,
+        kp_pid=1000,
+    )
+
+    assert amb.sensor_node == 10
+    assert amb.measurement_node == 10
+    assert amb.is_non_colocated is True
+
+
+def test_magnetic_bearing_same_sensor_and_actuator_node():
+    amb = MagneticBearingElement(
+        n=12,
+        sensor_node=12,
+        g0=1e-3,
+        i0=1.0,
+        ag=1e-4,
+        nw=200,
+        kp_pid=1000,
+    )
+
+    assert amb.sensor_node == 12
+    assert amb.measurement_node == 12
+    assert amb.is_non_colocated is False
+
+
+def test_magnetic_bearing_invalid_sensor_node():
+    with pytest.raises(
+        TypeError,
+        match="sensor_node must be an integer or None",
+    ):
+        MagneticBearingElement(
+            n=12,
+            sensor_node=10.5,
+            g0=1e-3,
+            i0=1.0,
+            ag=1e-4,
+            nw=200,
+            kp_pid=1000,
+        )
+
 def _to_real_array(list_of_scalars):
     return np.array([np.real(float(x)) for x in list_of_scalars], dtype=float)
 
