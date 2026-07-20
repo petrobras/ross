@@ -1956,6 +1956,10 @@ class MagneticBearingElement(BearingElement):
         isotropic stiffness and damping into the anisotropic matrices
         in the rotor coordinates. Default is 0.78539816
         (approximately 45°).
+    sensor_node : int, optional
+        Node where the displacement used for feedback is measured.
+        If not provided, it defaults to the actuator node ``n``,
+        representing a colocated sensor-actuator configuration.
     tag : str, optional
         Label used to identify the element in the rotor model.
     n_link : int, optional
@@ -2026,6 +2030,11 @@ class MagneticBearingElement(BearingElement):
     magnetic_force_vw : list
         Time history of the magnetic forces expressed in the local
         pole coordinates.
+    sensor_node : int
+        Node where the displacement used for feedback is measured.
+        It is equal to ``n`` for a colocated configuration.
+    is_non_colocated : bool
+        Whether the sensor and actuator are located at different nodes.
 
     Notes
     -----
@@ -2115,15 +2124,14 @@ class MagneticBearingElement(BearingElement):
         sensor_node=None,
         **kwargs,
     ):
-        if sensor_node is not None:
-            if isinstance(sensor_node, bool) or not isinstance(
-                sensor_node, (int, np.integer)
-            ):
-                raise TypeError("sensor_node must be an integer or None.")
-            
-            sensor_node = int(sensor_node)
-        
-        self.sensor_node = sensor_node
+        if isinstance(sensor_node, bool) or (
+            sensor_node is not None
+            and not isinstance(sensor_node, (int, np.integer))
+        ):
+            raise TypeError("sensor_node must be an integer or None.")
+
+        self.sensor_node = int(
+            n if sensor_node is None else sensor_node)
         self.g0 = is_scalar(g0, "g0")
         self.i0 = is_scalar_or_list(i0, 2, "i0")
         self.ag = is_scalar(ag, "ag")
@@ -2286,17 +2294,9 @@ class MagneticBearingElement(BearingElement):
         )
 
     @property
-    def measurement_node(self):
-        """Return the node where displacement is measured for feedback."""
-        if self.sensor_node is None:
-            return self.n
-
-        return self.sensor_node
-
-    @property
     def is_non_colocated(self):
-        """Return whether sensor and actuator are located at different nodes."""
-        return self.measurement_node != self.n
+        """Return whether the sensor and actuator are at different nodes."""
+        return self.sensor_node != self.n
 
     def _hover_info(self, frequency=None):
         """Generate hover information for magnetic bearing element.
