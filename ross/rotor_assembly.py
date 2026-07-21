@@ -2530,17 +2530,20 @@ class Rotor(object):
         magnetic_force = np.zeros(self.ndof)
 
         for i, elm in enumerate(magnetic_bearings):
-            x_dof = self.number_dof * elm.n
-            y_dof = self.number_dof * elm.n + 1
+            sensor_x_dof = self.number_dof * elm.sensor_node
+            sensor_y_dof = sensor_x_dof + 1
 
-            x_disp, y_disp = disp_resp[x_dof], disp_resp[y_dof]
+            actuator_x_dof = self.number_dof * elm.n
+            actuator_y_dof = actuator_y_dof + 1
+
+            x_disp, y_disp = disp_resp[sensor_x_dof], disp_resp[sensor_y_dof]
 
             v_disp = x_disp * cos_angle + y_disp * sin_angle
             w_disp = -x_disp * sin_angle + y_disp * cos_angle
 
-            if sens_dof in (x_dof, y_dof):
+            if sens_dof in (sensor_x_dof, sensor_y_dof):
                 v_disp, w_disp = apply_sensitivity_disturbance(
-                    step, x_dof, v_disp, w_disp, sens_dof, sens_dist, sens_results
+                    step, sensor_x_dof, v_disp, w_disp, sens_dof, sens_dist, sens_results
                 )
 
             force_v, current_v = elm.compute_amb_controller(
@@ -2573,8 +2576,8 @@ class Rotor(object):
                     step, time_step, progress_interval, force_x, force_y, elm.tag
                 )
 
-            magnetic_force[x_dof] = force_x
-            magnetic_force[y_dof] = force_y
+            magnetic_force[actuator_x_dof] = force_x
+            magnetic_force[actuator_y_dof] = force_y
 
         return magnetic_force
 
