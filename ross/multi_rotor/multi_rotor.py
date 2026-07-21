@@ -6,8 +6,11 @@ import ross as rs
 from ross.rotor_assembly import Rotor
 from ross.units import Q_, check_units
 from ross.utils import make_speed_array
+from ross.results import TimeResponseResults
+
 from .gear_element import GearElement
 from .mesh import Mesh
+from .results import BacklashResults
 
 __all__ = ["MultiRotor"]
 
@@ -760,8 +763,9 @@ class MultiRotor(Rotor):
                         step=step,
                         disp_resp=reduce_model[2](curr_state.get("disp_resp")),
                         velc_resp=reduce_model[2](curr_state.get("velc_resp")),
+                        time=t[step],
+                        angular_pos=theta[step],
                         speed=speed[step],
-                        angular_position=theta[step],
                     )
                 )
             )
@@ -794,6 +798,17 @@ class MultiRotor(Rotor):
         return super()._rotor_system_for_integrate(
             rotor, speed, t, reduce_model, updated_forces, **kwargs
         )
+
+    @check_units
+    def run_time_response(self, speed, F, t, method="default", **kwargs):
+        """Calculate the time response of the multi-rotor."""
+        if self.mesh.backlash:
+            t_, yout, xout = self.time_response(speed, F, t, method=method, **kwargs)
+            results = BacklashResults(self, t, yout, xout)
+        else:
+            results = super().run_time_response(speed, F, t, method=method, **kwargs)
+
+        return results
 
 
 def two_shaft_rotor_example():

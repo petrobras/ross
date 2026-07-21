@@ -209,7 +209,6 @@ class Mesh:
             - center_distance * np.sin(self.pressure_angle)
         )
 
-        # base_pitch = 2 * np.pi * Rb1 / self.driving_gear.n_teeth
         base_pitch = np.pi * self.module * np.cos(self.pressure_angle)
 
         contact_ratio = contact_length / base_pitch
@@ -423,7 +422,7 @@ class Mesh:
 
         return stiffness
 
-    def generate_stiffness_table(self, stiffness_type="square", n_points=1000):
+    def generate_stiffness_table(self, stiffness_type="square", n_points=200):
         """Generates a table of stiffness values for a gear pair.
 
         Parameters
@@ -628,7 +627,19 @@ class Backlash:
         self.contact_ratio_range = contact_ratio_range
         self.stiffness_table = stiffness_table
 
-    def calculate_force(self, step, disp_resp, velc_resp, speed, angular_position):
+        data_keys = [
+            "time",
+            "delta",
+            "bt",
+            "Fm",
+            "K_time",
+            "d",
+            "alfa",
+            "contact_ratio",
+        ]
+        self._data = {key: list() for key in data_keys}
+
+    def calculate_force(self, step, disp_resp, velc_resp, time, angular_pos, speed):
         """Calculates the backlash force to be used in time response integration with Newmark method.
 
         Parameters
@@ -639,10 +650,12 @@ class Backlash:
             Displacement response.
         velc_resp : array-like
             Velocity response.
+        time : float
+            Time (s).
+        angular_pos : float
+            Angular position of rotor system.
         speed : float
             Speed of the rotor system.
-        angular_position : float
-            Angular position of rotor system.
 
         Returns
         -------
@@ -669,10 +682,8 @@ class Backlash:
         x2, y2, z2, rx2, ry2, t2 = disp_resp[dofs2]
         vx2, vy2, vz2, vrx2, vry2, vt2 = velc_resp[dofs2]
 
-        error = self.error_amp * np.sin(n_teeth * angular_position)
-        error_dot = (
-            self.error_amp * (n_teeth * speed) * np.cos(n_teeth * angular_position)
-        )
+        error = self.error_amp * np.sin(n_teeth * angular_pos)
+        error_dot = self.error_amp * (n_teeth * speed) * np.cos(n_teeth * angular_pos)
 
         # Calculation of the non-linear kinematics in the transverse plane
         d0 = Rp1 + Rp2
@@ -768,7 +779,7 @@ class Backlash:
 
         contact_ratio = self.calculate_contact_ratio(d_inst, alpha, alpha0)
 
-        k_m = self.interpolate2d_stiffness(angular_position, contact_ratio)
+        k_m = self.interpolate2d_stiffness(angular_pos, contact_ratio)
         c_m = 2.0 * damping_ratio * np.sqrt(k_m * self.M_eq)
 
         # Total normal force in the action line
@@ -779,25 +790,18 @@ class Backlash:
         backlash_force[dofs1] = -Fm * f1
         backlash_force[dofs2] = -Fm * f2
 
-        # ATTENTION: This is a hack to get the last logs of the backlash model.
-        self.backlash_results["x1"][step] = x1
-        self.backlash_results["y1"][step] = y1
-        self.backlash_results["x2"][step] = x2
-        self.backlash_results["y2"][step] = y2
-        self.backlash_results["t1"][step] = t1
-        self.backlash_results["t2"][step] = t2
-        self.backlash_results["f"][step] = f_val
-        self.backlash_results["delta_dot"][step] = delta_dot
-
-        self.backlash_results["d"][step] = d_inst
-        self.backlash_results["beta"][step] = beta
-        self.backlash_results["alfa"][step] = alpha
-        self.backlash_results["contact_ratio"][step] = contact_ratio
-        self.backlash_results["delta"][step] = delta
-        self.backlash_results["bt"][step] = bt
-
-        self.backlash_results["K_time"][step] = k_m
-        self.backlash_results["Fm"][step] = Fm
+        # ATTENTION: Check this!!
+        results = {
+            "time": time,
+            "delta": delta,
+            "bt": bt,
+            "Fm": Fm,
+            "K_time": k_m,
+            "d": d_inst,
+            "alfa": alpha,
+            "contact_ratio": contact_ratio,
+        }
+        self._save_time_results(step, results)
 
         return backlash_force
 
@@ -1000,20 +1004,19 @@ class Backlash:
 
         return stiffness
 
-    # def plot_dashboard(self, results):
-    #     """Plots the dashboard of the gear pair.
+    def _save_time_results(self, step, results):
+        """Save time results in data at each step.
 
-    #     Parameters
-    #     ----------
-    #     results : TimeResponseResults
-    #         Time response results with backlash applied.
-    #     """
-
-    #     t = results.t
-    #     disp_resp = results.yout
-    #     velc_resp = np.gradient(disp_resp, t)
-
-    #     i = np.linspace(5, len(t), 5)
-    #     angular_position = disp_resp[i, 0]
-
-    #     backlash_force = self.calculate_force(disp_resp, velc_resp, angular_position, spee)
+        Parameters
+        ----------
+        step : int
+            Step number.
+        results : dict
+            Results to save.
+        """
+        for key, value in results.items():
+            lst = self._data[key]
+            if step < len(lst):
+                lst[step] = value
+            else:
+                lst.append(value)

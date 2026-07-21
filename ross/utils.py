@@ -897,6 +897,7 @@ def _converge_simple_newmark(
     return yout
 
 
+# @dynamic_njit
 # @njit
 def _converge_robust_newmark(
     func, args, ny, n_steps, t, progress_interval, gamma, beta, epsilon, tol
@@ -1264,6 +1265,41 @@ def convert_6dof_to_torsional(rotor):
     new_rotor.ndof = len(new_rotor.M())
 
     return new_rotor
+
+
+def compute_dfft(y, dt):
+    """Compute dFFT - Discrete Fourier Transform.
+
+    Parameters
+    ----------
+    y : np.array
+        Magnitude of the response in time domain (m).
+    dt : int
+        Time step (s).
+
+    Returns
+    -------
+    freq : np.array
+        Frequency range (Hz).
+    y_amp : np.array
+        Amplitude of the response in frequency domain (m).
+    y_phase : np.array
+        Phase of the response in frequency domain (rad).
+    """
+    b = np.floor(len(y) / 2)
+    c = len(y)
+    df = 1 / (c * dt)
+
+    y_amp = fft(y)[: int(b)]
+    y_amp = y_amp * 2 / c
+
+    y_phase = np.angle(y_amp)
+    y_amp = np.abs(y_amp)
+
+    freq = np.arange(0, df * b, df)
+    freq = freq[: int(b)]
+
+    return freq, y_amp, y_phase
 
 
 def compute_abs_phase(x_w):
