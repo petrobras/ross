@@ -43,6 +43,8 @@ class PlainJournal(BearingElement):
     Describes the geometric characteristics.
     n : int
         Node in which the bearing will be located.
+    geometry: string
+        Refers to bearing geometry. The options are: 'circular', 'lobe' or 'elliptical'.
     axial_length : float, pint.Quantity
         Bearing length. Default unit is meter.
     journal_radius : float
@@ -53,11 +55,17 @@ class PlainJournal(BearingElement):
         Number of pads that compound the bearing surface.
     pad_arc_length : float
         Arc length of each pad. The unit is degree.
-    preload: float
-        Preload of the pad. The preload is defined as m=1-Cb/Cp where Cb is the radial clearance and Cp is
-        the pad ground-in clearance. Preload is dimensionless.
-    geometry: string
-        Refers to bearing geometry. The options are: 'circular', 'lobe' or 'elliptical'.
+    preload: float, optional
+        Preload of the pad. For bearings with lobe geometry, the preload is defined as m=1-cb/cp, where cb is the bore assembly clearance and
+        cp is the pad ground-in clearance. For bearings with elliptical geometry, the preload is defined as m=1-cmin/cmax, where cmin and cmax
+        are the minimum and maximum radial clearance of the bearing, respectively. Preload is dimensionless.
+    offset : float, optional
+        Offset factor. For bearings with preloaded geometry, the offset is defined as α=(θp-θ1)/(θ2-θ1), where θ1 and θ2 are the
+        circumferential coordinates of the pad leading edge and pad trailing edge, respectively, and θp is the circumferential
+        coordinate of the pivot. Offset is dimensionless.
+    rotation_angle : float, optional
+        Rotation angle of the local bearing coordinate system in relation to the global bearing coordinate system. For bearings whose
+        first (or single) groove is located at a circumferential position different from the positive horizontal axis. The unit is degree.
     initial_guess : array
         Array with eccentricity ratio and attitude angle
     method : string
@@ -75,7 +83,7 @@ class PlainJournal(BearingElement):
         Array with the frequencies (rad/s).
     sommerfeld_type : int
         Choose the method to calculate the sommerfeld number. Options are:
-        - 1 : Uses the classical Sommerfeld formulation bsed on:
+        - 1 : Uses the classical Sommerfeld formulation based on:
             - viscosity
             - geometry
             - shaft speed
@@ -100,9 +108,8 @@ class PlainJournal(BearingElement):
         - 'ISOVG46' (lubricants in ross.bearings.lubricants)
     reference_temperature : float
         Oil reference temperature. The unit is Celsius.
-    groove_factor : list, numpy array, tuple or float
-        Ratio of oil in reservoir temperature that mixes with the circulating oil.
-        Is required one factor per segment.
+    hot_oil_factor : list, numpy array, tuple or float
+        Hot oil carryover factor (one per segment).
     oil_flow_v: float, pint.Quantity
         Suply oil flow to bearing. Only used when operating type 'starvation' is
         selected. Default unit is meter**3/second
@@ -162,6 +169,7 @@ class PlainJournal(BearingElement):
     >>> from ross.bearings.plain_journal import PlainJournal
     >>> bearing = PlainJournal(
     ...    n=3,
+    ...    geometry="circular",
     ...    axial_length=0.263144,
     ...    journal_radius=0.2,
     ...    radial_clearance=1.95e-4,
@@ -169,29 +177,27 @@ class PlainJournal(BearingElement):
     ...    elements_axial=3,
     ...    n_pad=2,
     ...    pad_arc_length=176,
-    ...    preload=0,
-    ...    geometry="circular",
     ...    reference_temperature=50,
     ...    frequency=Q_([900], "RPM"),
     ...    fxs_load=0,
     ...    fys_load=-112814.91,
-    ...    groove_factor=[0.52, 0.48],
+    ...    hot_oil_factor=[0.48, 0.52],
     ...    lubricant="ISOVG32",
     ...    sommerfeld_type=2,
     ...    initial_guess=[0.1, -0.1],
     ...    method="perturbation",
     ...    operating_type="flooded",
     ...    oil_supply_pressure=0,
-    ...    oil_flow_v=Q_(37.86, "l/min"),
     ... )
     >>> bearing.equilibrium_pos
-    array([ 0.68733194, -0.79394211])
+    array([ 0.68362988, -0.79073692])
     """
 
     @check_units
     def __init__(
         self,
         n,
+        geometry,
         axial_length,
         journal_radius,
         radial_clearance,
@@ -199,8 +205,6 @@ class PlainJournal(BearingElement):
         elements_axial,
         n_pad,
         pad_arc_length,
-        preload,
-        geometry,
         reference_temperature,
         frequency,
         fxs_load,
@@ -211,24 +215,26 @@ class PlainJournal(BearingElement):
         method="perturbation",
         model_type="thermo_hydro_dynamic",
         operating_type="flooded",
-        groove_factor=None,
+        hot_oil_factor=[0.8, 0.8],
         oil_supply_pressure=None,
         oil_flow_v=None,
+        preload=0,
+        offset=0.5,
+        rotation_angle=0,
         **kwargs,
     ):
+        self.geometry = geometry
         self.axial_length = axial_length
         self.journal_radius = journal_radius
         self.radial_clearance = radial_clearance
         self.elements_circumferential = elements_circumferential
         self.elements_axial = elements_axial
         self.n_pad = n_pad
-        self.preload = preload
-        self.geometry = geometry
         self.reference_temperature = reference_temperature
         self.fxs_load = fxs_load
         self.fys_load = fys_load
         self.lubricant = lubricant
-        self.fat_mixt = np.array(groove_factor)
+        self.hot_oil_factor = np.array(hot_oil_factor)
         self.equilibrium_pos = None
         self.sommerfeld_type = sommerfeld_type
         self.initial_guess = initial_guess
@@ -237,17 +243,22 @@ class PlainJournal(BearingElement):
         self.model_type = model_type
         self.oil_supply_pressure = oil_supply_pressure
         self.oil_flow_v = oil_flow_v
+        self.preload = preload
+        self.offset = offset
+        self.rotation_angle = rotation_angle
 
         self.betha_s_dg = pad_arc_length
         self.betha_s = pad_arc_length * np.pi / 180
 
-        self.thetaI = 0
-        self.thetaF = self.betha_s
-        self.dtheta = (self.thetaF - self.thetaI) / (self.elements_circumferential)
+        self.dtheta = self.betha_s / (self.elements_circumferential)
 
         pad_ct = np.arange(0, 360, int(360 / self.n_pad))
-        self.thetaI = np.radians(pad_ct + 180 / self.n_pad - self.betha_s_dg / 2)
-        self.thetaF = np.radians(pad_ct + 180 / self.n_pad + self.betha_s_dg / 2)
+        self.thetaI = np.radians(
+            pad_ct + 180 / self.n_pad - self.betha_s_dg / 2 + self.rotation_angle
+        )
+        self.thetaF = np.radians(
+            pad_ct + 180 / self.n_pad + self.betha_s_dg / 2 + self.rotation_angle
+        )
         self.theta_range = [
             np.arange(start_rad + (self.dtheta / 2), end_rad, self.dtheta)
             for start_rad, end_rad in zip(self.thetaI, self.thetaF)
@@ -300,7 +311,7 @@ class PlainJournal(BearingElement):
         self.reference_viscosity = self.interpolate(self.reference_temperature)
 
         # Pivot angle for lobe geometry
-        self.theta_pivot = (self.thetaI + self.thetaF) / 2
+        self.theta_pivot = self.thetaI + self.offset * (self.thetaF - self.thetaI)
 
         # Store optimization results for later reporting
         self._opt_results = {}
@@ -459,7 +470,7 @@ class PlainJournal(BearingElement):
         self.theta_vol_groove = 0.8 * np.ones(self.n_pad)
         T_end = np.ones(self.n_pad)
         T_conv = 0.8 * self.reference_temperature
-        T_mist = self.reference_temperature * np.ones(self.n_pad)
+        T_mixt = self.reference_temperature * np.ones(self.n_pad)
 
         Qedim = np.ones(self.n_pad)
         Qsdim = np.ones(self.n_pad)
@@ -491,8 +502,8 @@ class PlainJournal(BearingElement):
         B = np.zeros((nk, 1))
         B_theta = np.zeros((nk, 1))
 
-        while (T_mist[0] - T_conv) >= 0.5:
-            T_conv = T_mist[0]
+        while (T_mixt[0] - T_conv) >= 0.5:
+            T_conv = T_mixt[0]
 
             P[:, :, :] = 0.0
             T[:, :, :] = 1.0
@@ -515,12 +526,12 @@ class PlainJournal(BearingElement):
             B[:] = 0.0
 
             for n_p in np.arange(self.n_pad):
-                T_ref = T_mist[n_p]
+                T_ref = T_mixt[n_p]
 
                 while (
                     norm(T_new[:, :, n_p] - T[:, :, n_p]) / norm(T[:, :, n_p]) >= 0.01
                 ):
-                    T_ref = T_mist[n_p]
+                    T_ref = T_mixt[n_p]
                     T[:, :, n_p] = T_new[:, :, n_p]
                     self.mu_l = mu_new
 
@@ -546,6 +557,7 @@ class PlainJournal(BearingElement):
                             self.geometry,
                             self.preload,
                             self.theta_pivot[n_p],
+                            self.rotation_angle,
                         )
 
                         P_sol = _solve(Mat_coef, b_P)
@@ -639,12 +651,6 @@ class PlainJournal(BearingElement):
 
                 T_end[n_p] = np.sum(Tdim[:, -1, n_p]) / self.elements_axial
 
-                if self.operating_type == "flooded":
-                    T_mist[n_p - 1] = (
-                        self.fat_mixt[n_p] * self.reference_temperature
-                        + (1 - self.fat_mixt[n_p]) * T_end[n_p]
-                    )
-
                 if self.operating_type == "starvation":
                     Qedim[n_p] = (
                         self.radial_clearance
@@ -666,13 +672,21 @@ class PlainJournal(BearingElement):
                         * (np.mean(U[:, -1, n_p]))
                     )
 
-            if self.operating_type == "starvation":
+            if self.operating_type == "flooded":
+                for n_p in np.arange(self.n_pad):
+                    T_mixt[n_p] = (
+                        1 - self.hot_oil_factor[n_p]
+                    ) * self.reference_temperature + self.hot_oil_factor[n_p] * T_end[
+                        n_p - 1
+                    ]
+
+            elif self.operating_type == "starvation":
                 for n_p in np.arange(self.n_pad):
                     geometry_factor = (Qedim[n_p] + Qsdim[n_p - 1]) / (
                         np.sum(Qedim) + np.sum(Qsdim)
                     )
 
-                    T_mist[n_p] = (
+                    T_mixt[n_p] = (
                         (Qsdim[n_p - 1] * T_end[n_p - 1])
                         + (
                             self.reference_temperature
@@ -751,7 +765,7 @@ class PlainJournal(BearingElement):
             self.initial_guess,
             args=(speed,),
             method="Nelder-Mead",
-            bounds=[(0, 1), (-2 * np.pi, 2 * np.pi)],
+            bounds=[(0, 1 / (1 - self.preload)), (-np.pi, np.pi)],
             tol=0.8,
             options={"maxiter": 1e10},
             callback=_callback,
@@ -943,10 +957,10 @@ class PlainJournal(BearingElement):
         Kxy = -self.sommerfeld(speed, Auinitial_guess3[0], Auinitial_guess4[1]) * (
             (Auinitial_guess3[0] - Auinitial_guess4[0]) / (epiy / self.radial_clearance)
         )
-        Kyx = -self.sommerfeld(speed, Auinitial_guess1[1], Auinitial_guess2[1]) * (
+        Kyx = -self.sommerfeld(speed, Auinitial_guess1[0], Auinitial_guess2[1]) * (
             (Auinitial_guess1[1] - Auinitial_guess2[1]) / (epix / self.radial_clearance)
         )
-        Kyy = -self.sommerfeld(speed, Auinitial_guess3[1], Auinitial_guess4[1]) * (
+        Kyy = -self.sommerfeld(speed, Auinitial_guess3[0], Auinitial_guess4[1]) * (
             (Auinitial_guess3[1] - Auinitial_guess4[1]) / (epiy / self.radial_clearance)
         )
 
@@ -1000,7 +1014,7 @@ class PlainJournal(BearingElement):
 
         nk = (self.elements_axial) * (self.elements_circumferential)
 
-        gamma = 0.001
+        gamma = 1
 
         HX = -np.cos(Ytheta)
 
@@ -1021,745 +1035,637 @@ class PlainJournal(BearingElement):
             )
 
         for n_p in np.arange(self.n_pad):
-            erro = 1
+            Mat_coef = np.zeros((nk, nk))
+            Mat_coefX = np.zeros((nk, nk))
+            Mat_coefY = np.zeros((nk, nk))
 
-            while erro > 1e-6:
-                PX_old = np.array(PX)
-                PY_old = np.array(PY)
+            BX = np.zeros(nk).astype(complex)
+            BY = np.zeros(nk).astype(complex)
 
-                Mat_coef = np.zeros((nk, nk))
-                Mat_coefX = np.zeros((nk, nk))
-                Mat_coefY = np.zeros((nk, nk))
+            ki = 0
+            kj = 0
 
-                ki = 0
-                kj = 0
+            k = 0
 
-                k = 0
+            for ii in np.arange((self.Z_I + 0.5 * self.dZ), self.Z_F, self.dZ):
+                for jj in np.arange(
+                    self.thetaI[n_p] + (self.dtheta / 2),
+                    self.thetaF[n_p],
+                    self.dtheta,
+                ):
+                    if self.geometry == "circular":
+                        HP = 1 - self.X * np.cos(jj) - self.Y * np.sin(jj)
+                        He = (
+                            1
+                            - self.X * np.cos(jj + 0.5 * self.dtheta)
+                            - self.Y * np.sin(jj + 0.5 * self.dtheta)
+                        )
+                        Hw = (
+                            1
+                            - self.X * np.cos(jj - 0.5 * self.dtheta)
+                            - self.Y * np.sin(jj - 0.5 * self.dtheta)
+                        )
 
-                for ii in np.arange((self.Z_I + 0.5 * self.dZ), self.Z_F, self.dZ):
-                    for jj in np.arange(
-                        self.thetaI[n_p] + (self.dtheta / 2),
-                        self.thetaF[n_p],
-                        self.dtheta,
+                    else:
+                        if self.geometry == "lobe":
+                            HP = (
+                                1 / (1 - self.preload)
+                                - self.X * np.cos(jj)
+                                - self.Y * np.sin(jj)
+                                - self.preload
+                                / (1 - self.preload)
+                                * np.cos(jj - self.theta_pivot[n_p])
+                            )
+                            He = (
+                                1 / (1 - self.preload)
+                                - self.X * np.cos(jj + 0.5 * self.dtheta)
+                                - self.Y * np.sin(jj + 0.5 * self.dtheta)
+                                - self.preload
+                                / (1 - self.preload)
+                                * np.cos(jj + 0.5 * self.dtheta - self.theta_pivot[n_p])
+                            )
+                            Hw = (
+                                1 / (1 - self.preload)
+                                - self.X * np.cos(jj - 0.5 * self.dtheta)
+                                - self.Y * np.sin(jj - 0.5 * self.dtheta)
+                                - self.preload
+                                / (1 - self.preload)
+                                * np.cos(jj - 0.5 * self.dtheta - self.theta_pivot[n_p])
+                            )
+
+                        if self.geometry == "elliptical":
+                            HP = (
+                                1
+                                - self.X * np.cos(jj)
+                                - self.Y * np.sin(jj)
+                                + self.preload
+                                / (1 - self.preload)
+                                * (np.cos(jj - np.radians(self.rotation_angle))) ** 2
+                            )
+
+                            He = (
+                                1
+                                - self.X * np.cos(jj + 0.5 * self.dtheta)
+                                - self.Y * np.sin(jj + 0.5 * self.dtheta)
+                                + self.preload
+                                / (1 - self.preload)
+                                * (
+                                    np.cos(
+                                        jj
+                                        + 0.5 * self.dtheta
+                                        - np.radians(self.rotation_angle)
+                                    )
+                                )
+                                ** 2
+                            )
+
+                            Hw = (
+                                1
+                                - self.X * np.cos(jj - 0.5 * self.dtheta)
+                                - self.Y * np.sin(jj - 0.5 * self.dtheta)
+                                + self.preload
+                                / (1 - self.preload)
+                                * (
+                                    np.cos(
+                                        jj
+                                        - 0.5 * self.dtheta
+                                        - np.radians(self.rotation_angle)
+                                    )
+                                )
+                                ** 2
+                            )
+
+                    HXP = -np.cos(jj)
+                    HXe = -np.cos(jj + 0.5 * self.dtheta)
+                    HXw = -np.cos(jj - 0.5 * self.dtheta)
+
+                    HYP = -np.sin(jj)
+                    HYe = -np.sin(jj + 0.5 * self.dtheta)
+                    HYw = -np.sin(jj - 0.5 * self.dtheta)
+
+                    HXptP = 0
+                    HYptP = 0
+
+                    if kj == 0 and ki == 0:
+                        MU_e = 0.5 * (
+                            self.mu_l[ki, kj, n_p] + self.mu_l[ki, kj + 1, n_p]
+                        )
+                        MU_w = self.mu_l[ki, kj, n_p]
+                        MU_s = self.mu_l[ki, kj, n_p]
+                        MU_n = 0.5 * (
+                            self.mu_l[ki, kj, n_p] + self.mu_l[ki + 1, kj, n_p]
+                        )
+
+                    if kj == 0 and ki > 0 and ki < self.elements_axial - 1:
+                        MU_e = 0.5 * (
+                            self.mu_l[ki, kj, n_p] + self.mu_l[ki, kj + 1, n_p]
+                        )
+                        MU_w = self.mu_l[ki, kj, n_p]
+                        MU_s = 0.5 * (
+                            self.mu_l[ki, kj, n_p] + self.mu_l[ki - 1, kj, n_p]
+                        )
+                        MU_n = 0.5 * (
+                            self.mu_l[ki, kj, n_p] + self.mu_l[ki + 1, kj, n_p]
+                        )
+
+                    if kj == 0 and ki == self.elements_axial - 1:
+                        MU_e = 0.5 * (
+                            self.mu_l[ki, kj, n_p] + self.mu_l[ki, kj + 1, n_p]
+                        )
+                        MU_w = self.mu_l[ki, kj, n_p]
+                        MU_s = 0.5 * (
+                            self.mu_l[ki, kj, n_p] + self.mu_l[ki - 1, kj, n_p]
+                        )
+                        MU_n = self.mu_l[ki, kj, n_p]
+
+                    if ki == 0 and kj > 0 and kj < self.elements_circumferential - 1:
+                        MU_e = 0.5 * (
+                            self.mu_l[ki, kj, n_p] + self.mu_l[ki, kj + 1, n_p]
+                        )
+                        MU_w = 0.5 * (
+                            self.mu_l[ki, kj, n_p] + self.mu_l[ki, kj - 1, n_p]
+                        )
+                        MU_s = self.mu_l[ki, kj, n_p]
+                        MU_n = 0.5 * (
+                            self.mu_l[ki, kj, n_p] + self.mu_l[ki + 1, kj, n_p]
+                        )
+
+                    if (
+                        kj > 0
+                        and kj < self.elements_circumferential - 1
+                        and ki > 0
+                        and ki < self.elements_axial - 1
                     ):
-                        if self.P[ki, kj, n_p] > 0:
-                            if self.geometry == "circular":
-                                HP = 1 - self.X * np.cos(jj) - self.Y * np.sin(jj)
-                                He = (
-                                    1
-                                    - self.X * np.cos(jj + 0.5 * self.dtheta)
-                                    - self.Y * np.sin(jj + 0.5 * self.dtheta)
-                                )
-                                Hw = (
-                                    1
-                                    - self.X * np.cos(jj - 0.5 * self.dtheta)
-                                    - self.Y * np.sin(jj - 0.5 * self.dtheta)
-                                )
-
-                            else:
-                                if self.geometry == "lobe":
-                                    HP = (
-                                        1 / (1 - self.preload)
-                                        - self.X * np.cos(jj)
-                                        - self.Y * np.sin(jj)
-                                        - self.preload
-                                        / (1 - self.preload)
-                                        * np.cos(jj - self.theta_pivot[n_p])
-                                    )
-                                    He = (
-                                        1 / (1 - self.preload)
-                                        - self.X * np.cos(jj + 0.5 * self.dtheta)
-                                        - self.Y * np.sin(jj + 0.5 * self.dtheta)
-                                        - self.preload
-                                        / (1 - self.preload)
-                                        * np.cos(
-                                            jj
-                                            + 0.5 * self.dtheta
-                                            - self.theta_pivot[n_p]
-                                        )
-                                    )
-                                    Hw = (
-                                        1 / (1 - self.preload)
-                                        - self.X * np.cos(jj - 0.5 * self.dtheta)
-                                        - self.Y * np.sin(jj - 0.5 * self.dtheta)
-                                        - self.preload
-                                        / (1 - self.preload)
-                                        * np.cos(
-                                            jj
-                                            - 0.5 * self.dtheta
-                                            - self.theta_pivot[n_p]
-                                        )
-                                    )
-
-                                if self.geometry == "elliptical":
-                                    HP = (
-                                        1
-                                        - self.X * np.cos(jj)
-                                        - self.Y * np.sin(jj)
-                                        + self.preload
-                                        / (1 - self.preload)
-                                        * (np.cos(jj)) ** 2
-                                    )
-
-                                    He = (
-                                        1
-                                        - self.X * np.cos(jj + 0.5 * self.dtheta)
-                                        - self.Y * np.sin(jj + 0.5 * self.dtheta)
-                                        + self.preload
-                                        / (1 - self.preload)
-                                        * (np.cos(jj + 0.5 * self.dtheta)) ** 2
-                                    )
-
-                                    Hw = (
-                                        1
-                                        - self.X * np.cos(jj - 0.5 * self.dtheta)
-                                        - self.Y * np.sin(jj - 0.5 * self.dtheta)
-                                        + self.preload
-                                        / (1 - self.preload)
-                                        * (np.cos(jj - 0.5 * self.dtheta)) ** 2
-                                    )
-
-                            HXP = -np.cos(jj)
-                            HXe = -np.cos(jj + 0.5 * self.dtheta)
-                            HXw = -np.cos(jj - 0.5 * self.dtheta)
-
-                            HYP = -np.sin(jj)
-                            HYe = -np.sin(jj + 0.5 * self.dtheta)
-                            HYw = -np.sin(jj - 0.5 * self.dtheta)
-
-                            HXptP = 0
-                            HYptP = 0
-
-                            if kj == 0 and ki == 0:
-                                MU_e = 0.5 * (
-                                    self.mu_l[ki, kj, n_p] + self.mu_l[ki, kj + 1, n_p]
-                                )
-                                MU_w = self.mu_l[ki, kj, n_p]
-                                MU_s = self.mu_l[ki, kj, n_p]
-                                MU_n = 0.5 * (
-                                    self.mu_l[ki, kj, n_p] + self.mu_l[ki + 1, kj, n_p]
-                                )
-
-                            if kj == 0 and ki > 0 and ki < self.elements_axial - 1:
-                                MU_e = 0.5 * (
-                                    self.mu_l[ki, kj, n_p] + self.mu_l[ki, kj + 1, n_p]
-                                )
-                                MU_w = self.mu_l[ki, kj, n_p]
-                                MU_s = 0.5 * (
-                                    self.mu_l[ki, kj, n_p] + self.mu_l[ki - 1, kj, n_p]
-                                )
-                                MU_n = 0.5 * (
-                                    self.mu_l[ki, kj, n_p] + self.mu_l[ki + 1, kj, n_p]
-                                )
-
-                            if kj == 0 and ki == self.elements_axial - 1:
-                                MU_e = 0.5 * (
-                                    self.mu_l[ki, kj, n_p] + self.mu_l[ki, kj + 1, n_p]
-                                )
-                                MU_w = self.mu_l[ki, kj, n_p]
-                                MU_s = 0.5 * (
-                                    self.mu_l[ki, kj, n_p] + self.mu_l[ki - 1, kj, n_p]
-                                )
-                                MU_n = self.mu_l[ki, kj, n_p]
-
-                            if (
-                                ki == 0
-                                and kj > 0
-                                and kj < self.elements_circumferential - 1
-                            ):
-                                MU_e = 0.5 * (
-                                    self.mu_l[ki, kj, n_p] + self.mu_l[ki, kj + 1, n_p]
-                                )
-                                MU_w = 0.5 * (
-                                    self.mu_l[ki, kj, n_p] + self.mu_l[ki, kj - 1, n_p]
-                                )
-                                MU_s = self.mu_l[ki, kj, n_p]
-                                MU_n = 0.5 * (
-                                    self.mu_l[ki, kj, n_p] + self.mu_l[ki + 1, kj, n_p]
-                                )
-
-                            if (
-                                kj > 0
-                                and kj < self.elements_circumferential - 1
-                                and ki > 0
-                                and ki < self.elements_axial - 1
-                            ):
-                                MU_e = 0.5 * (
-                                    self.mu_l[ki, kj, n_p] + self.mu_l[ki, kj + 1, n_p]
-                                )
-                                MU_w = 0.5 * (
-                                    self.mu_l[ki, kj, n_p] + self.mu_l[ki, kj - 1, n_p]
-                                )
-                                MU_s = 0.5 * (
-                                    self.mu_l[ki, kj, n_p] + self.mu_l[ki - 1, kj, n_p]
-                                )
-                                MU_n = 0.5 * (
-                                    self.mu_l[ki, kj, n_p] + self.mu_l[ki + 1, kj, n_p]
-                                )
-
-                            if (
-                                ki == self.elements_axial - 1
-                                and kj > 0
-                                and kj < self.elements_circumferential - 1
-                            ):
-                                MU_e = 0.5 * (
-                                    self.mu_l[ki, kj, n_p] + self.mu_l[ki, kj + 1, n_p]
-                                )
-                                MU_w = 0.5 * (
-                                    self.mu_l[ki, kj, n_p] + self.mu_l[ki, kj - 1, n_p]
-                                )
-                                MU_s = 0.5 * (
-                                    self.mu_l[ki, kj, n_p] + self.mu_l[ki - 1, kj, n_p]
-                                )
-                                MU_n = self.mu_l[ki, kj, n_p]
-
-                            if ki == 0 and kj == self.elements_circumferential - 1:
-                                MU_e = self.mu_l[ki, kj, n_p]
-                                MU_w = 0.5 * (
-                                    self.mu_l[ki, kj, n_p] + self.mu_l[ki, kj - 1, n_p]
-                                )
-                                MU_s = self.mu_l[ki, kj, n_p]
-                                MU_n = 0.5 * (
-                                    self.mu_l[ki, kj, n_p] + self.mu_l[ki + 1, kj, n_p]
-                                )
-
-                            if (
-                                kj == self.elements_circumferential - 1
-                                and ki > 0
-                                and ki < self.elements_axial - 1
-                            ):
-                                MU_e = self.mu_l[ki, kj, n_p]
-                                MU_w = 0.5 * (
-                                    self.mu_l[ki, kj, n_p] + self.mu_l[ki, kj - 1, n_p]
-                                )
-                                MU_s = 0.5 * (
-                                    self.mu_l[ki, kj, n_p] + self.mu_l[ki - 1, kj, n_p]
-                                )
-                                MU_n = 0.5 * (
-                                    self.mu_l[ki, kj, n_p] + self.mu_l[ki + 1, kj, n_p]
-                                )
-
-                            if (
-                                kj == self.elements_circumferential - 1
-                                and ki == self.elements_axial - 1
-                            ):
-                                MU_e = self.mu_l[ki, kj, n_p]
-                                MU_w = 0.5 * (
-                                    self.mu_l[ki, kj, n_p] + self.mu_l[ki, kj - 1, n_p]
-                                )
-                                MU_s = 0.5 * (
-                                    self.mu_l[ki, kj, n_p] + self.mu_l[ki - 1, kj, n_p]
-                                )
-                                MU_n = self.mu_l[ki, kj, n_p]
-
-                            CE = (
-                                1
-                                / self.betha_s**2
-                                * He**3
-                                / (12 * MU_e)
-                                * self.dZ
-                                / self.dY
-                            )
-                            CW = (
-                                1
-                                / self.betha_s**2
-                                * Hw**3
-                                / (12 * MU_w)
-                                * self.dZ
-                                / self.dY
-                            )
-                            CN = (
-                                (self.journal_radius / self.axial_length) ** 2
-                                * HP**3
-                                / (12 * MU_n)
-                                * self.dY
-                                / self.dZ
-                            )
-                            CS = (
-                                (self.journal_radius / self.axial_length) ** 2
-                                * HP**3
-                                / (12 * MU_s)
-                                * self.dY
-                                / self.dZ
-                            )
-                            CP = -(CE + CW + CN + CS)
-
-                            CXE = (
-                                -1
-                                / self.betha_s**2
-                                * He**2
-                                * HXe
-                                / (4 * MU_e)
-                                * self.dZ
-                                / self.dY
-                            )
-                            CXW = (
-                                -1
-                                / self.betha_s**2
-                                * Hw**2
-                                * HXw
-                                / (4 * MU_w)
-                                * self.dZ
-                                / self.dY
-                            )
-                            CXN = (
-                                -((self.journal_radius / self.axial_length) ** 2)
-                                * HP**2
-                                * HXP
-                                / (4 * MU_n)
-                                * self.dY
-                                / self.dZ
-                            )
-                            CXS = (
-                                -((self.journal_radius / self.axial_length) ** 2)
-                                * HP**2
-                                * HXP
-                                / (4 * MU_s)
-                                * self.dY
-                                / self.dZ
-                            )
-                            CXP = -(CXE + CXW + CXN + CXS)
-
-                            CYE = (
-                                -1
-                                / self.betha_s**2
-                                * He**2
-                                * HYe
-                                / (4 * MU_e)
-                                * self.dZ
-                                / self.dY
-                            )
-                            CYW = (
-                                -1
-                                / self.betha_s**2
-                                * Hw**2
-                                * HYw
-                                / (4 * MU_w)
-                                * self.dZ
-                                / self.dY
-                            )
-                            CYN = (
-                                -((self.journal_radius / self.axial_length) ** 2)
-                                * HP**2
-                                * HYP
-                                / (4 * MU_n)
-                                * self.dY
-                                / self.dZ
-                            )
-                            CYS = (
-                                -((self.journal_radius / self.axial_length) ** 2)
-                                * HP**2
-                                * HYP
-                                / (4 * MU_s)
-                                * self.dY
-                                / self.dZ
-                            )
-                            CYP = -(CYE + CYW + CYN + CYS)
-
-                            KXW = -1 / (2 * self.betha_s) * HXw * self.dZ
-                            KXP = (
-                                1 / (2 * self.betha_s) * HXe * self.dZ
-                                + (HXptP + 1j * gamma * HXP) * self.dY * self.dZ
-                            )
-
-                            KYW = -1 / (2 * self.betha_s) * HYw * self.dZ
-                            KYP = (
-                                1 / (2 * self.betha_s) * HYe * self.dZ
-                                + (HYptP + 1j * gamma * HYP) * self.dY * self.dZ
-                            )
-
-                            PP = self.P[:, :, n_p].flatten()
-
-                            PPX = PX[:, :, n_p].flatten()
-                            PPX = np.delete(PPX, k)
-
-                            PPY = PY[:, :, n_p].flatten()
-                            PPY = np.delete(PPY, k)
-
-                            if kj == 0 and ki == 0:
-                                Mat_coef[k, k] = CP - CW - CS
-                                Mat_coef[k, k + 1] = CE
-                                Mat_coef[k, k + self.elements_circumferential] = CN
-
-                                Mat_coefX[k, k] = CXP - CXW - CXS
-                                Mat_coefX[k, k + 1] = CXE
-                                Mat_coefX[k, k + self.elements_circumferential] = CXN
-
-                                Mat_coefY[k, k] = CYP - CYW - CYS
-                                Mat_coefY[k, k + 1] = CYE
-                                Mat_coefY[k, k + self.elements_circumferential] = CYN
-
-                                C = Mat_coef[k, :].T
-                                C = np.delete(C, k)
-
-                                CX = Mat_coefX[k, :].T
-                                CY = Mat_coefY[k, :].T
-
-                                BX = (
-                                    np.matmul(CX, PP)
-                                    + KXW * self.theta_vol_groove[n_p]
-                                    + KXP * self.Theta_vol[ki, kj, n_p]
-                                    + 2 * CXW * self.oil_supply_pressure
-                                )
-                                BY = (
-                                    np.matmul(CY, PP)
-                                    + KYW * self.theta_vol_groove[n_p]
-                                    + KYP * self.Theta_vol[ki, kj, n_p]
-                                    + 2 * CYW * self.oil_supply_pressure
-                                )
-
-                                PX[ki, kj, n_p] = (BX - np.matmul(C, PPX)) / Mat_coef[
-                                    k, k
-                                ]
-                                PY[ki, kj, n_p] = (BY - np.matmul(C, PPY)) / Mat_coef[
-                                    k, k
-                                ]
-
-                            if kj == 0 and ki > 0 and ki < self.elements_axial - 1:
-                                Mat_coef[k, k] = CP - CW
-                                Mat_coef[k, k + 1] = CE
-                                Mat_coef[k, k + self.elements_circumferential] = CN
-                                Mat_coef[k, k - self.elements_circumferential] = CS
-
-                                Mat_coefX[k, k] = CXP - CXW
-                                Mat_coefX[k, k + 1] = CXE
-                                Mat_coefX[k, k + self.elements_circumferential] = CXN
-                                Mat_coefX[k, k - self.elements_circumferential] = CXS
-
-                                Mat_coefY[k, k] = CYP - CYW
-                                Mat_coefY[k, k + 1] = CYE
-                                Mat_coefY[k, k + self.elements_circumferential] = CYN
-                                Mat_coefY[k, k - self.elements_circumferential] = CYS
-
-                                C = Mat_coef[k, :].T
-                                C = np.delete(C, k)
-
-                                CX = Mat_coefX[k, :].T
-                                CY = Mat_coefY[k, :].T
-
-                                BX = (
-                                    np.matmul(CX, PP)
-                                    + KXW * self.theta_vol_groove[n_p]
-                                    + KXP * self.Theta_vol[ki, kj, n_p]
-                                    + 2 * CXW * self.oil_supply_pressure
-                                )
-                                BY = (
-                                    np.matmul(CY, PP)
-                                    + KYW * self.theta_vol_groove[n_p]
-                                    + KYP * self.Theta_vol[ki, kj, n_p]
-                                    + 2 * CYW * self.oil_supply_pressure
-                                )
-
-                                PX[ki, kj, n_p] = (BX - np.matmul(C, PPX)) / Mat_coef[
-                                    k, k
-                                ]
-                                PY[ki, kj, n_p] = (BY - np.matmul(C, PPY)) / Mat_coef[
-                                    k, k
-                                ]
-
-                            if kj == 0 and ki == self.elements_axial - 1:
-                                Mat_coef[k, k] = CP - CW - CN
-                                Mat_coef[k, k + 1] = CE
-                                Mat_coef[k, k - self.elements_circumferential] = CS
-
-                                Mat_coefX[k, k] = CXP - CXW - CXN
-                                Mat_coefX[k, k + 1] = CXE
-                                Mat_coefX[k, k - self.elements_circumferential] = CXS
-
-                                Mat_coefY[k, k] = CYP - CYW - CYN
-                                Mat_coefY[k, k + 1] = CYE
-                                Mat_coefY[k, k - self.elements_circumferential] = CYS
-
-                                C = Mat_coef[k, :].T
-                                C = np.delete(C, k)
-
-                                CX = Mat_coefX[k, :].T
-                                CY = Mat_coefY[k, :].T
-
-                                BX = (
-                                    np.matmul(CX, PP)
-                                    + KXW * self.theta_vol_groove[n_p]
-                                    + KXP * self.Theta_vol[ki, kj, n_p]
-                                    + 2 * CXW * self.oil_supply_pressure
-                                )
-                                BY = (
-                                    np.matmul(CY, PP)
-                                    + KYW * self.theta_vol_groove[n_p]
-                                    + KYP * self.Theta_vol[ki, kj, n_p]
-                                    + 2 * CYW * self.oil_supply_pressure
-                                )
-
-                                PX[ki, kj, n_p] = (BX - np.matmul(C, PPX)) / Mat_coef[
-                                    k, k
-                                ]
-                                PY[ki, kj, n_p] = (BY - np.matmul(C, PPY)) / Mat_coef[
-                                    k, k
-                                ]
-
-                            if (
-                                ki == 0
-                                and kj > 0
-                                and kj < self.elements_circumferential - 1
-                            ):
-                                Mat_coef[k, k] = CP - CS
-                                Mat_coef[k, k + 1] = CE
-                                Mat_coef[k, k - 1] = CW
-                                Mat_coef[k, k + self.elements_circumferential] = CN
-
-                                Mat_coefX[k, k] = CXP - CXS
-                                Mat_coefX[k, k + 1] = CXE
-                                Mat_coefX[k, k - 1] = CXW
-                                Mat_coefX[k, k + self.elements_circumferential] = CXN
-
-                                Mat_coefY[k, k] = CYP - CYS
-                                Mat_coefY[k, k + 1] = CYE
-                                Mat_coefY[k, k - 1] = CYW
-                                Mat_coefY[k, k + self.elements_circumferential] = CYN
-
-                                C = Mat_coef[k, :].T
-                                C = np.delete(C, k)
-
-                                CX = Mat_coefX[k, :].T
-                                CY = Mat_coefY[k, :].T
-
-                                BX = (
-                                    np.matmul(CX, PP)
-                                    + KXW * self.Theta_vol[ki, kj - 1, n_p]
-                                    + KXP * self.Theta_vol[ki, kj, n_p]
-                                )
-                                BY = (
-                                    np.matmul(CY, PP)
-                                    + KYW * self.Theta_vol[ki, kj - 1, n_p]
-                                    + KYP * self.Theta_vol[ki, kj, n_p]
-                                )
-
-                                PX[ki, kj, n_p] = (BX - np.matmul(C, PPX)) / Mat_coef[
-                                    k, k
-                                ]
-                                PY[ki, kj, n_p] = (BY - np.matmul(C, PPY)) / Mat_coef[
-                                    k, k
-                                ]
-
-                            if (
-                                kj > 0
-                                and kj < self.elements_circumferential - 1
-                                and ki > 0
-                                and ki < self.elements_axial - 1
-                            ):
-                                Mat_coef[k, k] = CP
-                                Mat_coef[k, k + 1] = CE
-                                Mat_coef[k, k - 1] = CW
-                                Mat_coef[k, k + self.elements_circumferential] = CN
-                                Mat_coef[k, k - self.elements_circumferential] = CS
-
-                                Mat_coefX[k, k] = CXP
-                                Mat_coefX[k, k + 1] = CXE
-                                Mat_coefX[k, k - 1] = CXW
-                                Mat_coefX[k, k + self.elements_circumferential] = CXN
-                                Mat_coefX[k, k - self.elements_circumferential] = CXS
-
-                                Mat_coefY[k, k] = CYP
-                                Mat_coefY[k, k + 1] = CYE
-                                Mat_coefY[k, k - 1] = CYW
-                                Mat_coefY[k, k + self.elements_circumferential] = CYN
-                                Mat_coefY[k, k - self.elements_circumferential] = CYS
-
-                                C = Mat_coef[k, :].T
-                                C = np.delete(C, k)
-
-                                CX = Mat_coefX[k, :].T
-                                CY = Mat_coefY[k, :].T
-
-                                BX = (
-                                    np.matmul(CX, PP)
-                                    + KXW * self.Theta_vol[ki, kj - 1, n_p]
-                                    + KXP * self.Theta_vol[ki, kj, n_p]
-                                )
-                                BY = (
-                                    np.matmul(CY, PP)
-                                    + KYW * self.Theta_vol[ki, kj - 1, n_p]
-                                    + KYP * self.Theta_vol[ki, kj, n_p]
-                                )
-
-                                PX[ki, kj, n_p] = (BX - np.matmul(C, PPX)) / Mat_coef[
-                                    k, k
-                                ]
-                                PY[ki, kj, n_p] = (BY - np.matmul(C, PPY)) / Mat_coef[
-                                    k, k
-                                ]
-
-                            if (
-                                ki == self.elements_axial - 1
-                                and kj > 0
-                                and kj < self.elements_circumferential - 1
-                            ):
-                                Mat_coef[k, k] = CP - CN
-                                Mat_coef[k, k + 1] = CE
-                                Mat_coef[k, k - 1] = CW
-                                Mat_coef[k, k - self.elements_circumferential] = CS
-
-                                Mat_coefX[k, k] = CXP - CXN
-                                Mat_coefX[k, k + 1] = CXE
-                                Mat_coefX[k, k - 1] = CXW
-                                Mat_coefX[k, k - self.elements_circumferential] = CXS
-
-                                Mat_coefY[k, k] = CYP - CYN
-                                Mat_coefY[k, k + 1] = CYE
-                                Mat_coefY[k, k - 1] = CYW
-                                Mat_coefY[k, k - self.elements_circumferential] = CYS
-
-                                C = Mat_coef[k, :].T
-                                C = np.delete(C, k)
-
-                                CX = Mat_coefX[k, :].T
-                                CY = Mat_coefY[k, :].T
-
-                                BX = (
-                                    np.matmul(CX, PP)
-                                    + KXW * self.Theta_vol[ki, kj - 1, n_p]
-                                    + KXP * self.Theta_vol[ki, kj, n_p]
-                                )
-                                BY = (
-                                    np.matmul(CY, PP)
-                                    + KYW * self.Theta_vol[ki, kj - 1, n_p]
-                                    + KYP * self.Theta_vol[ki, kj, n_p]
-                                )
-
-                                PX[ki, kj, n_p] = (BX - np.matmul(C, PPX)) / Mat_coef[
-                                    k, k
-                                ]
-                                PY[ki, kj, n_p] = (BY - np.matmul(C, PPY)) / Mat_coef[
-                                    k, k
-                                ]
-
-                            if ki == 0 and kj == self.elements_circumferential - 1:
-                                Mat_coef[k, k] = CP - CE - CS
-                                Mat_coef[k, k - 1] = CW
-                                Mat_coef[k, k + self.elements_circumferential] = CN
-
-                                Mat_coefX[k, k] = CXP - CXE - CXS
-                                Mat_coefX[k, k - 1] = CXW
-                                Mat_coefX[k, k + self.elements_circumferential] = CXN
-
-                                Mat_coefY[k, k] = CYP - CYE - CYS
-                                Mat_coefY[k, k - 1] = CYW
-                                Mat_coefY[k, k + self.elements_circumferential] = CYN
-
-                                C = Mat_coef[k, :].T
-                                C = np.delete(C, k)
-
-                                CX = Mat_coefX[k, :].T
-                                CY = Mat_coefY[k, :].T
-
-                                BX = (
-                                    np.matmul(CX, PP)
-                                    + KXW * self.Theta_vol[ki, kj - 1, n_p]
-                                    + KXP * self.Theta_vol[ki, kj, n_p]
-                                )
-                                BY = (
-                                    np.matmul(CY, PP)
-                                    + KYW * self.Theta_vol[ki, kj - 1, n_p]
-                                    + KYP * self.Theta_vol[ki, kj, n_p]
-                                )
-
-                                PX[ki, kj, n_p] = (BX - np.matmul(C, PPX)) / Mat_coef[
-                                    k, k
-                                ]
-                                PY[ki, kj, n_p] = (BY - np.matmul(C, PPY)) / Mat_coef[
-                                    k, k
-                                ]
-
-                            if (
-                                kj == self.elements_circumferential - 1
-                                and ki > 0
-                                and ki < self.elements_axial - 1
-                            ):
-                                Mat_coef[k, k] = CP - CE
-                                Mat_coef[k, k - 1] = CW
-                                Mat_coef[k, k + self.elements_circumferential] = CN
-                                Mat_coef[k, k - self.elements_circumferential] = CS
-
-                                Mat_coefX[k, k] = CXP - CXE
-                                Mat_coefX[k, k - 1] = CXW
-                                Mat_coefX[k, k + self.elements_circumferential] = CXN
-                                Mat_coefX[k, k - self.elements_circumferential] = CXS
-
-                                Mat_coefY[k, k] = CYP - CYE
-                                Mat_coefY[k, k - 1] = CYW
-                                Mat_coefY[k, k + self.elements_circumferential] = CYN
-                                Mat_coefY[k, k - self.elements_circumferential] = CYS
-
-                                C = Mat_coef[k, :].T
-                                C = np.delete(C, k)
-
-                                CX = Mat_coefX[k, :].T
-                                CY = Mat_coefY[k, :].T
-
-                                BX = (
-                                    np.matmul(CX, PP)
-                                    + KXW * self.Theta_vol[ki, kj - 1, n_p]
-                                    + KXP * self.Theta_vol[ki, kj, n_p]
-                                )
-                                BY = (
-                                    np.matmul(CY, PP)
-                                    + KYW * self.Theta_vol[ki, kj - 1, n_p]
-                                    + KYP * self.Theta_vol[ki, kj, n_p]
-                                )
-
-                                PX[ki, kj, n_p] = (BX - np.matmul(C, PPX)) / Mat_coef[
-                                    k, k
-                                ]
-                                PY[ki, kj, n_p] = (BY - np.matmul(C, PPY)) / Mat_coef[
-                                    k, k
-                                ]
-
-                            if (
-                                kj == self.elements_circumferential - 1
-                                and ki == self.elements_axial - 1
-                            ):
-                                Mat_coef[k, k] = CP - CE - CN
-                                Mat_coef[k, k - 1] = CW
-                                Mat_coef[k, k - self.elements_circumferential] = CS
-
-                                Mat_coefX[k, k] = CXP - CXE - CXN
-                                Mat_coefX[k, k - 1] = CXW
-                                Mat_coefX[k, k - self.elements_circumferential] = CXS
-
-                                Mat_coefY[k, k] = CYP - CYE - CYN
-                                Mat_coefY[k, k - 1] = CYW
-                                Mat_coefY[k, k - self.elements_circumferential] = CYS
-
-                                C = Mat_coef[k, :].T
-                                C = np.delete(C, k)
-
-                                CX = Mat_coefX[k, :].T
-                                CY = Mat_coefY[k, :].T
-
-                                BX = (
-                                    np.matmul(CX, PP)
-                                    + KXW * self.Theta_vol[ki, kj - 1, n_p]
-                                    + KXP * self.Theta_vol[ki, kj, n_p]
-                                )
-                                BY = (
-                                    np.matmul(CY, PP)
-                                    + KYW * self.Theta_vol[ki, kj - 1, n_p]
-                                    + KYP * self.Theta_vol[ki, kj, n_p]
-                                )
-
-                                PX[ki, kj, n_p] = (BX - np.matmul(C, PPX)) / Mat_coef[
-                                    k, k
-                                ]
-                                PY[ki, kj, n_p] = (BY - np.matmul(C, PPY)) / Mat_coef[
-                                    k, k
-                                ]
-
-                        k = k + 1
-                        kj = kj + 1
-
-                    kj = 0
-                    ki = ki + 1
-
-                erro = norm(PX - PX_old) + norm(PY - PY_old)
+                        MU_e = 0.5 * (
+                            self.mu_l[ki, kj, n_p] + self.mu_l[ki, kj + 1, n_p]
+                        )
+                        MU_w = 0.5 * (
+                            self.mu_l[ki, kj, n_p] + self.mu_l[ki, kj - 1, n_p]
+                        )
+                        MU_s = 0.5 * (
+                            self.mu_l[ki, kj, n_p] + self.mu_l[ki - 1, kj, n_p]
+                        )
+                        MU_n = 0.5 * (
+                            self.mu_l[ki, kj, n_p] + self.mu_l[ki + 1, kj, n_p]
+                        )
+
+                    if (
+                        ki == self.elements_axial - 1
+                        and kj > 0
+                        and kj < self.elements_circumferential - 1
+                    ):
+                        MU_e = 0.5 * (
+                            self.mu_l[ki, kj, n_p] + self.mu_l[ki, kj + 1, n_p]
+                        )
+                        MU_w = 0.5 * (
+                            self.mu_l[ki, kj, n_p] + self.mu_l[ki, kj - 1, n_p]
+                        )
+                        MU_s = 0.5 * (
+                            self.mu_l[ki, kj, n_p] + self.mu_l[ki - 1, kj, n_p]
+                        )
+                        MU_n = self.mu_l[ki, kj, n_p]
+
+                    if ki == 0 and kj == self.elements_circumferential - 1:
+                        MU_e = self.mu_l[ki, kj, n_p]
+                        MU_w = 0.5 * (
+                            self.mu_l[ki, kj, n_p] + self.mu_l[ki, kj - 1, n_p]
+                        )
+                        MU_s = self.mu_l[ki, kj, n_p]
+                        MU_n = 0.5 * (
+                            self.mu_l[ki, kj, n_p] + self.mu_l[ki + 1, kj, n_p]
+                        )
+
+                    if (
+                        kj == self.elements_circumferential - 1
+                        and ki > 0
+                        and ki < self.elements_axial - 1
+                    ):
+                        MU_e = self.mu_l[ki, kj, n_p]
+                        MU_w = 0.5 * (
+                            self.mu_l[ki, kj, n_p] + self.mu_l[ki, kj - 1, n_p]
+                        )
+                        MU_s = 0.5 * (
+                            self.mu_l[ki, kj, n_p] + self.mu_l[ki - 1, kj, n_p]
+                        )
+                        MU_n = 0.5 * (
+                            self.mu_l[ki, kj, n_p] + self.mu_l[ki + 1, kj, n_p]
+                        )
+
+                    if (
+                        kj == self.elements_circumferential - 1
+                        and ki == self.elements_axial - 1
+                    ):
+                        MU_e = self.mu_l[ki, kj, n_p]
+                        MU_w = 0.5 * (
+                            self.mu_l[ki, kj, n_p] + self.mu_l[ki, kj - 1, n_p]
+                        )
+                        MU_s = 0.5 * (
+                            self.mu_l[ki, kj, n_p] + self.mu_l[ki - 1, kj, n_p]
+                        )
+                        MU_n = self.mu_l[ki, kj, n_p]
+
+                    CE = 1 / self.betha_s**2 * He**3 / (12 * MU_e) * self.dZ / self.dY
+                    CW = 1 / self.betha_s**2 * Hw**3 / (12 * MU_w) * self.dZ / self.dY
+                    CN = (
+                        (self.journal_radius / self.axial_length) ** 2
+                        * HP**3
+                        / (12 * MU_n)
+                        * self.dY
+                        / self.dZ
+                    )
+                    CS = (
+                        (self.journal_radius / self.axial_length) ** 2
+                        * HP**3
+                        / (12 * MU_s)
+                        * self.dY
+                        / self.dZ
+                    )
+                    CP = -(CE + CW + CN + CS)
+
+                    CXE = (
+                        -1
+                        / self.betha_s**2
+                        * He**2
+                        * HXe
+                        / (4 * MU_e)
+                        * self.dZ
+                        / self.dY
+                    )
+                    CXW = (
+                        -1
+                        / self.betha_s**2
+                        * Hw**2
+                        * HXw
+                        / (4 * MU_w)
+                        * self.dZ
+                        / self.dY
+                    )
+                    CXN = (
+                        -((self.journal_radius / self.axial_length) ** 2)
+                        * HP**2
+                        * HXP
+                        / (4 * MU_n)
+                        * self.dY
+                        / self.dZ
+                    )
+                    CXS = (
+                        -((self.journal_radius / self.axial_length) ** 2)
+                        * HP**2
+                        * HXP
+                        / (4 * MU_s)
+                        * self.dY
+                        / self.dZ
+                    )
+                    CXP = -(CXE + CXW + CXN + CXS)
+
+                    CYE = (
+                        -1
+                        / self.betha_s**2
+                        * He**2
+                        * HYe
+                        / (4 * MU_e)
+                        * self.dZ
+                        / self.dY
+                    )
+                    CYW = (
+                        -1
+                        / self.betha_s**2
+                        * Hw**2
+                        * HYw
+                        / (4 * MU_w)
+                        * self.dZ
+                        / self.dY
+                    )
+                    CYN = (
+                        -((self.journal_radius / self.axial_length) ** 2)
+                        * HP**2
+                        * HYP
+                        / (4 * MU_n)
+                        * self.dY
+                        / self.dZ
+                    )
+                    CYS = (
+                        -((self.journal_radius / self.axial_length) ** 2)
+                        * HP**2
+                        * HYP
+                        / (4 * MU_s)
+                        * self.dY
+                        / self.dZ
+                    )
+                    CYP = -(CYE + CYW + CYN + CYS)
+
+                    KXW = -1 / (2 * self.betha_s) * HXw * self.dZ
+                    KXP = (
+                        1 / (2 * self.betha_s) * HXe * self.dZ
+                        + (HXptP + 1j * gamma * HXP) * self.dY * self.dZ
+                    )
+
+                    KYW = -1 / (2 * self.betha_s) * HYw * self.dZ
+                    KYP = (
+                        1 / (2 * self.betha_s) * HYe * self.dZ
+                        + (HYptP + 1j * gamma * HYP) * self.dY * self.dZ
+                    )
+
+                    PP = self.P[:, :, n_p].flatten()
+
+                    if kj == 0 and ki == 0:
+                        Mat_coef[k, k] = CP - CW - CS
+                        Mat_coef[k, k + 1] = CE
+                        Mat_coef[k, k + self.elements_circumferential] = CN
+
+                        Mat_coefX[k, k] = CXP - CXW - CXS
+                        Mat_coefX[k, k + 1] = CXE
+                        Mat_coefX[k, k + self.elements_circumferential] = CXN
+
+                        Mat_coefY[k, k] = CYP - CYW - CYS
+                        Mat_coefY[k, k + 1] = CYE
+                        Mat_coefY[k, k + self.elements_circumferential] = CYN
+
+                        CX = Mat_coefX[k, :].T
+                        CY = Mat_coefY[k, :].T
+
+                        BX[k] = (
+                            np.matmul(CX, PP)
+                            + KXW * self.theta_vol_groove[n_p]
+                            + KXP * self.Theta_vol[ki, kj, n_p]
+                            + 2 * CXW * self.oil_supply_pressure
+                        )
+                        BY[k] = (
+                            np.matmul(CY, PP)
+                            + KYW * self.theta_vol_groove[n_p]
+                            + KYP * self.Theta_vol[ki, kj, n_p]
+                            + 2 * CYW * self.oil_supply_pressure
+                        )
+
+                    if kj == 0 and ki > 0 and ki < self.elements_axial - 1:
+                        Mat_coef[k, k] = CP - CW
+                        Mat_coef[k, k + 1] = CE
+                        Mat_coef[k, k + self.elements_circumferential] = CN
+                        Mat_coef[k, k - self.elements_circumferential] = CS
+
+                        Mat_coefX[k, k] = CXP - CXW
+                        Mat_coefX[k, k + 1] = CXE
+                        Mat_coefX[k, k + self.elements_circumferential] = CXN
+                        Mat_coefX[k, k - self.elements_circumferential] = CXS
+
+                        Mat_coefY[k, k] = CYP - CYW
+                        Mat_coefY[k, k + 1] = CYE
+                        Mat_coefY[k, k + self.elements_circumferential] = CYN
+                        Mat_coefY[k, k - self.elements_circumferential] = CYS
+
+                        CX = Mat_coefX[k, :].T
+                        CY = Mat_coefY[k, :].T
+
+                        BX[k] = (
+                            np.matmul(CX, PP)
+                            + KXW * self.theta_vol_groove[n_p]
+                            + KXP * self.Theta_vol[ki, kj, n_p]
+                            + 2 * CXW * self.oil_supply_pressure
+                        )
+                        BY[k] = (
+                            np.matmul(CY, PP)
+                            + KYW * self.theta_vol_groove[n_p]
+                            + KYP * self.Theta_vol[ki, kj, n_p]
+                            + 2 * CYW * self.oil_supply_pressure
+                        )
+
+                    if kj == 0 and ki == self.elements_axial - 1:
+                        Mat_coef[k, k] = CP - CW - CN
+                        Mat_coef[k, k + 1] = CE
+                        Mat_coef[k, k - self.elements_circumferential] = CS
+
+                        Mat_coefX[k, k] = CXP - CXW - CXN
+                        Mat_coefX[k, k + 1] = CXE
+                        Mat_coefX[k, k - self.elements_circumferential] = CXS
+
+                        Mat_coefY[k, k] = CYP - CYW - CYN
+                        Mat_coefY[k, k + 1] = CYE
+                        Mat_coefY[k, k - self.elements_circumferential] = CYS
+
+                        CX = Mat_coefX[k, :].T
+                        CY = Mat_coefY[k, :].T
+
+                        BX[k] = (
+                            np.matmul(CX, PP)
+                            + KXW * self.theta_vol_groove[n_p]
+                            + KXP * self.Theta_vol[ki, kj, n_p]
+                            + 2 * CXW * self.oil_supply_pressure
+                        )
+                        BY[k] = (
+                            np.matmul(CY, PP)
+                            + KYW * self.theta_vol_groove[n_p]
+                            + KYP * self.Theta_vol[ki, kj, n_p]
+                            + 2 * CYW * self.oil_supply_pressure
+                        )
+
+                    if ki == 0 and kj > 0 and kj < self.elements_circumferential - 1:
+                        Mat_coef[k, k] = CP - CS
+                        Mat_coef[k, k + 1] = CE
+                        Mat_coef[k, k - 1] = CW
+                        Mat_coef[k, k + self.elements_circumferential] = CN
+
+                        Mat_coefX[k, k] = CXP - CXS
+                        Mat_coefX[k, k + 1] = CXE
+                        Mat_coefX[k, k - 1] = CXW
+                        Mat_coefX[k, k + self.elements_circumferential] = CXN
+
+                        Mat_coefY[k, k] = CYP - CYS
+                        Mat_coefY[k, k + 1] = CYE
+                        Mat_coefY[k, k - 1] = CYW
+                        Mat_coefY[k, k + self.elements_circumferential] = CYN
+
+                        CX = Mat_coefX[k, :].T
+                        CY = Mat_coefY[k, :].T
+
+                        BX[k] = (
+                            np.matmul(CX, PP)
+                            + KXW * self.Theta_vol[ki, kj - 1, n_p]
+                            + KXP * self.Theta_vol[ki, kj, n_p]
+                        )
+                        BY[k] = (
+                            np.matmul(CY, PP)
+                            + KYW * self.Theta_vol[ki, kj - 1, n_p]
+                            + KYP * self.Theta_vol[ki, kj, n_p]
+                        )
+
+                    if (
+                        kj > 0
+                        and kj < self.elements_circumferential - 1
+                        and ki > 0
+                        and ki < self.elements_axial - 1
+                    ):
+                        Mat_coef[k, k] = CP
+                        Mat_coef[k, k + 1] = CE
+                        Mat_coef[k, k - 1] = CW
+                        Mat_coef[k, k + self.elements_circumferential] = CN
+                        Mat_coef[k, k - self.elements_circumferential] = CS
+
+                        Mat_coefX[k, k] = CXP
+                        Mat_coefX[k, k + 1] = CXE
+                        Mat_coefX[k, k - 1] = CXW
+                        Mat_coefX[k, k + self.elements_circumferential] = CXN
+                        Mat_coefX[k, k - self.elements_circumferential] = CXS
+
+                        Mat_coefY[k, k] = CYP
+                        Mat_coefY[k, k + 1] = CYE
+                        Mat_coefY[k, k - 1] = CYW
+                        Mat_coefY[k, k + self.elements_circumferential] = CYN
+                        Mat_coefY[k, k - self.elements_circumferential] = CYS
+
+                        CX = Mat_coefX[k, :].T
+                        CY = Mat_coefY[k, :].T
+
+                        BX[k] = (
+                            np.matmul(CX, PP)
+                            + KXW * self.Theta_vol[ki, kj - 1, n_p]
+                            + KXP * self.Theta_vol[ki, kj, n_p]
+                        )
+                        BY[k] = (
+                            np.matmul(CY, PP)
+                            + KYW * self.Theta_vol[ki, kj - 1, n_p]
+                            + KYP * self.Theta_vol[ki, kj, n_p]
+                        )
+
+                    if (
+                        ki == self.elements_axial - 1
+                        and kj > 0
+                        and kj < self.elements_circumferential - 1
+                    ):
+                        Mat_coef[k, k] = CP - CN
+                        Mat_coef[k, k + 1] = CE
+                        Mat_coef[k, k - 1] = CW
+                        Mat_coef[k, k - self.elements_circumferential] = CS
+
+                        Mat_coefX[k, k] = CXP - CXN
+                        Mat_coefX[k, k + 1] = CXE
+                        Mat_coefX[k, k - 1] = CXW
+                        Mat_coefX[k, k - self.elements_circumferential] = CXS
+
+                        Mat_coefY[k, k] = CYP - CYN
+                        Mat_coefY[k, k + 1] = CYE
+                        Mat_coefY[k, k - 1] = CYW
+                        Mat_coefY[k, k - self.elements_circumferential] = CYS
+
+                        CX = Mat_coefX[k, :].T
+                        CY = Mat_coefY[k, :].T
+
+                        BX[k] = (
+                            np.matmul(CX, PP)
+                            + KXW * self.Theta_vol[ki, kj - 1, n_p]
+                            + KXP * self.Theta_vol[ki, kj, n_p]
+                        )
+                        BY[k] = (
+                            np.matmul(CY, PP)
+                            + KYW * self.Theta_vol[ki, kj - 1, n_p]
+                            + KYP * self.Theta_vol[ki, kj, n_p]
+                        )
+
+                    if ki == 0 and kj == self.elements_circumferential - 1:
+                        Mat_coef[k, k] = CP - CE - CS
+                        Mat_coef[k, k - 1] = CW
+                        Mat_coef[k, k + self.elements_circumferential] = CN
+
+                        Mat_coefX[k, k] = CXP - CXE - CXS
+                        Mat_coefX[k, k - 1] = CXW
+                        Mat_coefX[k, k + self.elements_circumferential] = CXN
+
+                        Mat_coefY[k, k] = CYP - CYE - CYS
+                        Mat_coefY[k, k - 1] = CYW
+                        Mat_coefY[k, k + self.elements_circumferential] = CYN
+
+                        CX = Mat_coefX[k, :].T
+                        CY = Mat_coefY[k, :].T
+
+                        BX[k] = (
+                            np.matmul(CX, PP)
+                            + KXW * self.Theta_vol[ki, kj - 1, n_p]
+                            + KXP * self.Theta_vol[ki, kj, n_p]
+                        )
+                        BY[k] = (
+                            np.matmul(CY, PP)
+                            + KYW * self.Theta_vol[ki, kj - 1, n_p]
+                            + KYP * self.Theta_vol[ki, kj, n_p]
+                        )
+
+                    if (
+                        kj == self.elements_circumferential - 1
+                        and ki > 0
+                        and ki < self.elements_axial - 1
+                    ):
+                        Mat_coef[k, k] = CP - CE
+                        Mat_coef[k, k - 1] = CW
+                        Mat_coef[k, k + self.elements_circumferential] = CN
+                        Mat_coef[k, k - self.elements_circumferential] = CS
+
+                        Mat_coefX[k, k] = CXP - CXE
+                        Mat_coefX[k, k - 1] = CXW
+                        Mat_coefX[k, k + self.elements_circumferential] = CXN
+                        Mat_coefX[k, k - self.elements_circumferential] = CXS
+
+                        Mat_coefY[k, k] = CYP - CYE
+                        Mat_coefY[k, k - 1] = CYW
+                        Mat_coefY[k, k + self.elements_circumferential] = CYN
+                        Mat_coefY[k, k - self.elements_circumferential] = CYS
+
+                        CX = Mat_coefX[k, :].T
+                        CY = Mat_coefY[k, :].T
+
+                        BX[k] = (
+                            np.matmul(CX, PP)
+                            + KXW * self.Theta_vol[ki, kj - 1, n_p]
+                            + KXP * self.Theta_vol[ki, kj, n_p]
+                        )
+                        BY[k] = (
+                            np.matmul(CY, PP)
+                            + KYW * self.Theta_vol[ki, kj - 1, n_p]
+                            + KYP * self.Theta_vol[ki, kj, n_p]
+                        )
+
+                    if (
+                        kj == self.elements_circumferential - 1
+                        and ki == self.elements_axial - 1
+                    ):
+                        Mat_coef[k, k] = CP - CE - CN
+                        Mat_coef[k, k - 1] = CW
+                        Mat_coef[k, k - self.elements_circumferential] = CS
+
+                        Mat_coefX[k, k] = CXP - CXE - CXN
+                        Mat_coefX[k, k - 1] = CXW
+                        Mat_coefX[k, k - self.elements_circumferential] = CXS
+
+                        Mat_coefY[k, k] = CYP - CYE - CYN
+                        Mat_coefY[k, k - 1] = CYW
+                        Mat_coefY[k, k - self.elements_circumferential] = CYS
+
+                        CX = Mat_coefX[k, :].T
+                        CY = Mat_coefY[k, :].T
+
+                        BX[k] = (
+                            np.matmul(CX, PP)
+                            + KXW * self.Theta_vol[ki, kj - 1, n_p]
+                            + KXP * self.Theta_vol[ki, kj, n_p]
+                        )
+                        BY[k] = (
+                            np.matmul(CY, PP)
+                            + KYW * self.Theta_vol[ki, kj - 1, n_p]
+                            + KYP * self.Theta_vol[ki, kj, n_p]
+                        )
+
+                    k = k + 1
+                    kj = kj + 1
+
+                kj = 0
+                ki = ki + 1
+
+            PX[:, :, n_p] = _solve(Mat_coef, BX).reshape(
+                (self.elements_axial, self.elements_circumferential)
+            )
+            PY[:, :, n_p] = _solve(Mat_coef, BY).reshape(
+                (self.elements_axial, self.elements_circumferential)
+            )
+
+            PX[:, :, n_p] = np.where(self.P[:, :, n_p] == 0, 0, PX[:, :, n_p])
+            PY[:, :, n_p] = np.where(self.P[:, :, n_p] == 0, 0, PY[:, :, n_p])
 
         PXdim = (
             PX
@@ -1912,7 +1818,9 @@ class PlainJournal(BearingElement):
 
 
 @njit
-def _evaluate_bearing_clearance(X, Y, theta, dtheta, geometry, preload, theta_pivot):
+def _evaluate_bearing_clearance(
+    X, Y, theta, dtheta, geometry, preload, theta_pivot, rotation_angle
+):
     if geometry == "circular":
         hp = 1 - X * np.cos(theta) - Y * np.sin(theta)
         he = 1 - X * np.cos(theta + 0.5 * dtheta) - Y * np.sin(theta + 0.5 * dtheta)
@@ -1941,19 +1849,25 @@ def _evaluate_bearing_clearance(X, Y, theta, dtheta, geometry, preload, theta_pi
     elif geometry == "elliptical":
         hp = (
             1
-            + preload / (1 - preload) * (np.cos(theta)) ** 2
+            + preload
+            / (1 - preload)
+            * (np.cos(theta - np.radians(rotation_angle))) ** 2
             - X * np.cos(theta)
             - Y * np.sin(theta)
         )
         he = (
             1
-            + preload / (1 - preload) * (np.cos(theta + 0.5 * dtheta)) ** 2
+            + preload
+            / (1 - preload)
+            * (np.cos(theta + 0.5 * dtheta - np.radians(rotation_angle))) ** 2
             - X * np.cos(theta + 0.5 * dtheta)
             - Y * np.sin(theta + 0.5 * dtheta)
         )
         hw = (
             1
-            + preload / (1 - preload) * (np.cos(theta - 0.5 * dtheta)) ** 2
+            + preload
+            / (1 - preload)
+            * (np.cos(theta - 0.5 * dtheta - np.radians(rotation_angle))) ** 2
             - X * np.cos(theta - 0.5 * dtheta)
             - Y * np.sin(theta - 0.5 * dtheta)
         )
@@ -2037,6 +1951,7 @@ def _flooded(
     geometry,
     preload,
     theta_pivot,
+    rotation_angle,
 ):
     kj = 0
     k = 0
@@ -2044,7 +1959,7 @@ def _flooded(
     for ki in range(elm_axi):
         for theta in theta_range:
             he, hw, hn, hs, hp = _evaluate_bearing_clearance(
-                X, Y, theta, dtheta, geometry, preload, theta_pivot
+                X, Y, theta, dtheta, geometry, preload, theta_pivot, rotation_angle
             )
 
             film_thickness[kj] = hp
