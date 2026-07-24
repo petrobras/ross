@@ -523,6 +523,7 @@ class TiltingPad(BearingElement):
             pad_arc=self.pad_arc,
             z1=self.z1,
             z2=self.z2,
+            offset=getattr(self, "offset", None),
             T_pad=self.T_pad,
             T_pad_surface=self.T_pad_surface,
             r_pad=getattr(self, "r_pad", None),

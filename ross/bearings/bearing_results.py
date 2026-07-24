@@ -1,3 +1,4 @@
+import warnings
 from abc import ABC, abstractmethod
 
 import numpy as np
@@ -7,6 +8,7 @@ from prettytable import PrettyTable
 from scipy.interpolate import griddata
 
 from ross.plotly_theme import tableau_colors
+from ross.units import Q_
 
 __all__ = [
     "BearingResults",
@@ -15,6 +17,35 @@ __all__ = [
     "PlainJournalResults",
     "SqueezeFilmDamperResults",
 ]
+
+
+def _structured_grid_triangles(node_grid):
+    """Triangulate a structured 2-D grid of node indices.
+
+    Each cell of the grid is split into two triangles, giving the ``i, j, k``
+    vertex arrays a ``plotly.graph_objects.Mesh3d`` needs.
+
+    Parameters
+    ----------
+    node_grid : ndarray, shape (n_rows, n_cols)
+        Node indices arranged as a structured grid.
+
+    Returns
+    -------
+    triangles : ndarray, shape (2 * (n_rows - 1) * (n_cols - 1), 3)
+        Vertex indices, three per triangle.
+    """
+    node_grid = np.asarray(node_grid)
+
+    corner_a = node_grid[:-1, :-1]
+    corner_b = node_grid[1:, :-1]
+    corner_c = node_grid[1:, 1:]
+    corner_d = node_grid[:-1, 1:]
+
+    lower = np.stack([corner_a, corner_b, corner_c], axis=-1).reshape(-1, 3)
+    upper = np.stack([corner_a, corner_c, corner_d], axis=-1).reshape(-1, 3)
+
+    return np.concatenate([lower, upper], axis=0)
 
 
 class BearingResults(ABC):
@@ -103,14 +134,21 @@ class BearingResults(ABC):
         -------
         figures : dict
             Dictionary with keys ``"pressure_2d"``, ``"pressure_3d"``,
-            ``"temperature_2d"``, and ``"temperature_3d"``.  Each value is a
-            ``plotly.graph_objects.Figure``.
+            ``"temperature_2d"``, and ``"film_temperature_3d"``.  Each value is
+            a ``plotly.graph_objects.Figure``.
+
+            .. versionchanged:: 2.4.0
+                The ``"temperature_3d"`` key was renamed to
+                ``"film_temperature_3d"`` to match
+                :meth:`plot_film_temperature_3d`.
         """
         figures = {
             "pressure_2d": self.plot_pressure_2d(freq_index=freq_index),
             "pressure_3d": self.plot_pressure_3d(freq_index=freq_index),
             "temperature_2d": self.plot_temperature_2d(freq_index=freq_index),
-            "temperature_3d": self.plot_temperature_3d(freq_index=freq_index),
+            "film_temperature_3d": self.plot_film_temperature_3d(
+                freq_index=freq_index
+            ),
         }
 
         if show_plots:
@@ -173,8 +211,13 @@ class BearingResults(ABC):
         """
 
     @abstractmethod
-    def plot_temperature_3d(self, freq_index=0, fig=None, **kwargs):
-        """Return a 3-D surface plot of the temperature field.
+    def plot_film_temperature_3d(self, freq_index=0, fig=None, **kwargs):
+        """Return a 3-D surface plot of the oil film temperature field.
+
+        The plotted quantity is the temperature of the lubricant film, drawn as
+        a surface whose height and color both encode temperature.  Solid (pad)
+        temperatures are not shown here — see ``plot_pad_temperature_3d`` where
+        available.
 
         Parameters
         ----------
@@ -187,6 +230,62 @@ class BearingResults(ABC):
         -------
         fig : go.Figure
         """
+
+    def plot_pad_temperature_3d(self, freq_index=0, fig=None, **kwargs):
+        """Return a 3-D mesh of the bearing pads colored by temperature.
+
+        This is the through-pad (circumferential x radial) counterpart of
+        ``plot_film_temperature_3d``: the pad geometry is drawn at its physical
+        position and colored by the solid pad / babbitt temperature, showing how
+        much heat crosses from the film into the pad.
+
+        The method is part of the common bearing plotting API, so it exists on
+        every bearing result class.  Classes whose model does not compute a
+        solid pad temperature field raise ``NotImplementedError``.
+
+        Parameters
+        ----------
+        freq_index : int, optional
+            Frequency index.  Default is 0.
+        fig : go.Figure, optional
+            Existing figure to add the trace to.
+
+        Returns
+        -------
+        fig : go.Figure
+
+        Raises
+        ------
+        NotImplementedError
+            When the bearing model does not provide a solid pad temperature
+            field.
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} does not compute a solid pad temperature "
+            "field, so plot_pad_temperature_3d is not available.  Use "
+            "plot_film_temperature_3d() for the oil film temperature."
+        )
+
+    def plot_temperature_3d(self, *args, **kwargs):
+        """Deprecated alias for :meth:`plot_film_temperature_3d`.
+
+        .. deprecated:: 2.4.0
+            ``plot_temperature_3d`` is deprecated and will be removed in a
+            future version.  Use ``plot_film_temperature_3d`` instead, which
+            states explicitly that the plotted field is the oil film
+            temperature.
+
+        Returns
+        -------
+        fig : go.Figure
+        """
+        warnings.warn(
+            "plot_temperature_3d is deprecated and will be removed in a future "
+            "version. Use plot_film_temperature_3d instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.plot_film_temperature_3d(*args, **kwargs)
 
     @abstractmethod
     def plot_temperature_2d(self, freq_index=0, fig=None, **kwargs):
@@ -308,6 +407,7 @@ class TiltingPadResults(BearingResults):
         optimization_history,
         oil_supply_temperature=None,
         pad_arc=None,
+        offset=None,
         z1=None,
         z2=None,
         T_pad=None,
@@ -353,6 +453,7 @@ class TiltingPadResults(BearingResults):
         self.optimization_history = optimization_history
         self.oil_supply_temperature = oil_supply_temperature
         self.pad_arc = pad_arc
+        self.offset = offset
         self.z1 = z1
         self.z2 = z2
         self.T_pad = T_pad
@@ -665,8 +766,205 @@ class TiltingPadResults(BearingResults):
             **kwargs,
         )
 
-    def plot_temperature_3d(self, freq_index=0, pad_index=None, fig=None, **kwargs):
-        """Return a 3-D surface plot of the temperature field for one pad.
+    def plot_pad_temperature_3d(
+        self,
+        freq_index=0,
+        length_units="m",
+        temperature_units="degC",
+        colorscale="Viridis",
+        show_interface=True,
+        fig=None,
+        **kwargs,
+    ):
+        """Return a 3-D mesh of the pads colored by solid pad temperature.
+
+        Each pad is drawn at its true angular position as a hexahedral mesh
+        spanning the pad thickness, from the babbitt surface (inner radius) to
+        the pad back (outer radius), and extruded over the pad axial length.
+        The mesh is colored by the solid pad conduction field ``T_pad``, which
+        is resolved over ``nr_pad`` radial stations — so the temperature drop
+        through the pad thickness is shown continuously rather than at a few
+        discrete layers.
+
+        This is the through-pad (circumferential x radial) counterpart of
+        ``plot_film_temperature_3d``.  The pad solver does not resolve the solid
+        temperature along the bearing axis, so the axial extrusion is geometric
+        and each ring carries the same temperature at both axial faces.
+
+        Parameters
+        ----------
+        freq_index : int, optional
+            Frequency index.  Default is 0.  The tilting pad solver keeps a
+            single ``T_pad`` field, so only index 0 is accepted; see *Raises*.
+        length_units : str, optional
+            Units for the x, y and z axes.  Default is "m".
+        temperature_units : str, optional
+            Units for the temperature color scale.  Default is "degC".
+        colorscale : str, optional
+            Plotly colorscale used for the temperature.  Default is "Viridis".
+        show_interface : bool, optional
+            Outline the babbitt surface of each pad with a dashed red line.
+            Default is True.
+        fig : go.Figure, optional
+            Existing figure to add the trace to.
+        kwargs : optional
+            Additional keyword arguments passed to ``fig.update_layout``.
+
+        Returns
+        -------
+        fig : go.Figure
+
+        Raises
+        ------
+        ValueError
+            When the solid pad temperature field is not available (the bearing
+            was run without thermal coupling), or when ``freq_index`` is not 0.
+            Only the last solved operating point is stored in ``T_pad``, so
+            indexing other frequencies would silently return the wrong field.
+        """
+        missing = [
+            name
+            for name in ("T_pad", "r_pad", "ntheta_pad", "pad_arc")
+            if getattr(self, name) is None
+        ]
+        if missing:
+            raise ValueError(
+                f"Solid pad temperature data not available (missing: "
+                f"{', '.join(missing)}).  Run the bearing solution with thermal "
+                "coupling first."
+            )
+
+        if freq_index != 0:
+            raise ValueError(
+                "TiltingPad stores a single solid pad temperature field, "
+                f"corresponding to the last solved speed, so freq_index must be "
+                f"0 (got {freq_index})."
+            )
+
+        T_pad = Q_(np.asarray(self.T_pad), "degC").to(temperature_units).m
+        radius = Q_(np.asarray(self.r_pad), "m").to(length_units).m
+        axial_length = Q_(self.pad_axial_length, "m").to(length_units).m
+
+        # local pad angle is measured from the pivot, which sits at ``offset``
+        # of the way along the arc; assume a centered pivot when not recorded
+        offset = 0.5 if self.offset is None else self.offset
+        theta_local = np.linspace(
+            -offset * self.pad_arc, (1 - offset) * self.pad_arc, self.ntheta_pad
+        )
+        z_planes = np.array([-axial_length / 2, axial_length / 2])
+
+        n_theta, n_radial = self.ntheta_pad, len(radius)
+        x, y, z, temperature, triangles = [], [], [], [], []
+        interface_x, interface_y, interface_z = [], [], []
+        n_nodes = 0
+
+        for pad in range(self.n_pad):
+            theta = self.pivot_angle[pad] + theta_local
+
+            # nodes ordered (theta, radius, axial plane)
+            theta_mesh, radius_mesh, z_mesh = np.meshgrid(
+                theta, radius, z_planes, indexing="ij"
+            )
+            x.append((radius_mesh * np.cos(theta_mesh)).ravel())
+            y.append((radius_mesh * np.sin(theta_mesh)).ravel())
+            z.append(z_mesh.ravel())
+            temperature.append(np.repeat(T_pad[pad], 2))
+
+            node = n_nodes + np.arange(n_theta * n_radial * 2).reshape(
+                n_theta, n_radial, 2
+            )
+            # the six boundary faces of the structured block
+            for face in (
+                node[:, 0, :],
+                node[:, -1, :],
+                node[:, :, 0],
+                node[:, :, 1],
+                node[0, :, :],
+                node[-1, :, :],
+            ):
+                triangles.append(_structured_grid_triangles(face))
+
+            if show_interface:
+                # closed loop on the babbitt surface, nudged just past the pad
+                # faces so the mesh does not hide it
+                z_edge = 1.004 * axial_length / 2
+                loop_theta = np.concatenate([theta, theta[::-1], theta[:1]])
+                loop_z = np.concatenate(
+                    [np.full(n_theta, -z_edge), np.full(n_theta, z_edge), [-z_edge]]
+                )
+                interface_x.append(radius[0] * np.cos(loop_theta))
+                interface_y.append(radius[0] * np.sin(loop_theta))
+                interface_z.append(loop_z)
+                # gap separating this pad's loop from the next one
+                interface_x.append([np.nan])
+                interface_y.append([np.nan])
+                interface_z.append([np.nan])
+
+            n_nodes += n_theta * n_radial * 2
+
+        triangles = np.concatenate(triangles)
+
+        if fig is None:
+            fig = go.Figure()
+
+        fig.add_trace(
+            go.Mesh3d(
+                x=np.concatenate(x),
+                y=np.concatenate(y),
+                z=np.concatenate(z),
+                i=triangles[:, 0],
+                j=triangles[:, 1],
+                k=triangles[:, 2],
+                intensity=np.concatenate(temperature),
+                colorscale=colorscale,
+                colorbar=dict(title=dict(text=f"Temperature ({temperature_units})")),
+                flatshading=True,
+                name="Pad temperature",
+                hovertemplate=(
+                    f"x: %{{x:.4g}} {length_units}<br>"
+                    f"y: %{{y:.4g}} {length_units}<br>"
+                    f"z: %{{z:.4g}} {length_units}<br>"
+                    f"Temperature: %{{intensity:.5g}} {temperature_units}"
+                    "<extra></extra>"
+                ),
+            )
+        )
+
+        if show_interface:
+            fig.add_trace(
+                go.Scatter3d(
+                    x=np.concatenate(interface_x),
+                    y=np.concatenate(interface_y),
+                    z=np.concatenate(interface_z),
+                    mode="lines",
+                    line=dict(color="red", width=3, dash="dash"),
+                    name="Babbitt surface",
+                )
+            )
+
+        fig.update_layout(
+            title=dict(text="Tilting Pad — Solid Pad Temperature"),
+            scene=dict(
+                xaxis_title=f"X ({length_units})",
+                yaxis_title=f"Y ({length_units})",
+                zaxis_title=f"Z ({length_units})",
+                aspectmode="data",
+            ),
+            legend=dict(x=0.02, y=0.98, xanchor="left", yanchor="top"),
+            **kwargs,
+        )
+
+        return fig
+
+    def plot_film_temperature_3d(
+        self, freq_index=0, pad_index=None, fig=None, **kwargs
+    ):
+        """Return a 3-D surface plot of the oil film temperature for one pad.
+
+        The surface spans the circumferential direction (``xtheta``) and the
+        axial direction (``xz``); height and color both encode the film
+        temperature in °C.  For the solid pad (babbitt) temperature see
+        ``plot_solid_pad_results``.
 
         Parameters
         ----------
@@ -808,7 +1106,7 @@ class TiltingPadResults(BearingResults):
         -------
         figures : dict
             Dictionary with keys ``"pressure_2d"``, ``"pressure_3d"``,
-            ``"temperature_2d"``, ``"temperature_3d"``,
+            ``"temperature_2d"``, ``"film_temperature_3d"``,
             ``"pressure_scatter"``, and ``"temperature_scatter"``.
         """
         figures = super().plot_results(show_plots=False, freq_index=freq_index)
@@ -1860,8 +2158,11 @@ class ThrustPadResults(BearingResults):
 
         return fig
 
-    def plot_temperature_3d(self, freq_index=0, fig=None, **kwargs):
-        """Return a 3-D surface plot of the temperature field.
+    def plot_film_temperature_3d(self, freq_index=0, fig=None, **kwargs):
+        """Return a 3-D surface plot of the oil film temperature field.
+
+        The surface spans the Cartesian pad coordinates X and Y; height and
+        color both encode the film temperature in °C.
 
         Parameters
         ----------
@@ -2397,8 +2698,11 @@ class PlainJournalResults(BearingResults):
 
         return fig
 
-    def plot_temperature_3d(self, freq_index=0, fig=None, **kwargs):
-        """Return a 3-D surface plot of the temperature field (theta vs z).
+    def plot_film_temperature_3d(self, freq_index=0, fig=None, **kwargs):
+        """Return a 3-D surface plot of the oil film temperature (theta vs z).
+
+        The surface spans the circumferential angle theta and the axial
+        coordinate z; height and color both encode the film temperature in °C.
 
         Parameters
         ----------
@@ -2810,7 +3114,7 @@ class SqueezeFilmDamperResults(BearingResults):
 
     The SFD uses closed-form analytical expressions; no numerical pressure or
     temperature fields are solved.  The four abstract field-plot methods
-    (``plot_pressure_3d``, ``plot_pressure_2d``, ``plot_temperature_3d``,
+    (``plot_pressure_3d``, ``plot_pressure_2d``, ``plot_film_temperature_3d``,
     ``plot_temperature_2d``) therefore raise ``NotImplementedError``.  Use
     ``plot_coefficients()`` to visualise the computed results.
 
@@ -3049,7 +3353,7 @@ class SqueezeFilmDamperResults(BearingResults):
             "is computed.  Use plot_coefficients() instead."
         )
 
-    def plot_temperature_3d(self, freq_index=0, fig=None, **kwargs):
+    def plot_film_temperature_3d(self, freq_index=0, fig=None, **kwargs):
         """Not available for SqueezeFilmDamper (analytical model).
 
         Raises

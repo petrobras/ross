@@ -590,13 +590,143 @@ def test_tilting_pad_plot_pressure_2d(tilting_pad_results):
         assert_contour_z_matches(fig.data[pad_index], pressure[:, :, pad_index])
 
 
-def test_tilting_pad_plot_temperature_3d(tilting_pad_results):
-    fig = tilting_pad_results.plot_temperature_3d()
+def test_tilting_pad_plot_film_temperature_3d(tilting_pad_results):
+    fig = tilting_pad_results.plot_film_temperature_3d()
     assert_plotly_figure(fig)
 
     temperature = tilting_pad_results.temperature_fields[0]
     pad_index = int(np.argmax(temperature.max(axis=(0, 1))))
     assert_surface_z_matches(fig.data[0], temperature[:, :, pad_index])
+
+
+@pytest.fixture
+def tilting_pad_results_solid(tilting_pad_results):
+    """Tilting pad results carrying a solid pad conduction field."""
+    n_pad = tilting_pad_results.n_pad
+    ntheta_pad, nr_pad = 6, 4
+
+    tilting_pad_results.T_pad = np.linspace(
+        40.0, 70.0, n_pad * ntheta_pad * nr_pad
+    ).reshape(n_pad, ntheta_pad, nr_pad)
+    tilting_pad_results.ntheta_pad = ntheta_pad
+    tilting_pad_results.pad_radius = 0.05
+    tilting_pad_results.r_pad = np.linspace(0.05, 0.06, nr_pad)
+    tilting_pad_results.pad_arc = np.deg2rad(60.0)
+    tilting_pad_results.offset = 0.5
+
+    return tilting_pad_results
+
+
+def test_plot_pad_temperature_3d_present_on_all_results(
+    tilting_pad_results, thrust_pad_results, plain_journal_results
+):
+    """The name exists on every result class, for a uniform plotting API."""
+    for results in (tilting_pad_results, thrust_pad_results, plain_journal_results):
+        assert hasattr(results, "plot_pad_temperature_3d")
+
+    # implemented for the tilting pad — this fixture just has no field attached
+    with pytest.raises(ValueError, match="Solid pad temperature data not available"):
+        tilting_pad_results.plot_pad_temperature_3d()
+
+    # genuinely unavailable for models that do not solve a solid pad field
+    for results in (thrust_pad_results, plain_journal_results):
+        with pytest.raises(NotImplementedError):
+            results.plot_pad_temperature_3d()
+
+
+def test_tilting_pad_plot_pad_temperature_3d(tilting_pad_results_solid):
+    results = tilting_pad_results_solid
+    fig = results.plot_pad_temperature_3d()
+
+    n_pad, ntheta_pad, nr_pad = results.T_pad.shape
+    mesh = fig.data[0]
+
+    # mesh + dashed babbitt surface outline
+    assert len(fig.data) == 2
+    assert mesh.type == "mesh3d"
+    # one node per (circumferential, radial, axial plane) combination
+    assert len(mesh.x) == n_pad * ntheta_pad * nr_pad * 2
+
+    # colored by the solid pad field, in degC
+    assert np.min(mesh.intensity) == pytest.approx(results.T_pad.min())
+    assert np.max(mesh.intensity) == pytest.approx(results.T_pad.max())
+
+    # the mesh spans the pad thickness, babbitt surface to pad back
+    radius = np.sqrt(np.asarray(mesh.x) ** 2 + np.asarray(mesh.y) ** 2)
+    assert radius.min() == pytest.approx(results.r_pad.min())
+    assert radius.max() == pytest.approx(results.r_pad.max())
+
+    # extruded over the pad axial length
+    assert np.asarray(mesh.z).min() == pytest.approx(-results.pad_axial_length / 2)
+    assert np.asarray(mesh.z).max() == pytest.approx(results.pad_axial_length / 2)
+
+
+def test_tilting_pad_plot_pad_temperature_3d_pads_at_pivot_angles(
+    tilting_pad_results_solid,
+):
+    """Each pad must be drawn centered on its own pivot angle."""
+    results = tilting_pad_results_solid
+    mesh = results.plot_pad_temperature_3d().data[0]
+
+    _, ntheta_pad, nr_pad = results.T_pad.shape
+    nodes_per_pad = ntheta_pad * nr_pad * 2
+    half_arc = results.pad_arc / 2
+
+    for pad in range(results.n_pad):
+        chunk = slice(pad * nodes_per_pad, (pad + 1) * nodes_per_pad)
+        angle = np.arctan2(np.asarray(mesh.y)[chunk], np.asarray(mesh.x)[chunk])
+        # unwrap relative to this pad's pivot, then compare the span
+        offset_angle = np.angle(np.exp(1j * (angle - results.pivot_angle[pad])))
+        assert offset_angle.min() == pytest.approx(-half_arc)
+        assert offset_angle.max() == pytest.approx(half_arc)
+
+
+def test_tilting_pad_plot_pad_temperature_3d_units(tilting_pad_results_solid):
+    results = tilting_pad_results_solid
+    fig = results.plot_pad_temperature_3d(
+        length_units="mm", temperature_units="degF", show_interface=False
+    )
+    mesh = fig.data[0]
+
+    assert len(fig.data) == 1  # interface outline suppressed
+
+    radius = np.sqrt(np.asarray(mesh.x) ** 2 + np.asarray(mesh.y) ** 2)
+    assert radius.max() == pytest.approx(results.r_pad.max() * 1e3)
+    assert np.max(mesh.intensity) == pytest.approx(results.T_pad.max() * 9 / 5 + 32)
+
+
+def test_tilting_pad_plot_pad_temperature_3d_rejects_other_frequencies(
+    tilting_pad_results_solid,
+):
+    """Only one solid field is stored, so a non-zero index must not be accepted."""
+    with pytest.raises(ValueError, match="freq_index"):
+        tilting_pad_results_solid.plot_pad_temperature_3d(freq_index=1)
+
+
+def test_plot_pad_temperature_3d_message_when_model_lacks_field(thrust_pad_results):
+    """Models with no solid pad field say so, and name the class."""
+    with pytest.raises(NotImplementedError, match="ThrustPadResults"):
+        thrust_pad_results.plot_pad_temperature_3d()
+
+
+def test_plot_temperature_3d_deprecated_alias(tilting_pad_results):
+    """The old name still works but warns and returns the same figure."""
+    with pytest.warns(DeprecationWarning, match="plot_film_temperature_3d"):
+        fig = tilting_pad_results.plot_temperature_3d()
+    assert_plotly_figure(fig)
+
+    temperature = tilting_pad_results.temperature_fields[0]
+    pad_index = int(np.argmax(temperature.max(axis=(0, 1))))
+    assert_surface_z_matches(fig.data[0], temperature[:, :, pad_index])
+
+
+def test_plot_temperature_3d_alias_forwards_kwargs(tilting_pad_results):
+    """The alias must forward subclass-specific kwargs such as pad_index."""
+    with pytest.warns(DeprecationWarning):
+        fig = tilting_pad_results.plot_temperature_3d(pad_index=1)
+
+    temperature = tilting_pad_results.temperature_fields[0]
+    assert_surface_z_matches(fig.data[0], temperature[:, :, 1])
 
 
 def test_tilting_pad_plot_results(tilting_pad_results):
@@ -605,7 +735,7 @@ def test_tilting_pad_plot_results(tilting_pad_results):
         "pressure_2d",
         "pressure_3d",
         "temperature_2d",
-        "temperature_3d",
+        "film_temperature_3d",
         "pressure_scatter",
         "temperature_scatter",
     }.issubset(figures.keys())
@@ -627,8 +757,8 @@ def test_thrust_pad_plot_pressure_2d(thrust_pad_results):
     )
 
 
-def test_thrust_pad_plot_temperature_3d(thrust_pad_results):
-    fig = thrust_pad_results.plot_temperature_3d()
+def test_thrust_pad_plot_film_temperature_3d(thrust_pad_results):
+    fig = thrust_pad_results.plot_film_temperature_3d()
     assert_plotly_figure(fig)
     assert_surface_z_matches(fig.data[0], thrust_pad_results.temperature_fields[0])
 
