@@ -237,7 +237,7 @@ class MultiRotor(Rotor):
             orientation_angle=orientation_angle,
         )
 
-        self.K_coupling = self.calculate_coupling_matrix()
+        self.K_coupling = self.compute_coupling_matrix()
 
         if self.mesh.backlash:
             self.add_coupling_stiffness = lambda K0: K0
@@ -411,7 +411,7 @@ class MultiRotor(Rotor):
 
         return speed
 
-    def calculate_coupling_matrix(self):
+    def compute_coupling_matrix(self):
         """Coupling matrix of two coupled gears.
 
         Returns
@@ -759,7 +759,7 @@ class MultiRotor(Rotor):
             updated_forces = lambda step, **curr_state: (
                 forces(step, **curr_state)
                 + reduce_model[1](
-                    self.mesh.backlash.calculate_force(
+                    self.mesh.backlash.compute_force(
                         step=step,
                         disp_resp=reduce_model[2](curr_state.get("disp_resp")),
                         velc_resp=reduce_model[2](curr_state.get("velc_resp")),
@@ -793,7 +793,7 @@ class MultiRotor(Rotor):
                     updated_forces(step, **current_state),
                 )
 
-            return rotor_system
+            return rotor_system, updated_forces
 
         return super()._rotor_system_for_integrate(
             rotor, speed, t, reduce_model, updated_forces, **kwargs

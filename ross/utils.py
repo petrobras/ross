@@ -735,7 +735,7 @@ def get_data_from_figure(fig):
     return df
 
 
-def newmark(func, t, y_size, newmark_type="simple", **options):
+def newmark(system_func, rhs_func, t, y_size, newmark_type="simple", **options):
     """Transient solution of the dynamic behavior of the system.
 
     Perform numerical integration using the Newmark method with Newton-Raphson
@@ -815,27 +815,65 @@ def newmark(func, t, y_size, newmark_type="simple", **options):
     ny = y_size
 
     if newmark_type == "robust":
-        print("Using robust integration")
         yout = _converge_robust_newmark(
-            func, args, ny, n_steps, t, progress_interval, gamma, beta, epsilon, tol
+            system_func,
+            rhs_func,
+            args,
+            ny,
+            n_steps,
+            t,
+            progress_interval,
+            gamma,
+            beta,
+            epsilon,
+            tol,
         )
     else:
-        print("Using simple integration")
         yout = _converge_simple_newmark(
-            func, args, ny, n_steps, t, progress_interval, gamma, beta, tol
+            system_func,
+            rhs_func,
+            args,
+            ny,
+            n_steps,
+            t,
+            progress_interval,
+            gamma,
+            beta,
+            tol,
         )
 
     return yout
 
 
-# @dynamic_njit
-# @njit
+@njit(fastmath=True)
+def _residual_newmark(RHS, M, C, K, y, ydot, y2dot):
+    return RHS - (M @ y2dot + C @ ydot + K @ y)
+
+
+@njit(fastmath=True)
+def _jacobian_newmark(M, C, K, gamma, beta, dt):
+    return M + C * gamma * dt + K * beta * (dt**2)
+
+
+@njit(fastmath=True)
+def _update_newmark(y, ydot, y2dot, dy2dot, gamma, beta, dt):
+    y2dot += dy2dot
+    ydot += dy2dot * gamma * dt
+    y += dy2dot * beta * (dt**2)
+
+    return y, ydot, y2dot
+
+
 def _converge_simple_newmark(
-    func, args, ny, n_steps, t, progress_interval, gamma, beta, tol
+    system_func, rhs_func, args, ny, n_steps, t, progress_interval, gamma, beta, tol
 ):
     y0 = np.zeros(ny)
     ydot0 = np.zeros(ny)
     y2dot0 = np.zeros(ny)
+
+    y = np.zeros(ny)
+    ydot = np.zeros(ny)
+    y2dot = np.zeros(ny)
 
     yout = np.zeros((n_steps, ny))
     yout[0, :] = y0
@@ -847,7 +885,7 @@ def _converge_simple_newmark(
 
         dt = t[step] - t[step - 1]
 
-        M, C, K, RHS = func(
+        M, C, K, RHS = system_func(
             step,
             time_step=dt,
             disp_resp=y0,
@@ -856,11 +894,13 @@ def _converge_simple_newmark(
             args=args,
         )
 
-        y2dot = np.zeros(ny)
-        ydot = ydot0 + y2dot0 * (1.0 - gamma) * dt
-        y = y0 + ydot0 * dt + y2dot0 * (0.5 - beta) * (dt**2)
+        y2dot[:] = 0.0
+        ydot[:] = ydot0 + y2dot0 * (1.0 - gamma) * dt
+        y[:] = y0 + ydot0 * dt + y2dot0 * (0.5 - beta) * (dt**2)
 
-        res = RHS - (M @ y2dot + C @ ydot + K @ y)
+        res = _residual_newmark(RHS, M, C, K, y, ydot, y2dot)
+        J = _jacobian_newmark(M, C, K, gamma, beta, dt)
+
         nr_iter = 0
 
         while la.norm(res) >= tol:
@@ -871,14 +911,10 @@ def _converge_simple_newmark(
                     Try decreasing the time step or using robust integration."""
                 )
 
-            J = M + C * gamma * dt + K * beta * (dt**2)
             dy2dot = la.solve(J, res)
+            y[:], ydot[:], y2dot[:] = _update_newmark(y, ydot, y2dot, dy2dot, gamma, beta, dt)
 
-            y2dot += dy2dot
-            ydot += dy2dot * gamma * dt
-            y += dy2dot * beta * (dt**2)
-
-            M, C, K, RHS = func(
+            RHS = rhs_func(
                 step,
                 time_step=dt,
                 disp_resp=y,
@@ -886,25 +922,37 @@ def _converge_simple_newmark(
                 accl_resp=y2dot,
                 args=args,
             )
-            res = RHS - (M @ y2dot + C @ ydot + K @ y)
+            res = _residual_newmark(RHS, M, C, K, y, ydot, y2dot)
 
-        y0 = y
-        ydot0 = ydot
-        y2dot0 = y2dot
+        y0[:] = y[:]
+        ydot0[:] = ydot[:]
+        y2dot0[:] = y2dot[:]
 
         yout[step, :] = y0
 
     return yout
 
 
-# @dynamic_njit
-# @njit
 def _converge_robust_newmark(
-    func, args, ny, n_steps, t, progress_interval, gamma, beta, epsilon, tol
+    system_func,
+    rhs_func,
+    args,
+    ny,
+    n_steps,
+    t,
+    progress_interval,
+    gamma,
+    beta,
+    epsilon,
+    tol,
 ):
     y0 = np.zeros(ny)
     ydot0 = np.zeros(ny)
     y2dot0 = np.zeros(ny)
+
+    y = np.zeros(ny)
+    ydot = np.zeros(ny)
+    y2dot = np.zeros(ny)
 
     yout = np.zeros((n_steps, ny))
     yout[0, :] = y0
@@ -921,12 +969,22 @@ def _converge_robust_newmark(
         dt_min = dt * 1e-4
         dt_max = dt
 
-        while t_curr < t_target:
-            y2dot = np.zeros(ny)
-            ydot = ydot0 + y2dot0 * (1.0 - gamma) * dt
-            y = y0 + ydot0 * dt + y2dot0 * (0.5 - beta) * (dt**2)
+        M, C, K, RHS = system_func(
+            step,
+            time_step=dt,
+            disp_resp=y0,
+            velc_resp=ydot0,
+            accl_resp=y2dot0,
+            args=args,
+        )
+        active_dofs = np.where(RHS != 0)[0]
 
-            M, C, K, RHS = func(
+        while t_curr < t_target:
+            y2dot[:] = 0.0
+            ydot[:] = ydot0 + y2dot0 * (1.0 - gamma) * dt
+            y[:] = y0 + ydot0 * dt + y2dot0 * (0.5 - beta) * (dt**2)
+
+            RHS = rhs_func(
                 step,
                 time_step=dt,
                 disp_resp=y,
@@ -934,32 +992,33 @@ def _converge_robust_newmark(
                 accl_resp=y2dot,
                 args=args,
             )
-            res = RHS - (M @ y2dot + C @ ydot + K @ y)
-            nr_iter = 0
 
-            active_dofs = np.where(RHS != 0)[0]
+            res = _residual_newmark(RHS, M, C, K, y, ydot, y2dot)
+            J0 = _jacobian_newmark(M, C, K, gamma, beta, dt)
+
+            nr_iter = 0
+            converged = True
 
             while la.norm(res) >= tol:
                 nr_iter += 1
-                converged = True
 
                 if nr_iter > 15:
                     converged = False
                     break
 
-                J = M + C * gamma * dt + K * beta * (dt**2)
-
                 # update jacobian with perturbation
                 F_base = RHS
+                J = J0.copy()
 
                 for i in active_dofs:
                     y_i, ydot_i, y2dot_i = y[i], ydot[i], y2dot[i]
 
-                    y2dot[i] += epsilon
-                    ydot[i] += epsilon * gamma * dt
-                    y[i] += epsilon * beta * (dt**2)
+                    # y2dot[i] += epsilon
+                    # ydot[i] += epsilon * gamma * dt
+                    # y[i] += epsilon * beta * (dt**2)
+                    y[i], ydot[i], y2dot[i] = _update_newmark(y[i], ydot[i], y2dot[i], epsilon, gamma, beta, dt)
 
-                    _, _, _, F_pert = func(
+                    F_pert = rhs_func(
                         step,
                         time_step=dt,
                         disp_resp=y,
@@ -973,12 +1032,9 @@ def _converge_robust_newmark(
                     y[i], ydot[i], y2dot[i] = y_i, ydot_i, y2dot_i
 
                 dy2dot = la.solve(J, res)
+                y[:], ydot[:], y2dot[:] = _update_newmark(y, ydot, y2dot, dy2dot, gamma, beta, dt)
 
-                y2dot += dy2dot
-                ydot += dy2dot * gamma * dt
-                y += dy2dot * beta * (dt**2)
-
-                M, C, K, RHS = func(
+                RHS = rhs_func(
                     step,
                     time_step=dt,
                     disp_resp=y,
@@ -986,12 +1042,12 @@ def _converge_robust_newmark(
                     accl_resp=y2dot,
                     args=args,
                 )
-                res = RHS - (M @ y2dot + C @ ydot + K @ y)
+                res = _residual_newmark(RHS, M, C, K, y, ydot, y2dot)
 
             if converged:
-                y0 = y
-                ydot0 = ydot
-                y2dot0 = y2dot
+                y0[:] = y[:]
+                ydot0[:] = ydot[:]
+                y2dot0[:] = y2dot[:]
                 t_curr += dt
 
                 if nr_iter <= 5:

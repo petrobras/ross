@@ -2783,12 +2783,12 @@ class Rotor(object):
                 )
             )
 
-        rotor_system = self._rotor_system_for_integrate(
+        rotor_system, rhs_func = self._rotor_system_for_integrate(
             rotor, speed, t, reduction, forces, **kwargs
         )
 
         size = F.shape[1]
-        response = newmark(rotor_system, t, size, **kwargs)
+        response = newmark(rotor_system, rhs_func, t, size, **kwargs)
         yout = reduction[2](response.T).T
         return t, yout
 
@@ -2854,7 +2854,7 @@ class Rotor(object):
                 forces(step, **current_state),
             )
 
-        return rotor_system
+        return rotor_system, forces
 
     def _init_ambs_for_integrate(self, dt, **kwargs):
         """
@@ -2904,9 +2904,9 @@ class Rotor(object):
             if isinstance(brg, MagneticBearingElement)
         ]
 
-        rotor = deepcopy(self)
-
         if len(magnetic_bearings):
+            rotor = deepcopy(self)
+
             magnetic_force = lambda step, time_step, disp_resp: (
                 self.magnetic_bearing_controller(
                     step, magnetic_bearings, time_step, disp_resp, **kwargs
@@ -2933,6 +2933,7 @@ class Rotor(object):
             ]
 
         else:
+            rotor = self
             magnetic_force = lambda step, time_step, disp_resp: np.zeros(self.ndof)
 
         return rotor, magnetic_force
