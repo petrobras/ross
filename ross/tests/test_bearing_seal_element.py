@@ -465,9 +465,9 @@ def test_magnetic_bearing_same_sensor_and_actuator_node():
         [10],
     ],
 )
-
-
-def test_magnetic_bearing_invalid_sensor_node(invalid_sensor_node,):
+def test_magnetic_bearing_invalid_sensor_node(
+    invalid_sensor_node,
+):
     with pytest.raises(
         TypeError,
         match="sensor_node must be an integer or None",

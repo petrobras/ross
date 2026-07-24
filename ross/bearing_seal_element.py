@@ -2155,12 +2155,10 @@ class MagneticBearingElement(BearingElement):
             else None
         )
         if isinstance(sensor_node, bool) or (
-            sensor_node is not None
-            and not isinstance(sensor_node, (int, np.integer))
+            sensor_node is not None and not isinstance(sensor_node, (int, np.integer))
         ):
             raise TypeError("sensor_node must be an integer or None.")
-        self.sensor_node = int(
-            n if sensor_node is None else sensor_node)
+        self.sensor_node = int(n if sensor_node is None else sensor_node)
 
         # Control system (state matrices and state vector)
         self.A_c = None
