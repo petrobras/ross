@@ -885,18 +885,18 @@ def _converge_simple_newmark(
 
         dt = t[step] - t[step - 1]
 
-        M, C, K, RHS = system_func(
-            step,
-            time_step=dt,
-            disp_resp=y0,
-            velc_resp=ydot0,
-            accl_resp=y2dot0,
-            args=args,
-        )
-
         y2dot[:] = 0.0
         ydot[:] = ydot0 + y2dot0 * (1.0 - gamma) * dt
         y[:] = y0 + ydot0 * dt + y2dot0 * (0.5 - beta) * (dt**2)
+
+        M, C, K, RHS = system_func(
+            step,
+            time_step=dt,
+            disp_resp=y,
+            velc_resp=ydot,
+            accl_resp=y2dot,
+            args=args,
+        )
 
         res = _residual_newmark(RHS, M, C, K, y, ydot, y2dot)
         J = _jacobian_newmark(M, C, K, gamma, beta, dt)
@@ -912,7 +912,9 @@ def _converge_simple_newmark(
                 )
 
             dy2dot = la.solve(J, res)
-            y[:], ydot[:], y2dot[:] = _update_newmark(y, ydot, y2dot, dy2dot, gamma, beta, dt)
+            y[:], ydot[:], y2dot[:] = _update_newmark(
+                y, ydot, y2dot, dy2dot, gamma, beta, dt
+            )
 
             RHS = rhs_func(
                 step,
@@ -1006,17 +1008,16 @@ def _converge_robust_newmark(
                     converged = False
                     break
 
-                # update jacobian with perturbation
+                # Update Jacobian with perturbation
                 F_base = RHS
                 J = J0.copy()
 
                 for i in active_dofs:
                     y_i, ydot_i, y2dot_i = y[i], ydot[i], y2dot[i]
 
-                    # y2dot[i] += epsilon
-                    # ydot[i] += epsilon * gamma * dt
-                    # y[i] += epsilon * beta * (dt**2)
-                    y[i], ydot[i], y2dot[i] = _update_newmark(y[i], ydot[i], y2dot[i], epsilon, gamma, beta, dt)
+                    y[i], ydot[i], y2dot[i] = _update_newmark(
+                        y[i], ydot[i], y2dot[i], epsilon, gamma, beta, dt
+                    )
 
                     F_pert = rhs_func(
                         step,
@@ -1032,7 +1033,9 @@ def _converge_robust_newmark(
                     y[i], ydot[i], y2dot[i] = y_i, ydot_i, y2dot_i
 
                 dy2dot = la.solve(J, res)
-                y[:], ydot[:], y2dot[:] = _update_newmark(y, ydot, y2dot, dy2dot, gamma, beta, dt)
+                y[:], ydot[:], y2dot[:] = _update_newmark(
+                    y, ydot, y2dot, dy2dot, gamma, beta, dt
+                )
 
                 RHS = rhs_func(
                     step,
