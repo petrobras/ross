@@ -27,6 +27,15 @@ from ross.bearing_seal_element import (
     RollerBearingElement,
     SealElement,
 )
+
+from ross.bearings.magnetic.amb_time_response import AmbTimeResponse
+from ross.bearings.magnetic.amb_utils import (
+    get_ambs,
+    has_ambs,
+    print_progress,
+    log_amb_data,
+    apply_sensitivity_disturbance,
+)
 from ross.coupling_element import CouplingElement
 from ross.disk_element import DiskElement
 from ross.faults import Crack, MisalignmentFlex, MisalignmentRigid, Rubbing
@@ -48,12 +57,12 @@ from ross.results import (
     TimeResponseResults,
     UCSResults,
     ClearanceResults,
+    AmbTimeResponseResults,
 )
 from ross.seals.labyrinth_seal import LabyrinthSeal
 from ross.shaft_element import ShaftElement
 from ross.units import Q_, check_units
 from ross.utils import (
-    assemble_C_K_matrices,
     convert_6dof_to_4dof,
     convert_6dof_to_torsional,
     intersection,
@@ -71,8 +80,6 @@ __all__ = [
     "coaxrotor_example",
     "rotor_example_6dof",
     "rotor_example_with_damping",
-    "rotor_amb_example",
-    "concatenate_rotor",
 ]
 
 # set Plotly palette of colors
@@ -162,7 +169,7 @@ class Rotor(object):
     ):
         self.parameters = {"min_w": min_w, "max_w": max_w, "rated_w": rated_w}
 
-        self._set_tag(tag)
+        self.set_tag(tag)
 
         ####################################################
         # Config attributes
@@ -192,7 +199,7 @@ class Rotor(object):
         for i, sh in enumerate(shaft_elements):
             if sh.n is None:
                 sh.n = i
-            self._set_element_tag(sh, i)
+            sh.add_tag(i)
 
         if disk_elements is None:
             disk_elements = []
@@ -201,17 +208,16 @@ class Rotor(object):
         if point_mass_elements is None:
             point_mass_elements = []
 
-        for i, disk in enumerate(disk_elements):
-            self._set_element_tag(disk, i)
+        elm_dict = {}
+        for elm in disk_elements + bearing_elements + point_mass_elements:
+            class_name = elm.__class__.__name__
+            elm_dict[class_name] = elm_dict.get(class_name, 0) + 1
+            elm.add_tag(elm_dict[class_name] - 1)
 
-        for i, brg in enumerate(bearing_elements):
-            # add n_l and n_r to bearing elements
-            brg.n_l = brg.n
-            brg.n_r = brg.n
-            self._set_element_tag(brg, i)
-
-        for i, p_mass in enumerate(point_mass_elements):
-            self._set_element_tag(p_mass, i)
+            if isinstance(elm, BearingElement):
+                # add n_l and n_r to bearing elements
+                elm.n_l = elm.n
+                elm.n_r = elm.n
 
         self.shaft_elements = sorted(shaft_elements, key=lambda el: el.n)
         self.bearing_elements = sorted(bearing_elements, key=lambda el: el.n)
@@ -308,7 +314,7 @@ class Rotor(object):
             [df_shaft, df_disks, df_bearings, df_point_mass, df_seals], sort=True
         )
         df = df.sort_values(by="n_l")
-        df = df.reset_index(drop=True)
+        df = df.reset_index(drop=True).copy()
         df["shaft_number"] = np.zeros(len(df))
 
         df_shaft["shaft_number"] = np.zeros(len(df_shaft))
@@ -323,14 +329,17 @@ class Rotor(object):
         self.df_point_mass = df_point_mass
         self.df_seals = df_seals
 
-        # check consistence for disks and bearings location
+        # check consistence for elements location
         if len(df_point_mass) > 0:
             max_loc_point_mass = df_point_mass.n.max()
         else:
             max_loc_point_mass = 0
         max_location = max(df_shaft.n_r.max(), max_loc_point_mass)
+
         if df.n_l.max() > max_location:
-            raise ValueError("Trying to set disk or bearing outside shaft")
+            outside = df[df["n_l"] > max_location]
+            tag = outside.iloc[0]["tag"]
+            raise ValueError(f"Trying to set {tag} outside shaft")
 
         # nodes axial position and diameter
         self._set_nodes(df_shaft)
@@ -443,6 +452,8 @@ class Rotor(object):
             df.at[df.loc[df.tag == elm.tag].index[0], "dof_global_index"] = (
                 elm.dof_global_index
             )
+
+        df = df.copy()
 
         # define positions for disks
         for elm in self.disk_elements:
@@ -602,16 +613,62 @@ class Rotor(object):
         self.It = v @ (self.M0 @ v.T)
 
     def __add__(self, rotor2):
-        return concatenate_rotor([self, rotor2])
+        return Rotor.concatenate_rotors([self, rotor2])
 
-    def _set_tag(self, tag):
+    @classmethod
+    def concatenate_rotors(cls, rotor_list):
+        """Concatenate a list of rotors into a single rotor.
+
+        The nodes of the concatenated rotor will be the maximum node of the last rotor
+        in the list.
+
+        Parameters
+        ----------
+        rotor_list : list
+            List of Rotor objects to concatenate.
+
+        Returns
+        -------
+        Rotor object.
+        """
+        shaft_elements = []
+        disk_elements = []
+        bearing_elements = []
+        point_mass_elements = []
+
+        node_offset = 0
+
+        for i, rotor in enumerate(rotor_list):
+            rotor = copy(rotor)
+
+            # Reindex elements
+            elements = rotor.elements
+            for el in elements:
+                el.n += node_offset
+                try:
+                    el.n_link += node_offset
+                except:
+                    pass
+                el.tag = f"{el.tag} (R{i})"
+
+            shaft_elements.extend(rotor.shaft_elements)
+            disk_elements.extend(rotor.disk_elements)
+            bearing_elements.extend(rotor.bearing_elements)
+            point_mass_elements.extend(rotor.point_mass_elements)
+
+            # Update offset for the next rotor
+            node_offset = max(rotor.nodes)
+
+        return cls(
+            shaft_elements=shaft_elements,
+            disk_elements=disk_elements,
+            bearing_elements=bearing_elements,
+            point_mass_elements=point_mass_elements,
+        )
+
+    def set_tag(self, tag):
         """Set the tag for the current rotor."""
         self.tag = tag or "Rotor 0"
-
-    def _set_element_tag(self, elm, index):
-        """Set a tag for the given element if it doesn't have one."""
-        if elm.tag is None:
-            elm.tag = elm.get_class_name_prefix(index)
 
     def _fix_nodes_pos(self, index, node, nodes_pos_l):
         """Optional override to adjust node positions.
@@ -845,6 +902,61 @@ class Rotor(object):
             shaft_elements.insert(idx_right, right_elem)
 
             prev_left_node = left_elem.n
+
+        return Rotor(
+            shaft_elements,
+            disk_elements=disk_elements,
+            bearing_elements=bearing_elements,
+            point_mass_elements=point_mass_elements,
+            min_w=self.min_w,
+            max_w=self.max_w,
+            rated_w=self.rated_w,
+            tag=self.tag,
+        )
+
+    def add_elements(self, new_elements):
+        """Add elements to rotor.
+
+        This method returns the modified rotor with additional elements.
+        This is not valid for shaft elements.
+
+        Parameters
+        ----------
+        new_elements : list
+            List with the new elements. It may be disks, gears, bearings,
+            seals and point masses.
+
+        Returns
+        -------
+        A rotor object.
+
+        Examples
+        --------
+        >>> import ross as rs
+        >>> rotor = rs.rotor_example()
+        >>> seal = rs.SealElement(n=3, kxx=1e6, kyy=0.8e6, cxx=2e2, cyy=1.5e2)
+        >>> disk = rs.DiskElement(n=5, m=32, Id=0.2, Ip=0.3)
+        >>> new_rotor = rotor.add_elements([seal, disk])
+        >>> len(new_rotor.elements)
+        12
+        """
+
+        shaft_elements = deepcopy(self.shaft_elements)
+        disk_elements = deepcopy(self.disk_elements)
+        bearing_elements = deepcopy(self.bearing_elements)
+        point_mass_elements = deepcopy(self.point_mass_elements)
+
+        for el in new_elements:
+            if isinstance(el, ShaftElement):
+                shaft_elements.append(el)
+            elif isinstance(el, DiskElement):
+                disk_elements.append(el)
+            elif isinstance(el, BearingElement):
+                bearing_elements.append(el)
+            elif isinstance(el, PointMass):
+                point_mass_elements.append(el)
+            else:
+                raise ValueError(f"{el} is not a valid element.")
 
         return Rotor(
             shaft_elements,
@@ -1883,7 +1995,7 @@ class Rotor(object):
         Examples
         --------
         >>> import ross as rs
-        >>> rotor = rs.rotor_amb_example()
+        >>> rotor = rs.rotor_example_amb_general_controllers()
 
         >>> # Run sensitivity for all magnetic bearings in the rotor (default sweep)
         >>> sensitivity_results = rotor.run_amb_sensitivity(speed=314.16, t_max=5e-4, dt=1e-4) # doctest: +ELLIPSIS
@@ -2380,7 +2492,7 @@ class Rotor(object):
         --------
         >>> import ross as rs
         >>> import numpy as np
-        >>> rotor = rs.rotor_amb_example()
+        >>> rotor = rs.rotor_example_amb_general_controllers()
         >>> dt, speed, step = 1e-4, 1000, 1
         >>> t = np.arange(0, 5 * dt, dt)
         >>> node = [27, 29]
@@ -2392,112 +2504,77 @@ class Rotor(object):
         >>> response = rotor.run_time_response(speed, F, t, method = "newmark")
         Running direct method
         >>> magnetic_bearings = [brg for brg in rotor.bearing_elements if isinstance(brg, rs.bearing_seal_element.MagneticBearingElement)]
-        >>> magnetic_force = rotor.magnetic_bearing_controller(step, magnetic_bearings, dt, response.yout[-1,:])
+        >>> amb_data = {key: np.zeros((len(t), len(magnetic_bearings) * 2)) for key in ["x_amb", "v_amb", "F_x", "F_v", "I"]}
+        >>> magnetic_force = rotor.magnetic_bearing_controller(step, magnetic_bearings, dt, response.yout[-1,:], amb_data=amb_data)
         >>> np.nonzero(magnetic_force)[0]
         array([ 72,  73, 258, 259])
         >>> magnetic_force[np.nonzero(magnetic_force)[0]]
         array([-1.77841057e-04,  5.15148204e-06, -2.96097989e-04,  3.35036499e-05])
         """
 
-        if kwargs.get("sensitivity_result_values", None) == {}:
-            kwargs["sensitivity_result_values"].update(
+        sens_results = kwargs.get("sensitivity_result_values")
+        if sens_results == {}:
+            sens_results.update(
                 {"excitation_signal": [], "disturbed_signal": [], "sensor_signal": []}
             )
 
-        sensitivity_compute_dof: None | int = kwargs.get(
-            "sensitivity_compute_dof", None
-        )
-        sensitivity_disturbance: None | np.ndarray = kwargs.get(
-            "sensitivity_disturbance", None
-        )
-        sensor_angle: None | float = kwargs.get("sensor_angle", np.deg2rad(45))
-        progress_interval: None | float = kwargs.get("progress_interval", None)
+        sens_dof = kwargs.get("sensitivity_compute_dof")
+        sens_dist = kwargs.get("sensitivity_disturbance")
+        sensor_angle = kwargs.get("sensor_angle", np.deg2rad(45))
+        progress_interval = kwargs.get("progress_interval")
+        amb_data = kwargs.get("amb_data")
 
-        current_offset = 0
-        setpoint = 0
-        dt = time_step
+        cos_angle = np.cos(sensor_angle)
+        sin_angle = np.sin(sensor_angle)
+
         magnetic_force = np.zeros(self.ndof)
 
-        for elm in magnetic_bearings:
+        for i, elm in enumerate(magnetic_bearings):
             x_dof = self.number_dof * elm.n
             y_dof = self.number_dof * elm.n + 1
 
-            x_disp = disp_resp[x_dof]
-            y_disp = disp_resp[y_dof]
+            x_disp, y_disp = disp_resp[x_dof], disp_resp[y_dof]
 
-            # Transforming the displacements to the sensor reference frame
-            v_disp = x_disp * np.cos(sensor_angle) + y_disp * np.sin(sensor_angle)
-            w_disp = -x_disp * np.sin(sensor_angle) + y_disp * np.cos(sensor_angle)
+            v_disp = x_disp * cos_angle + y_disp * sin_angle
+            w_disp = -x_disp * sin_angle + y_disp * cos_angle
 
-            if sensitivity_compute_dof is not None and sensitivity_compute_dof in [
-                x_dof,
-                y_dof,
-            ]:
-                sensor_signal = v_disp if x_dof == sensitivity_compute_dof else w_disp
-
-                excitation_signal = sensitivity_disturbance[step]
-                v_disp = (
-                    v_disp + excitation_signal
-                    if x_dof == sensitivity_compute_dof
-                    else v_disp
-                )
-                w_disp = (
-                    w_disp + excitation_signal
-                    if y_dof == sensitivity_compute_dof
-                    else w_disp
+            if sens_dof in (x_dof, y_dof):
+                v_disp, w_disp = apply_sensitivity_disturbance(
+                    step, x_dof, v_disp, w_disp, sens_dof, sens_dist, sens_results
                 )
 
-                disturbed_signal = (
-                    v_disp if x_dof == sensitivity_compute_dof else w_disp
-                )
-
-                if "sensitivity_result_values" in kwargs.keys():
-                    kwargs["sensitivity_result_values"]["excitation_signal"].append(
-                        excitation_signal
-                    )
-                    kwargs["sensitivity_result_values"]["disturbed_signal"].append(
-                        disturbed_signal
-                    )
-                    kwargs["sensitivity_result_values"]["sensor_signal"].append(
-                        sensor_signal
-                    )
-
-            # The method compute_pid_amb updates the magnetic_force array internally
-            magnetic_force_v = elm.compute_pid_amb(
-                current_offset=current_offset,
-                setpoint=setpoint,
-                disp=v_disp,
-                dof_index=0,
+            force_v, current_v = elm.compute_amb_controller(
+                current_offset=0, setpoint=0, disp=v_disp, dof_index=0
+            )
+            force_w, current_w = elm.compute_amb_controller(
+                current_offset=0, setpoint=0, disp=w_disp, dof_index=1
             )
 
-            magnetic_force_w = elm.compute_pid_amb(
-                current_offset=current_offset,
-                setpoint=setpoint,
-                disp=w_disp,
-                dof_index=1,
-            )
+            force_x = force_v * cos_angle - force_w * sin_angle
+            force_y = force_v * sin_angle + force_w * cos_angle
 
-            magnetic_force_x = magnetic_force_v * np.cos(
-                sensor_angle
-            ) - magnetic_force_w * np.sin(sensor_angle)
-            magnetic_force_y = magnetic_force_v * np.sin(
-                sensor_angle
-            ) + magnetic_force_w * np.cos(sensor_angle)
-
-            elm.magnetic_force_xy[0].append(magnetic_force_x)
-            elm.magnetic_force_xy[1].append(magnetic_force_y)
-            elm.magnetic_force_vw[0].append(magnetic_force_v)
-            elm.magnetic_force_vw[1].append(magnetic_force_w)
-
-            magnetic_force[x_dof] = magnetic_force_x
-            magnetic_force[y_dof] = magnetic_force_y
+            if amb_data is not None:
+                log_amb_data(
+                    amb_data,
+                    step,
+                    i,
+                    x_disp,
+                    y_disp,
+                    force_v,
+                    force_w,
+                    force_x,
+                    force_y,
+                    current_v,
+                    current_w,
+                )
 
             if progress_interval is not None:
-                time_progress_ratio = round((step * dt) / progress_interval, 4)
-                if time_progress_ratio.is_integer():
-                    print(
-                        f"Force x / y (N): {magnetic_force_x:.6f} / {magnetic_force_y:.6f} ({elm.tag})"
-                    )
+                print_progress(
+                    step, time_step, progress_interval, force_x, force_y, elm.tag
+                )
+
+            magnetic_force[x_dof] = force_x
+            magnetic_force[y_dof] = force_y
 
         return magnetic_force
 
@@ -2595,6 +2672,8 @@ class Rotor(object):
             Time values for the output.
         yout : ndarray
             System response.
+        xout : list
+            Time evolution of the state vector and auxiliary data.
 
         Examples
         --------
@@ -2608,12 +2687,13 @@ class Rotor(object):
         >>> F = np.zeros((size, rotor.ndof))
         >>> F[:, rotor.number_dof * node + 0] = 10 * np.cos(2 * t)
         >>> F[:, rotor.number_dof * node + 1] = 10 * np.sin(2 * t)
-        >>> t, yout = rotor.integrate_system(speed, F, t)
+        >>> t, yout, xout = rotor.integrate_system(speed, F, t)
         Running direct method
         >>> yout[:, rotor.number_dof * node + 1] # doctest: +ELLIPSIS
         array([0.00000000e+00, 2.07239823e-10, 7.80952429e-10, ...,
                1.21848307e-07, 1.21957287e-07, 1.22065778e-07])
         """
+        xout = []
 
         # Check if speed is array
         speed_is_array = isinstance(speed, Iterable)
@@ -2628,7 +2708,7 @@ class Rotor(object):
             if num_modes or method == "pseudomodal":
                 method = "pseudomodal"
             else:
-                force_dofs = list(set(np.where(F != 0)[1]))
+                force_dofs = list(set(np.nonzero(F != 0)[1]))
                 add_dofs = list(model_reduction.get("include_dofs", []))
                 model_reduction["include_dofs"] = force_dofs + add_dofs
 
@@ -2643,12 +2723,13 @@ class Rotor(object):
         else:
             print("Running direct method")
             return_array = lambda array: array
-            reduction = [return_array for j in range(3)]
+            reduction = [return_array for _ in range(3)]
 
         F = reduction[1](F.T).T
 
         # Check if there is any magnetic bearing
-        rotor, magnetic_force = self._init_ambs_for_integrate(dt=t[1] - t[0], **kwargs)
+        rotor, magnetic_force, amb_data = self._init_ambs_for_integrate(t, **kwargs)
+        xout.append(amb_data)
 
         # Consider any additional RHS function (extra forces)
         add_to_RHS = kwargs.get("add_to_RHS")
@@ -2690,7 +2771,8 @@ class Rotor(object):
         size = F.shape[1]
         response = newmark(rotor_system, t, size, **kwargs)
         yout = reduction[2](response.T).T
-        return t, yout
+
+        return t, yout, xout
 
     def _rotor_system_for_integrate(
         self, rotor, speed, t, reduce_matrix, forces, **kwargs
@@ -2755,7 +2837,7 @@ class Rotor(object):
 
         return rotor_system
 
-    def _init_ambs_for_integrate(self, dt, **kwargs):
+    def _init_ambs_for_integrate(self, t, **kwargs):
         """
         Prepare the magnetic bearing components and force function used during
         time-domain integration.
@@ -2770,9 +2852,10 @@ class Rotor(object):
 
         Parameters
         ----------
-        dt : float
-            Time increment used by the integration routine. This value is passed
-            to each magnetic bearing so it can configure its control law.
+        t : array_like
+            Time array. The time increment `dt` is derived from this array
+            (dt = t[1] - t[0]) and passed to each magnetic bearing so it
+            can configure its control law.
         **kwargs : dict
             Additional parameters forwarded to the magnetic bearing controller
             when the magnetic forces are computed.
@@ -2797,11 +2880,15 @@ class Rotor(object):
         vectors. Each bearing's controller is rebuilt based on the provided
         time increment.
         """
-        magnetic_bearings = [
-            brg
-            for brg in self.bearing_elements
-            if isinstance(brg, MagneticBearingElement)
-        ]
+        dt = t[1] - t[0]
+        magnetic_bearings = get_ambs(self)
+
+        amb_data = {
+            key: np.zeros((len(t), len(magnetic_bearings) * 2))
+            for key in ["x_amb", "v_amb", "F_x", "F_v", "I"]
+        }
+
+        kwargs["amb_data"] = amb_data
 
         rotor = deepcopy(self)
 
@@ -2814,15 +2901,6 @@ class Rotor(object):
 
             # Initialize storage attributes for magnetic bearings
             for brg in magnetic_bearings:
-                brg.magnetic_force_xy.append([])
-                brg.magnetic_force_xy.append([])
-
-                brg.magnetic_force_vw.append([])
-                brg.magnetic_force_vw.append([])
-
-                brg.control_signal.append([])
-                brg.control_signal.append([])
-
                 brg.integral = [0, 0]
                 brg.e0 = [0, 0]
                 brg.build_controller(dt=dt)
@@ -2834,7 +2912,7 @@ class Rotor(object):
         else:
             magnetic_force = lambda step, time_step, disp_resp: np.zeros(self.ndof)
 
-        return rotor, magnetic_force
+        return rotor, magnetic_force, amb_data
 
     def time_response(self, speed, F, t, ic=None, method="default", **kwargs):
         """Time response for a rotor.
@@ -2879,17 +2957,86 @@ class Rotor(object):
         >>> size = 28
         >>> t = np.linspace(0, 5, size)
         >>> F = np.ones((size, rotor.ndof))
-        >>> rotor.time_response(speed, F, t) # doctest: +ELLIPSIS
-        (array([0.        , 0.18518519, 0.37037037, ...
+        >>> time_response = rotor.time_response(speed, F, t)
+        >>> time_response.yout  # doctest: +ELLIPSIS
+        array([[ 0.00000000e+00,  0.00000000e+00,  0.00000000e+00, ...
         """
 
+        F = self._introduce_weight_force(F, **kwargs)
+
         if isinstance(speed, Iterable) or method.lower() == "newmark":
-            t_, yout = self.integrate_system(speed, F, t, **kwargs)
-            return t_, yout, []
+            t_, yout, xout = self.integrate_system(speed, F, t, **kwargs)
+            return self.build_time_response(t_, yout, xout)
+
+        elif has_ambs(self):
+            sim = AmbTimeResponse(self, t=t, speed=speed, F=F, **kwargs)
+            t_, yout, xout = sim.run()
+            return AmbTimeResponseResults(self, t_, yout, xout)
 
         else:
             lti = self._lti(speed)
-            return signal.lsim(lti, F, t, X0=ic)
+            t_, yout, xout = signal.lsim(lti, F, t, X0=ic)
+            return TimeResponseResults(self, t_, yout, xout)
+
+    def _introduce_weight_force(self, F, **kwargs):
+        """Include the weight force in the force array.
+
+        This method adds the weight force of the rotor to the force array `F`
+        if the `weight` parameter is set to `True` in `**kwargs`.
+
+        Parameters
+        ----------
+        F : array
+            Force array.
+        **kwargs : optional
+            Additional keyword arguments. If `weight=True` is provided,
+            the weight force is added to `F`.
+
+        Returns
+        -------
+        F : array
+            Force array with the weight force included if applicable.
+        """
+        weight = kwargs.get("weight", False)
+        if weight:
+            W = self.gravitational_force()
+            F += np.tile(W, (F.shape[0], 1))
+
+        return F
+
+    def build_time_response(self, t, yout, xout):
+        """Build time response results object.
+
+        This method constructs and returns either a `TimeResponseResults`
+        or an `AmbTimeResponseResults` object based on whether active
+        magnetic bearing (AMB) data is provided.
+
+        Parameters
+        ----------
+        t : array
+            Time array.
+        yout : array
+            Time response output array.
+        xout : array or list
+            Time evolution of the state vector or list containing AMB data.
+
+        Returns
+        -------
+        results : ross.TimeResponseResults or ross.AmbTimeResponseResults
+            The constructed time response results object.
+        """
+        if len(xout) == 0:
+            return TimeResponseResults(self, t, yout, [])
+
+        else:
+            amb_data = xout[0]
+            x_amb = amb_data["x_amb"]
+            v_amb = amb_data["v_amb"]
+            F_x = amb_data["F_x"]
+            F_y = amb_data["F_v"]
+            I = amb_data["I"]
+            xout = [x_amb, v_amb, F_x, F_y, I]
+            return AmbTimeResponseResults(self, t, yout, xout)
 
     def plot_rotor(self, nodes=1, check_sld=False, length_units="m", **kwargs):
         """Plot a rotor object.
@@ -2996,8 +3143,8 @@ class Rotor(object):
             fig = sh_elm._patch(position, check_sld, fig, length_units)
 
         mean_od = np.mean(nodes_o_d)
-        # plot disk elements
 
+        # plot disk elements
         # calculate scale factor if disks have scale_factor='mass'
         if self.disk_elements:
             scaled_disks = [
@@ -3561,10 +3708,7 @@ class Rotor(object):
         >>> # plot orbit response - plotting 3D orbits - full rotor model:
         >>> fig3 = response.plot_3d()
         """
-        t_, yout, xout = self.time_response(speed, F, t, method=method, **kwargs)
-        results = TimeResponseResults(self, t, yout, xout)
-
-        return results
+        return self.time_response(speed, F, t, method=method, **kwargs)
 
     @check_units
     def run_harmonic_balance_response(
@@ -5729,219 +5873,3 @@ def rotor_example_with_damping():
     )
 
     return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
-
-
-def rotor_amb_example(controller_transfer_function=None):
-    r"""This function creates the model of a test rig rotor supported by magnetic bearings.
-    Details of the model can be found at doi.org/10.14393/ufu.di.2015.186.
-
-    Returns
-    -------
-    Rotor object.
-    """
-
-    from ross.materials import Material
-
-    steel_amb = Material(name="steel", rho=7850, E=1.9e11, Poisson=0.30)
-    steel_m12_amb = Material(name="steel", rho=7600, E=2e11, Poisson=0.31, color="red")
-
-    # Shaft elements:
-    # fmt: off
-    Li = [
-        0.0, 0.012, 0.032, 0.052, 0.072, 0.092, 0.112, 0.1208,
-        0.12724, 0.13475, 0.14049, 0.14689, 0.15299, 0.159170,
-        0.16535, 0.180350, 0.1905, 0.2063, 0.2221, 0.2379, 0.2537,
-        0.2695, 0.2853, 0.3011, 0.3169, 0.3243, 0.3363, 0.358,
-        0.364, 0.3705, 0.3825, 0.3986, 0.4147, 0.4308, 0.4469,
-        0.4630, 0.4791, 0.4952, 0.5113, 0.5274, 0.5356, 0.5457,
-        0.5607, 0.5669, 0.5731, 0.5792, 0.5856, 0.5913, 0.5989,
-        0.6053, 0.6141, 0.6341, 0.6461,
-    ]
-
-    Li = [round(i, 4) for i in Li]
-    L = [Li[i + 1] - Li[i] for i in range(len(Li) - 1)]
-
-    i_d = [0.0 for i in L]
-    o_d1 = [0.0 for i in L]
-    o_d1[0] = 6.35
-    o_d1[1:5] = [32 for i in range(4)]
-    o_d1[5:14] = [34.8 for i in range(9)]
-    o_d1[14:16] = [49.9 for i in range(2)]
-    o_d1[16:27] = [19.05 for i in range(11)]
-    o_d1[27:29] = [54 for i in range(2)]
-    o_d1[29:40] = [19.05 for i in range(12)]
-    o_d1[40:42] = [49.9 for i in range(2)]
-    o_d1[42:51] = [34.8 for i in range(9)]
-    o_d1[51] = 6.35
-    o_d = [i * 1e-3 for i in o_d1]
-
-    shaft_elements = [
-        ShaftElement(
-            L=l,
-            idl=idl,
-            odl=odl,
-            material=steel_amb,
-            shear_effects=True,
-            rotary_inertia=True,
-            gyroscopic=True,
-            alpha=2.5,
-        )
-        for l, idl, odl in zip(L, i_d, o_d)
-    ]
-
-    # Disk elements:
-    n_list = [27, 28, 29]
-    n_list_2 = [6, 7, 8, 9, 10, 11, 12, 13, 43, 44, 45, 46, 47, 48, 49, 50]
-    width = [0.004, 0.007, 0.014]
-    width_2 = [
-        0.0088, 0.0064, 0.0075, 0.0057, 0.0064, 0.0061,
-        0.0062, 0.0062, 0.0062, 0.0062,0.0061, 0.0064,
-        0.0057, 0.0075, 0.0064, 0.0088,
-    ]
-    i_disc_1 = [0.054, 0.054, 0.054]
-    i_disc_2 = [0.0348] * 16
-    o_disc = [0.1200] * 3
-    o_disc_2 = [0.0498] * 16
-    # fmt: on
-    disk_elements_1 = [
-        DiskElement.from_geometry(n=n, material=steel_amb, width=m, i_d=Id, o_d=Od)
-        for n, m, Id, Od in zip(n_list, width, i_disc_1, o_disc)
-    ]
-
-    disk_elements_2 = [
-        DiskElement.from_geometry(n=n, material=steel_m12_amb, width=m, i_d=Id, o_d=Od)
-        for n, m, Id, Od in zip(n_list_2, width_2, i_disc_2, o_disc_2)
-    ]
-
-    disk_elements = [*disk_elements_1, *disk_elements_2]
-
-    # Bearing elements:
-    n_list = [12, 43]
-    n = 200
-    A = 1e-4
-    i0 = 1.0
-    s0 = 1e-3
-    alpha = 0.392
-    k_amp = 1.0
-    k_sense = 1.0
-
-    if controller_transfer_function is None:
-        Kp = 1000
-        Ki = 0
-        Kd = 5
-
-        bearing_elements = [
-            MagneticBearingElement(
-                n=n_list[0],
-                g0=s0,
-                i0=i0,
-                ag=A,
-                nw=n,
-                alpha=alpha,
-                k_amp=k_amp,
-                k_sense=k_sense,
-                kp_pid=Kp,
-                kd_pid=Kd,
-                ki_pid=Ki,
-                tag="Magnetic Bearing 0",
-            ),
-            MagneticBearingElement(
-                n=n_list[1],
-                g0=s0,
-                i0=i0,
-                ag=A,
-                nw=n,
-                alpha=alpha,
-                k_amp=k_amp,
-                k_sense=k_sense,
-                kp_pid=Kp,
-                kd_pid=Kd,
-                ki_pid=Ki,
-                tag="Magnetic Bearing 1",
-            ),
-        ]
-
-    else:
-        bearing_elements = [
-            MagneticBearingElement(
-                n=n_list[0],
-                g0=s0,
-                i0=i0,
-                ag=A,
-                nw=n,
-                alpha=alpha,
-                k_amp=k_amp,
-                k_sense=k_sense,
-                controller_transfer_function=controller_transfer_function,
-                tag="Magnetic Bearing 0",
-            ),
-            MagneticBearingElement(
-                n=n_list[1],
-                g0=s0,
-                i0=i0,
-                ag=A,
-                nw=n,
-                alpha=alpha,
-                k_amp=k_amp,
-                k_sense=k_sense,
-                controller_transfer_function=controller_transfer_function,
-                tag="Magnetic Bearing 1",
-            ),
-        ]
-
-    return Rotor(shaft_elements, disk_elements, bearing_elements)
-
-
-def concatenate_rotor(rotor_list):
-    shaft_elements = []
-    disk_elements = []
-    bearing_elements = []
-    point_mass_elements = []
-
-    node_offset = 0
-    rotor_id = 0  # Incremental identifier for tags
-
-    for rotor in rotor_list:
-        rotor = deepcopy(rotor)
-
-        # Reindex shaft elements
-        for i, el in enumerate(rotor.shaft_elements):
-            el.n_l += node_offset
-            el.n_r += node_offset
-            el.n = el.n_l  # Important for ROSS elements
-            el.tag = f"shaft_r{rotor_id}_{i}"
-        shaft_elements.extend(rotor.shaft_elements)
-
-        # Reindex disk elements
-        for i, el in enumerate(rotor.disk_elements):
-            el.n += node_offset
-            el.tag = f"disk_r{rotor_id}_{i}"
-        disk_elements.extend(rotor.disk_elements)
-
-        # Reindex bearing elements
-        for i, el in enumerate(rotor.bearing_elements):
-            el.n += node_offset
-            el.tag = f"bearing_r{rotor_id}_{i}"
-        bearing_elements.extend(rotor.bearing_elements)
-
-        # Reindex point mass elements
-        for i, el in enumerate(rotor.point_mass_elements):
-            el.n += node_offset
-            el.tag = f"pmass_r{rotor_id}_{i}"
-        point_mass_elements.extend(rotor.point_mass_elements)
-
-        # Update offset for the next rotor
-        all_nodes = [el.n_r for el in rotor.shaft_elements] + [
-            el.n for el in rotor.disk_elements + rotor.bearing_elements
-        ]
-        node_offset = max(all_nodes)
-        rotor_id += 1
-
-    rotor_concat = Rotor(
-        shaft_elements=shaft_elements,
-        disk_elements=disk_elements,
-        bearing_elements=bearing_elements,
-        point_mass_elements=point_mass_elements,
-    )
-
-    return rotor_concat
