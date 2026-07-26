@@ -1,3 +1,7 @@
+// --- Hub Management ---
+let rotorLibrary = [];
+let activeRotorIndex = -1;
+
 let projectData = { materials: [], shafts: [], disks: [], gears: [], couplings: [], seals: [], bearings: [], pointmasses: [] };
 let currentTab = null;
 let editingIndex = -1; 
@@ -137,38 +141,24 @@ const FormTemplates = {
     bearings: {
         BASIC: `
         <div class="input-group"><label>Node # (Optional)</label><input type="text" id="inp-n"></div>
-        <div style="display:flex;gap:5px;">
-            <div class="input-group"><label>kxx [N/m]</label><input type="text" id="inp-kxx"></div>
-            <div class="input-group"><label>cxx [N.s/m]</label><input type="text" id="inp-cxx"></div>
-        </div>
+        <div class="input-group"><label>kxx [N/m]</label><input type="text" id="inp-kxx"></div>
+        <div class="input-group"><label>cxx [N.s/m]</label><input type="text" id="inp-cxx"></div>
         <button type="button" class="btn-advanced" onclick="toggleAdvanced(this)">Advanced <i class="fas fa-chevron-down"></i></button>
         <div class="advanced-fields" style="display: none; margin-top: 10px; border-top: 1px dashed #ccc; padding-top: 10px;">
-            <div style="display:flex;gap:5px;">
-                <div class="input-group"><label>kxy [N/m]</label><input type="text" id="inp-kxy"></div>
-                <div class="input-group"><label>kyx [N/m]</label><input type="text" id="inp-kyx"></div>
-            </div>
-            <div style="display:flex;gap:5px;">
-                <div class="input-group"><label>kyy [N/m]</label><input type="text" id="inp-kyy"></div>
-                <div class="input-group"><label>cxy [N.s/m]</label><input type="text" id="inp-cxy"></div>
-            </div>
-            <div style="display:flex;gap:5px;">
-                <div class="input-group"><label>cyx [N.s/m]</label><input type="text" id="inp-cyx"></div>
-                <div class="input-group"><label>cyy [N.s/m]</label><input type="text" id="inp-cyy"></div>
-            </div>
+            <div class="input-group"><label>kxy [N/m]</label><input type="text" id="inp-kxy"></div>
+            <div class="input-group"><label>kyx [N/m]</label><input type="text" id="inp-kyx"></div>
+            <div class="input-group"><label>kyy [N/m]</label><input type="text" id="inp-kyy"></div>
+            <div class="input-group"><label>cxy [N.s/m]</label><input type="text" id="inp-cxy"></div>
+            <div class="input-group"><label>cyx [N.s/m]</label><input type="text" id="inp-cyx"></div>
+            <div class="input-group"><label>cyy [N.s/m]</label><input type="text" id="inp-cyy"></div>
             <div class="input-group"><label>Link Node #</label><input type="text" id="inp-n_link"></div>
             <div class="input-group"><label>Frequency [RPM]</label><input type="text" id="inp-frequency"></div>
-            <div style="display:flex;gap:5px;">
-                <div class="input-group"><label>mxx [kg]</label><input type="text" id="inp-mxx"></div>
-                <div class="input-group"><label>mxy [kg]</label><input type="text" id="inp-mxy"></div>
-            </div>
-            <div style="display:flex;gap:5px;">
-                <div class="input-group"><label>myx [kg]</label><input type="text" id="inp-myx"></div>
-                <div class="input-group"><label>myy [kg]</label><input type="text" id="inp-myy"></div>
-            </div>
-            <div style="display:flex;gap:5px;">
-                <div class="input-group"><label>kzz [N/m]</label><input type="text" id="inp-kzz"></div>
-                <div class="input-group"><label>czz [N.s/m]</label><input type="text" id="inp-czz"></div>
-            </div>
+            <div class="input-group"><label>mxx [kg]</label><input type="text" id="inp-mxx"></div>
+            <div class="input-group"><label>mxy [kg]</label><input type="text" id="inp-mxy"></div>
+            <div class="input-group"><label>myx [kg]</label><input type="text" id="inp-myx"></div>
+            <div class="input-group"><label>myy [kg]</label><input type="text" id="inp-myy"></div>
+            <div class="input-group"><label>kzz [N/m]</label><input type="text" id="inp-kzz"></div>
+            <div class="input-group"><label>czz [N.s/m]</label><input type="text" id="inp-czz"></div>
             <div class="input-group"><label>mzz [kg]</label><input type="text" id="inp-mzz"></div>
             <div class="input-group"><label>Scale Factor</label><input type="text" id="inp-scale_factor"></div>
             <div class="input-group"><label>Tag</label><input type="text" id="inp-tag"></div>
@@ -362,39 +352,25 @@ const FormTemplates = {
     seals: {
         BASIC: `
         <div class="input-group"><label>Node # (Optional)</label><input type="text" id="inp-n"></div>
-        <div style="display:flex;gap:5px;">
-            <div class="input-group"><label>kxx [N/m]</label><input type="text" id="inp-kxx"></div>
-            <div class="input-group"><label>cxx [N.s/m]</label><input type="text" id="inp-cxx"></div>
-        </div>
+        <div class="input-group"><label>kxx [N/m]</label><input type="text" id="inp-kxx"></div>
+        <div class="input-group"><label>cxx [N.s/m]</label><input type="text" id="inp-cxx"></div>
         <button type="button" class="btn-advanced" onclick="toggleAdvanced(this)">Advanced <i class="fas fa-chevron-down"></i></button>
         <div class="advanced-fields" style="display: none; margin-top: 10px; border-top: 1px dashed #ccc; padding-top: 10px;">
             <div class="input-group"><label>Seal Leakage</label><input type="text" id="inp-seal_leakage"></div>
-            <div style="display:flex;gap:5px;">
-                <div class="input-group"><label>kxy [N/m]</label><input type="text" id="inp-kxy"></div>
-                <div class="input-group"><label>kyx [N/m]</label><input type="text" id="inp-kyx"></div>
-            </div>
-            <div style="display:flex;gap:5px;">
-                <div class="input-group"><label>kyy [N/m]</label><input type="text" id="inp-kyy"></div>
-                <div class="input-group"><label>cxy [N.s/m]</label><input type="text" id="inp-cxy"></div>
-            </div>
-            <div style="display:flex;gap:5px;">
-                <div class="input-group"><label>cyx [N.s/m]</label><input type="text" id="inp-cyx"></div>
-                <div class="input-group"><label>cyy [N.s/m]</label><input type="text" id="inp-cyy"></div>
-            </div>
+            <div class="input-group"><label>kxy [N/m]</label><input type="text" id="inp-kxy"></div>
+            <div class="input-group"><label>kyx [N/m]</label><input type="text" id="inp-kyx"></div>
+            <div class="input-group"><label>kyy [N/m]</label><input type="text" id="inp-kyy"></div>
+            <div class="input-group"><label>cxy [N.s/m]</label><input type="text" id="inp-cxy"></div>
+            <div class="input-group"><label>cyx [N.s/m]</label><input type="text" id="inp-cyx"></div>
+            <div class="input-group"><label>cyy [N.s/m]</label><input type="text" id="inp-cyy"></div>
             <div class="input-group"><label>Link Node #</label><input type="text" id="inp-n_link"></div>
             <div class="input-group"><label>Frequency [RPM]</label><input type="text" id="inp-frequency"></div>
-            <div style="display:flex;gap:5px;">
-                <div class="input-group"><label>mxx [kg]</label><input type="text" id="inp-mxx"></div>
-                <div class="input-group"><label>mxy [kg]</label><input type="text" id="inp-mxy"></div>
-            </div>
-            <div style="display:flex;gap:5px;">
-                <div class="input-group"><label>myx [kg]</label><input type="text" id="inp-myx"></div>
-                <div class="input-group"><label>myy [kg]</label><input type="text" id="inp-myy"></div>
-            </div>
-            <div style="display:flex;gap:5px;">
-                <div class="input-group"><label>kzz [N/m]</label><input type="text" id="inp-kzz"></div>
-                <div class="input-group"><label>czz [N.s/m]</label><input type="text" id="inp-czz"></div>
-            </div>
+            <div class="input-group"><label>mxx [kg]</label><input type="text" id="inp-mxx"></div>
+            <div class="input-group"><label>mxy [kg]</label><input type="text" id="inp-mxy"></div>
+            <div class="input-group"><label>myx [kg]</label><input type="text" id="inp-myx"></div>
+            <div class="input-group"><label>myy [kg]</label><input type="text" id="inp-myy"></div>
+            <div class="input-group"><label>kzz [N/m]</label><input type="text" id="inp-kzz"></div>
+            <div class="input-group"><label>czz [N.s/m]</label><input type="text" id="inp-czz"></div>
             <div class="input-group"><label>mzz [kg]</label><input type="text" id="inp-mzz"></div>
             <div class="input-group"><label>Scale Factor</label><input type="text" id="inp-scale_factor"></div>
             <div class="input-group"><label>Tag</label><input type="text" id="inp-tag"></div>
@@ -486,41 +462,27 @@ const FormTemplates = {
     couplings: {
         BASIC: `
         <div class="input-group"><label>Node # (Optional)</label><input type="text" id="inp-n"></div>
-        <div style="display:flex;gap:5px;">
-            <div class="input-group"><label>m_l [kg]</label><input type="text" id="inp-m_l"></div>
-            <div class="input-group"><label>m_r [kg]</label><input type="text" id="inp-m_r"></div>
-        </div>
-        <div style="display:flex;gap:5px;">
-            <div class="input-group"><label>Ip_l [kg.m²]</label><input type="text" id="inp-Ip_l"></div>
-            <div class="input-group"><label>Ip_r [kg.m²]</label><input type="text" id="inp-Ip_r"></div>
-        </div>
+        <div class="input-group"><label>m_l [kg]</label><input type="text" id="inp-m_l"></div>
+        <div class="input-group"><label>m_r [kg]</label><input type="text" id="inp-m_r"></div>
+        <div class="input-group"><label>Ip_l [kg.m²]</label><input type="text" id="inp-Ip_l"></div>
+        <div class="input-group"><label>Ip_r [kg.m²]</label><input type="text" id="inp-Ip_r"></div>
         <button type="button" class="btn-advanced" onclick="toggleAdvanced(this)">Advanced <i class="fas fa-chevron-down"></i></button>
         <div class="advanced-fields" style="display: none; margin-top: 10px; border-top: 1px dashed #ccc; padding-top: 10px;">
             <div class="input-group"><label>Link Node #</label><input type="text" id="inp-n_link"></div>
-            <div style="display:flex;gap:5px;">
-                <div class="input-group"><label>Id_l [kg.m²]</label><input type="text" id="inp-Id_l"></div>
-                <div class="input-group"><label>Id_r [kg.m²]</label><input type="text" id="inp-Id_r"></div>
-            </div>
-            <div style="display:flex;gap:5px;">
-                <div class="input-group"><label>kt_x</label><input type="text" id="inp-kt_x"></div>
-                <div class="input-group"><label>kt_y</label><input type="text" id="inp-kt_y"></div>
-                <div class="input-group"><label>kt_z</label><input type="text" id="inp-kt_z"></div>
-            </div>
-            <div style="display:flex;gap:5px;">
-                <div class="input-group"><label>ct_x</label><input type="text" id="inp-ct_x"></div>
-                <div class="input-group"><label>ct_y</label><input type="text" id="inp-ct_y"></div>
-                <div class="input-group"><label>ct_z</label><input type="text" id="inp-ct_z"></div>
-            </div>
-            <div style="display:flex;gap:5px;">
-                <div class="input-group"><label>kr_x</label><input type="text" id="inp-kr_x"></div>
-                <div class="input-group"><label>kr_y</label><input type="text" id="inp-kr_y"></div>
-                <div class="input-group"><label>kr_z</label><input type="text" id="inp-kr_z"></div>
-            </div>
-            <div style="display:flex;gap:5px;">
-                <div class="input-group"><label>cr_x</label><input type="text" id="inp-cr_x"></div>
-                <div class="input-group"><label>cr_y</label><input type="text" id="inp-cr_y"></div>
-                <div class="input-group"><label>cr_z</label><input type="text" id="inp-cr_z"></div>
-            </div>
+            <div class="input-group"><label>Id_l [kg.m²]</label><input type="text" id="inp-Id_l"></div>
+            <div class="input-group"><label>Id_r [kg.m²]</label><input type="text" id="inp-Id_r"></div>
+            <div class="input-group"><label>kt_x</label><input type="text" id="inp-kt_x"></div>
+            <div class="input-group"><label>kt_y</label><input type="text" id="inp-kt_y"></div>
+            <div class="input-group"><label>kt_z</label><input type="text" id="inp-kt_z"></div>
+            <div class="input-group"><label>ct_x</label><input type="text" id="inp-ct_x"></div>
+            <div class="input-group"><label>ct_y</label><input type="text" id="inp-ct_y"></div>
+            <div class="input-group"><label>ct_z</label><input type="text" id="inp-ct_z"></div>
+            <div class="input-group"><label>kr_x</label><input type="text" id="inp-kr_x"></div>
+            <div class="input-group"><label>kr_y</label><input type="text" id="inp-kr_y"></div>
+            <div class="input-group"><label>kr_z</label><input type="text" id="inp-kr_z"></div>
+            <div class="input-group"><label>cr_x</label><input type="text" id="inp-cr_x"></div>
+            <div class="input-group"><label>cr_y</label><input type="text" id="inp-cr_y"></div>
+            <div class="input-group"><label>cr_z</label><input type="text" id="inp-cr_z"></div>
             <div class="input-group"><label>Outer Diameter [mm]</label><input type="text" id="inp-o_d"></div>
             <div class="input-group"><label>Length [mm]</label><input type="text" id="inp-L"></div>
             <div class="input-group"><label>Scale Factor</label><input type="text" id="inp-scale_factor"></div>
@@ -543,6 +505,260 @@ const FormTemplates = {
         </div>`
     }
 };
+
+// Function to open the Hub screen and render the list
+
+function openRotorHub() {
+    if (activeRotorIndex !== -1) {
+        const cards = document.querySelectorAll('.analysis-card');
+        const saved = [];
+        cards.forEach(c => {
+            const p = c.querySelector('div[id^="plot-"]');
+            const titleEl = c.querySelector('.analysis-title');
+            let titleStr = titleEl ? titleEl.innerText.trim() : "Analysis";
+            titleStr = titleStr.replace(' (Loaded)', ''); 
+            
+            if(p && p.rossType) {
+                saved.push({ 
+                    title: titleStr, 
+                    data: p.data || [], 
+                    layout: p.layout || {}, 
+                    frames: p.rossFrames || [], 
+                    type: p.rossType, 
+                    params: p.rossParams 
+                });
+            }
+        });
+        rotorLibrary[activeRotorIndex].savedAnalyses = saved;
+        activeRotorIndex = -1;
+    }
+
+    switchScreen('screen-rotor-hub');
+    renderRotorHub();
+}
+
+// Renders the list of rotors on the screen
+
+function renderRotorHub() {
+    const container = document.getElementById('rotor-hub-list');
+    if (!container) return;
+    container.innerHTML = '';
+    
+    if (rotorLibrary.length === 0) {
+        container.innerHTML = `<div class="empty-message">No rotors available. Click "Add New Rotor" to start.</div>`;
+        return;
+    }
+
+    rotorLibrary.forEach((rotor, index) => {
+        let name = rotor.name || `Rotor ${index + 1}`;
+        let badge = "";
+        
+        if (rotor.isMultiRotor) {
+            badge = `<span class="badge-conversion" style="background:#8b5cf6;"><i class="fas fa-link"></i> MultiRotor</span>`;
+        } else {
+            let s_len = rotor.shafts ? rotor.shafts.length : 0;
+            let d_len = rotor.disks ? rotor.disks.length : 0;
+            let b_len = rotor.bearings ? rotor.bearings.length : 0;
+            badge = `<span style="font-size:11px; color:var(--text-muted); font-weight:normal; margin-left:8px;">(${s_len + d_len + b_len} elements)</span>`;
+        }
+
+        container.innerHTML += `
+            <div class="hub-card">
+                <div class="hub-card-top">
+                    <div class="hub-card-title">
+                        <i class="${rotor.isMultiRotor ? 'fas fa-link' : 'fas fa-cogs'}"></i> 
+                        <span style="cursor:pointer;" onclick="editRotorName(${index})" title="Click to edit name">
+                            ${name} <i class="fas fa-pen" style="font-size:11px; color:var(--text-muted); margin-left:4px;"></i>
+                        </span> 
+                        ${badge}
+                    </div>
+                    <div class="hub-card-actions">
+                        <button class="btn-action copy" onclick="copyRotorInHub(${index})" title="Copy"><i class="fas fa-copy"></i></button>
+                        <button class="btn-action delete" onclick="deleteRotorInHub(${index})" title="Delete"><i class="fas fa-trash"></i></button>
+                    </div>
+                </div>
+                <div class="hub-card-bottom">
+                    <button class="btn-primary" onclick="openRotorWorkspace(${index}, 'screen-modeling')"><i class="fas fa-tools"></i> Go to Modeling</button>
+                    <button class="btn-secondary" onclick="openRotorWorkspace(${index}, 'screen-analysis')"><i class="fas fa-chart-line"></i> Go to Analysis</button>
+                    <button class="btn-secondary" onclick="saveRotorFromHub(${index})"><i class="fas fa-save"></i> Save JSON</button>
+                    <button class="btn-secondary" onclick="generatePythonFromHub(${index})"><i class="fab fa-python"></i> Generate Python</button>
+                </div>
+            </div>
+        `;
+    });
+}
+
+// Função para renomear rotores e multirotores diretamente pelo Hub
+
+function editRotorName(index) {
+    let currentName = rotorLibrary[index].name || `Rotor ${index + 1}`;
+    let newName = prompt("Edit rotor name:", currentName);
+    
+    if (newName !== null && newName.trim() !== "") {
+        rotorLibrary[index].name = newName.trim();
+        renderRotorHub();
+    }
+}
+
+// Creates a new empty rotor in the Hub
+
+function createNewRotorInHub() {
+    let baseName = prompt("Enter a name for the new rotor:", `Rotor ${rotorLibrary.length + 1}`);
+    if (!baseName) return; 
+
+    let newRotor = {
+        name: baseName,
+        savedAnalyses: [],
+        materials: [], shafts: [], disks: [], gears: [], couplings: [], seals: [], bearings: [], pointmasses: []
+    };
+    rotorLibrary.push(newRotor);
+    renderRotorHub();
+}
+
+// Deletes a rotor from the Hub
+
+function deleteRotorInHub(index) {
+    if (confirm("Are you sure you want to delete this rotor?")) {
+        rotorLibrary.splice(index, 1);
+        if (activeRotorIndex === index) activeRotorIndex = -1;
+        renderRotorHub();
+    }
+}
+
+// Copies an existing rotor
+
+function copyRotorInHub(index) {
+    let copiedRotor = JSON.parse(JSON.stringify(rotorLibrary[index]));
+    copiedRotor.name = copiedRotor.name + " (Copy)";
+    rotorLibrary.push(copiedRotor);
+    renderRotorHub();
+}
+
+// Opens the selected rotor in the Modeling or Analysis environment
+
+function openRotorWorkspace(index, targetScreen) {
+    ensureUIDs();
+    syncMultiRotors();
+
+    activeRotorIndex = index;
+    projectData = rotorLibrary[index]; 
+    
+    currentTab = null;
+    editingIndex = -1;    
+    document.getElementById('element-list').innerHTML = '';
+    document.getElementById('empty-message').style.display = 'block';
+    document.getElementById('list-area').style.display = 'none';
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    
+    switchScreen(targetScreen);
+    
+    if (targetScreen === 'screen-modeling') {
+        if (projectData.isMultiRotor) {
+            document.getElementById('list-area').style.display = 'block';
+            document.getElementById('empty-message').style.display = 'none';
+            document.getElementById('tab-title').innerHTML = 'MultiRotor Info';
+            document.getElementById('element-list').innerHTML = `
+                <div style="padding:15px; background:var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-ui); color:var(--text-main); font-size:13px; line-height:1.6; text-align: center; box-shadow: var(--shadow-card);">
+                    <i class="fas fa-project-diagram" style="color:#8b5cf6; font-size:32px; margin-bottom:15px; display:block;"></i>
+                    <b>MultiRotor Lock</b><br><br>
+                    The internal components of a multirotor cannot be edited directly on this screen.<br><br>
+                    To modify the structure, edit the original base rotors in the Hub. <b>Changes will be automatically synchronized here!</b>
+                </div>
+            `;
+            document.getElementById('btn-add-item').style.display = 'none';
+            document.querySelector('.sidebar').style.opacity = '0.4';
+            document.querySelector('.sidebar').style.pointerEvents = 'none';
+        } else {
+            document.getElementById('btn-add-item').style.display = 'block';
+            document.querySelector('.sidebar').style.opacity = '1';
+            document.querySelector('.sidebar').style.pointerEvents = 'auto';
+        }
+        buildRotorLive();
+    }
+
+    const analysisContainer = document.getElementById('analysis-list');
+    if (analysisContainer) {
+        analysisContainer.innerHTML = ''; 
+        if (projectData.savedAnalyses && projectData.savedAnalyses.length > 0) {
+            restoreAnalysesFromMemory(projectData.savedAnalyses);
+        } else {
+            analysisContainer.innerHTML = '<p style="color: #888; text-align: center; margin-top: 20%;">Generated dashboards will appear here.</p>';
+        }
+    }
+}
+
+// Saves the analyses to memory before returning to the Hub
+
+function returnToHub() {
+    openRotorHub();
+}
+
+// Reconstructs the analysis charts on the screen from memory
+
+function restoreAnalysesFromMemory(savedArray) {
+    const container = document.getElementById('analysis-list');
+    if (!container) return;
+    
+    savedArray.slice().reverse().forEach(an => {
+        const uniqueId = Date.now() + Math.random().toString().slice(2,8);
+        const nid = 'plot-' + uniqueId;
+        const cardId = 'card-' + uniqueId;
+        let controlsHTML = '';
+        
+        if(an.type && an.params) {
+            const config = AnalysisDashboards[an.type];
+            if(config) {
+                config.forEach(item => { if(an.params[item.id] !== undefined) item.val = an.params[item.id]; });
+                controlsHTML = buildDashboardHTML(uniqueId, an.type);
+            }
+        }                
+        
+        let typeVal = an.type || 'campbell';                
+        container.insertAdjacentHTML('afterbegin', `
+            <div class="analysis-card" id="${cardId}">
+                <div class="analysis-header" onclick="toggleAnalysis('${uniqueId}')">
+                    <span class="analysis-title">${an.title}</span>
+                    <div class="analysis-actions">
+                        <button class="btn-update-analysis" onclick="event.stopPropagation(); runCardAnalysis('${uniqueId}', '${typeVal}')"><i class="fas fa-sync-alt"></i> Update</button>
+                        <button class="btn-help-analysis" onclick="openAnalysisCardHelp(event, '${typeVal}')"><i class="fas fa-question-circle"></i> Help</button>
+                        <button class="btn-delete-analysis" onclick="deleteAnalysis(event, '${cardId}')"><i class="fas fa-trash"></i> Delete</button>
+                        <span id="icon-${uniqueId}"><i class="fas fa-chevron-down"></i></span>
+                    </div>
+                </div>
+                <div class="analysis-body" id="body-${uniqueId}" style="padding:0; background:var(--bg-workspace); position: relative;">
+                    <div id="${nid}" style="min-height: 400px; display: block; width: 100%; overflow: hidden; position:relative;"></div>
+                    ${controlsHTML}
+                </div>
+            </div>
+        `);                
+        
+        const divNode = document.getElementById(nid);
+        if (an.type && an.params) { divNode.rossType = an.type; divNode.rossParams = an.params; }
+        an.layout.autosize = true; 
+        if (an.frames) divNode.rossFrames = an.frames;
+        
+        Plotly.newPlot(nid, an.data, an.layout, {responsive: true});
+    });
+}
+
+// Saves the JSON directly from the Hub
+
+function saveRotorFromHub(index) {
+    const rotorToSave = rotorLibrary[index];
+    const fileName = (rotorToSave.name || "my_rotor").replace(/\s+/g, '_') + ".json";
+    const blob = new Blob([JSON.stringify(rotorToSave, null, 2)], {type: "application/json"});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = fileName;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+}
+
+// Generates Python directly from the Hub (temporarily overrides projectData to use existing logic)
+
+function generatePythonFromHub(index) {
+    let previousActive = projectData;
+    projectData = rotorLibrary[index];
+    generatePythonFile();
+    projectData = previousActive;
+}
 
 // Automatic form generator 'LIST'
 
@@ -573,21 +789,10 @@ function switchScreen(screenId) {
     document.querySelectorAll('.screen').forEach(t => t.classList.remove('active'));
     document.getElementById(screenId).classList.add('active');
     if(screenId === 'screen-modeling' && currentTab) openTab(currentTab);
-}
 
-// 'New Rotor' Window
-
-window.startNewRotor = function() {    
-    projectData = { materials: [], shafts: [], disks: [], gears: [], couplings: [], seals: [], bearings: [], pointmasses: [] };
-    currentTab = null;
-    editingIndex = -1;    
-    document.getElementById('element-list').innerHTML = '';
-    document.getElementById('empty-message').style.display = 'block';
-    document.getElementById('list-area').style.display = 'none';
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.getElementById('plot-rotor').innerHTML = '<p style="color: #888; text-align: center; margin-top: 50%;">Add at least 1 Shaft to visualize the Rotor.</p>';
-    document.getElementById('analysis-list').innerHTML = '<p style="color: #888; text-align: center; margin-top: 20%;">Generated dashboards will appear here.</p>';
-    switchScreen('screen-modeling');
+    setTimeout(() => {
+        window.dispatchEvent(new Event('resize'));
+    }, 150);
 }
 
 // Function to hide the sidebar of the modeling
@@ -906,7 +1111,7 @@ function buildRotorLive() {
 async function _fetchRotorLive() {
     const plotContainer = document.getElementById('plot-rotor');
     const infoContainer = document.getElementById('rotor-info');
-    if (projectData.shafts.length === 0) {
+    if (!projectData.isMultiRotor && (!projectData.shafts || projectData.shafts.length === 0)) {
         plotContainer.innerHTML = '<p style="color: #888; text-align: center; margin-top: 50%;">Add at least 1 Shaft to visualize the Rotor.</p>';
         if(infoContainer) infoContainer.style.opacity = '0';
         return;
@@ -956,12 +1161,13 @@ async function _fetchRotorLive() {
     }
 }
 
-// Function to save the rotor
+// Function to save the active rotor
 
 function saveRotor(event) {
     if (event) event.preventDefault();
+    const fileName = (projectData.name || "my_rotor").replace(/\s+/g, '_') + ".json";
     const blob = new Blob([JSON.stringify(projectData, null, 2)], {type: "application/json"});
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = "my_rotor.json";
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = fileName;
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
 }
 
@@ -974,28 +1180,31 @@ async function loadRotor(event) {
     reader.onload = async function(e) {
         const content = e.target.result;
         let isInterfaceJSON = false;
-        currentTab = null;
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        document.getElementById('empty-message').style.display = 'block';
-        document.getElementById('list-area').style.display = 'none';
-        document.getElementById('analysis-list').innerHTML = '<p style="color: #888; text-align: center; margin-top: 20%;">Generated dashboards will appear here.</p>';
+        
         try {
             const loaded = JSON.parse(content);
             if (loaded.shafts !== undefined || loaded.eixos !== undefined) {
                 isInterfaceJSON = true;
-                projectData.materials = loaded.materials || loaded.materiais || [];
-                projectData.shafts = loaded.shafts || loaded.eixos || [];
-                projectData.disks = loaded.disks || loaded.discos || [];
-                projectData.gears = loaded.gears || loaded.engrenagens || [];
-                projectData.couplings = loaded.couplings || loaded.acoplamentos || [];
-                projectData.seals = loaded.seals || loaded.selos || [];
-                projectData.bearings = loaded.bearings || loaded.mancais || [];
-                projectData.pointmasses = loaded.pointmasses || [];                
-                switchScreen('screen-modeling');
-                buildRotorLive();
-                alert("Interface Rotor loaded successfully!");
+                
+                let newLoadedRotor = {
+                    name: file.name.replace('.json', ''),
+                    savedAnalyses: loaded.savedAnalyses || [],
+                    materials: loaded.materials || loaded.materiais || [],
+                    shafts: loaded.shafts || loaded.eixos || [],
+                    disks: loaded.disks || loaded.discos || [],
+                    gears: loaded.gears || loaded.engrenagens || [],
+                    couplings: loaded.couplings || loaded.acoplamentos || [],
+                    seals: loaded.seals || loaded.selos || [],
+                    bearings: loaded.bearings || loaded.mancais || [],
+                    pointmasses: loaded.pointmasses || []
+                };
+
+                rotorLibrary.push(newLoadedRotor);
+                openRotorHub();
+                alert("Interface Rotor loaded successfully into the Hub!");
             }
         } catch (err) { }
+        
         if (!isInterfaceJSON) {
             try {
                 const response = await fetch('http://127.0.0.1:5001/load_ross_file', {
@@ -1005,17 +1214,22 @@ async function loadRotor(event) {
                 });
                 const data = await response.json();
                 if (data.status === 'success') {
-                    projectData.materials = data.projectData.materials || [];
-                    projectData.shafts = data.projectData.shafts || [];
-                    projectData.disks = data.projectData.disks || [];
-                    projectData.gears = data.projectData.gears || [];
-                    projectData.couplings = data.projectData.couplings || [];
-                    projectData.seals = data.projectData.seals || [];
-                    projectData.bearings = data.projectData.bearings || [];
-                    projectData.pointmasses = data.projectData.pointmasses || [];                    
-                    switchScreen('screen-modeling');
-                    buildRotorLive();
-                    alert("Native ROSS file loaded and converted successfully!");
+                    let newConvertedRotor = {
+                        name: file.name.replace('.json', '') + " (Converted)",
+                        savedAnalyses: [],
+                        materials: data.projectData.materials || [],
+                        shafts: data.projectData.shafts || [],
+                        disks: data.projectData.disks || [],
+                        gears: data.projectData.gears || [],
+                        couplings: data.projectData.couplings || [],
+                        seals: data.projectData.seals || [],
+                        bearings: data.projectData.bearings || [],
+                        pointmasses: data.projectData.pointmasses || []
+                    };
+                    
+                    rotorLibrary.push(newConvertedRotor);
+                    openRotorHub();
+                    alert("Native ROSS file loaded, converted, and added to the Hub!");
                 } else {
                     alert("Error converting native ROSS file:\n" + data.message);
                 }
@@ -1911,125 +2125,142 @@ const ClassMap = {
 
 // Function to generate the Python file
 
-function generatePythonFile() {
-    let py = `import ross as rs\nimport numpy as np\nfrom ross.units import Q_\n`;    
-    py += `\n# ==========================================\n`;
-    py += `# Modeling \n`;
-    py += `# ==========================================\n`;
-    py += `\n# Materials \n`;
-    py += `materials_dict = {}\n`;
-    projectData.materials.forEach(m => {
+function _buildRotorClassPython(rData, suffix) {
+    let py = `\n# --- Rotor Component ${suffix.toUpperCase()} ---\n`;
+    
+    py += `materials_dict${suffix} = {}\n`;
+    (rData.materials || []).forEach(m => {
         let matCopy = Object.assign({}, m); 
         if (matCopy.poisson !== undefined) { matCopy.Poisson = matCopy.poisson; delete matCopy.poisson; }
         let args = formatKwargs(matCopy, ['name', 'element_type'], 'Material');
         let name = matCopy.name || 'MaterialCustom';
-        py += `materials_dict['${name.toLowerCase()}'] = rs.Material(name='${name}', ${args})\n`;
+        py += `materials_dict${suffix}['${name.toLowerCase()}'] = rs.Material(name='${name}', ${args})\n`;
     });
-    py += `default_mat = list(materials_dict.values())[0] if materials_dict else rs.materials.steel\n`;
-    py += `\n# Shafts \n`;
-    py += `shafts_data = [\n`;
-    let shaftNodes = getEffectiveNodes(projectData.shafts);
-    projectData.shafts.forEach((s, index) => {
+    py += `default_mat${suffix} = list(materials_dict${suffix}.values())[0] if materials_dict${suffix} else rs.materials.steel\n`;
+
+    // Shafts
+    py += `shafts_data${suffix} = [\n`;
+    let shaftNodes = getEffectiveNodes(rData.shafts || []);
+    (rData.shafts || []).forEach((s, index) => {
         let args = formatKwargs(s, ['material', 'element_type'], 'ShaftElement');
         let effN = shaftNodes[index];
         if (!args.includes('n=')) args = `n=${effN}` + (args.length > 0 ? `, ${args}` : ``);
-        let mat = s.material ? `materials_dict.get('${s.material.toLowerCase()}', default_mat)` : `default_mat`;        
+        let mat = s.material ? `materials_dict${suffix}.get('${s.material.toLowerCase()}', default_mat${suffix})` : `default_mat${suffix}`;        
         py += `    dict(${args}, material=${mat}),\n`;
     });
-    py += `]\n`;
-    py += `shafts = [rs.ShaftElement(**kwargs) for kwargs in shafts_data]\n`;
+    py += `]\nshafts${suffix} = [rs.ShaftElement(**kwargs) for kwargs in shafts_data${suffix}]\n`;
     
-    py += `\n# Disks \n`;
-    py += `disks_data = [\n`;
-    let diskNodes = getEffectiveNodes(projectData.disks);
-    projectData.disks.forEach((d, index) => { 
+    // Disks
+    py += `disks_data${suffix} = [\n`;
+    let diskNodes = getEffectiveNodes(rData.disks || []);
+    (rData.disks || []).forEach((d, index) => { 
         let args = formatKwargs(d, ['element_type'], 'DiskElement');
         let effN = diskNodes[index];
         if (!args.includes('n=')) args = `n=${effN}` + (args.length > 0 ? `, ${args}` : ``);
         py += `    dict(${args}),\n`; 
     });
-    py += `]\n`;
-    py += `disks = [rs.DiskElement(**kwargs) for kwargs in disks_data]\n`;
-    
-    py += `\n# Gears \n`;
-    py += `gears_data = [\n`;
-    let gearNodes = getEffectiveNodes(projectData.gears);
-    projectData.gears.forEach((g, index) => { 
+    py += `]\ndisks${suffix} = [rs.DiskElement(**kwargs) for kwargs in disks_data${suffix}]\n`;
+
+    // Gears
+    py += `gears_data${suffix} = [\n`;
+    let gearNodes = getEffectiveNodes(rData.gears || []);
+    (rData.gears || []).forEach((g, index) => { 
         let cls = ClassMap[g.element_type] || ClassMap['BASIC_gears'];
         let args = formatKwargs(g, ['element_type', 'material'], cls);
         let effN = gearNodes[index];
         if (!args.includes('n=')) args = `n=${effN}` + (args.length > 0 ? `, ${args}` : ``);
-        
-        let mat = g.material ? `materials_dict.get('${g.material.toLowerCase()}', default_mat)` : `default_mat`;
+        let mat = g.material ? `materials_dict${suffix}.get('${g.material.toLowerCase()}', default_mat${suffix})` : `default_mat${suffix}`;
         let argStr = args.length > 0 ? `${args}, material=${mat}` : `material=${mat}`;
-        
         py += `    (rs.${cls}, dict(${argStr})),\n`; 
     });
-    py += `]\n`;
-    py += `gears = [cls(**kwargs) for cls, kwargs in gears_data]\n`;
+    py += `]\ngears${suffix} = [cls(**kwargs) for cls, kwargs in gears_data${suffix}]\n`;
 
-    py += `\n# Bearings \n`;
-    py += `bearings_data = [\n`;
-    let bearingNodes = getEffectiveNodes(projectData.bearings);
-    projectData.bearings.forEach((b, index) => { 
+    // Bearings
+    py += `bearings_data${suffix} = [\n`;
+    let bearingNodes = getEffectiveNodes(rData.bearings || []);
+    (rData.bearings || []).forEach((b, index) => { 
         let cls = ClassMap[b.element_type] || ClassMap['BASIC_bearings'];
         let args = formatKwargs(b, ['element_type'], cls);
         let effN = bearingNodes[index];
         if (!args.includes('n=')) args = `n=${effN}` + (args.length > 0 ? `, ${args}` : ``);
         py += `    (rs.${cls}, dict(${args})),\n`; 
     });
-    py += `]\n`;
-    py += `bearings = [cls(**kwargs) for cls, kwargs in bearings_data]\n`;
+    py += `]\nbearings${suffix} = [cls(**kwargs) for cls, kwargs in bearings_data${suffix}]\n`;
 
-    py += `\n# Seals \n`;
-    py += `seals_data = [\n`;
-    let sealNodes = getEffectiveNodes(projectData.seals);
-    projectData.seals.forEach((s, index) => { 
+    // Seals
+    py += `seals_data${suffix} = [\n`;
+    let sealNodes = getEffectiveNodes(rData.seals || []);
+    (rData.seals || []).forEach((s, index) => { 
         let cls = ClassMap[s.element_type] || ClassMap['BASIC_seals'];
         let args = formatKwargs(s, ['element_type'], cls);
         let effN = sealNodes[index];
         if (!args.includes('n=')) args = `n=${effN}` + (args.length > 0 ? `, ${args}` : ``);
         py += `    (rs.${cls}, dict(${args})),\n`; 
     });
-    py += `]\n`;
-    py += `seals = [cls(**kwargs) for cls, kwargs in seals_data]\n`;
+    py += `]\nseals${suffix} = [cls(**kwargs) for cls, kwargs in seals_data${suffix}]\n`;
 
-    py += `\n# Couplings \n`;
-    py += `couplings_data = [\n`;
-    projectData.couplings.forEach(c => { 
+    // Couplings
+    py += `couplings_data${suffix} = [\n`;
+    (rData.couplings || []).forEach(c => { 
         py += `    dict(${formatKwargs(c, ['element_type'], 'CouplingElement')}),\n`; 
     });
-    py += `]\n`;
-    py += `couplings = [rs.CouplingElement(**kwargs) for kwargs in couplings_data]\n`;
+    py += `]\ncouplings${suffix} = [rs.CouplingElement(**kwargs) for kwargs in couplings_data${suffix}]\n`;
 
-    py += `\n# Point Masses \n`;
-    py += `point_masses_data = [\n`;
-    let pmNodes = getEffectiveNodes(projectData.pointmasses);
-    projectData.pointmasses.forEach((p, index) => { 
+    // PointMasses
+    py += `point_masses_data${suffix} = [\n`;
+    let pmNodes = getEffectiveNodes(rData.pointmasses || []);
+    (rData.pointmasses || []).forEach((p, index) => { 
         let args = formatKwargs(p, ['element_type'], 'PointMass');
         let effN = pmNodes[index];
         if (!args.includes('n=')) args = `n=${effN}` + (args.length > 0 ? `, ${args}` : ``);
         py += `    dict(${args}),\n`; 
     });
-    py += `]\n`;
-    py += `point_masses = [rs.PointMass(**kwargs) for kwargs in point_masses_data]\n`;
+    py += `]\npoint_masses${suffix} = [rs.PointMass(**kwargs) for kwargs in point_masses_data${suffix}]\n`;
 
-    py += `\n# Rotor Assembly \n`;
-    py += `rotor = rs.Rotor(\n    shaft_elements=shafts + couplings,\n    disk_elements=disks + gears,\n    bearing_elements=bearings + seals,\n    point_mass_elements=point_masses\n)\n`;
-
-    const conversionNode = document.getElementById('rotor-conversion-type');
-    const conversionType = conversionNode ? conversionNode.value : '';
+    // Final Assembly
+    py += `\nrotor${suffix} = rs.Rotor(\n    shaft_elements=shafts${suffix} + couplings${suffix},\n    disk_elements=disks${suffix} + gears${suffix},\n    bearing_elements=bearings${suffix} + seals${suffix},\n    point_mass_elements=point_masses${suffix}\n)\n`;
     
-    if (conversionType === '4dof') {
-        py += `rotor = rs.utils.convert_6dof_to_4dof(rotor)\n`;
-        py += `print("Rotor converted to 4 DoF!")\n`;
-    } else if (conversionType === 'torsional') {
-        py += `rotor = rs.utils.convert_6dof_to_torsional(rotor)\n`;
-        py += `print("Rotor converted to Torsional!")\n`;
+    return py;
+}
+
+function generatePythonFile() {
+    let py = `import ross as rs\nimport numpy as np\nfrom ross.units import Q_\n`;    
+    py += `\n# ==========================================\n# Modeling \n# ==========================================\n`;
+    
+    if (projectData.isMultiRotor) {
+        // Generates children iteratively
+        py += _buildRotorClassPython(projectData.driving_rotor, '_driving');
+        py += _buildRotorClassPython(projectData.driven_rotor, '_driven');
+        
+        // Defines the MultiRotor coupling
+        let p = projectData.multi_params;
+        let c_nodes = p.coupled_nodes || "0, 0";
+        let multiArgs = `rotor_driving, rotor_driven, coupled_nodes=(${c_nodes}), position='${p.position || 'above'}'`;
+        
+        if(p.gear_mesh_stiffness) multiArgs += `, gear_mesh_stiffness=${p.gear_mesh_stiffness}`;
+        if(p.update_mesh_stiffness === 'true') multiArgs += `, update_mesh_stiffness=True`;
+        if(p.square_varying_stiffness === 'true') multiArgs += `, square_varying_stiffness=True`;
+        if(p.square_stiffness_amplitude_ratio) multiArgs += `, square_stiffness_amplitude_ratio=${p.square_stiffness_amplitude_ratio}`;
+        if(p.orientation_angle) multiArgs += `, orientation_angle=${p.orientation_angle}`;
+        
+        py += `\n# MultiRotor Coupling\n`;
+        py += `rotor = rs.MultiRotor(${multiArgs})\n`;
+    } else {
+        py += _buildRotorClassPython(projectData, '');
+        py += `rotor = rotor\n`;
+        
+        const conversionNode = document.getElementById('rotor-conversion-type');
+        const conversionType = conversionNode ? conversionNode.value : '';
+        if (conversionType === '4dof') {
+            py += `rotor = rs.utils.convert_6dof_to_4dof(rotor)\nprint("Rotor converted to 4 DoF!")\n`;
+        } else if (conversionType === 'torsional') {
+            py += `rotor = rs.utils.convert_6dof_to_torsional(rotor)\nprint("Rotor converted to Torsional!")\n`;
+        }
     }
 
-    py += `print("Rotor Modeled Successfully!")\nrotor.plot_rotor().show()\n\n`;
+    py += `print("Rotor Successfully Modeled!")\nrotor.plot_rotor().show()\n\n`;
 
+    // Analysis Block
     const cards = document.querySelectorAll('.analysis-card');
     const activeAnalyses = [];
     cards.forEach(c => {
@@ -2497,3 +2728,88 @@ document.getElementById('help-modal-overlay').addEventListener('click', function
         closeHelpModal();
     }
 });
+
+// ==========================================
+// MULTIROTOR LOGIC
+// ==========================================
+
+function openMultiRotorModal() {
+    if (rotorLibrary.length < 2) {
+        alert("You need at least 2 rotors on the Hub to create a MultiRotor.");
+        return;
+    }
+    let options = '';
+    rotorLibrary.forEach((r, i) => {
+        options += `<option value="${i}">${r.name}</option>`;
+    });
+    document.getElementById('mr-driving').innerHTML = options;
+    document.getElementById('mr-driven').innerHTML = options;
+    
+    // Selects the second rotor in the list below by default to avoid collision
+    if (rotorLibrary.length > 1) {
+        document.getElementById('mr-driven').selectedIndex = 1;
+    }
+    
+    document.getElementById('multirotor-modal-overlay').style.display = 'flex';
+}
+
+function closeMultiRotorModal() {
+    document.getElementById('multirotor-modal-overlay').style.display = 'none';
+}
+
+function ensureUIDs() {
+    rotorLibrary.forEach(r => {
+        if (!r.uid) r.uid = 'rotor_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    });
+}
+
+function syncMultiRotors() {
+    rotorLibrary.forEach(mr => {
+        if (mr.isMultiRotor) {
+            let drv = rotorLibrary.find(r => r.uid === mr.driving_uid);
+            if (drv) mr.driving_rotor = JSON.parse(JSON.stringify(drv));
+            
+            let drvn = rotorLibrary.find(r => r.uid === mr.driven_uid);
+            if (drvn) mr.driven_rotor = JSON.parse(JSON.stringify(drvn));
+        }
+    });
+}
+
+function saveMultiRotor() {
+    let drivingIdx = document.getElementById('mr-driving').value;
+    let drivenIdx = document.getElementById('mr-driven').value;
+    
+    if (drivingIdx === drivenIdx) {
+        alert("The driving and driven rotors cannot be the same!");
+        return;
+    }
+    
+    ensureUIDs();
+    let drvRotor = rotorLibrary[drivingIdx];
+    let drvnRotor = rotorLibrary[drivenIdx];
+    
+    let mrData = {
+        name: document.getElementById('mr-name').value || "MultiRotor",
+        isMultiRotor: true,
+        uid: 'rotor_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+        driving_uid: drvRotor.uid,
+        driven_uid: drvnRotor.uid,
+        savedAnalyses: [],
+        driving_rotor: JSON.parse(JSON.stringify(drvRotor)),
+        driven_rotor: JSON.parse(JSON.stringify(drvnRotor)),
+        multi_params: {
+            coupled_nodes: document.getElementById('mr-coupled-nodes').value,
+            gear_mesh_stiffness: document.getElementById('mr-stiffness').value,
+            update_mesh_stiffness: document.getElementById('mr-update-stiffness').value,
+            square_varying_stiffness: document.getElementById('mr-square-stiffness').value,
+            square_stiffness_amplitude_ratio: document.getElementById('mr-ratio').value,
+            orientation_angle: document.getElementById('mr-angle').value,
+            position: document.getElementById('mr-position').value
+        },
+        materials: [], shafts: [], disks: [], gears: [], couplings: [], seals: [], bearings: [], pointmasses: []
+    };
+    
+    rotorLibrary.push(mrData);
+    closeMultiRotorModal();
+    renderRotorHub();
+}

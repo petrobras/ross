@@ -1030,3 +1030,64 @@ button {
     outline: none !important;
     cursor: pointer;
 }
+
+/* --- Rotor Hub Styles --- */
+.hub-container {
+    padding: 30px;
+    background: var(--bg-workspace);
+    flex: 1;
+    overflow-y: auto;
+}
+.hub-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 900px;
+    margin: 0 auto 20px auto;
+    color: var(--text-main);
+}
+.hub-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    max-width: 900px;
+    margin: 0 auto;
+}
+.hub-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-ui);
+    padding: 15px 20px;
+    box-shadow: var(--shadow-card);
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+.hub-card:hover {
+    box-shadow: 0 4px 6px rgba(15, 23, 42, 0.1);
+    transform: translateY(-2px);
+}
+.hub-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 10px;
+}
+.hub-card-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--topbar-bg);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.hub-card-actions {
+    display: flex;
+    gap: 8px;
+}
+.hub-card-bottom {
+    display: flex;
+    gap: 10px;
+}

@@ -215,6 +215,28 @@ def get_eff_nodes(arr):
 # Build Rotor
 
 def build_rotor_from_ui(data):
+    if data.get('isMultiRotor'):
+        driving = build_rotor_from_ui(data['driving_rotor'])
+        driven = build_rotor_from_ui(data['driven_rotor'])
+        params = data.get('multi_params', {})
+        
+        c_nodes_str = str(params.get('coupled_nodes', '0, 0')).split(',')
+        if len(c_nodes_str) < 2: c_nodes_str = ['0', '0']
+        coupled_nodes = (int(c_nodes_str[0].strip()), int(c_nodes_str[1].strip()))
+        
+        multi_kwargs = {
+            'coupled_nodes': coupled_nodes,
+            'position': params.get('position', 'above')
+        }
+        
+        if params.get('gear_mesh_stiffness'): multi_kwargs['gear_mesh_stiffness'] = float(params['gear_mesh_stiffness'])
+        if str(params.get('update_mesh_stiffness')).lower() == 'true': multi_kwargs['update_mesh_stiffness'] = True
+        if str(params.get('square_varying_stiffness')).lower() == 'true': multi_kwargs['square_varying_stiffness'] = True
+        if params.get('square_stiffness_amplitude_ratio'): multi_kwargs['square_stiffness_amplitude_ratio'] = float(params['square_stiffness_amplitude_ratio'])
+        if params.get('orientation_angle'): multi_kwargs['orientation_angle'] = float(params['orientation_angle'])
+        
+        return rs.MultiRotor(driving, driven, **multi_kwargs)
+    
     global ROSS_CACHE
     current_hashes = set()
     
@@ -417,8 +439,12 @@ def build_rotor():
     try:
         rotor = build_rotor_from_ui(request.json)
         fig_dict = remove_nans(decode_bdata(rotor.plot_rotor().to_dict()))
-        mass = float(rotor.m)
-        ip = float(rotor.Ip)
+        try:
+            mass = float(rotor.m)
+            ip = float(rotor.Ip)
+        except Exception:
+            mass = 0.0
+            ip = 0.0
         return jsonify({"status": "success", "plot_json": json.dumps(fig_dict, cls=NumpyEncoder), "mass": mass, "ip": ip})
     except Exception as e:
         import traceback
