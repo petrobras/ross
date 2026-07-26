@@ -2180,9 +2180,6 @@ class MagneticBearingElement(BearingElement):
 
         self.ks = ks
         self.ki = ki
-        self.control_signal = []
-        self.magnetic_force_xy = []
-        self.magnetic_force_vw = []
 
         # if coefficients are provided (e.g. loading from saved file), skip computation
         if kwargs.get("kxx") is not None:
@@ -2215,10 +2212,10 @@ class MagneticBearingElement(BearingElement):
         C_real = Hjw.real
         C_imag = Hjw.imag
 
-        k_eq = ks + ki * self.k_amp * self.k_sense * C_real
-        c_eq = ki * self.k_amp * self.k_sense * C_imag * np.divide(1, omega)
+        self.k_eq = ks + ki * self.k_amp * self.k_sense * C_real
+        self.c_eq = ki * self.k_amp * self.k_sense * C_imag * np.divide(1, omega)
 
-        rotation_matrix = np.matrix(
+        rotation_matrix = np.array(
             [
                 [
                     np.cos(self.sensors_axis_rotation),
@@ -2230,7 +2227,7 @@ class MagneticBearingElement(BearingElement):
                 ],
             ]
         )
-        inv_rotation_matrix = rotation_matrix.I
+        inv_rotation_matrix = np.linalg.inv(rotation_matrix)
 
         k_xx = []
         k_xy = []
@@ -2240,15 +2237,15 @@ class MagneticBearingElement(BearingElement):
         c_xy = []
         c_yx = []
         c_yy = []
-        for omega_i, k, c in zip(omega, k_eq, c_eq):
-            k_equivalent_matrix = np.matrix([[k, 0], [0, k]])
-            c_equivalent_matrix = np.matrix([[c, 0], [0, c]])
+        for omega_i, k, c in zip(omega, self.k_eq, self.c_eq):
+            k_equivalent_matrix = np.array([[k, 0], [0, k]])
+            c_equivalent_matrix = np.array([[c, 0], [0, c]])
 
             k_xy_axis_matrix = (
-                inv_rotation_matrix * k_equivalent_matrix * rotation_matrix
+                inv_rotation_matrix @ k_equivalent_matrix @ rotation_matrix
             )
             c_xy_axis_matrix = (
-                inv_rotation_matrix * c_equivalent_matrix * rotation_matrix
+                inv_rotation_matrix @ c_equivalent_matrix @ rotation_matrix
             )
 
             k_xx.append(k_xy_axis_matrix[0, 0])
@@ -2318,7 +2315,7 @@ class MagneticBearingElement(BearingElement):
 
         return customdata, hovertemplate
 
-    def compute_pid_amb(self, current_offset, setpoint, disp, dof_index):
+    def compute_amb_controller(self, current_offset, setpoint, disp, dof_index):
         """Compute AMB control force for one axis using the discrete controller.
 
         This routine evaluates the discrete-time controller output for the selected
@@ -2375,25 +2372,22 @@ class MagneticBearingElement(BearingElement):
         ...     kp_pid=1.0, ki_pid=5.0, kd_pid=0.01, n_f=1e4
         ... )
         >>> mb.build_controller(dt=1e-3)
-        >>> # start a new logging bucket for this time step (x and y)
-        >>> mb.control_signal.append([[], []])
-        >>> # compute force for x-axis given a small measured displacement
-        >>> force_x = mb.compute_pid_amb(
+        >>> force, current = mb.compute_amb_controller(
         ...     current_offset=0.0, setpoint=0.0, disp=2e-4, dof_index=0
         ... )
-        >>> isinstance(force_x, float)
-        True
-
+        >>> force  # doctest: +ELLIPSIS
+        -0.945195...
+        >>> current  # doctest: +ELLIPSIS
+        -0.003533...
         """
         err = setpoint - disp
-        u = self.C_c * self.x_c[dof_index] + self.D_c * err
-        self.x_c[dof_index] = self.A_c * self.x_c[dof_index] + self.B_c * err
+        u = self.C_c @ self.x_c[dof_index] + self.D_c * err
+        self.x_c[dof_index] = self.A_c @ self.x_c[dof_index] + self.B_c * err
 
         signal_pid = current_offset + u
         magnetic_force = self.ki * signal_pid + self.ks * disp
 
-        self.control_signal[dof_index].append(signal_pid.item())
-        return magnetic_force.item()
+        return magnetic_force.item(), signal_pid.item()
 
     def get_analog_controller(self):
         """
@@ -2533,7 +2527,7 @@ class MagneticBearingElement(BearingElement):
         self.D_c = C_z_ss.D
 
         self.x_c = [
-            np.matrix(np.zeros((self.A_c.shape[0], 1))) for _ in range(2)
+            np.zeros((self.A_c.shape[0], 1)) for _ in range(2)
         ]  # for x and y directions
 
 

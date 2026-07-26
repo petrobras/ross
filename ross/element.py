@@ -123,6 +123,24 @@ class Element(ABC):
             subclasses.extend(subclass.get_subclasses())
         return subclasses
 
+    @classmethod
+    def get_base_class(cls):
+        """Get the direct subclass of Element in the inheritance chain.
+
+        Returns the first class in the inheritance hierarchy that directly
+        inherits from Element. This is useful for identifying the base element
+        type when working with subclasses or indirect subclasses.
+
+        Returns
+        -------
+        base_class : type
+            The direct subclass of Element in the inheritance chain.
+        """
+        base_class = cls
+        while base_class.__base__ != Element:
+            base_class = base_class.__base__
+        return base_class
+
     @abstractmethod
     def M(self):
         """Mass matrix.
@@ -315,3 +333,8 @@ class Element(ABC):
             return prefix
         else:
             return f"{prefix} {index}"
+
+    def add_tag(self, index):
+        """Add a tag to the given element."""
+        if self.tag is None:
+            self.tag = self.get_class_name_prefix(index)
