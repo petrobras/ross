@@ -1,3 +1,29 @@
+"""Tests for the MotorElement class.
+
+Tests are based on the operating scenarios described in
+"Testes dos modelos do motor e conversor - ROSS.docx", covering the three
+electrical sources supported by ``MotorElement``:
+
+- ``SourceAC`` (ideal AC source), driven through ``.run_direct_on_line()``;
+- ``InverterVF`` (open-loop scalar V/f control), driven through
+  ``.run_open_loop_vf_adjustment()``;
+- ``InverterFOC`` (closed-loop indirect Field-Oriented Control), driven
+  through ``.run_with_inverter_foc()``.
+
+All tests use the parameters from ``motor_example()`` and the default
+simulation parameters defined in the module.
+
+Motor under test
+----------------
+- Nominal power  : 1.5 cv  (≈ 1103.25 W)
+- Nominal voltage: 127 V (phase)
+- Nominal speed  : 1710 RPM
+- Nominal frequency: 60 Hz
+- Poles          : 4
+- Rs = 2.5 Ω, Rr = 1.8 Ω, Xs = Xr = 1.3 Ω, Xm = 43.08 Ω
+- Ip_motor = 0.0372 kg·m²
+"""
+
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose
@@ -104,7 +130,7 @@ def test_motor_example_equality(motor):
 @pytest.fixture
 def results_no_load(motor):
     """Simulate the motor at no load for 3 s (nominal voltage)."""
-    dt = 1e-3
+    dt = 1e-4
     tf = 3.0
     t = np.arange(0, tf + dt, dt)
     return motor.run_direct_on_line(
@@ -158,7 +184,7 @@ def test_no_load_speed(results_no_load):
 @pytest.fixture
 def results_nominal_load(motor):
     """Simulate the motor at nominal load for 3 s (nominal voltage)."""
-    dt = 1e-3
+    dt = 1e-4
     tf = 3.0
     t = np.arange(0, tf + dt, dt)
     return motor.run_direct_on_line(
@@ -274,4 +300,270 @@ def test_speed_nearly_zero_during_locked_rotor(results_locked_rotor):
     # Speed should not exceed 5 RPM during the 0.5 s window
     assert np.max(np.abs(speed_rpm)) < 5.0, (
         f"Speed too high during locked-rotor test: {np.max(np.abs(speed_rpm)):.2f} RPM"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Test 4 - Variable frequency drive (InverterVF / V-f scalar control)
+# ---------------------------------------------------------------------------
+#
+# Unlike ``SourceAC``, the mechanical operating point reached with
+# ``InverterVF`` is not compared against pre-recorded magic numbers (the
+# SVPWM ripple shifts RMS/peak current readings a little with respect to an
+# ideal sinusoidal source). Instead, these tests rely on the underlying
+# physics of the induction machine, which hold regardless of the harmonic
+# content injected by the modulator:
+#
+# - With no mechanical load and no viscous friction (``motor_example()`` has
+#   ``viscosity_coeff=0``), the steady-state electric torque must converge to
+#   (approximately) zero, so the rotor settles at the synchronous mechanical
+#   speed set by the applied electrical frequency: ``w_sync = frequency / (n_poles/2)``.
+# - Since ``InverterVF`` applies scalar V/f control, this holds at any
+#   reference frequency within the linear modulation region, not only at the
+#   nominal frequency.
+
+
+def _synchronous_speed_rpm(motor, frequency_hz):
+    """Synchronous mechanical speed [RPM] for a given electrical frequency [Hz]."""
+    frequency_rad_s = Q_(frequency_hz, "Hz").to("rad/s").m
+    w_sync = frequency_rad_s / (motor.n_poles / 2)
+    return w_sync * 60.0 / (2.0 * np.pi)
+
+
+@pytest.fixture(scope="module")
+def results_inverter_vf_nominal_no_load(motor):
+    """Simulate the motor with InverterVF at nominal frequency, no load."""
+    dt = 1e-3
+    tf = 3.0
+    t = np.arange(0, tf + dt, dt)
+    return motor.run_open_loop_vf_adjustment(
+        t,
+        time_step=1e-5,
+        load_torque_entrance_time=tf + 1.0,  # load applied after simulation ends
+        load_torque_ratio=0.0,
+        time_ramp=0.5,
+        frequency_ref=Q_(60.0, "Hz"),
+    )
+
+
+def test_inverter_vf_nominal_no_load_speed_near_synchronous(
+    results_inverter_vf_nominal_no_load, motor
+):
+    """At nominal frequency and no load, speed must approach the 1800 RPM
+    synchronous speed (60 Hz, 4 poles)."""
+    ss = _steady_state_slice(results_inverter_vf_nominal_no_load)
+    speed_rpm = np.mean(results_inverter_vf_nominal_no_load.speed[ss:]) * 60.0 / (
+        2.0 * np.pi
+    )
+    w_sync_rpm = _synchronous_speed_rpm(motor, 60.0)
+    assert_allclose(
+        speed_rpm,
+        w_sync_rpm,
+        atol=15.0,
+        err_msg="No-load InverterVF speed should approach the synchronous speed",
+    )
+
+
+@pytest.fixture(scope="module")
+def results_inverter_vf_half_freq_no_load(motor):
+    """Simulate the motor with InverterVF at half the nominal frequency, no load."""
+    dt = 1e-3
+    tf = 3.0
+    t = np.arange(0, tf + dt, dt)
+    return motor.run_open_loop_vf_adjustment(
+        t,
+        time_step=1e-5,
+        load_torque_entrance_time=tf + 1.0,
+        load_torque_ratio=0.0,
+        time_ramp=0.5,
+        frequency_ref=Q_(30.0, "Hz"),
+    )
+
+
+def test_inverter_vf_half_freq_no_load_speed_near_synchronous(
+    results_inverter_vf_half_freq_no_load, motor
+):
+    """At half the nominal frequency (30 Hz) and no load, speed must approach
+    half the synchronous speed (900 RPM), illustrating the V/f scaling law."""
+    ss = _steady_state_slice(results_inverter_vf_half_freq_no_load)
+    speed_rpm = np.mean(
+        results_inverter_vf_half_freq_no_load.speed[ss:]
+    ) * 60.0 / (2.0 * np.pi)
+    w_sync_rpm = _synchronous_speed_rpm(motor, 30.0)
+    assert_allclose(
+        speed_rpm,
+        w_sync_rpm,
+        atol=15.0,
+        err_msg="No-load InverterVF speed at half frequency should approach half the synchronous speed",
+    )
+
+
+@pytest.fixture(scope="module")
+def results_inverter_vf_nominal_load(motor):
+    """Simulate the motor with InverterVF at nominal frequency and nominal load."""
+    dt = 1e-3
+    tf = 3.0
+    t = np.arange(0, tf + dt, dt)
+    return motor.run_open_loop_vf_adjustment(
+        t,
+        time_step=1e-5,
+        load_torque_entrance_time=0.5,
+        load_torque_ratio=1.0,
+        time_ramp=0.5,
+        frequency_ref=Q_(60.0, "Hz"),
+    )
+
+
+def test_inverter_vf_nominal_load_causes_speed_droop(
+    results_inverter_vf_nominal_load, results_inverter_vf_nominal_no_load
+):
+    """Under open-loop V/f control, applying the nominal load must reduce the
+    steady-state speed with respect to the no-load operating point (slip)."""
+    ss_load = _steady_state_slice(results_inverter_vf_nominal_load)
+    ss_noload = _steady_state_slice(results_inverter_vf_nominal_no_load)
+
+    speed_load_rpm = np.mean(results_inverter_vf_nominal_load.speed[ss_load:]) * 60.0 / (
+        2.0 * np.pi
+    )
+    speed_noload_rpm = np.mean(
+        results_inverter_vf_nominal_no_load.speed[ss_noload:]
+    ) * 60.0 / (2.0 * np.pi)
+
+    assert speed_load_rpm < speed_noload_rpm, (
+        "Nominal-load speed should be lower than no-load speed due to slip "
+        f"(load={speed_load_rpm:.1f} RPM, no-load={speed_noload_rpm:.1f} RPM)"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Test 5 - Indirect Field-Oriented Control (InverterFOC), closed loop
+# ---------------------------------------------------------------------------
+#
+# Unlike InverterVF, InverterFOC regulates the shaft speed in closed loop
+# through nested speed/current PI controllers. Given enough time to settle,
+# the integral action of the speed loop is expected to drive the steady-state
+# speed error to (approximately) zero, for any speed reference within the
+# machine's capability and regardless of load torque - which is the key
+# functional difference with respect to the open-loop V/f drive tested above.
+
+
+@pytest.fixture(scope="module")
+def results_foc_nominal_speed_with_load(motor):
+    """Simulate the motor with InverterFOC tracking nominal speed, under
+    nominal load."""
+    dt = 1e-3
+    tf = 3.0
+    t = np.arange(0, tf + dt, dt)
+    return motor.run_with_inverter_foc(
+        t,
+        time_step=1e-5,
+        load_torque_entrance_time=1.5,
+        load_torque_ratio=1.0,
+        frequency_s=Q_(5000, "Hz"),
+        time_ramp=0.5,
+        wref=motor.speed_nom,
+    )
+
+
+def test_foc_speed_tracks_nominal_reference_despite_load(
+    results_foc_nominal_speed_with_load, motor
+):
+    """Steady-state speed must track wref (nominal speed) closely, even after
+    the nominal load torque is applied - contrasting the V/f speed droop."""
+    ss = _steady_state_slice(results_foc_nominal_speed_with_load)
+    speed_rpm = np.mean(
+        results_foc_nominal_speed_with_load.speed[ss:]
+    ) * 60.0 / (2.0 * np.pi)
+    wref_rpm = motor.speed_nom * 60.0 / (2.0 * np.pi)
+
+    assert_allclose(
+        speed_rpm,
+        wref_rpm,
+        rtol=0.03,
+        atol=15.0,
+        err_msg="Closed-loop FOC speed should track the nominal speed reference under load",
+    )
+
+
+@pytest.fixture(scope="module")
+def results_foc_half_speed_no_load(motor):
+    """Simulate the motor with InverterFOC tracking half the nominal speed,
+    with no load."""
+    dt = 1e-3
+    tf = 3.0
+    t = np.arange(0, tf + dt, dt)
+    wref_half = motor.speed_nom / 2.0
+    return motor.run_with_inverter_foc(
+        t,
+        time_step=1e-5,
+        load_torque_entrance_time=tf + 1.0,  # load applied after simulation ends
+        load_torque_ratio=0.0,
+        frequency_s=Q_(5000, "Hz"),
+        time_ramp=0.5,
+        wref=wref_half,
+    )
+
+
+def test_foc_speed_tracks_reduced_reference_no_load(
+    results_foc_half_speed_no_load, motor
+):
+    """Steady-state speed must track an arbitrary (non-nominal) speed
+    reference, unlike open-loop V/f control which only tracks the
+    synchronous speed derived from the applied electrical frequency."""
+    ss = _steady_state_slice(results_foc_half_speed_no_load)
+    speed_rpm = np.mean(results_foc_half_speed_no_load.speed[ss:]) * 60.0 / (
+        2.0 * np.pi
+    )
+    wref_rpm = (motor.speed_nom / 2.0) * 60.0 / (2.0 * np.pi)
+
+    assert_allclose(
+        speed_rpm,
+        wref_rpm,
+        rtol=0.03,
+        atol=15.0,
+        err_msg="Closed-loop FOC speed should track a reduced speed reference",
+    )
+
+
+def test_foc_speed_ramps_up_gradually(results_foc_half_speed_no_load):
+    """The mechanical speed reference is ramped, so the shaft speed early in
+    the simulation must be substantially lower than the final steady-state
+    speed (no instantaneous jump to the reference)."""
+    results = results_foc_half_speed_no_load
+    idx_early = np.searchsorted(results.t, 0.1)
+    speed_early_rpm = results.speed[idx_early] * 60.0 / (2.0 * np.pi)
+
+    ss = _steady_state_slice(results)
+    speed_final_rpm = np.mean(results.speed[ss:]) * 60.0 / (2.0 * np.pi)
+
+    assert speed_early_rpm < 0.5 * speed_final_rpm, (
+        "Speed should still be ramping up at t=0.1 s, well below the final "
+        f"steady-state value (early={speed_early_rpm:.1f} RPM, "
+        f"final={speed_final_rpm:.1f} RPM)"
+    )
+
+
+def test_foc_closed_loop_tracks_better_than_open_loop_under_load(
+    results_foc_nominal_speed_with_load, results_inverter_vf_nominal_load, motor
+):
+    """Under nominal load, the closed-loop FOC speed error with respect to
+    its reference must be smaller than the open-loop V/f slip-induced error,
+    highlighting the benefit of closed-loop control."""
+    ss = _steady_state_slice(results_foc_nominal_speed_with_load)
+    foc_speed_rpm = np.mean(
+        results_foc_nominal_speed_with_load.speed[ss:]
+    ) * 60.0 / (2.0 * np.pi)
+    wref_rpm = motor.speed_nom * 60.0 / (2.0 * np.pi)
+    foc_error = abs(foc_speed_rpm - wref_rpm)
+
+    ss_vf = _steady_state_slice(results_inverter_vf_nominal_load)
+    vf_speed_rpm = np.mean(
+        results_inverter_vf_nominal_load.speed[ss_vf:]
+    ) * 60.0 / (2.0 * np.pi)
+    vf_sync_rpm = _synchronous_speed_rpm(motor, 60.0)
+    vf_error = abs(vf_speed_rpm - vf_sync_rpm)
+
+    assert foc_error < vf_error, (
+        "Closed-loop FOC speed error should be smaller than the open-loop "
+        f"V/f slip (foc_error={foc_error:.2f} RPM, vf_error={vf_error:.2f} RPM)"
     )

@@ -144,3 +144,8 @@ uv.lock
 docs/_design/*
 # ...except committed design notes
 !docs/_design/docsearch-application.md
+
+### Local Tests ###
+##################
+LocalTests/
+figs/

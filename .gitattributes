@@ -1,3 +1,4 @@
 # Auto detect text files and perform LF normalization
 * text=auto
 *.ipynb linguist-vendored
+docs/user_guide/tutorial_part_6.ipynb filter=lfs diff=lfs merge=lfs -text
