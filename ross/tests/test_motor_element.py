@@ -439,18 +439,29 @@ def test_inverter_vf_nominal_load_causes_speed_droop(
 # Test 5 - Indirect Field-Oriented Control (InverterFOC), closed loop
 # ---------------------------------------------------------------------------
 #
-# Unlike InverterVF, InverterFOC regulates the shaft speed in closed loop
-# through nested speed/current PI controllers. Given enough time to settle,
-# the integral action of the speed loop is expected to drive the steady-state
-# speed error to (approximately) zero, for any speed reference within the
-# machine's capability and regardless of load torque - which is the key
-# functional difference with respect to the open-loop V/f drive tested above.
+# InverterFOC takes a synchronous electrical `frequency_ref` argument, just
+# like InverterVF (e.g. `Q_(60, "Hz")`), but - unlike InverterVF - it is a
+# closed loop: the speed loop converts `frequency_ref` internally to the
+# equivalent synchronous mechanical speed and actively corrects for slip, so
+# the steady-state speed error is expected to be (approximately) zero for any
+# reference within the machine's capability and regardless of load torque.
+# This is the key functional difference with respect to the open-loop V/f
+# drive tested above, whose steady-state speed merely approaches the
+# synchronous speed at no load and droops under load.
+#
+# A reference at or above the nominal frequency is clamped internally to the
+# motor's nominal (rated) mechanical speed (`InverterFOC.wn`), so
+# `frequency_ref=Q_(60, "Hz")` targets the same ~1710 RPM rated operating
+# point used in the SourceAC/InverterVF nominal-load tests above, while a
+# reduced reference (e.g. 30 Hz) targets the corresponding synchronous speed
+# directly (900 RPM), exactly as `_synchronous_speed_rpm` computes for
+# InverterVF.
 
 
 @pytest.fixture(scope="module")
 def results_foc_nominal_speed_with_load(motor):
-    """Simulate the motor with InverterFOC tracking nominal speed, under
-    nominal load."""
+    """Simulate the motor with InverterFOC tracking the nominal frequency,
+    under nominal load."""
     dt = 1e-3
     tf = 3.0
     t = np.arange(0, tf + dt, dt)
@@ -461,15 +472,16 @@ def results_foc_nominal_speed_with_load(motor):
         load_torque_ratio=1.0,
         frequency_s=Q_(5000, "Hz"),
         time_ramp=0.5,
-        wref=motor.speed_nom,
+        frequency_ref=Q_(60.0, "Hz"),
     )
 
 
 def test_foc_speed_tracks_nominal_reference_despite_load(
     results_foc_nominal_speed_with_load, motor
 ):
-    """Steady-state speed must track wref (nominal speed) closely, even after
-    the nominal load torque is applied - contrasting the V/f speed droop."""
+    """Steady-state speed must track the nominal (rated) speed closely, even
+    after the nominal load torque is applied - contrasting the V/f speed
+    droop."""
     ss = _steady_state_slice(results_foc_nominal_speed_with_load)
     speed_rpm = np.mean(
         results_foc_nominal_speed_with_load.speed[ss:]
@@ -486,13 +498,12 @@ def test_foc_speed_tracks_nominal_reference_despite_load(
 
 
 @pytest.fixture(scope="module")
-def results_foc_half_speed_no_load(motor):
-    """Simulate the motor with InverterFOC tracking half the nominal speed,
-    with no load."""
+def results_foc_half_freq_no_load(motor):
+    """Simulate the motor with InverterFOC tracking half the nominal
+    frequency, with no load."""
     dt = 1e-3
     tf = 3.0
     t = np.arange(0, tf + dt, dt)
-    wref_half = motor.speed_nom / 2.0
     return motor.run_with_inverter_foc(
         t,
         time_step=1e-5,
@@ -500,36 +511,36 @@ def results_foc_half_speed_no_load(motor):
         load_torque_ratio=0.0,
         frequency_s=Q_(5000, "Hz"),
         time_ramp=0.5,
-        wref=wref_half,
+        frequency_ref=Q_(30.0, "Hz"),
     )
 
 
 def test_foc_speed_tracks_reduced_reference_no_load(
-    results_foc_half_speed_no_load, motor
+    results_foc_half_freq_no_load, motor
 ):
-    """Steady-state speed must track an arbitrary (non-nominal) speed
-    reference, unlike open-loop V/f control which only tracks the
-    synchronous speed derived from the applied electrical frequency."""
-    ss = _steady_state_slice(results_foc_half_speed_no_load)
-    speed_rpm = np.mean(results_foc_half_speed_no_load.speed[ss:]) * 60.0 / (
+    """Steady-state speed must track the synchronous speed of a reduced
+    (non-nominal) frequency reference, correcting for slip - unlike open-loop
+    V/f control, which only approaches that synchronous speed at no load."""
+    ss = _steady_state_slice(results_foc_half_freq_no_load)
+    speed_rpm = np.mean(results_foc_half_freq_no_load.speed[ss:]) * 60.0 / (
         2.0 * np.pi
     )
-    wref_rpm = (motor.speed_nom / 2.0) * 60.0 / (2.0 * np.pi)
+    w_sync_rpm = _synchronous_speed_rpm(motor, 30.0)
 
     assert_allclose(
         speed_rpm,
-        wref_rpm,
+        w_sync_rpm,
         rtol=0.03,
         atol=15.0,
-        err_msg="Closed-loop FOC speed should track a reduced speed reference",
+        err_msg="Closed-loop FOC speed should track a reduced frequency reference",
     )
 
 
-def test_foc_speed_ramps_up_gradually(results_foc_half_speed_no_load):
+def test_foc_speed_ramps_up_gradually(results_foc_half_freq_no_load):
     """The mechanical speed reference is ramped, so the shaft speed early in
     the simulation must be substantially lower than the final steady-state
     speed (no instantaneous jump to the reference)."""
-    results = results_foc_half_speed_no_load
+    results = results_foc_half_freq_no_load
     idx_early = np.searchsorted(results.t, 0.1)
     speed_early_rpm = results.speed[idx_early] * 60.0 / (2.0 * np.pi)
 

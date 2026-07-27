@@ -568,7 +568,7 @@ class InverterFOC:
 
         return self.wref_ramp
 
-    def get_phase_voltages(self, wref, wr, ia, ib, ic, dt):
+    def get_phase_voltages(self, frequency_ref, wr, ia, ib, ic, dt):
         """Run the iFOC control loop and synthesize phase voltages via SVPWM.
 
         Computes the instantaneous phase voltages (A, B, C) from the rotor
@@ -577,8 +577,11 @@ class InverterFOC:
 
         Parameters
         ----------
-        wref : float
-            Desired mechanical speed reference [rad/s].
+        frequency_ref : float
+            Desired synchronous electrical frequency reference [rad/s],
+            analogous to `InverterVF`'s `frequency_ref`. Internally converted
+            to a mechanical speed reference through the pole-pair count
+            (`wref = frequency_ref / p`) before being fed to the speed loop.
         wr : float
             Measured (feedback) rotor mechanical speed [rad/s].
         ia, ib, ic : float
@@ -600,7 +603,14 @@ class InverterFOC:
             Synchronous electrical speed [rad/s].
         """
         # ======================== Speed control loop =========================
-        wref = self.speed_control(wref)
+        # Convert the electrical frequency reference into the equivalent
+        # mechanical synchronous speed (same relation used by InverterVF's
+        # own V/f law: w_sync = frequency / p). The speed loop itself, and
+        # its ramp state (`wref_ramp`), continue to operate in the
+        # mechanical domain, since they are compared against the measured
+        # mechanical speed `wr`.
+        wref_mech = frequency_ref / self.p
+        wref = self.speed_control(wref_mech)
         err_w = wref - wr
 
         u_prop = self.kp_w * err_w
@@ -798,15 +808,18 @@ class InverterFOC:
 
         return van, vbn, vcn
 
-    def get_operating_state(self, t, wref, wr=0.0, ia=0.0, ib=0.0, ic=0.0, dt=None):
+    def get_operating_state(
+        self, t, frequency_ref, wr=0.0, ia=0.0, ib=0.0, ic=0.0, dt=None
+    ):
         """Get the synchronous frequency and phase voltages of the inverter.
 
         Parameters
         ----------
         t : float
             Time [s] (kept for interface compatibility with InverterVF).
-        wref : float
-            Desired mechanical speed reference [rad/s].
+        frequency_ref : float
+            Desired synchronous electrical frequency reference [rad/s],
+            analogous to `InverterVF`'s `frequency_ref`.
         wr : float, optional
             Measured (feedback) rotor mechanical speed [rad/s]. Default is 0.
         ia, ib, ic : float, optional
@@ -824,6 +837,8 @@ class InverterFOC:
         if dt is None:
             dt = self.deltat
 
-        van, vbn, vcn, teta, wshaft = self.get_phase_voltages(wref, wr, ia, ib, ic, dt)
+        van, vbn, vcn, teta, wshaft = self.get_phase_voltages(
+            frequency_ref, wr, ia, ib, ic, dt
+        )
 
         return wshaft, van, vbn, vcn
