@@ -77,19 +77,7 @@ class PhaseResults(Results):
         self.name = self._DATA_TYPE_MAP[data_type]["name"]
         self.units = self._DATA_TYPE_MAP[data_type]["units"]
 
-        sample_idx = self.get_corresponding_indices(t, t_eval)
-
-        # Adaptive sampling preserving discontinuities
-        tol = 1e-6
-        d = np.diff(data["a"])
-        flat_fraction = np.mean(np.abs(d) < tol)
-        is_square_like = flat_fraction > 0.9
-
-        if is_square_like:
-            idx_edges = np.flatnonzero(np.abs(d) > tol) + 1
-            sample_idx = np.unique(np.concatenate((sample_idx, idx_edges)))
-
-        self.sample_idx = sample_idx
+        self.sample_idx = self.get_adaptive_sample_idx(t, data, t_eval)
         self.t_eval = t_eval
 
     @staticmethod
@@ -127,6 +115,66 @@ class PhaseResults(Results):
             np.concatenate(([0], np.searchsorted(t, t_eval), [len(t) - 1]))
         )
         sample_idx = sample_idx[sample_idx < len(t)]
+
+        return sample_idx
+
+    @staticmethod
+    def get_adaptive_sample_idx(t, data, t_eval=None, tol=1e-6):
+        """Return sample indices for time-domain plotting, preserving fast
+        transitions that would otherwise be lost (aliased) if only the
+        (possibly much coarser) `t_eval` grid were used.
+
+        `t_eval` is normally sparse compared to `t`: it is meant to give a
+        low-resolution view of slowly-varying signals such as the shaft
+        speed or the electromagnetic torque. Voltages coming from an
+        inverter (`InverterVF`, `InverterFOC`), however, switch at a much
+        higher rate (the SVPWM switching frequency) than that. If `t_eval`'s
+        spacing happens to be close to an integer multiple of the switching
+        period -- a very common case, since both are usually chosen as
+        "round" numbers -- naively sampling only at `t_eval` always lands on
+        (approximately) the same phase of the switching pattern, aliasing
+        the whole trace to a spurious near-constant value (often 0) instead
+        of showing the actual waveform.
+
+        To avoid this, every index where any of the signals in `data`
+        changes by more than `tol` between consecutive full-resolution
+        samples is unioned into the returned sample index, on top of the
+        sparse `t_eval`-based points. This keeps plots of smooth signals
+        essentially unchanged (no discontinuities to add) while correctly
+        reconstructing the envelope of fast-switching ones.
+
+        Parameters
+        ----------
+        t : ndarray
+            Full-resolution (simulation time step) time vector.
+        data : dict or array_like
+            One or more full-resolution signals sharing the time vector
+            `t`. If a dict, discontinuities are detected across every
+            signal it contains (e.g. all of "a", "b", "c").
+        t_eval : array, optional
+            Requested (possibly coarser) evaluation grid. See
+            :meth:`get_corresponding_indices`.
+        tol : float, optional
+            Minimum change between consecutive full-resolution samples to be
+            considered a real transition (as opposed to numerical noise).
+            Default is 1e-6.
+
+        Returns
+        -------
+        sample_idx : ndarray
+            Sorted, unique indices into `t` (and into each array in `data`)
+            to use for plotting.
+        """
+        sample_idx = PhaseResults.get_corresponding_indices(t, t_eval)
+
+        series = data.values() if isinstance(data, dict) else [data]
+        edge_idx_list = [
+            np.flatnonzero(np.abs(np.diff(np.asarray(s))) > tol) + 1 for s in series
+        ]
+
+        if edge_idx_list:
+            idx_edges = np.unique(np.concatenate(edge_idx_list))
+            sample_idx = np.unique(np.concatenate((sample_idx, idx_edges)))
 
         return sample_idx
 
@@ -344,6 +392,16 @@ class MotorResponseResults(Results):
         self.line_voltages["ca"] = self.voltages["c"] - self.voltages["a"]
 
         self.sample_idx = PhaseResults.get_corresponding_indices(t, t_eval)
+
+        # Line voltages carry the same fast SVPWM switching content as the
+        # phase voltages (see `PhaseResults.get_adaptive_sample_idx`), so the
+        # naive `t_eval`-only `sample_idx` above would alias them the same
+        # way. `plot_line_voltages` uses this dedicated, transition-aware
+        # index instead; torque/speed keep using `self.sample_idx` since
+        # they are smooth, low-pass quantities.
+        self.voltage_sample_idx = PhaseResults.get_adaptive_sample_idx(
+            t, self.line_voltages, t_eval
+        )
         self.t_eval = t_eval
 
     def sample_at(self, attr, t_eval=None):
@@ -456,13 +514,16 @@ class MotorResponseResults(Results):
 
         return fig
 
-    def _plot_time(self, result_dict, title, yaxis_title, fig, **kwargs):
+    def _plot_time(self, result_dict, title, yaxis_title, fig, sample_idx=None, **kwargs):
+
+        if sample_idx is None:
+            sample_idx = self.sample_idx
 
         for name, signal in result_dict.items():
             fig.add_trace(
                 go.Scatter(
-                    x=self.t[self.sample_idx],
-                    y=signal[self.sample_idx],
+                    x=self.t[sample_idx],
+                    y=signal[sample_idx],
                     name=name,
                 )
             )
@@ -820,6 +881,7 @@ class MotorResponseResults(Results):
         else:
             fig = self._plot_time(
                 **main_inputs,
+                sample_idx=self.voltage_sample_idx,
                 **kwargs,
             )
 
