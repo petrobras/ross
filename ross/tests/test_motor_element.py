@@ -578,3 +578,99 @@ def test_foc_closed_loop_tracks_better_than_open_loop_under_load(
         "Closed-loop FOC speed error should be smaller than the open-loop "
         f"V/f slip (foc_error={foc_error:.2f} RPM, vf_error={vf_error:.2f} RPM)"
     )
+
+
+# ---------------------------------------------------------------------------
+# Test 6 - FFT frequency range for inverter-driven figures
+# ---------------------------------------------------------------------------
+#
+# All frequency-domain ("FFT") figures for inverter-driven simulations
+# (InverterVF / InverterFOC) are expected to support restricting the
+# displayed band to 0.5 Hz - 2.1 x Fs (Fs = IGBT switching frequency,
+# `frequency_s`), via the existing `frequency_range` argument. This keeps the
+# fundamental, the switching harmonics and their first sidebands visible
+# while discarding the DC bin and content far above the switching frequency.
+# The tests below exercise both `MotorResponseResults._plot_dfft` (used by
+# `plot_torque` / `plot_line_voltages`) and `PhaseResults.plot_dfft` (used by
+# `plot_phase_currents` / `plot_phase_voltages`), which are separate
+# implementations.
+
+_FS_HZ = 5000.0
+_FFT_FREQUENCY_RANGE = Q_((0.5, 2.1 * _FS_HZ), "Hz")
+
+
+def test_inverter_vf_fft_frequency_range_narrows_torque_spectrum(
+    results_inverter_vf_nominal_no_load,
+):
+    """Restricting `plot_torque(domain="frequency")` to [0.5 Hz, 2.1 x Fs]
+    must narrow the displayed frequency span with respect to the
+    unrestricted spectrum (which extends all the way to the Nyquist
+    frequency) and must not extend far beyond the requested upper bound."""
+    results = results_inverter_vf_nominal_no_load
+
+    fig_full = results.plot_torque(domain="frequency")
+    fig_restricted = results.plot_torque(
+        domain="frequency", frequency_range=_FFT_FREQUENCY_RANGE
+    )
+
+    x_full = np.asarray(fig_full.data[0].x)
+    x_restricted = np.asarray(fig_restricted.data[0].x)
+
+    assert x_restricted.max() < x_full.max(), (
+        "Restricting frequency_range should narrow the displayed frequency span "
+        f"(restricted max={x_restricted.max():.1f} Hz, full max={x_full.max():.1f} Hz)"
+    )
+    assert x_restricted.max() <= 2.1 * _FS_HZ * 1.02, (
+        "Restricted torque FFT should not extend much beyond 2.1 x Fs "
+        f"(got max={x_restricted.max():.1f} Hz, limit={2.1 * _FS_HZ:.1f} Hz)"
+    )
+
+
+def test_inverter_vf_fft_frequency_range_narrows_current_spectrum(
+    results_inverter_vf_nominal_no_load,
+):
+    """Same as above, for `plot_phase_currents(domain="frequency")`, which
+    goes through the separate `PhaseResults.plot_dfft` implementation."""
+    results = results_inverter_vf_nominal_no_load
+
+    fig_full = results.plot_phase_currents(domain="frequency")
+    fig_restricted = results.plot_phase_currents(
+        domain="frequency", frequency_range=_FFT_FREQUENCY_RANGE
+    )
+
+    x_full = np.asarray(fig_full.data[0].x)
+    x_restricted = np.asarray(fig_restricted.data[0].x)
+
+    assert x_restricted.max() < x_full.max(), (
+        "Restricting frequency_range should narrow the displayed frequency span "
+        f"(restricted max={x_restricted.max():.1f} Hz, full max={x_full.max():.1f} Hz)"
+    )
+    assert x_restricted.max() <= 2.1 * _FS_HZ * 1.02, (
+        "Restricted current FFT should not extend much beyond 2.1 x Fs "
+        f"(got max={x_restricted.max():.1f} Hz, limit={2.1 * _FS_HZ:.1f} Hz)"
+    )
+
+
+def test_foc_fft_frequency_range_narrows_line_voltage_spectrum(
+    results_foc_nominal_speed_with_load,
+):
+    """Same restriction, for the closed-loop InverterFOC drive, exercised on
+    `plot_line_voltages(domain="frequency")`."""
+    results = results_foc_nominal_speed_with_load
+
+    fig_full = results.plot_line_voltages(domain="frequency")
+    fig_restricted = results.plot_line_voltages(
+        domain="frequency", frequency_range=_FFT_FREQUENCY_RANGE
+    )
+
+    x_full = np.asarray(fig_full.data[0].x)
+    x_restricted = np.asarray(fig_restricted.data[0].x)
+
+    assert x_restricted.max() < x_full.max(), (
+        "Restricting frequency_range should narrow the displayed frequency span "
+        f"(restricted max={x_restricted.max():.1f} Hz, full max={x_full.max():.1f} Hz)"
+    )
+    assert x_restricted.max() <= 2.1 * _FS_HZ * 1.02, (
+        "Restricted FOC line-voltage FFT should not extend much beyond 2.1 x Fs "
+        f"(got max={x_restricted.max():.1f} Hz, limit={2.1 * _FS_HZ:.1f} Hz)"
+    )
