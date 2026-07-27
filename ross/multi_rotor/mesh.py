@@ -633,13 +633,12 @@ class Backlash:
         self._f2 = np.zeros(6)
 
         data_keys = [
-            "time",
-            "delta",
-            "bt",
-            "Fm",
-            "K_time",
-            "d",
-            "alfa",
+            "transmission_error",
+            "backlash",
+            "mesh_force",
+            "mesh_stiffness",
+            "center_distance",
+            "pressure_angle",
             "contact_ratio",
         ]
         self._data = {key: list() for key in data_keys}
@@ -740,13 +739,12 @@ class Backlash:
         backlash_force[dofs2] = -Fm * self._f2
 
         results = {
-            "time": time,
-            "delta": delta,
-            "bt": bt,
-            "Fm": Fm,
-            "K_time": k_m,
-            "d": d_inst,
-            "alfa": alpha,
+            "transmission_error": delta,
+            "backlash": bt,
+            "mesh_force": Fm,
+            "mesh_stiffness": k_m,
+            "center_distance": d_inst,
+            "pressure_angle": alpha,
             "contact_ratio": contact_ratio,
         }
         self._save_time_results(step, results)
