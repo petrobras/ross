@@ -179,6 +179,27 @@
         </div>
     </div>
 
+    <div id="node-hub-overlay" class="modal-overlay" style="display: none;">
+        <div class="modal-box" style="max-width: 480px;">
+            <div class="modal-header">
+                <h3><i class="fas fa-plus-circle"></i> Add Element at Node <span id="node-hub-target" style="color:var(--accent-primary);">0</span></h3>
+                <button class="btn-close-modal" onclick="closeNodeHub()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body" style="padding-top: 15px;">
+                <p style="color: var(--text-muted); margin-bottom: 15px; font-size: 13px; margin-top: 0;">Select the type of element you want to append to this node:</p>
+                <div class="element-hub-grid">
+                    <button class="element-hub-btn" onclick="addElementFromNodeHub('shafts')"><i class="fas fa-grip-lines"></i> Shaft</button>
+                    <button class="element-hub-btn" onclick="addElementFromNodeHub('disks')"><i class="fas fa-compact-disc"></i> Disk</button>
+                    <button class="element-hub-btn" onclick="addElementFromNodeHub('gears')"><i class="fas fa-cog"></i> Gear</button>
+                    <button class="element-hub-btn" onclick="addElementFromNodeHub('couplings')"><i class="fas fa-link"></i> Coupling</button>
+                    <button class="element-hub-btn" onclick="addElementFromNodeHub('bearings')"><i class="fas fa-circle-notch"></i> Bearing</button>
+                    <button class="element-hub-btn" onclick="addElementFromNodeHub('seals')"><i class="fas fa-ring"></i> Seal</button>
+                    <button class="element-hub-btn" onclick="addElementFromNodeHub('pointmasses')"><i class="fas fa-dot-circle"></i> Point Mass</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="multirotor-modal-overlay" class="modal-overlay" style="display: none;">
         <div class="modal-box" style="max-width: 450px; padding: 0;">
             <div class="modal-header">

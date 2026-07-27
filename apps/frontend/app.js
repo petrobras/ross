@@ -835,18 +835,36 @@ function openTab(category) {
 
 const getEffectiveNodes = (arr) => {
     let eff = [];
-    let autoNodeCounter = 0;    
-    for(let item of arr) {
+    let pinnedSet = new Set();
+
+    for (let item of arr) {
         if (item.n !== undefined && item.n !== null && item.n !== "") {
             let explicitVal = parseInt(item.n);
-            if(isNaN(explicitVal)) {
-                eff.push(autoNodeCounter);
-                autoNodeCounter++;
-            } else {
+            if (!isNaN(explicitVal)) {
+                pinnedSet.add(explicitVal);
+            }
+        }
+    }
+
+    let autoNodeCounter = 0;
+    
+    for (let item of arr) {
+        if (item.n !== undefined && item.n !== null && item.n !== "") {
+            let explicitVal = parseInt(item.n);
+            if (!isNaN(explicitVal)) {
                 eff.push(explicitVal);
+            } else {
+                while (pinnedSet.has(autoNodeCounter)) autoNodeCounter++;
+                eff.push(autoNodeCounter);
+                pinnedSet.add(autoNodeCounter);
+                autoNodeCounter++;
             }
         } else {
+            while (pinnedSet.has(autoNodeCounter)) {
+                autoNodeCounter++;
+            }
             eff.push(autoNodeCounter);
+            pinnedSet.add(autoNodeCounter);
             autoNodeCounter++;
         }
     }
@@ -896,27 +914,12 @@ function renderList() {
             const oldIdx = evt.oldIndex;
             const newIdx = evt.newIndex;
             if(oldIdx === newIdx) return;
+            
             const item = projectData[currentTab][oldIdx];
-            const isExplicit = (item.n !== undefined && item.n !== null && item.n !== "");
-            if (!isExplicit) {
-                if (oldIdx < newIdx) {
-                    for (let i = oldIdx + 1; i <= newIdx; i++) {
-                        let el = projectData[currentTab][i];
-                        if (el.n !== undefined && el.n !== null && el.n !== "") {
-                            el.n = String(parseInt(el.n) - 1);
-                        }
-                    }
-                } else {
-                    for (let i = newIdx; i < oldIdx; i++) {
-                        let el = projectData[currentTab][i];
-                        if (el.n !== undefined && el.n !== null && el.n !== "") {
-                            el.n = String(parseInt(el.n) + 1);
-                        }
-                    }
-                }
-            }
+            
             projectData[currentTab].splice(oldIdx, 1);
             projectData[currentTab].splice(newIdx, 0, item);            
+            
             renderList();
             buildRotorLive();
         }
@@ -927,7 +930,12 @@ function renderList() {
 
 function openForm(isNew = true) {
     if (isNew) { editingIndex = -1; currentSubType = 'BASIC'; }
-    const subTypes = Object.keys(FormTemplates[currentTab]);    
+    let subTypes = Object.keys(FormTemplates[currentTab]);    
+    
+    if (window.isAddingFromHub) {
+        subTypes = subTypes.filter(t => t !== 'LIST');
+    }
+    
     if (isNew && subTypes.length > 1) {
         let html = '<h4 class="subtype-header">Select Model</h4><div class="subtype-grid">';
         subTypes.forEach(type => { html += `<button class="btn-subtype" onclick="selectSubType('${type}')">${type}</button>`; });
@@ -937,9 +945,11 @@ function openForm(isNew = true) {
     } else {
         selectSubType(isNew ? 'BASIC' : projectData[currentTab][editingIndex].element_type || 'BASIC');
     }    
+    
     document.getElementById('btn-add-item').style.display = 'none';    
     const formBox = document.getElementById('insertion-form');
     formBox.style.display = 'block';    
+    
     if (isNew) {
         document.getElementById('list-area').appendChild(formBox);
     } else {
@@ -951,6 +961,8 @@ function openForm(isNew = true) {
     if(!document.getElementById('btn-default-form')) {
         document.querySelector('.form-actions').insertAdjacentHTML('afterbegin', `<button type="button" id="btn-default-form" class="btn-default" onclick="fillDefault()"><i class="fas fa-magic"></i> Default</button>`);
     }
+
+    window.isAddingFromHub = false;
 }
 
 // Function for the 'Advanced' button
@@ -971,6 +983,7 @@ function selectSubType(type) {
             });
         }
     });
+    
     if (editingIndex >= 0) {
         const item = projectData[currentTab][editingIndex];
         const inputs = document.getElementById('form-fields').querySelectorAll('input, select');
@@ -986,6 +999,12 @@ function selectSubType(type) {
             const advBtn = document.getElementById('form-fields').querySelector('.btn-advanced');
             if(advBtn) toggleAdvanced(advBtn);
         }
+    }
+
+    if (window.targetNodeForHub !== undefined && window.targetNodeForHub !== null) {
+        let nInput = document.getElementById('inp-n');
+        if (nInput) nInput.value = window.targetNodeForHub;
+        window.targetNodeForHub = null;
     }
 }
 
@@ -1008,6 +1027,7 @@ function editItem(index) { editingIndex = index; openForm(false); }
 function copyItem(index) { 
     const original = projectData[currentTab][index];
     const copiedItem = JSON.parse(JSON.stringify(original));    
+    
     if (copiedItem.tag) {
         let baseTag = copiedItem.tag.replace(/_\d+$/, '');
         let counter = 1;
@@ -1019,16 +1039,7 @@ function copyItem(index) {
         }
         copiedItem.tag = newTag;
     }
-    const isExplicit = (original.n !== undefined && original.n !== null && original.n !== "");
-    if (!isExplicit) {
-        copiedItem.n = ""; 
-        for (let i = index + 1; i < projectData[currentTab].length; i++) {
-            let el = projectData[currentTab][i];
-            if (el.n !== undefined && el.n !== null && el.n !== "") {
-                el.n = String(parseInt(el.n) + 1);
-            }
-        }
-    }    
+    
     projectData[currentTab].splice(index + 1, 0, copiedItem); 
     renderList(); 
     buildRotorLive(); 
@@ -1088,12 +1099,31 @@ function saveItem() {
                 newObject[key] = value; 
             }
         });
-        if (editingIndex >= 0) projectData[currentTab][editingIndex] = newObject;
-        else projectData[currentTab].push(newObject);
-    }    
-    closeForm();
-    renderList();
-    buildRotorLive();
+        if (editingIndex >= 0) {
+            projectData[currentTab][editingIndex] = newObject;
+        } else {
+            if (newObject.n !== undefined && newObject.n !== "") {
+                let targetN = parseInt(newObject.n);
+                let insertIdx = projectData[currentTab].length;
+                
+                const effNodes = getEffectiveNodes(projectData[currentTab]);
+                for (let i = 0; i < effNodes.length; i++) {
+                    if (effNodes[i] >= targetN) {
+                        insertIdx = i;
+                        break;
+                    }
+                }
+                
+                projectData[currentTab].splice(insertIdx, 0, newObject);
+            } else {
+                projectData[currentTab].push(newObject);
+            }
+        }    
+        
+        closeForm();
+        renderList();
+        buildRotorLive();
+    }
 }
 
 let rotorUpdateActive = false;
@@ -1143,6 +1173,7 @@ async function _fetchRotorLive() {
             plotContainer.innerHTML = ""; 
             const fig = JSON.parse(data.plot_json);
             Plotly.newPlot('plot-rotor', fig.data, fig.layout, {responsive: true});            
+            setupPlotHoverEvents();
             if(infoContainer) {
                 document.getElementById('info-mass').innerText = data.mass.toFixed(4);
                 document.getElementById('info-ip').innerText = data.ip.toFixed(4);
@@ -2813,3 +2844,136 @@ function saveMultiRotor() {
     closeMultiRotorModal();
     renderRotorHub();
 }
+
+// ==========================================
+// INTERACTIVE GRAPH ADD FEATURE (ADD BY NODE)
+// ==========================================
+let hoverButtonTimeout;
+let activeHoverNode = null;
+
+function setupPlotHoverEvents() {
+    const plotDiv = document.getElementById('plot-rotor');
+    if (!plotDiv || !plotDiv.on) return;
+    
+    window.nodeMap = [];
+    let currZ = 0;
+    const effNodes = getEffectiveNodes(projectData.shafts || []);
+    
+    if (effNodes.length > 0) {
+        window.nodeMap.push({n: effNodes[0], z: currZ});
+        (projectData.shafts || []).forEach((s, i) => {
+            let length = parseFloat(s.L) || 0;
+            let unit = s.L_unit || 'mm';
+            
+            if (unit === 'mm') length /= 1000;
+            else if (unit === 'cm') length /= 100;
+            else if (unit === 'in') length *= 0.0254;
+            
+            currZ += length;
+            window.nodeMap.push({n: effNodes[i] + 1, z: currZ});
+        });
+    } else {
+        window.nodeMap.push({n: 0, z: 0});
+    }
+
+    let totalLen = currZ > 0 ? currZ : 1;
+    let tolerance = totalLen * 0.05; 
+    if (tolerance < 0.02) tolerance = 0.02;
+    if (tolerance > 0.15) tolerance = 0.15;
+
+    plotDiv.on('plotly_hover', function(data) {
+        if(projectData.isMultiRotor) return;
+        
+        let pt = data.points[0];
+        let xVal = pt.x; 
+        
+        let closestNode = null;
+        let minDist = Infinity;
+        
+        window.nodeMap.forEach(node => {
+            let dist = Math.abs(node.z - xVal);
+            if(dist < minDist) {
+                minDist = dist;
+                closestNode = node.n;
+            }
+        });
+        
+        if (minDist <= tolerance) {
+            let btn = document.getElementById('floating-add-btn');
+            let isHidden = !btn || btn.style.display === 'none';
+            
+            if (activeHoverNode !== closestNode || isHidden) {
+                activeHoverNode = closestNode;
+                showFloatingAddButton(data.event.clientX, data.event.clientY, closestNode);
+            } else {
+                clearTimeout(hoverButtonTimeout);
+            }
+        } else {
+            clearTimeout(hoverButtonTimeout);
+            hoverButtonTimeout = setTimeout(() => {
+                hideFloatingAddButton();
+                activeHoverNode = null;
+            }, 800); 
+        }
+    });
+    
+    plotDiv.on('plotly_unhover', function(data) {
+        clearTimeout(hoverButtonTimeout);
+        hoverButtonTimeout = setTimeout(() => {
+            hideFloatingAddButton();
+            activeHoverNode = null;
+        }, 800);
+    });
+}
+
+function showFloatingAddButton(x, y, node) {
+    clearTimeout(hoverButtonTimeout);
+    let btn = document.getElementById('floating-add-btn');
+    if(!btn) {
+        btn = document.createElement('button');
+        btn.id = 'floating-add-btn';
+        btn.innerHTML = '<i class="fas fa-plus"></i>';
+        btn.className = 'floating-add-btn';
+        document.body.appendChild(btn);
+        
+        btn.addEventListener('mouseenter', () => clearTimeout(hoverButtonTimeout));
+        btn.addEventListener('mouseleave', () => {
+            hoverButtonTimeout = setTimeout(() => {
+                hideFloatingAddButton();
+                activeHoverNode = null;
+            }, 300);
+        });
+    }
+    btn.style.display = 'flex';
+    btn.style.left = (x + 15) + 'px';
+    btn.style.top = (y - 20) + 'px';
+    btn.onclick = () => {
+        activeHoverNode = null;
+        openNodeHub(node);
+    };
+}
+
+function hideFloatingAddButton() {
+    let btn = document.getElementById('floating-add-btn');
+    if(btn) btn.style.display = 'none';
+}
+
+function openNodeHub(nodeIndex) {
+    hideFloatingAddButton();
+    document.getElementById('node-hub-overlay').style.display = 'flex';
+    document.getElementById('node-hub-target').innerText = nodeIndex;
+}
+
+function closeNodeHub() {
+    document.getElementById('node-hub-overlay').style.display = 'none';
+}
+
+window.addElementFromNodeHub = function(category) {
+    let nodeIndex = document.getElementById('node-hub-target').innerText;
+    closeNodeHub();
+    openTab(category);
+    
+    window.isAddingFromHub = true;
+    window.targetNodeForHub = nodeIndex;
+    openForm(true);
+};

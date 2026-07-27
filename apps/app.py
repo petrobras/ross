@@ -192,8 +192,18 @@ def get_analysis_hash(data):
 
 def get_eff_nodes(arr):
     eff = []
+    pinned_set = set()
+
+    for el in arr:
+        n_str = str(el.get('n', '')).strip()
+        if n_str != "":
+            try:
+                explicit_val = int(float(n_str))
+                pinned_set.add(explicit_val)
+            except ValueError:
+                pass
+
     auto_n = 0
-    
     for el in arr:
         n_str = str(el.get('n', '')).strip()
         is_explicit = False
@@ -207,7 +217,10 @@ def get_eff_nodes(arr):
                 pass
                 
         if not is_explicit:
+            while auto_n in pinned_set:
+                auto_n += 1
             eff.append(auto_n)
+            pinned_set.add(auto_n)
             auto_n += 1
             
     return eff

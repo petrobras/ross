@@ -1091,3 +1091,63 @@ button {
     display: flex;
     gap: 10px;
 }
+
+/* Insertion Interaction from the Plot */
+.floating-add-btn {
+    position: fixed;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background-color: rgba(37, 99, 235, 0.4); 
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    z-index: 1000;
+    transition: all 0.2s ease-in-out;
+    font-size: 15px;
+}
+
+.floating-add-btn:hover {
+    background-color: var(--accent-primary);
+    transform: scale(1.15);
+    box-shadow: 0 4px 8px rgba(37, 99, 235, 0.4);
+}
+
+.element-hub-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: 12px;
+}
+
+.element-hub-btn {
+    background: var(--bg-workspace);
+    border: 1px solid var(--border-color);
+    color: var(--text-main);
+    padding: 15px;
+    border-radius: var(--radius-ui);
+    font-size: 13px;
+    font-weight: 600;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.element-hub-btn i {
+    font-size: 22px;
+    color: var(--accent-primary);
+}
+
+.element-hub-btn:hover {
+    background: var(--bg-panel);
+    border-color: var(--accent-primary);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
