@@ -9,8 +9,9 @@ import ross as rs
 from ross import Q_, Probe
 from ross.results import *
 from ross.rotor_assembly import *
-from ross.rotor_assembly import rotor_amb_example
+from ross.bearings.magnetic.amb_models import rotor_example_amb_complex_controllers
 from ross.utils import equal_dicts
+from ross.bearings.magnetic.amb_time_response import AmbTimeResponse
 
 
 @pytest.fixture
@@ -20,7 +21,7 @@ def rotor1():
 
 @pytest.fixture
 def rotor_amb():
-    return rotor_amb_example()
+    return rotor_example_amb_complex_controllers()
 
 
 def test_save_load_campbell(rotor1):
@@ -289,6 +290,38 @@ def test_probe_response(rotor1):
     assert_allclose(data["probe_resp[1]"].to_numpy()[:5], resp_prob2)
 
 
+def test_summary_results(rotor1):
+    s = rotor1.summary()
+
+    def column(fig, header):
+        for table in fig.data:
+            headers = list(table.header["values"])
+            if header in headers:
+                values = table.cells["values"][headers.index(header)]
+                return np.array([float(v) for v in values])
+        raise KeyError(header)
+
+    fig_default = s.plot()
+    fig_mm = s.plot(length_units="mm", mass_units="g", force_units="mN")
+
+    assert "Length (m)" in list(fig_default.data[1].header["values"])
+    assert "Length (mm)" in list(fig_mm.data[1].header["values"])
+
+    assert_allclose(
+        column(fig_mm, "Length (mm)"),
+        column(fig_default, "Length (m)") * 1000,
+        rtol=1e-2,
+    )
+    assert_allclose(
+        column(fig_mm, "Mass (g)"),
+        column(fig_default, "Mass (kg)") * 1000,
+        rtol=1e-2,
+    )
+
+    fig_imperial = s.plot(length_units="in", mass_units="lb", force_units="lbf")
+    assert fig_imperial is not None
+
+
 @pytest.fixture
 def rotor_with_explicit_clearances(speed_rpm=3600):
     steel = rs.steel
@@ -377,3 +410,31 @@ def test_run_clearance_analysis(rotor_with_explicit_clearances):
     clearance_75 = np.array([90.0, 135.0])
     assert_allclose(result["magnitudes"], magnitudes, 1e-6)
     assert_allclose(result["clearance_75"], clearance_75, 1e-6)
+
+
+def test_save_load_amb_time_response(rotor_amb):
+    t = np.linspace(0, 0.01, 100)
+    # The rotor already has 2 magnetic bearings
+    n_amb = 2
+    d_v = np.zeros((len(t), n_amb * 2))
+    sim = AmbTimeResponse(rotor_amb, t=t, speed=0, disturbance=d_v)
+    sim.run()
+
+    results = AmbTimeResponseResults(
+        rotor_amb, sim.t, sim.y, [sim.x_disp, sim.y_disp, [], [], []]
+    )
+
+    file = Path(tempdir) / "amb_time.toml"
+    results.save(file)
+    results2 = AmbTimeResponseResults.load(file)
+
+    assert_allclose(results2.t, results.t, atol=1e-10)
+    assert_allclose(results2.x_amb, results.x_amb, atol=1e-10)
+    assert_allclose(results2.v_amb, results.v_amb, atol=1e-10)
+    assert_allclose(results2.F_x, results.F_x, atol=1e-10)
+    assert_allclose(results2.F_v, results.F_v, atol=1e-10)
+    assert_allclose(results2.I, results.I, atol=1e-10)
+
+    assert (
+        results2.rotor.bearing_elements[0].tag == results.rotor.bearing_elements[0].tag
+    )

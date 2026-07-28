@@ -9,6 +9,7 @@ from abc import ABC
 from collections.abc import Iterable
 from warnings import warn
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from numba import njit
@@ -20,6 +21,7 @@ from scipy.fft import fft
 
 from ross.plotly_theme import coolwarm_r, tableau_colors
 from pathlib import Path
+from ross.bearings.magnetic.amb_utils import get_ambs
 
 from ross.plotly_theme import tableau_colors, coolwarm_r
 from ross.units import Q_, check_units
@@ -38,6 +40,7 @@ __all__ = [
     "SummaryResults",
     "ConvergenceResults",
     "TimeResponseResults",
+    "AmbTimeResponseResults",
     "UCSResults",
     "HarmonicBalanceResults",
     "Level1Results",
@@ -5316,17 +5319,37 @@ class SummaryResults(Results):
         self.It = It
         self.tag = tag
 
-    def plot(self):
+    def plot(self, length_units="m", mass_units="kg", force_units="N"):
         """Plot the summary table.
 
         This method plots:
             Table with summary of rotor parameters and attributes
 
+        Parameters
+        ----------
+        length_units : str, optional
+            Length units used for positions, lengths and CG.
+            Default is 'm'.
+        mass_units : str, optional
+            Mass units used for masses.
+            Default is 'kg'.
+        force_units : str, optional
+            Force units used for bearing forces.
+            Default is 'N'.
+
         Returns
         -------
         fig : Plotly graph_objects.make_subplots()
             The figure object with the tables plot.
+
+        Notes
+        -----
+        No check is made to ensure the provided units form a consistent unit
+        system. Inertia is always shown as ``length_units² * mass_units``.
         """
+        inertia_units = f"{length_units}**2*{mass_units}"
+        inertia_units_dis = f" ({length_units}²*{mass_units})"
+
         materials = [mat.name for mat in self.df_shaft["material"]]
 
         shaft_data = {
@@ -5334,26 +5357,53 @@ class SummaryResults(Results):
             "Left station": self.df_shaft["n_l"],
             "Right station": self.df_shaft["n_r"],
             "Elem number": self.df_shaft["_n"],
-            "Beam left loc": self.df_shaft["nodes_pos_l"],
-            "Length": self.df_shaft["L"],
-            "Axial CG Pos": self.df_shaft["axial_cg_pos"],
-            "Beam right loc": self.df_shaft["nodes_pos_r"],
+            f"Beam left loc ({length_units})": pd.Series(
+                Q_(self.df_shaft["nodes_pos_l"].to_list(), "m").to(length_units).m
+            ).map("{:.3f}".format),
+            f"Length ({length_units})": pd.Series(
+                Q_(self.df_shaft["L"].to_list(), "m").to(length_units).m
+            ).map("{:.3f}".format),
+            f"Axial CG Pos ({length_units})": pd.Series(
+                Q_(self.df_shaft["axial_cg_pos"].to_list(), "m").to(length_units).m
+            ).map("{:.3f}".format),
+            f"Beam right loc ({length_units})": pd.Series(
+                Q_(self.df_shaft["nodes_pos_r"].to_list(), "m").to(length_units).m
+            ).map("{:.3f}".format),
             "Material": materials,
-            "Mass": self.df_shaft["m"].map("{:.3f}".format),
-            "Inertia": self.df_shaft["Im"].map("{:.2e}".format),
+            f"Mass ({mass_units})": pd.Series(
+                Q_(self.df_shaft["m"].to_list(), "kg").to(mass_units).m
+            ).map("{:.3f}".format),
+            f"Inertia{inertia_units_dis}": pd.Series(
+                Q_(self.df_shaft["Im"].to_list(), "m**2*kg").to(inertia_units).m
+            ).map("{:.3e}".format),
         }
 
+        rotor_mass = np.sum(self.df_shaft["m"]) + np.sum(self.df_disks["m"])
         rotor_data = {
             "Tag": [self.tag],
             "Starting node": [self.df_shaft["n_l"].iloc[0]],
             "Ending node": [self.df_shaft["n_r"].iloc[-1]],
-            "Starting point": [self.df_shaft["nodes_pos_l"].iloc[0]],
-            "Total lenght": [self.df_shaft["nodes_pos_r"].iloc[-1]],
-            "CG": ["{:.3f}".format(self.CG)],
-            "Ip": ["{:.3e}".format(self.Ip)],
-            "It": ["{:.3e}".format(self.It)],
-            "Rotor Mass": [
-                "{:.3f}".format(np.sum(self.df_shaft["m"]) + np.sum(self.df_disks["m"]))
+            f"Starting point ({length_units})": [
+                "{:.3f}".format(
+                    Q_(self.df_shaft["nodes_pos_l"].iloc[0], "m").to(length_units).m
+                )
+            ],
+            f"Total length ({length_units})": [
+                "{:.3f}".format(
+                    Q_(self.df_shaft["nodes_pos_r"].iloc[-1], "m").to(length_units).m
+                )
+            ],
+            f"CG ({length_units})": [
+                "{:.3f}".format(Q_(self.CG, "m").to(length_units).m)
+            ],
+            f"Ip{inertia_units_dis}": [
+                "{:.3e}".format(Q_(self.Ip, "m**2*kg").to(inertia_units).m)
+            ],
+            f"It{inertia_units_dis}": [
+                "{:.3e}".format(Q_(self.It, "m**2*kg").to(inertia_units).m)
+            ],
+            f"Rotor Mass ({mass_units})": [
+                "{:.3f}".format(Q_(rotor_mass, "kg").to(mass_units).m)
             ],
         }
 
@@ -5361,18 +5411,30 @@ class SummaryResults(Results):
             "Tag": self.df_disks["tag"],
             "Shaft number": self.df_disks["shaft_number"],
             "Node": self.df_disks["n"],
-            "Nodal Position": self.df_disks["nodes_pos_l"],
-            "Mass": self.df_disks["m"].map("{:.3f}".format),
-            "Ip": self.df_disks["Ip"].map("{:.3e}".format),
+            f"Nodal Position ({length_units})": pd.Series(
+                Q_(self.df_disks["nodes_pos_l"].to_list(), "m").to(length_units).m
+            ).map("{:.3f}".format),
+            f"Mass ({mass_units})": pd.Series(
+                Q_(self.df_disks["m"].to_list(), "kg").to(mass_units).m
+            ).map("{:.3f}".format),
+            f"Ip{inertia_units_dis}": pd.Series(
+                Q_(self.df_disks["Ip"].to_list(), "m**2*kg").to(inertia_units).m
+            ).map("{:.3e}".format),
         }
 
+        bearing_forces = [
+            "{:.4g}".format(float(Q_(float(v), "N").to(force_units).m))
+            for v in self.brg_forces.values()
+        ]
         bearing_data = {
             "Tag": self.df_bearings["tag"],
             "Shaft number": self.df_bearings["shaft_number"],
             "Node": self.df_bearings["n"],
             "N_link": self.df_bearings["n_link"],
-            "Nodal Position": self.df_bearings["nodes_pos_l"],
-            "Bearing force": list(self.brg_forces.values()),
+            f"Nodal Position ({length_units})": pd.Series(
+                Q_(self.df_bearings["nodes_pos_l"].to_list(), "m").to(length_units).m
+            ).map("{:.3f}".format),
+            f"Bearing force ({force_units})": bearing_forces,
         }
 
         fig = make_subplots(
@@ -6018,6 +6080,257 @@ class TimeResponseResults(Results):
         fig.update_xaxes(title_text=f"Frequency ({frequency_units})")
         fig.update_yaxes(title_text=f"Amplitude ({displacement_units})")
         fig.update_layout(**kwargs)
+
+        return fig
+
+
+class AmbTimeResponseResults(TimeResponseResults):
+    """Class used to store results and provide plots for Active Magnetic Bearings (AMB) Time Response Analysis.
+
+    This class extends TimeResponseResults to provide specific plotting capabilities for AMB systems,
+    allowing for the visualization of displacement, current, and force responses obtained from
+    time response simulations.
+
+    Parameters
+    ----------
+    rotor : Rotor.object
+        The Rotor object.
+    t : array
+        Time values for the output.
+    yout : array
+        System response.
+    xout : array
+        Time evolution of the state vector.
+    """
+
+    def __init__(self, rotor, t, yout, xout):
+        """Initialize the AmbTimeResponseResults instance.
+
+        Parameters
+        ----------
+        rotor : Rotor.object
+            The Rotor object.
+        t : array
+            Time values for the output.
+        yout : array
+            System response.
+        xout : array
+            Time evolution of the state vector.
+        """
+        super().__init__(rotor, t, yout, xout)
+        self.x_amb = self.xout[0]
+        self.v_amb = self.xout[1]
+        self.F_x = self.xout[2]
+        self.F_v = self.xout[3]
+        self.I = self.xout[4]
+
+    def plot_amb_disps(
+        self,
+        displacement_units="m",
+        time_units="s",
+        fig=None,
+        axes=0,
+        **kwargs,
+    ):
+        """Plot AMB displacement response.
+
+        Parameters
+        ----------
+        displacement_units : str, optional
+            Displacement units. Default is "m".
+        time_units : str, optional
+            Time units. Default is "s".
+        fig : Plotly graph_objects.Figure(), optional
+            The figure object with the plot.
+        axes : int, optional
+            0 for displacement (x, y), 1 for displacement (v, w). Default is 0.
+        **kwargs : optional
+            Additional key word arguments to change the plot layout.
+
+        Returns
+        -------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        """
+
+        ambs = get_ambs(self.rotor)
+
+        if axes == 0:
+            disp = self.x_amb
+            label_axis = ["x", "y"]
+        else:
+            disp = self.v_amb
+            label_axis = ["v", "w"]
+
+        if fig is None:
+            fig = go.Figure()
+
+        for i, amb in enumerate(ambs):
+            # Time axis in desired units
+            time = Q_(self.t, "s").to(time_units).m
+
+            # Displacement in desired units
+            disp_x = Q_(disp[:, 2 * i], "m").to(displacement_units).m
+            disp_y = Q_(disp[:, 2 * i + 1], "m").to(displacement_units).m
+
+            fig.add_trace(
+                go.Scatter(
+                    x=time,
+                    y=disp_x,
+                    mode="lines",
+                    name=f"{amb.tag} - {label_axis[0]}",
+                    hovertemplate=f"Time ({time_units}): %{{x:.2f}}<br>Amplitude ({displacement_units}): %{{y:.2e}}",
+                )
+            )
+            fig.add_trace(
+                go.Scatter(
+                    x=time,
+                    y=disp_y,
+                    mode="lines",
+                    name=f"{amb.tag} - {label_axis[1]}",
+                    hovertemplate=f"Time ({time_units}): %{{x:.2f}}<br>Amplitude ({displacement_units}): %{{y:.2e}}",
+                )
+            )
+
+        fig.update_xaxes(title_text=f"Time ({time_units})")
+        fig.update_yaxes(title_text=f"Amplitude ({displacement_units})")
+        fig.update_layout(title="AMB Displacement Response", **kwargs)
+
+        return fig
+
+    def plot_amb_currents(
+        self,
+        current_units="A",
+        time_units="s",
+        fig=None,
+        **kwargs,
+    ):
+        """Plot AMB current response.
+
+        Parameters
+        ----------
+        current_units : str, optional
+            Current units. Default is "A".
+        time_units : str, optional
+            Time units. Default is "s".
+        fig : Plotly graph_objects.Figure(), optional
+            The figure object with the plot.
+        **kwargs : optional
+            Additional key word arguments to change the plot layout.
+
+        Returns
+        -------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        """
+        ambs = get_ambs(self.rotor)
+
+        if fig is None:
+            fig = go.Figure()
+
+        for i, amb in enumerate(ambs):
+            # Time axis in desired units
+            time = Q_(self.t, "s").to(time_units).m
+
+            # Current in desired units
+            current_x = Q_(self.I[:, 2 * i], "A").to(current_units).m
+            current_y = Q_(self.I[:, 2 * i + 1], "A").to(current_units).m
+
+            fig.add_trace(
+                go.Scatter(
+                    x=time,
+                    y=current_x,
+                    mode="lines",
+                    name=f"{amb.tag} - Current v",
+                    hovertemplate=f"Time ({time_units}): %{{x:.2f}}<br>Current ({current_units}): %{{y:.2e}}",
+                )
+            )
+            fig.add_trace(
+                go.Scatter(
+                    x=time,
+                    y=current_y,
+                    mode="lines",
+                    name=f"{amb.tag} - Current w",
+                    hovertemplate=f"Time ({time_units}): %{{x:.2f}}<br>Current ({current_units}): %{{y:.2e}}",
+                )
+            )
+
+        fig.update_xaxes(title_text=f"Time ({time_units})")
+        fig.update_yaxes(title_text=f"Current ({current_units})")
+        fig.update_layout(title="AMB Current Response", **kwargs)
+
+        return fig
+
+    def plot_amb_forces(
+        self,
+        force_units="N",
+        time_units="s",
+        fig=None,
+        axes=0,
+        **kwargs,
+    ):
+        """Plot AMB force response.
+
+        Parameters
+        ----------
+        force_units : str, optional
+            Force units. Default is "N".
+        time_units : str, optional
+            Time units. Default is "s".
+        fig : Plotly graph_objects.Figure(), optional
+            The figure object with the plot.
+        axes : int, optional
+            0 for forces (x, y), 1 for forces (v, w). Default is 0.
+        **kwargs : optional
+            Additional key word arguments to change the plot layout.
+
+        Returns
+        -------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        """
+        ambs = get_ambs(self.rotor)
+
+        if axes == 0:
+            F = self.F_x
+            label_axis = ["x", "y"]
+        else:
+            F = self.F_v
+            label_axis = ["v", "w"]
+
+        if fig is None:
+            fig = go.Figure()
+
+        for i, amb in enumerate(ambs):
+            # Time axis in desired units
+            time = Q_(self.t, "s").to(time_units).m
+
+            # Force in desired units
+            force_x = Q_(F[:, 2 * i], "N").to(force_units).m
+            force_y = Q_(F[:, 2 * i + 1], "N").to(force_units).m
+
+            fig.add_trace(
+                go.Scatter(
+                    x=time,
+                    y=force_x,
+                    mode="lines",
+                    name=f"{amb.tag} - Force {label_axis[0]}",
+                    hovertemplate=f"Time ({time_units}): %{{x:.2f}}<br>Force ({force_units}): %{{y:.2e}}",
+                )
+            )
+            fig.add_trace(
+                go.Scatter(
+                    x=time,
+                    y=force_y,
+                    mode="lines",
+                    name=f"{amb.tag} - Force {label_axis[1]}",
+                    hovertemplate=f"Time ({time_units}): %{{x:.2f}}<br>Force ({force_units}): %{{y:.2e}}",
+                )
+            )
+
+        fig.update_xaxes(title_text=f"Time ({time_units})")
+        fig.update_yaxes(title_text=f"Force ({force_units})")
+        fig.update_layout(title="AMB Force Response", **kwargs)
 
         return fig
 
@@ -6924,7 +7237,7 @@ class SensitivityResults(Results):
         Examples
         --------
         >>> import ross as rs
-        >>> rotor = rs.rotor_amb_example()
+        >>> rotor = rs.rotor_example_amb_general_controllers()
         >>> sensitivity_results = rotor.run_amb_sensitivity(
         ...     speed=0,
         ...     t_max=5e-4,
@@ -7157,7 +7470,7 @@ class SensitivityResults(Results):
         Examples
         --------
         >>> import ross as rs
-        >>> rotor = rs.rotor_amb_example()
+        >>> rotor = rs.rotor_example_amb_general_controllers()
         >>> sensitivity_results = rotor.run_amb_sensitivity(
         ...     speed=0,
         ...     t_max=5e-4,
