@@ -190,7 +190,7 @@ class Rotor(object):
         for i, sh in enumerate(shaft_elements):
             if sh.n is None:
                 sh.n = i
-            sh.add_tag(i)
+            sh.set_tag(i)
 
         if disk_elements is None:
             disk_elements = []
@@ -203,7 +203,8 @@ class Rotor(object):
         for elm in disk_elements + bearing_elements + point_mass_elements:
             class_name = elm.__class__.__name__
             elm_dict[class_name] = elm_dict.get(class_name, 0) + 1
-            elm.add_tag(elm_dict[class_name] - 1)
+
+            elm.set_tag(elm_dict[class_name] - 1)
 
             if isinstance(elm, BearingElement):
                 # add n_l and n_r to bearing elements
@@ -655,6 +656,7 @@ class Rotor(object):
             disk_elements=disk_elements,
             bearing_elements=bearing_elements,
             point_mass_elements=point_mass_elements,
+            tag="Concatenated Rotor",
         )
 
     def set_tag(self, tag):

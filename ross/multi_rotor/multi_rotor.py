@@ -196,8 +196,6 @@ class MultiRotor(Rotor):
         R2_min_node = min([*R2.nodes, *R2.link_nodes])
         d_node = 0
 
-        tags_list = [elm.tag for elm in R1.elements]
-
         if R1_max_node >= R2_min_node:
             d_node = R1_max_node + 1
             for elm in R2.elements:
@@ -207,8 +205,7 @@ class MultiRotor(Rotor):
                 except:
                     pass
 
-                if elm.tag in tags_list:
-                    elm.tag = None
+                elm.tag = None
 
         self.driven_nodes = [int(n + d_node) for n in R2.nodes]
 
@@ -428,7 +425,7 @@ class MultiRotor(Rotor):
         Examples
         --------
         >>> multi_rotor = two_shaft_rotor_example()
-        >>> np.round(multi_rotor.coupling_matrix(),8)[:4, :4]
+        >>> np.round(multi_rotor.compute_coupling_matrix(),8)[:4, :4]
         array([[ 0.14644661,  0.35355339, -0.        , -0.        ],
                [ 0.35355339,  0.85355339, -0.        , -0.        ],
                [-0.        , -0.        ,  0.        ,  0.        ],

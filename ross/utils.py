@@ -1,36 +1,19 @@
 import json
 import re
-from pathlib import Path
-from collections.abc import Iterable
+import toml
 
+import control as ct
 import numpy as np
 import pandas as pd
-import toml
+
+from collections.abc import Iterable
+from pathlib import Path
+from numba import njit
+from numpy.fft import fft
 from numpy import linalg as la
 from plotly import graph_objects as go
 from copy import deepcopy as copy
-from numpy.fft import fft
 from scipy.integrate import cumulative_trapezoid as integrate
-import control as ct
-
-from numba import njit
-from numba.core.dispatcher import Dispatcher
-import inspect
-
-
-def dynamic_njit(func):
-    sig = inspect.signature(func)
-
-    def wrapper(*args, **kwargs):
-        inputs = sig.bind(*args, **kwargs).arguments
-
-        if isinstance(inputs["func"], Dispatcher):
-            func_para_rodar = njit(func)
-        else:
-            func_para_rodar = func
-        return func_para_rodar(*args, **kwargs)
-
-    return wrapper
 
 
 class NumpyEncoder(json.JSONEncoder):
@@ -744,13 +727,17 @@ def newmark(system_func, rhs_func, t, y_size, newmark_type="simple", **options):
 
     Parameters
     ----------
-    func : callable
+    system_func : callable
         A function that calculates the system matrices and right-hand side (RHS) vector at each
         time step. It should take at least one argument `(step, dt=None, y=None, ydot=None, y2dot=None)`
         and return a tuple `(M, C, K, RHS)`, where `step` is a scalar int related to the current time
         step, `dt` is the current time step in seconds, `y` is a ndarray of current state of the system,
         `ydot` and `y2dot` are its first and second time derivatives. `M`, `C`, `K` are ndarrays with
         `np.shape(M) = (y_size, y_size)` and `RHS` is a ndarray with `len(RHS) = y_size`.
+    rhs_func : callable
+        A function that calculates the right-hand side (RHS) vector at each time step. It should take at
+        least one argument `(step, dt=None, y=None, ydot=None, y2dot=None)` and return a ndarray with
+        `len(RHS) = y_size`.
     t : array_like
         Time array.
     y_size : int
@@ -797,8 +784,9 @@ def newmark(system_func, rhs_func, t, y_size, newmark_type="simple", **options):
     >>> K1 = rotor.K(speed)
     >>> C2 = rotor.G()
     >>> K2 = rotor.Ksdt()
-    >>> rotor_system = lambda i, **state: (M, C1 + C2 * speed, K1 + K2 * accel, F[i, :])
-    >>> yout = newmark(rotor_system, t, rotor.ndof)
+    >>> system_func = lambda i, **state: (M, C1 + C2 * speed, K1 + K2 * accel, F[i, :])
+    >>> rhs_func = lambda i, **state: F[i, :]
+    >>> yout = newmark(system_func, rhs_func, t, rotor.ndof)
     >>> yout[:, rotor.number_dof * node + 1] # doctest: +ELLIPSIS
     array([0.00000000e+00, 8.49140057e-09, 4.34296767e-08, ...,
            1.16148468e-05, 1.16492353e-05, 1.16859622e-05])
@@ -864,6 +852,41 @@ def _update_newmark(y, ydot, y2dot, dy2dot, gamma, beta, dt):
     return y, ydot, y2dot
 
 
+@njit(fastmath=True)
+def _simple_loop_newmark(
+    y0, ydot0, y2dot0, y, ydot, y2dot, RHS, M, C, K, gamma, beta, dt, tol
+):
+    y2dot[:] = 0.0
+    ydot[:] = ydot0 + y2dot0 * (1.0 - gamma) * dt
+    y[:] = y0 + ydot0 * dt + y2dot0 * (0.5 - beta) * (dt**2)
+
+    res = _residual_newmark(RHS, M, C, K, y, ydot, y2dot)
+    J = _jacobian_newmark(M, C, K, gamma, beta, dt)
+
+    nr_iter = 0
+
+    while la.norm(res) >= tol:
+        nr_iter += 1
+        if nr_iter > 50:
+            raise RuntimeError(
+                """Newton-Raphson algorithm diverged. Maximum number of iterations reached. 
+                Try decreasing the time step or using robust integration."""
+            )
+
+        dy2dot = la.solve(J, res)
+        y[:], ydot[:], y2dot[:] = _update_newmark(
+            y, ydot, y2dot, dy2dot, gamma, beta, dt
+        )
+
+        res = _residual_newmark(RHS, M, C, K, y, ydot, y2dot)
+
+    y0[:] = y[:]
+    ydot0[:] = ydot[:]
+    y2dot0[:] = y2dot[:]
+
+    return y0, ydot0, y2dot0
+
+
 def _converge_simple_newmark(
     system_func, rhs_func, args, ny, n_steps, t, progress_interval, gamma, beta, tol
 ):
@@ -885,50 +908,18 @@ def _converge_simple_newmark(
 
         dt = t[step] - t[step - 1]
 
-        y2dot[:] = 0.0
-        ydot[:] = ydot0 + y2dot0 * (1.0 - gamma) * dt
-        y[:] = y0 + ydot0 * dt + y2dot0 * (0.5 - beta) * (dt**2)
-
         M, C, K, RHS = system_func(
             step,
             time_step=dt,
-            disp_resp=y,
-            velc_resp=ydot,
-            accl_resp=y2dot,
+            disp_resp=y0,
+            velc_resp=ydot0,
+            accl_resp=y2dot0,
             args=args,
         )
 
-        res = _residual_newmark(RHS, M, C, K, y, ydot, y2dot)
-        J = _jacobian_newmark(M, C, K, gamma, beta, dt)
-
-        nr_iter = 0
-
-        while la.norm(res) >= tol:
-            nr_iter += 1
-            if nr_iter > 50:
-                raise RuntimeError(
-                    """Newton-Raphson algorithm diverged. Maximum number of iterations reached. 
-                    Try decreasing the time step or using robust integration."""
-                )
-
-            dy2dot = la.solve(J, res)
-            y[:], ydot[:], y2dot[:] = _update_newmark(
-                y, ydot, y2dot, dy2dot, gamma, beta, dt
-            )
-
-            RHS = rhs_func(
-                step,
-                time_step=dt,
-                disp_resp=y,
-                velc_resp=ydot,
-                accl_resp=y2dot,
-                args=args,
-            )
-            res = _residual_newmark(RHS, M, C, K, y, ydot, y2dot)
-
-        y0[:] = y[:]
-        ydot0[:] = ydot[:]
-        y2dot0[:] = y2dot[:]
+        y0[:], ydot0[:], y2dot0[:] = _simple_loop_newmark(
+            y0, ydot0, y2dot0, y, ydot, y2dot, RHS, M, C, K, gamma, beta, dt, tol
+        )
 
         yout[step, :] = y0
 

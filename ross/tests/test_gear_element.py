@@ -5,7 +5,8 @@ from numpy.testing import assert_allclose
 
 from ross.units import Q_
 from ross.materials import Material, steel
-from ross.gear_element import GearElement, GearElementTVMS, Mesh
+from ross.multi_rotor.gear_element import GearElement, GearElementTVMS
+from ross.multi_rotor.mesh import Mesh
 
 
 @pytest.fixture

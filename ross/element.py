@@ -324,15 +324,16 @@ class Element(ABC):
 
         return prefix
 
-    def add_tag(self, index):
-        """Add a tag to the given element."""
-        prefix = self.get_class_name_prefix()
+    def set_tag(self, index, check_tag=True):
+        """Set a tag to the given element.
 
-        if self.tag is None:
+        Parameters
+        ----------
+        index : int
+            The index of the element to standardize the tag.
+        check_tag : bool, optional
+            Whether to check if the tag is already set.
+        """
+        if not check_tag or check_tag and self.tag is None:
+            prefix = self.get_class_name_prefix()
             self.tag = f"{prefix} {index}"
-        else:
-            try:
-                if index > int(self.tag.split(prefix)[-1]):
-                    self.tag = f"{prefix} {index}"
-            except ValueError:
-                pass
