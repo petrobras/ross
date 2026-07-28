@@ -407,10 +407,12 @@ def test_mesh_with_backlash(multi_rotor_with_backlash):
     alpha = 0.34966621486324245
     cr = 1.5525088765723407
 
-    assert_allclose(np.mean(results.xout["transmission_error"]), dte, rtol=1e-4)
-    assert_allclose(np.mean(results.xout["backlash"]), bt, rtol=1e-2)
-    assert_allclose(np.mean(results.xout["mesh_force"]), Fm, rtol=1e-2)
-    assert_allclose(np.mean(results.xout["mesh_stiffness"]), km, rtol=1e-2)
-    assert_allclose(np.mean(results.xout["center_distance"]), d, rtol=1e-2)
-    assert_allclose(np.mean(results.xout["pressure_angle"]), alpha, rtol=1e-2)
-    assert_allclose(np.mean(results.xout["contact_ratio"]), cr, rtol=1e-2)
+    mesh_results = results.mesh_dynamics
+
+    assert_allclose(np.mean(mesh_results["transmission_error"]), dte, rtol=1e-4)
+    assert_allclose(np.mean(mesh_results["backlash"]), bt, rtol=1e-2)
+    assert_allclose(np.mean(mesh_results["mesh_force"]), Fm, rtol=1e-2)
+    assert_allclose(np.mean(mesh_results["mesh_stiffness"]), km, rtol=1e-2)
+    assert_allclose(np.mean(mesh_results["center_distance"]), d, rtol=1e-2)
+    assert_allclose(np.mean(mesh_results["pressure_angle"]), alpha, rtol=1e-2)
+    assert_allclose(np.mean(mesh_results["contact_ratio"]), cr, rtol=1e-2)

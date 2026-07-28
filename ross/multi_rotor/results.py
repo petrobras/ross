@@ -41,6 +41,11 @@ class BacklashResults(TimeResponseResults):
     xout : array
         Time evolution of the state vector.
 
+    Attributes
+    ----------
+    mesh_dynamics : dict
+        Dictionary containing the time evolution of the mesh dynamics parameters.
+
     Returns
     -------
     fig : Plotly graph_objects.Figure()
@@ -102,7 +107,7 @@ class BacklashResults(TimeResponseResults):
         else:
             self._step = 1
 
-        self.xout = {
+        self.mesh_dynamics = {
             key: np.asarray(copy(value))
             for key, value in rotor.mesh.backlash._data.items()
         }
@@ -167,7 +172,7 @@ class BacklashResults(TimeResponseResults):
         else:
             step = int(step)
 
-        data = self.xout[key]
+        data = self.mesh_dynamics[key]
         t = self.t
 
         if units is None:
@@ -290,7 +295,7 @@ class BacklashResults(TimeResponseResults):
         else:
             step = int(step)
 
-        data = self.xout[key]
+        data = self.mesh_dynamics[key]
 
         if units is None:
             units = units_

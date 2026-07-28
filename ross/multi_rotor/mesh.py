@@ -521,8 +521,9 @@ class Mesh:
 class Backlash:
     """Backlash model for a gear pair.
 
-    The implementation was based on the work of Yi et al. (2019) and equations were
-    expanded using the works of Kubur et al. (2004) and Mo et al. (2025).
+    The implementation constitutes a core part of the work by Sousa (2026). It adapts the
+    model from Yi et al. (2019) and extends its mathematical foundation using the equations
+    established by Kubur et al. (2004) and Mo et al. (2025).
 
     Parameters
     ----------
@@ -562,6 +563,9 @@ class Backlash:
 
     References
     ----------
+    SOUSA, M. A. B., Implementation of a dynamic backlash model in gears for rotational dynamics
+    analysis. 2026. 92 p. Master Dissertation, Federal University of Uberlândia, Uberlândia.
+
     KUBUR, M.; KAHRAMAN, A.; ZINI, D. M.; KIENZLE, K. Dynamic analysis of a multi-shaft helical
     gear transmission by finite elements: Model and experiment. Journal of Vibration and Acoustics,
     American Society of Mechanical Engineers, v. 126, n. 3, p. 398–406, 2004.
