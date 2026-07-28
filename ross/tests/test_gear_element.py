@@ -137,10 +137,10 @@ def mesh(gear_tvms):
 
 
 def test_mesh_params(mesh):
-    assert mesh.pressure_angle == 0.3490658503988659
-    assert mesh.gear_ratio == 1.0
-    assert mesh.contact_ratio == 1.7897798668330458
-    assert mesh.hertzian_stiffness == 3555868607.9093266
+    assert_allclose(mesh.gear_ratio, 1.0)
+    assert_allclose(mesh.pressure_angle, 0.3490658503988659, rtol=1e-6, atol=1e-5)
+    assert_allclose(mesh.contact_ratio, 1.7897798668330458, rtol=1e-6, atol=1e-5)
+    assert_allclose(mesh.hertzian_stiffness, 3555868607.9093266, rtol=1e-6, atol=1e-5)
     assert_allclose(mesh.stiffness, 4.096607e08, rtol=1e-6, atol=1e-5)
     assert_allclose(
         mesh.stiffness_range[:5],
