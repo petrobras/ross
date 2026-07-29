@@ -2996,7 +2996,12 @@ class Rotor(object):
             return signal.lsim(lti, F, t, X0=ic)
 
     def plot_rotor(
-        self, nodes=1, check_sld=False, length_units="m", show_axes_indicator=True, **kwargs
+        self,
+        nodes=1,
+        check_sld=False,
+        length_units="m",
+        show_axes_indicator=True,
+        **kwargs,
     ):
         """Plot a rotor object.
 

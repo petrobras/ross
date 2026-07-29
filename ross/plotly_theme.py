@@ -145,7 +145,9 @@ def add_coordinate_axes_indicator(fig, origin=(0.88, 0.1), size=0.06):
     ]
 
     existing_shapes = list(fig.layout.shapes) if fig.layout.shapes else []
-    existing_annotations = list(fig.layout.annotations) if fig.layout.annotations else []
+    existing_annotations = (
+        list(fig.layout.annotations) if fig.layout.annotations else []
+    )
     fig.update_layout(
         shapes=existing_shapes + shapes,
         annotations=existing_annotations + annotations,
