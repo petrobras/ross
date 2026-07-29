@@ -61,6 +61,7 @@ from ross.utils import (
 )
 
 from ross.harmonic_balance import HarmonicBalance
+from ross.plotly_theme import add_coordinate_axes_indicator
 
 __all__ = [
     "Rotor",
@@ -2994,7 +2995,9 @@ class Rotor(object):
             lti = self._lti(speed)
             return signal.lsim(lti, F, t, X0=ic)
 
-    def plot_rotor(self, nodes=1, check_sld=False, length_units="m", **kwargs):
+    def plot_rotor(
+        self, nodes=1, check_sld=False, length_units="m", show_axes_indicator=True, **kwargs
+    ):
         """Plot a rotor object.
 
         This function will take a rotor object and plot its elements representation
@@ -3011,6 +3014,11 @@ class Rotor(object):
         length_units : str, optional
             length units to length and diameter.
             Default is 'm'.
+        show_axes_indicator : bool, optional
+            If True, displays a small coordinate and rotation indicator in the
+            bottom-right corner of the plot. It shows the z-y axes of the ROSS
+            coordinate system and a curved arrow with the symbol ω to indicate
+            the counterclockwise rotation sense adopted by ROSS. Default is True.
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -3191,6 +3199,8 @@ class Rotor(object):
         )
         kwargs["title"] = kwargs.get("title", "Rotor Model")
         fig.update_layout(**kwargs)
+        if show_axes_indicator:
+            add_coordinate_axes_indicator(fig)
 
         return fig
 

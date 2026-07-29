@@ -1,7 +1,156 @@
 """Plotly theme to ROSS - Rotordynamic Open Source Sofware."""
 
+import numpy as np
 from plotly import graph_objects as go
 from plotly import io as pio
+
+
+def _line_shape(x0, y0, x1, y1):
+    return dict(
+        type="line",
+        x0=x0,
+        y0=y0,
+        x1=x1,
+        y1=y1,
+        xref="paper",
+        yref="paper",
+        line=dict(color="black", width=1.5),
+        layer="above",
+    )
+
+
+def _arrowhead_shapes(x0, y0, x1, y1, size):
+    direction = np.array([x1 - x0, y1 - y0], dtype=float)
+    length = np.linalg.norm(direction)
+    if length == 0:
+        return []
+
+    unit = direction / length
+    perpendicular = np.array([-unit[1], unit[0]])
+    ux, uy = unit
+    px, py = perpendicular
+    shapes = []
+    for sign in (-1, 1):
+        shapes.append(
+            _line_shape(
+                x1,
+                y1,
+                x1 - size * ux + sign * size * 0.4 * px,
+                y1 - size * uy + sign * size * 0.4 * py,
+            )
+        )
+    return shapes
+
+
+def add_coordinate_axes_indicator(fig, origin=(0.88, 0.1), size=0.06):
+    """Add a small z-y axis and rotation indicator for 2D rotor geometry plots.
+
+    The 2D rotor plot shows axial position versus shaft radius, which
+    corresponds to the z-y plane of the ROSS coordinate system. The x-axis
+    is perpendicular to this plane and is not represented in the plot.
+    A curved arrow with the symbol ω indicates the counterclockwise
+    rotation sense adopted by ROSS when viewed from the positive z direction.
+
+    Parameters
+    ----------
+    fig : plotly.graph_objects.Figure
+        Figure to annotate.
+    origin : tuple, optional
+        Indicator origin in paper coordinates (x, y).
+    size : float, optional
+        Axis length in paper coordinates.
+    """
+    ox, oy = origin
+    arrowhead_size = size * 0.2
+    rotation_arrowhead_size = size * 0.24
+    label_offsets = {"z": 0.008, "y": 0.016}
+
+    zx, zy = ox + size, oy
+    yx, yy = ox, oy + size
+
+    arc_center = np.array([ox, oy])
+    arc_radius = size * 0.62
+    arc_margin = 0.32
+    arc_angles = np.linspace(arc_margin, np.pi / 2 - arc_margin, 14)
+    arc_points = arc_center + arc_radius * np.column_stack(
+        [np.cos(arc_angles), np.sin(arc_angles)]
+    )
+
+    shapes = [
+        _line_shape(ox, oy, zx, zy),
+        _line_shape(ox, oy, yx, yy),
+        *_arrowhead_shapes(ox, oy, zx, zy, arrowhead_size),
+        *_arrowhead_shapes(ox, oy, yx, yy, arrowhead_size),
+    ]
+
+    arc_segments = [
+        _line_shape(
+            arc_points[i, 0],
+            arc_points[i, 1],
+            arc_points[i + 1, 0],
+            arc_points[i + 1, 1],
+        )
+        for i in range(len(arc_points) - 1)
+    ]
+    shapes.extend(arc_segments)
+    shapes.extend(
+        _arrowhead_shapes(
+            arc_points[-2, 0],
+            arc_points[-2, 1],
+            arc_points[-1, 0],
+            arc_points[-1, 1],
+            rotation_arrowhead_size,
+        )
+    )
+
+    omega_angle = np.pi / 4
+    omega_position = arc_center + (arc_radius + 0.022) * np.array(
+        [np.cos(omega_angle), np.sin(omega_angle)]
+    )
+
+    annotations = [
+        dict(
+            x=zx + label_offsets["z"],
+            y=zy,
+            xref="paper",
+            yref="paper",
+            text="<i>z</i>",
+            showarrow=False,
+            font=dict(size=10, color="black"),
+            xanchor="left",
+            yanchor="middle",
+        ),
+        dict(
+            x=yx,
+            y=yy + label_offsets["y"],
+            xref="paper",
+            yref="paper",
+            text="<i>y</i>",
+            showarrow=False,
+            font=dict(size=10, color="black"),
+            xanchor="center",
+            yanchor="bottom",
+        ),
+        dict(
+            x=omega_position[0],
+            y=omega_position[1],
+            xref="paper",
+            yref="paper",
+            text="<i>ω</i>",
+            showarrow=False,
+            font=dict(size=12, color="black"),
+            xanchor="center",
+            yanchor="bottom",
+        ),
+    ]
+
+    existing_shapes = list(fig.layout.shapes) if fig.layout.shapes else []
+    existing_annotations = list(fig.layout.annotations) if fig.layout.annotations else []
+    fig.update_layout(
+        shapes=existing_shapes + shapes,
+        annotations=existing_annotations + annotations,
+    )
+
 
 # tableau colors
 tableau_colors = {
