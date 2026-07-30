@@ -3064,10 +3064,11 @@ class Rotor(object):
             length units to length and diameter.
             Default is 'm'.
         show_axes_indicator : bool, optional
-            If True, displays a small coordinate and rotation indicator in the
-            bottom-right corner of the plot. It shows the z-y axes of the ROSS
-            coordinate system and a curved arrow with the symbol ω to indicate
-            the counterclockwise rotation sense adopted by ROSS. Default is True.
+            If True, displays coordinate and rotation indicators on the plot.
+            The bottom-right indicator shows the x, y, and z axes of the ROSS
+            coordinate system. The upper-right indicator shows a
+            counterclockwise rotation arrow with the label "ω: CCW from +z"
+            for the rotation sense adopted by ROSS. Default is True.
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).

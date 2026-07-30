@@ -5,7 +5,7 @@ from plotly import graph_objects as go
 from plotly import io as pio
 
 
-def _line_shape(x0, y0, x1, y1):
+def _line_shape(x0, y0, x1, y1, width=1.5):
     return dict(
         type="line",
         x0=x0,
@@ -14,12 +14,12 @@ def _line_shape(x0, y0, x1, y1):
         y1=y1,
         xref="paper",
         yref="paper",
-        line=dict(color="black", width=1.5),
+        line=dict(color="black", width=width),
         layer="above",
     )
 
 
-def _arrowhead_shapes(x0, y0, x1, y1, size):
+def _arrowhead_shapes(x0, y0, x1, y1, size, width=1.5):
     direction = np.array([x1 - x0, y1 - y0], dtype=float)
     length = np.linalg.norm(direction)
     if length == 0:
@@ -37,76 +37,73 @@ def _arrowhead_shapes(x0, y0, x1, y1, size):
                 y1,
                 x1 - size * ux + sign * size * 0.4 * px,
                 y1 - size * uy + sign * size * 0.4 * py,
+                width=width,
             )
         )
     return shapes
 
 
-def add_coordinate_axes_indicator(fig, origin=(0.88, 0.1), size=0.06):
-    """Add a small z-y axis and rotation indicator for 2D rotor geometry plots.
+def _paper_aspect(fig):
+    width = fig.layout.width
+    height = fig.layout.height
+    if not width or not height:
+        return 1.5
+    return width / height
 
-    The 2D rotor plot shows axial position versus shaft radius, which
-    corresponds to the z-y plane of the ROSS coordinate system. The x-axis
-    is perpendicular to this plane and is not represented in the plot.
-    A curved arrow with the symbol ω indicates the counterclockwise
-    rotation sense adopted by ROSS when viewed from the positive z direction.
 
-    Parameters
-    ----------
-    fig : plotly.graph_objects.Figure
-        Figure to annotate.
-    origin : tuple, optional
-        Indicator origin in paper coordinates (x, y).
-    size : float, optional
-        Axis length in paper coordinates.
-    """
+def _circle_shape(cx, cy, radius, fig, fillcolor="white"):
+    radius_y = radius * _paper_aspect(fig)
+    return dict(
+        type="circle",
+        xref="paper",
+        yref="paper",
+        x0=cx - radius,
+        y0=cy - radius_y,
+        x1=cx + radius,
+        y1=cy + radius_y,
+        line=dict(color="black", width=1.5),
+        fillcolor=fillcolor,
+        layer="above",
+    )
+
+
+def _append_layout_items(fig, shapes, annotations):
+    existing_shapes = list(fig.layout.shapes) if fig.layout.shapes else []
+    existing_annotations = (
+        list(fig.layout.annotations) if fig.layout.annotations else []
+    )
+    fig.update_layout(
+        shapes=existing_shapes + shapes,
+        annotations=existing_annotations + annotations,
+    )
+
+
+def _add_xyz_axes_indicator(fig, origin=(0.84, 0.06), size=0.065, aspect=1.45):
+    """Add x, y, and z axes in the bottom-right corner."""
     ox, oy = origin
-    arrowhead_size = size * 0.2
-    rotation_arrowhead_size = size * 0.24
-    label_offsets = {"z": 0.008, "y": 0.016}
+    arrowhead_size = size * 0.18
+    label_offsets = {"z": 0.008, "y": 0.016, "x": 0.006}
+    size_y = size * aspect
 
     zx, zy = ox + size, oy
-    yx, yy = ox, oy + size
-
-    arc_center = np.array([ox, oy])
-    arc_radius = size * 0.62
-    arc_margin = 0.32
-    arc_angles = np.linspace(arc_margin, np.pi / 2 - arc_margin, 14)
-    arc_points = arc_center + arc_radius * np.column_stack(
-        [np.cos(arc_angles), np.sin(arc_angles)]
-    )
+    yx, yy = ox, oy + size_y
+    x_symbol_center = np.array([ox, oy - size_y * 0.45])
+    x_symbol_radius = size * 0.11
 
     shapes = [
-        _line_shape(ox, oy, zx, zy),
-        _line_shape(ox, oy, yx, yy),
+        _line_shape(ox - size * 0.08, oy, zx, zy),
+        _line_shape(ox, oy - size_y * 0.08, yx, yy),
         *_arrowhead_shapes(ox, oy, zx, zy, arrowhead_size),
         *_arrowhead_shapes(ox, oy, yx, yy, arrowhead_size),
+        _circle_shape(x_symbol_center[0], x_symbol_center[1], x_symbol_radius, fig),
+        _circle_shape(
+            x_symbol_center[0],
+            x_symbol_center[1],
+            x_symbol_radius * 0.28,
+            fig,
+            fillcolor="black",
+        ),
     ]
-
-    arc_segments = [
-        _line_shape(
-            arc_points[i, 0],
-            arc_points[i, 1],
-            arc_points[i + 1, 0],
-            arc_points[i + 1, 1],
-        )
-        for i in range(len(arc_points) - 1)
-    ]
-    shapes.extend(arc_segments)
-    shapes.extend(
-        _arrowhead_shapes(
-            arc_points[-2, 0],
-            arc_points[-2, 1],
-            arc_points[-1, 0],
-            arc_points[-1, 1],
-            rotation_arrowhead_size,
-        )
-    )
-
-    omega_angle = np.pi / 4
-    omega_position = arc_center + (arc_radius + 0.022) * np.array(
-        [np.cos(omega_angle), np.sin(omega_angle)]
-    )
 
     annotations = [
         dict(
@@ -132,26 +129,88 @@ def add_coordinate_axes_indicator(fig, origin=(0.88, 0.1), size=0.06):
             yanchor="bottom",
         ),
         dict(
-            x=omega_position[0],
-            y=omega_position[1],
+            x=x_symbol_center[0] + x_symbol_radius + label_offsets["x"],
+            y=x_symbol_center[1],
             xref="paper",
             yref="paper",
-            text="<i>ω</i>",
+            text="<i>x</i>",
             showarrow=False,
-            font=dict(size=12, color="black"),
-            xanchor="center",
-            yanchor="bottom",
+            font=dict(size=10, color="black"),
+            xanchor="left",
+            yanchor="middle",
         ),
     ]
 
-    existing_shapes = list(fig.layout.shapes) if fig.layout.shapes else []
-    existing_annotations = (
-        list(fig.layout.annotations) if fig.layout.annotations else []
+    _append_layout_items(fig, shapes, annotations)
+
+
+def _add_rotation_indicator(fig, center=(0.91, 0.92), radius=0.032):
+    """Add a counterclockwise rotation arrow in the upper-right corner."""
+    arc_center = np.array(center)
+    arc_margin = 0.22
+    line_width = 2.2
+    arc_angles = np.linspace(-np.pi / 2 + arc_margin, np.pi - arc_margin, 28)
+    arc_points = arc_center + radius * np.column_stack(
+        [np.cos(arc_angles), np.sin(arc_angles)]
     )
-    fig.update_layout(
-        shapes=existing_shapes + shapes,
-        annotations=existing_annotations + annotations,
+
+    shapes = [
+        _line_shape(
+            arc_points[i, 0],
+            arc_points[i, 1],
+            arc_points[i + 1, 0],
+            arc_points[i + 1, 1],
+            width=line_width,
+        )
+        for i in range(len(arc_points) - 1)
+    ]
+    shapes.extend(
+        _arrowhead_shapes(
+            arc_points[-2, 0],
+            arc_points[-2, 1],
+            arc_points[-1, 0],
+            arc_points[-1, 1],
+            radius * 0.38,
+            width=line_width,
+        )
     )
+
+    annotations = [
+        dict(
+            x=arc_center[0],
+            y=arc_center[1] - radius - 0.014,
+            xref="paper",
+            yref="paper",
+            text="ω: CCW from +z",
+            showarrow=False,
+            font=dict(size=9, color="black"),
+            xanchor="center",
+            yanchor="top",
+        ),
+    ]
+
+    _append_layout_items(fig, shapes, annotations)
+
+
+def add_coordinate_axes_indicator(fig, origin=(0.84, 0.06), size=0.065):
+    """Add coordinate and rotation indicators for 2D rotor geometry plots.
+
+    The bottom-right indicator shows the ROSS coordinate system with z along
+    the shaft, y vertical, and x pointing out of the plot plane. The
+    upper-right indicator shows a counterclockwise rotation arrow adopted by
+    ROSS when viewed from the positive z direction.
+
+    Parameters
+    ----------
+    fig : plotly.graph_objects.Figure
+        Figure to annotate.
+    origin : tuple, optional
+        xyz triad origin in paper coordinates (x, y).
+    size : float, optional
+        Axis length in paper coordinates.
+    """
+    _add_xyz_axes_indicator(fig, origin=origin, size=size)
+    _add_rotation_indicator(fig)
 
 
 # tableau colors
