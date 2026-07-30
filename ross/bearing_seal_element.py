@@ -1419,7 +1419,7 @@ class SealElement(BearingElement):
         Direct mass in the z direction (kg).
         Default is 0.
     seal_leakage : float, optional
-        Seal leakage.
+        Seal leakage mass flow rate (kg/s).
     frequency : array, pint.Quantity, optional
         Array with the frequencies (rad/s).
     tag : str, optional
