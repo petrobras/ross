@@ -1,143 +1,204 @@
+import numpy as np
 import pytest
 from numpy.testing import assert_allclose
 
+from ross.bearings.fixed_geometry import FixedGeometryBearing
 from ross.bearings.plain_journal import PlainJournal
 from ross.units import Q_
 
 
-@pytest.fixture
-def plain_journal_perturbation():
-    """Fixture for PlainJournal with perturbation method"""
-    frequency = Q_([900], "RPM")
-    L = Q_(10.3600055944, "in")
-    oil_flow = Q_(37.86, "l/min")
+@pytest.fixture(scope="module")
+def plain_journal():
+    return PlainJournal(
+        n=3,
+        axial_length=Q_(10.3600055944, "in"),
+        journal_radius=0.2,
+        radial_clearance=1.95e-4,
+        elements_circumferential=20,
+        elements_axial=10,
+        n_pad=2,
+        pad_arc_length=176,
+        preload=0,
+        geometry="circular",
+        reference_temperature=Q_(50, "degC"),
+        frequency=Q_([900], "RPM"),
+        fxs_load=0,
+        fys_load=-112814.91,
+        lubricant="ISOVG32",
+        oil_flow_v=Q_(37.86, "l/min"),
+        thermal_type=None,
+        total_ey_film=10,
+        total_ey_pad=10,
+    )
 
+
+def test_geometry_translation(plain_journal):
+    assert plain_journal.n_pads == 2
+    assert_allclose(plain_journal.pivot_angle, np.radians([90, 270]))
+    assert_allclose(plain_journal.pad_arc, np.radians([176, 176]))
+    assert_allclose(plain_journal.pad_axial_length, [0.263144] * 2, rtol=1e-6)
+    assert_allclose(plain_journal.journal_diameter, 0.4)
+    assert_allclose(plain_journal.offset, [0.5, 0.5])
+    assert plain_journal.operating_type == "regular_flooded"
+    assert plain_journal.thermal_type is None
+    assert_allclose(plain_journal.axial_length, 0.263144, rtol=1e-6)
+    assert_allclose(plain_journal.journal_radius, 0.2)
+    assert_allclose(plain_journal.reference_temperature, 323.15)
+    assert plain_journal.total_ex_film == 20
+    assert plain_journal.total_ez_film == 10
+
+
+def test_matches_explicit_fixed_geometry(plain_journal):
+    """The compat surface is pure translation over FixedGeometryBearing."""
+    explicit = FixedGeometryBearing(
+        n=3,
+        frequency=Q_([900], "RPM"),
+        journal_diameter=0.4,
+        radial_clearance=1.95e-4,
+        pad_thickness=0.1,
+        pivot_angle=Q_([90, 270], "deg"),
+        pad_arc=Q_([176, 176], "deg"),
+        pad_axial_length=Q_([10.3600055944, 10.3600055944], "in"),
+        preload=[0, 0],
+        offset=[0.5, 0.5],
+        lubricant="ISOVG32",
+        oil_supply_temperature=Q_(50, "degC"),
+        oil_flow_v=Q_(37.86, "l/min"),
+        fys_load=-112814.91,
+        initial_position=(0.1, -0.1),
+        thermal_type=None,
+        total_ex_film=20,
+        total_ey_film=10,
+        total_ez_film=10,
+        total_ey_pad=10,
+    )
+    for name in ("kxx", "kxy", "kyx", "kyy", "cxx", "cxy", "cyx", "cyy"):
+        assert_allclose(
+            np.asarray(getattr(plain_journal, name), dtype=float),
+            np.asarray(getattr(explicit, name), dtype=float),
+            rtol=1e-6,
+            err_msg=f"{name} differs from the explicit construction",
+        )
+
+
+def test_equilibrium_pos(plain_journal):
+    eccentricity, attitude = plain_journal.equilibrium_pos
+    assert 0.0 < eccentricity < 1.0
+    assert abs(attitude) < np.pi
+
+
+def test_pint_pad_arc_length(plain_journal):
+    pint_arc = PlainJournal(
+        n=3,
+        axial_length=Q_(10.3600055944, "in"),
+        journal_radius=0.2,
+        radial_clearance=1.95e-4,
+        elements_circumferential=20,
+        elements_axial=10,
+        n_pad=2,
+        pad_arc_length=Q_(176, "deg"),
+        reference_temperature=Q_(50, "degC"),
+        frequency=Q_([900], "RPM"),
+        fys_load=-112814.91,
+        lubricant="ISOVG32",
+        oil_flow_v=Q_(37.86, "l/min"),
+        thermal_type=None,
+        total_ey_film=10,
+        total_ey_pad=10,
+    )
+    assert_allclose(pint_arc.pad_arc, plain_journal.pad_arc)
+    assert_allclose(
+        np.asarray(pint_arc.kxx, dtype=float),
+        np.asarray(plain_journal.kxx, dtype=float),
+    )
+
+
+def test_deprecations_and_legacy_conventions():
+    kwargs = dict(
+        n=3,
+        axial_length=0.263144,
+        journal_radius=0.2,
+        radial_clearance=1.95e-4,
+        elements_circumferential=20,
+        elements_axial=10,
+        n_pad=2,
+        pad_arc_length=176,
+        reference_temperature=Q_(50, "degC"),
+        frequency=Q_([900], "RPM"),
+        fys_load=-112814.91,
+        lubricant="ISOVG32",
+        oil_flow_v=Q_(37.86, "l/min"),
+        thermal_type=None,
+        total_ey_film=10,
+        total_ey_pad=10,
+    )
+
+    with pytest.warns(DeprecationWarning, match="sommerfeld_type"):
+        PlainJournal(sommerfeld_type=2, **kwargs)
+    with pytest.warns(DeprecationWarning, match="method is deprecated"):
+        PlainJournal(method="lund", **kwargs)
+    with pytest.warns(DeprecationWarning, match="groove_factor"):
+        PlainJournal(groove_factor=[0.52, 0.48], **kwargs)
+    with pytest.warns(DeprecationWarning, match="EllipticalBearing"):
+        PlainJournal(geometry="elliptical", preload=0.5, **kwargs)
+
+    celsius = dict(kwargs, reference_temperature=50)
+    with pytest.warns(UserWarning, match="interpreted"):
+        bearing = PlainJournal(**celsius)
+    assert_allclose(bearing.reference_temperature, 323.15)
+
+    no_flow = dict(kwargs)
+    no_flow.pop("oil_flow_v")
+    with pytest.warns(UserWarning, match="ample flooded supply"):
+        bearing = PlainJournal(**no_flow)
+    assert_allclose(bearing.oil_flow_v, 1.0e-2)
+
+    with pytest.raises(ValueError, match="geometry must be"):
+        PlainJournal(geometry="square", **kwargs)
+
+
+def test_odd_element_counts_rounded_up():
     bearing = PlainJournal(
         n=3,
-        axial_length=L,
+        axial_length=0.263144,
         journal_radius=0.2,
         radial_clearance=1.95e-4,
         elements_circumferential=11,
         elements_axial=3,
         n_pad=2,
         pad_arc_length=176,
-        preload=0,
-        geometry="circular",
-        reference_temperature=50,
-        frequency=frequency,
-        fxs_load=0,
+        reference_temperature=Q_(50, "degC"),
+        frequency=Q_([900], "RPM"),
         fys_load=-112814.91,
-        groove_factor=[0.52, 0.48],
         lubricant="ISOVG32",
-        sommerfeld_type=2,
-        initial_guess=[0.1, -0.1],
-        method="perturbation",
-        operating_type="flooded",
-        oil_supply_pressure=0,
-        oil_flow_v=oil_flow,
+        oil_flow_v=Q_(37.86, "l/min"),
+        thermal_type=None,
+        total_ey_film=10,
+        total_ey_pad=10,
     )
+    assert bearing.total_ex_film == 12
+    assert bearing.total_ez_film == 4
 
-    return bearing
 
-
-@pytest.fixture
-def plain_journal_lund():
-    """Fixture for PlainJournal with lund method"""
-    frequency = Q_([900], "RPM")
-    L = Q_(10.3600055944, "in")
-    oil_flow = Q_(37.86, "l/min")
-
+def test_thermal_model_runs():
     bearing = PlainJournal(
         n=3,
-        axial_length=L,
+        axial_length=0.263144,
         journal_radius=0.2,
         radial_clearance=1.95e-4,
-        elements_circumferential=11,
-        elements_axial=3,
+        elements_circumferential=20,
+        elements_axial=10,
         n_pad=2,
         pad_arc_length=176,
-        preload=0,
-        geometry="circular",
-        reference_temperature=50,
-        frequency=frequency,
-        fxs_load=0,
+        reference_temperature=Q_(50, "degC"),
+        frequency=Q_([900], "RPM"),
         fys_load=-112814.91,
-        groove_factor=[0.52, 0.48],
         lubricant="ISOVG32",
-        sommerfeld_type=2,
-        initial_guess=[0.1, -0.1],
-        method="lund",
-        operating_type="flooded",
-        oil_supply_pressure=0,
-        oil_flow_v=oil_flow,
+        oil_flow_v=Q_(37.86, "l/min"),
+        total_ey_film=10,
+        total_ey_pad=10,
     )
-
-    return bearing
-
-
-def test_plain_journal_parameters_perturbation(plain_journal_perturbation):
-    """Test basic parameters for perturbation method"""
-    assert_allclose(plain_journal_perturbation.axial_length, 0.263144, rtol=0.0001)
-    assert_allclose(plain_journal_perturbation.journal_radius, 0.2)
-    assert_allclose(plain_journal_perturbation.frequency, 94.24777961)
-    assert_allclose(plain_journal_perturbation.rho, 873.99629)
-    assert_allclose(plain_journal_perturbation.reference_temperature, 50)
-
-
-def test_plain_journal_parameters_lund(plain_journal_lund):
-    """Test basic parameters for lund method"""
-    assert_allclose(plain_journal_lund.axial_length, 0.263144, rtol=0.0001)
-    assert_allclose(plain_journal_lund.journal_radius, 0.2)
-    assert_allclose(plain_journal_lund.frequency, 94.24777961)
-    assert_allclose(plain_journal_lund.rho, 873.99629)
-    assert_allclose(plain_journal_lund.reference_temperature, 50)
-
-
-def test_plain_journal_equilibrium_pos_perturbation(plain_journal_perturbation):
-    """Test equilibrium position for perturbation method"""
-    assert_allclose(
-        plain_journal_perturbation.equilibrium_pos[0], 0.68733194, rtol=0.01
-    )
-    assert_allclose(
-        plain_journal_perturbation.equilibrium_pos[1], -0.79394211, rtol=0.01
-    )
-
-
-def test_plain_journal_equilibrium_pos_lund(plain_journal_lund):
-    """Test equilibrium position for lund method"""
-    assert_allclose(plain_journal_lund.equilibrium_pos[0], 0.68733194, rtol=0.01)
-    assert_allclose(plain_journal_lund.equilibrium_pos[1], -0.79394211, rtol=0.01)
-
-
-def test_plain_journal_coefficients_perturbation(plain_journal_perturbation):
-    """Test coefficients for perturbation method"""
-    frequency = Q_(900, "RPM")
-    coeffs = plain_journal_perturbation.coefficients(frequency)
-    kxx, kxy, kyx, kyy = coeffs[0]
-    cxx, cxy, cyx, cyy = coeffs[1]
-
-    assert_allclose(kxx, 1080942844.8670897, rtol=0.0001)
-    assert_allclose(kxy, 339272299.0815782, rtol=0.0001)
-    assert_allclose(kyx, -1359171836.8799012, rtol=0.0001)
-    assert_allclose(kyy, 1108972345.8736706, rtol=0.0001)
-    assert_allclose(cxx, 15991501.488761209, rtol=0.0001)
-    assert_allclose(cxy, -16127663.630654775, rtol=0.0001)
-    assert_allclose(cyx, -18454827.71258994, rtol=0.0001)
-    assert_allclose(cyy, 43707428.16320889, rtol=0.0001)
-
-
-def test_plain_journal_coefficients_lund(plain_journal_lund):
-    """Test coefficients for lund method"""
-    frequency = Q_(900, "RPM")
-    coeffs = plain_journal_lund.coefficients(frequency)
-    kxx, kxy, kyx, kyy = coeffs[0]
-    cxx, cxy, cyx, cyy = coeffs[1]
-
-    assert_allclose(kxx, 947508775.2790189, rtol=0.0001)
-    assert_allclose(kxy, 156786732.38415018, rtol=0.0001)
-    assert_allclose(kyx, -2006480985.1711535, rtol=0.0001)
-    assert_allclose(kyy, 2165272905.1621084, rtol=0.0001)
-    assert_allclose(cxx, 11502933.224462334, rtol=0.0001)
-    assert_allclose(cxy, -13040765.779177427, rtol=0.0001)
-    assert_allclose(cyx, -13051009.888004456, rtol=0.0001)
-    assert_allclose(cyy, 40600798.873926796, rtol=0.0001)
+    assert bearing.thermal_type == "adiabatic"
+    out = bearing._results.outputs[0]
+    assert out["tpad_max"][0] > 323.15
+    assert float(bearing.kxx[0]) > 0
