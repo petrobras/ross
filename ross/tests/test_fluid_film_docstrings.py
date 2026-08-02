@@ -1,16 +1,20 @@
-"""Docstring/signature consistency for the fluid-film solver package.
+"""Docstring/signature consistency for the fluid-film solver and bearings.
 
-Every function in ``ross/bearings/fluid_film`` whose docstring has a
-NumPy-style ``Parameters`` section must document exactly the parameters of
-its signature -- both directions of drift (stale documented names, missing
-entries) fail here. Functions without a ``Parameters`` section are skipped:
-this enforces consistency, not coverage.
+Every function in ``ross/bearings/fluid_film`` (and the bearing classes
+built on it) whose docstring has a NumPy-style ``Parameters`` section must
+document exactly the parameters of its signature -- both directions of
+drift (stale documented names, missing entries) fail here. Functions
+without a ``Parameters`` section are skipped: this enforces consistency,
+not coverage.
 """
 
 import ast
 from pathlib import Path
 
 FLUID_FILM_DIR = Path(__file__).parent.parent / "bearings" / "fluid_film"
+EXTRA_FILES = [
+    Path(__file__).parent.parent / "bearings" / "fluid_film_bearing.py",
+]
 
 _SECTIONS = {
     "Parameters",
@@ -122,15 +126,9 @@ def _check_file(path):
                     stale = documented - set(actual)
                     missing = [n for n in actual if n not in documented]
                     if stale or missing:
-                        qual = ".".join(
-                            [s.name for s in stack] + [node.name]
-                        )
-                        found.append(
-                            (node.lineno, qual, sorted(stale), missing)
-                        )
-        if isinstance(
-            node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
-        ):
+                        qual = ".".join([s.name for s in stack] + [node.name])
+                        found.append((node.lineno, qual, sorted(stale), missing))
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
             stack.append(node)
             for child in ast.iter_child_nodes(node):
                 visit(child)
@@ -145,13 +143,11 @@ def _check_file(path):
 
 def test_fluid_film_docstring_parameters_match_signatures():
     mismatches = []
-    for path in sorted(FLUID_FILM_DIR.rglob("*.py")):
+    for path in sorted(FLUID_FILM_DIR.rglob("*.py")) + EXTRA_FILES:
         for lineno, qual, stale, missing in _check_file(path):
             mismatches.append((path, lineno, qual, stale, missing))
     report = "\n".join(
         f"{f}:{line}: {qual}: stale={stale} missing={missing}"
         for f, line, qual, stale, missing in mismatches
     )
-    assert not mismatches, (
-        f"docstring Parameters drifted from signatures:\n{report}"
-    )
+    assert not mismatches, f"docstring Parameters drifted from signatures:\n{report}"

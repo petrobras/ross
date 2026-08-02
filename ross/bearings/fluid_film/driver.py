@@ -1076,6 +1076,12 @@ def run_case(**kw):
     power in W, temperatures in K, pressures in Pa, lengths in m, angles in
     rad. Each value is a list with one entry per speed case.
 
+    With ``field_outputs=True`` the dict gains a ``"fields"`` key: one dict
+    per speed case of full-field arrays on the film mesh, shaped
+    ``(total_pads, total_e_x_film + 1, total_e_z_film + 1)`` -- see
+    :func:`_assemble_field_outputs`. The named-output surface above is
+    unchanged.
+
     The internal state dict ``g`` carries SI values across every solver
     module.
     """
@@ -1636,6 +1642,8 @@ def run_case(**kw):
     # on the fixed-geometry cases and ~260% on pressure-dam ones. Falls back to
     # a fresh call only when equilibrium converged on the first iteration,
     # without entering the Newton branch.
+    field_outputs = bool(kw.get("field_outputs", False))
+
     stiffness = g.pop("_last_jacobian", None)
     if stiffness is None:
         stiffness = jacobian_fn(g)
@@ -1665,7 +1673,10 @@ def run_case(**kw):
             np.zeros(total_pads),
             g["k_rotate"],
         )
-    return _assemble_outputs(g, hp, reduced)
+    outputs = _assemble_outputs(g, hp, reduced)
+    if field_outputs:
+        outputs["fields"] = [_assemble_field_outputs(g)]
+    return outputs
 
 
 def _mesh_reynolds():
@@ -1899,6 +1910,48 @@ def _rigid_rotor_stability(g, reduced):
             threshold = float(omega_j)
             whirl = float(np.sqrt(b2))
     return threshold, whirl, kbxx, kbyy, cbxx, cbyy
+
+
+def _assemble_field_outputs(g):
+    """Build the full-field arrays on the film mesh, for plotting.
+
+    Film nodes are numbered row-major (circumferential index times the
+    axial node count plus the axial index), so the flat nodal arrays
+    reshape directly into ``(total_pads, dim_x, dim_z)`` grids.
+
+    Parameters
+    ----------
+    g : dict
+        Solver state at output time.
+
+    Returns
+    -------
+    dict
+        ``"theta"`` (rad, from each pad's leading edge),
+        ``"axial_position"`` (m), ``"pressure"`` (Pa),
+        ``"film_thickness"`` (m) and ``"film_temperature"`` (K, the
+        radially averaged film temperature; the supply temperature when no
+        thermal model ran), each shaped ``(total_pads, dim_x, dim_z)``,
+        plus ``"leading_edge_angle"`` (rad, shape ``(total_pads,)``) to
+        place each pad on the bearing circumference.
+    """
+    total_pads = g["total_pads"]
+    dim_x, dim_z = g["dim_x"], g["dim_z"]
+    mesh = g["mesh"]
+    pads = g["pads"]
+
+    def grid(a):
+        flat = np.asarray(a, dtype=float)[:, : dim_x * dim_z]
+        return flat.reshape(total_pads, dim_x, dim_z).copy()
+
+    return {
+        "theta": grid(mesh.x_rad),
+        "axial_position": grid(mesh.z),
+        "pressure": grid(g["nodal_pressure"]),
+        "film_thickness": grid(g["h_n"]),
+        "film_temperature": grid(g["t_average"]),
+        "leading_edge_angle": np.asarray(pads.leading_angle_rad, dtype=float).copy(),
+    }
 
 
 def _assemble_outputs(g, hp, reduced):

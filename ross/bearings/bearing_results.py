@@ -14,6 +14,7 @@ __all__ = [
     "ThrustPadResults",
     "PlainJournalResults",
     "SqueezeFilmDamperResults",
+    "FluidFilmBearingResults",
 ]
 
 
@@ -3072,3 +3073,364 @@ class SqueezeFilmDamperResults(BearingResults):
             "SqueezeFilmDamper uses analytical formulas — no temperature field "
             "is computed."
         )
+
+
+class FluidFilmBearingResults(BearingResults):
+    """Post-processing results for :class:`FluidFilmBearing`.
+
+    Field arrays are shaped ``(n_pads, n_circumferential, n_axial)``: one
+    grid per pad over the film mesh, with ``theta_grids`` measured from
+    each pad's leading edge and ``leading_edge_angles`` placing the pads on
+    the bearing circumference.
+
+    Parameters
+    ----------
+    frequency : array_like
+        Operating frequencies, rad/s.
+    pressure_fields : list of ndarray
+        Film pressure grids (Pa), one per frequency.
+    temperature_fields : list of ndarray
+        Radially averaged film temperature grids (K), one per frequency.
+    film_thickness_fields : list of ndarray
+        Film thickness grids (m), one per frequency.
+    theta_grids, z_grids : list of ndarray
+        Node angular position (rad, from the pad leading edge) and axial
+        position (m) grids, one per frequency.
+    leading_edge_angles : ndarray
+        Per-pad leading edge angular position, rad.
+    outputs : list of dict
+        The solver's named-output dict of each frequency (eccentricity,
+        attitude, power loss, flows, temperatures, ...).
+    kxx, kxy, kyx, kyy : array_like
+        Stiffness coefficient tables, N/m.
+    cxx, cxy, cyx, cyy : array_like
+        Damping coefficient tables, N*s/m.
+    initial_time, final_time : float, optional
+        Epoch timestamps around the solver run.
+
+    Examples
+    --------
+    >>> from ross.bearings.fluid_film_bearing import fluid_film_bearing_example
+    >>> bearing = fluid_film_bearing_example()
+    >>> fig = bearing.plot_pressure_2d()
+    """
+
+    def __init__(
+        self,
+        frequency,
+        pressure_fields,
+        temperature_fields,
+        film_thickness_fields,
+        theta_grids,
+        z_grids,
+        leading_edge_angles,
+        outputs,
+        kxx,
+        kxy,
+        kyx,
+        kyy,
+        cxx,
+        cxy,
+        cyx,
+        cyy,
+        initial_time=None,
+        final_time=None,
+    ):
+        super().__init__(
+            frequency=frequency,
+            pressure_fields=pressure_fields,
+            temperature_fields=temperature_fields,
+            initial_time=initial_time,
+            final_time=final_time,
+        )
+        self.film_thickness_fields = film_thickness_fields
+        self.theta_grids = theta_grids
+        self.z_grids = z_grids
+        self.leading_edge_angles = np.asarray(leading_edge_angles, dtype=float)
+        self.outputs = outputs
+        self.kxx = kxx
+        self.kxy = kxy
+        self.kyx = kyx
+        self.kyy = kyy
+        self.cxx = cxx
+        self.cxy = cxy
+        self.cyx = cyx
+        self.cyy = cyy
+
+    def _pad_indices(self, pad_index):
+        n_pads = self.pressure_fields[0].shape[0]
+        if pad_index is None:
+            return range(n_pads)
+        return [pad_index]
+
+    def _surface_plot(self, values, freq_index, pad_index, fig, title, unit, **kwargs):
+        if fig is None:
+            fig = go.Figure()
+        theta = self.theta_grids[freq_index]
+        z = self.z_grids[freq_index]
+        vmin = min(values[p].min() for p in self._pad_indices(pad_index))
+        vmax = max(values[p].max() for p in self._pad_indices(pad_index))
+        for p in self._pad_indices(pad_index):
+            fig.add_trace(
+                go.Surface(
+                    x=theta[p] + self.leading_edge_angles[p],
+                    y=z[p],
+                    z=values[p],
+                    colorscale="Viridis",
+                    cmin=vmin,
+                    cmax=vmax,
+                    colorbar=dict(title=f"{title} [{unit}]"),
+                    name=f"Pad {p + 1}",
+                    hovertemplate=f"<b>Pad {p + 1}</b><br>"
+                    + "Theta: %{x:.3f} rad<br>"
+                    + "z: %{y:.4f} m<br>"
+                    + f"{title}: %{{z:.4g}} {unit}<br>"
+                    + "<extra></extra>",
+                )
+            )
+        fig.update_layout(
+            scene=dict(
+                xaxis_title="Theta [rad]",
+                yaxis_title="z [m]",
+                zaxis_title=f"{title} [{unit}]",
+            ),
+            title=f"{title} field (theta vs z)",
+            showlegend=False,
+            **kwargs,
+        )
+        return fig
+
+    def _center_plane_plot(self, values, freq_index, fig, title, unit, **kwargs):
+        if fig is None:
+            fig = go.Figure()
+        theta = self.theta_grids[freq_index]
+        mid = values.shape[2] // 2
+        for p in range(values.shape[0]):
+            fig.add_trace(
+                go.Scatter(
+                    x=theta[p][:, mid] + self.leading_edge_angles[p],
+                    y=values[p][:, mid],
+                    mode="lines",
+                    name=f"Pad {p + 1}",
+                )
+            )
+        fig.update_layout(
+            xaxis_title="Theta [rad]",
+            yaxis_title=f"{title} [{unit}]",
+            title=f"{title} at the axial center plane",
+            **kwargs,
+        )
+        return fig
+
+    def plot_pressure_3d(self, freq_index=0, pad_index=None, fig=None, **kwargs):
+        """Return a 3-D surface plot of the film pressure field.
+
+        Parameters
+        ----------
+        freq_index : int, optional
+            Frequency index. Default is 0.
+        pad_index : int, optional
+            Plot a single pad (0-based). Default plots every pad.
+        fig : go.Figure, optional
+            Existing figure to add the traces to.
+        **kwargs : dict
+            Additional layout options forwarded to ``fig.update_layout``.
+
+        Returns
+        -------
+        fig : go.Figure
+        """
+        return self._surface_plot(
+            self.pressure_fields[freq_index],
+            freq_index,
+            pad_index,
+            fig,
+            "Pressure",
+            "Pa",
+            **kwargs,
+        )
+
+    def plot_pressure_2d(self, freq_index=0, fig=None, **kwargs):
+        """Return the film pressure along the axial center plane, per pad.
+
+        Parameters
+        ----------
+        freq_index : int, optional
+            Frequency index. Default is 0.
+        fig : go.Figure, optional
+            Existing figure to add the traces to.
+        **kwargs : dict
+            Additional layout options forwarded to ``fig.update_layout``.
+
+        Returns
+        -------
+        fig : go.Figure
+        """
+        return self._center_plane_plot(
+            self.pressure_fields[freq_index],
+            freq_index,
+            fig,
+            "Pressure",
+            "Pa",
+            **kwargs,
+        )
+
+    def plot_temperature_3d(self, freq_index=0, pad_index=None, fig=None, **kwargs):
+        """Return a 3-D surface plot of the film temperature field.
+
+        Parameters
+        ----------
+        freq_index : int, optional
+            Frequency index. Default is 0.
+        pad_index : int, optional
+            Plot a single pad (0-based). Default plots every pad.
+        fig : go.Figure, optional
+            Existing figure to add the traces to.
+        **kwargs : dict
+            Additional layout options forwarded to ``fig.update_layout``.
+
+        Returns
+        -------
+        fig : go.Figure
+        """
+        return self._surface_plot(
+            self.temperature_fields[freq_index],
+            freq_index,
+            pad_index,
+            fig,
+            "Temperature",
+            "K",
+            **kwargs,
+        )
+
+    def plot_temperature_2d(self, freq_index=0, fig=None, **kwargs):
+        """Return the film temperature along the axial center plane, per pad.
+
+        Parameters
+        ----------
+        freq_index : int, optional
+            Frequency index. Default is 0.
+        fig : go.Figure, optional
+            Existing figure to add the traces to.
+        **kwargs : dict
+            Additional layout options forwarded to ``fig.update_layout``.
+
+        Returns
+        -------
+        fig : go.Figure
+        """
+        return self._center_plane_plot(
+            self.temperature_fields[freq_index],
+            freq_index,
+            fig,
+            "Temperature",
+            "K",
+            **kwargs,
+        )
+
+    def plot_film_thickness_2d(self, freq_index=0, fig=None, **kwargs):
+        """Return the film thickness along the axial center plane, per pad.
+
+        Parameters
+        ----------
+        freq_index : int, optional
+            Frequency index. Default is 0.
+        fig : go.Figure, optional
+            Existing figure to add the traces to.
+        **kwargs : dict
+            Additional layout options forwarded to ``fig.update_layout``.
+
+        Returns
+        -------
+        fig : go.Figure
+        """
+        return self._center_plane_plot(
+            self.film_thickness_fields[freq_index],
+            freq_index,
+            fig,
+            "Film thickness",
+            "m",
+            **kwargs,
+        )
+
+    def show_results(self):
+        """Print a per-frequency summary of the bearing solution.
+
+        Returns
+        -------
+        None
+        """
+        table = PrettyTable()
+        table.field_names = [
+            "Frequency [RPM]",
+            "Eccentricity [-]",
+            "Attitude [deg]",
+            "Power loss [W]",
+            "Max pressure [Pa]",
+            "Max temperature [K]",
+            "Side flow [m^3/s]",
+        ]
+        from ross.bearings.fluid_film.driver import ZERO_TEMPERATURE_SENTINEL
+
+        for i, out in enumerate(self.outputs):
+            tpad_max = out["tpad_max"][0]
+            has_thermal = abs(tpad_max - ZERO_TEMPERATURE_SENTINEL) > 1e-9
+            table.add_row(
+                [
+                    f"{self.frequency[i] * 30.0 / np.pi:.1f}",
+                    f"{out['eccentricity'][0]:.4f}",
+                    f"{np.degrees(out['attitude'][0]):.1f}",
+                    f"{out['power_loss'][0]:.4g}",
+                    f"{out['y_max_p'][0]:.4g}",
+                    f"{tpad_max:.2f}" if has_thermal else "-",
+                    f"{out['differential_flow_rate'][0]:.4g}",
+                ]
+            )
+        actual_width = len(table.get_string().split("\n")[0])
+        print("\n" + "=" * actual_width)
+        print("FLUID FILM BEARING RESULTS".center(actual_width))
+        print("=" * actual_width)
+        print(table)
+        print("=" * actual_width)
+
+    def show_coefficients_comparison(self):
+        """Print a table comparing dynamic coefficients across frequencies.
+
+        Returns
+        -------
+        None
+        """
+        freq_rpm = self.frequency.astype(float) * 30.0 / np.pi
+
+        table = PrettyTable()
+        table.field_names = [
+            "Frequency [RPM]",
+            "kxx [N/m]",
+            "kxy [N/m]",
+            "kyx [N/m]",
+            "kyy [N/m]",
+            "cxx [N*s/m]",
+            "cxy [N*s/m]",
+            "cyx [N*s/m]",
+            "cyy [N*s/m]",
+        ]
+        for i in range(len(freq_rpm)):
+            table.add_row(
+                [
+                    f"{freq_rpm[i]:.1f}",
+                    f"{self.kxx[i]:.4e}",
+                    f"{self.kxy[i]:.4e}",
+                    f"{self.kyx[i]:.4e}",
+                    f"{self.kyy[i]:.4e}",
+                    f"{self.cxx[i]:.4e}",
+                    f"{self.cxy[i]:.4e}",
+                    f"{self.cyx[i]:.4e}",
+                    f"{self.cyy[i]:.4e}",
+                ]
+            )
+        actual_width = len(table.get_string().split("\n")[0])
+        print("\n" + "=" * actual_width)
+        print("DYNAMIC COEFFICIENTS COMPARISON TABLE".center(actual_width))
+        print("=" * actual_width)
+        print(table)
+        print("=" * actual_width)
