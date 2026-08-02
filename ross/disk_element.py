@@ -8,6 +8,7 @@ import numpy as np
 from plotly import graph_objects as go
 
 from ross.element import Element
+from ross.plotly_theme import color_shades
 from ross.units import check_units
 from ross.utils import read_table_file
 
@@ -49,6 +50,8 @@ class DiskElement(Element):
     >>> disk.Ip
     0.3
     """
+
+    _legend_group = "Disk"
 
     @check_units
     def __init__(self, n, m, Id, Ip, tag=None, scale_factor=1.0, color="Firebrick"):
@@ -355,10 +358,15 @@ class DiskElement(Element):
 
         Patch that will be used to draw the shaft element using plotly library.
 
+        The disk is drawn as an I shaped cross section (hub, web and rim), with
+        its height scaled by the disk mass relative to the heaviest disk in the
+        rotor.
+
         Parameters
         ----------
-        position : float
-            Position in which the patch will be drawn.
+        position : tuple
+            Position (z, y_low, y_center, height) in which the patch will be
+            drawn.
         fig : plotly.graph_objects.Figure
             The figure object which traces are added on.
 
@@ -367,23 +375,15 @@ class DiskElement(Element):
         fig : plotly.graph_objects.Figure
             The figure object which traces are added on.
         """
-        zpos, ypos, yc_pos, scale_factor = position
-        radius = scale_factor / 8
+        zpos, ypos, yc_pos, height = position
+        shades = color_shades(self.color)
 
-        # coordinates to plot disks elements
-        z_upper = [zpos, zpos + scale_factor / 25, zpos - scale_factor / 25, zpos]
-        y_upper = [ypos, ypos + 2 * scale_factor, ypos + 2 * scale_factor, ypos]
-
-        z_lower = [zpos, zpos + scale_factor / 25, zpos - scale_factor / 25, zpos]
-        y_lower = [-ypos, -ypos - 2 * scale_factor, -ypos - 2 * scale_factor, -ypos]
-
-        z_pos = z_upper
-        z_pos.append(None)
-        z_pos.extend(z_lower)
-
-        y_pos = y_upper
-        y_upper.append(None)
-        y_pos.extend(y_lower)
+        # axial width of a uniform disk with the same mass and inertias
+        width = 12 * (self.Id - self.Ip / 2) / self.m if self.m else 0
+        width = np.sqrt(width) if width > 0 else 0
+        width = min(max(width, 0.28 * height), 1.5 * height)
+        rim = width / 2
+        hub = 0.45 * rim
 
         customdata = [self.n, self.Ip, self.Id, self.m]
         hovertemplate = (
@@ -393,53 +393,81 @@ class DiskElement(Element):
             + f"Disk mass: {customdata[3]:.3f}<br>"
         )
 
-        fig.add_trace(
-            go.Scatter(
+        # fmt: off
+        z_offsets = [-rim, rim, rim, hub, hub, rim, rim, -rim, -rim, -hub, -hub, -rim, -rim]
+        y_factors = [0, 0, 0.14, 0.20, 0.78, 0.84, 1, 1, 0.84, 0.78, 0.20, 0.14, 0]
+        # fmt: on
+
+        sheen_color = "rgba(255,255,255,0.30)"
+
+        for sign in (1, -1):
+            y0 = sign * ypos + yc_pos
+            h = sign * height
+            z_pos = [zpos + dz for dz in z_offsets]
+            y_pos = [y0 + factor * h for factor in y_factors]
+
+            body = go.Scatter(
                 x=z_pos,
-                y=[y + yc_pos if y is not None else None for y in y_pos],
+                y=y_pos,
                 customdata=[customdata] * len(z_pos),
                 text=hovertemplate,
                 mode="lines",
                 fill="toself",
-                fillcolor=self.color,
-                opacity=0.8,
-                line=dict(width=2.0, color=self.color),
+                fillcolor=shades["dark"],
+                fillpattern=dict(
+                    shape="",
+                    fgcolor=shades["edge"],
+                    bgcolor=shades["section"],
+                    size=4,
+                    solidity=0.25,
+                ),
+                line=dict(width=1.0, color=shades["edge"]),
                 showlegend=False,
                 name=self.tag,
-                legendgroup="disks",
+                legendgroup=self._legend_group,
                 hoveron="points+fills",
                 hoverinfo="text",
                 hovertemplate=hovertemplate,
-                hoverlabel=dict(bgcolor=self.color),
+                hoverlabel=dict(bgcolor=shades["dark"], font=dict(color="white")),
             )
-        )
+            sheen = go.Scatter(
+                x=[zpos - 0.2 * rim] * 2,
+                y=[y0 + 0.06 * h, y0 + 0.92 * h],
+                mode="lines",
+                line=dict(width=2.0, color=sheen_color),
+                showlegend=False,
+                legendgroup=self._legend_group,
+                hoverinfo="skip",
+            )
 
-        fig.add_shape(
-            dict(
-                type="circle",
-                xref="x",
-                yref="y",
-                x0=zpos - radius,
-                y0=y_upper[1] - radius + yc_pos,
-                x1=zpos + radius,
-                y1=y_upper[1] + radius + yc_pos,
-                fillcolor=self.color,
-                line_color=self.color,
-            )
-        )
-        fig.add_shape(
-            dict(
-                type="circle",
-                xref="x",
-                yref="y",
-                x0=zpos - radius,
-                y0=y_lower[1] - radius + yc_pos,
-                x1=zpos + radius,
-                y1=y_lower[1] + radius + yc_pos,
-                fillcolor=self.color,
-                line_color=self.color,
-            )
-        )
+            if sign < 0:
+                body.update(
+                    meta=dict(
+                        morph=dict(
+                            render={
+                                "fillcolor": shades["dark"],
+                                "fillpattern.shape": "",
+                                "line.color": shades["edge"],
+                            },
+                            section={
+                                "fillcolor": shades["section"],
+                                "fillpattern.shape": "/",
+                                "line.color": shades["edge"],
+                            },
+                        )
+                    )
+                )
+                sheen.update(
+                    meta=dict(
+                        morph=dict(
+                            render={"line.color": sheen_color},
+                            section={"line.color": "rgba(255,255,255,0)"},
+                        )
+                    )
+                )
+
+            fig.add_trace(body)
+            fig.add_trace(sheen)
 
         return fig
 
