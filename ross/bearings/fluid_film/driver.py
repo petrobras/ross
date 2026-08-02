@@ -615,6 +615,11 @@ def shell_crush(shell_id, shell_od, crush):
     float
         Inner-surface displacement.
     """
+    if shell_od == 0.0:
+        # No shell defined; without an interference fit there is nothing to
+        # crush. (A nonzero crush requires real shell diameters -- the
+        # wrapper validates that.)
+        return 0.0
     return (shell_id / shell_od) * abs(crush)
 
 

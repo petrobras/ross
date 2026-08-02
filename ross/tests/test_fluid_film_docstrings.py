@@ -15,6 +15,8 @@ FLUID_FILM_DIR = Path(__file__).parent.parent / "bearings" / "fluid_film"
 EXTRA_FILES = [
     Path(__file__).parent.parent / "bearings" / "fluid_film_bearing.py",
     Path(__file__).parent.parent / "bearings" / "fixed_geometry.py",
+    Path(__file__).parent.parent / "bearings" / "plain_journal.py",
+    Path(__file__).parent.parent / "bearings" / "tilting_pad.py",
 ]
 
 _SECTIONS = {

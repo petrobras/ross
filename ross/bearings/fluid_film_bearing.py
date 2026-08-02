@@ -394,8 +394,11 @@ class FluidFilmBearing(BearingElement):
         num_processes=None,
         **kwargs,
     ):
+        # ``locals()`` of a method that uses zero-argument ``super()`` also
+        # contains the implicit ``__class__`` cell -- storing that would
+        # rebind the instance's class, silently downcasting subclasses.
         for name, value in locals().items():
-            if name not in ("self", "kwargs", "num_processes"):
+            if name not in ("self", "kwargs", "num_processes", "__class__"):
                 setattr(self, name, value)
 
         for name, valid in _TYPE_FLAGS.items():
@@ -416,6 +419,10 @@ class FluidFilmBearing(BearingElement):
             raise ValueError("oil_flow_v not informed")
         if oil_supply_temperature is None:
             raise ValueError("oil_supply_temperature must be informed")
+        if crush_fit and not (shell_id and shell_od):
+            raise ValueError(
+                "a nonzero crush_fit requires shell_id and shell_od"
+            )
 
         self.pivot_angle = np.atleast_1d(np.asarray(pivot_angle, dtype=float))
         self.n_pads = self.pivot_angle.size

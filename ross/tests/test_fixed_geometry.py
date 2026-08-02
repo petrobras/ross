@@ -49,6 +49,7 @@ def test_partial_arc_translation():
 
 def test_elliptical_translation():
     bearing = elliptical_bearing_example()
+    assert type(bearing) is EllipticalBearing
     assert bearing.n_pads == 2
     assert_allclose(bearing.pivot_angle, np.radians([90, 270]))
     assert_allclose(bearing.preload, [0.5, 0.5])

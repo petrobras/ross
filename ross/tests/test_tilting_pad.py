@@ -2,257 +2,201 @@ import numpy as np
 import pytest
 from numpy.testing import assert_allclose
 
-from ross.bearings.tilting_pad import TiltingPad
+from ross.bearings.tilting_pad import (
+    TiltingPad,
+    tilting_pad_adiabatic_example,
+)
+from ross.tests.test_fluid_film_bearing import bearing_kwargs_from_fixture
 from ross.units import Q_
 
-journal_diameter = 101.6e-3  # m
-radial_clearance = 74.9e-6  # m
-pad_thickness = 12.7e-3  # m
-n_pads = 5
-frequency = Q_([3000], "RPM")
-pivot_angles = Q_([18, 90, 162, 234, 306], "deg")
-pad_arc = Q_([60] * n_pads, "deg")
-pad_axial_length = Q_([50.8e-3] * n_pads, "m")
-pre_load = [0.5] * n_pads
-offset = [0.5] * n_pads
-lubricant = "ISOVG32"
-oil_supply_temp = Q_(40, "degC")
-load = [8.8405e02, -2.6704e03]  # N, [Fx, Fy]
-eccentricity = 0.35
-attitude_angle = Q_(287.5, "deg")
-thermal_type = "full"
-
-base_kwargs = dict(
-    n=1,
-    frequency=frequency,
-    journal_diameter=journal_diameter,
-    radial_clearance=radial_clearance,
-    pad_thickness=pad_thickness,
-    pivot_angle=pivot_angles,
-    pad_arc=pad_arc,
-    pad_axial_length=pad_axial_length,
-    pre_load=pre_load,
-    offset=offset,
-    lubricant=lubricant,
-    oil_supply_temperature=oil_supply_temp,
-    nx=30,
-    nz=30,
-    eccentricity=eccentricity,
-    attitude_angle=attitude_angle,
-    load=load,
-    thermal_type=thermal_type,
-)
-
-# Converged pad tilt angles [rad]
-psi_pad = {
-    "match": [1.07426e-03, 7.29330e-04, 2.95380e-04, 3.49720e-04, 8.17350e-04],
-    "determine": [1.07420e-03, 7.20800e-04, 2.93690e-04, 3.49690e-04, 8.16040e-04],
-}
-
-# Converged eccentricity per equilibrium method
-eccentricity_result = {
-    "match": 0.35,
-    "determine": 0.3722,
-}
-
-# Converged attitude angle [rad] per equilibrium method
-attitude_angle_result = {
-    "match": 5.017821599483698,
-    "determine": 5.064506361232241,
-}
-
-# 2x2 stiffness [N/m] and damping [N·s/m] coefficients
-coefficients = {
-    "match": dict(
-        kxx=8.9499e07,
-        kxy=-3.3817e07,
-        kyx=-3.3817e07,
-        kyy=1.1652e08,
-        cxx=2.8202e05,
-        cxy=-2.8284e04,
-        cyx=-2.8284e04,
-        cyy=3.3170e05,
-    ),
-    "determine": dict(
-        kxx=9.5254e07,
-        kxy=-4.7141e07,
-        kyx=-4.7141e07,
-        kyy=1.2676e08,
-        cxx=2.9184e05,
-        cxy=-4.0367e04,
-        cyx=-4.0367e04,
-        cyy=3.5168e05,
-    ),
-}
-
-# Hydrodynamic forces per pad [N]
-force_x = {
-    "match": np.array(
-        [-9.22162496e02, 3.11147456e-01, 5.52500475e02, 1.04579373e03, -1.57342191e03]
-    ),
-    "determine": np.array(
-        [-8.613055e02, 2.827307e-01, 5.238299e02, 1.124814e03, -1.953835e03]
-    ),
-}
-force_y = {
-    "match": np.array(
-        [-3.007243e02, -4.2661925e02, -1.7933787e02, 1.4404706e03, 2.1619113e03]
-    ),
-    "determine": np.array(
-        [-2.80841169e02, -3.90888628e02, -1.70035685e02, 1.549360826e03, 2.684245728e03]
-    ),
-}
-
 
 @pytest.fixture(scope="module")
-def bearing_match():
-    """Return a TiltingPad with prescribed eccentricity (match_eccentricity).
-
-    Journal position is fixed; only pad tilt angles are solved.
-    Shared across all tests in the module (scope='module').
-    """
-    return TiltingPad(**base_kwargs, equilibrium_type="match_eccentricity")
+def tilting_pad():
+    return tilting_pad_adiabatic_example()
 
 
-@pytest.fixture(scope="module")
-def bearing_determine():
-    """Return a TiltingPad solved via thermo-hydrodynamic Newton iteration.
+def test_geometry_translation(tilting_pad):
+    assert type(tilting_pad) is TiltingPad
+    assert tilting_pad.n_pads == 5
+    assert_allclose(tilting_pad.pivot_angle, np.radians([18, 90, 162, 234, 306]))
+    assert_allclose(tilting_pad.pad_arc, np.radians([60] * 5))
+    assert_allclose(tilting_pad.preload, [0.5] * 5)
+    assert tilting_pad.bearing_type == "conventional_tilting_pad"
+    assert tilting_pad.thermal_type == "adiabatic"
+    assert_allclose(tilting_pad.hot_oil_lambda, 0.8)
+    assert_allclose(tilting_pad.pad_conductivity, 116.0)
+    assert_allclose(tilting_pad.edges_convection, 1500.0)
+    assert tilting_pad.total_ex_film == 20
+    assert tilting_pad.total_ez_film == 10
+    assert tilting_pad.total_ey_pad == 10
 
-    Both journal equilibrium position and pad tilt angles are determined
-    simultaneously. Shared across all tests in the module (scope='module').
-    """
-    return TiltingPad(
-        **base_kwargs,
-        equilibrium_type="determine_eccentricity",
-        model_type="thermo_hydro_dynamic",
-        initial_pads_angles=[
-            1.0742e-03,
-            7.2080e-04,
-            2.9369e-04,
-            3.4969e-04,
-            8.1604e-04,
-        ],
-        solver_options={"xtol": 1e-2, "ftol": 1e-2, "maxiter": 1000},
+
+def test_coefficients_solved(tilting_pad):
+    for name in ("kxx", "kyy", "cxx", "cyy"):
+        assert float(getattr(tilting_pad, name)[0]) > 0
+    out = tilting_pad._results.outputs[0]
+    assert len(out["tilt_angle"][0]) == 5
+
+
+def test_matches_solver_fixture():
+    """TiltingPad reproduces the raw 5-pad tilting-pad solver fixture."""
+    kwargs, outputs = bearing_kwargs_from_fixture("tilt_5pad_isoviscous")
+    bearing = TiltingPad(
+        n=kwargs["n"],
+        frequency=kwargs["frequency"],
+        journal_diameter=kwargs["journal_diameter"],
+        radial_clearance=kwargs["radial_clearance"],
+        pad_thickness=kwargs["pad_thickness"],
+        pivot_angle=kwargs["pivot_angle"],
+        pad_arc=kwargs["pad_arc"],
+        pad_axial_length=kwargs["pad_axial_length"],
+        pre_load=kwargs["preload"],
+        offset=kwargs["offset"],
+        lubricant=kwargs["lubricant"],
+        oil_supply_temperature=kwargs["oil_supply_temperature"],
+        oil_flow_v=kwargs["oil_flow_v"],
+        thermal_type=kwargs["thermal_type"],
+        equilibrium_type=kwargs["equilibrium_type"],
+        xj=kwargs["initial_position"][0],
+        yj=kwargs["initial_position"][1],
+        load=[kwargs["fxs_load"], kwargs["fys_load"]],
+        hot_oil_carry_over=kwargs["hot_oil_lambda"],
+        journal_temperature=kwargs["journal_temperature"],
+        nx=kwargs["total_ex_film"],
+        nz=kwargs["total_ez_film"],
+        nr_pad=kwargs["total_ey_pad"],
+        total_ey_film=kwargs["total_ey_film"],
+        weight=kwargs["weight"],
+        probes=kwargs["probes"],
+        pad_E=kwargs["pad_E"],
+        pad_poisson=kwargs["pad_poisson"],
+        k_pad=kwargs["pad_conductivity"],
+        pad_expansion=kwargs["pad_expansion"],
+        pad_density=kwargs["pad_density"],
+        journal_expansion=kwargs["journal_expansion"],
+        shell_expansion=kwargs["shell_expansion"],
+        pad_convection=kwargs["pad_convection"],
+        h_edge=kwargs["edges_convection"],
+        environment_temperature=kwargs["environment_temperature"],
+        environment_convection=kwargs["environment_convection"],
+        reference_temperature=kwargs["reference_temperature"],
+        excitation_ratio=kwargs["excitation_ratio"],
+        starvation_number=kwargs["starvation_number"],
+        relax_pressure=kwargs["relax_pressure"],
+        relax_t=kwargs["relax_temperature"],
+        relax_deformation=kwargs["relax_deformation"],
+        re_laminar=kwargs["re_laminar"],
+        re_turbulent=kwargs["re_turbulent"],
     )
-
-
-class TestTiltingPadGeometry:
-    """Verify physical geometry and operating point after construction."""
-
-    @pytest.mark.parametrize("bearing", ["bearing_match", "bearing_determine"])
-    def test_journal_radius(self, bearing, request):
-        b = request.getfixturevalue(bearing)
-        assert_allclose(b.journal_radius, journal_diameter / 2)
-
-    @pytest.mark.parametrize("bearing", ["bearing_match", "bearing_determine"])
-    def test_radial_clearance(self, bearing, request):
-        b = request.getfixturevalue(bearing)
-        assert_allclose(b.radial_clearance, radial_clearance)
-
-    @pytest.mark.parametrize("bearing", ["bearing_match", "bearing_determine"])
-    def test_n_pad(self, bearing, request):
-        b = request.getfixturevalue(bearing)
-        assert_allclose(b.n_pad, n_pads)
-
-    @pytest.mark.parametrize("bearing", ["bearing_match", "bearing_determine"])
-    def test_frequency(self, bearing, request):
-        b = request.getfixturevalue(bearing)
-        assert_allclose(b.frequency, Q_(3000, "RPM").to("rad/s").m, rtol=1e-6)
-
-    @pytest.mark.parametrize("bearing", ["bearing_match", "bearing_determine"])
-    def test_reference_temperature(self, bearing, request):
-        b = request.getfixturevalue(bearing)
-        assert_allclose(b.reference_temperature, 40)
-
-
-class TestTiltingPadEquilibrium:
-    """Validate converged journal position and pad tilt angles for both strategies."""
-
-    @pytest.mark.parametrize(
-        "bearing,case",
-        [
-            ("bearing_match", "match"),
-            ("bearing_determine", "determine"),
-        ],
-    )
-    def test_eccentricity(self, bearing, case, request):
-        b = request.getfixturevalue(bearing)
-        assert_allclose(b.eccentricity, eccentricity_result[case], rtol=1e-2)
-
-    @pytest.mark.parametrize(
-        "bearing,case",
-        [
-            ("bearing_match", "match"),
-            ("bearing_determine", "determine"),
-        ],
-    )
-    def test_attitude_angle(self, bearing, case, request):
-        b = request.getfixturevalue(bearing)
-        assert_allclose(b.attitude_angle, attitude_angle_result[case], rtol=1e-2)
-
-    @pytest.mark.parametrize(
-        "bearing,case,pad_index",
-        [
-            pytest.param("bearing_match", "match", i, id=f"match-pad{i}")
-            for i in range(n_pads)
-        ]
-        + [
-            pytest.param("bearing_determine", "determine", i, id=f"determine-pad{i}")
-            for i in range(n_pads)
-        ],
-    )
-    def test_pad_tilt_angles(self, bearing, case, pad_index, request):
-        b = request.getfixturevalue(bearing)
+    for name in ("kxx", "kyy", "cxx", "cyy"):
         assert_allclose(
-            b.psi_pad[pad_index],
-            psi_pad[case][pad_index],
-            rtol=0.1,
+            np.asarray(getattr(bearing, name), dtype=float),
+            np.asarray(outputs[name], dtype=float),
+            rtol=1e-8,
+            err_msg=f"{name} differs from the solver fixture",
         )
 
 
-class TestTiltingPadDynamicCoefficients:
-    """Validate full 2x2 stiffness (K) and damping (C) matrices."""
-
-    @pytest.mark.parametrize(
-        "bearing,case,rtol",
-        [
-            ("bearing_match", "match", 1e-3),
-            ("bearing_determine", "determine", 1e-2),
-        ],
+def test_eccentricity_attitude_initial_position():
+    bearing = TiltingPad(
+        n=1,
+        frequency=Q_([3000], "RPM"),
+        equilibrium_type="match_eccentricity",
+        thermal_type=None,
+        journal_diameter=101.6e-3,
+        radial_clearance=74.9e-6,
+        pad_thickness=12.7e-3,
+        pivot_angle=Q_([18, 90, 162, 234, 306], "deg"),
+        pad_arc=Q_([60] * 5, "deg"),
+        pad_axial_length=[50.8e-3] * 5,
+        pre_load=[0.5] * 5,
+        offset=[0.5] * 5,
+        lubricant="ISOVG32",
+        oil_supply_temperature=Q_(40, "degC"),
+        oil_flow_v=Q_(10, "l/min"),
+        eccentricity=0.35,
+        attitude_angle=Q_(287.5, "deg"),
+        nx=20,
+        nz=10,
+        nr_pad=10,
+        total_ey_film=10,
     )
-    @pytest.mark.parametrize(
-        "coeff", ["kxx", "kxy", "kyx", "kyy", "cxx", "cxy", "cyx", "cyy"]
+    expected = (
+        0.35 * np.cos(np.radians(287.5)),
+        0.35 * np.sin(np.radians(287.5)),
     )
-    def test_coefficient(self, bearing, case, rtol, coeff, request):
-        b = request.getfixturevalue(bearing)
-        assert_allclose(
-            getattr(b, coeff),
-            coefficients[case][coeff],
-            rtol=rtol,
-        )
+    assert_allclose(bearing.initial_position, expected)
+    out = bearing._results.outputs[0]
+    assert_allclose(out["eccentricity"][0], 0.35, rtol=1e-6)
 
 
-class TestTiltingPadHydrodynamicForces:
-    """Validate hydrodynamic forces per pad."""
-
-    @pytest.mark.parametrize(
-        "bearing,case",
-        [
-            ("bearing_match", "match"),
-            ("bearing_determine", "determine"),
-        ],
+def test_deprecations_and_restrictions():
+    kwargs = dict(
+        n=1,
+        frequency=Q_([3000], "RPM"),
+        equilibrium_type="match_load",
+        thermal_type=None,
+        journal_diameter=101.6e-3,
+        radial_clearance=74.9e-6,
+        pad_thickness=12.7e-3,
+        pivot_angle=Q_([18, 90, 162, 234, 306], "deg"),
+        pad_arc=Q_([60] * 5, "deg"),
+        pad_axial_length=[50.8e-3] * 5,
+        pre_load=[0.5] * 5,
+        offset=[0.5] * 5,
+        lubricant="ISOVG32",
+        oil_supply_temperature=Q_(40, "degC"),
+        oil_flow_v=Q_(10, "l/min"),
+        load=[8.8405e02, -2.6704e03],
+        nx=20,
+        nz=10,
+        nr_pad=10,
+        total_ey_film=10,
     )
-    def test_force_x(self, bearing, case, request):
-        b = request.getfixturevalue(bearing)
-        assert_allclose(b.force_x_dim, force_x[case], rtol=1e-2)
 
-    @pytest.mark.parametrize(
-        "bearing,case",
-        [
-            ("bearing_match", "match"),
-            ("bearing_determine", "determine"),
-        ],
+    with pytest.warns(DeprecationWarning, match="solver_options"):
+        TiltingPad(solver_options={"xtol": 1e-2}, **kwargs)
+    with pytest.warns(DeprecationWarning, match="initial_pads_angles"):
+        TiltingPad(initial_pads_angles=[1e-3] * 5, **kwargs)
+    with pytest.warns(UserWarning, match="interpreted"):
+        TiltingPad(journal_temperature=25.0, **kwargs)
+
+    with pytest.raises(ValueError, match="FixedGeometryBearing"):
+        TiltingPad(bearing_type="fixed_geometry", **kwargs)
+
+    no_flow = dict(kwargs)
+    no_flow.pop("oil_flow_v")
+    with pytest.warns(UserWarning, match="ample flooded supply"):
+        TiltingPad(**no_flow)
+
+
+def test_pivot_flexibility_runs():
+    bearing = TiltingPad(
+        n=1,
+        frequency=Q_([3000], "RPM"),
+        equilibrium_type="match_load",
+        thermal_type=None,
+        journal_diameter=101.6e-3,
+        radial_clearance=74.9e-6,
+        pad_thickness=12.7e-3,
+        pivot_angle=Q_([18, 90, 162, 234, 306], "deg"),
+        pad_arc=Q_([60] * 5, "deg"),
+        pad_axial_length=[50.8e-3] * 5,
+        pre_load=[0.5] * 5,
+        offset=[0.5] * 5,
+        lubricant="ISOVG32",
+        oil_supply_temperature=Q_(40, "degC"),
+        oil_flow_v=Q_(10, "l/min"),
+        load=[8.8405e02, -2.6704e03],
+        deform_type="pad_pivot_mechanical",
+        pivot_type="user_specified_stiffness",
+        pivot_stiffness=5e8,
+        nx=20,
+        nz=10,
+        nr_pad=10,
+        total_ey_film=10,
     )
-    def test_force_y(self, bearing, case, request):
-        b = request.getfixturevalue(bearing)
-        assert_allclose(b.force_y_dim, force_y[case], rtol=1e-2)
+    out = bearing._results.outputs[0]
+    assert_allclose(out["k_pivot"][0], [5e8] * 5)
+    assert max(out["deform_pivot"][0]) > 0.0
+    assert float(bearing.kxx[0]) > 0

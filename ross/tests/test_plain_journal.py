@@ -33,6 +33,7 @@ def plain_journal():
 
 
 def test_geometry_translation(plain_journal):
+    assert type(plain_journal) is PlainJournal
     assert plain_journal.n_pads == 2
     assert_allclose(plain_journal.pivot_angle, np.radians([90, 270]))
     assert_allclose(plain_journal.pad_arc, np.radians([176, 176]))
