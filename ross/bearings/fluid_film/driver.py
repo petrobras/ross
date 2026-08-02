@@ -1875,7 +1875,7 @@ def _rigid_rotor_stability(g, reduced):
     radial clearance (``K Cb / F``; ``C omega Cb / F``) and evaluates the
     rigid-rotor stability threshold speed and whirl frequency ratio from
     them (Lund's single-mass criterion). Returns ``(threshold, whirl_ratio,
-    kbxx, kbyy, cbxx, cbyy)`` with the threshold in rad/s; all zero when a
+    kbxx, kbyy, cbxx, cbyy)`` with the threshold in rpm; all zero when a
     principal coefficient is below the reporting floor, the load or rotor
     weight vanishes, or the threshold is not finite and positive.
     """
@@ -1912,7 +1912,7 @@ def _rigid_rotor_stability(g, reduced):
     if np.isfinite(omega_square) and omega_square >= 0.0 and weight >= _FORCE_FLOOR:
         omega_j = np.sqrt(omega_square) * np.sqrt(f_total * _GRAVITY / (cb * weight))
         if np.isfinite(omega_j) and omega_j > 0.0 and b2 > 0.0:
-            threshold = float(omega_j)
+            threshold = float(omega_j * 30.0 / PI)
             whirl = float(np.sqrt(b2))
     return threshold, whirl, kbxx, kbyy, cbxx, cbyy
 
