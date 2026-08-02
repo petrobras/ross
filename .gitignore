@@ -41,6 +41,8 @@ GTAGS
 *.o.d
 *.py[ocd]
 *.so
+# bytecode and numba on-disk JIT caches (*.nbc / *.nbi)
+__pycache__/
 
 # Packages #
 ############
