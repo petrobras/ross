@@ -518,6 +518,50 @@ class FluidFilmBearing(BearingElement):
             f"'{type(self).__name__}' object has no attribute '{name}'"
         )
 
+    def save(self, file):
+        """Save the element as a plain coefficient-table BearingElement.
+
+        The downgrade is deliberate (and applies to every subclass): the
+        saved file holds the solved dynamic-coefficient table, so loading
+        it restores the rotordynamic behavior instantly instead of
+        re-running the solver. Re-create the object from its constructor
+        to change the bearing model.
+
+        Parameters
+        ----------
+        file : str or pathlib.Path
+            File to write (created or updated).
+        """
+        from ross.utils import dump_data, load_data
+
+        try:
+            data = load_data(file)
+        except FileNotFoundError:
+            data = {}
+
+        args = sorted(
+            set(self._get_coefficient_list())
+            | {"n", "frequency", "tag", "n_link", "scale_factor", "color"}
+        )
+        element_data = {}
+        for arg in args:
+            value = self.__dict__.get(arg)
+            if value is None:
+                continue
+            if isinstance(value, np.generic):
+                value = value.item()
+            elif isinstance(value, np.ndarray):
+                value = value.tolist()
+            else:
+                try:
+                    value = [item.item() for item in value]
+                except (TypeError, AttributeError):
+                    pass
+            element_data[arg] = value
+
+        data[f"BearingElement_{self.tag}"] = element_data
+        dump_data(data, file)
+
     def _engine_inputs(self, frequency):
         """Assemble the solver keyword arguments for one frequency.
 
