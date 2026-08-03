@@ -461,7 +461,7 @@ class MotorElement(Element):
         image_width = image_height
         marker_size = image_height * 350
 
-        svg_path = Path(__file__).parent.parent / "assets/motor_icon.svg"
+        svg_path = Path(__file__).parent / "motor_icon.svg"
         svg = svg_path.read_text(encoding="utf-8")
         svg = svg.replace("#61809A", f"{self.color}")
 
