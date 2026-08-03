@@ -50,10 +50,12 @@ class PlainJournal(FixedGeometryBearing):
         Journal radius, m.
     radial_clearance : float, pint.Quantity
         Radial clearance, m.
-    elements_circumferential : int
+    elements_circumferential : int, optional
         Circumferential film elements per pad (rounded up to even).
-    elements_axial : int
-        Axial film elements (rounded up to even).
+        Defaults to the solver mesh (40).
+    elements_axial : int, optional
+        Axial film elements (rounded up to even). Defaults to the solver
+        mesh (20).
     n_pad : int
         Number of lands (pads) between the axial grooves.
     pad_arc_length : float, pint.Quantity
@@ -274,6 +276,10 @@ class PlainJournal(FixedGeometryBearing):
         kwargs.setdefault("thermal_type", "adiabatic")
         kwargs.setdefault("total_ey_film", 10)
         kwargs.setdefault("total_ey_pad", 10)
+        if elements_circumferential is not None:
+            kwargs.setdefault("total_ex_film", even(elements_circumferential))
+        if elements_axial is not None:
+            kwargs.setdefault("total_ez_film", even(elements_axial))
         if pad_thickness is None:
             pad_thickness = float(journal_radius) / 2.0
 
@@ -296,8 +302,6 @@ class PlainJournal(FixedGeometryBearing):
             fxs_load=fxs_load,
             fys_load=fys_load,
             operating_type=operating_type,
-            total_ex_film=even(elements_circumferential),
-            total_ez_film=even(elements_axial),
             initial_position=tuple(initial_guess),
             **kwargs,
         )
