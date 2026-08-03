@@ -220,9 +220,12 @@ def hydrodynamics(
             fy_net = fy_hydro + fy_ext
             f = 0.5 * (fx_net**2 + fy_net**2)
 
+            # With no external load (held-eccentricity cases) the relative
+            # force test is meaningless; skip it instead of dividing by zero.
             ext_mag = np.sqrt(fx_ext**2 + fy_ext**2)
             if (
-                np.sqrt(fx_net**2 + fy_net**2) / ext_mag < 2.0e-3
+                ext_mag > 0.0
+                and np.sqrt(fx_net**2 + fy_net**2) / ext_mag < 2.0e-3
                 and equilpost_index > 1
             ):
                 hd_converged = 0 if unconverge_number > 0 else 1
