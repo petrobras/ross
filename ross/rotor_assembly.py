@@ -677,6 +677,7 @@ class Rotor(object):
             disk_elements.extend(rotor.disk_elements)
             bearing_elements.extend(rotor.bearing_elements)
             point_mass_elements.extend(rotor.point_mass_elements)
+
             if rotor.motor_element is not None:
                 motor_element = rotor.motor_element
 
@@ -2853,21 +2854,22 @@ class Rotor(object):
         if self.motor_element is not None:  # modificar isso aqui!!!
             motor = self.motor_element
             torque = self.torque
+
             Ktq = np.zeros((rotor.ndof, rotor.ndof))
-            elm = [s for s in rotor.shaft_elements if s.n_l == motor.n][0]
+            elm = [
+                s for s in rotor.shaft_elements if s.n_l == motor.n or s.n_r == motor.n
+            ][-1]
             dofs = list(elm.dof_global_index.values())
             Ktq[np.ix_(dofs, dofs)] += elm.Ktq()
             Ktq = reduce_matrix(Ktq)
 
-            doft = dofs[elm.dof_mapping()["theta_0"]]
-
             accel = np.gradient(speed, t)
 
             def rotor_system(step, **current_state):
-                wr = speed[step]#current_state.get("ydot")[doft]
-                ar = accel[step]#current_state.get("y2dot")[doft]
+                wr = speed[step]
+                ar = accel[step]
                 tr = torque[step]
-                C1 = reduce_matrix(self.C(wr)) 
+                C1 = reduce_matrix(self.C(wr))
                 K1 = reduce_matrix(self.K(wr))
 
                 return (
@@ -2876,7 +2878,7 @@ class Rotor(object):
                     K1 + K2 * ar + Ktq * tr,
                     forces(step, **current_state),
                 )
-        
+
         elif speed_is_array:
             accel = np.gradient(speed, t)
 
