@@ -420,9 +420,7 @@ class FluidFilmBearing(BearingElement):
         if oil_supply_temperature is None:
             raise ValueError("oil_supply_temperature must be informed")
         if crush_fit and not (shell_id and shell_od):
-            raise ValueError(
-                "a nonzero crush_fit requires shell_id and shell_od"
-            )
+            raise ValueError("a nonzero crush_fit requires shell_id and shell_od")
 
         self.pivot_angle = np.atleast_1d(np.asarray(pivot_angle, dtype=float))
         self.n_pads = self.pivot_angle.size

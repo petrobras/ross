@@ -61,7 +61,10 @@ import inspect
 
 import numpy as np
 
-from ross.bearings.fluid_film._numba_kernels import t_outlet_jit, temp_journal_film_average_jit
+from ross.bearings.fluid_film._numba_kernels import (
+    t_outlet_jit,
+    temp_journal_film_average_jit,
+)
 from ross.bearings.fluid_film.constants import (
     JTEMP_ERROR,
     MAX_ITERATION,
