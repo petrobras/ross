@@ -3044,7 +3044,7 @@ class Rotor(object):
         nodes=1,
         check_sld=False,
         length_units="m",
-        show_axes_indicator=True,
+        show_axes_indicator=False,
         **kwargs,
     ):
         """Plot a rotor object.
@@ -3064,11 +3064,8 @@ class Rotor(object):
             length units to length and diameter.
             Default is 'm'.
         show_axes_indicator : bool, optional
-            If True, displays coordinate and rotation indicators on the plot.
-            The bottom-right indicator shows the x, y, and z axes of the ROSS
-            coordinate system. The upper-right indicator shows a
-            counterclockwise rotation arrow with the label "ω: CCW from +z"
-            for the rotation sense adopted by ROSS. Default is True.
+            If True, displays the ROSS coordinate and rotation reference
+            anchored at axial location zero. Default is False.
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).

@@ -5,212 +5,329 @@ from plotly import graph_objects as go
 from plotly import io as pio
 
 
-def _line_shape(x0, y0, x1, y1, width=1.5):
-    return dict(
-        type="line",
-        x0=x0,
-        y0=y0,
-        x1=x1,
-        y1=y1,
-        xref="paper",
-        yref="paper",
-        line=dict(color="black", width=width),
-        layer="above",
-    )
+def _axis_scale_ratio(fig):
+    scaleratio = getattr(fig.layout.xaxis, "scaleratio", None)
+    if scaleratio:
+        return float(scaleratio)
+    return 1.0
 
 
-def _arrowhead_shapes(x0, y0, x1, y1, size, width=1.5):
-    direction = np.array([x1 - x0, y1 - y0], dtype=float)
-    length = np.linalg.norm(direction)
-    if length == 0:
-        return []
-
-    unit = direction / length
-    perpendicular = np.array([-unit[1], unit[0]])
-    ux, uy = unit
-    px, py = perpendicular
-    shapes = []
-    for sign in (-1, 1):
-        shapes.append(
-            _line_shape(
-                x1,
-                y1,
-                x1 - size * ux + sign * size * 0.4 * px,
-                y1 - size * uy + sign * size * 0.4 * py,
-                width=width,
+def _collect_y_values(fig):
+    y_vals = []
+    for trace in fig.data:
+        if trace.y is not None:
+            y_vals.extend(
+                value for value in np.atleast_1d(trace.y) if value is not None
             )
+    return y_vals
+
+
+def _collect_figure_bounds(fig):
+    x_vals = []
+    y_vals = []
+    for trace in fig.data:
+        if trace.x is not None:
+            x_vals.extend(
+                value for value in np.atleast_1d(trace.x) if value is not None
+            )
+        if trace.y is not None:
+            y_vals.extend(
+                value for value in np.atleast_1d(trace.y) if value is not None
+            )
+
+    for shape in fig.layout.shapes or []:
+        yref = getattr(shape, "yref", "y") or "y"
+        if yref == "y" and shape.y0 is not None and shape.y1 is not None:
+            y_vals.extend([shape.y0, shape.y1])
+        xref = getattr(shape, "xref", "x") or "x"
+        if xref == "x" and shape.x0 is not None and shape.x1 is not None:
+            x_vals.extend([shape.x0, shape.x1])
+
+    if not x_vals or not y_vals:
+        return None
+
+    return min(x_vals), max(x_vals), min(y_vals), max(y_vals)
+
+
+def _plot_y_minimum(fig, bounds):
+    _, _, ymin, _ = bounds
+    y_values = [ymin]
+
+    y_range = fig.layout.yaxis.range
+    if y_range:
+        y_values.append(y_range[0])
+
+    return min(y_values)
+
+
+INDICATOR_AXIS_FRACTION = 0.1
+INDICATOR_Y_MARGIN_FRACTION = 0.55
+INDICATOR_X_RADIUS_FRACTION = 0.14
+INDICATOR_Y_MIN_X_RADIUS_FACTOR = 4
+
+
+def _indicator_x_radius(z_length):
+    return z_length * INDICATOR_X_RADIUS_FRACTION
+
+
+def _indicator_y_length(y_span, z_length):
+    y_from_fraction = y_span * INDICATOR_AXIS_FRACTION
+    x_radius = _indicator_x_radius(z_length)
+    return max(y_from_fraction, INDICATOR_Y_MIN_X_RADIUS_FACTOR * x_radius)
+
+
+def _indicator_below_extent(z_length, aspect, scale):
+    x_radius = _indicator_x_radius(z_length)
+    return max(
+        x_radius * aspect + z_length * 0.04,
+        0.8 * scale,
+    )
+
+
+def _resolve_indicator_origin(fig, origin, z_length, y_length, y_span):
+    ox, oy = origin
+    if ox is None:
+        ox = 0.0
+    if oy is not None:
+        return ox, oy
+
+    bounds = _collect_figure_bounds(fig)
+    if bounds is None:
+        return ox, 0.0
+
+    _, _, _, ymax = bounds
+    ymin = _plot_y_minimum(fig, bounds)
+    y_span = y_span or ymax - ymin or y_length or z_length
+    margin = INDICATOR_Y_MARGIN_FRACTION * y_span
+    return ox, ymin - margin
+
+
+def _expand_y_range_for_indicator(fig, indicator_ymin, indicator_ymax):
+    y_vals = _collect_y_values(fig)
+    ymax_data = max(y_vals) if y_vals else indicator_ymax
+    ymin_data = min(y_vals) if y_vals else indicator_ymin
+
+    current_range = fig.layout.yaxis.range
+    if current_range:
+        y0, y1 = current_range
+        new_y0 = min(y0, ymin_data, indicator_ymin)
+        new_y1 = max(y1, ymax_data, indicator_ymax)
+    else:
+        new_y0 = min(ymin_data, indicator_ymin)
+        new_y1 = max(ymax_data, indicator_ymax)
+
+    padding = (new_y1 - new_y0) * 0.02
+    fig.update_yaxes(range=[new_y0 - padding, new_y1 + padding])
+
+
+def _indicator_axis_lengths(fig, size):
+    bounds = _collect_figure_bounds(fig)
+    if bounds is None:
+        default = 0.05
+        return default, default, default, default
+
+    xmin, xmax, ymin, ymax = bounds
+    x_span = xmax - xmin
+    y_span = ymax - ymin or x_span
+    z_length = size if size is not None else x_span * INDICATOR_AXIS_FRACTION
+    y_length = _indicator_y_length(y_span, z_length)
+    return z_length, y_length, x_span, y_span
+
+
+def _circle_bounds(cx, cy, radius, aspect_ratio):
+    return (
+        cx - radius,
+        cy - radius * aspect_ratio,
+        cx + radius,
+        cy + radius * aspect_ratio,
+    )
+
+
+def _indicator_font_size(line_width, z_length, x_span):
+    if x_span:
+        return max(10, min(22, int(z_length / x_span * 120)))
+    return max(12, int(line_width * 6))
+
+
+def _indicator_arrow_size(line_width, z_length, x_span):
+    if x_span:
+        return max(8, min(18, z_length / x_span * 80))
+    return max(10, line_width * 5)
+
+
+def _add_axis_plot_rotor_indicator(
+    fig,
+    origin=(0.0, None),
+    size=None,
+    line_width=2.5,
+):
+    """Add the xyz reference triad anchored at the rotor axial origin."""
+    z_length, y_length, x_span, y_span = _indicator_axis_lengths(fig, size)
+    ox, oy = _resolve_indicator_origin(fig, origin, z_length, y_length, y_span)
+    aspect = _axis_scale_ratio(fig)
+    scale = z_length / 3.0
+    z_end = ox + z_length
+    y_end = oy + y_length
+    x_radius = _indicator_x_radius(z_length)
+    dot_radius = x_radius * 0.30
+    arrow_size = _indicator_arrow_size(line_width, z_length, x_span)
+    font_size = _indicator_font_size(line_width, z_length, x_span)
+
+    fig.add_trace(
+        go.Scatter(
+            x=[ox, z_end],
+            y=[oy, oy],
+            mode="lines+markers+text",
+            marker=dict(
+                symbol="arrow",
+                size=arrow_size,
+                angleref="previous",
+                color="black",
+            ),
+            line=dict(color="black", width=line_width),
+            text=["", "z"],
+            textposition="middle right",
+            textfont=dict(size=font_size, family="serif", color="black"),
+            showlegend=False,
+            hoverinfo="none",
         )
-    return shapes
+    )
 
+    fig.add_trace(
+        go.Scatter(
+            x=[ox, ox],
+            y=[oy, y_end],
+            mode="lines+markers+text",
+            marker=dict(
+                symbol="arrow",
+                size=arrow_size,
+                angleref="previous",
+                color="black",
+            ),
+            line=dict(color="black", width=line_width),
+            text=["", "y"],
+            textposition="top center",
+            textfont=dict(size=font_size, family="serif", color="black"),
+            showlegend=False,
+            hoverinfo="none",
+        )
+    )
 
-def _paper_aspect(fig):
-    width = fig.layout.width
-    height = fig.layout.height
-    if not width or not height:
-        return 1.5
-    return width / height
-
-
-def _circle_shape(cx, cy, radius, fig, fillcolor="white"):
-    radius_y = radius * _paper_aspect(fig)
-    return dict(
+    outer_circle = _circle_bounds(ox, oy, x_radius, aspect)
+    fig.add_shape(
         type="circle",
-        xref="paper",
-        yref="paper",
-        x0=cx - radius,
-        y0=cy - radius_y,
-        x1=cx + radius,
-        y1=cy + radius_y,
-        line=dict(color="black", width=1.5),
-        fillcolor=fillcolor,
+        xref="x",
+        yref="y",
+        x0=outer_circle[0],
+        y0=outer_circle[1],
+        x1=outer_circle[2],
+        y1=outer_circle[3],
+        line=dict(color="black", width=line_width),
+        fillcolor="rgba(255,255,255,0)",
         layer="above",
     )
 
-
-def _append_layout_items(fig, shapes, annotations):
-    existing_shapes = list(fig.layout.shapes) if fig.layout.shapes else []
-    existing_annotations = (
-        list(fig.layout.annotations) if fig.layout.annotations else []
-    )
-    fig.update_layout(
-        shapes=existing_shapes + shapes,
-        annotations=existing_annotations + annotations,
-    )
-
-
-def _add_xyz_axes_indicator(fig, origin=(0.84, 0.06), size=0.065, aspect=1.45):
-    """Add x, y, and z axes in the bottom-right corner."""
-    ox, oy = origin
-    arrowhead_size = size * 0.18
-    label_offsets = {"z": 0.008, "y": 0.016, "x": 0.006}
-    size_y = size * aspect
-
-    zx, zy = ox + size, oy
-    yx, yy = ox, oy + size_y
-    x_symbol_center = np.array([ox, oy - size_y * 0.45])
-    x_symbol_radius = size * 0.11
-
-    shapes = [
-        _line_shape(ox - size * 0.08, oy, zx, zy),
-        _line_shape(ox, oy - size_y * 0.08, yx, yy),
-        *_arrowhead_shapes(ox, oy, zx, zy, arrowhead_size),
-        *_arrowhead_shapes(ox, oy, yx, yy, arrowhead_size),
-        _circle_shape(x_symbol_center[0], x_symbol_center[1], x_symbol_radius, fig),
-        _circle_shape(
-            x_symbol_center[0],
-            x_symbol_center[1],
-            x_symbol_radius * 0.28,
-            fig,
-            fillcolor="black",
-        ),
-    ]
-
-    annotations = [
-        dict(
-            x=zx + label_offsets["z"],
-            y=zy,
-            xref="paper",
-            yref="paper",
-            text="<i>z</i>",
-            showarrow=False,
-            font=dict(size=10, color="black"),
-            xanchor="left",
-            yanchor="middle",
-        ),
-        dict(
-            x=yx,
-            y=yy + label_offsets["y"],
-            xref="paper",
-            yref="paper",
-            text="<i>y</i>",
-            showarrow=False,
-            font=dict(size=10, color="black"),
-            xanchor="center",
-            yanchor="bottom",
-        ),
-        dict(
-            x=x_symbol_center[0] + x_symbol_radius + label_offsets["x"],
-            y=x_symbol_center[1],
-            xref="paper",
-            yref="paper",
-            text="<i>x</i>",
-            showarrow=False,
-            font=dict(size=10, color="black"),
-            xanchor="left",
-            yanchor="middle",
-        ),
-    ]
-
-    _append_layout_items(fig, shapes, annotations)
-
-
-def _add_rotation_indicator(fig, center=(0.91, 0.92), radius=0.032):
-    """Add a counterclockwise rotation arrow in the upper-right corner."""
-    arc_center = np.array(center)
-    arc_margin = 0.22
-    line_width = 2.2
-    arc_angles = np.linspace(-np.pi / 2 + arc_margin, np.pi - arc_margin, 28)
-    arc_points = arc_center + radius * np.column_stack(
-        [np.cos(arc_angles), np.sin(arc_angles)]
+    inner_circle = _circle_bounds(ox, oy, dot_radius, aspect)
+    fig.add_shape(
+        type="circle",
+        xref="x",
+        yref="y",
+        x0=inner_circle[0],
+        y0=inner_circle[1],
+        x1=inner_circle[2],
+        y1=inner_circle[3],
+        fillcolor="black",
+        line=dict(width=0),
+        layer="above",
     )
 
-    shapes = [
-        _line_shape(
-            arc_points[i, 0],
-            arc_points[i, 1],
-            arc_points[i + 1, 0],
-            arc_points[i + 1, 1],
-            width=line_width,
-        )
-        for i in range(len(arc_points) - 1)
-    ]
-    shapes.extend(
-        _arrowhead_shapes(
-            arc_points[-2, 0],
-            arc_points[-2, 1],
-            arc_points[-1, 0],
-            arc_points[-1, 1],
-            radius * 0.38,
-            width=line_width,
+    fig.add_annotation(
+        x=ox,
+        y=oy - x_radius * aspect - z_length * 0.04,
+        text="x",
+        showarrow=False,
+        font=dict(size=font_size, family="serif", color="black"),
+        yanchor="top",
+        xanchor="center",
+    )
+
+    theta = np.linspace(-np.pi / 2, 1.2 * np.pi, 100)
+    omega_x = ox + (1.5 + 0.25 * np.cos(theta)) * scale
+    omega_y = oy + 0.8 * np.sin(theta) * scale * aspect
+
+    fig.add_trace(
+        go.Scatter(
+            x=omega_x,
+            y=omega_y,
+            mode="lines",
+            line=dict(color="black", width=line_width * 0.8),
+            showlegend=False,
+            hoverinfo="none",
         )
     )
 
-    annotations = [
-        dict(
-            x=arc_center[0],
-            y=arc_center[1] - radius - 0.014,
-            xref="paper",
-            yref="paper",
-            text="ω: CCW from +z",
-            showarrow=False,
-            font=dict(size=9, color="black"),
-            xanchor="center",
-            yanchor="top",
-        ),
-    ]
+    fig.add_trace(
+        go.Scatter(
+            x=[omega_x[-2], omega_x[-1]],
+            y=[omega_y[-2], omega_y[-1]],
+            mode="lines+markers",
+            marker=dict(
+                symbol="arrow",
+                size=arrow_size,
+                angleref="previous",
+                color="black",
+            ),
+            line=dict(width=0),
+            showlegend=False,
+            hoverinfo="none",
+        )
+    )
 
-    _append_layout_items(fig, shapes, annotations)
+    fig.add_annotation(
+        x=ox + 1.5 * scale,
+        y=oy + 1.2 * scale * aspect,
+        text="ω",
+        showarrow=False,
+        font=dict(size=font_size + 4, family="serif", color="black"),
+    )
+
+    indicator_ymin = oy - _indicator_below_extent(z_length, aspect, scale)
+    indicator_ymax = oy + max(y_length, 1.2 * scale * aspect)
+    _expand_y_range_for_indicator(fig, indicator_ymin, indicator_ymax)
 
 
-def add_coordinate_axes_indicator(fig, origin=(0.84, 0.06), size=0.065):
+def add_coordinate_axes_indicator(
+    fig,
+    origin=(0.0, None),
+    size=None,
+    line_width=2.5,
+):
     """Add coordinate and rotation indicators for 2D rotor geometry plots.
 
-    The bottom-right indicator shows the ROSS coordinate system with z along
-    the shaft, y vertical, and x pointing out of the plot plane. The
-    upper-right indicator shows a counterclockwise rotation arrow adopted by
-    ROSS when viewed from the positive z direction.
+    The indicator is anchored at axial location zero on the plot x-axis
+    (``Axial location``). By default, the y-z intersection is placed
+    ``INDICATOR_Y_MARGIN_FRACTION`` below the lowest y value of the rotor plot.
+    The z arm uses that fraction of the axial span. The y arm uses the same
+    fraction of the radial span, but never less than three times the x-axis
+    circle radius.
 
     Parameters
     ----------
     fig : plotly.graph_objects.Figure
         Figure to annotate.
     origin : tuple, optional
-        xyz triad origin in paper coordinates (x, y).
+        y-z axis intersection in plot data coordinates (axial location, radius).
+        Use ``(0, None)`` to keep x at the axial origin and place y below the
+        lowest plot value. Default is (0, None).
     size : float, optional
-        Axis length in paper coordinates.
+        z-axis length in plot data units. If None, it defaults to
+        ``INDICATOR_AXIS_FRACTION`` of the axial span. The y-axis length uses
+        the same fraction of the radial span, with a minimum of three times the
+        x-axis circle radius.
+    line_width : float, optional
+        Line width used for axes and rotation arc.
     """
-    _add_xyz_axes_indicator(fig, origin=origin, size=size)
-    _add_rotation_indicator(fig)
+    _add_axis_plot_rotor_indicator(fig, origin=origin, size=size, line_width=line_width)
 
 
 # tableau colors
