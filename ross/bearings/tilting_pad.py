@@ -49,7 +49,8 @@ class TiltingPad(BearingElement):
        - Extracts coefficients from force differences
 
     For reference check :cite:`barbosa2018`, :cite:`heinrichson2007influence`, :cite:`nicoletti1999`,
-    :cite:`daniel2013evaluation`, :cite:`fitzgerald1992temperature` and :cite:`yang2019inlet`.
+    :cite:`daniel2013evaluation`, :cite:`fitzgerald1992temperature`, :cite:`yang2019inlet` and
+    :cite:`sicchieri2024`.
 
     Parameters
     ----------
