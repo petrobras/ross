@@ -1959,7 +1959,7 @@ class MagneticBearingElement(BearingElement):
     sensor_node : int, optional
         Node where the displacement used for feedback is measured.
         If not provided, it defaults to the actuator node ``n``,
-        representing a colocated sensor-actuator configuration.
+        representing a collocated sensor-actuator configuration.
     tag : str, optional
         Label used to identify the element in the rotor model.
     n_link : int, optional
@@ -2032,8 +2032,8 @@ class MagneticBearingElement(BearingElement):
         pole coordinates.
     sensor_node : int
         Node where the displacement used for feedback is measured.
-        It is equal to ``n`` for a colocated configuration.
-    is_non_colocated : bool
+        It is equal to ``n`` for a collocated configuration.
+    is_non_collocated : bool
         Whether the sensor and actuator are located at different nodes.
 
     Notes
@@ -2292,7 +2292,7 @@ class MagneticBearingElement(BearingElement):
         )
 
     @property
-    def is_non_colocated(self):
+    def is_non_collocated(self):
         """Return whether the sensor and actuator are at different nodes."""
         return self.sensor_node != self.n
 

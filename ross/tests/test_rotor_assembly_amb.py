@@ -1,8 +1,10 @@
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose, assert_equal
+import copy
+from types import SimpleNamespace
 
-from ross import SensitivityResults, MagneticBearingElement
+from ross import SensitivityResults, MagneticBearingElement, AmbNonCollocationResults
 from ross.bearings.magnetic.amb_models import (
     rotor_example_amb_simple,
     rotor_example_amb_general_controllers,
@@ -442,4 +444,206 @@ def test_run_amb_sensitivity():
     assert not np.allclose(
         results.max_abs_sensitivities["Magnetic Bearing 0"]["x"],
         results_custom_freq.max_abs_sensitivities["Magnetic Bearing 0"]["x"],
+    )
+
+
+def test_run_amb_non_collocation():
+    rotor = copy.deepcopy(rotor_example_amb_general_controllers())
+
+    ambs = [
+        bearing
+        for bearing in rotor.bearing_elements
+        if isinstance(bearing, MagneticBearingElement)
+    ]
+
+    ambs[0].sensor_node = next(
+        int(node) for node in rotor.nodes if int(node) != int(ambs[0].n)
+    )
+
+    ambs[1].sensor_node = next(
+        int(node) for node in reversed(rotor.nodes) if int(node) != int(ambs[1].n)
+    )
+
+    results = rotor.run_amb_non_collocation(
+        magnetic_bearing=ambs[0],
+        modes=[0, 1],
+    )
+
+    assert isinstance(
+        results,
+        AmbNonCollocationResults,
+    )
+
+    assert results.actuator_node == ambs[0].n
+    assert results.sensor_node == ambs[0].sensor_node
+
+    np.testing.assert_array_equal(
+        results.mode_indices,
+        [0, 1],
+    )
+
+    np.testing.assert_array_equal(
+        results.sensor_nodes,
+        rotor.nodes,
+    )
+
+    np.testing.assert_array_equal(
+        results.all_actuator_nodes,
+        [amb.n for amb in ambs],
+    )
+
+    np.testing.assert_array_equal(
+        results.all_sensor_nodes,
+        [amb.sensor_node for amb in ambs],
+    )
+
+    expected_shape = (
+        2,
+        len(rotor.nodes),
+    )
+
+    assert results.mode_shapes.shape == expected_shape
+    assert results.modal_residues.shape == expected_shape
+    assert results.normalized_residues.shape == expected_shape
+    assert results.classifications.shape == expected_shape
+
+    actuator_index = int(
+        np.flatnonzero(results.rotor_nodes == results.actuator_node)[0]
+    )
+
+    sensor_indices = np.asarray(
+        [
+            int(np.flatnonzero(results.rotor_nodes == node)[0])
+            for node in results.sensor_nodes
+        ],
+        dtype=int,
+    )
+
+    expected_residues = (
+        results.mode_shapes[
+            :,
+            actuator_index,
+        ][:, np.newaxis]
+        * results.mode_shapes[
+            :,
+            sensor_indices,
+        ]
+    )
+
+    np.testing.assert_allclose(
+        results.modal_residues,
+        expected_residues,
+    )
+
+
+@pytest.mark.parametrize(
+    "kwargs, error, message",
+    [
+        (
+            {"speed": 100.0},
+            ValueError,
+            "supports only speed=0",
+        ),
+        (
+            {"modes": [0, 0]},
+            ValueError,
+            "must not be repeated",
+        ),
+        (
+            {"direction": "z"},
+            ValueError,
+            "direction must be",
+        ),
+        (
+            {"residue_tolerance": 1.0},
+            ValueError,
+            "0 <= residue_tolerance < 1",
+        ),
+    ],
+)
+def test_run_amb_non_collocation_invalid_arguments(
+    kwargs,
+    error,
+    message,
+):
+    rotor = rotor_example_amb_general_controllers()
+
+    amb = next(
+        bearing
+        for bearing in rotor.bearing_elements
+        if isinstance(bearing, MagneticBearingElement)
+    )
+
+    call_arguments = {
+        "magnetic_bearing": amb,
+        "modes": [0, 1],
+    }
+
+    call_arguments.update(kwargs)
+
+    with pytest.raises(
+        error,
+        match=message,
+    ):
+        rotor.run_amb_non_collocation(**call_arguments)
+
+
+def test_run_amb_non_collocation_actuator_near_modal_node(
+    monkeypatch,
+):
+    rotor = rotor_example_amb_general_controllers()
+
+    amb = next(
+        bearing
+        for bearing in rotor.bearing_elements
+        if isinstance(bearing, MagneticBearingElement)
+    )
+
+    rotor_nodes = np.asarray(
+        rotor.nodes,
+        dtype=int,
+    )
+
+    x_dofs = rotor.number_dof * rotor_nodes
+
+    eigenvectors = np.zeros(
+        (rotor.ndof, 1),
+        dtype=complex,
+    )
+
+    eigenvectors[x_dofs, 0] = 1.0
+
+    actuator_index = int(np.flatnonzero(rotor_nodes == amb.n)[0])
+
+    eigenvectors[
+        x_dofs[actuator_index],
+        0,
+    ] = 0.01
+
+    modal = SimpleNamespace(
+        wd=np.array([100.0]),
+        evectors=eigenvectors,
+    )
+
+    monkeypatch.setattr(
+        rotor,
+        "run_modal",
+        lambda **kwargs: modal,
+    )
+
+    results = rotor.run_amb_non_collocation(
+        magnetic_bearing=amb,
+        modes=[0],
+        direction="x",
+        residue_tolerance=0.05,
+    )
+
+    np.testing.assert_allclose(
+        results.normalized_residues[0],
+        0.0,
+    )
+
+    np.testing.assert_array_equal(
+        results.classifications[0],
+        0,
     )

@@ -8112,7 +8112,7 @@ class AmbNonCollocationResults(Results):
         analysis.
     sensor_node : int, optional
         Current sensor node associated with the analyzed actuator. If
-        omitted, the sensor is assumed to be colocated with the actuator.
+        omitted, the sensor is assumed to be collocated with the actuator.
     sensor_nodes : array_like
         Candidate sensor nodes evaluated in the analysis.
     sensor_positions : array_like
@@ -8143,7 +8143,7 @@ class AmbNonCollocationResults(Results):
         Actuator nodes of every magnetic bearing in the rotor.
     all_sensor_nodes : array_like, optional
         Effective sensor nodes of every magnetic bearing in the rotor.
-        If omitted, each sensor is assumed to be colocated with its
+        If omitted, each sensor is assumed to be collocated with its
         corresponding actuator.
     all_amb_tags : array_like, optional
         Tags of every magnetic bearing in the rotor.
@@ -8272,7 +8272,7 @@ class AmbNonCollocationResults(Results):
         form a smooth transition region.
 
         For position-based plots, interpolation is applied only along
-        the rotor axis. Modal rows remain discrete. In a non-colocated
+        the rotor axis. Modal rows remain discrete. In a non-collocated
         configuration, the interval between the current sensor and the
         actuator is highlighted.
 
@@ -8362,7 +8362,7 @@ class AmbNonCollocationResults(Results):
         actuator_color = "#252525"
         sensor_color = "#7651A8"
 
-        span_fill_color = "rgba(80, 80, 80, 0.05)"
+        span_fill_color = "rgba(80, 80, 80, 0.08)"
         span_line_color = "rgba(90, 90, 90, 0.30)"
 
         transition_width = max(
@@ -8474,10 +8474,10 @@ class AmbNonCollocationResults(Results):
 
         heatmap_bottom = float(np.min(mode_numbers)) - 0.5
         heatmap_top = float(np.max(mode_numbers)) + 0.5
-        is_non_colocated = int(self.sensor_node) != int(self.actuator_node)
+        is_non_collocated = int(self.sensor_node) != int(self.actuator_node)
 
-        # Highlight the physical separation only in non-colocated cases.
-        if is_non_colocated:
+        # Highlight the physical separation only in non-collocated cases.
+        if is_non_collocated:
             span_x0 = min(actuator_x, current_sensor_x)
             span_x1 = max(actuator_x, current_sensor_x)
 
@@ -8545,7 +8545,7 @@ class AmbNonCollocationResults(Results):
             )
         )
 
-        if is_non_colocated:
+        if is_non_collocated:
             fig.add_trace(
                 go.Scatter(
                     x=[current_sensor_x, current_sensor_x],
@@ -9173,8 +9173,8 @@ class AmbNonCollocationResults(Results):
             actuator_x, actuator_y = node_plot_data(actuator_node)
             sensor_x, sensor_y = node_plot_data(amb_sensor_node)
 
-            colocated = actuator_node == amb_sensor_node
-            configuration = "Colocated" if colocated else "Non-colocated"
+            collocated = actuator_node == amb_sensor_node
+            configuration = "Collocated" if collocated else "Non-collocated"
 
             safe_tag = "".join(
                 character if character.isalnum() else "_" for character in tag
@@ -9308,7 +9308,7 @@ class AmbNonCollocationResults(Results):
                 )
             )
 
-            if colocated:
+            if collocated:
                 fig.add_vline(
                     x=actuator_x,
                     line=dict(
