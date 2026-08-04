@@ -146,9 +146,7 @@ class BearingResults(ABC):
             "pressure_2d": self.plot_pressure_2d(freq_index=freq_index),
             "pressure_3d": self.plot_pressure_3d(freq_index=freq_index),
             "temperature_2d": self.plot_temperature_2d(freq_index=freq_index),
-            "film_temperature_3d": self.plot_film_temperature_3d(
-                freq_index=freq_index
-            ),
+            "film_temperature_3d": self.plot_film_temperature_3d(freq_index=freq_index),
         }
 
         if show_plots:
