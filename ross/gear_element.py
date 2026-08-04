@@ -13,6 +13,7 @@ from warnings import warn
 from ross.units import Q_, check_units
 from ross.materials import steel
 from ross.disk_element import DiskElement
+from ross.plotly_theme import color_shades
 from ross.materials import steel
 
 
@@ -99,6 +100,8 @@ class GearElement(DiskElement):
     >>> gear.base_radius # doctest: +ELLIPSIS
     0.086382...
     """
+
+    _legend_group = "Gear"
 
     @check_units
     def __init__(
@@ -274,6 +277,7 @@ class GearElement(DiskElement):
         """
         zpos, ypos, yc_pos, scale_factor = position
         scale_factor *= 2
+        shades = color_shades(self.color)
         radius = min(self.base_radius * 1.1 + 0.05, 1)
 
         z_upper = [
@@ -317,19 +321,22 @@ class GearElement(DiskElement):
                 text=hovertemplate,
                 mode="lines",
                 fill="toself",
-                fillcolor=self.color,
+                fillcolor=shades["dark"],
                 fillpattern=dict(
-                    shape="/", fgcolor="rgba(0, 0, 0, 0.2)", bgcolor=self.color
+                    shape="/",
+                    fgcolor=shades["edge"],
+                    bgcolor=shades["dark"],
+                    size=4,
+                    solidity=0.25,
                 ),
-                opacity=0.8,
-                line=dict(width=2.0, color="rgba(0, 0, 0, 0.2)"),
+                line=dict(width=1.0, color=shades["edge"]),
                 showlegend=False,
                 name=self.tag,
-                legendgroup="gears",
+                legendgroup=self._legend_group,
                 hoveron="points+fills",
                 hoverinfo="text",
                 hovertemplate=hovertemplate,
-                hoverlabel=dict(bgcolor=self.color),
+                hoverlabel=dict(bgcolor=shades["dark"], font=dict(color="white")),
             )
         )
 
