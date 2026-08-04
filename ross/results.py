@@ -8108,9 +8108,11 @@ class AmbNonCollocationResults(Results):
     speed : float
         Rotor speed in rad/s.
     actuator_node : int
-        Magnetic bearing actuator node.
-    sensor_node : int
-        Current sensor node.
+        Magnetic-bearing actuator node used as the reference of the
+        analysis.
+    sensor_node : int, optional
+        Current sensor node associated with the analyzed actuator. If
+        omitted, the sensor is assumed to be colocated with the actuator.
     sensor_nodes : array_like
         Candidate sensor nodes evaluated in the analysis.
     sensor_positions : array_like
@@ -8122,25 +8124,29 @@ class AmbNonCollocationResults(Results):
     mode_indices : array_like
         Modal indices included in the analysis.
     natural_frequencies : array_like
-        Natural frequencies in rad/s.
+        Natural frequencies in Hz.
     mode_shapes : array_like
         Projected and normalized mode shapes.
     modal_residues : array_like
-        Relative modal products between sensor and actuator.
+        Modal products between sensor and actuator amplitudes.
     normalized_residues : array_like
         Modal residues normalized independently for each mode.
     classifications : array_like
         Modal compatibility classification. Values are 1 for the
-        same modal sign, -1 for opposite modal signs and 0 for
+        same modal sign, -1 for opposite modal signs, and 0 for
         positions close to a modal node.
     direction_angle : float
         Projection direction in radians.
     residue_tolerance : float
         Tolerance used in the modal classification.
-    show_all_ambs : bool, optional
-        If True, mark the actuator and sensor positions of all
-        magnetic bearings in the rotor. The selected pair used
-        in the residue calculation is highlighted. Default is True.
+    all_actuator_nodes : array_like, optional
+        Actuator nodes of every magnetic bearing in the rotor.
+    all_sensor_nodes : array_like, optional
+        Effective sensor nodes of every magnetic bearing in the rotor.
+        If omitted, each sensor is assumed to be colocated with its
+        corresponding actuator.
+    all_amb_tags : array_like, optional
+        Tags of every magnetic bearing in the rotor.
     """
 
     def __init__(
@@ -8164,85 +8170,63 @@ class AmbNonCollocationResults(Results):
         all_sensor_nodes=None,
         all_amb_tags=None,
     ):
-        self.speed = speed
+        self.speed = float(speed)
 
-        self.actuator_node = actuator_node
-        self.sensor_node = sensor_node
-
-        self.sensor_nodes = np.asarray(
-            sensor_nodes,
-            dtype=int,
+        self.actuator_node = int(actuator_node)
+        self.sensor_node = int(
+            self.actuator_node if sensor_node is None else sensor_node
         )
 
-        self.sensor_positions = np.asarray(
-            sensor_positions,
-            dtype=float,
-        )
-
-        self.rotor_nodes = np.asarray(
-            rotor_nodes,
-            dtype=int,
-        )
-
-        self.rotor_positions = np.asarray(
-            rotor_positions,
-            dtype=float,
-        )
-
-        self.mode_indices = np.asarray(
-            mode_indices,
-            dtype=int,
-        )
-
-        self.natural_frequencies = np.asarray(
-            natural_frequencies,
-            dtype=float,
-        )
-
-        self.mode_shapes = np.asarray(
-            mode_shapes,
-            dtype=float,
-        )
-
-        self.modal_residues = np.asarray(
-            modal_residues,
-            dtype=float,
-        )
-
-        self.normalized_residues = np.asarray(
-            normalized_residues,
-            dtype=float,
-        )
-
-        self.classifications = np.asarray(
-            classifications,
-            dtype=int,
-        )
+        self.sensor_nodes = np.asarray(sensor_nodes, dtype=int)
+        self.sensor_positions = np.asarray(sensor_positions, dtype=float)
+        self.rotor_nodes = np.asarray(rotor_nodes, dtype=int)
+        self.rotor_positions = np.asarray(rotor_positions, dtype=float)
+        self.mode_indices = np.asarray(mode_indices, dtype=int)
+        self.natural_frequencies = np.asarray(natural_frequencies, dtype=float)
+        self.mode_shapes = np.asarray(mode_shapes, dtype=float)
+        self.modal_residues = np.asarray(modal_residues, dtype=float)
+        self.normalized_residues = np.asarray(normalized_residues, dtype=float)
+        self.classifications = np.asarray(classifications, dtype=int)
 
         self.direction_angle = float(direction_angle)
-
         self.residue_tolerance = float(residue_tolerance)
 
         if all_actuator_nodes is None:
-            all_actuator_nodes = [actuator_node]
+            all_actuator_nodes = [self.actuator_node]
+
+        self.all_actuator_nodes = np.asarray(all_actuator_nodes, dtype=int)
 
         if all_sensor_nodes is None:
-            all_sensor_nodes = [sensor_node]
+            all_sensor_nodes = self.all_actuator_nodes.copy()
 
-        if all_amb_tags is None:
-            all_amb_tags = ["Magnetic bearing"]
-
-        self.all_actuator_nodes = np.asarray(
-            all_actuator_nodes,
-            dtype=int,
-        )
+        if len(all_sensor_nodes) != len(self.all_actuator_nodes):
+            raise ValueError(
+                "all_sensor_nodes and all_actuator_nodes must have the same length."
+            )
 
         self.all_sensor_nodes = np.asarray(
-            all_sensor_nodes,
+            [
+                int(actuator if sensor is None else sensor)
+                for actuator, sensor in zip(
+                    self.all_actuator_nodes,
+                    all_sensor_nodes,
+                )
+            ],
             dtype=int,
         )
 
-        self.all_amb_tags = list(all_amb_tags)
+        if all_amb_tags is None:
+            all_amb_tags = [
+                f"Magnetic Bearing {index}"
+                for index in range(len(self.all_actuator_nodes))
+            ]
+
+        if len(all_amb_tags) != len(self.all_actuator_nodes):
+            raise ValueError(
+                "all_amb_tags and all_actuator_nodes must have the same length."
+            )
+
+        self.all_amb_tags = [str(tag) for tag in all_amb_tags]
 
     def _mode_row(self, mode):
         """Return the row associated with a modal index."""
@@ -8273,7 +8257,7 @@ class AmbNonCollocationResults(Results):
         if classification < 0:
             return "Opposite modal signs"
 
-        return "Close to a modal node"
+        return "Near modal node"
 
     def plot_sensor_position_map(
         self,
@@ -8282,148 +8266,75 @@ class AmbNonCollocationResults(Results):
     ):
         """Plot the sensor-position modal compatibility map.
 
-        The map shows the modal compatibility between the actuator
-        selected for the analysis and each candidate sensor position.
+        The color map represents the normalized modal residue. Negative
+        values indicate potentially unfavorable compatibility, positive
+        values indicate favorable compatibility, and values near zero
+        form a smooth transition region.
 
-        The classification is based on the normalized modal residue:
-
-        - ``+1``: same modal sign;
-        - ``0``: close to a modal node;
-        - ``-1``: opposite modal signs.
-
-        The actuator is represented by a vertical dashed line. The
-        current sensor position is represented by a diamond marker
-        above the compatibility map.
+        For position-based plots, interpolation is applied only along
+        the rotor axis. Modal rows remain discrete. In a non-colocated
+        configuration, the interval between the current sensor and the
+        actuator is highlighted.
 
         Parameters
         ----------
         x_axis : {"position", "node"}, optional
-            Quantity displayed on the horizontal axis.
-
-            ``"position"``
-                Display the sensor axial position in meters.
-
-            ``"node"``
-                Display the sensor node number.
-
-            Default is ``"position"``.
-
+            Quantity displayed on the horizontal axis. Default is
+            ``"position"``.
         fig : plotly.graph_objects.Figure, optional
-            Figure where the traces will be added. If not provided,
-            a new figure is created.
+            Figure where the traces will be added.
 
         Returns
         -------
         plotly.graph_objects.Figure
-            Plotly figure containing the modal compatibility map.
+            Plotly figure containing the compatibility map.
         """
-        # ---------------------------------------------------------
-        # Validate x-axis option
-        # ---------------------------------------------------------
         if not isinstance(x_axis, str):
             raise TypeError("x_axis must be either 'position' or 'node'.")
 
         x_axis = x_axis.strip().lower()
 
-        if x_axis not in {
-            "position",
-            "node",
-        }:
+        if x_axis not in {"position", "node"}:
             raise ValueError("x_axis must be either 'position' or 'node'.")
 
-        sensor_nodes = np.asarray(
-            self.sensor_nodes,
-            dtype=int,
-        )
-
-        sensor_positions = np.asarray(
-            self.sensor_positions,
-            dtype=float,
-        )
-
-        rotor_nodes = np.asarray(
-            self.rotor_nodes,
-            dtype=int,
-        )
-
-        rotor_positions = np.asarray(
-            self.rotor_positions,
-            dtype=float,
-        )
-
-        mode_indices = np.asarray(
-            self.mode_indices,
-            dtype=int,
-        )
-
-        natural_frequencies = np.asarray(
-            self.natural_frequencies,
-            dtype=float,
-        )
-
-        modal_residues = np.asarray(
-            self.modal_residues,
-            dtype=float,
-        )
-
-        normalized_residues = np.asarray(
-            self.normalized_residues,
-            dtype=float,
-        )
-
-        classifications = np.asarray(
-            self.classifications,
-            dtype=int,
-        )
+        sensor_nodes = np.asarray(self.sensor_nodes, dtype=int)
+        sensor_positions = np.asarray(self.sensor_positions, dtype=float)
+        rotor_nodes = np.asarray(self.rotor_nodes, dtype=int)
+        rotor_positions = np.asarray(self.rotor_positions, dtype=float)
+        mode_indices = np.asarray(self.mode_indices, dtype=int)
+        natural_frequencies = np.asarray(self.natural_frequencies, dtype=float)
+        normalized_residues = np.asarray(self.normalized_residues, dtype=float)
 
         mode_numbers = mode_indices + 1
+        number_of_modes = len(mode_indices)
+        number_of_sensor_nodes = len(sensor_nodes)
+        expected_shape = (number_of_modes, number_of_sensor_nodes)
 
-        expected_shape = (
-            len(mode_indices),
-            len(sensor_nodes),
-        )
-
-        if sensor_positions.shape != (len(sensor_nodes),):
-            raise ValueError(
-                "sensor_positions and sensor_nodes must have the same length."
-            )
-
-        if natural_frequencies.shape != (len(mode_indices),):
-            raise ValueError(
-                "natural_frequencies and mode_indices must have the same length."
-            )
-
-        for array_name, array in (
-            (
-                "modal_residues",
-                modal_residues,
-            ),
-            (
-                "normalized_residues",
-                normalized_residues,
-            ),
-            (
-                "classifications",
-                classifications,
-            ),
-        ):
-            if array.shape != expected_shape:
-                raise ValueError(f"{array_name} must have shape {expected_shape}.")
-
-        if len(mode_numbers) == 0:
+        if number_of_modes == 0:
             raise ValueError(
                 "At least one mode is required to plot the compatibility map."
             )
 
-        if len(sensor_nodes) == 0:
+        if number_of_sensor_nodes == 0:
             raise ValueError(
                 "At least one candidate sensor node is required to plot the map."
             )
 
-        def node_position(node):
-            """Return the axial position of a rotor node."""
-            node = int(node)
+        if sensor_positions.shape != (number_of_sensor_nodes,):
+            raise ValueError(
+                "sensor_positions and sensor_nodes must have the same length."
+            )
 
+        if natural_frequencies.shape != (number_of_modes,):
+            raise ValueError(
+                "natural_frequencies and mode_indices must have the same length."
+            )
+
+        if normalized_residues.shape != expected_shape:
+            raise ValueError(f"normalized_residues must have shape {expected_shape}.")
+
+        def node_position(node):
+            node = int(node)
             matches = np.flatnonzero(rotor_nodes == node)
 
             if matches.size == 0:
@@ -8433,197 +8344,367 @@ class AmbNonCollocationResults(Results):
 
         if x_axis == "position":
             x_values = sensor_positions
-
             actuator_x = node_position(self.actuator_node)
-
             current_sensor_x = node_position(self.sensor_node)
-
             x_axis_title = "Sensor axial position (m)"
-
-            x_hover_format = "%{x:.5f} m"
-
         else:
             x_values = sensor_nodes
-
             actuator_x = int(self.actuator_node)
-
             current_sensor_x = int(self.sensor_node)
-
             x_axis_title = "Sensor node"
 
-            x_hover_format = "%{x}"
+        self._sensor_column(self.sensor_node)
 
-        current_sensor_column = self._sensor_column(self.sensor_node)
+        favorable_color = "#4E79A7"
+        unfavorable_color = "#C65D63"
+        transition_color = "#D8D2DE"
 
-        classification_labels = np.empty(
-            classifications.shape,
-            dtype=object,
+        actuator_color = "#252525"
+        sensor_color = "#7651A8"
+
+        span_fill_color = "rgba(80, 80, 80, 0.05)"
+        span_line_color = "rgba(90, 90, 90, 0.30)"
+
+        transition_width = max(
+            2.0 * float(self.residue_tolerance),
+            0.08,
         )
 
-        classification_labels[classifications == 1] = "Same modal sign"
+        # Interpolate only along the rotor axis; modes remain discrete.
+        if x_axis == "position":
+            order = np.argsort(x_values)
+            x_source = x_values[order]
 
-        classification_labels[classifications == 0] = "Near modal node"
+            if np.any(np.diff(x_source) <= 0.0):
+                raise ValueError(
+                    "sensor_positions must be strictly increasing for "
+                    "position-based interpolation."
+                )
 
-        classification_labels[classifications == -1] = "Opposite modal signs"
+            normalized_source = normalized_residues[:, order]
+            x_plot = np.linspace(
+                float(x_source[0]),
+                float(x_source[-1]),
+                400,
+            )
+            normalized_plot = np.vstack(
+                [
+                    np.interp(
+                        x_plot,
+                        x_source,
+                        normalized_source[mode_row],
+                    )
+                    for mode_row in range(number_of_modes)
+                ]
+            )
+            x_hover_text = "Sensor position: %{x:.5f} m<br>"
+        else:
+            x_plot = x_values
+            normalized_plot = normalized_residues
+            x_hover_text = "Sensor node: %{x:.0f}<br>"
+
+        transition_plot = np.clip(
+            normalized_plot / transition_width,
+            -1.0,
+            1.0,
+        )
+
+        classification_plot = np.full(
+            normalized_plot.shape,
+            "Near modal node",
+            dtype=object,
+        )
+        classification_plot[normalized_plot > self.residue_tolerance] = (
+            "Same modal sign"
+        )
+        classification_plot[normalized_plot < -self.residue_tolerance] = (
+            "Opposite modal signs"
+        )
+
+        frequency_plot = np.broadcast_to(
+            natural_frequencies[:, np.newaxis],
+            normalized_plot.shape,
+        )
 
         customdata = np.empty(
-            classifications.shape + (7,),
+            normalized_plot.shape + (3,),
             dtype=object,
         )
+        customdata[..., 0] = frequency_plot
+        customdata[..., 1] = normalized_plot
+        customdata[..., 2] = classification_plot
 
-        for mode_row in range(len(mode_indices)):
-            for sensor_column in range(len(sensor_nodes)):
-                customdata[
-                    mode_row,
-                    sensor_column,
-                    0,
-                ] = int(sensor_nodes[sensor_column])
-
-                customdata[
-                    mode_row,
-                    sensor_column,
-                    1,
-                ] = float(sensor_positions[sensor_column])
-
-                customdata[
-                    mode_row,
-                    sensor_column,
-                    2,
-                ] = int(mode_numbers[mode_row])
-
-                customdata[
-                    mode_row,
-                    sensor_column,
-                    3,
-                ] = float(natural_frequencies[mode_row])
-
-                customdata[
-                    mode_row,
-                    sensor_column,
-                    4,
-                ] = float(
-                    modal_residues[
-                        mode_row,
-                        sensor_column,
-                    ]
-                )
-
-                customdata[
-                    mode_row,
-                    sensor_column,
-                    5,
-                ] = float(
-                    normalized_residues[
-                        mode_row,
-                        sensor_column,
-                    ]
-                )
-
-                customdata[
-                    mode_row,
-                    sensor_column,
-                    6,
-                ] = classification_labels[mode_row, sensor_column]
+        transition_colorscale = [
+            [0.000000, unfavorable_color],
+            [0.380000, "#D58E94"],
+            [0.480000, transition_color],
+            [0.500000, transition_color],
+            [0.520000, transition_color],
+            [0.620000, "#91A8C3"],
+            [1.000000, favorable_color],
+        ]
 
         if fig is None:
             fig = go.Figure()
 
-        favorable_color = "#3375B5"
-        unfavorable_color = "#C9193B"
-        near_node_color = "#D8D8D8"
-
-        actuator_color = "#202020"
-
-        sensor_color = "#7651A8"
-
-        classification_colorscale = [
-            [
-                0.000000,
-                unfavorable_color,
-            ],
-            [
-                0.249999,
-                unfavorable_color,
-            ],
-            [
-                0.250000,
-                near_node_color,
-            ],
-            [
-                0.749999,
-                near_node_color,
-            ],
-            [
-                0.750000,
-                favorable_color,
-            ],
-            [
-                1.000000,
-                favorable_color,
-            ],
-        ]
-
         fig.add_trace(
             go.Heatmap(
-                x=x_values,
+                x=x_plot,
                 y=mode_numbers,
-                z=classifications,
-                zmin=-1,
-                zmax=1,
-                colorscale=(classification_colorscale),
+                z=transition_plot,
+                zmin=-1.0,
+                zmax=1.0,
+                zmid=0.0,
+                colorscale=transition_colorscale,
                 showscale=False,
                 xgap=0,
                 ygap=0,
                 hoverongaps=False,
                 customdata=customdata,
                 hovertemplate=(
-                    "Mode: %{customdata[2]}<br>"
-                    "Natural frequency: "
-                    "%{customdata[3]:.3f} Hz<br>"
-                    "Sensor node: "
-                    "%{customdata[0]}<br>"
-                    "Sensor position: "
-                    "%{customdata[1]:.5f} m<br>"
-                    "Modal residue: "
-                    "%{customdata[4]:+.5e}<br>"
-                    "Normalized residue: "
-                    "%{customdata[5]:+.5f}<br>"
-                    "Classification: "
-                    "%{customdata[6]}"
+                    "Mode: %{y:.0f}<br>"
+                    "Natural frequency: %{customdata[0]:.3f} Hz<br>"
+                    + x_hover_text
+                    + "Normalized residue: %{customdata[1]:+.5f}<br>"
+                    "Classification: %{customdata[2]}"
                     "<extra></extra>"
                 ),
             )
+        )
+
+        heatmap_bottom = float(np.min(mode_numbers)) - 0.5
+        heatmap_top = float(np.max(mode_numbers)) + 0.5
+        is_non_colocated = int(self.sensor_node) != int(self.actuator_node)
+
+        # Highlight the physical separation only in non-colocated cases.
+        if is_non_colocated:
+            span_x0 = min(actuator_x, current_sensor_x)
+            span_x1 = max(actuator_x, current_sensor_x)
+
+            fig.add_trace(
+                go.Scatter(
+                    x=[span_x0, span_x1, span_x1, span_x0, span_x0],
+                    y=[
+                        heatmap_bottom,
+                        heatmap_bottom,
+                        heatmap_top,
+                        heatmap_top,
+                        heatmap_bottom,
+                    ],
+                    mode="lines",
+                    fill="toself",
+                    fillcolor=span_fill_color,
+                    line=dict(
+                        color=span_line_color,
+                        width=1,
+                    ),
+                    name="Sensor-actuator separation",
+                    showlegend=False,
+                    hoverinfo="skip",
+                )
+            )
+
+        # Separators emphasize that modal rows are independent.
+        mode_boundaries = (mode_numbers[:-1] + mode_numbers[1:]) / 2.0
+
+        for boundary in mode_boundaries:
+            fig.add_shape(
+                type="line",
+                xref="paper",
+                yref="y",
+                x0=0.0,
+                x1=1.0,
+                y0=float(boundary),
+                y1=float(boundary),
+                line=dict(
+                    color="rgba(255, 255, 255, 0.35)",
+                    width=0.8,
+                ),
+                layer="above",
+            )
+
+        fig.add_trace(
+            go.Scatter(
+                x=[actuator_x, actuator_x],
+                y=[heatmap_bottom, heatmap_top],
+                mode="lines",
+                name="Actuator position",
+                legendgroup="actuator_position",
+                line=dict(
+                    color=actuator_color,
+                    width=2,
+                    dash="dash",
+                ),
+                hovertemplate=(
+                    "Actuator node: "
+                    f"{int(self.actuator_node)}<br>"
+                    "Axial position: "
+                    f"{node_position(self.actuator_node):.5f} m"
+                    "<extra>Actuator</extra>"
+                ),
+            )
+        )
+
+        if is_non_colocated:
+            fig.add_trace(
+                go.Scatter(
+                    x=[current_sensor_x, current_sensor_x],
+                    y=[heatmap_bottom, heatmap_top],
+                    mode="lines",
+                    name="Current sensor line",
+                    legendgroup="sensor_position",
+                    showlegend=False,
+                    line=dict(
+                        color=sensor_color,
+                        width=2,
+                        dash="dot",
+                    ),
+                    hovertemplate=(
+                        "Current sensor<br>"
+                        "Sensor node: "
+                        f"{int(self.sensor_node)}<br>"
+                        "Axial position: "
+                        f"{node_position(self.sensor_node):.5f} m"
+                        "<extra></extra>"
+                    ),
+                )
+            )
+
+        fig.add_trace(
+            go.Scatter(
+                x=[current_sensor_x],
+                y=[heatmap_top],
+                mode="markers",
+                name="Current sensor position",
+                legendgroup="sensor_position",
+                marker=dict(
+                    symbol="diamond",
+                    size=13,
+                    color=sensor_color,
+                    line=dict(
+                        color=sensor_color,
+                        width=2,
+                    ),
+                ),
+                cliponaxis=False,
+                customdata=[
+                    [
+                        int(self.sensor_node),
+                        node_position(self.sensor_node),
+                    ]
+                ],
+                hovertemplate=(
+                    "Current sensor<br>"
+                    "Sensor node: %{customdata[0]}<br>"
+                    "Axial position: %{customdata[1]:.5f} m"
+                    "<extra></extra>"
+                ),
+            )
+        )
+
+        fig.add_trace(
+            go.Scatter(
+                x=[actuator_x],
+                y=[heatmap_bottom],
+                mode="markers",
+                name="Actuator indicator",
+                legendgroup="actuator_position",
+                showlegend=False,
+                marker=dict(
+                    symbol="triangle-up",
+                    size=12,
+                    color=actuator_color,
+                    line=dict(
+                        color=actuator_color,
+                        width=1.5,
+                    ),
+                ),
+                cliponaxis=False,
+                customdata=[
+                    [
+                        int(self.actuator_node),
+                        node_position(self.actuator_node),
+                    ]
+                ],
+                hovertemplate=(
+                    "Actuator<br>"
+                    "Node: %{customdata[0]}<br>"
+                    "Axial position: %{customdata[1]:.5f} m"
+                    "<extra></extra>"
+                ),
+            )
+        )
+
+        fig.add_annotation(
+            x=current_sensor_x,
+            y=1.0,
+            xref="x",
+            yref="paper",
+            text=(f"Current sensor<br>node {int(self.sensor_node)}"),
+            showarrow=True,
+            arrowhead=0,
+            arrowsize=1,
+            arrowwidth=1.2,
+            arrowcolor=sensor_color,
+            ax=0,
+            ay=-34,
+            xanchor="center",
+            align="center",
+            font=dict(
+                color=sensor_color,
+                size=11,
+            ),
+        )
+
+        fig.add_annotation(
+            x=actuator_x,
+            y=0.0,
+            xref="x",
+            yref="paper",
+            text=(f"Actuator<br>node {int(self.actuator_node)}"),
+            showarrow=True,
+            arrowhead=0,
+            arrowsize=1,
+            arrowwidth=1.2,
+            arrowcolor=actuator_color,
+            ax=0,
+            ay=48,
+            xanchor="center",
+            align="center",
+            font=dict(
+                color=actuator_color,
+                size=11,
+            ),
         )
 
         compatibility_legend_entries = [
             {
                 "color": favorable_color,
                 "border_color": favorable_color,
-                "title": "Favorable",
-                "condition": "Rr > 0",
+                "title": "Favorable region",
+                "condition": "Normalized Rr > tolerance",
             },
             {
-                "color": near_node_color,
-                "border_color": "#AFAFAF",
-                "title": "Near modal node",
-                "condition": "|Rr, norm| ≤ tolerance",
+                "color": transition_color,
+                "border_color": "#B9B0C0",
+                "title": "Transition region",
+                "condition": "Normalized Rr ≈ 0",
             },
             {
                 "color": unfavorable_color,
                 "border_color": unfavorable_color,
-                "title": "Potentially unfavorable",
-                "condition": "Rr < 0",
+                "title": "Potentially unfavorable region",
+                "condition": "Normalized Rr < -tolerance",
             },
         ]
 
         legend_swatch_x0 = 1.035
         legend_swatch_x1 = 1.055
         legend_text_x = 1.070
-
         legend_title_y = 0.88
         legend_first_entry_y = 0.70
         legend_entry_spacing = 0.24
-        legend_swatch_half_height = 0.055
+        legend_swatch_half_height = 0.048
 
         fig.add_annotation(
             x=legend_swatch_x0,
@@ -8637,7 +8718,7 @@ class AmbNonCollocationResults(Results):
             align="left",
             font=dict(
                 size=12,
-                color="#17365D",
+                color="#2F3540",
             ),
         )
 
@@ -8650,8 +8731,8 @@ class AmbNonCollocationResults(Results):
                 yref="paper",
                 x0=legend_swatch_x0,
                 x1=legend_swatch_x1,
-                y0=(entry_y - legend_swatch_half_height),
-                y1=(entry_y + legend_swatch_half_height),
+                y0=entry_y - legend_swatch_half_height,
+                y1=entry_y + legend_swatch_half_height,
                 fillcolor=entry["color"],
                 line=dict(
                     color=entry["border_color"],
@@ -8672,163 +8753,31 @@ class AmbNonCollocationResults(Results):
                 align="left",
                 font=dict(
                     size=11,
-                    color="#17365D",
+                    color="#2F3540",
                 ),
             )
-
-        heatmap_bottom = float(np.min(mode_numbers)) - 0.5
-
-        heatmap_top = float(np.max(mode_numbers)) + 0.5
-
-        fig.add_trace(
-            go.Scatter(
-                x=[
-                    actuator_x,
-                    actuator_x,
-                ],
-                y=[
-                    heatmap_bottom,
-                    heatmap_top,
-                ],
-                mode="lines",
-                name="Actuator position",
-                legendgroup="actuator_position",
-                line=dict(
-                    color=actuator_color,
-                    width=2,
-                    dash="dash",
-                ),
-                hovertemplate=(
-                    "Actuator node: "
-                    f"{int(self.actuator_node)}"
-                    "<br>"
-                    + (
-                        f"Axial position: {node_position(self.actuator_node):.5f} m"
-                        if x_axis == "position"
-                        else (f"Displayed node: {int(self.actuator_node)}")
-                    )
-                    + "<extra>Actuator</extra>"
-                ),
-            )
-        )
-
-        sensor_marker_y = heatmap_top + 0.38
-
-        fig.add_trace(
-            go.Scatter(
-                x=[current_sensor_x],
-                y=[sensor_marker_y],
-                mode="markers+text",
-                name="Current sensor position",
-                legendgroup="sensor_position",
-                marker=dict(
-                    symbol="diamond",
-                    size=13,
-                    color=sensor_color,
-                    line=dict(
-                        color=sensor_color,
-                        width=2,
-                    ),
-                ),
-                text=[(f"Current sensor<br>node {int(self.sensor_node)}")],
-                textposition="top center",
-                textfont=dict(
-                    color=sensor_color,
-                    size=11,
-                ),
-                cliponaxis=False,
-                customdata=[
-                    [
-                        int(self.sensor_node),
-                        node_position(self.sensor_node),
-                        float(
-                            normalized_residues[
-                                :,
-                                current_sensor_column,
-                            ][0]
-                        ),
-                    ]
-                ],
-                hovertemplate=(
-                    "Current sensor<br>"
-                    "Sensor node: "
-                    "%{customdata[0]}<br>"
-                    "Axial position: "
-                    "%{customdata[1]:.5f} m"
-                    "<extra></extra>"
-                ),
-            )
-        )
-
-        actuator_marker_y = heatmap_bottom - 0.08
-
-        fig.add_trace(
-            go.Scatter(
-                x=[actuator_x],
-                y=[actuator_marker_y],
-                mode="markers+text",
-                name="Actuator indicator",
-                legendgroup="actuator_position",
-                showlegend=False,
-                marker=dict(
-                    symbol="triangle-up",
-                    size=12,
-                    color=actuator_color,
-                    line=dict(
-                        color=actuator_color,
-                        width=1.5,
-                    ),
-                ),
-                text=[(f"Actuator<br>node {int(self.actuator_node)}")],
-                textposition="bottom center",
-                textfont=dict(
-                    color=actuator_color,
-                    size=11,
-                ),
-                cliponaxis=False,
-                customdata=[
-                    [
-                        int(self.actuator_node),
-                        node_position(self.actuator_node),
-                    ]
-                ],
-                hovertemplate=(
-                    "Actuator<br>"
-                    "Node: %{customdata[0]}<br>"
-                    "Axial position: "
-                    "%{customdata[1]:.5f} m"
-                    "<extra></extra>"
-                ),
-            )
-        )
-
-        current_sensor_normalized_residues = normalized_residues[
-            :,
-            current_sensor_column,
-        ]
 
         fig.update_layout(
             title=dict(
                 text=(
-                    "Sensor-position modal "
-                    "compatibility map"
+                    "Sensor-position modal compatibility map"
                     "<br>"
                     "<sup>"
-                    f"Actuator node: "
-                    f"{int(self.actuator_node)}"
+                    f"Actuator node: {int(self.actuator_node)}"
                     " | "
-                    f"Current sensor node: "
-                    f"{int(self.sensor_node)}"
+                    f"Current sensor node: {int(self.sensor_node)}"
                     " | "
-                    f"Residue tolerance: "
-                    f"{float(self.residue_tolerance):.3f}"
+                    f"Residue tolerance: {float(self.residue_tolerance):.3f}"
                     "</sup>"
                 ),
                 x=0.5,
                 xanchor="center",
             ),
             xaxis=dict(
-                title=x_axis_title,
+                title=dict(
+                    text=x_axis_title,
+                    standoff=70,
+                ),
                 showgrid=False,
                 zeroline=False,
             ),
@@ -8837,10 +8786,7 @@ class AmbNonCollocationResults(Results):
                 tickmode="array",
                 tickvals=mode_numbers,
                 ticktext=[str(mode_number) for mode_number in mode_numbers],
-                range=[
-                    actuator_marker_y - 0.32,
-                    sensor_marker_y + 0.55,
-                ],
+                range=[heatmap_bottom, heatmap_top],
                 showgrid=False,
                 zeroline=False,
             ),
@@ -8848,16 +8794,16 @@ class AmbNonCollocationResults(Results):
                 orientation="h",
                 x=0.0,
                 xanchor="left",
-                y=1.08,
+                y=1.17,
                 yanchor="bottom",
                 groupclick="togglegroup",
             ),
             hovermode="closest",
             margin=dict(
                 l=80,
-                r=330,
-                t=150,
-                b=105,
+                r=360,
+                t=175,
+                b=155,
             ),
         )
 
@@ -8870,19 +8816,13 @@ class AmbNonCollocationResults(Results):
     ):
         """Display the modal residues for a sensor node as a table.
 
-        The table summarizes the modal amplitudes at the actuator and
-        sensor nodes, the corresponding modal residue, the normalized
-        residue and its modal-compatibility classification.
-
         Parameters
         ----------
         sensor_node : int, optional
             Sensor node used to evaluate the modal residues. If not
             provided, the sensor node stored in the results is used.
-
         fig : plotly.graph_objects.Figure, optional
-            Figure where the table will be added. If not provided, a
-            new figure is created.
+            Figure where the table will be added.
 
         Returns
         -------
@@ -8895,48 +8835,16 @@ class AmbNonCollocationResults(Results):
 
         sensor_column = self._sensor_column(analyzed_sensor_node)
 
-        rotor_nodes = np.asarray(
-            self.rotor_nodes,
-            dtype=int,
-        )
-
-        rotor_positions = np.asarray(
-            self.rotor_positions,
-            dtype=float,
-        )
-
-        mode_indices = np.asarray(
-            self.mode_indices,
-            dtype=int,
-        )
-
-        natural_frequencies = np.asarray(
-            self.natural_frequencies,
-            dtype=float,
-        )
-
-        mode_shapes = np.asarray(
-            self.mode_shapes,
-            dtype=float,
-        )
-
-        modal_residues = np.asarray(
-            self.modal_residues,
-            dtype=float,
-        )
-
-        normalized_residues = np.asarray(
-            self.normalized_residues,
-            dtype=float,
-        )
-
-        classifications = np.asarray(
-            self.classifications,
-            dtype=int,
-        )
+        rotor_nodes = np.asarray(self.rotor_nodes, dtype=int)
+        rotor_positions = np.asarray(self.rotor_positions, dtype=float)
+        mode_indices = np.asarray(self.mode_indices, dtype=int)
+        natural_frequencies = np.asarray(self.natural_frequencies, dtype=float)
+        mode_shapes = np.asarray(self.mode_shapes, dtype=float)
+        modal_residues = np.asarray(self.modal_residues, dtype=float)
+        normalized_residues = np.asarray(self.normalized_residues, dtype=float)
+        classifications = np.asarray(self.classifications, dtype=int)
 
         mode_numbers = mode_indices + 1
-
         number_of_modes = len(mode_indices)
 
         if natural_frequencies.shape != (number_of_modes,):
@@ -8944,10 +8852,7 @@ class AmbNonCollocationResults(Results):
                 "natural_frequencies and mode_indices must have the same length."
             )
 
-        if mode_shapes.shape != (
-            number_of_modes,
-            len(rotor_nodes),
-        ):
+        if mode_shapes.shape != (number_of_modes, len(rotor_nodes)):
             raise ValueError(
                 "mode_shapes must have shape (number_of_modes, number_of_rotor_nodes)."
             )
@@ -8957,22 +8862,18 @@ class AmbNonCollocationResults(Results):
             len(self.sensor_nodes),
         )
 
-        if modal_residues.shape != (expected_residue_shape):
+        if modal_residues.shape != expected_residue_shape:
             raise ValueError("modal_residues has an invalid shape.")
 
-        if normalized_residues.shape != (expected_residue_shape):
+        if normalized_residues.shape != expected_residue_shape:
             raise ValueError("normalized_residues has an invalid shape.")
 
-        if classifications.shape != (expected_residue_shape):
+        if classifications.shape != expected_residue_shape:
             raise ValueError("classifications has an invalid shape.")
 
-        # ---------------------------------------------------------
-        # Locate actuator and sensor in the rotor-node arrays
-        # ---------------------------------------------------------
         def node_index(node):
             """Return the index associated with a rotor node."""
             node = int(node)
-
             matches = np.flatnonzero(rotor_nodes == node)
 
             if matches.size == 0:
@@ -8981,79 +8882,39 @@ class AmbNonCollocationResults(Results):
             return int(matches[0])
 
         actuator_index = node_index(self.actuator_node)
-
         sensor_index = node_index(analyzed_sensor_node)
 
         actuator_position = float(rotor_positions[actuator_index])
-
         sensor_position = float(rotor_positions[sensor_index])
 
-        # ---------------------------------------------------------
-        # Values for the selected sensor position
-        # ---------------------------------------------------------
-        actuator_modal_amplitudes = mode_shapes[
-            :,
-            actuator_index,
-        ]
-
-        sensor_modal_amplitudes = mode_shapes[
-            :,
-            sensor_index,
-        ]
-
-        selected_modal_residues = modal_residues[
-            :,
-            sensor_column,
-        ]
-
-        selected_normalized_residues = normalized_residues[
-            :,
-            sensor_column,
-        ]
-
-        selected_classifications = classifications[
-            :,
-            sensor_column,
-        ]
+        actuator_modal_amplitudes = mode_shapes[:, actuator_index]
+        sensor_modal_amplitudes = mode_shapes[:, sensor_index]
+        selected_modal_residues = modal_residues[:, sensor_column]
+        selected_normalized_residues = normalized_residues[:, sensor_column]
+        selected_classifications = classifications[:, sensor_column]
 
         classification_texts = [
             self._classification_text(int(classification))
             for classification in selected_classifications
         ]
 
-        # ---------------------------------------------------------
-        # Format values displayed in the table
-        # ---------------------------------------------------------
-        displayed_modes = [str(int(mode_number)) for mode_number in mode_numbers]
-
-        displayed_frequencies = [
-            f"{frequency:.3f}" for frequency in natural_frequencies
-        ]
-
+        displayed_modes = [str(int(value)) for value in mode_numbers]
+        displayed_frequencies = [f"{value:.3f}" for value in natural_frequencies]
         displayed_actuator_amplitudes = [
-            f"{amplitude:+.4f}" for amplitude in actuator_modal_amplitudes
+            f"{value:+.4f}" for value in actuator_modal_amplitudes
         ]
-
         displayed_sensor_amplitudes = [
-            f"{amplitude:+.4f}" for amplitude in sensor_modal_amplitudes
+            f"{value:+.4f}" for value in sensor_modal_amplitudes
         ]
-
         displayed_modal_residues = [
-            f"{residue:+.5e}" for residue in selected_modal_residues
+            f"{value:+.5e}" for value in selected_modal_residues
         ]
-
         displayed_normalized_residues = [
-            f"{residue:+.4f}" for residue in selected_normalized_residues
+            f"{value:+.4f}" for value in selected_normalized_residues
         ]
 
-        # ---------------------------------------------------------
-        # Table colors
-        #
-        # Most columns use alternating neutral rows. The
-        # classification column uses a light class-dependent color.
-        # ---------------------------------------------------------
         neutral_row_colors = [
-            ("#FFFFFF" if row % 2 == 0 else "#F4F6F8") for row in range(number_of_modes)
+            "#FFFFFF" if row % 2 == 0 else "#F4F6F8" for row in range(number_of_modes)
         ]
 
         classification_colors = []
@@ -9061,10 +8922,8 @@ class AmbNonCollocationResults(Results):
         for classification in selected_classifications:
             if classification == 1:
                 classification_colors.append("#D9EAF7")
-
             elif classification == -1:
                 classification_colors.append("#F7D9DF")
-
             else:
                 classification_colors.append("#E5E5E5")
 
@@ -9081,9 +8940,6 @@ class AmbNonCollocationResults(Results):
         if fig is None:
             fig = go.Figure()
 
-        # ---------------------------------------------------------
-        # Modal-residue table
-        # ---------------------------------------------------------
         fig.add_trace(
             go.Table(
                 columnwidth=[
@@ -9099,10 +8955,10 @@ class AmbNonCollocationResults(Results):
                     values=[
                         "<b>Mode</b>",
                         "<b>Frequency<br>(Hz)</b>",
-                        ("<b>Actuator modal<br>amplitude</b>"),
-                        ("<b>Sensor modal<br>amplitude</b>"),
+                        "<b>Actuator modal<br>amplitude</b>",
+                        "<b>Sensor modal<br>amplitude</b>",
                         "<b>Modal residue</b>",
-                        ("<b>Normalized<br>residue</b>"),
+                        "<b>Normalized<br>residue</b>",
                         "<b>Classification</b>",
                     ],
                     align=[
@@ -9144,7 +9000,7 @@ class AmbNonCollocationResults(Results):
                         "center",
                         "left",
                     ],
-                    fill_color=(column_fill_colors),
+                    fill_color=column_fill_colors,
                     font=dict(
                         color="#17365D",
                         size=11,
@@ -9158,9 +9014,6 @@ class AmbNonCollocationResults(Results):
             )
         )
 
-        # ---------------------------------------------------------
-        # Figure layout
-        # ---------------------------------------------------------
         figure_height = max(
             330,
             180 + 38 * number_of_modes,
@@ -9172,16 +9025,13 @@ class AmbNonCollocationResults(Results):
                     "Modal-residue summary"
                     "<br>"
                     "<sup>"
-                    f"Actuator node: "
-                    f"{int(self.actuator_node)} "
+                    f"Actuator node: {int(self.actuator_node)} "
                     f"(x = {actuator_position:.5f} m)"
                     " | "
-                    f"Sensor node: "
-                    f"{analyzed_sensor_node} "
+                    f"Sensor node: {analyzed_sensor_node} "
                     f"(x = {sensor_position:.5f} m)"
                     " | "
-                    f"Tolerance: "
-                    f"{float(self.residue_tolerance):.3f}"
+                    f"Tolerance: {float(self.residue_tolerance):.3f}"
                     "</sup>"
                 ),
                 x=0.5,
@@ -9205,40 +9055,29 @@ class AmbNonCollocationResults(Results):
         show_all_ambs=True,
         fig=None,
     ):
-        """Plot a mode shape with magnetic bearing locations.
+        """Plot a mode shape with magnetic-bearing locations.
 
         The magnetic bearing used in the non-collocation analysis is
         emphasized. The remaining magnetic bearings are displayed as
         geometric context when ``show_all_ambs=True``.
 
-        Both the actuator and the sensor are displayed for every
-        magnetic bearing. For a colocated configuration, the actuator
-        and sensor markers share the same axial position and modal
-        amplitude, but different marker sizes and symbols are used so
-        that both remain visible.
-
         Parameters
         ----------
         mode : int
             Modal index stored in the results.
-
         sensor_node : int, optional
             Sensor node used to evaluate the modal residue. If not
-            provided, the sensor node stored in the results is used.
-
+            provided, the stored sensor node is used.
         show_all_ambs : bool, optional
-            If True, display all magnetic bearing actuators and sensors
-            stored in the results. Default is True.
-
+            If True, display all magnetic-bearing actuator and sensor
+            locations. Default is True.
         fig : plotly.graph_objects.Figure, optional
-            Figure where the traces will be added. If not provided, a
-            new figure is created.
+            Figure where traces will be added.
 
         Returns
         -------
         plotly.graph_objects.Figure
-            Plotly figure containing the mode shape and the magnetic
-            bearing locations.
+            Plotly figure containing the mode shape and AMB locations.
         """
         mode_row = self._mode_row(mode)
 
@@ -9248,33 +9087,16 @@ class AmbNonCollocationResults(Results):
 
         sensor_column = self._sensor_column(analyzed_sensor_node)
 
-        rotor_nodes = np.asarray(
-            self.rotor_nodes,
-            dtype=int,
-        )
-
-        rotor_positions = np.asarray(
-            self.rotor_positions,
-            dtype=float,
-        )
+        rotor_nodes = np.asarray(self.rotor_nodes, dtype=int)
+        rotor_positions = np.asarray(self.rotor_positions, dtype=float)
 
         mode_shape = np.asarray(self.mode_shapes[mode_row])
+        mode_shape = np.real_if_close(mode_shape, tol=1000)
 
-        mode_shape = np.real_if_close(
-            mode_shape,
-            tol=1000,
-        )
-
-        # The current analysis is restricted to speed=0. This is a
-        # defensive fallback for negligible numerical imaginary parts.
         if np.iscomplexobj(mode_shape):
             mode_shape = np.real(mode_shape)
 
-        mode_shape = np.asarray(
-            mode_shape,
-            dtype=float,
-        )
-
+        mode_shape = np.asarray(mode_shape, dtype=float)
         maximum_amplitude = np.max(np.abs(mode_shape))
 
         if maximum_amplitude > 0.0:
@@ -9283,7 +9105,6 @@ class AmbNonCollocationResults(Results):
         def node_plot_data(node):
             """Return axial position and modal amplitude at a node."""
             node = int(node)
-
             matches = np.flatnonzero(rotor_nodes == node)
 
             if matches.size == 0:
@@ -9297,31 +9118,14 @@ class AmbNonCollocationResults(Results):
             )
 
         natural_frequency = float(self.natural_frequencies[mode_row])
-
-        normalized_residue = float(
-            self.normalized_residues[
-                mode_row,
-                sensor_column,
-            ]
-        )
-
-        classification = int(
-            self.classifications[
-                mode_row,
-                sensor_column,
-            ]
-        )
-
+        normalized_residue = float(self.normalized_residues[mode_row, sensor_column])
+        classification = int(self.classifications[mode_row, sensor_column])
         classification_text = self._classification_text(classification)
-
         mode_number = int(self.mode_indices[mode_row]) + 1
 
         if fig is None:
             fig = go.Figure()
 
-        # ---------------------------------------------------------
-        # Mode shape
-        # ---------------------------------------------------------
         fig.add_trace(
             go.Scatter(
                 x=rotor_positions,
@@ -9341,8 +9145,7 @@ class AmbNonCollocationResults(Results):
                 hovertemplate=(
                     "Node: %{customdata}<br>"
                     "Axial position: %{x:.5f} m<br>"
-                    "Normalized modal amplitude: "
-                    "%{y:+.5f}"
+                    "Normalized modal amplitude: %{y:+.5f}"
                     "<extra>Mode shape</extra>"
                 ),
             )
@@ -9364,17 +9167,13 @@ class AmbNonCollocationResults(Results):
         ):
             """Add one actuator-sensor pair to the figure."""
             actuator_node = int(actuator_node)
-
             amb_sensor_node = int(amb_sensor_node)
-
             tag = str(tag)
 
             actuator_x, actuator_y = node_plot_data(actuator_node)
-
             sensor_x, sensor_y = node_plot_data(amb_sensor_node)
 
             colocated = actuator_node == amb_sensor_node
-
             configuration = "Colocated" if colocated else "Non-colocated"
 
             safe_tag = "".join(
@@ -9383,9 +9182,7 @@ class AmbNonCollocationResults(Results):
 
             if analyzed:
                 actuator_name = f"{tag} — analyzed actuator"
-
                 sensor_name = f"{tag} — analyzed sensor"
-
                 legend_group = f"analyzed_amb_{safe_tag}"
 
                 actuator_symbol = "diamond"
@@ -9398,18 +9195,11 @@ class AmbNonCollocationResults(Results):
                 sensor_line_color = "#7440a8"
                 sensor_size = 9
 
-                actuator_text = f"Actuator — {tag}<br>node {actuator_node}"
-
-                sensor_text = f"Sensor — {tag}<br>node {amb_sensor_node}"
-
                 actuator_line_dash = "dash"
                 sensor_line_dash = "dot"
-
             else:
                 actuator_name = f"{tag} — actuator"
-
                 sensor_name = f"{tag} — sensor"
-
                 legend_group = f"amb_{safe_tag}"
 
                 actuator_symbol = "diamond-open"
@@ -9422,12 +9212,11 @@ class AmbNonCollocationResults(Results):
                 sensor_line_color = "#7d7d7d"
                 sensor_size = 9
 
-                actuator_text = f"Actuator — {tag}<br>node {actuator_node}"
-
-                sensor_text = f"Sensor — {tag}<br>node {amb_sensor_node}"
-
                 actuator_line_dash = "dash"
                 sensor_line_dash = "dot"
+
+            actuator_text = f"Actuator — {tag}<br>node {actuator_node}"
+            sensor_text = f"Sensor — {tag}<br>node {amb_sensor_node}"
 
             fig.add_trace(
                 go.Scatter(
@@ -9464,15 +9253,11 @@ class AmbNonCollocationResults(Results):
                     hovertemplate=(
                         "AMB: %{customdata[0]}<br>"
                         "Component: actuator<br>"
-                        "Actuator node: "
-                        "%{customdata[1]}<br>"
-                        "Sensor node: "
-                        "%{customdata[2]}<br>"
-                        "Configuration: "
-                        "%{customdata[3]}<br>"
+                        "Actuator node: %{customdata[1]}<br>"
+                        "Sensor node: %{customdata[2]}<br>"
+                        "Configuration: %{customdata[3]}<br>"
                         "Axial position: %{x:.5f} m<br>"
-                        "Normalized modal amplitude: "
-                        "%{y:+.5f}"
+                        "Normalized modal amplitude: %{y:+.5f}"
                         "<extra></extra>"
                     ),
                 )
@@ -9513,15 +9298,11 @@ class AmbNonCollocationResults(Results):
                     hovertemplate=(
                         "AMB: %{customdata[0]}<br>"
                         "Component: sensor<br>"
-                        "Actuator node: "
-                        "%{customdata[1]}<br>"
-                        "Sensor node: "
-                        "%{customdata[2]}<br>"
-                        "Configuration: "
-                        "%{customdata[3]}<br>"
+                        "Actuator node: %{customdata[1]}<br>"
+                        "Sensor node: %{customdata[2]}<br>"
+                        "Configuration: %{customdata[3]}<br>"
                         "Axial position: %{x:.5f} m<br>"
-                        "Normalized modal amplitude: "
-                        "%{y:+.5f}"
+                        "Normalized modal amplitude: %{y:+.5f}"
                         "<extra></extra>"
                     ),
                 )
@@ -9531,17 +9312,16 @@ class AmbNonCollocationResults(Results):
                 fig.add_vline(
                     x=actuator_x,
                     line=dict(
-                        color=("#353535" if analyzed else "#b7b7b7"),
+                        color="#353535" if analyzed else "#b7b7b7",
                         width=1.3,
                         dash="dashdot",
                     ),
                 )
-
             else:
                 fig.add_vline(
                     x=actuator_x,
                     line=dict(
-                        color=("#353535" if analyzed else "#b7b7b7"),
+                        color="#353535" if analyzed else "#b7b7b7",
                         width=1.2,
                         dash=actuator_line_dash,
                     ),
@@ -9550,7 +9330,7 @@ class AmbNonCollocationResults(Results):
                 fig.add_vline(
                     x=sensor_x,
                     line=dict(
-                        color=("#7440a8" if analyzed else "#b7b7b7"),
+                        color="#7440a8" if analyzed else "#b7b7b7",
                         width=1.2,
                         dash=sensor_line_dash,
                     ),
@@ -9597,12 +9377,11 @@ class AmbNonCollocationResults(Results):
 
         exact_matches = np.flatnonzero(
             (all_actuator_nodes == int(self.actuator_node))
-            & (all_sensor_nodes == int(self.sensor_node))
+            & (all_sensor_nodes == analyzed_sensor_node)
         )
 
         if exact_matches.size > 0:
             analyzed_index = int(exact_matches[0])
-
         else:
             actuator_matches = np.flatnonzero(
                 all_actuator_nodes == int(self.actuator_node)
@@ -9613,7 +9392,6 @@ class AmbNonCollocationResults(Results):
 
         if analyzed_index is None:
             analyzed_tag = "Analyzed magnetic bearing"
-
         else:
             analyzed_tag = str(all_amb_tags[analyzed_index])
 
@@ -9633,15 +9411,15 @@ class AmbNonCollocationResults(Results):
                     continue
 
                 add_amb_pair(
-                    actuator_node=(actuator_node),
-                    amb_sensor_node=(amb_sensor_node),
+                    actuator_node=actuator_node,
+                    amb_sensor_node=amb_sensor_node,
                     tag=tag,
                     analyzed=False,
                 )
 
         add_amb_pair(
             actuator_node=self.actuator_node,
-            amb_sensor_node=(analyzed_sensor_node),
+            amb_sensor_node=analyzed_sensor_node,
             tag=analyzed_tag,
             analyzed=True,
         )
@@ -9653,11 +9431,9 @@ class AmbNonCollocationResults(Results):
                     "sensor-actuator modal compatibility"
                     "<br>"
                     "<sup>"
-                    f"Frequency: "
-                    f"{natural_frequency:.2f} Hz"
+                    f"Frequency: {natural_frequency:.2f} Hz"
                     " | "
-                    f"Normalized residue: "
-                    f"{normalized_residue:+.4f}"
+                    f"Normalized residue: {normalized_residue:+.4f}"
                     " | "
                     f"{classification_text}"
                     "</sup>"
