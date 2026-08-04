@@ -421,7 +421,22 @@ def test_magnetic_bearing_default_sensor_node():
     )
 
     assert amb.sensor_node == amb.n
-    assert amb.is_non_colocated is False
+    assert not amb.is_non_colocated
+
+
+def test_magnetic_bearing_none_sensor_node():
+    amb = MagneticBearingElement(
+        n=12,
+        sensor_node=None,
+        g0=1e-3,
+        i0=1.0,
+        ag=1e-4,
+        nw=200,
+        kp_pid=1000,
+    )
+
+    assert amb.sensor_node == amb.n
+    assert not amb.is_non_colocated
 
 
 def test_magnetic_bearing_non_colocated_sensor_node():
@@ -435,9 +450,8 @@ def test_magnetic_bearing_non_colocated_sensor_node():
         kp_pid=1000,
     )
 
-    assert amb.n == 12
     assert amb.sensor_node == 10
-    assert amb.is_non_colocated is True
+    assert amb.is_non_colocated
 
 
 def test_magnetic_bearing_same_sensor_and_actuator_node():
@@ -451,9 +465,43 @@ def test_magnetic_bearing_same_sensor_and_actuator_node():
         kp_pid=1000,
     )
 
-    assert amb.n == 12
-    assert amb.sensor_node == 12
-    assert amb.is_non_colocated is False
+    assert amb.sensor_node == amb.n
+    assert not amb.is_non_colocated
+
+
+def test_magnetic_bearing_numpy_integer_sensor_node():
+    amb = MagneticBearingElement(
+        n=12,
+        sensor_node=np.int64(10),
+        g0=1e-3,
+        i0=1.0,
+        ag=1e-4,
+        nw=200,
+        kp_pid=1000,
+    )
+
+    assert amb.sensor_node == 10
+    assert isinstance(amb.sensor_node, int)
+    assert amb.is_non_colocated
+
+
+def test_magnetic_bearing_is_non_colocated_updates_with_sensor_node():
+    amb = MagneticBearingElement(
+        n=12,
+        g0=1e-3,
+        i0=1.0,
+        ag=1e-4,
+        nw=200,
+        kp_pid=1000,
+    )
+
+    assert not amb.is_non_colocated
+
+    amb.sensor_node = 10
+    assert amb.is_non_colocated
+
+    amb.sensor_node = 12
+    assert not amb.is_non_colocated
 
 
 @pytest.mark.parametrize(
@@ -470,16 +518,16 @@ def test_magnetic_bearing_invalid_sensor_node(
 ):
     with pytest.raises(
         TypeError,
-        match="sensor_node must be an integer or None",
+        match=r"sensor_node must be an integer or None",
     ):
         MagneticBearingElement(
             n=12,
+            sensor_node=invalid_sensor_node,
             g0=1e-3,
             i0=1.0,
             ag=1e-4,
             nw=200,
             kp_pid=1000,
-            sensor_node=invalid_sensor_node,
         )
 
 
