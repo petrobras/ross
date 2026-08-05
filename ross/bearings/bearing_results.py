@@ -848,6 +848,37 @@ class TiltingPadResults(BearingResults):
 
         return figures
 
+    def _get_selected_pad_indices(self, pad_index):
+        """Return validated pad indices for plotting.
+
+        Parameters
+        ----------
+        pad_index : int or list[int] or None
+            Pad index (0-based) or list of indices. If None, all pads are
+            selected.
+
+        Returns
+        -------
+        list[int]
+            Validated list of pad indices.
+        """
+        if pad_index is None:
+            return list(range(self.n_pad))
+
+        if isinstance(pad_index, (list, tuple, np.ndarray)):
+            pads = [int(i) for i in pad_index]
+        else:
+            pads = [int(pad_index)]
+
+        for i in pads:
+            if i < 0 or i >= self.n_pad:
+                raise ValueError(
+                    f"pad_index {i} is out of range. "
+                    f"Valid pad indices are 0 to {self.n_pad - 1}."
+                )
+
+        return pads
+
     def plot_film_temperature_results(
         self,
         freq_index=0,
