@@ -5024,45 +5024,64 @@ class Rotor(object):
     ):
         """Run a modal sensor-actuator non-collocation analysis.
 
-        For each selected mode, the modal residue is calculated as
+        For each selected lateral mode, the modal residue is calculated as
 
         ``R_r(x_s) = phi_r(x_s) * phi_r(x_a)``
 
-        where ``x_a`` is the actuator node and ``x_s`` is a candidate
-        sensor node. The implementation is restricted to zero rotor
-        speed so the projected mode shapes can be interpreted through
-        their real modal signs.
+        where ``x_a`` is the actuator node, ``x_s`` is a candidate sensor node
+        and ``phi_r`` is the real lateral mode shape projected in the requested
+        direction.
+
+        The modal residues are normalized independently for each mode. Positive
+        normalized residues indicate equal modal signs at the actuator and sensor
+        locations, negative values indicate opposite modal signs, and values close
+        to zero indicate that at least one location is near a modal node.
+
+        Only modes classified by ROSS as ``"Lateral"`` are included in the residue
+        calculation. Requested non-lateral modes are excluded from the analysis and
+        stored in the returned result metadata.
+
+        The current implementation is restricted to zero rotor speed. At this
+        condition, a real representative of each projected lateral eigenvector is
+        obtained after phase alignment.
 
         Parameters
         ----------
         magnetic_bearing : MagneticBearingElement
-            Magnetic bearing selected for the analysis. Its ``n``
-            attribute defines the actuator node and ``sensor_node``
-            defines the current sensor node.
+            Magnetic bearing selected for the analysis. Its ``n`` attribute
+            defines the actuator node. Its ``sensor_node`` attribute defines the
+            current measurement node. If ``sensor_node`` is ``None``, the sensor
+            is assumed to be collocated with the actuator.
         speed : float, optional
-            Rotor speed in rad/s. Only ``speed=0`` is currently
-            supported. Default is 0.0.
-        modes : int or array-like of int, optional
-            Modal indices included in the analysis. If omitted, the
-            first four modes are used.
-        sensor_nodes : int or array-like of int, optional
-            Candidate rotor nodes where the sensor may be located. The
-            current ``magnetic_bearing.sensor_node`` must be included.
-            If omitted, all rotor nodes are used.
+            Rotor speed in rad/s. Only ``speed=0`` is currently supported.
+            Default is ``0.0``.
+        modes : int or array_like of int, optional
+            Modal indices requested for the analysis. Only modes classified as
+            lateral are retained. Non-lateral requested modes are recorded in the
+            returned result metadata. If omitted, the first four lateral modes are
+            selected, including any non-lateral modes located between them in the
+            requested-mode metadata.
+        sensor_nodes : int or array_like of int, optional
+            Candidate rotor nodes where the sensor may be located. The current
+            ``magnetic_bearing.sensor_node`` must be included. If omitted, all
+            rotor nodes are used.
         direction : {"x", "y"} or float, optional
-            Direction used to project the lateral mode shapes. A
-            numeric value represents an angle in radians measured from
-            the x direction. Default is ``"x"``.
+            Direction used to project the lateral mode shapes. A numeric value is
+            interpreted as an angle in radians measured from the global x
+            direction. Default is ``"x"``.
         residue_tolerance : float, optional
-            Relative tolerance used to classify normalized modal
-            residues. Values with absolute magnitude less than or equal
-            to this tolerance are classified as close to a modal node.
-            Default is 0.05.
+            Relative tolerance used to classify normalized modal residues. Values
+            greater than this tolerance are classified as favorable, values
+            smaller than its negative are classified as potentially unfavorable,
+            and values within the interval are classified as close to a modal
+            node. It must satisfy ``0 <= residue_tolerance < 1``. Default is
+            ``0.05``.
 
         Returns
         -------
         AmbNonCollocationResults
-            Results containing projected mode shapes, modal residues,
+            Results containing the retained lateral modes, excluded non-lateral
+            modes, projected mode shapes, modal residues, normalized residues,
             classifications, and magnetic-bearing locations.
 
         Raises
@@ -5070,55 +5089,49 @@ class Rotor(object):
         TypeError
             If an argument has an invalid type.
         ValueError
-            If an argument has an invalid value, a node does not belong
-            to the rotor, or a requested mode is unavailable.
+            If an argument has an invalid value, references a node or mode that is
+            not available, or no lateral mode remains after filtering.
+
+        Notes
+        -----
+        The terms favorable and potentially unfavorable describe only the sign
+        relationship of the modal residue. They do not, by themselves, establish
+        closed-loop stability or controller performance.
         """
+        numerical_tolerance = 1e-12
+
         if not isinstance(magnetic_bearing, MagneticBearingElement):
             raise TypeError("magnetic_bearing must be a MagneticBearingElement.")
 
-        def _real_scalar(value, name):
-            if isinstance(value, (bool, np.bool_)) or not np.isscalar(value):
-                raise TypeError(f"{name} must be a real scalar.")
+        if isinstance(speed, bool) or not np.isscalar(speed):
+            raise TypeError("speed must be a real scalar.")
 
-            try:
-                value = float(value)
-            except (TypeError, ValueError) as exc:
-                raise TypeError(f"{name} must be a real scalar.") from exc
+        try:
+            speed = float(speed)
+        except (TypeError, ValueError) as exc:
+            raise TypeError("speed must be a real scalar.") from exc
 
-            if not np.isfinite(value):
-                raise ValueError(f"{name} must be finite.")
+        if not np.isfinite(speed):
+            raise ValueError("speed must be finite.")
 
-            return value
-
-        def _integer_node(value, name):
-            if isinstance(value, (bool, np.bool_)) or not isinstance(
-                value,
-                (int, np.integer),
-            ):
-                raise TypeError(f"{name} must be an integer.")
-
-            return int(value)
-
-        def _effective_sensor_node(amb):
-            sensor_node = getattr(amb, "sensor_node", None)
-
-            if sensor_node is None:
-                sensor_node = amb.n
-
-            return _integer_node(
-                sensor_node,
-                "The sensor node of every magnetic bearing",
-            )
-
-        speed = _real_scalar(speed, "speed")
-
-        if not np.isclose(speed, 0.0, atol=1e-12, rtol=0.0):
+        if not np.isclose(
+            speed,
+            0.0,
+            atol=numerical_tolerance,
+            rtol=0.0,
+        ):
             raise ValueError("run_amb_non_collocation currently supports only speed=0.")
 
-        residue_tolerance = _real_scalar(
-            residue_tolerance,
-            "residue_tolerance",
-        )
+        if isinstance(residue_tolerance, bool) or not np.isscalar(residue_tolerance):
+            raise TypeError("residue_tolerance must be a real scalar.")
+
+        try:
+            residue_tolerance = float(residue_tolerance)
+        except (TypeError, ValueError) as exc:
+            raise TypeError("residue_tolerance must be a real scalar.") from exc
+
+        if not np.isfinite(residue_tolerance):
+            raise ValueError("residue_tolerance must be finite.")
 
         if not 0.0 <= residue_tolerance < 1.0:
             raise ValueError(
@@ -5134,19 +5147,28 @@ class Rotor(object):
         if rotor_positions.shape != rotor_nodes.shape:
             raise ValueError("Rotor nodes and positions must have the same length.")
 
-        if rotor_nodes.size == 0:
-            raise ValueError("The rotor must contain at least one node.")
+        if len(np.unique(rotor_nodes)) != len(rotor_nodes):
+            raise ValueError("Rotor nodes must be unique.")
 
         node_to_index = {int(node): index for index, node in enumerate(rotor_nodes)}
 
-        if len(node_to_index) != len(rotor_nodes):
-            raise ValueError("Rotor nodes must be unique.")
-
-        actuator_node = _integer_node(
-            magnetic_bearing.n,
-            "The magnetic-bearing actuator node",
+        actuator_node = int(magnetic_bearing.n)
+        selected_sensor_node = getattr(
+            magnetic_bearing,
+            "sensor_node",
+            None,
         )
-        selected_sensor_node = _effective_sensor_node(magnetic_bearing)
+
+        if selected_sensor_node is None:
+            selected_sensor_node = actuator_node
+
+        if isinstance(selected_sensor_node, bool) or not isinstance(
+            selected_sensor_node,
+            (int, np.integer),
+        ):
+            raise TypeError("The magnetic bearing sensor_node must be an integer.")
+
+        selected_sensor_node = int(selected_sensor_node)
 
         if actuator_node not in node_to_index:
             raise ValueError(
@@ -5160,53 +5182,55 @@ class Rotor(object):
 
         actuator_index = node_to_index[actuator_node]
 
-        if modes is None:
-            modes = [0, 1, 2, 3]
-        elif isinstance(modes, (int, np.integer)) and not isinstance(
-            modes,
-            (bool, np.bool_),
-        ):
-            modes = [int(modes)]
+        modes_were_provided = modes is not None
+
+        if modes_were_provided:
+            if isinstance(modes, (int, np.integer)) and not isinstance(modes, bool):
+                modes = [int(modes)]
+            else:
+                try:
+                    modes = list(modes)
+                except TypeError as exc:
+                    raise TypeError(
+                        "modes must be an integer or an array-like of integers."
+                    ) from exc
+
+            if not modes:
+                raise ValueError("modes must contain at least one modal index.")
+
+            validated_modes = []
+            seen_modes = set()
+
+            for mode_index in modes:
+                if isinstance(mode_index, bool) or not isinstance(
+                    mode_index,
+                    (int, np.integer),
+                ):
+                    raise TypeError("Every modal index must be an integer.")
+
+                mode_index = int(mode_index)
+
+                if mode_index < 0:
+                    raise ValueError("Modal indices must be non-negative.")
+
+                if mode_index in seen_modes:
+                    raise ValueError("Modal indices must not be repeated.")
+
+                seen_modes.add(mode_index)
+                validated_modes.append(mode_index)
+
+            requested_mode_indices = np.asarray(
+                validated_modes,
+                dtype=int,
+            )
         else:
-            try:
-                modes = list(modes)
-            except TypeError as exc:
-                raise TypeError(
-                    "modes must be an integer or an array-like of integers."
-                ) from exc
-
-        if len(modes) == 0:
-            raise ValueError("modes must contain at least one modal index.")
-
-        validated_modes = []
-        seen_modes = set()
-
-        for mode in modes:
-            if isinstance(mode, (bool, np.bool_)) or not isinstance(
-                mode,
-                (int, np.integer),
-            ):
-                raise TypeError("Every modal index must be an integer.")
-
-            mode = int(mode)
-
-            if mode < 0:
-                raise ValueError("Modal indices must be non-negative.")
-
-            if mode in seen_modes:
-                raise ValueError("Modal indices must not be repeated.")
-
-            validated_modes.append(mode)
-            seen_modes.add(mode)
-
-        mode_indices = np.asarray(validated_modes, dtype=int)
+            requested_mode_indices = None
 
         if sensor_nodes is None:
             candidate_sensor_nodes = rotor_nodes.copy()
         else:
             if isinstance(sensor_nodes, (int, np.integer)) and not isinstance(
-                sensor_nodes,
-                (bool, np.bool_),
+                sensor_nodes, bool
             ):
                 sensor_nodes = [int(sensor_nodes)]
             else:
@@ -5217,17 +5241,14 @@ class Rotor(object):
                         "sensor_nodes must be an integer or an array-like of integers."
                     ) from exc
 
-            if len(sensor_nodes) == 0:
+            if not sensor_nodes:
                 raise ValueError("sensor_nodes must contain at least one rotor node.")
 
             validated_sensor_nodes = []
             seen_sensor_nodes = set()
 
             for node in sensor_nodes:
-                if isinstance(node, (bool, np.bool_)) or not isinstance(
-                    node,
-                    (int, np.integer),
-                ):
+                if isinstance(node, bool) or not isinstance(node, (int, np.integer)):
                     raise TypeError("Every sensor node must be an integer.")
 
                 node = int(node)
@@ -5238,8 +5259,8 @@ class Rotor(object):
                 if node in seen_sensor_nodes:
                     raise ValueError("sensor_nodes must not contain repeated nodes.")
 
-                validated_sensor_nodes.append(node)
                 seen_sensor_nodes.add(node)
+                validated_sensor_nodes.append(node)
 
             candidate_sensor_nodes = np.asarray(
                 validated_sensor_nodes,
@@ -5269,39 +5290,104 @@ class Rotor(object):
                     "direction must be 'x', 'y' or a numeric angle in radians."
                 )
         else:
-            direction_angle = _real_scalar(direction, "direction")
+            if isinstance(direction, bool) or not np.isscalar(direction):
+                raise TypeError(
+                    "direction must be 'x', 'y' or a numeric angle in radians."
+                )
+
+            try:
+                direction_angle = float(direction)
+            except (TypeError, ValueError) as exc:
+                raise TypeError(
+                    "direction must be 'x', 'y' or a numeric angle in radians."
+                ) from exc
+
+            if not np.isfinite(direction_angle):
+                raise ValueError("direction must be a finite angle in radians.")
 
         direction_cosine = np.cos(direction_angle)
         direction_sine = np.sin(direction_angle)
 
-        # run_modal returns half as many positive-frequency modes as the
-        # requested number of eigenvalues when the sparse solver is used.
-        requested_num_modes = max(
-            12,
-            2 * (int(np.max(mode_indices)) + 1),
-        )
-        use_sparse = requested_num_modes < self.ndof - 1
+        if modes_were_provided:
+            requested_num_modes = max(
+                12,
+                2 * (int(np.max(requested_mode_indices)) + 1),
+            )
+        else:
+            # Scan enough positive-frequency modes to locate the first four
+            # lateral modes even when non-lateral modes appear between them.
+            requested_num_modes = 24
 
         modal = self.run_modal(
             speed=speed,
             num_modes=requested_num_modes,
-            sparse=use_sparse,
+            sparse=requested_num_modes < self.ndof - 1,
         )
 
         available_modes = min(
             len(modal.wd),
             modal.evectors.shape[1],
+            len(modal.shapes),
         )
 
-        if np.max(mode_indices) >= available_modes:
-            raise ValueError(
-                "A requested modal index is not available. "
-                f"The modal analysis returned {available_modes} modes."
+        if modes_were_provided:
+            if np.max(requested_mode_indices) >= available_modes:
+                raise ValueError(
+                    "A requested modal index is not available. "
+                    f"The modal analysis returned {available_modes} modes."
+                )
+        else:
+            lateral_candidates = [
+                mode_index
+                for mode_index in range(available_modes)
+                if (str(modal.shapes[mode_index].mode_type).lower() == "lateral")
+            ]
+
+            if len(lateral_candidates) < 4:
+                raise ValueError(
+                    "The modal analysis did not return at least four lateral modes."
+                )
+
+            last_selected_mode = lateral_candidates[3]
+            requested_mode_indices = np.arange(
+                last_selected_mode + 1,
+                dtype=int,
             )
 
-        natural_frequencies = np.asarray(modal.wd, dtype=float)[mode_indices] / (
-            2.0 * np.pi
+        requested_mode_types = np.asarray(
+            [
+                str(modal.shapes[int(mode_index)].mode_type)
+                for mode_index in requested_mode_indices
+            ],
+            dtype=object,
         )
+
+        lateral_mask = np.asarray(
+            [mode_type.lower() == "lateral" for mode_type in requested_mode_types],
+            dtype=bool,
+        )
+
+        mode_indices = requested_mode_indices[lateral_mask]
+        excluded_mode_indices = requested_mode_indices[~lateral_mask]
+        excluded_mode_types = requested_mode_types[~lateral_mask]
+
+        if len(mode_indices) == 0:
+            excluded_description = ", ".join(
+                (f"{int(mode_index)} ({mode_type})")
+                for mode_index, mode_type in zip(
+                    excluded_mode_indices,
+                    excluded_mode_types,
+                )
+            )
+
+            raise ValueError(
+                "No lateral mode remains after filtering the requested "
+                f"modes: {excluded_description}."
+            )
+
+        modal_frequencies_hz = np.asarray(modal.wd, dtype=float) / (2.0 * np.pi)
+        natural_frequencies = modal_frequencies_hz[mode_indices]
+        excluded_natural_frequencies = modal_frequencies_hz[excluded_mode_indices]
 
         x_dofs = self.number_dof * rotor_nodes
         y_dofs = x_dofs + 1
@@ -5311,21 +5397,14 @@ class Rotor(object):
                 "Could not determine the lateral global DOFs for the rotor nodes."
             )
 
-        # Project each selected mode onto the requested lateral direction,
-        # remove the arbitrary eigenvector phase, and normalize its amplitude.
         mode_shapes = np.zeros(
             (len(mode_indices), len(rotor_nodes)),
             dtype=float,
         )
-        numerical_tolerance = 1e-12
-        complex_relative_tolerance = 1e-6
 
         for row, mode_index in enumerate(mode_indices):
             eigenvector = np.asarray(
-                modal.evectors[
-                    : self.ndof,
-                    mode_index,
-                ],
+                modal.evectors[: self.ndof, mode_index],
                 dtype=complex,
             )
 
@@ -5340,7 +5419,6 @@ class Rotor(object):
                 continue
 
             actuator_reference = projected_shape[actuator_index]
-
             phase_threshold = numerical_tolerance * max(
                 1.0,
                 maximum_complex_amplitude,
@@ -5350,14 +5428,10 @@ class Rotor(object):
                 phase_reference = actuator_reference
             else:
                 reference_index = int(np.argmax(np.abs(projected_shape)))
-
                 phase_reference = projected_shape[reference_index]
 
-            projected_shape = projected_shape * np.exp(-1j * np.angle(phase_reference))
+            projected_shape *= np.exp(-1j * np.angle(phase_reference))
 
-            # State-space eigenvectors may remain complex at zero
-            # speed, particularly for repeated lateral modes. Use
-            # a real representative after phase alignment.
             real_projected_shape = np.real(projected_shape)
             imaginary_projected_shape = np.imag(projected_shape)
 
@@ -5376,40 +5450,48 @@ class Rotor(object):
                 projected_shape,
                 dtype=float,
             )
-
             maximum_real_amplitude = np.max(np.abs(projected_shape))
 
             if maximum_real_amplitude <= numerical_tolerance:
                 continue
 
-            projected_shape = projected_shape / maximum_real_amplitude
+            projected_shape /= maximum_real_amplitude
 
             if (
-                np.abs(projected_shape[actuator_index]) > numerical_tolerance
+                abs(projected_shape[actuator_index]) > numerical_tolerance
                 and projected_shape[actuator_index] < 0.0
             ):
-                projected_shape = -projected_shape
+                projected_shape *= -1.0
 
-            mode_shapes[row, :] = projected_shape
+            mode_shapes[row] = projected_shape
 
-        # Compute sensor-actuator modal products. Row-wise normalization is
-        # skipped when the actuator itself is close to a modal node so low
-        # actuator participation is not hidden by the normalization.
-        actuator_modal_amplitudes = mode_shapes[:, actuator_index]
-        sensor_modal_amplitudes = mode_shapes[:, candidate_sensor_indices]
+        actuator_modal_amplitudes = mode_shapes[
+            :,
+            actuator_index,
+        ]
+        sensor_modal_amplitudes = mode_shapes[
+            :,
+            candidate_sensor_indices,
+        ]
+
         modal_residues = (
             actuator_modal_amplitudes[:, np.newaxis] * sensor_modal_amplitudes
         )
-        normalized_residues = np.zeros_like(modal_residues, dtype=float)
 
-        for row, actuator_amplitude in enumerate(actuator_modal_amplitudes):
-            if np.abs(actuator_amplitude) <= residue_tolerance:
-                continue
+        row_maxima = np.max(
+            np.abs(modal_residues),
+            axis=1,
+        )
 
-            row_maximum = np.max(np.abs(modal_residues[row]))
-
-            if row_maximum > numerical_tolerance:
-                normalized_residues[row] = modal_residues[row] / row_maximum
+        normalized_residues = np.divide(
+            modal_residues,
+            row_maxima[:, np.newaxis],
+            out=np.zeros_like(
+                modal_residues,
+                dtype=float,
+            ),
+            where=(row_maxima[:, np.newaxis] > numerical_tolerance),
+        )
 
         classifications = np.zeros(
             normalized_residues.shape,
@@ -5418,45 +5500,46 @@ class Rotor(object):
         classifications[normalized_residues > residue_tolerance] = 1
         classifications[normalized_residues < -residue_tolerance] = -1
 
-        # Preserve every AMB for result plots, replacing the rotor element
-        # with the selected copy when the caller supplied a copied element.
         rotor_ambs = [
             bearing
             for bearing in self.bearing_elements
-            if isinstance(bearing, MagneticBearingElement)
+            if isinstance(
+                bearing,
+                MagneticBearingElement,
+            )
         ]
+
+        selected_tag = getattr(
+            magnetic_bearing,
+            "tag",
+            None,
+        )
         selected_match_index = None
 
-        for index, amb in enumerate(rotor_ambs):
-            if amb is magnetic_bearing:
+        for index, bearing in enumerate(rotor_ambs):
+            if bearing is magnetic_bearing:
                 selected_match_index = index
                 break
-
-        selected_tag = getattr(magnetic_bearing, "tag", None)
 
         if selected_match_index is None and selected_tag is not None:
             tag_matches = [
                 index
-                for index, amb in enumerate(rotor_ambs)
-                if getattr(amb, "tag", None) == selected_tag
+                for index, bearing in enumerate(rotor_ambs)
+                if getattr(bearing, "tag", None) == selected_tag
             ]
 
             if len(tag_matches) == 1:
                 selected_match_index = tag_matches[0]
 
         if selected_match_index is None:
-            actuator_matches = [
+            node_matches = [
                 index
-                for index, amb in enumerate(rotor_ambs)
-                if _integer_node(
-                    amb.n,
-                    "The magnetic-bearing actuator node",
-                )
-                == actuator_node
+                for index, bearing in enumerate(rotor_ambs)
+                if int(bearing.n) == actuator_node
             ]
 
-            if len(actuator_matches) == 1:
-                selected_match_index = actuator_matches[0]
+            if len(node_matches) == 1:
+                selected_match_index = node_matches[0]
 
         ambs_for_plot = list(rotor_ambs)
 
@@ -5469,24 +5552,38 @@ class Rotor(object):
         all_sensor_nodes = []
         all_amb_tags = []
 
-        for index, amb in enumerate(ambs_for_plot):
-            amb_actuator_node = _integer_node(
-                amb.n,
-                "The actuator node of every magnetic bearing",
+        for index, bearing in enumerate(ambs_for_plot):
+            amb_actuator_node = int(bearing.n)
+            amb_sensor_node = getattr(
+                bearing,
+                "sensor_node",
+                None,
             )
-            amb_sensor_node = _effective_sensor_node(amb)
-            amb_tag = getattr(amb, "tag", None)
+
+            if amb_sensor_node is None:
+                amb_sensor_node = amb_actuator_node
+
+            if isinstance(amb_sensor_node, bool) or not isinstance(
+                amb_sensor_node,
+                (int, np.integer),
+            ):
+                raise TypeError(
+                    "The sensor node of every magnetic bearing must be an integer."
+                )
+
+            amb_sensor_node = int(amb_sensor_node)
+            amb_tag = getattr(bearing, "tag", None)
 
             if amb_actuator_node not in node_to_index:
                 raise ValueError(
-                    f"Actuator node {amb_actuator_node} from {amb_tag} "
-                    "is not present in the rotor."
+                    f"Actuator node {amb_actuator_node} from "
+                    f"{amb_tag} is not present in the rotor."
                 )
 
             if amb_sensor_node not in node_to_index:
                 raise ValueError(
-                    f"Sensor node {amb_sensor_node} from {amb_tag} "
-                    "is not present in the rotor."
+                    f"Sensor node {amb_sensor_node} from "
+                    f"{amb_tag} is not present in the rotor."
                 )
 
             if amb_tag is None:
@@ -5512,9 +5609,22 @@ class Rotor(object):
             classifications=classifications,
             direction_angle=direction_angle,
             residue_tolerance=residue_tolerance,
-            all_actuator_nodes=np.asarray(all_actuator_nodes, dtype=int),
-            all_sensor_nodes=np.asarray(all_sensor_nodes, dtype=int),
-            all_amb_tags=np.asarray(all_amb_tags, dtype=object),
+            all_actuator_nodes=np.asarray(
+                all_actuator_nodes,
+                dtype=int,
+            ),
+            all_sensor_nodes=np.asarray(
+                all_sensor_nodes,
+                dtype=int,
+            ),
+            all_amb_tags=np.asarray(
+                all_amb_tags,
+                dtype=object,
+            ),
+            requested_mode_indices=requested_mode_indices,
+            excluded_mode_indices=excluded_mode_indices,
+            excluded_mode_types=excluded_mode_types,
+            excluded_natural_frequencies=(excluded_natural_frequencies),
         )
 
 
