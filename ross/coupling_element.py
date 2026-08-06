@@ -110,6 +110,8 @@ class CouplingElement(ShaftElement):
     0.54925
     """
 
+    _legend_group = "Coupling"
+
     @check_units
     def __init__(
         self,
@@ -522,7 +524,7 @@ class CouplingElement(ShaftElement):
             else self.tag
         )
 
-        legend = "Coupling"
+        legend = self._legend_group
 
         customdata = [
             self.n,

@@ -14,6 +14,7 @@ from ross.materials import Material, steel
 from ross.point_mass import *
 from ross.probe import Probe
 from ross.rotor_assembly import *
+from ross.rotor_assembly import _shaft_envelope
 from ross.shaft_element import *
 from ross.units import Q_
 from ross.results import AmbTimeResponseResults
@@ -2518,40 +2519,132 @@ def test_save_load_json(rotor8):
     assert rotor8 == rotor8_loaded
 
 
+def disk_traces(fig, tag):
+    return [d for d in fig.data if d["name"] == tag and d["fill"] == "toself"]
+
+
 def test_plot_rotor(rotor8):
     fig = rotor8.plot_rotor()
 
-    for d in fig.data:
-        if d["name"] == "Disk 0":
-            actual_x = d["x"]
-            actual_y = d["y"]
-    expected_x = [0.5, 0.502, 0.498, 0.5]
-    expected_y = [0.025, 0.125, 0.125, 0.025]
+    upper, lower = disk_traces(fig, "Disk 0")
+    disk = rotor8.disk_elements[0]
+    heaviest = max(d.m for d in rotor8.disk_elements)
+    height = np.mean(rotor8.nodes_o_d) * (0.70 + 0.55 * disk.m / heaviest)
 
-    assert_allclose(actual_x[:4], expected_x)
-    assert_allclose(actual_y[:4], expected_y)
+    # the disk is drawn as an I section, from the shaft surface outwards
+    assert_allclose(min(upper["y"]), 0.025)
+    assert_allclose(max(upper["y"]), 0.025 + height)
+    assert_allclose(min(lower["y"]), -0.025 - height)
+    assert_allclose(max(lower["y"]), -0.025)
+
+    # width of a uniform disk with the same mass and inertias
+    assert_allclose(np.ptp(upper["x"]), 0.07, atol=1e-6)
+    assert_allclose(np.mean([min(upper["x"]), max(upper["x"])]), 0.5)
 
     # mass scale factor
     for disk in rotor8.disk_elements:
         disk.scale_factor = "mass"
 
     fig = rotor8.plot_rotor()
-    for d in fig.data:
-        if d["name"] == "Disk 0":
-            actual_x = d["x"]
-            actual_y = d["y"]
-    expected_x = [0.5, 0.5016325, 0.4983675, 0.5]
-    expected_y = [0.025, 0.106625, 0.106625, 0.025]
-    assert_allclose(actual_x[:4], expected_x)
-    assert_allclose(actual_y[:4], expected_y)
+    upper, lower = disk_traces(fig, "Disk 0")
+    scale = 0.5 + 0.5 * rotor8.disk_elements[0].m / heaviest
+    assert_allclose(max(upper["y"]), 0.025 + scale * height)
 
 
 def test_plot_rotor_without_disk(rotor1):
     fig = rotor1.plot_rotor()
-    expected_element_y = np.array(
-        [0.0, 0.025, 0.025, 0.0, 0.0, -0.0, -0.025, -0.025, -0.0, -0.0]
+    upper, lower = [d for d in fig.data if d["name"] == "Shaft Element 0"]
+
+    assert_allclose(upper["y"], [0.0, 0.025, 0.025, 0.0, 0.0])
+    assert_allclose(lower["y"], [0.0, -0.025, -0.025, 0.0, 0.0])
+    assert_allclose(upper["x"], [0.0, 0.0, 0.25, 0.25, 0.0])
+
+
+def test_plot_rotor_shaft_envelope():
+    z_grid, radius = _shaft_envelope([(0.0, 0.5, 0.1, 0.1), (0.5, 0.5, 0.2, 0.2)])
+
+    # heatmap cells are centered on the grid, so their edges are the midpoints
+    # between columns, extrapolated at both ends
+    edges = np.concatenate(
+        [
+            [z_grid[0] - (z_grid[1] - z_grid[0]) / 2],
+            (z_grid[:-1] + z_grid[1:]) / 2,
+            [z_grid[-1] + (z_grid[-1] - z_grid[-2]) / 2],
+        ]
     )
-    assert_allclose(fig.data[-1]["y"], expected_element_y)
+    for boundary in (0.0, 0.5, 1.0):
+        assert np.abs(edges - boundary).min() < 1e-9
+
+    assert_allclose(radius[0], 0.05)
+    assert_allclose(radius[-1], 0.1)
+
+    # overlapping elements are drawn with the largest radius
+    _, radius = _shaft_envelope([(0.0, 0.5, 0.1, 0.1), (0.0, 0.5, 0.3, 0.3)])
+    assert_allclose(np.nanmax(radius), 0.15)
+    assert_allclose(np.nanmin(radius), 0.15)
+
+
+def test_plot_rotor_mode_buttons(rotor8):
+    fig = rotor8.plot_rotor()
+    buttons = fig.layout.updatemenus[0].buttons
+
+    assert [button.label for button in buttons] == [
+        "Bottom: render",
+        "Bottom: section",
+    ]
+
+    for button in buttons:
+        styles, indices = button.args
+
+        # visibility belongs to the legend, restyling it would bring back
+        # traces the user has hidden
+        assert "visible" not in styles
+
+        for values in styles.values():
+            assert len(values) == len(indices)
+
+    # only traces below the center line are morphed
+    for index in buttons[0].args[1]:
+        assert min(fig.data[index]["y"]) < 0
+
+
+def test_plot_rotor_legend_groups(rotor8):
+    fig = rotor8.plot_rotor()
+
+    groups = {trace.name for trace in fig.data if trace.showlegend}
+    assert groups == {"Steel", "Disk", "Bearing"}
+
+    for group in groups:
+        traces = [trace for trace in fig.data if trace.legendgroup == group]
+        assert sum(trace.showlegend for trace in traces) == 1
+        assert len(traces) > 1
+
+
+def test_plot_rotor_hover(rotor8):
+    fig = rotor8.plot_rotor()
+    templates = {
+        trace.hovertemplate for trace in fig.data if trace.hovertemplate is not None
+    }
+
+    assert (
+        "Element Number: 0<br>"
+        "Left Outer Diameter: 0.05 m<br>"
+        "Left Inner Diameter: 0.0 m<br>"
+        "Right Outer Diameter: 0.05 m<br>"
+        "Right Inner Diameter: 0.0 m<br>"
+        "Element Length: 0.25 m<br>"
+        "Material: Steel<br>"
+    ) in templates
+
+    assert (
+        "Disk Node: 2<br>"
+        "Polar Inertia: 3.296e-01<br>"
+        "Diametral Inertia: 1.781e-01<br>"
+        "Disk mass: 32.590<br>"
+    ) in templates
+
+    assert any(template.startswith("Tag: Bearing 0<br>") for template in templates)
+    assert any("Node %{customdata[0]}" in template for template in templates)
 
 
 def test_axial_force():
