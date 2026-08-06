@@ -28,8 +28,8 @@ specific_heat = 470.0
 thermal_conductivity = 51.0
 color = "#525252"
 
-[Materials.brass]
-name = "brass"
+[Materials.Brass]
+name = "Brass"
 rho = 8600.0
 E = 105000000000.0
 G_s = 39300000000.0
