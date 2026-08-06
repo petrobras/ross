@@ -18,11 +18,9 @@ from plotly import graph_objects as go
 from plotly.subplots import make_subplots
 from prettytable import PrettyTable
 from scipy.fft import fft
-
-from ross.plotly_theme import coolwarm_r, tableau_colors
 from pathlib import Path
-from ross.bearings.magnetic.amb_utils import get_ambs
 
+from ross.bearings.magnetic.amb_utils import get_ambs
 from ross.plotly_theme import tableau_colors, coolwarm_r
 from ross.units import Q_, check_units
 from ross.utils import intersection, compute_freq_resp
