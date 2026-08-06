@@ -3,6 +3,7 @@ from tempfile import tempdir
 
 import numpy as np
 import pytest
+import pandas as pd
 import plotly.graph_objects as go
 from numpy.testing import assert_allclose, assert_almost_equal, assert_equal
 
@@ -442,7 +443,7 @@ def test_save_load_amb_time_response(rotor_amb):
 
 
 @pytest.fixture
-def amb_non_collocation_results():
+def amb_non_collocation_data():
     rotor_nodes = np.array([0, 1, 2, 3])
     rotor_positions = np.array([0.0, 0.1, 0.2, 0.3])
 
@@ -455,7 +456,10 @@ def amb_non_collocation_results():
 
     actuator_index = 1
 
-    modal_residues = mode_shapes[:, actuator_index, np.newaxis] * mode_shapes
+    modal_residues = (
+        mode_shapes[:, actuator_index, np.newaxis]
+        * mode_shapes
+    )
 
     row_maximum = np.max(
         np.abs(modal_residues),
@@ -476,145 +480,244 @@ def amb_non_collocation_results():
         normalized_residues,
         dtype=int,
     )
-    classifications[normalized_residues > residue_tolerance] = 1
-    classifications[normalized_residues < -residue_tolerance] = -1
+    classifications[
+        normalized_residues > residue_tolerance
+    ] = 1
+    classifications[
+        normalized_residues < -residue_tolerance
+    ] = -1
 
-    return AmbNonCollocationResults(
-        speed=0.0,
-        actuator_node=1,
-        sensor_node=0,
-        sensor_nodes=rotor_nodes,
-        sensor_positions=rotor_positions,
-        rotor_nodes=rotor_nodes,
-        rotor_positions=rotor_positions,
-        mode_indices=np.array([0, 1]),
-        natural_frequencies=np.array([100.0, 200.0]),
-        mode_shapes=mode_shapes,
-        modal_residues=modal_residues,
-        normalized_residues=normalized_residues,
-        classifications=classifications,
-        direction_angle=0.0,
-        residue_tolerance=residue_tolerance,
-        all_actuator_nodes=np.array([1, 3]),
-        all_sensor_nodes=np.array([0, 2]),
-        all_amb_tags=[
+    return {
+        "speed": 0.0,
+        "actuator_node": 1,
+        "sensor_node": 0,
+        "sensor_nodes": rotor_nodes,
+        "sensor_positions": rotor_positions,
+        "rotor_nodes": rotor_nodes,
+        "rotor_positions": rotor_positions,
+        "mode_indices": np.array([0, 1]),
+        "natural_frequencies": np.array(
+            [100.0, 200.0]
+        ),
+        "mode_shapes": mode_shapes,
+        "modal_residues": modal_residues,
+        "normalized_residues": normalized_residues,
+        "classifications": classifications,
+        "direction_angle": 0.0,
+        "residue_tolerance": residue_tolerance,
+        "all_actuator_nodes": np.array([1, 3]),
+        "all_sensor_nodes": np.array([0, 2]),
+        "all_amb_tags": [
             "Magnetic Bearing 0",
             "Magnetic Bearing 1",
         ],
+        "requested_mode_indices": np.array([0, 1, 2]),
+        "excluded_mode_indices": np.array([2]),
+        "excluded_mode_types": np.array(
+            ["Torsional"],
+            dtype=object,
+        ),
+        "excluded_natural_frequencies": np.array(
+            [300.0]
+        ),
+    }
+
+
+@pytest.fixture
+def amb_non_collocation_results(
+    amb_non_collocation_data,
+    ):
+    return AmbNonCollocationResults(
+        **amb_non_collocation_data
     )
 
 
 @pytest.mark.parametrize(
-    "x_axis",
-    ["position", "node"],
+    (
+        "sensor_node",
+        "sensor_amplitudes",
+        "modal_residues",
+        "normalized_residues",
+        "classifications",
+    ),
+    [
+        (
+            0,
+            [0.0, -0.4],
+            [0.0, -0.24],
+            [0.0, -2.0 / 3.0],
+            [
+                "Near modal node",
+                "Opposite modal signs",
+            ],
+        ),
+        (
+            2,
+            [0.2, 0.0],
+            [0.2, 0.0],
+            [0.2, 0.0],
+            [
+                "Same modal sign",
+                "Near modal node",
+            ],
+        ),
+    ],
+    ids=[
+        "current_sensor",
+        "selected_sensor",
+    ],
 )
-def test_plot_sensor_position_map(
+def test_modal_residue_table(
     amb_non_collocation_results,
-    x_axis,
+    sensor_node,
+    sensor_amplitudes,
+    modal_residues,
+    normalized_residues,
+    classifications,
 ):
-    results = amb_non_collocation_results
-
-    fig = results.plot_sensor_position_map(
-        x_axis=x_axis,
+    """Return modal quantities for the selected sensor node."""
+    table = (
+        amb_non_collocation_results
+        .modal_residue_table(
+            sensor_node=sensor_node,
+        )
     )
 
-    assert isinstance(fig, go.Figure)
-    assert isinstance(fig.data[0], go.Heatmap)
+    assert isinstance(table, pd.DataFrame)
 
-    trace_names = [trace.name for trace in fig.data]
-
-    assert trace_names.count("Sensor-actuator separation") == 1
-
-    assert "Actuator position" in trace_names
-    assert "Current sensor line" in trace_names
-    assert "Current sensor position" in trace_names
-
-    results.sensor_node = results.actuator_node
-
-    colocated_fig = results.plot_sensor_position_map(
-        x_axis=x_axis,
-    )
-
-    colocated_trace_names = [trace.name for trace in colocated_fig.data]
-
-    assert "Sensor-actuator separation" not in colocated_trace_names
-
-    assert "Current sensor line" not in colocated_trace_names
-
-    assert "Current sensor position" in colocated_trace_names
-
-
-def test_plot_modal_residues(
-    amb_non_collocation_results,
-):
-    results = amb_non_collocation_results
-
-    fig = results.plot_modal_residues()
-
-    assert isinstance(fig, go.Figure)
-    assert len(fig.data) == 1
-    assert isinstance(fig.data[0], go.Table)
-
-    table = fig.data[0]
-
-    assert len(table.header.values) == 7
-    assert len(table.cells.values) == 7
-
-    assert list(table.cells.values[0]) == [
-        "1",
-        "2",
+    assert list(table.columns) == [
+        "Mode",
+        "Frequency (Hz)",
+        "Actuator amplitude",
+        "Sensor amplitude",
+        "Modal residue",
+        "Normalized residue",
+        "Classification",
     ]
 
-    assert "Actuator node: 1" in fig.layout.title.text
+    assert table["Mode"].tolist() == [1, 2]
 
-    assert "Sensor node: 0" in fig.layout.title.text
-
-    selected_sensor_fig = results.plot_modal_residues(
-        sensor_node=2,
+    assert_allclose(
+        table["Frequency (Hz)"],
+        [100.0, 200.0],
+    )
+    assert_allclose(
+        table["Actuator amplitude"],
+        [1.0, 0.6],
+    )
+    assert_allclose(
+        table["Sensor amplitude"],
+        sensor_amplitudes,
+    )
+    assert_allclose(
+        table["Modal residue"],
+        modal_residues,
+    )
+    assert_allclose(
+        table["Normalized residue"],
+        normalized_residues,
     )
 
-    assert "Sensor node: 2" in selected_sensor_fig.layout.title.text
+    assert (
+        table["Classification"].tolist()
+        == classifications
+    )
 
 
-def test_plot_mode_shape(
+def test_print_modal_residues(
     amb_non_collocation_results,
+    capsys,
 ):
+    """Print and return the modal-residue summary."""
     results = amb_non_collocation_results
 
-    fig = results.plot_mode_shape(
-        mode=0,
-        show_all_ambs=True,
+    table = results.print_modal_residues()
+
+    output = capsys.readouterr().out
+
+    pd.testing.assert_frame_equal(
+        table,
+        results.modal_residue_table(),
     )
 
-    assert isinstance(fig, go.Figure)
+    assert "Lateral modal-residue summary" in output
+    assert "Actuator node: 1" in output
+    assert "Sensor node:   0" in output
+    assert "Residue tolerance: 0.050" in output
 
-    trace_names = [str(trace.name) for trace in fig.data]
+    assert "Excluded non-lateral modes" in output
+    assert "300.000" in output
+    assert "Torsional" in output
 
-    assert "Mode shape" in trace_names
 
-    assert any("analyzed actuator" in name for name in trace_names)
+@pytest.mark.parametrize(
+    (
+        "field",
+        "invalid_value",
+        "message",
+    ),
+    [
+        (
+            "sensor_positions",
+            np.array([0.0, 0.1]),
+            (
+                "sensor_positions and sensor_nodes "
+                "must have the same length"
+            ),
+        ),
+        (
+            "mode_shapes",
+            np.zeros((2, 3)),
+            "mode_shapes must have shape",
+        ),
+        (
+            "modal_residues",
+            np.zeros((2, 3)),
+            "modal_residues must have shape",
+        ),
+        (
+            "all_sensor_nodes",
+            np.array([0]),
+            (
+                "all_sensor_nodes and "
+                "all_actuator_nodes must have "
+                "the same length"
+            ),
+        ),
+        (
+            "excluded_mode_types",
+            np.array([], dtype=object),
+            (
+                "excluded_mode_types and "
+                "excluded_mode_indices must have "
+                "the same length"
+            ),
+        ),
+    ],
+    ids=[
+        "sensor_positions",
+        "mode_shapes",
+        "modal_residues",
+        "amb_metadata",
+        "excluded_modes",
+    ],
+)
+def test_amb_non_collocation_results_invalid_data(
+    amb_non_collocation_data,
+    field,
+    invalid_value,
+    message,
+):
+    """Reject inconsistent result dimensions and metadata."""
+    data = {
+        **amb_non_collocation_data,
+        field: invalid_value,
+    }
 
-    assert any("analyzed sensor" in name for name in trace_names)
-
-    assert any("Magnetic Bearing 1 — actuator" == name for name in trace_names)
-
-    assert any("Magnetic Bearing 1 — sensor" == name for name in trace_names)
-
-    selected_amb_fig = results.plot_mode_shape(
-        mode=0,
-        show_all_ambs=False,
-    )
-
-    selected_trace_names = [str(trace.name) for trace in selected_amb_fig.data]
-
-    assert not any(
-        "Magnetic Bearing 1 — actuator" == name for name in selected_trace_names
-    )
-
-    assert not any(
-        "Magnetic Bearing 1 — sensor" == name for name in selected_trace_names
-    )
-
-    assert any("analyzed actuator" in name for name in selected_trace_names)
-
-    assert any("analyzed sensor" in name for name in selected_trace_names)
+    with pytest.raises(
+        ValueError,
+        match=message,
+    ):
+        AmbNonCollocationResults(
+            **data
+        )

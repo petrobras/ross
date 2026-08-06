@@ -410,9 +410,44 @@ def test_magnetic_bearing_element(magnetic_bearing):
     )
 
 
-def test_magnetic_bearing_default_sensor_node():
+def test_magnetic_bearing_default_sensor_node(
+    magnetic_bearing,
+    ):
+    """Sensor should be collocated with the actuator by default."""
+    assert magnetic_bearing.sensor_node == magnetic_bearing.n
+    assert magnetic_bearing.is_non_collocated is False
+
+
+@pytest.mark.parametrize(
+    (
+        "sensor_node",
+        "expected_sensor_node",
+        "expected_is_non_collocated",
+    ),
+    [
+        (None, 12, False),
+        (12, 12, False),
+        (10, 10, True),
+        (np.int64(10), 10, True),
+    ],
+    ids=[
+        "none",
+        "collocated",
+        "non_collocated",
+        "numpy_integer",
+    ],
+)
+
+
+def test_magnetic_bearing_sensor_node(
+    sensor_node,
+    expected_sensor_node,
+    expected_is_non_collocated,
+    ):
+    """Sensor node should define the AMB collocation configuration."""
     amb = MagneticBearingElement(
         n=12,
+        sensor_node=sensor_node,
         g0=1e-3,
         i0=1.0,
         ag=1e-4,
@@ -420,88 +455,24 @@ def test_magnetic_bearing_default_sensor_node():
         kp_pid=1000,
     )
 
-    assert amb.sensor_node == amb.n
-    assert not amb.is_non_colocated
-
-
-def test_magnetic_bearing_none_sensor_node():
-    amb = MagneticBearingElement(
-        n=12,
-        sensor_node=None,
-        g0=1e-3,
-        i0=1.0,
-        ag=1e-4,
-        nw=200,
-        kp_pid=1000,
-    )
-
-    assert amb.sensor_node == amb.n
-    assert not amb.is_non_colocated
-
-
-def test_magnetic_bearing_non_colocated_sensor_node():
-    amb = MagneticBearingElement(
-        n=12,
-        sensor_node=10,
-        g0=1e-3,
-        i0=1.0,
-        ag=1e-4,
-        nw=200,
-        kp_pid=1000,
-    )
-
-    assert amb.sensor_node == 10
-    assert amb.is_non_colocated
-
-
-def test_magnetic_bearing_same_sensor_and_actuator_node():
-    amb = MagneticBearingElement(
-        n=12,
-        sensor_node=12,
-        g0=1e-3,
-        i0=1.0,
-        ag=1e-4,
-        nw=200,
-        kp_pid=1000,
-    )
-
-    assert amb.sensor_node == amb.n
-    assert not amb.is_non_colocated
-
-
-def test_magnetic_bearing_numpy_integer_sensor_node():
-    amb = MagneticBearingElement(
-        n=12,
-        sensor_node=np.int64(10),
-        g0=1e-3,
-        i0=1.0,
-        ag=1e-4,
-        nw=200,
-        kp_pid=1000,
-    )
-
-    assert amb.sensor_node == 10
+    assert amb.sensor_node == expected_sensor_node
     assert isinstance(amb.sensor_node, int)
-    assert amb.is_non_colocated
+    assert amb.is_non_collocated is expected_is_non_collocated
 
 
-def test_magnetic_bearing_is_non_colocated_updates_with_sensor_node():
-    amb = MagneticBearingElement(
-        n=12,
-        g0=1e-3,
-        i0=1.0,
-        ag=1e-4,
-        nw=200,
-        kp_pid=1000,
-    )
+def test_magnetic_bearing_is_non_collocated_updates_with_sensor_node(
+    magnetic_bearing,
+    ):
+    """Collocation property should reflect the current sensor node."""
+    assert magnetic_bearing.is_non_collocated is False
 
-    assert not amb.is_non_colocated
+    magnetic_bearing.sensor_node = magnetic_bearing.n + 1
 
-    amb.sensor_node = 10
-    assert amb.is_non_colocated
+    assert magnetic_bearing.is_non_collocated is True
 
-    amb.sensor_node = 12
-    assert not amb.is_non_colocated
+    magnetic_bearing.sensor_node = magnetic_bearing.n
+
+    assert magnetic_bearing.is_non_collocated is False
 
 
 @pytest.mark.parametrize(
@@ -512,10 +483,19 @@ def test_magnetic_bearing_is_non_colocated_updates_with_sensor_node():
         True,
         [10],
     ],
+    ids=[
+        "float",
+        "string",
+        "boolean",
+        "list",
+    ],
 )
+
+
 def test_magnetic_bearing_invalid_sensor_node(
     invalid_sensor_node,
-):
+    ):
+    """Invalid sensor-node types should be rejected."""
     with pytest.raises(
         TypeError,
         match=r"sensor_node must be an integer or None",
