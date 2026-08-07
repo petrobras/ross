@@ -412,7 +412,7 @@ def test_magnetic_bearing_element(magnetic_bearing):
 
 def test_magnetic_bearing_default_sensor_node(
     magnetic_bearing,
-    ):
+):
     """Sensor should be collocated with the actuator by default."""
     assert magnetic_bearing.sensor_node == magnetic_bearing.n
     assert magnetic_bearing.is_non_collocated is False
@@ -437,13 +437,11 @@ def test_magnetic_bearing_default_sensor_node(
         "numpy_integer",
     ],
 )
-
-
 def test_magnetic_bearing_sensor_node(
     sensor_node,
     expected_sensor_node,
     expected_is_non_collocated,
-    ):
+):
     """Sensor node should define the AMB collocation configuration."""
     amb = MagneticBearingElement(
         n=12,
@@ -462,7 +460,7 @@ def test_magnetic_bearing_sensor_node(
 
 def test_magnetic_bearing_is_non_collocated_updates_with_sensor_node(
     magnetic_bearing,
-    ):
+):
     """Collocation property should reflect the current sensor node."""
     assert magnetic_bearing.is_non_collocated is False
 
@@ -490,11 +488,9 @@ def test_magnetic_bearing_is_non_collocated_updates_with_sensor_node(
         "list",
     ],
 )
-
-
 def test_magnetic_bearing_invalid_sensor_node(
     invalid_sensor_node,
-    ):
+):
     """Invalid sensor-node types should be rejected."""
     with pytest.raises(
         TypeError,

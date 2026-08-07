@@ -9401,6 +9401,7 @@ class AmbNonCollocationResults(Results):
                     name=(
                         f"{self._analyzed_bearing_label} — current sensor-actuator pair"
                     ),
+                    showlegend=False,
                     marker=dict(
                         size=[12, 11],
                         symbol=["diamond", "circle"],
