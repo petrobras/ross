@@ -8,7 +8,8 @@ import ross as rs
 
 @pytest.fixture
 def multi_rotor():
-    # A spur geared two-shaft rotor system.
+    """A spur geared two-shaft rotor system."""
+
     material = rs.Material(name="mat_steel", rho=7800, E=207e9, G_s=79.5e9)
 
     # Rotor 1
@@ -121,66 +122,6 @@ def multi_rotor():
         coupled_nodes=(4, 0),
         orientation_angle=0.0,
         position="below",
-    )
-
-
-@pytest.fixture
-def multi_rotor_with_backlash():
-    z1 = 20
-    m_n = 0.01
-    pd_gear = m_n * z1
-    alpha_0_rad = np.radians(20.0)
-    width = 0.030
-    b0 = 50e-6
-    err_amp = 20e-6
-    m_gear = 6.57
-    J_gear = 0.0365
-    k_brg = 1.0e8
-    c_brg = 512.64
-
-    steel = rs.Material(name="Steel", rho=7850, E=2e11, Poisson=0.3)
-    steel_stiff = rs.Material(name="Steel_Stiff", rho=0.01, E=1e15, Poisson=0.3)
-
-    shaft1 = [rs.ShaftElement(L=0.0001, idl=0.0, odl=0.0001, material=steel_stiff, n=0)]
-    brg1 = rs.BearingElement(n=0, kxx=k_brg, kyy=k_brg, cxx=c_brg, cyy=c_brg)
-
-    gear1 = rs.GearElementTVMS(
-        n=0,
-        material=steel,
-        width=width,
-        bore_diameter=np.sqrt(pd_gear**2 - (4 * m_gear) / (np.pi * width * steel.rho)),
-        module=m_n,
-        n_teeth=z1,
-        pr_angle=alpha_0_rad,
-        helix_angle=0,
-        addendum_coeff=1,
-        tip_clearance_coeff=0.25,
-    )
-
-    gear1.m = m_gear
-    gear1.Ip = J_gear
-    gear1.Id = 0.0001 * J_gear / 2
-
-    rotor1 = rs.Rotor(
-        shaft_elements=shaft1, disk_elements=[gear1], bearing_elements=[brg1]
-    )
-    rotor2 = deepcopy(rotor1)
-
-    return rs.MultiRotor(
-        driving_rotor=rotor1,
-        driven_rotor=rotor2,
-        coupled_nodes=(0, 0),
-        update_mesh_stiffness=False,
-        square_varying_stiffness={"enable": True, "amplitude_ratio": 0.275},
-        backlash={
-            "enable": True,
-            "initial_value": b0,
-            "error_amp": err_amp,
-            "smooth_operator": False,
-            "sigma": 1e5,
-        },
-        orientation_angle=0.0,
-        position="above",
     )
 
 
@@ -366,6 +307,59 @@ def test_coupling_matrix_gear(multi_rotor):
     )
 
     assert_allclose(multi_rotor.K_coupling, coupling_matrix, rtol=1e-6, atol=1e-5)
+
+
+@pytest.fixture
+def multi_rotor_with_backlash():
+
+    steel = rs.Material(name="Steel", rho=7850, E=2e11, Poisson=0.3)
+    steel_stiff = rs.Material(name="Steel_Stiff", rho=0.01, E=1e15, Poisson=0.3)
+    shaft = rs.ShaftElement(n=0, L=0.0001, idl=0.0, odl=0.0001, material=steel_stiff)
+
+    kxx = kyy = 1.0e8
+    cxx = cyy = 512.64
+    bearing = rs.BearingElement(n=0, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy)
+
+    n_teeth = 20
+    module = 0.01
+    pitch_diam = module * n_teeth
+    width = 0.030
+    m = 6.57
+
+    gear = rs.GearElementTVMS(
+        n=0,
+        material=steel,
+        width=width,
+        bore_diameter=np.sqrt(pitch_diam**2 - (4 * m) / (np.pi * width * steel.rho)),
+        module=module,
+        n_teeth=n_teeth,
+        pr_angle=rs.Q_(20.0, "deg"),
+        helix_angle=0,
+        addendum_coeff=1,
+        tip_clearance_coeff=0.25,
+    )
+
+    rotor1 = rs.Rotor(
+        shaft_elements=[shaft], disk_elements=[gear], bearing_elements=[bearing]
+    )
+
+    rotor2 = deepcopy(rotor1)
+
+    return rs.MultiRotor(
+        driving_rotor=rotor1,
+        driven_rotor=rotor2,
+        coupled_nodes=(0, 0),
+        square_varying_stiffness={"enable": True, "amplitude_ratio": 0.275},
+        backlash={
+            "enable": True,
+            "initial_value": 5e-5,
+            "error_amp": 2e-5,
+            "smooth_operator": False,
+            "sigma": 1e5,
+        },
+        orientation_angle=0.0,
+        position="above",
+    )
 
 
 def test_mesh_with_backlash(multi_rotor_with_backlash):
