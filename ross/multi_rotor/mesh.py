@@ -203,6 +203,8 @@ class Mesh:
         else:
             self.stiffness = gear_mesh_stiffness
 
+        self.stiffness_type = stiffness_type
+
         self.theta_range, self.stiffness_range = self.get_stiffness_for_mesh_period(
             stiffness_type=stiffness_type
         )
@@ -416,11 +418,11 @@ class Mesh:
 
         Parameters
         ----------
-        stiffness_type : str
+        stiffness_type : str, optional
             Type of stiffness to compute. Available options are:
             - "square": square varying stiffness
             - "equivalent": variable equivalent stiffness
-            otherwise, constant stiffness is computed.
+            otherwise, a constant stiffness is used.
         n_mesh_period : int, optional
             Number of mesh periods to evaluate. Default is 1.
         n_points : int, optional
@@ -468,7 +470,7 @@ class Mesh:
 
         return stiffness
 
-    def generate_stiffness_table(self, stiffness_type="square", n_points=200):
+    def generate_stiffness_table(self, stiffness_type=None, n_points=200):
         """Generate a table of stiffness values for a gear pair.
 
         Parameters
@@ -477,6 +479,7 @@ class Mesh:
             Type of stiffness to compute. Available options are:
             - "square": square varying stiffness
             - "equivalent": variable equivalent stiffness
+            Default is None, which uses the stiffness type defined in the Mesh object.
         n_points : int, optional
             Number of data points to evaluate for the stiffness profile.
             Default is 200.
@@ -493,6 +496,9 @@ class Mesh:
         theta_end = 2 * np.pi / self.driving_gear.n_teeth
         theta_range = np.linspace(0, theta_end, n_points)
         cr_range = np.linspace(0.8, 2.5, n_points)
+
+        if stiffness_type is None:
+            stiffness_type = self.stiffness_type
 
         if stiffness_type == "equivalent":
             stiffness_table = np.vectorize(self.get_variable_equivalent_stiffness)(
@@ -511,6 +517,7 @@ class Mesh:
         n_points=1000,
         angle_units="rad",
         stiffness_units="N/m",
+        stiffness_type=None,
         **kwargs,
     ):
         """Plot the gear mesh stiffness profile over one or more meshing periods.
@@ -525,6 +532,12 @@ class Mesh:
             Units for the angular position axis. Default is 'rad'.
         stiffness_units : str, optional
             Units for the stiffness axis. Default is 'N/m'.
+        stiffness_type : str, optional
+            Type of stiffness to compute. Available options are:
+            - "constant": constant stiffness
+            - "square": square varying stiffness
+            - "equivalent": variable equivalent stiffness
+            Default is None, which uses the stiffness type defined in the Mesh object.
         **kwargs : dict, optional
             Additional keyword arguments passed to `plotly.graph_objects.Figure.update_layout`
             for customizing the figure (e.g., title, font, size, legend settings, etc.).
@@ -536,9 +549,12 @@ class Mesh:
         """
         fig = go.Figure()
 
+        if stiffness_type is None:
+            stiffness_type = self.stiffness_type
+
         if n_mesh_period != 1 or n_points != 1000:
             theta_range, stiffness_range = self.get_stiffness_for_mesh_period(
-                n_mesh_period, n_points
+                stiffness_type, n_mesh_period, n_points
             )
         else:
             theta_range = self.theta_range

@@ -815,7 +815,7 @@ class GearElementTVMS(GearElement):
         for i, value in enumerate((L, M, P, Q)):
             if value < min(poly_limits[i]) or value > max(poly_limits[i]):
                 warn(
-                    "Extrapolating gear body coefficients described by Sainsot et. al. (2014). Be careful when post-processing the results."
+                    "Extrapolating gear body coefficients described by Sainsot et al. (2014). Be careful when post-processing the results."
                 )
                 break
 
