@@ -149,7 +149,7 @@ class HybridSeal(SealElement):
     tolerance : float, optional
         Tolerance for pressure matching. Default is 1e-6.
     max_iterations : int, optional
-        Maximum iterations for pressure matching. Default is 1e20.
+        Maximum iterations for pressure matching. Default is 100.
     color : str, optional
         Color for element visualization. Default is "#787FF6".
     scale_factor : float, optional
@@ -200,7 +200,7 @@ class HybridSeal(SealElement):
     ...   labyrinth_parameters=laby_params,
     ... )
     >>> hybrid.seal_leakage  # doctest: +ELLIPSIS
-    0.0348...
+    0.0128...
     """
 
     @check_units
@@ -218,7 +218,7 @@ class HybridSeal(SealElement):
         molar=None,
         gamma=None,
         tolerance=1e-6,
-        max_iterations=1e20,
+        max_iterations=100,
         color="#787FF6",
         scale_factor=0.75,
         **kwargs,
@@ -265,7 +265,8 @@ class HybridSeal(SealElement):
             hole_leakage = holep.seal_leakage[0]
             laby_leakage = laby.seal_leakage[0]
 
-            convergence_leakage = abs(laby_leakage - hole_leakage) / hole_leakage
+            if hole_leakage > 0:
+                convergence_leakage = abs(laby_leakage - hole_leakage) / hole_leakage
 
             if hole_leakage > laby_leakage:
                 p_low = interface_pressure

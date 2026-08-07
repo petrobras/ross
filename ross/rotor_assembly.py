@@ -40,6 +40,7 @@ from ross.disk_element import DiskElement
 from ross.faults import Crack, MisalignmentFlex, MisalignmentRigid, Rubbing
 from ross.materials import Material, steel
 from ross.model_reduction import ModelReduction
+from ross.plotly_theme import color_shades
 from ross.point_mass import PointMass
 from ross.probe import Probe
 from ross.results import (
@@ -84,6 +85,113 @@ __all__ = [
 
 # set Plotly palette of colors
 colors = px.colors.qualitative.Dark24
+
+RENDER_COLORSCALE = [
+    [0.0, "#252F3A"],
+    [0.28, "#49596A"],
+    [0.55, "#7E93A6"],
+    [0.80, "#C2CFDB"],
+    [1.0, "#F4F8FB"],
+]
+
+
+def _shaft_envelope(spans, columns=300):
+    """Build the axial grid and the outer radius envelope of a set of elements.
+
+    Heatmap cells are centered on their coordinates, so a uniform grid would
+    bleed half a cell past each diameter step. The grid is built with two
+    columns tight against each element boundary, which places the cell edges
+    exactly on the boundary. Where elements overlap, as in a sleeve mounted on
+    the shaft, the envelope is the largest radius.
+
+    Columns are only added inside a span where the shaft is conical, since the
+    shading of a cylindrical span is the same along its whole length.
+
+    Parameters
+    ----------
+    spans : list
+        List of (axial position, length, left outer diameter, right outer
+        diameter) tuples, one for each element.
+    columns : int, optional
+        Approximate number of columns used to resolve conical spans.
+        Default is 300.
+
+    Returns
+    -------
+    z_grid : np.ndarray
+        Axial positions of the grid columns.
+    radius : np.ndarray
+        Outer radius of the shaft at each column, NaN where there is no
+        material.
+
+    Examples
+    --------
+    >>> z_grid, radius = _shaft_envelope([(0.0, 0.5, 0.1, 0.1)])
+    >>> float(z_grid[0]), float(radius[0])
+    (1e-07, 0.05)
+    """
+    eps = 1e-7
+    bounds = sorted(
+        {round(z0, 9) for z0, _, _, _ in spans}
+        | {round(z0 + length, 9) for z0, length, _, _ in spans}
+    )
+    target = (bounds[-1] - bounds[0]) / columns
+
+    centers = []
+    for start, end in zip(bounds[:-1], bounds[1:]):
+        segment = end - start
+        if segment < 8 * eps:
+            continue
+        conical = any(
+            odl != odr and z0 - 1e-9 <= start and end <= z0 + length + 1e-9
+            for z0, length, odl, odr in spans
+        )
+        inner = max(0, int(np.ceil(segment / target)) - 1) if conical else 0
+        centers += [start + eps, start + 3 * eps]
+        centers += list(start + np.arange(1, inner + 1) / (inner + 1) * segment)
+        centers += [end - 3 * eps, end - eps]
+
+    z_grid = np.array(centers)
+    radius = np.zeros(len(z_grid))
+    for z0, length, odl, odr in spans:
+        inside = (z_grid >= z0 - 1e-9) & (z_grid <= z0 + length + 1e-9)
+        ratio = np.clip((z_grid - z0) / length, 0, 1)
+        element_radius = np.where(
+            inside, (odl / 2) * (1 - ratio) + (odr / 2) * ratio, -1.0
+        )
+        larger = element_radius > radius + 1e-12
+        radius[larger] = element_radius[larger]
+
+    radius[radius == 0] = np.nan
+
+    return z_grid, radius
+
+
+def _cylinder_shading(relative_radius):
+    """Shade the shaft as a cylinder lit from above the center line.
+
+    Parameters
+    ----------
+    relative_radius : np.ndarray
+        Radial position of each point divided by the outer radius of the shaft.
+
+    Returns
+    -------
+    shading : np.ndarray
+        Light intensity in the 0 to 1 range, NaN outside the shaft.
+
+    Examples
+    --------
+    >>> _cylinder_shading(np.array([0.0, 0.5, 1.5])).round(3)
+    array([0.862, 0.928,   nan])
+    """
+    u = np.abs(relative_radius)
+    intensity = np.sqrt(np.clip(1 - u**2, 0, 1))
+    specular = np.exp(-(((u - 0.40) / 0.18) ** 2)) * intensity
+    shading = np.clip(0.16 + 0.70 * intensity**0.75 + 0.22 * specular, 0, 1)
+    shading[u > 1] = np.nan
+
+    return shading
 
 
 class Rotor(object):
@@ -3009,10 +3117,21 @@ class Rotor(object):
         This function will take a rotor object and plot its elements representation
         using Plotly.
 
+        The shaft is drawn as rendered metal above the center line, and two
+        buttons switch the half below it between the same rendered look and a
+        material cross section, where each material is hatched in its own color
+        and the bore of hollow elements is left void. Every shade in the plot is
+        derived from a single color per element, so setting `Material.color`,
+        `DiskElement.color` or `BearingElement.color` controls the whole
+        appearance of that element. Below the rotor there is a scale with the
+        node numbers; hovering a node drops a guide line across the rotor.
+
         Parameters
         ----------
         nodes : int, optional
-            Increment that will be used to plot nodes label.
+            Increment that will be used to plot nodes label. Labels which would
+            be printed over each other are dropped, but every node can still be
+            hovered on the node scale.
         check_sld : bool
             If True, checks the slenderness ratio for each element.
             The shaft elements which has a slenderness ratio < 1.6 will be displayed in
@@ -3054,51 +3173,12 @@ class Rotor(object):
         nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
         nodes_o_d = Q_(self.nodes_o_d, "m").to(length_units).m
         center_line_pos = Q_(self.center_line_pos, "m").to(length_units).m
+        mean_od = np.mean(nodes_o_d)
 
         fig = go.Figure()
 
-        # plot shaft centerline
-        fig.add_shape(
-            x0=0,
-            x1=1,
-            y0=0,
-            y1=0,
-            xref="paper",
-            yref="y",
-            layer="below",
-            opacity=0.7,
-            type="line",
-            line=dict(width=3.0, color="black", dash="dashdot"),
-        )
+        self._plot_shaft_render(fig, length_units)
 
-        # plot nodes icons
-        text = []
-        x_pos = []
-        y_pos = np.linspace(0, 0, len(nodes_pos[::nodes]))
-        for i, position in enumerate(nodes_pos[::nodes]):
-            node = self.nodes[i]
-            text.append("{}".format(node * nodes))
-            x_pos.append(position)
-            y_pos[i] = center_line_pos[i]
-
-        fig.add_trace(
-            go.Scatter(
-                x=x_pos,
-                y=y_pos,
-                text=text,
-                mode="markers+text",
-                marker=dict(
-                    opacity=0.7,
-                    size=20,
-                    color="#ffcc99",
-                    line=dict(width=1.0, color="black"),
-                ),
-                showlegend=False,
-                hoverinfo="none",
-            )
-        )
-
-        # plot shaft elements
         for sh_elm in self.shaft_elements:
             i = self.nodes.index(sh_elm.n)
             z_pos = self.nodes_pos[i]
@@ -3107,9 +3187,8 @@ class Rotor(object):
             position = (z_pos, yc_pos)
             fig = sh_elm._patch(position, check_sld, fig, length_units)
 
-        mean_od = np.mean(nodes_o_d)
+        self._plot_center_line(fig, length_units)
 
-        # plot disk elements
         # calculate scale factor if disks have scale_factor='mass'
         if self.disk_elements:
             scaled_disks = [
@@ -3121,11 +3200,14 @@ class Rotor(object):
                     f = disk.m / max_mass
                     disk._scale_factor_calculated = (1 - f) * 0.5 + f * 1.0
 
+            heaviest = max([disk.m for disk in self.disk_elements])
+
             for disk in self.disk_elements:
                 scale_factor = disk.scale_factor
                 if scale_factor == "mass":
                     scale_factor = disk._scale_factor_calculated
-                step = scale_factor * mean_od
+                mass_ratio = disk.m / heaviest if heaviest else 1.0
+                height = mean_od * (0.70 + 0.55 * mass_ratio) * scale_factor
 
                 z_pos = (
                     Q_(self.df[self.df.tag == disk.tag]["nodes_pos_l"].values[0], "m")
@@ -3138,10 +3220,9 @@ class Rotor(object):
                     .m
                 )
                 yc_pos = center_line_pos[self.nodes.index(disk.n)]
-                position = (z_pos, y_pos, yc_pos, step)
+                position = (z_pos, y_pos, yc_pos, height)
                 fig = disk._patch(position, fig)
 
-        # plot bearings
         for bearing in self.bearing_elements:
             z_pos = (
                 Q_(self.df[self.df.tag == bearing.tag]["nodes_pos_l"].values[0], "m")
@@ -3166,7 +3247,6 @@ class Rotor(object):
             position = (z_pos, y_pos, y_pos_sup, yc_pos)
             bearing._patch(position, fig)
 
-        # plot point mass
         for p_mass in self.point_mass_elements:
             z_pos = (
                 Q_(self.df[self.df.tag == p_mass.tag]["nodes_pos_l"].values[0], "m")
@@ -3186,22 +3266,417 @@ class Rotor(object):
             position = (z_pos, y_pos, yc_pos)
             fig = p_mass._patch(position, fig)
 
+        self._plot_legend_swatches(fig, check_sld)
+
+        y_low = 0.0
+        y_high = 0.0
+        for trace in fig.data:
+            if trace.y is None:
+                continue
+            values = np.array(trace.y, dtype=float)
+            values = values[~np.isnan(values)]
+            if len(values):
+                y_low = min(y_low, values.min())
+                y_high = max(y_high, values.max())
+        y_span = y_high - y_low
+
+        x_pad = 0.04 * np.ptp(nodes_pos)
+        x_range = [min(nodes_pos) - x_pad, max(nodes_pos) + x_pad]
+        y_range = [y_low - 0.16 * y_span, y_high + 0.08 * y_span]
+
+        self._plot_node_scale(
+            fig, nodes, length_units, y_low - 0.11 * y_span, x_range[0]
+        )
+
+        width = 1150
+        margin = dict(l=70, r=25, t=95, b=52)
+        pixels_per_unit = (width - margin["l"] - margin["r"]) / (
+            x_range[1] - x_range[0]
+        )
+        height = (y_range[1] - y_range[0]) * pixels_per_unit
+        height = int(min(max(height + margin["t"] + margin["b"], 300), 900))
+
+        axes = dict(
+            zeroline=False,
+            showline=True,
+            linecolor="#33475C",
+            linewidth=1,
+            mirror=False,
+            ticks="outside",
+            ticklen=4,
+            tickcolor="#33475C",
+        )
         fig.update_xaxes(
             title_text=f"Axial location ({length_units})",
-            showgrid=False,
-            mirror=True,
-            scaleanchor="y",
-            scaleratio=1.5,
+            range=x_range,
+            showgrid=True,
+            gridcolor="#EDF1F5",
+            showspikes=True,
+            spikemode="across",
+            spikesnap="hovered data",
+            spikedash="dot",
+            spikethickness=1.3,
+            spikecolor="#D9480F",
+            **axes,
         )
         fig.update_yaxes(
             title_text=f"Shaft radius ({length_units})",
+            range=y_range,
             showgrid=False,
-            mirror=True,
+            **axes,
         )
+        fig.update_layout(
+            width=width,
+            height=height,
+            margin=margin,
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=1.02,
+                x=0,
+                itemsizing="constant",
+            ),
+            updatemenus=self._plot_mode_buttons(fig),
+        )
+
         kwargs["title"] = kwargs.get("title", "Rotor Model")
         fig.update_layout(**kwargs)
 
         return fig
+
+    def _plot_shaft_render(self, fig, length_units):
+        """Draw the rendered metal look of the shaft.
+
+        The shaft outer envelope is shaded as a cylinder with a heatmap, one for
+        the upper half and one for the lower half of each center line level. The
+        bore of hollow elements is covered by a mask which becomes white when the
+        lower half is switched to the cross section view.
+
+        Parameters
+        ----------
+        fig : plotly.graph_objects.Figure
+            The figure object which traces are added on.
+        length_units : str
+            Length units used in the plot.
+        """
+        levels = {}
+        for elm in self.shaft_elements:
+            i = self.nodes.index(elm.n)
+            levels.setdefault(self.center_line_pos[i], []).append(
+                (self.nodes_pos[i], elm.L, elm.odl, elm.odr)
+            )
+
+        for yc_pos, spans in levels.items():
+            z_grid, radius = _shaft_envelope(spans)
+            z_grid = Q_(z_grid, "m").to(length_units).m
+            radius = Q_(radius, "m").to(length_units).m
+            yc_pos = Q_(yc_pos, "m").to(length_units).m
+            r_max = np.nanmax(radius)
+
+            for sign in (1, -1):
+                y_grid = sign * np.linspace(0, r_max, 90)
+                with np.errstate(invalid="ignore", divide="ignore"):
+                    shading = _cylinder_shading(y_grid[:, None] / radius[None, :])
+                fig.add_trace(
+                    go.Heatmap(
+                        x=z_grid,
+                        y=y_grid + yc_pos,
+                        z=np.round(shading, 3),
+                        colorscale=RENDER_COLORSCALE,
+                        zmin=0,
+                        zmax=1,
+                        showscale=False,
+                        hoverinfo="skip",
+                    )
+                )
+
+            fig.add_trace(
+                go.Scatter(
+                    x=np.concatenate([z_grid, [None], z_grid]),
+                    y=np.concatenate([radius + yc_pos, [None], -radius + yc_pos]),
+                    mode="lines",
+                    line=dict(width=1.0, color="#31414F"),
+                    showlegend=False,
+                    hoverinfo="skip",
+                )
+            )
+
+        x_void = []
+        y_void = []
+        for elm in self.shaft_elements:
+            if not getattr(elm, "idl", 0) and not getattr(elm, "idr", 0):
+                continue
+            i = self.nodes.index(elm.n)
+            z0 = Q_(self.nodes_pos[i], "m").to(length_units).m
+            z1 = Q_(self.nodes_pos[i] + elm.L, "m").to(length_units).m
+            yc_pos = Q_(self.center_line_pos[i], "m").to(length_units).m
+            idl = Q_(elm.idl, "m").to(length_units).m
+            idr = Q_(elm.idr, "m").to(length_units).m
+            x_void += [z0, z0, z1, z1, z0, None]
+            y_void += [
+                yc_pos,
+                yc_pos - idl / 2,
+                yc_pos - idr / 2,
+                yc_pos,
+                yc_pos,
+                None,
+            ]
+
+        if x_void:
+            fig.add_trace(
+                go.Scatter(
+                    x=x_void,
+                    y=y_void,
+                    mode="lines",
+                    fill="toself",
+                    fillcolor="rgba(0,0,0,0)",
+                    line=dict(width=0.1, color="rgba(0,0,0,0)"),
+                    showlegend=False,
+                    hoverinfo="skip",
+                    meta=dict(
+                        morph=dict(
+                            render={"fillcolor": "rgba(0,0,0,0)"},
+                            section={"fillcolor": "#FFFFFF"},
+                        )
+                    ),
+                )
+            )
+
+    def _plot_center_line(self, fig, length_units):
+        """Draw the center line of each shaft level.
+
+        Parameters
+        ----------
+        fig : plotly.graph_objects.Figure
+            The figure object which traces are added on.
+        length_units : str
+            Length units used in the plot.
+        """
+        nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
+        center_line_pos = Q_(self.center_line_pos, "m").to(length_units).m
+        pad = 0.02 * np.ptp(nodes_pos)
+
+        x_line = []
+        y_line = []
+        for yc_pos in sorted(set(center_line_pos)):
+            nodes_in_level = [
+                pos for pos, level in zip(nodes_pos, center_line_pos) if level == yc_pos
+            ]
+            x_line += [min(nodes_in_level) - pad, max(nodes_in_level) + pad, None]
+            y_line += [yc_pos, yc_pos, None]
+
+        fig.add_trace(
+            go.Scatter(
+                x=x_line,
+                y=y_line,
+                mode="lines",
+                line=dict(color="#8895A3", width=1.1, dash="dashdot"),
+                showlegend=False,
+                hoverinfo="skip",
+            )
+        )
+
+    def _plot_legend_swatches(self, fig, check_sld):
+        """Add one legend entry for each family of elements drawn.
+
+        Element traces carry no legend entry of their own, they only share a
+        legend group with the swatch added here, so that a single legend click
+        hides the whole family.
+
+        Parameters
+        ----------
+        fig : plotly.graph_objects.Figure
+            The figure object which traces are added on.
+        check_sld : bool
+            If True, elements with slenderness ratio < 1.6 have their own entry.
+        """
+        swatches = {}
+
+        for elm in self.shaft_elements:
+            if isinstance(elm, CouplingElement):
+                swatches.setdefault(elm._legend_group, elm.color)
+            elif check_sld and elm.slenderness_ratio < 1.6:
+                swatches["Shaft - Slenderness Ratio < 1.6"] = "yellow"
+            else:
+                swatches[elm.material.name] = elm.material.color
+
+        for element in chain(
+            self.disk_elements, self.bearing_elements, self.point_mass_elements
+        ):
+            swatches.setdefault(element._legend_group, element.color)
+
+        for name, color in swatches.items():
+            shades = color_shades(color)
+            fig.add_trace(
+                go.Scatter(
+                    x=[None],
+                    y=[None],
+                    mode="lines",
+                    fill="toself",
+                    fillcolor=shades["base"],
+                    line=dict(width=1.0, color=shades["edge"]),
+                    name=name,
+                    legendgroup=name,
+                    showlegend=True,
+                    hoverinfo="skip",
+                )
+            )
+
+    def _plot_node_scale(self, fig, nodes, length_units, scale_y, label_x):
+        """Draw the node scale below the rotor.
+
+        Hovering a node of the scale drops a vertical spike line across the
+        rotor, linking the node number to its axial position.
+
+        Parameters
+        ----------
+        fig : plotly.graph_objects.Figure
+            The figure object which traces are added on.
+        nodes : int
+            Increment that will be used to plot nodes label.
+        length_units : str
+            Length units used in the plot.
+        scale_y : float
+            Vertical position of the node scale.
+        label_x : float
+            Horizontal position of the scale title.
+        """
+        nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
+        center_line_pos = Q_(self.center_line_pos, "m").to(length_units).m
+        tick = 0.012 * abs(scale_y)
+
+        x_ticks = []
+        y_ticks = []
+        for pos, yc_pos in zip(nodes_pos, center_line_pos):
+            x_ticks += [pos, pos, None]
+            y_ticks += [yc_pos - tick, yc_pos + tick, None]
+
+        fig.add_trace(
+            go.Scatter(
+                x=x_ticks,
+                y=y_ticks,
+                mode="lines",
+                line=dict(color="#93A1AF", width=0.8),
+                showlegend=False,
+                hoverinfo="skip",
+            )
+        )
+
+        # labels are dropped where they would be printed over each other
+        min_gap = 0.02 * np.ptp(nodes_pos)
+        x_labels = []
+        text_labels = []
+        for node, pos in sorted(zip(self.nodes, nodes_pos), key=lambda item: item[1]):
+            if node % nodes:
+                continue
+            if x_labels and pos - x_labels[-1] < min_gap:
+                continue
+            x_labels.append(pos)
+            text_labels.append(str(node))
+
+        fig.add_trace(
+            go.Scatter(
+                x=x_labels,
+                y=[scale_y] * len(x_labels),
+                text=text_labels,
+                mode="text",
+                textfont=dict(size=9.5, color="#93A1AF"),
+                showlegend=False,
+                hoverinfo="skip",
+            )
+        )
+
+        fig.add_trace(
+            go.Scatter(
+                x=nodes_pos,
+                y=[scale_y] * len(nodes_pos),
+                mode="markers",
+                marker=dict(size=13, opacity=0),
+                customdata=[[node] for node in self.nodes],
+                hovertemplate=(
+                    "Node %{customdata[0]}<br>"
+                    f"Axial location: %{{x:.4f}} {length_units}<extra></extra>"
+                ),
+                showlegend=False,
+            )
+        )
+
+        fig.add_annotation(
+            x=label_x,
+            y=scale_y,
+            text="node",
+            showarrow=False,
+            xanchor="left",
+            font=dict(size=9.5, color="#93A1AF"),
+        )
+
+    @staticmethod
+    def _plot_mode_buttons(fig):
+        """Build the buttons which switch the look of the lower half.
+
+        Traces which can be drawn in more than one style carry the style values
+        for each mode in their `meta` attribute. The buttons restyle only these
+        style properties, never the trace visibility, which belongs to the
+        legend.
+
+        Parameters
+        ----------
+        fig : plotly.graph_objects.Figure
+            The figure object with the rotor representation.
+
+        Returns
+        -------
+        updatemenus : list
+            List with the plotly updatemenus, empty if no trace can be morphed.
+        """
+        morphs = [
+            (i, trace.meta["morph"])
+            for i, trace in enumerate(fig.data)
+            if isinstance(trace.meta, dict) and "morph" in trace.meta
+        ]
+        if not morphs:
+            return []
+
+        properties = sorted({key for _, morph in morphs for key in morph["render"]})
+
+        def styles(mode):
+            args = {}
+            for prop in properties:
+                values = []
+                for i, morph in morphs:
+                    value = fig.data[i]
+                    for attribute in prop.split("."):
+                        value = value[attribute] if value is not None else None
+                    values.append(morph[mode].get(prop, value))
+                args[prop] = values
+            return [args, [i for i, _ in morphs]]
+
+        return [
+            dict(
+                type="buttons",
+                direction="right",
+                x=1.0,
+                xanchor="right",
+                y=1.02,
+                yanchor="bottom",
+                pad=dict(t=2, b=2),
+                showactive=True,
+                font=dict(size=11),
+                bgcolor="#FFFFFF",
+                bordercolor="#C4CDD6",
+                borderwidth=1,
+                buttons=[
+                    dict(
+                        label="Bottom: render", method="restyle", args=styles("render")
+                    ),
+                    dict(
+                        label="Bottom: section",
+                        method="restyle",
+                        args=styles("section"),
+                    ),
+                ],
+            )
+        ]
 
     @check_units
     def run_campbell(
