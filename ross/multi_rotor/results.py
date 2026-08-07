@@ -1,3 +1,9 @@
+"""Multi Rotor results module.
+
+This module defines the results classes used to store and plot results from
+multi-rotor analyses, such as the mesh dynamics of a gear pair with backlash.
+"""
+
 import numpy as np
 from copy import deepcopy as copy
 from plotly import graph_objects as go
@@ -24,7 +30,7 @@ class BacklashResults(TimeResponseResults):
         - dfft: plot response in frequency domain for given probes.
         - transmission_error: plot time and frequency response of the transmission error.
         - backlash: plot time and frequency response of the backlash.
-        - dynamic_mesh_force: plot time and frequency response of the dynamic mesh force.
+        - mesh_force: plot time and frequency response of the dynamic mesh force.
         - mesh_stiffness: plot time and frequency response of the mesh stiffness.
         - center_distance: plot time and frequency response of the center distance.
         - pressure_angle: plot time and frequency response of the pressure angle.
@@ -115,7 +121,7 @@ class BacklashResults(TimeResponseResults):
         del rotor.mesh.backlash._data
 
     def _get_params(self, key):
-        """Gets the parameters for the given key.
+        """Get the parameters for the given key.
 
         Parameters
         ----------
@@ -141,7 +147,7 @@ class BacklashResults(TimeResponseResults):
         return name, repr_, measure, units
 
     def _plot_time_domain(self, key, time_range=None, step=None, units=None, fig=None):
-        """Plots the time domain data of the gear pair.
+        """Plot the time domain data of the gear pair.
 
         Parameters
         ----------
@@ -197,7 +203,7 @@ class BacklashResults(TimeResponseResults):
     def _plot_nominal_value(
         self, key, nominal_value, time_range=None, units=None, fig=None
     ):
-        """Plots the nominal value of the data.
+        """Plot the nominal value of the data.
 
         Parameters
         ----------
@@ -261,7 +267,7 @@ class BacklashResults(TimeResponseResults):
         units=None,
         fig=None,
     ):
-        """Plots the frequency domain data of the gear pair.
+        """Plot the frequency domain data of the gear pair.
 
         Parameters
         ----------
@@ -338,7 +344,7 @@ class BacklashResults(TimeResponseResults):
         data_units="m",
         fig=None,
     ):
-        """Plots the transmission error.
+        """Plot the transmission error.
 
         Parameters
         ----------
@@ -442,7 +448,7 @@ class BacklashResults(TimeResponseResults):
         return fig
 
     @check_units
-    def plot_dynamic_mesh_force(
+    def plot_mesh_force(
         self,
         domain="time",
         step=None,
@@ -472,7 +478,7 @@ class BacklashResults(TimeResponseResults):
         data_units : str, optional
             Units of the dynamic mesh force data.
             Default is "N".
-        fig : go.Figure
+        fig : go.Figure, optional
             Figure object.
 
         Returns
@@ -748,8 +754,8 @@ class BacklashResults(TimeResponseResults):
         subfigs[0][1].layout.title.text = text2
 
         # Dynamic Mesh Force
-        subfigs[1][0] = self.plot_dynamic_mesh_force(step=step, time_range=time_range)
-        subfigs[1][1] = self.plot_dynamic_mesh_force(
+        subfigs[1][0] = self.plot_mesh_force(step=step, time_range=time_range)
+        subfigs[1][1] = self.plot_mesh_force(
             domain="frequency",
             step=step,
             frequency_range=frequency_range,
