@@ -378,7 +378,7 @@ class GearElementTVMS(GearElement):
     ...    n_teeth=62,
     ...    pr_angle=0.349066
     ... )
-    >>> gear.base_radius # doctest : +ELLIPSIS
+    >>> gear.base_radius # doctest: +ELLIPSIS
     0.058260...
     """
 
@@ -600,8 +600,9 @@ class GearElementTVMS(GearElement):
         )
 
     def _to_tau(self, pr_angle):
-        """Transforms the pressure angle, used to build the involute profile,
-        into the integration variable tau.
+        """Transform a pressure angle into the integration variable tau.
+
+        The tau variable is used to build the involute profile.
 
         Parameters
         ----------
@@ -617,8 +618,8 @@ class GearElementTVMS(GearElement):
         return tau
 
     def _diff_tau(self, tau):
-        """Method for evaluating the stiffness commonly found in the
-        integrative functions of the involute region on a specified angle.
+        """Evaluate the differential term used in the involute region
+        stiffness integrals, for a specified tau angle.
 
         Parameters
         ----------
@@ -628,8 +629,8 @@ class GearElementTVMS(GearElement):
         return self.base_radius * (tau + self.tooth_dict["base_angle"]) * np.cos(tau)
 
     def _diff_gamma(self, gamma):
-        """Method used in evaluating the stiffness commonly found in the
-        integrative functions of the transition region.
+        """Evaluate the differential term used in the transition region
+        stiffness integrals, for a specified gamma angle.
 
         Parameters
         ----------
@@ -728,8 +729,8 @@ class GearElementTVMS(GearElement):
 
     @check_units
     def _compute_stiffness(self, angle):
-        """Computes the stiffness in the direction of the applied force on the
-        gear (line of action), according to the involute profile. Ma, H. et. al. (2014).
+        """Compute the stiffness in the direction of the applied force on the
+        gear (line of action), according to the involute profile.
 
         Parameters
         ----------
@@ -740,6 +741,12 @@ class GearElementTVMS(GearElement):
         -------
         k : float
             The sum of the computed stiffness components.
+
+        References
+        ----------
+        Ma, H., Song, R., Pang, X., & Wen, B. (2014). Time-varying mesh stiffness
+        calculation of cracked spur gears. Engineering Failure Analysis, 44,
+        179-194. https://doi.org/10.1016/j.engfailanal.2014.05.006
         """
         beta = self._to_tau(angle)
 
@@ -756,11 +763,6 @@ class GearElementTVMS(GearElement):
         """Calculate the stiffness contribution from the gear base, given a
         point on the involute curve.
 
-        Sainsot, P., Velex, P., & Duverger, O. (2004). Contribution of gear
-        body to tooth deflections - A new bidimensional analytical
-        formula. Journal of Mechanical Design, 126(4), 748–752.
-        https://doi.org/10.1115/1.1758252
-
         Parameters
         ----------
         beta : float
@@ -773,6 +775,13 @@ class GearElementTVMS(GearElement):
         -------
         inv_kf : float
             The inverse of kf for the gear base.
+
+        References
+        ----------
+        Sainsot, P., Velex, P., & Duverger, O. (2004). Contribution of gear
+        body to tooth deflections - A new bidimensional analytical
+        formula. Journal of Mechanical Design, 126(4), 748-752.
+        https://doi.org/10.1115/1.1758252
         """
 
         r_f = self.radii_dict["root"]
@@ -906,7 +915,7 @@ class GearElementTVMS(GearElement):
         return inv_ka
 
     def _integrate_transiction_term(self, func):
-        """Integrates a function over the transition region of the gear tooth.
+        """Integrate a function over the transition region of the gear tooth.
 
         Parameters
         ----------
@@ -927,7 +936,7 @@ class GearElementTVMS(GearElement):
         return inv_k_t
 
     def _integrate_invol_term(self, func, beta):
-        """Integrates a function over the involute region of the gear tooth.
+        """Integrate a function over the involute region of the gear tooth.
 
         Parameters
         ----------
@@ -951,7 +960,13 @@ class GearElementTVMS(GearElement):
         return inv_k_i
 
     def plot_tooth_geometry(self):
-        """Plot the geometry of the tooth profile."""
+        """Plot the geometry of the tooth profile.
+
+        Returns
+        -------
+        fig : plotly.graph_objects.Figure
+            The figure object with the plot.
+        """
         # Generate the transition geometry
         transition = np.linspace(np.pi / 2, self.pr_angle, 200)
         transition_vectorized = np.vectorize(self._compute_transition_curve)
