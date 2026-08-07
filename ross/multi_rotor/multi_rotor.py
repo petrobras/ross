@@ -1,3 +1,10 @@
+"""Multi Rotor module.
+
+This module defines the MultiRotor class which is used to couple two rotors
+through a pair of gears, allowing lateral-torsional coupled analyses of
+geared rotor-dynamic systems.
+"""
+
 import numpy as np
 from re import search
 from copy import deepcopy as copy
@@ -35,15 +42,44 @@ class MultiRotor(Rotor):
         Directly specify the stiffness of the gear mesh.
         If not provided, it can be calculated automatically
         when using `GearElementTVMS` instead of `GearElement`.
+        Default is None.
     update_mesh_stiffness : bool, optional
         Applicable only when using `GearElementTVMS`.
         If True, the gear mesh stiffness is recalculated
         at each time step. If False, the maximum stiffness
         value is used throughout the simulation.
-    square_varying_stiffness: boll, optional
-        Set the square shape time varying mesh stiffness
-    square_stiffness_amplitude_ratio: float, optional
-        Ratio of stiffness amplitude based on the mean value of stiffness.
+        Default is False.
+    square_varying_stiffness : dict, optional
+        Dictionary to enable and configure a square-shaped time-varying
+        mesh stiffness. Keys are:
+
+        - enable : bool
+            If True, a square-shaped time-varying mesh stiffness is used.
+            Default is False.
+        - amplitude_ratio : float
+            Ratio of the stiffness amplitude based on the mean value of the
+            mesh stiffness.
+
+        Default is `{"enable": False, "amplitude_ratio": 0}`.
+    backlash : dict, optional
+        Dictionary to enable and configure the backlash model between the
+        coupled gears. Keys are:
+
+        - enable : bool
+            If True, the backlash model is used. Default is False.
+        - initial_value : float
+            Initial backlash of the gear pair (m). Default is 0.0.
+        - error_amp : float
+            Error amplitude used in the backlash force model. Default is 0.0.
+        - smooth_operator : bool
+            If True, a smooth (hyperbolic tangent) approximation is used for
+            the backlash force. Default is False.
+        - sigma : float
+            Parameter related to the regularization of the smooth approach.
+            Default is 1e4.
+
+        Default is `{"enable": False, "initial_value": 0.0, "error_amp": 0.0,
+        "smooth_operator": False, "sigma": 1e4}`.
     orientation_angle : float, pint.Quantity, optional
         The angle between the line of gear centers and x-axis. Default is 0.0 rad.
     position : {'above', 'below'}, optional
@@ -293,9 +329,9 @@ class MultiRotor(Rotor):
     def _unbalance_force(self, node, magnitude, phase, omega):
         """Calculate unbalance forces.
 
-        This is an auxiliary function the calculate unbalance forces. It takes the
-        force magnitude and phase and generate an array with complex values of forces
-        on each degree degree of freedom of the given node.
+        This is an auxiliary function to calculate unbalance forces. It takes the
+        force magnitude and phase and generates an array with complex values of forces
+        on each degree of freedom of the given node.
 
         Parameters
         ----------
@@ -378,7 +414,7 @@ class MultiRotor(Rotor):
             return F0
 
     def check_speed(self, node, omega):
-        """Adjusts the speed for the specified node based on the rotor configuration.
+        """Adjust the speed for the specified node based on the rotor configuration.
 
         This method checks if the given node belongs to the driven rotor.
         If so, the rotation speed is multiplied by the gear ratio.
@@ -584,6 +620,18 @@ class MultiRotor(Rotor):
         return coupling_matrix
 
     def K_mesh(self, K0):
+        """Add the gear mesh stiffness contribution to a stiffness matrix.
+
+        Parameters
+        ----------
+        K0 : np.ndarray
+            Stiffness matrix to which the gear mesh stiffness will be added.
+
+        Returns
+        -------
+        K0 : np.ndarray
+            Stiffness matrix with the gear mesh stiffness contribution added.
+        """
         dofs_1 = self.mesh.driving_gear.dof_global_index.values()
         dofs_2 = self.mesh.driven_gear.dof_global_index.values()
         dofs = [*dofs_1, *dofs_2]
@@ -798,7 +846,39 @@ class MultiRotor(Rotor):
 
     @check_units
     def run_time_response(self, speed, F, t, method="default", **kwargs):
-        """Calculate the time response of the multi-rotor."""
+        """Calculate the time response of the multi-rotor.
+
+        This function will take the multi-rotor object and calculate its time
+        response given a force and a time. If the gear mesh has backlash
+        enabled, the returned results also include the time evolution of the
+        mesh dynamics (transmission error, backlash, mesh force, mesh
+        stiffness, center distance, pressure angle and contact ratio).
+
+        Parameters
+        ----------
+        speed : float or array_like, pint.Quantity
+            Rotor speed. Automatically, the Newmark method is chosen if `speed`
+            has an array_like type.
+        F : array
+            Force array (needs to have the same number of rows as time array).
+            Each column corresponds to a dof and each row to a time.
+        t : array
+            Time array.
+        method : str, optional
+            The Newmark method can be chosen by setting `method='newmark'`.
+        **kwargs : optional
+            Additional keyword arguments can be passed to define the parameters
+            of the Newmark method if it is used (e.g. gamma, beta, tol, ...).
+            See `ross.utils.newmark` for more details.
+            Other keyword arguments can also be passed to be used in numerical
+            integration (e.g. model_reduction, add_to_RHS).
+            See `Rotor.integrate_system` for more details.
+
+        Returns
+        -------
+        results : ross.TimeResponseResults
+            Time response results for the multi-rotor.
+        """
         if self.mesh.backlash:
             t_, yout, xout = self.time_response(speed, F, t, method=method, **kwargs)
             results = BacklashResults(self, t, yout, xout)
