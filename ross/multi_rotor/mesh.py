@@ -1,3 +1,10 @@
+"""Mesh module.
+
+This module defines the Mesh and Backlash classes, which are used to model
+the meshing behavior (stiffness, contact ratio and, optionally, backlash)
+between the two gears coupled in a MultiRotor.
+"""
+
 import math
 import numpy as np
 from plotly import graph_objects as go
@@ -14,11 +21,11 @@ __all__ = ["Mesh"]
 
 
 class Mesh:
-    """Represents the meshing behavior between two gears in contact
-    including stiffness and contact ratio calculations.
+    """A class representing the meshing behavior between two gears in
+    contact, including stiffness and contact ratio calculations.
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     driving_gear : GearElement
         The driving gear object used in the gear pair.
     driven_gear : GearElement
@@ -27,15 +34,46 @@ class Mesh:
         Directly specify the stiffness of the gear mesh.
         If not provided, it can be calculated automatically
         when using `GearElementTVMS` instead of `GearElement`.
-    square_varying_stiffness: boll, optional
-        Set the square shape time varying mesh stiffness
-    square_stiffness_amplitude_ratio: float, optional
-        Ratio of stiffness amplitude based on the mean value of stiffness.
+        Default is None.
+    square_varying_stiffness : dict, optional
+        Dictionary to enable and configure a square-shaped time-varying
+        mesh stiffness. Keys are:
+
+        - enable : bool
+            If True, a square-shaped time-varying mesh stiffness is used.
+            Default is False.
+        - amplitude_ratio : float
+            Ratio of the stiffness amplitude based on the mean value of the
+            mesh stiffness.
+
+        Default is `{"enable": False, "amplitude_ratio": 0}`.
+    backlash : dict, optional
+        Dictionary to enable and configure the backlash model between the
+        coupled gears. Keys are:
+
+        - enable : bool
+            If True, the backlash model is used. Default is False.
+        - initial_value : float
+            Initial backlash of the gear pair (m). Default is 0.0.
+        - error_amp : float
+            Error amplitude used in the backlash force model. Default is 0.0.
+        - smooth_operator : bool
+            If True, a smooth (hyperbolic tangent) approximation is used for
+            the backlash force. Default is False.
+        - sigma : float
+            Parameter related to the regularization of the smooth approach.
+            Default is 1e4.
+
+        Default is `{"enable": False, "initial_value": 0.0, "error_amp": 0.0,
+        "smooth_operator": False, "sigma": 1e4}`.
+    damping_ratio : float, optional
+        Damping ratio used to compute the mesh damping when the backlash
+        model is enabled. Default is 0.07.
     orientation_angle : float, pint.Quantity, optional
         The angle between the line of gear centers and x-axis. Default is 0.0 rad.
 
-    Attributes:
-    -----------
+    Attributes
+    ----------
     driving_gear : GearElement
         The driving_gear object, which contains information about the
         geometry and properties of the driving gear.
@@ -43,10 +81,16 @@ class Mesh:
         The driven gear object, which contains information about the
         geometry and properties of the wheel gear.
     gear_ratio : float
-        The transamission ratio, defined as the ratio of the radii between the
-        driving and driven gears.
+        The transmission ratio, defined as the ratio of the number of teeth
+        between the driving and driven gears.
     pressure_angle : float
         The pressure angle of the gear mesh (rad).
+    contact_ratio : float
+        The contact ratio of the gear pair.
+    stiffness : float
+        The (constant or mean) mesh stiffness of the gear pair (N/m).
+    backlash : Backlash or None
+        The backlash model of the gear pair, if enabled. None otherwise.
 
     Examples
     --------
@@ -70,7 +114,7 @@ class Mesh:
     ...    pr_angle=0.349066
     ... )
     >>> mesh = Mesh(driving, driven)
-    >>> mesh.stiffness # doctest : +ELLIPSIS
+    >>> mesh.stiffness # doctest: +ELLIPSIS
     419603831.338...
     """
 
@@ -187,7 +231,7 @@ class Mesh:
             self.backlash = None
 
     def compute_contact_ratio(self):
-        """Calculates the contact ratio of the gear pair.
+        """Calculate the contact ratio of the gear pair.
 
         Returns
         -------
@@ -221,7 +265,7 @@ class Mesh:
         """Calculate the angular equivalent stiffness of a gear pair.
 
         Parameters
-        ---------
+        ----------
         d_alpha : float
             The angular displacement of the driving gear in radians.
 
@@ -367,7 +411,7 @@ class Mesh:
     def get_stiffness_for_mesh_period(
         self, stiffness_type="constant", n_mesh_period=1, n_points=1000
     ):
-        """Computes the mesh stiffness profile over a specified number of gear
+        """Compute the mesh stiffness profile over a specified number of gear
         mesh periods.
 
         Parameters
@@ -407,7 +451,7 @@ class Mesh:
         return theta_range, stiffness_range
 
     def interpolate_stiffness(self, angular_position):
-        """Interpolates the mesh stiffness value at a given angular position.
+        """Interpolate the mesh stiffness value at a given angular position.
 
         Parameters
         ----------
@@ -425,7 +469,7 @@ class Mesh:
         return stiffness
 
     def generate_stiffness_table(self, stiffness_type="square", n_points=200):
-        """Generates a table of stiffness values for a gear pair.
+        """Generate a table of stiffness values for a gear pair.
 
         Parameters
         ----------
@@ -469,7 +513,7 @@ class Mesh:
         stiffness_units="N/m",
         **kwargs,
     ):
-        """Plots the gear mesh stiffness profile over one or more meshing periods.
+        """Plot the gear mesh stiffness profile over one or more meshing periods.
 
         Parameters
         ----------
@@ -484,6 +528,11 @@ class Mesh:
         **kwargs : dict, optional
             Additional keyword arguments passed to `plotly.graph_objects.Figure.update_layout`
             for customizing the figure (e.g., title, font, size, legend settings, etc.).
+
+        Returns
+        -------
+        fig : go.Figure
+            Figure object.
         """
         fig = go.Figure()
 
@@ -648,7 +697,7 @@ class Backlash:
         self._data = {key: list() for key in data_keys}
 
     def interpolate_stiffness(self, angular_position, contact_ratio):
-        """Interpolates the mesh stiffness value at a given angular position
+        """Interpolate the mesh stiffness value at a given angular position
         and contact ratio.
 
         Parameters
@@ -674,7 +723,8 @@ class Backlash:
         )
 
     def compute_force(self, step, disp_resp, velc_resp, time, angular_pos, speed):
-        """Calculates the backlash force to be used in time response integration with Newmark method.
+        """Calculate the backlash force to be used in time response integration
+        with the Newmark method.
 
         Parameters
         ----------
@@ -777,7 +827,7 @@ class Backlash:
 def _rigid_approach(
     delta, delta_dot, d_delta_d1, d_delta_d2, bt, bt_dot, bt_1, bt_2, f1, f2
 ):
-    """Rigid approach for the backlash force model.
+    """Compute the backlash force using a rigid (non-smooth) approach.
 
     Parameters
     ----------
@@ -797,17 +847,19 @@ def _rigid_approach(
         Derivative of the backlash with respect to the first gear DOFs.
     bt_2 : array-like
         Derivative of the backlash with respect to the second gear DOFs.
+    f1 : array-like
+        Pre-allocated array that is updated in place with the backlash force
+        derivative with respect to the first gear DOFs.
+    f2 : array-like
+        Pre-allocated array that is updated in place with the backlash force
+        derivative with respect to the second gear DOFs.
 
     Returns
     -------
     f_val : float
         Backlash force.
     f1_val : float
-        Backlash force derivative with respect to the first gear DOFs.
-    f1 : array-like
-        Backlash force with respect to the first gear DOFs.
-    f2 : array-like
-        Backlash force with respect to the second gear DOFs.
+        Backlash force derivative with respect to time.
     """
     if delta > bt:
         f_val = delta - bt
@@ -835,7 +887,7 @@ def _rigid_approach(
 def _smooth_approach(
     delta, delta_dot, d_delta_d1, d_delta_d2, bt, bt_dot, bt_1, bt_2, sigma, f1, f2
 ):
-    """Smooth approach for the backlash force model.
+    """Compute the backlash force using a smooth (hyperbolic tangent) approach.
 
     Parameters
     ----------
@@ -855,23 +907,26 @@ def _smooth_approach(
         Derivative of the backlash with respect to the first gear DOFs.
     bt_2 : array-like
         Derivative of the backlash with respect to the second gear DOFs.
-
-    References
-    ----------
-    WALHA, L.; FAKHFAKH, T.; HADDAR, M. Backlash effect on dynamic analysis of
-    a two-stage spur gear system. Journal of Failure Analysis and Prevention,
-    ASM International, v. 6, p. 60-68, 2006.
+    sigma : float
+        Parameter related to the regularization of the smooth approach.
+    f1 : array-like
+        Pre-allocated array that is updated in place with the backlash force
+        derivative with respect to the first gear DOFs.
+    f2 : array-like
+        Pre-allocated array that is updated in place with the backlash force
+        derivative with respect to the second gear DOFs.
 
     Returns
     -------
     f_val : float
         Backlash force.
     f1_val : float
-        Backlash force derivative with respect to the first gear DOFs.
-    f1 : array-like
-        Backlash force with respect to the first gear DOFs.
-    f2 : array-like
-        Backlash force with respect to the second gear DOFs.
+        Backlash force derivative with respect to time.
+
+    References
+    ----------
+    Walh, L., Fakhfakh, T., & Haddar, M. (2006). Backlash effect on dynamic analysis of
+    a two-stage spur gear system. Journal of Failure Analysis and Prevention, 6, 60-68.
     """
     x1_val = delta - bt
     x2_val = delta + bt
@@ -946,6 +1001,10 @@ def _compute_backlash_force(
         Displacement of the second gear.
     velc2 : array-like
         Velocity of the second gear.
+    angular_pos : float
+        Angular position of the gear pair.
+    speed : float
+        Speed of the gear pair.
     alpha_0 : float
         Nominal pressure angle.
     orientation_angle : float
@@ -976,10 +1035,6 @@ def _compute_backlash_force(
         Initial backlash.
     error_amp : float
         Error amplitude.
-    angular_pos : float
-        Angular position of the gear pair.
-    speed : float
-        Speed of the gear pair.
     smooth_operator : bool
         Whether to use a smooth operator.
     sigma : float
@@ -990,15 +1045,23 @@ def _compute_backlash_force(
         Contact ratio range of the stiffness table.
     stiffness_table : array-like
         Stiffness table.
+    d_delta_d1 : array-like
+        Pre-allocated array that is updated in place with the derivative of
+        the transmission error with respect to the first gear DOFs.
+    d_delta_d2 : array-like
+        Pre-allocated array that is updated in place with the derivative of
+        the transmission error with respect to the second gear DOFs.
+    f1 : array-like
+        Pre-allocated array that is updated in place with the backlash force
+        derivative with respect to the first gear DOFs.
+    f2 : array-like
+        Pre-allocated array that is updated in place with the backlash force
+        derivative with respect to the second gear DOFs.
 
     Returns
     -------
     Fm : float
         Backlash force.
-    f1 : array-like
-        Backlash force derivative with respect to the first gear DOFs.
-    f2 : array-like
-        Backlash force derivative with respect to the second gear DOFs.
     delta : float
         Transmission error.
     bt : float
