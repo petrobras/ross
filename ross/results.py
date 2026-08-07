@@ -8203,8 +8203,7 @@ class AmbNonCollocationResults(Results):
     controller performance.
 
     Only lateral modes are represented in the sensor-position compatibility map.
-    Excluded axial or torsional modes remain available as metadata and are listed
-    in the terminal summary.
+    Excluded axial or torsional modes remain available as metadata.
 
     Examples
     --------
@@ -8221,7 +8220,7 @@ class AmbNonCollocationResults(Results):
 
     Return the sensor map and every lateral mode shape as separate figures:
 
-    >>> plots = results.plot(combined=False, print_table=False)
+    >>> plots = results.plot(combined=False)
     >>> plots["sensor_map"].show()
     >>> plots["mode_shapes"][0].show()
 
@@ -8345,70 +8344,6 @@ class AmbNonCollocationResults(Results):
             dtype=float,
         )
 
-        self._validate_data()
-
-    def _validate_data(self):
-        """Validate dimensions and related metadata."""
-        n_modes = len(self.mode_indices)
-        n_sensors = len(self.sensor_nodes)
-        n_rotor_nodes = len(self.rotor_nodes)
-
-        if n_modes == 0:
-            raise ValueError("At least one lateral mode is required.")
-        if n_sensors == 0:
-            raise ValueError("At least one candidate sensor node is required.")
-        if len(self.sensor_positions) != n_sensors:
-            raise ValueError(
-                "sensor_positions and sensor_nodes must have the same length."
-            )
-        if len(self.rotor_positions) != n_rotor_nodes:
-            raise ValueError(
-                "rotor_positions and rotor_nodes must have the same length."
-            )
-        if self.natural_frequencies.shape != (n_modes,):
-            raise ValueError(
-                "natural_frequencies and mode_indices must have the same length."
-            )
-        if self.mode_shapes.shape != (n_modes, n_rotor_nodes):
-            raise ValueError(
-                "mode_shapes must have shape (number_of_modes, number_of_rotor_nodes)."
-            )
-
-        residue_shape = (n_modes, n_sensors)
-        for name in (
-            "modal_residues",
-            "normalized_residues",
-            "classifications",
-        ):
-            if getattr(self, name).shape != residue_shape:
-                raise ValueError(f"{name} must have shape {residue_shape}.")
-
-        n_ambs = len(self.all_actuator_nodes)
-        if len(self.all_sensor_nodes) != n_ambs:
-            raise ValueError(
-                "all_sensor_nodes and all_actuator_nodes must have the same length."
-            )
-        if len(self.all_amb_tags) != n_ambs:
-            raise ValueError(
-                "all_amb_tags and all_actuator_nodes must have the same length."
-            )
-
-        n_excluded = len(self.excluded_mode_indices)
-        if len(self.excluded_mode_types) != n_excluded:
-            raise ValueError(
-                "excluded_mode_types and excluded_mode_indices must have "
-                "the same length."
-            )
-        if len(self.excluded_natural_frequencies) != n_excluded:
-            raise ValueError(
-                "excluded_natural_frequencies and excluded_mode_indices must "
-                "have the same length."
-            )
-
-        self._node_index(self.actuator_node)
-        self._node_index(self.sensor_node)
-        self._sensor_column(self.sensor_node)
-
     @staticmethod
     def _validate_unit_interval(value, name):
         value = float(value)
@@ -8495,13 +8430,6 @@ class AmbNonCollocationResults(Results):
             f"{self._configuration_label}"
             "</sup>"
         )
-
-    def _normalized_mode_shape(self, mode_row):
-        shape = np.real_if_close(self.mode_shapes[mode_row], tol=1000)
-        shape = np.real(shape) if np.iscomplexobj(shape) else shape
-        shape = np.asarray(shape, dtype=float)
-        maximum = np.max(np.abs(shape))
-        return shape / maximum if maximum > 0.0 else shape
 
     def _map_data(self, number_of_points=400):
         """Return interpolated axial residue data shared by all map plots."""
@@ -8600,71 +8528,6 @@ class AmbNonCollocationResults(Results):
                 ],
             }
         )
-
-    def print_modal_residues(self, sensor_node=None):
-        """Print and return the modal-residue table for one sensor node.
-
-        The terminal output also lists any requested axial or torsional modes that
-        were excluded from the lateral non-collocation analysis.
-
-        Parameters
-        ----------
-        sensor_node : int or None, optional
-            Candidate sensor node used to build the table. If ``None``, the current
-            ``sensor_node`` stored in the results is used.
-
-        Returns
-        -------
-        pandas.DataFrame
-            The same table printed to the terminal.
-
-        Raises
-        ------
-        ValueError
-            If ``sensor_node`` was not included in the candidate sensor-node sweep or
-            is not present exactly once in ``rotor_nodes``."""
-        sensor_node = int(self.sensor_node if sensor_node is None else sensor_node)
-        table = self.modal_residue_table(sensor_node)
-
-        print("\nLateral modal-residue summary")
-        print("-" * 90)
-        print(
-            f"Actuator node: {self.actuator_node} "
-            f"(x = {self._node_position(self.actuator_node):.5f} m)"
-        )
-        print(
-            f"Sensor node:   {sensor_node} "
-            f"(x = {self._node_position(sensor_node):.5f} m)"
-        )
-        print(f"Residue tolerance: {self.residue_tolerance:.3f}")
-        print("-" * 90)
-        print(
-            table.to_string(
-                index=False,
-                formatters={
-                    "Mode": lambda value: f"{int(value)}",
-                    "Frequency (Hz)": lambda value: f"{value:.3f}",
-                    "Actuator amplitude": lambda value: f"{value:+.4f}",
-                    "Sensor amplitude": lambda value: f"{value:+.4f}",
-                    "Modal residue": lambda value: f"{value:+.5e}",
-                    "Normalized residue": lambda value: f"{value:+.4f}",
-                },
-            )
-        )
-
-        if len(self.excluded_mode_indices):
-            print("\nExcluded non-lateral modes")
-            print("-" * 90)
-            print(f"{'Mode':>6} {'Frequency (Hz)':>16}  Type")
-            for index, frequency, mode_type in zip(
-                self.excluded_mode_indices,
-                self.excluded_natural_frequencies,
-                self.excluded_mode_types,
-            ):
-                print(f"{int(index) + 1:>6d} {float(frequency):>16.3f}  {mode_type}")
-
-        print()
-        return table
 
     def _add_map_reference_traces(
         self,
@@ -9036,6 +8899,7 @@ class AmbNonCollocationResults(Results):
         tag,
         analyzed,
     ):
+        """Add actuator and sensor references to a mode-shape figure."""
         actuator_index = self._node_index(actuator_node)
         sensor_index = self._node_index(sensor_node)
         actuator_x = self.rotor_positions[actuator_index]
@@ -9045,32 +8909,35 @@ class AmbNonCollocationResults(Results):
 
         collocated = int(actuator_node) == int(sensor_node)
         configuration = "Collocated" if collocated else "Non-collocated"
-        color = self._COLORS["actuator"] if analyzed else self._COLORS["secondary"]
+        actuator_color = (
+            self._COLORS["actuator"] if analyzed else self._COLORS["secondary"]
+        )
         sensor_color = self._COLORS["sensor"] if analyzed else "white"
-        sensor_line = self._COLORS["sensor"] if analyzed else self._COLORS["secondary"]
+        sensor_line_color = (
+            self._COLORS["sensor"] if analyzed else self._COLORS["secondary"]
+        )
         suffix = "analyzed " if analyzed else ""
         legendgroup = f"amb_{tag}_{'selected' if analyzed else 'context'}"
+        customdata = [[tag, actuator_node, sensor_node, configuration]]
 
         fig.add_trace(
             go.Scatter(
                 x=[actuator_x],
                 y=[actuator_y],
-                mode="markers+text",
+                mode="markers",
                 name=f"{tag} — {suffix}actuator",
                 legendgroup=legendgroup,
-                text=[f"Actuator — {tag}<br>node {int(actuator_node)}"],
-                textposition="bottom center",
-                textfont=dict(color=color, size=11),
                 cliponaxis=False,
                 marker=dict(
                     symbol="diamond" if analyzed else "diamond-open",
                     size=15,
-                    color=color,
-                    line=dict(color=color, width=2),
+                    color=actuator_color,
+                    line=dict(color=actuator_color, width=2),
                 ),
-                customdata=[[tag, actuator_node, sensor_node, configuration]],
+                customdata=customdata,
                 hovertemplate=(
-                    "AMB: %{customdata[0]}<br>Component: actuator<br>"
+                    "AMB: %{customdata[0]}<br>"
+                    "Component: actuator<br>"
                     "Actuator node: %{customdata[1]}<br>"
                     "Sensor node: %{customdata[2]}<br>"
                     "Configuration: %{customdata[3]}<br>"
@@ -9084,22 +8951,20 @@ class AmbNonCollocationResults(Results):
             go.Scatter(
                 x=[sensor_x],
                 y=[sensor_y],
-                mode="markers+text",
+                mode="markers",
                 name=f"{tag} — {suffix}sensor",
                 legendgroup=legendgroup,
-                text=[f"Sensor — {tag}<br>node {int(sensor_node)}"],
-                textposition="top center",
-                textfont=dict(color=sensor_line, size=11),
                 cliponaxis=False,
                 marker=dict(
                     symbol="circle",
                     size=9,
                     color=sensor_color,
-                    line=dict(color=sensor_line, width=2),
+                    line=dict(color=sensor_line_color, width=2),
                 ),
-                customdata=[[tag, actuator_node, sensor_node, configuration]],
+                customdata=customdata,
                 hovertemplate=(
-                    "AMB: %{customdata[0]}<br>Component: sensor<br>"
+                    "AMB: %{customdata[0]}<br>"
+                    "Component: sensor<br>"
                     "Actuator node: %{customdata[1]}<br>"
                     "Sensor node: %{customdata[2]}<br>"
                     "Configuration: %{customdata[3]}<br>"
@@ -9113,26 +8978,29 @@ class AmbNonCollocationResults(Results):
         if collocated:
             fig.add_vline(
                 x=float(actuator_x),
-                line=dict(color=color, width=1.2, dash="dashdot"),
+                line=dict(color=actuator_color, width=1.2, dash="dashdot"),
             )
         else:
             fig.add_vline(
                 x=float(actuator_x),
-                line=dict(color=color, width=1.2, dash="dash"),
+                line=dict(color=actuator_color, width=1.2, dash="dash"),
             )
             fig.add_vline(
                 x=float(sensor_x),
-                line=dict(color=sensor_line, width=1.2, dash="dot"),
+                line=dict(color=sensor_line_color, width=1.2, dash="dot"),
             )
 
     def plot_mode_shape(
         self,
         mode,
         sensor_node=None,
-        show_all_ambs=True,
+        show_compatibility=False,
+        background_opacity=0.20,
         fig=None,
     ):
         """Plot one lateral mode shape and the magnetic-bearing locations.
+
+        Compatibility regions can optionally be displayed behind the mode shape.
 
         Parameters
         ----------
@@ -9140,14 +9008,17 @@ class AmbNonCollocationResults(Results):
             Original zero-based ROSS modal index. The value must be present in
             ``mode_indices``.
         sensor_node : int or None, optional
-            Sensor node highlighted for the analyzed magnetic bearing. If ``None``,
-            the current ``sensor_node`` stored in the results is used.
-        show_all_ambs : bool, optional
-            If ``True``, also display the actuator and sensor locations of the other
-            magnetic bearings stored in the results. Default is ``True``.
+            Sensor node highlighted for the analyzed magnetic bearing. If
+            ``None``, the current ``sensor_node`` stored in the results is used.
+        show_compatibility : bool, optional
+            If ``True``, display the axial sensor-compatibility regions behind
+            the mode shape. Default is ``False``.
+        background_opacity : float, optional
+            Opacity of the compatibility regions. Must lie in ``[0, 1]``.
+            Used only when ``show_compatibility=True``. Default is ``0.20``.
         fig : plotly.graph_objects.Figure or None, optional
-            Existing Plotly figure that receives the traces. A new figure is created
-            when ``None``.
+            Existing Plotly figure that receives the traces. A new figure is
+            created when ``None``.
 
         Returns
         -------
@@ -9156,16 +9027,44 @@ class AmbNonCollocationResults(Results):
 
         Raises
         ------
+        TypeError
+            If ``show_compatibility`` is not boolean.
         ValueError
-            If ``mode`` is not one of the retained lateral modes or ``sensor_node``
-            was not included in the candidate sensor-node sweep."""
+            If ``mode`` is unavailable, ``sensor_node`` was not included in the
+            sensor-node sweep, or ``background_opacity`` lies outside ``[0, 1]``.
+        """
+        if not isinstance(show_compatibility, (bool, np.bool_)):
+            raise TypeError("show_compatibility must be a boolean.")
+
         mode_row = self._mode_row(mode)
         sensor_node = int(self.sensor_node if sensor_node is None else sensor_node)
         sensor_column = self._sensor_column(sensor_node)
-        shape = self._normalized_mode_shape(mode_row)
+        shape = self.mode_shapes[mode_row]
 
         if fig is None:
             fig = go.Figure()
+
+        if show_compatibility:
+            opacity = self._validate_unit_interval(
+                background_opacity,
+                "background_opacity",
+            )
+            region_colors = {
+                1: self._COLORS["favorable"],
+                0: self._COLORS["transition"],
+                -1: self._COLORS["unfavorable"],
+            }
+
+            for segment in self._mode_compatibility_segments(mode):
+                classification = segment["classification"]
+                alpha = min(1.0, opacity + 0.08) if classification == 0 else opacity
+                fig.add_vrect(
+                    x0=segment["x0"],
+                    x1=segment["x1"],
+                    fillcolor=self._rgba(region_colors[classification], alpha),
+                    line_width=0,
+                    layer="below",
+                )
 
         fig.add_trace(
             go.Scatter(
@@ -9190,24 +9089,23 @@ class AmbNonCollocationResults(Results):
         analyzed_index = np.flatnonzero(self.all_actuator_nodes == self.actuator_node)
         analyzed_index = int(analyzed_index[0]) if analyzed_index.size else None
 
-        if show_all_ambs:
-            for index, (actuator, sensor, tag) in enumerate(
-                zip(
-                    self.all_actuator_nodes,
-                    self.all_sensor_nodes,
-                    self.all_amb_tags,
-                )
-            ):
-                if index == analyzed_index:
-                    continue
-                self._add_amb_pair_to_mode_shape(
-                    fig,
-                    shape,
-                    actuator,
-                    sensor,
-                    str(tag),
-                    analyzed=False,
-                )
+        for index, (actuator, sensor, tag) in enumerate(
+            zip(
+                self.all_actuator_nodes,
+                self.all_sensor_nodes,
+                self.all_amb_tags,
+            )
+        ):
+            if index == analyzed_index:
+                continue
+            self._add_amb_pair_to_mode_shape(
+                fig,
+                shape,
+                actuator,
+                sensor,
+                str(tag),
+                analyzed=False,
+            )
 
         self._add_amb_pair_to_mode_shape(
             fig,
@@ -9218,10 +9116,15 @@ class AmbNonCollocationResults(Results):
             analyzed=True,
         )
 
+        if show_compatibility:
+            for trace in self._compatibility_legend_traces():
+                fig.add_trace(trace)
+
         normalized_residue = self.normalized_residues[mode_row, sensor_column]
         classification = self._classification_text(
             self.classifications[mode_row, sensor_column]
         )
+
         fig.update_layout(
             title=dict(
                 text=(
@@ -9286,84 +9189,6 @@ class AmbNonCollocationResults(Results):
                 )
                 start = index
         return segments
-
-    def plot_mode_shape_with_compatibility(
-        self,
-        mode,
-        sensor_node=None,
-        show_all_ambs=True,
-        fig=None,
-        background_opacity=0.20,
-    ):
-        """Plot one mode shape over its sensor-compatibility regions.
-
-        The background uses the same colorblind-safe modal-residue classification as
-        the sensor-position map, allowing the axial compatibility regions to be read
-        directly against the selected mode shape.
-
-        Parameters
-        ----------
-        mode : int
-            Original zero-based ROSS modal index. The value must be present in
-            ``mode_indices``.
-        sensor_node : int or None, optional
-            Sensor node highlighted for the analyzed magnetic bearing. If ``None``,
-            the current stored sensor node is used.
-        show_all_ambs : bool, optional
-            If ``True``, display all stored magnetic-bearing actuator and sensor
-            locations. Default is ``True``.
-        fig : plotly.graph_objects.Figure or None, optional
-            Existing Plotly figure that receives the traces. A new figure is created
-            when ``None``.
-        background_opacity : float, optional
-            Opacity of the compatibility regions behind the mode shape. Must lie in
-            ``[0, 1]``. Default is ``0.20``.
-
-        Returns
-        -------
-        plotly.graph_objects.Figure
-            Mode-shape figure with axial compatibility regions.
-
-        Raises
-        ------
-        ValueError
-            If ``mode`` is unavailable, ``sensor_node`` is invalid or
-            ``background_opacity`` lies outside ``[0, 1]``."""
-        opacity = self._validate_unit_interval(
-            background_opacity,
-            "background_opacity",
-        )
-        fig = self.plot_mode_shape(
-            mode,
-            sensor_node=sensor_node,
-            show_all_ambs=show_all_ambs,
-            fig=fig,
-        )
-
-        style = {
-            1: (self._COLORS["favorable"], "Favorable sensor region"),
-            0: (self._COLORS["transition"], "Sensor near modal node"),
-            -1: (
-                self._COLORS["unfavorable"],
-                "Potentially unfavorable sensor region",
-            ),
-        }
-        for segment in self._mode_compatibility_segments(mode):
-            color, _ = style[segment["classification"]]
-            alpha = (
-                min(1.0, opacity + 0.08) if segment["classification"] == 0 else opacity
-            )
-            fig.add_vrect(
-                x0=segment["x0"],
-                x1=segment["x1"],
-                fillcolor=self._rgba(color, alpha),
-                line_width=0,
-                layer="below",
-            )
-
-        for trace in self._compatibility_legend_traces():
-            fig.add_trace(trace)
-        return fig
 
     def plot_combined(
         self,
@@ -9524,7 +9349,7 @@ class AmbNonCollocationResults(Results):
         mode_groups = []
         for row, mode_index in enumerate(self.mode_indices):
             visible = initial_row == row
-            shape = self._normalized_mode_shape(row)
+            shape = self.mode_shapes[row]
             group = []
 
             group.append(len(fig.data))
@@ -9786,32 +9611,29 @@ class AmbNonCollocationResults(Results):
 
     def plot_separate(
         self,
-        show_all_ambs=True,
         mode_shape_background_opacity=0.20,
     ):
         """Return the sensor map and all lateral mode shapes separately.
 
         Parameters
         ----------
-        show_all_ambs : bool, optional
-            If ``True``, display all stored magnetic bearings in each mode-shape
-            figure. Default is ``True``.
         mode_shape_background_opacity : float, optional
-            Opacity of the compatibility regions behind each mode shape. Must lie in
-            ``[0, 1]``. Default is ``0.20``.
+            Opacity of the compatibility regions behind each mode shape. Must lie
+            in ``[0, 1]``. Default is ``0.20``.
 
         Returns
         -------
         dict
             Dictionary with ``"sensor_map"`` containing one Plotly figure and
             ``"mode_shapes"`` containing a dictionary that maps each original
-            zero-based modal index to its Plotly figure."""
+            zero-based modal index to its Plotly figure.
+        """
         return {
             "sensor_map": self.plot_sensor_position_map(),
             "mode_shapes": {
-                int(mode): self.plot_mode_shape_with_compatibility(
+                int(mode): self.plot_mode_shape(
                     int(mode),
-                    show_all_ambs=show_all_ambs,
+                    show_compatibility=True,
                     background_opacity=mode_shape_background_opacity,
                 )
                 for mode in self.mode_indices
@@ -9822,98 +9644,76 @@ class AmbNonCollocationResults(Results):
         self,
         combined=True,
         initial_mode=None,
-        print_table=True,
-        show_all_ambs=True,
         mode_shape_background_opacity=0.20,
         unselected_mode_opacity=0.68,
         show_non_collocation_span=True,
         show_low_participation_warnings=True,
     ):
-        """Print the modal-residue table and return the requested visualization.
+        """Return the requested visualization.
 
-        This is the main user-facing plotting method. By default, it prints the table
-        for the current sensor node and returns the interactive combined map and mode
-        shape. Set ``combined=False`` to obtain the map and all mode shapes as separate
-        figures.
+        This is the main user-facing plotting method. By default, it returns
+        the interactive combined figure. When ``combined=False``, the sensor
+        map and all retained lateral mode shapes are generated as separate
+        figures, displayed automatically, and also returned in a dictionary.
 
         Parameters
         ----------
         combined : bool, optional
-            If ``True``, return the interactive combined figure. If ``False``, return
-            the separate-figure dictionary produced by :meth:`plot_separate`. Default
-            is ``True``.
+            If ``True``, return the interactive combined figure. If
+            ``False``, generate the separate-figure dictionary produced by
+            :meth:`plot_separate`, display all of its figures, and return
+            that dictionary. Default is ``True``.
         initial_mode : int or None, optional
-            Original zero-based modal index initially displayed in the combined
-            figure. If ``None``, the combined figure opens in the map-only state.
-            Ignored when ``combined=False``. Default is ``None``.
-        print_table : bool, optional
-            If ``True``, print the modal-residue table for the current sensor node
-            before creating the visualization. Default is ``True``.
-        show_all_ambs : bool, optional
-            If ``True``, show all stored magnetic bearings in the separate mode-shape
-            figures. Used only when ``combined=False``. Default is ``True``.
+            Original zero-based modal index initially displayed in the
+            combined figure. If ``None``, the combined figure opens in the
+            map-only state. Ignored when ``combined=False``.
         mode_shape_background_opacity : float, optional
-            Opacity of the compatibility colors behind the mode shape. Must lie in
-            ``[0, 1]``. Default is ``0.20``.
+            Opacity of the compatibility colors behind the mode shape.
+            Must lie in ``[0, 1]``. Default is ``0.20``.
         unselected_mode_opacity : float, optional
-            Strength of the translucent overlay applied to unselected modal rows in
-            the combined figure. Must lie in ``[0, 1]``. Default is ``0.68``.
+            Strength of the translucent overlay applied to unselected modal
+            rows in the combined figure. Must lie in ``[0, 1]``.
         show_non_collocation_span : bool, optional
-            If ``True``, highlight the current sensor-actuator interval in the
-            combined map. Default is ``True``.
+            If ``True``, highlight the current sensor-actuator interval in
+            the combined map.
         show_low_participation_warnings : bool, optional
-            If ``True``, mark modes with low actuator participation in the combined
-            map. Default is ``True``.
+            If ``True``, mark modes with low actuator participation in the
+            combined map.
 
         Returns
         -------
         plotly.graph_objects.Figure or dict
-            Interactive combined figure when ``combined=True``; otherwise a dictionary
-            containing the separate sensor map and mode-shape figures.
+            Interactive combined figure when ``combined=True``; otherwise
+            a dictionary containing the separate sensor map and mode-shape
+            figures.
 
         Raises
         ------
         TypeError
-            If ``combined`` or ``print_table`` is not boolean.
+            If ``combined`` is not boolean.
         ValueError
-            If a requested mode is unavailable or an opacity parameter lies outside
-            ``[0, 1]``."""
+            If a requested mode is unavailable or an opacity parameter lies
+            outside ``[0, 1]``.
+        """
         if not isinstance(combined, (bool, np.bool_)):
             raise TypeError("combined must be a boolean.")
-        if not isinstance(print_table, (bool, np.bool_)):
-            raise TypeError("print_table must be a boolean.")
-
-        if print_table:
-            self.print_modal_residues()
 
         if combined:
             return self.plot_combined(
                 initial_mode=initial_mode,
-                mode_shape_background_opacity=mode_shape_background_opacity,
+                mode_shape_background_opacity=(mode_shape_background_opacity),
                 unselected_mode_opacity=unselected_mode_opacity,
-                show_non_collocation_span=show_non_collocation_span,
+                show_non_collocation_span=(show_non_collocation_span),
                 show_low_participation_warnings=(show_low_participation_warnings),
             )
-        return self.plot_separate(
-            show_all_ambs=show_all_ambs,
-            mode_shape_background_opacity=mode_shape_background_opacity,
+
+        figures = self.plot_separate(
+            mode_shape_background_opacity=(mode_shape_background_opacity),
         )
 
-    def plot_mode_shape_and_sensor_map(self, mode=None, **kwargs):
-        """Plot the combined sensor map and mode shape.
+        figures["sensor_map"].show()
 
-        This method is a compatibility alias for :meth:`plot_combined`.
+        for fig in figures["mode_shapes"].values():
+            fig.show()
 
-        Parameters
-        ----------
-        mode : int or None, optional
-            Original zero-based modal index initially displayed. If ``None``, the
-            figure opens in the map-only state.
-        **kwargs
-            Additional keyword arguments forwarded to :meth:`plot_combined`.
-
-        Returns
-        -------
-        plotly.graph_objects.Figure
-            Interactive combined map and mode-shape figure."""
-        return self.plot_combined(initial_mode=mode, **kwargs)
+        return figures
