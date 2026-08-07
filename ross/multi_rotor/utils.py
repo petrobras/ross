@@ -1,20 +1,36 @@
+"""Multi Rotor utils module.
+
+This module defines auxiliary functions used by the multi-rotor classes,
+such as gear geometry helpers, interpolation routines and signal processing
+utilities.
+"""
+
 import numpy as np
 from numba import njit
 
 
 @njit(fastmath=True)
 def involute(angle):
-    """Involute function
+    """Calculate the involute function for a given angle.
 
-    Calculates the involute function for a given angle. This function is
-    used to describe the contact region of the gear profile.
+    This function is used to describe the contact region of the gear profile.
+
+    Parameters
+    ----------
+    angle : float
+        Angle at which the involute function is evaluated (rad).
+
+    Returns
+    -------
+    involute : float
+        The value of the involute function at the given angle.
     """
     return np.tan(angle) - float(angle)
 
 
 @njit(fastmath=True)
 def mod(val, max_val):
-    """Calculates the remainder of a division, but replaces 0 with max_val.
+    """Calculate the remainder of a division, replacing 0 with max_val.
 
     Parameters
     ----------
@@ -131,8 +147,6 @@ def compute_dfft(y, dt, window=True):
         Frequency range (Hz).
     y_amp : np.array
         Amplitude of the response in frequency domain (m).
-    y_phase : np.array
-        Phase of the response in frequency domain (rad).
     """
     N = len(y)
 
