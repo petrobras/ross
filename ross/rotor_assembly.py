@@ -12,7 +12,6 @@ from plotly import graph_objects as go
 from scipy import io as sio
 from scipy import linalg as la
 from scipy import signal as signal
-from scipy.integrate import cumulative_trapezoid as integrate
 from scipy.linalg import lu_factor, lu_solve
 from scipy.optimize import newton
 from scipy.signal import chirp
@@ -68,6 +67,7 @@ from ross.utils import (
     intersection,
     newmark,
     remove_dofs,
+    make_speed_array,
 )
 
 from ross.harmonic_balance import HarmonicBalance
@@ -209,10 +209,17 @@ class Rotor(object):
         List with the bearing elements
     point_mass_elements: list
         List with the point mass elements
-    modal_damping: list
-        List of modal damping ratios for the first modes
-    default_damping_ratio: list
-        Float of the remaining unknown modal damping ratios
+    modal_damping_ratio: list, optional
+        List of modal damping ratio(s) for the first modes
+    default_damping_ratio: float, optional
+        Default modal damping ratio for the remaining modes.
+        Default is zero.
+    alpha : float, optional
+        Mass proportional damping factor.
+        Default is zero.
+    beta : float, optional
+        Stiffness proportional damping factor.
+        Default is zero.
     tag : str
         A tag for the rotor
 
@@ -270,8 +277,10 @@ class Rotor(object):
         min_w=None,
         max_w=None,
         rated_w=None,
-        modal_damping=None,
-        default_damping_ratio=[0.0],
+        modal_damping_ratio=None,
+        default_damping_ratio=0.0,
+        alpha=0.0,
+        beta=0.0,
         tag=None,
     ):
         self.parameters = {"min_w": min_w, "max_w": max_w, "rated_w": rated_w}
@@ -306,7 +315,7 @@ class Rotor(object):
         for i, sh in enumerate(shaft_elements):
             if sh.n is None:
                 sh.n = i
-            sh.add_tag(i)
+            sh.set_tag(i)
 
         if disk_elements is None:
             disk_elements = []
@@ -319,7 +328,8 @@ class Rotor(object):
         for elm in disk_elements + bearing_elements + point_mass_elements:
             class_name = elm.__class__.__name__
             elm_dict[class_name] = elm_dict.get(class_name, 0) + 1
-            elm.add_tag(elm_dict[class_name] - 1)
+
+            elm.set_tag(elm_dict[class_name] - 1)
 
             if isinstance(elm, BearingElement):
                 # add n_l and n_r to bearing elements
@@ -667,39 +677,9 @@ class Rotor(object):
         self.df = df
 
         # Base matrices:
-        M0 = np.zeros((self.ndof, self.ndof))
-        C0 = np.zeros((self.ndof, self.ndof))
-        K0 = np.zeros((self.ndof, self.ndof))
-        G0 = np.zeros((self.ndof, self.ndof))
-        Ksdt0 = np.zeros((self.ndof, self.ndof))
-
-        elements = list(set(self.elements).difference(self.bearing_elements))
-
-        for elm in elements:
-            dofs = list(elm.dof_global_index.values())
-
-            M0[np.ix_(dofs, dofs)] += elm.M()
-            C0[np.ix_(dofs, dofs)] += elm.C()
-            K0[np.ix_(dofs, dofs)] += elm.K()
-            G0[np.ix_(dofs, dofs)] += elm.G()
-
-            if elm in self.shaft_elements:
-                Ksdt0[np.ix_(dofs, dofs)] += elm.Kst()
-            elif elm in self.disk_elements:
-                Ksdt0[np.ix_(dofs, dofs)] += elm.Kdt()
-
-        self.M0 = M0
-        self.K0 = K0
-        # Damping configuration
-        self.modal_damping = modal_damping
-        self.default_damping_ratio = default_damping_ratio
-        self.C0 = (
-            C0
-            if self.modal_damping == None
-            else self._modal_damping(self.modal_damping)
+        self._build_base_matrices(
+            modal_damping_ratio, default_damping_ratio, alpha, beta
         )
-        self.G0 = G0
-        self.Ksdt0 = Ksdt0
 
         # Calculation of overall rotor transverse (diametral) inertia (includes only DOFs located at the shaft element DOF, excludes point masses that are outside the shaft).
         # This is only calculating Iyy. Assuming Ixx is the same.
@@ -746,7 +726,7 @@ class Rotor(object):
         node_offset = 0
 
         for i, rotor in enumerate(rotor_list):
-            rotor = copy(rotor)
+            rotor = deepcopy(rotor)
 
             # Reindex elements
             elements = rotor.elements
@@ -771,11 +751,12 @@ class Rotor(object):
             disk_elements=disk_elements,
             bearing_elements=bearing_elements,
             point_mass_elements=point_mass_elements,
+            tag="Concatenated Rotor",
         )
 
     def set_tag(self, tag):
         """Set the tag for the current rotor."""
-        self.tag = tag or "Rotor 0"
+        self.tag = tag or f"{self.__class__.__name__} 0"
 
     def _fix_nodes_pos(self, index, node, nodes_pos_l):
         """Optional override to adjust node positions.
@@ -857,13 +838,95 @@ class Rotor(object):
                     return brg.n
         return None
 
-    def _modal_damping(self, modal_damping):
+    def _build_base_matrices(
+        self, modal_damping_ratio=None, default_damping_ratio=0.0, alpha=0.0, beta=0.0
+    ):
+        """Build the base matrices for the rotor without bearings.
+
+        Parameters
+        ----------
+        modal_damping_ratio: list, optional
+            List of modal damping ratio(s) for the first modes
+        default_damping_ratio: float, optional
+            Default modal damping ratio for the remaining modes.
+            Default is zero.
+        alpha : float, optional
+            Mass proportional damping factor.
+            Default is zero.
+        beta : float, optional
+            Stiffness proportional damping factor.
+            Default is zero.
+        """
+        M0 = np.zeros((self.ndof, self.ndof))
+        K0 = np.zeros((self.ndof, self.ndof))
+        C0 = np.zeros((self.ndof, self.ndof))
+        G0 = np.zeros((self.ndof, self.ndof))
+        Ksdt0 = np.zeros((self.ndof, self.ndof))
+
+        elements = list(set(self.elements).difference(self.bearing_elements))
+
+        for elm in elements:
+            dofs = list(elm.dof_global_index.values())
+
+            M0[np.ix_(dofs, dofs)] += elm.M()
+            K0[np.ix_(dofs, dofs)] += elm.K()
+            C0[np.ix_(dofs, dofs)] += elm.C()
+            G0[np.ix_(dofs, dofs)] += elm.G()
+
+            if elm in self.shaft_elements:
+                Ksdt0[np.ix_(dofs, dofs)] += elm.Kst()
+            elif elm in self.disk_elements:
+                Ksdt0[np.ix_(dofs, dofs)] += elm.Kdt()
+
+        self.M0 = M0
+        self.K0 = K0
+        self.G0 = G0
+        self.Ksdt0 = Ksdt0
+
+        # Damping configuration
+        damping_global = (alpha != 0) or (beta != 0)
+        damping_elemental = np.any(C0)
+        damping_modal = modal_damping_ratio is not None
+
+        self.modal_damping_ratio = modal_damping_ratio
+        self.default_damping_ratio = default_damping_ratio
+
+        self.alpha = float(alpha) if alpha is not None else 0.0
+        self.beta = float(beta) if beta is not None else 0.0
+
+        if sum((damping_global, damping_elemental, damping_modal)) > 1:
+            warnings.warn(
+                "More than one type of damping was provided. "
+                "Global proportional damping has been chosen as the default, "
+                "and the others will be ignored.",
+                category=UserWarning,
+            )
+            damping_elemental = False
+            damping_modal = False
+
+        if damping_elemental:
+            self.alpha = 0.0
+            self.beta = 0.0
+        elif damping_modal:
+            self.alpha = 0.0
+            self.beta = 0.0
+            C0 = self._compute_modal_damping(modal_damping_ratio, default_damping_ratio)
+        else:
+            C0 = self.alpha * M0 + self.beta * K0
+
+        self.C0 = C0
+
+    def _compute_modal_damping(self, modal_damping_ratio, default_damping_ratio=0.0):
         """Compute the physical damping matrix from modal damping ratios.
 
         Parameters
         ----------
-        modal_damping : float or array-like
+        modal_damping_ratio : float or array-like
             Modal damping ratio(s) to apply to flexible modes (ξ).
+        default_damping_ratio : float, optional
+            Default modal damping ratio for the remaining modes.
+            Default is zero.
+
         Returns
         -------
         C0 : np.ndarray
@@ -878,13 +941,15 @@ class Rotor(object):
 
         w = np.sqrt(evals.real)
         below_1rpm = Q_(np.sort(w), "rad/s").to("RPM").m < 1
-        modal_damping = np.block([np.zeros(below_1rpm.sum()), np.array(modal_damping)])
+        modal_damping = np.block(
+            [np.zeros(below_1rpm.sum()), np.array(modal_damping_ratio)]
+        )
         idx = np.argsort(w)
         w = w[idx]
         phi = evecs[:, idx]
 
         # Full damping vector (pad with zeros if needed)
-        full_xi = np.ones(w.shape) * np.array(self.default_damping_ratio)
+        full_xi = np.ones(w.shape) * default_damping_ratio
         full_xi[: len(modal_damping)] = modal_damping
 
         # Modal damping matrix: C_modal = diag(2 * ξ_i * ω_i)
@@ -1530,10 +1595,10 @@ class Rotor(object):
         --------
         >>> rotor = compressor_example()
         >>> rotor.C(0)[:4, :4]
-        array([[0., 0., 0., 0.],
-               [0., 0., 0., 0.],
-               [0., 0., 0., 0.],
-               [0., 0., 0., 0.]])
+        array([[ 0.,  0.,  0.,  0.],
+               [ 0.,  0.,  0., -0.],
+               [ 0.,  0.,  0.,  0.],
+               [ 0., -0.,  0.,  0.]])
         """
         C0 = self.C0.copy()
 
@@ -2400,11 +2465,7 @@ class Rotor(object):
         array([     0.        ,   7632.15353293, -43492.18127561])
         """
 
-        if not isinstance(omega, Iterable):
-            omega = np.full_like(t, omega)
-
-        theta = integrate(omega, t, initial=0)
-        alpha = np.gradient(omega, t)
+        omega, theta, alpha = make_speed_array(omega, t)
 
         F0 = np.zeros((self.ndof, len(t)))
 
@@ -2835,8 +2896,7 @@ class Rotor(object):
         F = reduction[1](F.T).T
 
         # Check if there is any magnetic bearing
-        rotor, magnetic_force, amb_data = self._init_ambs_for_integrate(t, **kwargs)
-        xout.append(amb_data)
+        rotor, magnetic_force = self._init_ambs_for_integrate(t, xout, **kwargs)
 
         # Consider any additional RHS function (extra forces)
         add_to_RHS = kwargs.get("add_to_RHS")
@@ -2847,8 +2907,8 @@ class Rotor(object):
                 + reduction[1](
                     magnetic_force(
                         step,
-                        curr_state.get("dt"),
-                        reduction[2](curr_state.get("y")),
+                        curr_state.get("time_step"),
+                        reduction[2](curr_state.get("disp_resp")),
                     )
                 )
             )
@@ -2858,31 +2918,32 @@ class Rotor(object):
                 + reduction[1](
                     add_to_RHS(
                         step,
-                        time_step=curr_state.get("dt"),
-                        disp_resp=reduction[2](curr_state.get("y")),
-                        velc_resp=reduction[2](curr_state.get("ydot")),
-                        accl_resp=reduction[2](curr_state.get("y2dot")),
+                        time_step=curr_state.get("time_step"),
+                        disp_resp=reduction[2](curr_state.get("disp_resp")),
+                        velc_resp=reduction[2](curr_state.get("velc_resp")),
+                        accl_resp=reduction[2](curr_state.get("accl_resp")),
+                        args=curr_state.get("args"),
                     )
                     + magnetic_force(
                         step,
-                        curr_state.get("dt"),
-                        reduction[2](curr_state.get("y")),
+                        curr_state.get("time_step"),
+                        reduction[2](curr_state.get("disp_resp")),
                     )
                 )
             )
 
-        rotor_system = self._rotor_system_for_integrate(
-            rotor, speed, t, reduction[0], forces, **kwargs
+        rotor_system, rhs_func = self._rotor_system_for_integrate(
+            rotor, speed, t, reduction, forces, **kwargs
         )
 
         size = F.shape[1]
-        response = newmark(rotor_system, t, size, **kwargs)
+        response = newmark(rotor_system, rhs_func, t, size, **kwargs)
         yout = reduction[2](response.T).T
 
         return t, yout, xout
 
     def _rotor_system_for_integrate(
-        self, rotor, speed, t, reduce_matrix, forces, **kwargs
+        self, rotor, speed, t, reduce_model, forces, **kwargs
     ):
         """Build rotor system for integrate method."""
         # Check if speed is array
@@ -2890,6 +2951,7 @@ class Rotor(object):
         speed_ref = np.mean(speed) if speed_is_array else speed
 
         # Assemble matrices
+        reduce_matrix = reduce_model[0]
         M = reduce_matrix(kwargs.get("M", self.M()))
         C2 = reduce_matrix(kwargs.get("G", self.G()))
         K2 = reduce_matrix(kwargs.get("Ksdt", self.Ksdt()))
@@ -2942,9 +3004,9 @@ class Rotor(object):
                 forces(step, **current_state),
             )
 
-        return rotor_system
+        return rotor_system, forces
 
-    def _init_ambs_for_integrate(self, t, **kwargs):
+    def _init_ambs_for_integrate(self, t, xout, **kwargs):
         """
         Prepare the magnetic bearing components and force function used during
         time-domain integration.
@@ -2963,6 +3025,8 @@ class Rotor(object):
             Time array. The time increment `dt` is derived from this array
             (dt = t[1] - t[0]) and passed to each magnetic bearing so it
             can configure its control law.
+        xout : list
+            A list to which the method appends `amb_data`.
         **kwargs : dict
             Additional parameters forwarded to the magnetic bearing controller
             when the magnetic forces are computed.
@@ -2987,19 +3051,18 @@ class Rotor(object):
         vectors. Each bearing's controller is rebuilt based on the provided
         time increment.
         """
-        dt = t[1] - t[0]
         magnetic_bearings = get_ambs(self)
 
-        amb_data = {
-            key: np.zeros((len(t), len(magnetic_bearings) * 2))
-            for key in ["x_amb", "v_amb", "F_x", "F_v", "I"]
-        }
-
-        kwargs["amb_data"] = amb_data
-
-        rotor = deepcopy(self)
-
         if len(magnetic_bearings):
+            rotor = deepcopy(self)
+
+            amb_data = {
+                key: np.zeros((len(t), len(magnetic_bearings) * 2))
+                for key in ["x_amb", "v_amb", "F_x", "F_v", "I"]
+            }
+
+            kwargs["amb_data"] = amb_data
+
             magnetic_force = lambda step, time_step, disp_resp: (
                 self.magnetic_bearing_controller(
                     step, magnetic_bearings, time_step, disp_resp, **kwargs
@@ -3007,6 +3070,7 @@ class Rotor(object):
             )
 
             # Initialize storage attributes for magnetic bearings
+            dt = t[1] - t[0]
             for brg in magnetic_bearings:
                 brg.integral = [0, 0]
                 brg.e0 = [0, 0]
@@ -3016,10 +3080,13 @@ class Rotor(object):
                 brg for brg in rotor.bearing_elements if brg not in magnetic_bearings
             ]
 
+            xout.append(amb_data)
+
         else:
+            rotor = self
             magnetic_force = lambda step, time_step, disp_resp: np.zeros(self.ndof)
 
-        return rotor, magnetic_force, amb_data
+        return rotor, magnetic_force
 
     def time_response(self, speed, F, t, ic=None, method="default", **kwargs):
         """Time response for a rotor.
@@ -3064,26 +3131,21 @@ class Rotor(object):
         >>> size = 28
         >>> t = np.linspace(0, 5, size)
         >>> F = np.ones((size, rotor.ndof))
-        >>> time_response = rotor.time_response(speed, F, t)
-        >>> time_response.yout  # doctest: +ELLIPSIS
-        array([[ 0.00000000e+00,  0.00000000e+00,  0.00000000e+00, ...
+        >>> rotor.time_response(speed, F, t) # doctest: +ELLIPSIS
+        (array([0.        , 0.18518519, 0.37037037, ...
         """
-
         F = self._introduce_weight_force(F, **kwargs)
 
         if isinstance(speed, Iterable) or method.lower() == "newmark":
-            t_, yout, xout = self.integrate_system(speed, F, t, **kwargs)
-            return self.build_time_response(t_, yout, xout)
+            return self.integrate_system(speed, F, t, **kwargs)
 
         elif has_ambs(self):
             sim = AmbTimeResponse(self, t=t, speed=speed, F=F, **kwargs)
-            t_, yout, xout = sim.run()
-            return AmbTimeResponseResults(self, t_, yout, xout)
+            return sim.run()
 
         else:
             lti = self._lti(speed)
-            t_, yout, xout = signal.lsim(lti, F, t, X0=ic)
-            return TimeResponseResults(self, t_, yout, xout)
+            return signal.lsim(lti, F, t, X0=ic)
 
     def _introduce_weight_force(self, F, **kwargs):
         """Include the weight force in the force array.
@@ -3110,40 +3172,6 @@ class Rotor(object):
             F += np.tile(W, (F.shape[0], 1))
 
         return F
-
-    def build_time_response(self, t, yout, xout):
-        """Build time response results object.
-
-        This method constructs and returns either a `TimeResponseResults`
-        or an `AmbTimeResponseResults` object based on whether active
-        magnetic bearing (AMB) data is provided.
-
-        Parameters
-        ----------
-        t : array
-            Time array.
-        yout : array
-            Time response output array.
-        xout : array or list
-            Time evolution of the state vector or list containing AMB data.
-
-        Returns
-        -------
-        results : ross.TimeResponseResults or ross.AmbTimeResponseResults
-            The constructed time response results object.
-        """
-        if len(xout) == 0:
-            return TimeResponseResults(self, t, yout, [])
-
-        else:
-            amb_data = xout[0]
-            x_amb = amb_data["x_amb"]
-            v_amb = amb_data["v_amb"]
-            F_x = amb_data["F_x"]
-            F_y = amb_data["F_v"]
-            I = amb_data["I"]
-            xout = [x_amb, v_amb, F_x, F_y, I]
-            return AmbTimeResponseResults(self, t, yout, xout)
 
     def plot_rotor(self, nodes=1, check_sld=False, length_units="m", **kwargs):
         """Plot a rotor object.
@@ -4182,7 +4210,19 @@ class Rotor(object):
         >>> # plot orbit response - plotting 3D orbits - full rotor model:
         >>> fig3 = response.plot_3d()
         """
-        return self.time_response(speed, F, t, method=method, **kwargs)
+        t_, yout, xout = self.time_response(speed, F, t, method=method, **kwargs)
+
+        if has_ambs(self):
+            if isinstance(xout[0], dict):
+                amb = xout[0]
+                xout = [amb["x_amb"], amb["v_amb"], amb["F_x"], amb["F_v"], amb["I"]]
+
+            results = AmbTimeResponseResults(self, t_, yout, xout)
+
+        else:
+            results = TimeResponseResults(self, t, yout, xout)
+
+        return results
 
     @check_units
     def run_harmonic_balance_response(
@@ -5498,6 +5538,17 @@ class CoAxialRotor(Rotor):
     shaft_start_pos : list
         List indicating the initial node position for each shaft.
         Default is zero for each shaft created.
+    modal_damping_ratio: list, optional
+        List of modal damping ratio(s) for the first modes
+    default_damping_ratio: float, optional
+        Default modal damping ratio for the remaining modes.
+        Default is zero.
+    alpha : float, optional
+        Mass proportional damping factor.
+        Default is zero.
+    beta : float, optional
+        Stiffness proportional damping factor.
+        Default is zero.
     tag : str
         A tag for the rotor
 
@@ -5569,6 +5620,10 @@ class CoAxialRotor(Rotor):
         min_w=None,
         max_w=None,
         rated_w=None,
+        modal_damping_ratio=None,
+        default_damping_ratio=0.0,
+        alpha=0.0,
+        beta=0.0,
         tag=None,
     ):
         self.parameters = {"min_w": min_w, "max_w": max_w, "rated_w": rated_w}
@@ -6038,33 +6093,10 @@ class CoAxialRotor(Rotor):
 
         self.df = df
 
-        # Build matrices considering all elements excluding bearing_elements:
-        M0 = np.zeros((self.ndof, self.ndof))
-        C0 = np.zeros((self.ndof, self.ndof))
-        K0 = np.zeros((self.ndof, self.ndof))
-        G0 = np.zeros((self.ndof, self.ndof))
-        Ksdt0 = np.zeros((self.ndof, self.ndof))
-
-        elements = list(set(self.elements).difference(self.bearing_elements))
-
-        for elm in elements:
-            dofs = list(elm.dof_global_index.values())
-
-            M0[np.ix_(dofs, dofs)] += elm.M()
-            C0[np.ix_(dofs, dofs)] += elm.C()
-            K0[np.ix_(dofs, dofs)] += elm.K()
-            G0[np.ix_(dofs, dofs)] += elm.G()
-
-            if elm in self.shaft_elements:
-                Ksdt0[np.ix_(dofs, dofs)] += elm.Kst()
-            elif elm in self.disk_elements:
-                Ksdt0[np.ix_(dofs, dofs)] += elm.Kdt()
-
-        self.M0 = M0
-        self.C0 = C0
-        self.K0 = K0
-        self.G0 = G0
-        self.Ksdt0 = Ksdt0
+        # Base matrices:
+        self._build_base_matrices(
+            modal_damping_ratio, default_damping_ratio, alpha, beta
+        )
 
 
 def rotor_example():
@@ -6263,8 +6295,6 @@ def rotor_example_6dof():
             i_d,
             o_d,
             material=steel,
-            alpha=0,
-            beta=0,
             rotary_inertia=False,
             shear_effects=False,
         )
@@ -6324,8 +6354,6 @@ def rotor_example_with_damping():
             i_d,
             o_d,
             material=steel2,
-            alpha=8.0501,
-            beta=1.0e-5,
             rotary_inertia=True,
             shear_effects=True,
         )
@@ -6346,4 +6374,6 @@ def rotor_example_with_damping():
         n=31, kxx=9.50e5, kyy=1.09e8, cxx=50.4, cyy=100.4553, kzz=0, czz=0
     )
 
-    return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
+    return Rotor(
+        shaft_elem, [disk0, disk1], [bearing0, bearing1], alpha=8.0501, beta=1.0e-5
+    )
