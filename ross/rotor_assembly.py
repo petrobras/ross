@@ -20,7 +20,6 @@ from scipy.sparse import linalg as las
 from ross.bearing_seal_element import (
     BallBearingElement,
     BearingElement,
-    BearingFluidFlow,
     CylindricalBearing,
     MagneticBearingElement,
     RollerBearingElement,

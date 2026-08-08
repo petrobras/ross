@@ -22,6 +22,8 @@ from .multi_rotor.mesh import *
 from .bearings.magnetic.amb_models import *
 from ross.bearings.lubricants import lubricants_dict
 from ross.bearings.bearing_results import *
+from ross.bearings.fluid_film_bearing import *
+from ross.bearings.fixed_geometry import *
 from ross.bearings.plain_journal import *
 from ross.bearings.thrust_pad import *
 from ross.bearings.tilting_pad import *
