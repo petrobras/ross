@@ -701,10 +701,10 @@ class MultiRotor(Rotor):
         --------
         >>> multi_rotor = two_shaft_rotor_example()
         >>> multi_rotor.C(0)[:4, :4] / 1e3
-        array([[3., 0., 0., 0.],
-               [0., 3., 0., 0.],
-               [0., 0., 0., 0.],
-               [0., 0., 0., 0.]])
+        array([[ 3.,  0.,  0.,  0.],
+               [ 0.,  3.,  0., -0.],
+               [ 0.,  0.,  0.,  0.],
+               [ 0., -0.,  0.,  0.]])
         """
 
         return self._join_matrices(
