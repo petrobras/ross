@@ -84,6 +84,12 @@ user_guide/user_guide
 
 ```{toctree}
 :maxdepth: 1
+:caption: Validation
+validation
+```
+
+```{toctree}
+:maxdepth: 1
 :caption: References
 references/api
 ```
