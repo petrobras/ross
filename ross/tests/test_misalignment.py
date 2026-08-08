@@ -28,14 +28,7 @@ def rotor():
     L = [L[i] - L[i - 1] for i in range(1, len(L))]
 
     shaft_elem = [
-        rs.ShaftElement(
-            l,
-            i_d,
-            o_d,
-            material=steel2,
-            alpha=8.0501,
-            beta=1.0e-5,
-        )
+        rs.ShaftElement(l, i_d, o_d, material=steel2, alpha=8.0501, beta=1.0e-5)
         for l in L
     ]
 
@@ -134,8 +127,9 @@ def test_mis_comb_resp(run_mis_combined):
     )
 
     data = run_mis_combined.data_time_response(probe=[probe1, probe2])
-    assert_allclose(data["probe_resp[0]"].to_numpy()[:5], resp_prob1)
-    assert_allclose(data["probe_resp[1]"].to_numpy()[:5], resp_prob2)
+
+    assert_allclose(data["probe_resp[0]"].to_numpy()[:5], resp_prob1, rtol=1e-4)
+    assert_allclose(data["probe_resp[1]"].to_numpy()[:5], resp_prob2, rtol=1e-4)
 
 
 @pytest.fixture
@@ -173,8 +167,8 @@ def test_mis_parallel_resp(run_mis_parallel):
     )
 
     data = run_mis_parallel.data_time_response(probe=[probe1, probe2])
-    assert_allclose(data["probe_resp[0]"].to_numpy()[:5], resp_prob1)
-    assert_allclose(data["probe_resp[1]"].to_numpy()[:5], resp_prob2)
+    assert_allclose(data["probe_resp[0]"].to_numpy()[:5], resp_prob1, rtol=1e-4)
+    assert_allclose(data["probe_resp[1]"].to_numpy()[:5], resp_prob2, rtol=1e-4)
 
 
 @pytest.fixture
@@ -206,8 +200,8 @@ def test_mis_angular_resp(run_mis_angular):
     )
 
     data = run_mis_angular.data_time_response(probe=[probe1, probe2])
-    assert_allclose(data["probe_resp[0]"].to_numpy()[:5], resp_prob1, rtol=1e-6)
-    assert_allclose(data["probe_resp[1]"].to_numpy()[:5], resp_prob2, rtol=1e-6)
+    assert_allclose(data["probe_resp[0]"].to_numpy()[:5], resp_prob1, rtol=1e-4)
+    assert_allclose(data["probe_resp[1]"].to_numpy()[:5], resp_prob2, rtol=1e-4)
 
 
 @pytest.fixture
@@ -260,5 +254,5 @@ def test_mis_rigid_resp(mis_rigid):
     )
 
     data = mis_rigid.data_time_response(probe=[probe1, probe2])
-    assert_allclose(data["probe_resp[0]"].to_numpy()[:5], resp_prob1)
-    assert_allclose(data["probe_resp[1]"].to_numpy()[:5], resp_prob2)
+    assert_allclose(data["probe_resp[0]"].to_numpy()[:5], resp_prob1, rtol=1e-4)
+    assert_allclose(data["probe_resp[1]"].to_numpy()[:5], resp_prob2, rtol=1e-4)

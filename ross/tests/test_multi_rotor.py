@@ -8,7 +8,8 @@ import ross as rs
 
 @pytest.fixture
 def multi_rotor():
-    # A spur geared two-shaft rotor system.
+    """A spur geared two-shaft rotor system."""
+
     material = rs.Material(name="mat_steel", rho=7800, E=207e9, G_s=79.5e9)
 
     # Rotor 1
@@ -305,6 +306,107 @@ def test_coupling_matrix_gear(multi_rotor):
         ]
     )
 
-    assert_allclose(
-        multi_rotor.coupling_matrix(), coupling_matrix, rtol=1e-6, atol=1e-5
+    assert_allclose(multi_rotor.K_coupling, coupling_matrix, rtol=1e-6, atol=1e-5)
+
+
+@pytest.fixture
+def multi_rotor_with_backlash():
+
+    steel = rs.Material(name="Steel", rho=7850, E=2e11, Poisson=0.3)
+    steel_stiff = rs.Material(name="Steel_Stiff", rho=0.01, E=1e15, Poisson=0.3)
+    shaft = rs.ShaftElement(n=0, L=0.0001, idl=0.0, odl=0.0001, material=steel_stiff)
+
+    kxx = kyy = 1.0e8
+    cxx = cyy = 512.64
+    bearing = rs.BearingElement(n=0, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy)
+
+    n_teeth = 20
+    module = 0.01
+    pitch_diam = module * n_teeth
+    width = 0.030
+    m = 6.57
+
+    gear = rs.GearElementTVMS(
+        n=0,
+        material=steel,
+        width=width,
+        bore_diameter=np.sqrt(pitch_diam**2 - (4 * m) / (np.pi * width * steel.rho)),
+        module=module,
+        n_teeth=n_teeth,
+        pr_angle=rs.Q_(20.0, "deg"),
+        helix_angle=0,
+        addendum_coeff=1,
+        tip_clearance_coeff=0.25,
     )
+
+    rotor1 = rs.Rotor(
+        shaft_elements=[shaft], disk_elements=[gear], bearing_elements=[bearing]
+    )
+
+    rotor2 = deepcopy(rotor1)
+
+    return rs.MultiRotor(
+        driving_rotor=rotor1,
+        driven_rotor=rotor2,
+        coupled_nodes=(0, 0),
+        square_varying_stiffness={"enable": True, "amplitude_ratio": 0.275},
+        backlash={
+            "enable": True,
+            "initial_value": 5e-5,
+            "error_amp": 2e-5,
+            "smooth_operator": False,
+            "sigma": 1e5,
+        },
+        orientation_angle=0.0,
+        position="above",
+    )
+
+
+def test_mesh_with_backlash(multi_rotor_with_backlash):
+    T10, T1a = 300.0, 100.0
+    T20, T2a = 300.0, 100.0
+
+    speed = rs.Q_(1000, "RPM").to("rad/s").m
+    Tm = 2 * np.pi / speed
+
+    tf = 0.25
+    n_cycles = int(np.ceil(tf / Tm))
+    n_points = 6000
+
+    t = np.linspace(0, n_cycles * Tm, n_cycles * n_points)
+
+    nodes = [
+        int(e.n)
+        for e in multi_rotor_with_backlash.disk_elements
+        if isinstance(e, rs.GearElement)
+    ]
+
+    w1 = speed
+    w2 = multi_rotor_with_backlash.mesh.gear_ratio * w1
+    num_dof = multi_rotor_with_backlash.number_dof
+
+    F = np.zeros((len(t), multi_rotor_with_backlash.ndof))
+    F[:, nodes[0] * num_dof + 5] = T10 + T1a * np.sin(w1 * t)
+    F[:, nodes[1] * num_dof + 5] = T20 + T2a * np.sin(w2 * t)
+
+    results = multi_rotor_with_backlash.run_time_response(
+        speed=speed, t=t, F=F, method="newmark", newmark_type="robust"
+    )
+
+    dte = 7.152756140961932e-05
+    bt = 6.497875817066328e-05
+    Fm = 3191.99620748778
+    km = 517925405.2396409
+    d = 0.20004375431223567
+    alpha = 0.34966621486324245
+    cr = 1.5525088765723407
+
+    mesh_results = results.mesh_dynamics
+
+    assert_allclose(np.mean(mesh_results["transmission_error"]), dte, rtol=1e-4)
+    assert_allclose(np.mean(mesh_results["backlash"]), bt, rtol=1e-2)
+    assert_allclose(np.mean(mesh_results["mesh_force"]), Fm, rtol=1e-2)
+    assert_allclose(np.mean(mesh_results["mesh_stiffness"]), km, rtol=1e-2)
+    assert_allclose(np.mean(mesh_results["center_distance"]), d, rtol=1e-2)
+    assert_allclose(np.mean(mesh_results["pressure_angle"]), alpha, rtol=1e-2)
+    assert_allclose(np.mean(mesh_results["contact_ratio"]), cr, rtol=1e-2)
