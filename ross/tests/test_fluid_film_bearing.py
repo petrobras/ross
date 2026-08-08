@@ -146,7 +146,7 @@ def test_plots(fixture_bearing):
         "plot_pressure_2d",
         "plot_pressure_3d",
         "plot_temperature_2d",
-        "plot_temperature_3d",
+        "plot_film_temperature_3d",
         "plot_film_thickness_2d",
     ):
         fig = getattr(bearing, method)()
@@ -157,8 +157,11 @@ def test_plots(fixture_bearing):
         "pressure_2d",
         "pressure_3d",
         "temperature_2d",
-        "temperature_3d",
+        "film_temperature_3d",
     }
+    with pytest.warns(DeprecationWarning, match="plot_film_temperature_3d"):
+        fig = bearing.plot_temperature_3d()
+    assert isinstance(fig, go.Figure)
 
 
 def test_multi_speed_and_parallel():

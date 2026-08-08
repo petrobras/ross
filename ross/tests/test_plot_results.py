@@ -481,10 +481,16 @@ def test_thrust_pad_plot_pressure_2d(thrust_pad_results):
     )
 
 
-def test_thrust_pad_plot_temperature_3d(thrust_pad_results):
-    fig = thrust_pad_results.plot_temperature_3d()
+def test_thrust_pad_plot_film_temperature_3d(thrust_pad_results):
+    fig = thrust_pad_results.plot_film_temperature_3d()
     assert_plotly_figure(fig)
     assert_surface_z_matches(fig.data[0], thrust_pad_results.temperature_fields[0])
+
+
+def test_plot_temperature_3d_deprecated_alias(thrust_pad_results):
+    with pytest.warns(DeprecationWarning, match="plot_film_temperature_3d"):
+        fig = thrust_pad_results.plot_temperature_3d()
+    assert_plotly_figure(fig)
 
 
 def test_squeeze_film_damper_field_plots_not_available():

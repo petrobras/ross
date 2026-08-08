@@ -1,3 +1,4 @@
+import warnings
 from abc import ABC, abstractmethod
 
 import numpy as np
@@ -102,14 +103,14 @@ class BearingResults(ABC):
         -------
         figures : dict
             Dictionary with keys ``"pressure_2d"``, ``"pressure_3d"``,
-            ``"temperature_2d"``, and ``"temperature_3d"``.  Each value is a
-            ``plotly.graph_objects.Figure``.
+            ``"temperature_2d"``, and ``"film_temperature_3d"``.  Each value
+            is a ``plotly.graph_objects.Figure``.
         """
         figures = {
             "pressure_2d": self.plot_pressure_2d(freq_index=freq_index),
             "pressure_3d": self.plot_pressure_3d(freq_index=freq_index),
             "temperature_2d": self.plot_temperature_2d(freq_index=freq_index),
-            "temperature_3d": self.plot_temperature_3d(freq_index=freq_index),
+            "film_temperature_3d": self.plot_film_temperature_3d(freq_index=freq_index),
         }
 
         if show_plots:
@@ -172,8 +173,11 @@ class BearingResults(ABC):
         """
 
     @abstractmethod
-    def plot_temperature_3d(self, freq_index=0, fig=None, **kwargs):
-        """Return a 3-D surface plot of the temperature field.
+    def plot_film_temperature_3d(self, freq_index=0, fig=None, **kwargs):
+        """Return a 3-D surface plot of the oil film temperature field.
+
+        The plotted quantity is the temperature of the lubricant film.
+        Solid (pad) temperatures are not shown here.
 
         Parameters
         ----------
@@ -186,6 +190,27 @@ class BearingResults(ABC):
         -------
         fig : go.Figure
         """
+
+    def plot_temperature_3d(self, *args, **kwargs):
+        """Deprecated alias for :meth:`plot_film_temperature_3d`.
+
+        .. deprecated:: 2.4.0
+            ``plot_temperature_3d`` is deprecated and will be removed in a
+            future version.  Use ``plot_film_temperature_3d`` instead, which
+            states explicitly that the plotted field is the oil film
+            temperature.
+
+        Returns
+        -------
+        fig : go.Figure
+        """
+        warnings.warn(
+            "plot_temperature_3d is deprecated and will be removed in a future "
+            "version. Use plot_film_temperature_3d instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.plot_film_temperature_3d(*args, **kwargs)
 
     @abstractmethod
     def plot_temperature_2d(self, freq_index=0, fig=None, **kwargs):
@@ -604,8 +629,8 @@ class ThrustPadResults(BearingResults):
 
         return fig
 
-    def plot_temperature_3d(self, freq_index=0, fig=None, **kwargs):
-        """Return a 3-D surface plot of the temperature field.
+    def plot_film_temperature_3d(self, freq_index=0, fig=None, **kwargs):
+        """Return a 3-D surface plot of the oil film temperature field.
 
         Parameters
         ----------
@@ -783,7 +808,7 @@ class SqueezeFilmDamperResults(BearingResults):
 
     The SFD uses closed-form analytical expressions; no numerical pressure or
     temperature fields are solved.  The four abstract field-plot methods
-    (``plot_pressure_3d``, ``plot_pressure_2d``, ``plot_temperature_3d``,
+    (``plot_pressure_3d``, ``plot_pressure_2d``, ``plot_film_temperature_3d``,
     ``plot_temperature_2d``) therefore raise ``NotImplementedError``.  Use
     ``plot_coefficients()`` to visualise the computed results.
 
@@ -1022,7 +1047,7 @@ class SqueezeFilmDamperResults(BearingResults):
             "is computed.  Use plot_coefficients() instead."
         )
 
-    def plot_temperature_3d(self, freq_index=0, fig=None, **kwargs):
+    def plot_film_temperature_3d(self, freq_index=0, fig=None, **kwargs):
         """Not available for SqueezeFilmDamper (analytical model).
 
         Raises
@@ -1247,7 +1272,9 @@ class FluidFilmBearingResults(BearingResults):
             **kwargs,
         )
 
-    def plot_temperature_3d(self, freq_index=0, pad_index=None, fig=None, **kwargs):
+    def plot_film_temperature_3d(
+        self, freq_index=0, pad_index=None, fig=None, **kwargs
+    ):
         """Return a 3-D surface plot of the film temperature field.
 
         Parameters
