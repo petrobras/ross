@@ -14,6 +14,7 @@ from plotly import graph_objects as go
 from scipy import interpolate as interpolate
 
 from ross.element import Element
+from ross.plotly_theme import color_shades
 from ross.bearings import fluid_flow as flow
 from ross.bearings.fluid_flow_coefficients import (
     calculate_stiffness_and_damping_coefficients,
@@ -50,6 +51,9 @@ class BearingElement(Element):
         Extra instance attributes to persist on save/load, beyond __init__
         parameters and coefficients. Subclasses can extend this to include
         derived quantities that are expensive to recompute.
+    _legend_group : str
+        Name of the legend entry under which the element is drawn in
+        :py:meth:`ross.Rotor.plot_rotor`.
     For speed dependent parameters, each argument should be passed
     as an array and the correspondent speed values should also be
     passed as an array.
@@ -141,6 +145,7 @@ class BearingElement(Element):
     """
 
     _save_attrs = []
+    _legend_group = "Bearing"
 
     @check_units
     def __init__(
@@ -893,11 +898,15 @@ class BearingElement(Element):
         """Bearing element patch.
 
         Patch that will be used to draw the bearing element using Plotly library.
+        The bearing is drawn as a pedestal reaching from the shaft surface to
+        its support, closed by a ground bar when it is not linked to another
+        element.
 
         Parameters
         ----------
         position : tuple
-            Position (z, y_low, y_upp) in which the patch will be drawn.
+            Position (z, y_low, y_upp, y_center) in which the patch will be
+            drawn.
         fig : plotly.graph_objects.Figure
             The figure object which traces are added on.
 
@@ -906,143 +915,76 @@ class BearingElement(Element):
         fig : plotly.graph_objects.Figure
             The figure object which traces are added on.
         """
-        default_values = dict(
-            mode="lines",
-            line=dict(width=1, color=self.color),
-            name=self.tag,
-            legendgroup="bearings",
-            showlegend=False,
-            hoverinfo="none",
-        )
-
-        # geometric factors
         zpos, ypos, ypos_s, yc_pos = position
+        shades = color_shades(self.color)
 
-        icon_h = ypos_s - ypos  # bearing icon height
-        icon_w = icon_h / 2.0  # bearing icon width
-        coils = 6  # number of points to generate spring
-        n = 5  # number of ground lines
-        step = icon_w / (coils + 1)  # spring step
+        icon_h = ypos_s - ypos
+        icon_w = 0.22 * icon_h
 
-        zs0 = zpos - (icon_w / 3.5)
-        zs1 = zpos + (icon_w / 3.5)
-        ys0 = ypos + 0.25 * icon_h
+        x_body = []
+        y_body = []
+        x_ground = []
+        y_ground = []
+        for sign in (1, -1):
+            y0 = sign * ypos + yc_pos
+            y1 = sign * ypos_s + yc_pos
+            y_neck = y0 + sign * 0.16 * icon_h
+            x_body += [zpos, zpos - icon_w, zpos - icon_w, zpos + icon_w, zpos + icon_w]
+            x_body += [zpos, None]
+            y_body += [y0, y_neck, y1, y1, y_neck, y0, None]
+            x_ground += [zpos - 1.3 * icon_w, zpos + 1.3 * icon_w, None]
+            y_ground += [y1, y1, None]
 
-        # plot bottom base
-        x_bot = [zpos, zpos, zs0, zs1]
-        yl_bot = [ypos, ys0, ys0, ys0]
-        yu_bot = [-y for y in yl_bot]
-        fig.add_trace(go.Scatter(x=x_bot, y=np.add(yl_bot, yc_pos), **default_values))
-        fig.add_trace(go.Scatter(x=x_bot, y=np.add(yu_bot, yc_pos), **default_values))
-
-        # Add hover information marker at the center of bottom base
         customdata, hovertemplate = self._hover_info()
-        # Scale marker size proportionally to the bearing icon height
-        # icon_h already includes the scale_factor effect from rotor assembly
-        marker_size = icon_h * 200  # proportional to actual bearing size
-        hover_marker_values_top = dict(
-            mode="markers",
-            x=[zpos],
-            y=[ypos + icon_h / 2],
-            marker=dict(size=marker_size, color=self.color, opacity=0),
-            customdata=[customdata],
-            hovertemplate=hovertemplate,
-            hoverinfo="text",
-            name=self.tag,
-            legendgroup="bearings",
-            showlegend=False,
+
+        fig.add_trace(
+            go.Scatter(
+                x=x_body,
+                y=y_body,
+                mode="lines",
+                fill="toself",
+                fillcolor=shades["dark"],
+                line=dict(width=1.0, color=shades["edge"]),
+                name=self.tag,
+                legendgroup=self._legend_group,
+                showlegend=False,
+                hoverinfo="skip",
+            )
         )
-        fig.add_trace(go.Scatter(**hover_marker_values_top))
-        # copy the customdata and hovertemplate from the top marker just multiplying the y value by -1
-        hover_marker_values_bottom = hover_marker_values_top.copy()
-        hover_marker_values_bottom["y"] = [-1 * hover_marker_values_top["y"][0]]
-        fig.add_trace(go.Scatter(**hover_marker_values_bottom))
 
-        # plot top base
-        x_top = [zpos, zpos, zs0, zs1]
-        yl_top = [
-            ypos + icon_h,
-            ypos + 0.75 * icon_h,
-            ypos + 0.75 * icon_h,
-            ypos + 0.75 * icon_h,
-        ]
-        yu_top = [-y for y in yl_top]
-        fig.add_trace(go.Scatter(x=x_top, y=np.add(yl_top, yc_pos), **default_values))
-        fig.add_trace(go.Scatter(x=x_top, y=np.add(yu_top, yc_pos), **default_values))
-
-        # plot ground
         if self.n_link is None:
-            zl_g = [zs0 - step, zs1 + step]
-            yl_g = [yl_top[0], yl_top[0]]
-            yu_g = [-y for y in yl_g]
-            fig.add_trace(go.Scatter(x=zl_g, y=np.add(yl_g, yc_pos), **default_values))
-            fig.add_trace(go.Scatter(x=zl_g, y=np.add(yu_g, yc_pos), **default_values))
-
-            step2 = (zl_g[1] - zl_g[0]) / n
-            for i in range(n + 1):
-                zl_g2 = [(zs0 - step) + step2 * (i), (zs0 - step) + step2 * (i + 1)]
-                yl_g2 = [yl_g[0], 1.1 * yl_g[0]]
-                yu_g2 = [-y for y in yl_g2]
-                fig.add_trace(
-                    go.Scatter(x=zl_g2, y=np.add(yl_g2, yc_pos), **default_values)
+            fig.add_trace(
+                go.Scatter(
+                    x=x_ground,
+                    y=y_ground,
+                    mode="lines",
+                    line=dict(width=3.5, color=shades["edge"]),
+                    name=self.tag,
+                    legendgroup=self._legend_group,
+                    showlegend=False,
+                    hoverinfo="skip",
                 )
-                fig.add_trace(
-                    go.Scatter(x=zl_g2, y=np.add(yu_g2, yc_pos), **default_values)
-                )
+            )
 
-        # plot spring
-        z_spring = np.array([zs0, zs0, zs0, zs0])
-        yl_spring = np.array([ys0, ys0 + step, ys0 + icon_w - step, ys0 + icon_w])
-
-        for i in range(coils):
-            z_spring = np.insert(z_spring, i + 2, zs0 - (-1) ** i * step)
-            yl_spring = np.insert(yl_spring, i + 2, ys0 + (i + 1) * step)
-        yu_spring = [-y for y in yl_spring]
-
+        marker_size = min(max(icon_h * 200, 14.0), 34.0)
         fig.add_trace(
-            go.Scatter(x=z_spring, y=np.add(yl_spring, yc_pos), **default_values)
-        )
-        fig.add_trace(
-            go.Scatter(x=z_spring, y=np.add(yu_spring, yc_pos), **default_values)
-        )
-
-        # plot damper - base
-        z_damper1 = [zs1, zs1]
-        yl_damper1 = [ys0, ys0 + 2 * step]
-        yu_damper1 = [-y for y in yl_damper1]
-        fig.add_trace(
-            go.Scatter(x=z_damper1, y=np.add(yl_damper1, yc_pos), **default_values)
-        )
-        fig.add_trace(
-            go.Scatter(x=z_damper1, y=np.add(yu_damper1, yc_pos), **default_values)
-        )
-
-        # plot damper - center
-        z_damper2 = [zs1 - 2 * step, zs1 - 2 * step, zs1 + 2 * step, zs1 + 2 * step]
-        yl_damper2 = [ys0 + 5 * step, ys0 + 2 * step, ys0 + 2 * step, ys0 + 5 * step]
-        yu_damper2 = [-y for y in yl_damper2]
-        fig.add_trace(
-            go.Scatter(x=z_damper2, y=np.add(yl_damper2, yc_pos), **default_values)
-        )
-        fig.add_trace(
-            go.Scatter(x=z_damper2, y=np.add(yu_damper2, yc_pos), **default_values)
-        )
-
-        # plot damper - top
-        z_damper3 = [z_damper2[0], z_damper2[2], zs1, zs1]
-        yl_damper3 = [
-            ys0 + 4 * step,
-            ys0 + 4 * step,
-            ys0 + 4 * step,
-            ypos + 1.5 * icon_w,
-        ]
-        yu_damper3 = [-y for y in yl_damper3]
-
-        fig.add_trace(
-            go.Scatter(x=z_damper3, y=np.add(yl_damper3, yc_pos), **default_values)
-        )
-        fig.add_trace(
-            go.Scatter(x=z_damper3, y=np.add(yu_damper3, yc_pos), **default_values)
+            go.Scatter(
+                x=[zpos, zpos],
+                y=[
+                    (ypos + ypos_s) / 2 + yc_pos,
+                    -(ypos + ypos_s) / 2 + yc_pos,
+                ],
+                mode="markers",
+                marker=dict(size=marker_size, color=self.color, opacity=0),
+                customdata=[customdata] * 2,
+                text=hovertemplate,
+                hovertemplate=hovertemplate,
+                hoverinfo="text",
+                hoverlabel=dict(bgcolor=shades["dark"], font=dict(color="white")),
+                name=self.tag,
+                legendgroup=self._legend_group,
+                showlegend=False,
+            )
         )
 
         return fig
@@ -1419,7 +1361,7 @@ class SealElement(BearingElement):
         Direct mass in the z direction (kg).
         Default is 0.
     seal_leakage : float, optional
-        Seal leakage.
+        Seal leakage mass flow rate (kg/s).
     frequency : array, pint.Quantity, optional
         Array with the frequencies (rad/s).
     tag : str, optional
@@ -1457,6 +1399,8 @@ class SealElement(BearingElement):
            [  0., 150.,   0.],
            [  0.,   0.,   0.]])
     """
+
+    _legend_group = "Seal"
 
     @check_units
     def __init__(
@@ -1575,6 +1519,91 @@ class SealElement(BearingElement):
         customdata = [self.n]
 
         return customdata, hovertemplate
+
+    def _patch(self, position, fig):
+        """Seal element patch.
+
+        Patch that will be used to draw the seal element using Plotly library.
+        The seal is drawn as a slim block with labyrinth teeth pointing at the
+        shaft surface.
+
+        Parameters
+        ----------
+        position : tuple
+            Position (z, y_low, y_upp, y_center) in which the patch will be
+            drawn.
+        fig : plotly.graph_objects.Figure
+            The figure object which traces are added on.
+
+        Returns
+        -------
+        fig : plotly.graph_objects.Figure
+            The figure object which traces are added on.
+        """
+        zpos, ypos, ypos_s, yc_pos = position
+        shades = color_shades(self.color)
+
+        icon_h = ypos_s - ypos
+        icon_w = 0.15 * icon_h
+        teeth = 4
+
+        x_body = []
+        y_body = []
+        for sign in (1, -1):
+            y0 = sign * ypos + yc_pos
+            y_top = y0 + sign * 0.52 * icon_h
+            y_root = y0 + sign * 0.20 * icon_h
+            y_tip = y0 + sign * 0.04 * icon_h
+
+            x_body += [zpos - icon_w, zpos + icon_w, zpos + icon_w]
+            y_body += [y_top, y_top, y_root]
+            for x_tooth in np.linspace(zpos + icon_w, zpos - icon_w, 2 * teeth + 1)[
+                1::2
+            ]:
+                x_body += [x_tooth + 0.17 * icon_w, x_tooth, x_tooth - 0.17 * icon_w]
+                y_body += [y_root, y_tip, y_root]
+            x_body += [zpos - icon_w, zpos - icon_w, None]
+            y_body += [y_root, y_top, None]
+
+        customdata, hovertemplate = self._hover_info()
+
+        fig.add_trace(
+            go.Scatter(
+                x=x_body,
+                y=y_body,
+                mode="lines",
+                fill="toself",
+                fillcolor=shades["base"],
+                line=dict(width=1.0, color=shades["edge"]),
+                name=self.tag,
+                legendgroup=self._legend_group,
+                showlegend=False,
+                hoverinfo="skip",
+            )
+        )
+
+        marker_size = min(max(icon_h * 200, 14.0), 34.0)
+        fig.add_trace(
+            go.Scatter(
+                x=[zpos, zpos],
+                y=[
+                    (ypos + ypos_s) / 2 + yc_pos,
+                    -(ypos + ypos_s) / 2 + yc_pos,
+                ],
+                mode="markers",
+                marker=dict(size=marker_size, color=self.color, opacity=0),
+                customdata=[customdata] * 2,
+                text=hovertemplate,
+                hovertemplate=hovertemplate,
+                hoverinfo="text",
+                hoverlabel=dict(bgcolor=shades["base"], font=dict(color="white")),
+                name=self.tag,
+                legendgroup=self._legend_group,
+                showlegend=False,
+            )
+        )
+
+        return fig
 
 
 class BallBearingElement(BearingElement):
@@ -2180,9 +2209,6 @@ class MagneticBearingElement(BearingElement):
 
         self.ks = ks
         self.ki = ki
-        self.control_signal = []
-        self.magnetic_force_xy = []
-        self.magnetic_force_vw = []
 
         # if coefficients are provided (e.g. loading from saved file), skip computation
         if kwargs.get("kxx") is not None:
@@ -2215,8 +2241,8 @@ class MagneticBearingElement(BearingElement):
         C_real = Hjw.real
         C_imag = Hjw.imag
 
-        k_eq = ks + ki * self.k_amp * self.k_sense * C_real
-        c_eq = ki * self.k_amp * self.k_sense * C_imag * np.divide(1, omega)
+        self.k_eq = ks + ki * self.k_amp * self.k_sense * C_real
+        self.c_eq = ki * self.k_amp * self.k_sense * C_imag * np.divide(1, omega)
 
         rotation_matrix = np.array(
             [
@@ -2240,7 +2266,7 @@ class MagneticBearingElement(BearingElement):
         c_xy = []
         c_yx = []
         c_yy = []
-        for omega_i, k, c in zip(omega, k_eq, c_eq):
+        for omega_i, k, c in zip(omega, self.k_eq, self.c_eq):
             k_equivalent_matrix = np.array([[k, 0], [0, k]])
             c_equivalent_matrix = np.array([[c, 0], [0, c]])
 
@@ -2318,7 +2344,7 @@ class MagneticBearingElement(BearingElement):
 
         return customdata, hovertemplate
 
-    def compute_pid_amb(self, current_offset, setpoint, disp, dof_index):
+    def compute_amb_controller(self, current_offset, setpoint, disp, dof_index):
         """Compute AMB control force for one axis using the discrete controller.
 
         This routine evaluates the discrete-time controller output for the selected
@@ -2375,15 +2401,13 @@ class MagneticBearingElement(BearingElement):
         ...     kp_pid=1.0, ki_pid=5.0, kd_pid=0.01, n_f=1e4
         ... )
         >>> mb.build_controller(dt=1e-3)
-        >>> # start a new logging bucket for this time step (x and y)
-        >>> mb.control_signal.append([[], []])
-        >>> # compute force for x-axis given a small measured displacement
-        >>> force_x = mb.compute_pid_amb(
+        >>> force, current = mb.compute_amb_controller(
         ...     current_offset=0.0, setpoint=0.0, disp=2e-4, dof_index=0
         ... )
-        >>> isinstance(force_x, float)
-        True
-
+        >>> force  # doctest: +ELLIPSIS
+        -0.945195...
+        >>> current  # doctest: +ELLIPSIS
+        -0.003533...
         """
         err = setpoint - disp
         u = self.C_c @ self.x_c[dof_index] + self.D_c * err
@@ -2392,8 +2416,7 @@ class MagneticBearingElement(BearingElement):
         signal_pid = current_offset + u
         magnetic_force = self.ki * signal_pid + self.ks * disp
 
-        self.control_signal[dof_index].append(signal_pid.item())
-        return magnetic_force.item()
+        return magnetic_force.item(), signal_pid.item()
 
     def get_analog_controller(self):
         """

@@ -168,7 +168,7 @@ class MultiRotor(Rotor):
             (
                 elm
                 for elm in R1.plot_rotor().data
-                if elm["legendgroup"] == "gears"
+                if elm["legendgroup"] == GearElement._legend_group
                 and int(search(r"Gear Node: (\d+)", elm.text).group(1)) == gear_1.n
             ),
             None,
@@ -178,7 +178,7 @@ class MultiRotor(Rotor):
             (
                 elm
                 for elm in R2.plot_rotor().data
-                if elm["legendgroup"] == "gears"
+                if elm["legendgroup"] == GearElement._legend_group
                 and int(search(r"Gear Node: (\d+)", elm.text).group(1)) == gear_2.n
             ),
             None,
@@ -701,10 +701,10 @@ class MultiRotor(Rotor):
         --------
         >>> multi_rotor = two_shaft_rotor_example()
         >>> multi_rotor.C(0)[:4, :4] / 1e3
-        array([[3., 0., 0., 0.],
-               [0., 3., 0., 0.],
-               [0., 0., 0., 0.],
-               [0., 0., 0., 0.]])
+        array([[ 3.,  0.,  0.,  0.],
+               [ 0.,  3.,  0., -0.],
+               [ 0.,  0.,  0.,  0.],
+               [ 0., -0.,  0.,  0.]])
         """
 
         return self._join_matrices(

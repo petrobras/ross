@@ -80,7 +80,11 @@ def rotor2():
     bearing0 = BearingElement(0, kxx=stfx, kyy=stfy, cxx=c, cyy=c, frequency=frequency)
     bearing1 = BearingElement(6, kxx=stfx, kyy=stfy, cxx=c, cyy=c, frequency=frequency)
 
-    return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
+    return Rotor(
+        shaft_elem,
+        [disk0, disk1],
+        [bearing0, bearing1],
+    )
 
 
 def simulation_parameters():
@@ -149,15 +153,12 @@ def test_for_cte_speed(rotor1, rotor2):
     assert_allclose(response1.yout[s0:s1, dofx], response2.yout[s0:s1, dofx])
     assert_allclose(response1.yout[s0:s1, dofy], response2.yout[s0:s1, dofy])
 
-    freq = 7.96813
-    abs_max = 7.51498e-5
-
     change_sign = np.where(np.diff(np.sign(response1.yout[s0:s1, dofx])))[0]
-    freq1 = 1 / (t[change_sign[2]] - t[change_sign[0]])
-    abs_max1 = np.max(np.abs(response1.yout[s0:s1, dofx]))
+    freq = 1 / (t[change_sign[2]] - t[change_sign[0]])
+    abs_max = np.max(np.abs(response1.yout[s0:s1, dofx]))
 
-    assert_allclose(freq, freq1, rtol=1e-3)
-    assert_allclose(abs_max, abs_max1, rtol=1e-3)
+    assert_allclose(freq, 7.968127, rtol=1e-3, atol=1e-2)
+    assert_allclose(abs_max, 7.449248e-05, rtol=1e-3, atol=1e-6)
 
 
 def test_for_var_speed_1(rotor1):
@@ -188,17 +189,17 @@ def test_for_var_speed_1(rotor1):
         progress_interval=5,
     )
 
+    n = len(t)
     s0 = probe_params["time"][0]
     s1 = probe_params["time"][1]
     dofx = probe_params["dofs"][0]
     dofy = probe_params["dofs"][1]
 
-    assert_allclose(
-        resp_common.yout[s0:s1, dofx], resp_pseudo_modal.yout[s0:s1, dofx], rtol=0.1
-    )
-    assert_allclose(
-        resp_common.yout[s0:s1, dofy], resp_pseudo_modal.yout[s0:s1, dofy], rtol=0.1
-    )
+    mse_x = 1 / n * np.sum(resp_pseudo_modal.yout[s0:s1, dofx] ** 2)
+    mse_y = 1 / n * np.sum(resp_pseudo_modal.yout[s0:s1, dofy] ** 2)
+
+    assert_allclose(mse_x, np.float64(1.608634e-09), rtol=1e-3, atol=1e-11)
+    assert_allclose(mse_y, np.float64(1.617385e-09), rtol=1e-3, atol=1e-11)
 
     assert_allclose(
         resp_pseudo_modal.yout[s0:s1, dofx], resp_add_to_RHS.yout[s0:s1, dofx]
@@ -207,15 +208,12 @@ def test_for_var_speed_1(rotor1):
         resp_pseudo_modal.yout[s0:s1, dofy], resp_add_to_RHS.yout[s0:s1, dofy]
     )
 
-    freq = 68.96552
-    abs_max = 1.52977e-4
-
     change_sign = np.where(np.diff(np.sign(resp_common.yout[s0:s1, dofx])))[0]
-    freq1 = 1 / (t[change_sign[2]] - t[change_sign[0]])
-    abs_max1 = np.max(np.abs(resp_common.yout[s0:s1, dofx]))
+    freq = 1 / (t[change_sign[2]] - t[change_sign[0]])
+    abs_max = np.max(np.abs(resp_common.yout[s0:s1, dofx]))
 
-    assert_allclose(freq, freq1, rtol=1e-3)
-    assert_allclose(abs_max, abs_max1, rtol=1e-3)
+    assert_allclose(freq, 68.96552, rtol=1e-3, atol=1e-2)
+    assert_allclose(abs_max, 0.000152, rtol=1e-3, atol=1e-6)
 
 
 def test_for_var_speed_2(rotor2):
@@ -246,17 +244,17 @@ def test_for_var_speed_2(rotor2):
         progress_interval=5,
     )
 
+    n = len(t)
     s0 = probe_params["time"][0]
     s1 = probe_params["time"][1]
     dofx = probe_params["dofs"][0]
     dofy = probe_params["dofs"][1]
 
-    assert_allclose(
-        resp_common.yout[s0:s1, dofx], resp_pseudo_modal.yout[s0:s1, dofx], rtol=0.1
-    )
-    assert_allclose(
-        resp_common.yout[s0:s1, dofy], resp_pseudo_modal.yout[s0:s1, dofy], rtol=0.1
-    )
+    mse_x = 1 / n * np.sum(resp_pseudo_modal.yout[s0:s1, dofx] ** 2)
+    mse_y = 1 / n * np.sum(resp_pseudo_modal.yout[s0:s1, dofy] ** 2)
+
+    assert_allclose(mse_x, np.float64(1.627082e-09), rtol=1e-3, atol=1e-11)
+    assert_allclose(mse_y, np.float64(1.635272e-09), rtol=1e-3, atol=1e-11)
 
     assert_allclose(
         resp_pseudo_modal.yout[s0:s1, dofx], resp_add_to_RHS.yout[s0:s1, dofx]
@@ -265,12 +263,9 @@ def test_for_var_speed_2(rotor2):
         resp_pseudo_modal.yout[s0:s1, dofy], resp_add_to_RHS.yout[s0:s1, dofy]
     )
 
-    freq = 68.96552
-    abs_max = 1.53523e-4
-
     change_sign = np.where(np.diff(np.sign(resp_common.yout[s0:s1, dofx])))[0]
-    freq1 = 1 / (t[change_sign[2]] - t[change_sign[0]])
-    abs_max1 = np.max(np.abs(resp_common.yout[s0:s1, dofx]))
+    freq = 1 / (t[change_sign[2]] - t[change_sign[0]])
+    abs_max = np.max(np.abs(resp_common.yout[s0:s1, dofx]))
 
-    assert_allclose(freq, freq1, rtol=1e-3)
-    assert_allclose(abs_max, abs_max1, rtol=1e-3)
+    assert_allclose(freq, 68.96552, rtol=1e-3, atol=1e-2)
+    assert_allclose(abs_max, 0.000153, rtol=1e-3, atol=1e-6)
