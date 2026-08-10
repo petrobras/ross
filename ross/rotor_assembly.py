@@ -1034,14 +1034,15 @@ class Rotor(object):
     def add_elements(self, new_elements):
         """Add elements to rotor.
 
-        This method returns the modified rotor with additional elements.
-        This is not valid for shaft elements.
+        This method returns a new rotor with the given elements added to it.
+        It is valid for shaft elements only when appending new elements to
+        the end of the shaft or inserting new elements around the existing
+        shaft.
 
         Parameters
         ----------
         new_elements : list
-            List with the new elements. It may be disks, gears, bearings,
-            seals and point masses.
+            List with the new elements.
 
         Returns
         -------
