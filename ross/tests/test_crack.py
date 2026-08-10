@@ -35,10 +35,10 @@ def rotor():
             odl=o_d,
             idr=i_d,
             odr=o_d,
-            alpha=8.0501,
-            beta=1.0e-5,
             rotary_inertia=True,
             shear_effects=True,
+            alpha=8.0501,
+            beta=1.0e-5,
         )
         for l in L
     ]

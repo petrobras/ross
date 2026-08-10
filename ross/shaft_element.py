@@ -11,6 +11,7 @@ from plotly import graph_objects as go
 
 from ross.element import Element
 from ross.materials import Material
+from ross.plotly_theme import color_shades, parse_color
 from ross.units import Q_, check_units
 from ross.utils import read_table_file
 
@@ -1112,27 +1113,17 @@ class ShaftElement(Element):
             legend = "Shaft - Slenderness Ratio < 1.6"
         else:
             color = self.material.color
-            legend = "Shaft"
+            legend = self.material.name
+
+        shades = color_shades(color)
+        mesh_edge = "rgba({},{},{},0.5)".format(*parse_color(shades["edge"]))
 
         z_pos, yc_pos = position
 
         # plot the shaft
-        z_upper = [z_pos, z_pos, z_pos + self.L, z_pos + self.L, z_pos]
+        z_half = [z_pos, z_pos, z_pos + self.L, z_pos + self.L, z_pos]
         y_upper = [self.idl / 2, self.odl / 2, self.odr / 2, self.idr / 2, self.idl / 2]
-        z_lower = [z_pos, z_pos, z_pos + self.L, z_pos + self.L, z_pos]
-        y_lower = [
-            -self.idl / 2,
-            -self.odl / 2,
-            -self.odr / 2,
-            -self.idr / 2,
-            -self.idl / 2,
-        ]
-
-        z_pos = z_upper
-        z_pos.extend(z_lower)
-
-        y_pos = y_upper
-        y_pos.extend(y_lower)
+        y_lower = [-y for y in y_upper]
 
         if check_sld:
             customdata = [self.n, self.slenderness_ratio]
@@ -1159,24 +1150,59 @@ class ShaftElement(Element):
                 + f"Element Length: {round(customdata[5], 6)} {units}<br>"
                 + f"Material: {customdata[6]}<br>"
             )
+
+        half_values = dict(
+            x=Q_(z_half, "m").to(units).m,
+            customdata=[customdata] * len(z_half),
+            text=hovertemplate,
+            mode="lines",
+            fill="toself",
+            line=dict(width=0.7, color=mesh_edge),
+            showlegend=False,
+            name=self.tag,
+            legendgroup=legend,
+            hoveron="points+fills",
+            hoverinfo="text",
+            hovertemplate=hovertemplate,
+            hoverlabel=dict(bgcolor=shades["section"], font=dict(color="#33475C")),
+        )
+
         fig.add_trace(
             go.Scatter(
-                x=Q_(z_pos, "m").to(units).m,
-                y=Q_(np.add(y_pos, yc_pos), "m").to(units).m,
-                customdata=[customdata] * len(z_pos),
-                text=hovertemplate,
-                mode="lines",
-                opacity=0.5,
-                fill="toself",
-                fillcolor=color,
-                line=dict(width=1.5, color="black"),
-                showlegend=False,
-                name=self.tag,
-                legendgroup=legend,
-                hoveron="points+fills",
-                hoverinfo="text",
-                hovertemplate=hovertemplate,
-                hoverlabel=dict(bgcolor=color),
+                y=Q_(np.add(y_upper, yc_pos), "m").to(units).m,
+                fillcolor=shades["tint"],
+                **half_values,
+            )
+        )
+
+        # the bottom half switches between the rendered metal look and the
+        # material cross section, so it carries both styles for plot_rotor
+        fig.add_trace(
+            go.Scatter(
+                y=Q_(np.add(y_lower, yc_pos), "m").to(units).m,
+                fillcolor=shades["tint"],
+                fillpattern=dict(
+                    shape="",
+                    fgcolor=shades["edge"],
+                    bgcolor=shades["section"],
+                    size=4,
+                    solidity=0.22,
+                ),
+                meta=dict(
+                    morph=dict(
+                        render={
+                            "fillcolor": shades["tint"],
+                            "fillpattern.shape": "",
+                            "line.color": mesh_edge,
+                        },
+                        section={
+                            "fillcolor": shades["section"],
+                            "fillpattern.shape": "/",
+                            "line.color": shades["edge"],
+                        },
+                    )
+                ),
+                **half_values,
             )
         )
 

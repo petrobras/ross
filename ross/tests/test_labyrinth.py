@@ -122,7 +122,7 @@ def test_labyrinth_gas_composition_coefficients_range(labyrinth_gas_composition)
     assert_allclose(abs(labyrinth_gas_composition.kxy[0]), 35515, rtol=0.01)  # ±1%
     assert_allclose(labyrinth_gas_composition.cxx[0], 23.8, rtol=0.01)  # ±1%
     assert_allclose(
-        labyrinth_gas_composition.seal_leakage[0], 0.05195, rtol=0.01
+        labyrinth_gas_composition.seal_leakage[0], 0.023714, rtol=0.01
     )  # ±1%
 
 
@@ -161,7 +161,7 @@ def test_labyrinth_refprop_backend():
         # REFPROP expected values (from testing)
         assert_allclose(labyrinth.kxx[0], -50435.21, rtol=1e-3)
         assert_allclose(labyrinth.cxx[0], 23.808, rtol=1e-3)
-        assert_allclose(labyrinth.seal_leakage[0], 0.051951, rtol=1e-3)
+        assert_allclose(labyrinth.seal_leakage[0], 0.023714, rtol=1e-3)
 
         # Check derived properties
         assert_allclose(labyrinth.R, 287.12, rtol=1e-3)
@@ -186,7 +186,7 @@ def test_labyrinth_heos_backend():
         # Note: HEOS values differ slightly from REFPROP (<0.05%)
         assert_allclose(labyrinth.kxx[0], -50449.96, rtol=1e-3)
         assert_allclose(labyrinth.cxx[0], 23.797, rtol=1e-3)
-        assert_allclose(labyrinth.seal_leakage[0], 0.051951, rtol=1e-3)
+        assert_allclose(labyrinth.seal_leakage[0], 0.023714, rtol=1e-3)
 
         # Check derived properties
         assert_allclose(labyrinth.R, 287.12, rtol=1e-3)
@@ -348,7 +348,7 @@ def test_labyrinth_ideal_backend_unchanged(labyrinth_manual):
     assert_allclose(labyrinth_manual.kxy[0], 35541.605311914, rtol=1e-9)
     assert_allclose(labyrinth_manual.cxx[0], 23.82511134106155, rtol=1e-9)
     assert_allclose(labyrinth_manual.cxy[0], 56.255682475614, rtol=1e-9)
-    assert_allclose(labyrinth_manual.seal_leakage[0], 0.051961660704224755, rtol=1e-9)
+    assert_allclose(labyrinth_manual.seal_leakage[0], 0.023719116584285112, rtol=1e-9)
 
 
 def test_labyrinth_real_requires_gas_composition():

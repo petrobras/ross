@@ -1,16 +1,19 @@
 import json
 import re
-from pathlib import Path
+import toml
 
+import control as ct
 import numpy as np
 import pandas as pd
-import toml
+
+from collections.abc import Iterable
+from pathlib import Path
+from numba import njit
+from numpy.fft import fft
 from numpy import linalg as la
 from plotly import graph_objects as go
 from copy import deepcopy as copy
-from numba import njit
-from numpy.fft import fft
-import control as ct
+from scipy.integrate import cumulative_trapezoid as integrate
 
 
 class NumpyEncoder(json.JSONEncoder):
@@ -715,7 +718,7 @@ def get_data_from_figure(fig):
     return df
 
 
-def newmark(func, t, y_size, **options):
+def newmark(system_func, rhs_func, t, y_size, newmark_type="simple", **options):
     """Transient solution of the dynamic behavior of the system.
 
     Perform numerical integration using the Newmark method with Newton-Raphson
@@ -724,13 +727,17 @@ def newmark(func, t, y_size, **options):
 
     Parameters
     ----------
-    func : callable
+    system_func : callable
         A function that calculates the system matrices and right-hand side (RHS) vector at each
         time step. It should take at least one argument `(step, dt=None, y=None, ydot=None, y2dot=None)`
         and return a tuple `(M, C, K, RHS)`, where `step` is a scalar int related to the current time
         step, `dt` is the current time step in seconds, `y` is a ndarray of current state of the system,
         `ydot` and `y2dot` are its first and second time derivatives. `M`, `C`, `K` are ndarrays with
         `np.shape(M) = (y_size, y_size)` and `RHS` is a ndarray with `len(RHS) = y_size`.
+    rhs_func : callable
+        A function that calculates the right-hand side (RHS) vector at each time step. It should take at
+        least one argument `(step, dt=None, y=None, ydot=None, y2dot=None)` and return a ndarray with
+        `len(RHS) = y_size`.
     t : array_like
         Time array.
     y_size : int
@@ -777,8 +784,9 @@ def newmark(func, t, y_size, **options):
     >>> K1 = rotor.K(speed)
     >>> C2 = rotor.G()
     >>> K2 = rotor.Ksdt()
-    >>> rotor_system = lambda i, **state: (M, C1 + C2 * speed, K1 + K2 * accel, F[i, :])
-    >>> yout = newmark(rotor_system, t, rotor.ndof)
+    >>> system_func = lambda i, **state: (M, C1 + C2 * speed, K1 + K2 * accel, F[i, :])
+    >>> rhs_func = lambda i, **state: F[i, :]
+    >>> yout = newmark(system_func, rhs_func, t, rotor.ndof)
     >>> yout[:, rotor.number_dof * node + 1] # doctest: +ELLIPSIS
     array([0.00000000e+00, 8.49140057e-09, 4.34296767e-08, ...,
            1.16148468e-05, 1.16492353e-05, 1.16859622e-05])
@@ -786,108 +794,302 @@ def newmark(func, t, y_size, **options):
 
     gamma = options.get("gamma", 0.5)
     beta = options.get("beta", 0.25)
+    epsilon = options.get("epsilon", 1e-8)
     tol = options.get("tol", 1e-6)
     progress_interval = options.get("progress_interval", t[-1] + 1)
+    args = options.get("args", [])
 
     n_steps = len(t)
     ny = y_size
 
+    if newmark_type == "robust":
+        yout = _converge_robust_newmark(
+            system_func,
+            rhs_func,
+            args,
+            ny,
+            n_steps,
+            t,
+            progress_interval,
+            gamma,
+            beta,
+            epsilon,
+            tol,
+        )
+    else:
+        yout = _converge_simple_newmark(
+            system_func,
+            rhs_func,
+            args,
+            ny,
+            n_steps,
+            t,
+            progress_interval,
+            gamma,
+            beta,
+            tol,
+        )
+
+    return yout
+
+
+@njit(fastmath=True)
+def _residual_newmark(RHS, M, C, K, y, ydot, y2dot):
+    return RHS - (M @ y2dot + C @ ydot + K @ y)
+
+
+@njit(fastmath=True)
+def _jacobian_newmark(M, C, K, gamma, beta, dt):
+    return M + C * gamma * dt + K * beta * (dt**2)
+
+
+@njit(fastmath=True)
+def _update_newmark(y, ydot, y2dot, dy2dot, gamma, beta, dt):
+    y2dot += dy2dot
+    ydot += dy2dot * gamma * dt
+    y += dy2dot * beta * (dt**2)
+
+    return y, ydot, y2dot
+
+
+@njit(fastmath=True)
+def _simple_loop_newmark(
+    y0, ydot0, y2dot0, y, ydot, y2dot, RHS, M, C, K, gamma, beta, dt, tol
+):
+    y2dot[:] = 0.0
+    ydot[:] = ydot0 + y2dot0 * (1.0 - gamma) * dt
+    y[:] = y0 + ydot0 * dt + y2dot0 * (0.5 - beta) * (dt**2)
+
+    res = _residual_newmark(RHS, M, C, K, y, ydot, y2dot)
+    J = _jacobian_newmark(M, C, K, gamma, beta, dt)
+
+    nr_iter = 0
+
+    while la.norm(res) >= tol:
+        nr_iter += 1
+        if nr_iter > 50:
+            raise RuntimeError(
+                """Newton-Raphson algorithm diverged. Maximum number of iterations reached. 
+                Try decreasing the time step or using robust integration."""
+            )
+
+        dy2dot = la.solve(J, res)
+        y[:], ydot[:], y2dot[:] = _update_newmark(
+            y, ydot, y2dot, dy2dot, gamma, beta, dt
+        )
+
+        res = _residual_newmark(RHS, M, C, K, y, ydot, y2dot)
+
+    y0[:] = y[:]
+    ydot0[:] = ydot[:]
+    y2dot0[:] = y2dot[:]
+
+    return y0, ydot0, y2dot0
+
+
+def _converge_simple_newmark(
+    system_func, rhs_func, args, ny, n_steps, t, progress_interval, gamma, beta, tol
+):
     y0 = np.zeros(ny)
     ydot0 = np.zeros(ny)
     y2dot0 = np.zeros(ny)
 
-    yout = np.full((n_steps, ny), 1e-38, dtype=t.dtype)
+    y = np.zeros(ny)
+    ydot = np.zeros(ny)
+    y2dot = np.zeros(ny)
+
+    yout = np.zeros((n_steps, ny))
     yout[0, :] = y0
 
     for step in range(1, n_steps):
         aux = round(t[step] / progress_interval, 9)
         if aux - int(aux) == 0:
-            print(f"Time: {t[step]:.6f} seconds")
+            print("Time: ", t[step], " seconds")
 
         dt = t[step] - t[step - 1]
 
-        M, C, K, RHS = func(step, dt=dt, y=y0, ydot=ydot0, y2dot=y2dot0)
+        M, C, K, RHS = system_func(
+            step,
+            time_step=dt,
+            disp_resp=y0,
+            velc_resp=ydot0,
+            accl_resp=y2dot0,
+            args=args,
+        )
 
-        y0, ydot0, y2dot0 = _converge_newmark(
-            ny, y0, ydot0, y2dot0, dt, M, C, K, RHS, gamma, beta, tol
-        )  # separated call to use with numba
+        y0[:], ydot0[:], y2dot0[:] = _simple_loop_newmark(
+            y0, ydot0, y2dot0, y, ydot, y2dot, RHS, M, C, K, gamma, beta, dt, tol
+        )
 
         yout[step, :] = y0
 
     return yout
 
 
-@njit
-def _converge_newmark(ny, y0, ydot0, y2dot0, dt, M, C, K, RHS, gamma, beta, tol):
-    """Helper function for the Newmark method to handle convergence.
+def _converge_robust_newmark(
+    system_func,
+    rhs_func,
+    args,
+    ny,
+    n_steps,
+    t,
+    progress_interval,
+    gamma,
+    beta,
+    epsilon,
+    tol,
+):
+    y0 = np.zeros(ny)
+    ydot0 = np.zeros(ny)
+    y2dot0 = np.zeros(ny)
 
-    This function performs Newton-Raphson iterations to find the state of the system
-    at the next time step, ensuring that the equations of motion are satisfied
-    within a specified tolerance.
+    y = np.zeros(ny)
+    ydot = np.zeros(ny)
+    y2dot = np.zeros(ny)
+
+    yout = np.zeros((n_steps, ny))
+    yout[0, :] = y0
+
+    for step in range(1, n_steps):
+        aux = round(t[step] / progress_interval, 9)
+        if aux - int(aux) == 0:
+            print("Time: ", t[step], " seconds")
+
+        t_curr = t[step - 1]
+        t_target = t[step]
+        dt = t_target - t_curr
+
+        dt_min = dt * 1e-4
+        dt_max = dt
+
+        M, C, K, RHS = system_func(
+            step,
+            time_step=dt,
+            disp_resp=y0,
+            velc_resp=ydot0,
+            accl_resp=y2dot0,
+            args=args,
+        )
+        active_dofs = np.where(RHS != 0)[0]
+
+        while t_curr < t_target:
+            y2dot[:] = 0.0
+            ydot[:] = ydot0 + y2dot0 * (1.0 - gamma) * dt
+            y[:] = y0 + ydot0 * dt + y2dot0 * (0.5 - beta) * (dt**2)
+
+            RHS = rhs_func(
+                step,
+                time_step=dt,
+                disp_resp=y,
+                velc_resp=ydot,
+                accl_resp=y2dot,
+                args=args,
+            )
+
+            res = _residual_newmark(RHS, M, C, K, y, ydot, y2dot)
+            J0 = _jacobian_newmark(M, C, K, gamma, beta, dt)
+
+            nr_iter = 0
+            converged = True
+
+            while la.norm(res) >= tol:
+                nr_iter += 1
+
+                if nr_iter > 15:
+                    converged = False
+                    break
+
+                # Update Jacobian with perturbation
+                F_base = RHS
+                J = J0.copy()
+
+                for i in active_dofs:
+                    y_i, ydot_i, y2dot_i = y[i], ydot[i], y2dot[i]
+
+                    y[i], ydot[i], y2dot[i] = _update_newmark(
+                        y[i], ydot[i], y2dot[i], epsilon, gamma, beta, dt
+                    )
+
+                    F_pert = rhs_func(
+                        step,
+                        time_step=dt,
+                        disp_resp=y,
+                        velc_resp=ydot,
+                        accl_resp=y2dot,
+                        args=args,
+                    )
+
+                    J[:, i] -= (F_pert - F_base) / epsilon
+
+                    y[i], ydot[i], y2dot[i] = y_i, ydot_i, y2dot_i
+
+                dy2dot = la.solve(J, res)
+                y[:], ydot[:], y2dot[:] = _update_newmark(
+                    y, ydot, y2dot, dy2dot, gamma, beta, dt
+                )
+
+                RHS = rhs_func(
+                    step,
+                    time_step=dt,
+                    disp_resp=y,
+                    velc_resp=ydot,
+                    accl_resp=y2dot,
+                    args=args,
+                )
+                res = _residual_newmark(RHS, M, C, K, y, ydot, y2dot)
+
+            if converged:
+                y0[:] = y[:]
+                ydot0[:] = ydot[:]
+                y2dot0[:] = y2dot[:]
+                t_curr += dt
+
+                if nr_iter <= 5:
+                    dt = min(dt * 2.0, dt_max)
+                elif nr_iter >= 10:
+                    dt = max(dt * 0.5, dt_min)
+            else:
+                dt *= 0.25
+                if dt < dt_min:
+                    raise RuntimeError(
+                        f"Time step dropped below minimum threshold ({dt_min}) without convergence."
+                    )
+                if t_curr + dt > t_target:
+                    dt = t_target - t_curr
+
+        yout[step, :] = y0
+
+    return yout
+
+
+def make_speed_array(speed, t):
+    """Make speed, displacement and acceleration arrays from speed and time array.
 
     Parameters
     ----------
-    ny : int
-        Size of the state vector.
-    y0 : ndarray
-        Displacement at the current time step.
-    ydot0 : ndarray
-        Velocity at the current time step.
-    y2dot0 : ndarray
-        Acceleration at the current time step.
-    dt : float
-        Time step.
-    M : ndarray
-        Mass matrix.
-    C : ndarray
-        Damping matrix.
-    K : ndarray
-        Stiffness matrix.
-    RHS : ndarray
-        Right-hand side vector.
-    gamma : float
-        Newmark integration parameter.
-    beta : float
-        Newmark integration parameter.
-    tol : float
-        Convergence tolerance.
+    speed : array_like
+        Speed array.
+    t : array_like
+        Time array.
 
     Returns
     -------
-    y0 : ndarray
-        Displacement at the next time step.
-    ydot0 : ndarray
-        Velocity at the next time step.
-    y2dot0 : ndarray
-        Acceleration at the next time step.
+    speed : array_like
+        Speed array.
+    displacement : array_like
+        Displacement array.
+    acceleration     : array_like
+        Acceleration array.
     """
-    y2dot = np.zeros(ny)
-    ydot = ydot0 + y2dot0 * (1 - gamma) * dt
-    y = y0 + ydot0 * dt + y2dot0 * (0.5 - beta) * (dt**2)
 
-    res = RHS - (K @ y + C @ ydot) - M @ y2dot
-    nr_iter = 0
+    speed_is_array = isinstance(speed, Iterable)
+    if not speed_is_array:
+        speed = np.full_like(t, speed)
 
-    while la.norm(res) >= tol:
-        nr_iter += 1
-        if nr_iter > 1e5:
-            raise Warning(
-                "The Newton-Raphson algorithm is taking a long time to converge."
-            )
+    acceleration = np.gradient(speed, t)
+    displacement = integrate(speed, t, initial=0)
 
-        dy2dot = la.solve(M + C * gamma * dt + K * beta * (dt**2), res)
-
-        y2dot += dy2dot
-        ydot += dy2dot * gamma * dt
-        y += dy2dot * beta * (dt**2)
-
-        res = RHS - (K @ y + C @ ydot) - M @ y2dot
-
-    y0 = y
-    ydot0 = ydot
-    y2dot0 = y2dot
-
-    return y0, ydot0, y2dot0
+    return speed, displacement, acceleration
 
 
 def assemble_C_K_matrices(elements, C0, K0, *args):
@@ -1113,6 +1315,41 @@ def convert_6dof_to_torsional(rotor):
     new_rotor.ndof = len(new_rotor.M())
 
     return new_rotor
+
+
+def compute_dfft(y, dt):
+    """Compute dFFT - Discrete Fourier Transform.
+
+    Parameters
+    ----------
+    y : np.array
+        Magnitude of the response in time domain (m).
+    dt : int
+        Time step (s).
+
+    Returns
+    -------
+    freq : np.array
+        Frequency range (Hz).
+    y_amp : np.array
+        Amplitude of the response in frequency domain (m).
+    y_phase : np.array
+        Phase of the response in frequency domain (rad).
+    """
+    b = np.floor(len(y) / 2)
+    c = len(y)
+    df = 1 / (c * dt)
+
+    y_amp = fft(y)[: int(b)]
+    y_amp = y_amp * 2 / c
+
+    y_phase = np.angle(y_amp)
+    y_amp = np.abs(y_amp)
+
+    freq = np.arange(0, df * b, df)
+    freq = freq[: int(b)]
+
+    return freq, y_amp, y_phase
 
 
 def compute_abs_phase(x_w):

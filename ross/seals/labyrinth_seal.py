@@ -1315,10 +1315,12 @@ class LabyrinthSeal(SealElement):
             "cyy": "cxx",
             "cxy": "cxy",
             "cyx": "cyx",
-            "seal_leakage": "mdot",
             "pressure": "p",
         }
         coefficients_dict = {k: getattr(self, v) for k, v in attrbute_coef.items()}
+        coefficients_dict["seal_leakage"] = (
+            self.mdot * 2 * np.pi * (self.shaft_radius + 0.5 * self.radial_clearance[0])
+        )
         coefficients_dict["pert_rcond"] = self.pert_rcond
         coefficients_dict["pert_condition_number"] = self.pert_condition_number
 

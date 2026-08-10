@@ -23,7 +23,7 @@ from pathlib import Path
 from ross.bearings.magnetic.amb_utils import get_ambs
 from ross.plotly_theme import tableau_colors, coolwarm_r
 from ross.units import Q_, check_units
-from ross.utils import intersection, compute_freq_resp
+from ross.utils import intersection, compute_dfft, compute_freq_resp
 
 __all__ = [
     "Orbit",
@@ -5982,40 +5982,6 @@ class TimeResponseResults(Results):
 
         return fig
 
-    def _dfft(self, y, dt):
-        """Calculate dFFT - discrete Fourier Transform.
-
-        Parameters
-        ----------
-        y : np.array
-            Magnitude of the response in time domain (m).
-        dt : int
-            Time step (s).
-
-        Returns
-        -------
-        freq : np.array
-            Frequency range (Hz).
-        y_amp : np.array
-            Amplitude of the response in frequency domain (m).
-        y_phase : np.array
-            Phase of the response in frequency domain (rad).
-        """
-        b = np.floor(len(y) / 2)
-        c = len(y)
-        df = 1 / (c * dt)
-
-        y_amp = fft(y)[: int(b)]
-        y_amp = y_amp * 2 / c
-
-        y_phase = np.angle(y_amp)
-        y_amp = np.abs(y_amp)
-
-        freq = np.arange(0, df * b, df)
-        freq = freq[: int(b)]
-
-        return freq, y_amp, y_phase
-
     @check_units
     def plot_dfft(
         self,
@@ -6083,7 +6049,7 @@ class TimeResponseResults(Results):
                 probe_tag = data[f"probe_tag[{i}]"].values[0]
                 probe_resp = data[f"probe_resp[{i}]"].values
 
-                freq, amp, _ = self._dfft(probe_resp, dt)
+                freq, amp, _ = compute_dfft(probe_resp, dt)
 
                 if frequency_range is not None:
                     delta = 0.01 * (frequency_range[1] - frequency_range[0])

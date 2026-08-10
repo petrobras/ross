@@ -546,16 +546,17 @@ class HolePatternSeal(SealElement):
                 + (1.0 - self.rlx_factor) * p2
             )
             p2_old, delp_old = temp_p, temp_delp
-            while True:
+            for _ in range(60):
                 self.mdot, self.mz2[0], self.t[0], self.mt[0] = self.inlet_loss(p2)
                 ichoke = self._integrate_base_state()
                 if not ichoke:
                     p5, _, _ = self.exit_loss(self.mz2[self.nz], self.t[self.nz])
                     delp = p5 - self.outlet_pressure
-                    if delp >= 0:
-                        break
+                    break
                 iglobalchoke = 1
                 p2 = p2_old + 0.5 * (p2 - p2_old)
+            else:
+                return None
             if (
                 abs(delp)
                 < self.tolerance * (self.inlet_pressure - self.outlet_pressure)
