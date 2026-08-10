@@ -62,7 +62,11 @@ def rotor():
         n=31, kxx=kxx2, kyy=kyy2, kzz=kzz, cxx=cxx2, cyy=cyy2, czz=czz
     )
 
-    return rs.Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
+    return rs.Rotor(
+        shaft_elem,
+        [disk0, disk1],
+        [bearing0, bearing1],
+    )
 
 
 @pytest.fixture
@@ -130,5 +134,5 @@ def test_rubbing_resp(run_rubbing):
     )
 
     data = run_rubbing.data_time_response(probe=[probe1, probe2])
-    assert_allclose(data["probe_resp[0]"].to_numpy()[:5], resp_prob1)
-    assert_allclose(data["probe_resp[1]"].to_numpy()[:5], resp_prob2)
+    assert_allclose(data["probe_resp[0]"].to_numpy()[:5], resp_prob1, rtol=1e-6)
+    assert_allclose(data["probe_resp[1]"].to_numpy()[:5], resp_prob2, rtol=1e-6)

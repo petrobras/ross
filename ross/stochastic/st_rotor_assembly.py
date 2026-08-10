@@ -636,8 +636,7 @@ class ST_Rotor(object):
         if len(force.shape) == 2:
             # Monte Carlo - results storage
             for i, rotor in enumerate(iter(self)):
-                response = rotor.time_response(speed, force, time_range, ic)
-                t_, y, x = response.t, response.yout, response.xout
+                t_, y, x = rotor.time_response(speed, force, time_range, ic)
                 xout[i] = x
                 yout[i] = y
 
@@ -646,8 +645,7 @@ class ST_Rotor(object):
             # Monte Carlo - results storage
             i = 0
             for rotor, F in zip(iter(self), force):
-                response = rotor.time_response(speed, F, time_range, ic)
-                t_, y, x = response.t, response.yout, response.xout
+                t_, y, x = rotor.time_response(speed, F, time_range, ic)
                 xout[i] = x
                 yout[i] = y
                 i += 1

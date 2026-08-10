@@ -24,7 +24,14 @@ Elements
     BallBearingElement
     RollerBearingElement
     CylindricalBearing
+    FluidFilmBearing
+    FixedGeometryBearing
     PlainJournal
+    PartialArcBearing
+    EllipticalBearing
+    OffsetHalvesBearing
+    MultiLobeBearing
+    PressureDamBearing
     TiltingPad
     ThrustPad
     SqueezeFilmDamper
@@ -113,9 +120,8 @@ Post-processing classes for thermo-hydro-dynamic bearing models.
     :toctree: generated/bearing_results
 
     BearingResults
-    TiltingPadResults
+    FluidFilmBearingResults
     ThrustPadResults
-    PlainJournalResults
     SqueezeFilmDamperResults
 
 Faults
@@ -174,12 +180,3 @@ Unit conversion helpers and visualization utilities.
     get_data_from_figure
     visualize_matrix
     lubricants_dict
-
-Deprecated Classes
-------------------
-These classes are deprecated and will be removed in a future version. Use the recommended alternatives instead.
-
-.. autosummary::
-    :toctree: generated/deprecated
-
-    BearingFluidFlow
