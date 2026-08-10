@@ -176,6 +176,8 @@ class CouplingElement(ShaftElement):
         self.L = 0.2 if L is None else float(L)
         self.odl = self.o_d
         self.odr = self.o_d
+        self.idl = 0.0
+        self.idr = 0.0
 
         self.tag = tag
         self.scale_factor = scale_factor
