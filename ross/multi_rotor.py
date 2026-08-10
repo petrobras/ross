@@ -135,21 +135,17 @@ class MultiRotor(Rotor):
         R1 = copy(driving_rotor)
         R2 = copy(driven_rotor)
 
-        gear_1 = [
-            elm
-            for elm in R1.disk_elements
-            if elm.n == coupled_nodes[0] and isinstance(elm, GearElement)
-        ]
-        gear_2 = [
-            elm
-            for elm in R2.disk_elements
-            if elm.n == coupled_nodes[1] and isinstance(elm, GearElement)
-        ]
+        gear_1 = self._locate_rotor_gears(R1, coupled_nodes[0])
+        gear_2 = self._locate_rotor_gears(R2, coupled_nodes[1])
+
         if len(gear_1) == 0 or len(gear_2) == 0:
             raise TypeError("Each rotor needs a GearElement in the coupled nodes!")
         else:
             gear_1 = gear_1[0]
             gear_2 = gear_2[0]
+
+        self._set_coupled_gear(self.rotors["driving"], gear_1.n)
+        self._set_coupled_gear(self.rotors["driven"], gear_2.n)
 
         self.update_mesh_stiffness = update_mesh_stiffness
         self.square_varying_stiffness = square_varying_stiffness
@@ -164,25 +160,8 @@ class MultiRotor(Rotor):
             orientation_angle=self.orientation_angle,
         )
 
-        gear1_plot = next(
-            (
-                elm
-                for elm in R1.plot_rotor().data
-                if elm["legendgroup"] == GearElement._legend_group
-                and int(search(r"Gear Node: (\d+)", elm.text).group(1)) == gear_1.n
-            ),
-            None,
-        )
-
-        gear2_plot = next(
-            (
-                elm
-                for elm in R2.plot_rotor().data
-                if elm["legendgroup"] == GearElement._legend_group
-                and int(search(r"Gear Node: (\d+)", elm.text).group(1)) == gear_2.n
-            ),
-            None,
-        )
+        gear1_plot = self._locate_gear_on_plot(R1, gear_1)
+        gear2_plot = self._locate_gear_on_plot(R2, gear_2)
 
         if position == "above":
             ymax = max(y for y in gear1_plot["y"] if y is not None)
@@ -233,6 +212,90 @@ class MultiRotor(Rotor):
     def set_tag(self, tag):
         """Set the tag for the current multi-rotor."""
         self.tag = tag or "MultiRotor 0"
+
+    def add_nodes(self, new_nodes_pos):
+        """Add new nodes to the multi-rotor.
+
+        This method allows adding new nodes to the multi-rotor system. It takes
+        a list of new node positions and adds them to the existing nodes of the
+        multi-rotor.
+
+        Parameters
+        ----------
+        new_nodes_pos : list of float
+            List of new node positions to be added to the multi-rotor.
+
+        Returns
+        -------
+        multi_rotor : MultiRotor
+            The multi-rotor object with the new nodes added.
+        """
+        driving_rotor = self.rotors["driving"].add_nodes(new_nodes_pos)
+
+        new_nodes_pos_2 = [pos - self.dz_pos for pos in new_nodes_pos]
+        driven_rotor = self.rotors["driven"].add_nodes(new_nodes_pos_2)
+
+        gear_1 = self._get_coupled_gear(driving_rotor)
+        gear_2 = self._get_coupled_gear(driven_rotor)
+
+        return self.__class__(
+            driving_rotor,
+            driven_rotor,
+            coupled_nodes=(gear_1.n, gear_2.n),
+            gear_mesh_stiffness=self.mesh.stiffness,
+            update_mesh_stiffness=self.update_mesh_stiffness,
+            square_varying_stiffness=self.square_varying_stiffness,
+            orientation_angle=self.orientation_angle,
+            position="above" if self.dy_pos >= 0 else "below",
+            tag=self.tag,
+        )
+
+    @staticmethod
+    def _set_coupled_gear(rotor, node):
+        """Set the coupled gear in the rotor."""
+        tag_suffix = " (Coupled)"
+
+        for elm in rotor.disk_elements:
+            if elm.n == node:
+                elm.tag += tag_suffix
+                break
+    
+    @staticmethod
+    def _get_coupled_gear(rotor):
+        """Get the coupled gear from the rotor."""
+        tag_suffix = " (Coupled)"
+
+        gear = next(
+            elm for elm in rotor.disk_elements if tag_suffix in elm.tag
+        )
+        
+        new_tag = gear.tag.replace(tag_suffix, "")
+        rotor.df.loc[rotor.df.tag == gear.tag, "tag"] = new_tag
+        gear.tag = new_tag
+
+        return gear
+
+    @staticmethod
+    def _locate_rotor_gears(rotor, node):
+        """Locate the gear elements in the rotor that are coupled to the given node."""
+        return [
+            elm
+            for elm in rotor.disk_elements
+            if elm.n == node and isinstance(elm, GearElement)
+        ]
+
+    @staticmethod
+    def _locate_gear_on_plot(rotor, gear):
+        """Locate the gear trace on the plot that is coupled to the given gear element."""
+        return next(
+            (
+                elm
+                for elm in rotor.plot_rotor().data
+                if elm["legendgroup"] == GearElement._legend_group
+                and int(search(r"Gear Node: (\d+)", elm.text).group(1)) == gear.n
+            ),
+            None,
+        )
 
     def _fix_nodes_pos(self, index, node, nodes_pos_l):
         """Adjust node positions of the driven rotor."""
