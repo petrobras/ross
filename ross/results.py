@@ -8538,6 +8538,12 @@ class AmbNonCollocationResults(Results):
                 "Sensor",
             ),
         ):
+            node = (
+                self.actuator_node
+                if component == "Actuator"
+                else self.sensor_node
+            )
+
             indices.append(len(fig.data))
             fig.add_trace(
                 go.Scatter(
@@ -8547,14 +8553,7 @@ class AmbNonCollocationResults(Results):
                     name=name,
                     line=dict(color=color, width=2, dash=dash),
                     hovertemplate=(
-                        f"{label}<br>{component} node: "
-                        f"{
-                            (
-                                self.actuator_node
-                                if component == 'Actuator'
-                                else self.sensor_node
-                            )
-                        }"
+                        f"{label}<br>{component} node: {node}"
                         f"<br>Axial position: {x:.5f} m<extra></extra>"
                     ),
                 ),
