@@ -8173,8 +8173,15 @@ class AmbNonCollocationResults(Results):
 
     Examples
     --------
-    Run the analysis and use the default combined visualization:
+    Run the analysis using an AMB rotor example:
 
+    >>> import ross as rs
+    >>> rotor = rs.rotor_example_amb_general_controllers()
+    >>> amb = next(
+    ...     bearing
+    ...     for bearing in rotor.bearing_elements
+    ...     if isinstance(bearing, rs.MagneticBearingElement)
+    ... )
     >>> results = rotor.run_amb_non_collocation(
     ...     magnetic_bearing=amb,
     ...     speed=0.0,
@@ -8182,13 +8189,10 @@ class AmbNonCollocationResults(Results):
     ...     direction="x",
     ... )
     >>> fig = results.plot()
-    >>> fig.show()
 
     Return the sensor map and every lateral mode shape as separate figures:
 
-    >>> plots = results.plot(combined=False)
-    >>> plots["sensor_map"].show()
-    >>> plots["mode_shapes"][0].show()
+    >>> plots = results.plot_separate()
 
     See Also
     --------
