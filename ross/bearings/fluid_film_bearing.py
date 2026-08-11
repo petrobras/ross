@@ -503,6 +503,12 @@ class FluidFilmBearing(BearingElement):
                 theta_grids=[f["theta"] for f in fields],
                 z_grids=[f["axial_position"] for f in fields],
                 leading_edge_angles=fields[0]["leading_edge_angle"],
+                pad_temperature_fields=(
+                    [f["pad_temperature"] for f in fields]
+                    if "pad_temperature" in fields[0]
+                    else None
+                ),
+                pad_radial_positions=fields[0].get("pad_radial_position"),
                 outputs=case_outputs,
                 kxx=self.kxx,
                 kxy=self.kxy,

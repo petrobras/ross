@@ -138,6 +138,7 @@ Useful knobs and post-processing:
 - `num_processes`: solve the frequency table in parallel
 - `bearing.coefficients(frequency)` returns `(kxx, kxy, kyx, kyy), (cxx, cxy, cyx, cyy)` interpolated at any speed
 - Plots: `plot_pressure_2d()`, `plot_pressure_3d()`, `plot_temperature_2d()`, `plot_film_temperature_3d()`, `plot_film_thickness_2d()`; `show_results()` prints a per-speed summary table
+- `plot_pad_temperature_3d()` draws the pads as real geometry colored by the solid pad conduction field, resolved through the pad thickness (`thermal_type="full"` only)
 - `bearing.save(file)` stores the solved coefficient table (reloads as a plain `BearingElement`, no re-solve)
 
 See `docs/user_guide/tutorial_bearings_part_2.ipynb` for the full tour.

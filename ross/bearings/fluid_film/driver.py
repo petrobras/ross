@@ -1939,6 +1939,13 @@ def _assemble_field_outputs(g):
         thermal model ran), each shaped ``(total_pads, dim_x, dim_z)``,
         plus ``"leading_edge_angle"`` (rad, shape ``(total_pads,)``) to
         place each pad on the bearing circumference.
+
+        When the full (conducting-pad) thermal model ran, the dict also
+        carries the solid pad temperature: ``"pad_temperature"`` (K,
+        shape ``(total_pads, dim_x, total_e_y_pad + 1)``, radial index 0
+        at the babbitt surface increasing outward to the pad back) and
+        ``"pad_radial_position"`` (m, shape ``(total_e_y_pad + 1,)``, the
+        radius of each radial station).
     """
     total_pads = g["total_pads"]
     dim_x, dim_z = g["dim_x"], g["dim_z"]
@@ -1949,7 +1956,7 @@ def _assemble_field_outputs(g):
         flat = np.asarray(a, dtype=float)[:, : dim_x * dim_z]
         return flat.reshape(total_pads, dim_x, dim_z).copy()
 
-    return {
+    fields = {
         "theta": grid(mesh.x_rad),
         "axial_position": grid(mesh.z),
         "pressure": grid(g["nodal_pressure"]),
@@ -1957,6 +1964,20 @@ def _assemble_field_outputs(g):
         "film_temperature": grid(g["t_average"]),
         "leading_edge_angle": np.asarray(pads.leading_angle_rad, dtype=float).copy(),
     }
+
+    if g.get("thermal_type") == "full":
+        te_yp = g["total_e_y_pad"]
+        stride = te_yp + g["total_e_y_film"] + 1
+        cross = np.asarray(g["temp_full"], dtype=float)[:, : dim_x * stride]
+        cross = cross.reshape(total_pads, dim_x, stride)
+        fields["pad_temperature"] = cross[:, :, te_yp::-1].copy()
+        fields["pad_radial_position"] = (
+            g["cb"]
+            + pads.journal_radius
+            + np.linspace(0.0, pads.pad_thickness, te_yp + 1)
+        )
+
+    return fields
 
 
 def _assemble_outputs(g, hp, reduced):
