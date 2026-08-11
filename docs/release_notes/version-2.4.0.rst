@@ -113,8 +113,11 @@ Old method                                         New method
 ``plot_bearing_representation()``                  removed
 ``plot_babbitt_surface_temperature()``             removed — with ``thermal_type="full"`` the film
                                                    temperature already reflects pad conduction
-``plot_solid_pad_results(...)``                    removed
+``plot_solid_pad_results(...)``                    ``plot_pad_temperature_3d()``
 =================================================  ==========================================================
 
 ``plot_results()``, ``show_results()``, ``show_coefficients_comparison()`` and
-``show_execution_time()`` keep their names, and ``plot_film_thickness_2d()`` is new.
+``show_execution_time()`` keep their names, and ``plot_film_thickness_2d()`` and
+``plot_pad_temperature_3d()`` are new: the latter draws the pads as real geometry
+colored by the solid pad conduction field (``thermal_type="full"`` only), the
+through-pad counterpart of ``plot_film_temperature_3d()``.
