@@ -7,6 +7,7 @@ import numpy as np
 from plotly import graph_objects as go
 
 from ross.element import Element
+from ross.plotly_theme import color_shades
 from ross.units import check_units
 
 __all__ = ["PointMass"]
@@ -54,6 +55,8 @@ class PointMass(Element):
            [0., 3., 0.],
            [0., 0., 4.]])
     """
+
+    _legend_group = "Point mass"
 
     @check_units
     def __init__(
@@ -294,8 +297,7 @@ class PointMass(Element):
             The figure object which traces are added on.
         """
         zpos, ypos, yc_pos = position
-
-        radius = 0.005 * self.scale_factor
+        shades = color_shades(self.color)
 
         customdata = [self.n, self.mx, self.my, self.mz]
         hovertemplate = (
@@ -312,40 +314,18 @@ class PointMass(Element):
                 customdata=[customdata] * 2,
                 text=hovertemplate,
                 mode="markers",
-                marker=dict(size=5.0, color=self.color),
+                marker=dict(
+                    size=11.0,
+                    symbol="diamond",
+                    color=shades["dark"],
+                    line=dict(width=1.0, color=shades["edge"]),
+                ),
                 showlegend=False,
                 name=self.tag,
-                legendgroup="pointmass",
+                legendgroup=self._legend_group,
                 hoverinfo="text",
                 hovertemplate=hovertemplate,
-                hoverlabel=dict(bgcolor=self.color),
-            )
-        )
-
-        fig.add_shape(
-            dict(
-                type="circle",
-                xref="x",
-                yref="y",
-                x0=zpos - radius,
-                y0=ypos - radius + yc_pos,
-                x1=zpos + radius,
-                y1=ypos + radius + yc_pos,
-                fillcolor=self.color,
-                line_color="black",
-            )
-        )
-        fig.add_shape(
-            dict(
-                type="circle",
-                xref="x",
-                yref="y",
-                x0=zpos - radius,
-                y0=-ypos - radius + yc_pos,
-                x1=zpos + radius,
-                y1=-ypos + radius + yc_pos,
-                fillcolor=self.color,
-                line_color="black",
+                hoverlabel=dict(bgcolor=shades["dark"], font=dict(color="white")),
             )
         )
 
