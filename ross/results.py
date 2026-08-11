@@ -8538,11 +8538,7 @@ class AmbNonCollocationResults(Results):
                 "Sensor",
             ),
         ):
-            node = (
-                self.actuator_node
-                if component == "Actuator"
-                else self.sensor_node
-            )
+            node = self.actuator_node if component == "Actuator" else self.sensor_node
 
             indices.append(len(fig.data))
             fig.add_trace(
