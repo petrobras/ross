@@ -406,29 +406,18 @@ class ShaftElement(Element):
         return hash(self.tag)
 
     def save(self, file):
-        from ross.utils import load_data, dump_data
-
-        signature = inspect.signature(self.__init__)
-        args_list = list(signature.parameters)
-        args = {arg: getattr(self, arg) for arg in args_list}
-
         # add material characteristics so that the shaft element can be reconstructed
         # even if the material is not in the available_materials file.
-        args["material"] = {
-            "name": self.material.name,
-            "rho": self.material.rho,
-            "E": self.material.E,
-            "G_s": self.material.G_s,
-            "color": self.material.color,
-        }
-
-        try:
-            data = load_data(file)
-        except FileNotFoundError:
-            data = {}
-
-        data[f"{self.__class__.__name__}_{self.tag}"] = args
-        dump_data(data, file)
+        super().save(
+            file,
+            material={
+                "name": self.material.name,
+                "rho": self.material.rho,
+                "E": self.material.E,
+                "G_s": self.material.G_s,
+                "color": self.material.color,
+            },
+        )
 
     @classmethod
     def read_toml_data(cls, data):
