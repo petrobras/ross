@@ -1,7 +1,7 @@
 """Bearing Element module.
 
 This module defines the BearingElement classes which will be used to represent the rotor
-bearings and seals. There are 7 different classes to represent bearings options.
+bearings and seals.
 """
 
 import control as ct
@@ -15,10 +15,6 @@ from scipy import interpolate as interpolate
 
 from ross.element import Element
 from ross.plotly_theme import color_shades
-from ross.bearings import fluid_flow as flow
-from ross.bearings.fluid_flow_coefficients import (
-    calculate_stiffness_and_damping_coefficients,
-)
 from ross.units import Q_, check_units
 from ross.utils import (
     read_table_file,
@@ -33,7 +29,6 @@ __all__ = [
     "SealElement",
     "BallBearingElement",
     "RollerBearingElement",
-    "BearingFluidFlow",
     "MagneticBearingElement",
     "CylindricalBearing",
 ]
@@ -1096,192 +1091,6 @@ class BearingElement(Element):
             cxy=parameters["cxy"],
             cyx=parameters["cyx"],
             frequency=parameters["frequency"],
-            tag=tag,
-            n_link=n_link,
-            scale_factor=scale_factor,
-            color=color,
-        )
-
-
-class BearingFluidFlow(BearingElement):
-    """Instantiate a bearing using inputs from its fluid flow.
-
-    .. deprecated:: 2.0.0
-        `BearingFluidFlow` is deprecated and will be removed in a future version.
-        Use `PlainJournal` for advanced thermo-hydro-dynamic analysis with thermal
-        effects, or `CylindricalBearing` for fast analytical calculations.
-
-    This method always creates elements with frequency-dependent coefficients.
-    It calculates a set of coefficients for each frequency value appendend to
-    "omega".
-
-    **Recommended alternatives:**
-
-    - For advanced analysis with thermal effects, multi-pad configurations, and
-      turbulence models, use :class:`PlainJournal` instead.
-    - For quick calculations and preliminary design, use :class:`CylindricalBearing`
-      instead.
-
-    Parameters
-    ----------
-    n : int
-        The node in which the bearing will be located in the rotor.
-
-    Grid related
-    ^^^^^^^^^^^^
-    Describes the discretization of the problem
-    nz: int
-        Number of points along the Z direction (direction of flow).
-    ntheta: int
-        Number of points along the direction theta. NOTE: ntheta must be odd.
-    length: float
-        Length in the Z direction (m).
-
-    Operation conditions
-    ^^^^^^^^^^^^^^^^^^^^
-    Describes the operation conditions.
-    omega: list
-        List of frequencies (rad/s) used to calculate the coefficients.
-        If the length is greater than 1, an array of coefficients is returned.
-    p_in: float
-        Input Pressure (Pa).
-    p_out: float
-        Output Pressure (Pa).
-    load: float
-        Load applied to the rotor (N).
-
-    Geometric data of the problem
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    Describes the geometric data of the problem.
-    radius_rotor: float
-        Rotor radius (m).
-    radius_stator: float
-        Stator Radius (m).
-    eccentricity: float
-        Eccentricity (m) is the euclidean distance between rotor and stator centers.
-        The center of the stator is in position (0,0).
-
-    Fluid characteristics
-    ^^^^^^^^^^^^^^^^^^^^^
-    Describes the fluid characteristics.
-    visc: float
-        Viscosity (Pa.s).
-    rho: float
-        Fluid density(Kg/m^3).
-
-    Others
-    ^^^^^^
-    tag : str, optional
-        A tag to name the element
-        Default is None.
-    n_link : int, optional
-        Node to which the bearing will connect. If None the bearing is
-        connected to ground.
-        Default is None.
-    scale_factor : float, optional
-        The scale factor is used to scale the bearing drawing.
-        Default is 1.
-    color : str, optional
-        A color to be used when the element is represented.
-        Default is '#355d7a'.
-
-    Returns
-    -------
-    bearing: rs.BearingElement
-        A bearing object.
-
-    Examples
-    --------
-    >>> nz = 30
-    >>> ntheta = 20
-    >>> length = 0.03
-    >>> omega = [157.1]
-    >>> p_in = 0.
-    >>> p_out = 0.
-    >>> radius_rotor = 0.0499
-    >>> radius_stator = 0.05
-    >>> load = 525
-    >>> visc = 0.1
-    >>> rho = 860.
-    >>> BearingFluidFlow(0, nz, ntheta, length, omega, p_in,
-    ...                  p_out, radius_rotor, radius_stator,
-    ...                  visc, rho, load=load) # doctest: +ELLIPSIS
-    BearingFluidFlow(n=0, n_link=None,
-     kxx=[14...
-    """
-
-    def __init__(
-        self,
-        n,
-        nz,
-        ntheta,
-        length,
-        omega,
-        p_in,
-        p_out,
-        radius_rotor,
-        radius_stator,
-        visc,
-        rho,
-        eccentricity=None,
-        load=None,
-        tag=None,
-        n_link=None,
-        scale_factor=1.0,
-        color="#355d7a",
-    ):
-        warnings.warn(
-            "BearingFluidFlow is deprecated and will be removed in a future version. "
-            "Use PlainJournal for advanced thermo-hydro-dynamic analysis with thermal effects, "
-            "or CylindricalBearing for fast analytical calculations.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-
-        self.nz = nz
-        self.ntheta = ntheta
-        self.length = length
-        self.omega = omega
-        self.p_in = p_in
-        self.p_out = p_out
-        self.radius_rotor = radius_rotor
-        self.radius_stator = radius_stator
-        self.visc = visc
-        self.rho = rho
-        self.eccentricity = eccentricity
-        self.load = load
-
-        K = np.zeros((4, len(omega)))
-        C = np.zeros((4, len(omega)))
-
-        for i, w in enumerate(omega):
-            fluid_flow = flow.FluidFlow(
-                nz,
-                ntheta,
-                length,
-                w,
-                p_in,
-                p_out,
-                radius_rotor,
-                radius_stator,
-                visc,
-                rho,
-                eccentricity=eccentricity,
-                load=load,
-            )
-            K[:, i], C[:, i] = calculate_stiffness_and_damping_coefficients(fluid_flow)
-
-        super().__init__(
-            n,
-            kxx=K[0],
-            kxy=K[1],
-            kyx=K[2],
-            kyy=K[3],
-            cxx=C[0],
-            cxy=C[1],
-            cyx=C[2],
-            cyy=C[3],
-            frequency=omega,
             tag=tag,
             n_link=n_link,
             scale_factor=scale_factor,

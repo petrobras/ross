@@ -298,16 +298,9 @@ class Element(ABC):
 
         return local_index
 
-    def get_class_name_prefix(self, index=None):
+    def get_class_name_prefix(self):
         """Extract prefix of the class name preceding 'Element',
-        insert spaces before uppercase letters, and append an index
-        number at the end.
-
-        Parameters
-        ----------
-        index : int, optional
-            The index number to append at the end of the resulting string.
-            Default is None.
+        insert spaces before uppercase letters.
 
         Returns
         -------
@@ -329,12 +322,18 @@ class Element(ABC):
         else:
             prefix = re.sub(r"(?<!^)(?=[A-Z])", " ", class_name.split("Element")[0])
 
-        if index is None:
-            return prefix
-        else:
-            return f"{prefix} {index}"
+        return prefix
 
-    def add_tag(self, index):
-        """Add a tag to the given element."""
-        if self.tag is None:
-            self.tag = self.get_class_name_prefix(index)
+    def set_tag(self, index, check_tag=True):
+        """Set a tag to the given element.
+
+        Parameters
+        ----------
+        index : int
+            The index of the element to standardize the tag.
+        check_tag : bool, optional
+            Whether to check if the tag is already set.
+        """
+        if not check_tag or check_tag and self.tag is None:
+            prefix = self.get_class_name_prefix()
+            self.tag = f"{prefix} {index}"

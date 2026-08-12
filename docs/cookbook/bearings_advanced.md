@@ -1,6 +1,6 @@
 # Advanced Bearings
 
-Source: `docs/user_guide/tutorial_part_1_2.ipynb`, Examples 7, 9
+Source: `docs/user_guide/tutorial_bearings_part_1.ipynb`, `docs/user_guide/tutorial_bearings_part_2.ipynb`
 
 ## Speed-Dependent Coefficients
 
@@ -61,18 +61,84 @@ ball = rs.BallBearingElement(n=0, n_balls=8, d_balls=0.01, fs=500, alpha=0.3)
 roller = rs.RollerBearingElement(n=0, n_rollers=12, l_rollers=0.02, fs=500, alpha=0.0)
 ```
 
-## Fluid Flow Bearings
+## Fluid-Film Journal Bearings
 
-For hydrodynamic journal bearings with computed coefficients:
+Hydrodynamic journal bearings solve a thermo-elasto-hydro-dynamic (TEHD)
+model and produce speed-dependent stiffness and damping coefficients
+automatically. All classes are `BearingElement` subclasses — pass them
+straight to `Rotor`.
 
 ```python
-# Cylindrical bearing (short bearing theory)
-from ross.bearings.fluid_flow import fluid_flow_example
-bearing = fluid_flow_example()
+import ross as rs
+from ross.units import Q_
 
-# Tilting pad bearing
-from ross.bearings.tilting_pad import tilting_pad_example
-tpb = tilting_pad_example()
+# Plain cylindrical bearing (two axial grooves)
+plain = rs.PlainJournal(
+    n=3,
+    axial_length=0.263,
+    journal_radius=0.2,
+    radial_clearance=1.95e-4,
+    n_pad=2,
+    pad_arc_length=Q_(176, "deg"),
+    reference_temperature=Q_(50, "degC"),
+    frequency=Q_([900, 1200], "RPM"),
+    fys_load=-112815,
+    lubricant="ISOVG32",
+    oil_flow_v=Q_(30, "l/min"),
+)
+
+# Tilting-pad bearing (5 pads, load between pads)
+tpb = rs.TiltingPad(
+    n=1,
+    frequency=Q_([3000], "RPM"),
+    equilibrium_type="match_load",
+    load=[884.05, -2670.4],
+    journal_diameter=101.6e-3,
+    radial_clearance=74.9e-6,
+    pad_thickness=12.7e-3,
+    pivot_angle=Q_([18, 90, 162, 234, 306], "deg"),
+    pad_arc=Q_([60] * 5, "deg"),
+    pad_axial_length=[50.8e-3] * 5,
+    pre_load=[0.5] * 5,
+    offset=[0.5] * 5,
+    lubricant="ISOVG32",
+    oil_supply_temperature=Q_(40, "degC"),
+    oil_flow_v=Q_(10, "l/min"),
+)
 ```
 
-See `docs/user_guide/fluid_flow_*.ipynb` for fluid flow theory and examples.
+The classic fixed-geometry configurations have dedicated classes:
+`PartialArcBearing`, `EllipticalBearing` (lemon bore), `OffsetHalvesBearing`,
+`MultiLobeBearing`, `PressureDamBearing`. Arbitrary pad layouts (per-pad
+preload, offset, pockets, tapers) use `FixedGeometryBearing` directly, and
+`FluidFilmBearing` is the shared base with the full model-flag surface
+(thermal model, turbulence, pivot flexibility, starvation, ...).
+
+```python
+lemon = rs.EllipticalBearing(
+    n=0,
+    frequency=Q_([3000], "RPM"),
+    pad_arc=Q_(150, "deg"),
+    preload=0.5,
+    journal_diameter=0.2,
+    radial_clearance=150e-6,
+    pad_thickness=0.05,
+    pad_axial_length=[0.16, 0.16],
+    lubricant="ISOVG32",
+    oil_supply_temperature=Q_(40, "degC"),
+    oil_flow_v=Q_(30, "l/min"),
+    weight=45e3,
+)
+```
+
+Useful knobs and post-processing:
+
+- `lubricant`: a key of `rs.lubricants_dict` (`"ISOVG32"`, `"ISOVG46"`, `"ISOVG68"`, ...)
+- `thermal_type`: `None` (isoviscous), `"adiabatic"` or `"full"` (pad conduction)
+- `num_processes`: solve the frequency table in parallel
+- `bearing.coefficients(frequency)` returns `(kxx, kxy, kyx, kyy), (cxx, cxy, cyx, cyy)` interpolated at any speed
+- Plots: `plot_pressure_2d()`, `plot_pressure_3d()`, `plot_temperature_2d()`, `plot_film_temperature_3d()`, `plot_film_thickness_2d()`; `show_results()` prints a per-speed summary table
+- `plot_pad_temperature_3d()` draws the pads as real geometry colored by the solid pad conduction field, resolved through the pad thickness (`thermal_type="full"` only)
+- `bearing.save(file)` stores the solved coefficient table (reloads as a plain `BearingElement`, no re-solve)
+
+See `docs/user_guide/tutorial_bearings_part_2.ipynb` for the full tour.

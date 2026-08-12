@@ -1,3 +1,4 @@
+import warnings
 from abc import ABC, abstractmethod
 
 import numpy as np
@@ -7,22 +8,51 @@ from prettytable import PrettyTable
 from scipy.interpolate import griddata
 
 from ross.plotly_theme import tableau_colors
+from ross.units import Q_
 
 __all__ = [
     "BearingResults",
-    "TiltingPadResults",
     "ThrustPadResults",
-    "PlainJournalResults",
     "SqueezeFilmDamperResults",
+    "FluidFilmBearingResults",
 ]
+
+
+def _structured_grid_triangles(node_grid):
+    """Triangulate a structured 2-D grid of node indices.
+
+    Each cell of the grid is split into two triangles, giving the ``i, j, k``
+    vertex arrays a ``plotly.graph_objects.Mesh3d`` needs.
+
+    Parameters
+    ----------
+    node_grid : ndarray, shape (n_rows, n_cols)
+        Node indices arranged as a structured grid.
+
+    Returns
+    -------
+    triangles : ndarray, shape (2 * (n_rows - 1) * (n_cols - 1), 3)
+        Vertex indices, three per triangle.
+    """
+    node_grid = np.asarray(node_grid)
+
+    corner_a = node_grid[:-1, :-1]
+    corner_b = node_grid[1:, :-1]
+    corner_c = node_grid[1:, 1:]
+    corner_d = node_grid[:-1, 1:]
+
+    lower = np.stack([corner_a, corner_b, corner_c], axis=-1).reshape(-1, 3)
+    upper = np.stack([corner_a, corner_c, corner_d], axis=-1).reshape(-1, 3)
+
+    return np.concatenate([lower, upper], axis=0)
 
 
 class BearingResults(ABC):
     """Abstract base class for fluid film bearing post-processing results.
 
-    Each bearing class (TiltingPad, PlainJournal, ThrustPad, SqueezeFilmDamper)
-    creates a ``_results`` attribute of the corresponding subclass after the solver
-    runs. The bearing then delegates every ``plot_*`` and ``show_*`` call to that
+    Each bearing class (FluidFilmBearing and its subclasses, ThrustPad,
+    SqueezeFilmDamper) creates a ``_results`` attribute of the corresponding
+    subclass after the solver runs. The bearing then delegates every ``plot_*`` and ``show_*`` call to that
     object via ``__getattr__``, so the end user never needs to access ``_results``
     directly.
 
@@ -103,14 +133,14 @@ class BearingResults(ABC):
         -------
         figures : dict
             Dictionary with keys ``"pressure_2d"``, ``"pressure_3d"``,
-            ``"temperature_2d"``, and ``"temperature_3d"``.  Each value is a
-            ``plotly.graph_objects.Figure``.
+            ``"temperature_2d"``, and ``"film_temperature_3d"``.  Each value
+            is a ``plotly.graph_objects.Figure``.
         """
         figures = {
             "pressure_2d": self.plot_pressure_2d(freq_index=freq_index),
             "pressure_3d": self.plot_pressure_3d(freq_index=freq_index),
             "temperature_2d": self.plot_temperature_2d(freq_index=freq_index),
-            "temperature_3d": self.plot_temperature_3d(freq_index=freq_index),
+            "film_temperature_3d": self.plot_film_temperature_3d(freq_index=freq_index),
         }
 
         if show_plots:
@@ -173,8 +203,11 @@ class BearingResults(ABC):
         """
 
     @abstractmethod
-    def plot_temperature_3d(self, freq_index=0, fig=None, **kwargs):
-        """Return a 3-D surface plot of the temperature field.
+    def plot_film_temperature_3d(self, freq_index=0, fig=None, **kwargs):
+        """Return a 3-D surface plot of the oil film temperature field.
+
+        The plotted quantity is the temperature of the lubricant film.
+        Solid (pad) temperatures are not shown here.
 
         Parameters
         ----------
@@ -187,6 +220,63 @@ class BearingResults(ABC):
         -------
         fig : go.Figure
         """
+
+    def plot_temperature_3d(self, *args, **kwargs):
+        """Deprecated alias for :meth:`plot_film_temperature_3d`.
+
+        .. deprecated:: 2.4.0
+            ``plot_temperature_3d`` is deprecated and will be removed in a
+            future version.  Use ``plot_film_temperature_3d`` instead, which
+            states explicitly that the plotted field is the oil film
+            temperature.
+
+        Returns
+        -------
+        fig : go.Figure
+        """
+        warnings.warn(
+            "plot_temperature_3d is deprecated and will be removed in a future "
+            "version. Use plot_film_temperature_3d instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.plot_film_temperature_3d(*args, **kwargs)
+
+    def plot_pad_temperature_3d(self, freq_index=0, fig=None, **kwargs):
+        """Return a 3-D mesh of the bearing pads colored by temperature.
+
+        This is the through-pad (circumferential x radial) counterpart of
+        ``plot_film_temperature_3d``: the pad geometry is drawn at its
+        physical position and colored by the solid pad / babbitt
+        temperature, showing how much heat crosses from the film into the
+        pad.
+
+        The method is part of the common bearing plotting API, so it exists
+        on every bearing result class.  Classes whose model does not compute
+        a solid pad temperature field raise ``NotImplementedError``.
+
+        Parameters
+        ----------
+        freq_index : int, optional
+            Frequency index.  Default is 0.
+        fig : go.Figure, optional
+            Existing figure to add the trace to.
+
+        Returns
+        -------
+        fig : go.Figure
+
+        Raises
+        ------
+        NotImplementedError
+            When the bearing model does not provide a solid pad temperature
+            field.
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} does not compute a solid pad temperature "
+            "field, so plot_pad_temperature_3d is not available.  Use "
+            "plot_film_temperature_3d() for the oil film temperature."
+        )
 
     @abstractmethod
     def plot_temperature_2d(self, freq_index=0, fig=None, **kwargs):
@@ -203,1261 +293,6 @@ class BearingResults(ABC):
         -------
         fig : go.Figure
         """
-
-
-class TiltingPadResults(BearingResults):
-    """Post-processing results for a TiltingPad bearing.
-
-    Parameters
-    ----------
-    frequency : array_like
-        Operating frequencies in rad/s.
-    pressure_fields : list of ndarray, shape (nz, nx, n_pad)
-        Pressure fields, one per frequency.
-    temperature_fields : list of ndarray, shape (nz, nx, n_pad)
-        Temperature fields, one per frequency.
-    maxP_list : list of float
-        Maximum pressure per frequency (Pa).
-    maxT_list : list of float
-        Maximum temperature per frequency (°C).
-    minH_list : list of float
-        Minimum film thickness per frequency (m).
-    ecc_list : list of float
-        Journal eccentricity ratio per frequency.
-    attitude_angle_list : list of float
-        Journal attitude angle per frequency (rad).
-    psi_pad_list : list of array_like
-        Pad rotation angles per frequency (rad).
-    force_x_total_list : list of float
-        Total hydrodynamic force in X per frequency (N).
-    force_y_total_list : list of float
-        Total hydrodynamic force in Y per frequency (N).
-    momen_rot_list : list of array_like or None
-        Pad moments per frequency (N·m).  ``None`` entries indicate that
-        the *determine_eccentricity* equilibrium type was used.
-    kxx : ndarray
-        Direct stiffness coefficient in XX (N/m), one value per frequency.
-    kxy : ndarray
-        Cross stiffness coefficient in XY (N/m).
-    kyx : ndarray
-        Cross stiffness coefficient in YX (N/m).
-    kyy : ndarray
-        Direct stiffness coefficient in YY (N/m).
-    cxx : ndarray
-        Direct damping coefficient in XX (N·s/m).
-    cxy : ndarray
-        Cross damping coefficient in XY (N·s/m).
-    cyx : ndarray
-        Cross damping coefficient in YX (N·s/m).
-    cyy : ndarray
-        Direct damping coefficient in YY (N·s/m).
-    equilibrium_type : str
-        ``"match_eccentricity"`` or ``"determine_eccentricity"``.
-    n_pad : int
-        Number of pads.
-    xtheta : ndarray, shape (nx,)
-        Circumferential mesh coordinates (rad, relative to pad centre).
-    xz : ndarray, shape (nz,)
-        Axial mesh coordinates (non-dimensional, −0.5 to 0.5).
-    pivot_angle : ndarray, shape (n_pad,)
-        Absolute pivot angle of each pad (rad).
-    pad_axial_length : float
-        Pad axial length (m).
-    nz : int
-        Number of axial mesh elements.
-    nx : int
-        Number of circumferential mesh elements.
-    optimization_history : dict
-        Mapping ``{freq_index: [residuals]}``.
-    initial_time : float, optional
-        Solver start epoch timestamp.
-    final_time : float, optional
-        Solver end epoch timestamp.
-    """
-
-    def __init__(
-        self,
-        frequency,
-        pressure_fields,
-        temperature_fields,
-        maxP_list,
-        maxT_list,
-        minH_list,
-        ecc_list,
-        attitude_angle_list,
-        psi_pad_list,
-        force_x_total_list,
-        force_y_total_list,
-        momen_rot_list,
-        kxx,
-        kxy,
-        kyx,
-        kyy,
-        cxx,
-        cxy,
-        cyx,
-        cyy,
-        equilibrium_type,
-        n_pad,
-        xtheta,
-        xz,
-        pivot_angle,
-        pad_axial_length,
-        nz,
-        nx,
-        optimization_history,
-        oil_supply_temperature=None,
-        pad_arc=None,
-        z1=None,
-        z2=None,
-        T_pad=None,
-        T_pad_surface=None,
-        r_pad=None,
-        ntheta_pad=None,
-        pad_radius=None,
-        initial_time=None,
-        final_time=None,
-    ):
-        super().__init__(
-            frequency=frequency,
-            pressure_fields=pressure_fields,
-            temperature_fields=temperature_fields,
-            initial_time=initial_time,
-            final_time=final_time,
-        )
-        self.maxP_list = maxP_list
-        self.maxT_list = maxT_list
-        self.minH_list = minH_list
-        self.ecc_list = ecc_list
-        self.attitude_angle_list = attitude_angle_list
-        self.psi_pad_list = psi_pad_list
-        self.force_x_total_list = force_x_total_list
-        self.force_y_total_list = force_y_total_list
-        self.momen_rot_list = momen_rot_list
-        self.kxx = np.atleast_1d(kxx)
-        self.kxy = np.atleast_1d(kxy)
-        self.kyx = np.atleast_1d(kyx)
-        self.kyy = np.atleast_1d(kyy)
-        self.cxx = np.atleast_1d(cxx)
-        self.cxy = np.atleast_1d(cxy)
-        self.cyx = np.atleast_1d(cyx)
-        self.cyy = np.atleast_1d(cyy)
-        self.equilibrium_type = equilibrium_type
-        self.n_pad = n_pad
-        self.xtheta = xtheta
-        self.xz = xz
-        self.pivot_angle = pivot_angle
-        self.pad_axial_length = pad_axial_length
-        self.nz = nz
-        self.nx = nx
-        self.optimization_history = optimization_history
-        self.oil_supply_temperature = oil_supply_temperature
-        self.pad_arc = pad_arc
-        self.z1 = z1
-        self.z2 = z2
-        self.T_pad = T_pad
-        self.T_pad_surface = T_pad_surface
-        self.r_pad = r_pad
-        self.ntheta_pad = ntheta_pad
-        self.pad_radius = pad_radius
-
-    def show_results(self):
-        """Print a formatted summary of tilting pad bearing results.
-
-        Iterates over all solved frequencies and prints a PrettyTable with
-        operating conditions, field extrema, equilibrium data, loads, dynamic
-        coefficients, and per-pad rotation angles.
-
-        Parameters
-        ----------
-        None
-
-        Returns
-        -------
-        None
-        """
-        if self.frequency.size == 1:
-            self._print_single_frequency_results(0)
-        else:
-            for i in range(self.frequency.size):
-                self._print_single_frequency_results(i)
-
-    def _print_single_frequency_results(self, freq_index):
-        """Print results table for one frequency index.
-
-        Parameters
-        ----------
-        freq_index : int
-            Index into the frequency array.
-        """
-        freq = self.frequency[freq_index]
-        column_width = 20
-
-        table = PrettyTable()
-        table.field_names = ["Parameter", "Value", "Unit"]
-
-        for field in table.field_names:
-            table.max_width[field] = column_width
-            table.min_width[field] = column_width
-
-        table.align["Parameter"] = "l"
-        table.align["Value"] = "r"
-        table.align["Unit"] = "c"
-
-        table.add_row(["Operating Speed", f"{freq * 30 / np.pi:12.1f}", "RPM"])
-        table.add_row(["Equilibrium Type", f"{self.equilibrium_type:>12}", "-"])
-        table.add_row(["Number of Pads", f"{self.n_pad:12d}", "-"])
-
-        table.add_row(["Maximum Pressure", f"{self.maxP_list[freq_index]:12.4e}", "Pa"])
-        table.add_row(
-            [
-                "Maximum Temperature",
-                f"{self.maxT_list[freq_index]:12.2f}",
-                "°C",
-            ]
-        )
-        table.add_row(
-            [
-                "Minimum Film Thickness",
-                f"{self.minH_list[freq_index]:12.4e}",
-                "m",
-            ]
-        )
-
-        table.add_row(["Eccentricity", f"{self.ecc_list[freq_index]:12.4f}", "-"])
-        table.add_row(
-            [
-                "Attitude Angle",
-                f"{np.degrees(self.attitude_angle_list[freq_index]):12.2f}",
-                "°",
-            ]
-        )
-
-        table.add_row(
-            [
-                "Total Force X",
-                f"{self.force_x_total_list[freq_index]:12.4e}",
-                "N",
-            ]
-        )
-        table.add_row(
-            [
-                "Total Force Y",
-                f"{self.force_y_total_list[freq_index]:12.4e}",
-                "N",
-            ]
-        )
-
-        table.add_row(["kxx (Stiffness)", f"{self.kxx[freq_index]:12.4e}", "N/m"])
-        table.add_row(["kxy (Stiffness)", f"{self.kxy[freq_index]:12.4e}", "N/m"])
-        table.add_row(["kyx (Stiffness)", f"{self.kyx[freq_index]:12.4e}", "N/m"])
-        table.add_row(["kyy (Stiffness)", f"{self.kyy[freq_index]:12.4e}", "N/m"])
-
-        table.add_row(["cxx (Damping)", f"{self.cxx[freq_index]:12.4e}", "N*s/m"])
-        table.add_row(["cxy (Damping)", f"{self.cxy[freq_index]:12.4e}", "N*s/m"])
-        table.add_row(["cyx (Damping)", f"{self.cyx[freq_index]:12.4e}", "N*s/m"])
-        table.add_row(["cyy (Damping)", f"{self.cyy[freq_index]:12.4e}", "N*s/m"])
-
-        pad_table = PrettyTable()
-        pad_table.align["Pad #"] = "c"
-
-        if (
-            self.momen_rot_list[freq_index] is not None
-            and self.equilibrium_type == "match_eccentricity"
-        ):
-            pad_table.field_names = [
-                "Pad #",
-                "Moment [N·m]",
-                "Angle [rad]",
-                "Angle [°]",
-            ]
-            pad_table.align["Moment [N·m]"] = "r"
-            pad_table.align["Angle [rad]"] = "r"
-            pad_table.align["Angle [°]"] = "r"
-
-            for i in range(self.n_pad):
-                pad_table.add_row(
-                    [
-                        i + 1,
-                        f"{self.momen_rot_list[freq_index][i]:12.4e}",
-                        f"{self.psi_pad_list[freq_index][i]:12.4e}",
-                        f"{np.degrees(self.psi_pad_list[freq_index][i]):12.4e}",
-                    ]
-                )
-        else:
-            pad_table.field_names = ["Pad #", "Angle [rad]", "Angle [°]"]
-            pad_table.align["Angle [rad]"] = "r"
-            pad_table.align["Angle [°]"] = "r"
-
-            for i in range(self.n_pad):
-                pad_table.add_row(
-                    [
-                        i + 1,
-                        f"{self.psi_pad_list[freq_index][i]:12.4e}",
-                        f"{np.degrees(self.psi_pad_list[freq_index][i]):12.4e}",
-                    ]
-                )
-
-        column_width = 14
-        for field in pad_table.field_names:
-            pad_table.max_width[field] = column_width
-            pad_table.min_width[field] = column_width
-
-        table_str = table.get_string()
-        final_width = len(table_str.split("\n")[0])
-
-        print("\n" + "=" * final_width)
-        print(
-            f"TILTING PAD BEARING RESULTS - {freq * 30 / np.pi:.1f} RPM".center(
-                final_width
-            )
-        )
-        print("=" * final_width)
-        print(table)
-
-        print("\n" + "-" * final_width)
-        print("PAD ROTATION ANGLES".center(final_width))
-        print("-" * final_width)
-        print(pad_table)
-        print("=" * final_width)
-
-    def show_coefficients_comparison(self):
-        """Print a table comparing dynamic coefficients across all frequencies.
-
-        Parameters
-        ----------
-        None
-
-        Returns
-        -------
-        None
-        """
-        freq_rpm = self.frequency.astype(float) * 30.0 / np.pi
-
-        table = PrettyTable()
-        headers = [
-            "Frequency [RPM]",
-            "kxx [N/m]",
-            "kxy [N/m]",
-            "kyx [N/m]",
-            "kyy [N/m]",
-            "cxx [N*s/m]",
-            "cxy [N*s/m]",
-            "cyx [N*s/m]",
-            "cyy [N*s/m]",
-        ]
-        table.field_names = headers
-
-        for i in range(len(freq_rpm)):
-            row = [
-                f"{freq_rpm[i]:.1f}",
-                f"{self.kxx[i]:.4e}",
-                f"{self.kxy[i]:.4e}",
-                f"{self.kyx[i]:.4e}",
-                f"{self.kyy[i]:.4e}",
-                f"{self.cxx[i]:.4e}",
-                f"{self.cxy[i]:.4e}",
-                f"{self.cyx[i]:.4e}",
-                f"{self.cyy[i]:.4e}",
-            ]
-            table.add_row(row)
-
-        desired_width = 25
-        table.max_width = desired_width
-        table.min_width = desired_width
-
-        table_str = table.get_string()
-        actual_width = len(table_str.split("\n")[0])
-
-        print("\n" + "=" * actual_width)
-        print("DYNAMIC COEFFICIENTS COMPARISON TABLE".center(actual_width))
-        print("=" * actual_width)
-        print(table)
-        print("=" * actual_width)
-
-    def plot_pressure_3d(self, freq_index=0, pad_index=None, fig=None, **kwargs):
-        """Return a 3-D surface plot of the pressure field for one pad.
-
-        Parameters
-        ----------
-        freq_index : int, optional
-            Frequency index.  Default is 0.
-        pad_index : int, optional
-            Pad index.  When ``None`` the pad with the highest peak pressure
-            at the chosen frequency is selected automatically.
-        fig : go.Figure, optional
-            Existing figure to add the trace to.
-
-        Returns
-        -------
-        fig : go.Figure
-        """
-        if fig is None:
-            fig = go.Figure()
-
-        pressure_field = self.pressure_fields[freq_index]
-
-        if pad_index is None:
-            pad_index = int(np.argmax(pressure_field.max(axis=(0, 1))))
-
-        XH, YH = np.meshgrid(self.xtheta, self.xz)
-
-        fig.add_trace(
-            go.Surface(
-                x=XH,
-                y=YH,
-                z=1e-6 * pressure_field[:, :, pad_index],
-                colorscale="Viridis",
-                name=f"Pressure field - Pad {pad_index + 1}",
-                showscale=True,
-            )
-        )
-
-        fig.update_layout(
-            title=dict(
-                text=f"Pressure Distribution - Pad {pad_index + 1}",
-                font=dict(size=24),
-            ),
-            scene=dict(
-                xaxis_title=dict(text="X direction [rad]", font=dict(size=14)),
-                yaxis_title=dict(text="Z direction [-]", font=dict(size=14)),
-                zaxis_title=dict(text="Pressure [MPa]", font=dict(size=14)),
-            ),
-            plot_bgcolor="white",
-            paper_bgcolor="white",
-            **kwargs,
-        )
-
-        return fig
-
-    def plot_pressure_2d(self, freq_index=0, fig=None, **kwargs):
-        """Return a 2-D contour plot of the pressure field for all pads.
-
-        Parameters
-        ----------
-        freq_index : int, optional
-            Frequency index.  Default is 0.
-        fig : go.Figure, optional
-            Existing figure to add traces to.
-
-        Returns
-        -------
-        fig : go.Figure
-        """
-        pressure_field = self.pressure_fields[freq_index]
-
-        d_axial = self.pad_axial_length / self.nz
-        axial = np.arange(0, self.pad_axial_length + d_axial, d_axial)
-        axial = axial[1:] - np.diff(axial) / 2
-
-        ang = [
-            (self.xtheta + self.pivot_angle[k]) * 180 / np.pi for k in range(self.n_pad)
-        ]
-
-        return self._plot_contour(
-            x_data=ang,
-            y_data=axial,
-            z_data=pressure_field,
-            z_title="Pressure (Pa)",
-            zmin=0,
-            ncontours=15,
-            fig=fig,
-            **kwargs,
-        )
-
-    def plot_temperature_3d(self, freq_index=0, pad_index=None, fig=None, **kwargs):
-        """Return a 3-D surface plot of the temperature field for one pad.
-
-        Parameters
-        ----------
-        freq_index : int, optional
-            Frequency index.  Default is 0.
-        pad_index : int, optional
-            Pad index.  When ``None`` the pad with the highest peak temperature
-            at the chosen frequency is selected automatically.
-        fig : go.Figure, optional
-            Existing figure to add the trace to.
-
-        Returns
-        -------
-        fig : go.Figure
-        """
-        if fig is None:
-            fig = go.Figure()
-
-        temperature_field = self.temperature_fields[freq_index]
-
-        if pad_index is None:
-            pad_index = int(np.argmax(temperature_field.max(axis=(0, 1))))
-
-        XH, YH = np.meshgrid(self.xtheta, self.xz)
-
-        fig.add_trace(
-            go.Surface(
-                x=XH,
-                y=YH,
-                z=temperature_field[:, :, pad_index],
-                colorscale="Viridis",
-                name=f"Temperature field - Pad {pad_index + 1}",
-                showscale=True,
-                colorbar=dict(title="Temperature [°C]"),
-            )
-        )
-
-        fig.update_layout(
-            title=dict(
-                text=f"Temperature Distribution - Pad {pad_index + 1}",
-                font=dict(size=24),
-            ),
-            scene=dict(
-                xaxis_title=dict(text="X direction [rad]", font=dict(size=14)),
-                yaxis_title=dict(text="Z direction [-]", font=dict(size=14)),
-                zaxis_title=dict(text="Temperature [°C]", font=dict(size=14)),
-            ),
-            plot_bgcolor="white",
-            paper_bgcolor="white",
-            **kwargs,
-        )
-
-        return fig
-
-    def plot_temperature_2d(self, freq_index=0, fig=None, **kwargs):
-        """Return a 2-D contour plot of the temperature field for all pads.
-
-        Parameters
-        ----------
-        freq_index : int, optional
-            Frequency index.  Default is 0.
-        fig : go.Figure, optional
-            Existing figure to add traces to.
-
-        Returns
-        -------
-        fig : go.Figure
-        """
-        temperature_field = self.temperature_fields[freq_index]
-
-        d_axial = self.pad_axial_length / self.nz
-        axial = np.arange(0, self.pad_axial_length + d_axial, d_axial)
-        axial = axial[1:] - np.diff(axial) / 2
-
-        ang = [
-            (self.xtheta + self.pivot_angle[k]) * 180 / np.pi for k in range(self.n_pad)
-        ]
-
-        return self._plot_contour(
-            x_data=ang,
-            y_data=axial,
-            z_data=temperature_field,
-            z_title="Temperature (ºC)",
-            zmin=temperature_field.min(),
-            ncontours=25,
-            fig=fig,
-            **kwargs,
-        )
-
-    def plot_pad_pressure(self, freq_index=0, fig=None, **kwargs):
-        """Return a scatter plot of the midplane pressure profile per pad.
-
-        Parameters
-        ----------
-        freq_index : int, optional
-            Frequency index.  Default is 0.
-        fig : go.Figure, optional
-            Existing figure to add traces to.
-
-        Returns
-        -------
-        fig : go.Figure
-        """
-        pressure_field = self.pressure_fields[freq_index]
-
-        d_axial = self.pad_axial_length / self.nz
-        axial = np.arange(0, self.pad_axial_length + d_axial, d_axial)
-        axial = axial[1:] - np.diff(axial) / 2
-
-        ang = [
-            (self.xtheta + self.pivot_angle[k]) * 180 / np.pi for k in range(self.n_pad)
-        ]
-
-        midplane_idx = self.nz // 2
-
-        return self._plot_scatter(
-            x_data=ang,
-            y_data=pressure_field,
-            pos=midplane_idx,
-            y_title="Pressure (Pa)",
-            fig=fig,
-            **kwargs,
-        )
-
-    def plot_results(self, show_plots=False, freq_index=0):
-        """Return all tilting pad result plots, including pad scatter plots.
-
-        Extends the base ``plot_results`` with two additional entries:
-        ``"pressure_scatter"`` and ``"temperature_scatter"``.
-
-        Parameters
-        ----------
-        show_plots : bool, optional
-            When *True* each figure is displayed immediately. Default is False.
-        freq_index : int, optional
-            Frequency index.  Default is 0.
-
-        Returns
-        -------
-        figures : dict
-            Dictionary with keys ``"pressure_2d"``, ``"pressure_3d"``,
-            ``"temperature_2d"``, ``"temperature_3d"``,
-            ``"pressure_scatter"``, and ``"temperature_scatter"``.
-        """
-        figures = super().plot_results(show_plots=False, freq_index=freq_index)
-
-        pressure_field = self.pressure_fields[freq_index]
-        temperature_field = self.temperature_fields[freq_index]
-
-        d_axial = self.pad_axial_length / self.nz
-        axial = np.arange(0, self.pad_axial_length + d_axial, d_axial)
-        axial = axial[1:] - np.diff(axial) / 2
-
-        ang = [
-            (self.xtheta + self.pivot_angle[k]) * 180 / np.pi for k in range(self.n_pad)
-        ]
-
-        midplane_idx = self.nz // 2
-
-        figures["pressure_scatter"] = self._plot_scatter(
-            x_data=ang,
-            y_data=pressure_field,
-            pos=midplane_idx,
-            y_title="Pressure (Pa)",
-        )
-        figures["temperature_scatter"] = self._plot_scatter(
-            x_data=ang,
-            y_data=temperature_field,
-            pos=midplane_idx,
-            y_title="Temperature (ºC)",
-        )
-
-        if show_plots:
-            for fig in figures.values():
-                try:
-                    fig.show()
-                except Exception as e:
-                    print(f"Warning: Could not display plot automatically. Error: {e}")
-
-        return figures
-
-    def plot_film_temperature_results(
-        self,
-        freq_index=0,
-        pad_index=None,
-        **kwargs,
-    ):
-        """Plot 2D film temperature contours for the selected pads.
-
-        Each selected pad is plotted in its own figure using local pad angle on
-        the X axis and axial position on the Y axis.
-
-        Parameters
-        ----------
-        freq_index : int
-            Index into ``self.temperature_fields``. Default is 0.
-        pad_index : int or list[int] or None, optional
-            Pad index (0-based) or list of indices to plot. If None, plot all pads.
-
-        Returns
-        -------
-        go.Figure or list[go.Figure]
-            One figure when a single pad is selected, otherwise a list with one
-            figure per selected pad.
-        """
-        if not self.temperature_fields:
-            raise ValueError(
-                "Temperature fields not available. "
-                "Run the bearing solution with thermal coupling first."
-            )
-
-        pads_to_plot = self._get_selected_pad_indices(pad_index)
-        t_field = self.temperature_fields[freq_index]
-        max_val = t_field[:, :, pads_to_plot].max()
-
-        theta_deg = np.linspace(0.0, np.degrees(self.pad_arc), self.nx)
-        z_m = np.linspace(
-            self.z1 * self.pad_axial_length,
-            self.z2 * self.pad_axial_length,
-            self.nz,
-        )
-
-        figs = []
-        for i in pads_to_plot:
-            fig = go.Figure()
-            fig.add_trace(
-                go.Contour(
-                    x=theta_deg,
-                    y=z_m,
-                    z=t_field[:, :, i],
-                    zmin=self.oil_supply_temperature,
-                    zmax=max_val,
-                    ncontours=25,
-                    colorscale="Viridis",
-                    colorbar=dict(
-                        title="T [°C]",
-                        tickfont=dict(size=22),
-                    ),
-                )
-            )
-            fig.update_traces(
-                contours_coloring="fill",
-                contours_showlabels=True,
-                contours_labelfont=dict(size=20),
-            )
-            fig.update_xaxes(
-                tickfont=dict(size=22),
-                title=dict(
-                    text="θ (pad local) [deg]",
-                    font=dict(family="Times New Roman", size=30),
-                ),
-            )
-            fig.update_yaxes(
-                tickfont=dict(size=22),
-                title=dict(
-                    text="Pad length [m]",
-                    font=dict(family="Times New Roman", size=30),
-                ),
-            )
-            fig.update_layout(
-                title=dict(text=f"Pad {i + 1} — film temperature", font=dict(size=20)),
-                plot_bgcolor="white",
-                **kwargs,
-            )
-            figs.append(fig)
-
-        if len(figs) == 1:
-            return figs[0]
-
-        return figs
-
-    def plot_thermal_pad_results(self, freq_index=0, pad_index=None, **kwargs):
-        """Backward-compatible alias for ``plot_film_temperature_results()``."""
-        return self.plot_film_temperature_results(
-            freq_index=freq_index,
-            pad_index=pad_index,
-            **kwargs,
-        )
-
-    def plot_solid_pad_results(self, pad_index=None, **kwargs):
-        """Plot 2D solid pad temperature contours for the selected pads.
-
-        Each selected pad is plotted in its own figure using local pad angle on
-        the X axis and pad depth on the Y axis.
-
-        Parameters
-        ----------
-        pad_index : int or list[int] or None, optional
-            Pad index (0-based) or list of indices to plot. If None, plot all pads.
-
-        Returns
-        -------
-        go.Figure or list[go.Figure]
-            One figure when a single pad is selected, otherwise a list with one
-            figure per selected pad.
-        """
-        if self.T_pad is None:
-            raise ValueError(
-                "Pad solid temperatures (T_pad) not available. "
-                "Run the bearing solution with thermal coupling first."
-            )
-
-        pads_to_plot = self._get_selected_pad_indices(pad_index)
-        max_val = self.T_pad[pads_to_plot, :, :].max()
-        min_val = self.T_pad[pads_to_plot, :, :].min()
-
-        theta_deg = np.linspace(0.0, np.degrees(self.pad_arc), self.ntheta_pad)
-        depth_mm = (self.r_pad - self.pad_radius) * 1e3
-
-        figs = []
-        for i in pads_to_plot:
-            fig = go.Figure()
-            fig.add_trace(
-                go.Contour(
-                    x=theta_deg,
-                    y=depth_mm,
-                    z=self.T_pad[i, :, :].T,
-                    zmin=min_val,
-                    zmax=max_val,
-                    ncontours=25,
-                    colorscale="Viridis",
-                    colorbar=dict(
-                        title="T [°C]",
-                        tickfont=dict(size=22),
-                    ),
-                )
-            )
-            fig.update_traces(
-                contours_coloring="fill",
-                contours_showlabels=True,
-                contours_labelfont=dict(size=20),
-            )
-            fig.update_xaxes(
-                tickfont=dict(size=22),
-                title=dict(
-                    text="θ (pad local) [deg]",
-                    font=dict(family="Times New Roman", size=30),
-                ),
-            )
-            fig.update_yaxes(
-                tickfont=dict(size=22),
-                title=dict(
-                    text="Pad depth [mm]",
-                    font=dict(family="Times New Roman", size=30),
-                ),
-                autorange="reversed",
-            )
-            fig.update_layout(
-                title=dict(text=f"Pad {i + 1} — solid temperature", font=dict(size=20)),
-                plot_bgcolor="white",
-                **kwargs,
-            )
-            figs.append(fig)
-
-        if len(figs) == 1:
-            return figs[0]
-
-        return figs
-
-    def plot_film_average_temperature(
-        self, freq_index=0, fig=None, print_data=False, **kwargs
-    ):
-        """Plot film average temperature vs local pad angle for each pad.
-
-        Parameters
-        ----------
-        freq_index : int, optional
-            Index into ``self.temperature_fields``. Default is 0.
-        fig : go.Figure, optional
-            Existing figure to add traces to. If None, a new one is created.
-        print_data : bool, optional
-            When True, print the raw data to the console. Default is False.
-
-        Returns
-        -------
-        fig : go.Figure
-        """
-        if fig is None:
-            fig = go.Figure()
-
-        temperature_field = self.temperature_fields[freq_index]
-        T_avg = temperature_field.mean(axis=0)
-        theta_local_deg = np.linspace(0.0, np.degrees(self.pad_arc), self.nx)
-
-        if print_data:
-            print("\nFilm average temperature data:")
-            print(f"  Frequency index: {freq_index}")
-            for i in range(self.n_pad):
-                print(f"  Pad {i + 1}:")
-                for theta, temp in zip(theta_local_deg, T_avg[:, i]):
-                    print(f"    theta_deg = {theta:8.3f}, T_C = {temp:8.3f}")
-            print()
-
-        for i in range(self.n_pad):
-            color = tableau_colors[list(tableau_colors.keys())[i % len(tableau_colors)]]
-            fig.add_trace(
-                go.Scatter(
-                    x=theta_local_deg,
-                    y=T_avg[:, i],
-                    mode="lines+markers",
-                    name=f"Pad {i + 1}",
-                    line=dict(color=color),
-                    marker=dict(color=color),
-                )
-            )
-
-        fig.update_layout(
-            title=dict(
-                text="Tilting Pad Bearing Results<br>Film Average Temperature",
-                font=dict(size=24),
-            ),
-            xaxis=dict(
-                title=r"θ (pad local) [deg]",
-                showgrid=True,
-                gridwidth=1,
-                gridcolor=tableau_colors["gray"],
-            ),
-            yaxis=dict(
-                title="T [°C]",
-                showgrid=True,
-                gridwidth=1,
-                gridcolor=tableau_colors["gray"],
-            ),
-            plot_bgcolor="white",
-            paper_bgcolor="white",
-            **kwargs,
-        )
-
-        return fig
-
-    def plot_babbitt_surface_temperature(
-        self,
-        axial_index=None,
-        fig=None,
-        print_data=False,
-        **kwargs,
-    ):
-        """Plot babbitt surface temperature vs local pad angle for each pad.
-
-        Parameters
-        ----------
-        axial_index : int or None, optional
-            Axial index to extract the surface temperature.
-            If None, use the axial mid-plane.
-        fig : go.Figure, optional
-            Existing figure. If None, a new one is created.
-        print_data : bool, optional
-            When True, print the raw data to the console. Default is False.
-
-        Returns
-        -------
-        fig : go.Figure
-        """
-        if self.T_pad_surface is None:
-            raise ValueError(
-                "Pad surface temperatures (T_pad_surface) not available. "
-                "Run the bearing solution with thermal coupling first."
-            )
-
-        if axial_index is None:
-            axial_index = self.nz // 2
-
-        if fig is None:
-            fig = go.Figure()
-
-        theta_local_deg = np.linspace(0.0, np.degrees(self.pad_arc), self.nx)
-
-        if print_data:
-            print("\nBabbitt surface temperature data:")
-            print(f"  Axial index: {axial_index}")
-            for i in range(self.n_pad):
-                T_line = self.T_pad_surface[i, :, axial_index]
-                print(f"  Pad {i + 1}:")
-                for theta, temp in zip(theta_local_deg, T_line):
-                    print(f"    theta_deg = {theta:8.3f}, T_C = {temp:8.3f}")
-            print()
-
-        for i in range(self.n_pad):
-            T_line = self.T_pad_surface[i, :, axial_index]
-            color = tableau_colors[list(tableau_colors.keys())[i % len(tableau_colors)]]
-            fig.add_trace(
-                go.Scatter(
-                    x=theta_local_deg,
-                    y=T_line,
-                    mode="lines+markers",
-                    name=f"Pad {i + 1}",
-                    line=dict(color=color),
-                    marker=dict(color=color),
-                )
-            )
-
-        fig.update_layout(
-            title=dict(
-                text="Tilting Pad Bearing Results<br>Babbitt Surface Temperature",
-                font=dict(size=24),
-            ),
-            xaxis=dict(
-                title=r"θ (pad local) [deg]",
-                showgrid=True,
-                gridwidth=1,
-                gridcolor=tableau_colors["gray"],
-            ),
-            yaxis=dict(
-                title="T [°C]",
-                showgrid=True,
-                gridwidth=1,
-                gridcolor=tableau_colors["gray"],
-            ),
-            plot_bgcolor="white",
-            paper_bgcolor="white",
-            **kwargs,
-        )
-
-        return fig
-
-    def show_optimization_convergence(
-        self, by: str = "index", show_plots: bool = False
-    ) -> None:
-        """Display the optimization residuals per iteration for each frequency.
-
-        Parameters
-        ----------
-        by : str, optional
-            ``"index"`` — label frequencies by their array index (default).
-            ``"value"`` — label frequencies by their value in rad/s.
-        show_plots : bool, optional
-            When *True* a convergence plot is shown for each frequency.
-            Default is False.
-
-        Returns
-        -------
-        None
-        """
-        if not self.optimization_history:
-            print("No residual history available. Run the analysis first.")
-            return
-
-        for i, res_list in self.optimization_history.items():
-            if not res_list:
-                continue
-
-            freq = self.frequency[i]
-            rpm = freq * 30 / np.pi
-
-            if self.equilibrium_type == "match_eccentricity":
-                n_pads = self.n_pad
-                total_iters = len(res_list)
-                approx_iters_per_pad = total_iters // n_pads
-
-                table = PrettyTable()
-                table.field_names = ["Pad", "Iterations", "Final Residual [N]"]
-
-                pad_residuals = []
-                for pad_idx in range(n_pads):
-                    start_idx = pad_idx * approx_iters_per_pad
-                    end_idx = (
-                        (pad_idx + 1) * approx_iters_per_pad
-                        if pad_idx < n_pads - 1
-                        else total_iters
-                    )
-                    pad_res = [r for r in res_list[start_idx:end_idx] if r is not None]
-
-                    if pad_res:
-                        final_res = pad_res[-1]
-                        table.add_row([pad_idx + 1, len(pad_res), f"{final_res:.6f}"])
-                        pad_residuals.append((pad_idx + 1, pad_res))
-
-                desired_width = 25
-                table.max_width = desired_width
-                table.min_width = desired_width
-
-                table_str = table.get_string()
-                actual_width = len(table_str.split("\n")[0])
-
-                print("\n" + "=" * actual_width)
-                print(f"OPTIMIZATION CONVERGENCE - {rpm:.1f} RPM".center(actual_width))
-                print("=" * actual_width)
-                print(table)
-                print("=" * actual_width)
-
-                if show_plots:
-                    n_rows = (n_pads + 1) // 2
-                    fig = make_subplots(
-                        rows=n_rows,
-                        cols=2,
-                        subplot_titles=[f"Pad {p[0]}" for p in pad_residuals],
-                    )
-
-                    for idx, (pad_num, pad_res) in enumerate(pad_residuals):
-                        row = (idx // 2) + 1
-                        col = (idx % 2) + 1
-
-                        fig.add_trace(
-                            go.Scatter(
-                                x=list(range(len(pad_res))),
-                                y=pad_res,
-                                mode="lines+markers",
-                                name=f"Pad {pad_num}",
-                                line=dict(width=2),
-                                marker=dict(size=4),
-                            ),
-                            row=row,
-                            col=col,
-                        )
-
-                        fig.update_xaxes(title_text="Iteration", row=row, col=col)
-                        fig.update_yaxes(title_text="Residual [N]", row=row, col=col)
-
-                    fig.update_layout(
-                        title=f"Optimization Convergence by Pad - {rpm:.1f} RPM",
-                        template="ross",
-                        showlegend=False,
-                        height=300 * n_rows,
-                    )
-                    fig.show()
-
-            else:
-                table = PrettyTable()
-                table.field_names = ["Iteration", "Residual [N]"]
-
-                for it, res in enumerate(res_list):
-                    if res is not None:
-                        table.add_row([it, f"{res:.6f}"])
-
-                desired_width = 25
-                table.max_width = desired_width
-                table.min_width = desired_width
-
-                table_str = table.get_string()
-                actual_width = len(table_str.split("\n")[0])
-
-                print("\n" + "=" * actual_width)
-                print(f"OPTIMIZATION CONVERGENCE - {rpm:.1f} RPM".center(actual_width))
-                print("=" * actual_width)
-                print(table)
-                print("=" * actual_width)
-
-                if show_plots:
-                    iterations = list(range(len(res_list)))
-                    residuals = [res if res is not None else 0 for res in res_list]
-
-                    fig = go.Figure()
-                    fig.add_trace(
-                        go.Scatter(
-                            x=iterations,
-                            y=residuals,
-                            mode="lines+markers",
-                            name=f"Convergence - {rpm:.1f} RPM",
-                            line=dict(width=2),
-                            marker=dict(size=6),
-                        )
-                    )
-                    fig.update_layout(
-                        title=f"Global Optimization Convergence - {rpm:.1f} RPM",
-                        xaxis_title="Iteration",
-                        yaxis_title="Residual [N]",
-                        template="ross",
-                    )
-                    fig.show()
-
-    def _plot_scatter(self, x_data, y_data, pos, y_title, fig=None, **kwargs):
-        """Return a scatter plot of field data at a fixed axial position.
-
-        Parameters
-        ----------
-        x_data : list of ndarray
-            Circumferential coordinate for each pad (degrees).
-        y_data : ndarray, shape (nz, nx, n_pad)
-            Field values.
-        pos : int
-            Axial index (z-slice) to extract.
-        y_title : str
-            Y-axis label.
-        fig : go.Figure, optional
-            Existing figure to add traces to.
-
-        Returns
-        -------
-        fig : go.Figure
-        """
-        if fig is None:
-            fig = go.Figure()
-
-        for i in range(self.n_pad):
-            fig.add_trace(
-                go.Scatter(
-                    x=x_data[i],
-                    y=y_data[pos, :, i],
-                    name=f"Pad {i + 1}",
-                )
-            )
-
-        fig.update_layout(
-            plot_bgcolor="white",
-            xaxis_range=[
-                np.array(x_data).min() * 1.1,
-                360 - abs(np.array(x_data).min()),
-            ],
-            legend=dict(font=dict(family="Times New Roman", size=22, color="black")),
-            **kwargs,
-        )
-        fig.update_xaxes(
-            showgrid=True,
-            gridwidth=1,
-            gridcolor="LightGray",
-            tickfont=dict(size=22),
-            title=dict(text="Angle (°)", font=dict(family="Times New Roman", size=30)),
-        )
-        fig.update_yaxes(
-            showgrid=True,
-            gridwidth=1,
-            gridcolor="LightGray",
-            tickfont=dict(size=22),
-            title=dict(text=y_title, font=dict(family="Times New Roman", size=30)),
-        )
-
-        return fig
-
-    def _plot_contour(
-        self, x_data, y_data, z_data, z_title, zmin, ncontours, fig=None, **kwargs
-    ):
-        """Return a 2-D contour plot of field data across all pads.
-
-        Parameters
-        ----------
-        x_data : list of ndarray
-            Circumferential coordinate for each pad (degrees).
-        y_data : ndarray
-            Axial coordinate array.
-        z_data : ndarray, shape (nz, nx, n_pad)
-            Field values.
-        z_title : str
-            Colour bar label.
-        zmin : float
-            Minimum value of the colour scale.
-        ncontours : int
-            Number of contour levels.
-        fig : go.Figure, optional
-            Existing figure to add traces to.
-
-        Returns
-        -------
-        fig : go.Figure
-        """
-        if fig is None:
-            fig = go.Figure()
-
-        max_val = z_data.max()
-
-        for pad_idx in range(self.n_pad):
-            fig.add_trace(
-                go.Contour(
-                    z=z_data[:, :, pad_idx],
-                    x=x_data[pad_idx],
-                    y=y_data,
-                    zmin=zmin,
-                    zmax=max_val,
-                    ncontours=ncontours,
-                    colorscale="Viridis",
-                    colorbar=dict(
-                        title=z_title,
-                        tickfont=dict(size=22),
-                    ),
-                )
-            )
-
-        fig.update_traces(
-            contours_coloring="fill",
-            contours_showlabels=True,
-            contours_labelfont=dict(size=20),
-        )
-        fig.update_layout(
-            plot_bgcolor="white",
-            xaxis_range=[
-                np.array(x_data).min() * 1.1,
-                360 - abs(np.array(x_data).min()),
-            ],
-            **kwargs,
-        )
-        fig.update_xaxes(
-            tickfont=dict(size=22),
-            title=dict(text="Angle (°)", font=dict(family="Times New Roman", size=30)),
-        )
-        fig.update_yaxes(
-            tickfont=dict(size=22),
-            title=dict(
-                text="Pad Length (m)", font=dict(family="Times New Roman", size=30)
-            ),
-        )
-
-        return fig
 
 
 class ThrustPadResults(BearingResults):
@@ -1860,8 +695,8 @@ class ThrustPadResults(BearingResults):
 
         return fig
 
-    def plot_temperature_3d(self, freq_index=0, fig=None, **kwargs):
-        """Return a 3-D surface plot of the temperature field.
+    def plot_film_temperature_3d(self, freq_index=0, fig=None, **kwargs):
+        """Return a 3-D surface plot of the oil film temperature field.
 
         Parameters
         ----------
@@ -2034,783 +869,12 @@ class ThrustPadResults(BearingResults):
                 fig.show()
 
 
-class PlainJournalResults(BearingResults):
-    """Post-processing results for a PlainJournal bearing.
-
-    Parameters
-    ----------
-    frequency : array_like
-        Operating frequencies in rad/s.
-    pressure_fields : list of ndarray, shape (elements_axial, circumferential_total)
-        Dimensional pressure fields at equilibrium, one per frequency (Pa).
-    temperature_fields : list of ndarray, shape (elements_axial, circumferential_total)
-        Dimensional temperature fields at equilibrium, one per frequency (°C).
-    theta_grids : list of ndarray
-        Circumferential coordinate meshgrids, one per frequency (rad).
-    z_grids : list of ndarray
-        Axial coordinate meshgrids, one per frequency (m).
-    P_nondim_fields : list of ndarray, shape (elements_axial, elements_circumferential, n_pad)
-        Non-dimensional pressure fields at equilibrium, one per frequency.
-        Used by ``plot_pressure_distribution``.
-    kxx, kxy, kyx, kyy : ndarray
-        Stiffness coefficients (N/m), one value per frequency.
-    cxx, cxy, cyx, cyy : ndarray
-        Damping coefficients (N·s/m), one value per frequency.
-    fxs_load : float
-        Applied load in the X direction (N).
-    fys_load : float
-        Applied load in the Y direction (N).
-    n_pad : int
-        Number of pads.
-    betha_s_dg : float
-        Pad arc length in degrees.
-    dtheta : float
-        Circumferential mesh step (rad).
-    thetaF : ndarray
-        Pad end angles (rad), one per pad.
-    elements_axial : int
-        Number of axial mesh elements.
-    elements_circumferential : int
-        Number of circumferential mesh elements per pad.
-    equilibrium_pos_by_speed : dict
-        Mapping ``{speed_rad_s: equilibrium_position}``.
-    opt_results : dict
-        Mapping ``{speed_rad_s: scipy.OptimizeResult}``.
-    exec_times : dict
-        Mapping ``{speed_rad_s: elapsed_seconds}``.
-    optimization_history : dict
-        Mapping ``{speed_rad_s: [residuals]}``.
-    initial_time : float, optional
-        Solver start epoch timestamp.
-    final_time : float, optional
-        Solver end epoch timestamp.
-    """
-
-    def __init__(
-        self,
-        frequency,
-        pressure_fields,
-        temperature_fields,
-        theta_grids,
-        z_grids,
-        P_nondim_fields,
-        kxx,
-        kxy,
-        kyx,
-        kyy,
-        cxx,
-        cxy,
-        cyx,
-        cyy,
-        fxs_load,
-        fys_load,
-        n_pad,
-        betha_s_dg,
-        dtheta,
-        thetaF,
-        elements_axial,
-        elements_circumferential,
-        equilibrium_pos_by_speed,
-        opt_results,
-        exec_times,
-        optimization_history,
-        initial_time=None,
-        final_time=None,
-    ):
-        super().__init__(
-            frequency=frequency,
-            pressure_fields=pressure_fields,
-            temperature_fields=temperature_fields,
-            initial_time=initial_time,
-            final_time=final_time,
-        )
-        self.theta_grids = theta_grids
-        self.z_grids = z_grids
-        self.P_nondim_fields = P_nondim_fields
-        self.kxx = np.atleast_1d(kxx)
-        self.kxy = np.atleast_1d(kxy)
-        self.kyx = np.atleast_1d(kyx)
-        self.kyy = np.atleast_1d(kyy)
-        self.cxx = np.atleast_1d(cxx)
-        self.cxy = np.atleast_1d(cxy)
-        self.cyx = np.atleast_1d(cyx)
-        self.cyy = np.atleast_1d(cyy)
-        self.fxs_load = fxs_load
-        self.fys_load = fys_load
-        self.n_pad = n_pad
-        self.betha_s_dg = betha_s_dg
-        self.dtheta = dtheta
-        self.thetaF = thetaF
-        self.elements_axial = elements_axial
-        self.elements_circumferential = elements_circumferential
-        self.equilibrium_pos_by_speed = equilibrium_pos_by_speed
-        self.opt_results = opt_results
-        self.exec_times = exec_times
-        self.optimization_history = optimization_history
-
-    def show_results(self):
-        """Print a formatted summary of plain journal bearing results.
-
-        Iterates over all solved frequencies and prints a PrettyTable with
-        operating conditions, load, equilibrium position, stiffness and
-        damping coefficients, and optimization statistics.
-
-        Parameters
-        ----------
-        None
-
-        Returns
-        -------
-        None
-        """
-        freq_arr = np.atleast_1d(self.frequency)
-        for speed_rad in freq_arr:
-            self._print_single_frequency_results(float(speed_rad))
-
-    def _print_single_frequency_results(self, speed_rad):
-        """Print results table for one speed.
-
-        Parameters
-        ----------
-        speed_rad : float
-            Operating speed in rad/s.
-        """
-        freq_arr = np.atleast_1d(self.frequency).astype(float)
-        idx = int(np.argmin(np.abs(freq_arr - float(speed_rad))))
-
-        k = (self.kxx[idx], self.kxy[idx], self.kyx[idx], self.kyy[idx])
-        c = (self.cxx[idx], self.cxy[idx], self.cyx[idx], self.cyy[idx])
-
-        rpm_display = float(speed_rad) * 30.0 / np.pi
-
-        eq = self.equilibrium_pos_by_speed.get(float(speed_rad))
-        ecc = float(eq[0]) if eq is not None else None
-        attitude_deg = float(eq[1]) * 180.0 / np.pi if eq is not None else None
-
-        table = PrettyTable()
-        table.field_names = ["Parameter", "Value", "Unit"]
-
-        table.add_row(["Operating Speed", f"{rpm_display:.1f}", "RPM"])
-        if ecc is not None:
-            table.add_row(["Eccentricity Ratio", f"{ecc:.4e}", "-"])
-        if attitude_deg is not None:
-            table.add_row(["Attitude Angle", f"{attitude_deg:.4e}", "deg"])
-
-        try:
-            fx = float(getattr(self.fxs_load, "m", self.fxs_load))
-        except Exception:
-            fx = float(self.fxs_load)
-        try:
-            fy = float(getattr(self.fys_load, "m", self.fys_load))
-        except Exception:
-            fy = float(self.fys_load)
-        table.add_row(["Load Fx", f"{fx:.4e}", "N"])
-        table.add_row(["Load Fy", f"{fy:.4e}", "N"])
-
-        table.add_row(["kxx (Stiffness)", f"{k[0]:.4e}", "N/m"])
-        table.add_row(["kxy (Stiffness)", f"{k[1]:.4e}", "N/m"])
-        table.add_row(["kyx (Stiffness)", f"{k[2]:.4e}", "N/m"])
-        table.add_row(["kyy (Stiffness)", f"{k[3]:.4e}", "N/m"])
-        table.add_row(["cxx (Damping)", f"{c[0]:.4e}", "N*s/m"])
-        table.add_row(["cxy (Damping)", f"{c[1]:.4e}", "N*s/m"])
-        table.add_row(["cyx (Damping)", f"{c[2]:.4e}", "N*s/m"])
-        table.add_row(["cyy (Damping)", f"{c[3]:.4e}", "N*s/m"])
-
-        res = self.opt_results.get(float(speed_rad))
-        exec_time = self.exec_times.get(float(speed_rad))
-
-        if res is not None:
-            table.add_row(["Optimization Success", f"{bool(res.success)}", "-"])
-            table.add_row(["Function Value", f"{float(res.fun):.4e}", "-"])
-            table.add_row(["Iterations", f"{int(res.nit)}", "-"])
-            table.add_row(["Evaluations", f"{int(res.nfev)}", "-"])
-        if exec_time is not None:
-            table.add_row(["Execution Time", f"{exec_time:.4e}", "s"])
-
-        desired_width = 25
-        table.max_width = desired_width
-        table.min_width = desired_width
-
-        table_str = table.get_string()
-        actual_width = len(table_str.split("\n")[0])
-
-        print("\n" + "=" * actual_width)
-        print(f"PLAIN JOURNAL RESULTS - {rpm_display:.1f} RPM".center(actual_width))
-        print("=" * actual_width)
-        print(table)
-        print("=" * actual_width)
-
-    def show_coefficients_comparison(self):
-        """Print a table comparing the full 2×2 dynamic coefficient matrix
-        across all frequencies.
-
-        Parameters
-        ----------
-        None
-
-        Returns
-        -------
-        None
-        """
-        freq_rpm = self.frequency.astype(float) * 30.0 / np.pi
-
-        table = PrettyTable()
-        table.field_names = [
-            "Frequency [RPM]",
-            "kxx [N/m]",
-            "kxy [N/m]",
-            "kyx [N/m]",
-            "kyy [N/m]",
-            "cxx [N*s/m]",
-            "cxy [N*s/m]",
-            "cyx [N*s/m]",
-            "cyy [N*s/m]",
-        ]
-
-        for i in range(len(freq_rpm)):
-            table.add_row(
-                [
-                    f"{freq_rpm[i]:.1f}",
-                    f"{self.kxx[i]:.4e}",
-                    f"{self.kxy[i]:.4e}",
-                    f"{self.kyx[i]:.4e}",
-                    f"{self.kyy[i]:.4e}",
-                    f"{self.cxx[i]:.4e}",
-                    f"{self.cxy[i]:.4e}",
-                    f"{self.cyx[i]:.4e}",
-                    f"{self.cyy[i]:.4e}",
-                ]
-            )
-
-        desired_width = 25
-        table.max_width = desired_width
-        table.min_width = desired_width
-
-        table_str = table.get_string()
-        actual_width = len(table_str.split("\n")[0])
-
-        print("\n" + "=" * actual_width)
-        print("DYNAMIC COEFFICIENTS COMPARISON TABLE".center(actual_width))
-        print("=" * actual_width)
-        print(table)
-        print("=" * actual_width)
-
-    def plot_pressure_3d(self, freq_index=0, fig=None, **kwargs):
-        """Return a 3-D surface plot of the pressure field (theta vs z).
-
-        Parameters
-        ----------
-        freq_index : int, optional
-            Frequency index.  Default is 0.
-        fig : go.Figure, optional
-            Existing figure to add the trace to.
-
-        Returns
-        -------
-        fig : go.Figure
-        """
-        if not self.pressure_fields:
-            raise RuntimeError("No field data available.")
-
-        if fig is None:
-            fig = go.Figure()
-
-        P = self.pressure_fields[freq_index]
-        theta_grid = self.theta_grids[freq_index]
-        z_grid = self.z_grids[freq_index]
-
-        fig.add_trace(
-            go.Surface(
-                x=theta_grid,
-                y=z_grid,
-                z=P,
-                colorscale="Viridis",
-                colorbar=dict(title="Pressure [Pa]"),
-                hovertemplate="<b>Pressure field</b><br>"
-                + "Theta: %{x:.3f} rad<br>"
-                + "z: %{y:.3f} m<br>"
-                + "Pressure: %{z:.3f} Pa<br>"
-                + "<extra></extra>",
-            )
-        )
-
-        fig.update_layout(
-            scene=dict(
-                xaxis_title="Theta [rad]",
-                yaxis_title="z [m]",
-                zaxis_title="Pressure [Pa]",
-            ),
-            title="Pressure field (theta vs z)",
-            showlegend=False,
-            **kwargs,
-        )
-
-        return fig
-
-    def plot_pressure_2d(self, freq_index=0, fig=None, **kwargs):
-        """Return a 2-D contour plot of the pressure field (theta vs z).
-
-        Parameters
-        ----------
-        freq_index : int, optional
-            Frequency index.  Default is 0.
-        fig : go.Figure, optional
-            Existing figure to add the trace to.
-
-        Returns
-        -------
-        fig : go.Figure
-        """
-        if not self.pressure_fields:
-            raise RuntimeError("No field data available.")
-
-        if fig is None:
-            fig = go.Figure()
-
-        P = self.pressure_fields[freq_index]
-        theta_grid = self.theta_grids[freq_index]
-        z_grid = self.z_grids[freq_index]
-
-        fig.add_trace(
-            go.Contour(
-                x=theta_grid[0, :],
-                y=z_grid[:, 0],
-                z=P,
-                colorscale="Viridis",
-                colorbar=dict(title="Pressure [Pa]"),
-                contours=dict(coloring="heatmap"),
-                hovertemplate="<b>Pressure field</b><br>"
-                + "Theta: %{x:.3f} rad<br>"
-                + "z: %{y:.3f} m<br>"
-                + "Pressure: %{z:.3f} Pa<br>"
-                + "<extra></extra>",
-            )
-        )
-
-        fig.update_layout(
-            xaxis_title="Theta [rad]",
-            yaxis_title="z [m]",
-            title="Pressure field (theta vs z)",
-            showlegend=False,
-            **kwargs,
-        )
-
-        return fig
-
-    def plot_temperature_3d(self, freq_index=0, fig=None, **kwargs):
-        """Return a 3-D surface plot of the temperature field (theta vs z).
-
-        Parameters
-        ----------
-        freq_index : int, optional
-            Frequency index.  Default is 0.
-        fig : go.Figure, optional
-            Existing figure to add the trace to.
-
-        Returns
-        -------
-        fig : go.Figure
-        """
-        if not self.temperature_fields:
-            raise RuntimeError("No field data available.")
-
-        if fig is None:
-            fig = go.Figure()
-
-        T = self.temperature_fields[freq_index]
-        theta_grid = self.theta_grids[freq_index]
-        z_grid = self.z_grids[freq_index]
-
-        fig.add_trace(
-            go.Surface(
-                x=theta_grid,
-                y=z_grid,
-                z=T,
-                colorscale="Viridis",
-                colorbar=dict(title="Temperature [°C]"),
-                hovertemplate="<b>Temperature field</b><br>"
-                + "Theta: %{x:.3f} rad<br>"
-                + "z: %{y:.3f} m<br>"
-                + "Temperature: %{z:.3f} °C<br>"
-                + "<extra></extra>",
-            )
-        )
-
-        fig.update_layout(
-            scene=dict(
-                xaxis_title="Theta [rad]",
-                yaxis_title="z [m]",
-                zaxis_title="Temperature [°C]",
-            ),
-            title="Temperature field (theta vs z)",
-            showlegend=False,
-            **kwargs,
-        )
-
-        return fig
-
-    def plot_temperature_2d(self, freq_index=0, fig=None, **kwargs):
-        """Return a 2-D contour plot of the temperature field (theta vs z).
-
-        Parameters
-        ----------
-        freq_index : int, optional
-            Frequency index.  Default is 0.
-        fig : go.Figure, optional
-            Existing figure to add the trace to.
-
-        Returns
-        -------
-        fig : go.Figure
-        """
-        if not self.temperature_fields:
-            raise RuntimeError("No field data available.")
-
-        if fig is None:
-            fig = go.Figure()
-
-        T = self.temperature_fields[freq_index]
-        theta_grid = self.theta_grids[freq_index]
-        z_grid = self.z_grids[freq_index]
-
-        fig.add_trace(
-            go.Contour(
-                x=theta_grid[0, :],
-                y=z_grid[:, 0],
-                z=T,
-                colorscale="Viridis",
-                colorbar=dict(title="Temperature [°C]"),
-                contours=dict(coloring="heatmap"),
-                hovertemplate="<b>Temperature field</b><br>"
-                + "Theta: %{x:.3f} rad<br>"
-                + "z: %{y:.3f} m<br>"
-                + "Temperature: %{z:.3f} °C<br>"
-                + "<extra></extra>",
-            )
-        )
-
-        fig.update_layout(
-            xaxis_title="Theta [rad]",
-            yaxis_title="z [m]",
-            title="Temperature field (theta vs z)",
-            showlegend=False,
-            **kwargs,
-        )
-
-        return fig
-
-    def plot_bearing_representation(self, fig=None, rotation=90, **kwargs):
-        """Return a pie-chart representation of the bearing pad layout with load arrow.
-
-        Parameters
-        ----------
-        fig : go.Figure, optional
-            Existing figure to update.
-        rotation : float, optional
-            Rotation of the pie chart in degrees.  Default is 90.
-
-        Returns
-        -------
-        fig : go.Figure
-        """
-        if fig is None:
-            fig = go.Figure()
-
-        groove = (360 / self.n_pad) - self.betha_s_dg
-        hG = groove / 2
-
-        pads = [hG, self.betha_s_dg, hG] * self.n_pad
-        colors = ["#F5F5DC", "#929591", "#F5F5DC"] * self.n_pad
-
-        fig = go.Figure(data=[go.Pie(values=pads, hole=0.85)])
-        fig.update_traces(
-            sort=False,
-            hoverinfo="label",
-            textinfo="none",
-            marker=dict(colors=colors, line=dict(color="#FFFFFF", width=20)),
-            rotation=rotation,
-        )
-
-        try:
-            fx = float(getattr(self.fxs_load, "m", self.fxs_load))
-            fy = float(getattr(self.fys_load, "m", self.fys_load))
-        except Exception:
-            fx = float(self.fxs_load)
-            fy = float(self.fys_load)
-
-        fig.add_annotation(
-            x=fx,
-            y=fy,
-            ax=0,
-            ay=0,
-            xref="x",
-            yref="y",
-            axref="x",
-            ayref="y",
-            showarrow=True,
-            arrowhead=3,
-            arrowsize=2.5,
-            arrowwidth=3,
-            arrowcolor="green",
-        )
-
-        fig.update_layout(
-            showlegend=False,
-            xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-            **kwargs,
-        )
-        fig.update_xaxes(showline=False)
-        fig.update_yaxes(showline=False)
-        return fig
-
-    def plot_pressure_distribution(
-        self, freq_index=0, axial_element_index=None, fig=None, **kwargs
-    ):
-        """Return a 2-D radial pressure distribution plot around the bearing.
-
-        Arrows scaled by local pressure magnitude are plotted on the bearing
-        circumference, one set of arrows per pad.
-
-        Parameters
-        ----------
-        freq_index : int, optional
-            Frequency index to use for the pressure field.  Default is 0.
-        axial_element_index : int, optional
-            Axial slice to plot.  Defaults to the middle of the bearing.
-        fig : go.Figure, optional
-            Existing figure to add traces to.
-
-        Returns
-        -------
-        fig : go.Figure
-        """
-        if not self.P_nondim_fields:
-            raise RuntimeError("No field data available.")
-
-        if fig is None:
-            fig = go.Figure()
-
-        if axial_element_index is None:
-            axial_element_index = self.elements_axial // 2
-
-        n_elements = self.elements_circumferential
-        P_field = self.P_nondim_fields[freq_index]
-
-        total_points = 1000
-        num_points = int(self.dtheta * n_elements * total_points / (2 * np.pi))
-
-        thetaI = 0
-        theta_p = []
-        bearing_plot = []
-
-        for n_p in range(self.n_pad):
-            thetaF_pad = self.thetaF[n_p]
-            theta_ref = np.sort(np.arange(thetaF_pad, thetaI, -self.dtheta))
-            theta_p.append((theta_ref[0], theta_ref[-1]))
-            thetaI = thetaF_pad
-
-            theta = np.linspace(theta_p[n_p][0], theta_p[n_p][1], num_points)
-            x = np.cos(theta)
-            y = np.sin(theta)
-
-            bearing_plot.append(
-                go.Scatter(
-                    x=x,
-                    y=y,
-                    mode="lines",
-                    line=dict(color=tableau_colors["gray"], width=6),
-                    hoverinfo="text",
-                    text=f"Pad {n_p}",
-                    name=f"Pad {n_p} plot",
-                )
-            )
-
-        P_distribution = P_field[axial_element_index, :, :]
-        points = {"x": [], "y": []}
-        pressure_plot = []
-
-        for n_p in range(self.n_pad):
-            scale = P_distribution[:, n_p] / np.max(np.abs(P_distribution)) * 0.5
-
-            theta = np.arange(
-                theta_p[n_p][0] + self.dtheta / 2,
-                theta_p[n_p][1],
-                self.dtheta,
-            )
-            x = np.cos(theta)
-            y = np.sin(theta)
-
-            for i in range(n_elements):
-                x_i = x[i]
-                y_i = y[i]
-                x_f = x_i + scale[i] * np.cos(theta[i])
-                y_f = y_i + scale[i] * np.sin(theta[i])
-
-                angle = theta[i] * 180 / np.pi
-                pressure = P_distribution[i, n_p]
-                data_info = (
-                    f"Pad {n_p}<br>Angle: {angle:.0f} deg<br>"
-                    f"Pressure: {pressure:.3e} Pa"
-                )
-                name = f"Pad {n_p} distribution"
-
-                if abs(np.sqrt(x_f**2 + y_f**2) - 1) > 1e-2:
-                    pressure_plot.append(
-                        go.Scatter(
-                            x=[x_i, x_f],
-                            y=[y_i, y_f],
-                            mode="lines+markers",
-                            line=dict(width=3, color=tableau_colors["orange"]),
-                            marker=dict(size=9, symbol="arrow", angleref="previous"),
-                            hoverinfo="text",
-                            text=data_info,
-                            name=name,
-                        )
-                    )
-
-                points["x"].append(x_f)
-                points["y"].append(y_f)
-
-        points["x"].append(points["x"][0])
-        points["y"].append(points["y"][0])
-
-        fig.add_traces(data=[*pressure_plot, *bearing_plot])
-
-        fig.add_trace(
-            go.Scatter(
-                x=points["x"],
-                y=points["y"],
-                mode="lines",
-                line_shape="spline",
-                line=dict(color="black", width=1.5, dash="dash"),
-                hoverinfo="none",
-                name="Distribution curve",
-            )
-        )
-
-        P_min = np.min(P_distribution)
-        P_max = np.max(P_distribution)
-        fig.add_annotation(
-            x=1,
-            y=1,
-            xref="paper",
-            yref="paper",
-            align="right",
-            showarrow=False,
-            font=dict(size=16, color="black"),
-            text=(
-                f"<b>Pressure Distribution</b><br>"
-                f"Min: {P_min:.3e} Pa<br>Max: {P_max:.3e} Pa"
-            ),
-        )
-
-        fig.update_layout(
-            title="Plain Journal Bearing",
-            xaxis=dict(
-                showgrid=False,
-                zeroline=False,
-                showticklabels=False,
-                scaleanchor="y",
-            ),
-            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-            width=800,
-            height=800,
-            showlegend=False,
-            **kwargs,
-        )
-
-        return fig
-
-    def show_optimization_convergence(
-        self, by: str = "value", show_plots: bool = False
-    ) -> None:
-        """Display the optimization residuals per iteration for each speed.
-
-        Parameters
-        ----------
-        by : str, optional
-            ``"index"`` — sort by frequency array index.
-            ``"value"`` — sort by speed value (default).
-        show_plots : bool, optional
-            When *True* a convergence plot is shown for each speed.
-            Default is False.
-
-        Returns
-        -------
-        None
-        """
-        if not self.optimization_history:
-            print("No residual history available. Run the analysis first.")
-            return
-
-        freq_arr = self.frequency.astype(float)
-
-        items = list(self.optimization_history.items())
-        if by == "index" and len(freq_arr) > 0:
-            items.sort(key=lambda kv: int(np.argmin(np.abs(freq_arr - kv[0]))))
-        else:
-            items.sort(key=lambda kv: kv[0])
-
-        for speed_key, res_list in items:
-            if not res_list:
-                continue
-            rpm = speed_key * 30.0 / np.pi
-
-            desired_width = 25
-            table = PrettyTable()
-            table.field_names = ["Iteration", "Residual [N]"]
-
-            for it, res in enumerate(res_list):
-                if res is not None:
-                    table.add_row([it, f"{res:.4e}"])
-
-            table.max_width = desired_width
-            table.min_width = desired_width
-
-            table_str = table.get_string()
-            actual_width = len(table_str.split("\n")[0])
-
-            print("\n" + "=" * actual_width)
-            print(
-                f"OPTIMIZATION CONVERGENCE - {rpm:.1f} RPM".center(
-                    actual_width
-                ).rstrip()
-            )
-            print("=" * actual_width)
-            print(table)
-            print("=" * actual_width)
-
-            if show_plots:
-                iterations = list(range(len(res_list)))
-                residuals = [res if res is not None else 0 for res in res_list]
-
-                fig = go.Figure()
-                fig.add_trace(
-                    go.Scatter(
-                        x=iterations,
-                        y=residuals,
-                        mode="lines+markers",
-                        name=f"Convergence - {rpm:.1f} RPM",
-                        line=dict(width=2),
-                        marker=dict(size=6),
-                    )
-                )
-                fig.update_layout(
-                    title=f"Optimization Convergence - {rpm:.1f} RPM",
-                    xaxis_title="Iteration",
-                    yaxis_title="Residual [N]",
-                    template="ross",
-                )
-                fig.show()
-
-
 class SqueezeFilmDamperResults(BearingResults):
     """Post-processing results for a SqueezeFilmDamper bearing.
 
     The SFD uses closed-form analytical expressions; no numerical pressure or
     temperature fields are solved.  The four abstract field-plot methods
-    (``plot_pressure_3d``, ``plot_pressure_2d``, ``plot_temperature_3d``,
+    (``plot_pressure_3d``, ``plot_pressure_2d``, ``plot_film_temperature_3d``,
     ``plot_temperature_2d``) therefore raise ``NotImplementedError``.  Use
     ``plot_coefficients()`` to visualise the computed results.
 
@@ -3049,7 +1113,7 @@ class SqueezeFilmDamperResults(BearingResults):
             "is computed.  Use plot_coefficients() instead."
         )
 
-    def plot_temperature_3d(self, freq_index=0, fig=None, **kwargs):
+    def plot_film_temperature_3d(self, freq_index=0, fig=None, **kwargs):
         """Not available for SqueezeFilmDamper (analytical model).
 
         Raises
@@ -3072,3 +1136,559 @@ class SqueezeFilmDamperResults(BearingResults):
             "SqueezeFilmDamper uses analytical formulas — no temperature field "
             "is computed."
         )
+
+
+class FluidFilmBearingResults(BearingResults):
+    """Post-processing results for :class:`FluidFilmBearing`.
+
+    Field arrays are shaped ``(n_pads, n_circumferential, n_axial)``: one
+    grid per pad over the film mesh, with ``theta_grids`` measured from
+    each pad's leading edge and ``leading_edge_angles`` placing the pads on
+    the bearing circumference.
+
+    Parameters
+    ----------
+    frequency : array_like
+        Operating frequencies, rad/s.
+    pressure_fields : list of ndarray
+        Film pressure grids (Pa), one per frequency.
+    temperature_fields : list of ndarray
+        Radially averaged film temperature grids (K), one per frequency.
+    film_thickness_fields : list of ndarray
+        Film thickness grids (m), one per frequency.
+    theta_grids, z_grids : list of ndarray
+        Node angular position (rad, from the pad leading edge) and axial
+        position (m) grids, one per frequency.
+    leading_edge_angles : ndarray
+        Per-pad leading edge angular position, rad.
+    pad_temperature_fields : list of ndarray, optional
+        Solid pad temperature grids (K), one per frequency, shaped
+        ``(n_pads, n_circumferential, n_radial)`` with radial index 0 at
+        the babbitt surface increasing outward to the pad back.  Only
+        computed by the full (conducting-pad) thermal model.
+    pad_radial_positions : ndarray, optional
+        Radius of each pad radial station (m), shape ``(n_radial,)``,
+        matching the last axis of ``pad_temperature_fields``.
+    outputs : list of dict
+        The solver's named-output dict of each frequency (eccentricity,
+        attitude, power loss, flows, temperatures, ...).
+    kxx, kxy, kyx, kyy : array_like
+        Stiffness coefficient tables, N/m.
+    cxx, cxy, cyx, cyy : array_like
+        Damping coefficient tables, N*s/m.
+    initial_time, final_time : float, optional
+        Epoch timestamps around the solver run.
+
+    Examples
+    --------
+    >>> from ross.bearings.fluid_film_bearing import fluid_film_bearing_example
+    >>> bearing = fluid_film_bearing_example()
+    >>> fig = bearing.plot_pressure_2d()
+    """
+
+    def __init__(
+        self,
+        frequency,
+        pressure_fields,
+        temperature_fields,
+        film_thickness_fields,
+        theta_grids,
+        z_grids,
+        leading_edge_angles,
+        outputs,
+        kxx,
+        kxy,
+        kyx,
+        kyy,
+        cxx,
+        cxy,
+        cyx,
+        cyy,
+        pad_temperature_fields=None,
+        pad_radial_positions=None,
+        initial_time=None,
+        final_time=None,
+    ):
+        super().__init__(
+            frequency=frequency,
+            pressure_fields=pressure_fields,
+            temperature_fields=temperature_fields,
+            initial_time=initial_time,
+            final_time=final_time,
+        )
+        self.film_thickness_fields = film_thickness_fields
+        self.theta_grids = theta_grids
+        self.z_grids = z_grids
+        self.leading_edge_angles = np.asarray(leading_edge_angles, dtype=float)
+        self.pad_temperature_fields = pad_temperature_fields
+        self.pad_radial_positions = (
+            None
+            if pad_radial_positions is None
+            else np.asarray(pad_radial_positions, dtype=float)
+        )
+        self.outputs = outputs
+        self.kxx = kxx
+        self.kxy = kxy
+        self.kyx = kyx
+        self.kyy = kyy
+        self.cxx = cxx
+        self.cxy = cxy
+        self.cyx = cyx
+        self.cyy = cyy
+
+    def _pad_indices(self, pad_index):
+        n_pads = self.pressure_fields[0].shape[0]
+        if pad_index is None:
+            return range(n_pads)
+        return [pad_index]
+
+    def _surface_plot(self, values, freq_index, pad_index, fig, title, unit, **kwargs):
+        if fig is None:
+            fig = go.Figure()
+        theta = self.theta_grids[freq_index]
+        z = self.z_grids[freq_index]
+        vmin = min(values[p].min() for p in self._pad_indices(pad_index))
+        vmax = max(values[p].max() for p in self._pad_indices(pad_index))
+        for p in self._pad_indices(pad_index):
+            fig.add_trace(
+                go.Surface(
+                    x=theta[p] + self.leading_edge_angles[p],
+                    y=z[p],
+                    z=values[p],
+                    colorscale="Viridis",
+                    cmin=vmin,
+                    cmax=vmax,
+                    colorbar=dict(title=f"{title} [{unit}]"),
+                    name=f"Pad {p + 1}",
+                    hovertemplate=f"<b>Pad {p + 1}</b><br>"
+                    + "Theta: %{x:.3f} rad<br>"
+                    + "z: %{y:.4f} m<br>"
+                    + f"{title}: %{{z:.4g}} {unit}<br>"
+                    + "<extra></extra>",
+                )
+            )
+        fig.update_layout(
+            scene=dict(
+                xaxis_title="Theta [rad]",
+                yaxis_title="z [m]",
+                zaxis_title=f"{title} [{unit}]",
+            ),
+            title=f"{title} field (theta vs z)",
+            showlegend=False,
+            **kwargs,
+        )
+        return fig
+
+    def _center_plane_plot(self, values, freq_index, fig, title, unit, **kwargs):
+        if fig is None:
+            fig = go.Figure()
+        theta = self.theta_grids[freq_index]
+        mid = values.shape[2] // 2
+        for p in range(values.shape[0]):
+            fig.add_trace(
+                go.Scatter(
+                    x=theta[p][:, mid] + self.leading_edge_angles[p],
+                    y=values[p][:, mid],
+                    mode="lines",
+                    name=f"Pad {p + 1}",
+                )
+            )
+        fig.update_layout(
+            xaxis_title="Theta [rad]",
+            yaxis_title=f"{title} [{unit}]",
+            title=f"{title} at the axial center plane",
+            **kwargs,
+        )
+        return fig
+
+    def plot_pressure_3d(self, freq_index=0, pad_index=None, fig=None, **kwargs):
+        """Return a 3-D surface plot of the film pressure field.
+
+        Parameters
+        ----------
+        freq_index : int, optional
+            Frequency index. Default is 0.
+        pad_index : int, optional
+            Plot a single pad (0-based). Default plots every pad.
+        fig : go.Figure, optional
+            Existing figure to add the traces to.
+        **kwargs : dict
+            Additional layout options forwarded to ``fig.update_layout``.
+
+        Returns
+        -------
+        fig : go.Figure
+        """
+        return self._surface_plot(
+            self.pressure_fields[freq_index],
+            freq_index,
+            pad_index,
+            fig,
+            "Pressure",
+            "Pa",
+            **kwargs,
+        )
+
+    def plot_pressure_2d(self, freq_index=0, fig=None, **kwargs):
+        """Return the film pressure along the axial center plane, per pad.
+
+        Parameters
+        ----------
+        freq_index : int, optional
+            Frequency index. Default is 0.
+        fig : go.Figure, optional
+            Existing figure to add the traces to.
+        **kwargs : dict
+            Additional layout options forwarded to ``fig.update_layout``.
+
+        Returns
+        -------
+        fig : go.Figure
+        """
+        return self._center_plane_plot(
+            self.pressure_fields[freq_index],
+            freq_index,
+            fig,
+            "Pressure",
+            "Pa",
+            **kwargs,
+        )
+
+    def plot_film_temperature_3d(
+        self, freq_index=0, pad_index=None, fig=None, **kwargs
+    ):
+        """Return a 3-D surface plot of the film temperature field.
+
+        Parameters
+        ----------
+        freq_index : int, optional
+            Frequency index. Default is 0.
+        pad_index : int, optional
+            Plot a single pad (0-based). Default plots every pad.
+        fig : go.Figure, optional
+            Existing figure to add the traces to.
+        **kwargs : dict
+            Additional layout options forwarded to ``fig.update_layout``.
+
+        Returns
+        -------
+        fig : go.Figure
+        """
+        return self._surface_plot(
+            self.temperature_fields[freq_index],
+            freq_index,
+            pad_index,
+            fig,
+            "Temperature",
+            "K",
+            **kwargs,
+        )
+
+    def plot_pad_temperature_3d(
+        self,
+        freq_index=0,
+        length_units="m",
+        temperature_units="degC",
+        colorscale="Viridis",
+        show_interface=True,
+        fig=None,
+        **kwargs,
+    ):
+        """Return a 3-D mesh of the pads colored by solid pad temperature.
+
+        Each pad is drawn at its true angular position as a hexahedral mesh
+        spanning the pad thickness, from the babbitt surface (inner radius)
+        to the pad back (outer radius), and extruded over the pad axial
+        length.  The mesh is colored by the solid pad conduction field of
+        the energy equation, which is resolved over the radial pad
+        stations — so the temperature drop through the pad thickness is
+        shown continuously rather than at a few discrete layers.
+
+        This is the through-pad (circumferential x radial) counterpart of
+        ``plot_film_temperature_3d``.  The solver does not resolve the
+        solid temperature along the bearing axis, so the axial extrusion is
+        geometric and each ring carries the same temperature at both axial
+        faces.
+
+        Parameters
+        ----------
+        freq_index : int, optional
+            Frequency index.  Default is 0.
+        length_units : str, optional
+            Units for the x, y and z axes.  Default is "m".
+        temperature_units : str, optional
+            Units for the temperature color scale.  Default is "degC".
+        colorscale : str, optional
+            Plotly colorscale used for the temperature.  Default is
+            "Viridis".
+        show_interface : bool, optional
+            Outline the babbitt surface of each pad with a dashed red line.
+            Default is True.
+        fig : go.Figure, optional
+            Existing figure to add the trace to.
+        kwargs : optional
+            Additional keyword arguments passed to ``fig.update_layout``.
+
+        Returns
+        -------
+        fig : go.Figure
+
+        Raises
+        ------
+        ValueError
+            When the solid pad temperature field is not available: it is
+            only computed by the full (conducting-pad) thermal model
+            (``thermal_type="full"``).
+        """
+        if self.pad_temperature_fields is None or self.pad_radial_positions is None:
+            raise ValueError(
+                "Solid pad temperature data not available: it is only "
+                'computed by the full thermal model (thermal_type="full").  '
+                "Use plot_film_temperature_3d() for the oil film temperature."
+            )
+
+        pad_temperature = (
+            Q_(np.asarray(self.pad_temperature_fields[freq_index]), "K")
+            .to(temperature_units)
+            .m
+        )
+        radius = Q_(self.pad_radial_positions, "m").to(length_units).m
+        theta_grid = self.theta_grids[freq_index]
+        z_grid = Q_(self.z_grids[freq_index], "m").to(length_units).m
+
+        n_pads = pad_temperature.shape[0]
+        n_theta, n_radial = pad_temperature.shape[1], pad_temperature.shape[2]
+        x, y, z, temperature, triangles = [], [], [], [], []
+        interface_x, interface_y, interface_z = [], [], []
+        n_nodes = 0
+
+        for pad in range(n_pads):
+            theta = self.leading_edge_angles[pad] + theta_grid[pad, :, 0]
+            z_planes = np.array([z_grid[pad].min(), z_grid[pad].max()])
+
+            theta_mesh, radius_mesh, z_mesh = np.meshgrid(
+                theta, radius, z_planes, indexing="ij"
+            )
+            x.append((radius_mesh * np.cos(theta_mesh)).ravel())
+            y.append((radius_mesh * np.sin(theta_mesh)).ravel())
+            z.append(z_mesh.ravel())
+            temperature.append(np.repeat(pad_temperature[pad], 2))
+
+            node = n_nodes + np.arange(n_theta * n_radial * 2).reshape(
+                n_theta, n_radial, 2
+            )
+            for face in (
+                node[:, 0, :],
+                node[:, -1, :],
+                node[:, :, 0],
+                node[:, :, 1],
+                node[0, :, :],
+                node[-1, :, :],
+            ):
+                triangles.append(_structured_grid_triangles(face))
+
+            if show_interface:
+                z_mid = z_planes.mean()
+                z_edge = z_mid + 1.004 * (z_planes - z_mid)
+                loop_theta = np.concatenate([theta, theta[::-1], theta[:1]])
+                loop_z = np.concatenate(
+                    [
+                        np.full(n_theta, z_edge[0]),
+                        np.full(n_theta, z_edge[1]),
+                        [z_edge[0]],
+                    ]
+                )
+                interface_x.append(radius[0] * np.cos(loop_theta))
+                interface_y.append(radius[0] * np.sin(loop_theta))
+                interface_z.append(loop_z)
+                interface_x.append([np.nan])
+                interface_y.append([np.nan])
+                interface_z.append([np.nan])
+
+            n_nodes += n_theta * n_radial * 2
+
+        triangles = np.concatenate(triangles)
+
+        if fig is None:
+            fig = go.Figure()
+
+        fig.add_trace(
+            go.Mesh3d(
+                x=np.concatenate(x),
+                y=np.concatenate(y),
+                z=np.concatenate(z),
+                i=triangles[:, 0],
+                j=triangles[:, 1],
+                k=triangles[:, 2],
+                intensity=np.concatenate(temperature),
+                colorscale=colorscale,
+                colorbar=dict(title=dict(text=f"Temperature ({temperature_units})")),
+                flatshading=True,
+                name="Pad temperature",
+                hovertemplate=(
+                    f"x: %{{x:.4g}} {length_units}<br>"
+                    f"y: %{{y:.4g}} {length_units}<br>"
+                    f"z: %{{z:.4g}} {length_units}<br>"
+                    f"Temperature: %{{intensity:.5g}} {temperature_units}"
+                    "<extra></extra>"
+                ),
+            )
+        )
+
+        if show_interface:
+            fig.add_trace(
+                go.Scatter3d(
+                    x=np.concatenate(interface_x),
+                    y=np.concatenate(interface_y),
+                    z=np.concatenate(interface_z),
+                    mode="lines",
+                    line=dict(color="red", width=3, dash="dash"),
+                    name="Babbitt surface",
+                )
+            )
+
+        fig.update_layout(
+            title=dict(text="Solid pad temperature"),
+            scene=dict(
+                xaxis_title=f"X ({length_units})",
+                yaxis_title=f"Y ({length_units})",
+                zaxis_title=f"Z ({length_units})",
+                aspectmode="data",
+            ),
+            legend=dict(x=0.02, y=0.98, xanchor="left", yanchor="top"),
+            **kwargs,
+        )
+
+        return fig
+
+    def plot_temperature_2d(self, freq_index=0, fig=None, **kwargs):
+        """Return the film temperature along the axial center plane, per pad.
+
+        Parameters
+        ----------
+        freq_index : int, optional
+            Frequency index. Default is 0.
+        fig : go.Figure, optional
+            Existing figure to add the traces to.
+        **kwargs : dict
+            Additional layout options forwarded to ``fig.update_layout``.
+
+        Returns
+        -------
+        fig : go.Figure
+        """
+        return self._center_plane_plot(
+            self.temperature_fields[freq_index],
+            freq_index,
+            fig,
+            "Temperature",
+            "K",
+            **kwargs,
+        )
+
+    def plot_film_thickness_2d(self, freq_index=0, fig=None, **kwargs):
+        """Return the film thickness along the axial center plane, per pad.
+
+        Parameters
+        ----------
+        freq_index : int, optional
+            Frequency index. Default is 0.
+        fig : go.Figure, optional
+            Existing figure to add the traces to.
+        **kwargs : dict
+            Additional layout options forwarded to ``fig.update_layout``.
+
+        Returns
+        -------
+        fig : go.Figure
+        """
+        return self._center_plane_plot(
+            self.film_thickness_fields[freq_index],
+            freq_index,
+            fig,
+            "Film thickness",
+            "m",
+            **kwargs,
+        )
+
+    def show_results(self):
+        """Print a per-frequency summary of the bearing solution.
+
+        Returns
+        -------
+        None
+        """
+        table = PrettyTable()
+        table.field_names = [
+            "Frequency [RPM]",
+            "Eccentricity [-]",
+            "Attitude [deg]",
+            "Power loss [W]",
+            "Max pressure [Pa]",
+            "Max temperature [K]",
+            "Side flow [m^3/s]",
+        ]
+        from ross.bearings.fluid_film.driver import ZERO_TEMPERATURE_SENTINEL
+
+        for i, out in enumerate(self.outputs):
+            tpad_max = out["tpad_max"][0]
+            has_thermal = abs(tpad_max - ZERO_TEMPERATURE_SENTINEL) > 1e-9
+            table.add_row(
+                [
+                    f"{self.frequency[i] * 30.0 / np.pi:.1f}",
+                    f"{out['eccentricity'][0]:.4f}",
+                    f"{np.degrees(out['attitude'][0]):.1f}",
+                    f"{out['power_loss'][0]:.4g}",
+                    f"{out['y_max_p'][0]:.4g}",
+                    f"{tpad_max:.2f}" if has_thermal else "-",
+                    f"{out['differential_flow_rate'][0]:.4g}",
+                ]
+            )
+        actual_width = len(table.get_string().split("\n")[0])
+        print("\n" + "=" * actual_width)
+        print("FLUID FILM BEARING RESULTS".center(actual_width))
+        print("=" * actual_width)
+        print(table)
+        print("=" * actual_width)
+
+    def show_coefficients_comparison(self):
+        """Print a table comparing dynamic coefficients across frequencies.
+
+        Returns
+        -------
+        None
+        """
+        freq_rpm = self.frequency.astype(float) * 30.0 / np.pi
+
+        table = PrettyTable()
+        table.field_names = [
+            "Frequency [RPM]",
+            "kxx [N/m]",
+            "kxy [N/m]",
+            "kyx [N/m]",
+            "kyy [N/m]",
+            "cxx [N*s/m]",
+            "cxy [N*s/m]",
+            "cyx [N*s/m]",
+            "cyy [N*s/m]",
+        ]
+        for i in range(len(freq_rpm)):
+            table.add_row(
+                [
+                    f"{freq_rpm[i]:.1f}",
+                    f"{self.kxx[i]:.4e}",
+                    f"{self.kxy[i]:.4e}",
+                    f"{self.kyx[i]:.4e}",
+                    f"{self.kyy[i]:.4e}",
+                    f"{self.cxx[i]:.4e}",
+                    f"{self.cxy[i]:.4e}",
+                    f"{self.cyx[i]:.4e}",
+                    f"{self.cyy[i]:.4e}",
+                ]
+            )
+        actual_width = len(table.get_string().split("\n")[0])
+        print("\n" + "=" * actual_width)
+        print("DYNAMIC COEFFICIENTS COMPARISON TABLE".center(actual_width))
+        print("=" * actual_width)
+        print(table)
+        print("=" * actual_width)

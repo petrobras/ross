@@ -14,7 +14,7 @@ Concise recipes for rotordynamics analyses with ROSS. Each file is self-containe
 | Time response | [time_response.md](time_response.md) | `run_time_response` |
 | UCS and Level 1 stability | [ucs_and_level1.md](ucs_and_level1.md) | `run_ucs`, `run_level1` |
 | Fault analysis | [faults.md](faults.md) | `run_rubbing`, `run_crack`, `run_misalignment` |
-| Advanced bearings | [bearings_advanced.md](bearings_advanced.md) | `BearingElement` with arrays, fluid flow |
+| Advanced bearings | [bearings_advanced.md](bearings_advanced.md) | `BearingElement` with arrays, fluid-film bearings |
 | Common gotchas | [gotchas.md](gotchas.md) | — |
 
 **Maintenance:** These recipes correspond to tutorials and examples in `docs/user_guide/`. When adding a new tutorial or `run_*` method, update the relevant recipe here.
