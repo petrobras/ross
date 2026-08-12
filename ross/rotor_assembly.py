@@ -3352,9 +3352,12 @@ class Rotor(object):
 
         # the figure width is left unset so it adapts to the container; the
         # height is sized for a nominal width and the scaleanchor constraint
-        # on the y axis keeps the drawing at a 1:1 aspect ratio at any width
+        # keeps the drawing at a 1:1 aspect ratio at any width, with both axes
+        # giving up domain rather than range so a container wider or narrower
+        # than nominal adds blank margin around the axes instead of stretching
+        # them beyond the rotor
         nominal_width = 800
-        margin = dict(l=70, r=25, t=95, b=52)
+        margin = dict(l=70, r=25, t=100, b=70)
         pixels_per_unit = (nominal_width - margin["l"] - margin["r"]) / (
             x_range[1] - x_range[0]
         )
@@ -3374,6 +3377,8 @@ class Rotor(object):
         fig.update_xaxes(
             title_text=f"Axial location ({length_units})",
             range=x_range,
+            constrain="domain",
+            constraintoward="center",
             showgrid=True,
             gridcolor="#EDF1F5",
             showspikes=True,
@@ -3393,20 +3398,34 @@ class Rotor(object):
             constrain="domain",
             **axes,
         )
+        # the title is pinned to the top of the figure and the legend hangs
+        # from a fixed line below it, so when a narrow container wraps the
+        # legend the extra rows grow downward towards the plot area instead
+        # of upward over the title
+        plot_area_height = height - margin["t"] - margin["b"]
         fig.update_layout(
             height=height,
             margin=margin,
             legend=dict(
                 orientation="h",
-                yanchor="bottom",
-                y=1.02,
-                x=0,
+                yanchor="top",
+                y=1 + (margin["t"] - 40) / plot_area_height,
+                x=0.5,
+                xanchor="center",
                 itemsizing="constant",
             ),
-            updatemenus=self._plot_mode_buttons(fig),
+            updatemenus=self._plot_mode_buttons(fig, y=-30 / plot_area_height),
         )
 
-        kwargs["title"] = kwargs.get("title", "Rotor Model")
+        title = kwargs.get("title", "Rotor Model")
+        if isinstance(title, str):
+            title = {"text": title}
+        kwargs["title"] = {
+            "yref": "container",
+            "y": 1 - 8 / height,
+            "yanchor": "top",
+            **title,
+        }
         fig.update_layout(**kwargs)
 
         return fig
@@ -3678,18 +3697,22 @@ class Rotor(object):
         )
 
     @staticmethod
-    def _plot_mode_buttons(fig):
-        """Build the buttons which switch the look of the lower half.
+    def _plot_mode_buttons(fig, y):
+        """Build the button which toggles the look of the lower half.
 
         Traces which can be drawn in more than one style carry the style values
-        for each mode in their `meta` attribute. The buttons restyle only these
-        style properties, never the trace visibility, which belongs to the
-        legend.
+        for each mode in their `meta` attribute. A single toggle button switches
+        the lower half between the render and the cross section view, restyling
+        only these style properties, never the trace visibility, which belongs
+        to the legend.
 
         Parameters
         ----------
         fig : plotly.graph_objects.Figure
             The figure object with the rotor representation.
+        y : float
+            Vertical position of the button in paper coordinates, negative to
+            place it inside the bottom margin.
 
         Returns
         -------
@@ -3724,9 +3747,10 @@ class Rotor(object):
                 direction="right",
                 x=1.0,
                 xanchor="right",
-                y=1.02,
-                yanchor="bottom",
+                y=y,
+                yanchor="top",
                 pad=dict(t=2, b=2),
+                active=-1,
                 showactive=True,
                 font=dict(size=11),
                 bgcolor="#FFFFFF",
@@ -3734,12 +3758,10 @@ class Rotor(object):
                 borderwidth=1,
                 buttons=[
                     dict(
-                        label="Bottom: render", method="restyle", args=styles("render")
-                    ),
-                    dict(
                         label="Bottom: section",
                         method="restyle",
                         args=styles("section"),
+                        args2=styles("render"),
                     ),
                 ],
             )
