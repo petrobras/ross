@@ -10,3 +10,4 @@ numba
 ccp-performance
 prettytable
 control
+loky>=3.0

@@ -3,7 +3,7 @@ import sys
 from scipy.linalg import lu_factor, lu_solve
 from numpy.linalg import cond
 from warnings import warn
-import multiprocessing
+from loky import cpu_count, get_reusable_executor
 from ross import SealElement
 from ross.units import check_units, Q_
 from ross.seals.gas_model import extract_gas_properties, IdealGas, RealGas
@@ -283,8 +283,13 @@ class LabyrinthSeal(SealElement):
             # Use multiprocessing only when beneficial (>4 frequencies)
             # For small workloads, sequential execution avoids process spawn overhead
             if len(frequency) > 4:
-                with multiprocessing.Pool() as pool:
-                    results = pool.map(self.run, frequency)
+                # loky starts fresh workers (no fork, so no inherited sockets
+                # crashing Jupyter kernels) and does not re-import __main__,
+                # so scripts need no if __name__ == "__main__" guard.
+                executor = get_reusable_executor(
+                    max_workers=min(len(frequency), cpu_count())
+                )
+                results = list(executor.map(self.run, frequency))
             else:
                 results = [self.run(freq) for freq in frequency]
 

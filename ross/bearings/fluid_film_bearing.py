@@ -13,10 +13,10 @@ tilting pad, ...) subclass this and only translate their user-facing
 geometry into the per-pad arrays this class consumes.
 """
 
-import multiprocessing
 import time
 
 import numpy as np
+from loky import get_reusable_executor
 
 from ross.bearing_seal_element import BearingElement
 from ross.bearings.bearing_results import FluidFilmBearingResults
@@ -698,8 +698,13 @@ class FluidFilmBearing(BearingElement):
         """
         per_case = [self._engine_inputs(f) for f in self.frequency_range]
         if num_processes is not None and num_processes > 1:
-            with multiprocessing.Pool(num_processes) as pool:
-                return pool.map(_solve_case, per_case)
+            # loky starts fresh workers (no fork, so no inherited sockets
+            # crashing Jupyter kernels) and does not re-import __main__,
+            # so scripts need no if __name__ == "__main__" guard.
+            executor = get_reusable_executor(
+                max_workers=min(num_processes, len(per_case))
+            )
+            return list(executor.map(_solve_case, per_case))
         return [_solve_case(inputs) for inputs in per_case]
 
     def coefficients(self, frequency):

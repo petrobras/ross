@@ -1,5 +1,5 @@
 import numpy as np
-import multiprocessing
+from loky import cpu_count, get_reusable_executor
 from ross import SealElement
 from ross.units import Q_, check_units
 from ross.seals.gas_model import extract_gas_properties
@@ -265,8 +265,13 @@ class HolePatternSeal(SealElement):
             # Use multiprocessing only when beneficial (>2 frequencies)
             # For small workloads, sequential execution avoids process spawn overhead
             if len(self.frequency) > 2:
-                with multiprocessing.Pool() as pool:
-                    results = pool.map(self.run, self.frequency)
+                # loky starts fresh workers (no fork, so no inherited sockets
+                # crashing Jupyter kernels) and does not re-import __main__,
+                # so scripts need no if __name__ == "__main__" guard.
+                executor = get_reusable_executor(
+                    max_workers=min(len(self.frequency), cpu_count())
+                )
+                results = list(executor.map(self.run, self.frequency))
             else:
                 results = [self.run(freq) for freq in self.frequency]
 
