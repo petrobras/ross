@@ -493,6 +493,11 @@ def test_plot_temperature_3d_deprecated_alias(thrust_pad_results):
     assert_plotly_figure(fig)
 
 
+def test_plot_pad_temperature_3d_not_available(thrust_pad_results):
+    with pytest.raises(NotImplementedError, match="solid pad temperature"):
+        thrust_pad_results.plot_pad_temperature_3d()
+
+
 def test_squeeze_film_damper_field_plots_not_available():
     bearing = SqueezeFilmDamper(
         n=0,

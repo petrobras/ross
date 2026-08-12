@@ -164,6 +164,54 @@ def test_plots(fixture_bearing):
     assert isinstance(fig, go.Figure)
 
 
+@pytest.fixture(scope="module")
+def full_thermal_bearing():
+    kwargs, outputs = bearing_kwargs_from_fixture("fixed_full_coarse")
+    return FluidFilmBearing(**kwargs), outputs
+
+
+def test_pad_temperature_fields(full_thermal_bearing):
+    bearing, _ = full_thermal_bearing
+    results = bearing._results
+    field = results.pad_temperature_fields[0]
+    radii = results.pad_radial_positions
+    n_pads, _, n_radial = field.shape
+    assert n_pads == bearing.n_pads
+    assert radii.shape == (n_radial,)
+    assert_allclose(radii[-1] - radii[0], float(bearing.pad_thickness), rtol=1e-12)
+    out = results.outputs[0]
+    assert_allclose(field[:, :, 0], np.asarray(out["tc"][0]), rtol=1e-12)
+    assert_allclose(field[:, :, -1], np.asarray(out["tb"][0]), rtol=1e-12)
+
+
+def test_plot_pad_temperature_3d(full_thermal_bearing):
+    bearing, _ = full_thermal_bearing
+    field = bearing._results.pad_temperature_fields[0]
+    radii = bearing._results.pad_radial_positions
+    n_pads, n_theta, n_radial = field.shape
+
+    fig = bearing.plot_pad_temperature_3d()
+    mesh = fig.data[0]
+    assert [trace.type for trace in fig.data] == ["mesh3d", "scatter3d"]
+    assert len(mesh.x) == n_pads * n_theta * n_radial * 2
+    assert_allclose(
+        [np.min(mesh.intensity), np.max(mesh.intensity)],
+        [field.min() - 273.15, field.max() - 273.15],
+        rtol=1e-12,
+    )
+    radius = np.hypot(np.asarray(mesh.x), np.asarray(mesh.y))
+    assert_allclose([radius.min(), radius.max()], [radii[0], radii[-1]], rtol=1e-12)
+
+    fig = bearing.plot_pad_temperature_3d(show_interface=False)
+    assert [trace.type for trace in fig.data] == ["mesh3d"]
+
+
+def test_plot_pad_temperature_3d_requires_full_thermal(fixture_bearing):
+    bearing, _ = fixture_bearing
+    with pytest.raises(ValueError, match="full thermal model"):
+        bearing.plot_pad_temperature_3d()
+
+
 def test_multi_speed_and_parallel():
     kwargs, _ = bearing_kwargs_from_fixture("fixed_isoviscous")
     kwargs["frequency"] = [80.0, 110.0]
