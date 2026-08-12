@@ -3403,8 +3403,12 @@ class Rotor(object):
         pixels_per_unit = (nominal_width - margin["l"] - margin["r"]) / (
             x_range[1] - x_range[0]
         )
-        height = (y_range[1] - y_range[0]) * pixels_per_unit
-        height = int(min(max(height + margin["t"] + margin["b"], 300), 900))
+
+        def _figure_height(y0, y1):
+            height = (y1 - y0) * pixels_per_unit
+            return int(min(max(height + margin["t"] + margin["b"], 300), 1200))
+
+        height = _figure_height(*y_range)
 
         axes = dict(
             zeroline=False,
@@ -3455,6 +3459,12 @@ class Rotor(object):
         fig.update_layout(**kwargs)
         if show_axes_indicator:
             add_coordinate_axes_indicator(fig)
+            # the indicator expands the y-range; resize height so the 1:1
+            # scaleanchor still fits and the triad never overlaps the
+            # "Axial location" axis line
+            if "height" not in kwargs:
+                y0, y1 = fig.layout.yaxis.range
+                fig.update_layout(height=_figure_height(y0, y1))
 
         return fig
 

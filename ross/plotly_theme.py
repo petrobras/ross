@@ -118,8 +118,9 @@ def _expand_y_range_for_indicator(fig, indicator_ymin, indicator_ymax):
         new_y0 = min(ymin_data, indicator_ymin)
         new_y1 = max(ymax_data, indicator_ymax)
 
-    padding = (new_y1 - new_y0) * 0.02
-    fig.update_yaxes(range=[new_y0 - padding, new_y1 + padding])
+    # Extra bottom padding keeps the triad clear of the Axial location axis.
+    span = new_y1 - new_y0
+    fig.update_yaxes(range=[new_y0 - 0.06 * span, new_y1 + 0.02 * span])
 
 
 def _indicator_axis_lengths(fig, size):
