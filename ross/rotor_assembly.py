@@ -3350,9 +3350,12 @@ class Rotor(object):
             fig, nodes, length_units, y_low - 0.11 * y_span, x_range[0]
         )
 
-        width = 1150
+        # the figure width is left unset so it adapts to the container; the
+        # height is sized for a nominal width and the scaleanchor constraint
+        # on the y axis keeps the drawing at a 1:1 aspect ratio at any width
+        nominal_width = 800
         margin = dict(l=70, r=25, t=95, b=52)
-        pixels_per_unit = (width - margin["l"] - margin["r"]) / (
+        pixels_per_unit = (nominal_width - margin["l"] - margin["r"]) / (
             x_range[1] - x_range[0]
         )
         height = (y_range[1] - y_range[0]) * pixels_per_unit
@@ -3385,10 +3388,12 @@ class Rotor(object):
             title_text=f"Shaft radius ({length_units})",
             range=y_range,
             showgrid=False,
+            scaleanchor="x",
+            scaleratio=1,
+            constrain="domain",
             **axes,
         )
         fig.update_layout(
-            width=width,
             height=height,
             margin=margin,
             legend=dict(
