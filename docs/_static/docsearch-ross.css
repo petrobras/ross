@@ -1,0 +1,114 @@
+/* ROSS design system — Algolia DocSearch modal theme.
+   Maps the --docsearch-* custom properties onto the ROSS tokens defined in
+   ross-tokens.css. Loaded by conf.py only when the sphinx_docsearch extension
+   is active (DOCSEARCH_* environment variables set); harmless otherwise.
+
+   Dark mode: ross-tokens.css re-points every semantic alias used below under
+   html[data-theme="dark"] (the sphinx-book-theme toggle attribute), so a
+   single set of declarations follows the docs theme automatically. The rule
+   is declared for both :root and html[data-theme="dark"] so it also outranks
+   DocSearch's own bundled dark-mode overrides, which target the same
+   attribute; this file must load after the extension's docsearch.css (it
+   does: conf.py's setup() registers it last).
+
+   Variable names checked against
+   https://github.com/algolia/docsearch (packages/docsearch-css) on 2026-08-12;
+   the set below covers both the classic v3 names (key-gradient, hit-active-
+   color, searchbox-shadow, ...) and the current ones, so it stays correct
+   across the DocSearch version bundled by sphinx-docsearch. */
+
+:root,
+html[data-theme="dark"] {
+  /* Typography */
+  --docsearch-font-family: var(--font-sans);
+
+  /* Brand / accents */
+  --docsearch-primary-color: var(--accent);
+  --docsearch-primary-dark-color: var(--accent-active);
+  --docsearch-soft-primary-color: var(--accent-soft);
+  --docsearch-highlight-color: var(--accent);
+  --docsearch-focus-color: var(--border-focus);
+  --docsearch-logo-color: var(--text-subtle);
+
+  /* Text */
+  --docsearch-text-color: var(--text-body);
+  --docsearch-secondary-text-color: var(--text-muted);
+  --docsearch-muted-color: var(--text-subtle);
+  --docsearch-muted-color-darker: var(--border-strong);
+  --docsearch-icon-color: var(--text-muted);
+  --docsearch-subtle-color: var(--border-default);
+
+  /* Feedback states */
+  --docsearch-error-color: var(--danger-500);
+  --docsearch-error-soft-color: var(--danger-100);
+  --docsearch-error-text-color: var(--danger-700);
+  --docsearch-success-color: var(--success-100);
+
+  /* Surfaces */
+  --docsearch-background-color: var(--surface-sunken);
+  --docsearch-container-background: var(--overlay-scrim);
+  --docsearch-border-radius: var(--radius-sm);
+
+  /* Modal */
+  --docsearch-modal-background: var(--surface-card);
+  --docsearch-modal-radius: var(--radius-lg);
+  --docsearch-modal-shadow: var(--shadow-lg);
+
+  /* Search box */
+  --docsearch-searchbox-background: var(--surface-sunken);
+  --docsearch-searchbox-focus-background: var(--surface-page);
+  --docsearch-searchbox-shadow: inset 0 0 0 2px var(--accent);
+
+  /* Hits */
+  --docsearch-hit-color: var(--text-body);
+  --docsearch-hit-active-color: var(--text-inverse);
+  --docsearch-hit-background: var(--surface-card);
+  --docsearch-hit-focus-background: var(--surface-hover);
+  --docsearch-hit-highlight-color: var(--accent-soft);
+  --docsearch-hit-shadow: none;
+
+  /* Key hints — match the kbd styling in theme-ross.css */
+  --docsearch-key-background: var(--surface-card);
+  --docsearch-key-color: var(--text-subtle);
+  --docsearch-key-gradient: linear-gradient(
+    var(--surface-card),
+    var(--surface-card)
+  );
+  --docsearch-key-shadow: inset 0 -2px 0 0 var(--border-default),
+    inset 0 0 1px 1px var(--surface-card), var(--shadow-xs);
+  --docsearch-key-pressed-shadow: inset 0 2px 4px var(--border-subtle);
+
+  /* Footer */
+  --docsearch-footer-background: var(--surface-card);
+  --docsearch-footer-shadow: 0 -1px 0 0 var(--border-subtle);
+
+  /* Search button (theme-ross.css already styles the book-theme field) */
+  --docsearch-search-button-background: var(--surface-card);
+  --docsearch-search-button-text-color: var(--text-subtle);
+
+  /* Newer DocSearch UI (dropdown menus, chips, popovers, code blocks) */
+  --docsearch-dropdown-menu-background: var(--surface-card);
+  --docsearch-dropdown-menu-item-hover-background: var(--surface-hover);
+  --docsearch-chip-background: var(--accent-soft);
+  --docsearch-chip-text-color: var(--accent-active);
+  --docsearch-menu-trigger-active-background: var(--accent-soft);
+  --docsearch-menu-trigger-active-text-color: var(--accent-active);
+  --docsearch-popover-background: var(--surface-card);
+  --docsearch-popover-shadow: var(--shadow-md);
+  --docsearch-popover-arrow-color: var(--border-default);
+  --docsearch-code-block-background: var(--surface-code);
+}
+
+.DocSearch-Modal {
+  border: 1px solid var(--border-default);
+}
+
+.DocSearch-Input {
+  font: var(--type-body);
+}
+
+.DocSearch-Button-Key,
+.DocSearch-Commands-Key {
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+}
