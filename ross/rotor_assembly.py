@@ -1023,6 +1023,13 @@ class Rotor(object):
         target_elements = []
         new_elems_length = []
 
+        brg_base = [brg for brg in bearing_elements if brg.n_link in self.link_nodes]
+        elm_linked = [
+            elm
+            for elm in bearing_elements + point_mass_elements
+            if elm.n in self.link_nodes
+        ]
+
         for new_pos in new_nodes_pos:
             for elm in shaft_elements:
                 elm.tag = None
@@ -1050,16 +1057,8 @@ class Rotor(object):
 
             if left_elem.n != prev_left_node:
                 for elm in elements:
-                    if elm.n >= right_elem.n:
+                    if elm.n >= right_elem.n and elm not in elm_linked:
                         elm.n += 1
-                        if elm in shaft_elements:
-                            elm._n = elm.n
-                            elm.n_l = elm.n
-                            elm.n_r = elm.n + 1
-                        if elm in point_mass_elements:
-                            for brg in bearing_elements:
-                                if elm.n - 1 == brg.n_link:
-                                    brg.n_link += 1
 
             for j in range(i + 1, len(target_elements)):
                 if target_elements[j] == target_elements[i]:
@@ -1075,6 +1074,16 @@ class Rotor(object):
 
             prev_left_node = left_elem.n
 
+        n_nodes = max([sh.n_r for sh in shaft_elements]) - max(
+            [sh.n_r for sh in self.shaft_elements]
+        )
+
+        for brg in brg_base:
+            brg.n_link += n_nodes
+
+        for elm in elm_linked:
+            elm.n += n_nodes
+
         return Rotor(
             shaft_elements,
             disk_elements=disk_elements,
@@ -1089,14 +1098,15 @@ class Rotor(object):
     def add_elements(self, new_elements):
         """Add elements to rotor.
 
-        This method returns the modified rotor with additional elements.
-        This is not valid for shaft elements.
+        This method returns a new rotor with the given elements added to it.
+        It is valid for shaft elements only when appending new elements to
+        the end of the shaft or inserting new elements around the existing
+        shaft.
 
         Parameters
         ----------
         new_elements : list
-            List with the new elements. It may be disks, gears, bearings,
-            seals and point masses.
+            List with the new elements.
 
         Returns
         -------
@@ -3352,9 +3362,12 @@ class Rotor(object):
 
         # the figure width is left unset so it adapts to the container; the
         # height is sized for a nominal width and the scaleanchor constraint
-        # on the y axis keeps the drawing at a 1:1 aspect ratio at any width
+        # keeps the drawing at a 1:1 aspect ratio at any width, with both axes
+        # giving up domain rather than range so a container wider or narrower
+        # than nominal adds blank margin around the axes instead of stretching
+        # them beyond the rotor
         nominal_width = 800
-        margin = dict(l=70, r=25, t=95, b=52)
+        margin = dict(l=70, r=25, t=100, b=70)
         pixels_per_unit = (nominal_width - margin["l"] - margin["r"]) / (
             x_range[1] - x_range[0]
         )
@@ -3374,6 +3387,8 @@ class Rotor(object):
         fig.update_xaxes(
             title_text=f"Axial location ({length_units})",
             range=x_range,
+            constrain="domain",
+            constraintoward="center",
             showgrid=True,
             gridcolor="#EDF1F5",
             showspikes=True,
@@ -3393,20 +3408,34 @@ class Rotor(object):
             constrain="domain",
             **axes,
         )
+        # the title is pinned to the top of the figure and the legend hangs
+        # from a fixed line below it, so when a narrow container wraps the
+        # legend the extra rows grow downward towards the plot area instead
+        # of upward over the title
+        plot_area_height = height - margin["t"] - margin["b"]
         fig.update_layout(
             height=height,
             margin=margin,
             legend=dict(
                 orientation="h",
-                yanchor="bottom",
-                y=1.02,
-                x=0,
+                yanchor="top",
+                y=1 + (margin["t"] - 40) / plot_area_height,
+                x=0.5,
+                xanchor="center",
                 itemsizing="constant",
             ),
-            updatemenus=self._plot_mode_buttons(fig),
+            updatemenus=self._plot_mode_buttons(fig, y=-30 / plot_area_height),
         )
 
-        kwargs["title"] = kwargs.get("title", "Rotor Model")
+        title = kwargs.get("title", "Rotor Model")
+        if isinstance(title, str):
+            title = {"text": title}
+        kwargs["title"] = {
+            "yref": "container",
+            "y": 1 - 8 / height,
+            "yanchor": "top",
+            **title,
+        }
         fig.update_layout(**kwargs)
 
         return fig
@@ -3678,18 +3707,22 @@ class Rotor(object):
         )
 
     @staticmethod
-    def _plot_mode_buttons(fig):
-        """Build the buttons which switch the look of the lower half.
+    def _plot_mode_buttons(fig, y):
+        """Build the button which toggles the look of the lower half.
 
         Traces which can be drawn in more than one style carry the style values
-        for each mode in their `meta` attribute. The buttons restyle only these
-        style properties, never the trace visibility, which belongs to the
-        legend.
+        for each mode in their `meta` attribute. A single toggle button switches
+        the lower half between the render and the cross section view, restyling
+        only these style properties, never the trace visibility, which belongs
+        to the legend.
 
         Parameters
         ----------
         fig : plotly.graph_objects.Figure
             The figure object with the rotor representation.
+        y : float
+            Vertical position of the button in paper coordinates, negative to
+            place it inside the bottom margin.
 
         Returns
         -------
@@ -3724,9 +3757,10 @@ class Rotor(object):
                 direction="right",
                 x=1.0,
                 xanchor="right",
-                y=1.02,
-                yanchor="bottom",
+                y=y,
+                yanchor="top",
                 pad=dict(t=2, b=2),
+                active=-1,
                 showactive=True,
                 font=dict(size=11),
                 bgcolor="#FFFFFF",
@@ -3734,12 +3768,10 @@ class Rotor(object):
                 borderwidth=1,
                 buttons=[
                     dict(
-                        label="Bottom: render", method="restyle", args=styles("render")
-                    ),
-                    dict(
                         label="Bottom: section",
                         method="restyle",
                         args=styles("section"),
+                        args2=styles("render"),
                     ),
                 ],
             )
