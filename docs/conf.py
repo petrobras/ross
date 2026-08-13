@@ -92,7 +92,7 @@ suppress_warnings = ["bibtex.duplicate_citation"]
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This patterns also effect to html_static_path and html_extra_path
-exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
+exclude_patterns = ["_build", "_design", "Thumbs.db", ".DS_Store"]
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = "abap"
@@ -229,5 +229,8 @@ texinfo_documents = [
 
 
 def setup(app):
+    app.add_css_file("ross-tokens.css")
+    app.add_css_file("theme-ross.css")
     app.add_css_file("custom.css")
     app.add_js_file("custom.js")
+    app.add_js_file("plotly-theme-sync.js")

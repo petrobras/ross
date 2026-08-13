@@ -140,3 +140,5 @@ pip-selfcheck.json
 /.claude
 .mcp.json
 uv.lock
+# Local mirror of the claude.ai design-system project (canonical source lives there)
+docs/_design/
