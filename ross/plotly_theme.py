@@ -5,6 +5,11 @@ import re
 from plotly import graph_objects as go
 from plotly import io as pio
 
+# IBM Plex Sans with graceful fallbacks. Users without the font installed
+# degrade to Helvetica/Arial, and static export through kaleido renders with
+# the fallback unless IBM Plex Sans is installed system-wide.
+ROSS_FONT_FAMILY = "IBM Plex Sans, Helvetica, Arial, sans-serif"
+
 # tableau colors
 tableau_colors = {
     "blue": "#1f77b4",
@@ -234,7 +239,7 @@ pio.templates["ross"] = go.layout.Template(
             ],
         },
         "colorway": list(tableau_colors.values()),
-        "font": {"color": "#2a3f5f"},
+        "font": {"color": "#2a3f5f", "family": ROSS_FONT_FAMILY},
         "geo": {
             "bgcolor": "white",
             "lakecolor": "white",
@@ -533,6 +538,139 @@ pio.templates["ross"] = go.layout.Template(
             }
         ],
     },
+)
+
+# Dark counterpart of the tableau colorway, lifted for contrast on dark paper.
+# Values mirror the --plot-* dark tokens in docs/_static/ross-tokens.css.
+dark_tableau_colors = {
+    "blue": "#4d97cb",
+    "orange": "#ff9a3d",
+    "green": "#4fbf4f",
+    "red": "#ef5859",
+    "purple": "#ab8ad0",
+    "brown": "#a97166",
+    "pink": "#ee9ad4",
+    "gray": "#9a9a9a",
+    "olive": "#cdcd4a",
+    "cyan": "#45cede",
+}
+
+# Dark surfaces and strokes, mirroring the html[data-theme="dark"] tokens in
+# docs/_static/ross-tokens.css (surface-page, text-body, grid-line,
+# grid-line-strong, border-strong, surface-card, surface-sunken).
+dark_palette = {
+    "paper": "#0b1826",
+    "text": "#dfe8f3",
+    "grid": "#1b3348",
+    "grid_strong": "#24405a",
+    "axis_line": "#33587a",
+    "surface_card": "#122839",
+    "surface_sunken": "#0f2233",
+}
+
+pio.templates["ross_dark"] = go.layout.Template(pio.templates["ross"])
+pio.templates["ross_dark"].layout.update(
+    {
+        "annotationdefaults": {"arrowcolor": dark_palette["text"]},
+        "colorway": list(dark_tableau_colors.values()),
+        "font": {"color": dark_palette["text"]},
+        "geo": {
+            "bgcolor": dark_palette["paper"],
+            "lakecolor": dark_palette["paper"],
+            "landcolor": dark_palette["paper"],
+            "subunitcolor": dark_palette["grid_strong"],
+        },
+        "hoverlabel": {
+            "bgcolor": dark_palette["surface_card"],
+            "bordercolor": dark_palette["grid_strong"],
+            "font": {"color": dark_palette["text"]},
+        },
+        "legend": {
+            "bgcolor": "rgba(18,40,57,0.80)",
+            "bordercolor": dark_palette["grid_strong"],
+        },
+        "mapbox": {"style": "dark"},
+        "paper_bgcolor": dark_palette["paper"],
+        "plot_bgcolor": dark_palette["paper"],
+        "polar": {
+            "angularaxis": {
+                "gridcolor": dark_palette["grid"],
+                "linecolor": dark_palette["grid"],
+            },
+            "bgcolor": dark_palette["paper"],
+            "radialaxis": {
+                "gridcolor": dark_palette["grid"],
+                "linecolor": dark_palette["grid"],
+            },
+        },
+        "scene": {
+            axis: {
+                "backgroundcolor": dark_palette["paper"],
+                "gridcolor": dark_palette["grid_strong"],
+                "linecolor": dark_palette["grid"],
+                "zerolinecolor": dark_palette["grid"],
+            }
+            for axis in ("xaxis", "yaxis", "zaxis")
+        },
+        "shapedefaults": {"line": {"color": dark_palette["text"]}},
+        "ternary": {
+            "aaxis": {
+                "gridcolor": dark_palette["grid_strong"],
+                "linecolor": dark_palette["axis_line"],
+            },
+            "baxis": {
+                "gridcolor": dark_palette["grid_strong"],
+                "linecolor": dark_palette["axis_line"],
+            },
+            "bgcolor": dark_palette["paper"],
+            "caxis": {
+                "gridcolor": dark_palette["grid_strong"],
+                "linecolor": dark_palette["axis_line"],
+            },
+        },
+        "xaxis": {
+            "gridcolor": dark_palette["grid"],
+            "linecolor": dark_palette["axis_line"],
+            "zerolinecolor": dark_palette["grid"],
+        },
+        "yaxis": {
+            "gridcolor": dark_palette["grid"],
+            "linecolor": dark_palette["axis_line"],
+            "zerolinecolor": dark_palette["grid"],
+        },
+    }
+)
+pio.templates["ross_dark"].data.bar[0].update(
+    {
+        "error_x": {"color": dark_palette["text"]},
+        "error_y": {"color": dark_palette["text"]},
+        "marker": {"line": {"color": dark_palette["paper"]}},
+    }
+)
+pio.templates["ross_dark"].data.barpolar[0].marker.line.color = dark_palette["paper"]
+pio.templates["ross_dark"].data.carpet[0].update(
+    {
+        axis: {
+            "endlinecolor": dark_palette["text"],
+            "gridcolor": dark_palette["grid_strong"],
+            "linecolor": dark_palette["grid_strong"],
+            "minorgridcolor": dark_palette["grid_strong"],
+            "startlinecolor": dark_palette["text"],
+        }
+        for axis in ("aaxis", "baxis")
+    }
+)
+pio.templates["ross_dark"].data.table[0].update(
+    {
+        "cells": {
+            "fill": {"color": dark_palette["surface_sunken"]},
+            "line": {"color": dark_palette["paper"]},
+        },
+        "header": {
+            "fill": {"color": dark_palette["grid_strong"]},
+            "line": {"color": dark_palette["paper"]},
+        },
+    }
 )
 
 # coolwarm colormap
