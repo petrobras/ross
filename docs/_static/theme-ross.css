@@ -1,0 +1,608 @@
+/* ROSS design system — theme layer over sphinx-book-theme (pydata-sphinx-theme).
+   Tokens come from ross-tokens.css (docs/_design, claude.ai/design "ROSS Design System").
+   Light and dark are driven by the semantic aliases in the tokens: dark values are
+   re-pointed under html[data-theme="dark"], so both scopes below reference the
+   same var() names. */
+
+/* ---------- Fonts and pydata variables ---------- */
+
+html {
+  --pst-font-family-base: var(--font-sans);
+  --pst-font-family-heading: var(--font-sans);
+  --pst-font-family-monospace: var(--font-mono);
+}
+
+html[data-theme="light"],
+html[data-theme="dark"] {
+  --pst-color-primary: var(--accent);
+  --pst-color-primary-highlight: var(--accent-hover);
+  --pst-color-secondary: var(--accent-hover);
+  --pst-color-accent: var(--accent);
+  --pst-color-background: var(--surface-page);
+  --pst-color-on-background: var(--surface-card);
+  --pst-color-surface: var(--surface-sunken);
+  --pst-color-on-surface: var(--text-body);
+  --pst-color-border: var(--border-default);
+  --pst-color-text-base: var(--text-body);
+  --pst-color-text-muted: var(--text-muted);
+  --pst-color-heading-color: var(--text-strong);
+  --pst-color-link: var(--text-link);
+  --pst-color-link-hover: var(--text-link-hover);
+  --pst-color-inline-code: var(--text-code);
+  --pst-color-inline-code-links: var(--text-link);
+  --pst-color-target: var(--surface-tint);
+  --pst-color-shadow: rgba(18, 38, 59, 0.06);
+  --pst-color-info: var(--info-500);
+  --pst-color-info-bg: var(--info-100);
+  --pst-color-warning: var(--warning-500);
+  --pst-color-warning-bg: var(--warning-100);
+  --pst-color-success: var(--success-500);
+  --pst-color-success-bg: var(--success-100);
+  --pst-color-danger: var(--danger-500);
+  --pst-color-danger-bg: var(--danger-100);
+  --pst-color-attention: var(--warning-500);
+  --pst-color-attention-bg: var(--warning-100);
+}
+
+body {
+  font-family: var(--font-sans);
+  color: var(--text-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--blue-200);
+  color: var(--ink-900);
+}
+
+:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+/* ---------- Type scale ---------- */
+
+.bd-article h1,
+.bd-article h2,
+.bd-article h3,
+.bd-article h4 {
+  font-family: var(--font-sans);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-heading);
+  color: var(--text-strong);
+}
+
+.bd-article h1 {
+  font-size: var(--fs-h1);
+  line-height: var(--lh-heading);
+  margin-bottom: var(--space-4);
+}
+
+.bd-article h2 {
+  font-size: var(--fs-h2);
+  line-height: var(--lh-heading);
+  margin: var(--space-10) 0 var(--space-4);
+}
+
+.bd-article h3 {
+  font-size: var(--fs-h3);
+  line-height: var(--lh-heading);
+}
+
+.bd-article h4 {
+  font-size: var(--fs-h4);
+}
+
+.bd-article p {
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  text-align: left;
+  text-wrap: pretty;
+}
+
+.bd-article {
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+}
+
+/* Ragged right everywhere — the justified setting of the old site is retired. */
+p {
+  text-align: left;
+}
+
+/* ---------- Links ---------- */
+
+.bd-article a:not(.sd-card):not(.headerlink) {
+  color: var(--text-link);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: var(--transition-hover);
+}
+
+.bd-article a:not(.sd-card):not(.headerlink):hover {
+  color: var(--text-link-hover);
+  border-bottom-color: var(--blue-300);
+}
+
+/* ---------- Header / top bar ---------- */
+
+.bd-header-article {
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: var(--blur-glass);
+  backdrop-filter: var(--blur-glass);
+  border-bottom: 1px solid var(--border-default);
+}
+
+.bd-header-article .btn,
+.bd-header-article button {
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  transition: var(--transition-hover);
+}
+
+.bd-header-article .btn:hover,
+.bd-header-article button:hover {
+  background: var(--surface-hover);
+  color: var(--text-body);
+}
+
+/* ---------- Sidebar ---------- */
+
+.bd-sidebar-primary {
+  background: var(--surface-page);
+  border-right: 1px solid var(--border-subtle);
+  font-size: var(--fs-sm);
+}
+
+.bd-sidebar-primary .navbar-brand img {
+  height: 48px;
+  width: 48px;
+}
+
+nav.bd-links p.bd-links__title,
+nav.bd-links p.caption,
+nav.bd-links p.caption span.caption-text {
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-eyebrow);
+  text-transform: uppercase;
+  color: var(--text-subtle);
+}
+
+nav.bd-links p {
+  margin-bottom: 0;
+}
+
+nav.bd-links ul.nav.sidenav_l1 {
+  margin-bottom: 1em;
+}
+
+nav.bd-links .reference {
+  color: var(--text-muted);
+  border-left: 2px solid transparent;
+  border-radius: 0 var(--radius-xs) var(--radius-xs) 0;
+  transition: var(--transition-hover);
+}
+
+nav.bd-links .reference:hover {
+  color: var(--accent);
+  background: var(--surface-hover);
+}
+
+nav.bd-links li.current > a.current.reference {
+  color: var(--accent);
+  font-weight: var(--fw-medium);
+  background: var(--surface-tint);
+  border-left: 2px solid var(--accent);
+}
+
+/* ---------- On-this-page rail ---------- */
+
+.bd-toc .onthispage,
+.bd-toc .page-toc .nav-link,
+.toc-h2,
+.toc-h3 {
+  font-size: var(--fs-xs);
+}
+
+.bd-toc .onthispage {
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-eyebrow);
+  text-transform: uppercase;
+  color: var(--text-subtle);
+}
+
+.bd-toc nav {
+  border-left: 1px solid var(--border-default);
+  padding-left: 0;
+}
+
+.bd-toc nav a.nav-link {
+  color: var(--text-muted);
+  border-left: 2px solid transparent;
+  margin-left: -1px;
+  transition: var(--transition-hover);
+}
+
+.bd-toc nav a.nav-link.active {
+  color: var(--text-strong);
+  border-left: 2px solid var(--accent);
+  background: transparent;
+  box-shadow: none;
+}
+
+/* ---------- Admonitions ---------- */
+
+.bd-article .admonition,
+.bd-article div.admonition {
+  border: 1px solid var(--border-default);
+  border-left: var(--rule-accent-w) solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: var(--surface-card);
+  box-shadow: none;
+  overflow: hidden;
+  font-size: var(--fs-sm);
+}
+
+.bd-article .admonition > .admonition-title {
+  background: var(--blue-100);
+  color: var(--blue-700);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  padding-top: var(--space-2);
+  padding-bottom: var(--space-2);
+  margin-top: 0;
+}
+
+.bd-article .admonition > .admonition-title:after {
+  color: var(--accent);
+}
+
+.bd-article .admonition.tip,
+.bd-article .admonition.hint {
+  border-left-color: var(--success-500);
+}
+.bd-article .admonition.tip > .admonition-title,
+.bd-article .admonition.hint > .admonition-title {
+  background: var(--success-100);
+  color: var(--success-700);
+}
+.bd-article .admonition.tip > .admonition-title:after,
+.bd-article .admonition.hint > .admonition-title:after {
+  color: var(--success-500);
+}
+
+.bd-article .admonition.warning,
+.bd-article .admonition.caution,
+.bd-article .admonition.attention {
+  border-left-color: var(--warning-500);
+}
+.bd-article .admonition.warning > .admonition-title,
+.bd-article .admonition.caution > .admonition-title,
+.bd-article .admonition.attention > .admonition-title {
+  background: var(--warning-100);
+  color: var(--warning-700);
+}
+.bd-article .admonition.warning > .admonition-title:after,
+.bd-article .admonition.caution > .admonition-title:after,
+.bd-article .admonition.attention > .admonition-title:after {
+  color: var(--warning-500);
+}
+
+.bd-article .admonition.danger,
+.bd-article .admonition.error {
+  border-left-color: var(--danger-500);
+}
+.bd-article .admonition.danger > .admonition-title,
+.bd-article .admonition.error > .admonition-title {
+  background: var(--danger-100);
+  color: var(--danger-700);
+}
+.bd-article .admonition.danger > .admonition-title:after,
+.bd-article .admonition.error > .admonition-title:after {
+  color: var(--danger-500);
+}
+
+.bd-article .admonition.seealso,
+.bd-article .admonition.important {
+  border-left-color: var(--info-500);
+}
+.bd-article .admonition.seealso > .admonition-title,
+.bd-article .admonition.important > .admonition-title {
+  background: var(--info-100);
+  color: var(--info-700);
+}
+.bd-article .admonition.seealso > .admonition-title:after,
+.bd-article .admonition.important > .admonition-title:after {
+  color: var(--info-500);
+}
+
+/* ---------- Code ---------- */
+
+code,
+kbd,
+pre {
+  font-family: var(--font-mono);
+  letter-spacing: var(--ls-mono);
+}
+
+.bd-article div.highlight pre,
+div.highlight-python pre,
+div.highlight-default pre,
+div.highlight-bash pre {
+  background: var(--surface-code);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  box-shadow: none;
+  font-size: var(--fs-code);
+  line-height: var(--lh-code);
+  color: var(--text-code);
+}
+
+div.cell_input.docutils.container,
+div.highlight-python,
+div.highlight-default,
+div.highlight pre {
+  box-shadow: none;
+}
+
+div.cell_input div.highlight {
+  border-radius: var(--radius-md);
+}
+
+div.cell details.above-input summary {
+  border-color: var(--border-subtle);
+}
+
+div.output pre,
+div.cell_output pre {
+  background-color: var(--surface-page);
+  border: none;
+  box-shadow: none;
+  font-size: var(--fs-code-sm);
+  color: var(--text-muted);
+}
+
+code.literal {
+  background: var(--surface-code);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
+  padding: 0.1em 0.3em;
+  font-size: var(--fs-code);
+}
+
+/* sphinx-copybutton chip */
+button.copybtn {
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-xs);
+  background: var(--surface-card);
+  color: var(--text-subtle);
+  transition: var(--transition-hover);
+}
+
+button.copybtn:hover {
+  color: var(--text-body);
+}
+
+.o-tooltip--left:after {
+  font-size: 0.75rem;
+}
+
+/* ---------- API reference (numpydoc) ---------- */
+
+.bd-article dt.sig.sig-object {
+  border-top: var(--border-w-strong) solid var(--ink-800);
+  border-radius: 0;
+  background: var(--surface-sunken);
+  padding: var(--space-3) var(--space-4);
+  font-family: var(--font-mono);
+  font-size: var(--fs-code);
+}
+
+.bd-article dt.sig.sig-object .sig-prename {
+  color: var(--text-subtle);
+  font-weight: var(--fw-regular);
+}
+
+.bd-article dt.sig.sig-object .sig-name {
+  color: var(--text-strong);
+  font-weight: var(--fw-semibold);
+}
+
+.bd-article dt.sig.sig-object em.property {
+  color: var(--plot-purple);
+  font-family: var(--font-mono);
+  font-style: normal;
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-eyebrow);
+  text-transform: uppercase;
+}
+
+.bd-article dt.sig.sig-object .sig-param,
+.bd-article dt.sig.sig-object .sig-paren {
+  color: var(--blue-600);
+  font-size: var(--fs-code-sm);
+  font-style: normal;
+}
+
+.classifier::before {
+  content: " : ";
+}
+
+dl.field-list dt {
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-eyebrow);
+  text-transform: uppercase;
+  color: var(--text-subtle);
+  background: transparent;
+}
+
+dl.py dd {
+  line-height: var(--lh-body);
+}
+
+.rubric {
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-eyebrow);
+  text-transform: uppercase;
+  color: var(--text-subtle);
+  text-align: left;
+}
+
+/* ---------- Tables ---------- */
+
+.bd-article table.table,
+.bd-article table.docutils {
+  font-size: var(--fs-sm);
+  border-collapse: collapse;
+}
+
+.bd-article table.table thead th,
+.bd-article table.docutils thead th {
+  border-bottom: var(--border-w-strong) solid var(--ink-800);
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-eyebrow);
+  text-transform: uppercase;
+  color: var(--text-subtle);
+  text-align: left;
+}
+
+.bd-article table.table tbody tr,
+.bd-article table.docutils tbody tr {
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.bd-article table.table tbody td,
+.bd-article table.docutils tbody td {
+  border: none;
+  padding: var(--space-3) var(--space-4) var(--space-3) 0;
+}
+
+/* ---------- Landing cards (sphinx-design) ---------- */
+
+.sd-card {
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-card);
+  box-shadow: var(--shadow-xs) !important;
+  transition: box-shadow var(--dur-base) var(--ease-standard),
+    border-color var(--dur-fast) var(--ease-standard),
+    transform var(--dur-base) var(--ease-standard);
+}
+
+.sd-card:hover {
+  border-color: var(--blue-300);
+  box-shadow: var(--shadow-md) !important;
+  transform: translateY(-2px);
+}
+
+.sd-card .sd-card-title {
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-heading);
+  color: var(--text-strong);
+}
+
+.sd-card-text {
+  text-align: center;
+  font-size: var(--fs-sm);
+  line-height: var(--lh-body);
+  color: var(--text-muted);
+}
+
+html[data-theme="dark"] .sd-card img[src*=".svg"] {
+  filter: invert(0.82) brightness(0.8) contrast(1.2);
+}
+
+/* ---------- Prev / next pager ---------- */
+
+.prev-next-area a.left-prev,
+.prev-next-area a.right-next {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-card);
+  padding: var(--space-3) var(--space-4);
+  font-size: 1rem;
+  transition: var(--transition-hover);
+}
+
+.prev-next-area a.left-prev:hover,
+.prev-next-area a.right-next:hover {
+  border-color: var(--blue-300);
+  background: var(--surface-hover);
+}
+
+.prev-next-area a p.prev-next-subtitle {
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-eyebrow);
+  text-transform: uppercase;
+  color: var(--text-subtle);
+}
+
+.prev-next-area a p.prev-next-title {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--accent);
+}
+
+/* ---------- Search ---------- */
+
+.search-button-field {
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--surface-card);
+  color: var(--text-subtle);
+  box-shadow: none;
+  transition: var(--transition-hover);
+}
+
+.search-button-field:hover {
+  border-color: var(--border-focus);
+  box-shadow: var(--shadow-focus);
+}
+
+.search-button__kbd-shortcut kbd,
+kbd.kbd-shortcut__modifier {
+  border: 1px solid var(--border-default);
+  border-bottom-width: 2px;
+  border-radius: var(--radius-xs);
+  background: var(--surface-card);
+  color: var(--text-subtle);
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  box-shadow: none;
+}
+
+/* ---------- Figures and images ---------- */
+
+img {
+  margin-bottom: 1em;
+}
+
+.bd-article figure {
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--white);
+  padding: var(--space-3);
+}
+
+.bd-article figure figcaption {
+  font-size: var(--fs-xs);
+  color: var(--text-subtle);
+  text-align: left;
+}
+
+/* ---------- Footer ---------- */
+
+.bd-footer,
+footer.bd-footer-content {
+  border-top: 1px solid var(--border-default);
+  font-size: var(--fs-xs);
+  color: var(--text-subtle);
+}
