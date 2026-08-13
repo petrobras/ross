@@ -57,6 +57,31 @@ extensions = [
     "sphinxcontrib.googleanalytics",
 ]
 
+# -- Algolia DocSearch (inactive until credentials exist) -------------------
+#
+# The sphinx-docsearch extension replaces the built-in Sphinx search with the
+# Algolia DocSearch modal. It is only loaded when credentials are provided via
+# environment variables, so builds without them keep the default search intact.
+#
+# Activation steps (once the DocSearch OSS application is approved):
+#   1. In the Read the Docs dashboard (Admin > Environment Variables), set:
+#        DOCSEARCH_APP_ID      - the Algolia application ID
+#        DOCSEARCH_API_KEY     - the *search-only* public API key
+#        DOCSEARCH_INDEX_NAME  - the index name (e.g. "ross")
+#   2. Rebuild the docs. No code change is needed.
+#   3. Disable the search UI injected by Read the Docs Addons so the two
+#      search interfaces do not conflict.
+# See docs/_design/docsearch-application.md for the full checklist.
+docsearch_app_id = os.environ.get("DOCSEARCH_APP_ID", "")
+docsearch_api_key = os.environ.get("DOCSEARCH_API_KEY", "")
+docsearch_index_name = os.environ.get("DOCSEARCH_INDEX_NAME", "")
+
+docsearch_enabled = bool(
+    docsearch_app_id and docsearch_api_key and docsearch_index_name
+)
+if docsearch_enabled:
+    extensions.append("sphinx_docsearch")
+
 bibtex_bibfiles = ["references.bib"]
 bibtex_default_style = "alpha"
 bibtex_reference_style = "author_year"
@@ -232,4 +257,6 @@ def setup(app):
     app.add_css_file("ross-tokens.css")
     app.add_css_file("theme-ross.css")
     app.add_css_file("custom.css")
+    if docsearch_enabled:
+        app.add_css_file("docsearch-ross.css")
     app.add_js_file("custom.js")

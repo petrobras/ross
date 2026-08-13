@@ -7,3 +7,4 @@ sphinx-book-theme==1.1.4
 linkify-it-py==2.0.3
 sphinx_design==0.6.1
 sphinxcontrib-googleanalytics==0.5
+sphinx-docsearch==0.3.1
