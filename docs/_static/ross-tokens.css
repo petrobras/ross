@@ -1,0 +1,187 @@
+/* Typography — IBM Plex Sans / Mono, loaded from Google Fonts.
+   SUBSTITUTION NOTE: the ROSS docs site ships no webfonts (Sphinx book theme
+   system stack). Plex is a substitution chosen for the v3.0 refresh. */
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Serif:ital,wght@0,400;0,600;1,400&display=swap");
+:root{
+--font-sans:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+--font-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+--font-serif:"IBM Plex Serif",Georgia,serif;
+
+--fs-display:3.25rem;--fs-h1:2.25rem;--fs-h2:1.625rem;--fs-h3:1.25rem;--fs-h4:1.0625rem;
+--fs-lead:1.125rem;--fs-body:1rem;--fs-sm:0.875rem;--fs-xs:0.8125rem;--fs-micro:0.6875rem;
+--fs-code:0.875rem;--fs-code-sm:0.8125rem;
+
+--lh-tight:1.1; /* @kind font */
+--lh-heading:1.25; /* @kind font */
+--lh-body:1.65; /* @kind font */
+--lh-code:1.55; /* @kind font */
+
+--fw-regular:400; /* @kind font */
+--fw-medium:500; /* @kind font */
+--fw-semibold:600; /* @kind font */
+--fw-bold:700; /* @kind font */
+
+--ls-display:-0.022em; /* @kind font */
+--ls-heading:-0.012em; /* @kind font */
+--ls-body:0; /* @kind font */
+--ls-eyebrow:0.09em; /* @kind font */
+--ls-mono:-0.005em; /* @kind font */
+
+/* semantic type roles */
+--type-display:var(--fw-semibold) var(--fs-display)/var(--lh-tight) var(--font-sans);
+--type-h1:var(--fw-semibold) var(--fs-h1)/var(--lh-heading) var(--font-sans);
+--type-h2:var(--fw-semibold) var(--fs-h2)/var(--lh-heading) var(--font-sans);
+--type-h3:var(--fw-semibold) var(--fs-h3)/var(--lh-heading) var(--font-sans);
+--type-body:var(--fw-regular) var(--fs-body)/var(--lh-body) var(--font-sans);
+--type-lead:var(--fw-regular) var(--fs-lead)/1.55 var(--font-sans);
+--type-code:var(--fw-regular) var(--fs-code)/var(--lh-code) var(--font-mono);
+--type-eyebrow:var(--fw-semibold) var(--fs-micro)/1.2 var(--font-sans);
+}
+/* Colors — base values lifted from the ROSS source:
+   plot theme (ross/plotly_theme.py), rotor_assembly.py axis colors,
+   docs/_templates/layout.html sidebar tint, docs/_static logo gray. */
+:root{
+/* Ink / neutral ramp — anchored on #12263b (results.py) and #33475C, #93A1AF (rotor_assembly.py) */
+--ink-900:#0b1826;--ink-800:#12263b;--ink-700:#1e3550;--ink-600:#33475c;
+--ink-500:#5b6b7e;--ink-400:#93a1af;--ink-300:#b9c4cf;--ink-200:#dfe8f3;
+--ink-100:#ebf0f8;--ink-050:#f5f8fc;--white:#ffffff;
+--logo-gray:#565656;
+
+/* Primary — tableau blue, ROSS's plot line 1 and de-facto brand accent */
+--blue-700:#12496f;--blue-600:#1a6293;--blue-500:#1f77b4;--blue-400:#4d97cb;
+--blue-300:#8cbede;--blue-200:#cce6f4;--blue-100:#e6f2fa;
+
+/* Plot palette — ross.plotly_theme.tableau_colors, in colorway order */
+--plot-blue:#1f77b4;--plot-orange:#ff7f0e;--plot-green:#2ca02c;--plot-red:#d62728;
+--plot-purple:#9467bd;--plot-brown:#8c564b;--plot-pink:#e377c2;--plot-gray:#7f7f7f;
+--plot-olive:#bcbd22;--plot-cyan:#17becf;
+
+/* Semantic hues (drawn from the plot palette, darkened for text contrast) */
+--success-500:#2ca02c;--success-700:#1d6f1d;--success-100:#e7f5e7;
+--warning-500:#ff7f0e;--warning-700:#a85207;--warning-100:#fff1e2;
+--danger-500:#d62728;--danger-700:#96191a;--danger-100:#fbe8e8;
+--info-500:#17becf;--info-700:#0d7783;--info-100:#e3f8fa;
+
+/* ---- Semantic aliases ---- */
+--text-strong:var(--ink-900);--text-body:var(--ink-800);--text-muted:var(--ink-600);
+--text-subtle:var(--ink-400);--text-inverse:var(--white);--text-link:var(--blue-500);
+--text-link-hover:var(--blue-700);--text-code:var(--ink-800);
+
+--surface-page:var(--white);--surface-sunken:var(--ink-050);--surface-card:var(--white);
+--surface-tint:var(--blue-100);--surface-brand:var(--blue-200);--surface-code:var(--ink-050);
+--surface-inverse:var(--ink-900);--surface-hover:var(--ink-050);
+
+--border-subtle:var(--ink-100);--border-default:var(--ink-200);--border-strong:var(--ink-300);
+--border-focus:var(--blue-500);--grid-line:#ebf0f8;--grid-line-strong:#dfe8f3;
+
+--accent:var(--blue-500);--accent-hover:var(--blue-600);--accent-active:var(--blue-700);
+--accent-soft:var(--blue-200);
+}
+/* Spacing — 4px base grid */
+:root{
+--space-0:0;--space-1:4px;--space-2:8px;--space-3:12px;--space-4:16px;--space-5:20px;
+--space-6:24px;--space-8:32px;--space-10:40px;--space-12:48px;--space-16:64px;
+--space-20:80px;--space-24:96px;--space-32:128px;
+
+--gutter:var(--space-6);
+--section-y:var(--space-20);
+--stack-tight:var(--space-2);--stack:var(--space-4);--stack-loose:var(--space-8);
+
+/* Docs layout rails (Sphinx book theme proportions, modernised) */
+--sidebar-w:272px;--toc-w:224px;--content-max:768px;--page-max:1440px;--topbar-h:60px;
+}
+:root{
+--radius-none:0;--radius-xs:3px;--radius-sm:5px;--radius-md:8px;--radius-lg:12px;
+--radius-xl:16px;--radius-pill:999px;--radius-circle:50%;
+--border-w:1px; /* @kind spacing */
+--border-w-strong:2px; /* @kind spacing */
+--rule-accent-w:3px; /* @kind spacing */
+}
+/* Elevation — flat by default; shadows are cool-tinted and low-contrast.
+   The ROSS docs CSS explicitly strips shadows from code and output blocks. */
+:root{
+--shadow-none:none; /* @kind shadow */
+--shadow-xs:0 1px 2px rgba(18,38,59,.06);
+--shadow-sm:0 1px 3px rgba(18,38,59,.08),0 1px 2px rgba(18,38,59,.04);
+--shadow-md:0 4px 12px rgba(18,38,59,.08);
+--shadow-lg:0 12px 32px rgba(18,38,59,.10);
+--shadow-focus:0 0 0 3px rgba(31,119,180,.28);
+--shadow-inset-top:inset 0 1px 0 rgba(255,255,255,.6); /* @kind shadow */
+--overlay-scrim:rgba(11,24,38,.44); /* @kind color */
+--blur-glass:saturate(180%) blur(12px); /* @kind other */
+--glass-bg:rgba(255,255,255,.82); /* @kind color */
+}
+:root{
+--ease-standard:cubic-bezier(.2,0,0,1); /* @kind other */
+--ease-out:cubic-bezier(0,0,.2,1); /* @kind other */
+--ease-in:cubic-bezier(.4,0,1,1); /* @kind other */
+--dur-instant:80ms; /* @kind other */
+--dur-fast:120ms; /* @kind other */
+--dur-base:180ms; /* @kind other */
+--dur-slow:280ms; /* @kind other */
+--transition-hover:color var(--dur-fast) var(--ease-standard),background-color var(--dur-fast) var(--ease-standard),border-color var(--dur-fast) var(--ease-standard); /* @kind other */
+}
+@media (prefers-reduced-motion:reduce){:root{
+--dur-instant:0ms; /* @kind other */
+--dur-fast:0ms; /* @kind other */
+--dur-base:0ms; /* @kind other */
+--dur-slow:0ms; /* @kind other */
+}}
+/* Dark theme — scope: html[data-theme="dark"], matching the Sphinx book theme's
+   own attribute (docs/_static/custom.css targets html[data-theme=dark]).
+   Only semantic aliases are re-pointed; base ramps keep their meaning. */
+html[data-theme="dark"]{
+--surface-page:#0b1826;
+--surface-sunken:#0f2233;
+--surface-card:#122839;
+--surface-code:#0f2233;
+--surface-tint:#13304a;
+--surface-brand:#12496f;
+--surface-inverse:#ebf0f8;
+--surface-hover:#18344a;
+
+--text-strong:#f5f8fc;
+--text-body:#dfe8f3;
+--text-muted:#a8b6c4;
+--text-subtle:#7c8b9b;
+--text-inverse:#0b1826;
+--text-code:#dfe8f3;
+--text-link:#6bb2e0;
+--text-link-hover:#9ccdec;
+
+--border-subtle:#1b3348;
+--border-default:#24405a;
+--border-strong:#33587a;
+--border-focus:#6bb2e0;
+--grid-line:#1b3348;
+--grid-line-strong:#24405a;
+
+--accent:#3f95cf;
+--accent-hover:#5aa9dd;
+--accent-active:#8cbede;
+--accent-soft:#13304a;
+
+/* Semantic tints go translucent so callouts sit on any dark surface */
+--success-100:rgba(44,160,44,.14);--success-700:#7fd07f;
+--warning-100:rgba(255,127,14,.14);--warning-700:#f0a35b;
+--danger-100:rgba(214,39,40,.14);--danger-700:#f08b8c;
+--info-100:rgba(23,190,207,.14);--info-700:#63d6e2;
+
+/* Plot colours lifted for contrast on dark paper */
+--plot-blue:#4d97cb;--plot-orange:#ff9a3d;--plot-green:#4fbf4f;--plot-red:#ef5859;
+--plot-purple:#ab8ad0;--plot-brown:#a97166;--plot-pink:#ee9ad4;--plot-gray:#9a9a9a;
+--plot-olive:#cdcd4a;--plot-cyan:#45cede;
+
+--glass-bg:rgba(11,24,38,.82); /* @kind color */
+--shadow-xs:0 1px 2px rgba(0,0,0,.35);
+--shadow-sm:0 1px 3px rgba(0,0,0,.4),0 1px 2px rgba(0,0,0,.3);
+--shadow-md:0 4px 12px rgba(0,0,0,.45);
+--shadow-lg:0 12px 32px rgba(0,0,0,.55);
+--shadow-focus:0 0 0 3px rgba(107,178,224,.32);
+--overlay-scrim:rgba(0,0,0,.6); /* @kind color */
+}
+html[data-theme="dark"]{color-scheme:dark}
+/* Line-art SVGs are dark-on-transparent in the repo — invert them, exactly as
+   docs/_static/custom.css does for sd-card images. Opt in per image. */
+html[data-theme="dark"] .invert-on-dark{filter:invert(.82) brightness(.85) contrast(1.15)}
+html[data-theme="dark"] ::selection{background:var(--blue-700);color:#fff}
