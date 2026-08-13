@@ -1023,6 +1023,13 @@ class Rotor(object):
         target_elements = []
         new_elems_length = []
 
+        brg_base = [brg for brg in bearing_elements if brg.n_link in self.link_nodes]
+        elm_linked = [
+            elm
+            for elm in bearing_elements + point_mass_elements
+            if elm.n in self.link_nodes
+        ]
+
         for new_pos in new_nodes_pos:
             for elm in shaft_elements:
                 elm.tag = None
@@ -1050,16 +1057,8 @@ class Rotor(object):
 
             if left_elem.n != prev_left_node:
                 for elm in elements:
-                    if elm.n >= right_elem.n:
+                    if elm.n >= right_elem.n and elm not in elm_linked:
                         elm.n += 1
-                        if elm in shaft_elements:
-                            elm._n = elm.n
-                            elm.n_l = elm.n
-                            elm.n_r = elm.n + 1
-                        if elm in point_mass_elements:
-                            for brg in bearing_elements:
-                                if elm.n - 1 == brg.n_link:
-                                    brg.n_link += 1
 
             for j in range(i + 1, len(target_elements)):
                 if target_elements[j] == target_elements[i]:
@@ -1075,6 +1074,16 @@ class Rotor(object):
 
             prev_left_node = left_elem.n
 
+        n_nodes = max([sh.n_r for sh in shaft_elements]) - max(
+            [sh.n_r for sh in self.shaft_elements]
+        )
+
+        for brg in brg_base:
+            brg.n_link += n_nodes
+
+        for elm in elm_linked:
+            elm.n += n_nodes
+
         return Rotor(
             shaft_elements,
             disk_elements=disk_elements,
@@ -1089,14 +1098,15 @@ class Rotor(object):
     def add_elements(self, new_elements):
         """Add elements to rotor.
 
-        This method returns the modified rotor with additional elements.
-        This is not valid for shaft elements.
+        This method returns a new rotor with the given elements added to it.
+        It is valid for shaft elements only when appending new elements to
+        the end of the shaft or inserting new elements around the existing
+        shaft.
 
         Parameters
         ----------
         new_elements : list
-            List with the new elements. It may be disks, gears, bearings,
-            seals and point masses.
+            List with the new elements.
 
         Returns
         -------
