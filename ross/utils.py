@@ -99,6 +99,21 @@ def dump_data_numpy(data, file):
             toml.dump(data, f, encoder=toml.TomlNumpyEncoder())
 
 
+def cast_numpy_types(obj):
+    """Recursively cast NumPy data types to native Python types."""
+    if isinstance(obj, dict):
+        return {k: cast_numpy_types(v) for k, v in obj.items()}
+    elif isinstance(obj, (list, tuple)):
+        casted = [cast_numpy_types(i) for i in obj]
+        return type(obj)(casted)
+    elif isinstance(obj, np.generic):
+        return obj.item()
+    elif isinstance(obj, np.ndarray):
+        return obj.tolist()
+    else:
+        return obj
+
+
 class DataNotFoundError(Exception):
     """
     An exception indicating that the data could not be found in the file.

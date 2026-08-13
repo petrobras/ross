@@ -9,6 +9,7 @@ import inspect
 import numpy as np
 from plotly import graph_objects as go
 
+from ross.element import Element
 from ross.shaft_element import ShaftElement
 from ross.units import Q_, check_units
 
@@ -176,6 +177,8 @@ class CouplingElement(ShaftElement):
         self.L = 0.2 if L is None else float(L)
         self.odl = self.o_d
         self.odr = self.o_d
+        self.idl = 0.0
+        self.idr = 0.0
 
         self.tag = tag
         self.scale_factor = scale_factor
@@ -213,19 +216,7 @@ class CouplingElement(ShaftElement):
         )
 
     def save(self, file):
-        from ross.utils import load_data, dump_data
-
-        signature = inspect.signature(self.__init__)
-        args_list = list(signature.parameters)
-        args = {arg: getattr(self, arg) for arg in args_list}
-
-        try:
-            data = load_data(file)
-        except FileNotFoundError:
-            data = {}
-
-        data[f"{self.__class__.__name__}_{self.tag}"] = args
-        dump_data(data, file)
+        Element.save(self, file)
 
     @classmethod
     def read_toml_data(cls, data):

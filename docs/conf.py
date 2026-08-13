@@ -260,3 +260,4 @@ def setup(app):
     if docsearch_enabled:
         app.add_css_file("docsearch-ross.css")
     app.add_js_file("custom.js")
+    app.add_js_file("plotly-theme-sync.js")

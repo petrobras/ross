@@ -388,7 +388,9 @@ def _init_orbit(ru_e, rv_e):
     # fmt: on
     H = T @ T.T
 
-    lam, vecs = la.eig(H)
+    # H is symmetric, so eigh is used: eig returns complex arrays with
+    # numpy >= 2.5, which numba cannot compare or argmax
+    lam, vecs = la.eigh(H)
     # lam is the eigenvalue -> sqrt(lam) is the minor/major axis.
     # kappa encodes the relation between the axis and the precession.
     minor = np.sqrt(max(np.real(lam.min()), 0.0))
@@ -419,6 +421,10 @@ def _init_orbit(ru_e, rv_e):
     v = vecs[:, major_index]
     v = np.real(v)
     v = v / la.norm(v)
+    # the eigenvector sign is arbitrary, so it is flipped if needed to
+    # keep the major axis angle in the upper half plane [0, pi)
+    if v[1] < 0 or (v[1] == 0 and v[0] < 0):
+        v = -v
 
     major_x = major * v[0]
     major_y = major * v[1]
