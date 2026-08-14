@@ -685,6 +685,10 @@ class Shape(Results):
     def plot_orbit(self, nodes, fig=None):
         """Plot orbits.
 
+        Orbits are only available for lateral modes. For torsional and axial
+        modes a warning is issued and a figure with an annotation explaining
+        that the mode has no orbit is returned.
+
         Parameters
         ----------
         nodes : list
@@ -700,6 +704,21 @@ class Shape(Results):
         # only perform calculation if necessary
         if fig is None:
             fig = go.Figure()
+
+        if self.orbits is None:
+            warn(
+                f"This is a {self.mode_type.lower()} mode and has no orbit. "
+                "Orbits are only available for lateral modes."
+            )
+            fig.add_annotation(
+                text=f"{self.mode_type} mode has no orbit.",
+                xref="paper",
+                yref="paper",
+                x=0.5,
+                y=0.5,
+                showarrow=False,
+            )
+            return fig
 
         selected_orbits = [orbit for orbit in self.orbits if orbit.node in nodes]
 
