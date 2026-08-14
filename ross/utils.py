@@ -1748,3 +1748,88 @@ def is_scalar(parameter, parameter_name):
         raise ValueError(f"{parameter_name} must be a scalar.")
 
     return np.array(parameter)
+
+def steady_state_index(
+    signal,
+    tolerance=0.02,
+    final_value=None,
+    tail_fraction=0.1,
+    min_hold=1,
+    use_relative_tolerance=True,
+):
+    """
+    Find the first index from which `signal` stays within a tolerance band
+    around its final (steady-state) value for the rest of the array.
+ 
+    Parameters
+    ----------
+    signal : array_like
+        The time-series data (e.g., velocity(t)).
+    tolerance : float, default 0.02
+        Allowed deviation from the final value.
+        - If use_relative_tolerance=True: fraction of |final_value| (0.02 = 2%).
+        - If use_relative_tolerance=False: absolute value in the same units as `signal`.
+    final_value : float, optional
+        The steady-state value to compare against. If None, it is estimated
+        as the mean of the last `tail_fraction` of the samples.
+    tail_fraction : float, default 0.1
+        Fraction of the signal (from the end) used to estimate `final_value`
+        when it is not provided.
+    min_hold : int, default 1
+        Minimum number of consecutive samples that must remain inside the
+        tolerance band, counted from the returned index onward, to confirm
+        settling (helps avoid false positives from noise or overshoot
+        crossing the band momentarily).
+    use_relative_tolerance : bool, default True
+        Whether `tolerance` is relative (fraction of final_value) or absolute.
+ 
+    Returns
+    -------
+    idx : int or None
+        Index of the first sample of the steady-state region.
+        Returns None if the signal never settles within tolerance.
+    band : tuple(float, float)
+        (lower_bound, upper_bound) used for the check, useful for plotting.
+ 
+    Notes
+    -----
+    - The band must hold from `idx` to the end of the array (not just for
+      `min_hold` samples) — `min_hold` only sets how many trailing samples
+      near the end of the array are still required as a minimum check window
+      when the signal is very short.
+    - If your signal is noisy, increase `tolerance` or pre-filter the signal
+      (e.g., moving average) before calling this function.
+ 
+    Example
+    -------
+    >>> t = np.linspace(0, 5, 500)
+    >>> v = 10 * (1 - np.exp(-t / 0.8)) + np.random.normal(0, 0.05, 500)
+    >>> idx, band = steady_state_index(v, tolerance=0.02)
+    >>> print(t[idx])
+    """
+    signal = np.asarray(signal, dtype=float)
+    n = len(signal)
+ 
+    if n == 0:
+        return None, (None, None)
+ 
+    if final_value is None:
+        tail_len = max(1, int(tail_fraction * n))
+        final_value = np.mean(signal[-tail_len:])
+ 
+    if use_relative_tolerance:
+        margin = tolerance * abs(final_value)
+    else:
+        margin = tolerance
+ 
+    lower_bound = final_value - margin
+    upper_bound = final_value + margin
+ 
+    inside_band = (signal >= lower_bound) & (signal <= upper_bound)
+ 
+    for i in range(n):
+        window_end = max(i + min_hold, n)
+        if np.all(inside_band[i:window_end]):
+            return i, (lower_bound, upper_bound)
+ 
+    return None, (lower_bound, upper_bound)

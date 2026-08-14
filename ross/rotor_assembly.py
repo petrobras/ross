@@ -3009,36 +3009,17 @@ class Rotor(object):
 
         # Depending on the conditions of the analysis,
         # one of the three options below will be chosen.
-        if self.motor_element is not None:  # modificar isso aqui!!!
-            motor = self.motor_element
-            torque = self.torque
-
-            Ktq = np.zeros((rotor.ndof, rotor.ndof))
-            elm = [
-                s for s in rotor.shaft_elements if s.n_l == motor.n or s.n_r == motor.n
-            ][-1]
-            dofs = list(elm.dof_global_index.values())
-            Ktq[np.ix_(dofs, dofs)] += elm.Ktq()
-            Ktq = reduce_matrix(Ktq)
-
+        if speed_is_array:
             accel = np.gradient(speed, t)
 
-            def rotor_system(step, **current_state):
-                wr = speed[step]
-                ar = accel[step]
-                tr = torque[step]
-                C1 = reduce_matrix(self.C(wr))
-                K1 = reduce_matrix(self.K(wr))
-
-                return (
-                    M,
-                    C1 + C2 * wr,
-                    K1 + K2 * ar + Ktq * tr,
-                    forces(step, **current_state),
-                )
-
-        elif speed_is_array:
-            accel = np.gradient(speed, t)
+            if self.motor_element is not None:  # ATENÇÃO!! MUDAR
+                Ktq = reduce_matrix(kwargs.get("Ktq"))
+                torque = kwargs.get("torque")
+                kwargs.pop("Ktq")
+                kwargs.pop("torque")
+            else:
+                Ktq = 0.0
+                torque = np.zeros_like(speed)
 
             brgs_with_var_coeffs = tuple(
                 brg for brg in self.bearing_elements if brg.frequency is not None
@@ -3057,7 +3038,7 @@ class Rotor(object):
                     return (
                         M,
                         C1 + C2 * speed[step],
-                        K1 + K2 * accel[step],
+                        K1 + K2 * accel[step] + Ktq * torque[step],
                         forces(step, **current_state),
                     )
 
@@ -3068,7 +3049,7 @@ class Rotor(object):
                 rotor_system = lambda step, **current_state: (
                     M,
                     C1 + C2 * speed[step],
-                    K1 + K2 * accel[step],
+                    K1 + K2 * accel[step] + Ktq * torque[step],
                     forces(step, **current_state),
                 )
 
@@ -4452,6 +4433,7 @@ class Rotor(object):
         ac_source_unbalances=None,
         time_ramp=0.6667,
         frequency_ref=None,
+        steady_state=True,
         F=None,
         solver_method="default",
         **kwargs,
@@ -4512,6 +4494,9 @@ class Rotor(object):
             Reference frequency for V/f adjustment technique [rad/s].
             Active only when `drive_mode='VFD'`.
             Default is None, which uses half the motor nominal frequency.
+        steady_state : bool, optional
+            Simulate the rotor's time response in steady-state (True) or transient (False) regime.
+            Default is True.
         F : array, optional
             Force array (needs to have the same number of rows as time array).
             Each column corresponds to a dof and each row to a time.
@@ -4589,6 +4574,11 @@ class Rotor(object):
         else:
             raise ValueError("drive_mode must be 'DOL' or 'VFD'.")
 
+        if steady_state:
+            from ross.utils import steady_state_index
+            i, _ = steady_state_index(motor_results.sample_at("speed", t))
+            t = t[i:]
+
         torque = motor_results.sample_at("electric_torque", t)
         speed = motor_results.sample_at("speed", t)
 
@@ -4601,15 +4591,13 @@ class Rotor(object):
         F[:, dof_theta] += torque
 
         Ktq = np.zeros((self.ndof, self.ndof))
-        for elm in self.shaft_elements:
-            dofs = list(elm.dof_global_index.values())
-            Ktq[np.ix_(dofs, dofs)] += elm.Ktq()
+        for sh in self.shaft_elements:
+            if sh.n_l == motor.n or sh.n_r == motor.n:
+                dofs = list(sh.dof_global_index.values())
+                Ktq[np.ix_(dofs, dofs)] += sh.Ktq()             
 
-        # add_to_RHS = kwargs.get("add_to_RHS", lambda step, **state: 0)
-        # add_to_RHS = lambda step, **state: (
-        #     add_to_RHS(step, **state) - (Ktq * torque[step]) @ state.get("disp_resp")
-        # )
-        # kwargs["add_to_RHS"] = add_to_RHS
+        kwargs["Ktq"] = Ktq
+        kwargs["torque"] = torque
 
         results = self.run_time_response(speed, F, t, method=solver_method, **kwargs)
 
