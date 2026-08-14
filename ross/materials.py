@@ -94,9 +94,9 @@ class Material:
         self.E = float(E)
         self.G_s = float(G_s)
         self.Poisson = float(Poisson)
-        self.specific_heat = float(specific_heat) if specific_heat is not None else 0.0
+        self.specific_heat = float(specific_heat) if specific_heat is not None else None
         self.thermal_conductivity = (
-            float(thermal_conductivity) if thermal_conductivity is not None else 0.0
+            float(thermal_conductivity) if thermal_conductivity is not None else None
         )
         self.color = color
 
@@ -121,13 +121,22 @@ class Material:
         >>> steel == AISI4140
         False
         """
-        self_list = [v for v in self.__dict__.values() if isinstance(v, (float, int))]
-        other_list = [v for v in other.__dict__.values() if isinstance(v, (float, int))]
+        self_numeric = {
+            k: v for k, v in self.__dict__.items() if isinstance(v, (float, int))
+        }
+        other_numeric = {
+            k: v for k, v in other.__dict__.items() if isinstance(v, (float, int))
+        }
 
-        if np.allclose(self_list, other_list):
-            return True
-        else:
+        if self_numeric.keys() != other_numeric.keys():
             return False
+
+        return bool(
+            np.allclose(
+                list(self_numeric.values()),
+                [other_numeric[k] for k in self_numeric],
+            )
+        )
 
     def __repr__(self):
         """Return a string representation of a material.
@@ -146,8 +155,16 @@ class Material:
         selfE = "{:.5e}".format(self.E)
         selfrho = "{:.5e}".format(self.rho)
         selfGs = "{:.5e}".format(self.G_s)
-        selfspecific_heat = "{:.5e}".format(self.specific_heat)
-        selfthermal_conductivity = "{:.5e}".format(self.thermal_conductivity)
+        selfspecific_heat = (
+            "{:.5e}".format(self.specific_heat)
+            if self.specific_heat is not None
+            else "None"
+        )
+        selfthermal_conductivity = (
+            "{:.5e}".format(self.thermal_conductivity)
+            if self.thermal_conductivity is not None
+            else "None"
+        )
 
         return (
             f"Material"
@@ -176,6 +193,15 @@ class Material:
         Specific heat   (J/(kg*K)): 434.0
         Thermal conductivity (W/(m*K)): 60.5
         """
+        specific_heat = (
+            f"{self.specific_heat:{2}.{8}}" if self.specific_heat is not None else None
+        )
+        thermal_conductivity = (
+            f"{self.thermal_conductivity:{2}.{8}}"
+            if self.thermal_conductivity is not None
+            else None
+        )
+
         return (
             f"{self.name}"
             f"\n{35 * '-'}"
@@ -183,8 +209,8 @@ class Material:
             f"\nYoung`s modulus (N/m**2):  {self.E:{2}.{8}}"
             f"\nShear modulus   (N/m**2):  {self.G_s:{2}.{8}}"
             f"\nPoisson coefficient     :  {self.Poisson:{2}.{8}}"
-            f"\nSpecific heat   (J/(kg*K)): {self.specific_heat:{2}.{8}}"
-            f"\nThermal conductivity (W/(m*K)): {self.thermal_conductivity:{2}.{8}}"
+            f"\nSpecific heat   (J/(kg*K)): {specific_heat}"
+            f"\nThermal conductivity (W/(m*K)): {thermal_conductivity}"
         )
 
     @staticmethod
@@ -243,12 +269,12 @@ class Material:
         """
         data = Material.get_data()
         try:
-            # Remove Poisson from dict and create material from E and G_s
-            data["Materials"][name].pop("Poisson")
             material = data["Materials"][name]
-            return Material(**material)
         except KeyError:
             raise KeyError("There isn't a instanced material with this name.")
+        # Remove Poisson from dict and create material from E and G_s
+        material.pop("Poisson", None)
+        return Material(**material)
 
     @staticmethod
     def remove_material(name):
@@ -299,9 +325,16 @@ class Material:
             return "There is no saved materials."
 
     def save_material(self):
-        """Save the material in the available_materials list."""
+        """Save the material in the available_materials list.
+
+        Optional properties that were not set (e.g. specific_heat and
+        thermal_conductivity) are omitted from the file instead of being
+        written with placeholder values.
+        """
         data = Material.get_data()
-        data["Materials"][self.name] = self.__dict__
+        data["Materials"][self.name] = {
+            k: v for k, v in self.__dict__.items() if v is not None
+        }
         Material.dump_data(data)
 
 

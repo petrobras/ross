@@ -156,9 +156,7 @@ class Mesh:
         self.pressure_angle = driving_gear.pr_angle
         self.helix_angle = driving_gear.helix_angle
 
-        self.square_stiffness_amplitude_ratio = square_varying_stiffness[
-            "amplitude_ratio"
-        ]
+        self.Ksq_ratio = square_varying_stiffness["amplitude_ratio"]
         self.orientation_angle = orientation_angle
         self.module = driving_gear.module
         self.damping_ratio = damping_ratio
@@ -349,7 +347,7 @@ class Mesh:
         cr = contact_ratio
         phase = self.orientation_angle
         Kg = self.stiffness
-        Ka = Kg * self.square_stiffness_amplitude_ratio
+        Ka = Kg * self.Ksq_ratio
         n_teeth = self.driving_gear.n_teeth
 
         Kv_unit = []

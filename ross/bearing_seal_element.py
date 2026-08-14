@@ -581,7 +581,7 @@ class BearingElement(Element):
         return hash(self.tag)
 
     def save(self, file):
-        from ross.utils import load_data, dump_data
+        from ross.utils import load_data, dump_data, cast_numpy_types
 
         try:
             data = load_data(file)
@@ -600,20 +600,7 @@ class BearingElement(Element):
         args = list(coefficients.union(init_args).union(extra_attrs))
         args.sort()
 
-        brg_data = {arg: self.__dict__[arg] for arg in args}
-
-        # change np.array to lists so that we can save as list(floats)
-        for k, v in brg_data.items():
-            if isinstance(v, np.generic):
-                brg_data[k] = brg_data[k].item()
-            elif isinstance(v, np.ndarray):
-                brg_data[k] = brg_data[k].tolist()
-            # case for a container with np.float (e.g. list(np.float))
-            else:
-                try:
-                    brg_data[k] = [i.item() for i in brg_data[k]]
-                except (TypeError, AttributeError):
-                    pass
+        brg_data = cast_numpy_types({arg: self.__dict__[arg] for arg in args})
 
         diff_args = set(signature(self.__init__).parameters).difference(
             self.__dict__.keys()

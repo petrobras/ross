@@ -2586,16 +2586,15 @@ def test_plot_rotor_shaft_envelope():
 
 def test_plot_rotor_mode_buttons(rotor8):
     fig = rotor8.plot_rotor()
-    buttons = fig.layout.updatemenus[0].buttons
+    menu = fig.layout.updatemenus[0]
 
-    assert [button.label for button in buttons] == [
-        "Bottom: render",
-        "Bottom: section",
-    ]
+    # the button sits below the plot so it never collides with the legend
+    assert menu.y < 0
 
-    for button in buttons:
-        styles, indices = button.args
+    (button,) = menu.buttons
+    assert button.label == "Bottom: section"
 
+    for styles, indices in (button.args, button.args2):
         # visibility belongs to the legend, restyling it would bring back
         # traces the user has hidden
         assert "visible" not in styles
@@ -2604,7 +2603,7 @@ def test_plot_rotor_mode_buttons(rotor8):
             assert len(values) == len(indices)
 
     # only traces below the center line are morphed
-    for index in buttons[0].args[1]:
+    for index in button.args[1]:
         assert min(fig.data[index]["y"]) < 0
 
 

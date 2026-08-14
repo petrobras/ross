@@ -1,6 +1,13 @@
 import pytest
+from plotly import io as pio
 
-from ross.plotly_theme import DEFAULT_COLOR, color_shades, parse_color
+import ross  # noqa: F401
+from ross.plotly_theme import (
+    DEFAULT_COLOR,
+    ROSS_FONT_FAMILY,
+    color_shades,
+    parse_color,
+)
 
 
 @pytest.mark.parametrize(
@@ -51,3 +58,32 @@ def test_color_shades_are_ordered_by_lightness():
 def test_color_shades_of_black_and_white():
     assert color_shades("black")["edge"] == "#000000"
     assert color_shades("white")["section"] == "#ffffff"
+
+
+def test_templates_are_registered():
+    assert "ross" in pio.templates
+    assert "ross_dark" in pio.templates
+    assert pio.templates.default == "ross"
+
+
+def test_templates_use_ibm_plex_with_fallbacks():
+    assert ROSS_FONT_FAMILY.startswith("IBM Plex Sans")
+    assert "sans-serif" in ROSS_FONT_FAMILY
+    assert pio.templates["ross"].layout.font.family == ROSS_FONT_FAMILY
+    assert pio.templates["ross_dark"].layout.font.family == ROSS_FONT_FAMILY
+
+
+def test_dark_template_differs_from_light():
+    light = pio.templates["ross"].layout
+    dark = pio.templates["ross_dark"].layout
+
+    assert light.paper_bgcolor == "white"
+    assert light.plot_bgcolor == "white"
+    assert dark.paper_bgcolor == "#0b1826"
+    assert dark.plot_bgcolor == "#0b1826"
+    assert dark.font.color == "#dfe8f3"
+    assert dark.font.color != light.font.color
+    assert dark.xaxis.gridcolor != light.xaxis.gridcolor
+    assert dark.yaxis.linecolor != light.yaxis.linecolor
+    assert dark.colorway != light.colorway
+    assert len(dark.colorway) == len(light.colorway)
