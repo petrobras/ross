@@ -667,12 +667,20 @@ class Rotor(object):
 
         # define position for point mass elements
         dfb = df[df.type.isin(classes)]
-        for p in point_mass_elements:
-            z_pos = dfb[dfb.n_l == p.n]["nodes_pos_l"].values[0]
-            y_pos = dfb[dfb.n_l == p.n]["y_pos"].values[0]
-            df.loc[df.tag == p.tag, "nodes_pos_l"] = z_pos
-            df.loc[df.tag == p.tag, "nodes_pos_r"] = z_pos
-            df.loc[df.tag == p.tag, "y_pos"] = y_pos
+        for pm in point_mass_elements:
+            dfb_pm = dfb[dfb.n_l == pm.n]
+
+            if not dfb_pm.empty:
+                z_pos = dfb_pm["nodes_pos_l"].values[0]
+                y_pos = dfb_pm["y_pos"].values[0]
+            else:
+                i = self.nodes.index(pm.n)
+                z_pos = self.nodes_pos[i]
+                y_pos = self.nodes_o_d[i] / 2
+
+            df.loc[df.tag == pm.tag, "nodes_pos_l"] = z_pos
+            df.loc[df.tag == pm.tag, "nodes_pos_r"] = z_pos
+            df.loc[df.tag == pm.tag, "y_pos"] = y_pos
 
         self.df = df
 
