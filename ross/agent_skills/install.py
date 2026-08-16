@@ -17,7 +17,7 @@ import sys
 from importlib import metadata, resources
 from pathlib import Path
 
-SKILL_NAME = "ross-cookbook"
+SKILL_NAME = "ross"
 
 VERSION_PLACEHOLDER = "> Skill version: development (repo checkout)"
 
@@ -66,7 +66,7 @@ def install_skill(skills_dir):
     ----------
     skills_dir : str or pathlib.Path
         Directory that holds skills (e.g. ``~/.claude/skills``). The skill
-        is written to ``<skills_dir>/ross-cookbook``, replacing any
+        is written to ``<skills_dir>/ross``, replacing any
         previous installation.
 
     Returns

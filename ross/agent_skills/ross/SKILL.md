@@ -1,5 +1,5 @@
 ---
-name: ross-cookbook
+name: ross
 description: >-
   Rotordynamic analysis with ROSS (Rotordynamic Open Source Software, the
   ross-rotordynamics Python package). Use when building rotor models

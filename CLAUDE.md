@@ -25,19 +25,19 @@ modal.plot_mode_2d(0)
 
 | Method | Purpose | Returns | Key Plots | Cookbook |
 |--------|---------|---------|-----------|---------|
-| `run_modal(speed)` | Natural frequencies and mode shapes | `ModalResults` | `plot_mode_2d()`, `plot_mode_3d()`, `plot_orbit()` | [modal_analysis](ross/agent_skills/ross-cookbook/modal_analysis.md) |
-| `run_campbell(speed_range)` | Campbell diagram | `CampbellResults` | `plot()`, `plot_with_mode_shape()` | [campbell_diagram](ross/agent_skills/ross-cookbook/campbell_diagram.md) |
-| `run_critical_speed()` | Critical speeds and damping ratios | `CriticalSpeedResults` | — | [critical_speed](ross/agent_skills/ross-cookbook/critical_speed.md) |
-| `run_static()` | Static deformation and forces | `StaticResults` | `plot_deformation()`, `plot_bending_moment()`, `plot_shearing_force()`, `plot_free_body_diagram()` | [static_analysis](ross/agent_skills/ross-cookbook/static_analysis.md) |
-| `run_unbalance_response(node, ...)` | Unbalance response | `ForcedResponseResults` | `plot_magnitude(probe)`, `plot_phase(probe)`, `plot_bode(probe)`, `plot_deflected_shape(speed)` | [unbalance_response](ross/agent_skills/ross-cookbook/unbalance_response.md) |
-| `run_forced_response(force, ...)` | General forced response | `ForcedResponseResults` | same as above | [frequency_response](ross/agent_skills/ross-cookbook/frequency_response.md) |
-| `run_freq_response()` | Frequency response function (FRF) | `FrequencyResponseResults` | `plot_magnitude(inp, out)`, `plot_phase(inp, out)`, `plot_polar_bode(inp, out)` | [frequency_response](ross/agent_skills/ross-cookbook/frequency_response.md) |
-| `run_time_response(speed, F, t)` | Time-domain response | `TimeResponseResults` | `plot_1d(probe)`, `plot_2d(node)`, `plot_3d()`, `plot_dfft(probe)` | [time_response](ross/agent_skills/ross-cookbook/time_response.md) |
-| `run_ucs()` | Undamped critical speed map | `UCSResults` | `plot()` | [ucs_and_level1](ross/agent_skills/ross-cookbook/ucs_and_level1.md) |
-| `run_level1()` | API 617 Level 1 stability | `Level1Results` | `plot()` | [ucs_and_level1](ross/agent_skills/ross-cookbook/ucs_and_level1.md) |
-| `run_misalignment(...)` | Misalignment fault analysis | `TimeResponseResults` | `plot_1d()`, `plot_2d()`, `plot_dfft()` | [faults](ross/agent_skills/ross-cookbook/faults.md) |
-| `run_rubbing(...)` | Rubbing fault analysis | `TimeResponseResults` | same as above | [faults](ross/agent_skills/ross-cookbook/faults.md) |
-| `run_crack(...)` | Crack fault analysis | `TimeResponseResults` | same as above | [faults](ross/agent_skills/ross-cookbook/faults.md) |
+| `run_modal(speed)` | Natural frequencies and mode shapes | `ModalResults` | `plot_mode_2d()`, `plot_mode_3d()`, `plot_orbit()` | [modal_analysis](ross/agent_skills/ross/modal_analysis.md) |
+| `run_campbell(speed_range)` | Campbell diagram | `CampbellResults` | `plot()`, `plot_with_mode_shape()` | [campbell_diagram](ross/agent_skills/ross/campbell_diagram.md) |
+| `run_critical_speed()` | Critical speeds and damping ratios | `CriticalSpeedResults` | — | [critical_speed](ross/agent_skills/ross/critical_speed.md) |
+| `run_static()` | Static deformation and forces | `StaticResults` | `plot_deformation()`, `plot_bending_moment()`, `plot_shearing_force()`, `plot_free_body_diagram()` | [static_analysis](ross/agent_skills/ross/static_analysis.md) |
+| `run_unbalance_response(node, ...)` | Unbalance response | `ForcedResponseResults` | `plot_magnitude(probe)`, `plot_phase(probe)`, `plot_bode(probe)`, `plot_deflected_shape(speed)` | [unbalance_response](ross/agent_skills/ross/unbalance_response.md) |
+| `run_forced_response(force, ...)` | General forced response | `ForcedResponseResults` | same as above | [frequency_response](ross/agent_skills/ross/frequency_response.md) |
+| `run_freq_response()` | Frequency response function (FRF) | `FrequencyResponseResults` | `plot_magnitude(inp, out)`, `plot_phase(inp, out)`, `plot_polar_bode(inp, out)` | [frequency_response](ross/agent_skills/ross/frequency_response.md) |
+| `run_time_response(speed, F, t)` | Time-domain response | `TimeResponseResults` | `plot_1d(probe)`, `plot_2d(node)`, `plot_3d()`, `plot_dfft(probe)` | [time_response](ross/agent_skills/ross/time_response.md) |
+| `run_ucs()` | Undamped critical speed map | `UCSResults` | `plot()` | [ucs_and_level1](ross/agent_skills/ross/ucs_and_level1.md) |
+| `run_level1()` | API 617 Level 1 stability | `Level1Results` | `plot()` | [ucs_and_level1](ross/agent_skills/ross/ucs_and_level1.md) |
+| `run_misalignment(...)` | Misalignment fault analysis | `TimeResponseResults` | `plot_1d()`, `plot_2d()`, `plot_dfft()` | [faults](ross/agent_skills/ross/faults.md) |
+| `run_rubbing(...)` | Rubbing fault analysis | `TimeResponseResults` | same as above | [faults](ross/agent_skills/ross/faults.md) |
+| `run_crack(...)` | Crack fault analysis | `TimeResponseResults` | same as above | [faults](ross/agent_skills/ross/faults.md) |
 | `run_harmonic_balance_response(...)` | Harmonic balance steady-state | `HarmonicBalanceResults` | `plot()` | — |
 | `run_amb_sensitivity(...)` | AMB sensitivity analysis | `SensitivityResults` | `plot()`, `plot_time_results()` | — |
 
@@ -75,7 +75,7 @@ rotor = rs.Rotor.load("my_rotor.toml")
 
 ### Cookbook
 
-For complete analysis recipes, read the relevant file in `ross/agent_skills/ross-cookbook/`. See the [index](ross/agent_skills/ross-cookbook/SKILL.md) for all available recipes.
+For complete analysis recipes, read the relevant file in `ross/agent_skills/ross/`. See the [index](ross/agent_skills/ross/SKILL.md) for all available recipes.
 
 The cookbook is also distributed as an [Agent Skill](https://agentskills.io): it ships inside the `ross-rotordynamics` package, and `ross-install-skill` copies it into the skills directory of AI coding agents found on the machine (Claude Code, GitHub Copilot, Cursor, Codex).
 
@@ -148,7 +148,7 @@ All elements inherit from `Element` ABC (`ross/element.py`) and must implement:
 - `dof_mapping()` — degree-of-freedom mapping
 
 #### Cookbook / Agent Skill Maintenance
-- The recipes in `ross/agent_skills/ross-cookbook/` correspond to tutorials and examples in `docs/user_guide/` (`tutorial_part_1_1` for modeling, `tutorial_part_2_1` for static/modal, `tutorial_part_2_2` for time/frequency, examples 1–32). When adding a new tutorial or `run_*` method, update the relevant recipe and the index table in `SKILL.md`
+- The recipes in `ross/agent_skills/ross/` correspond to tutorials and examples in `docs/user_guide/` (`tutorial_part_1_1` for modeling, `tutorial_part_2_1` for static/modal, `tutorial_part_2_2` for time/frequency, examples 1–32). When adding a new tutorial or `run_*` method, update the relevant recipe and the index table in `SKILL.md`
 - The skill folder must stay self-contained: recipes only link to files inside it
 
 #### Common Patterns
