@@ -27,6 +27,16 @@ Or install it locally:
 pip install ross-rotordynamics
 ```
 
+If you work with an AI coding agent (Claude Code, GitHub Copilot, Cursor, Codex), install the ROSS agent skill so your agent knows how to build rotors and run analyses:
+```bash
+ross-install-skill
+```
+
+The skill activates automatically whenever you ask your agent about rotordynamics with ROSS. In Claude Code you can also invoke it explicitly:
+```
+/ross-cookbook create a rotor with 6 shaft elements, 2 disks and 2 bearings, then plot the Campbell diagram
+```
+
 ## 📚 Documentation
 
 Access full documentation [**here**](https://ross.readthedocs.io).

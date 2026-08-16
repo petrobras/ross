@@ -25,6 +25,36 @@ Alternatively, you can install the development version from GitHub:
 pip install git+https://github.com/petrobras/ross.git
 ```
 
+## Use ROSS with AI coding agents
+
+ROSS ships with an agent skill — a set of concise rotordynamics recipes in the
+[Agent Skills](https://agentskills.io) open standard that teaches AI coding
+agents how to build rotor models and run analyses with ROSS. After installing
+ROSS, install the skill with:
+
+```{code-block}
+ross-install-skill
+```
+
+This detects the AI coding agents on your machine (Claude Code, GitHub
+Copilot, Cursor, Codex) and copies the skill to each one's personal skills
+directory. Useful variations:
+
+```{code-block}
+ross-install-skill --project          # install into the current project (shared with your team)
+ross-install-skill --agent claude     # install for a specific agent only
+ross-install-skill --uninstall        # remove the skill
+```
+
+Once installed, the skill activates automatically whenever you ask your agent
+about rotordynamics with ROSS — for example, "create a rotor with 6 shaft
+elements, 2 disks and 2 bearings, then plot the Campbell diagram". In Claude
+Code you can also invoke it explicitly with the `/ross-cookbook` slash
+command.
+
+The skill is a snapshot of the recipes for the installed ROSS version, so
+re-run `ross-install-skill` after upgrading ROSS.
+
 # 💡 ROSS GPT – Virtual Assistant
 
 Need help building your rotor model or running an analysis?
