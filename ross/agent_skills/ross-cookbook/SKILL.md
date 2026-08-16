@@ -1,6 +1,21 @@
+---
+name: ross-cookbook
+description: >-
+  Rotordynamic analysis with ROSS (Rotordynamic Open Source Software, the
+  ross-rotordynamics Python package). Use when building rotor models
+  (shaft elements, disks, bearings, seals, materials) or running rotordynamic
+  analyses: modal analysis, Campbell diagram, critical speeds, unbalance
+  response, frequency response (FRF), static analysis, time response,
+  undamped critical speed (UCS) map, API 617 Level 1 stability, and fault
+  analyses (rubbing, crack, misalignment).
+license: Apache-2.0
+---
+
 # ROSS Cookbook
 
 Concise recipes for rotordynamics analyses with ROSS. Each file is self-contained — read only the recipe you need.
+
+> Skill version: development (repo checkout)
 
 | Recipe | File | Key Methods |
 |--------|------|-------------|
@@ -17,6 +32,6 @@ Concise recipes for rotordynamics analyses with ROSS. Each file is self-containe
 | Advanced bearings | [bearings_advanced.md](bearings_advanced.md) | `BearingElement` with arrays, fluid-film bearings |
 | Common gotchas | [gotchas.md](gotchas.md) | — |
 
-**Maintenance:** These recipes correspond to tutorials and examples in `docs/user_guide/`. When adding a new tutorial or `run_*` method, update the relevant recipe here.
+All values are SI internally: speed in rad/s, stiffness in N/m, damping in N·s/m, unbalance in kg·m. Convert with `rs.Q_(value, "unit")`, e.g. `rs.Q_(4000, "RPM").to("rad/s").m`.
 
-**Sources:** `tutorial_part_1_1` (modeling), `tutorial_part_2_1` (static/modal), `tutorial_part_2_2` (time/frequency), examples 1–32.
+If the recipes disagree with the installed ROSS (missing methods, changed signatures), the skill may be stale — compare the version above with `python -c "import ross; print(ross.__version__)"` and re-run `ross-install-skill` after upgrading.

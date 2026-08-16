@@ -85,6 +85,9 @@ version = {attr = "ross.__version__"}
         "sphinx-design",
     ]
 
+[project.scripts]
+ross-install-skill = "ross.agent_skills.install:main"
+
 [project.urls]
 Homepage = "https://ross.readthedocs.io/"
 Documentation = "https://ross.readthedocs.io/en/stable/"

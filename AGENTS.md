@@ -13,4 +13,4 @@ print(modal.wn[:4])  # first 4 natural frequencies (rad/s)
 
 **Analysis methods:** `run_modal`, `run_campbell`, `run_critical_speed`, `run_static`, `run_unbalance_response`, `run_forced_response`, `run_freq_response`, `run_time_response`, `run_ucs`, `run_level1`, `run_rubbing`, `run_crack`, `run_misalignment`.
 
-See [CLAUDE.md](./CLAUDE.md) for the full API reference table, and `docs/cookbook/` for complete analysis recipes. See CLAUDE.md `## Development` for build, test, lint, and code conventions.
+See [CLAUDE.md](./CLAUDE.md) for the full API reference table, and `ross/agent_skills/ross-cookbook/` for complete analysis recipes. See CLAUDE.md `## Development` for build, test, lint, and code conventions.
