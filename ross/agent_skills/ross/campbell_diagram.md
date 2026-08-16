@@ -21,9 +21,10 @@ campbell = rotor.run_campbell(speed_range, frequencies=6)
 
 ```python
 campbell.speed_range    # speed array (rad/s)
-campbell.wd             # damped frequencies, shape (num_speeds, num_frequencies)
+campbell.wd             # tracked frequencies, shape (num_speeds, num_frequencies) — holds wn values if frequency_type="wn" was used
 campbell.log_dec        # log decrements, shape (num_speeds, num_frequencies)
 campbell.damping_ratio  # damping ratios, shape (num_speeds, num_frequencies)
+campbell.whirl_values   # whirl direction per point: 0 (backward), 0.5 (mixed), 1 (forward)
 ```
 
 ## Plotting
@@ -40,8 +41,9 @@ fig = campbell.plot(
     damping_parameter="log_dec",
 )
 
-# Campbell with mode shapes at each crossing
-fig = campbell.plot_with_mode_shape(harmonics=[1])
+# Interactive Campbell + mode shapes (requires the optional `dash` package;
+# launches a Dash app inline and returns None instead of a Figure)
+campbell.plot_with_mode_shape(harmonics=[1])
 ```
 
 ## Interpreting Results

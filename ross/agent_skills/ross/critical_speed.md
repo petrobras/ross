@@ -11,26 +11,29 @@ rotor = rs.rotor_example()
 cs = rotor.run_critical_speed(num_modes=12)
 ```
 
-- `speed_range` (array, optional): speed range for search (auto-selected if None)
+- `speed_range` (tuple, optional): `(start, end)` in rad/s — only critical speeds inside this range are returned; when given, `num_modes` is ignored
 - `num_modes` (int): number of modes to compute (default 12)
 - `rtol` (float): relative tolerance for critical speed convergence (default 0.005)
 
 ## Results: `CriticalSpeedResults`
 
+`wn` and `wd` are methods taking a `frequency_units` argument; the rest are attributes:
+
 ```python
-cs.wn     # undamped critical speeds (rad/s), array
-cs.wd     # damped critical speeds (rad/s), array
-cs.log_dec   # logarithmic decrements at each critical speed
-cs.damping_ratio  # damping ratios at each critical speed
+cs.wn()            # undamped critical speeds (rad/s), array
+cs.wd()            # damped critical speeds (rad/s), array
+cs.wd("RPM")       # converted units
+cs.log_dec         # logarithmic decrements at each critical speed
+cs.damping_ratio   # damping ratios at each critical speed
+cs.whirl_direction # "Forward" / "Backward" / "Mixed" per critical speed
 ```
 
 ## Usage
 
 ```python
 # Print critical speeds in RPM
-for i, (wn, ld) in enumerate(zip(cs.wn, cs.log_dec)):
-    rpm = rs.Q_(wn, "rad/s").to("RPM").m
-    print(f"Mode {i}: {rpm:.0f} RPM, log_dec = {ld:.4f}")
+for i, (wn, ld) in enumerate(zip(cs.wn("RPM"), cs.log_dec)):
+    print(f"Mode {i}: {wn:.0f} RPM, log_dec = {ld:.4f}")
 ```
 
 ## Interpreting Results

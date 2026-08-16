@@ -16,13 +16,13 @@ frf = rotor.run_freq_response(speed_range=speed_range)
 ```
 
 - `speed_range` (array): frequency range in rad/s (auto-selected if None)
-- `free_free` (bool): if True, ignore bearing stiffness (free-free condition)
+- `free_free` (bool): if True, evaluates the transfer matrix at zero rotating speed (no gyroscopic term; speed-dependent bearing coefficients taken at 0 rad/s) while the excitation frequency sweeps — bearings are still included
 
 ### DOF Indexing for FRF
 
 `inp` and `out` are DOF indices: `rotor.number_dof * node + direction`
 
-- direction: 0=x, 1=y, 2=θx, 3=θy (for 4-DOF)
+- direction: 0=x, 1=y, 2=z, 3=alpha (rotation about x), 4=beta (rotation about y), 5=theta (torsion)
 
 ```python
 # FRF: force at node 3 x-direction → displacement at node 2 x-direction
@@ -56,7 +56,7 @@ response = rotor.run_forced_response(force=force, speed_range=speed_range)
 
 - `force` (array): complex force array, shape (ndof, num_frequencies)
 - `speed_range` (array): frequency array in rad/s
-- `unbalance` (list, optional): alternative to force — list of `(node, magnitude, phase)` tuples
+- `unbalance` (array, optional): cosmetic only — a `(3, n)` array `np.vstack((nodes, magnitudes, phases))` used to draw unbalance markers on `plot_deflected_shape`; it does not generate force (`force` is still required)
 
 ### Plotting
 

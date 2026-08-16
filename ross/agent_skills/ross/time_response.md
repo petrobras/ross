@@ -26,19 +26,19 @@ response = rotor.run_time_response(speed, F, t)
 - `speed` (float or array): rotor speed in rad/s. If array, Newmark method is used automatically (for run-up/coast-down)
 - `F` (array): force array, shape `(len(t), rotor.ndof)`. Each row = one time step, each column = one DOF
 - `t` (array): time array in seconds
-- `method`: `"default"` (scipy integrate) or `"newmark"` (explicit Newmark-beta)
+- `method`: `"default"` — `scipy.signal.lsim` on the linear state-space model (constant speed only); `"newmark"` — implicit Newmark-beta with Newton-Raphson iterations
 
 ### DOF Indexing for Force Array
 
 Column index = `rotor.number_dof * node + direction`
-- direction: 0=x, 1=y, 2=θx, 3=θy (for standard 4-DOF)
+- direction: 0=x, 1=y, 2=z, 3=alpha (rotation about x), 4=beta (rotation about y), 5=theta (torsion)
 
 ## Results: `TimeResponseResults`
 
 ```python
 response.t     # time array
 response.yout  # displacement array, shape (len(t), ndof)
-response.xout  # full state vector (displacements + velocities)
+response.xout  # state vector [disp, vel] on the default (lsim) path; auxiliary-data list (usually empty) on the Newmark path
 ```
 
 Access displacement at a specific DOF:

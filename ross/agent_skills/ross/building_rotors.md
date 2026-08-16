@@ -11,7 +11,7 @@ steel = rs.Material(name="steel", rho=7810, E=211e9, G_s=81.2e9)
 # rho: density (kg/m³), E: Young's modulus (Pa), G_s: shear modulus (Pa)
 ```
 
-Pre-built materials: `rs.Material.use_material("Steel1020")`. List available with `rs.Material.available_materials()`.
+Pre-built materials: `rs.Material.load_material("Steel")`. List available names with `rs.Material.available_materials()` (currently `Steel`, `AISI4140`, `A216WCB`, `brass`).
 
 ## Shaft Elements
 
@@ -76,10 +76,10 @@ rotor.nodes          # list of node numbers
 rotor.ndof           # total degrees of freedom
 rotor.m              # total mass (kg)
 rotor.L              # total length (m)
-rotor.number_dof     # DOFs per node (4 for standard, 6 for 6-DOF)
+rotor.number_dof     # DOFs per node (6 in current ROSS — all elements are 6-DOF)
 ```
 
-DOF ordering per node (standard 4-DOF): `[x, y, θx, θy]`. DOF index for node `n`, direction `d`: `rotor.number_dof * n + d` where `d` is 0=x, 1=y, 2=θx, 3=θy.
+DOF ordering per node: `[x, y, z, alpha, beta, theta]` — 0=x (horizontal), 1=y (vertical), 2=z (axial), 3=alpha (rotation about x), 4=beta (rotation about y), 5=theta (torsion about z). DOF index for node `n`, direction `d`: `rotor.number_dof * n + d`.
 
 ## Save / Load
 

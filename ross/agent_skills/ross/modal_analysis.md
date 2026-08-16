@@ -12,17 +12,18 @@ modal = rotor.run_modal(speed=0, num_modes=12)
 ```
 
 - `speed` (float): rotor speed in rad/s (use `rs.Q_(4000, "RPM").to("rad/s").m` to convert)
-- `num_modes` (int): number of modes to compute (default 12)
-- `synchronous` (bool): if True, evaluates bearing coefficients at synchronous frequency
+- `num_modes` (int): number of eigenvalues to compute (default 12); the results contain `num_modes // 2` mode pairs
+- `sparse` (bool): use the sparse ARPACK eigensolver (True, default) or dense `scipy.linalg.eig` (False)
+- `synchronous` (bool): if True, runs a synchronous analysis — the shaft gyroscopic terms are folded into the mass matrix so the whirl frequency equals the rotor speed (default False)
 
 ## Results: `ModalResults`
 
 ```python
-modal.wn              # natural frequencies (rad/s), array of size num_modes
+modal.wn              # undamped natural frequencies (rad/s), array of size num_modes // 2
 modal.wd              # damped natural frequencies (rad/s)
 modal.damping_ratio   # damping ratios (dimensionless)
 modal.log_dec         # logarithmic decrements
-modal.lti             # scipy LTI system object (state-space)
+modal.evalues         # raw complex eigenvalues (modal.evectors for eigenvectors)
 ```
 
 ## Plotting
@@ -49,4 +50,4 @@ Plot options:
 - Forward whirl: precession in same direction as rotation
 - Backward whirl: precession opposite to rotation
 - `log_dec > 0` indicates stable mode; `log_dec < 0` indicates unstable
-- At `speed=0`, forward and backward frequencies are identical (no gyroscopic effect)
+- At `speed=0` there is no gyroscopic splitting, so forward/backward pairs coincide only if the supports are isotropic (`kxx == kyy`); anisotropic bearings still split each pair at zero speed (e.g. `rs.rotor_example()` gives 91.8 / 96.3 rad/s)

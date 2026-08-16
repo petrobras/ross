@@ -63,9 +63,9 @@ roller = rs.RollerBearingElement(n=0, n_rollers=12, l_rollers=0.02, fs=500, alph
 
 ## Fluid-Film Journal Bearings
 
-Hydrodynamic journal bearings solve a thermo-elasto-hydro-dynamic (TEHD)
-model and produce speed-dependent stiffness and damping coefficients
-automatically. All classes are `BearingElement` subclasses — pass them
+Hydrodynamic journal bearings solve a thermo-hydrodynamic (THD) model by
+default and produce speed-dependent stiffness and damping coefficients
+automatically; pad/pivot elasticity (full TEHD) is opt-in via `deform_type`. All classes are `BearingElement` subclasses — pass them
 straight to `Rotor`.
 
 ```python
@@ -135,6 +135,7 @@ Useful knobs and post-processing:
 
 - `lubricant`: a key of `rs.lubricants_dict` (`"ISOVG32"`, `"ISOVG46"`, `"ISOVG68"`, ...)
 - `thermal_type`: `None` (isoviscous), `"adiabatic"` or `"full"` (pad conduction)
+- `deform_type`: `None` (rigid pads, default) or one of the `"pad_mechanical*"` options for pad/pivot elasticity (full TEHD)
 - `num_processes`: solve the frequency table in parallel
 - `bearing.coefficients(frequency)` returns `(kxx, kxy, kyx, kyy), (cxx, cxy, cyx, cyy)` interpolated at any speed
 - Plots: `plot_pressure_2d()`, `plot_pressure_3d()`, `plot_temperature_2d()`, `plot_film_temperature_3d()`, `plot_film_thickness_2d()`; `show_results()` prints a per-speed summary table
