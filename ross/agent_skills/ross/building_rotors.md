@@ -42,7 +42,9 @@ shaft:    0    1    2    3    4    5
 
 ```python
 # From geometry (automatically computes mass and inertia)
-disk0 = rs.DiskElement.from_geometry(n=2, material=steel, width=0.07, i_d=0.05, o_d=0.28)
+disk0 = rs.DiskElement.from_geometry(
+    n=2, material=steel, width=0.07, i_d=0.05, o_d=0.28
+)
 
 # From explicit properties
 disk1 = rs.DiskElement(n=4, m=32.59, Id=0.178, Ip=0.329)
@@ -72,11 +74,11 @@ Parameters: `n` (node), `kxx`/`kyy` (direct stiffness, N/m), `kxy`/`kyx` (cross-
 rotor = rs.Rotor(shaft, [disk0, disk1], [brg0, brg1])
 
 # Key properties
-rotor.nodes          # list of node numbers
-rotor.ndof           # total degrees of freedom
-rotor.m              # total mass (kg)
-rotor.L              # total length (m)
-rotor.number_dof     # DOFs per node (6 in current ROSS — all elements are 6-DOF)
+rotor.nodes  # list of node numbers
+rotor.ndof  # total degrees of freedom
+rotor.m  # total mass (kg)
+rotor.L  # total length (m)
+rotor.number_dof  # DOFs per node (6 in current ROSS — all elements are 6-DOF)
 ```
 
 DOF ordering per node: `[x, y, z, alpha, beta, theta]` — 0=x (horizontal), 1=y (vertical), 2=z (axial), 3=alpha (rotation about x), 4=beta (rotation about y), 5=theta (torsion about z). DOF index for node `n`, direction `d`: `rotor.number_dof * n + d`.

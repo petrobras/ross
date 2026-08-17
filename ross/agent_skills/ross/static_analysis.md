@@ -16,10 +16,10 @@ No parameters needed — computes deformation under gravity loads.
 ## Results: `StaticResults`
 
 ```python
-static.deformation        # shaft deflection array
-static.Vx                 # shear force array
-static.Bm                 # bending moment array
-static.bearing_forces     # reaction forces at bearings (dict)
+static.deformation  # shaft deflection array
+static.Vx  # shear force array
+static.Bm  # bending moment array
+static.bearing_forces  # reaction forces at bearings (dict)
 ```
 
 ## Plotting

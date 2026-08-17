@@ -36,7 +36,7 @@ Column index = `rotor.number_dof * node + direction`
 ## Results: `TimeResponseResults`
 
 ```python
-response.t     # time array
+response.t  # time array
 response.yout  # displacement array, shape (len(t), ndof)
 response.xout  # state vector [disp, vel] on the default (lsim) path; auxiliary-data list (usually empty) on the Newmark path
 ```

@@ -13,7 +13,7 @@ import numpy as np
 rotor = rs.rotor_example()
 ucs = rotor.run_ucs(
     stiffness_range=(5, 10),  # log10 exponents: 1e5 to 1e10 N/m
-    num=50,                   # number of stiffness points
+    num=50,  # number of stiffness points
     num_modes=16,
     synchronous=False,
 )
@@ -29,9 +29,9 @@ fig = ucs.plot(stiffness_units="N/m", frequency_units="RPM")
 ### Results: `UCSResults`
 
 ```python
-ucs.stiffness_log     # bearing stiffness values used (N/m), size num
-ucs.stiffness_range   # the (start, end) exponent tuple
-ucs.wn                # undamped natural frequencies (rad/s), shape (num_modes // 4, num)
+ucs.stiffness_log  # bearing stiffness values used (N/m), size num
+ucs.stiffness_range  # the (start, end) exponent tuple
+ucs.wn  # undamped natural frequencies (rad/s), shape (num_modes // 4, num)
 ```
 
 ## Level 1 Stability Analysis (API 617)
@@ -56,7 +56,7 @@ fig = level1.plot()
 
 ```python
 level1.stiffness_range  # applied cross-coupled stiffness values Q (N/m)
-level1.log_dec          # log decrement at each Q
+level1.log_dec  # log decrement at each Q
 ```
 
 The plot shows log decrement versus applied cross-coupled stiffness; the Q where the

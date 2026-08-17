@@ -20,12 +20,12 @@ cs = rotor.run_critical_speed(num_modes=12)
 `wn` and `wd` are methods taking a `frequency_units` argument; the rest are attributes:
 
 ```python
-cs.wn()            # undamped critical speeds (rad/s), array
-cs.wd()            # damped critical speeds (rad/s), array
-cs.wd("RPM")       # converted units
-cs.log_dec         # logarithmic decrements at each critical speed
-cs.damping_ratio   # damping ratios at each critical speed
-cs.whirl_direction # "Forward" / "Backward" / "Mixed" per critical speed
+cs.wn()  # undamped critical speeds (rad/s), array
+cs.wd()  # damped critical speeds (rad/s), array
+cs.wd("RPM")  # converted units
+cs.log_dec  # logarithmic decrements at each critical speed
+cs.damping_ratio  # damping ratios at each critical speed
+cs.whirl_direction  # "Forward" / "Backward" / "Mixed" per critical speed
 ```
 
 ## Usage

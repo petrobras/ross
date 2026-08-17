@@ -37,7 +37,7 @@ fig = frf.plot_polar_bode(inp=inp, out=out)
 ### Results: `FrequencyResponseResults`
 
 ```python
-frf.freq_resp    # complex FRF matrix, shape (ndof, ndof, num_frequencies)
+frf.freq_resp  # complex FRF matrix, shape (ndof, ndof, num_frequencies)
 frf.speed_range  # frequency array (rad/s)
 ```
 

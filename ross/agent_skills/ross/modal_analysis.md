@@ -19,11 +19,11 @@ modal = rotor.run_modal(speed=0, num_modes=12)
 ## Results: `ModalResults`
 
 ```python
-modal.wn              # undamped natural frequencies (rad/s), array of size num_modes // 2
-modal.wd              # damped natural frequencies (rad/s)
-modal.damping_ratio   # damping ratios (dimensionless)
-modal.log_dec         # logarithmic decrements
-modal.evalues         # raw complex eigenvalues (modal.evectors for eigenvectors)
+modal.wn  # undamped natural frequencies (rad/s), array of size num_modes // 2
+modal.wd  # damped natural frequencies (rad/s)
+modal.damping_ratio  # damping ratios (dimensionless)
+modal.log_dec  # logarithmic decrements
+modal.evalues  # raw complex eigenvalues (modal.evectors for eigenvectors)
 ```
 
 ## Plotting

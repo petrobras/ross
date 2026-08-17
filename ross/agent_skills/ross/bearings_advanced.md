@@ -10,16 +10,18 @@ Bearing stiffness and damping that vary with rotor speed:
 import ross as rs
 import numpy as np
 
-frequency = np.array([0, 500, 1000])    # rad/s
-kxx = np.array([1e6, 1.5e6, 2e6])      # N/m
+frequency = np.array([0, 500, 1000])  # rad/s
+kxx = np.array([1e6, 1.5e6, 2e6])  # N/m
 kyy = np.array([0.8e6, 1.2e6, 1.6e6])
-cxx = np.array([100, 150, 200])         # N·s/m
+cxx = np.array([100, 150, 200])  # N·s/m
 cyy = np.array([80, 120, 160])
 
 brg = rs.BearingElement(
     n=0,
-    kxx=kxx, kyy=kyy,
-    cxx=cxx, cyy=cyy,
+    kxx=kxx,
+    kyy=kyy,
+    cxx=cxx,
+    cyy=cyy,
     frequency=frequency,
 )
 ```
@@ -31,10 +33,14 @@ ROSS interpolates coefficients at the analysis frequency automatically. When usi
 ```python
 brg = rs.BearingElement(
     n=0,
-    kxx=1e6, kyy=1e6,
-    kxy=5e4, kyx=-5e4,    # cross-coupled stiffness (N/m)
-    cxx=100, cyy=100,
-    cxy=10, cyx=-10,      # cross-coupled damping (N·s/m)
+    kxx=1e6,
+    kyy=1e6,
+    kxy=5e4,
+    kyx=-5e4,  # cross-coupled stiffness (N/m)
+    cxx=100,
+    cyy=100,
+    cxy=10,
+    cyx=-10,  # cross-coupled damping (N·s/m)
 )
 ```
 
@@ -45,9 +51,12 @@ Seals are modeled similarly to bearings but represent fluid-film forces in seals
 ```python
 seal = rs.SealElement(
     n=3,
-    kxx=1e5, kyy=1e5,
-    kxy=2e4, kyx=-2e4,
-    cxx=50, cyy=50,
+    kxx=1e5,
+    kyy=1e5,
+    kxy=2e4,
+    kyx=-2e4,
+    cxx=50,
+    cyy=50,
 )
 ```
 

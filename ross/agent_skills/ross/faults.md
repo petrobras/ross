@@ -15,17 +15,17 @@ rotor = rs.rotor_example()
 t = np.linspace(0, 5, 5000)
 
 response = rotor.run_rubbing(
-    n=3,                    # shaft ELEMENT where rubbing occurs (between nodes 3 and 4)
-    distance=5e-4,          # clearance (m)
+    n=3,  # shaft ELEMENT where rubbing occurs (between nodes 3 and 4)
+    distance=5e-4,  # clearance (m)
     contact_stiffness=1e6,  # contact stiffness (N/m)
-    contact_damping=1e2,    # contact damping (N·s/m)
-    friction_coeff=0.3,     # friction coefficient
-    node=[2],               # unbalance node(s)
+    contact_damping=1e2,  # contact damping (N·s/m)
+    friction_coeff=0.3,  # friction coefficient
+    node=[2],  # unbalance node(s)
     unbalance_magnitude=[0.001],  # kg·m
-    unbalance_phase=[0],    # rad
-    speed=500,              # rad/s
+    unbalance_phase=[0],  # rad
+    speed=500,  # rad/s
     t=t,
-    torque=False,           # include friction torque effect
+    torque=False,  # include friction torque effect
 )
 
 probe = rs.Probe(3, 0)
@@ -37,14 +37,14 @@ fig = response.plot_dfft(probe=[probe])
 
 ```python
 response = rotor.run_crack(
-    n=3,                    # cracked shaft element index
-    depth_ratio=0.2,        # crack depth / element diameter; max 0.5 (Mayes/Gasch), 0.6 (Flex models)
-    node=[2],               # unbalance node(s)
+    n=3,  # cracked shaft element index
+    depth_ratio=0.2,  # crack depth / element diameter; max 0.5 (Mayes/Gasch), 0.6 (Flex models)
+    node=[2],  # unbalance node(s)
     unbalance_magnitude=[0.001],
     unbalance_phase=[0],
     speed=500,
     t=t,
-    crack_model="Mayes",    # "Mayes", "Gasch", "Flex Open" or "Flex Breathing"
+    crack_model="Mayes",  # "Mayes", "Gasch", "Flex Open" or "Flex Breathing"
 )
 ```
 
@@ -55,20 +55,20 @@ response = rotor.run_crack(
 ```python
 # Flexible coupling misalignment
 response = rotor.run_misalignment(
-    node=[2],               # unbalance node(s) — NOT the coupling location
+    node=[2],  # unbalance node(s) — NOT the coupling location
     unbalance_magnitude=[0.001],
     unbalance_phase=[0],
     speed=500,
     t=t,
-    coupling="flex",        # "flex" or "rigid"
+    coupling="flex",  # "flex" or "rigid"
     # required kwargs for coupling="flex":
-    n=0,                    # shaft ELEMENT where the misalignment occurs
-    mis_type="parallel",    # "parallel", "angular" or "combined"
-    mis_distance_x=2e-4,    # m
-    mis_distance_y=2e-4,    # m
-    mis_angle=np.deg2rad(0.5),   # rad (used by "angular"/"combined")
+    n=0,  # shaft ELEMENT where the misalignment occurs
+    mis_type="parallel",  # "parallel", "angular" or "combined"
+    mis_distance_x=2e-4,  # m
+    mis_distance_y=2e-4,  # m
+    mis_angle=np.deg2rad(0.5),  # rad (used by "angular"/"combined")
     radial_stiffness=40e3,  # N/m
-    bending_stiffness=38e3, # N·m/rad
+    bending_stiffness=38e3,  # N·m/rad
     input_torque=0,
     load_torque=0,
 )

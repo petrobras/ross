@@ -20,11 +20,11 @@ campbell = rotor.run_campbell(speed_range, frequencies=6)
 ## Results: `CampbellResults`
 
 ```python
-campbell.speed_range    # speed array (rad/s)
-campbell.wd             # tracked frequencies, shape (num_speeds, num_frequencies) — holds wn values if frequency_type="wn" was used
-campbell.log_dec        # log decrements, shape (num_speeds, num_frequencies)
+campbell.speed_range  # speed array (rad/s)
+campbell.wd  # tracked frequencies, shape (num_speeds, num_frequencies) — holds wn values if frequency_type="wn" was used
+campbell.log_dec  # log decrements, shape (num_speeds, num_frequencies)
 campbell.damping_ratio  # damping ratios, shape (num_speeds, num_frequencies)
-campbell.whirl_values   # whirl direction per point: 0 (backward), 0.5 (mixed), 1 (forward)
+campbell.whirl_values  # whirl direction per point: 0 (backward), 0.5 (mixed), 1 (forward)
 ```
 
 ## Plotting
