@@ -1,7 +1,6 @@
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-  # Ruff version — keep in sync with the version CI installs (unpinned in
-  # pyproject.toml, so run `pre-commit autoupdate` when CI and hook disagree).
+  # Ruff version — keep in sync with the ruff pin in pyproject.toml (dev extras).
     rev: v0.16.3
     hooks:
       # Run the linter.
