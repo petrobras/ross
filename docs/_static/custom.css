@@ -1,3 +1,13 @@
 /* Site-specific overrides. The visual theme lives in ross-tokens.css (design
    tokens, generated from docs/_design/tokens) and theme-ross.css (mapping onto
    sphinx-book-theme). Keep this file for one-off fixes only. */
+
+/* plotly.js hardcodes the updatemenu hover/active button fill (#F4FAFF,
+   constants activeColor/hoverColor) as an inline style, out of reach of
+   relayout and plotly-theme-sync.js. In dark mode, remap exactly that
+   inline fill to --grid-line-strong; !important is required to beat the
+   inline style. Base (non-hover) rects keep the fill set by the sync
+   script and are not matched. */
+html[data-theme="dark"] .updatemenu-item-rect[style*="244, 250, 255"] {
+  fill: #24405a !important;
+}

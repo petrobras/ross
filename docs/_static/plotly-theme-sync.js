@@ -50,6 +50,12 @@
     linecolor: "#1b3348",
   };
 
+  var DARK_UPDATEMENU = {
+    bgcolor: "#122839" /* --surface-card */,
+    bordercolor: "#24405a" /* --grid-line-strong */,
+    "font.color": "#dfe8f3" /* --text-body */,
+  };
+
   function currentMode() {
     return document.documentElement.dataset.theme === "dark"
       ? "dark"
@@ -83,6 +89,9 @@
           assign(update, name + "." + axis + ".", DARK_POLAR_AXIS, dark);
         });
       }
+    });
+    ((gd.layout || {}).updatemenus || []).forEach(function (menu, i) {
+      assign(update, "updatemenus[" + i + "].", DARK_UPDATEMENU, dark);
     });
     return update;
   }

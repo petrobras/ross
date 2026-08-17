@@ -3864,8 +3864,6 @@ class Rotor(object):
                     active=0 if active else -1,
                     showactive=True,
                     font=dict(size=11),
-                    bgcolor="#FFFFFF",
-                    bordercolor="#C4CDD6",
                     borderwidth=1,
                     buttons=[button],
                 )
