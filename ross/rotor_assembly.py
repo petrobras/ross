@@ -1,3 +1,4 @@
+import inspect
 import warnings
 from collections.abc import Iterable
 from copy import copy, deepcopy
@@ -746,12 +747,15 @@ class Rotor(object):
             # Update offset for the next rotor
             node_offset = max(rotor.nodes)
 
+        parameters = rotor_list[0]._init_parameters()
+        parameters["tag"] = "Concatenated Rotor"
+
         return cls(
             shaft_elements=shaft_elements,
             disk_elements=disk_elements,
             bearing_elements=bearing_elements,
             point_mass_elements=point_mass_elements,
-            tag="Concatenated Rotor",
+            **parameters,
         )
 
     def set_tag(self, tag):
@@ -978,6 +982,33 @@ class Rotor(object):
         else:
             return False
 
+    def _init_parameters(self):
+        """Return keyword arguments to reconstruct this rotor.
+
+        Collects every ``__init__`` parameter except the element lists,
+        so callers can pass ``**self._init_parameters()`` when building
+        a new instance of the same class.
+
+        Returns
+        -------
+        dict
+            Mapping of parameter names to the current attribute values.
+        """
+        skip = {
+            "self",
+            "shaft_elements",
+            "disk_elements",
+            "bearing_elements",
+            "point_mass_elements",
+            "shafts",
+        }
+        sig = inspect.signature(self.__class__.__init__)
+        return {
+            name: getattr(self, name)
+            for name in sig.parameters
+            if name not in skip
+        }
+
     def add_nodes(self, new_nodes_pos):
         """Add nodes to rotor.
 
@@ -1084,15 +1115,12 @@ class Rotor(object):
         for elm in elm_linked:
             elm.n += n_nodes
 
-        return Rotor(
+        return self.__class__(
             shaft_elements,
             disk_elements=disk_elements,
             bearing_elements=bearing_elements,
             point_mass_elements=point_mass_elements,
-            min_w=self.min_w,
-            max_w=self.max_w,
-            rated_w=self.rated_w,
-            tag=self.tag,
+            **self._init_parameters(),
         )
 
     def add_elements(self, new_elements):
@@ -1140,15 +1168,12 @@ class Rotor(object):
             else:
                 raise ValueError(f"{el} is not a valid element.")
 
-        return Rotor(
+        return self.__class__(
             shaft_elements,
             disk_elements=disk_elements,
             bearing_elements=bearing_elements,
             point_mass_elements=point_mass_elements,
-            min_w=self.min_w,
-            max_w=self.max_w,
-            rated_w=self.rated_w,
-            tag=self.tag,
+            **self._init_parameters(),
         )
 
     @lru_cache()
@@ -5617,10 +5642,7 @@ class Rotor(object):
             rotor.disk_elements,
             bearings_seals_rs,
             rotor.point_mass_elements,
-            min_w=rotor.min_w,
-            max_w=rotor.max_w,
-            rated_w=rotor.rated_w,
-            tag=rotor.tag,
+            **rotor._init_parameters(),
         )
 
     @check_units
