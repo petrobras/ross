@@ -846,6 +846,34 @@ class Rotor(object):
                     return brg.n
         return None
 
+    def _remove_housing_bearings(self, bearing_elements, point_mass_elements=None):
+        """Remove the housing bearings from rotor.
+
+        Parameters
+        ----------
+        bearing_elements : list
+            List of bearing elements.
+        point_mass_elements : list, optional
+            List of point mass elements.
+            Default is None.
+        """
+        new_bearings = []
+        for brg in bearing_elements:
+            if brg.n not in self.link_nodes:
+                brg = deepcopy(brg)
+                brg.n_link = brg.n_link if brg.n_link in self.nodes else None
+                new_bearings.append(brg)
+
+        if point_mass_elements is not None:
+            new_point_masses = [
+                deepcopy(p) for p in point_mass_elements if p.n not in self.link_nodes
+            ]
+
+            return new_bearings, new_point_masses
+
+        else:
+            return new_bearings
+
     def _build_base_matrices(
         self, modal_damping_ratio=None, default_damping_ratio=0.0, alpha=0.0, beta=0.0
     ):
@@ -1416,6 +1444,7 @@ class Rotor(object):
             shaft_elem = []
             disk_elem = []
             brgs_elem = []
+            pmass_elem = []
 
             for shaft in self.shaft_elements:
                 le = shaft.L / nel_r
@@ -1444,17 +1473,24 @@ class Rotor(object):
                         )
                     )
 
-            for DiskEl in self.disk_elements:
-                aux_DiskEl = deepcopy(DiskEl)
-                aux_DiskEl.n = nel_r * DiskEl.n
-                disk_elem.append(aux_DiskEl)
+            for elm in self.disk_elements:
+                aux_elm = deepcopy(elm)
+                aux_elm.n = nel_r * elm.n
+                disk_elem.append(aux_elm)
 
-            for Brg_SealEl in self.bearing_elements:
-                aux_Brg_SealEl = deepcopy(Brg_SealEl)
-                aux_Brg_SealEl.n = nel_r * Brg_SealEl.n
-                brgs_elem.append(aux_Brg_SealEl)
+            for elm in self.bearing_elements:
+                aux_elm = deepcopy(elm)
+                aux_elm.n = nel_r * elm.n
+                if aux_elm.n_link is not None:
+                    aux_elm.n_link = nel_r * elm.n_link
+                brgs_elem.append(aux_elm)
 
-            aux_rotor = Rotor(shaft_elem, disk_elem, brgs_elem)
+            for elm in self.point_mass_elements:
+                aux_elm = deepcopy(elm)
+                aux_elm.n = nel_r * elm.n
+                pmass_elem.append(aux_elm)
+
+            aux_rotor = Rotor(shaft_elem, disk_elem, brgs_elem, pmass_elem)
             aux_modal = aux_rotor.run_modal(speed=0)
 
             eigv_arr = np.append(eigv_arr, aux_modal.wn[n_eigval])
@@ -3995,18 +4031,20 @@ class Rotor(object):
             b for b in self.bearing_elements if not isinstance(b, SealElement)
         ]
 
-        for i, k in enumerate(stiffness_log):
-            bearings = [
-                BearingElement(b.n, kxx=k, cxx=0)
-                for b in bearings_elements
-                if b.n not in self.link_nodes
-            ]
+        bearings, pmass = self._remove_housing_bearings(
+            bearings_elements, self.point_mass_elements
+        )
 
+        for i, k in enumerate(stiffness_log):
             rotor = convert_6dof_to_4dof(
                 self.__class__(
                     shaft_elements=shaft_elements,
                     disk_elements=self.disk_elements,
-                    bearing_elements=bearings,
+                    bearing_elements=[
+                        BearingElement(n=b.n, n_link=b.n_link, kxx=k, cxx=0)
+                        for b in bearings
+                    ],
+                    point_mass_elements=pmass,
                 )
             )
 
@@ -4057,19 +4095,19 @@ class Rotor(object):
 
                         # create bearing
                         bearings = [
-                            BearingElement(b.n, kxx=k, cxx=0, n_link=b.n_link)
+                            BearingElement(n=b.n, n_link=b.n_link, kxx=k, cxx=0)
                             for b in bearings_elements
                         ]
 
-                        for b in bearings:
-                            if b.n in self.link_nodes:
-                                node = self._find_linked_bearing_node(b.n)
+                        for brg in bearings:
+                            if brg.n in self.link_nodes:
+                                node = self._find_linked_bearing_node(brg.n)
                                 linked_bearing = [b for b in bearings if b.n == node][0]
 
                                 kxx_brg = np.array(linked_bearing.kxx)
                                 kyy_brg = np.array(linked_bearing.kyy)
-                                kxx_add = np.array(b.kxx)
-                                kyy_add = np.array(b.kyy)
+                                kxx_add = np.array(brg.kxx)
+                                kyy_add = np.array(brg.kyy)
 
                                 with np.errstate(divide="ignore"):
                                     kxx_eq = 1 / (1 / kxx_brg + 1 / kxx_add)
@@ -4080,19 +4118,15 @@ class Rotor(object):
                                 linked_bearing.kxx = list(kxx_eq)
                                 linked_bearing.kyy = list(kyy_eq)
 
-                        bearings = [
-                            b
-                            for b in bearings
-                            if b.n not in self.link_nodes
-                            and setattr(b, "n_link", None) is None
-                        ]
-
                         # create rotor
                         rotor_critical = convert_6dof_to_4dof(
-                            Rotor(
+                            self.__class__(
                                 shaft_elements=shaft_elements,
                                 disk_elements=self.disk_elements,
-                                bearing_elements=bearings,
+                                bearing_elements=self._remove_housing_bearings(
+                                    bearings
+                                ),
+                                point_mass_elements=pmass,
                             )
                         )
 
@@ -4185,7 +4219,12 @@ class Rotor(object):
             cross_coupling = BearingElement(n=n, kxx=0, cxx=0, kxy=Q, kyx=-Q)
             bearings.append(cross_coupling)
 
-            rotor = self.__class__(self.shaft_elements, self.disk_elements, bearings)
+            rotor = self.__class__(
+                self.shaft_elements,
+                self.disk_elements,
+                bearings,
+                self.point_mass_elements,
+            )
 
             modal = rotor.run_modal(speed=speed)
             non_backward = modal.whirl_direction() != "Backward"
@@ -4949,27 +4988,21 @@ class Rotor(object):
         if not len(self.df_bearings):
             raise ValueError("Rotor has no bearings")
 
+        # Static analysis uses only bearing supports; seals are skipped
+        # (see SealElement docstring in bearing_seal_element.py).
+        bearings, pmass = self._remove_housing_bearings(
+            [b for b in self.bearing_elements if not isinstance(b, SealElement)],
+            self.point_mass_elements,
+        )
+
         aux_brg = []
         aux_brg_1 = []
-        for elm in self.bearing_elements:
-            # Static analysis uses only bearing supports; seals are skipped
-            # (see SealElement docstring in bearing_seal_element.py).
-            if isinstance(elm, SealElement):
-                continue
+        for brg in bearings:
+            aux_brg.append(BearingElement(n=brg.n, n_link=brg.n_link, kxx=1e20, cxx=0))
+            aux_brg_1.append(BearingElement(n=brg.n, n_link=brg.n_link, kxx=0, cxx=0))
 
-            if elm.n not in self.nodes:
-                continue
-
-            n_link = (
-                elm.n_link
-                if (elm.n_link is not None and elm.n_link in self.nodes)
-                else None
-            )
-            aux_brg.append(BearingElement(n=elm.n, n_link=n_link, kxx=1e20, cxx=0))
-            aux_brg_1.append(BearingElement(n=elm.n, n_link=n_link, kxx=0, cxx=0))
-
-        aux_rotor = Rotor(self.shaft_elements, self.disk_elements, aux_brg)
-        aux_rotor_1 = Rotor(self.shaft_elements, self.disk_elements, aux_brg_1)
+        aux_rotor = Rotor(self.shaft_elements, self.disk_elements, aux_brg, pmass)
+        aux_rotor_1 = Rotor(self.shaft_elements, self.disk_elements, aux_brg_1, pmass)
 
         aux_M = aux_rotor.M(0)
         aux_K = aux_rotor.K(0)
