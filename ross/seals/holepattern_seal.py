@@ -331,8 +331,12 @@ class HolePatternSeal(SealElement):
             }
             return attribute_coef
         except Exception as e:
-            warn(f"Error calculating for frequency {frequency} RPM: {e}")
-            return dict.fromkeys(
+            warn(
+                f"Could not calculate the hole-pattern seal at frequency "
+                f"{frequency} rad/s; the coefficients for this frequency are "
+                f"set to NaN. Original error: {e}"
+            )
+            failed = dict.fromkeys(
                 [
                     "kxx",
                     "kyy",
@@ -347,10 +351,11 @@ class HolePatternSeal(SealElement):
                     "mxy",
                     "myx",
                     "seal_leakage",
-                    "pressure",
                 ],
-                0,
+                np.nan,
             )
+            failed["pressure"] = np.full(self.nz + 4, np.nan)
+            return failed
 
     def inlet_loss(self, p2):
         if p2 >= self.inlet_pressure:

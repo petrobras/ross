@@ -1,5 +1,4 @@
 import numpy as np
-import sys
 from scipy.linalg import lu_factor, lu_solve
 from numpy.linalg import cond
 from warnings import warn
@@ -340,8 +339,8 @@ class LabyrinthSeal(SealElement):
             guess_low = 0.001
             guess = 0.8
             guess_high = 0.99
-        if self.pg < self.r_choke[self.n_teeth]:
-            self.tooth_heighteta_nt = self.tooth_height_choke[self.n_teeth]
+        if self.pg < self.r_choke[self.n_teeth - 1]:
+            self.tooth_heighteta_nt = self.tooth_height_choke[self.n_teeth - 1]
         else:
             self.tooth_heighteta_nt = (
                 (1 - self.pg**2) / (self.n_teeth - np.log(self.pg))
@@ -475,11 +474,7 @@ class LabyrinthSeal(SealElement):
                     )
                     chok2 = chok1**gam5
             for i in range(1, self.n_teeth + 1):
-                if i is self.n_teeth:
-                    prgs[0] = chok2
-                else:
-                    prgs[0] = chok2
-
+                prgs[0] = chok2
                 prgs[1] = 0.9999999
                 for j in range(0, 2):
                     fpr[j] = self.gas.throttle_mass_flux(
@@ -686,14 +681,10 @@ class LabyrinthSeal(SealElement):
         tol2 = 1 * 10 ** (-8)
         vold = 1 * 10 ** (10)
 
-        if self.gas_composition == "AIR":
-            sb = 1.426086 * 10 ** (-6)
-            ss = 100
-        else:
-            phi1 = (self.tz[0] ** 1.5) / self.muz[0]
-            phi2 = (self.tz[1] ** 1.5) / self.muz[1]
-            sb = (self.tz[1] - self.tz[0]) / (phi2 - phi1)
-            ss = (sb * phi1) - self.tz[0]
+        phi1 = (self.tz[0] ** 1.5) / self.muz[0]
+        phi2 = (self.tz[1] ** 1.5) / self.muz[1]
+        sb = (self.tz[1] - self.tz[0]) / (phi2 - phi1)
+        ss = (sb * phi1) - self.tz[0]
         for i in range(1, self.n_teeth):
             self.vin[i] = self.vout[i - 1]
             mu = sb * (self.t[i]) ** 0.5 / (1 + (ss / self.t[i]))
@@ -800,7 +791,7 @@ class LabyrinthSeal(SealElement):
                         vold = vgs[2]
                     else:
                         break
-            if abs(fv[2] > 0.001):
+            if abs(fv[2]) > 0.001:
                 warn(f"Velocity Convergence Error at station {i}")
 
             self.v[i] = vgs[2]
@@ -837,7 +828,6 @@ class LabyrinthSeal(SealElement):
             cxx2 = ((2 + bmr) * self.taur[i] * ar * self.pitch[0]) / rov[2]
             self.cx[3][i] = self.mdot * self.kout[i] + cxx1 + cxx2
             self.cx[4][i] = -self.mdot * self.kout[i - 1]
-            self.cx[5][i] = (self.mdot / self.p[i + 1]) * self.v[i]
             self.cx[5][i] = 0
             self.cx[6][i] = -self.mdot * jc * (self.v[i] - self.vin[i]) * self.p[i] / (
                 self.p[i - 1] ** 2 - self.p[i] ** 2
@@ -896,14 +886,10 @@ class LabyrinthSeal(SealElement):
         tol2 = 1 * 10 ** (-8)
         vold = 1 * 10 ** (10)
 
-        if self.gas_composition == "AIR":
-            sb = 1.426086 * 10 ** (-6)
-            ss = 100
-        else:
-            phi1 = (self.tz[0] ** 1.5) / self.muz[0]
-            phi2 = (self.tz[1] ** 1.5) / self.muz[1]
-            sb = (self.tz[1] - self.tz[0]) / (phi2 - phi1)
-            ss = (sb * phi1) - self.tz[0]
+        phi1 = (self.tz[0] ** 1.5) / self.muz[0]
+        phi2 = (self.tz[1] ** 1.5) / self.muz[1]
+        sb = (self.tz[1] - self.tz[0]) / (phi2 - phi1)
+        ss = (sb * phi1) - self.tz[0]
 
         for i in range(1, self.n_teeth):
             mu = sb * (self.t[i]) ** 0.5 / (1 + (ss / self.t[i]))
@@ -1005,7 +991,7 @@ class LabyrinthSeal(SealElement):
                         vold = vgs[2]
                     else:
                         break
-            if abs(fv[2] > 0.001) and self.print_results:
+            if abs(fv[2]) > 0.001:
                 warn(f"Velocity Convergence Error at station {i}")
 
             self.v[i] = vgs[2]
@@ -1218,9 +1204,7 @@ class LabyrinthSeal(SealElement):
                 self.rhs[irow][1] = self.tooth_heightwrl / self.epslon * val3[ict]
         for i in range(0, 8 * self.nc):
             for j in range(0, 33):
-                if i + j - 16 > (self.nc * 8) - 1 or i + j - 16 < -0.1:
-                    cont = 1
-                else:
+                if 0 <= i + j - 16 <= (self.nc * 8) - 1:
                     gmfull[i][i + j - 16] = self.gm[i][j]
         A = gmfull[: 8 * self.nc, : 8 * self.nc].copy()
         lu, piv = lu_factor(A)
@@ -1233,8 +1217,11 @@ class LabyrinthSeal(SealElement):
         self.pert_rcond = rcond
 
         if rcond <= 1 / 3.0e8:
-            warn("Almost singular matrix. \n No prediction for dynamic coefficients.")
-            quit()
+            raise ValueError(
+                "The perturbation system is almost singular "
+                f"(condition number {cnd:.3e}); no prediction is possible for "
+                "the dynamic coefficients at this operating condition."
+            )
 
         if rcond <= 1 / 1.0e6:
             warn(f"Array condition number is high \n array condition number e:{cnd}")
@@ -1307,7 +1294,7 @@ class LabyrinthSeal(SealElement):
             self.zvel_jen()
         self.pert()
 
-        attrbute_coef = {
+        attribute_coef = {
             "kxx": "kxx",
             "kyy": "kxx",
             "kxy": "kxy",
@@ -1316,9 +1303,9 @@ class LabyrinthSeal(SealElement):
             "cyy": "cxx",
             "cxy": "cxy",
             "cyx": "cyx",
-            "pressure": "p",
         }
-        coefficients_dict = {k: getattr(self, v) for k, v in attrbute_coef.items()}
+        coefficients_dict = {k: getattr(self, v) for k, v in attribute_coef.items()}
+        coefficients_dict["pressure"] = self.p.copy()
         coefficients_dict["seal_leakage"] = (
             self.mdot
             * 2

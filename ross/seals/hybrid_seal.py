@@ -1,3 +1,5 @@
+from warnings import warn
+
 from ross import SealElement, HolePatternSeal, LabyrinthSeal
 from ross.units import check_units
 from prettytable import PrettyTable
@@ -282,13 +284,23 @@ class HybridSeal(SealElement):
             self.leakage_laby_history.append(laby_leakage)
             self.leakage_hole_history.append(hole_leakage)
 
+        if convergence_leakage > tolerance:
+            warn(
+                f"The interface pressure did not converge after {iteration} "
+                f"iterations (relative leakage mismatch {convergence_leakage:.3e}, "
+                f"tolerance {tolerance:.3e})."
+            )
+
         self.laby = laby
         self.hole_pattern = holep
         self.interface_pressure = interface_pressure
         self.n_iterations = iteration
 
         coefficients_dict = {
-            c: [l + h for l, h in zip(getattr(laby, c), getattr(holep, c))]
+            c: [
+                laby_c + hole_c
+                for laby_c, hole_c in zip(getattr(laby, c), getattr(holep, c))
+            ]
             for c in laby._get_coefficient_list()
         }
 
