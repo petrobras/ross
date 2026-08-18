@@ -1,16 +1,15 @@
-import multiprocessing
 from warnings import warn
 
 import ccp
 import numpy as np
-import plotly.graph_objects as go
 from numpy.linalg import cond
 from scipy.linalg import lu_factor, lu_solve
 from scipy.optimize import brentq, root_scalar
 
 from ross import SealElement
 from ross.seals.gas_model import IdealGas, RealGas, extract_gas_properties
-from ross.units import Q_, check_units
+from ross.seals.solver_tools import solve_frequencies
+from ross.units import check_units
 
 __all__ = ["LabyrinthSeal"]
 
@@ -26,151 +25,54 @@ SWAPPED_VELOCITY_COLS = (5, 4, 7, 6)
 RHS_ROWS = (1, 3, 4, 6)
 
 
-class LabyrinthSeal(SealElement):
-    """Labyrinth seal - Compressible flow model with rotordynamic coefficients.
+class LabyrinthSolver:
+    """Compressible flow solver for a labyrinth seal.
 
-    This class provides a **comprehensive analytical model** for labyrinth seals
-    based on compressible gas flow through multiple throttling stages (teeth). The
-    model calculates leakage rates and dynamic coefficients for rotordynamic analysis.
-
-    **Theoretical Approach:**
-
-    The model solves the **1D compressible flow problem** through a series of teeth using:
-
-    1. **Mass Flow Calculation**:
-       - Iterative solution for mass flow rate through multiple throttling stages
-       - Accounts for choked flow conditions at each tooth
-       - Uses discharge coefficients based on tooth geometry
-       - Isentropic relations for pressure drops across teeth
-       - Carry-over factor (ν) for flow momentum between cavities
-
-    2. **Pressure Distribution**:
-       - Solves for static pressure at each cavity using bracketed root-finding
-       - Handles both choked and unchoked flow conditions
-       - Critical pressure ratio check at each throttle
-       - Pressure balance ensures outlet pressure match
-
-    3. **Velocity Field (Swirl)**:
-       - Tangential velocity calculated at each cavity
-       - Accounts for inlet pre-swirl conditions
-       - Rotor and stator shear stress effects (friction factors)
-       - Reynolds number-dependent shear coefficients
-       - Jenny and Kanki parameters for improved tangential momentum (optional)
-
-    4. **Dynamic Coefficients** (stiffness and damping):
-       - Perturbation method applied to continuity and momentum equations
-       - Small perturbations in radial displacement and clearance
-       - Linearized system of equations solved using LU decomposition
-       - Cross-coupled stiffness terms capture destabilizing forces
-       - Frequency-dependent coefficients for each operating speed
+    This class owns the mutable per-run state of the flow solution (cavity
+    pressures, temperatures, swirl velocities, gradient tables) and computes
+    the leakage and dynamic coefficients for one shaft speed at a time. The
+    :class:`LabyrinthSeal` element builds one solver at construction and maps
+    it over the requested frequencies; the solver holds only plain data, so it
+    can be pickled to worker processes for multi-frequency runs.
 
     Parameters
     ----------
-    n : int
-        Node in which the seal will be located.
-    shaft_diameter : float, pint.Quantity
-        Diameter of the shaft (m).
-    radial_clearance : float, pint.Quantity
+    shaft_radius : float
+        Shaft radius (m).
+    radial_clearance : float
         Nominal radial clearance (m).
     n_teeth : int
-        Number of teeth (throttlings). Must be at least 2.
-    pitch : float, pint.Quantity
-        Seal pitch (length of land) or axial cavity length (m).
-    tooth_height : float, pint.Quantity
+        Number of teeth (throttlings).
+    pitch : float
+        Seal pitch or axial cavity length (m).
+    tooth_height : float
         Height of seal strip (m).
-    tooth_width : float, pint.Quantity
-        Thickness of throttle (tip-width) (m), used in mass flow calculation.
+    tooth_width : float
+        Thickness of throttle (tip-width) (m).
     seal_type : str
-        Indicates where labyrinth teeth are located.
-        Specify 'rotor' if teeth are on rotor only.
-        Specify 'stator' if teeth are on stator only.
-        Specify 'inter' for interlocking type labyrinths.
-    inlet_pressure : float
-        Inlet pressure (Pa).
-    outlet_pressure : float
-        Outlet pressure (Pa).
+        'rotor', 'stator' or 'inter'.
+    inlet_pressure, outlet_pressure : float
+        Boundary pressures (Pa).
     inlet_temperature : float
         Inlet temperature (deg K).
-    frequency : float, pint.Quantity
-        Shaft rotational speed (rad/s).
     preswirl : float
-        Inlet swirl velocity ratio. Positive values for swirl with shaft rotation
-        and negative values for swirl against shaft rotations.
-    gas_composition : dict, optional
-        Gas composition as a dictionary {component: molar_fraction}.
-        If gas_composition is None, provide molar_mass, gamma,
-        reference_temperatures, and reference_viscosities parameters.
-        Default is None.
-    gas_model : str, optional
-        Thermodynamic model used by the internal flow solver.
-        Specify "ideal" for the perfect-gas model (Z = 1, constant gamma); results
-        are identical to previous versions.
-        Specify "real" for the equation-of-state (real-gas) model, which evaluates
-        density, temperature, sound speed, enthalpy and choking along the inlet
-        isentrope from a table built once at construction. Requires gas_composition.
-        Default is "ideal".
-    molar_mass : float, pint.Quantity, optional
-        Molecular mass (kg/kgmol). For Air: molar_mass=28.97 kg/kgmol.
-        Required if gas_composition is None. Default is None.
-    gamma : float, optional
-        Ratio of specific heats. Required if gas_composition is None.
-        Default is None.
-    reference_temperatures : list of float, optional
-        Temperature at states: [T_state1, T_state2] (deg K).
-        Required if gas_composition is None.
-        Default is None.
-    reference_viscosities : list of float, optional
-        Dynamic viscosity at states: [mu_state1, mu_state2] (kg/(m·s)).
-        Required if gas_composition is None.
-        Default is None.
+        Inlet swirl velocity ratio.
+    gas : IdealGas or RealGas
+        Thermodynamic backend (see :mod:`ross.seals.gas_model`).
+    R : float
+        Specific gas constant (J/(kg K)).
+    reference_temperatures, reference_viscosities : list of float
+        Two-state references used to fit the Sutherland viscosity law.
     use_jenny_kanki : bool, optional
-        If True, use the tangential momentum parameters introduced by Jenny
-        and Kanki in the swirl velocity calculation.
+        Use the Jenny and Kanki tangential momentum parameters.
         Default is False.
     print_results : bool, optional
-        If True, print results to console.
-        Default is False.
-    tag : str, optional
-        A tag to name the element.
-        Default is None.
-    n_link : int, optional
-        Node to which the bearing will connect. If None the bearing is
-        connected to ground.
-        Default is None.
-    scale_factor : float, optional
-        The scale factor is used to scale the bearing drawing.
-        Default is 1.
-    color : str, optional
-        A color to be used when the element is represented.
-        Default is "#77ACA2".
-
-    Examples
-    --------
-    >>> from ross.seals.labyrinth_seal import LabyrinthSeal
-    >>> from ross.units import Q_
-    >>> seal = LabyrinthSeal(
-    ...     n=0,
-    ...     shaft_diameter=Q_(145, "mm"),
-    ...     radial_clearance=Q_(0.3, "mm"),
-    ...     n_teeth=16,
-    ...     pitch=Q_(3.175, "mm"),
-    ...     tooth_height=Q_(3.175, "mm"),
-    ...     tooth_width=Q_(0.1524, "mm"),
-    ...     seal_type="inter",
-    ...     inlet_pressure=308000,
-    ...     outlet_pressure=94300,
-    ...     inlet_temperature=283.15,
-    ...     frequency=Q_([5000, 8000, 11000], "RPM"),
-    ...     preswirl=0.98,
-    ...     gas_composition={"Nitrogen": 0.79, "Oxygen": 0.21},
-    ... )
+        Print leakage summaries while solving. Default is False.
     """
 
-    @check_units
     def __init__(
         self,
-        n,
-        shaft_diameter,
+        shaft_radius,
         radial_clearance,
         n_teeth,
         pitch,
@@ -180,124 +82,68 @@ class LabyrinthSeal(SealElement):
         inlet_pressure,
         outlet_pressure,
         inlet_temperature,
-        frequency,
         preswirl,
-        gas_composition=None,
-        gas_model="ideal",
-        molar_mass=None,
-        gamma=None,
-        reference_temperatures=None,
-        reference_viscosities=None,
+        gas,
+        R,
+        reference_temperatures,
+        reference_viscosities,
         use_jenny_kanki=False,
         print_results=False,
-        **kwargs,
     ):
-        if seal_type not in ("rotor", "stator", "inter"):
-            raise ValueError(
-                f"Invalid seal_type {seal_type!r}; expected 'rotor', 'stator' "
-                "or 'inter'."
-            )
-        if n_teeth < 2:
-            raise ValueError("The labyrinth model requires at least 2 teeth.")
-
-        self.print_results = print_results
-        self.gas_composition = gas_composition
-        self.gas_model = gas_model
-
-        if self.gas_composition is not None:
-            state_in, molar_mass, gamma, R = extract_gas_properties(
-                self.gas_composition, inlet_pressure, inlet_temperature
-            )
-            state_out = ccp.State(
-                p=outlet_pressure, h=state_in.h(), fluid=self.gas_composition
-            )
-        else:
-            R = 8314.0 / molar_mass  # Universal gas constant over molar mass.
-
-        self.R = R
-        self.molar_mass = molar_mass
-        self.gamma = gamma
-
-        if self.gas_model == "real":
-            if self.gas_composition is None:
-                raise ValueError(
-                    "gas_model='real' requires gas_composition to query the "
-                    "equation of state."
-                )
-            self.gas = RealGas(
-                self.R,
-                self.gamma,
-                self.gas_composition,
-                inlet_pressure,
-                outlet_pressure=outlet_pressure,
-                inlet_temperature=inlet_temperature,
-            )
-        elif self.gas_model == "ideal":
-            self.gas = IdealGas(self.R, self.gamma)
-        else:
-            raise ValueError(
-                f"Invalid gas_model {self.gas_model!r}; expected 'ideal' or 'real'."
-            )
-        self._real_gas = self.gas_model == "real"
-
-        if reference_temperatures is None:
-            reference_temperatures = [state_in.T().m, state_out.T().m]
-        if reference_viscosities is None:
-            reference_viscosities = [state_in.viscosity().m, state_out.viscosity().m]
-
-        self.reference_temperatures = reference_temperatures
-        self.reference_viscosities = reference_viscosities
-
-        self.n = n
-        self.inlet_pressure = inlet_pressure
-        self.outlet_pressure = outlet_pressure
-        self.inlet_temperature = inlet_temperature
-        self.preswirl = preswirl
-        self.n_teeth = n_teeth
-        self.shaft_diameter = shaft_diameter
-        self._shaft_radius = shaft_diameter / 2
+        self.shaft_radius = shaft_radius
         self.radial_clearance = radial_clearance
+        self.n_teeth = n_teeth
         self.pitch = pitch
         self.tooth_height = tooth_height
         self.tooth_width = tooth_width
         self.seal_type = seal_type
+        self.inlet_pressure = inlet_pressure
+        self.outlet_pressure = outlet_pressure
+        self.inlet_temperature = inlet_temperature
+        self.preswirl = preswirl
+        self.gas = gas
+        self.R = R
+        self.reference_temperatures = reference_temperatures
+        self.reference_viscosities = reference_viscosities
         self.use_jenny_kanki = use_jenny_kanki
+        self.print_results = print_results
 
         self.n_stations = n_teeth + 1
         self.n_cavities = n_teeth - 1
         self.ndof = PERTURBATION_DOFS * self.n_cavities
-        self.z = np.arange(self.n_stations) * pitch
 
         self.perturbation_eccentricity = 0.6
         self.pert_amplitude_direct = self.perturbation_eccentricity * radial_clearance
         self.pert_amplitude_cross = self.perturbation_eccentricity * radial_clearance
 
-        coefficients_dict = {}
-        if kwargs.get("kxx") is None:
-            # Use multiprocessing only when beneficial (>4 frequencies);
-            # sequential execution avoids process spawn overhead otherwise.
-            if len(frequency) > 4:
-                with multiprocessing.Pool() as pool:
-                    results = pool.map(self.run, frequency)
-            else:
-                results = [self.run(freq) for freq in frequency]
+    def solve(self, frequency):
+        """Solve the seal at one shaft speed (rad/s).
 
-            self.p = [r["pressure"] for r in results]
+        Returns a dict with the dynamic coefficients, the leakage, the cavity
+        pressure distribution and the conditioning of the perturbation system.
+        """
+        self.frequency = frequency
+        self.inlet_swirl_velocity = self.preswirl * frequency * self.shaft_radius
+        self._reset_state()
+        self._vermes_leakage()
+        self._solve_pressure_distribution()
+        self._solve_swirl_velocities()
+        self._solve_perturbation_system()
 
-            coefficients_dict = {
-                c: [k[c] for k in results]
-                for c in results[0].keys()
-                if c not in ["pressure", "pert_rcond", "pert_condition_number"]
-            }
-            self.pert_rcond = [r["pert_rcond"] for r in results]
-            self.pert_condition_number = [r["pert_condition_number"] for r in results]
-
-        super().__init__(
-            self.n,
-            frequency=frequency,
-            **coefficients_dict,
-            **kwargs,
-        )
+        return {
+            "kxx": self.kxx,
+            "kyy": self.kxx,
+            "kxy": self.kxy,
+            "kyx": self.kyx,
+            "cxx": self.cxx,
+            "cyy": self.cxx,
+            "cxy": self.cxy,
+            "cyx": self.cyx,
+            "pressure": self.p,
+            "seal_leakage": self._circumferential_leakage(self.mdot),
+            "pert_rcond": self.pert_rcond,
+            "pert_condition_number": self.pert_condition_number,
+        }
 
     def _reset_state(self):
         """Reset the per-run flow state before solving a new frequency."""
@@ -320,7 +166,7 @@ class LabyrinthSeal(SealElement):
 
     def _circumferential_leakage(self, mdot):
         """Convert mass flux per unit circumference into total leakage (kg/s)."""
-        return mdot * 2 * np.pi * (self._shaft_radius + 0.5 * self.radial_clearance)
+        return mdot * 2 * np.pi * (self.shaft_radius + 0.5 * self.radial_clearance)
 
     def _solve_choked_flow_function(self):
         """Find the choked pressure ratio and the seal flow function.
@@ -569,7 +415,7 @@ class LabyrinthSeal(SealElement):
         )
         area = cavity_height * self.pitch
 
-        surface_velocity = self._shaft_radius * self.omega
+        surface_velocity = self.shaft_radius * self.omega
 
         self.v[0] = self.inlet_swirl_velocity
         self.vin[0] = self.inlet_swirl_velocity
@@ -633,8 +479,8 @@ class LabyrinthSeal(SealElement):
             self.taus[i] = wall_shear(v_swirl)
 
             self.cg[0, i] = self.gas.cg0(area, self.p[i], self.t[i])
-            self.cg[1, i] = (self.v[i] / self._shaft_radius) * self.cg[0, i]
-            self.cg[2, i] = (self.p[i] / self._shaft_radius) * self.cg[0, i]
+            self.cg[1, i] = (self.v[i] / self.shaft_radius) * self.cg[0, i]
+            self.cg[2, i] = (self.p[i] / self.shaft_radius) * self.cg[0, i]
             self.cg[3, i] = (
                 self.mdot
                 * self.p[i]
@@ -647,15 +493,15 @@ class LabyrinthSeal(SealElement):
                 -self.mdot * self.p[i + 1] / (self.p[i] ** 2 - self.p[i + 1] ** 2)
             )
             self.cg[5, i] = -self.rho[i] * self.pitch
-            self.cg[6, i] = (self.v[i] / self._shaft_radius) * self.cg[5, i]
+            self.cg[6, i] = (self.v[i] / self.shaft_radius) * self.cg[5, i]
             self.cg[7, i] = (
                 -self.mdot * self.p[i - 1] / (self.p[i - 1] ** 2 - self.p[i] ** 2)
             )
             self.cg[8, i] = -self.cg[7, i] * momentum_factor * (self.v[i] - self.vin[i])
 
-            self.cx[0, i] = area / self._shaft_radius
+            self.cx[0, i] = area / self.shaft_radius
             self.cx[1, i] = self.rho[i] * area
-            self.cx[2, i] = (self.v[i] / self._shaft_radius) * self.cx[1, i]
+            self.cx[2, i] = (self.v[i] / self.shaft_radius) * self.cx[1, i]
             shear_gradient_stator = (
                 (2 + BLASIUS_FRICTION_EXPONENT)
                 * self.taus[i]
@@ -822,13 +668,13 @@ class LabyrinthSeal(SealElement):
 
         scale_direct = (
             np.pi
-            * self._shaft_radius
+            * self.shaft_radius
             * self.pitch
             * (self.perturbation_eccentricity / self.pert_amplitude_direct)
         )
         scale_cross = (
             np.pi
-            * self._shaft_radius
+            * self.shaft_radius
             * self.pitch
             * (self.perturbation_eccentricity / self.pert_amplitude_cross)
         )
@@ -845,84 +691,289 @@ class LabyrinthSeal(SealElement):
             self.cxy = 0
             self.cyx = 0
 
-    def run(self, frequency):
-        self.frequency = frequency
-        self.inlet_swirl_velocity = self.preswirl * self.frequency * self._shaft_radius
-        self._reset_state()
-        self._vermes_leakage()
-        self._solve_pressure_distribution()
-        self._solve_swirl_velocities()
-        self._solve_perturbation_system()
 
-        coefficients_dict = {
-            "kxx": self.kxx,
-            "kyy": self.kxx,
-            "kxy": self.kxy,
-            "kyx": self.kyx,
-            "cxx": self.cxx,
-            "cyy": self.cxx,
-            "cxy": self.cxy,
-            "cyx": self.cyx,
-            "pressure": self.p,
-            "seal_leakage": self._circumferential_leakage(self.mdot),
-            "pert_rcond": self.pert_rcond,
-            "pert_condition_number": self.pert_condition_number,
-        }
-        return coefficients_dict
+class LabyrinthSeal(SealElement):
+    """Labyrinth seal - Compressible flow model with rotordynamic coefficients.
 
-    def plot_pressure_distribution(
-        self, pressure_units="MPa", length_units="m", fig=None, **kwargs
+    This class provides a **comprehensive analytical model** for labyrinth seals
+    based on compressible gas flow through multiple throttling stages (teeth). The
+    model calculates leakage rates and dynamic coefficients for rotordynamic
+    analysis. The flow solution itself is computed by :class:`LabyrinthSolver`,
+    available as the ``solver`` attribute.
+
+    **Theoretical Approach:**
+
+    The model solves the **1D compressible flow problem** through a series of teeth using:
+
+    1. **Mass Flow Calculation**:
+       - Iterative solution for mass flow rate through multiple throttling stages
+       - Accounts for choked flow conditions at each tooth
+       - Uses discharge coefficients based on tooth geometry
+       - Isentropic relations for pressure drops across teeth
+       - Carry-over factor (ν) for flow momentum between cavities
+
+    2. **Pressure Distribution**:
+       - Solves for static pressure at each cavity using bracketed root-finding
+       - Handles both choked and unchoked flow conditions
+       - Critical pressure ratio check at each throttle
+       - Pressure balance ensures outlet pressure match
+
+    3. **Velocity Field (Swirl)**:
+       - Tangential velocity calculated at each cavity
+       - Accounts for inlet pre-swirl conditions
+       - Rotor and stator shear stress effects (friction factors)
+       - Reynolds number-dependent shear coefficients
+       - Jenny and Kanki parameters for improved tangential momentum (optional)
+
+    4. **Dynamic Coefficients** (stiffness and damping):
+       - Perturbation method applied to continuity and momentum equations
+       - Small perturbations in radial displacement and clearance
+       - Linearized system of equations solved using LU decomposition
+       - Cross-coupled stiffness terms capture destabilizing forces
+       - Frequency-dependent coefficients for each operating speed
+
+    Parameters
+    ----------
+    n : int
+        Node in which the seal will be located.
+    shaft_diameter : float, pint.Quantity
+        Diameter of the shaft (m).
+    radial_clearance : float, pint.Quantity
+        Nominal radial clearance (m).
+    n_teeth : int
+        Number of teeth (throttlings). Must be at least 2.
+    pitch : float, pint.Quantity
+        Seal pitch (length of land) or axial cavity length (m).
+    tooth_height : float, pint.Quantity
+        Height of seal strip (m).
+    tooth_width : float, pint.Quantity
+        Thickness of throttle (tip-width) (m), used in mass flow calculation.
+    seal_type : str
+        Indicates where labyrinth teeth are located.
+        Specify 'rotor' if teeth are on rotor only.
+        Specify 'stator' if teeth are on stator only.
+        Specify 'inter' for interlocking type labyrinths.
+    inlet_pressure : float
+        Inlet pressure (Pa).
+    outlet_pressure : float
+        Outlet pressure (Pa).
+    inlet_temperature : float
+        Inlet temperature (deg K).
+    frequency : float, pint.Quantity
+        Shaft rotational speed (rad/s).
+    preswirl : float
+        Inlet swirl velocity ratio. Positive values for swirl with shaft rotation
+        and negative values for swirl against shaft rotations.
+    gas_composition : dict, optional
+        Gas composition as a dictionary {component: molar_fraction}.
+        If gas_composition is None, provide molar_mass, gamma,
+        reference_temperatures, and reference_viscosities parameters.
+        Default is None.
+    gas_model : str, optional
+        Thermodynamic model used by the internal flow solver.
+        Specify "ideal" for the perfect-gas model (Z = 1, constant gamma); results
+        are identical to previous versions.
+        Specify "real" for the equation-of-state (real-gas) model, which evaluates
+        density, temperature, sound speed, enthalpy and choking along the inlet
+        isentrope from a table built once at construction. Requires gas_composition.
+        Default is "ideal".
+    molar_mass : float, pint.Quantity, optional
+        Molecular mass (kg/kgmol). For Air: molar_mass=28.97 kg/kgmol.
+        Required if gas_composition is None. Default is None.
+    gamma : float, optional
+        Ratio of specific heats. Required if gas_composition is None.
+        Default is None.
+    reference_temperatures : list of float, optional
+        Temperature at states: [T_state1, T_state2] (deg K).
+        Required if gas_composition is None.
+        Default is None.
+    reference_viscosities : list of float, optional
+        Dynamic viscosity at states: [mu_state1, mu_state2] (kg/(m·s)).
+        Required if gas_composition is None.
+        Default is None.
+    use_jenny_kanki : bool, optional
+        If True, use the tangential momentum parameters introduced by Jenny
+        and Kanki in the swirl velocity calculation.
+        Default is False.
+    print_results : bool, optional
+        If True, print results to console.
+        Default is False.
+    tag : str, optional
+        A tag to name the element.
+        Default is None.
+    n_link : int, optional
+        Node to which the bearing will connect. If None the bearing is
+        connected to ground.
+        Default is None.
+    scale_factor : float, optional
+        The scale factor is used to scale the bearing drawing.
+        Default is 1.
+    color : str, optional
+        A color to be used when the element is represented.
+        Default is "#77ACA2".
+
+    Examples
+    --------
+    >>> from ross.seals.labyrinth_seal import LabyrinthSeal
+    >>> from ross.units import Q_
+    >>> seal = LabyrinthSeal(
+    ...     n=0,
+    ...     shaft_diameter=Q_(145, "mm"),
+    ...     radial_clearance=Q_(0.3, "mm"),
+    ...     n_teeth=16,
+    ...     pitch=Q_(3.175, "mm"),
+    ...     tooth_height=Q_(3.175, "mm"),
+    ...     tooth_width=Q_(0.1524, "mm"),
+    ...     seal_type="inter",
+    ...     inlet_pressure=308000,
+    ...     outlet_pressure=94300,
+    ...     inlet_temperature=283.15,
+    ...     frequency=Q_([5000, 8000, 11000], "RPM"),
+    ...     preswirl=0.98,
+    ...     gas_composition={"Nitrogen": 0.79, "Oxygen": 0.21},
+    ... )
+    """
+
+    _pressure_plot_label = "Labyrinth Seal"
+
+    @check_units
+    def __init__(
+        self,
+        n,
+        shaft_diameter,
+        radial_clearance,
+        n_teeth,
+        pitch,
+        tooth_height,
+        tooth_width,
+        seal_type,
+        inlet_pressure,
+        outlet_pressure,
+        inlet_temperature,
+        frequency,
+        preswirl,
+        gas_composition=None,
+        gas_model="ideal",
+        molar_mass=None,
+        gamma=None,
+        reference_temperatures=None,
+        reference_viscosities=None,
+        use_jenny_kanki=False,
+        print_results=False,
+        **kwargs,
     ):
-        """Plot pressure distribution for the labyrinth seal.
-
-        Parameters
-        ----------
-        pressure_units : str, optional
-            Pressure units for plotting.
-            Default is "MPa".
-        length_units : str, optional
-            Length units for axial position.
-            Default is "m".
-        fig : Plotly graph_objects.Figure(), optional
-            The figure object with the plot. If None, creates a new figure.
-        kwargs : optional
-            Additional key word arguments can be passed to change the plot layout only
-            (e.g. width=1000, height=800, ...).
-            *See Plotly Python Figure Reference for more information.
-
-        Returns
-        -------
-        fig : Plotly graph_objects.Figure()
-            The figure object with the plot.
-        """
-        if fig is None:
-            fig = go.Figure()
-
-        n_cavities = self.n_teeth + 1
-
-        fig.add_trace(
-            go.Scatter(
-                x=Q_(self.z[:n_cavities], "m").to(length_units).m,
-                y=Q_(self.p[0][:n_cavities], "Pa").to(pressure_units).m,
-                mode="lines+markers",
-                name="Labyrinth Seal",
-                line=dict(width=2),
-                hovertemplate="<b>Position:</b> %{x:.3f} "
-                + length_units
-                + "<br>"
-                + f"<b>Pressure:</b> %{{y:.3f}} {pressure_units}<br>"
-                + "<extra></extra>",
+        if seal_type not in ("rotor", "stator", "inter"):
+            raise ValueError(
+                f"Invalid seal_type {seal_type!r}; expected 'rotor', 'stator' "
+                "or 'inter'."
             )
+        if n_teeth < 2:
+            raise ValueError("The labyrinth model requires at least 2 teeth.")
+
+        self.print_results = print_results
+        self.gas_composition = gas_composition
+        self.gas_model = gas_model
+
+        if self.gas_composition is not None:
+            state_in, molar_mass, gamma, R = extract_gas_properties(
+                self.gas_composition, inlet_pressure, inlet_temperature
+            )
+            state_out = ccp.State(
+                p=outlet_pressure, h=state_in.h(), fluid=self.gas_composition
+            )
+        else:
+            R = 8314.0 / molar_mass  # Universal gas constant over molar mass.
+
+        self.R = R
+        self.molar_mass = molar_mass
+        self.gamma = gamma
+
+        if self.gas_model == "real":
+            if self.gas_composition is None:
+                raise ValueError(
+                    "gas_model='real' requires gas_composition to query the "
+                    "equation of state."
+                )
+            self.gas = RealGas(
+                self.R,
+                self.gamma,
+                self.gas_composition,
+                inlet_pressure,
+                outlet_pressure=outlet_pressure,
+                inlet_temperature=inlet_temperature,
+            )
+        elif self.gas_model == "ideal":
+            self.gas = IdealGas(self.R, self.gamma)
+        else:
+            raise ValueError(
+                f"Invalid gas_model {self.gas_model!r}; expected 'ideal' or 'real'."
+            )
+        self._real_gas = self.gas_model == "real"
+
+        if reference_temperatures is None:
+            reference_temperatures = [state_in.T().m, state_out.T().m]
+        if reference_viscosities is None:
+            reference_viscosities = [state_in.viscosity().m, state_out.viscosity().m]
+
+        self.reference_temperatures = reference_temperatures
+        self.reference_viscosities = reference_viscosities
+
+        self.n = n
+        self.inlet_pressure = inlet_pressure
+        self.outlet_pressure = outlet_pressure
+        self.inlet_temperature = inlet_temperature
+        self.preswirl = preswirl
+        self.n_teeth = n_teeth
+        self.shaft_diameter = shaft_diameter
+        self._shaft_radius = shaft_diameter / 2
+        self.radial_clearance = radial_clearance
+        self.pitch = pitch
+        self.tooth_height = tooth_height
+        self.tooth_width = tooth_width
+        self.seal_type = seal_type
+        self.use_jenny_kanki = use_jenny_kanki
+
+        self.z = np.arange(n_teeth + 1) * pitch
+
+        self.solver = LabyrinthSolver(
+            shaft_radius=self._shaft_radius,
+            radial_clearance=radial_clearance,
+            n_teeth=n_teeth,
+            pitch=pitch,
+            tooth_height=tooth_height,
+            tooth_width=tooth_width,
+            seal_type=seal_type,
+            inlet_pressure=inlet_pressure,
+            outlet_pressure=outlet_pressure,
+            inlet_temperature=inlet_temperature,
+            preswirl=preswirl,
+            gas=self.gas,
+            R=self.R,
+            reference_temperatures=reference_temperatures,
+            reference_viscosities=reference_viscosities,
+            use_jenny_kanki=use_jenny_kanki,
+            print_results=print_results,
         )
 
-        fig.update_layout(
-            title=dict(
-                text="Pressure Distribution - Labyrinth Seal",
-            ),
-            xaxis_title=f"Axial Position ({length_units})",
-            yaxis_title=f"Pressure ({pressure_units})",
-            showlegend=False,
+        coefficients_dict = {}
+        if kwargs.get("kxx") is None:
+            results = solve_frequencies(
+                self.solver.solve, frequency, parallel_threshold=4
+            )
+
+            self.p = [r["pressure"] for r in results]
+
+            coefficients_dict = {
+                c: [k[c] for k in results]
+                for c in results[0].keys()
+                if c not in ["pressure", "pert_rcond", "pert_condition_number"]
+            }
+            self.pert_rcond = [r["pert_rcond"] for r in results]
+            self.pert_condition_number = [r["pert_condition_number"] for r in results]
+
+        super().__init__(
+            self.n,
+            frequency=frequency,
+            **coefficients_dict,
             **kwargs,
         )
-
-        return fig

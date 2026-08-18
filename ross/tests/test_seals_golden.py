@@ -155,12 +155,20 @@ def _labyrinth_snapshot(case):
         snapshot["distributions"].append(
             {
                 "pressure": np.asarray(single.p[0][:n_cavities], float).tolist(),
-                "swirl_velocity": np.asarray(single.v[: seal.n_teeth], float).tolist(),
-                "throat_velocity": np.asarray(single.w[:n_cavities], float).tolist(),
-                "temperature": np.asarray(single.t[:n_cavities], float).tolist(),
-                "density": np.asarray(single.rho[:n_cavities], float).tolist(),
-                "shear_rotor": np.asarray(single.taur[: seal.n_teeth], float).tolist(),
-                "shear_stator": np.asarray(single.taus[: seal.n_teeth], float).tolist(),
+                "swirl_velocity": np.asarray(
+                    single.solver.v[: seal.n_teeth], float
+                ).tolist(),
+                "throat_velocity": np.asarray(
+                    single.solver.w[:n_cavities], float
+                ).tolist(),
+                "temperature": np.asarray(single.solver.t[:n_cavities], float).tolist(),
+                "density": np.asarray(single.solver.rho[:n_cavities], float).tolist(),
+                "shear_rotor": np.asarray(
+                    single.solver.taur[: seal.n_teeth], float
+                ).tolist(),
+                "shear_stator": np.asarray(
+                    single.solver.taus[: seal.n_teeth], float
+                ).tolist(),
             }
         )
     return snapshot
@@ -183,10 +191,12 @@ def _holepattern_snapshot(case):
             {
                 "pressure": np.asarray(single.p[0], float).tolist(),
                 "axial_mach_squared": np.asarray(
-                    single.mz2[:n_stations], float
+                    single.solver.mz2[:n_stations], float
                 ).tolist(),
-                "tangential_mach": np.asarray(single.mt[:n_stations], float).tolist(),
-                "temperature": np.asarray(single.t[:n_stations], float).tolist(),
+                "tangential_mach": np.asarray(
+                    single.solver.mt[:n_stations], float
+                ).tolist(),
+                "temperature": np.asarray(single.solver.t[:n_stations], float).tolist(),
             }
         )
     return snapshot
