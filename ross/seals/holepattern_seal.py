@@ -88,25 +88,25 @@ class HolePatternSeal(SealElement):
         the whirl frequency ``excitation_ratio * frequency``.
     gas_composition : dict, optional
         Gas composition as a dictionary {component: molar_fraction}.
-    molar : float, pint.Quantity, optional
-        Molecular mass (kg/kgmol). For Air: molar=28.97 kg/kgmol. Required if gas_composition is None.
+    molar_mass : float, pint.Quantity, optional
+        Molecular mass (kg/kgmol). For Air: molar_mass=28.97 kg/kgmol. Required if gas_composition is None.
         Default is None.
     gamma : float, optional
         Gas constant gamma (Cp/Cv). For Air: gamma=1.4. Required if gas_composition is None.
         Default is None.
-    b_suther : float, optional
+    sutherland_b : float, optional
         b coefficient for the Sutherland viscosity model. Required if gas_composition is None.
         Default is None.
-    s_suther : float, optional
+    sutherland_s : float, optional
         s coefficient for the Sutherland viscosity model. Required if gas_composition is None.
         Default is None.
     preswirl : float, optional
         Ratio of the circumferential velocity of the gas to the surface velocity of the shaft.
         Default is 0.0.
-    entr_coef : float, optional
+    entrance_loss_coefficient : float, optional
         Entrance loss coefficient.
         Default is 0.1.
-    exit_coef : float, optional
+    exit_loss_coefficient : float, optional
         Exit loss coefficient.
         Default is 0.5.
     excitation_ratio : float, optional
@@ -125,7 +125,7 @@ class HolePatternSeal(SealElement):
     first_step_size : float, optional
         Initial step for the solution method. It should not be more than 0.01.
         Default is 0.01.
-    rlx_factor : float, optional
+    relaxation_factor : float, optional
         Relaxation factor. Should be smaller than 0.1.
         Default is 0.1.
     tag : str, optional
@@ -161,8 +161,8 @@ class HolePatternSeal(SealElement):
     ...     frequency=Q_([8000], "RPM"),
     ...     gas_composition={"Nitrogen": 0.79, "Oxygen": 0.21},
     ...     preswirl=0.8,
-    ...     entr_coef=0.5,
-    ...     exit_coef=1.0,
+    ...     entrance_loss_coefficient=0.5,
+    ...     exit_loss_coefficient=1.0,
     ...     nz=18
     ... )
     """
@@ -183,19 +183,19 @@ class HolePatternSeal(SealElement):
         inlet_temperature,
         frequency,
         gas_composition=None,
-        molar=None,
+        molar_mass=None,
         gamma=None,
-        b_suther=None,
-        s_suther=None,
+        sutherland_b=None,
+        sutherland_s=None,
         preswirl=0.0,
-        entr_coef=0.1,
-        exit_coef=0.5,
+        entrance_loss_coefficient=0.1,
+        exit_loss_coefficient=0.5,
         excitation_ratio=1.0,
         nz=80,
         max_iterations=180,
         tolerance=0.0001,
         first_step_size=0.01,
-        rlx_factor=0.1,
+        relaxation_factor=0.1,
         **kwargs,
     ):
         for k, v in locals().items():
@@ -209,7 +209,7 @@ class HolePatternSeal(SealElement):
             def sutherland_formula(T, b, S):
                 return (b * T ** (3 / 2)) / (S + T)
 
-            state, molar, gamma, R = extract_gas_properties(
+            state, molar_mass, gamma, R = extract_gas_properties(
                 self.gas_composition, self.inlet_pressure, self.inlet_temperature
             )
 
@@ -227,17 +227,19 @@ class HolePatternSeal(SealElement):
             if len(x) < 3:
                 raise RuntimeError(
                     f"Could not collect enough viscosity data points ({len(x)} points) "
-                    f"to fit Sutherland coefficients. Try providing b_suther, s_suther, "
-                    f"molar, and gamma manually."
+                    f"to fit Sutherland coefficients. Try providing sutherland_b, sutherland_s, "
+                    f"molar_mass, and gamma manually."
                 )
 
             popt, pcov = curve_fit(sutherland_formula, x, y)
-            self.b_suther, self.s_suther = popt
+            self.sutherland_b, self.sutherland_s = popt
         else:
-            R = 8314.0 / molar  # Universal gas constant (J/(kmol·K)) over molar mass.
+            R = (
+                8314.0 / molar_mass
+            )  # Universal gas constant (J/(kmol·K)) over molar_mass mass.
 
         self.R = R
-        self.molar = molar
+        self.molar_mass = molar_mass
         self.gamma = gamma
 
         self.nmx = 2000
@@ -376,7 +378,8 @@ class HolePatternSeal(SealElement):
         if p30_denom == 0:
             p30_denom = 1e-9
         p30 = self.inlet_pressure * (
-            1.0 - self.entr_coef * (self.gamma / 2.0) * m2**2 / p30_denom
+            1.0
+            - self.entrance_loss_coefficient * (self.gamma / 2.0) * m2**2 / p30_denom
         )
         m3 = m2
         for _ in range(30):
@@ -425,7 +428,7 @@ class HolePatternSeal(SealElement):
             utot_rotor = 1e-9
         # Pre-compute T**1.5 and shared divisor
         T_15 = T**1.5
-        mu = self.b_suther * T_15 / (self.s_suther + T)
+        mu = self.sutherland_b * T_15 / (self.sutherland_s + T)
         mu_factor_mu = self._mu_factor * mu
         fs_term = mu_factor_mu / (rho * self.radial_clearance * utot)
         fs = 1.375e-3 * (1.0 + fs_term ** (1.0 / 3.0))
@@ -509,7 +512,10 @@ class HolePatternSeal(SealElement):
         p50_denom = p40_denom ** (self.gamma / self.gamma1)
         if p50_denom == 0:
             p50_denom = 1e-9
-        p50 = p40 * (1.0 - self.exit_coef * (self.gamma / 2.0) * msquared4 / p50_denom)
+        p50 = p40 * (
+            1.0
+            - self.exit_loss_coefficient * (self.gamma / 2.0) * msquared4 / p50_denom
+        )
         m5 = m4
         for _ in range(30):
             m5_term = 1.0 + self.gamma12 * m5**2
@@ -552,8 +558,10 @@ class HolePatternSeal(SealElement):
                 break
             temp_delp, temp_p = delp, p2
             p2 = (
-                self.rlx_factor * (delp * p2_old - delp_old * p2) / (delp - delp_old)
-                + (1.0 - self.rlx_factor) * p2
+                self.relaxation_factor
+                * (delp * p2_old - delp_old * p2)
+                / (delp - delp_old)
+                + (1.0 - self.relaxation_factor) * p2
             )
             p2_old, delp_old = temp_p, temp_delp
             for _ in range(60):
@@ -591,8 +599,8 @@ class HolePatternSeal(SealElement):
         g,
         R,
         relative_roughness,
-        b_suther,
-        s_suther,
+        sutherland_b,
+        sutherland_s,
         omg,
         w_omg,
         deep,
@@ -627,13 +635,17 @@ class HolePatternSeal(SealElement):
             if (base_new["u"] ** 2 + w_rel**2) > 0
             else 1e-9
         )
-        mu = mu0 * b_suther * b["T"] ** 1.5 / (s_suther + b["T"]) if b["T"] > 0 else 0
+        mu = (
+            mu0 * sutherland_b * b["T"] ** 1.5 / (sutherland_s + b["T"])
+            if b["T"] > 0
+            else 0
+        )
         mut = (
             mu0
-            * (b_suther / 2.0)
+            * (sutherland_b / 2.0)
             * np.sqrt(b["T"])
-            * (1.5 * s_suther + b["T"])
-            / (s_suther + b["T"]) ** 2
+            * (1.5 * sutherland_s + b["T"])
+            / (sutherland_s + b["T"]) ** 2
             if b["T"] > 0
             else 0
         )
@@ -940,16 +952,16 @@ class HolePatternSeal(SealElement):
             else 1e-9
         )
         mu_new = (
-            mu0 * b_suther * b_new["T"] ** 1.5 / (s_suther + b_new["T"])
+            mu0 * sutherland_b * b_new["T"] ** 1.5 / (sutherland_s + b_new["T"])
             if b_new["T"] > 0
             else 0
         )
         mut_new = (
             mu0
-            * (b_suther / 2.0)
+            * (sutherland_b / 2.0)
             * np.sqrt(b_new["T"])
-            * (1.5 * s_suther + b_new["T"])
-            / (s_suther + b_new["T"]) ** 2
+            * (1.5 * sutherland_s + b_new["T"])
+            / (sutherland_s + b_new["T"]) ** 2
             if b_new["T"] > 0
             else 0
         )
@@ -1079,8 +1091,8 @@ class HolePatternSeal(SealElement):
                 self.gamma,
                 self.R,
                 self.relative_roughness,
-                self.b_suther,
-                self.s_suther,
+                self.sutherland_b,
+                self.sutherland_s,
                 self.omega,
                 whirl_freq,
                 deep,
@@ -1150,8 +1162,8 @@ class HolePatternSeal(SealElement):
                 self.gamma,
                 self.R,
                 self.relative_roughness,
-                self.b_suther,
-                self.s_suther,
+                self.sutherland_b,
+                self.sutherland_s,
                 self.omega,
                 whirl_freq,
                 deep,

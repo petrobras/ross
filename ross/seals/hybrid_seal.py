@@ -50,8 +50,8 @@ class HybridSeal(SealElement):
     gas_composition : dict, optional
         Gas composition as a dictionary {component: molar_fraction}.
         Example: {"Nitrogen": 0.79, "Oxygen": 0.21} for air.
-    molar : float, pint.Quantity, optional
-        Molecular mass (kg/kgmol). For Air: molar=28.97 kg/kgmol.
+    molar_mass : float, pint.Quantity, optional
+        Molecular mass (kg/kgmol). For Air: molar_mass=28.97 kg/kgmol.
         Required if gas_composition is None. Default is None.
     gamma : float, optional
         Gas constant gamma (Cp/Cv). For Air: gamma=1.4.
@@ -74,19 +74,19 @@ class HybridSeal(SealElement):
             Typical length of a cell in the azimuthal direction (m).
         - cell_depth : float, pint.Quantity
             Depth of a cell (m).
-        - b_suther : float, optional
+        - sutherland_b : float, optional
             b coefficient for the Sutherland viscosity model.
             Required if gas_composition is None. Default is None.
-        - s_suther : float, optional
+        - sutherland_s : float, optional
             s coefficient for the Sutherland viscosity model.
             Required if gas_composition is None. Default is None.
         - preswirl : float, optional
             Ratio of the circumferential velocity of the gas to the surface velocity of the shaft.
             Default is 0.0.
-        - entr_coef : float, optional
+        - entrance_loss_coefficient : float, optional
             Entrance loss coefficient.
             Default is 0.1.
-        - exit_coef : float, optional
+        - exit_loss_coefficient : float, optional
             Exit loss coefficient.
             Default is 0.5.
         - excitation_ratio : float, optional
@@ -105,7 +105,7 @@ class HybridSeal(SealElement):
         - first_step_size : float, optional
             Initial step for the solution method. It should not be more than 0.01.
             Default is 0.01.
-        - rlx_factor : float, optional
+        - relaxation_factor : float, optional
             Relaxation factor. Should be smaller than 0.1.
             Default is 0.1.
 
@@ -131,22 +131,18 @@ class HybridSeal(SealElement):
         - preswirl : float
             Inlet swirl velocity ratio. Positive values for swirl with shaft rotation
             and negative values for swirl against shaft rotations.
-        - tz : list of float, optional
+        - reference_temperatures : list of float, optional
             Temperature at states: [T_state1, T_state2] (deg K).
             Required if gas_composition is None.
             Default is None.
-        - muz : list of float, optional
+        - reference_viscosities : list of float, optional
             Dynamic viscosity at states: [mu_state1, mu_state2] (kg/(m·s)).
             Required if gas_composition is None.
             Default is None.
-        - nprt : int, optional
-            Number of parameters to be printed in the output: 1 maximum, 5 minimum.
-            Default is 1.
-        - iopt1 : int, optional
-            Use or no use of tangential momentum parameters introduced by Jenny and Kanki.
-            Specify value 0 to not use parameters.
-            Specify value 1 to use parameters.
-            Default is 0.
+        - use_jenny_kanki : bool, optional
+            If True, use the tangential momentum parameters introduced by
+            Jenny and Kanki in the swirl velocity calculation.
+            Default is False.
 
     **Hybrid Seal Control Parameters:**
 
@@ -178,8 +174,8 @@ class HybridSeal(SealElement):
     ...   "cell_width": 0.003,
     ...   "cell_depth": 0.002,
     ...   "preswirl": 0.8,
-    ...   "entr_coef": 0.5,
-    ...   "exit_coef": 1.0,
+    ...   "entrance_loss_coefficient": 0.5,
+    ...   "exit_loss_coefficient": 1.0,
     ... }
     >>> laby_params = {
     ...   "radial_clearance": Q_(0.25, "mm"),
@@ -189,8 +185,8 @@ class HybridSeal(SealElement):
     ...   "tooth_width": Q_(0.15, "mm"),
     ...   "seal_type": "inter",
     ...   "preswirl": 0.9,
-    ...   "tz": [300.0, 299.5],
-    ...   "muz": [1.85e-05, 1.84e-05],
+    ...   "reference_temperatures": [300.0, 299.5],
+    ...   "reference_viscosities": [1.85e-05, 1.84e-05],
     ... }
     >>> hybrid = HybridSeal(
     ...   n=0,
@@ -219,7 +215,7 @@ class HybridSeal(SealElement):
         hole_pattern_parameters,
         labyrinth_parameters,
         gas_composition=None,
-        molar=None,
+        molar_mass=None,
         gamma=None,
         tolerance=1e-6,
         max_iterations=100,
@@ -248,7 +244,7 @@ class HybridSeal(SealElement):
                 frequency=frequency,
                 shaft_diameter=shaft_diameter,
                 gas_composition=gas_composition,
-                molar=molar,
+                molar_mass=molar_mass,
                 gamma=gamma,
                 **hole_pattern_parameters,
             )
@@ -261,7 +257,7 @@ class HybridSeal(SealElement):
                 frequency=frequency,
                 shaft_diameter=shaft_diameter,
                 gas_composition=gas_composition,
-                molar=molar,
+                molar_mass=molar_mass,
                 gamma=gamma,
                 **labyrinth_parameters,
             )

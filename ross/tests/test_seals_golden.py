@@ -48,10 +48,10 @@ LABYRINTH_BASE = {
     "tooth_height": Q_(3.175, "mm"),
     "tooth_width": Q_(0.1524, "mm"),
     "seal_type": "inter",
-    "molar": 28.96807,
+    "molar_mass": 28.96807,
     "gamma": 1.41,
-    "tz": [283.15, 282.60903080958565],
-    "muz": [1.7746561138374613e-05, 1.7687886306966975e-05],
+    "reference_temperatures": [283.15, 282.60903080958565],
+    "reference_viscosities": [1.7746561138374613e-05, 1.7687886306966975e-05],
 }
 
 LABYRINTH_CASES = {
@@ -69,7 +69,7 @@ LABYRINTH_CASES = {
     "stator_jenny_kanki": {
         **LABYRINTH_BASE,
         "seal_type": "stator",
-        "iopt1": 1,
+        "use_jenny_kanki": True,
         "frequency": Q_([8000], "RPM"),
     },
     "choked": {
@@ -93,11 +93,11 @@ HOLEPATTERN_BASE = {
     "outlet_pressure": 823500.0,
     "inlet_temperature": 300.0,
     "preswirl": 1.0,
-    "entr_coef": 0.1,
-    "exit_coef": 0.5,
-    "b_suther": 1.458e-6,
-    "s_suther": 110.4,
-    "molar": 29.0,
+    "entrance_loss_coefficient": 0.1,
+    "exit_loss_coefficient": 0.5,
+    "sutherland_b": 1.458e-6,
+    "sutherland_s": 110.4,
+    "molar_mass": 29.0,
     "gamma": 1.4,
 }
 
