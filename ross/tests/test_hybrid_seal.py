@@ -10,7 +10,7 @@ from ross.units import Q_
 # Common test parameters for hybrid seal
 COMMON_PARAMS = {
     "n": 0,
-    "shaft_radius": Q_(25, "mm"),
+    "shaft_diameter": Q_(50, "mm"),
     "inlet_pressure": 500000,
     "outlet_pressure": 100000,
     "inlet_temperature": 300.0,
@@ -36,8 +36,8 @@ LABYRINTH_PARAMS = {
 # For tests without gas composition
 HOLEPATTERN_PARAMS = {
     "radial_clearance": 0.0003,
-    "length": 0.04,
-    "roughness": 0.0001,
+    "axial_length": 0.04,
+    "relative_roughness": 0.0001,
     "cell_length": 0.003,
     "cell_width": 0.003,
     "cell_depth": 0.002,
@@ -51,8 +51,8 @@ HOLEPATTERN_PARAMS = {
 # Hole-pattern seal parameters for gas composition tests
 HOLEPATTERN_PARAMS_GC = {
     "radial_clearance": 0.0003,
-    "length": 0.04,
-    "roughness": 0.0001,
+    "axial_length": 0.04,
+    "relative_roughness": 0.0001,
     "cell_length": 0.003,
     "cell_width": 0.003,
     "cell_depth": 0.002,

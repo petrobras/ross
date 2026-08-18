@@ -62,14 +62,15 @@ class HolePatternSeal(SealElement):
     ----------
     n : int
         Node in which the bearing will be located.
-    shaft_radius : float, pint.Quantity
-        Radius of the shaft (m).
+    shaft_diameter : float, pint.Quantity
+        Diameter of the shaft (m).
     radial_clearance : float, pint.Quantity
-        Seal clearance (m).
-    length : float, pint.Quantity
-        Length of the seal (m).
-    roughness : float
-        E / D (roughness / diameter) of the shaft.
+        Seal radial clearance (m).
+    axial_length : float, pint.Quantity
+        Axial length of the seal (m).
+    relative_roughness : float
+        Relative roughness E / D (roughness / diameter) of the shaft,
+        dimensionless.
     cell_length : float, pint.Quantity
         Typical length of a cell in the axial direction (m).
     cell_width : float, pint.Quantity
@@ -83,7 +84,8 @@ class HolePatternSeal(SealElement):
     inlet_temperature : float
         Inlet temperature (deg K).
     frequency : list, pint.Quantity
-        List with whirl frequency (rad/s).
+        Shaft rotational speeds (rad/s). The coefficients are evaluated at
+        the whirl frequency ``excitation_ratio * frequency``.
     gas_composition : dict, optional
         Gas composition as a dictionary {component: molar_fraction}.
     molar : float, pint.Quantity, optional
@@ -107,8 +109,9 @@ class HolePatternSeal(SealElement):
     exit_coef : float, optional
         Exit loss coefficient.
         Default is 0.5.
-    whirl_ratio : float, optional
-        Ratio of whirl frequency to rotational speed.
+    excitation_ratio : float, optional
+        Ratio of the excitation (whirl) frequency to the rotational speed;
+        1.0 means synchronous excitation.
         Default is 1.0.
     nz : int, optional
         Number of discretization points in the axial direction.
@@ -145,10 +148,10 @@ class HolePatternSeal(SealElement):
     >>> from ross.units import Q_
     >>> holepattern = HolePatternSeal(
     ...     n=0,
-    ...     shaft_radius=0.0725,
+    ...     shaft_diameter=0.145,
     ...     radial_clearance=0.0003,
-    ...     length=0.04699,
-    ...     roughness=0.0001,
+    ...     axial_length=0.04699,
+    ...     relative_roughness=0.0001,
     ...     cell_length=0.003175,
     ...     cell_width=0.003175,
     ...     cell_depth=0.0025,
@@ -168,10 +171,10 @@ class HolePatternSeal(SealElement):
     def __init__(
         self,
         n,
-        shaft_radius,
+        shaft_diameter,
         radial_clearance,
-        length,
-        roughness,
+        axial_length,
+        relative_roughness,
         cell_length,
         cell_width,
         cell_depth,
@@ -187,7 +190,7 @@ class HolePatternSeal(SealElement):
         preswirl=0.0,
         entr_coef=0.1,
         exit_coef=0.5,
-        whirl_ratio=1.0,
+        excitation_ratio=1.0,
         nz=80,
         max_iterations=180,
         tolerance=0.0001,
@@ -198,6 +201,8 @@ class HolePatternSeal(SealElement):
         for k, v in locals().items():
             if k != "self":
                 setattr(self, k, v)
+
+        self._shaft_radius = self.shaft_diameter / 2
 
         if self.gas_composition is not None:
 
@@ -243,7 +248,7 @@ class HolePatternSeal(SealElement):
         self.area = 0.0
         self.mdot = 0.0
 
-        self.dz = self.length / float(self.nz)
+        self.dz = self.axial_length / float(self.nz)
         self.z = np.zeros(nz + 4)
         self.z[0] = -self.dz
         self.z[1] = 0.0
@@ -289,12 +294,12 @@ class HolePatternSeal(SealElement):
         self.gamma1 = self.gamma - 1.0
         self.gamma12 = self.gamma1 / 2.0
         self.omega = frequency
-        self.area = np.pi * 2.0 * self.shaft_radius * self.radial_clearance
+        self.area = np.pi * 2.0 * self._shaft_radius * self.radial_clearance
 
         # Cache constants for form_rhs() optimization
         self._gamma_R = self.gamma * self.R
-        self._radius_omega = self.shaft_radius * self.omega
-        self._rough_factor = 1.0e4 * self.roughness
+        self._radius_omega = self._shaft_radius * self.omega
+        self._rough_factor = 1.0e4 * self.relative_roughness
         self._mu_factor = 5.0e5
 
         try:
@@ -361,7 +366,7 @@ class HolePatternSeal(SealElement):
         )
         c2 = np.sqrt(self.gamma * self.R * T2)
         mdot = (p2 / (self.R * T2)) * self.area * (m2 * c2)
-        mt2 = self.preswirl * (self.shaft_radius * self.omega) / c2
+        mt2 = self.preswirl * (self._shaft_radius * self.omega) / c2
         p30_denom = (1.0 + self.gamma12 * m2**2) ** (self.gamma / self.gamma1)
         if p30_denom == 0:
             p30_denom = 1e-9
@@ -580,7 +585,7 @@ class HolePatternSeal(SealElement):
         rad,
         g,
         R,
-        roughness,
+        relative_roughness,
         b_suther,
         s_suther,
         omg,
@@ -593,7 +598,7 @@ class HolePatternSeal(SealElement):
     ):
         cp = g * R / (g - 1.0)
         cv = cp / g
-        delta = 1.0e4 * roughness
+        delta = 1.0e4 * relative_roughness
         alpha = 1.375e-3
         mu0 = 5.0e5
         b = base_old
@@ -1031,7 +1036,7 @@ class HolePatternSeal(SealElement):
 
         xcos, pi_radius, deep = (
             1.0,
-            np.pi * self.shaft_radius,
+            np.pi * self._shaft_radius,
             self.cell_depth / self.gamma,
         )
         pert = np.zeros((5, 4, self.nz + 1))
@@ -1065,10 +1070,10 @@ class HolePatternSeal(SealElement):
             pert_new, shear = self._one_step_perturbed(
                 self.dz,
                 h_pert,
-                self.shaft_radius,
+                self._shaft_radius,
                 self.gamma,
                 self.R,
-                self.roughness,
+                self.relative_roughness,
                 self.b_suther,
                 self.s_suther,
                 self.omega,
@@ -1097,7 +1102,7 @@ class HolePatternSeal(SealElement):
         ) * self.dz
         fy_c = (fy_c - 0.5 * pi_radius * (shear_end[3] - pert[4, 1, self.nz])) * self.dz
         K_dir, k_cross = -fx_c / xcos, fy_c / xcos
-        whirl_freq = self.omega * self.whirl_ratio
+        whirl_freq = self.omega * self.excitation_ratio
         if abs(whirl_freq) < 1e-9:
             return {
                 "K_dir": K_dir,
@@ -1136,10 +1141,10 @@ class HolePatternSeal(SealElement):
             pert_new, shear = self._one_step_perturbed(
                 self.dz,
                 h_pert,
-                self.shaft_radius,
+                self._shaft_radius,
                 self.gamma,
                 self.R,
-                self.roughness,
+                self.relative_roughness,
                 self.b_suther,
                 self.s_suther,
                 self.omega,

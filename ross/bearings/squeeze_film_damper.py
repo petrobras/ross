@@ -24,8 +24,8 @@ class SqueezeFilmDamper(BearingElement):
         Array with the frequencies (rad/s).
     axial_length : float, pint.Quantity
         Bearing length. Default unit is meter.
-    journal_radius : float
-        Rotor radius. The unit is meter.
+    journal_diameter : float
+        Journal diameter. The unit is meter.
     radial_clearance : float
         Radial clearence between rotor and bearing. The unit is meter.
     eccentricity_ratio : float
@@ -74,7 +74,7 @@ class SqueezeFilmDamper(BearingElement):
     ...     n=0,
     ...     frequency=Q_([18600, 20000, 22000], "rpm"),
     ...     axial_length=Q_(0.9, "inches"),
-    ...     journal_radius=Q_(2.55, "inches"),
+    ...     journal_diameter=Q_(5.1, "inches"),
     ...     radial_clearance=Q_(0.003, "inches"),
     ...     eccentricity_ratio=0.5,
     ...     lubricant="ISOVG32",
@@ -89,7 +89,7 @@ class SqueezeFilmDamper(BearingElement):
         n,
         frequency,
         axial_length,
-        journal_radius,
+        journal_diameter,
         radial_clearance,
         eccentricity_ratio,
         lubricant,
@@ -99,7 +99,8 @@ class SqueezeFilmDamper(BearingElement):
         scale_factor=1.0,
     ):
         self.axial_length = axial_length
-        self.journal_radius = journal_radius
+        self.journal_diameter = journal_diameter
+        self._journal_radius = journal_diameter / 2
         self.radial_clearance = radial_clearance
         self.eccentricity_ratio = eccentricity_ratio
         self.frequency = frequency
@@ -167,7 +168,7 @@ class SqueezeFilmDamper(BearingElement):
             theta=self.theta,
             p_max=self.p_max,
             axial_length=self.axial_length,
-            journal_radius=self.journal_radius,
+            journal_diameter=self.journal_diameter,
             radial_clearance=self.radial_clearance,
             eccentricity_ratio=self.eccentricity_ratio,
             lubricant_viscosity=self.lubricant,
@@ -207,7 +208,7 @@ class SqueezeFilmDamper(BearingElement):
             12.0
             * np.pi
             * self.axial_length
-            * (self.journal_radius / self.radial_clearance) ** 3
+            * (self._journal_radius / self.radial_clearance) ** 3
             * self.lubricant
         )
         co /= (2.0 + self.eccentricity_ratio**2) * np.sqrt(
@@ -218,7 +219,7 @@ class SqueezeFilmDamper(BearingElement):
             24.0
             * self.lubricant
             * self.axial_length
-            * (self.journal_radius / self.radial_clearance) ** 3
+            * (self._journal_radius / self.radial_clearance) ** 3
             * self.eccentricity_ratio
             * freq
         )
@@ -242,7 +243,7 @@ class SqueezeFilmDamper(BearingElement):
             * 6.0
             * self.lubricant
             * freq
-            * (self.journal_radius / self.radial_clearance) ** 2
+            * (self._journal_radius / self.radial_clearance) ** 2
         )
 
         if self.cavitation:
@@ -276,7 +277,7 @@ class SqueezeFilmDamper(BearingElement):
             co = (
                 self.lubricant
                 * (self.axial_length**3)
-                * self.journal_radius
+                * self._journal_radius
                 / (2.0 * self.radial_clearance**3)
             )
             co *= np.pi / ((1.0 - self.eccentricity_ratio**2) ** (3.0 / 2.0))
@@ -286,7 +287,7 @@ class SqueezeFilmDamper(BearingElement):
                 2.0
                 * self.lubricant
                 * freq
-                * self.journal_radius
+                * self._journal_radius
                 * (self.axial_length / self.radial_clearance) ** 3
                 * self.eccentricity_ratio
             )
@@ -317,7 +318,7 @@ class SqueezeFilmDamper(BearingElement):
             co = (
                 self.lubricant
                 * (self.axial_length / self.radial_clearance) ** 3
-                * self.journal_radius
+                * self._journal_radius
                 * np.pi
             )
             co /= (1.0 - self.eccentricity_ratio**2) ** (3.0 / 2.0)
@@ -347,7 +348,7 @@ class SqueezeFilmDamper(BearingElement):
             co = (
                 self.lubricant
                 * (self.axial_length**3)
-                * self.journal_radius
+                * self._journal_radius
                 / (2.0 * self.radial_clearance**3)
             )
             co *= np.pi / ((1.0 - self.eccentricity_ratio**2) ** (3.0 / 2.0))
@@ -356,7 +357,7 @@ class SqueezeFilmDamper(BearingElement):
                 2.0
                 * self.lubricant
                 * freq
-                * self.journal_radius
+                * self._journal_radius
                 * (self.axial_length / self.radial_clearance) ** 3
                 * self.eccentricity_ratio
             )
@@ -385,7 +386,7 @@ class SqueezeFilmDamper(BearingElement):
             co = (
                 self.lubricant
                 * (self.axial_length / self.radial_clearance) ** 3
-                * self.journal_radius
+                * self._journal_radius
                 * np.pi
             )
             co /= (1.0 - self.eccentricity_ratio**2) ** (3.0 / 2.0)

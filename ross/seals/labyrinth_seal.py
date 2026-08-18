@@ -55,8 +55,8 @@ class LabyrinthSeal(SealElement):
     ----------
     n : int
         Node in which the seal will be located.
-    shaft_radius : float, pint.Quantity
-        Radius of shaft (m).
+    shaft_diameter : float, pint.Quantity
+        Diameter of the shaft (m).
     radial_clearance : float, pint.Quantity
         Nominal radial clearance (m).
     n_teeth : int
@@ -140,7 +140,7 @@ class LabyrinthSeal(SealElement):
     >>> from ross.units import Q_
     >>> seal = LabyrinthSeal(
     ...     n=0,
-    ...     shaft_radius=Q_(72.5, "mm"),
+    ...     shaft_diameter=Q_(145, "mm"),
     ...     radial_clearance=Q_(0.3, "mm"),
     ...     n_teeth=16,
     ...     pitch=Q_(3.175, "mm"),
@@ -160,7 +160,7 @@ class LabyrinthSeal(SealElement):
     def __init__(
         self,
         n,
-        shaft_radius,
+        shaft_diameter,
         radial_clearance,
         n_teeth,
         pitch,
@@ -240,7 +240,8 @@ class LabyrinthSeal(SealElement):
         self.inlet_temperature = inlet_temperature
         self.preswirl = preswirl
         self.n_teeth = n_teeth
-        self.shaft_radius = shaft_radius
+        self.shaft_diameter = shaft_diameter
+        self._shaft_radius = shaft_diameter / 2
         self.radial_clearance = radial_clearance
         self.pitch = pitch
         self.tooth_height = tooth_height
@@ -419,7 +420,7 @@ class LabyrinthSeal(SealElement):
             self.mdotv
             * 2
             * np.pi
-            * (self.shaft_radius + 0.5 * self.radial_clearance[0])
+            * (self._shaft_radius + 0.5 * self.radial_clearance[0])
         )
         if self.print_results:
             print(f"{'   Leakage':<40} {leakv:>15.8f} kg/s \n \n")
@@ -618,7 +619,7 @@ class LabyrinthSeal(SealElement):
                 self.mdot
                 * 2
                 * np.pi
-                * (self.shaft_radius + 0.5 * self.radial_clearance[0])
+                * (self._shaft_radius + 0.5 * self.radial_clearance[0])
             )
 
         if ndex1 != 1 and abs(self.pr[self.np - 2] - chok2) / chok2 <= tol_choked:
@@ -700,8 +701,8 @@ class LabyrinthSeal(SealElement):
             vgs[1] = self.gas.sound_speed(self.p[i], self.t[i])
             vgs[0] = -vgs[1]
 
-            rov[0] = (self.shaft_radius * self.omega) - vgs[0]
-            rov[1] = (self.shaft_radius * self.omega) - vgs[1]
+            rov[0] = (self._shaft_radius * self.omega) - vgs[0]
+            rov[1] = (self._shaft_radius * self.omega) - vgs[1]
 
             for j in range(0, 2):
                 tr[j] = (
@@ -728,7 +729,7 @@ class LabyrinthSeal(SealElement):
 
             for itn2 in range(0, itmx2):
                 vgs[2] = (vgs[0] * fv[1] - vgs[1] * fv[0]) / (fv[1] - fv[0])
-                rov[2] = (self.shaft_radius * self.omega) - vgs[2]
+                rov[2] = (self._shaft_radius * self.omega) - vgs[2]
                 tr[2] = (
                     0.5
                     * self.rho[i]
@@ -809,8 +810,8 @@ class LabyrinthSeal(SealElement):
             self.taus[i] = ts[2]
 
             self.cg[0][i] = self.gas.cg0(area, self.p[i], self.t[i])
-            self.cg[1][i] = (self.v[i] / self.shaft_radius) * self.cg[0][i]
-            self.cg[2][i] = (self.p[i] / self.shaft_radius) * self.cg[0][i]
+            self.cg[1][i] = (self.v[i] / self._shaft_radius) * self.cg[0][i]
+            self.cg[2][i] = (self.p[i] / self._shaft_radius) * self.cg[0][i]
             self.cg[3][i] = (
                 self.mdot
                 * self.p[i]
@@ -823,15 +824,15 @@ class LabyrinthSeal(SealElement):
                 -self.mdot * self.p[i + 1] / (self.p[i] ** 2 - self.p[i + 1] ** 2)
             )
             self.cg[5][i] = -self.rho[i] * self.pitch[1]
-            self.cg[6][i] = (self.v[i] / self.shaft_radius) * self.cg[5][i]
+            self.cg[6][i] = (self.v[i] / self._shaft_radius) * self.cg[5][i]
             self.cg[7][i] = (
                 -self.mdot * self.p[i - 1] / (self.p[i - 1] ** 2 - self.p[i] ** 2)
             )
             self.cg[8][i] = -self.cg[7][i] * jc * (self.v[i] - self.vin[i])
 
-            self.cx[0][i] = area / self.shaft_radius
+            self.cx[0][i] = area / self._shaft_radius
             self.cx[1][i] = self.rho[i] * area
-            self.cx[2][i] = (self.v[i] / self.shaft_radius) * self.cx[1][i]
+            self.cx[2][i] = (self.v[i] / self._shaft_radius) * self.cx[1][i]
             cxx1 = ((2 + bms) * self.taus[i] * as_py * self.pitch[0]) / self.v[i]
             cxx2 = ((2 + bmr) * self.taur[i] * ar * self.pitch[0]) / rov[2]
             self.cx[3][i] = self.mdot * self.kout[i] + cxx1 + cxx2
@@ -910,8 +911,8 @@ class LabyrinthSeal(SealElement):
             vgs[1] = self.gas.sound_speed(self.p[i], self.t[i])
             vgs[0] = -vgs[1]
 
-            rov[0] = (self.shaft_radius * self.omega) - vgs[0]
-            rov[1] = (self.shaft_radius * self.omega) - vgs[1]
+            rov[0] = (self._shaft_radius * self.omega) - vgs[0]
+            rov[1] = (self._shaft_radius * self.omega) - vgs[1]
             for j in range(0, 2):
                 tr[j] = (
                     0.5
@@ -936,7 +937,7 @@ class LabyrinthSeal(SealElement):
                 )
             for itn2 in range(0, itmx2):
                 vgs[2] = (vgs[0] * fv[1] - vgs[1] * fv[0]) / (fv[1] - fv[0])
-                rov[2] = (self.shaft_radius * self.omega) - vgs[2]
+                rov[2] = (self._shaft_radius * self.omega) - vgs[2]
                 tr[2] = (
                     0.5
                     * self.rho[i]
@@ -1012,8 +1013,8 @@ class LabyrinthSeal(SealElement):
             self.taus[i] = ts[2]
 
             self.cg[0][i] = self.gas.cg0(area, self.p[i], self.t[i])
-            self.cg[1][i] = (self.v[i] / self.shaft_radius) * self.cg[0][i]
-            self.cg[2][i] = (self.p[i] / self.shaft_radius) * self.cg[0][i]
+            self.cg[1][i] = (self.v[i] / self._shaft_radius) * self.cg[0][i]
+            self.cg[2][i] = (self.p[i] / self._shaft_radius) * self.cg[0][i]
             self.cg[3][i] = (
                 self.mdot
                 * self.p[i]
@@ -1026,14 +1027,14 @@ class LabyrinthSeal(SealElement):
                 -self.mdot * self.p[i + 1] / (self.p[i] ** 2 - self.p[i + 1] ** 2)
             )
             self.cg[5][i] = -self.rho[i] * self.pitch[1]
-            self.cg[6][i] = (self.v[i] / self.shaft_radius) * self.cg[5][i]
+            self.cg[6][i] = (self.v[i] / self._shaft_radius) * self.cg[5][i]
             self.cg[7][i] = (
                 -self.mdot * self.p[i - 1] / (self.p[i - 1] ** 2 - self.p[i] ** 2)
             )
             self.cg[8][i] = -self.cg[7][i] * (self.v[i] - self.v[i - 1])
-            self.cx[0][i] = area / self.shaft_radius
+            self.cx[0][i] = area / self._shaft_radius
             self.cx[1][i] = self.rho[i] * area
-            self.cx[2][i] = (self.v[i] / self.shaft_radius) * self.cx[1][i]
+            self.cx[2][i] = (self.v[i] / self._shaft_radius) * self.cx[1][i]
             cxx1 = ((2 + bms) * self.taus[i] * as_py * self.pitch[0]) / self.v[i]
             cxx2 = ((2 + bmr) * self.taur[i] * ar * self.pitch[0]) / rov[2]
             self.cx[3][i] = self.mdot + cxx1 + cxx2
@@ -1258,14 +1259,14 @@ class LabyrinthSeal(SealElement):
 
         self.kxx = (
             np.pi
-            * self.shaft_radius
+            * self._shaft_radius
             * self.pitch[1]
             * (self.epslon / self.awrl)
             * self.kxx
         )
         self.kxy = (
             np.pi
-            * self.shaft_radius
+            * self._shaft_radius
             * self.pitch[1]
             * (self.epslon / self.tooth_heightwrl)
             * self.kxy
@@ -1274,7 +1275,7 @@ class LabyrinthSeal(SealElement):
         if self.omega != 0:
             self.cxx = (
                 -np.pi
-                * self.shaft_radius
+                * self._shaft_radius
                 * self.pitch[1]
                 * (self.epslon / self.awrl)
                 / self.omega
@@ -1282,7 +1283,7 @@ class LabyrinthSeal(SealElement):
             )
             self.cxy = (
                 np.pi
-                * self.shaft_radius
+                * self._shaft_radius
                 * self.pitch[1]
                 * (self.epslon / self.tooth_heightwrl)
                 / self.omega
@@ -1296,7 +1297,7 @@ class LabyrinthSeal(SealElement):
 
     def run(self, frequency):
         self.frequency = frequency
-        self.inlet_swirl_velocity = self.preswirl * self.frequency * self.shaft_radius
+        self.inlet_swirl_velocity = self.preswirl * self.frequency * self._shaft_radius
         self.setup()
         self.vermes()
         self.zpres()
@@ -1319,7 +1320,10 @@ class LabyrinthSeal(SealElement):
         }
         coefficients_dict = {k: getattr(self, v) for k, v in attrbute_coef.items()}
         coefficients_dict["seal_leakage"] = (
-            self.mdot * 2 * np.pi * (self.shaft_radius + 0.5 * self.radial_clearance[0])
+            self.mdot
+            * 2
+            * np.pi
+            * (self._shaft_radius + 0.5 * self.radial_clearance[0])
         )
         coefficients_dict["pert_rcond"] = self.pert_rcond
         coefficients_dict["pert_condition_number"] = self.pert_condition_number
