@@ -188,7 +188,7 @@ def bearing_element():
 def thrust_pad_results():
     n_radial, n_theta = 3, 5
     d_radius, d_theta = 0.2, 0.2
-    pad_arc_length = 0.4538
+    pad_arc = 0.4538
     pressure = (
         np.arange((n_radial + 2) * (n_theta + 2), dtype=float).reshape(
             n_radial + 2, n_theta + 2
@@ -214,7 +214,7 @@ def thrust_pad_results():
         pad_inner_radius=1.15,
         d_radius=d_radius,
         d_theta=d_theta,
-        pad_arc_length=pad_arc_length,
+        pad_arc=pad_arc,
         optimization_history={},
     )
 
@@ -503,7 +503,7 @@ def test_squeeze_film_damper_field_plots_not_available():
         n=0,
         frequency=Q_([18600], "rpm"),
         axial_length=Q_(0.9, "inches"),
-        journal_radius=Q_(2.55, "inches"),
+        journal_diameter=Q_(5.1, "inches"),
         radial_clearance=Q_(0.003, "inches"),
         eccentricity_ratio=0.5,
         lubricant="ISOVG32",

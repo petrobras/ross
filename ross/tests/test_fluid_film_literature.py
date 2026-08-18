@@ -443,7 +443,7 @@ FILLON_MEASURED_C = [49.5, 59.5, 67.5, 76.5]
 FILLON_TEHD_C = [43.7, 53.4, 63.2, 72.9]
 
 
-def fillon_bearing(rpms, deform_type, nx, ney, nz, nr_pad):
+def fillon_bearing(rpms, deform_type, ex_film, ey_film, ez_film, ey_pad):
     mu_40 = 0.0277
     beta = 0.0341
     return TiltingPad(
@@ -458,7 +458,7 @@ def fillon_bearing(rpms, deform_type, nx, ney, nz, nr_pad):
         pivot_angle=Q_([45, 135, 225, 315], "deg"),
         pad_arc=Q_([75] * 4, "deg"),
         pad_axial_length=[0.07] * 4,
-        pre_load=[0.47] * 4,
+        preload=[0.47] * 4,
         offset=[0.5] * 4,
         lubricant={
             "liquid_viscosity1": mu_40,
@@ -471,15 +471,16 @@ def fillon_bearing(rpms, deform_type, nx, ney, nz, nr_pad):
         },
         oil_supply_temperature=Q_(40, "degC"),
         oil_flow_v=Q_(10, "gallon/min"),
-        load=[0.0, -10000.0],
-        hot_oil_carry_over=1.0,
-        k_pad=50.0,
-        h_edge=73.59,
+        fxs_load=0.0,
+        fys_load=-10000.0,
+        hot_oil_lambda=1.0,
+        pad_conductivity=50.0,
+        edges_convection=73.59,
         journal_temperature=Q_(49, "degC"),
-        nx=nx,
-        nz=nz,
-        nr_pad=nr_pad,
-        total_ey_film=ney,
+        total_ex_film=ex_film,
+        total_ez_film=ez_film,
+        total_ey_pad=ey_pad,
+        total_ey_film=ey_film,
     )
 
 
@@ -490,7 +491,9 @@ def test_fillon_tilting_pad_peak_temperature():
     thermoelastic one, so this always-on case carries the same bars as
     the gated sweep, widened by that margin.
     """
-    bearing = fillon_bearing([4000.0], None, nx=24, ney=10, nz=10, nr_pad=10)
+    bearing = fillon_bearing(
+        [4000.0], None, ex_film=24, ey_film=10, ez_film=10, ey_pad=10
+    )
     out = bearing._results.outputs[0]
     tmax = out["tpad_max"][0] - 273.15
     assert_allclose(tmax, FILLON_TEHD_C[3], atol=5.0)
@@ -511,7 +514,12 @@ def test_fillon_tilting_pad_speed_sweep():
     this bearing.
     """
     bearing = fillon_bearing(
-        FILLON_SPEEDS_RPM, "pad_mechanical_thermal", nx=40, ney=30, nz=20, nr_pad=20
+        FILLON_SPEEDS_RPM,
+        "pad_mechanical_thermal",
+        ex_film=40,
+        ey_film=30,
+        ez_film=20,
+        ey_pad=20,
     )
     tmax = np.array([out["tpad_max"][0] - 273.15 for out in bearing._results.outputs])
     assert_allclose(tmax, FILLON_TEHD_C, atol=4.0)

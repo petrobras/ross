@@ -83,7 +83,6 @@ units = {
     "b": "meter",
     "D": "meter",
     "d": "meter",
-    "roughness": "meter",
     "head": "joule/kilogram",
     "eff": "dimensionless",
     "power": "watt",

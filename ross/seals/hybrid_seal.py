@@ -34,8 +34,8 @@ class HybridSeal(SealElement):
 
     n : int
         Node in which the hybrid seal will be located.
-    shaft_radius : float, pint.Quantity
-        Radius of shaft (m).
+    shaft_diameter : float, pint.Quantity
+        Diameter of the shaft (m).
     inlet_pressure : float
         Total inlet pressure at labyrinth entrance (Pa).
     outlet_pressure : float
@@ -61,10 +61,11 @@ class HybridSeal(SealElement):
         Other parameters for hole-pattern seal with the following keys:
         - radial_clearance : float, pint.Quantity
             Seal clearance (m).
-        - length : float, pint.Quantity
-            Length of the seal (m).
-        - roughness : float
-            E / D (roughness / diameter) of the shaft.
+        - axial_length : float, pint.Quantity
+            Axial length of the seal (m).
+        - relative_roughness : float
+            Relative roughness E / D (roughness / diameter) of the shaft,
+            dimensionless.
         - cell_length : float, pint.Quantity
             Typical length of a cell in the axial direction (m).
         - cell_width : float, pint.Quantity
@@ -86,8 +87,9 @@ class HybridSeal(SealElement):
         - exit_coef : float, optional
             Exit loss coefficient.
             Default is 0.5.
-        - whirl_ratio : float, optional
-            Ratio of whirl frequency to rotational speed.
+        - excitation_ratio : float, optional
+            Ratio of the excitation (whirl) frequency to the rotational
+            speed; 1.0 means synchronous excitation.
             Default is 1.0.
         - nz : int, optional
             Number of discretization points in the axial direction.
@@ -168,8 +170,8 @@ class HybridSeal(SealElement):
     ... }
     >>> holep_params = {
     ...   "radial_clearance": 0.0003,
-    ...   "length": 0.04,
-    ...   "roughness": 0.0001,
+    ...   "axial_length": 0.04,
+    ...   "relative_roughness": 0.0001,
     ...   "cell_length": 0.003,
     ...   "cell_width": 0.003,
     ...   "cell_depth": 0.002,
@@ -190,7 +192,7 @@ class HybridSeal(SealElement):
     ... }
     >>> hybrid = HybridSeal(
     ...   n=0,
-    ...   shaft_radius=Q_(25, "mm"),
+    ...   shaft_diameter=Q_(50, "mm"),
     ...   inlet_pressure=500000,
     ...   outlet_pressure=100000,
     ...   inlet_temperature=300.0,
@@ -207,7 +209,7 @@ class HybridSeal(SealElement):
     def __init__(
         self,
         n,
-        shaft_radius,
+        shaft_diameter,
         inlet_pressure,
         outlet_pressure,
         inlet_temperature,
@@ -242,7 +244,7 @@ class HybridSeal(SealElement):
                 outlet_pressure=interface_pressure,
                 inlet_temperature=inlet_temperature,
                 frequency=frequency,
-                shaft_radius=shaft_radius,
+                shaft_diameter=shaft_diameter,
                 gas_composition=gas_composition,
                 molar=molar,
                 gamma=gamma,
@@ -255,7 +257,7 @@ class HybridSeal(SealElement):
                 outlet_pressure=outlet_pressure,
                 inlet_temperature=inlet_temperature,
                 frequency=frequency,
-                shaft_radius=shaft_radius,
+                shaft_diameter=shaft_diameter,
                 gas_composition=gas_composition,
                 molar=molar,
                 gamma=gamma,
