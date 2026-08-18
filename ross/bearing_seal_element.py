@@ -581,7 +581,7 @@ class BearingElement(Element):
         return hash(self.tag)
 
     def save(self, file):
-        from ross.utils import load_data, dump_data
+        from ross.utils import load_data, dump_data, cast_numpy_types
 
         try:
             data = load_data(file)
@@ -600,20 +600,7 @@ class BearingElement(Element):
         args = list(coefficients.union(init_args).union(extra_attrs))
         args.sort()
 
-        brg_data = {arg: self.__dict__[arg] for arg in args}
-
-        # change np.array to lists so that we can save as list(floats)
-        for k, v in brg_data.items():
-            if isinstance(v, np.generic):
-                brg_data[k] = brg_data[k].item()
-            elif isinstance(v, np.ndarray):
-                brg_data[k] = brg_data[k].tolist()
-            # case for a container with np.float (e.g. list(np.float))
-            else:
-                try:
-                    brg_data[k] = [i.item() for i in brg_data[k]]
-                except (TypeError, AttributeError):
-                    pass
+        brg_data = cast_numpy_types({arg: self.__dict__[arg] for arg in args})
 
         diff_args = set(signature(self.__init__).parameters).difference(
             self.__dict__.keys()
@@ -889,13 +876,103 @@ class BearingElement(Element):
 
         return customdata, hovertemplate
 
+    def _classic_glyph(self, position):
+        """Build the classic spring/damper drawing of the bearing.
+
+        The glyph mirrors the pedestal footprint: a spring and a damper in
+        parallel between the shaft surface and the support, with a hatched
+        ground line when the bearing is not linked to another element. Points
+        are returned as single polylines with None separators so the whole
+        drawing fits the same traces as the pedestal.
+
+        Parameters
+        ----------
+        position : tuple
+            Position (z, y_low, y_upp, y_center) in which the glyph will be
+            drawn.
+
+        Returns
+        -------
+        body : tuple
+            x and y lists with the spring, damper and base lines.
+        ground : tuple
+            x and y lists with the ground line and its hatching.
+        """
+        zpos, ypos, ypos_s, yc_pos = position
+
+        icon_h = ypos_s - ypos
+        icon_w = icon_h / 2
+        coils = 6
+        step = icon_w / (coils + 1)
+        z_spring = zpos - 0.4 * icon_w
+        z_damper = zpos + 0.4 * icon_w
+        y_base = ypos + 0.25 * icon_h
+        y_top = ypos + 0.75 * icon_h
+
+        x_body = []
+        y_body = []
+        x_ground = []
+        y_ground = []
+        for sign in (1, -1):
+
+            def add(xs, ys, x_list=x_body, y_list=y_body):
+                x_list += list(xs) + [None]
+                y_list += [yc_pos + sign * y if y is not None else None for y in ys] + [
+                    None
+                ]
+
+            add(
+                [zpos, zpos, None, z_spring, z_damper],
+                [ypos, y_base, None, y_base, y_base],
+            )
+            add(
+                [z_spring, z_damper, None, zpos, zpos],
+                [y_top, y_top, None, y_top, ypos_s],
+            )
+
+            zigzag = [z_spring + (-1) ** i * step for i in range(coils)]
+            add(
+                [z_spring] + zigzag + [z_spring],
+                np.linspace(y_base, y_top, coils + 2),
+            )
+
+            cup = 1.6 * step
+            add(
+                [z_damper, z_damper, None]
+                + [z_damper - cup, z_damper - cup, z_damper + cup]
+                + [z_damper + cup, None, z_damper - cup, z_damper + cup]
+                + [None, z_damper, z_damper],
+                [y_base, y_base + 2 * step, None]
+                + [y_base + 5 * step, y_base + 2 * step, y_base + 2 * step]
+                + [y_base + 5 * step, None, y_base + 4 * step, y_base + 4 * step]
+                + [None, y_base + 4 * step, y_top],
+            )
+
+            z0 = z_spring - step
+            z1 = z_damper + step
+            add([z0, z1], [ypos_s, ypos_s], x_ground, y_ground)
+            hatches = 5
+            pitch = (z1 - z0) / hatches
+            for i in range(hatches):
+                add(
+                    [z0 + i * pitch, z0 + (i + 1) * pitch],
+                    [ypos_s, ypos_s + 1.6 * step],
+                    x_ground,
+                    y_ground,
+                )
+
+        return (x_body, y_body), (x_ground, y_ground)
+
     def _patch(self, position, fig):
         """Bearing element patch.
 
         Patch that will be used to draw the bearing element using Plotly library.
         The bearing is drawn as a pedestal reaching from the shaft surface to
         its support, closed by a ground bar when it is not linked to another
-        element.
+        element. Each trace also carries the classic spring/damper drawing in
+        its meta attribute, so the button added by `Rotor.plot_rotor` can
+        restyle the same traces between the two representations without
+        touching their visibility, which belongs to the legend.
 
         Parameters
         ----------
@@ -930,6 +1007,8 @@ class BearingElement(Element):
             x_ground += [zpos - 1.3 * icon_w, zpos + 1.3 * icon_w, None]
             y_ground += [y1, y1, None]
 
+        classic_body, classic_ground = self._classic_glyph(position)
+
         customdata, hovertemplate = self._hover_info()
 
         fig.add_trace(
@@ -944,6 +1023,22 @@ class BearingElement(Element):
                 legendgroup=self._legend_group,
                 showlegend=False,
                 hoverinfo="skip",
+                meta={
+                    "bearing_style": {
+                        "pedestal": {
+                            "x": x_body,
+                            "y": y_body,
+                            "fill": "toself",
+                            "line.width": 1.0,
+                        },
+                        "spring_damper": {
+                            "x": classic_body[0],
+                            "y": classic_body[1],
+                            "fill": "none",
+                            "line.width": 1.4,
+                        },
+                    }
+                },
             )
         )
 
@@ -958,6 +1053,20 @@ class BearingElement(Element):
                     legendgroup=self._legend_group,
                     showlegend=False,
                     hoverinfo="skip",
+                    meta={
+                        "bearing_style": {
+                            "pedestal": {
+                                "x": x_ground,
+                                "y": y_ground,
+                                "line.width": 3.5,
+                            },
+                            "spring_damper": {
+                                "x": classic_ground[0],
+                                "y": classic_ground[1],
+                                "line.width": 1.4,
+                            },
+                        }
+                    },
                 )
             )
 

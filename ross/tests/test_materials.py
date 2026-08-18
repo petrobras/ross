@@ -107,3 +107,86 @@ def test_repr():
     mat0 = Material(name="obj1", rho=92e1, E=281.21, G_s=20e9)
     mat1 = eval(repr(mat0))
     assert mat0 == mat1
+
+
+def test_save_without_thermal_props_keeps_other_materials(monkeypatch, tmp_path):
+    monkeypatch.setattr(
+        "ross.materials.AVAILABLE_MATERIALS_PATH", tmp_path / "materials.toml"
+    )
+    with_thermal = Material(
+        name="mat_thermal",
+        rho=7810,
+        E=211e9,
+        G_s=81.2e9,
+        specific_heat=434.0,
+        thermal_conductivity=60.5,
+    )
+    with_thermal.save_material()
+
+    without_thermal = Material(name="mat_plain", rho=7850, E=203.2e9, G_s=80e9)
+    without_thermal.save_material()
+
+    reloaded = Material.load_material("mat_thermal")
+    assert_allclose(reloaded.specific_heat, 434.0)
+    assert_allclose(reloaded.thermal_conductivity, 60.5)
+
+    plain_entry = Material.get_data()["Materials"]["mat_plain"]
+    assert "specific_heat" not in plain_entry
+    assert "thermal_conductivity" not in plain_entry
+
+
+def test_resave_without_thermal_props_writes_no_zeros(monkeypatch, tmp_path):
+    monkeypatch.setattr(
+        "ross.materials.AVAILABLE_MATERIALS_PATH", tmp_path / "materials.toml"
+    )
+    Material(
+        name="mat0",
+        rho=7810,
+        E=211e9,
+        G_s=81.2e9,
+        specific_heat=434.0,
+        thermal_conductivity=60.5,
+    ).save_material()
+
+    Material(name="mat0", rho=7810, E=211e9, G_s=81.2e9).save_material()
+
+    entry = Material.get_data()["Materials"]["mat0"]
+    assert "specific_heat" not in entry
+    assert "thermal_conductivity" not in entry
+
+    reloaded = Material.load_material("mat0")
+    assert reloaded.specific_heat is None
+    assert reloaded.thermal_conductivity is None
+
+
+def test_round_trip_with_thermal_props(monkeypatch, tmp_path):
+    monkeypatch.setattr(
+        "ross.materials.AVAILABLE_MATERIALS_PATH", tmp_path / "materials.toml"
+    )
+    mat0 = Material(
+        name="mat0",
+        rho=7810,
+        E=211e9,
+        G_s=81.2e9,
+        specific_heat=434.0,
+        thermal_conductivity=60.5,
+    )
+    mat0.save_material()
+
+    mat1 = Material.load_material("mat0")
+    assert mat0.__dict__ == mat1.__dict__
+    assert_allclose(mat1.specific_heat, 434.0)
+    assert_allclose(mat1.thermal_conductivity, 60.5)
+
+
+def test_round_trip_without_thermal_props(monkeypatch, tmp_path):
+    monkeypatch.setattr(
+        "ross.materials.AVAILABLE_MATERIALS_PATH", tmp_path / "materials.toml"
+    )
+    mat0 = Material(name="mat0", rho=7810, E=211e9, G_s=81.2e9)
+    mat0.save_material()
+
+    mat1 = Material.load_material("mat0")
+    assert mat0.__dict__ == mat1.__dict__
+    assert mat1.specific_heat is None
+    assert mat1.thermal_conductivity is None

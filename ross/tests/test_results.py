@@ -269,6 +269,41 @@ def test_orbit_calculate_amplitude():
     assert_allclose(orb.calculate_amplitude("major")[0], 2.8284271247461903)
 
 
+def test_plot_orbit_lateral_mode(rotor1):
+    modal = rotor1.run_modal(speed=Q_(4000, "RPM"), num_modes=14)
+    lateral_mode = next(
+        i for i, shape in enumerate(modal.shapes) if shape.mode_type == "Lateral"
+    )
+
+    fig = modal.plot_orbit(lateral_mode, nodes=[2, 4])
+
+    assert len(fig.data) == 4
+    orbit_node_2 = next(
+        orbit for orbit in modal.shapes[lateral_mode].orbits if orbit.node == 2
+    )
+    assert_allclose(fig.data[0]["x"], orbit_node_2.x_circle[:-10])
+    assert_allclose(fig.data[0]["y"], orbit_node_2.y_circle[:-10])
+
+
+def test_plot_orbit_non_lateral_mode(rotor1):
+    modal = rotor1.run_modal(speed=Q_(4000, "RPM"), num_modes=14)
+    non_lateral_mode = next(
+        i for i, shape in enumerate(modal.shapes) if shape.mode_type != "Lateral"
+    )
+    shape = modal.shapes[non_lateral_mode]
+
+    assert shape.mode_type == "Torsional"
+    assert shape.orbits is None
+
+    with pytest.warns(UserWarning, match="has no orbit"):
+        fig = modal.plot_orbit(non_lateral_mode, nodes=[2, 4])
+
+    assert len(fig.data) == 0
+    assert "Torsional mode has no orbit." in [
+        annotation["text"] for annotation in fig.layout.annotations
+    ]
+
+
 def test_probe_response(rotor1):
     speed = 500.0
     size = 50

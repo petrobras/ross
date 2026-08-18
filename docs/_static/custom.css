@@ -1,68 +1,13 @@
-h1 {
-    font-size: 175%;
-}
+/* Site-specific overrides. The visual theme lives in ross-tokens.css (design
+   tokens, generated from docs/_design/tokens) and theme-ross.css (mapping onto
+   sphinx-book-theme). Keep this file for one-off fixes only. */
 
-h2 {
-    font-size: 150%;
-}
-
-div.navbar-brand-box a.navbar-brand img {
-    height: 80px;
-    width: 80px;
-}
-
-/*Copy button tooltip*/
-.o-tooltip--left:after {
-    font-size: 0.75rem;
-}
-
-div.cell_input.docutils.container, div.highlight-python, div.highlight-default, div.highlight pre {
-    border: none;
-    box-shadow: none;
-}
-
-div.output pre {
-    background-color: white;
-    box-shadow: none;
-}
-
-.prev-next-bottom a.left-prev, .prev-next-bottom a.right-next {
-    border: none;
-    font-size: 1rem;
-}
-
-/* adjust left navbar margins */
-nav.bd-links p {
-    margin-bottom: 0;
-}
-
-nav.bd-links ul.nav.sidenav_l1 {
-    margin-bottom: 1em;
-}
-
-.classifier::before {
-    content: " : ";
-}
-
-img {
-    margin-bottom: 1em;
-}
-
-p {
-    text-align: justify;
-}
-
-/* change text align for sd-card-text */
-.sd-card-text {
-    text-align: center;
-}
-
-.rubric {
-    font-size: 1em;
-    font-weight: bold;
-    text-align: center;
-}
-
-html[data-theme=dark] .sd-card img[src*='.svg']{
-    filter: invert(0.82) brightness(0.8) contrast(1.2);
+/* plotly.js hardcodes the updatemenu hover/active button fill (#F4FAFF,
+   constants activeColor/hoverColor) as an inline style, out of reach of
+   relayout and plotly-theme-sync.js. In dark mode, remap exactly that
+   inline fill to --grid-line-strong; !important is required to beat the
+   inline style. Base (non-hover) rects keep the fill set by the sync
+   script and are not matched. */
+html[data-theme="dark"] .updatemenu-item-rect[style*="244, 250, 255"] {
+  fill: #24405a !important;
 }

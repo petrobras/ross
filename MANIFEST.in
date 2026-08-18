@@ -2,4 +2,5 @@ include requirements.txt README.md LICENSE.md ross/new_units.txt ross/available_
 include tools/data/c123701 tools/data/injection tools/data/rotor_example 
 include ross/faults/data/PAPADOPOULOS.csv
 recursive-include ross/assets *
+recursive-include ross/agent_skills *.md
 recursive-include ross/tests *

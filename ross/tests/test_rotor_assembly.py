@@ -2584,18 +2584,27 @@ def test_plot_rotor_shaft_envelope():
     assert_allclose(np.nanmin(radius), 0.15)
 
 
+def toggle_button(fig, label):
+    for menu in fig.layout.updatemenus:
+        if menu.buttons[0].label == label:
+            return menu.buttons[0]
+    raise AssertionError(f"no button labelled {label!r}")
+
+
 def test_plot_rotor_mode_buttons(rotor8):
     fig = rotor8.plot_rotor()
-    buttons = fig.layout.updatemenus[0].buttons
 
-    assert [button.label for button in buttons] == [
-        "Bottom: render",
-        "Bottom: section",
-    ]
+    labels = [menu.buttons[0].label for menu in fig.layout.updatemenus]
+    assert labels == ["Show axes", "Bearings: classic", "Bottom: section"]
 
-    for button in buttons:
-        styles, indices = button.args
+    for menu in fig.layout.updatemenus:
+        # the buttons sit below the plot so they never collide with the legend
+        assert menu.y < 0
+        assert len(menu.buttons) == 1
 
+    button = toggle_button(fig, "Bottom: section")
+
+    for styles, indices in (button.args, button.args2):
         # visibility belongs to the legend, restyling it would bring back
         # traces the user has hidden
         assert "visible" not in styles
@@ -2604,8 +2613,77 @@ def test_plot_rotor_mode_buttons(rotor8):
             assert len(values) == len(indices)
 
     # only traces below the center line are morphed
-    for index in buttons[0].args[1]:
+    for index in button.args[1]:
         assert min(fig.data[index]["y"]) < 0
+
+
+def test_plot_rotor_bearing_style_button(rotor8):
+    fig = rotor8.plot_rotor()
+    button = toggle_button(fig, "Bearings: classic")
+
+    for styles, indices in (button.args, button.args2):
+        assert "visible" not in styles
+        for values in styles.values():
+            assert len(values) == len(indices)
+
+    # the classic drawing is bare lines, the pedestal is refilled on the
+    # way back, and both reach the same support
+    classic, indices = button.args
+    pedestal, _ = button.args2
+    assert {fill for fill in classic["fill"] if fill is not None} == {"none"}
+    assert {fill for fill in pedestal["fill"] if fill is not None} == {"toself"}
+    for fill, index, y_classic in zip(classic["fill"], indices, classic["y"]):
+        if fill is None:
+            continue
+        drawn = [y for y in fig.data[index]["y"] if y is not None]
+        assert_allclose(max(y for y in y_classic if y is not None), max(drawn))
+        assert_allclose(min(y for y in y_classic if y is not None), min(drawn))
+
+    # the initial representation can be the classic one, with its button
+    # already active
+    fig = rotor8.plot_rotor(bearing_style="spring_damper")
+    button = toggle_button(fig, "Bearings: classic")
+    (menu,) = [m for m in fig.layout.updatemenus if m.buttons[0] == button]
+    assert menu.active == 0
+    for index, x_classic in zip(button.args[1], button.args[0]["x"]):
+        assert_allclose(
+            [x for x in fig.data[index]["x"] if x is not None],
+            [x for x in x_classic if x is not None],
+        )
+
+    with pytest.raises(ValueError):
+        rotor8.plot_rotor(bearing_style="springs")
+
+
+def test_plot_rotor_axes_indicator(rotor8):
+    fig = rotor8.plot_rotor()
+
+    # the indicator starts hidden and is pixel sized, leaving the data
+    # ranges and the figure size alone
+    assert len(fig.layout.shapes) > 0
+    assert all(shape.visible is False for shape in fig.layout.shapes)
+    assert all(shape.xsizemode == "pixel" for shape in fig.layout.shapes)
+
+    button = toggle_button(fig, "Show axes")
+    height = fig.layout.height
+    y_range = fig.layout.yaxis.range
+
+    fig.plotly_relayout(dict(button.args[0]))
+    assert all(shape.visible for shape in fig.layout.shapes)
+    assert any(annotation.visible for annotation in fig.layout.annotations)
+
+    # showing the indicator never resizes the figure nor moves the legend
+    assert fig.layout.height == height
+    assert fig.layout.yaxis.range == y_range
+
+    fig.plotly_relayout(dict(button.args2[0]))
+    assert all(shape.visible is False for shape in fig.layout.shapes)
+
+    fig = rotor8.plot_rotor(show_axes_indicator=True)
+    assert all(shape.visible for shape in fig.layout.shapes)
+    assert fig.layout.height == height
+    (menu,) = [m for m in fig.layout.updatemenus if m.buttons[0].label == "Show axes"]
+    assert menu.active == 0
 
 
 def test_plot_rotor_legend_groups(rotor8):

@@ -1027,6 +1027,13 @@ class Rotor(object):
         target_elements = []
         new_elems_length = []
 
+        brg_base = [brg for brg in bearing_elements if brg.n_link in self.link_nodes]
+        elm_linked = [
+            elm
+            for elm in bearing_elements + point_mass_elements
+            if elm.n in self.link_nodes
+        ]
+
         for new_pos in new_nodes_pos:
             for elm in shaft_elements:
                 elm.tag = None
@@ -1054,16 +1061,8 @@ class Rotor(object):
 
             if left_elem.n != prev_left_node:
                 for elm in elements:
-                    if elm.n >= right_elem.n:
+                    if elm.n >= right_elem.n and elm not in elm_linked:
                         elm.n += 1
-                        if elm in shaft_elements:
-                            elm._n = elm.n
-                            elm.n_l = elm.n
-                            elm.n_r = elm.n + 1
-                        if elm in point_mass_elements:
-                            for brg in bearing_elements:
-                                if elm.n - 1 == brg.n_link:
-                                    brg.n_link += 1
 
             for j in range(i + 1, len(target_elements)):
                 if target_elements[j] == target_elements[i]:
@@ -1079,6 +1078,16 @@ class Rotor(object):
 
             prev_left_node = left_elem.n
 
+        n_nodes = max([sh.n_r for sh in shaft_elements]) - max(
+            [sh.n_r for sh in self.shaft_elements]
+        )
+
+        for brg in brg_base:
+            brg.n_link += n_nodes
+
+        for elm in elm_linked:
+            elm.n += n_nodes
+
         return Rotor(
             shaft_elements,
             disk_elements=disk_elements,
@@ -1093,14 +1102,15 @@ class Rotor(object):
     def add_elements(self, new_elements):
         """Add elements to rotor.
 
-        This method returns the modified rotor with additional elements.
-        This is not valid for shaft elements.
+        This method returns a new rotor with the given elements added to it.
+        It is valid for shaft elements only when appending new elements to
+        the end of the shaft or inserting new elements around the existing
+        shaft.
 
         Parameters
         ----------
         new_elements : list
-            List with the new elements. It may be disks, gears, bearings,
-            seals and point masses.
+            List with the new elements.
 
         Returns
         -------
@@ -3186,20 +3196,33 @@ class Rotor(object):
 
         return F
 
-    def plot_rotor(self, nodes=1, check_sld=False, length_units="m", **kwargs):
+    def plot_rotor(
+        self,
+        nodes=1,
+        check_sld=False,
+        length_units="m",
+        bearing_style="pedestal",
+        show_axes_indicator=False,
+        **kwargs,
+    ):
         """Plot a rotor object.
 
         This function will take a rotor object and plot its elements representation
         using Plotly.
 
-        The shaft is drawn as rendered metal above the center line, and two
-        buttons switch the half below it between the same rendered look and a
-        material cross section, where each material is hatched in its own color
-        and the bore of hollow elements is left void. Every shade in the plot is
-        derived from a single color per element, so setting `Material.color`,
-        `DiskElement.color` or `BearingElement.color` controls the whole
-        appearance of that element. Below the rotor there is a scale with the
-        node numbers; hovering a node drops a guide line across the rotor.
+        The shaft is drawn as rendered metal above the center line, and three
+        toggle buttons below the plot control the view: one switches the half
+        below the center line between the same rendered look and a material
+        cross section, where each material is hatched in its own color and the
+        bore of hollow elements is left void; one switches the bearings between
+        the solid pedestal and the classic spring/damper representation; and
+        one displays the rotor frame of reference, with z along the shaft, y
+        upwards, x out of the page and the positive rotation around z. Every
+        shade in the plot is derived from a single color per element, so
+        setting `Material.color`, `DiskElement.color` or `BearingElement.color`
+        controls the whole appearance of that element. Below the rotor there is
+        a scale with the node numbers; hovering a node drops a guide line
+        across the rotor.
 
         Parameters
         ----------
@@ -3214,6 +3237,14 @@ class Rotor(object):
         length_units : str, optional
             length units to length and diameter.
             Default is 'm'.
+        bearing_style : str, optional
+            Initial bearing representation, "pedestal" or "spring_damper".
+            The button below the plot switches between the two.
+            Default is "pedestal".
+        show_axes_indicator : bool, optional
+            If True, the coordinate axes indicator starts visible. The button
+            below the plot switches it at any time.
+            Default is False.
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -3230,6 +3261,11 @@ class Rotor(object):
         >>> rotor = rs.rotor_example()
         >>> figure = rotor.plot_rotor()
         """
+        if bearing_style not in ("pedestal", "spring_damper"):
+            raise ValueError(
+                f"bearing_style must be 'pedestal' or 'spring_damper', "
+                f"got {bearing_style!r}"
+            )
         SR = [
             shaft.slenderness_ratio
             for shaft in self.shaft_elements
@@ -3363,13 +3399,21 @@ class Rotor(object):
             fig, nodes, length_units, y_low - 0.11 * y_span, x_range[0]
         )
 
-        width = 1150
-        margin = dict(l=70, r=25, t=95, b=52)
-        pixels_per_unit = (width - margin["l"] - margin["r"]) / (
+        # the figure width is left unset so it adapts to the container; the
+        # height is sized for a nominal width and the scaleanchor constraint
+        # keeps the drawing at a 1:1 aspect ratio at any width, with both axes
+        # giving up domain rather than range so a container wider or narrower
+        # than nominal adds blank margin around the axes instead of stretching
+        # them beyond the rotor; the bottom margin reserves fixed bands for the
+        # axis title, the toggle buttons and the axes indicator, so showing or
+        # hiding the indicator never resizes the figure
+        nominal_width = 800
+        margin = dict(l=70, r=25, t=100, b=102)
+        pixels_per_unit = (nominal_width - margin["l"] - margin["r"]) / (
             x_range[1] - x_range[0]
         )
-        height = (y_range[1] - y_range[0]) * pixels_per_unit
-        height = int(min(max(height + margin["t"] + margin["b"], 300), 900))
+        plot_area_height = (y_range[1] - y_range[0]) * pixels_per_unit
+        height = int(min(max(plot_area_height, 130), 730) + margin["t"] + margin["b"])
 
         axes = dict(
             zeroline=False,
@@ -3384,6 +3428,8 @@ class Rotor(object):
         fig.update_xaxes(
             title_text=f"Axial location ({length_units})",
             range=x_range,
+            constrain="domain",
+            constraintoward="center",
             showgrid=True,
             gridcolor="#EDF1F5",
             showspikes=True,
@@ -3398,24 +3444,45 @@ class Rotor(object):
             title_text=f"Shaft radius ({length_units})",
             range=y_range,
             showgrid=False,
+            scaleanchor="x",
+            scaleratio=1,
+            constrain="domain",
             **axes,
         )
+        # the title is pinned to the top of the figure and the legend hangs
+        # from a fixed line below it, so when a narrow container wraps the
+        # legend the extra rows grow downward towards the plot area instead
+        # of upward over the title
+        plot_area_height = height - margin["t"] - margin["b"]
         fig.update_layout(
-            width=width,
             height=height,
             margin=margin,
             legend=dict(
                 orientation="h",
-                yanchor="bottom",
-                y=1.02,
-                x=0,
+                yanchor="top",
+                y=1 + (margin["t"] - 40) / plot_area_height,
+                x=0.5,
+                xanchor="center",
                 itemsizing="constant",
             ),
-            updatemenus=self._plot_mode_buttons(fig),
         )
 
-        kwargs["title"] = kwargs.get("title", "Rotor Model")
+        title = kwargs.get("title", "Rotor Model")
+        if isinstance(title, str):
+            title = {"text": title}
+        kwargs["title"] = {
+            "yref": "container",
+            "y": 1 - 8 / height,
+            "yanchor": "top",
+            **title,
+        }
         fig.update_layout(**kwargs)
+
+        fig.update_layout(
+            updatemenus=self._plot_buttons(
+                fig, -60 / plot_area_height, bearing_style, show_axes_indicator
+            )
+        )
 
         return fig
 
@@ -3686,33 +3753,42 @@ class Rotor(object):
         )
 
     @staticmethod
-    def _plot_mode_buttons(fig):
-        """Build the buttons which switch the look of the lower half.
+    def _restyle_toggle_button(fig, meta_key, label, mode_on, mode_off):
+        """Build a toggle button restyling the traces which carry `meta_key`.
 
         Traces which can be drawn in more than one style carry the style values
-        for each mode in their `meta` attribute. The buttons restyle only these
-        style properties, never the trace visibility, which belongs to the
+        for each mode in their `meta` attribute, under one key per toggle. The
+        button switches these traces between the two modes, restyling only the
+        stored properties, never the trace visibility, which belongs to the
         legend.
 
         Parameters
         ----------
         fig : plotly.graph_objects.Figure
             The figure object with the rotor representation.
+        meta_key : str
+            Key under which the traces store their modes.
+        label : str
+            Button label.
+        mode_on : str
+            Mode applied when the button becomes active.
+        mode_off : str
+            Mode applied when the button is released.
 
         Returns
         -------
-        updatemenus : list
-            List with the plotly updatemenus, empty if no trace can be morphed.
+        button : dict or None
+            The plotly button, or None if no trace carries `meta_key`.
         """
         morphs = [
-            (i, trace.meta["morph"])
+            (i, trace.meta[meta_key])
             for i, trace in enumerate(fig.data)
-            if isinstance(trace.meta, dict) and "morph" in trace.meta
+            if isinstance(trace.meta, dict) and meta_key in trace.meta
         ]
         if not morphs:
-            return []
+            return None
 
-        properties = sorted({key for _, morph in morphs for key in morph["render"]})
+        properties = sorted({key for _, morph in morphs for key in morph[mode_on]})
 
         def styles(mode):
             args = {}
@@ -3726,32 +3802,220 @@ class Rotor(object):
                 args[prop] = values
             return [args, [i for i, _ in morphs]]
 
-        return [
-            dict(
-                type="buttons",
-                direction="right",
-                x=1.0,
-                xanchor="right",
-                y=1.02,
-                yanchor="bottom",
-                pad=dict(t=2, b=2),
-                showactive=True,
-                font=dict(size=11),
-                bgcolor="#FFFFFF",
-                bordercolor="#C4CDD6",
-                borderwidth=1,
-                buttons=[
-                    dict(
-                        label="Bottom: render", method="restyle", args=styles("render")
-                    ),
-                    dict(
-                        label="Bottom: section",
-                        method="restyle",
-                        args=styles("section"),
-                    ),
-                ],
-            )
+        return dict(
+            label=label,
+            method="restyle",
+            args=styles(mode_on),
+            args2=styles(mode_off),
+        )
+
+    def _plot_buttons(self, fig, y, bearing_style, show_axes_indicator):
+        """Assemble the toggle buttons placed below the plot, on the right.
+
+        Each toggle is its own updatemenu so every button keeps an independent
+        active state. All menus share the same right edge anchor and are
+        shifted apart by pixel padding, so the row keeps its spacing at any
+        container width. The requested initial states are applied to the
+        figure here, so that the buttons and the drawing always agree.
+
+        Parameters
+        ----------
+        fig : plotly.graph_objects.Figure
+            The figure object with the rotor representation.
+        y : float
+            Vertical position of the row in paper coordinates, negative to
+            place it inside the bottom margin.
+        bearing_style : str
+            Initial bearing representation, "pedestal" or "spring_damper".
+        show_axes_indicator : bool
+            If True, the coordinate axes indicator starts visible.
+
+        Returns
+        -------
+        updatemenus : list
+            List with one plotly updatemenu per available toggle.
+        """
+        show, hide = self._plot_axes_indicator(fig)
+        if show_axes_indicator:
+            fig.plotly_relayout(dict(show))
+
+        classic = bearing_style == "spring_damper"
+        bearings = self._restyle_toggle_button(
+            fig, "bearing_style", "Bearings: classic", "spring_damper", "pedestal"
+        )
+        if bearings and classic:
+            fig.plotly_restyle(*bearings["args"])
+
+        toggles = [
+            (
+                dict(label="Show axes", method="relayout", args=[show], args2=[hide]),
+                show_axes_indicator,
+            ),
+            (bearings, classic),
+            (
+                self._restyle_toggle_button(
+                    fig, "morph", "Bottom: section", "section", "render"
+                ),
+                False,
+            ),
         ]
+
+        updatemenus = []
+        pad_r = 0
+        for button, active in reversed(toggles):
+            if button is None:
+                continue
+            updatemenus.append(
+                dict(
+                    type="buttons",
+                    direction="right",
+                    x=1.0,
+                    xanchor="right",
+                    y=y,
+                    yanchor="top",
+                    pad=dict(t=2, b=2, r=pad_r),
+                    active=0 if active else -1,
+                    showactive=True,
+                    font=dict(size=11),
+                    borderwidth=1,
+                    buttons=[button],
+                )
+            )
+            pad_r += 28 + round(6.2 * len(button["label"]))
+
+        return updatemenus[::-1]
+
+    @staticmethod
+    def _plot_axes_indicator(fig):
+        """Draw the coordinate reference triad inside the bottom margin.
+
+        The triad shows the rotor frame of reference: z along the shaft, y
+        upwards, x out of the page and the positive rotation around z. It is
+        built only from paper-referenced, pixel-sized shapes and annotations,
+        so it keeps its size and position at any figure size and never affects
+        the axes ranges. Everything starts hidden; the button which displays
+        it only flips the visible flag of these items, leaving the layout
+        untouched.
+
+        Parameters
+        ----------
+        fig : plotly.graph_objects.Figure
+            The figure object which shapes and annotations are added on.
+
+        Returns
+        -------
+        show : dict
+            Relayout arguments which display the indicator.
+        hide : dict
+            Relayout arguments which hide it again.
+        """
+        ink = "#33475C"
+        ox, oy = 50.0, -83.0
+        arm = 38.0
+        cx = ox + 22.0
+        rx, ry = 3.2, 9.5
+        theta = np.linspace(-0.2 * np.pi, 1.2 * np.pi, 5)
+
+        first_shape = len(fig.layout.shapes or ())
+        first_annotation = len(fig.layout.annotations or ())
+
+        shape = dict(
+            xref="paper",
+            yref="paper",
+            xanchor=0,
+            yanchor=0,
+            xsizemode="pixel",
+            ysizemode="pixel",
+            fillcolor="rgba(0,0,0,0)",
+            visible=False,
+        )
+        # the x axis points out of the page, drawn as a circle with a center
+        # dot; the rotation around z is an open elliptic arc around the z arm,
+        # built from cubic Bezier segments since shape paths take no arcs
+        fig.add_shape(
+            type="circle",
+            x0=ox - 6.5,
+            y0=oy - 6.5,
+            x1=ox + 6.5,
+            y1=oy + 6.5,
+            line=dict(color=ink, width=1.6),
+            **shape,
+        )
+
+        def point(t):
+            return np.array([cx + rx * np.cos(t), oy + ry * np.sin(t)])
+
+        def slope(t):
+            return np.array([-rx * np.sin(t), ry * np.cos(t)])
+
+        arc = "M {:.2f},{:.2f}".format(*point(theta[0]))
+        for t0, t1 in zip(theta[:-1], theta[1:]):
+            handle = (4 / 3) * np.tan((t1 - t0) / 4)
+            arc += " C {:.2f},{:.2f} {:.2f},{:.2f} {:.2f},{:.2f}".format(
+                point(t0)[0] + handle * slope(t0)[0],
+                point(t0)[1] + handle * slope(t0)[1],
+                point(t1)[0] - handle * slope(t1)[0],
+                point(t1)[1] - handle * slope(t1)[1],
+                *point(t1),
+            )
+        fig.add_shape(type="path", path=arc, line=dict(color=ink, width=1.3), **shape)
+
+        shape["fillcolor"] = ink
+        fig.add_shape(
+            type="circle",
+            x0=ox - 2,
+            y0=oy - 2,
+            x1=ox + 2,
+            y1=oy + 2,
+            line=dict(width=0),
+            **shape,
+        )
+
+        # arrowhead at the open end of the arc, drawn as a filled triangle
+        # aligned with the direction of travel; annotation arrows misplace
+        # their head when the tail is this short
+        tip = point(theta[-1])
+        tangent = slope(theta[-1])
+        tangent /= np.hypot(*tangent)
+        normal = np.array([-tangent[1], tangent[0]])
+        apex = tip + 6.5 * tangent
+        corners = (tip - 2.5 * tangent + 4 * normal, tip - 2.5 * tangent - 4 * normal)
+        fig.add_shape(
+            type="path",
+            path="M {:.2f},{:.2f} L {:.2f},{:.2f} L {:.2f},{:.2f} Z".format(
+                *apex, *corners[0], *corners[1]
+            ),
+            line=dict(width=0),
+            **shape,
+        )
+
+        base = dict(x=0, y=0, xref="paper", yref="paper", visible=False)
+        arrow = dict(
+            text="",
+            showarrow=True,
+            arrowhead=2,
+            arrowsize=1.2,
+            arrowwidth=1.6,
+            arrowcolor=ink,
+            **base,
+        )
+        fig.add_annotation(xshift=ox + arm, yshift=oy, ax=-(arm - 8), ay=0, **arrow)
+        fig.add_annotation(xshift=ox, yshift=oy + arm, ax=0, ay=arm - 8, **arrow)
+
+        label = dict(showarrow=False, font=dict(size=12, color=ink), **base)
+        fig.add_annotation(xshift=ox + arm + 10, yshift=oy, text="<i>z</i>", **label)
+        fig.add_annotation(xshift=ox, yshift=oy + arm + 10, text="<i>y</i>", **label)
+        fig.add_annotation(xshift=ox - 17, yshift=oy - 12, text="<i>x</i>", **label)
+        fig.add_annotation(xshift=cx + 1, yshift=oy + 17, text="<i>ω</i>", **label)
+
+        show = {}
+        for i in range(first_shape, len(fig.layout.shapes)):
+            show[f"shapes[{i}].visible"] = True
+        for i in range(first_annotation, len(fig.layout.annotations)):
+            show[f"annotations[{i}].visible"] = True
+        hide = dict.fromkeys(show, False)
+
+        return show, hide
 
     @check_units
     def run_campbell(
