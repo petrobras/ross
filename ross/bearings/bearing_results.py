@@ -1,4 +1,3 @@
-import warnings
 from abc import ABC, abstractmethod
 
 import numpy as np
@@ -220,27 +219,6 @@ class BearingResults(ABC):
         -------
         fig : go.Figure
         """
-
-    def plot_temperature_3d(self, *args, **kwargs):
-        """Deprecated alias for :meth:`plot_film_temperature_3d`.
-
-        .. deprecated:: 2.4.0
-            ``plot_temperature_3d`` is deprecated and will be removed in a
-            future version.  Use ``plot_film_temperature_3d`` instead, which
-            states explicitly that the plotted field is the oil film
-            temperature.
-
-        Returns
-        -------
-        fig : go.Figure
-        """
-        warnings.warn(
-            "plot_temperature_3d is deprecated and will be removed in a future "
-            "version. Use plot_film_temperature_3d instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self.plot_film_temperature_3d(*args, **kwargs)
 
     def plot_pad_temperature_3d(self, freq_index=0, fig=None, **kwargs):
         """Return a 3-D mesh of the bearing pads colored by temperature.

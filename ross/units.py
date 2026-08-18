@@ -78,6 +78,7 @@ units = {
     "flow_m": "kilogram/second",
     "fit": "m",
     "viscosity": "pascal*s",
+    "molar": "kg/kmol",
     "h": "joule/kilogram",
     "s": "joule/(kelvin kilogram)",
     "b": "meter",

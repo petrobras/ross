@@ -55,12 +55,12 @@ class ThrustPad(BearingElement):
         Outer radius of the pad. Default unit is meter.
     pad_pivot_radius : float
         Radius of the pivot point. Default unit is meter.
-    pad_arc : float
-        Arc length of each pad. Default unit is degrees.
-    angular_pivot_position : float
-        Angular position of the pivot point. Default unit is degrees.
-    oil_supply_temperature : float
-        Oil supply temperature. Default unit is °C.
+    pad_arc : float, pint.Quantity
+        Arc length of each pad, rad.
+    pivot_angle : float, pint.Quantity
+        Angular position of the pivot point, rad.
+    oil_supply_temperature : float, pint.Quantity
+        Oil supply temperature, K.
     lubricant : str or dict
         Lubricant type. Can be:
         - 'ISOVG32'
@@ -142,7 +142,7 @@ class ThrustPad(BearingElement):
     ...     pad_outer_radius=Q_(1725, "mm"),
     ...     pad_pivot_radius=Q_(1442.5, "mm"),
     ...     pad_arc=Q_(26, "deg"),
-    ...     angular_pivot_position=Q_(15, "deg"),
+    ...     pivot_angle=Q_(15, "deg"),
     ...     oil_supply_temperature=Q_(40, "degC"),
     ...     lubricant="ISOVG68",
     ...     n_pads=12,
@@ -165,7 +165,7 @@ class ThrustPad(BearingElement):
         pad_outer_radius,
         pad_pivot_radius,
         pad_arc,
-        angular_pivot_position,
+        pivot_angle,
         oil_supply_temperature,
         lubricant,
         n_pads,
@@ -188,7 +188,7 @@ class ThrustPad(BearingElement):
         self.pad_pivot_radius = pad_pivot_radius
         self.frequency = frequency
         self.pad_arc = pad_arc
-        self.angular_pivot_position = angular_pivot_position.m_as("rad")
+        self.pivot_angle = pivot_angle
         self.oil_supply_temperature = Q_(oil_supply_temperature, "degK").m_as("degC")
         self.reference_temperature = self.oil_supply_temperature
         self.lubricant = lubricant
@@ -196,7 +196,7 @@ class ThrustPad(BearingElement):
         self.n_theta = n_theta
         self.n_radial = n_radial
         self.rp = self.pad_pivot_radius / self.pad_inner_radius
-        self.theta_pad = self.angular_pivot_position / self.pad_arc
+        self.theta_pad = self.pivot_angle / self.pad_arc
         self.d_radius = (self.pad_outer_radius / self.pad_inner_radius - 1) / (
             self.n_radial
         )
@@ -1167,13 +1167,12 @@ class ThrustPad(BearingElement):
             for ii in range(0, self.n_theta):
                 moment_x[:, ii] = (
                     pressure_dim[:, ii] * (np.transpose(radius_coords) ** 2)
-                ) * np.sin(theta_coords[ii] - self.angular_pivot_position)
+                ) * np.sin(theta_coords[ii] - self.pivot_angle)
                 moment_y[:, ii] = (
                     -pressure_dim[:, ii]
                     * np.transpose(radius_coords)
                     * np.transpose(
-                        radius_coords
-                        * np.cos(theta_coords[ii] - self.angular_pivot_position)
+                        radius_coords * np.cos(theta_coords[ii] - self.pivot_angle)
                         - pivot_coords
                     )
                 )
@@ -1741,13 +1740,12 @@ class ThrustPad(BearingElement):
         for ii in range(0, self.n_theta):
             moment_x[:, ii] = (
                 pressure_dim[:, ii] * (np.transpose(radius_coords) ** 2)
-            ) * np.sin(theta_coords[ii] - self.angular_pivot_position)
+            ) * np.sin(theta_coords[ii] - self.pivot_angle)
             moment_y[:, ii] = (
                 -pressure_dim[:, ii]
                 * np.transpose(radius_coords)
                 * np.transpose(
-                    radius_coords
-                    * np.cos(theta_coords[ii] - self.angular_pivot_position)
+                    radius_coords * np.cos(theta_coords[ii] - self.pivot_angle)
                     - pivot_coords
                 )
             )
@@ -2797,13 +2795,12 @@ class ThrustPad(BearingElement):
         for ii in range(0, self.n_theta):
             moment_x_radial_coeff[:, ii] = (
                 pressure_coeff_dim[:, ii] * (np.transpose(radius_coords) ** 2)
-            ) * np.sin(theta_coords[ii] - self.angular_pivot_position)
+            ) * np.sin(theta_coords[ii] - self.pivot_angle)
             moment_y_radial_coeff[:, ii] = (
                 -pressure_coeff_dim[:, ii]
                 * np.transpose(radius_coords)
                 * np.transpose(
-                    radius_coords
-                    * np.cos(theta_coords[ii] - self.angular_pivot_position)
+                    radius_coords * np.cos(theta_coords[ii] - self.pivot_angle)
                     - pivot_coords
                 )
             )
@@ -2859,7 +2856,7 @@ def thrust_pad_example():
         pad_outer_radius=Q_(1725, "mm"),
         pad_pivot_radius=Q_(1442.5, "mm"),
         pad_arc=Q_(26, "deg"),
-        angular_pivot_position=Q_(15, "deg"),
+        pivot_angle=Q_(15, "deg"),
         oil_supply_temperature=Q_(40, "degC"),
         lubricant="ISOVG68",
         n_pads=12,
