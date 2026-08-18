@@ -346,18 +346,19 @@ def test_labyrinth_gas_model_default_is_ideal(labyrinth_manual):
 
 
 def test_labyrinth_ideal_backend_unchanged(labyrinth_manual):
-    """The ideal backend reproduces the legacy coefficients.
+    """The ideal backend reproduces the reference coefficients tightly.
 
-    Routing the solver through the gas model must not perturb the ideal-gas
-    path. The reference values are bit-identical on the machine where they were
-    captured; the tolerance here is far tighter than the ``rtol=1e-4`` used by
-    the other tests (so any real perturbation is caught) while tolerating
-    last-bit floating-point differences between platforms/BLAS backends.
+    The tolerance here is far tighter than the ``rtol=1e-4`` used by the other
+    tests (so any real perturbation of the ideal-gas path is caught) while
+    tolerating last-bit floating-point differences between platforms and BLAS
+    backends. The reference values were captured when the solver iterations
+    moved to bracketed root-finding (scipy.optimize.brentq); they agree with
+    the pre-existing values to better than 5e-8.
     """
-    assert_allclose(labyrinth_manual.kxx[0], -50456.5865968456, rtol=1e-9)
-    assert_allclose(labyrinth_manual.kxy[0], 35541.605311914, rtol=1e-9)
-    assert_allclose(labyrinth_manual.cxx[0], 23.82511134106155, rtol=1e-9)
-    assert_allclose(labyrinth_manual.cxy[0], 56.255682475614, rtol=1e-9)
+    assert_allclose(labyrinth_manual.kxx[0], -50456.58797187634, rtol=1e-9)
+    assert_allclose(labyrinth_manual.kxy[0], 35541.60651449606, rtol=1e-9)
+    assert_allclose(labyrinth_manual.cxx[0], 23.825112375903597, rtol=1e-9)
+    assert_allclose(labyrinth_manual.cxy[0], 56.255683485760905, rtol=1e-9)
     assert_allclose(labyrinth_manual.seal_leakage[0], 0.023719116584285112, rtol=1e-9)
 
 

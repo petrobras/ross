@@ -10,6 +10,11 @@ import ccp
 
 __all__ = ["HolePatternSeal"]
 
+MOODY_FRICTION_COEFFICIENT = 1.375e-3
+MOODY_ROUGHNESS_SCALE = 1.0e4
+MOODY_VISCOSITY_SCALE = 5.0e5
+CHOKED_MZ2_LIMIT = 0.98
+
 
 class HolePatternSeal(SealElement):
     """Hole-pattern annular seal - Bulk flow model with dynamic coefficients.
@@ -242,14 +247,6 @@ class HolePatternSeal(SealElement):
         self.molar_mass = molar_mass
         self.gamma = gamma
 
-        self.nmx = 2000
-        self.omega = 0.0
-        self.gamma1 = 0.0
-        self.gamma12 = 0.0
-        self.dz = 0.0
-        self.area = 0.0
-        self.mdot = 0.0
-
         self.dz = self.axial_length / float(self.nz)
         self.z = np.zeros(nz + 4)
         self.z[0] = -self.dz
@@ -257,10 +254,9 @@ class HolePatternSeal(SealElement):
         self.z[2:-1] = np.arange(self.nz + 1) * self.dz
         self.z[-1] = self.z[-2]
 
-        self.t = np.zeros(self.nmx + 1)
-
-        self.mz2 = np.zeros(self.nmx + 1)
-        self.mt = np.zeros(self.nmx + 1)
+        self.t = np.zeros(self.nz + 1)
+        self.mz2 = np.zeros(self.nz + 1)
+        self.mt = np.zeros(self.nz + 1)
 
         self.i_t = np.array([1, 0, 3, 2])
         self.i_th = np.array([2, 3, 0, 1])
@@ -298,11 +294,10 @@ class HolePatternSeal(SealElement):
         self.omega = frequency
         self.area = np.pi * 2.0 * self._shaft_radius * self.radial_clearance
 
-        # Cache constants for form_rhs() optimization
         self._gamma_R = self.gamma * self.R
         self._radius_omega = self._shaft_radius * self.omega
-        self._rough_factor = 1.0e4 * self.relative_roughness
-        self._mu_factor = 5.0e5
+        self._rough_factor = MOODY_ROUGHNESS_SCALE * self.relative_roughness
+        self._mu_factor = MOODY_VISCOSITY_SCALE
 
         try:
             base_state_results = self.calculate_leakage()
@@ -407,7 +402,6 @@ class HolePatternSeal(SealElement):
         if mz2 <= 0:
             mz2 = 1e-9
 
-        # Optimized: cache repeated calculations
         mz = np.sqrt(mz2)
         mt2 = mt**2
         c = np.sqrt(self._gamma_R * T)
@@ -431,7 +425,7 @@ class HolePatternSeal(SealElement):
         mu = self.sutherland_b * T_15 / (self.sutherland_s + T)
         mu_factor_mu = self._mu_factor * mu
         fs_term = mu_factor_mu / (rho * self.radial_clearance * utot)
-        fs = 1.375e-3 * (1.0 + fs_term ** (1.0 / 3.0))
+        fs = MOODY_FRICTION_COEFFICIENT * (1.0 + fs_term ** (1.0 / 3.0))
         fs_geom = (
             np.sqrt(1.0 + mt2 / mz2) / (4.0 * self.radial_clearance) * fs
             if self.radial_clearance > 0
@@ -440,7 +434,7 @@ class HolePatternSeal(SealElement):
         fr_term = self._rough_factor + mu_factor_mu / (
             rho * self.radial_clearance * utot_rotor
         )
-        fr = 1.375e-3 * (1.0 + fr_term ** (1.0 / 3.0))
+        fr = MOODY_FRICTION_COEFFICIENT * (1.0 + fr_term ** (1.0 / 3.0))
         fr_geom = (
             np.sqrt(1.0 + (mt - mr) ** 2 / mz2) / self.radial_clearance * fr
             if self.radial_clearance > 0
@@ -497,7 +491,7 @@ class HolePatternSeal(SealElement):
             self.mz2[iz] = self.mz2[iz1] + self.dz * (RHmz_pred + RHmz_corr) / 2.0
             self.t[iz] = self.t[iz1] + self.dz * (RHt_pred + RHt_corr) / 2.0
             self.mt[iz] = self.mt[iz1] + self.dz * (RHmt_pred + RHmt_corr) / 2.0
-            if self.mz2[iz] > 0.98:
+            if self.mz2[iz] > CHOKED_MZ2_LIMIT:
                 ichoke = 1
                 break
         return ichoke
@@ -611,9 +605,9 @@ class HolePatternSeal(SealElement):
     ):
         cp = g * R / (g - 1.0)
         cv = cp / g
-        delta = 1.0e4 * relative_roughness
-        alpha = 1.375e-3
-        mu0 = 5.0e5
+        delta = MOODY_ROUGHNESS_SCALE * relative_roughness
+        alpha = MOODY_FRICTION_COEFFICIENT
+        mu0 = MOODY_VISCOSITY_SCALE
         b = base_old
         up, wp = (
             (base_new["u"] - base_old["u"]) / dz,

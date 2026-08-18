@@ -116,7 +116,7 @@ class HybridSeal(SealElement):
         - radial_clearance : float, pint.Quantity
             Nominal radial clearance (m).
         - n_teeth : int
-            Number of teeth (throttlings). Needs to be <= 30.
+            Number of teeth (throttlings). Must be at least 2.
         - pitch : float, pint.Quantity
             Seal pitch (length of land) or axial cavity length (m).
         - tooth_height : float, pint.Quantity
