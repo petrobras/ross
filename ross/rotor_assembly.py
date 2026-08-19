@@ -36,6 +36,7 @@ from ross.bearings.magnetic.amb_utils import (
     apply_sensitivity_disturbance,
 )
 from ross.coupling_element import CouplingElement
+from ross.multi_rotor.gear_element import GearElement, GearElementTVMS
 from ross.disk_element import DiskElement
 from ross.faults import Crack, MisalignmentFlex, MisalignmentRigid, Rubbing
 from ross.materials import Material, steel
