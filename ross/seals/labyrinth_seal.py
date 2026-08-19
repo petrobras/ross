@@ -1,16 +1,695 @@
-import numpy as np
-import sys
-from scipy.linalg import lu_factor, lu_solve
-from numpy.linalg import cond
 from warnings import warn
-import multiprocessing
-from ross import SealElement
-from ross.units import check_units, Q_
-from ross.seals.gas_model import extract_gas_properties, IdealGas, RealGas
-import plotly.graph_objects as go
+
 import ccp
+import numpy as np
+from numpy.linalg import cond
+from scipy.linalg import lu_factor, lu_solve
+from scipy.optimize import brentq, root_scalar
+
+from ross import SealElement
+from ross.seals.gas_model import IdealGas, RealGas, extract_gas_properties
+from ross.seals.solver_tools import solve_frequencies
+from ross.units import check_units
 
 __all__ = ["LabyrinthSeal"]
+
+BLASIUS_FRICTION_COEFFICIENT = 0.079
+BLASIUS_FRICTION_EXPONENT = -0.25
+JENNY_KANKI_MOMENTUM_FACTOR = {"stator": 0.15, "rotor": 0.35, "inter": 0.90}
+
+PERTURBATION_DOFS = 8
+CONTINUITY_ROWS = (0, 1, 2, 3)
+MOMENTUM_ROWS = (4, 5, 6, 7)
+SWAPPED_PRESSURE_COLS = (1, 0, 3, 2)
+SWAPPED_VELOCITY_COLS = (5, 4, 7, 6)
+RHS_ROWS = (1, 3, 4, 6)
+
+
+class LabyrinthSolver:
+    """Compressible flow solver for a labyrinth seal.
+
+    This class owns the mutable per-run state of the flow solution (cavity
+    pressures, temperatures, swirl velocities, gradient tables) and computes
+    the leakage and dynamic coefficients for one shaft speed at a time. The
+    :class:`LabyrinthSeal` element builds one solver at construction and maps
+    it over the requested frequencies; the solver holds only plain data, so it
+    can be pickled to worker processes for multi-frequency runs.
+
+    Parameters
+    ----------
+    shaft_radius : float
+        Shaft radius (m).
+    radial_clearance : float
+        Nominal radial clearance (m).
+    n_teeth : int
+        Number of teeth (throttlings).
+    pitch : float
+        Seal pitch or axial cavity length (m).
+    tooth_height : float
+        Height of seal strip (m).
+    tooth_width : float
+        Thickness of throttle (tip-width) (m).
+    seal_type : str
+        'rotor', 'stator' or 'inter'.
+    inlet_pressure, outlet_pressure : float
+        Boundary pressures (Pa).
+    inlet_temperature : float
+        Inlet temperature (deg K).
+    preswirl : float
+        Inlet swirl velocity ratio.
+    gas : IdealGas or RealGas
+        Thermodynamic backend (see :mod:`ross.seals.gas_model`).
+    R : float
+        Specific gas constant (J/(kg K)).
+    reference_temperatures, reference_viscosities : list of float
+        Two-state references used to fit the Sutherland viscosity law.
+    use_jenny_kanki : bool, optional
+        Use the Jenny and Kanki tangential momentum parameters.
+        Default is False.
+    print_results : bool, optional
+        Print leakage summaries while solving. Default is False.
+    """
+
+    def __init__(
+        self,
+        shaft_radius,
+        radial_clearance,
+        n_teeth,
+        pitch,
+        tooth_height,
+        tooth_width,
+        seal_type,
+        inlet_pressure,
+        outlet_pressure,
+        inlet_temperature,
+        preswirl,
+        gas,
+        R,
+        reference_temperatures,
+        reference_viscosities,
+        use_jenny_kanki=False,
+        print_results=False,
+    ):
+        self.shaft_radius = shaft_radius
+        self.radial_clearance = radial_clearance
+        self.n_teeth = n_teeth
+        self.pitch = pitch
+        self.tooth_height = tooth_height
+        self.tooth_width = tooth_width
+        self.seal_type = seal_type
+        self.inlet_pressure = inlet_pressure
+        self.outlet_pressure = outlet_pressure
+        self.inlet_temperature = inlet_temperature
+        self.preswirl = preswirl
+        self.gas = gas
+        self.R = R
+        self.reference_temperatures = reference_temperatures
+        self.reference_viscosities = reference_viscosities
+        self.use_jenny_kanki = use_jenny_kanki
+        self.print_results = print_results
+
+        self.n_stations = n_teeth + 1
+        self.n_cavities = n_teeth - 1
+        self.ndof = PERTURBATION_DOFS * self.n_cavities
+
+        self.perturbation_eccentricity = 0.6
+        self.pert_amplitude_direct = self.perturbation_eccentricity * radial_clearance
+        self.pert_amplitude_cross = self.perturbation_eccentricity * radial_clearance
+
+    def solve(self, frequency):
+        """Solve the seal at one shaft speed (rad/s).
+
+        Returns a dict with the dynamic coefficients, the leakage, the cavity
+        pressure distribution and the conditioning of the perturbation system.
+        """
+        self.frequency = frequency
+        self.inlet_swirl_velocity = self.preswirl * frequency * self.shaft_radius
+        self._reset_state()
+        self._vermes_leakage()
+        self._solve_pressure_distribution()
+        self._solve_swirl_velocities()
+        self._solve_perturbation_system()
+
+        return {
+            "kxx": self.kxx,
+            "kyy": self.kxx,
+            "kxy": self.kxy,
+            "kyx": self.kyx,
+            "cxx": self.cxx,
+            "cyy": self.cxx,
+            "cxy": self.cxy,
+            "cyx": self.cyx,
+            "pressure": self.p,
+            "seal_leakage": self._circumferential_leakage(self.mdot),
+            "pert_rcond": self.pert_rcond,
+            "pert_condition_number": self.pert_condition_number,
+        }
+
+    def _reset_state(self):
+        """Reset the per-run flow state before solving a new frequency."""
+        self.pr = np.zeros(self.n_teeth)
+        self.p = np.zeros(self.n_stations)
+        self.w = np.zeros(self.n_stations)
+        self.v = np.zeros(self.n_stations)
+        self.rho = np.zeros(self.n_stations)
+        self.t = np.full(self.n_stations, float(self.inlet_temperature))
+        self.taur = np.zeros(self.n_stations)
+        self.taus = np.zeros(self.n_stations)
+        self.vin = np.zeros(self.n_stations)
+        self.vout = np.zeros(self.n_stations)
+        self.kout = np.zeros(self.n_stations)
+        self.cg = np.zeros((9, self.n_stations))
+        self.cx = np.zeros((8, self.n_stations))
+
+        self.overall_pressure_ratio = self.outlet_pressure / self.inlet_pressure
+        self.omega = self.frequency
+
+    def _circumferential_leakage(self, mdot):
+        """Convert mass flux per unit circumference into total leakage (kg/s)."""
+        return mdot * 2 * np.pi * (self.shaft_radius + 0.5 * self.radial_clearance)
+
+    def _solve_choked_flow_function(self):
+        """Find the choked pressure ratio and the seal flow function.
+
+        The choked pressure ratio maximizes the Vermes flow function
+        ``eta(r) = sqrt((1 - r**2) / (n_teeth - ln(r)))``; it is located by
+        finding the root of ``d(eta)/d(r)``. If the overall pressure ratio is
+        below the choked ratio the seal is choked and the flow function is
+        evaluated at the choked ratio instead.
+        """
+        n = self.n_teeth - 1
+
+        def flow_function_derivative(r):
+            num = -2 * (n + 1) + 2 * r * np.log(r) + 1 / r - r
+            den = ((1 - r**2) ** 0.5) * ((n - np.log(r)) ** 1.5)
+            return num / den
+
+        self.choked_pressure_ratio = brentq(
+            flow_function_derivative, 1e-3, 0.99, xtol=1e-12
+        )
+        self.flow_function_choke = (
+            (1 - self.choked_pressure_ratio**2)
+            / (self.n_teeth - np.log(self.choked_pressure_ratio))
+        ) ** 0.5
+
+        if self.overall_pressure_ratio < self.choked_pressure_ratio:
+            self.flow_function_last_tooth = self.flow_function_choke
+        else:
+            self.flow_function_last_tooth = (
+                (1 - self.overall_pressure_ratio**2)
+                / (self.n_teeth - np.log(self.overall_pressure_ratio))
+            ) ** 0.5
+
+    def _vermes_leakage(self):
+        """Estimate the initial leakage with the Vermes model.
+
+        Provides the starting mass flux for the pressure distribution solver.
+        """
+        width_to_clearance_ratio = self.tooth_width / self.radial_clearance
+        self.discharge_coefficient = (
+            0.67675
+            - (0.08519 * width_to_clearance_ratio)
+            + (0.0878 * (width_to_clearance_ratio**2))
+            - (0.01819 * (width_to_clearance_ratio**3))
+            + (0.00111 * (width_to_clearance_ratio**4))
+        )
+        self.carryover_factor = 8.52 / (
+            ((self.pitch - self.tooth_width) / self.radial_clearance) + 7.23
+        )
+        if self.seal_type == "inter":
+            self.carryover_factor = 0
+        if self.carryover_factor >= 1:
+            raise ValueError(
+                f"The Vermes carry-over factor is {self.carryover_factor:.4f}; "
+                "values >= 1 are not physical. Check the seal geometry "
+                "(pitch, tooth_width, radial_clearance)."
+            )
+
+        carryover_velocity_ratio = 1 / (1 - self.carryover_factor) ** 0.5
+        self._solve_choked_flow_function()
+        self.vermes_flow_factor = (
+            1.014
+            * self.discharge_coefficient
+            * carryover_velocity_ratio
+            * self.flow_function_last_tooth
+        )
+
+        if self.seal_type == "inter":
+            self.vermes_flow_factor = self.vermes_flow_factor / 1.014
+        self.mdot_vermes = (
+            self.vermes_flow_factor
+            * self.inlet_pressure
+            * self.radial_clearance
+            / (self.R * self.inlet_temperature) ** 0.5
+        )
+        if self.print_results:
+            leakage_vermes = self._circumferential_leakage(self.mdot_vermes)
+            print(f"{'   Leakage':<40} {leakage_vermes:>15.8f} kg/s \n \n")
+        self.mdot = self.mdot_vermes
+
+    def _throttle_pressure_ratio(self, station, critical_pr):
+        """Solve the pressure ratio across one tooth for the current mass flux.
+
+        The pressure ratio is the root of the throttle mass-flux balance,
+        bracketed between the critical (choked) ratio and 1. Returns None when
+        the required mass flux exceeds the choked flux, meaning the current
+        ``mdot`` cannot pass through this tooth.
+        """
+        i = station
+        pr_high = 0.9999999
+
+        def residual(pressure_ratio):
+            flux = self.gas.throttle_mass_flux(
+                self.discharge_coefficient,
+                self.radial_clearance,
+                self.p[i - 1],
+                pressure_ratio,
+                self.rho[i - 1],
+                self.t[i - 1],
+                self.w[i - 1],
+                self.carryover_factor,
+            )
+            return self.mdot - flux
+
+        if residual(critical_pr) >= 0:
+            return None
+        if residual(pr_high) <= 0:
+            warn(f"Pressure Convergence Error at Station {i}")
+            return pr_high
+        pressure_ratio = brentq(residual, critical_pr, pr_high, xtol=1e-14)
+        if abs(residual(pressure_ratio)) > 1e-4:
+            warn(f"Pressure Convergence Error at Station {i}")
+        return pressure_ratio
+
+    def _outlet_critical_pr(self):
+        """Return the critical pressure ratio at the last throttle."""
+        i = self.n_teeth - 1
+        return self.gas.critical_pr(
+            self.p[i], self.w[i], self.carryover_factor, self.t[i]
+        )
+
+    def _solve_pressure_distribution(self):
+        """Solve the cavity pressures and the leakage mass flux.
+
+        Outer loop: bisection on the mass flux ``mdot`` until the pressure at
+        the outlet station matches the outlet pressure, or the last throttle
+        chokes. Inner loop: march through the teeth solving the pressure ratio
+        that passes ``mdot`` across each one, updating the isentropic state
+        (pressure, throat velocity, density, temperature) cavity by cavity.
+        """
+        tol_outlet_pressure = 1e-5
+        tol_choked = 0.005
+
+        mdot_low, mdot_high = 0.0, self.mdot * 5
+        refresh_bracket = False
+        frozen_inlet_state = False
+        error_outlet_pressure = 0.0
+
+        while True:
+            if refresh_bracket:
+                mdot_low, mdot_high = 0.0, self.mdot * 5
+                refresh_bracket = False
+            if not frozen_inlet_state:
+                self.w[0] = 0.0
+                self.p[0] = self.inlet_pressure
+                self.rho[0] = self.gas.inlet_density(self.p[0], self.t[0])
+                critical_pr = self._outlet_critical_pr()
+
+            choked_mid_seal = False
+            for i in range(1, self.n_teeth + 1):
+                pressure_ratio = self._throttle_pressure_ratio(i, critical_pr)
+                if pressure_ratio is None:
+                    choked_mid_seal = True
+                    break
+                self.pr[i - 1] = pressure_ratio
+                self.p[i] = pressure_ratio * self.p[i - 1]
+                self.w[i] = self.gas.throat_velocity(
+                    self.mdot,
+                    self.discharge_coefficient,
+                    self.radial_clearance,
+                    self.p[i - 1],
+                    pressure_ratio,
+                    self.t[i - 1],
+                )
+                self.rho[i] = self.gas.density_isentropic(
+                    self.p[i - 1], pressure_ratio, self.rho[i - 1]
+                )
+                self.t[i] = self.gas.temperature_isentropic(
+                    self.p[i - 1], pressure_ratio, self.t[i - 1]
+                )
+
+            if not choked_mid_seal:
+                outlet_critical_pr = self._outlet_critical_pr()
+                error_outlet_pressure = (
+                    self.p[self.n_teeth] - self.outlet_pressure
+                ) / self.outlet_pressure
+                near_choked = (
+                    abs(self.pr[self.n_teeth - 1] - outlet_critical_pr)
+                    / outlet_critical_pr
+                    <= tol_choked
+                )
+                if abs(error_outlet_pressure) < tol_outlet_pressure or near_choked:
+                    break
+
+            mdot_old = self.mdot
+            if choked_mid_seal or error_outlet_pressure < 0:
+                self.mdot = (mdot_low + self.mdot) / 2
+                mdot_high = mdot_old
+            else:
+                self.mdot = (mdot_high + self.mdot) / 2
+                mdot_low = mdot_old
+            if self.mdot == mdot_old:
+                # The bisection stagnated; restart it around the current flux
+                # and keep the current inlet state and critical ratio.
+                if self.print_results:
+                    print("Reset iteration")
+                frozen_inlet_state = True
+                refresh_bracket = True
+
+        if (
+            abs(self.pr[self.n_teeth - 1] - self._outlet_critical_pr())
+            / self._outlet_critical_pr()
+            <= tol_choked
+        ):
+            warn("Flow choked in the last throttle.")
+        if self.pr[self.n_teeth - 1] > 1:
+            raise ValueError("Error in Leakage Calculation")
+
+        if self.print_results:
+            leakage = self._circumferential_leakage(self.mdot)
+            print(f"{'   Leakage':<40} {leakage:>15.8f} kg/s \n")
+
+    def _solve_swirl_velocities(self):
+        """Solve the cavity swirl velocities and the base-flow gradients.
+
+        For each cavity, the swirl velocity balances the through-flow momentum
+        against the rotor and stator wall shear (Blasius-type friction). With
+        ``use_jenny_kanki=True``, the Jenny and Kanki momentum parameters
+        reduce the fraction of the through-flow momentum exchanged in each
+        cavity; the classic model corresponds to a momentum factor of 1.
+
+        The method also assembles the base-flow gradient tables ``cg``
+        (continuity) and ``cx`` (momentum) used by the perturbation solver.
+        """
+        if self.omega == 0 and self.inlet_swirl_velocity == 0:
+            return
+
+        if self.use_jenny_kanki:
+            momentum_factor = JENNY_KANKI_MOMENTUM_FACTOR[self.seal_type]
+        else:
+            momentum_factor = 1.0
+
+        if self.seal_type == "inter":
+            area_ratio_rotor = (self.tooth_height + self.pitch) / self.pitch
+            area_ratio_stator = area_ratio_rotor
+        elif self.seal_type == "rotor":
+            area_ratio_rotor = (2 * self.tooth_height + self.pitch) / self.pitch
+            area_ratio_stator = 1.0
+        else:
+            area_ratio_stator = (2 * self.tooth_height + self.pitch) / self.pitch
+            area_ratio_rotor = 1.0
+
+        cavity_height = self.radial_clearance + self.tooth_height
+        hydraulic_diameter = (
+            2 * cavity_height * self.pitch / (cavity_height + self.pitch)
+        )
+        area = cavity_height * self.pitch
+
+        surface_velocity = self.shaft_radius * self.omega
+
+        self.v[0] = self.inlet_swirl_velocity
+        self.vin[0] = self.inlet_swirl_velocity
+        self.vout[0] = self.inlet_swirl_velocity
+        # In the Jenny-Kanki model the first cavity has no upstream momentum
+        # recovery, so its upstream factor is zero; the classic model uses 1.
+        self.kout[0] = 0.0 if self.use_jenny_kanki else 1.0
+
+        phi1 = self.reference_temperatures[0] ** 1.5 / self.reference_viscosities[0]
+        phi2 = self.reference_temperatures[1] ** 1.5 / self.reference_viscosities[1]
+        sutherland_b = (
+            self.reference_temperatures[1] - self.reference_temperatures[0]
+        ) / (phi2 - phi1)
+        sutherland_s = (sutherland_b * phi1) - self.reference_temperatures[0]
+
+        for i in range(1, self.n_teeth):
+            self.vin[i] = self.vout[i - 1]
+            mu = sutherland_b * self.t[i] ** 0.5 / (1 + sutherland_s / self.t[i])
+            nu = mu / self.rho[i]
+
+            def wall_shear(velocity):
+                return (
+                    0.5
+                    * self.rho[i]
+                    * velocity
+                    * velocity
+                    * BLASIUS_FRICTION_COEFFICIENT
+                    * (abs(velocity) * hydraulic_diameter / nu)
+                    ** BLASIUS_FRICTION_EXPONENT
+                    * np.copysign(1.0, velocity)
+                )
+
+            def momentum_residual(v_guess):
+                return (self.mdot * (v_guess - self.vin[i])) - self.pitch * (
+                    wall_shear(surface_velocity - v_guess) * area_ratio_rotor
+                    - wall_shear(v_guess) * area_ratio_stator
+                )
+
+            sound_speed = self.gas.sound_speed(self.p[i], self.t[i])
+            try:
+                v_swirl = brentq(
+                    momentum_residual, -sound_speed, sound_speed, xtol=1e-12
+                )
+            except ValueError:
+                v_swirl = root_scalar(
+                    momentum_residual,
+                    x0=-sound_speed,
+                    x1=sound_speed,
+                    method="secant",
+                ).root
+            if abs(momentum_residual(v_swirl)) > 0.001:
+                warn(f"Velocity Convergence Error at station {i}")
+
+            v_relative = surface_velocity - v_swirl
+            self.v[i] = v_swirl
+            self.vout[i] = (
+                self.vin[i] * (1 - momentum_factor) + v_swirl * momentum_factor
+            )
+            self.kout[i] = self.vout[i] / self.v[i] if self.use_jenny_kanki else 1.0
+            self.taur[i] = wall_shear(v_relative)
+            self.taus[i] = wall_shear(v_swirl)
+
+            self.cg[0, i] = self.gas.cg0(area, self.p[i], self.t[i])
+            self.cg[1, i] = (self.v[i] / self.shaft_radius) * self.cg[0, i]
+            self.cg[2, i] = (self.p[i] / self.shaft_radius) * self.cg[0, i]
+            self.cg[3, i] = (
+                self.mdot
+                * self.p[i]
+                * (
+                    1 / (self.p[i] ** 2 - self.p[i + 1] ** 2)
+                    + 1 / (self.p[i - 1] ** 2 - self.p[i] ** 2)
+                )
+            )
+            self.cg[4, i] = (
+                -self.mdot * self.p[i + 1] / (self.p[i] ** 2 - self.p[i + 1] ** 2)
+            )
+            self.cg[5, i] = -self.rho[i] * self.pitch
+            self.cg[6, i] = (self.v[i] / self.shaft_radius) * self.cg[5, i]
+            self.cg[7, i] = (
+                -self.mdot * self.p[i - 1] / (self.p[i - 1] ** 2 - self.p[i] ** 2)
+            )
+            self.cg[8, i] = -self.cg[7, i] * momentum_factor * (self.v[i] - self.vin[i])
+
+            self.cx[0, i] = area / self.shaft_radius
+            self.cx[1, i] = self.rho[i] * area
+            self.cx[2, i] = (self.v[i] / self.shaft_radius) * self.cx[1, i]
+            shear_gradient_stator = (
+                (2 + BLASIUS_FRICTION_EXPONENT)
+                * self.taus[i]
+                * area_ratio_stator
+                * self.pitch
+            ) / self.v[i]
+            shear_gradient_rotor = (
+                (2 + BLASIUS_FRICTION_EXPONENT)
+                * self.taur[i]
+                * area_ratio_rotor
+                * self.pitch
+            ) / v_relative
+            self.cx[3, i] = (
+                self.mdot * self.kout[i] + shear_gradient_stator + shear_gradient_rotor
+            )
+            self.cx[4, i] = -self.mdot * self.kout[i - 1]
+            self.cx[5, i] = 0
+            self.cx[6, i] = -self.mdot * momentum_factor * (
+                self.v[i] - self.vin[i]
+            ) * self.p[i] / (self.p[i - 1] ** 2 - self.p[i] ** 2) + (
+                (self.taus[i] * area_ratio_stator - self.taur[i] * area_ratio_rotor)
+                * (self.pitch / self.p[i])
+            )
+            shear_clearance_gradient = (
+                -BLASIUS_FRICTION_EXPONENT * self.taus[i] * area_ratio_stator
+                + BLASIUS_FRICTION_EXPONENT * self.taur[i] * area_ratio_rotor
+            ) * (self.pitch * hydraulic_diameter / (2 * cavity_height**2))
+            self.cx[7, i] = (self.mdot / self.radial_clearance) * momentum_factor * (
+                self.vin[i] - self.v[i]
+            ) + shear_clearance_gradient
+
+    def _assemble_perturbation_system(self):
+        """Assemble the linearized perturbation system.
+
+        Each interior cavity contributes 8 degrees of freedom: the cosine and
+        sine components of the pressure (0-3) and swirl velocity (4-7)
+        perturbations for the two whirl directions. Rows 0-3 are the
+        linearized continuity equations and rows 4-7 the tangential momentum
+        equations. Cavities couple to their upstream and downstream neighbors
+        through the base-flow gradient tables ``cg`` and ``cx``.
+
+        Returns the system matrix ``A`` and the right-hand sides for the
+        direct and cross whirl perturbations as a ``(ndof, 2)`` array.
+        """
+        A = np.zeros((self.ndof, self.ndof))
+        rhs = np.zeros((self.ndof, 2))
+
+        for i in range(self.n_cavities):
+            row0 = PERTURBATION_DOFS * i
+            station = i + 1
+
+            if i > 0:
+                upstream0 = PERTURBATION_DOFS * (i - 1)
+                for r, c in zip(MOMENTUM_ROWS, SWAPPED_VELOCITY_COLS):
+                    A[row0 + r, upstream0 + c] = self.cx[4, station]
+                for r, c in zip(MOMENTUM_ROWS, SWAPPED_PRESSURE_COLS):
+                    A[row0 + r, upstream0 + c] = self.cg[8, station]
+                for r, c in zip(CONTINUITY_ROWS, SWAPPED_PRESSURE_COLS):
+                    A[row0 + r, upstream0 + c] = self.cg[7, station]
+            if i < self.n_cavities - 1:
+                downstream0 = PERTURBATION_DOFS * (i + 1)
+                for r, c in zip(CONTINUITY_ROWS, SWAPPED_PRESSURE_COLS):
+                    A[row0 + r, downstream0 + c] = self.cg[4, station]
+                for r, c in zip(MOMENTUM_ROWS, SWAPPED_PRESSURE_COLS):
+                    A[row0 + r, downstream0 + c] = self.cx[5, station]
+
+            cf1 = self.omega * self.cg[0, station] + self.cg[1, station]
+            cf2 = self.cg[3, station]
+            cf3 = self.cg[2, station]
+            cf4 = -self.omega * self.cg[0, station] + self.cg[1, station]
+            cf5 = self.cx[0, station]
+            cf6 = self.cx[6, station]
+            cf7 = self.omega * self.cx[1, station] + self.cx[2, station]
+            cf8 = self.cx[3, station]
+            cf9 = -self.omega * self.cx[1, station] + self.cx[2, station]
+
+            diagonal_entries = (
+                (0, 0, cf1),
+                (0, 1, cf2),
+                (0, 4, cf3),
+                (1, 0, cf2),
+                (1, 1, -cf1),
+                (1, 5, -cf3),
+                (2, 2, cf4),
+                (2, 3, cf2),
+                (2, 6, cf3),
+                (3, 2, cf2),
+                (3, 3, -cf4),
+                (3, 7, -cf3),
+                (4, 0, cf5),
+                (4, 1, cf6),
+                (4, 4, cf7),
+                (4, 5, cf8),
+                (5, 0, cf6),
+                (5, 1, -cf5),
+                (5, 4, cf8),
+                (5, 5, -cf7),
+                (6, 2, cf5),
+                (6, 3, cf6),
+                (6, 6, cf9),
+                (6, 7, cf8),
+                (7, 2, cf6),
+                (7, 3, -cf5),
+                (7, 6, cf8),
+                (7, 7, -cf9),
+            )
+            for r, c, value in diagonal_entries:
+                A[row0 + r, row0 + c] = value
+
+            forcing_direct = (
+                0.5 * (self.omega * self.cg[5, station] + self.cg[6, station]),
+                0.5 * (-self.omega * self.cg[5, station] + self.cg[6, station]),
+                -0.5 * self.cx[7, station],
+                -0.5 * self.cx[7, station],
+            )
+            forcing_cross = (
+                -forcing_direct[0],
+                forcing_direct[1],
+                -forcing_direct[3],
+                forcing_direct[2],
+            )
+            for r, direct, cross in zip(RHS_ROWS, forcing_direct, forcing_cross):
+                rhs[row0 + r, 0] = (
+                    self.pert_amplitude_direct / self.perturbation_eccentricity * direct
+                )
+                rhs[row0 + r, 1] = (
+                    self.pert_amplitude_cross / self.perturbation_eccentricity * cross
+                )
+
+        return A, rhs
+
+    def _solve_perturbation_system(self):
+        """Solve the perturbation system and extract the dynamic coefficients.
+
+        The perturbation pressures are integrated around the circumference and
+        along the seal to produce the direct and cross-coupled stiffness and
+        damping coefficients.
+        """
+        A, rhs = self._assemble_perturbation_system()
+
+        cnd = cond(A)
+        rcond = 1 / cnd
+        self.pert_condition_number = cnd
+        self.pert_rcond = rcond
+
+        if rcond <= 1 / 3.0e8:
+            raise ValueError(
+                "The perturbation system is almost singular "
+                f"(condition number {cnd:.3e}); no prediction is possible for "
+                "the dynamic coefficients at this operating condition."
+            )
+        if rcond <= 1 / 1.0e6:
+            warn(f"Array condition number is high \n array condition number e:{cnd}")
+
+        lu, piv = lu_factor(A)
+        solution = lu_solve((lu, piv), rhs)
+        solution_direct = solution[:, 0].reshape(self.n_cavities, PERTURBATION_DOFS)
+        solution_cross = solution[:, 1].reshape(self.n_cavities, PERTURBATION_DOFS)
+
+        kxx = np.sum(solution_direct[:, 1] + solution_direct[:, 3])
+        kxy = np.sum(solution_cross[:, 0] - solution_cross[:, 2])
+        cxx = np.sum(solution_direct[:, 0] - solution_direct[:, 2])
+        cxy = np.sum(solution_cross[:, 1] + solution_cross[:, 3])
+
+        scale_direct = (
+            np.pi
+            * self.shaft_radius
+            * self.pitch
+            * (self.perturbation_eccentricity / self.pert_amplitude_direct)
+        )
+        scale_cross = (
+            np.pi
+            * self.shaft_radius
+            * self.pitch
+            * (self.perturbation_eccentricity / self.pert_amplitude_cross)
+        )
+
+        self.kxx = scale_direct * kxx
+        self.kxy = scale_cross * kxy
+        self.kyx = -self.kxy
+        if self.omega != 0:
+            self.cxx = -scale_direct / self.omega * cxx
+            self.cxy = scale_cross / self.omega * cxy
+            self.cyx = -self.cxy
+        else:
+            self.cxx = 0
+            self.cxy = 0
+            self.cyx = 0
 
 
 class LabyrinthSeal(SealElement):
@@ -18,7 +697,9 @@ class LabyrinthSeal(SealElement):
 
     This class provides a **comprehensive analytical model** for labyrinth seals
     based on compressible gas flow through multiple throttling stages (teeth). The
-    model calculates leakage rates and dynamic coefficients for rotordynamic analysis.
+    model calculates leakage rates and dynamic coefficients for rotordynamic
+    analysis. The flow solution itself is computed by :class:`LabyrinthSolver`,
+    available as the ``solver`` attribute.
 
     **Theoretical Approach:**
 
@@ -32,7 +713,7 @@ class LabyrinthSeal(SealElement):
        - Carry-over factor (ν) for flow momentum between cavities
 
     2. **Pressure Distribution**:
-       - Solves for static pressure at each cavity using regula falsi method
+       - Solves for static pressure at each cavity using bracketed root-finding
        - Handles both choked and unchoked flow conditions
        - Critical pressure ratio check at each throttle
        - Pressure balance ensures outlet pressure match
@@ -60,7 +741,7 @@ class LabyrinthSeal(SealElement):
     radial_clearance : float, pint.Quantity
         Nominal radial clearance (m).
     n_teeth : int
-        Number of teeth (throttlings). Needs to be <= 30.
+        Number of teeth (throttlings). Must be at least 2.
     pitch : float, pint.Quantity
         Seal pitch (length of land) or axial cavity length (m).
     tooth_height : float, pint.Quantity
@@ -85,7 +766,8 @@ class LabyrinthSeal(SealElement):
         and negative values for swirl against shaft rotations.
     gas_composition : dict, optional
         Gas composition as a dictionary {component: molar_fraction}.
-        If gas_composition is None, provide molar, gamma, tz, and muz parameters.
+        If gas_composition is None, provide molar_mass, gamma,
+        reference_temperatures, and reference_viscosities parameters.
         Default is None.
     gas_model : str, optional
         Thermodynamic model used by the internal flow solver.
@@ -95,28 +777,24 @@ class LabyrinthSeal(SealElement):
         density, temperature, sound speed, enthalpy and choking along the inlet
         isentrope from a table built once at construction. Requires gas_composition.
         Default is "ideal".
-    molar : float, pint.Quantity, optional
-        Molecular mass (kg/kgmol). For Air: molar=28.97 kg/kgmol.
+    molar_mass : float, pint.Quantity, optional
+        Molecular mass (kg/kgmol). For Air: molar_mass=28.97 kg/kgmol.
         Required if gas_composition is None. Default is None.
     gamma : float, optional
         Ratio of specific heats. Required if gas_composition is None.
         Default is None.
-    tz : list of float, optional
+    reference_temperatures : list of float, optional
         Temperature at states: [T_state1, T_state2] (deg K).
         Required if gas_composition is None.
         Default is None.
-    muz : list of float, optional
+    reference_viscosities : list of float, optional
         Dynamic viscosity at states: [mu_state1, mu_state2] (kg/(m·s)).
         Required if gas_composition is None.
         Default is None.
-    nprt : int, optional
-        Number of parameters to be printed in the output: 1 maximum, 5 minimum.
-        Default is 1.
-    iopt1 : int, optional
-        Use or no use of tangential momentum parameters introduced by Jenny and Kanki.
-        Specify value 0 to not use parameters.
-        Specify value 1 to use parameters.
-        Default is 0.
+    use_jenny_kanki : bool, optional
+        If True, use the tangential momentum parameters introduced by Jenny
+        and Kanki in the swirl velocity calculation.
+        Default is False.
     print_results : bool, optional
         If True, print results to console.
         Default is False.
@@ -156,6 +834,8 @@ class LabyrinthSeal(SealElement):
     ... )
     """
 
+    _pressure_plot_label = "Labyrinth Seal"
+
     @check_units
     def __init__(
         self,
@@ -174,31 +854,38 @@ class LabyrinthSeal(SealElement):
         preswirl,
         gas_composition=None,
         gas_model="ideal",
-        molar=None,
+        molar_mass=None,
         gamma=None,
-        tz=None,
-        muz=None,
-        nprt=1,
-        iopt1=0,
+        reference_temperatures=None,
+        reference_viscosities=None,
+        use_jenny_kanki=False,
         print_results=False,
         **kwargs,
     ):
+        if seal_type not in ("rotor", "stator", "inter"):
+            raise ValueError(
+                f"Invalid seal_type {seal_type!r}; expected 'rotor', 'stator' "
+                "or 'inter'."
+            )
+        if n_teeth < 2:
+            raise ValueError("The labyrinth model requires at least 2 teeth.")
+
         self.print_results = print_results
         self.gas_composition = gas_composition
         self.gas_model = gas_model
 
         if self.gas_composition is not None:
-            state_in, molar, gamma, R = extract_gas_properties(
+            state_in, molar_mass, gamma, R = extract_gas_properties(
                 self.gas_composition, inlet_pressure, inlet_temperature
             )
             state_out = ccp.State(
                 p=outlet_pressure, h=state_in.h(), fluid=self.gas_composition
             )
         else:
-            R = 8314.0 / molar  # Universal gas constant (J/(kmol·K)) over molar mass.
+            R = 8314.0 / molar_mass  # Universal gas constant over molar mass.
 
         self.R = R
-        self.molar = molar
+        self.molar_mass = molar_mass
         self.gamma = gamma
 
         if self.gas_model == "real":
@@ -215,24 +902,21 @@ class LabyrinthSeal(SealElement):
                 outlet_pressure=outlet_pressure,
                 inlet_temperature=inlet_temperature,
             )
-            self._real_gas = True
         elif self.gas_model == "ideal":
             self.gas = IdealGas(self.R, self.gamma)
-            self._real_gas = False
         else:
             raise ValueError(
                 f"Invalid gas_model {self.gas_model!r}; expected 'ideal' or 'real'."
             )
+        self._real_gas = self.gas_model == "real"
 
-        if tz is None:
-            # tz: Temperature at state 1 e 2 (deg K)
-            tz = [state_in.T().m, state_out.T().m]
-        if muz is None:
-            # muz: Dynamic viscosity at state 1 e 2 (kg/(m s))
-            muz = [state_in.viscosity().m, state_out.viscosity().m]
+        if reference_temperatures is None:
+            reference_temperatures = [state_in.T().m, state_out.T().m]
+        if reference_viscosities is None:
+            reference_viscosities = [state_in.viscosity().m, state_out.viscosity().m]
 
-        self.tz = tz
-        self.muz = muz
+        self.reference_temperatures = reference_temperatures
+        self.reference_viscosities = reference_viscosities
 
         self.n = n
         self.inlet_pressure = inlet_pressure
@@ -247,47 +931,35 @@ class LabyrinthSeal(SealElement):
         self.tooth_height = tooth_height
         self.tooth_width = tooth_width
         self.seal_type = seal_type
+        self.use_jenny_kanki = use_jenny_kanki
 
-        self.nprt = nprt
-        self.iopt1 = iopt1
+        self.z = np.arange(n_teeth + 1) * pitch
 
-        self.m_x = 61
-        self.pitch = np.full(self.m_x, pitch)
-        self.radial_clearance = np.full(self.m_x, radial_clearance)
-        self.tooth_height = np.full(self.m_x, tooth_height)
-        self.pr = np.zeros(self.m_x)
-        self.tooth_width = np.full(self.m_x, tooth_width)
-
-        self.z = np.zeros(self.m_x)
-        for i in range(0, self.n_teeth + 1):
-            self.z[i] = i * self.pitch[i]
-
-        self.p = np.zeros(self.m_x)
-        self.v = np.zeros(self.m_x)
-        self.w = np.zeros(self.m_x)
-        self.p1 = np.zeros(self.m_x)
-        self.v1 = np.zeros(self.m_x)
-        self.t = np.zeros(self.m_x)
-        self.rho = np.zeros(self.m_x)
-        self.taus = np.zeros(self.m_x)
-        self.taur = np.zeros(self.m_x)
-        self.gm = np.zeros((1000, 500))
-        self.rhs = np.zeros((1000, 2))
-        self.cg = np.zeros((9, self.m_x))
-        self.cx = np.zeros((8, self.m_x))
-        self.vin = np.zeros(self.m_x)
-        self.vout = np.zeros(self.m_x)
-        self.kout = np.zeros(self.m_x)
+        self.solver = LabyrinthSolver(
+            shaft_radius=self._shaft_radius,
+            radial_clearance=radial_clearance,
+            n_teeth=n_teeth,
+            pitch=pitch,
+            tooth_height=tooth_height,
+            tooth_width=tooth_width,
+            seal_type=seal_type,
+            inlet_pressure=inlet_pressure,
+            outlet_pressure=outlet_pressure,
+            inlet_temperature=inlet_temperature,
+            preswirl=preswirl,
+            gas=self.gas,
+            R=self.R,
+            reference_temperatures=reference_temperatures,
+            reference_viscosities=reference_viscosities,
+            use_jenny_kanki=use_jenny_kanki,
+            print_results=print_results,
+        )
 
         coefficients_dict = {}
         if kwargs.get("kxx") is None:
-            # Use multiprocessing only when beneficial (>4 frequencies)
-            # For small workloads, sequential execution avoids process spawn overhead
-            if len(frequency) > 4:
-                with multiprocessing.Pool() as pool:
-                    results = pool.map(self.run, frequency)
-            else:
-                results = [self.run(freq) for freq in frequency]
+            results = solve_frequencies(
+                self.solver.solve, frequency, parallel_threshold=4
+            )
 
             self.p = [r["pressure"] for r in results]
 
@@ -305,1084 +977,3 @@ class LabyrinthSeal(SealElement):
             **coefficients_dict,
             **kwargs,
         )
-
-    def derv(self):
-        error = 10000
-        tol = 1 * 10**-7
-        guess_low = 0.001
-        guess = 0.8
-        guess_high = 0.99
-        n = 0
-        while n < self.n_teeth:
-            r = guess
-            deriv_num = -2 * (n + 1) + 2 * r * np.log(r) + 1 / r - r
-            deriv_den = ((1 - r**2) ** 0.5) * ((n - np.log(r)) ** 1.5)
-            deriv = deriv_num / deriv_den
-            error = -deriv
-            while abs(error) > tol:
-                if error < 0:
-                    guess_low = guess
-                    guess = (guess + guess_high) / 2
-                if error > 0:
-                    guess_high = guess
-                    guess = (guess + guess_low) / 2
-                r = guess
-                deriv_num = -2 * (n + 1) + 2 * r * np.log(r) + 1 / r - r
-                deriv_den = ((1 - r**2) ** 0.5) * ((n - np.log(r)) ** 1.5)
-                deriv = deriv_num / deriv_den
-                error = -deriv
-            self.r_choke[n] = guess
-            self.tooth_height_choke[n] = (
-                (1 - self.r_choke[n] ** 2) / ((n + 1) - np.log(self.r_choke[n]))
-            ) ** 0.5
-            n += 1
-            error = 10000
-            guess_low = 0.001
-            guess = 0.8
-            guess_high = 0.99
-        if self.pg < self.r_choke[self.n_teeth]:
-            self.tooth_heighteta_nt = self.tooth_height_choke[self.n_teeth]
-        else:
-            self.tooth_heighteta_nt = (
-                (1 - self.pg**2) / (self.n_teeth - np.log(self.pg))
-            ) ** 0.5
-
-    def _reset_perturbation_arrays(self):
-        """Reset perturbation and velocity-coupling workspace arrays.
-        Zeros ``gm``, ``rhs``, ``cg``, ``cx``, ``taur``, and ``taus`` before
-        each base-flow and perturbation solve in ``setup()``.
-        """
-        self.gm.fill(0)
-        self.rhs.fill(0)
-        self.cg.fill(0)
-        self.cx.fill(0)
-        self.taur.fill(0)
-        self.taus.fill(0)
-
-    def setup(self):
-        self.epslon = 0.6
-        self.awrl = self.epslon * self.radial_clearance[0]
-        self.tooth_heightwrl = self.epslon * self.radial_clearance[0]
-        self.nc = self.n_teeth - 1
-        self.np = self.n_teeth + 1
-
-        self._reset_perturbation_arrays()
-
-        self.ndof = 8 * self.nc
-        self.nbw = 33
-        self.nbc = 17
-
-        for i in range(0, self.np):
-            self.w[i] = 0
-            self.pr[i] = 0
-            self.p[i] = 0
-            self.v[i] = 0
-            self.p1[i] = 0
-            self.v1[i] = 0
-            self.rho[i] = 0
-            self.t[i] = self.inlet_temperature
-
-        self.pg = self.outlet_pressure / self.inlet_pressure
-        self.omega = self.frequency
-
-    def vermes(self):
-        sg = self.tooth_width[0] / self.radial_clearance[0]
-        self.alphav = (
-            0.67675
-            - (0.08519 * sg)
-            + (0.0878 * (sg**2))
-            - (0.01819 * (sg**3))
-            + (0.00111 * (sg**4))
-        )
-        self.vnu = 8.52 / (
-            ((self.pitch[0] - self.tooth_width[0]) / self.radial_clearance[0]) + 7.23
-        )
-        if self.seal_type == "inter":
-            self.vnu = 0
-        if self.vnu >= 1:
-            raise ValueError(f"Error vermes: vnu ({self.vnu:.4f}), alpha > 1.")
-
-        vg = 1 / (1 - self.vnu) ** 0.5
-        self.r_choke = [0] * self.m_x
-        self.tooth_height_choke = [0] * self.m_x
-        self.derv()
-        self.gve = 1.014 * self.alphav * vg * self.tooth_heighteta_nt
-
-        if self.seal_type == "inter":
-            self.gve = self.gve / 1.014
-        self.mdotv = (
-            self.gve
-            * self.inlet_pressure
-            * self.radial_clearance[0]
-            / (self.R * self.inlet_temperature) ** 0.5
-        )
-        leakv = (
-            self.mdotv
-            * 2
-            * np.pi
-            * (self._shaft_radius + 0.5 * self.radial_clearance[0])
-        )
-        if self.print_results:
-            print(f"{'   Leakage':<40} {leakv:>15.8f} kg/s \n \n")
-        self.mdot = self.mdotv
-
-    def zpres(self):
-        prgs = [0] * 3
-        fpr = [0] * 3
-        gam1 = 1 / self.gamma
-        gam2 = (self.gamma - 1) / self.gamma
-        gam3 = 2 / gam2
-        gam4 = self.R * gam3
-        gam5 = 1 / gam2
-        gam6 = 1 / (self.gamma - 1)
-        gam7 = 2 / (self.gamma + 1)
-        gam8 = self.gamma * 2 / (self.gamma + 1)
-
-        tol1 = 1 * 10 ** (-8)
-        itmx1 = 100
-        ndex1 = 0
-
-        tol_outlet_pressure = 0.00001
-        tol_choked = 0.005
-
-        tol_p = 1 * 10 ** (-4)
-        a2998 = True
-
-        while True:
-            asaida = True
-            if a2998:
-                mdot_high = self.mdot * 5
-                mdot_low = 0
-                a2998 = False
-            if ndex1 < 1:
-                self.w[0] = 0
-                self.p[0] = self.inlet_pressure
-                self.rho[0] = self.gas.inlet_density(self.p[0], self.t[0])
-                prold = 1 * 10 ** (10)
-                if self._real_gas:
-                    chok2 = self.gas.critical_pr(
-                        self.p[self.n_teeth - 1],
-                        self.w[self.n_teeth - 1],
-                        self.vnu,
-                        self.t[self.n_teeth - 1],
-                    )
-                else:
-                    chok1 = gam7 + (
-                        self.vnu
-                        * self.w[self.n_teeth - 1]
-                        * self.w[self.n_teeth - 1]
-                        / (gam4 * self.t[self.n_teeth - 1])
-                    )
-                    chok2 = chok1**gam5
-            for i in range(1, self.n_teeth + 1):
-                if i is self.n_teeth:
-                    prgs[0] = chok2
-                else:
-                    prgs[0] = chok2
-
-                prgs[1] = 0.9999999
-                for j in range(0, 2):
-                    fpr[j] = self.gas.throttle_mass_flux(
-                        self.alphav,
-                        self.radial_clearance[i - 1],
-                        self.p[i - 1],
-                        prgs[j],
-                        self.rho[i - 1],
-                        self.t[i - 1],
-                        self.w[i - 1],
-                        self.vnu,
-                    )
-                    fpr[j] = self.mdot - fpr[j]
-                if fpr[0] > 0:
-                    fpr[0] = 0
-                for itn in range(0, itmx1):
-                    prgs[2] = (prgs[0] * fpr[1] - prgs[1] * fpr[0]) / (fpr[1] - fpr[0])
-                    fpr[2] = self.gas.throttle_mass_flux(
-                        self.alphav,
-                        self.radial_clearance[i - 1],
-                        self.p[i - 1],
-                        prgs[2],
-                        self.rho[i - 1],
-                        self.t[i - 1],
-                        self.w[i - 1],
-                        self.vnu,
-                    )
-                    a2001 = True
-                    if prgs[2] <= chok2:
-                        a2001 = False
-                        error_outlet_pressure = 0
-                        break
-                    fpr[2] = self.mdot - fpr[2]
-
-                    if fpr[2] * fpr[0] < 0:
-                        prgs[1] = prgs[2]
-                        fpr[1] = fpr[2]
-                    elif fpr[2] * fpr[0] == 0:
-                        if fpr[0] == 0:
-                            prgs[2] = prgs[0]
-                            fpr[2] = fpr[0]
-                            prgs[1] = prgs[0]
-                            fpr[1] = fpr[0]
-                        else:
-                            prgs[1] = prgs[2]
-                            fpr[1] = fpr[2]
-                            prgs[0] = prgs[2]
-                            fpr[0] = fpr[2]
-                            break
-                    elif fpr[2] * fpr[0] > 0:
-                        prgs[0] = prgs[2]
-                        fpr[0] = fpr[2]
-                    if abs((prgs[2] - prold) / prgs[2]) <= tol1:
-                        break
-                    prold = prgs[2]
-
-                if not a2001:
-                    break
-                if abs(fpr[2]) > tol_p:
-                    warn(f"Pressure Convergence Error at Station {i}")
-
-                self.pr[i - 1] = prgs[2]
-                self.p[i] = self.pr[i - 1] * self.p[i - 1]
-                self.w[i] = self.gas.throat_velocity(
-                    self.mdot,
-                    self.alphav,
-                    self.radial_clearance[i - 1],
-                    self.p[i - 1],
-                    self.pr[i - 1],
-                    self.t[i - 1],
-                )
-                self.rho[i] = self.gas.density_isentropic(
-                    self.p[i - 1], self.pr[i - 1], self.rho[i - 1]
-                )
-                self.t[i] = self.gas.temperature_isentropic(
-                    self.p[i - 1], self.pr[i - 1], self.t[i - 1]
-                )
-
-            if a2001:
-                i = self.np - 1
-                if self._real_gas:
-                    chock2 = self.gas.critical_pr(
-                        self.p[i - 1], self.w[i - 1], self.vnu, self.t[i - 1]
-                    )
-                else:
-                    chock1 = gam7 + (
-                        self.vnu
-                        * self.w[i - 1]
-                        * self.w[i - 1]
-                        / (gam4 * self.t[i - 1])
-                    )
-                    chock2 = chock1**gam5
-                error_outlet_pressure = (
-                    self.p[self.np - 1] - self.outlet_pressure
-                ) / self.outlet_pressure
-                if ndex1 == 1:
-                    break
-            if (
-                abs(error_outlet_pressure) >= tol_outlet_pressure
-                and abs(self.pr[self.np - 2] - chock2) / chock2 > tol_choked
-            ) or not a2001:
-                if error_outlet_pressure < 0 or not a2001:
-                    mdot_tmp = self.mdot
-                    self.mdot = (mdot_low + self.mdot) / 2
-                    mdot_high = mdot_tmp
-                    if (self.mdot - mdot_tmp) / self.mdot == 0:
-                        if self.print_results:
-                            print("Reset iteration")
-                        ndex1 = 2
-                        a2998 = True
-                elif error_outlet_pressure >= 0:
-                    mdot_tmp = self.mdot
-                    self.mdot = (mdot_high + self.mdot) / 2
-                    mdot_low = mdot_tmp
-                    if (self.mdot - mdot_tmp) / self.mdot == 0:
-                        if self.print_results:
-                            print("Reset iteration")
-                        ndex1 = 2
-                        a2998 = True
-                asaida = False
-            if asaida:
-                break
-
-        i = self.np - 1
-        if self._real_gas:
-            chok2 = self.gas.critical_pr(
-                self.p[i - 1], self.w[i - 1], self.vnu, self.t[i - 1]
-            )
-        else:
-            chok1 = gam7 + (
-                self.vnu * self.w[i - 1] * self.w[i - 1] / (gam4 * self.t[i - 1])
-            )
-            chok2 = chok1**gam5
-
-        if ndex1 != 1:
-            leak = (
-                self.mdot
-                * 2
-                * np.pi
-                * (self._shaft_radius + 0.5 * self.radial_clearance[0])
-            )
-
-        if ndex1 != 1 and abs(self.pr[self.np - 2] - chok2) / chok2 <= tol_choked:
-            warn("Flow Chocked in Last Thottle")
-            ndex1 = 1
-        if (self.pr[self.n_teeth - 1]) > 1:
-            raise ValueError("Error in Leakage Calculation")
-
-        if self.nprt > 4:
-            return
-
-        if self.print_results:
-            print(f"{'   Leakage':<40} {leak:>15.8f} kg/s \n")
-
-    def zvel_jen(self):
-        vgs = np.zeros(3)
-        fv = np.zeros(3)
-        rov = np.zeros(3)
-        tr = np.zeros(3)
-        ts = np.zeros(3)
-
-        if self.omega == 0 and self.inlet_swirl_velocity == 0:
-            return
-
-        jc = 0
-        if self.seal_type == "stator":
-            jc = 0.15
-        elif self.seal_type == "rotor":
-            jc = 0.35
-        elif self.seal_type == "inter":
-            jc = 0.90
-        else:
-            raise ValueError("Improper selection of labyrinth type.")
-
-        bmr = -0.25
-        bms = -0.25
-        bnr = 0.079
-        bns = 0.079
-
-        if self.seal_type == "inter":
-            ar = (1 * self.tooth_height[0] + self.pitch[0]) / self.pitch[0]
-            as_py = (1 * self.tooth_height[0] + self.pitch[0]) / self.pitch[0]
-        elif self.seal_type == "stator":
-            as_py = (2 * self.tooth_height[0] + self.pitch[0]) / self.pitch[0]
-            ar = 1
-        else:
-            ar = (2 * self.tooth_height[0] + self.pitch[0]) / self.pitch[0]
-            as_py = 1
-
-        dh = (
-            2
-            * (self.radial_clearance[0] + self.tooth_height[0])
-            * self.pitch[0]
-            / (self.radial_clearance[0] + self.tooth_height[0] + self.pitch[0])
-        )
-        area = (self.tooth_height[0] + self.radial_clearance[0]) * self.pitch[0]
-
-        self.v[0] = self.inlet_swirl_velocity
-        self.vin[0] = self.inlet_swirl_velocity
-        self.vout[0] = self.inlet_swirl_velocity
-        self.taur[0] = 0
-        self.taus[0] = 0
-        itmx2 = 40
-        tol2 = 1 * 10 ** (-8)
-        vold = 1 * 10 ** (10)
-
-        if self.gas_composition == "AIR":
-            sb = 1.426086 * 10 ** (-6)
-            ss = 100
-        else:
-            phi1 = (self.tz[0] ** 1.5) / self.muz[0]
-            phi2 = (self.tz[1] ** 1.5) / self.muz[1]
-            sb = (self.tz[1] - self.tz[0]) / (phi2 - phi1)
-            ss = (sb * phi1) - self.tz[0]
-        for i in range(1, self.n_teeth):
-            self.vin[i] = self.vout[i - 1]
-            mu = sb * (self.t[i]) ** 0.5 / (1 + (ss / self.t[i]))
-            self.nu = mu / self.rho[i]
-            vgs[1] = self.gas.sound_speed(self.p[i], self.t[i])
-            vgs[0] = -vgs[1]
-
-            rov[0] = (self._shaft_radius * self.omega) - vgs[0]
-            rov[1] = (self._shaft_radius * self.omega) - vgs[1]
-
-            for j in range(0, 2):
-                tr[j] = (
-                    0.5
-                    * self.rho[i]
-                    * rov[j]
-                    * rov[j]
-                    * bnr
-                    * ((abs(rov[j]) * dh / self.nu) ** bmr)
-                    * np.copysign(1, rov[j])
-                )
-                ts[j] = (
-                    0.5
-                    * self.rho[i]
-                    * vgs[j]
-                    * vgs[j]
-                    * bns
-                    * ((abs(vgs[j]) * dh / self.nu) ** bms)
-                    * np.copysign(1, vgs[j])
-                )
-                fv[j] = (self.mdot * jc * (vgs[j] - self.vin[i])) - (
-                    self.pitch[0] * (tr[j] * ar - ts[j] * as_py)
-                )
-
-            for itn2 in range(0, itmx2):
-                vgs[2] = (vgs[0] * fv[1] - vgs[1] * fv[0]) / (fv[1] - fv[0])
-                rov[2] = (self._shaft_radius * self.omega) - vgs[2]
-                tr[2] = (
-                    0.5
-                    * self.rho[i]
-                    * rov[2]
-                    * rov[2]
-                    * bnr
-                    * ((abs(rov[2]) * dh / self.nu) ** bmr)
-                    * np.copysign(1, rov[2])
-                )
-                ts[2] = (
-                    0.5
-                    * self.rho[i]
-                    * vgs[2]
-                    * vgs[2]
-                    * bns
-                    * ((abs(vgs[2]) * dh / self.nu) ** bms)
-                    * np.copysign(1, vgs[2])
-                )
-                fv[2] = (self.mdot * (vgs[2] - self.vin[i])) - (
-                    self.pitch[0] * (tr[2] * ar - ts[2] * as_py)
-                )
-
-                if fv[2] * fv[0] < 0:
-                    vgs[1] = vgs[2]
-                    fv[1] = fv[2]
-                    rov[1] = rov[2]
-                    tr[1] = tr[2]
-                    ts[1] = ts[2]
-
-                    if abs((vgs[2] - vold) / vgs[2]) > tol2:
-                        vold = vgs[2]
-                    else:
-                        break
-
-                elif fv[2] * fv[0] == 0:
-                    if fv[1] == 0:
-                        vgs[1] = vgs[0]
-                        fv[1] = fv[0]
-                        vgs[2] = vgs[0]
-                        fv[2] = fv[0]
-                        rov[1] = rov[0]
-                        tr[1] = tr[0]
-                        ts[1] = ts[0]
-                        rov[2] = rov[0]
-                        tr[2] = tr[0]
-                        ts[2] = ts[0]
-
-                    else:
-                        vgs[1] = vgs[2]
-                        fv[1] = fv[2]
-                        vgs[0] = vgs[2]
-                        fv[0] = fv[2]
-                        rov[1] = rov[2]
-                        tr[1] = tr[2]
-                        ts[1] = ts[2]
-                        rov[0] = rov[2]
-                        tr[0] = tr[2]
-                        ts[0] = ts[2]
-                    break
-                else:
-                    vgs[0] = vgs[2]
-                    fv[0] = fv[2]
-                    rov[0] = rov[2]
-                    tr[0] = tr[2]
-                    ts[0] = ts[2]
-
-                    if abs((vgs[2] - vold) / vgs[2]) > tol2:
-                        vold = vgs[2]
-                    else:
-                        break
-            if abs(fv[2] > 0.001):
-                warn(f"Velocity Convergence Error at station {i}")
-
-            self.v[i] = vgs[2]
-            self.vout[i] = self.vin[i] * (1 - jc) + self.v[i] * jc
-            self.kout[i] = self.vout[i] / self.v[i]
-            self.taur[i] = tr[2]
-            self.taus[i] = ts[2]
-
-            self.cg[0][i] = self.gas.cg0(area, self.p[i], self.t[i])
-            self.cg[1][i] = (self.v[i] / self._shaft_radius) * self.cg[0][i]
-            self.cg[2][i] = (self.p[i] / self._shaft_radius) * self.cg[0][i]
-            self.cg[3][i] = (
-                self.mdot
-                * self.p[i]
-                * (
-                    1 / (self.p[i] ** 2 - self.p[i + 1] ** 2)
-                    + 1 / (self.p[i - 1] ** 2 - self.p[i] ** 2)
-                )
-            )
-            self.cg[4][i] = (
-                -self.mdot * self.p[i + 1] / (self.p[i] ** 2 - self.p[i + 1] ** 2)
-            )
-            self.cg[5][i] = -self.rho[i] * self.pitch[1]
-            self.cg[6][i] = (self.v[i] / self._shaft_radius) * self.cg[5][i]
-            self.cg[7][i] = (
-                -self.mdot * self.p[i - 1] / (self.p[i - 1] ** 2 - self.p[i] ** 2)
-            )
-            self.cg[8][i] = -self.cg[7][i] * jc * (self.v[i] - self.vin[i])
-
-            self.cx[0][i] = area / self._shaft_radius
-            self.cx[1][i] = self.rho[i] * area
-            self.cx[2][i] = (self.v[i] / self._shaft_radius) * self.cx[1][i]
-            cxx1 = ((2 + bms) * self.taus[i] * as_py * self.pitch[0]) / self.v[i]
-            cxx2 = ((2 + bmr) * self.taur[i] * ar * self.pitch[0]) / rov[2]
-            self.cx[3][i] = self.mdot * self.kout[i] + cxx1 + cxx2
-            self.cx[4][i] = -self.mdot * self.kout[i - 1]
-            self.cx[5][i] = (self.mdot / self.p[i + 1]) * self.v[i]
-            self.cx[5][i] = 0
-            self.cx[6][i] = -self.mdot * jc * (self.v[i] - self.vin[i]) * self.p[i] / (
-                self.p[i - 1] ** 2 - self.p[i] ** 2
-            ) + (
-                (self.taus[i] * as_py - self.taur[i] * ar) * (self.pitch[1] / self.p[i])
-            )
-            cxx3 = (-bms * self.taus[i] * as_py + bmr * self.taur[i] * ar) * (
-                self.pitch[0]
-                * dh
-                / (2 * (self.radial_clearance[0] + self.tooth_height[0]) ** 2)
-            )
-            self.cx[7][i] = (self.mdot / self.radial_clearance[0]) * jc * (
-                self.vin[i] - self.v[i]
-            ) + cxx3
-
-        if self.nprt > 3:
-            return
-
-    def zvel(self):
-        vgs = np.zeros(3)
-        fv = np.zeros(3)
-        rov = np.zeros(3)
-        tr = np.zeros(3)
-        ts = np.zeros(3)
-
-        if self.omega == 0 and self.inlet_swirl_velocity == 0:
-            return
-
-        bmr = -0.25
-        bms = -0.25
-        bnr = 0.079
-        bns = 0.079
-
-        if self.seal_type == "inter":
-            ar = (self.tooth_height[0] + self.pitch[0]) / self.pitch[0]
-            as_py = (self.tooth_height[0] + self.pitch[0]) / self.pitch[0]
-        elif self.seal_type == "rotor":
-            ar = (2 * self.tooth_height[0] + self.pitch[0]) / self.pitch[0]
-            as_py = 1
-        else:
-            as_py = (2 * self.tooth_height[0] + self.pitch[0]) / self.pitch[0]
-            ar = 1
-
-        dh = (
-            2
-            * (self.radial_clearance[0] + self.tooth_height[0])
-            * self.pitch[0]
-            / (self.radial_clearance[0] + self.tooth_height[0] + self.pitch[0])
-        )
-        area = (self.tooth_height[0] + self.radial_clearance[0]) * self.pitch[0]
-
-        self.v[0] = self.inlet_swirl_velocity
-        self.taur[0] = 0
-        self.taus[0] = 0
-        itmx2 = 40
-        tol2 = 1 * 10 ** (-8)
-        vold = 1 * 10 ** (10)
-
-        if self.gas_composition == "AIR":
-            sb = 1.426086 * 10 ** (-6)
-            ss = 100
-        else:
-            phi1 = (self.tz[0] ** 1.5) / self.muz[0]
-            phi2 = (self.tz[1] ** 1.5) / self.muz[1]
-            sb = (self.tz[1] - self.tz[0]) / (phi2 - phi1)
-            ss = (sb * phi1) - self.tz[0]
-
-        for i in range(1, self.n_teeth):
-            mu = sb * (self.t[i]) ** 0.5 / (1 + (ss / self.t[i]))
-            self.nu = mu / self.rho[i]
-            vgs[1] = self.gas.sound_speed(self.p[i], self.t[i])
-            vgs[0] = -vgs[1]
-
-            rov[0] = (self._shaft_radius * self.omega) - vgs[0]
-            rov[1] = (self._shaft_radius * self.omega) - vgs[1]
-            for j in range(0, 2):
-                tr[j] = (
-                    0.5
-                    * self.rho[i]
-                    * rov[j]
-                    * rov[j]
-                    * bnr
-                    * ((abs(rov[j]) * dh / self.nu) ** bmr)
-                    * np.copysign(1, rov[j])
-                )
-                ts[j] = (
-                    0.5
-                    * self.rho[i]
-                    * vgs[j]
-                    * vgs[j]
-                    * bns
-                    * ((abs(vgs[j]) * dh / self.nu) ** bms)
-                    * np.copysign(1, vgs[j])
-                )
-                fv[j] = (self.mdot * (vgs[j] - self.v[i - 1])) - (
-                    self.pitch[0] * (tr[j] * ar - ts[j] * as_py)
-                )
-            for itn2 in range(0, itmx2):
-                vgs[2] = (vgs[0] * fv[1] - vgs[1] * fv[0]) / (fv[1] - fv[0])
-                rov[2] = (self._shaft_radius * self.omega) - vgs[2]
-                tr[2] = (
-                    0.5
-                    * self.rho[i]
-                    * rov[2]
-                    * rov[2]
-                    * bnr
-                    * ((abs(rov[2]) * dh / self.nu) ** bmr)
-                    * np.copysign(1, rov[2])
-                )
-                ts[2] = (
-                    0.5
-                    * self.rho[i]
-                    * vgs[2]
-                    * vgs[2]
-                    * bns
-                    * ((abs(vgs[2]) * dh / self.nu) ** bms)
-                    * np.copysign(1, vgs[2])
-                )
-                fv[2] = (self.mdot * (vgs[2] - self.v[i - 1])) - (
-                    self.pitch[0] * (tr[2] * ar - ts[2] * as_py)
-                )
-
-                if fv[2] * fv[0] < 0:
-                    vgs[1] = vgs[2]
-                    fv[1] = fv[2]
-                    rov[1] = rov[2]
-                    tr[1] = tr[2]
-                    ts[1] = ts[2]
-                    if abs((vgs[2] - vold) / vgs[2]) > tol2:
-                        vold = vgs[2]
-                    else:
-                        break
-
-                elif fv[2] * fv[0] == 0:
-                    if fv[1] == 0:
-                        vgs[1] = vgs[0]
-                        fv[1] = fv[0]
-                        vgs[2] = vgs[0]
-                        fv[2] = fv[0]
-                        rov[1] = rov[0]
-                        tr[1] = tr[0]
-                        ts[1] = ts[0]
-                        rov[2] = rov[0]
-                        tr[2] = tr[0]
-                        ts[2] = ts[0]
-                    else:
-                        vgs[1] = vgs[2]
-                        fv[1] = fv[2]
-                        vgs[0] = vgs[2]
-                        fv[0] = fv[2]
-                        rov[1] = rov[2]
-                        tr[1] = tr[2]
-                        ts[1] = ts[2]
-                        rov[0] = rov[2]
-                        tr[0] = tr[2]
-                        ts[0] = ts[2]
-                    break
-                else:
-                    vgs[0] = vgs[2]
-                    fv[0] = fv[2]
-                    rov[0] = rov[2]
-                    tr[0] = tr[2]
-                    ts[0] = ts[2]
-                    if abs((vgs[2] - vold) / vgs[2]) > tol2:
-                        vold = vgs[2]
-                    else:
-                        break
-            if abs(fv[2] > 0.001) and self.print_results:
-                warn(f"Velocity Convergence Error at station {i}")
-
-            self.v[i] = vgs[2]
-            self.taur[i] = tr[2]
-            self.taus[i] = ts[2]
-
-            self.cg[0][i] = self.gas.cg0(area, self.p[i], self.t[i])
-            self.cg[1][i] = (self.v[i] / self._shaft_radius) * self.cg[0][i]
-            self.cg[2][i] = (self.p[i] / self._shaft_radius) * self.cg[0][i]
-            self.cg[3][i] = (
-                self.mdot
-                * self.p[i]
-                * (
-                    1 / (self.p[i] ** 2 - self.p[i + 1] ** 2)
-                    + 1 / (self.p[i - 1] ** 2 - self.p[i] ** 2)
-                )
-            )
-            self.cg[4][i] = (
-                -self.mdot * self.p[i + 1] / (self.p[i] ** 2 - self.p[i + 1] ** 2)
-            )
-            self.cg[5][i] = -self.rho[i] * self.pitch[1]
-            self.cg[6][i] = (self.v[i] / self._shaft_radius) * self.cg[5][i]
-            self.cg[7][i] = (
-                -self.mdot * self.p[i - 1] / (self.p[i - 1] ** 2 - self.p[i] ** 2)
-            )
-            self.cg[8][i] = -self.cg[7][i] * (self.v[i] - self.v[i - 1])
-            self.cx[0][i] = area / self._shaft_radius
-            self.cx[1][i] = self.rho[i] * area
-            self.cx[2][i] = (self.v[i] / self._shaft_radius) * self.cx[1][i]
-            cxx1 = ((2 + bms) * self.taus[i] * as_py * self.pitch[0]) / self.v[i]
-            cxx2 = ((2 + bmr) * self.taur[i] * ar * self.pitch[0]) / rov[2]
-            self.cx[3][i] = self.mdot + cxx1 + cxx2
-            self.cx[4][i] = -self.mdot
-            self.cx[5][i] = 0
-            self.cx[6][i] = -self.mdot * (self.v[i] - self.v[i - 1]) * self.p[i] / (
-                self.p[i - 1] ** 2 - self.p[i] ** 2
-            ) + (
-                (self.taus[i] * as_py - self.taur[i] * ar) * (self.pitch[1] / self.p[i])
-            )
-            cxx3 = (-bms * self.taus[i] * as_py + bmr * self.taur[i] * ar) * (
-                self.pitch[0]
-                * dh
-                / (2 * (self.radial_clearance[0] + self.tooth_height[0]) ** 2)
-            )
-            self.cx[7][i] = (self.mdot / self.radial_clearance[0]) * (
-                self.v[i - 1] - self.v[i]
-            ) + cxx3
-
-    def pert(self):
-        gmfull = np.zeros((1000, 1000))
-        rhs1 = np.zeros(self.nc * 8)
-        rhs2 = np.zeros(self.nc * 8)
-        val = np.zeros(28)
-        val2 = np.zeros(4)
-        val3 = np.zeros(4)
-
-        ir1 = [5, 6, 7, 8]
-        ic1 = [6, 5, 8, 7]
-        ir2 = [1, 2, 3, 4]
-        ic2 = [2, 1, 4, 3]
-        ir3 = [5, 6, 7, 8]
-        ic3 = [2, 1, 4, 3]
-        ir4 = [
-            1,
-            1,
-            1,
-            2,
-            2,
-            2,
-            3,
-            3,
-            3,
-            4,
-            4,
-            4,
-            5,
-            5,
-            5,
-            5,
-            6,
-            6,
-            6,
-            6,
-            7,
-            7,
-            7,
-            7,
-            8,
-            8,
-            8,
-            8,
-        ]
-        ic4 = [
-            1,
-            2,
-            5,
-            1,
-            2,
-            6,
-            3,
-            4,
-            7,
-            3,
-            4,
-            8,
-            1,
-            2,
-            5,
-            6,
-            1,
-            2,
-            5,
-            6,
-            3,
-            4,
-            7,
-            8,
-            3,
-            4,
-            7,
-            8,
-        ]
-        ir5 = [2, 4, 5, 7]
-        ic6 = [2, 1, 4, 3]
-        ir7 = [1, 2, 3, 4]
-        ic7 = [2, 1, 4, 3]
-
-        for i in range(0, self.nc):
-            for ict in range(0, 4):
-                if i != 0:
-                    irow = (i) * 8 + ir1[ict] - 1
-                    icol = (i - 1) * 8 + ic1[ict] - 1
-                    jcol = icol - irow + self.nbc - 1
-                    self.gm[irow][jcol] = self.cx[4][i + 1]
-
-                    icol = (i - 1) * 8 + ic6[ict] - 1
-                    jcol = icol - irow + self.nbc - 1
-                    self.gm[irow][jcol] = self.cg[8][i + 1]
-
-                    irow = (i) * 8 + ir7[ict] - 1
-                    icol = (i - 1) * 8 + ic7[ict] - 1
-                    jcol = icol - irow + self.nbc - 1
-                    self.gm[irow][jcol] = self.cg[7][i + 1]
-                if i != (self.nc - 1):
-                    irow = (i) * 8 + ir2[ict] - 1
-                    icol = (i + 1) * 8 + ic2[ict] - 1
-                    jcol = icol - irow + self.nbc - 1
-                    self.gm[irow][jcol] = self.cg[4][i + 1]
-
-                    irow = (i) * 8 + ir3[ict] - 1
-                    icol = (i + 1) * 8 + ic3[ict] - 1
-                    jcol = icol - irow + self.nbc - 1
-                    self.gm[irow][jcol] = self.cx[5][i + 1]
-            cf1 = self.omega * self.cg[0][i + 1] + self.cg[1][i + 1]
-            cf2 = self.cg[3][i + 1]
-            cf3 = self.cg[2][i + 1]
-            cf4 = -self.omega * self.cg[0][i + 1] + self.cg[1][i + 1]
-            cf5 = self.cx[0][i + 1]
-            cf6 = self.cx[6][i + 1]
-            cf7 = self.omega * self.cx[1][i + 1] + self.cx[2][i + 1]
-            cf8 = self.cx[3][i + 1]
-            cf9 = -self.omega * self.cx[1][i + 1] + self.cx[2][i + 1]
-
-            val[0] = cf1
-            val[1] = cf2
-            val[2] = cf3
-            val[3] = cf2
-            val[4] = -cf1
-            val[5] = -cf3
-            val[6] = cf4
-            val[7] = cf2
-            val[8] = cf3
-            val[9] = cf2
-            val[10] = -cf4
-            val[11] = -cf3
-            val[12] = cf5
-            val[13] = cf6
-            val[14] = cf7
-            val[15] = cf8
-            val[16] = cf6
-            val[17] = -cf5
-            val[18] = cf8
-            val[19] = -cf7
-            val[20] = cf5
-            val[21] = cf6
-            val[22] = cf9
-            val[23] = cf8
-            val[24] = cf6
-            val[25] = -cf5
-            val[26] = cf8
-            val[27] = -cf9
-
-            for ict in range(0, 28):
-                irow = i * 8 + ir4[ict] - 1
-                icol = i * 8 + ic4[ict] - 1
-                jcol = icol - irow + self.nbc - 1
-                self.gm[irow][jcol] = val[ict]
-            val2[0] = 0.5 * (self.omega * self.cg[5][i + 1] + self.cg[6][i + 1])
-            val2[1] = 0.5 * (-self.omega * self.cg[5][i + 1] + self.cg[6][i + 1])
-            val2[2] = -0.5 * self.cx[7][i + 1]
-            val2[3] = val2[2]
-            val3[0] = -val2[0]
-            val3[1] = val2[1]
-            val3[2] = -val2[3]
-            val3[3] = val2[2]
-
-            for ict in range(0, 4):
-                irow = i * 8 + ir5[ict] - 1
-                self.rhs[irow][0] = self.awrl / self.epslon * val2[ict]
-                self.rhs[irow][1] = self.tooth_heightwrl / self.epslon * val3[ict]
-        for i in range(0, 8 * self.nc):
-            for j in range(0, 33):
-                if i + j - 16 > (self.nc * 8) - 1 or i + j - 16 < -0.1:
-                    cont = 1
-                else:
-                    gmfull[i][i + j - 16] = self.gm[i][j]
-        A = gmfull[: 8 * self.nc, : 8 * self.nc].copy()
-        lu, piv = lu_factor(A)
-        for i in range(0, 8 * self.nc):
-            rhs1[i] = self.rhs[i][0]
-            rhs2[i] = self.rhs[i][1]
-        cnd = cond(A)
-        rcond = 1 / cnd
-        self.pert_condition_number = cnd
-        self.pert_rcond = rcond
-
-        if rcond <= 1 / 3.0e8:
-            warn("Almost singular matrix. \n No prediction for dynamic coefficients.")
-            quit()
-
-        if rcond <= 1 / 1.0e6:
-            warn(f"Array condition number is high \n array condition number e:{cnd}")
-
-        sol1 = lu_solve((lu, piv), rhs1)
-        sol2 = lu_solve((lu, piv), rhs2)
-        for i in range(0, 8 * self.nc):
-            self.rhs[i][0] = sol1[i]
-            self.rhs[i][1] = sol2[i]
-
-        self.kxx = 0
-        self.kxy = 0
-        self.cxx = 0
-        self.cxy = 0
-
-        for i in range(0, self.nc):
-            icnt = (i) * 8 - 1
-            self.kxx = self.kxx + self.rhs[icnt + 2][0] + self.rhs[icnt + 4][0]
-            self.kxy = self.kxy + self.rhs[icnt + 1][1] - self.rhs[icnt + 3][1]
-            self.cxx = self.cxx + self.rhs[icnt + 1][0] - self.rhs[icnt + 3][0]
-            self.cxy = self.cxy + self.rhs[icnt + 2][1] + self.rhs[icnt + 4][1]
-
-        self.kxx = (
-            np.pi
-            * self._shaft_radius
-            * self.pitch[1]
-            * (self.epslon / self.awrl)
-            * self.kxx
-        )
-        self.kxy = (
-            np.pi
-            * self._shaft_radius
-            * self.pitch[1]
-            * (self.epslon / self.tooth_heightwrl)
-            * self.kxy
-        )
-        self.kyx = -self.kxy
-        if self.omega != 0:
-            self.cxx = (
-                -np.pi
-                * self._shaft_radius
-                * self.pitch[1]
-                * (self.epslon / self.awrl)
-                / self.omega
-                * self.cxx
-            )
-            self.cxy = (
-                np.pi
-                * self._shaft_radius
-                * self.pitch[1]
-                * (self.epslon / self.tooth_heightwrl)
-                / self.omega
-                * self.cxy
-            )
-            self.cyx = -self.cxy
-        else:
-            self.cxx = 0
-            self.cxy = 0
-            self.cyx = 0
-
-    def run(self, frequency):
-        self.frequency = frequency
-        self.inlet_swirl_velocity = self.preswirl * self.frequency * self._shaft_radius
-        self.setup()
-        self.vermes()
-        self.zpres()
-        if self.iopt1 == 0:
-            self.zvel()
-        elif self.iopt1 == 1:
-            self.zvel_jen()
-        self.pert()
-
-        attrbute_coef = {
-            "kxx": "kxx",
-            "kyy": "kxx",
-            "kxy": "kxy",
-            "kyx": "kyx",
-            "cxx": "cxx",
-            "cyy": "cxx",
-            "cxy": "cxy",
-            "cyx": "cyx",
-            "pressure": "p",
-        }
-        coefficients_dict = {k: getattr(self, v) for k, v in attrbute_coef.items()}
-        coefficients_dict["seal_leakage"] = (
-            self.mdot
-            * 2
-            * np.pi
-            * (self._shaft_radius + 0.5 * self.radial_clearance[0])
-        )
-        coefficients_dict["pert_rcond"] = self.pert_rcond
-        coefficients_dict["pert_condition_number"] = self.pert_condition_number
-
-        return coefficients_dict
-
-    def plot_pressure_distribution(
-        self, pressure_units="MPa", length_units="m", fig=None, **kwargs
-    ):
-        """Plot pressure distribution for the labyrinth seal.
-
-        Parameters
-        ----------
-        pressure_units : str, optional
-            Pressure units for plotting.
-            Default is "MPa".
-        length_units : str, optional
-            Length units for axial position.
-            Default is "m".
-        fig : Plotly graph_objects.Figure(), optional
-            The figure object with the plot. If None, creates a new figure.
-        kwargs : optional
-            Additional key word arguments can be passed to change the plot layout only
-            (e.g. width=1000, height=800, ...).
-            *See Plotly Python Figure Reference for more information.
-
-        Returns
-        -------
-        fig : Plotly graph_objects.Figure()
-            The figure object with the plot.
-        """
-        if fig is None:
-            fig = go.Figure()
-
-        n_cavities = self.n_teeth + 1
-
-        fig.add_trace(
-            go.Scatter(
-                x=Q_(self.z[:n_cavities], "m").to(length_units).m,
-                y=Q_(self.p[0][:n_cavities], "Pa").to(pressure_units).m,
-                mode="lines+markers",
-                name="Labyrinth Seal",
-                line=dict(width=2),
-                hovertemplate="<b>Position:</b> %{x:.3f} "
-                + length_units
-                + "<br>"
-                + f"<b>Pressure:</b> %{{y:.3f}} {pressure_units}<br>"
-                + "<extra></extra>",
-            )
-        )
-
-        fig.update_layout(
-            title=dict(
-                text="Pressure Distribution - Labyrinth Seal",
-            ),
-            xaxis_title=f"Axial Position ({length_units})",
-            yaxis_title=f"Pressure ({pressure_units})",
-            showlegend=False,
-            **kwargs,
-        )
-
-        return fig
