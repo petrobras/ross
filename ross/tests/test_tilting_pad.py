@@ -50,7 +50,7 @@ def test_matches_solver_fixture():
         pivot_angle=kwargs["pivot_angle"],
         pad_arc=kwargs["pad_arc"],
         pad_axial_length=kwargs["pad_axial_length"],
-        pre_load=kwargs["preload"],
+        preload=kwargs["preload"],
         offset=kwargs["offset"],
         lubricant=kwargs["lubricant"],
         oil_supply_temperature=kwargs["oil_supply_temperature"],
@@ -59,31 +59,32 @@ def test_matches_solver_fixture():
         equilibrium_type=kwargs["equilibrium_type"],
         xj=kwargs["initial_position"][0],
         yj=kwargs["initial_position"][1],
-        load=[kwargs["fxs_load"], kwargs["fys_load"]],
-        hot_oil_carry_over=kwargs["hot_oil_lambda"],
+        fxs_load=kwargs["fxs_load"],
+        fys_load=kwargs["fys_load"],
+        hot_oil_lambda=kwargs["hot_oil_lambda"],
         journal_temperature=kwargs["journal_temperature"],
-        nx=kwargs["total_ex_film"],
-        nz=kwargs["total_ez_film"],
-        nr_pad=kwargs["total_ey_pad"],
+        total_ex_film=kwargs["total_ex_film"],
+        total_ez_film=kwargs["total_ez_film"],
+        total_ey_pad=kwargs["total_ey_pad"],
         total_ey_film=kwargs["total_ey_film"],
         weight=kwargs["weight"],
         probes=kwargs["probes"],
         pad_E=kwargs["pad_E"],
         pad_poisson=kwargs["pad_poisson"],
-        k_pad=kwargs["pad_conductivity"],
+        pad_conductivity=kwargs["pad_conductivity"],
         pad_expansion=kwargs["pad_expansion"],
         pad_density=kwargs["pad_density"],
         journal_expansion=kwargs["journal_expansion"],
         shell_expansion=kwargs["shell_expansion"],
         pad_convection=kwargs["pad_convection"],
-        h_edge=kwargs["edges_convection"],
+        edges_convection=kwargs["edges_convection"],
         environment_temperature=kwargs["environment_temperature"],
         environment_convection=kwargs["environment_convection"],
         reference_temperature=kwargs["reference_temperature"],
         excitation_ratio=kwargs["excitation_ratio"],
         starvation_number=kwargs["starvation_number"],
         relax_pressure=kwargs["relax_pressure"],
-        relax_t=kwargs["relax_temperature"],
+        relax_temperature=kwargs["relax_temperature"],
         relax_deformation=kwargs["relax_deformation"],
         re_laminar=kwargs["re_laminar"],
         re_turbulent=kwargs["re_turbulent"],
@@ -109,16 +110,16 @@ def test_eccentricity_attitude_initial_position():
         pivot_angle=Q_([18, 90, 162, 234, 306], "deg"),
         pad_arc=Q_([60] * 5, "deg"),
         pad_axial_length=[50.8e-3] * 5,
-        pre_load=[0.5] * 5,
+        preload=[0.5] * 5,
         offset=[0.5] * 5,
         lubricant="ISOVG32",
         oil_supply_temperature=Q_(40, "degC"),
         oil_flow_v=Q_(10, "l/min"),
         eccentricity=0.35,
         attitude_angle=Q_(287.5, "deg"),
-        nx=20,
-        nz=10,
-        nr_pad=10,
+        total_ex_film=20,
+        total_ez_film=10,
+        total_ey_pad=10,
         total_ey_film=10,
     )
     expected = (
@@ -130,7 +131,7 @@ def test_eccentricity_attitude_initial_position():
     assert_allclose(out["eccentricity"][0], 0.35, rtol=1e-6)
 
 
-def test_deprecations_and_restrictions():
+def test_restrictions():
     kwargs = dict(
         n=1,
         frequency=Q_([3000], "RPM"),
@@ -142,24 +143,18 @@ def test_deprecations_and_restrictions():
         pivot_angle=Q_([18, 90, 162, 234, 306], "deg"),
         pad_arc=Q_([60] * 5, "deg"),
         pad_axial_length=[50.8e-3] * 5,
-        pre_load=[0.5] * 5,
+        preload=[0.5] * 5,
         offset=[0.5] * 5,
         lubricant="ISOVG32",
         oil_supply_temperature=Q_(40, "degC"),
         oil_flow_v=Q_(10, "l/min"),
-        load=[8.8405e02, -2.6704e03],
-        nx=20,
-        nz=10,
-        nr_pad=10,
+        fxs_load=8.8405e02,
+        fys_load=-2.6704e03,
+        total_ex_film=20,
+        total_ez_film=10,
+        total_ey_pad=10,
         total_ey_film=10,
     )
-
-    with pytest.warns(DeprecationWarning, match="solver_options"):
-        TiltingPad(solver_options={"xtol": 1e-2}, **kwargs)
-    with pytest.warns(DeprecationWarning, match="initial_pads_angles"):
-        TiltingPad(initial_pads_angles=[1e-3] * 5, **kwargs)
-    with pytest.warns(UserWarning, match="interpreted"):
-        TiltingPad(journal_temperature=25.0, **kwargs)
 
     with pytest.raises(ValueError, match="FixedGeometryBearing"):
         TiltingPad(bearing_type="fixed_geometry", **kwargs)
@@ -182,18 +177,19 @@ def test_pivot_flexibility_runs():
         pivot_angle=Q_([18, 90, 162, 234, 306], "deg"),
         pad_arc=Q_([60] * 5, "deg"),
         pad_axial_length=[50.8e-3] * 5,
-        pre_load=[0.5] * 5,
+        preload=[0.5] * 5,
         offset=[0.5] * 5,
         lubricant="ISOVG32",
         oil_supply_temperature=Q_(40, "degC"),
         oil_flow_v=Q_(10, "l/min"),
-        load=[8.8405e02, -2.6704e03],
+        fxs_load=8.8405e02,
+        fys_load=-2.6704e03,
         deform_type="pad_pivot_mechanical",
         pivot_type="user_specified_stiffness",
         pivot_stiffness=5e8,
-        nx=20,
-        nz=10,
-        nr_pad=10,
+        total_ex_film=20,
+        total_ez_film=10,
+        total_ey_pad=10,
         total_ey_film=10,
     )
     out = bearing._results.outputs[0]

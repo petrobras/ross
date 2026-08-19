@@ -1438,6 +1438,74 @@ class SealElement(BearingElement):
 
         return customdata, hovertemplate
 
+    _pressure_plot_label = "Seal"
+
+    def plot_pressure_distribution(
+        self, pressure_units="MPa", length_units="m", fig=None, **kwargs
+    ):
+        """Plot the axial pressure distribution along the seal.
+
+        Available for seals whose solver computes a pressure distribution
+        (e.g. :class:`~ross.LabyrinthSeal` and :class:`~ross.HolePatternSeal`).
+        The distribution of the first frequency in ``frequency`` is plotted.
+
+        Parameters
+        ----------
+        pressure_units : str, optional
+            Pressure units for plotting.
+            Default is "MPa".
+        length_units : str, optional
+            Length units for axial position.
+            Default is "m".
+        fig : Plotly graph_objects.Figure(), optional
+            The figure object with the plot. If None, creates a new figure.
+        kwargs : optional
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+
+        Returns
+        -------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        """
+        if getattr(self, "p", None) is None or getattr(self, "z", None) is None:
+            raise AttributeError(
+                "This seal has no computed pressure distribution to plot. "
+                "The distribution is only available for seals built from a "
+                "flow model (not from directly supplied coefficients)."
+            )
+
+        if fig is None:
+            fig = go.Figure()
+
+        fig.add_trace(
+            go.Scatter(
+                x=Q_(self.z, "m").to(length_units).m,
+                y=Q_(self.p[0], "Pa").to(pressure_units).m,
+                mode="lines+markers",
+                name=self._pressure_plot_label,
+                line=dict(width=2),
+                hovertemplate="<b>Position:</b> %{x:.3f} "
+                + length_units
+                + "<br>"
+                + f"<b>Pressure:</b> %{{y:.3f}} {pressure_units}<br>"
+                + "<extra></extra>",
+            )
+        )
+
+        fig.update_layout(
+            title=dict(
+                text=f"Pressure Distribution - {self._pressure_plot_label}",
+            ),
+            xaxis_title=f"Axial Position ({length_units})",
+            yaxis_title=f"Pressure ({pressure_units})",
+            showlegend=False,
+            **kwargs,
+        )
+
+        return fig
+
     def _patch(self, position, fig):
         """Seal element patch.
 

@@ -19,10 +19,10 @@ REFPROP_AVAILABLE = "REFPROP : n/a" not in ccp.__version__full
 COMMON_PARAMS = {
     "n": 0,
     "frequency": Q_([5000], "RPM"),
-    "length": 0.0254,
-    "shaft_radius": 0.0751,
+    "axial_length": 0.0254,
+    "shaft_diameter": 0.1502,
     "radial_clearance": 0.0004,
-    "roughness": 0.00198,
+    "relative_roughness": 0.00198,
     "cell_length": 0.001,
     "cell_width": 0.001,
     "cell_depth": 0.00229,
@@ -30,14 +30,14 @@ COMMON_PARAMS = {
     "outlet_pressure": 823500.0,
     "inlet_temperature": 300.0,
     "preswirl": 1.0,
-    "entr_coef": 0.1,
-    "exit_coef": 0.5,
+    "entrance_loss_coefficient": 0.1,
+    "exit_loss_coefficient": 0.5,
 }
 
 MANUAL_PARAMS = {
-    "b_suther": 1.458e-6,
-    "s_suther": 110.4,
-    "molar": 29.0,
+    "sutherland_b": 1.458e-6,
+    "sutherland_s": 110.4,
+    "molar_mass": 29.0,
     "gamma": 1.4,
 }
 
@@ -80,10 +80,10 @@ def test_holepattern_manual_coefficients(holepattern_manual):
 
 def test_holepattern_manual_attributes(holepattern_manual):
     """Test that manual parameters are correctly stored."""
-    assert holepattern_manual.molar == 29.0
+    assert holepattern_manual.molar_mass == 29.0
     assert holepattern_manual.gamma == 1.4
-    assert holepattern_manual.b_suther == 1.458e-6
-    assert holepattern_manual.s_suther == 110.4
+    assert holepattern_manual.sutherland_b == 1.458e-6
+    assert holepattern_manual.sutherland_s == 110.4
 
 
 def test_holepattern_gas_composition_creation(holepattern_gas_composition):
@@ -99,14 +99,14 @@ def test_holepattern_gas_composition_creation(holepattern_gas_composition):
 def test_holepattern_gas_composition_derived_properties(holepattern_gas_composition):
     """Test that thermodynamic properties are auto-derived correctly."""
     # Check that properties were derived
-    assert holepattern_gas_composition.molar is not None
+    assert holepattern_gas_composition.molar_mass is not None
     assert holepattern_gas_composition.gamma is not None
-    assert holepattern_gas_composition.b_suther is not None
-    assert holepattern_gas_composition.s_suther is not None
+    assert holepattern_gas_composition.sutherland_b is not None
+    assert holepattern_gas_composition.sutherland_s is not None
 
     # Molar mass should be close to air (28.97 g/mol)
     # Expected: ~28.96 kg/kgmol, tolerance: 2%
-    assert_allclose(holepattern_gas_composition.molar, 28.97, rtol=0.02)
+    assert_allclose(holepattern_gas_composition.molar_mass, 28.97, rtol=0.02)
 
     # Gamma should be close to air (1.4)
     # Expected: ~1.4, tolerance: 3% (HEOS and REFPROP differ slightly)
@@ -114,9 +114,9 @@ def test_holepattern_gas_composition_derived_properties(holepattern_gas_composit
 
     # Sutherland coefficients should be in reasonable range for air
     # Expected: ~1.46e-6, tolerance: 25% (varies between HEOS and REFPROP)
-    assert_allclose(holepattern_gas_composition.b_suther, 1.46e-6, rtol=0.25)
+    assert_allclose(holepattern_gas_composition.sutherland_b, 1.46e-6, rtol=0.25)
     # Expected: ~100, tolerance: 25% (varies between HEOS and REFPROP)
-    assert_allclose(holepattern_gas_composition.s_suther, 100, rtol=0.25)
+    assert_allclose(holepattern_gas_composition.sutherland_s, 100, rtol=0.25)
 
 
 def test_holepattern_gas_composition_coefficients_range(holepattern_gas_composition):
@@ -175,7 +175,7 @@ def test_holepattern_refprop_backend():
         assert_allclose(holepattern.seal_leakage[0], 0.633606, rtol=1e-3)
 
         # Check derived properties
-        assert_allclose(holepattern.molar, 28.9586, rtol=1e-3)
+        assert_allclose(holepattern.molar_mass, 28.9586, rtol=1e-3)
         assert_allclose(holepattern.gamma, 1.4321, rtol=1e-3)
 
     finally:
@@ -200,7 +200,7 @@ def test_holepattern_heos_backend():
         assert_allclose(holepattern.seal_leakage[0], 0.633636, rtol=1e-3)
 
         # Check derived properties
-        assert_allclose(holepattern.molar, 28.9586, rtol=1e-3)
+        assert_allclose(holepattern.molar_mass, 28.9586, rtol=1e-3)
         # HEOS gamma calculation should be similar to REFPROP
         assert_allclose(holepattern.gamma, 1.4321, rtol=1e-2)
 
@@ -250,7 +250,9 @@ def test_holepattern_refprop_vs_heos_consistency():
         )
 
         # Derived properties should match closely
-        assert_allclose(holepattern_refprop.molar, holepattern_heos.molar, rtol=1e-4)
+        assert_allclose(
+            holepattern_refprop.molar_mass, holepattern_heos.molar_mass, rtol=1e-4
+        )
         assert_allclose(holepattern_refprop.gamma, holepattern_heos.gamma, rtol=1e-2)
 
     finally:
@@ -297,23 +299,23 @@ def holepattern():
     seal = HolePatternSeal(
         n=0,
         frequency=Q_([5000], "RPM"),
-        length=0.0254,
-        shaft_radius=0.0751,
+        axial_length=0.0254,
+        shaft_diameter=0.1502,
         radial_clearance=0.0004,
-        roughness=0.00198,
+        relative_roughness=0.00198,
         cell_length=0.001,
         cell_width=0.001,
         cell_depth=0.00229,
         inlet_pressure=1830000.0,
         outlet_pressure=823500.0,
         inlet_temperature=300.0,
-        b_suther=1.458e-6,
-        s_suther=110.4,
-        molar=29.0,
+        sutherland_b=1.458e-6,
+        sutherland_s=110.4,
+        molar_mass=29.0,
         gamma=1.4,
         preswirl=1.0,
-        entr_coef=0.1,
-        exit_coef=0.5,
+        entrance_loss_coefficient=0.1,
+        exit_loss_coefficient=0.5,
     )
     return seal
 
