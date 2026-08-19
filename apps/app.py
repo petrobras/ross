@@ -123,7 +123,10 @@ def extract_kwargs(d, mat_dict, element_type, ignore_keys=['element_type', 'n'])
         
         if k == 'material':
             mat_name = str(v).strip().lower()
-            if mat_name == "": continue 
+            
+            if mat_name == "" or mat_name == "default (steel)": 
+                kwargs[k] = rs.materials.steel
+                continue
             
             kwargs[k] = mat_dict.get(mat_name, list(mat_dict.values())[0]) if mat_dict else rs.materials.steel
             continue
@@ -524,9 +527,9 @@ def run_analysis():
             
             if plot_type == 'Mode Shape':
                 import threading
-                import webbrowser
                 import sys
                 import re
+                import time
                 
                 plot_kwargs['animation'] = get_bool('animation')
                 
@@ -535,6 +538,7 @@ def run_analysis():
                         def __init__(self, orig):
                             self.orig = orig
                             self._is_dash_catcher = True
+                            self.latest_url = None
                         def write(self, msg):
                             self.orig.write(msg)
                             if "Dash is running on" in msg or "Running on http" in msg:
@@ -542,11 +546,13 @@ def run_analysis():
                                 if match:
                                     url = match.group(1)
                                     if "5001" not in url: 
-                                        webbrowser.open(url)
+                                        self.latest_url = url
                         def flush(self):
                             self.orig.flush()
                     
                     sys.stdout = DashURLCatcher(sys.stdout)
+
+                sys.stdout.latest_url = None
 
                 def run_dash_thread(camp_obj, p_kw):
                     try:
@@ -558,7 +564,17 @@ def run_analysis():
                 t.daemon = True
                 t.start()
                 
-                return jsonify({"status": "info", "message": "Interactive Campbell Diagram launched!<br><br>A new Dash server is running and should open automatically in a new browser tab."})
+                wait_time = 0
+                while getattr(sys.stdout, 'latest_url', None) is None and wait_time < 100:
+                    time.sleep(0.1)
+                    wait_time += 1
+                
+                dash_url = getattr(sys.stdout, 'latest_url', None)
+                
+                if dash_url:
+                    return jsonify({"status": "dash", "url": dash_url})
+                else:
+                    return jsonify({"status": "info", "message": "O diagrama interativo foi iniciado mas demorou para responder. Verifique as abas do seu navegador ou o terminal."})
             else:
                 fig = camp.plot(**plot_kwargs)
             

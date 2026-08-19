@@ -112,7 +112,9 @@
                 </div>
 
                 <div id="plot-rotor" class="live-plot-area">
-                    <p style="color: #888; text-align: center; margin-top: 50%;">The rotor model will appear here...</p>
+                    <div style="display: flex; height: 100%; min-height: 400px; align-items: center; justify-content: center;">
+                        <p style="color: #888; text-align: center; margin: 0;">The rotor model will appear here...</p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -240,6 +242,59 @@
                 <div class="form-actions">
                     <button class="btn-confirm" onclick="saveMultiRotor()"><i class="fas fa-check"></i></button>
                     <button class="btn-cancel" onclick="closeMultiRotorModal()"><i class="fas fa-times"></i></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Modal for Text Input (Prompt) -->
+    <div id="custom-prompt-overlay" class="modal-overlay" style="display: none;">
+        <div class="modal-box" style="max-width: 400px; padding: 0;">
+            <div class="modal-header">
+                <h3 style="color: var(--text-main); font-size: 15px;"><i class="fas fa-edit" style="color: var(--accent-primary);"></i> Input Required</h3>
+                <button class="btn-close-modal" onclick="closeCustomPrompt(null)"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body form-box" style="border: none; box-shadow: none; margin-top: 0; border-radius: 0;">
+                <p id="custom-prompt-message" style="margin-bottom: 10px; font-size: 13px; color: var(--text-muted); font-weight: 600;"></p>
+                <div class="input-group" style="margin-bottom: 15px;">
+                    <input type="text" id="custom-prompt-input" style="width: 100%;">
+                </div>
+                <div class="form-actions">
+                    <button class="btn-confirm" onclick="confirmCustomPrompt()"><i class="fas fa-check"></i> OK</button>
+                    <button class="btn-cancel" onclick="closeCustomPrompt(null)"><i class="fas fa-times"></i> Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Modal for Yes/No Confirmations (Confirm) -->
+    <div id="custom-confirm-overlay" class="modal-overlay" style="display: none;">
+        <div class="modal-box" style="max-width: 400px; padding: 0;">
+            <div class="modal-header">
+                <h3 style="color: var(--text-main); font-size: 15px;"><i class="fas fa-exclamation-triangle" style="color: var(--accent-danger);"></i> Confirm Action</h3>
+                <button class="btn-close-modal" onclick="closeCustomConfirm(false)"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body form-box" style="border: none; box-shadow: none; margin-top: 0; border-radius: 0;">
+                <p id="custom-confirm-message" style="margin-bottom: 20px; font-size: 14px; color: var(--text-main); line-height: 1.5;"></p>
+                <div class="form-actions">
+                    <button class="btn-confirm" style="background: var(--accent-danger);" onclick="closeCustomConfirm(true)"><i class="fas fa-check"></i> Yes</button>
+                    <button class="btn-cancel" onclick="closeCustomConfirm(false)"><i class="fas fa-times"></i> No</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Alert Modal -->
+    <div id="custom-alert-overlay" class="modal-overlay" style="display: none;">
+        <div class="modal-box" style="max-width: 400px; padding: 0;">
+            <div class="modal-header">
+                <h3 style="color: var(--text-main); font-size: 15px;"><i class="fas fa-info-circle" style="color: var(--accent-primary);"></i> Notice</h3>
+                <button class="btn-close-modal" onclick="closeCustomAlert()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body form-box" style="border: none; box-shadow: none; margin-top: 0; border-radius: 0;">
+                <p id="custom-alert-message" style="margin-bottom: 20px; font-size: 14px; color: var(--text-main); line-height: 1.5; white-space: pre-wrap;"></p>
+                <div class="form-actions" style="justify-content: center;">
+                    <button class="btn-confirm" onclick="closeCustomAlert()"><i class="fas fa-check"></i> OK</button>
                 </div>
             </div>
         </div>

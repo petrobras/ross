@@ -11,10 +11,10 @@ let currentSubType = 'BASIC';
 
 const DefaultExamples = {
     materials_BASIC: { name: "Steel", rho: "7800", E: "211e9", G_s: "81.2e9" },
-    shafts_BASIC: { L: "500", odl: "100", idl: "0", material: "Steel" },
+    shafts_BASIC: { L: "500", odl: "100", idl: "0", material: "Default (Steel)" },
     disks_BASIC: { m: "32", Id: "0.2", Ip: "0.3" },
     gears_BASIC: { m: "4.67", Id: "0.015", Ip: "0.030", n_teeth: "26", pitch_diameter: "187", pr_angle: "22.5", helix_angle: "0" },
-    gears_TVMS: { material: "Steel", width: "20", bore_diameter: "70", module: "2", n_teeth: "62", pr_angle: "20" },
+    gears_TVMS: { material: "Default (Steel)", width: "20", bore_diameter: "70", module: "2", n_teeth: "62", pr_angle: "20" },
     couplings_BASIC: { m_l: "37.8875", m_r: "37.8875", Ip_l: "1.0985", Ip_r: "1.0985", kr_z: "3.04256e6" },
     pointmasses_BASIC: { m: "2" },
     bearings_BASIC: { kxx: "1e6", kyy: "0.8e6", cxx: "2e2", cyy: "1.5e2" },
@@ -34,10 +34,10 @@ const DefaultExamples = {
 
 // Fill in the values ​​with the default
 
-function fillDefault() {    
+async function fillDefault() {    
     let searchType = currentSubType === 'LIST' ? 'BASIC' : currentSubType;
     const defaultData = DefaultExamples[`${currentTab}_${searchType}`];    
-    if (!defaultData) return alert("No default parameters available for this class.");
+    if (!defaultData) return await openCustomAlert("No default parameters available for this class.");
     for (let key in defaultData) {
         let input = document.getElementById(`inp-${key}`);
         if (input) input.value = defaultData[key];
@@ -588,11 +588,11 @@ function renderRotorHub() {
     });
 }
 
-// Função para renomear rotores e multirotores diretamente pelo Hub
+// Function to rename rotors and multi-rotors directly via the Hub
 
-function editRotorName(index) {
+async function editRotorName(index) {
     let currentName = rotorLibrary[index].name || `Rotor ${index + 1}`;
-    let newName = prompt("Edit rotor name:", currentName);
+    let newName = await openCustomPrompt("Edit rotor name:", currentName);
     
     if (newName !== null && newName.trim() !== "") {
         rotorLibrary[index].name = newName.trim();
@@ -602,9 +602,13 @@ function editRotorName(index) {
 
 // Creates a new empty rotor in the Hub
 
-function createNewRotorInHub() {
-    let baseName = prompt("Enter a name for the new rotor:", `Rotor ${rotorLibrary.length + 1}`);
-    if (!baseName) return; 
+async function createNewRotorInHub() {
+    let defaultName = `Rotor ${rotorLibrary.length + 1}`;
+    let baseName = await openCustomPrompt("Enter a name for the new rotor:", defaultName);
+    
+    if (baseName === null) return; 
+    
+    if (baseName.trim() === "") baseName = defaultName; 
 
     let newRotor = {
         name: baseName,
@@ -617,8 +621,9 @@ function createNewRotorInHub() {
 
 // Deletes a rotor from the Hub
 
-function deleteRotorInHub(index) {
-    if (confirm("Are you sure you want to delete this rotor?")) {
+async function deleteRotorInHub(index) {
+    let isConfirmed = await openCustomConfirm("Are you sure you want to delete this rotor?");
+    if (isConfirmed) {
         rotorLibrary.splice(index, 1);
         if (activeRotorIndex === index) activeRotorIndex = -1;
         renderRotorHub();
@@ -634,6 +639,32 @@ function copyRotorInHub(index) {
     renderRotorHub();
 }
 
+// Returns data for the active rotor on the screen (whether a simple rotor or the selected half of a multi-rotor)
+function getActiveData() {
+    if (projectData.isMultiRotor) {
+        return window.multiRotorEditTarget === 'driven' ? projectData.driven_rotor : projectData.driving_rotor;
+    }
+    return projectData;
+}
+
+// Synchronizes any changes made to the MultiRotor back to the Hub's parent (original) rotors
+function syncBackToLibrary() {
+    if (projectData.isMultiRotor) {
+        let drvLib = rotorLibrary.find(r => r.uid === projectData.driving_uid);
+        if (drvLib) Object.assign(drvLib, JSON.parse(JSON.stringify(projectData.driving_rotor)));
+        
+        let drvnLib = rotorLibrary.find(r => r.uid === projectData.driven_uid);
+        if (drvnLib) Object.assign(drvnLib, JSON.parse(JSON.stringify(projectData.driven_rotor)));
+    }
+}
+
+// Toggles editing between the Driving and Driven rotors
+window.switchMultiRotorTarget = function(target) {
+    window.multiRotorEditTarget = target;
+    closeForm();
+    renderList();
+};
+
 // Opens the selected rotor in the Modeling or Analysis environment
 
 function openRotorWorkspace(index, targetScreen) {
@@ -643,36 +674,29 @@ function openRotorWorkspace(index, targetScreen) {
     activeRotorIndex = index;
     projectData = rotorLibrary[index]; 
     
-    currentTab = null;
     editingIndex = -1;    
     document.getElementById('element-list').innerHTML = '';
-    document.getElementById('empty-message').style.display = 'block';
-    document.getElementById('list-area').style.display = 'none';
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     
+    if (targetScreen === 'screen-modeling') {
+        window.multiRotorEditTarget = 'driving';
+    }
+
     switchScreen(targetScreen);
     
     if (targetScreen === 'screen-modeling') {
-        if (projectData.isMultiRotor) {
+        if (currentTab) {
             document.getElementById('list-area').style.display = 'block';
             document.getElementById('empty-message').style.display = 'none';
-            document.getElementById('tab-title').innerHTML = 'MultiRotor Info';
-            document.getElementById('element-list').innerHTML = `
-                <div style="padding:15px; background:var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-ui); color:var(--text-main); font-size:13px; line-height:1.6; text-align: center; box-shadow: var(--shadow-card);">
-                    <i class="fas fa-project-diagram" style="color:#8b5cf6; font-size:32px; margin-bottom:15px; display:block;"></i>
-                    <b>MultiRotor Lock</b><br><br>
-                    The internal components of a multirotor cannot be edited directly on this screen.<br><br>
-                    To modify the structure, edit the original base rotors in the Hub. <b>Changes will be automatically synchronized here!</b>
-                </div>
-            `;
-            document.getElementById('btn-add-item').style.display = 'none';
-            document.querySelector('.sidebar').style.opacity = '0.4';
-            document.querySelector('.sidebar').style.pointerEvents = 'none';
-        } else {
             document.getElementById('btn-add-item').style.display = 'block';
-            document.querySelector('.sidebar').style.opacity = '1';
-            document.querySelector('.sidebar').style.pointerEvents = 'auto';
+        } else {
+            document.getElementById('list-area').style.display = 'none';
+            document.getElementById('empty-message').style.display = 'block';
         }
+
+        document.querySelector('.sidebar').style.opacity = '1';
+        document.querySelector('.sidebar').style.pointerEvents = 'auto';
+        
         buildRotorLive();
     }
 
@@ -708,7 +732,10 @@ function restoreAnalysesFromMemory(savedArray) {
         if(an.type && an.params) {
             const config = AnalysisDashboards[an.type];
             if(config) {
-                config.forEach(item => { if(an.params[item.id] !== undefined) item.val = an.params[item.id]; });
+                config.forEach(item => { 
+                    if(an.params[item.id] !== undefined) item.val = an.params[item.id]; 
+                    if(an.params[item.id + '_unit'] !== undefined) item.saved_unit = an.params[item.id + '_unit'];
+                });
                 controlsHTML = buildDashboardHTML(uniqueId, an.type);
             }
         }                
@@ -818,8 +845,31 @@ function openTab(category) {
     document.getElementById('empty-message').style.display = 'none';
     document.getElementById('list-area').style.display = 'block';
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    event.currentTarget.classList.add('active');
-    document.getElementById('tab-title').innerHTML = `<span>${category}</span> <button class="btn-help-section" onclick="openSectionHelp('${category}')" title="Help about ${category}"><i class="fas fa-question-circle"></i></button>`;
+    
+    const activeBtn = Array.from(document.querySelectorAll('.tab-btn'))
+        .find(b => b.getAttribute('onclick') && b.getAttribute('onclick').includes(`openTab('${category}')`));
+    if (activeBtn) {
+        activeBtn.classList.add('active');
+    }
+    
+    let titleHTML = `<div style="display:flex; align-items:center;">
+        <span>${category}</span> 
+        <button class="btn-help-section" onclick="openSectionHelp('${category}')" title="Help about ${category}"><i class="fas fa-question-circle"></i></button>
+    </div>`;
+
+    if (projectData.isMultiRotor) {
+        let drvSel = (window.multiRotorEditTarget === 'driving') ? 'selected' : '';
+        let drvnSel = (window.multiRotorEditTarget === 'driven') ? 'selected' : '';
+        titleHTML += `
+            <select id="mr-edit-target" onchange="switchMultiRotorTarget(this.value)" style="padding: 2px 6px; font-size:11px; font-weight: bold; border-radius: 4px; background: #e2e8f0; color: #334155; border: 1px solid #cbd5e1; outline: none; cursor: pointer; max-width: 160px; overflow: hidden; text-overflow: ellipsis;">
+                <option value="driving" ${drvSel}>Driving: ${projectData.driving_rotor.name}</option>
+                <option value="driven" ${drvnSel}>Driven: ${projectData.driven_rotor.name}</option>
+            </select>
+        `;
+    }
+    
+    document.getElementById('tab-title').innerHTML = titleHTML;
+    
     closeForm();
     renderList();    
     if (window.innerWidth <= 768) {
@@ -876,7 +926,10 @@ const getEffectiveNodes = (arr) => {
 function renderList() {
     const container = document.getElementById('element-list');
     container.innerHTML = '';
-    const currentArray = projectData[currentTab];
+    
+    const activeData = getActiveData();
+    const currentArray = activeData[currentTab];
+    
     const effNodes = getEffectiveNodes(currentArray);
     currentArray.forEach((item, index) => {
         let titleStr = "";        
@@ -915,11 +968,13 @@ function renderList() {
             const newIdx = evt.newIndex;
             if(oldIdx === newIdx) return;
             
-            const item = projectData[currentTab][oldIdx];
+            const actData = getActiveData();
+            const item = actData[currentTab][oldIdx];
             
-            projectData[currentTab].splice(oldIdx, 1);
-            projectData[currentTab].splice(newIdx, 0, item);            
+            actData[currentTab].splice(oldIdx, 1);
+            actData[currentTab].splice(newIdx, 0, item);            
             
+            syncBackToLibrary();
             renderList();
             buildRotorLive();
         }
@@ -943,7 +998,8 @@ function openForm(isNew = true) {
         document.getElementById('form-fields').innerHTML = html;
         document.querySelector('.form-actions').style.display = 'none';
     } else {
-        selectSubType(isNew ? 'BASIC' : projectData[currentTab][editingIndex].element_type || 'BASIC');
+        const activeData = getActiveData();
+        selectSubType(isNew ? 'BASIC' : activeData[currentTab][editingIndex].element_type || 'BASIC');
     }    
     
     document.getElementById('btn-add-item').style.display = 'none';    
@@ -962,7 +1018,7 @@ function openForm(isNew = true) {
         document.querySelector('.form-actions').insertAdjacentHTML('afterbegin', `<button type="button" id="btn-default-form" class="btn-default" onclick="fillDefault()"><i class="fas fa-magic"></i> Default</button>`);
     }
 
-    window.isAddingFromHub = false;
+    window.isAddingFromHub = false; 
 }
 
 // Function for the 'Advanced' button
@@ -971,26 +1027,39 @@ function selectSubType(type) {
     currentSubType = type;
     document.getElementById('form-fields').innerHTML = injectUnits(FormTemplates[currentTab][type]);
     document.querySelector('.form-actions').style.display = 'flex';
+    
+    const activeData = getActiveData();
+    
     const matSelects = document.getElementById('form-fields').querySelectorAll('select#inp-material');
     matSelects.forEach(sel => {
-        sel.innerHTML = '';
-        if (projectData.materials.length === 0) {
-            sel.innerHTML = '<option value="">-- No Materials Created --</option>';
-        } else {
-            projectData.materials.forEach(m => {
-                let mName = m.name || 'MaterialCustom';
-                sel.innerHTML += `<option value="${mName}">${mName}</option>`;
-            });
-        }
+        sel.innerHTML = '<option value="Default (Steel)">Default (Steel)</option>';
+        
+        activeData.materials.forEach(m => {
+            let mName = m.name || 'MaterialCustom';
+            sel.innerHTML += `<option value="${mName}">${mName}</option>`;
+        });
     });
     
     if (editingIndex >= 0) {
-        const item = projectData[currentTab][editingIndex];
+        const item = activeData[currentTab][editingIndex];
         const inputs = document.getElementById('form-fields').querySelectorAll('input, select');
         let hasAdvancedVal = false;
         inputs.forEach(inp => {
             const key = inp.id.replace('inp-', '');
             if (item[key] !== undefined && item[key] !== null && item[key] !== '') {
+                
+                if (inp.tagName === 'SELECT') {
+                    let exists = Array.from(inp.options).some(o => o.value === item[key]);
+                    if (!exists) {
+                        let newOpt = document.createElement('option');
+                        newOpt.value = item[key];
+                        newOpt.innerText = item[key];
+                        let othersOpt = inp.querySelector('option[value="Others"]');
+                        if (othersOpt) inp.insertBefore(newOpt, othersOpt);
+                        else inp.appendChild(newOpt);
+                    }
+                }
+                
                 inp.value = item[key];
                 if (inp.closest('.advanced-fields')) hasAdvancedVal = true;
             }
@@ -1003,7 +1072,13 @@ function selectSubType(type) {
 
     if (window.targetNodeForHub !== undefined && window.targetNodeForHub !== null) {
         let nInput = document.getElementById('inp-n');
-        if (nInput) nInput.value = window.targetNodeForHub;
+        
+        if (currentTab !== 'shafts') {
+            if (nInput) nInput.value = window.targetNodeForHub;
+        } else {
+            window.hiddenTargetNode = parseInt(window.targetNodeForHub);
+        }
+        
         window.targetNodeForHub = null;
     }
 }
@@ -1016,6 +1091,7 @@ function closeForm() {
     document.getElementById('list-area').appendChild(formBox);
     document.getElementById('btn-add-item').style.display = 'block'; 
     editingIndex = -1; 
+    window.hiddenTargetNode = null;
 }
 
 // Element editing function
@@ -1025,14 +1101,15 @@ function editItem(index) { editingIndex = index; openForm(false); }
 // Copy function for element
 
 function copyItem(index) { 
-    const original = projectData[currentTab][index];
+    const activeData = getActiveData();
+    const original = activeData[currentTab][index];
     const copiedItem = JSON.parse(JSON.stringify(original));    
     
     if (copiedItem.tag) {
         let baseTag = copiedItem.tag.replace(/_\d+$/, '');
         let counter = 1;
         let newTag = `${baseTag}_${counter}`;
-        const tagInUse = (cTag) => projectData[currentTab].some(item => item.tag === cTag);
+        const tagInUse = (cTag) => activeData[currentTab].some(item => item.tag === cTag);
         while (tagInUse(newTag)) {
             counter++;
             newTag = `${baseTag}_${counter}`;
@@ -1040,7 +1117,8 @@ function copyItem(index) {
         copiedItem.tag = newTag;
     }
     
-    projectData[currentTab].splice(index + 1, 0, copiedItem); 
+    activeData[currentTab].splice(index + 1, 0, copiedItem); 
+    syncBackToLibrary();
     renderList(); 
     buildRotorLive(); 
 }
@@ -1048,13 +1126,15 @@ function copyItem(index) {
 // Delete function for the element
 
 function deleteItem(index) {
-    projectData[currentTab].splice(index, 1);    
+    const activeData = getActiveData();
+    activeData[currentTab].splice(index, 1);    
     if (editingIndex === index) {
         closeForm();
     } 
     else if (editingIndex > index) {
         editingIndex--;
     }    
+    syncBackToLibrary();
     renderList();
     buildRotorLive();
 }
@@ -1062,6 +1142,7 @@ function deleteItem(index) {
 // Function to save the element
 
 function saveItem() {
+    const activeData = getActiveData();
     const inputs = document.getElementById('form-fields').querySelectorAll('input, select');    
     if (currentSubType === 'LIST') {
         let parsedData = {};
@@ -1088,7 +1169,7 @@ function saveItem() {
             if (newObj.tag) {
                 newObj.tag = newObj.tag + "_" + (i + 1);
             }
-            projectData[currentTab].push(newObj);
+            activeData[currentTab].push(newObj);
         }        
     } else {
         let newObject = { element_type: currentSubType };        
@@ -1099,31 +1180,38 @@ function saveItem() {
                 newObject[key] = value; 
             }
         });
+        
         if (editingIndex >= 0) {
-            projectData[currentTab][editingIndex] = newObject;
+            activeData[currentTab][editingIndex] = newObject;
         } else {
+            let targetN = null;
             if (newObject.n !== undefined && newObject.n !== "") {
-                let targetN = parseInt(newObject.n);
-                let insertIdx = projectData[currentTab].length;
+                targetN = parseInt(newObject.n);
+            } else if (currentTab === 'shafts' && window.hiddenTargetNode !== undefined && window.hiddenTargetNode !== null) {
+                targetN = window.hiddenTargetNode;
+            }
+
+            if (targetN !== null) {
+                let insertIdx = activeData[currentTab].length;
                 
-                const effNodes = getEffectiveNodes(projectData[currentTab]);
+                const effNodes = getEffectiveNodes(activeData[currentTab]);
                 for (let i = 0; i < effNodes.length; i++) {
                     if (effNodes[i] >= targetN) {
                         insertIdx = i;
                         break;
                     }
                 }
-                
-                projectData[currentTab].splice(insertIdx, 0, newObject);
+                activeData[currentTab].splice(insertIdx, 0, newObject);
             } else {
-                projectData[currentTab].push(newObject);
+                activeData[currentTab].push(newObject);
             }
         }    
-        
-        closeForm();
-        renderList();
-        buildRotorLive();
     }
+    
+    syncBackToLibrary();
+    closeForm();
+    renderList();
+    buildRotorLive();
 }
 
 let rotorUpdateActive = false;
@@ -1140,9 +1228,9 @@ function buildRotorLive() {
 
 async function _fetchRotorLive() {
     const plotContainer = document.getElementById('plot-rotor');
-    const infoContainer = document.getElementById('rotor-info');
+    const infoContainer = document.getElementById('rotor-info');    
     if (!projectData.isMultiRotor && (!projectData.shafts || projectData.shafts.length === 0)) {
-        plotContainer.innerHTML = '<p style="color: #888; text-align: center; margin-top: 50%;">Add at least 1 Shaft to visualize the Rotor.</p>';
+        plotContainer.innerHTML = '<div style="display: flex; height: 100%; min-height: 400px; align-items: center; justify-content: center;"><p style="color: #888; text-align: center; margin: 0;">Add at least 1 Shaft to visualize the Rotor.</p></div>';
         if(infoContainer) infoContainer.style.opacity = '0';
         return;
     }    
@@ -1232,7 +1320,7 @@ async function loadRotor(event) {
 
                 rotorLibrary.push(newLoadedRotor);
                 openRotorHub();
-                alert("Interface Rotor loaded successfully into the Hub!");
+                await openCustomAlert("Interface Rotor loaded successfully into the Hub!");
             }
         } catch (err) { }
         
@@ -1260,12 +1348,12 @@ async function loadRotor(event) {
                     
                     rotorLibrary.push(newConvertedRotor);
                     openRotorHub();
-                    alert("Native ROSS file loaded, converted, and added to the Hub!");
+                    await openCustomAlert("Native ROSS file loaded, converted, and added to the Hub!");
                 } else {
-                    alert("Error converting native ROSS file:\n" + data.message);
+                    await openCustomAlert("Error converting native ROSS file:\n" + data.message);
                 }
             } catch (err) {
-                alert("Server connection error loading ROSS file.");
+                await openCustomAlert("Server connection error loading ROSS file.");
             }
         }
     };
@@ -1669,10 +1757,11 @@ function buildDashboardHTML(uniqueId, type) {
             
             html += `</div></div>`;
         } else {
-            const changeEvent = (item.id === 'plot_type' || item.id === 'coupling') ? `onchange="checkDeps('${uniqueId}')"` : ``;            
             html += `<div ${depsAttr} style="flex-direction: column; align-items: stretch; gap: 6px;">`;
             html += `<label style="margin: 0; min-width: auto;">${item.label}</label>`;
             
+            let activeUnit = item.saved_unit || item.default_unit;
+
             if (item.type === 'range') {
                 html += `<div style="display: flex; align-items: center; gap: 10px; width: 100%;">`;                
                 html += `<input type="range" id="range-${item.id}-${uniqueId}" min="${item.min}" max="${item.max}" step="${item.step}" value="${item.val}" oninput="document.getElementById('num-${item.id}-${uniqueId}').value = this.value;" style="flex: 1; margin: 0;">`;
@@ -1680,17 +1769,38 @@ function buildDashboardHTML(uniqueId, type) {
                 html += `<input type="number" id="num-${item.id}-${uniqueId}" value="${item.val}" oninput="document.getElementById('range-${item.id}-${uniqueId}').value = this.value;">`;
                 
                 if (item.default_unit && UNIT_ALTERNATIVES[item.default_unit]) {
-                    html += `<select id="unit-${item.id}-${uniqueId}" class="unified-unit">`;
+                    html += `<select id="unit-${item.id}-${uniqueId}" class="unified-unit" data-prev="${activeUnit}" onchange="handleUnitChange(this)">`;
+                    let addedOpts = new Set();
                     UNIT_ALTERNATIVES[item.default_unit].forEach(u => {
-                        html += `<option value="${u}">${u}</option>`;
+                        let sel = (u === activeUnit) ? 'selected' : '';
+                        html += `<option value="${u}" ${sel}>${u}</option>`;
+                        addedOpts.add(u);
                     });
-                    html += `</select>`;
+                    if (activeUnit && !addedOpts.has(activeUnit)) html += `<option value="${activeUnit}" selected>${activeUnit}</option>`;
+                    html += `<option value="Others">Others...</option></select>`;
                 }
                 html += `</div></div>`;
 
             } else if (item.type === 'select') {
+                let isUnit = item.id.includes('unit');
+                let changeEvent = (item.id === 'plot_type' || item.id === 'coupling') ? `onchange="checkDeps('${uniqueId}')"` : ``;            
+                
+                if (isUnit) {
+                    changeEvent = `onchange="handleUnitChange(this)" data-prev="${item.val}"`;
+                }
+
                 html += `<select id="input-${item.id}-${uniqueId}" style="width: 100%;" ${changeEvent}>`;
-                item.options.forEach(opt => { html += `<option value="${opt}" ${opt===item.val?'selected':''}>${opt}</option>`; });
+                let addedOpts = new Set();
+                item.options.forEach(opt => { 
+                    let sel = (opt === item.val) ? 'selected' : '';
+                    html += `<option value="${opt}" ${sel}>${opt}</option>`; 
+                    addedOpts.add(opt);
+                });
+                
+                if (isUnit) {
+                    if (!addedOpts.has(item.val)) html += `<option value="${item.val}" selected>${item.val}</option>`;
+                    html += `<option value="Others">Others...</option>`;
+                }
                 html += `</select>`;
 
             } else {
@@ -1698,11 +1808,15 @@ function buildDashboardHTML(uniqueId, type) {
                 html += `<input type="${item.type}" id="input-${item.id}-${uniqueId}" value="${item.val}">`;
                 
                 if (item.default_unit && UNIT_ALTERNATIVES[item.default_unit]) {
-                    html += `<select id="unit-${item.id}-${uniqueId}" class="unified-unit">`;
+                    html += `<select id="unit-${item.id}-${uniqueId}" class="unified-unit" data-prev="${activeUnit}" onchange="handleUnitChange(this)">`;
+                    let addedOpts = new Set();
                     UNIT_ALTERNATIVES[item.default_unit].forEach(u => {
-                        html += `<option value="${u}">${u}</option>`;
+                        let sel = (u === activeUnit) ? 'selected' : '';
+                        html += `<option value="${u}" ${sel}>${u}</option>`;
+                        addedOpts.add(u);
                     });
-                    html += `</select>`;
+                    if (activeUnit && !addedOpts.has(activeUnit)) html += `<option value="${activeUnit}" selected>${activeUnit}</option>`;
+                    html += `<option value="Others">Others...</option></select>`;
                 }
                 html += `</div>`;
             }
@@ -1716,25 +1830,11 @@ function buildDashboardHTML(uniqueId, type) {
 
     let finalHtml = `<div class="light-dashboard-controls">${htmlStandard}`;
     
-    if (htmlAdvAnalysis) {
-        finalHtml += `
-        <div style="grid-column: 1 / -1;">
-            <button type="button" class="btn-adv-dash" data-text-original="Advanced Analysis" onclick="toggleDashAdv(this)">Advanced Analysis <i class="fas fa-chevron-down"></i></button>
-            <div class="adv-dash-container">${htmlAdvAnalysis}</div>
-        </div>`;
-    }
-    if (htmlAdvPlot) {
-        finalHtml += `
-        <div style="grid-column: 1 / -1;">
-            <button type="button" class="btn-adv-dash" data-text-original="Advanced Plot" onclick="toggleDashAdv(this)">Advanced Plot <i class="fas fa-chevron-down"></i></button>
-            <div class="adv-dash-container" id="adv-plot-${uniqueId}">${htmlAdvPlot}</div>
-        </div>`;
-    }
+    if (htmlAdvAnalysis) finalHtml += `<div style="grid-column: 1 / -1;"><button type="button" class="btn-adv-dash" data-text-original="Advanced Analysis" onclick="toggleDashAdv(this)">Advanced Analysis <i class="fas fa-chevron-down"></i></button><div class="adv-dash-container">${htmlAdvAnalysis}</div></div>`;
+    if (htmlAdvPlot) finalHtml += `<div style="grid-column: 1 / -1;"><button type="button" class="btn-adv-dash" data-text-original="Advanced Plot" onclick="toggleDashAdv(this)">Advanced Plot <i class="fas fa-chevron-down"></i></button><div class="adv-dash-container" id="adv-plot-${uniqueId}">${htmlAdvPlot}</div></div>`;
     
     finalHtml += '</div>';
-    
     setTimeout(() => { checkDeps(uniqueId); }, 100);
-    
     return finalHtml;
 }
 
@@ -1749,9 +1849,12 @@ function toggleAnalysis(uniqueId) {
 
 // Function to delete the analysis
 
-function deleteAnalysis(event, cardId) {
+async function deleteAnalysis(event, cardId) {
     event.stopPropagation();
-    if(confirm("Are you sure you want to delete this dashboard?")) document.getElementById(cardId).remove();
+    let isConfirmed = await openCustomConfirm("Are you sure you want to delete this dashboard?");
+    if (isConfirmed) {
+        document.getElementById(cardId).remove();
+    }
 }
 
 // Function to add the analysis
@@ -1759,7 +1862,7 @@ function deleteAnalysis(event, cardId) {
 async function addAnalysis(event) {
     if(event) event.preventDefault();
     const type = document.getElementById('analysis-type').value;
-    if(!type) return alert("Select an analysis.");
+    if(!type) return await openCustomAlert("Select an analysis.");
     
     const conversionNode = document.getElementById('rotor-conversion-type');
     const conversionType = conversionNode ? conversionNode.value : '';
@@ -1904,8 +2007,11 @@ async function runCardAnalysis(uniqueId, type) {
         const data = await resp.json();
         div.style.opacity = '1';
         if(loader) loader.style.display = 'none';
+        
         if(data.status === "success") {
-            div.innerHTML = ""; div.rossType = type; div.rossParams = Object.assign({}, p);
+            div.innerHTML = ""; 
+            div.rossType = type; 
+            div.rossParams = Object.assign({}, p);
             const fig = JSON.parse(data.plot_json);
             if(fig.frames) div.rossFrames = fig.frames; 
             fig.layout.autosize = true;
@@ -1915,9 +2021,17 @@ async function runCardAnalysis(uniqueId, type) {
                 frames: fig.frames || [], 
                 config: {responsive: true}
             });
+            
+        } else if (data.status === "dash") {
+            div.rossType = type; 
+            div.rossParams = Object.assign({}, p);
+            div.innerHTML = `<iframe src="${data.url}" style="width: 100%; height: 85vh; min-height: 700px; border: none; border-radius: var(--radius-ui); overflow: hidden; background: #fff;"></iframe>`;
+            
         } else if(data.status === "info") {
-            div.rossType = type; div.rossParams = Object.assign({}, p);
+            div.rossType = type; 
+            div.rossParams = Object.assign({}, p);
             div.innerHTML = `<div style="color:var(--accent-primary); text-align:center; padding: 40px 20px;"><i class="fas fa-external-link-alt fa-3x" style="margin-bottom:15px;"></i><br><span style="font-size: 15px; font-weight: 600;">${data.message}</span></div>`;
+            
         } else {
             div.innerHTML = `<div style="color:red; text-align:center; padding: 20px;"><i class="fas fa-exclamation-triangle fa-2x"></i><br><b>Error:</b> ${data.message}</div>`;
         }
@@ -1932,7 +2046,7 @@ async function runCardAnalysis(uniqueId, type) {
 function loadAnalysis(event) {
     const file = event.target.files[0]; if (!file) return;
     const reader = new FileReader();
-    reader.onload = e => {
+    reader.onload = async e => {
         try {
             const loaded = JSON.parse(e.target.result);
             const container = document.getElementById('analysis-list');
@@ -1945,7 +2059,10 @@ function loadAnalysis(event) {
                 if(an.type && an.params) {
                     const config = AnalysisDashboards[an.type];
                     if(config) {
-                        config.forEach(item => { if(an.params[item.id] !== undefined) item.val = an.params[item.id]; });
+                        config.forEach(item => { 
+                            if(an.params[item.id] !== undefined) item.val = an.params[item.id]; 
+                            if(an.params[item.id + '_unit'] !== undefined) item.saved_unit = an.params[item.id + '_unit'];
+                        });
                         controlsHTML = buildDashboardHTML(uniqueId, an.type);
                     }
                 }                
@@ -1978,7 +2095,7 @@ function loadAnalysis(event) {
                     config: {responsive: true}
                 }).then(() => window.dispatchEvent(new Event('resize')));
             });
-        } catch(err) { alert("Error reading JSON."); }
+        } catch(err) { await openCustomAlert("Error reading JSON."); }
     };
     reader.readAsText(file); event.target.value = '';
 }
@@ -1989,7 +2106,7 @@ function loadAnalysisDirect(event) { switchScreen('screen-analysis'); loadAnalys
 
 // Function to save the analysis
 
-function saveAnalysis(event) {
+async function saveAnalysis(event) {
     if (event) event.preventDefault();
     const cards = document.querySelectorAll('.analysis-card');
     const saved = [];
@@ -2009,7 +2126,7 @@ function saveAnalysis(event) {
             });
         }
     });
-    if(saved.length===0) return alert("No analysis to save!");
+    if(saved.length===0) return await openCustomAlert("No analysis to save!");
     const blob = new Blob([JSON.stringify(saved)], {type: "application/json"});
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = "analyses.json";
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
@@ -2018,7 +2135,8 @@ function saveAnalysis(event) {
 // Function to exit the application
 
 async function exitApplication() {
-    if(confirm("Do you really want to exit ROSS Interface? The background server will be shut down.")) {
+    let isConfirmed = await openCustomConfirm("Do you really want to exit ROSS Interface? The background server will be shut down.");
+    if(isConfirmed) {
         try { await fetch('http://127.0.0.1:5001/shutdown', {method: 'POST'}); } catch(e) {} 
         window.close();
         document.body.innerHTML = "<h2 style='text-align:center; margin-top:20%; color:#2c3e50;'><i class='fas fa-power-off'></i> Server Shutdown. You may close the browser.</h2>";
@@ -2092,6 +2210,8 @@ function injectUnits(htmlString) {
             let sel = document.createElement('select');
             sel.id = `inp-${key}_unit`;
             sel.className = 'unit-select';
+            sel.dataset.prev = defaultUnit;
+            sel.setAttribute('onchange', 'handleUnitChange(this)');
             
             UNIT_ALTERNATIVES[defaultUnit].forEach(u => {
                 let opt = document.createElement('option');
@@ -2100,6 +2220,11 @@ function injectUnits(htmlString) {
                 if (u === defaultUnit) opt.selected = true;
                 sel.appendChild(opt);
             });
+            
+            let optOthers = document.createElement('option');
+            optOthers.value = 'Others';
+            optOthers.innerText = 'Others...';
+            sel.appendChild(optOthers);
             
             let wrapper = document.createElement('div');
             wrapper.className = 'input-unit-wrapper';
@@ -2115,6 +2240,30 @@ function injectUnits(htmlString) {
     });
     return tempDiv.innerHTML;
 }
+
+// --- Custom Units Manager ---
+
+window.handleUnitChange = async function(sel) {
+    if (sel.value === 'Others') {
+        let custom = await openCustomPrompt("Enter custom unit string (e.g., 'lbf/in', 'Hz', 'lb*ft**2'):", "");
+        if (custom && custom.trim() !== '') {
+            custom = custom.trim();
+            let exists = Array.from(sel.options).find(o => o.value === custom);
+            if (!exists) {
+                let newOpt = document.createElement('option');
+                newOpt.value = custom;
+                newOpt.innerText = custom;
+                sel.insertBefore(newOpt, sel.querySelector('option[value="Others"]'));
+            }
+            sel.value = custom;
+            sel.dataset.prev = custom;
+        } else {
+            sel.value = sel.dataset.prev || sel.options[0].value;
+        }
+    } else {
+        sel.dataset.prev = sel.value;
+    }
+};
 
 // Format the kwargs
 
@@ -2175,8 +2324,8 @@ function _buildRotorClassPython(rData, suffix) {
     (rData.shafts || []).forEach((s, index) => {
         let args = formatKwargs(s, ['material', 'element_type'], 'ShaftElement');
         let effN = shaftNodes[index];
-        if (!args.includes('n=')) args = `n=${effN}` + (args.length > 0 ? `, ${args}` : ``);
-        let mat = s.material ? `materials_dict${suffix}.get('${s.material.toLowerCase()}', default_mat${suffix})` : `default_mat${suffix}`;        
+        if (!args.includes('n=')) args = `n=${effN}` + (args.length > 0 ? `, ${args}` : ``);        
+        let mat = (!s.material || s.material === 'Default (Steel)') ? 'rs.materials.steel' : `materials_dict${suffix}.get('${s.material.toLowerCase()}', default_mat${suffix})`;        
         py += `    dict(${args}, material=${mat}),\n`;
     });
     py += `]\nshafts${suffix} = [rs.ShaftElement(**kwargs) for kwargs in shafts_data${suffix}]\n`;
@@ -2200,7 +2349,7 @@ function _buildRotorClassPython(rData, suffix) {
         let args = formatKwargs(g, ['element_type', 'material'], cls);
         let effN = gearNodes[index];
         if (!args.includes('n=')) args = `n=${effN}` + (args.length > 0 ? `, ${args}` : ``);
-        let mat = g.material ? `materials_dict${suffix}.get('${g.material.toLowerCase()}', default_mat${suffix})` : `default_mat${suffix}`;
+        let mat = (!g.material || g.material === 'Default (Steel)') ? 'rs.materials.steel' : `materials_dict${suffix}.get('${g.material.toLowerCase()}', default_mat${suffix})`;
         let argStr = args.length > 0 ? `${args}, material=${mat}` : `material=${mat}`;
         py += `    (rs.${cls}, dict(${argStr})),\n`; 
     });
@@ -2764,9 +2913,9 @@ document.getElementById('help-modal-overlay').addEventListener('click', function
 // MULTIROTOR LOGIC
 // ==========================================
 
-function openMultiRotorModal() {
+async function openMultiRotorModal() {
     if (rotorLibrary.length < 2) {
-        alert("You need at least 2 rotors on the Hub to create a MultiRotor.");
+        await openCustomAlert("You need at least 2 rotors on the Hub to create a MultiRotor.");
         return;
     }
     let options = '';
@@ -2776,7 +2925,6 @@ function openMultiRotorModal() {
     document.getElementById('mr-driving').innerHTML = options;
     document.getElementById('mr-driven').innerHTML = options;
     
-    // Selects the second rotor in the list below by default to avoid collision
     if (rotorLibrary.length > 1) {
         document.getElementById('mr-driven').selectedIndex = 1;
     }
@@ -2806,12 +2954,12 @@ function syncMultiRotors() {
     });
 }
 
-function saveMultiRotor() {
+async function saveMultiRotor() {
     let drivingIdx = document.getElementById('mr-driving').value;
     let drivenIdx = document.getElementById('mr-driven').value;
     
     if (drivingIdx === drivenIdx) {
-        alert("The driving and driven rotors cannot be the same!");
+        await openCustomAlert("The driving and driven rotors cannot be the same!");
         return;
     }
     
@@ -2976,4 +3124,74 @@ window.addElementFromNodeHub = function(category) {
     window.isAddingFromHub = true;
     window.targetNodeForHub = nodeIndex;
     openForm(true);
+};
+
+// ==========================================
+// CUSTOM UI DIALOGS (PROMPT & CONFIRM)
+// ==========================================
+
+let customPromptResolver = null;
+let customConfirmResolver = null;
+
+window.openCustomPrompt = function(message, defaultValue = '') {
+    return new Promise((resolve) => {
+        customPromptResolver = resolve;
+        document.getElementById('custom-prompt-message').innerText = message;
+        const inputEl = document.getElementById('custom-prompt-input');
+        inputEl.value = defaultValue;
+        document.getElementById('custom-prompt-overlay').style.display = 'flex';
+        inputEl.focus();
+        inputEl.select();        
+        inputEl.onkeydown = function(e) {
+            if (e.key === 'Enter') confirmCustomPrompt();
+            if (e.key === 'Escape') closeCustomPrompt(null);
+        };
+    });
+};
+
+window.confirmCustomPrompt = function() {
+    const val = document.getElementById('custom-prompt-input').value;
+    closeCustomPrompt(val);
+};
+
+window.closeCustomPrompt = function(value) {
+    document.getElementById('custom-prompt-overlay').style.display = 'none';
+    if (customPromptResolver) {
+        customPromptResolver(value);
+        customPromptResolver = null;
+    }
+};
+
+window.openCustomConfirm = function(message) {
+    return new Promise((resolve) => {
+        customConfirmResolver = resolve;
+        document.getElementById('custom-confirm-message').innerText = message;
+        document.getElementById('custom-confirm-overlay').style.display = 'flex';
+    });
+};
+
+window.closeCustomConfirm = function(value) {
+    document.getElementById('custom-confirm-overlay').style.display = 'none';
+    if (customConfirmResolver) {
+        customConfirmResolver(value);
+        customConfirmResolver = null;
+    }
+};
+
+let customAlertResolver = null;
+
+window.openCustomAlert = function(message) {
+    return new Promise((resolve) => {
+        customAlertResolver = resolve;
+        document.getElementById('custom-alert-message').innerText = message;
+        document.getElementById('custom-alert-overlay').style.display = 'flex';
+    });
+};
+
+window.closeCustomAlert = function() {
+    document.getElementById('custom-alert-overlay').style.display = 'none';
+    if (customAlertResolver) {
+        customAlertResolver();
+        customAlertResolver = null;
+    }
 };
