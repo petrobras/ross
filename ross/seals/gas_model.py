@@ -50,26 +50,26 @@ def extract_gas_properties(gas_composition, inlet_pressure, inlet_temperature):
     -------
     state : ccp.State
         The inlet state, available for further property queries by the caller.
-    molar : float
+    molar_mass : float
         Molecular mass (g/mol).
     gamma : float
         Ratio of specific heats ``cp / cv`` at the inlet.
     R : float
-        Specific gas constant ``R_universal / molar`` (J/(kg K)).
+        Specific gas constant ``R_universal / molar_mass`` (J/(kg K)).
 
     Examples
     --------
-    >>> state, molar, gamma, R = extract_gas_properties(
+    >>> state, molar_mass, gamma, R = extract_gas_properties(
     ...     {"Nitrogen": 0.79, "Oxygen": 0.21}, 308000, 283.15
     ... )
     >>> bool(280 < R < 300)
     True
     """
     state = ccp.State(p=inlet_pressure, T=inlet_temperature, fluid=gas_composition)
-    molar = state.molar_mass("g/mol").m
+    molar_mass = state.molar_mass("g/mol").m
     gamma = (state.cp() / state.cv()).m
-    R = R_UNIVERSAL / molar
-    return state, molar, gamma, R
+    R = R_UNIVERSAL / molar_mass
+    return state, molar_mass, gamma, R
 
 
 class IdealGas:

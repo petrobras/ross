@@ -81,9 +81,12 @@ version = {attr = "ross.__version__"}
         "linkify-it-py",
         "numpydoc",
         "sphinxcontrib-bibtex>=2.2",
-        "ruff",
+        "ruff==0.16.3",
         "sphinx-design",
     ]
+
+[project.scripts]
+ross-install-skill = "ross.agent_skills.install:main"
 
 [project.urls]
 Homepage = "https://ross.readthedocs.io/"

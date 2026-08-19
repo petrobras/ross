@@ -25,7 +25,7 @@ from ross.bearings.magnetic.amb_utils import get_ambs
 
 from ross.plotly_theme import tableau_colors, coolwarm_r
 from ross.units import Q_, check_units
-from ross.utils import intersection, compute_freq_resp
+from ross.utils import intersection, compute_dfft, compute_freq_resp
 
 __all__ = [
     "Orbit",
@@ -388,7 +388,9 @@ def _init_orbit(ru_e, rv_e):
     # fmt: on
     H = T @ T.T
 
-    lam, vecs = la.eig(H)
+    # H is symmetric, so eigh is used: eig returns complex arrays with
+    # numpy >= 2.5, which numba cannot compare or argmax
+    lam, vecs = la.eigh(H)
     # lam is the eigenvalue -> sqrt(lam) is the minor/major axis.
     # kappa encodes the relation between the axis and the precession.
     minor = np.sqrt(max(np.real(lam.min()), 0.0))
@@ -419,6 +421,10 @@ def _init_orbit(ru_e, rv_e):
     v = vecs[:, major_index]
     v = np.real(v)
     v = v / la.norm(v)
+    # the eigenvector sign is arbitrary, so it is flipped if needed to
+    # keep the major axis angle in the upper half plane [0, pi)
+    if v[1] < 0 or (v[1] == 0 and v[0] < 0):
+        v = -v
 
     major_x = major * v[0]
     major_y = major * v[1]
@@ -679,6 +685,10 @@ class Shape(Results):
     def plot_orbit(self, nodes, fig=None):
         """Plot orbits.
 
+        Orbits are only available for lateral modes. For torsional and axial
+        modes a warning is issued and a figure with an annotation explaining
+        that the mode has no orbit is returned.
+
         Parameters
         ----------
         nodes : list
@@ -694,6 +704,21 @@ class Shape(Results):
         # only perform calculation if necessary
         if fig is None:
             fig = go.Figure()
+
+        if self.orbits is None:
+            warn(
+                f"This is a {self.mode_type.lower()} mode and has no orbit. "
+                "Orbits are only available for lateral modes."
+            )
+            fig.add_annotation(
+                text=f"{self.mode_type} mode has no orbit.",
+                xref="paper",
+                yref="paper",
+                x=0.5,
+                y=0.5,
+                showarrow=False,
+            )
+            return fig
 
         selected_orbits = [orbit for orbit in self.orbits if orbit.node in nodes]
 
@@ -5983,40 +6008,6 @@ class TimeResponseResults(Results):
 
         return fig
 
-    def _dfft(self, y, dt):
-        """Calculate dFFT - discrete Fourier Transform.
-
-        Parameters
-        ----------
-        y : np.array
-            Magnitude of the response in time domain (m).
-        dt : int
-            Time step (s).
-
-        Returns
-        -------
-        freq : np.array
-            Frequency range (Hz).
-        y_amp : np.array
-            Amplitude of the response in frequency domain (m).
-        y_phase : np.array
-            Phase of the response in frequency domain (rad).
-        """
-        b = np.floor(len(y) / 2)
-        c = len(y)
-        df = 1 / (c * dt)
-
-        y_amp = fft(y)[: int(b)]
-        y_amp = y_amp * 2 / c
-
-        y_phase = np.angle(y_amp)
-        y_amp = np.abs(y_amp)
-
-        freq = np.arange(0, df * b, df)
-        freq = freq[: int(b)]
-
-        return freq, y_amp, y_phase
-
     @check_units
     def plot_dfft(
         self,
@@ -6084,7 +6075,7 @@ class TimeResponseResults(Results):
                 probe_tag = data[f"probe_tag[{i}]"].values[0]
                 probe_resp = data[f"probe_resp[{i}]"].values
 
-                freq, amp, _ = self._dfft(probe_resp, dt)
+                freq, amp, _ = compute_dfft(probe_resp, dt)
 
                 if frequency_range is not None:
                     delta = 0.01 * (frequency_range[1] - frequency_range[0])

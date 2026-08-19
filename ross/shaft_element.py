@@ -11,6 +11,7 @@ from plotly import graph_objects as go
 
 from ross.element import Element
 from ross.materials import Material
+from ross.plotly_theme import color_shades, parse_color
 from ross.units import Q_, check_units
 from ross.utils import read_table_file
 
@@ -387,8 +388,8 @@ class ShaftElement(Element):
         Young`s modulus (N/m**2):  2.11e+11
         Shear modulus   (N/m**2):  8.12e+10
         Poisson coefficient     :  0.29926108
-        Specific heat   (J/(kg*K)): 0.0
-        Thermal conductivity (W/(m*K)): 0.0
+        Specific heat   (J/(kg*K)): None
+        Thermal conductivity (W/(m*K)): None
         """
         return (
             f"Element Number:             {self.n}"
@@ -405,29 +406,18 @@ class ShaftElement(Element):
         return hash(self.tag)
 
     def save(self, file):
-        from ross.utils import load_data, dump_data
-
-        signature = inspect.signature(self.__init__)
-        args_list = list(signature.parameters)
-        args = {arg: getattr(self, arg) for arg in args_list}
-
         # add material characteristics so that the shaft element can be reconstructed
         # even if the material is not in the available_materials file.
-        args["material"] = {
-            "name": self.material.name,
-            "rho": self.material.rho,
-            "E": self.material.E,
-            "G_s": self.material.G_s,
-            "color": self.material.color,
-        }
-
-        try:
-            data = load_data(file)
-        except FileNotFoundError:
-            data = {}
-
-        data[f"{self.__class__.__name__}_{self.tag}"] = args
-        dump_data(data, file)
+        super().save(
+            file,
+            material={
+                "name": self.material.name,
+                "rho": self.material.rho,
+                "E": self.material.E,
+                "G_s": self.material.G_s,
+                "color": self.material.color,
+            },
+        )
 
     @classmethod
     def read_toml_data(cls, data):
@@ -1112,27 +1102,17 @@ class ShaftElement(Element):
             legend = "Shaft - Slenderness Ratio < 1.6"
         else:
             color = self.material.color
-            legend = "Shaft"
+            legend = self.material.name
+
+        shades = color_shades(color)
+        mesh_edge = "rgba({},{},{},0.5)".format(*parse_color(shades["edge"]))
 
         z_pos, yc_pos = position
 
         # plot the shaft
-        z_upper = [z_pos, z_pos, z_pos + self.L, z_pos + self.L, z_pos]
+        z_half = [z_pos, z_pos, z_pos + self.L, z_pos + self.L, z_pos]
         y_upper = [self.idl / 2, self.odl / 2, self.odr / 2, self.idr / 2, self.idl / 2]
-        z_lower = [z_pos, z_pos, z_pos + self.L, z_pos + self.L, z_pos]
-        y_lower = [
-            -self.idl / 2,
-            -self.odl / 2,
-            -self.odr / 2,
-            -self.idr / 2,
-            -self.idl / 2,
-        ]
-
-        z_pos = z_upper
-        z_pos.extend(z_lower)
-
-        y_pos = y_upper
-        y_pos.extend(y_lower)
+        y_lower = [-y for y in y_upper]
 
         if check_sld:
             customdata = [self.n, self.slenderness_ratio]
@@ -1159,24 +1139,59 @@ class ShaftElement(Element):
                 + f"Element Length: {round(customdata[5], 6)} {units}<br>"
                 + f"Material: {customdata[6]}<br>"
             )
+
+        half_values = dict(
+            x=Q_(z_half, "m").to(units).m,
+            customdata=[customdata] * len(z_half),
+            text=hovertemplate,
+            mode="lines",
+            fill="toself",
+            line=dict(width=0.7, color=mesh_edge),
+            showlegend=False,
+            name=self.tag,
+            legendgroup=legend,
+            hoveron="points+fills",
+            hoverinfo="text",
+            hovertemplate=hovertemplate,
+            hoverlabel=dict(bgcolor=shades["section"], font=dict(color="#33475C")),
+        )
+
         fig.add_trace(
             go.Scatter(
-                x=Q_(z_pos, "m").to(units).m,
-                y=Q_(np.add(y_pos, yc_pos), "m").to(units).m,
-                customdata=[customdata] * len(z_pos),
-                text=hovertemplate,
-                mode="lines",
-                opacity=0.5,
-                fill="toself",
-                fillcolor=color,
-                line=dict(width=1.5, color="black"),
-                showlegend=False,
-                name=self.tag,
-                legendgroup=legend,
-                hoveron="points+fills",
-                hoverinfo="text",
-                hovertemplate=hovertemplate,
-                hoverlabel=dict(bgcolor=color),
+                y=Q_(np.add(y_upper, yc_pos), "m").to(units).m,
+                fillcolor=shades["tint"],
+                **half_values,
+            )
+        )
+
+        # the bottom half switches between the rendered metal look and the
+        # material cross section, so it carries both styles for plot_rotor
+        fig.add_trace(
+            go.Scatter(
+                y=Q_(np.add(y_lower, yc_pos), "m").to(units).m,
+                fillcolor=shades["tint"],
+                fillpattern=dict(
+                    shape="",
+                    fgcolor=shades["edge"],
+                    bgcolor=shades["section"],
+                    size=4,
+                    solidity=0.22,
+                ),
+                meta=dict(
+                    morph=dict(
+                        render={
+                            "fillcolor": shades["tint"],
+                            "fillpattern.shape": "",
+                            "line.color": mesh_edge,
+                        },
+                        section={
+                            "fillcolor": shades["section"],
+                            "fillpattern.shape": "/",
+                            "line.color": shades["edge"],
+                        },
+                    )
+                ),
+                **half_values,
             )
         )
 
@@ -1185,82 +1200,31 @@ class ShaftElement(Element):
     def copy(self, **attributes):
         """Return a new shaft element based on the current instance.
 
-        Any attribute passed as an argument will be used to modify the corresponding
-        attribute of the instance. Attributes not provided as arguments will retain
-        their values from the current instance.
+        Any attribute passed as an argument will be used to modify the
+        corresponding attribute of the instance. Attributes not provided
+        as arguments will retain their values from the current instance.
 
         Parameters
         ----------
-        L : float, pint.Quantity, optional
-            Element length (m). Default is equal to value of current instance.
-        idl : float, pint.Quantity, optional
-            Inner diameter of the element at the left position (m).
-            Default is equal to value of current instance.
-        odl : float, pint.Quantity, optional
-            Outer diameter of the element at the left position (m).
-            Default is equal to value of current instance.
-        idr : float, pint.Quantity, optional
-            Inner diameter of the element at the right position (m).
-            Default is equal to value of current instance.
-        odr : float, pint.Quantity, optional
-            Outer diameter of the element at the right position (m).
-            Default is equal to value of current instance.
-        material : ross.Material, optional
-            Shaft material. Default is equal to value of current instance.
-        n : int, optional
-            Element number (coincident with it's first node).
-            Default is equal to value of current instance.
-        axial_force : float, optional
-            Axial force (N). Default is equal to value of current instance.
-        torque : float, optional
-            Torque (N*m). Default is equal to value of current instance.
-        shear_effects : bool, optional
-            Determine if shear effects are taken into account.
-            Default is equal to value of current instance.
-        rotary_inertia : bool, optional
-            Determine if rotary_inertia effects are taken into account.
-            Default is equal to value of current instance.
-        gyroscopic : bool, optional
-            Determine if gyroscopic effects are taken into account.
-            Default is equal to value of current instance.
-        shear_method_calc : str, optional
-            Determines which shear calculation method the user will adopt
-            Default is equal to value of current instance.
-        alpha : float, optional
-            Mass proportional damping factor.
-            Default is equal to value of current instance.
-        beta : float, optional
-            Stiffness proportional damping factor.
-            Default is equal to value of current instance.
-        tag : str, optional
-            Element tag.
-            Default is None.
+        **attributes : dict, optional
+            Dictionary with the attributes to be modified.
 
         Returns
         -------
         shaft_element : ross.ShaftElement
             An instance of the modified shaft element.
         """
-        return self.__class__(
-            L=attributes.get("L", self.L),
-            idl=attributes.get("idl", self.idl),
-            odl=attributes.get("odl", self.odl),
-            idr=attributes.get("idr", self.idr),
-            odr=attributes.get("odr", self.odr),
-            n=attributes.get("n", self.n),
-            material=attributes.get("material", self.material),
-            axial_force=attributes.get("axial_force", self.axial_force),
-            torque=attributes.get("torque", self.torque),
-            rotary_inertia=attributes.get("rotary_inertia", self.rotary_inertia),
-            shear_effects=attributes.get("shear_effects", self.shear_effects),
-            gyroscopic=attributes.get("gyroscopic", self.gyroscopic),
-            shear_method_calc=attributes.get(
-                "shear_method_calc", self.shear_method_calc
-            ),
-            alpha=attributes.get("alpha", self.alpha),
-            beta=attributes.get("beta", self.beta),
-            tag=attributes.get("tag", None),
-        )
+        sig = inspect.signature(self.__class__.__init__)
+        params = [p for p in sig.parameters if p != "self"]
+
+        new_attributes = {}
+        for param in params:
+            if param == "tag":
+                new_attributes[param] = attributes.get("tag", None)
+            else:
+                new_attributes[param] = attributes.get(param, getattr(self, param))
+
+        return self.__class__(**new_attributes)
 
     @classmethod
     def from_table(cls, file, sheet_type="Simple", sheet_name=0):

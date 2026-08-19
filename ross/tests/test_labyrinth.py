@@ -23,7 +23,7 @@ COMMON_PARAMS = {
     "preswirl": 0.98,
     "frequency": Q_([8000], "RPM"),
     "n_teeth": 16,
-    "shaft_radius": Q_(72.5, "mm"),
+    "shaft_diameter": Q_(145, "mm"),
     "radial_clearance": Q_(0.3, "mm"),
     "pitch": Q_(3.175, "mm"),
     "tooth_height": Q_(3.175, "mm"),
@@ -32,9 +32,9 @@ COMMON_PARAMS = {
 }
 
 MANUAL_PARAMS = {
-    "molar": 28.96807,
-    "tz": [283.15, 282.60903080958565],
-    "muz": [1.7746561138374613e-05, 1.7687886306966975e-05],
+    "molar_mass": 28.96807,
+    "reference_temperatures": [283.15, 282.60903080958565],
+    "reference_viscosities": [1.7746561138374613e-05, 1.7687886306966975e-05],
     "gamma": 1.41,
 }
 
@@ -76,13 +76,19 @@ def test_labyrinth_manual_coefficients(labyrinth_manual):
 
 def test_labyrinth_manual_attributes(labyrinth_manual):
     """Test that manual parameters are correctly stored."""
-    assert_allclose(labyrinth_manual.molar, 28.96807, rtol=1e-6)
+    assert_allclose(labyrinth_manual.molar_mass, 28.96807, rtol=1e-6)
     assert_allclose(labyrinth_manual.R, 287.005658, rtol=1e-4)
     assert labyrinth_manual.gamma == 1.41
-    assert_allclose(labyrinth_manual.tz[0], 283.15, rtol=1e-6)
-    assert_allclose(labyrinth_manual.tz[1], 282.60903080958565, rtol=1e-6)
-    assert_allclose(labyrinth_manual.muz[0], 1.7746561138374613e-05, rtol=1e-6)
-    assert_allclose(labyrinth_manual.muz[1], 1.7687886306966975e-05, rtol=1e-6)
+    assert_allclose(labyrinth_manual.reference_temperatures[0], 283.15, rtol=1e-6)
+    assert_allclose(
+        labyrinth_manual.reference_temperatures[1], 282.60903080958565, rtol=1e-6
+    )
+    assert_allclose(
+        labyrinth_manual.reference_viscosities[0], 1.7746561138374613e-05, rtol=1e-6
+    )
+    assert_allclose(
+        labyrinth_manual.reference_viscosities[1], 1.7687886306966975e-05, rtol=1e-6
+    )
 
 
 def test_labyrinth_gas_composition_creation(labyrinth_gas_composition):
@@ -100,15 +106,19 @@ def test_labyrinth_gas_composition_derived_properties(labyrinth_gas_composition)
     # Check that properties were derived
     assert labyrinth_gas_composition.R is not None
     assert labyrinth_gas_composition.gamma is not None
-    assert labyrinth_gas_composition.tz is not None
-    assert labyrinth_gas_composition.muz is not None
+    assert labyrinth_gas_composition.reference_temperatures is not None
+    assert labyrinth_gas_composition.reference_viscosities is not None
 
     assert_allclose(labyrinth_gas_composition.R, 287, rtol=0.02)
     assert_allclose(labyrinth_gas_composition.gamma, 1.4, rtol=0.03)
-    assert len(labyrinth_gas_composition.tz) == 2
-    assert_allclose(labyrinth_gas_composition.tz[0], 283.15, rtol=1e-4)
-    assert len(labyrinth_gas_composition.muz) == 2
-    assert_allclose(labyrinth_gas_composition.muz[0], 1.77e-05, rtol=0.05)
+    assert len(labyrinth_gas_composition.reference_temperatures) == 2
+    assert_allclose(
+        labyrinth_gas_composition.reference_temperatures[0], 283.15, rtol=1e-4
+    )
+    assert len(labyrinth_gas_composition.reference_viscosities) == 2
+    assert_allclose(
+        labyrinth_gas_composition.reference_viscosities[0], 1.77e-05, rtol=0.05
+    )
 
 
 def test_labyrinth_gas_composition_coefficients_range(labyrinth_gas_composition):
@@ -122,7 +132,7 @@ def test_labyrinth_gas_composition_coefficients_range(labyrinth_gas_composition)
     assert_allclose(abs(labyrinth_gas_composition.kxy[0]), 35515, rtol=0.01)  # ±1%
     assert_allclose(labyrinth_gas_composition.cxx[0], 23.8, rtol=0.01)  # ±1%
     assert_allclose(
-        labyrinth_gas_composition.seal_leakage[0], 0.05195, rtol=0.01
+        labyrinth_gas_composition.seal_leakage[0], 0.023714, rtol=0.01
     )  # ±1%
 
 
@@ -161,7 +171,7 @@ def test_labyrinth_refprop_backend():
         # REFPROP expected values (from testing)
         assert_allclose(labyrinth.kxx[0], -50435.21, rtol=1e-3)
         assert_allclose(labyrinth.cxx[0], 23.808, rtol=1e-3)
-        assert_allclose(labyrinth.seal_leakage[0], 0.051951, rtol=1e-3)
+        assert_allclose(labyrinth.seal_leakage[0], 0.023714, rtol=1e-3)
 
         # Check derived properties
         assert_allclose(labyrinth.R, 287.12, rtol=1e-3)
@@ -186,7 +196,7 @@ def test_labyrinth_heos_backend():
         # Note: HEOS values differ slightly from REFPROP (<0.05%)
         assert_allclose(labyrinth.kxx[0], -50449.96, rtol=1e-3)
         assert_allclose(labyrinth.cxx[0], 23.797, rtol=1e-3)
-        assert_allclose(labyrinth.seal_leakage[0], 0.051951, rtol=1e-3)
+        assert_allclose(labyrinth.seal_leakage[0], 0.023714, rtol=1e-3)
 
         # Check derived properties
         assert_allclose(labyrinth.R, 287.12, rtol=1e-3)
@@ -262,15 +272,15 @@ def labyrinth():
         preswirl=0.98,
         frequency=Q_([8000], "RPM"),
         n_teeth=16,
-        shaft_radius=Q_(72.5, "mm"),
+        shaft_diameter=Q_(145, "mm"),
         radial_clearance=Q_(0.3, "mm"),
         pitch=Q_(3.175, "mm"),
         tooth_height=Q_(3.175, "mm"),
         tooth_width=Q_(0.1524, "mm"),
         seal_type="inter",
-        molar=28.96807,
-        tz=[283.15, 282.60903080958565],
-        muz=[1.7746561138374613e-05, 1.7687886306966975e-05],
+        molar_mass=28.96807,
+        reference_temperatures=[283.15, 282.60903080958565],
+        reference_viscosities=[1.7746561138374613e-05, 1.7687886306966975e-05],
         gamma=1.41,
     )
 
@@ -319,7 +329,7 @@ DENSE_GAS_PARAMS = {
     "preswirl": 0.5,
     "frequency": Q_([8000], "RPM"),
     "n_teeth": 10,
-    "shaft_radius": Q_(72.5, "mm"),
+    "shaft_diameter": Q_(145, "mm"),
     "radial_clearance": Q_(0.3, "mm"),
     "pitch": Q_(3.175, "mm"),
     "tooth_height": Q_(3.175, "mm"),
@@ -336,19 +346,20 @@ def test_labyrinth_gas_model_default_is_ideal(labyrinth_manual):
 
 
 def test_labyrinth_ideal_backend_unchanged(labyrinth_manual):
-    """The ideal backend reproduces the legacy coefficients.
+    """The ideal backend reproduces the reference coefficients tightly.
 
-    Routing the solver through the gas model must not perturb the ideal-gas
-    path. The reference values are bit-identical on the machine where they were
-    captured; the tolerance here is far tighter than the ``rtol=1e-4`` used by
-    the other tests (so any real perturbation is caught) while tolerating
-    last-bit floating-point differences between platforms/BLAS backends.
+    The tolerance here is far tighter than the ``rtol=1e-4`` used by the other
+    tests (so any real perturbation of the ideal-gas path is caught) while
+    tolerating last-bit floating-point differences between platforms and BLAS
+    backends. The reference values were captured when the solver iterations
+    moved to bracketed root-finding (scipy.optimize.brentq); they agree with
+    the pre-existing values to better than 5e-8.
     """
-    assert_allclose(labyrinth_manual.kxx[0], -50456.5865968456, rtol=1e-9)
-    assert_allclose(labyrinth_manual.kxy[0], 35541.605311914, rtol=1e-9)
-    assert_allclose(labyrinth_manual.cxx[0], 23.82511134106155, rtol=1e-9)
-    assert_allclose(labyrinth_manual.cxy[0], 56.255682475614, rtol=1e-9)
-    assert_allclose(labyrinth_manual.seal_leakage[0], 0.051961660704224755, rtol=1e-9)
+    assert_allclose(labyrinth_manual.kxx[0], -50456.58797187634, rtol=1e-9)
+    assert_allclose(labyrinth_manual.kxy[0], 35541.60651449606, rtol=1e-9)
+    assert_allclose(labyrinth_manual.cxx[0], 23.825112375903597, rtol=1e-9)
+    assert_allclose(labyrinth_manual.cxy[0], 56.255683485760905, rtol=1e-9)
+    assert_allclose(labyrinth_manual.seal_leakage[0], 0.023719116584285112, rtol=1e-9)
 
 
 def test_labyrinth_real_requires_gas_composition():

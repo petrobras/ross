@@ -1,7 +1,7 @@
 """Bearing Element module.
 
 This module defines the BearingElement classes which will be used to represent the rotor
-bearings and seals. There are 7 different classes to represent bearings options.
+bearings and seals.
 """
 
 import control as ct
@@ -14,10 +14,7 @@ from plotly import graph_objects as go
 from scipy import interpolate as interpolate
 
 from ross.element import Element
-from ross.bearings import fluid_flow as flow
-from ross.bearings.fluid_flow_coefficients import (
-    calculate_stiffness_and_damping_coefficients,
-)
+from ross.plotly_theme import color_shades
 from ross.units import Q_, check_units
 from ross.utils import (
     read_table_file,
@@ -32,7 +29,6 @@ __all__ = [
     "SealElement",
     "BallBearingElement",
     "RollerBearingElement",
-    "BearingFluidFlow",
     "MagneticBearingElement",
     "CylindricalBearing",
 ]
@@ -50,6 +46,9 @@ class BearingElement(Element):
         Extra instance attributes to persist on save/load, beyond __init__
         parameters and coefficients. Subclasses can extend this to include
         derived quantities that are expensive to recompute.
+    _legend_group : str
+        Name of the legend entry under which the element is drawn in
+        :py:meth:`ross.Rotor.plot_rotor`.
     For speed dependent parameters, each argument should be passed
     as an array and the correspondent speed values should also be
     passed as an array.
@@ -141,6 +140,7 @@ class BearingElement(Element):
     """
 
     _save_attrs = []
+    _legend_group = "Bearing"
 
     @check_units
     def __init__(
@@ -581,7 +581,7 @@ class BearingElement(Element):
         return hash(self.tag)
 
     def save(self, file):
-        from ross.utils import load_data, dump_data
+        from ross.utils import load_data, dump_data, cast_numpy_types
 
         try:
             data = load_data(file)
@@ -600,20 +600,7 @@ class BearingElement(Element):
         args = list(coefficients.union(init_args).union(extra_attrs))
         args.sort()
 
-        brg_data = {arg: self.__dict__[arg] for arg in args}
-
-        # change np.array to lists so that we can save as list(floats)
-        for k, v in brg_data.items():
-            if isinstance(v, np.generic):
-                brg_data[k] = brg_data[k].item()
-            elif isinstance(v, np.ndarray):
-                brg_data[k] = brg_data[k].tolist()
-            # case for a container with np.float (e.g. list(np.float))
-            else:
-                try:
-                    brg_data[k] = [i.item() for i in brg_data[k]]
-                except (TypeError, AttributeError):
-                    pass
+        brg_data = cast_numpy_types({arg: self.__dict__[arg] for arg in args})
 
         diff_args = set(signature(self.__init__).parameters).difference(
             self.__dict__.keys()
@@ -889,15 +876,109 @@ class BearingElement(Element):
 
         return customdata, hovertemplate
 
-    def _patch(self, position, fig):
-        """Bearing element patch.
+    def _classic_glyph(self, position):
+        """Build the classic spring/damper drawing of the bearing.
 
-        Patch that will be used to draw the bearing element using Plotly library.
+        The glyph mirrors the pedestal footprint: a spring and a damper in
+        parallel between the shaft surface and the support, with a hatched
+        ground line when the bearing is not linked to another element. Points
+        are returned as single polylines with None separators so the whole
+        drawing fits the same traces as the pedestal.
 
         Parameters
         ----------
         position : tuple
-            Position (z, y_low, y_upp) in which the patch will be drawn.
+            Position (z, y_low, y_upp, y_center) in which the glyph will be
+            drawn.
+
+        Returns
+        -------
+        body : tuple
+            x and y lists with the spring, damper and base lines.
+        ground : tuple
+            x and y lists with the ground line and its hatching.
+        """
+        zpos, ypos, ypos_s, yc_pos = position
+
+        icon_h = ypos_s - ypos
+        icon_w = icon_h / 2
+        coils = 6
+        step = icon_w / (coils + 1)
+        z_spring = zpos - 0.4 * icon_w
+        z_damper = zpos + 0.4 * icon_w
+        y_base = ypos + 0.25 * icon_h
+        y_top = ypos + 0.75 * icon_h
+
+        x_body = []
+        y_body = []
+        x_ground = []
+        y_ground = []
+        for sign in (1, -1):
+
+            def add(xs, ys, x_list=x_body, y_list=y_body):
+                x_list += list(xs) + [None]
+                y_list += [yc_pos + sign * y if y is not None else None for y in ys] + [
+                    None
+                ]
+
+            add(
+                [zpos, zpos, None, z_spring, z_damper],
+                [ypos, y_base, None, y_base, y_base],
+            )
+            add(
+                [z_spring, z_damper, None, zpos, zpos],
+                [y_top, y_top, None, y_top, ypos_s],
+            )
+
+            zigzag = [z_spring + (-1) ** i * step for i in range(coils)]
+            add(
+                [z_spring] + zigzag + [z_spring],
+                np.linspace(y_base, y_top, coils + 2),
+            )
+
+            cup = 1.6 * step
+            add(
+                [z_damper, z_damper, None]
+                + [z_damper - cup, z_damper - cup, z_damper + cup]
+                + [z_damper + cup, None, z_damper - cup, z_damper + cup]
+                + [None, z_damper, z_damper],
+                [y_base, y_base + 2 * step, None]
+                + [y_base + 5 * step, y_base + 2 * step, y_base + 2 * step]
+                + [y_base + 5 * step, None, y_base + 4 * step, y_base + 4 * step]
+                + [None, y_base + 4 * step, y_top],
+            )
+
+            z0 = z_spring - step
+            z1 = z_damper + step
+            add([z0, z1], [ypos_s, ypos_s], x_ground, y_ground)
+            hatches = 5
+            pitch = (z1 - z0) / hatches
+            for i in range(hatches):
+                add(
+                    [z0 + i * pitch, z0 + (i + 1) * pitch],
+                    [ypos_s, ypos_s + 1.6 * step],
+                    x_ground,
+                    y_ground,
+                )
+
+        return (x_body, y_body), (x_ground, y_ground)
+
+    def _patch(self, position, fig):
+        """Bearing element patch.
+
+        Patch that will be used to draw the bearing element using Plotly library.
+        The bearing is drawn as a pedestal reaching from the shaft surface to
+        its support, closed by a ground bar when it is not linked to another
+        element. Each trace also carries the classic spring/damper drawing in
+        its meta attribute, so the button added by `Rotor.plot_rotor` can
+        restyle the same traces between the two representations without
+        touching their visibility, which belongs to the legend.
+
+        Parameters
+        ----------
+        position : tuple
+            Position (z, y_low, y_upp, y_center) in which the patch will be
+            drawn.
         fig : plotly.graph_objects.Figure
             The figure object which traces are added on.
 
@@ -906,143 +987,108 @@ class BearingElement(Element):
         fig : plotly.graph_objects.Figure
             The figure object which traces are added on.
         """
-        default_values = dict(
-            mode="lines",
-            line=dict(width=1, color=self.color),
-            name=self.tag,
-            legendgroup="bearings",
-            showlegend=False,
-            hoverinfo="none",
-        )
-
-        # geometric factors
         zpos, ypos, ypos_s, yc_pos = position
+        shades = color_shades(self.color)
 
-        icon_h = ypos_s - ypos  # bearing icon height
-        icon_w = icon_h / 2.0  # bearing icon width
-        coils = 6  # number of points to generate spring
-        n = 5  # number of ground lines
-        step = icon_w / (coils + 1)  # spring step
+        icon_h = ypos_s - ypos
+        icon_w = 0.22 * icon_h
 
-        zs0 = zpos - (icon_w / 3.5)
-        zs1 = zpos + (icon_w / 3.5)
-        ys0 = ypos + 0.25 * icon_h
+        x_body = []
+        y_body = []
+        x_ground = []
+        y_ground = []
+        for sign in (1, -1):
+            y0 = sign * ypos + yc_pos
+            y1 = sign * ypos_s + yc_pos
+            y_neck = y0 + sign * 0.16 * icon_h
+            x_body += [zpos, zpos - icon_w, zpos - icon_w, zpos + icon_w, zpos + icon_w]
+            x_body += [zpos, None]
+            y_body += [y0, y_neck, y1, y1, y_neck, y0, None]
+            x_ground += [zpos - 1.3 * icon_w, zpos + 1.3 * icon_w, None]
+            y_ground += [y1, y1, None]
 
-        # plot bottom base
-        x_bot = [zpos, zpos, zs0, zs1]
-        yl_bot = [ypos, ys0, ys0, ys0]
-        yu_bot = [-y for y in yl_bot]
-        fig.add_trace(go.Scatter(x=x_bot, y=np.add(yl_bot, yc_pos), **default_values))
-        fig.add_trace(go.Scatter(x=x_bot, y=np.add(yu_bot, yc_pos), **default_values))
+        classic_body, classic_ground = self._classic_glyph(position)
 
-        # Add hover information marker at the center of bottom base
         customdata, hovertemplate = self._hover_info()
-        # Scale marker size proportionally to the bearing icon height
-        # icon_h already includes the scale_factor effect from rotor assembly
-        marker_size = icon_h * 200  # proportional to actual bearing size
-        hover_marker_values_top = dict(
-            mode="markers",
-            x=[zpos],
-            y=[ypos + icon_h / 2],
-            marker=dict(size=marker_size, color=self.color, opacity=0),
-            customdata=[customdata],
-            hovertemplate=hovertemplate,
-            hoverinfo="text",
-            name=self.tag,
-            legendgroup="bearings",
-            showlegend=False,
+
+        fig.add_trace(
+            go.Scatter(
+                x=x_body,
+                y=y_body,
+                mode="lines",
+                fill="toself",
+                fillcolor=shades["dark"],
+                line=dict(width=1.0, color=shades["edge"]),
+                name=self.tag,
+                legendgroup=self._legend_group,
+                showlegend=False,
+                hoverinfo="skip",
+                meta={
+                    "bearing_style": {
+                        "pedestal": {
+                            "x": x_body,
+                            "y": y_body,
+                            "fill": "toself",
+                            "line.width": 1.0,
+                        },
+                        "spring_damper": {
+                            "x": classic_body[0],
+                            "y": classic_body[1],
+                            "fill": "none",
+                            "line.width": 1.4,
+                        },
+                    }
+                },
+            )
         )
-        fig.add_trace(go.Scatter(**hover_marker_values_top))
-        # copy the customdata and hovertemplate from the top marker just multiplying the y value by -1
-        hover_marker_values_bottom = hover_marker_values_top.copy()
-        hover_marker_values_bottom["y"] = [-1 * hover_marker_values_top["y"][0]]
-        fig.add_trace(go.Scatter(**hover_marker_values_bottom))
 
-        # plot top base
-        x_top = [zpos, zpos, zs0, zs1]
-        yl_top = [
-            ypos + icon_h,
-            ypos + 0.75 * icon_h,
-            ypos + 0.75 * icon_h,
-            ypos + 0.75 * icon_h,
-        ]
-        yu_top = [-y for y in yl_top]
-        fig.add_trace(go.Scatter(x=x_top, y=np.add(yl_top, yc_pos), **default_values))
-        fig.add_trace(go.Scatter(x=x_top, y=np.add(yu_top, yc_pos), **default_values))
-
-        # plot ground
         if self.n_link is None:
-            zl_g = [zs0 - step, zs1 + step]
-            yl_g = [yl_top[0], yl_top[0]]
-            yu_g = [-y for y in yl_g]
-            fig.add_trace(go.Scatter(x=zl_g, y=np.add(yl_g, yc_pos), **default_values))
-            fig.add_trace(go.Scatter(x=zl_g, y=np.add(yu_g, yc_pos), **default_values))
-
-            step2 = (zl_g[1] - zl_g[0]) / n
-            for i in range(n + 1):
-                zl_g2 = [(zs0 - step) + step2 * (i), (zs0 - step) + step2 * (i + 1)]
-                yl_g2 = [yl_g[0], 1.1 * yl_g[0]]
-                yu_g2 = [-y for y in yl_g2]
-                fig.add_trace(
-                    go.Scatter(x=zl_g2, y=np.add(yl_g2, yc_pos), **default_values)
+            fig.add_trace(
+                go.Scatter(
+                    x=x_ground,
+                    y=y_ground,
+                    mode="lines",
+                    line=dict(width=3.5, color=shades["edge"]),
+                    name=self.tag,
+                    legendgroup=self._legend_group,
+                    showlegend=False,
+                    hoverinfo="skip",
+                    meta={
+                        "bearing_style": {
+                            "pedestal": {
+                                "x": x_ground,
+                                "y": y_ground,
+                                "line.width": 3.5,
+                            },
+                            "spring_damper": {
+                                "x": classic_ground[0],
+                                "y": classic_ground[1],
+                                "line.width": 1.4,
+                            },
+                        }
+                    },
                 )
-                fig.add_trace(
-                    go.Scatter(x=zl_g2, y=np.add(yu_g2, yc_pos), **default_values)
-                )
+            )
 
-        # plot spring
-        z_spring = np.array([zs0, zs0, zs0, zs0])
-        yl_spring = np.array([ys0, ys0 + step, ys0 + icon_w - step, ys0 + icon_w])
-
-        for i in range(coils):
-            z_spring = np.insert(z_spring, i + 2, zs0 - (-1) ** i * step)
-            yl_spring = np.insert(yl_spring, i + 2, ys0 + (i + 1) * step)
-        yu_spring = [-y for y in yl_spring]
-
+        marker_size = min(max(icon_h * 200, 14.0), 34.0)
         fig.add_trace(
-            go.Scatter(x=z_spring, y=np.add(yl_spring, yc_pos), **default_values)
-        )
-        fig.add_trace(
-            go.Scatter(x=z_spring, y=np.add(yu_spring, yc_pos), **default_values)
-        )
-
-        # plot damper - base
-        z_damper1 = [zs1, zs1]
-        yl_damper1 = [ys0, ys0 + 2 * step]
-        yu_damper1 = [-y for y in yl_damper1]
-        fig.add_trace(
-            go.Scatter(x=z_damper1, y=np.add(yl_damper1, yc_pos), **default_values)
-        )
-        fig.add_trace(
-            go.Scatter(x=z_damper1, y=np.add(yu_damper1, yc_pos), **default_values)
-        )
-
-        # plot damper - center
-        z_damper2 = [zs1 - 2 * step, zs1 - 2 * step, zs1 + 2 * step, zs1 + 2 * step]
-        yl_damper2 = [ys0 + 5 * step, ys0 + 2 * step, ys0 + 2 * step, ys0 + 5 * step]
-        yu_damper2 = [-y for y in yl_damper2]
-        fig.add_trace(
-            go.Scatter(x=z_damper2, y=np.add(yl_damper2, yc_pos), **default_values)
-        )
-        fig.add_trace(
-            go.Scatter(x=z_damper2, y=np.add(yu_damper2, yc_pos), **default_values)
-        )
-
-        # plot damper - top
-        z_damper3 = [z_damper2[0], z_damper2[2], zs1, zs1]
-        yl_damper3 = [
-            ys0 + 4 * step,
-            ys0 + 4 * step,
-            ys0 + 4 * step,
-            ypos + 1.5 * icon_w,
-        ]
-        yu_damper3 = [-y for y in yl_damper3]
-
-        fig.add_trace(
-            go.Scatter(x=z_damper3, y=np.add(yl_damper3, yc_pos), **default_values)
-        )
-        fig.add_trace(
-            go.Scatter(x=z_damper3, y=np.add(yu_damper3, yc_pos), **default_values)
+            go.Scatter(
+                x=[zpos, zpos],
+                y=[
+                    (ypos + ypos_s) / 2 + yc_pos,
+                    -(ypos + ypos_s) / 2 + yc_pos,
+                ],
+                mode="markers",
+                marker=dict(size=marker_size, color=self.color, opacity=0),
+                customdata=[customdata] * 2,
+                text=hovertemplate,
+                hovertemplate=hovertemplate,
+                hoverinfo="text",
+                hoverlabel=dict(bgcolor=shades["dark"], font=dict(color="white")),
+                name=self.tag,
+                legendgroup=self._legend_group,
+                showlegend=False,
+            )
         )
 
         return fig
@@ -1161,192 +1207,6 @@ class BearingElement(Element):
         )
 
 
-class BearingFluidFlow(BearingElement):
-    """Instantiate a bearing using inputs from its fluid flow.
-
-    .. deprecated:: 2.0.0
-        `BearingFluidFlow` is deprecated and will be removed in a future version.
-        Use `PlainJournal` for advanced thermo-hydro-dynamic analysis with thermal
-        effects, or `CylindricalBearing` for fast analytical calculations.
-
-    This method always creates elements with frequency-dependent coefficients.
-    It calculates a set of coefficients for each frequency value appendend to
-    "omega".
-
-    **Recommended alternatives:**
-
-    - For advanced analysis with thermal effects, multi-pad configurations, and
-      turbulence models, use :class:`PlainJournal` instead.
-    - For quick calculations and preliminary design, use :class:`CylindricalBearing`
-      instead.
-
-    Parameters
-    ----------
-    n : int
-        The node in which the bearing will be located in the rotor.
-
-    Grid related
-    ^^^^^^^^^^^^
-    Describes the discretization of the problem
-    nz: int
-        Number of points along the Z direction (direction of flow).
-    ntheta: int
-        Number of points along the direction theta. NOTE: ntheta must be odd.
-    length: float
-        Length in the Z direction (m).
-
-    Operation conditions
-    ^^^^^^^^^^^^^^^^^^^^
-    Describes the operation conditions.
-    omega: list
-        List of frequencies (rad/s) used to calculate the coefficients.
-        If the length is greater than 1, an array of coefficients is returned.
-    p_in: float
-        Input Pressure (Pa).
-    p_out: float
-        Output Pressure (Pa).
-    load: float
-        Load applied to the rotor (N).
-
-    Geometric data of the problem
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    Describes the geometric data of the problem.
-    radius_rotor: float
-        Rotor radius (m).
-    radius_stator: float
-        Stator Radius (m).
-    eccentricity: float
-        Eccentricity (m) is the euclidean distance between rotor and stator centers.
-        The center of the stator is in position (0,0).
-
-    Fluid characteristics
-    ^^^^^^^^^^^^^^^^^^^^^
-    Describes the fluid characteristics.
-    visc: float
-        Viscosity (Pa.s).
-    rho: float
-        Fluid density(Kg/m^3).
-
-    Others
-    ^^^^^^
-    tag : str, optional
-        A tag to name the element
-        Default is None.
-    n_link : int, optional
-        Node to which the bearing will connect. If None the bearing is
-        connected to ground.
-        Default is None.
-    scale_factor : float, optional
-        The scale factor is used to scale the bearing drawing.
-        Default is 1.
-    color : str, optional
-        A color to be used when the element is represented.
-        Default is '#355d7a'.
-
-    Returns
-    -------
-    bearing: rs.BearingElement
-        A bearing object.
-
-    Examples
-    --------
-    >>> nz = 30
-    >>> ntheta = 20
-    >>> length = 0.03
-    >>> omega = [157.1]
-    >>> p_in = 0.
-    >>> p_out = 0.
-    >>> radius_rotor = 0.0499
-    >>> radius_stator = 0.05
-    >>> load = 525
-    >>> visc = 0.1
-    >>> rho = 860.
-    >>> BearingFluidFlow(0, nz, ntheta, length, omega, p_in,
-    ...                  p_out, radius_rotor, radius_stator,
-    ...                  visc, rho, load=load) # doctest: +ELLIPSIS
-    BearingFluidFlow(n=0, n_link=None,
-     kxx=[14...
-    """
-
-    def __init__(
-        self,
-        n,
-        nz,
-        ntheta,
-        length,
-        omega,
-        p_in,
-        p_out,
-        radius_rotor,
-        radius_stator,
-        visc,
-        rho,
-        eccentricity=None,
-        load=None,
-        tag=None,
-        n_link=None,
-        scale_factor=1.0,
-        color="#355d7a",
-    ):
-        warnings.warn(
-            "BearingFluidFlow is deprecated and will be removed in a future version. "
-            "Use PlainJournal for advanced thermo-hydro-dynamic analysis with thermal effects, "
-            "or CylindricalBearing for fast analytical calculations.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-
-        self.nz = nz
-        self.ntheta = ntheta
-        self.length = length
-        self.omega = omega
-        self.p_in = p_in
-        self.p_out = p_out
-        self.radius_rotor = radius_rotor
-        self.radius_stator = radius_stator
-        self.visc = visc
-        self.rho = rho
-        self.eccentricity = eccentricity
-        self.load = load
-
-        K = np.zeros((4, len(omega)))
-        C = np.zeros((4, len(omega)))
-
-        for i, w in enumerate(omega):
-            fluid_flow = flow.FluidFlow(
-                nz,
-                ntheta,
-                length,
-                w,
-                p_in,
-                p_out,
-                radius_rotor,
-                radius_stator,
-                visc,
-                rho,
-                eccentricity=eccentricity,
-                load=load,
-            )
-            K[:, i], C[:, i] = calculate_stiffness_and_damping_coefficients(fluid_flow)
-
-        super().__init__(
-            n,
-            kxx=K[0],
-            kxy=K[1],
-            kyx=K[2],
-            kyy=K[3],
-            cxx=C[0],
-            cxy=C[1],
-            cyx=C[2],
-            cyy=C[3],
-            frequency=omega,
-            tag=tag,
-            n_link=n_link,
-            scale_factor=scale_factor,
-            color=color,
-        )
-
-
 class SealElement(BearingElement):
     """A seal element.
 
@@ -1419,7 +1279,7 @@ class SealElement(BearingElement):
         Direct mass in the z direction (kg).
         Default is 0.
     seal_leakage : float, optional
-        Seal leakage.
+        Seal leakage mass flow rate (kg/s).
     frequency : array, pint.Quantity, optional
         Array with the frequencies (rad/s).
     tag : str, optional
@@ -1457,6 +1317,8 @@ class SealElement(BearingElement):
            [  0., 150.,   0.],
            [  0.,   0.,   0.]])
     """
+
+    _legend_group = "Seal"
 
     @check_units
     def __init__(
@@ -1575,6 +1437,159 @@ class SealElement(BearingElement):
         customdata = [self.n]
 
         return customdata, hovertemplate
+
+    _pressure_plot_label = "Seal"
+
+    def plot_pressure_distribution(
+        self, pressure_units="MPa", length_units="m", fig=None, **kwargs
+    ):
+        """Plot the axial pressure distribution along the seal.
+
+        Available for seals whose solver computes a pressure distribution
+        (e.g. :class:`~ross.LabyrinthSeal` and :class:`~ross.HolePatternSeal`).
+        The distribution of the first frequency in ``frequency`` is plotted.
+
+        Parameters
+        ----------
+        pressure_units : str, optional
+            Pressure units for plotting.
+            Default is "MPa".
+        length_units : str, optional
+            Length units for axial position.
+            Default is "m".
+        fig : Plotly graph_objects.Figure(), optional
+            The figure object with the plot. If None, creates a new figure.
+        kwargs : optional
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+
+        Returns
+        -------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        """
+        if getattr(self, "p", None) is None or getattr(self, "z", None) is None:
+            raise AttributeError(
+                "This seal has no computed pressure distribution to plot. "
+                "The distribution is only available for seals built from a "
+                "flow model (not from directly supplied coefficients)."
+            )
+
+        if fig is None:
+            fig = go.Figure()
+
+        fig.add_trace(
+            go.Scatter(
+                x=Q_(self.z, "m").to(length_units).m,
+                y=Q_(self.p[0], "Pa").to(pressure_units).m,
+                mode="lines+markers",
+                name=self._pressure_plot_label,
+                line=dict(width=2),
+                hovertemplate="<b>Position:</b> %{x:.3f} "
+                + length_units
+                + "<br>"
+                + f"<b>Pressure:</b> %{{y:.3f}} {pressure_units}<br>"
+                + "<extra></extra>",
+            )
+        )
+
+        fig.update_layout(
+            title=dict(
+                text=f"Pressure Distribution - {self._pressure_plot_label}",
+            ),
+            xaxis_title=f"Axial Position ({length_units})",
+            yaxis_title=f"Pressure ({pressure_units})",
+            showlegend=False,
+            **kwargs,
+        )
+
+        return fig
+
+    def _patch(self, position, fig):
+        """Seal element patch.
+
+        Patch that will be used to draw the seal element using Plotly library.
+        The seal is drawn as a slim block with labyrinth teeth pointing at the
+        shaft surface.
+
+        Parameters
+        ----------
+        position : tuple
+            Position (z, y_low, y_upp, y_center) in which the patch will be
+            drawn.
+        fig : plotly.graph_objects.Figure
+            The figure object which traces are added on.
+
+        Returns
+        -------
+        fig : plotly.graph_objects.Figure
+            The figure object which traces are added on.
+        """
+        zpos, ypos, ypos_s, yc_pos = position
+        shades = color_shades(self.color)
+
+        icon_h = ypos_s - ypos
+        icon_w = 0.15 * icon_h
+        teeth = 4
+
+        x_body = []
+        y_body = []
+        for sign in (1, -1):
+            y0 = sign * ypos + yc_pos
+            y_top = y0 + sign * 0.52 * icon_h
+            y_root = y0 + sign * 0.20 * icon_h
+            y_tip = y0 + sign * 0.04 * icon_h
+
+            x_body += [zpos - icon_w, zpos + icon_w, zpos + icon_w]
+            y_body += [y_top, y_top, y_root]
+            for x_tooth in np.linspace(zpos + icon_w, zpos - icon_w, 2 * teeth + 1)[
+                1::2
+            ]:
+                x_body += [x_tooth + 0.17 * icon_w, x_tooth, x_tooth - 0.17 * icon_w]
+                y_body += [y_root, y_tip, y_root]
+            x_body += [zpos - icon_w, zpos - icon_w, None]
+            y_body += [y_root, y_top, None]
+
+        customdata, hovertemplate = self._hover_info()
+
+        fig.add_trace(
+            go.Scatter(
+                x=x_body,
+                y=y_body,
+                mode="lines",
+                fill="toself",
+                fillcolor=shades["base"],
+                line=dict(width=1.0, color=shades["edge"]),
+                name=self.tag,
+                legendgroup=self._legend_group,
+                showlegend=False,
+                hoverinfo="skip",
+            )
+        )
+
+        marker_size = min(max(icon_h * 200, 14.0), 34.0)
+        fig.add_trace(
+            go.Scatter(
+                x=[zpos, zpos],
+                y=[
+                    (ypos + ypos_s) / 2 + yc_pos,
+                    -(ypos + ypos_s) / 2 + yc_pos,
+                ],
+                mode="markers",
+                marker=dict(size=marker_size, color=self.color, opacity=0),
+                customdata=[customdata] * 2,
+                text=hovertemplate,
+                hovertemplate=hovertemplate,
+                hoverinfo="text",
+                hoverlabel=dict(bgcolor=shades["base"], font=dict(color="white")),
+                name=self.tag,
+                legendgroup=self._legend_group,
+                showlegend=False,
+            )
+        )
+
+        return fig
 
 
 class BallBearingElement(BearingElement):

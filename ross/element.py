@@ -1,11 +1,11 @@
-from inspect import signature
+from inspect import signature, Parameter
 from abc import ABC, abstractmethod
 from collections import namedtuple
 
 import pandas as pd
 import re
 
-from ross.utils import load_data, dump_data
+from ross.utils import load_data, dump_data, cast_numpy_types
 
 
 class Element(ABC):
@@ -19,7 +19,7 @@ class Element(ABC):
         self.n = n
         self.tag = tag
 
-    def save(self, file):
+    def save(self, file, **more_args):
         """Save the element in a .toml or .json file.
 
         This function will save the element to a .toml or .json file.
@@ -31,6 +31,8 @@ class Element(ABC):
         file : str, pathlib.Path
             The name of the file the element will be saved in.
             The format is determined by the file extension (.toml or .json).
+        more_args : dict, optional
+            More arguments to be saved if needed.
 
         Examples
         --------
@@ -44,8 +46,19 @@ class Element(ABC):
         >>> disk.save(file)
         """
         # get __init__ arguments
-        args_list = list(signature(self.__init__).parameters)
+        params = signature(self.__init__).parameters
+        args_list = [
+            name
+            for name, p in params.items()
+            if p.kind not in (Parameter.VAR_POSITIONAL, Parameter.VAR_KEYWORD)
+        ]
         args = {arg: getattr(self, arg) for arg in args_list}
+
+        if more_args:
+            args.update(more_args)
+
+        args = cast_numpy_types(args)
+
         try:
             data = load_data(file)
         except FileNotFoundError:
@@ -250,9 +263,10 @@ class Element(ABC):
         n_l                           0
         n_r                           0...
         """
-        attributes = self.__dict__
+        attributes = cast_numpy_types(self.__dict__)
         attributes["type"] = self.__class__.__name__
-        return pd.Series(attributes)
+
+        return pd.Series(attributes, dtype=object)
 
     @abstractmethod
     def dof_mapping(self):
@@ -298,16 +312,9 @@ class Element(ABC):
 
         return local_index
 
-    def get_class_name_prefix(self, index=None):
+    def get_class_name_prefix(self):
         """Extract prefix of the class name preceding 'Element',
-        insert spaces before uppercase letters, and append an index
-        number at the end.
-
-        Parameters
-        ----------
-        index : int, optional
-            The index number to append at the end of the resulting string.
-            Default is None.
+        insert spaces before uppercase letters.
 
         Returns
         -------
@@ -329,12 +336,18 @@ class Element(ABC):
         else:
             prefix = re.sub(r"(?<!^)(?=[A-Z])", " ", class_name.split("Element")[0])
 
-        if index is None:
-            return prefix
-        else:
-            return f"{prefix} {index}"
+        return prefix
 
-    def add_tag(self, index):
-        """Add a tag to the given element."""
-        if self.tag is None:
-            self.tag = self.get_class_name_prefix(index)
+    def set_tag(self, index, check_tag=True):
+        """Set a tag to the given element.
+
+        Parameters
+        ----------
+        index : int
+            The index of the element to standardize the tag.
+        check_tag : bool, optional
+            Whether to check if the tag is already set.
+        """
+        if not check_tag or check_tag and self.tag is None:
+            prefix = self.get_class_name_prefix()
+            self.tag = f"{prefix} {index}"

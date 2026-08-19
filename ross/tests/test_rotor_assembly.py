@@ -14,6 +14,7 @@ from ross.materials import Material, steel
 from ross.point_mass import *
 from ross.probe import Probe
 from ross.rotor_assembly import *
+from ross.rotor_assembly import _shaft_envelope
 from ross.shaft_element import *
 from ross.units import Q_
 from ross.results import AmbTimeResponseResults
@@ -1797,10 +1798,10 @@ def test_distinct_dof_elements_error():
                 odl=0.05,
                 idr=0,
                 odr=0.05,
-                alpha=0,
-                beta=0,
                 rotary_inertia=False,
                 shear_effects=False,
+                alpha=0,
+                beta=0,
             )
             for l in L
         ]
@@ -1825,7 +1826,12 @@ def test_distinct_dof_elements_error():
         bearing1 = BearingElement(
             n=6, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, kzz=kzz, czz=czz
         )
-        Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1], n_eigen=36)
+        Rotor(
+            shaft_elem,
+            [disk0, disk1],
+            [bearing0, bearing1],
+            n_eigen=36,
+        )
 
 
 @pytest.fixture
@@ -1836,15 +1842,7 @@ def rotor_6dof():
     L = [0.25 for _ in range(n)]
 
     shaft_elem = [
-        ShaftElement(
-            l,
-            i_d,
-            o_d,
-            material=steel,
-            alpha=1,
-            beta=1e-5,
-        )
-        for l in L
+        ShaftElement(l, i_d, o_d, material=steel, alpha=1, beta=1e-5) for l in L
     ]
 
     disk0 = DiskElement.from_geometry(
@@ -1897,15 +1895,12 @@ def test_modal_damping():
     bearing0 = BearingElement(0, kxx=stfx, kyy=stfy, cxx=0)
     bearing1 = BearingElement(6, kxx=stfx, kyy=stfy, cxx=0)
 
-    modal_damping = [0.001, 0.001]
-    default_damping_ratio = [0.01]
-
     rotor = Rotor(
         shaft_elem,
         [disk0, disk1],
         [bearing0, bearing1],
-        modal_damping=modal_damping,
-        default_damping_ratio=default_damping_ratio,
+        modal_damping_ratio=[0.001, 0.001],
+        default_damping_ratio=0.01,
     )
 
     speed = Q_(np.arange(0, 10001, 200), "RPM").to("rad/s").m
@@ -1939,6 +1934,71 @@ def test_modal_damping():
 
     assert_allclose(actual_amp, expected_amp, rtol=1e-6)
     assert_allclose(actual_phase, expected_phase, rtol=1e-6)
+
+
+def test_proportional_damping():
+    #  Rotor with proportional damping in global matrix with 6 shaft elements 2 disks and 2 bearings
+    i_d = 0
+    o_d = 0.05
+    n = 6
+    L = [0.25 for _ in range(n)]
+
+    shaft_elem = [
+        ShaftElement(
+            l,
+            i_d,
+            o_d,
+            material=steel,
+            shear_effects=True,
+            rotary_inertia=True,
+            gyroscopic=True,
+        )
+        for l in L
+    ]
+
+    disk0 = DiskElement.from_geometry(2, steel, 0.07, 0.05, 0.28)
+    disk1 = DiskElement.from_geometry(4, steel, 0.07, 0.05, 0.35)
+
+    stfx = 1e6
+    stfy = 0.8e6
+    bearing0 = BearingElement(0, kxx=stfx, kyy=stfy, cxx=0)
+    bearing1 = BearingElement(6, kxx=stfx, kyy=stfy, cxx=0)
+
+    rotor = Rotor(
+        shaft_elem, [disk0, disk1], [bearing0, bearing1], alpha=1.6, beta=1.7e-7
+    )
+
+    speed = Q_(np.arange(0, 10001, 200), "RPM").to("rad/s").m
+
+    freq_response = rotor.run_freq_response(speed_range=speed)
+
+    actual_amp = abs(freq_response.freq_resp[2 * 6, 2 * 6, :8])
+    actual_phase = np.angle(freq_response.freq_resp[2 * 6, 2 * 6, :8])
+
+    expected_amp = [
+        0.000000e00,
+        1.495063e-06,
+        1.803282e-06,
+        2.818322e-06,
+        1.854149e-05,
+        2.545901e-06,
+        9.415274e-07,
+        4.557404e-07,
+    ]
+
+    expected_phase = [
+        0.00e00,
+        -0.004284,
+        -0.010686,
+        -0.026649,
+        -0.268325,
+        -3.089441,
+        -3.111475,
+        -3.114635,
+    ]
+
+    assert_allclose(actual_amp, expected_amp, rtol=1e-6)
+    assert_allclose(actual_phase, expected_phase, atol=1e-5, rtol=1e-6)
 
 
 @pytest.fixture
@@ -2459,40 +2519,210 @@ def test_save_load_json(rotor8):
     assert rotor8 == rotor8_loaded
 
 
+def disk_traces(fig, tag):
+    return [d for d in fig.data if d["name"] == tag and d["fill"] == "toself"]
+
+
 def test_plot_rotor(rotor8):
     fig = rotor8.plot_rotor()
 
-    for d in fig.data:
-        if d["name"] == "Disk 0":
-            actual_x = d["x"]
-            actual_y = d["y"]
-    expected_x = [0.5, 0.502, 0.498, 0.5]
-    expected_y = [0.025, 0.125, 0.125, 0.025]
+    upper, lower = disk_traces(fig, "Disk 0")
+    disk = rotor8.disk_elements[0]
+    heaviest = max(d.m for d in rotor8.disk_elements)
+    height = np.mean(rotor8.nodes_o_d) * (0.70 + 0.55 * disk.m / heaviest)
 
-    assert_allclose(actual_x[:4], expected_x)
-    assert_allclose(actual_y[:4], expected_y)
+    # the disk is drawn as an I section, from the shaft surface outwards
+    assert_allclose(min(upper["y"]), 0.025)
+    assert_allclose(max(upper["y"]), 0.025 + height)
+    assert_allclose(min(lower["y"]), -0.025 - height)
+    assert_allclose(max(lower["y"]), -0.025)
+
+    # width of a uniform disk with the same mass and inertias
+    assert_allclose(np.ptp(upper["x"]), 0.07, atol=1e-6)
+    assert_allclose(np.mean([min(upper["x"]), max(upper["x"])]), 0.5)
 
     # mass scale factor
     for disk in rotor8.disk_elements:
         disk.scale_factor = "mass"
 
     fig = rotor8.plot_rotor()
-    for d in fig.data:
-        if d["name"] == "Disk 0":
-            actual_x = d["x"]
-            actual_y = d["y"]
-    expected_x = [0.5, 0.5016325, 0.4983675, 0.5]
-    expected_y = [0.025, 0.106625, 0.106625, 0.025]
-    assert_allclose(actual_x[:4], expected_x)
-    assert_allclose(actual_y[:4], expected_y)
+    upper, lower = disk_traces(fig, "Disk 0")
+    scale = 0.5 + 0.5 * rotor8.disk_elements[0].m / heaviest
+    assert_allclose(max(upper["y"]), 0.025 + scale * height)
 
 
 def test_plot_rotor_without_disk(rotor1):
     fig = rotor1.plot_rotor()
-    expected_element_y = np.array(
-        [0.0, 0.025, 0.025, 0.0, 0.0, -0.0, -0.025, -0.025, -0.0, -0.0]
+    upper, lower = [d for d in fig.data if d["name"] == "Shaft Element 0"]
+
+    assert_allclose(upper["y"], [0.0, 0.025, 0.025, 0.0, 0.0])
+    assert_allclose(lower["y"], [0.0, -0.025, -0.025, 0.0, 0.0])
+    assert_allclose(upper["x"], [0.0, 0.0, 0.25, 0.25, 0.0])
+
+
+def test_plot_rotor_shaft_envelope():
+    z_grid, radius = _shaft_envelope([(0.0, 0.5, 0.1, 0.1), (0.5, 0.5, 0.2, 0.2)])
+
+    # heatmap cells are centered on the grid, so their edges are the midpoints
+    # between columns, extrapolated at both ends
+    edges = np.concatenate(
+        [
+            [z_grid[0] - (z_grid[1] - z_grid[0]) / 2],
+            (z_grid[:-1] + z_grid[1:]) / 2,
+            [z_grid[-1] + (z_grid[-1] - z_grid[-2]) / 2],
+        ]
     )
-    assert_allclose(fig.data[-1]["y"], expected_element_y)
+    for boundary in (0.0, 0.5, 1.0):
+        assert np.abs(edges - boundary).min() < 1e-9
+
+    assert_allclose(radius[0], 0.05)
+    assert_allclose(radius[-1], 0.1)
+
+    # overlapping elements are drawn with the largest radius
+    _, radius = _shaft_envelope([(0.0, 0.5, 0.1, 0.1), (0.0, 0.5, 0.3, 0.3)])
+    assert_allclose(np.nanmax(radius), 0.15)
+    assert_allclose(np.nanmin(radius), 0.15)
+
+
+def toggle_button(fig, label):
+    for menu in fig.layout.updatemenus:
+        if menu.buttons[0].label == label:
+            return menu.buttons[0]
+    raise AssertionError(f"no button labelled {label!r}")
+
+
+def test_plot_rotor_mode_buttons(rotor8):
+    fig = rotor8.plot_rotor()
+
+    labels = [menu.buttons[0].label for menu in fig.layout.updatemenus]
+    assert labels == ["Show axes", "Bearings: classic", "Bottom: section"]
+
+    for menu in fig.layout.updatemenus:
+        # the buttons sit below the plot so they never collide with the legend
+        assert menu.y < 0
+        assert len(menu.buttons) == 1
+
+    button = toggle_button(fig, "Bottom: section")
+
+    for styles, indices in (button.args, button.args2):
+        # visibility belongs to the legend, restyling it would bring back
+        # traces the user has hidden
+        assert "visible" not in styles
+
+        for values in styles.values():
+            assert len(values) == len(indices)
+
+    # only traces below the center line are morphed
+    for index in button.args[1]:
+        assert min(fig.data[index]["y"]) < 0
+
+
+def test_plot_rotor_bearing_style_button(rotor8):
+    fig = rotor8.plot_rotor()
+    button = toggle_button(fig, "Bearings: classic")
+
+    for styles, indices in (button.args, button.args2):
+        assert "visible" not in styles
+        for values in styles.values():
+            assert len(values) == len(indices)
+
+    # the classic drawing is bare lines, the pedestal is refilled on the
+    # way back, and both reach the same support
+    classic, indices = button.args
+    pedestal, _ = button.args2
+    assert {fill for fill in classic["fill"] if fill is not None} == {"none"}
+    assert {fill for fill in pedestal["fill"] if fill is not None} == {"toself"}
+    for fill, index, y_classic in zip(classic["fill"], indices, classic["y"]):
+        if fill is None:
+            continue
+        drawn = [y for y in fig.data[index]["y"] if y is not None]
+        assert_allclose(max(y for y in y_classic if y is not None), max(drawn))
+        assert_allclose(min(y for y in y_classic if y is not None), min(drawn))
+
+    # the initial representation can be the classic one, with its button
+    # already active
+    fig = rotor8.plot_rotor(bearing_style="spring_damper")
+    button = toggle_button(fig, "Bearings: classic")
+    (menu,) = [m for m in fig.layout.updatemenus if m.buttons[0] == button]
+    assert menu.active == 0
+    for index, x_classic in zip(button.args[1], button.args[0]["x"]):
+        assert_allclose(
+            [x for x in fig.data[index]["x"] if x is not None],
+            [x for x in x_classic if x is not None],
+        )
+
+    with pytest.raises(ValueError):
+        rotor8.plot_rotor(bearing_style="springs")
+
+
+def test_plot_rotor_axes_indicator(rotor8):
+    fig = rotor8.plot_rotor()
+
+    # the indicator starts hidden and is pixel sized, leaving the data
+    # ranges and the figure size alone
+    assert len(fig.layout.shapes) > 0
+    assert all(shape.visible is False for shape in fig.layout.shapes)
+    assert all(shape.xsizemode == "pixel" for shape in fig.layout.shapes)
+
+    button = toggle_button(fig, "Show axes")
+    height = fig.layout.height
+    y_range = fig.layout.yaxis.range
+
+    fig.plotly_relayout(dict(button.args[0]))
+    assert all(shape.visible for shape in fig.layout.shapes)
+    assert any(annotation.visible for annotation in fig.layout.annotations)
+
+    # showing the indicator never resizes the figure nor moves the legend
+    assert fig.layout.height == height
+    assert fig.layout.yaxis.range == y_range
+
+    fig.plotly_relayout(dict(button.args2[0]))
+    assert all(shape.visible is False for shape in fig.layout.shapes)
+
+    fig = rotor8.plot_rotor(show_axes_indicator=True)
+    assert all(shape.visible for shape in fig.layout.shapes)
+    assert fig.layout.height == height
+    (menu,) = [m for m in fig.layout.updatemenus if m.buttons[0].label == "Show axes"]
+    assert menu.active == 0
+
+
+def test_plot_rotor_legend_groups(rotor8):
+    fig = rotor8.plot_rotor()
+
+    groups = {trace.name for trace in fig.data if trace.showlegend}
+    assert groups == {"Steel", "Disk", "Bearing"}
+
+    for group in groups:
+        traces = [trace for trace in fig.data if trace.legendgroup == group]
+        assert sum(trace.showlegend for trace in traces) == 1
+        assert len(traces) > 1
+
+
+def test_plot_rotor_hover(rotor8):
+    fig = rotor8.plot_rotor()
+    templates = {
+        trace.hovertemplate for trace in fig.data if trace.hovertemplate is not None
+    }
+
+    assert (
+        "Element Number: 0<br>"
+        "Left Outer Diameter: 0.05 m<br>"
+        "Left Inner Diameter: 0.0 m<br>"
+        "Right Outer Diameter: 0.05 m<br>"
+        "Right Inner Diameter: 0.0 m<br>"
+        "Element Length: 0.25 m<br>"
+        "Material: Steel<br>"
+    ) in templates
+
+    assert (
+        "Disk Node: 2<br>"
+        "Polar Inertia: 3.296e-01<br>"
+        "Diametral Inertia: 1.781e-01<br>"
+        "Disk mass: 32.590<br>"
+    ) in templates
+
+    assert any(template.startswith("Tag: Bearing 0<br>") for template in templates)
+    assert any("Node %{customdata[0]}" in template for template in templates)
 
 
 def test_axial_force():
