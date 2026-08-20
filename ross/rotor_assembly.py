@@ -701,25 +701,33 @@ class Rotor(object):
         # Then, use the vector to compute diametral aka transverse inertia of the entire rotor.
         self.It = v @ (self.M0 @ v.T)
 
-    def __add__(self, rotor2):
-        return Rotor.concatenate_rotors([self, rotor2])
+    def __add__(self, other):
+        return Rotor.concatenate(self, other)
 
     @classmethod
-    def concatenate_rotors(cls, rotor_list):
-        """Concatenate a list of rotors into a single rotor.
+    def concatenate(cls, *rotors):
+        """Concatenate a sequence of rotors into a single rotor.
 
         The nodes of the concatenated rotor will be the maximum node of the last rotor
         in the list.
 
         Parameters
         ----------
-        rotor_list : list
-            List of Rotor objects to concatenate.
+        *rotors : Rotor
+            Sequence of rotors to be concatenated, in the order they
+            should be combined. A single list or tuple of rotors is also
+            accepted as one argument (e.g. `Rotor.concatenate([rotor1, rotor2])`).
 
         Returns
         -------
         Rotor object.
         """
+        if len(rotors) == 1 and isinstance(rotors[0], (list, tuple)):
+            rotors = rotors[0]
+        if not rotors:
+            raise ValueError("At least one rotor must be provided.")
+    
+        rotor_list = list(rotors)
         shaft_elements = []
         disk_elements = []
         bearing_elements = []
@@ -727,17 +735,30 @@ class Rotor(object):
 
         node_offset = 0
 
+        last_node = sum(max(rotor.nodes) for rotor in rotor_list)
+        link_nodes = [rotor.link_nodes for rotor in rotor_list]
+
+        def update_link_nodes(rotor_index, n_link):
+            node_index = link_nodes[rotor_index].index(n_link)
+            offset = sum(len(link_nodes[i]) for i in range(rotor_index))
+            return last_node + node_index + offset + 1
+        
         for i, rotor in enumerate(rotor_list):
             rotor = deepcopy(rotor)
 
-            # Reindex elements
-            elements = rotor.elements
-            for el in elements:
-                el.n += node_offset
-                try:
-                    el.n_link += node_offset
-                except:
-                    pass
+            for el in rotor.elements:
+
+                if el.n in rotor.nodes:
+                    el.n += node_offset
+                elif el.n in rotor.link_nodes:
+                    el.n = update_link_nodes(i, el.n)
+
+                if getattr(el, "n_link", None) is not None:
+                    if el.n_link in rotor.nodes:
+                        el.n_link += node_offset
+                    elif el.n_link in rotor.link_nodes:
+                        el.n_link = update_link_nodes(i, el.n_link)
+
                 el.tag = f"{el.tag} (R{i})"
 
             shaft_elements.extend(rotor.shaft_elements)
@@ -746,7 +767,7 @@ class Rotor(object):
             point_mass_elements.extend(rotor.point_mass_elements)
 
             # Update offset for the next rotor
-            node_offset = max(rotor.nodes)
+            node_offset += max(rotor.nodes)
 
         parameters = rotor_list[0]._init_parameters()
         parameters["tag"] = "Concatenated Rotor"

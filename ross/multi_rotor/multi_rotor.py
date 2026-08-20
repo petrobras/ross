@@ -215,10 +215,9 @@ class MultiRotor(Rotor):
             d_node = R1_max_node + 1
             for elm in R2.elements:
                 elm.n += d_node
-                try:
+                
+                if getattr(elm, "n_link", None) is not None:
                     elm.n_link += d_node
-                except:
-                    pass
 
                 elm.tag = None
 
