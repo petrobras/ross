@@ -34,6 +34,10 @@ from ross.bearings.magnetic.amb_utils import (
     log_amb_data,
     apply_sensitivity_disturbance,
 )
+from ross.bearings.magnetic.amb_non_collocation import (
+    run_amb_non_collocation as _run_amb_non_collocation,
+)
+
 from ross.coupling_element import CouplingElement
 from ross.disk_element import DiskElement
 from ross.faults import Crack, MisalignmentFlex, MisalignmentRigid, Rubbing
@@ -2233,8 +2237,8 @@ class Rotor(object):
 
         sensitivity_compute_dofs = {
             magnetic_bearing.tag: {
-                "x": self.number_dof * magnetic_bearing.n,
-                "y": self.number_dof * magnetic_bearing.n + 1,
+                "x": self.number_dof * magnetic_bearing.sensor_node,
+                "y": self.number_dof * magnetic_bearing.sensor_node + 1,
             }
             for magnetic_bearing in magnetic_bearings
         }
@@ -2663,7 +2667,7 @@ class Rotor(object):
         Notes
         -----
         - The control forces are applied in both x and y directions at each AMB location.
-        - The actual PID computation is delegated to the `compute_pid_amb` function.
+        - The actual PID computation is delegated to the `compute_amb_controller` function.
         - If `sensitivity_compute_dof` is provided, the excitation is applied to that DoF only.
 
         Examples
@@ -2708,24 +2712,47 @@ class Rotor(object):
         magnetic_force = np.zeros(self.ndof)
 
         for i, elm in enumerate(magnetic_bearings):
-            x_dof = self.number_dof * elm.n
-            y_dof = self.number_dof * elm.n + 1
+            sensor_x_dof = self.number_dof * elm.sensor_node
+            sensor_y_dof = sensor_x_dof + 1
 
-            x_disp, y_disp = disp_resp[x_dof], disp_resp[y_dof]
+            actuator_x_dof = self.number_dof * elm.n
+            actuator_y_dof = actuator_x_dof + 1
 
+            x_disp, y_disp = disp_resp[sensor_x_dof], disp_resp[sensor_y_dof]
             v_disp = x_disp * cos_angle + y_disp * sin_angle
             w_disp = -x_disp * sin_angle + y_disp * cos_angle
 
-            if sens_dof in (x_dof, y_dof):
+            x_disp_act, y_disp_act = (
+                disp_resp[actuator_x_dof],
+                disp_resp[actuator_y_dof],
+            )
+            v_disp_act = x_disp_act * cos_angle + y_disp_act * sin_angle
+            w_disp_act = -x_disp_act * sin_angle + y_disp_act * cos_angle
+
+            if sens_dof in (sensor_x_dof, sensor_y_dof):
                 v_disp, w_disp = apply_sensitivity_disturbance(
-                    step, x_dof, v_disp, w_disp, sens_dof, sens_dist, sens_results
+                    step,
+                    sensor_x_dof,
+                    v_disp,
+                    w_disp,
+                    sens_dof,
+                    sens_dist,
+                    sens_results,
                 )
 
             force_v, current_v = elm.compute_amb_controller(
-                current_offset=0, setpoint=0, disp=v_disp, dof_index=0
+                current_offset=0,
+                setpoint=0,
+                disp=v_disp,
+                dof_index=0,
+                disp_actuator=v_disp_act,
             )
             force_w, current_w = elm.compute_amb_controller(
-                current_offset=0, setpoint=0, disp=w_disp, dof_index=1
+                current_offset=0,
+                setpoint=0,
+                disp=w_disp,
+                dof_index=1,
+                disp_actuator=w_disp_act,
             )
 
             force_x = force_v * cos_angle - force_w * sin_angle
@@ -2751,8 +2778,8 @@ class Rotor(object):
                     step, time_step, progress_interval, force_x, force_y, elm.tag
                 )
 
-            magnetic_force[x_dof] = force_x
-            magnetic_force[y_dof] = force_y
+            magnetic_force[actuator_x_dof] = force_x
+            magnetic_force[actuator_y_dof] = force_y
 
         return magnetic_force
 
@@ -5779,6 +5806,51 @@ class Rotor(object):
             magnitudes=magnitudes_scaled,
             clearance=np.array(clearance),
             clearance_75=np.array(clearance_75),
+        )
+
+    @check_units
+    def run_amb_non_collocation(
+        self,
+        magnetic_bearing,
+        speed=0.0,
+        modes=None,
+        sensor_nodes=None,
+        direction="x",
+        residue_tolerance=0.05,
+    ):
+        """Run a modal sensor-actuator non-collocation analysis.
+
+        Parameters
+        ----------
+        magnetic_bearing : MagneticBearingElement
+            Magnetic bearing whose actuator node is used as the reference.
+        speed : float, optional
+            Rotor speed in rad/s. Currently, only zero speed is supported.
+        modes : array_like of int, optional
+            Zero-based modal indices requested for the analysis.
+        sensor_nodes : array_like of int, optional
+            Candidate sensor nodes. By default, all rotor nodes are used.
+        direction : {"x", "y"} or float, optional
+            Direction used to project the lateral mode shapes. Numeric
+            values are interpreted as angles in radians.
+        residue_tolerance : float, optional
+            Normalized residue tolerance used to identify regions near
+            modal nodes.
+
+        Returns
+        -------
+        AmbNonCollocationResults
+            Modal non-collocation analysis results.
+        """
+
+        return _run_amb_non_collocation(
+            rotor=self,
+            magnetic_bearing=magnetic_bearing,
+            speed=speed,
+            modes=modes,
+            sensor_nodes=sensor_nodes,
+            direction=direction,
+            residue_tolerance=residue_tolerance,
         )
 
 

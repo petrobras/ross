@@ -1,8 +1,10 @@
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose, assert_equal
+import copy
+from types import SimpleNamespace
 
-from ross import SensitivityResults, MagneticBearingElement
+from ross import SensitivityResults, MagneticBearingElement, AmbNonCollocationResults
 from ross.bearings.magnetic.amb_models import (
     rotor_example_amb_simple,
     rotor_example_amb_general_controllers,
@@ -217,30 +219,155 @@ def test_amb_generic_controller():
     assert_allclose(mse_y, np.array(3.6781959914042914e-11), rtol=1e-6, atol=1e-6)
 
 
+@pytest.mark.parametrize(
+    "number_of_ambs",
+    [1, 3, 4],
+)
+def test_magnetic_bearing_controller_routes_sensor_to_actuator(
+    monkeypatch,
+    number_of_ambs,
+):
+    """Controller should read disp from the sensor node and disp_actuator
+    from the actuator node, then apply the resulting force at the actuator.
+
+    The stub below returns ``disp + 1000 * disp_actuator``, so the two
+    contributions never overlap numerically. If disp_actuator ever picked
+    up the sensor's value instead of the actuator's (or vice versa), the
+    resulting force would be off by roughly a factor of 1000 relative to
+    what is asserted below -- not a subtle rounding difference.
+    """
+    rotor = rotor_example_amb_general_controllers()
+
+    template_amb = next(
+        bearing
+        for bearing in rotor.bearing_elements
+        if isinstance(
+            bearing,
+            MagneticBearingElement,
+        )
+    )
+
+    rotor_nodes = np.asarray(
+        rotor.nodes,
+        dtype=int,
+    )
+
+    actuator_nodes = rotor_nodes[1 : number_of_ambs + 1]
+    sensor_nodes = rotor_nodes[-number_of_ambs:]
+
+    assert len(actuator_nodes) == number_of_ambs
+    assert len(sensor_nodes) == number_of_ambs
+    assert set(actuator_nodes).isdisjoint(sensor_nodes)
+
+    magnetic_bearings = []
+    disp_resp = np.zeros(rotor.ndof)
+    expected_force = np.zeros(rotor.ndof)
+
+    DISP_ACTUATOR_WEIGHT = 1000.0
+
+    for index, (
+        actuator_node,
+        sensor_node,
+    ) in enumerate(
+        zip(
+            actuator_nodes,
+            sensor_nodes,
+        )
+    ):
+        amb = copy.deepcopy(template_amb)
+        amb.n = int(actuator_node)
+        amb.sensor_node = int(sensor_node)
+
+        magnetic_bearings.append(amb)
+
+        sensor_x_dof = rotor.number_dof * amb.sensor_node
+        sensor_y_dof = sensor_x_dof + 1
+
+        actuator_x_dof = rotor.number_dof * amb.n
+        actuator_y_dof = actuator_x_dof + 1
+
+        sensor_x_disp = float(index + 1)
+        sensor_y_disp = -float(index + 2)
+
+        # Deliberately distinct from the sensor values above, so that
+        # routing either displacement to the wrong argument produces a
+        # force that clearly does not match expected_force below.
+        actuator_x_disp = 100.0 + index
+        actuator_y_disp = -100.0 - index
+
+        disp_resp[sensor_x_dof] = sensor_x_disp
+        disp_resp[sensor_y_dof] = sensor_y_disp
+
+        disp_resp[actuator_x_dof] = actuator_x_disp
+        disp_resp[actuator_y_dof] = actuator_y_disp
+
+        expected_force[actuator_x_dof] = (
+            sensor_x_disp + DISP_ACTUATOR_WEIGHT * actuator_x_disp
+        )
+        expected_force[actuator_y_dof] = (
+            sensor_y_disp + DISP_ACTUATOR_WEIGHT * actuator_y_disp
+        )
+
+    def passthrough_compute_amb_controller(
+        self,
+        *,
+        current_offset,
+        setpoint,
+        disp,
+        dof_index,
+        disp_actuator=None,
+    ):
+        # disp must come from the sensor node, disp_actuator from the
+        # actuator node -- see DISP_ACTUATOR_WEIGHT above for why a
+        # routing mistake cannot pass silently here.
+        if disp_actuator is None:
+            disp_actuator = disp
+        return disp + DISP_ACTUATOR_WEIGHT * disp_actuator, 0.0
+
+    monkeypatch.setattr(
+        MagneticBearingElement,
+        "compute_amb_controller",
+        passthrough_compute_amb_controller,
+    )
+
+    magnetic_force = rotor.magnetic_bearing_controller(
+        step=0,
+        magnetic_bearings=magnetic_bearings,
+        time_step=1e-3,
+        disp_resp=disp_resp,
+        sensor_angle=0.0,
+    )
+
+    assert_allclose(
+        magnetic_force,
+        expected_force,
+    )
+
+
 def test_run_amb_sensitivity():
     """
     Tests the run_amb_sensitivity method for correctness of outputs and handling of various scenarios.
     """
     EXPECTED_SENSITIVITY_RESULTS = {
         "max_abs": {
-            "Magnetic Bearing 0": {"x": 0.9915881235, "y": 0.9915881235},
-            "Magnetic Bearing 1": {"x": 0.9880851953, "y": 0.9880851953},
+            "Magnetic Bearing 0": {"x": 0.9927339313, "y": 0.9927339313},
+            "Magnetic Bearing 1": {"x": 0.9897072281, "y": 0.9897072281},
         },
         "abs_slice": {
             "Magnetic Bearing 0": {
                 "x": np.array(
-                    [0.99158812, 0.99156866, 0.99153061, 0.99147841, 0.99142154]
+                    [0.9927339313, 0.99271824, 0.99268636, 0.99264242, 0.99259454]
                 ),
                 "y": np.array(
-                    [0.99158812, 0.99156866, 0.99153061, 0.99147841, 0.99142154]
+                    [0.9927339313, 0.99271824, 0.99268636, 0.99264242, 0.99259454]
                 ),
             },
             "Magnetic Bearing 1": {
                 "x": np.array(
-                    [0.9880852, 0.98805746, 0.98800146, 0.98792434, 0.98784035]
+                    [0.9897072281, 0.98968478, 0.98963755, 0.98957234, 0.9895013]
                 ),
                 "y": np.array(
-                    [0.9880852, 0.98805746, 0.98800146, 0.98792434, 0.98784035]
+                    [0.9897072281, 0.98968478, 0.98963755, 0.98957234, 0.9895013]
                 ),
             },
         },
@@ -249,19 +376,19 @@ def test_run_amb_sensitivity():
                 "x": np.array(
                     [
                         0.00000000e00,
-                        8.77852477e-05,
-                        1.59040274e-04,
-                        2.11855244e-04,
-                        2.44736262e-04,
+                        7.33293668e-05,
+                        1.33513269e-04,
+                        1.78009620e-04,
+                        2.05688519e-04,
                     ]
                 ),
                 "y": np.array(
                     [
                         0.00000000e00,
-                        8.77852477e-05,
-                        1.59040274e-04,
-                        2.11855244e-04,
-                        2.44736262e-04,
+                        7.33293668e-05,
+                        1.33513269e-04,
+                        1.78009620e-04,
+                        2.05688519e-04,
                     ]
                 ),
             },
@@ -269,19 +396,19 @@ def test_run_amb_sensitivity():
                 "x": np.array(
                     [
                         0.00000000e00,
-                        1.29420004e-04,
-                        2.35610181e-04,
-                        3.14075980e-04,
-                        3.62979207e-04,
+                        1.08630548e-04,
+                        1.98671121e-04,
+                        2.65038535e-04,
+                        3.06378785e-04,
                     ]
                 ),
                 "y": np.array(
                     [
                         0.00000000e00,
-                        1.29420004e-04,
-                        2.35610181e-04,
-                        3.14075980e-04,
-                        3.62979207e-04,
+                        1.08630548e-04,
+                        1.98671121e-04,
+                        2.65038535e-04,
+                        3.06378785e-04,
                     ]
                 ),
             },
@@ -305,18 +432,18 @@ def test_run_amb_sensitivity():
                 [
                     0.00000000e00,
                     6.67703996e-12,
-                    1.42060807e-11,
-                    2.26922938e-11,
-                    3.22559336e-11,
+                    1.42061436e-11,
+                    2.26926383e-11,
+                    3.22569749e-11,
                 ]
             ),
             "sensor": np.array(
                 [
                     0.00000000e00,
                     0.00000000e00,
-                    -2.22067882e-15,
-                    -1.07746729e-14,
-                    -2.86728919e-14,
+                    -2.15782942e-15,
+                    -1.04302014e-14,
+                    -2.76315703e-14,
                 ]
             ),
         },
@@ -442,4 +569,253 @@ def test_run_amb_sensitivity():
     assert not np.allclose(
         results.max_abs_sensitivities["Magnetic Bearing 0"]["x"],
         results_custom_freq.max_abs_sensitivities["Magnetic Bearing 0"]["x"],
+    )
+
+
+def test_run_amb_non_collocation():
+    """Return modal results for the selected AMB."""
+    rotor = rotor_example_amb_general_controllers()
+
+    ambs = [
+        bearing
+        for bearing in rotor.bearing_elements
+        if isinstance(bearing, MagneticBearingElement)
+    ]
+    analyzed_amb = ambs[0]
+    analyzed_amb.sensor_node = int(analyzed_amb.n) - 1
+
+    results = rotor.run_amb_non_collocation(
+        magnetic_bearing=analyzed_amb,
+        modes=range(8),
+    )
+
+    assert isinstance(results, AmbNonCollocationResults)
+    assert results.actuator_node == analyzed_amb.n
+    assert results.sensor_node == analyzed_amb.sensor_node
+
+    np.testing.assert_array_equal(
+        results.requested_mode_indices,
+        np.arange(8),
+    )
+    np.testing.assert_array_equal(
+        results.mode_indices,
+        [0, 1, 2, 3, 6, 7],
+    )
+    np.testing.assert_array_equal(
+        results.excluded_mode_indices,
+        [4, 5],
+    )
+    np.testing.assert_array_equal(
+        results.excluded_mode_types,
+        ["Torsional", "Torsional"],
+    )
+
+    np.testing.assert_array_equal(
+        results.sensor_nodes,
+        rotor.nodes,
+    )
+
+    n_modes = len(results.mode_indices)
+
+    assert results.mode_shapes.shape == (
+        n_modes,
+        len(rotor.nodes),
+    )
+
+    assert all(
+        array.shape
+        == (
+            n_modes,
+            len(results.sensor_nodes),
+        )
+        for array in (
+            results.modal_residues,
+            results.normalized_residues,
+            results.classifications,
+        )
+    )
+
+
+def test_run_amb_non_collocation_with_multiple_ambs():
+    """Store all AMBs while analyzing the selected one."""
+    rotor = rotor_example_amb_general_controllers()
+
+    ambs = [
+        bearing
+        for bearing in rotor.bearing_elements
+        if isinstance(bearing, MagneticBearingElement)
+    ]
+    analyzed_amb = ambs[-1]
+
+    results = rotor.run_amb_non_collocation(
+        magnetic_bearing=analyzed_amb,
+        modes=[0, 1],
+    )
+
+    assert results.actuator_node == analyzed_amb.n
+    assert results.sensor_node == analyzed_amb.sensor_node
+
+    np.testing.assert_array_equal(
+        results.all_actuator_nodes,
+        [amb.n for amb in ambs],
+    )
+    np.testing.assert_array_equal(
+        results.all_sensor_nodes,
+        [amb.sensor_node for amb in ambs],
+    )
+    np.testing.assert_array_equal(
+        results.all_amb_tags,
+        [amb.tag for amb in ambs],
+    )
+
+
+@pytest.mark.parametrize(
+    "kwargs, error, message",
+    [
+        (
+            {"speed": 100.0},
+            ValueError,
+            "supports only speed=0",
+        ),
+        (
+            {"modes": []},
+            ValueError,
+            "must contain at least one",
+        ),
+        (
+            {"modes": [-1]},
+            ValueError,
+            "must be non-negative",
+        ),
+        (
+            {"modes": [0, 0]},
+            ValueError,
+            "must not contain repeated values",
+        ),
+        (
+            {"modes": [0.5]},
+            TypeError,
+            "Every value in modes must be an integer",
+        ),
+        (
+            {"direction": "z"},
+            ValueError,
+            "direction must be",
+        ),
+        (
+            {"residue_tolerance": 1.0},
+            ValueError,
+            "0 <= residue_tolerance < 1",
+        ),
+    ],
+    ids=[
+        "nonzero_speed",
+        "empty_modes",
+        "negative_mode",
+        "repeated_mode",
+        "noninteger_mode",
+        "invalid_direction",
+        "invalid_residue_tolerance",
+    ],
+)
+def test_run_amb_non_collocation_invalid_arguments(
+    kwargs,
+    error,
+    message,
+):
+    """Reject invalid public-analysis arguments."""
+    rotor = rotor_example_amb_general_controllers()
+
+    amb = next(
+        bearing
+        for bearing in rotor.bearing_elements
+        if isinstance(bearing, MagneticBearingElement)
+    )
+
+    call_arguments = {
+        "magnetic_bearing": amb,
+        "modes": [0, 1],
+        **kwargs,
+    }
+
+    with pytest.raises(
+        error,
+        match=message,
+    ):
+        rotor.run_amb_non_collocation(
+            **call_arguments,
+        )
+
+
+def test_run_amb_non_collocation_low_actuator_participation(
+    monkeypatch,
+):
+    """Keep modal residues when actuator participation is low."""
+    rotor = rotor_example_amb_general_controllers()
+
+    amb = next(
+        bearing
+        for bearing in rotor.bearing_elements
+        if isinstance(bearing, MagneticBearingElement)
+    )
+
+    rotor_nodes = np.asarray(rotor.nodes, dtype=int)
+    x_dofs = rotor.number_dof * rotor_nodes
+    actuator_index = int(np.flatnonzero(rotor_nodes == amb.n)[0])
+
+    eigenvectors = np.zeros(
+        (rotor.ndof, 1),
+        dtype=complex,
+    )
+    eigenvectors[x_dofs, 0] = 1.0
+    eigenvectors[x_dofs[actuator_index], 0] = 0.01
+
+    modal = SimpleNamespace(
+        wd=np.array([100.0]),
+        evectors=eigenvectors,
+        shapes=[
+            SimpleNamespace(
+                mode_type="Lateral",
+            )
+        ],
+    )
+
+    monkeypatch.setattr(
+        rotor,
+        "run_modal",
+        lambda **kwargs: modal,
+    )
+
+    results = rotor.run_amb_non_collocation(
+        magnetic_bearing=amb,
+        modes=[0],
+        direction="x",
+        residue_tolerance=0.05,
+    )
+
+    expected_mode_shape = np.ones(len(rotor_nodes))
+    expected_mode_shape[actuator_index] = 0.01
+
+    assert_allclose(
+        results.mode_shapes[0],
+        expected_mode_shape,
+    )
+    assert_allclose(
+        results.modal_residues[0],
+        0.01 * expected_mode_shape,
+    )
+    assert_allclose(
+        results.normalized_residues[0],
+        expected_mode_shape,
+    )
+
+    expected_classifications = np.ones(
+        len(rotor_nodes),
+        dtype=int,
+    )
+    expected_classifications[actuator_index] = 0
+
+    assert_equal(
+        results.classifications[0],
+        expected_classifications,
     )
