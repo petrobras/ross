@@ -1,4 +1,3 @@
-import warnings
 from abc import ABC, abstractmethod
 
 import numpy as np
@@ -221,27 +220,6 @@ class BearingResults(ABC):
         fig : go.Figure
         """
 
-    def plot_temperature_3d(self, *args, **kwargs):
-        """Deprecated alias for :meth:`plot_film_temperature_3d`.
-
-        .. deprecated:: 2.4.0
-            ``plot_temperature_3d`` is deprecated and will be removed in a
-            future version.  Use ``plot_film_temperature_3d`` instead, which
-            states explicitly that the plotted field is the oil film
-            temperature.
-
-        Returns
-        -------
-        fig : go.Figure
-        """
-        warnings.warn(
-            "plot_temperature_3d is deprecated and will be removed in a future "
-            "version. Use plot_film_temperature_3d instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self.plot_film_temperature_3d(*args, **kwargs)
-
     def plot_pad_temperature_3d(self, freq_index=0, fig=None, **kwargs):
         """Return a 3-D mesh of the bearing pads colored by temperature.
 
@@ -333,7 +311,7 @@ class ThrustPadResults(BearingResults):
         Radial mesh step size (non-dimensional).
     d_theta : float
         Angular mesh step size (non-dimensional).
-    pad_arc_length : float
+    pad_arc : float
         Pad arc length (rad).
     optimization_history : dict
         Mapping ``{freq_index: [residuals]}``.
@@ -361,7 +339,7 @@ class ThrustPadResults(BearingResults):
         pad_inner_radius,
         d_radius,
         d_theta,
-        pad_arc_length,
+        pad_arc,
         optimization_history,
         initial_time=None,
         final_time=None,
@@ -386,7 +364,7 @@ class ThrustPadResults(BearingResults):
         self.pad_inner_radius = pad_inner_radius
         self.d_radius = d_radius
         self.d_theta = d_theta
-        self.pad_arc_length = pad_arc_length
+        self.pad_arc = pad_arc
         self.optimization_history = optimization_history
 
     def _build_cartesian_coords(self):
@@ -410,14 +388,12 @@ class ThrustPadResults(BearingResults):
             -(self.d_radius * self.pad_inner_radius),
         )
 
-        angular_coords[0] = np.pi / 2 + self.pad_arc_length / 2
-        angular_coords[-1] = np.pi / 2 - self.pad_arc_length / 2
+        angular_coords[0] = np.pi / 2 + self.pad_arc / 2
+        angular_coords[-1] = np.pi / 2 - self.pad_arc / 2
         angular_coords[1 : self.n_theta + 1] = np.arange(
-            np.pi / 2
-            + self.pad_arc_length / 2
-            - (0.5 * self.d_theta * self.pad_arc_length),
-            np.pi / 2 - self.pad_arc_length / 2,
-            -self.d_theta * self.pad_arc_length,
+            np.pi / 2 + self.pad_arc / 2 - (0.5 * self.d_theta * self.pad_arc),
+            np.pi / 2 - self.pad_arc / 2,
+            -self.d_theta * self.pad_arc,
         )
 
         for i in range(self.n_radial + 2):
@@ -892,8 +868,8 @@ class SqueezeFilmDamperResults(BearingResults):
         Maximum pressure (Pa), one value per frequency.
     axial_length : float
         Bearing axial length (m).
-    journal_radius : float
-        Journal radius (m).
+    journal_diameter : float
+        Journal diameter (m).
     radial_clearance : float
         Radial clearance (m).
     eccentricity_ratio : float
@@ -919,7 +895,7 @@ class SqueezeFilmDamperResults(BearingResults):
         theta,
         p_max,
         axial_length,
-        journal_radius,
+        journal_diameter,
         radial_clearance,
         eccentricity_ratio,
         lubricant_viscosity,
@@ -940,7 +916,7 @@ class SqueezeFilmDamperResults(BearingResults):
         self.theta = np.atleast_1d(theta)
         self.p_max = np.atleast_1d(p_max)
         self.axial_length = axial_length
-        self.journal_radius = journal_radius
+        self.journal_diameter = journal_diameter
         self.radial_clearance = radial_clearance
         self.eccentricity_ratio = eccentricity_ratio
         self.lubricant_viscosity = lubricant_viscosity
@@ -990,7 +966,7 @@ class SqueezeFilmDamperResults(BearingResults):
         table.add_row(["Geometry Type", f"{self.geometry:>12}", "-"])
         table.add_row(["Cavitation", f"{str(self.cavitation):>12}", "-"])
         table.add_row(["Axial Length", f"{self.axial_length:12.6f}", "m"])
-        table.add_row(["Journal Radius", f"{self.journal_radius:12.6f}", "m"])
+        table.add_row(["Journal Diameter", f"{self.journal_diameter:12.6f}", "m"])
         table.add_row(["Radial Clearance", f"{self.radial_clearance:12.6e}", "m"])
         table.add_row(["Eccentricity Ratio", f"{self.eccentricity_ratio:12.4f}", "-"])
         table.add_row(

@@ -73,6 +73,16 @@ def test_templates_use_ibm_plex_with_fallbacks():
     assert pio.templates["ross_dark"].layout.font.family == ROSS_FONT_FAMILY
 
 
+def test_updatemenus_follow_the_templates():
+    light = pio.templates["ross"].layout.updatemenudefaults
+    dark = pio.templates["ross_dark"].layout.updatemenudefaults
+
+    assert light.bgcolor == "white"
+    assert dark.bgcolor == "#122839"
+    assert dark.bordercolor != light.bordercolor
+    assert dark.font.color == "#dfe8f3"
+
+
 def test_dark_template_differs_from_light():
     light = pio.templates["ross"].layout
     dark = pio.templates["ross_dark"].layout
