@@ -125,6 +125,35 @@ def multi_rotor():
     )
 
 
+def test_add_elements(multi_rotor):
+    n_disks = len(multi_rotor.disk_elements)
+    n_bearings = len(multi_rotor.bearing_elements)
+
+    disk_driving = rs.DiskElement(n=2, m=10.0, Id=0.1, Ip=0.2)
+    disk_driven = rs.DiskElement(n=7, m=1.0, Id=0.01, Ip=0.02)
+    seal = rs.SealElement(n=3, kxx=1e6, kyy=0.8e6, cxx=2e2, cyy=1.5e2)
+
+    new_rotor = multi_rotor.add_elements([disk_driving, disk_driven, seal])
+
+    assert isinstance(new_rotor, rs.MultiRotor)
+    assert len(new_rotor.disk_elements) == n_disks + 2
+    assert len(new_rotor.bearing_elements) == n_bearings + 1
+
+    driving_masses = [d.m for d in new_rotor.rotors["driving"].disk_elements]
+    driven_masses = [d.m for d in new_rotor.rotors["driven"].disk_elements]
+    assert 10.0 in driving_masses
+    assert 1.0 in driven_masses
+
+    driven_disk = next(d for d in new_rotor.rotors["driven"].disk_elements if d.m == 1.0)
+    assert driven_disk.n == 2
+
+    assembled_disk = next(d for d in new_rotor.disk_elements if d.m == 1.0)
+    assert assembled_disk.n == 7
+
+    with pytest.raises(ValueError, match="does not belong"):
+        multi_rotor.add_elements([rs.DiskElement(n=99, m=1.0, Id=0.0, Ip=0.0)])
+
+
 def test_mesh(multi_rotor):
     assert_allclose(
         multi_rotor.mesh.contact_ratio, 1.6377334309511222, rtol=1e-6, atol=1e-5

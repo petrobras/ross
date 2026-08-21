@@ -1,3 +1,4 @@
+import inspect
 import warnings
 from collections.abc import Iterable
 from copy import copy, deepcopy
@@ -35,6 +36,7 @@ from ross.bearings.magnetic.amb_utils import (
     apply_sensitivity_disturbance,
 )
 from ross.coupling_element import CouplingElement
+from ross.multi_rotor.gear_element import GearElement, GearElementTVMS
 from ross.disk_element import DiskElement
 from ross.faults import Crack, MisalignmentFlex, MisalignmentRigid, Rubbing
 from ross.materials import Material, steel
@@ -699,25 +701,33 @@ class Rotor(object):
         # Then, use the vector to compute diametral aka transverse inertia of the entire rotor.
         self.It = v @ (self.M0 @ v.T)
 
-    def __add__(self, rotor2):
-        return Rotor.concatenate_rotors([self, rotor2])
+    def __add__(self, other):
+        return Rotor.concatenate(self, other)
 
     @classmethod
-    def concatenate_rotors(cls, rotor_list):
-        """Concatenate a list of rotors into a single rotor.
+    def concatenate(cls, *rotors):
+        """Concatenate a sequence of rotors into a single rotor.
 
         The nodes of the concatenated rotor will be the maximum node of the last rotor
         in the list.
 
         Parameters
         ----------
-        rotor_list : list
-            List of Rotor objects to concatenate.
+        *rotors : Rotor
+            Sequence of rotors to be concatenated, in the order they
+            should be combined. A single list or tuple of rotors is also
+            accepted as one argument (e.g. `Rotor.concatenate([rotor1, rotor2])`).
 
         Returns
         -------
         Rotor object.
         """
+        if len(rotors) == 1 and isinstance(rotors[0], (list, tuple)):
+            rotors = rotors[0]
+        if not rotors:
+            raise ValueError("At least one rotor must be provided.")
+    
+        rotor_list = list(rotors)
         shaft_elements = []
         disk_elements = []
         bearing_elements = []
@@ -725,17 +735,30 @@ class Rotor(object):
 
         node_offset = 0
 
+        last_node = sum(max(rotor.nodes) for rotor in rotor_list)
+        link_nodes = [rotor.link_nodes for rotor in rotor_list]
+
+        def update_link_nodes(rotor_index, n_link):
+            node_index = link_nodes[rotor_index].index(n_link)
+            offset = sum(len(link_nodes[i]) for i in range(rotor_index))
+            return last_node + node_index + offset + 1
+        
         for i, rotor in enumerate(rotor_list):
             rotor = deepcopy(rotor)
 
-            # Reindex elements
-            elements = rotor.elements
-            for el in elements:
-                el.n += node_offset
-                try:
-                    el.n_link += node_offset
-                except:
-                    pass
+            for el in rotor.elements:
+
+                if el.n in rotor.nodes:
+                    el.n += node_offset
+                elif el.n in rotor.link_nodes:
+                    el.n = update_link_nodes(i, el.n)
+
+                if getattr(el, "n_link", None) is not None:
+                    if el.n_link in rotor.nodes:
+                        el.n_link += node_offset
+                    elif el.n_link in rotor.link_nodes:
+                        el.n_link = update_link_nodes(i, el.n_link)
+
                 el.tag = f"{el.tag} (R{i})"
 
             shaft_elements.extend(rotor.shaft_elements)
@@ -744,14 +767,17 @@ class Rotor(object):
             point_mass_elements.extend(rotor.point_mass_elements)
 
             # Update offset for the next rotor
-            node_offset = max(rotor.nodes)
+            node_offset += max(rotor.nodes)
+
+        parameters = rotor_list[0]._init_parameters()
+        parameters["tag"] = "Concatenated Rotor"
 
         return cls(
             shaft_elements=shaft_elements,
             disk_elements=disk_elements,
             bearing_elements=bearing_elements,
             point_mass_elements=point_mass_elements,
-            tag="Concatenated Rotor",
+            **parameters,
         )
 
     def set_tag(self, tag):
@@ -978,6 +1004,33 @@ class Rotor(object):
         else:
             return False
 
+    def _init_parameters(self):
+        """Return keyword arguments to reconstruct this rotor.
+
+        Collects every ``__init__`` parameter except the element lists,
+        so callers can pass ``**self._init_parameters()`` when building
+        a new instance of the same class.
+
+        Returns
+        -------
+        dict
+            Mapping of parameter names to the current attribute values.
+        """
+        skip = {
+            "self",
+            "shaft_elements",
+            "disk_elements",
+            "bearing_elements",
+            "point_mass_elements",
+            "shafts",
+        }
+        sig = inspect.signature(self.__class__.__init__)
+        return {
+            name: getattr(self, name)
+            for name in sig.parameters
+            if name not in skip
+        }
+
     def add_nodes(self, new_nodes_pos):
         """Add nodes to rotor.
 
@@ -1084,15 +1137,12 @@ class Rotor(object):
         for elm in elm_linked:
             elm.n += n_nodes
 
-        return Rotor(
+        return self.__class__(
             shaft_elements,
             disk_elements=disk_elements,
             bearing_elements=bearing_elements,
             point_mass_elements=point_mass_elements,
-            min_w=self.min_w,
-            max_w=self.max_w,
-            rated_w=self.rated_w,
-            tag=self.tag,
+            **self._init_parameters(),
         )
 
     def add_elements(self, new_elements):
@@ -1140,15 +1190,12 @@ class Rotor(object):
             else:
                 raise ValueError(f"{el} is not a valid element.")
 
-        return Rotor(
+        return self.__class__(
             shaft_elements,
             disk_elements=disk_elements,
             bearing_elements=bearing_elements,
             point_mass_elements=point_mass_elements,
-            min_w=self.min_w,
-            max_w=self.max_w,
-            rated_w=self.rated_w,
-            tag=self.tag,
+            **self._init_parameters(),
         )
 
     @lru_cache()
@@ -5617,10 +5664,7 @@ class Rotor(object):
             rotor.disk_elements,
             bearings_seals_rs,
             rotor.point_mass_elements,
-            min_w=rotor.min_w,
-            max_w=rotor.max_w,
-            rated_w=rotor.rated_w,
-            tag=rotor.tag,
+            **rotor._init_parameters(),
         )
 
     @check_units
