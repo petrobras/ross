@@ -296,7 +296,13 @@ def test_magnetic_bearing_controller_routes_sensor_to_actuator(
         setpoint,
         disp,
         dof_index,
+        disp_actuator=None,
     ):
+        # disp_actuator is intentionally ignored here: this test checks
+        # sensor->actuator routing of the *measured* signal (disp), not the
+        # ks term. The actuator-side displacement values injected below are
+        # still deliberately "wrong" (100 + index) to catch any accidental
+        # use of disp_actuator as if it were the control error.
         return disp, 0.0
 
     monkeypatch.setattr(
@@ -325,24 +331,24 @@ def test_run_amb_sensitivity():
     """
     EXPECTED_SENSITIVITY_RESULTS = {
         "max_abs": {
-            "Magnetic Bearing 0": {"x": 0.9915881235, "y": 0.9915881235},
-            "Magnetic Bearing 1": {"x": 0.9880851953, "y": 0.9880851953},
+            "Magnetic Bearing 0": {"x": 0.9927339313, "y": 0.9927339313},
+            "Magnetic Bearing 1": {"x": 0.9897072281, "y": 0.9897072281},
         },
         "abs_slice": {
             "Magnetic Bearing 0": {
                 "x": np.array(
-                    [0.99158812, 0.99156866, 0.99153061, 0.99147841, 0.99142154]
+                    [0.9927339313, 0.99271824, 0.99268636, 0.99264242, 0.99259454]
                 ),
                 "y": np.array(
-                    [0.99158812, 0.99156866, 0.99153061, 0.99147841, 0.99142154]
+                    [0.9927339313, 0.99271824, 0.99268636, 0.99264242, 0.99259454]
                 ),
             },
             "Magnetic Bearing 1": {
                 "x": np.array(
-                    [0.9880852, 0.98805746, 0.98800146, 0.98792434, 0.98784035]
+                    [0.9897072281, 0.98968478, 0.98963755, 0.98957234, 0.9895013]
                 ),
                 "y": np.array(
-                    [0.9880852, 0.98805746, 0.98800146, 0.98792434, 0.98784035]
+                    [0.9897072281, 0.98968478, 0.98963755, 0.98957234, 0.9895013]
                 ),
             },
         },
@@ -351,19 +357,19 @@ def test_run_amb_sensitivity():
                 "x": np.array(
                     [
                         0.00000000e00,
-                        8.77852477e-05,
-                        1.59040274e-04,
-                        2.11855244e-04,
-                        2.44736262e-04,
+                        7.33293668e-05,
+                        1.33513269e-04,
+                        1.78009620e-04,
+                        2.05688519e-04,
                     ]
                 ),
                 "y": np.array(
                     [
                         0.00000000e00,
-                        8.77852477e-05,
-                        1.59040274e-04,
-                        2.11855244e-04,
-                        2.44736262e-04,
+                        7.33293668e-05,
+                        1.33513269e-04,
+                        1.78009620e-04,
+                        2.05688519e-04,
                     ]
                 ),
             },
@@ -371,19 +377,19 @@ def test_run_amb_sensitivity():
                 "x": np.array(
                     [
                         0.00000000e00,
-                        1.29420004e-04,
-                        2.35610181e-04,
-                        3.14075980e-04,
-                        3.62979207e-04,
+                        1.08630548e-04,
+                        1.98671121e-04,
+                        2.65038535e-04,
+                        3.06378785e-04,
                     ]
                 ),
                 "y": np.array(
                     [
                         0.00000000e00,
-                        1.29420004e-04,
-                        2.35610181e-04,
-                        3.14075980e-04,
-                        3.62979207e-04,
+                        1.08630548e-04,
+                        1.98671121e-04,
+                        2.65038535e-04,
+                        3.06378785e-04,
                     ]
                 ),
             },
@@ -407,18 +413,18 @@ def test_run_amb_sensitivity():
                 [
                     0.00000000e00,
                     6.67703996e-12,
-                    1.42060807e-11,
-                    2.26922938e-11,
-                    3.22559336e-11,
+                    1.42061436e-11,
+                    2.26926383e-11,
+                    3.22569749e-11,
                 ]
             ),
             "sensor": np.array(
                 [
                     0.00000000e00,
                     0.00000000e00,
-                    -2.22067882e-15,
-                    -1.07746729e-14,
-                    -2.86728919e-14,
+                    -2.15782942e-15,
+                    -1.04302014e-14,
+                    -2.76315703e-14,
                 ]
             ),
         },

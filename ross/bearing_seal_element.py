@@ -2351,7 +2351,9 @@ class MagneticBearingElement(BearingElement):
 
         return customdata, hovertemplate
 
-    def compute_amb_controller(self, current_offset, setpoint, disp, dof_index):
+    def compute_amb_controller(
+        self, current_offset, setpoint, disp, dof_index, disp_actuator=None
+    ):
         """Compute AMB control force for one axis using the discrete controller.
 
         This routine evaluates the discrete-time controller output for the selected
@@ -2369,7 +2371,7 @@ class MagneticBearingElement(BearingElement):
         3) Form the coil signal
            signal_pid = current_offset + u.
         4) Map current to force
-           F = ki * signal_pid + ks * disp.
+           F = ki * signal_pid + ks * disp_actuator.
 
         Parameters
         ----------
@@ -2378,9 +2380,19 @@ class MagneticBearingElement(BearingElement):
         setpoint : float
             Reference position for the controlled axis (usually zero).
         disp : float
-            Measured displacement at the controlled axis.
+            Measured displacement at the *sensor* node, used to compute the
+            control error. For a non-collocated AMB this is generally not
+            the same physical point as the actuator.
         dof_index : int
             Axis selector within the AMB element: 0 for x, 1 for y.
+        disp_actuator : float, optional
+            Displacement at the *actuator* node, used only for the ``ks``
+            term. ``ks`` is the electromagnet's own negative stiffness, a
+            physical property of the real air gap at the actuator pole
+            faces, so it must always be evaluated at the actuator's own
+            displacement -- never at the sensor's, even when sensor and
+            actuator are not collocated. If omitted, defaults to ``disp``,
+            which reproduces the previous (collocated) behavior.
 
         Returns
         -------
@@ -2416,12 +2428,15 @@ class MagneticBearingElement(BearingElement):
         >>> current  # doctest: +ELLIPSIS
         -0.003533...
         """
+        if disp_actuator is None:
+            disp_actuator = disp
+
         err = setpoint - disp
         u = self.C_c @ self.x_c[dof_index] + self.D_c * err
         self.x_c[dof_index] = self.A_c @ self.x_c[dof_index] + self.B_c * err
 
         signal_pid = current_offset + u
-        magnetic_force = self.ki * signal_pid + self.ks * disp
+        magnetic_force = self.ki * signal_pid + self.ks * disp_actuator
 
         return magnetic_force.item(), signal_pid.item()
 
