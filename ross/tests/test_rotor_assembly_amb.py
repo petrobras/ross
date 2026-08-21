@@ -227,7 +227,15 @@ def test_magnetic_bearing_controller_routes_sensor_to_actuator(
     monkeypatch,
     number_of_ambs,
 ):
-    """Controller should measure and apply forces at each AMB node pair."""
+    """Controller should read disp from the sensor node and disp_actuator
+    from the actuator node, then apply the resulting force at the actuator.
+
+    The stub below returns ``disp + 1000 * disp_actuator``, so the two
+    contributions never overlap numerically. If disp_actuator ever picked
+    up the sensor's value instead of the actuator's (or vice versa), the
+    resulting force would be off by roughly a factor of 1000 relative to
+    what is asserted below -- not a subtle rounding difference.
+    """
     rotor = rotor_example_amb_general_controllers()
 
     template_amb = next(
@@ -255,6 +263,8 @@ def test_magnetic_bearing_controller_routes_sensor_to_actuator(
     disp_resp = np.zeros(rotor.ndof)
     expected_force = np.zeros(rotor.ndof)
 
+    DISP_ACTUATOR_WEIGHT = 1000.0
+
     for index, (
         actuator_node,
         sensor_node,
@@ -279,15 +289,24 @@ def test_magnetic_bearing_controller_routes_sensor_to_actuator(
         sensor_x_disp = float(index + 1)
         sensor_y_disp = -float(index + 2)
 
+        # Deliberately distinct from the sensor values above, so that
+        # routing either displacement to the wrong argument produces a
+        # force that clearly does not match expected_force below.
+        actuator_x_disp = 100.0 + index
+        actuator_y_disp = -100.0 - index
+
         disp_resp[sensor_x_dof] = sensor_x_disp
         disp_resp[sensor_y_dof] = sensor_y_disp
 
-        # These values must not be used as measurements.
-        disp_resp[actuator_x_dof] = 100.0 + index
-        disp_resp[actuator_y_dof] = -100.0 - index
+        disp_resp[actuator_x_dof] = actuator_x_disp
+        disp_resp[actuator_y_dof] = actuator_y_disp
 
-        expected_force[actuator_x_dof] = sensor_x_disp
-        expected_force[actuator_y_dof] = sensor_y_disp
+        expected_force[actuator_x_dof] = (
+            sensor_x_disp + DISP_ACTUATOR_WEIGHT * actuator_x_disp
+        )
+        expected_force[actuator_y_dof] = (
+            sensor_y_disp + DISP_ACTUATOR_WEIGHT * actuator_y_disp
+        )
 
     def passthrough_compute_amb_controller(
         self,
@@ -298,12 +317,12 @@ def test_magnetic_bearing_controller_routes_sensor_to_actuator(
         dof_index,
         disp_actuator=None,
     ):
-        # disp_actuator is intentionally ignored here: this test checks
-        # sensor->actuator routing of the *measured* signal (disp), not the
-        # ks term. The actuator-side displacement values injected below are
-        # still deliberately "wrong" (100 + index) to catch any accidental
-        # use of disp_actuator as if it were the control error.
-        return disp, 0.0
+        # disp must come from the sensor node, disp_actuator from the
+        # actuator node -- see DISP_ACTUATOR_WEIGHT above for why a
+        # routing mistake cannot pass silently here.
+        if disp_actuator is None:
+            disp_actuator = disp
+        return disp + DISP_ACTUATOR_WEIGHT * disp_actuator, 0.0
 
     monkeypatch.setattr(
         MagneticBearingElement,

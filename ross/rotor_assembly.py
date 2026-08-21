@@ -2722,7 +2722,10 @@ class Rotor(object):
             v_disp = x_disp * cos_angle + y_disp * sin_angle
             w_disp = -x_disp * sin_angle + y_disp * cos_angle
 
-            x_disp_act, y_disp_act = disp_resp[actuator_x_dof], disp_resp[actuator_y_dof]
+            x_disp_act, y_disp_act = (
+                disp_resp[actuator_x_dof],
+                disp_resp[actuator_y_dof],
+            )
             v_disp_act = x_disp_act * cos_angle + y_disp_act * sin_angle
             w_disp_act = -x_disp_act * sin_angle + y_disp_act * cos_angle
 
@@ -2738,11 +2741,17 @@ class Rotor(object):
                 )
 
             force_v, current_v = elm.compute_amb_controller(
-                current_offset=0, setpoint=0, disp=v_disp, dof_index=0, 
+                current_offset=0,
+                setpoint=0,
+                disp=v_disp,
+                dof_index=0,
                 disp_actuator=v_disp_act,
             )
             force_w, current_w = elm.compute_amb_controller(
-                current_offset=0, setpoint=0, disp=w_disp, dof_index=1, 
+                current_offset=0,
+                setpoint=0,
+                disp=w_disp,
+                dof_index=1,
                 disp_actuator=w_disp_act,
             )
 
