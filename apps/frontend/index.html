@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ROSS - Graphical Interface</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+</head>
+<body>
+
+    <div id="screen-home" class="screen active">
+        <div class="home-container">
+            <img src="../../docs/_static/ross-logo.svg" alt="ROSS Logo" class="logo-img-home" onerror="this.style.display='none'">
+            <h1 class="logo-text">ROSS</h1>
+            <p class="subtitle">Rotordynamic Open-Source Software</p>
+            <div class="home-buttons">
+                <button onclick="openRotorHub()" class="btn-primary"><i class="fas fa-layer-group"></i> Rotor Hub</button>
+                <button onclick="document.getElementById('upload-rotor-home').click()" class="btn-secondary">Load Rotor</button>
+                <button onclick="document.getElementById('upload-analysis-home').click()" class="btn-secondary">Load Analysis</button>
+                <button onclick="exitApplication()" class="btn-exit" style="margin-top: 15px;"><i class="fas fa-power-off"></i> Exit Program</button>
+                
+                <input type="file" id="upload-rotor-home" accept=".json, .toml" style="display: none;" onchange="loadRotor(event)">
+                <input type="file" id="upload-analysis-home" accept=".json" style="display: none;" onchange="loadAnalysisDirect(event)">
+            </div>
+        </div>
+    </div>
+
+    <div id="screen-rotor-hub" class="screen">
+        <div class="topbar">
+            <div class="topbar-left">
+                <button class="btn-back" onclick="switchScreen('screen-home')" title="Back to Home"><i class="fas fa-arrow-left"></i></button>
+            </div>
+            <div class="topbar-center">
+                <img src="../../docs/_static/ross-logo.svg" alt="Logo" class="logo-img-topbar" onerror="this.style.display='none'"> ROSS - Rotor Manager
+            </div>
+            <div class="topbar-actions">
+                <button class="btn-exit-small" onclick="exitApplication()" title="Exit"><i class="fas fa-power-off"></i></button>
+            </div>
+        </div>
+
+        <div class="hub-container">
+            <div class="hub-header">
+                <h2>My Rotors</h2>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn-secondary" onclick="document.getElementById('upload-rotor-hub').click()"><i class="fas fa-upload"></i> Load Rotor</button>
+                    <button class="btn-primary" onclick="createNewRotorInHub()"><i class="fas fa-plus"></i> Add New Rotor</button>
+                    <button class="btn-primary" style="background-color: #8b5cf6;" onclick="openMultiRotorModal()"><i class="fas fa-link"></i> Link MultiRotor</button>
+                    <input type="file" id="upload-rotor-hub" accept=".json, .toml" style="display: none;" onchange="loadRotor(event)">
+                </div>
+            </div>
+            <div id="rotor-hub-list" class="hub-list">
+
+            </div>
+        </div>
+    </div>
+
+    <div id="screen-modeling" class="screen">
+        <div class="topbar">
+            <div class="topbar-left">
+                <button class="btn-back" onclick="returnToHub()" title="Back to Hub"><i class="fas fa-arrow-left"></i></button>
+                <button class="btn-toggle-sidebar" onclick="toggleSidebar()" title="Toggle Sidebar"><i class="fas fa-bars"></i></button>
+                <button class="btn-help-general" onclick="openGeneralHelp()" title="How to use"><i class="fas fa-question-circle"></i></button>
+            </div>
+            <div class="topbar-center">
+                <img src="../../docs/_static/ross-logo.svg" alt="Logo" class="logo-img-topbar" onerror="this.style.display='none'"> ROSS - Modeling
+            </div>
+            <div class="topbar-actions">
+                <button class="btn-py" onclick="generatePythonFile()" title="Generate Python"><i class="fab fa-python"></i> <span class="btn-text">Generate Python</span></button>
+                <button class="btn-save" onclick="saveRotor(event)" title="Save Rotor"><i class="fas fa-save"></i> <span class="btn-text">Save Rotor</span></button>
+                <button class="btn-analysis-go" onclick="switchScreen('screen-analysis')" title="Go to Analysis"><span class="btn-text">Go to Analysis</span> <i class="fas fa-arrow-right"></i></button>
+                <button class="btn-exit-small" onclick="exitApplication()" title="Exit"><i class="fas fa-power-off"></i></button>
+            </div>
+        </div>
+
+        <div class="modeling-layout">
+            <div class="sidebar">
+                <button class="tab-btn" onclick="openTab('materials')">Material</button>
+                <button class="tab-btn" onclick="openTab('shafts')">Shaft</button>
+                <button class="tab-btn" onclick="openTab('disks')">Disk</button>
+                <button class="tab-btn" onclick="openTab('gears')">Gear</button>
+                <button class="tab-btn" onclick="openTab('couplings')">Coupling</button>
+                <button class="tab-btn" onclick="openTab('seals')">Seal</button>
+                <button class="tab-btn" onclick="openTab('bearings')">Bearing</button>
+                <button class="tab-btn" onclick="openTab('pointmasses')">Pointmass</button>
+            </div>
+
+            <div class="dynamic-panel">
+                <div id="empty-message" class="empty-message">Select a category on the left to start modeling.</div>
+                
+                <div id="list-area" style="display: none;">
+                    <h3 id="tab-title">Category</h3>
+                    <div id="element-list" class="dynamic-list"></div>
+                    <button class="btn-add" id="btn-add-item" onclick="openForm(true)"><i class="fas fa-plus"></i></button>
+                    
+                    <div id="insertion-form" class="form-box" style="display: none;">
+                        <div id="form-fields"></div>
+                        <div class="form-actions">
+                            <button class="btn-confirm" onclick="saveItem()"><i class="fas fa-check"></i></button>
+                            <button class="btn-cancel" onclick="closeForm()"><i class="fas fa-times"></i></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="plot-panel">
+                <div id="rotor-info" style="display:flex; justify-content:center; gap: 30px; margin-bottom: 15px; font-weight: 600; color: var(--text-main); font-size: 13px; background: var(--bg-card); padding: 10px; border-radius: var(--radius-ui); border: 1px solid var(--border-color); box-shadow: var(--shadow-card); opacity: 0; transition: opacity 0.3s;">
+                    <span>Total Mass: <span id="info-mass" style="color: var(--accent-primary); font-family: monospace; font-size: 14px;">-</span> kg</span>
+                    <span>Polar Inertia (Ip): <span id="info-ip" style="color: var(--accent-primary); font-family: monospace; font-size: 14px;">-</span> kg.m²</span>
+                </div>
+
+                <div id="plot-rotor" class="live-plot-area">
+                    <div style="display: flex; height: 100%; min-height: 400px; align-items: center; justify-content: center;">
+                        <p style="color: #888; text-align: center; margin: 0;">The rotor model will appear here...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="screen-analysis" class="screen">
+        <div class="topbar">
+            <div class="topbar-left">
+                <button class="btn-back" onclick="openRotorHub()" title="Back to Hub"><i class="fas fa-arrow-left"></i></button>
+                <button class="btn-toggle-sidebar" onclick="toggleAnalysisSidebar()" title="Toggle Sidebar"><i class="fas fa-bars"></i></button>
+                <button class="btn-help-general" onclick="openAnalysisHelp()" title="How to use Analysis"><i class="fas fa-question-circle"></i></button>
+            </div>
+            <div class="topbar-center">
+                <img src="../../docs/_static/ross-logo.svg" alt="Logo" class="logo-img-topbar" onerror="this.style.display='none'"> ROSS - Analysis
+            </div>
+            <div class="topbar-actions">
+                <button class="btn-py" onclick="generatePythonFile()" title="Generate Python"><i class="fab fa-python"></i> <span class="btn-text">Generate Python</span></button>
+                <button class="btn-save" onclick="saveAnalysis(event)" title="Save Analysis"><i class="fas fa-save"></i> <span class="btn-text">Save Analysis</span></button>
+                <button class="btn-secondary" onclick="document.getElementById('upload-analysis-screen').click()" title="Load Analysis"><i class="fas fa-folder-open"></i> <span class="btn-text">Load</span></button>
+                <input type="file" id="upload-analysis-screen" accept=".json" style="display: none;" onchange="loadAnalysis(event)">
+                <button class="btn-exit-small" onclick="exitApplication()" title="Exit"><i class="fas fa-power-off"></i></button>
+            </div>
+        </div>
+
+        <div class="analysis-layout">
+            <div class="analysis-controls-panel">
+                <select id="analysis-type" class="analysis-select">
+                    <option value="">Select analysis type...</option>
+                    <option value="campbell">Campbell Diagram</option>
+                    <option value="ucs">UCS Diagram</option> 
+                    <option value="freq_response">Frequency Response</option>
+                    <option value="modes">Modal Analysis</option>
+                    <option value="unbalance">Unbalance Response</option>
+                    <option value="time_response">Time Response</option>
+                    <option value="static">Static Analysis</option>
+                    <option value="harmonic_balance">Harmonic Balance</option>
+                    <option value="clearance">Clearance Analysis</option>
+                    <option value="misalignment">Misalignment Response</option>
+                    <option value="rubbing">Rubbing Response</option>
+                    <option value="crack">Crack Response</option>
+                </select>
+                <select id="rotor-conversion-type" class="analysis-select" style="margin-bottom: 0px;">
+                    <option value="">Rotor Model: Original (6 DoF)</option>
+                    <option value="4dof">Convert to 4 DoF</option>
+                    <option value="torsional">Convert to Torsional</option>
+                </select>
+                <button type="button" class="btn-analysis-go" onclick="addAnalysis(event)" style="width: 100%; margin-top: 15px;">⚙️ Add Dashboard Card</button>
+            </div>
+            
+            <div class="analysis-plot-panel" id="analysis-list">
+                <p style="color: #888; text-align: center; margin-top: 20%;">Generated dashboards will appear here.</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="help-modal-overlay" class="modal-overlay" style="display: none;">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3 id="help-modal-title">Help</h3>
+                <button class="btn-close-modal" onclick="closeHelpModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body" id="help-modal-body">
+            </div>
+        </div>
+    </div>
+
+    <div id="node-hub-overlay" class="modal-overlay" style="display: none;">
+        <div class="modal-box" style="max-width: 480px;">
+            <div class="modal-header">
+                <h3><i class="fas fa-plus-circle"></i> Add Element at Node <span id="node-hub-target" style="color:var(--accent-primary);">0</span></h3>
+                <button class="btn-close-modal" onclick="closeNodeHub()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body" style="padding-top: 15px;">
+                <p style="color: var(--text-muted); margin-bottom: 15px; font-size: 13px; margin-top: 0;">Select the type of element you want to append to this node:</p>
+                <div class="element-hub-grid">
+                    <button class="element-hub-btn" onclick="addElementFromNodeHub('shafts')"><i class="fas fa-grip-lines"></i> Shaft</button>
+                    <button class="element-hub-btn" onclick="addElementFromNodeHub('disks')"><i class="fas fa-compact-disc"></i> Disk</button>
+                    <button class="element-hub-btn" onclick="addElementFromNodeHub('gears')"><i class="fas fa-cog"></i> Gear</button>
+                    <button class="element-hub-btn" onclick="addElementFromNodeHub('couplings')"><i class="fas fa-link"></i> Coupling</button>
+                    <button class="element-hub-btn" onclick="addElementFromNodeHub('bearings')"><i class="fas fa-circle-notch"></i> Bearing</button>
+                    <button class="element-hub-btn" onclick="addElementFromNodeHub('seals')"><i class="fas fa-ring"></i> Seal</button>
+                    <button class="element-hub-btn" onclick="addElementFromNodeHub('pointmasses')"><i class="fas fa-dot-circle"></i> Point Mass</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="multirotor-modal-overlay" class="modal-overlay" style="display: none;">
+        <div class="modal-box" style="max-width: 450px; padding: 0;">
+            <div class="modal-header">
+                <h3><i class="fas fa-link"></i> Add MultiRotor</h3>
+                <button class="btn-close-modal" onclick="closeMultiRotorModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body form-box" style="border: none; box-shadow: none; margin-top: 0; border-radius: 0;">
+                <div class="input-group">
+                    <label>MultiRotor Name</label>
+                    <input type="text" id="mr-name" value="My MultiRotor">
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <div class="input-group"><label>Driving Rotor</label><select id="mr-driving"></select></div>
+                    <div class="input-group"><label>Driven Rotor</label><select id="mr-driven"></select></div>
+                </div>
+                <div class="input-group">
+                    <label>Coupled Nodes (ex: 4, 0)</label>
+                    <input type="text" id="mr-coupled-nodes" value="0, 0" placeholder="driving_node, driven_node">
+                </div>
+                
+                <button type="button" class="btn-advanced" onclick="toggleAdvanced(this)">Advanced <i class="fas fa-chevron-down"></i></button>
+                <div class="advanced-fields" style="display: none; margin-top: 10px; border-top: 1px dashed #ccc; padding-top: 10px;">
+                    <div class="input-group">
+                        <label>Gear Mesh Stiffness [N/m]</label>
+                        <input type="number" id="mr-stiffness" step="any" placeholder="Auto-calculated if empty">
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <div class="input-group"><label>Update Mesh Stiff.</label><select id="mr-update-stiffness"><option value="false">False</option><option value="true">True</option></select></div>
+                        <div class="input-group"><label>Square Varying Stiff.</label><select id="mr-square-stiffness"><option value="false">False</option><option value="true">True</option></select></div>
+                    </div>
+                    <div class="input-group"><label>Square Stiff. Amplitude Ratio</label><input type="number" id="mr-ratio" value="0" step="any"></div>
+                    <div style="display: flex; gap: 10px;">
+                        <div class="input-group"><label>Orientation Angle [rad]</label><input type="number" id="mr-angle" value="0.0" step="any"></div>
+                        <div class="input-group"><label>Drawing Position</label><select id="mr-position"><option value="above">Above</option><option value="below">Below</option></select></div>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button class="btn-confirm" onclick="saveMultiRotor()"><i class="fas fa-check"></i></button>
+                    <button class="btn-cancel" onclick="closeMultiRotorModal()"><i class="fas fa-times"></i></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Modal for Text Input (Prompt) -->
+    <div id="custom-prompt-overlay" class="modal-overlay" style="display: none;">
+        <div class="modal-box" style="max-width: 400px; padding: 0;">
+            <div class="modal-header">
+                <h3 style="color: var(--text-main); font-size: 15px;"><i class="fas fa-edit" style="color: var(--accent-primary);"></i> Input Required</h3>
+                <button class="btn-close-modal" onclick="closeCustomPrompt(null)"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body form-box" style="border: none; box-shadow: none; margin-top: 0; border-radius: 0;">
+                <p id="custom-prompt-message" style="margin-bottom: 10px; font-size: 13px; color: var(--text-muted); font-weight: 600;"></p>
+                <div class="input-group" style="margin-bottom: 15px;">
+                    <input type="text" id="custom-prompt-input" style="width: 100%;">
+                </div>
+                <div class="form-actions">
+                    <button class="btn-confirm" onclick="confirmCustomPrompt()"><i class="fas fa-check"></i> OK</button>
+                    <button class="btn-cancel" onclick="closeCustomPrompt(null)"><i class="fas fa-times"></i> Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Modal for Yes/No Confirmations (Confirm) -->
+    <div id="custom-confirm-overlay" class="modal-overlay" style="display: none;">
+        <div class="modal-box" style="max-width: 400px; padding: 0;">
+            <div class="modal-header">
+                <h3 style="color: var(--text-main); font-size: 15px;"><i class="fas fa-exclamation-triangle" style="color: var(--accent-danger);"></i> Confirm Action</h3>
+                <button class="btn-close-modal" onclick="closeCustomConfirm(false)"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body form-box" style="border: none; box-shadow: none; margin-top: 0; border-radius: 0;">
+                <p id="custom-confirm-message" style="margin-bottom: 20px; font-size: 14px; color: var(--text-main); line-height: 1.5;"></p>
+                <div class="form-actions">
+                    <button class="btn-confirm" style="background: var(--accent-danger);" onclick="closeCustomConfirm(true)"><i class="fas fa-check"></i> Yes</button>
+                    <button class="btn-cancel" onclick="closeCustomConfirm(false)"><i class="fas fa-times"></i> No</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Alert Modal -->
+    <div id="custom-alert-overlay" class="modal-overlay" style="display: none;">
+        <div class="modal-box" style="max-width: 400px; padding: 0;">
+            <div class="modal-header">
+                <h3 style="color: var(--text-main); font-size: 15px;"><i class="fas fa-info-circle" style="color: var(--accent-primary);"></i> Notice</h3>
+                <button class="btn-close-modal" onclick="closeCustomAlert()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body form-box" style="border: none; box-shadow: none; margin-top: 0; border-radius: 0;">
+                <p id="custom-alert-message" style="margin-bottom: 20px; font-size: 14px; color: var(--text-main); line-height: 1.5; white-space: pre-wrap;"></p>
+                <div class="form-actions" style="justify-content: center;">
+                    <button class="btn-confirm" onclick="closeCustomAlert()"><i class="fas fa-check"></i> OK</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script src="app.js"></script>
+</body>
+</html>
