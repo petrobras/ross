@@ -30,13 +30,13 @@ UNITS_MAPPING = {
     'MagneticBearingElement': {},
     'CylindricalBearing': {'speed': 'RPM', 'weight': 'N', 'bearing_length': 'mm', 'journal_diameter': 'mm', 'radial_clearance': 'mm', 'oil_viscosity': 'Pa*s'},
     'PlainJournal': {'axial_length': 'mm', 'journal_radius': 'mm', 'radial_clearance': 'mm', 'pad_arc_length': 'deg', 'frequency': 'RPM', 'fxs_load': 'N', 'fys_load': 'N', 'reference_temperature': 'degC', 'oil_flow_v': 'l/min', 'oil_supply_pressure': 'Pa'},
-    'SqueezeFilmDamper': {'frequency': 'RPM', 'axial_length': 'mm', 'journal_radius': 'mm', 'radial_clearance': 'mm'},
-    'ThrustPad': {'pad_inner_radius': 'mm', 'pad_outer_radius': 'mm', 'pad_pivot_radius': 'mm', 'pad_arc_length': 'deg', 'angular_pivot_position': 'deg', 'oil_supply_temperature': 'degC', 'frequency': 'RPM', 'radial_inclination_angle': 'rad', 'circumferential_inclination_angle': 'rad', 'initial_film_thickness': 'mm', 'axial_load': 'N'},
+    'SqueezeFilmDamper': {'frequency': 'RPM', 'axial_length': 'mm', 'journal_diameter': 'mm', 'radial_clearance': 'mm'},
+    'ThrustPad': {'pad_inner_radius': 'mm', 'pad_outer_radius': 'mm', 'pad_pivot_radius': 'mm', 'pad_arc': 'deg', 'pivot_angle': 'deg', 'oil_supply_temperature': 'degC', 'frequency': 'RPM', 'radial_inclination_angle': 'rad', 'circumferential_inclination_angle': 'rad', 'initial_film_thickness': 'mm', 'axial_load': 'N'},
     'TiltingPad': { 'journal_diameter': 'mm', 'pad_thickness': 'mm', 'pad_arc': 'deg', 'pad_axial_length': 'mm', 'oil_supply_temperature': 'degC', 'radial_clearance': 'mm', 'pivot_angle': 'deg', 'frequency': 'RPM', 'attitude_angle': 'deg', 'xj': 'mm', 'yj': 'mm', 'initial_pads_angles': 'deg'},
     'SealElement': {'kxx': 'N/m', 'kxy': 'N/m', 'kyx': 'N/m', 'kyy': 'N/m', 'kzz': 'N/m', 'cxx': 'N*s/m', 'cxy': 'N*s/m', 'cyx': 'N*s/m', 'cyy': 'N*s/m', 'czz': 'N*s/m', 'mxx': 'kg', 'mxy': 'kg', 'myx': 'kg', 'myy': 'kg', 'mzz': 'kg', 'frequency': 'RPM'},
-    'HolePatternSeal': {'shaft_radius': 'mm', 'radial_clearance': 'mm', 'length': 'mm', 'cell_length': 'mm', 'cell_width': 'mm', 'cell_depth': 'mm', 'inlet_pressure': 'Pa', 'outlet_pressure': 'Pa', 'inlet_temperature': 'degC', 'frequency': 'RPM'},
-    'LabyrinthSeal': {'shaft_radius': 'mm', 'radial_clearance': 'mm', 'pitch': 'mm', 'tooth_height': 'mm', 'tooth_width': 'mm', 'inlet_pressure': 'Pa', 'outlet_pressure': 'Pa', 'inlet_temperature': 'degC', 'frequency': 'RPM'},
-    'HybridSeal': {'shaft_radius': 'mm', 'inlet_pressure': 'Pa', 'outlet_pressure': 'Pa', 'inlet_temperature': 'degC', 'frequency': 'RPM'},
+    'HolePatternSeal': {'shaft_diameter': 'mm', 'radial_clearance': 'mm', 'axial_length': 'mm', 'cell_length': 'mm', 'cell_width': 'mm', 'cell_depth': 'mm', 'inlet_pressure': 'Pa', 'outlet_pressure': 'Pa', 'inlet_temperature': 'degC', 'frequency': 'RPM'},
+    'LabyrinthSeal': {'shaft_diameter': 'mm', 'radial_clearance': 'mm', 'pitch': 'mm', 'tooth_height': 'mm', 'tooth_width': 'mm', 'inlet_pressure': 'Pa', 'outlet_pressure': 'Pa', 'inlet_temperature': 'degC', 'frequency': 'RPM'},
+    'HybridSeal': {'shaft_diameter': 'mm', 'inlet_pressure': 'Pa', 'outlet_pressure': 'Pa', 'inlet_temperature': 'degC', 'frequency': 'RPM'},
     'PointMass': {'m': 'kg', 'mx': 'kg', 'my': 'kg', 'mz': 'kg'}
 }
 
@@ -113,7 +113,7 @@ def get_converted_param(params, key, default_val, target_unit):
 
 def extract_kwargs(d, mat_dict, element_type, ignore_keys=['element_type', 'n']):
     kwargs = {}
-    int_keys = ['n_pad', 'n_theta', 'n_radial', 'n_teeth', 'n_rollers', 'n_balls', 'nx', 'nz', 'nr_pad', 'max_inlet_iterations', 'max_jtemp_iter', 'max_iterations', 'elements_circumferential', 'elements_axial', 'n_link', 'n_l', 'n_r']    
+    int_keys = ['n_pad', 'n_pads', 'n_theta', 'n_radial', 'n_teeth', 'n_rollers', 'n_balls', 'nx', 'nz', 'nr_pad', 'max_inlet_iterations', 'max_jtemp_iter', 'max_iterations', 'elements_circumferential', 'elements_axial', 'n_link', 'n_l', 'n_r']
     
     unit_map = UNITS_MAPPING.get(element_type, {})
     
@@ -454,14 +454,76 @@ def build_rotor_from_ui(data):
 def build_rotor():
     try:
         rotor = build_rotor_from_ui(request.json)
-        fig_dict = remove_nans(decode_bdata(rotor.plot_rotor().to_dict()))
+        
+        fig = rotor.plot_rotor()
+        
+        import json
+        fig_json_str = fig.to_json()
+        fig_dict = json.loads(fig_json_str)
+        
+        layout = fig_dict.get('layout', {})
+        
+        layout['autosize'] = True
+        layout['width'] = None
+        layout['height'] = None
+        layout['margin'] = dict(l=40, r=40, t=80, b=80)
+        layout['paper_bgcolor'] = 'rgba(0,0,0,0)'
+        layout['plot_bgcolor'] = 'rgba(0,0,0,0)'
+        
+        layout['legend'] = dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.05,
+            xanchor="center",
+            x=0.5
+        )
+        
+        def fix_shapes(shapes_list):
+            if not shapes_list: return []
+            for s in shapes_list:
+                if s.get('type') == 'line' and s.get('xref') == 'paper' and s.get('yref') == 'y':
+                    s['xref'] = 'x'
+                    s['x0'] = 0
+                    s['x1'] = float(rotor.L)
+            return shapes_list
+            
+        layout['shapes'] = fix_shapes(layout.get('shapes', []))
+        
+        for menu in layout.get('updatemenus', []):
+            menu['y'] = -0.15
+            menu['yanchor'] = 'top'
+            menu['x'] = 1.0
+            menu['xanchor'] = 'right'
+            
+            for btn in menu.get('buttons', []):
+                args = btn.get('args', [])
+                if not args: continue
+                
+                method = btn.get('method', 'relayout')
+                if method == 'update' and len(args) > 1:
+                    layout_args = args[1]
+                else:
+                    layout_args = args[0]
+                    
+                if not isinstance(layout_args, dict): continue
+                
+                if 'shapes' in layout_args:
+                    layout_args['shapes'] = fix_shapes(layout_args['shapes'])
+                    
         try:
             mass = float(rotor.m)
             ip = float(rotor.Ip)
         except Exception:
             mass = 0.0
             ip = 0.0
-        return jsonify({"status": "success", "plot_json": json.dumps(fig_dict, cls=NumpyEncoder), "mass": mass, "ip": ip})
+            
+        return jsonify({
+            "status": "success", 
+            "plot_json": json.dumps(fig_dict), 
+            "mass": mass, 
+            "ip": ip
+        })
+        
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -741,7 +803,7 @@ def run_analysis():
                 speed = get_converted_param(params, 'speed', 125.66, 'rad/s')
                 t_arr = np.linspace(float(params.get('t_initial', 0.0)), float(params.get('t_final', 0.5)), int(float(params.get('t_steps', 5000))))
                 
-                unbalances = params.get('unbalances', [{'node': 7, 'mag': 5e-4, 'phase': -1.57}])
+                unbalances = params.get('unbalances', [{'node': 0, 'mag': 5e-4, 'phase': -1.57}])
                 nodes = [int(u.get('node', 0)) for u in unbalances]
                 mags = [float(u.get('mag', 0.0)) for u in unbalances]
                 phases = [float(u.get('phase', 0.0)) for u in unbalances]
@@ -772,7 +834,7 @@ def run_analysis():
                 speed = get_converted_param(params, 'speed', 125.66, 'rad/s')
                 t_arr = np.linspace(float(params.get('t_initial', 0.0)), float(params.get('t_final', 0.5)), int(float(params.get('t_steps', 5000))))
                 
-                unbalances = params.get('unbalances', [{'node': 7, 'mag': 5e-4, 'phase': -1.57}])
+                unbalances = params.get('unbalances', [{'node': 0, 'mag': 5e-4, 'phase': -1.57}])
                 nodes = [int(u.get('node', 0)) for u in unbalances]
                 mags = [float(u.get('mag', 0.0)) for u in unbalances]
                 phases = [float(u.get('phase', 0.0)) for u in unbalances]
@@ -793,7 +855,7 @@ def run_analysis():
                 speed = get_converted_param(params, 'speed', 125.66, 'rad/s')
                 t_arr = np.linspace(float(params.get('t_initial', 0.0)), float(params.get('t_final', 0.5)), int(float(params.get('t_steps', 5000))))
                 
-                unbalances = params.get('unbalances', [{'node': 7, 'mag': 5e-4, 'phase': -1.57}])
+                unbalances = params.get('unbalances', [{'node': 0, 'mag': 5e-4, 'phase': -1.57}])
                 nodes = [int(u.get('node', 0)) for u in unbalances]
                 mags = [float(u.get('mag', 0.0)) for u in unbalances]
                 phases = [float(u.get('phase', 0.0)) for u in unbalances]

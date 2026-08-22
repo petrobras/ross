@@ -23,13 +23,13 @@ const DefaultExamples = {
     bearings_MagneticBearing: { g0: "1e-3", i0: "1", ag: "1e-4", nw: "200", kp_pid: "1", ki_pid: "0", kd_pid: "1", alpha: "0.392699", k_amp: "1", k_sense: "1" },
     bearings_Cylindrical: { speed: "[1500]", weight: "525", bearing_length: "30", journal_diameter: "10", radial_clearance: "0.1", oil_viscosity: "0.1" },
     bearings_PlainJournal: { axial_length: "263.144", journal_radius: "20", radial_clearance: "1.95e-1", n_pad: "2", pad_arc_length: "176", preload: "0", geometry: "circular", frequency: "[900]", fxs_load: "0", fys_load: "-112814.91", lubricant: "ISOVG32", reference_temperature: "50", groove_factor: "[0.52, 0.48]", elements_circumferential: "11", elements_axial: "3", sommerfeld_type: "2", initial_guess: "[0.1, -0.1]", method: "perturbation", operating_type: "flooded", oil_supply_pressure: "0", oil_flow_v: "37.86" },
-    bearings_SqueezeFilm: { frequency: "[18600]", axial_length: "22.86", journal_radius: "64.77", radial_clearance: "7.62e-2", eccentricity_ratio: "0.5", lubricant: "ISOVG32", geometry: "groove", cavitation: "True" },
-    bearings_ThrustPad: { pad_inner_radius: "1150", pad_outer_radius: "1725", pad_pivot_radius: "1442.5", pad_arc_length: "26", angular_pivot_position: "15", oil_supply_temperature: "40", lubricant: "ISOVG68", n_pad: "12", n_theta: "10", n_radial: "10", frequency: "[90]", equilibrium_position_mode: "calculate", radial_inclination_angle: "-2.75e-04", circumferential_inclination_angle: "-1.70e-05", initial_film_thickness: "0.2", axial_load: "13.32e6" },
+    bearings_SqueezeFilm: { frequency: "[18600]", axial_length: "22.86", journal_diameter: "129.54", radial_clearance: "7.62e-2", eccentricity_ratio: "0.5", lubricant: "ISOVG32", geometry: "groove", cavitation: "True" },
+    bearings_ThrustPad: { pad_inner_radius: "1150", pad_outer_radius: "1725", pad_pivot_radius: "1442.5", pad_arc: "26", pivot_angle: "15", oil_supply_temperature: "40", lubricant: "ISOVG68", n_pads: "12", n_theta: "10", n_radial: "10", frequency: "[90]", equilibrium_position_mode: "calculate", radial_inclination_angle: "-2.75e-04", circumferential_inclination_angle: "-1.70e-05", initial_film_thickness: "0.2", axial_load: "13.32e6" },
     bearings_TiltingPad: { journal_diameter: "101.6", pre_load: "[0.5, 0.5, 0.5, 0.5, 0.5]", pad_thickness: "12.7", pad_arc: "[60, 60, 60, 60, 60]", offset: "[0.5, 0.5, 0.5, 0.5, 0.5]", pad_axial_length: "[50.8, 50.8, 50.8, 50.8, 50.8]", lubricant: "ISOVG32", oil_supply_temperature: "40", radial_clearance: "74.9e-3", pivot_angle: "[18, 90, 162, 234, 306]", frequency: "[3000]", equilibrium_type: "match_eccentricity", eccentricity: "0.35", attitude_angle: "287.5", load: "[884, -2670]" },
     seals_BASIC: { kxx: "1e6", cxx: "2e2", kyy: "0.8e6", cyy: "1.5e2" },
-    seals_HolePattern: { shaft_radius: "72.5", radial_clearance: "0.3", length: "46.99", roughness: "0.0001", cell_length: "3.175", cell_width: "3.175", cell_depth: "2.5", inlet_pressure: "689000", outlet_pressure: "94300", inlet_temperature: "48.85", frequency: "[8000]", gas_composition: '{"Nitrogen": 0.79, "Oxygen": 0.21}', preswirl: "0.8", entr_coef: "0.5", exit_coef: "1.0", nz: "18" },
-    seals_Labyrinth: { shaft_radius: "72.5", radial_clearance: "0.3", n_teeth: "16", pitch: "3.175", tooth_height: "3.175", tooth_width: "0.1524", seal_type: "inter", inlet_pressure: "308000", outlet_pressure: "94300", inlet_temperature: "10", frequency: "[8000]", preswirl: "0.98", gas_composition: '{"Nitrogen": 0.79, "Oxygen": 0.21}' },
-    seals_Hybrid: { shaft_radius: "25", inlet_pressure: "500000", outlet_pressure: "100000", inlet_temperature: "26.85", frequency: "[2000]", gas_composition: '{"Nitrogen": 0.7812, "Oxygen": 0.2096, "Argon": 0.0092}', hole_pattern_parameters: '{"radial_clearance": 0.0003, "length": 0.04, "roughness": 0.0001, "cell_length": 0.003, "cell_width": 0.003, "cell_depth": 0.002, "preswirl": 0.8, "entr_coef": 0.5, "exit_coef": 1.0}', labyrinth_parameters: '{"radial_clearance": 0.00025, "n_teeth": 10, "pitch": 0.003, "tooth_height": 0.003, "tooth_width": 0.00015, "seal_type": "inter", "preswirl": 0.9, "tz": [300.0, 299.5], "muz": [1.85e-05, 1.84e-05]}' }
+    seals_HolePattern: { shaft_diameter: "145", radial_clearance: "0.3", axial_length: "46.99", relative_roughness: "0.0001", cell_length: "3.175", cell_width: "3.175", cell_depth: "2.5", inlet_pressure: "689000", outlet_pressure: "94300", inlet_temperature: "48.85", frequency: "[8000]", gas_composition: '{"Nitrogen": 0.79, "Oxygen": 0.21}', preswirl: "0.8", entr_coef: "0.5", exit_coef: "1.0", nz: "18" },
+    seals_Labyrinth: { shaft_diameter: "145", radial_clearance: "0.3", n_teeth: "16", pitch: "3.175", tooth_height: "3.175", tooth_width: "0.1524", seal_type: "inter", inlet_pressure: "308000", outlet_pressure: "94300", inlet_temperature: "10", frequency: "[8000]", preswirl: "0.98", gas_composition: '{"Nitrogen": 0.79, "Oxygen": 0.21}' },
+    seals_Hybrid: { shaft_diameter: "50", inlet_pressure: "500000", outlet_pressure: "100000", inlet_temperature: "26.85", frequency: "[2000]", gas_composition: '{"Nitrogen": 0.7812, "Oxygen": 0.2096, "Argon": 0.0092}', hole_pattern_parameters: '{"radial_clearance": 0.0003, "axial_length": 0.04, "relative_roughness": 0.0001, "cell_length": 0.003, "cell_width": 0.003, "cell_depth": 0.002, "preswirl": 0.8, "entr_coef": 0.5, "exit_coef": 1.0}', labyrinth_parameters: '{"radial_clearance": 0.00025, "n_teeth": 10, "pitch": 0.003, "tooth_height": 0.003, "tooth_width": 0.00015, "seal_type": "inter", "preswirl": 0.9, "tz": [300.0, 299.5], "muz": [1.85e-05, 1.84e-05]}' }
 };
 
 // Fill in the values ​​with the default
@@ -266,7 +266,7 @@ const FormTemplates = {
         <div class="input-group"><label>Node # (Optional)</label><input type="text" id="inp-n"></div>
         <div class="input-group"><label>Frequencies [RPM]</label><input type="text" id="inp-frequency"></div>
         <div class="input-group"><label>Axial Length [mm]</label><input type="text" id="inp-axial_length"></div>
-        <div class="input-group"><label>Journal Radius [mm]</label><input type="text" id="inp-journal_radius"></div>
+        <div class="input-group"><label>Journal Diameter [mm]</label><input type="text" id="inp-journal_diameter"></div>
         <div class="input-group"><label>Radial Clearance [mm]</label><input type="text" id="inp-radial_clearance"></div>
         <div class="input-group"><label>Eccentricity Ratio</label><input type="text" id="inp-eccentricity_ratio"></div>
         <div class="input-group"><label>Lubricant</label><input type="text" id="inp-lubricant"></div>
@@ -283,11 +283,11 @@ const FormTemplates = {
         <div class="input-group"><label>Pad Inner Radius [mm]</label><input type="text" id="inp-pad_inner_radius"></div>
         <div class="input-group"><label>Pad Outer Radius [mm]</label><input type="text" id="inp-pad_outer_radius"></div>
         <div class="input-group"><label>Pad Pivot Radius [mm]</label><input type="text" id="inp-pad_pivot_radius"></div>
-        <div class="input-group"><label>Pad Arc Length [deg]</label><input type="text" id="inp-pad_arc_length"></div>
-        <div class="input-group"><label>Angular Pivot Position [deg]</label><input type="text" id="inp-angular_pivot_position"></div>
+        <div class="input-group"><label>Pad Arc [deg]</label><input type="text" id="inp-pad_arc"></div>
+        <div class="input-group"><label>Pivot Angle [deg]</label><input type="text" id="inp-pivot_angle"></div>
         <div class="input-group"><label>Oil Supply Temp [°C]</label><input type="text" id="inp-oil_supply_temperature"></div>
         <div class="input-group"><label>Lubricant</label><input type="text" id="inp-lubricant"></div>
-        <div class="input-group"><label>Number of Pads</label><input type="text" id="inp-n_pad"></div>
+        <div class="input-group"><label>Number of Pads</label><input type="text" id="inp-n_pads"></div>
         <div class="input-group"><label>Theta Mesh (n_theta)</label><input type="text" id="inp-n_theta"></div>
         <div class="input-group"><label>Radial Mesh (n_radial)</label><input type="text" id="inp-n_radial"></div>
         <div class="input-group"><label>Frequencies [RPM]</label><input type="text" id="inp-frequency"></div>
@@ -378,10 +378,10 @@ const FormTemplates = {
         </div>`,
         HolePattern: `
         <div class="input-group"><label>Node # (Optional)</label><input type="text" id="inp-n"></div>
-        <div class="input-group"><label>Shaft Radius [mm]</label><input type="text" id="inp-shaft_radius"></div>
+        <div class="input-group"><label>Shaft Diameter [mm]</label><input type="text" id="inp-shaft_diameter"></div>
         <div class="input-group"><label>Radial Clearance [mm]</label><input type="text" id="inp-radial_clearance"></div>
-        <div class="input-group"><label>Length [mm]</label><input type="text" id="inp-length"></div>
-        <div class="input-group"><label>Roughness (E/D)</label><input type="text" id="inp-roughness"></div>
+        <div class="input-group"><label>Axial Length [mm]</label><input type="text" id="inp-axial_length"></div>
+        <div class="input-group"><label>Relative Roughness (E/D)</label><input type="text" id="inp-relative_roughness"></div>
         <div class="input-group"><label>Cell Length [mm]</label><input type="text" id="inp-cell_length"></div>
         <div class="input-group"><label>Cell Width [mm]</label><input type="text" id="inp-cell_width"></div>
         <div class="input-group"><label>Cell Depth [mm]</label><input type="text" id="inp-cell_depth"></div>
@@ -412,7 +412,7 @@ const FormTemplates = {
         </div>`,
         Labyrinth: `
         <div class="input-group"><label>Node # (Optional)</label><input type="text" id="inp-n"></div>
-        <div class="input-group"><label>Shaft Radius [mm]</label><input type="text" id="inp-shaft_radius"></div>
+        <div class="input-group"><label>Shaft Diameter [mm]</label><input type="text" id="inp-shaft_diameter"></div>
         <div class="input-group"><label>Radial Clearance [mm]</label><input type="text" id="inp-radial_clearance"></div>
         <div class="input-group"><label>Number of Teeth (<=30)</label><input type="text" id="inp-n_teeth"></div>
         <div class="input-group"><label>Seal Pitch [mm]</label><input type="text" id="inp-pitch"></div>
@@ -441,7 +441,7 @@ const FormTemplates = {
         </div>`,
         Hybrid: `
         <div class="input-group"><label>Node # (Optional)</label><input type="text" id="inp-n"></div>
-        <div class="input-group"><label>Shaft Radius [mm]</label><input type="text" id="inp-shaft_radius"></div>
+        <div class="input-group"><label>Shaft Diameter [mm]</label><input type="text" id="inp-shaft_diameter"></div>
         <div class="input-group"><label>Inlet Pressure [Pa]</label><input type="text" id="inp-inlet_pressure"></div>
         <div class="input-group"><label>Outlet Pressure [Pa]</label><input type="text" id="inp-outlet_pressure"></div>
         <div class="input-group"><label>Inlet Temp [°C]</label><input type="text" id="inp-inlet_temperature"></div>
@@ -1260,7 +1260,9 @@ async function _fetchRotorLive() {
         if(data.status === "success") {
             plotContainer.innerHTML = ""; 
             const fig = JSON.parse(data.plot_json);
-            Plotly.newPlot('plot-rotor', fig.data, fig.layout, {responsive: true});            
+            Plotly.newPlot('plot-rotor', fig.data, fig.layout, {
+                responsive: true
+            });
             setupPlotHoverEvents();
             if(infoContainer) {
                 document.getElementById('info-mass').innerText = data.mass.toFixed(4);
@@ -1516,7 +1518,7 @@ const AnalysisDashboards = {
         { id: 't_initial', label: 'Initial Time (s)', type: 'number', val: 0 },
         { id: 't_final', label: 'Final Time (s)', type: 'number', val: 0.5 },
         { id: 't_steps', label: 'Time Steps', type: 'number', val: 5000 },
-        { id: 'unbalances', label: 'Unbalance Excitations', type: 'unbalance_list', val: [{node: 7, mag: 5e-4, phase: -1.57}] },
+        { id: 'unbalances', label: 'Unbalance Excitations', type: 'unbalance_list', val: [{node: 0, mag: 5e-4, phase: -1.57}] },
         { id: 'coupling', label: 'Coupling', type: 'select', options: ['flex', 'rigid'], val: 'flex' },
         
         { id: 'n', label: 'Shaft Element (n)', type: 'number', val: 0, adv: 'analysis' },
@@ -1531,7 +1533,7 @@ const AnalysisDashboards = {
         { id: 'load_torque', label: 'Load Torque', type: 'text', val: '0', adv: 'analysis' },
         
         { id: 'plot_type', label: 'Plot Type', type: 'select', options: ['1D', '2D', '3D', 'Frequency (DFFT)'], val: '1D' },
-        { id: 'probes', label: 'Measurement Probes', type: 'angle_probe_list', val: [{node: 7, angle: 0}] },
+        { id: 'probes', label: 'Measurement Probes', type: 'angle_probe_list', val: [{node: 0, angle: 0}] },
         { id: 'probe_units', label: 'Probe Units', type: 'select', options: ['rad', 'deg'], val: 'rad', adv: 'plot', deps: ['1D', 'Frequency (DFFT)'] },
         { id: 'displacement_units', label: 'Displacement Units', type: 'select', options: ['m', 'mm', 'microm'], val: 'm', adv: 'plot' },
         { id: 'time_units', label: 'Time Units', type: 'select', options: ['s', 'min'], val: 's', adv: 'plot', deps: ['1D'] },
@@ -1543,9 +1545,9 @@ const AnalysisDashboards = {
         { id: 't_initial', label: 'Initial Time (s)', type: 'number', val: 0 },
         { id: 't_final', label: 'Final Time (s)', type: 'number', val: 0.5 },
         { id: 't_steps', label: 'Time Steps', type: 'number', val: 5000 },
-        { id: 'unbalances', label: 'Unbalance Excitations', type: 'unbalance_list', val: [{node: 7, mag: 5e-4, phase: -1.57}] },
+        { id: 'unbalances', label: 'Unbalance Excitations', type: 'unbalance_list', val: [{node: 0, mag: 5e-4, phase: -1.57}] },
         
-        { id: 'n', label: 'Shaft Element (n)', type: 'number', val: 12, adv: 'analysis' },
+        { id: 'n', label: 'Shaft Element (n)', type: 'number', val: 0, adv: 'analysis' },
         { id: 'distance', label: 'Distance (m)', type: 'text', val: '7.95e-5', adv: 'analysis' },
         { id: 'contact_stiffness', label: 'Contact Stiff.', type: 'text', val: '1.1e6', adv: 'analysis' },
         { id: 'contact_damping', label: 'Contact Damp.', type: 'text', val: '40', adv: 'analysis' },
@@ -1553,7 +1555,7 @@ const AnalysisDashboards = {
         { id: 'torque', label: 'Torque', type: 'select', options: ['False', 'True'], val: 'False', adv: 'analysis' },
         
         { id: 'plot_type', label: 'Plot Type', type: 'select', options: ['1D', '2D', '3D', 'Frequency (DFFT)'], val: '1D' },
-        { id: 'probes', label: 'Measurement Probes', type: 'angle_probe_list', val: [{node: 7, angle: 0}] },
+        { id: 'probes', label: 'Measurement Probes', type: 'angle_probe_list', val: [{node: 0, angle: 0}] },
         { id: 'probe_units', label: 'Probe Units', type: 'select', options: ['rad', 'deg'], val: 'rad', adv: 'plot', deps: ['1D', 'Frequency (DFFT)'] },
         { id: 'displacement_units', label: 'Displacement Units', type: 'select', options: ['m', 'mm', 'microm'], val: 'm', adv: 'plot' },
         { id: 'time_units', label: 'Time Units', type: 'select', options: ['s', 'min'], val: 's', adv: 'plot', deps: ['1D'] },
@@ -1565,15 +1567,15 @@ const AnalysisDashboards = {
         { id: 't_initial', label: 'Initial Time (s)', type: 'number', val: 0 },
         { id: 't_final', label: 'Final Time (s)', type: 'number', val: 0.5 },
         { id: 't_steps', label: 'Time Steps', type: 'number', val: 5000 },
-        { id: 'unbalances', label: 'Unbalance Excitations', type: 'unbalance_list', val: [{node: 7, mag: 5e-4, phase: -1.57}] },
+        { id: 'unbalances', label: 'Unbalance Excitations', type: 'unbalance_list', val: [{node: 0, mag: 5e-4, phase: -1.57}] },
         { id: 'crack_model', label: 'Crack Model', type: 'select', options: ['Mayes', 'Gasch', 'Flex Open', 'Flex Breathing'], val: 'Mayes' },
         
-        { id: 'n', label: 'Shaft Element (n)', type: 'number', val: 18, adv: 'analysis' },
+        { id: 'n', label: 'Shaft Element (n)', type: 'number', val: 0, adv: 'analysis' },
         { id: 'depth_ratio', label: 'Depth Ratio', type: 'text', val: '0.2', adv: 'analysis' },
         { id: 'cross_divisions', label: 'Cross Divisions', type: 'text', val: '', adv: 'analysis' },
         
         { id: 'plot_type', label: 'Plot Type', type: 'select', options: ['1D', '2D', '3D', 'Frequency (DFFT)'], val: '1D' },
-        { id: 'probes', label: 'Measurement Probes', type: 'angle_probe_list', val: [{node: 7, angle: 0}] },
+        { id: 'probes', label: 'Measurement Probes', type: 'angle_probe_list', val: [{node: 0, angle: 0}] },
         { id: 'probe_units', label: 'Probe Units', type: 'select', options: ['rad', 'deg'], val: 'rad', adv: 'plot', deps: ['1D', 'Frequency (DFFT)'] },
         { id: 'displacement_units', label: 'Displacement Units', type: 'select', options: ['m', 'mm', 'microm'], val: 'm', adv: 'plot' },
         { id: 'time_units', label: 'Time Units', type: 'select', options: ['s', 'min'], val: 's', adv: 'plot', deps: ['1D'] },
@@ -2156,13 +2158,13 @@ const UNITS_MAPPING = {
     'BallBearingElement': {}, 'RollerBearingElement': {}, 'MagneticBearingElement': {},
     'CylindricalBearing': {'speed': 'RPM', 'weight': 'N', 'bearing_length': 'mm', 'journal_diameter': 'mm', 'radial_clearance': 'mm', 'oil_viscosity': 'Pa*s'},
     'PlainJournal': {'axial_length': 'mm', 'journal_radius': 'mm', 'radial_clearance': 'mm', 'pad_arc_length': 'deg', 'frequency': 'RPM', 'fxs_load': 'N', 'fys_load': 'N', 'reference_temperature': 'degC', 'oil_flow_v': 'l/min', 'oil_supply_pressure': 'Pa'},
-    'SqueezeFilmDamper': {'frequency': 'RPM', 'axial_length': 'mm', 'journal_radius': 'mm', 'radial_clearance': 'mm'},
-    'ThrustPad': {'pad_inner_radius': 'mm', 'pad_outer_radius': 'mm', 'pad_pivot_radius': 'mm', 'pad_arc_length': 'deg', 'angular_pivot_position': 'deg', 'oil_supply_temperature': 'degC', 'frequency': 'RPM', 'radial_inclination_angle': 'rad', 'circumferential_inclination_angle': 'rad', 'initial_film_thickness': 'mm', 'axial_load': 'N'},
+    'SqueezeFilmDamper': {'frequency': 'RPM', 'axial_length': 'mm', 'journal_diameter': 'mm', 'radial_clearance': 'mm'},
+    'ThrustPad': {'pad_inner_radius': 'mm', 'pad_outer_radius': 'mm', 'pad_pivot_radius': 'mm', 'pad_arc': 'deg', 'pivot_angle': 'deg', 'oil_supply_temperature': 'degC', 'frequency': 'RPM', 'radial_inclination_angle': 'rad', 'circumferential_inclination_angle': 'rad', 'initial_film_thickness': 'mm', 'axial_load': 'N'},
     'TiltingPad': { 'journal_diameter': 'mm', 'pad_thickness': 'mm', 'pad_arc': 'deg', 'pad_axial_length': 'mm', 'oil_supply_temperature': 'degC', 'radial_clearance': 'mm', 'pivot_angle': 'deg', 'frequency': 'RPM', 'attitude_angle': 'deg', 'xj': 'mm', 'yj': 'mm', 'initial_pads_angles': 'deg'},
     'SealElement': {'kxx': 'N/m', 'kxy': 'N/m', 'kyx': 'N/m', 'kyy': 'N/m', 'kzz': 'N/m', 'cxx': 'N*s/m', 'cxy': 'N*s/m', 'cyx': 'N*s/m', 'cyy': 'N*s/m', 'czz': 'N*s/m', 'mxx': 'kg', 'mxy': 'kg', 'myx': 'kg', 'myy': 'kg', 'mzz': 'kg', 'frequency': 'RPM'},
-    'HolePatternSeal': {'shaft_radius': 'mm', 'radial_clearance': 'mm', 'length': 'mm', 'cell_length': 'mm', 'cell_width': 'mm', 'cell_depth': 'mm', 'inlet_pressure': 'Pa', 'outlet_pressure': 'Pa', 'inlet_temperature': 'degC', 'frequency': 'RPM'},
-    'LabyrinthSeal': {'shaft_radius': 'mm', 'radial_clearance': 'mm', 'pitch': 'mm', 'tooth_height': 'mm', 'tooth_width': 'mm', 'inlet_pressure': 'Pa', 'outlet_pressure': 'Pa', 'inlet_temperature': 'degC', 'frequency': 'RPM'},
-    'HybridSeal': {'shaft_radius': 'mm', 'inlet_pressure': 'Pa', 'outlet_pressure': 'Pa', 'inlet_temperature': 'degC', 'frequency': 'RPM'},
+    'HolePatternSeal': {'shaft_diameter': 'mm', 'radial_clearance': 'mm', 'axial_length': 'mm', 'cell_length': 'mm', 'cell_width': 'mm', 'cell_depth': 'mm', 'inlet_pressure': 'Pa', 'outlet_pressure': 'Pa', 'inlet_temperature': 'degC', 'frequency': 'RPM'},
+    'LabyrinthSeal': {'shaft_diameter': 'mm', 'radial_clearance': 'mm', 'pitch': 'mm', 'tooth_height': 'mm', 'tooth_width': 'mm', 'inlet_pressure': 'Pa', 'outlet_pressure': 'Pa', 'inlet_temperature': 'degC', 'frequency': 'RPM'},
+    'HybridSeal': {'shaft_diameter': 'mm', 'inlet_pressure': 'Pa', 'outlet_pressure': 'Pa', 'inlet_temperature': 'degC', 'frequency': 'RPM'},
     'PointMass': {'m': 'kg', 'mx': 'kg', 'my': 'kg', 'mz': 'kg'}
 };
 
