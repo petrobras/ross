@@ -228,12 +228,30 @@
                         <label>Gear Mesh Stiffness [N/m]</label>
                         <input type="number" id="mr-stiffness" step="any" placeholder="Auto-calculated if empty">
                     </div>
-                    <div style="display: flex; gap: 10px;">
-                        <div class="input-group"><label>Update Mesh Stiff.</label><select id="mr-update-stiffness"><option value="false">False</option><option value="true">True</option></select></div>
-                        <div class="input-group"><label>Square Varying Stiff.</label><select id="mr-square-stiffness"><option value="false">False</option><option value="true">True</option></select></div>
+                    <div class="input-group"><label>Update Mesh Stiff.</label><select id="mr-update-stiffness"><option value="false">False</option><option value="true">True</option></select></div>
+                    
+                    <div style="margin-top: 10px; border: 1px solid var(--border-color); padding: 10px; border-radius: 4px; background: #f8fafc;">
+                        <b style="font-size:12px; color:var(--text-muted); display:block; margin-bottom:8px;">SQUARE VARYING STIFFNESS</b>
+                        <div style="display: flex; gap: 10px;">
+                            <div class="input-group"><label>Enable</label><select id="mr-square-stiffness-enable"><option value="false">False</option><option value="true">True</option></select></div>
+                            <div class="input-group"><label>Amplitude Ratio</label><input type="number" id="mr-square-stiffness-ratio" value="0" step="any"></div>
+                        </div>
                     </div>
-                    <div class="input-group"><label>Square Stiff. Amplitude Ratio</label><input type="number" id="mr-ratio" value="0" step="any"></div>
-                    <div style="display: flex; gap: 10px;">
+
+                    <div style="margin-top: 10px; border: 1px solid var(--border-color); padding: 10px; border-radius: 4px; background: #f8fafc;">
+                        <b style="font-size:12px; color:var(--text-muted); display:block; margin-bottom:8px;">BACKLASH</b>
+                        <div style="display: flex; gap: 10px;">
+                            <div class="input-group"><label>Enable</label><select id="mr-backlash-enable"><option value="false">False</option><option value="true">True</option></select></div>
+                            <div class="input-group"><label>Initial Value</label><input type="number" id="mr-backlash-initial" value="0.0" step="any"></div>
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <div class="input-group"><label>Error Amp</label><input type="number" id="mr-backlash-error" value="0.0" step="any"></div>
+                            <div class="input-group"><label>Smooth Operator</label><select id="mr-backlash-smooth"><option value="false">False</option><option value="true">True</option></select></div>
+                            <div class="input-group"><label>Sigma</label><input type="number" id="mr-backlash-sigma" value="10000" step="any"></div>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: 10px; margin-top: 10px;">
                         <div class="input-group"><label>Orientation Angle [rad]</label><input type="number" id="mr-angle" value="0.0" step="any"></div>
                         <div class="input-group"><label>Drawing Position</label><select id="mr-position"><option value="above">Above</option><option value="below">Below</option></select></div>
                     </div>

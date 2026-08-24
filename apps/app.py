@@ -29,10 +29,10 @@ UNITS_MAPPING = {
     'RollerBearingElement': {},
     'MagneticBearingElement': {},
     'CylindricalBearing': {'speed': 'RPM', 'weight': 'N', 'bearing_length': 'mm', 'journal_diameter': 'mm', 'radial_clearance': 'mm', 'oil_viscosity': 'Pa*s'},
-    'PlainJournal': {'axial_length': 'mm', 'journal_radius': 'mm', 'radial_clearance': 'mm', 'pad_arc_length': 'deg', 'frequency': 'RPM', 'fxs_load': 'N', 'fys_load': 'N', 'reference_temperature': 'degC', 'oil_flow_v': 'l/min', 'oil_supply_pressure': 'Pa'},
+    'PlainJournal': {'pad_axial_length': 'mm', 'journal_diameter': 'mm', 'radial_clearance': 'mm', 'pad_arc': 'deg', 'oil_supply_temperature': 'degC', 'frequency': 'RPM', 'fxs_load': 'N', 'fys_load': 'N', 'oil_supply_pressure': 'Pa', 'pad_thickness': 'mm'},
     'SqueezeFilmDamper': {'frequency': 'RPM', 'axial_length': 'mm', 'journal_diameter': 'mm', 'radial_clearance': 'mm'},
     'ThrustPad': {'pad_inner_radius': 'mm', 'pad_outer_radius': 'mm', 'pad_pivot_radius': 'mm', 'pad_arc': 'deg', 'pivot_angle': 'deg', 'oil_supply_temperature': 'degC', 'frequency': 'RPM', 'radial_inclination_angle': 'rad', 'circumferential_inclination_angle': 'rad', 'initial_film_thickness': 'mm', 'axial_load': 'N'},
-    'TiltingPad': { 'journal_diameter': 'mm', 'pad_thickness': 'mm', 'pad_arc': 'deg', 'pad_axial_length': 'mm', 'oil_supply_temperature': 'degC', 'radial_clearance': 'mm', 'pivot_angle': 'deg', 'frequency': 'RPM', 'attitude_angle': 'deg', 'xj': 'mm', 'yj': 'mm', 'initial_pads_angles': 'deg'},
+    'TiltingPad': {'journal_diameter': 'mm', 'pad_axial_length': 'mm', 'pad_thickness': 'mm', 'pad_arc': 'deg', 'radial_clearance': 'mm', 'pivot_angle': 'deg', 'oil_supply_temperature': 'degC', 'journal_temperature': 'degC', 'frequency': 'RPM', 'xj': 'mm', 'yj': 'mm', 'attitude_angle': 'rad', 'fxs_load': 'N', 'fys_load': 'N'},
     'SealElement': {'kxx': 'N/m', 'kxy': 'N/m', 'kyx': 'N/m', 'kyy': 'N/m', 'kzz': 'N/m', 'cxx': 'N*s/m', 'cxy': 'N*s/m', 'cyx': 'N*s/m', 'cyy': 'N*s/m', 'czz': 'N*s/m', 'mxx': 'kg', 'mxy': 'kg', 'myx': 'kg', 'myy': 'kg', 'mzz': 'kg', 'frequency': 'RPM'},
     'HolePatternSeal': {'shaft_diameter': 'mm', 'radial_clearance': 'mm', 'axial_length': 'mm', 'cell_length': 'mm', 'cell_width': 'mm', 'cell_depth': 'mm', 'inlet_pressure': 'Pa', 'outlet_pressure': 'Pa', 'inlet_temperature': 'degC', 'frequency': 'RPM'},
     'LabyrinthSeal': {'shaft_diameter': 'mm', 'radial_clearance': 'mm', 'pitch': 'mm', 'tooth_height': 'mm', 'tooth_width': 'mm', 'inlet_pressure': 'Pa', 'outlet_pressure': 'Pa', 'inlet_temperature': 'degC', 'frequency': 'RPM'},
@@ -113,7 +113,7 @@ def get_converted_param(params, key, default_val, target_unit):
 
 def extract_kwargs(d, mat_dict, element_type, ignore_keys=['element_type', 'n']):
     kwargs = {}
-    int_keys = ['n_pad', 'n_pads', 'n_theta', 'n_radial', 'n_teeth', 'n_rollers', 'n_balls', 'nx', 'nz', 'nr_pad', 'max_inlet_iterations', 'max_jtemp_iter', 'max_iterations', 'elements_circumferential', 'elements_axial', 'n_link', 'n_l', 'n_r']
+    int_keys = ['n_pad', 'n_pads', 'n_theta', 'n_radial', 'n_teeth', 'n_rollers', 'n_balls', 'nx', 'nz', 'nr_pad', 'max_inlet_iterations', 'max_jtemp_iter', 'max_iterations', 'elements_circumferential', 'elements_axial', 'n_link', 'n_l', 'n_r', 'total_ex_film', 'total_ez_film', 'total_ey_pad']
     
     unit_map = UNITS_MAPPING.get(element_type, {})
     
@@ -137,6 +137,13 @@ def extract_kwargs(d, mat_dict, element_type, ignore_keys=['element_type', 'n'])
             if v_strip == "": 
                 continue 
                 
+            if k == 'initial_position':
+                try:
+                    kwargs[k] = tuple(float(x.strip()) for x in v_strip.replace('(', '').replace(')', '').split(','))
+                except Exception:
+                    kwargs[k] = (0.1, -0.1)
+                continue
+                            
             if v_strip.startswith('[') or v_strip.startswith('{'):
                 try:
                     val_parsed = ast.literal_eval(v_strip)
@@ -247,8 +254,24 @@ def build_rotor_from_ui(data):
         
         if params.get('gear_mesh_stiffness'): multi_kwargs['gear_mesh_stiffness'] = float(params['gear_mesh_stiffness'])
         if str(params.get('update_mesh_stiffness')).lower() == 'true': multi_kwargs['update_mesh_stiffness'] = True
-        if str(params.get('square_varying_stiffness')).lower() == 'true': multi_kwargs['square_varying_stiffness'] = True
-        if params.get('square_stiffness_amplitude_ratio'): multi_kwargs['square_stiffness_amplitude_ratio'] = float(params['square_stiffness_amplitude_ratio'])
+        
+        if 'square_varying_stiffness' in params:
+            svs = params['square_varying_stiffness']
+            multi_kwargs['square_varying_stiffness'] = {
+                'enable': str(svs.get('enable')).lower() == 'true',
+                'amplitude_ratio': float(svs.get('amplitude_ratio', 0.0))
+            }
+            
+        if 'backlash' in params:
+            bl = params['backlash']
+            multi_kwargs['backlash'] = {
+                'enable': str(bl.get('enable')).lower() == 'true',
+                'initial_value': float(bl.get('initial_value', 0.0)),
+                'error_amp': float(bl.get('error_amp', 0.0)),
+                'smooth_operator': str(bl.get('smooth_operator')).lower() == 'true',
+                'sigma': float(bl.get('sigma', 10000.0))
+            }
+            
         if params.get('orientation_angle'): multi_kwargs['orientation_angle'] = float(params['orientation_angle'])
         
         return rs.MultiRotor(driving, driven, **multi_kwargs)

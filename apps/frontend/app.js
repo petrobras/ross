@@ -22,10 +22,10 @@ const DefaultExamples = {
     bearings_RollerBearing: { n_rollers: "8", l_rollers: "0.03", fs: "500", alpha: "0.523598" },
     bearings_MagneticBearing: { g0: "1e-3", i0: "1", ag: "1e-4", nw: "200", kp_pid: "1", ki_pid: "0", kd_pid: "1", alpha: "0.392699", k_amp: "1", k_sense: "1" },
     bearings_Cylindrical: { speed: "[1500]", weight: "525", bearing_length: "30", journal_diameter: "10", radial_clearance: "0.1", oil_viscosity: "0.1" },
-    bearings_PlainJournal: { axial_length: "263.144", journal_radius: "20", radial_clearance: "1.95e-1", n_pad: "2", pad_arc_length: "176", preload: "0", geometry: "circular", frequency: "[900]", fxs_load: "0", fys_load: "-112814.91", lubricant: "ISOVG32", reference_temperature: "50", groove_factor: "[0.52, 0.48]", elements_circumferential: "11", elements_axial: "3", sommerfeld_type: "2", initial_guess: "[0.1, -0.1]", method: "perturbation", operating_type: "flooded", oil_supply_pressure: "0", oil_flow_v: "37.86" },
+    bearings_PlainJournal: { pad_axial_length: "30", journal_diameter: "100", radial_clearance: "0.1", n_pads: "1", pad_arc: "360", preload: "0.0", oil_supply_temperature: "40", frequency: "[90]", fxs_load: "0", fys_load: "1000", lubricant: "ISOVG32", initial_position: "(0.1, -0.1)", oil_supply_pressure: "0", oil_flow_v: "", pad_thickness: "20" },
     bearings_SqueezeFilm: { frequency: "[18600]", axial_length: "22.86", journal_diameter: "129.54", radial_clearance: "7.62e-2", eccentricity_ratio: "0.5", lubricant: "ISOVG32", geometry: "groove", cavitation: "True" },
     bearings_ThrustPad: { pad_inner_radius: "1150", pad_outer_radius: "1725", pad_pivot_radius: "1442.5", pad_arc: "26", pivot_angle: "15", oil_supply_temperature: "40", lubricant: "ISOVG68", n_pads: "12", n_theta: "10", n_radial: "10", frequency: "[90]", equilibrium_position_mode: "calculate", radial_inclination_angle: "-2.75e-04", circumferential_inclination_angle: "-1.70e-05", initial_film_thickness: "0.2", axial_load: "13.32e6" },
-    bearings_TiltingPad: { journal_diameter: "101.6", pre_load: "[0.5, 0.5, 0.5, 0.5, 0.5]", pad_thickness: "12.7", pad_arc: "[60, 60, 60, 60, 60]", offset: "[0.5, 0.5, 0.5, 0.5, 0.5]", pad_axial_length: "[50.8, 50.8, 50.8, 50.8, 50.8]", lubricant: "ISOVG32", oil_supply_temperature: "40", radial_clearance: "74.9e-3", pivot_angle: "[18, 90, 162, 234, 306]", frequency: "[3000]", equilibrium_type: "match_eccentricity", eccentricity: "0.35", attitude_angle: "287.5", load: "[884, -2670]" },
+    bearings_TiltingPad: { journal_diameter: "100", preload: "0.5", pad_thickness: "20", pad_arc: "60", offset: "0.5", pad_axial_length: "30", lubricant: "ISOVG32", oil_supply_temperature: "40", radial_clearance: "0.1", pivot_angle: "0", frequency: "[90]", total_ex_film: "30", total_ez_film: "30", total_ey_pad: "16", xj: "", yj: "", equilibrium_type: "match_eccentricity", eccentricity: "0.3", attitude_angle: "4.71238", fxs_load: "0", fys_load: "1000", thermal_type: "full", pad_conductivity: "116.0", edges_convection: "1500.0", relax_temperature: "0.5", journal_temperature: "", oil_flow_v: "" },
     seals_BASIC: { kxx: "1e6", cxx: "2e2", kyy: "0.8e6", cyy: "1.5e2" },
     seals_HolePattern: { shaft_diameter: "145", radial_clearance: "0.3", axial_length: "46.99", relative_roughness: "0.0001", cell_length: "3.175", cell_width: "3.175", cell_depth: "2.5", inlet_pressure: "689000", outlet_pressure: "94300", inlet_temperature: "48.85", frequency: "[8000]", gas_composition: '{"Nitrogen": 0.79, "Oxygen": 0.21}', preswirl: "0.8", entr_coef: "0.5", exit_coef: "1.0", nz: "18" },
     seals_Labyrinth: { shaft_diameter: "145", radial_clearance: "0.3", n_teeth: "16", pitch: "3.175", tooth_height: "3.175", tooth_width: "0.1524", seal_type: "inter", inlet_pressure: "308000", outlet_pressure: "94300", inlet_temperature: "10", frequency: "[8000]", preswirl: "0.98", gas_composition: '{"Nitrogen": 0.79, "Oxygen": 0.21}' },
@@ -232,32 +232,23 @@ const FormTemplates = {
         </div>`,
         PlainJournal: `
         <div class="input-group"><label>Node # (Optional)</label><input type="text" id="inp-n"></div>
-        <div class="input-group"><label>Axial Length [mm]</label><input type="text" id="inp-axial_length"></div>
-        <div class="input-group"><label>Journal Radius [mm]</label><input type="text" id="inp-journal_radius"></div>
+        <div class="input-group"><label>Axial Length [mm]</label><input type="text" id="inp-pad_axial_length"></div>
+        <div class="input-group"><label>Journal Diameter [mm]</label><input type="text" id="inp-journal_diameter"></div>
         <div class="input-group"><label>Radial Clearance [mm]</label><input type="text" id="inp-radial_clearance"></div>
-        <div class="input-group"><label>Number of Pads</label><input type="text" id="inp-n_pad"></div>
-        <div class="input-group"><label>Pad Arc Length [deg]</label><input type="text" id="inp-pad_arc_length"></div>
+        <div class="input-group"><label>Number of Pads</label><input type="text" id="inp-n_pads"></div>
+        <div class="input-group"><label>Pad Arc [deg]</label><input type="text" id="inp-pad_arc"></div>
         <div class="input-group"><label>Preload</label><input type="text" id="inp-preload"></div>
-        <div class="input-group"><label>Geometry (e.g. circular, lobe)</label><input type="text" id="inp-geometry"></div>
-        <div class="input-group"><label>Frequencies [RPM]</label><input type="text" id="inp-frequency"></div>
-        <div class="input-group"><label>Load X [N]</label><input type="text" id="inp-fxs_load"></div>
-        <div class="input-group"><label>Load Y [N]</label><input type="text" id="inp-fys_load"></div>
+        <div class="input-group"><label>Oil Supply Temp [degC]</label><input type="text" id="inp-oil_supply_temperature"></div>
+        <div class="input-group"><label>Frequency [RPM]</label><input type="text" id="inp-frequency"></div>
+        <div class="input-group"><label>FXS Load [N]</label><input type="text" id="inp-fxs_load"></div>
+        <div class="input-group"><label>FYS Load [N]</label><input type="text" id="inp-fys_load"></div>
         <div class="input-group"><label>Lubricant</label><input type="text" id="inp-lubricant"></div>
-        <div class="input-group"><label>Reference Temp [°C]</label><input type="text" id="inp-reference_temperature"></div>
-        <div class="input-group"><label>Groove Factor (array)</label><input type="text" id="inp-groove_factor"></div>
-        <div class="input-group"><label>Circumferential Elements</label><input type="text" id="inp-elements_circumferential"></div>
-        <div class="input-group"><label>Axial Elements</label><input type="text" id="inp-elements_axial"></div>
+        <div class="input-group"><label>Initial Position (x,y)</label><input type="text" id="inp-initial_position"></div>
+        <div class="input-group"><label>Oil Supply Pres. [Pa]</label><input type="text" id="inp-oil_supply_pressure"></div>
+        <div class="input-group"><label>Oil Flow (v)</label><input type="text" id="inp-oil_flow_v"></div>
+        <div class="input-group"><label>Pad Thickness [mm]</label><input type="text" id="inp-pad_thickness"></div>
         <button type="button" class="btn-advanced" onclick="toggleAdvanced(this)">Advanced <i class="fas fa-chevron-down"></i></button>
         <div class="advanced-fields" style="display: none; margin-top: 10px; border-top: 1px dashed #ccc; padding-top: 10px;">
-            <div class="input-group"><label>Sommerfeld type</label><input type="text" id="inp-sommerfeld_type"></div>
-            <div class="input-group"><label>Initial guess</label><input type="text" id="inp-initial_guess"></div>
-            <div class="input-group"><label>Method</label><input type="text" id="inp-method"></div>
-            <div class="input-group"><label>Model type</label><input type="text" id="inp-model_type"></div>
-            <div class="input-group"><label>Operating type</label><input type="text" id="inp-operating_type"></div>
-            <div class="input-group"><label>Oil flow [l/min]</label><input type="text" id="inp-oil_flow_v"></div>
-            <div class="input-group"><label>Oil supply pressure [Pa]</label><input type="text" id="inp-oil_supply_pressure"></div>
-            <div class="input-group"><label>Reyn</label><input type="text" id="inp-Reyn"></div>
-            <div class="input-group"><label>Delta turb</label><input type="text" id="inp-delta_turb"></div>
             <div class="input-group"><label>Scale Factor</label><input type="text" id="inp-scale_factor"></div>
             <div class="input-group"><label>Tag</label><input type="text" id="inp-tag"></div>
             <div class="input-group"><label>Hex Color</label><input type="text" id="inp-color"></div>
@@ -308,42 +299,41 @@ const FormTemplates = {
         TiltingPad: `
         <div class="input-group"><label>Node # (Optional)</label><input type="text" id="inp-n"></div>
         <div class="input-group"><label>Journal Diameter [mm]</label><input type="text" id="inp-journal_diameter"></div>
-        <div class="input-group"><label>Preload [array]</label><input type="text" id="inp-pre_load"></div>
-        <div class="input-group"><label>Pad Thickness [mm]</label><input type="text" id="inp-pad_thickness"></div>
-        <div class="input-group"><label>Pad Arcs [array deg]</label><input type="text" id="inp-pad_arc"></div>
-        <div class="input-group"><label>Offsets [array]</label><input type="text" id="inp-offset"></div>
-        <div class="input-group"><label>Axial Length [array mm]</label><input type="text" id="inp-pad_axial_length"></div>
-        <div class="input-group"><label>Lubricant</label><input type="text" id="inp-lubricant"></div>
-        <div class="input-group"><label>Oil Supply Temp [°C]</label><input type="text" id="inp-oil_supply_temperature"></div>
+        <div class="input-group"><label>Pad Axial Length [mm]</label><input type="text" id="inp-pad_axial_length"></div>
         <div class="input-group"><label>Radial Clearance [mm]</label><input type="text" id="inp-radial_clearance"></div>
-        <div class="input-group"><label>Pivot Angles [array deg]</label><input type="text" id="inp-pivot_angle"></div>
-        <div class="input-group"><label>Frequencies [RPM]</label><input type="text" id="inp-frequency"></div>
+        <div class="input-group"><label>Pad Thickness [mm]</label><input type="text" id="inp-pad_thickness"></div>
+        <div class="input-group"><label>Pad Arc [deg]</label><input type="text" id="inp-pad_arc"></div>
+        <div class="input-group"><label>Pivot Angle [deg]</label><input type="text" id="inp-pivot_angle"></div>
+        <div class="input-group"><label>Preload</label><input type="text" id="inp-preload"></div>
+        <div class="input-group"><label>Offset</label><input type="text" id="inp-offset"></div>
+        <div class="input-group"><label>Lubricant</label><input type="text" id="inp-lubricant"></div>
+        <div class="input-group"><label>Oil Supply Temp [degC]</label><input type="text" id="inp-oil_supply_temperature"></div>
+        <div class="input-group"><label>Frequency [RPM]</label><input type="text" id="inp-frequency"></div>
+        
+        <div style="grid-column: 1 / -1; margin-top: 10px; border-bottom: 1px solid var(--border-color);"><b style="font-size:12px; color:var(--text-secondary);">MESH & SOLVER</b></div>
+        <div class="input-group"><label>Total EX Film</label><input type="text" id="inp-total_ex_film"></div>
+        <div class="input-group"><label>Total EZ Film</label><input type="text" id="inp-total_ez_film"></div>
+        <div class="input-group"><label>Total EY Pad</label><input type="text" id="inp-total_ey_pad"></div>
+        <div class="input-group"><label>Equilibrium Type</label><input type="text" id="inp-equilibrium_type"></div>
+        <div class="input-group"><label>Eccentricity</label><input type="text" id="inp-eccentricity"></div>
+        <div class="input-group"><label>Attitude Angle [rad]</label><input type="text" id="inp-attitude_angle"></div>
+        
+        <div style="grid-column: 1 / -1; margin-top: 10px; border-bottom: 1px solid var(--border-color);"><b style="font-size:12px; color:var(--text-secondary);">LOADS & POSITIONS</b></div>
+        <div class="input-group"><label>FXS Load [N]</label><input type="text" id="inp-fxs_load"></div>
+        <div class="input-group"><label>FYS Load [N]</label><input type="text" id="inp-fys_load"></div>
+        <div class="input-group"><label>xj Position [mm]</label><input type="text" id="inp-xj"></div>
+        <div class="input-group"><label>yj Position [mm]</label><input type="text" id="inp-yj"></div>
+        
+        <div style="grid-column: 1 / -1; margin-top: 10px; border-bottom: 1px solid var(--border-color);"><b style="font-size:12px; color:var(--text-secondary);">THERMAL PARAMETERS</b></div>
+        <div class="input-group"><label>Thermal Type</label><input type="text" id="inp-thermal_type"></div>
+        <div class="input-group"><label>Pad Conductivity</label><input type="text" id="inp-pad_conductivity"></div>
+        <div class="input-group"><label>Edges Convection</label><input type="text" id="inp-edges_convection"></div>
+        <div class="input-group"><label>Relax Temperature</label><input type="text" id="inp-relax_temperature"></div>
+        <div class="input-group"><label>Journal Temp [degC]</label><input type="text" id="inp-journal_temperature"></div>
+        <div class="input-group"><label>Oil Flow (v)</label><input type="text" id="inp-oil_flow_v"></div>
         <button type="button" class="btn-advanced" onclick="toggleAdvanced(this)">Advanced <i class="fas fa-chevron-down"></i></button>
         <div class="advanced-fields" style="display: none; margin-top: 10px; border-top: 1px dashed #ccc; padding-top: 10px;">
-            <div class="input-group"><label>Circumferential Vol.</label><input type="text" id="inp-nx"></div>
-            <div class="input-group"><label>Axial Vol.</label><input type="text" id="inp-nz"></div>
-            <div class="input-group"><label>Thermal Radial Nodes</label><input type="text" id="inp-nr_pad"></div>
-            <div class="input-group"><label>Journal temperature [°C]</label><input type="text" id="inp-journal_temperature"></div>
-            <div class="input-group"><label>Hot oil carry over</label><input type="text" id="inp-hot_oil_carry_over"></div>
-            <div class="input-group"><label>Inlet temp tolerance</label><input type="text" id="inp-inlet_temperature_tolerance"></div>
-            <div class="input-group"><label>Max inlet iterations</label><input type="text" id="inp-max_inlet_iterations"></div>
-            <div class="input-group"><label>h sump [W/(m²·K)]</label><input type="text" id="inp-h_sump"></div>
-            <div class="input-group"><label>k pad [W/(m·K)]</label><input type="text" id="inp-k_pad"></div>
-            <div class="input-group"><label>h edge [W/(m²·K)]</label><input type="text" id="inp-h_edge"></div>
-            <div class="input-group"><label>Max jtemp iter</label><input type="text" id="inp-max_jtemp_iter"></div>
-            <div class="input-group"><label>jtemp error</label><input type="text" id="inp-jtemp_error"></div>
-            <div class="input-group"><label>Relax t</label><input type="text" id="inp-relax_t"></div>
-            <div class="input-group"><label>Max relax change</label><input type="text" id="inp-max_relax_change"></div>
             <div class="input-group"><label>Link Node #</label><input type="text" id="inp-n_link"></div>
-            <div class="input-group"><label>Journal Pos X [mm]</label><input type="text" id="inp-xj"></div>
-            <div class="input-group"><label>Journal Pos Y [mm]</label><input type="text" id="inp-yj"></div>
-            <div class="input-group"><label>Equilibrium Type</label><input type="text" id="inp-equilibrium_type"></div>
-            <div class="input-group"><label>Thermal Type</label><input type="text" id="inp-thermal_type"></div>
-            <div class="input-group"><label>Eccentricity</label><input type="text" id="inp-eccentricity"></div>
-            <div class="input-group"><label>Attitude Angle [deg]</label><input type="text" id="inp-attitude_angle"></div>
-            <div class="input-group"><label>Ext. Loads [fx, fy]</label><input type="text" id="inp-load"></div>
-            <div class="input-group"><label>Initial Pad Angles [deg]</label><input type="text" id="inp-initial_pads_angles"></div>
-            <div class="input-group"><label>Solver Options {dict}</label><input type="text" id="inp-solver_options"></div>
             <div class="input-group"><label>Scale Factor</label><input type="text" id="inp-scale_factor"></div>
             <div class="input-group"><label>Tag</label><input type="text" id="inp-tag"></div>
             <div class="input-group"><label>Hex Color</label><input type="text" id="inp-color"></div>
@@ -2157,10 +2147,10 @@ const UNITS_MAPPING = {
     'BearingElement': {'kxx': 'N/m', 'kxy': 'N/m', 'kyx': 'N/m', 'kyy': 'N/m', 'kzz': 'N/m', 'cxx': 'N*s/m', 'cxy': 'N*s/m', 'cyx': 'N*s/m', 'cyy': 'N*s/m', 'czz': 'N*s/m', 'mxx': 'kg', 'mxy': 'kg', 'myx': 'kg', 'myy': 'kg', 'mzz': 'kg', 'frequency': 'RPM'},
     'BallBearingElement': {}, 'RollerBearingElement': {}, 'MagneticBearingElement': {},
     'CylindricalBearing': {'speed': 'RPM', 'weight': 'N', 'bearing_length': 'mm', 'journal_diameter': 'mm', 'radial_clearance': 'mm', 'oil_viscosity': 'Pa*s'},
-    'PlainJournal': {'axial_length': 'mm', 'journal_radius': 'mm', 'radial_clearance': 'mm', 'pad_arc_length': 'deg', 'frequency': 'RPM', 'fxs_load': 'N', 'fys_load': 'N', 'reference_temperature': 'degC', 'oil_flow_v': 'l/min', 'oil_supply_pressure': 'Pa'},
+    'PlainJournal': {'pad_axial_length': 'mm', 'journal_diameter': 'mm', 'radial_clearance': 'mm', 'pad_arc': 'deg', 'oil_supply_temperature': 'degC', 'frequency': 'RPM', 'fxs_load': 'N', 'fys_load': 'N', 'oil_supply_pressure': 'Pa', 'pad_thickness': 'mm'},
     'SqueezeFilmDamper': {'frequency': 'RPM', 'axial_length': 'mm', 'journal_diameter': 'mm', 'radial_clearance': 'mm'},
     'ThrustPad': {'pad_inner_radius': 'mm', 'pad_outer_radius': 'mm', 'pad_pivot_radius': 'mm', 'pad_arc': 'deg', 'pivot_angle': 'deg', 'oil_supply_temperature': 'degC', 'frequency': 'RPM', 'radial_inclination_angle': 'rad', 'circumferential_inclination_angle': 'rad', 'initial_film_thickness': 'mm', 'axial_load': 'N'},
-    'TiltingPad': { 'journal_diameter': 'mm', 'pad_thickness': 'mm', 'pad_arc': 'deg', 'pad_axial_length': 'mm', 'oil_supply_temperature': 'degC', 'radial_clearance': 'mm', 'pivot_angle': 'deg', 'frequency': 'RPM', 'attitude_angle': 'deg', 'xj': 'mm', 'yj': 'mm', 'initial_pads_angles': 'deg'},
+    'TiltingPad': {'journal_diameter': 'mm', 'pad_axial_length': 'mm', 'pad_thickness': 'mm', 'pad_arc': 'deg', 'radial_clearance': 'mm', 'pivot_angle': 'deg', 'oil_supply_temperature': 'degC', 'journal_temperature': 'degC', 'frequency': 'RPM', 'xj': 'mm', 'yj': 'mm', 'attitude_angle': 'rad', 'fxs_load': 'N', 'fys_load': 'N'},
     'SealElement': {'kxx': 'N/m', 'kxy': 'N/m', 'kyx': 'N/m', 'kyy': 'N/m', 'kzz': 'N/m', 'cxx': 'N*s/m', 'cxy': 'N*s/m', 'cyx': 'N*s/m', 'cyy': 'N*s/m', 'czz': 'N*s/m', 'mxx': 'kg', 'mxy': 'kg', 'myx': 'kg', 'myy': 'kg', 'mzz': 'kg', 'frequency': 'RPM'},
     'HolePatternSeal': {'shaft_diameter': 'mm', 'radial_clearance': 'mm', 'axial_length': 'mm', 'cell_length': 'mm', 'cell_width': 'mm', 'cell_depth': 'mm', 'inlet_pressure': 'Pa', 'outlet_pressure': 'Pa', 'inlet_temperature': 'degC', 'frequency': 'RPM'},
     'LabyrinthSeal': {'shaft_diameter': 'mm', 'radial_clearance': 'mm', 'pitch': 'mm', 'tooth_height': 'mm', 'tooth_width': 'mm', 'inlet_pressure': 'Pa', 'outlet_pressure': 'Pa', 'inlet_temperature': 'degC', 'frequency': 'RPM'},
@@ -2421,8 +2411,20 @@ function generatePythonFile() {
         
         if(p.gear_mesh_stiffness) multiArgs += `, gear_mesh_stiffness=${p.gear_mesh_stiffness}`;
         if(p.update_mesh_stiffness === 'true') multiArgs += `, update_mesh_stiffness=True`;
-        if(p.square_varying_stiffness === 'true') multiArgs += `, square_varying_stiffness=True`;
-        if(p.square_stiffness_amplitude_ratio) multiArgs += `, square_stiffness_amplitude_ratio=${p.square_stiffness_amplitude_ratio}`;
+        
+        // Square Varying Stiffness
+        if(p.square_varying_stiffness) {
+            let svs_enable = p.square_varying_stiffness.enable ? "True" : "False";
+            multiArgs += `, square_varying_stiffness={"enable": ${svs_enable}, "amplitude_ratio": ${p.square_varying_stiffness.amplitude_ratio}}`;
+        }
+        
+        // Backlash
+        if(p.backlash) {
+            let bl_enable = p.backlash.enable ? "True" : "False";
+            let bl_smooth = p.backlash.smooth_operator ? "True" : "False";
+            multiArgs += `, backlash={"enable": ${bl_enable}, "initial_value": ${p.backlash.initial_value}, "error_amp": ${p.backlash.error_amp}, "smooth_operator": ${bl_smooth}, "sigma": ${p.backlash.sigma}}`;
+        }
+        
         if(p.orientation_angle) multiArgs += `, orientation_angle=${p.orientation_angle}`;
         
         py += `\n# MultiRotor Coupling\n`;
@@ -2982,8 +2984,17 @@ async function saveMultiRotor() {
             coupled_nodes: document.getElementById('mr-coupled-nodes').value,
             gear_mesh_stiffness: document.getElementById('mr-stiffness').value,
             update_mesh_stiffness: document.getElementById('mr-update-stiffness').value,
-            square_varying_stiffness: document.getElementById('mr-square-stiffness').value,
-            square_stiffness_amplitude_ratio: document.getElementById('mr-ratio').value,
+            square_varying_stiffness: {
+                enable: document.getElementById('mr-square-stiffness-enable').value === 'true',
+                amplitude_ratio: parseFloat(document.getElementById('mr-square-stiffness-ratio').value) || 0
+            },
+            backlash: {
+                enable: document.getElementById('mr-backlash-enable').value === 'true',
+                initial_value: parseFloat(document.getElementById('mr-backlash-initial').value) || 0.0,
+                error_amp: parseFloat(document.getElementById('mr-backlash-error').value) || 0.0,
+                smooth_operator: document.getElementById('mr-backlash-smooth').value === 'true',
+                sigma: parseFloat(document.getElementById('mr-backlash-sigma').value) || 1e4
+            },
             orientation_angle: document.getElementById('mr-angle').value,
             position: document.getElementById('mr-position').value
         },
