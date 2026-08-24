@@ -144,7 +144,9 @@ def test_add_elements(multi_rotor):
     assert 10.0 in driving_masses
     assert 1.0 in driven_masses
 
-    driven_disk = next(d for d in new_rotor.rotors["driven"].disk_elements if d.m == 1.0)
+    driven_disk = next(
+        d for d in new_rotor.rotors["driven"].disk_elements if d.m == 1.0
+    )
     assert driven_disk.n == 2
 
     assembled_disk = next(d for d in new_rotor.disk_elements if d.m == 1.0)

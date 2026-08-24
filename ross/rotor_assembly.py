@@ -726,7 +726,7 @@ class Rotor(object):
             rotors = rotors[0]
         if not rotors:
             raise ValueError("At least one rotor must be provided.")
-    
+
         rotor_list = list(rotors)
         shaft_elements = []
         disk_elements = []
@@ -742,12 +742,11 @@ class Rotor(object):
             node_index = link_nodes[rotor_index].index(n_link)
             offset = sum(len(link_nodes[i]) for i in range(rotor_index))
             return last_node + node_index + offset + 1
-        
+
         for i, rotor in enumerate(rotor_list):
             rotor = deepcopy(rotor)
 
             for el in rotor.elements:
-
                 if el.n in rotor.nodes:
                     el.n += node_offset
                 elif el.n in rotor.link_nodes:
@@ -1026,9 +1025,7 @@ class Rotor(object):
         }
         sig = inspect.signature(self.__class__.__init__)
         return {
-            name: getattr(self, name)
-            for name in sig.parameters
-            if name not in skip
+            name: getattr(self, name) for name in sig.parameters if name not in skip
         }
 
     def add_nodes(self, new_nodes_pos):
