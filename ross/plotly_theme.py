@@ -307,6 +307,11 @@ pio.templates["ross"] = go.layout.Template(
             "caxis": {"gridcolor": "#DFE8F3", "linecolor": "#A2B1C6", "ticks": ""},
         },
         "title": {"x": 0.05},
+        "updatemenudefaults": {
+            "bgcolor": "white",
+            "bordercolor": "#C4CDD6",
+            "font": {"color": "#2a3f5f"},
+        },
         "xaxis": {
             "automargin": True,
             "gridcolor": "#EBF0F8",
@@ -613,6 +618,11 @@ pio.templates["ross_dark"].layout.update(
             for axis in ("xaxis", "yaxis", "zaxis")
         },
         "shapedefaults": {"line": {"color": dark_palette["text"]}},
+        "updatemenudefaults": {
+            "bgcolor": dark_palette["surface_card"],
+            "bordercolor": dark_palette["grid_strong"],
+            "font": {"color": dark_palette["text"]},
+        },
         "ternary": {
             "aaxis": {
                 "gridcolor": dark_palette["grid_strong"],

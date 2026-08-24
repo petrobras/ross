@@ -10,12 +10,12 @@ from ross.units import Q_
 # Common test parameters for hybrid seal
 COMMON_PARAMS = {
     "n": 0,
-    "shaft_radius": Q_(25, "mm"),
+    "shaft_diameter": Q_(50, "mm"),
     "inlet_pressure": 500000,
     "outlet_pressure": 100000,
     "inlet_temperature": 300.0,
     "frequency": Q_([5000], "RPM"),
-    "molar": 28.96807,
+    "molar_mass": 28.96807,
     "gamma": 1.4,
 }
 
@@ -28,37 +28,37 @@ LABYRINTH_PARAMS = {
     "tooth_width": Q_(0.15, "mm"),
     "seal_type": "inter",
     "preswirl": 0.9,
-    "tz": [300.0, 299.5],
-    "muz": [1.85e-05, 1.84e-05],
+    "reference_temperatures": [300.0, 299.5],
+    "reference_viscosities": [1.85e-05, 1.84e-05],
 }
 
 # Hole-pattern seal parameters (to be passed via hole_pattern_parameters dict)
 # For tests without gas composition
 HOLEPATTERN_PARAMS = {
     "radial_clearance": 0.0003,
-    "length": 0.04,
-    "roughness": 0.0001,
+    "axial_length": 0.04,
+    "relative_roughness": 0.0001,
     "cell_length": 0.003,
     "cell_width": 0.003,
     "cell_depth": 0.002,
     "preswirl": 0.8,
-    "entr_coef": 0.5,
-    "exit_coef": 1.0,
-    "b_suther": 1.458e-6,
-    "s_suther": 110.4,
+    "entrance_loss_coefficient": 0.5,
+    "exit_loss_coefficient": 1.0,
+    "sutherland_b": 1.458e-6,
+    "sutherland_s": 110.4,
 }
 
 # Hole-pattern seal parameters for gas composition tests
 HOLEPATTERN_PARAMS_GC = {
     "radial_clearance": 0.0003,
-    "length": 0.04,
-    "roughness": 0.0001,
+    "axial_length": 0.04,
+    "relative_roughness": 0.0001,
     "cell_length": 0.003,
     "cell_width": 0.003,
     "cell_depth": 0.002,
     "preswirl": 0.8,
-    "entr_coef": 0.5,
-    "exit_coef": 1.0,
+    "entrance_loss_coefficient": 0.5,
+    "exit_loss_coefficient": 1.0,
 }
 
 # Gas composition (air)

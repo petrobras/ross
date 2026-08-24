@@ -517,6 +517,10 @@ dl.py dd {
 
 html[data-theme="dark"] .sd-card img[src*=".svg"] {
   filter: invert(0.82) brightness(0.8) contrast(1.2);
+  /* pydata-sphinx-theme paints a white background behind content images
+     in dark mode; the invert above would render it as a gray slab, so
+     keep these transparent line-art icons on the card surface */
+  background-color: transparent;
 }
 
 /* ---------- Prev / next pager ---------- */

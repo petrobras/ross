@@ -188,7 +188,7 @@ def bearing_element():
 def thrust_pad_results():
     n_radial, n_theta = 3, 5
     d_radius, d_theta = 0.2, 0.2
-    pad_arc_length = 0.4538
+    pad_arc = 0.4538
     pressure = (
         np.arange((n_radial + 2) * (n_theta + 2), dtype=float).reshape(
             n_radial + 2, n_theta + 2
@@ -214,7 +214,7 @@ def thrust_pad_results():
         pad_inner_radius=1.15,
         d_radius=d_radius,
         d_theta=d_theta,
-        pad_arc_length=pad_arc_length,
+        pad_arc=pad_arc,
         optimization_history={},
     )
 
@@ -487,12 +487,6 @@ def test_thrust_pad_plot_film_temperature_3d(thrust_pad_results):
     assert_surface_z_matches(fig.data[0], thrust_pad_results.temperature_fields[0])
 
 
-def test_plot_temperature_3d_deprecated_alias(thrust_pad_results):
-    with pytest.warns(DeprecationWarning, match="plot_film_temperature_3d"):
-        fig = thrust_pad_results.plot_temperature_3d()
-    assert_plotly_figure(fig)
-
-
 def test_plot_pad_temperature_3d_not_available(thrust_pad_results):
     with pytest.raises(NotImplementedError, match="solid pad temperature"):
         thrust_pad_results.plot_pad_temperature_3d()
@@ -503,7 +497,7 @@ def test_squeeze_film_damper_field_plots_not_available():
         n=0,
         frequency=Q_([18600], "rpm"),
         axial_length=Q_(0.9, "inches"),
-        journal_radius=Q_(2.55, "inches"),
+        journal_diameter=Q_(5.1, "inches"),
         radial_clearance=Q_(0.003, "inches"),
         eccentricity_ratio=0.5,
         lubricant="ISOVG32",

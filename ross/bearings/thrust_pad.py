@@ -55,19 +55,19 @@ class ThrustPad(BearingElement):
         Outer radius of the pad. Default unit is meter.
     pad_pivot_radius : float
         Radius of the pivot point. Default unit is meter.
-    pad_arc_length : float
-        Arc length of each pad. Default unit is degrees.
-    angular_pivot_position : float
-        Angular position of the pivot point. Default unit is degrees.
-    oil_supply_temperature : float
-        Oil supply temperature. Default unit is °C.
+    pad_arc : float, pint.Quantity
+        Arc length of each pad, rad.
+    pivot_angle : float, pint.Quantity
+        Angular position of the pivot point, rad.
+    oil_supply_temperature : float, pint.Quantity
+        Oil supply temperature, K.
     lubricant : str or dict
         Lubricant type. Can be:
         - 'ISOVG32'
         - 'ISOVG46'
         - 'ISOVG68'
         Or a dictionary with lubricant properties.
-    n_pad : int
+    n_pads : int
         Number of pads in the bearing.
     n_theta : int
         Number of mesh elements in circumferential direction.
@@ -141,11 +141,11 @@ class ThrustPad(BearingElement):
     ...     pad_inner_radius=Q_(1150, "mm"),
     ...     pad_outer_radius=Q_(1725, "mm"),
     ...     pad_pivot_radius=Q_(1442.5, "mm"),
-    ...     pad_arc_length=Q_(26, "deg"),
-    ...     angular_pivot_position=Q_(15, "deg"),
+    ...     pad_arc=Q_(26, "deg"),
+    ...     pivot_angle=Q_(15, "deg"),
     ...     oil_supply_temperature=Q_(40, "degC"),
     ...     lubricant="ISOVG68",
-    ...     n_pad=12,
+    ...     n_pads=12,
     ...     n_theta=10,
     ...     n_radial=10,
     ...     frequency=Q_([90], "RPM"),
@@ -164,11 +164,11 @@ class ThrustPad(BearingElement):
         pad_inner_radius,
         pad_outer_radius,
         pad_pivot_radius,
-        pad_arc_length,
-        angular_pivot_position,
+        pad_arc,
+        pivot_angle,
         oil_supply_temperature,
         lubricant,
-        n_pad,
+        n_pads,
         n_theta,
         n_radial,
         frequency,
@@ -187,16 +187,16 @@ class ThrustPad(BearingElement):
         self.pad_outer_radius = pad_outer_radius
         self.pad_pivot_radius = pad_pivot_radius
         self.frequency = frequency
-        self.pad_arc_length = pad_arc_length
-        self.angular_pivot_position = angular_pivot_position.m_as("rad")
+        self.pad_arc = pad_arc
+        self.pivot_angle = pivot_angle
         self.oil_supply_temperature = Q_(oil_supply_temperature, "degK").m_as("degC")
         self.reference_temperature = self.oil_supply_temperature
         self.lubricant = lubricant
-        self.n_pad = n_pad
+        self.n_pads = n_pads
         self.n_theta = n_theta
         self.n_radial = n_radial
         self.rp = self.pad_pivot_radius / self.pad_inner_radius
-        self.theta_pad = self.angular_pivot_position / self.pad_arc_length
+        self.theta_pad = self.pivot_angle / self.pad_arc
         self.d_radius = (self.pad_outer_radius / self.pad_inner_radius - 1) / (
             self.n_radial
         )
@@ -300,7 +300,7 @@ class ThrustPad(BearingElement):
             pad_inner_radius=self.pad_inner_radius,
             d_radius=self.d_radius,
             d_theta=self.d_theta,
-            pad_arc_length=self.pad_arc_length,
+            pad_arc=self.pad_arc,
             optimization_history=self.optimization_history,
             initial_time=self.initial_time,
             final_time=self.final_time,
@@ -761,7 +761,7 @@ class ThrustPad(BearingElement):
                         energy_c = -(energy_s + energy_n)
                         east_coeff = (
                             self.d_radius
-                            / (12 * self.pad_arc_length**2)
+                            / (12 * self.pad_arc**2)
                             * (
                                 self.film_thickness_center_array[
                                     radial_idx, angular_idx
@@ -771,7 +771,7 @@ class ThrustPad(BearingElement):
                                 * dp0_dtheta[radial_idx, angular_idx]
                             )
                             - self.d_radius
-                            / (2 * self.pad_arc_length)
+                            / (2 * self.pad_arc)
                             * self.film_thickness_center_array[radial_idx, angular_idx]
                             * radius
                         )
@@ -814,7 +814,7 @@ class ThrustPad(BearingElement):
                                 * self.pad_inner_radius**2
                             )
                             * self.d_radius
-                            / (self.pad_arc_length**2 * self.d_theta)
+                            / (self.pad_arc**2 * self.d_theta)
                             * self.film_thickness_center_array[radial_idx, angular_idx]
                             / radius
                         )
@@ -827,7 +827,7 @@ class ThrustPad(BearingElement):
                                 * self.pad_inner_radius**2
                             )
                             * self.d_radius
-                            / (self.pad_arc_length**2 * self.d_theta)
+                            / (self.pad_arc**2 * self.d_theta)
                             * self.film_thickness_center_array[radial_idx, angular_idx]
                             / radius
                         )
@@ -844,7 +844,7 @@ class ThrustPad(BearingElement):
                         source_h = (
                             self.d_radius
                             * self.d_theta
-                            / (12 * self.pad_arc_length**2)
+                            / (12 * self.pad_arc**2)
                             * (
                                 self.film_thickness_center_array[
                                     radial_idx, angular_idx
@@ -882,7 +882,7 @@ class ThrustPad(BearingElement):
                         source_k = (
                             self.d_radius
                             * self.d_theta
-                            / (12 * self.pad_arc_length)
+                            / (12 * self.pad_arc)
                             * (
                                 self.film_thickness_center_array[
                                     radial_idx, angular_idx
@@ -929,7 +929,7 @@ class ThrustPad(BearingElement):
                         source_o = (
                             self.d_radius
                             * self.d_theta
-                            / (120 * self.pad_arc_length**2)
+                            / (120 * self.pad_arc**2)
                             * (
                                 self.film_thickness_center_array[
                                     radial_idx, angular_idx
@@ -1161,19 +1161,18 @@ class ThrustPad(BearingElement):
 
             # Resulting force and momentum: Equilibrium position
             radius_coords = self.pad_inner_radius * self.radius_array
-            theta_coords = self.pad_arc_length * self.theta_array
+            theta_coords = self.pad_arc * self.theta_array
             pivot_coords = self.pad_pivot_radius * (np.ones((np.size(radius_coords))))
 
             for ii in range(0, self.n_theta):
                 moment_x[:, ii] = (
                     pressure_dim[:, ii] * (np.transpose(radius_coords) ** 2)
-                ) * np.sin(theta_coords[ii] - self.angular_pivot_position)
+                ) * np.sin(theta_coords[ii] - self.pivot_angle)
                 moment_y[:, ii] = (
                     -pressure_dim[:, ii]
                     * np.transpose(radius_coords)
                     * np.transpose(
-                        radius_coords
-                        * np.cos(theta_coords[ii] - self.angular_pivot_position)
+                        radius_coords * np.cos(theta_coords[ii] - self.pivot_angle)
                         - pivot_coords
                     )
                 )
@@ -1199,7 +1198,7 @@ class ThrustPad(BearingElement):
             else:
                 axial_force_residual = (
                     -np.trapezoid(force_radial, radius_coords)
-                    + self.axial_load / self.n_pad
+                    + self.axial_load / self.n_pads
                 )
                 residual_force_moment = np.linalg.norm(
                     np.array(
@@ -1375,48 +1374,44 @@ class ThrustPad(BearingElement):
                     + circum_param
                     * (
                         self.rp
-                        - radius_n
-                        * np.cos(self.pad_arc_length * (theta_e - self.theta_pad))
+                        - radius_n * np.cos(self.pad_arc * (theta_e - self.theta_pad))
                     )
                     + radial_param
                     * radius_n
-                    * np.sin(self.pad_arc_length * (theta_e - self.theta_pad))
+                    * np.sin(self.pad_arc * (theta_e - self.theta_pad))
                 )
                 h_nw = (
                     film_thickness_center
                     + circum_param
                     * (
                         self.rp
-                        - radius_n
-                        * np.cos(self.pad_arc_length * (theta_w - self.theta_pad))
+                        - radius_n * np.cos(self.pad_arc * (theta_w - self.theta_pad))
                     )
                     + radial_param
                     * radius_n
-                    * np.sin(self.pad_arc_length * (theta_w - self.theta_pad))
+                    * np.sin(self.pad_arc * (theta_w - self.theta_pad))
                 )
                 h_se = (
                     film_thickness_center
                     + circum_param
                     * (
                         self.rp
-                        - radius_s
-                        * np.cos(self.pad_arc_length * (theta_e - self.theta_pad))
+                        - radius_s * np.cos(self.pad_arc * (theta_e - self.theta_pad))
                     )
                     + radial_param
                     * radius_s
-                    * np.sin(self.pad_arc_length * (theta_e - self.theta_pad))
+                    * np.sin(self.pad_arc * (theta_e - self.theta_pad))
                 )
                 h_sw = (
                     film_thickness_center
                     + circum_param
                     * (
                         self.rp
-                        - radius_s
-                        * np.cos(self.pad_arc_length * (theta_w - self.theta_pad))
+                        - radius_s * np.cos(self.pad_arc * (theta_w - self.theta_pad))
                     )
                     + radial_param
                     * radius_s
-                    * np.sin(self.pad_arc_length * (theta_w - self.theta_pad))
+                    * np.sin(self.pad_arc * (theta_w - self.theta_pad))
                 )
 
                 if angular_idx == 0 and radial_idx == 0:
@@ -1569,13 +1564,13 @@ class ThrustPad(BearingElement):
                 # Reynolds equation coefficients
                 coeff_e = (
                     1
-                    / (24 * self.pad_arc_length**2 * mu_e)
+                    / (24 * self.pad_arc**2 * mu_e)
                     * (self.d_radius / self.d_theta)
                     * (h_ne**3 / radius_n + h_se**3 / radius_s)
                 )
                 coeff_w = (
                     1
-                    / (24 * self.pad_arc_length**2 * mu_w)
+                    / (24 * self.pad_arc**2 * mu_w)
                     * (self.d_radius / self.d_theta)
                     * (h_nw**3 / radius_n + h_sw**3 / radius_s)
                 )
@@ -1598,7 +1593,7 @@ class ThrustPad(BearingElement):
 
                 source_term_vector[vectorization_idx, 0] = (
                     self.d_radius
-                    / (4 * self.pad_arc_length)
+                    / (4 * self.pad_arc)
                     * (
                         radius_n * h_ne
                         + radius_s * h_se
@@ -1739,19 +1734,18 @@ class ThrustPad(BearingElement):
         )
 
         radius_coords = self.pad_inner_radius * self.radius_array
-        theta_coords = self.pad_arc_length * self.theta_array
+        theta_coords = self.pad_arc * self.theta_array
         pivot_coords = self.pad_pivot_radius * (np.ones((np.size(radius_coords))))
 
         for ii in range(0, self.n_theta):
             moment_x[:, ii] = (
                 pressure_dim[:, ii] * (np.transpose(radius_coords) ** 2)
-            ) * np.sin(theta_coords[ii] - self.angular_pivot_position)
+            ) * np.sin(theta_coords[ii] - self.pivot_angle)
             moment_y[:, ii] = (
                 -pressure_dim[:, ii]
                 * np.transpose(radius_coords)
                 * np.transpose(
-                    radius_coords
-                    * np.cos(theta_coords[ii] - self.angular_pivot_position)
+                    radius_coords * np.cos(theta_coords[ii] - self.pivot_angle)
                     - pivot_coords
                 )
             )
@@ -1770,7 +1764,7 @@ class ThrustPad(BearingElement):
         else:  # "calculate" operation mode
             axial_force_residual = (
                 -np.trapezoid(force_radial, radius_coords)
-                + self.axial_load / self.n_pad
+                + self.axial_load / self.n_pads
             )
             score = np.linalg.norm([mom_x_total, mom_y_total, axial_force_residual])
 
@@ -1797,60 +1791,55 @@ class ThrustPad(BearingElement):
                     + circum_param
                     * (
                         self.rp
-                        - radius
-                        * np.cos(self.pad_arc_length * (theta - self.theta_pad))
+                        - radius * np.cos(self.pad_arc * (theta - self.theta_pad))
                     )
                     + radial_param
                     * radius
-                    * np.sin(self.pad_arc_length * (theta - self.theta_pad))
+                    * np.sin(self.pad_arc * (theta - self.theta_pad))
                 )
                 self.film_thickness_ne[radial_idx, angular_idx] = (
                     self.pivot_film_thickness / self.pivot_film_thickness
                     + circum_param
                     * (
                         self.rp
-                        - radius_n
-                        * np.cos(self.pad_arc_length * (theta_e - self.theta_pad))
+                        - radius_n * np.cos(self.pad_arc * (theta_e - self.theta_pad))
                     )
                     + radial_param
                     * radius_n
-                    * np.sin(self.pad_arc_length * (theta_e - self.theta_pad))
+                    * np.sin(self.pad_arc * (theta_e - self.theta_pad))
                 )
                 self.film_thickness_nw[radial_idx, angular_idx] = (
                     self.pivot_film_thickness / self.pivot_film_thickness
                     + circum_param
                     * (
                         self.rp
-                        - radius_n
-                        * np.cos(self.pad_arc_length * (theta_w - self.theta_pad))
+                        - radius_n * np.cos(self.pad_arc * (theta_w - self.theta_pad))
                     )
                     + radial_param
                     * radius_n
-                    * np.sin(self.pad_arc_length * (theta_w - self.theta_pad))
+                    * np.sin(self.pad_arc * (theta_w - self.theta_pad))
                 )
                 self.film_thickness_se[radial_idx, angular_idx] = (
                     self.pivot_film_thickness / self.pivot_film_thickness
                     + circum_param
                     * (
                         self.rp
-                        - radius_s
-                        * np.cos(self.pad_arc_length * (theta_e - self.theta_pad))
+                        - radius_s * np.cos(self.pad_arc * (theta_e - self.theta_pad))
                     )
                     + radial_param
                     * radius_s
-                    * np.sin(self.pad_arc_length * (theta_e - self.theta_pad))
+                    * np.sin(self.pad_arc * (theta_e - self.theta_pad))
                 )
                 self.film_thickness_sw[radial_idx, angular_idx] = (
                     self.pivot_film_thickness / self.pivot_film_thickness
                     + circum_param
                     * (
                         self.rp
-                        - radius_s
-                        * np.cos(self.pad_arc_length * (theta_w - self.theta_pad))
+                        - radius_s * np.cos(self.pad_arc * (theta_w - self.theta_pad))
                     )
                     + radial_param
                     * radius_s
-                    * np.sin(self.pad_arc_length * (theta_w - self.theta_pad))
+                    * np.sin(self.pad_arc * (theta_w - self.theta_pad))
                 )
 
                 if angular_idx == 0 and radial_idx == 0:
@@ -2003,7 +1992,7 @@ class ThrustPad(BearingElement):
                 # Reynolds equation coefficients
                 coeff_e = (
                     1
-                    / (24 * self.pad_arc_length**2 * mu_e)
+                    / (24 * self.pad_arc**2 * mu_e)
                     * (self.d_radius / self.d_theta)
                     * (
                         self.film_thickness_ne[radial_idx, angular_idx] ** 3 / radius_n
@@ -2013,7 +2002,7 @@ class ThrustPad(BearingElement):
                 )
                 coeff_w = (
                     1
-                    / (24 * self.pad_arc_length**2 * mu_w)
+                    / (24 * self.pad_arc**2 * mu_w)
                     * (self.d_radius / self.d_theta)
                     * (
                         self.film_thickness_nw[radial_idx, angular_idx] ** 3 / radius_n
@@ -2046,7 +2035,7 @@ class ThrustPad(BearingElement):
 
                 source_term_vector[vectorization_idx, 0] = (
                     self.d_radius
-                    / (4 * self.pad_arc_length)
+                    / (4 * self.pad_arc)
                     * (
                         radius_n * self.film_thickness_ne[radial_idx, angular_idx]
                         + radius_s * self.film_thickness_se[radial_idx, angular_idx]
@@ -2514,7 +2503,7 @@ class ThrustPad(BearingElement):
                 # Dynamic coefficients calculation terms
                 energy_e = (
                     1
-                    / (24 * self.pad_arc_length**2 * mu_e)
+                    / (24 * self.pad_arc**2 * mu_e)
                     * (self.d_radius / self.d_theta)
                     * (
                         pert_coeff_ne
@@ -2527,7 +2516,7 @@ class ThrustPad(BearingElement):
                 )
                 diffusion_e = (
                     self.d_radius
-                    / (48 * self.pad_arc_length**2 * mu_e)
+                    / (48 * self.pad_arc**2 * mu_e)
                     * (
                         circ_pert_ne
                         * self.film_thickness_ne[radial_idx, angular_idx] ** 3
@@ -2541,7 +2530,7 @@ class ThrustPad(BearingElement):
 
                 energy_w = (
                     1
-                    / (24 * self.pad_arc_length**2 * mu_w)
+                    / (24 * self.pad_arc**2 * mu_w)
                     * (self.d_radius / self.d_theta)
                     * (
                         pert_coeff_nw
@@ -2554,7 +2543,7 @@ class ThrustPad(BearingElement):
                 )
                 diffusion_w = (
                     -self.d_radius
-                    / (48 * self.pad_arc_length**2 * mu_w)
+                    / (48 * self.pad_arc**2 * mu_w)
                     * (
                         circ_pert_nw
                         * self.film_thickness_nw[radial_idx, angular_idx] ** 3
@@ -2628,7 +2617,7 @@ class ThrustPad(BearingElement):
                     * self.film_thickness_sw[radial_idx, angular_idx] ** 2
                 )
                 circ_term = (
-                    self.d_radius / (8 * self.pad_arc_length**2 * mu_e)
+                    self.d_radius / (8 * self.pad_arc**2 * mu_e)
                 ) * dp_dtheta_e * (
                     pert_coeff_ne
                     * self.film_thickness_ne[radial_idx, angular_idx] ** 2
@@ -2636,9 +2625,7 @@ class ThrustPad(BearingElement):
                     + pert_coeff_se
                     * self.film_thickness_se[radial_idx, angular_idx] ** 2
                     / radius_s
-                ) - (
-                    self.d_radius / (8 * self.pad_arc_length**2 * mu_w)
-                ) * dp_dtheta_w * (
+                ) - (self.d_radius / (8 * self.pad_arc**2 * mu_w)) * dp_dtheta_w * (
                     pert_coeff_nw
                     * self.film_thickness_nw[radial_idx, angular_idx] ** 2
                     / radius_n
@@ -2646,9 +2633,9 @@ class ThrustPad(BearingElement):
                     * self.film_thickness_sw[radial_idx, angular_idx] ** 2
                     / radius_s
                 )
-                conv_term = self.d_radius / (4 * self.pad_arc_length) * (
+                conv_term = self.d_radius / (4 * self.pad_arc) * (
                     pert_coeff_ne * radius_n + pert_coeff_se * radius_s
-                ) - self.d_radius / (4 * self.pad_arc_length) * (
+                ) - self.d_radius / (4 * self.pad_arc) * (
                     pert_coeff_nw * radius_n + pert_coeff_sw * radius_s
                 )
                 inertial_term = (
@@ -2802,19 +2789,18 @@ class ThrustPad(BearingElement):
 
         # Resulting force and momentum: Equilibrium position
         radius_coords = self.pad_inner_radius * self.radius_array
-        theta_coords = self.pad_arc_length * self.theta_array
+        theta_coords = self.pad_arc * self.theta_array
         pivot_coords = self.pad_pivot_radius * (np.ones((np.size(radius_coords))))
 
         for ii in range(0, self.n_theta):
             moment_x_radial_coeff[:, ii] = (
                 pressure_coeff_dim[:, ii] * (np.transpose(radius_coords) ** 2)
-            ) * np.sin(theta_coords[ii] - self.angular_pivot_position)
+            ) * np.sin(theta_coords[ii] - self.pivot_angle)
             moment_y_radial_coeff[:, ii] = (
                 -pressure_coeff_dim[:, ii]
                 * np.transpose(radius_coords)
                 * np.transpose(
-                    radius_coords
-                    * np.cos(theta_coords[ii] - self.angular_pivot_position)
+                    radius_coords * np.cos(theta_coords[ii] - self.pivot_angle)
                     - pivot_coords
                 )
             )
@@ -2826,8 +2812,8 @@ class ThrustPad(BearingElement):
 
         force_axial = -np.trapezoid(force_radial, radius_coords)
 
-        self.kzz = self.n_pad * np.real(force_axial)
-        self.czz = self.n_pad * 1 / perturbation_frequency * np.imag(force_axial)
+        self.kzz = self.n_pads * np.real(force_axial)
+        self.czz = self.n_pads * 1 / perturbation_frequency * np.imag(force_axial)
 
 
 def thrust_pad_example():
@@ -2869,11 +2855,11 @@ def thrust_pad_example():
         pad_inner_radius=Q_(1150, "mm"),
         pad_outer_radius=Q_(1725, "mm"),
         pad_pivot_radius=Q_(1442.5, "mm"),
-        pad_arc_length=Q_(26, "deg"),
-        angular_pivot_position=Q_(15, "deg"),
+        pad_arc=Q_(26, "deg"),
+        pivot_angle=Q_(15, "deg"),
         oil_supply_temperature=Q_(40, "degC"),
         lubricant="ISOVG68",
-        n_pad=12,
+        n_pads=12,
         n_theta=10,
         n_radial=10,
         frequency=Q_([90], "RPM"),

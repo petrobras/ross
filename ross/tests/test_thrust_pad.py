@@ -11,8 +11,8 @@ def thrust_pad():
     pad_inner_radius = Q_(1150, "mm")
     pad_outer_radius = Q_(1725, "mm")
     pad_pivot_radius = Q_(1442.5, "mm")
-    pad_arc_length = Q_(26, "deg")
-    angular_pivot_position = Q_(15, "deg")
+    pad_arc = Q_(26, "deg")
+    pivot_angle = Q_(15, "deg")
     oil_supply_temperature = Q_(40, "degC")
     radial_inclination_angle = Q_(-2.75e-04, "rad")
     circumferential_inclination_angle = Q_(-1.70e-05, "rad")
@@ -23,11 +23,11 @@ def thrust_pad():
         pad_inner_radius=pad_inner_radius,
         pad_outer_radius=pad_outer_radius,
         pad_pivot_radius=pad_pivot_radius,
-        pad_arc_length=pad_arc_length,
-        angular_pivot_position=angular_pivot_position,
+        pad_arc=pad_arc,
+        pivot_angle=pivot_angle,
         oil_supply_temperature=oil_supply_temperature,
         lubricant="ISOVG68",
-        n_pad=12,
+        n_pads=12,
         n_theta=10,
         n_radial=10,
         frequency=frequency,

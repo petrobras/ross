@@ -159,9 +159,6 @@ def test_plots(fixture_bearing):
         "temperature_2d",
         "film_temperature_3d",
     }
-    with pytest.warns(DeprecationWarning, match="plot_film_temperature_3d"):
-        fig = bearing.plot_temperature_3d()
-    assert isinstance(fig, go.Figure)
 
 
 @pytest.fixture(scope="module")

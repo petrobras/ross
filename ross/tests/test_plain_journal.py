@@ -11,16 +11,15 @@ from ross.units import Q_
 def plain_journal():
     return PlainJournal(
         n=3,
-        axial_length=Q_(10.3600055944, "in"),
-        journal_radius=0.2,
+        pad_axial_length=Q_(10.3600055944, "in"),
+        journal_diameter=0.4,
         radial_clearance=1.95e-4,
-        elements_circumferential=20,
-        elements_axial=10,
-        n_pad=2,
-        pad_arc_length=176,
+        total_ex_film=20,
+        total_ez_film=10,
+        n_pads=2,
+        pad_arc=Q_(176, "deg"),
         preload=0,
-        geometry="circular",
-        reference_temperature=Q_(50, "degC"),
+        oil_supply_temperature=Q_(50, "degC"),
         frequency=Q_([900], "RPM"),
         fxs_load=0,
         fys_load=-112814.91,
@@ -42,15 +41,13 @@ def test_geometry_translation(plain_journal):
     assert_allclose(plain_journal.offset, [0.5, 0.5])
     assert plain_journal.operating_type == "regular_flooded"
     assert plain_journal.thermal_type is None
-    assert_allclose(plain_journal.axial_length, 0.263144, rtol=1e-6)
-    assert_allclose(plain_journal.journal_radius, 0.2)
-    assert_allclose(plain_journal.reference_temperature, 323.15)
+    assert_allclose(plain_journal.oil_supply_temperature, 323.15)
     assert plain_journal.total_ex_film == 20
     assert plain_journal.total_ez_film == 10
 
 
 def test_matches_explicit_fixed_geometry(plain_journal):
-    """The compat surface is pure translation over FixedGeometryBearing."""
+    """PlainJournal is pure translation over FixedGeometryBearing."""
     explicit = FixedGeometryBearing(
         n=3,
         frequency=Q_([900], "RPM"),
@@ -88,17 +85,17 @@ def test_equilibrium_pos(plain_journal):
     assert abs(attitude) < np.pi
 
 
-def test_pint_pad_arc_length(plain_journal):
-    pint_arc = PlainJournal(
+def test_plain_radians_pad_arc(plain_journal):
+    plain_arc = PlainJournal(
         n=3,
-        axial_length=Q_(10.3600055944, "in"),
-        journal_radius=0.2,
+        pad_axial_length=Q_(10.3600055944, "in"),
+        journal_diameter=0.4,
         radial_clearance=1.95e-4,
-        elements_circumferential=20,
-        elements_axial=10,
-        n_pad=2,
-        pad_arc_length=Q_(176, "deg"),
-        reference_temperature=Q_(50, "degC"),
+        total_ex_film=20,
+        total_ez_film=10,
+        n_pads=2,
+        pad_arc=np.radians(176),
+        oil_supply_temperature=Q_(50, "degC"),
         frequency=Q_([900], "RPM"),
         fys_load=-112814.91,
         lubricant="ISOVG32",
@@ -107,91 +104,68 @@ def test_pint_pad_arc_length(plain_journal):
         total_ey_film=10,
         total_ey_pad=10,
     )
-    assert_allclose(pint_arc.pad_arc, plain_journal.pad_arc)
+    assert_allclose(plain_arc.pad_arc, plain_journal.pad_arc)
     assert_allclose(
-        np.asarray(pint_arc.kxx, dtype=float),
+        np.asarray(plain_arc.kxx, dtype=float),
         np.asarray(plain_journal.kxx, dtype=float),
     )
 
 
-def test_deprecations_and_legacy_conventions():
-    kwargs = dict(
-        n=3,
-        axial_length=0.263144,
-        journal_radius=0.2,
-        radial_clearance=1.95e-4,
-        elements_circumferential=20,
-        elements_axial=10,
-        n_pad=2,
-        pad_arc_length=176,
-        reference_temperature=Q_(50, "degC"),
-        frequency=Q_([900], "RPM"),
-        fys_load=-112814.91,
-        lubricant="ISOVG32",
-        oil_flow_v=Q_(37.86, "l/min"),
-        thermal_type=None,
-        total_ey_film=10,
-        total_ey_pad=10,
-    )
-
-    with pytest.warns(DeprecationWarning, match="sommerfeld_type"):
-        PlainJournal(sommerfeld_type=2, **kwargs)
-    with pytest.warns(DeprecationWarning, match="method is deprecated"):
-        PlainJournal(method="lund", **kwargs)
-    with pytest.warns(DeprecationWarning, match="groove_factor"):
-        PlainJournal(groove_factor=[0.52, 0.48], **kwargs)
-    with pytest.warns(DeprecationWarning, match="EllipticalBearing"):
-        PlainJournal(geometry="elliptical", preload=0.5, **kwargs)
-
-    celsius = dict(kwargs, reference_temperature=50)
-    with pytest.warns(UserWarning, match="interpreted"):
-        bearing = PlainJournal(**celsius)
-    assert_allclose(bearing.reference_temperature, 323.15)
-
-    no_flow = dict(kwargs)
-    no_flow.pop("oil_flow_v")
+def test_oil_flow_v_default_warns():
     with pytest.warns(UserWarning, match="ample flooded supply"):
-        bearing = PlainJournal(**no_flow)
+        bearing = PlainJournal(
+            n=3,
+            pad_axial_length=0.263144,
+            journal_diameter=0.4,
+            radial_clearance=1.95e-4,
+            total_ex_film=20,
+            total_ez_film=10,
+            n_pads=2,
+            pad_arc=Q_(176, "deg"),
+            oil_supply_temperature=Q_(50, "degC"),
+            frequency=Q_([900], "RPM"),
+            fys_load=-112814.91,
+            lubricant="ISOVG32",
+            thermal_type=None,
+            total_ey_film=10,
+            total_ey_pad=10,
+        )
     assert_allclose(bearing.oil_flow_v, 1.0e-2)
 
-    with pytest.raises(ValueError, match="geometry must be"):
-        PlainJournal(geometry="square", **kwargs)
 
-
-def test_odd_element_counts_rounded_up():
-    bearing = PlainJournal(
-        n=3,
-        axial_length=0.263144,
-        journal_radius=0.2,
-        radial_clearance=1.95e-4,
-        elements_circumferential=11,
-        elements_axial=3,
-        n_pad=2,
-        pad_arc_length=176,
-        reference_temperature=Q_(50, "degC"),
-        frequency=Q_([900], "RPM"),
-        fys_load=-112814.91,
-        lubricant="ISOVG32",
-        oil_flow_v=Q_(37.86, "l/min"),
-        thermal_type=None,
-        total_ey_film=10,
-        total_ey_pad=10,
-    )
-    assert bearing.total_ex_film == 12
-    assert bearing.total_ez_film == 4
+def test_odd_element_counts_raise():
+    with pytest.raises(ValueError, match="must be an even number"):
+        PlainJournal(
+            n=3,
+            pad_axial_length=0.263144,
+            journal_diameter=0.4,
+            radial_clearance=1.95e-4,
+            total_ex_film=11,
+            total_ez_film=4,
+            n_pads=2,
+            pad_arc=Q_(176, "deg"),
+            oil_supply_temperature=Q_(50, "degC"),
+            frequency=Q_([900], "RPM"),
+            fys_load=-112814.91,
+            lubricant="ISOVG32",
+            oil_flow_v=Q_(37.86, "l/min"),
+            thermal_type=None,
+            total_ey_film=10,
+            total_ey_pad=10,
+        )
 
 
 def test_thermal_model_runs():
     bearing = PlainJournal(
         n=3,
-        axial_length=0.263144,
-        journal_radius=0.2,
+        pad_axial_length=0.263144,
+        journal_diameter=0.4,
         radial_clearance=1.95e-4,
-        elements_circumferential=20,
-        elements_axial=10,
-        n_pad=2,
-        pad_arc_length=176,
-        reference_temperature=Q_(50, "degC"),
+        total_ex_film=20,
+        total_ez_film=10,
+        n_pads=2,
+        pad_arc=Q_(176, "deg"),
+        oil_supply_temperature=Q_(50, "degC"),
         frequency=Q_([900], "RPM"),
         fys_load=-112814.91,
         lubricant="ISOVG32",

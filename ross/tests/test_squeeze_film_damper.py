@@ -11,7 +11,7 @@ def squeeze_film_damper():
         n=0,
         frequency=Q_([18600], "rpm"),
         axial_length=Q_(0.9, "inches"),
-        journal_radius=Q_(2.55, "inches"),
+        journal_diameter=Q_(5.1, "inches"),
         radial_clearance=Q_(0.003, "inches"),
         eccentricity_ratio=0.5,
         lubricant="ISOVG32",

@@ -107,12 +107,12 @@ selos_ross: Seals in ROSS {
   LabyrinthSeal: LabyrinthSeal {
     tooltip: |
       Labyrinth seal - the most common in turbomachinery
-      shaft_radius: shaft radius [m]
+      shaft_diameter: shaft diameter [m]
       radial_clearance: radial clearance [m]
       n_teeth: number of teeth
       pitch: tooth pitch [m]
       tooth_height: tooth height [m]
-      seal_type: "see_through" or "interlocking"
+      seal_type: "rotor", "stator" or "inter"
       gas_composition: gas composition (dict)
       Calculates leakage and dynamic coefficients
     |
@@ -125,8 +125,8 @@ selos_ross: Seals in ROSS {
   HolePatternSeal: HolePatternSeal {
     tooltip: |
       Hole pattern seal
-      shaft_radius: shaft radius [m]
-      length: seal length [m]
+      shaft_diameter: shaft diameter [m]
+      axial_length: seal length [m]
       cell_length: cell length [m]
       cell_width: cell width [m]
       cell_depth: cell depth [m]
