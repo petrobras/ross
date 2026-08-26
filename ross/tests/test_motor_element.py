@@ -33,7 +33,7 @@ from ross.motors.motor_element import MotorElement
 from ross.units import Q_
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def motor():
     """Return the motor element."""
     return MotorElement(
