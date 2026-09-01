@@ -148,7 +148,7 @@ All elements inherit from `Element` ABC (`ross/element.py`) and must implement:
 - `dof_mapping()` — degree-of-freedom mapping
 
 #### Cookbook / Agent Skill Maintenance
-- The recipes in `ross/agent_skills/ross/` correspond to tutorials and examples in `docs/user_guide/` (`tutorial_part_1_1` for modeling, `tutorial_part_2_1` for static/modal, `tutorial_part_2_2` for time/frequency, examples 1–32). When adding a new tutorial or `run_*` method, update the relevant recipe and the index table in `SKILL.md`
+- The recipes in `ross/agent_skills/ross/` correspond to tutorials and examples in `docs/user_guide/` (`tutorial_modeling` and `tutorial_assembling` for modeling, `tutorial_part_2_1` for static/modal, `tutorial_part_2_2` for time/frequency, examples 1–32). When adding a new tutorial or `run_*` method, update the relevant recipe and the index table in `SKILL.md`
 - The skill folder must stay self-contained: recipes only link to files inside it
 
 #### Common Patterns
