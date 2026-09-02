@@ -1,6 +1,6 @@
 # Building a Rotor from Scratch
 
-Source: `docs/user_guide/tutorial_modeling.ipynb`, `docs/user_guide/tutorial_assembling.ipynb`
+Source: `docs/user_guide/tutorial_modeling_part_1.ipynb`, `docs/user_guide/tutorial_modeling_part_2.ipynb`
 
 ## Material
 

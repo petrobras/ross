@@ -1,6 +1,6 @@
 # Campbell Diagram
 
-Source: `docs/user_guide/tutorial_part_2_1.ipynb`
+Source: `docs/user_guide/tutorial_analyses_part_1.ipynb`
 
 ## Run
 
