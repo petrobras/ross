@@ -67,6 +67,44 @@ def clarke_transform(a, b, c):
 
 
 @njit
+def inverse_clarke_transform(alpha, beta):
+    """Apply the inverse Clarke (alpha-beta) transform to two-axis quantities.
+
+    Reconstructs the three-phase quantities ``(a, b, c)`` from the stationary
+    two-axis reference frame ``(alpha, beta)``, assuming a null zero-sequence
+    component. Uses the same amplitude-invariant convention (2/3 scaling) as
+    :func:`clarke_transform`, so that ``inverse_clarke_transform`` is its
+    exact inverse.
+
+    Parameters
+    ----------
+    alpha : float
+        Alpha-axis component.
+    beta : float
+        Beta-axis component.
+
+    Returns
+    -------
+    a : float
+        Instantaneous value of phase a.
+    b : float
+        Instantaneous value of phase b.
+    c : float
+        Instantaneous value of phase c.
+
+    Examples
+    --------
+    >>> a, b, c = inverse_clarke_transform(1.0, 0.0)
+    >>> np.round([a, b, c], 4)
+    array([ 1. , -0.5, -0.5])
+    """
+    a = alpha
+    b = -alpha / 2 + beta * np.sqrt(3) / 2
+    c = -alpha / 2 - beta * np.sqrt(3) / 2
+    return a, b, c
+
+
+@njit
 def park_transform(alpha, beta, theta):
     """Apply the Park (d-q) transform to alpha-beta quantities.
 
