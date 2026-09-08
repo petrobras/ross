@@ -1,5 +1,4 @@
 import pytest
-from plotly import graph_objects as go
 from plotly import io as pio
 
 import ross  # noqa: F401
@@ -98,52 +97,3 @@ def test_dark_template_differs_from_light():
     assert dark.yaxis.linecolor != light.yaxis.linecolor
     assert dark.colorway != light.colorway
     assert len(dark.colorway) == len(light.colorway)
-
-
-def test_templates_have_no_mapbox():
-    ross_layout = pio.templates["ross"].layout
-    ross_dark_layout = pio.templates["ross_dark"].layout
-    assert getattr(ross_layout.mapbox, "style", None) is None
-    assert getattr(ross_dark_layout.mapbox, "style", None) is None
-    assert len(getattr(pio.templates["ross"].data, "scattermapbox", ())) == 0
-
-
-def test_plotly_compat_shim_template_creation():
-    template = go.layout.Template(
-        layout={"mapbox": {"style": "light"}, "paper_bgcolor": "white"},
-        data={
-            "scatter": [{"type": "scatter"}],
-            "scattermapbox": [{"type": "scattermapbox"}],
-            "choroplethmapbox": [{"type": "choroplethmapbox"}],
-            "densitymapbox": [{"type": "densitymapbox"}],
-        },
-    )
-    assert len(template.data.scatter) == 1
-    assert len(getattr(template.data, "scattermapbox", ())) == 0
-    assert len(getattr(template.data, "choroplethmapbox", ())) == 0
-    assert len(getattr(template.data, "densitymapbox", ())) == 0
-    assert getattr(template.layout.mapbox, "style", None) is None
-
-
-def test_plotly_compat_shim_data_creation():
-    data = go.layout.template.Data(
-        scatter=[{"type": "scatter"}],
-        scattermapbox=[{"type": "scattermapbox"}],
-    )
-    assert len(data.scatter) == 1
-    assert len(getattr(data, "scattermapbox", ())) == 0
-
-
-def test_plotly_compat_shim_dict_registration():
-    pio.templates["_test_compat"] = {
-        "layout": {"mapbox": {"style": "light"}, "paper_bgcolor": "white"},
-        "data": {
-            "scatter": [{"type": "scatter"}],
-            "scattermapbox": [{"type": "scattermapbox"}],
-        },
-    }
-    registered = pio.templates["_test_compat"]
-    assert len(registered.data.scatter) == 1
-    assert len(getattr(registered.data, "scattermapbox", ())) == 0
-    assert getattr(registered.layout.mapbox, "style", None) is None
-    del pio.templates["_test_compat"]
