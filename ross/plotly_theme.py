@@ -1,6 +1,5 @@
 """Plotly theme to ROSS - Rotordynamic Open Source Sofware."""
 
-from functools import wraps
 import re
 
 from plotly import graph_objects as go
@@ -190,112 +189,6 @@ def color_shades(color):
         edge=mix(0, 0.35),
         dark=mix(0, 0.15),
     )
-
-
-DEPRECATED_MAPBOX_DATA_KEYS = {
-    "scattermapbox",
-    "choroplethmapbox",
-    "densitymapbox",
-}
-DEPRECATED_MAPBOX_LAYOUT_KEYS = {
-    "mapbox",
-}
-
-
-def _clean_data_dict(d):
-    if isinstance(d, dict):
-        return {k: v for k, v in d.items() if k not in DEPRECATED_MAPBOX_DATA_KEYS}
-    return d
-
-
-def _clean_layout_dict(d):
-    if isinstance(d, dict):
-        return {k: v for k, v in d.items() if k not in DEPRECATED_MAPBOX_LAYOUT_KEYS}
-    return d
-
-
-def _apply_plotly_compat_shim():
-    """Apply compatibility shim to ignore deprecated Mapbox keys in templates."""
-    if getattr(go.layout.Template, "_ross_shim_applied", False):
-        return
-
-    _orig_template_init = go.layout.Template.__init__
-    _orig_template_update = go.layout.Template.update
-    _orig_data_init = go.layout.template.Data.__init__
-    _orig_data_update = go.layout.template.Data.update
-    _orig_layout_init = go.Layout.__init__
-
-    @wraps(_orig_template_init)
-    def _patched_template_init(self, arg=None, data=None, layout=None, **kwargs):
-        if isinstance(arg, dict):
-            arg = arg.copy()
-            if isinstance(arg.get("data"), dict):
-                arg["data"] = _clean_data_dict(arg["data"])
-            if isinstance(arg.get("layout"), dict):
-                arg["layout"] = _clean_layout_dict(arg["layout"])
-        if isinstance(data, dict):
-            data = _clean_data_dict(data)
-        if isinstance(layout, dict):
-            layout = _clean_layout_dict(layout)
-        if "data" in kwargs and isinstance(kwargs["data"], dict):
-            kwargs["data"] = _clean_data_dict(kwargs["data"])
-        if "layout" in kwargs and isinstance(kwargs["layout"], dict):
-            kwargs["layout"] = _clean_layout_dict(kwargs["layout"])
-        return _orig_template_init(self, arg=arg, data=data, layout=layout, **kwargs)
-
-    @wraps(_orig_template_update)
-    def _patched_template_update(self, dict1=None, **kwargs):
-        if isinstance(dict1, dict):
-            dict1 = dict1.copy()
-            if isinstance(dict1.get("data"), dict):
-                dict1["data"] = _clean_data_dict(dict1["data"])
-            if isinstance(dict1.get("layout"), dict):
-                dict1["layout"] = _clean_layout_dict(dict1["layout"])
-        if "data" in kwargs and isinstance(kwargs["data"], dict):
-            kwargs["data"] = _clean_data_dict(kwargs["data"])
-        if "layout" in kwargs and isinstance(kwargs["layout"], dict):
-            kwargs["layout"] = _clean_layout_dict(kwargs["layout"])
-        return _orig_template_update(self, dict1=dict1, **kwargs)
-
-    @wraps(_orig_data_init)
-    def _patched_data_init(self, arg=None, **kwargs):
-        if isinstance(arg, dict):
-            arg = _clean_data_dict(arg)
-        kwargs = {
-            k: v for k, v in kwargs.items() if k not in DEPRECATED_MAPBOX_DATA_KEYS
-        }
-        return _orig_data_init(self, arg=arg, **kwargs)
-
-    @wraps(_orig_data_update)
-    def _patched_data_update(self, dict1=None, **kwargs):
-        if isinstance(dict1, dict):
-            dict1 = _clean_data_dict(dict1)
-        kwargs = {
-            k: v for k, v in kwargs.items() if k not in DEPRECATED_MAPBOX_DATA_KEYS
-        }
-        return _orig_data_update(self, dict1=dict1, **kwargs)
-
-    @wraps(_orig_layout_init)
-    def _patched_layout_init(self, arg=None, **kwargs):
-        if not hasattr(go.Layout, "mapbox"):
-            if isinstance(arg, dict):
-                arg = _clean_layout_dict(arg)
-            kwargs = {
-                k: v
-                for k, v in kwargs.items()
-                if k not in DEPRECATED_MAPBOX_LAYOUT_KEYS
-            }
-        return _orig_layout_init(self, arg=arg, **kwargs)
-
-    go.layout.Template.__init__ = _patched_template_init
-    go.layout.Template.update = _patched_template_update
-    go.layout.template.Data.__init__ = _patched_data_init
-    go.layout.template.Data.update = _patched_data_update
-    go.Layout.__init__ = _patched_layout_init
-    go.layout.Template._ross_shim_applied = True
-
-
-_apply_plotly_compat_shim()
 
 
 pio.templates["ross"] = go.layout.Template(
