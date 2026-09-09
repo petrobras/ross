@@ -29,6 +29,30 @@ def phase_to_line(v_phase):
     return v_phase * np.sqrt(3)
 
 
+def line_to_dc_bus(v_line):
+    """Convert line-to-line voltage to DC bus voltage.
+
+    For a three-phase rectifier, the DC bus voltage is related to the
+    line-to-line voltage by a factor of :math:`1.35`.
+
+    Parameters
+    ----------
+    v_line : float
+        Line-to-line voltage [V].
+
+    Returns
+    -------
+    float
+        DC bus voltage [V].
+
+    Examples
+    --------
+    >>> line_to_dc_bus(219.9)  # doctest: +ELLIPSIS
+    310.9...
+    """
+    return v_line * 1.35
+
+
 @njit
 def clarke_transform(a, b, c):
     """Apply the Clarke (alpha-beta) transform to three-phase quantities.

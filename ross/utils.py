@@ -1749,6 +1749,7 @@ def is_scalar(parameter, parameter_name):
 
     return np.array(parameter)
 
+
 def steady_state_index(
     signal,
     tolerance=0.02,
@@ -1760,7 +1761,7 @@ def steady_state_index(
     """
     Find the first index from which `signal` stays within a tolerance band
     around its final (steady-state) value for the rest of the array.
- 
+
     Parameters
     ----------
     signal : array_like
@@ -1782,7 +1783,7 @@ def steady_state_index(
         crossing the band momentarily).
     use_relative_tolerance : bool, default True
         Whether `tolerance` is relative (fraction of final_value) or absolute.
- 
+
     Returns
     -------
     idx : int or None
@@ -1790,7 +1791,7 @@ def steady_state_index(
         Returns None if the signal never settles within tolerance.
     band : tuple(float, float)
         (lower_bound, upper_bound) used for the check, useful for plotting.
- 
+
     Notes
     -----
     - The band must hold from `idx` to the end of the array (not just for
@@ -1799,7 +1800,7 @@ def steady_state_index(
       when the signal is very short.
     - If your signal is noisy, increase `tolerance` or pre-filter the signal
       (e.g., moving average) before calling this function.
- 
+
     Example
     -------
     >>> t = np.linspace(0, 5, 500)
@@ -1809,27 +1810,27 @@ def steady_state_index(
     """
     signal = np.asarray(signal, dtype=float)
     n = len(signal)
- 
+
     if n == 0:
         return None, (None, None)
- 
+
     if final_value is None:
         tail_len = max(1, int(tail_fraction * n))
         final_value = np.mean(signal[-tail_len:])
- 
+
     if use_relative_tolerance:
         margin = tolerance * abs(final_value)
     else:
         margin = tolerance
- 
+
     lower_bound = final_value - margin
     upper_bound = final_value + margin
- 
+
     inside_band = (signal >= lower_bound) & (signal <= upper_bound)
- 
+
     for i in range(n):
         window_end = max(i + min_hold, n)
         if np.all(inside_band[i:window_end]):
             return i, (lower_bound, upper_bound)
- 
+
     return None, (lower_bound, upper_bound)

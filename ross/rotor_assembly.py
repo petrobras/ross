@@ -4782,6 +4782,8 @@ class Rotor(object):
         if F is None:
             F = np.zeros((len(t), self.ndof))
 
+        frequency_s = Q_(5000, "Hz")
+
         if drive_mode.upper() == "DOL":
             motor_results = motor.run_direct_on_line(
                 t,
@@ -4790,19 +4792,30 @@ class Rotor(object):
                 harmonics=ac_source_harmonics,
                 unbalances=ac_source_unbalances,
             )
-        elif drive_mode.upper() == "VFD":
-            motor_results = motor.run_open_loop_vf_adjustment(
+        elif drive_mode.upper() == "VFD_VF":
+            motor_results = motor.run_with_inverter_vf(
                 t,
                 load_torque_entrance_time=load_torque_entrance_time,
                 load_torque_ratio=load_torque_ratio,
+                frequency_s=frequency_s,
+                time_ramp=time_ramp,
+                frequency_ref=frequency_ref,
+            )
+        elif drive_mode.upper() == "VFD_FOC":
+            motor_results = motor.run_with_inverter_foc(
+                t,
+                load_torque_entrance_time=load_torque_entrance_time,
+                load_torque_ratio=load_torque_ratio,
+                frequency_s=frequency_s,
                 time_ramp=time_ramp,
                 frequency_ref=frequency_ref,
             )
         else:
-            raise ValueError("drive_mode must be 'DOL' or 'VFD'.")
+            raise ValueError("drive_mode must be 'DOL', 'VFD_VF' or 'VFD_FOC'.")
 
         if steady_state:
             from ross.utils import steady_state_index
+
             i, _ = steady_state_index(motor_results.sample_at("speed", t))
             t = t[i:]
 
@@ -4821,7 +4834,7 @@ class Rotor(object):
         for sh in self.shaft_elements:
             if sh.n_l == motor.n or sh.n_r == motor.n:
                 dofs = list(sh.dof_global_index.values())
-                Ktq[np.ix_(dofs, dofs)] += sh.Ktq()             
+                Ktq[np.ix_(dofs, dofs)] += sh.Ktq()
 
         kwargs["Ktq"] = Ktq
         kwargs["torque"] = torque

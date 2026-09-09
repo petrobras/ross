@@ -514,7 +514,9 @@ class MotorResponseResults(Results):
 
         return fig
 
-    def _plot_time(self, result_dict, title, yaxis_title, fig, sample_idx=None, **kwargs):
+    def _plot_time(
+        self, result_dict, title, yaxis_title, fig, sample_idx=None, **kwargs
+    ):
 
         if sample_idx is None:
             sample_idx = self.sample_idx

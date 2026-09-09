@@ -18,7 +18,13 @@ from ross.units import Q_, check_units
 from .sources import SourceAC
 from .inverters import InverterVF, InverterFOC
 from .results import MotorResponseResults
-from .utils import phase_to_line, clarke_transform, park_transform, rk4_step
+from .utils import (
+    phase_to_line,
+    line_to_dc_bus,
+    clarke_transform,
+    park_transform,
+    rk4_step,
+)
 
 __all__ = ["MotorElement", "motor_example"]
 
@@ -54,7 +60,7 @@ class MotorElement(Element):
     frequency_nom : float, optional, pint.Quantity
         Nominal frequency [rad/s].
         Default is 60 Hz.
-    n_poles: int, optional
+    n_poles : int, optional
         Number of machine's poles.
         Default is 4.
     viscosity_coeff : float, optional, pint.Quantity
@@ -65,10 +71,10 @@ class MotorElement(Element):
         Default is 0.
     voltage_net : float, optional
         Electrical tension of Power Supply [V].
-        Default is None, which adopts the motor's nominal voltage (`voltage`).
+        Default is None, which adopts the motor's nominal voltage (`voltage_nom`).
     frequency_net : float, optional, pint.Quantity
         Electrical frequency of Power Supply [rad/s].
-        Default is None, which adopts the motor's nominal frequency (`frequency`).
+        Default is None, which adopts the motor's nominal frequency (`frequency_nom`).
     initial_angle_net : float, optional, pint.Quantity
         Initial angular phase frequency of Power Supply [rad].
         Default is 20 degrees.
@@ -96,8 +102,9 @@ class MotorElement(Element):
     matrices assembled by ``Rotor``.
 
     The node ``n`` identifies where motor torque is applied on the shaft
-    (torsional DOF). Use ``.run_direct_on_line()`` / ``.run_open_loop_vf_adjustment()``
-    to obtain ``electric_torque``, then apply it in ``.run_time_response()``.
+    (torsional DOF). Use ``.run_direct_on_line()``, ``.run_with_inverter_vf()``
+    or ``.run_with_inverter_foc()`` to obtain ``electric_torque``, then apply
+    it in ``.run_time_response()``.
 
     Examples
     --------
@@ -396,15 +403,47 @@ class MotorElement(Element):
         return dict(x_0=0, y_0=1, z_0=2, alpha_0=3, beta_0=4, theta_0=5)
 
     def M(self):
+        """Mass matrix.
+
+        Returns
+        -------
+        M : np.ndarray
+            Zero 6x6 matrix. ``MotorElement`` does not contribute to the rotor
+            structural mass matrix.
+        """
         return np.zeros((6, 6))
 
     def K(self):
+        """Stiffness matrix.
+
+        Returns
+        -------
+        K : np.ndarray
+            Zero 6x6 matrix. ``MotorElement`` does not contribute to the rotor
+            structural stiffness matrix.
+        """
         return np.zeros((6, 6))
 
     def C(self):
+        """Damping matrix.
+
+        Returns
+        -------
+        C : np.ndarray
+            Zero 6x6 matrix. ``MotorElement`` does not contribute to the rotor
+            structural damping matrix.
+        """
         return np.zeros((6, 6))
 
     def G(self):
+        """Gyroscopic matrix.
+
+        Returns
+        -------
+        G : np.ndarray
+            Zero 6x6 matrix. ``MotorElement`` does not contribute to the rotor
+            gyroscopic matrix.
+        """
         return np.zeros((6, 6))
 
     def _hover_info(self):
@@ -534,9 +573,8 @@ class MotorElement(Element):
         load_torque_entrance_time=None,
         load_torque_ratio=1.0,
         element=None,
-        frequency_ref=None,
     ):
-        """Run motor generical simulation for specified time points.
+        """Run a generic motor simulation for specified time points.
 
         Parameters
         ----------
@@ -552,11 +590,12 @@ class MotorElement(Element):
             Load torque ratio applied at the entrance time. This is a multiplier
             for the nominal load torque, e.g., a value of 1.0 applies 100% of the
             nominal torque at entrance time. Default is 1.0.
-        frequency_ref : float, optional
-            Synchronous electrical frequency reference [rad/s], used only when
-            `element` is an `InverterFOC` operating in closed loop (analogous
-            to `InverterVF`'s own `frequency_ref`). Ignored for open-loop
-            elements (`SourceAC`, `InverterVF`).
+        element : SourceAC, InverterVF or InverterFOC
+            Electrical source or inverter. Must implement ``get_current_state``.
+            :class:`~ross.motors.inverters.InverterFOC` is stepped in closed
+            loop with rotor speed and stator current feedback;
+            :class:`~ross.motors.sources.SourceAC` and
+            :class:`~ross.motors.inverters.InverterVF` are open-loop.
 
         Returns
         -------
@@ -567,7 +606,7 @@ class MotorElement(Element):
 
         if element is None:
             raise ValueError(
-                "An element providing the 'get_operating_state(t)' method must be provided for simulation."
+                "An element providing the 'get_current_state' method must be provided for simulation."
             )
 
         # Initial values
@@ -606,40 +645,18 @@ class MotorElement(Element):
 
         Tl_full = self.Tnom * load_torque_ratio
 
-        # `InverterFOC` is a closed-loop element: its output voltages depend on
-        # the instantaneous rotor speed and stator currents fed back from the
-        # motor, so they cannot be pre-computed from `t_simul` alone (unlike
-        # `SourceAC` / `InverterVF`). In that case the voltage/frequency arrays
-        # are initialized empty and filled in step-by-step inside
-        # `run_motor_time_loop`, driven by the electrical frequency reference
-        # `frequency_ref`.
-        closed_loop = isinstance(element, InverterFOC)
+        Rs = self.stator_resistance + self.short_circuit_resistance
+        Ip = self.Ip_motor + self.Ip_load
 
-        if closed_loop:
+        is_closed_loop = isinstance(element, InverterFOC)
+
+        if is_closed_loop:
             w_shaft = np.zeros(nt)
             vas = np.zeros(nt)
             vbs = np.zeros(nt)
             vcs = np.zeros(nt)
 
-            if frequency_ref is None:
-                frequency_ref = self.frequency_nom
-
-            if isinstance(frequency_ref, (int, float)):
-                frequency_ref_arr = np.full(nt, float(frequency_ref))
-            else:
-                frequency_ref_arr = np.interp(t_simul, t_eval, frequency_ref)
-        else:
-            w_shaft, vas, vbs, vcs = np.vectorize(element.get_operating_state)(t_simul)
-            frequency_ref_arr = None
-
-        Rs = self.stator_resistance + self.short_circuit_resistance
-        Ip = self.Ip_motor + self.Ip_load
-
-        if closed_loop:
-            # Closed-loop (InverterFOC) path: calls back into `element` at
-            # every step, so it cannot be `@njit`-compiled and runs as plain
-            # Python (see `_run_motor_time_loop_closed`).
-            outputs = _run_motor_time_loop_closed(
+            outputs = _run_motor_time_closed_loop(
                 t_simul,
                 dt,
                 flux_angle_0,
@@ -663,14 +680,13 @@ class MotorElement(Element):
                 self.viscosity_coeff,
                 Ip,
                 element,
-                frequency_ref_arr,
             )
         else:
-            # Open-loop (SourceAC / InverterVF) path: voltages are
-            # pre-computed, so the whole time-stepping loop can stay
-            # `@njit`-compiled for speed, exactly as before InverterFOC was
-            # introduced.
-            outputs = _run_motor_time_loop_open(
+            w_shaft, vas, vbs, vcs = np.vectorize(element.get_current_state)(
+                t_simul, flux_angle_0
+            )
+
+            outputs = _run_motor_time_open_loop(
                 t_simul,
                 dt,
                 flux_angle_0,
@@ -782,7 +798,7 @@ class MotorElement(Element):
             Configuration for three-phase grid unbalance.
             Expected keys:
             - 'enable' : bool
-                Enable unbalances
+                Enable unbalances.
             - 'voltage_percent' : list of float
                 Voltage magnitude deviation per phase (A, B, C) relative to nominal [%].
                 Must contain exactly 3 elements.
@@ -870,9 +886,10 @@ class MotorElement(Element):
         return results
 
     @check_units
-    def run_open_loop_vf_adjustment(
+    def run_with_inverter_vf(
         self,
         t,
+        frequency_s,
         time_step=None,
         load_torque_entrance_time=None,
         load_torque_ratio=1.0,
@@ -889,12 +906,14 @@ class MotorElement(Element):
         ----------
         t : array-like
             Time points to store the computed solution [s].
+        frequency_s : float or pint.Quantity
+            IGBT switching frequency [rad/s].
         time_step : float, optional
             Time step for the simulation [s].
-            Default is None, which uses the minimum time step between the time points.
+            Default is None, which uses the inverter switching period / 200.
         load_torque_entrance_time : float, optional
             Time when load torque is applied to the motor shaft [s].
-            Default is None (no load applied).
+            Default is half the simulation time.
         load_torque_ratio : float, optional
             Load torque ratio applied at the entrance time. This is a multiplier
             for the nominal load torque, e.g., a value of 1 applies 100% of the
@@ -903,8 +922,7 @@ class MotorElement(Element):
             Acceleration ramp time [s] for frequency ramping. Default is 0.6667.
         frequency_ref : float or pint.Quantity, optional
             Reference frequency for V/f adjustment technique [rad/s].
-            If None, uses half the motor nominal frequency. Default is half the
-            motor nominal frequency.
+            If None, uses half the motor nominal frequency.
 
         Returns
         -------
@@ -921,9 +939,10 @@ class MotorElement(Element):
         >>> size = int(tf / dt) + 1
         >>> t = np.linspace(0, tf, size)
 
-        >>> results = motor.run_open_loop_vf_adjustment(
-        ...     t, # Evaluation time vector
-        ...     time_step=1e-4, # Simulation time step
+        >>> results = motor.run_with_inverter_vf(
+        ...     t,
+        ...     frequency_s=Q_(5000, "Hz"),
+        ...     time_step=1e-4,
         ...     load_torque_entrance_time=0.5,
         ...     load_torque_ratio=1.0,
         ...     time_ramp=0.6667,
@@ -944,11 +963,11 @@ class MotorElement(Element):
         """
 
         Vnl = phase_to_line(self.voltage_nom)
-        line_to_dc_bus = 1.35
+        voltage_dc = line_to_dc_bus(Vnl)
 
         inverter = InverterVF(
-            voltage_dc=line_to_dc_bus * Vnl,
-            frequency_s=Q_(5000, "Hz"),
+            voltage_dc=voltage_dc,
+            frequency_s=float(frequency_s),
             voltage_nom=Vnl,
             frequency_nom=self.frequency_nom,
             time_ramp=time_ramp,
@@ -972,8 +991,8 @@ class MotorElement(Element):
         time_step=None,
         load_torque_entrance_time=None,
         load_torque_ratio=1.0,
-        frequency_s=None,
         time_ramp=1.0,
+        frequency_s=None,
         frequency_ref=None,
     ):
         """Simulate motor with an inverter under indirect Field-Oriented Control.
@@ -992,31 +1011,22 @@ class MotorElement(Element):
             Time points to store the computed solution [s].
         time_step : float, optional
             Time step for the simulation [s].
-            Default is None, which uses `frequency_s`-based switching period / 200.
+            Default is None, which uses the inverter switching period / 200.
         load_torque_entrance_time : float, optional
             Time when load torque is applied to the motor shaft [s].
-            Default is None (no load applied).
+            Default is half the simulation time.
         load_torque_ratio : float, optional
             Load torque ratio applied at the entrance time. This is a multiplier
             for the nominal load torque, e.g., a value of 1 applies 100% of the
             nominal torque. Default is 1.
-        frequency_s : float or pint.Quantity
-            IGBT switching frequency [rad/s].
         time_ramp : float, optional
             Acceleration ramp time [s] for the mechanical speed reference.
             Default is 1.
-        frequency_ref : float, array-like or pint.Quantity, optional
-            Synchronous electrical frequency reference, analogous to
-            `InverterVF`'s own `frequency_ref` (e.g. `Q_(60, "Hz")`). The
-            closed speed loop converts it internally to the equivalent
-            mechanical speed (`frequency_ref / (n_poles / 2)`) and drives the
-            shaft towards it, correcting for slip - unlike the open-loop
-            `InverterVF`, which merely applies this frequency to the stator
-            and lets slip develop naturally. If a scalar, it is held constant
-            throughout the simulation. If array-like, it is interpreted as a
-            frequency profile evaluated at `t` and interpolated onto the
-            internal simulation grid. If None, uses the motor nominal
-            frequency.
+        frequency_s : float or pint.Quantity
+            IGBT switching frequency [rad/s].
+        frequency_ref : float or pint.Quantity, optional
+            Synchronous electrical frequency reference [rad/s].
+            If None, uses half the motor nominal frequency.
 
         Returns
         -------
@@ -1035,10 +1045,10 @@ class MotorElement(Element):
 
         >>> results = motor.run_with_inverter_foc(
         ...     t, # Evaluation time vector
-        ...     time_step=1e-5, # Simulation time step
+        ...     frequency_s=Q_(5000, "Hz"),
+        ...     time_step=1e-5,
         ...     load_torque_entrance_time=2.5,
         ...     load_torque_ratio=1.0,
-        ...     frequency_s=Q_(5000, "Hz"),
         ...     time_ramp=0.6667,
         ...     frequency_ref=Q_(60.0, "Hz"),
         ... )
@@ -1057,13 +1067,11 @@ class MotorElement(Element):
         """
 
         Vnl = phase_to_line(self.voltage_nom)
-        line_to_dc_bus = 1.35
-
-        sim_time_step = time_step or (2 * np.pi / frequency_s) / 200
+        voltage_dc = line_to_dc_bus(Vnl)
 
         inverter = InverterFOC(
-            voltage_dc=line_to_dc_bus * Vnl,
-            frequency_s=frequency_s,
+            voltage_dc=voltage_dc,
+            frequency_s=float(frequency_s),
             voltage_nom=Vnl,
             frequency_nom=self.frequency_nom,
             n_poles=self.n_poles,
@@ -1075,30 +1083,16 @@ class MotorElement(Element):
             rotor_reactance=self.rotor_reactance,
             mutual_reactance=self.mutual_reactance,
             Ip_motor=self.Ip_motor,
-            time_step=sim_time_step,
             time_ramp=time_ramp,
+            frequency_ref=float(frequency_ref or self.frequency_nom / 2),
         )
-
-        # `InverterFOC.teta` and the motor's own internal synchronous angle
-        # (`flux_angle_0` in `.run()`, computed as `initial_angle_net - pi/2`)
-        # are integrated with the exact same `wshaft` signal every step, so
-        # any difference between their *initial* values persists as a
-        # constant offset for the whole simulation. Left at its default of
-        # 0.0, that offset (~ -90 deg with the default `initial_angle_net` of
-        # 20 deg) effectively rotates the d/q axes the controller thinks it
-        # is regulating, corrupting the ids/iqs split badly enough that the
-        # speed loop stalls well below the reference. Synchronizing the two
-        # angles here keeps the controller's rotor-flux frame aligned with
-        # the motor's from t=0.
-        inverter.teta = self.initial_angle_net - np.pi / 2
 
         results = self.run(
             t,
-            time_step=sim_time_step,
+            time_step=time_step or (2 * np.pi / frequency_s) / 200,
             load_torque_entrance_time=load_torque_entrance_time,
             load_torque_ratio=load_torque_ratio,
             element=inverter,
-            frequency_ref=frequency_ref if frequency_ref is not None else self.frequency_nom,
         )
 
         return results
@@ -1106,13 +1100,13 @@ class MotorElement(Element):
 
 @njit
 def calculate_electric_torque(Lds, Lqs, Ldr, Lqr, c, n_poles):
-    """Compute electric torque from flux linkage."""
+    """Compute electric torque from flux linkages."""
     return 1.5 * c * (Lqs * Ldr - Lds * Lqr) * n_poles / 2
 
 
 @njit
 def motor_ode_system(y, args):
-    """State derivatives for the motor ODE system"""
+    """Return state derivatives for the motor ODE system."""
     Lds, Lqs, Ldr, Lqr, wr = y
     (
         vds,
@@ -1147,7 +1141,7 @@ def motor_ode_system(y, args):
 
 
 @njit
-def _run_motor_time_loop_open(
+def _run_motor_time_open_loop(
     t_simul,
     dt,
     flux_angle_0,
@@ -1171,10 +1165,10 @@ def _run_motor_time_loop_open(
     viscosity_coeff,
     Ip,
 ):
-    """Run the motor time-stepping loop for open-loop elements
-    (`SourceAC`, `InverterVF`), whose voltages are fully pre-computed from
-    `t_simul` before the loop starts. This function is `@njit`-compiled for
-    speed, exactly as in the original (pre-InverterFOC) implementation.
+    """Advance the motor ODE with pre-computed open-loop voltages.
+
+    Used with :class:`SourceAC` and :class:`InverterVF`, whose voltages are
+    fully determined from the time vector before the loop starts.
     """
     nt = len(t_simul)
     speed = np.zeros(nt)
@@ -1254,7 +1248,7 @@ def _run_motor_time_loop_open(
     )
 
 
-def _run_motor_time_loop_closed(
+def _run_motor_time_closed_loop(
     t_simul,
     dt,
     flux_angle_0,
@@ -1278,16 +1272,11 @@ def _run_motor_time_loop_closed(
     viscosity_coeff,
     Ip,
     element,
-    frequency_ref_arr,
 ):
-    """Run the motor time-stepping loop for the closed-loop `InverterFOC`
-    element, calling back into `element.get_operating_state()` at every
-    step with the instantaneous rotor speed and stator currents.
+    """Advance the motor ODE with closed-loop inverter voltages.
 
-    This function is intentionally *not* `@njit`-compiled: `element` is a
-    pure-Python object whose control loop cannot be compiled by Numba.
-    `motor_ode_system` and `calculate_electric_torque`, which do the heavy
-    per-step numerical work, remain jitted and are called from here.
+    Used with :class:`InverterFOC`. At every time step the inverter receives
+    rotor speed and stator current feedback through ``get_current_state``.
     """
     nt = len(t_simul)
     speed = np.zeros(nt)
@@ -1305,6 +1294,8 @@ def _run_motor_time_loop_closed(
     load_applied = False
     Tl = 0.0
 
+    element.initialize_control_state(dt, flux_angle_0)
+
     for step in range(1, nt):
         t = t_simul[step]
 
@@ -1312,11 +1303,6 @@ def _run_motor_time_loop_closed(
             load_applied = True
             Tl = Tl_full
 
-        # Closed-loop feedback: the actual stator currents at the current
-        # state (Lds, Lqs, Ldr, Lqr) are recovered and passed to the
-        # inverter along with the current rotor speed `wr`, so that
-        # `element` (InverterFOC) can compute the voltages to be applied
-        # during this step.
         ids_val = a * Lds - c * Ldr
         iqs_val = a * Lqs - c * Lqr
         i_alpha = ids_val * np.cos(f_ang) - iqs_val * np.sin(f_ang)
@@ -1326,9 +1312,9 @@ def _run_motor_time_loop_closed(
         ibs = -i_alpha / 2 + np.sqrt(3) * i_beta / 2
         ics = -i_alpha / 2 - np.sqrt(3) * i_beta / 2
 
-        w_shaft, vas, vbs, vcs = element.get_operating_state(
-            t, frequency_ref=frequency_ref_arr[step], wr=wr, ia=ias, ib=ibs, ic=ics, dt=dt
-        )
+        w_shaft, vas, vbs, vcs = element.get_current_state(t, dt, wr, ias, ibs, ics)
+
+        f_ang += w_shaft * dt
 
         w_shaft_arr[step] = w_shaft
         vas_arr[step] = vas
@@ -1336,8 +1322,6 @@ def _run_motor_time_loop_closed(
         vcs_arr[step] = vcs
 
         v_alpha, v_beta = clarke_transform(vas, vbs, vcs)
-
-        f_ang += w_shaft * dt
         vds, vqs = park_transform(v_alpha, v_beta, f_ang)
 
         Lds, Lqs, Ldr, Lqr, wr = rk4_step(
