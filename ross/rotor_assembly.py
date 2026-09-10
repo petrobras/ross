@@ -1,3 +1,4 @@
+import inspect
 import warnings
 from collections.abc import Iterable
 from copy import copy, deepcopy
@@ -39,6 +40,7 @@ from ross.bearings.magnetic.amb_non_collocation import (
 )
 
 from ross.coupling_element import CouplingElement
+from ross.multi_rotor.gear_element import GearElement, GearElementTVMS
 from ross.disk_element import DiskElement
 from ross.faults import Crack, MisalignmentFlex, MisalignmentRigid, Rubbing
 from ross.materials import Material, steel
@@ -671,12 +673,20 @@ class Rotor(object):
 
         # define position for point mass elements
         dfb = df[df.type.isin(classes)]
-        for p in point_mass_elements:
-            z_pos = dfb[dfb.n_l == p.n]["nodes_pos_l"].values[0]
-            y_pos = dfb[dfb.n_l == p.n]["y_pos"].values[0]
-            df.loc[df.tag == p.tag, "nodes_pos_l"] = z_pos
-            df.loc[df.tag == p.tag, "nodes_pos_r"] = z_pos
-            df.loc[df.tag == p.tag, "y_pos"] = y_pos
+        for pm in point_mass_elements:
+            dfb_pm = dfb[dfb.n_l == pm.n]
+
+            if not dfb_pm.empty:
+                z_pos = dfb_pm["nodes_pos_l"].values[0]
+                y_pos = dfb_pm["y_pos"].values[0]
+            else:
+                i = self.nodes.index(pm.n)
+                z_pos = self.nodes_pos[i]
+                y_pos = self.nodes_o_d[i] / 2
+
+            df.loc[df.tag == pm.tag, "nodes_pos_l"] = z_pos
+            df.loc[df.tag == pm.tag, "nodes_pos_r"] = z_pos
+            df.loc[df.tag == pm.tag, "y_pos"] = y_pos
 
         self.df = df
 
@@ -703,25 +713,33 @@ class Rotor(object):
         # Then, use the vector to compute diametral aka transverse inertia of the entire rotor.
         self.It = v @ (self.M0 @ v.T)
 
-    def __add__(self, rotor2):
-        return Rotor.concatenate_rotors([self, rotor2])
+    def __add__(self, other):
+        return Rotor.concatenate(self, other)
 
     @classmethod
-    def concatenate_rotors(cls, rotor_list):
-        """Concatenate a list of rotors into a single rotor.
+    def concatenate(cls, *rotors):
+        """Concatenate a sequence of rotors into a single rotor.
 
         The nodes of the concatenated rotor will be the maximum node of the last rotor
         in the list.
 
         Parameters
         ----------
-        rotor_list : list
-            List of Rotor objects to concatenate.
+        *rotors : Rotor
+            Sequence of rotors to be concatenated, in the order they
+            should be combined. A single list or tuple of rotors is also
+            accepted as one argument (e.g. `Rotor.concatenate([rotor1, rotor2])`).
 
         Returns
         -------
         Rotor object.
         """
+        if len(rotors) == 1 and isinstance(rotors[0], (list, tuple)):
+            rotors = rotors[0]
+        if not rotors:
+            raise ValueError("At least one rotor must be provided.")
+
+        rotor_list = list(rotors)
         shaft_elements = []
         disk_elements = []
         bearing_elements = []
@@ -729,17 +747,29 @@ class Rotor(object):
 
         node_offset = 0
 
+        last_node = sum(max(rotor.nodes) for rotor in rotor_list)
+        link_nodes = [rotor.link_nodes for rotor in rotor_list]
+
+        def update_link_nodes(rotor_index, n_link):
+            node_index = link_nodes[rotor_index].index(n_link)
+            offset = sum(len(link_nodes[i]) for i in range(rotor_index))
+            return last_node + node_index + offset + 1
+
         for i, rotor in enumerate(rotor_list):
             rotor = deepcopy(rotor)
 
-            # Reindex elements
-            elements = rotor.elements
-            for el in elements:
-                el.n += node_offset
-                try:
-                    el.n_link += node_offset
-                except:
-                    pass
+            for el in rotor.elements:
+                if el.n in rotor.nodes:
+                    el.n += node_offset
+                elif el.n in rotor.link_nodes:
+                    el.n = update_link_nodes(i, el.n)
+
+                if getattr(el, "n_link", None) is not None:
+                    if el.n_link in rotor.nodes:
+                        el.n_link += node_offset
+                    elif el.n_link in rotor.link_nodes:
+                        el.n_link = update_link_nodes(i, el.n_link)
+
                 el.tag = f"{el.tag} (R{i})"
 
             shaft_elements.extend(rotor.shaft_elements)
@@ -748,14 +778,17 @@ class Rotor(object):
             point_mass_elements.extend(rotor.point_mass_elements)
 
             # Update offset for the next rotor
-            node_offset = max(rotor.nodes)
+            node_offset += max(rotor.nodes)
+
+        parameters = rotor_list[0]._init_parameters()
+        parameters["tag"] = "Concatenated Rotor"
 
         return cls(
             shaft_elements=shaft_elements,
             disk_elements=disk_elements,
             bearing_elements=bearing_elements,
             point_mass_elements=point_mass_elements,
-            tag="Concatenated Rotor",
+            **parameters,
         )
 
     def set_tag(self, tag):
@@ -841,6 +874,34 @@ class Rotor(object):
                 else:
                     return brg.n
         return None
+
+    def _remove_housing_bearings(self, bearing_elements, point_mass_elements=None):
+        """Remove the housing bearings from rotor.
+
+        Parameters
+        ----------
+        bearing_elements : list
+            List of bearing elements.
+        point_mass_elements : list, optional
+            List of point mass elements.
+            Default is None.
+        """
+        new_bearings = []
+        for brg in bearing_elements:
+            if brg.n not in self.link_nodes:
+                brg = deepcopy(brg)
+                brg.n_link = brg.n_link if brg.n_link in self.nodes else None
+                new_bearings.append(brg)
+
+        if point_mass_elements is not None:
+            new_point_masses = [
+                deepcopy(p) for p in point_mass_elements if p.n not in self.link_nodes
+            ]
+
+            return new_bearings, new_point_masses
+
+        else:
+            return new_bearings
 
     def _build_base_matrices(
         self, modal_damping_ratio=None, default_damping_ratio=0.0, alpha=0.0, beta=0.0
@@ -982,6 +1043,31 @@ class Rotor(object):
         else:
             return False
 
+    def _init_parameters(self):
+        """Return keyword arguments to reconstruct this rotor.
+
+        Collects every ``__init__`` parameter except the element lists,
+        so callers can pass ``**self._init_parameters()`` when building
+        a new instance of the same class.
+
+        Returns
+        -------
+        dict
+            Mapping of parameter names to the current attribute values.
+        """
+        skip = {
+            "self",
+            "shaft_elements",
+            "disk_elements",
+            "bearing_elements",
+            "point_mass_elements",
+            "shafts",
+        }
+        sig = inspect.signature(self.__class__.__init__)
+        return {
+            name: getattr(self, name) for name in sig.parameters if name not in skip
+        }
+
     def add_nodes(self, new_nodes_pos):
         """Add nodes to rotor.
 
@@ -1088,15 +1174,12 @@ class Rotor(object):
         for elm in elm_linked:
             elm.n += n_nodes
 
-        return Rotor(
+        return self.__class__(
             shaft_elements,
             disk_elements=disk_elements,
             bearing_elements=bearing_elements,
             point_mass_elements=point_mass_elements,
-            min_w=self.min_w,
-            max_w=self.max_w,
-            rated_w=self.rated_w,
-            tag=self.tag,
+            **self._init_parameters(),
         )
 
     def add_elements(self, new_elements):
@@ -1144,15 +1227,12 @@ class Rotor(object):
             else:
                 raise ValueError(f"{el} is not a valid element.")
 
-        return Rotor(
+        return self.__class__(
             shaft_elements,
             disk_elements=disk_elements,
             bearing_elements=bearing_elements,
             point_mass_elements=point_mass_elements,
-            min_w=self.min_w,
-            max_w=self.max_w,
-            rated_w=self.rated_w,
-            tag=self.tag,
+            **self._init_parameters(),
         )
 
     @lru_cache()
@@ -1412,6 +1492,7 @@ class Rotor(object):
             shaft_elem = []
             disk_elem = []
             brgs_elem = []
+            pmass_elem = []
 
             for shaft in self.shaft_elements:
                 le = shaft.L / nel_r
@@ -1440,17 +1521,24 @@ class Rotor(object):
                         )
                     )
 
-            for DiskEl in self.disk_elements:
-                aux_DiskEl = deepcopy(DiskEl)
-                aux_DiskEl.n = nel_r * DiskEl.n
-                disk_elem.append(aux_DiskEl)
+            for elm in self.disk_elements:
+                aux_elm = deepcopy(elm)
+                aux_elm.n = nel_r * elm.n
+                disk_elem.append(aux_elm)
 
-            for Brg_SealEl in self.bearing_elements:
-                aux_Brg_SealEl = deepcopy(Brg_SealEl)
-                aux_Brg_SealEl.n = nel_r * Brg_SealEl.n
-                brgs_elem.append(aux_Brg_SealEl)
+            for elm in self.bearing_elements:
+                aux_elm = deepcopy(elm)
+                aux_elm.n = nel_r * elm.n
+                if aux_elm.n_link is not None:
+                    aux_elm.n_link = nel_r * elm.n_link
+                brgs_elem.append(aux_elm)
 
-            aux_rotor = Rotor(shaft_elem, disk_elem, brgs_elem)
+            for elm in self.point_mass_elements:
+                aux_elm = deepcopy(elm)
+                aux_elm.n = nel_r * elm.n
+                pmass_elem.append(aux_elm)
+
+            aux_rotor = Rotor(shaft_elem, disk_elem, brgs_elem, pmass_elem)
             aux_modal = aux_rotor.run_modal(speed=0)
 
             eigv_arr = np.append(eigv_arr, aux_modal.wn[n_eigval])
@@ -4241,18 +4329,20 @@ class Rotor(object):
             b for b in self.bearing_elements if not isinstance(b, SealElement)
         ]
 
-        for i, k in enumerate(stiffness_log):
-            bearings = [
-                BearingElement(b.n, kxx=k, cxx=0)
-                for b in bearings_elements
-                if b.n not in self.link_nodes
-            ]
+        bearings, pmass = self._remove_housing_bearings(
+            bearings_elements, self.point_mass_elements
+        )
 
+        for i, k in enumerate(stiffness_log):
             rotor = convert_6dof_to_4dof(
                 self.__class__(
                     shaft_elements=shaft_elements,
                     disk_elements=self.disk_elements,
-                    bearing_elements=bearings,
+                    bearing_elements=[
+                        BearingElement(n=b.n, n_link=b.n_link, kxx=k, cxx=0)
+                        for b in bearings
+                    ],
+                    point_mass_elements=pmass,
                 )
             )
 
@@ -4303,19 +4393,19 @@ class Rotor(object):
 
                         # create bearing
                         bearings = [
-                            BearingElement(b.n, kxx=k, cxx=0, n_link=b.n_link)
+                            BearingElement(n=b.n, n_link=b.n_link, kxx=k, cxx=0)
                             for b in bearings_elements
                         ]
 
-                        for b in bearings:
-                            if b.n in self.link_nodes:
-                                node = self._find_linked_bearing_node(b.n)
+                        for brg in bearings:
+                            if brg.n in self.link_nodes:
+                                node = self._find_linked_bearing_node(brg.n)
                                 linked_bearing = [b for b in bearings if b.n == node][0]
 
                                 kxx_brg = np.array(linked_bearing.kxx)
                                 kyy_brg = np.array(linked_bearing.kyy)
-                                kxx_add = np.array(b.kxx)
-                                kyy_add = np.array(b.kyy)
+                                kxx_add = np.array(brg.kxx)
+                                kyy_add = np.array(brg.kyy)
 
                                 with np.errstate(divide="ignore"):
                                     kxx_eq = 1 / (1 / kxx_brg + 1 / kxx_add)
@@ -4326,19 +4416,15 @@ class Rotor(object):
                                 linked_bearing.kxx = list(kxx_eq)
                                 linked_bearing.kyy = list(kyy_eq)
 
-                        bearings = [
-                            b
-                            for b in bearings
-                            if b.n not in self.link_nodes
-                            and setattr(b, "n_link", None) is None
-                        ]
-
                         # create rotor
                         rotor_critical = convert_6dof_to_4dof(
-                            Rotor(
+                            self.__class__(
                                 shaft_elements=shaft_elements,
                                 disk_elements=self.disk_elements,
-                                bearing_elements=bearings,
+                                bearing_elements=self._remove_housing_bearings(
+                                    bearings
+                                ),
+                                point_mass_elements=pmass,
                             )
                         )
 
@@ -4431,7 +4517,12 @@ class Rotor(object):
             cross_coupling = BearingElement(n=n, kxx=0, cxx=0, kxy=Q, kyx=-Q)
             bearings.append(cross_coupling)
 
-            rotor = self.__class__(self.shaft_elements, self.disk_elements, bearings)
+            rotor = self.__class__(
+                self.shaft_elements,
+                self.disk_elements,
+                bearings,
+                self.point_mass_elements,
+            )
 
             modal = rotor.run_modal(speed=speed)
             non_backward = modal.whirl_direction() != "Backward"
@@ -5195,27 +5286,21 @@ class Rotor(object):
         if not len(self.df_bearings):
             raise ValueError("Rotor has no bearings")
 
+        # Static analysis uses only bearing supports; seals are skipped
+        # (see SealElement docstring in bearing_seal_element.py).
+        bearings, pmass = self._remove_housing_bearings(
+            [b for b in self.bearing_elements if not isinstance(b, SealElement)],
+            self.point_mass_elements,
+        )
+
         aux_brg = []
         aux_brg_1 = []
-        for elm in self.bearing_elements:
-            # Static analysis uses only bearing supports; seals are skipped
-            # (see SealElement docstring in bearing_seal_element.py).
-            if isinstance(elm, SealElement):
-                continue
+        for brg in bearings:
+            aux_brg.append(BearingElement(n=brg.n, n_link=brg.n_link, kxx=1e20, cxx=0))
+            aux_brg_1.append(BearingElement(n=brg.n, n_link=brg.n_link, kxx=0, cxx=0))
 
-            if elm.n not in self.nodes:
-                continue
-
-            n_link = (
-                elm.n_link
-                if (elm.n_link is not None and elm.n_link in self.nodes)
-                else None
-            )
-            aux_brg.append(BearingElement(n=elm.n, n_link=n_link, kxx=1e20, cxx=0))
-            aux_brg_1.append(BearingElement(n=elm.n, n_link=n_link, kxx=0, cxx=0))
-
-        aux_rotor = Rotor(self.shaft_elements, self.disk_elements, aux_brg)
-        aux_rotor_1 = Rotor(self.shaft_elements, self.disk_elements, aux_brg_1)
+        aux_rotor = Rotor(self.shaft_elements, self.disk_elements, aux_brg, pmass)
+        aux_rotor_1 = Rotor(self.shaft_elements, self.disk_elements, aux_brg_1, pmass)
 
         aux_M = aux_rotor.M(0)
         aux_K = aux_rotor.K(0)
@@ -5644,10 +5729,7 @@ class Rotor(object):
             rotor.disk_elements,
             bearings_seals_rs,
             rotor.point_mass_elements,
-            min_w=rotor.min_w,
-            max_w=rotor.max_w,
-            rated_w=rotor.rated_w,
-            tag=rotor.tag,
+            **rotor._init_parameters(),
         )
 
     @check_units

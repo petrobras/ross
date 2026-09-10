@@ -250,7 +250,6 @@ pio.templates["ross"] = go.layout.Template(
         },
         "hoverlabel": {"align": "left"},
         "hovermode": "closest",
-        "mapbox": {"style": "light"},
         "paper_bgcolor": "white",
         "plot_bgcolor": "white",
         "polar": {
@@ -493,12 +492,6 @@ pio.templates["ross"] = go.layout.Template(
                 "type": "scattergl",
             }
         ],
-        "scattermapbox": [
-            {
-                "marker": {"colorbar": {"outlinewidth": 0, "ticks": ""}},
-                "type": "scattermapbox",
-            }
-        ],
         "scatterpolar": [
             {
                 "marker": {"colorbar": {"outlinewidth": 0, "ticks": ""}},
@@ -594,7 +587,6 @@ pio.templates["ross_dark"].layout.update(
             "bgcolor": "rgba(18,40,57,0.80)",
             "bordercolor": dark_palette["grid_strong"],
         },
-        "mapbox": {"style": "dark"},
         "paper_bgcolor": dark_palette["paper"],
         "plot_bgcolor": dark_palette["paper"],
         "polar": {
