@@ -2493,6 +2493,18 @@ def test_ucs_rotor9(rotor9):
     assert_allclose(ucs_results.wn, exp_rotor_wn, rtol=1e-6)
 
 
+def test_ucs_bearing_frequency_range(rotor8):
+    res = rotor8.run_ucs(bearing_frequency_range=(100, 1000), num=5)
+    assert len(res.bearing_frequency_range) == 30
+    assert_allclose(res.bearing_frequency_range[0], 100)
+    assert_allclose(res.bearing_frequency_range[-1], 1000)
+
+    res_units = rotor8.run_ucs(bearing_frequency_range=Q_((100, 1000), "rad/s"), num=5)
+    assert len(res_units.bearing_frequency_range) == 30
+    assert_allclose(res_units.bearing_frequency_range[0], 100)
+    assert_allclose(res_units.bearing_frequency_range[-1], 1000)
+
+
 def test_pickle(rotor8):
     rotor8_pickled = pickle.loads(pickle.dumps(rotor8))
     assert rotor8 == rotor8_pickled
