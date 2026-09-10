@@ -10,10 +10,9 @@ from plotly import graph_objects as go
 from warnings import warn
 
 from ross.units import Q_, check_units
-from ross.materials import steel
+from ross.materials import Material, steel
 from ross.disk_element import DiskElement
 from ross.plotly_theme import color_shades
-from ross.materials import steel
 
 from .utils import involute
 
@@ -240,6 +239,36 @@ class GearElement(DiskElement):
             scale_factor=scale_factor,
             color=color,
         )
+
+    def save(self, file):
+        self.base_diameter = self.base_radius * 2
+
+        super().save(
+            file,
+            material={
+                "name": self.material.name,
+                "rho": self.material.rho,
+                "E": self.material.E,
+                "G_s": self.material.G_s,
+                "color": self.material.color,
+            },
+        )
+
+    @classmethod
+    def read_toml_data(cls, data):
+        """Read and parse data stored in a .toml or .json file.
+
+        Parameters
+        ----------
+        data : dict
+            Dictionary obtained from toml.load() or json.load().
+
+        Returns
+        -------
+        The element object.
+        """
+        data["material"] = Material(**data["material"])
+        return cls(**data)
 
     def _patch(self, position, fig):
         """Gear element patch.
