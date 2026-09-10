@@ -4309,7 +4309,7 @@ class Rotor(object):
             else:
                 stiffness_range = (6, 11)
 
-        if bearing_frequency_range:
+        if bearing_frequency_range is not None:
             bearing_frequency_range = np.linspace(
                 bearing_frequency_range[0], bearing_frequency_range[1], 30
             )

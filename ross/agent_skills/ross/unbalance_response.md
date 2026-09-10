@@ -1,6 +1,6 @@
 # Unbalance Response
 
-Source: `docs/user_guide/tutorial_part_2_2.ipynb`
+Source: `docs/user_guide/tutorial_analyses_part_2.ipynb`
 
 ## Run
 
