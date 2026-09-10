@@ -174,7 +174,7 @@ class MultiRotor(Rotor):
         position="above",
         tag=None,
     ):
-        self.rotors = {"driving": driving_rotor, "driven": driven_rotor}
+        self.rotors = {"driving": copy(driving_rotor), "driven": copy(driven_rotor)}
 
         R1 = copy(driving_rotor)
         R2 = copy(driven_rotor)

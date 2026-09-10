@@ -3,17 +3,18 @@
 ```{toctree}
 :maxdepth: 1
 :caption: Tutorials
-tutorial_part_1_1
+tutorial_modeling_part_1
+tutorial_modeling_part_2
+tutorial_units
 tutorial_bearings_part_1
 tutorial_bearings_part_2
 tutorial_bearings_part_3
-tutorial_seal
+tutorial_seals
+tutorial_analyses_part_1
+tutorial_analyses_part_2
 tutorial_faults
-tutorial_part_2_1
-tutorial_part_2_2
-tutorial_part_3
-tutorial_part_5
-tutorial_part_4
+tutorial_multirotor
+tutorial_stochastic
 ```
 
 

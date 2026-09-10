@@ -1,6 +1,6 @@
 # UCS and Level 1 Stability Analysis
 
-Source: `docs/user_guide/tutorial_part_2_2.ipynb` (UCS); `ross/rotor_assembly.py` `run_level1` (no notebook source)
+Source: `docs/user_guide/tutorial_analyses_part_2.ipynb` (UCS); `ross/rotor_assembly.py` `run_level1` (no notebook source)
 
 ## Undamped Critical Speed Map (UCS)
 
