@@ -24,7 +24,7 @@ def test_concatenate_rotors():
 
     rotor2 = rs.Rotor(shaft_elements=[shaft1_r2], disk_elements=[disk_r2])
 
-    rotor_concat = rs.Rotor.concatenate_rotors([rotor1, rotor2])
+    rotor_concat = rs.Rotor.concatenate(rotor1, rotor2)
 
     # Checking the total number of elements
     assert len(rotor_concat.shaft_elements) == 3
