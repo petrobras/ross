@@ -3,6 +3,8 @@ from tempfile import tempdir
 
 import numpy as np
 import pytest
+import pandas as pd
+import plotly.graph_objects as go
 from numpy.testing import assert_allclose, assert_almost_equal, assert_equal
 
 import ross as rs
@@ -473,3 +475,274 @@ def test_save_load_amb_time_response(rotor_amb):
     assert (
         results2.rotor.bearing_elements[0].tag == results.rotor.bearing_elements[0].tag
     )
+
+
+@pytest.fixture
+def amb_non_collocation_data():
+    """Return controlled data for ``AmbNonCollocationResults`` tests."""
+    rotor_nodes = np.array([0, 1, 2, 3])
+    rotor_positions = np.array([0.0, 0.1, 0.2, 0.3])
+
+    mode_shapes = np.array(
+        [
+            [0.0, 1.0, 0.2, -0.5],
+            [-0.4, 0.6, 0.0, 0.3],
+        ]
+    )
+
+    modal_residues = np.array(
+        [
+            [0.0, 1.0, 0.2, -0.5],
+            [-0.24, 0.36, 0.0, 0.18],
+        ]
+    )
+
+    normalized_residues = np.array(
+        [
+            [0.0, 1.0, 0.2, -0.5],
+            [-2.0 / 3.0, 1.0, 0.0, 0.5],
+        ]
+    )
+
+    classifications = np.array(
+        [
+            [0, 1, 1, -1],
+            [-1, 1, 0, 1],
+        ],
+        dtype=int,
+    )
+
+    return {
+        "speed": 0.0,
+        "actuator_node": 1,
+        "sensor_node": 0,
+        "sensor_nodes": rotor_nodes,
+        "sensor_positions": rotor_positions,
+        "rotor_nodes": rotor_nodes,
+        "rotor_positions": rotor_positions,
+        "mode_indices": np.array([0, 1]),
+        "natural_frequencies": np.array([100.0, 200.0]),
+        "mode_shapes": mode_shapes,
+        "modal_residues": modal_residues,
+        "normalized_residues": normalized_residues,
+        "classifications": classifications,
+        "direction_angle": 0.0,
+        "residue_tolerance": 0.05,
+        "all_actuator_nodes": np.array([1, 3]),
+        "all_sensor_nodes": np.array([0, 2]),
+        "all_amb_tags": [
+            "Magnetic Bearing 0",
+            "Magnetic Bearing 1",
+        ],
+        "requested_mode_indices": np.array([0, 1, 2]),
+        "excluded_mode_indices": np.array([2]),
+        "excluded_mode_types": np.array(
+            ["Torsional"],
+            dtype=object,
+        ),
+        "excluded_natural_frequencies": np.array([300.0]),
+    }
+
+
+@pytest.fixture
+def amb_non_collocation_results(
+    amb_non_collocation_data,
+):
+    return AmbNonCollocationResults(**amb_non_collocation_data)
+
+
+@pytest.mark.parametrize(
+    (
+        "sensor_node",
+        "sensor_amplitudes",
+        "modal_residues",
+        "normalized_residues",
+        "classifications",
+    ),
+    [
+        (
+            0,
+            [0.0, -0.4],
+            [0.0, -0.24],
+            [0.0, -2.0 / 3.0],
+            [
+                "Near modal node",
+                "Opposite modal signs",
+            ],
+        ),
+        (
+            2,
+            [0.2, 0.0],
+            [0.2, 0.0],
+            [0.2, 0.0],
+            [
+                "Same modal sign",
+                "Near modal node",
+            ],
+        ),
+    ],
+    ids=[
+        "current_sensor",
+        "selected_sensor",
+    ],
+)
+def test_modal_residue_table(
+    amb_non_collocation_results,
+    sensor_node,
+    sensor_amplitudes,
+    modal_residues,
+    normalized_residues,
+    classifications,
+):
+    """Return modal quantities for the selected sensor node."""
+    table = amb_non_collocation_results.modal_residue_table(
+        sensor_node=sensor_node,
+    )
+
+    assert isinstance(table, pd.DataFrame)
+
+    assert list(table.columns) == [
+        "Mode",
+        "Frequency (Hz)",
+        "Actuator amplitude",
+        "Sensor amplitude",
+        "Modal residue",
+        "Normalized residue",
+        "Classification",
+    ]
+
+    assert table["Mode"].tolist() == [1, 2]
+
+    assert_allclose(
+        table["Frequency (Hz)"],
+        [100.0, 200.0],
+    )
+    assert_allclose(
+        table["Actuator amplitude"],
+        [1.0, 0.6],
+    )
+    assert_allclose(
+        table["Sensor amplitude"],
+        sensor_amplitudes,
+    )
+    assert_allclose(
+        table["Modal residue"],
+        modal_residues,
+    )
+    assert_allclose(
+        table["Normalized residue"],
+        normalized_residues,
+    )
+
+    assert table["Classification"].tolist() == classifications
+
+
+@pytest.mark.parametrize(
+    "show_compatibility",
+    [False, True],
+    ids=[
+        "mode_shape",
+        "mode_shape_with_compatibility",
+    ],
+)
+def test_amb_non_collocation_plot_mode_shape(
+    amb_non_collocation_results,
+    show_compatibility,
+):
+    """Return one mode-shape figure and display all stored AMBs."""
+    results = amb_non_collocation_results
+    mode = int(results.mode_indices[0])
+
+    fig = results.plot_mode_shape(
+        mode=mode,
+        show_compatibility=show_compatibility,
+    )
+
+    assert isinstance(fig, go.Figure)
+
+    trace_names = {trace.name for trace in fig.data if trace.name is not None}
+
+    for tag in results.all_amb_tags:
+        assert any(str(tag) in name for name in trace_names)
+
+
+def test_amb_non_collocation_plot_separate(
+    amb_non_collocation_results,
+):
+    """Return the sensor map and one figure for each retained lateral mode."""
+    results = amb_non_collocation_results
+
+    figures = results.plot_separate()
+
+    assert set(figures) == {
+        "sensor_map",
+        "mode_shapes",
+    }
+    assert isinstance(
+        figures["sensor_map"],
+        go.Figure,
+    )
+
+    assert set(figures["mode_shapes"]) == {int(mode) for mode in results.mode_indices}
+
+    assert all(isinstance(fig, go.Figure) for fig in figures["mode_shapes"].values())
+
+
+def test_amb_non_collocation_plot_combined(
+    amb_non_collocation_results,
+):
+    """Return the combined visualization by default."""
+    fig = amb_non_collocation_results.plot()
+
+    assert isinstance(fig, go.Figure)
+
+
+def test_amb_non_collocation_plot_separate_displays_figures(
+    amb_non_collocation_results,
+    monkeypatch,
+):
+    """Display all separate figures when ``combined=False``."""
+    results = amb_non_collocation_results
+    displayed_figures = []
+
+    def fake_show(fig, *args, **kwargs):
+        displayed_figures.append(fig)
+
+    monkeypatch.setattr(
+        go.Figure,
+        "show",
+        fake_show,
+    )
+
+    figures = results.plot(
+        combined=False,
+    )
+
+    expected_number_of_figures = 1 + len(results.mode_indices)
+
+    assert len(displayed_figures) == expected_number_of_figures
+    assert displayed_figures[0] is figures["sensor_map"]
+
+    assert displayed_figures[1:] == list(figures["mode_shapes"].values())
+
+
+@pytest.mark.parametrize(
+    "combined",
+    [
+        None,
+        1,
+        "False",
+    ],
+)
+def test_amb_non_collocation_plot_invalid_combined(
+    amb_non_collocation_results,
+    combined,
+):
+    """Reject non-boolean values passed to ``combined``."""
+    with pytest.raises(
+        TypeError,
+        match="combined must be a boolean",
+    ):
+        amb_non_collocation_results.plot(
+            combined=combined,
+        )

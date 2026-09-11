@@ -408,6 +408,103 @@ def test_magnetic_bearing_element(magnetic_bearing):
     )
 
 
+def test_magnetic_bearing_default_sensor_node(
+    magnetic_bearing,
+):
+    """Sensor should be collocated with the actuator by default."""
+    assert magnetic_bearing.sensor_node == magnetic_bearing.n
+    assert magnetic_bearing.is_non_collocated is False
+
+
+@pytest.mark.parametrize(
+    (
+        "sensor_node",
+        "expected_sensor_node",
+        "expected_is_non_collocated",
+    ),
+    [
+        (None, 12, False),
+        (12, 12, False),
+        (10, 10, True),
+        (np.int64(10), 10, True),
+    ],
+    ids=[
+        "none",
+        "collocated",
+        "non_collocated",
+        "numpy_integer",
+    ],
+)
+def test_magnetic_bearing_sensor_node(
+    sensor_node,
+    expected_sensor_node,
+    expected_is_non_collocated,
+):
+    """Sensor node should define the AMB collocation configuration."""
+    amb = MagneticBearingElement(
+        n=12,
+        sensor_node=sensor_node,
+        g0=1e-3,
+        i0=1.0,
+        ag=1e-4,
+        nw=200,
+        kp_pid=1000,
+    )
+
+    assert amb.sensor_node == expected_sensor_node
+    assert isinstance(amb.sensor_node, int)
+    assert amb.is_non_collocated is expected_is_non_collocated
+
+
+def test_magnetic_bearing_is_non_collocated_updates_with_sensor_node(
+    magnetic_bearing,
+):
+    """Collocation property should reflect the current sensor node."""
+    assert magnetic_bearing.is_non_collocated is False
+
+    magnetic_bearing.sensor_node = magnetic_bearing.n + 1
+
+    assert magnetic_bearing.is_non_collocated is True
+
+    magnetic_bearing.sensor_node = magnetic_bearing.n
+
+    assert magnetic_bearing.is_non_collocated is False
+
+
+@pytest.mark.parametrize(
+    "invalid_sensor_node",
+    [
+        10.5,
+        "10",
+        True,
+        [10],
+    ],
+    ids=[
+        "float",
+        "string",
+        "boolean",
+        "list",
+    ],
+)
+def test_magnetic_bearing_invalid_sensor_node(
+    invalid_sensor_node,
+):
+    """Invalid sensor-node types should be rejected."""
+    with pytest.raises(
+        TypeError,
+        match=r"sensor_node must be an integer or None",
+    ):
+        MagneticBearingElement(
+            n=12,
+            sensor_node=invalid_sensor_node,
+            g0=1e-3,
+            i0=1.0,
+            ag=1e-4,
+            nw=200,
+            kp_pid=1000,
+        )
+
+
 def _to_real_array(list_of_scalars):
     return np.array([np.real(float(x)) for x in list_of_scalars], dtype=float)
 
