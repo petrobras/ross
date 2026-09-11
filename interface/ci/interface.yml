@@ -1,0 +1,121 @@
+# The interface's own CI: check on the three systems, package on the three
+# systems, and let nothing out that was not run.
+#
+# WHERE THIS FILE GOES. GitHub only reads workflows from `.github/workflows/`
+# at the repository ROOT. It cannot live inside `interface/`, so installing it
+# means copying it to `.github/workflows/interface.yml` in the ROSS repository.
+# The copy here is the source of truth, and
+# `test_the_installed_workflow_is_the_one_we_keep` compares the two the day
+# both exist.
+#
+# WHY `paths`. Leonardo's third condition with the maintainers is that the
+# interface must never get in the way of ROSS development. That sentence is
+# these four lines: a pull request that does not touch `interface/` never
+# starts this job, so a ROSS developer does not see it, does not wait for it,
+# and is never blocked by it.
+#
+# WHY IT CALLS `check.py` INSTEAD OF LISTING THE STEPS. Writing `ruff check`,
+# `pytest` and the node batteries here would create a second verification
+# recipe, kept by hand, next to the one in `check.py`. Two copies of the same
+# intent diverge -- this project has the scars, and the one that rots is
+# always the one nobody looks at. There is one recipe, and CI runs it.
+#
+# WHY IT BUILDS AT ALL, IF THE BINARY IS NOT THE DELIVERABLE. The interface
+# travels as source: whoever wants the program builds it, following the README.
+# So this job is not producing an artifact -- it is **executing the README** on
+# the three systems, every time anything changes. Instructions nobody runs rot
+# in silence, and a build recipe is the kind of prose that stops being true
+# without anyone noticing.
+#
+# WHY THE UPLOAD IS MANUAL. Three bundles of ~460 MB on every push would fill
+# the repository's artifact storage to buy nothing: nobody downloads them,
+# because the way to get the program is to build it. The upload stays for the
+# day somebody wants a binary without a toolchain, and only then --
+# `workflow_dispatch`, on request.
+#
+# WHY IT STILL HAS TO RUN `--selftest`. PyInstaller finishing is not the same
+# as the program working: it follows what the code imports and not what the
+# code opens. A binary that was produced and never executed is not a
+# deliverable, it is a hope.
+
+name: interface
+
+on:
+  push:
+    paths:
+      - "interface/**"
+      - ".github/workflows/interface.yml"
+  pull_request:
+    paths:
+      - "interface/**"
+      - ".github/workflows/interface.yml"
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: interface
+
+jobs:
+  check:
+    # The ends of the supported range. 3.11 sits between two green runs, and
+    # nine jobs to interpolate one point is not worth the minutes.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python: ["3.10", "3.12"]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      # The behaviour batteries are the only guards that measure the screen.
+      # With `CI` set -- and GitHub sets it -- `test_node_is_available_where_it
+      # _is_required` fails instead of skipping, which is the whole reason that
+      # test exists.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: python -m pip install --upgrade pip
+      - run: pip install -r requirements.txt -r requirements-dev.txt
+      - run: python check.py
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: check-report-${{ matrix.os }}-${{ matrix.python }}
+          path: interface/check_report.txt
+
+  package:
+    needs: check
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install --upgrade pip
+      - run: pip install -r requirements.txt -r requirements-dev.txt
+      - run: python -m PyInstaller --noconfirm ross-interface.spec
+      # `shell: bash` on all three runners, so the difference between the
+      # systems is one file extension and not three copies of this step.
+      - name: the executable has to work, not merely exist
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            ./dist/ross-interface/ross-interface.exe --selftest
+          else
+            ./dist/ross-interface/ross-interface --selftest
+          fi
+      - if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ross-interface-${{ matrix.os }}
+          path: interface/dist/ross-interface
+          retention-days: 14

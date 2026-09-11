@@ -1,0 +1,29 @@
+# ROSS comes from GitHub, not from PyPI: the published version is behind the
+# repository. Verified target: 2.3.0, commit 2a253e6 (10/09/2026).
+#
+# Moved up from 631a249 (18/08/2026) before opening the pull request: opening one
+# against a ROSS this interface has never been run against is the mistake this
+# project keeps writing lessons about. One merge commit apart, same version
+# string, and the audit of it is in `claude/fase4-atualizacao-do-ross.md` --
+# `run_ucs` and `run_static` changed inside, no entry point changed signature.
+ross-rotordynamics @ git+https://github.com/petrobras/ross.git@2a253e6e27ea05b125b59a9ce6925b595e7d84b4
+
+# ROSS does not restrict the numpy version; the range below is ours.
+numpy>=1.24,<3
+
+# Nor does it restrict plotly, and that one used to be broken: `ross/__init__.py`
+# imports `ross.plotly_theme`, which registered a template carrying a
+# `scattermapbox` series -- a trace type plotly deprecated in 6.0 and dropped in
+# 7.0.0. The failure was at IMPORT time, so `import ross` itself raised and no
+# analysis was reachable. Measured, one variable at a time, with everything else
+# identical on both machines: 6.7.0 worked, 7.0.0 did not.
+#
+# **Commit 2a253e6 removes `mapbox` and `scattermapbox` from both themes**, which
+# is exactly the measured cause. The ceiling therefore stays only until somebody
+# repeats the measurement with plotly 7 -- the cause is gone, which is not the
+# same as saying the result is green. Raising it on the strength of a diff would
+# be the guess this comment exists to record having avoided.
+plotly>=6.7,<7
+flask>=3.0
+toml>=0.10.1
+pint>=0.18

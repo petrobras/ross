@@ -34,7 +34,11 @@ build-backend = "setuptools.build_meta"
 # All the following settings are optional:
 where = ["."] 
 include = ["*", "ross.new_units.txt*"]  # ["*"] by default
-exclude = ["ross.tests*"]  # empty by default
+exclude = ["ross.tests*", "interface*"]  # empty by default
+# "interface*" keeps the graphical interface out of the wheel. Without it,
+# packages.find resolves the folder in namespace mode and 20 packages named
+# interface, interface.api, interface.domain, ... are installed at the top of
+# the namespace of anyone who runs `pip install ross-rotordynamics`.
 
 [project]
 name = "ross-rotordynamics"
