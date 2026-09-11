@@ -7,7 +7,7 @@ The source code is available at [github](https://github.com/petrobras/ross).
 
 ### 💡 ROSS GPT – Your Virtual Assistant for Rotordynamics
 
-Access [ROSS GPT](https://chatgpt.com/g/g-6a0776b675588191a111daf172ecfcfe-ross-gpt-2-0), a virtual assistant specialized in the ROSS (Rotordynamic Open-Source Software) package. 
+Access [ROSS GPT](https://chatgpt.com/g/g-6838c48fbfa081918b61d77b997fdc33-ross-gpt), a virtual assistant specialized in the ROSS (Rotordynamic Open-Source Software) package. 
 
 ::::{grid} 2
 :gutter: 2

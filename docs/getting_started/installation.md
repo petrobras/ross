@@ -62,10 +62,10 @@ re-run `ross-install-skill` after upgrading ROSS.
 
 ### In your browser: ROSS GPT
 
-Meet [**ROSS GPT**](https://chatgpt.com/g/g-6a0776b675588191a111daf172ecfcfe-ross-gpt-2-0), a virtual assistant trained specifically for the ROSS package. You can:
+Meet [**ROSS GPT**](https://chatgpt.com/g/g-6838c48fbfa081918b61d77b997fdc33-ross-gpt), a virtual assistant trained specifically for the ROSS package. You can:
 
 - Generate rotor models in Python with just a description.
 - Run and interpret modal analysis, Campbell diagrams, and more.
 - Understand technical aspects of ROSS elements like ShaftElement, DiskElement, BearingElement, etc.
 
-👉 [Click here to start using ROSS GPT](https://chatgpt.com/g/g-6a0776b675588191a111daf172ecfcfe-ross-gpt-2-0).
+👉 [Click here to start using ROSS GPT](https://chatgpt.com/g/g-6838c48fbfa081918b61d77b997fdc33-ross-gpt).

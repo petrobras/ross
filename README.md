@@ -52,7 +52,7 @@ Key sections:
 ROSS supports AI-assisted workflows in two ways:
 
 - **In your coding agent** — the ROSS agent skill ([Agent Skills](https://agentskills.io) open standard) teaches Claude Code, GitHub Copilot, Cursor, and Codex how to build rotor models and run analyses. Install it with `ross-install-skill` (see Quick Start above); in Claude Code, invoke it explicitly with `/ross`.
-- **In your browser** — [**ROSS GPT**](https://chatgpt.com/g/g-6a0776b675588191a111daf172ecfcfe-ross-gpt-2-0) is the official chat assistant for the ROSS package. Use it to create and modify rotor models, request practical examples for modal analysis, Campbell diagrams, unbalance response, and more, and get detailed technical explanations on elements such as shafts, disks, bearings, and couplings.
+- **In your browser** — [**ROSS GPT**](https://chatgpt.com/g/g-6838c48fbfa081918b61d77b997fdc33-ross-gpt) is the official chat assistant for the ROSS package. Use it to create and modify rotor models, request practical examples for modal analysis, Campbell diagrams, unbalance response, and more, and get detailed technical explanations on elements such as shafts, disks, bearings, and couplings.
 
 ## ❓ Support & Questions
 
