@@ -1,0 +1,3231 @@
+{
+ "analise_campbell_10": {
+  "analyses": [
+   {
+    "params": {
+     "animation": "True",
+     "damping_parameter": "log_dec",
+     "frequencies": "6",
+     "frequency_type": "wd",
+     "frequency_units": "RPM",
+     "harmonics": "[1, 2]",
+     "plot_type": "Default",
+     "speed_max": "4000",
+     "speed_max_unit": "RPM",
+     "speed_min": "0",
+     "speed_min_unit": "RPM",
+     "speed_steps": "31",
+     "speed_units": "RPM",
+     "torsional_analysis": "False"
+    },
+    "type": "campbell"
+   }
+  ],
+  "conversion_type": "",
+  "project": {
+   "bearings": [],
+   "couplings": [],
+   "disks": [],
+   "gears": [],
+   "materials": [
+    {
+     "E": "211e9",
+     "G_s": "81.2e9",
+     "element_type": "BASIC",
+     "name": "Steel",
+     "rho": "7810"
+    }
+   ],
+   "pointmasses": [],
+   "seals": [],
+   "shafts": [
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    }
+   ]
+  }
+ },
+ "analise_campbell_11": {
+  "analyses": [
+   {
+    "params": {
+     "animation": "True",
+     "damping_parameter": "log_dec",
+     "frequencies": "6",
+     "frequency_type": "wd",
+     "frequency_units": "RPM",
+     "harmonics": "[1, 2]",
+     "plot_type": "Mode Shape",
+     "speed_max": "4000",
+     "speed_max_unit": "RPM",
+     "speed_min": "0",
+     "speed_min_unit": "RPM",
+     "speed_steps": "31",
+     "speed_units": "RPM",
+     "torsional_analysis": "False"
+    },
+    "type": "campbell"
+   }
+  ],
+  "conversion_type": "",
+  "project": {
+   "bearings": [],
+   "couplings": [],
+   "disks": [],
+   "gears": [],
+   "materials": [
+    {
+     "E": "211e9",
+     "G_s": "81.2e9",
+     "element_type": "BASIC",
+     "name": "Steel",
+     "rho": "7810"
+    }
+   ],
+   "pointmasses": [],
+   "seals": [],
+   "shafts": [
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    }
+   ]
+  }
+ },
+ "analise_campbell_12": {
+  "analyses": [
+   {
+    "params": {
+     "plot_type": "Default",
+     "speed_max": "400",
+     "speed_min": "0"
+    },
+    "type": "campbell"
+   }
+  ],
+  "conversion_type": "",
+  "project": {
+   "bearings": [],
+   "couplings": [],
+   "disks": [],
+   "gears": [],
+   "materials": [
+    {
+     "E": "211e9",
+     "G_s": "81.2e9",
+     "element_type": "BASIC",
+     "name": "Steel",
+     "rho": "7810"
+    }
+   ],
+   "pointmasses": [],
+   "seals": [],
+   "shafts": [
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    }
+   ]
+  }
+ },
+ "analise_clearance_41": {
+  "analyses": [
+   {
+    "params": {
+     "frequency": "[100]",
+     "modes": "[0, 1]",
+     "speed": "1200",
+     "unbalances": [
+      {
+       "mag": 0.05,
+       "node": 1,
+       "phase": 0
+      }
+     ]
+    },
+    "type": "clearance"
+   }
+  ],
+  "conversion_type": "",
+  "project": {
+   "bearings": [],
+   "couplings": [],
+   "disks": [],
+   "gears": [],
+   "materials": [
+    {
+     "E": "211e9",
+     "G_s": "81.2e9",
+     "element_type": "BASIC",
+     "name": "Steel",
+     "rho": "7810"
+    }
+   ],
+   "pointmasses": [],
+   "seals": [],
+   "shafts": [
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    }
+   ]
+  }
+ },
+ "analise_clearance_42": {
+  "analyses": [
+   {
+    "params": {
+     "speed": "100"
+    },
+    "type": "clearance"
+   }
+  ],
+  "conversion_type": "",
+  "project": {
+   "bearings": [],
+   "couplings": [],
+   "disks": [],
+   "gears": [],
+   "materials": [
+    {
+     "E": "211e9",
+     "G_s": "81.2e9",
+     "element_type": "BASIC",
+     "name": "Steel",
+     "rho": "7810"
+    }
+   ],
+   "pointmasses": [],
+   "seals": [],
+   "shafts": [
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    }
+   ]
+  }
+ },
+ "analise_crack_34": {
+  "analyses": [
+   {
+    "params": {
+     "crack_model": "Mayes",
+     "cross_divisions": "30",
+     "depth_ratio": "0.2",
+     "n": "1",
+     "plot_type": "Frequency (DFFT)",
+     "probes": [
+      {
+       "angle": "0",
+       "node": "1"
+      },
+      {
+       "angle": "90",
+       "node": "2"
+      }
+     ],
+     "speed": "1200",
+     "t_final": "0.5",
+     "t_initial": "0",
+     "t_steps": "5000",
+     "unbalances": [
+      {
+       "mag": "0.005",
+       "node": "1",
+       "phase": "0"
+      },
+      {
+       "mag": "0.003",
+       "node": "2",
+       "phase": "3.14"
+      }
+     ]
+    },
+    "type": "crack"
+   }
+  ],
+  "conversion_type": "",
+  "project": {
+   "bearings": [],
+   "couplings": [],
+   "disks": [],
+   "gears": [],
+   "materials": [
+    {
+     "E": "211e9",
+     "G_s": "81.2e9",
+     "element_type": "BASIC",
+     "name": "Steel",
+     "rho": "7810"
+    }
+   ],
+   "pointmasses": [],
+   "seals": [],
+   "shafts": [
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    }
+   ]
+  }
+ },
+ "analise_freq_response_14": {
+  "analyses": [
+   {
+    "params": {
+     "amplitude_units": "m",
+     "free_free": "True",
+     "frequency_units": "RPM",
+     "inps": [
+      {
+       "dof": "0",
+       "node": "1"
+      },
+      {
+       "dof": "1",
+       "node": "2"
+      }
+     ],
+     "line_shape": "spline",
+     "modes": "[0, 1]",
+     "outs": [
+      {
+       "dof": "0",
+       "node": "3"
+      }
+     ],
+     "phase_units": "deg",
+     "plot_type": "Default",
+     "speed_max": "1000",
+     "speed_min": "0",
+     "speed_steps": "40"
+    },
+    "type": "freq_response"
+   }
+  ],
+  "conversion_type": "",
+  "project": {
+   "bearings": [],
+   "couplings": [],
+   "disks": [],
+   "gears": [],
+   "materials": [
+    {
+     "E": "211e9",
+     "G_s": "81.2e9",
+     "element_type": "BASIC",
+     "name": "Steel",
+     "rho": "7810"
+    }
+   ],
+   "pointmasses": [],
+   "seals": [],
+   "shafts": [
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    }
+   ]
+  }
+ },
+ "analise_freq_response_15": {
+  "analyses": [
+   {
+    "params": {
+     "amplitude_units": "m",
+     "free_free": "True",
+     "frequency_units": "RPM",
+     "inps": [
+      {
+       "dof": "0",
+       "node": "1"
+      },
+      {
+       "dof": "1",
+       "node": "2"
+      }
+     ],
+     "line_shape": "spline",
+     "modes": "[0, 1]",
+     "outs": [
+      {
+       "dof": "0",
+       "node": "3"
+      }
+     ],
+     "phase_units": "deg",
+     "plot_type": "Magnitude",
+     "speed_max": "1000",
+     "speed_min": "0",
+     "speed_steps": "40"
+    },
+    "type": "freq_response"
+   }
+  ],
+  "conversion_type": "",
+  "project": {
+   "bearings": [],
+   "couplings": [],
+   "disks": [],
+   "gears": [],
+   "materials": [
+    {
+     "E": "211e9",
+     "G_s": "81.2e9",
+     "element_type": "BASIC",
+     "name": "Steel",
+     "rho": "7810"
+    }
+   ],
+   "pointmasses": [],
+   "seals": [],
+   "shafts": [
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    }
+   ]
+  }
+ },
+ "analise_freq_response_16": {
+  "analyses": [
+   {
+    "params": {
+     "amplitude_units": "m",
+     "free_free": "True",
+     "frequency_units": "RPM",
+     "inps": [
+      {
+       "dof": "0",
+       "node": "1"
+      },
+      {
+       "dof": "1",
+       "node": "2"
+      }
+     ],
+     "line_shape": "spline",
+     "modes": "[0, 1]",
+     "outs": [
+      {
+       "dof": "0",
+       "node": "3"
+      }
+     ],
+     "phase_units": "deg",
+     "plot_type": "Phase",
+     "speed_max": "1000",
+     "speed_min": "0",
+     "speed_steps": "40"
+    },
+    "type": "freq_response"
+   }
+  ],
+  "conversion_type": "",
+  "project": {
+   "bearings": [],
+   "couplings": [],
+   "disks": [],
+   "gears": [],
+   "materials": [
+    {
+     "E": "211e9",
+     "G_s": "81.2e9",
+     "element_type": "BASIC",
+     "name": "Steel",
+     "rho": "7810"
+    }
+   ],
+   "pointmasses": [],
+   "seals": [],
+   "shafts": [
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    }
+   ]
+  }
+ },
+ "analise_freq_response_17": {
+  "analyses": [
+   {
+    "params": {
+     "amplitude_units": "m",
+     "free_free": "True",
+     "frequency_units": "RPM",
+     "inps": [
+      {
+       "dof": "0",
+       "node": "1"
+      },
+      {
+       "dof": "1",
+       "node": "2"
+      }
+     ],
+     "line_shape": "spline",
+     "modes": "[0, 1]",
+     "outs": [
+      {
+       "dof": "0",
+       "node": "3"
+      }
+     ],
+     "phase_units": "deg",
+     "plot_type": "Polar Bode",
+     "speed_max": "1000",
+     "speed_min": "0",
+     "speed_steps": "40"
+    },
+    "type": "freq_response"
+   }
+  ],
+  "conversion_type": "",
+  "project": {
+   "bearings": [],
+   "couplings": [],
+   "disks": [],
+   "gears": [],
+   "materials": [
+    {
+     "E": "211e9",
+     "G_s": "81.2e9",
+     "element_type": "BASIC",
+     "name": "Steel",
+     "rho": "7810"
+    }
+   ],
+   "pointmasses": [],
+   "seals": [],
+   "shafts": [
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    }
+   ]
+  }
+ },
+ "analise_harmonic_balance_39": {
+  "analyses": [
+   {
+    "params": {
+     "amplitude_units": "m",
+     "frequency_units": "Hz",
+     "gravity": "True",
+     "hb_harmonics": "[1]",
+     "hb_magnitudes": "[2000]",
+     "hb_node": "1",
+     "hb_phases": "[0]",
+     "n_harmonics": "3",
+     "probes": [
+      {
+       "angle": "0",
+       "node": "1"
+      },
+      {
+       "angle": "90",
+       "node": "2"
+      }
+     ],
+     "speed": "1200",
+     "speed_unit": "RPM",
+     "t_final": "0.5",
+     "t_initial": "0",
+     "t_steps": "1001"
+    },
+    "type": "harmonic_balance"
+   }
+  ],
+  "conversion_type": "",
+  "project": {
+   "bearings": [],
+   "couplings": [],
+   "disks": [],
+   "gears": [],
+   "materials": [
+    {
+     "E": "211e9",
+     "G_s": "81.2e9",
+     "element_type": "BASIC",
+     "name": "Steel",
+     "rho": "7810"
+    }
+   ],
+   "pointmasses": [],
+   "seals": [],
+   "shafts": [
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    }
+   ]
+  }
+ },
+ "analise_harmonic_balance_40": {
+  "analyses": [
+   {
+    "params": {
+     "speed": "100"
+    },
+    "type": "harmonic_balance"
+   }
+  ],
+  "conversion_type": "",
+  "project": {
+   "bearings": [],
+   "couplings": [],
+   "disks": [],
+   "gears": [],
+   "materials": [
+    {
+     "E": "211e9",
+     "G_s": "81.2e9",
+     "element_type": "BASIC",
+     "name": "Steel",
+     "rho": "7810"
+    }
+   ],
+   "pointmasses": [],
+   "seals": [],
+   "shafts": [
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    }
+   ]
+  }
+ },
+ "analise_misalignment_31": {
+  "analyses": [
+   {
+    "params": {
+     "bending_stiffness": "1e5",
+     "coupling": "flex",
+     "input_torque": "100",
+     "load_torque": "50",
+     "mis_angle": "0.01",
+     "mis_distance": "2e-4",
+     "mis_distance_x": "1e-4",
+     "mis_distance_y": "1e-4",
+     "mis_type": "parallel",
+     "n": "0",
+     "plot_type": "Default",
+     "probes": [
+      {
+       "angle": "0",
+       "node": "1"
+      },
+      {
+       "angle": "90",
+       "node": "2"
+      }
+     ],
+     "radial_stiffness": "1e6",
+     "speed": "1200",
+     "speed_unit": "RPM",
+     "t_final": "0.5",
+     "t_initial": "0",
+     "t_steps": "5000",
+     "unbalances": [
+      {
+       "mag": "0.005",
+       "node": "1",
+       "phase": "0"
+      },
+      {
+       "mag": "0.003",
+       "node": "2",
+       "phase": "3.14"
+      }
+     ]
+    },
+    "type": "misalignment"
+   }
+  ],
+  "conversion_type": "",
+  "project": {
+   "bearings": [],
+   "couplings": [],
+   "disks": [],
+   "gears": [],
+   "materials": [
+    {
+     "E": "211e9",
+     "G_s": "81.2e9",
+     "element_type": "BASIC",
+     "name": "Steel",
+     "rho": "7810"
+    }
+   ],
+   "pointmasses": [],
+   "seals": [],
+   "shafts": [
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    }
+   ]
+  }
+ },
+ "analise_misalignment_32": {
+  "analyses": [
+   {
+    "params": {
+     "bending_stiffness": "1e5",
+     "coupling": "rigid",
+     "input_torque": "100",
+     "load_torque": "50",
+     "mis_angle": "0.01",
+     "mis_distance": "2e-4",
+     "mis_distance_x": "1e-4",
+     "mis_distance_y": "1e-4",
+     "mis_type": "parallel",
+     "n": "0",
+     "plot_type": "Default",
+     "probes": [
+      {
+       "angle": "0",
+       "node": "1"
+      },
+      {
+       "angle": "90",
+       "node": "2"
+      }
+     ],
+     "radial_stiffness": "1e6",
+     "speed": "1200",
+     "speed_unit": "RPM",
+     "t_final": "0.5",
+     "t_initial": "0",
+     "t_steps": "5000",
+     "unbalances": [
+      {
+       "mag": "0.005",
+       "node": "1",
+       "phase": "0"
+      },
+      {
+       "mag": "0.003",
+       "node": "2",
+       "phase": "3.14"
+      }
+     ]
+    },
+    "type": "misalignment"
+   }
+  ],
+  "conversion_type": "",
+  "project": {
+   "bearings": [],
+   "couplings": [],
+   "disks": [],
+   "gears": [],
+   "materials": [
+    {
+     "E": "211e9",
+     "G_s": "81.2e9",
+     "element_type": "BASIC",
+     "name": "Steel",
+     "rho": "7810"
+    }
+   ],
+   "pointmasses": [],
+   "seals": [],
+   "shafts": [
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    }
+   ]
+  }
+ },
+ "analise_modes_18": {
+  "analyses": [
+   {
+    "params": {
+     "animation": "True",
+     "damping_parameter": "log_dec",
+     "frequency_type": "wd",
+     "frequency_units": "RPM",
+     "length_units": "m",
+     "nodes": "[1, 2]",
+     "num_modes": "12",
+     "orientation": "major",
+     "phase_units": "deg",
+     "plot_idx": "0",
+     "plot_type": "Default",
+     "sparse": "False",
+     "speed": "1000",
+     "speed_unit": "RPM",
+     "synchronous": "True"
+    },
+    "type": "modes"
+   }
+  ],
+  "conversion_type": "",
+  "project": {
+   "bearings": [],
+   "couplings": [],
+   "disks": [],
+   "gears": [],
+   "materials": [
+    {
+     "E": "211e9",
+     "G_s": "81.2e9",
+     "element_type": "BASIC",
+     "name": "Steel",
+     "rho": "7810"
+    }
+   ],
+   "pointmasses": [],
+   "seals": [],
+   "shafts": [
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    }
+   ]
+  }
+ },
+ "analise_modes_19": {
+  "analyses": [
+   {
+    "params": {
+     "animation": "True",
+     "damping_parameter": "log_dec",
+     "frequency_type": "wd",
+     "frequency_units": "RPM",
+     "length_units": "m",
+     "nodes": "[1, 2]",
+     "num_modes": "12",
+     "orientation": "major",
+     "phase_units": "deg",
+     "plot_idx": "0",
+     "plot_type": "3D",
+     "sparse": "False",
+     "speed": "1000",
+     "speed_unit": "RPM",
+     "synchronous": "True"
+    },
+    "type": "modes"
+   }
+  ],
+  "conversion_type": "",
+  "project": {
+   "bearings": [],
+   "couplings": [],
+   "disks": [],
+   "gears": [],
+   "materials": [
+    {
+     "E": "211e9",
+     "G_s": "81.2e9",
+     "element_type": "BASIC",
+     "name": "Steel",
+     "rho": "7810"
+    }
+   ],
+   "pointmasses": [],
+   "seals": [],
+   "shafts": [
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    }
+   ]
+  }
+ },
+ "analise_modes_20": {
+  "analyses": [
+   {
+    "params": {
+     "animation": "True",
+     "damping_parameter": "log_dec",
+     "frequency_type": "wd",
+     "frequency_units": "RPM",
+     "length_units": "m",
+     "nodes": "[1, 2]",
+     "num_modes": "12",
+     "orientation": "major",
+     "phase_units": "deg",
+     "plot_idx": "0",
+     "plot_type": "Orbit",
+     "sparse": "False",
+     "speed": "1000",
+     "speed_unit": "RPM",
+     "synchronous": "True"
+    },
+    "type": "modes"
+   }
+  ],
+  "conversion_type": "",
+  "project": {
+   "bearings": [],
+   "couplings": [],
+   "disks": [],
+   "gears": [],
+   "materials": [
+    {
+     "E": "211e9",
+     "G_s": "81.2e9",
+     "element_type": "BASIC",
+     "name": "Steel",
+     "rho": "7810"
+    }
+   ],
+   "pointmasses": [],
+   "seals": [],
+   "shafts": [
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    }
+   ]
+  }
+ },
+ "analise_rubbing_33": {
+  "analyses": [
+   {
+    "params": {
+     "contact_damping": "1e3",
+     "contact_stiffness": "1e6",
+     "distance": "1e-4",
+     "friction_coeff": "0.3",
+     "n": "1",
+     "plot_type": "2D",
+     "probes": [
+      {
+       "angle": "0",
+       "node": "1"
+      },
+      {
+       "angle": "90",
+       "node": "2"
+      }
+     ],
+     "speed": "1200",
+     "t_final": "0.5",
+     "t_initial": "0",
+     "t_steps": "5000",
+     "torque": "True",
+     "unbalances": [
+      {
+       "mag": "0.005",
+       "node": "1",
+       "phase": "0"
+      },
+      {
+       "mag": "0.003",
+       "node": "2",
+       "phase": "3.14"
+      }
+     ]
+    },
+    "type": "rubbing"
+   }
+  ],
+  "conversion_type": "",
+  "project": {
+   "bearings": [],
+   "couplings": [],
+   "disks": [],
+   "gears": [],
+   "materials": [
+    {
+     "E": "211e9",
+     "G_s": "81.2e9",
+     "element_type": "BASIC",
+     "name": "Steel",
+     "rho": "7810"
+    }
+   ],
+   "pointmasses": [],
+   "seals": [],
+   "shafts": [
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    }
+   ]
+  }
+ },
+ "analise_static_35": {
+  "analyses": [
+   {
+    "params": {
+     "deformation_units": "mm",
+     "force_units": "N",
+     "moment_units": "N*m",
+     "plot_type": "Default",
+     "rotor_length_units": "m"
+    },
+    "type": "static"
+   }
+  ],
+  "conversion_type": "",
+  "project": {
+   "bearings": [],
+   "couplings": [],
+   "disks": [],
+   "gears": [],
+   "materials": [
+    {
+     "E": "211e9",
+     "G_s": "81.2e9",
+     "element_type": "BASIC",
+     "name": "Steel",
+     "rho": "7810"
+    }
+   ],
+   "pointmasses": [],
+   "seals": [],
+   "shafts": [
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    }
+   ]
+  }
+ },
+ "analise_static_36": {
+  "analyses": [
+   {
+    "params": {
+     "deformation_units": "mm",
+     "force_units": "N",
+     "moment_units": "N*m",
+     "plot_type": "Deformation",
+     "rotor_length_units": "m"
+    },
+    "type": "static"
+   }
+  ],
+  "conversion_type": "",
+  "project": {
+   "bearings": [],
+   "couplings": [],
+   "disks": [],
+   "gears": [],
+   "materials": [
+    {
+     "E": "211e9",
+     "G_s": "81.2e9",
+     "element_type": "BASIC",
+     "name": "Steel",
+     "rho": "7810"
+    }
+   ],
+   "pointmasses": [],
+   "seals": [],
+   "shafts": [
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    }
+   ]
+  }
+ },
+ "analise_static_37": {
+  "analyses": [
+   {
+    "params": {
+     "deformation_units": "mm",
+     "force_units": "N",
+     "moment_units": "N*m",
+     "plot_type": "Shearing Force",
+     "rotor_length_units": "m"
+    },
+    "type": "static"
+   }
+  ],
+  "conversion_type": "",
+  "project": {
+   "bearings": [],
+   "couplings": [],
+   "disks": [],
+   "gears": [],
+   "materials": [
+    {
+     "E": "211e9",
+     "G_s": "81.2e9",
+     "element_type": "BASIC",
+     "name": "Steel",
+     "rho": "7810"
+    }
+   ],
+   "pointmasses": [],
+   "seals": [],
+   "shafts": [
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    }
+   ]
+  }
+ },
+ "analise_static_38": {
+  "analyses": [
+   {
+    "params": {
+     "deformation_units": "mm",
+     "force_units": "N",
+     "moment_units": "N*m",
+     "plot_type": "Bending Moment",
+     "rotor_length_units": "m"
+    },
+    "type": "static"
+   }
+  ],
+  "conversion_type": "",
+  "project": {
+   "bearings": [],
+   "couplings": [],
+   "disks": [],
+   "gears": [],
+   "materials": [
+    {
+     "E": "211e9",
+     "G_s": "81.2e9",
+     "element_type": "BASIC",
+     "name": "Steel",
+     "rho": "7810"
+    }
+   ],
+   "pointmasses": [],
+   "seals": [],
+   "shafts": [
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    }
+   ]
+  }
+ },
+ "analise_time_response_26": {
+  "analyses": [
+   {
+    "params": {
+     "displacement_units": "m",
+     "forces": [
+      {
+       "dof": "0",
+       "func": "10*np.sin(100*t)",
+       "node": "1"
+      }
+     ],
+     "frequency_units": "Hz",
+     "method": "default",
+     "plot_type": "Default",
+     "probe_units": "rad",
+     "probes": [
+      {
+       "angle": "0",
+       "node": "1"
+      },
+      {
+       "angle": "90",
+       "node": "2"
+      }
+     ],
+     "rotor_length_units": "m",
+     "speed": "1200",
+     "speed_unit": "RPM",
+     "steps": "2000",
+     "t_max": "2",
+     "time_units": "s"
+    },
+    "type": "time_response"
+   }
+  ],
+  "conversion_type": "",
+  "project": {
+   "bearings": [],
+   "couplings": [],
+   "disks": [],
+   "gears": [],
+   "materials": [
+    {
+     "E": "211e9",
+     "G_s": "81.2e9",
+     "element_type": "BASIC",
+     "name": "Steel",
+     "rho": "7810"
+    }
+   ],
+   "pointmasses": [],
+   "seals": [],
+   "shafts": [
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    }
+   ]
+  }
+ },
+ "analise_time_response_27": {
+  "analyses": [
+   {
+    "params": {
+     "displacement_units": "m",
+     "forces": [
+      {
+       "dof": "0",
+       "func": "10*np.sin(100*t)",
+       "node": "1"
+      }
+     ],
+     "frequency_units": "Hz",
+     "method": "default",
+     "plot_type": "2D",
+     "probe_units": "rad",
+     "probes": [
+      {
+       "angle": "0",
+       "node": "1"
+      },
+      {
+       "angle": "90",
+       "node": "2"
+      }
+     ],
+     "rotor_length_units": "m",
+     "speed": "1200",
+     "speed_unit": "RPM",
+     "steps": "2000",
+     "t_max": "2",
+     "time_units": "s"
+    },
+    "type": "time_response"
+   }
+  ],
+  "conversion_type": "",
+  "project": {
+   "bearings": [],
+   "couplings": [],
+   "disks": [],
+   "gears": [],
+   "materials": [
+    {
+     "E": "211e9",
+     "G_s": "81.2e9",
+     "element_type": "BASIC",
+     "name": "Steel",
+     "rho": "7810"
+    }
+   ],
+   "pointmasses": [],
+   "seals": [],
+   "shafts": [
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    }
+   ]
+  }
+ },
+ "analise_time_response_28": {
+  "analyses": [
+   {
+    "params": {
+     "displacement_units": "m",
+     "forces": [
+      {
+       "dof": "0",
+       "func": "10*np.sin(100*t)",
+       "node": "1"
+      }
+     ],
+     "frequency_units": "Hz",
+     "method": "default",
+     "plot_type": "3D",
+     "probe_units": "rad",
+     "probes": [
+      {
+       "angle": "0",
+       "node": "1"
+      },
+      {
+       "angle": "90",
+       "node": "2"
+      }
+     ],
+     "rotor_length_units": "m",
+     "speed": "1200",
+     "speed_unit": "RPM",
+     "steps": "2000",
+     "t_max": "2",
+     "time_units": "s"
+    },
+    "type": "time_response"
+   }
+  ],
+  "conversion_type": "",
+  "project": {
+   "bearings": [],
+   "couplings": [],
+   "disks": [],
+   "gears": [],
+   "materials": [
+    {
+     "E": "211e9",
+     "G_s": "81.2e9",
+     "element_type": "BASIC",
+     "name": "Steel",
+     "rho": "7810"
+    }
+   ],
+   "pointmasses": [],
+   "seals": [],
+   "shafts": [
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    }
+   ]
+  }
+ },
+ "analise_time_response_29": {
+  "analyses": [
+   {
+    "params": {
+     "displacement_units": "m",
+     "forces": [
+      {
+       "dof": "0",
+       "func": "10*np.sin(100*t)",
+       "node": "1"
+      }
+     ],
+     "frequency_units": "Hz",
+     "method": "default",
+     "plot_type": "Frequency (DFFT)",
+     "probe_units": "rad",
+     "probes": [
+      {
+       "angle": "0",
+       "node": "1"
+      },
+      {
+       "angle": "90",
+       "node": "2"
+      }
+     ],
+     "rotor_length_units": "m",
+     "speed": "1200",
+     "speed_unit": "RPM",
+     "steps": "2000",
+     "t_max": "2",
+     "time_units": "s"
+    },
+    "type": "time_response"
+   }
+  ],
+  "conversion_type": "",
+  "project": {
+   "bearings": [],
+   "couplings": [],
+   "disks": [],
+   "gears": [],
+   "materials": [
+    {
+     "E": "211e9",
+     "G_s": "81.2e9",
+     "element_type": "BASIC",
+     "name": "Steel",
+     "rho": "7810"
+    }
+   ],
+   "pointmasses": [],
+   "seals": [],
+   "shafts": [
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    }
+   ]
+  }
+ },
+ "analise_time_response_30": {
+  "analyses": [
+   {
+    "params": {
+     "plot_type": "Default",
+     "speed": "100"
+    },
+    "type": "time_response"
+   }
+  ],
+  "conversion_type": "",
+  "project": {
+   "bearings": [],
+   "couplings": [],
+   "disks": [],
+   "gears": [],
+   "materials": [
+    {
+     "E": "211e9",
+     "G_s": "81.2e9",
+     "element_type": "BASIC",
+     "name": "Steel",
+     "rho": "7810"
+    }
+   ],
+   "pointmasses": [],
+   "seals": [],
+   "shafts": [
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    }
+   ]
+  }
+ },
+ "analise_ucs_13": {
+  "analyses": [
+   {
+    "params": {
+     "bearing_freq_min": "0",
+     "bearing_freq_max": "1000",
+     "frequency_units": "RPM",
+     "k_max": "1e11",
+     "k_min": "1e6",
+     "num_modes": "16",
+     "stiffness_units": "N/m",
+     "synchronous": "True"
+    },
+    "type": "ucs"
+   }
+  ],
+  "conversion_type": "",
+  "project": {
+   "bearings": [],
+   "couplings": [],
+   "disks": [],
+   "gears": [],
+   "materials": [
+    {
+     "E": "211e9",
+     "G_s": "81.2e9",
+     "element_type": "BASIC",
+     "name": "Steel",
+     "rho": "7810"
+    }
+   ],
+   "pointmasses": [],
+   "seals": [],
+   "shafts": [
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    }
+   ]
+  }
+ },
+ "analise_unbalance_21": {
+  "analyses": [
+   {
+    "params": {
+     "amplitude_units": "m",
+     "frequency_units": "RPM",
+     "line_shape": "spline",
+     "modes": "[0]",
+     "phase_units": "deg",
+     "plot_type": "Default",
+     "probe_units": "rad",
+     "probes": [
+      {
+       "angle": "0",
+       "node": "1"
+      },
+      {
+       "angle": "90",
+       "node": "2"
+      }
+     ],
+     "speed_max": "1000",
+     "speed_min": "0",
+     "unbalances": [
+      {
+       "mag": "0.005",
+       "node": "1",
+       "phase": "0"
+      },
+      {
+       "mag": "0.003",
+       "node": "2",
+       "phase": "3.14"
+      }
+     ]
+    },
+    "type": "unbalance"
+   }
+  ],
+  "conversion_type": "",
+  "project": {
+   "bearings": [],
+   "couplings": [],
+   "disks": [],
+   "gears": [],
+   "materials": [
+    {
+     "E": "211e9",
+     "G_s": "81.2e9",
+     "element_type": "BASIC",
+     "name": "Steel",
+     "rho": "7810"
+    }
+   ],
+   "pointmasses": [],
+   "seals": [],
+   "shafts": [
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    }
+   ]
+  }
+ },
+ "analise_unbalance_22": {
+  "analyses": [
+   {
+    "params": {
+     "amplitude_units": "m",
+     "frequency_units": "RPM",
+     "line_shape": "spline",
+     "modes": "[0]",
+     "phase_units": "deg",
+     "plot_type": "Magnitude",
+     "probe_units": "rad",
+     "probes": [
+      {
+       "angle": "0",
+       "node": "1"
+      },
+      {
+       "angle": "90",
+       "node": "2"
+      }
+     ],
+     "speed_max": "1000",
+     "speed_min": "0",
+     "unbalances": [
+      {
+       "mag": "0.005",
+       "node": "1",
+       "phase": "0"
+      },
+      {
+       "mag": "0.003",
+       "node": "2",
+       "phase": "3.14"
+      }
+     ]
+    },
+    "type": "unbalance"
+   }
+  ],
+  "conversion_type": "",
+  "project": {
+   "bearings": [],
+   "couplings": [],
+   "disks": [],
+   "gears": [],
+   "materials": [
+    {
+     "E": "211e9",
+     "G_s": "81.2e9",
+     "element_type": "BASIC",
+     "name": "Steel",
+     "rho": "7810"
+    }
+   ],
+   "pointmasses": [],
+   "seals": [],
+   "shafts": [
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    }
+   ]
+  }
+ },
+ "analise_unbalance_23": {
+  "analyses": [
+   {
+    "params": {
+     "amplitude_units": "m",
+     "frequency_units": "RPM",
+     "line_shape": "spline",
+     "modes": "[0]",
+     "phase_units": "deg",
+     "plot_type": "Phase",
+     "probe_units": "rad",
+     "probes": [
+      {
+       "angle": "0",
+       "node": "1"
+      },
+      {
+       "angle": "90",
+       "node": "2"
+      }
+     ],
+     "speed_max": "1000",
+     "speed_min": "0",
+     "unbalances": [
+      {
+       "mag": "0.005",
+       "node": "1",
+       "phase": "0"
+      },
+      {
+       "mag": "0.003",
+       "node": "2",
+       "phase": "3.14"
+      }
+     ]
+    },
+    "type": "unbalance"
+   }
+  ],
+  "conversion_type": "",
+  "project": {
+   "bearings": [],
+   "couplings": [],
+   "disks": [],
+   "gears": [],
+   "materials": [
+    {
+     "E": "211e9",
+     "G_s": "81.2e9",
+     "element_type": "BASIC",
+     "name": "Steel",
+     "rho": "7810"
+    }
+   ],
+   "pointmasses": [],
+   "seals": [],
+   "shafts": [
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    }
+   ]
+  }
+ },
+ "analise_unbalance_24": {
+  "analyses": [
+   {
+    "params": {
+     "amplitude_units": "m",
+     "frequency_units": "RPM",
+     "line_shape": "spline",
+     "modes": "[0]",
+     "phase_units": "deg",
+     "plot_type": "Bode",
+     "probe_units": "rad",
+     "probes": [
+      {
+       "angle": "0",
+       "node": "1"
+      },
+      {
+       "angle": "90",
+       "node": "2"
+      }
+     ],
+     "speed_max": "1000",
+     "speed_min": "0",
+     "unbalances": [
+      {
+       "mag": "0.005",
+       "node": "1",
+       "phase": "0"
+      },
+      {
+       "mag": "0.003",
+       "node": "2",
+       "phase": "3.14"
+      }
+     ]
+    },
+    "type": "unbalance"
+   }
+  ],
+  "conversion_type": "",
+  "project": {
+   "bearings": [],
+   "couplings": [],
+   "disks": [],
+   "gears": [],
+   "materials": [
+    {
+     "E": "211e9",
+     "G_s": "81.2e9",
+     "element_type": "BASIC",
+     "name": "Steel",
+     "rho": "7810"
+    }
+   ],
+   "pointmasses": [],
+   "seals": [],
+   "shafts": [
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    }
+   ]
+  }
+ },
+ "analise_unbalance_25": {
+  "analyses": [
+   {
+    "params": {
+     "amplitude_units": "m",
+     "frequency_units": "RPM",
+     "line_shape": "spline",
+     "modes": "[0]",
+     "phase_units": "deg",
+     "plot_type": "Polar Bode",
+     "probe_units": "rad",
+     "probes": [
+      {
+       "angle": "0",
+       "node": "1"
+      },
+      {
+       "angle": "90",
+       "node": "2"
+      }
+     ],
+     "speed_max": "1000",
+     "speed_min": "0",
+     "unbalances": [
+      {
+       "mag": "0.005",
+       "node": "1",
+       "phase": "0"
+      },
+      {
+       "mag": "0.003",
+       "node": "2",
+       "phase": "3.14"
+      }
+     ]
+    },
+    "type": "unbalance"
+   }
+  ],
+  "conversion_type": "",
+  "project": {
+   "bearings": [],
+   "couplings": [],
+   "disks": [],
+   "gears": [],
+   "materials": [
+    {
+     "E": "211e9",
+     "G_s": "81.2e9",
+     "element_type": "BASIC",
+     "name": "Steel",
+     "rho": "7810"
+    }
+   ],
+   "pointmasses": [],
+   "seals": [],
+   "shafts": [
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    }
+   ]
+  }
+ },
+ "conv_4dof": {
+  "analyses": [],
+  "conversion_type": "4dof",
+  "project": {
+   "bearings": [],
+   "couplings": [],
+   "disks": [],
+   "gears": [],
+   "materials": [
+    {
+     "E": "211e9",
+     "G_s": "81.2e9",
+     "element_type": "BASIC",
+     "name": "Steel",
+     "rho": "7810"
+    }
+   ],
+   "pointmasses": [],
+   "seals": [],
+   "shafts": [
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    }
+   ]
+  }
+ },
+ "conv_torsional": {
+  "analyses": [],
+  "conversion_type": "torsional",
+  "project": {
+   "bearings": [],
+   "couplings": [],
+   "disks": [],
+   "gears": [],
+   "materials": [
+    {
+     "E": "211e9",
+     "G_s": "81.2e9",
+     "element_type": "BASIC",
+     "name": "Steel",
+     "rho": "7810"
+    }
+   ],
+   "pointmasses": [],
+   "seals": [],
+   "shafts": [
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    }
+   ]
+  }
+ },
+ "gears_couplings_pointmasses": {
+  "analyses": [],
+  "conversion_type": "",
+  "project": {
+   "bearings": [],
+   "couplings": [
+    {
+     "Id_l": "0.01",
+     "Id_r": "0.01",
+     "Ip_l": "0.01",
+     "Ip_r": "0.01",
+     "element_type": "BASIC",
+     "kt_x": "1e6",
+     "m_l": "2",
+     "m_r": "2",
+     "n": "0"
+    }
+   ],
+   "disks": [],
+   "gears": [
+    {
+     "Id": "0.01",
+     "Ip": "0.02",
+     "element_type": "BASIC",
+     "m": "5",
+     "material": "Alu",
+     "n": "1",
+     "pitch_diameter": "100",
+     "pr_angle": "20"
+    },
+    {
+     "element_type": "TVMS",
+     "material": "Steel",
+     "module": "3",
+     "n": "2",
+     "n_teeth": "30",
+     "pr_angle": "20",
+     "width": "20"
+    }
+   ],
+   "materials": [
+    {
+     "E": "211e9",
+     "G_s": "81.2e9",
+     "element_type": "BASIC",
+     "name": "Steel",
+     "rho": "7810"
+    },
+    {
+     "E": "70e9",
+     "element_type": "BASIC",
+     "name": "Alu",
+     "poisson": "0.33",
+     "rho": "2700"
+    }
+   ],
+   "pointmasses": [
+    {
+     "element_type": "BASIC",
+     "m": "3",
+     "n": "4"
+    },
+    {
+     "element_type": "BASIC",
+     "mx": "1",
+     "my": "2",
+     "mz": "3"
+    }
+   ],
+   "seals": [],
+   "shafts": [
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    }
+   ]
+  }
+ },
+ "material_com_apostrofo": {
+  "analyses": [],
+  "conversion_type": "",
+  "project": {
+   "bearings": [],
+   "couplings": [],
+   "disks": [],
+   "gears": [],
+   "materials": [
+    {
+     "E": "211e9",
+     "G_s": "81.2e9",
+     "element_type": "BASIC",
+     "name": "O'Brien Steel",
+     "rho": "7810"
+    }
+   ],
+   "pointmasses": [],
+   "seals": [],
+   "shafts": [
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "O'Brien Steel",
+     "odl": "50"
+    }
+   ]
+  }
+ },
+ "minimo": {
+  "analyses": [],
+  "conversion_type": "",
+  "project": {
+   "bearings": [],
+   "couplings": [],
+   "disks": [],
+   "gears": [],
+   "materials": [
+    {
+     "E": "211e9",
+     "G_s": "81.2e9",
+     "element_type": "BASIC",
+     "name": "Steel",
+     "rho": "7810"
+    }
+   ],
+   "pointmasses": [],
+   "seals": [],
+   "shafts": [
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    }
+   ]
+  }
+ },
+ "multirotor": {
+  "analyses": [],
+  "conversion_type": "",
+  "project": {
+   "driven_rotor": {
+    "bearings": [],
+    "couplings": [],
+    "disks": [],
+    "gears": [],
+    "materials": [
+     {
+      "E": "211e9",
+      "G_s": "81.2e9",
+      "element_type": "BASIC",
+      "name": "Steel",
+      "rho": "7810"
+     }
+    ],
+    "pointmasses": [],
+    "seals": [],
+    "shafts": [
+     {
+      "L": "100",
+      "element_type": "BASIC",
+      "idl": "0",
+      "material": "Default (Steel)",
+      "odl": "50"
+     },
+     {
+      "L": "100",
+      "element_type": "BASIC",
+      "idl": "0",
+      "material": "Default (Steel)",
+      "odl": "50"
+     },
+     {
+      "L": "100",
+      "element_type": "BASIC",
+      "idl": "0",
+      "material": "Default (Steel)",
+      "odl": "50"
+     }
+    ]
+   },
+   "driving_rotor": {
+    "bearings": [],
+    "couplings": [],
+    "disks": [],
+    "gears": [],
+    "materials": [
+     {
+      "E": "211e9",
+      "G_s": "81.2e9",
+      "element_type": "BASIC",
+      "name": "Steel",
+      "rho": "7810"
+     }
+    ],
+    "pointmasses": [],
+    "seals": [],
+    "shafts": [
+     {
+      "L": "100",
+      "element_type": "BASIC",
+      "idl": "0",
+      "material": "Default (Steel)",
+      "odl": "50"
+     },
+     {
+      "L": "100",
+      "element_type": "BASIC",
+      "idl": "0",
+      "material": "Default (Steel)",
+      "odl": "50"
+     },
+     {
+      "L": "100",
+      "element_type": "BASIC",
+      "idl": "0",
+      "material": "Default (Steel)",
+      "odl": "50"
+     }
+    ]
+   },
+   "isMultiRotor": true,
+   "multi_params": {
+    "backlash": {
+     "enable": true,
+     "error_amp": "0.1",
+     "initial_value": "1e-4",
+     "sigma": "10",
+     "smooth_operator": false
+    },
+    "coupled_nodes": "2, 0",
+    "gear_mesh_stiffness": "1e8",
+    "orientation_angle": "0.5",
+    "position": "above",
+    "square_varying_stiffness": {
+     "amplitude_ratio": "0.2",
+     "enable": true
+    },
+    "update_mesh_stiffness": "true"
+   }
+  }
+ },
+ "multirotor_minimo": {
+  "analyses": [],
+  "conversion_type": "",
+  "project": {
+   "driven_rotor": {
+    "bearings": [],
+    "couplings": [],
+    "disks": [],
+    "gears": [],
+    "materials": [
+     {
+      "E": "211e9",
+      "G_s": "81.2e9",
+      "element_type": "BASIC",
+      "name": "Steel",
+      "rho": "7810"
+     }
+    ],
+    "pointmasses": [],
+    "seals": [],
+    "shafts": [
+     {
+      "L": "100",
+      "element_type": "BASIC",
+      "idl": "0",
+      "material": "Default (Steel)",
+      "odl": "50"
+     },
+     {
+      "L": "100",
+      "element_type": "BASIC",
+      "idl": "0",
+      "material": "Default (Steel)",
+      "odl": "50"
+     },
+     {
+      "L": "100",
+      "element_type": "BASIC",
+      "idl": "0",
+      "material": "Default (Steel)",
+      "odl": "50"
+     }
+    ]
+   },
+   "driving_rotor": {
+    "bearings": [],
+    "couplings": [],
+    "disks": [],
+    "gears": [],
+    "materials": [
+     {
+      "E": "211e9",
+      "G_s": "81.2e9",
+      "element_type": "BASIC",
+      "name": "Steel",
+      "rho": "7810"
+     }
+    ],
+    "pointmasses": [],
+    "seals": [],
+    "shafts": [
+     {
+      "L": "100",
+      "element_type": "BASIC",
+      "idl": "0",
+      "material": "Default (Steel)",
+      "odl": "50"
+     },
+     {
+      "L": "100",
+      "element_type": "BASIC",
+      "idl": "0",
+      "material": "Default (Steel)",
+      "odl": "50"
+     },
+     {
+      "L": "100",
+      "element_type": "BASIC",
+      "idl": "0",
+      "material": "Default (Steel)",
+      "odl": "50"
+     }
+    ]
+   },
+   "isMultiRotor": true,
+   "multi_params": {}
+  }
+ },
+ "nos_misturados": {
+  "analyses": [],
+  "conversion_type": "",
+  "project": {
+   "bearings": [],
+   "couplings": [],
+   "disks": [],
+   "gears": [],
+   "materials": [
+    {
+     "E": "211e9",
+     "G_s": "81.2e9",
+     "element_type": "BASIC",
+     "name": "Steel",
+     "rho": "7810"
+    }
+   ],
+   "pointmasses": [],
+   "seals": [],
+   "shafts": [
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "n": "2",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "n": "0",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    }
+   ]
+  }
+ },
+ "tipos_de_valor": {
+  "analyses": [],
+  "conversion_type": "",
+  "project": {
+   "bearings": [
+    {
+     "cxx": "[1e3, 2e3]",
+     "element_type": "BASIC",
+     "frequency": "[100, 200]",
+     "frequency_unit": "rad/s",
+     "kxx": "[1e6, 2e6]",
+     "n": "0",
+     "tag": "mancal 'A'"
+    },
+    {
+     "element_type": "PlainJournal",
+     "initial_position": "(0.1, -0.1)",
+     "journal_diameter": "100",
+     "n": "3",
+     "print_result": "False",
+     "sommerfeld_type": "2"
+    }
+   ],
+   "couplings": [],
+   "disks": [],
+   "gears": [],
+   "materials": [
+    {
+     "E": "211e9",
+     "G_s": "81.2e9",
+     "element_type": "BASIC",
+     "name": "Steel",
+     "rho": "7810"
+    }
+   ],
+   "pointmasses": [],
+   "seals": [],
+   "shafts": [
+    {
+     "L": "0.1",
+     "L_unit": "m",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "0.05",
+     "odl_unit": "m",
+     "rotary_inertia": "true",
+     "shear_effects": "false",
+     "tag": "eixo A"
+    },
+    {
+     "L": 100,
+     "element_type": "BASIC",
+     "idl": 0,
+     "material": "Default (Steel)",
+     "odl": 50.0
+    }
+   ]
+  }
+ },
+ "todos_os_subtipos": {
+  "analyses": [],
+  "conversion_type": "",
+  "project": {
+   "bearings": [
+    {
+     "cxx": "1e3",
+     "element_type": "BASIC",
+     "frequency": "[100, 200]",
+     "kxx": "1e6",
+     "n": "0"
+    },
+    {
+     "alpha": "0.47",
+     "cxx": "1e3",
+     "d_balls": "0.03",
+     "element_type": "BallBearing",
+     "fs": "500",
+     "n": "3",
+     "n_balls": "8"
+    },
+    {
+     "alpha": "0.47",
+     "element_type": "RollerBearing",
+     "fs": "500",
+     "l_rollers": "0.03",
+     "n": "4",
+     "n_rollers": "8"
+    },
+    {
+     "ag": "1e-4",
+     "alpha": "0.392",
+     "element_type": "MagneticBearing",
+     "g0": "1e-3",
+     "i0": "1.0",
+     "k_amp": "1.0",
+     "k_sense": "1.0",
+     "kd_pid": "1.0",
+     "kp_pid": "1.0",
+     "n": "5",
+     "nw": "200"
+    },
+    {
+     "bearing_length": "30",
+     "element_type": "Cylindrical",
+     "journal_diameter": "100",
+     "n": "6",
+     "oil_viscosity": "0.02",
+     "radial_clearance": "0.1",
+     "speed": "1500",
+     "weight": "525"
+    },
+    {
+     "element_type": "PlainJournal",
+     "frequency": "[900]",
+     "fxs_load": "0",
+     "fys_load": "-100",
+     "journal_diameter": "100",
+     "n": "7",
+     "n_pad": "2",
+     "oil_supply_pressure": "0",
+     "oil_supply_temperature": "40",
+     "pad_arc": "80",
+     "pad_axial_length": "30",
+     "radial_clearance": "0.1"
+    },
+    {
+     "axial_length": "30",
+     "element_type": "SqueezeFilm",
+     "frequency": "[900]",
+     "journal_diameter": "100",
+     "n": "8",
+     "radial_clearance": "0.1"
+    },
+    {
+     "axial_load": "1000",
+     "element_type": "ThrustPad",
+     "frequency": "[900]",
+     "n": "9",
+     "oil_supply_temperature": "40",
+     "pad_arc": "40",
+     "pad_inner_radius": "50",
+     "pad_outer_radius": "100",
+     "pad_pivot_radius": "75",
+     "pivot_angle": "20"
+    },
+    {
+     "element_type": "TiltingPad",
+     "frequency": "[900]",
+     "journal_diameter": "100",
+     "journal_temperature": "50",
+     "n": "10",
+     "oil_supply_temperature": "40",
+     "pad_arc": "80",
+     "pad_axial_length": "30",
+     "pad_thickness": "10",
+     "pivot_angle": "40",
+     "radial_clearance": "0.1"
+    }
+   ],
+   "couplings": [],
+   "disks": [
+    {
+     "Id": "0.17",
+     "Ip": "0.32",
+     "element_type": "BASIC",
+     "m": "32",
+     "n": "1"
+    },
+    {
+     "Id": "0.1",
+     "Ip": "0.2",
+     "element_type": "BASIC",
+     "m": "10"
+    }
+   ],
+   "gears": [],
+   "materials": [
+    {
+     "E": "211e9",
+     "G_s": "81.2e9",
+     "element_type": "BASIC",
+     "name": "Steel",
+     "rho": "7810"
+    }
+   ],
+   "pointmasses": [],
+   "seals": [
+    {
+     "cxx": "1e2",
+     "element_type": "BASIC",
+     "kxx": "1e5",
+     "n": "11"
+    },
+    {
+     "axial_length": "50",
+     "cell_depth": "3",
+     "cell_length": "3",
+     "cell_width": "3",
+     "element_type": "HolePattern",
+     "frequency": "[900]",
+     "inlet_pressure": "1e6",
+     "inlet_temperature": "40",
+     "n": "12",
+     "outlet_pressure": "1e5",
+     "radial_clearance": "0.2",
+     "shaft_diameter": "100"
+    },
+    {
+     "element_type": "Labyrinth",
+     "frequency": "[900]",
+     "inlet_pressure": "1e6",
+     "inlet_temperature": "40",
+     "n": "13",
+     "outlet_pressure": "1e5",
+     "pitch": "3",
+     "radial_clearance": "0.2",
+     "shaft_diameter": "100",
+     "tooth_height": "3",
+     "tooth_width": "1"
+    },
+    {
+     "element_type": "Hybrid",
+     "frequency": "[900]",
+     "inlet_pressure": "1e6",
+     "inlet_temperature": "40",
+     "n": "14",
+     "outlet_pressure": "1e5",
+     "shaft_diameter": "100"
+    }
+   ],
+   "shafts": [
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    }
+   ]
+  }
+ },
+ "varias_analises": {
+  "analyses": [
+   {
+    "params": {
+     "animation": "True",
+     "damping_parameter": "log_dec",
+     "frequencies": "6",
+     "frequency_type": "wd",
+     "frequency_units": "RPM",
+     "harmonics": "[1, 2]",
+     "plot_type": "Default",
+     "speed_max": "4000",
+     "speed_max_unit": "RPM",
+     "speed_min": "0",
+     "speed_min_unit": "RPM",
+     "speed_steps": "31",
+     "speed_units": "RPM",
+     "torsional_analysis": "False"
+    },
+    "type": "campbell"
+   },
+   {
+    "params": {
+     "animation": "True",
+     "damping_parameter": "log_dec",
+     "frequencies": "6",
+     "frequency_type": "wd",
+     "frequency_units": "RPM",
+     "harmonics": "[1, 2]",
+     "plot_type": "Mode Shape",
+     "speed_max": "4000",
+     "speed_max_unit": "RPM",
+     "speed_min": "0",
+     "speed_min_unit": "RPM",
+     "speed_steps": "31",
+     "speed_units": "RPM",
+     "torsional_analysis": "False"
+    },
+    "type": "campbell"
+   },
+   {
+    "params": {
+     "plot_type": "Default",
+     "speed_max": "400",
+     "speed_min": "0"
+    },
+    "type": "campbell"
+   },
+   {
+    "params": {
+     "bearing_freq_min": "0",
+     "bearing_freq_max": "1000",
+     "frequency_units": "RPM",
+     "k_max": "1e11",
+     "k_min": "1e6",
+     "num_modes": "16",
+     "stiffness_units": "N/m",
+     "synchronous": "True"
+    },
+    "type": "ucs"
+   },
+   {
+    "params": {
+     "amplitude_units": "m",
+     "free_free": "True",
+     "frequency_units": "RPM",
+     "inps": [
+      {
+       "dof": "0",
+       "node": "1"
+      },
+      {
+       "dof": "1",
+       "node": "2"
+      }
+     ],
+     "line_shape": "spline",
+     "modes": "[0, 1]",
+     "outs": [
+      {
+       "dof": "0",
+       "node": "3"
+      }
+     ],
+     "phase_units": "deg",
+     "plot_type": "Default",
+     "speed_max": "1000",
+     "speed_min": "0",
+     "speed_steps": "40"
+    },
+    "type": "freq_response"
+   },
+   {
+    "params": {
+     "amplitude_units": "m",
+     "free_free": "True",
+     "frequency_units": "RPM",
+     "inps": [
+      {
+       "dof": "0",
+       "node": "1"
+      },
+      {
+       "dof": "1",
+       "node": "2"
+      }
+     ],
+     "line_shape": "spline",
+     "modes": "[0, 1]",
+     "outs": [
+      {
+       "dof": "0",
+       "node": "3"
+      }
+     ],
+     "phase_units": "deg",
+     "plot_type": "Magnitude",
+     "speed_max": "1000",
+     "speed_min": "0",
+     "speed_steps": "40"
+    },
+    "type": "freq_response"
+   }
+  ],
+  "conversion_type": "",
+  "project": {
+   "bearings": [],
+   "couplings": [],
+   "disks": [],
+   "gears": [],
+   "materials": [
+    {
+     "E": "211e9",
+     "G_s": "81.2e9",
+     "element_type": "BASIC",
+     "name": "Steel",
+     "rho": "7810"
+    }
+   ],
+   "pointmasses": [],
+   "seals": [],
+   "shafts": [
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    },
+    {
+     "L": "100",
+     "element_type": "BASIC",
+     "idl": "0",
+     "material": "Default (Steel)",
+     "odl": "50"
+    }
+   ]
+  }
+ }
+}

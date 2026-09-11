@@ -1,0 +1,1863 @@
+{
+ "fields": {
+  "campbell": [
+   {
+    "id": "speed_min",
+    "label": "Start Speed",
+    "type": "range",
+    "val": 0,
+    "role": "compute",
+    "min": 0,
+    "max": 1000,
+    "step": 10,
+    "default_unit": "rad/s"
+   },
+   {
+    "id": "speed_max",
+    "label": "End Speed",
+    "type": "range",
+    "val": 400,
+    "role": "compute",
+    "min": 100,
+    "max": 4000,
+    "step": 10,
+    "default_unit": "rad/s"
+   },
+   {
+    "id": "speed_steps",
+    "label": "Steps",
+    "type": "range",
+    "val": 50,
+    "role": "compute",
+    "min": 10,
+    "max": 200,
+    "step": 1
+   },
+   {
+    "id": "plot_type",
+    "label": "Plot Type",
+    "type": "select",
+    "val": "Default",
+    "role": "interface",
+    "options": [
+     "Default",
+     "Mode Shape"
+    ]
+   },
+   {
+    "id": "frequencies",
+    "label": "Nº Frequencies",
+    "type": "number",
+    "val": 6,
+    "role": "compute",
+    "adv": "analysis",
+    "ross_param": "frequencies"
+   },
+   {
+    "id": "frequency_type",
+    "label": "Freq. Type",
+    "type": "select",
+    "val": "wd",
+    "role": "compute",
+    "options": [
+     "wd",
+     "wn"
+    ],
+    "adv": "analysis",
+    "ross_param": "frequency_type"
+   },
+   {
+    "id": "torsional_analysis",
+    "label": "Torsional",
+    "type": "select",
+    "val": "False",
+    "role": "compute",
+    "options": [
+     "False",
+     "True"
+    ],
+    "adv": "analysis",
+    "ross_param": "torsional_analysis"
+   },
+   {
+    "id": "harmonics",
+    "label": "Harmonics [list]",
+    "type": "text",
+    "val": "[1]",
+    "role": "plot",
+    "adv": "plot"
+   },
+   {
+    "id": "frequency_units",
+    "label": "Freq. Units",
+    "type": "select",
+    "val": "RPM",
+    "role": "plot",
+    "options": [
+     "RPM",
+     "rad/s"
+    ],
+    "adv": "plot"
+   },
+   {
+    "id": "speed_units",
+    "label": "Speed Units",
+    "type": "select",
+    "val": "RPM",
+    "role": "plot",
+    "options": [
+     "RPM",
+     "rad/s"
+    ],
+    "adv": "plot"
+   },
+   {
+    "id": "damping_parameter",
+    "label": "Damping Param",
+    "type": "select",
+    "val": "log_dec",
+    "role": "plot",
+    "options": [
+     "log_dec",
+     "damping_ratio"
+    ],
+    "adv": "plot"
+   },
+   {
+    "id": "animation",
+    "label": "Animation",
+    "type": "select",
+    "val": "False",
+    "role": "plot",
+    "options": [
+     "False",
+     "True"
+    ],
+    "adv": "plot",
+    "deps": [
+     "Mode Shape"
+    ],
+    "deps_de": "plot_type"
+   }
+  ],
+  "ucs": [
+   {
+    "id": "k_min",
+    "label": "Min Stiffness (10^x N/m)",
+    "type": "number",
+    "val": 4,
+    "role": "compute"
+   },
+   {
+    "id": "k_max",
+    "label": "Max Stiffness (10^x N/m)",
+    "type": "number",
+    "val": 10,
+    "role": "compute"
+   },
+   {
+    "id": "num_modes",
+    "label": "Nº Modes",
+    "type": "number",
+    "val": 4,
+    "role": "compute",
+    "ross_param": "num_modes"
+   },
+   {
+    "id": "bearing_freq_min",
+    "label": "Bearing Freq Min",
+    "type": "number",
+    "val": "",
+    "role": "compute",
+    "adv": "analysis"
+   },
+   {
+    "id": "bearing_freq_max",
+    "label": "Bearing Freq Max",
+    "type": "number",
+    "val": "",
+    "role": "compute",
+    "adv": "analysis"
+   },
+   {
+    "id": "synchronous",
+    "label": "Synchronous",
+    "type": "select",
+    "val": "False",
+    "role": "compute",
+    "options": [
+     "False",
+     "True"
+    ],
+    "adv": "analysis",
+    "ross_param": "synchronous"
+   },
+   {
+    "id": "stiffness_units",
+    "label": "Stiffness Units",
+    "type": "text",
+    "val": "N/m",
+    "role": "plot",
+    "adv": "plot"
+   },
+   {
+    "id": "frequency_units",
+    "label": "Freq. Units",
+    "type": "select",
+    "val": "rad/s",
+    "role": "plot",
+    "options": [
+     "RPM",
+     "Hz",
+     "rad/s"
+    ],
+    "adv": "plot"
+   }
+  ],
+  "freq_response": [
+   {
+    "id": "speed_min",
+    "label": "Start Speed",
+    "type": "range",
+    "val": 0,
+    "role": "compute",
+    "min": 0,
+    "max": 1000,
+    "step": 10,
+    "default_unit": "rad/s"
+   },
+   {
+    "id": "speed_max",
+    "label": "End Speed",
+    "type": "range",
+    "val": 400,
+    "role": "compute",
+    "min": 100,
+    "max": 4000,
+    "step": 10,
+    "default_unit": "rad/s"
+   },
+   {
+    "id": "plot_type",
+    "label": "Plot Type",
+    "type": "select",
+    "val": "Default",
+    "role": "plot",
+    "options": [
+     "Default",
+     "Magnitude",
+     "Phase",
+     "Polar Bode"
+    ]
+   },
+   {
+    "id": "inps",
+    "label": "Input Probes",
+    "type": "probe_list",
+    "val": [
+     {
+      "node": 0,
+      "dof": 0
+     }
+    ],
+    "role": "plot"
+   },
+   {
+    "id": "outs",
+    "label": "Output Probes",
+    "type": "probe_list",
+    "val": [
+     {
+      "node": 0,
+      "dof": 0
+     }
+    ],
+    "role": "plot"
+   },
+   {
+    "id": "modes",
+    "label": "Modes [list]",
+    "type": "text",
+    "val": "",
+    "role": "compute",
+    "adv": "analysis",
+    "ross_param": "modes"
+   },
+   {
+    "id": "free_free",
+    "label": "Free Free",
+    "type": "select",
+    "val": "False",
+    "role": "compute",
+    "options": [
+     "False",
+     "True"
+    ],
+    "adv": "analysis",
+    "ross_param": "free_free"
+   },
+   {
+    "id": "frequency_units",
+    "label": "Freq. Units",
+    "type": "select",
+    "val": "rad/s",
+    "role": "plot",
+    "options": [
+     "RPM",
+     "Hz",
+     "rad/s"
+    ],
+    "adv": "plot"
+   },
+   {
+    "id": "amplitude_units",
+    "label": "Amplitude Units",
+    "type": "select",
+    "val": "m/N",
+    "role": "plot",
+    "options": [
+     "m/N",
+     "mm/N",
+     "microm/N",
+     "m/(s*N)",
+     "m/(s**2*N)"
+    ],
+    "adv": "plot"
+   },
+   {
+    "id": "phase_units",
+    "label": "Phase Units",
+    "type": "select",
+    "val": "rad",
+    "role": "plot",
+    "options": [
+     "rad",
+     "deg"
+    ],
+    "adv": "plot",
+    "deps": [
+     "Default",
+     "Phase",
+     "Polar Bode"
+    ],
+    "deps_de": "plot_type"
+   },
+   {
+    "id": "line_shape",
+    "label": "Line Shape",
+    "type": "select",
+    "val": "linear",
+    "role": "plot",
+    "options": [
+     "linear",
+     "log"
+    ],
+    "adv": "plot",
+    "deps": [
+     "Magnitude"
+    ],
+    "deps_de": "plot_type"
+   }
+  ],
+  "modes": [
+   {
+    "id": "speed",
+    "label": "Shaft Speed",
+    "type": "range",
+    "val": 0,
+    "role": "compute",
+    "min": 0,
+    "max": 2000,
+    "step": 10,
+    "default_unit": "rad/s",
+    "ross_param": "speed"
+   },
+   {
+    "id": "num_modes",
+    "label": "Nº Modes",
+    "type": "number",
+    "val": 12,
+    "role": "compute",
+    "ross_param": "num_modes"
+   },
+   {
+    "id": "plot_type",
+    "label": "Plot Type",
+    "type": "select",
+    "val": "2D",
+    "role": "plot",
+    "options": [
+     "2D",
+     "3D",
+     "Orbit"
+    ]
+   },
+   {
+    "id": "plot_idx",
+    "label": "Mode Index",
+    "type": "number",
+    "val": 0,
+    "role": "plot"
+   },
+   {
+    "id": "sparse",
+    "label": "Sparse",
+    "type": "select",
+    "val": "True",
+    "role": "compute",
+    "options": [
+     "True",
+     "False"
+    ],
+    "adv": "analysis",
+    "ross_param": "sparse"
+   },
+   {
+    "id": "synchronous",
+    "label": "Synchronous",
+    "type": "select",
+    "val": "False",
+    "role": "compute",
+    "options": [
+     "False",
+     "True"
+    ],
+    "adv": "analysis",
+    "ross_param": "synchronous"
+   },
+   {
+    "id": "orientation",
+    "label": "Orientation",
+    "type": "select",
+    "val": "major",
+    "role": "plot",
+    "options": [
+     "major",
+     "x",
+     "y"
+    ],
+    "adv": "plot",
+    "deps": [
+     "2D"
+    ],
+    "deps_de": "plot_type"
+   },
+   {
+    "id": "frequency_type",
+    "label": "Freq Type",
+    "type": "select",
+    "val": "wd",
+    "role": "plot",
+    "options": [
+     "wd",
+     "wn"
+    ],
+    "adv": "plot",
+    "deps": [
+     "2D",
+     "3D"
+    ],
+    "deps_de": "plot_type"
+   },
+   {
+    "id": "frequency_units",
+    "label": "Freq. Units",
+    "type": "select",
+    "val": "rad/s",
+    "role": "plot",
+    "options": [
+     "RPM",
+     "Hz",
+     "rad/s"
+    ],
+    "adv": "plot",
+    "deps": [
+     "2D",
+     "3D"
+    ],
+    "deps_de": "plot_type"
+   },
+   {
+    "id": "damping_parameter",
+    "label": "Damping Param",
+    "type": "select",
+    "val": "log_dec",
+    "role": "plot",
+    "options": [
+     "log_dec",
+     "damping_ratio"
+    ],
+    "adv": "plot",
+    "deps": [
+     "2D",
+     "3D"
+    ],
+    "deps_de": "plot_type"
+   },
+   {
+    "id": "length_units",
+    "label": "Length Units",
+    "type": "select",
+    "val": "m",
+    "role": "plot",
+    "options": [
+     "m",
+     "mm"
+    ],
+    "adv": "plot",
+    "deps": [
+     "3D"
+    ],
+    "deps_de": "plot_type"
+   },
+   {
+    "id": "phase_units",
+    "label": "Phase Units",
+    "type": "select",
+    "val": "rad",
+    "role": "plot",
+    "options": [
+     "rad",
+     "deg"
+    ],
+    "adv": "plot",
+    "deps": [
+     "3D"
+    ],
+    "deps_de": "plot_type"
+   },
+   {
+    "id": "animation",
+    "label": "Animation",
+    "type": "select",
+    "val": "False",
+    "role": "plot",
+    "options": [
+     "False",
+     "True"
+    ],
+    "adv": "plot",
+    "deps": [
+     "3D"
+    ],
+    "deps_de": "plot_type"
+   },
+   {
+    "id": "nodes",
+    "label": "Nodes [list]",
+    "type": "text",
+    "val": "",
+    "role": "plot",
+    "adv": "plot",
+    "deps": [
+     "Orbit"
+    ],
+    "deps_de": "plot_type"
+   }
+  ],
+  "unbalance": [
+   {
+    "id": "speed_min",
+    "label": "Start Speed",
+    "type": "range",
+    "val": 0,
+    "role": "compute",
+    "min": 0,
+    "max": 1000,
+    "step": 10,
+    "default_unit": "rad/s"
+   },
+   {
+    "id": "speed_max",
+    "label": "End Speed",
+    "type": "range",
+    "val": 400,
+    "role": "compute",
+    "min": 100,
+    "max": 4000,
+    "step": 10,
+    "default_unit": "rad/s"
+   },
+   {
+    "id": "plot_type",
+    "label": "Plot Type",
+    "type": "select",
+    "val": "Default",
+    "role": "plot",
+    "options": [
+     "Default",
+     "Magnitude",
+     "Phase",
+     "Bode",
+     "Polar Bode"
+    ]
+   },
+   {
+    "id": "unbalances",
+    "label": "Unbalance Excitations",
+    "type": "unbalance_list",
+    "val": [
+     {
+      "node": 0,
+      "mag": 0.01,
+      "phase": 0
+     }
+    ],
+    "role": "compute"
+   },
+   {
+    "id": "probes",
+    "label": "Measurement Probes",
+    "type": "angle_probe_list",
+    "val": [
+     {
+      "node": 0,
+      "angle": 0
+     }
+    ],
+    "role": "plot"
+   },
+   {
+    "id": "modes",
+    "label": "Modes [list]",
+    "type": "text",
+    "val": "",
+    "role": "compute",
+    "adv": "analysis",
+    "ross_param": "modes"
+   },
+   {
+    "id": "probe_units",
+    "label": "Probe Units",
+    "type": "select",
+    "val": "rad",
+    "role": "plot",
+    "options": [
+     "rad",
+     "deg"
+    ],
+    "adv": "plot"
+   },
+   {
+    "id": "frequency_units",
+    "label": "Freq. Units",
+    "type": "select",
+    "val": "rad/s",
+    "role": "plot",
+    "options": [
+     "RPM",
+     "Hz",
+     "rad/s"
+    ],
+    "adv": "plot"
+   },
+   {
+    "id": "amplitude_units",
+    "label": "Amplitude Units",
+    "type": "select",
+    "val": "m",
+    "role": "plot",
+    "options": [
+     "m",
+     "mm",
+     "microm"
+    ],
+    "adv": "plot"
+   },
+   {
+    "id": "phase_units",
+    "label": "Phase Units",
+    "type": "select",
+    "val": "rad",
+    "role": "plot",
+    "options": [
+     "rad",
+     "deg"
+    ],
+    "adv": "plot",
+    "deps": [
+     "Default",
+     "Phase",
+     "Bode",
+     "Polar Bode"
+    ],
+    "deps_de": "plot_type"
+   },
+   {
+    "id": "line_shape",
+    "label": "Line Shape",
+    "type": "select",
+    "val": "linear",
+    "role": "plot",
+    "options": [
+     "linear",
+     "log"
+    ],
+    "adv": "plot",
+    "deps": [
+     "Magnitude"
+    ],
+    "deps_de": "plot_type"
+   }
+  ],
+  "time_response": [
+   {
+    "id": "speed",
+    "label": "Rot. Speed",
+    "type": "range",
+    "val": 100,
+    "role": "compute",
+    "min": 0,
+    "max": 2000,
+    "step": 10,
+    "default_unit": "rad/s",
+    "ross_param": "speed"
+   },
+   {
+    "id": "t_max",
+    "label": "Max Time (s)",
+    "type": "number",
+    "val": 1,
+    "role": "compute",
+    "min": 0.1,
+    "max": 10,
+    "step": 0.1
+   },
+   {
+    "id": "steps",
+    "label": "Time Steps",
+    "type": "number",
+    "val": 1000,
+    "role": "compute",
+    "min": 100,
+    "max": 10000,
+    "step": 100
+   },
+   {
+    "id": "plot_type",
+    "label": "Plot Type",
+    "type": "select",
+    "val": "1D",
+    "role": "plot",
+    "options": [
+     "1D",
+     "2D",
+     "3D",
+     "Frequency (DFFT)"
+    ]
+   },
+   {
+    "id": "forces",
+    "label": "Applied Forces F(t)",
+    "type": "force_list",
+    "val": [
+     {
+      "node": 0,
+      "dof": 0,
+      "func": "1000 * np.cos(speed * t)"
+     }
+    ],
+    "role": "compute"
+   },
+   {
+    "id": "probes",
+    "label": "Measurement Probes",
+    "type": "angle_probe_list",
+    "val": [
+     {
+      "node": 0,
+      "angle": 0
+     }
+    ],
+    "role": "plot"
+   },
+   {
+    "id": "method",
+    "label": "Integration Method",
+    "type": "select",
+    "val": "default",
+    "role": "compute",
+    "options": [
+     "default",
+     "newmark"
+    ],
+    "adv": "analysis",
+    "ross_param": "method"
+   },
+   {
+    "id": "probe_units",
+    "label": "Probe Units",
+    "type": "select",
+    "val": "rad",
+    "role": "plot",
+    "options": [
+     "rad",
+     "deg"
+    ],
+    "adv": "plot",
+    "deps": [
+     "1D",
+     "Frequency (DFFT)"
+    ],
+    "deps_de": "plot_type"
+   },
+   {
+    "id": "displacement_units",
+    "label": "Displacement Units",
+    "type": "select",
+    "val": "m",
+    "role": "plot",
+    "options": [
+     "m",
+     "mm",
+     "microm"
+    ],
+    "adv": "plot"
+   },
+   {
+    "id": "time_units",
+    "label": "Time Units",
+    "type": "select",
+    "val": "s",
+    "role": "plot",
+    "options": [
+     "s",
+     "min"
+    ],
+    "adv": "plot",
+    "deps": [
+     "1D"
+    ],
+    "deps_de": "plot_type"
+   },
+   {
+    "id": "rotor_length_units",
+    "label": "Rotor Len Units",
+    "type": "select",
+    "val": "m",
+    "role": "plot",
+    "options": [
+     "m",
+     "mm"
+    ],
+    "adv": "plot",
+    "deps": [
+     "3D"
+    ],
+    "deps_de": "plot_type"
+   },
+   {
+    "id": "frequency_units",
+    "label": "Freq. Units",
+    "type": "select",
+    "val": "Hz",
+    "role": "plot",
+    "options": [
+     "RPM",
+     "Hz",
+     "rad/s"
+    ],
+    "adv": "plot",
+    "deps": [
+     "Frequency (DFFT)"
+    ],
+    "deps_de": "plot_type"
+   }
+  ],
+  "static": [
+   {
+    "id": "plot_type",
+    "label": "Plot Type",
+    "type": "select",
+    "val": "Free Body Diagram",
+    "role": "plot",
+    "options": [
+     "Free Body Diagram",
+     "Deformation",
+     "Shearing Force",
+     "Bending Moment"
+    ]
+   },
+   {
+    "id": "deformation_units",
+    "label": "Deformation Units",
+    "type": "select",
+    "val": "m",
+    "role": "plot",
+    "options": [
+     "m",
+     "mm",
+     "microm"
+    ],
+    "adv": "plot",
+    "deps": [
+     "Deformation"
+    ],
+    "deps_de": "plot_type"
+   },
+   {
+    "id": "rotor_length_units",
+    "label": "Rotor Len Units",
+    "type": "select",
+    "val": "m",
+    "role": "plot",
+    "options": [
+     "m",
+     "mm"
+    ],
+    "adv": "plot"
+   },
+   {
+    "id": "force_units",
+    "label": "Force Units",
+    "type": "text",
+    "val": "N",
+    "role": "plot",
+    "adv": "plot",
+    "deps": [
+     "Free Body Diagram",
+     "Shearing Force"
+    ],
+    "deps_de": "plot_type"
+   },
+   {
+    "id": "moment_units",
+    "label": "Moment Units",
+    "type": "text",
+    "val": "N*m",
+    "role": "plot",
+    "adv": "plot",
+    "deps": [
+     "Bending Moment"
+    ],
+    "deps_de": "plot_type"
+   }
+  ],
+  "harmonic_balance": [
+   {
+    "id": "speed",
+    "label": "Speed",
+    "type": "range",
+    "val": 200,
+    "role": "compute",
+    "min": 0,
+    "max": 2000,
+    "step": 10,
+    "default_unit": "rad/s",
+    "ross_param": "speed"
+   },
+   {
+    "id": "t_initial",
+    "label": "Initial Time (s)",
+    "type": "number",
+    "val": 0,
+    "role": "compute"
+   },
+   {
+    "id": "t_final",
+    "label": "Final Time (s)",
+    "type": "number",
+    "val": 0.5,
+    "role": "compute"
+   },
+   {
+    "id": "t_steps",
+    "label": "Time Steps",
+    "type": "number",
+    "val": 1001,
+    "role": "compute"
+   },
+   {
+    "id": "hb_node",
+    "label": "Force Node",
+    "type": "number",
+    "val": 0,
+    "role": "compute"
+   },
+   {
+    "id": "hb_magnitudes",
+    "label": "Magnitudes [list]",
+    "type": "text",
+    "val": "[2000]",
+    "role": "compute"
+   },
+   {
+    "id": "hb_phases",
+    "label": "Phases [list]",
+    "type": "text",
+    "val": "[0]",
+    "role": "compute"
+   },
+   {
+    "id": "hb_harmonics",
+    "label": "Harmonics [list]",
+    "type": "text",
+    "val": "[1]",
+    "role": "compute"
+   },
+   {
+    "id": "probes",
+    "label": "Measurement Probes",
+    "type": "angle_probe_list",
+    "val": [
+     {
+      "node": 0,
+      "angle": 0
+     }
+    ],
+    "role": "plot"
+   },
+   {
+    "id": "gravity",
+    "label": "Gravity",
+    "type": "select",
+    "val": "False",
+    "role": "compute",
+    "options": [
+     "False",
+     "True"
+    ],
+    "adv": "analysis",
+    "ross_param": "gravity"
+   },
+   {
+    "id": "n_harmonics",
+    "label": "Nº Harmonics",
+    "type": "number",
+    "val": 1,
+    "role": "compute",
+    "adv": "analysis",
+    "ross_param": "n_harmonics"
+   },
+   {
+    "id": "amplitude_units",
+    "label": "Amplitude Units",
+    "type": "select",
+    "val": "m",
+    "role": "plot",
+    "options": [
+     "m",
+     "mm",
+     "microm"
+    ],
+    "adv": "plot"
+   },
+   {
+    "id": "frequency_units",
+    "label": "Freq. Units",
+    "type": "select",
+    "val": "Hz",
+    "role": "plot",
+    "options": [
+     "Hz",
+     "RPM",
+     "rad/s"
+    ],
+    "adv": "plot"
+   }
+  ],
+  "clearance": [
+   {
+    "id": "speed",
+    "label": "Speed",
+    "type": "range",
+    "val": 600,
+    "role": "compute",
+    "min": 0,
+    "max": 2000,
+    "step": 10,
+    "default_unit": "rad/s",
+    "ross_param": "speed"
+   },
+   {
+    "id": "unbalances",
+    "label": "Unbalance Excitations",
+    "type": "unbalance_list",
+    "val": [
+     {
+      "node": 0,
+      "mag": 0.05,
+      "phase": 0
+     }
+    ],
+    "role": "compute"
+   },
+   {
+    "id": "frequency",
+    "label": "Frequency [list]",
+    "type": "text",
+    "val": "[600]",
+    "role": "compute",
+    "adv": "analysis",
+    "ross_param": "frequency"
+   },
+   {
+    "id": "modes",
+    "label": "Modes [list]",
+    "type": "text",
+    "val": "",
+    "role": "compute",
+    "adv": "analysis",
+    "ross_param": "modes"
+   }
+  ],
+  "misalignment": [
+   {
+    "id": "speed",
+    "label": "Speed",
+    "type": "range",
+    "val": 125.66,
+    "role": "compute",
+    "min": 0,
+    "max": 2000,
+    "step": 10,
+    "default_unit": "rad/s",
+    "ross_param": "speed"
+   },
+   {
+    "id": "t_initial",
+    "label": "Initial Time (s)",
+    "type": "number",
+    "val": 0,
+    "role": "compute"
+   },
+   {
+    "id": "t_final",
+    "label": "Final Time (s)",
+    "type": "number",
+    "val": 0.5,
+    "role": "compute"
+   },
+   {
+    "id": "t_steps",
+    "label": "Time Steps",
+    "type": "number",
+    "val": 5000,
+    "role": "compute"
+   },
+   {
+    "id": "unbalances",
+    "label": "Unbalance Excitations",
+    "type": "unbalance_list",
+    "val": [
+     {
+      "node": 0,
+      "mag": 0.0005,
+      "phase": -1.57
+     }
+    ],
+    "role": "compute"
+   },
+   {
+    "id": "coupling",
+    "label": "Coupling",
+    "type": "select",
+    "val": "flex",
+    "role": "compute",
+    "options": [
+     "flex",
+     "rigid"
+    ],
+    "ross_param": "coupling"
+   },
+   {
+    "id": "n",
+    "label": "Shaft Element (n)",
+    "type": "number",
+    "val": 0,
+    "role": "compute",
+    "adv": "analysis"
+   },
+   {
+    "id": "mis_type",
+    "label": "Mis. Type",
+    "type": "select",
+    "val": "parallel",
+    "role": "compute",
+    "options": [
+     "parallel",
+     "angular",
+     "combined"
+    ],
+    "adv": "analysis",
+    "deps": [
+     "flex"
+    ],
+    "deps_de": "coupling"
+   },
+   {
+    "id": "mis_distance_x",
+    "label": "Mis. Dist. X (m)",
+    "type": "text",
+    "val": "0",
+    "role": "compute",
+    "adv": "analysis",
+    "deps": [
+     "flex"
+    ],
+    "deps_de": "coupling"
+   },
+   {
+    "id": "mis_distance_y",
+    "label": "Mis. Dist. Y (m)",
+    "type": "text",
+    "val": "2e-4",
+    "role": "compute",
+    "adv": "analysis",
+    "deps": [
+     "flex"
+    ],
+    "deps_de": "coupling"
+   },
+   {
+    "id": "mis_angle",
+    "label": "Mis. Angle (rad)",
+    "type": "text",
+    "val": "0",
+    "role": "compute",
+    "adv": "analysis",
+    "deps": [
+     "flex"
+    ],
+    "deps_de": "coupling"
+   },
+   {
+    "id": "radial_stiffness",
+    "label": "Radial Stiff.",
+    "type": "text",
+    "val": "1e6",
+    "role": "compute",
+    "adv": "analysis",
+    "deps": [
+     "flex"
+    ],
+    "deps_de": "coupling"
+   },
+   {
+    "id": "bending_stiffness",
+    "label": "Bending Stiff.",
+    "type": "text",
+    "val": "1e6",
+    "role": "compute",
+    "adv": "analysis",
+    "deps": [
+     "flex"
+    ],
+    "deps_de": "coupling"
+   },
+   {
+    "id": "mis_distance",
+    "label": "Mis. Distance (m)",
+    "type": "text",
+    "val": "2e-4",
+    "role": "compute",
+    "adv": "analysis",
+    "deps": [
+     "rigid"
+    ],
+    "deps_de": "coupling"
+   },
+   {
+    "id": "input_torque",
+    "label": "Input Torque",
+    "type": "text",
+    "val": "0",
+    "role": "compute",
+    "adv": "analysis"
+   },
+   {
+    "id": "load_torque",
+    "label": "Load Torque",
+    "type": "text",
+    "val": "0",
+    "role": "compute",
+    "adv": "analysis"
+   },
+   {
+    "id": "plot_type",
+    "label": "Plot Type",
+    "type": "select",
+    "val": "1D",
+    "role": "plot",
+    "options": [
+     "1D",
+     "2D",
+     "3D",
+     "Frequency (DFFT)"
+    ]
+   },
+   {
+    "id": "probes",
+    "label": "Measurement Probes",
+    "type": "angle_probe_list",
+    "val": [
+     {
+      "node": 0,
+      "angle": 0
+     }
+    ],
+    "role": "plot"
+   },
+   {
+    "id": "probe_units",
+    "label": "Probe Units",
+    "type": "select",
+    "val": "rad",
+    "role": "plot",
+    "options": [
+     "rad",
+     "deg"
+    ],
+    "adv": "plot",
+    "deps": [
+     "1D",
+     "Frequency (DFFT)"
+    ],
+    "deps_de": "plot_type"
+   },
+   {
+    "id": "displacement_units",
+    "label": "Displacement Units",
+    "type": "select",
+    "val": "m",
+    "role": "plot",
+    "options": [
+     "m",
+     "mm",
+     "microm"
+    ],
+    "adv": "plot"
+   },
+   {
+    "id": "time_units",
+    "label": "Time Units",
+    "type": "select",
+    "val": "s",
+    "role": "plot",
+    "options": [
+     "s",
+     "min"
+    ],
+    "adv": "plot",
+    "deps": [
+     "1D"
+    ],
+    "deps_de": "plot_type"
+   },
+   {
+    "id": "rotor_length_units",
+    "label": "Rotor Len Units",
+    "type": "select",
+    "val": "m",
+    "role": "plot",
+    "options": [
+     "m",
+     "mm"
+    ],
+    "adv": "plot",
+    "deps": [
+     "3D"
+    ],
+    "deps_de": "plot_type"
+   },
+   {
+    "id": "frequency_units",
+    "label": "Freq. Units",
+    "type": "select",
+    "val": "Hz",
+    "role": "plot",
+    "options": [
+     "RPM",
+     "Hz",
+     "rad/s"
+    ],
+    "adv": "plot",
+    "deps": [
+     "Frequency (DFFT)"
+    ],
+    "deps_de": "plot_type"
+   }
+  ],
+  "rubbing": [
+   {
+    "id": "speed",
+    "label": "Speed",
+    "type": "range",
+    "val": 125.66,
+    "role": "compute",
+    "min": 0,
+    "max": 2000,
+    "step": 10,
+    "default_unit": "rad/s",
+    "ross_param": "speed"
+   },
+   {
+    "id": "t_initial",
+    "label": "Initial Time (s)",
+    "type": "number",
+    "val": 0,
+    "role": "compute"
+   },
+   {
+    "id": "t_final",
+    "label": "Final Time (s)",
+    "type": "number",
+    "val": 0.5,
+    "role": "compute"
+   },
+   {
+    "id": "t_steps",
+    "label": "Time Steps",
+    "type": "number",
+    "val": 5000,
+    "role": "compute"
+   },
+   {
+    "id": "unbalances",
+    "label": "Unbalance Excitations",
+    "type": "unbalance_list",
+    "val": [
+     {
+      "node": 0,
+      "mag": 0.0005,
+      "phase": -1.57
+     }
+    ],
+    "role": "compute"
+   },
+   {
+    "id": "n",
+    "label": "Shaft Element (n)",
+    "type": "number",
+    "val": 0,
+    "role": "compute",
+    "adv": "analysis",
+    "ross_param": "n"
+   },
+   {
+    "id": "distance",
+    "label": "Distance (m)",
+    "type": "text",
+    "val": "7.95e-5",
+    "role": "compute",
+    "adv": "analysis",
+    "ross_param": "distance"
+   },
+   {
+    "id": "contact_stiffness",
+    "label": "Contact Stiff.",
+    "type": "text",
+    "val": "1.1e6",
+    "role": "compute",
+    "adv": "analysis",
+    "ross_param": "contact_stiffness"
+   },
+   {
+    "id": "contact_damping",
+    "label": "Contact Damp.",
+    "type": "text",
+    "val": "40",
+    "role": "compute",
+    "adv": "analysis",
+    "ross_param": "contact_damping"
+   },
+   {
+    "id": "friction_coeff",
+    "label": "Friction Coeff.",
+    "type": "text",
+    "val": "0.3",
+    "role": "compute",
+    "adv": "analysis",
+    "ross_param": "friction_coeff"
+   },
+   {
+    "id": "torque",
+    "label": "Torque",
+    "type": "select",
+    "val": "False",
+    "role": "compute",
+    "options": [
+     "False",
+     "True"
+    ],
+    "adv": "analysis",
+    "ross_param": "torque"
+   },
+   {
+    "id": "plot_type",
+    "label": "Plot Type",
+    "type": "select",
+    "val": "1D",
+    "role": "plot",
+    "options": [
+     "1D",
+     "2D",
+     "3D",
+     "Frequency (DFFT)"
+    ]
+   },
+   {
+    "id": "probes",
+    "label": "Measurement Probes",
+    "type": "angle_probe_list",
+    "val": [
+     {
+      "node": 0,
+      "angle": 0
+     }
+    ],
+    "role": "plot"
+   },
+   {
+    "id": "probe_units",
+    "label": "Probe Units",
+    "type": "select",
+    "val": "rad",
+    "role": "plot",
+    "options": [
+     "rad",
+     "deg"
+    ],
+    "adv": "plot",
+    "deps": [
+     "1D",
+     "Frequency (DFFT)"
+    ],
+    "deps_de": "plot_type"
+   },
+   {
+    "id": "displacement_units",
+    "label": "Displacement Units",
+    "type": "select",
+    "val": "m",
+    "role": "plot",
+    "options": [
+     "m",
+     "mm",
+     "microm"
+    ],
+    "adv": "plot"
+   },
+   {
+    "id": "time_units",
+    "label": "Time Units",
+    "type": "select",
+    "val": "s",
+    "role": "plot",
+    "options": [
+     "s",
+     "min"
+    ],
+    "adv": "plot",
+    "deps": [
+     "1D"
+    ],
+    "deps_de": "plot_type"
+   },
+   {
+    "id": "rotor_length_units",
+    "label": "Rotor Len Units",
+    "type": "select",
+    "val": "m",
+    "role": "plot",
+    "options": [
+     "m",
+     "mm"
+    ],
+    "adv": "plot",
+    "deps": [
+     "3D"
+    ],
+    "deps_de": "plot_type"
+   },
+   {
+    "id": "frequency_units",
+    "label": "Freq. Units",
+    "type": "select",
+    "val": "Hz",
+    "role": "plot",
+    "options": [
+     "RPM",
+     "Hz",
+     "rad/s"
+    ],
+    "adv": "plot",
+    "deps": [
+     "Frequency (DFFT)"
+    ],
+    "deps_de": "plot_type"
+   }
+  ],
+  "crack": [
+   {
+    "id": "speed",
+    "label": "Speed",
+    "type": "range",
+    "val": 125.66,
+    "role": "compute",
+    "min": 0,
+    "max": 2000,
+    "step": 10,
+    "default_unit": "rad/s",
+    "ross_param": "speed"
+   },
+   {
+    "id": "t_initial",
+    "label": "Initial Time (s)",
+    "type": "number",
+    "val": 0,
+    "role": "compute"
+   },
+   {
+    "id": "t_final",
+    "label": "Final Time (s)",
+    "type": "number",
+    "val": 0.5,
+    "role": "compute"
+   },
+   {
+    "id": "t_steps",
+    "label": "Time Steps",
+    "type": "number",
+    "val": 5000,
+    "role": "compute"
+   },
+   {
+    "id": "unbalances",
+    "label": "Unbalance Excitations",
+    "type": "unbalance_list",
+    "val": [
+     {
+      "node": 0,
+      "mag": 0.0005,
+      "phase": -1.57
+     }
+    ],
+    "role": "compute"
+   },
+   {
+    "id": "crack_model",
+    "label": "Crack Model",
+    "type": "select",
+    "val": "Mayes",
+    "role": "compute",
+    "options": [
+     "Mayes",
+     "Gasch",
+     "Flex Open",
+     "Flex Breathing"
+    ],
+    "ross_param": "crack_model"
+   },
+   {
+    "id": "n",
+    "label": "Shaft Element (n)",
+    "type": "number",
+    "val": 0,
+    "role": "compute",
+    "adv": "analysis",
+    "ross_param": "n"
+   },
+   {
+    "id": "depth_ratio",
+    "label": "Depth Ratio",
+    "type": "text",
+    "val": "0.2",
+    "role": "compute",
+    "adv": "analysis",
+    "ross_param": "depth_ratio"
+   },
+   {
+    "id": "cross_divisions",
+    "label": "Cross Divisions",
+    "type": "text",
+    "val": "",
+    "role": "compute",
+    "adv": "analysis",
+    "ross_param": "cross_divisions"
+   },
+   {
+    "id": "plot_type",
+    "label": "Plot Type",
+    "type": "select",
+    "val": "1D",
+    "role": "plot",
+    "options": [
+     "1D",
+     "2D",
+     "3D",
+     "Frequency (DFFT)"
+    ]
+   },
+   {
+    "id": "probes",
+    "label": "Measurement Probes",
+    "type": "angle_probe_list",
+    "val": [
+     {
+      "node": 0,
+      "angle": 0
+     }
+    ],
+    "role": "plot"
+   },
+   {
+    "id": "probe_units",
+    "label": "Probe Units",
+    "type": "select",
+    "val": "rad",
+    "role": "plot",
+    "options": [
+     "rad",
+     "deg"
+    ],
+    "adv": "plot",
+    "deps": [
+     "1D",
+     "Frequency (DFFT)"
+    ],
+    "deps_de": "plot_type"
+   },
+   {
+    "id": "displacement_units",
+    "label": "Displacement Units",
+    "type": "select",
+    "val": "m",
+    "role": "plot",
+    "options": [
+     "m",
+     "mm",
+     "microm"
+    ],
+    "adv": "plot"
+   },
+   {
+    "id": "time_units",
+    "label": "Time Units",
+    "type": "select",
+    "val": "s",
+    "role": "plot",
+    "options": [
+     "s",
+     "min"
+    ],
+    "adv": "plot",
+    "deps": [
+     "1D"
+    ],
+    "deps_de": "plot_type"
+   },
+   {
+    "id": "rotor_length_units",
+    "label": "Rotor Len Units",
+    "type": "select",
+    "val": "m",
+    "role": "plot",
+    "options": [
+     "m",
+     "mm"
+    ],
+    "adv": "plot",
+    "deps": [
+     "3D"
+    ],
+    "deps_de": "plot_type"
+   },
+   {
+    "id": "frequency_units",
+    "label": "Freq. Units",
+    "type": "select",
+    "val": "Hz",
+    "role": "plot",
+    "options": [
+     "RPM",
+     "Hz",
+     "rad/s"
+    ],
+    "adv": "plot",
+    "deps": [
+     "Frequency (DFFT)"
+    ],
+    "deps_de": "plot_type"
+   }
+  ]
+ },
+ "titles": {
+  "campbell": "Campbell Diagram",
+  "ucs": "UCS Diagram",
+  "freq_response": "Frequency Response",
+  "modes": "Modal Analysis",
+  "unbalance": "Unbalance Response",
+  "time_response": "Time Response",
+  "static": "Static Analysis",
+  "harmonic_balance": "Harmonic Balance",
+  "clearance": "Clearance Analysis",
+  "misalignment": "Misalignment Response",
+  "rubbing": "Rubbing Response",
+  "crack": "Crack Response"
+ },
+ "unsupported": {
+  "clearance": {
+   "torsional": {
+    "failure": "raises",
+    "reason": "This analysis addresses lateral degrees of freedom, which the torsional model does not have (it keeps one degree of freedom per node). Measured on ross 2.3.0: IndexError."
+   }
+  },
+  "crack": {
+   "torsional": {
+    "failure": "raises",
+    "reason": "This analysis addresses lateral degrees of freedom, which the torsional model does not have (it keeps one degree of freedom per node). Measured on ross 2.3.0: IndexError."
+   },
+   "4dof": {
+    "failure": "not_validated",
+    "reason": "The crack model in ROSS was developed for the 6 DoF rotor model; running it on the reduced model is not validated. With the default values the time integration also failed to converge (Newton-Raphson reached the maximum number of iterations)."
+   }
+  },
+  "misalignment": {
+   "torsional": {
+    "failure": "raises",
+    "reason": "This analysis addresses lateral degrees of freedom, which the torsional model does not have (it keeps one degree of freedom per node). Measured on ross 2.3.0: IndexError."
+   },
+   "4dof": {
+    "failure": "not_validated",
+    "reason": "The misalignment model in ROSS was developed for the 6 DoF rotor model; it runs on the reduced model but the result is not validated."
+   }
+  },
+  "rubbing": {
+   "torsional": {
+    "failure": "raises",
+    "reason": "This analysis addresses lateral degrees of freedom, which the torsional model does not have (it keeps one degree of freedom per node). Measured on ross 2.3.0: IndexError."
+   },
+   "4dof": {
+    "failure": "not_validated",
+    "reason": "The rubbing model in ROSS was developed for the 6 DoF rotor model; it runs on the reduced model but the result is not validated."
+   }
+  },
+  "unbalance": {
+   "torsional": {
+    "failure": "raises",
+    "reason": "Unbalance response is a lateral phenomenon and the torsional model keeps only the torsional degree of freedom. ROSS documents run_unbalance_response as incompatible with this conversion; measured on ross 2.3.0: IndexError."
+   }
+  },
+  "ucs": {
+   "4dof": {
+    "failure": "ignored",
+    "reason": "This analysis does not go through the reduced matrices: it produced exactly the same chart as the full 6 DoF model. The conversion has no effect, so a chart labelled with the reduced model would be showing 6 DoF numbers."
+   },
+   "torsional": {
+    "failure": "ignored",
+    "reason": "The UCS diagram varies bearing stiffness in the lateral directions, which the torsional model does not have. ROSS documents run_ucs as incompatible with this conversion, and it does not raise: measured on ross 2.3.0 it produced exactly the 6 DoF chart."
+   }
+  },
+  "static": {
+   "4dof": {
+    "failure": "ignored",
+    "reason": "This analysis does not go through the reduced matrices: it produced exactly the same chart as the full 6 DoF model. The conversion has no effect, so a chart labelled with the reduced model would be showing 6 DoF numbers."
+   },
+   "torsional": {
+    "failure": "ignored",
+    "reason": "This analysis does not go through the reduced matrices: it produced exactly the same chart as the full 6 DoF model. The conversion has no effect, so a chart labelled with the reduced model would be showing 6 DoF numbers."
+   }
+  }
+ }
+}
