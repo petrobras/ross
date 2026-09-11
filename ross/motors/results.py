@@ -7,6 +7,8 @@ import plotly.graph_objects as go
 from scipy.interpolate import interp1d
 import numpy as np
 
+from plotly_resampler import FigureResampler
+
 from ross.results import Results
 from ross.units import Q_, check_units
 from .utils import windowed_dfft
@@ -77,108 +79,13 @@ class PhaseResults(Results):
         self.name = self._DATA_TYPE_MAP[data_type]["name"]
         self.units = self._DATA_TYPE_MAP[data_type]["units"]
 
-        self.sample_idx = self.get_adaptive_sample_idx(t, data, t_eval)
+        min_dt = 1e-4
+        dt = np.diff(self.t).min()
+        self.n_shown_samples = int(len(self.t) * dt / min_dt) if dt < min_dt else None
+
         self.t_eval = t_eval
 
-    @staticmethod
-    def get_corresponding_indices(t, t_eval=None, dt_ref=1e-4):
-        """Return the indices of `t` corresponding to the values in `t_eval`.
-
-        Each value in `t_eval` must be present in `t`. The returned indices
-        satisfy ``t[sample_idx] == t_eval``.
-
-        Parameters
-        ----------
-        t : ndarray
-            Monotonically increasing reference array.
-        t_eval : ndarray, optional
-            Values whose positions in `t` are to be located.
-        dt_ref : float, optional
-            Reference spacing used to generate the default evaluation grid
-            when `t_eval` is None. Default is 1e-4.
-
-        Returns
-        -------
-        sample_idx : ndarray
-            Indices of the elements in `t` corresponding to `t_eval`.
-        """
-        if t_eval is None:
-            dt = t[1] - t[0]
-            nt = int(dt_ref / dt)
-            if nt > 1:
-                size = int((t[-1] - t[0]) / (dt * nt)) + 1
-                t_eval = np.linspace(t[0], t[-1], size)
-            else:
-                t_eval = t
-
-        sample_idx = np.unique(
-            np.concatenate(([0], np.searchsorted(t, t_eval), [len(t) - 1]))
-        )
-        sample_idx = sample_idx[sample_idx < len(t)]
-
-        return sample_idx
-
-    @staticmethod
-    def get_adaptive_sample_idx(t, data, t_eval=None, tol=1e-6):
-        """Return sample indices for time-domain plotting, preserving fast
-        transitions that would otherwise be lost (aliased) if only the
-        (possibly much coarser) `t_eval` grid were used.
-
-        `t_eval` is normally sparse compared to `t`: it is meant to give a
-        low-resolution view of slowly-varying signals such as the shaft
-        speed or the electromagnetic torque. Voltages coming from an
-        inverter (`InverterVF`, `InverterFOC`), however, switch at a much
-        higher rate (the SVPWM switching frequency) than that. If `t_eval`'s
-        spacing happens to be close to an integer multiple of the switching
-        period -- a very common case, since both are usually chosen as
-        "round" numbers -- naively sampling only at `t_eval` always lands on
-        (approximately) the same phase of the switching pattern, aliasing
-        the whole trace to a spurious near-constant value (often 0) instead
-        of showing the actual waveform.
-
-        To avoid this, every index where any of the signals in `data`
-        changes by more than `tol` between consecutive full-resolution
-        samples is unioned into the returned sample index, on top of the
-        sparse `t_eval`-based points. This keeps plots of smooth signals
-        essentially unchanged (no discontinuities to add) while correctly
-        reconstructing the envelope of fast-switching ones.
-
-        Parameters
-        ----------
-        t : ndarray
-            Full-resolution (simulation time step) time vector.
-        data : dict or array_like
-            One or more full-resolution signals sharing the time vector
-            `t`. If a dict, discontinuities are detected across every
-            signal it contains (e.g. all of "a", "b", "c").
-        t_eval : array, optional
-            Requested (possibly coarser) evaluation grid. See
-            :meth:`get_corresponding_indices`.
-        tol : float, optional
-            Minimum change between consecutive full-resolution samples to be
-            considered a real transition (as opposed to numerical noise).
-            Default is 1e-6.
-
-        Returns
-        -------
-        sample_idx : ndarray
-            Sorted, unique indices into `t` (and into each array in `data`)
-            to use for plotting.
-        """
-        sample_idx = PhaseResults.get_corresponding_indices(t, t_eval)
-
-        series = data.values() if isinstance(data, dict) else [data]
-        edge_idx_list = [
-            np.flatnonzero(np.abs(np.diff(np.asarray(s))) > tol) + 1 for s in series
-        ]
-
-        if edge_idx_list:
-            idx_edges = np.unique(np.concatenate(edge_idx_list))
-            sample_idx = np.unique(np.concatenate((sample_idx, idx_edges)))
-
-        return sample_idx
-
-    def plot(self, reference_frame="a-b-c", fig=None, **kwargs):
+    def plot(self, reference_frame="a-b-c", fig=None, n_shown_samples=None, **kwargs):
         """Plot data over time in selected reference frame.
 
         Parameters
@@ -188,6 +95,8 @@ class PhaseResults(Results):
             'alpha-beta' (Clarke), 'd-q' (Park). Default is 'a-b-c'.
         fig : plotly.graph_objects.Figure, optional
             Figure to add traces to. If None, creates new figure.
+        n_shown_samples : int, optional
+            Number of samples to display in the plot. If None, all samples are displayed.
         **kwargs
             Additional keyword arguments passed to figure layout.
 
@@ -216,8 +125,8 @@ class PhaseResults(Results):
             try:
                 fig.add_trace(
                     go.Scatter(
-                        x=self.t[self.sample_idx],
-                        y=self.data[axis][self.sample_idx],
+                        x=self.t,
+                        y=self.data[axis],
                         name=f"{self.data_type}<sub>{self._REFERENCE_MAP[axis]}</sub>",
                     )
                 )
@@ -235,6 +144,10 @@ class PhaseResults(Results):
 
         fig.update_layout(**kwargs)
 
+        n_samples = n_shown_samples or self.n_shown_samples
+        if n_samples is not None:
+            fig = FigureResampler(fig, default_n_shown_samples=n_samples)
+
         return fig
 
     @check_units
@@ -244,6 +157,7 @@ class PhaseResults(Results):
         fig=None,
         frequency_units="Hz",
         frequency_range=None,
+        n_shown_samples=None,
         **kwargs,
     ):
         """Plot data in frequency domain.
@@ -259,6 +173,8 @@ class PhaseResults(Results):
             Units for frequency axis. Default is 'Hz'.
         frequency_range : tuple, pint.Quantity, optional
             Frequency range to display. Default is None.
+        n_shown_samples : int, optional
+            Number of samples to display in the plot. If None, all samples are displayed.
         **kwargs
             Additional keyword arguments passed to figure layout.
 
@@ -289,7 +205,6 @@ class PhaseResults(Results):
             frequency_range = Q_(frequency_range, "rad/s").to("Hz").m
 
         dt = self.t[1] - self.t[0]
-        step = self.sample_idx[1] - self.sample_idx[0]
 
         for axis in reference_frame:
             freq, mag = windowed_dfft(self.data[axis], dt)
@@ -301,9 +216,6 @@ class PhaseResults(Results):
                 )
                 mag = mag[mask]
                 freq = freq[mask]
-            else:
-                mag = mag[::step]
-                freq = freq[::step]
 
             try:
                 fig.add_trace(
@@ -331,6 +243,10 @@ class PhaseResults(Results):
             )
 
         fig.update_layout(**kwargs)
+
+        n_samples = n_shown_samples or self.n_shown_samples
+        if n_samples is not None and n_samples < len(fig.data[0].x):
+            fig = FigureResampler(fig, default_n_shown_samples=n_samples)
 
         return fig
 
@@ -391,17 +307,10 @@ class MotorResponseResults(Results):
         self.line_voltages["bc"] = self.voltages["b"] - self.voltages["c"]
         self.line_voltages["ca"] = self.voltages["c"] - self.voltages["a"]
 
-        self.sample_idx = PhaseResults.get_corresponding_indices(t, t_eval)
+        min_dt = 1e-4
+        dt = np.diff(self.t).min()
+        self.n_shown_samples = int(len(self.t) * dt / min_dt) if dt < min_dt else None
 
-        # Line voltages carry the same fast SVPWM switching content as the
-        # phase voltages (see `PhaseResults.get_adaptive_sample_idx`), so the
-        # naive `t_eval`-only `sample_idx` above would alias them the same
-        # way. `plot_line_voltages` uses this dedicated, transition-aware
-        # index instead; torque/speed keep using `self.sample_idx` since
-        # they are smooth, low-pass quantities.
-        self.voltage_sample_idx = PhaseResults.get_adaptive_sample_idx(
-            t, self.line_voltages, t_eval
-        )
         self.t_eval = t_eval
 
     def sample_at(self, attr, t_eval=None):
@@ -467,6 +376,7 @@ class MotorResponseResults(Results):
         fig,
         frequency_units="Hz",
         frequency_range=None,
+        n_shown_samples=None,
         **kwargs,
     ):
 
@@ -475,7 +385,6 @@ class MotorResponseResults(Results):
             frequency_range = Q_(frequency_range, "rad/s").to("Hz").m
 
         dt = self.t[1] - self.t[0]
-        step = self.sample_idx[1] - self.sample_idx[0]
 
         for name, signal in result_dict.items():
             freq, mag = windowed_dfft(signal, dt)
@@ -487,9 +396,6 @@ class MotorResponseResults(Results):
                 )
                 mag = mag[mask]
                 freq = freq[mask]
-            else:
-                mag = mag[::step]
-                freq = freq[::step]
 
             fig.add_trace(
                 go.Scatter(
@@ -512,20 +418,21 @@ class MotorResponseResults(Results):
 
         fig.update_layout(**kwargs)
 
+        n_samples = n_shown_samples or self.n_shown_samples
+        if n_samples is not None and n_samples < len(fig.data[0].x):
+            fig = FigureResampler(fig, default_n_shown_samples=n_samples)
+
         return fig
 
     def _plot_time(
-        self, result_dict, title, yaxis_title, fig, sample_idx=None, **kwargs
+        self, result_dict, title, yaxis_title, fig, n_shown_samples=None, **kwargs
     ):
-
-        if sample_idx is None:
-            sample_idx = self.sample_idx
 
         for name, signal in result_dict.items():
             fig.add_trace(
                 go.Scatter(
-                    x=self.t[sample_idx],
-                    y=signal[sample_idx],
+                    x=self.t,
+                    y=signal,
                     name=name,
                 )
             )
@@ -538,6 +445,10 @@ class MotorResponseResults(Results):
 
         fig.update_layout(**kwargs)
 
+        n_samples = n_shown_samples or self.n_shown_samples
+        if n_samples is not None:
+            fig = FigureResampler(fig, default_n_shown_samples=n_samples)
+
         return fig
 
     @check_units
@@ -547,6 +458,7 @@ class MotorResponseResults(Results):
         torque_units="N*m",
         frequency_units="Hz",
         frequency_range=None,
+        n_shown_samples=None,
         fig=None,
         **kwargs,
     ):
@@ -566,6 +478,8 @@ class MotorResponseResults(Results):
             Frequencies that are not within the range are filtered out and are not plotted.
             It is possible to use a pint Quantity (e.g. Q_((2000, 1000), "RPM")).
             Default is None (no filter).
+        n_shown_samples : int, optional
+            Number of samples to display in the plot. If None, uses the default value.
         fig : plotly.graph_objects.Figure, optional
             Figure to add traces to. If None, creates new figure.
         **kwargs
@@ -600,6 +514,7 @@ class MotorResponseResults(Results):
             title="Motor operation: Electromagnetic Torque and Load Torque",
             yaxis_title=f"Torque ({torque_units})",
             fig=fig,
+            n_shown_samples=n_shown_samples,
         )
 
         if domain == "frequency":
@@ -625,6 +540,7 @@ class MotorResponseResults(Results):
         speed_units="RPM",
         frequency_units="Hz",
         frequency_range=None,
+        n_shown_samples=None,
         fig=None,
         **kwargs,
     ):
@@ -644,6 +560,8 @@ class MotorResponseResults(Results):
             Frequencies that are not within the range are filtered out and are not plotted.
             It is possible to use a pint Quantity (e.g. Q_((2000, 1000), "RPM")).
             Default is None (no filter).
+        n_shown_samples : int, optional
+            Number of samples to display in the plot. If None, uses the default value.
         fig : plotly.graph_objects.Figure, optional
             Figure to add trace to. If None, creates new figure.
         **kwargs
@@ -675,6 +593,7 @@ class MotorResponseResults(Results):
             title="Motor operation: Shaft Speed",
             yaxis_title=f"Speed ({speed_units})",
             fig=fig,
+            n_shown_samples=n_shown_samples,
         )
 
         if domain == "frequency":
@@ -698,6 +617,7 @@ class MotorResponseResults(Results):
         reference_frame="a-b-c",
         frequency_units="Hz",
         frequency_range=None,
+        n_shown_samples=None,
         fig=None,
         **kwargs,
     ):
@@ -718,6 +638,8 @@ class MotorResponseResults(Results):
             Frequencies that are not within the range are filtered out and are not plotted.
             It is possible to use a pint Quantity (e.g. Q_((2000, 1000), "RPM")).
             Default is None (no filter).
+        n_shown_samples : int, optional
+            Number of samples to display in the plot. If None, uses the default value.
         fig : plotly.graph_objects.Figure, optional
             Figure to add traces to. If None, creates new figure.
         **kwargs
@@ -750,10 +672,16 @@ class MotorResponseResults(Results):
                 fig=fig,
                 frequency_units=frequency_units,
                 frequency_range=frequency_range,
+                n_shown_samples=n_shown_samples,
                 **kwargs,
             )
         else:
-            fig = current.plot(reference_frame=reference_frame, fig=fig, **kwargs)
+            fig = current.plot(
+                reference_frame=reference_frame,
+                fig=fig,
+                n_shown_samples=n_shown_samples,
+                **kwargs,
+            )
 
         return fig
 
@@ -762,6 +690,7 @@ class MotorResponseResults(Results):
         domain="time",
         frequency_units="Hz",
         frequency_range=None,
+        n_shown_samples=None,
         fig=None,
         **kwargs,
     ):
@@ -779,6 +708,8 @@ class MotorResponseResults(Results):
             Frequencies that are not within the range are filtered out and are not plotted.
             It is possible to use a pint Quantity (e.g. Q_((2000, 1000), "RPM")).
             Default is None (no filter).
+        n_shown_samples : int, optional
+            Number of samples to display in the plot. If None, uses the default value.
         fig : plotly.graph_objects.Figure, optional
             Figure to add traces to. If None, creates new figure.
         **kwargs
@@ -810,10 +741,11 @@ class MotorResponseResults(Results):
                 fig=fig,
                 frequency_units=frequency_units,
                 frequency_range=frequency_range,
+                n_shown_samples=n_shown_samples,
                 **kwargs,
             )
         else:
-            fig = voltage.plot(fig=fig, **kwargs)
+            fig = voltage.plot(fig=fig, n_shown_samples=n_shown_samples, **kwargs)
 
         return fig
 
@@ -822,6 +754,7 @@ class MotorResponseResults(Results):
         domain="time",
         frequency_units="Hz",
         frequency_range=None,
+        n_shown_samples=None,
         fig=None,
         **kwargs,
     ):
@@ -839,6 +772,8 @@ class MotorResponseResults(Results):
             Frequencies that are not within the range are filtered out and are not plotted.
             It is possible to use a pint Quantity (e.g. Q_((2000, 1000), "RPM")).
             Default is None (no filter).
+        n_shown_samples : int, optional
+            Number of samples to display in the plot. If None, uses the default value.
         fig : plotly.graph_objects.Figure, optional
             Figure to add traces to. If None, creates new figure.
         **kwargs
@@ -870,6 +805,7 @@ class MotorResponseResults(Results):
             title="Motor operation: Stator Line Voltages",
             yaxis_title="Voltage (V)",
             fig=fig,
+            n_shown_samples=n_shown_samples,
         )
 
         if domain == "frequency":
@@ -883,7 +819,6 @@ class MotorResponseResults(Results):
         else:
             fig = self._plot_time(
                 **main_inputs,
-                sample_idx=self.voltage_sample_idx,
                 **kwargs,
             )
 
