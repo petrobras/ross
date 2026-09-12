@@ -1552,13 +1552,21 @@ class Rotor(object):
 
         return results
 
-    def M(self, frequency=None, synchronous=False):
+    def M(self, frequency=None, speed=None, synchronous=False):
         """Mass matrix for an instance of a rotor.
 
         Parameters
         ----------
+        frequency : float, optional
+            Excitation (whirl) frequency at which frequency-dependent bearing
+            and seal mass coefficients are evaluated. Default is 0.
+        speed : float, optional
+            Rotor speed at which speed-dependent bearing and seal mass
+            coefficients are evaluated. Default is the excitation frequency
+            (synchronous evaluation).
         synchronous : bool, optional
-            If True a synchronous analysis is carried out.
+            If True the gyroscopic matrix is folded into the mass matrix
+            (Rouch's formulation for a synchronous analysis).
             Default is False.
 
         Returns
@@ -1584,7 +1592,7 @@ class Rotor(object):
 
         for elm in self.bearing_elements:
             dofs = list(elm.dof_global_index.values())
-            M0[np.ix_(dofs, dofs)] += elm.M(frequency)
+            M0[np.ix_(dofs, dofs)] += elm.M(frequency, speed)
 
         if synchronous:
             for elm in self.shaft_elements:
@@ -1619,13 +1627,18 @@ class Rotor(object):
 
         return M0
 
-    def K(self, frequency):
+    def K(self, frequency, speed=None):
         """Stiffness matrix for an instance of a rotor.
 
         Parameters
         ----------
-        frequency : float, optional
-            Excitation frequency.
+        frequency : float
+            Excitation (whirl) frequency at which frequency-dependent bearing
+            and seal coefficients are evaluated.
+        speed : float, optional
+            Rotor speed at which speed-dependent bearing and seal coefficients
+            are evaluated. Default is the excitation frequency (synchronous
+            evaluation).
 
         Returns
         -------
@@ -1645,7 +1658,7 @@ class Rotor(object):
 
         for elm in self.bearing_elements:
             dofs = list(elm.dof_global_index.values())
-            K0[np.ix_(dofs, dofs)] += elm.K(frequency)
+            K0[np.ix_(dofs, dofs)] += elm.K(frequency, speed)
 
         return K0
 
@@ -1676,13 +1689,18 @@ class Rotor(object):
 
         return Ksdt0
 
-    def C(self, frequency):
+    def C(self, frequency, speed=None):
         """Damping matrix for an instance of a rotor.
 
         Parameters
         ----------
         frequency : float
-            Excitation frequency.
+            Excitation (whirl) frequency at which frequency-dependent bearing
+            and seal coefficients are evaluated.
+        speed : float, optional
+            Rotor speed at which speed-dependent bearing and seal coefficients
+            are evaluated. Default is the excitation frequency (synchronous
+            evaluation).
 
         Returns
         -------
@@ -1702,7 +1720,7 @@ class Rotor(object):
 
         for elm in self.bearing_elements:
             dofs = list(elm.dof_global_index.values())
-            C0[np.ix_(dofs, dofs)] += elm.C(frequency)
+            C0[np.ix_(dofs, dofs)] += elm.C(frequency, speed)
 
         return C0
 
@@ -1733,12 +1751,17 @@ class Rotor(object):
         Parameters
         ----------
         speed: float, optional
-            Rotor speed.
+            Rotor speed. It multiplies the gyroscopic matrix and is the value
+            at which speed-dependent bearing and seal coefficients are
+            evaluated.
             Default is 0.
         frequency : float, optional
-            Excitation frequency. Default is rotor speed.
+            Excitation (whirl) frequency at which frequency-dependent bearing
+            and seal coefficients are evaluated. Default is the rotor speed
+            (synchronous evaluation).
         synchronous : bool, optional
-            If True a synchronous analysis is carried out.
+            If True the gyroscopic matrix is folded into the mass matrix
+            (Rouch's formulation for a synchronous analysis).
             Default is False.
 
         Returns
@@ -1762,7 +1785,7 @@ class Rotor(object):
         if frequency is None:
             frequency = speed
 
-        M = self.M(frequency, synchronous=synchronous)
+        M = self.M(frequency, speed, synchronous=synchronous)
         size = M.shape[0]
 
         Z = np.zeros((size, size))
@@ -1771,7 +1794,7 @@ class Rotor(object):
         # fmt: off
         A = np.vstack(
             [np.hstack([Z, I]),
-             np.hstack([la.solve(-M, self.K(frequency)), la.solve(-M, (self.C(frequency) + self.G() * speed))])])
+             np.hstack([la.solve(-M, self.K(frequency, speed)), la.solve(-M, (self.C(frequency, speed) + self.G() * speed))])])
         # fmt: on
 
         return A
@@ -1882,7 +1905,9 @@ class Rotor(object):
             If sparse=False, num_modes does not have any effect over the method.
             Default is 12.
         frequency: float, pint.Quantity
-            Excitation frequency. Default units is rad/s.
+            Excitation (whirl) frequency at which frequency-dependent
+            coefficients are evaluated. Default units is rad/s.
+            Default is the rotor speed (synchronous evaluation).
         sorted_ : bool, optional
             Sort considering the imaginary part (wd).
             Default is True.
@@ -1965,8 +1990,9 @@ class Rotor(object):
         speed: float
             Rotor speed.
         frequency: float, optional
-            Excitation frequency.
-            Default is rotor speed.
+            Excitation (whirl) frequency at which frequency-dependent
+            coefficients are evaluated.
+            Default is rotor speed (synchronous evaluation).
 
         Returns
         -------
@@ -1990,7 +2016,7 @@ class Rotor(object):
             frequency = speed
 
         A = self.A(speed=speed, frequency=frequency)
-        M = self.M(frequency)
+        M = self.M(frequency, speed)
 
         # fmt: off
         B = np.vstack([Z,
@@ -2004,7 +2030,7 @@ class Rotor(object):
         Ca = Z
 
         # fmt: off
-        C = np.hstack((Cd - Ca @ la.solve(M, self.K(frequency)), Cv - Ca @ la.solve(M, self.C(frequency))))
+        C = np.hstack((Cd - Ca @ la.solve(M, self.K(frequency, speed)), Cv - Ca @ la.solve(M, self.C(frequency, speed))))
         # fmt: on
         D = Ca @ la.solve(M, B2)
 
@@ -2013,14 +2039,20 @@ class Rotor(object):
         return sys
 
     def transfer_matrix(self, speed=None, frequency=None, modes=None):
-        """Calculate the fer matrix for the frequency response function (FRF).
+        """Calculate the transfer matrix for the frequency response function (FRF).
 
-        Paramenters
-        -----------
+        The dynamic stiffness is evaluated at the excitation ``frequency``,
+        with the gyroscopic matrix multiplied by ``speed``. Speed-dependent
+        bearing and seal coefficients are evaluated at ``speed`` and
+        frequency-dependent ones at ``frequency``.
+
+        Parameters
+        ----------
+        speed : float
+            Rotor speed.
         frequency : float, optional
-            Excitation frequency. Default is rotor speed.
-        speed : float, optional
-            Rotating speed. Default is rotor speed (frequency).
+            Excitation frequency. Default is rotor speed (synchronous
+            excitation).
 
         Returns
         -------
@@ -2039,9 +2071,9 @@ class Rotor(object):
         I = np.eye(self.M().shape[0])
 
         lu, piv = lu_factor(
-            -(frequency**2) * self.M(frequency=speed)
-            + 1j * frequency * (self.C(frequency=speed) + speed * self.G())
-            + self.K(frequency=speed)
+            -(frequency**2) * self.M(frequency, speed)
+            + 1j * frequency * (self.C(frequency, speed) + speed * self.G())
+            + self.K(frequency, speed)
         )
         H = lu_solve((lu, piv), I)
 
@@ -4478,7 +4510,7 @@ class Rotor(object):
         if stiffness_range is None:
             if self.rated_w is not None:
                 bearing = self.bearing_elements[0]
-                k = bearing.kxx.interpolated(self.rated_w)
+                k = bearing.kxx_interpolated(self.rated_w)
                 k = int(np.log10(k))
                 stiffness_range = (k - 3, k + 3)
             else:
@@ -5039,8 +5071,9 @@ class Rotor(object):
         speed: float
             Rotor speed.
         frequency: float, optional
-            Excitation frequency.
-            Default is rotor speed.
+            Excitation (whirl) frequency at which frequency-dependent
+            coefficients are evaluated.
+            Default is rotor speed (synchronous evaluation).
 
         Examples
         --------
@@ -5055,9 +5088,9 @@ class Rotor(object):
             frequency = speed
 
         dic = {
-            "M": self.M(frequency),
-            "K": self.K(frequency),
-            "C": self.C(frequency),
+            "M": self.M(frequency, speed),
+            "K": self.K(frequency, speed),
+            "C": self.C(frequency, speed),
             "G": self.G(),
             "nodes": self.nodes_pos,
         }

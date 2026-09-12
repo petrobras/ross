@@ -4,6 +4,7 @@ from tempfile import tempdir
 
 import numpy as np
 import pytest
+from scipy import linalg as la
 from scipy.signal import find_peaks
 from numpy.testing import assert_allclose, assert_almost_equal, assert_equal
 
@@ -17,6 +18,7 @@ from ross.rotor_assembly import *
 from ross.rotor_assembly import _shaft_envelope
 from ross.shaft_element import *
 from ross.units import Q_
+from ross.utils import convert_6dof_to_4dof, convert_6dof_to_torsional
 from ross.results import AmbTimeResponseResults
 
 
@@ -3068,3 +3070,73 @@ def test_rotor_it(rotor1, rotor3, rotor3a, rotor3b, rotor3c):
         + 51.5252611115262 * (1.0 - rotor3.CG) ** 2
     )
     assert rotor3.It == pytest.approx(It3, rel=tol)
+
+
+@pytest.fixture
+def rotor_2d_seal():
+    steel = Material(name="steel", rho=7810, E=211e9, G_s=81.2e9)
+    shaft = [ShaftElement(0.25, 0, 0.05, material=steel) for _ in range(6)]
+    disks = [
+        DiskElement.from_geometry(n=2, material=steel, width=0.07, i_d=0.05, o_d=0.28),
+        DiskElement.from_geometry(n=4, material=steel, width=0.07, i_d=0.05, o_d=0.35),
+    ]
+    bearings = [
+        BearingElement(0, kxx=1e6, cxx=100),
+        BearingElement(6, kxx=1e6, cxx=100),
+    ]
+    speed = np.array([100.0, 200.0, 300.0])
+    frequency = np.array([50.0, 150.0, 250.0])
+    kxy = np.outer(speed, np.ones(3)) * 1e2 + np.outer(np.ones(3), frequency) * 1e3
+    seal = SealElement(
+        3,
+        kxx=1e4,
+        cxx=10.0,
+        kxy=kxy,
+        kyx=-kxy,
+        speed=speed,
+        frequency=frequency,
+    )
+    return Rotor(shaft, disks, bearings + [seal])
+
+
+def test_rotor_matrices_decoupled_speed(rotor_2d_seal):
+    rotor = rotor_2d_seal
+    seal = [b for b in rotor.bearing_elements if isinstance(b, SealElement)][0]
+    dofs = list(seal.dof_global_index.values())
+
+    K_sync = rotor.K(150.0)
+    assert_allclose(K_sync, rotor.K(150.0, 150.0))
+    assert_allclose(K_sync[dofs[0], dofs[1]], 150.0 * 1e2 + 150.0 * 1e3)
+
+    K_async = rotor.K(frequency=50.0, speed=300.0)
+    assert_allclose(K_async[dofs[0], dofs[1]], 300.0 * 1e2 + 50.0 * 1e3)
+
+    # the state space matrix evaluates the coefficients at (frequency, speed)
+    A = rotor.A(speed=300.0, frequency=50.0)
+    M = rotor.M(50.0, 300.0)
+    assert_allclose(A[rotor.ndof :, : rotor.ndof], la.solve(-M, K_async))
+
+    # a single value keeps the synchronous behavior of A
+    assert_allclose(rotor.A(speed=150.0), rotor.A(speed=150.0, frequency=150.0))
+
+
+def test_transfer_matrix_decoupled_speed(rotor_2d_seal):
+    rotor = rotor_2d_seal
+    speed, frequency = 300.0, 50.0
+    H = rotor.transfer_matrix(speed=speed, frequency=frequency)
+    dynamic_stiffness = (
+        -(frequency**2) * rotor.M(frequency, speed)
+        + 1j * frequency * (rotor.C(frequency, speed) + speed * rotor.G())
+        + rotor.K(frequency, speed)
+    )
+    assert_allclose(H @ dynamic_stiffness, np.eye(rotor.ndof), atol=1e-8)
+
+
+def test_reduced_dof_matrices_accept_speed(rotor_2d_seal):
+    rotor_4dof = convert_6dof_to_4dof(rotor_2d_seal)
+    assert rotor_4dof.K(50.0, 300.0).shape == (rotor_4dof.ndof, rotor_4dof.ndof)
+    assert_allclose(
+        rotor_4dof.M(50.0, 300.0), rotor_4dof.M(frequency=50.0, speed=300.0)
+    )
+    rotor_t = convert_6dof_to_torsional(rotor_2d_seal)
+    assert rotor_t.C(50.0, 300.0).shape == (rotor_t.ndof, rotor_t.ndof)
