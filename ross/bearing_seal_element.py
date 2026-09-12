@@ -25,6 +25,7 @@ from ross.utils import (
 )
 
 __all__ = [
+    "MIN_RECOMMENDED_AXIS_POINTS",
     "BearingCoefficient",
     "BearingElement",
     "SealElement",
@@ -33,6 +34,62 @@ __all__ = [
     "MagneticBearingElement",
     "CylindricalBearing",
 ]
+
+
+MIN_RECOMMENDED_AXIS_POINTS = 5
+INTERPOLATION_METHODS = ("pchip", "linear")
+
+
+class _AxisInterpolator:
+    """Interpolate a table along its first axis with linear end extrapolation.
+
+    Parameters
+    ----------
+    axis : array
+        Strictly increasing tabulation points, shape ``(n,)``.
+    values : array
+        Table values, shape ``(n, ...)``.
+    interpolation : str
+        ``"pchip"`` (shape-preserving piecewise cubic Hermite, falling back to
+        linear with two points) or ``"linear"``.
+    """
+
+    def __init__(self, axis, values, interpolation):
+        self.axis = np.asarray(axis, dtype=np.float64)
+        self.values = np.asarray(values, dtype=np.float64)
+        self.lower, self.upper = self.axis[0], self.axis[-1]
+
+        if len(self.axis) == 1:
+            self._interpolated = None
+            self._slopes = None
+        elif len(self.axis) == 2 or interpolation == "linear":
+            self._interpolated = interpolate.interp1d(
+                self.axis, self.values, axis=0, kind="linear", fill_value="extrapolate"
+            )
+            self._slopes = None
+        else:
+            self._interpolated = interpolate.PchipInterpolator(
+                self.axis, self.values, axis=0, extrapolate=True
+            )
+            derivative = self._interpolated.derivative()
+            self._slopes = (derivative(self.lower), derivative(self.upper))
+
+    def __call__(self, x):
+        x = np.asarray(x, dtype=np.float64)
+        if self._interpolated is None:
+            return np.broadcast_to(
+                self.values[0], x.shape + self.values.shape[1:]
+            ).copy()
+        if self._slopes is None:
+            return self._interpolated(x)
+
+        clipped = np.clip(x, self.lower, self.upper)
+        result = self._interpolated(clipped)
+        trailing = (None,) * (self.values.ndim - 1)
+        offset = (x - clipped)[(...,) + trailing]
+        below = (x < self.lower)[(...,) + trailing]
+        slope = np.where(below, self._slopes[0], self._slopes[1])
+        return result + offset * slope
 
 
 class BearingCoefficient:
@@ -51,10 +108,19 @@ class BearingCoefficient:
     interpolated at the rotor speed and is constant with respect to the whirl
     frequency, a 1-D frequency table is interpolated at the whirl frequency
     and is constant with respect to the speed, and a 2-D table is
-    interpolated on both axes. When a single value is given, the synchronous
-    diagonal (``speed == frequency``) is evaluated, which preserves the
-    behavior of the single-axis interpolators used before the two axes were
-    decoupled.
+    interpolated on both axes (along the speed axis first, then along the
+    frequency axis). When a single value is given, the synchronous diagonal
+    (``speed == frequency``) is evaluated, which preserves the behavior of
+    the single-axis interpolators used before the two axes were decoupled.
+
+    Tables are interpolated with a shape-preserving piecewise cubic Hermite
+    polynomial (PCHIP) on each axis, which passes through the tabulated
+    values and does not overshoot between them; two points give linear
+    interpolation. Outside the tabulated range the coefficient is
+    extrapolated linearly from the end slope. Coefficient tables of bearings
+    and seals are smooth and mostly monotonic, so at least
+    ``MIN_RECOMMENDED_AXIS_POINTS`` points per axis, spanning the analysis
+    range, give reliable interpolation.
 
     Parameters
     ----------
@@ -67,6 +133,8 @@ class BearingCoefficient:
     frequency : array, optional
         Excitation (whirl) frequency axis (rad/s).
         Default is None.
+    interpolation : str, optional
+        ``"pchip"`` (default) or ``"linear"`` interpolation along each axis.
 
     Attributes
     ----------
@@ -87,9 +155,15 @@ class BearingCoefficient:
     3000000.0
     """
 
-    def __init__(self, coefficient, speed=None, frequency=None):
+    def __init__(self, coefficient, speed=None, frequency=None, interpolation="pchip"):
         self.speed = speed
         self.frequency = frequency
+        if interpolation not in INTERPOLATION_METHODS:
+            raise ValueError(
+                f"interpolation must be one of {INTERPOLATION_METHODS}, "
+                f"not {interpolation!r}"
+            )
+        self.interpolation = interpolation
 
         dimension_error = ValueError(
             "Arguments (coefficients, speed and frequency) must have the same dimension"
@@ -110,32 +184,23 @@ class BearingCoefficient:
         except (TypeError, ValueError):
             raise dimension_error
 
+        for name, axis in (("speed", speed), ("frequency", frequency)):
+            if axis is not None and len(axis) > 1 and np.any(np.diff(axis) <= 0):
+                raise ValueError(
+                    f"The {name} axis must be strictly increasing for coefficient tables"
+                )
+
         if speed is not None and frequency is not None:
             if coefficient.shape != (len(speed), len(frequency)):
                 raise dimension_error
-            for name, axis in (("speed", speed), ("frequency", frequency)):
-                if len(axis) > 1 and np.any(np.diff(axis) <= 0):
-                    raise ValueError(
-                        f"The {name} axis must be strictly increasing for 2-D"
-                        " coefficient tables"
-                    )
             self.kind = "grid"
-            self._interpolated = interpolate.RegularGridInterpolator(
-                (
-                    np.asarray(speed, dtype=np.float64),
-                    np.asarray(frequency, dtype=np.float64),
-                ),
-                coefficient,
-                method="linear",
-                bounds_error=False,
-                fill_value=None,
-            )
+            self._interpolated = _AxisInterpolator(speed, coefficient, interpolation)
         elif speed is not None or frequency is not None:
             axis = speed if speed is not None else frequency
             if coefficient.shape != (len(axis),):
                 raise dimension_error
             self.kind = "speed" if speed is not None else "frequency"
-            self._interpolated = self._interpolate_1d(axis, coefficient)
+            self._interpolated = _AxisInterpolator(axis, coefficient, interpolation)
         else:
             if coefficient.shape != (1,):
                 raise dimension_error
@@ -143,35 +208,6 @@ class BearingCoefficient:
             self._interpolated = None
 
         self.values = coefficient.tolist()
-
-    @staticmethod
-    def _interpolate_1d(axis, coefficient):
-        """Build the 1-D interpolator used before the axes were decoupled."""
-        if len(coefficient) == 1:
-            return interpolate.interp1d(
-                [0, 1],
-                [coefficient[0], coefficient[0]],
-                kind="linear",
-                fill_value="extrapolate",
-            )
-        try:
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                return interpolate.UnivariateSpline(axis, coefficient)
-        #  dfitpack.error is not exposed by scipy
-        #  so a bare except is used
-        except:
-            if len(axis) in (2, 3):
-                return interpolate.interp1d(
-                    axis,
-                    coefficient,
-                    kind=len(axis) - 1,
-                    fill_value="extrapolate",
-                )
-            raise ValueError(
-                "Arguments (coefficients, speed and frequency)"
-                " must have the same dimension"
-            )
 
     def __call__(self, frequency=None, speed=None):
         """Evaluate the coefficient.
@@ -221,8 +257,37 @@ class BearingCoefficient:
             np.asarray(frequency, dtype=np.float64),
             np.asarray(speed, dtype=np.float64),
         )
-        points = np.column_stack([speed.ravel(), frequency.ravel()])
-        return self._interpolated(points).reshape(frequency.shape)
+        rows = self._interpolated(speed.ravel())
+        result = np.array(
+            [
+                _AxisInterpolator(self.frequency, row, self.interpolation)(f)
+                for row, f in zip(rows, frequency.ravel())
+            ]
+        )
+        return result.reshape(frequency.shape)
+
+    def extrapolates(self, frequency=None, speed=None):
+        """Tell whether evaluating at the given values leaves the table axes.
+
+        Parameters
+        ----------
+        frequency : float, array, optional
+            Excitation (whirl) frequencies (rad/s) to check against the
+            frequency axis.
+        speed : float, array, optional
+            Rotor speeds (rad/s) to check against the speed axis.
+
+        Returns
+        -------
+        bool
+        """
+        for axis, values in ((self.speed, speed), (self.frequency, frequency)):
+            if axis is None or values is None:
+                continue
+            values = np.asarray(values, dtype=np.float64)
+            if np.min(values) < np.min(axis) or np.max(values) > np.max(axis):
+                return True
+        return False
 
     def __repr__(self):
         return f"BearingCoefficient(kind={self.kind!r}, values={self.values})"
@@ -261,6 +326,13 @@ class BearingElement(Element):
     In synchronous analyses (the default of every ``run_*`` method) the speed
     and the frequency are the same value, so the three kinds of table give the
     same results as long as they describe the same coefficients.
+
+    Tables are interpolated along each axis with a shape-preserving cubic
+    (PCHIP) that passes through the tabulated values without overshooting,
+    and extrapolated linearly from the end slopes; ``interpolation="linear"``
+    selects piecewise-linear interpolation instead. Give at least
+    ``MIN_RECOMMENDED_AXIS_POINTS`` (5) points per axis spanning the analysis
+    range: analyses interpolating sparser tables issue a warning.
 
     Parameters
     ----------
@@ -328,6 +400,9 @@ class BearingElement(Element):
     color : str, optional
         A color to be used when the element is represented.
         Default is '#355d7a' (Cardinal).
+    interpolation : str, optional
+        Interpolation of the coefficient tables along each axis: ``"pchip"``
+        (shape-preserving cubic, default) or ``"linear"``.
 
     Examples
     --------
@@ -394,10 +469,12 @@ class BearingElement(Element):
         n_link=None,
         scale_factor=1,
         color="#355d7a",
+        interpolation="pchip",
         **kwargs,
     ):
         self.speed = self._axis_array(speed)
         self.frequency = self._axis_array(frequency)
+        self.interpolation = interpolation
 
         if kyy is None:
             kyy = kxx
@@ -429,7 +506,10 @@ class BearingElement(Element):
 
         for arg in args:
             interpolated = BearingCoefficient(
-                args_dict[arg], speed=self.speed, frequency=self.frequency
+                args_dict[arg],
+                speed=self.speed,
+                frequency=self.frequency,
+                interpolation=interpolation,
             )
             setattr(self, arg, interpolated.values)
             setattr(self, f"{arg}_interpolated", interpolated)
@@ -1524,6 +1604,9 @@ class SealElement(BearingElement):
     color : str, optional
         A color to be used when the element is represented.
         Default is "#77ACA2".
+    interpolation : str, optional
+        Interpolation of the coefficient tables along each axis: ``"pchip"``
+        (shape-preserving cubic, default) or ``"linear"``.
 
     Examples
     --------
@@ -1576,6 +1659,7 @@ class SealElement(BearingElement):
         n_link=None,
         scale_factor=None,
         color="#77ACA2",
+        interpolation="pchip",
         **kwargs,
     ):
         self.seal_leakage = seal_leakage
@@ -1602,6 +1686,7 @@ class SealElement(BearingElement):
             tag=tag,
             n_link=n_link,
             color=color,
+            interpolation=interpolation,
         )
 
         # make seals with half the bearing size as a default

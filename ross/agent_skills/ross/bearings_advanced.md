@@ -14,8 +14,16 @@ the axis keyword it receives:
   elements that react to the vibration frequency (`SqueezeFilmDamper`,
   `MagneticBearingElement`); constant with respect to the rotor speed.
 - `speed=` and `frequency=` together with 2-D arrays of shape
-  `(len(speed), len(frequency))` — a grid interpolated on both axes (linear,
-  extrapolating; both axes strictly increasing).
+  `(len(speed), len(frequency))` — a grid interpolated on both axes (both axes
+  strictly increasing).
+
+Every table is interpolated with a shape-preserving cubic (PCHIP) along each
+axis, which passes through the tabulated values without overshooting, and is
+extrapolated linearly from the end slopes; `interpolation="linear"` on any
+element selects piecewise-linear interpolation instead (useful to match codes
+that interpolate linearly). Tabulate at least 5 speeds (and 5 whirl
+frequencies for 2-D tables) spanning the analysis range: analyses warn when
+they interpolate a sparser table or leave an axis.
 
 In synchronous analyses (the default of every `run_*` method) speed and
 frequency are the same value, so the three kinds give the same results.

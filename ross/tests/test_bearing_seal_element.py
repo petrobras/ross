@@ -139,15 +139,15 @@ def test_bearing1_interpol_mxx(bearing1):
 
 def test_bearing1_matrices(bearing1):
     # fmt: off
-    K = np.array([[85000000.043218,              0., 0.],
-                  [             0., 91999999.891728, 0.],
-                  [             0.,              0., 0.]])
-    C = np.array([[226836.917649,      0., 0.],
-                  [     0., 235836.850213, 0.],
-                  [     0.,            0., 0.]])
-    M = np.array([[0.00099999,         0., 0.],
-                  [0.        , 0.00099999, 0.],
-                  [0.        ,         0., 0.]])
+    K = np.array([[8.5e7,    0., 0.],
+                  [   0., 9.2e7, 0.],
+                  [   0.,    0., 0.]])
+    C = np.array([[226837.,      0., 0.],
+                  [     0., 235837., 0.],
+                  [     0.,      0., 0.]])
+    M = np.array([[1e-3,   0., 0.],
+                  [  0., 1e-3, 0.],
+                  [  0.,   0., 0.]])
     # fmt: on
     assert_allclose(bearing1.K(314.2), K, rtol=1e-5)
     assert_allclose(bearing1.C(314.2), C, rtol=1e-5)
@@ -347,17 +347,20 @@ def magnetic_bearing():
 
 
 def test_magnetic_bearing_element(magnetic_bearing):
+    # K(0) and C(0) extrapolate the table below its first frequency (1 rad/s);
+    # the linear end-slope extrapolation lands within 1e-3 of the analytical
+    # zero-frequency values ks + ki and kd * ki.
     K_ref = np.array(
         [
-            [-4.64021073e03, -7.72314366e-14],
-            [-1.01494475e-13, -4.64021073e03],
+            [-4640.623841708167, 0.0],
+            [0.0, -4640.623841708167],
         ]
     )
 
     C_ref = np.array(
         [
-            [4.64597874e00, 6.22498335e-17],
-            [3.97578344e-17, 4.64597874e00],
+            [4.645268692279841, 0.0],
+            [0.0, 4.645268692279841],
         ]
     )
 
@@ -686,10 +689,10 @@ def test_plot(bearing0):
     expected_y = np.array(
         [
             8.50000000e07,
-            9.39094443e07,
-            1.00985975e08,
-            1.06782950e08,
-            1.11853726e08,
+            9.24121279e07,
+            9.94509523e07,
+            1.06081472e08,
+            1.12218094e08,
         ]
     )
     assert_allclose(fig.data[0]["x"][:5], expected_x)
@@ -701,11 +704,11 @@ def test_plot(bearing0):
     )
     expected_y = np.array(
         [
-            226836.91764878,
-            222164.94925285,
-            217802.8600443,
-            213700.3582994,
-            209807.15229442,
+            226837.0,
+            222296.93006288,
+            217932.41219196,
+            213755.39734994,
+            209781.15947754,
         ]
     )
     assert_allclose(fig.data[0]["x"][:5], expected_x)

@@ -454,7 +454,7 @@ def test_bearing_element_plot_stiffness(bearing_element):
     assert_trace_allclose(fig.data[0], x=expected_x, y=expected_y)
 
     expected_y_slice = np.array(
-        [8.50000000e07, 9.39094443e07, 1.00985975e08, 1.06782950e08, 1.11853726e08]
+        [8.50000000e07, 9.24121279e07, 9.94509523e07, 1.06081472e08, 1.12218094e08]
     )
     assert_allclose(fig.data[0].y[:5], expected_y_slice)
 

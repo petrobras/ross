@@ -32,7 +32,8 @@
 - A file saved by ROSS 2 loads with its `frequency` table intact and gives identical synchronous results; it only differs once the excitation frequency is decoupled from the speed
 - Coefficients are interpolated automatically — no need to manually evaluate. A single-value lookup (`brg.kxx_interpolated(w)`, `brg.K(w)`, `run_modal(speed=w)`) is the synchronous diagonal: both axes evaluated at `w`
 - Any coefficient given as an array (`kxx`, `kyy`, `cxx`, etc.) must match the axis length — `(len(speed),)`, `(len(frequency),)` or `(len(speed), len(frequency))` for 2-D tables; scalars are broadcast automatically. Mismatches raise `Arguments (coefficients, speed and frequency) must have the same dimension`
-- 2-D tables need strictly increasing axes and interpolate linearly; lookups outside the grid extrapolate linearly, so damping can go negative far off-grid — cover the whirl range you will analyse
+- Tables are interpolated with a shape-preserving cubic (PCHIP) along each axis (`interpolation="linear"` switches to piecewise linear); axes must be strictly increasing. Lookups outside an axis extrapolate linearly from the end slope, so damping can go negative far off-grid — cover the speed and whirl ranges you will analyse
+- Give at least 5 points per axis spanning the analysis range: `run_campbell`, `run_freq_response`, `run_modal(frequency=...)` and `matched_whirl` warn when they interpolate a 2- to 4-point table or leave an axis
 - `brg.kxx` is always a plain list (nested for 2-D); use `np.array(brg.kxx)` for arithmetic
 
 ## `synchronous=` Is Not the Whirl-Frequency Option

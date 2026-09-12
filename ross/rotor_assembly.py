@@ -19,6 +19,7 @@ from scipy.signal import chirp
 from scipy.sparse import linalg as las
 
 from ross.bearing_seal_element import (
+    MIN_RECOMMENDED_AXIS_POINTS,
     BallBearingElement,
     BearingElement,
     CylindricalBearing,
@@ -1352,6 +1353,9 @@ class Rotor(object):
                 max_iter=whirl_max_iter,
             )
 
+        if frequency is not None:
+            self._check_coefficient_axes(frequency=frequency)
+
         evalues, evectors = self._eigen(
             speed,
             num_modes=num_modes,
@@ -1474,6 +1478,8 @@ class Rotor(object):
             evalues[i] = evalue
             evectors[:, i] = vector
             whirl_frequency[i] = whirl
+
+        self._check_coefficient_axes(frequency=whirl_frequency)
 
         wn = np.absolute(evalues)
         wd = np.imag(evalues)
@@ -1977,38 +1983,59 @@ class Rotor(object):
 
         return A
 
-    def _check_frequency_array(self, frequency_range):
-        """Verify if bearing elements coefficients are extrapolated.
+    def _check_coefficient_axes(self, speed=None, frequency=None):
+        """Warn when an analysis extrapolates or coarsely interpolates the tables.
 
-        This method takes the frequency / speed range array applied to a particular
-        method (run_campbell, run_freq_response) and checks if it's extrapolating the
-        bearing rotordynamics coefficients.
+        Each bearing and seal coefficient table is checked on the axes the
+        analysis will evaluate: the requested rotor speeds against the speed
+        axis and the requested excitation (whirl) frequencies against the
+        frequency axis. Synchronous analyses pass the same values for both.
 
-        If any value of frequency_range argument is out of any bearing frequency
-        parameter, the warning is raised.
-        If none of the bearings has a frequency argument assigned, no warning will be
-        raised.
+        A warning is issued when the requested values fall outside an axis
+        (the coefficients are extrapolated linearly from the end slope) and
+        when an axis with fewer than ``MIN_RECOMMENDED_AXIS_POINTS`` points
+        has to be interpolated (coefficient tables are smooth, so at least
+        that many points spanning the analysis range give reliable
+        interpolation).
 
         Parameters
         ----------
-        frequency_range : array
-            The array of frequencies or speeds used in particular method.
-
-        Warnings
-        --------
-            It warns the user if the frequency_range causes the bearing coefficients
-            to be extrapolated.
+        speed : float, array, optional
+            Rotor speeds of the analysis. Default is None (speed axes are not
+            checked).
+        frequency : float, array, optional
+            Excitation (whirl) frequencies of the analysis. Default is None
+            (frequency axes are not checked).
         """
+        requests = []
+        if speed is not None:
+            requests.append(("speed", np.atleast_1d(np.asarray(speed, dtype=float))))
+        if frequency is not None:
+            requests.append(
+                ("frequency", np.atleast_1d(np.asarray(frequency, dtype=float)))
+            )
+
         for bearing in self.bearing_elements:
-            for axis in (bearing.speed, bearing.frequency):
-                if axis is not None and (
-                    np.max(frequency_range) > max(axis)
-                    or np.min(frequency_range) < min(axis)
+            name = bearing.tag or f"{bearing.__class__.__name__} at node {bearing.n}"
+            for axis_name, values in requests:
+                axis = getattr(bearing, axis_name)
+                if axis is None:
+                    continue
+                if np.max(values) > np.max(axis) or np.min(values) < np.min(axis):
+                    warnings.warn(
+                        f"Extrapolating the coefficients of {name} outside its "
+                        f"{axis_name} axis ({np.min(axis):.4g} to {np.max(axis):.4g} "
+                        "rad/s). Be careful when post-processing the results."
+                    )
+                if 1 < len(axis) < MIN_RECOMMENDED_AXIS_POINTS and not np.all(
+                    np.isin(values, axis)
                 ):
                     warnings.warn(
-                        "Extrapolating bearing coefficients. Be careful when post-processing the results."
+                        f"The coefficients of {name} are interpolated from only "
+                        f"{len(axis)} {axis_name} points. Tabulate at least "
+                        f"{MIN_RECOMMENDED_AXIS_POINTS} points per axis spanning the "
+                        "analysis range for reliable interpolation."
                     )
-                    return
 
     @staticmethod
     def _index(eigenvalues):
@@ -2403,7 +2430,10 @@ class Rotor(object):
             modal = self.run_modal(0)
             speed_range = np.linspace(0, max(modal.evalues.imag) * 1.5, 1000)
 
-        self._check_frequency_array([speed] if speed is not None else speed_range)
+        if speed is not None:
+            self._check_coefficient_axes(speed=speed, frequency=speed_range)
+        else:
+            self._check_coefficient_axes(speed=speed_range, frequency=speed_range)
 
         freq_resp = np.empty((self.ndof, self.ndof, len(speed_range)), dtype=complex)
         velc_resp = np.empty((self.ndof, self.ndof, len(speed_range)), dtype=complex)
@@ -3197,8 +3227,8 @@ class Rotor(object):
         >>> t, yout, xout = rotor.integrate_system(speed, F, t)
         Running direct method
         >>> yout[:, rotor.number_dof * node + 1] # doctest: +ELLIPSIS
-        array([0.00000000e+00, 2.07239823e-10, 7.80952429e-10, ...,
-               1.21848307e-07, 1.21957287e-07, 1.22065778e-07])
+        array([0.00000000e+00, 2.07136253e-10, 7.80557630e-10, ...,
+               1.21845368e-07, 1.21954345e-07, 1.22062832e-07])
         """
         xout = []
 
@@ -4406,7 +4436,7 @@ class Rotor(object):
 
         # store in results [speeds(x axis), frequencies[0] or logdec[1] or
         # whirl[2](y axis), 3]
-        self._check_frequency_array(speed_range)
+        self._check_coefficient_axes(speed=speed_range, frequency=speed_range)
 
         results = np.zeros([len(speed_range), frequencies, 4])
 

@@ -26,7 +26,7 @@ rotor assembly evaluates them at a ``(frequency, speed)`` pair instead of a sing
   (``MagneticBearingElement``, ``SqueezeFilmDamper``).
 - ``BearingElement(..., speed=[...], frequency=[...])`` with 2-D coefficient arrays of shape
   ``(len(speed), len(frequency))`` — a table interpolated on both axes
-  (``scipy.interpolate.RegularGridInterpolator``, linear, extrapolating).
+  (interpolated along the speed axis, then along the frequency axis).
 
 Each coefficient is wrapped in the new ``BearingCoefficient`` class (``brg.kxx_interpolated``),
 whose ``kind`` attribute tells which axes it carries and which is evaluated as
@@ -36,6 +36,17 @@ alongside ``frequency``; with ``speed=None`` the synchronous diagonal (``speed =
 evaluated, which reproduces the previous numerics exactly. ``plot()`` and ``format_table()`` follow
 the tabulated axes (one curve per speed against the frequency axis for 2-D tables), and 2-D tables
 round-trip through ``save()`` / ``load()``.
+
+All tables (1-D and 2-D) are interpolated along each axis with a shape-preserving piecewise cubic
+Hermite polynomial (PCHIP), which passes through the tabulated values without overshooting between
+them; two points give linear interpolation and one point a constant. Outside an axis the
+coefficients are extrapolated linearly from the end slope. ``interpolation="linear"`` on any element
+selects piecewise-linear interpolation instead. Coefficient tables are smooth and mostly monotonic,
+so at least ``MIN_RECOMMENDED_AXIS_POINTS`` (5) points per axis spanning the analysis range give
+reliable interpolation: ``run_campbell``, ``run_freq_response`` / forced responses,
+``run_modal(frequency=...)`` and ``matched_whirl`` now warn, naming the element and the axis, when
+they interpolate a 2- to 4-point table or leave an axis (the previous extrapolation warning was
+anonymous and limited to the speed sweeps).
 
 Frequency-Dependent Seal and Bearing Coefficients from the Solvers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -256,6 +267,12 @@ Other behavior changes of the coefficient rework:
 - ``SealElement`` persists ``seal_leakage`` on ``save()`` / ``load()``.
 - Constant coefficients are returned exactly instead of through a two-point interpolator (which
   added round-off of the order of 1e-13 away from zero speed).
+- 1-D tables were interpolated with a smoothing spline (``scipy.interpolate.UnivariateSpline`` with
+  its default smoothing factor), which did not pass through the tabulated values: the deviation
+  was negligible for large coefficients but reached tens of percent for small ones (e.g. damping of
+  the order of 10 N*s/m). Tables are now interpolated exactly (PCHIP), so off-grid values change by
+  about 1e-5 relative for typical tables and by more where the old smoothing was wrong, and
+  extrapolation is linear from the end slope instead of the cubic tail.
 - ``transfer_matrix`` (hence ``run_freq_response`` and the forced responses) evaluates
   frequency-tabulated elements (``MagneticBearingElement``, ``SqueezeFilmDamper``) at the
   excitation frequency instead of the rotor speed, including the ``free_free`` branch, which
