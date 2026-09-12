@@ -196,3 +196,24 @@ def test_pivot_flexibility_runs():
     assert_allclose(out["k_pivot"][0], [5e8] * 5)
     assert max(out["deform_pivot"][0]) > 0.0
     assert float(bearing.kxx[0]) > 0
+
+
+def test_tilting_pad_coefficients_depend_on_whirl():
+    """Pad dofs are condensed at the whirl frequency, so the table follows it."""
+    kwargs, _ = bearing_kwargs_from_fixture("tilt_5pad_isoviscous")
+    speed = np.atleast_1d(np.asarray(kwargs.pop("speed"), dtype=float))
+    kwargs.pop("excitation_ratio", None)
+    from ross.bearings.fluid_film_bearing import FluidFilmBearing
+
+    bearing = FluidFilmBearing(
+        speed=speed, frequency=np.array([0.3, 1.0]) * speed[0], **kwargs
+    )
+    reference = FluidFilmBearing(speed=speed, excitation_ratio=0.3, **kwargs)
+
+    kxx = np.array(bearing.kxx)
+    assert kxx.shape == (1, 2)
+    assert kxx[0, 0] == reference.kxx[0]
+    assert kxx[0, 0] > 1.2 * kxx[0, 1]
+    assert_allclose(
+        float(bearing.kxx_interpolated(0.3 * speed[0], speed[0])), reference.kxx[0]
+    )

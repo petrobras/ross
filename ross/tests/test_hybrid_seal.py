@@ -184,3 +184,38 @@ def test_hybrid_gc_coefficients_combination(hybrid_seal_gc):
     hybrid_cxy = hybrid_seal_gc.cxy[0]
     assert_allclose(hybrid_cxy, laby_cxy + hole_cxy, rtol=1e-6)
     assert_allclose(hybrid_cxy, -26.686262, rtol=1e-2)
+
+
+def test_hybrid_whirl_frequency_grid():
+    """The 2-D hybrid table combines 2-D stages built at the matched pressure."""
+    speed = Q_([3000, 5000], "RPM").to("rad/s").m
+    params = dict(COMMON_PARAMS)
+    params["speed"] = speed
+    holep_params = dict(HOLEPATTERN_PARAMS, nz=18)
+
+    synchronous = HybridSeal(
+        hole_pattern_parameters=holep_params,
+        labyrinth_parameters=LABYRINTH_PARAMS,
+        **params,
+    )
+    grid = HybridSeal(
+        frequency=[0.5 * speed[0], speed[0], speed[1]],
+        hole_pattern_parameters=holep_params,
+        labyrinth_parameters=LABYRINTH_PARAMS,
+        **params,
+    )
+
+    assert grid.interface_pressure == synchronous.interface_pressure
+    assert grid.seal_leakage == synchronous.seal_leakage
+    assert grid.kxx_interpolated.kind == "grid"
+
+    kxx = np.array(grid.kxx)
+    assert kxx.shape == (2, 3)
+    assert kxx[0, 1] == synchronous.kxx[0]
+    assert kxx[1, 2] == synchronous.kxx[1]
+    assert_allclose(kxx, np.array(grid.laby.kxx) + np.array(grid.hole_pattern.kxx))
+    assert_allclose(
+        np.array(grid.cxy), np.array(grid.laby.cxy) + np.array(grid.hole_pattern.cxy)
+    )
+    assert grid.laby.kxx_interpolated.kind == "grid"
+    assert grid.hole_pattern.kxx_interpolated.kind == "grid"

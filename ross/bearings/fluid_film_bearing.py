@@ -153,6 +153,14 @@ class FluidFilmBearing(BearingElement):
         Node in which the bearing will be located.
     speed : array_like, pint.Quantity
         Rotor speeds, rad/s. One solver case runs per entry.
+    frequency : array_like, pint.Quantity, optional
+        Excitation (whirl) frequencies, rad/s. When given, one solver case
+        runs per (speed, frequency) pair with the whirl ratio
+        ``frequency / speed``, and the element carries a 2-D coefficient
+        table of shape ``(len(speed), len(frequency))`` interpolated on both
+        axes (``excitation_ratio`` is ignored). Requires nonzero speeds.
+        Default is None (1-D table over the speed axis, whirl ratio
+        ``excitation_ratio``).
     journal_diameter : float, pint.Quantity
         Journal diameter, m.
     radial_clearance : float, pint.Quantity
@@ -321,6 +329,7 @@ class FluidFilmBearing(BearingElement):
         self,
         n,
         speed=None,
+        frequency=None,
         journal_diameter=None,
         radial_clearance=None,
         pad_thickness=None,
@@ -471,13 +480,22 @@ class FluidFilmBearing(BearingElement):
         ]
 
         self.speed_range = np.atleast_1d(np.asarray(speed, dtype=float))
+        self.frequency_range = (
+            None
+            if frequency is None
+            else np.atleast_1d(np.asarray(frequency, dtype=float))
+        )
+        if self.frequency_range is not None and np.any(self.speed_range == 0):
+            raise ValueError(
+                "A 2-D (speed, frequency) coefficient table requires nonzero speeds"
+            )
 
         coefficient_table = {}
         case_outputs = None
         initial_time = final_time = None
         if kwargs.get("kxx") is None:
             initial_time = time.time()
-            case_outputs = self._solve_all(num_processes)
+            case_outputs = self._solve_all(num_processes, self._engine_cases())
             final_time = time.time()
 
             coefficients = ("kxx", "kxy", "kyx", "kyy", "cxx", "cxy", "cyx", "cyy")
@@ -485,18 +503,28 @@ class FluidFilmBearing(BearingElement):
                 name: np.array([out[name][0] for out in case_outputs], dtype=float)
                 for name in coefficients
             }
+            if self.frequency_range is not None:
+                shape = (self.speed_range.size, self.frequency_range.size)
+                coefficient_table = {
+                    name: table.reshape(shape)
+                    for name, table in coefficient_table.items()
+                }
 
         super().__init__(
             n=n,
             speed=self.speed_range,
+            frequency=self.frequency_range,
             **coefficient_table,
             **kwargs,
         )
 
         if case_outputs is not None:
+            case_speeds = self.speed_range
+            if self.frequency_range is not None:
+                case_speeds = np.repeat(self.speed_range, self.frequency_range.size)
             fields = [out.pop("fields")[0] for out in case_outputs]
             self._results = FluidFilmBearingResults(
-                frequency=self.speed_range,
+                frequency=case_speeds,
                 pressure_fields=[f["pressure"] for f in fields],
                 temperature_fields=[f["film_temperature"] for f in fields],
                 film_thickness_fields=[f["film_thickness"] for f in fields],
@@ -510,14 +538,14 @@ class FluidFilmBearing(BearingElement):
                 ),
                 pad_radial_positions=fields[0].get("pad_radial_position"),
                 outputs=case_outputs,
-                kxx=self.kxx,
-                kxy=self.kxy,
-                kyx=self.kyx,
-                kyy=self.kyy,
-                cxx=self.cxx,
-                cxy=self.cxy,
-                cyx=self.cyx,
-                cyy=self.cyy,
+                kxx=np.ravel(self.kxx),
+                kxy=np.ravel(self.kxy),
+                kyx=np.ravel(self.kyx),
+                kyy=np.ravel(self.kyy),
+                cxx=np.ravel(self.cxx),
+                cxy=np.ravel(self.cxy),
+                cyx=np.ravel(self.cyx),
+                cyy=np.ravel(self.cyy),
                 initial_time=initial_time,
                 final_time=final_time,
             )
@@ -573,13 +601,33 @@ class FluidFilmBearing(BearingElement):
         data[f"BearingElement_{self.tag}"] = element_data
         dump_data(data, file)
 
-    def _engine_inputs(self, speed):
+    def _engine_cases(self):
+        """List the solver cases of the coefficient table, in table order.
+
+        Returns
+        -------
+        list of dict
+            One :meth:`_engine_inputs` dict per rotor speed (1-D table) or per
+            (speed, frequency) pair in row-major order (2-D table).
+        """
+        if self.frequency_range is None:
+            return [self._engine_inputs(w) for w in self.speed_range]
+        return [
+            self._engine_inputs(w, excitation_ratio=f / w)
+            for w in self.speed_range
+            for f in self.frequency_range
+        ]
+
+    def _engine_inputs(self, speed, excitation_ratio=None):
         """Assemble the solver keyword arguments for one rotor speed.
 
         Parameters
         ----------
         speed : float
             Rotor speed, rad/s.
+        excitation_ratio : float, optional
+            Whirl-to-rotation ratio of the dynamic reduction. Default is the
+            element's ``excitation_ratio``.
 
         Returns
         -------
@@ -587,6 +635,8 @@ class FluidFilmBearing(BearingElement):
             Keyword arguments for
             :func:`ross.bearings.fluid_film.driver.run_case`.
         """
+        if excitation_ratio is None:
+            excitation_ratio = self.excitation_ratio
         xj, yj = self.initial_position
         inputs = {
             "frequency": float(speed),
@@ -664,7 +714,7 @@ class FluidFilmBearing(BearingElement):
             "probe_theta": np.array([p[1] for p in self.probes], dtype=float),
             "r_location": np.array([p[2] for p in self.probes], dtype=float),
             # solution controls
-            "excit_ratios": float(self.excitation_ratio),
+            "excit_ratios": float(excitation_ratio),
             "xj": float(xj),
             "yj": float(yj),
             "starve_number": int(self.starvation_number),
@@ -683,34 +733,40 @@ class FluidFilmBearing(BearingElement):
         }
         return inputs
 
-    def _solve_all(self, num_processes):
-        """Solve every speed case; serial by default.
+    def _solve_all(self, num_processes, per_case):
+        """Solve the given engine cases; serial by default.
 
         Parameters
         ----------
         num_processes : int or None
             Number of worker processes; None or 1 solves serially.
+        per_case : list of dict
+            Engine keyword arguments, one dict per case (see
+            :meth:`_engine_inputs`).
 
         Returns
         -------
         list of dict
-            One solver output dict per speed.
+            One solver output dict per case.
         """
-        per_case = [self._engine_inputs(w) for w in self.speed_range]
         if num_processes is not None and num_processes > 1:
             with multiprocessing.Pool(num_processes) as pool:
                 return pool.map(_solve_case, per_case)
         return [_solve_case(inputs) for inputs in per_case]
 
-    def coefficients(self, speed):
+    def coefficients(self, speed, frequency=None):
         """Return the stiffness and damping matrices at a rotor speed.
 
-        Coefficients are interpolated on the element's speed table.
+        Coefficients are interpolated on the element's table; for a 2-D
+        table the excitation ``frequency`` selects the whirl axis.
 
         Parameters
         ----------
         speed : float, pint.Quantity
             Rotor speed, rad/s.
+        frequency : float, pint.Quantity, optional
+            Excitation (whirl) frequency, rad/s. Default is the rotor speed
+            (synchronous evaluation).
 
         Returns
         -------
@@ -720,11 +776,11 @@ class FluidFilmBearing(BearingElement):
             ``(cxx, cxy, cyx, cyy)``, N*s/m.
         """
         stiffness = tuple(
-            float(getattr(self, f"{name}_interpolated")(speed))
+            float(getattr(self, f"{name}_interpolated")(frequency, speed))
             for name in ("kxx", "kxy", "kyx", "kyy")
         )
         damping = tuple(
-            float(getattr(self, f"{name}_interpolated")(speed))
+            float(getattr(self, f"{name}_interpolated")(frequency, speed))
             for name in ("cxx", "cxy", "cyx", "cyy")
         )
         return stiffness, damping

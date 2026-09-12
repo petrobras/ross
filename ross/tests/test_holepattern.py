@@ -331,3 +331,43 @@ def test_holepattern_coefficients(holepattern):
     assert_allclose(holepattern.cyx, 27.16217997, rtol=1e-4)
     assert_allclose(holepattern.cyy, 294.42942927, rtol=1e-4)
     assert_allclose(holepattern.seal_leakage, 0.6313559209954082, rtol=1e-4)
+
+
+def test_holepattern_whirl_frequency_grid():
+    """A 2-D table shares the base state per speed and follows the whirl frequency."""
+    speed = Q_([5000, 8000], "RPM").to("rad/s").m
+    params = dict(COMMON_PARAMS, **MANUAL_PARAMS)
+    params["speed"] = speed
+    params["nz"] = 18
+
+    synchronous = HolePatternSeal(**params)
+    half_ratio = HolePatternSeal(excitation_ratio=0.5, **params)
+    frequency = np.sort([0.5 * speed[0], speed[0], 0.5 * speed[1], speed[1]])
+    grid = HolePatternSeal(frequency=frequency, **params)
+
+    assert grid.kxx_interpolated.kind == "grid"
+    kxx, cxx, mxx = (np.array(getattr(grid, c)) for c in ("kxx", "cxx", "mxx"))
+    assert kxx.shape == (2, 4)
+
+    # the grid points at excitation_ratio * speed reproduce the 1-D solves
+    assert kxx[0, 0] == half_ratio.kxx[0]
+    assert cxx[0, 0] == half_ratio.cxx[0]
+    assert mxx[0, 0] == half_ratio.mxx[0]
+    assert kxx[1, 1] == half_ratio.kxx[1]
+    assert kxx[0, 2] == synchronous.kxx[0]
+    assert cxx[1, 3] == synchronous.cxx[1]
+
+    # the base state does not depend on the whirl frequency
+    assert_allclose(grid.seal_leakage, synchronous.seal_leakage)
+    assert_allclose(grid.p[1], synchronous.p[1])
+
+
+def test_holepattern_solver_row_matches_single_solves():
+    params = dict(COMMON_PARAMS, **MANUAL_PARAMS)
+    params["nz"] = 18
+    seal = HolePatternSeal(**params)
+    speed = Q_(5000, "RPM").to("rad/s").m
+    row = seal.solver.solve_row(speed, [0.5 * speed, speed])
+    assert row[0]["kxx"] == seal.solver.solve(speed, 0.5 * speed)["kxx"]
+    assert row[1]["cxx"] == seal.cxx[0]
+    assert row[1]["mxx"] == seal.mxx[0]
