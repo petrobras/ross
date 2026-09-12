@@ -2,15 +2,29 @@
 
 Source: `docs/user_guide/tutorial_bearings_part_1.ipynb`, `docs/user_guide/tutorial_bearings_part_2.ipynb`
 
-## Speed-Dependent Coefficients
+## Coefficient Tables: Speed, Frequency, or Both
 
-Bearing stiffness and damping that vary with rotor speed:
+A `BearingElement` declares the physical axis of its coefficient table through
+the axis keyword it receives:
+
+- `speed=` — a table over the **rotor speed** (the base flow). This is what
+  fluid-film bearings and seals produce; it is interpolated at the rotor speed
+  and is constant with respect to the excitation (whirl) frequency.
+- `frequency=` — a table over the **excitation (whirl) frequency**. Used by the
+  elements that react to the vibration frequency (`SqueezeFilmDamper`,
+  `MagneticBearingElement`); constant with respect to the rotor speed.
+- `speed=` and `frequency=` together with 2-D arrays of shape
+  `(len(speed), len(frequency))` — a grid interpolated on both axes (linear,
+  extrapolating; both axes strictly increasing).
+
+In synchronous analyses (the default of every `run_*` method) speed and
+frequency are the same value, so the three kinds give the same results.
 
 ```python
 import ross as rs
 import numpy as np
 
-frequency = np.array([0, 500, 1000])  # rad/s
+speed = np.array([0, 500, 1000])  # rad/s
 kxx = np.array([1e6, 1.5e6, 2e6])  # N/m
 kyy = np.array([0.8e6, 1.2e6, 1.6e6])
 cxx = np.array([100, 150, 200])  # N·s/m
@@ -22,11 +36,40 @@ brg = rs.BearingElement(
     kyy=kyy,
     cxx=cxx,
     cyy=cyy,
-    frequency=frequency,
+    speed=speed,
 )
 ```
 
-ROSS interpolates coefficients at the analysis frequency automatically. When using `run_modal(speed=w)`, bearing coefficients are evaluated at `w`.
+Scalars are broadcast to the axes; arrays must match the axes lengths. A 2-D table:
+
+```python
+whirl = np.array([100, 300, 600])  # rad/s
+kxx_2d = np.array([[1.0e6, 1.1e6, 1.3e6], [1.5e6, 1.6e6, 1.9e6], [2.0e6, 2.2e6, 2.6e6]])
+
+brg_2d = rs.BearingElement(
+    n=0,
+    kxx=kxx_2d,
+    cxx=100,  # scalar -> constant over the whole grid
+    speed=speed,
+    frequency=whirl,
+)
+```
+
+Each coefficient is a `BearingCoefficient` reachable as `brg.<coeff>_interpolated`:
+
+```python
+brg.kxx  # the table as a plain (nested) list -- wrap in np.array for arithmetic
+brg.kxx_interpolated.kind  # "constant", "speed", "frequency" or "grid"
+brg.kxx_interpolated(750.0)  # single value -> synchronous diagonal (speed == frequency)
+brg_2d.kxx_interpolated(frequency=200.0, speed=750.0)  # full (frequency, speed) lookup
+brg_2d.K(frequency=200.0, speed=750.0)  # element matrices take the same pair
+brg_2d.format_table(speed=[500], frequency=[100, 300])
+brg_2d.plot("kxx")  # one curve per speed against the frequency axis
+```
+
+`run_modal(speed=w)` evaluates every table at `w` on both axes; see
+[modal_analysis.md](modal_analysis.md) for evaluating the frequency axis at a
+fixed or per-mode whirl frequency.
 
 ## Cross-Coupled Coefficients
 
@@ -60,6 +103,9 @@ seal = rs.SealElement(
 )
 ```
 
+Physics-based seals (`LabyrinthSeal`, `HolePatternSeal`, `HybridSeal`) are
+covered in [seals.md](seals.md).
+
 ## Specialized Bearing Types
 
 ```python
@@ -90,7 +136,7 @@ plain = rs.PlainJournal(
     n_pads=2,
     pad_arc=Q_(176, "deg"),
     oil_supply_temperature=Q_(50, "degC"),
-    frequency=Q_([900, 1200], "RPM"),
+    speed=Q_([900, 1200], "RPM"),
     fys_load=-112815,
     lubricant="ISOVG32",
     oil_flow_v=Q_(30, "l/min"),
@@ -99,7 +145,7 @@ plain = rs.PlainJournal(
 # Tilting-pad bearing (5 pads, load between pads)
 tpb = rs.TiltingPad(
     n=1,
-    frequency=Q_([3000], "RPM"),
+    speed=Q_([3000], "RPM"),
     equilibrium_type="match_load",
     fxs_load=884.05,
     fys_load=-2670.4,
@@ -127,7 +173,7 @@ preload, offset, pockets, tapers) use `FixedGeometryBearing` directly, and
 ```python
 lemon = rs.EllipticalBearing(
     n=0,
-    frequency=Q_([3000], "RPM"),
+    speed=Q_([3000], "RPM"),
     pad_arc=Q_(150, "deg"),
     preload=0.5,
     journal_diameter=0.2,
@@ -141,15 +187,51 @@ lemon = rs.EllipticalBearing(
 )
 ```
 
+### Whirl-Dependent (2-D) Tables
+
+One engine case runs per entry of `speed`, reducing the film to the 2x2
+matrices at whirl ratio `excitation_ratio` (default 1, synchronous). Passing
+`frequency=` as well runs one case per `(speed, frequency)` pair with whirl
+ratio `frequency / speed` (`excitation_ratio` is ignored; speeds must be
+nonzero) and stores a 2-D table:
+
+```python
+tpb_2d = rs.TiltingPad(
+    n=1,
+    speed=Q_([2000, 3000], "RPM"),
+    frequency=Q_([500, 1500, 3000], "RPM"),  # whirl frequencies
+    equilibrium_type="match_load",
+    fxs_load=884.05,
+    fys_load=-2670.4,
+    journal_diameter=101.6e-3,
+    radial_clearance=74.9e-6,
+    pad_thickness=12.7e-3,
+    pivot_angle=Q_([18, 90, 162, 234, 306], "deg"),
+    pad_arc=Q_([60] * 5, "deg"),
+    pad_axial_length=[50.8e-3] * 5,
+    preload=[0.5] * 5,
+    offset=[0.5] * 5,
+    lubricant="ISOVG32",
+    oil_supply_temperature=Q_(40, "degC"),
+    oil_flow_v=Q_(10, "l/min"),
+    num_processes=4,  # 6 engine cases here
+)
+np.array(tpb_2d.kxx).shape  # (2, 3)
+```
+
+Tilting pads condense the pad degrees of freedom at the whirl frequency, so
+their reduced coefficients genuinely change along the frequency axis; a rigid
+fixed-geometry film gives the same coefficients at every whirl ratio.
+
 Useful knobs and post-processing:
 
 - `lubricant`: a key of `rs.lubricants_dict` (`"ISOVG32"`, `"ISOVG46"`, `"ISOVG68"`, ...)
 - `thermal_type`: `None` (isoviscous), `"adiabatic"` or `"full"` (pad conduction)
 - `deform_type`: `None` (rigid pads, default) or one of the `"pad_mechanical*"` options for pad/pivot elasticity (full TEHD)
-- `num_processes`: solve the frequency table in parallel
-- `bearing.coefficients(frequency)` returns `(kxx, kxy, kyx, kyy), (cxx, cxy, cyx, cyy)` interpolated at any speed
-- Plots: `plot_pressure_2d()`, `plot_pressure_3d()`, `plot_temperature_2d()`, `plot_film_temperature_3d()`, `plot_film_thickness_2d()`; `show_results()` prints a per-speed summary table
+- `num_processes`: solve the speed table (or the `(speed, frequency)` grid) in parallel
+- `bearing.coefficients(speed, frequency=None)` returns `(kxx, kxy, kyx, kyy), (cxx, cxy, cyx, cyy)` interpolated at a rotor speed (and whirl frequency for 2-D tables)
+- Plots: `plot_pressure_2d()`, `plot_pressure_3d()`, `plot_temperature_2d()`, `plot_film_temperature_3d()`, `plot_film_thickness_2d()`; `show_results()` prints a per-case summary table
 - `plot_pad_temperature_3d()` draws the pads as real geometry colored by the solid pad conduction field, resolved through the pad thickness (`thermal_type="full"` only)
-- `bearing.save(file)` stores the solved coefficient table (reloads as a plain `BearingElement`, no re-solve)
+- `bearing.save(file)` stores the solved coefficient table, 2-D included (reloads as a plain `BearingElement`, no re-solve)
 
 See `docs/user_guide/tutorial_bearings_part_2.ipynb` for the full tour.

@@ -730,18 +730,18 @@ def test_freq_response_w_force(rotor4):
     assert_allclose(mag[0:2, :], mag_exp[0:2, :])
     assert_allclose(mag[3:5, :], mag_exp[2:4, :])
 
-    freq_resp = rotor4.run_unbalance_response(2, 0.001, 0, frequency=omega)
+    freq_resp = rotor4.run_unbalance_response(2, 0.001, 0, speed_range=omega)
     mag = abs(freq_resp.forced_resp)
     assert_allclose(mag[0:2, :], mag_exp[0:2, :])
     assert_allclose(mag[3:5, :], mag_exp[2:4, :])
 
-    freq_resp = rotor4.run_unbalance_response(2, 0.001, 0, frequency=omega)
+    freq_resp = rotor4.run_unbalance_response(2, 0.001, 0, speed_range=omega)
     mag = abs(freq_resp.forced_resp)
     assert_allclose(mag[0:2, :], mag_exp[0:2, :])
     assert_allclose(mag[3:5, :], mag_exp[2:4, :])
 
     freq_resp = rotor4.run_unbalance_response(
-        [2, 3], [0.001, 0.001], [0.0, 0], frequency=omega
+        [2, 3], [0.001, 0.001], [0.0, 0], speed_range=omega
     )
     mag = abs(freq_resp.forced_resp)
     assert_allclose(mag[0:2, :], mag_exp_2_unb[0:2, :])
@@ -1621,7 +1621,7 @@ def test_plot_mode(rotor7):
 
 def test_unbalance(rotor3):
     unb = rotor3.run_unbalance_response(
-        node=0, unbalance_magnitude=1, unbalance_phase=0, frequency=[50, 100]
+        node=0, unbalance_magnitude=1, unbalance_phase=0, speed_range=[50, 100]
     )
     amplitude_expected = np.array([0.003158927232913641, 0.004620055491206476])
     data = unb.data_magnitude(probe=[(0, 45)], probe_units="deg")
@@ -1656,7 +1656,7 @@ def test_deflected_shape(rotor7):
     )
 
     forced = rotor7.run_unbalance_response(
-        node=0, unbalance_magnitude=1, unbalance_phase=0, frequency=[50]
+        node=0, unbalance_magnitude=1, unbalance_phase=0, speed_range=[50]
     )
     fig = forced.plot_deflected_shape_3d(speed=50)
     # check major axis
@@ -2495,16 +2495,16 @@ def test_ucs_rotor9(rotor9):
     assert_allclose(ucs_results.wn, exp_rotor_wn, rtol=1e-6)
 
 
-def test_ucs_bearing_frequency_range(rotor8):
-    res = rotor8.run_ucs(bearing_frequency_range=(100, 1000), num=5)
-    assert len(res.bearing_frequency_range) == 30
-    assert_allclose(res.bearing_frequency_range[0], 100)
-    assert_allclose(res.bearing_frequency_range[-1], 1000)
+def test_ucs_bearing_speed_range(rotor8):
+    res = rotor8.run_ucs(bearing_speed_range=(100, 1000), num=5)
+    assert len(res.bearing_speed_range) == 30
+    assert_allclose(res.bearing_speed_range[0], 100)
+    assert_allclose(res.bearing_speed_range[-1], 1000)
 
-    res_units = rotor8.run_ucs(bearing_frequency_range=Q_((100, 1000), "rad/s"), num=5)
-    assert len(res_units.bearing_frequency_range) == 30
-    assert_allclose(res_units.bearing_frequency_range[0], 100)
-    assert_allclose(res_units.bearing_frequency_range[-1], 1000)
+    res_units = rotor8.run_ucs(bearing_speed_range=Q_((100, 1000), "rad/s"), num=5)
+    assert len(res_units.bearing_speed_range) == 30
+    assert_allclose(res_units.bearing_speed_range[0], 100)
+    assert_allclose(res_units.bearing_speed_range[-1], 1000)
 
 
 def test_pickle(rotor8):
@@ -3211,3 +3211,34 @@ def test_run_campbell_matched_whirl(rotor_2d_seal):
 
     campbell_sync = rotor.run_campbell(speed_range, frequencies=4)
     assert_allclose(campbell_sync.modal_results[200.0].whirl_frequency, 200.0)
+
+
+def test_freq_response_fixed_speed(rotor_2d_seal):
+    rotor = rotor_2d_seal
+    speed = 250.0
+    frequencies = np.array([50.0, 120.0, 300.0])
+    response = rotor.run_freq_response(speed_range=frequencies, speed=speed)
+    for i, frequency in enumerate(frequencies):
+        expected = rotor.transfer_matrix(speed=speed, frequency=frequency)
+        assert_allclose(response.freq_resp[..., i], expected)
+        assert_allclose(response.velc_resp[..., i], 1j * frequency * expected)
+
+    synchronous = rotor.run_freq_response(speed_range=frequencies)
+    assert_allclose(synchronous.freq_resp[..., 1], rotor.transfer_matrix(speed=120.0))
+    assert not np.allclose(response.freq_resp[..., 0], synchronous.freq_resp[..., 0])
+
+
+def test_forced_response_fixed_speed(rotor_2d_seal):
+    rotor = rotor_2d_seal
+    speed = 250.0
+    frequencies = np.array([50.0, 120.0, 300.0])
+    force = np.zeros((rotor.ndof, len(frequencies)), dtype=complex)
+    force[rotor.number_dof * 3, :] = 10.0
+    response = rotor.run_forced_response(
+        force=force, speed_range=frequencies, speed=speed
+    )
+    freq_resp = rotor.run_freq_response(speed_range=frequencies, speed=speed)
+    for i in range(len(frequencies)):
+        assert_allclose(
+            response.forced_resp[:, i], freq_resp.freq_resp[..., i] @ force[:, i]
+        )

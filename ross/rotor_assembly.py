@@ -2266,11 +2266,19 @@ class Rotor(object):
         speed_range=None,
         modes=None,
         free_free=False,
+        speed=None,
     ):
         """Frequency response for a mdof system.
 
         This method returns the frequency response for a mdof system given a range of
         frequencies and the modes that will be used.
+
+        By default the sweep is synchronous: each value of ``speed_range`` is
+        used both as the rotor speed (gyroscopic effect and speed-dependent
+        coefficients) and as the excitation frequency. With ``speed`` the
+        rotor speed is held fixed and ``speed_range`` becomes the excitation
+        frequency sweep, which is the response to a non-synchronous excitation
+        at a fixed operating point.
 
         Available plotting methods:
             .plot()
@@ -2289,6 +2297,11 @@ class Rotor(object):
         free_free : bool, optional
             If True, the method will consider the rotor system as free-free.
             Default is False.
+        speed : float, pint.Quantity, optional
+            Fixed rotor speed (rad/s). When given, ``speed_range`` is swept as
+            the excitation frequency while the gyroscopic effect and the
+            speed-dependent coefficients stay at this speed.
+            Default is None (synchronous sweep).
 
         Returns
         -------
@@ -2302,6 +2315,9 @@ class Rotor(object):
         >>> rotor = rs.rotor_example()
         >>> speed =np.linspace(0, 1000, 101)
         >>> response = rotor.run_freq_response(speed_range=speed)
+
+        Excitation sweep at a fixed rotor speed:
+        >>> response_fixed = rotor.run_freq_response(speed_range=speed, speed=500.0)
 
         Return the response amplitude
         >>> abs(response.freq_resp) # doctest: +ELLIPSIS
@@ -2340,6 +2356,7 @@ class Rotor(object):
             speed_range=speed_range,
             modes=modes,
             free_free=free_free,
+            speed=speed,
         )
 
     @lru_cache()
@@ -2348,6 +2365,7 @@ class Rotor(object):
         speed_range=None,
         modes=None,
         free_free=False,
+        speed=None,
     ):
         """Frequency response for a mdof system.
 
@@ -2372,6 +2390,8 @@ class Rotor(object):
             Tolerance (relative) for termination.
         free_free : bool, optional
             If True, the method will consider the rotor system as free-free.
+        speed : float, optional
+            Fixed rotor speed for an excitation frequency sweep.
 
         Returns
         -------
@@ -2383,7 +2403,7 @@ class Rotor(object):
             modal = self.run_modal(0)
             speed_range = np.linspace(0, max(modal.evalues.imag) * 1.5, 1000)
 
-        self._check_frequency_array(speed_range)
+        self._check_frequency_array([speed] if speed is not None else speed_range)
 
         freq_resp = np.empty((self.ndof, self.ndof, len(speed_range)), dtype=complex)
         velc_resp = np.empty((self.ndof, self.ndof, len(speed_range)), dtype=complex)
@@ -2391,14 +2411,16 @@ class Rotor(object):
 
         if free_free:
             transfer_matrix = lambda s: self.transfer_matrix(speed=0, frequency=s)
+        elif speed is not None:
+            transfer_matrix = lambda s: self.transfer_matrix(speed=speed, frequency=s)
         else:
             transfer_matrix = lambda s: self.transfer_matrix(speed=s)
 
-        for i, speed in enumerate(speed_range):
-            H = transfer_matrix(speed)
+        for i, frequency in enumerate(speed_range):
+            H = transfer_matrix(frequency)
             freq_resp[..., i] = H
-            velc_resp[..., i] = 1j * speed * H
-            accl_resp[..., i] = -(speed**2) * H
+            velc_resp[..., i] = 1j * frequency * H
+            accl_resp[..., i] = -(frequency**2) * H
 
         results = FrequencyResponseResults(
             freq_resp=freq_resp,
@@ -2608,6 +2630,7 @@ class Rotor(object):
         speed_range=None,
         modes=None,
         unbalance=None,
+        speed=None,
     ):
         """Forced response for a mdof system.
 
@@ -2639,6 +2662,11 @@ class Rotor(object):
             with deflected shape. This argument is set only if running an unbalance
             response analysis.
             Default is None.
+        speed : float, pint.Quantity, optional
+            Fixed rotor speed (rad/s). When given, ``speed_range`` is the
+            excitation frequency sweep of the force while the rotor speed stays
+            fixed (see :py:meth:`run_freq_response`).
+            Default is None (synchronous sweep).
 
         Returns
         -------
@@ -2659,7 +2687,7 @@ class Rotor(object):
             modal = self.run_modal(0)
             speed_range = np.linspace(0, max(modal.evalues.imag) * 1.5, 1000)
 
-        freq_resp = self.run_freq_response(speed_range, modes)
+        freq_resp = self.run_freq_response(speed_range, modes, speed=speed)
 
         forced_resp = np.zeros((self.ndof, len(freq_resp.speed_range)), dtype=complex)
         velc_resp = np.zeros((self.ndof, len(freq_resp.speed_range)), dtype=complex)
@@ -2798,7 +2826,7 @@ class Rotor(object):
         node,
         unbalance_magnitude,
         unbalance_phase,
-        frequency=None,
+        speed_range=None,
         modes=None,
     ):
         """Unbalanced response for a mdof system.
@@ -2825,8 +2853,10 @@ class Rotor(object):
             Unbalance magnitude (kg.m).
         unbalance_phase : list, float, pint.Quantity
             Unbalance phase (rad).
-        frequency : list, pint.Quantity
-            List with the desired range of frequencies (rad/s).
+        speed_range : list, pint.Quantity
+            List with the desired range of rotor speeds (rad/s). The unbalance
+            excitation is synchronous, so each speed is also the excitation
+            frequency.
             Default is 0 to 1.5 x highest damped natural frequency.
         modes : list, optional
             Modes that will be used to calculate the frequency response
@@ -2846,7 +2876,7 @@ class Rotor(object):
         >>> response = rotor.run_unbalance_response(node=3,
         ...                                         unbalance_magnitude=10.0,
         ...                                         unbalance_phase=0.0,
-        ...                                         frequency=speed)
+        ...                                         speed_range=speed)
 
         Return the response amplitude
         >>> abs(response.forced_resp) # doctest: +ELLIPSIS
@@ -2888,25 +2918,25 @@ class Rotor(object):
         >>> value = 600
         >>> fig = response.plot_deflected_shape(speed=value)
         """
-        if frequency is None:
+        if speed_range is None:
             modal = self.run_modal(0)
-            frequency = np.linspace(0, max(modal.evalues.imag) * 1.5, 1000)
+            speed_range = np.linspace(0, max(modal.evalues.imag) * 1.5, 1000)
 
-        force = np.zeros((self.ndof, len(frequency)), dtype=complex)
+        force = np.zeros((self.ndof, len(speed_range)), dtype=complex)
 
         try:
             for n, m, p in zip(node, unbalance_magnitude, unbalance_phase):
-                force += self._unbalance_force(n, m, p, frequency)
+                force += self._unbalance_force(n, m, p, speed_range)
         except TypeError:
             force = self._unbalance_force(
-                node, unbalance_magnitude, unbalance_phase, frequency
+                node, unbalance_magnitude, unbalance_phase, speed_range
             )
 
         # fmt: off
         ub = np.vstack((node, unbalance_magnitude, unbalance_phase))
         forced_response = self.run_forced_response(
             force=force,
-            speed_range=frequency,
+            speed_range=speed_range,
             modes=modes,
             unbalance=ub,
         )
@@ -4474,7 +4504,7 @@ class Rotor(object):
     def run_ucs(
         self,
         stiffness_range=None,
-        bearing_frequency_range=None,
+        bearing_speed_range=None,
         num_modes=16,
         num=20,
         synchronous=False,
@@ -4493,10 +4523,10 @@ class Rotor(object):
             In linear space, the sequence starts at ``base ** start``
             (`base` to the power of `start`) and ends with ``base ** stop``
             (see `endpoint` below). Here base is 10.0.
-        bearing_frequency_range : tuple, optional
-            The bearing frequency range used to calculate the intersection points.
+        bearing_speed_range : tuple, optional
+            The bearing speed range used to calculate the intersection points.
             In some cases bearing coefficients will have to be extrapolated.
-            The default is None. In this case the bearing frequency attribute is used.
+            The default is None. In this case the bearing speed axis is used.
         num_modes : int, optional
             Number of modes to be calculated. This uses scipy.sparse.eigs method.
             Default is 16. In this case 4 modes are plotted, since for each pair
@@ -4524,9 +4554,9 @@ class Rotor(object):
             else:
                 stiffness_range = (6, 11)
 
-        if bearing_frequency_range is not None:
-            bearing_frequency_range = np.linspace(
-                bearing_frequency_range[0], bearing_frequency_range[1], 30
+        if bearing_speed_range is not None:
+            bearing_speed_range = np.linspace(
+                bearing_speed_range[0], bearing_speed_range[1], 30
             )
 
         stiffness_log = np.logspace(*stiffness_range, num=num)
@@ -4575,16 +4605,16 @@ class Rotor(object):
         bearing0_axis = (
             bearing0.speed if bearing0.speed is not None else bearing0.frequency
         )
-        if bearing_frequency_range is None:
+        if bearing_speed_range is None:
             if bearing0_axis is None:
-                bearing_frequency_margin = rotor_wn.min() * 0.1
-                bearing_frequency_range = np.linspace(
-                    rotor_wn.min() - bearing_frequency_margin,
-                    rotor_wn.max() + bearing_frequency_margin,
+                bearing_speed_margin = rotor_wn.min() * 0.1
+                bearing_speed_range = np.linspace(
+                    rotor_wn.min() - bearing_speed_margin,
+                    rotor_wn.max() + bearing_speed_margin,
                     10,
                 )
             else:
-                bearing_frequency_range = bearing0_axis
+                bearing_speed_range = bearing0_axis
 
         # calculate interception points
         intersection_points = {"x": [], "y": []}
@@ -4600,8 +4630,8 @@ class Rotor(object):
             for coeff in coeffs:
                 x1 = stiffness_log
                 y1 = wn
-                x2 = getattr(bearing0, f"{coeff}_interpolated")(bearing_frequency_range)
-                y2 = bearing_frequency_range
+                x2 = getattr(bearing0, f"{coeff}_interpolated")(bearing_speed_range)
+                y2 = bearing_speed_range
                 x, y = intersection(x1, y1, x2, y2)
 
                 if len(x) > 0:
@@ -4652,7 +4682,7 @@ class Rotor(object):
         results = UCSResults(
             stiffness_range,
             stiffness_log,
-            bearing_frequency_range,
+            bearing_speed_range,
             rotor_wn,
             bearing0,
             intersection_points,

@@ -37,6 +37,47 @@ evaluated, which reproduces the previous numerics exactly. ``plot()`` and ``form
 the tabulated axes (one curve per speed against the frequency axis for 2-D tables), and 2-D tables
 round-trip through ``save()`` / ``load()``.
 
+Frequency-Dependent Seal and Bearing Coefficients from the Solvers
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The flow solvers now separate the rotor speed, which sets the base flow, from the whirl
+(excitation) frequency of the perturbation, and can fill a 2-D table directly
+(`#1321 <https://github.com/petrobras/ross/issues/1321>`_):
+
+- ``LabyrinthSeal(speed=..., frequency=...)`` — ``LabyrinthSolver.solve(speed, frequency=None)``
+  solves the leakage, cavity pressures and swirl for the speed and the perturbation system for the
+  whirl frequency; ``solve_row`` reuses one base flow for several whirl frequencies and
+  ``solve_grid`` maps it over the speeds. The synchronous diagonal of the grid reproduces the 1-D
+  table exactly.
+- ``HolePatternSeal(speed=..., frequency=...)`` — same split for the bulk-flow solver; the grid
+  points at ``excitation_ratio * speed`` reproduce the 1-D solve, and ``excitation_ratio`` stays as
+  the 1-D convenience.
+- ``HybridSeal(speed=..., frequency=...)`` — the interface pressure is matched with the synchronous
+  stages, which are then rebuilt at the converged pressure with 2-D tables.
+- ``FluidFilmBearing(speed=..., frequency=...)`` (and the configuration classes) — one engine case
+  per (speed, frequency) pair with whirl ratio ``frequency / speed`` (nonzero speeds required);
+  ``coefficients(speed, frequency=None)`` reads the table on both axes.
+
+Modal and Forced Response with Speed Decoupled from the Excitation Frequency
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+- ``run_modal(speed, frequency=f)`` evaluates the frequency-dependent coefficients at a fixed
+  whirl frequency while the gyroscopic effect keeps the rotor speed.
+- ``run_modal(speed, matched_whirl=True)`` iterates each mode with a fixed point on its damped
+  natural frequency (the mode is tracked between iterates by the modal assurance criterion;
+  ``whirl_rtol`` and ``whirl_max_iter`` control the iteration and a warning reports a mode that
+  does not converge). This is the relevant analysis for subsynchronous stability, where a mode
+  whirls well below the running speed and the synchronous coefficients misestimate its damping.
+- ``ModalResults.whirl_frequency`` stores the whirl frequency each mode's coefficients were
+  evaluated at (the rotor speed for the default synchronous analysis).
+- ``run_campbell(..., matched_whirl=True)`` runs the matched-whirl analysis at every speed and
+  keeps ``whirl_frequency`` aligned with the tracked modes.
+- ``run_freq_response(speed_range, speed=w)`` and ``run_forced_response(force, speed_range,
+  speed=w)`` hold the rotor speed fixed and sweep ``speed_range`` as the excitation frequency; the
+  default remains the synchronous sweep.
+- The pre-existing ``synchronous=True`` flag of ``run_modal`` / ``run_ucs`` is unrelated: it
+  selects Rouch's formulation, which folds the gyroscopic matrix into the mass matrix.
+
 Fluid-Film TEHD Engine for Journal Bearings
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -192,7 +233,10 @@ Old                                                  New
 ``BearingElement.from_table`` column ``frequency``   column ``speed`` (``frequency`` still accepted)
 ``BearingElement.format_table(frequency=...)``       ``format_table(speed=..., frequency=...)``
 ``brg.frequency`` (speed table)                      ``brg.speed``
-``FluidFilmBearing.coefficients(frequency)``         ``coefficients(speed)``
+``FluidFilmBearing.coefficients(frequency)``         ``coefficients(speed, frequency=None)``
+``run_unbalance_response(frequency=w)``              ``run_unbalance_response(speed_range=w)``
+``run_ucs(bearing_frequency_range=...)``             ``run_ucs(bearing_speed_range=...)``
+``UCSResults.bearing_frequency_range``               ``UCSResults.bearing_speed_range``
 TOML / JSON key ``frequency`` of saved elements      key ``speed`` (files with ``frequency`` still load)
 ===================================================  ==========================================================
 
@@ -212,6 +256,16 @@ Other behavior changes of the coefficient rework:
 - ``SealElement`` persists ``seal_leakage`` on ``save()`` / ``load()``.
 - Constant coefficients are returned exactly instead of through a two-point interpolator (which
   added round-off of the order of 1e-13 away from zero speed).
+- ``transfer_matrix`` (hence ``run_freq_response`` and the forced responses) evaluates
+  frequency-tabulated elements (``MagneticBearingElement``, ``SqueezeFilmDamper``) at the
+  excitation frequency instead of the rotor speed, including the ``free_free`` branch, which
+  used to evaluate every coefficient at zero speed. Speed-tabulated elements are unchanged.
+- ``MultiRotor`` scales the driven rotor speed by the gear ratio while the excitation frequency is
+  global to the coupled system; only frequency-tabulated elements on the driven shaft see a
+  different lookup.
+- ``BearingElement.from_table`` and ``table_to_toml`` return the table axis as ``speed``.
+- Time integration keeps evaluating the coefficients at the instantaneous speed (synchronous
+  lookup); the whirl content of a transient is not resolved per frequency.
 
 Coefficients change with this release
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

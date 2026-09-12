@@ -177,7 +177,7 @@ def test_freq_resp_equality(rotor_6dof, rotor_4dof):
 def test_run_unb(rotor_6dof):
     speed = np.linspace(0, 100, 31)
     response = rotor_6dof.run_unbalance_response(
-        node=3, unbalance_magnitude=10.0, unbalance_phase=0.0, frequency=speed
+        node=3, unbalance_magnitude=10.0, unbalance_phase=0.0, speed_range=speed
     )
 
     abs_resp = np.array([0.01763464, 0.02290302])
@@ -190,10 +190,10 @@ def test_run_unb(rotor_6dof):
 def test_unb_resp_equality(rotor_6dof, rotor_4dof):
     speed = np.linspace(0, 100, 31)
     response1 = rotor_6dof.run_unbalance_response(
-        node=3, unbalance_magnitude=10.0, unbalance_phase=0.0, frequency=speed
+        node=3, unbalance_magnitude=10.0, unbalance_phase=0.0, speed_range=speed
     )
     response2 = rotor_4dof.run_unbalance_response(
-        node=3, unbalance_magnitude=10.0, unbalance_phase=0.0, frequency=speed
+        node=3, unbalance_magnitude=10.0, unbalance_phase=0.0, speed_range=speed
     )
 
     assert_allclose(
