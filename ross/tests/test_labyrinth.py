@@ -412,3 +412,61 @@ def test_labyrinth_real_gas_dense_gas_leakage():
     assert real.seal_leakage[0] > ideal.seal_leakage[0]
     # Density correction at this state (Z ~ 0.88) lifts leakage by a few percent.
     assert_allclose(real.seal_leakage[0], ideal.seal_leakage[0], rtol=0.15)
+
+
+def test_labyrinth_whirl_frequency_grid():
+    """The 2-D table reuses one base flow per speed and follows the whirl frequency."""
+    speed = Q_([5000, 8000], "RPM").to("rad/s").m
+    params = dict(COMMON_PARAMS, **MANUAL_PARAMS)
+    params["speed"] = speed
+    synchronous = LabyrinthSeal(**params)
+
+    frequency = np.array([0.25 * speed[1], speed[0], speed[1], 1.5 * speed[1]])
+    grid = LabyrinthSeal(frequency=frequency, **params)
+
+    assert grid.kxx_interpolated.kind == "grid"
+    kxx = np.array(grid.kxx)
+    cxy = np.array(grid.cxy)
+    assert kxx.shape == (2, 4)
+
+    # the synchronous diagonal reproduces the 1-D solve exactly
+    assert kxx[0, 1] == synchronous.kxx[0]
+    assert kxx[1, 2] == synchronous.kxx[1]
+    assert cxy[1, 2] == synchronous.cxy[1]
+    assert_allclose(float(grid.kxx_interpolated(speed[1])), synchronous.kxx[1])
+
+    # the base flow does not depend on the whirl frequency
+    assert_allclose(grid.seal_leakage, synchronous.seal_leakage)
+    assert_allclose(grid.p[1], synchronous.p[1])
+
+    # the perturbation does: the direct stiffness drops strongly with whirl
+    assert kxx[1, 3] < kxx[1, 2] < kxx[1, 1] < kxx[1, 0] < 0
+    assert np.all(np.diff(np.array(grid.cxx)[1]) > 0)
+
+
+def test_labyrinth_solver_row_matches_single_solves():
+    params = dict(COMMON_PARAMS, **MANUAL_PARAMS)
+    seal = LabyrinthSeal(**params)
+    speed = Q_(8000, "RPM").to("rad/s").m
+    row = seal.solver.solve_row(speed, [0.5 * speed, speed])
+    single = seal.solver.solve(speed, 0.5 * speed)
+    assert row[0]["kxx"] == single["kxx"]
+    assert row[0]["cxx"] == single["cxx"]
+    assert row[1]["kxx"] == seal.kxx[0]
+
+
+def test_labyrinth_grid_save_load(tmp_path):
+    speed = Q_([6000, 8000], "RPM").to("rad/s").m
+    params = dict(COMMON_PARAMS, **MANUAL_PARAMS)
+    params["speed"] = speed
+    grid = LabyrinthSeal(frequency=[0.5 * speed[0], speed[1]], **params)
+    file = tmp_path / "labyrinth_grid.toml"
+    grid.save(file)
+    loaded = LabyrinthSeal.load(file)
+    assert_allclose(loaded.speed, grid.speed)
+    assert_allclose(loaded.frequency, grid.frequency)
+    assert_allclose(np.array(loaded.kxx), np.array(grid.kxx))
+    assert_allclose(loaded.seal_leakage, grid.seal_leakage)
+    assert_allclose(
+        loaded.K(frequency=500.0, speed=700.0), grid.K(frequency=500.0, speed=700.0)
+    )

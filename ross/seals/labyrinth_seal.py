@@ -1,3 +1,4 @@
+from functools import partial
 from warnings import warn
 
 import ccp
@@ -30,10 +31,14 @@ class LabyrinthSolver:
 
     This class owns the mutable per-run state of the flow solution (cavity
     pressures, temperatures, swirl velocities, gradient tables) and computes
-    the leakage and dynamic coefficients for one shaft speed at a time. The
-    :class:`LabyrinthSeal` element builds one solver at construction and maps
-    it over the requested frequencies; the solver holds only plain data, so it
-    can be pickled to worker processes for multi-frequency runs.
+    the leakage and dynamic coefficients for one rotor speed at a time. The
+    base flow (leakage, cavity pressures and swirl velocities) is set by the
+    rotor speed, while the perturbation solution that yields the dynamic
+    coefficients depends on the whirl (excitation) frequency, so one base flow
+    can be reused for several whirl frequencies. The :class:`LabyrinthSeal`
+    element builds one solver at construction and maps it over the requested
+    speeds; the solver holds only plain data, so it can be pickled to worker
+    processes for multi-speed runs.
 
     Parameters
     ----------
@@ -116,18 +121,53 @@ class LabyrinthSolver:
         self.pert_amplitude_direct = self.perturbation_eccentricity * radial_clearance
         self.pert_amplitude_cross = self.perturbation_eccentricity * radial_clearance
 
-    def solve(self, frequency):
-        """Solve the seal at one shaft speed (rad/s).
+    def solve(self, speed, frequency=None):
+        """Solve the seal at one rotor speed and whirl frequency (rad/s).
+
+        The base flow is solved for the rotor ``speed`` and the perturbation
+        system for the whirl ``frequency``, which defaults to the rotor speed
+        (synchronous whirl).
 
         Returns a dict with the dynamic coefficients, the leakage, the cavity
         pressure distribution and the conditioning of the perturbation system.
         """
-        self.frequency = frequency
-        self.inlet_swirl_velocity = self.preswirl * frequency * self.shaft_radius
+        self._solve_base_flow(speed)
+        return self._solve_whirl(speed if frequency is None else frequency)
+
+    def solve_row(self, speed, frequencies):
+        """Solve one rotor speed at several whirl frequencies (rad/s).
+
+        The base flow is solved once and the perturbation system is solved
+        for each whirl frequency. Returns one result dict per frequency.
+        """
+        self._solve_base_flow(speed)
+        return [self._solve_whirl(frequency) for frequency in frequencies]
+
+    def solve_grid(self, speeds, frequencies, parallel_threshold=4):
+        """Solve a (speed, whirl frequency) grid.
+
+        Returns a nested list ``rows[i][j]`` with the result dict of
+        ``speeds[i]`` and ``frequencies[j]``. Speeds are solved in parallel
+        when there are more than ``parallel_threshold`` of them.
+        """
+        return solve_frequencies(
+            partial(self.solve_row, frequencies=frequencies),
+            speeds,
+            parallel_threshold=parallel_threshold,
+        )
+
+    def _solve_base_flow(self, speed):
+        """Solve the leakage, cavity pressures and swirl for one rotor speed."""
+        self.speed = speed
+        self.inlet_swirl_velocity = self.preswirl * speed * self.shaft_radius
         self._reset_state()
         self._vermes_leakage()
         self._solve_pressure_distribution()
         self._solve_swirl_velocities()
+
+    def _solve_whirl(self, frequency):
+        """Solve the perturbation system at one whirl frequency (rad/s)."""
+        self.whirl_frequency = frequency
         self._solve_perturbation_system()
 
         return {
@@ -146,7 +186,7 @@ class LabyrinthSolver:
         }
 
     def _reset_state(self):
-        """Reset the per-run flow state before solving a new frequency."""
+        """Reset the per-run flow state before solving a new rotor speed."""
         self.pr = np.zeros(self.n_teeth)
         self.p = np.zeros(self.n_stations)
         self.w = np.zeros(self.n_stations)
@@ -162,7 +202,6 @@ class LabyrinthSolver:
         self.cx = np.zeros((8, self.n_stations))
 
         self.overall_pressure_ratio = self.outlet_pressure / self.inlet_pressure
-        self.omega = self.frequency
 
     def _circumferential_leakage(self, mdot):
         """Convert mass flux per unit circumference into total leakage (kg/s)."""
@@ -391,7 +430,7 @@ class LabyrinthSolver:
         The method also assembles the base-flow gradient tables ``cg``
         (continuity) and ``cx`` (momentum) used by the perturbation solver.
         """
-        if self.omega == 0 and self.inlet_swirl_velocity == 0:
+        if self.speed == 0 and self.inlet_swirl_velocity == 0:
             return
 
         if self.use_jenny_kanki:
@@ -415,7 +454,7 @@ class LabyrinthSolver:
         )
         area = cavity_height * self.pitch
 
-        surface_velocity = self.shaft_radius * self.omega
+        surface_velocity = self.shaft_radius * self.speed
 
         self.v[0] = self.inlet_swirl_velocity
         self.vin[0] = self.inlet_swirl_velocity
@@ -541,7 +580,8 @@ class LabyrinthSolver:
         perturbations for the two whirl directions. Rows 0-3 are the
         linearized continuity equations and rows 4-7 the tangential momentum
         equations. Cavities couple to their upstream and downstream neighbors
-        through the base-flow gradient tables ``cg`` and ``cx``.
+        through the base-flow gradient tables ``cg`` and ``cx``; the unsteady
+        terms are proportional to the whirl frequency.
 
         Returns the system matrix ``A`` and the right-hand sides for the
         direct and cross whirl perturbations as a ``(ndof, 2)`` array.
@@ -568,15 +608,15 @@ class LabyrinthSolver:
                 for r, c in zip(MOMENTUM_ROWS, SWAPPED_PRESSURE_COLS):
                     A[row0 + r, downstream0 + c] = self.cx[5, station]
 
-            cf1 = self.omega * self.cg[0, station] + self.cg[1, station]
+            cf1 = self.whirl_frequency * self.cg[0, station] + self.cg[1, station]
             cf2 = self.cg[3, station]
             cf3 = self.cg[2, station]
-            cf4 = -self.omega * self.cg[0, station] + self.cg[1, station]
+            cf4 = -self.whirl_frequency * self.cg[0, station] + self.cg[1, station]
             cf5 = self.cx[0, station]
             cf6 = self.cx[6, station]
-            cf7 = self.omega * self.cx[1, station] + self.cx[2, station]
+            cf7 = self.whirl_frequency * self.cx[1, station] + self.cx[2, station]
             cf8 = self.cx[3, station]
-            cf9 = -self.omega * self.cx[1, station] + self.cx[2, station]
+            cf9 = -self.whirl_frequency * self.cx[1, station] + self.cx[2, station]
 
             diagonal_entries = (
                 (0, 0, cf1),
@@ -612,8 +652,10 @@ class LabyrinthSolver:
                 A[row0 + r, row0 + c] = value
 
             forcing_direct = (
-                0.5 * (self.omega * self.cg[5, station] + self.cg[6, station]),
-                0.5 * (-self.omega * self.cg[5, station] + self.cg[6, station]),
+                0.5
+                * (self.whirl_frequency * self.cg[5, station] + self.cg[6, station]),
+                0.5
+                * (-self.whirl_frequency * self.cg[5, station] + self.cg[6, station]),
                 -0.5 * self.cx[7, station],
                 -0.5 * self.cx[7, station],
             )
@@ -638,7 +680,8 @@ class LabyrinthSolver:
 
         The perturbation pressures are integrated around the circumference and
         along the seal to produce the direct and cross-coupled stiffness and
-        damping coefficients.
+        damping coefficients; the damping is the whirl-frequency-proportional
+        part of the perturbation force.
         """
         A, rhs = self._assemble_perturbation_system()
 
@@ -682,9 +725,9 @@ class LabyrinthSolver:
         self.kxx = scale_direct * kxx
         self.kxy = scale_cross * kxy
         self.kyx = -self.kxy
-        if self.omega != 0:
-            self.cxx = -scale_direct / self.omega * cxx
-            self.cxy = scale_cross / self.omega * cxy
+        if self.whirl_frequency != 0:
+            self.cxx = -scale_direct / self.whirl_frequency * cxx
+            self.cxy = scale_cross / self.whirl_frequency * cxy
             self.cyx = -self.cxy
         else:
             self.cxx = 0
@@ -730,7 +773,8 @@ class LabyrinthSeal(SealElement):
        - Small perturbations in radial displacement and clearance
        - Linearized system of equations solved using LU decomposition
        - Cross-coupled stiffness terms capture destabilizing forces
-       - Frequency-dependent coefficients for each operating speed
+       - Coefficients tabulated per rotor speed (synchronous whirl) or on a
+         (speed, whirl frequency) grid when ``frequency`` is given
 
     Parameters
     ----------
@@ -760,10 +804,18 @@ class LabyrinthSeal(SealElement):
     inlet_temperature : float
         Inlet temperature (deg K).
     speed : float, array, pint.Quantity
-        Shaft rotational speed(s) (rad/s).
+        Shaft rotational speed(s) (rad/s). The base flow (leakage, cavity
+        pressures and swirl velocities) is solved for each speed.
     preswirl : float
         Inlet swirl velocity ratio. Positive values for swirl with shaft rotation
         and negative values for swirl against shaft rotations.
+    frequency : array, pint.Quantity, optional
+        Whirl (excitation) frequencies (rad/s). When given, the perturbation
+        system is solved at every (speed, frequency) pair and the element
+        carries a 2-D coefficient table of shape ``(len(speed), len(frequency))``
+        interpolated on both axes. Default is None, in which case the
+        coefficients are evaluated at synchronous whirl (frequency = speed)
+        and tabulated over the speed axis only.
     gas_composition : dict, optional
         Gas composition as a dictionary {component: molar_fraction}.
         If gas_composition is None, provide molar_mass, gamma,
@@ -852,6 +904,7 @@ class LabyrinthSeal(SealElement):
         inlet_temperature,
         speed,
         preswirl,
+        frequency=None,
         gas_composition=None,
         gas_model="ideal",
         molar_mass=None,
@@ -958,21 +1011,47 @@ class LabyrinthSeal(SealElement):
         coefficients_dict = {}
         if kwargs.get("kxx") is None:
             speed = np.atleast_1d(np.asarray(speed, dtype=float))
-            results = solve_frequencies(self.solver.solve, speed, parallel_threshold=4)
+            if frequency is None:
+                results = solve_frequencies(
+                    self.solver.solve, speed, parallel_threshold=4
+                )
+                rows = [[r] for r in results]
+            else:
+                frequency = np.atleast_1d(np.asarray(frequency, dtype=float))
+                rows = self.solver.solve_grid(speed, frequency, parallel_threshold=4)
 
-            self.p = [r["pressure"] for r in results]
+            not_coefficients = (
+                "pressure",
+                "seal_leakage",
+                "pert_rcond",
+                "pert_condition_number",
+            )
+            coefficient_names = [c for c in rows[0][0] if c not in not_coefficients]
 
-            coefficients_dict = {
-                c: [k[c] for k in results]
-                for c in results[0].keys()
-                if c not in ["pressure", "pert_rcond", "pert_condition_number"]
-            }
-            self.pert_rcond = [r["pert_rcond"] for r in results]
-            self.pert_condition_number = [r["pert_condition_number"] for r in results]
+            if frequency is None:
+                coefficients_dict = {
+                    c: [row[0][c] for row in rows] for c in coefficient_names
+                }
+                self.pert_rcond = [row[0]["pert_rcond"] for row in rows]
+                self.pert_condition_number = [
+                    row[0]["pert_condition_number"] for row in rows
+                ]
+            else:
+                coefficients_dict = {
+                    c: [[r[c] for r in row] for row in rows] for c in coefficient_names
+                }
+                self.pert_rcond = [[r["pert_rcond"] for r in row] for row in rows]
+                self.pert_condition_number = [
+                    [r["pert_condition_number"] for r in row] for row in rows
+                ]
+
+            self.p = [row[0]["pressure"] for row in rows]
+            coefficients_dict["seal_leakage"] = [row[0]["seal_leakage"] for row in rows]
 
         super().__init__(
             self.n,
             speed=speed,
+            frequency=frequency,
             **coefficients_dict,
             **kwargs,
         )
