@@ -1744,6 +1744,12 @@ class ModalResults(Results):
         List of nodes positions.
     shaft_elements_length : list
         List with Rotor shaft elements lengths.
+    number_dof : int
+        Number of degrees of freedom per node.
+    whirl_frequency : array, optional
+        Whirl (excitation) frequency at which the frequency-dependent
+        coefficients were evaluated for each mode. Default is the rotor
+        speed for every mode (synchronous coefficients).
     """
 
     def __init__(
@@ -1760,6 +1766,7 @@ class ModalResults(Results):
         nodes_pos,
         shaft_elements_length,
         number_dof,
+        whirl_frequency=None,
     ):
         self.speed = speed
         self.evalues = evalues
@@ -1773,6 +1780,9 @@ class ModalResults(Results):
         self.nodes_pos = nodes_pos
         self.shaft_elements_length = shaft_elements_length
         self.number_dof = number_dof
+        if whirl_frequency is None:
+            whirl_frequency = np.full(len(wd), float(speed))
+        self.whirl_frequency = np.asarray(whirl_frequency, dtype=np.float64)
         self.update_mode_shapes()
 
     def update_mode_shapes(self):

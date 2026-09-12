@@ -1233,7 +1233,17 @@ class Rotor(object):
 
     @lru_cache()
     @check_units
-    def run_modal(self, speed, num_modes=12, sparse=True, synchronous=False):
+    def run_modal(
+        self,
+        speed,
+        num_modes=12,
+        sparse=True,
+        synchronous=False,
+        frequency=None,
+        matched_whirl=False,
+        whirl_rtol=1e-3,
+        whirl_max_iter=15,
+    ):
         """Run modal analysis.
 
         Method to calculate eigenvalues and eigenvectors for a given rotor system.
@@ -1243,6 +1253,16 @@ class Rotor(object):
         ratios are returned.
         This method will return a ModalResults object which stores all data generated
         and also provides methods for plotting.
+
+        By default the speed and frequency dependent bearing and seal
+        coefficients are evaluated at the rotor speed (synchronous whirl). For
+        elements whose coefficients depend on the excitation (whirl) frequency,
+        e.g. seals with a 2-D (speed, frequency) table, the ``frequency``
+        argument evaluates the coefficients at a fixed whirl frequency, and
+        ``matched_whirl=True`` iterates each mode so that its coefficients are
+        evaluated at the mode's own damped natural frequency. Neither option
+        is related to the ``synchronous`` flag, which selects Rouch's
+        formulation for a synchronous analysis.
 
         Available plotting methods:
             .plot_mode_2d()
@@ -1266,8 +1286,29 @@ class Rotor(object):
             eigenvectors.
             Default is True.
         synchronous : bool, optional
-            If True a synchronous analysis is carried out.
+            If True a synchronous analysis is carried out (the gyroscopic
+            matrix is folded into the mass matrix, Rouch's formulation).
             Default is False.
+        frequency : float, pint.Quantity, optional
+            Excitation (whirl) frequency (rad/s) at which the
+            frequency-dependent coefficients are evaluated, while the
+            gyroscopic effect still uses the rotor speed. Mutually exclusive
+            with ``matched_whirl``.
+            Default is None (synchronous coefficients: frequency = speed).
+        matched_whirl : bool, optional
+            If True, each mode is iterated until the whirl frequency at which
+            its coefficients are evaluated matches the mode's damped natural
+            frequency (a fixed-point solution of the nonlinear eigenvalue
+            problem). The converged whirl frequencies are stored in
+            ``ModalResults.whirl_frequency``.
+            Default is False.
+        whirl_rtol : float, optional
+            Relative tolerance on the whirl frequency for the ``matched_whirl``
+            iteration. Default is 1e-3.
+        whirl_max_iter : int, optional
+            Maximum number of iterations per mode for ``matched_whirl``. A
+            warning is issued and the last iterate is kept if a mode does not
+            converge. Default is 15.
 
         Returns
         -------
@@ -1290,9 +1331,33 @@ class Rotor(object):
         >>> # Plotting 2D mode shape
         >>> mode2 = 1  # Second mode
         >>> fig = modal.plot_mode_2d(mode2)
+
+        Coefficients evaluated at a fixed whirl frequency, or at each mode's own
+        damped natural frequency:
+        >>> modal_fixed = rotor.run_modal(speed=100.0, frequency=50.0)
+        >>> modal_matched = rotor.run_modal(speed=100.0, matched_whirl=True)
+        >>> np.allclose(modal_matched.whirl_frequency, modal_matched.wd, rtol=1e-3)
+        True
         """
+        if frequency is not None and matched_whirl:
+            raise ValueError("frequency and matched_whirl are mutually exclusive.")
+
+        if matched_whirl:
+            return self._run_matched_whirl_modal(
+                speed,
+                num_modes=num_modes,
+                sparse=sparse,
+                synchronous=synchronous,
+                rtol=whirl_rtol,
+                max_iter=whirl_max_iter,
+            )
+
         evalues, evectors = self._eigen(
-            speed, num_modes=num_modes, sparse=sparse, synchronous=synchronous
+            speed,
+            num_modes=num_modes,
+            frequency=frequency,
+            sparse=sparse,
+            synchronous=synchronous,
         )
 
         wn_len = num_modes // 2
@@ -1316,9 +1381,122 @@ class Rotor(object):
             self.nodes_pos,
             self.shaft_elements_length,
             self.number_dof,
+            whirl_frequency=np.full(
+                len(wn), float(speed if frequency is None else frequency)
+            ),
         )
 
         return modal_results
+
+    def _run_matched_whirl_modal(
+        self, speed, num_modes, sparse, synchronous, rtol, max_iter
+    ):
+        """Solve the modal analysis with each mode at its own whirl frequency.
+
+        Starting from the synchronous solution, every mode is iterated with a
+        fixed point on its damped natural frequency: the coefficients are
+        evaluated at the current whirl frequency, the eigenproblem is solved,
+        the mode is tracked by the modal assurance criterion against the
+        previous iterate and its new damped natural frequency becomes the next
+        whirl frequency. Modes are considered converged when the relative
+        change in whirl frequency falls below ``rtol``.
+
+        Parameters
+        ----------
+        speed : float
+            Rotor speed (rad/s).
+        num_modes, sparse, synchronous
+            Same as in :py:meth:`run_modal`.
+        rtol : float
+            Relative tolerance on the whirl frequency.
+        max_iter : int
+            Maximum number of iterations per mode.
+
+        Returns
+        -------
+        results : ross.ModalResults
+            Modal results with the converged eigenpairs of the first
+            ``num_modes // 2`` modes and their whirl frequencies.
+        """
+
+        def mac(u, v):
+            return np.abs(np.vdot(u, v)) ** 2 / (
+                np.vdot(u, u).real * np.vdot(v, v).real
+            )
+
+        def solve(frequency):
+            return self._eigen(
+                speed,
+                num_modes=num_modes,
+                frequency=frequency,
+                sparse=sparse,
+                synchronous=synchronous,
+            )
+
+        evalues_sync, evectors_sync = solve(None)
+        wn_len = min(num_modes // 2, len(evalues_sync))
+
+        evalues = np.zeros(wn_len, dtype=complex)
+        evectors = np.zeros((evectors_sync.shape[0], wn_len), dtype=complex)
+        whirl_frequency = np.zeros(wn_len)
+
+        for i in range(wn_len):
+            evalue = evalues_sync[i]
+            vector = evectors_sync[:, i]
+            whirl = abs(evalue.imag)
+            converged = False
+
+            for _ in range(max_iter):
+                candidate_values, candidate_vectors = solve(whirl)
+                forward = np.where(candidate_values.imag >= -1e-12)[0]
+                if len(forward) == 0:
+                    forward = np.arange(len(candidate_values))
+                match = forward[
+                    np.argmax([mac(vector, candidate_vectors[:, j]) for j in forward])
+                ]
+                evalue = candidate_values[match]
+                vector = candidate_vectors[:, match]
+                new_whirl = abs(evalue.imag)
+                converged = abs(new_whirl - whirl) <= rtol * max(
+                    whirl, new_whirl, 1e-12
+                )
+                whirl = new_whirl
+                if converged:
+                    break
+
+            if not converged:
+                warnings.warn(
+                    f"The whirl frequency of mode {i} did not converge in "
+                    f"{max_iter} iterations (last relative change above {rtol}); "
+                    "keeping the last iterate."
+                )
+
+            evalues[i] = evalue
+            evectors[:, i] = vector
+            whirl_frequency[i] = whirl
+
+        wn = np.absolute(evalues)
+        wd = np.imag(evalues)
+        damping_ratio = -np.real(evalues) / np.absolute(evalues)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            log_dec = 2 * np.pi * damping_ratio / np.sqrt(1 - damping_ratio**2)
+
+        return ModalResults(
+            speed,
+            evalues,
+            evectors,
+            wn,
+            wd,
+            damping_ratio,
+            log_dec,
+            self.ndof,
+            self.nodes,
+            self.nodes_pos,
+            self.shaft_elements_length,
+            self.number_dof,
+            whirl_frequency=whirl_frequency,
+        )
 
     @check_units
     def run_critical_speed(self, speed_range=None, num_modes=12, rtol=0.005):
@@ -4129,7 +4307,14 @@ class Rotor(object):
 
     @check_units
     def run_campbell(
-        self, speed_range, frequencies=6, frequency_type="wd", torsional_analysis=False
+        self,
+        speed_range,
+        frequencies=6,
+        frequency_type="wd",
+        torsional_analysis=False,
+        matched_whirl=False,
+        whirl_rtol=1e-3,
+        whirl_max_iter=15,
     ):
         """Calculate the Campbell diagram.
 
@@ -4155,6 +4340,17 @@ class Rotor(object):
             respective modes in the Campbell diagram. In this case, a system
             with only torsional degrees of freedom is considered, thus
             disregarding coupled modes (lateral + torsional). Default is False.
+        matched_whirl : bool, optional
+            If True, the modal analysis at each speed evaluates the
+            frequency-dependent bearing and seal coefficients at each mode's
+            own damped natural frequency (see :py:meth:`run_modal`).
+            Default is False (synchronous coefficients).
+        whirl_rtol : float, optional
+            Relative tolerance of the ``matched_whirl`` iteration.
+            Default is 1e-3.
+        whirl_max_iter : int, optional
+            Maximum number of ``matched_whirl`` iterations per mode.
+            Default is 15.
 
         Returns
         -------
@@ -4195,9 +4391,16 @@ class Rotor(object):
         threshold = 0.9
         evec_u = []
 
+        modal_kwargs = dict(
+            num_modes=num_modes,
+            matched_whirl=matched_whirl,
+            whirl_rtol=whirl_rtol,
+            whirl_max_iter=whirl_max_iter,
+        )
+
         modal_results = {}
         for i, w in enumerate(speed_range):
-            modal = self.run_modal(speed=w, num_modes=num_modes)
+            modal = self.run_modal(speed=w, **modal_kwargs)
             modal_results[w] = modal
 
             evec_v = modal.evectors[:, :evec_size]
@@ -4225,6 +4428,7 @@ class Rotor(object):
                     modal.wn = modal.wn[found_order]
                     modal.log_dec = modal.log_dec[found_order]
                     modal.damping_ratio = modal.damping_ratio[found_order]
+                    modal.whirl_frequency = modal.whirl_frequency[found_order]
                     modal.shapes = list(np.array(modal.shapes)[found_order])
 
             evec_u = modal.evectors[:, :evec_size]
@@ -4247,6 +4451,9 @@ class Rotor(object):
                 speed_range=speed_range,
                 frequencies=int(frequencies / 6),
                 frequency_type=frequency_type,
+                matched_whirl=matched_whirl,
+                whirl_rtol=whirl_rtol,
+                whirl_max_iter=whirl_max_iter,
             )
 
         results = CampbellResults(
@@ -4257,7 +4464,7 @@ class Rotor(object):
             whirl_values=results[..., 3],
             modal_results=modal_results,
             number_dof=self.number_dof,
-            run_modal=lambda w: self.run_modal(speed=w, num_modes=num_modes),
+            run_modal=lambda w: self.run_modal(speed=w, **modal_kwargs),
             campbell_torsional=campbell_t if torsional_analysis else None,
         )
 

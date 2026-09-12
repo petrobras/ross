@@ -3140,3 +3140,74 @@ def test_reduced_dof_matrices_accept_speed(rotor_2d_seal):
     )
     rotor_t = convert_6dof_to_torsional(rotor_2d_seal)
     assert rotor_t.C(50.0, 300.0).shape == (rotor_t.ndof, rotor_t.ndof)
+
+
+def test_run_modal_fixed_frequency_matches_synchronous(rotor_2d_seal):
+    rotor = rotor_2d_seal
+    speed = 200.0
+    modal_sync = rotor.run_modal(speed, num_modes=8)
+    modal_fixed = rotor.run_modal(speed, num_modes=8, frequency=speed)
+    assert_allclose(modal_fixed.evalues, modal_sync.evalues)
+    assert_allclose(modal_sync.whirl_frequency, speed)
+    assert_allclose(modal_fixed.whirl_frequency, speed)
+
+    modal_other = rotor.run_modal(speed, num_modes=8, frequency=50.0)
+    assert_allclose(modal_other.whirl_frequency, 50.0)
+    assert not np.allclose(modal_other.evalues[:4], modal_sync.evalues[:4])
+
+    with pytest.raises(ValueError, match="mutually exclusive"):
+        rotor.run_modal(speed, frequency=50.0, matched_whirl=True)
+
+
+def test_run_modal_matched_whirl(rotor_2d_seal):
+    rotor = rotor_2d_seal
+    speed = 200.0
+    modal = rotor.run_modal(speed, num_modes=8, matched_whirl=True)
+
+    assert modal.whirl_frequency.shape == modal.wd.shape
+    assert_allclose(modal.whirl_frequency, modal.wd, rtol=1e-3)
+
+    # each converged mode is an eigenpair of the problem evaluated at its own
+    # whirl frequency (within the fixed-point tolerance)
+    for i in range(4):
+        modal_i = rotor.run_modal(
+            speed, num_modes=8, frequency=modal.whirl_frequency[i]
+        )
+        assert np.min(np.abs(modal_i.evalues - modal.evalues[i])) < 2e-3 * abs(
+            modal.evalues[i]
+        )
+
+    # hand-rolled fixed point on the first mode
+    whirl = rotor.run_modal(speed, num_modes=8).wd[0]
+    for _ in range(20):
+        new_whirl = rotor.run_modal(speed, num_modes=8, frequency=whirl).wd[0]
+        if abs(new_whirl - whirl) <= 1e-3 * whirl:
+            break
+        whirl = new_whirl
+    assert_allclose(modal.whirl_frequency[0], new_whirl, rtol=1e-3)
+
+
+def test_run_modal_matched_whirl_constant_coefficients():
+    rotor = rotor_example()
+    modal_sync = rotor.run_modal(300.0, num_modes=8)
+    modal_matched = rotor.run_modal(300.0, num_modes=8, matched_whirl=True)
+    assert_allclose(modal_matched.evalues, modal_sync.evalues[:4])
+    assert_allclose(modal_matched.wd, modal_sync.wd)
+    assert_allclose(modal_matched.log_dec, modal_sync.log_dec)
+    assert_allclose(modal_matched.whirl_frequency, modal_sync.wd)
+
+
+def test_run_campbell_matched_whirl(rotor_2d_seal):
+    rotor = rotor_2d_seal
+    speed_range = np.array([100.0, 200.0, 300.0])
+    campbell = rotor.run_campbell(speed_range, frequencies=4, matched_whirl=True)
+    for w in speed_range:
+        modal = campbell.modal_results[w]
+        assert_allclose(modal.whirl_frequency, modal.wd, rtol=1e-3)
+    modal_from_closure = campbell.run_modal(200.0)
+    assert_allclose(
+        modal_from_closure.whirl_frequency, modal_from_closure.wd, rtol=1e-3
+    )
+
+    campbell_sync = rotor.run_campbell(speed_range, frequencies=4)
+    assert_allclose(campbell_sync.modal_results[200.0].whirl_frequency, 200.0)
