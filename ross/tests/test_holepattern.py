@@ -18,7 +18,7 @@ REFPROP_AVAILABLE = "REFPROP : n/a" not in ccp.__version__full
 # Common test parameters
 COMMON_PARAMS = {
     "n": 0,
-    "frequency": Q_([5000], "RPM"),
+    "speed": Q_([5000], "RPM"),
     "axial_length": 0.0254,
     "shaft_diameter": 0.1502,
     "radial_clearance": 0.0004,
@@ -278,7 +278,7 @@ def test_holepattern_invalid_gas_composition():
 def test_holepattern_multiple_frequencies():
     """Test HolePatternSeal with multiple frequency points."""
     params = COMMON_PARAMS.copy()
-    params["frequency"] = Q_([3000, 5000, 7000], "RPM")
+    params["speed"] = Q_([3000, 5000, 7000], "RPM")
 
     holepattern = HolePatternSeal(**params, **MANUAL_PARAMS)
 
@@ -298,7 +298,7 @@ def holepattern():
     """Original fixture for backward compatibility."""
     seal = HolePatternSeal(
         n=0,
-        frequency=Q_([5000], "RPM"),
+        speed=Q_([5000], "RPM"),
         axial_length=0.0254,
         shaft_diameter=0.1502,
         radial_clearance=0.0004,

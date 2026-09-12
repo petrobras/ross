@@ -3,7 +3,7 @@
 :class:`FluidFilmBearing` connects the internal thermo-elasto-hydrodynamic
 solver (:mod:`ross.bearings.fluid_film`) to the ROSS element interface: it
 resolves the lubricant, assembles the solver inputs, runs one solver case
-per operating frequency (serially by default, in parallel on request),
+per rotor speed (serially by default, in parallel on request),
 builds the dynamic-coefficient table consumed by
 :class:`ross.BearingElement`, and exposes the solved fields through a
 results object with the standard ``plot_*`` / ``show_*`` methods.
@@ -111,7 +111,7 @@ def _solve_case(inputs):
     inputs : dict
         Keyword arguments for
         :func:`ross.bearings.fluid_film.driver.run_case`, for a single
-        frequency.
+        rotor speed.
 
     Returns
     -------
@@ -134,7 +134,7 @@ class FluidFilmBearing(BearingElement):
     class. The configuration subclasses only translate friendlier
     constructor surfaces into these arrays.
 
-    For every entry of ``frequency`` the engine solves the journal
+    For every entry of ``speed`` the engine solves the journal
     equilibrium (film pressure, temperature and deformation as selected by
     the model flags) and reduces the result to the synchronous 2x2
     stiffness and damping matrices that make up the element's coefficient
@@ -151,8 +151,8 @@ class FluidFilmBearing(BearingElement):
     ----------
     n : int
         Node in which the bearing will be located.
-    frequency : array_like, pint.Quantity
-        Operating frequencies, rad/s. One solver case runs per entry.
+    speed : array_like, pint.Quantity
+        Rotor speeds, rad/s. One solver case runs per entry.
     journal_diameter : float, pint.Quantity
         Journal diameter, m.
     radial_clearance : float, pint.Quantity
@@ -297,7 +297,7 @@ class FluidFilmBearing(BearingElement):
         Reynolds numbers bounding the laminar-turbulent transition.
         Default is 500 / 1000.
     num_processes : int, optional
-        Solve the frequency cases in ``num_processes`` worker processes
+        Solve the speed cases in ``num_processes`` worker processes
         instead of serially. Default is None (serial).
     tag : str, optional
         A tag to name the element.
@@ -320,7 +320,7 @@ class FluidFilmBearing(BearingElement):
     def __init__(
         self,
         n,
-        frequency=None,
+        speed=None,
         journal_diameter=None,
         radial_clearance=None,
         pad_thickness=None,
@@ -413,8 +413,8 @@ class FluidFilmBearing(BearingElement):
             if getattr(self, name) % 2 != 0:
                 raise ValueError(f"{name} must be an even number")
 
-        if frequency is None or np.asarray(frequency).size == 0:
-            raise ValueError("frequency must be informed")
+        if speed is None or np.asarray(speed).size == 0:
+            raise ValueError("speed must be informed")
         if oil_flow_v is None:
             raise ValueError("oil_flow_v not informed")
         if oil_supply_temperature is None:
@@ -470,7 +470,7 @@ class FluidFilmBearing(BearingElement):
             for pad_number, theta_location, r in probes
         ]
 
-        self.frequency_range = np.atleast_1d(np.asarray(frequency, dtype=float))
+        self.speed_range = np.atleast_1d(np.asarray(speed, dtype=float))
 
         coefficient_table = {}
         case_outputs = None
@@ -488,7 +488,7 @@ class FluidFilmBearing(BearingElement):
 
         super().__init__(
             n=n,
-            frequency=self.frequency_range,
+            speed=self.speed_range,
             **coefficient_table,
             **kwargs,
         )
@@ -496,7 +496,7 @@ class FluidFilmBearing(BearingElement):
         if case_outputs is not None:
             fields = [out.pop("fields")[0] for out in case_outputs]
             self._results = FluidFilmBearingResults(
-                frequency=self.frequency_range,
+                frequency=self.speed_range,
                 pressure_fields=[f["pressure"] for f in fields],
                 temperature_fields=[f["film_temperature"] for f in fields],
                 film_thickness_fields=[f["film_thickness"] for f in fields],
@@ -552,7 +552,7 @@ class FluidFilmBearing(BearingElement):
 
         args = sorted(
             set(self._get_coefficient_list())
-            | {"n", "frequency", "tag", "n_link", "scale_factor", "color"}
+            | {"n", "speed", "frequency", "tag", "n_link", "scale_factor", "color"}
         )
         element_data = {}
         for arg in args:
@@ -573,13 +573,13 @@ class FluidFilmBearing(BearingElement):
         data[f"BearingElement_{self.tag}"] = element_data
         dump_data(data, file)
 
-    def _engine_inputs(self, frequency):
-        """Assemble the solver keyword arguments for one frequency.
+    def _engine_inputs(self, speed):
+        """Assemble the solver keyword arguments for one rotor speed.
 
         Parameters
         ----------
-        frequency : float
-            Shaft speed, rad/s.
+        speed : float
+            Rotor speed, rad/s.
 
         Returns
         -------
@@ -589,7 +589,7 @@ class FluidFilmBearing(BearingElement):
         """
         xj, yj = self.initial_position
         inputs = {
-            "frequency": float(frequency),
+            "frequency": float(speed),
             "field_outputs": True,
             # meshes
             "total_e_x_film": int(self.total_ex_film),
@@ -684,7 +684,7 @@ class FluidFilmBearing(BearingElement):
         return inputs
 
     def _solve_all(self, num_processes):
-        """Solve every frequency case; serial by default.
+        """Solve every speed case; serial by default.
 
         Parameters
         ----------
@@ -694,23 +694,23 @@ class FluidFilmBearing(BearingElement):
         Returns
         -------
         list of dict
-            One solver output dict per frequency.
+            One solver output dict per speed.
         """
-        per_case = [self._engine_inputs(f) for f in self.frequency_range]
+        per_case = [self._engine_inputs(w) for w in self.speed_range]
         if num_processes is not None and num_processes > 1:
             with multiprocessing.Pool(num_processes) as pool:
                 return pool.map(_solve_case, per_case)
         return [_solve_case(inputs) for inputs in per_case]
 
-    def coefficients(self, frequency):
-        """Return the stiffness and damping matrices at a frequency.
+    def coefficients(self, speed):
+        """Return the stiffness and damping matrices at a rotor speed.
 
-        Coefficients are interpolated on the element's frequency table.
+        Coefficients are interpolated on the element's speed table.
 
         Parameters
         ----------
-        frequency : float, pint.Quantity
-            Frequency, rad/s.
+        speed : float, pint.Quantity
+            Rotor speed, rad/s.
 
         Returns
         -------
@@ -720,11 +720,11 @@ class FluidFilmBearing(BearingElement):
             ``(cxx, cxy, cyx, cyy)``, N*s/m.
         """
         stiffness = tuple(
-            float(getattr(self, f"{name}_interpolated")(frequency))
+            float(getattr(self, f"{name}_interpolated")(speed))
             for name in ("kxx", "kxy", "kyx", "kyy")
         )
         damping = tuple(
-            float(getattr(self, f"{name}_interpolated")(frequency))
+            float(getattr(self, f"{name}_interpolated")(speed))
             for name in ("cxx", "cxy", "cyx", "cyy")
         )
         return stiffness, damping
@@ -750,7 +750,7 @@ def fluid_film_bearing_example():
     """
     return FluidFilmBearing(
         n=0,
-        frequency=Q_([900], "RPM"),
+        speed=Q_([900], "RPM"),
         journal_diameter=Q_(15.748, "in"),
         radial_clearance=Q_(0.00766, "in"),
         pad_thickness=Q_(5.89034, "in"),

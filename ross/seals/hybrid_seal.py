@@ -44,9 +44,9 @@ class HybridSeal(SealElement):
         Final outlet pressure at hole-pattern exit (Pa).
     inlet_temperature : float
         Inlet temperature (K).
-    frequency : float, list, pint.Quantity,
+    speed : float, list, pint.Quantity,
         Shaft rotational speed(s) (rad/s).
-        Can be a single value or list of frequencies.
+        Can be a single value or list of speeds.
     gas_composition : dict, optional
         Gas composition as a dictionary {component: molar_fraction}.
         Example: {"Nitrogen": 0.79, "Oxygen": 0.21} for air.
@@ -194,7 +194,7 @@ class HybridSeal(SealElement):
     ...   inlet_pressure=500000,
     ...   outlet_pressure=100000,
     ...   inlet_temperature=300.0,
-    ...   frequency=Q_([2000, 3000, 5000], "RPM"),
+    ...   speed=Q_([2000, 3000, 5000], "RPM"),
     ...   gas_composition=gas_composition,
     ...   hole_pattern_parameters=holep_params,
     ...   labyrinth_parameters=laby_params,
@@ -211,7 +211,7 @@ class HybridSeal(SealElement):
         inlet_pressure,
         outlet_pressure,
         inlet_temperature,
-        frequency,
+        speed,
         hole_pattern_parameters,
         labyrinth_parameters,
         gas_composition=None,
@@ -241,7 +241,7 @@ class HybridSeal(SealElement):
                 inlet_pressure=inlet_pressure,
                 outlet_pressure=interface_pressure,
                 inlet_temperature=inlet_temperature,
-                frequency=frequency,
+                speed=speed,
                 shaft_diameter=shaft_diameter,
                 gas_composition=gas_composition,
                 molar_mass=molar_mass,
@@ -254,7 +254,7 @@ class HybridSeal(SealElement):
                 inlet_pressure=interface_pressure,
                 outlet_pressure=outlet_pressure,
                 inlet_temperature=inlet_temperature,
-                frequency=frequency,
+                speed=speed,
                 shaft_diameter=shaft_diameter,
                 gas_composition=gas_composition,
                 molar_mass=molar_mass,
@@ -302,7 +302,7 @@ class HybridSeal(SealElement):
 
         super().__init__(
             n,
-            frequency=frequency,
+            speed=speed,
             seal_leakage=laby_leakage,
             color=color,
             scale_factor=scale_factor,

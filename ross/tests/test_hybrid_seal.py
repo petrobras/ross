@@ -14,7 +14,7 @@ COMMON_PARAMS = {
     "inlet_pressure": 500000,
     "outlet_pressure": 100000,
     "inlet_temperature": 300.0,
-    "frequency": Q_([5000], "RPM"),
+    "speed": Q_([5000], "RPM"),
     "molar_mass": 28.96807,
     "gamma": 1.4,
 }

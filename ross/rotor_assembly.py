@@ -1799,14 +1799,15 @@ class Rotor(object):
             to be extrapolated.
         """
         for bearing in self.bearing_elements:
-            if bearing.frequency is not None:
-                if (np.max(frequency_range) > max(bearing.frequency)) or (
-                    np.min(frequency_range) < min(bearing.frequency)
+            for axis in (bearing.speed, bearing.frequency):
+                if axis is not None and (
+                    np.max(frequency_range) > max(axis)
+                    or np.min(frequency_range) < min(axis)
                 ):
                     warnings.warn(
                         "Extrapolating bearing coefficients. Be careful when post-processing the results."
                     )
-                    break
+                    return
 
     @staticmethod
     def _index(eigenvalues):
@@ -3060,7 +3061,9 @@ class Rotor(object):
             accel = np.gradient(speed, t)
 
             brgs_with_var_coeffs = tuple(
-                brg for brg in self.bearing_elements if brg.frequency is not None
+                brg
+                for brg in self.bearing_elements
+                if brg.speed is not None or brg.frequency is not None
             )
 
             if len(brgs_with_var_coeffs):  # Option 1
@@ -4330,8 +4333,11 @@ class Rotor(object):
         bearing0 = bearings_elements[0]
 
         # if bearing does not have constant coefficient, check intersection points
+        bearing0_axis = (
+            bearing0.speed if bearing0.speed is not None else bearing0.frequency
+        )
         if bearing_frequency_range is None:
-            if bearing0.frequency is None:
+            if bearing0_axis is None:
                 bearing_frequency_margin = rotor_wn.min() * 0.1
                 bearing_frequency_range = np.linspace(
                     rotor_wn.min() - bearing_frequency_margin,
@@ -4339,7 +4345,7 @@ class Rotor(object):
                     10,
                 )
             else:
-                bearing_frequency_range = bearing0.frequency
+                bearing_frequency_range = bearing0_axis
 
         # calculate interception points
         intersection_points = {"x": [], "y": []}
@@ -5671,6 +5677,7 @@ class Rotor(object):
                         cxy=b.cxy,
                         cyx=b.cyx,
                         cyy=b.cyy,
+                        speed=b.speed,
                         frequency=b.frequency,
                         tag=b.tag,
                         color=b.color,
@@ -5690,6 +5697,7 @@ class Rotor(object):
                         cxy=b.cxy,
                         cyx=b.cyx,
                         cyy=b.cyy,
+                        speed=b.speed,
                         frequency=b.frequency,
                         tag=b.tag,
                         color=b.color,

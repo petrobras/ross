@@ -31,7 +31,7 @@ def bearing_kwargs_from_fixture(case_name, **overrides):
     probes = list(zip(inp["probe_pad_number"], inp["probe_theta"], inp["r_location"]))
     kwargs = dict(
         n=0,
-        frequency=inp["frequency"],
+        speed=inp["frequency"],
         journal_diameter=inp["journal_diameter"],
         radial_clearance=inp["radial_clearance"],
         pad_thickness=inp["pad_thickness"],
@@ -134,8 +134,8 @@ def test_results_summary_outputs(fixture_bearing):
 
 def test_coefficients_entry_point(fixture_bearing):
     bearing, outputs = fixture_bearing
-    frequency = bearing.frequency[0]
-    stiffness, damping = bearing.coefficients(frequency)
+    speed = bearing.speed[0]
+    stiffness, damping = bearing.coefficients(speed)
     assert_allclose(stiffness[0], outputs["kxx"][0], rtol=1e-8)
     assert_allclose(damping[3], outputs["cyy"][0], rtol=1e-8)
 
@@ -211,7 +211,7 @@ def test_plot_pad_temperature_3d_requires_full_thermal(fixture_bearing):
 
 def test_multi_speed_and_parallel():
     kwargs, _ = bearing_kwargs_from_fixture("fixed_isoviscous")
-    kwargs["frequency"] = [80.0, 110.0]
+    kwargs["speed"] = [80.0, 110.0]
     serial = FluidFilmBearing(**kwargs)
     assert np.asarray(serial.kxx).shape == (2,)
     assert len(serial._results.pressure_fields) == 2
@@ -280,7 +280,7 @@ def test_save_downgrades_to_coefficient_table(fixture_bearing, tmp_path):
         np.asarray(bearing.kxx, dtype=float),
         rtol=1e-12,
     )
-    assert_allclose(loaded.frequency, bearing.frequency)
+    assert_allclose(loaded.speed, bearing.speed)
 
 
 def test_example_with_pint_units():

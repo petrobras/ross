@@ -1,5 +1,5 @@
 numpy
-scipy
+scipy>=1.10
 toml>=0.10.1
 pandas>=0.23
 plotly>=5.11

@@ -1064,9 +1064,9 @@ class HolePatternSeal(SealElement):
         Outlet pressure (Pa).
     inlet_temperature : float
         Inlet temperature (deg K).
-    frequency : list, pint.Quantity
+    speed : list, pint.Quantity
         Shaft rotational speeds (rad/s). The coefficients are evaluated at
-        the whirl frequency ``excitation_ratio * frequency``.
+        the whirl frequency ``excitation_ratio * speed``.
     gas_composition : dict, optional
         Gas composition as a dictionary {component: molar_fraction}.
     molar_mass : float, pint.Quantity, optional
@@ -1139,7 +1139,7 @@ class HolePatternSeal(SealElement):
     ...     inlet_pressure=689000.0,
     ...     outlet_pressure=94300.0,
     ...     inlet_temperature=322.0,
-    ...     frequency=Q_([8000], "RPM"),
+    ...     speed=Q_([8000], "RPM"),
     ...     gas_composition={"Nitrogen": 0.79, "Oxygen": 0.21},
     ...     preswirl=0.8,
     ...     entrance_loss_coefficient=0.5,
@@ -1164,7 +1164,7 @@ class HolePatternSeal(SealElement):
         inlet_pressure,
         outlet_pressure,
         inlet_temperature,
-        frequency,
+        speed,
         gas_composition=None,
         molar_mass=None,
         gamma=None,
@@ -1193,7 +1193,6 @@ class HolePatternSeal(SealElement):
         self.inlet_pressure = inlet_pressure
         self.outlet_pressure = outlet_pressure
         self.inlet_temperature = inlet_temperature
-        self.frequency = frequency
         self.gas_composition = gas_composition
         self.preswirl = preswirl
         self.entrance_loss_coefficient = entrance_loss_coefficient
@@ -1277,9 +1276,8 @@ class HolePatternSeal(SealElement):
 
         coefficients_dict = {}
         if kwargs.get("kxx") is None:
-            results = solve_frequencies(
-                self.solver.solve, frequency, parallel_threshold=2
-            )
+            speed = np.atleast_1d(np.asarray(speed, dtype=float))
+            results = solve_frequencies(self.solver.solve, speed, parallel_threshold=2)
 
             self.p = [r["pressure"] for r in results]
 
@@ -1291,7 +1289,7 @@ class HolePatternSeal(SealElement):
 
         super().__init__(
             self.n,
-            frequency=frequency,
+            speed=speed,
             **coefficients_dict,
             **kwargs,
         )

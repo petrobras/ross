@@ -27,7 +27,7 @@ __all__ = [
 class TiltingPad(FluidFilmBearing):
     """Tilting-pad journal bearing.
 
-    Each pad pivots freely; for every entry of ``frequency`` the fluid-film
+    Each pad pivots freely; for every entry of ``speed`` the fluid-film
     engine solves the pad tilt and journal equilibrium together with the
     film pressure/temperature (and, when selected, pad and pivot
     deformation), then condenses the pad degrees of freedom into the
@@ -65,8 +65,8 @@ class TiltingPad(FluidFilmBearing):
         Radial (bearing-set) clearance, m.
     pivot_angle : array_like, pint.Quantity
         Per-pad pivot angular position, rad.
-    frequency : array_like, pint.Quantity
-        Operating frequencies, rad/s.
+    speed : array_like, pint.Quantity
+        Rotor speeds, rad/s.
     total_ex_film : int, optional
         Circumferential film elements per pad (must be even).
         Default is 30.
@@ -138,7 +138,7 @@ class TiltingPad(FluidFilmBearing):
         oil_supply_temperature=None,
         radial_clearance=None,
         pivot_angle=None,
-        frequency=None,
+        speed=None,
         total_ex_film=30,
         total_ez_film=30,
         total_ey_pad=16,
@@ -184,7 +184,7 @@ class TiltingPad(FluidFilmBearing):
 
         super().__init__(
             n,
-            frequency=frequency,
+            speed=speed,
             journal_diameter=journal_diameter,
             radial_clearance=radial_clearance,
             pad_thickness=pad_thickness,
@@ -232,7 +232,7 @@ def tilting_pad_adiabatic_example():
     """
     return TiltingPad(
         n=1,
-        frequency=Q_([3000], "RPM"),
+        speed=Q_([3000], "RPM"),
         equilibrium_type="match_load",
         thermal_type="adiabatic",
         journal_diameter=101.6e-3,
@@ -269,7 +269,7 @@ def tilting_pad_full_thermal_example():
     """
     return TiltingPad(
         n=1,
-        frequency=Q_([3000], "RPM"),
+        speed=Q_([3000], "RPM"),
         equilibrium_type="match_load",
         thermal_type="full",
         journal_diameter=101.6e-3,

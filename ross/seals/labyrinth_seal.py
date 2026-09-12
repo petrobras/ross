@@ -759,8 +759,8 @@ class LabyrinthSeal(SealElement):
         Outlet pressure (Pa).
     inlet_temperature : float
         Inlet temperature (deg K).
-    frequency : float, pint.Quantity
-        Shaft rotational speed (rad/s).
+    speed : float, array, pint.Quantity
+        Shaft rotational speed(s) (rad/s).
     preswirl : float
         Inlet swirl velocity ratio. Positive values for swirl with shaft rotation
         and negative values for swirl against shaft rotations.
@@ -828,7 +828,7 @@ class LabyrinthSeal(SealElement):
     ...     inlet_pressure=308000,
     ...     outlet_pressure=94300,
     ...     inlet_temperature=283.15,
-    ...     frequency=Q_([5000, 8000, 11000], "RPM"),
+    ...     speed=Q_([5000, 8000, 11000], "RPM"),
     ...     preswirl=0.98,
     ...     gas_composition={"Nitrogen": 0.79, "Oxygen": 0.21},
     ... )
@@ -850,7 +850,7 @@ class LabyrinthSeal(SealElement):
         inlet_pressure,
         outlet_pressure,
         inlet_temperature,
-        frequency,
+        speed,
         preswirl,
         gas_composition=None,
         gas_model="ideal",
@@ -957,9 +957,8 @@ class LabyrinthSeal(SealElement):
 
         coefficients_dict = {}
         if kwargs.get("kxx") is None:
-            results = solve_frequencies(
-                self.solver.solve, frequency, parallel_threshold=4
-            )
+            speed = np.atleast_1d(np.asarray(speed, dtype=float))
+            results = solve_frequencies(self.solver.solve, speed, parallel_threshold=4)
 
             self.p = [r["pressure"] for r in results]
 
@@ -973,7 +972,7 @@ class LabyrinthSeal(SealElement):
 
         super().__init__(
             self.n,
-            frequency=frequency,
+            speed=speed,
             **coefficients_dict,
             **kwargs,
         )

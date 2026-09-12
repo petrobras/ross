@@ -73,8 +73,8 @@ class ThrustPad(BearingElement):
         Number of mesh elements in circumferential direction.
     n_radial : int
         Number of mesh elements in radial direction.
-    frequency : array_like
-        Rotor rotating frequency(ies). Default unit is rad/s.
+    speed : array_like
+        Rotor rotating speed(s). Default unit is rad/s.
     equilibrium_position_mode : str
         Equilibrium position calculation mode:
         - 'calculate': Calculate film thickness and inclination angles
@@ -148,7 +148,7 @@ class ThrustPad(BearingElement):
     ...     n_pads=12,
     ...     n_theta=10,
     ...     n_radial=10,
-    ...     frequency=Q_([90], "RPM"),
+    ...     speed=Q_([90], "RPM"),
     ...     equilibrium_position_mode="calculate",
     ...     axial_load=13.320e6,
     ...     radial_inclination_angle=Q_(-2.75e-04, "rad"),
@@ -171,7 +171,7 @@ class ThrustPad(BearingElement):
         n_pads,
         n_theta,
         n_radial,
-        frequency,
+        speed,
         equilibrium_position_mode,
         radial_inclination_angle,
         circumferential_inclination_angle,
@@ -186,7 +186,7 @@ class ThrustPad(BearingElement):
         self.pad_inner_radius = pad_inner_radius
         self.pad_outer_radius = pad_outer_radius
         self.pad_pivot_radius = pad_pivot_radius
-        self.frequency = frequency
+        self.speed_range = np.atleast_1d(np.asarray(speed, dtype=float))
         self.pad_arc = pad_arc
         self.pivot_angle = pivot_angle
         self.oil_supply_temperature = Q_(oil_supply_temperature, "degK").m_as("degC")
@@ -253,7 +253,7 @@ class ThrustPad(BearingElement):
             0.5 * self.d_theta, (self.n_theta - 0.5) * self.d_theta, self.n_theta
         )
 
-        n_freq = np.shape(frequency)[0]
+        n_freq = self.speed_range.size
 
         kzz = np.zeros(n_freq)
         czz = np.zeros(n_freq)
@@ -267,7 +267,7 @@ class ThrustPad(BearingElement):
 
         self.initial_time = time.time()
         for i in range(n_freq):
-            self.speed = self.frequency[i]
+            self._current_speed = self.speed_range[i]
             self._current_freq_index = i
             self.optimization_history[i] = []
 
@@ -279,12 +279,12 @@ class ThrustPad(BearingElement):
             self._store_frequency_fields()
 
         super().__init__(
-            n, kxx=0, cxx=0, kzz=kzz, czz=czz, frequency=frequency, **kwargs
+            n, kxx=0, cxx=0, kzz=kzz, czz=czz, speed=self.speed_range, **kwargs
         )
         self.final_time = time.time()
 
         self._results = ThrustPadResults(
-            frequency=self.frequency,
+            frequency=self.speed_range,
             pressure_fields=self.pressure_fields,
             temperature_fields=self.temperature_fields,
             max_thicknesses=self.max_thicknesses,
@@ -603,7 +603,7 @@ class ThrustPad(BearingElement):
                     ):
                         pressure_field_dimensional[1:-1, 1:-1] = (
                             self.pad_inner_radius**2
-                            * self.speed
+                            * self._current_speed
                             * self.reference_viscosity
                             / self.pivot_film_thickness**2
                         ) * np.flipud(self.pressure_field)
@@ -785,7 +785,7 @@ class ThrustPad(BearingElement):
                             / (
                                 self.rho
                                 * self.cp
-                                * self.speed
+                                * self._current_speed
                                 * self.pad_inner_radius**2
                             )
                             * (self.d_theta * radius_n)
@@ -797,7 +797,7 @@ class ThrustPad(BearingElement):
                             / (
                                 self.rho
                                 * self.cp
-                                * self.speed
+                                * self._current_speed
                                 * self.pad_inner_radius**2
                             )
                             * (self.d_theta * radius_s)
@@ -810,7 +810,7 @@ class ThrustPad(BearingElement):
                             / (
                                 self.rho
                                 * self.cp
-                                * self.speed
+                                * self._current_speed
                                 * self.pad_inner_radius**2
                             )
                             * self.d_radius
@@ -823,7 +823,7 @@ class ThrustPad(BearingElement):
                             / (
                                 self.rho
                                 * self.cp
-                                * self.speed
+                                * self._current_speed
                                 * self.pad_inner_radius**2
                             )
                             * self.d_radius
@@ -946,7 +946,7 @@ class ThrustPad(BearingElement):
                         source_term_vector[vectorization_idx, 0] = (
                             -source_f
                             + (
-                                self.speed
+                                self._current_speed
                                 * self.reference_viscosity
                                 * self.pad_inner_radius**2
                                 / (
@@ -959,7 +959,7 @@ class ThrustPad(BearingElement):
                             * (source_g - source_h - source_i - source_j)
                             + (
                                 self.reference_viscosity
-                                * self.speed
+                                * self._current_speed
                                 / (self.rho * self.cp * self.reference_temperature)
                             )
                             * (source_k - source_l - source_m - source_n - source_o)
@@ -1154,7 +1154,7 @@ class ThrustPad(BearingElement):
             pressure_dim = (
                 self.pressure_field
                 * (self.pad_inner_radius**2)
-                * self.speed
+                * self._current_speed
                 * self.reference_viscosity
                 / (self.pivot_film_thickness**2)
             )
@@ -1261,7 +1261,7 @@ class ThrustPad(BearingElement):
         pressure_field_dimensional = np.zeros((self.n_radial + 2, self.n_theta + 2))
         pressure_field_dimensional[1:-1, 1:-1] = (
             self.pad_inner_radius**2
-            * self.speed
+            * self._current_speed
             * self.reference_viscosity
             / self.pivot_film_thickness**2
         ) * np.flipud(self.pressure_field)
@@ -1728,7 +1728,7 @@ class ThrustPad(BearingElement):
         pressure_dim = (
             pressure
             * (self.pad_inner_radius**2)
-            * self.speed
+            * self._current_speed
             * self.reference_viscosity
             / (self.pivot_film_thickness**2)
         )
@@ -2192,8 +2192,8 @@ class ThrustPad(BearingElement):
         return a, b
 
     def coefficients(self):
-        perturbation_frequency = self.speed
-        normalized_frequency = perturbation_frequency / self.speed
+        perturbation_frequency = self._current_speed
+        normalized_frequency = perturbation_frequency / self._current_speed
 
         self.mu = (1 / self.reference_viscosity) * self.viscosity_field
 
@@ -2782,7 +2782,7 @@ class ThrustPad(BearingElement):
         pressure_coeff_dim = (
             pressure_field_coeff
             * (self.pad_inner_radius**2)
-            * self.speed
+            * self._current_speed
             * self.reference_viscosity
             / (self.pivot_film_thickness**3)
         )
@@ -2862,7 +2862,7 @@ def thrust_pad_example():
         n_pads=12,
         n_theta=10,
         n_radial=10,
-        frequency=Q_([90], "RPM"),
+        speed=Q_([90], "RPM"),
         equilibrium_position_mode="calculate",
         model_type="thermo_hydro_dynamic",
         axial_load=13.320e6,

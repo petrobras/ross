@@ -25,6 +25,7 @@ from ross.utils import (
 )
 
 __all__ = [
+    "BearingCoefficient",
     "BearingElement",
     "SealElement",
     "BallBearingElement",
@@ -34,11 +35,204 @@ __all__ = [
 ]
 
 
+class BearingCoefficient:
+    """One interpolated bearing coefficient with its tabulation axes.
+
+    Wraps a single dynamic coefficient (e.g. kxx) together with the axes it
+    is tabulated on. The kind of table is defined by the axes given at
+    construction:
+
+    - no axis: constant coefficient;
+    - ``speed``: 1-D table over the rotor speed axis (base flow);
+    - ``frequency``: 1-D table over the excitation (whirl) frequency axis;
+    - both axes: 2-D table with shape ``(len(speed), len(frequency))``.
+
+    Evaluating the object follows the axes it carries: a 1-D speed table is
+    interpolated at the rotor speed and is constant with respect to the whirl
+    frequency, a 1-D frequency table is interpolated at the whirl frequency
+    and is constant with respect to the speed, and a 2-D table is
+    interpolated on both axes. When a single value is given, the synchronous
+    diagonal (``speed == frequency``) is evaluated, which preserves the
+    behavior of the single-axis interpolators used before the two axes were
+    decoupled.
+
+    Parameters
+    ----------
+    coefficient : float, array
+        Coefficient table. A scalar is broadcast to the axes shape; 1-D and
+        2-D arrays must match the axes lengths.
+    speed : array, optional
+        Rotor speed axis (rad/s).
+        Default is None.
+    frequency : array, optional
+        Excitation (whirl) frequency axis (rad/s).
+        Default is None.
+
+    Attributes
+    ----------
+    kind : str
+        ``"constant"``, ``"speed"``, ``"frequency"`` or ``"grid"``.
+    values : list
+        The coefficient table as a (nested) list of floats.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> coefficient = BearingCoefficient(
+    ...     [[1e6, 2e6], [3e6, 4e6]], speed=[100.0, 200.0], frequency=[50.0, 150.0]
+    ... )
+    >>> float(coefficient(frequency=100.0, speed=100.0))
+    1500000.0
+    >>> float(coefficient(150.0))
+    3000000.0
+    """
+
+    def __init__(self, coefficient, speed=None, frequency=None):
+        self.speed = speed
+        self.frequency = frequency
+
+        dimension_error = ValueError(
+            "Arguments (coefficients, speed and frequency) must have the same dimension"
+        )
+
+        if isinstance(coefficient, (int, float)):
+            if speed is not None and frequency is not None:
+                coefficient = np.full((len(speed), len(frequency)), float(coefficient))
+            elif speed is not None:
+                coefficient = np.full(len(speed), float(coefficient))
+            elif frequency is not None:
+                coefficient = np.full(len(frequency), float(coefficient))
+            else:
+                coefficient = np.array([float(coefficient)])
+
+        try:
+            coefficient = np.asarray(coefficient, dtype=np.float64)
+        except (TypeError, ValueError):
+            raise dimension_error
+
+        if speed is not None and frequency is not None:
+            if coefficient.shape != (len(speed), len(frequency)):
+                raise dimension_error
+            for name, axis in (("speed", speed), ("frequency", frequency)):
+                if len(axis) > 1 and np.any(np.diff(axis) <= 0):
+                    raise ValueError(
+                        f"The {name} axis must be strictly increasing for 2-D"
+                        " coefficient tables"
+                    )
+            self.kind = "grid"
+            self._interpolated = interpolate.RegularGridInterpolator(
+                (
+                    np.asarray(speed, dtype=np.float64),
+                    np.asarray(frequency, dtype=np.float64),
+                ),
+                coefficient,
+                method="linear",
+                bounds_error=False,
+                fill_value=None,
+            )
+        elif speed is not None or frequency is not None:
+            axis = speed if speed is not None else frequency
+            if coefficient.shape != (len(axis),):
+                raise dimension_error
+            self.kind = "speed" if speed is not None else "frequency"
+            self._interpolated = self._interpolate_1d(axis, coefficient)
+        else:
+            if coefficient.shape != (1,):
+                raise dimension_error
+            self.kind = "constant"
+            self._interpolated = None
+
+        self.values = coefficient.tolist()
+
+    @staticmethod
+    def _interpolate_1d(axis, coefficient):
+        """Build the 1-D interpolator used before the axes were decoupled."""
+        if len(coefficient) == 1:
+            return interpolate.interp1d(
+                [0, 1],
+                [coefficient[0], coefficient[0]],
+                kind="linear",
+                fill_value="extrapolate",
+            )
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                return interpolate.UnivariateSpline(axis, coefficient)
+        #  dfitpack.error is not exposed by scipy
+        #  so a bare except is used
+        except:
+            if len(axis) in (2, 3):
+                return interpolate.interp1d(
+                    axis,
+                    coefficient,
+                    kind=len(axis) - 1,
+                    fill_value="extrapolate",
+                )
+            raise ValueError(
+                "Arguments (coefficients, speed and frequency)"
+                " must have the same dimension"
+            )
+
+    def __call__(self, frequency=None, speed=None):
+        """Evaluate the coefficient.
+
+        Parameters
+        ----------
+        frequency : float, array, optional
+            Excitation (whirl) frequency (rad/s). Default is ``speed``
+            (synchronous evaluation).
+        speed : float, array, optional
+            Rotor speed (rad/s). Default is ``frequency`` (synchronous
+            evaluation).
+
+        Returns
+        -------
+        value : np.ndarray
+            The interpolated coefficient, with the broadcast shape of the
+            inputs (a 0-d array for scalar inputs).
+
+        Examples
+        --------
+        >>> coefficient = BearingCoefficient([1e6, 2e6], speed=[100.0, 200.0])
+        >>> float(coefficient(150.0))
+        1500000.0
+        >>> float(coefficient(frequency=1000.0, speed=150.0))
+        1500000.0
+        """
+        if frequency is None and speed is None:
+            if self.kind == "constant":
+                return np.asarray(self.values[0])
+            raise TypeError(
+                "A frequency or speed is required to evaluate a tabulated coefficient"
+            )
+        if frequency is None:
+            frequency = speed
+        if speed is None:
+            speed = frequency
+
+        if self.kind == "constant":
+            return np.full(np.shape(frequency), self.values[0])
+        if self.kind == "speed":
+            return self._interpolated(speed)
+        if self.kind == "frequency":
+            return self._interpolated(frequency)
+
+        frequency, speed = np.broadcast_arrays(
+            np.asarray(frequency, dtype=np.float64),
+            np.asarray(speed, dtype=np.float64),
+        )
+        points = np.column_stack([speed.ravel(), frequency.ravel()])
+        return self._interpolated(points).reshape(frequency.shape)
+
+    def __repr__(self):
+        return f"BearingCoefficient(kind={self.kind!r}, values={self.values})"
+
+
 class BearingElement(Element):
     """A bearing element.
 
     This class will create a bearing element.
-    Parameters can be a constant value or speed dependent.
+    Parameters can be a constant value or speed / frequency dependent.
 
     Attributes
     ----------
@@ -49,10 +243,24 @@ class BearingElement(Element):
     _legend_group : str
         Name of the legend entry under which the element is drawn in
         :py:meth:`ross.Rotor.plot_rotor`.
-    For speed dependent parameters, each argument should be passed
-    as an array and the correspondent speed values should also be
-    passed as an array.
-    Values for each parameter will be_interpolated for the speed.
+
+    The coefficient table is declared by the axis arguments:
+
+    - ``speed`` only: a 1-D table over the rotor speed (the base flow), which
+      is what fluid-film bearings and seals produce. The coefficients are
+      interpolated at the rotor speed and are constant with respect to the
+      excitation (whirl) frequency.
+    - ``frequency`` only: a 1-D table over the excitation (whirl) frequency,
+      which is what elements reacting to the vibration frequency produce
+      (e.g. magnetic bearings and squeeze film dampers). The coefficients are
+      interpolated at the whirl frequency and are constant with respect to
+      the rotor speed.
+    - both ``speed`` and ``frequency``: a 2-D table with shape
+      ``(len(speed), len(frequency))`` interpolated on both axes.
+
+    In synchronous analyses (the default of every ``run_*`` method) the speed
+    and the frequency are the same value, so the three kinds of table give the
+    same results as long as they describe the same coefficients.
 
     Parameters
     ----------
@@ -101,8 +309,12 @@ class BearingElement(Element):
     mzz : float, array, pint.Quantity, optional
         Direct mass in the z direction (kg).
         Default is 0.
+    speed : array, pint.Quantity, optional
+        Rotor speed axis of the coefficient table (rad/s).
+        Default is None.
     frequency : array, pint.Quantity, optional
-        Array with the frequencies (rad/s).
+        Excitation (whirl) frequency axis of the coefficient table (rad/s).
+        Default is None.
     tag : str, optional
         A tag to name the element
         Default is None.
@@ -127,16 +339,31 @@ class BearingElement(Element):
     >>> kyy = 0.8e6
     >>> cxx = 2e2
     >>> cyy = 1.5e2
-    >>> frequency = np.linspace(0, 200, 11)
-    >>> bearing0 = rs.BearingElement(n=0, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, frequency=frequency)
-    >>> bearing0.K(frequency[-1])
+    >>> speed = np.linspace(0, 200, 11)
+    >>> bearing0 = rs.BearingElement(n=0, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, speed=speed)
+    >>> bearing0.K(speed[-1])
     array([[1000000.,       0.,       0.],
            [      0.,  800000.,       0.],
            [      0.,       0.,       0.]])
-    >>> bearing0.C(frequency[-1])
+    >>> bearing0.C(speed[-1])
     array([[200.,   0.,   0.],
            [  0., 150.,   0.],
            [  0.,   0.,   0.]])
+
+    A 2-D table declares both axes; the coefficients are then evaluated at
+    a (frequency, speed) pair, and at the synchronous diagonal when a single
+    value is given:
+    >>> bearing2d = rs.BearingElement(
+    ...     n=0,
+    ...     kxx=[[1e6, 2e6], [3e6, 4e6]],
+    ...     cxx=[[1e2, 2e2], [3e2, 4e2]],
+    ...     speed=[100.0, 200.0],
+    ...     frequency=[50.0, 150.0],
+    ... )
+    >>> bearing2d.K(frequency=100.0, speed=200.0)[0, 0]
+    3500000.0
+    >>> bearing2d.K(150.0)[0, 0]
+    3000000.0
     """
 
     _save_attrs = []
@@ -161,6 +388,7 @@ class BearingElement(Element):
         kzz=0,
         czz=0,
         mzz=0,
+        speed=None,
         frequency=None,
         tag=None,
         n_link=None,
@@ -168,10 +396,8 @@ class BearingElement(Element):
         color="#355d7a",
         **kwargs,
     ):
-        if frequency is not None:
-            self.frequency = np.array(frequency, dtype=np.float64)
-        else:
-            self.frequency = frequency
+        self.speed = self._axis_array(speed)
+        self.frequency = self._axis_array(frequency)
 
         if kyy is None:
             kyy = kxx
@@ -201,29 +427,12 @@ class BearingElement(Element):
         # all args to coefficients.  output of locals() should be READ ONLY
         args_dict = locals()
 
-        # check coefficients len for consistency
-        coefficients_len = []
-
         for arg in args:
-            coefficient, interpolated = self._process_coefficient(args_dict[arg])
-            setattr(self, arg, coefficient)
+            interpolated = BearingCoefficient(
+                args_dict[arg], speed=self.speed, frequency=self.frequency
+            )
+            setattr(self, arg, interpolated.values)
             setattr(self, f"{arg}_interpolated", interpolated)
-            coefficients_len.append(len(coefficient))
-
-        if frequency is not None and type(frequency) != float:
-            coefficients_len.append(len(args_dict["frequency"]))
-            if len(set(coefficients_len)) > 1:
-                raise ValueError(
-                    "Arguments (coefficients and frequency)"
-                    " must have the same dimension"
-                )
-        else:
-            for c in coefficients_len:
-                if c != 1:
-                    raise ValueError(
-                        "Arguments (coefficients and frequency)"
-                        " must have the same dimension"
-                    )
 
         self.n = n
         self.n_link = n_link
@@ -232,61 +441,12 @@ class BearingElement(Element):
         self.scale_factor = scale_factor
         self.dof_global_index = None
 
-    def _process_coefficient(self, coefficient):
-        """Helper function used to process the coefficient data.
-
-        Parameters
-        ----------
-        coefficient : float, array
-            The coefficient data to be processed.
-
-        Returns
-        -------
-        coefficient : float, array
-            The processed coefficient data.
-        interpolated : callable
-            A callable for interpolating the coefficient data.
-        """
-        interpolated = None
-
-        if isinstance(coefficient, (int, float)):
-            if self.frequency is not None and type(self.frequency) != float:
-                coefficient = [coefficient for _ in range(len(self.frequency))]
-            else:
-                coefficient = [coefficient]
-
-        if len(coefficient) > 1:
-            try:
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore")
-                    interpolated = interpolate.UnivariateSpline(
-                        self.frequency, coefficient
-                    )
-            #  dfitpack.error is not exposed by scipy
-            #  so a bare except is used
-            except:
-                try:
-                    if len(self.frequency) in (2, 3):
-                        interpolated = interpolate.interp1d(
-                            self.frequency,
-                            coefficient,
-                            kind=len(self.frequency) - 1,
-                            fill_value="extrapolate",
-                        )
-                except:
-                    raise ValueError(
-                        "Arguments (coefficients and frequency)"
-                        " must have the same dimension"
-                    )
-        else:
-            interpolated = interpolate.interp1d(
-                [0, 1],
-                [coefficient[0], coefficient[0]],
-                kind="linear",
-                fill_value="extrapolate",
-            )
-
-        return coefficient, interpolated
+    @staticmethod
+    def _axis_array(axis):
+        """Return a tabulation axis as a 1-D float array (or None)."""
+        if axis is None:
+            return None
+        return np.atleast_1d(np.asarray(axis, dtype=np.float64))
 
     def _get_coefficient_list(self, ignore_mass=False):
         """List with all bearing coefficients as strings
@@ -318,14 +478,18 @@ class BearingElement(Element):
         fig=None,
         **kwargs,
     ):
-        """Plot coefficient vs frequency.
+        """Plot coefficient vs speed or frequency.
+
+        Coefficients are plotted against the axis they are tabulated on:
+        the rotor speed axis, the excitation (whirl) frequency axis, or, for
+        2-D tables, one curve per rotor speed against the frequency axis.
 
         Parameters
         ----------
         coefficients : list, str
             List or str with the coefficients to plot.
         frequency_units : str, optional
-            Frequency units.
+            Units for the speed or frequency axis.
             Default is rad/s.
         stiffness_units : str, optional
             Stiffness units.
@@ -376,31 +540,44 @@ class BearingElement(Element):
             default_units = "kg"
             y_units = mass_units
 
-        _frequency_range = np.linspace(min(self.frequency), max(self.frequency), 30)
+        if self.speed is None and self.frequency is None:
+            raise ValueError("Plot requires an element with a speed or frequency axis")
+
+        if self.speed is not None and self.frequency is not None:
+            _x_range = np.linspace(min(self.frequency), max(self.frequency), 30)
+            x_label = "Frequency"
+            curves = [(speed, f" (speed={speed:.1f} rad/s)") for speed in self.speed]
+        elif self.speed is not None:
+            _x_range = np.linspace(min(self.speed), max(self.speed), 30)
+            x_label = "Speed"
+            curves = [(None, "")]
+        else:
+            _x_range = np.linspace(min(self.frequency), max(self.frequency), 30)
+            x_label = "Frequency"
+            curves = [(None, "")]
+
+        x_range = Q_(_x_range, "rad/s").to(frequency_units).m
 
         for coeff in coefficients:
-            y_value = (
-                Q_(
-                    getattr(self, f"{coeff}_interpolated")(_frequency_range),
-                    default_units,
-                )
-                .to(y_units)
-                .m
-            )
-            frequency_range = Q_(_frequency_range, "rad/s").to(frequency_units).m
+            for speed, name_suffix in curves:
+                y_value = getattr(self, f"{coeff}_interpolated")(_x_range, speed)
+                y_value = Q_(y_value, default_units).to(y_units).m
 
-            fig.add_trace(
-                go.Scatter(
-                    x=frequency_range,
-                    y=y_value,
-                    mode="lines",
-                    showlegend=True,
-                    hovertemplate=f"Frequency ({frequency_units}): %{{x:.2f}}<br> Coefficient ({y_units}): %{{y:.3e}}",
-                    name=f"{coeff}",
+                fig.add_trace(
+                    go.Scatter(
+                        x=x_range,
+                        y=y_value,
+                        mode="lines",
+                        showlegend=True,
+                        hovertemplate=(
+                            f"{x_label} ({frequency_units}): %{{x:.2f}}<br>"
+                            f" Coefficient ({y_units}): %{{y:.3e}}"
+                        ),
+                        name=f"{coeff}{name_suffix}",
+                    )
                 )
-            )
 
-        fig.update_xaxes(title_text=f"Frequency ({frequency_units})")
+        fig.update_xaxes(title_text=f"{x_label} ({frequency_units})")
         fig.update_yaxes(exponentformat="power")
         fig.update_layout(**kwargs)
 
@@ -409,6 +586,7 @@ class BearingElement(Element):
     @check_units
     def format_table(
         self,
+        speed=None,
         frequency=None,
         coefficients=None,
         frequency_units="rad/s",
@@ -416,18 +594,25 @@ class BearingElement(Element):
         damping_units="N*s/m",
         mass_units="kg",
     ):
-        """Return frequency vs coefficients in table format.
+        """Return speed / frequency vs coefficients in table format.
+
+        The table lists the coefficients along the axes the element is
+        tabulated on: the rotor speed, the excitation (whirl) frequency, or
+        every (speed, frequency) pair for 2-D tables.
 
         Parameters
         ----------
+        speed : array, pint.Quantity, optional
+            Array with rotor speeds (rad/s).
+            Default is 5 values from min to max speed.
         frequency : array, pint.Quantity, optional
-            Array with frequencies (rad/s).
+            Array with excitation (whirl) frequencies (rad/s).
             Default is 5 values from min to max frequency.
         coefficients : list, str, optional
             List or str with the coefficients to include.
             Defaults is a list of stiffness and damping coefficients.
         frequency_units : str, optional
-            Frequency units.
+            Units for the speed and frequency columns.
             Default is rad/s.
         stiffness_units : str, optional
             Stiffness units.
@@ -448,19 +633,19 @@ class BearingElement(Element):
         -------
         >>> bearing = bearing_example()
         >>> table = bearing.format_table(
-        ...     frequency=[0, 50, 100, 150, 200],
+        ...     speed=[0, 50, 100, 150, 200],
         ...     coefficients=['kxx', 'kxy', 'cxx', 'cxy']
         ... )
         >>> print(table)
-        +-------------------+-----------+-----------+-------------+-------------+
-        | Frequency [rad/s] | kxx [N/m] | kxy [N/m] | cxx [N*s/m] | cxy [N*s/m] |
-        +-------------------+-----------+-----------+-------------+-------------+
-        |        0.0        | 1000000.0 |    0.0    |    200.0    |     0.0     |
-        |        50.0       | 1000000.0 |    0.0    |    200.0    |     0.0     |
-        |       100.0       | 1000000.0 |    0.0    |    200.0    |     0.0     |
-        |       150.0       | 1000000.0 |    0.0    |    200.0    |     0.0     |
-        |       200.0       | 1000000.0 |    0.0    |    200.0    |     0.0     |
-        +-------------------+-----------+-----------+-------------+-------------+
+        +---------------+-----------+-----------+-------------+-------------+
+        | Speed [rad/s] | kxx [N/m] | kxy [N/m] | cxx [N*s/m] | cxy [N*s/m] |
+        +---------------+-----------+-----------+-------------+-------------+
+        |      0.0      | 1000000.0 |    0.0    |    200.0    |     0.0     |
+        |      50.0     | 1000000.0 |    0.0    |    200.0    |     0.0     |
+        |     100.0     | 1000000.0 |    0.0    |    200.0    |     0.0     |
+        |     150.0     | 1000000.0 |    0.0    |    200.0    |     0.0     |
+        |     200.0     | 1000000.0 |    0.0    |    200.0    |     0.0     |
+        +---------------+-----------+-----------+-------------+-------------+
         """
         if isinstance(coefficients, str):
             coefficients = [coefficients]
@@ -470,18 +655,43 @@ class BearingElement(Element):
         default_units = {"k": "N/m", "c": "N*s/m", "m": "kg"}
         y_units = {"k": stiffness_units, "c": damping_units, "m": mass_units}
 
-        if frequency is None:
-            if self.frequency is None:
-                frequency = np.array([0])
-            else:
-                min_freq = min(self.frequency)
-                max_freq = max(self.frequency)
-                nf = 1 if min_freq == max_freq else 5
-                frequency = np.linspace(min_freq, max_freq, nf)
-        frequency_range = Q_(frequency, "rad/s").to(frequency_units).m
+        def default_axis(values, axis):
+            if values is not None:
+                return np.atleast_1d(values)
+            if axis is None:
+                return np.array([0.0])
+            min_val = min(axis)
+            max_val = max(axis)
+            num = 1 if min_val == max_val else 5
+            return np.linspace(min_val, max_val, num)
 
-        headers = [f"Frequency [{frequency_units}]"]
-        data = [frequency_range]
+        headers = []
+        data = []
+
+        if self.speed is not None and self.frequency is not None:
+            speed = default_axis(speed, self.speed)
+            frequency = default_axis(frequency, self.frequency)
+            speed_col, frequency_col = (
+                axis.ravel() for axis in np.meshgrid(speed, frequency, indexing="ij")
+            )
+            headers += [
+                f"Speed [{frequency_units}]",
+                f"Frequency [{frequency_units}]",
+            ]
+            data += [
+                Q_(speed_col, "rad/s").to(frequency_units).m,
+                Q_(frequency_col, "rad/s").to(frequency_units).m,
+            ]
+        elif self.frequency is not None:
+            frequency_col = default_axis(frequency, self.frequency)
+            speed_col = frequency_col
+            headers.append(f"Frequency [{frequency_units}]")
+            data.append(Q_(frequency_col, "rad/s").to(frequency_units).m)
+        else:
+            speed_col = default_axis(speed, self.speed)
+            frequency_col = speed_col
+            headers.append(f"Speed [{frequency_units}]")
+            data.append(Q_(speed_col, "rad/s").to(frequency_units).m)
 
         table = PrettyTable()
 
@@ -489,7 +699,7 @@ class BearingElement(Element):
             headers.append(f"{coeff} [{y_units[coeff[0]]}]")
             columns = (
                 Q_(
-                    getattr(self, f"{coeff}_interpolated")(frequency),
+                    getattr(self, f"{coeff}_interpolated")(frequency_col, speed_col),
                     default_units[coeff[0]],
                 )
                 .to(y_units[coeff[0]])
@@ -528,7 +738,7 @@ class BearingElement(Element):
             f" mxx={self.mxx}, mxy={self.mxy},\n"
             f" myx={self.myx}, myy={self.myy},\n"
             f" mzz={self.mzz},\n"
-            f" frequency={self.frequency}, tag={self.tag!r})"
+            f" speed={self.speed}, frequency={self.frequency}, tag={self.tag!r})"
         )
 
     def __eq__(self, other):
@@ -671,7 +881,8 @@ class BearingElement(Element):
         """
         return dict(x_0=0, y_0=1, z_0=2)
 
-    def M(self, frequency):
+    @check_units
+    def M(self, frequency, speed=None):
         """Mass matrix for an instance of a bearing element.
 
         This method returns the mass matrix for an instance of a bearing
@@ -680,7 +891,10 @@ class BearingElement(Element):
         Parameters
         ----------
         frequency : float
-            The excitation frequency (rad/s).
+            The excitation (whirl) frequency (rad/s).
+        speed : float, optional
+            The rotor speed (rad/s). Default is the excitation frequency
+            (synchronous evaluation).
 
         Returns
         -------
@@ -695,11 +909,11 @@ class BearingElement(Element):
                [0., 0., 0.],
                [0., 0., 0.]])
         """
-        mxx = self.mxx_interpolated(frequency)
-        myy = self.myy_interpolated(frequency)
-        mxy = self.mxy_interpolated(frequency)
-        myx = self.myx_interpolated(frequency)
-        mzz = self.mzz_interpolated(frequency)
+        mxx = self.mxx_interpolated(frequency, speed)
+        myy = self.myy_interpolated(frequency, speed)
+        mxy = self.mxy_interpolated(frequency, speed)
+        myx = self.myx_interpolated(frequency, speed)
+        mzz = self.mzz_interpolated(frequency, speed)
 
         M = np.array([[mxx, mxy, 0], [myx, myy, 0], [0, 0, mzz]])
 
@@ -712,7 +926,7 @@ class BearingElement(Element):
         return M
 
     @check_units
-    def K(self, frequency):
+    def K(self, frequency, speed=None):
         """Stiffness matrix for an instance of a bearing element.
 
         This method returns the stiffness matrix for an instance of a bearing
@@ -721,7 +935,10 @@ class BearingElement(Element):
         Parameters
         ----------
         frequency : float
-            The excitation frequency (rad/s).
+            The excitation (whirl) frequency (rad/s).
+        speed : float, optional
+            The rotor speed (rad/s). Default is the excitation frequency
+            (synchronous evaluation).
 
         Returns
         -------
@@ -737,11 +954,11 @@ class BearingElement(Element):
                [      0.,  800000.,       0.],
                [      0.,       0.,  100000.]])
         """
-        kxx = self.kxx_interpolated(frequency)
-        kyy = self.kyy_interpolated(frequency)
-        kxy = self.kxy_interpolated(frequency)
-        kyx = self.kyx_interpolated(frequency)
-        kzz = self.kzz_interpolated(frequency)
+        kxx = self.kxx_interpolated(frequency, speed)
+        kyy = self.kyy_interpolated(frequency, speed)
+        kxy = self.kxy_interpolated(frequency, speed)
+        kyx = self.kyx_interpolated(frequency, speed)
+        kzz = self.kzz_interpolated(frequency, speed)
 
         K = np.array([[kxx, kxy, 0], [kyx, kyy, 0], [0, 0, kzz]])
 
@@ -754,7 +971,7 @@ class BearingElement(Element):
         return K
 
     @check_units
-    def C(self, frequency):
+    def C(self, frequency, speed=None):
         """Damping matrix for an instance of a bearing element.
 
         This method returns the damping matrix for an instance of a bearing
@@ -763,7 +980,10 @@ class BearingElement(Element):
         Parameters
         ----------
         frequency : float
-            The excitation frequency (rad/s).
+            The excitation (whirl) frequency (rad/s).
+        speed : float, optional
+            The rotor speed (rad/s). Default is the excitation frequency
+            (synchronous evaluation).
 
         Returns
         -------
@@ -779,11 +999,11 @@ class BearingElement(Element):
                [  0., 150.,   0.],
                [  0.,   0.,  50.]])
         """
-        cxx = self.cxx_interpolated(frequency)
-        cyy = self.cyy_interpolated(frequency)
-        cxy = self.cxy_interpolated(frequency)
-        cyx = self.cyx_interpolated(frequency)
-        czz = self.czz_interpolated(frequency)
+        cxx = self.cxx_interpolated(frequency, speed)
+        cyy = self.cyy_interpolated(frequency, speed)
+        cxy = self.cxy_interpolated(frequency, speed)
+        cyx = self.cyx_interpolated(frequency, speed)
+        czz = self.czz_interpolated(frequency, speed)
 
         C = np.array([[cxx, cxy, 0], [cyx, cyy, 0], [0, 0, czz]])
 
@@ -818,6 +1038,18 @@ class BearingElement(Element):
 
         return G
 
+    def _axis_bounds(self):
+        """Return the label and the first / last values of the table axis.
+
+        The speed axis is used when present, otherwise the frequency axis;
+        constant elements report zero.
+        """
+        if self.speed is not None:
+            return "Speed", self.speed[0], self.speed[-1]
+        if self.frequency is not None:
+            return "Frequency", self.frequency[0], self.frequency[-1]
+        return "Speed", 0.0, 0.0
+
     def _hover_info(self, frequency=None):
         """Generate hover information for bearing element.
 
@@ -828,7 +1060,8 @@ class BearingElement(Element):
         ----------
         frequency : float, optional
             Frequency at which to display coefficients (rad/s).
-            Not used - displays coefficients at first and last frequencies.
+            Not used - displays coefficients at the first and last values of
+            the table axis.
 
         Returns
         -------
@@ -844,17 +1077,9 @@ class BearingElement(Element):
         >>> customdata[0]  # node number
         0
         """
-        # Get first and last frequencies
-        if self.frequency is not None:
-            if hasattr(self.frequency, "__iter__"):
-                freq_0 = self.frequency[0]
-                freq_1 = self.frequency[-1]
-            else:
-                freq_0 = freq_1 = self.frequency
-        else:
-            freq_0 = freq_1 = 0
+        axis_label, freq_0, freq_1 = self._axis_bounds()
 
-        # Convert frequencies to RPM
+        # Convert axis values to RPM
         freq_0_rpm = Q_(freq_0, "rad/s").to("RPM").m
         freq_1_rpm = Q_(freq_1, "rad/s").to("RPM").m
 
@@ -863,7 +1088,7 @@ class BearingElement(Element):
         if self.tag is not None:
             hovertemplate = f"Tag: {self.tag}<br>" + hovertemplate
 
-        hovertemplate += f"Frequency: {freq_0_rpm:.2f} ... {freq_1_rpm:.2f} RPM<br>"
+        hovertemplate += f"{axis_label}: {freq_0_rpm:.2f} ... {freq_1_rpm:.2f} RPM<br>"
         hovertemplate += (
             f"Kxx: {self.kxx_interpolated(freq_0):.3e} ... {self.kxx_interpolated(freq_1):.3e} N/m<br>"
             f"Kyy: {self.kyy_interpolated(freq_0):.3e} ... {self.kyy_interpolated(freq_1):.3e} N/m<br>"
@@ -1117,7 +1342,7 @@ class BearingElement(Element):
         >>> import os
         >>> file_path = os.path.dirname(os.path.realpath(__file__)) + '/tests/data/bearing_seal_si.xls'
         >>> BearingElement.table_to_toml(0, file_path) # doctest: +ELLIPSIS
-        {'n': 0, 'kxx': array([...
+        {'n': 0, 'kxx': [13798100.0, ...
         """
         b_elem = cls.from_table(n, file)
         data = {
@@ -1130,7 +1355,7 @@ class BearingElement(Element):
             "cyy": b_elem.cyy,
             "cxy": b_elem.cxy,
             "cyx": b_elem.cyx,
-            "frequency": b_elem.frequency,
+            "speed": None if b_elem.speed is None else b_elem.speed.tolist(),
         }
         return data
 
@@ -1186,7 +1411,7 @@ class BearingElement(Element):
         >>> file_path = os.path.dirname(os.path.realpath(__file__)) + '/tests/data/bearing_seal_si.xls'
         >>> BearingElement.from_table(0, file_path, n_link=1) # doctest: +ELLIPSIS
         BearingElement(n=0, n_link=1,
-         kxx=[1.379...
+         kxx=[13798100.0, ...
         """
         parameters = read_table_file(file, "bearing", sheet_name, n)
         return cls(
@@ -1199,7 +1424,7 @@ class BearingElement(Element):
             cyy=parameters["cyy"],
             cxy=parameters["cxy"],
             cyx=parameters["cyx"],
-            frequency=parameters["frequency"],
+            speed=parameters["speed"],
             tag=tag,
             n_link=n_link,
             scale_factor=scale_factor,
@@ -1280,8 +1505,12 @@ class SealElement(BearingElement):
         Default is 0.
     seal_leakage : float, optional
         Seal leakage mass flow rate (kg/s).
+    speed : array, pint.Quantity, optional
+        Rotor speed axis of the coefficient table (rad/s).
+        Default is None.
     frequency : array, pint.Quantity, optional
-        Array with the frequencies (rad/s).
+        Excitation (whirl) frequency axis of the coefficient table (rad/s).
+        Default is None.
     tag : str, optional
         A tag to name the element
         Default is None.
@@ -1306,19 +1535,20 @@ class SealElement(BearingElement):
     >>> kyy = 0.8e6
     >>> cxx = 2e2
     >>> cyy = 1.5e2
-    >>> frequency = np.linspace(0, 200, 11)
-    >>> seal = rs.SealElement(n=0, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, frequency=frequency)
-    >>> seal.K(frequency[-1])
+    >>> speed = np.linspace(0, 200, 11)
+    >>> seal = rs.SealElement(n=0, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, speed=speed)
+    >>> seal.K(speed[-1])
     array([[1000000.,       0.,       0.],
            [      0.,  800000.,       0.],
            [      0.,       0.,       0.]])
-    >>> seal.C(frequency[-1])
+    >>> seal.C(speed[-1])
     array([[200.,   0.,   0.],
            [  0., 150.,   0.],
            [  0.,   0.,   0.]])
     """
 
     _legend_group = "Seal"
+    _save_attrs = ["seal_leakage"]
 
     @check_units
     def __init__(
@@ -1339,6 +1569,7 @@ class SealElement(BearingElement):
         kzz=0,
         czz=0,
         mzz=0,
+        speed=None,
         frequency=None,
         seal_leakage=None,
         tag=None,
@@ -1351,6 +1582,7 @@ class SealElement(BearingElement):
 
         super().__init__(
             n=n,
+            speed=speed,
             frequency=frequency,
             kxx=kxx,
             kxy=kxy,
@@ -1385,7 +1617,8 @@ class SealElement(BearingElement):
         ----------
         frequency : float, optional
             Frequency at which to display coefficients (rad/s).
-            Not used - displays coefficients at first and last frequencies.
+            Not used - displays coefficients at the first and last values of
+            the table axis.
 
         Returns
         -------
@@ -1394,17 +1627,9 @@ class SealElement(BearingElement):
         hovertemplate : str
             Template string for hover display with HTML formatting.
         """
-        # Get first and last frequencies
-        if self.frequency is not None:
-            if hasattr(self.frequency, "__iter__"):
-                freq_0 = self.frequency[0]
-                freq_1 = self.frequency[-1]
-            else:
-                freq_0 = freq_1 = self.frequency
-        else:
-            freq_0 = freq_1 = 0
+        axis_label, freq_0, freq_1 = self._axis_bounds()
 
-        # Convert frequencies to RPM
+        # Convert axis values to RPM
         freq_0_rpm = Q_(freq_0, "rad/s").to("RPM").m
         freq_1_rpm = Q_(freq_1, "rad/s").to("RPM").m
 
@@ -1413,7 +1638,7 @@ class SealElement(BearingElement):
         if self.tag is not None:
             hovertemplate = f"Tag: {self.tag}<br>" + hovertemplate
 
-        hovertemplate += f"Frequency: {freq_0_rpm:.2f} ... {freq_1_rpm:.2f} RPM<br>"
+        hovertemplate += f"{axis_label}: {freq_0_rpm:.2f} ... {freq_1_rpm:.2f} RPM<br>"
         hovertemplate += (
             f"Kxx: {self.kxx_interpolated(freq_0):.3e} ... {self.kxx_interpolated(freq_1):.3e} N/m<br>"
             f"Kyy: {self.kyy_interpolated(freq_0):.3e} ... {self.kyy_interpolated(freq_1):.3e} N/m<br>"
@@ -1447,7 +1672,7 @@ class SealElement(BearingElement):
 
         Available for seals whose solver computes a pressure distribution
         (e.g. :class:`~ross.LabyrinthSeal` and :class:`~ross.HolePatternSeal`).
-        The distribution of the first frequency in ``frequency`` is plotted.
+        The distribution of the first speed in ``speed`` is plotted.
 
         Parameters
         ----------
@@ -1681,7 +1906,6 @@ class BallBearingElement(BearingElement):
         if kwargs.get("kxx") is not None:
             super().__init__(
                 n=n,
-                frequency=None,
                 cxx=cxx,
                 cyy=cyy,
                 tag=tag,
@@ -1718,7 +1942,6 @@ class BallBearingElement(BearingElement):
 
         super().__init__(
             n=n,
-            frequency=None,
             kxx=kxx,
             kxy=0.0,
             kyx=0.0,
@@ -1861,7 +2084,6 @@ class RollerBearingElement(BearingElement):
         if kwargs.get("kxx") is not None:
             super().__init__(
                 n=n,
-                frequency=None,
                 cxx=cxx,
                 cyy=cyy,
                 tag=tag,
@@ -1892,7 +2114,6 @@ class RollerBearingElement(BearingElement):
 
         super().__init__(
             n=n,
-            frequency=None,
             kxx=kxx,
             kxy=0.0,
             kyx=0.0,
@@ -2676,7 +2897,7 @@ class CylindricalBearing(BearingElement):
                     setattr(self, attr, kwargs.pop(attr))
             super().__init__(
                 n,
-                frequency=self.speed,
+                speed=self.speed,
                 tag=tag,
                 scale_factor=scale_factor,
                 color=color,
@@ -2758,7 +2979,7 @@ class CylindricalBearing(BearingElement):
 
         super().__init__(
             n,
-            frequency=self.speed,
+            speed=self.speed,
             tag=tag,
             scale_factor=scale_factor,
             color=color,
@@ -2836,12 +3057,12 @@ def bearing_example():
     Examples
     --------
     >>> bearing = bearing_example()
-    >>> bearing.frequency[0]
+    >>> bearing.speed[0]
     0.0
     """
     w = np.linspace(0, 200, 11)
     bearing = BearingElement(
-        n=0, kxx=1e6, kyy=0.8e6, cxx=2e2, cyy=1.5e2, kzz=1e5, czz=0.5e2, frequency=w
+        n=0, kxx=1e6, kyy=0.8e6, cxx=2e2, cyy=1.5e2, kzz=1e5, czz=0.5e2, speed=w
     )
     return bearing
 
@@ -2860,9 +3081,9 @@ def seal_example():
     Examples
     --------
     >>> seal = seal_example()
-    >>> seal.frequency[0]
+    >>> seal.speed[0]
     0.0
     """
     w = np.linspace(0, 200, 11)
-    seal = SealElement(n=0, kxx=1e6, kyy=0.8e6, cxx=2e2, cyy=1.5e2, frequency=w)
+    seal = SealElement(n=0, kxx=1e6, kyy=0.8e6, cxx=2e2, cyy=1.5e2, speed=w)
     return seal

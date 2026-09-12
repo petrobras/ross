@@ -181,7 +181,7 @@ def bearing_element():
     frequency = np.array(
         [314.2, 418.9, 523.6, 628.3, 733.0, 837.8, 942.5, 1047.2, 1151.9]
     )
-    return BearingElement(4, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, frequency=frequency)
+    return BearingElement(4, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, speed=frequency)
 
 
 @pytest.fixture
@@ -246,7 +246,7 @@ def _expected_frf_phase(freq_response, inp, out, phase_units="rad"):
 
 
 def _expected_bearing_coefficient_plot(bearing, coefficient, frequency_units="rad/s"):
-    frequency_range = np.linspace(min(bearing.frequency), max(bearing.frequency), 30)
+    frequency_range = np.linspace(min(bearing.speed), max(bearing.speed), 30)
     coefficient_values = getattr(bearing, f"{coefficient}_interpolated")(
         frequency_range
     )

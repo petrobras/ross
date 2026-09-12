@@ -170,14 +170,14 @@ def read_table_file(file, element, sheet_name=0, n=0, sheet_type="Model"):
         optional_parameter_columns["cyy"] = ["cyy"]
         optional_parameter_columns["cxy"] = ["cxy"]
         optional_parameter_columns["cyx"] = ["cyx"]
-        optional_parameter_columns["frequency"] = ["frequency", "speed"]
+        optional_parameter_columns["speed"] = ["speed", "frequency"]
         default_dictionary["kyy"] = None
         default_dictionary["kxy"] = 0
         default_dictionary["kyx"] = 0
         default_dictionary["cyy"] = None
         default_dictionary["cxy"] = 0
         default_dictionary["cyx"] = 0
-        default_dictionary["frequency"] = None
+        default_dictionary["speed"] = None
     elif element == "shaft":
         if sheet_type == "Model":
             header_key_word = "od_left"
@@ -410,9 +410,7 @@ def read_table_file(file, element, sheet_name=0, n=0, sheet_type="Model"):
     if convert_to_rad_per_sec:
         for i in range(0, df.shape[0]):
             if element == "bearing":
-                parameters["frequency"][i] = (
-                    parameters["frequency"][i] * 0.104_719_755_119_7
-                )
+                parameters["speed"][i] = parameters["speed"][i] * 0.104_719_755_119_7
     parameters.update(new_materials)
     return parameters
 

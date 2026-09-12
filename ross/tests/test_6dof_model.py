@@ -45,7 +45,7 @@ def rotor_6dof(rotor_4dof):
             kyx=rotor_4dof.bearing_elements[l].kyx,
             cxy=rotor_4dof.bearing_elements[l].cxy,
             cyx=rotor_4dof.bearing_elements[l].cyx,
-            frequency=rotor_4dof.bearing_elements[l].frequency,
+            speed=rotor_4dof.bearing_elements[l].speed,
         )
         for l in range(len(rotor_4dof.bearing_elements))
     ]

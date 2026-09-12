@@ -43,7 +43,7 @@ def test_matches_solver_fixture():
     kwargs, outputs = bearing_kwargs_from_fixture("tilt_5pad_isoviscous")
     bearing = TiltingPad(
         n=kwargs["n"],
-        frequency=kwargs["frequency"],
+        speed=kwargs["speed"],
         journal_diameter=kwargs["journal_diameter"],
         radial_clearance=kwargs["radial_clearance"],
         pad_thickness=kwargs["pad_thickness"],
@@ -101,7 +101,7 @@ def test_matches_solver_fixture():
 def test_eccentricity_attitude_initial_position():
     bearing = TiltingPad(
         n=1,
-        frequency=Q_([3000], "RPM"),
+        speed=Q_([3000], "RPM"),
         equilibrium_type="match_eccentricity",
         thermal_type=None,
         journal_diameter=101.6e-3,
@@ -134,7 +134,7 @@ def test_eccentricity_attitude_initial_position():
 def test_restrictions():
     kwargs = dict(
         n=1,
-        frequency=Q_([3000], "RPM"),
+        speed=Q_([3000], "RPM"),
         equilibrium_type="match_load",
         thermal_type=None,
         journal_diameter=101.6e-3,
@@ -168,7 +168,7 @@ def test_restrictions():
 def test_pivot_flexibility_runs():
     bearing = TiltingPad(
         n=1,
-        frequency=Q_([3000], "RPM"),
+        speed=Q_([3000], "RPM"),
         equilibrium_type="match_load",
         thermal_type=None,
         journal_diameter=101.6e-3,
