@@ -85,7 +85,7 @@ class Results(ABC):
         >>> response = rotor.run_unbalance_response(node=3,
         ...                                         unbalance_magnitude=0.001,
         ...                                         unbalance_phase=0.0,
-        ...                                         frequency=speed)
+        ...                                         speed_range=speed)
 
         >>> # create path for a temporary file
         >>> file = Path(tempdir) / 'unb_resp.toml'
@@ -1744,6 +1744,12 @@ class ModalResults(Results):
         List of nodes positions.
     shaft_elements_length : list
         List with Rotor shaft elements lengths.
+    number_dof : int
+        Number of degrees of freedom per node.
+    whirl_frequency : array, optional
+        Whirl (excitation) frequency at which the frequency-dependent
+        coefficients were evaluated for each mode. Default is the rotor
+        speed for every mode (synchronous coefficients).
     """
 
     def __init__(
@@ -1760,6 +1766,7 @@ class ModalResults(Results):
         nodes_pos,
         shaft_elements_length,
         number_dof,
+        whirl_frequency=None,
     ):
         self.speed = speed
         self.evalues = evalues
@@ -1773,6 +1780,9 @@ class ModalResults(Results):
         self.nodes_pos = nodes_pos
         self.shaft_elements_length = shaft_elements_length
         self.number_dof = number_dof
+        if whirl_frequency is None:
+            whirl_frequency = np.full(len(wd), float(speed))
+        self.whirl_frequency = np.asarray(whirl_frequency, dtype=np.float64)
         self.update_mode_shapes()
 
     def update_mode_shapes(self):
@@ -6370,8 +6380,8 @@ class UCSResults(Results):
     stiffness_log : tuple, optional
         Evenly numbers spaced evenly on a log scale to create a better visualization
         (see np.logspace).
-    bearing_frequency_range : tuple, optional
-        The bearing frequency range used to calculate the intersection points.
+    bearing_speed_range : tuple, optional
+        The bearing speed range used to calculate the intersection points.
         In some cases bearing coefficients will have to be extrapolated.
         The default is None. In this case the bearing frequency attribute is used.
     wn : array
@@ -6389,7 +6399,7 @@ class UCSResults(Results):
         self,
         stiffness_range,
         stiffness_log,
-        bearing_frequency_range,
+        bearing_speed_range,
         wn,
         bearing,
         intersection_points,
@@ -6397,7 +6407,7 @@ class UCSResults(Results):
     ):
         self.stiffness_range = stiffness_range
         self.stiffness_log = stiffness_log
-        self.bearing_frequency_range = bearing_frequency_range
+        self.bearing_speed_range = bearing_speed_range
         self.wn = wn
         self.critical_points_modal = critical_points_modal
         self.bearing = bearing
@@ -6441,7 +6451,7 @@ class UCSResults(Results):
         rotor_wn = self.wn
         bearing0 = self.bearing
         intersection_points = copy.copy(self.intersection_points)
-        bearing_frequency_range = self.bearing_frequency_range
+        bearing_speed_range = self.bearing_speed_range
 
         if fig is None:
             fig = go.Figure()
@@ -6456,16 +6466,16 @@ class UCSResults(Results):
             Q_(intersection_points["y"], "rad/s").to(frequency_units).m
         )
         bearing_kxx_stiffness = (
-            Q_(bearing0.kxx_interpolated(bearing_frequency_range), "N/m")
+            Q_(bearing0.kxx_interpolated(bearing_speed_range), "N/m")
             .to(stiffness_units)
             .m
         )
         bearing_kyy_stiffness = (
-            Q_(bearing0.kyy_interpolated(bearing_frequency_range), "N/m")
+            Q_(bearing0.kyy_interpolated(bearing_speed_range), "N/m")
             .to(stiffness_units)
             .m
         )
-        bearing_frequency = Q_(bearing_frequency_range, "rad/s").to(frequency_units).m
+        bearing_frequency = Q_(bearing_speed_range, "rad/s").to(frequency_units).m
 
         for j in range(rotor_wn.shape[0]):
             fig.add_trace(

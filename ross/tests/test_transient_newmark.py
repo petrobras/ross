@@ -77,8 +77,8 @@ def rotor2():
     stfy = [1e6, 1.5e6]
     c = [1e3, 1.5e3]
     frequency = [50, 5000]
-    bearing0 = BearingElement(0, kxx=stfx, kyy=stfy, cxx=c, cyy=c, frequency=frequency)
-    bearing1 = BearingElement(6, kxx=stfx, kyy=stfy, cxx=c, cyy=c, frequency=frequency)
+    bearing0 = BearingElement(0, kxx=stfx, kyy=stfy, cxx=c, cyy=c, speed=frequency)
+    bearing1 = BearingElement(6, kxx=stfx, kyy=stfy, cxx=c, cyy=c, speed=frequency)
 
     return Rotor(
         shaft_elem,

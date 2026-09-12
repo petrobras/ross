@@ -16,6 +16,7 @@ campbell = rotor.run_campbell(speed_range, frequencies=6)
 - `speed_range` (array): rotor speeds in rad/s
 - `frequencies` (int): number of frequencies to track (default 6)
 - `frequency_type`: `"wd"` (damped, default) or `"wn"` (undamped)
+- `matched_whirl` (bool): at each speed, evaluate the frequency-dependent bearing/seal coefficients at each mode's own damped natural frequency instead of at the rotor speed (default False; see [modal_analysis.md](modal_analysis.md)). `whirl_rtol` (1e-3) and `whirl_max_iter` (15) control the iteration. Only changes results for `frequency=` or 2-D coefficient tables
 
 ## Results: `CampbellResults`
 
@@ -25,6 +26,15 @@ campbell.wd  # tracked frequencies, shape (num_speeds, num_frequencies) — hold
 campbell.log_dec  # log decrements, shape (num_speeds, num_frequencies)
 campbell.damping_ratio  # damping ratios, shape (num_speeds, num_frequencies)
 campbell.whirl_values  # whirl direction per point: 0 (backward), 0.5 (mixed), 1 (forward)
+campbell.modal_results[
+    speed_range[0]
+]  # the ModalResults of each speed (whirl_frequency, shapes, ...)
+```
+
+```python
+# matched-whirl Campbell for a rotor with a 2-D (speed, frequency) seal table
+campbell_matched = rotor.run_campbell(speed_range, frequencies=6, matched_whirl=True)
+campbell_matched.modal_results[speed_range[-1]].whirl_frequency
 ```
 
 ## Plotting

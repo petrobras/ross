@@ -57,26 +57,26 @@ LABYRINTH_BASE = {
 LABYRINTH_CASES = {
     "inter": {
         **LABYRINTH_BASE,
-        "frequency": Q_([5000, 8000, 11000], "RPM"),
+        "speed": Q_([5000, 8000, 11000], "RPM"),
     },
     "rotor": {
         **LABYRINTH_BASE,
         "seal_type": "rotor",
         "preswirl": 0.3,
         "radial_clearance": Q_(0.25, "mm"),
-        "frequency": Q_([6000, 9000], "RPM"),
+        "speed": Q_([6000, 9000], "RPM"),
     },
     "stator_jenny_kanki": {
         **LABYRINTH_BASE,
         "seal_type": "stator",
         "use_jenny_kanki": True,
-        "frequency": Q_([8000], "RPM"),
+        "speed": Q_([8000], "RPM"),
     },
     "choked": {
         **LABYRINTH_BASE,
         "inlet_pressure": 1.0e6,
         "n_teeth": 3,
-        "frequency": Q_([8000], "RPM"),
+        "speed": Q_([8000], "RPM"),
     },
 }
 
@@ -104,14 +104,14 @@ HOLEPATTERN_BASE = {
 HOLEPATTERN_CASES = {
     "base": {
         **HOLEPATTERN_BASE,
-        "frequency": Q_([5000], "RPM"),
+        "speed": Q_([5000], "RPM"),
     },
     "low_swirl_subsync": {
         **HOLEPATTERN_BASE,
         "preswirl": 0.3,
         "excitation_ratio": 0.5,
         "nz": 40,
-        "frequency": Q_([4000, 8000], "RPM"),
+        "speed": Q_([4000, 8000], "RPM"),
     },
 }
 
@@ -126,7 +126,7 @@ def _build_labyrinth(case, frequency_index=None):
     """
     params = dict(LABYRINTH_CASES[case])
     if frequency_index is not None:
-        params["frequency"] = params["frequency"][frequency_index : frequency_index + 1]
+        params["speed"] = params["speed"][frequency_index : frequency_index + 1]
     return LabyrinthSeal(**params)
 
 
@@ -134,7 +134,7 @@ def _build_labyrinth(case, frequency_index=None):
 def _build_holepattern(case, frequency_index=None):
     params = dict(HOLEPATTERN_CASES[case])
     if frequency_index is not None:
-        params["frequency"] = params["frequency"][frequency_index : frequency_index + 1]
+        params["speed"] = params["speed"][frequency_index : frequency_index + 1]
     return HolePatternSeal(**params)
 
 
@@ -150,7 +150,7 @@ def _labyrinth_snapshot(case):
         "pert_rcond": np.atleast_1d(seal.pert_rcond).astype(float).tolist(),
         "distributions": [],
     }
-    for k in range(len(LABYRINTH_CASES[case]["frequency"])):
+    for k in range(len(LABYRINTH_CASES[case]["speed"])):
         single = _build_labyrinth(case, k)
         snapshot["distributions"].append(
             {
@@ -185,7 +185,7 @@ def _holepattern_snapshot(case):
         "seal_leakage": np.atleast_1d(seal.seal_leakage).astype(float).tolist(),
         "distributions": [],
     }
-    for k in range(len(HOLEPATTERN_CASES[case]["frequency"])):
+    for k in range(len(HOLEPATTERN_CASES[case]["speed"])):
         single = _build_holepattern(case, k)
         snapshot["distributions"].append(
             {

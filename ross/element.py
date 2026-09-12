@@ -175,13 +175,16 @@ class Element(ABC):
         pass
 
     @abstractmethod
-    def C(self, frequency):
+    def C(self, frequency, speed=None):
         """Frequency dependent damping coefficients matrix.
 
         Parameters
         ----------
         frequency: float
-            The frequency in which the coefficients depend on.
+            The excitation (whirl) frequency in which the coefficients depend on.
+        speed: float, optional
+            The rotor speed. Default is the excitation frequency (synchronous
+            evaluation).
 
         Returns
         -------
@@ -200,13 +203,16 @@ class Element(ABC):
         pass
 
     @abstractmethod
-    def K(self, frequency):
+    def K(self, frequency, speed=None):
         """Frequency dependent stiffness coefficients matrix.
 
         Parameters
         ----------
         frequency: float
-            The frequency in which the coefficients depend on.
+            The excitation (whirl) frequency in which the coefficients depend on.
+        speed: float, optional
+            The rotor speed. Default is the excitation frequency (synchronous
+            evaluation).
 
         Returns
         -------

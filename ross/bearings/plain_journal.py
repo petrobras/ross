@@ -21,7 +21,7 @@ class PlainJournal(FixedGeometryBearing):
     """Plain (axial-groove) cylindrical journal bearing.
 
     The bore is ``n_pads`` fixed lands separated by axial oil grooves, each
-    land spanning ``pad_arc``. For every entry of ``frequency`` the
+    land spanning ``pad_arc``. For every entry of ``speed`` the
     fluid-film engine solves the journal equilibrium and the film
     pressure/temperature, and reduces the solution to the synchronous
     stiffness and damping coefficients.
@@ -44,8 +44,8 @@ class PlainJournal(FixedGeometryBearing):
         Land preload factor. Default is 0 (cylindrical bore).
     oil_supply_temperature : float, pint.Quantity
         Lubricant supply temperature, K.
-    frequency : array_like, pint.Quantity
-        Operating frequencies, rad/s.
+    speed : array_like, pint.Quantity
+        Rotor speeds, rad/s.
     fxs_load : float, pint.Quantity, optional
         Static load in x, N. Default is 0.
     fys_load : float, pint.Quantity, optional
@@ -78,7 +78,7 @@ class PlainJournal(FixedGeometryBearing):
     ----------
     equilibrium_pos : ndarray
         ``[eccentricity_ratio, attitude_angle]`` (rad) of the first
-        frequency.
+        speed.
 
     Examples
     --------
@@ -93,7 +93,7 @@ class PlainJournal(FixedGeometryBearing):
     ...     pad_arc=Q_(176, "deg"),
     ...     preload=0,
     ...     oil_supply_temperature=Q_(50, "degC"),
-    ...     frequency=Q_([900], "RPM"),
+    ...     speed=Q_([900], "RPM"),
     ...     fxs_load=0,
     ...     fys_load=-112814.91,
     ...     lubricant="ISOVG32",
@@ -119,7 +119,7 @@ class PlainJournal(FixedGeometryBearing):
         pad_arc=None,
         preload=0.0,
         oil_supply_temperature=None,
-        frequency=None,
+        speed=None,
         fxs_load=0,
         fys_load=0,
         lubricant=None,
@@ -154,7 +154,7 @@ class PlainJournal(FixedGeometryBearing):
 
         super().__init__(
             n,
-            frequency=frequency,
+            speed=speed,
             journal_diameter=journal_diameter,
             radial_clearance=radial_clearance,
             pad_thickness=pad_thickness,

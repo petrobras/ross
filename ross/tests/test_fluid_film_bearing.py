@@ -31,7 +31,7 @@ def bearing_kwargs_from_fixture(case_name, **overrides):
     probes = list(zip(inp["probe_pad_number"], inp["probe_theta"], inp["r_location"]))
     kwargs = dict(
         n=0,
-        frequency=inp["frequency"],
+        speed=inp["frequency"],
         journal_diameter=inp["journal_diameter"],
         radial_clearance=inp["radial_clearance"],
         pad_thickness=inp["pad_thickness"],
@@ -134,8 +134,8 @@ def test_results_summary_outputs(fixture_bearing):
 
 def test_coefficients_entry_point(fixture_bearing):
     bearing, outputs = fixture_bearing
-    frequency = bearing.frequency[0]
-    stiffness, damping = bearing.coefficients(frequency)
+    speed = bearing.speed[0]
+    stiffness, damping = bearing.coefficients(speed)
     assert_allclose(stiffness[0], outputs["kxx"][0], rtol=1e-8)
     assert_allclose(damping[3], outputs["cyy"][0], rtol=1e-8)
 
@@ -211,7 +211,7 @@ def test_plot_pad_temperature_3d_requires_full_thermal(fixture_bearing):
 
 def test_multi_speed_and_parallel():
     kwargs, _ = bearing_kwargs_from_fixture("fixed_isoviscous")
-    kwargs["frequency"] = [80.0, 110.0]
+    kwargs["speed"] = [80.0, 110.0]
     serial = FluidFilmBearing(**kwargs)
     assert np.asarray(serial.kxx).shape == (2,)
     assert len(serial._results.pressure_fields) == 2
@@ -280,7 +280,7 @@ def test_save_downgrades_to_coefficient_table(fixture_bearing, tmp_path):
         np.asarray(bearing.kxx, dtype=float),
         rtol=1e-12,
     )
-    assert_allclose(loaded.frequency, bearing.frequency)
+    assert_allclose(loaded.speed, bearing.speed)
 
 
 def test_example_with_pint_units():
@@ -288,3 +288,63 @@ def test_example_with_pint_units():
     assert bearing.n_pads == 2
     assert bearing.journal_diameter == pytest.approx(Q_(15.748, "in").to("m").m)
     assert float(bearing.kxx[0]) > 1e8
+
+
+def test_2d_frequency_table():
+    """2-D (speed, frequency) generation runs one engine case per pair."""
+    kwargs, _ = bearing_kwargs_from_fixture("fixed_isoviscous")
+    speed = np.atleast_1d(np.asarray(kwargs.pop("speed"), dtype=float))
+    kwargs.pop("excitation_ratio", None)
+    frequencies = np.array([0.5, 1.0]) * speed[0]
+
+    bearing = FluidFilmBearing(speed=speed, frequency=frequencies, **kwargs)
+
+    kxx = np.asarray(bearing.kxx, dtype=float)
+    assert kxx.shape == (speed.size, frequencies.size)
+    assert bearing.kxx_interpolated.kind == "grid"
+
+    # a rigid fixed-geometry film has no internal dofs to condense, so its
+    # reduced coefficients do not depend on the whirl ratio
+    reference = FluidFilmBearing(speed=speed, excitation_ratio=0.5, **kwargs)
+    assert_allclose(kxx[0], reference.kxx[0], rtol=1e-10)
+
+    # the element lookup follows both axes
+    assert_allclose(
+        float(bearing.kxx_interpolated(frequencies[0], speed[0])),
+        kxx[0, 0],
+        rtol=1e-12,
+    )
+    stiffness, _ = bearing.coefficients(speed[0], frequencies[0])
+    assert_allclose(stiffness[0], kxx[0, 0], rtol=1e-12)
+
+    # the results object lists one case per (speed, frequency) pair
+    assert bearing._results.frequency.shape == (speed.size * frequencies.size,)
+
+
+def test_2d_frequency_table_requires_nonzero_speed():
+    kwargs, _ = bearing_kwargs_from_fixture("fixed_isoviscous")
+    kwargs.pop("speed")
+    with pytest.raises(ValueError, match="nonzero speeds"):
+        FluidFilmBearing(speed=[0.0], frequency=[10.0], **kwargs)
+
+
+def test_2d_frequency_table_save_load(tmp_path):
+    kwargs, _ = bearing_kwargs_from_fixture("fixed_isoviscous")
+    speed = np.atleast_1d(np.asarray(kwargs.pop("speed"), dtype=float))
+    kwargs.pop("excitation_ratio", None)
+    bearing = FluidFilmBearing(
+        speed=speed, frequency=np.array([0.5, 1.0]) * speed[0], **kwargs
+    )
+    file = tmp_path / "bearing_2d.toml"
+    bearing.save(file)
+
+    from ross.bearing_seal_element import BearingElement
+
+    loaded = BearingElement.load(file)
+    assert_allclose(loaded.speed, bearing.speed)
+    assert_allclose(loaded.frequency, bearing.frequency)
+    assert_allclose(np.array(loaded.kxx), np.array(bearing.kxx), rtol=1e-12)
+    assert_allclose(
+        loaded.K(frequency=60.0, speed=speed[0]),
+        bearing.K(frequency=60.0, speed=speed[0]),
+    )

@@ -25,6 +25,7 @@ fig = ucs.plot(stiffness_units="N/m", frequency_units="RPM")
 - `num` (int): number of stiffness points in the range (default 20)
 - `num_modes` (int): number of eigenvalues computed (default 16); `num_modes // 4` forward-mode curves are produced
 - `synchronous` (bool): evaluate at synchronous frequency
+- `bearing_speed_range` (tuple, optional): `(start, end)` rotor speeds in rad/s (30 points) over which the bearing stiffness curve is drawn to find the intersection points; default is the speed axis of the first bearing (or a range around the computed frequencies for constant bearings)
 
 ### Results: `UCSResults`
 
@@ -32,6 +33,8 @@ fig = ucs.plot(stiffness_units="N/m", frequency_units="RPM")
 ucs.stiffness_log  # bearing stiffness values used (N/m), size num
 ucs.stiffness_range  # the (start, end) exponent tuple
 ucs.wn  # undamped natural frequencies (rad/s), shape (num_modes // 4, num)
+ucs.bearing_speed_range  # speeds at which the bearing stiffness curve is drawn
+ucs.intersection_points  # {"x": stiffness, "y": speed} of the crossings
 ```
 
 ## Level 1 Stability Analysis (API 617)

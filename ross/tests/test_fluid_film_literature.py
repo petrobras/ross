@@ -195,7 +195,7 @@ def _run_lt_two_axial_groove(length_ratio, row):
     load = lt_load(row[0], axial_length, clearance)
     bearing = FixedGeometryBearing(
         n=0,
-        frequency=Q_([LT_RPM], "RPM"),
+        speed=Q_([LT_RPM], "RPM"),
         journal_diameter=LT_DIAMETER,
         radial_clearance=clearance,
         pad_thickness=0.02,
@@ -228,7 +228,7 @@ def test_lund_thomsen_elliptical(row):
     load = lt_load(row[0], axial_length, pad_clearance)
     bearing = EllipticalBearing(
         n=0,
-        frequency=Q_([LT_RPM], "RPM"),
+        speed=Q_([LT_RPM], "RPM"),
         pad_arc=Q_(160, "deg"),
         preload=preload,
         journal_diameter=LT_DIAMETER,
@@ -263,7 +263,7 @@ def nbl_step_bearing(radial_clearance, dam_depth, step_angle, dam_axial_ratio, r
     """One step bearing of the Nicholas, Barrett & Leader (1980) rig."""
     return PressureDamBearing(
         n=0,
-        frequency=Q_(rpm, "RPM"),
+        speed=Q_(rpm, "RPM"),
         journal_diameter=NBL_DIAMETER,
         radial_clearance=radial_clearance,
         pad_thickness=0.005,
@@ -327,7 +327,7 @@ def test_two_axial_groove_stability_baseline():
     for clearance, s_ref, ecc_ref in ((1.8 * MIL, 5.3, 0.03), (2.0 * MIL, 4.3, 0.04)):
         bearing = FixedGeometryBearing(
             n=0,
-            frequency=Q_([8000.0], "RPM"),
+            speed=Q_([8000.0], "RPM"),
             journal_diameter=NBL_DIAMETER,
             radial_clearance=clearance,
             pad_thickness=0.005,
@@ -448,7 +448,7 @@ def fillon_bearing(rpms, deform_type, ex_film, ey_film, ez_film, ey_pad):
     beta = 0.0341
     return TiltingPad(
         n=0,
-        frequency=Q_(rpms, "RPM"),
+        speed=Q_(rpms, "RPM"),
         equilibrium_type="match_load",
         thermal_type="full",
         deform_type=deform_type,

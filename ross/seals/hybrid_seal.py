@@ -1,5 +1,7 @@
 from warnings import warn
 
+import numpy as np
+
 from ross import SealElement, HolePatternSeal, LabyrinthSeal
 from ross.units import check_units
 from prettytable import PrettyTable
@@ -44,9 +46,15 @@ class HybridSeal(SealElement):
         Final outlet pressure at hole-pattern exit (Pa).
     inlet_temperature : float
         Inlet temperature (K).
-    frequency : float, list, pint.Quantity,
+    speed : float, list, pint.Quantity,
         Shaft rotational speed(s) (rad/s).
-        Can be a single value or list of frequencies.
+        Can be a single value or list of speeds.
+    frequency : array, pint.Quantity, optional
+        Whirl (excitation) frequencies (rad/s). The interface pressure is
+        matched with the synchronous (1-D) stages; when ``frequency`` is
+        given, both stages are then rebuilt at the converged pressure with a
+        2-D (speed, frequency) coefficient table and the element carries the
+        combined 2-D table. Default is None (1-D table over the speed axis).
     gas_composition : dict, optional
         Gas composition as a dictionary {component: molar_fraction}.
         Example: {"Nitrogen": 0.79, "Oxygen": 0.21} for air.
@@ -194,7 +202,7 @@ class HybridSeal(SealElement):
     ...   inlet_pressure=500000,
     ...   outlet_pressure=100000,
     ...   inlet_temperature=300.0,
-    ...   frequency=Q_([2000, 3000, 5000], "RPM"),
+    ...   speed=Q_([2000, 3000, 5000], "RPM"),
     ...   gas_composition=gas_composition,
     ...   hole_pattern_parameters=holep_params,
     ...   labyrinth_parameters=laby_params,
@@ -211,9 +219,10 @@ class HybridSeal(SealElement):
         inlet_pressure,
         outlet_pressure,
         inlet_temperature,
-        frequency,
+        speed,
         hole_pattern_parameters,
         labyrinth_parameters,
+        frequency=None,
         gas_composition=None,
         molar_mass=None,
         gamma=None,
@@ -241,7 +250,7 @@ class HybridSeal(SealElement):
                 inlet_pressure=inlet_pressure,
                 outlet_pressure=interface_pressure,
                 inlet_temperature=inlet_temperature,
-                frequency=frequency,
+                speed=speed,
                 shaft_diameter=shaft_diameter,
                 gas_composition=gas_composition,
                 molar_mass=molar_mass,
@@ -254,7 +263,7 @@ class HybridSeal(SealElement):
                 inlet_pressure=interface_pressure,
                 outlet_pressure=outlet_pressure,
                 inlet_temperature=inlet_temperature,
-                frequency=frequency,
+                speed=speed,
                 shaft_diameter=shaft_diameter,
                 gas_composition=gas_composition,
                 molar_mass=molar_mass,
@@ -287,21 +296,47 @@ class HybridSeal(SealElement):
                 f"tolerance {tolerance:.3e})."
             )
 
+        if frequency is not None:
+            holep = HolePatternSeal(
+                n=n,
+                inlet_pressure=inlet_pressure,
+                outlet_pressure=interface_pressure,
+                inlet_temperature=inlet_temperature,
+                speed=speed,
+                frequency=frequency,
+                shaft_diameter=shaft_diameter,
+                gas_composition=gas_composition,
+                molar_mass=molar_mass,
+                gamma=gamma,
+                **hole_pattern_parameters,
+            )
+            laby = LabyrinthSeal(
+                n=n,
+                inlet_pressure=interface_pressure,
+                outlet_pressure=outlet_pressure,
+                inlet_temperature=inlet_temperature,
+                speed=speed,
+                frequency=frequency,
+                shaft_diameter=shaft_diameter,
+                gas_composition=gas_composition,
+                molar_mass=molar_mass,
+                gamma=gamma,
+                **labyrinth_parameters,
+            )
+
         self.laby = laby
         self.hole_pattern = holep
         self.interface_pressure = interface_pressure
         self.n_iterations = iteration
 
         coefficients_dict = {
-            c: [
-                laby_c + hole_c
-                for laby_c, hole_c in zip(getattr(laby, c), getattr(holep, c))
-            ]
+            c: (np.array(getattr(laby, c)) + np.array(getattr(holep, c))).tolist()
             for c in laby._get_coefficient_list()
         }
 
         super().__init__(
             n,
+            speed=speed,
             frequency=frequency,
             seal_leakage=laby_leakage,
             color=color,

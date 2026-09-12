@@ -39,7 +39,7 @@ def bearing0():
         kyy=Kyy_bearing,
         cxx=Cxx_bearing,
         cyy=Cyy_bearing,
-        frequency=wb,
+        speed=wb,
     )
     return bearing0
 
@@ -98,7 +98,7 @@ def bearing1():
         cxx=cxx_bearing,
         cyy=cyy_bearing,
         mxx=mxx_bearing,
-        frequency=wb,
+        speed=wb,
     )
     return bearing1
 
@@ -139,15 +139,15 @@ def test_bearing1_interpol_mxx(bearing1):
 
 def test_bearing1_matrices(bearing1):
     # fmt: off
-    K = np.array([[85000000.043218,              0., 0.],
-                  [             0., 91999999.891728, 0.],
-                  [             0.,              0., 0.]])
-    C = np.array([[226836.917649,      0., 0.],
-                  [     0., 235836.850213, 0.],
-                  [     0.,            0., 0.]])
-    M = np.array([[0.00099999,         0., 0.],
-                  [0.        , 0.00099999, 0.],
-                  [0.        ,         0., 0.]])
+    K = np.array([[8.5e7,    0., 0.],
+                  [   0., 9.2e7, 0.],
+                  [   0.,    0., 0.]])
+    C = np.array([[226837.,      0., 0.],
+                  [     0., 235837., 0.],
+                  [     0.,      0., 0.]])
+    M = np.array([[1e-3,   0., 0.],
+                  [  0., 1e-3, 0.],
+                  [  0.,   0., 0.]])
     # fmt: on
     assert_allclose(bearing1.K(314.2), K, rtol=1e-5)
     assert_allclose(bearing1.C(314.2), C, rtol=1e-5)
@@ -160,24 +160,27 @@ def test_bearing_error_speed_not_given():
     cx = 1e8 * speed
     with pytest.raises(Exception) as excinfo:
         BearingElement(-1, kxx=kx, cxx=cx)
-    assert "Arguments (coefficients and frequency) must have the same dimension" in str(
-        excinfo.value
+    assert (
+        "Arguments (coefficients, speed and frequency) must have the same dimension"
+        in str(excinfo.value)
     )
 
 
 def test_bearing_error2():
     with pytest.raises(ValueError) as excinfo:
         BearingElement(
-            4, kxx=[7e8, 8e8, 9e8], cxx=[0, 0, 0, 0], frequency=[10, 100, 1000, 10000]
+            4, kxx=[7e8, 8e8, 9e8], cxx=[0, 0, 0, 0], speed=[10, 100, 1000, 10000]
         )
-    assert "Arguments (coefficients and frequency) must have the same dimension" in str(
-        excinfo.value
+    assert (
+        "Arguments (coefficients, speed and frequency) must have the same dimension"
+        in str(excinfo.value)
     )
 
     with pytest.raises(ValueError) as excinfo:
         BearingElement(4, kxx=[6e8, 7e8, 8e8, 9e8], cxx=[0, 0, 0, 0, 0])
-    assert "Arguments (coefficients and frequency) must have the same dimension" in str(
-        excinfo.value
+    assert (
+        "Arguments (coefficients, speed and frequency) must have the same dimension"
+        in str(excinfo.value)
     )
 
 
@@ -203,7 +206,7 @@ def test_bearing_len_2():
         cyy=[3.13, 10.81],
         cxy=[0.276, 0.69],
         cyx=[-0.276, -0.69],
-        frequency=[115.19, 345.575],
+        speed=[115.19, 345.575],
     )
     assert_allclose(bearing.kxx_interpolated(115.19), 481, rtol=1e5)
 
@@ -219,7 +222,7 @@ def test_bearing_len_3():
         cyy=[3.13, 10.81, 22.99],
         cxy=[0.276, 0.69, 1.19],
         cyx=[-0.276, -0.69, -1.19],
-        frequency=[115.19, 345.575, 691.15],
+        speed=[115.19, 345.575, 691.15],
     )
     assert_allclose(bearing.kxx_interpolated(115.19), 481, rtol=1e5)
 
@@ -238,7 +241,7 @@ def test_from_table():
 
     bearing = BearingElement.from_table(0, bearing_file)
     assert bearing.n == 0
-    assert_allclose(bearing.frequency[2], 523.5987755985)
+    assert_allclose(bearing.speed[2], 523.5987755985)
     assert_allclose(bearing.kxx[2], 53565700)
 
     # bearing with us units
@@ -247,7 +250,7 @@ def test_from_table():
     )
     bearing = BearingElement.from_table(0, bearing_file)
     assert bearing.n == 0
-    assert_allclose(bearing.frequency[2], 523.5987755985)
+    assert_allclose(bearing.speed[2], 523.5987755985)
     assert_allclose(bearing.kxx[2], 53565700)
 
 
@@ -344,17 +347,20 @@ def magnetic_bearing():
 
 
 def test_magnetic_bearing_element(magnetic_bearing):
+    # K(0) and C(0) extrapolate the table below its first frequency (1 rad/s);
+    # the linear end-slope extrapolation lands within 1e-3 of the analytical
+    # zero-frequency values ks + ki and kd * ki.
     K_ref = np.array(
         [
-            [-4.64021073e03, -7.72314366e-14],
-            [-1.01494475e-13, -4.64021073e03],
+            [-4640.623841708167, 0.0],
+            [0.0, -4640.623841708167],
         ]
     )
 
     C_ref = np.array(
         [
-            [4.64597874e00, 6.22498335e-17],
-            [3.97578344e-17, 4.64597874e00],
+            [4.645268692279841, 0.0],
+            [0.0, 4.645268692279841],
         ]
     )
 
@@ -683,10 +689,10 @@ def test_plot(bearing0):
     expected_y = np.array(
         [
             8.50000000e07,
-            9.39094443e07,
-            1.00985975e08,
-            1.06782950e08,
-            1.11853726e08,
+            9.24121279e07,
+            9.94509523e07,
+            1.06081472e08,
+            1.12218094e08,
         ]
     )
     assert_allclose(fig.data[0]["x"][:5], expected_x)
@@ -698,11 +704,11 @@ def test_plot(bearing0):
     )
     expected_y = np.array(
         [
-            226836.91764878,
-            222164.94925285,
-            217802.8600443,
-            213700.3582994,
-            209807.15229442,
+            226837.0,
+            222296.93006288,
+            217932.41219196,
+            213755.39734994,
+            209781.15947754,
         ]
     )
     assert_allclose(fig.data[0]["x"][:5], expected_x)
@@ -735,3 +741,99 @@ def test_cylindrical_hydrodynamic():
     assert_allclose(cylindrical.attitude_angle, expected_attitude_angle, rtol=1e-5)
     assert_allclose(cylindrical.K(Q_(1500, "RPM")) / 1e6, expected_k, rtol=1e-6)
     assert_allclose(cylindrical.C(Q_(1500, "RPM")) / 1e3, expected_c, rtol=1e-6)
+
+
+@pytest.fixture
+def bearing_2d():
+    speed = np.array([100.0, 200.0, 300.0])
+    frequency = np.array([50.0, 150.0, 250.0, 350.0])
+    kxx = np.outer(speed, np.ones(len(frequency))) * 1e4
+    kxx += np.outer(np.ones(len(speed)), frequency) * 1e3
+    cxx = kxx / 1e3
+    return BearingElement(
+        n=0, kxx=kxx, kyy=kxx, cxx=cxx, cyy=cxx, speed=speed, frequency=frequency
+    )
+
+
+def test_bearing_2d_interpolation(bearing_2d):
+    kxx = bearing_2d.kxx_interpolated
+    assert kxx.kind == "grid"
+    assert np.array(bearing_2d.kxx).shape == (3, 4)
+    assert_allclose(float(kxx(frequency=150.0, speed=200.0)), 200.0 * 1e4 + 150.0 * 1e3)
+    assert_allclose(float(kxx(frequency=100.0, speed=150.0)), 150.0 * 1e4 + 100.0 * 1e3)
+    # single value evaluates the synchronous diagonal
+    assert_allclose(float(kxx(200.0)), 200.0 * 1e4 + 200.0 * 1e3)
+    assert_allclose(kxx(np.array([100.0, 200.0]), 150.0), [1.6e6, 1.7e6])
+    assert_allclose(bearing_2d.K(frequency=250.0, speed=100.0)[0, 0], 1.25e6)
+    assert_allclose(bearing_2d.C(250.0, 100.0)[1, 1], 1.25e3)
+
+
+def test_bearing_2d_scalar_broadcast():
+    bearing = BearingElement(
+        n=0, kxx=1e6, cxx=1e2, speed=[100.0, 200.0], frequency=[50.0, 150.0]
+    )
+    assert np.array(bearing.kxx).shape == (2, 2)
+    assert_allclose(float(bearing.kxx_interpolated(frequency=1000.0, speed=0.0)), 1e6)
+
+
+def test_bearing_2d_errors():
+    with pytest.raises(ValueError, match="same dimension"):
+        BearingElement(
+            n=0, kxx=[[1e6, 2e6]], cxx=1e2, speed=[100.0, 200.0], frequency=[50.0]
+        )
+    with pytest.raises(ValueError, match="strictly increasing"):
+        BearingElement(
+            n=0,
+            kxx=[[1e6, 2e6], [3e6, 4e6]],
+            cxx=1e2,
+            speed=[200.0, 100.0],
+            frequency=[50.0, 150.0],
+        )
+
+
+def test_bearing_axis_kinds():
+    speed_table = BearingElement(n=0, kxx=[1e6, 2e6], cxx=1e2, speed=[100.0, 200.0])
+    frequency_table = BearingElement(
+        n=0, kxx=[1e6, 2e6], cxx=1e2, frequency=[100.0, 200.0]
+    )
+    assert speed_table.kxx_interpolated.kind == "speed"
+    assert frequency_table.kxx_interpolated.kind == "frequency"
+    # a speed table is constant with respect to the whirl frequency
+    assert_allclose(
+        float(speed_table.kxx_interpolated(frequency=500.0, speed=150.0)), 1.5e6
+    )
+    # a frequency table is constant with respect to the rotor speed
+    assert_allclose(
+        float(frequency_table.kxx_interpolated(frequency=150.0, speed=500.0)), 1.5e6
+    )
+    # both give the synchronous value for a single argument
+    assert_allclose(speed_table.K(150.0), frequency_table.K(150.0))
+    constant = BearingElement(n=0, kxx=1e6, cxx=1e2)
+    assert constant.kxx_interpolated.kind == "constant"
+    assert float(constant.kxx_interpolated(123.4)) == 1e6
+
+
+def test_bearing_2d_save_load(bearing_2d):
+    file = Path(tempdir) / "bearing_2d.toml"
+    bearing_2d.save(file)
+    loaded = BearingElement.load(file)
+    assert loaded == bearing_2d
+    assert_allclose(loaded.speed, bearing_2d.speed)
+    assert_allclose(loaded.frequency, bearing_2d.frequency)
+    assert_allclose(
+        loaded.K(frequency=120.0, speed=250.0),
+        bearing_2d.K(frequency=120.0, speed=250.0),
+    )
+    file = Path(tempdir) / "bearing_2d.json"
+    bearing_2d.save(file)
+    assert BearingElement.load(file) == bearing_2d
+
+
+def test_bearing_2d_table_and_plot(bearing_2d):
+    table = bearing_2d.format_table(
+        speed=[100.0], frequency=[50.0, 150.0], coefficients=["kxx"]
+    )
+    assert table.field_names[:2] == ["Speed [rad/s]", "Frequency [rad/s]"]
+    assert len(table.rows) == 2
+    fig = bearing_2d.plot("kxx")
+    assert len(fig.data) == 3

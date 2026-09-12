@@ -86,7 +86,7 @@ def rand_bearing_varying_coefs():
         cxy=cxy,
         cyx=cyx,
         cyy=cyy,
-        frequency=frequency,
+        speed=frequency,
         is_random=["kxx", "kxy", "kyx", "kyy", "cxx", "cxy", "cyx", "cyy"],
     )
 
@@ -189,9 +189,9 @@ def test_st_bearing_error_messages(rand_bearing_constant_coefs):
     freq = [500, 1000]
     with pytest.raises(ValueError) as ex:
         ST_BearingElement(
-            n=1, kxx=kxx, cxx=cxx, frequency=freq, is_random=["kxx", "cxx", "frequency"]
+            n=1, kxx=kxx, cxx=cxx, speed=freq, is_random=["kxx", "cxx", "speed"]
         )
-    assert "frequency can not be a random variable" in str(ex.value)
+    assert "speed can not be a random variable" in str(ex.value)
 
     with pytest.raises(ValueError) as ex:
         rand_bearing_constant_coefs.plot_random_var(["kxy"])
