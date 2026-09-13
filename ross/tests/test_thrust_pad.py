@@ -30,7 +30,7 @@ def thrust_pad():
         n_pads=12,
         n_theta=10,
         n_radial=10,
-        frequency=frequency,
+        speed=frequency,
         equilibrium_position_mode="calculate",
         model_type="thermo_hydro_dynamic",
         axial_load=13.320e6,
@@ -46,7 +46,7 @@ def test_thrust_pad_parameters(thrust_pad):
     assert_allclose(thrust_pad.pad_inner_radius, 1.15, rtol=0.0001)
     assert_allclose(thrust_pad.pad_outer_radius, 1.725, rtol=0.0001)
     assert_allclose(thrust_pad.pad_pivot_radius, 1.4425, rtol=0.0001)
-    assert_allclose(thrust_pad.frequency[0], 9.42477796, rtol=0.0001)
+    assert_allclose(thrust_pad.speed[0], 9.42477796, rtol=0.0001)
     assert_allclose(thrust_pad.rho, 867.0, rtol=0.0001)
     assert_allclose(thrust_pad.reference_temperature, 40.0, rtol=0.0001)
 

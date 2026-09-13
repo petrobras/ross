@@ -71,7 +71,7 @@ class FixedGeometryBearing(FluidFilmBearing):
     >>> from ross.units import Q_
     >>> bearing = rs.FixedGeometryBearing(
     ...     n=0,
-    ...     frequency=Q_([900], "RPM"),
+    ...     speed=Q_([900], "RPM"),
     ...     journal_diameter=0.4,
     ...     radial_clearance=195e-6,
     ...     pad_thickness=0.15,
@@ -439,7 +439,7 @@ def elliptical_bearing_example():
     """
     return EllipticalBearing(
         n=0,
-        frequency=Q_([3000], "RPM"),
+        speed=Q_([3000], "RPM"),
         pad_arc=Q_(150, "deg"),
         preload=0.5,
         journal_diameter=0.2,
@@ -477,7 +477,7 @@ def pressure_dam_bearing_example():
     """
     return PressureDamBearing(
         n=0,
-        frequency=Q_([3000], "RPM"),
+        speed=Q_([3000], "RPM"),
         pad_arc=Q_(150, "deg"),
         dam_arc=Q_(90, "deg"),
         dam_axial_length=0.1,
