@@ -9,19 +9,19 @@ import ross as rs
 import numpy as np
 
 rotor = rs.rotor_example()
-frequency_range = np.linspace(0, rs.Q_(10000, "RPM").to("rad/s").m, 200)
+speed_range = np.linspace(0, rs.Q_(10000, "RPM").to("rad/s").m, 200)
 response = rotor.run_unbalance_response(
     node=2,
     unbalance_magnitude=0.001,  # kg·m (mass × eccentricity)
     unbalance_phase=0,  # rad
-    frequency=frequency_range,
+    speed_range=speed_range,
 )
 ```
 
 - `node` (int): node where unbalance is applied
 - `unbalance_magnitude` (float): in kg·m (NOT kg — this is mass times eccentricity)
 - `unbalance_phase` (float): phase angle in rad
-- `frequency` (array): excitation frequencies in rad/s
+- `speed_range` (array): rotor speeds in rad/s (the unbalance excitation is synchronous, so this is also the excitation frequency)
 
 Multiple unbalance sources: pass arrays for `node`, `unbalance_magnitude`, `unbalance_phase`.
 
@@ -50,11 +50,9 @@ fig = response.plot_bode(probe=[probe1])
 fig = response.plot_polar_bode(probe=[probe1])
 
 # Deflected shape / bending moment at a specific speed. The speed must be an
-# EXACT element of the frequency array passed to run_unbalance_response,
+# EXACT element of the speed_range array passed to run_unbalance_response,
 # otherwise ValueError: "No data available for this speed value."
-speed = frequency_range[
-    np.argmin(abs(frequency_range - rs.Q_(5000, "RPM").to("rad/s").m))
-]
+speed = speed_range[np.argmin(abs(speed_range - rs.Q_(5000, "RPM").to("rad/s").m))]
 fig = response.plot_deflected_shape(speed=speed)
 fig = response.plot_deflected_shape_2d(speed=speed)
 fig = response.plot_bending_moment(speed=speed)

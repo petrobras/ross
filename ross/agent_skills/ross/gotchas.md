@@ -26,11 +26,20 @@
 - `F` shape must be `(len(t), rotor.ndof)` — rows are time steps, columns are DOFs
 - This is the transpose of the forced response `force` array which is `(ndof, num_frequencies)`
 
-## Speed-Dependent Bearings
+## Speed vs Frequency Axes of Coefficient Tables
 
-- The `frequency` array in `BearingElement` defines the speeds at which coefficients are known
-- Coefficients are interpolated automatically — no need to manually evaluate
-- Any coefficient given as an array (`kxx`, `kyy`, `cxx`, etc.) must have the same length as `frequency`; scalars are broadcast to that length automatically
+- `speed=` declares a table over the rotor speed (fluid-film bearings, seals); `frequency=` declares a table over the excitation (whirl) frequency (`SqueezeFilmDamper`, `MagneticBearingElement`). Before ROSS 3.0 every table was passed as `frequency=`, even though the values were rotor speeds — migrate those to `speed=`
+- A file saved by ROSS 2 loads with its `frequency` table intact and gives identical synchronous results; it only differs once the excitation frequency is decoupled from the speed
+- Coefficients are interpolated automatically — no need to manually evaluate. A single-value lookup (`brg.kxx_interpolated(w)`, `brg.K(w)`, `run_modal(speed=w)`) is the synchronous diagonal: both axes evaluated at `w`
+- Any coefficient given as an array (`kxx`, `kyy`, `cxx`, etc.) must match the axis length — `(len(speed),)`, `(len(frequency),)` or `(len(speed), len(frequency))` for 2-D tables; scalars are broadcast automatically. Mismatches raise `Arguments (coefficients, speed and frequency) must have the same dimension`
+- Tables are interpolated with a shape-preserving cubic (PCHIP) along each axis (`interpolation="linear"` switches to piecewise linear); axes must be strictly increasing. Lookups outside an axis extrapolate linearly from the end slope, so damping can go negative far off-grid — cover the speed and whirl ranges you will analyse
+- Give at least 5 points per axis spanning the analysis range: `run_campbell`, `run_freq_response`, `run_modal(frequency=...)` and `matched_whirl` warn when they interpolate a 2- to 4-point table or leave an axis
+- `brg.kxx` is always a plain list (nested for 2-D); use `np.array(brg.kxx)` for arithmetic
+
+## `synchronous=` Is Not the Whirl-Frequency Option
+
+- `run_modal(synchronous=True)` / `run_ucs(synchronous=True)` fold the gyroscopic matrix into the mass matrix (Rouch's formulation); it has nothing to do with how the coefficients are looked up
+- To evaluate frequency-dependent coefficients away from the rotor speed use `run_modal(speed, frequency=f)` or `run_modal(speed, matched_whirl=True)` (each mode at its own `wd`, reported in `ModalResults.whirl_frequency`); the two options are mutually exclusive
 
 ## Plotting
 

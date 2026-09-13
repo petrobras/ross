@@ -14,7 +14,10 @@ modal = rotor.run_modal(speed=0, num_modes=12)
 - `speed` (float): rotor speed in rad/s (use `rs.Q_(4000, "RPM").to("rad/s").m` to convert)
 - `num_modes` (int): number of eigenvalues to compute (default 12); the results contain `num_modes // 2` mode pairs
 - `sparse` (bool): use the sparse ARPACK eigensolver (True, default) or dense `scipy.linalg.eig` (False)
-- `synchronous` (bool): if True, runs a synchronous analysis — the shaft gyroscopic terms are folded into the mass matrix so the whirl frequency equals the rotor speed (default False)
+- `synchronous` (bool): if True, runs a synchronous analysis — the shaft gyroscopic terms are folded into the mass matrix so the whirl frequency equals the rotor speed (Rouch's formulation, default False). Unrelated to the coefficient options below
+- `frequency` (float, optional): evaluate the frequency-dependent bearing/seal coefficients at this excitation (whirl) frequency while the gyroscopic effect keeps `speed`. Default None: synchronous coefficients (frequency = speed)
+- `matched_whirl` (bool): iterate each mode until the coefficients are evaluated at the mode's own damped natural frequency (default False; mutually exclusive with `frequency`)
+- `whirl_rtol` (float, 1e-3) and `whirl_max_iter` (int, 15): tolerance and iteration cap of the `matched_whirl` fixed point (a warning is issued if a mode does not converge)
 
 ## Results: `ModalResults`
 
@@ -24,7 +27,30 @@ modal.wd  # damped natural frequencies (rad/s)
 modal.damping_ratio  # damping ratios (dimensionless)
 modal.log_dec  # logarithmic decrements
 modal.evalues  # raw complex eigenvalues (modal.evectors for eigenvectors)
+modal.whirl_frequency  # whirl frequency the coefficients were evaluated at, per mode
 ```
+
+## Coefficients at the Whirl Frequency
+
+Only matters for elements whose coefficients depend on the excitation frequency:
+`frequency=` tables (squeeze film dampers, magnetic bearings) and 2-D
+`speed=` + `frequency=` tables (seals and fluid-film bearings built with
+`frequency=`, see [seals.md](seals.md)). Speed-only tables are constant along
+the whirl axis, so the three calls below coincide for them.
+
+```python
+w = rs.Q_(8000, "RPM").to("rad/s").m
+modal_sync = rotor.run_modal(speed=w)  # coefficients at frequency = w
+modal_fixed = rotor.run_modal(speed=w, frequency=0.5 * w)  # all modes at 0.5 w
+modal_matched = rotor.run_modal(speed=w, matched_whirl=True)  # each mode at its own wd
+modal_matched.whirl_frequency  # converged per-mode whirl frequencies (== modal_matched.wd)
+```
+
+`matched_whirl` solves one eigenproblem per mode per iteration (typically 2–3
+iterations for `num_modes // 2` modes), so it costs a few times a plain
+`run_modal`. Use it for subsynchronous stability, where the destabilizing mode
+whirls well below the running speed and the synchronous lookup misestimates the
+log decrement.
 
 ## Plotting
 

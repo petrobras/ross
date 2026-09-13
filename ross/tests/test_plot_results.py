@@ -181,7 +181,7 @@ def bearing_element():
     frequency = np.array(
         [314.2, 418.9, 523.6, 628.3, 733.0, 837.8, 942.5, 1047.2, 1151.9]
     )
-    return BearingElement(4, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, frequency=frequency)
+    return BearingElement(4, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, speed=frequency)
 
 
 @pytest.fixture
@@ -246,7 +246,7 @@ def _expected_frf_phase(freq_response, inp, out, phase_units="rad"):
 
 
 def _expected_bearing_coefficient_plot(bearing, coefficient, frequency_units="rad/s"):
-    frequency_range = np.linspace(min(bearing.frequency), max(bearing.frequency), 30)
+    frequency_range = np.linspace(min(bearing.speed), max(bearing.speed), 30)
     coefficient_values = getattr(bearing, f"{coefficient}_interpolated")(
         frequency_range
     )
@@ -454,7 +454,7 @@ def test_bearing_element_plot_stiffness(bearing_element):
     assert_trace_allclose(fig.data[0], x=expected_x, y=expected_y)
 
     expected_y_slice = np.array(
-        [8.50000000e07, 9.39094443e07, 1.00985975e08, 1.06782950e08, 1.11853726e08]
+        [8.50000000e07, 9.24121279e07, 9.94509523e07, 1.06081472e08, 1.12218094e08]
     )
     assert_allclose(fig.data[0].y[:5], expected_y_slice)
 
