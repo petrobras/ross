@@ -31,14 +31,12 @@ requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-# All the following settings are optional:
-where = ["."] 
-include = ["*", "ross.new_units.txt*"]  # ["*"] by default
-exclude = ["interface*"]  # empty by default
-# "interface*" keeps the graphical interface out of the wheel. Without it,
-# packages.find resolves the folder in namespace mode and 20 packages named
-# interface, interface.api, interface.domain, ... are installed at the top of
-# the namespace of anyone who runs `pip install ross-rotordynamics`.
+where = ["."]
+include = ["ross*"]
+# Discovery runs in namespace mode (no __init__.py needed, which ross/bearings/magnetic
+# and ross/benchmark rely on), so every folder at the repository root that holds a .py
+# file would otherwise ship as a top-level package: docs, tools, interface, a leftover
+# build/. Restricting `include` to "ross*" is what keeps them out of the wheel.
 
 [project]
 name = "ross-rotordynamics"

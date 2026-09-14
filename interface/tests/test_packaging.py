@@ -31,8 +31,7 @@ import repository
 from domain.analysis_catalog import ANALYSES
 
 # The name the folder will have inside the ROSS repository. It is written down
-# because two guards depend on it, and because changing the name means changing
-# the line we ask for in their `exclude`.
+# because several guards depend on it.
 FOLDER_IN_ROSS = "interface"
 
 
@@ -88,18 +87,26 @@ def test_our_pytest_config_does_not_turn_on_doctests():
 
 # --- not entering the ROSS wheel ----------------------------------------------
 
-ROSS_FIND_CONFIG = dict(where=".", include=["*", "ross.new_units.txt*"], exclude=[])
+
+def _ross_find_config():
+    """`[tool.setuptools.packages.find]` as ROSS's `pyproject.toml` really has it."""
+    import tomllib
+
+    with io.open(os.path.join(os.path.dirname(ROOT), "pyproject.toml"), "rb") as handle:
+        return tomllib.load(handle)["tool"]["setuptools"]["packages"]["find"]
 
 
-def _discover(base, exclude):
-    """The packages setuptools would find, with ROSS's configuration."""
+def _discover(base, config):
+    """The packages setuptools would find in `base` with that configuration."""
     from setuptools import find_namespace_packages
 
     previous = os.getcwd()
     os.chdir(base)
     try:
         return find_namespace_packages(
-            where=".", include=ROSS_FIND_CONFIG["include"], exclude=exclude
+            where=".",
+            include=config.get("include", ["*"]),
+            exclude=config.get("exclude", []),
         )
     finally:
         os.chdir(previous)
@@ -109,6 +116,7 @@ def _fake_repository(destination):
     """A tree shaped like the ROSS repo with the interface inside."""
     for path in (
         "ross/tests",
+        "ross/bearings/magnetic",
         "docs",
         "%s/api" % FOLDER_IN_ROSS,
         "%s/tests" % FOLDER_IN_ROSS,
@@ -117,39 +125,38 @@ def _fake_repository(destination):
     for module in (
         "ross/__init__.py",
         "ross/rotor_assembly.py",
+        "ross/bearings/magnetic/amb_models.py",
+        "docs/conf.py",
         "%s/api/__init__.py" % FOLDER_IN_ROSS,
     ):
         io.open(os.path.join(destination, module), "w").close()
     return destination
 
 
-def test_the_folder_would_be_shipped_inside_the_ross_wheel_without_one_line(tmp_path):
-    """Why we ask for one line in their `pyproject.toml`, and exactly which.
+def test_the_folder_is_not_shipped_inside_the_ross_wheel(tmp_path):
+    """ROSS's package discovery must never reach this folder.
 
-    ROSS's `[tool.setuptools.packages.find]` resolves in *namespace* mode: a folder
-    at the root enters the distribution **even without `__init__.py`**. Without the
-    line, anyone running `pip install ross-rotordynamics` starts receiving an
-    `interface` package at the top of their own namespace.
-
-    This test is the evidence for the request: without the line we are packaged,
-    with it we are not. If setuptools ever changes behaviour, it says so -- and the
-    request to upstream stops making sense."""
+    `[tool.setuptools.packages.find]` resolves in *namespace* mode: a folder at the
+    root enters the distribution **even without `__init__.py`**. Left open, anyone
+    running `pip install ross-rotordynamics` would receive an `interface` package
+    (and `docs`, and `tools`) at the top of their own namespace. ROSS keeps that
+    closed by restricting `include` to `ross*`; this reads the real configuration,
+    so loosening it there is caught here."""
     base = _fake_repository(str(tmp_path))
+    found = _discover(base, _ross_find_config())
 
-    without_the_line = _discover(base, ROSS_FIND_CONFIG["exclude"])
-    ours = sorted(p for p in without_the_line if p.split(".")[0] == FOLDER_IN_ROSS)
-    assert ours, (
-        "setuptools did not pick the folder up: if this became true, the "
-        "line asked of upstream is no longer needed"
+    ours = [p for p in found if p.split(".")[0] == FOLDER_IN_ROSS]
+    assert ours == [], "the interface would ship inside the ROSS wheel: %s" % ours
+    assert [p for p in found if p.split(".")[0] == "docs"] == []
+
+    assert "ross" in found, "control: ROSS itself has to still be there"
+    assert "ross.bearings.magnetic" in found, (
+        "control: namespace mode is what keeps ross subfolders without __init__.py; "
+        "an __init__.py-only discovery would break `import ross`"
     )
-
-    with_the_line = _discover(
-        base, ROSS_FIND_CONFIG["exclude"] + ["%s*" % FOLDER_IN_ROSS]
+    assert "ross.tests" in found, (
+        "the test suite ships on purpose: `pytest --pyargs ross` checks an installation"
     )
-    still_ours = [p for p in with_the_line if p.split(".")[0] == FOLDER_IN_ROSS]
-    assert still_ours == [], "the line we ask for does not solve it: %s" % still_ours
-
-    assert "ross" in with_the_line, "control: ROSS itself has to still be there"
 
 
 def test_the_project_root_is_not_an_importable_package():
