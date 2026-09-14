@@ -497,6 +497,25 @@ def test_plot_mode_3d_frame_is_right_handed(rotor1):
     assert (lines.x[0], lines.y[0], lines.z[0]) == (0.0, 0.0, 0.0)
 
 
+def test_campbell_mode_shape_keeps_the_plot_mode_3d_view(rotor1):
+    speed_range = np.linspace(0, 400, 5)
+    campbell = rotor1.run_campbell(speed_range)
+    camp_fig, update_mode_3d = campbell._plot_with_mode_shape()
+
+    # the Dash page used to force its own camera on the mode shape, so the
+    # view differed from plot_mode_3d and the modebar reset jumped elsewhere
+    reference = campbell.modal_results[speed_range[0]].plot_mode_3d(0)
+    for fig in (
+        update_mode_3d(),
+        update_mode_3d(
+            {"x": camp_fig.data[1].x[-1], "y": camp_fig.data[1].y[-1], "curveNumber": 1}
+        ),
+    ):
+        assert fig.layout.scene.camera.eye.x is None
+        assert fig.layout.scene.aspectratio == reference.layout.scene.aspectratio
+        assert fig.layout.scene.xaxis.range[0] > fig.layout.scene.xaxis.range[1]
+
+
 def test_plot_mode_2d_has_no_axes_indicator(rotor1):
     modal = rotor1.run_modal(speed=Q_(4000, "RPM"))
     fig = modal.plot_mode_2d(0)
