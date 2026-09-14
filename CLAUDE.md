@@ -105,6 +105,10 @@ pip install -e ".[dev]"    # development install with test/lint/docs deps
 
 Requires Python >= 3.9.
 
+### Migrating ROSS 2 assets
+
+`ross_2to3 PATH...` (module `ross/ross_2to3/`) converts v2 rotor files, scripts and notebooks to the v3 API. The rename map in `ross/ross_2to3/renames.py` is the single source of truth: a rename added there is converted by the tool and must appear in `docs/release_notes/version-3.0.0.rst` (checked by `test_ross_2to3.py`).
+
 ### Testing
 
 ```bash

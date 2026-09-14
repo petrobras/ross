@@ -217,6 +217,269 @@ Documentation
 API Changes and Migration Guide
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+Upgrading with ``ross_2to3``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Version 3.0.0 renames constructor parameters across ``ross.bearings`` and ``ross.seals`` and
+changes a few conventions (diameters instead of radii, radians and kelvin instead of the old
+plain-number degrees and degrees Celsius) without deprecation shims. The ``ross_2to3`` command
+installed with ROSS converts existing assets (`#1358 <https://github.com/petrobras/ross/issues/1358>`_):
+
+.. code-block:: bash
+
+   ross_2to3 my_rotor.toml analysis.py notebooks/   # preview: diff plus a report
+   ross_2to3 -w my_rotor.toml analysis.py           # rewrite in place, keeping .bak copies
+   ross_2to3 -o converted/ project/                 # write the converted files elsewhere
+
+- **Rotor and element files** (``.toml`` / ``.json`` written by ``save()``): the renamed keys and
+  their values are converted, ``frequency`` tables become ``speed`` tables, and every solver-based
+  bearing section (``PlainJournal``, ``TiltingPad``, ``ThrustPad``, ``SqueezeFilmDamper``) is
+  written as the ``BearingElement`` coefficient table ROSS 3 itself saves, so the file loads
+  without re-running a solver. Seal sections keep their class with the renamed parameters. Each
+  converted file is loaded with the installed ROSS to prove it is valid.
+- **Scripts and notebooks** (``.py`` / ``.ipynb``): the keyword arguments of the constructors
+  below, of ``run_unbalance_response`` / ``run_ucs`` and the moved module paths are rewritten in
+  place, preserving formatting. Literal values whose convention changed are converted
+  (``journal_radius=0.2`` becomes ``journal_diameter=0.4``; ``pad_arc_length=176`` becomes
+  ``pad_arc=Q_(176, "deg")``; ``reference_temperature=50`` becomes
+  ``oil_supply_temperature=Q_(50, "degC")``; ``iopt1=1`` becomes ``use_jenny_kanki=True``;
+  ``load=[fx, fy]`` becomes ``fxs_load=fx, fys_load=fy``), removed parameters are dropped, and
+  anything that cannot be rewritten safely — positional arguments, ``**kwargs``, non-literal values
+  in changed units, uses of removed classes — is listed in the report with its line number.
+
+The rename map lives in ``ross.ross_2to3.renames`` and is rendered below.
+
+Bearing and seal parameter names
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Geometry is entered as diameters (what drawings and vendor sheets specify), angles in radians
+(or any pint angle), temperatures in kelvin (or any pint temperature); clearances stay
+``radial_clearance``. Seals keep ``inlet_``/``outlet_pressure`` and ``inlet_temperature`` from the
+gas-seal literature, while bearings use ``oil_supply_temperature`` / ``oil_supply_pressure``
+from the lubrication literature. ``HolePatternSeal.excitation_ratio`` replaces ``whirl_ratio``
+to avoid a clash with the whirl-frequency-ratio stability output (Lund's WFR), which keeps its
+name. ``HolePatternSeal.nz`` and ``ThrustPad.n_theta`` / ``n_radial`` are unchanged: they
+describe a 1-D bulk-flow grid and a polar thrust-face grid, not the fluid-film mesh family
+(`#1359 <https://github.com/petrobras/ross/pull/1359>`_,
+`#1360 <https://github.com/petrobras/ross/pull/1360>`_).
+
+.. list-table::
+   :header-rows: 1
+   :widths: 22 28 50
+
+   * - Class
+     - ROSS 2
+     - ROSS 3
+   * - ``BearingElement``
+     - ``frequency``
+     - ``speed``
+   * - ``SealElement``
+     - ``frequency``
+     - ``speed``
+   * - ``ST_BearingElement``
+     - ``frequency``
+     - ``speed``
+   * - ``FluidFilmBearing``
+     - ``frequency``
+     - ``speed``
+   * - ``PlainJournal``
+     - ``frequency``
+     - ``speed``
+   * - ``PlainJournal``
+     - ``axial_length``
+     - ``pad_axial_length``
+   * - ``PlainJournal``
+     - ``journal_radius``
+     - ``journal_diameter`` (value ×2, radius to diameter)
+   * - ``PlainJournal``
+     - ``n_pad``
+     - ``n_pads``
+   * - ``PlainJournal``
+     - ``pad_arc_length``
+     - ``pad_arc`` (plain numbers were degrees, now radians)
+   * - ``PlainJournal``
+     - ``reference_temperature``
+     - ``oil_supply_temperature`` (plain numbers were degrees Celsius, now kelvin)
+   * - ``PlainJournal``
+     - ``initial_guess``
+     - ``initial_position`` (now the (x, y) journal position as fractions of the radial clearance)
+   * - ``PlainJournal``
+     - ``elements_circumferential``
+     - ``total_ex_film``
+   * - ``PlainJournal``
+     - ``elements_axial``
+     - ``total_ez_film``
+   * - ``PlainJournal``
+     - ``operating_type``
+     - same name; ``flooded`` becomes ``regular_flooded``, ``starvation`` becomes ``starved_condition_even``
+   * - ``PlainJournal``
+     - ``geometry``
+     - removed: use MultiLobeBearing or EllipticalBearing for non-circular bores
+   * - ``PlainJournal``
+     - ``model_type``
+     - removed: the engine is always thermo-hydro-dynamic
+   * - ``PlainJournal``
+     - ``sommerfeld_type``
+     - removed: the Sommerfeld number is reported directly
+   * - ``PlainJournal``
+     - ``method``
+     - removed: the coefficients come from a single perturbation route
+   * - ``PlainJournal``
+     - ``groove_factor``
+     - removed: groove mixing is set by hot_oil_lambda
+   * - ``TiltingPad``
+     - ``frequency``
+     - ``speed``
+   * - ``TiltingPad``
+     - ``pre_load``
+     - ``preload``
+   * - ``TiltingPad``
+     - ``nx``
+     - ``total_ex_film`` (must be even)
+   * - ``TiltingPad``
+     - ``nz``
+     - ``total_ez_film``
+   * - ``TiltingPad``
+     - ``nr_pad``
+     - ``total_ey_pad``
+   * - ``TiltingPad``
+     - ``load``
+     - ``fxs_load``, ``fys_load`` (the [fx, fy] pair is split into two arguments)
+   * - ``TiltingPad``
+     - ``hot_oil_carry_over``
+     - ``hot_oil_lambda``
+   * - ``TiltingPad``
+     - ``k_pad``
+     - ``pad_conductivity``
+   * - ``TiltingPad``
+     - ``h_edge``
+     - ``edges_convection``
+   * - ``TiltingPad``
+     - ``relax_t``
+     - ``relax_temperature``
+   * - ``TiltingPad``
+     - ``journal_temperature``
+     - ``journal_temperature`` (plain numbers were degrees Celsius, now kelvin)
+   * - ``TiltingPad``
+     - ``equilibrium_type``
+     - same name; ``determine_eccentricity`` becomes ``match_load``
+   * - ``TiltingPad``
+     - ``initial_pads_angles``
+     - removed: the solver owns its iteration strategy and tolerances
+   * - ``TiltingPad``
+     - ``solver_options``
+     - removed: the solver owns its iteration strategy and tolerances
+   * - ``TiltingPad``
+     - ``inlet_temperature_tolerance``
+     - removed: the solver owns its iteration strategy and tolerances
+   * - ``TiltingPad``
+     - ``max_inlet_iterations``
+     - removed: the solver owns its iteration strategy and tolerances
+   * - ``TiltingPad``
+     - ``h_sump``
+     - removed: the solver owns its iteration strategy and tolerances
+   * - ``TiltingPad``
+     - ``max_jtemp_iter``
+     - removed: the solver owns its iteration strategy and tolerances
+   * - ``TiltingPad``
+     - ``jtemp_error``
+     - removed: the solver owns its iteration strategy and tolerances
+   * - ``TiltingPad``
+     - ``max_relax_change``
+     - removed: the solver owns its iteration strategy and tolerances
+   * - ``ThrustPad``
+     - ``frequency``
+     - ``speed``
+   * - ``ThrustPad``
+     - ``n_pad``
+     - ``n_pads``
+   * - ``ThrustPad``
+     - ``pad_arc_length``
+     - ``pad_arc``
+   * - ``ThrustPad``
+     - ``angular_pivot_position``
+     - ``pivot_angle``
+   * - ``SqueezeFilmDamper``
+     - ``journal_radius``
+     - ``journal_diameter`` (value ×2, radius to diameter)
+   * - ``LabyrinthSeal``
+     - ``frequency``
+     - ``speed``
+   * - ``LabyrinthSeal``
+     - ``shaft_radius``
+     - ``shaft_diameter`` (value ×2, radius to diameter)
+   * - ``LabyrinthSeal``
+     - ``molar``
+     - ``molar_mass``
+   * - ``LabyrinthSeal``
+     - ``tz``
+     - ``reference_temperatures``
+   * - ``LabyrinthSeal``
+     - ``muz``
+     - ``reference_viscosities``
+   * - ``LabyrinthSeal``
+     - ``iopt1``
+     - ``use_jenny_kanki`` (0/1 becomes False/True)
+   * - ``LabyrinthSeal``
+     - ``nprt``
+     - removed: printing is controlled by print_results
+   * - ``LabyrinthSeal``
+     - ``analz``
+     - removed: leakage and dynamic coefficients are always computed
+   * - ``HolePatternSeal``
+     - ``frequency``
+     - ``speed``
+   * - ``HolePatternSeal``
+     - ``shaft_radius``
+     - ``shaft_diameter`` (value ×2, radius to diameter)
+   * - ``HolePatternSeal``
+     - ``molar``
+     - ``molar_mass``
+   * - ``HolePatternSeal``
+     - ``length``
+     - ``axial_length``
+   * - ``HolePatternSeal``
+     - ``roughness``
+     - ``relative_roughness``
+   * - ``HolePatternSeal``
+     - ``whirl_ratio``
+     - ``excitation_ratio``
+   * - ``HolePatternSeal``
+     - ``entr_coef``
+     - ``entrance_loss_coefficient``
+   * - ``HolePatternSeal``
+     - ``exit_coef``
+     - ``exit_loss_coefficient``
+   * - ``HolePatternSeal``
+     - ``rlx_factor``
+     - ``relaxation_factor``
+   * - ``HolePatternSeal``
+     - ``b_suther``
+     - ``sutherland_b``
+   * - ``HolePatternSeal``
+     - ``s_suther``
+     - ``sutherland_s``
+   * - ``HybridSeal``
+     - ``frequency``
+     - ``speed``
+   * - ``HybridSeal``
+     - ``shaft_radius``
+     - ``shaft_diameter`` (value ×2, radius to diameter)
+   * - ``HybridSeal``
+     - ``molar``
+     - ``molar_mass``
+   * - ``MultiRotor``
+     - ``square_stiffness_amplitude_ratio``
+     - removed: the mesh stiffness is described by the Mesh class
+   * - ``Mesh``
+     - ``square_stiffness_amplitude_ratio``
+     - removed: the mesh stiffness is described by the Mesh class
+
+``HybridSeal`` takes the ``HolePatternSeal`` / ``LabyrinthSeal`` names inside its
+``hole_pattern_parameters`` / ``labyrinth_parameters`` dictionaries. ``TiltingPad.n_link``,
+``PlainJournal.operating_type`` and the mesh sizes are forwarded to ``FluidFilmBearing`` as
+keyword arguments.
+
 Coefficient table axis: ``frequency=`` becomes ``speed=``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -252,9 +515,9 @@ TOML / JSON key ``frequency`` of saved elements      key ``speed`` (files with `
 ===================================================  ==========================================================
 
 Saved rotor files written by version 2 keep loading: their ``frequency`` tables become
-excitation-frequency tables, which give identical results in every synchronous analysis. Re-save
-the rotor (or edit the key to ``speed``) before running analyses that decouple the excitation
-frequency from the speed.
+excitation-frequency tables, which give identical results in every synchronous analysis. Run
+``ross_2to3`` on the file (or re-save the rotor) before running analyses that decouple the
+excitation frequency from the speed.
 
 Other behavior changes of the coefficient rework:
 
@@ -331,34 +594,35 @@ Old module                                           New module
 ``PlainJournal`` parameter changes
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-- ``sommerfeld_type`` and ``method`` are deprecated and ignored — the solver reports the
-  Sommerfeld number directly and has a single perturbation route for the coefficients.
-- ``groove_factor`` is deprecated and ignored — groove mixing is modeled through the solver's
-  hot-oil carryover factor (``hot_oil_lambda``).
-- ``geometry="lobe"`` / ``"elliptical"`` are deprecated — use ``MultiLobeBearing`` /
-  ``EllipticalBearing``.
-- ``elements_circumferential`` / ``elements_axial`` are now optional (the solver mesh is used
-  when omitted).
-- A plain-number ``reference_temperature`` is still interpreted as degC (with a warning) — pass a
-  pint quantity to be explicit; likewise a plain-number ``pad_arc_length`` is interpreted as
-  degrees.
-- ``operating_type`` names map onto the engine vocabulary (``"flooded"`` →
-  ``"regular_flooded"``, ``"starvation"`` → ``"starved_condition_even"``); the engine names are
-  also accepted.
+- ``sommerfeld_type``, ``method`` and ``model_type`` were removed — the solver reports the
+  Sommerfeld number directly, has a single perturbation route for the coefficients and is always
+  thermo-hydro-dynamic.
+- ``groove_factor`` was removed — groove mixing is modeled through the solver's hot-oil carryover
+  factor (``hot_oil_lambda``).
+- ``geometry`` was removed — use ``MultiLobeBearing`` / ``EllipticalBearing`` for non-circular
+  bores.
+- ``elements_circumferential`` / ``elements_axial`` became the optional ``total_ex_film`` /
+  ``total_ez_film`` mesh overrides (the solver mesh is used when omitted).
+- Plain numbers are no longer interpreted as degrees (``pad_arc_length``) or degrees Celsius
+  (``reference_temperature``): ``pad_arc`` takes radians and ``oil_supply_temperature`` kelvin,
+  or a pint quantity in any unit.
+- ``operating_type`` uses the engine vocabulary (``"flooded"`` → ``"regular_flooded"``,
+  ``"starvation"`` → ``"starved_condition_even"``).
 
 ``TiltingPad`` parameter changes
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 - ``equilibrium_type="determine_eccentricity"`` is now ``"match_load"``;
   ``"match_eccentricity"`` keeps its meaning (the journal is held at the prescribed position).
-- The solver-iteration knobs ``solver_options``, ``initial_pads_angles``,
-  ``inlet_temperature_tolerance``, ``max_inlet_iterations``, ``max_jtemp_iter``, ``jtemp_error``,
-  ``max_relax_change`` and ``h_sump`` are deprecated and ignored — the solver owns its iteration
-  strategy and convergence tolerances.
+- ``load=[fx, fy]`` became ``fxs_load`` / ``fys_load``, and the solver-iteration knobs
+  ``solver_options``, ``initial_pads_angles``, ``inlet_temperature_tolerance``,
+  ``max_inlet_iterations``, ``max_jtemp_iter``, ``jtemp_error``, ``max_relax_change`` and
+  ``h_sump`` were removed — the solver owns its iteration strategy and convergence tolerances.
+- ``journal_temperature`` is in kelvin (it defaulted to 25 °C as a plain number).
 - New capabilities through keyword arguments: pivot flexibility (``deform_type``,
   ``pivot_type``, ``pivot_stiffness``), leading-edge-groove and spray-bar lubrication
   (``bearing_type``), starved and high-ambient-pressure operation (``operating_type``), and
-  parallel solution of the frequency table (``num_processes``).
+  parallel solution of the speed table (``num_processes``).
 
 Post-processing methods
 ^^^^^^^^^^^^^^^^^^^^^^^

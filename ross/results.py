@@ -2736,9 +2736,11 @@ class CampbellResults(Results):
         damping_range : tuple, optional
             Damping range to plot.
         campbell_layout : dict, optional
-            Layout for Campbell plot.
+            Layout applied on top of the Campbell plot.
         mode_3d_layout : dict, optional
-            Layout for 3D mode plot.
+            Layout applied on top of the 3D mode shape figures. Default is None,
+            which keeps the view plot_mode_3d draws, so the modebar's "reset
+            camera" returns to the same picture.
         animation : bool, optional
             If True, enables animation.
         fig : plotly.graph_objects.Figure, optional
@@ -2888,8 +2890,6 @@ class CampbellResults(Results):
 
         campbell_layout = dict(margin=dict(l=0, r=0, t=30, b=0))
 
-        mode_3d_layout = dict(scene=dict(camera=dict(eye=dict(x=3.0, y=2.2, z=1.2))))
-
         camp_fig, update_mode_3d = self._plot_with_mode_shape(
             harmonics=harmonics,
             frequency_units=frequency_units,
@@ -2898,7 +2898,6 @@ class CampbellResults(Results):
             frequency_range=frequency_range,
             damping_range=damping_range,
             campbell_layout=campbell_layout,
-            mode_3d_layout=mode_3d_layout,
             animation=animation,
             fig=fig,
             **kwargs,
