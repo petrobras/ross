@@ -8262,7 +8262,14 @@ class ClearanceResults(Results):
 
         return fig
 
-    def plot_response(self, length_units="um", speed_units="RPM", fig=None, **kwargs):
+    def plot_response(
+        self,
+        length_units="um",
+        speed_units="RPM",
+        fig=None,
+        line_shape="linear",
+        **kwargs,
+    ):
         """Plot the scaled response at each location against the rotor speed.
 
         The 75 % clearance limit of each location is drawn as a dashed line in
@@ -8277,6 +8284,9 @@ class ClearanceResults(Results):
             Units for the rotor speed. Default is "RPM".
         fig : plotly.graph_objects.Figure, optional
             Figure to add traces to.
+        line_shape : str, optional
+            Line interpolation style for the Plotly traces (e.g. "linear", "spline").
+            Default is "linear".
         **kwargs : optional
             Additional layout arguments.
 
@@ -8300,7 +8310,7 @@ class ClearanceResults(Results):
                     mode="lines",
                     name=label,
                     legendgroup=label,
-                    line={"color": color},
+                    line={"color": color, "shape": line_shape},
                     hovertemplate=(
                         f"{label}<br>Speed: %{{x:.0f}} {speed_units}<br>"
                         f"Amplitude: %{{y:.1f}} {length_units} pk-pk<extra></extra>"
@@ -8333,7 +8343,12 @@ class ClearanceResults(Results):
         return fig
 
     def plot_probe_response(
-        self, length_units="um", speed_units="RPM", fig=None, **kwargs
+        self,
+        length_units="um",
+        speed_units="RPM",
+        fig=None,
+        line_shape="linear",
+        **kwargs,
     ):
         """Plot the unscaled probe response with the vibration limit.
 
@@ -8349,6 +8364,9 @@ class ClearanceResults(Results):
             Units for the rotor speed. Default is "RPM".
         fig : plotly.graph_objects.Figure, optional
             Figure to add traces to.
+        line_shape : str, optional
+            Line interpolation style for the Plotly traces (e.g. "linear", "spline").
+            Default is "linear".
         **kwargs : optional
             Additional layout arguments.
 
@@ -8369,6 +8387,7 @@ class ClearanceResults(Results):
                     y=to_length(response),
                     mode="lines",
                     name=tag,
+                    line={"shape": line_shape},
                     hovertemplate=(
                         f"{tag}<br>Speed: %{{x:.0f}} {speed_units}<br>"
                         f"Amplitude: %{{y:.1f}} {length_units} pk-pk<extra></extra>"
