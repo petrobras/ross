@@ -907,6 +907,91 @@ class BearingElement(Element):
 
         dump_data(data, file)
 
+    def save_coefficient_table(self, file):
+        """Save the element as a plain coefficient-table BearingElement.
+
+        Solver-based bearings (``FluidFilmBearing`` and its configuration
+        classes, ``ThrustPad``, ``SqueezeFilmDamper``) use this as their
+        ``save()``: the file holds the solved dynamic-coefficient table under
+        a ``BearingElement_<tag>`` section, so loading it restores the
+        rotordynamic behavior instantly instead of re-running the solver.
+        Re-create the object from its constructor to change the bearing model.
+
+        Parameters
+        ----------
+        file : str or pathlib.Path
+            File to write (created or updated).
+        """
+        from ross.utils import dump_data, load_data
+
+        try:
+            data = load_data(file)
+        except FileNotFoundError:
+            data = {}
+
+        args = sorted(
+            set(self._get_coefficient_list())
+            | {"n", "speed", "frequency", "tag", "n_link", "scale_factor", "color"}
+        )
+        element_data = {}
+        for arg in args:
+            value = self.__dict__.get(arg)
+            if value is None:
+                continue
+            if isinstance(value, np.generic):
+                value = value.item()
+            elif isinstance(value, np.ndarray):
+                value = value.tolist()
+            else:
+                try:
+                    value = [item.item() for item in value]
+                except (TypeError, AttributeError):
+                    pass
+            element_data[arg] = value
+
+        data[f"BearingElement_{self.tag}"] = element_data
+        dump_data(data, file)
+
+    @classmethod
+    def load(cls, file):
+        """Load an element from a .toml or .json file.
+
+        Classes whose ``save()`` writes a plain coefficient table (see
+        :meth:`save_coefficient_table`) read it back as the class named in
+        the file, so ``PlainJournal.load`` or ``SqueezeFilmDamper.load``
+        returns the saved ``BearingElement`` table instead of re-running the
+        solver. Other subclasses keep building themselves, as before.
+
+        Parameters
+        ----------
+        file : str, pathlib.Path
+            The name of the file the element will be loaded from.
+
+        Returns
+        -------
+        The element object.
+
+        Examples
+        --------
+        >>> from tempfile import tempdir
+        >>> from pathlib import Path
+        >>> bearing = bearing_example()
+        >>> file = Path(tempdir) / 'bearing_load.toml'
+        >>> bearing.save(file)
+        >>> BearingElement.load(file) == bearing
+        True
+        """
+        import ross
+        from ross.utils import load_data
+
+        data = load_data(file)
+        section_name, section = next(iter(data.items()))
+        element_class = cls
+        if cls.save is not BearingElement.save:
+            class_name = section_name.split("_")[0]
+            element_class = getattr(ross, class_name, cls)
+        return element_class.read_toml_data(section)
+
     @classmethod
     def read_toml_data(cls, data):
         """Read and parse data stored in a .toml or .json file.

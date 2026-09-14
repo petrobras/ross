@@ -571,35 +571,7 @@ class FluidFilmBearing(BearingElement):
         file : str or pathlib.Path
             File to write (created or updated).
         """
-        from ross.utils import dump_data, load_data
-
-        try:
-            data = load_data(file)
-        except FileNotFoundError:
-            data = {}
-
-        args = sorted(
-            set(self._get_coefficient_list())
-            | {"n", "speed", "frequency", "tag", "n_link", "scale_factor", "color"}
-        )
-        element_data = {}
-        for arg in args:
-            value = self.__dict__.get(arg)
-            if value is None:
-                continue
-            if isinstance(value, np.generic):
-                value = value.item()
-            elif isinstance(value, np.ndarray):
-                value = value.tolist()
-            else:
-                try:
-                    value = [item.item() for item in value]
-                except (TypeError, AttributeError):
-                    pass
-            element_data[arg] = value
-
-        data[f"BearingElement_{self.tag}"] = element_data
-        dump_data(data, file)
+        self.save_coefficient_table(file)
 
     def _engine_cases(self):
         """List the solver cases of the coefficient table, in table order.

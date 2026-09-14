@@ -265,6 +265,10 @@ Other behavior changes of the coefficient rework:
 - The dimension error message reads ``Arguments (coefficients, speed and frequency) must have the
   same dimension``.
 - ``SealElement`` persists ``seal_leakage`` on ``save()`` / ``load()``.
+- ``SqueezeFilmDamper.save()`` and ``ThrustPad.save()`` write the solved coefficient table as a
+  ``BearingElement`` section, as ``FluidFilmBearing`` does (``BearingElement.save_coefficient_table``);
+  both classes could not load the files they wrote before. ``BearingElement.load`` builds the element
+  with the class named in the file, so ``SqueezeFilmDamper.load(file)`` returns that table.
 - Constant coefficients are returned exactly instead of through a two-point interpolator (which
   added round-off of the order of 1e-13 away from zero speed).
 - 1-D tables were interpolated with a smoothing spline (``scipy.interpolate.UnivariateSpline`` with
