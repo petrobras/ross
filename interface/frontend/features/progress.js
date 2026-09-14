@@ -20,12 +20,15 @@
 
 import { openCustomAlert, openCustomConfirm } from '../components/modals.js';
 import { apiFetch } from '../core/api.js';
+import { busySpinner } from '../core/dom.js';
 import { t } from '../core/i18n.js';
 import { watchWork } from '../core/work.js';
 
 export function startWorkBar() {
     const bar = document.getElementById('work-bar');
     if (!bar) return;
+    const icon = document.getElementById('work-bar-icon');
+    if (icon) icon.innerHTML = busySpinner();
     const stop = document.getElementById('work-bar-stop');
     if (stop) stop.addEventListener('click', interruptEverything);
     watchWork(work => drawWorkBar(bar, work));
