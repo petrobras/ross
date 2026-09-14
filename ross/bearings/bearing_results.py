@@ -6,7 +6,7 @@ from plotly.subplots import make_subplots
 from prettytable import PrettyTable
 from scipy.interpolate import griddata
 
-from ross.plotly_theme import INDICATOR_INK, axes_indicator_3d, tableau_colors
+from ross.plotly_theme import SHAPE_3D_CAMERA, axes_indicator_3d, tableau_colors
 from ross.units import Q_
 
 __all__ = [
@@ -407,65 +407,6 @@ class ThrustPadResults(BearingResults):
 
         return x_coords, y_coords
 
-    def _axes_indicator(self, fig, x_coords, y_coords, field):
-        """Draw the frame triad in front of the pad on a Cartesian 3-D plot.
-
-        The scene keeps the pad proportions in the x-y plane and normalizes
-        the field axis, so the arms, sized from the pad radial width, look
-        the same whatever the field magnitude. The z axis carries the field,
-        not a length, so only the x and y arms are drawn, with the spin ω
-        turning about the collar axis, x toward y. The triad sits on the
-        bearing center side of the pad, between the pad and the axis.
-
-        Parameters
-        ----------
-        fig : plotly.graph_objects.Figure
-            The figure object with the surface plot.
-        x_coords, y_coords : ndarray
-            Cartesian grids of the pad surface, m.
-        field : ndarray
-            Field values drawn on the z axis.
-
-        Returns
-        -------
-        fig : plotly.graph_objects.Figure
-            The figure object with the triad.
-        """
-        radial_width = self.pad_outer_radius - self.pad_inner_radius
-        width = x_coords.max() - x_coords.min()
-        x_range = [x_coords.min() - 0.05 * width, x_coords.max() + 0.05 * width]
-        y_range = [
-            y_coords.min() - 0.7 * radial_width,
-            y_coords.max() + 0.05 * radial_width,
-        ]
-        span = max(np.ptp(field), 1e-12)
-        z_range = [field.min(), field.max() + 0.05 * span]
-        widest = max(x_range[1] - x_range[0], y_range[1] - y_range[0])
-        fig.update_layout(
-            scene=dict(
-                xaxis=dict(range=x_range),
-                yaxis=dict(range=y_range),
-                zaxis=dict(range=z_range),
-                aspectmode="manual",
-                aspectratio=dict(
-                    x=(x_range[1] - x_range[0]) / widest,
-                    y=(y_range[1] - y_range[0]) / widest,
-                    z=0.8,
-                ),
-            )
-        )
-        return axes_indicator_3d(
-            fig,
-            origin=dict(
-                x=0.5 * (x_range[0] + x_range[1]),
-                y=y_coords.min() - 0.45 * radial_width,
-                z=z_range[0],
-            ),
-            size=0.3 * radial_width / widest,
-            scales=dict(x=widest, y=widest, z=(z_range[1] - z_range[0]) / 0.8),
-            arms=("x", "y"),
-        )
-
     def _build_interp_grid(self, x_coords, y_coords, z_data, resolution=800):
         """Interpolate field data onto a regular Cartesian grid.
 
@@ -669,8 +610,6 @@ class ThrustPadResults(BearingResults):
             )
         )
 
-        fig = self._axes_indicator(fig, x_coords, y_coords, pressure_field)
-
         fig.update_layout(
             title="Pressure field",
             scene=dict(
@@ -771,8 +710,6 @@ class ThrustPadResults(BearingResults):
                 + "<extra></extra>",
             )
         )
-
-        fig = self._axes_indicator(fig, x_coords, y_coords, temperature_field)
 
         fig.update_layout(
             title="Temperature field",
@@ -1310,21 +1247,6 @@ class FluidFilmBearingResults(BearingResults):
                     + "<extra></extra>",
                 )
             )
-        fig.add_annotation(
-            text=(
-                "Spin ω turns x toward y (counterclockwise about z); θ is measured "
-                "from each pad's leading edge and grows with the spin"
-            ),
-            xref="paper",
-            yref="paper",
-            x=0.5,
-            y=0,
-            yshift=-8,
-            xanchor="center",
-            yanchor="top",
-            showarrow=False,
-            font=dict(size=11, color=INDICATOR_INK),
-        )
         fig.update_layout(
             scene=dict(
                 xaxis_title="Theta [rad]",
@@ -1572,9 +1494,9 @@ class FluidFilmBearingResults(BearingResults):
 
         fig.add_trace(
             go.Mesh3d(
-                x=np.concatenate(x),
-                y=np.concatenate(y),
-                z=np.concatenate(z),
+                x=np.concatenate(z),
+                y=np.concatenate(x),
+                z=np.concatenate(y),
                 i=triangles[:, 0],
                 j=triangles[:, 1],
                 k=triangles[:, 2],
@@ -1584,9 +1506,9 @@ class FluidFilmBearingResults(BearingResults):
                 flatshading=True,
                 name="Pad temperature",
                 hovertemplate=(
-                    f"x: %{{x:.4g}} {length_units}<br>"
-                    f"y: %{{y:.4g}} {length_units}<br>"
-                    f"z: %{{z:.4g}} {length_units}<br>"
+                    f"x: %{{y:.4g}} {length_units}<br>"
+                    f"y: %{{z:.4g}} {length_units}<br>"
+                    f"z: %{{x:.4g}} {length_units}<br>"
                     f"Temperature: %{{intensity:.5g}} {temperature_units}"
                     "<extra></extra>"
                 ),
@@ -1596,31 +1518,36 @@ class FluidFilmBearingResults(BearingResults):
         if show_interface:
             fig.add_trace(
                 go.Scatter3d(
-                    x=np.concatenate(interface_x),
-                    y=np.concatenate(interface_y),
-                    z=np.concatenate(interface_z),
+                    x=np.concatenate(interface_z),
+                    y=np.concatenate(interface_x),
+                    z=np.concatenate(interface_y),
                     mode="lines",
                     line=dict(color="red", width=3, dash="dash"),
                     name="Babbitt surface",
                 )
             )
 
+        # the scene is laid out like the rotor shape plots: the bearing axis
+        # (z) runs along the scene x axis, x along the scene y axis and y
+        # along the scene z axis, seen from the same camera
         x_all, y_all, z_all = np.concatenate(x), np.concatenate(y), np.concatenate(z)
         bore = np.sqrt(np.min(x_all**2 + y_all**2))
         fig = axes_indicator_3d(
             fig,
-            origin=dict(x=0.0, y=0.0, z=z_all.min()),
+            origin=dict(x=z_all.min(), y=0.0, z=0.0),
             size=0.6 * bore,
             scales=dict(x=1.0, y=1.0, z=1.0),
+            scene_axes={"x": "y", "y": "z", "z": "x"},
         )
 
         fig.update_layout(
             title=dict(text="Solid pad temperature"),
             scene=dict(
-                xaxis_title=f"X ({length_units})",
-                yaxis_title=f"Y ({length_units})",
-                zaxis_title=f"Z ({length_units})",
+                xaxis_title=f"Z ({length_units})",
+                yaxis_title=f"X ({length_units})",
+                zaxis_title=f"Y ({length_units})",
                 aspectmode="data",
+                camera=SHAPE_3D_CAMERA,
             ),
             legend=dict(x=0.02, y=0.98, xanchor="left", yanchor="top"),
             **kwargs,

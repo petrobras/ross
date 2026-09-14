@@ -194,6 +194,15 @@ def color_shades(color):
 
 INDICATOR_INK = "#33475C"
 
+# camera shared by the 3-D scenes which put the rotor length on the scene x
+# axis (rotor z), the rotor x on the scene y axis and the rotor y on the scene
+# z axis: node 0 at the far left, the spin axis receding to the right
+SHAPE_3D_CAMERA = dict(
+    eye=dict(x=2.1, y=-2.6, z=1.2),
+    center=dict(x=0, y=0, z=0),
+    up=dict(x=0, y=0, z=1),
+)
+
 
 def _elliptic_arc(cx, cy, rx, ry, t0, t1, segments=4):
     """Build an elliptic arc as an SVG path of cubic Bezier segments.
@@ -460,7 +469,8 @@ def axes_indicator_3d(
     Returns
     -------
     fig : plotly.graph_objects.Figure
-        The figure object with the triad traces.
+        The figure object with the triad traces. The triad has one legend
+        entry, "Axes", which toggles the whole triad when clicked.
 
     Examples
     --------
@@ -545,8 +555,9 @@ def axes_indicator_3d(
             mode="lines",
             line=dict(color=ink, width=4),
             name="Axes",
+            legendgroup="axes",
             hoverinfo="skip",
-            showlegend=False,
+            showlegend=True,
         )
     )
     positions = [to_scene(point) for point, _ in labels]
@@ -560,6 +571,7 @@ def axes_indicator_3d(
             textfont=dict(color=ink, size=14),
             textposition="middle center",
             name="Axes",
+            legendgroup="axes",
             hoverinfo="skip",
             showlegend=False,
         )

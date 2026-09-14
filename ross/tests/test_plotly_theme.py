@@ -158,7 +158,9 @@ def test_axes_indicator_3d_maps_display_arms_onto_scene_axes():
 
     assert [trace.type for trace in fig.data] == ["scatter3d", "scatter3d"]
     lines, text = fig.data
-    assert all(not trace.showlegend for trace in fig.data)
+    # one legend entry toggles the whole triad
+    assert [trace.showlegend for trace in fig.data] == [True, False]
+    assert {trace.legendgroup for trace in fig.data} == {"axes"}
     points = {
         (round(x, 9), round(y, 9), round(z, 9))
         for x, y, z in zip(lines.x, lines.y, lines.z)

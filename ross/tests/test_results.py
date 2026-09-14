@@ -7,6 +7,7 @@ from numpy.testing import assert_allclose, assert_almost_equal, assert_equal
 
 import ross as rs
 from ross import Q_, Probe
+from ross.plotly_theme import SHAPE_3D_CAMERA
 from ross.results import *
 from ross.rotor_assembly import *
 from ross.bearings.magnetic.amb_models import rotor_example_amb_complex_controllers
@@ -482,35 +483,32 @@ def test_plot_mode_3d_frame_is_right_handed(rotor1):
     # the rotor length runs forward on the scene x axis, so the scene
     # (z, x, y) triple keeps the handedness of the rotor frame
     assert fig.layout.scene.xaxis.autorange != "reversed"
-    assert fig.layout.scene.camera.eye.x < 0
+    assert fig.layout.scene.camera.eye.to_plotly_json() == SHAPE_3D_CAMERA["eye"]
 
     axes = [trace for trace in fig.data if trace.name == "Axes"]
     assert [trace.mode for trace in axes] == ["lines", "text"]
     assert list(axes[1].text) == ["x", "y", "z", "ω"]
-    assert all(not trace.showlegend for trace in axes)
+    # the triad sits on the rotor axis at z = 0 and toggles from the legend
+    assert [trace.showlegend for trace in axes] == [True, False]
+    lines = axes[0]
+    assert (lines.x[0], lines.y[0], lines.z[0]) == (0.0, 0.0, 0.0)
 
 
-def test_plot_mode_2d_axes_indicator(rotor1):
+def test_plot_mode_2d_has_no_axes_indicator(rotor1):
     modal = rotor1.run_modal(speed=Q_(4000, "RPM"))
     fig = modal.plot_mode_2d(0)
 
-    labels = {a.text for a in fig.layout.annotations if a.text}
-    assert {"<i>x</i>", "<i>y</i>", "<i>z</i>", "<i>ω</i>"} <= labels
-    assert [shape.type for shape in fig.layout.shapes].count("line") == 2
-    assert fig.layout.margin.b >= 120
+    assert len(fig.layout.shapes) == 0
 
 
-def test_plot_orbit_axes_indicator(rotor1):
+def test_plot_orbit_axis_names(rotor1):
     modal = rotor1.run_modal(speed=Q_(4000, "RPM"), num_modes=14)
     lateral_mode = next(
         i for i, shape in enumerate(modal.shapes) if shape.mode_type == "Lateral"
     )
     fig = modal.plot_orbit(lateral_mode, nodes=[2])
 
-    # the orbit plane is x-y, so z points out of the page: no cross lines
-    assert [shape.type for shape in fig.layout.shapes].count("line") == 0
-    labels = {a.text for a in fig.layout.annotations if a.text}
-    assert {"<i>x</i>", "<i>y</i>", "<i>z</i>", "<i>ω</i>"} <= labels
+    assert len(fig.layout.shapes) == 0
     assert fig.layout.xaxis.title.text == "<i>x</i>"
     assert fig.layout.yaxis.title.text == "<i>y</i>"
 

@@ -24,7 +24,7 @@ from pathlib import Path
 from ross.bearings.magnetic.amb_utils import get_ambs
 
 from ross.plotly_theme import (
-    axes_indicator_2d,
+    SHAPE_3D_CAMERA,
     axes_indicator_3d,
     coolwarm_r,
     tableau_colors,
@@ -1616,8 +1616,9 @@ class Shape(Results):
 
         Shape plots put the rotor length on the scene x axis, with an aspect
         ratio of 2.5:1:1, and the displacements on the scene y (rotor x) and
-        z (rotor y) axes over a symmetric range. The triad sits at the node 0
-        end, in the lower front corner of the scene.
+        z (rotor y) axes over a symmetric range. The triad sits on the rotor
+        axis at z = 0 (or at the first node when the rotor does not start
+        there) and has a legend entry which toggles it.
 
         Parameters
         ----------
@@ -1635,10 +1636,11 @@ class Shape(Results):
         """
         nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
         length = max(np.max(nodes_pos) - np.min(nodes_pos), 1e-12)
+        z0 = 0.0 if np.min(nodes_pos) <= 0.0 <= np.max(nodes_pos) else np.min(nodes_pos)
         return axes_indicator_3d(
             fig,
-            origin=dict(x=np.min(nodes_pos), y=-0.9 * half_range, z=-0.9 * half_range),
-            size=0.18,
+            origin=dict(x=z0, y=0.0, z=0.0),
+            size=0.15,
             scales=dict(x=length / 2.5, y=2 * half_range, z=2 * half_range),
             scene_axes={"x": "y", "y": "z", "z": "x"},
         )
@@ -1681,11 +1683,7 @@ class Shape(Results):
         fig.update_layout(
             scene=dict(
                 aspectratio=dict(x=2.5, y=1, z=1),
-                camera=dict(
-                    eye=dict(x=-2.3, y=1.5, z=0.5),
-                    center=dict(x=-1.15, y=0.5, z=0),
-                    up=dict(x=0, y=0, z=1),
-                ),
+                camera=SHAPE_3D_CAMERA,
             ),
             **kwargs,
         )
@@ -2161,11 +2159,7 @@ class ModalResults(Results):
                 ),
                 aspectmode="manual",
                 aspectratio=dict(x=2.5, y=1, z=1),
-                camera=dict(
-                    eye=dict(x=-2.3, y=1.5, z=0.5),
-                    center=dict(x=-1.15, y=0.5, z=0),
-                    up=dict(x=0, y=0, z=1),
-                ),
+                camera=SHAPE_3D_CAMERA,
             ),
             legend=dict(x=0.85, y=0.95),
             title=dict(
@@ -2252,8 +2246,6 @@ class ModalResults(Results):
 
         shape = self.shapes[mode]
         fig = shape.plot_2d(fig=fig, orientation=orientation)
-        axes_indicator_2d(fig, plane="zy", y=-105, arm=34)
-        fig.update_layout(margin=dict(b=125))
 
         if title is None:
             title = ""
@@ -2319,14 +2311,11 @@ class ModalResults(Results):
 
         shape = self.shapes[mode]
         fig = shape.plot_orbit(nodes, fig=fig)
-        if shape.orbits is not None:
-            axes_indicator_2d(fig, plane="xy", y=-105, arm=34)
 
         fig.update_layout(
             autosize=False,
             width=500,
-            height=545,
-            margin=dict(b=125),
+            height=500,
             xaxis=dict(range=[-1, 1], title=dict(text="<i>x</i>")),
             yaxis=dict(range=[-1, 1], title=dict(text="<i>y</i>")),
             title={

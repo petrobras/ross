@@ -101,7 +101,3 @@ def test_cartesian_coords_grow_with_the_spin(thrust_pad):
     assert_allclose(angles[-1], np.pi / 2 + results.pad_arc / 2)
     assert np.all(np.diff(angles) > 0)
     assert len(angles) == results.n_theta + 2
-
-    fig = thrust_pad.plot_pressure_3d()
-    assert [trace.name for trace in fig.data].count("Axes") == 2
-    assert fig.layout.scene.aspectmode == "manual"
