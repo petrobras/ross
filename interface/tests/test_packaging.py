@@ -88,9 +88,7 @@ def test_our_pytest_config_does_not_turn_on_doctests():
 
 # --- not entering the ROSS wheel ----------------------------------------------
 
-ROSS_FIND_CONFIG = dict(
-    where=".", include=["*", "ross.new_units.txt*"], exclude=["ross.tests*"]
-)
+ROSS_FIND_CONFIG = dict(where=".", include=["*", "ross.new_units.txt*"], exclude=[])
 
 
 def _discover(base, exclude):

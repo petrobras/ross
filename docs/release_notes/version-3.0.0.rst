@@ -234,6 +234,14 @@ by default (``line_shape="spline"``) instead of straight segments: ``FrequencyRe
 ``ClearanceResults.plot_response`` / ``plot_probe_response``, which gained the argument. The sampled
 values are not changed; pass ``line_shape="linear"`` to recover the previous drawing.
 
+Installed Test Suite
+^^^^^^^^^^^^^^^^^^^^
+
+The test suite is now installed with the package as ``ross.tests``, so an installation can be
+checked from any directory with ``pytest --pyargs ross``. The data files read by the library
+itself (``compressor_example()`` and the ``from_table`` spreadsheets) moved from ``ross/tests/data``
+to ``ross/data``.
+
 Documentation
 ^^^^^^^^^^^^^
 

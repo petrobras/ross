@@ -1522,7 +1522,7 @@ class BearingElement(Element):
         Examples
         --------
         >>> import os
-        >>> file_path = os.path.dirname(os.path.realpath(__file__)) + '/tests/data/bearing_seal_si.xls'
+        >>> file_path = os.path.dirname(os.path.realpath(__file__)) + '/data/bearing_seal_si.xls'
         >>> BearingElement.table_to_toml(0, file_path) # doctest: +ELLIPSIS
         {'n': 0, 'kxx': [13798100.0, ...
         """
@@ -1590,7 +1590,7 @@ class BearingElement(Element):
         Examples
         --------
         >>> import os
-        >>> file_path = os.path.dirname(os.path.realpath(__file__)) + '/tests/data/bearing_seal_si.xls'
+        >>> file_path = os.path.dirname(os.path.realpath(__file__)) + '/data/bearing_seal_si.xls'
         >>> BearingElement.from_table(0, file_path, n_link=1) # doctest: +ELLIPSIS
         BearingElement(n=0, n_link=1,
          kxx=[13798100.0, ...

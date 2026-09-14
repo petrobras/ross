@@ -237,7 +237,8 @@ def test_equality(bearing0, bearing1, bearing_constant):
 
 def test_from_table():
     bearing_file = (
-        os.path.dirname(os.path.realpath(__file__)) + "/data/bearing_seal_si.xls"
+        os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+        + "/data/bearing_seal_si.xls"
     )
 
     bearing = BearingElement.from_table(0, bearing_file)
@@ -247,7 +248,8 @@ def test_from_table():
 
     # bearing with us units
     bearing_file = (
-        os.path.dirname(os.path.realpath(__file__)) + "/data/bearing_seal_us.xls"
+        os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+        + "/data/bearing_seal_us.xls"
     )
     bearing = BearingElement.from_table(0, bearing_file)
     assert bearing.n == 0

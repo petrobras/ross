@@ -7057,7 +7057,7 @@ def compressor_example():
     >>> len(rotor.bearing_elements)
     14
     """
-    compressor_dir = Path(__file__).parent / "tests/data/compressor_example.toml"
+    compressor_dir = Path(__file__).parent / "data/compressor_example.toml"
 
     return Rotor.load(compressor_dir)
 
