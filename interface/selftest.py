@@ -8,8 +8,8 @@ depends on two files that are data inside installed packages, reached by path:
 * `plotly/package_data/plotly.min.js`, which the `/lib/plotly.min.js` route
   serves -- the charting library the browser loads;
 * ROSS's own `new_units.txt`, which pint reads to learn the units the library
-  adds (it is in the `include` of ROSS's `pyproject.toml`, which is how we know
-  it ships as package data and not as code).
+  adds (it is listed in ROSS's `MANIFEST.in`, which is how we know it ships as
+  package data and not as code).
 
 Neither is an `import`, so neither is followed by default. Missing, they produce
 an executable that starts, shows the page, and dies on the first analysis --
