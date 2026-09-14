@@ -20,6 +20,7 @@ import { copyRotorInHub, createNewRotorInHub, deleteRotorInHub, editRotorName, g
 import { addElementFromNodeHub, buildRotorLive, changeLanguage, closeForm, closeNodeHub, copyItem, deleteItem, editItem, loadRotor, openForm, openTab, saveItem, saveRotor, selectSubType } from './features/modeling.js';
 import { closeMultiRotorModal, openMultiRotorModal, saveMultiRotor, switchMultiRotorTarget } from './features/multirotor.js';
 import { startWorkBar } from './features/progress.js';
+import { startTheme, toggleTheme } from './core/theme.js';
 import { exitApplication, switchScreen, toggleAnalysisSidebar, toggleSidebar } from './features/screens.js';
 
 // --- Wiring between layers -------------------------------------------------
@@ -33,6 +34,9 @@ onReorder(buildRotorLive);
 
 // The schema is loaded once at startup; openForm waits for it.
 document.addEventListener('DOMContentLoaded', () => {
+    // The theme first: the head script already set the attribute before the first
+    // paint, and this wires the buttons and the system's preference to it.
+    startTheme();
     // The page is born in English in the HTML; the chosen language is applied as
     // soon as the schema arrives, along with the analysis titles that come with it.
     applyLanguage();
@@ -85,5 +89,5 @@ Object.assign(window, {
     runCardAnalysis, saveAnalysis, saveItem, saveMultiRotor, saveRotor,
     saveRotorFromHub, selectSubType, switchMultiRotorTarget, switchScreen,
     toggleAdvanced, toggleAnalysis, toggleAnalysisSidebar, toggleDashAdv,
-    toggleSidebar,
+    toggleSidebar, toggleTheme,
 });

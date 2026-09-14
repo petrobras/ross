@@ -7,6 +7,7 @@ import { openCustomAlert } from '../components/modals.js';
 import { apiFetch, apiFetchLatest, wasCancelled, projectForServer } from '../core/api.js';
 import { busySpinner, escapeHtml } from '../core/dom.js';
 import { state, getActiveData, syncBackToLibrary } from '../core/state.js';
+import { themedLayout } from '../core/theme.js';
 import { applyLanguage, rememberLanguage, t } from '../core/i18n.js';
 import { formSubtypes, loadElementSchema, schemaReady } from '../core/schema.js';
 import { fillAnalysisTypes, redrawAnalyses } from './analysis.js';
@@ -129,7 +130,7 @@ export function openTab(category) {
         let drvSel = (state.multiRotorEditTarget === 'driving') ? 'selected' : '';
         let drvnSel = (state.multiRotorEditTarget === 'driven') ? 'selected' : '';
         titleHTML += `
-            <select id="mr-edit-target" onchange="switchMultiRotorTarget(this.value)" style="padding: 2px 6px; font-size:11px; font-weight: bold; border-radius: 4px; background: #e2e8f0; color: #334155; border: 1px solid #cbd5e1; outline: none; cursor: pointer; max-width: 160px; overflow: hidden; text-overflow: ellipsis;">
+            <select id="mr-edit-target" onchange="switchMultiRotorTarget(this.value)" class="target-select">
                 <option value="driving" ${drvSel}>${escapeHtml(t('multiDriving'))}: ${escapeHtml(state.projectData.driving_rotor.name)}</option>
                 <option value="driven" ${drvnSel}>${escapeHtml(t('multiDriven'))}: ${escapeHtml(state.projectData.driven_rotor.name)}</option>
             </select>
@@ -396,7 +397,7 @@ async function _fetchRotorLive() {
     if (!state.projectData.isMultiRotor && (!state.projectData.shafts || state.projectData.shafts.length === 0)) {
         plotContainer.innerHTML =
             `<div style="display: flex; height: 100%; min-height: 400px; align-items: center; justify-content: center;">`
-            + `<p style="color: #888; text-align: center; margin: 0;">${escapeHtml(t('addOneShaft'))}</p></div>`;
+            + `<p class="placeholder-text">${escapeHtml(t('addOneShaft'))}</p></div>`;
         if(infoContainer) infoContainer.style.opacity = '0';
         return;
     }    
@@ -431,7 +432,7 @@ async function _fetchRotorLive() {
             // Before drawing: positioning the menu after `newPlot` would not touch the
             // figure already rendered.
             (layout.updatemenus || []).forEach(menu => Object.assign(menu, ROTOR_MENU));
-            Plotly.newPlot('plot-rotor', fig.data, layout, { responsive: true });
+            Plotly.newPlot('plot-rotor', fig.data, themedLayout(layout), { responsive: true });
             setupPlotHoverEvents();
             if(infoContainer) {
                 document.getElementById('info-mass').innerText = data.mass.toFixed(4);
@@ -439,7 +440,7 @@ async function _fetchRotorLive() {
                 infoContainer.style.opacity = '1';
             }
         } else {
-            plotContainer.innerHTML = `<div style="padding:20px; color:var(--accent-danger); text-align:center;"><i class="fas fa-exclamation-triangle fa-2x"></i><br><b>${escapeHtml(t('modelingError'))}</b><br>${data.message}</div>`;
+            plotContainer.innerHTML = `<div class="analysis-error"><i class="fas fa-exclamation-triangle fa-2x"></i><br><b>${escapeHtml(t('modelingError'))}</b><br>${data.message}</div>`;
             if(infoContainer) infoContainer.style.opacity = '0';
         }
     } catch (e) { 
@@ -447,7 +448,7 @@ async function _fetchRotorLive() {
         rotorUpdateActive = false; 
         clearTimeout(loadingTimer); 
         plotContainer.style.opacity = '1';
-        plotContainer.innerHTML = `<p style="color:var(--accent-danger); text-align:center; margin-top:50%;">`
+        plotContainer.innerHTML = `<p class="analysis-error analysis-error-tall">`
             + `${escapeHtml(t('serverConnectionError'))}</p>`; 
         if(infoContainer) infoContainer.style.opacity = '0';
     }

@@ -4,6 +4,24 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title data-i18n="appTitle">ROSS - Graphical Interface</title>
+    <link rel="icon" href="assets/ross-logo.svg">
+    <!-- The theme, before the first paint: a dark page must not be born white.
+         A classic script on purpose -- the module below only runs after the
+         page is drawn. It reads the same key as core/theme.js, and a test keeps
+         the two equal. -->
+    <script>
+    (function () {
+        var theme = null;
+        try { theme = localStorage.getItem('ross-theme'); } catch (e) { /* storage blocked */ }
+        if (theme !== 'light' && theme !== 'dark') {
+            theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+        document.documentElement.setAttribute('data-theme', theme);
+    })();
+    </script>
+    <!-- The ROSS design system: the tokens the documentation uses, copied verbatim
+         (tests/test_design_system.py keeps the copy equal to docs/_static). -->
+    <link rel="stylesheet" href="design/ross-tokens.css">
     <link rel="stylesheet" href="style.css">
     <!-- Local libraries: the interface runs without internet and the executable packs them. -->
     <link rel="stylesheet" href="vendor/fontawesome/css/all.min.css">
@@ -14,8 +32,9 @@
 <body>
 
     <div id="screen-home" class="screen active">
+        <div class="home-tools"><button class="btn-theme" onclick="toggleTheme()" title="Switch between the light and dark theme" data-i18n-title="themeToggle"><i class="fas fa-moon"></i></button></div>
         <div class="home-container">
-            <img src="assets/ross-logo.svg" alt="ROSS Logo" class="logo-img-home" onerror="this.style.display='none'">
+            <img src="assets/ross-logo.svg" alt="ROSS Logo" class="logo-img-home invert-on-dark" onerror="this.style.display='none'">
             <h1 class="logo-text" data-i18n="appName">ROSS</h1>
             <p class="subtitle" data-i18n="appTagline">Rotordynamic Open-Source Software</p>
             <div class="home-buttons">
@@ -36,9 +55,10 @@
                 <button class="btn-back" onclick="switchScreen('screen-home')" title="Back to Home" data-i18n-title="backToHome"><i class="fas fa-arrow-left"></i></button>
             </div>
             <div class="topbar-center">
-                <img src="assets/ross-logo.svg" alt="Logo" class="logo-img-topbar" onerror="this.style.display='none'"> <span data-i18n="hubTitle">ROSS - Rotor Manager</span>
+                <img src="assets/ross-logo.svg" alt="Logo" class="logo-img-topbar invert-on-dark" onerror="this.style.display='none'"> <span data-i18n="hubTitle">ROSS - Rotor Manager</span>
             </div>
             <div class="topbar-actions">
+                <button class="btn-theme" onclick="toggleTheme()" title="Switch between the light and dark theme" data-i18n-title="themeToggle"><i class="fas fa-moon"></i></button>
                 <select class="ui-language" onchange="changeLanguage(this.value)" title="Language" data-i18n-title="language"><option value="en">English</option><option value="pt">Português</option></select>
                 <button class="btn-exit-small" onclick="exitApplication()" title="Exit" data-i18n-title="exit"><i class="fas fa-power-off"></i></button>
             </div>
@@ -50,7 +70,7 @@
                 <div style="display: flex; gap: 10px;">
                     <button class="btn-secondary" onclick="document.getElementById('upload-rotor-hub').click()"><i class="fas fa-upload"></i> Load Rotor</button>
                     <button class="btn-primary" onclick="createNewRotorInHub()"><i class="fas fa-plus"></i> <span data-i18n="hubAddRotor">Add New Rotor</span></button>
-                    <button class="btn-primary" style="background-color: #8b5cf6;" onclick="openMultiRotorModal()"><i class="fas fa-link"></i> <span data-i18n="hubLinkMultiRotor">Link MultiRotor</span></button>
+                    <button class="btn-primary btn-multirotor" onclick="openMultiRotorModal()"><i class="fas fa-link"></i> <span data-i18n="hubLinkMultiRotor">Link MultiRotor</span></button>
                     <input type="file" id="upload-rotor-hub" accept=".json, .toml" style="display: none;" onchange="loadRotor(event)">
                 </div>
             </div>
@@ -68,12 +88,13 @@
                 <button class="btn-help-general" onclick="openGeneralHelp()" title="How to use" data-i18n-title="howToUse"><i class="fas fa-question-circle"></i></button>
             </div>
             <div class="topbar-center">
-                <img src="assets/ross-logo.svg" alt="Logo" class="logo-img-topbar" onerror="this.style.display='none'"> <span data-i18n="modelingTitle">ROSS - Modeling</span>
+                <img src="assets/ross-logo.svg" alt="Logo" class="logo-img-topbar invert-on-dark" onerror="this.style.display='none'"> <span data-i18n="modelingTitle">ROSS - Modeling</span>
             </div>
             <div class="topbar-actions">
                 <button class="btn-py" onclick="generatePythonFile()" title="Generate Python" data-i18n-title="generatePython"><i class="fab fa-python"></i> <span class="btn-text" data-i18n="generatePython">Generate Python</span></button>
                 <button class="btn-save" onclick="saveRotor(event)" title="Save Rotor" data-i18n-title="saveRotor"><i class="fas fa-save"></i> <span class="btn-text" data-i18n="saveRotor">Save Rotor</span></button>
                 <button class="btn-analysis-go" onclick="switchScreen('screen-analysis')" title="Go to Analysis" data-i18n-title="goToAnalysis"><span class="btn-text" data-i18n="goToAnalysis">Go to Analysis</span> <i class="fas fa-arrow-right"></i></button>
+                <button class="btn-theme" onclick="toggleTheme()" title="Switch between the light and dark theme" data-i18n-title="themeToggle"><i class="fas fa-moon"></i></button>
                 <select class="ui-language" onchange="changeLanguage(this.value)" title="Language" data-i18n-title="language"><option value="en">English</option><option value="pt">Português</option></select>
                 <button class="btn-exit-small" onclick="exitApplication()" title="Exit" data-i18n-title="exit"><i class="fas fa-power-off"></i></button>
             </div>
@@ -113,14 +134,14 @@
             </div>
 
             <div class="plot-panel">
-                <div id="rotor-info" style="display:flex; justify-content:center; gap: 30px; margin-bottom: 15px; font-weight: 600; color: var(--text-main); font-size: 13px; background: var(--bg-card); padding: 10px; border-radius: var(--radius-ui); border: 1px solid var(--border-color); box-shadow: var(--shadow-card); opacity: 0; transition: opacity 0.3s;">
-                    <span><span data-i18n="totalMass">Total Mass:</span> <span id="info-mass" style="color: var(--accent-primary); font-family: monospace; font-size: 14px;">-</span> kg</span>
-                    <span><span data-i18n="polarInertia">Polar Inertia (Ip):</span> <span id="info-ip" style="color: var(--accent-primary); font-family: monospace; font-size: 14px;">-</span> kg.m²</span>
+                <div id="rotor-info" class="rotor-info">
+                    <span><span data-i18n="totalMass">Total Mass:</span> <span id="info-mass" class="info-value">-</span> kg</span>
+                    <span><span data-i18n="polarInertia">Polar Inertia (Ip):</span> <span id="info-ip" class="info-value">-</span> kg.m²</span>
                 </div>
 
                 <div id="plot-rotor" class="live-plot-area">
                     <div style="display: flex; height: 100%; min-height: 400px; align-items: center; justify-content: center;">
-                        <p style="color: #888; text-align: center; margin: 0;" data-i18n="rotorWillAppear">The rotor model will appear here...</p>
+                        <p class="placeholder-text" data-i18n="rotorWillAppear">The rotor model will appear here...</p>
                     </div>
                 </div>
             </div>
@@ -135,13 +156,14 @@
                 <button class="btn-help-general" onclick="openAnalysisHelp()" title="How to use Analysis" data-i18n-title="howToUseAnalysis"><i class="fas fa-question-circle"></i></button>
             </div>
             <div class="topbar-center">
-                <img src="assets/ross-logo.svg" alt="Logo" class="logo-img-topbar" onerror="this.style.display='none'"> <span data-i18n="analysisTitle">ROSS - Analysis</span>
+                <img src="assets/ross-logo.svg" alt="Logo" class="logo-img-topbar invert-on-dark" onerror="this.style.display='none'"> <span data-i18n="analysisTitle">ROSS - Analysis</span>
             </div>
             <div class="topbar-actions">
                 <button class="btn-py" onclick="generatePythonFile()" title="Generate Python" data-i18n-title="generatePython"><i class="fab fa-python"></i> <span class="btn-text" data-i18n="generatePython">Generate Python</span></button>
                 <button class="btn-save" onclick="saveAnalysis(event)" title="Save Analysis" data-i18n-title="saveAnalysis"><i class="fas fa-save"></i> <span class="btn-text" data-i18n="saveAnalysis">Save Analysis</span></button>
                 <button class="btn-secondary" onclick="document.getElementById('upload-analysis-screen').click()" title="Load Analysis" data-i18n-title="loadAnalysis"><i class="fas fa-folder-open"></i> <span class="btn-text" data-i18n="load">Load</span></button>
                 <input type="file" id="upload-analysis-screen" accept=".json" style="display: none;" onchange="loadAnalysis(event)">
+                <button class="btn-theme" onclick="toggleTheme()" title="Switch between the light and dark theme" data-i18n-title="themeToggle"><i class="fas fa-moon"></i></button>
                 <select class="ui-language" onchange="changeLanguage(this.value)" title="Language" data-i18n-title="language"><option value="en">English</option><option value="pt">Português</option></select>
                 <button class="btn-exit-small" onclick="exitApplication()" title="Exit" data-i18n-title="exit"><i class="fas fa-power-off"></i></button>
             </div>
@@ -163,7 +185,7 @@
             </div>
             
             <div class="analysis-plot-panel" id="analysis-list">
-                <p style="color: #888; text-align: center; margin-top: 20%;" data-i18n="dashboardsWillAppear">Generated dashboards will appear here.</p>
+                <p class="placeholder-text placeholder-text-tall" data-i18n="dashboardsWillAppear">Generated dashboards will appear here.</p>
             </div>
         </div>
     </div>
@@ -224,23 +246,23 @@
                 </div>
                 
                 <button type="button" class="btn-advanced" onclick="toggleAdvanced(this)"><span data-i18n="advanced">Advanced</span> <i class="fas fa-chevron-down"></i></button>
-                <div class="advanced-fields" style="display: none; margin-top: 10px; border-top: 1px dashed #ccc; padding-top: 10px;">
+                <div class="advanced-fields" style="display: none;">
                     <div class="input-group">
                         <label data-i18n="multiMeshStiffness">Gear Mesh Stiffness [N/m]</label>
                         <input type="number" id="mr-stiffness" step="any" placeholder="Auto-calculated if empty" data-i18n-placeholder="phAutoCalculated">
                     </div>
                     <div class="input-group"><label data-i18n="multiUpdateMesh">Update Mesh Stiff.</label><select id="mr-update-stiffness"><option value="false" data-i18n="no">False</option><option value="true" data-i18n="yes">True</option></select></div>
                     
-                    <div style="margin-top: 10px; border: 1px solid var(--border-color); padding: 10px; border-radius: 4px; background: #f8fafc;">
-                        <b style="font-size:12px; color:var(--text-muted); display:block; margin-bottom:8px;" data-i18n="multiSquareVarying">SQUARE VARYING STIFFNESS</b>
+                    <div class="form-section">
+                        <b class="form-section-title" data-i18n="multiSquareVarying">SQUARE VARYING STIFFNESS</b>
                         <div style="display: flex; gap: 10px;">
                             <div class="input-group"><label data-i18n="multiEnable">Enable</label><select id="mr-square-stiffness-enable"><option value="false" data-i18n="no">False</option><option value="true" data-i18n="yes">True</option></select></div>
                             <div class="input-group"><label data-i18n="multiAmplitudeRatio">Amplitude Ratio</label><input type="number" id="mr-square-stiffness-ratio" value="0" step="any"></div>
                         </div>
                     </div>
 
-                    <div style="margin-top: 10px; border: 1px solid var(--border-color); padding: 10px; border-radius: 4px; background: #f8fafc;">
-                        <b style="font-size:12px; color:var(--text-muted); display:block; margin-bottom:8px;" data-i18n="multiBacklash">BACKLASH</b>
+                    <div class="form-section">
+                        <b class="form-section-title" data-i18n="multiBacklash">BACKLASH</b>
                         <div style="display: flex; gap: 10px;">
                             <div class="input-group"><label data-i18n="multiEnable">Enable</label><select id="mr-backlash-enable"><option value="false" data-i18n="no">False</option><option value="true" data-i18n="yes">True</option></select></div>
                             <div class="input-group"><label data-i18n="multiInitialValue">Initial Value</label><input type="number" id="mr-backlash-initial" value="0.0" step="any"></div>
@@ -338,8 +360,9 @@
 if (!window.ROSS_TOKEN && window.location.protocol === 'file:') {
     document.addEventListener('DOMContentLoaded', () => {
         document.body.innerHTML =
-            '<div style="max-width:520px;margin:15vh auto;padding:28px;font-family:sans-serif;' +
-            'text-align:center;border:1px solid #cbd5e1;border-radius:4px;background:#fff;color:#334155">' +
+            '<div style="max-width:520px;margin:15vh auto;padding:28px;font-family:var(--font-sans);' +
+            'text-align:center;border:1px solid var(--border-default);border-radius:var(--radius-md);' +
+            'background:var(--surface-card);color:var(--text-body)">' +
             '<h2 style="margin:0 0 12px">Open the interface through the server</h2>' +
             '<p style="line-height:1.6">This file was opened straight from disk. Run ' +
             '<code>python app.py</code> and go to ' +

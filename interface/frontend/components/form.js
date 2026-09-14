@@ -47,8 +47,7 @@ function buildFieldHTML(field) {
 }
 
 function batchBannerHTML() {
-    return '<div style="background:#e8f4fd; border-left:4px solid #2980b9; padding:10px; ' +
-        'margin-bottom:15px; font-size:12px; color:#2c3e50;">' +
+    return '<div class="batch-banner">' +
         '<i class="fas fa-layer-group"></i> <b>' + t('batchTitle') + '</b> ' + t('batchBody') + '</div>';
 }
 
@@ -79,8 +78,7 @@ export function buildFormHTML(category, subtype) {
     if (advancedOnes.length) {
         html += '<button type="button" class="btn-advanced" onclick="toggleAdvanced(this)">' +
             t('advanced') + ' <i class="fas fa-chevron-down"></i></button>' +
-            '<div class="advanced-fields" style="display: none; margin-top: 10px; ' +
-            'border-top: 1px dashed #ccc; padding-top: 10px;">' + advancedOnes.join('') + '</div>';
+            '<div class="advanced-fields" style="display: none;">' + advancedOnes.join('') + '</div>';
     }
     return html;
 }

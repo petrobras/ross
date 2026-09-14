@@ -339,4 +339,7 @@ def test_the_badge_is_written_in_one_place_only():
         body.count('class="badge-conversion') == 2
     )  # o ramo conhecido e o desconhecido
     assert js.count('class="badge-conversion') == 3
-    assert "MultiRotor" in js[js.index('style="background:#8b5cf6;"') :][:120]
+    assert (
+        "MultiRotor"
+        in js[js.index('class="badge-conversion badge-multirotor"') :][:120]
+    )
