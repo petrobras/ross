@@ -5337,12 +5337,12 @@ class Rotor(object):
             if el_name in ("parameters", "ross_version") or el_name.startswith("_"):
                 continue
             class_name = el_name.split("_")[0]
-            try:
-                elements.append(globals()[class_name].read_toml_data(el_data))
-            except KeyError:
+            element_class = getattr(ross, class_name, None) or globals().get(class_name)
+            if element_class is None:
                 import rossxl as rsxl
 
-                elements.append(getattr(rsxl, class_name).read_toml_data(el_data))
+                element_class = getattr(rsxl, class_name)
+            elements.append(element_class.read_toml_data(el_data))
 
         shaft_elements = []
         disk_elements = []

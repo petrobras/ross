@@ -37,6 +37,12 @@ The skill activates automatically whenever you ask your agent about rotordynamic
 /ross create a rotor with 6 shaft elements, 2 disks and 2 bearings, then plot the Campbell diagram
 ```
 
+Upgrading from ROSS 2? Version 3 renamed the bearing and seal parameters. Convert your saved rotors, scripts and notebooks with:
+```bash
+ross_2to3 my_rotor.toml analysis.py     # preview
+ross_2to3 -w my_rotor.toml analysis.py  # rewrite in place (keeps .bak copies)
+```
+
 ## 📚 Documentation
 
 Access full documentation [**here**](https://ross.readthedocs.io).
