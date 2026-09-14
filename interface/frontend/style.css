@@ -1205,10 +1205,9 @@ button {
     color: var(--text-muted);
 }
 
-.campbell-hint i {
+.campbell-hint .ross-spinner {
     font-size: 26px;
     margin-bottom: 10px;
-    display: inline-block;
 }
 
 .campbell-error {
@@ -1281,6 +1280,13 @@ button {
     box-shadow: var(--shadow-card);
 }
 
+/* The logo, whirling. Drawn by `busySpinner` in core/dom.js; sized in em and
+   coloured by `currentColor`, so it sits wherever the old icon sat. */
+.ross-spinner {
+    display: inline-block;
+    vertical-align: -0.125em;
+}
+
 .work-bar-state {
     display: flex;
     align-items: center;
@@ -1288,7 +1294,7 @@ button {
     font-weight: 600;
 }
 
-.work-bar-state i {
+.work-bar-state .ross-spinner {
     color: var(--accent-primary);
 }
 
