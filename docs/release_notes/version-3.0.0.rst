@@ -170,6 +170,37 @@ thermodynamic table built once at construction (requires ``gas_composition``), i
 ideal-gas relations used by the default ``gas_model="ideal"``
 (`#1317 <https://github.com/petrobras/ross/pull/1317>`_).
 
+API 617 Clearance Analysis
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+``Rotor.run_clearance_analysis`` now follows API 617 (9th edition) 6.8.2.10 and 6.8.2.11:
+
+- the unbalance is placed and sized by the new ``Rotor.api617_unbalance(mode, maximum_continuous_speed)``,
+  which reads the antinodes of the selected forward mode shape and applies :math:`U_a = 2 U_r` with the
+  journal static loads (single antinode between the bearings), the nearest journal load (conical modes,
+  180° out of phase) or the overhung mass (overhung and coupling modes). An explicit ``node`` /
+  ``unbalance_magnitude`` / ``unbalance_phase`` can still be given;
+- the mechanical test vibration limit is :math:`A_{vl} = \min(25.4, 25.4 \sqrt{12000 / N_{mc}})` µm
+  peak to peak (the previous implementation omitted the square root and the 25.4 µm cap);
+- :math:`A_{max}` is the largest peak-to-peak amplitude at the machine vibration ``probes`` between
+  ``minimum_allowable_speed`` and ``maximum_continuous_speed``, instead of the x-direction amplitude at the
+  bearing nodes at a single speed;
+- the scale factor :math:`S_{cc} = A_{vl} / A_{max}` is only capped when ``scale_factor_cap`` is given
+  (API 617 uses 6; the default applies no cap);
+- the scaled **major-axis** peak-to-peak amplitude at every close-clearance location is compared with
+  75 % of the minimum **diametral** clearance over the whole ``speed_range`` (previously the x-direction
+  amplitude was compared with the radial clearance at one speed).
+
+Close-clearance locations are read from the rotor: every bearing or seal element with a
+``radial_clearance``. ``BearingElement`` and ``SealElement`` accept ``radial_clearance=`` so that
+coefficient-table elements (including tables written by ``save_coefficient_table``, which now keeps the
+clearance) take part in the check.
+
+``ClearanceResults`` stores the probe response, :math:`A_{vl}`, :math:`A_{max}`, :math:`S_{cc}`, the
+unbalance used and the scaled response at each location over the speed range, with ``data()`` for a
+summary table and ``plot()``, ``plot_response()`` and ``plot_probe_response()`` for the plots
+(`#1285 <https://github.com/petrobras/ross/pull/1285>`_ follow-up).
+
 Rotor Composition Helpers
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -645,6 +676,17 @@ Old method                                         New method
 ``plot_results()``, ``show_results()``, ``show_coefficients_comparison()`` and
 ``show_execution_time()`` keep their names, and ``plot_film_thickness_2d()`` and
 ``plot_pad_temperature_3d()`` are new.
+
+``run_clearance_analysis`` signature
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The v2.3 signature ``run_clearance_analysis(speed, node, unbalance_magnitude, unbalance_phase,
+frequency=None, modes=None)`` is replaced by
+``run_clearance_analysis(speed_range, minimum_allowable_speed, maximum_continuous_speed, probes,
+mode=0, node=None, unbalance_magnitude=None, unbalance_phase=None, scale_factor_cap=None)``.
+The result object no longer offers the ``speed_rpm`` / ``bearing_nodes`` / ``magnitudes`` /
+``clearance`` / ``clearance_75`` keys; use the attributes listed in ``ClearanceResults`` and
+``results.data()``. Amplitudes are stored in metres peak to peak and clearances are diametral.
 
 Bug Fixes
 ~~~~~~~~~

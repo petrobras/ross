@@ -53,6 +53,7 @@ from ross.results import (
     FrequencyResponseResults,
     Level1Results,
     ModalResults,
+    Orbit,
     SensitivityResults,
     StaticResults,
     SummaryResults,
@@ -194,6 +195,9 @@ def _cylinder_shading(relative_radius):
     shading[u > 1] = np.nan
 
     return shading
+
+
+FORWARD_WHIRL_RATIO = 0.25
 
 
 class Rotor(object):
@@ -5881,162 +5885,516 @@ class Rotor(object):
             **rotor._init_parameters(),
         )
 
-    @check_units
-    def run_clearance_analysis(
-        self,
-        speed,
-        node,
-        unbalance_magnitude,
-        unbalance_phase,
-        frequency=None,
-        modes=None,
-    ):
+    def _journal_bearing_loads(self):
+        """Static load carried by each journal bearing.
+
+        Returns
+        -------
+        loads : dict
+            Mapping ``node -> static load (kg)`` for every bearing that supports
+            the rotor in :meth:`run_static` (seals and housing bearings excluded).
         """
-        Perform clearance analysis using unbalance response.
+        static = self.run_static()
+        g = 9.8065
+        loads = {}
+        for key, force in static.bearing_forces.items():
+            node = int(key.replace("node_", ""))
+            loads[node] = abs(float(force)) / g
 
-        This method evaluates the vibration amplitude at bearing locations
-        and compares it with the available radial clearance. The unbalance
-        excitation is the same as in :meth:`run_unbalance_response` (node,
-        magnitude, phase, frequency range, and optional mode subset).
+        return loads
 
-        The procedure involves:
-            - Unbalance response calculation at the requested frequencies
-            - Extraction of vibration amplitudes at bearings at the speed of
-              interest (see ``speed`` vs. ``frequency`` below)
-            - Comparison with clearance limits (100% and 75%) after API 617
-              amplitude scaling
+    def _overhung_mass(self, bearing_node, side):
+        """Mass of the rotor outboard of a bearing.
 
         Parameters
         ----------
-        speed : float, pint.Quantity
-            Operating speed used for API 617 limits and for picking the
-            frequency row when ``frequency`` contains more than one value.
-            Must be a scalar (or an array with a single value), in rad/s.
-        node : list, int
-            Node(s) where the unbalance is applied (same as
-            :meth:`run_unbalance_response`).
-        unbalance_magnitude : list, float, pint.Quantity
-            Unbalance magnitude in kg·m (same as :meth:`run_unbalance_response`).
-        unbalance_phase : list, float, pint.Quantity
-            Unbalance phase in rad (same as :meth:`run_unbalance_response`).
-        frequency : list, ndarray, pint.Quantity, optional
-            Frequency points for the unbalance response in rad/s. If omitted,
-            defaults to ``[speed]`` so the response is evaluated at the
-            operating speed only.
-        modes : list, optional
-            Modes passed to :meth:`run_unbalance_response` (and then to
-            :meth:`run_forced_response`). Use this to control which modes
-            enter the frequency response calculation.
+        bearing_node : int
+            Node of the outermost bearing on that side.
+        side : str
+            ``"left"`` for the rotor portion before the bearing, ``"right"``
+            for the portion after it.
+
+        Returns
+        -------
+        mass : float
+            Mass outboard of the bearing (kg).
+        """
+        if side == "left":
+            shaft_mass = sum(
+                sh.m for sh in self.shaft_elements if sh.n_r <= bearing_node
+            )
+            lumped = [
+                elm
+                for elm in chain(self.disk_elements, self.point_mass_elements)
+                if elm.n < bearing_node
+            ]
+        else:
+            shaft_mass = sum(
+                sh.m for sh in self.shaft_elements if sh.n_l >= bearing_node
+            )
+            lumped = [
+                elm
+                for elm in chain(self.disk_elements, self.point_mass_elements)
+                if bearing_node < elm.n <= self.nodes[-1]
+            ]
+
+        lumped_mass = 0.0
+        for elm in lumped:
+            if getattr(elm, "m", None) is not None:
+                lumped_mass += float(elm.m)
+            else:
+                lumped_mass += 0.5 * (float(elm.mx) + float(elm.my))
+
+        return shaft_mass + lumped_mass
+
+    @staticmethod
+    def _whirl_ratio(shape):
+        """Amplitude-weighted whirl ratio of a mode shape.
+
+        Parameters
+        ----------
+        shape : ross.Shape
+            Mode shape.
+
+        Returns
+        -------
+        ratio : float
+            Mean of the orbit minor-to-major axis ratio (positive for forward
+            precession, negative for backward) weighted by the orbit major
+            axis, so that nodal points do not influence the result. Values
+            close to zero indicate nearly planar (mixed) orbits.
+        """
+        total = sum(orbit.major_axis for orbit in shape.orbits)
+        if total == 0:
+            return 0.0
+
+        return sum(orbit.kappa * orbit.major_axis for orbit in shape.orbits) / total
+
+    @check_units
+    def api617_unbalance(self, mode, maximum_continuous_speed, num_modes=12):
+        r"""Unbalance amount and placement for a mode as defined by API 617.
+
+        Follows API 617 (9th edition, 6.8.2.7 and Figure 2). The unbalance is
+        placed at the antinodes of the selected forward mode shape, evaluated at
+        the maximum continuous speed, with magnitude :math:`U_a = 2 U_r`, where
+        :math:`U_r` is the maximum allowable residual unbalance in g·mm:
+
+        .. math::
+
+            U_r = 6350 \frac{W}{N_{mc}} \; (N_{mc} < 25000 \text{ rpm}), \qquad
+            U_r = \frac{W}{3.937} \; (N_{mc} \geq 25000 \text{ rpm})
+
+        with :math:`W` in kg and :math:`N_{mc}` in rpm.
+
+        The placement and the load :math:`W` follow the mode shape:
+
+        - a single antinode between the journal bearings (translatory or first
+          bending mode): one unbalance at that antinode, with :math:`W` equal to
+          the sum of the journal static loads;
+        - several antinodes between the bearings (conical or second bending
+          mode): one unbalance per antinode, 180° out of phase where the shape
+          changes sign, each with :math:`W` equal to the static load of the
+          nearest journal bearing;
+        - an antinode outboard of the bearings (overhung or coupling mode) is
+          used when it holds the largest deflection of the mode, or when its
+          deflection is at least half of the largest; :math:`W` is then the
+          mass of the rotor outboard of the adjacent bearing.
+
+        Antinodes between the bearings with less than 10 % of the largest
+        deflection are ignored.
+
+        The forward modes are the lateral modes whose amplitude-weighted whirl
+        ratio (orbit minor-to-major axis ratio, positive for forward precession)
+        is above ``FORWARD_WHIRL_RATIO`` (0.25); nearly planar mixed modes, which
+        often appear as heavily damped pairs, are skipped. When no mode passes
+        that threshold, the modes with positive whirl ratio are used and a
+        warning is issued.
+
+        Parameters
+        ----------
+        mode : int
+            Index of the forward whirl mode, counted over the forward modes only
+            (0 is the first forward mode, which corresponds to the first critical
+            speed of API 617). The index of the mode in the :meth:`run_modal`
+            results is returned as ``"mode_index"``.
+        maximum_continuous_speed : float, pint.Quantity
+            Maximum continuous speed :math:`N_{mc}` (rad/s). The mode shape is
+            evaluated at this speed.
+        num_modes : int, optional
+            Number of modes computed by :meth:`run_modal`.
+            Default is 12.
+
+        Returns
+        -------
+        unbalance : dict
+            Dictionary with the keys:
+
+            - ``"node"`` : list of nodes where the unbalance is applied;
+            - ``"unbalance_magnitude"`` : list of magnitudes (kg·m);
+            - ``"unbalance_phase"`` : list of phases (rad);
+            - ``"static_load"`` : list with the load :math:`W` used for each
+              unbalance (kg);
+            - ``"mode_index"`` : index of the mode in the :meth:`run_modal`
+              results;
+            - ``"mode_frequency"`` : damped natural frequency of the mode
+              (rad/s).
+
+        Examples
+        --------
+        >>> import ross as rs
+        >>> from ross.units import Q_
+        >>> rotor = rs.rotor_example()
+        >>> unbalance = rotor.api617_unbalance(
+        ...     mode=0, maximum_continuous_speed=Q_(9000, "RPM")
+        ... )
+        >>> unbalance["node"]
+        [3]
+        >>> unbalance["unbalance_phase"]
+        [0.0]
+        """
+        maximum_continuous_speed = float(maximum_continuous_speed)
+        modal = self.run_modal(speed=maximum_continuous_speed, num_modes=num_modes)
+        whirl_ratio = [
+            self._whirl_ratio(shape) if shape.mode_type == "Lateral" else 0.0
+            for shape in modal.shapes
+        ]
+        forward_modes = [
+            i for i, ratio in enumerate(whirl_ratio) if ratio > FORWARD_WHIRL_RATIO
+        ]
+        if not forward_modes:
+            forward_modes = [i for i, ratio in enumerate(whirl_ratio) if ratio > 0]
+            warnings.warn(
+                "No mode with predominantly forward orbits was found (all whirl "
+                f"ratios are below {FORWARD_WHIRL_RATIO}); using the modes with "
+                "positive whirl ratio instead."
+            )
+        if mode >= len(forward_modes):
+            raise ValueError(
+                f"Only {len(forward_modes)} forward modes were found with "
+                f"num_modes={num_modes}; mode={mode} is not available. "
+                "Increase num_modes."
+            )
+        mode_index = forward_modes[mode]
+        shape = modal.shapes[mode_index]
+
+        amplitude = np.array([orbit.major_axis for orbit in shape.orbits])
+        reference = int(np.argmax(amplitude))
+        theta = shape.orbits[reference].major_angle
+        projection = np.array(
+            [
+                orbit.ru_e * np.cos(theta) + orbit.rv_e * np.sin(theta)
+                for orbit in shape.orbits
+            ]
+        )
+        sign = np.sign(np.real(projection * np.conj(projection[reference])))
+        sign[sign == 0] = 1.0
+
+        lobes = []
+        current = []
+        current_sign = None
+        for node in range(len(amplitude)):
+            node_sign = (
+                sign[node] if amplitude[node] >= 0.02 * amplitude.max() else None
+            )
+            if (
+                current_sign is not None
+                and node_sign is not None
+                and node_sign != current_sign
+            ):
+                lobes.append(current)
+                current = []
+            current.append(node)
+            if node_sign is not None:
+                current_sign = node_sign
+        lobes.append(current)
+
+        journal_loads = self._journal_bearing_loads()
+        journal_nodes = sorted(journal_loads)
+        left_bearing, right_bearing = journal_nodes[0], journal_nodes[-1]
+        positions = np.asarray(self.nodes_pos)
+
+        antinodes = []
+        for lobe in lobes:
+            antinode = int(lobe[int(np.argmax(amplitude[lobe]))])
+            inboard = left_bearing <= antinode <= right_bearing
+            antinodes.append((antinode, amplitude[antinode], inboard))
+
+        largest = amplitude.max()
+        selected = [
+            (antinode, inboard)
+            for antinode, amp, inboard in antinodes
+            if (inboard and amp >= 0.1 * largest)
+            or (not inboard and (antinode == reference or amp >= 0.5 * largest))
+        ]
+        n_inboard = sum(1 for _, inboard in selected if inboard)
+
+        maximum_continuous_speed_rpm = Q_(maximum_continuous_speed, "rad/s").to("RPM").m
+        nodes, magnitudes, phases, loads = [], [], [], []
+        for antinode, inboard in selected:
+            if inboard and n_inboard == 1:
+                load = sum(journal_loads.values())
+            elif inboard:
+                nearest = min(
+                    journal_nodes, key=lambda n: abs(positions[n] - positions[antinode])
+                )
+                load = journal_loads[nearest]
+            elif antinode < left_bearing:
+                load = self._overhung_mass(left_bearing, "left")
+            else:
+                load = self._overhung_mass(right_bearing, "right")
+
+            if maximum_continuous_speed_rpm < 25000:
+                residual_unbalance = 6350 * load / maximum_continuous_speed_rpm
+            else:
+                residual_unbalance = load / 3.937
+
+            nodes.append(antinode)
+            magnitudes.append(Q_(2 * residual_unbalance, "g*mm").to("kg*m").m)
+            phases.append(0.0 if sign[antinode] == sign[reference] else float(np.pi))
+            loads.append(load)
+
+        return {
+            "node": nodes,
+            "unbalance_magnitude": magnitudes,
+            "unbalance_phase": phases,
+            "static_load": loads,
+            "mode_index": mode_index,
+            "mode_frequency": float(modal.wd[mode_index]),
+        }
+
+    @check_units
+    def run_clearance_analysis(
+        self,
+        speed_range,
+        minimum_allowable_speed,
+        maximum_continuous_speed,
+        probes,
+        mode=0,
+        node=None,
+        unbalance_magnitude=None,
+        unbalance_phase=None,
+        scale_factor_cap=None,
+        num_modes=12,
+    ):
+        r"""Close-clearance check of the unbalance response after API 617.
+
+        Implements API 617 (9th edition) 6.8.2.10 and 6.8.2.11:
+
+        1. The unbalance response is computed over ``speed_range`` with the
+           unbalance of :meth:`api617_unbalance` for the selected ``mode``
+           (or with the unbalance given explicitly).
+        2. The mechanical test vibration limit is
+           :math:`A_{vl} = \min(25.4, 25.4 \sqrt{12000 / N_{mc}})` µm peak to
+           peak, with :math:`N_{mc}` in rpm.
+        3. :math:`A_{max}` is the largest peak-to-peak amplitude measured by the
+           ``probes`` between the minimum allowable speed and the maximum
+           continuous speed.
+        4. The scale factor :math:`S_{cc} = A_{vl} / A_{max}` is applied to the
+           major-axis peak-to-peak amplitude at every close-clearance location.
+           API 617 limits :math:`S_{cc}` to 6; the limit is applied only when
+           ``scale_factor_cap`` is given.
+        5. The scaled amplitudes are compared with 75 % of the minimum diametral
+           running clearance at each location, at the worst speed of
+           ``speed_range``.
+
+        The close-clearance locations are the bearing and seal elements of the
+        rotor that carry a ``radial_clearance`` (fluid-film bearings, labyrinth
+        and hole-pattern seals, and any ``BearingElement`` or ``SealElement``
+        created with ``radial_clearance=``). The diametral clearance is twice
+        the smallest radial clearance of the element.
+
+        Parameters
+        ----------
+        speed_range : array, pint.Quantity
+            Rotor speeds of the unbalance response (rad/s). API 617 asks for the
+            range from zero to the trip speed. The minimum allowable speed and
+            the maximum continuous speed are added to the range if absent.
+        minimum_allowable_speed : float, pint.Quantity
+            Minimum allowable speed :math:`N_{ma}` (rad/s).
+        maximum_continuous_speed : float, pint.Quantity
+            Maximum continuous speed :math:`N_{mc}` (rad/s).
+        probes : list
+            List of :class:`ross.Probe` objects at the location and orientation
+            of the machine vibration probes. :math:`A_{max}` is taken over these
+            probes.
+        mode : int, optional
+            Index of the forward mode used to place the unbalance (0 is the first
+            forward mode). See :meth:`api617_unbalance`. Ignored when ``node`` is
+            given.
+            Default is 0.
+        node : list, int, optional
+            Node(s) where the unbalance is applied, overriding the placement
+            derived from ``mode``. Requires ``unbalance_magnitude`` and
+            ``unbalance_phase``.
+            Default is None.
+        unbalance_magnitude : list, float, pint.Quantity, optional
+            Unbalance magnitude(s) in kg·m, used with ``node``.
+            Default is None.
+        unbalance_phase : list, float, pint.Quantity, optional
+            Unbalance phase(s) in rad, used with ``node``.
+            Default is None.
+        scale_factor_cap : float, optional
+            Upper limit for the scale factor :math:`S_{cc}`. API 617 6.8.2.11
+            uses 6. Default is None, which applies no limit.
+        num_modes : int, optional
+            Number of modes computed to select the mode shape.
+            Default is 12.
 
         Returns
         -------
         results : ross.ClearanceResults
-            Results object containing:
-                - speed_rpm : float
-                - bearing_nodes : list
-                - magnitudes : ndarray
-                    Peak-to-peak vibration amplitude (microns)
-                - clearance : ndarray
-                    Radial clearance (microns)
-                - clearance_75 : ndarray
-                    75% of radial clearance (microns)
+            Results with the probe response, the vibration limit, the scale
+            factor and the scaled response at each close-clearance location.
+            Amplitudes are peak to peak and clearances diametral, in metres.
+            Use ``results.data()`` for a summary table and ``results.plot()``,
+            ``results.plot_response()`` and ``results.plot_probe_response()``
+            for the plots.
 
         Examples
         --------
         >>> import ross as rs
         >>> import numpy as np
+        >>> from ross.units import Q_
         >>> rotor = rs.rotor_example()
-        >>> speed = 600.0
-        >>> result = rotor.run_clearance_analysis(
-        ...     speed=speed,
-        ...     node=3,
-        ...     unbalance_magnitude=0.05,
-        ...     unbalance_phase=0.0,
-        ...     frequency=np.array([speed]),
+        >>> bearings = [
+        ...     rs.BearingElement(n=0, kxx=1e6, cxx=1e3, radial_clearance=Q_(100, "um")),
+        ...     rs.BearingElement(n=6, kxx=1e6, cxx=1e3, radial_clearance=Q_(100, "um")),
+        ... ]
+        >>> rotor = rs.Rotor(rotor.shaft_elements, rotor.disk_elements, bearings)
+        >>> probes = [rs.Probe(0, Q_(45, "deg")), rs.Probe(6, Q_(45, "deg"))]
+        >>> results = rotor.run_clearance_analysis(
+        ...     speed_range=Q_(np.linspace(0, 10000, 101), "RPM"),
+        ...     minimum_allowable_speed=Q_(7000, "RPM"),
+        ...     maximum_continuous_speed=Q_(9000, "RPM"),
+        ...     probes=probes,
         ... )
-        >>> len(result["bearing_nodes"]) == 2
-        True
+        >>> round(results.vibration_limit * 1e6, 1)
+        25.4
+        >>> list(results.clearance_nodes)
+        [0, 6]
         """
-        # Normalize speed to a scalar in rad/s.
-        speed = np.asarray(speed)
-        if speed.ndim == 0:
-            speed = float(speed)
-        elif speed.size == 1:
-            speed = float(speed.reshape(-1)[0])
-        else:
+        speed_range = np.atleast_1d(np.asarray(speed_range, dtype=float))
+        minimum_allowable_speed = float(minimum_allowable_speed)
+        maximum_continuous_speed = float(maximum_continuous_speed)
+        if not 0 <= minimum_allowable_speed <= maximum_continuous_speed:
             raise ValueError(
-                "'speed' must be a scalar (or an array with a single value) for "
-                "run_clearance_analysis."
+                "minimum_allowable_speed must be between 0 and "
+                "maximum_continuous_speed."
+            )
+        probes = [probe for probe in probes if probe.direction == "radial"]
+        if len(probes) == 0:
+            raise ValueError("At least one radial probe is required to evaluate Amax.")
+        speed_range = np.union1d(
+            speed_range, [minimum_allowable_speed, maximum_continuous_speed]
+        )
+
+        locations = [
+            elm
+            for elm in self.bearing_elements
+            if getattr(elm, "radial_clearance", None) is not None
+            and elm.n in self.nodes
+        ]
+        if not locations:
+            raise ValueError(
+                "No close-clearance location found: no bearing or seal element "
+                "of the rotor carries a radial_clearance."
             )
 
-        # Convert speed to rpm
-        speed_rpm = Q_(speed, "rad/s").to("RPM").m
-
-        if frequency is None:
-            frequency = np.asarray([speed], dtype=float)
+        if node is None:
+            unbalance = self.api617_unbalance(
+                mode, maximum_continuous_speed, num_modes=num_modes
+            )
+            node = unbalance["node"]
+            unbalance_magnitude = unbalance["unbalance_magnitude"]
+            unbalance_phase = unbalance["unbalance_phase"]
+            mode_index = unbalance["mode_index"]
+            mode_frequency = unbalance["mode_frequency"]
         else:
-            frequency = np.asarray(frequency, dtype=float)
+            if unbalance_magnitude is None or unbalance_phase is None:
+                raise ValueError(
+                    "unbalance_magnitude and unbalance_phase are required when "
+                    "node is given."
+                )
+            mode = None
+            mode_index = None
+            mode_frequency = None
 
-        # ---  Unbalance response ---
+        node = list(np.atleast_1d(node).astype(int))
+        unbalance_magnitude = list(np.atleast_1d(unbalance_magnitude).astype(float))
+        unbalance_phase = list(np.atleast_1d(unbalance_phase).astype(float))
+
         response = self.run_unbalance_response(
-            node,
-            unbalance_magnitude,
-            unbalance_phase,
-            frequency,
-            modes=modes,
+            node, unbalance_magnitude, unbalance_phase, speed_range
         )
 
-        bearing_probes = [
-            Probe(b.n, Q_(0, "rad"), tag=getattr(b, "tag", None))
-            for b in self.bearing_elements
+        df = response.data_magnitude(probe=probes, amplitude_units="m pkpk")
+        probe_response = df.drop(columns="frequency").to_numpy(dtype=float).T
+        probe_tags = [
+            probe.tag or probe.get_label(i + 1) for i, probe in enumerate(probes)
         ]
 
-        df = response.data_magnitude(
-            probe=bearing_probes,
-            amplitude_units="um pkpk",
+        in_operating_range = (speed_range >= minimum_allowable_speed) & (
+            speed_range <= maximum_continuous_speed
+        )
+        max_probe_amplitude = float(probe_response[:, in_operating_range].max())
+        if not np.isfinite(max_probe_amplitude) or max_probe_amplitude <= 0:
+            raise ValueError("Invalid probe response in the operating speed range.")
+
+        maximum_continuous_speed_rpm = Q_(maximum_continuous_speed, "rad/s").to("RPM").m
+        vibration_limit = (
+            Q_(min(25.4, 25.4 * np.sqrt(12000 / maximum_continuous_speed_rpm)), "um")
+            .to("m")
+            .m
         )
 
-        freq_col = df["frequency"].to_numpy(dtype=float)
-        freq_row = int(np.argmin(np.abs(freq_col - speed)))
-        magnitudes = df.loc[freq_row, df.columns != "frequency"].to_numpy(copy=True)
+        scale_factor = vibration_limit / max_probe_amplitude
+        if scale_factor_cap is not None:
+            scale_factor = min(scale_factor, float(scale_factor_cap))
 
-        # --- STEP 5: API 617 vibration limit (Avl) ---
-        Avl = 25.4 * (12000 / speed_rpm)
-
-        Amax = np.nanmax(magnitudes)
-
-        if not np.isfinite(Amax) or Amax <= 0:
-            raise ValueError("Invalid vibration response.")
-
-        # --- STEP 6: Scale factor (Scc) ---
-        Scc = min(Avl / Amax, 6.0)
-
-        magnitudes_scaled = magnitudes * Scc
-
-        # --- STEP 7: Clearance ---
-        clearance = []
-        clearance_75 = []
-
-        for b in self.bearing_elements:
-            rc = getattr(b, "radial_clearance", None)
-
-            if rc is None:
-                clearance.append(np.nan)
-                clearance_75.append(np.nan)
-                continue
-
-            clr = Q_(rc, "m").to("micron").m
-            clr_val = float(np.nanmax(np.asarray(clr)))
-
-            clearance.append(clr_val)
-            clearance_75.append(0.75 * clr_val)
+        number_dof = self.number_dof
+        clearance_response = []
+        diametral_clearance = []
+        for elm in locations:
+            dof = number_dof * elm.n
+            major_axis = np.array(
+                [
+                    Orbit(
+                        node=elm.n,
+                        node_pos=self.nodes_pos[elm.n],
+                        ru_e=response.forced_resp[dof, i],
+                        rv_e=response.forced_resp[dof + 1, i],
+                    ).major_axis
+                    for i in range(len(speed_range))
+                ]
+            )
+            clearance_response.append(2 * scale_factor * major_axis)
+            diametral_clearance.append(
+                2 * float(np.min(np.atleast_1d(elm.radial_clearance)))
+            )
 
         return ClearanceResults(
-            speed_rpm=speed_rpm,
-            bearing_nodes=[b.n for b in self.bearing_elements],
-            magnitudes=magnitudes_scaled,
-            clearance=np.array(clearance),
-            clearance_75=np.array(clearance_75),
+            speed_range=speed_range,
+            minimum_allowable_speed=minimum_allowable_speed,
+            maximum_continuous_speed=maximum_continuous_speed,
+            unbalance_node=node,
+            unbalance_magnitude=unbalance_magnitude,
+            unbalance_phase=unbalance_phase,
+            probe_tags=probe_tags,
+            probe_nodes=[probe.node for probe in probes],
+            probe_angles=[probe.angle for probe in probes],
+            probe_response=probe_response,
+            vibration_limit=vibration_limit,
+            max_probe_amplitude=max_probe_amplitude,
+            scale_factor=scale_factor,
+            clearance_tags=[str(elm.tag) for elm in locations],
+            clearance_nodes=[elm.n for elm in locations],
+            clearance_positions=[self.nodes_pos[elm.n] for elm in locations],
+            diametral_clearance=diametral_clearance,
+            clearance_response=np.array(clearance_response),
+            scale_factor_cap=scale_factor_cap,
+            mode=mode,
+            mode_index=mode_index,
+            mode_frequency=mode_frequency,
         )
 
 

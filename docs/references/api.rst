@@ -72,6 +72,7 @@ Rotor class and available methods for analysis (``run_*`` methods).
     Rotor.run_harmonic_balance_response
     Rotor.run_amb_sensitivity
     Rotor.run_clearance_analysis
+    Rotor.api617_unbalance
 
 Example Rotors
 --------------

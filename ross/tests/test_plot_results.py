@@ -510,3 +510,67 @@ def test_squeeze_film_damper_field_plots_not_available():
 
     figures = bearing.plot_results()
     assert figures == {}
+
+
+@pytest.fixture
+def clearance_results():
+    rotor = rotor_example()
+    bearings = [
+        BearingElement(n=0, kxx=1e6, cxx=1e3, radial_clearance=Q_(100, "um"), tag="DE"),
+        BearingElement(
+            n=6, kxx=1e6, cxx=1e3, radial_clearance=Q_(120, "um"), tag="NDE"
+        ),
+    ]
+    rotor = Rotor(rotor.shaft_elements, rotor.disk_elements, bearings)
+    probes = [
+        Probe(0, Q_(45, "deg"), tag="DE-45"),
+        Probe(6, Q_(45, "deg"), tag="NDE-45"),
+    ]
+    return rotor.run_clearance_analysis(
+        speed_range=Q_(np.linspace(0, 10000, 51), "RPM"),
+        minimum_allowable_speed=Q_(7000, "RPM"),
+        maximum_continuous_speed=Q_(9000, "RPM"),
+        probes=probes,
+    )
+
+
+def test_clearance_plot(clearance_results):
+    fig = clearance_results.plot(length_units="mm")
+    assert_plotly_figure(fig, min_traces=3)
+    assert_trace_allclose(
+        fig.data[find_traces_by_name(fig, "Min. diametral clearance")[0]],
+        y=1e3 * clearance_results.diametral_clearance,
+    )
+    assert_trace_allclose(
+        fig.data[find_traces_by_name(fig, "75% of clearance")[0]],
+        y=1e3 * clearance_results.clearance_limit,
+    )
+    assert_trace_allclose(
+        fig.data[find_traces_by_name(fig, "Scaled amplitude (pk-pk)")[0]],
+        y=1e3 * clearance_results.max_clearance_response,
+    )
+
+
+def test_clearance_plot_response(clearance_results):
+    fig = clearance_results.plot_response(speed_units="rad/s")
+    assert_plotly_figure(fig, min_traces=4)
+    assert_trace_allclose(
+        fig.data[find_traces_by_name(fig, "DE")[0]],
+        x=clearance_results.speed_range,
+        y=1e6 * clearance_results.clearance_response[0],
+    )
+    assert_trace_allclose(
+        fig.data[find_traces_by_name(fig, "NDE limit")[0]],
+        y=[1e6 * clearance_results.clearance_limit[1]] * 2,
+    )
+
+
+def test_clearance_plot_probe_response(clearance_results):
+    fig = clearance_results.plot_probe_response(speed_units="rad/s")
+    assert_plotly_figure(fig, min_traces=3)
+    assert_trace_allclose(
+        fig.data[find_traces_by_name(fig, "NDE-45")[0]],
+        x=clearance_results.speed_range,
+        y=1e6 * clearance_results.probe_response[1],
+    )
+    assert_trace_allclose(fig.data[find_traces_by_name(fig, "Avl")[0]], y=[25.4, 25.4])

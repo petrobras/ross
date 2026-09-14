@@ -24,6 +24,7 @@ Concise recipes for rotordynamics analyses with ROSS. Each file is self-containe
 | Modal analysis | [modal_analysis.md](modal_analysis.md) | `run_modal` (incl. `frequency=`, `matched_whirl=`) |
 | Campbell diagram | [campbell_diagram.md](campbell_diagram.md) | `run_campbell` |
 | Unbalance response | [unbalance_response.md](unbalance_response.md) | `run_unbalance_response` |
+| Clearance analysis (API 617) | [clearance_analysis.md](clearance_analysis.md) | `run_clearance_analysis`, `api617_unbalance` |
 | Static analysis | [static_analysis.md](static_analysis.md) | `run_static` |
 | Critical speeds | [critical_speed.md](critical_speed.md) | `run_critical_speed` |
 | Frequency response (FRF) | [frequency_response.md](frequency_response.md) | `run_freq_response`, `run_forced_response` |

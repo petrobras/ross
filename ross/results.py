@@ -7997,52 +7997,197 @@ class SensitivityResults(Results):
 
 
 class ClearanceResults(Results):
-    """Results for clearance analysis.
+    """Results of the API 617 close-clearance check.
 
-    Stores vibration amplitudes at bearing locations and compares them with
-    bearing radial clearance limits. Inherits :class:`Results` for ``save`` /
-    ``load`` like other analysis result types.
+    Produced by :meth:`ross.Rotor.run_clearance_analysis`. Amplitudes are
+    stored in metres, peak to peak, and clearances are diametral, in metres.
+    The summary table and the plots convert them with ``length_units``.
 
     Parameters
     ----------
-    speed_rpm : float
-        Rotor speed in RPM.
-    bearing_nodes : list
-        List of bearing node numbers.
-    magnitudes : ndarray
-        Peak-to-peak vibration amplitudes (microns).
-    clearance : ndarray
-        Radial clearance (microns).
-    clearance_75 : ndarray
-        75% of radial clearance (microns).
+    speed_range : array
+        Rotor speeds of the unbalance response (rad/s).
+    minimum_allowable_speed : float
+        Minimum allowable speed (rad/s).
+    maximum_continuous_speed : float
+        Maximum continuous speed (rad/s).
+    unbalance_node : list
+        Nodes where the unbalance was applied.
+    unbalance_magnitude : list
+        Unbalance magnitudes (kg·m).
+    unbalance_phase : list
+        Unbalance phases (rad).
+    probe_tags : list
+        Tag of each vibration probe.
+    probe_nodes : list
+        Node of each vibration probe.
+    probe_angles : list
+        Orientation of each vibration probe (rad).
+    probe_response : array
+        Peak-to-peak amplitude at each probe, shape ``(n_probes, n_speeds)`` (m).
+    vibration_limit : float
+        Mechanical test vibration limit :math:`A_{vl}`, peak to peak (m).
+    max_probe_amplitude : float
+        Largest probe amplitude :math:`A_{max}` in the operating speed range,
+        peak to peak (m).
+    scale_factor : float
+        Scale factor :math:`S_{cc}` applied to the close-clearance response.
+    clearance_tags : list
+        Tag of each close-clearance location.
+    clearance_nodes : list
+        Node of each close-clearance location.
+    clearance_positions : list
+        Axial position of each close-clearance location (m).
+    diametral_clearance : array
+        Minimum diametral clearance at each location (m).
+    clearance_response : array
+        Scaled major-axis peak-to-peak amplitude at each location, shape
+        ``(n_locations, n_speeds)`` (m).
+    scale_factor_cap : float, optional
+        Upper limit applied to the scale factor. Default is None.
+    mode : int, optional
+        Forward mode index used to place the unbalance, or None when the
+        unbalance was given explicitly. Default is None.
+    mode_index : int, optional
+        Index of that mode in the modal results. Default is None.
+    mode_frequency : float, optional
+        Damped natural frequency of that mode (rad/s). Default is None.
     """
 
-    def __init__(self, speed_rpm, bearing_nodes, magnitudes, clearance, clearance_75):
-        self.speed_rpm = speed_rpm
-        self.bearing_nodes = bearing_nodes
-        self.magnitudes = magnitudes
-        self.clearance = clearance
-        self.clearance_75 = clearance_75
+    def __init__(
+        self,
+        speed_range,
+        minimum_allowable_speed,
+        maximum_continuous_speed,
+        unbalance_node,
+        unbalance_magnitude,
+        unbalance_phase,
+        probe_tags,
+        probe_nodes,
+        probe_angles,
+        probe_response,
+        vibration_limit,
+        max_probe_amplitude,
+        scale_factor,
+        clearance_tags,
+        clearance_nodes,
+        clearance_positions,
+        diametral_clearance,
+        clearance_response,
+        scale_factor_cap=None,
+        mode=None,
+        mode_index=None,
+        mode_frequency=None,
+    ):
+        self.speed_range = np.asarray(speed_range, dtype=float)
+        self.minimum_allowable_speed = float(minimum_allowable_speed)
+        self.maximum_continuous_speed = float(maximum_continuous_speed)
+        self.unbalance_node = [int(n) for n in np.atleast_1d(unbalance_node)]
+        self.unbalance_magnitude = [
+            float(m) for m in np.atleast_1d(unbalance_magnitude)
+        ]
+        self.unbalance_phase = [float(p) for p in np.atleast_1d(unbalance_phase)]
+        self.probe_tags = [str(tag) for tag in probe_tags]
+        self.probe_nodes = [int(n) for n in np.atleast_1d(probe_nodes)]
+        self.probe_angles = [float(a) for a in np.atleast_1d(probe_angles)]
+        self.probe_response = np.atleast_2d(np.asarray(probe_response, dtype=float))
+        self.vibration_limit = float(vibration_limit)
+        self.max_probe_amplitude = float(max_probe_amplitude)
+        self.scale_factor = float(scale_factor)
+        self.clearance_tags = [str(tag) for tag in clearance_tags]
+        self.clearance_nodes = [int(n) for n in np.atleast_1d(clearance_nodes)]
+        self.clearance_positions = [
+            float(p) for p in np.atleast_1d(clearance_positions)
+        ]
+        self.diametral_clearance = np.asarray(diametral_clearance, dtype=float)
+        self.clearance_response = np.atleast_2d(
+            np.asarray(clearance_response, dtype=float)
+        )
+        self.scale_factor_cap = (
+            None if scale_factor_cap is None else float(scale_factor_cap)
+        )
+        self.mode = None if mode is None else int(mode)
+        self.mode_index = None if mode_index is None else int(mode_index)
+        self.mode_frequency = None if mode_frequency is None else float(mode_frequency)
 
-    def __getitem__(self, key):
-        """Enable dict-like access for backward compatibility."""
-        mapping = {
-            "speed_rpm": self.speed_rpm,
-            "bearing_nodes": self.bearing_nodes,
-            "magnitudes": self.magnitudes,
-            "clearance": self.clearance,
-            "clearance_75": self.clearance_75,
-        }
-        return mapping[key]
+    @property
+    def clearance_limit(self):
+        """75 % of the minimum diametral clearance at each location (m)."""
+        return 0.75 * self.diametral_clearance
 
-    def plot(self, fig=None, **kwargs):
-        """
-        Plot vibration response against clearance limits.
+    @property
+    def max_clearance_response(self):
+        """Largest scaled peak-to-peak amplitude at each location (m)."""
+        return self.clearance_response.max(axis=1)
+
+    @property
+    def speed_at_max_response(self):
+        """Speed at which each location reaches its largest amplitude (rad/s)."""
+        return self.speed_range[self.clearance_response.argmax(axis=1)]
+
+    @property
+    def passed(self):
+        """Whether each location stays below 75 % of the diametral clearance."""
+        return self.max_clearance_response < self.clearance_limit
+
+    def _location_labels(self):
+        return [
+            tag if tag not in ("None", "") else f"Node {node}"
+            for tag, node in zip(self.clearance_tags, self.clearance_nodes)
+        ]
+
+    def data(self, length_units="um", speed_units="RPM"):
+        """Return the clearance check for each location in DataFrame format.
 
         Parameters
         ----------
+        length_units : str, optional
+            Units for amplitudes (peak to peak) and clearances (diametral).
+            Default is "um".
+        speed_units : str, optional
+            Units for the speed at which the largest amplitude occurs.
+            Default is "RPM".
+
+        Returns
+        -------
+        df : pd.DataFrame
+            One row per close-clearance location.
+        """
+        to_length = lambda value: Q_(value, "m").to(length_units).m
+        speed = Q_(self.speed_at_max_response, "rad/s").to(speed_units).m
+        limit = self.clearance_limit
+        max_response = self.max_clearance_response
+
+        return pd.DataFrame(
+            {
+                "tag": self._location_labels(),
+                "node": self.clearance_nodes,
+                "position (m)": self.clearance_positions,
+                f"diametral clearance ({length_units})": to_length(
+                    self.diametral_clearance
+                ),
+                f"limit 75% ({length_units})": to_length(limit),
+                f"max amplitude pp ({length_units})": to_length(max_response),
+                f"speed at max ({speed_units})": speed,
+                "% of limit": 100 * max_response / limit,
+                "status": np.where(self.passed, "OK", "EXCEEDED"),
+            }
+        )
+
+    def plot(self, length_units="um", fig=None, **kwargs):
+        """Plot the scaled response against the clearance at each location.
+
+        Each location shows the minimum diametral clearance, the 75 % limit and
+        the largest scaled peak-to-peak amplitude over the speed range, with the
+        amplitude as a percentage of the limit.
+
+        Parameters
+        ----------
+        length_units : str, optional
+            Units for amplitudes (peak to peak) and clearances (diametral).
+            Default is "um".
         fig : plotly.graph_objects.Figure, optional
-            Existing figure to add traces to.
+            Figure to add traces to.
         **kwargs : optional
             Additional layout arguments.
 
@@ -8050,92 +8195,219 @@ class ClearanceResults(Results):
         -------
         fig : plotly.graph_objects.Figure
         """
-        import numpy as np
-        import plotly.graph_objects as go
-
         if fig is None:
             fig = go.Figure()
 
-        spacing = 4
-        x_positions = [i * spacing for i in range(len(self.bearing_nodes))]
-        x_labels = [str(n) for n in self.bearing_nodes]
+        labels = self._location_labels()
+        to_length = lambda value: Q_(value, "m").to(length_units).m
+        clearance = to_length(self.diametral_clearance)
+        limit = to_length(self.clearance_limit)
+        response = to_length(self.max_clearance_response)
+        percent_limit = 100 * self.max_clearance_response / self.clearance_limit
+        percent_clearance = 100 * self.max_clearance_response / self.diametral_clearance
 
-        # --- Background: Clearance 100%
         fig.add_trace(
             go.Bar(
-                x=x_positions,
-                y=self.clearance,
-                name="Radial Clearance Limit (100%)",
-                marker_color="red",
-                width=0.2,
-                hovertemplate="Clearance: %{y:.1f} µm<extra></extra>",
-                showlegend=True,
-                marker={"line": {"width": 0}},
+                x=labels,
+                y=clearance,
+                name="Min. diametral clearance",
+                marker_color=tableau_colors["red"],
+                opacity=0.6,
+                hovertemplate=f"Clearance: %{{y:.1f}} {length_units}<extra></extra>",
             )
         )
-
-        # --- Background: Clearance 75%
         fig.add_trace(
             go.Bar(
-                x=x_positions,
-                y=self.clearance_75,
-                name="Alert Level (75%)",
-                marker_color="blue",
-                width=0.2,
-                hovertemplate="75% Limit: %{y:.1f} µm<extra></extra>",
-                showlegend=True,
-                marker={"line": {"width": 0}},
+                x=labels,
+                y=limit,
+                name="75% of clearance",
+                marker_color=tableau_colors["blue"],
+                opacity=0.8,
+                hovertemplate=f"Limit: %{{y:.1f}} {length_units}<extra></extra>",
             )
         )
-
-        # Percent of radial clearance limit used (vibration / limit × 100).
-        mag = np.asarray(self.magnitudes, dtype=float)
-        lim100 = np.asarray(self.clearance, dtype=float)
-        lim75 = np.asarray(self.clearance_75, dtype=float)
-        per_clr = np.full_like(mag, np.nan, dtype=float)
-        per_clr_75 = np.full_like(mag, np.nan, dtype=float)
-        ok100 = np.isfinite(mag) & np.isfinite(lim100) & (lim100 > 0)
-        ok75 = np.isfinite(mag) & np.isfinite(lim75) & (lim75 > 0)
-        per_clr[ok100] = 100.0 * mag[ok100] / lim100[ok100]
-        per_clr_75[ok75] = 100.0 * mag[ok75] / lim75[ok75]
-
-        def _pct_label(x):
-            return f"{x:.1f}%" if np.isfinite(x) else "—"
-
-        # --- Vibration response
         fig.add_trace(
             go.Scatter(
-                x=x_positions,
-                y=self.magnitudes,
+                x=labels,
+                y=response,
                 mode="lines+markers+text",
+                name="Scaled amplitude (pk-pk)",
                 text=[
-                    f"{_pct_label(c75)}<br>{_pct_label(c100)}"
-                    for c75, c100 in zip(per_clr_75, per_clr)
+                    f"{pl:.1f}% / {pc:.1f}%"
+                    for pl, pc in zip(percent_limit, percent_clearance)
                 ],
-                textposition="top left",
-                name=f"Vibration ({self.speed_rpm:.1f} RPM)",
-                line={"shape": "spline", "color": "purple", "width": 3},
-                marker={"size": 6},
-                hovertemplate="Amplitude: %{y:.2f} µm pkpk<extra></extra>",
+                textposition="top center",
+                line={"color": tableau_colors["purple"], "width": 3},
+                marker={"size": 8},
+                hovertemplate=(
+                    f"Amplitude: %{{y:.1f}} {length_units} pk-pk<br>"
+                    "%{text} of limit / clearance<extra></extra>"
+                ),
             )
         )
 
         fig.update_layout(
-            title="Vibration Response vs Bearing Clearance",
-            xaxis_title="Station (Node)",
-            yaxis_title="Amplitude / Clearance [µm]",
+            title=(
+                f"Close-clearance check (Scc = {self.scale_factor:.2f}, "
+                f"Avl = {to_length(self.vibration_limit):.1f} {length_units} pk-pk, "
+                f"Amax = {to_length(self.max_probe_amplitude):.1f} {length_units} pk-pk)"
+            ),
+            xaxis_title="Close-clearance location",
+            yaxis_title=f"Amplitude pk-pk / diametral clearance ({length_units})",
             barmode="overlay",
             hovermode="x unified",
-            plot_bgcolor="white",
-            legend={"orientation": "h", "y": 1.05},
-            xaxis=dict(
-                tickmode="array",
-                tickvals=x_positions,
-                ticktext=x_labels,
-                type="category",
-            ),
-            yaxis=dict(showgrid=True, gridcolor="lightgray"),
+            legend={"orientation": "h", "y": 1.08},
             **kwargs,
         )
 
         return fig
+
+    def plot_response(self, length_units="um", speed_units="RPM", fig=None, **kwargs):
+        """Plot the scaled response at each location against the rotor speed.
+
+        The 75 % clearance limit of each location is drawn as a dashed line in
+        the same color, and the operating speed range is shaded.
+
+        Parameters
+        ----------
+        length_units : str, optional
+            Units for amplitudes (peak to peak) and clearances (diametral).
+            Default is "um".
+        speed_units : str, optional
+            Units for the rotor speed. Default is "RPM".
+        fig : plotly.graph_objects.Figure, optional
+            Figure to add traces to.
+        **kwargs : optional
+            Additional layout arguments.
+
+        Returns
+        -------
+        fig : plotly.graph_objects.Figure
+        """
+        if fig is None:
+            fig = go.Figure()
+
+        speed = Q_(self.speed_range, "rad/s").to(speed_units).m
+        to_length = lambda value: Q_(value, "m").to(length_units).m
+        colors = list(tableau_colors.values())
+
+        for i, label in enumerate(self._location_labels()):
+            color = colors[i % len(colors)]
+            fig.add_trace(
+                go.Scatter(
+                    x=speed,
+                    y=to_length(self.clearance_response[i]),
+                    mode="lines",
+                    name=label,
+                    legendgroup=label,
+                    line={"color": color},
+                    hovertemplate=(
+                        f"{label}<br>Speed: %{{x:.0f}} {speed_units}<br>"
+                        f"Amplitude: %{{y:.1f}} {length_units} pk-pk<extra></extra>"
+                    ),
+                )
+            )
+            fig.add_trace(
+                go.Scatter(
+                    x=[speed[0], speed[-1]],
+                    y=[to_length(self.clearance_limit[i])] * 2,
+                    mode="lines",
+                    name=f"{label} limit",
+                    legendgroup=label,
+                    showlegend=False,
+                    line={"color": color, "dash": "dash"},
+                    hovertemplate=(
+                        f"{label} limit: %{{y:.1f}} {length_units}<extra></extra>"
+                    ),
+                )
+            )
+
+        self._add_operating_range(fig, speed_units)
+        fig.update_layout(
+            title=f"Scaled close-clearance response (Scc = {self.scale_factor:.2f})",
+            xaxis_title=f"Speed ({speed_units})",
+            yaxis_title=f"Amplitude pk-pk ({length_units})",
+            **kwargs,
+        )
+
+        return fig
+
+    def plot_probe_response(
+        self, length_units="um", speed_units="RPM", fig=None, **kwargs
+    ):
+        """Plot the unscaled probe response with the vibration limit.
+
+        Reproduces API 617 Figure 4: the peak-to-peak response at each probe,
+        the vibration limit :math:`A_{vl}` and the operating speed range over
+        which :math:`A_{max}` is taken.
+
+        Parameters
+        ----------
+        length_units : str, optional
+            Units for the amplitudes (peak to peak). Default is "um".
+        speed_units : str, optional
+            Units for the rotor speed. Default is "RPM".
+        fig : plotly.graph_objects.Figure, optional
+            Figure to add traces to.
+        **kwargs : optional
+            Additional layout arguments.
+
+        Returns
+        -------
+        fig : plotly.graph_objects.Figure
+        """
+        if fig is None:
+            fig = go.Figure()
+
+        speed = Q_(self.speed_range, "rad/s").to(speed_units).m
+        to_length = lambda value: Q_(value, "m").to(length_units).m
+
+        for tag, response in zip(self.probe_tags, self.probe_response):
+            fig.add_trace(
+                go.Scatter(
+                    x=speed,
+                    y=to_length(response),
+                    mode="lines",
+                    name=tag,
+                    hovertemplate=(
+                        f"{tag}<br>Speed: %{{x:.0f}} {speed_units}<br>"
+                        f"Amplitude: %{{y:.1f}} {length_units} pk-pk<extra></extra>"
+                    ),
+                )
+            )
+        fig.add_trace(
+            go.Scatter(
+                x=[speed[0], speed[-1]],
+                y=[to_length(self.vibration_limit)] * 2,
+                mode="lines",
+                name="Avl",
+                line={"color": tableau_colors["red"], "dash": "dash"},
+                hovertemplate=f"Avl: %{{y:.1f}} {length_units} pk-pk<extra></extra>",
+            )
+        )
+
+        self._add_operating_range(fig, speed_units)
+        fig.update_layout(
+            title=(
+                f"Probe response (Amax = {to_length(self.max_probe_amplitude):.1f} "
+                f"{length_units} pk-pk)"
+            ),
+            xaxis_title=f"Speed ({speed_units})",
+            yaxis_title=f"Amplitude pk-pk ({length_units})",
+            **kwargs,
+        )
+
+        return fig
+
+    def _add_operating_range(self, fig, speed_units):
+        minimum = Q_(self.minimum_allowable_speed, "rad/s").to(speed_units).m
+        maximum = Q_(self.maximum_continuous_speed, "rad/s").to(speed_units).m
+        fig.add_vrect(
+            x0=minimum,
+            x1=maximum,
+            fillcolor=tableau_colors["gray"],
+            opacity=0.15,
+            line_width=0,
+            annotation_text="Nma - Nmc",
+            annotation_position="top left",
+        )
