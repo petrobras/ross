@@ -1,3 +1,4 @@
+import numpy as np
 import pytest
 from numpy.testing import assert_allclose
 
@@ -87,3 +88,16 @@ def test_thrust_pad_field_results(thrust_pad):
 
 def test_thrust_pad_load(thrust_pad):
     assert_allclose(thrust_pad.axial_load, 13320000.0, rtol=0.0001)
+
+
+def test_cartesian_coords_grow_with_the_spin(thrust_pad):
+    results = thrust_pad._results
+    x_coords, y_coords = results._build_cartesian_coords()
+    angles = np.arctan2(y_coords[0], x_coords[0])
+
+    # the first angular index is the oil inlet at the leading edge; the
+    # collar turns x toward y, so the angle grows along the pad
+    assert_allclose(angles[0], np.pi / 2 - results.pad_arc / 2)
+    assert_allclose(angles[-1], np.pi / 2 + results.pad_arc / 2)
+    assert np.all(np.diff(angles) > 0)
+    assert len(angles) == results.n_theta + 2

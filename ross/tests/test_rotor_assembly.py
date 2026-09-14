@@ -1685,8 +1685,9 @@ def test_deflected_shape(rotor7):
             4.39217194e-05,
         ]
     )
-    assert_allclose(fig.data[-4]["x"][:8], expected_x, rtol=1e-4)
-    assert_allclose(fig.data[-4]["y"][:8], expected_y, rtol=1e-4)
+    # the rotor length runs on the scene y axis and rotor x on the scene x axis
+    assert_allclose(fig.data[-4]["y"][:8], expected_x, rtol=1e-4)
+    assert_allclose(fig.data[-4]["x"][:8], expected_y, rtol=1e-4)
     assert_allclose(fig.data[-4]["z"][:8], expected_z, rtol=1e-4)
 
 
@@ -2696,6 +2697,10 @@ def test_plot_rotor_axes_indicator(rotor8):
     fig = rotor8.plot_rotor(show_axes_indicator=True)
     assert all(shape.visible for shape in fig.layout.shapes)
     assert fig.layout.height == height
+    # the plot shows the z-y plane, so x points into the page: a crossed circle
+    assert [shape.type for shape in fig.layout.shapes].count("line") == 2
+    labels = {a.text for a in fig.layout.annotations if a.text}
+    assert {"<i>x</i>", "<i>y</i>", "<i>z</i>", "<i>ω</i>"} <= labels
     (menu,) = [m for m in fig.layout.updatemenus if m.buttons[0].label == "Show axes"]
     assert menu.active == 0
 

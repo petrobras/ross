@@ -473,3 +473,57 @@ def test_save_load_amb_time_response(rotor_amb):
     assert (
         results2.rotor.bearing_elements[0].tag == results.rotor.bearing_elements[0].tag
     )
+
+
+def test_plot_mode_3d_frame_is_right_handed(rotor1):
+    modal = rotor1.run_modal(speed=Q_(4000, "RPM"))
+    fig = modal.plot_mode_3d(0)
+
+    # the scene is a rotation of the rotor frame: rotor x on the reversed
+    # scene x axis, the length on the scene y axis, rotor y up. No camera is
+    # set, so the modebar reset returns to the same default view
+    scene = fig.layout.scene
+    assert scene.xaxis.range[0] > scene.xaxis.range[1]
+    assert scene.yaxis.autorange != "reversed"
+    assert scene.yaxis.title.text.startswith("Rotor Length")
+    assert scene.camera.eye.x is None
+
+    axes = [trace for trace in fig.data if trace.name == "Axes"]
+    assert [trace.mode for trace in axes] == ["lines", "text"]
+    assert list(axes[1].text) == ["x", "y", "z", "ω"]
+    # the triad sits on the rotor axis at z = 0 and toggles from the legend
+    assert [trace.showlegend for trace in axes] == [True, False]
+    lines = axes[0]
+    assert (lines.x[0], lines.y[0], lines.z[0]) == (0.0, 0.0, 0.0)
+
+
+def test_plot_mode_2d_has_no_axes_indicator(rotor1):
+    modal = rotor1.run_modal(speed=Q_(4000, "RPM"))
+    fig = modal.plot_mode_2d(0)
+
+    assert len(fig.layout.shapes) == 0
+
+
+def test_plot_orbit_axis_names(rotor1):
+    modal = rotor1.run_modal(speed=Q_(4000, "RPM"), num_modes=14)
+    lateral_mode = next(
+        i for i, shape in enumerate(modal.shapes) if shape.mode_type == "Lateral"
+    )
+    fig = modal.plot_orbit(lateral_mode, nodes=[2])
+
+    assert len(fig.layout.shapes) == 0
+    assert fig.layout.xaxis.title.text == "<i>x</i>"
+    assert fig.layout.yaxis.title.text == "<i>y</i>"
+
+
+def test_plot_deflected_shape_3d_frame_is_right_handed(rotor1):
+    speed = Q_(4000, "RPM").to("rad/s").m
+    response = rotor1.run_unbalance_response(
+        node=3, unbalance_magnitude=0.001, unbalance_phase=0, speed_range=[speed]
+    )
+    fig = response.plot_deflected_shape_3d(speed=speed)
+
+    scene = fig.layout.scene
+    assert scene.xaxis.range[0] > scene.xaxis.range[1]
+    assert scene.yaxis.title.text.startswith("Rotor Length")
+    assert [trace.name for trace in fig.data].count("Axes") == 2
