@@ -614,6 +614,29 @@ def test_run_clearance_analysis_errors(rotor_with_clearances, clearance_probes):
         rotor_example().run_clearance_analysis(probes=clearance_probes, **kwargs)
 
 
+def test_clearance_plots_line_shape(rotor_with_clearances, clearance_probes):
+    results = rotor_with_clearances.run_clearance_analysis(
+        speed_range=Q_(np.linspace(0, 10000, 21), "RPM"),
+        minimum_allowable_speed=Q_(7000, "RPM"),
+        maximum_continuous_speed=Q_(9000, "RPM"),
+        probes=clearance_probes,
+    )
+
+    fig = results.plot_response()
+    assert fig.data[0].line.shape == "linear"
+    fig = results.plot_response(line_shape="spline")
+    assert fig.data[0].line.shape == "spline"
+    assert fig.data[1].line.dash == "dash"
+
+    fig = results.plot_probe_response()
+    assert fig.data[0].line.shape == "linear"
+    fig = results.plot_probe_response(line_shape="spline")
+    assert fig.data[0].line.shape == "spline"
+    assert fig.data[-1].name == "Avl"
+
+    assert len(results.plot().data) == 3
+
+
 def test_save_load_clearance(rotor_with_clearances, clearance_probes):
     results = rotor_with_clearances.run_clearance_analysis(
         speed_range=Q_(np.linspace(0, 10000, 21), "RPM"),

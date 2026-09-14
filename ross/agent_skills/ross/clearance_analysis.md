@@ -79,9 +79,12 @@ fig = results.plot()  # bars: clearance, 75 % limit, scaled max amplitude per lo
 fig = results.plot_response()  # scaled amplitude vs. speed per location with its limit
 # probe response with Avl and the Nma-Nmc range (API 617 Figure 4)
 fig = results.plot_probe_response()
+# smoother drawing of the sweep plots without changing the sampled speeds
+fig = results.plot_response(line_shape="spline")
 ```
 
 Unit options: `length_units` (default `"um"`), `speed_units` (default `"RPM"`).
+`plot_response()` and `plot_probe_response()` accept `line_shape` (`"linear"`, the default, or `"spline"`).
 
 ## API 617 unbalance only
 
