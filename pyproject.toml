@@ -91,6 +91,7 @@ version = {attr = "ross.__version__"}
 
 [project.scripts]
 ross-install-skill = "ross.agent_skills.install:main"
+ross_2to3 = "ross.ross_2to3.cli:main"
 
 [project.urls]
 Homepage = "https://ross.readthedocs.io/"

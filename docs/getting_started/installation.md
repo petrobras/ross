@@ -25,6 +25,24 @@ Alternatively, you can install the development version from GitHub:
 pip install git+https://github.com/petrobras/ross.git
 ```
 
+## Upgrading from ROSS 2
+
+ROSS 3 standardized the parameter names of the bearing and seal classes and
+enters geometry as diameters, angles in radians and temperatures in kelvin (or
+any pint quantity). Saved rotor files, scripts and notebooks written for ROSS 2
+are converted by the `ross_2to3` command installed with ROSS:
+
+```{code-block}
+ross_2to3 my_rotor.toml analysis.py notebooks/   # preview the changes and the report
+ross_2to3 -w my_rotor.toml analysis.py           # rewrite in place, keeping .bak copies
+ross_2to3 -o converted/ project/                 # write the converted files to another folder
+```
+
+The report lists every rename and flags what needs a manual check (positional
+arguments, `**kwargs`, variables in changed units). See the
+[migration guide](../release_notes/release_notes.rst) in the release notes for
+the complete rename table.
+
 ## AI assistance
 
 Need help building your rotor model or running an analysis? ROSS supports

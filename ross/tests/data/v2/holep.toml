@@ -1,0 +1,48 @@
+[HolePatternSeal_holep]
+b_suther = 1.4779511866578628e-6
+cell_depth = 0.0025
+cell_length = 0.003175
+cell_width = 0.003175
+cxx = [ 241.9355237603161,]
+cxy = [ -45.91117208488521,]
+cyx = [ 45.91117208488521,]
+cyy = [ 241.9355237603161,]
+czz = [ 0,]
+entr_coef = 0.5
+exit_coef = 1.0
+first_step_size = 0.01
+frequency = [ 837.7580409572781,]
+gamma = 1.407887456504277
+inlet_pressure = 689000.0
+inlet_temperature = 322.0
+kxx = [ 736225.1582075899,]
+kxy = [ 180699.46056554845,]
+kyx = [ -180699.46056554845,]
+kyy = [ 736225.1582075899,]
+kzz = [ 0,]
+length = 0.04699
+max_iterations = 180
+molar = 28.8503972
+mxx = [ -0.031049986768771007,]
+mxy = [ 0.00915407977524887,]
+myx = [ -0.00915407977524887,]
+myy = [ -0.031049986768771007,]
+mzz = [ 0,]
+n = 0
+nz = 18
+outlet_pressure = 94300.0
+preswirl = 0.8
+radial_clearance = 0.0003
+rlx_factor = 0.1
+roughness = 0.0001
+s_suther = 112.56577148052729
+shaft_radius = 0.0725
+tolerance = 0.0001
+whirl_ratio = 1.0
+
+[HolePatternSeal_holep.gas_composition]
+Nitrogen = 0.79
+Oxygen = 0.21
+
+[HolePatternSeal_holep.kwargs]
+tag = "holep"
