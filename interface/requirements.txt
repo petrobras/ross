@@ -1,5 +1,12 @@
 # ROSS comes from GitHub, not from PyPI: the published version is behind the
-# repository. Verified target: 3.0.0.dev0, commit f8caf6e7 (13/09/2026).
+# repository. Verified target: 3.0.0.dev0, commit d130bb80 (14/09/2026).
+#
+# Moved up from f8caf6e7 when petrobras/ross#1377 landed: `run_clearance_analysis`
+# was rewritten after API 617 (9th edition, 6.8.2.10 and 6.8.2.11). It takes a
+# speed range, the minimum allowable and maximum continuous speeds and the
+# vibration probes, and the unbalance became optional; `speed`, `frequency`
+# and `modes` left the signature. The form, the runner and the exported script
+# follow it, and #1378/#1379 added the `line_shape` option the form offers.
 #
 # Moved up from 2a253e6 when petrobras/ross#1371 landed: every coefficient
 # table now declares its axis, `frequency=` became `speed=` on the fluid-film
@@ -13,7 +20,7 @@
 # project keeps writing lessons about. One merge commit apart, same version
 # string, and the audit of it is in `claude/fase4-atualizacao-do-ross.md` --
 # `run_ucs` and `run_static` changed inside, no entry point changed signature.
-ross-rotordynamics @ git+https://github.com/petrobras/ross.git@f8caf6e7
+ross-rotordynamics @ git+https://github.com/petrobras/ross.git@d130bb80
 
 # ROSS does not restrict the numpy version; the range below is ours.
 numpy>=1.24,<3

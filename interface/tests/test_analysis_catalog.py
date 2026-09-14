@@ -299,11 +299,17 @@ def test_every_field_that_points_at_ross_is_accounted_for():
     34 -> 38: ROSS 3.0 (#1371) decoupled the whirl frequency from the shaft
     speed, and the four options reached the forms: `matched_whirl` on the
     campbell and on the modes, `frequency` (fixed whirl) on the modes and
-    `speed` (fixed rotor speed) on the frequency response."""
+    `speed` (fixed rotor speed) on the frequency response.
+
+    38 -> 41: ROSS #1377 rewrote the clearance analysis after API 617. Its
+    `speed`, `frequency` and `modes` left the signature (three fewer) and six
+    arguments entered it -- `minimum_allowable_speed`, `maximum_continuous_speed`,
+    `probes`, `mode`, `num_modes` and `scale_factor_cap` -- each with a field
+    that points at it."""
     pointed_at = sum(
         1 for items in ANALYSES.values() for c in items if "ross_param" in c
     )
-    assert pointed_at == 38, "%d fields point at ROSS, not 38" % pointed_at
+    assert pointed_at == 41, "%d fields point at ROSS, not 41" % pointed_at
 
 
 # --- the catalogue and the screen ---------------------------------------------
@@ -450,7 +456,11 @@ CHANGED_ON_PURPOSE = {
         "never take more than one value, and the one value it did take reached "
         "ROSS as a one-element array where a number was expected -- a "
         "DeprecationWarning until numpy 2.5, an error after it. The three "
-        "fields became one unbalance table."
+        "fields became one unbalance table. Then ROSS #1377 rewrote the "
+        "analysis after API 617: the single speed and the frequency list gave "
+        "way to a speed range, the minimum allowable and maximum continuous "
+        "speeds and the vibration probes, and the unbalance table became "
+        "optional (blank, ROSS places the API 617 unbalance from the mode)."
     ),
     "ucs": (
         "the bearing frequency range came back. It was taken out of the form "

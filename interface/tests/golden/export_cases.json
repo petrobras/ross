@@ -184,9 +184,32 @@
   "analyses": [
    {
     "params": {
-     "frequency": "[100]",
-     "modes": "[0, 1]",
-     "speed": "1200",
+     "length_units": "mm",
+     "line_shape": "linear",
+     "maximum_continuous_speed": "9000",
+     "maximum_continuous_speed_unit": "RPM",
+     "minimum_allowable_speed": "7000",
+     "minimum_allowable_speed_unit": "RPM",
+     "mode": "0",
+     "num_modes": "16",
+     "plot_type": "Response",
+     "probes": [
+      {
+       "angle": 0.785,
+       "node": 0
+      },
+      {
+       "angle": 0.785,
+       "node": 3
+      }
+     ],
+     "scale_factor_cap": "6",
+     "speed_max": "12000",
+     "speed_max_unit": "RPM",
+     "speed_min": "0",
+     "speed_min_unit": "RPM",
+     "speed_steps": "201",
+     "speed_units": "RPM",
      "unbalances": [
       {
        "mag": 0.05,
@@ -244,7 +267,10 @@
   "analyses": [
    {
     "params": {
-     "speed": "100"
+     "maximum_continuous_speed": "800",
+     "minimum_allowable_speed": "500",
+     "speed_max": "1000",
+     "speed_min": "0"
     },
     "type": "clearance"
    }

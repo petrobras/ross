@@ -56,6 +56,7 @@ UNITS_MAPPING = {
         "mzz": "kg",
         "speed": "RPM",
         "frequency": "RPM",
+        "radial_clearance": "mm",
     },
     "BallBearingElement": {},
     "RollerBearingElement": {},
@@ -133,6 +134,7 @@ UNITS_MAPPING = {
         "mzz": "kg",
         "speed": "RPM",
         "frequency": "RPM",
+        "radial_clearance": "mm",
     },
     "HolePatternSeal": {
         "shaft_diameter": "mm",
