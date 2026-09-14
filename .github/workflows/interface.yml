@@ -57,13 +57,13 @@ defaults:
 
 jobs:
   check:
-    # The ends of the supported range. 3.11 sits between two green runs, and
+    # The ends of the supported range. 3.13 sits between two green runs, and
     # nine jobs to interpolate one point is not worth the minutes.
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        python: ["3.10", "3.12"]
+        python: ["3.12", "3.14"]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     steps:

@@ -257,6 +257,18 @@ Documentation
 API Changes and Migration Guide
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+Supported Python and Dependency Versions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+ROSS now follows `SPEC 0 <https://scientific-python.org/specs/spec-0000/>`_, the
+time-based support policy of the scientific Python ecosystem: a Python version is
+supported for three years after its initial release and a core dependency version
+for two years. Version 3.0.0 requires Python 3.12 or newer and is tested on
+Python 3.12, 3.13 and 3.14; support for Python 3.9, 3.10 and 3.11 is dropped.
+The minimum dependency versions are ``numpy>=2.2``, ``scipy>=1.15`` and
+``pandas>=2.3``. Minimum versions are raised only on major and minor releases,
+never on patch releases; see the contributing guide for the policy.
+
 Upgrading with ``ross_2to3``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 

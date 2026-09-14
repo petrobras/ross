@@ -5,11 +5,11 @@
 ## Install Python
 
 The first step is to install Python. Since ROSS requires several packages to be installed besides Python, such as
-numpy and scipy, we recommend installing [miniforge](https://conda-forge.org/download/) or [Anaconda](https://docs.anaconda.com/free/anaconda/index.html) (version 3.9 or higher) which is a
+numpy and scipy, we recommend installing [miniforge](https://conda-forge.org/download/) or [Anaconda](https://docs.anaconda.com/free/anaconda/index.html) (Python 3.12 or higher) which is a
 scientific Python distribution that aims to simplify package management and deployment. It contains Python and a large
 number of packages that are commonly used.
 Alternatively, you may refer to the [Python website](http://www.python.org/).
-ROSS code is tested in Python 3.9 and higher.
+ROSS is tested on Python 3.12, 3.13 and 3.14. Supported Python and dependency versions follow [SPEC 0](https://scientific-python.org/specs/spec-0000/); see the contributing guide for details.
 
 ## Install ROSS
 

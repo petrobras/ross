@@ -55,7 +55,7 @@ ci/            The CI workflow, installed at .github/workflows/ in the repositor
 
 ## 📋 Prerequisites
 
-Python 3.10 or newer. A virtual environment is recommended. `node` is optional
+Python 3.12 or newer. A virtual environment is recommended. `node` is optional
 but recommended: without it the behaviour batteries in `tests/js/` are skipped,
 and they are the only tests that exercise the screen rather than the source
 text.
