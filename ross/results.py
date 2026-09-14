@@ -2994,7 +2994,7 @@ class FrequencyResponseResults(Results):
         frequency_units="rad/s",
         amplitude_units="m/N",
         fig=None,
-        line_shape="linear",
+        line_shape="spline",
         **mag_kwargs,
     ):
         """Plot frequency response (magnitude) using Plotly.
@@ -3028,7 +3028,7 @@ class FrequencyResponseResults(Results):
             The figure object with the plot.
         line_shape : str, optional
             Line interpolation style for the Plotly trace (e.g. "linear", "spline").
-            Default is "linear".
+            Default is "spline".
         mag_kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -3725,7 +3725,7 @@ class ForcedResponseResults(Results):
         frequency_units="rad/s",
         amplitude_units="m",
         fig=None,
-        line_shape="linear",
+        line_shape="spline",
         **kwargs,
     ):
         """Plot forced response (magnitude) using Plotly.
@@ -3756,7 +3756,7 @@ class ForcedResponseResults(Results):
             The figure object with the plot.
         line_shape : str, optional
             Line interpolation style for the Plotly trace (e.g. "linear", "spline").
-            Default is "linear".
+            Default is "spline".
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -8267,7 +8267,7 @@ class ClearanceResults(Results):
         length_units="um",
         speed_units="RPM",
         fig=None,
-        line_shape="linear",
+        line_shape="spline",
         **kwargs,
     ):
         """Plot the scaled response at each location against the rotor speed.
@@ -8286,7 +8286,7 @@ class ClearanceResults(Results):
             Figure to add traces to.
         line_shape : str, optional
             Line interpolation style for the Plotly traces (e.g. "linear", "spline").
-            Default is "linear".
+            Default is "spline".
         **kwargs : optional
             Additional layout arguments.
 
@@ -8347,7 +8347,7 @@ class ClearanceResults(Results):
         length_units="um",
         speed_units="RPM",
         fig=None,
-        line_shape="linear",
+        line_shape="spline",
         **kwargs,
     ):
         """Plot the unscaled probe response with the vibration limit.
@@ -8366,7 +8366,7 @@ class ClearanceResults(Results):
             Figure to add traces to.
         line_shape : str, optional
             Line interpolation style for the Plotly traces (e.g. "linear", "spline").
-            Default is "linear".
+            Default is "spline".
         **kwargs : optional
             Additional layout arguments.
 

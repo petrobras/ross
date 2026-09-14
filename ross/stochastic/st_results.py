@@ -503,7 +503,7 @@ class ST_FrequencyResponseResults(ST_Results):
         frequency_units="rad/s",
         amplitude_units="m/N",
         fig=None,
-        line_shape="linear",
+        line_shape="spline",
         **kwargs,
     ):
         """Plot stochastic frequency response (magnitude) using Plotly.
@@ -538,7 +538,7 @@ class ST_FrequencyResponseResults(ST_Results):
             The figure object with the plot.
         line_shape : str, optional
             Line interpolation style for the Plotly traces (e.g. "linear", "spline").
-            Default is "linear".
+            Default is "spline".
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -1677,7 +1677,7 @@ class ST_ForcedResponseResults(ST_Results):
         frequency_units="rad/s",
         amplitude_units="m",
         fig=None,
-        line_shape="linear",
+        line_shape="spline",
         **kwargs,
     ):
         """Plot stochastic frequency response.
@@ -1727,7 +1727,7 @@ class ST_ForcedResponseResults(ST_Results):
             Bokeh plot axes with magnitude plot.
         line_shape : str, optional
             Line interpolation style for the Plotly traces (e.g. "linear", "spline").
-            Default is "linear".
+            Default is "spline".
         """
         frequency_range = Q_(self.frequency_range, "rad/s").to(frequency_units).m
 
