@@ -178,6 +178,20 @@ class SqueezeFilmDamper(BearingElement):
             final_time=self.final_time,
         )
 
+    def save(self, file):
+        """Save the element as a plain coefficient-table BearingElement.
+
+        The saved file holds the solved coefficient table (see
+        :meth:`ross.BearingElement.save_coefficient_table`), so loading it
+        restores the rotordynamic behavior without re-running the solver.
+
+        Parameters
+        ----------
+        file : str or pathlib.Path
+            File to write (created or updated).
+        """
+        self.save_coefficient_table(file)
+
     def __getattr__(self, name):
         if "_results" in self.__dict__ and hasattr(self._results, name):
             return getattr(self._results, name)

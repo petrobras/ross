@@ -101,3 +101,22 @@ def test_cartesian_coords_grow_with_the_spin(thrust_pad):
     assert_allclose(angles[-1], np.pi / 2 + results.pad_arc / 2)
     assert np.all(np.diff(angles) > 0)
     assert len(angles) == results.n_theta + 2
+
+
+def test_save_writes_a_speed_coefficient_table(thrust_pad, tmp_path):
+    import ross as rs
+    from ross.utils import load_data
+
+    file = tmp_path / "thrust.toml"
+    thrust_pad.save(file)
+    data = load_data(file)
+    assert list(data) == [f"BearingElement_{thrust_pad.tag}"]
+    section = data[f"BearingElement_{thrust_pad.tag}"]
+    assert "speed" in section and "pad_arc" not in section
+
+    for loader in (rs.BearingElement, ThrustPad):
+        loaded = loader.load(file)
+        assert type(loaded) is rs.BearingElement
+        assert_allclose(loaded.kzz, thrust_pad.kzz)
+        assert_allclose(loaded.czz, thrust_pad.czz)
+        assert_allclose(loaded.speed, thrust_pad.speed)
