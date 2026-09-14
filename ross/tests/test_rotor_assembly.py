@@ -2534,6 +2534,47 @@ def test_save_load_json(rotor8):
     assert rotor8 == rotor8_loaded
 
 
+@pytest.mark.parametrize("suffix", [".toml", ".json"])
+def test_save_load_keeps_proportional_damping(suffix):
+    rotor = rotor_example_with_damping()
+    file = Path(tempdir) / f"rotor_proportional_damping{suffix}"
+    rotor.save(file)
+    loaded = Rotor.load(file)
+
+    assert loaded.alpha == rotor.alpha
+    assert loaded.beta == rotor.beta
+    assert loaded == rotor
+    assert_allclose(loaded.C(0), rotor.C(0))
+    assert_allclose(loaded.run_modal(0).log_dec, rotor.run_modal(0).log_dec)
+
+
+@pytest.mark.parametrize("suffix", [".toml", ".json"])
+def test_save_load_keeps_modal_damping(rotor8, suffix):
+    rotor = Rotor(
+        rotor8.shaft_elements,
+        rotor8.disk_elements,
+        rotor8.bearing_elements,
+        modal_damping_ratio=np.array([0.02, 0.03]),
+        default_damping_ratio=0.01,
+    )
+    file = Path(tempdir) / f"rotor_modal_damping{suffix}"
+    rotor.save(file)
+    loaded = Rotor.load(file)
+
+    assert loaded.modal_damping_ratio == [0.02, 0.03]
+    assert loaded.default_damping_ratio == 0.01
+    assert loaded == rotor
+    assert_allclose(loaded.C(0), rotor.C(0))
+
+
+def test_rotor_equality_sees_damping(rotor8):
+    damped = Rotor(
+        rotor8.shaft_elements, rotor8.disk_elements, rotor8.bearing_elements, beta=1e-5
+    )
+
+    assert damped != rotor8
+
+
 def disk_traces(fig, tag):
     return [d for d in fig.data if d["name"] == tag and d["fill"] == "toself"]
 
