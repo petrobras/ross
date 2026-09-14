@@ -473,3 +473,54 @@ def test_save_load_amb_time_response(rotor_amb):
     assert (
         results2.rotor.bearing_elements[0].tag == results.rotor.bearing_elements[0].tag
     )
+
+
+def test_plot_mode_3d_frame_is_right_handed(rotor1):
+    modal = rotor1.run_modal(speed=Q_(4000, "RPM"))
+    fig = modal.plot_mode_3d(0)
+
+    # the rotor length runs forward on the scene x axis, so the scene
+    # (z, x, y) triple keeps the handedness of the rotor frame
+    assert fig.layout.scene.xaxis.autorange != "reversed"
+    assert fig.layout.scene.camera.eye.x < 0
+
+    axes = [trace for trace in fig.data if trace.name == "Axes"]
+    assert [trace.mode for trace in axes] == ["lines", "text"]
+    assert list(axes[1].text) == ["x", "y", "z", "ω"]
+    assert all(not trace.showlegend for trace in axes)
+
+
+def test_plot_mode_2d_axes_indicator(rotor1):
+    modal = rotor1.run_modal(speed=Q_(4000, "RPM"))
+    fig = modal.plot_mode_2d(0)
+
+    labels = {a.text for a in fig.layout.annotations if a.text}
+    assert {"<i>x</i>", "<i>y</i>", "<i>z</i>", "<i>ω</i>"} <= labels
+    assert [shape.type for shape in fig.layout.shapes].count("line") == 2
+    assert fig.layout.margin.b >= 120
+
+
+def test_plot_orbit_axes_indicator(rotor1):
+    modal = rotor1.run_modal(speed=Q_(4000, "RPM"), num_modes=14)
+    lateral_mode = next(
+        i for i, shape in enumerate(modal.shapes) if shape.mode_type == "Lateral"
+    )
+    fig = modal.plot_orbit(lateral_mode, nodes=[2])
+
+    # the orbit plane is x-y, so z points out of the page: no cross lines
+    assert [shape.type for shape in fig.layout.shapes].count("line") == 0
+    labels = {a.text for a in fig.layout.annotations if a.text}
+    assert {"<i>x</i>", "<i>y</i>", "<i>z</i>", "<i>ω</i>"} <= labels
+    assert fig.layout.xaxis.title.text == "<i>x</i>"
+    assert fig.layout.yaxis.title.text == "<i>y</i>"
+
+
+def test_plot_deflected_shape_3d_frame_is_right_handed(rotor1):
+    speed = Q_(4000, "RPM").to("rad/s").m
+    response = rotor1.run_unbalance_response(
+        node=3, unbalance_magnitude=0.001, unbalance_phase=0, speed_range=[speed]
+    )
+    fig = response.plot_deflected_shape_3d(speed=speed)
+
+    assert fig.layout.scene.xaxis.autorange != "reversed"
+    assert [trace.name for trace in fig.data].count("Axes") == 2

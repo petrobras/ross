@@ -6,7 +6,7 @@ from plotly.subplots import make_subplots
 from prettytable import PrettyTable
 from scipy.interpolate import griddata
 
-from ross.plotly_theme import tableau_colors
+from ross.plotly_theme import INDICATOR_INK, axes_indicator_3d, tableau_colors
 from ross.units import Q_
 
 __all__ = [
@@ -388,12 +388,16 @@ class ThrustPadResults(BearingResults):
             -(self.d_radius * self.pad_inner_radius),
         )
 
-        angular_coords[0] = np.pi / 2 + self.pad_arc / 2
-        angular_coords[-1] = np.pi / 2 - self.pad_arc / 2
-        angular_coords[1 : self.n_theta + 1] = np.arange(
-            np.pi / 2 + self.pad_arc / 2 - (0.5 * self.d_theta * self.pad_arc),
-            np.pi / 2 - self.pad_arc / 2,
-            -self.d_theta * self.pad_arc,
+        # the first angular index is the oil inlet at the leading edge and the
+        # collar runs from it toward the trailing edge, so the angle grows with
+        # the index: the spin takes x toward y, as in the rotor frame
+        leading_edge = np.pi / 2 - self.pad_arc / 2
+        trailing_edge = np.pi / 2 + self.pad_arc / 2
+        step = self.d_theta * self.pad_arc
+        angular_coords[0] = leading_edge
+        angular_coords[-1] = trailing_edge
+        angular_coords[1 : self.n_theta + 1] = np.linspace(
+            leading_edge + 0.5 * step, trailing_edge - 0.5 * step, self.n_theta
         )
 
         for i in range(self.n_radial + 2):
@@ -402,6 +406,65 @@ class ThrustPadResults(BearingResults):
                 y_coords[i, j] = radial_coords[i] * np.sin(angular_coords[j])
 
         return x_coords, y_coords
+
+    def _axes_indicator(self, fig, x_coords, y_coords, field):
+        """Draw the frame triad in front of the pad on a Cartesian 3-D plot.
+
+        The scene keeps the pad proportions in the x-y plane and normalizes
+        the field axis, so the arms, sized from the pad radial width, look
+        the same whatever the field magnitude. The z axis carries the field,
+        not a length, so only the x and y arms are drawn, with the spin ω
+        turning about the collar axis, x toward y. The triad sits on the
+        bearing center side of the pad, between the pad and the axis.
+
+        Parameters
+        ----------
+        fig : plotly.graph_objects.Figure
+            The figure object with the surface plot.
+        x_coords, y_coords : ndarray
+            Cartesian grids of the pad surface, m.
+        field : ndarray
+            Field values drawn on the z axis.
+
+        Returns
+        -------
+        fig : plotly.graph_objects.Figure
+            The figure object with the triad.
+        """
+        radial_width = self.pad_outer_radius - self.pad_inner_radius
+        width = x_coords.max() - x_coords.min()
+        x_range = [x_coords.min() - 0.05 * width, x_coords.max() + 0.05 * width]
+        y_range = [
+            y_coords.min() - 0.7 * radial_width,
+            y_coords.max() + 0.05 * radial_width,
+        ]
+        span = max(np.ptp(field), 1e-12)
+        z_range = [field.min(), field.max() + 0.05 * span]
+        widest = max(x_range[1] - x_range[0], y_range[1] - y_range[0])
+        fig.update_layout(
+            scene=dict(
+                xaxis=dict(range=x_range),
+                yaxis=dict(range=y_range),
+                zaxis=dict(range=z_range),
+                aspectmode="manual",
+                aspectratio=dict(
+                    x=(x_range[1] - x_range[0]) / widest,
+                    y=(y_range[1] - y_range[0]) / widest,
+                    z=0.8,
+                ),
+            )
+        )
+        return axes_indicator_3d(
+            fig,
+            origin=dict(
+                x=0.5 * (x_range[0] + x_range[1]),
+                y=y_coords.min() - 0.45 * radial_width,
+                z=z_range[0],
+            ),
+            size=0.3 * radial_width / widest,
+            scales=dict(x=widest, y=widest, z=(z_range[1] - z_range[0]) / 0.8),
+            arms=("x", "y"),
+        )
 
     def _build_interp_grid(self, x_coords, y_coords, z_data, resolution=800):
         """Interpolate field data onto a regular Cartesian grid.
@@ -606,6 +669,8 @@ class ThrustPadResults(BearingResults):
             )
         )
 
+        fig = self._axes_indicator(fig, x_coords, y_coords, pressure_field)
+
         fig.update_layout(
             title="Pressure field",
             scene=dict(
@@ -706,6 +771,8 @@ class ThrustPadResults(BearingResults):
                 + "<extra></extra>",
             )
         )
+
+        fig = self._axes_indicator(fig, x_coords, y_coords, temperature_field)
 
         fig.update_layout(
             title="Temperature field",
@@ -1243,6 +1310,21 @@ class FluidFilmBearingResults(BearingResults):
                     + "<extra></extra>",
                 )
             )
+        fig.add_annotation(
+            text=(
+                "Spin ω turns x toward y (counterclockwise about z); θ is measured "
+                "from each pad's leading edge and grows with the spin"
+            ),
+            xref="paper",
+            yref="paper",
+            x=0.5,
+            y=0,
+            yshift=-8,
+            xanchor="center",
+            yanchor="top",
+            showarrow=False,
+            font=dict(size=11, color=INDICATOR_INK),
+        )
         fig.update_layout(
             scene=dict(
                 xaxis_title="Theta [rad]",
@@ -1522,6 +1604,15 @@ class FluidFilmBearingResults(BearingResults):
                     name="Babbitt surface",
                 )
             )
+
+        x_all, y_all, z_all = np.concatenate(x), np.concatenate(y), np.concatenate(z)
+        bore = np.sqrt(np.min(x_all**2 + y_all**2))
+        fig = axes_indicator_3d(
+            fig,
+            origin=dict(x=0.0, y=0.0, z=z_all.min()),
+            size=0.6 * bore,
+            scales=dict(x=1.0, y=1.0, z=1.0),
+        )
 
         fig.update_layout(
             title=dict(text="Solid pad temperature"),

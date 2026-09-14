@@ -2696,6 +2696,10 @@ def test_plot_rotor_axes_indicator(rotor8):
     fig = rotor8.plot_rotor(show_axes_indicator=True)
     assert all(shape.visible for shape in fig.layout.shapes)
     assert fig.layout.height == height
+    # the plot shows the z-y plane, so x points into the page: a crossed circle
+    assert [shape.type for shape in fig.layout.shapes].count("line") == 2
+    labels = {a.text for a in fig.layout.annotations if a.text}
+    assert {"<i>x</i>", "<i>y</i>", "<i>z</i>", "<i>ω</i>"} <= labels
     (menu,) = [m for m in fig.layout.updatemenus if m.buttons[0].label == "Show axes"]
     assert menu.active == 0
 

@@ -189,7 +189,8 @@ def test_plot_pad_temperature_3d(full_thermal_bearing):
 
     fig = bearing.plot_pad_temperature_3d()
     mesh = fig.data[0]
-    assert [trace.type for trace in fig.data] == ["mesh3d", "scatter3d"]
+    assert [trace.type for trace in fig.data] == ["mesh3d"] + ["scatter3d"] * 3
+    assert [trace.name for trace in fig.data[2:]] == ["Axes", "Axes"]
     assert len(mesh.x) == n_pads * n_theta * n_radial * 2
     assert_allclose(
         [np.min(mesh.intensity), np.max(mesh.intensity)],
@@ -200,7 +201,7 @@ def test_plot_pad_temperature_3d(full_thermal_bearing):
     assert_allclose([radius.min(), radius.max()], [radii[0], radii[-1]], rtol=1e-12)
 
     fig = bearing.plot_pad_temperature_3d(show_interface=False)
-    assert [trace.type for trace in fig.data] == ["mesh3d"]
+    assert [trace.type for trace in fig.data] == ["mesh3d"] + ["scatter3d"] * 2
 
 
 def test_plot_pad_temperature_3d_requires_full_thermal(fixture_bearing):

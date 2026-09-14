@@ -42,7 +42,7 @@ from ross.disk_element import DiskElement
 from ross.faults import Crack, MisalignmentFlex, MisalignmentRigid, Rubbing
 from ross.materials import Material, steel
 from ross.model_reduction import ModelReduction
-from ross.plotly_theme import color_shades
+from ross.plotly_theme import axes_indicator_2d, color_shades
 from ross.point_mass import PointMass
 from ross.probe import Probe
 from ross.results import (
@@ -3565,7 +3565,7 @@ class Rotor(object):
         bore of hollow elements is left void; one switches the bearings between
         the solid pedestal and the classic spring/damper representation; and
         one displays the rotor frame of reference, with z along the shaft, y
-        upwards, x out of the page and the positive rotation around z. Every
+        upwards, x into the page and the spin taking x toward y. Every
         shade in the plot is derived from a single color per element, so
         setting `Material.color`, `DiskElement.color` or `BearingElement.color`
         controls the whole appearance of that element. Below the rotor there is
@@ -4183,7 +4183,7 @@ class Rotor(object):
         updatemenus : list
             List with one plotly updatemenu per available toggle.
         """
-        show, hide = self._plot_axes_indicator(fig)
+        show, hide = axes_indicator_2d(fig, plane="zy", visible=False)
         if show_axes_indicator:
             fig.plotly_relayout(dict(show))
 
@@ -4232,138 +4232,6 @@ class Rotor(object):
             pad_r += 28 + round(6.2 * len(button["label"]))
 
         return updatemenus[::-1]
-
-    @staticmethod
-    def _plot_axes_indicator(fig):
-        """Draw the coordinate reference triad inside the bottom margin.
-
-        The triad shows the rotor frame of reference: z along the shaft, y
-        upwards, x out of the page and the positive rotation around z. It is
-        built only from paper-referenced, pixel-sized shapes and annotations,
-        so it keeps its size and position at any figure size and never affects
-        the axes ranges. Everything starts hidden; the button which displays
-        it only flips the visible flag of these items, leaving the layout
-        untouched.
-
-        Parameters
-        ----------
-        fig : plotly.graph_objects.Figure
-            The figure object which shapes and annotations are added on.
-
-        Returns
-        -------
-        show : dict
-            Relayout arguments which display the indicator.
-        hide : dict
-            Relayout arguments which hide it again.
-        """
-        ink = "#33475C"
-        ox, oy = 50.0, -83.0
-        arm = 38.0
-        cx = ox + 22.0
-        rx, ry = 3.2, 9.5
-        theta = np.linspace(-0.2 * np.pi, 1.2 * np.pi, 5)
-
-        first_shape = len(fig.layout.shapes or ())
-        first_annotation = len(fig.layout.annotations or ())
-
-        shape = dict(
-            xref="paper",
-            yref="paper",
-            xanchor=0,
-            yanchor=0,
-            xsizemode="pixel",
-            ysizemode="pixel",
-            fillcolor="rgba(0,0,0,0)",
-            visible=False,
-        )
-        # the x axis points out of the page, drawn as a circle with a center
-        # dot; the rotation around z is an open elliptic arc around the z arm,
-        # built from cubic Bezier segments since shape paths take no arcs
-        fig.add_shape(
-            type="circle",
-            x0=ox - 6.5,
-            y0=oy - 6.5,
-            x1=ox + 6.5,
-            y1=oy + 6.5,
-            line=dict(color=ink, width=1.6),
-            **shape,
-        )
-
-        def point(t):
-            return np.array([cx + rx * np.cos(t), oy + ry * np.sin(t)])
-
-        def slope(t):
-            return np.array([-rx * np.sin(t), ry * np.cos(t)])
-
-        arc = "M {:.2f},{:.2f}".format(*point(theta[0]))
-        for t0, t1 in zip(theta[:-1], theta[1:]):
-            handle = (4 / 3) * np.tan((t1 - t0) / 4)
-            arc += " C {:.2f},{:.2f} {:.2f},{:.2f} {:.2f},{:.2f}".format(
-                point(t0)[0] + handle * slope(t0)[0],
-                point(t0)[1] + handle * slope(t0)[1],
-                point(t1)[0] - handle * slope(t1)[0],
-                point(t1)[1] - handle * slope(t1)[1],
-                *point(t1),
-            )
-        fig.add_shape(type="path", path=arc, line=dict(color=ink, width=1.3), **shape)
-
-        shape["fillcolor"] = ink
-        fig.add_shape(
-            type="circle",
-            x0=ox - 2,
-            y0=oy - 2,
-            x1=ox + 2,
-            y1=oy + 2,
-            line=dict(width=0),
-            **shape,
-        )
-
-        # arrowhead at the open end of the arc, drawn as a filled triangle
-        # aligned with the direction of travel; annotation arrows misplace
-        # their head when the tail is this short
-        tip = point(theta[-1])
-        tangent = slope(theta[-1])
-        tangent /= np.hypot(*tangent)
-        normal = np.array([-tangent[1], tangent[0]])
-        apex = tip + 6.5 * tangent
-        corners = (tip - 2.5 * tangent + 4 * normal, tip - 2.5 * tangent - 4 * normal)
-        fig.add_shape(
-            type="path",
-            path="M {:.2f},{:.2f} L {:.2f},{:.2f} L {:.2f},{:.2f} Z".format(
-                *apex, *corners[0], *corners[1]
-            ),
-            line=dict(width=0),
-            **shape,
-        )
-
-        base = dict(x=0, y=0, xref="paper", yref="paper", visible=False)
-        arrow = dict(
-            text="",
-            showarrow=True,
-            arrowhead=2,
-            arrowsize=1.2,
-            arrowwidth=1.6,
-            arrowcolor=ink,
-            **base,
-        )
-        fig.add_annotation(xshift=ox + arm, yshift=oy, ax=-(arm - 8), ay=0, **arrow)
-        fig.add_annotation(xshift=ox, yshift=oy + arm, ax=0, ay=arm - 8, **arrow)
-
-        label = dict(showarrow=False, font=dict(size=12, color=ink), **base)
-        fig.add_annotation(xshift=ox + arm + 10, yshift=oy, text="<i>z</i>", **label)
-        fig.add_annotation(xshift=ox, yshift=oy + arm + 10, text="<i>y</i>", **label)
-        fig.add_annotation(xshift=ox - 17, yshift=oy - 12, text="<i>x</i>", **label)
-        fig.add_annotation(xshift=cx + 1, yshift=oy + 17, text="<i>ω</i>", **label)
-
-        show = {}
-        for i in range(first_shape, len(fig.layout.shapes)):
-            show[f"shapes[{i}].visible"] = True
-        for i in range(first_annotation, len(fig.layout.annotations)):
-            show[f"annotations[{i}].visible"] = True
-        hide = dict.fromkeys(show, False)
-
-        return show, hide
 
     @check_units
     def run_campbell(

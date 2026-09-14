@@ -23,7 +23,12 @@ from ross.plotly_theme import coolwarm_r, tableau_colors
 from pathlib import Path
 from ross.bearings.magnetic.amb_utils import get_ambs
 
-from ross.plotly_theme import tableau_colors, coolwarm_r
+from ross.plotly_theme import (
+    axes_indicator_2d,
+    axes_indicator_3d,
+    coolwarm_r,
+    tableau_colors,
+)
 from ross.units import Q_, check_units
 from ross.utils import intersection, compute_dfft, compute_freq_resp
 
@@ -1606,6 +1611,38 @@ class Shape(Results):
 
         return fig
 
+    def _axes_indicator_3d(self, fig, length_units, half_range):
+        """Draw the rotor frame triad in a 3-D shape plot.
+
+        Shape plots put the rotor length on the scene x axis, with an aspect
+        ratio of 2.5:1:1, and the displacements on the scene y (rotor x) and
+        z (rotor y) axes over a symmetric range. The triad sits at the node 0
+        end, in the lower front corner of the scene.
+
+        Parameters
+        ----------
+        fig : plotly.graph_objects.Figure
+            The figure object with the shape plot.
+        length_units : str
+            Length units of the scene x axis.
+        half_range : float
+            Half extent of the displacement axes.
+
+        Returns
+        -------
+        fig : plotly.graph_objects.Figure
+            The figure object with the triad.
+        """
+        nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
+        length = max(np.max(nodes_pos) - np.min(nodes_pos), 1e-12)
+        return axes_indicator_3d(
+            fig,
+            origin=dict(x=np.min(nodes_pos), y=-0.9 * half_range, z=-0.9 * half_range),
+            size=0.18,
+            scales=dict(x=length / 2.5, y=2 * half_range, z=2 * half_range),
+            scene_axes={"x": "y", "y": "z", "z": "x"},
+        )
+
     def plot_3d(
         self,
         length_units="m",
@@ -1645,8 +1682,8 @@ class Shape(Results):
             scene=dict(
                 aspectratio=dict(x=2.5, y=1, z=1),
                 camera=dict(
-                    eye=dict(x=2.3, y=1.5, z=0.5),
-                    center=dict(x=1.15, y=0.5, z=0),
+                    eye=dict(x=-2.3, y=1.5, z=0.5),
+                    center=dict(x=-1.15, y=0.5, z=0),
                     up=dict(x=0, y=0, z=1),
                 ),
             ),
@@ -2107,12 +2144,13 @@ class ModalResults(Results):
             else f"{shape.mode_type} mode"
         )
 
+        fig = shape._axes_indicator_3d(fig, length_units, half_range=2)
+
         fig.update_layout(
             margin=dict(b=60, l=40, r=40, t=60),
             scene=dict(
                 xaxis=dict(
                     title=dict(text=f"Rotor Length ({length_units})"),
-                    autorange="reversed",
                     nticks=5,
                 ),
                 yaxis=dict(
@@ -2124,8 +2162,8 @@ class ModalResults(Results):
                 aspectmode="manual",
                 aspectratio=dict(x=2.5, y=1, z=1),
                 camera=dict(
-                    eye=dict(x=2.3, y=1.5, z=0.5),
-                    center=dict(x=1.15, y=0.5, z=0),
+                    eye=dict(x=-2.3, y=1.5, z=0.5),
+                    center=dict(x=-1.15, y=0.5, z=0),
                     up=dict(x=0, y=0, z=1),
                 ),
             ),
@@ -2214,6 +2252,8 @@ class ModalResults(Results):
 
         shape = self.shapes[mode]
         fig = shape.plot_2d(fig=fig, orientation=orientation)
+        axes_indicator_2d(fig, plane="zy", y=-105, arm=34)
+        fig.update_layout(margin=dict(b=125))
 
         if title is None:
             title = ""
@@ -2279,13 +2319,16 @@ class ModalResults(Results):
 
         shape = self.shapes[mode]
         fig = shape.plot_orbit(nodes, fig=fig)
+        if shape.orbits is not None:
+            axes_indicator_2d(fig, plane="xy", y=-105, arm=34)
 
         fig.update_layout(
             autosize=False,
             width=500,
-            height=500,
-            xaxis_range=[-1, 1],
-            yaxis_range=[-1, 1],
+            height=545,
+            margin=dict(b=125),
+            xaxis=dict(range=[-1, 1], title=dict(text="<i>x</i>")),
+            yaxis=dict(range=[-1, 1], title=dict(text="<i>y</i>")),
             title={
                 "text": f"Mode {mode} - Nodes {nodes}",
                 "x": 0.5,
@@ -4562,6 +4605,8 @@ class ForcedResponseResults(Results):
         if fig is None:
             fig = go.Figure()
 
+        plot_range = Q_(np.max(shape.major_axis) * 1.5, "m").to(amplitude_units).m
+        fig = shape._axes_indicator_3d(fig, rotor_length_units, plot_range)
         fig = shape.plot_3d(
             phase_units=phase_units, length_units=rotor_length_units, fig=fig
         )
@@ -4618,12 +4663,10 @@ class ForcedResponseResults(Results):
             ),
         )
 
-        plot_range = Q_(np.max(shape.major_axis) * 1.5, "m").to(amplitude_units).m
         fig.update_layout(
             scene=dict(
                 xaxis=dict(
                     title=dict(text=f"Rotor Length ({rotor_length_units})"),
-                    autorange="reversed",
                     nticks=5,
                 ),
                 yaxis=dict(
