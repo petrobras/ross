@@ -15,8 +15,7 @@ from plotly import graph_objects as go
 from ross.element import Element
 from ross.units import Q_, check_units
 
-from .sources import SourceAC
-from .inverters import InverterVF, InverterFOC
+from .motor_drive import SourceAC, InverterVF, InverterFOC
 from .results import MotorResponseResults
 from .utils import (
     phase_to_line,
@@ -592,10 +591,9 @@ class MotorElement(Element):
             nominal torque at entrance time. Default is 1.0.
         element : SourceAC, InverterVF or InverterFOC
             Electrical source or inverter. Must implement ``get_current_state``.
-            :class:`~ross.motors.inverters.InverterFOC` is stepped in closed
+            :class:`InverterFOC` is stepped in closed
             loop with rotor speed and stator current feedback;
-            :class:`~ross.motors.sources.SourceAC` and
-            :class:`~ross.motors.inverters.InverterVF` are open-loop.
+            :class:`SourceAC` and :class:`InverterVF` are open-loop.
 
         Returns
         -------
