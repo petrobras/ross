@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="appTitle">ROSS - Graphical Interface</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Local libraries: the interface runs without internet and the executable packs them. -->
+    <link rel="stylesheet" href="vendor/fontawesome/css/all.min.css">
+    <!-- Served by Flask from the installed plotly.py: the same version as fig.show(). -->
+    <script src="lib/plotly.min.js"></script>
+    <script src="vendor/sortable-1.15.6.min.js"></script>
+</head>
+<body>
+
+    <div id="screen-home" class="screen active">
+        <div class="home-container">
+            <img src="assets/ross-logo.svg" alt="ROSS Logo" class="logo-img-home" onerror="this.style.display='none'">
+            <h1 class="logo-text" data-i18n="appName">ROSS</h1>
+            <p class="subtitle" data-i18n="appTagline">Rotordynamic Open-Source Software</p>
+            <div class="home-buttons">
+                <button onclick="openRotorHub()" class="btn-primary"><i class="fas fa-layer-group"></i> <span data-i18n="homeRotorHub">Rotor Hub</span></button>
+                <button onclick="document.getElementById('upload-rotor-home').click()" class="btn-secondary" data-i18n="homeLoadRotor">Load Rotor</button>
+                <button onclick="document.getElementById('upload-analysis-home').click()" class="btn-secondary" data-i18n="homeLoadAnalysis">Load Analysis</button>
+                <button onclick="exitApplication()" class="btn-exit" style="margin-top: 15px;"><i class="fas fa-power-off"></i> <span data-i18n="homeExit">Exit Program</span></button>
+                
+                <input type="file" id="upload-rotor-home" accept=".json, .toml" style="display: none;" onchange="loadRotor(event)">
+                <input type="file" id="upload-analysis-home" accept=".json" style="display: none;" onchange="loadAnalysisDirect(event)">
+            </div>
+        </div>
+    </div>
+
+    <div id="screen-rotor-hub" class="screen">
+        <div class="topbar">
+            <div class="topbar-left">
+                <button class="btn-back" onclick="switchScreen('screen-home')" title="Back to Home" data-i18n-title="backToHome"><i class="fas fa-arrow-left"></i></button>
+            </div>
+            <div class="topbar-center">
+                <img src="assets/ross-logo.svg" alt="Logo" class="logo-img-topbar" onerror="this.style.display='none'"> <span data-i18n="hubTitle">ROSS - Rotor Manager</span>
+            </div>
+            <div class="topbar-actions">
+                <select class="ui-language" onchange="changeLanguage(this.value)" title="Language" data-i18n-title="language"><option value="en">English</option><option value="pt">Português</option></select>
+                <button class="btn-exit-small" onclick="exitApplication()" title="Exit" data-i18n-title="exit"><i class="fas fa-power-off"></i></button>
+            </div>
+        </div>
+
+        <div class="hub-container">
+            <div class="hub-header">
+                <h2 data-i18n="hubMyRotors">My Rotors</h2>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn-secondary" onclick="document.getElementById('upload-rotor-hub').click()"><i class="fas fa-upload"></i> Load Rotor</button>
+                    <button class="btn-primary" onclick="createNewRotorInHub()"><i class="fas fa-plus"></i> <span data-i18n="hubAddRotor">Add New Rotor</span></button>
+                    <button class="btn-primary" style="background-color: #8b5cf6;" onclick="openMultiRotorModal()"><i class="fas fa-link"></i> <span data-i18n="hubLinkMultiRotor">Link MultiRotor</span></button>
+                    <input type="file" id="upload-rotor-hub" accept=".json, .toml" style="display: none;" onchange="loadRotor(event)">
+                </div>
+            </div>
+            <div id="rotor-hub-list" class="hub-list">
+
+            </div>
+        </div>
+    </div>
+
+    <div id="screen-modeling" class="screen">
+        <div class="topbar">
+            <div class="topbar-left">
+                <button class="btn-back" onclick="returnToHub()" title="Back to Hub" data-i18n-title="backToHub"><i class="fas fa-arrow-left"></i></button>
+                <button class="btn-toggle-sidebar" onclick="toggleSidebar()" title="Toggle Sidebar" data-i18n-title="toggleSidebar"><i class="fas fa-bars"></i></button>
+                <button class="btn-help-general" onclick="openGeneralHelp()" title="How to use" data-i18n-title="howToUse"><i class="fas fa-question-circle"></i></button>
+            </div>
+            <div class="topbar-center">
+                <img src="assets/ross-logo.svg" alt="Logo" class="logo-img-topbar" onerror="this.style.display='none'"> <span data-i18n="modelingTitle">ROSS - Modeling</span>
+            </div>
+            <div class="topbar-actions">
+                <button class="btn-py" onclick="generatePythonFile()" title="Generate Python" data-i18n-title="generatePython"><i class="fab fa-python"></i> <span class="btn-text" data-i18n="generatePython">Generate Python</span></button>
+                <button class="btn-save" onclick="saveRotor(event)" title="Save Rotor" data-i18n-title="saveRotor"><i class="fas fa-save"></i> <span class="btn-text" data-i18n="saveRotor">Save Rotor</span></button>
+                <button class="btn-analysis-go" onclick="switchScreen('screen-analysis')" title="Go to Analysis" data-i18n-title="goToAnalysis"><span class="btn-text" data-i18n="goToAnalysis">Go to Analysis</span> <i class="fas fa-arrow-right"></i></button>
+                <select class="ui-language" onchange="changeLanguage(this.value)" title="Language" data-i18n-title="language"><option value="en">English</option><option value="pt">Português</option></select>
+                <button class="btn-exit-small" onclick="exitApplication()" title="Exit" data-i18n-title="exit"><i class="fas fa-power-off"></i></button>
+            </div>
+        </div>
+
+        <div class="modeling-layout">
+            <div class="sidebar">
+                <button class="tab-btn" onclick="openTab('materials')" data-i18n="catMaterial">Material</button>
+                <button class="tab-btn" onclick="openTab('shafts')" data-i18n="catShaft">Shaft</button>
+                <button class="tab-btn" onclick="openTab('disks')" data-i18n="catDisk">Disk</button>
+                <button class="tab-btn" onclick="openTab('gears')" data-i18n="catGear">Gear</button>
+                <button class="tab-btn" onclick="openTab('couplings')" data-i18n="catCoupling">Coupling</button>
+                <button class="tab-btn" onclick="openTab('seals')" data-i18n="catSeal">Seal</button>
+                <button class="tab-btn" onclick="openTab('bearings')" data-i18n="catBearing">Bearing</button>
+                <button class="tab-btn" onclick="openTab('pointmasses')" data-i18n="catPointmass">Pointmass</button>
+            </div>
+
+            <div class="dynamic-panel">
+                <div id="empty-message" class="empty-message" data-i18n="pickCategory">Select a category on the left to start modeling.</div>
+                
+                <div id="list-area" style="display: none;">
+                    <!-- No `data-i18n`: what writes this heading is `openTab`, with the
+                         category name and the help button. Marked, `applyLanguage()`
+                         wrote over it and left only the word "Category". -->
+                    <h3 id="tab-title"></h3>
+                    <div id="element-list" class="dynamic-list"></div>
+                    <button class="btn-add" id="btn-add-item" onclick="openForm(true)"><i class="fas fa-plus"></i></button>
+                    
+                    <div id="insertion-form" class="form-box" style="display: none;">
+                        <div id="form-fields"></div>
+                        <div class="form-actions">
+                            <button class="btn-confirm" onclick="saveItem()"><i class="fas fa-check"></i></button>
+                            <button class="btn-cancel" onclick="closeForm()"><i class="fas fa-times"></i></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="plot-panel">
+                <div id="rotor-info" style="display:flex; justify-content:center; gap: 30px; margin-bottom: 15px; font-weight: 600; color: var(--text-main); font-size: 13px; background: var(--bg-card); padding: 10px; border-radius: var(--radius-ui); border: 1px solid var(--border-color); box-shadow: var(--shadow-card); opacity: 0; transition: opacity 0.3s;">
+                    <span><span data-i18n="totalMass">Total Mass:</span> <span id="info-mass" style="color: var(--accent-primary); font-family: monospace; font-size: 14px;">-</span> kg</span>
+                    <span><span data-i18n="polarInertia">Polar Inertia (Ip):</span> <span id="info-ip" style="color: var(--accent-primary); font-family: monospace; font-size: 14px;">-</span> kg.m²</span>
+                </div>
+
+                <div id="plot-rotor" class="live-plot-area">
+                    <div style="display: flex; height: 100%; min-height: 400px; align-items: center; justify-content: center;">
+                        <p style="color: #888; text-align: center; margin: 0;" data-i18n="rotorWillAppear">The rotor model will appear here...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="screen-analysis" class="screen">
+        <div class="topbar">
+            <div class="topbar-left">
+                <button class="btn-back" onclick="openRotorHub()" title="Back to Hub" data-i18n-title="backToHub"><i class="fas fa-arrow-left"></i></button>
+                <button class="btn-toggle-sidebar" onclick="toggleAnalysisSidebar()" title="Toggle Sidebar" data-i18n-title="toggleSidebar"><i class="fas fa-bars"></i></button>
+                <button class="btn-help-general" onclick="openAnalysisHelp()" title="How to use Analysis" data-i18n-title="howToUseAnalysis"><i class="fas fa-question-circle"></i></button>
+            </div>
+            <div class="topbar-center">
+                <img src="assets/ross-logo.svg" alt="Logo" class="logo-img-topbar" onerror="this.style.display='none'"> <span data-i18n="analysisTitle">ROSS - Analysis</span>
+            </div>
+            <div class="topbar-actions">
+                <button class="btn-py" onclick="generatePythonFile()" title="Generate Python" data-i18n-title="generatePython"><i class="fab fa-python"></i> <span class="btn-text" data-i18n="generatePython">Generate Python</span></button>
+                <button class="btn-save" onclick="saveAnalysis(event)" title="Save Analysis" data-i18n-title="saveAnalysis"><i class="fas fa-save"></i> <span class="btn-text" data-i18n="saveAnalysis">Save Analysis</span></button>
+                <button class="btn-secondary" onclick="document.getElementById('upload-analysis-screen').click()" title="Load Analysis" data-i18n-title="loadAnalysis"><i class="fas fa-folder-open"></i> <span class="btn-text" data-i18n="load">Load</span></button>
+                <input type="file" id="upload-analysis-screen" accept=".json" style="display: none;" onchange="loadAnalysis(event)">
+                <select class="ui-language" onchange="changeLanguage(this.value)" title="Language" data-i18n-title="language"><option value="en">English</option><option value="pt">Português</option></select>
+                <button class="btn-exit-small" onclick="exitApplication()" title="Exit" data-i18n-title="exit"><i class="fas fa-power-off"></i></button>
+            </div>
+        </div>
+
+        <div class="analysis-layout">
+            <div class="analysis-controls-panel">
+                <!-- The options are filled in from the server catalogue: the twelve titles
+     were written here and again in a `typeNames` in the JS. -->
+                <select id="analysis-type" class="analysis-select">
+                    <option value="" data-i18n="pickAnalysis">Select analysis type...</option>
+                    </select>
+                <select id="rotor-conversion-type" class="analysis-select" style="margin-bottom: 0px;">
+                    <option value="" data-i18n="modelOriginal">Rotor Model: Original (6 DoF)</option>
+                    <option value="4dof" data-i18n="modelTo4dof">Convert to 4 DoF</option>
+                    <option value="torsional" data-i18n="modelToTorsional">Convert to Torsional</option>
+                </select>
+                <button type="button" class="btn-analysis-go" onclick="addAnalysis(event)" style="width: 100%; margin-top: 15px;" data-i18n="addDashboard">⚙️ Add Dashboard Card</button>
+            </div>
+            
+            <div class="analysis-plot-panel" id="analysis-list">
+                <p style="color: #888; text-align: center; margin-top: 20%;" data-i18n="dashboardsWillAppear">Generated dashboards will appear here.</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="help-modal-overlay" class="modal-overlay" style="display: none;">
+        <div class="modal-box">
+            <div class="modal-header">
+                <!-- No `data-i18n`: the title is that of the open help entry, written by
+                     `showHelpEntry()`. Marked, changing the language with the help
+                     open replaced the entry's title with the word "Help". -->
+                <h3 id="help-modal-title"></h3>
+                <button class="btn-close-modal" onclick="closeHelpModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body" id="help-modal-body">
+            </div>
+        </div>
+    </div>
+
+    <div id="node-hub-overlay" class="modal-overlay" style="display: none;">
+        <div class="modal-box" style="max-width: 480px;">
+            <div class="modal-header">
+                <h3><i class="fas fa-plus-circle"></i> <span data-i18n="nodeHubTitle">Add Element at Node</span> <span id="node-hub-target" style="color:var(--accent-primary);">0</span></h3>
+                <button class="btn-close-modal" onclick="closeNodeHub()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body" style="padding-top: 15px;">
+                <p style="color: var(--text-muted); margin-bottom: 15px; font-size: 13px; margin-top: 0;" data-i18n="nodeHubPick">Select the type of element you want to append to this node:</p>
+                <div class="element-hub-grid">
+                    <button class="element-hub-btn" onclick="addElementFromNodeHub('shafts')"><i class="fas fa-grip-lines"></i> Shaft</button>
+                    <button class="element-hub-btn" onclick="addElementFromNodeHub('disks')"><i class="fas fa-compact-disc"></i> Disk</button>
+                    <button class="element-hub-btn" onclick="addElementFromNodeHub('gears')"><i class="fas fa-cog"></i> Gear</button>
+                    <button class="element-hub-btn" onclick="addElementFromNodeHub('couplings')"><i class="fas fa-link"></i> Coupling</button>
+                    <button class="element-hub-btn" onclick="addElementFromNodeHub('bearings')"><i class="fas fa-circle-notch"></i> Bearing</button>
+                    <button class="element-hub-btn" onclick="addElementFromNodeHub('seals')"><i class="fas fa-ring"></i> Seal</button>
+                    <button class="element-hub-btn" onclick="addElementFromNodeHub('pointmasses')"><i class="fas fa-dot-circle"></i> <span data-i18n="catPointMassLong">Point Mass</span></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="multirotor-modal-overlay" class="modal-overlay" style="display: none;">
+        <div class="modal-box" style="max-width: 450px; padding: 0;">
+            <div class="modal-header">
+                <h3><i class="fas fa-link"></i> <span data-i18n="multiAdd">Add MultiRotor</span></h3>
+                <button class="btn-close-modal" onclick="closeMultiRotorModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body form-box" style="border: none; box-shadow: none; margin-top: 0; border-radius: 0;">
+                <div class="input-group">
+                    <label data-i18n="multiName">MultiRotor Name</label>
+                    <input type="text" id="mr-name" value="My MultiRotor">
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <div class="input-group"><label data-i18n="multiDriving">Driving Rotor</label><select id="mr-driving"></select></div>
+                    <div class="input-group"><label data-i18n="multiDriven">Driven Rotor</label><select id="mr-driven"></select></div>
+                </div>
+                <div class="input-group">
+                    <label data-i18n="multiCoupledNodes">Coupled Nodes (ex: 4, 0)</label>
+                    <input type="text" id="mr-coupled-nodes" value="0, 0" placeholder="driving_node, driven_node" data-i18n-placeholder="phCoupledNodes">
+                </div>
+                
+                <button type="button" class="btn-advanced" onclick="toggleAdvanced(this)"><span data-i18n="advanced">Advanced</span> <i class="fas fa-chevron-down"></i></button>
+                <div class="advanced-fields" style="display: none; margin-top: 10px; border-top: 1px dashed #ccc; padding-top: 10px;">
+                    <div class="input-group">
+                        <label data-i18n="multiMeshStiffness">Gear Mesh Stiffness [N/m]</label>
+                        <input type="number" id="mr-stiffness" step="any" placeholder="Auto-calculated if empty" data-i18n-placeholder="phAutoCalculated">
+                    </div>
+                    <div class="input-group"><label data-i18n="multiUpdateMesh">Update Mesh Stiff.</label><select id="mr-update-stiffness"><option value="false" data-i18n="no">False</option><option value="true" data-i18n="yes">True</option></select></div>
+                    
+                    <div style="margin-top: 10px; border: 1px solid var(--border-color); padding: 10px; border-radius: 4px; background: #f8fafc;">
+                        <b style="font-size:12px; color:var(--text-muted); display:block; margin-bottom:8px;" data-i18n="multiSquareVarying">SQUARE VARYING STIFFNESS</b>
+                        <div style="display: flex; gap: 10px;">
+                            <div class="input-group"><label data-i18n="multiEnable">Enable</label><select id="mr-square-stiffness-enable"><option value="false" data-i18n="no">False</option><option value="true" data-i18n="yes">True</option></select></div>
+                            <div class="input-group"><label data-i18n="multiAmplitudeRatio">Amplitude Ratio</label><input type="number" id="mr-square-stiffness-ratio" value="0" step="any"></div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 10px; border: 1px solid var(--border-color); padding: 10px; border-radius: 4px; background: #f8fafc;">
+                        <b style="font-size:12px; color:var(--text-muted); display:block; margin-bottom:8px;" data-i18n="multiBacklash">BACKLASH</b>
+                        <div style="display: flex; gap: 10px;">
+                            <div class="input-group"><label data-i18n="multiEnable">Enable</label><select id="mr-backlash-enable"><option value="false" data-i18n="no">False</option><option value="true" data-i18n="yes">True</option></select></div>
+                            <div class="input-group"><label data-i18n="multiInitialValue">Initial Value</label><input type="number" id="mr-backlash-initial" value="0.0" step="any"></div>
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <div class="input-group"><label data-i18n="multiErrorAmp">Error Amp</label><input type="number" id="mr-backlash-error" value="0.0" step="any"></div>
+                            <div class="input-group"><label data-i18n="multiSmoothOperator">Smooth Operator</label><select id="mr-backlash-smooth"><option value="false" data-i18n="no">False</option><option value="true" data-i18n="yes">True</option></select></div>
+                            <div class="input-group"><label data-i18n="multiSigma">Sigma</label><input type="number" id="mr-backlash-sigma" value="10000" step="any"></div>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: 10px; margin-top: 10px;">
+                        <div class="input-group"><label data-i18n="multiOrientation">Orientation Angle [rad]</label><input type="number" id="mr-angle" value="0.0" step="any"></div>
+                        <div class="input-group"><label data-i18n="multiDrawingPosition">Drawing Position</label><select id="mr-position"><option value="above" data-i18n="multiAbove">Above</option><option value="below" data-i18n="multiBelow">Below</option></select></div>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button class="btn-confirm" onclick="saveMultiRotor()"><i class="fas fa-check"></i></button>
+                    <button class="btn-cancel" onclick="closeMultiRotorModal()"><i class="fas fa-times"></i></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Modal for Text Input (Prompt) -->
+    <div id="custom-prompt-overlay" class="modal-overlay" style="display: none;">
+        <div class="modal-box" style="max-width: 400px; padding: 0;">
+            <div class="modal-header">
+                <h3 style="color: var(--text-main); font-size: 15px;"><i class="fas fa-edit" style="color: var(--accent-primary);"></i> <span data-i18n="dialogInputRequired">Input Required</span></h3>
+                <button class="btn-close-modal" onclick="closeCustomPrompt(null)"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body form-box" style="border: none; box-shadow: none; margin-top: 0; border-radius: 0;">
+                <p id="custom-prompt-message" style="margin-bottom: 10px; font-size: 13px; color: var(--text-muted); font-weight: 600;"></p>
+                <div class="input-group" style="margin-bottom: 15px;">
+                    <input type="text" id="custom-prompt-input" style="width: 100%;">
+                </div>
+                <div class="form-actions">
+                    <button class="btn-confirm" onclick="confirmCustomPrompt()"><i class="fas fa-check"></i> OK</button>
+                    <button class="btn-cancel" onclick="closeCustomPrompt(null)"><i class="fas fa-times"></i> <span data-i18n="cancel">Cancel</span></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Modal for Yes/No Confirmations (Confirm) -->
+    <div id="custom-confirm-overlay" class="modal-overlay" style="display: none;">
+        <div class="modal-box" style="max-width: 400px; padding: 0;">
+            <div class="modal-header">
+                <h3 style="color: var(--text-main); font-size: 15px;"><i class="fas fa-exclamation-triangle" style="color: var(--accent-danger);"></i> <span data-i18n="dialogConfirmAction">Confirm Action</span></h3>
+                <button class="btn-close-modal" onclick="closeCustomConfirm(false)"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body form-box" style="border: none; box-shadow: none; margin-top: 0; border-radius: 0;">
+                <p id="custom-confirm-message" style="margin-bottom: 20px; font-size: 14px; color: var(--text-main); line-height: 1.5;"></p>
+                <div class="form-actions">
+                    <button class="btn-confirm" style="background: var(--accent-danger);" onclick="closeCustomConfirm(true)"><i class="fas fa-check"></i> <span data-i18n="dialogYes">Yes</span></button>
+                    <button class="btn-cancel" onclick="closeCustomConfirm(false)"><i class="fas fa-times"></i> No</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Alert Modal -->
+    <div id="custom-alert-overlay" class="modal-overlay" style="display: none;">
+        <div class="modal-box" style="max-width: 400px; padding: 0;">
+            <div class="modal-header">
+                <h3 style="color: var(--text-main); font-size: 15px;"><i class="fas fa-info-circle" style="color: var(--accent-primary);"></i> <span data-i18n="dialogNotice">Notice</span></h3>
+                <button class="btn-close-modal" onclick="closeCustomAlert()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body form-box" style="border: none; box-shadow: none; margin-top: 0; border-radius: 0;">
+                <p id="custom-alert-message" style="margin-bottom: 20px; font-size: 14px; color: var(--text-main); line-height: 1.5; white-space: pre-wrap;"></p>
+                <div class="form-actions" style="justify-content: center;">
+                    <button class="btn-confirm" onclick="closeCustomAlert()"><i class="fas fa-check"></i> OK</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- The line of work. Hidden until there is something in it; what it says
+         and when it appears is in features/progress.js. It sits outside the
+         three screens on purpose: the work does not belong to whichever screen
+         the user happens to be looking at. -->
+    <div id="work-bar" class="work-bar" style="display: none;">
+        <span class="work-bar-state"><i class="fas fa-sync fa-spin"></i> <span id="work-bar-text"></span></span>
+        <button type="button" id="work-bar-stop" class="work-bar-stop" data-i18n-title="workStopTitle" title="Stop every analysis in progress">
+            <i class="fas fa-stop"></i> <span data-i18n="workStop">Stop everything</span>
+        </button>
+    </div>
+
+<!-- The file:// guard has to be a classic script: with type="module" the
+     browser refuses the module on CORS before any code of ours runs, and this
+     message would never appear. -->
+<script>
+// A guard for anyone who opens index.html straight from disk, out of habit.
+if (!window.ROSS_TOKEN && window.location.protocol === 'file:') {
+    document.addEventListener('DOMContentLoaded', () => {
+        document.body.innerHTML =
+            '<div style="max-width:520px;margin:15vh auto;padding:28px;font-family:sans-serif;' +
+            'text-align:center;border:1px solid #cbd5e1;border-radius:4px;background:#fff;color:#334155">' +
+            '<h2 style="margin:0 0 12px">Open the interface through the server</h2>' +
+            '<p style="line-height:1.6">This file was opened straight from disk. Run ' +
+            '<code>python app.py</code> and go to ' +
+            '<a href="http://127.0.0.1:5001/">http://127.0.0.1:5001/</a>.</p></div>';
+    });
+}
+</script>
+<script type="module" src="main.js"></script>
+</body>
+</html>
