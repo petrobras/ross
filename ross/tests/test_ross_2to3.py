@@ -665,6 +665,8 @@ def test_cli_reports_missing_files(tmp_path, capsys):
 
 def test_release_notes_document_every_rename():
     notes = Path(__file__).parents[2] / "docs" / "release_notes" / "version-3.0.0.rst"
+    if not notes.exists():
+        pytest.skip("release notes are not part of the installed package")
     text = notes.read_text(encoding="utf-8")
     assert "ross_2to3" in text
     for table in CLASS_RENAMES.values():

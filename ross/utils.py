@@ -148,7 +148,7 @@ def read_table_file(file, element, sheet_name=0, n=0, sheet_type="Model"):
     Examples
     --------
     >>> import os
-    >>> file_path = os.path.dirname(os.path.realpath(__file__)) + '/tests/data/shaft_si.xls'
+    >>> file_path = os.path.dirname(os.path.realpath(__file__)) + '/data/shaft_si.xls'
     >>> read_table_file(file_path, "shaft", sheet_type="Model", sheet_name="Model") # doctest: +ELLIPSIS
     {'L': [0.03...
     """

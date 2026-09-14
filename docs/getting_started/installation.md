@@ -25,6 +25,16 @@ Alternatively, you can install the development version from GitHub:
 pip install git+https://github.com/petrobras/ross.git
 ```
 
+## Testing the installation
+
+The test suite is installed together with the package. To check an
+installation, run it from any directory with pytest:
+
+```{code-block}
+pip install pytest
+pytest --pyargs ross
+```
+
 ## Upgrading from ROSS 2
 
 ROSS 3 standardized the parameter names of the bearing and seal classes and

@@ -33,7 +33,6 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["ross*"]
-exclude = ["ross.tests*"]
 # Discovery runs in namespace mode (no __init__.py needed, which ross/bearings/magnetic
 # and ross/benchmark rely on), so every folder at the repository root that holds a .py
 # file would otherwise ship as a top-level package: docs, tools, interface, a leftover

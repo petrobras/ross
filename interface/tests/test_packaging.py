@@ -154,7 +154,9 @@ def test_the_folder_is_not_shipped_inside_the_ross_wheel(tmp_path):
         "control: namespace mode is what keeps ross subfolders without __init__.py; "
         "an __init__.py-only discovery would break `import ross`"
     )
-    assert "ross.tests" not in found
+    assert "ross.tests" in found, (
+        "the test suite ships on purpose: `pytest --pyargs ross` checks an installation"
+    )
 
 
 def test_the_project_root_is_not_an_importable_package():
