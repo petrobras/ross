@@ -39,9 +39,24 @@ ROTOR = {
         {"L": "100", "odl": "50", "idl": "0", "material": "Steel"} for _ in range(6)
     ],
     "disks": [{"n": "3", "m": "32", "Id": "0.2", "Ip": "0.3"}],
+    # The radial clearance is what makes a bearing a close-clearance location
+    # for the API 617 check: with none on the rotor, `run_clearance_analysis`
+    # refuses to run, and one of the twelve would fail before it started.
     "bearings": [
-        {"element_type": "BASIC", "n": "0", "kxx": "1e6", "cxx": "1e3"},
-        {"element_type": "BASIC", "n": "6", "kxx": "1e6", "cxx": "1e3"},
+        {
+            "element_type": "BASIC",
+            "n": "0",
+            "kxx": "1e6",
+            "cxx": "1e3",
+            "radial_clearance": "0.1",
+        },
+        {
+            "element_type": "BASIC",
+            "n": "6",
+            "kxx": "1e6",
+            "cxx": "1e3",
+            "radial_clearance": "0.1",
+        },
     ],
     "gears": [],
     "seals": [],

@@ -56,9 +56,23 @@ PROJECT_REQUEST = {
         {"L": "100", "odl": "50", "idl": "0", "material": "Steel"} for _ in range(6)
     ],
     "disks": [{"n": "3", "m": "32", "Id": "0.2", "Ip": "0.3"}],
+    # The radial clearance makes the bearings close-clearance locations; without
+    # it the clearance analysis refuses every model and measures nothing.
     "bearings": [
-        {"element_type": "BASIC", "n": "0", "kxx": "1e6", "cxx": "1e3"},
-        {"element_type": "BASIC", "n": "6", "kxx": "1e6", "cxx": "1e3"},
+        {
+            "element_type": "BASIC",
+            "n": "0",
+            "kxx": "1e6",
+            "cxx": "1e3",
+            "radial_clearance": "0.1",
+        },
+        {
+            "element_type": "BASIC",
+            "n": "6",
+            "kxx": "1e6",
+            "cxx": "1e3",
+            "radial_clearance": "0.1",
+        },
     ],
     "gears": [],
     "seals": [],

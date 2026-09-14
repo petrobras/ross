@@ -79,7 +79,13 @@ def test_the_exported_call_sends_the_three_unbalance_columns_as_lists():
     The sweep reads the generated scripts as text on purpose. Comparing them to
     the reference files would only prove the generator still agrees with itself;
     what has to hold is a property of the text -- three bracketed columns --
-    which stays true no matter how the references are regenerated."""
+    which stays true no matter how the references are regenerated.
+
+    Since ROSS #1377 the clearance call may carry no unbalance at all: with an
+    empty table ROSS places the API 617 unbalance from the mode shape, and the
+    script says `mode=` instead. That call is measured too -- it has to name
+    the mode -- and a call carrying any of the three still has to carry all
+    three, as lists."""
     problems, calls = [], 0
     for name in sorted(CASES):
         case = CASES[name]
@@ -88,6 +94,14 @@ def test_the_exported_call_sends_the_three_unbalance_columns_as_lists():
         )
         for method, arguments in UNBALANCE_CALLS.findall(script):
             calls += 1
+            if method == "run_clearance_analysis" and not any(
+                re.search(r"\b%s=" % key, arguments) for key in UNBALANCE_TRIO
+            ):
+                if re.search(r"\bmode=", arguments) is None:
+                    problems.append(
+                        "%s/%s: neither an unbalance nor a mode" % (name, method)
+                    )
+                continue
             for key in UNBALANCE_TRIO:
                 written = re.search(r"\b%s=([^,)]+)" % key, arguments)
                 if written is None:

@@ -156,14 +156,7 @@ class Runner:
         ]
 
     @staticmethod
-    def unbalances(
-        params,
-        fallback,
-        mag_default,
-        phase_default,
-        clamp_rotor=None,
-        analysis=None,
-    ):
+    def unbalances(params, fallback, mag_default, phase_default, clamp_rotor=None):
         """Read the unbalance table into three parallel lists.
 
         `fallback` is the row used when the table is empty; `mag_default` and
@@ -171,18 +164,15 @@ class Runner:
         purpose -- the unbalance response and the fault analyses use different
         values, and the previous version of this code already did so.
 
-        `analysis` turns the fallback off: named, an empty table raises with the
-        analysis in the message instead of quietly standing in a row nobody
-        typed. Clearance asks for that because the unbalance IS the excitation
-        being measured against the bearing gap -- inventing one would answer a
-        question the user did not ask, and the answer would look valid.
+        The fallback is not for everyone. Clearance used to switch it off, with
+        an `analysis=` argument that made an empty table raise: the unbalance IS
+        the excitation measured against the gap, and inventing one would have
+        answered a question the user did not ask. Since ROSS #1377 an empty
+        table there means the API 617 placement, so the runner reads the table
+        only when it has rows and never reaches this fallback; the argument
+        left with its last caller.
         """
-        lines = params.get("unbalances")
-        if not lines and analysis is not None:
-            raise ValueError(
-                "%s needs at least one unbalance: add a row to the table" % analysis
-            )
-        lines = lines or [fallback]
+        lines = params.get("unbalances") or [fallback]
         nodes = [int(line.get("node", 0)) for line in lines]
         if clamp_rotor is not None:
             last = len(clamp_rotor.nodes) - 1
