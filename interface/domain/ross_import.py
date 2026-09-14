@@ -16,6 +16,7 @@ import toml
 from ross.units import Q_
 
 from .element_registry import ui_type_for_ross_class
+from .legacy import migrate_element
 from .units import UNITS_MAPPING
 
 
@@ -60,7 +61,10 @@ def project_from_ross_file(content):
             tab, type_val = mapped
             item = {"element_type": type_val}
 
-            for k, v in val.items():
+            # Before the unit conversion: a version-2 file tabulates a fluid-film
+            # element on `frequency`, and the unit map only knows that axis by
+            # its current name.
+            for k, v in migrate_element(val, class_name).items():
                 if k == "material" and isinstance(v, dict):
                     mat_name = v.get("name", "CustomMaterial")
                     item["material"] = mat_name

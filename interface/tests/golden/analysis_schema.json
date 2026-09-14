@@ -80,6 +80,19 @@
     "ross_param": "torsional_analysis"
    },
    {
+    "id": "matched_whirl",
+    "label": "Matched Whirl",
+    "type": "select",
+    "val": "False",
+    "role": "compute",
+    "options": [
+     "False",
+     "True"
+    ],
+    "adv": "analysis",
+    "ross_param": "matched_whirl"
+   },
+   {
     "id": "harmonics",
     "label": "Harmonics [list]",
     "type": "text",
@@ -165,7 +178,7 @@
    },
    {
     "id": "bearing_freq_min",
-    "label": "Bearing Freq Min",
+    "label": "Bearing Speed Min",
     "type": "number",
     "val": "",
     "role": "compute",
@@ -173,7 +186,7 @@
    },
    {
     "id": "bearing_freq_max",
-    "label": "Bearing Freq Max",
+    "label": "Bearing Speed Max",
     "type": "number",
     "val": "",
     "role": "compute",
@@ -295,6 +308,16 @@
     ],
     "adv": "analysis",
     "ross_param": "free_free"
+   },
+   {
+    "id": "speed",
+    "label": "Rotor Speed (fixed)",
+    "type": "number",
+    "val": "",
+    "role": "compute",
+    "default_unit": "rad/s",
+    "adv": "analysis",
+    "ross_param": "speed"
    },
    {
     "id": "frequency_units",
@@ -424,6 +447,29 @@
     ],
     "adv": "analysis",
     "ross_param": "synchronous"
+   },
+   {
+    "id": "frequency",
+    "label": "Whirl Frequency (fixed)",
+    "type": "number",
+    "val": "",
+    "role": "compute",
+    "default_unit": "rad/s",
+    "adv": "analysis",
+    "ross_param": "frequency"
+   },
+   {
+    "id": "matched_whirl",
+    "label": "Matched Whirl",
+    "type": "select",
+    "val": "False",
+    "role": "compute",
+    "options": [
+     "False",
+     "True"
+    ],
+    "adv": "analysis",
+    "ross_param": "matched_whirl"
    },
    {
     "id": "orientation",

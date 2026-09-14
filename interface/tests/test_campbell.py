@@ -334,5 +334,5 @@ def test_the_conversion_travels_with_a_saved_analysis():
 # The fix was in ROSS, and was one line: `if bearing_frequency_range is not
 # None:`. **Commit 2a253e6 applied exactly that**, so the field is back on the
 # form as the pair `bearing_freq_min`/`bearing_freq_max`. What holds the premise
-# up now is `test_ross_accepts_a_bearing_frequency_range`, which asserts the fix
-# instead of the defect.
+# up now is `test_ross_honours_a_bearing_speed_range`, which asserts the fix
+# instead of the defect -- under the name ROSS 3.0 gave the argument.

@@ -71,7 +71,7 @@ PARAMS = {
     # says "Min Stiffness (10^x N/m)". With 1e6 here, ROSS builds a logspace of
     # 10**1e6 and the computation becomes infinity.
     #
-    # The bearing frequency range is filled in here on purpose. It was out of
+    # The bearing speed range is filled in here on purpose. It was out of
     # the interface for as long as ROSS raised on any value for it; commit
     # 2a253e6 fixed that, and a field that came back has to be exercised by the
     # sweep that runs every analysis for real -- otherwise it is offered on the
@@ -728,7 +728,7 @@ def test_the_two_ends_of_the_bearing_range_compose_one_ross_argument():
     """Two fields on screen, one argument to ROSS -- the campbell's idiom.
 
     What this pins is the composition itself: ROSS takes a single
-    `bearing_frequency_range`, and the screen asks for it the way it asks for a
+    `bearing_speed_range`, and the screen asks for it the way it asks for a
     speed range, because a pair of numbers is easier to fill in and to validate
     than a list typed by hand."""
     spec = get_runner("ucs").spec(
@@ -740,7 +740,7 @@ def test_the_two_ends_of_the_bearing_range_compose_one_ross_argument():
         },
         None,
     )
-    assert spec["bearing_frequency_range"] == (0.0, 1000.0)
+    assert spec["bearing_speed_range"] == (0.0, 1000.0)
 
 
 def test_both_ends_empty_asks_ross_nothing():
@@ -759,7 +759,7 @@ def test_both_ends_empty_asks_ross_nothing():
             },
             None,
         )
-        assert "bearing_frequency_range" not in spec
+        assert "bearing_speed_range" not in spec
 
 
 def test_half_a_range_is_refused_by_name():
@@ -782,7 +782,7 @@ def test_half_a_range_is_refused_by_name():
 def test_zero_is_a_value_and_not_an_empty_field():
     """The reason the runner reads these two as text and not as numbers.
 
-    Zero is a legitimate lower end of a frequency range, and `number()` cannot
+    Zero is a legitimate lower end of a speed range, and `number()` cannot
     tell it from a blank field. Read as numbers, a range starting at zero would
     silently become no range at all -- the user asks one question and ROSS
     answers another."""
@@ -795,4 +795,85 @@ def test_zero_is_a_value_and_not_an_empty_field():
         },
         None,
     )
-    assert spec["bearing_frequency_range"] == (0.0, 0.0)
+    assert spec["bearing_speed_range"] == (0.0, 0.0)
+
+
+# --- ROSS 3 (#1371): the whirl frequency decoupled from the shaft speed --------
+#
+# Four options, three forms. What these pin is that the field reaches the ROSS
+# argument it names -- by spying on the call, because on a rotor with constant
+# coefficients the decoupled numbers are the synchronous ones and a comparison
+# of results would pass with the option ignored -- and that a blank field sends
+# nothing, so ROSS keeps its own default.
+
+
+def _spy(rotor, method):
+    from unittest import mock
+
+    return mock.patch.object(rotor, method, wraps=getattr(rotor, method))
+
+
+@needs_ross
+def test_a_fixed_rotor_speed_turns_the_frequency_response_sweep_into_excitation():
+    rotor = _test_rotor()
+    runner = REGISTRY["freq_response"]
+    params = dict(_lean_params("freq_response"), speed="3000", speed_unit="RPM")
+    spec = runner.spec(params, rotor)
+    assert spec["speed"] == pytest.approx(3000 * 2 * 3.141592653589793 / 60)
+    with _spy(rotor, "run_freq_response") as called:
+        runner.compute(rotor, spec)
+    assert called.call_args.kwargs["speed"] == pytest.approx(spec["speed"])
+
+
+@needs_ross
+def test_a_blank_rotor_speed_sends_nothing():
+    rotor = _test_rotor()
+    runner = REGISTRY["freq_response"]
+    spec = runner.spec(dict(_lean_params("freq_response"), speed=""), rotor)
+    assert spec["speed"] is None
+    with _spy(rotor, "run_freq_response") as called:
+        runner.compute(rotor, spec)
+    assert "speed" not in called.call_args.kwargs
+
+
+@needs_ross
+def test_a_fixed_whirl_frequency_reaches_run_modal():
+    rotor = _test_rotor()
+    runner = REGISTRY["modes"]
+    params = dict(_lean_params("modes"), frequency="50", frequency_unit="rad/s")
+    spec = runner.spec(params, rotor)
+    with _spy(rotor, "run_modal") as called:
+        result = runner.compute(rotor, spec)
+    assert called.call_args.kwargs["frequency"] == 50.0
+    assert called.call_args.kwargs["matched_whirl"] is False
+    assert list(result.whirl_frequency) == [50.0] * len(result.whirl_frequency)
+
+
+@needs_ross
+def test_matched_whirl_reaches_run_modal_and_the_campbell():
+    rotor = _test_rotor()
+    modes = REGISTRY["modes"]
+    spec = modes.spec(dict(_lean_params("modes"), matched_whirl="True"), rotor)
+    with _spy(rotor, "run_modal") as called:
+        modes.compute(rotor, spec)
+    assert called.call_args.kwargs["matched_whirl"] is True
+    assert "frequency" not in called.call_args.kwargs
+
+    campbell = REGISTRY["campbell"]
+    spec = campbell.spec(dict(_lean_params("campbell"), matched_whirl="True"), rotor)
+    with _spy(rotor, "run_campbell") as called:
+        result = campbell.compute(rotor, spec)
+    assert called.call_args.kwargs["matched_whirl"] is True
+    # The click on the diagram still finds every speed: run_campbell fills
+    # modal_results on the matched-whirl path too.
+    assert len(result.modal_results) == spec["steps"]
+
+
+def test_the_two_whirl_choices_are_refused_together_by_name():
+    from services.analysis.modal import ONE_WHIRL_CHOICE
+
+    with pytest.raises(ValueError) as error:
+        REGISTRY["modes"].spec(
+            dict(PARAMS["modes"], frequency="50", matched_whirl="True"), ROTOR_REQUEST
+        )
+    assert str(error.value) == ONE_WHIRL_CHOICE

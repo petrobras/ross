@@ -7,8 +7,8 @@ from .base import Runner, register
 # a half-answered range is a question the user started and did not finish, and
 # guessing the other end would answer a question nobody asked.
 HALF_A_RANGE = (
-    "The bearing frequency range needs both ends. Fill in 'Bearing Freq Min' and "
-    "'Bearing Freq Max', or leave both empty -- with neither, ROSS derives the "
+    "The bearing speed range needs both ends. Fill in 'Bearing Speed Min' and "
+    "'Bearing Speed Max', or leave both empty -- with neither, ROSS derives the "
     "range from the bearing itself."
 )
 
@@ -22,7 +22,7 @@ class UcsRunner(Runner):
     (10^x N/m)"), and it is worth repeating here because `1e6` instead of `6`
     raises nothing -- it gives a logspace of 10**1e6, which is infinity.
 
-    ## The bearing frequency range, and why it was away
+    ## The bearing speed range, and why it was away
 
     ROSS 2.3.0 at commit `631a249` raised on **any** value for
     `bearing_frequency_range`: `@check_units` turned the sequence into a numpy
@@ -33,8 +33,18 @@ class UcsRunner(Runner):
 
     Commit `2a253e6` fixed it -- `if bearing_frequency_range is not None:`, the
     line this project's report proposed -- so the field is back. The premise is
-    held by `test_ross_accepts_a_bearing_frequency_range`: install a ROSS without
+    held by `test_ross_honours_a_bearing_speed_range`: install a ROSS without
     the fix and that test says so, instead of the user finding out.
+
+    ## `bearing_speed_range`, not `bearing_frequency_range`
+
+    ROSS 3.0 (#1371) renamed the argument: the range sweeps the rotor speed the
+    bearing tables are tabulated on, and `frequency` now means the excitation.
+    The rename is not announced by an error -- `run_ucs` takes `**kwargs` and
+    swallows the old name -- so the premise test above checks the result's
+    `bearing_speed_range` and not merely that the call returned. The field ids
+    (`bearing_freq_min`/`bearing_freq_max`) keep their names: they are keys in
+    every analysis the browser has stored, and only the label changed.
     """
 
     name = "ucs"
@@ -49,13 +59,13 @@ class UcsRunner(Runner):
 
         # Read as text, because the question is "did they fill it in?" and
         # `number` cannot tell an empty field from a zero -- and zero is a
-        # legitimate lower end of a frequency range.
+        # legitimate lower end of a speed range.
         low = self.text(params, "bearing_freq_min")
         high = self.text(params, "bearing_freq_max")
         if (low is None) != (high is None):
             raise ValueError(HALF_A_RANGE)
         if low is not None:
-            spec["bearing_frequency_range"] = (float(low), float(high))
+            spec["bearing_speed_range"] = (float(low), float(high))
 
         return spec
 
@@ -65,8 +75,8 @@ class UcsRunner(Runner):
         # long as nobody changes how the argument is read. The interface asked
         # nothing, so it says nothing.
         optional = {}
-        if "bearing_frequency_range" in spec:
-            optional["bearing_frequency_range"] = spec["bearing_frequency_range"]
+        if "bearing_speed_range" in spec:
+            optional["bearing_speed_range"] = spec["bearing_speed_range"]
 
         return rotor.run_ucs(
             stiffness_range=(spec["k_min"], spec["k_max"]),

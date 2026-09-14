@@ -1,12 +1,19 @@
 # ROSS comes from GitHub, not from PyPI: the published version is behind the
-# repository. Verified target: 2.3.0, commit 2a253e6 (10/09/2026).
+# repository. Verified target: 3.0.0.dev0, commit f8caf6e7 (13/09/2026).
+#
+# Moved up from 2a253e6 when petrobras/ross#1371 landed: every coefficient
+# table now declares its axis, `frequency=` became `speed=` on the fluid-film
+# bearings and seals, `run_unbalance_response(frequency=)` became
+# `speed_range=` and `run_ucs(bearing_frequency_range=)` became
+# `bearing_speed_range=`. The forms, the runners, the exported script and
+# `domain/legacy.py` (which reads the old key in saved projects) follow it.
 #
 # Moved up from 631a249 (18/08/2026) before opening the pull request: opening one
 # against a ROSS this interface has never been run against is the mistake this
 # project keeps writing lessons about. One merge commit apart, same version
 # string, and the audit of it is in `claude/fase4-atualizacao-do-ross.md` --
 # `run_ucs` and `run_static` changed inside, no entry point changed signature.
-ross-rotordynamics @ git+https://github.com/petrobras/ross.git@2a253e6e27ea05b125b59a9ce6925b595e7d84b4
+ross-rotordynamics @ git+https://github.com/petrobras/ross.git@f8caf6e7
 
 # ROSS does not restrict the numpy version; the range below is ours.
 numpy>=1.24,<3

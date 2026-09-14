@@ -71,6 +71,7 @@ class CampbellRunner(Runner):
             "frequencies": self.integer(params, "frequencies", 6),
             "frequency_type": params.get("frequency_type", "wd"),
             "torsional_analysis": self.flag(params, "torsional_analysis"),
+            "matched_whirl": self.flag(params, "matched_whirl"),
         }
 
     def compute(self, rotor, spec):
@@ -80,6 +81,7 @@ class CampbellRunner(Runner):
             frequencies=spec["frequencies"],
             frequency_type=spec["frequency_type"],
             torsional_analysis=spec["torsional_analysis"],
+            matched_whirl=spec["matched_whirl"],
         )
 
     def plot(self, result, params, rotor):

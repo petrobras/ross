@@ -294,11 +294,16 @@ def test_every_field_that_points_at_ross_is_accounted_for():
 
     37 -> 34: clearance's `node`, `unbalance_magnitude` and `unbalance_phase`
     became one `unbalances` table, which points at no single ROSS parameter
-    because it feeds three of them at once."""
+    because it feeds three of them at once.
+
+    34 -> 38: ROSS 3.0 (#1371) decoupled the whirl frequency from the shaft
+    speed, and the four options reached the forms: `matched_whirl` on the
+    campbell and on the modes, `frequency` (fixed whirl) on the modes and
+    `speed` (fixed rotor speed) on the frequency response."""
     pointed_at = sum(
         1 for items in ANALYSES.values() for c in items if "ross_param" in c
     )
-    assert pointed_at == 34, "%d fields point at ROSS, not 34" % pointed_at
+    assert pointed_at == 38, "%d fields point at ROSS, not 38" % pointed_at
 
 
 # --- the catalogue and the screen ---------------------------------------------
@@ -453,7 +458,24 @@ CHANGED_ON_PURPOSE = {
         "sequence into an array and `if bearing_frequency_range:` refused it); "
         "commit 2a253e6 fixed that line, and the field returned as the pair "
         "`bearing_freq_min`/`bearing_freq_max`, which is how the campbell "
-        "already asks for a range."
+        "already asks for a range. ROSS 3.0 (#1371) then renamed the argument "
+        "to `bearing_speed_range`; the labels say Speed and the ids stayed."
+    ),
+    # The three forms that gained the ROSS 3 (#1371) whirl options. Each is a
+    # new `run_*` argument the frozen form predates, so the frozen panel is
+    # not what these forms have to reproduce any more.
+    "campbell": (
+        "gained `matched_whirl`: ROSS 3.0 evaluates each mode's coefficients at "
+        "its own whirl frequency, iterated per speed, when asked."
+    ),
+    "freq_response": (
+        "gained `speed`, the fixed rotor speed: with it, Start/End Speed sweeps "
+        "the excitation frequency instead of the synchronous point."
+    ),
+    "modes": (
+        "gained `frequency` (a fixed whirl frequency for the coefficients) and "
+        "`matched_whirl`, the two ROSS 3.0 ways of decoupling the whirl "
+        "frequency from the shaft speed."
     ),
 }
 

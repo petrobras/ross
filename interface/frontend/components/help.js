@@ -166,8 +166,8 @@ const HelpContent = {
             pt: `<i class='fas fa-ring'></i> Ajuda: Selos`,
         },
         body: {
-            en: `<p>Seals prevent fluid leakage but introduce cross-coupled forces that can cause instability (like the Lomakin effect). Models include Labyrinth, Hole-Pattern, and Hybrid.</p><h4>Key Parameters:</h4><ul><li><b>Clearance / Radius:</b> Seal geometry [mm].</li><li><b>Inlet/Outlet Pressures:</b> Operating conditions [Pa].</li><li><b>Fluid Properties:</b> Advanced tabs usually contain gas composition and temperatures.</li></ul>`,
-            pt: `<p>Selos evitam o vazamento de fluido, mas introduzem forças cruzadas que podem gerar instabilidade (como o efeito Lomakin). Há modelos labirinto, hole-pattern e híbrido.</p><h4>Parâmetros principais:</h4><ul><li><b>Folga / raio:</b> geometria do selo [mm].</li><li><b>Pressões de entrada/saída:</b> condições de operação [Pa].</li><li><b>Propriedades do fluido:</b> as abas avançadas trazem composição do gás e temperaturas.</li></ul>`,
+            en: `<p>Seals prevent fluid leakage but introduce cross-coupled forces that can cause instability (like the Lomakin effect). Models include Labyrinth, Hole-Pattern, and Hybrid.</p><h4>Key Parameters:</h4><ul><li><b>Clearance / Radius:</b> Seal geometry [mm].</li><li><b>Inlet/Outlet Pressures:</b> Operating conditions [Pa].</li><li><b>Fluid Properties:</b> Advanced tabs usually contain gas composition and temperatures.</li><li><b>Speeds / Excitation Frequencies:</b> the rotor speeds the coefficients are solved at; the advanced excitation frequencies add a second axis (one solve per pair), for analyses that decouple whirl from speed.</li></ul>`,
+            pt: `<p>Selos evitam o vazamento de fluido, mas introduzem forças cruzadas que podem gerar instabilidade (como o efeito Lomakin). Há modelos labirinto, hole-pattern e híbrido.</p><h4>Parâmetros principais:</h4><ul><li><b>Folga / raio:</b> geometria do selo [mm].</li><li><b>Pressões de entrada/saída:</b> condições de operação [Pa].</li><li><b>Propriedades do fluido:</b> as abas avançadas trazem composição do gás e temperaturas.</li><li><b>Velocidades / frequências de excitação:</b> as rotações em que os coeficientes são resolvidos; as frequências de excitação (avançado) acrescentam um segundo eixo (uma solução por par), para as análises que separam whirl e rotação.</li></ul>`,
         },
     },
     pointmasses: {
@@ -192,6 +192,7 @@ const HelpContent = {
             <ul>
                 <li><b>Start/End Speed:</b> Rotational speed range boundaries for the analysis sweep [rad/s].</li>
                 <li><b>Steps:</b> Number of evaluation intervals. Higher values generate smoother curves but slightly increase computation time.</li>
+                <li><b>Matched Whirl</b> (advanced): evaluates the frequency-dependent bearing and seal coefficients of each mode at that mode's own whirl frequency, iterated at every speed, instead of at the synchronous point. Relevant for subsynchronous stability; slower.</li>
             </ul>
         `,
             pt: `
@@ -200,6 +201,7 @@ const HelpContent = {
             <ul>
                 <li><b>Velocidade inicial/final:</b> limites da faixa de rotação varrida na análise [rad/s].</li>
                 <li><b>Passos:</b> número de intervalos avaliados. Mais passos dão curvas mais suaves e custam um pouco mais de tempo.</li>
+                <li><b>Whirl ajustado</b> (avançado): avalia os coeficientes de mancais e selos que dependem da frequência na frequência de whirl de cada modo, iterando em cada rotação, em vez de no ponto síncrono. Relevante para estabilidade subsíncrona; mais lento.</li>
             </ul>
         `,
         },
@@ -241,6 +243,7 @@ const HelpContent = {
                 <li><b>Start/End Speed:</b> Frequency sweep interval boundaries [rad/s].</li>
                 <li><b>Input Probes:</b> Node positions and specific degrees of freedom (DoF) where external harmonic forces are applied.</li>
                 <li><b>Output Probes:</b> Node positions and specific degrees of freedom (DoF) monitored by displacement sensors to render the output response.</li>
+                <li><b>Rotor Speed (fixed)</b> (advanced): holds the rotor at this speed while Start/End Speed sweeps the excitation frequency. Leave it empty for the synchronous sweep, where the two coincide.</li>
             </ul>
         `,
             pt: `
@@ -250,6 +253,7 @@ const HelpContent = {
                 <li><b>Velocidade inicial/final:</b> limites da varredura em frequência [rad/s].</li>
                 <li><b>Sondas de entrada:</b> nós e graus de liberdade onde as forças harmônicas externas são aplicadas.</li>
                 <li><b>Sondas de saída:</b> nós e graus de liberdade monitorados pelos sensores de deslocamento que compõem a resposta.</li>
+                <li><b>Velocidade do rotor (fixa)</b> (avançado): mantém o rotor nesta rotação enquanto a velocidade inicial/final varre a frequência de excitação. Vazio, a varredura é síncrona, em que as duas coincidem.</li>
             </ul>
         `,
         },
@@ -268,6 +272,8 @@ const HelpContent = {
                 <li><b>Nº Modes:</b> Total number of modal points to resolve.</li>
                 <li><b>Mode Index:</b> The exact index of the mode shape to render on screen (0 represents the 1st natural mode, 1 the 2nd mode, etc.).</li>
                 <li><b>Plot Type:</b> Toggles visualization layout format between 2D or 3D isometric views.</li>
+                <li><b>Whirl Frequency (fixed)</b> (advanced): evaluates the frequency-dependent coefficients at this whirl frequency while the gyroscopic effect keeps the shaft speed. Empty means the synchronous point.</li>
+                <li><b>Matched Whirl</b> (advanced): iterates each mode until its coefficients are evaluated at the mode's own damped natural frequency. Cannot be combined with a fixed whirl frequency.</li>
             </ul>
         `,
             pt: `
@@ -278,6 +284,8 @@ const HelpContent = {
                 <li><b>Nº de modos:</b> quantos modos resolver.</li>
                 <li><b>Índice do modo:</b> qual modo desenhar (0 é o 1º modo natural, 1 o 2º, e assim por diante).</li>
                 <li><b>Tipo de gráfico:</b> alterna entre a vista 2D e a isométrica 3D.</li>
+                <li><b>Freq. de whirl (fixa)</b> (avançado): avalia os coeficientes que dependem da frequência nesta frequência de whirl, enquanto o efeito giroscópico mantém a rotação do eixo. Vazio, usa o ponto síncrono.</li>
+                <li><b>Whirl ajustado</b> (avançado): itera cada modo até que seus coeficientes sejam avaliados na própria frequência natural amortecida do modo. Não se combina com a frequência de whirl fixa.</li>
             </ul>
         `,
         },

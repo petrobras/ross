@@ -21,6 +21,7 @@ from ross.units import Q_
 
 from .cache import ELEMENT_CACHE
 from .element_registry import ross_class_name
+from .legacy import migrate_element
 from .node_resolver import effective_nodes, validate_node_topology
 from .units import INT_PARAMETERS, UNITS_MAPPING
 from services.expressions import safe_math_eval
@@ -71,12 +72,14 @@ def extract_kwargs(d, mat_dict, element_type, ignore_keys=["element_type", "n"])
                 try:
                     val_parsed = ast.literal_eval(v_strip)
                     if isinstance(val_parsed, list):
-                        val_parsed = [float(x) for x in val_parsed]
+                        # dtype=float also takes a nested list, which is how
+                        # a 2-D coefficient table (speed x frequency) is typed.
+                        val_parsed = np.array(val_parsed, dtype=float)
                         unit = d.get(f"{k}_unit", unit_map.get(k))
                         if unit:
-                            kwargs[k] = Q_(np.array(val_parsed), unit).to_base_units()
+                            kwargs[k] = Q_(val_parsed, unit).to_base_units()
                         else:
-                            kwargs[k] = np.array(val_parsed)
+                            kwargs[k] = val_parsed
                     else:
                         kwargs[k] = val_parsed
                     continue
@@ -278,7 +281,10 @@ def build_rotor_from_ui(data):
         def build_bearing():
             element_class = ross_class_name("bearings", type_val)
             kwargs = extract_kwargs(
-                m, created_materials, element_class, ["n", "element_type"]
+                migrate_element(m, element_class),
+                created_materials,
+                element_class,
+                ["n", "element_type"],
             )
             if "tag" not in kwargs:
                 kwargs["tag"] = auto_tag
@@ -300,7 +306,10 @@ def build_rotor_from_ui(data):
         def build_seal():
             element_class = ross_class_name("seals", type_val)
             kwargs = extract_kwargs(
-                s, created_materials, element_class, ["n", "element_type"]
+                migrate_element(s, element_class),
+                created_materials,
+                element_class,
+                ["n", "element_type"],
             )
             if "tag" not in kwargs:
                 kwargs["tag"] = auto_tag

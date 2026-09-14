@@ -16,11 +16,11 @@ They come in three kinds:
   this guard is its price;
 * **behaviour premises** -- that `run_campbell` already fills the modal results
   of every speed (which makes computing the mode shape ahead of time
-  unnecessary), and that the `bearing_frequency_range` defect is still there.
+  unnecessary), and that `run_ucs` honours its `bearing_speed_range`.
 
-The last one is the only test in the suite that **expects** a third-party
-defect. When ROSS fixes it, this test fails -- and the guard that exists because
-of it can then go."""
+The last one used to be the only test in the suite that **expected** a
+third-party defect; ROSS fixed it, the test was inverted, and it now guards the
+name and the effect of the argument."""
 
 import inspect
 import os
@@ -110,7 +110,7 @@ def test_run_campbell_still_fills_modal_results_for_every_speed():
 
 
 @needs_ross
-def test_ross_accepts_a_bearing_frequency_range():
+def test_ross_honours_a_bearing_speed_range():
     """The premise that used to be the opposite one, and that is the point.
 
     This test used to assert the **defect**: `run_ucs` raised on any
@@ -125,6 +125,13 @@ def test_ross_accepts_a_bearing_frequency_range():
     again, and what holds that offer up is a premise about ROSS; a premise with
     no test is a hope. Install a ROSS without the fix and this says so, instead
     of the user discovering it on a form that stopped working.
+
+    ROSS 3.0 (#1371) then renamed the argument to `bearing_speed_range`, and
+    the rename taught this test a second lesson: `run_ucs` takes `**kwargs`,
+    so the old name went on being *accepted* -- and ignored -- and a test that
+    only checked `result is not None` stayed green while the range never
+    reached the computation. So the result's own `bearing_speed_range` is
+    checked: an argument that is swallowed leaves it at None.
     """
     steel = rs.materials.steel
     shafts = [
@@ -143,9 +150,13 @@ def test_ross_accepts_a_bearing_frequency_range():
         stiffness_range=(6, 11),
         num=5,
         num_modes=16,
-        bearing_frequency_range=[0, 1000],
+        bearing_speed_range=[0, 1000],
     )
-    assert result is not None
+    assert result.bearing_speed_range is not None
+    assert (result.bearing_speed_range[0], result.bearing_speed_range[-1]) == (
+        0.0,
+        1000.0,
+    )
 
 
 @needs_ross

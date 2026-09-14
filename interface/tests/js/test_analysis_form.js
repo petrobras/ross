@@ -56,7 +56,10 @@ const withoutDepsSource = html => html.replace(/ data-deps-de="[^"]*"/g, '');
 // being an exception.
 // `ucs` joins `clearance` here: the bearing frequency range came back to the
 // form as a pair of fields after ROSS fixed the line that refused it.
-const CHANGED_ON_PURPOSE = ['clearance', 'ucs'];
+// `campbell`, `freq_response` and `modes` joined when ROSS 3.0 (#1371)
+// decoupled the whirl frequency from the shaft speed and the options
+// (`matched_whirl`, a fixed `speed`, a fixed `frequency`) reached the forms.
+const CHANGED_ON_PURPOSE = ['clearance', 'ucs', 'campbell', 'freq_response', 'modes'];
 
 // What each one has to show, so that the exception is checked and not merely
 // declared. `clearance` traded three fields for an unbalance table; `ucs` got
@@ -67,6 +70,12 @@ const REBUILT = {
         html.includes('addUnbalanceRow') && !html.includes('unbalance_magnitude'),
     ucs: html =>
         html.includes('bearing_freq_min') && html.includes('bearing_freq_max'),
+    campbell: html => html.includes('input-matched_whirl-'),
+    // No `unit-...` selector here: the fake DOM serves no unit alternatives,
+    // so the selector beside a field is a real-schema thing, not a panel thing.
+    freq_response: html => html.includes('input-speed-'),
+    modes: html =>
+        html.includes('input-frequency-') && html.includes('input-matched_whirl-'),
 };
 
 console.log('\nThe panel comes out the same as before');

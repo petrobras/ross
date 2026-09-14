@@ -122,6 +122,20 @@ ANALYSES = {
             adv="analysis",
             ross_param="torsional_analysis",
         ),
+        # ROSS 3 (#1371): evaluate the frequency-dependent coefficients of each
+        # mode at its own whirl frequency, iterated per speed, instead of at
+        # the synchronous point. The analysis for subsynchronous stability.
+        A(
+            "matched_whirl",
+            "Matched Whirl",
+            "Whirl Ajustado",
+            "select",
+            "False",
+            "compute",
+            options=["False", "True"],
+            adv="analysis",
+            ross_param="matched_whirl",
+        ),
         A(
             "harmonics",
             "Harmonics [list]",
@@ -200,10 +214,15 @@ ANALYSES = {
             "compute",
             ross_param="num_modes",
         ),
-        # ROSS takes one `bearing_frequency_range`; the screen asks for two
+        # ROSS takes one `bearing_speed_range`; the screen asks for two
         # numbers, the same interface decision the campbell makes with
         # `speed_min`/`speed_max`. Neither carries `ross_param`, because neither
         # is a ROSS argument -- together they compose one.
+        #
+        # The ids still say `freq`: ROSS 3 renamed the argument (the range sweeps
+        # the rotor speed the bearing tables are tabulated on), the labels
+        # followed, and the ids stayed because they are keys inside every
+        # analysis the browser has already stored.
         #
         # Both born empty, and empty is the normal answer: with no range ROSS
         # derives one from the bearing itself, which is what every run of this
@@ -212,8 +231,8 @@ ANALYSES = {
         # is the field coming back.
         A(
             "bearing_freq_min",
-            "Bearing Freq Min",
-            "Freq. Mín. do Mancal",
+            "Bearing Speed Min",
+            "Veloc. Mín. do Mancal",
             "number",
             "",
             "compute",
@@ -221,8 +240,8 @@ ANALYSES = {
         ),
         A(
             "bearing_freq_max",
-            "Bearing Freq Max",
-            "Freq. Máx. do Mancal",
+            "Bearing Speed Max",
+            "Veloc. Máx. do Mancal",
             "number",
             "",
             "compute",
@@ -330,6 +349,21 @@ ANALYSES = {
             adv="analysis",
             ross_param="free_free",
         ),
+        # ROSS 3 (#1371): hold the rotor at one speed and sweep Start/End Speed
+        # as the excitation frequency. Empty keeps the synchronous sweep, where
+        # the two are the same number -- and an empty field sends nothing, so
+        # ROSS keeps its own default.
+        A(
+            "speed",
+            "Rotor Speed (fixed)",
+            "Velocidade do Rotor (fixa)",
+            "number",
+            "",
+            "compute",
+            default_unit="rad/s",
+            adv="analysis",
+            ross_param="speed",
+        ),
         A(
             "frequency_units",
             "Freq. Units",
@@ -429,6 +463,30 @@ ANALYSES = {
             options=["False", "True"],
             adv="analysis",
             ross_param="synchronous",
+        ),
+        # ROSS 3 (#1371): the two ways of decoupling the whirl frequency from
+        # the shaft speed. Mutually exclusive, and the runner says so by name.
+        A(
+            "frequency",
+            "Whirl Frequency (fixed)",
+            "Freq. de Whirl (fixa)",
+            "number",
+            "",
+            "compute",
+            default_unit="rad/s",
+            adv="analysis",
+            ross_param="frequency",
+        ),
+        A(
+            "matched_whirl",
+            "Matched Whirl",
+            "Whirl Ajustado",
+            "select",
+            "False",
+            "compute",
+            options=["False", "True"],
+            adv="analysis",
+            ross_param="matched_whirl",
         ),
         A(
             "orientation",

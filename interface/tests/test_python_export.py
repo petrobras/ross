@@ -391,3 +391,56 @@ def test_export_route_survives_an_empty_body(client):
     response = client.post("/api/export/python", json={}, headers=_auth())
     assert response.status_code == 200
     ast.parse(response.json["script"])
+
+
+# --- ROSS 3 (#1371): the whirl options leave with the script, only when set ---
+
+
+def _analysis(kind, **params):
+    return [{"type": kind, "params": params}]
+
+
+@pytest.mark.parametrize(
+    "kind, params, expected",
+    [
+        (
+            "campbell",
+            {"matched_whirl": "True"},
+            "torsional_analysis=False, matched_whirl=True)",
+        ),
+        (
+            "freq_response",
+            {"speed": "3000", "speed_unit": "RPM"},
+            "free_free=False, speed=float(Q_(3000, 'RPM').to('rad/s').m))",
+        ),
+        (
+            "modes",
+            {"frequency": "50", "frequency_unit": "rad/s"},
+            "synchronous=False, frequency=float(Q_(50, 'rad/s').to('rad/s').m))",
+        ),
+        ("modes", {"matched_whirl": "True"}, "synchronous=False, matched_whirl=True)"),
+    ],
+)
+def test_a_whirl_option_that_was_set_is_written_out(kind, params, expected):
+    script = build_script({}, _analysis(kind, **params), "")
+    assert expected in script
+
+
+@pytest.mark.parametrize(
+    "kind, base, blank",
+    [
+        ("campbell", {"frequencies": "6"}, {"matched_whirl": "False"}),
+        ("freq_response", {"free_free": "False"}, {"speed": ""}),
+        ("modes", {"num_modes": "12"}, {"frequency": "", "matched_whirl": "False"}),
+    ],
+)
+def test_a_whirl_option_left_at_its_default_is_not_repeated(kind, base, blank):
+    """ROSS owns the synchronous default; the script does not restate it.
+
+    A blank option has to produce exactly the script of an analysis saved before
+    the option existed -- that is what keeps the frozen references valid."""
+    with_blank = build_script({}, _analysis(kind, **base, **blank), "")
+    without = build_script({}, _analysis(kind, **base), "")
+    assert with_blank == without
+    assert "matched_whirl" not in with_blank
+    assert "frequency=" not in with_blank

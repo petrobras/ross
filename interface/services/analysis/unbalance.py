@@ -41,7 +41,7 @@ class UnbalanceRunner(Runner):
             node=spec["node"],
             unbalance_magnitude=spec["unbalance_magnitude"],
             unbalance_phase=spec["unbalance_phase"],
-            frequency=speeds,
+            speed_range=speeds,
             **kwargs,
         )
 

@@ -194,6 +194,18 @@ class Runner:
         )
 
     @staticmethod
+    def optional_quantity(params, key, target_unit):
+        """A numeric field that is allowed to be blank: None, or the value in `target_unit`.
+
+        Blank means "do not pass it", so that ROSS keeps its own default --
+        `number()` cannot say that, because a default of its own would reach
+        ROSS as a value the user never typed.
+        """
+        if Runner.text(params, key) is None:
+            return None
+        return get_converted_param(params, key, 0.0, target_unit)
+
+    @staticmethod
     def speed_bounds(params):
         """The sweep's speed range, already in rad/s.
 

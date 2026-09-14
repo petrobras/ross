@@ -178,7 +178,7 @@ def test_seal_elements_defaults(client):
                 "inlet_pressure": "308000",
                 "outlet_pressure": "94300",
                 "inlet_temperature": "10",
-                "frequency": "[8000]",
+                "speed": "[8000]",
                 "preswirl": "0.98",
                 "gas_composition": '{"Nitrogen": 0.79, "Oxygen": 0.21}',
                 "n": "0",
@@ -293,3 +293,41 @@ def test_the_geometry_fix_stays_with_the_rotor():
 )
 def test_the_dead_code_is_gone(name):
     assert name not in source(), "%s voltou" % name
+
+
+def test_a_seal_with_an_excitation_axis_builds_a_2d_table(client):
+    """ROSS 3 (#1371): `speed` plus `frequency` on a seal is a speed x frequency grid."""
+    payload = {
+        "materials": [{"name": "Steel", "rho": "7800", "E": "211e9", "G_s": "81.2e9"}],
+        "shafts": [
+            {"L": "500", "odl": "100", "idl": "0", "material": "Steel", "n": "0"}
+        ],
+        "seals": [
+            {
+                "element_type": "Labyrinth",
+                "shaft_diameter": "145",
+                "radial_clearance": "0.3",
+                "n_teeth": "16",
+                "pitch": "3.175",
+                "tooth_height": "3.175",
+                "tooth_width": "0.1524",
+                "seal_type": "inter",
+                "inlet_pressure": "308000",
+                "outlet_pressure": "94300",
+                "inlet_temperature": "10",
+                "speed": "[8000]",
+                "frequency": "[4000, 8000]",
+                "preswirl": "0.98",
+                "gas_composition": '{"Nitrogen": 0.79, "Oxygen": 0.21}',
+                "n": "0",
+            }
+        ],
+    }
+    response = client.post("/build_rotor", json={"project": payload}, headers=AUTH)
+    assert response.status_code == 200, response.json
+
+    from domain.rotor_builder import build_rotor_from_ui
+
+    seal = build_rotor_from_ui(payload).bearing_elements[0]
+    assert seal.kxx_interpolated.kind == "grid"
+    assert len(seal.speed) == 1 and len(seal.frequency) == 2

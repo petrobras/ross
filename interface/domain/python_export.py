@@ -18,6 +18,7 @@ import re
 from decimal import Decimal
 
 from .element_registry import ross_class_name
+from .legacy import migrate_element
 from .node_resolver import effective_nodes
 import textwrap
 
@@ -266,6 +267,7 @@ def _build_rotor_block(r_data, suffix):
     nodes = effective_nodes(r_data.get("bearings") or [])
     for position, bearing in enumerate(r_data.get("bearings") or []):
         klass = ross_class_name("bearings", bearing.get("element_type"))
+        bearing = migrate_element(bearing, klass)
         args = _format_kwargs(bearing, ["element_type"], klass)
         args = _with_node_arg(bearing, args, nodes[position])
         py += "    (rs.%s, dict(%s)),\n" % (klass, args)
@@ -280,6 +282,7 @@ def _build_rotor_block(r_data, suffix):
     nodes = effective_nodes(r_data.get("seals") or [])
     for position, seal in enumerate(r_data.get("seals") or []):
         klass = ross_class_name("seals", seal.get("element_type"))
+        seal = migrate_element(seal, klass)
         args = _format_kwargs(seal, ["element_type"], klass)
         args = _with_node_arg(seal, args, nodes[position])
         py += "    (rs.%s, dict(%s)),\n" % (klass, args)
@@ -423,6 +426,23 @@ def _opt_args(params, keys):
     return args
 
 
+def _whirl_args(params, flag_key=None, fixed=None):
+    """The ROSS 3 options that decouple the whirl frequency from the speed.
+
+    Emitted only when the user set them, like `_opt_args`: the synchronous
+    default is ROSS's and the script should not repeat it. `fixed` names the
+    (field, unit) of the fixed frequency or speed; `flag_key` the boolean.
+    """
+    extras = ""
+    if fixed is not None:
+        key, unit = fixed
+        if _js_truthy(params.get(key)):
+            extras += ", %s=%s" % (key, _py_val(params, key, unit))
+    if flag_key is not None and _flag(params, flag_key) == "True":
+        extras += ", %s=True" % flag_key
+    return extras
+
+
 def _analysis_block(position, analysis):
     kind = analysis.get("type")
     p = analysis.get("params") or {}
@@ -435,12 +455,13 @@ def _analysis_block(position, analysis):
             _js_str(_or(p.get("speed_steps"), 50)),
         )
         py += (
-            "camp_%d = rotor.run_campbell(speed_rads, frequencies=%s, frequency_type=%s, torsional_analysis=%s)\n"
+            "camp_%d = rotor.run_campbell(speed_rads, frequencies=%s, frequency_type=%s, torsional_analysis=%s%s)\n"
             % (
                 position,
                 _js_str(_or(p.get("frequencies"), 6)),
                 _py_string(_or(p.get("frequency_type"), "wd")),
                 _flag(p, "torsional_analysis"),
+                _whirl_args(p, "matched_whirl"),
             )
         )
 
@@ -466,7 +487,7 @@ def _analysis_block(position, analysis):
     elif kind == "ucs":
         # Two fields on screen, one argument in the script -- and the script is
         # the copy that LEAVES the program. When the field came back as a pair,
-        # this block still read the old single `bearing_frequency_range` and
+        # this block still read the old single `bearing_speed_range` and
         # would have quietly stopped emitting the argument: the interface would
         # compute one thing and the exported script another, with nobody told.
         # The clearance correction paid for that lesson once already.
@@ -475,9 +496,14 @@ def _analysis_block(position, analysis):
         # be saved holding it, and no analysis of an older version has these
         # fields at all. Emitting nothing is the honest reading of a pair that
         # is not there.
+        #
+        # `bearing_speed_range`, and not the `bearing_frequency_range` the field
+        # ids still echo: ROSS 3 renamed the argument to say which axis the
+        # bearing tables are swept on, and `run_ucs` swallows the old name in
+        # its `**kwargs` without a word.
         low, high = p.get("bearing_freq_min"), p.get("bearing_freq_max")
         range_arg = (
-            ", bearing_frequency_range=[%s, %s]" % (_js_str(low), _js_str(high))
+            ", bearing_speed_range=[%s, %s]" % (_js_str(low), _js_str(high))
             if str(low).strip() not in ("", "None")
             and str(high).strip() not in ("", "None")
             else ""
@@ -503,10 +529,11 @@ def _analysis_block(position, analysis):
             _js_str(_or(p.get("speed_steps"), 50)),
         )
         modes = ", modes=%s" % _js_str(p["modes"]) if _js_truthy(p.get("modes")) else ""
-        py += "freq_%d = rotor.run_freq_response(speed_rads%s, free_free=%s)\n" % (
+        py += "freq_%d = rotor.run_freq_response(speed_rads%s, free_free=%s%s)\n" % (
             position,
             modes,
             _flag(p, "free_free"),
+            _whirl_args(p, fixed=("speed", "rad/s")),
         )
         py += "dofs_per_node = rotor.number_dof\n"
 
@@ -564,13 +591,14 @@ def _analysis_block(position, analysis):
 
     elif kind == "modes":
         py += (
-            "modal_%d = rotor.run_modal(speed=%s, num_modes=%s, sparse=%s, synchronous=%s)\n"
+            "modal_%d = rotor.run_modal(speed=%s, num_modes=%s, sparse=%s, synchronous=%s%s)\n"
             % (
                 position,
                 _py_val(p, "speed", "rad/s"),
                 _js_str(p.get("num_modes")),
                 _flag(p, "sparse", default="True"),
                 _flag(p, "synchronous"),
+                _whirl_args(p, "matched_whirl", fixed=("frequency", "rad/s")),
             )
         )
 
@@ -626,7 +654,7 @@ def _analysis_block(position, analysis):
         modes = ", modes=%s" % _js_str(p["modes"]) if _js_truthy(p.get("modes")) else ""
         py += (
             "unb_%d = rotor.run_unbalance_response(node=[%s], unbalance_magnitude=[%s], "
-            "unbalance_phase=[%s], frequency=speed_rads%s)\n"
+            "unbalance_phase=[%s], speed_range=speed_rads%s)\n"
         ) % (position, nodes, mags, phases, modes)
 
         method = {

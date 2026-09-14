@@ -26,6 +26,7 @@ class FreqResponseRunner(Runner):
             "speed_max": maximum,
             "free_free": self.flag(params, "free_free"),
             "modes": self.literal(params, "modes"),
+            "speed": self.optional_quantity(params, "speed", "rad/s"),
         }
 
     def compute(self, rotor, spec):
@@ -33,6 +34,10 @@ class FreqResponseRunner(Runner):
         kwargs = {"free_free": spec["free_free"]}
         if spec["modes"]:
             kwargs["modes"] = spec["modes"]
+        # Absent, not None: with the rotor speed given, `speeds` becomes the
+        # excitation sweep; without it ROSS keeps the synchronous sweep.
+        if spec["speed"] is not None:
+            kwargs["speed"] = spec["speed"]
         return rotor.run_freq_response(speeds, **kwargs)
 
     def plot(self, result, params, rotor):
