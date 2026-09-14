@@ -6,7 +6,7 @@ from plotly.subplots import make_subplots
 from prettytable import PrettyTable
 from scipy.interpolate import griddata
 
-from ross.plotly_theme import SHAPE_3D_CAMERA, axes_indicator_3d, tableau_colors
+from ross.plotly_theme import axes_indicator_3d, tableau_colors
 from ross.units import Q_
 
 __all__ = [
@@ -1494,8 +1494,8 @@ class FluidFilmBearingResults(BearingResults):
 
         fig.add_trace(
             go.Mesh3d(
-                x=np.concatenate(z),
-                y=np.concatenate(x),
+                x=np.concatenate(x),
+                y=np.concatenate(z),
                 z=np.concatenate(y),
                 i=triangles[:, 0],
                 j=triangles[:, 1],
@@ -1506,9 +1506,9 @@ class FluidFilmBearingResults(BearingResults):
                 flatshading=True,
                 name="Pad temperature",
                 hovertemplate=(
-                    f"x: %{{y:.4g}} {length_units}<br>"
+                    f"x: %{{x:.4g}} {length_units}<br>"
                     f"y: %{{z:.4g}} {length_units}<br>"
-                    f"z: %{{x:.4g}} {length_units}<br>"
+                    f"z: %{{y:.4g}} {length_units}<br>"
                     f"Temperature: %{{intensity:.5g}} {temperature_units}"
                     "<extra></extra>"
                 ),
@@ -1518,8 +1518,8 @@ class FluidFilmBearingResults(BearingResults):
         if show_interface:
             fig.add_trace(
                 go.Scatter3d(
-                    x=np.concatenate(interface_z),
-                    y=np.concatenate(interface_x),
+                    x=np.concatenate(interface_x),
+                    y=np.concatenate(interface_z),
                     z=np.concatenate(interface_y),
                     mode="lines",
                     line=dict(color="red", width=3, dash="dash"),
@@ -1527,27 +1527,30 @@ class FluidFilmBearingResults(BearingResults):
                 )
             )
 
-        # the scene is laid out like the rotor shape plots: the bearing axis
-        # (z) runs along the scene x axis, x along the scene y axis and y
-        # along the scene z axis, seen from the same camera
+        # the scene is laid out like the rotor shape plots, as a rotation of
+        # the bearing frame: x on the reversed scene x axis, the bearing axis
+        # (z) on the scene y axis and y on the scene z axis, so that plotly's
+        # default camera shows the front face at the left with the axis
+        # receding to the right
         x_all, y_all, z_all = np.concatenate(x), np.concatenate(y), np.concatenate(z)
         bore = np.sqrt(np.min(x_all**2 + y_all**2))
         fig = axes_indicator_3d(
             fig,
-            origin=dict(x=z_all.min(), y=0.0, z=0.0),
+            origin=dict(x=0.0, y=z_all.min(), z=0.0),
             size=0.6 * bore,
             scales=dict(x=1.0, y=1.0, z=1.0),
-            scene_axes={"x": "y", "y": "z", "z": "x"},
+            scene_axes={"x": "x", "y": "z", "z": "y"},
         )
 
         fig.update_layout(
             title=dict(text="Solid pad temperature"),
             scene=dict(
-                xaxis_title=f"Z ({length_units})",
-                yaxis_title=f"X ({length_units})",
+                xaxis=dict(
+                    title=dict(text=f"X ({length_units})"), autorange="reversed"
+                ),
+                yaxis_title=f"Z ({length_units})",
                 zaxis_title=f"Y ({length_units})",
                 aspectmode="data",
-                camera=SHAPE_3D_CAMERA,
             ),
             legend=dict(x=0.02, y=0.98, xanchor="left", yanchor="top"),
             **kwargs,

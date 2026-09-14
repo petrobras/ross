@@ -194,14 +194,11 @@ def color_shades(color):
 
 INDICATOR_INK = "#33475C"
 
-# camera shared by the 3-D scenes which put the rotor length on the scene x
-# axis (rotor z), the rotor x on the scene y axis and the rotor y on the scene
-# z axis: node 0 at the far left, the spin axis receding to the right
-SHAPE_3D_CAMERA = dict(
-    eye=dict(x=2.1, y=-2.6, z=1.2),
-    center=dict(x=0, y=0, z=0),
-    up=dict(x=0, y=0, z=1),
-)
+# aspect ratio of the 3-D scenes which lay the rotor frame out as a rotation
+# (rotor x on the reversed scene x axis, the rotor length on the scene y
+# axis, rotor y on the scene z axis), sized so that plotly's default camera
+# frames the whole rotor
+SHAPE_3D_ASPECT = dict(x=0.8, y=2.0, z=0.8)
 
 
 def _elliptic_arc(cx, cy, rx, ry, t0, t1, segments=4):

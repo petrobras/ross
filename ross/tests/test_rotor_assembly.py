@@ -1685,8 +1685,9 @@ def test_deflected_shape(rotor7):
             4.39217194e-05,
         ]
     )
-    assert_allclose(fig.data[-4]["x"][:8], expected_x, rtol=1e-4)
-    assert_allclose(fig.data[-4]["y"][:8], expected_y, rtol=1e-4)
+    # the rotor length runs on the scene y axis and rotor x on the scene x axis
+    assert_allclose(fig.data[-4]["y"][:8], expected_x, rtol=1e-4)
+    assert_allclose(fig.data[-4]["x"][:8], expected_y, rtol=1e-4)
     assert_allclose(fig.data[-4]["z"][:8], expected_z, rtol=1e-4)
 
 

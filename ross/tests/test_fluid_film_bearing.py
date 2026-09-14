@@ -197,8 +197,8 @@ def test_plot_pad_temperature_3d(full_thermal_bearing):
         [field.min() - 273.15, field.max() - 273.15],
         rtol=1e-12,
     )
-    # the bearing axis runs along the scene x axis, like the rotor shape plots
-    radius = np.hypot(np.asarray(mesh.y), np.asarray(mesh.z))
+    # the bearing axis runs along the scene y axis, like the rotor shape plots
+    radius = np.hypot(np.asarray(mesh.x), np.asarray(mesh.z))
     assert_allclose([radius.min(), radius.max()], [radii[0], radii[-1]], rtol=1e-12)
 
     fig = bearing.plot_pad_temperature_3d(show_interface=False)

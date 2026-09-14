@@ -7,7 +7,6 @@ from numpy.testing import assert_allclose, assert_almost_equal, assert_equal
 
 import ross as rs
 from ross import Q_, Probe
-from ross.plotly_theme import SHAPE_3D_CAMERA
 from ross.results import *
 from ross.rotor_assembly import *
 from ross.bearings.magnetic.amb_models import rotor_example_amb_complex_controllers
@@ -480,10 +479,14 @@ def test_plot_mode_3d_frame_is_right_handed(rotor1):
     modal = rotor1.run_modal(speed=Q_(4000, "RPM"))
     fig = modal.plot_mode_3d(0)
 
-    # the rotor length runs forward on the scene x axis, so the scene
-    # (z, x, y) triple keeps the handedness of the rotor frame
-    assert fig.layout.scene.xaxis.autorange != "reversed"
-    assert fig.layout.scene.camera.eye.to_plotly_json() == SHAPE_3D_CAMERA["eye"]
+    # the scene is a rotation of the rotor frame: rotor x on the reversed
+    # scene x axis, the length on the scene y axis, rotor y up. No camera is
+    # set, so the modebar reset returns to the same default view
+    scene = fig.layout.scene
+    assert scene.xaxis.range[0] > scene.xaxis.range[1]
+    assert scene.yaxis.autorange != "reversed"
+    assert scene.yaxis.title.text.startswith("Rotor Length")
+    assert scene.camera.eye.x is None
 
     axes = [trace for trace in fig.data if trace.name == "Axes"]
     assert [trace.mode for trace in axes] == ["lines", "text"]
@@ -520,5 +523,7 @@ def test_plot_deflected_shape_3d_frame_is_right_handed(rotor1):
     )
     fig = response.plot_deflected_shape_3d(speed=speed)
 
-    assert fig.layout.scene.xaxis.autorange != "reversed"
+    scene = fig.layout.scene
+    assert scene.xaxis.range[0] > scene.xaxis.range[1]
+    assert scene.yaxis.title.text.startswith("Rotor Length")
     assert [trace.name for trace in fig.data].count("Axes") == 2
