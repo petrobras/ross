@@ -43,6 +43,7 @@ modal.plot_mode_2d(0)
 | `run_crack(...)` | Crack fault analysis | `TimeResponseResults` | same as above | [faults](ross/agent_skills/ross/faults.md) |
 | `run_harmonic_balance_response(...)` | Harmonic balance steady-state | `HarmonicBalanceResults` | `plot()` | — |
 | `run_amb_sensitivity(...)` | AMB sensitivity analysis | `SensitivityResults` | `plot()`, `plot_time_results()` | — |
+| `run_clearance_analysis(speed_range, Nma, Nmc, probes, ...)` | API 617 close-clearance check | `ClearanceResults` | `plot()`, `plot_response()`, `plot_probe_response()` | [clearance_analysis](ross/agent_skills/ross/clearance_analysis.md) |
 
 ### Units
 

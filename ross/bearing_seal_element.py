@@ -403,6 +403,11 @@ class BearingElement(Element):
     interpolation : str, optional
         Interpolation of the coefficient tables along each axis: ``"pchip"``
         (shape-preserving cubic, default) or ``"linear"``.
+    radial_clearance : float, pint.Quantity, optional
+        Radial clearance between the rotor and the stationary part at this
+        element (m). When given, the element is treated as a close-clearance
+        location by :meth:`ross.Rotor.run_clearance_analysis`.
+        Default is None.
 
     Examples
     --------
@@ -470,6 +475,7 @@ class BearingElement(Element):
         scale_factor=1,
         color="#355d7a",
         interpolation="pchip",
+        radial_clearance=None,
         **kwargs,
     ):
         self.speed = self._axis_array(speed)
@@ -520,6 +526,8 @@ class BearingElement(Element):
         self.color = color
         self.scale_factor = scale_factor
         self.dof_global_index = None
+        if radial_clearance is not None or not hasattr(self, "radial_clearance"):
+            self.radial_clearance = radial_clearance
 
     @staticmethod
     def _axis_array(axis):
@@ -931,7 +939,16 @@ class BearingElement(Element):
 
         args = sorted(
             set(self._get_coefficient_list())
-            | {"n", "speed", "frequency", "tag", "n_link", "scale_factor", "color"}
+            | {
+                "n",
+                "speed",
+                "frequency",
+                "tag",
+                "n_link",
+                "scale_factor",
+                "color",
+                "radial_clearance",
+            }
         )
         element_data = {}
         for arg in args:
@@ -1692,6 +1709,11 @@ class SealElement(BearingElement):
     interpolation : str, optional
         Interpolation of the coefficient tables along each axis: ``"pchip"``
         (shape-preserving cubic, default) or ``"linear"``.
+    radial_clearance : float, pint.Quantity, optional
+        Radial clearance between the rotor and the stationary part at this
+        element (m). When given, the element is treated as a close-clearance
+        location by :meth:`ross.Rotor.run_clearance_analysis`.
+        Default is None.
 
     Examples
     --------
@@ -1745,6 +1767,7 @@ class SealElement(BearingElement):
         scale_factor=None,
         color="#77ACA2",
         interpolation="pchip",
+        radial_clearance=None,
         **kwargs,
     ):
         self.seal_leakage = seal_leakage
@@ -1772,6 +1795,7 @@ class SealElement(BearingElement):
             n_link=n_link,
             color=color,
             interpolation=interpolation,
+            radial_clearance=radial_clearance,
         )
 
         # make seals with half the bearing size as a default

@@ -14,6 +14,7 @@ from ross.bearing_seal_element import (
     CylindricalBearing,
     MagneticBearingElement,
     RollerBearingElement,
+    SealElement,
 )
 from ross.units import Q_
 
@@ -837,3 +838,44 @@ def test_bearing_2d_table_and_plot(bearing_2d):
     assert len(table.rows) == 2
     fig = bearing_2d.plot("kxx")
     assert len(fig.data) == 3
+
+
+def test_radial_clearance_save_load():
+    bearing = BearingElement(
+        n=0, kxx=1e6, cxx=1e3, radial_clearance=Q_(100, "um"), tag="brg_clr"
+    )
+    seal = SealElement(n=1, kxx=1e5, cxx=1e2, radial_clearance=250e-6, tag="seal_clr")
+    assert_allclose(bearing.radial_clearance, 100e-6)
+    assert_allclose(seal.radial_clearance, 250e-6)
+    assert BearingElement(n=0, kxx=1e6, cxx=0).radial_clearance is None
+
+    file = Path(tempdir) / "bearing_radial_clearance.toml"
+    bearing.save(file)
+    loaded = BearingElement.load(file)
+    assert loaded == bearing
+    assert_allclose(loaded.radial_clearance, 100e-6)
+
+    file = Path(tempdir) / "seal_radial_clearance.toml"
+    seal.save(file)
+    loaded = SealElement.load(file)
+    assert isinstance(loaded, SealElement)
+    assert_allclose(loaded.radial_clearance, 250e-6)
+
+
+def test_coefficient_table_keeps_radial_clearance():
+    bearing = CylindricalBearing(
+        n=0,
+        speed=Q_([1000, 2000, 3000, 4000, 5000], "RPM"),
+        weight=525,
+        bearing_length=Q_(30, "mm"),
+        journal_diameter=Q_(100, "mm"),
+        radial_clearance=Q_(120, "um"),
+        oil_viscosity=0.1,
+        tag="cyl_clr",
+    )
+    file = Path(tempdir) / "cylindrical_table.toml"
+    bearing.save_coefficient_table(file)
+    loaded = BearingElement.load(file)
+    assert type(loaded) is BearingElement
+    assert_allclose(loaded.radial_clearance, 120e-6)
+    assert_allclose(loaded.K(bearing.speed[2]), bearing.K(bearing.speed[2]))
