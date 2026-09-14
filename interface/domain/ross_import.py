@@ -97,10 +97,17 @@ def project_from_ross_file(content):
                                 mat_obj[mk] = str(mv)
                         project["materials"].append(mat_obj)
 
+                elif v is None:
+                    # A null is a field ROSS left unset (`n_link`, `seal_leakage`).
+                    # Written as text it would become the word "None", which
+                    # the form cannot tell from a value and ROSS refuses --
+                    # `int('None')` on the link nodes. Left out, the field is
+                    # blank, and blank is exactly what unset means here.
+                    continue
                 else:
                     unit_map = UNITS_MAPPING.get(class_name, {})
 
-                    if k in unit_map and v is not None:
+                    if k in unit_map:
                         try:
                             tgt_unit = unit_map[k]
                             base_u = Q_(1, tgt_unit).to_base_units().units

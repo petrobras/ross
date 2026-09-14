@@ -55,7 +55,9 @@ def extract_kwargs(d, mat_dict, element_type, ignore_keys=["element_type", "n"])
         if isinstance(v, str):
             v_strip = v.strip()
 
-            if v_strip == "":
+            # "None" is what a null became in projects imported before the
+            # importer learned to leave nulls out; either way it means unset.
+            if v_strip == "" or v_strip == "None":
                 continue
 
             if k == "initial_position":

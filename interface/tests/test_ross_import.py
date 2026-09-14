@@ -155,3 +155,76 @@ def test_a_json_rotor_file_is_read_too(client):
     response = client.post("/load_ross_file", json={"content": content}, headers=AUTH)
     assert response.status_code == 200, response.json
     assert response.json["projectData"]["shafts"]
+
+
+NULL_FIELDS_FILE = """
+[BearingElement_b0]
+n = 0
+kxx = 1000000.0
+cxx = 1000.0
+n_link = "__NULL__"
+tag = "b0"
+
+[SealElement_s0]
+n = 1
+kxx = 1000.0
+cxx = 10.0
+seal_leakage = "__NULL__"
+tag = "s0"
+"""
+
+
+def test_a_null_in_the_file_is_an_empty_field_and_not_the_word_none():
+    """ROSS writes unset fields as null (`n_link`, `seal_leakage` in its own
+    compressor example). Translated as text they became "None", the form could
+    not tell that from a value, and ROSS answered with `int('None')` on the link
+    nodes. A null is a blank field."""
+    import json
+
+    from domain.ross_import import project_from_ross_file
+
+    # TOML has no null; the JSON form of the same rotor does.
+    import toml
+
+    data = toml.loads(NULL_FIELDS_FILE)
+    for element in data.values():
+        for key, value in list(element.items()):
+            if value == "__NULL__":
+                element[key] = None
+    project = project_from_ross_file(json.dumps(data))
+
+    (bearing,) = project["bearings"]
+    (seal,) = project["seals"]
+    assert "n_link" not in bearing
+    assert "seal_leakage" not in seal
+    assert not any(v == "None" for v in bearing.values())
+    assert not any(v == "None" for v in seal.values())
+
+
+@needs_ross
+def test_the_word_none_in_a_saved_project_is_still_read_as_unset():
+    """Projects imported before the fix above carry the text; the builder skips it."""
+    project = {
+        "materials": [{"name": "Steel", "rho": "7800", "E": "211e9", "G_s": "81.2e9"}],
+        "shafts": [
+            {"L": "500", "odl": "100", "idl": "0", "material": "Steel", "n": "0"}
+        ],
+        "bearings": [
+            {
+                "element_type": "BASIC",
+                "kxx": "1e6",
+                "cxx": "0",
+                "n": "0",
+                "n_link": "None",
+            },
+            {
+                "element_type": "BASIC",
+                "kxx": "1e6",
+                "cxx": "0",
+                "n": "1",
+                "n_link": "None",
+            },
+        ],
+    }
+    rotor = build_rotor_from_ui(project)
+    assert rotor.link_nodes == []
