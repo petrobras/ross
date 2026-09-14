@@ -5,7 +5,7 @@
 // backend discovered by spying on its own sys.stdout (BE-04).
 import { ANALYSES } from '../core/analysis_store.js';
 import { runJob, wasCancelled, projectForServer } from '../core/api.js';
-import { escapeHtml } from '../core/dom.js';
+import { busySpinner, escapeHtml } from '../core/dom.js';
 import { state } from '../core/state.js';
 import { t } from '../core/i18n.js';
 // --- Campbell with mode shape ---------------------------------------------
@@ -39,7 +39,7 @@ export function wireModeShapeClick(card, diagramId, uniqueId) {
         if (!point) return;
 
         panel.innerHTML = `<div class="campbell-hint">`
-            + `<i class="fas fa-spinner fa-spin"></i><br>${escapeHtml(t('modeShapeLoading'))}</div>`;
+            + `${busySpinner()}<br>${escapeHtml(t('modeShapeLoading'))}</div>`;
 
         try {
             // One request per card: clicking several points in a row cancels the earlier

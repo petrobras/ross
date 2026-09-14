@@ -99,4 +99,25 @@ setSchemaLanguage('pt');
 check('the card speaks the chosen language too',
     cardSays({ state: 'queued', waiting: 1, ahead: 2 })[0] === 'Na fila \u2014 2 antes');
 
+// --- the face of the bar ------------------------------------------------------
+//
+// The bar and every waiting card show the logo with the journal whirling in the
+// bearing, not a generic pair of arrows. Each copy cuts its bore with its own
+// mask: two copies sharing one would both point at whichever came first, and
+// the survivor would turn into a full disc when that one left the page.
+
+const { busySpinner } = await import('../../frontend/core/dom.js');
+const { startWorkBar } = await import('../../frontend/features/progress.js');
+
+startWorkBar();
+check('the bar draws the logo', node('work-bar-icon').innerHTML.includes('class="ross-spinner"'));
+check('and it whirls', node('work-bar-icon').innerHTML.includes('animateTransform'));
+
+const first = busySpinner();
+const second = busySpinner();
+const maskOf = svg => svg.match(/mask id="([^"]+)"/)[1];
+check('every copy cuts its bore with its own mask', maskOf(first) !== maskOf(second));
+check('and the disc uses the mask it was given', second.includes('mask="url(#' + maskOf(second) + ')"'));
+check('a size in em scales the whole thing', busySpinner(3).includes('width:3em; height:3em;'));
+
 shutDown();

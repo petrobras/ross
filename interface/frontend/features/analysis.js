@@ -7,7 +7,7 @@
 import { openCustomAlert, openCustomConfirm } from '../components/modals.js';
 import { ANALYSES, analysesInScreenOrder, analysesToSave, recordResult, cardConversion, forgetAnalysis, forgetAllAnalyses, conversionName, registerAnalysis, conversionBadge, hasChart } from '../core/analysis_store.js';
 import { runJob, wasCancelled, projectForServer } from '../core/api.js';
-import { escapeHtml } from '../core/dom.js';
+import { busySpinner, escapeHtml } from '../core/dom.js';
 import { state } from '../core/state.js';
 import { t } from '../core/i18n.js';
 import { analysisFieldsFor, analysisTitle, analysisTitles, analysisUnsupported, schemaReady, unitAlternativesFor } from '../core/schema.js';
@@ -581,7 +581,7 @@ export async function runCardAnalysis(uniqueId, type) {
         loader.id = loadingIndicatorId;        
         loader.innerHTML = `
             <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;">
-                <i class="fas fa-sync fa-spin fa-2x" style="color: var(--accent-primary);"></i>
+                <span style="color: var(--accent-primary);">${busySpinner(2)}</span>
                 <span id="loading-what-${uniqueId}" style="font-weight: 600; font-size: 13px;">${escapeHtml(t('updating'))}</span>
                 <span id="loading-when-${uniqueId}" class="job-elapsed"></span>
             </div>`;

@@ -5,7 +5,7 @@ import { getEffectiveNodes, positionFormBox, renderList } from '../components/li
 import { reapplyHelp } from '../components/help.js';
 import { openCustomAlert } from '../components/modals.js';
 import { apiFetch, apiFetchLatest, wasCancelled, projectForServer } from '../core/api.js';
-import { escapeHtml } from '../core/dom.js';
+import { busySpinner, escapeHtml } from '../core/dom.js';
 import { state, getActiveData, syncBackToLibrary } from '../core/state.js';
 import { applyLanguage, rememberLanguage, t } from '../core/i18n.js';
 import { formSubtypes, loadElementSchema, schemaReady } from '../core/schema.js';
@@ -408,7 +408,7 @@ async function _fetchRotorLive() {
             plotContainer.style.opacity = '1';
             plotContainer.innerHTML = `
                 <div style="display:flex; flex-direction:column; justify-content:center; align-items:center; height:100%; min-height:400px; color: var(--text-main);">
-                    <i class="fas fa-microchip fa-spin fa-3x" style="margin-bottom:15px; color: var(--accent-primary);"></i>
+                    <span style="margin-bottom:15px; color: var(--accent-primary);">${busySpinner(3)}</span>
                     <h3 style="margin:0;">${escapeHtml(t('computingElement'))}</h3>
                     <p style="color: var(--text-muted); text-align:center; padding:0 20px;">${escapeHtml(t('usingCache'))}</p>
                 </div>`;
