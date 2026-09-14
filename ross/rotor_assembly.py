@@ -3431,14 +3431,14 @@ class Rotor(object):
         if speed_is_array:
             accel = np.gradient(speed, t)
 
-            if self.motor_element is not None:  # ATENÇÃO!! MUDAR
-                Ktq = reduce_matrix(kwargs.get("Ktq"))
+            Ktq = kwargs.get("Ktq", 0.0)
+            torque = kwargs.get("torque", np.zeros_like(speed))
+
+            if np.any(Ktq) and np.any(torque):
+                Ktq = reduce_matrix(Ktq)
                 torque = kwargs.get("torque")
                 kwargs.pop("Ktq")
                 kwargs.pop("torque")
-            else:
-                Ktq = 0.0
-                torque = np.zeros_like(speed)
 
             brgs_with_var_coeffs = tuple(
                 brg
@@ -5105,6 +5105,7 @@ class Rotor(object):
         """
         if self.motor_element is None:
             raise ValueError("No motor elements found in the rotor.")
+
         motor = self.motor_element
 
         if F is None:
@@ -5147,14 +5148,17 @@ class Rotor(object):
             i, _ = steady_state_index(motor_results.sample_at("speed", t))
             t = t[i:]
 
-        torque = motor_results.sample_at("electric_torque", t)
+        Te = motor_results.sample_at("electric_torque", t)
+        Tl = motor_results.sample_at("load_torque", t)
+        torque = Te - Tl
+
         speed = motor_results.sample_at("speed", t)
 
         F += self.unbalance_force_over_time(
             node, unbalance_magnitude, unbalance_phase, speed, t
         ).T
 
-        # add torque to the rotor
+        # Add torque to the rotor
         dof_theta = motor.dof_global_index[f"theta_{motor.n}"]
         F[:, dof_theta] += torque
 
