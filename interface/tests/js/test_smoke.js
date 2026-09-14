@@ -43,6 +43,7 @@ const CALLS = {
     openRotorWorkspace: [0, 'screen-modeling'],
     // screens and panels
     switchScreen: ['screen-modeling'], toggleSidebar: [], toggleAnalysisSidebar: [],
+    toggleTheme: [],
     openTab: ['shafts'], toggleAdvanced: [button], changeLanguage: ['pt'],
     // element form
     openForm: [true], selectSubType: ['BASIC'], closeForm: [], fillDefault: [],

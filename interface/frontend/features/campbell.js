@@ -7,6 +7,7 @@ import { ANALYSES } from '../core/analysis_store.js';
 import { runJob, wasCancelled, projectForServer } from '../core/api.js';
 import { busySpinner, escapeHtml } from '../core/dom.js';
 import { state } from '../core/state.js';
+import { themedLayout } from '../core/theme.js';
 import { t } from '../core/i18n.js';
 // --- Campbell with mode shape ---------------------------------------------
 //
@@ -74,7 +75,7 @@ export function wireModeShapeClick(card, diagramId, uniqueId) {
             panel.innerHTML = '';
             Plotly.newPlot(panel, {
                 data: fig.data,
-                layout: fig.layout,
+                layout: themedLayout(fig.layout),
                 frames: fig.frames || [],
                 config: { responsive: true }
             });

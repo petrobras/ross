@@ -1,3 +1,6 @@
+import re
+from pathlib import Path
+
 import pytest
 from plotly import io as pio
 
@@ -10,7 +13,10 @@ from ross.plotly_theme import (
     axes_indicator_2d,
     axes_indicator_3d,
     color_shades,
+    dark_palette,
+    dark_tableau_colors,
     parse_color,
+    tableau_colors,
 )
 
 
@@ -189,3 +195,55 @@ def test_axes_indicator_3d_without_z_arm():
     assert (0.0, 0.0, 1.0) not in points
     # the spin label sits in the x-y plane, where the ring turns about the origin
     assert text.z[2] == 0
+
+
+# --- the templates mirror the design tokens ----------------------------------
+#
+# The colours of both templates are written out in ross/plotly_theme.py and,
+# again, in docs/_static/ross-tokens.css: Python cannot read a stylesheet at
+# import time, and the docs cannot import ROSS. Two copies of one palette
+# drift, so the test reads the tokens and compares. It runs only from a
+# checkout that carries the docs; an installed package skips it.
+
+TOKENS = Path(__file__).resolve().parents[2] / "docs" / "_static" / "ross-tokens.css"
+
+
+def _tokens(scope):
+    """The `--name:#hex` pairs declared in `scope` ("light" or "dark")."""
+    css = TOKENS.read_text(encoding="utf-8")
+    if scope == "dark":
+        css = css[css.index('html[data-theme="dark"]{') :]
+        css = css[: css.index("}")]
+    else:
+        css = css[: css.index('html[data-theme="dark"]{')]
+    return dict(re.findall(r"(--[\w-]+):(#[0-9a-fA-F]{6})", css))
+
+
+@pytest.mark.skipif(not TOKENS.exists(), reason="docs are not part of the package")
+def test_light_colorway_matches_the_plot_tokens():
+    tokens = _tokens("light")
+    for name, color in tableau_colors.items():
+        assert tokens["--plot-" + name].lower() == color.lower(), name
+
+
+@pytest.mark.skipif(not TOKENS.exists(), reason="docs are not part of the package")
+def test_dark_colorway_matches_the_plot_tokens():
+    tokens = _tokens("dark")
+    for name, color in dark_tableau_colors.items():
+        assert tokens["--plot-" + name].lower() == color.lower(), name
+
+
+@pytest.mark.skipif(not TOKENS.exists(), reason="docs are not part of the package")
+def test_dark_surfaces_match_the_tokens():
+    tokens = _tokens("dark")
+    expected = {
+        "paper": "--surface-page",
+        "text": "--text-body",
+        "grid": "--grid-line",
+        "grid_strong": "--grid-line-strong",
+        "axis_line": "--border-strong",
+        "surface_card": "--surface-card",
+        "surface_sunken": "--surface-sunken",
+    }
+    for key, token in expected.items():
+        assert dark_palette[key].lower() == tokens[token].lower(), (key, token)

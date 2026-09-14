@@ -122,6 +122,7 @@ release_notes/release_notes
 ```{toctree}
 :maxdepth: 1
 contributing
+design_system
 ```
 
 ```{toctree}

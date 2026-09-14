@@ -16,6 +16,7 @@ This is a web-based graphical interface for the **ROSS** library, designed to si
     - Static Analysis.
 - **Python Script Generation:** Automatically export your model and analysis settings into a ready-to-run Python script using native ROSS syntax.
 - **Data Portability:** Save and load your rotor models and analysis configurations using JSON files.
+- **Light and Dark Themes:** The button in every top bar switches the theme; with no choice made, the interface follows the system. The figures follow it too.
 
 ## 🛠️ Technologies
 
@@ -41,9 +42,10 @@ domain/        What the application knows: units, nodes, ROSS classes, schema,
                rotor assembly, cache, Python export
 frontend/
   index.html   UI structure for the hub, modeling and analysis screens
-  style.css    Visual styling and responsive rules
+  style.css    Visual styling and responsive rules, written in the design tokens
+  design/      The ROSS design system: tokens and fonts, copied from docs/_static
   main.js      Bootstrap
-  core/        Store, API client, shared state, schema loader, i18n, persistence
+  core/        Store, API client, shared state, schema loader, i18n, persistence, theme
   components/  Form builder, element list, modals, contextual help
   features/    One module per screen: hub, modeling, analysis, multirotor, export
 tests/         Python suites, plus tests/js/ behaviour batteries run with node
@@ -114,6 +116,27 @@ These are the same commands CI runs on Ubuntu, macOS and Windows
 (`ci/interface.yml`), and a test keeps the two texts in step. The instructions
 are not documentation that might be right: they are documentation that is
 executed on three systems on every change.
+
+## 🎨 Design system
+
+The interface looks like the ROSS documentation because it is styled with the
+same design system. `frontend/design/ross-tokens.css` is a verbatim copy of
+`docs/_static/ross-tokens.css` (fonts included, under `design/fonts/`), and
+`tests/test_design_system.py` keeps the copy equal to the original -- the
+interface cannot load the docs folder, neither from a checkout nor from the
+packaged executable, so it carries its own.
+
+`style.css` is written only in those tokens: there is no hex colour in it, in
+`index.html`, or in the HTML the JavaScript builds, and the same test refuses
+one. That is what makes the dark theme a single attribute -- the tokens re-point
+their semantic aliases under `html[data-theme="dark"]`, exactly as the docs do
+-- instead of a second stylesheet. `core/theme.js` sets the attribute, remembers
+the choice under `ross-theme`, follows the system while no choice is made, and
+repaints the Plotly figures from the tokens on the page, so a chart and the
+card it sits on come from the same values.
+
+To change a colour, change the token in `docs/_static/ross-tokens.css` and copy
+the file here. The guide is in the documentation, under *Design system*.
 
 ## ✅ Tests
 

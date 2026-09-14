@@ -9,6 +9,7 @@ import { ANALYSES, analysesInScreenOrder, analysesToSave, recordResult, cardConv
 import { runJob, wasCancelled, projectForServer } from '../core/api.js';
 import { busySpinner, escapeHtml } from '../core/dom.js';
 import { state } from '../core/state.js';
+import { themedLayout } from '../core/theme.js';
 import { t } from '../core/i18n.js';
 import { analysisFieldsFor, analysisTitle, analysisTitles, analysisUnsupported, schemaReady, unitAlternativesFor } from '../core/schema.js';
 import { isModeShape, wireModeShapeClick, prepareModeShapePanels } from './campbell.js';
@@ -51,7 +52,7 @@ export async function restoreAnalysesFromMemory(savedArray) {
                         <span id="icon-${uniqueId}"><i class="fas fa-chevron-down"></i></span>
                     </div>
                 </div>
-                <div class="analysis-body" id="body-${uniqueId}" style="padding:0; background:var(--bg-workspace); position: relative;">
+                <div class="analysis-body" id="body-${uniqueId}">
                     <div id="${nid}" style="min-height: 400px; display: block; width: 100%; overflow: hidden; position:relative;"></div>
                     ${controlsHTML}
                 </div>
@@ -71,7 +72,7 @@ export async function restoreAnalysesFromMemory(savedArray) {
         an.layout.autosize = true; 
         const withMode = isModeShape(an.type, an.params);
         const target = withMode ? prepareModeShapePanels(divNode, nid) : nid;
-        Plotly.newPlot(target, an.data, an.layout, {responsive: true});
+        Plotly.newPlot(target, an.data, themedLayout(an.layout), {responsive: true});
         if (withMode) wireModeShapeClick(divNode, target, uniqueId);
     });
 }
@@ -408,7 +409,7 @@ export async function addAnalysis(event) {
                     <span id="icon-${uniqueId}"><i class="fas fa-chevron-down"></i></span>
                 </div>
             </div>
-            <div class="analysis-body" id="body-${uniqueId}" style="padding:0; background:var(--bg-workspace); position: relative;">
+            <div class="analysis-body" id="body-${uniqueId}">
                 <div id="${plotId}" style="min-height: 400px; width: 100%; overflow: hidden; position:relative;"></div>
                 ${controlsHTML}
             </div>
@@ -490,7 +491,7 @@ export function cardParameters(uniqueId, type) {
 // mark of recognition is the class, not the text -- comparing by the English text
 // is what the translation broke.
 export function emptyListNotice() {
-    return `<p class="dashboards-empty" style="color: #888; text-align: center; margin-top: 20%;">`
+    return `<p class="dashboards-empty placeholder-text placeholder-text-tall">`
          + `${escapeHtml(t('dashboardsWillAppear'))}</p>`;
 }
 
@@ -650,7 +651,7 @@ export async function runCardAnalysis(uniqueId, type) {
 
             Plotly.newPlot(target, {
                 data: fig.data, 
-                layout: fig.layout, 
+                layout: themedLayout(fig.layout), 
                 frames: fig.frames || [], 
                 config: {responsive: true}
             });
@@ -658,12 +659,12 @@ export async function runCardAnalysis(uniqueId, type) {
             if (withModeShape) wireModeShapeClick(div, target, uniqueId);
             
         } else {
-            div.innerHTML = `<div style="color:red; text-align:center; padding: 20px;"><i class="fas fa-exclamation-triangle fa-2x"></i><br><b>${escapeHtml(t('errorLabel'))}</b> ${data.message}</div>`;
+            div.innerHTML = `<div class="analysis-error"><i class="fas fa-exclamation-triangle fa-2x"></i><br><b>${escapeHtml(t('errorLabel'))}</b> ${data.message}</div>`;
         }
     } catch(e) {
         if (wasCancelled(e)) return;   // a newer request has taken over this card
         div.style.opacity = '1'; if(loader) loader.style.display = 'none';
-        div.innerHTML = `<p style="color:red; text-align:center;">${escapeHtml(t('serverConnectionError'))}</p>`; 
+        div.innerHTML = `<p class="analysis-error">${escapeHtml(t('serverConnectionError'))}</p>`; 
     }
 }
 
@@ -734,7 +735,7 @@ export function loadAnalysis(event) {
                                 <span id="icon-${uniqueId}"><i class="fas fa-chevron-down"></i></span>
                             </div>
                         </div>
-                        <div class="analysis-body" id="body-${uniqueId}" style="padding:0; background:#f8f9fa; position: relative;">
+                        <div class="analysis-body" id="body-${uniqueId}">
                             <div id="${nid}" style="min-height: 400px; display: block; width: 100%; overflow: hidden; position:relative;"></div>
                             ${controlsHTML}
                         </div>
@@ -755,7 +756,7 @@ export function loadAnalysis(event) {
                 const target = withMode ? prepareModeShapePanels(divNode, nid) : nid;
                 Plotly.newPlot(target, {
                     data: an.data, 
-                    layout: an.layout, 
+                    layout: themedLayout(an.layout), 
                     frames: an.frames || [], 
                     config: {responsive: true}
                 }).then(() => {

@@ -39,6 +39,6 @@ export async function exitApplication() {
     if(isConfirmed) {
         try { await apiFetch('/shutdown', {method: 'POST'}); } catch(e) {} 
         window.close();
-        document.body.innerHTML = `<h2 style='text-align:center; margin-top:20%; color:#2c3e50;'><i class='fas fa-power-off'></i> ${t('serverShutdown')}</h2>`;
+        document.body.innerHTML = `<h2 style='text-align:center; margin-top:20%; color:var(--text-body);'><i class='fas fa-power-off'></i> ${t('serverShutdown')}</h2>`;
     }
 }

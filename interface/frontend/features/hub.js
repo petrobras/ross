@@ -41,7 +41,7 @@ export function renderRotorHub() {
         let badge = "";
         
         if (rotor.isMultiRotor) {
-            badge = `<span class="badge-conversion" style="background:#8b5cf6;"><i class="fas fa-link"></i> MultiRotor</span>`;
+            badge = `<span class="badge-conversion badge-multirotor"><i class="fas fa-link"></i> MultiRotor</span>`;
         } else {
             let s_len = rotor.shafts ? rotor.shafts.length : 0;
             let d_len = rotor.disks ? rotor.disks.length : 0;
