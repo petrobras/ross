@@ -1,0 +1,22 @@
+# What is needed to WORK ON the interface -- check it and package it -- and not
+# to run it. `check.py` uses the first two.
+#
+# The pin is exact on purpose, and for the same reason the ROSS pin is: a
+# formatter is a rewriting tool, and two versions of it disagree about where to
+# break a line. An open range would turn `ruff format --check` from a guard into
+# a coin toss on whoever installed most recently. This is the version
+# `petrobras/ross` pins in the `dev` extras of its `pyproject.toml`.
+ruff==0.16.3
+
+# The suite's runner. On Windows it came from the system Python, so nothing
+# here noticed it was undeclared -- the first venv built from these files on
+# Linux answered `No module named pytest` and the suite could not start. The
+# range is open, unlike ruff's: pytest reads the files, it does not rewrite
+# them, so its version does not change what is on disk.
+pytest>=8
+
+# The packager. Open for now on purpose: pinning a version nobody has built
+# with would be a guess. It becomes exact the day one version is measured
+# producing a bundle that passes `--selftest` on the three systems -- same
+# rule as the ROSS pin and the ruff pin, waiting on the measurement.
+pyinstaller>=6

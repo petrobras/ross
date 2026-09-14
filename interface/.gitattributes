@@ -1,0 +1,13 @@
+# Line endings, decided here instead of by whoever clones.
+#
+# `test_every_source_file_uses_lf_line_endings` measures the working tree, and
+# it found two files in CRLF the first time it ran. But git is a writer of line
+# endings too, and one that lives outside this repository: with `core.autocrlf`
+# on -- the default of the Git for Windows installer -- a checkout rewrites
+# every text file to CRLF, and the guard goes red on a machine where nobody
+# touched a file. This is the answer to "who else writes this".
+* text=auto eol=lf
+
+# The one exception: cmd.exe is happier with CRLF in a batch file, and `.bat`
+# is not in the source sweep.
+*.bat text eol=crlf
