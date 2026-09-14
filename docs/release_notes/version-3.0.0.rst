@@ -225,6 +225,15 @@ The rotor figure was redesigned â€” cleaner element styling and legend layout â€
 responsive to the container width (`#1331 <https://github.com/petrobras/ross/pull/1331>`_,
 `#1341 <https://github.com/petrobras/ross/pull/1341>`_).
 
+Spline Drawing of Response Curves
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Every plot method with a ``line_shape`` argument now draws a Plotly spline through the sampled points
+by default (``line_shape="spline"``) instead of straight segments: ``FrequencyResponseResults.plot_magnitude``,
+``ForcedResponseResults.plot_magnitude``, their stochastic counterparts, and
+``ClearanceResults.plot_response`` / ``plot_probe_response``, which gained the argument. The sampled
+values are not changed; pass ``line_shape="linear"`` to recover the previous drawing.
+
 Documentation
 ^^^^^^^^^^^^^
 

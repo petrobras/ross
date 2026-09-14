@@ -623,18 +623,32 @@ def test_clearance_plots_line_shape(rotor_with_clearances, clearance_probes):
     )
 
     fig = results.plot_response()
-    assert fig.data[0].line.shape == "linear"
-    fig = results.plot_response(line_shape="spline")
     assert fig.data[0].line.shape == "spline"
+    fig = results.plot_response(line_shape="linear")
+    assert fig.data[0].line.shape == "linear"
     assert fig.data[1].line.dash == "dash"
 
     fig = results.plot_probe_response()
-    assert fig.data[0].line.shape == "linear"
-    fig = results.plot_probe_response(line_shape="spline")
     assert fig.data[0].line.shape == "spline"
+    fig = results.plot_probe_response(line_shape="linear")
+    assert fig.data[0].line.shape == "linear"
     assert fig.data[-1].name == "Avl"
 
     assert len(results.plot().data) == 3
+
+
+def test_response_plots_default_line_shape():
+    rotor = rotor_example()
+    speed_range = np.linspace(0, 1000, 11)
+
+    fig = rotor.run_freq_response(speed_range=speed_range).plot_magnitude(0, 0)
+    assert fig.data[0].line.shape == "spline"
+
+    forced = rotor.run_unbalance_response(3, 0.001, 0.0, speed_range)
+    fig = forced.plot_magnitude(probe=[rs.Probe(3, 0)])
+    assert fig.data[0].line.shape == "spline"
+    fig = forced.plot_magnitude(probe=[rs.Probe(3, 0)], line_shape="linear")
+    assert fig.data[0].line.shape == "linear"
 
 
 def test_save_load_clearance(rotor_with_clearances, clearance_probes):
