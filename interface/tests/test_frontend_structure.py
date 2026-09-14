@@ -387,6 +387,7 @@ def test_the_import_sweep_actually_resolves_something():
 
 THIRD_PARTY_CLASSES = {
     "js-plotly-plot",  # what writes it is Plotly, inside the chart
+    "updatemenu-item-rect",  # Plotly's menu buttons; the dark theme repaints their fill
 }
 
 
