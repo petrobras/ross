@@ -20,17 +20,26 @@
 # intent diverge -- this project has the scars, and the one that rots is
 # always the one nobody looks at. There is one recipe, and CI runs it.
 #
-# WHY IT BUILDS AT ALL, IF THE BINARY IS NOT THE DELIVERABLE. The interface
-# travels as source: whoever wants the program builds it, following the README.
-# So this job is not producing an artifact -- it is **executing the README** on
-# the three systems, every time anything changes. Instructions nobody runs rot
-# in silence, and a build recipe is the kind of prose that stops being true
-# without anyone noticing.
+# WHY IT BUILDS ON EVERY CHANGE, WHEN ONLY A RELEASE SHIPS THE BINARY. The
+# bundle users download is produced once, when a release is published. Between
+# releases this job is not producing an artifact -- it is **executing the
+# README** on the three systems, every time anything changes. Instructions
+# nobody runs rot in silence, and a build recipe is the kind of prose that
+# stops being true without anyone noticing.
 #
-# WHY THE UPLOAD IS MANUAL. Three bundles of ~460 MB on every push would fill
-# the repository's artifact storage to buy nothing: nobody downloads them,
-# because the way to get the program is to build it. The upload stays for the
-# day somebody wants a binary without a toolchain, and only then --
+# WHY THE RELEASE UPLOAD IS A SEPARATE STEP. Publishing a GitHub release runs
+# this workflow (`release: published`) on the tagged commit; the three package
+# jobs archive their bundle and attach it to that release as
+# `ross-interface-<tag>-<os>-<arch>.tar.gz` (`.zip` on Windows). That is the
+# only path from a `v3.0.0` tag to a downloadable executable: pushing the tag
+# may start these jobs (GitHub does not evaluate `paths` for tags) but nothing
+# kept what they built. The release step is guarded by the event name, so a
+# manual run or a pull request can never write to a release.
+#
+# WHY THE ARTIFACT UPLOAD STAYS MANUAL. Three bundles of a few hundred MB on
+# every push would fill the repository's artifact storage to buy nothing:
+# between releases the way to get the program is to build it. The upload stays
+# for the day somebody wants a binary without a toolchain, and only then --
 # `workflow_dispatch`, on request.
 #
 # WHY IT STILL HAS TO RUN `--selftest`. PyInstaller finishing is not the same
@@ -50,6 +59,8 @@ on:
       - "interface/**"
       - ".github/workflows/interface.yml"
   workflow_dispatch:
+  release:
+    types: [published]
 
 defaults:
   run:
@@ -89,6 +100,10 @@ jobs:
 
   package:
     needs: check
+    # `contents: write` is what attaching a file to a release needs, and it is
+    # granted to this job only: `check` never touches the repository.
+    permissions:
+      contents: write
     strategy:
       fail-fast: false
       matrix:
@@ -119,3 +134,28 @@ jobs:
           name: ross-interface-${{ matrix.os }}
           path: interface/dist/ross-interface
           retention-days: 14
+      # tar keeps the executable bit, which a zip made on macOS often does
+      # not, so the two Unix systems ship a tarball and only Windows a zip.
+      # `runner.arch` names the CPU (X64, ARM64): `macos-latest` is Apple
+      # Silicon, and an Intel Mac runner added to the matrix would name its
+      # bundle correctly without another edit here.
+      - name: archive the bundle for the release
+        if: github.event_name == 'release'
+        shell: bash
+        run: |
+          os=$(echo "$RUNNER_OS" | tr '[:upper:]' '[:lower:]')
+          arch=$(echo "$RUNNER_ARCH" | tr '[:upper:]' '[:lower:]')
+          name="ross-interface-${{ github.event.release.tag_name }}-${os}-${arch}"
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            7z a "${name}.zip" ./dist/ross-interface
+          else
+            tar czf "${name}.tar.gz" -C dist ross-interface
+          fi
+          ls -l "${name}".*
+      - name: attach the bundle to the release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            interface/ross-interface-*.tar.gz
+            interface/ross-interface-*.zip

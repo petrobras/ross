@@ -80,13 +80,32 @@ python interface/app.py
 The browser opens on `http://127.0.0.1:5001/`. Everything runs locally, on the
 loopback interface, for a single user and a single session.
 
+## 📦 Downloading the executable
+
+Every [GitHub release of ROSS](https://github.com/petrobras/ross/releases)
+carries a prebuilt bundle per system, attached by CI from the tagged commit:
+
+| Asset | System |
+|-------|--------|
+| `ross-interface-<tag>-linux-x64.tar.gz` | Linux, x86_64 |
+| `ross-interface-<tag>-macos-arm64.tar.gz` | macOS, Apple Silicon |
+| `ross-interface-<tag>-windows-x64.zip` | Windows, x86_64 |
+
+Unpack it and run `ross-interface` (`ross-interface.exe` on Windows) from
+inside the folder. The bundles are **not code-signed**: macOS Gatekeeper
+refuses an unsigned, un-notarized download, so open it once with right-click,
+Open, or run `xattr -dr com.apple.quarantine ross-interface` on the unpacked
+folder; Windows SmartScreen shows "Windows protected your PC" until you choose
+"More info", "Run anyway". Signing needs paid certificates and may follow in a
+later release; the spec already exposes `codesign_identity` and
+`entitlements_file` for it.
+
 ## 📦 Building the executable
 
-The interface travels as **source**, not as a binary. That is not only about
-size: PyInstaller does not cross-compile, so a Windows program can only be
-produced on Windows, a macOS one on macOS and a Linux one on Linux. There is no
-single file that could be shipped to everyone, and there is no reason for a
-library repository to carry one.
+Between releases, or on a system the release does not cover, build it yourself.
+PyInstaller does not cross-compile, so a Windows program can only be produced
+on Windows, a macOS one on macOS and a Linux one on Linux: that is why CI
+builds on the three systems, and why a release carries three bundles.
 
 ```bash
 pip install -r interface/requirements-dev.txt
@@ -115,7 +134,9 @@ all finished, and none of them ran.
 These are the same commands CI runs on Ubuntu, macOS and Windows
 (`ci/interface.yml`), and a test keeps the two texts in step. The instructions
 are not documentation that might be right: they are documentation that is
-executed on three systems on every change.
+executed on three systems on every change. When a release is published, the
+same jobs archive the bundle they just self-tested and attach it to the
+release; the assets above are that build, not a separate one.
 
 ## 🎨 Design system
 

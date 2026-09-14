@@ -897,6 +897,39 @@ def test_the_workflow_builds_with_our_spec_and_runs_the_selftest():
     ), "the artifact is uploaded before the self-test proves it works"
 
 
+def test_the_workflow_attaches_the_bundle_to_the_release():
+    """Publishing a release is the only path from a tag to a downloadable executable.
+
+    Before this guard existed, the workflow woke for changes under our folder
+    and for a manual run, and the manual run kept its bundle for fourteen days
+    as an artifact. Pushing `v3.0.0` produced zero executables: the tag may
+    start the package jobs, and nothing kept what they built. The
+    `release: published` trigger is what ties the bundle to the tag, and the
+    upload has to come after `--selftest` for the same
+    reason the artifact does -- a bundle that was produced and never ran is a
+    hope, not a release asset.
+
+    The upload is guarded by the event name and not by the ref: a manual run
+    or a pull request must never be able to write to a release, and
+    `contents: write` is granted to the package job alone.
+    """
+    _, steps = _workflow()
+    assert "release:\n    types: [published]" in steps, (
+        "the workflow no longer runs when a release is published"
+    )
+    assert "github.event_name == 'release'" in steps, (
+        "the release upload is no longer guarded by the event name"
+    )
+    assert "contents: write" in steps, "attaching a release asset needs contents: write"
+    assert "${{ github.event.release.tag_name }}" in steps, (
+        "the bundle is no longer named after the release tag"
+    )
+    assert "action-gh-release" in steps, "nothing attaches the bundle to the release"
+    assert steps.index("--selftest") < steps.index("action-gh-release"), (
+        "the bundle is attached to the release before the self-test proves it works"
+    )
+
+
 def test_the_readme_build_commands_are_the_ones_ci_runs():
     """The step-by-step is the deliverable, so something has to run it.
 
