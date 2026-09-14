@@ -47,7 +47,10 @@ const withoutDepsSource = html => html.replace(/ data-deps-de="[^"]*"/g, '');
 // single `node` box beside list-valued magnitude and phase could never carry
 // more than one value, and the one value it did carry reached ROSS as a
 // one-element array where a number was expected -- tolerated by numpy until
-// 2.5, an error after it. The three fields became one unbalance table.
+// 2.5, an error after it. The three fields became one unbalance table. Then
+// ROSS #1377 rewrote the analysis after API 617, and the panel followed: a
+// speed range, the minimum allowable and maximum continuous speeds and the
+// vibration probes entered, the single speed and the frequency list left.
 //
 // Regenerating the frozen file would have been easier and would have destroyed
 // the guarantee for the other eleven at the same time, because a golden
@@ -62,12 +65,15 @@ const withoutDepsSource = html => html.replace(/ data-deps-de="[^"]*"/g, '');
 const CHANGED_ON_PURPOSE = ['clearance', 'ucs', 'campbell', 'freq_response', 'modes'];
 
 // What each one has to show, so that the exception is checked and not merely
-// declared. `clearance` traded three fields for an unbalance table; `ucs` got
-// the bearing frequency range back as a pair, after ROSS fixed the line that
-// refused any value for it.
+// declared. `clearance` traded three fields for an unbalance table and then
+// gained the API 617 speeds and probes; `ucs` got the bearing frequency range
+// back as a pair, after ROSS fixed the line that refused any value for it.
 const REBUILT = {
     clearance: html =>
-        html.includes('addUnbalanceRow') && !html.includes('unbalance_magnitude'),
+        html.includes('addUnbalanceRow') && !html.includes('unbalance_magnitude')
+        && html.includes('input-minimum_allowable_speed-')
+        && html.includes('input-maximum_continuous_speed-')
+        && html.includes('addAngleProbeRow'),
     ucs: html =>
         html.includes('bearing_freq_min') && html.includes('bearing_freq_max'),
     campbell: html => html.includes('input-matched_whirl-'),

@@ -89,13 +89,25 @@ _IGNORES_PT = (
 UNSUPPORTED = dict(
     [
         # --- index lateral degrees the torsional model does not have -------------
+        # Clearance left this group when ROSS #1377 rewrote it after API 617:
+        # it still raises on the torsional model, but earlier and for its own
+        # reason -- the unbalance is placed on a forward lateral mode, and the
+        # torsional model has none to place it on. Re-measured on the probe
+        # with `--measure-all` at ross 3.0.0.dev0 (d130bb80); the 4 DoF model
+        # runs it.
         _I(
             "clearance",
             "torsional",
             RAISES,
             "measured",
-            _INDEXES_LATERAL_EN,
-            _INDEXES_LATERAL_PT,
+            "The API 617 unbalance is placed on a forward lateral mode, and the "
+            "torsional model keeps only the torsional degree of freedom, so there "
+            "is no forward mode to place it on. Measured on ross 3.0.0.dev0: "
+            "ValueError, no forward modes were found.",
+            "O desbalanceamento da API 617 e posicionado sobre um modo lateral "
+            "direto, e o modelo torcional guarda so o grau de liberdade torcional, "
+            "entao nao ha modo direto onde posiciona-lo. Medido no ross 3.0.0.dev0: "
+            "ValueError, nenhum modo direto encontrado.",
         ),
         _I(
             "crack",

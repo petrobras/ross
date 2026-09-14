@@ -167,11 +167,21 @@ PARAMS = {
         "gravity": "True",
         "n_harmonics": "3",
     },
+    # The unbalance table is filled in here on purpose, although the API 617
+    # form is born with it empty: the sweep of the three unbalance columns
+    # below has to see clearance carry them, and an empty table would leave
+    # the placement to ROSS and the guard with nothing to measure.
     "clearance": {
-        "speed": "1200",
+        "speed_min": "0",
+        "speed_max": "1000",
+        "speed_steps": "51",
+        "minimum_allowable_speed": "500",
+        "maximum_continuous_speed": "800",
+        "probes": [{"node": 0, "angle": 0.0}, {"node": 3, "angle": 0.0}],
+        "mode": "0",
         "unbalances": [{"node": 1, "mag": 0.05, "phase": 0.0}],
-        "frequency": "[100]",
-        "modes": "[0, 1]",
+        "num_modes": "12",
+        "scale_factor_cap": "6",
     },
 }
 
@@ -413,6 +423,9 @@ def test_mode_shape_and_default_now_share_a_cache_entry():
         ("modes", "num_modes", ("num_modes", 12)),
         ("ucs", "num_modes", ("num_modes", 4)),
         ("harmonic_balance", "n_harmonics", ("n_harmonics", 1)),
+        ("clearance", "speed_steps", ("steps", 101)),
+        ("clearance", "num_modes", ("num_modes", 12)),
+        ("clearance", "mode", ("mode", 0)),
     ],
 )
 def test_a_blank_resolution_field_falls_back_to_the_default(name, field, expected):
@@ -435,6 +448,10 @@ def test_a_blank_resolution_field_falls_back_to_the_default(name, field, expecte
         ("rubbing", "contact_stiffness"),
         ("rubbing", "contact_damping"),
         ("rubbing", "friction_coeff"),
+        # Nma and Nmc: the operating range the largest probe amplitude is read
+        # over. A blank would reach ROSS as zero and the range would be empty.
+        ("clearance", "minimum_allowable_speed"),
+        ("clearance", "maximum_continuous_speed"),
         ("rubbing", "n"),
     ],
 )
@@ -456,23 +473,52 @@ def test_a_blank_physical_field_is_refused_by_name(name, field):
     assert field in str(error.value)
 
 
-def test_clearance_refuses_an_empty_unbalance_table():
-    """The excitation cannot be invented: it is what the analysis measures.
+def test_clearance_leaves_an_empty_unbalance_table_to_api617():
+    """An empty table is not a missing excitation any more: it is the standard's.
 
-    The clearance analysis compares the vibration at the bearings against the
-    radial gap, and that vibration IS the response to this unbalance. Standing
-    in a default row would answer a question the user did not ask, with a number
-    that looks perfectly valid. So an empty table raises, and the message says
-    which analysis and what to do."""
-    with pytest.raises(ValueError) as error:
-        REGISTRY["clearance"].spec(
-            dict(PARAMS["clearance"], unbalances=[]), ROTOR_REQUEST
-        )
-    assert "clearance" in str(error.value)
+    Until ROSS #1377 the clearance analysis refused an empty table, because the
+    excitation IS what it measures and a default row would have answered a
+    question nobody asked. The rewrite after API 617 gave the empty table a
+    meaning of its own: ROSS places the unbalance from the mode shape (6.8.2.7),
+    which is what the standard asks for and what a user who typed nothing gets.
+    So the spec carries the three columns empty -- one shape for the cache key
+    -- and `compute` sends the mode instead of the three."""
+    spec = REGISTRY["clearance"].spec(
+        dict(PARAMS["clearance"], unbalances=[]), ROTOR_REQUEST
+    )
+    assert spec["node"] == []
+    assert spec["unbalance_magnitude"] == []
+    assert spec["unbalance_phase"] == []
+
+    sent = {}
+
+    class Rotor:
+        def run_clearance_analysis(self, *args, **kwargs):
+            sent.update(kwargs)
+
+    REGISTRY["clearance"].compute(Rotor(), spec)
+    assert sent["mode"] == 0
+    assert not any(key in sent for key in UNBALANCE_TRIO)
+
+
+def test_clearance_sends_the_table_when_it_has_rows():
+    """Control: a filled table overrides the API 617 placement, all three at once."""
+    spec = REGISTRY["clearance"].spec(dict(PARAMS["clearance"]), ROTOR_REQUEST)
+    sent = {}
+
+    class Rotor:
+        def run_clearance_analysis(self, *args, **kwargs):
+            sent.update(kwargs)
+
+    REGISTRY["clearance"].compute(Rotor(), spec)
+    assert "mode" not in sent
+    assert sent["node"] == [1]
+    assert sent["unbalance_magnitude"] == [0.05]
+    assert sent["unbalance_phase"] == [0.0]
 
 
 def test_the_other_analyses_still_stand_in_a_row_when_the_table_is_empty():
-    """Control: the refusal above is clearance's, not everyone's.
+    """The fallback row is everyone else's: clearance alone reads nothing into it.
 
     Without this, moving the fallback out of `unbalances()` altogether would
     look like a passing test instead of a behaviour change for four analyses."""
@@ -551,9 +597,11 @@ def _test_rotor():
     return rs.Rotor(
         shaft_elements=shafts,
         disk_elements=[rs.DiskElement(n=1, m=5.0, Id=0.02, Ip=0.04, tag="disk_0")],
+        # The radial clearance makes the two bearings close-clearance locations:
+        # since ROSS #1377 the clearance analysis refuses a rotor with none.
         bearing_elements=[
-            rs.BearingElement(n=0, kxx=1e6, cxx=1e3, tag="b0"),
-            rs.BearingElement(n=3, kxx=1e6, cxx=1e3, tag="b1"),
+            rs.BearingElement(n=0, kxx=1e6, cxx=1e3, radial_clearance=1e-4, tag="b0"),
+            rs.BearingElement(n=3, kxx=1e6, cxx=1e3, radial_clearance=1e-4, tag="b1"),
         ],
     )
 
@@ -582,6 +630,22 @@ def test_every_runner_produces_a_figure_from_a_real_rotor(name):
     spec = runner.spec(dict(params), rotor)
     figure = runner.plot(runner.compute(rotor, spec), dict(params), rotor)
     assert figure.to_json()
+
+
+@needs_ross
+def test_clearance_with_an_empty_table_runs_on_the_api617_unbalance():
+    """The form is born with the table empty, so this is the path a user gets.
+
+    The sweep above fills the table; here it is left blank and ROSS has to
+    place the unbalance itself, from the mode shape, and say which mode."""
+    rotor = _test_rotor()
+    params = dict(_lean_params("clearance"), unbalances=[])
+    runner = REGISTRY["clearance"]
+    result = runner.compute(rotor, runner.spec(dict(params), rotor))
+    assert result.mode == 0
+    assert len(result.unbalance_node) >= 1
+    assert list(result.clearance_nodes) == [0, 3]
+    assert runner.plot(result, dict(params), rotor).to_json()
 
 
 @needs_ross

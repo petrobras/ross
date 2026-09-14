@@ -743,30 +743,55 @@ def _analysis_block(position, analysis):
         )
 
     elif kind == "clearance":
-        # The exported script had the same defect as the runner, and this is the
-        # copy that leaves the program: it wrote `node=1` beside
-        # `unbalance_magnitude=[0.05]`, so whoever ran it on numpy 2.5 got the
-        # `TypeError` on their own machine, with no interface to blame. The
-        # three columns now come from the same table, like the unbalance
-        # response's block above.
-        nodes, mags, phases = _unbalance_columns(p, "0.05", "0.0")
-        extras = []
-        if _js_truthy(p.get("frequency")):
-            extras.append("frequency=%s" % _js_str(p["frequency"]))
-        if _js_truthy(p.get("modes")):
-            extras.append("modes=%s" % _js_str(p["modes"]))
-        py += (
-            "clearance_%d = rotor.run_clearance_analysis(speed=%s, node=[%s], "
-            "unbalance_magnitude=[%s], unbalance_phase=[%s]%s)\n"
-        ) % (
+        # petrobras/ross#1377 rewrote the analysis after API 617: a speed range
+        # from zero to trip, the two operating speeds, the probes Amax is read
+        # off, and an unbalance that is optional -- with no row ROSS places the
+        # API 617 unbalance from the mode shape, so the script says `mode=`
+        # instead of inventing three columns the user never typed. When the
+        # table has rows the three columns leave together, from the same rows,
+        # for the reason the unbalance response's block gives above.
+        py += "speed_range_%d = np.linspace(%s, %s, %s)\n" % (
             position,
-            _py_val(p, "speed", "rad/s"),
-            nodes,
-            mags,
-            phases,
-            (", " + ", ".join(extras)) if extras else "",
+            _py_val(p, "speed_min", "rad/s"),
+            _py_val(p, "speed_max", "rad/s"),
+            _js_str(_or(p.get("speed_steps"), 101)),
         )
-        py += "clearance_%d.plot().show()\n" % position
+        args = [
+            "speed_range=speed_range_%d" % position,
+            "minimum_allowable_speed=%s"
+            % _py_val(p, "minimum_allowable_speed", "rad/s"),
+            "maximum_continuous_speed=%s"
+            % _py_val(p, "maximum_continuous_speed", "rad/s"),
+            "probes=[%s]" % _probes_expression(p),
+        ]
+        if p.get("unbalances"):
+            nodes, mags, phases = _unbalance_columns(p, "0.05", "0.0")
+            args += [
+                "node=[%s]" % nodes,
+                "unbalance_magnitude=[%s]" % mags,
+                "unbalance_phase=[%s]" % phases,
+            ]
+        else:
+            args.append("mode=%s" % _js_str(_or(p.get("mode"), 0)))
+        if _js_truthy(p.get("scale_factor_cap")):
+            args.append("scale_factor_cap=%s" % _js_str(p["scale_factor_cap"]))
+        args.append("num_modes=%s" % _js_str(_or(p.get("num_modes"), 12)))
+        py += "clearance_%d = rotor.run_clearance_analysis(%s)\n" % (
+            position,
+            ", ".join(args),
+        )
+        method = {
+            "Response": "plot_response",
+            "Probe Response": "plot_probe_response",
+        }.get(p.get("plot_type"), "plot")
+        plot_args = _opt_args(p, [("length_units", "str")])
+        if method != "plot":
+            plot_args += _opt_args(p, [("speed_units", "str"), ("line_shape", "str")])
+        py += "clearance_%d.%s(%s).show()\n" % (
+            position,
+            method,
+            ", ".join(plot_args),
+        )
 
     return py
 

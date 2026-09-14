@@ -976,62 +976,170 @@ ANALYSES = {
         ),
     ],
     "clearance": [
+        # Rebuilt twice. The first time, three fields became an unbalance table:
+        # a single `node` box beside list-valued magnitude and phase could never
+        # carry more than one value, and the one value it did carry reached
+        # ROSS as a one-element array where a number was expected -- tolerated
+        # by numpy until 2.5, an error after it.
+        #
+        # The second time the analysis itself changed. petrobras/ross#1377
+        # rewrote `run_clearance_analysis` after API 617 (9th edition, 6.8.2.10
+        # and 6.8.2.11): it sweeps a speed range from zero to trip, takes the
+        # largest probe amplitude between the minimum allowable speed (Nma) and
+        # the maximum continuous speed (Nmc), scales the response to the test
+        # vibration limit and compares the scaled major axis at every element
+        # carrying a `radial_clearance` with 75 % of the diametral clearance.
+        # `speed`, `frequency` and `modes` left the signature; the range, the
+        # two speeds and the probes entered it, and the unbalance became
+        # optional -- blank, ROSS places the API 617 unbalance from the mode
+        # shape; filled, the table overrides that placement.
         A(
-            "speed",
-            "Speed",
-            "Velocidade",
+            "speed_min",
+            "Start Speed",
+            "Velocidade Inicial",
             "range",
-            600,
+            0,
             "compute",
             min=0,
-            max=2000,
+            max=1000,
             step=10,
             default_unit="rad/s",
-            ross_param="speed",
         ),
-        # One table instead of three fields, and the reason is a bug.
-        #
-        # Until here the screen asked for `node` as a single number and for
-        # magnitude and phase as lists. No combination with more than one value
-        # could ever work, because ROSS pairs the three with a `zip`: two
-        # magnitudes and one node meant the second magnitude was **dropped in
-        # silence**. And the single-value case only worked by accident -- with a
-        # scalar node the `zip` raises, ROSS falls back to a branch that expects
-        # scalars, and it received the one-element arrays this form produced.
-        # numpy tolerated that with a DeprecationWarning until 2.5, where it
-        # became `TypeError: only 0-dimensional arrays can be converted to Python
-        # scalars` and the analysis stopped running.
-        #
-        # The table is the shape ROSS actually documents: three parallel lists,
-        # one row per unbalance plane -- the same widget the unbalance response
-        # has always used, which is why it never had this defect.
         A(
-            "unbalances",
-            "Unbalance Excitations",
-            "Excitações de Desbalanceamento",
-            "unbalance_list",
-            [{"node": 0, "mag": 0.05, "phase": 0}],
+            "speed_max",
+            "End Speed (Trip)",
+            "Velocidade Final (Trip)",
+            "range",
+            1000,
             "compute",
+            min=100,
+            max=4000,
+            step=10,
+            default_unit="rad/s",
         ),
         A(
-            "frequency",
-            "Frequency [list]",
-            "Frequência [lista]",
-            "text",
-            "[600]",
+            "minimum_allowable_speed",
+            "Min. Allowable Speed (Nma)",
+            "Velocidade Mínima Admissível (Nma)",
+            "number",
+            500,
+            "compute",
+            default_unit="rad/s",
+            ross_param="minimum_allowable_speed",
+        ),
+        A(
+            "maximum_continuous_speed",
+            "Max. Continuous Speed (Nmc)",
+            "Velocidade Máxima Contínua (Nmc)",
+            "number",
+            800,
+            "compute",
+            default_unit="rad/s",
+            ross_param="maximum_continuous_speed",
+        ),
+        # The probes take part in the computation here, not only in the
+        # drawing: Amax -- and with it the scale factor -- is read off them.
+        A(
+            "probes",
+            "Vibration Probes",
+            "Sondas de Vibração",
+            "angle_probe_list",
+            [{"node": 0, "angle": 0}],
+            "compute",
+            ross_param="probes",
+        ),
+        A(
+            "plot_type",
+            "Plot Type",
+            "Tipo de Gráfico",
+            "select",
+            "Default",
+            "plot",
+            options=["Default", "Response", "Probe Response"],
+        ),
+        A(
+            "mode",
+            "Forward Mode Index",
+            "Índice do Modo Direto",
+            "number",
+            0,
             "compute",
             adv="analysis",
-            ross_param="frequency",
+            ross_param="mode",
+        ),
+        # Born empty on purpose: with no row ROSS places the API 617 unbalance
+        # itself, from the mode shape, which is what the standard asks for.
+        A(
+            "unbalances",
+            "Unbalance Excitations (blank: API 617)",
+            "Excitações de Desbalanceamento (vazio: API 617)",
+            "unbalance_list",
+            [],
+            "compute",
+            adv="analysis",
         ),
         A(
-            "modes",
-            "Modes [list]",
-            "Modos [lista]",
-            "text",
+            "speed_steps",
+            "Speed Steps",
+            "Passos de Velocidade",
+            "number",
+            101,
+            "compute",
+            adv="analysis",
+        ),
+        A(
+            "num_modes",
+            "Modes Computed",
+            "Modos Calculados",
+            "number",
+            12,
+            "compute",
+            adv="analysis",
+            ross_param="num_modes",
+        ),
+        A(
+            "scale_factor_cap",
+            "Scale Factor Cap (blank: none)",
+            "Limite do Fator de Escala (vazio: nenhum)",
+            "number",
             "",
             "compute",
             adv="analysis",
-            ross_param="modes",
+            ross_param="scale_factor_cap",
+        ),
+        A(
+            "length_units",
+            "Length Units",
+            "Unidade de Comprimento",
+            "select",
+            "um",
+            "plot",
+            options=["um", "mm", "m"],
+            adv="plot",
+        ),
+        A(
+            "speed_units",
+            "Speed Units",
+            "Unidade de Velocidade",
+            "select",
+            "RPM",
+            "plot",
+            options=["RPM", "rad/s", "Hz"],
+            adv="plot",
+            deps=["Response", "Probe Response"],
+            deps_de="plot_type",
+        ),
+        A(
+            "line_shape",
+            "Line Shape",
+            "Forma da Linha",
+            "select",
+            "spline",
+            "plot",
+            options=["spline", "linear"],
+            adv="plot",
+            deps=["Response", "Probe Response"],
+            deps_de="plot_type",
         ),
     ],
     "misalignment": [

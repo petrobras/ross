@@ -1104,47 +1104,160 @@
   ],
   "clearance": [
    {
-    "id": "speed",
-    "label": "Speed",
+    "id": "speed_min",
+    "label": "Start Speed",
     "type": "range",
-    "val": 600,
+    "val": 0,
     "role": "compute",
     "min": 0,
-    "max": 2000,
+    "max": 1000,
     "step": 10,
-    "default_unit": "rad/s",
-    "ross_param": "speed"
+    "default_unit": "rad/s"
    },
    {
-    "id": "unbalances",
-    "label": "Unbalance Excitations",
-    "type": "unbalance_list",
+    "id": "speed_max",
+    "label": "End Speed (Trip)",
+    "type": "range",
+    "val": 1000,
+    "role": "compute",
+    "min": 100,
+    "max": 4000,
+    "step": 10,
+    "default_unit": "rad/s"
+   },
+   {
+    "id": "minimum_allowable_speed",
+    "label": "Min. Allowable Speed (Nma)",
+    "type": "number",
+    "val": 500,
+    "role": "compute",
+    "default_unit": "rad/s",
+    "ross_param": "minimum_allowable_speed"
+   },
+   {
+    "id": "maximum_continuous_speed",
+    "label": "Max. Continuous Speed (Nmc)",
+    "type": "number",
+    "val": 800,
+    "role": "compute",
+    "default_unit": "rad/s",
+    "ross_param": "maximum_continuous_speed"
+   },
+   {
+    "id": "probes",
+    "label": "Vibration Probes",
+    "type": "angle_probe_list",
     "val": [
      {
       "node": 0,
-      "mag": 0.05,
-      "phase": 0
+      "angle": 0
      }
     ],
-    "role": "compute"
+    "role": "compute",
+    "ross_param": "probes"
    },
    {
-    "id": "frequency",
-    "label": "Frequency [list]",
-    "type": "text",
-    "val": "[600]",
+    "id": "plot_type",
+    "label": "Plot Type",
+    "type": "select",
+    "val": "Default",
+    "role": "plot",
+    "options": [
+     "Default",
+     "Response",
+     "Probe Response"
+    ]
+   },
+   {
+    "id": "mode",
+    "label": "Forward Mode Index",
+    "type": "number",
+    "val": 0,
     "role": "compute",
     "adv": "analysis",
-    "ross_param": "frequency"
+    "ross_param": "mode"
    },
    {
-    "id": "modes",
-    "label": "Modes [list]",
-    "type": "text",
+    "id": "unbalances",
+    "label": "Unbalance Excitations (blank: API 617)",
+    "type": "unbalance_list",
+    "val": [],
+    "role": "compute",
+    "adv": "analysis"
+   },
+   {
+    "id": "speed_steps",
+    "label": "Speed Steps",
+    "type": "number",
+    "val": 101,
+    "role": "compute",
+    "adv": "analysis"
+   },
+   {
+    "id": "num_modes",
+    "label": "Modes Computed",
+    "type": "number",
+    "val": 12,
+    "role": "compute",
+    "adv": "analysis",
+    "ross_param": "num_modes"
+   },
+   {
+    "id": "scale_factor_cap",
+    "label": "Scale Factor Cap (blank: none)",
+    "type": "number",
     "val": "",
     "role": "compute",
     "adv": "analysis",
-    "ross_param": "modes"
+    "ross_param": "scale_factor_cap"
+   },
+   {
+    "id": "length_units",
+    "label": "Length Units",
+    "type": "select",
+    "val": "um",
+    "role": "plot",
+    "options": [
+     "um",
+     "mm",
+     "m"
+    ],
+    "adv": "plot"
+   },
+   {
+    "id": "speed_units",
+    "label": "Speed Units",
+    "type": "select",
+    "val": "RPM",
+    "role": "plot",
+    "options": [
+     "RPM",
+     "rad/s",
+     "Hz"
+    ],
+    "adv": "plot",
+    "deps": [
+     "Response",
+     "Probe Response"
+    ],
+    "deps_de": "plot_type"
+   },
+   {
+    "id": "line_shape",
+    "label": "Line Shape",
+    "type": "select",
+    "val": "spline",
+    "role": "plot",
+    "options": [
+     "spline",
+     "linear"
+    ],
+    "adv": "plot",
+    "deps": [
+     "Response",
+     "Probe Response"
+    ],
+    "deps_de": "plot_type"
    }
   ],
   "misalignment": [
@@ -1846,7 +1959,7 @@
   "clearance": {
    "torsional": {
     "failure": "raises",
-    "reason": "This analysis addresses lateral degrees of freedom, which the torsional model does not have (it keeps one degree of freedom per node). Measured on ross 2.3.0: IndexError."
+    "reason": "The API 617 unbalance is placed on a forward lateral mode, and the torsional model keeps only the torsional degree of freedom, so there is no forward mode to place it on. Measured on ross 3.0.0.dev0: ValueError, no forward modes were found."
    }
   },
   "crack": {
