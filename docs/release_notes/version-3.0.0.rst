@@ -418,6 +418,9 @@ Packaging and Release Infrastructure
   scipy BLAS thread pools to one thread per process, without which the xdist workers oversubscribe
   the cores and the fluid-film bearing tests run about 20x slower. ``pytest-xdist`` and
   ``threadpoolctl`` are in the ``dev`` extra (`#1389 <https://github.com/petrobras/ross/pull/1389>`_).
+- The ``Tests`` workflow also runs on pushes and pull requests to ``maintenance/**`` branches, so
+  backports get the same checks as ``main``, and the ``Release`` workflow only fires on ``v[0-9]*``
+  tags (`#1407 <https://github.com/petrobras/ross/pull/1407>`_).
 - ``CITATION.cff`` gained a ``preferred-citation`` block for the JOSS paper, so GitHub's "Cite
   this repository" produces the article citation again (`#1393 <https://github.com/petrobras/ross/pull/1393>`_).
 
@@ -452,8 +455,13 @@ Documentation
   requirement (`#1406 <https://github.com/petrobras/ross/pull/1406>`_).
 - The documentation adopted the ROSS design system with a light/dark toggle that the embedded
   Plotly figures follow, self-hosted IBM Plex fonts, card icons that stay transparent in dark
-  mode, and the wiring for Algolia DocSearch, inactive until credentials are available
+  mode, and Algolia DocSearch
   (`#1344 <https://github.com/petrobras/ross/pull/1344>`_, `#1349 <https://github.com/petrobras/ross/pull/1349>`_, `#1350 <https://github.com/petrobras/ross/pull/1350>`_, `#1351 <https://github.com/petrobras/ross/pull/1351>`_, `#1357 <https://github.com/petrobras/ross/pull/1357>`_).
+  The site is verified with Algolia and the search box is wired into ``sphinx-book-theme``, so the
+  search on ``ross.readthedocs.io`` is served by DocSearch (`#1405 <https://github.com/petrobras/ross/pull/1405>`_, `#1408 <https://github.com/petrobras/ross/pull/1408>`_).
+- The README links to the installation guide and the API reference point at the pages that exist
+  on Read the Docs (`#1402 <https://github.com/petrobras/ross/pull/1402>`_), and the overview tutorial builds its speed-dependent bearings
+  with ``speed=`` instead of the ROSS 2 ``frequency=`` idiom (`#1404 <https://github.com/petrobras/ross/pull/1404>`_).
 - The documentation and release sections of ``CONTRIBUTING.md`` were rewritten: how the
   documentation is built, the release branches, the support policy and the steps of a release
   (`#1397 <https://github.com/petrobras/ross/pull/1397>`_).
