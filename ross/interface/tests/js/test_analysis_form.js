@@ -62,7 +62,11 @@ const withoutDepsSource = html => html.replace(/ data-deps-de="[^"]*"/g, '');
 // `campbell`, `freq_response` and `modes` joined when ROSS 3.0 (#1371)
 // decoupled the whirl frequency from the shaft speed and the options
 // (`matched_whirl`, a fixed `speed`, a fixed `frequency`) reached the forms.
-const CHANGED_ON_PURPOSE = ['clearance', 'ucs', 'campbell', 'freq_response', 'modes'];
+// `unbalance`, `time_response`, `misalignment`, `rubbing` and `crack` lost the
+// `probe_units` selector when ROSS 3.0 removed the keyword from the response
+// plots along with the probe tuples it applied to.
+const CHANGED_ON_PURPOSE = ['clearance', 'ucs', 'campbell', 'freq_response', 'modes',
+    'unbalance', 'time_response', 'misalignment', 'rubbing', 'crack'];
 
 // What each one has to show, so that the exception is checked and not merely
 // declared. `clearance` traded three fields for an unbalance table and then
@@ -82,6 +86,11 @@ const REBUILT = {
     freq_response: html => html.includes('input-speed-'),
     modes: html =>
         html.includes('input-frequency-') && html.includes('input-matched_whirl-'),
+    unbalance: html => !html.includes('probe_units'),
+    time_response: html => !html.includes('probe_units'),
+    misalignment: html => !html.includes('probe_units'),
+    rubbing: html => !html.includes('probe_units'),
+    crack: html => !html.includes('probe_units'),
 };
 
 console.log('\nThe panel comes out the same as before');

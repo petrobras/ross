@@ -567,6 +567,100 @@ def test_bearing_element_frequency_becomes_speed(report):
     assert convert_source(source, "s.py", report) == source
 
 
+def test_probe_tuples_become_probe_objects(report):
+    source = (
+        "import ross as rs\n"
+        'res.plot_1d(probe=[(3, 0), (5, 45, "DE")], probe_units="deg")\n'
+        'res.data_magnitude([(0, "major"), (2, np.pi / 2, "tag")])\n'
+    )
+    converted = convert_source(source, "s.py", report)
+    assert converted.splitlines()[1:] == [
+        'res.plot_1d(probe=[rs.Probe(3, rs.Q_(0, "deg")), '
+        'rs.Probe(5, rs.Q_(45, "deg"), tag="DE")])',
+        'res.data_magnitude([rs.Probe(0, "major"), rs.Probe(2, np.pi / 2, tag="tag")])',
+    ]
+    assert report.count(CHANGED) == 3
+    assert "probe tuples -> Probe objects" in report.findings[0].message
+    assert "dropped probe_units" in report.findings[1].message
+
+
+def test_probe_list_variable_and_missing_imports(report):
+    source = (
+        "probes = [(3, 0), (3, angle)]\n"
+        "res.plot_1d(probe=probes, probe_units=units)\n"
+        "res.plot_dfft(probe=probes)\n"
+        "fig = unb.plot(\n"
+        "    probe=[\n"
+        "        (0, 45),\n"
+        "    ],\n"
+        '    probe_units="deg",\n'
+        ")\n"
+    )
+    converted = convert_source(source, "s.py", report)
+    assert converted == (
+        "from ross.units import Q_\n"
+        "from ross import Probe\n"
+        "probes = [Probe(3, Q_(0, units)), Probe(3, Q_(angle, units))]\n"
+        "res.plot_1d(probe=probes)\n"
+        "res.plot_dfft(probe=probes)\n"
+        "fig = unb.plot(\n"
+        "    probe=[\n"
+        '        Probe(0, Q_(45, "deg")),\n'
+        "    ],\n"
+        ")\n"
+    )
+
+
+def test_probe_objects_and_foreign_calls_are_left_alone(report):
+    source = (
+        "from ross import Probe\n"
+        'res.plot_1d(probe=[Probe(3, 0)], probe_units="rad")\n'
+        "ax.plot([(1, 2)])\n"
+        "res.plot(probe=[(3, 0)], probe_units='rad')\n"
+        "res.plot_dfft(probe=[Probe(3, 0)])\n"
+    )
+    converted = convert_source(source, "s.py", report)
+    assert converted.splitlines()[1:] == [
+        "res.plot_1d(probe=[Probe(3, 0)])",
+        "ax.plot([(1, 2)])",
+        "res.plot(probe=[Probe(3, 0)])",
+        "res.plot_dfft(probe=[Probe(3, 0)])",
+    ]
+    assert report.count(CHANGED) == 3
+
+
+def test_probe_tuple_variables_are_rewritten_at_the_assignment(report):
+    source = (
+        "import ross as rs\n"
+        "probe1 = (2, 0)  # x\n"
+        'probe2 = (\n    2,\n    Q_(90, "deg"),\n)  # y\n'
+        'fig = res.plot_magnitude(probe=[probe1, probe2], probe_units="degrees")\n'
+        "fig = res.plot_phase(probe=[probe1, probe2])\n"
+    )
+    converted = convert_source(source, "s.py", report)
+    assert converted.splitlines()[1:] == [
+        'probe1 = rs.Probe(2, rs.Q_(0, "degrees"))  # x',
+        'probe2 = rs.Probe(2, Q_(90, "deg"))  # y',
+        "fig = res.plot_magnitude(probe=[probe1, probe2])",
+        "fig = res.plot_phase(probe=[probe1, probe2])",
+    ]
+
+
+def test_unknown_probe_lists_and_shifted_positionals_are_flagged(report):
+    source = (
+        'res.plot_1d(probe=probes, probe_units="deg")\n'
+        'res.data_magnitude(probes, "deg", "RPM")\n'
+    )
+    converted = convert_source(source, "s.py", report)
+    assert converted.splitlines() == [
+        "res.plot_1d(probe=probes)",
+        'res.data_magnitude(probes, "deg", "RPM")',
+    ]
+    assert report.count(CHECK) == 2
+    assert 'Q_(angle, "deg")' in report.findings[0].message
+    assert "shifted" in report.findings[1].message
+
+
 def test_syntax_errors_are_skipped(report):
     source = "x = (\n"
     assert convert_source(source, "s.py", report) == source
@@ -607,6 +701,17 @@ def test_notebook_conversion(report):
     )
     assert "".join(converted["cells"][1]["source"]).startswith("%matplotlib inline\n")
     assert all(f.location.startswith("cell 3, line 2") for f in report.findings)
+
+
+def test_notebook_probe_accessor_is_shared_between_cells(report):
+    text = make_notebook(
+        "from ross import Probe\n",
+        'fig = res.plot_1d(probe=[(3, 0, "DE")])\n',
+    )
+    converted = json.loads(convert_notebook(text, "nb.ipynb", report))
+    assert "".join(converted["cells"][2]["source"]) == (
+        'fig = res.plot_1d(probe=[Probe(3, 0, tag="DE")])\n'
+    )
 
 
 def test_unchanged_notebook_text_is_returned_verbatim(report):
