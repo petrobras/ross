@@ -1,8 +1,3 @@
-.. This file absorbs the unreleased 2.4.0 draft notes (version-2.4.0.rst):
-   v2.4.0 was never tagged, so the fluid-film work ships with 3.0.0.
-   TODO confirm: remove version-2.4.0.rst (and its include in release_notes.rst)
-   if v2.4.0 will indeed not be released separately.
-
 Version 3.0.0
 -------------
 
