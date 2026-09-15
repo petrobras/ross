@@ -8,7 +8,6 @@ import inspect
 from abc import ABC
 from collections.abc import Iterable
 from pathlib import Path
-from warnings import warn
 
 import numpy as np
 from plotly import express as px
@@ -16,6 +15,7 @@ from plotly import graph_objects as go
 from plotly.subplots import make_subplots
 
 from ross.plotly_theme import tableau_colors
+from ross.probe import check_probes
 from ross.units import Q_
 
 # set Plotly palette of colors
@@ -1097,19 +1097,12 @@ class ST_TimeResponseResults(ST_Results):
     ):
         """Plot stochastic time response.
 
-        This method plots the time response given a tuple of probes with their nodes
-        and orientations.
+        This method plots the time response at the given probes.
 
         Parameters
         ----------
-        probe : list of tuples
-            List with tuples (node, orientation angle, tag).
-            node : int
-                indicate the node where the probe is located.
-            orientation : float
-                probe orientation angle about the shaft. The 0 refers to +X direction.
-            tag : str, optional
-                probe tag to be displayed at the legend.
+        probe : list
+            List with rs.Probe objects.
         percentile : list, optional
             Sequence of percentiles to compute, which must be
             between 0 and 100 inclusive.
@@ -1147,27 +1140,12 @@ class ST_TimeResponseResults(ST_Results):
         conf_interval = np.sort(conf_interval)
         percentile = np.sort(percentile)
 
-        for i, p in enumerate(probe):
-            try:
-                node = p.node
-                angle = p.angle
-                probe_tag = p.tag or p.get_label(i + 1)
-                if p.direction == "axial":
-                    continue
-            except AttributeError:
-                node = p[0]
-                warn(
-                    "The use of tuples in the probe argument is deprecated. Use the Probe class instead.",
-                    DeprecationWarning,
-                )
-                try:
-                    angle = Q_(p[1], probe_units).to("rad").m
-                except TypeError:
-                    angle = p[1]
-                try:
-                    probe_tag = p[2]
-                except IndexError:
-                    probe_tag = f"Probe {i + 1} - Node {p[0]}"
+        for i, p in enumerate(check_probes(probe)):
+            node = p.node
+            angle = p.angle
+            probe_tag = p.tag or p.get_label(i + 1)
+            if p.direction == "axial":
+                continue
 
             fix_dof = (node - nodes[-1] - 1) * ndof // 2 if node in link_nodes else 0
             dofx = ndof * node - fix_dof
@@ -1686,14 +1664,8 @@ class ST_ForcedResponseResults(ST_Results):
 
         Parameters
         ----------
-        probe : list of tuples
-            List with tuples (node, orientation angle, tag).
-            node : int
-                indicate the node where the probe is located.
-            orientation : float
-                probe orientation angle about the shaft. The 0 refers to +X direction.
-            tag : str, optional
-                probe tag to be displayed at the legend.
+        probe : list
+            List with rs.Probe objects.
         percentile : list, optional
             Sequence of percentiles to compute, which must be between
             0 and 100 inclusive.
@@ -1748,27 +1720,12 @@ class ST_ForcedResponseResults(ST_Results):
         color_i = 0
         color_p = 0
 
-        for i, p in enumerate(probe):
-            try:
-                node = p.node
-                angle = p.angle
-                probe_tag = p.tag or p.get_label(i + 1)
-                if p.direction == "axial":
-                    continue
-            except AttributeError:
-                node = p[0]
-                warn(
-                    "The use of tuples in the probe argument is deprecated. Use the Probe class instead.",
-                    DeprecationWarning,
-                )
-                try:
-                    angle = Q_(p[1], probe_units).to("rad").m
-                except TypeError:
-                    angle = p[1]
-                try:
-                    probe_tag = p[2]
-                except IndexError:
-                    probe_tag = f"Probe {i + 1} - Node {p[0]}"
+        for i, p in enumerate(check_probes(probe)):
+            node = p.node
+            angle = p.angle
+            probe_tag = p.tag or p.get_label(i + 1)
+            if p.direction == "axial":
+                continue
 
             vector = self._calculate_major_axis_per_node(
                 node=node, angle=angle, amplitude_units=amplitude_units
@@ -1857,14 +1814,8 @@ class ST_ForcedResponseResults(ST_Results):
 
         Parameters
         ----------
-        probe : list of tuples
-            List with tuples (node, orientation angle, tag).
-            node : int
-                indicate the node where the probe is located.
-            orientation : float
-                probe orientation angle about the shaft. The 0 refers to +X direction.
-            tag : str, optional
-                probe tag to be displayed at the legend.
+        probe : list
+            List with rs.Probe objects.
         percentile : list, optional
             Sequence of percentiles to compute, which must be between
             0 and 100 inclusive.
@@ -1912,27 +1863,12 @@ class ST_ForcedResponseResults(ST_Results):
         color_i = 0
 
         x = np.concatenate((frequency_range, frequency_range[::-1]))
-        for i, p in enumerate(probe):
-            try:
-                node = p.node
-                angle = p.angle
-                probe_tag = p.tag or p.get_label(i + 1)
-                if p.direction == "axial":
-                    continue
-            except AttributeError:
-                node = p[0]
-                warn(
-                    "The use of tuples in the probe argument is deprecated. Use the Probe class instead.",
-                    DeprecationWarning,
-                )
-                try:
-                    angle = Q_(p[1], probe_units).to("rad").m
-                except TypeError:
-                    angle = p[1]
-                try:
-                    probe_tag = p[2]
-                except IndexError:
-                    probe_tag = f"Probe {i + 1} - Node {p[0]}"
+        for i, p in enumerate(check_probes(probe)):
+            node = p.node
+            angle = p.angle
+            probe_tag = p.tag or p.get_label(i + 1)
+            if p.direction == "axial":
+                continue
 
             vector = self._calculate_major_axis_per_node(
                 node=node, angle=angle, amplitude_units=amplitude_units
@@ -2012,14 +1948,8 @@ class ST_ForcedResponseResults(ST_Results):
 
         Parameters
         ----------
-        probe : list of tuples
-            List with tuples (node, orientation angle, tag).
-            node : int
-                indicate the node where the probe is located.
-            orientation : float
-                probe orientation angle about the shaft. The 0 refers to +X direction.
-            tag : str, optional
-                probe tag to be displayed at the legend.
+        probe : list
+            List with rs.Probe objects.
         percentile : list, optional
             Sequence of percentiles to compute, which must be between
             0 and 100 inclusive.
@@ -2079,27 +2009,12 @@ class ST_ForcedResponseResults(ST_Results):
         color_p = 0
         color_i = 0
 
-        for i, p in enumerate(probe):
-            try:
-                node = p.node
-                angle = p.angle
-                probe_tag = p.tag or p.get_label(i + 1)
-                if p.direction == "axial":
-                    continue
-            except AttributeError:
-                node = p[0]
-                warn(
-                    "The use of tuples in the probe argument is deprecated. Use the Probe class instead.",
-                    DeprecationWarning,
-                )
-                try:
-                    angle = Q_(p[1], probe_units).to("rad").m
-                except TypeError:
-                    angle = p[1]
-                try:
-                    probe_tag = p[2]
-                except IndexError:
-                    probe_tag = f"Probe {i + 1} - Node {p[0]}"
+        for i, p in enumerate(check_probes(probe)):
+            node = p.node
+            angle = p.angle
+            probe_tag = p.tag or p.get_label(i + 1)
+            if p.direction == "axial":
+                continue
 
             mag = self._calculate_major_axis_per_node(
                 node=node, angle=angle, amplitude_units=amplitude_units
@@ -2206,14 +2121,8 @@ class ST_ForcedResponseResults(ST_Results):
 
         Parameters
         ----------
-        probe : list of tuples
-            List with tuples (node, orientation angle, tag).
-            node : int
-                indicate the node where the probe is located.
-            orientation : float
-                probe orientation angle about the shaft. The 0 refers to +X direction.
-            tag : str, optional
-                probe tag to be displayed at the legend.
+        probe : list
+            List with rs.Probe objects.
         percentile : list, optional
             Sequence of percentiles to compute, which must be
             between 0 and 100 inclusive.

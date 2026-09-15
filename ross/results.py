@@ -20,6 +20,7 @@ from prettytable import PrettyTable
 from scipy.fft import fft
 
 from ross.plotly_theme import coolwarm_r, tableau_colors
+from ross.probe import check_probes
 from pathlib import Path
 from ross.bearings.magnetic.amb_utils import get_ambs
 
@@ -3547,27 +3548,12 @@ class ForcedResponseResults(Results):
         data = {}
         data["frequency"] = frequency_range
 
-        for i, p in enumerate(probe):
-            try:
-                node = p.node
-                angle = p.angle
-                probe_tag = p.tag or p.get_label(i + 1)
-                if p.direction == "axial":
-                    continue
-            except AttributeError:
-                node = p[0]
-                warn(
-                    "The use of tuples in the probe argument is deprecated. Use the Probe class instead.",
-                    DeprecationWarning,
-                )
-                try:
-                    angle = Q_(p[1], probe_units).to("rad").m
-                except TypeError:
-                    angle = p[1]
-                try:
-                    probe_tag = p[2]
-                except IndexError:
-                    probe_tag = f"Probe {i + 1} - Node {p[0]}"
+        for i, p in enumerate(check_probes(probe)):
+            node = p.node
+            angle = p.angle
+            probe_tag = p.tag or p.get_label(i + 1)
+            if p.direction == "axial":
+                continue
 
             amplitude = []
             for speed_idx in range(len(self.speed_range)):
@@ -3662,27 +3648,12 @@ class ForcedResponseResults(Results):
         data = {}
         data["frequency"] = frequency_range
 
-        for i, p in enumerate(probe):
-            try:
-                node = p.node
-                angle = p.angle
-                probe_tag = p.tag or p.get_label(i + 1)
-                if p.direction == "axial":
-                    continue
-            except AttributeError:
-                node = p[0]
-                warn(
-                    "The use of tuples in the probe argument is deprecated. Use the Probe class instead.",
-                    DeprecationWarning,
-                )
-                try:
-                    angle = Q_(p[1], probe_units).to("rad").m
-                except TypeError:
-                    angle = p[1]
-                try:
-                    probe_tag = p[2]
-                except IndexError:
-                    probe_tag = f"Probe {i + 1} - Node {p[0]}"
+        for i, p in enumerate(check_probes(probe)):
+            node = p.node
+            angle = p.angle
+            probe_tag = p.tag or p.get_label(i + 1)
+            if p.direction == "axial":
+                continue
 
             phase_values = []
             for speed_idx in range(len(self.speed_range)):
@@ -5803,31 +5774,16 @@ class TimeResponseResults(Results):
         link_nodes = self.rotor.link_nodes
         ndof = self.rotor.number_dof
 
-        for i, p in enumerate(probe):
+        for i, p in enumerate(check_probes(probe)):
             probe_direction = "radial"
-            try:
-                node = p.node
-                angle = p.angle
-                probe_tag = p.tag or p.get_label(i + 1)
-                if p.direction == "axial":
-                    if ndof == 6:
-                        probe_direction = p.direction
-                    else:
-                        continue
-            except AttributeError:
-                node = p[0]
-                warn(
-                    "The use of tuples in the probe argument is deprecated. Use the Probe class instead.",
-                    DeprecationWarning,
-                )
-                try:
-                    angle = Q_(p[1], probe_units).to("rad").m
-                except TypeError:
-                    angle = p[1]
-                try:
-                    probe_tag = p[2]
-                except IndexError:
-                    probe_tag = f"Probe {i + 1} - Node {p[0]}"
+            node = p.node
+            angle = p.angle
+            probe_tag = p.tag or p.get_label(i + 1)
+            if p.direction == "axial":
+                if ndof == 6:
+                    probe_direction = p.direction
+                else:
+                    continue
 
             data[f"angle[{i}]"] = angle
             data[f"probe_tag[{i}]"] = probe_tag
@@ -6784,18 +6740,13 @@ class HarmonicBalanceResults(Results):
         link_nodes = self.rotor.link_nodes
         ndof = self.rotor.number_dof
 
-        for i, p in enumerate(probe):
-            try:
-                node = p.node
-                angle = p.angle
-                probe_tag = p.tag or p.get_label(i + 1)
-                probe_direction = p.direction
-                if probe_direction == "axial":
-                    continue
-            except AttributeError:
-                raise AttributeError(
-                    "The use of tuples in the probe argument is deprecated. Use the Probe class instead.",
-                )
+        for i, p in enumerate(check_probes(probe)):
+            node = p.node
+            angle = p.angle
+            probe_tag = p.tag or p.get_label(i + 1)
+            probe_direction = p.direction
+            if probe_direction == "axial":
+                continue
 
             data[f"angle[{i}]"] = angle
             data[f"probe_tag[{i}]"] = probe_tag
