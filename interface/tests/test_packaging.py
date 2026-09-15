@@ -197,8 +197,21 @@ def test_our_tests_are_all_in_our_own_tests_folder():
 # --- the dependencies are ours, and they stay here ----------------------------
 
 
-def _requirements():
-    with io.open(os.path.join(ROOT, "requirements.txt"), encoding="utf-8") as handle:
+PYPROJECT = os.path.join(os.path.dirname(ROOT), "pyproject.toml")
+
+
+def _extra(name):
+    """The distributions the `name` extra of ROSS's `pyproject.toml` declares."""
+    import tomllib
+
+    with io.open(PYPROJECT, "rb") as handle:
+        return tomllib.load(handle)["project"]["optional-dependencies"][name]
+
+
+def _ross_requirements():
+    """What ROSS itself depends on, from its own `requirements.txt`."""
+    path = os.path.join(os.path.dirname(ROOT), "requirements.txt")
+    with io.open(path, encoding="utf-8") as handle:
         return [
             line.split("#")[0].strip()
             for line in handle
@@ -206,57 +219,55 @@ def _requirements():
         ]
 
 
-def test_the_dependencies_only_we_need_are_declared_here():
-    """Flask is ours. Declaring it in ROSS would impose it on whoever only wants the library."""
-    declared = " ".join(_requirements()).lower()
-    assert "flask" in declared
-    assert "ross-rotordynamics" in declared
+def _names(requirements):
+    return {
+        re.split(r"[<>=!\[;@\s]", r, maxsplit=1)[0].strip().lower()
+        for r in requirements
+    }
 
 
-def test_the_ross_pin_is_exact():
-    """The compatibility table was MEASURED against one version. That is the pin.
+def test_the_dependencies_only_we_need_are_an_extra_of_ross():
+    """Flask is ours, so it is an optional extra of ROSS and never a requirement.
 
-    `domain/compatibility.py` says which analyses break under a degree-of-freedom
-    conversion, and every line came from running the probe against a concrete
-    version of ROSS. An open range (`>=`) would let the table speak for a version
-    nobody measured -- and the failure mode of that table is not an error, it is a
-    chart carrying the wrong badge.
-
-    This test was born from a rule of mine that was wrong: I had written a guard
-    forbidding the redeclaration of `numpy`/`toml`, and Leonardo's
-    `requirements.txt` declares them on purpose, because ROSS does not restrict
-    numpy and BE-03 of the audit was exactly a NumPy 2 break. The guard was replaced
-    by the one that measures what actually matters."""
-    line = [r for r in _requirements() if "ross-rotordynamics" in r.lower()]
-    assert len(line) == 1, "ROSS has to appear once: %s" % line
-    pin = line[0]
-    assert ("@" in pin and "git+" in pin) or "==" in pin, (
-        "ROSS is pinned to an open range (%s): the compatibility "
-        "table was measured against a single version" % pin
-    )
-
-
-def test_plotly_is_declared_with_a_ceiling():
-    """ROSS leaves plotly open, and plotly 7.0.0 broke it at import time.
-
-    `ross/__init__.py` imports `ross.plotly_theme`, which registers a template
-    containing a `scattermapbox` series; plotly dropped that trace type in
-    7.0.0, so the registration raises and `import ross` never completes. ROSS
-    declares `plotly>=5.11` with no upper bound, which means a clean
-    `pip install` today cannot import the library at all.
-
-    The two machines of slice 4 differed in exactly one library -- plotly 6.7.0
-    against 7.0.0, everything else identical down to the patch number -- and
-    that is the whole evidence for the ceiling. Same reasoning as the numpy
-    range on the line above it, and the same reasoning as the exact ROSS pin: a
-    range nobody measured speaks for versions nobody ran.
+    `pip install ross-rotordynamics` must not pull in a web server; `pip install
+    -e ".[interface]"` does. The extra must not repeat what ROSS already
+    requires either: a second range for the same library is a second opinion
+    nobody measured, and the interface once carried a plotly ceiling for a bug
+    ROSS had already fixed.
     """
-    line = [r for r in _requirements() if r.lower().startswith("plotly")]
-    assert len(line) == 1, "plotly has to appear once: %s" % line
-    assert "<" in line[0], (
-        "plotly is declared with no ceiling (%s): 7.0.0 makes `import ross` raise"
-        % line[0]
+    declared = _names(_extra("interface"))
+    assert "flask" in declared, "nothing declares the web server"
+    assert "pyinstaller" in declared, "nothing declares the packager"
+    repeated = sorted(declared & _names(_ross_requirements()))
+    assert repeated == [], (
+        "the interface extra re-declares what ROSS already requires: %s" % repeated
     )
+
+
+def test_ross_is_the_checkout_and_not_a_pin():
+    """The interface tests and ships the ROSS it lives next to.
+
+    It used to keep a `requirements.txt` that installed ROSS from GitHub at a
+    pinned commit -- this very repository, downloaded a second time at an older
+    revision. The pin lagged `main` by construction, every move needed a
+    hand-written audit, a ROSS change that broke the interface stayed green
+    until the next move, and a release bundle could not carry the tagged ROSS
+    without an override step. Now CI installs the repository above this folder,
+    so a breaking ROSS change fails on its own pull request and the bundle a
+    release ships carries the tagged ROSS by construction.
+    """
+    for name in ("requirements.txt", "requirements-dev.txt"):
+        assert not os.path.exists(os.path.join(ROOT, name)), (
+            "%s is back: the interface pins its own ROSS again" % name
+        )
+    _, steps = _workflow()
+    assert 'pip install "..[dev,interface]"' in steps, (
+        "the check job no longer installs ROSS from the checkout"
+    )
+    assert 'pip install "..[interface]"' in steps, (
+        "the package job no longer installs ROSS from the checkout"
+    )
+    assert "git+" not in steps, "CI installs ROSS from GitHub again"
 
 
 def test_every_third_party_import_is_declared_somewhere():
@@ -314,10 +325,7 @@ def test_every_third_party_import_is_declared_somewhere():
                         found_names.add((node.module or "").split(".")[0])
     assert found_names, "the import sweep found nothing"
 
-    declared = {
-        r.split(">")[0].split("=")[0].split("<")[0].strip().lower()
-        for r in _requirements()
-    }
+    declared = _names(_extra("interface")) | _names(_ross_requirements())
     missing = sorted(
         found_names - FROM_THE_STANDARD_LIBRARY - OURS - VIA_THE_CHAIN - declared - {""}
     )
@@ -697,14 +705,8 @@ def _enabled_families(settings):
 
 
 def _dev_requirements():
-    with io.open(
-        os.path.join(ROOT, "requirements-dev.txt"), encoding="utf-8"
-    ) as handle:
-        return [
-            line.split("#")[0].strip()
-            for line in handle
-            if line.strip() and not line.strip().startswith("#")
-        ]
+    """ROSS's `dev` extra, which is what the check job installs."""
+    return _extra("dev")
 
 
 def test_the_ruff_configuration_is_the_one_the_destination_uses():
@@ -756,7 +758,8 @@ def test_ruff_is_pinned_to_an_exact_version():
 
     With an open range, `ruff format --check` says whatever the most recent
     install happens to think -- and the diff lands on whoever updated last,
-    for no reason they can see. Same rule as the ROSS pin, for the same reason.
+    for no reason they can see. The pin lives in ROSS's `dev` extra, the one
+    the check job installs, so the interface and ROSS format with one ruff.
     """
     line = [r for r in _dev_requirements() if r.lower().startswith("ruff")]
     assert len(line) == 1, "ruff has to appear once: %s" % line
@@ -928,22 +931,25 @@ def test_the_workflow_covers_the_three_systems():
         )
 
 
-def test_the_workflow_only_wakes_for_our_folder():
-    """Leonardo's third condition, written in YAML.
+def test_the_workflow_wakes_for_our_folder_and_for_ross():
+    """The interface runs against the ROSS it lives next to, so both wake it.
 
-    The interface must never get in the way of ROSS development. A `paths`
-    filter naming our folder is what makes that true mechanically: a pull
-    request that does not touch it never starts this job, so a ROSS developer
-    does not see it, does not wait for it, and is never blocked by it.
+    The `paths` filter used to name our folder alone: that the interface must
+    never get in the way of ROSS development was the condition of its arrival,
+    and a pull request that did not touch it never started this job. That held
+    while the interface tested a pinned ROSS. Now it tests the checkout, and a
+    ROSS change that breaks the interface has to fail on the pull request that
+    made it, not weeks later on whoever next touches this folder. The price is
+    one more job on ROSS pull requests, about a minute on each system.
 
     The folder name is read from `FOLDER_IN_ROSS` and not written again here:
     renaming the folder has to break in one place, not two.
     """
     _, steps = _workflow()
-    assert '"%s/**"' % FOLDER_IN_ROSS in steps, (
-        "the workflow no longer limits itself to %s/: it would run on every "
-        "pull request in the repository" % FOLDER_IN_ROSS
-    )
+    for pattern in ('"%s/**"' % FOLDER_IN_ROSS, '"ross/**"', '"pyproject.toml"'):
+        assert steps.count(pattern) >= 2, (
+            "%s is missing from the push or the pull_request paths" % pattern
+        )
     assert "working-directory: %s" % FOLDER_IN_ROSS in steps, (
         "the steps no longer run inside %s/" % FOLDER_IN_ROSS
     )

@@ -2,9 +2,8 @@
 """What this interface assumes about ROSS itself.
 
 Every test here breaks when **ROSS** changes, not when our code changes. Being
-in a single file has one practical reason: when the library pin in
-`requirements.txt` goes up, this is the first file to run and the only one that
-should fail. A failure here is a message about the library, and not a defect of
+in a single file has one practical reason: when ROSS changes, this is the
+first file to run and the only one that should fail. A failure here is a message about the library, and not a defect of
 ours.
 
 They come in three kinds:
