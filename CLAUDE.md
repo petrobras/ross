@@ -114,9 +114,11 @@ Requires Python >= 3.9.
 
 ```bash
 pytest ross                 # run from repo root
+pytest ross -n auto         # parallel with pytest-xdist (dev extra)
 ```
 
 - Doctests enabled via `--doctest-modules` (configured in `pytest.ini`)
+- `ross/conftest.py` caps the numpy and scipy BLAS thread pools to one thread per process; without it xdist workers oversubscribe the cores and the fluid-film bearing tests run about 20x slower
 - Tests live in `ross/tests/`, one file per module (e.g. `test_shaft_element.py`, `test_rotor_assembly.py`)
 - **No test classes** — all tests are plain functions (`def test_*():`)
 - Shared setup goes in `@pytest.fixture` functions at the top of the file

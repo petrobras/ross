@@ -71,6 +71,8 @@ version = {attr = "ross.__version__"}
     dev = [
         "pytest>=4.6",
         "pytest-cov",
+        "pytest-xdist",
+        "threadpoolctl",
         "coverage",
         "codecov",
         "sphinx",
