@@ -80,7 +80,9 @@ class ST_Material:
             )
 
         is_random = []
-        for par, _name in zip([rho, E, G_s, Poisson], ["rho", "E", "G_s", "Poisson"]):
+        for par, _name in zip(
+            [rho, E, G_s, Poisson], ["rho", "E", "G_s", "Poisson"], strict=True
+        ):
             if isinstance(par, Iterable):
                 is_random.append(_name)
 

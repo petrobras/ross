@@ -141,7 +141,7 @@ def _shaft_envelope(spans, columns=300):
     target = (bounds[-1] - bounds[0]) / columns
 
     centers = []
-    for start, end in zip(bounds[:-1], bounds[1:]):
+    for start, end in zip(bounds[:-1], bounds[1:], strict=True):
         segment = end - start
         if segment < 8 * eps:
             continue
@@ -290,7 +290,19 @@ class Rotor(object):
         beta=0.0,
         tag=None,
     ):
-        self.parameters = {"min_w": min_w, "max_w": max_w, "rated_w": rated_w}
+        self.parameters = {
+            "min_w": min_w,
+            "max_w": max_w,
+            "rated_w": rated_w,
+            "modal_damping_ratio": (
+                None
+                if modal_damping_ratio is None
+                else [float(xi) for xi in np.atleast_1d(modal_damping_ratio)]
+            ),
+            "default_damping_ratio": float(default_damping_ratio),
+            "alpha": float(alpha) if alpha is not None else 0.0,
+            "beta": float(beta) if beta is not None else 0.0,
+        }
 
         self.set_tag(tag)
 
@@ -2959,7 +2971,7 @@ class Rotor(object):
         force = np.zeros((self.ndof, len(speed_range)), dtype=complex)
 
         try:
-            for n, m, p in zip(node, unbalance_magnitude, unbalance_phase):
+            for n, m, p in zip(node, unbalance_magnitude, unbalance_phase, strict=True):
                 force += self._unbalance_force(n, m, p, speed_range)
         except TypeError:
             force = self._unbalance_force(
@@ -3954,7 +3966,9 @@ class Rotor(object):
         y_line = []
         for yc_pos in sorted(set(center_line_pos)):
             nodes_in_level = [
-                pos for pos, level in zip(nodes_pos, center_line_pos) if level == yc_pos
+                pos
+                for pos, level in zip(nodes_pos, center_line_pos, strict=True)
+                if level == yc_pos
             ]
             x_line += [min(nodes_in_level) - pad, max(nodes_in_level) + pad, None]
             y_line += [yc_pos, yc_pos, None]
@@ -4041,7 +4055,7 @@ class Rotor(object):
 
         x_ticks = []
         y_ticks = []
-        for pos, yc_pos in zip(nodes_pos, center_line_pos):
+        for pos, yc_pos in zip(nodes_pos, center_line_pos, strict=True):
             x_ticks += [pos, pos, None]
             y_ticks += [yc_pos - tick, yc_pos + tick, None]
 
@@ -4060,7 +4074,9 @@ class Rotor(object):
         min_gap = 0.02 * np.ptp(nodes_pos)
         x_labels = []
         text_labels = []
-        for node, pos in sorted(zip(self.nodes, nodes_pos), key=lambda item: item[1]):
+        for node, pos in sorted(
+            zip(self.nodes, nodes_pos, strict=True), key=lambda item: item[1]
+        ):
             if node % nodes:
                 continue
             if x_labels and pos - x_labels[-1] < min_gap:
@@ -4537,7 +4553,7 @@ class Rotor(object):
                 x, y = intersection(x1, y1, x2, y2)
 
                 if len(x) > 0:
-                    for k, speed in zip(x, y):
+                    for k, speed in zip(x, y, strict=True):
                         intersection_points["x"].append(float(k))
                         intersection_points["y"].append(float(speed))
 
@@ -6506,7 +6522,19 @@ class CoAxialRotor(Rotor):
         beta=0.0,
         tag=None,
     ):
-        self.parameters = {"min_w": min_w, "max_w": max_w, "rated_w": rated_w}
+        self.parameters = {
+            "min_w": min_w,
+            "max_w": max_w,
+            "rated_w": rated_w,
+            "modal_damping_ratio": (
+                None
+                if modal_damping_ratio is None
+                else [float(xi) for xi in np.atleast_1d(modal_damping_ratio)]
+            ),
+            "default_damping_ratio": float(default_damping_ratio),
+            "alpha": float(alpha) if alpha is not None else 0.0,
+            "beta": float(beta) if beta is not None else 0.0,
+        }
         if tag is None:
             self.tag = "Rotor 0"
 
@@ -6888,7 +6916,9 @@ class CoAxialRotor(Rotor):
         for z_pos in dfb["nodes_pos_l"]:
             dfb_z_pos = dfb[dfb.nodes_pos_l == z_pos]
             dfb_z_pos = dfb_z_pos.sort_values(by="n_l")
-            for n, t, nlink in zip(dfb_z_pos.n, dfb_z_pos.tag, dfb_z_pos.n_link):
+            for n, t, nlink in zip(
+                dfb_z_pos.n, dfb_z_pos.tag, dfb_z_pos.n_link, strict=True
+            ):
                 if n in self.nodes:
                     if z_pos == df_shaft["nodes_pos_l"].iloc[0]:
                         y_pos = (np.max(df_shaft["odl"][df_shaft.n_l == n].values)) / 2

@@ -2534,6 +2534,47 @@ def test_save_load_json(rotor8):
     assert rotor8 == rotor8_loaded
 
 
+@pytest.mark.parametrize("suffix", [".toml", ".json"])
+def test_save_load_keeps_proportional_damping(suffix):
+    rotor = rotor_example_with_damping()
+    file = Path(tempdir) / f"rotor_proportional_damping{suffix}"
+    rotor.save(file)
+    loaded = Rotor.load(file)
+
+    assert loaded.alpha == rotor.alpha
+    assert loaded.beta == rotor.beta
+    assert loaded == rotor
+    assert_allclose(loaded.C(0), rotor.C(0))
+    assert_allclose(loaded.run_modal(0).log_dec, rotor.run_modal(0).log_dec)
+
+
+@pytest.mark.parametrize("suffix", [".toml", ".json"])
+def test_save_load_keeps_modal_damping(rotor8, suffix):
+    rotor = Rotor(
+        rotor8.shaft_elements,
+        rotor8.disk_elements,
+        rotor8.bearing_elements,
+        modal_damping_ratio=np.array([0.02, 0.03]),
+        default_damping_ratio=0.01,
+    )
+    file = Path(tempdir) / f"rotor_modal_damping{suffix}"
+    rotor.save(file)
+    loaded = Rotor.load(file)
+
+    assert loaded.modal_damping_ratio == [0.02, 0.03]
+    assert loaded.default_damping_ratio == 0.01
+    assert loaded == rotor
+    assert_allclose(loaded.C(0), rotor.C(0))
+
+
+def test_rotor_equality_sees_damping(rotor8):
+    damped = Rotor(
+        rotor8.shaft_elements, rotor8.disk_elements, rotor8.bearing_elements, beta=1e-5
+    )
+
+    assert damped != rotor8
+
+
 def disk_traces(fig, tag):
     return [d for d in fig.data if d["name"] == tag and d["fill"] == "toself"]
 
@@ -2647,7 +2688,9 @@ def test_plot_rotor_bearing_style_button(rotor8):
     pedestal, _ = button.args2
     assert {fill for fill in classic["fill"] if fill is not None} == {"none"}
     assert {fill for fill in pedestal["fill"] if fill is not None} == {"toself"}
-    for fill, index, y_classic in zip(classic["fill"], indices, classic["y"]):
+    for fill, index, y_classic in zip(
+        classic["fill"], indices, classic["y"], strict=True
+    ):
         if fill is None:
             continue
         drawn = [y for y in fig.data[index]["y"] if y is not None]
@@ -2660,7 +2703,7 @@ def test_plot_rotor_bearing_style_button(rotor8):
     button = toggle_button(fig, "Bearings: classic")
     (menu,) = [m for m in fig.layout.updatemenus if m.buttons[0] == button]
     assert menu.active == 0
-    for index, x_classic in zip(button.args[1], button.args[0]["x"]):
+    for index, x_classic in zip(button.args[1], button.args[0]["x"], strict=True):
         assert_allclose(
             [x for x in fig.data[index]["x"] if x is not None],
             [x for x in x_classic if x is not None],

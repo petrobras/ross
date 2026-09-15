@@ -644,7 +644,7 @@ class ST_Rotor(object):
         if len(force.shape) == 3:
             # Monte Carlo - results storage
             i = 0
-            for rotor, F in zip(iter(self), force):
+            for rotor, F in zip(iter(self), force, strict=True):
                 t_, y, x = rotor.time_response(speed, F, time_range, ic)
                 xout[i] = x
                 yout[i] = y
@@ -784,7 +784,7 @@ class ST_Rotor(object):
         if len(is_random):
             i = 0
             unbalance_args = self._random_var(is_random, args_dict)
-            for rotor, args in zip(iter(self), unbalance_args):
+            for rotor, args in zip(iter(self), unbalance_args, strict=True):
                 results = rotor.run_unbalance_response(*args)
                 forced_resp[i] = results.forced_resp
                 velc_resp[i] = results.velc_resp
