@@ -55,9 +55,9 @@ ross_2to3 -w my_rotor.toml analysis.py  # rewrite in place (keeps .bak copies)
 Access full documentation [**here**](https://ross.readthedocs.io).
 
 Key sections:
-- [Installation guide](https://ross.readthedocs.io/en/latest/installation.html)
+- [Installation guide](https://ross.readthedocs.io/en/latest/getting_started/installation.html)
 - [User guide](https://ross.readthedocs.io/en/latest/user_guide/user_guide.html)
-- [API reference](https://ross.readthedocs.io/en/latest/api.html)
+- [API reference](https://ross.readthedocs.io/en/latest/references/api.html)
 - [Release notes](https://ross.readthedocs.io/en/latest/release_notes/release_notes.html)
 
 ## 🤖 AI Assistance
