@@ -215,7 +215,7 @@ def auxiliary_function():
 
 def test_units(auxiliary_function):
     results = auxiliary_function(**{k: v.single_value for k, v in arguments.items()})
-    results_dict = {k: v for k, v in zip(arguments.keys(), results)}
+    results_dict = {k: v for k, v in zip(arguments.keys(), results, strict=True)}
     for arg, actual in results_dict.items():
         assert_allclose(actual, arguments[arg].single_value)
 
@@ -223,7 +223,7 @@ def test_units(auxiliary_function):
 def test_unit_Q_(auxiliary_function):
     kwargs = {k: Q_(v.single_value, v.si_unit) for k, v in arguments.items()}
     results = auxiliary_function(**kwargs)
-    results_dict = {k: v for k, v in zip(arguments.keys(), results)}
+    results_dict = {k: v for k, v in zip(arguments.keys(), results, strict=True)}
     for arg, actual in results_dict.items():
         assert_allclose(actual, arguments[arg].single_value)
 
@@ -231,6 +231,6 @@ def test_unit_Q_(auxiliary_function):
 def test_unit_Q_conversion(auxiliary_function):
     kwargs = {k: Q_(v.single_value, v.other_unit) for k, v in arguments.items()}
     results = auxiliary_function(**kwargs)
-    results_dict = {k: v for k, v in zip(arguments.keys(), results)}
+    results_dict = {k: v for k, v in zip(arguments.keys(), results, strict=True)}
     for arg, actual in results_dict.items():
         assert_allclose(actual, arguments[arg].expected_converted_value)

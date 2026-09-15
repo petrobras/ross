@@ -93,7 +93,7 @@ def plot_frequency_response(*systems, **kwargs):
 
     w = np.logspace(np.log10(w_min), np.log10(w_max), n_points)
 
-    for idx, (system, legend) in enumerate(zip(systems, legends)):
+    for idx, (system, legend) in enumerate(zip(systems, legends, strict=True)):
         mag, phase, _ = ct.frequency_response(system, w)
         mag_db = 20 * np.log10(mag)
         phase_deg = phase * 180 / np.pi

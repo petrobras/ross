@@ -313,7 +313,7 @@ class Converter:
             return
         self.converted_dicts.add(id(value))
         table = CLASS_RENAMES[nested_class]
-        for key, item in zip(value.keys, value.values):
+        for key, item in zip(value.keys, value.values, strict=True):
             if not (isinstance(key, ast.Constant) and isinstance(key.value, str)):
                 continue
             change = table.get(key.value)
