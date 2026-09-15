@@ -331,7 +331,10 @@ release, the scheme NumPy and SciPy use:
   its tag (`git branch maintenance/3.0.x v3.0.0`). Only bug fixes, documentation
   fixes and dependency pins land there; new features and changes to the minimum
   supported versions do not (see {ref}`supported-versions`). Patch releases
-  (`v3.0.1`, `v3.0.2`) are tagged on the maintenance branch.
+  (`v3.0.1`, `v3.0.2`) are tagged on the maintenance branch. The `Tests`
+  workflow runs on pull requests against `maintenance/*` and the branches are
+  protected like `main`: the same nine required checks, one approving review
+  and no direct pushes.
 - A fix that a released version needs is merged to `main`, then backported
   with `git cherry-pick -x` in a pull request against the maintenance branch.
   Label the original pull request `backport-3.0.x` so no fix is forgotten.
