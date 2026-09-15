@@ -1517,7 +1517,6 @@
      "frequency_units": "Hz",
      "method": "default",
      "plot_type": "Default",
-     "probe_units": "rad",
      "probes": [
       {
        "angle": "0",
@@ -1595,7 +1594,6 @@
      "frequency_units": "Hz",
      "method": "default",
      "plot_type": "2D",
-     "probe_units": "rad",
      "probes": [
       {
        "angle": "0",
@@ -1673,7 +1671,6 @@
      "frequency_units": "Hz",
      "method": "default",
      "plot_type": "3D",
-     "probe_units": "rad",
      "probes": [
       {
        "angle": "0",
@@ -1751,7 +1748,6 @@
      "frequency_units": "Hz",
      "method": "default",
      "plot_type": "Frequency (DFFT)",
-     "probe_units": "rad",
      "probes": [
       {
        "angle": "0",
@@ -1934,7 +1930,6 @@
      "modes": "[0]",
      "phase_units": "deg",
      "plot_type": "Default",
-     "probe_units": "rad",
      "probes": [
       {
        "angle": "0",
@@ -2015,7 +2010,6 @@
      "modes": "[0]",
      "phase_units": "deg",
      "plot_type": "Magnitude",
-     "probe_units": "rad",
      "probes": [
       {
        "angle": "0",
@@ -2096,7 +2090,6 @@
      "modes": "[0]",
      "phase_units": "deg",
      "plot_type": "Phase",
-     "probe_units": "rad",
      "probes": [
       {
        "angle": "0",
@@ -2177,7 +2170,6 @@
      "modes": "[0]",
      "phase_units": "deg",
      "plot_type": "Bode",
-     "probe_units": "rad",
      "probes": [
       {
        "angle": "0",
@@ -2258,7 +2250,6 @@
      "modes": "[0]",
      "phase_units": "deg",
      "plot_type": "Polar Bode",
-     "probe_units": "rad",
      "probes": [
       {
        "angle": "0",
