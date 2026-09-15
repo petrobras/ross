@@ -61,7 +61,15 @@ def test_the_tokens_are_the_documentations_tokens():
 
 
 def test_the_fonts_are_the_documentations_fonts():
-    """The woff2 files the tokens name, byte for byte, licence included."""
+    """The woff2 files the tokens name, byte for byte, licence included.
+
+    The licence is text and is compared as text, with universal newlines: the
+    two copies live under different line-ending rules (ours is pinned to LF by
+    this folder's `.gitattributes`, the documentation's follows `text=auto`),
+    so on a Windows checkout the documentation's copy arrives in CRLF and a
+    byte comparison went red on a machine where nobody touched anything. Same
+    reasoning as `test_the_tokens_are_the_documentations_tokens`.
+    """
     original = os.path.join(DOCS_STATIC, "fonts")
     if not os.path.isdir(original):
         return
@@ -69,10 +77,14 @@ def test_the_fonts_are_the_documentations_fonts():
     ours = sorted(os.listdir(os.path.join(DESIGN, "fonts")))
     assert ours == theirs, "the font folders differ: %s vs %s" % (ours, theirs)
     for name in theirs:
-        with io.open(os.path.join(original, name), "rb") as handle:
-            there = handle.read()
-        with io.open(os.path.join(DESIGN, "fonts", name), "rb") as handle:
-            here = handle.read()
+        if name.endswith(".txt"):
+            there = _read(os.path.join(original, name))
+            here = _read(os.path.join(DESIGN, "fonts", name))
+        else:
+            with io.open(os.path.join(original, name), "rb") as handle:
+                there = handle.read()
+            with io.open(os.path.join(DESIGN, "fonts", name), "rb") as handle:
+                here = handle.read()
         assert here == there, "%s differs from the documentation's copy" % name
 
 
