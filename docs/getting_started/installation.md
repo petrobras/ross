@@ -35,6 +35,28 @@ pip install pytest
 pytest --pyargs ross
 ```
 
+## Graphical interface
+
+ROSS ships a graphical interface: a local web application that builds rotors
+from forms, draws them and runs the analyses, with the model exportable as a
+Python script. It is the `ross.interface` subpackage, and its extra
+dependencies (Flask) come with the `interface` extra:
+
+```{code-block}
+pip install "ross-rotordynamics[interface]"
+ross-interface
+```
+
+`ross-interface` starts a server on `127.0.0.1:5001`, for this machine only,
+and opens the default browser on it; `python -m ross.interface` does the same.
+The server writes `ross_interface.log` in the directory it was started from.
+`ross-interface --selftest` builds a rotor and runs every analysis without
+opening a browser, which is a quick check of an installation.
+
+Windows users without Python can download `ross-interface-<version>-windows-x64.zip`
+from the [releases page](https://github.com/petrobras/ross/releases), unpack it
+and run `ross-interface.exe` from inside the folder; no installation is needed.
+
 ## Upgrading from ROSS 2
 
 ROSS 3 standardized the parameter names of the bearing and seal classes and
