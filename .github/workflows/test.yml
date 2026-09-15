@@ -18,10 +18,10 @@ jobs:
         os: [ubuntu-latest, macOS-latest, windows-latest]
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -35,14 +35,18 @@ jobs:
       - name: Test with pytest
         run: |
           pip install pytest
-          pytest ross --cov=ross
+          pytest ross --cov=ross --cov-report=xml
       - name: Run Ruff
         run: |
           ruff check ross
           ruff format --check ross
         if: success()
-      - name: Coverage and Deployment
-        run: codecov
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v7
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage.xml
+          fail_ci_if_error: false
 
   wheel:
     name: Installed package tests
