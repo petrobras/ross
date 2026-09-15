@@ -27,6 +27,13 @@ Or install it locally:
 pip install ross-rotordynamics
 ```
 
+ROSS also has a graphical interface, a local web application over the library. Install it with the `interface` extra and start it with one command:
+```bash
+pip install "ross-rotordynamics[interface]"
+ross-interface
+```
+Windows users without Python can download a prebuilt bundle from the [releases page](https://github.com/petrobras/ross/releases).
+
 If you work with an AI coding agent (Claude Code, GitHub Copilot, Cursor, Codex), install the ROSS agent skill so your agent knows how to build rotors and run analyses:
 ```bash
 ross-install-skill

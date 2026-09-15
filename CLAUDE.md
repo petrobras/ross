@@ -70,6 +70,10 @@ Use `rs.Q_(value, "unit")` for pint-based unit conversion.
 | `rs.rotor_example_amb_complex_controllers()` | Rotor with active magnetic bearings and complex controllers |
 | `rs.rotor_example_amb_general_controllers()` | Rotor with active magnetic bearings and general controllers |
 
+### Graphical Interface
+
+`pip install "ross-rotordynamics[interface]"` then `ross-interface` starts the local web interface (`ross/interface/`, subpackage `ross.interface`). `ross-interface --selftest` runs every analysis without a browser.
+
 ### Save / Load
 
 ```python
