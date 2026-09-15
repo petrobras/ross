@@ -588,6 +588,9 @@ Other behavior changes of the coefficient rework:
 - The dimension error message reads ``Arguments (coefficients, speed and frequency) must have the
   same dimension``.
 - ``SealElement`` persists ``seal_leakage`` on ``save()`` / ``load()``.
+- ``Rotor.save()`` persists the model-level damping (``alpha``, ``beta``, ``modal_damping_ratio``
+  and ``default_damping_ratio``); files written before this fix load with zero global damping, and
+  ``Rotor.__eq__`` now tells a damped rotor from an undamped one.
 - ``SqueezeFilmDamper.save()`` and ``ThrustPad.save()`` write the solved coefficient table as a
   ``BearingElement`` section, as ``FluidFilmBearing`` does (``BearingElement.save_coefficient_table``);
   both classes could not load the files they wrote before. ``BearingElement.load`` builds the element
