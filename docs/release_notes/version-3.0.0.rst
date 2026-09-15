@@ -1,17 +1,105 @@
 Version 3.0.0
 -------------
 
+ROSS 3.0.0 is a major release. Beyond the library API, it adds two new ways of working with ROSS:
+
+- **A graphical interface.** ``pip install "ross-rotordynamics[interface]"`` followed by
+  ``ross-interface`` opens a local web application that builds rotors from forms, draws them, runs
+  every analysis in its own dashboard and exports the model as a ready-to-run Python script. Every
+  GitHub release also carries a Windows bundle that needs no Python. See *Graphical Interface*
+  below.
+- **An agent skill for AI coding assistants.** ``ross-install-skill`` installs the ROSS cookbook as
+  an `Agent Skill <https://agentskills.io>`_ into Claude Code, GitHub Copilot, Cursor and Codex, so
+  an AI coding agent knows how to build rotors and run analyses with the current API. See *Agent
+  Skill for AI Coding Assistants* below.
+
+The library itself gained a thermo-elasto-hydro-dynamic engine for journal bearings, coefficient
+tables that decouple the rotor speed from the excitation frequency, an API 617 clearance analysis,
+closed-loop time response and sensor non-collocation analysis for active magnetic bearings, a gear
+backlash model, right-handed plot frames and a dark Plotly template. Since parameter names and
+conventions changed without deprecation shims, the ``ross_2to3`` tool converts ROSS 2 rotor
+files, scripts and notebooks to the new API.
+
 The following enhancements and bug fixes were implemented for this release:
 
 Enhancements
 ~~~~~~~~~~~~
+
+Graphical Interface
+^^^^^^^^^^^^^^^^^^^
+
+ROSS 3 ships a graphical interface: a local web application (Flask backend, JavaScript
+frontend) that builds rotors from forms derived from the library's own classes, draws them,
+runs the analyses and exports the model as a Python script, contributed by Leonardo Cabral
+(`#1370 <https://github.com/petrobras/ross/pull/1370>`_). It is the ``ross.interface`` subpackage (`#1390 <https://github.com/petrobras/ross/pull/1390>`_):
+``pip install "ross-rotordynamics[interface]"`` adds its dependencies and the ``ross-interface``
+command starts it (``python -m ross.interface`` is equivalent). The server listens on this
+machine only and opens the default browser on it.
+
+- **Modeling.** Materials, shaft elements, disks, gears, bearings, seals, couplings and point
+  masses are added and edited through forms built by introspecting the installed library, so a
+  renamed parameter disappears from the form instead of failing at build time. The rotor drawing
+  updates as elements are added, and geared multi-rotor systems have their own screen.
+- **Analyses.** Campbell diagram, undamped critical speed map, modal analysis with 2-D and 3-D
+  mode shapes, unbalance response, frequency response, time response, harmonic balance, static
+  analysis, the API 617 clearance analysis (`#1381 <https://github.com/petrobras/ross/pull/1381>`_) and the misalignment, rubbing and crack
+  fault analyses, each in its own dashboard.
+- **Export and portability.** The model and the analysis settings are saved and reloaded as JSON
+  files and exported as a Python script written in the ROSS API, ready to run outside the
+  interface.
+- **Design system and dark theme.** The interface shares the design system of the documentation
+  and of the Plotly templates. A button on every screen switches between light and dark, with no
+  choice made the interface follows the system preference, and the figures follow the theme
+  (`#1380 <https://github.com/petrobras/ross/pull/1380>`_). The ROSS logo whirls while an analysis computes (`#1374 <https://github.com/petrobras/ross/pull/1374>`_), and the Campbell
+  page shows the mode shapes with the same view as ``plot_mode_3d`` (`#1375 <https://github.com/petrobras/ross/pull/1375>`_).
+- **Windows bundle.** Every GitHub release carries ``ross-interface-<version>-windows-x64.zip``,
+  a bundle for 64-bit Windows that needs no Python. It is built from the tagged ROSS and
+  self-tested before being attached to the release (`#1386 <https://github.com/petrobras/ross/pull/1386>`_, `#1387 <https://github.com/petrobras/ross/pull/1387>`_).
+- **About dialog and self-test.** The page has an About dialog with the ROSS version and links to
+  the documentation, the issue tracker and the discussions; ``ross-interface --version`` prints
+  the same version (`#1399 <https://github.com/petrobras/ross/pull/1399>`_). ``ross-interface --selftest`` builds a rotor and runs every
+  analysis without a browser.
+
+Agent Skill for AI Coding Assistants
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The cookbook is now distributed as an `Agent Skill <https://agentskills.io>`_ that ships inside
+the ``ross-rotordynamics`` package, so an AI coding agent can be taught how to build rotors and
+run analyses with ROSS (`#1355 <https://github.com/petrobras/ross/pull/1355>`_):
+
+.. code-block:: bash
+
+   pip install ross-rotordynamics
+   ross-install-skill
+
+- The skill folder ``ross/agent_skills/ross/`` holds the recipes — building rotors, modal
+  analysis, Campbell diagram, critical speeds, static analysis, unbalance and frequency response,
+  time response, UCS and Level 1 stability, clearance analysis, fault analyses, seals, advanced
+  bearings and a list of gotchas — behind a ``SKILL.md`` entry point whose description tells the
+  agent when to use it. Every code block of every recipe was executed against the 3.0.0 API when
+  the recipes were rewritten, and a test keeps the folder self-contained (every link resolves
+  inside it), so it can be copied anywhere.
+- ``ross-install-skill`` with no arguments detects the AI coding agents installed on the machine
+  (Claude Code, GitHub Copilot, Cursor, Codex) and copies the skill to each one's personal skills
+  directory. ``--agent claude|copilot|cursor|codex|all`` selects an agent, ``--project`` installs
+  into the project's ``.claude/skills/`` so the skill can be committed and shared with a team,
+  ``--dest PATH`` sets the destination and ``--uninstall`` removes it. The installed ``SKILL.md``
+  is stamped with the ROSS version, so an agent can notice a stale skill after an upgrade and
+  suggest re-running the installer.
+- In Claude Code the skill is also the ``/ross`` slash command; in Copilot, Cursor and Codex it
+  activates when the prompt is about rotordynamics with ROSS.
+- The README quick start gained the install-skill step, and the installation guide an
+  "AI assistance" section covering the skill and ROSS GPT (whose address was updated in
+  `#1306 <https://github.com/petrobras/ross/pull/1306>`_ and `#1369 <https://github.com/petrobras/ross/pull/1369>`_). The recipe sources point at the reorganized tutorials
+  (`#1367 <https://github.com/petrobras/ross/pull/1367>`_), and the rotor file that ``save()`` had written into the skill folder was removed
+  and the folder ignores future ones (`#1398 <https://github.com/petrobras/ross/pull/1398>`_).
 
 Decoupled Rotor Speed and Excitation Frequency in Coefficient Tables
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Bearing and seal coefficient tables now declare the physical axis they are tabulated on, and the
 rotor assembly evaluates them at a ``(frequency, speed)`` pair instead of a single value
-(`#1321 <https://github.com/petrobras/ross/issues/1321>`_):
+(`#1321 <https://github.com/petrobras/ross/issues/1321>`_, `#1371 <https://github.com/petrobras/ross/pull/1371>`_):
 
 - ``BearingElement(..., speed=[...])`` — a 1-D table over the **rotor speed** (the base flow).
   This is what every fluid-film bearing and seal produces; it is interpolated at the rotor speed
@@ -48,7 +136,7 @@ Frequency-Dependent Seal and Bearing Coefficients from the Solvers
 
 The flow solvers now separate the rotor speed, which sets the base flow, from the whirl
 (excitation) frequency of the perturbation, and can fill a 2-D table directly
-(`#1321 <https://github.com/petrobras/ross/issues/1321>`_):
+(`#1321 <https://github.com/petrobras/ross/issues/1321>`_, `#1371 <https://github.com/petrobras/ross/pull/1371>`_):
 
 - ``LabyrinthSeal(speed=..., frequency=...)`` — ``LabyrinthSolver.solve(speed, frequency=None)``
   solves the leakage, cavity pressures and swirl for the speed and the perturbation system for the
@@ -66,6 +154,8 @@ The flow solvers now separate the rotor speed, which sets the base flow, from th
 
 Modal and Forced Response with Speed Decoupled from the Excitation Frequency
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The analyses follow the decoupled tables (`#1371 <https://github.com/petrobras/ross/pull/1371>`_):
 
 - ``run_modal(speed, frequency=f)`` evaluates the frequency-dependent coefficients at a fixed
   whirl frequency while the gyroscopic effect keeps the rotor speed.
@@ -157,6 +247,26 @@ and the example rotors are now ``rotor_example_amb_simple()``,
 ``rotor_example_amb_general_controllers()`` and ``rotor_example_amb_complex_controllers()``
 (`#1320 <https://github.com/petrobras/ross/pull/1320>`_).
 
+Sensor-Actuator Non-Collocation Analysis for Magnetic Bearings
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+``MagneticBearingElement`` accepts a ``sensor_node``, the node where the displacement used for
+feedback is measured. It defaults to the actuator node ``n``, which keeps the collocated
+configuration, and the ``is_non_collocated`` property tells the two apart; the controller measures
+the displacement at the sensor node while the magnetic force is still applied at the actuator
+node. The new ``Rotor.run_amb_non_collocation(magnetic_bearing, speed=0, modes=None,
+sensor_nodes=None, direction="x", residue_tolerance=0.05)`` evaluates the modal compatibility
+between the actuator and candidate sensor positions: for each lateral mode (non-lateral modes are
+excluded and reported as metadata, the original modal indices are preserved) the modal residue
+:math:`R_r(x_s) = \phi_r(x_a)\,\phi_r(x_s)` between the actuator node :math:`x_a` and the
+candidate node :math:`x_s` is computed and normalized, and each candidate is classified as a
+positive residue (favorable modal-sign relationship), a negative residue (potentially unfavorable)
+or a residue close to zero (sensor or actuator near a modal node). These classifications describe
+the modal-sign relationship only; they do not by themselves determine closed-loop stability.
+``AmbNonCollocationResults`` provides ``modal_residue_table()``, ``plot_sensor_position_map()``,
+``plot_mode_shape()``, ``plot_combined()``, ``plot_separate()`` and ``plot()``, and the Active
+Magnetic Bearings tutorial shows the workflow (`#1340 <https://github.com/petrobras/ross/pull/1340>`_).
+
 Real-Gas Model for ``LabyrinthSeal``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -194,17 +304,27 @@ clearance) take part in the check.
 ``ClearanceResults`` stores the probe response, :math:`A_{vl}`, :math:`A_{max}`, :math:`S_{cc}`, the
 unbalance used and the scaled response at each location over the speed range, with ``data()`` for a
 summary table and ``plot()``, ``plot_response()`` and ``plot_probe_response()`` for the plots
-(`#1285 <https://github.com/petrobras/ross/pull/1285>`_ follow-up).
+(`#1377 <https://github.com/petrobras/ross/pull/1377>`_, replacing the implementation of `#1285 <https://github.com/petrobras/ross/pull/1285>`_). The graphical interface follows the
+same analysis (`#1381 <https://github.com/petrobras/ross/pull/1381>`_).
 
 Rotor Composition Helpers
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Rotors can now be composed and extended after creation:
 
-- ``Rotor.concatenate_rotors(rotor_list)`` (classmethod) and the ``+`` operator (``rotor1 + rotor2``)
-  join rotors in series (`#1291 <https://github.com/petrobras/ross/pull/1291>`_).
+- ``Rotor.concatenate(*rotors)`` (classmethod) and the ``+`` operator (``rotor1 + rotor2``)
+  join rotors in series (`#1291 <https://github.com/petrobras/ross/pull/1291>`_). The method was introduced as ``concatenate_rotors`` and
+  renamed in `#1362 <https://github.com/petrobras/ross/pull/1362>`_, which also remaps the link nodes (``n_link``) of housing bearings into a
+  global range so they no longer collide with the shaft nodes of the following rotors.
 - ``Rotor.add_elements(new_elements)`` returns a new rotor with extra disk, bearing or seal
-  elements attached to an existing model (`#1309 <https://github.com/petrobras/ross/pull/1309>`_).
+  elements attached to an existing model (`#1309 <https://github.com/petrobras/ross/pull/1309>`_). ``MultiRotor.add_elements()`` routes the
+  elements to the driving or driven shaft by node number, and ``MultiRotor.add_nodes()`` refines a
+  geared system while preserving the mesh and coupling settings (`#1336 <https://github.com/petrobras/ross/pull/1336>`_, `#1362 <https://github.com/petrobras/ross/pull/1362>`_).
+- ``add_nodes``, ``add_elements`` and ``from_section`` rebuild the rotor with its own class and
+  constructor parameters (``tag``, speed limits and any extra keyword), instead of a plain
+  ``Rotor`` with a fixed subset of them (`#1362 <https://github.com/petrobras/ross/pull/1362>`_).
+- ``GearElement`` serializes like the other elements: ``save()`` writes the material as a
+  dictionary and ``base_diameter``, and ``load()`` rebuilds it (`#1362 <https://github.com/petrobras/ross/pull/1362>`_).
 
 Units in the Rotor Summary
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -217,8 +337,55 @@ summary table produced by ``rotor.summary()`` can be displayed in the user's pre
 ^^^^^^^^^^^^^^^^^^^^^^^
 
 The rotor figure was redesigned — cleaner element styling and legend layout — and the plot is now
-responsive to the container width (`#1331 <https://github.com/petrobras/ross/pull/1331>`_,
-`#1341 <https://github.com/petrobras/ross/pull/1341>`_).
+responsive to the container width (`#1331 <https://github.com/petrobras/ross/pull/1331>`_, `#1341 <https://github.com/petrobras/ross/pull/1341>`_, `#1343 <https://github.com/petrobras/ross/pull/1343>`_): the two cross-section
+buttons became a single toggle placed below the plot, the axes end at the rotor in wide
+containers and the legend wraps downward in narrow ones. Two view toggles sit next to the
+cross-section button (`#1354 <https://github.com/petrobras/ross/pull/1354>`_): **Bearings: classic** switches every bearing between the solid
+pedestal and the classic spring/damper drawing (also ``plot_rotor(bearing_style="spring_damper")``,
+grounded and linked bearings alike), and **Show axes** draws the rotor frame of reference at the
+bottom left (also ``plot_rotor(show_axes_indicator=True)``); toggling either never changes the
+axes ranges or the figure height.
+
+Right-Handed Plot Frames
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+ROSS uses a right-handed frame with z along the shaft and the spin taking x toward y (forward
+modes rise with speed), and every plot now agrees with it (`#1372 <https://github.com/petrobras/ross/pull/1372>`_):
+
+- The ``plot_rotor`` axes triad drew x out of the page next to z pointing right and y up, a
+  mirrored frame. It now draws x into the page as a crossed circle and the spin as a ring around
+  the z arm whose near half is solid and far half faint, so it reads as turning x toward y.
+- ``plot_mode_3d`` and ``plot_deflected_shape_3d`` ran the rotor length on a reversed scene axis,
+  which mirrored the whole scene, so a forward orbit turned the wrong way relative to the shaft.
+  The scenes are now laid out as a rotation of the rotor frame, never a mirror: under Plotly's
+  default camera node 0 sits at the far left, the shaft recedes to the right and y points up, no
+  camera is stored, so the modebar "reset camera to default" returns to the same view, and the
+  aspect ratio frames the whole rotor. An "Axes" legend entry toggles a triad on the rotor axis at
+  the origin; the solid pad temperature plot shares the layout, view and triad.
+- ``ross.plotly_theme.axes_indicator_2d`` and ``axes_indicator_3d`` build both indicators for any
+  figure.
+- The ``ThrustPad`` Cartesian plots placed the oil inlet at the larger pad angle, so the collar
+  appeared to spin y toward x; the pad is now placed with the angle growing from the leading edge.
+  Field values are unchanged, only their placement.
+- Orbit plots name their axes x and y.
+
+``CampbellResults.plot_with_mode_shape`` no longer forces a camera of its own on the mode shapes
+it sends to Dash, so the page shows the same view as ``plot_mode_3d`` and "reset camera" returns
+to it (`#1375 <https://github.com/petrobras/ross/pull/1375>`_).
+
+Design System and ``ross_dark`` Plotly Template
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The documentation, the Plotly templates and the graphical interface share one design system:
+the tokens in ``docs/_static/ross-tokens.css`` and the self-hosted IBM Plex fonts, described in
+the new *Design system* page of the documentation (`#1344 <https://github.com/petrobras/ross/pull/1344>`_, `#1380 <https://github.com/petrobras/ross/pull/1380>`_). The ``ross``
+template's font family is now IBM Plex Sans with Helvetica and Arial fallbacks (static export
+through kaleido uses the fallback unless the font is installed system-wide), and a new
+``ross_dark`` template is registered alongside it with backgrounds, grids, axes, legend, hover
+labels and colorway taken from the dark tokens. The default template is unchanged; dark is
+opt-in through ``pio.templates.default = "ross_dark"`` or ``template="ross_dark"`` (`#1348 <https://github.com/petrobras/ross/pull/1348>`_).
+The toggle buttons of the plots are styled through the templates, so they follow the theme
+(`#1356 <https://github.com/petrobras/ross/pull/1356>`_).
 
 Spline Drawing of Response Curves
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -227,21 +394,8 @@ Every plot method with a ``line_shape`` argument now draws a Plotly spline throu
 by default (``line_shape="spline"``) instead of straight segments: ``FrequencyResponseResults.plot_magnitude``,
 ``ForcedResponseResults.plot_magnitude``, their stochastic counterparts, and
 ``ClearanceResults.plot_response`` / ``plot_probe_response``, which gained the argument. The sampled
-values are not changed; pass ``line_shape="linear"`` to recover the previous drawing.
-
-Graphical Interface
-^^^^^^^^^^^^^^^^^^^
-
-ROSS 3 ships a graphical interface: a local web application (Flask backend, JavaScript
-frontend) that builds rotors from forms derived from the library's own classes, draws them,
-runs the analyses and exports the model as a Python script
-(`#1370 <https://github.com/petrobras/ross/pull/1370>`_). It is the ``ross.interface``
-subpackage; ``pip install "ross-rotordynamics[interface]"`` adds its dependencies and the
-``ross-interface`` command starts it (``python -m ross.interface`` is equivalent). Every GitHub
-release also carries ``ross-interface-<version>-windows-x64.zip``, a bundle for 64-bit Windows
-that needs no Python. The page has an About dialog with the ROSS version and links to the
-documentation, the issue tracker and the discussions; ``ross-interface --version`` prints the
-same version.
+values are not changed; pass ``line_shape="linear"`` to recover the previous drawing
+(`#1378 <https://github.com/petrobras/ross/pull/1378>`_, `#1379 <https://github.com/petrobras/ross/pull/1379>`_).
 
 Installed Test Suite
 ^^^^^^^^^^^^^^^^^^^^
@@ -249,7 +403,23 @@ Installed Test Suite
 The test suite is now installed with the package as ``ross.tests``, so an installation can be
 checked from any directory with ``pytest --pyargs ross``. The data files read by the library
 itself (``compressor_example()`` and the ``from_table`` spreadsheets) moved from ``ross/tests/data``
-to ``ross/data``.
+to ``ross/data`` (`#1384 <https://github.com/petrobras/ross/pull/1384>`_).
+
+Packaging and Release Infrastructure
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+- The wheel contains only the ``ross`` package: the ``docs`` and ``tools`` trees, which setuptools
+  discovered as top-level packages, are no longer shipped (`#1383 <https://github.com/petrobras/ross/pull/1383>`_).
+- Releases are published to PyPI through trusted publishing (OpenID Connect) with pinned action
+  versions, instead of a long-lived API token stored as a secret (`#1391 <https://github.com/petrobras/ross/pull/1391>`_). The test and
+  interface workflows run on the Node 24 majors of the GitHub actions and upload coverage with
+  ``codecov-action`` (`#1392 <https://github.com/petrobras/ross/pull/1392>`_, `#1395 <https://github.com/petrobras/ross/pull/1395>`_).
+- ``pytest ross -n auto`` runs the suite in parallel: ``ross/conftest.py`` caps the numpy and
+  scipy BLAS thread pools to one thread per process, without which the xdist workers oversubscribe
+  the cores and the fluid-film bearing tests run about 20x slower. ``pytest-xdist`` and
+  ``threadpoolctl`` are in the ``dev`` extra (`#1389 <https://github.com/petrobras/ross/pull/1389>`_).
+- ``CITATION.cff`` gained a ``preferred-citation`` block for the JOSS paper, so GitHub's "Cite
+  this repository" produces the article citation again (`#1393 <https://github.com/petrobras/ross/pull/1393>`_).
 
 Documentation
 ^^^^^^^^^^^^^
@@ -270,6 +440,18 @@ Documentation
   `#1311 <https://github.com/petrobras/ross/pull/1311>`_).
 - Sicchieri (2024) thesis added to the ``TiltingPad`` references
   (`#1333 <https://github.com/petrobras/ross/pull/1333>`_).
+- The user-guide tutorials were reorganized by topic and re-executed on this version: the
+  modeling notebook was split into elements (``tutorial_modeling_part_1``), rotor assembly
+  (``tutorial_modeling_part_2``) and units (``tutorial_units``); the seal notebooks were merged
+  into ``tutorial_seals``; the analyses, faults, MultiRotor and stochastic tutorials were renamed
+  by topic (`#1367 <https://github.com/petrobras/ross/pull/1367>`_).
+- The documentation adopted the ROSS design system with a light/dark toggle that the embedded
+  Plotly figures follow, self-hosted IBM Plex fonts, card icons that stay transparent in dark
+  mode, and the wiring for Algolia DocSearch, inactive until credentials are available
+  (`#1344 <https://github.com/petrobras/ross/pull/1344>`_, `#1349 <https://github.com/petrobras/ross/pull/1349>`_, `#1350 <https://github.com/petrobras/ross/pull/1350>`_, `#1351 <https://github.com/petrobras/ross/pull/1351>`_, `#1357 <https://github.com/petrobras/ross/pull/1357>`_).
+- The documentation and release sections of ``CONTRIBUTING.md`` were rewritten: how the
+  documentation is built, the release branches, the support policy and the steps of a release
+  (`#1397 <https://github.com/petrobras/ross/pull/1397>`_).
 
 API Changes and Migration Guide
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -284,7 +466,7 @@ for two years. Version 3.0.0 requires Python 3.12 or newer and is tested on
 Python 3.12, 3.13 and 3.14; support for Python 3.9, 3.10 and 3.11 is dropped.
 The minimum dependency versions are ``numpy>=2.2``, ``scipy>=1.15`` and
 ``pandas>=2.3``. Minimum versions are raised only on major and minor releases,
-never on patch releases; see the contributing guide for the policy.
+never on patch releases; see the contributing guide for the policy (`#1382 <https://github.com/petrobras/ross/pull/1382>`_).
 
 Upgrading with ``ross_2to3``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -292,7 +474,8 @@ Upgrading with ``ross_2to3``
 Version 3.0.0 renames constructor parameters across ``ross.bearings`` and ``ross.seals`` and
 changes a few conventions (diameters instead of radii, radians and kelvin instead of the old
 plain-number degrees and degrees Celsius) without deprecation shims. The ``ross_2to3`` command
-installed with ROSS converts existing assets (`#1358 <https://github.com/petrobras/ross/issues/1358>`_):
+installed with ROSS converts existing assets (`#1358 <https://github.com/petrobras/ross/issues/1358>`_,
+`#1373 <https://github.com/petrobras/ross/pull/1373>`_):
 
 .. code-block:: bash
 
@@ -603,11 +786,12 @@ Other behavior changes of the coefficient rework:
 - ``SealElement`` persists ``seal_leakage`` on ``save()`` / ``load()``.
 - ``Rotor.save()`` persists the model-level damping (``alpha``, ``beta``, ``modal_damping_ratio``
   and ``default_damping_ratio``); files written before this fix load with zero global damping, and
-  ``Rotor.__eq__`` now tells a damped rotor from an undamped one.
+  ``Rotor.__eq__`` now tells a damped rotor from an undamped one (`#1385 <https://github.com/petrobras/ross/pull/1385>`_).
 - ``SqueezeFilmDamper.save()`` and ``ThrustPad.save()`` write the solved coefficient table as a
   ``BearingElement`` section, as ``FluidFilmBearing`` does (``BearingElement.save_coefficient_table``);
   both classes could not load the files they wrote before. ``BearingElement.load`` builds the element
-  with the class named in the file, so ``SqueezeFilmDamper.load(file)`` returns that table.
+  with the class named in the file, so ``SqueezeFilmDamper.load(file)`` returns that table
+  (`#1376 <https://github.com/petrobras/ross/pull/1376>`_).
 - Constant coefficients are returned exactly instead of through a two-point interpolator (which
   added round-off of the order of 1e-13 away from zero speed).
 - 1-D tables were interpolated with a smoothing spline (``scipy.interpolate.UnivariateSpline`` with
@@ -651,6 +835,7 @@ Removed                                              Replacement
 ``PlainJournalResults`` / ``TiltingPadResults``      ``FluidFilmBearingResults`` (created automatically by the bearing)
 ``rotor_amb_example(...)``                           ``rotor_example_amb_general_controllers(...)`` (same ``controller_transfer_function`` argument); see also ``rotor_example_amb_simple()`` and ``rotor_example_amb_complex_controllers()``
 ``LabyrinthSeal(analz=...)``                         removed — leakage and dynamic coefficients are always computed
+``Rotor.concatenate_rotors([r1, r2])``               ``Rotor.concatenate(r1, r2)`` (a single list is still accepted)
 ``probe=[(node, angle, tag)]`` tuples                ``probe=[Probe(node, angle, tag=tag)]`` in every response plot and data method; a tuple now raises ``TypeError``
 ``probe_units=`` keyword                             removed from every response plot and data method — the ``Probe`` angle carries its unit (``Probe(3, Q_(45, "deg"))``)
 ===================================================  ==========================================================
@@ -662,7 +847,11 @@ together with the ``probe_units`` keyword, which only applied to tuples (``data_
 ``data_time_response``, ``plot_1d``, ``plot_dfft`` and their stochastic counterparts). Build
 ``Probe`` objects instead, with a pint quantity when the angle is not in radians
 (``Probe(3, Q_(45, "deg"), tag="DE")``); ``ross_2to3`` rewrites the call sites. The graphical
-interface dropped its "Probe Units" selector accordingly.
+interface dropped its "Probe Units" selector accordingly (`#1396 <https://github.com/petrobras/ross/pull/1396>`_).
+
+``LabyrinthSeal`` lost the ``analz`` switch in `#1319 <https://github.com/petrobras/ross/pull/1319>`_: the leakage and the dynamic coefficients
+are always computed. ``Rotor.concatenate_rotors`` was renamed ``Rotor.concatenate`` in
+`#1362 <https://github.com/petrobras/ross/pull/1362>`_; there is no alias.
 
 Moved modules
 ^^^^^^^^^^^^^
@@ -777,12 +966,56 @@ Fix ``seal_leakage`` Units and ``HybridSeal`` Mass-Flow Balance
 between the hole-pattern and labyrinth sections was corrected
 (`#1329 <https://github.com/petrobras/ross/pull/1329>`_).
 
+Fix Lump Masses Dropped by Auxiliary Rotors
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+``PointMass`` elements on shaft nodes vanished from ``convergence()``, ``run_ucs()``,
+``run_level1()`` and ``run_static()``, which rebuilt an auxiliary ``Rotor`` without them, and
+``plot_rotor`` assumed every point mass sat on a bearing node. The point masses are now kept in
+those reconstructions, a free lump mass is drawn at its node, and housing bearings are removed by
+one helper that keeps ``n_link`` when it is a shaft node, so a coaxial coupling between two shafts
+is no longer pinned to ground (`#1361 <https://github.com/petrobras/ross/pull/1361>`_).
+
+Fix Rotor Modification Methods
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+``concatenate_rotors`` mutated its input rotors (``copy`` instead of ``deepcopy``), ``add_nodes``
+reindexed linked bearings and point masses on every shaft split instead of once at the end, and
+copied couplings lost their diameters; ``Element.save()`` and ``summary()`` failed on NumPy scalar
+types, which are now cast to Python types (`#1336 <https://github.com/petrobras/ross/pull/1336>`_). ``concatenate`` remaps the link nodes into
+a global range and the rebuilt rotors keep their class and constructor parameters (`#1362 <https://github.com/petrobras/ross/pull/1362>`_).
+
+Fix ``plot_orbit`` for Torsional and Axial Modes
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+``ModalResults.plot_orbit`` raised ``TypeError`` for a torsional or axial mode, which has no orbit.
+It now warns and returns a figure with a centered annotation, as ``plot_2d`` and ``plot_3d``
+already did, so loops over every mode keep working (`#1345 <https://github.com/petrobras/ross/pull/1345>`_).
+
+Fix ``Material.save_material`` Zeroing Thermal Properties
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Saving a material built without ``specific_heat`` and ``thermal_conductivity`` overwrote the real
+values stored under that name in ``available_materials.toml`` with zero. Unset thermal properties
+are stored as ``None`` and omitted from the file, ``load_material`` tolerates entries without them
+and ``Material.__eq__`` compares the attributes by name (`#1346 <https://github.com/petrobras/ross/pull/1346>`_).
+
+Fix Plotly 6 Compatibility
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Importing ROSS with Plotly 6 failed when a third-party library (``ccp``) registered a template
+carrying the deprecated Mapbox trace and layout keys. The ``ross`` templates no longer carry
+Mapbox keys, and ``ross.plotly_theme`` installs a compatibility shim that ignores them when a
+template is registered (`#1368 <https://github.com/petrobras/ross/pull/1368>`_).
+
 General Fixes
 ^^^^^^^^^^^^^
 
 - Fixed ``Probe`` and ``np.matrix`` deprecation warnings raised during the test suite, a highly
-  fragmented ``DataFrame`` issue, and element tag handling; ``concatenate_rotors`` was fixed and
-  promoted to a classmethod (`#1315 <https://github.com/petrobras/ross/pull/1315>`_).
+  fragmented ``DataFrame`` issue, and element tag handling; ``concatenate_rotors`` (since renamed
+  ``concatenate``) was fixed and promoted to a classmethod (`#1315 <https://github.com/petrobras/ross/pull/1315>`_).
+- ``run_ucs()`` raised ``ValueError`` ("the truth value of an array ... is ambiguous") when the
+  bearing speed range was a tuple, list or pint quantity (`#1365 <https://github.com/petrobras/ross/pull/1365>`_).
 - ``run_ucs()`` now applies the ``@check_units`` decorator to its arguments
   (`#1308 <https://github.com/petrobras/ross/pull/1308>`_).
 - Every ``zip()`` call now states ``strict=True`` or ``strict=False``, as required by the
@@ -792,9 +1025,14 @@ General Fixes
   passed integer thermal types to helpers that compare against ``"adiabatic"`` and ``"full"``, so
   the adiabatic results were written back under the full-model keys
   (`#1388 <https://github.com/petrobras/ross/pull/1388>`_).
+- ``Rotor.load`` compares the saved ``ross_version`` on ``major.minor`` only, so files saved by a
+  ``3.0.0.dev`` build do not warn after the ``3.0.0`` tag; the clearance recipe of the agent skill
+  defines the ``speed_range`` it uses; the notebooks were reformatted so that ``pre-commit`` passes
+  (`#1400 <https://github.com/petrobras/ross/pull/1400>`_). The orphan 2.4.0 release notes draft was removed (`#1394 <https://github.com/petrobras/ross/pull/1394>`_) and the lint and
+  format regressions left by the last merges were fixed (`#1401 <https://github.com/petrobras/ross/pull/1401>`_).
 
 Contributors
 ~~~~~~~~~~~~
 
 This release includes contributions from: @jguarato, @Raimundovpn, @murilloabs, @ArthurIasbeck,
-@gsabinoo, @ViniciusTxc3, @kiracofe8, @raphaeltimbo
+@gsabinoo, @ViniciusTxc3, @kiracofe8, @mariac-souza, @leonardocabr, @raphaeltimbo
