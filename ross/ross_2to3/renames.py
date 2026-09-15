@@ -193,6 +193,22 @@ METHOD_RENAMES = {
     "run_ucs": {"bearing_frequency_range": renamed("bearing_speed_range")},
 }
 
+PROBE_METHODS = {
+    "data_magnitude",
+    "data_phase",
+    "plot_magnitude",
+    "plot_phase",
+    "plot_bode",
+    "plot_polar_bode",
+    "plot",
+    "data_time_response",
+    "plot_1d",
+    "plot_dfft",
+    "data",
+}
+
+POSITIONAL_PROBE_METHODS = PROBE_METHODS - {"plot", "data"}
+
 MOVED_MODULES = {
     "ross.gear_element": "ross.multi_rotor.gear_element",
     "ross.multi_rotor": "ross.multi_rotor.multi_rotor",
