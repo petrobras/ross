@@ -177,7 +177,9 @@ class HarmonicBalance:
         for f in forces:
             n = f["node"]
 
-            for p, m, h in zip(f["phases"], f["magnitudes"], f["harmonics"]):
+            for p, m, h in zip(
+                f["phases"], f["magnitudes"], f["harmonics"], strict=True
+            ):
                 cos = np.cos(p)
                 sin = np.sin(p)
 
@@ -220,7 +222,7 @@ class HarmonicBalance:
 
         F = np.zeros((ndof), dtype=np.complex128)
 
-        for n, m, p in zip(node, magnitude, phase):
+        for n, m, p in zip(node, magnitude, phase, strict=True):
             cos = np.cos(p)
             sin = np.sin(p)
 

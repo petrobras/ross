@@ -283,14 +283,14 @@ def thermohydrodynamics(
 
                 if thermal_type == "adiabatic":
                     *thermal_out, rms_temp = thermal_adiabatic(
-                        **{**nat_inputs, **_thermal_state(state, 1)}
+                        **{**nat_inputs, **_thermal_state(state, "adiabatic")}
                     )
-                    _scatter_thermal(state, thermal_out, 1)
+                    _scatter_thermal(state, thermal_out, "adiabatic")
                 elif thermal_type == "full":
                     *thermal_out, rms_temp = thermal_full(
-                        **{**nat_inputs, **_thermal_state(state, 2)}
+                        **{**nat_inputs, **_thermal_state(state, "full")}
                     )
-                    _scatter_thermal(state, thermal_out, 2)
+                    _scatter_thermal(state, thermal_out, "full")
 
                 hd_converged = state.get(hd_converged_key, 1)
 
@@ -660,7 +660,7 @@ def _scatter_thermal(state, thermal_out, thermal_type):
             "flow_regime_dam",
             "scale_turb_dam",
         ]
-    for key, value in zip(keys, thermal_out):
+    for key, value in zip(keys, thermal_out, strict=True):
         _assign_padded(state, key, value)
 
 

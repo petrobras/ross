@@ -261,7 +261,7 @@ class BearingCoefficient:
         result = np.array(
             [
                 _AxisInterpolator(self.frequency, row, self.interpolation)(f)
-                for row, f in zip(rows, frequency.ravel())
+                for row, f in zip(rows, frequency.ravel(), strict=True)
             ]
         )
         return result.reshape(frequency.shape)
@@ -2121,7 +2121,7 @@ class BallBearingElement(BearingElement):
 
         nb = [8, 12, 16]
         ratio = [0.46, 0.64, 0.73]
-        dict_ratio = dict(zip(nb, ratio))
+        dict_ratio = dict(zip(nb, ratio, strict=True))
 
         if n_balls in dict_ratio.keys():
             kxx = dict_ratio[n_balls] * kyy
@@ -2293,7 +2293,7 @@ class RollerBearingElement(BearingElement):
 
         nr = [8, 12, 16]
         ratio = [0.49, 0.66, 0.74]
-        dict_ratio = dict(zip(nr, ratio))
+        dict_ratio = dict(zip(nr, ratio, strict=True))
 
         if n_rollers in dict_ratio.keys():
             kxx = dict_ratio[n_rollers] * kyy
@@ -2667,7 +2667,7 @@ class MagneticBearingElement(BearingElement):
         c_xy = []
         c_yx = []
         c_yy = []
-        for omega_i, k, c in zip(omega, self.k_eq, self.c_eq):
+        for omega_i, k, c in zip(omega, self.k_eq, self.c_eq, strict=True):
             k_equivalent_matrix = np.array([[k, 0], [0, k]])
             c_equivalent_matrix = np.array([[c, 0], [0, c]])
 
@@ -3149,7 +3149,7 @@ class CylindricalBearing(BearingElement):
         ]
         coefficients_dict = {coeff: [] for coeff in coefficients}
 
-        for e, spd in zip(self.eccentricity, self.speed):
+        for e, spd in zip(self.eccentricity, self.speed, strict=True):
             π = np.pi
             # fmt: off
             h0 = 1 / (π ** 2 * (1 - e ** 2) + 16 * e ** 2) ** (3 / 2)
@@ -3162,7 +3162,7 @@ class CylindricalBearing(BearingElement):
             bvv = h0 * 2 * π * (π ** 2 * (1 - e ** 2) ** 2 + 48 * e ** 2) / (e * np.sqrt(1 - e ** 2))
             # fmt: on
             for coeff, term in zip(
-                coefficients, [auu, auv, avu, avv, buu, buv, bvu, bvv]
+                coefficients, [auu, auv, avu, avv, buu, buv, bvu, bvv], strict=True
             ):
                 if coeff[0] == "k":
                     coefficients_dict[coeff].append(weight / radial_clearance * term)
