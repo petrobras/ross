@@ -3159,7 +3159,7 @@ class CylindricalBearing(BearingElement):
         self.root = []
         for spd, roots in zip(self.speed, self.roots, strict=True):
             real_roots = [np.real(r) for r in roots if np.isreal(r) and 0 < r < 1]
-            if len(real_roots) != 1:
+            if spd <= 0 or len(real_roots) != 1:
                 raise ValueError(
                     "CylindricalBearing has no equilibrium eccentricity at "
                     f"{spd:g} rad/s. The short bearing solution needs a rotating "
