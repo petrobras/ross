@@ -17,7 +17,7 @@ from ross.units import Q_
 
 COMMON = dict(
     n=0,
-    frequency=Q_([3000], "RPM"),
+    speed=Q_([3000], "RPM"),
     journal_diameter=0.2,
     radial_clearance=150e-6,
     pad_thickness=0.05,

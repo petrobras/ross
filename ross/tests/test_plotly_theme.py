@@ -1,12 +1,22 @@
+import re
+from pathlib import Path
+
 import pytest
 from plotly import io as pio
 
 import ross  # noqa: F401
+from plotly import graph_objects as go
+
 from ross.plotly_theme import (
     DEFAULT_COLOR,
     ROSS_FONT_FAMILY,
+    axes_indicator_2d,
+    axes_indicator_3d,
     color_shades,
+    dark_palette,
+    dark_tableau_colors,
     parse_color,
+    tableau_colors,
 )
 
 
@@ -97,3 +107,147 @@ def test_dark_template_differs_from_light():
     assert dark.yaxis.linecolor != light.yaxis.linecolor
     assert dark.colorway != light.colorway
     assert len(dark.colorway) == len(light.colorway)
+
+
+def test_axes_indicator_2d_zy_plane():
+    fig = go.Figure()
+    show, hide = axes_indicator_2d(fig, plane="zy", visible=False)
+
+    # x points into the page: a circle crossed by two diagonal lines
+    assert [shape.type for shape in fig.layout.shapes].count("line") == 2
+    assert all(shape.visible is False for shape in fig.layout.shapes)
+    assert all(shape.xsizemode == "pixel" for shape in fig.layout.shapes)
+    labels = {a.text for a in fig.layout.annotations if a.text}
+    assert labels == {"<i>x</i>", "<i>y</i>", "<i>z</i>", "<i>ω</i>"}
+
+    assert set(show) == set(hide)
+    assert all(show.values()) and not any(hide.values())
+    fig.plotly_relayout(dict(show))
+    assert all(shape.visible for shape in fig.layout.shapes)
+    assert all(annotation.visible for annotation in fig.layout.annotations)
+
+
+def test_axes_indicator_2d_xy_plane():
+    fig = go.Figure()
+    axes_indicator_2d(fig, plane="xy")
+
+    # z points out of the page: a circle with a filled center dot, no cross
+    assert [shape.type for shape in fig.layout.shapes].count("line") == 0
+    assert [shape.type for shape in fig.layout.shapes].count("circle") == 2
+    assert all(shape.visible for shape in fig.layout.shapes)
+
+    with pytest.raises(ValueError):
+        axes_indicator_2d(go.Figure(), plane="xz")
+
+
+def test_axes_indicator_2d_appends_to_existing_items():
+    fig = go.Figure()
+    fig.add_shape(type="rect", x0=0, y0=0, x1=1, y1=1)
+    fig.add_annotation(text="kept", x=0, y=0)
+    show, hide = axes_indicator_2d(fig)
+
+    assert "shapes[0].visible" not in show
+    assert "annotations[0].visible" not in show
+    assert fig.layout.shapes[0].type == "rect"
+    assert fig.layout.annotations[0].text == "kept"
+
+
+def test_axes_indicator_3d_maps_display_arms_onto_scene_axes():
+    fig = go.Figure()
+    fig = axes_indicator_3d(
+        fig,
+        origin=dict(x=1.0, y=2.0, z=3.0),
+        size=0.5,
+        scales=dict(x=10.0, y=4.0, z=4.0),
+        scene_axes={"x": "y", "y": "z", "z": "x"},
+    )
+
+    assert [trace.type for trace in fig.data] == ["scatter3d", "scatter3d"]
+    lines, text = fig.data
+    # one legend entry toggles the whole triad
+    assert [trace.showlegend for trace in fig.data] == [True, False]
+    assert {trace.legendgroup for trace in fig.data} == {"axes"}
+    points = {
+        (round(x, 9), round(y, 9), round(z, 9))
+        for x, y, z in zip(lines.x, lines.y, lines.z, strict=True)
+        if x is not None
+    }
+    # rotor x arm runs along the scene y axis: half a display unit is 2 data units
+    assert (1.0, 4.0, 3.0) in points
+    # rotor y arm along the scene z axis
+    assert (1.0, 2.0, 5.0) in points
+    # rotor z arm along the scene x axis: half a display unit is 5 data units
+    assert (6.0, 2.0, 3.0) in points
+    assert list(text.text) == ["x", "y", "z", "ω"]
+
+
+def test_axes_indicator_3d_without_z_arm():
+    fig = axes_indicator_3d(
+        go.Figure(),
+        origin=dict(x=0.0, y=0.0, z=0.0),
+        size=1.0,
+        scales=dict(x=1.0, y=1.0, z=1.0),
+        arms=("x", "y"),
+    )
+    lines, text = fig.data
+    assert list(text.text) == ["x", "y", "ω"]
+    points = {
+        (x, y, z)
+        for x, y, z in zip(lines.x, lines.y, lines.z, strict=True)
+        if x is not None
+    }
+    assert (0.0, 0.0, 1.0) not in points
+    # the spin label sits in the x-y plane, where the ring turns about the origin
+    assert text.z[2] == 0
+
+
+# --- the templates mirror the design tokens ----------------------------------
+#
+# The colours of both templates are written out in ross/plotly_theme.py and,
+# again, in docs/_static/ross-tokens.css: Python cannot read a stylesheet at
+# import time, and the docs cannot import ROSS. Two copies of one palette
+# drift, so the test reads the tokens and compares. It runs only from a
+# checkout that carries the docs; an installed package skips it.
+
+TOKENS = Path(__file__).resolve().parents[2] / "docs" / "_static" / "ross-tokens.css"
+
+
+def _tokens(scope):
+    """The `--name:#hex` pairs declared in `scope` ("light" or "dark")."""
+    css = TOKENS.read_text(encoding="utf-8")
+    if scope == "dark":
+        css = css[css.index('html[data-theme="dark"]{') :]
+        css = css[: css.index("}")]
+    else:
+        css = css[: css.index('html[data-theme="dark"]{')]
+    return dict(re.findall(r"(--[\w-]+):(#[0-9a-fA-F]{6})", css))
+
+
+@pytest.mark.skipif(not TOKENS.exists(), reason="docs are not part of the package")
+def test_light_colorway_matches_the_plot_tokens():
+    tokens = _tokens("light")
+    for name, color in tableau_colors.items():
+        assert tokens["--plot-" + name].lower() == color.lower(), name
+
+
+@pytest.mark.skipif(not TOKENS.exists(), reason="docs are not part of the package")
+def test_dark_colorway_matches_the_plot_tokens():
+    tokens = _tokens("dark")
+    for name, color in dark_tableau_colors.items():
+        assert tokens["--plot-" + name].lower() == color.lower(), name
+
+
+@pytest.mark.skipif(not TOKENS.exists(), reason="docs are not part of the package")
+def test_dark_surfaces_match_the_tokens():
+    tokens = _tokens("dark")
+    expected = {
+        "paper": "--surface-page",
+        "text": "--text-body",
+        "grid": "--grid-line",
+        "grid_strong": "--grid-line-strong",
+        "axis_line": "--border-strong",
+        "surface_card": "--surface-card",
+        "surface_sunken": "--surface-sunken",
+    }
+    for key, token in expected.items():
+        assert dark_palette[key].lower() == tokens[token].lower(), (key, token)

@@ -1,0 +1,24 @@
+# The report `check.py` writes: it is one run's output, not code.
+check_report.txt
+
+# The Linux report, copied over by hand from the WSL working copy.
+check_report_wsl.txt
+
+# The server's log, written while the interface runs.
+ross_interface.log
+
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+
+# The desktop app recreates this whenever a file is delivered into the chat.
+Claude outputs/
+
+# The virtual environment, when it is kept inside the project folder.
+.venv/
+venv/
+
+# What PyInstaller writes.
+build/
+dist/

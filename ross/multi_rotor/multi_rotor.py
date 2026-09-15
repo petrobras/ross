@@ -781,13 +781,19 @@ class MultiRotor(Rotor):
 
         return K0
 
-    def K(self, frequency):
+    def K(self, frequency, speed=None):
         """Stiffness matrix for a multi-rotor.
+
+        The excitation frequency is global to the coupled system, while the
+        driven rotor speed is scaled by the gear ratio.
 
         Parameters
         ----------
-        frequency : float, optional
-            Excitation frequency.
+        frequency : float
+            Excitation (whirl) frequency.
+        speed : float, optional
+            Driving rotor speed. Default is the excitation frequency
+            (synchronous evaluation).
 
         Returns
         -------
@@ -804,10 +810,13 @@ class MultiRotor(Rotor):
                [ 0.        , -0.23712736,  0.        ,  0.09416119]])
         """
 
+        if speed is None:
+            speed = frequency
+
         return self.add_coupling_stiffness(
             self._join_matrices(
-                self.rotors["driving"].K(frequency),
-                self.rotors["driven"].K(frequency * self.mesh.gear_ratio),
+                self.rotors["driving"].K(frequency, speed),
+                self.rotors["driven"].K(frequency, speed * self.mesh.gear_ratio),
             )
         )
 
@@ -842,13 +851,22 @@ class MultiRotor(Rotor):
             -self.mesh.gear_ratio * self.rotors["driven"].Ksdt(),
         )
 
-    def M(self, frequency=None, synchronous=False):
+    def M(self, frequency=None, speed=None, synchronous=False):
         """Mass matrix for a multi-rotor.
+
+        The excitation frequency is global to the coupled system, while the
+        driven rotor speed is scaled by the gear ratio.
 
         Parameters
         ----------
+        frequency : float, optional
+            Excitation (whirl) frequency. Default is 0.
+        speed : float, optional
+            Driving rotor speed. Default is the excitation frequency
+            (synchronous evaluation).
         synchronous : bool, optional
-            If True a synchronous analysis is carried out.
+            If True the gyroscopic matrix is folded into the mass matrix
+            (Rouch's formulation for a synchronous analysis).
             Default is False.
 
         Returns
@@ -867,23 +885,30 @@ class MultiRotor(Rotor):
         """
 
         if frequency is None:
-            return self._join_matrices(
-                self.rotors["driving"].M(synchronous=synchronous),
-                self.rotors["driven"].M(synchronous=synchronous),
-            )
-        else:
-            return self._join_matrices(
-                self.rotors["driving"].M(frequency, synchronous),
-                self.rotors["driven"].M(frequency * self.mesh.gear_ratio, synchronous),
-            )
+            frequency = 0
+        if speed is None:
+            speed = frequency
 
-    def C(self, frequency):
+        return self._join_matrices(
+            self.rotors["driving"].M(frequency, speed, synchronous),
+            self.rotors["driven"].M(
+                frequency, speed * self.mesh.gear_ratio, synchronous
+            ),
+        )
+
+    def C(self, frequency, speed=None):
         """Damping matrix for a multi-rotor rotor.
+
+        The excitation frequency is global to the coupled system, while the
+        driven rotor speed is scaled by the gear ratio.
 
         Parameters
         ----------
         frequency : float
-            Excitation frequency.
+            Excitation (whirl) frequency.
+        speed : float, optional
+            Driving rotor speed. Default is the excitation frequency
+            (synchronous evaluation).
 
         Returns
         -------
@@ -900,9 +925,12 @@ class MultiRotor(Rotor):
                [ 0., -0.,  0.,  0.]])
         """
 
+        if speed is None:
+            speed = frequency
+
         return self._join_matrices(
-            self.rotors["driving"].C(frequency),
-            self.rotors["driven"].C(frequency * self.mesh.gear_ratio),
+            self.rotors["driving"].C(frequency, speed),
+            self.rotors["driven"].C(frequency, speed * self.mesh.gear_ratio),
         )
 
     def G(self):

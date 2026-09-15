@@ -2,6 +2,7 @@
 
 import re
 
+import numpy as np
 from plotly import graph_objects as go
 from plotly import io as pio
 
@@ -189,6 +190,391 @@ def color_shades(color):
         edge=mix(0, 0.35),
         dark=mix(0, 0.15),
     )
+
+
+INDICATOR_INK = "#33475C"
+
+# aspect ratio of the 3-D scenes which lay the rotor frame out as a rotation
+# (rotor x on the reversed scene x axis, the rotor length on the scene y
+# axis, rotor y on the scene z axis), sized so that plotly's default camera
+# frames the whole rotor
+SHAPE_3D_ASPECT = dict(x=0.8, y=2.0, z=0.8)
+
+
+def _elliptic_arc(cx, cy, rx, ry, t0, t1, segments=4):
+    """Build an elliptic arc as an SVG path of cubic Bezier segments.
+
+    Shape paths take no arc commands, so the arc is approximated by one cubic
+    Bezier per segment. Angles grow counterclockwise for a y axis pointing up.
+
+    Parameters
+    ----------
+    cx, cy : float
+        Center of the ellipse, in pixels.
+    rx, ry : float
+        Half axes of the ellipse, in pixels.
+    t0, t1 : float
+        Start and end angles, in rad.
+    segments : int, optional
+        Number of Bezier segments. Default is 4.
+
+    Returns
+    -------
+    path : str
+        SVG path of the arc.
+    tip : ndarray
+        End point of the arc.
+    tangent : ndarray
+        Unit tangent at the end point, along the direction of travel.
+    """
+    theta = np.linspace(t0, t1, segments + 1)
+
+    def point(t):
+        return np.array([cx + rx * np.cos(t), cy + ry * np.sin(t)])
+
+    def slope(t):
+        return np.array([-rx * np.sin(t), ry * np.cos(t)])
+
+    path = "M {:.2f},{:.2f}".format(*point(theta[0]))
+    for a, b in zip(theta[:-1], theta[1:], strict=True):
+        handle = (4 / 3) * np.tan((b - a) / 4)
+        path += " C {:.2f},{:.2f} {:.2f},{:.2f} {:.2f},{:.2f}".format(
+            *(point(a) + handle * slope(a)),
+            *(point(b) - handle * slope(b)),
+            *point(b),
+        )
+
+    tangent = slope(theta[-1])
+    tangent = tangent / np.hypot(*tangent)
+
+    return path, point(theta[-1]), tangent
+
+
+def _arrowhead(tip, tangent, length=6.5, width=4.0):
+    """Build a filled triangle arrowhead as an SVG path.
+
+    Annotation arrows misplace their head when the tail is short, so curved
+    arrows get a triangle aligned with the direction of travel at their tip.
+
+    Parameters
+    ----------
+    tip : array_like
+        Point where the arrow line ends, in pixels.
+    tangent : array_like
+        Unit direction of travel at the tip.
+    length : float, optional
+        Distance from the tip to the apex, in pixels. Default is 6.5.
+    width : float, optional
+        Half width of the base, in pixels. Default is 4.0.
+
+    Returns
+    -------
+    path : str
+        SVG path of the triangle.
+    """
+    tip = np.asarray(tip, dtype=float)
+    tangent = np.asarray(tangent, dtype=float)
+    normal = np.array([-tangent[1], tangent[0]])
+    apex = tip + length * tangent
+    base = tip - 2.5 * tangent
+    return "M {:.2f},{:.2f} L {:.2f},{:.2f} L {:.2f},{:.2f} Z".format(
+        *apex, *(base + width * normal), *(base - width * normal)
+    )
+
+
+def axes_indicator_2d(fig, plane="zy", x=50.0, y=-83.0, arm=38.0, visible=True):
+    """Draw the rotor frame of reference as a pixel-sized triad on a 2-D plot.
+
+    ROSS uses a right-handed frame with z along the shaft and the spin ω
+    taking x toward y (counterclockwise seen from the +z end). The triad is
+    built only from paper-referenced, pixel-sized shapes and annotations, so
+    it keeps its size and position at any figure size and never affects the
+    axes ranges.
+
+    Parameters
+    ----------
+    fig : plotly.graph_objects.Figure
+        The figure object which shapes and annotations are added on.
+    plane : str, optional
+        Plane shown by the plot. ``"zy"`` (z horizontal, y vertical, as in the
+        rotor and mode shape plots) draws x pointing into the page and ω as an
+        arc around the z arm, with its near half solid and its far half faint.
+        ``"xy"`` (x horizontal, y vertical, as in the orbit plots) draws z
+        pointing out of the page and ω as a counterclockwise circular arrow.
+        Default is ``"zy"``.
+    x, y : float, optional
+        Pixel offset of the triad origin from the bottom left corner of the
+        plot area. A negative ``y`` places it inside the bottom margin.
+        Default is (50, -83).
+    arm : float, optional
+        Length of the axis arrows, in pixels. Default is 38.
+    visible : bool, optional
+        If False, the triad starts hidden. Default is True.
+
+    Returns
+    -------
+    show : dict
+        Relayout arguments which display the triad.
+    hide : dict
+        Relayout arguments which hide it again.
+
+    Examples
+    --------
+    >>> from plotly import graph_objects as go
+    >>> fig = go.Figure()
+    >>> show, hide = axes_indicator_2d(fig, plane="xy")
+    >>> sorted(show)[:2]
+    ['annotations[0].visible', 'annotations[1].visible']
+    """
+    if plane not in ("zy", "xy"):
+        raise ValueError(f"plane must be 'zy' or 'xy', got {plane!r}.")
+
+    ink = INDICATOR_INK
+    ox, oy = float(x), float(y)
+    first_shape = len(fig.layout.shapes or ())
+    first_annotation = len(fig.layout.annotations or ())
+
+    def add_shape(**kwargs):
+        fig.add_shape(
+            xref="paper",
+            yref="paper",
+            xanchor=0,
+            yanchor=0,
+            xsizemode="pixel",
+            ysizemode="pixel",
+            visible=visible,
+            **kwargs,
+        )
+
+    line = dict(color=ink, width=1.6)
+    add_shape(
+        type="circle",
+        x0=ox - 6.5,
+        y0=oy - 6.5,
+        x1=ox + 6.5,
+        y1=oy + 6.5,
+        line=line,
+        fillcolor="rgba(0,0,0,0)",
+    )
+    if plane == "zy":
+        # x points into the page: circle with a cross
+        d = 4.2
+        add_shape(type="line", x0=ox - d, y0=oy - d, x1=ox + d, y1=oy + d, line=line)
+        add_shape(type="line", x0=ox - d, y0=oy + d, x1=ox + d, y1=oy - d, line=line)
+    else:
+        # z points out of the page: circle with a dot
+        add_shape(
+            type="circle",
+            x0=ox - 2,
+            y0=oy - 2,
+            x1=ox + 2,
+            y1=oy + 2,
+            line=dict(width=0),
+            fillcolor=ink,
+        )
+
+    if plane == "zy":
+        # the spin is a ring around the z arm seen almost edge on; its far
+        # half is faint and its near half carries the arrowhead, so the ring
+        # reads as turning x toward y: up on the far side, down on the near
+        cx, rx, ry = ox + 22.0, 4.5, 9.5
+        far, _, _ = _elliptic_arc(cx, oy, rx, ry, -0.45 * np.pi, 0.5 * np.pi)
+        add_shape(type="path", path=far, line=dict(color=ink, width=1.0), opacity=0.35)
+        near, tip, tangent = _elliptic_arc(cx, oy, rx, ry, 0.5 * np.pi, 1.4 * np.pi)
+        add_shape(type="path", path=near, line=dict(color=ink, width=1.4))
+        omega = (cx + 1, oy + 17)
+        normal_label = ("<i>x</i>", ox - 17, oy - 12)
+    else:
+        arc, tip, tangent = _elliptic_arc(
+            ox, oy, 14.0, 14.0, 1.15 * np.pi, 2.65 * np.pi, segments=6
+        )
+        add_shape(type="path", path=arc, line=dict(color=ink, width=1.4))
+        omega = (ox - 31, oy + 11)
+        normal_label = ("<i>z</i>", ox - 23, oy - 21)
+    add_shape(
+        type="path", path=_arrowhead(tip, tangent), line=dict(width=0), fillcolor=ink
+    )
+
+    base = dict(x=0, y=0, xref="paper", yref="paper", visible=visible)
+    arrow = dict(
+        text="",
+        showarrow=True,
+        arrowhead=2,
+        arrowsize=1.2,
+        arrowwidth=1.6,
+        arrowcolor=ink,
+        **base,
+    )
+    fig.add_annotation(xshift=ox + arm, yshift=oy, ax=-(arm - 8), ay=0, **arrow)
+    fig.add_annotation(xshift=ox, yshift=oy + arm, ax=0, ay=arm - 8, **arrow)
+
+    horizontal = "<i>z</i>" if plane == "zy" else "<i>x</i>"
+    label = dict(showarrow=False, font=dict(size=12, color=ink), **base)
+    fig.add_annotation(xshift=ox + arm + 10, yshift=oy, text=horizontal, **label)
+    fig.add_annotation(xshift=ox, yshift=oy + arm + 10, text="<i>y</i>", **label)
+    fig.add_annotation(
+        xshift=normal_label[1], yshift=normal_label[2], text=normal_label[0], **label
+    )
+    fig.add_annotation(xshift=omega[0], yshift=omega[1], text="<i>ω</i>", **label)
+
+    show = {}
+    for i in range(first_shape, len(fig.layout.shapes)):
+        show[f"shapes[{i}].visible"] = True
+    for i in range(first_annotation, len(fig.layout.annotations)):
+        show[f"annotations[{i}].visible"] = True
+    hide = dict.fromkeys(show, False)
+
+    return show, hide
+
+
+def axes_indicator_3d(
+    fig, origin, size, scales, scene_axes=None, arms=("x", "y", "z"), spin=True
+):
+    """Draw the rotor frame of reference as line traces inside a 3-D scene.
+
+    ROSS uses a right-handed frame with z along the shaft and the spin ω
+    taking x toward y. The triad is drawn in display space, so its arms look
+    equally long whatever the axes ranges and aspect ratio, and is then mapped
+    onto the scene axes carrying each rotor axis.
+
+    Parameters
+    ----------
+    fig : plotly.graph_objects.Figure
+        The figure object which traces are added on.
+    origin : dict
+        Scene coordinates of the triad origin, with the keys ``"x"``, ``"y"``
+        and ``"z"`` naming the scene axes.
+    size : float
+        Arm length, in display units (the length of one unit of the scene
+        aspect ratio).
+    scales : dict
+        Data units per display unit along each scene axis, i.e. the axis
+        range divided by its aspect ratio value, with the keys ``"x"``,
+        ``"y"`` and ``"z"``.
+    scene_axes : dict, optional
+        Scene axis carrying each rotor axis, e.g.
+        ``{"x": "y", "y": "z", "z": "x"}`` for shape plots with the rotor
+        length on the scene x axis. Default maps each rotor axis onto the
+        scene axis of the same name.
+    arms : tuple of str, optional
+        Rotor axes drawn as arrows. Default is ``("x", "y", "z")``.
+    spin : bool, optional
+        If True, ω is drawn as a circular arrow turning x toward y: around
+        the z arm when it is drawn, around the origin otherwise.
+        Default is True.
+
+    Returns
+    -------
+    fig : plotly.graph_objects.Figure
+        The figure object with the triad traces. The triad has one legend
+        entry, "Axes", which toggles the whole triad when clicked.
+
+    Examples
+    --------
+    >>> from plotly import graph_objects as go
+    >>> fig = go.Figure()
+    >>> fig = axes_indicator_3d(
+    ...     fig, origin=dict(x=0, y=0, z=0), size=1.0, scales=dict(x=1, y=1, z=1)
+    ... )
+    >>> [trace.name for trace in fig.data]
+    ['Axes', 'Axes']
+    """
+    if scene_axes is None:
+        scene_axes = {"x": "x", "y": "y", "z": "z"}
+    ink = INDICATOR_INK
+    unit = {
+        "x": np.array([1.0, 0, 0]),
+        "y": np.array([0, 1.0, 0]),
+        "z": np.array([0, 0, 1.0]),
+    }
+
+    def to_scene(point):
+        coords = {}
+        for k, axis in enumerate(("x", "y", "z")):
+            scene_axis = scene_axes[axis]
+            coords[scene_axis] = origin[scene_axis] + point[k] * scales[scene_axis]
+        return coords["x"], coords["y"], coords["z"]
+
+    def arrowhead(tip, direction, perps):
+        head = 0.18 * size
+        half = 0.07 * size
+        lines = []
+        for perp in perps:
+            for sign in (1, -1):
+                lines.append([tip, tip - head * direction + sign * half * perp])
+        return lines
+
+    lines = []
+    labels = []
+    for axis in arms:
+        tip = size * unit[axis]
+        others = [unit[o] for o in ("x", "y", "z") if o != axis]
+        lines.append([np.zeros(3), tip])
+        lines.extend(arrowhead(tip, unit[axis], others))
+        labels.append((1.2 * tip, axis))
+
+    if spin:
+        if "z" in arms:
+            radius, center = 0.28 * size, 0.55 * size * unit["z"]
+            t0, t1 = -0.4 * np.pi, 1.3 * np.pi
+            label = center + 0.55 * size * unit["y"]
+        else:
+            radius, center = 0.45 * size, np.zeros(3)
+            t0, t1 = 1.15 * np.pi, 2.65 * np.pi
+            label = center + 0.62 * size * (-unit["x"] + 0.4 * unit["y"])
+        theta = np.linspace(t0, t1, 40)
+        ring = [
+            center + radius * (np.cos(t) * unit["x"] + np.sin(t) * unit["y"])
+            for t in theta
+        ]
+        lines.append(ring)
+        tangent = -np.sin(t1) * unit["x"] + np.cos(t1) * unit["y"]
+        radial = np.cos(t1) * unit["x"] + np.sin(t1) * unit["y"]
+        lines.extend(arrowhead(ring[-1], tangent, (radial, unit["z"])))
+        labels.append((label, "ω"))
+
+    xs, ys, zs = [], [], []
+    for polyline in lines:
+        for point in polyline:
+            px, py, pz = to_scene(point)
+            xs.append(px)
+            ys.append(py)
+            zs.append(pz)
+        xs.append(None)
+        ys.append(None)
+        zs.append(None)
+
+    fig.add_trace(
+        go.Scatter3d(
+            x=xs,
+            y=ys,
+            z=zs,
+            mode="lines",
+            line=dict(color=ink, width=4),
+            name="Axes",
+            legendgroup="axes",
+            hoverinfo="skip",
+            showlegend=True,
+        )
+    )
+    positions = [to_scene(point) for point, _ in labels]
+    fig.add_trace(
+        go.Scatter3d(
+            x=[p[0] for p in positions],
+            y=[p[1] for p in positions],
+            z=[p[2] for p in positions],
+            mode="text",
+            text=[text for _, text in labels],
+            textfont=dict(color=ink, size=14),
+            textposition="middle center",
+            name="Axes",
+            legendgroup="axes",
+            hoverinfo="skip",
+            showlegend=False,
+        )
+    )
+
+    return fig
 
 
 pio.templates["ross"] = go.layout.Template(

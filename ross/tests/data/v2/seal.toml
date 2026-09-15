@@ -1,0 +1,22 @@
+[SealElement_seal]
+color = "#77ACA2"
+cxx = [ 10.0, 12.0,]
+cxy = [ 0, 0,]
+cyx = [ 0, 0,]
+cyy = [ 10.0, 12.0,]
+czz = [ 0, 0,]
+frequency = [ 100.0, 200.0,]
+kxx = [ 100000.0, 120000.0,]
+kxy = [ 0, 0,]
+kyx = [ 0, 0,]
+kyy = [ 100000.0, 120000.0,]
+kzz = [ 0, 0,]
+mxx = [ 0, 0,]
+mxy = [ 0, 0,]
+myx = [ 0, 0,]
+myy = [ 0, 0,]
+mzz = [ 0, 0,]
+n = 1
+scale_factor = 0.5
+seal_leakage = 0.1
+tag = "seal"

@@ -31,15 +31,17 @@ requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-# All the following settings are optional:
-where = ["."] 
-include = ["*", "ross.new_units.txt*"]  # ["*"] by default
-exclude = ["ross.tests*"]  # empty by default
+where = ["."]
+include = ["ross*"]
+# Discovery runs in namespace mode (no __init__.py needed, which ross/bearings/magnetic
+# and ross/benchmark rely on), so every folder at the repository root that holds a .py
+# file would otherwise ship as a top-level package: docs, tools, interface, a leftover
+# build/. Restricting `include` to "ross*" is what keeps them out of the wheel.
 
 [project]
 name = "ross-rotordynamics"
 dynamic = ["version", "dependencies"]
-requires-python = ">=3.9"
+requires-python = ">=3.12"
 authors = [
     {name = "ROSS developers"},
     {name = "Raphael Timbo Silva", email = "raphaelts@petrobras.com.br"}
@@ -55,10 +57,9 @@ classifiers = [
     "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Programming Language :: Python :: Implementation :: CPython",
 ]
 
@@ -70,6 +71,8 @@ version = {attr = "ross.__version__"}
     dev = [
         "pytest>=4.6",
         "pytest-cov",
+        "pytest-xdist",
+        "threadpoolctl",
         "coverage",
         "codecov",
         "sphinx",
@@ -84,9 +87,14 @@ version = {attr = "ross.__version__"}
         "ruff==0.16.3",
         "sphinx-design",
     ]
+    interface = [
+        "flask>=3.0",
+        "pyinstaller>=6",
+    ]
 
 [project.scripts]
 ross-install-skill = "ross.agent_skills.install:main"
+ross_2to3 = "ross.ross_2to3.cli:main"
 
 [project.urls]
 Homepage = "https://ross.readthedocs.io/"

@@ -262,9 +262,51 @@ python -m http.server
 
 After that you can access your local server (<http://0.0.0.0:8000/>) and see the generated docs.
 
+(supported-versions)=
+
+## Supported Python and dependency versions
+
+ROSS follows [SPEC 0](https://scientific-python.org/specs/spec-0000/), the
+time-based policy adopted across the scientific Python ecosystem, to decide
+which versions of Python and of its core dependencies each release supports:
+
+- Support for a Python version is dropped **3 years** after its initial
+  release.
+- Support for a core dependency version (NumPy, SciPy, pandas) is dropped
+  **2 years** after its initial release.
+
+All versions refer to feature releases (Python 3.12.0, NumPy 2.2.0), not to
+patch releases. The drop date is the initial release date plus the window. The
+[SPEC 0 schedule](https://scientific-python.org/specs/spec-0000/#support-window)
+lists the dates for every version.
+
+In practice, for every major or minor ROSS release:
+
+- `requires-python` in `pyproject.toml` is set to the oldest Python still in
+  the window, and the `Programming Language :: Python :: 3.x` classifiers list
+  exactly the supported minor versions.
+- The `numpy>=`, `scipy>=` and `pandas>=` lines in `requirements.txt` are set
+  to the oldest versions still in the window.
+- Every supported minor version of Python is in the test matrix of
+  `.github/workflows/test.yml`, on all three operating systems.
+- Dropping a version is stated in the release notes.
+
+Minimum versions are only raised on major and minor releases (3.0.0, 3.1.0),
+never on patch releases (3.0.1). A maintenance branch keeps the versions it
+was released with.
+
+Python releases a new minor version every October, so a release supports the
+three most recent Python minors, or four in the weeks after a new Python comes
+out. New Python versions are added to the test matrix as soon as the
+dependencies (numba in particular) publish wheels for them.
+
 ## Making new releases
 
 To make a new release, first we need to change the version in the __init__.py file.
+
+For a major or minor release, also review the supported Python and dependency versions
+(see {ref}`supported-versions`)
+and update `pyproject.toml`, `requirements.txt` and the test matrix accordingly.
 
 Release notes can be created using the ross-bott script.
 

@@ -88,18 +88,18 @@ class ST_BearingElement:
     >>> len(list(iter(elms)))
     10
 
-    # Uncertanties on bearing coefficients varying with frequency
+    # Uncertanties on bearing coefficients varying with speed
 
     >>> s = 5
     >>> kxx = [np.random.uniform(1e6, 2e6, s),
     ...        np.random.uniform(2.3e6, 3.3e6, s)]
     >>> cxx = [np.random.uniform(1e3, 2e3, s),
     ...        np.random.uniform(2.1e3, 3.1e3, s)]
-    >>> frequency = np.linspace(500, 800, len(kxx))
+    >>> speed = np.linspace(500, 800, len(kxx))
     >>> elms = srs.ST_BearingElement(n=1,
     ...                              kxx=kxx,
     ...                              cxx=cxx,
-    ...                              frequency=frequency,
+    ...                              speed=speed,
     ...                              is_random = ["kxx", "cxx"],
     ...                              )
     >>> len(list(iter(elms)))
@@ -122,14 +122,14 @@ class ST_BearingElement:
         myy=None,
         mxy=0,
         myx=0,
-        frequency=None,
+        speed=None,
         tag=None,
         n_link=None,
         scale_factor=1,
         is_random=None,
     ):
-        if "frequency" in is_random:
-            raise ValueError("frequency can not be a random variable")
+        if "speed" in is_random:
+            raise ValueError("speed can not be a random variable")
 
         if kyy is None:
             kyy = kxx
@@ -163,7 +163,7 @@ class ST_BearingElement:
             myy=myy,
             mxy=mxy,
             myx=myx,
-            frequency=frequency,
+            speed=speed,
             tag=tag,
             n_link=n_link,
             scale_factor=scale_factor,

@@ -2,6 +2,7 @@
 
 ```python
 import ross as rs
+
 rotor = rs.rotor_example()  # ready-to-use rotor for testing
 modal = rotor.run_modal(speed=0)
 print(modal.wn[:4])  # first 4 natural frequencies (rad/s)

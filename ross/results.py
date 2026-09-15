@@ -20,8 +20,13 @@ from prettytable import PrettyTable
 from scipy.fft import fft
 from pathlib import Path
 
+from ross.plotly_theme import (
+    SHAPE_3D_ASPECT,
+    axes_indicator_3d,
+    coolwarm_r,
+    tableau_colors,
+)
 from ross.bearings.magnetic.amb_utils import get_ambs
-from ross.plotly_theme import tableau_colors, coolwarm_r
 from ross.units import Q_, check_units
 from ross.utils import intersection, compute_dfft, compute_freq_resp
 
@@ -84,7 +89,7 @@ class Results(ABC):
         >>> response = rotor.run_unbalance_response(node=3,
         ...                                         unbalance_magnitude=0.001,
         ...                                         unbalance_phase=0.0,
-        ...                                         frequency=speed)
+        ...                                         speed_range=speed)
 
         >>> # create path for a temporary file
         >>> file = Path(tempdir) / 'unb_resp.toml'
@@ -549,7 +554,7 @@ class Shape(Results):
         orbits = []
         whirl = []
 
-        for node, node_pos in zip(self.nodes, self.nodes_pos):
+        for node, node_pos in zip(self.nodes, self.nodes_pos, strict=True):
             ru_e, rv_e = self._evec[self.number_dof * node : self.number_dof * node + 2]
             orbit = Orbit(node=node, node_pos=node_pos, ru_e=ru_e, rv_e=rv_e)
             orbits.append(orbit)
@@ -619,7 +624,9 @@ class Shape(Results):
                 n1 = get_node_index(j)
                 e1 = n1 - (j + 1)
 
-                for Le, n in zip(shaft_elements_length[e0:e1], nodes[n0:n1]):
+                for Le, n in zip(
+                    shaft_elements_length[e0:e1], nodes[n0:n1], strict=False
+                ):
                     node_pos = nodes_pos[n]
                     Nx = np.hstack((N1, Le * N2, N3, Le * N4))
                     Ny = np.hstack((N1, -Le * N2, N3, -Le * N4))
@@ -882,8 +889,8 @@ class Shape(Results):
                 for n in range(n0, n1):
                     node_data.append(
                         go.Scatter3d(
-                            x=[nodes_pos[n], zt[n]],
-                            y=[0, 0],
+                            y=[nodes_pos[n], zt[n]],
+                            x=[0, 0],
                             z=[0, 1],
                             mode="lines",
                             line=dict(width=2, color=self.color),
@@ -911,8 +918,8 @@ class Shape(Results):
 
                 node_data.append(
                     go.Scatter3d(
-                        x=xn,
-                        y=np.zeros(len(nodes_pos)),
+                        y=xn,
+                        x=np.zeros(len(nodes_pos)),
                         z=np.ones(len(nodes_pos)),
                         line=dict(width=2, color=self.color),
                         hoverinfo="none",
@@ -930,8 +937,8 @@ class Shape(Results):
 
         original = [
             go.Scatter3d(
-                x=nodes_pos,
-                y=nodes_pos * 0,
+                y=nodes_pos,
+                x=nodes_pos * 0,
                 z=nodes_pos * 0,
                 mode="markers",
                 marker=dict(size=3, color=tableau_colors["gray"]),
@@ -946,8 +953,8 @@ class Shape(Results):
         max_pos = max(nodes_pos) + 0.15 * abs(max(nodes_pos) - min(nodes_pos))
         center_line = [
             go.Scatter3d(
-                x=[min_pos, max_pos],
-                y=[0, 0],
+                y=[min_pos, max_pos],
+                x=[0, 0],
                 z=[0, 0],
                 mode="lines",
                 line=dict(color="black", dash="dashdot"),
@@ -960,7 +967,7 @@ class Shape(Results):
 
         fig.update_layout(
             scene=dict(
-                yaxis=dict(showticklabels=False),
+                xaxis=dict(showticklabels=False),
                 zaxis=dict(showticklabels=False),
             )
         )
@@ -1145,15 +1152,15 @@ class Shape(Results):
                 for n in range(n0, n1):
                     node_data.append(
                         go.Scatter3d(
-                            x=[nodes_pos[n], nodes_pos[n]],
-                            y=[0, xt[j, n]],
+                            y=[nodes_pos[n], nodes_pos[n]],
+                            x=[0, xt[j, n]],
                             z=[0, yt[j, n]],
                             mode="lines",
                             line=dict(width=2, color=self.color),
                             name=f"Node {self.nodes[n]}",
                             hovertemplate=(
-                                "Nodal position: %{x:.2f}<br>"
-                                + "X - Displacement: %{y:.2f}<br>"
+                                "Nodal position: %{y:.2f}<br>"
+                                + "X - Displacement: %{x:.2f}<br>"
                                 + "Y - Displacement: %{z:.2f}<br>"
                                 + f"Relative angle: {theta[n]:.2f}"
                             ),
@@ -1178,8 +1185,8 @@ class Shape(Results):
 
                 node_data.append(
                     go.Scatter3d(
-                        x=xn,
-                        y=yn,
+                        y=xn,
+                        x=yn,
                         z=zn,
                         line=dict(width=2, color=self.color),
                         hoverinfo="none",
@@ -1200,8 +1207,8 @@ class Shape(Results):
         max_pos = max(nodes_pos) + 0.15 * abs(max(nodes_pos) - min(nodes_pos))
         center_line = [
             go.Scatter3d(
-                x=[min_pos, max_pos],
-                y=[0, 0],
+                y=[min_pos, max_pos],
+                x=[0, 0],
                 z=[0, 0],
                 mode="lines",
                 line=dict(color="black", dash="dashdot"),
@@ -1426,16 +1433,16 @@ class Shape(Results):
                 # add orbit point
                 orbit_data.append(
                     go.Scatter3d(
-                        x=[zc_pos[i]],
-                        y=[orbit.x_circle[i]],
+                        y=[zc_pos[i]],
+                        x=[orbit.x_circle[i]],
                         z=[orbit.y_circle[i]],
                         mode="markers",
                         marker=dict(color=orbit.color),
                         name="node {}".format(orbit.node),
                         showlegend=False,
                         hovertemplate=(
-                            "Nodal Position: %{x:.2f}<br>"
-                            + "X - Displacement: %{y:.2f}<br>"
+                            "Nodal Position: %{y:.2f}<br>"
+                            + "X - Displacement: %{x:.2f}<br>"
                             + "Y - Displacement: %{z:.2f}"
                         ),
                     )
@@ -1444,16 +1451,16 @@ class Shape(Results):
                 if n > 0:
                     orbit_data.append(
                         go.Scatter3d(
-                            x=zc_pos[j],
-                            y=orbit.x_circle[j],
+                            y=zc_pos[j],
+                            x=orbit.x_circle[j],
                             z=orbit.y_circle[j],
                             mode="lines",
                             line=dict(color=orbit.color, dash="dashdot"),
                             name="node {}".format(orbit.node),
                             showlegend=False,
                             hovertemplate=(
-                                "Nodal Position: %{x:.2f}<br>"
-                                + "X - Displacement: %{y:.2f}<br>"
+                                "Nodal Position: %{y:.2f}<br>"
+                                + "X - Displacement: %{x:.2f}<br>"
                                 + "Y - Displacement: %{z:.2f}"
                             ),
                         )
@@ -1462,16 +1469,16 @@ class Shape(Results):
                 if n == 0:
                     orbit_data.append(
                         go.Scatter3d(
-                            x=zc_pos,
-                            y=orbit.x_circle,
+                            y=zc_pos,
+                            x=orbit.x_circle,
                             z=orbit.y_circle,
                             mode="lines",
                             line=dict(color=orbit.color),
                             name="node {}".format(orbit.node),
                             showlegend=False,
                             hovertemplate=(
-                                "Nodal Position: %{x:.2f}<br>"
-                                + "X - Displacement: %{y:.2f}<br>"
+                                "Nodal Position: %{y:.2f}<br>"
+                                + "X - Displacement: %{x:.2f}<br>"
                                 + "Y - Displacement: %{z:.2f}"
                             ),
                         )
@@ -1480,8 +1487,8 @@ class Shape(Results):
                     # add orbit major axis marker
                     fixed_lines.append(
                         go.Scatter3d(
-                            x=[zc_pos[0]],
-                            y=[orbit.major_x],
+                            y=[zc_pos[0]],
+                            x=[orbit.major_x],
                             z=[orbit.major_y],
                             mode="markers",
                             marker=dict(
@@ -1497,7 +1504,7 @@ class Shape(Results):
                                 ]
                             ).reshape(1, 2),
                             hovertemplate=(
-                                "Nodal Position: %{x:.2f}<br>"
+                                "Nodal Position: %{y:.2f}<br>"
                                 + "Major axis: %{customdata[0]:.2f}<br>"
                                 + "Angle: %{customdata[1]:.2f}"
                             ),
@@ -1520,8 +1527,8 @@ class Shape(Results):
             # plot line connecting orbits starting points
             fixed_lines.append(
                 go.Scatter3d(
-                    x=zn[n0:n1],
-                    y=xn[n0:n1],
+                    y=zn[n0:n1],
+                    x=xn[n0:n1],
                     z=yn[n0:n1],
                     mode="lines",
                     line=dict(color="black", dash="dash"),
@@ -1533,8 +1540,8 @@ class Shape(Results):
             # plot major axis line
             fixed_lines.append(
                 go.Scatter3d(
-                    x=zn[n0:n1],
-                    y=self.major_x[n0:n1],
+                    y=zn[n0:n1],
+                    x=self.major_x[n0:n1],
                     z=self.major_y[n0:n1],
                     mode="lines",
                     line=dict(color="black", dash="dashdot"),
@@ -1551,8 +1558,8 @@ class Shape(Results):
         max_pos = max(zn) + 0.15 * abs(max(zn) - min(zn))
         fixed_lines.append(
             go.Scatter3d(
-                x=[min_pos, max_pos],
-                y=[0, 0],
+                y=[min_pos, max_pos],
+                x=[0, 0],
                 z=[0, 0],
                 mode="lines",
                 line=dict(color="black", dash="dashdot"),
@@ -1605,6 +1612,46 @@ class Shape(Results):
 
         return fig
 
+    def _axes_indicator_3d(self, fig, length_units, half_range):
+        """Draw the rotor frame triad in a 3-D shape plot.
+
+        Shape plots lay the scene out as a rotation of the rotor frame (see
+        :py:meth:`plot_3d`): rotor x on the scene x axis, which runs
+        reversed, the rotor length on the scene y axis and rotor y on the
+        scene z axis. The triad sits on the rotor axis at z = 0 (or at the
+        first node when the rotor does not start there) and has a legend
+        entry which toggles it.
+
+        Parameters
+        ----------
+        fig : plotly.graph_objects.Figure
+            The figure object with the shape plot.
+        length_units : str
+            Length units of the scene y axis.
+        half_range : float
+            Half extent of the displacement axes.
+
+        Returns
+        -------
+        fig : plotly.graph_objects.Figure
+            The figure object with the triad.
+        """
+        nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
+        length = max(np.max(nodes_pos) - np.min(nodes_pos), 1e-12)
+        z0 = 0.0 if np.min(nodes_pos) <= 0.0 <= np.max(nodes_pos) else np.min(nodes_pos)
+        aspect = SHAPE_3D_ASPECT
+        return axes_indicator_3d(
+            fig,
+            origin=dict(x=0.0, y=z0, z=0.0),
+            size=0.15,
+            scales=dict(
+                x=2 * half_range / aspect["x"],
+                y=length / aspect["y"],
+                z=2 * half_range / aspect["z"],
+            ),
+            scene_axes={"x": "x", "y": "z", "z": "y"},
+        )
+
     def plot_3d(
         self,
         length_units="m",
@@ -1640,14 +1687,15 @@ class Shape(Results):
                 fig=fig,
             )
 
+        # the scene is a rotation of the rotor frame, never a mirror: rotor x
+        # runs on the scene x axis, reversed, the rotor length on the scene y
+        # axis and rotor y on the scene z axis. Laid out this way, plotly's
+        # own default camera, which the modebar "reset camera to default"
+        # returns to, shows node 0 at the far left with the shaft receding
+        # to the right and y up
         fig.update_layout(
             scene=dict(
-                aspectratio=dict(x=2.5, y=1, z=1),
-                camera=dict(
-                    eye=dict(x=2.3, y=1.5, z=0.5),
-                    center=dict(x=1.15, y=0.5, z=0),
-                    up=dict(x=0, y=0, z=1),
-                ),
+                aspectratio=SHAPE_3D_ASPECT,
             ),
             **kwargs,
         )
@@ -1743,6 +1791,12 @@ class ModalResults(Results):
         List of nodes positions.
     shaft_elements_length : list
         List with Rotor shaft elements lengths.
+    number_dof : int
+        Number of degrees of freedom per node.
+    whirl_frequency : array, optional
+        Whirl (excitation) frequency at which the frequency-dependent
+        coefficients were evaluated for each mode. Default is the rotor
+        speed for every mode (synchronous coefficients).
     """
 
     def __init__(
@@ -1759,6 +1813,7 @@ class ModalResults(Results):
         nodes_pos,
         shaft_elements_length,
         number_dof,
+        whirl_frequency=None,
     ):
         self.speed = speed
         self.evalues = evalues
@@ -1772,6 +1827,9 @@ class ModalResults(Results):
         self.nodes_pos = nodes_pos
         self.shaft_elements_length = shaft_elements_length
         self.number_dof = number_dof
+        if whirl_frequency is None:
+            whirl_frequency = np.full(len(wd), float(speed))
+        self.whirl_frequency = np.asarray(whirl_frequency, dtype=np.float64)
         self.update_mode_shapes()
 
     def update_mode_shapes(self):
@@ -2001,7 +2059,7 @@ class ModalResults(Results):
 
         table = PrettyTable()
         table.field_names = headers
-        for row in zip(range(len(wn)), wn, wd, damping_ratio, log_dec):
+        for row in zip(range(len(wn)), wn, wd, damping_ratio, log_dec, strict=True):
             table.add_row(row)
 
         return table
@@ -2096,27 +2154,23 @@ class ModalResults(Results):
             else f"{shape.mode_type} mode"
         )
 
+        fig = shape._axes_indicator_3d(fig, length_units, half_range=2)
+
         fig.update_layout(
             margin=dict(b=60, l=40, r=40, t=60),
             scene=dict(
                 xaxis=dict(
-                    title=dict(text=f"Rotor Length ({length_units})"),
-                    autorange="reversed",
-                    nticks=5,
+                    title=dict(text="Relative Displacement"), range=[2, -2], nticks=5
                 ),
                 yaxis=dict(
-                    title=dict(text="Relative Displacement"), range=[-2, 2], nticks=5
+                    title=dict(text=f"Rotor Length ({length_units})"),
+                    nticks=5,
                 ),
                 zaxis=dict(
                     title=dict(text="Relative Displacement"), range=[-2, 2], nticks=5
                 ),
                 aspectmode="manual",
-                aspectratio=dict(x=2.5, y=1, z=1),
-                camera=dict(
-                    eye=dict(x=2.3, y=1.5, z=0.5),
-                    center=dict(x=1.15, y=0.5, z=0),
-                    up=dict(x=0, y=0, z=1),
-                ),
+                aspectratio=SHAPE_3D_ASPECT,
             ),
             legend=dict(x=0.85, y=0.95),
             title=dict(
@@ -2273,8 +2327,8 @@ class ModalResults(Results):
             autosize=False,
             width=500,
             height=500,
-            xaxis_range=[-1, 1],
-            yaxis_range=[-1, 1],
+            xaxis=dict(range=[-1, 1], title=dict(text="<i>x</i>")),
+            yaxis=dict(range=[-1, 1], title=dict(text="<i>y</i>")),
             title={
                 "text": f"Mode {mode} - Nodes {nodes}",
                 "x": 0.5,
@@ -2499,7 +2553,7 @@ class CampbellResults(Results):
         if frequency_range is not None:
             crit_x_filtered = []
             crit_y_filtered = []
-            for x, y in zip(crit_x, crit_y):
+            for x, y in zip(crit_x, crit_y, strict=True):
                 if frequency_range[0] < y < frequency_range[1]:
                     crit_x_filtered.append(x)
                     crit_y_filtered.append(y)
@@ -2532,7 +2586,9 @@ class CampbellResults(Results):
         ]
         legends = ["Forward", "Mixed", "Backward", "Axial", "Torsional"]
 
-        for whirl_dir, mark, legend in zip(whirl_direction, scatter_marker, legends):
+        for whirl_dir, mark, legend in zip(
+            whirl_direction, scatter_marker, legends, strict=True
+        ):
             for i in range(num_frequencies):
                 w_i = wd[:, i]
                 whirl_i = whirl[:, i]
@@ -2594,7 +2650,7 @@ class CampbellResults(Results):
                 )
             )
         # turn legend glyphs black
-        for mark, legend in zip(scatter_marker, legends):
+        for mark, legend in zip(scatter_marker, legends, strict=True):
             fig.add_trace(
                 go.Scatter(
                     x=[0],
@@ -2683,9 +2739,11 @@ class CampbellResults(Results):
         damping_range : tuple, optional
             Damping range to plot.
         campbell_layout : dict, optional
-            Layout for Campbell plot.
+            Layout applied on top of the Campbell plot.
         mode_3d_layout : dict, optional
-            Layout for 3D mode plot.
+            Layout applied on top of the 3D mode shape figures. Default is None,
+            which keeps the view plot_mode_3d draws, so the modebar's "reset
+            camera" returns to the same picture.
         animation : bool, optional
             If True, enables animation.
         fig : plotly.graph_objects.Figure, optional
@@ -2835,8 +2893,6 @@ class CampbellResults(Results):
 
         campbell_layout = dict(margin=dict(l=0, r=0, t=30, b=0))
 
-        mode_3d_layout = dict(scene=dict(camera=dict(eye=dict(x=3.0, y=2.2, z=1.2))))
-
         camp_fig, update_mode_3d = self._plot_with_mode_shape(
             harmonics=harmonics,
             frequency_units=frequency_units,
@@ -2845,7 +2901,6 @@ class CampbellResults(Results):
             frequency_range=frequency_range,
             damping_range=damping_range,
             campbell_layout=campbell_layout,
-            mode_3d_layout=mode_3d_layout,
             animation=animation,
             fig=fig,
             **kwargs,
@@ -2942,7 +2997,7 @@ class FrequencyResponseResults(Results):
         frequency_units="rad/s",
         amplitude_units="m/N",
         fig=None,
-        line_shape="linear",
+        line_shape="spline",
         **mag_kwargs,
     ):
         """Plot frequency response (magnitude) using Plotly.
@@ -2976,7 +3031,7 @@ class FrequencyResponseResults(Results):
             The figure object with the plot.
         line_shape : str, optional
             Line interpolation style for the Plotly trace (e.g. "linear", "spline").
-            Default is "linear".
+            Default is "spline".
         mag_kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -3673,7 +3728,7 @@ class ForcedResponseResults(Results):
         frequency_units="rad/s",
         amplitude_units="m",
         fig=None,
-        line_shape="linear",
+        line_shape="spline",
         **kwargs,
     ):
         """Plot forced response (magnitude) using Plotly.
@@ -3704,7 +3759,7 @@ class ForcedResponseResults(Results):
             The figure object with the plot.
         line_shape : str, optional
             Line interpolation style for the Plotly trace (e.g. "linear", "spline").
-            Default is "linear".
+            Default is "spline".
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -4551,6 +4606,8 @@ class ForcedResponseResults(Results):
         if fig is None:
             fig = go.Figure()
 
+        plot_range = Q_(np.max(shape.major_axis) * 1.5, "m").to(amplitude_units).m
+        fig = shape._axes_indicator_3d(fig, rotor_length_units, plot_range)
         fig = shape.plot_3d(
             phase_units=phase_units, length_units=rotor_length_units, fig=fig
         )
@@ -4558,7 +4615,11 @@ class ForcedResponseResults(Results):
         # plot unbalance markers
         if unbalance is not None:
             for i, n, amplitude, phase in zip(
-                range(unbalance.shape[1]), unbalance[0], unbalance[1], unbalance[2]
+                range(unbalance.shape[1]),
+                unbalance[0],
+                unbalance[1],
+                unbalance[2],
+                strict=True,
             ):
                 # scale unbalance marker to half the maximum major axis
                 n = int(n)
@@ -4569,8 +4630,8 @@ class ForcedResponseResults(Results):
 
                 fig.add_trace(
                     go.Scatter3d(
-                        x=[z_pos, z_pos],
-                        y=[0, Q_(x, "m").to(amplitude_units).m],
+                        y=[z_pos, z_pos],
+                        x=[0, Q_(x, "m").to(amplitude_units).m],
                         z=[0, Q_(y, "m").to(amplitude_units).m],
                         mode="lines",
                         line=dict(color=tableau_colors["red"]),
@@ -4581,8 +4642,8 @@ class ForcedResponseResults(Results):
                 )
                 fig.add_trace(
                     go.Scatter3d(
-                        x=[z_pos],
-                        y=[Q_(x, "m").to(amplitude_units).m],
+                        y=[z_pos],
+                        x=[Q_(x, "m").to(amplitude_units).m],
                         z=[Q_(y, "m").to(amplitude_units).m],
                         mode="markers",
                         marker=dict(color=tableau_colors["red"], symbol="diamond"),
@@ -4607,17 +4668,15 @@ class ForcedResponseResults(Results):
             ),
         )
 
-        plot_range = Q_(np.max(shape.major_axis) * 1.5, "m").to(amplitude_units).m
         fig.update_layout(
             scene=dict(
                 xaxis=dict(
-                    title=dict(text=f"Rotor Length ({rotor_length_units})"),
-                    autorange="reversed",
+                    title=dict(text=f"Amplitude x ({amplitude_units})"),
+                    range=[plot_range, -plot_range],
                     nticks=5,
                 ),
                 yaxis=dict(
-                    title=dict(text=f"Amplitude x ({amplitude_units})"),
-                    range=[-plot_range, plot_range],
+                    title=dict(text=f"Rotor Length ({rotor_length_units})"),
                     nticks=5,
                 ),
                 zaxis=dict(
@@ -6369,8 +6428,8 @@ class UCSResults(Results):
     stiffness_log : tuple, optional
         Evenly numbers spaced evenly on a log scale to create a better visualization
         (see np.logspace).
-    bearing_frequency_range : tuple, optional
-        The bearing frequency range used to calculate the intersection points.
+    bearing_speed_range : tuple, optional
+        The bearing speed range used to calculate the intersection points.
         In some cases bearing coefficients will have to be extrapolated.
         The default is None. In this case the bearing frequency attribute is used.
     wn : array
@@ -6388,7 +6447,7 @@ class UCSResults(Results):
         self,
         stiffness_range,
         stiffness_log,
-        bearing_frequency_range,
+        bearing_speed_range,
         wn,
         bearing,
         intersection_points,
@@ -6396,7 +6455,7 @@ class UCSResults(Results):
     ):
         self.stiffness_range = stiffness_range
         self.stiffness_log = stiffness_log
-        self.bearing_frequency_range = bearing_frequency_range
+        self.bearing_speed_range = bearing_speed_range
         self.wn = wn
         self.critical_points_modal = critical_points_modal
         self.bearing = bearing
@@ -6440,7 +6499,7 @@ class UCSResults(Results):
         rotor_wn = self.wn
         bearing0 = self.bearing
         intersection_points = copy.copy(self.intersection_points)
-        bearing_frequency_range = self.bearing_frequency_range
+        bearing_speed_range = self.bearing_speed_range
 
         if fig is None:
             fig = go.Figure()
@@ -6455,16 +6514,16 @@ class UCSResults(Results):
             Q_(intersection_points["y"], "rad/s").to(frequency_units).m
         )
         bearing_kxx_stiffness = (
-            Q_(bearing0.kxx_interpolated(bearing_frequency_range), "N/m")
+            Q_(bearing0.kxx_interpolated(bearing_speed_range), "N/m")
             .to(stiffness_units)
             .m
         )
         bearing_kyy_stiffness = (
-            Q_(bearing0.kyy_interpolated(bearing_frequency_range), "N/m")
+            Q_(bearing0.kyy_interpolated(bearing_speed_range), "N/m")
             .to(stiffness_units)
             .m
         )
-        bearing_frequency = Q_(bearing_frequency_range, "rad/s").to(frequency_units).m
+        bearing_frequency = Q_(bearing_speed_range, "rad/s").to(frequency_units).m
 
         for j in range(rotor_wn.shape[0]):
             fig.add_trace(
@@ -7945,52 +8004,197 @@ class SensitivityResults(Results):
 
 
 class ClearanceResults(Results):
-    """Results for clearance analysis.
+    """Results of the API 617 close-clearance check.
 
-    Stores vibration amplitudes at bearing locations and compares them with
-    bearing radial clearance limits. Inherits :class:`Results` for ``save`` /
-    ``load`` like other analysis result types.
+    Produced by :meth:`ross.Rotor.run_clearance_analysis`. Amplitudes are
+    stored in metres, peak to peak, and clearances are diametral, in metres.
+    The summary table and the plots convert them with ``length_units``.
 
     Parameters
     ----------
-    speed_rpm : float
-        Rotor speed in RPM.
-    bearing_nodes : list
-        List of bearing node numbers.
-    magnitudes : ndarray
-        Peak-to-peak vibration amplitudes (microns).
-    clearance : ndarray
-        Radial clearance (microns).
-    clearance_75 : ndarray
-        75% of radial clearance (microns).
+    speed_range : array
+        Rotor speeds of the unbalance response (rad/s).
+    minimum_allowable_speed : float
+        Minimum allowable speed (rad/s).
+    maximum_continuous_speed : float
+        Maximum continuous speed (rad/s).
+    unbalance_node : list
+        Nodes where the unbalance was applied.
+    unbalance_magnitude : list
+        Unbalance magnitudes (kg·m).
+    unbalance_phase : list
+        Unbalance phases (rad).
+    probe_tags : list
+        Tag of each vibration probe.
+    probe_nodes : list
+        Node of each vibration probe.
+    probe_angles : list
+        Orientation of each vibration probe (rad).
+    probe_response : array
+        Peak-to-peak amplitude at each probe, shape ``(n_probes, n_speeds)`` (m).
+    vibration_limit : float
+        Mechanical test vibration limit :math:`A_{vl}`, peak to peak (m).
+    max_probe_amplitude : float
+        Largest probe amplitude :math:`A_{max}` in the operating speed range,
+        peak to peak (m).
+    scale_factor : float
+        Scale factor :math:`S_{cc}` applied to the close-clearance response.
+    clearance_tags : list
+        Tag of each close-clearance location.
+    clearance_nodes : list
+        Node of each close-clearance location.
+    clearance_positions : list
+        Axial position of each close-clearance location (m).
+    diametral_clearance : array
+        Minimum diametral clearance at each location (m).
+    clearance_response : array
+        Scaled major-axis peak-to-peak amplitude at each location, shape
+        ``(n_locations, n_speeds)`` (m).
+    scale_factor_cap : float, optional
+        Upper limit applied to the scale factor. Default is None.
+    mode : int, optional
+        Forward mode index used to place the unbalance, or None when the
+        unbalance was given explicitly. Default is None.
+    mode_index : int, optional
+        Index of that mode in the modal results. Default is None.
+    mode_frequency : float, optional
+        Damped natural frequency of that mode (rad/s). Default is None.
     """
 
-    def __init__(self, speed_rpm, bearing_nodes, magnitudes, clearance, clearance_75):
-        self.speed_rpm = speed_rpm
-        self.bearing_nodes = bearing_nodes
-        self.magnitudes = magnitudes
-        self.clearance = clearance
-        self.clearance_75 = clearance_75
+    def __init__(
+        self,
+        speed_range,
+        minimum_allowable_speed,
+        maximum_continuous_speed,
+        unbalance_node,
+        unbalance_magnitude,
+        unbalance_phase,
+        probe_tags,
+        probe_nodes,
+        probe_angles,
+        probe_response,
+        vibration_limit,
+        max_probe_amplitude,
+        scale_factor,
+        clearance_tags,
+        clearance_nodes,
+        clearance_positions,
+        diametral_clearance,
+        clearance_response,
+        scale_factor_cap=None,
+        mode=None,
+        mode_index=None,
+        mode_frequency=None,
+    ):
+        self.speed_range = np.asarray(speed_range, dtype=float)
+        self.minimum_allowable_speed = float(minimum_allowable_speed)
+        self.maximum_continuous_speed = float(maximum_continuous_speed)
+        self.unbalance_node = [int(n) for n in np.atleast_1d(unbalance_node)]
+        self.unbalance_magnitude = [
+            float(m) for m in np.atleast_1d(unbalance_magnitude)
+        ]
+        self.unbalance_phase = [float(p) for p in np.atleast_1d(unbalance_phase)]
+        self.probe_tags = [str(tag) for tag in probe_tags]
+        self.probe_nodes = [int(n) for n in np.atleast_1d(probe_nodes)]
+        self.probe_angles = [float(a) for a in np.atleast_1d(probe_angles)]
+        self.probe_response = np.atleast_2d(np.asarray(probe_response, dtype=float))
+        self.vibration_limit = float(vibration_limit)
+        self.max_probe_amplitude = float(max_probe_amplitude)
+        self.scale_factor = float(scale_factor)
+        self.clearance_tags = [str(tag) for tag in clearance_tags]
+        self.clearance_nodes = [int(n) for n in np.atleast_1d(clearance_nodes)]
+        self.clearance_positions = [
+            float(p) for p in np.atleast_1d(clearance_positions)
+        ]
+        self.diametral_clearance = np.asarray(diametral_clearance, dtype=float)
+        self.clearance_response = np.atleast_2d(
+            np.asarray(clearance_response, dtype=float)
+        )
+        self.scale_factor_cap = (
+            None if scale_factor_cap is None else float(scale_factor_cap)
+        )
+        self.mode = None if mode is None else int(mode)
+        self.mode_index = None if mode_index is None else int(mode_index)
+        self.mode_frequency = None if mode_frequency is None else float(mode_frequency)
 
-    def __getitem__(self, key):
-        """Enable dict-like access for backward compatibility."""
-        mapping = {
-            "speed_rpm": self.speed_rpm,
-            "bearing_nodes": self.bearing_nodes,
-            "magnitudes": self.magnitudes,
-            "clearance": self.clearance,
-            "clearance_75": self.clearance_75,
-        }
-        return mapping[key]
+    @property
+    def clearance_limit(self):
+        """75 % of the minimum diametral clearance at each location (m)."""
+        return 0.75 * self.diametral_clearance
 
-    def plot(self, fig=None, **kwargs):
-        """
-        Plot vibration response against clearance limits.
+    @property
+    def max_clearance_response(self):
+        """Largest scaled peak-to-peak amplitude at each location (m)."""
+        return self.clearance_response.max(axis=1)
+
+    @property
+    def speed_at_max_response(self):
+        """Speed at which each location reaches its largest amplitude (rad/s)."""
+        return self.speed_range[self.clearance_response.argmax(axis=1)]
+
+    @property
+    def passed(self):
+        """Whether each location stays below 75 % of the diametral clearance."""
+        return self.max_clearance_response < self.clearance_limit
+
+    def _location_labels(self):
+        return [
+            tag if tag not in ("None", "") else f"Node {node}"
+            for tag, node in zip(self.clearance_tags, self.clearance_nodes, strict=True)
+        ]
+
+    def data(self, length_units="um", speed_units="RPM"):
+        """Return the clearance check for each location in DataFrame format.
 
         Parameters
         ----------
+        length_units : str, optional
+            Units for amplitudes (peak to peak) and clearances (diametral).
+            Default is "um".
+        speed_units : str, optional
+            Units for the speed at which the largest amplitude occurs.
+            Default is "RPM".
+
+        Returns
+        -------
+        df : pd.DataFrame
+            One row per close-clearance location.
+        """
+        to_length = lambda value: Q_(value, "m").to(length_units).m
+        speed = Q_(self.speed_at_max_response, "rad/s").to(speed_units).m
+        limit = self.clearance_limit
+        max_response = self.max_clearance_response
+
+        return pd.DataFrame(
+            {
+                "tag": self._location_labels(),
+                "node": self.clearance_nodes,
+                "position (m)": self.clearance_positions,
+                f"diametral clearance ({length_units})": to_length(
+                    self.diametral_clearance
+                ),
+                f"limit 75% ({length_units})": to_length(limit),
+                f"max amplitude pp ({length_units})": to_length(max_response),
+                f"speed at max ({speed_units})": speed,
+                "% of limit": 100 * max_response / limit,
+                "status": np.where(self.passed, "OK", "EXCEEDED"),
+            }
+        )
+
+    def plot(self, length_units="um", fig=None, **kwargs):
+        """Plot the scaled response against the clearance at each location.
+
+        Each location shows the minimum diametral clearance, the 75 % limit and
+        the largest scaled peak-to-peak amplitude over the speed range, with the
+        amplitude as a percentage of the limit.
+
+        Parameters
+        ----------
+        length_units : str, optional
+            Units for amplitudes (peak to peak) and clearances (diametral).
+            Default is "um".
         fig : plotly.graph_objects.Figure, optional
-            Existing figure to add traces to.
+            Figure to add traces to.
         **kwargs : optional
             Additional layout arguments.
 
@@ -7998,95 +8202,241 @@ class ClearanceResults(Results):
         -------
         fig : plotly.graph_objects.Figure
         """
-        import numpy as np
-        import plotly.graph_objects as go
-
         if fig is None:
             fig = go.Figure()
 
-        spacing = 4
-        x_positions = [i * spacing for i in range(len(self.bearing_nodes))]
-        x_labels = [str(n) for n in self.bearing_nodes]
+        labels = self._location_labels()
+        to_length = lambda value: Q_(value, "m").to(length_units).m
+        clearance = to_length(self.diametral_clearance)
+        limit = to_length(self.clearance_limit)
+        response = to_length(self.max_clearance_response)
+        percent_limit = 100 * self.max_clearance_response / self.clearance_limit
+        percent_clearance = 100 * self.max_clearance_response / self.diametral_clearance
 
-        # --- Background: Clearance 100%
         fig.add_trace(
             go.Bar(
-                x=x_positions,
-                y=self.clearance,
-                name="Radial Clearance Limit (100%)",
-                marker_color="red",
-                width=0.2,
-                hovertemplate="Clearance: %{y:.1f} µm<extra></extra>",
-                showlegend=True,
-                marker={"line": {"width": 0}},
+                x=labels,
+                y=clearance,
+                name="Min. diametral clearance",
+                marker_color=tableau_colors["red"],
+                opacity=0.6,
+                hovertemplate=f"Clearance: %{{y:.1f}} {length_units}<extra></extra>",
             )
         )
-
-        # --- Background: Clearance 75%
         fig.add_trace(
             go.Bar(
-                x=x_positions,
-                y=self.clearance_75,
-                name="Alert Level (75%)",
-                marker_color="blue",
-                width=0.2,
-                hovertemplate="75% Limit: %{y:.1f} µm<extra></extra>",
-                showlegend=True,
-                marker={"line": {"width": 0}},
+                x=labels,
+                y=limit,
+                name="75% of clearance",
+                marker_color=tableau_colors["blue"],
+                opacity=0.8,
+                hovertemplate=f"Limit: %{{y:.1f}} {length_units}<extra></extra>",
             )
         )
-
-        # Percent of radial clearance limit used (vibration / limit × 100).
-        mag = np.asarray(self.magnitudes, dtype=float)
-        lim100 = np.asarray(self.clearance, dtype=float)
-        lim75 = np.asarray(self.clearance_75, dtype=float)
-        per_clr = np.full_like(mag, np.nan, dtype=float)
-        per_clr_75 = np.full_like(mag, np.nan, dtype=float)
-        ok100 = np.isfinite(mag) & np.isfinite(lim100) & (lim100 > 0)
-        ok75 = np.isfinite(mag) & np.isfinite(lim75) & (lim75 > 0)
-        per_clr[ok100] = 100.0 * mag[ok100] / lim100[ok100]
-        per_clr_75[ok75] = 100.0 * mag[ok75] / lim75[ok75]
-
-        def _pct_label(x):
-            return f"{x:.1f}%" if np.isfinite(x) else "—"
-
-        # --- Vibration response
         fig.add_trace(
             go.Scatter(
-                x=x_positions,
-                y=self.magnitudes,
+                x=labels,
+                y=response,
                 mode="lines+markers+text",
+                name="Scaled amplitude (pk-pk)",
                 text=[
-                    f"{_pct_label(c75)}<br>{_pct_label(c100)}"
-                    for c75, c100 in zip(per_clr_75, per_clr)
+                    f"{pl:.1f}% / {pc:.1f}%"
+                    for pl, pc in zip(percent_limit, percent_clearance, strict=True)
                 ],
-                textposition="top left",
-                name=f"Vibration ({self.speed_rpm:.1f} RPM)",
-                line={"shape": "spline", "color": "purple", "width": 3},
-                marker={"size": 6},
-                hovertemplate="Amplitude: %{y:.2f} µm pkpk<extra></extra>",
+                textposition="top center",
+                line={"color": tableau_colors["purple"], "width": 3},
+                marker={"size": 8},
+                hovertemplate=(
+                    f"Amplitude: %{{y:.1f}} {length_units} pk-pk<br>"
+                    "%{text} of limit / clearance<extra></extra>"
+                ),
             )
         )
 
         fig.update_layout(
-            title="Vibration Response vs Bearing Clearance",
-            xaxis_title="Station (Node)",
-            yaxis_title="Amplitude / Clearance [µm]",
+            title=(
+                f"Close-clearance check (Scc = {self.scale_factor:.2f}, "
+                f"Avl = {to_length(self.vibration_limit):.1f} {length_units} pk-pk, "
+                f"Amax = {to_length(self.max_probe_amplitude):.1f} {length_units} pk-pk)"
+            ),
+            xaxis_title="Close-clearance location",
+            yaxis_title=f"Amplitude pk-pk / diametral clearance ({length_units})",
             barmode="overlay",
             hovermode="x unified",
-            plot_bgcolor="white",
-            legend={"orientation": "h", "y": 1.05},
-            xaxis=dict(
-                tickmode="array",
-                tickvals=x_positions,
-                ticktext=x_labels,
-                type="category",
-            ),
-            yaxis=dict(showgrid=True, gridcolor="lightgray"),
+            legend={"orientation": "h", "y": 1.08},
             **kwargs,
         )
 
         return fig
+
+    def plot_response(
+        self,
+        length_units="um",
+        speed_units="RPM",
+        fig=None,
+        line_shape="spline",
+        **kwargs,
+    ):
+        """Plot the scaled response at each location against the rotor speed.
+
+        The 75 % clearance limit of each location is drawn as a dashed line in
+        the same color, and the operating speed range is shaded.
+
+        Parameters
+        ----------
+        length_units : str, optional
+            Units for amplitudes (peak to peak) and clearances (diametral).
+            Default is "um".
+        speed_units : str, optional
+            Units for the rotor speed. Default is "RPM".
+        fig : plotly.graph_objects.Figure, optional
+            Figure to add traces to.
+        line_shape : str, optional
+            Line interpolation style for the Plotly traces (e.g. "linear", "spline").
+            Default is "spline".
+        **kwargs : optional
+            Additional layout arguments.
+
+        Returns
+        -------
+        fig : plotly.graph_objects.Figure
+        """
+        if fig is None:
+            fig = go.Figure()
+
+        speed = Q_(self.speed_range, "rad/s").to(speed_units).m
+        to_length = lambda value: Q_(value, "m").to(length_units).m
+        colors = list(tableau_colors.values())
+
+        for i, label in enumerate(self._location_labels()):
+            color = colors[i % len(colors)]
+            fig.add_trace(
+                go.Scatter(
+                    x=speed,
+                    y=to_length(self.clearance_response[i]),
+                    mode="lines",
+                    name=label,
+                    legendgroup=label,
+                    line={"color": color, "shape": line_shape},
+                    hovertemplate=(
+                        f"{label}<br>Speed: %{{x:.0f}} {speed_units}<br>"
+                        f"Amplitude: %{{y:.1f}} {length_units} pk-pk<extra></extra>"
+                    ),
+                )
+            )
+            fig.add_trace(
+                go.Scatter(
+                    x=[speed[0], speed[-1]],
+                    y=[to_length(self.clearance_limit[i])] * 2,
+                    mode="lines",
+                    name=f"{label} limit",
+                    legendgroup=label,
+                    showlegend=False,
+                    line={"color": color, "dash": "dash"},
+                    hovertemplate=(
+                        f"{label} limit: %{{y:.1f}} {length_units}<extra></extra>"
+                    ),
+                )
+            )
+
+        self._add_operating_range(fig, speed_units)
+        fig.update_layout(
+            title=f"Scaled close-clearance response (Scc = {self.scale_factor:.2f})",
+            xaxis_title=f"Speed ({speed_units})",
+            yaxis_title=f"Amplitude pk-pk ({length_units})",
+            **kwargs,
+        )
+
+        return fig
+
+    def plot_probe_response(
+        self,
+        length_units="um",
+        speed_units="RPM",
+        fig=None,
+        line_shape="spline",
+        **kwargs,
+    ):
+        """Plot the unscaled probe response with the vibration limit.
+
+        Reproduces API 617 Figure 4: the peak-to-peak response at each probe,
+        the vibration limit :math:`A_{vl}` and the operating speed range over
+        which :math:`A_{max}` is taken.
+
+        Parameters
+        ----------
+        length_units : str, optional
+            Units for the amplitudes (peak to peak). Default is "um".
+        speed_units : str, optional
+            Units for the rotor speed. Default is "RPM".
+        fig : plotly.graph_objects.Figure, optional
+            Figure to add traces to.
+        line_shape : str, optional
+            Line interpolation style for the Plotly traces (e.g. "linear", "spline").
+            Default is "spline".
+        **kwargs : optional
+            Additional layout arguments.
+
+        Returns
+        -------
+        fig : plotly.graph_objects.Figure
+        """
+        if fig is None:
+            fig = go.Figure()
+
+        speed = Q_(self.speed_range, "rad/s").to(speed_units).m
+        to_length = lambda value: Q_(value, "m").to(length_units).m
+
+        for tag, response in zip(self.probe_tags, self.probe_response, strict=True):
+            fig.add_trace(
+                go.Scatter(
+                    x=speed,
+                    y=to_length(response),
+                    mode="lines",
+                    name=tag,
+                    line={"shape": line_shape},
+                    hovertemplate=(
+                        f"{tag}<br>Speed: %{{x:.0f}} {speed_units}<br>"
+                        f"Amplitude: %{{y:.1f}} {length_units} pk-pk<extra></extra>"
+                    ),
+                )
+            )
+        fig.add_trace(
+            go.Scatter(
+                x=[speed[0], speed[-1]],
+                y=[to_length(self.vibration_limit)] * 2,
+                mode="lines",
+                name="Avl",
+                line={"color": tableau_colors["red"], "dash": "dash"},
+                hovertemplate=f"Avl: %{{y:.1f}} {length_units} pk-pk<extra></extra>",
+            )
+        )
+
+        self._add_operating_range(fig, speed_units)
+        fig.update_layout(
+            title=(
+                f"Probe response (Amax = {to_length(self.max_probe_amplitude):.1f} "
+                f"{length_units} pk-pk)"
+            ),
+            xaxis_title=f"Speed ({speed_units})",
+            yaxis_title=f"Amplitude pk-pk ({length_units})",
+            **kwargs,
+        )
+
+        return fig
+
+    def _add_operating_range(self, fig, speed_units):
+        minimum = Q_(self.minimum_allowable_speed, "rad/s").to(speed_units).m
+        maximum = Q_(self.maximum_continuous_speed, "rad/s").to(speed_units).m
+        fig.add_vrect(
+            x0=minimum,
+            x1=maximum,
+            fillcolor=tableau_colors["gray"],
+            opacity=0.15,
+            line_width=0,
+            annotation_text="Nma - Nmc",
+            annotation_position="top left",
+        )
 
 
 class AmbNonCollocationResults(Results):

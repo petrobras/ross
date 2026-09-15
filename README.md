@@ -37,6 +37,12 @@ The skill activates automatically whenever you ask your agent about rotordynamic
 /ross create a rotor with 6 shaft elements, 2 disks and 2 bearings, then plot the Campbell diagram
 ```
 
+Upgrading from ROSS 2? Version 3 renamed the bearing and seal parameters. Convert your saved rotors, scripts and notebooks with:
+```bash
+ross_2to3 my_rotor.toml analysis.py     # preview
+ross_2to3 -w my_rotor.toml analysis.py  # rewrite in place (keeps .bak copies)
+```
+
 ## 📚 Documentation
 
 Access full documentation [**here**](https://ross.readthedocs.io).
@@ -52,7 +58,7 @@ Key sections:
 ROSS supports AI-assisted workflows in two ways:
 
 - **In your coding agent** — the ROSS agent skill ([Agent Skills](https://agentskills.io) open standard) teaches Claude Code, GitHub Copilot, Cursor, and Codex how to build rotor models and run analyses. Install it with `ross-install-skill` (see Quick Start above); in Claude Code, invoke it explicitly with `/ross`.
-- **In your browser** — [**ROSS GPT**](https://chatgpt.com/g/g-6a0776b675588191a111daf172ecfcfe-ross-gpt-2-0) is the official chat assistant for the ROSS package. Use it to create and modify rotor models, request practical examples for modal analysis, Campbell diagrams, unbalance response, and more, and get detailed technical explanations on elements such as shafts, disks, bearings, and couplings.
+- **In your browser** — [**ROSS GPT**](https://chatgpt.com/g/g-6838c48fbfa081918b61d77b997fdc33-ross-gpt) is the official chat assistant for the ROSS package. Use it to create and modify rotor models, request practical examples for modal analysis, Campbell diagrams, unbalance response, and more, and get detailed technical explanations on elements such as shafts, disks, bearings, and couplings.
 
 ## ❓ Support & Questions
 

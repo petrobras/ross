@@ -15,7 +15,10 @@ disks = [
     rs.DiskElement.from_geometry(n=2, material=steel, width=0.07, i_d=0.05, o_d=0.28),
     rs.DiskElement.from_geometry(n=4, material=steel, width=0.07, i_d=0.05, o_d=0.35),
 ]
-bearings = [rs.BearingElement(n=0, kxx=1e6, cxx=0), rs.BearingElement(n=6, kxx=1e6, cxx=0)]
+bearings = [
+    rs.BearingElement(n=0, kxx=1e6, cxx=0),
+    rs.BearingElement(n=6, kxx=1e6, cxx=0),
+]
 rotor = rs.Rotor(shaft, disks, bearings)
 modal = rotor.run_modal(speed=0)
 modal.plot_mode_2d(0)
@@ -40,6 +43,7 @@ modal.plot_mode_2d(0)
 | `run_crack(...)` | Crack fault analysis | `TimeResponseResults` | same as above | [faults](ross/agent_skills/ross/faults.md) |
 | `run_harmonic_balance_response(...)` | Harmonic balance steady-state | `HarmonicBalanceResults` | `plot()` | — |
 | `run_amb_sensitivity(...)` | AMB sensitivity analysis | `SensitivityResults` | `plot()`, `plot_time_results()` | — |
+| `run_clearance_analysis(speed_range, Nma, Nmc, probes, ...)` | API 617 close-clearance check | `ClearanceResults` | `plot()`, `plot_response()`, `plot_probe_response()` | [clearance_analysis](ross/agent_skills/ross/clearance_analysis.md) |
 
 ### Units
 
@@ -102,13 +106,19 @@ pip install -e ".[dev]"    # development install with test/lint/docs deps
 
 Requires Python >= 3.9.
 
+### Migrating ROSS 2 assets
+
+`ross_2to3 PATH...` (module `ross/ross_2to3/`) converts v2 rotor files, scripts and notebooks to the v3 API. The rename map in `ross/ross_2to3/renames.py` is the single source of truth: a rename added there is converted by the tool and must appear in `docs/release_notes/version-3.0.0.rst` (checked by `test_ross_2to3.py`).
+
 ### Testing
 
 ```bash
 pytest ross                 # run from repo root
+pytest ross -n auto         # parallel with pytest-xdist (dev extra)
 ```
 
 - Doctests enabled via `--doctest-modules` (configured in `pytest.ini`)
+- `ross/conftest.py` caps the numpy and scipy BLAS thread pools to one thread per process; without it xdist workers oversubscribe the cores and the fluid-film bearing tests run about 20x slower
 - Tests live in `ross/tests/`, one file per module (e.g. `test_shaft_element.py`, `test_rotor_assembly.py`)
 - **No test classes** — all tests are plain functions (`def test_*():`)
 - Shared setup goes in `@pytest.fixture` functions at the top of the file

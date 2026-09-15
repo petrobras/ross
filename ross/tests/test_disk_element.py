@@ -105,7 +105,9 @@ def test_gyroscopic_matrix_disk1(disk_from_geometry):
 
 def test_from_table():
     for file_name in ["/data/shaft_us.xls", "/data/shaft_si.xls"]:
-        file_name = os.path.dirname(os.path.realpath(__file__)) + file_name
+        file_name = (
+            os.path.dirname(os.path.dirname(os.path.realpath(__file__))) + file_name
+        )
         disks = DiskElement.from_table(file_name, sheet_name="More")
 
         assert_allclose(disks[1].m, 6.90999178227835)

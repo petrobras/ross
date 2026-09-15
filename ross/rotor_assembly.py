@@ -19,6 +19,7 @@ from scipy.signal import chirp
 from scipy.sparse import linalg as las
 
 from ross.bearing_seal_element import (
+    MIN_RECOMMENDED_AXIS_POINTS,
     BallBearingElement,
     BearingElement,
     CylindricalBearing,
@@ -45,7 +46,7 @@ from ross.disk_element import DiskElement
 from ross.faults import Crack, MisalignmentFlex, MisalignmentRigid, Rubbing
 from ross.materials import Material, steel
 from ross.model_reduction import ModelReduction
-from ross.plotly_theme import color_shades
+from ross.plotly_theme import axes_indicator_2d, color_shades
 from ross.point_mass import PointMass
 from ross.probe import Probe
 from ross.results import (
@@ -56,6 +57,7 @@ from ross.results import (
     FrequencyResponseResults,
     Level1Results,
     ModalResults,
+    Orbit,
     SensitivityResults,
     StaticResults,
     SummaryResults,
@@ -143,7 +145,7 @@ def _shaft_envelope(spans, columns=300):
     target = (bounds[-1] - bounds[0]) / columns
 
     centers = []
-    for start, end in zip(bounds[:-1], bounds[1:]):
+    for start, end in zip(bounds[:-1], bounds[1:], strict=True):
         segment = end - start
         if segment < 8 * eps:
             continue
@@ -197,6 +199,9 @@ def _cylinder_shading(relative_radius):
     shading[u > 1] = np.nan
 
     return shading
+
+
+FORWARD_WHIRL_RATIO = 0.25
 
 
 class Rotor(object):
@@ -289,7 +294,19 @@ class Rotor(object):
         beta=0.0,
         tag=None,
     ):
-        self.parameters = {"min_w": min_w, "max_w": max_w, "rated_w": rated_w}
+        self.parameters = {
+            "min_w": min_w,
+            "max_w": max_w,
+            "rated_w": rated_w,
+            "modal_damping_ratio": (
+                None
+                if modal_damping_ratio is None
+                else [float(xi) for xi in np.atleast_1d(modal_damping_ratio)]
+            ),
+            "default_damping_ratio": float(default_damping_ratio),
+            "alpha": float(alpha) if alpha is not None else 0.0,
+            "beta": float(beta) if beta is not None else 0.0,
+        }
 
         self.set_tag(tag)
 
@@ -1237,7 +1254,17 @@ class Rotor(object):
 
     @lru_cache()
     @check_units
-    def run_modal(self, speed, num_modes=12, sparse=True, synchronous=False):
+    def run_modal(
+        self,
+        speed,
+        num_modes=12,
+        sparse=True,
+        synchronous=False,
+        frequency=None,
+        matched_whirl=False,
+        whirl_rtol=1e-3,
+        whirl_max_iter=15,
+    ):
         """Run modal analysis.
 
         Method to calculate eigenvalues and eigenvectors for a given rotor system.
@@ -1247,6 +1274,16 @@ class Rotor(object):
         ratios are returned.
         This method will return a ModalResults object which stores all data generated
         and also provides methods for plotting.
+
+        By default the speed and frequency dependent bearing and seal
+        coefficients are evaluated at the rotor speed (synchronous whirl). For
+        elements whose coefficients depend on the excitation (whirl) frequency,
+        e.g. seals with a 2-D (speed, frequency) table, the ``frequency``
+        argument evaluates the coefficients at a fixed whirl frequency, and
+        ``matched_whirl=True`` iterates each mode so that its coefficients are
+        evaluated at the mode's own damped natural frequency. Neither option
+        is related to the ``synchronous`` flag, which selects Rouch's
+        formulation for a synchronous analysis.
 
         Available plotting methods:
             .plot_mode_2d()
@@ -1270,8 +1307,29 @@ class Rotor(object):
             eigenvectors.
             Default is True.
         synchronous : bool, optional
-            If True a synchronous analysis is carried out.
+            If True a synchronous analysis is carried out (the gyroscopic
+            matrix is folded into the mass matrix, Rouch's formulation).
             Default is False.
+        frequency : float, pint.Quantity, optional
+            Excitation (whirl) frequency (rad/s) at which the
+            frequency-dependent coefficients are evaluated, while the
+            gyroscopic effect still uses the rotor speed. Mutually exclusive
+            with ``matched_whirl``.
+            Default is None (synchronous coefficients: frequency = speed).
+        matched_whirl : bool, optional
+            If True, each mode is iterated until the whirl frequency at which
+            its coefficients are evaluated matches the mode's damped natural
+            frequency (a fixed-point solution of the nonlinear eigenvalue
+            problem). The converged whirl frequencies are stored in
+            ``ModalResults.whirl_frequency``.
+            Default is False.
+        whirl_rtol : float, optional
+            Relative tolerance on the whirl frequency for the ``matched_whirl``
+            iteration. Default is 1e-3.
+        whirl_max_iter : int, optional
+            Maximum number of iterations per mode for ``matched_whirl``. A
+            warning is issued and the last iterate is kept if a mode does not
+            converge. Default is 15.
 
         Returns
         -------
@@ -1294,9 +1352,36 @@ class Rotor(object):
         >>> # Plotting 2D mode shape
         >>> mode2 = 1  # Second mode
         >>> fig = modal.plot_mode_2d(mode2)
+
+        Coefficients evaluated at a fixed whirl frequency, or at each mode's own
+        damped natural frequency:
+        >>> modal_fixed = rotor.run_modal(speed=100.0, frequency=50.0)
+        >>> modal_matched = rotor.run_modal(speed=100.0, matched_whirl=True)
+        >>> np.allclose(modal_matched.whirl_frequency, modal_matched.wd, rtol=1e-3)
+        True
         """
+        if frequency is not None and matched_whirl:
+            raise ValueError("frequency and matched_whirl are mutually exclusive.")
+
+        if matched_whirl:
+            return self._run_matched_whirl_modal(
+                speed,
+                num_modes=num_modes,
+                sparse=sparse,
+                synchronous=synchronous,
+                rtol=whirl_rtol,
+                max_iter=whirl_max_iter,
+            )
+
+        if frequency is not None:
+            self._check_coefficient_axes(frequency=frequency)
+
         evalues, evectors = self._eigen(
-            speed, num_modes=num_modes, sparse=sparse, synchronous=synchronous
+            speed,
+            num_modes=num_modes,
+            frequency=frequency,
+            sparse=sparse,
+            synchronous=synchronous,
         )
 
         wn_len = num_modes // 2
@@ -1320,9 +1405,124 @@ class Rotor(object):
             self.nodes_pos,
             self.shaft_elements_length,
             self.number_dof,
+            whirl_frequency=np.full(
+                len(wn), float(speed if frequency is None else frequency)
+            ),
         )
 
         return modal_results
+
+    def _run_matched_whirl_modal(
+        self, speed, num_modes, sparse, synchronous, rtol, max_iter
+    ):
+        """Solve the modal analysis with each mode at its own whirl frequency.
+
+        Starting from the synchronous solution, every mode is iterated with a
+        fixed point on its damped natural frequency: the coefficients are
+        evaluated at the current whirl frequency, the eigenproblem is solved,
+        the mode is tracked by the modal assurance criterion against the
+        previous iterate and its new damped natural frequency becomes the next
+        whirl frequency. Modes are considered converged when the relative
+        change in whirl frequency falls below ``rtol``.
+
+        Parameters
+        ----------
+        speed : float
+            Rotor speed (rad/s).
+        num_modes, sparse, synchronous
+            Same as in :py:meth:`run_modal`.
+        rtol : float
+            Relative tolerance on the whirl frequency.
+        max_iter : int
+            Maximum number of iterations per mode.
+
+        Returns
+        -------
+        results : ross.ModalResults
+            Modal results with the converged eigenpairs of the first
+            ``num_modes // 2`` modes and their whirl frequencies.
+        """
+
+        def mac(u, v):
+            return np.abs(np.vdot(u, v)) ** 2 / (
+                np.vdot(u, u).real * np.vdot(v, v).real
+            )
+
+        def solve(frequency):
+            return self._eigen(
+                speed,
+                num_modes=num_modes,
+                frequency=frequency,
+                sparse=sparse,
+                synchronous=synchronous,
+            )
+
+        evalues_sync, evectors_sync = solve(None)
+        wn_len = min(num_modes // 2, len(evalues_sync))
+
+        evalues = np.zeros(wn_len, dtype=complex)
+        evectors = np.zeros((evectors_sync.shape[0], wn_len), dtype=complex)
+        whirl_frequency = np.zeros(wn_len)
+
+        for i in range(wn_len):
+            evalue = evalues_sync[i]
+            vector = evectors_sync[:, i]
+            whirl = abs(evalue.imag)
+            converged = False
+
+            for _ in range(max_iter):
+                candidate_values, candidate_vectors = solve(whirl)
+                forward = np.where(candidate_values.imag >= -1e-12)[0]
+                if len(forward) == 0:
+                    forward = np.arange(len(candidate_values))
+                match = forward[
+                    np.argmax([mac(vector, candidate_vectors[:, j]) for j in forward])
+                ]
+                evalue = candidate_values[match]
+                vector = candidate_vectors[:, match]
+                new_whirl = abs(evalue.imag)
+                converged = abs(new_whirl - whirl) <= rtol * max(
+                    whirl, new_whirl, 1e-12
+                )
+                whirl = new_whirl
+                if converged:
+                    break
+
+            if not converged:
+                warnings.warn(
+                    f"The whirl frequency of mode {i} did not converge in "
+                    f"{max_iter} iterations (last relative change above {rtol}); "
+                    "keeping the last iterate."
+                )
+
+            evalues[i] = evalue
+            evectors[:, i] = vector
+            whirl_frequency[i] = whirl
+
+        self._check_coefficient_axes(frequency=whirl_frequency)
+
+        wn = np.absolute(evalues)
+        wd = np.imag(evalues)
+        damping_ratio = -np.real(evalues) / np.absolute(evalues)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            log_dec = 2 * np.pi * damping_ratio / np.sqrt(1 - damping_ratio**2)
+
+        return ModalResults(
+            speed,
+            evalues,
+            evectors,
+            wn,
+            wd,
+            damping_ratio,
+            log_dec,
+            self.ndof,
+            self.nodes,
+            self.nodes_pos,
+            self.shaft_elements_length,
+            self.number_dof,
+            whirl_frequency=whirl_frequency,
+        )
 
     @check_units
     def run_critical_speed(self, speed_range=None, num_modes=12, rtol=0.005):
@@ -1556,13 +1756,21 @@ class Rotor(object):
 
         return results
 
-    def M(self, frequency=None, synchronous=False):
+    def M(self, frequency=None, speed=None, synchronous=False):
         """Mass matrix for an instance of a rotor.
 
         Parameters
         ----------
+        frequency : float, optional
+            Excitation (whirl) frequency at which frequency-dependent bearing
+            and seal mass coefficients are evaluated. Default is 0.
+        speed : float, optional
+            Rotor speed at which speed-dependent bearing and seal mass
+            coefficients are evaluated. Default is the excitation frequency
+            (synchronous evaluation).
         synchronous : bool, optional
-            If True a synchronous analysis is carried out.
+            If True the gyroscopic matrix is folded into the mass matrix
+            (Rouch's formulation for a synchronous analysis).
             Default is False.
 
         Returns
@@ -1588,7 +1796,7 @@ class Rotor(object):
 
         for elm in self.bearing_elements:
             dofs = list(elm.dof_global_index.values())
-            M0[np.ix_(dofs, dofs)] += elm.M(frequency)
+            M0[np.ix_(dofs, dofs)] += elm.M(frequency, speed)
 
         if synchronous:
             for elm in self.shaft_elements:
@@ -1623,13 +1831,18 @@ class Rotor(object):
 
         return M0
 
-    def K(self, frequency):
+    def K(self, frequency, speed=None):
         """Stiffness matrix for an instance of a rotor.
 
         Parameters
         ----------
-        frequency : float, optional
-            Excitation frequency.
+        frequency : float
+            Excitation (whirl) frequency at which frequency-dependent bearing
+            and seal coefficients are evaluated.
+        speed : float, optional
+            Rotor speed at which speed-dependent bearing and seal coefficients
+            are evaluated. Default is the excitation frequency (synchronous
+            evaluation).
 
         Returns
         -------
@@ -1649,7 +1862,7 @@ class Rotor(object):
 
         for elm in self.bearing_elements:
             dofs = list(elm.dof_global_index.values())
-            K0[np.ix_(dofs, dofs)] += elm.K(frequency)
+            K0[np.ix_(dofs, dofs)] += elm.K(frequency, speed)
 
         return K0
 
@@ -1680,13 +1893,18 @@ class Rotor(object):
 
         return Ksdt0
 
-    def C(self, frequency):
+    def C(self, frequency, speed=None):
         """Damping matrix for an instance of a rotor.
 
         Parameters
         ----------
         frequency : float
-            Excitation frequency.
+            Excitation (whirl) frequency at which frequency-dependent bearing
+            and seal coefficients are evaluated.
+        speed : float, optional
+            Rotor speed at which speed-dependent bearing and seal coefficients
+            are evaluated. Default is the excitation frequency (synchronous
+            evaluation).
 
         Returns
         -------
@@ -1706,7 +1924,7 @@ class Rotor(object):
 
         for elm in self.bearing_elements:
             dofs = list(elm.dof_global_index.values())
-            C0[np.ix_(dofs, dofs)] += elm.C(frequency)
+            C0[np.ix_(dofs, dofs)] += elm.C(frequency, speed)
 
         return C0
 
@@ -1737,12 +1955,17 @@ class Rotor(object):
         Parameters
         ----------
         speed: float, optional
-            Rotor speed.
+            Rotor speed. It multiplies the gyroscopic matrix and is the value
+            at which speed-dependent bearing and seal coefficients are
+            evaluated.
             Default is 0.
         frequency : float, optional
-            Excitation frequency. Default is rotor speed.
+            Excitation (whirl) frequency at which frequency-dependent bearing
+            and seal coefficients are evaluated. Default is the rotor speed
+            (synchronous evaluation).
         synchronous : bool, optional
-            If True a synchronous analysis is carried out.
+            If True the gyroscopic matrix is folded into the mass matrix
+            (Rouch's formulation for a synchronous analysis).
             Default is False.
 
         Returns
@@ -1766,7 +1989,7 @@ class Rotor(object):
         if frequency is None:
             frequency = speed
 
-        M = self.M(frequency, synchronous=synchronous)
+        M = self.M(frequency, speed, synchronous=synchronous)
         size = M.shape[0]
 
         Z = np.zeros((size, size))
@@ -1775,42 +1998,64 @@ class Rotor(object):
         # fmt: off
         A = np.vstack(
             [np.hstack([Z, I]),
-             np.hstack([la.solve(-M, self.K(frequency)), la.solve(-M, (self.C(frequency) + self.G() * speed))])])
+             np.hstack([la.solve(-M, self.K(frequency, speed)), la.solve(-M, (self.C(frequency, speed) + self.G() * speed))])])
         # fmt: on
 
         return A
 
-    def _check_frequency_array(self, frequency_range):
-        """Verify if bearing elements coefficients are extrapolated.
+    def _check_coefficient_axes(self, speed=None, frequency=None):
+        """Warn when an analysis extrapolates or coarsely interpolates the tables.
 
-        This method takes the frequency / speed range array applied to a particular
-        method (run_campbell, run_freq_response) and checks if it's extrapolating the
-        bearing rotordynamics coefficients.
+        Each bearing and seal coefficient table is checked on the axes the
+        analysis will evaluate: the requested rotor speeds against the speed
+        axis and the requested excitation (whirl) frequencies against the
+        frequency axis. Synchronous analyses pass the same values for both.
 
-        If any value of frequency_range argument is out of any bearing frequency
-        parameter, the warning is raised.
-        If none of the bearings has a frequency argument assigned, no warning will be
-        raised.
+        A warning is issued when the requested values fall outside an axis
+        (the coefficients are extrapolated linearly from the end slope) and
+        when an axis with fewer than ``MIN_RECOMMENDED_AXIS_POINTS`` points
+        has to be interpolated (coefficient tables are smooth, so at least
+        that many points spanning the analysis range give reliable
+        interpolation).
 
         Parameters
         ----------
-        frequency_range : array
-            The array of frequencies or speeds used in particular method.
-
-        Warnings
-        --------
-            It warns the user if the frequency_range causes the bearing coefficients
-            to be extrapolated.
+        speed : float, array, optional
+            Rotor speeds of the analysis. Default is None (speed axes are not
+            checked).
+        frequency : float, array, optional
+            Excitation (whirl) frequencies of the analysis. Default is None
+            (frequency axes are not checked).
         """
+        requests = []
+        if speed is not None:
+            requests.append(("speed", np.atleast_1d(np.asarray(speed, dtype=float))))
+        if frequency is not None:
+            requests.append(
+                ("frequency", np.atleast_1d(np.asarray(frequency, dtype=float)))
+            )
+
         for bearing in self.bearing_elements:
-            if bearing.frequency is not None:
-                if (np.max(frequency_range) > max(bearing.frequency)) or (
-                    np.min(frequency_range) < min(bearing.frequency)
+            name = bearing.tag or f"{bearing.__class__.__name__} at node {bearing.n}"
+            for axis_name, values in requests:
+                axis = getattr(bearing, axis_name)
+                if axis is None:
+                    continue
+                if np.max(values) > np.max(axis) or np.min(values) < np.min(axis):
+                    warnings.warn(
+                        f"Extrapolating the coefficients of {name} outside its "
+                        f"{axis_name} axis ({np.min(axis):.4g} to {np.max(axis):.4g} "
+                        "rad/s). Be careful when post-processing the results."
+                    )
+                if 1 < len(axis) < MIN_RECOMMENDED_AXIS_POINTS and not np.all(
+                    np.isin(values, axis)
                 ):
                     warnings.warn(
-                        "Extrapolating bearing coefficients. Be careful when post-processing the results."
+                        f"The coefficients of {name} are interpolated from only "
+                        f"{len(axis)} {axis_name} points. Tabulate at least "
+                        f"{MIN_RECOMMENDED_AXIS_POINTS} points per axis spanning the "
+                        "analysis range for reliable interpolation."
                     )
-                    break
 
     @staticmethod
     def _index(eigenvalues):
@@ -1885,7 +2130,9 @@ class Rotor(object):
             If sparse=False, num_modes does not have any effect over the method.
             Default is 12.
         frequency: float, pint.Quantity
-            Excitation frequency. Default units is rad/s.
+            Excitation (whirl) frequency at which frequency-dependent
+            coefficients are evaluated. Default units is rad/s.
+            Default is the rotor speed (synchronous evaluation).
         sorted_ : bool, optional
             Sort considering the imaginary part (wd).
             Default is True.
@@ -1968,8 +2215,9 @@ class Rotor(object):
         speed: float
             Rotor speed.
         frequency: float, optional
-            Excitation frequency.
-            Default is rotor speed.
+            Excitation (whirl) frequency at which frequency-dependent
+            coefficients are evaluated.
+            Default is rotor speed (synchronous evaluation).
 
         Returns
         -------
@@ -1993,7 +2241,7 @@ class Rotor(object):
             frequency = speed
 
         A = self.A(speed=speed, frequency=frequency)
-        M = self.M(frequency)
+        M = self.M(frequency, speed)
 
         # fmt: off
         B = np.vstack([Z,
@@ -2007,7 +2255,7 @@ class Rotor(object):
         Ca = Z
 
         # fmt: off
-        C = np.hstack((Cd - Ca @ la.solve(M, self.K(frequency)), Cv - Ca @ la.solve(M, self.C(frequency))))
+        C = np.hstack((Cd - Ca @ la.solve(M, self.K(frequency, speed)), Cv - Ca @ la.solve(M, self.C(frequency, speed))))
         # fmt: on
         D = Ca @ la.solve(M, B2)
 
@@ -2016,14 +2264,20 @@ class Rotor(object):
         return sys
 
     def transfer_matrix(self, speed=None, frequency=None, modes=None):
-        """Calculate the fer matrix for the frequency response function (FRF).
+        """Calculate the transfer matrix for the frequency response function (FRF).
 
-        Paramenters
-        -----------
+        The dynamic stiffness is evaluated at the excitation ``frequency``,
+        with the gyroscopic matrix multiplied by ``speed``. Speed-dependent
+        bearing and seal coefficients are evaluated at ``speed`` and
+        frequency-dependent ones at ``frequency``.
+
+        Parameters
+        ----------
+        speed : float
+            Rotor speed.
         frequency : float, optional
-            Excitation frequency. Default is rotor speed.
-        speed : float, optional
-            Rotating speed. Default is rotor speed (frequency).
+            Excitation frequency. Default is rotor speed (synchronous
+            excitation).
 
         Returns
         -------
@@ -2042,9 +2296,9 @@ class Rotor(object):
         I = np.eye(self.M().shape[0])
 
         lu, piv = lu_factor(
-            -(frequency**2) * self.M(frequency=speed)
-            + 1j * frequency * (self.C(frequency=speed) + speed * self.G())
-            + self.K(frequency=speed)
+            -(frequency**2) * self.M(frequency, speed)
+            + 1j * frequency * (self.C(frequency, speed) + speed * self.G())
+            + self.K(frequency, speed)
         )
         H = lu_solve((lu, piv), I)
 
@@ -2059,11 +2313,19 @@ class Rotor(object):
         speed_range=None,
         modes=None,
         free_free=False,
+        speed=None,
     ):
         """Frequency response for a mdof system.
 
         This method returns the frequency response for a mdof system given a range of
         frequencies and the modes that will be used.
+
+        By default the sweep is synchronous: each value of ``speed_range`` is
+        used both as the rotor speed (gyroscopic effect and speed-dependent
+        coefficients) and as the excitation frequency. With ``speed`` the
+        rotor speed is held fixed and ``speed_range`` becomes the excitation
+        frequency sweep, which is the response to a non-synchronous excitation
+        at a fixed operating point.
 
         Available plotting methods:
             .plot()
@@ -2082,6 +2344,11 @@ class Rotor(object):
         free_free : bool, optional
             If True, the method will consider the rotor system as free-free.
             Default is False.
+        speed : float, pint.Quantity, optional
+            Fixed rotor speed (rad/s). When given, ``speed_range`` is swept as
+            the excitation frequency while the gyroscopic effect and the
+            speed-dependent coefficients stay at this speed.
+            Default is None (synchronous sweep).
 
         Returns
         -------
@@ -2095,6 +2362,9 @@ class Rotor(object):
         >>> rotor = rs.rotor_example()
         >>> speed =np.linspace(0, 1000, 101)
         >>> response = rotor.run_freq_response(speed_range=speed)
+
+        Excitation sweep at a fixed rotor speed:
+        >>> response_fixed = rotor.run_freq_response(speed_range=speed, speed=500.0)
 
         Return the response amplitude
         >>> abs(response.freq_resp) # doctest: +ELLIPSIS
@@ -2133,6 +2403,7 @@ class Rotor(object):
             speed_range=speed_range,
             modes=modes,
             free_free=free_free,
+            speed=speed,
         )
 
     @lru_cache()
@@ -2141,6 +2412,7 @@ class Rotor(object):
         speed_range=None,
         modes=None,
         free_free=False,
+        speed=None,
     ):
         """Frequency response for a mdof system.
 
@@ -2165,6 +2437,8 @@ class Rotor(object):
             Tolerance (relative) for termination.
         free_free : bool, optional
             If True, the method will consider the rotor system as free-free.
+        speed : float, optional
+            Fixed rotor speed for an excitation frequency sweep.
 
         Returns
         -------
@@ -2176,7 +2450,10 @@ class Rotor(object):
             modal = self.run_modal(0)
             speed_range = np.linspace(0, max(modal.evalues.imag) * 1.5, 1000)
 
-        self._check_frequency_array(speed_range)
+        if speed is not None:
+            self._check_coefficient_axes(speed=speed, frequency=speed_range)
+        else:
+            self._check_coefficient_axes(speed=speed_range, frequency=speed_range)
 
         freq_resp = np.empty((self.ndof, self.ndof, len(speed_range)), dtype=complex)
         velc_resp = np.empty((self.ndof, self.ndof, len(speed_range)), dtype=complex)
@@ -2184,14 +2461,16 @@ class Rotor(object):
 
         if free_free:
             transfer_matrix = lambda s: self.transfer_matrix(speed=0, frequency=s)
+        elif speed is not None:
+            transfer_matrix = lambda s: self.transfer_matrix(speed=speed, frequency=s)
         else:
             transfer_matrix = lambda s: self.transfer_matrix(speed=s)
 
-        for i, speed in enumerate(speed_range):
-            H = transfer_matrix(speed)
+        for i, frequency in enumerate(speed_range):
+            H = transfer_matrix(frequency)
             freq_resp[..., i] = H
-            velc_resp[..., i] = 1j * speed * H
-            accl_resp[..., i] = -(speed**2) * H
+            velc_resp[..., i] = 1j * frequency * H
+            accl_resp[..., i] = -(frequency**2) * H
 
         results = FrequencyResponseResults(
             freq_resp=freq_resp,
@@ -2401,6 +2680,7 @@ class Rotor(object):
         speed_range=None,
         modes=None,
         unbalance=None,
+        speed=None,
     ):
         """Forced response for a mdof system.
 
@@ -2432,6 +2712,11 @@ class Rotor(object):
             with deflected shape. This argument is set only if running an unbalance
             response analysis.
             Default is None.
+        speed : float, pint.Quantity, optional
+            Fixed rotor speed (rad/s). When given, ``speed_range`` is the
+            excitation frequency sweep of the force while the rotor speed stays
+            fixed (see :py:meth:`run_freq_response`).
+            Default is None (synchronous sweep).
 
         Returns
         -------
@@ -2452,7 +2737,7 @@ class Rotor(object):
             modal = self.run_modal(0)
             speed_range = np.linspace(0, max(modal.evalues.imag) * 1.5, 1000)
 
-        freq_resp = self.run_freq_response(speed_range, modes)
+        freq_resp = self.run_freq_response(speed_range, modes, speed=speed)
 
         forced_resp = np.zeros((self.ndof, len(freq_resp.speed_range)), dtype=complex)
         velc_resp = np.zeros((self.ndof, len(freq_resp.speed_range)), dtype=complex)
@@ -2591,7 +2876,7 @@ class Rotor(object):
         node,
         unbalance_magnitude,
         unbalance_phase,
-        frequency=None,
+        speed_range=None,
         modes=None,
     ):
         """Unbalanced response for a mdof system.
@@ -2618,8 +2903,10 @@ class Rotor(object):
             Unbalance magnitude (kg.m).
         unbalance_phase : list, float, pint.Quantity
             Unbalance phase (rad).
-        frequency : list, pint.Quantity
-            List with the desired range of frequencies (rad/s).
+        speed_range : list, pint.Quantity
+            List with the desired range of rotor speeds (rad/s). The unbalance
+            excitation is synchronous, so each speed is also the excitation
+            frequency.
             Default is 0 to 1.5 x highest damped natural frequency.
         modes : list, optional
             Modes that will be used to calculate the frequency response
@@ -2639,7 +2926,7 @@ class Rotor(object):
         >>> response = rotor.run_unbalance_response(node=3,
         ...                                         unbalance_magnitude=10.0,
         ...                                         unbalance_phase=0.0,
-        ...                                         frequency=speed)
+        ...                                         speed_range=speed)
 
         Return the response amplitude
         >>> abs(response.forced_resp) # doctest: +ELLIPSIS
@@ -2681,25 +2968,25 @@ class Rotor(object):
         >>> value = 600
         >>> fig = response.plot_deflected_shape(speed=value)
         """
-        if frequency is None:
+        if speed_range is None:
             modal = self.run_modal(0)
-            frequency = np.linspace(0, max(modal.evalues.imag) * 1.5, 1000)
+            speed_range = np.linspace(0, max(modal.evalues.imag) * 1.5, 1000)
 
-        force = np.zeros((self.ndof, len(frequency)), dtype=complex)
+        force = np.zeros((self.ndof, len(speed_range)), dtype=complex)
 
         try:
-            for n, m, p in zip(node, unbalance_magnitude, unbalance_phase):
-                force += self._unbalance_force(n, m, p, frequency)
+            for n, m, p in zip(node, unbalance_magnitude, unbalance_phase, strict=True):
+                force += self._unbalance_force(n, m, p, speed_range)
         except TypeError:
             force = self._unbalance_force(
-                node, unbalance_magnitude, unbalance_phase, frequency
+                node, unbalance_magnitude, unbalance_phase, speed_range
             )
 
         # fmt: off
         ub = np.vstack((node, unbalance_magnitude, unbalance_phase))
         forced_response = self.run_forced_response(
             force=force,
-            speed_range=frequency,
+            speed_range=speed_range,
             modes=modes,
             unbalance=ub,
         )
@@ -2983,8 +3270,8 @@ class Rotor(object):
         >>> t, yout, xout = rotor.integrate_system(speed, F, t)
         Running direct method
         >>> yout[:, rotor.number_dof * node + 1] # doctest: +ELLIPSIS
-        array([0.00000000e+00, 2.07239823e-10, 7.80952429e-10, ...,
-               1.21848307e-07, 1.21957287e-07, 1.22065778e-07])
+        array([0.00000000e+00, 2.07136253e-10, 7.80557630e-10, ...,
+               1.21845368e-07, 1.21954345e-07, 1.22062832e-07])
         """
         xout = []
 
@@ -3087,7 +3374,9 @@ class Rotor(object):
             accel = np.gradient(speed, t)
 
             brgs_with_var_coeffs = tuple(
-                brg for brg in self.bearing_elements if brg.frequency is not None
+                brg
+                for brg in self.bearing_elements
+                if brg.speed is not None or brg.frequency is not None
             )
 
             if len(brgs_with_var_coeffs):  # Option 1
@@ -3319,7 +3608,7 @@ class Rotor(object):
         bore of hollow elements is left void; one switches the bearings between
         the solid pedestal and the classic spring/damper representation; and
         one displays the rotor frame of reference, with z along the shaft, y
-        upwards, x out of the page and the positive rotation around z. Every
+        upwards, x into the page and the spin taking x toward y. Every
         shade in the plot is derived from a single color per element, so
         setting `Material.color`, `DiskElement.color` or `BearingElement.color`
         controls the whole appearance of that element. Below the rotor there is
@@ -3704,7 +3993,9 @@ class Rotor(object):
         y_line = []
         for yc_pos in sorted(set(center_line_pos)):
             nodes_in_level = [
-                pos for pos, level in zip(nodes_pos, center_line_pos) if level == yc_pos
+                pos
+                for pos, level in zip(nodes_pos, center_line_pos, strict=True)
+                if level == yc_pos
             ]
             x_line += [min(nodes_in_level) - pad, max(nodes_in_level) + pad, None]
             y_line += [yc_pos, yc_pos, None]
@@ -3791,7 +4082,7 @@ class Rotor(object):
 
         x_ticks = []
         y_ticks = []
-        for pos, yc_pos in zip(nodes_pos, center_line_pos):
+        for pos, yc_pos in zip(nodes_pos, center_line_pos, strict=True):
             x_ticks += [pos, pos, None]
             y_ticks += [yc_pos - tick, yc_pos + tick, None]
 
@@ -3810,7 +4101,9 @@ class Rotor(object):
         min_gap = 0.02 * np.ptp(nodes_pos)
         x_labels = []
         text_labels = []
-        for node, pos in sorted(zip(self.nodes, nodes_pos), key=lambda item: item[1]):
+        for node, pos in sorted(
+            zip(self.nodes, nodes_pos, strict=True), key=lambda item: item[1]
+        ):
             if node % nodes:
                 continue
             if x_labels and pos - x_labels[-1] < min_gap:
@@ -3937,7 +4230,7 @@ class Rotor(object):
         updatemenus : list
             List with one plotly updatemenu per available toggle.
         """
-        show, hide = self._plot_axes_indicator(fig)
+        show, hide = axes_indicator_2d(fig, plane="zy", visible=False)
         if show_axes_indicator:
             fig.plotly_relayout(dict(show))
 
@@ -3987,141 +4280,16 @@ class Rotor(object):
 
         return updatemenus[::-1]
 
-    @staticmethod
-    def _plot_axes_indicator(fig):
-        """Draw the coordinate reference triad inside the bottom margin.
-
-        The triad shows the rotor frame of reference: z along the shaft, y
-        upwards, x out of the page and the positive rotation around z. It is
-        built only from paper-referenced, pixel-sized shapes and annotations,
-        so it keeps its size and position at any figure size and never affects
-        the axes ranges. Everything starts hidden; the button which displays
-        it only flips the visible flag of these items, leaving the layout
-        untouched.
-
-        Parameters
-        ----------
-        fig : plotly.graph_objects.Figure
-            The figure object which shapes and annotations are added on.
-
-        Returns
-        -------
-        show : dict
-            Relayout arguments which display the indicator.
-        hide : dict
-            Relayout arguments which hide it again.
-        """
-        ink = "#33475C"
-        ox, oy = 50.0, -83.0
-        arm = 38.0
-        cx = ox + 22.0
-        rx, ry = 3.2, 9.5
-        theta = np.linspace(-0.2 * np.pi, 1.2 * np.pi, 5)
-
-        first_shape = len(fig.layout.shapes or ())
-        first_annotation = len(fig.layout.annotations or ())
-
-        shape = dict(
-            xref="paper",
-            yref="paper",
-            xanchor=0,
-            yanchor=0,
-            xsizemode="pixel",
-            ysizemode="pixel",
-            fillcolor="rgba(0,0,0,0)",
-            visible=False,
-        )
-        # the x axis points out of the page, drawn as a circle with a center
-        # dot; the rotation around z is an open elliptic arc around the z arm,
-        # built from cubic Bezier segments since shape paths take no arcs
-        fig.add_shape(
-            type="circle",
-            x0=ox - 6.5,
-            y0=oy - 6.5,
-            x1=ox + 6.5,
-            y1=oy + 6.5,
-            line=dict(color=ink, width=1.6),
-            **shape,
-        )
-
-        def point(t):
-            return np.array([cx + rx * np.cos(t), oy + ry * np.sin(t)])
-
-        def slope(t):
-            return np.array([-rx * np.sin(t), ry * np.cos(t)])
-
-        arc = "M {:.2f},{:.2f}".format(*point(theta[0]))
-        for t0, t1 in zip(theta[:-1], theta[1:]):
-            handle = (4 / 3) * np.tan((t1 - t0) / 4)
-            arc += " C {:.2f},{:.2f} {:.2f},{:.2f} {:.2f},{:.2f}".format(
-                point(t0)[0] + handle * slope(t0)[0],
-                point(t0)[1] + handle * slope(t0)[1],
-                point(t1)[0] - handle * slope(t1)[0],
-                point(t1)[1] - handle * slope(t1)[1],
-                *point(t1),
-            )
-        fig.add_shape(type="path", path=arc, line=dict(color=ink, width=1.3), **shape)
-
-        shape["fillcolor"] = ink
-        fig.add_shape(
-            type="circle",
-            x0=ox - 2,
-            y0=oy - 2,
-            x1=ox + 2,
-            y1=oy + 2,
-            line=dict(width=0),
-            **shape,
-        )
-
-        # arrowhead at the open end of the arc, drawn as a filled triangle
-        # aligned with the direction of travel; annotation arrows misplace
-        # their head when the tail is this short
-        tip = point(theta[-1])
-        tangent = slope(theta[-1])
-        tangent /= np.hypot(*tangent)
-        normal = np.array([-tangent[1], tangent[0]])
-        apex = tip + 6.5 * tangent
-        corners = (tip - 2.5 * tangent + 4 * normal, tip - 2.5 * tangent - 4 * normal)
-        fig.add_shape(
-            type="path",
-            path="M {:.2f},{:.2f} L {:.2f},{:.2f} L {:.2f},{:.2f} Z".format(
-                *apex, *corners[0], *corners[1]
-            ),
-            line=dict(width=0),
-            **shape,
-        )
-
-        base = dict(x=0, y=0, xref="paper", yref="paper", visible=False)
-        arrow = dict(
-            text="",
-            showarrow=True,
-            arrowhead=2,
-            arrowsize=1.2,
-            arrowwidth=1.6,
-            arrowcolor=ink,
-            **base,
-        )
-        fig.add_annotation(xshift=ox + arm, yshift=oy, ax=-(arm - 8), ay=0, **arrow)
-        fig.add_annotation(xshift=ox, yshift=oy + arm, ax=0, ay=arm - 8, **arrow)
-
-        label = dict(showarrow=False, font=dict(size=12, color=ink), **base)
-        fig.add_annotation(xshift=ox + arm + 10, yshift=oy, text="<i>z</i>", **label)
-        fig.add_annotation(xshift=ox, yshift=oy + arm + 10, text="<i>y</i>", **label)
-        fig.add_annotation(xshift=ox - 17, yshift=oy - 12, text="<i>x</i>", **label)
-        fig.add_annotation(xshift=cx + 1, yshift=oy + 17, text="<i>ω</i>", **label)
-
-        show = {}
-        for i in range(first_shape, len(fig.layout.shapes)):
-            show[f"shapes[{i}].visible"] = True
-        for i in range(first_annotation, len(fig.layout.annotations)):
-            show[f"annotations[{i}].visible"] = True
-        hide = dict.fromkeys(show, False)
-
-        return show, hide
-
     @check_units
     def run_campbell(
-        self, speed_range, frequencies=6, frequency_type="wd", torsional_analysis=False
+        self,
+        speed_range,
+        frequencies=6,
+        frequency_type="wd",
+        torsional_analysis=False,
+        matched_whirl=False,
+        whirl_rtol=1e-3,
+        whirl_max_iter=15,
     ):
         """Calculate the Campbell diagram.
 
@@ -4147,6 +4315,17 @@ class Rotor(object):
             respective modes in the Campbell diagram. In this case, a system
             with only torsional degrees of freedom is considered, thus
             disregarding coupled modes (lateral + torsional). Default is False.
+        matched_whirl : bool, optional
+            If True, the modal analysis at each speed evaluates the
+            frequency-dependent bearing and seal coefficients at each mode's
+            own damped natural frequency (see :py:meth:`run_modal`).
+            Default is False (synchronous coefficients).
+        whirl_rtol : float, optional
+            Relative tolerance of the ``matched_whirl`` iteration.
+            Default is 1e-3.
+        whirl_max_iter : int, optional
+            Maximum number of ``matched_whirl`` iterations per mode.
+            Default is 15.
 
         Returns
         -------
@@ -4172,7 +4351,7 @@ class Rotor(object):
 
         # store in results [speeds(x axis), frequencies[0] or logdec[1] or
         # whirl[2](y axis), 3]
-        self._check_frequency_array(speed_range)
+        self._check_coefficient_axes(speed=speed_range, frequency=speed_range)
 
         results = np.zeros([len(speed_range), frequencies, 4])
 
@@ -4187,9 +4366,16 @@ class Rotor(object):
         threshold = 0.9
         evec_u = []
 
+        modal_kwargs = dict(
+            num_modes=num_modes,
+            matched_whirl=matched_whirl,
+            whirl_rtol=whirl_rtol,
+            whirl_max_iter=whirl_max_iter,
+        )
+
         modal_results = {}
         for i, w in enumerate(speed_range):
-            modal = self.run_modal(speed=w, num_modes=num_modes)
+            modal = self.run_modal(speed=w, **modal_kwargs)
             modal_results[w] = modal
 
             evec_v = modal.evectors[:, :evec_size]
@@ -4217,6 +4403,7 @@ class Rotor(object):
                     modal.wn = modal.wn[found_order]
                     modal.log_dec = modal.log_dec[found_order]
                     modal.damping_ratio = modal.damping_ratio[found_order]
+                    modal.whirl_frequency = modal.whirl_frequency[found_order]
                     modal.shapes = list(np.array(modal.shapes)[found_order])
 
             evec_u = modal.evectors[:, :evec_size]
@@ -4239,6 +4426,9 @@ class Rotor(object):
                 speed_range=speed_range,
                 frequencies=int(frequencies / 6),
                 frequency_type=frequency_type,
+                matched_whirl=matched_whirl,
+                whirl_rtol=whirl_rtol,
+                whirl_max_iter=whirl_max_iter,
             )
 
         results = CampbellResults(
@@ -4249,7 +4439,7 @@ class Rotor(object):
             whirl_values=results[..., 3],
             modal_results=modal_results,
             number_dof=self.number_dof,
-            run_modal=lambda w: self.run_modal(speed=w, num_modes=num_modes),
+            run_modal=lambda w: self.run_modal(speed=w, **modal_kwargs),
             campbell_torsional=campbell_t if torsional_analysis else None,
         )
 
@@ -4259,7 +4449,7 @@ class Rotor(object):
     def run_ucs(
         self,
         stiffness_range=None,
-        bearing_frequency_range=None,
+        bearing_speed_range=None,
         num_modes=16,
         num=20,
         synchronous=False,
@@ -4278,10 +4468,10 @@ class Rotor(object):
             In linear space, the sequence starts at ``base ** start``
             (`base` to the power of `start`) and ends with ``base ** stop``
             (see `endpoint` below). Here base is 10.0.
-        bearing_frequency_range : tuple, optional
-            The bearing frequency range used to calculate the intersection points.
+        bearing_speed_range : tuple, optional
+            The bearing speed range used to calculate the intersection points.
             In some cases bearing coefficients will have to be extrapolated.
-            The default is None. In this case the bearing frequency attribute is used.
+            The default is None. In this case the bearing speed axis is used.
         num_modes : int, optional
             Number of modes to be calculated. This uses scipy.sparse.eigs method.
             Default is 16. In this case 4 modes are plotted, since for each pair
@@ -4309,9 +4499,9 @@ class Rotor(object):
             else:
                 stiffness_range = (6, 11)
 
-        if bearing_frequency_range is not None:
-            bearing_frequency_range = np.linspace(
-                bearing_frequency_range[0], bearing_frequency_range[1], 30
+        if bearing_speed_range is not None:
+            bearing_speed_range = np.linspace(
+                bearing_speed_range[0], bearing_speed_range[1], 30
             )
 
         stiffness_log = np.logspace(*stiffness_range, num=num)
@@ -4357,16 +4547,19 @@ class Rotor(object):
         bearing0 = bearings_elements[0]
 
         # if bearing does not have constant coefficient, check intersection points
-        if bearing_frequency_range is None:
-            if bearing0.frequency is None:
-                bearing_frequency_margin = rotor_wn.min() * 0.1
-                bearing_frequency_range = np.linspace(
-                    rotor_wn.min() - bearing_frequency_margin,
-                    rotor_wn.max() + bearing_frequency_margin,
+        bearing0_axis = (
+            bearing0.speed if bearing0.speed is not None else bearing0.frequency
+        )
+        if bearing_speed_range is None:
+            if bearing0_axis is None:
+                bearing_speed_margin = rotor_wn.min() * 0.1
+                bearing_speed_range = np.linspace(
+                    rotor_wn.min() - bearing_speed_margin,
+                    rotor_wn.max() + bearing_speed_margin,
                     10,
                 )
             else:
-                bearing_frequency_range = bearing0.frequency
+                bearing_speed_range = bearing0_axis
 
         # calculate interception points
         intersection_points = {"x": [], "y": []}
@@ -4382,12 +4575,12 @@ class Rotor(object):
             for coeff in coeffs:
                 x1 = stiffness_log
                 y1 = wn
-                x2 = getattr(bearing0, f"{coeff}_interpolated")(bearing_frequency_range)
-                y2 = bearing_frequency_range
+                x2 = getattr(bearing0, f"{coeff}_interpolated")(bearing_speed_range)
+                y2 = bearing_speed_range
                 x, y = intersection(x1, y1, x2, y2)
 
                 if len(x) > 0:
-                    for k, speed in zip(x, y):
+                    for k, speed in zip(x, y, strict=True):
                         intersection_points["x"].append(float(k))
                         intersection_points["y"].append(float(speed))
 
@@ -4434,7 +4627,7 @@ class Rotor(object):
         results = UCSResults(
             stiffness_range,
             stiffness_log,
-            bearing_frequency_range,
+            bearing_speed_range,
             rotor_wn,
             bearing0,
             intersection_points,
@@ -4499,7 +4692,7 @@ class Rotor(object):
         if stiffness_range is None:
             if self.rated_w is not None:
                 bearing = self.bearing_elements[0]
-                k = bearing.kxx.interpolated(self.rated_w)
+                k = bearing.kxx_interpolated(self.rated_w)
                 k = int(np.log10(k))
                 stiffness_range = (k - 3, k + 3)
             else:
@@ -5060,8 +5253,9 @@ class Rotor(object):
         speed: float
             Rotor speed.
         frequency: float, optional
-            Excitation frequency.
-            Default is rotor speed.
+            Excitation (whirl) frequency at which frequency-dependent
+            coefficients are evaluated.
+            Default is rotor speed (synchronous evaluation).
 
         Examples
         --------
@@ -5076,9 +5270,9 @@ class Rotor(object):
             frequency = speed
 
         dic = {
-            "M": self.M(frequency),
-            "K": self.K(frequency),
-            "C": self.C(frequency),
+            "M": self.M(frequency, speed),
+            "K": self.K(frequency, speed),
+            "C": self.C(frequency, speed),
             "G": self.G(),
             "nodes": self.nodes_pos,
         }
@@ -5190,12 +5384,12 @@ class Rotor(object):
             if el_name in ("parameters", "ross_version") or el_name.startswith("_"):
                 continue
             class_name = el_name.split("_")[0]
-            try:
-                elements.append(globals()[class_name].read_toml_data(el_data))
-            except KeyError:
+            element_class = getattr(ross, class_name, None) or globals().get(class_name)
+            if element_class is None:
                 import rossxl as rsxl
 
-                elements.append(getattr(rsxl, class_name).read_toml_data(el_data))
+                element_class = getattr(rsxl, class_name)
+            elements.append(element_class.read_toml_data(el_data))
 
         shaft_elements = []
         disk_elements = []
@@ -5698,6 +5892,7 @@ class Rotor(object):
                         cxy=b.cxy,
                         cyx=b.cyx,
                         cyy=b.cyy,
+                        speed=b.speed,
                         frequency=b.frequency,
                         tag=b.tag,
                         color=b.color,
@@ -5717,6 +5912,7 @@ class Rotor(object):
                         cxy=b.cxy,
                         cyx=b.cyx,
                         cyy=b.cyy,
+                        speed=b.speed,
                         frequency=b.frequency,
                         tag=b.tag,
                         color=b.color,
@@ -5732,162 +5928,516 @@ class Rotor(object):
             **rotor._init_parameters(),
         )
 
-    @check_units
-    def run_clearance_analysis(
-        self,
-        speed,
-        node,
-        unbalance_magnitude,
-        unbalance_phase,
-        frequency=None,
-        modes=None,
-    ):
+    def _journal_bearing_loads(self):
+        """Static load carried by each journal bearing.
+
+        Returns
+        -------
+        loads : dict
+            Mapping ``node -> static load (kg)`` for every bearing that supports
+            the rotor in :meth:`run_static` (seals and housing bearings excluded).
         """
-        Perform clearance analysis using unbalance response.
+        static = self.run_static()
+        g = 9.8065
+        loads = {}
+        for key, force in static.bearing_forces.items():
+            node = int(key.replace("node_", ""))
+            loads[node] = abs(float(force)) / g
 
-        This method evaluates the vibration amplitude at bearing locations
-        and compares it with the available radial clearance. The unbalance
-        excitation is the same as in :meth:`run_unbalance_response` (node,
-        magnitude, phase, frequency range, and optional mode subset).
+        return loads
 
-        The procedure involves:
-            - Unbalance response calculation at the requested frequencies
-            - Extraction of vibration amplitudes at bearings at the speed of
-              interest (see ``speed`` vs. ``frequency`` below)
-            - Comparison with clearance limits (100% and 75%) after API 617
-              amplitude scaling
+    def _overhung_mass(self, bearing_node, side):
+        """Mass of the rotor outboard of a bearing.
 
         Parameters
         ----------
-        speed : float, pint.Quantity
-            Operating speed used for API 617 limits and for picking the
-            frequency row when ``frequency`` contains more than one value.
-            Must be a scalar (or an array with a single value), in rad/s.
-        node : list, int
-            Node(s) where the unbalance is applied (same as
-            :meth:`run_unbalance_response`).
-        unbalance_magnitude : list, float, pint.Quantity
-            Unbalance magnitude in kg·m (same as :meth:`run_unbalance_response`).
-        unbalance_phase : list, float, pint.Quantity
-            Unbalance phase in rad (same as :meth:`run_unbalance_response`).
-        frequency : list, ndarray, pint.Quantity, optional
-            Frequency points for the unbalance response in rad/s. If omitted,
-            defaults to ``[speed]`` so the response is evaluated at the
-            operating speed only.
-        modes : list, optional
-            Modes passed to :meth:`run_unbalance_response` (and then to
-            :meth:`run_forced_response`). Use this to control which modes
-            enter the frequency response calculation.
+        bearing_node : int
+            Node of the outermost bearing on that side.
+        side : str
+            ``"left"`` for the rotor portion before the bearing, ``"right"``
+            for the portion after it.
+
+        Returns
+        -------
+        mass : float
+            Mass outboard of the bearing (kg).
+        """
+        if side == "left":
+            shaft_mass = sum(
+                sh.m for sh in self.shaft_elements if sh.n_r <= bearing_node
+            )
+            lumped = [
+                elm
+                for elm in chain(self.disk_elements, self.point_mass_elements)
+                if elm.n < bearing_node
+            ]
+        else:
+            shaft_mass = sum(
+                sh.m for sh in self.shaft_elements if sh.n_l >= bearing_node
+            )
+            lumped = [
+                elm
+                for elm in chain(self.disk_elements, self.point_mass_elements)
+                if bearing_node < elm.n <= self.nodes[-1]
+            ]
+
+        lumped_mass = 0.0
+        for elm in lumped:
+            if getattr(elm, "m", None) is not None:
+                lumped_mass += float(elm.m)
+            else:
+                lumped_mass += 0.5 * (float(elm.mx) + float(elm.my))
+
+        return shaft_mass + lumped_mass
+
+    @staticmethod
+    def _whirl_ratio(shape):
+        """Amplitude-weighted whirl ratio of a mode shape.
+
+        Parameters
+        ----------
+        shape : ross.Shape
+            Mode shape.
+
+        Returns
+        -------
+        ratio : float
+            Mean of the orbit minor-to-major axis ratio (positive for forward
+            precession, negative for backward) weighted by the orbit major
+            axis, so that nodal points do not influence the result. Values
+            close to zero indicate nearly planar (mixed) orbits.
+        """
+        total = sum(orbit.major_axis for orbit in shape.orbits)
+        if total == 0:
+            return 0.0
+
+        return sum(orbit.kappa * orbit.major_axis for orbit in shape.orbits) / total
+
+    @check_units
+    def api617_unbalance(self, mode, maximum_continuous_speed, num_modes=12):
+        r"""Unbalance amount and placement for a mode as defined by API 617.
+
+        Follows API 617 (9th edition, 6.8.2.7 and Figure 2). The unbalance is
+        placed at the antinodes of the selected forward mode shape, evaluated at
+        the maximum continuous speed, with magnitude :math:`U_a = 2 U_r`, where
+        :math:`U_r` is the maximum allowable residual unbalance in g·mm:
+
+        .. math::
+
+            U_r = 6350 \frac{W}{N_{mc}} \; (N_{mc} < 25000 \text{ rpm}), \qquad
+            U_r = \frac{W}{3.937} \; (N_{mc} \geq 25000 \text{ rpm})
+
+        with :math:`W` in kg and :math:`N_{mc}` in rpm.
+
+        The placement and the load :math:`W` follow the mode shape:
+
+        - a single antinode between the journal bearings (translatory or first
+          bending mode): one unbalance at that antinode, with :math:`W` equal to
+          the sum of the journal static loads;
+        - several antinodes between the bearings (conical or second bending
+          mode): one unbalance per antinode, 180° out of phase where the shape
+          changes sign, each with :math:`W` equal to the static load of the
+          nearest journal bearing;
+        - an antinode outboard of the bearings (overhung or coupling mode) is
+          used when it holds the largest deflection of the mode, or when its
+          deflection is at least half of the largest; :math:`W` is then the
+          mass of the rotor outboard of the adjacent bearing.
+
+        Antinodes between the bearings with less than 10 % of the largest
+        deflection are ignored.
+
+        The forward modes are the lateral modes whose amplitude-weighted whirl
+        ratio (orbit minor-to-major axis ratio, positive for forward precession)
+        is above ``FORWARD_WHIRL_RATIO`` (0.25); nearly planar mixed modes, which
+        often appear as heavily damped pairs, are skipped. When no mode passes
+        that threshold, the modes with positive whirl ratio are used and a
+        warning is issued.
+
+        Parameters
+        ----------
+        mode : int
+            Index of the forward whirl mode, counted over the forward modes only
+            (0 is the first forward mode, which corresponds to the first critical
+            speed of API 617). The index of the mode in the :meth:`run_modal`
+            results is returned as ``"mode_index"``.
+        maximum_continuous_speed : float, pint.Quantity
+            Maximum continuous speed :math:`N_{mc}` (rad/s). The mode shape is
+            evaluated at this speed.
+        num_modes : int, optional
+            Number of modes computed by :meth:`run_modal`.
+            Default is 12.
+
+        Returns
+        -------
+        unbalance : dict
+            Dictionary with the keys:
+
+            - ``"node"`` : list of nodes where the unbalance is applied;
+            - ``"unbalance_magnitude"`` : list of magnitudes (kg·m);
+            - ``"unbalance_phase"`` : list of phases (rad);
+            - ``"static_load"`` : list with the load :math:`W` used for each
+              unbalance (kg);
+            - ``"mode_index"`` : index of the mode in the :meth:`run_modal`
+              results;
+            - ``"mode_frequency"`` : damped natural frequency of the mode
+              (rad/s).
+
+        Examples
+        --------
+        >>> import ross as rs
+        >>> from ross.units import Q_
+        >>> rotor = rs.rotor_example()
+        >>> unbalance = rotor.api617_unbalance(
+        ...     mode=0, maximum_continuous_speed=Q_(9000, "RPM")
+        ... )
+        >>> unbalance["node"]
+        [3]
+        >>> unbalance["unbalance_phase"]
+        [0.0]
+        """
+        maximum_continuous_speed = float(maximum_continuous_speed)
+        modal = self.run_modal(speed=maximum_continuous_speed, num_modes=num_modes)
+        whirl_ratio = [
+            self._whirl_ratio(shape) if shape.mode_type == "Lateral" else 0.0
+            for shape in modal.shapes
+        ]
+        forward_modes = [
+            i for i, ratio in enumerate(whirl_ratio) if ratio > FORWARD_WHIRL_RATIO
+        ]
+        if not forward_modes:
+            forward_modes = [i for i, ratio in enumerate(whirl_ratio) if ratio > 0]
+            warnings.warn(
+                "No mode with predominantly forward orbits was found (all whirl "
+                f"ratios are below {FORWARD_WHIRL_RATIO}); using the modes with "
+                "positive whirl ratio instead."
+            )
+        if mode >= len(forward_modes):
+            raise ValueError(
+                f"Only {len(forward_modes)} forward modes were found with "
+                f"num_modes={num_modes}; mode={mode} is not available. "
+                "Increase num_modes."
+            )
+        mode_index = forward_modes[mode]
+        shape = modal.shapes[mode_index]
+
+        amplitude = np.array([orbit.major_axis for orbit in shape.orbits])
+        reference = int(np.argmax(amplitude))
+        theta = shape.orbits[reference].major_angle
+        projection = np.array(
+            [
+                orbit.ru_e * np.cos(theta) + orbit.rv_e * np.sin(theta)
+                for orbit in shape.orbits
+            ]
+        )
+        sign = np.sign(np.real(projection * np.conj(projection[reference])))
+        sign[sign == 0] = 1.0
+
+        lobes = []
+        current = []
+        current_sign = None
+        for node in range(len(amplitude)):
+            node_sign = (
+                sign[node] if amplitude[node] >= 0.02 * amplitude.max() else None
+            )
+            if (
+                current_sign is not None
+                and node_sign is not None
+                and node_sign != current_sign
+            ):
+                lobes.append(current)
+                current = []
+            current.append(node)
+            if node_sign is not None:
+                current_sign = node_sign
+        lobes.append(current)
+
+        journal_loads = self._journal_bearing_loads()
+        journal_nodes = sorted(journal_loads)
+        left_bearing, right_bearing = journal_nodes[0], journal_nodes[-1]
+        positions = np.asarray(self.nodes_pos)
+
+        antinodes = []
+        for lobe in lobes:
+            antinode = int(lobe[int(np.argmax(amplitude[lobe]))])
+            inboard = left_bearing <= antinode <= right_bearing
+            antinodes.append((antinode, amplitude[antinode], inboard))
+
+        largest = amplitude.max()
+        selected = [
+            (antinode, inboard)
+            for antinode, amp, inboard in antinodes
+            if (inboard and amp >= 0.1 * largest)
+            or (not inboard and (antinode == reference or amp >= 0.5 * largest))
+        ]
+        n_inboard = sum(1 for _, inboard in selected if inboard)
+
+        maximum_continuous_speed_rpm = Q_(maximum_continuous_speed, "rad/s").to("RPM").m
+        nodes, magnitudes, phases, loads = [], [], [], []
+        for antinode, inboard in selected:
+            if inboard and n_inboard == 1:
+                load = sum(journal_loads.values())
+            elif inboard:
+                nearest = min(
+                    journal_nodes, key=lambda n: abs(positions[n] - positions[antinode])
+                )
+                load = journal_loads[nearest]
+            elif antinode < left_bearing:
+                load = self._overhung_mass(left_bearing, "left")
+            else:
+                load = self._overhung_mass(right_bearing, "right")
+
+            if maximum_continuous_speed_rpm < 25000:
+                residual_unbalance = 6350 * load / maximum_continuous_speed_rpm
+            else:
+                residual_unbalance = load / 3.937
+
+            nodes.append(antinode)
+            magnitudes.append(Q_(2 * residual_unbalance, "g*mm").to("kg*m").m)
+            phases.append(0.0 if sign[antinode] == sign[reference] else float(np.pi))
+            loads.append(load)
+
+        return {
+            "node": nodes,
+            "unbalance_magnitude": magnitudes,
+            "unbalance_phase": phases,
+            "static_load": loads,
+            "mode_index": mode_index,
+            "mode_frequency": float(modal.wd[mode_index]),
+        }
+
+    @check_units
+    def run_clearance_analysis(
+        self,
+        speed_range,
+        minimum_allowable_speed,
+        maximum_continuous_speed,
+        probes,
+        mode=0,
+        node=None,
+        unbalance_magnitude=None,
+        unbalance_phase=None,
+        scale_factor_cap=None,
+        num_modes=12,
+    ):
+        r"""Close-clearance check of the unbalance response after API 617.
+
+        Implements API 617 (9th edition) 6.8.2.10 and 6.8.2.11:
+
+        1. The unbalance response is computed over ``speed_range`` with the
+           unbalance of :meth:`api617_unbalance` for the selected ``mode``
+           (or with the unbalance given explicitly).
+        2. The mechanical test vibration limit is
+           :math:`A_{vl} = \min(25.4, 25.4 \sqrt{12000 / N_{mc}})` µm peak to
+           peak, with :math:`N_{mc}` in rpm.
+        3. :math:`A_{max}` is the largest peak-to-peak amplitude measured by the
+           ``probes`` between the minimum allowable speed and the maximum
+           continuous speed.
+        4. The scale factor :math:`S_{cc} = A_{vl} / A_{max}` is applied to the
+           major-axis peak-to-peak amplitude at every close-clearance location.
+           API 617 limits :math:`S_{cc}` to 6; the limit is applied only when
+           ``scale_factor_cap`` is given.
+        5. The scaled amplitudes are compared with 75 % of the minimum diametral
+           running clearance at each location, at the worst speed of
+           ``speed_range``.
+
+        The close-clearance locations are the bearing and seal elements of the
+        rotor that carry a ``radial_clearance`` (fluid-film bearings, labyrinth
+        and hole-pattern seals, and any ``BearingElement`` or ``SealElement``
+        created with ``radial_clearance=``). The diametral clearance is twice
+        the smallest radial clearance of the element.
+
+        Parameters
+        ----------
+        speed_range : array, pint.Quantity
+            Rotor speeds of the unbalance response (rad/s). API 617 asks for the
+            range from zero to the trip speed. The minimum allowable speed and
+            the maximum continuous speed are added to the range if absent.
+        minimum_allowable_speed : float, pint.Quantity
+            Minimum allowable speed :math:`N_{ma}` (rad/s).
+        maximum_continuous_speed : float, pint.Quantity
+            Maximum continuous speed :math:`N_{mc}` (rad/s).
+        probes : list
+            List of :class:`ross.Probe` objects at the location and orientation
+            of the machine vibration probes. :math:`A_{max}` is taken over these
+            probes.
+        mode : int, optional
+            Index of the forward mode used to place the unbalance (0 is the first
+            forward mode). See :meth:`api617_unbalance`. Ignored when ``node`` is
+            given.
+            Default is 0.
+        node : list, int, optional
+            Node(s) where the unbalance is applied, overriding the placement
+            derived from ``mode``. Requires ``unbalance_magnitude`` and
+            ``unbalance_phase``.
+            Default is None.
+        unbalance_magnitude : list, float, pint.Quantity, optional
+            Unbalance magnitude(s) in kg·m, used with ``node``.
+            Default is None.
+        unbalance_phase : list, float, pint.Quantity, optional
+            Unbalance phase(s) in rad, used with ``node``.
+            Default is None.
+        scale_factor_cap : float, optional
+            Upper limit for the scale factor :math:`S_{cc}`. API 617 6.8.2.11
+            uses 6. Default is None, which applies no limit.
+        num_modes : int, optional
+            Number of modes computed to select the mode shape.
+            Default is 12.
 
         Returns
         -------
         results : ross.ClearanceResults
-            Results object containing:
-                - speed_rpm : float
-                - bearing_nodes : list
-                - magnitudes : ndarray
-                    Peak-to-peak vibration amplitude (microns)
-                - clearance : ndarray
-                    Radial clearance (microns)
-                - clearance_75 : ndarray
-                    75% of radial clearance (microns)
+            Results with the probe response, the vibration limit, the scale
+            factor and the scaled response at each close-clearance location.
+            Amplitudes are peak to peak and clearances diametral, in metres.
+            Use ``results.data()`` for a summary table and ``results.plot()``,
+            ``results.plot_response()`` and ``results.plot_probe_response()``
+            for the plots.
 
         Examples
         --------
         >>> import ross as rs
         >>> import numpy as np
+        >>> from ross.units import Q_
         >>> rotor = rs.rotor_example()
-        >>> speed = 600.0
-        >>> result = rotor.run_clearance_analysis(
-        ...     speed=speed,
-        ...     node=3,
-        ...     unbalance_magnitude=0.05,
-        ...     unbalance_phase=0.0,
-        ...     frequency=np.array([speed]),
+        >>> bearings = [
+        ...     rs.BearingElement(n=0, kxx=1e6, cxx=1e3, radial_clearance=Q_(100, "um")),
+        ...     rs.BearingElement(n=6, kxx=1e6, cxx=1e3, radial_clearance=Q_(100, "um")),
+        ... ]
+        >>> rotor = rs.Rotor(rotor.shaft_elements, rotor.disk_elements, bearings)
+        >>> probes = [rs.Probe(0, Q_(45, "deg")), rs.Probe(6, Q_(45, "deg"))]
+        >>> results = rotor.run_clearance_analysis(
+        ...     speed_range=Q_(np.linspace(0, 10000, 101), "RPM"),
+        ...     minimum_allowable_speed=Q_(7000, "RPM"),
+        ...     maximum_continuous_speed=Q_(9000, "RPM"),
+        ...     probes=probes,
         ... )
-        >>> len(result["bearing_nodes"]) == 2
-        True
+        >>> round(results.vibration_limit * 1e6, 1)
+        25.4
+        >>> list(results.clearance_nodes)
+        [0, 6]
         """
-        # Normalize speed to a scalar in rad/s.
-        speed = np.asarray(speed)
-        if speed.ndim == 0:
-            speed = float(speed)
-        elif speed.size == 1:
-            speed = float(speed.reshape(-1)[0])
-        else:
+        speed_range = np.atleast_1d(np.asarray(speed_range, dtype=float))
+        minimum_allowable_speed = float(minimum_allowable_speed)
+        maximum_continuous_speed = float(maximum_continuous_speed)
+        if not 0 <= minimum_allowable_speed <= maximum_continuous_speed:
             raise ValueError(
-                "'speed' must be a scalar (or an array with a single value) for "
-                "run_clearance_analysis."
+                "minimum_allowable_speed must be between 0 and "
+                "maximum_continuous_speed."
+            )
+        probes = [probe for probe in probes if probe.direction == "radial"]
+        if len(probes) == 0:
+            raise ValueError("At least one radial probe is required to evaluate Amax.")
+        speed_range = np.union1d(
+            speed_range, [minimum_allowable_speed, maximum_continuous_speed]
+        )
+
+        locations = [
+            elm
+            for elm in self.bearing_elements
+            if getattr(elm, "radial_clearance", None) is not None
+            and elm.n in self.nodes
+        ]
+        if not locations:
+            raise ValueError(
+                "No close-clearance location found: no bearing or seal element "
+                "of the rotor carries a radial_clearance."
             )
 
-        # Convert speed to rpm
-        speed_rpm = Q_(speed, "rad/s").to("RPM").m
-
-        if frequency is None:
-            frequency = np.asarray([speed], dtype=float)
+        if node is None:
+            unbalance = self.api617_unbalance(
+                mode, maximum_continuous_speed, num_modes=num_modes
+            )
+            node = unbalance["node"]
+            unbalance_magnitude = unbalance["unbalance_magnitude"]
+            unbalance_phase = unbalance["unbalance_phase"]
+            mode_index = unbalance["mode_index"]
+            mode_frequency = unbalance["mode_frequency"]
         else:
-            frequency = np.asarray(frequency, dtype=float)
+            if unbalance_magnitude is None or unbalance_phase is None:
+                raise ValueError(
+                    "unbalance_magnitude and unbalance_phase are required when "
+                    "node is given."
+                )
+            mode = None
+            mode_index = None
+            mode_frequency = None
 
-        # ---  Unbalance response ---
+        node = list(np.atleast_1d(node).astype(int))
+        unbalance_magnitude = list(np.atleast_1d(unbalance_magnitude).astype(float))
+        unbalance_phase = list(np.atleast_1d(unbalance_phase).astype(float))
+
         response = self.run_unbalance_response(
-            node,
-            unbalance_magnitude,
-            unbalance_phase,
-            frequency,
-            modes=modes,
+            node, unbalance_magnitude, unbalance_phase, speed_range
         )
 
-        bearing_probes = [
-            Probe(b.n, Q_(0, "rad"), tag=getattr(b, "tag", None))
-            for b in self.bearing_elements
+        df = response.data_magnitude(probe=probes, amplitude_units="m pkpk")
+        probe_response = df.drop(columns="frequency").to_numpy(dtype=float).T
+        probe_tags = [
+            probe.tag or probe.get_label(i + 1) for i, probe in enumerate(probes)
         ]
 
-        df = response.data_magnitude(
-            probe=bearing_probes,
-            amplitude_units="um pkpk",
+        in_operating_range = (speed_range >= minimum_allowable_speed) & (
+            speed_range <= maximum_continuous_speed
+        )
+        max_probe_amplitude = float(probe_response[:, in_operating_range].max())
+        if not np.isfinite(max_probe_amplitude) or max_probe_amplitude <= 0:
+            raise ValueError("Invalid probe response in the operating speed range.")
+
+        maximum_continuous_speed_rpm = Q_(maximum_continuous_speed, "rad/s").to("RPM").m
+        vibration_limit = (
+            Q_(min(25.4, 25.4 * np.sqrt(12000 / maximum_continuous_speed_rpm)), "um")
+            .to("m")
+            .m
         )
 
-        freq_col = df["frequency"].to_numpy(dtype=float)
-        freq_row = int(np.argmin(np.abs(freq_col - speed)))
-        magnitudes = df.loc[freq_row, df.columns != "frequency"].to_numpy(copy=True)
+        scale_factor = vibration_limit / max_probe_amplitude
+        if scale_factor_cap is not None:
+            scale_factor = min(scale_factor, float(scale_factor_cap))
 
-        # --- STEP 5: API 617 vibration limit (Avl) ---
-        Avl = 25.4 * (12000 / speed_rpm)
-
-        Amax = np.nanmax(magnitudes)
-
-        if not np.isfinite(Amax) or Amax <= 0:
-            raise ValueError("Invalid vibration response.")
-
-        # --- STEP 6: Scale factor (Scc) ---
-        Scc = min(Avl / Amax, 6.0)
-
-        magnitudes_scaled = magnitudes * Scc
-
-        # --- STEP 7: Clearance ---
-        clearance = []
-        clearance_75 = []
-
-        for b in self.bearing_elements:
-            rc = getattr(b, "radial_clearance", None)
-
-            if rc is None:
-                clearance.append(np.nan)
-                clearance_75.append(np.nan)
-                continue
-
-            clr = Q_(rc, "m").to("micron").m
-            clr_val = float(np.nanmax(np.asarray(clr)))
-
-            clearance.append(clr_val)
-            clearance_75.append(0.75 * clr_val)
+        number_dof = self.number_dof
+        clearance_response = []
+        diametral_clearance = []
+        for elm in locations:
+            dof = number_dof * elm.n
+            major_axis = np.array(
+                [
+                    Orbit(
+                        node=elm.n,
+                        node_pos=self.nodes_pos[elm.n],
+                        ru_e=response.forced_resp[dof, i],
+                        rv_e=response.forced_resp[dof + 1, i],
+                    ).major_axis
+                    for i in range(len(speed_range))
+                ]
+            )
+            clearance_response.append(2 * scale_factor * major_axis)
+            diametral_clearance.append(
+                2 * float(np.min(np.atleast_1d(elm.radial_clearance)))
+            )
 
         return ClearanceResults(
-            speed_rpm=speed_rpm,
-            bearing_nodes=[b.n for b in self.bearing_elements],
-            magnitudes=magnitudes_scaled,
-            clearance=np.array(clearance),
-            clearance_75=np.array(clearance_75),
+            speed_range=speed_range,
+            minimum_allowable_speed=minimum_allowable_speed,
+            maximum_continuous_speed=maximum_continuous_speed,
+            unbalance_node=node,
+            unbalance_magnitude=unbalance_magnitude,
+            unbalance_phase=unbalance_phase,
+            probe_tags=probe_tags,
+            probe_nodes=[probe.node for probe in probes],
+            probe_angles=[probe.angle for probe in probes],
+            probe_response=probe_response,
+            vibration_limit=vibration_limit,
+            max_probe_amplitude=max_probe_amplitude,
+            scale_factor=scale_factor,
+            clearance_tags=[str(elm.tag) for elm in locations],
+            clearance_nodes=[elm.n for elm in locations],
+            clearance_positions=[self.nodes_pos[elm.n] for elm in locations],
+            diametral_clearance=diametral_clearance,
+            clearance_response=np.array(clearance_response),
+            scale_factor_cap=scale_factor_cap,
+            mode=mode,
+            mode_index=mode_index,
+            mode_frequency=mode_frequency,
         )
 
     @check_units
@@ -6044,7 +6594,19 @@ class CoAxialRotor(Rotor):
         beta=0.0,
         tag=None,
     ):
-        self.parameters = {"min_w": min_w, "max_w": max_w, "rated_w": rated_w}
+        self.parameters = {
+            "min_w": min_w,
+            "max_w": max_w,
+            "rated_w": rated_w,
+            "modal_damping_ratio": (
+                None
+                if modal_damping_ratio is None
+                else [float(xi) for xi in np.atleast_1d(modal_damping_ratio)]
+            ),
+            "default_damping_ratio": float(default_damping_ratio),
+            "alpha": float(alpha) if alpha is not None else 0.0,
+            "beta": float(beta) if beta is not None else 0.0,
+        }
         if tag is None:
             self.tag = "Rotor 0"
 
@@ -6426,7 +6988,9 @@ class CoAxialRotor(Rotor):
         for z_pos in dfb["nodes_pos_l"]:
             dfb_z_pos = dfb[dfb.nodes_pos_l == z_pos]
             dfb_z_pos = dfb_z_pos.sort_values(by="n_l")
-            for n, t, nlink in zip(dfb_z_pos.n, dfb_z_pos.tag, dfb_z_pos.n_link):
+            for n, t, nlink in zip(
+                dfb_z_pos.n, dfb_z_pos.tag, dfb_z_pos.n_link, strict=True
+            ):
                 if n in self.nodes:
                     if z_pos == df_shaft["nodes_pos_l"].iloc[0]:
                         y_pos = (np.max(df_shaft["odl"][df_shaft.n_l == n].values)) / 2
@@ -6595,7 +7159,7 @@ def compressor_example():
     >>> len(rotor.bearing_elements)
     14
     """
-    compressor_dir = Path(__file__).parent / "tests/data/compressor_example.toml"
+    compressor_dir = Path(__file__).parent / "data/compressor_example.toml"
 
     return Rotor.load(compressor_dir)
 

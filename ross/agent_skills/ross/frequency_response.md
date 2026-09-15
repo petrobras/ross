@@ -15,8 +15,15 @@ speed_range = np.linspace(0, 1000, 200)
 frf = rotor.run_freq_response(speed_range=speed_range)
 ```
 
-- `speed_range` (array): frequency range in rad/s (auto-selected if None)
-- `free_free` (bool): if True, evaluates the transfer matrix at zero rotating speed (no gyroscopic term; speed-dependent bearing coefficients taken at 0 rad/s) while the excitation frequency sweeps — bearings are still included
+- `speed_range` (array): excitation frequencies in rad/s (auto-selected if None). By default the rotor speed follows the sweep (synchronous excitation: speed = frequency at every point)
+- `speed` (float, optional): hold the rotor speed fixed at this value while `speed_range` sweeps the excitation frequency — the gyroscopic term and speed-dependent bearing/seal coefficients use `speed`, frequency-dependent coefficients follow the sweep
+- `free_free` (bool): if True, evaluates the transfer matrix at zero rotating speed (no gyroscopic term; speed-dependent bearing coefficients taken at 0 rad/s) while the excitation frequency sweeps — bearings are still included (equivalent to `speed=0`)
+
+```python
+# FRF at a fixed running speed, excitation swept from 0 to 1000 rad/s
+w = rs.Q_(4000, "RPM").to("rad/s").m
+frf_fixed = rotor.run_freq_response(speed_range=speed_range, speed=w)
+```
 
 ### DOF Indexing for FRF
 
@@ -55,7 +62,8 @@ response = rotor.run_forced_response(force=force, speed_range=speed_range)
 ```
 
 - `force` (array): complex force array, shape (ndof, num_frequencies)
-- `speed_range` (array): frequency array in rad/s
+- `speed_range` (array): excitation frequency array in rad/s
+- `speed` (float, optional): fixed rotor speed for the whole sweep (default: synchronous, speed = frequency), e.g. `rotor.run_forced_response(force=force, speed_range=speed_range, speed=w)`
 - `unbalance` (array, optional): cosmetic only — a `(3, n)` array `np.vstack((nodes, magnitudes, phases))` used to draw unbalance markers on `plot_deflected_shape`; it does not generate force (`force` is still required)
 
 ### Plotting

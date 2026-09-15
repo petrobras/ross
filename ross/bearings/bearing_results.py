@@ -6,7 +6,7 @@ from plotly.subplots import make_subplots
 from prettytable import PrettyTable
 from scipy.interpolate import griddata
 
-from ross.plotly_theme import tableau_colors
+from ross.plotly_theme import axes_indicator_3d, tableau_colors
 from ross.units import Q_
 
 __all__ = [
@@ -388,12 +388,16 @@ class ThrustPadResults(BearingResults):
             -(self.d_radius * self.pad_inner_radius),
         )
 
-        angular_coords[0] = np.pi / 2 + self.pad_arc / 2
-        angular_coords[-1] = np.pi / 2 - self.pad_arc / 2
-        angular_coords[1 : self.n_theta + 1] = np.arange(
-            np.pi / 2 + self.pad_arc / 2 - (0.5 * self.d_theta * self.pad_arc),
-            np.pi / 2 - self.pad_arc / 2,
-            -self.d_theta * self.pad_arc,
+        # the first angular index is the oil inlet at the leading edge and the
+        # collar runs from it toward the trailing edge, so the angle grows with
+        # the index: the spin takes x toward y, as in the rotor frame
+        leading_edge = np.pi / 2 - self.pad_arc / 2
+        trailing_edge = np.pi / 2 + self.pad_arc / 2
+        step = self.d_theta * self.pad_arc
+        angular_coords[0] = leading_edge
+        angular_coords[-1] = trailing_edge
+        angular_coords[1 : self.n_theta + 1] = np.linspace(
+            leading_edge + 0.5 * step, trailing_edge - 0.5 * step, self.n_theta
         )
 
         for i in range(self.n_radial + 2):
@@ -1491,8 +1495,8 @@ class FluidFilmBearingResults(BearingResults):
         fig.add_trace(
             go.Mesh3d(
                 x=np.concatenate(x),
-                y=np.concatenate(y),
-                z=np.concatenate(z),
+                y=np.concatenate(z),
+                z=np.concatenate(y),
                 i=triangles[:, 0],
                 j=triangles[:, 1],
                 k=triangles[:, 2],
@@ -1503,8 +1507,8 @@ class FluidFilmBearingResults(BearingResults):
                 name="Pad temperature",
                 hovertemplate=(
                     f"x: %{{x:.4g}} {length_units}<br>"
-                    f"y: %{{y:.4g}} {length_units}<br>"
-                    f"z: %{{z:.4g}} {length_units}<br>"
+                    f"y: %{{z:.4g}} {length_units}<br>"
+                    f"z: %{{y:.4g}} {length_units}<br>"
                     f"Temperature: %{{intensity:.5g}} {temperature_units}"
                     "<extra></extra>"
                 ),
@@ -1515,20 +1519,37 @@ class FluidFilmBearingResults(BearingResults):
             fig.add_trace(
                 go.Scatter3d(
                     x=np.concatenate(interface_x),
-                    y=np.concatenate(interface_y),
-                    z=np.concatenate(interface_z),
+                    y=np.concatenate(interface_z),
+                    z=np.concatenate(interface_y),
                     mode="lines",
                     line=dict(color="red", width=3, dash="dash"),
                     name="Babbitt surface",
                 )
             )
 
+        # the scene is laid out like the rotor shape plots, as a rotation of
+        # the bearing frame: x on the reversed scene x axis, the bearing axis
+        # (z) on the scene y axis and y on the scene z axis, so that plotly's
+        # default camera shows the front face at the left with the axis
+        # receding to the right
+        x_all, y_all, z_all = np.concatenate(x), np.concatenate(y), np.concatenate(z)
+        bore = np.sqrt(np.min(x_all**2 + y_all**2))
+        fig = axes_indicator_3d(
+            fig,
+            origin=dict(x=0.0, y=z_all.min(), z=0.0),
+            size=0.6 * bore,
+            scales=dict(x=1.0, y=1.0, z=1.0),
+            scene_axes={"x": "x", "y": "z", "z": "y"},
+        )
+
         fig.update_layout(
             title=dict(text="Solid pad temperature"),
             scene=dict(
-                xaxis_title=f"X ({length_units})",
-                yaxis_title=f"Y ({length_units})",
-                zaxis_title=f"Z ({length_units})",
+                xaxis=dict(
+                    title=dict(text=f"X ({length_units})"), autorange="reversed"
+                ),
+                yaxis_title=f"Z ({length_units})",
+                zaxis_title=f"Y ({length_units})",
                 aspectmode="data",
             ),
             legend=dict(x=0.02, y=0.98, xanchor="left", yanchor="top"),

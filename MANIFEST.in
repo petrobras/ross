@@ -1,6 +1,9 @@
 include requirements.txt README.md LICENSE.md ross/new_units.txt ross/available_materials.toml
-include tools/data/c123701 tools/data/injection tools/data/rotor_example 
+include tools/data/c123701 tools/data/injection tools/data/rotor_example
 include ross/faults/data/PAPADOPOULOS.csv
 recursive-include ross/assets *
 recursive-include ross/agent_skills *.md
-recursive-include ross/tests *
+recursive-include ross/data *
+recursive-include ross/tests/data *
+include ross/tests/frf.toml
+global-exclude *.pyc
