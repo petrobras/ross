@@ -974,7 +974,10 @@ one entry shorter than the speed list and every coefficient was silently paired 
 eccentricity of the *next* speed. The element now selects exactly one root per speed and raises a
 ``ValueError`` naming the speed that has no equilibrium eccentricity; the zero-speed nudge to
 0.1 rad/s, which never reached the Sommerfeld number, was removed
-(`#1406 <https://github.com/petrobras/ross/pull/1406>`_).
+(`#1406 <https://github.com/petrobras/ross/pull/1406>`_). A speed of zero or less is rejected
+before the root search: at zero speed the polynomial has a quadruple root at 1, and on macOS and
+Windows the root finder returns one real root just below 1 that slipped through the interval check
+and divided the coefficients by zero (`#1409 <https://github.com/petrobras/ross/pull/1409>`_).
 
 Fix ``LabyrinthSeal`` Coefficients on Repeated Runs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
