@@ -555,7 +555,7 @@ class Shape(Results):
         orbits = []
         whirl = []
 
-        for node, node_pos in zip(self.nodes, self.nodes_pos):
+        for node, node_pos in zip(self.nodes, self.nodes_pos, strict=True):
             ru_e, rv_e = self._evec[self.number_dof * node : self.number_dof * node + 2]
             orbit = Orbit(node=node, node_pos=node_pos, ru_e=ru_e, rv_e=rv_e)
             orbits.append(orbit)
@@ -625,7 +625,9 @@ class Shape(Results):
                 n1 = get_node_index(j)
                 e1 = n1 - (j + 1)
 
-                for Le, n in zip(shaft_elements_length[e0:e1], nodes[n0:n1]):
+                for Le, n in zip(
+                    shaft_elements_length[e0:e1], nodes[n0:n1], strict=False
+                ):
                     node_pos = nodes_pos[n]
                     Nx = np.hstack((N1, Le * N2, N3, Le * N4))
                     Ny = np.hstack((N1, -Le * N2, N3, -Le * N4))
@@ -2058,7 +2060,7 @@ class ModalResults(Results):
 
         table = PrettyTable()
         table.field_names = headers
-        for row in zip(range(len(wn)), wn, wd, damping_ratio, log_dec):
+        for row in zip(range(len(wn)), wn, wd, damping_ratio, log_dec, strict=True):
             table.add_row(row)
 
         return table
@@ -2552,7 +2554,7 @@ class CampbellResults(Results):
         if frequency_range is not None:
             crit_x_filtered = []
             crit_y_filtered = []
-            for x, y in zip(crit_x, crit_y):
+            for x, y in zip(crit_x, crit_y, strict=True):
                 if frequency_range[0] < y < frequency_range[1]:
                     crit_x_filtered.append(x)
                     crit_y_filtered.append(y)
@@ -2585,7 +2587,9 @@ class CampbellResults(Results):
         ]
         legends = ["Forward", "Mixed", "Backward", "Axial", "Torsional"]
 
-        for whirl_dir, mark, legend in zip(whirl_direction, scatter_marker, legends):
+        for whirl_dir, mark, legend in zip(
+            whirl_direction, scatter_marker, legends, strict=True
+        ):
             for i in range(num_frequencies):
                 w_i = wd[:, i]
                 whirl_i = whirl[:, i]
@@ -2647,7 +2651,7 @@ class CampbellResults(Results):
                 )
             )
         # turn legend glyphs black
-        for mark, legend in zip(scatter_marker, legends):
+        for mark, legend in zip(scatter_marker, legends, strict=True):
             fig.add_trace(
                 go.Scatter(
                     x=[0],
@@ -4612,7 +4616,11 @@ class ForcedResponseResults(Results):
         # plot unbalance markers
         if unbalance is not None:
             for i, n, amplitude, phase in zip(
-                range(unbalance.shape[1]), unbalance[0], unbalance[1], unbalance[2]
+                range(unbalance.shape[1]),
+                unbalance[0],
+                unbalance[1],
+                unbalance[2],
+                strict=True,
             ):
                 # scale unbalance marker to half the maximum major axis
                 n = int(n)
@@ -8133,7 +8141,7 @@ class ClearanceResults(Results):
     def _location_labels(self):
         return [
             tag if tag not in ("None", "") else f"Node {node}"
-            for tag, node in zip(self.clearance_tags, self.clearance_nodes)
+            for tag, node in zip(self.clearance_tags, self.clearance_nodes, strict=True)
         ]
 
     def data(self, length_units="um", speed_units="RPM"):
@@ -8234,7 +8242,7 @@ class ClearanceResults(Results):
                 name="Scaled amplitude (pk-pk)",
                 text=[
                     f"{pl:.1f}% / {pc:.1f}%"
-                    for pl, pc in zip(percent_limit, percent_clearance)
+                    for pl, pc in zip(percent_limit, percent_clearance, strict=True)
                 ],
                 textposition="top center",
                 line={"color": tableau_colors["purple"], "width": 3},
@@ -8380,7 +8388,7 @@ class ClearanceResults(Results):
         speed = Q_(self.speed_range, "rad/s").to(speed_units).m
         to_length = lambda value: Q_(value, "m").to(length_units).m
 
-        for tag, response in zip(self.probe_tags, self.probe_response):
+        for tag, response in zip(self.probe_tags, self.probe_response, strict=True):
             fig.add_trace(
                 go.Scatter(
                     x=speed,

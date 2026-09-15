@@ -2647,7 +2647,9 @@ def test_plot_rotor_bearing_style_button(rotor8):
     pedestal, _ = button.args2
     assert {fill for fill in classic["fill"] if fill is not None} == {"none"}
     assert {fill for fill in pedestal["fill"] if fill is not None} == {"toself"}
-    for fill, index, y_classic in zip(classic["fill"], indices, classic["y"]):
+    for fill, index, y_classic in zip(
+        classic["fill"], indices, classic["y"], strict=True
+    ):
         if fill is None:
             continue
         drawn = [y for y in fig.data[index]["y"] if y is not None]
@@ -2660,7 +2662,7 @@ def test_plot_rotor_bearing_style_button(rotor8):
     button = toggle_button(fig, "Bearings: classic")
     (menu,) = [m for m in fig.layout.updatemenus if m.buttons[0] == button]
     assert menu.active == 0
-    for index, x_classic in zip(button.args[1], button.args[0]["x"]):
+    for index, x_classic in zip(button.args[1], button.args[0]["x"], strict=True):
         assert_allclose(
             [x for x in fig.data[index]["x"] if x is not None],
             [x for x in x_classic if x is not None],

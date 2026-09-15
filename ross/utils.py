@@ -472,8 +472,8 @@ def visualize_matrix(rotor, matrix, frequency=None, **kwargs):
 
         A[np.ix_(g_dofs, g_dofs)] += elm_matrix
 
-        for l0, g0 in zip(l_dofs, g_dofs):
-            for l1, g1 in zip(l_dofs, g_dofs):
+        for l0, g0 in zip(l_dofs, g_dofs, strict=True):
+            for l1, g1 in zip(l_dofs, g_dofs, strict=True):
                 if elm_matrix[l0, l1] != 0:
                     E[g0, g1].append(
                         "<br>"
