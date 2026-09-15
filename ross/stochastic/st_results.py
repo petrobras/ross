@@ -1089,7 +1089,6 @@ class ST_TimeResponseResults(ST_Results):
         probe,
         percentile=[],
         conf_interval=[],
-        probe_units="rad",
         displacement_units="m",
         time_units="s",
         fig=None,
@@ -1109,9 +1108,6 @@ class ST_TimeResponseResults(ST_Results):
         conf_interval : list, optional
             Sequence of confidence intervals to compute, which must be
             between 0 and 100 inclusive.
-        probe_units : str, option
-            Units for probe orientation.
-            Default is "rad".
         displacement_units : str, optional
             Displacement units.
             Default is 'm'.
@@ -1651,7 +1647,6 @@ class ST_ForcedResponseResults(ST_Results):
         probe,
         percentile=[],
         conf_interval=[],
-        probe_units="rad",
         frequency_units="rad/s",
         amplitude_units="m",
         fig=None,
@@ -1672,9 +1667,6 @@ class ST_ForcedResponseResults(ST_Results):
         conf_interval : list, optional
             Sequence of confidence intervals to compute, which must be between
             0% and 100% inclusive.
-        probe_units : str, option
-            Units for probe orientation.
-            Default is "rad".
         frequency_units : str, optional
             Units for the x axis.
             Default is "rad/s"
@@ -1801,7 +1793,6 @@ class ST_ForcedResponseResults(ST_Results):
         probe,
         percentile=[],
         conf_interval=[],
-        probe_units="rad",
         frequency_units="rad/s",
         amplitude_units="m",
         phase_units="rad",
@@ -1822,9 +1813,6 @@ class ST_ForcedResponseResults(ST_Results):
         conf_interval : list, optional
             Sequence of confidence intervals to compute, which must be between
             0 and 100 inclusive.
-        probe_units : str, option
-            Units for probe orientation.
-            Default is "rad".
         frequency_units : str, optional
             Units for the x axis.
             Default is "rad/s"
@@ -1937,7 +1925,6 @@ class ST_ForcedResponseResults(ST_Results):
         probe,
         percentile=[],
         conf_interval=[],
-        probe_units="rad",
         frequency_units="rad/s",
         amplitude_units="m",
         phase_units="rad",
@@ -1956,9 +1943,6 @@ class ST_ForcedResponseResults(ST_Results):
         conf_interval : list, optional
             Sequence of confidence intervals to compute, which must be between
             0 and 100 inclusive.
-        probe_units : str, option
-            Units for probe orientation.
-            Default is "rad".
         frequency_units : str, optional
             Units for the x axis.
             Default is "rad/s"
@@ -2106,7 +2090,6 @@ class ST_ForcedResponseResults(ST_Results):
         probe,
         percentile=[],
         conf_interval=[],
-        probe_units="rad",
         frequency_units="rad/s",
         amplitude_units="m",
         phase_units="rad",
@@ -2129,9 +2112,6 @@ class ST_ForcedResponseResults(ST_Results):
         conf_interval : list, optional
             Sequence of confidence intervals to compute, which must be
             between 0 and 100 inclusive.
-        probe_units : str, option
-            Units for probe orientation.
-            Default is "rad".
         frequency_units : str, optional
             Frequency units.
             Default is "rad/s"
@@ -2176,13 +2156,13 @@ class ST_ForcedResponseResults(ST_Results):
 
         # fmt: off
         fig0 = self.plot_magnitude(
-            probe, percentile, conf_interval, probe_units, frequency_units, amplitude_units, None, **mag_kwargs
+            probe, percentile, conf_interval, frequency_units, amplitude_units, None, **mag_kwargs
         )
         fig1 = self.plot_phase(
-            probe, percentile, conf_interval, probe_units, frequency_units, amplitude_units, phase_units, None, **phase_kwargs
+            probe, percentile, conf_interval, frequency_units, amplitude_units, phase_units, None, **phase_kwargs
         )
         fig2 = self.plot_polar_bode(
-            probe, percentile, conf_interval, probe_units, frequency_units, amplitude_units, phase_units, None, **polar_kwargs,
+            probe, percentile, conf_interval, frequency_units, amplitude_units, phase_units, None, **polar_kwargs,
         )
         # fmt: on
 

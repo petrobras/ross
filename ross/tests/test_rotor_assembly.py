@@ -1644,7 +1644,7 @@ def test_tuple_probes_are_rejected(rotor3):
         node=0, unbalance_magnitude=1, unbalance_phase=0, speed_range=[50, 100]
     )
     with pytest.raises(TypeError, match="ross_2to3"):
-        unb.data_magnitude(probe=[(0, 45)], probe_units="deg")
+        unb.data_magnitude(probe=[(0, 45)])
     with pytest.raises(TypeError, match="Probe"):
         unb.plot_phase(probe=[Probe(0, 0), (3, 0, "tag")])
 

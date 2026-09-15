@@ -3499,7 +3499,6 @@ class ForcedResponseResults(Results):
     def data_magnitude(
         self,
         probe,
-        probe_units="rad",
         frequency_units="rad/s",
         amplitude_units="m",
     ):
@@ -3509,9 +3508,6 @@ class ForcedResponseResults(Results):
         ----------
         probe : list
             List with rs.Probe objects.
-        probe_units : str, option
-            Units for probe orientation.
-            Default is "rad".
         frequency_units : str, optional
             Units for the frequency range.
             Default is "rad/s"
@@ -3595,7 +3591,6 @@ class ForcedResponseResults(Results):
     def data_phase(
         self,
         probe,
-        probe_units="rad",
         frequency_units="rad/s",
         amplitude_units="m",
         phase_units="rad",
@@ -3606,9 +3601,6 @@ class ForcedResponseResults(Results):
         ----------
         probe : list
             List with rs.Probe objects.
-        probe_units : str, option
-            Units for probe orientation.
-            Default is "rad".
         frequency_units : str, optional
             Units for the x axis.
             Default is "rad/s"
@@ -3696,7 +3688,6 @@ class ForcedResponseResults(Results):
     def plot_magnitude(
         self,
         probe,
-        probe_units="rad",
         frequency_units="rad/s",
         amplitude_units="m",
         fig=None,
@@ -3709,9 +3700,6 @@ class ForcedResponseResults(Results):
         ----------
         probe : list
             List with rs.Probe objects.
-        probe_units : str, optional
-            Units for probe orientation.
-            Default is "rad".
         frequency_units : str, optional
             Units for the x axis.
             Default is "rad/s"
@@ -3742,7 +3730,7 @@ class ForcedResponseResults(Results):
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
-        df = self.data_magnitude(probe, probe_units, frequency_units, amplitude_units)
+        df = self.data_magnitude(probe, frequency_units, amplitude_units)
 
         if fig is None:
             fig = go.Figure()
@@ -3775,7 +3763,6 @@ class ForcedResponseResults(Results):
     def plot_phase(
         self,
         probe,
-        probe_units="rad",
         frequency_units="rad/s",
         amplitude_units="m",
         phase_units="rad",
@@ -3788,9 +3775,6 @@ class ForcedResponseResults(Results):
         ----------
         probe : list
             List with rs.Probe objects.
-        probe_units : str, optional
-            Units for probe orientation.
-            Default is "rad".
         frequency_units : str, optional
             Units for the x axis.
             Default is "rad/s"
@@ -3821,9 +3805,7 @@ class ForcedResponseResults(Results):
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
-        df = self.data_phase(
-            probe, probe_units, frequency_units, amplitude_units, phase_units
-        )
+        df = self.data_phase(probe, frequency_units, amplitude_units, phase_units)
 
         if fig is None:
             fig = go.Figure()
@@ -3854,7 +3836,6 @@ class ForcedResponseResults(Results):
     def plot_bode(
         self,
         probe,
-        probe_units="rad",
         frequency_units="rad/s",
         amplitude_units="m",
         phase_units="rad",
@@ -3867,9 +3848,6 @@ class ForcedResponseResults(Results):
         ----------
         probe : list
             List with rs.Probe objects.
-        probe_units : str, optional
-            Units for probe orientation.
-            Default is "rad".
         frequency_units : str, optional
             Units for the x axis.
             Default is "rad/s"
@@ -3907,11 +3885,10 @@ class ForcedResponseResults(Results):
         phase_kwargs = {} if phase_kwargs is None else copy.copy(phase_kwargs)
 
         fig0 = self.plot_magnitude(
-            probe, probe_units, frequency_units, amplitude_units, **mag_kwargs
+            probe, frequency_units, amplitude_units, **mag_kwargs
         )
         fig1 = self.plot_phase(
             probe,
-            probe_units,
             frequency_units,
             amplitude_units,
             phase_units,
@@ -3941,7 +3918,6 @@ class ForcedResponseResults(Results):
     def plot_polar_bode(
         self,
         probe,
-        probe_units="rad",
         frequency_units="rad/s",
         amplitude_units="m",
         phase_units="rad",
@@ -3954,9 +3930,6 @@ class ForcedResponseResults(Results):
         ----------
         probe : list
             List with rs.Probe objects.
-        probe_units : str, optional
-            Units for probe orientation.
-            Default is "rad".
         frequency_units : str, optional
             Units for the x axis.
             Default is "rad/s"
@@ -3987,10 +3960,8 @@ class ForcedResponseResults(Results):
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
-        df_m = self.data_magnitude(probe, probe_units, frequency_units, amplitude_units)
-        df_p = self.data_phase(
-            probe, probe_units, frequency_units, amplitude_units, phase_units
-        )
+        df_m = self.data_magnitude(probe, frequency_units, amplitude_units)
+        df_p = self.data_phase(probe, frequency_units, amplitude_units, phase_units)
 
         if fig is None:
             fig = go.Figure()
@@ -4033,7 +4004,6 @@ class ForcedResponseResults(Results):
     def plot(
         self,
         probe,
-        probe_units="rad",
         frequency_units="rad/s",
         amplitude_units="m",
         phase_units="rad",
@@ -4053,9 +4023,6 @@ class ForcedResponseResults(Results):
         ----------
         probe : list
             List with rs.Probe objects.
-        probe_units : str, optional
-            Units for probe orientation.
-            Default is "rad".
         frequency_units : str, optional
             Frequency units.
             Default is "rad/s"
@@ -4103,10 +4070,10 @@ class ForcedResponseResults(Results):
 
         # fmt: off
         fig0 = self.plot_bode(
-            probe, probe_units, frequency_units, amplitude_units, phase_units, mag_kwargs, phase_kwargs
+            probe, frequency_units, amplitude_units, phase_units, mag_kwargs, phase_kwargs
         )
         fig1 = self.plot_polar_bode(
-            probe, probe_units, frequency_units, amplitude_units, phase_units, **polar_kwargs
+            probe, frequency_units, amplitude_units, phase_units, **polar_kwargs
         )
         # fmt: on
 
@@ -5739,7 +5706,6 @@ class TimeResponseResults(Results):
     def data_time_response(
         self,
         probe,
-        probe_units="rad",
         displacement_units="m",
         time_units="s",
         init_step=0,
@@ -5750,9 +5716,6 @@ class TimeResponseResults(Results):
         ----------
         probe : list
             List with rs.Probe objects.
-        probe_units : str, optional
-            Units for probe orientation.
-            Default is "rad".
         displacement_units : str, optional
             Displacement units.
             Default is 'm'.
@@ -5819,7 +5782,6 @@ class TimeResponseResults(Results):
     def plot_1d(
         self,
         probe,
-        probe_units="rad",
         displacement_units="m",
         time_units="s",
         fig=None,
@@ -5834,9 +5796,6 @@ class TimeResponseResults(Results):
         ----------
         probe : list
             List with rs.Probe objects.
-        probe_units : str, option
-            Units for probe orientation.
-            Default is "rad".
         displacement_units : str, optional
             Displacement units.
             Default is 'm'.
@@ -5859,7 +5818,7 @@ class TimeResponseResults(Results):
         if fig is None:
             fig = go.Figure()
 
-        df = self.data_time_response(probe, probe_units, displacement_units, time_units)
+        df = self.data_time_response(probe, displacement_units, time_units)
         _time = df["time"].values
         for i, p in enumerate(probe):
             try:
@@ -6027,7 +5986,6 @@ class TimeResponseResults(Results):
     def plot_dfft(
         self,
         probe,
-        probe_units="rad",
         displacement_units="m",
         frequency_units="Hz",
         frequency_range=None,
@@ -6043,9 +6001,6 @@ class TimeResponseResults(Results):
         ----------
         probe : list
             List with rs.Probe objects.
-        probe_units : str, option
-            Units for probe orientation.
-            Default is "rad".
         displacement_units : str, optional
             Displacement units.
             Default is "m".
@@ -6079,9 +6034,7 @@ class TimeResponseResults(Results):
         rows, cols = self.yout.shape
         init_step = int(2 * rows / 3)
 
-        data = self.data_time_response(
-            probe, probe_units, displacement_units, init_step=init_step
-        )
+        data = self.data_time_response(probe, displacement_units, init_step=init_step)
         t = data["time"].values
         dt = t[1] - t[0]
 

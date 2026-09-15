@@ -496,6 +496,16 @@ CHANGED_ON_PURPOSE = {
         "`matched_whirl`, the two ROSS 3.0 ways of decoupling the whirl "
         "frequency from the shaft speed."
     ),
+    # The five forms that lost the `probe_units` selector. ROSS 3.0 removed the
+    # keyword from every response plot along with the (node, angle) tuples it
+    # applied to; the probes reach ROSS as `Probe` objects whose angle carries
+    # its own unit.
+    **dict.fromkeys(
+        ("unbalance", "time_response", "misalignment", "rubbing", "crack"),
+        "lost `probe_units`: ROSS 3.0 removed the keyword from the response "
+        "plots together with the probe tuples it converted; `Probe` objects "
+        "carry their own angle unit.",
+    ),
 }
 
 

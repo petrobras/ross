@@ -42,9 +42,7 @@ class TransientRunner(Runner):
         if kind == "Frequency (DFFT)":
             return result.plot_dfft(
                 probe=probes,
-                **self.units(
-                    params, ["probe_units", "displacement_units", "frequency_units"]
-                ),
+                **self.units(params, ["displacement_units", "frequency_units"]),
             )
         if kind == "2D":
             lines = params.get("probes") or [{"node": 0}]
@@ -57,7 +55,7 @@ class TransientRunner(Runner):
             )
         return result.plot_1d(
             probe=probes,
-            **self.units(params, ["probe_units", "displacement_units", "time_units"]),
+            **self.units(params, ["displacement_units", "time_units"]),
         )
 
 

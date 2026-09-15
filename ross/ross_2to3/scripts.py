@@ -6,8 +6,9 @@ classes listed in :data:`ross.ross_2to3.renames.CLASS_RENAMES` have their
 keyword arguments renamed and, where the convention changed (radius to
 diameter, degrees to radians, ...), their literal values converted. The
 ``(node, angle, tag)`` tuples ROSS 2 accepted in the ``probe`` argument of the
-response plots become ``Probe`` objects. Anything that cannot be rewritten
-safely is reported with its line number.
+response plots become ``Probe`` objects and the ``probe_units`` keyword those
+tuples relied on is dropped. Anything that cannot be rewritten safely is
+reported with its line number.
 """
 
 import ast
@@ -197,8 +198,10 @@ class Converter:
         self.probe_accessor = probe_accessor
         self.dict_literals = {}
         self.list_literals = {}
+        self.tuple_literals = {}
         self.converted_dicts = set()
         self.converted_lists = set()
+        self.converted_tuples = set()
         self.needs_q_import = False
         self.needs_probe_import = False
         self.reported = set()
@@ -233,6 +236,8 @@ class Converter:
                         self.dict_literals[target.id] = node.value
                     if isinstance(node.value, ast.List):
                         self.list_literals[target.id] = node.value
+                    if isinstance(node.value, ast.Tuple):
+                        self.tuple_literals[target.id] = node.value
         if self.q_accessor is None:
             self.q_accessor = accessor
         if self.probe_accessor is None:
@@ -343,36 +348,69 @@ class Converter:
             )
 
     def convert_probes(self, node):
-        """Rewrite the ``(node, angle, tag)`` tuples of a probe list as Probe objects.
+        """Rewrite the probe argument of a response plot for ROSS 3.
 
-        The ``probe_units`` keyword is folded into the angle as a ``Q_`` and
-        dropped: it only applied to tuples, and ``Probe`` takes a quantity.
+        ``(node, angle, tag)`` tuples become ``Probe(node, angle, tag=tag)``, a
+        tuple held in a variable is rewritten at its assignment, and the
+        ``probe_units`` keyword is folded into the angles as a ``Q_`` and dropped:
+        it only applied to tuples, and ``Probe`` takes a quantity.
         """
         if not isinstance(node.func, ast.Attribute):
             return
         method = node.func.attr
         if method not in PROBE_METHODS:
             return
+        units = next((k for k in node.keywords if k.arg == "probe_units"), None)
         value = next((k.value for k in node.keywords if k.arg == "probe"), None)
         if value is None and node.args and method in POSITIONAL_PROBE_METHODS:
             value = node.args[0]
+            if len(node.args) > 1:
+                self.note(
+                    node,
+                    CHECK,
+                    f"{method}: probe_units was removed, so the positional "
+                    "arguments after probe shifted; pass the units by keyword",
+                )
         if isinstance(value, ast.Name) and value.id in self.list_literals:
             value = self.list_literals[value.id]
-        if not isinstance(value, ast.List) or id(value) in self.converted_lists:
-            return
-        tuples = [
-            item
-            for item in value.elts
-            if isinstance(item, ast.Tuple) and len(item.elts) in (2, 3)
-        ]
-        if not tuples:
-            return
-        self.converted_lists.add(id(value))
-        units = next((k for k in node.keywords if k.arg == "probe_units"), None)
         unit_text = None if units is None else self.source.segment(units.value)
         if unit_text in ('"rad"', "'rad'"):
             unit_text = None
+        converted = isinstance(value, ast.List) and self.convert_probe_list(
+            value, unit_text
+        )
+        if converted:
+            self.note(node, CHANGED, f"{method}: probe tuples -> Probe objects")
+        if units is None:
+            return
+        self.source.remove_item(*self.source.span(units))
+        if unit_text is None or converted or isinstance(value, ast.List):
+            self.note(node, CHANGED, f"{method}: dropped probe_units")
+        else:
+            self.note(
+                node,
+                CHECK,
+                f"{method}: dropped probe_units={unit_text}; if "
+                f"{self.source.segment(value)} holds (node, angle) tuples, build "
+                f"Probe(node, Q_(angle, {unit_text})) objects instead",
+            )
+
+    def convert_probe_list(self, value, unit_text):
+        """Rewrite the tuples of one probe list; return whether any was found."""
+        if id(value) in self.converted_lists:
+            return False
+        tuples = []
+        for item in value.elts:
+            if isinstance(item, ast.Name) and item.id in self.tuple_literals:
+                item = self.tuple_literals[item.id]
+            if isinstance(item, ast.Tuple) and len(item.elts) in (2, 3):
+                if id(item) not in self.converted_tuples:
+                    tuples.append(item)
+        if not tuples:
+            return False
+        self.converted_lists.add(id(value))
         for item in tuples:
+            self.converted_tuples.add(id(item))
             node_text, angle_text, *tag = (self.source.segment(e) for e in item.elts)
             angle = item.elts[1]
             is_axis_name = isinstance(angle, ast.Constant) and isinstance(
@@ -389,13 +427,7 @@ class Converter:
                 *self.source.span(item),
                 f"{self.probe_name()}({', '.join(arguments)})",
             )
-        if units is not None:
-            self.source.remove_item(*self.source.span(units))
-        self.note(
-            node,
-            CHANGED,
-            f"{method}: probe tuples -> Probe objects (probe_units dropped)",
-        )
+        return True
 
     def convert_nested(self, keyword, nested_class):
         """Convert the dict passed as ``hole_pattern_parameters`` / ``labyrinth_parameters``."""
