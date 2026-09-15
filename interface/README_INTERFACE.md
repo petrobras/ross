@@ -85,13 +85,28 @@ python interface/app.py
 The browser opens on `http://127.0.0.1:5001/`. Everything runs locally, on the
 loopback interface, for a single user and a single session.
 
+## 📦 Downloading the executable (Windows)
+
+Every [GitHub release of ROSS](https://github.com/petrobras/ross/releases)
+carries `ross-interface-<tag>-windows-x64.zip`, built by CI from the tagged
+commit for 64-bit Windows. No Python is needed: the bundle carries its own.
+Unpack the zip, keep the `ross-interface` folder together and run
+`ross-interface.exe` from inside it.
+
+The bundle is **not code-signed** yet, so SmartScreen shows "Windows protected
+your PC" the first time; choose "More info", then "Run anyway". Signing may
+follow in a later release.
+
+Windows is the only system with a prebuilt bundle. Linux users have a Python
+and run the interface from source (see above) or use ROSS as a library; macOS
+is not a target, because an unsigned, un-notarized bundle cannot be opened
+there without a detour through System Settings.
+
 ## 📦 Building the executable
 
-The interface travels as **source**, not as a binary. That is not only about
-size: PyInstaller does not cross-compile, so a Windows program can only be
-produced on Windows, a macOS one on macOS and a Linux one on Linux. There is no
-single file that could be shipped to everyone, and there is no reason for a
-library repository to carry one.
+Between releases, or on a system the release does not cover, build it yourself.
+PyInstaller does not cross-compile, so a Windows program can only be produced
+on Windows, a macOS one on macOS and a Linux one on Linux.
 
 ```bash
 cd interface
@@ -117,10 +132,11 @@ packages: plotly's `plotly.min.js` and ROSS's `new_units.txt`. **A build that
 finishes is not a build that works** -- the first three builds of this folder
 all finished, and none of them ran.
 
-These are the same commands CI runs on Ubuntu, macOS and Windows
-(`ci/interface.yml`), and a test keeps the two texts in step. The instructions
-are not documentation that might be right: they are documentation that is
-executed on three systems on every change.
+These are the same commands CI runs on Windows (`ci/interface.yml`), and a
+test keeps the two texts in step. The instructions are not documentation that
+might be right: they are documentation that is executed on every change. When
+a release is published, the same job zips the bundle it just self-tested and
+attaches it to the release; the asset above is that build, not a separate one.
 
 ## 🎨 Design system
 

@@ -900,14 +900,47 @@ def test_the_workflow_builds_with_our_spec_and_runs_the_selftest():
     ), "the artifact is uploaded before the self-test proves it works"
 
 
+def test_the_workflow_attaches_the_bundle_to_the_release():
+    """Publishing a release is the only path from a tag to a downloadable executable.
+
+    Before this guard existed, the workflow woke for changes under our folder
+    and for a manual run, and the manual run kept its bundle for fourteen days
+    as an artifact. Pushing `v3.0.0` produced zero executables: the tag may
+    start the package jobs, and nothing kept what they built. The
+    `release: published` trigger is what ties the bundle to the tag, and the
+    upload has to come after `--selftest` for the same
+    reason the artifact does -- a bundle that was produced and never ran is a
+    hope, not a release asset.
+
+    The upload is guarded by the event name and not by the ref: a manual run
+    or a pull request must never be able to write to a release, and
+    `contents: write` is granted to the package job alone.
+    """
+    _, steps = _workflow()
+    assert "release:\n    types: [published]" in steps, (
+        "the workflow no longer runs when a release is published"
+    )
+    assert "github.event_name == 'release'" in steps, (
+        "the release upload is no longer guarded by the event name"
+    )
+    assert "contents: write" in steps, "attaching a release asset needs contents: write"
+    assert "${{ github.event.release.tag_name }}-windows-x64" in steps, (
+        "the bundle is no longer named after the release tag and the system"
+    )
+    assert "action-gh-release" in steps, "nothing attaches the bundle to the release"
+    assert steps.index("--selftest") < steps.index("action-gh-release"), (
+        "the bundle is attached to the release before the self-test proves it works"
+    )
+
+
 def test_the_readme_build_commands_are_the_ones_ci_runs():
     """The step-by-step is the deliverable, so something has to run it.
 
     The interface goes into the ROSS repository as source: whoever wants the
     program builds it, following the README. Prose about commands rots the
     moment the commands change, and it rots in silence, because nobody executes
-    a README. CI runs the same commands on three systems on every change --
-    this is what keeps the two texts from being two.
+    a README. CI runs the same commands on every change -- this is what keeps
+    the two texts from being two.
     """
     with io.open(os.path.join(ROOT, "README_INTERFACE.md"), encoding="utf-8") as handle:
         readme = handle.read()
@@ -922,13 +955,29 @@ def test_the_readme_build_commands_are_the_ones_ci_runs():
         assert command in steps, "CI stopped running %r" % command
 
 
-def test_the_workflow_covers_the_three_systems():
-    """PyInstaller does not cross-compile: three systems means three runners."""
+def test_the_suite_runs_on_three_systems_and_the_bundle_is_built_on_windows():
+    """The source has to work everywhere; the executable is for Windows only.
+
+    The check job keeps the three runners: the interface is run from source on
+    Linux and macOS, and a path or a line-ending assumption breaks there first.
+    The package job is Windows alone, by decision on 2026-09-15: the executable
+    exists for the workstation with no Python, which is a Windows workstation;
+    Linux users install ROSS as a library, and macOS is not a target while the
+    bundle cannot be signed and notarized. PyInstaller does not cross-compile,
+    so the Windows bundle has to be built on a Windows runner.
+    """
     _, steps = _workflow()
     for system in ("ubuntu-latest", "macos-latest", "windows-latest"):
-        assert steps.count(system) >= 2, (
-            "%s is missing from the check or the package matrix" % system
-        )
+        assert system in steps, "%s is missing from the check matrix" % system
+    assert "runs-on: windows-latest" in steps, (
+        "the package job no longer runs on Windows"
+    )
+    assert "ross-interface.exe --selftest" in steps, (
+        "the package job no longer self-tests the Windows executable"
+    )
+    assert steps.count("macos-latest") == 1 and steps.count("ubuntu-latest") == 1, (
+        "a system other than Windows is back in the package job"
+    )
 
 
 def test_the_workflow_wakes_for_our_folder_and_for_ross():
