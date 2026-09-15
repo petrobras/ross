@@ -98,3 +98,15 @@ def test_only_relative_references_are_candidates():
 def test_a_reference_already_carrying_a_query_is_left_alone():
     """Carimbar duas vezes produziria `a.js?v=1?v=2`."""
     assert LOCAL_REFERENCE.findall('<script src="main.js?v=1"></script>') == []
+
+
+def test_the_page_carries_the_ross_version(client):
+    """The About dialog reads it from the page, so it is written next to the token.
+
+    One value, three readers: this script, `ross-interface --version` and the
+    selftest header. A version the dialog shows and the selftest does not print
+    would be a bug report nobody can match to a build."""
+    from ross.interface.version import ross_version
+
+    html = client.get("/").get_data(as_text=True)
+    assert 'window.ROSS_VERSION = "%s";' % ross_version() in html

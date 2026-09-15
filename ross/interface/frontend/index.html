@@ -32,7 +32,7 @@
 <body>
 
     <div id="screen-home" class="screen active">
-        <div class="home-tools"><button class="btn-theme" onclick="toggleTheme()" title="Switch between the light and dark theme" data-i18n-title="themeToggle"><i class="fas fa-moon"></i></button></div>
+        <div class="home-tools"><button class="btn-about" onclick="openAbout()" title="About ROSS" data-i18n-title="about"><i class="fas fa-info-circle"></i></button><button class="btn-theme" onclick="toggleTheme()" title="Switch between the light and dark theme" data-i18n-title="themeToggle"><i class="fas fa-moon"></i></button></div>
         <div class="home-container">
             <img src="assets/ross-logo.svg" alt="ROSS Logo" class="logo-img-home invert-on-dark" onerror="this.style.display='none'">
             <h1 class="logo-text" data-i18n="appName">ROSS</h1>
@@ -58,6 +58,7 @@
                 <img src="assets/ross-logo.svg" alt="Logo" class="logo-img-topbar invert-on-dark" onerror="this.style.display='none'"> <span data-i18n="hubTitle">ROSS - Rotor Manager</span>
             </div>
             <div class="topbar-actions">
+                <button class="btn-about" onclick="openAbout()" title="About ROSS" data-i18n-title="about"><i class="fas fa-info-circle"></i></button>
                 <button class="btn-theme" onclick="toggleTheme()" title="Switch between the light and dark theme" data-i18n-title="themeToggle"><i class="fas fa-moon"></i></button>
                 <select class="ui-language" onchange="changeLanguage(this.value)" title="Language" data-i18n-title="language"><option value="en">English</option><option value="pt">Português</option></select>
                 <button class="btn-exit-small" onclick="exitApplication()" title="Exit" data-i18n-title="exit"><i class="fas fa-power-off"></i></button>
@@ -94,6 +95,7 @@
                 <button class="btn-py" onclick="generatePythonFile()" title="Generate Python" data-i18n-title="generatePython"><i class="fab fa-python"></i> <span class="btn-text" data-i18n="generatePython">Generate Python</span></button>
                 <button class="btn-save" onclick="saveRotor(event)" title="Save Rotor" data-i18n-title="saveRotor"><i class="fas fa-save"></i> <span class="btn-text" data-i18n="saveRotor">Save Rotor</span></button>
                 <button class="btn-analysis-go" onclick="switchScreen('screen-analysis')" title="Go to Analysis" data-i18n-title="goToAnalysis"><span class="btn-text" data-i18n="goToAnalysis">Go to Analysis</span> <i class="fas fa-arrow-right"></i></button>
+                <button class="btn-about" onclick="openAbout()" title="About ROSS" data-i18n-title="about"><i class="fas fa-info-circle"></i></button>
                 <button class="btn-theme" onclick="toggleTheme()" title="Switch between the light and dark theme" data-i18n-title="themeToggle"><i class="fas fa-moon"></i></button>
                 <select class="ui-language" onchange="changeLanguage(this.value)" title="Language" data-i18n-title="language"><option value="en">English</option><option value="pt">Português</option></select>
                 <button class="btn-exit-small" onclick="exitApplication()" title="Exit" data-i18n-title="exit"><i class="fas fa-power-off"></i></button>
@@ -163,6 +165,7 @@
                 <button class="btn-save" onclick="saveAnalysis(event)" title="Save Analysis" data-i18n-title="saveAnalysis"><i class="fas fa-save"></i> <span class="btn-text" data-i18n="saveAnalysis">Save Analysis</span></button>
                 <button class="btn-secondary" onclick="document.getElementById('upload-analysis-screen').click()" title="Load Analysis" data-i18n-title="loadAnalysis"><i class="fas fa-folder-open"></i> <span class="btn-text" data-i18n="load">Load</span></button>
                 <input type="file" id="upload-analysis-screen" accept=".json" style="display: none;" onchange="loadAnalysis(event)">
+                <button class="btn-about" onclick="openAbout()" title="About ROSS" data-i18n-title="about"><i class="fas fa-info-circle"></i></button>
                 <button class="btn-theme" onclick="toggleTheme()" title="Switch between the light and dark theme" data-i18n-title="themeToggle"><i class="fas fa-moon"></i></button>
                 <select class="ui-language" onchange="changeLanguage(this.value)" title="Language" data-i18n-title="language"><option value="en">English</option><option value="pt">Português</option></select>
                 <button class="btn-exit-small" onclick="exitApplication()" title="Exit" data-i18n-title="exit"><i class="fas fa-power-off"></i></button>
@@ -186,6 +189,29 @@
             
             <div class="analysis-plot-panel" id="analysis-list">
                 <p class="placeholder-text placeholder-text-tall" data-i18n="dashboardsWillAppear">Generated dashboards will appear here.</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="about-modal-overlay" class="modal-overlay" style="display: none;">
+        <div class="modal-box about-box">
+            <div class="modal-header">
+                <h3 data-i18n="about">About ROSS</h3>
+                <button class="btn-close-modal" onclick="closeAbout()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body about-body">
+                <img src="assets/ross-logo.svg" alt="ROSS" class="about-logo invert-on-dark" onerror="this.style.display='none'">
+                <p class="about-name" data-i18n="appName">ROSS</p>
+                <p class="about-tagline" data-i18n="appTagline">Rotordynamic Open-Source Software</p>
+                <!-- No `data-i18n` on the number: `openAbout()` writes it, from the
+                     value the server put into the page next to the token. -->
+                <p class="about-version"><span data-i18n="aboutVersion">version</span> <span id="about-version"></span></p>
+                <ul class="about-links">
+                    <li><a href="https://ross.readthedocs.io" target="_blank" rel="noopener"><i class="fas fa-book"></i> <span data-i18n="aboutDocs">Documentation</span></a></li>
+                    <li><a href="https://github.com/petrobras/ross" target="_blank" rel="noopener"><i class="fab fa-github"></i> <span data-i18n="aboutSource">Source code</span></a></li>
+                    <li><a href="https://github.com/petrobras/ross/issues" target="_blank" rel="noopener"><i class="fas fa-bug"></i> <span data-i18n="aboutReportIssue">Report an issue</span></a></li>
+                    <li><a href="https://github.com/petrobras/ross/discussions" target="_blank" rel="noopener"><i class="fas fa-comments"></i> <span data-i18n="aboutAskQuestion">Ask a question</span></a></li>
+                </ul>
             </div>
         </div>
     </div>

@@ -11,7 +11,7 @@ became three layers:
                rotor assembly, cache, script export
 
 What is left here is what only makes sense in the executable: starting the
-server, opening the browser, and answering `--selftest`.
+server, opening the browser, and answering `--selftest` and `--version`.
 """
 
 import multiprocessing
@@ -50,6 +50,12 @@ def open_browser():
 
 
 def main():
+    if "--version" in sys.argv:
+        from ross.interface.version import ross_version
+
+        print("ross-interface %s" % ross_version())
+        return 0
+
     if "--selftest" in sys.argv:
         from ross.interface import selftest
 

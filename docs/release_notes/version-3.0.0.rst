@@ -239,7 +239,9 @@ runs the analyses and exports the model as a Python script
 subpackage; ``pip install "ross-rotordynamics[interface]"`` adds its dependencies and the
 ``ross-interface`` command starts it (``python -m ross.interface`` is equivalent). Every GitHub
 release also carries ``ross-interface-<version>-windows-x64.zip``, a bundle for 64-bit Windows
-that needs no Python.
+that needs no Python. The page has an About dialog with the ROSS version and links to the
+documentation, the issue tracker and the discussions; ``ross-interface --version`` prints the
+same version.
 
 Installed Test Suite
 ^^^^^^^^^^^^^^^^^^^^

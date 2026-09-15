@@ -62,6 +62,7 @@ const CALLS = {
     // help and modals
     openGeneralHelp: [], openAnalysisHelp: [], openSectionHelp: ['shafts'],
     openAnalysisCardHelp: [event, 'modes'], closeHelpModal: [],
+    openAbout: [], closeAbout: [],
     closeCustomAlert: [], closeCustomConfirm: [false], closeCustomPrompt: [null],
     confirmCustomPrompt: [],
     // multirotor and node

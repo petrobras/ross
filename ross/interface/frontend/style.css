@@ -209,6 +209,7 @@ button {
 .topbar .btn-back,
 .topbar .btn-toggle-sidebar,
 .topbar .btn-help-general,
+.btn-about,
 .btn-theme {
     background: transparent;
     color: var(--text-muted);
@@ -218,6 +219,7 @@ button {
 .topbar .btn-back:hover,
 .topbar .btn-toggle-sidebar:hover,
 .topbar .btn-help-general:hover,
+.btn-about:hover,
 .btn-theme:hover {
     color: var(--text-body);
     background: var(--surface-hover);
@@ -1525,6 +1527,69 @@ button {
 
     .topbar-center { position: static; transform: none; flex: 1; justify-content: center; font-size: var(--fs-sm); text-align: center; }
     .logo-img-topbar { height: 18px; margin-right: 5px; }
+}
+
+/* ---------- About ---------- */
+.about-box {
+    max-width: 420px;
+}
+.about-body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: var(--space-2);
+}
+.about-logo {
+    height: 56px;
+    width: auto;
+    margin-bottom: var(--space-2);
+}
+.about-name {
+    margin: 0;
+    color: var(--text-strong);
+    font-size: var(--fs-h3);
+    font-weight: var(--fw-semibold);
+    letter-spacing: var(--ls-heading);
+}
+.about-tagline {
+    margin: 0;
+    color: var(--text-muted);
+}
+.about-version {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: var(--fs-code-sm);
+    color: var(--text-body);
+    background: var(--surface-sunken);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-pill);
+    padding: 2px var(--space-3);
+}
+.about-links {
+    list-style: none;
+    margin: var(--space-4) 0 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-2);
+    width: 100%;
+}
+.about-links a {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    color: var(--text-body);
+    text-decoration: none;
+}
+.about-links a:hover {
+    background: var(--surface-hover);
+    border-color: var(--border-strong);
+    color: var(--text-strong);
 }
 
 /* ---------- Dark theme ---------- */

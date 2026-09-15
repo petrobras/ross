@@ -83,3 +83,21 @@ def test_create_app_builds_independent_applications():
     assert first is not segunda
     first.config["TESTING"] = True
     assert segunda.config["TESTING"] is False
+
+
+def test_version_answers_on_the_terminal_and_starts_nothing(monkeypatch, capsys):
+    """`ross-interface --version` prints and returns: no server, no browser, no worker."""
+    from ross.interface import app as entry
+    from ross.interface.version import ross_version
+
+    monkeypatch.setattr(sys, "argv", ["ross-interface", "--version"])
+    assert entry.main() == 0
+    assert capsys.readouterr().out.strip() == "ross-interface %s" % ross_version()
+
+
+def test_the_selftest_header_prints_the_same_version_as_the_flag():
+    """The release asset is audited by the selftest header; the flag must agree with it."""
+    from ross.interface import selftest
+    from ross.interface.version import ross_version
+
+    assert selftest.ross_version is ross_version
