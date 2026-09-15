@@ -978,3 +978,16 @@ def test_coefficient_table_keeps_radial_clearance():
     assert type(loaded) is BearingElement
     assert_allclose(loaded.radial_clearance, 120e-6)
     assert_allclose(loaded.K(bearing.speed[2]), bearing.K(bearing.speed[2]))
+
+
+def test_cylindrical_rejects_speed_without_equilibrium():
+    with pytest.raises(ValueError, match="no equilibrium eccentricity at 0 rad/s"):
+        CylindricalBearing(
+            n=0,
+            speed=Q_([0, 1500, 2000], "RPM"),
+            weight=525,
+            bearing_length=Q_(30, "mm"),
+            journal_diameter=Q_(100, "mm"),
+            radial_clearance=Q_(0.1, "mm"),
+            oil_viscosity=0.1,
+        )
