@@ -673,18 +673,6 @@
     "ross_param": "modes"
    },
    {
-    "id": "probe_units",
-    "label": "Probe Units",
-    "type": "select",
-    "val": "rad",
-    "role": "plot",
-    "options": [
-     "rad",
-     "deg"
-    ],
-    "adv": "plot"
-   },
-   {
     "id": "frequency_units",
     "label": "Freq. Units",
     "type": "select",
@@ -829,23 +817,6 @@
     ],
     "adv": "analysis",
     "ross_param": "method"
-   },
-   {
-    "id": "probe_units",
-    "label": "Probe Units",
-    "type": "select",
-    "val": "rad",
-    "role": "plot",
-    "options": [
-     "rad",
-     "deg"
-    ],
-    "adv": "plot",
-    "deps": [
-     "1D",
-     "Frequency (DFFT)"
-    ],
-    "deps_de": "plot_type"
    },
    {
     "id": "displacement_units",
@@ -1458,23 +1429,6 @@
     "role": "plot"
    },
    {
-    "id": "probe_units",
-    "label": "Probe Units",
-    "type": "select",
-    "val": "rad",
-    "role": "plot",
-    "options": [
-     "rad",
-     "deg"
-    ],
-    "adv": "plot",
-    "deps": [
-     "1D",
-     "Frequency (DFFT)"
-    ],
-    "deps_de": "plot_type"
-   },
-   {
     "id": "displacement_units",
     "label": "Displacement Units",
     "type": "select",
@@ -1668,23 +1622,6 @@
     "role": "plot"
    },
    {
-    "id": "probe_units",
-    "label": "Probe Units",
-    "type": "select",
-    "val": "rad",
-    "role": "plot",
-    "options": [
-     "rad",
-     "deg"
-    ],
-    "adv": "plot",
-    "deps": [
-     "1D",
-     "Frequency (DFFT)"
-    ],
-    "deps_de": "plot_type"
-   },
-   {
     "id": "displacement_units",
     "label": "Displacement Units",
     "type": "select",
@@ -1859,23 +1796,6 @@
      }
     ],
     "role": "plot"
-   },
-   {
-    "id": "probe_units",
-    "label": "Probe Units",
-    "type": "select",
-    "val": "rad",
-    "role": "plot",
-    "options": [
-     "rad",
-     "deg"
-    ],
-    "adv": "plot",
-    "deps": [
-     "1D",
-     "Frequency (DFFT)"
-    ],
-    "deps_de": "plot_type"
    },
    {
     "id": "displacement_units",

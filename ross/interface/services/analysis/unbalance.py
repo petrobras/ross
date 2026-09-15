@@ -49,9 +49,7 @@ class UnbalanceRunner(Runner):
         kind = params.get("plot_type", "Default")
         method = METHODS.get(kind, "plot")
 
-        kwargs = self.units(
-            params, ["probe_units", "frequency_units", "amplitude_units"]
-        )
+        kwargs = self.units(params, ["frequency_units", "amplitude_units"])
         if kind in ("Default", "Phase", "Bode", "Polar Bode"):
             kwargs.update(self.units(params, ["phase_units"]))
         if kind == "Magnitude":

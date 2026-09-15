@@ -233,8 +233,10 @@ def foo():
 We use [sphinx](http://www.sphinx-doc.org/en/master/) to generate the project's documentation. We keep the source
 files at ~/ross/docs, and the website is hosted
 [here](https://ross.readthedocs.io/en/latest/).
-The website tracks the documentation for the released version with the 'Docs'
-GitHub Action.
+[Read the Docs](https://readthedocs.org/projects/ross/) builds the site itself,
+following `.readthedocs.yml`; no GitHub Action is involved. `latest` is built
+from the `main` branch, every tag pushed to GitHub gets its own version
+(`en/v3.0.0`) and `stable` points at the highest release tag.
 
 If you want to test the documentation locally:
 
@@ -247,11 +249,21 @@ Go to the ~/ross/docs folder and run:
 make html
 ```
 
-Optionally, if you don't want run all notebooks you can use:
+The notebooks are not executed during the build: `docs/conf.py` reads the
+[myst-nb execution mode](https://myst-nb.readthedocs.io/en/latest/computation/execute.html)
+from the `EXECUTE_NOTEBOOKS` environment variable and falls back to `off`, so
+the pages show the outputs stored in the `.ipynb` files. This is also how Read
+the Docs builds the site. To execute the notebooks while building, set the
+variable in the environment:
 
 ```
-make EXECUTE_NOTEBOOKS='off' html
+EXECUTE_NOTEBOOKS=force make html
 ```
+
+(`auto` executes only the notebooks that have no stored outputs.) The outputs
+stored in the notebooks are refreshed with `python run_notebooks.py`, run from
+the `docs` folder, which executes every notebook in place; do this before a
+release so the published pages reflect the released code.
 
 After building the docs, go to the \_build/html directory (~/ross/docs/\_build/html)
 and start a python http server:
@@ -300,33 +312,98 @@ three most recent Python minors, or four in the weeks after a new Python comes
 out. New Python versions are added to the test matrix as soon as the
 dependencies (numba in particular) publish wheels for them.
 
+(maintenance-branches)=
+
+## Branches and maintenance releases
+
+ROSS keeps one development branch and one maintenance branch per feature
+release, the scheme NumPy and SciPy use:
+
+- `main` is always the next feature release. Its version is a development
+  version of that release (`3.1.0.dev0` while 3.1.0 is being developed).
+  Everything is merged to `main` first.
+- Every feature release `X.Y.0` gets a `maintenance/X.Y.x` branch created from
+  its tag (`git branch maintenance/3.0.x v3.0.0`). Only bug fixes, documentation
+  fixes and dependency pins land there; new features and changes to the minimum
+  supported versions do not (see {ref}`supported-versions`). Patch releases
+  (`v3.0.1`, `v3.0.2`) are tagged on the maintenance branch.
+- A fix that a released version needs is merged to `main`, then backported
+  with `git cherry-pick -x` in a pull request against the maintenance branch.
+  Label the original pull request `backport-3.0.x` so no fix is forgotten.
+- The release notes of a patch release (`docs/release_notes/version-3.0.1.rst`)
+  are written on the maintenance branch and forward-ported to `main`, so the
+  `latest` documentation lists every release.
+
+The older `0.3`, `0.4`, `1.1.0`, `1.5` and `v1.6` branches predate this scheme
+and are kept as they are.
+
 ## Making new releases
 
-To make a new release, first we need to change the version in the __init__.py file.
+Releases are tagged `vX.Y.Z` (`v3.0.0`, `v3.0.1`, release candidates
+`v3.0.0rc1`). Pushing a tag to GitHub starts the `Release` workflow
+(`.github/workflows/publish-to-pypi.yml`), which builds the sdist and the wheel
+from the tagged commit and uploads them to PyPI through
+[trusted publishing](https://docs.pypi.org/trusted-publishers/); no token is
+involved and the publisher only accepts tags from `petrobras/ross`, so a tag
+pushed to a fork publishes nothing. The workflow does not run the test suite,
+so check that the `Tests` workflow is green on the commit you are about to tag.
+Publishing the GitHub release afterwards starts the `interface` workflow, which
+builds the Windows executable of the graphical interface, runs its self-test
+and attaches `ross-interface-vX.Y.Z-windows-x64.zip` to the release.
 
-For a major or minor release, also review the supported Python and dependency versions
-(see {ref}`supported-versions`)
-and update `pyproject.toml`, `requirements.txt` and the test matrix accordingly.
+The sequence for a feature release, using 3.0.0 as the example:
 
-Release notes can be created using the ross-bott script.
+1. Make sure everything that belongs to the release is merged and the `Tests`
+   workflow is green on `main`. For a major or minor release, review the
+   supported Python and dependency versions (see {ref}`supported-versions`)
+   and update `pyproject.toml`, `requirements.txt` and the test matrix
+   accordingly. Refresh the notebook outputs (see the Documentation section).
+2. Write the release notes in `docs/release_notes/version-3.0.0.rst` and
+   include the file at the top of `docs/release_notes/release_notes.rst`.
+   Every pull request that changed behaviour is listed there, with its number.
+3. Run the release path through a candidate first. Open a pull request that
+   sets `__version__ = "3.0.0rc1"` in `ross/__init__.py`, merge it, then from a
+   clean clone of that commit:
 
-The next step is to create a tag using git and push to GitHub:
+   ```
+   git tag v3.0.0rc1
+   git push upstream v3.0.0rc1
+   ```
 
-```
-git tag <version number>
-git push upstream --tags
-```
+   Publish a GitHub pre-release from the tag. Then confirm that the upload
+   reached PyPI and installs (`pip install --pre "ross-rotordynamics[interface]"`
+   followed by `ross-interface --selftest`, whose header must read
+   `ross 3.0.0rc1`), that the Windows zip is attached to the pre-release, and
+   that Read the Docs built `en/v3.0.0rc1`. Pre-release versions are only
+   installed with `pip install --pre`, so users are not affected while the
+   candidate is tested.
+4. Open a pull request that sets `__version__ = "3.0.0"`, updates `version` and
+   `date-released` in `CITATION.cff` and finishes the release notes. Merge it.
+5. From a clean clone of the merged commit, tag and push:
 
-Pushing the new tag to the GitHub repository will start a new build on GitHub actions. If all the tests succeed, GitHub will
-upload the new package to PyPI (see the deploy command on .github/workflows/publish-to-pypi.yml).
+   ```
+   git tag v3.0.0
+   git push upstream v3.0.0
+   ```
 
-It is recommended to first use release candidate versions (e.g. v1.1.2rc1). These will only be installed with:
+6. Publish the GitHub release from the tag with the release notes as its body.
+   The interface workflow attaches the Windows bundle to it.
+7. Create the maintenance branch and move `main` on to the next release:
 
-```
-pip install --pre ross-rotordynamics
-```
+   ```
+   git branch maintenance/3.0.x v3.0.0
+   git push upstream maintenance/3.0.x
+   ```
 
-and it is useful to test the installation process before the final release.
+   then open a pull request that sets `__version__ = "3.1.0.dev0"` on `main`.
+8. Check that `stable` on Read the Docs now serves 3.0.0 and that its search
+   works, and that `pip install ross-rotordynamics` gives the new version.
+
+A patch release follows the same steps on the maintenance branch: the version
+bump, release notes and `CITATION.cff` changes are pull requests against
+`maintenance/3.0.x`, the tag `v3.0.1` is pushed from that branch, and the
+release notes are forward-ported to `main` (see {ref}`maintenance-branches`).
+No new maintenance branch is created.
 
 ## ROSS structure
 
