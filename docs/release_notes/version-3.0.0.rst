@@ -764,7 +764,7 @@ General Fixes
   the diameter list ran one entry longer than the shaft list, and the tilting-pad thermal loop
   passed integer thermal types to helpers that compare against ``"adiabatic"`` and ``"full"``, so
   the adiabatic results were written back under the full-model keys
-  (`#PRNUM <https://github.com/petrobras/ross/pull/PRNUM>`_).
+  (`#1388 <https://github.com/petrobras/ross/pull/1388>`_).
 
 Contributors
 ~~~~~~~~~~~~
