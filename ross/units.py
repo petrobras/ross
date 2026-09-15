@@ -89,7 +89,7 @@ units = {
     "power": "watt",
     "module": "meter",
 }
-for i, unit in zip(["k", "c", "m"], ["N/m", "N*s/m", "kg"]):
+for i, unit in zip(["k", "c", "m"], ["N/m", "N*s/m", "kg"], strict=True):
     for j in ["x", "y", "z"]:
         for k in ["x", "y", "z"]:
             units["".join([i, j, k])] = unit
@@ -132,7 +132,7 @@ def check_units(func):
         base_unit_args = []
         args_names = inspect.getfullargspec(func)[0]
 
-        for arg_name, arg_value in zip(args_names, args):
+        for arg_name, arg_value in zip(args_names, args, strict=False):
             names = arg_name.split("_")
             if "units" in names:
                 base_unit_args.append(arg_value)
