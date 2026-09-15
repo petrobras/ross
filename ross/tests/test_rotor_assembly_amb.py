@@ -272,6 +272,7 @@ def test_magnetic_bearing_controller_routes_sensor_to_actuator(
         zip(
             actuator_nodes,
             sensor_nodes,
+            strict=True,
         )
     ):
         amb = copy.deepcopy(template_amb)

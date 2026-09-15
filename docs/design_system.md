@@ -114,7 +114,7 @@ Every ROSS figure is drawn with the `ross` template. The dark counterpart is
 ```python
 import plotly.io as pio
 
-pio.templates.default = "ross_dark"      # every figure from here on
+pio.templates.default = "ross_dark"  # every figure from here on
 fig = rotor.run_campbell(speed_range).plot(template="ross_dark")  # or one figure
 ```
 
