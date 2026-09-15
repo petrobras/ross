@@ -4,8 +4,11 @@ The source is parsed with :mod:`ast` and edited in place through the node
 positions, so formatting and comments are preserved. Constructor calls of the
 classes listed in :data:`ross.ross_2to3.renames.CLASS_RENAMES` have their
 keyword arguments renamed and, where the convention changed (radius to
-diameter, degrees to radians, ...), their literal values converted. Anything
-that cannot be rewritten safely is reported with its line number.
+diameter, degrees to radians, ...), their literal values converted. The
+``(node, angle, tag)`` tuples ROSS 2 accepted in the ``probe`` argument of the
+response plots become ``Probe`` objects and the ``probe_units`` keyword those
+tuples relied on is dropped. Anything that cannot be rewritten safely is
+reported with its line number.
 """
 
 import ast
@@ -22,6 +25,8 @@ from ross.ross_2to3.renames import (
     INT_TO_BOOL,
     METHOD_RENAMES,
     MOVED_MODULES,
+    POSITIONAL_PROBE_METHODS,
+    PROBE_METHODS,
     REMOVED_MODULES,
     REMOVED_NAMES,
     REORDERED_CLASSES,
@@ -31,6 +36,8 @@ from ross.ross_2to3.report import CHANGED, CHECK, MANUAL, SKIPPED
 SCRIPT_SUFFIXES = (".py", ".ipynb")
 
 Q_IMPORT = "from ross.units import Q_"
+
+PROBE_IMPORT = "from ross import Probe"
 
 MAGIC_MARKER = "#__ross_2to3_magic__"
 
@@ -120,7 +127,7 @@ class Source:
         if new_text or not self.text[end:].lstrip().startswith((")", "]", "}")):
             return edit
         preceding = re.search(r",\s*$", self.text[:start])
-        if preceding is None:
+        if preceding is None or "\n" in preceding.group(0):
             return edit
         return (preceding.start(), end, "")
 
@@ -171,7 +178,15 @@ def _double_text(node):
 class Converter:
     """Convert one Python source to the ROSS 3 API."""
 
-    def __init__(self, text, path, report, location_prefix="", q_accessor=None):
+    def __init__(
+        self,
+        text,
+        path,
+        report,
+        location_prefix="",
+        q_accessor=None,
+        probe_accessor=None,
+    ):
         self.source = Source(text)
         self.path = path
         self.report = report
@@ -180,25 +195,38 @@ class Converter:
         self.aliases = {}
         self.module_aliases = {}
         self.q_accessor = q_accessor
+        self.probe_accessor = probe_accessor
         self.dict_literals = {}
+        self.list_literals = {}
+        self.tuple_literals = {}
         self.converted_dicts = set()
+        self.converted_lists = set()
+        self.converted_tuples = set()
         self.needs_q_import = False
+        self.needs_probe_import = False
         self.reported = set()
         self._scan_names()
 
     def _scan_names(self):
         accessor = None
+        probe_accessor = None
         for node in ast.walk(self.tree):
             if isinstance(node, ast.ImportFrom):
                 for alias in node.names:
                     self.aliases[alias.asname or alias.name] = alias.name
                     if alias.name == "Q_" and node.module in ("ross.units", "ross"):
                         accessor = alias.asname or "Q_"
+                    if alias.name == "Probe" and node.module in ("ross.probe", "ross"):
+                        probe_accessor = alias.asname or "Probe"
             elif isinstance(node, ast.Import):
                 for alias in node.names:
                     self.module_aliases[alias.asname or alias.name] = alias.name
-                    if alias.name == "ross" and accessor is None:
-                        accessor = f"{alias.asname or 'ross'}.Q_"
+                    if alias.name == "ross":
+                        module = alias.asname or "ross"
+                        if accessor is None:
+                            accessor = f"{module}.Q_"
+                        if probe_accessor is None:
+                            probe_accessor = f"{module}.Probe"
             elif isinstance(node, ast.Assign) and len(node.targets) == 1:
                 target = node.targets[0]
                 if isinstance(target, ast.Name):
@@ -206,8 +234,28 @@ class Converter:
                         accessor = "Q_"
                     if isinstance(node.value, ast.Dict):
                         self.dict_literals[target.id] = node.value
+                    if isinstance(node.value, ast.List):
+                        self.list_literals[target.id] = node.value
+                    if isinstance(node.value, ast.Tuple):
+                        self.tuple_literals[target.id] = node.value
         if self.q_accessor is None:
             self.q_accessor = accessor
+        if self.probe_accessor is None:
+            self.probe_accessor = probe_accessor
+
+    def quantity_name(self):
+        """Return how ``Q_`` is spelled in this source, importing it if needed."""
+        if self.q_accessor is None:
+            self.needs_q_import = True
+            return "Q_"
+        return self.q_accessor
+
+    def probe_name(self):
+        """Return how ``Probe`` is spelled in this source, importing it if needed."""
+        if self.probe_accessor is None:
+            self.needs_probe_import = True
+            return "Probe"
+        return self.probe_accessor
 
     def location(self, node):
         """Return the report location of a node."""
@@ -238,6 +286,7 @@ class Converter:
         for node in ast.walk(self.tree):
             if isinstance(node, ast.Call):
                 self.convert_call(node)
+                self.convert_probes(node)
             elif isinstance(node, ast.ImportFrom):
                 self.convert_import_from(node)
             elif isinstance(node, ast.Import):
@@ -251,7 +300,9 @@ class Converter:
                     node, MANUAL, f"{node.attr} was removed: {REMOVED_NAMES[node.attr]}"
                 )
         if self.needs_q_import:
-            self.add_q_import()
+            self.add_import(Q_IMPORT)
+        if self.needs_probe_import:
+            self.add_import(PROBE_IMPORT)
         return self.source.apply()
 
     def convert_call(self, node):
@@ -295,6 +346,88 @@ class Converter:
                 item_span=(start, self.source.span(keyword.value)[1]),
                 node=keyword,
             )
+
+    def convert_probes(self, node):
+        """Rewrite the probe argument of a response plot for ROSS 3.
+
+        ``(node, angle, tag)`` tuples become ``Probe(node, angle, tag=tag)``, a
+        tuple held in a variable is rewritten at its assignment, and the
+        ``probe_units`` keyword is folded into the angles as a ``Q_`` and dropped:
+        it only applied to tuples, and ``Probe`` takes a quantity.
+        """
+        if not isinstance(node.func, ast.Attribute):
+            return
+        method = node.func.attr
+        if method not in PROBE_METHODS:
+            return
+        units = next((k for k in node.keywords if k.arg == "probe_units"), None)
+        value = next((k.value for k in node.keywords if k.arg == "probe"), None)
+        if value is None and node.args and method in POSITIONAL_PROBE_METHODS:
+            value = node.args[0]
+            if len(node.args) > 1:
+                self.note(
+                    node,
+                    CHECK,
+                    f"{method}: probe_units was removed, so the positional "
+                    "arguments after probe shifted; pass the units by keyword",
+                )
+        if isinstance(value, ast.Name) and value.id in self.list_literals:
+            value = self.list_literals[value.id]
+        unit_text = None if units is None else self.source.segment(units.value)
+        if unit_text in ('"rad"', "'rad'"):
+            unit_text = None
+        converted = isinstance(value, ast.List) and self.convert_probe_list(
+            value, unit_text
+        )
+        if converted:
+            self.note(node, CHANGED, f"{method}: probe tuples -> Probe objects")
+        if units is None:
+            return
+        self.source.remove_item(*self.source.span(units))
+        if unit_text is None or converted or isinstance(value, ast.List):
+            self.note(node, CHANGED, f"{method}: dropped probe_units")
+        else:
+            self.note(
+                node,
+                CHECK,
+                f"{method}: dropped probe_units={unit_text}; if "
+                f"{self.source.segment(value)} holds (node, angle) tuples, build "
+                f"Probe(node, Q_(angle, {unit_text})) objects instead",
+            )
+
+    def convert_probe_list(self, value, unit_text):
+        """Rewrite the tuples of one probe list; return whether any was found."""
+        if id(value) in self.converted_lists:
+            return False
+        tuples = []
+        for item in value.elts:
+            if isinstance(item, ast.Name) and item.id in self.tuple_literals:
+                item = self.tuple_literals[item.id]
+            if isinstance(item, ast.Tuple) and len(item.elts) in (2, 3):
+                if id(item) not in self.converted_tuples:
+                    tuples.append(item)
+        if not tuples:
+            return False
+        self.converted_lists.add(id(value))
+        for item in tuples:
+            self.converted_tuples.add(id(item))
+            node_text, angle_text, *tag = (self.source.segment(e) for e in item.elts)
+            angle = item.elts[1]
+            is_axis_name = isinstance(angle, ast.Constant) and isinstance(
+                angle.value, str
+            )
+            if (
+                unit_text is not None
+                and not is_axis_name
+                and not self.is_quantity(angle)
+            ):
+                angle_text = f"{self.quantity_name()}({angle_text}, {unit_text})"
+            arguments = [node_text, angle_text] + [f"tag={text}" for text in tag]
+            self.source.replace(
+                *self.source.span(item),
+                f"{self.probe_name()}({', '.join(arguments)})",
+            )
+        return True
 
     def convert_nested(self, keyword, nested_class):
         """Convert the dict passed as ``hole_pattern_parameters`` / ``labyrinth_parameters``."""
@@ -417,13 +550,8 @@ class Converter:
             return
         if _is_number(value) or _is_number_sequence(value):
             text = self.source.segment(value)
-            if self.q_accessor is None:
-                self.needs_q_import = True
-                accessor = "Q_"
-            else:
-                accessor = self.q_accessor
             self.source.replace(
-                *self.source.span(value), f'{accessor}({text}, "{unit}")'
+                *self.source.span(value), f'{self.quantity_name()}({text}, "{unit}")'
             )
             self.note(
                 node, CHANGED, f'{owner}: {old}={text} -> {new}=Q_({text}, "{unit}")'
@@ -503,15 +631,15 @@ class Converter:
                         message += "; update attribute access through the old path"
                     self.note(node, CHANGED if alias.asname else CHECK, message)
 
-    def add_q_import(self):
-        """Insert ``from ross.units import Q_`` after the last top-level import."""
+    def add_import(self, statement):
+        """Insert an import statement after the last top-level import."""
         last_import = None
-        for statement in self.tree.body:
-            if isinstance(statement, (ast.Import, ast.ImportFrom)):
-                last_import = statement
+        for candidate in self.tree.body:
+            if isinstance(candidate, (ast.Import, ast.ImportFrom)):
+                last_import = candidate
         if last_import is not None:
             end = self.source.span(last_import)[1]
-            self.source.replace(end, end, f"\n{Q_IMPORT}")
+            self.source.replace(end, end, f"\n{statement}")
             location = last_import
         else:
             body = self.tree.body
@@ -523,17 +651,17 @@ class Converter:
             )
             if docstring:
                 end = self.source.span(body[0])[1]
-                self.source.replace(end, end, f"\n{Q_IMPORT}")
+                self.source.replace(end, end, f"\n{statement}")
                 location = body[0]
             else:
-                self.source.replace(0, 0, f"{Q_IMPORT}\n")
+                self.source.replace(0, 0, f"{statement}\n")
                 location = None
         line = (
             f"{self.location_prefix}line {location.lineno}"
             if location
             else f"{self.location_prefix}line 1"
         )
-        self.report.add(self.path, line, CHANGED, f"added `{Q_IMPORT}`")
+        self.report.add(self.path, line, CHANGED, f"added `{statement}`")
 
 
 def _removed_root(module):
@@ -555,7 +683,13 @@ def _mask_magics(text):
 
 
 def convert_source(
-    text, path, report, location_prefix="", q_accessor=None, magics=False
+    text,
+    path,
+    report,
+    location_prefix="",
+    q_accessor=None,
+    magics=False,
+    probe_accessor=None,
 ):
     """Convert Python source text to the ROSS 3 API.
 
@@ -574,6 +708,9 @@ def convert_source(
         elsewhere (other notebook cells); detected from the imports otherwise.
     magics : bool, optional
         Tolerate IPython ``%magic`` / ``!shell`` lines.
+    probe_accessor : str, optional
+        Expression that gives ``Probe`` in this source when it is imported
+        elsewhere (other notebook cells); detected from the imports otherwise.
 
     Returns
     -------
@@ -588,7 +725,9 @@ def convert_source(
     """
     working = _mask_magics(text) if magics else text
     try:
-        converter = Converter(working, path, report, location_prefix, q_accessor)
+        converter = Converter(
+            working, path, report, location_prefix, q_accessor, probe_accessor
+        )
     except SyntaxError as exc:
         report.add(
             path,
@@ -603,8 +742,15 @@ def convert_source(
     return converted
 
 
-def notebook_q_accessor(cells):
-    """Find how ``Q_`` is reachable across the code cells of a notebook."""
+def notebook_accessors(cells):
+    """Find how ``Q_`` and ``Probe`` are reachable across the code cells of a notebook.
+
+    Returns
+    -------
+    tuple
+        ``(q_accessor, probe_accessor)``, each None when the name is not imported.
+    """
+    q_accessor = probe_accessor = None
     for cell in cells:
         if cell.get("cell_type") != "code":
             continue
@@ -613,9 +759,9 @@ def notebook_q_accessor(cells):
             converter = Converter(_mask_magics(source), "", None)
         except SyntaxError:
             continue
-        if converter.q_accessor is not None:
-            return converter.q_accessor
-    return None
+        q_accessor = q_accessor or converter.q_accessor
+        probe_accessor = probe_accessor or converter.probe_accessor
+    return q_accessor, probe_accessor
 
 
 def _cell_source(cell):
@@ -633,7 +779,7 @@ def convert_notebook(text, path, report):
     """
     notebook = json.loads(text)
     cells = notebook.get("cells", [])
-    q_accessor = notebook_q_accessor(cells)
+    q_accessor, probe_accessor = notebook_accessors(cells)
     changed = False
     for index, cell in enumerate(cells, start=1):
         if cell.get("cell_type") != "code":
@@ -646,6 +792,7 @@ def convert_notebook(text, path, report):
             location_prefix=f"cell {index}, ",
             q_accessor=q_accessor,
             magics=True,
+            probe_accessor=probe_accessor,
         )
         if converted != source:
             cell["source"] = converted.splitlines(keepends=True)

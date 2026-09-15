@@ -8,6 +8,8 @@ import time
 
 from flask import Blueprint, Response, jsonify, request, send_file
 
+from ross.interface.version import ross_version
+
 from .paths import FRONTEND_DIR, PLOTLY_BUNDLE
 from .security import SESSION_TOKEN
 
@@ -67,13 +69,24 @@ def stamp_versions(html):
 
 @system.route("/")
 def index():
-    """Serve index.html with this session's token injected."""
+    """Serve index.html with this session's token and the ROSS version injected.
+
+    The version travels the same way as the token, in one script the server
+    writes into the head: the About dialog reads `window.ROSS_VERSION`, and
+    the value is the one `--version` and the selftest header print.
+    """
     with open(os.path.join(FRONTEND_DIR, "index.html"), encoding="utf-8") as handle:
         html = handle.read()
 
     html = stamp_versions(html)
 
-    script = '<script>window.ROSS_TOKEN = "%s";</script>' % SESSION_TOKEN
+    script = (
+        '<script>window.ROSS_TOKEN = "%s"; window.ROSS_VERSION = "%s";</script>'
+        % (
+            SESSION_TOKEN,
+            ross_version(),
+        )
+    )
     if "</head>" in html:
         html = html.replace("</head>", "    %s\n</head>" % script, 1)
     else:

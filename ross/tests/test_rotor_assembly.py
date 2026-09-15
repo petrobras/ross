@@ -1625,25 +1625,29 @@ def test_unbalance(rotor3):
         node=0, unbalance_magnitude=1, unbalance_phase=0, speed_range=[50, 100]
     )
     amplitude_expected = np.array([0.003158927232913641, 0.004620055491206476])
-    data = unb.data_magnitude(probe=[(0, 45)], probe_units="deg")
-    assert_allclose(data["Probe 1 - Node 0"], amplitude_expected, rtol=1e-4)
     data = unb.data_magnitude(probe=[Probe(0, Q_(45, "deg"), tag="Probe 1 - Node 0")])
     assert_allclose(data["Probe 1 - Node 0"], amplitude_expected, rtol=1e-4)
+    data = unb.data_magnitude(probe=[Probe(0, Q_(45, "deg"))])
+    assert_allclose(data["Probe 1 - Node 0 (45°)"], amplitude_expected, rtol=1e-4)
     phase_expected = np.array([0.9096239298802793, 1.0057118170915373])
-    data = unb.data_phase(probe=[(0, 45)], probe_units="deg")
-    assert_allclose(data["Probe 1 - Node 0"], phase_expected, rtol=1e-4)
     data = unb.data_phase(probe=[Probe(0, Q_(45, "deg"), tag="Probe 1 - Node 0")])
     assert_allclose(data["Probe 1 - Node 0"], phase_expected, rtol=1e-4)
     amplitude_expected = np.array([0.0035259958428500164, 0.005518031001232163])
-    data = unb.data_magnitude(probe=[(0, "major")])
-    assert_allclose(data["Probe 1 - Node 0"], amplitude_expected, rtol=1e-4)
     data = unb.data_magnitude(probe=[Probe(0, "major", tag="Probe 1 - Node 0")])
     assert_allclose(data["Probe 1 - Node 0"], amplitude_expected, rtol=1e-4)
     phase_expected = np.array([1.5707963267948966, 1.5707963267948966])
-    data = unb.data_phase(probe=[(0, "major")], probe_units="deg")
-    assert_allclose(data["Probe 1 - Node 0"], phase_expected, rtol=1e-4)
     data = unb.data_phase(probe=[Probe(0, "major", tag="Probe 1 - Node 0")])
     assert_allclose(data["Probe 1 - Node 0"], phase_expected, rtol=1e-4)
+
+
+def test_tuple_probes_are_rejected(rotor3):
+    unb = rotor3.run_unbalance_response(
+        node=0, unbalance_magnitude=1, unbalance_phase=0, speed_range=[50, 100]
+    )
+    with pytest.raises(TypeError, match="ross_2to3"):
+        unb.data_magnitude(probe=[(0, 45)])
+    with pytest.raises(TypeError, match="Probe"):
+        unb.plot_phase(probe=[Probe(0, 0), (3, 0, "tag")])
 
 
 def test_deflected_shape(rotor7):

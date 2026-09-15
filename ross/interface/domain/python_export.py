@@ -666,7 +666,6 @@ def _analysis_block(position, analysis):
         args = _opt_args(
             p,
             [
-                ("probe_units", "str"),
                 ("frequency_units", "str"),
                 ("amplitude_units", "str"),
             ],
@@ -897,7 +896,7 @@ def _transient_block(position, kind, p):
     chart = p.get("plot_type")
 
     if chart == "Frequency (DFFT)":
-        args += _opt_args(p, [("probe_units", "str"), ("frequency_units", "str")])
+        args += _opt_args(p, [("frequency_units", "str")])
         py += "resp_%d.plot_dfft(probe=[%s], %s).show()\n" % (
             position,
             probes,
@@ -913,7 +912,7 @@ def _transient_block(position, kind, p):
         args += _opt_args(p, [("rotor_length_units", "str")])
         py += "resp_%d.plot_3d(%s).show()\n" % (position, ", ".join(args))
     else:
-        args += _opt_args(p, [("probe_units", "str"), ("time_units", "str")])
+        args += _opt_args(p, [("time_units", "str")])
         py += "resp_%d.plot_1d(probe=[%s], %s).show()\n" % (
             position,
             probes,

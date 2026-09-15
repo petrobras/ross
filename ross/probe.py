@@ -90,3 +90,44 @@ class Probe:
             label += "(axial direction)"
 
         return label
+
+
+def check_probes(probe):
+    """Return ``probe`` after checking that every entry is a ``Probe``.
+
+    ROSS 2 accepted ``(node, angle, tag)`` tuples in the ``probe`` argument of the
+    response plots; ROSS 3 accepts ``Probe`` objects only.
+
+    Parameters
+    ----------
+    probe : list
+        List with rs.Probe objects.
+
+    Returns
+    -------
+    probe : list
+        The same list.
+
+    Raises
+    ------
+    TypeError
+        If an entry is not a ``Probe``.
+
+    Examples
+    --------
+    >>> from ross.probe import Probe, check_probes
+    >>> check_probes([Probe(3, 0)])[0].node
+    3
+    >>> check_probes([(3, 0)])
+    Traceback (most recent call last):
+        ...
+    TypeError: probe must be a list of ross.Probe objects, got (3, 0). Tuples were removed in ROSS 3.0.0; use Probe(node, angle, tag=...) or run ross_2to3 on the script.
+    """
+    for p in probe:
+        if not isinstance(p, Probe):
+            raise TypeError(
+                f"probe must be a list of ross.Probe objects, got {p!r}. "
+                "Tuples were removed in ROSS 3.0.0; use Probe(node, angle, tag=...) "
+                "or run ross_2to3 on the script."
+            )
+    return probe

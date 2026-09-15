@@ -239,7 +239,9 @@ runs the analyses and exports the model as a Python script
 subpackage; ``pip install "ross-rotordynamics[interface]"`` adds its dependencies and the
 ``ross-interface`` command starts it (``python -m ross.interface`` is equivalent). Every GitHub
 release also carries ``ross-interface-<version>-windows-x64.zip``, a bundle for 64-bit Windows
-that needs no Python.
+that needs no Python. The page has an About dialog with the ROSS version and links to the
+documentation, the issue tracker and the discussions; ``ross-interface --version`` prints the
+same version.
 
 Installed Test Suite
 ^^^^^^^^^^^^^^^^^^^^
@@ -310,9 +312,13 @@ installed with ROSS converts existing assets (`#1358 <https://github.com/petrobr
   (``journal_radius=0.2`` becomes ``journal_diameter=0.4``; ``pad_arc_length=176`` becomes
   ``pad_arc=Q_(176, "deg")``; ``reference_temperature=50`` becomes
   ``oil_supply_temperature=Q_(50, "degC")``; ``iopt1=1`` becomes ``use_jenny_kanki=True``;
-  ``load=[fx, fy]`` becomes ``fxs_load=fx, fys_load=fy``), removed parameters are dropped, and
-  anything that cannot be rewritten safely — positional arguments, ``**kwargs``, non-literal values
-  in changed units, uses of removed classes — is listed in the report with its line number.
+  ``load=[fx, fy]`` becomes ``fxs_load=fx, fys_load=fy``), removed parameters are dropped, the
+  ``(node, angle, tag)`` tuples in the ``probe`` argument of the response plots become
+  ``Probe(node, angle, tag=tag)`` objects (a tuple held in a variable is rewritten at its
+  assignment) and the removed ``probe_units`` keyword is folded into the angles as
+  ``Q_(angle, "deg")`` and dropped, and anything that cannot be rewritten safely — positional
+  arguments, ``**kwargs``, non-literal values in changed units, uses of removed classes — is listed
+  in the report with its line number.
 
 The rename map lives in ``ross.ross_2to3.renames`` and is rendered below.
 
@@ -645,7 +651,18 @@ Removed                                              Replacement
 ``PlainJournalResults`` / ``TiltingPadResults``      ``FluidFilmBearingResults`` (created automatically by the bearing)
 ``rotor_amb_example(...)``                           ``rotor_example_amb_general_controllers(...)`` (same ``controller_transfer_function`` argument); see also ``rotor_example_amb_simple()`` and ``rotor_example_amb_complex_controllers()``
 ``LabyrinthSeal(analz=...)``                         removed — leakage and dynamic coefficients are always computed
+``probe=[(node, angle, tag)]`` tuples                ``probe=[Probe(node, angle, tag=tag)]`` in every response plot and data method; a tuple now raises ``TypeError``
+``probe_units=`` keyword                             removed from every response plot and data method — the ``Probe`` angle carries its unit (``Probe(3, Q_(45, "deg"))``)
 ===================================================  ==========================================================
+
+The ``(node, angle, tag)`` tuples accepted by the ``probe`` argument of the unbalance, forced,
+time and stochastic response plots had been deprecated since version 1.4.1 (2023); they were removed
+together with the ``probe_units`` keyword, which only applied to tuples (``data_magnitude``,
+``data_phase``, ``plot_magnitude``, ``plot_phase``, ``plot_bode``, ``plot_polar_bode``, ``plot``,
+``data_time_response``, ``plot_1d``, ``plot_dfft`` and their stochastic counterparts). Build
+``Probe`` objects instead, with a pint quantity when the angle is not in radians
+(``Probe(3, Q_(45, "deg"), tag="DE")``); ``ross_2to3`` rewrites the call sites. The graphical
+interface dropped its "Probe Units" selector accordingly.
 
 Moved modules
 ^^^^^^^^^^^^^

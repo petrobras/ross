@@ -7,6 +7,7 @@
 // The bridge is temporary by construction: the next slice replaces the inline
 // handlers with event delegation, and each converted handler erases a name from
 // it.
+import { closeAbout, openAbout } from './components/about.js';
 import { closeHelpModal, openAnalysisCardHelp, openAnalysisHelp, openGeneralHelp, openSectionHelp } from './components/help.js';
 import { fillDefault, handleUnitChange, toggleAdvanced } from './components/form.js';
 import { onReorder } from './components/list.js';
@@ -77,13 +78,13 @@ document.addEventListener('DOMContentLoaded', () => {
 // handler is here, and that nothing here has stopped being called.
 Object.assign(window, {
     addAnalysis, addAngleProbeRow, addElementFromNodeHub, addForceRow,
-    addProbeRow, addUnbalanceRow, changeLanguage, checkDeps, closeCustomAlert,
+    addProbeRow, addUnbalanceRow, changeLanguage, checkDeps, closeAbout, closeCustomAlert,
     closeCustomConfirm, closeCustomPrompt, closeForm, closeHelpModal,
     closeMultiRotorModal, closeNodeHub, confirmCustomPrompt, copyItem,
     copyRotorInHub, createNewRotorInHub, deleteAnalysis, deleteItem,
     deleteRotorInHub, editItem, editRotorName, exitApplication, fillDefault,
     generatePythonFile, generatePythonFromHub, handleUnitChange,
-    loadAnalysis, loadAnalysisDirect, loadRotor, openAnalysisCardHelp,
+    loadAnalysis, loadAnalysisDirect, loadRotor, openAbout, openAnalysisCardHelp,
     openAnalysisHelp, openForm, openGeneralHelp, openMultiRotorModal,
     openRotorHub, openRotorWorkspace, openSectionHelp, openTab, returnToHub,
     runCardAnalysis, saveAnalysis, saveItem, saveMultiRotor, saveRotor,
