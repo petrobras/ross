@@ -138,6 +138,7 @@ def _select_lateral_modes(rotor, speed, requested_mode_indices):
             for index, mode_type in zip(
                 excluded_mode_indices,
                 excluded_mode_types,
+                strict=True,
             )
         )
         raise ValueError(
@@ -423,7 +424,7 @@ def run_amb_non_collocation(
         dtype=object,
     )
 
-    for actuator, sensor in zip(all_actuator_nodes, all_sensor_nodes):
+    for actuator, sensor in zip(all_actuator_nodes, all_sensor_nodes, strict=True):
         if int(actuator) not in node_to_index:
             raise ValueError(
                 f"Actuator node {int(actuator)} is not present in the rotor."

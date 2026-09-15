@@ -8560,6 +8560,7 @@ class AmbNonCollocationResults(Results):
                 for actuator, sensor in zip(
                     self.all_actuator_nodes,
                     all_sensor_nodes,
+                    strict=True,
                 )
             ],
             dtype=int,
@@ -8666,6 +8667,7 @@ class AmbNonCollocationResults(Results):
             for index, mode_type in zip(
                 self.excluded_mode_indices,
                 self.excluded_mode_types,
+                strict=True,
             )
         )
         return f"<br><sup>Non-lateral modes excluded: {items}</sup>"
@@ -9338,6 +9340,7 @@ class AmbNonCollocationResults(Results):
                 self.all_actuator_nodes,
                 self.all_sensor_nodes,
                 self.all_amb_tags,
+                strict=True,
             )
         ):
             if index == analyzed_index:
@@ -9784,7 +9787,7 @@ class AmbNonCollocationResults(Results):
             )
 
         initial_visibility = visibility(initial_row)
-        for trace, visible in zip(fig.data, initial_visibility):
+        for trace, visible in zip(fig.data, initial_visibility, strict=True):
             trace.visible = visible
 
         map_only = initial_row is None
