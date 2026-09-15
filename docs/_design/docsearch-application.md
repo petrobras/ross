@@ -1,12 +1,44 @@
 # Algolia DocSearch — application and activation checklist
 
-Status: **prepared, inactive**. The integration is committed but dormant: the
-`sphinx_docsearch` extension only loads when the three `DOCSEARCH_*`
-environment variables are set (see the guard in `docs/conf.py`). Until then,
-builds use the built-in Sphinx search exactly as before.
+Status: **active since 2026-09-15**. The `sphinx_docsearch` extension only
+loads when the three `DOCSEARCH_*` environment variables are set (see the
+guard in `docs/conf.py`); builds without them use the built-in Sphinx search
+exactly as before.
 
 This directory is listed in `exclude_patterns` in `conf.py`, so this note is
 never published.
+
+## 0. Current deployment
+
+| Item | Value |
+|---|---|
+| Algolia application | `ZYYE1DFQSE` (DocSearch program) |
+| Index | `ross` |
+| Crawled version | `https://ross.readthedocs.io/en/latest/` until v3.0.0 is tagged, then switch the crawler to `stable` |
+| Crawler schedule | weekly |
+| RTD Addons search | disabled (Settings → Addons → Search) |
+
+`sphinx-docsearch` only wires its search box into `pydata_sphinx_theme`. For
+`sphinx_book_theme` the wiring lives in this repo:
+
+- `docs/conf.py` — `html_sidebars` swaps the theme's `search-button-field.html`
+  for the extension's `searchbox.html` (the `#docsearch` container), and
+  `setup()` loads the extension's `pydata-docsearch-custom.css`, which hides
+  the theme's own Ctrl+K popup.
+- `docs/_templates/search-button.html` — the header magnifier opens the
+  DocSearch modal; without credentials it falls back to the theme's button.
+- `docs/_static/docsearch-ross.css` — ROSS tokens for the modal and the
+  sidebar button.
+- `docs/_static/docsearch-amd-off.js` / `docsearch-amd-on.js` — require.js is
+  on every page for the Plotly notebook outputs, and DocSearch is a UMD
+  bundle, so it would register as an anonymous AMD module instead of defining
+  `window.docsearch`. The two deferred shims (priorities 499 and 501 around
+  the extension's scripts at 500) hide `define` while `docsearch.js` runs and
+  restore it afterwards.
+
+Read the Docs pitfall: a variable value containing a space is shell-quoted
+when injected into the build (`'Documentation website'` reached
+`docsearch_config.js` with the quotes). Keep the index name free of spaces.
 
 ## 1. Apply for the DocSearch open-source program
 
@@ -36,22 +68,25 @@ maintainer — all satisfied.
 
 Ask for (or edit in the Algolia Crawler dashboard once access is granted):
 
-- **Start URL / sitemap**: crawl only the stable version to avoid duplicate
-  hits across versions:
-  - `startUrls`: `["https://ross.readthedocs.io/en/stable/"]`
-  - `sitemaps`: `["https://ross.readthedocs.io/sitemap.xml"]`
+- **Start URL**: crawl a single version to avoid duplicate hits across
+  versions (`latest` for now, `stable` once v3.0.0 is tagged):
+  - `startUrls`: `["https://ross.readthedocs.io/en/latest/"]`
   - `discoveryPatterns` / `pathsToMatch`:
-    `["https://ross.readthedocs.io/en/stable/**"]`
+    `["https://ross.readthedocs.io/en/latest/**"]`
+  - No `sitemaps`: the RTD sitemap lists only version roots, so the crawler
+    reports it as not found; link discovery covers every page.
+  - `maxUrls`: 5000 (the wizard default of 100 truncates the crawl) and no
+    `indexPrefix` (it is concatenated with `indexName`).
   - Exclude non-content pages: `genindex.html`, `py-modindex.html`,
     `search.html`, `_sources/**`.
-- **Index name**: `ross` (this is the value for `DOCSEARCH_INDEX_NAME`).
+- **Index name**: `ross` (this is the value for `DOCSEARCH_INDEX_NAME`; no spaces, see the RTD pitfall above).
 - **Record selectors**: standard Sphinx selectors (sphinx-book-theme is a
   pydata-sphinx-theme derivative, so the article lives in `article.bd-article`):
 
   ```js
   recordProps: {
     lvl0: {
-      selectors: ".bd-links__title, nav.bd-links li.current > a",
+      selectors: "nav.bd-links li.toctree-l1.current > a",
       defaultValue: "Documentation",
     },
     lvl1: "article.bd-article h1",
