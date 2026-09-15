@@ -3,6 +3,7 @@ scipy
 toml>=0.10.1
 pandas>=0.23
 plotly>=5.11
+plotly-resampler
 xlrd
 pint>=0.18
 methodtools

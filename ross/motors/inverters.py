@@ -251,7 +251,7 @@ class InverterVF(Inverter):
     >>> float(np.round(Vp, 2))
     179.63
 
-    >>> van, vbn, vcn = inverter.get_phase_voltages(t=0.001, frequency=freq)
+    >>> van, vbn, vcn = inverter.get_phase_voltages(t=0.001, frequency=freq, theta_0=0.0)
     >>> np.round([van, vbn, vcn], 2)
     array([ 100., -200.,  100.])
 
@@ -259,7 +259,7 @@ class InverterVF(Inverter):
     >>> float(np.round(f, 2))
     18.85
 
-    >>> f, van, vbn, vcn = inverter.get_current_state(t=0.5, frequency_ref=freq)
+    >>> f, van, vbn, vcn = inverter.get_current_state(t=0.5, theta_0=0.0, frequency_ref=freq)
     >>> np.round([f, van, vbn, vcn], 2)
     array([188.5,   0. ,   0. ,   0. ])
     """

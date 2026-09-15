@@ -338,6 +338,7 @@ def results_inverter_vf_nominal_no_load(motor):
     t = np.arange(0, tf + dt, dt)
     return motor.run_with_inverter_vf(
         t,
+        frequency_s=Q_(5000, "Hz"),
         time_step=1e-5,
         load_torque_entrance_time=tf + 1.0,  # load applied after simulation ends
         load_torque_ratio=0.0,
@@ -372,6 +373,7 @@ def results_inverter_vf_half_freq_no_load(motor):
     t = np.arange(0, tf + dt, dt)
     return motor.run_with_inverter_vf(
         t,
+        frequency_s=Q_(5000, "Hz"),
         time_step=1e-5,
         load_torque_entrance_time=tf + 1.0,
         load_torque_ratio=0.0,
@@ -406,6 +408,7 @@ def results_inverter_vf_nominal_load(motor):
     t = np.arange(0, tf + dt, dt)
     return motor.run_with_inverter_vf(
         t,
+        frequency_s=Q_(5000, "Hz"),
         time_step=1e-5,
         load_torque_entrance_time=0.5,
         load_torque_ratio=1.0,

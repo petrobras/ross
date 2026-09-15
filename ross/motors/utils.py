@@ -48,7 +48,7 @@ def line_to_dc_bus(v_line):
     Examples
     --------
     >>> line_to_dc_bus(219.9)  # doctest: +ELLIPSIS
-    310.9...
+    296.8...
     """
     return v_line * 1.35
 
