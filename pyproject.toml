@@ -74,7 +74,6 @@ version = {attr = "ross.__version__"}
         "pytest-xdist",
         "threadpoolctl",
         "coverage",
-        "codecov",
         "sphinx",
         "myst-nb",
         "sphinx-book-theme",
