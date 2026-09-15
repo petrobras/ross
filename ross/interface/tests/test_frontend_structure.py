@@ -475,6 +475,7 @@ def test_only_browser_apis_are_read_off_the_window():
         "scrollX",
         "getComputedStyle",
         "ROSS_TOKEN",
+        "ROSS_VERSION",
         "Plotly",
         "Sortable",
         "matchMedia",

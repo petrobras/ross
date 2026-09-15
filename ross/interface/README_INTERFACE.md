@@ -32,9 +32,10 @@ from the form instead of becoming a `TypeError` at build time.
 
 ```
 app.py         Entry point behind `ross-interface`: starts the server, opens the
-               browser, answers --selftest
+               browser, answers --selftest and --version
 __main__.py    `python -m ross.interface`, the same entry point
 selftest.py    What the executable checks about itself before anyone trusts it
+version.py     The ROSS version, printed by --version, the selftest header and the About dialog
 check.py       Runs ruff, pytest and the node batteries; writes check_report.txt
 ross-interface.spec  How PyInstaller turns all of this into a program
 api/           Transport only: routes, request envelope, session token, error handling

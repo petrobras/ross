@@ -8,6 +8,12 @@ export function setSchemaLanguage(language) {
 
 const UI_TEXT = {
     en: {
+        about: "About ROSS",
+        aboutAskQuestion: "Ask a question",
+        aboutDocs: "Documentation",
+        aboutReportIssue: "Report an issue",
+        aboutSource: "Source code",
+        aboutVersion: "version",
         jobAhead: "ahead",
         jobComputing: "Computing",
         jobInLine: "In line",
@@ -161,6 +167,12 @@ const UI_TEXT = {
         yes: "True",
     },
     pt: {
+        about: "Sobre o ROSS",
+        aboutAskQuestion: "Fazer uma pergunta",
+        aboutDocs: "Documentação",
+        aboutReportIssue: "Reportar um problema",
+        aboutSource: "Código-fonte",
+        aboutVersion: "versão",
         jobAhead: "antes",
         jobComputing: "Calculando",
         jobInLine: "Na fila",

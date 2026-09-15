@@ -52,6 +52,9 @@ and opens the default browser on it; `python -m ross.interface` does the same.
 The server writes `ross_interface.log` in the directory it was started from.
 `ross-interface --selftest` builds a rotor and runs every analysis without
 opening a browser, which is a quick check of an installation.
+`ross-interface --version` prints the ROSS version it runs; the About dialog
+in the page shows the same version, with links to the documentation, the issue
+tracker and the discussions.
 
 Windows users without Python can download `ross-interface-<version>-windows-x64.zip`
 from the [releases page](https://github.com/petrobras/ross/releases), unpack it

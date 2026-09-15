@@ -32,6 +32,8 @@ import io
 import os
 import sys
 
+from ross.interface.version import ross_version
+
 ROTOR = {
     "name": "Selftest",
     "materials": [{"name": "Steel", "rho": "7810", "E": "211e9", "G_s": "81.2e9"}],
@@ -163,27 +165,11 @@ CHECKS = (
 )
 
 
-def _ross_version():
-    """The ROSS inside this bundle, read from the distribution metadata.
-
-    A release asset is audited by this line: the bundle must carry the tagged
-    ROSS. Read from metadata and not via `import ross`, for the reason
-    `check.py` gives: when `import ross` is the failure, the header still has
-    to name the version.
-    """
-    from importlib import metadata
-
-    try:
-        return metadata.version("ross-rotordynamics")
-    except metadata.PackageNotFoundError:
-        return "not installed"
-
-
 def run():
     print("ross-interface --selftest")
     print("python %s on %s" % (sys.version.split()[0], sys.platform))
     print("frozen: %s" % bool(getattr(sys, "frozen", False)))
-    print("ross %s" % _ross_version())
+    print("ross %s" % ross_version())
     print("")
 
     for description, check in CHECKS:
