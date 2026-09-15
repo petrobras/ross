@@ -1,4 +1,5 @@
 import pickle
+import warnings
 from pathlib import Path
 from tempfile import tempdir
 
@@ -2536,6 +2537,36 @@ def test_save_load_json(rotor8):
     rotor8_loaded = Rotor.load(file)
 
     assert rotor8 == rotor8_loaded
+
+
+def _save_with_version(rotor, version, file):
+    import toml
+
+    rotor.save(file)
+    data = toml.load(file)
+    data["ross_version"] = version
+    with open(file, "w") as f:
+        toml.dump(data, f)
+
+
+def test_load_warns_only_on_major_minor_mismatch(rotor8):
+    import ross
+
+    major, minor = ross.__version__.split(".")[:2]
+    file = Path(tempdir) / "rotor8_version.toml"
+
+    _save_with_version(rotor8, f"{major}.{minor}.99.dev0", file)
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        assert Rotor.load(file) == rotor8
+
+    _save_with_version(rotor8, f"{major}.{int(minor) + 1}.0", file)
+    with pytest.warns(UserWarning, match="File was created with ROSS"):
+        Rotor.load(file)
+
+    _save_with_version(rotor8, f"{int(major) + 1}.{minor}.0", file)
+    with pytest.warns(UserWarning, match="File was created with ROSS"):
+        Rotor.load(file)
 
 
 @pytest.mark.parametrize("suffix", [".toml", ".json"])

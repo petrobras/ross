@@ -92,6 +92,7 @@ Unit options: `length_units` (default `"um"`), `speed_units` (default `"RPM"`).
 unbalance = rotor.api617_unbalance(mode=0, maximum_continuous_speed=rs.Q_(9000, "RPM"))
 unbalance["node"], unbalance["unbalance_magnitude"], unbalance["unbalance_phase"]
 unbalance["static_load"]  # W used for each unbalance (kg)
+speed_range = rs.Q_(np.linspace(0, 10000, 201), "RPM")
 response = rotor.run_unbalance_response(
     unbalance["node"],
     unbalance["unbalance_magnitude"],

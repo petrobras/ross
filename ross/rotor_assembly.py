@@ -204,6 +204,23 @@ def _cylinder_shading(relative_radius):
 FORWARD_WHIRL_RATIO = 0.25
 
 
+def _major_minor(version):
+    """Return the major and minor parts of a version string.
+
+    Development and patch releases share the file format of their
+    ``major.minor`` release, so only these two parts are compared when a
+    saved rotor is loaded.
+
+    Examples
+    --------
+    >>> _major_minor("3.0.0.dev0")
+    ('3', '0')
+    >>> _major_minor("unknown")
+    ('unknown',)
+    """
+    return tuple(str(version).split(".")[:2])
+
+
 class Rotor(object):
     r"""A rotor object.
 
@@ -5371,7 +5388,7 @@ class Rotor(object):
         data = load_data(file)
 
         saved_version = data.get("ross_version", "unknown")
-        if saved_version != ross.__version__:
+        if _major_minor(saved_version) != _major_minor(ross.__version__):
             warnings.warn(
                 f"File was created with ROSS {saved_version}, "
                 f"but current version is {ross.__version__}. "
