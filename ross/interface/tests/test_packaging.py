@@ -899,7 +899,7 @@ def test_the_workflow_builds_with_our_spec_and_runs_the_selftest():
     assert "ross-interface.spec" in steps, "CI no longer builds with our spec"
     assert "--selftest" in steps, "CI builds the executable and never runs it"
     assert steps.index("--selftest") < steps.index(
-        "upload-artifact@v4\n        with:\n          name: ross-interface"
+        "upload-artifact@v7\n        with:\n          name: ross-interface"
     ), "the artifact is uploaded before the self-test proves it works"
 
 
