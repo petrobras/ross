@@ -702,7 +702,7 @@ Old method                                         New method
 =================================================  ==========================================================
 ``plot_pressure_distribution(...)``                ``plot_pressure_2d()`` / ``plot_pressure_3d()``
 ``plot_thermal_pad_results(freq_index, pad)``      ``plot_film_temperature_3d(freq_index, pad_index)``
-``plot_temperature_3d(...)``                       ``plot_film_temperature_3d(...)`` (deprecated alias kept with a warning)
+``plot_temperature_3d(...)``                       ``plot_film_temperature_3d(...)``
 ``plot_film_average_temperature()``                ``plot_temperature_2d()``
 ``_print_single_frequency_results(...)``           ``show_results()``
 ``show_optimization_convergence(...)``             removed — the solver owns its convergence strategy
