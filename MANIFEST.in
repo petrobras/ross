@@ -6,4 +6,9 @@ recursive-include ross/agent_skills *.md
 recursive-include ross/data *
 recursive-include ross/tests/data *
 include ross/tests/frf.toml
+recursive-include ross/interface *
+prune ross/interface/build
+prune ross/interface/dist
+prune ross/interface/.venv
+exclude ross/interface/ross_interface.log ross/interface/check_report.txt
 global-exclude *.pyc

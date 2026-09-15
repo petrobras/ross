@@ -234,6 +234,18 @@ by default (``line_shape="spline"``) instead of straight segments: ``FrequencyRe
 ``ClearanceResults.plot_response`` / ``plot_probe_response``, which gained the argument. The sampled
 values are not changed; pass ``line_shape="linear"`` to recover the previous drawing.
 
+Graphical Interface
+^^^^^^^^^^^^^^^^^^^
+
+ROSS 3 ships a graphical interface: a local web application (Flask backend, JavaScript
+frontend) that builds rotors from forms derived from the library's own classes, draws them,
+runs the analyses and exports the model as a Python script
+(`#1370 <https://github.com/petrobras/ross/pull/1370>`_). It is the ``ross.interface``
+subpackage; ``pip install "ross-rotordynamics[interface]"`` adds its dependencies and the
+``ross-interface`` command starts it (``python -m ross.interface`` is equivalent). Every GitHub
+release also carries ``ross-interface-<version>-windows-x64.zip``, a bundle for 64-bit Windows
+that needs no Python.
+
 Installed Test Suite
 ^^^^^^^^^^^^^^^^^^^^
 
