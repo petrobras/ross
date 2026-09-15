@@ -445,6 +445,11 @@ Documentation
   (``tutorial_modeling_part_2``) and units (``tutorial_units``); the seal notebooks were merged
   into ``tutorial_seals``; the analyses, faults, MultiRotor and stochastic tutorials were renamed
   by topic (`#1367 <https://github.com/petrobras/ross/pull/1367>`_).
+- Sixteen example notebooks and the labyrinth seal page stored their Plotly figures only as the
+  Plotly JSON mimetype, which the site cannot render, so the deployed pages showed no figures; they
+  were re-executed with the ``notebook`` renderer the other tutorials use, ``run_notebooks.py``
+  accepts paths and a ``--timeout`` option, and ``CONTRIBUTING.md`` documents the renderer
+  requirement (`#1406 <https://github.com/petrobras/ross/pull/1406>`_).
 - The documentation adopted the ROSS design system with a light/dark toggle that the embedded
   Plotly figures follow, self-hosted IBM Plex fonts, card icons that stay transparent in dark
   mode, and the wiring for Algolia DocSearch, inactive until credentials are available
@@ -951,6 +956,17 @@ always falls in the upper half plane (`#1342 <https://github.com/petrobras/ross/
    *angles* — and hence the phase returned by ``Orbit.calculate_amplitude("major")`` — can differ
    by π from previous releases for many orbits. All physical amplitudes (``major_axis``,
    ``minor_axis``, ``kappa``) are unchanged to machine precision.
+
+Fix ``CylindricalBearing`` Coefficients When a Speed Has No Equilibrium
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+``CylindricalBearing`` computes one equilibrium eccentricity per speed from the short-bearing
+polynomial, but a speed of zero has no root inside ``(0, 1)``, so the eccentricity list came out
+one entry shorter than the speed list and every coefficient was silently paired with the
+eccentricity of the *next* speed. The element now selects exactly one root per speed and raises a
+``ValueError`` naming the speed that has no equilibrium eccentricity; the zero-speed nudge to
+0.1 rad/s, which never reached the Sommerfeld number, was removed
+(`#1406 <https://github.com/petrobras/ross/pull/1406>`_).
 
 Fix ``LabyrinthSeal`` Coefficients on Repeated Runs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

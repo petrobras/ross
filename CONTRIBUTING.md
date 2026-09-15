@@ -262,8 +262,13 @@ EXECUTE_NOTEBOOKS=force make html
 
 (`auto` executes only the notebooks that have no stored outputs.) The outputs
 stored in the notebooks are refreshed with `python run_notebooks.py`, run from
-the `docs` folder, which executes every notebook in place; do this before a
-release so the published pages reflect the released code.
+the `docs` folder, which executes every notebook in place; pass one or more
+notebook or folder paths to refresh only those (for example
+`python run_notebooks.py user_guide/example_17.ipynb`). Do this before a
+release so the published pages reflect the released code. A notebook that
+plots must set `pio.renderers.default = "notebook"` before its first figure:
+without it Plotly stores only its JSON mimetype, which the site cannot render,
+and the page shows no figure.
 
 After building the docs, go to the \_build/html directory (~/ross/docs/\_build/html)
 and start a python http server:

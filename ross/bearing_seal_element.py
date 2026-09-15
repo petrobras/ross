@@ -3107,13 +3107,7 @@ class CylindricalBearing(BearingElement):
     ):
         self.n = n
 
-        self.speed = []
-        for spd in speed:
-            if spd == 0:
-                # replace 0 speed with small value to avoid errors
-                self.speed.append(0.1)
-            else:
-                self.speed.append(spd)
+        self.speed = list(speed)
         self.weight = weight
         self.bearing_length = bearing_length
         self.journal_diameter = journal_diameter
@@ -3161,12 +3155,17 @@ class CylindricalBearing(BearingElement):
             )
             self.roots.append(poly.roots())
 
-        # select real root between 0 and 1
+        # select the real root between 0 and 1, one per speed
         self.root = []
-        for roots in self.roots:
-            for root in roots:
-                if (0 < root < 1) and np.isreal(root):
-                    self.root.append(np.real(root))
+        for spd, roots in zip(self.speed, self.roots, strict=True):
+            real_roots = [np.real(r) for r in roots if np.isreal(r) and 0 < r < 1]
+            if len(real_roots) != 1:
+                raise ValueError(
+                    "CylindricalBearing has no equilibrium eccentricity at "
+                    f"{spd:g} rad/s. The short bearing solution needs a rotating "
+                    "journal, so every speed must be greater than zero."
+                )
+            self.root.append(real_roots[0])
 
         self.eccentricity = [np.sqrt(root) for root in self.root]
         self.attitude_angle = [
