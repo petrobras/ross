@@ -87,6 +87,10 @@ version = {attr = "ross.__version__"}
         "ruff==0.16.3",
         "sphinx-design",
     ]
+    interface = [
+        "flask>=3.0",
+        "pyinstaller>=6",
+    ]
 
 [project.scripts]
 ross-install-skill = "ross.agent_skills.install:main"
