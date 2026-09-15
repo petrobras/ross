@@ -29,7 +29,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e .[dev]
+          pip install -e ".[dev,interface]"
 
       # Running pytest
       - name: Test with pytest
@@ -58,6 +58,6 @@ jobs:
           python -m build --wheel --outdir dist/ .
       - name: Install the wheel and run its test suite
         run: |
-          pip install dist/*.whl pytest
+          pip install "$(ls dist/*.whl)[interface]" pytest
           cd "$RUNNER_TEMP"
           pytest --pyargs ross
