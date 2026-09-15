@@ -85,32 +85,28 @@ python interface/app.py
 The browser opens on `http://127.0.0.1:5001/`. Everything runs locally, on the
 loopback interface, for a single user and a single session.
 
-## 📦 Downloading the executable
+## 📦 Downloading the executable (Windows)
 
 Every [GitHub release of ROSS](https://github.com/petrobras/ross/releases)
-carries a prebuilt bundle per system, attached by CI from the tagged commit:
+carries `ross-interface-<tag>-windows-x64.zip`, built by CI from the tagged
+commit for 64-bit Windows. No Python is needed: the bundle carries its own.
+Unpack the zip, keep the `ross-interface` folder together and run
+`ross-interface.exe` from inside it.
 
-| Asset | System |
-|-------|--------|
-| `ross-interface-<tag>-linux-x64.tar.gz` | Linux, x86_64 |
-| `ross-interface-<tag>-macos-arm64.tar.gz` | macOS, Apple Silicon |
-| `ross-interface-<tag>-windows-x64.zip` | Windows, x86_64 |
+The bundle is **not code-signed** yet, so SmartScreen shows "Windows protected
+your PC" the first time; choose "More info", then "Run anyway". Signing may
+follow in a later release.
 
-Unpack it and run `ross-interface` (`ross-interface.exe` on Windows) from
-inside the folder. The bundles are **not code-signed**: macOS Gatekeeper
-refuses an unsigned, un-notarized download, so open it once with right-click,
-Open, or run `xattr -dr com.apple.quarantine ross-interface` on the unpacked
-folder; Windows SmartScreen shows "Windows protected your PC" until you choose
-"More info", "Run anyway". Signing needs paid certificates and may follow in a
-later release; the spec already exposes `codesign_identity` and
-`entitlements_file` for it.
+Windows is the only system with a prebuilt bundle. Linux users have a Python
+and run the interface from source (see above) or use ROSS as a library; macOS
+is not a target, because an unsigned, un-notarized bundle cannot be opened
+there without a detour through System Settings.
 
 ## 📦 Building the executable
 
 Between releases, or on a system the release does not cover, build it yourself.
 PyInstaller does not cross-compile, so a Windows program can only be produced
-on Windows, a macOS one on macOS and a Linux one on Linux: that is why CI
-builds on the three systems, and why a release carries three bundles.
+on Windows, a macOS one on macOS and a Linux one on Linux.
 
 ```bash
 cd interface
@@ -136,12 +132,11 @@ packages: plotly's `plotly.min.js` and ROSS's `new_units.txt`. **A build that
 finishes is not a build that works** -- the first three builds of this folder
 all finished, and none of them ran.
 
-These are the same commands CI runs on Ubuntu, macOS and Windows
-(`ci/interface.yml`), and a test keeps the two texts in step. The instructions
-are not documentation that might be right: they are documentation that is
-executed on three systems on every change. When a release is published, the
-same jobs archive the bundle they just self-tested and attach it to the
-release; the assets above are that build, not a separate one.
+These are the same commands CI runs on Windows (`ci/interface.yml`), and a
+test keeps the two texts in step. The instructions are not documentation that
+might be right: they are documentation that is executed on every change. When
+a release is published, the same job zips the bundle it just self-tested and
+attaches it to the release; the asset above is that build, not a separate one.
 
 ## 🎨 Design system
 

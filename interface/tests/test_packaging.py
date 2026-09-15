@@ -924,8 +924,8 @@ def test_the_workflow_attaches_the_bundle_to_the_release():
         "the release upload is no longer guarded by the event name"
     )
     assert "contents: write" in steps, "attaching a release asset needs contents: write"
-    assert "${{ github.event.release.tag_name }}" in steps, (
-        "the bundle is no longer named after the release tag"
+    assert "${{ github.event.release.tag_name }}-windows-x64" in steps, (
+        "the bundle is no longer named after the release tag and the system"
     )
     assert "action-gh-release" in steps, "nothing attaches the bundle to the release"
     assert steps.index("--selftest") < steps.index("action-gh-release"), (
@@ -939,8 +939,8 @@ def test_the_readme_build_commands_are_the_ones_ci_runs():
     The interface goes into the ROSS repository as source: whoever wants the
     program builds it, following the README. Prose about commands rots the
     moment the commands change, and it rots in silence, because nobody executes
-    a README. CI runs the same commands on three systems on every change --
-    this is what keeps the two texts from being two.
+    a README. CI runs the same commands on every change -- this is what keeps
+    the two texts from being two.
     """
     with io.open(os.path.join(ROOT, "README_INTERFACE.md"), encoding="utf-8") as handle:
         readme = handle.read()
@@ -955,13 +955,29 @@ def test_the_readme_build_commands_are_the_ones_ci_runs():
         assert command in steps, "CI stopped running %r" % command
 
 
-def test_the_workflow_covers_the_three_systems():
-    """PyInstaller does not cross-compile: three systems means three runners."""
+def test_the_suite_runs_on_three_systems_and_the_bundle_is_built_on_windows():
+    """The source has to work everywhere; the executable is for Windows only.
+
+    The check job keeps the three runners: the interface is run from source on
+    Linux and macOS, and a path or a line-ending assumption breaks there first.
+    The package job is Windows alone, by decision on 2026-09-15: the executable
+    exists for the workstation with no Python, which is a Windows workstation;
+    Linux users install ROSS as a library, and macOS is not a target while the
+    bundle cannot be signed and notarized. PyInstaller does not cross-compile,
+    so the Windows bundle has to be built on a Windows runner.
+    """
     _, steps = _workflow()
     for system in ("ubuntu-latest", "macos-latest", "windows-latest"):
-        assert steps.count(system) >= 2, (
-            "%s is missing from the check or the package matrix" % system
-        )
+        assert system in steps, "%s is missing from the check matrix" % system
+    assert "runs-on: windows-latest" in steps, (
+        "the package job no longer runs on Windows"
+    )
+    assert "ross-interface.exe --selftest" in steps, (
+        "the package job no longer self-tests the Windows executable"
+    )
+    assert steps.count("macos-latest") == 1 and steps.count("ubuntu-latest") == 1, (
+        "a system other than Windows is back in the package job"
+    )
 
 
 def test_the_workflow_wakes_for_our_folder_and_for_ross():
