@@ -8,11 +8,13 @@
 # `test_the_installed_workflow_is_the_one_we_keep` compares the two the day
 # both exist.
 #
-# WHY `paths`. Leonardo's third condition with the maintainers is that the
-# interface must never get in the way of ROSS development. That sentence is
-# these four lines: a pull request that does not touch `interface/` never
-# starts this job, so a ROSS developer does not see it, does not wait for it,
-# and is never blocked by it.
+# WHY `paths`, AND WHY `ross/**` IS AMONG THEM. The interface tests and ships
+# the ROSS it lives next to (`pip install "..[interface]"`), not a pinned copy
+# downloaded from GitHub. So a change to `ross/`, to `pyproject.toml` or to
+# ROSS's `requirements.txt` has to run this job too: a ROSS change that breaks
+# the interface fails on the pull request that made it, not weeks later on
+# whoever next touches this folder. Everything else in the repository -- docs,
+# tools, the paper -- still leaves this job asleep.
 #
 # WHY IT CALLS `check.py` INSTEAD OF LISTING THE STEPS. Writing `ruff check`,
 # `pytest` and the node batteries here would create a second verification
@@ -53,10 +55,16 @@ on:
   push:
     paths:
       - "interface/**"
+      - "ross/**"
+      - "pyproject.toml"
+      - "requirements.txt"
       - ".github/workflows/interface.yml"
   pull_request:
     paths:
       - "interface/**"
+      - "ross/**"
+      - "pyproject.toml"
+      - "requirements.txt"
       - ".github/workflows/interface.yml"
   workflow_dispatch:
   release:
@@ -90,7 +98,9 @@ jobs:
         with:
           node-version: "22"
       - run: python -m pip install --upgrade pip
-      - run: pip install -r requirements.txt -r requirements-dev.txt
+      # ROSS is the repository above this folder; the extras add ruff, pytest
+      # and what only the interface needs.
+      - run: pip install "..[dev,interface]"
       - run: python check.py
       - if: always()
         uses: actions/upload-artifact@v4
@@ -116,7 +126,9 @@ jobs:
         with:
           python-version: "3.12"
       - run: python -m pip install --upgrade pip
-      - run: pip install -r requirements.txt -r requirements-dev.txt
+      # The bundle carries the ROSS of this checkout: on a release that is the
+      # tagged commit, by construction. `--selftest` prints the version it found.
+      - run: pip install "..[interface]"
       - run: python -m PyInstaller --noconfirm ross-interface.spec
       # `shell: bash` on all three runners, so the difference between the
       # systems is one file extension and not three copies of this step.

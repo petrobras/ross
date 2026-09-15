@@ -107,7 +107,7 @@ def rotor_example_amb_complex_controllers(ambs=True):
     o_d1[14:16] = [49.9 for _ in range(2)]
     o_d1[16:27] = [19.05 for _ in range(11)]
     o_d1[27:29] = [54 for _ in range(2)]
-    o_d1[29:40] = [19.05 for _ in range(12)]
+    o_d1[29:40] = [19.05 for _ in range(11)]
     o_d1[40:42] = [49.9 for _ in range(2)]
     o_d1[42:51] = [34.8 for _ in range(9)]
     o_d1[51] = 6.35
@@ -125,7 +125,7 @@ def rotor_example_amb_complex_controllers(ambs=True):
             alpha=2.5,
             beta=1e-4,
         )
-        for l, idl, odl in zip(L, i_d, o_d)
+        for l, idl, odl in zip(L, i_d, o_d, strict=True)
     ]
 
     # Disk elements ##
@@ -176,12 +176,12 @@ def rotor_example_amb_complex_controllers(ambs=True):
 
     disk_elements_1 = [
         DiskElement.from_geometry(n=n, material=steel, width=m, i_d=Id, o_d=Od)
-        for n, m, Id, Od in zip(n_list, width, i_disc_1, o_disc)
+        for n, m, Id, Od in zip(n_list, width, i_disc_1, o_disc, strict=True)
     ]
 
     disk_elements_2 = [
         DiskElement.from_geometry(n=n, material=steel_m12, width=m, i_d=Id, o_d=Od)
-        for n, m, Id, Od in zip(n_list_2, width_2, i_disc_2, o_disc_2)
+        for n, m, Id, Od in zip(n_list_2, width_2, i_disc_2, o_disc_2, strict=True)
     ]
 
     disk_elements = [*disk_elements_1, *disk_elements_2]
@@ -316,7 +316,7 @@ def rotor_example_amb_general_controllers(controller_transfer_function=None):
     o_d1[14:16] = [49.9 for _ in range(2)]
     o_d1[16:27] = [19.05 for _ in range(11)]
     o_d1[27:29] = [54 for _ in range(2)]
-    o_d1[29:40] = [19.05 for _ in range(12)]
+    o_d1[29:40] = [19.05 for _ in range(11)]
     o_d1[40:42] = [49.9 for _ in range(2)]
     o_d1[42:51] = [34.8 for _ in range(9)]
     o_d1[51] = 6.35
@@ -333,7 +333,7 @@ def rotor_example_amb_general_controllers(controller_transfer_function=None):
             gyroscopic=True,
             alpha=2.5,
         )
-        for l, idl, odl in zip(L, i_d, o_d)
+        for l, idl, odl in zip(L, i_d, o_d, strict=True)
     ]
 
     # Disk elements:
@@ -352,12 +352,12 @@ def rotor_example_amb_general_controllers(controller_transfer_function=None):
     # fmt: on
     disk_elements_1 = [
         DiskElement.from_geometry(n=n, material=steel_amb, width=m, i_d=Id, o_d=Od)
-        for n, m, Id, Od in zip(n_list, width, i_disc_1, o_disc)
+        for n, m, Id, Od in zip(n_list, width, i_disc_1, o_disc, strict=True)
     ]
 
     disk_elements_2 = [
         DiskElement.from_geometry(n=n, material=steel_m12_amb, width=m, i_d=Id, o_d=Od)
-        for n, m, Id, Od in zip(n_list_2, width_2, i_disc_2, o_disc_2)
+        for n, m, Id, Od in zip(n_list_2, width_2, i_disc_2, o_disc_2, strict=True)
     ]
 
     disk_elements = [*disk_elements_1, *disk_elements_2]

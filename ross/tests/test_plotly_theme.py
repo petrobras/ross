@@ -169,7 +169,7 @@ def test_axes_indicator_3d_maps_display_arms_onto_scene_axes():
     assert {trace.legendgroup for trace in fig.data} == {"axes"}
     points = {
         (round(x, 9), round(y, 9), round(z, 9))
-        for x, y, z in zip(lines.x, lines.y, lines.z)
+        for x, y, z in zip(lines.x, lines.y, lines.z, strict=True)
         if x is not None
     }
     # rotor x arm runs along the scene y axis: half a display unit is 2 data units
@@ -191,7 +191,11 @@ def test_axes_indicator_3d_without_z_arm():
     )
     lines, text = fig.data
     assert list(text.text) == ["x", "y", "ω"]
-    points = {(x, y, z) for x, y, z in zip(lines.x, lines.y, lines.z) if x is not None}
+    points = {
+        (x, y, z)
+        for x, y, z in zip(lines.x, lines.y, lines.z, strict=True)
+        if x is not None
+    }
     assert (0.0, 0.0, 1.0) not in points
     # the spin label sits in the x-y plane, where the ring turns about the origin
     assert text.z[2] == 0

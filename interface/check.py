@@ -68,7 +68,7 @@ def installed_versions():
         "ross-rotordynamics",
         "plotly",
         "numpy",
-        # Numba is not ours and not named in `requirements.txt`: it arrives
+        # Numba is not ours and not in the `interface` extra: it arrives
         # through ROSS, and it is what compiles the crack and the campbell. It
         # earned this line by breaking a whole run -- `ImportError: Numba needs
         # NumPy 2.4 or less` -- while the header reported numpy and stayed
@@ -158,7 +158,7 @@ MISSING_RUFF = """ruff is not installed for this interpreter.
 interface is meant to go into that repository. Without them the style drifts
 until the pull request is the place where it is discovered.
 
-    %s -m pip install -r requirements-dev.txt
+    %s -m pip install "..[dev,interface]"    # from this folder
 """
 
 

@@ -236,7 +236,7 @@ def _elliptic_arc(cx, cy, rx, ry, t0, t1, segments=4):
         return np.array([-rx * np.sin(t), ry * np.cos(t)])
 
     path = "M {:.2f},{:.2f}".format(*point(theta[0]))
-    for a, b in zip(theta[:-1], theta[1:]):
+    for a, b in zip(theta[:-1], theta[1:], strict=True):
         handle = (4 / 3) * np.tan((b - a) / 4)
         path += " C {:.2f},{:.2f} {:.2f},{:.2f} {:.2f},{:.2f}".format(
             *(point(a) + handle * slope(a)),

@@ -588,6 +588,9 @@ Other behavior changes of the coefficient rework:
 - The dimension error message reads ``Arguments (coefficients, speed and frequency) must have the
   same dimension``.
 - ``SealElement`` persists ``seal_leakage`` on ``save()`` / ``load()``.
+- ``Rotor.save()`` persists the model-level damping (``alpha``, ``beta``, ``modal_damping_ratio``
+  and ``default_damping_ratio``); files written before this fix load with zero global damping, and
+  ``Rotor.__eq__`` now tells a damped rotor from an undamped one.
 - ``SqueezeFilmDamper.save()`` and ``ThrustPad.save()`` write the solved coefficient table as a
   ``BearingElement`` section, as ``FluidFilmBearing`` does (``BearingElement.save_coefficient_table``);
   both classes could not load the files they wrote before. ``BearingElement.load`` builds the element
@@ -758,6 +761,13 @@ General Fixes
   promoted to a classmethod (`#1315 <https://github.com/petrobras/ross/pull/1315>`_).
 - ``run_ucs()`` now applies the ``@check_units`` decorator to its arguments
   (`#1308 <https://github.com/petrobras/ross/pull/1308>`_).
+- Every ``zip()`` call now states ``strict=True`` or ``strict=False``, as required by the
+  ``B905`` lint rule once ``requires-python`` moved to 3.12. The strict pairing exposed two latent
+  bugs, now fixed: the AMB example rotors assigned 12 outer diameters to an 11-element slice, so
+  the diameter list ran one entry longer than the shaft list, and the tilting-pad thermal loop
+  passed integer thermal types to helpers that compare against ``"adiabatic"`` and ``"full"``, so
+  the adiabatic results were written back under the full-model keys
+  (`#1388 <https://github.com/petrobras/ross/pull/1388>`_).
 
 Contributors
 ~~~~~~~~~~~~

@@ -62,14 +62,19 @@ text.
 
 ## 🔧 Installation
 
+From the root of the ROSS repository:
+
 ```bash
-pip install -r interface/requirements.txt
+pip install -e ".[dev,interface]"
 ```
 
-ROSS itself is pinned to a specific commit in `requirements.txt`. That is
-deliberate: the analysis/degree-of-freedom compatibility table in
-`domain/compatibility.py` was **measured** against that commit, and what a
-newer version breaks or fixes can only be known by measuring again.
+The `interface` extra of ROSS's `pyproject.toml` adds what only the interface
+needs (Flask, PyInstaller); `dev` adds ruff and pytest. ROSS itself is the
+checkout: the interface runs, tests and ships against the code it lives next
+to, and CI runs this folder's suite whenever `ross/` changes. The
+analysis/degree-of-freedom compatibility table in `domain/compatibility.py`
+records what was measured on which ROSS revision; `tools/conversion_probe.py`
+measures it again when the library changes.
 
 ## 💻 How to Execute
 
@@ -108,7 +113,7 @@ on Windows, a macOS one on macOS and a Linux one on Linux: that is why CI
 builds on the three systems, and why a release carries three bundles.
 
 ```bash
-pip install -r interface/requirements-dev.txt
+cd interface
 python -m PyInstaller --noconfirm ross-interface.spec
 ```
 
@@ -185,17 +190,18 @@ the `ross` package:
   that, ROSS's `--doctest-modules` would import every module here and fail on
   the missing Flask.
 - `ruff check ross` does not reach it either.
-- Flask is declared here, not in ROSS's `requirements.txt`: installing
-  `ross-rotordynamics` to write a script should not pull in a web server.
+- Flask and PyInstaller are the `interface` extra of ROSS's `pyproject.toml`,
+  not its requirements: installing `ross-rotordynamics` to write a script does
+  not pull in a web server.
 
-**One line is required in the ROSS `pyproject.toml`.** Its
-`[tool.setuptools.packages.find]` resolves in namespace mode, so a top-level
-folder is picked up even without an `__init__.py` and would ship inside the
-`ross-rotordynamics` wheel as a top-level `interface` package:
+**One line in the ROSS `pyproject.toml` keeps this folder out of the wheel.**
+Its `[tool.setuptools.packages.find]` resolves in namespace mode, so a
+top-level folder is picked up even without an `__init__.py` and would ship
+inside the `ross-rotordynamics` wheel as a top-level `interface` package:
 
 ```toml
 [tool.setuptools.packages.find]
-exclude = ["ross.tests*", "interface*"]   # <- add "interface*"
+include = ["ross*"]
 ```
 
 `tests/test_packaging.py` proves both halves of this: that the folder is picked up

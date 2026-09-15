@@ -75,14 +75,17 @@ HERE = SPECPATH  # noqa: F821 -- injected by PyInstaller: the folder of this fil
 
 
 def declared_distributions():
-    """The distributions `requirements.txt` names -- our declared world."""
-    names = []
-    with io.open(os.path.join(HERE, "requirements.txt"), encoding="utf-8") as handle:
-        for line in handle:
-            line = line.split("#")[0].strip()
-            if line:
-                names.append(re.split(r"[<>=!\[;@\s]", line, 1)[0])
-    return [name for name in names if name]
+    """ROSS itself and the `interface` extra of its pyproject -- our declared world.
+
+    Read from the installed metadata of `ross-rotordynamics`: the extra is the
+    one place the interface's own needs are declared, and ROSS's dependencies
+    come through ROSS.
+    """
+    names = ["ross-rotordynamics"]
+    for line in metadata.requires("ross-rotordynamics") or []:
+        if 'extra == "interface"' in line:
+            names.append(re.split(r"[<>=!\[;@\s]", line, maxsplit=1)[0])
+    return names
 
 
 def canonical(name):
@@ -98,7 +101,7 @@ def dependency_closure(roots):
     the three I could name. The fourth existed, and I could not name it.
 
     So the list is not written here. It is derived from the metadata of what is
-    installed, starting at what `requirements.txt` declares -- because a list of
+    installed, starting at ROSS and its `interface` extra -- because a list of
     package names rots exactly like any other copy, and it rots in the worst
     place: a clean build on somebody else's machine, months from now.
     """

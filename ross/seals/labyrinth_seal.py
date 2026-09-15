@@ -595,17 +595,17 @@ class LabyrinthSolver:
 
             if i > 0:
                 upstream0 = PERTURBATION_DOFS * (i - 1)
-                for r, c in zip(MOMENTUM_ROWS, SWAPPED_VELOCITY_COLS):
+                for r, c in zip(MOMENTUM_ROWS, SWAPPED_VELOCITY_COLS, strict=True):
                     A[row0 + r, upstream0 + c] = self.cx[4, station]
-                for r, c in zip(MOMENTUM_ROWS, SWAPPED_PRESSURE_COLS):
+                for r, c in zip(MOMENTUM_ROWS, SWAPPED_PRESSURE_COLS, strict=True):
                     A[row0 + r, upstream0 + c] = self.cg[8, station]
-                for r, c in zip(CONTINUITY_ROWS, SWAPPED_PRESSURE_COLS):
+                for r, c in zip(CONTINUITY_ROWS, SWAPPED_PRESSURE_COLS, strict=True):
                     A[row0 + r, upstream0 + c] = self.cg[7, station]
             if i < self.n_cavities - 1:
                 downstream0 = PERTURBATION_DOFS * (i + 1)
-                for r, c in zip(CONTINUITY_ROWS, SWAPPED_PRESSURE_COLS):
+                for r, c in zip(CONTINUITY_ROWS, SWAPPED_PRESSURE_COLS, strict=True):
                     A[row0 + r, downstream0 + c] = self.cg[4, station]
-                for r, c in zip(MOMENTUM_ROWS, SWAPPED_PRESSURE_COLS):
+                for r, c in zip(MOMENTUM_ROWS, SWAPPED_PRESSURE_COLS, strict=True):
                     A[row0 + r, downstream0 + c] = self.cx[5, station]
 
             cf1 = self.whirl_frequency * self.cg[0, station] + self.cg[1, station]
@@ -665,7 +665,9 @@ class LabyrinthSolver:
                 -forcing_direct[3],
                 forcing_direct[2],
             )
-            for r, direct, cross in zip(RHS_ROWS, forcing_direct, forcing_cross):
+            for r, direct, cross in zip(
+                RHS_ROWS, forcing_direct, forcing_cross, strict=True
+            ):
                 rhs[row0 + r, 0] = (
                     self.pert_amplitude_direct / self.perturbation_eccentricity * direct
                 )

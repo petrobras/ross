@@ -28,7 +28,9 @@ def bearing_kwargs_from_fixture(case_name, **overrides):
         "liquid_specific_heat": inp["lube_cp"],
         "liquid_thermal_conductivity": inp["lube_conduct"],
     }
-    probes = list(zip(inp["probe_pad_number"], inp["probe_theta"], inp["r_location"]))
+    probes = list(
+        zip(inp["probe_pad_number"], inp["probe_theta"], inp["r_location"], strict=True)
+    )
     kwargs = dict(
         n=0,
         speed=inp["frequency"],
