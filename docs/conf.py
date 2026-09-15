@@ -63,15 +63,21 @@ extensions = [
 # Algolia DocSearch modal. It is only loaded when credentials are provided via
 # environment variables, so builds without them keep the default search intact.
 #
-# Activation steps (once the DocSearch OSS application is approved):
+# Activation steps:
 #   1. In the Read the Docs dashboard (Admin > Environment Variables), set:
 #        DOCSEARCH_APP_ID      - the Algolia application ID
 #        DOCSEARCH_API_KEY     - the *search-only* public API key
-#        DOCSEARCH_INDEX_NAME  - the index name (e.g. "ross")
+#        DOCSEARCH_INDEX_NAME  - the index name ("ross")
 #   2. Rebuild the docs. No code change is needed.
 #   3. Disable the search UI injected by Read the Docs Addons so the two
 #      search interfaces do not conflict.
 # See docs/_design/docsearch-application.md for the full checklist.
+#
+# sphinx-docsearch only wires its search box into pydata_sphinx_theme, so the
+# sphinx_book_theme hooks are done here: the sidebar search field is replaced
+# by the DocSearch container (html_sidebars below), the header search icon is
+# overridden in _templates/search-button.html, and the extension's pydata CSS
+# is loaded in setup() to hide the theme's own Ctrl+K popup.
 docsearch_app_id = os.environ.get("DOCSEARCH_APP_ID", "")
 docsearch_api_key = os.environ.get("DOCSEARCH_API_KEY", "")
 docsearch_index_name = os.environ.get("DOCSEARCH_INDEX_NAME", "")
@@ -136,7 +142,17 @@ html_theme = "sphinx_book_theme"
 html_logo = "_static/ross-logo.svg"
 html_favicon = "_static/ross-logo.ico"
 html_title = "ROSS"
-html_sidebars = {}
+if docsearch_enabled:
+    html_sidebars = {
+        "**": [
+            "navbar-logo.html",
+            "icon-links.html",
+            "searchbox.html",
+            "sbt-sidebar-nav.html",
+        ]
+    }
+else:
+    html_sidebars = {}
 html_theme_options = {
     "github_url": "https://github.com/petrobras/ross",
     "repository_url": "https://github.com/petrobras/ross",
@@ -258,6 +274,9 @@ def setup(app):
     app.add_css_file("theme-ross.css")
     app.add_css_file("custom.css")
     if docsearch_enabled:
+        app.add_css_file("pydata-docsearch-custom.css", priority=820)
         app.add_css_file("docsearch-ross.css")
+        app.add_js_file("docsearch-amd-off.js", priority=499, loading_method="defer")
+        app.add_js_file("docsearch-amd-on.js", priority=501, loading_method="defer")
     app.add_js_file("custom.js")
     app.add_js_file("plotly-theme-sync.js")
