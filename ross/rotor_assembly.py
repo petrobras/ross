@@ -1130,6 +1130,7 @@ class Rotor(object):
             "disk_elements",
             "bearing_elements",
             "point_mass_elements",
+            "motor_element",
             "shafts",
         }
         sig = inspect.signature(self.__class__.__init__)
@@ -3352,14 +3353,14 @@ class Rotor(object):
 
             model_reduction["method"] = method
 
-            print(f"Running with model reduction: {method}")
+            print(f"Running with model reduction: {method}", end="\r", flush=True)
             mr = ModelReduction(rotor=self, speed=speed_ref, **model_reduction)
             reduction = [mr.reduce_matrix, mr.reduce_vector, mr.revert_vector]
 
             kwargs.pop("model_reduction")
 
         else:
-            print("Running direct method")
+            print("Running direct method", end="\r", flush=True)
             return_array = lambda array: array
             reduction = [return_array for _ in range(3)]
 
@@ -4990,7 +4991,7 @@ class Rotor(object):
         frequency_ref=None,
         steady_state=True,
         F=None,
-        solver_method="default",
+        verbose=False,
         **kwargs,
     ):
         """Run time response with electric motor torque at the motor node.
@@ -5055,9 +5056,8 @@ class Rotor(object):
         F : array, optional
             Force array (needs to have the same number of rows as time array).
             Each column corresponds to a dof and each row to a time.
-        solver_method : str, optional
-            The Newmark method can be chosen by setting `solver_method='newmark'` for time
-            response analysis.
+        verbose : bool, optional
+            If True, print the main stages of the simulation. Default is False.
         **kwargs : optional
             Additional keyword arguments can be passed to define the parameters
             of the Newmark method if it is used (e.g. gamma, beta, tol, ...).
@@ -5113,6 +5113,9 @@ class Rotor(object):
 
         frequency_s = Q_(5000, "Hz")
 
+        if verbose:
+            print("[1/3] Simulating motor...", end="\r", flush=True)
+
         if drive_mode.upper() == "DOL":
             motor_results = motor.run_direct_on_line(
                 t,
@@ -5147,6 +5150,7 @@ class Rotor(object):
 
             i, _ = steady_state_index(motor_results.sample_at("speed", t))
             t = t[i:]
+            F = F[i:, :]
 
         Te = motor_results.sample_at("electric_torque", t)
         Tl = motor_results.sample_at("load_torque", t)
@@ -5171,7 +5175,13 @@ class Rotor(object):
         kwargs["Ktq"] = Ktq
         kwargs["torque"] = torque
 
-        results = self.run_time_response(speed, F, t, method=solver_method, **kwargs)
+        if verbose:
+            print("[2/3] Integrating rotor response... ", end="", flush=True)
+
+        results = self.run_time_response(speed, F, t, method="newmark", **kwargs)
+
+        if verbose:
+            print("\033[K[3/3] Simulation finished.", flush=True)
 
         return results
 
