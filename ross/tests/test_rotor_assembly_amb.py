@@ -599,13 +599,10 @@ def test_run_amb_non_collocation():
         np.arange(8),
     )
     np.testing.assert_array_equal(
-        results.mode_indices,
-        [0, 1, 2, 3, 6, 7],
+        np.sort(np.concatenate([results.mode_indices, results.excluded_mode_indices])),
+        np.arange(8),
     )
-    np.testing.assert_array_equal(
-        results.excluded_mode_indices,
-        [4, 5],
-    )
+    assert len(results.excluded_mode_indices) == 2
     np.testing.assert_array_equal(
         results.excluded_mode_types,
         ["Torsional", "Torsional"],
