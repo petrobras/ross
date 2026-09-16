@@ -113,6 +113,10 @@ Thumbs.db
 .ipynb_checkpoints/
 notebooks/
 
+# agent skill folder: rotors saved while running the recipes #
+##############################################################
+/ross/agent_skills/ross/*.toml
+
 # docs #
 ########
 /docs/examples/*_files

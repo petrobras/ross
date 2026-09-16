@@ -1,13 +1,13 @@
-numpy
-scipy
+numpy>=2.2
+scipy>=1.15
 toml>=0.10.1
-pandas>=0.23
+pandas>=2.3
 plotly>=5.11
 plotly-resampler
 xlrd
 pint>=0.18
 methodtools
 numba
-ccp-performance
+ccp-performance>=0.4.1
 prettytable
 control

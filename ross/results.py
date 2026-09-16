@@ -18,12 +18,16 @@ from plotly import graph_objects as go
 from plotly.subplots import make_subplots
 from prettytable import PrettyTable
 from scipy.fft import fft
-
-from ross.plotly_theme import coolwarm_r, tableau_colors
 from pathlib import Path
-from ross.bearings.magnetic.amb_utils import get_ambs
 
-from ross.plotly_theme import tableau_colors, coolwarm_r
+from ross.plotly_theme import (
+    SHAPE_3D_ASPECT,
+    axes_indicator_3d,
+    coolwarm_r,
+    tableau_colors,
+)
+from ross.bearings.magnetic.amb_utils import get_ambs
+from ross.probe import check_probes
 from ross.units import Q_, check_units
 from ross.utils import intersection, compute_dfft, compute_freq_resp
 
@@ -45,6 +49,7 @@ __all__ = [
     "HarmonicBalanceResults",
     "Level1Results",
     "SensitivityResults",
+    "AmbNonCollocationResults",
 ]
 
 # Define reference circle for orbits
@@ -85,7 +90,7 @@ class Results(ABC):
         >>> response = rotor.run_unbalance_response(node=3,
         ...                                         unbalance_magnitude=0.001,
         ...                                         unbalance_phase=0.0,
-        ...                                         frequency=speed)
+        ...                                         speed_range=speed)
 
         >>> # create path for a temporary file
         >>> file = Path(tempdir) / 'unb_resp.toml'
@@ -550,7 +555,7 @@ class Shape(Results):
         orbits = []
         whirl = []
 
-        for node, node_pos in zip(self.nodes, self.nodes_pos):
+        for node, node_pos in zip(self.nodes, self.nodes_pos, strict=True):
             ru_e, rv_e = self._evec[self.number_dof * node : self.number_dof * node + 2]
             orbit = Orbit(node=node, node_pos=node_pos, ru_e=ru_e, rv_e=rv_e)
             orbits.append(orbit)
@@ -620,7 +625,9 @@ class Shape(Results):
                 n1 = get_node_index(j)
                 e1 = n1 - (j + 1)
 
-                for Le, n in zip(shaft_elements_length[e0:e1], nodes[n0:n1]):
+                for Le, n in zip(
+                    shaft_elements_length[e0:e1], nodes[n0:n1], strict=False
+                ):
                     node_pos = nodes_pos[n]
                     Nx = np.hstack((N1, Le * N2, N3, Le * N4))
                     Ny = np.hstack((N1, -Le * N2, N3, -Le * N4))
@@ -883,8 +890,8 @@ class Shape(Results):
                 for n in range(n0, n1):
                     node_data.append(
                         go.Scatter3d(
-                            x=[nodes_pos[n], zt[n]],
-                            y=[0, 0],
+                            y=[nodes_pos[n], zt[n]],
+                            x=[0, 0],
                             z=[0, 1],
                             mode="lines",
                             line=dict(width=2, color=self.color),
@@ -912,8 +919,8 @@ class Shape(Results):
 
                 node_data.append(
                     go.Scatter3d(
-                        x=xn,
-                        y=np.zeros(len(nodes_pos)),
+                        y=xn,
+                        x=np.zeros(len(nodes_pos)),
                         z=np.ones(len(nodes_pos)),
                         line=dict(width=2, color=self.color),
                         hoverinfo="none",
@@ -931,8 +938,8 @@ class Shape(Results):
 
         original = [
             go.Scatter3d(
-                x=nodes_pos,
-                y=nodes_pos * 0,
+                y=nodes_pos,
+                x=nodes_pos * 0,
                 z=nodes_pos * 0,
                 mode="markers",
                 marker=dict(size=3, color=tableau_colors["gray"]),
@@ -947,8 +954,8 @@ class Shape(Results):
         max_pos = max(nodes_pos) + 0.15 * abs(max(nodes_pos) - min(nodes_pos))
         center_line = [
             go.Scatter3d(
-                x=[min_pos, max_pos],
-                y=[0, 0],
+                y=[min_pos, max_pos],
+                x=[0, 0],
                 z=[0, 0],
                 mode="lines",
                 line=dict(color="black", dash="dashdot"),
@@ -961,7 +968,7 @@ class Shape(Results):
 
         fig.update_layout(
             scene=dict(
-                yaxis=dict(showticklabels=False),
+                xaxis=dict(showticklabels=False),
                 zaxis=dict(showticklabels=False),
             )
         )
@@ -1146,15 +1153,15 @@ class Shape(Results):
                 for n in range(n0, n1):
                     node_data.append(
                         go.Scatter3d(
-                            x=[nodes_pos[n], nodes_pos[n]],
-                            y=[0, xt[j, n]],
+                            y=[nodes_pos[n], nodes_pos[n]],
+                            x=[0, xt[j, n]],
                             z=[0, yt[j, n]],
                             mode="lines",
                             line=dict(width=2, color=self.color),
                             name=f"Node {self.nodes[n]}",
                             hovertemplate=(
-                                "Nodal position: %{x:.2f}<br>"
-                                + "X - Displacement: %{y:.2f}<br>"
+                                "Nodal position: %{y:.2f}<br>"
+                                + "X - Displacement: %{x:.2f}<br>"
                                 + "Y - Displacement: %{z:.2f}<br>"
                                 + f"Relative angle: {theta[n]:.2f}"
                             ),
@@ -1179,8 +1186,8 @@ class Shape(Results):
 
                 node_data.append(
                     go.Scatter3d(
-                        x=xn,
-                        y=yn,
+                        y=xn,
+                        x=yn,
                         z=zn,
                         line=dict(width=2, color=self.color),
                         hoverinfo="none",
@@ -1201,8 +1208,8 @@ class Shape(Results):
         max_pos = max(nodes_pos) + 0.15 * abs(max(nodes_pos) - min(nodes_pos))
         center_line = [
             go.Scatter3d(
-                x=[min_pos, max_pos],
-                y=[0, 0],
+                y=[min_pos, max_pos],
+                x=[0, 0],
                 z=[0, 0],
                 mode="lines",
                 line=dict(color="black", dash="dashdot"),
@@ -1427,16 +1434,16 @@ class Shape(Results):
                 # add orbit point
                 orbit_data.append(
                     go.Scatter3d(
-                        x=[zc_pos[i]],
-                        y=[orbit.x_circle[i]],
+                        y=[zc_pos[i]],
+                        x=[orbit.x_circle[i]],
                         z=[orbit.y_circle[i]],
                         mode="markers",
                         marker=dict(color=orbit.color),
                         name="node {}".format(orbit.node),
                         showlegend=False,
                         hovertemplate=(
-                            "Nodal Position: %{x:.2f}<br>"
-                            + "X - Displacement: %{y:.2f}<br>"
+                            "Nodal Position: %{y:.2f}<br>"
+                            + "X - Displacement: %{x:.2f}<br>"
                             + "Y - Displacement: %{z:.2f}"
                         ),
                     )
@@ -1445,16 +1452,16 @@ class Shape(Results):
                 if n > 0:
                     orbit_data.append(
                         go.Scatter3d(
-                            x=zc_pos[j],
-                            y=orbit.x_circle[j],
+                            y=zc_pos[j],
+                            x=orbit.x_circle[j],
                             z=orbit.y_circle[j],
                             mode="lines",
                             line=dict(color=orbit.color, dash="dashdot"),
                             name="node {}".format(orbit.node),
                             showlegend=False,
                             hovertemplate=(
-                                "Nodal Position: %{x:.2f}<br>"
-                                + "X - Displacement: %{y:.2f}<br>"
+                                "Nodal Position: %{y:.2f}<br>"
+                                + "X - Displacement: %{x:.2f}<br>"
                                 + "Y - Displacement: %{z:.2f}"
                             ),
                         )
@@ -1463,16 +1470,16 @@ class Shape(Results):
                 if n == 0:
                     orbit_data.append(
                         go.Scatter3d(
-                            x=zc_pos,
-                            y=orbit.x_circle,
+                            y=zc_pos,
+                            x=orbit.x_circle,
                             z=orbit.y_circle,
                             mode="lines",
                             line=dict(color=orbit.color),
                             name="node {}".format(orbit.node),
                             showlegend=False,
                             hovertemplate=(
-                                "Nodal Position: %{x:.2f}<br>"
-                                + "X - Displacement: %{y:.2f}<br>"
+                                "Nodal Position: %{y:.2f}<br>"
+                                + "X - Displacement: %{x:.2f}<br>"
                                 + "Y - Displacement: %{z:.2f}"
                             ),
                         )
@@ -1481,8 +1488,8 @@ class Shape(Results):
                     # add orbit major axis marker
                     fixed_lines.append(
                         go.Scatter3d(
-                            x=[zc_pos[0]],
-                            y=[orbit.major_x],
+                            y=[zc_pos[0]],
+                            x=[orbit.major_x],
                             z=[orbit.major_y],
                             mode="markers",
                             marker=dict(
@@ -1498,7 +1505,7 @@ class Shape(Results):
                                 ]
                             ).reshape(1, 2),
                             hovertemplate=(
-                                "Nodal Position: %{x:.2f}<br>"
+                                "Nodal Position: %{y:.2f}<br>"
                                 + "Major axis: %{customdata[0]:.2f}<br>"
                                 + "Angle: %{customdata[1]:.2f}"
                             ),
@@ -1521,8 +1528,8 @@ class Shape(Results):
             # plot line connecting orbits starting points
             fixed_lines.append(
                 go.Scatter3d(
-                    x=zn[n0:n1],
-                    y=xn[n0:n1],
+                    y=zn[n0:n1],
+                    x=xn[n0:n1],
                     z=yn[n0:n1],
                     mode="lines",
                     line=dict(color="black", dash="dash"),
@@ -1534,8 +1541,8 @@ class Shape(Results):
             # plot major axis line
             fixed_lines.append(
                 go.Scatter3d(
-                    x=zn[n0:n1],
-                    y=self.major_x[n0:n1],
+                    y=zn[n0:n1],
+                    x=self.major_x[n0:n1],
                     z=self.major_y[n0:n1],
                     mode="lines",
                     line=dict(color="black", dash="dashdot"),
@@ -1552,8 +1559,8 @@ class Shape(Results):
         max_pos = max(zn) + 0.15 * abs(max(zn) - min(zn))
         fixed_lines.append(
             go.Scatter3d(
-                x=[min_pos, max_pos],
-                y=[0, 0],
+                y=[min_pos, max_pos],
+                x=[0, 0],
                 z=[0, 0],
                 mode="lines",
                 line=dict(color="black", dash="dashdot"),
@@ -1606,6 +1613,46 @@ class Shape(Results):
 
         return fig
 
+    def _axes_indicator_3d(self, fig, length_units, half_range):
+        """Draw the rotor frame triad in a 3-D shape plot.
+
+        Shape plots lay the scene out as a rotation of the rotor frame (see
+        :py:meth:`plot_3d`): rotor x on the scene x axis, which runs
+        reversed, the rotor length on the scene y axis and rotor y on the
+        scene z axis. The triad sits on the rotor axis at z = 0 (or at the
+        first node when the rotor does not start there) and has a legend
+        entry which toggles it.
+
+        Parameters
+        ----------
+        fig : plotly.graph_objects.Figure
+            The figure object with the shape plot.
+        length_units : str
+            Length units of the scene y axis.
+        half_range : float
+            Half extent of the displacement axes.
+
+        Returns
+        -------
+        fig : plotly.graph_objects.Figure
+            The figure object with the triad.
+        """
+        nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
+        length = max(np.max(nodes_pos) - np.min(nodes_pos), 1e-12)
+        z0 = 0.0 if np.min(nodes_pos) <= 0.0 <= np.max(nodes_pos) else np.min(nodes_pos)
+        aspect = SHAPE_3D_ASPECT
+        return axes_indicator_3d(
+            fig,
+            origin=dict(x=0.0, y=z0, z=0.0),
+            size=0.15,
+            scales=dict(
+                x=2 * half_range / aspect["x"],
+                y=length / aspect["y"],
+                z=2 * half_range / aspect["z"],
+            ),
+            scene_axes={"x": "x", "y": "z", "z": "y"},
+        )
+
     def plot_3d(
         self,
         length_units="m",
@@ -1641,14 +1688,15 @@ class Shape(Results):
                 fig=fig,
             )
 
+        # the scene is a rotation of the rotor frame, never a mirror: rotor x
+        # runs on the scene x axis, reversed, the rotor length on the scene y
+        # axis and rotor y on the scene z axis. Laid out this way, plotly's
+        # own default camera, which the modebar "reset camera to default"
+        # returns to, shows node 0 at the far left with the shaft receding
+        # to the right and y up
         fig.update_layout(
             scene=dict(
-                aspectratio=dict(x=2.5, y=1, z=1),
-                camera=dict(
-                    eye=dict(x=2.3, y=1.5, z=0.5),
-                    center=dict(x=1.15, y=0.5, z=0),
-                    up=dict(x=0, y=0, z=1),
-                ),
+                aspectratio=SHAPE_3D_ASPECT,
             ),
             **kwargs,
         )
@@ -1744,6 +1792,12 @@ class ModalResults(Results):
         List of nodes positions.
     shaft_elements_length : list
         List with Rotor shaft elements lengths.
+    number_dof : int
+        Number of degrees of freedom per node.
+    whirl_frequency : array, optional
+        Whirl (excitation) frequency at which the frequency-dependent
+        coefficients were evaluated for each mode. Default is the rotor
+        speed for every mode (synchronous coefficients).
     """
 
     def __init__(
@@ -1760,6 +1814,7 @@ class ModalResults(Results):
         nodes_pos,
         shaft_elements_length,
         number_dof,
+        whirl_frequency=None,
     ):
         self.speed = speed
         self.evalues = evalues
@@ -1773,6 +1828,9 @@ class ModalResults(Results):
         self.nodes_pos = nodes_pos
         self.shaft_elements_length = shaft_elements_length
         self.number_dof = number_dof
+        if whirl_frequency is None:
+            whirl_frequency = np.full(len(wd), float(speed))
+        self.whirl_frequency = np.asarray(whirl_frequency, dtype=np.float64)
         self.update_mode_shapes()
 
     def update_mode_shapes(self):
@@ -2002,7 +2060,7 @@ class ModalResults(Results):
 
         table = PrettyTable()
         table.field_names = headers
-        for row in zip(range(len(wn)), wn, wd, damping_ratio, log_dec):
+        for row in zip(range(len(wn)), wn, wd, damping_ratio, log_dec, strict=True):
             table.add_row(row)
 
         return table
@@ -2097,27 +2155,23 @@ class ModalResults(Results):
             else f"{shape.mode_type} mode"
         )
 
+        fig = shape._axes_indicator_3d(fig, length_units, half_range=2)
+
         fig.update_layout(
             margin=dict(b=60, l=40, r=40, t=60),
             scene=dict(
                 xaxis=dict(
-                    title=dict(text=f"Rotor Length ({length_units})"),
-                    autorange="reversed",
-                    nticks=5,
+                    title=dict(text="Relative Displacement"), range=[2, -2], nticks=5
                 ),
                 yaxis=dict(
-                    title=dict(text="Relative Displacement"), range=[-2, 2], nticks=5
+                    title=dict(text=f"Rotor Length ({length_units})"),
+                    nticks=5,
                 ),
                 zaxis=dict(
                     title=dict(text="Relative Displacement"), range=[-2, 2], nticks=5
                 ),
                 aspectmode="manual",
-                aspectratio=dict(x=2.5, y=1, z=1),
-                camera=dict(
-                    eye=dict(x=2.3, y=1.5, z=0.5),
-                    center=dict(x=1.15, y=0.5, z=0),
-                    up=dict(x=0, y=0, z=1),
-                ),
+                aspectratio=SHAPE_3D_ASPECT,
             ),
             legend=dict(x=0.85, y=0.95),
             title=dict(
@@ -2274,8 +2328,8 @@ class ModalResults(Results):
             autosize=False,
             width=500,
             height=500,
-            xaxis_range=[-1, 1],
-            yaxis_range=[-1, 1],
+            xaxis=dict(range=[-1, 1], title=dict(text="<i>x</i>")),
+            yaxis=dict(range=[-1, 1], title=dict(text="<i>y</i>")),
             title={
                 "text": f"Mode {mode} - Nodes {nodes}",
                 "x": 0.5,
@@ -2500,7 +2554,7 @@ class CampbellResults(Results):
         if frequency_range is not None:
             crit_x_filtered = []
             crit_y_filtered = []
-            for x, y in zip(crit_x, crit_y):
+            for x, y in zip(crit_x, crit_y, strict=True):
                 if frequency_range[0] < y < frequency_range[1]:
                     crit_x_filtered.append(x)
                     crit_y_filtered.append(y)
@@ -2533,7 +2587,9 @@ class CampbellResults(Results):
         ]
         legends = ["Forward", "Mixed", "Backward", "Axial", "Torsional"]
 
-        for whirl_dir, mark, legend in zip(whirl_direction, scatter_marker, legends):
+        for whirl_dir, mark, legend in zip(
+            whirl_direction, scatter_marker, legends, strict=True
+        ):
             for i in range(num_frequencies):
                 w_i = wd[:, i]
                 whirl_i = whirl[:, i]
@@ -2595,7 +2651,7 @@ class CampbellResults(Results):
                 )
             )
         # turn legend glyphs black
-        for mark, legend in zip(scatter_marker, legends):
+        for mark, legend in zip(scatter_marker, legends, strict=True):
             fig.add_trace(
                 go.Scatter(
                     x=[0],
@@ -2684,9 +2740,11 @@ class CampbellResults(Results):
         damping_range : tuple, optional
             Damping range to plot.
         campbell_layout : dict, optional
-            Layout for Campbell plot.
+            Layout applied on top of the Campbell plot.
         mode_3d_layout : dict, optional
-            Layout for 3D mode plot.
+            Layout applied on top of the 3D mode shape figures. Default is None,
+            which keeps the view plot_mode_3d draws, so the modebar's "reset
+            camera" returns to the same picture.
         animation : bool, optional
             If True, enables animation.
         fig : plotly.graph_objects.Figure, optional
@@ -2836,8 +2894,6 @@ class CampbellResults(Results):
 
         campbell_layout = dict(margin=dict(l=0, r=0, t=30, b=0))
 
-        mode_3d_layout = dict(scene=dict(camera=dict(eye=dict(x=3.0, y=2.2, z=1.2))))
-
         camp_fig, update_mode_3d = self._plot_with_mode_shape(
             harmonics=harmonics,
             frequency_units=frequency_units,
@@ -2846,7 +2902,6 @@ class CampbellResults(Results):
             frequency_range=frequency_range,
             damping_range=damping_range,
             campbell_layout=campbell_layout,
-            mode_3d_layout=mode_3d_layout,
             animation=animation,
             fig=fig,
             **kwargs,
@@ -2943,7 +2998,7 @@ class FrequencyResponseResults(Results):
         frequency_units="rad/s",
         amplitude_units="m/N",
         fig=None,
-        line_shape="linear",
+        line_shape="spline",
         **mag_kwargs,
     ):
         """Plot frequency response (magnitude) using Plotly.
@@ -2977,7 +3032,7 @@ class FrequencyResponseResults(Results):
             The figure object with the plot.
         line_shape : str, optional
             Line interpolation style for the Plotly trace (e.g. "linear", "spline").
-            Default is "linear".
+            Default is "spline".
         mag_kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -3443,7 +3498,6 @@ class ForcedResponseResults(Results):
     def data_magnitude(
         self,
         probe,
-        probe_units="rad",
         frequency_units="rad/s",
         amplitude_units="m",
     ):
@@ -3453,9 +3507,6 @@ class ForcedResponseResults(Results):
         ----------
         probe : list
             List with rs.Probe objects.
-        probe_units : str, option
-            Units for probe orientation.
-            Default is "rad".
         frequency_units : str, optional
             Units for the frequency range.
             Default is "rad/s"
@@ -3492,27 +3543,12 @@ class ForcedResponseResults(Results):
         data = {}
         data["frequency"] = frequency_range
 
-        for i, p in enumerate(probe):
-            try:
-                node = p.node
-                angle = p.angle
-                probe_tag = p.tag or p.get_label(i + 1)
-                if p.direction == "axial":
-                    continue
-            except AttributeError:
-                node = p[0]
-                warn(
-                    "The use of tuples in the probe argument is deprecated. Use the Probe class instead.",
-                    DeprecationWarning,
-                )
-                try:
-                    angle = Q_(p[1], probe_units).to("rad").m
-                except TypeError:
-                    angle = p[1]
-                try:
-                    probe_tag = p[2]
-                except IndexError:
-                    probe_tag = f"Probe {i + 1} - Node {p[0]}"
+        for i, p in enumerate(check_probes(probe)):
+            node = p.node
+            angle = p.angle
+            probe_tag = p.tag or p.get_label(i + 1)
+            if p.direction == "axial":
+                continue
 
             amplitude = []
             for speed_idx in range(len(self.speed_range)):
@@ -3554,7 +3590,6 @@ class ForcedResponseResults(Results):
     def data_phase(
         self,
         probe,
-        probe_units="rad",
         frequency_units="rad/s",
         amplitude_units="m",
         phase_units="rad",
@@ -3565,9 +3600,6 @@ class ForcedResponseResults(Results):
         ----------
         probe : list
             List with rs.Probe objects.
-        probe_units : str, option
-            Units for probe orientation.
-            Default is "rad".
         frequency_units : str, optional
             Units for the x axis.
             Default is "rad/s"
@@ -3607,27 +3639,12 @@ class ForcedResponseResults(Results):
         data = {}
         data["frequency"] = frequency_range
 
-        for i, p in enumerate(probe):
-            try:
-                node = p.node
-                angle = p.angle
-                probe_tag = p.tag or p.get_label(i + 1)
-                if p.direction == "axial":
-                    continue
-            except AttributeError:
-                node = p[0]
-                warn(
-                    "The use of tuples in the probe argument is deprecated. Use the Probe class instead.",
-                    DeprecationWarning,
-                )
-                try:
-                    angle = Q_(p[1], probe_units).to("rad").m
-                except TypeError:
-                    angle = p[1]
-                try:
-                    probe_tag = p[2]
-                except IndexError:
-                    probe_tag = f"Probe {i + 1} - Node {p[0]}"
+        for i, p in enumerate(check_probes(probe)):
+            node = p.node
+            angle = p.angle
+            probe_tag = p.tag or p.get_label(i + 1)
+            if p.direction == "axial":
+                continue
 
             phase_values = []
             for speed_idx in range(len(self.speed_range)):
@@ -3670,11 +3687,10 @@ class ForcedResponseResults(Results):
     def plot_magnitude(
         self,
         probe,
-        probe_units="rad",
         frequency_units="rad/s",
         amplitude_units="m",
         fig=None,
-        line_shape="linear",
+        line_shape="spline",
         **kwargs,
     ):
         """Plot forced response (magnitude) using Plotly.
@@ -3683,9 +3699,6 @@ class ForcedResponseResults(Results):
         ----------
         probe : list
             List with rs.Probe objects.
-        probe_units : str, optional
-            Units for probe orientation.
-            Default is "rad".
         frequency_units : str, optional
             Units for the x axis.
             Default is "rad/s"
@@ -3705,7 +3718,7 @@ class ForcedResponseResults(Results):
             The figure object with the plot.
         line_shape : str, optional
             Line interpolation style for the Plotly trace (e.g. "linear", "spline").
-            Default is "linear".
+            Default is "spline".
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -3716,7 +3729,7 @@ class ForcedResponseResults(Results):
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
-        df = self.data_magnitude(probe, probe_units, frequency_units, amplitude_units)
+        df = self.data_magnitude(probe, frequency_units, amplitude_units)
 
         if fig is None:
             fig = go.Figure()
@@ -3749,7 +3762,6 @@ class ForcedResponseResults(Results):
     def plot_phase(
         self,
         probe,
-        probe_units="rad",
         frequency_units="rad/s",
         amplitude_units="m",
         phase_units="rad",
@@ -3762,9 +3774,6 @@ class ForcedResponseResults(Results):
         ----------
         probe : list
             List with rs.Probe objects.
-        probe_units : str, optional
-            Units for probe orientation.
-            Default is "rad".
         frequency_units : str, optional
             Units for the x axis.
             Default is "rad/s"
@@ -3795,9 +3804,7 @@ class ForcedResponseResults(Results):
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
-        df = self.data_phase(
-            probe, probe_units, frequency_units, amplitude_units, phase_units
-        )
+        df = self.data_phase(probe, frequency_units, amplitude_units, phase_units)
 
         if fig is None:
             fig = go.Figure()
@@ -3828,7 +3835,6 @@ class ForcedResponseResults(Results):
     def plot_bode(
         self,
         probe,
-        probe_units="rad",
         frequency_units="rad/s",
         amplitude_units="m",
         phase_units="rad",
@@ -3841,9 +3847,6 @@ class ForcedResponseResults(Results):
         ----------
         probe : list
             List with rs.Probe objects.
-        probe_units : str, optional
-            Units for probe orientation.
-            Default is "rad".
         frequency_units : str, optional
             Units for the x axis.
             Default is "rad/s"
@@ -3881,11 +3884,10 @@ class ForcedResponseResults(Results):
         phase_kwargs = {} if phase_kwargs is None else copy.copy(phase_kwargs)
 
         fig0 = self.plot_magnitude(
-            probe, probe_units, frequency_units, amplitude_units, **mag_kwargs
+            probe, frequency_units, amplitude_units, **mag_kwargs
         )
         fig1 = self.plot_phase(
             probe,
-            probe_units,
             frequency_units,
             amplitude_units,
             phase_units,
@@ -3915,7 +3917,6 @@ class ForcedResponseResults(Results):
     def plot_polar_bode(
         self,
         probe,
-        probe_units="rad",
         frequency_units="rad/s",
         amplitude_units="m",
         phase_units="rad",
@@ -3928,9 +3929,6 @@ class ForcedResponseResults(Results):
         ----------
         probe : list
             List with rs.Probe objects.
-        probe_units : str, optional
-            Units for probe orientation.
-            Default is "rad".
         frequency_units : str, optional
             Units for the x axis.
             Default is "rad/s"
@@ -3961,10 +3959,8 @@ class ForcedResponseResults(Results):
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
-        df_m = self.data_magnitude(probe, probe_units, frequency_units, amplitude_units)
-        df_p = self.data_phase(
-            probe, probe_units, frequency_units, amplitude_units, phase_units
-        )
+        df_m = self.data_magnitude(probe, frequency_units, amplitude_units)
+        df_p = self.data_phase(probe, frequency_units, amplitude_units, phase_units)
 
         if fig is None:
             fig = go.Figure()
@@ -4007,7 +4003,6 @@ class ForcedResponseResults(Results):
     def plot(
         self,
         probe,
-        probe_units="rad",
         frequency_units="rad/s",
         amplitude_units="m",
         phase_units="rad",
@@ -4027,9 +4022,6 @@ class ForcedResponseResults(Results):
         ----------
         probe : list
             List with rs.Probe objects.
-        probe_units : str, optional
-            Units for probe orientation.
-            Default is "rad".
         frequency_units : str, optional
             Frequency units.
             Default is "rad/s"
@@ -4077,10 +4069,10 @@ class ForcedResponseResults(Results):
 
         # fmt: off
         fig0 = self.plot_bode(
-            probe, probe_units, frequency_units, amplitude_units, phase_units, mag_kwargs, phase_kwargs
+            probe, frequency_units, amplitude_units, phase_units, mag_kwargs, phase_kwargs
         )
         fig1 = self.plot_polar_bode(
-            probe, probe_units, frequency_units, amplitude_units, phase_units, **polar_kwargs
+            probe, frequency_units, amplitude_units, phase_units, **polar_kwargs
         )
         # fmt: on
 
@@ -4552,6 +4544,8 @@ class ForcedResponseResults(Results):
         if fig is None:
             fig = go.Figure()
 
+        plot_range = Q_(np.max(shape.major_axis) * 1.5, "m").to(amplitude_units).m
+        fig = shape._axes_indicator_3d(fig, rotor_length_units, plot_range)
         fig = shape.plot_3d(
             phase_units=phase_units, length_units=rotor_length_units, fig=fig
         )
@@ -4559,7 +4553,11 @@ class ForcedResponseResults(Results):
         # plot unbalance markers
         if unbalance is not None:
             for i, n, amplitude, phase in zip(
-                range(unbalance.shape[1]), unbalance[0], unbalance[1], unbalance[2]
+                range(unbalance.shape[1]),
+                unbalance[0],
+                unbalance[1],
+                unbalance[2],
+                strict=True,
             ):
                 # scale unbalance marker to half the maximum major axis
                 n = int(n)
@@ -4570,8 +4568,8 @@ class ForcedResponseResults(Results):
 
                 fig.add_trace(
                     go.Scatter3d(
-                        x=[z_pos, z_pos],
-                        y=[0, Q_(x, "m").to(amplitude_units).m],
+                        y=[z_pos, z_pos],
+                        x=[0, Q_(x, "m").to(amplitude_units).m],
                         z=[0, Q_(y, "m").to(amplitude_units).m],
                         mode="lines",
                         line=dict(color=tableau_colors["red"]),
@@ -4582,8 +4580,8 @@ class ForcedResponseResults(Results):
                 )
                 fig.add_trace(
                     go.Scatter3d(
-                        x=[z_pos],
-                        y=[Q_(x, "m").to(amplitude_units).m],
+                        y=[z_pos],
+                        x=[Q_(x, "m").to(amplitude_units).m],
                         z=[Q_(y, "m").to(amplitude_units).m],
                         mode="markers",
                         marker=dict(color=tableau_colors["red"], symbol="diamond"),
@@ -4608,17 +4606,15 @@ class ForcedResponseResults(Results):
             ),
         )
 
-        plot_range = Q_(np.max(shape.major_axis) * 1.5, "m").to(amplitude_units).m
         fig.update_layout(
             scene=dict(
                 xaxis=dict(
-                    title=dict(text=f"Rotor Length ({rotor_length_units})"),
-                    autorange="reversed",
+                    title=dict(text=f"Amplitude x ({amplitude_units})"),
+                    range=[plot_range, -plot_range],
                     nticks=5,
                 ),
                 yaxis=dict(
-                    title=dict(text=f"Amplitude x ({amplitude_units})"),
-                    range=[-plot_range, plot_range],
+                    title=dict(text=f"Rotor Length ({rotor_length_units})"),
                     nticks=5,
                 ),
                 zaxis=dict(
@@ -5709,7 +5705,6 @@ class TimeResponseResults(Results):
     def data_time_response(
         self,
         probe,
-        probe_units="rad",
         displacement_units="m",
         time_units="s",
         init_step=0,
@@ -5720,9 +5715,6 @@ class TimeResponseResults(Results):
         ----------
         probe : list
             List with rs.Probe objects.
-        probe_units : str, optional
-            Units for probe orientation.
-            Default is "rad".
         displacement_units : str, optional
             Displacement units.
             Default is 'm'.
@@ -5744,31 +5736,16 @@ class TimeResponseResults(Results):
         link_nodes = self.rotor.link_nodes
         ndof = self.rotor.number_dof
 
-        for i, p in enumerate(probe):
+        for i, p in enumerate(check_probes(probe)):
             probe_direction = "radial"
-            try:
-                node = p.node
-                angle = p.angle
-                probe_tag = p.tag or p.get_label(i + 1)
-                if p.direction == "axial":
-                    if ndof == 6:
-                        probe_direction = p.direction
-                    else:
-                        continue
-            except AttributeError:
-                node = p[0]
-                warn(
-                    "The use of tuples in the probe argument is deprecated. Use the Probe class instead.",
-                    DeprecationWarning,
-                )
-                try:
-                    angle = Q_(p[1], probe_units).to("rad").m
-                except TypeError:
-                    angle = p[1]
-                try:
-                    probe_tag = p[2]
-                except IndexError:
-                    probe_tag = f"Probe {i + 1} - Node {p[0]}"
+            node = p.node
+            angle = p.angle
+            probe_tag = p.tag or p.get_label(i + 1)
+            if p.direction == "axial":
+                if ndof == 6:
+                    probe_direction = p.direction
+                else:
+                    continue
 
             data[f"angle[{i}]"] = angle
             data[f"probe_tag[{i}]"] = probe_tag
@@ -5804,7 +5781,6 @@ class TimeResponseResults(Results):
     def plot_1d(
         self,
         probe,
-        probe_units="rad",
         displacement_units="m",
         time_units="s",
         fig=None,
@@ -5819,9 +5795,6 @@ class TimeResponseResults(Results):
         ----------
         probe : list
             List with rs.Probe objects.
-        probe_units : str, option
-            Units for probe orientation.
-            Default is "rad".
         displacement_units : str, optional
             Displacement units.
             Default is 'm'.
@@ -5844,7 +5817,7 @@ class TimeResponseResults(Results):
         if fig is None:
             fig = go.Figure()
 
-        df = self.data_time_response(probe, probe_units, displacement_units, time_units)
+        df = self.data_time_response(probe, displacement_units, time_units)
         _time = df["time"].values
         for i, p in enumerate(probe):
             try:
@@ -6012,7 +5985,6 @@ class TimeResponseResults(Results):
     def plot_dfft(
         self,
         probe,
-        probe_units="rad",
         displacement_units="m",
         frequency_units="Hz",
         frequency_range=None,
@@ -6028,9 +6000,6 @@ class TimeResponseResults(Results):
         ----------
         probe : list
             List with rs.Probe objects.
-        probe_units : str, option
-            Units for probe orientation.
-            Default is "rad".
         displacement_units : str, optional
             Displacement units.
             Default is "m".
@@ -6064,9 +6033,7 @@ class TimeResponseResults(Results):
         rows, cols = self.yout.shape
         init_step = int(2 * rows / 3)
 
-        data = self.data_time_response(
-            probe, probe_units, displacement_units, init_step=init_step
-        )
+        data = self.data_time_response(probe, displacement_units, init_step=init_step)
         t = data["time"].values
         dt = t[1] - t[0]
 
@@ -6370,8 +6337,8 @@ class UCSResults(Results):
     stiffness_log : tuple, optional
         Evenly numbers spaced evenly on a log scale to create a better visualization
         (see np.logspace).
-    bearing_frequency_range : tuple, optional
-        The bearing frequency range used to calculate the intersection points.
+    bearing_speed_range : tuple, optional
+        The bearing speed range used to calculate the intersection points.
         In some cases bearing coefficients will have to be extrapolated.
         The default is None. In this case the bearing frequency attribute is used.
     wn : array
@@ -6389,7 +6356,7 @@ class UCSResults(Results):
         self,
         stiffness_range,
         stiffness_log,
-        bearing_frequency_range,
+        bearing_speed_range,
         wn,
         bearing,
         intersection_points,
@@ -6397,7 +6364,7 @@ class UCSResults(Results):
     ):
         self.stiffness_range = stiffness_range
         self.stiffness_log = stiffness_log
-        self.bearing_frequency_range = bearing_frequency_range
+        self.bearing_speed_range = bearing_speed_range
         self.wn = wn
         self.critical_points_modal = critical_points_modal
         self.bearing = bearing
@@ -6441,7 +6408,7 @@ class UCSResults(Results):
         rotor_wn = self.wn
         bearing0 = self.bearing
         intersection_points = copy.copy(self.intersection_points)
-        bearing_frequency_range = self.bearing_frequency_range
+        bearing_speed_range = self.bearing_speed_range
 
         if fig is None:
             fig = go.Figure()
@@ -6456,16 +6423,16 @@ class UCSResults(Results):
             Q_(intersection_points["y"], "rad/s").to(frequency_units).m
         )
         bearing_kxx_stiffness = (
-            Q_(bearing0.kxx_interpolated(bearing_frequency_range), "N/m")
+            Q_(bearing0.kxx_interpolated(bearing_speed_range), "N/m")
             .to(stiffness_units)
             .m
         )
         bearing_kyy_stiffness = (
-            Q_(bearing0.kyy_interpolated(bearing_frequency_range), "N/m")
+            Q_(bearing0.kyy_interpolated(bearing_speed_range), "N/m")
             .to(stiffness_units)
             .m
         )
-        bearing_frequency = Q_(bearing_frequency_range, "rad/s").to(frequency_units).m
+        bearing_frequency = Q_(bearing_speed_range, "rad/s").to(frequency_units).m
 
         for j in range(rotor_wn.shape[0]):
             fig.add_trace(
@@ -6725,18 +6692,13 @@ class HarmonicBalanceResults(Results):
         link_nodes = self.rotor.link_nodes
         ndof = self.rotor.number_dof
 
-        for i, p in enumerate(probe):
-            try:
-                node = p.node
-                angle = p.angle
-                probe_tag = p.tag or p.get_label(i + 1)
-                probe_direction = p.direction
-                if probe_direction == "axial":
-                    continue
-            except AttributeError:
-                raise AttributeError(
-                    "The use of tuples in the probe argument is deprecated. Use the Probe class instead.",
-                )
+        for i, p in enumerate(check_probes(probe)):
+            node = p.node
+            angle = p.angle
+            probe_tag = p.tag or p.get_label(i + 1)
+            probe_direction = p.direction
+            if probe_direction == "axial":
+                continue
 
             data[f"angle[{i}]"] = angle
             data[f"probe_tag[{i}]"] = probe_tag
@@ -7946,52 +7908,197 @@ class SensitivityResults(Results):
 
 
 class ClearanceResults(Results):
-    """Results for clearance analysis.
+    """Results of the API 617 close-clearance check.
 
-    Stores vibration amplitudes at bearing locations and compares them with
-    bearing radial clearance limits. Inherits :class:`Results` for ``save`` /
-    ``load`` like other analysis result types.
+    Produced by :meth:`ross.Rotor.run_clearance_analysis`. Amplitudes are
+    stored in metres, peak to peak, and clearances are diametral, in metres.
+    The summary table and the plots convert them with ``length_units``.
 
     Parameters
     ----------
-    speed_rpm : float
-        Rotor speed in RPM.
-    bearing_nodes : list
-        List of bearing node numbers.
-    magnitudes : ndarray
-        Peak-to-peak vibration amplitudes (microns).
-    clearance : ndarray
-        Radial clearance (microns).
-    clearance_75 : ndarray
-        75% of radial clearance (microns).
+    speed_range : array
+        Rotor speeds of the unbalance response (rad/s).
+    minimum_allowable_speed : float
+        Minimum allowable speed (rad/s).
+    maximum_continuous_speed : float
+        Maximum continuous speed (rad/s).
+    unbalance_node : list
+        Nodes where the unbalance was applied.
+    unbalance_magnitude : list
+        Unbalance magnitudes (kg·m).
+    unbalance_phase : list
+        Unbalance phases (rad).
+    probe_tags : list
+        Tag of each vibration probe.
+    probe_nodes : list
+        Node of each vibration probe.
+    probe_angles : list
+        Orientation of each vibration probe (rad).
+    probe_response : array
+        Peak-to-peak amplitude at each probe, shape ``(n_probes, n_speeds)`` (m).
+    vibration_limit : float
+        Mechanical test vibration limit :math:`A_{vl}`, peak to peak (m).
+    max_probe_amplitude : float
+        Largest probe amplitude :math:`A_{max}` in the operating speed range,
+        peak to peak (m).
+    scale_factor : float
+        Scale factor :math:`S_{cc}` applied to the close-clearance response.
+    clearance_tags : list
+        Tag of each close-clearance location.
+    clearance_nodes : list
+        Node of each close-clearance location.
+    clearance_positions : list
+        Axial position of each close-clearance location (m).
+    diametral_clearance : array
+        Minimum diametral clearance at each location (m).
+    clearance_response : array
+        Scaled major-axis peak-to-peak amplitude at each location, shape
+        ``(n_locations, n_speeds)`` (m).
+    scale_factor_cap : float, optional
+        Upper limit applied to the scale factor. Default is None.
+    mode : int, optional
+        Forward mode index used to place the unbalance, or None when the
+        unbalance was given explicitly. Default is None.
+    mode_index : int, optional
+        Index of that mode in the modal results. Default is None.
+    mode_frequency : float, optional
+        Damped natural frequency of that mode (rad/s). Default is None.
     """
 
-    def __init__(self, speed_rpm, bearing_nodes, magnitudes, clearance, clearance_75):
-        self.speed_rpm = speed_rpm
-        self.bearing_nodes = bearing_nodes
-        self.magnitudes = magnitudes
-        self.clearance = clearance
-        self.clearance_75 = clearance_75
+    def __init__(
+        self,
+        speed_range,
+        minimum_allowable_speed,
+        maximum_continuous_speed,
+        unbalance_node,
+        unbalance_magnitude,
+        unbalance_phase,
+        probe_tags,
+        probe_nodes,
+        probe_angles,
+        probe_response,
+        vibration_limit,
+        max_probe_amplitude,
+        scale_factor,
+        clearance_tags,
+        clearance_nodes,
+        clearance_positions,
+        diametral_clearance,
+        clearance_response,
+        scale_factor_cap=None,
+        mode=None,
+        mode_index=None,
+        mode_frequency=None,
+    ):
+        self.speed_range = np.asarray(speed_range, dtype=float)
+        self.minimum_allowable_speed = float(minimum_allowable_speed)
+        self.maximum_continuous_speed = float(maximum_continuous_speed)
+        self.unbalance_node = [int(n) for n in np.atleast_1d(unbalance_node)]
+        self.unbalance_magnitude = [
+            float(m) for m in np.atleast_1d(unbalance_magnitude)
+        ]
+        self.unbalance_phase = [float(p) for p in np.atleast_1d(unbalance_phase)]
+        self.probe_tags = [str(tag) for tag in probe_tags]
+        self.probe_nodes = [int(n) for n in np.atleast_1d(probe_nodes)]
+        self.probe_angles = [float(a) for a in np.atleast_1d(probe_angles)]
+        self.probe_response = np.atleast_2d(np.asarray(probe_response, dtype=float))
+        self.vibration_limit = float(vibration_limit)
+        self.max_probe_amplitude = float(max_probe_amplitude)
+        self.scale_factor = float(scale_factor)
+        self.clearance_tags = [str(tag) for tag in clearance_tags]
+        self.clearance_nodes = [int(n) for n in np.atleast_1d(clearance_nodes)]
+        self.clearance_positions = [
+            float(p) for p in np.atleast_1d(clearance_positions)
+        ]
+        self.diametral_clearance = np.asarray(diametral_clearance, dtype=float)
+        self.clearance_response = np.atleast_2d(
+            np.asarray(clearance_response, dtype=float)
+        )
+        self.scale_factor_cap = (
+            None if scale_factor_cap is None else float(scale_factor_cap)
+        )
+        self.mode = None if mode is None else int(mode)
+        self.mode_index = None if mode_index is None else int(mode_index)
+        self.mode_frequency = None if mode_frequency is None else float(mode_frequency)
 
-    def __getitem__(self, key):
-        """Enable dict-like access for backward compatibility."""
-        mapping = {
-            "speed_rpm": self.speed_rpm,
-            "bearing_nodes": self.bearing_nodes,
-            "magnitudes": self.magnitudes,
-            "clearance": self.clearance,
-            "clearance_75": self.clearance_75,
-        }
-        return mapping[key]
+    @property
+    def clearance_limit(self):
+        """75 % of the minimum diametral clearance at each location (m)."""
+        return 0.75 * self.diametral_clearance
 
-    def plot(self, fig=None, **kwargs):
-        """
-        Plot vibration response against clearance limits.
+    @property
+    def max_clearance_response(self):
+        """Largest scaled peak-to-peak amplitude at each location (m)."""
+        return self.clearance_response.max(axis=1)
+
+    @property
+    def speed_at_max_response(self):
+        """Speed at which each location reaches its largest amplitude (rad/s)."""
+        return self.speed_range[self.clearance_response.argmax(axis=1)]
+
+    @property
+    def passed(self):
+        """Whether each location stays below 75 % of the diametral clearance."""
+        return self.max_clearance_response < self.clearance_limit
+
+    def _location_labels(self):
+        return [
+            tag if tag not in ("None", "") else f"Node {node}"
+            for tag, node in zip(self.clearance_tags, self.clearance_nodes, strict=True)
+        ]
+
+    def data(self, length_units="um", speed_units="RPM"):
+        """Return the clearance check for each location in DataFrame format.
 
         Parameters
         ----------
+        length_units : str, optional
+            Units for amplitudes (peak to peak) and clearances (diametral).
+            Default is "um".
+        speed_units : str, optional
+            Units for the speed at which the largest amplitude occurs.
+            Default is "RPM".
+
+        Returns
+        -------
+        df : pd.DataFrame
+            One row per close-clearance location.
+        """
+        to_length = lambda value: Q_(value, "m").to(length_units).m
+        speed = Q_(self.speed_at_max_response, "rad/s").to(speed_units).m
+        limit = self.clearance_limit
+        max_response = self.max_clearance_response
+
+        return pd.DataFrame(
+            {
+                "tag": self._location_labels(),
+                "node": self.clearance_nodes,
+                "position (m)": self.clearance_positions,
+                f"diametral clearance ({length_units})": to_length(
+                    self.diametral_clearance
+                ),
+                f"limit 75% ({length_units})": to_length(limit),
+                f"max amplitude pp ({length_units})": to_length(max_response),
+                f"speed at max ({speed_units})": speed,
+                "% of limit": 100 * max_response / limit,
+                "status": np.where(self.passed, "OK", "EXCEEDED"),
+            }
+        )
+
+    def plot(self, length_units="um", fig=None, **kwargs):
+        """Plot the scaled response against the clearance at each location.
+
+        Each location shows the minimum diametral clearance, the 75 % limit and
+        the largest scaled peak-to-peak amplitude over the speed range, with the
+        amplitude as a percentage of the limit.
+
+        Parameters
+        ----------
+        length_units : str, optional
+            Units for amplitudes (peak to peak) and clearances (diametral).
+            Default is "um".
         fig : plotly.graph_objects.Figure, optional
-            Existing figure to add traces to.
+            Figure to add traces to.
         **kwargs : optional
             Additional layout arguments.
 
@@ -7999,92 +8106,1862 @@ class ClearanceResults(Results):
         -------
         fig : plotly.graph_objects.Figure
         """
-        import numpy as np
-        import plotly.graph_objects as go
-
         if fig is None:
             fig = go.Figure()
 
-        spacing = 4
-        x_positions = [i * spacing for i in range(len(self.bearing_nodes))]
-        x_labels = [str(n) for n in self.bearing_nodes]
+        labels = self._location_labels()
+        to_length = lambda value: Q_(value, "m").to(length_units).m
+        clearance = to_length(self.diametral_clearance)
+        limit = to_length(self.clearance_limit)
+        response = to_length(self.max_clearance_response)
+        percent_limit = 100 * self.max_clearance_response / self.clearance_limit
+        percent_clearance = 100 * self.max_clearance_response / self.diametral_clearance
 
-        # --- Background: Clearance 100%
         fig.add_trace(
             go.Bar(
-                x=x_positions,
-                y=self.clearance,
-                name="Radial Clearance Limit (100%)",
-                marker_color="red",
-                width=0.2,
-                hovertemplate="Clearance: %{y:.1f} µm<extra></extra>",
-                showlegend=True,
-                marker={"line": {"width": 0}},
+                x=labels,
+                y=clearance,
+                name="Min. diametral clearance",
+                marker_color=tableau_colors["red"],
+                opacity=0.6,
+                hovertemplate=f"Clearance: %{{y:.1f}} {length_units}<extra></extra>",
             )
         )
-
-        # --- Background: Clearance 75%
         fig.add_trace(
             go.Bar(
-                x=x_positions,
-                y=self.clearance_75,
-                name="Alert Level (75%)",
-                marker_color="blue",
-                width=0.2,
-                hovertemplate="75% Limit: %{y:.1f} µm<extra></extra>",
-                showlegend=True,
-                marker={"line": {"width": 0}},
+                x=labels,
+                y=limit,
+                name="75% of clearance",
+                marker_color=tableau_colors["blue"],
+                opacity=0.8,
+                hovertemplate=f"Limit: %{{y:.1f}} {length_units}<extra></extra>",
             )
         )
-
-        # Percent of radial clearance limit used (vibration / limit × 100).
-        mag = np.asarray(self.magnitudes, dtype=float)
-        lim100 = np.asarray(self.clearance, dtype=float)
-        lim75 = np.asarray(self.clearance_75, dtype=float)
-        per_clr = np.full_like(mag, np.nan, dtype=float)
-        per_clr_75 = np.full_like(mag, np.nan, dtype=float)
-        ok100 = np.isfinite(mag) & np.isfinite(lim100) & (lim100 > 0)
-        ok75 = np.isfinite(mag) & np.isfinite(lim75) & (lim75 > 0)
-        per_clr[ok100] = 100.0 * mag[ok100] / lim100[ok100]
-        per_clr_75[ok75] = 100.0 * mag[ok75] / lim75[ok75]
-
-        def _pct_label(x):
-            return f"{x:.1f}%" if np.isfinite(x) else "—"
-
-        # --- Vibration response
         fig.add_trace(
             go.Scatter(
-                x=x_positions,
-                y=self.magnitudes,
+                x=labels,
+                y=response,
                 mode="lines+markers+text",
+                name="Scaled amplitude (pk-pk)",
                 text=[
-                    f"{_pct_label(c75)}<br>{_pct_label(c100)}"
-                    for c75, c100 in zip(per_clr_75, per_clr)
+                    f"{pl:.1f}% / {pc:.1f}%"
+                    for pl, pc in zip(percent_limit, percent_clearance, strict=True)
                 ],
-                textposition="top left",
-                name=f"Vibration ({self.speed_rpm:.1f} RPM)",
-                line={"shape": "spline", "color": "purple", "width": 3},
-                marker={"size": 6},
-                hovertemplate="Amplitude: %{y:.2f} µm pkpk<extra></extra>",
+                textposition="top center",
+                line={"color": tableau_colors["purple"], "width": 3},
+                marker={"size": 8},
+                hovertemplate=(
+                    f"Amplitude: %{{y:.1f}} {length_units} pk-pk<br>"
+                    "%{text} of limit / clearance<extra></extra>"
+                ),
             )
         )
 
         fig.update_layout(
-            title="Vibration Response vs Bearing Clearance",
-            xaxis_title="Station (Node)",
-            yaxis_title="Amplitude / Clearance [µm]",
+            title=(
+                f"Close-clearance check (Scc = {self.scale_factor:.2f}, "
+                f"Avl = {to_length(self.vibration_limit):.1f} {length_units} pk-pk, "
+                f"Amax = {to_length(self.max_probe_amplitude):.1f} {length_units} pk-pk)"
+            ),
+            xaxis_title="Close-clearance location",
+            yaxis_title=f"Amplitude pk-pk / diametral clearance ({length_units})",
             barmode="overlay",
             hovermode="x unified",
-            plot_bgcolor="white",
-            legend={"orientation": "h", "y": 1.05},
-            xaxis=dict(
-                tickmode="array",
-                tickvals=x_positions,
-                ticktext=x_labels,
-                type="category",
-            ),
-            yaxis=dict(showgrid=True, gridcolor="lightgray"),
+            legend={"orientation": "h", "y": 1.08},
             **kwargs,
         )
 
         return fig
+
+    def plot_response(
+        self,
+        length_units="um",
+        speed_units="RPM",
+        fig=None,
+        line_shape="spline",
+        **kwargs,
+    ):
+        """Plot the scaled response at each location against the rotor speed.
+
+        The 75 % clearance limit of each location is drawn as a dashed line in
+        the same color, and the operating speed range is shaded.
+
+        Parameters
+        ----------
+        length_units : str, optional
+            Units for amplitudes (peak to peak) and clearances (diametral).
+            Default is "um".
+        speed_units : str, optional
+            Units for the rotor speed. Default is "RPM".
+        fig : plotly.graph_objects.Figure, optional
+            Figure to add traces to.
+        line_shape : str, optional
+            Line interpolation style for the Plotly traces (e.g. "linear", "spline").
+            Default is "spline".
+        **kwargs : optional
+            Additional layout arguments.
+
+        Returns
+        -------
+        fig : plotly.graph_objects.Figure
+        """
+        if fig is None:
+            fig = go.Figure()
+
+        speed = Q_(self.speed_range, "rad/s").to(speed_units).m
+        to_length = lambda value: Q_(value, "m").to(length_units).m
+        colors = list(tableau_colors.values())
+
+        for i, label in enumerate(self._location_labels()):
+            color = colors[i % len(colors)]
+            fig.add_trace(
+                go.Scatter(
+                    x=speed,
+                    y=to_length(self.clearance_response[i]),
+                    mode="lines",
+                    name=label,
+                    legendgroup=label,
+                    line={"color": color, "shape": line_shape},
+                    hovertemplate=(
+                        f"{label}<br>Speed: %{{x:.0f}} {speed_units}<br>"
+                        f"Amplitude: %{{y:.1f}} {length_units} pk-pk<extra></extra>"
+                    ),
+                )
+            )
+            fig.add_trace(
+                go.Scatter(
+                    x=[speed[0], speed[-1]],
+                    y=[to_length(self.clearance_limit[i])] * 2,
+                    mode="lines",
+                    name=f"{label} limit",
+                    legendgroup=label,
+                    showlegend=False,
+                    line={"color": color, "dash": "dash"},
+                    hovertemplate=(
+                        f"{label} limit: %{{y:.1f}} {length_units}<extra></extra>"
+                    ),
+                )
+            )
+
+        self._add_operating_range(fig, speed_units)
+        fig.update_layout(
+            title=f"Scaled close-clearance response (Scc = {self.scale_factor:.2f})",
+            xaxis_title=f"Speed ({speed_units})",
+            yaxis_title=f"Amplitude pk-pk ({length_units})",
+            **kwargs,
+        )
+
+        return fig
+
+    def plot_probe_response(
+        self,
+        length_units="um",
+        speed_units="RPM",
+        fig=None,
+        line_shape="spline",
+        **kwargs,
+    ):
+        """Plot the unscaled probe response with the vibration limit.
+
+        Reproduces API 617 Figure 4: the peak-to-peak response at each probe,
+        the vibration limit :math:`A_{vl}` and the operating speed range over
+        which :math:`A_{max}` is taken.
+
+        Parameters
+        ----------
+        length_units : str, optional
+            Units for the amplitudes (peak to peak). Default is "um".
+        speed_units : str, optional
+            Units for the rotor speed. Default is "RPM".
+        fig : plotly.graph_objects.Figure, optional
+            Figure to add traces to.
+        line_shape : str, optional
+            Line interpolation style for the Plotly traces (e.g. "linear", "spline").
+            Default is "spline".
+        **kwargs : optional
+            Additional layout arguments.
+
+        Returns
+        -------
+        fig : plotly.graph_objects.Figure
+        """
+        if fig is None:
+            fig = go.Figure()
+
+        speed = Q_(self.speed_range, "rad/s").to(speed_units).m
+        to_length = lambda value: Q_(value, "m").to(length_units).m
+
+        for tag, response in zip(self.probe_tags, self.probe_response, strict=True):
+            fig.add_trace(
+                go.Scatter(
+                    x=speed,
+                    y=to_length(response),
+                    mode="lines",
+                    name=tag,
+                    line={"shape": line_shape},
+                    hovertemplate=(
+                        f"{tag}<br>Speed: %{{x:.0f}} {speed_units}<br>"
+                        f"Amplitude: %{{y:.1f}} {length_units} pk-pk<extra></extra>"
+                    ),
+                )
+            )
+        fig.add_trace(
+            go.Scatter(
+                x=[speed[0], speed[-1]],
+                y=[to_length(self.vibration_limit)] * 2,
+                mode="lines",
+                name="Avl",
+                line={"color": tableau_colors["red"], "dash": "dash"},
+                hovertemplate=f"Avl: %{{y:.1f}} {length_units} pk-pk<extra></extra>",
+            )
+        )
+
+        self._add_operating_range(fig, speed_units)
+        fig.update_layout(
+            title=(
+                f"Probe response (Amax = {to_length(self.max_probe_amplitude):.1f} "
+                f"{length_units} pk-pk)"
+            ),
+            xaxis_title=f"Speed ({speed_units})",
+            yaxis_title=f"Amplitude pk-pk ({length_units})",
+            **kwargs,
+        )
+
+        return fig
+
+    def _add_operating_range(self, fig, speed_units):
+        minimum = Q_(self.minimum_allowable_speed, "rad/s").to(speed_units).m
+        maximum = Q_(self.maximum_continuous_speed, "rad/s").to(speed_units).m
+        fig.add_vrect(
+            x0=minimum,
+            x1=maximum,
+            fillcolor=tableau_colors["gray"],
+            opacity=0.15,
+            line_width=0,
+            annotation_text="Nma - Nmc",
+            annotation_position="top left",
+        )
+
+
+class AmbNonCollocationResults(Results):
+    """Results from a lateral AMB sensor-actuator non-collocation analysis.
+
+    This class stores the modal quantities generated by
+    ``Rotor.run_amb_non_collocation`` and provides tools to inspect how the
+    relative positions of a magnetic-bearing actuator and a lateral displacement
+    sensor affect the modal residue of the selected rotor modes.
+
+    For mode ``r``, actuator node ``x_a`` and candidate sensor node ``x_s``, the
+    modal compatibility indicator is based on
+
+    ``R_r(x_s) = phi_r(x_a) * phi_r(x_s)``,
+
+    where ``phi_r`` is the real lateral mode shape projected in the requested
+    measurement direction. Positive and negative residues indicate equal and
+    opposite modal signs, respectively. Residues close to zero indicate that the
+    sensor or actuator is close to a modal node.
+
+    Parameters
+    ----------
+    speed : float
+        Rotor speed used in the modal analysis, in rad/s.
+    actuator_node : int
+        Node where the analyzed active magnetic bearing applies the control
+        force.
+    sensor_node : int or None
+        Current measurement node associated with the analyzed magnetic bearing.
+        If ``None``, the sensor is assumed to be collocated with the actuator.
+    sensor_nodes : array_like of int
+        Candidate sensor nodes included in the axial sensor-position sweep.
+    sensor_positions : array_like of float
+        Axial positions, in meters, corresponding to ``sensor_nodes``.
+    rotor_nodes : array_like of int
+        Complete ordered list of rotor nodes used to describe the mode shapes.
+    rotor_positions : array_like of float
+        Axial positions, in meters, corresponding to ``rotor_nodes``.
+    mode_indices : array_like of int
+        Original zero-based ROSS indices of the lateral modes retained in the
+        non-collocation analysis.
+    natural_frequencies : array_like of float
+        Natural frequencies, in hertz, of the retained lateral modes.
+    mode_shapes : array_like of float
+        Real projected and normalized mode shapes. The expected shape is
+        ``(n_modes, n_rotor_nodes)``.
+    modal_residues : array_like of float
+        Modal residues for every retained mode and candidate sensor node. The
+        expected shape is ``(n_modes, n_sensor_nodes)``.
+    normalized_residues : array_like of float
+        Row-wise normalized modal residues. Each nonzero modal row is scaled by
+        its maximum absolute residue, so the values lie in ``[-1, 1]``.
+    classifications : array_like of int
+        Discrete compatibility classification for each normalized residue:
+        ``+1`` for equal modal signs, ``-1`` for opposite modal signs and ``0``
+        for values within ``residue_tolerance`` of zero.
+    direction_angle : float
+        Projection angle, in radians, measured from the global x direction toward
+        the global y direction.
+    residue_tolerance : float
+        Threshold used to classify normalized residues near zero and to flag low
+        actuator participation.
+    all_actuator_nodes : array_like of int, optional
+        Actuator nodes of all magnetic bearings in the rotor. If omitted, only
+        ``actuator_node`` is stored.
+    all_sensor_nodes : array_like of int or None, optional
+        Sensor nodes associated with all magnetic bearings. ``None`` entries are
+        interpreted as collocated sensors. If omitted, every sensor is assumed to
+        be collocated with its corresponding actuator.
+    all_amb_tags : array_like of str, optional
+        Labels of all magnetic bearings. Default labels are generated when this
+        argument is omitted.
+    requested_mode_indices : array_like of int, optional
+        Original zero-based mode indices requested by the user before filtering
+        non-lateral modes. If omitted, ``mode_indices`` is used.
+    excluded_mode_indices : array_like of int, optional
+        Zero-based indices of requested modes excluded because they are not
+        lateral.
+    excluded_mode_types : array_like of str, optional
+        ROSS modal classifications corresponding to ``excluded_mode_indices``,
+        such as ``"Torsional"`` or ``"Axial"``.
+    excluded_natural_frequencies : array_like of float, optional
+        Natural frequencies, in hertz, of the excluded non-lateral modes.
+
+    Attributes
+    ----------
+    requested_mode_indices : numpy.ndarray
+        Modes requested before lateral-mode filtering.
+    excluded_mode_indices : numpy.ndarray
+        Non-lateral modes excluded from the compatibility analysis.
+    excluded_mode_types : numpy.ndarray
+        Modal type associated with each excluded mode.
+    excluded_natural_frequencies : numpy.ndarray
+        Natural frequency associated with each excluded mode.
+
+    Notes
+    -----
+    The arrays ``mode_indices`` and ``excluded_mode_indices`` preserve the
+    zero-based indices used internally by ROSS. Plot labels and printed tables use
+    one-based mode numbers for readability.
+
+    The terms ``favorable`` and ``potentially unfavorable`` describe only the
+    modal-sign relationship between the selected sensor and actuator locations.
+    They do not, by themselves, establish closed-loop stability or overall
+    controller performance.
+
+    Only lateral modes are represented in the sensor-position compatibility map.
+    Excluded axial or torsional modes remain available as metadata.
+
+    Examples
+    --------
+    Run the analysis using an AMB rotor example:
+
+    >>> import ross as rs
+    >>> rotor = rs.rotor_example_amb_general_controllers()
+    >>> amb = next(
+    ...     bearing
+    ...     for bearing in rotor.bearing_elements
+    ...     if isinstance(bearing, rs.MagneticBearingElement)
+    ... )
+    >>> results = rotor.run_amb_non_collocation(
+    ...     magnetic_bearing=amb,
+    ...     speed=0.0,
+    ...     modes=range(8),
+    ...     direction="x",
+    ... )
+    >>> fig = results.plot()
+
+    Return the sensor map and every lateral mode shape as separate figures:
+
+    >>> plots = results.plot_separate()
+
+    See Also
+    --------
+    Rotor.run_amb_non_collocation
+        Generate an ``AmbNonCollocationResults`` object from a rotor model."""
+
+    _COLORS = {
+        "favorable": "#4477AA",
+        "favorable_soft": "#89A5C1",
+        "transition": "#DDDDDD",
+        "unfavorable_soft": "#E6A580",
+        "unfavorable": "#EE7733",
+        "mode_shape": "#332288",
+        "sensor": "#AA3377",
+        "actuator": "#222222",
+        "secondary": "#7D7D7D",
+        "warning": "#D39B3A",
+    }
+
+    _COMPATIBILITY_COLORSCALE = [
+        [0.000, _COLORS["unfavorable"]],
+        [0.380, _COLORS["unfavorable_soft"]],
+        [0.480, _COLORS["transition"]],
+        [0.500, _COLORS["transition"]],
+        [0.520, _COLORS["transition"]],
+        [0.620, _COLORS["favorable_soft"]],
+        [1.000, _COLORS["favorable"]],
+    ]
+
+    def __init__(
+        self,
+        speed,
+        actuator_node,
+        sensor_node,
+        sensor_nodes,
+        sensor_positions,
+        rotor_nodes,
+        rotor_positions,
+        mode_indices,
+        natural_frequencies,
+        mode_shapes,
+        modal_residues,
+        normalized_residues,
+        classifications,
+        direction_angle,
+        residue_tolerance,
+        all_actuator_nodes=None,
+        all_sensor_nodes=None,
+        all_amb_tags=None,
+        requested_mode_indices=None,
+        excluded_mode_indices=None,
+        excluded_mode_types=None,
+        excluded_natural_frequencies=None,
+    ):
+        self.speed = float(speed)
+        self.actuator_node = int(actuator_node)
+        self.sensor_node = int(
+            self.actuator_node if sensor_node is None else sensor_node
+        )
+
+        self.sensor_nodes = np.asarray(sensor_nodes, dtype=int)
+        self.sensor_positions = np.asarray(sensor_positions, dtype=float)
+        self.rotor_nodes = np.asarray(rotor_nodes, dtype=int)
+        self.rotor_positions = np.asarray(rotor_positions, dtype=float)
+        self.mode_indices = np.asarray(mode_indices, dtype=int)
+        self.natural_frequencies = np.asarray(natural_frequencies, dtype=float)
+        self.mode_shapes = np.asarray(mode_shapes, dtype=float)
+        self.modal_residues = np.asarray(modal_residues, dtype=float)
+        self.normalized_residues = np.asarray(normalized_residues, dtype=float)
+        self.classifications = np.asarray(classifications, dtype=int)
+
+        self.direction_angle = float(direction_angle)
+        self.residue_tolerance = float(residue_tolerance)
+
+        self.all_actuator_nodes = np.asarray(
+            [self.actuator_node] if all_actuator_nodes is None else all_actuator_nodes,
+            dtype=int,
+        )
+
+        if all_sensor_nodes is None:
+            all_sensor_nodes = self.all_actuator_nodes
+
+        self.all_sensor_nodes = np.asarray(
+            [
+                int(actuator if sensor is None else sensor)
+                for actuator, sensor in zip(
+                    self.all_actuator_nodes,
+                    all_sensor_nodes,
+                    strict=True,
+                )
+            ],
+            dtype=int,
+        )
+
+        if all_amb_tags is None:
+            all_amb_tags = [
+                f"Magnetic Bearing {index}"
+                for index in range(len(self.all_actuator_nodes))
+            ]
+        self.all_amb_tags = np.asarray(all_amb_tags, dtype=object)
+
+        self.requested_mode_indices = np.asarray(
+            self.mode_indices
+            if requested_mode_indices is None
+            else requested_mode_indices,
+            dtype=int,
+        )
+        self.excluded_mode_indices = np.asarray(
+            [] if excluded_mode_indices is None else excluded_mode_indices,
+            dtype=int,
+        )
+        self.excluded_mode_types = np.asarray(
+            [] if excluded_mode_types is None else excluded_mode_types,
+            dtype=object,
+        )
+        self.excluded_natural_frequencies = np.asarray(
+            []
+            if excluded_natural_frequencies is None
+            else excluded_natural_frequencies,
+            dtype=float,
+        )
+
+    @staticmethod
+    def _validate_unit_interval(value, name):
+        value = float(value)
+        if not 0.0 <= value <= 1.0:
+            raise ValueError(f"{name} must be between 0 and 1.")
+        return value
+
+    def _mode_row(self, mode):
+        matches = np.flatnonzero(self.mode_indices == int(mode))
+        if matches.size != 1:
+            raise ValueError(
+                f"Mode {mode} is not available. Available lateral modes: "
+                f"{self.mode_indices.tolist()}."
+            )
+        return int(matches[0])
+
+    def _sensor_column(self, sensor_node):
+        matches = np.flatnonzero(self.sensor_nodes == int(sensor_node))
+        if matches.size != 1:
+            raise ValueError(
+                f"Sensor node {sensor_node} was not included in the sensor node sweep."
+            )
+        return int(matches[0])
+
+    def _node_index(self, node):
+        matches = np.flatnonzero(self.rotor_nodes == int(node))
+        if matches.size != 1:
+            raise ValueError(f"Node {node} is not present exactly once.")
+        return int(matches[0])
+
+    def _node_position(self, node):
+        return float(self.rotor_positions[self._node_index(node)])
+
+    @staticmethod
+    def _classification_text(classification):
+        if classification > 0:
+            return "Same modal sign"
+        if classification < 0:
+            return "Opposite modal signs"
+        return "Near modal node"
+
+    @property
+    def _is_non_collocated(self):
+        return self.sensor_node != self.actuator_node
+
+    @property
+    def _analyzed_bearing_label(self):
+        exact = np.flatnonzero(
+            (self.all_actuator_nodes == self.actuator_node)
+            & (self.all_sensor_nodes == self.sensor_node)
+        )
+        if exact.size:
+            return str(self.all_amb_tags[int(exact[0])])
+
+        actuator = np.flatnonzero(self.all_actuator_nodes == self.actuator_node)
+        if actuator.size:
+            return str(self.all_amb_tags[int(actuator[0])])
+
+        return "Analyzed magnetic bearing"
+
+    @property
+    def _configuration_label(self):
+        return "non-collocated" if self._is_non_collocated else "collocated"
+
+    def _excluded_note(self):
+        if not len(self.excluded_mode_indices):
+            return ""
+
+        items = ", ".join(
+            f"{int(index) + 1} ({mode_type})"
+            for index, mode_type in zip(
+                self.excluded_mode_indices,
+                self.excluded_mode_types,
+                strict=True,
+            )
+        )
+        return f"<br><sup>Non-lateral modes excluded: {items}</sup>"
+
+    def _bearing_note(self):
+        return (
+            "<br><sup>"
+            f"Analyzed bearing: {self._analyzed_bearing_label} | "
+            f"Actuator node: {self.actuator_node} | "
+            f"Sensor node: {self.sensor_node} | "
+            f"{self._configuration_label}"
+            "</sup>"
+        )
+
+    def _map_data(self, number_of_points=400):
+        """Return interpolated axial residue data shared by all map plots."""
+        order = np.argsort(self.sensor_positions)
+        positions = self.sensor_positions[order]
+        raw = self.modal_residues[:, order]
+        normalized = self.normalized_residues[:, order]
+
+        positions, unique_indices = np.unique(positions, return_index=True)
+        raw = raw[:, unique_indices]
+        normalized = normalized[:, unique_indices]
+
+        if len(positions) > 1:
+            x = np.linspace(
+                float(positions[0]),
+                float(positions[-1]),
+                int(number_of_points),
+            )
+            raw = np.vstack([np.interp(x, positions, row) for row in raw])
+            normalized = np.vstack([np.interp(x, positions, row) for row in normalized])
+        else:
+            x = positions
+
+        transition_width = max(2.0 * self.residue_tolerance, 0.08)
+        transition_map = np.clip(
+            normalized / transition_width,
+            -1.0,
+            1.0,
+        )
+        return x, raw, normalized, transition_map
+
+    def _actuator_participation(self):
+        actuator_index = self._node_index(self.actuator_node)
+        amplitudes = self.mode_shapes[:, actuator_index]
+        return amplitudes, np.abs(amplitudes) <= self.residue_tolerance
+
+    def _compatibility_legend_traces(self):
+        entries = (
+            ("Favorable sensor region", self._COLORS["favorable"]),
+            ("Sensor near modal node", self._COLORS["transition"]),
+            (
+                "Potentially unfavorable sensor region",
+                self._COLORS["unfavorable"],
+            ),
+        )
+        return [
+            go.Scatter(
+                x=[None],
+                y=[None],
+                mode="markers",
+                name=name,
+                legendgroup="compatibility_regions",
+                marker=dict(symbol="square", size=12, color=color),
+                hoverinfo="skip",
+            )
+            for name, color in entries
+        ]
+
+    def modal_residue_table(self, sensor_node=None):
+        """Build the modal-residue table for one sensor node.
+
+        Parameters
+        ----------
+        sensor_node : int or None, optional
+            Candidate sensor node used to extract the modal residue. If ``None``, the
+            current ``sensor_node`` stored in the results is used.
+
+        Returns
+        -------
+        pandas.DataFrame
+            Table containing the one-based mode number, natural frequency, actuator
+            and sensor amplitudes, raw and normalized residues, and the textual modal
+            compatibility classification.
+
+        Raises
+        ------
+        ValueError
+            If ``sensor_node`` was not included in the candidate sensor-node sweep or
+            is not present exactly once in ``rotor_nodes``."""
+        sensor_node = int(self.sensor_node if sensor_node is None else sensor_node)
+        sensor_column = self._sensor_column(sensor_node)
+        actuator_index = self._node_index(self.actuator_node)
+        sensor_index = self._node_index(sensor_node)
+
+        return pd.DataFrame(
+            {
+                "Mode": self.mode_indices + 1,
+                "Frequency (Hz)": self.natural_frequencies,
+                "Actuator amplitude": self.mode_shapes[:, actuator_index],
+                "Sensor amplitude": self.mode_shapes[:, sensor_index],
+                "Modal residue": self.modal_residues[:, sensor_column],
+                "Normalized residue": self.normalized_residues[:, sensor_column],
+                "Classification": [
+                    self._classification_text(value)
+                    for value in self.classifications[:, sensor_column]
+                ],
+            }
+        )
+
+    def _add_map_reference_traces(
+        self,
+        fig,
+        row=None,
+        col=None,
+        show_low_participation_warnings=True,
+        actuator_x=None,
+        sensor_x=None,
+    ):
+        """Add analyzed sensor/actuator references and return trace indices."""
+        add_kwargs = {} if row is None else {"row": row, "col": col}
+        indices = []
+
+        n_modes = len(self.mode_indices)
+        lower, upper = 0.5, n_modes + 0.5
+        if actuator_x is None:
+            actuator_x = self._node_position(self.actuator_node)
+        if sensor_x is None:
+            sensor_x = self._node_position(self.sensor_node)
+        actuator_x = float(actuator_x)
+        sensor_x = float(sensor_x)
+        label = self._analyzed_bearing_label
+
+        for name, x, color, dash, component in (
+            (
+                f"{label} — analyzed actuator",
+                actuator_x,
+                self._COLORS["actuator"],
+                "dash",
+                "Actuator",
+            ),
+            (
+                f"{label} — current sensor",
+                sensor_x,
+                self._COLORS["sensor"],
+                "dot",
+                "Sensor",
+            ),
+        ):
+            node = self.actuator_node if component == "Actuator" else self.sensor_node
+
+            indices.append(len(fig.data))
+            fig.add_trace(
+                go.Scatter(
+                    x=[x, x],
+                    y=[lower, upper],
+                    mode="lines",
+                    name=name,
+                    line=dict(color=color, width=2, dash=dash),
+                    hovertemplate=(
+                        f"{label}<br>{component} node: {node}"
+                        f"<br>Axial position: {x:.5f} m<extra></extra>"
+                    ),
+                ),
+                **add_kwargs,
+            )
+
+        for x, y, symbol, color, name in (
+            (
+                actuator_x,
+                lower,
+                "triangle-up",
+                self._COLORS["actuator"],
+                f"{label} — actuator marker",
+            ),
+            (
+                sensor_x,
+                upper,
+                "diamond",
+                self._COLORS["sensor"],
+                f"{label} — sensor marker",
+            ),
+        ):
+            indices.append(len(fig.data))
+            fig.add_trace(
+                go.Scatter(
+                    x=[x],
+                    y=[y],
+                    mode="markers",
+                    name=name,
+                    showlegend=False,
+                    cliponaxis=False,
+                    marker=dict(symbol=symbol, size=12, color=color),
+                    hoverinfo="skip",
+                ),
+                **add_kwargs,
+            )
+
+        amplitudes, low_participation = self._actuator_participation()
+        if show_low_participation_warnings and np.any(low_participation):
+            rows = np.arange(1, n_modes + 1, dtype=float)[low_participation]
+            labels = (self.mode_indices + 1)[low_participation]
+            warning_x = 0.5 * (actuator_x + sensor_x)
+
+            indices.append(len(fig.data))
+            fig.add_trace(
+                go.Scatter(
+                    x=np.full(len(rows), warning_x),
+                    y=rows,
+                    mode="markers",
+                    name="Low actuator participation",
+                    marker=dict(
+                        symbol="diamond",
+                        size=9,
+                        color="white",
+                        line=dict(color=self._COLORS["warning"], width=2),
+                    ),
+                    customdata=np.column_stack([labels, amplitudes[low_participation]]),
+                    hovertemplate=(
+                        "Low actuator participation<br>"
+                        "Mode: %{customdata[0]:.0f}<br>"
+                        "Actuator modal amplitude: %{customdata[1]:+.5f}"
+                        "<extra></extra>"
+                    ),
+                ),
+                **add_kwargs,
+            )
+
+        return indices
+
+    def _add_map_annotations(
+        self,
+        fig,
+        row=None,
+        col=None,
+        actuator_x=None,
+        sensor_x=None,
+    ):
+        """Add external analyzed sensor and actuator labels."""
+        xref = "x" if row is None or row == 1 else f"x{row}"
+        yref = "y" if row is None or row == 1 else f"y{row}"
+        n_modes = len(self.mode_indices)
+        label = self._analyzed_bearing_label
+        actuator_x = (
+            self._node_position(self.actuator_node)
+            if actuator_x is None
+            else float(actuator_x)
+        )
+        sensor_x = (
+            self._node_position(self.sensor_node)
+            if sensor_x is None
+            else float(sensor_x)
+        )
+
+        fig.add_annotation(
+            x=sensor_x,
+            y=n_modes + 0.5,
+            xref=xref,
+            yref=yref,
+            yshift=36,
+            text=f"Current sensor — {label}<br>node {self.sensor_node}",
+            showarrow=False,
+            xanchor="center",
+            yanchor="bottom",
+            font=dict(size=11, color=self._COLORS["sensor"]),
+        )
+        fig.add_annotation(
+            x=actuator_x,
+            y=0.5,
+            xref=xref,
+            yref=yref,
+            yshift=-36,
+            text=f"Analyzed actuator — {label}<br>node {self.actuator_node}",
+            showarrow=False,
+            xanchor="center",
+            yanchor="top",
+            font=dict(size=11, color=self._COLORS["actuator"]),
+        )
+
+    def plot_sensor_position_map(
+        self,
+        x_axis="position",
+        fig=None,
+        show_non_collocation_span=True,
+        show_low_participation_warnings=True,
+    ):
+        """Plot the lateral sensor-position modal compatibility map.
+
+        Each row represents one retained lateral mode. The horizontal axis can show
+        candidate sensor nodes or their axial positions. The map uses the normalized
+        modal residue to distinguish equal modal signs, opposite modal signs and
+        locations near a modal node.
+
+        Parameters
+        ----------
+        x_axis : {"position", "node"}, optional
+            Quantity displayed on the horizontal axis. ``"position"`` uses axial
+            position in meters; ``"node"`` uses the candidate sensor-node number.
+            Default is ``"position"``.
+        fig : plotly.graph_objects.Figure or None, optional
+            Existing Plotly figure that receives the traces. A new figure is created
+            when ``None``.
+        show_non_collocation_span : bool, optional
+            If ``True``, highlight the axial interval between the current sensor and
+            actuator when the analyzed bearing is non-collocated. Default is ``True``.
+        show_low_participation_warnings : bool, optional
+            If ``True``, mark modes for which the actuator amplitude is within
+            ``residue_tolerance`` of a modal node. Default is ``True``.
+
+        Returns
+        -------
+        plotly.graph_objects.Figure
+            Sensor-position compatibility map.
+
+        Raises
+        ------
+        TypeError
+            If ``x_axis`` is not a string.
+        ValueError
+            If ``x_axis`` is neither ``"position"`` nor ``"node"``."""
+        if not isinstance(x_axis, str):
+            raise TypeError("x_axis must be either 'position' or 'node'.")
+        x_axis = x_axis.strip().lower()
+        if x_axis not in {"position", "node"}:
+            raise ValueError("x_axis must be either 'position' or 'node'.")
+
+        if fig is None:
+            fig = go.Figure()
+
+        if x_axis == "position":
+            x, raw, normalized, transition_map = self._map_data()
+            x_title = "Sensor axial position (m)"
+            actuator_x = self._node_position(self.actuator_node)
+            sensor_x = self._node_position(self.sensor_node)
+        else:
+            x = self.sensor_nodes.astype(float)
+            raw = self.modal_residues
+            normalized = self.normalized_residues
+            transition_width = max(2.0 * self.residue_tolerance, 0.08)
+            transition_map = np.clip(
+                normalized / transition_width,
+                -1.0,
+                1.0,
+            )
+            x_title = "Sensor node"
+            actuator_x = float(self.actuator_node)
+            sensor_x = float(self.sensor_node)
+
+        n_modes = len(self.mode_indices)
+        mode_rows = np.arange(1, n_modes + 1, dtype=float)
+        mode_labels = self.mode_indices + 1
+        amplitudes, low_participation = self._actuator_participation()
+
+        classification = np.full(
+            normalized.shape,
+            "Sensor near modal node",
+            dtype=object,
+        )
+        classification[normalized > self.residue_tolerance] = "Same modal sign"
+        classification[normalized < -self.residue_tolerance] = "Opposite modal signs"
+
+        customdata = np.empty(normalized.shape + (7,), dtype=object)
+        for row in range(n_modes):
+            customdata[row, :, 0] = int(mode_labels[row])
+            customdata[row, :, 1] = self.natural_frequencies[row]
+            customdata[row, :, 2] = raw[row]
+            customdata[row, :, 3] = normalized[row]
+            customdata[row, :, 4] = classification[row]
+            customdata[row, :, 5] = amplitudes[row]
+            customdata[row, :, 6] = (
+                "Actuator near modal node"
+                if low_participation[row]
+                else "Adequate actuator participation"
+            )
+
+        x_hover = (
+            "Sensor position: %{x:.5f} m<br>"
+            if x_axis == "position"
+            else "Sensor node: %{x:.0f}<br>"
+        )
+
+        fig.add_trace(
+            go.Heatmap(
+                x=x,
+                y=mode_rows,
+                z=transition_map,
+                zmin=-1.0,
+                zmax=1.0,
+                zmid=0.0,
+                colorscale=self._COMPATIBILITY_COLORSCALE,
+                showscale=False,
+                customdata=customdata,
+                hovertemplate=(
+                    "Mode: %{customdata[0]}<br>"
+                    "Natural frequency: %{customdata[1]:.3f} Hz<br>"
+                    + x_hover
+                    + "Modal residue: %{customdata[2]:+.5e}<br>"
+                    "Normalized residue: %{customdata[3]:+.5f}<br>"
+                    "Classification: %{customdata[4]}<br>"
+                    "Actuator amplitude: %{customdata[5]:+.5f}<br>"
+                    "Actuator status: %{customdata[6]}"
+                    "<extra></extra>"
+                ),
+            )
+        )
+
+        if show_non_collocation_span and self._is_non_collocated:
+            fig.add_vrect(
+                x0=min(actuator_x, sensor_x),
+                x1=max(actuator_x, sensor_x),
+                fillcolor=self._rgba(self._COLORS["warning"], 0.10),
+                line_width=0,
+                layer="above",
+            )
+
+        self._add_map_reference_traces(
+            fig,
+            show_low_participation_warnings=show_low_participation_warnings,
+            actuator_x=actuator_x,
+            sensor_x=sensor_x,
+        )
+        for trace in self._compatibility_legend_traces():
+            fig.add_trace(trace)
+        self._add_map_annotations(
+            fig,
+            actuator_x=actuator_x,
+            sensor_x=sensor_x,
+        )
+
+        for boundary in (mode_rows[:-1] + mode_rows[1:]) / 2.0:
+            fig.add_hline(
+                y=float(boundary),
+                line=dict(color="rgba(255,255,255,0.45)", width=0.9),
+                layer="above",
+            )
+
+        fig.update_layout(
+            title=dict(
+                text=(
+                    f"{self._analyzed_bearing_label} — "
+                    f"{self._configuration_label} configuration"
+                    "<br><sup>"
+                    f"Actuator node {self.actuator_node} | "
+                    f"Sensor node {self.sensor_node}"
+                    "</sup>"
+                    f"{self._excluded_note()}"
+                ),
+                x=0.5,
+                xanchor="center",
+            ),
+            xaxis=dict(title=x_title, showgrid=False, zeroline=False),
+            yaxis=dict(
+                title="Mode number",
+                tickmode="array",
+                tickvals=mode_rows,
+                ticktext=[str(int(value)) for value in mode_labels],
+                range=[0.5, n_modes + 0.5],
+                showgrid=False,
+                zeroline=False,
+            ),
+            hovermode="closest",
+            legend=dict(orientation="v", groupclick="togglegroup"),
+            margin=dict(l=80, r=300, t=150, b=120),
+        )
+        return fig
+
+    def _add_amb_pair_to_mode_shape(
+        self,
+        fig,
+        shape,
+        actuator_node,
+        sensor_node,
+        tag,
+        analyzed,
+    ):
+        """Add actuator and sensor references to a mode-shape figure."""
+        actuator_index = self._node_index(actuator_node)
+        sensor_index = self._node_index(sensor_node)
+        actuator_x = self.rotor_positions[actuator_index]
+        sensor_x = self.rotor_positions[sensor_index]
+        actuator_y = shape[actuator_index]
+        sensor_y = shape[sensor_index]
+
+        collocated = int(actuator_node) == int(sensor_node)
+        configuration = "Collocated" if collocated else "Non-collocated"
+        actuator_color = (
+            self._COLORS["actuator"] if analyzed else self._COLORS["secondary"]
+        )
+        sensor_color = self._COLORS["sensor"] if analyzed else "white"
+        sensor_line_color = (
+            self._COLORS["sensor"] if analyzed else self._COLORS["secondary"]
+        )
+        suffix = "analyzed " if analyzed else ""
+        legendgroup = f"amb_{tag}_{'selected' if analyzed else 'context'}"
+        customdata = [[tag, actuator_node, sensor_node, configuration]]
+
+        fig.add_trace(
+            go.Scatter(
+                x=[actuator_x],
+                y=[actuator_y],
+                mode="markers",
+                name=f"{tag} — {suffix}actuator",
+                legendgroup=legendgroup,
+                cliponaxis=False,
+                marker=dict(
+                    symbol="diamond" if analyzed else "diamond-open",
+                    size=15,
+                    color=actuator_color,
+                    line=dict(color=actuator_color, width=2),
+                ),
+                customdata=customdata,
+                hovertemplate=(
+                    "AMB: %{customdata[0]}<br>"
+                    "Component: actuator<br>"
+                    "Actuator node: %{customdata[1]}<br>"
+                    "Sensor node: %{customdata[2]}<br>"
+                    "Configuration: %{customdata[3]}<br>"
+                    "Axial position: %{x:.5f} m<br>"
+                    "Normalized modal amplitude: %{y:+.5f}"
+                    "<extra></extra>"
+                ),
+            )
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=[sensor_x],
+                y=[sensor_y],
+                mode="markers",
+                name=f"{tag} — {suffix}sensor",
+                legendgroup=legendgroup,
+                cliponaxis=False,
+                marker=dict(
+                    symbol="circle",
+                    size=9,
+                    color=sensor_color,
+                    line=dict(color=sensor_line_color, width=2),
+                ),
+                customdata=customdata,
+                hovertemplate=(
+                    "AMB: %{customdata[0]}<br>"
+                    "Component: sensor<br>"
+                    "Actuator node: %{customdata[1]}<br>"
+                    "Sensor node: %{customdata[2]}<br>"
+                    "Configuration: %{customdata[3]}<br>"
+                    "Axial position: %{x:.5f} m<br>"
+                    "Normalized modal amplitude: %{y:+.5f}"
+                    "<extra></extra>"
+                ),
+            )
+        )
+
+        if collocated:
+            fig.add_vline(
+                x=float(actuator_x),
+                line=dict(color=actuator_color, width=1.2, dash="dashdot"),
+            )
+        else:
+            fig.add_vline(
+                x=float(actuator_x),
+                line=dict(color=actuator_color, width=1.2, dash="dash"),
+            )
+            fig.add_vline(
+                x=float(sensor_x),
+                line=dict(color=sensor_line_color, width=1.2, dash="dot"),
+            )
+
+    def plot_mode_shape(
+        self,
+        mode,
+        sensor_node=None,
+        show_compatibility=False,
+        background_opacity=0.20,
+        fig=None,
+    ):
+        """Plot one lateral mode shape and the magnetic-bearing locations.
+
+        Compatibility regions can optionally be displayed behind the mode shape.
+
+        Parameters
+        ----------
+        mode : int
+            Original zero-based ROSS modal index. The value must be present in
+            ``mode_indices``.
+        sensor_node : int or None, optional
+            Sensor node highlighted for the analyzed magnetic bearing. If
+            ``None``, the current ``sensor_node`` stored in the results is used.
+        show_compatibility : bool, optional
+            If ``True``, display the axial sensor-compatibility regions behind
+            the mode shape. Default is ``False``.
+        background_opacity : float, optional
+            Opacity of the compatibility regions. Must lie in ``[0, 1]``.
+            Used only when ``show_compatibility=True``. Default is ``0.20``.
+        fig : plotly.graph_objects.Figure or None, optional
+            Existing Plotly figure that receives the traces. A new figure is
+            created when ``None``.
+
+        Returns
+        -------
+        plotly.graph_objects.Figure
+            Lateral mode-shape figure with actuator and sensor markers.
+
+        Raises
+        ------
+        TypeError
+            If ``show_compatibility`` is not boolean.
+        ValueError
+            If ``mode`` is unavailable, ``sensor_node`` was not included in the
+            sensor-node sweep, or ``background_opacity`` lies outside ``[0, 1]``.
+        """
+        if not isinstance(show_compatibility, (bool, np.bool_)):
+            raise TypeError("show_compatibility must be a boolean.")
+
+        mode_row = self._mode_row(mode)
+        sensor_node = int(self.sensor_node if sensor_node is None else sensor_node)
+        sensor_column = self._sensor_column(sensor_node)
+        shape = self.mode_shapes[mode_row]
+
+        if fig is None:
+            fig = go.Figure()
+
+        if show_compatibility:
+            opacity = self._validate_unit_interval(
+                background_opacity,
+                "background_opacity",
+            )
+            region_colors = {
+                1: self._COLORS["favorable"],
+                0: self._COLORS["transition"],
+                -1: self._COLORS["unfavorable"],
+            }
+
+            for segment in self._mode_compatibility_segments(mode):
+                classification = segment["classification"]
+                alpha = min(1.0, opacity + 0.08) if classification == 0 else opacity
+                fig.add_vrect(
+                    x0=segment["x0"],
+                    x1=segment["x1"],
+                    fillcolor=self._rgba(region_colors[classification], alpha),
+                    line_width=0,
+                    layer="below",
+                )
+
+        fig.add_trace(
+            go.Scatter(
+                x=self.rotor_positions,
+                y=shape,
+                mode="lines+markers",
+                name="Mode shape",
+                legendgroup="mode_shape",
+                line=dict(color=self._COLORS["mode_shape"], width=2),
+                marker=dict(color=self._COLORS["mode_shape"], size=5),
+                customdata=self.rotor_nodes,
+                hovertemplate=(
+                    "Node: %{customdata}<br>"
+                    "Axial position: %{x:.5f} m<br>"
+                    "Normalized modal amplitude: %{y:+.5f}"
+                    "<extra>Mode shape</extra>"
+                ),
+            )
+        )
+        fig.add_hline(y=0.0, line=dict(color="#8A8A8A", width=1))
+
+        analyzed_index = np.flatnonzero(self.all_actuator_nodes == self.actuator_node)
+        analyzed_index = int(analyzed_index[0]) if analyzed_index.size else None
+
+        for index, (actuator, sensor, tag) in enumerate(
+            zip(
+                self.all_actuator_nodes,
+                self.all_sensor_nodes,
+                self.all_amb_tags,
+                strict=True,
+            )
+        ):
+            if index == analyzed_index:
+                continue
+            self._add_amb_pair_to_mode_shape(
+                fig,
+                shape,
+                actuator,
+                sensor,
+                str(tag),
+                analyzed=False,
+            )
+
+        self._add_amb_pair_to_mode_shape(
+            fig,
+            shape,
+            self.actuator_node,
+            sensor_node,
+            self._analyzed_bearing_label,
+            analyzed=True,
+        )
+
+        if show_compatibility:
+            for trace in self._compatibility_legend_traces():
+                fig.add_trace(trace)
+
+        normalized_residue = self.normalized_residues[mode_row, sensor_column]
+        classification = self._classification_text(
+            self.classifications[mode_row, sensor_column]
+        )
+
+        fig.update_layout(
+            title=dict(
+                text=(
+                    f"Mode {int(self.mode_indices[mode_row]) + 1} — "
+                    "sensor-actuator modal compatibility"
+                    "<br><sup>"
+                    f"Frequency: {self.natural_frequencies[mode_row]:.2f} Hz | "
+                    f"Normalized residue: {normalized_residue:+.4f} | "
+                    f"{classification}"
+                    "</sup>"
+                ),
+                x=0.01,
+                xanchor="left",
+            ),
+            xaxis=dict(title="Axial position (m)", showgrid=True),
+            yaxis=dict(title="Normalized modal amplitude", showgrid=True),
+            legend=dict(orientation="v", groupclick="togglegroup"),
+            hovermode="closest",
+            margin=dict(l=80, r=40, t=105, b=75),
+        )
+        return fig
+
+    @staticmethod
+    def _rgba(color, alpha):
+        color = color.lstrip("#")
+        red, green, blue = (int(color[index : index + 2], 16) for index in (0, 2, 4))
+        return f"rgba({red},{green},{blue},{float(alpha):.3f})"
+
+    def _mode_compatibility_segments(self, mode, number_of_points=400):
+        """Return continuous axial compatibility regions for one mode."""
+        mode_row = self._mode_row(mode)
+        x, _, normalized, _ = self._map_data(number_of_points)
+        values = normalized[mode_row]
+
+        classes = np.zeros_like(values, dtype=int)
+        classes[values > self.residue_tolerance] = 1
+        classes[values < -self.residue_tolerance] = -1
+
+        if len(x) == 1:
+            boundaries = np.array(
+                [self.rotor_positions.min(), self.rotor_positions.max()],
+                dtype=float,
+            )
+        else:
+            boundaries = np.empty(len(x) + 1)
+            boundaries[1:-1] = 0.5 * (x[:-1] + x[1:])
+            boundaries[0] = x[0] - 0.5 * (x[1] - x[0])
+            boundaries[-1] = x[-1] + 0.5 * (x[-1] - x[-2])
+
+        segments = []
+        start = 0
+        for index in range(1, len(classes) + 1):
+            end = index == len(classes)
+            changed = not end and classes[index] != classes[start]
+            if end or changed:
+                segments.append(
+                    {
+                        "x0": float(boundaries[start]),
+                        "x1": float(boundaries[index]),
+                        "classification": int(classes[start]),
+                    }
+                )
+                start = index
+        return segments
+
+    def plot_combined(
+        self,
+        initial_mode=None,
+        mode_shape_background_opacity=0.20,
+        unselected_mode_opacity=0.68,
+        show_non_collocation_span=True,
+        show_low_participation_warnings=True,
+    ):
+        """Plot the interactive sensor map and lateral mode shapes.
+
+        The initial menu option shows only the complete sensor-position map. Selecting
+        a lateral mode dims the other modal rows and displays the corresponding mode
+        shape below the map with the same compatibility colors.
+
+        Parameters
+        ----------
+        initial_mode : int or None, optional
+            Original zero-based modal index shown when the figure opens. If ``None``,
+            the figure opens in the map-only state. Default is ``None``.
+        mode_shape_background_opacity : float, optional
+            Opacity of the compatibility colors behind the selected mode shape. Must
+            lie in ``[0, 1]``. Default is ``0.20``.
+        unselected_mode_opacity : float, optional
+            Strength of the translucent overlay applied to unselected modal rows.
+            Larger values make those rows more subdued. Must lie in ``[0, 1]``.
+            Default is ``0.68``.
+        show_non_collocation_span : bool, optional
+            If ``True``, highlight the axial interval between the current sensor and
+            actuator when they are non-collocated. Default is ``True``.
+        show_low_participation_warnings : bool, optional
+            If ``True``, mark modes with low actuator participation. Default is
+            ``True``.
+
+        Returns
+        -------
+        plotly.graph_objects.Figure
+            Interactive combined map and mode-shape figure.
+
+        Raises
+        ------
+        ValueError
+            If ``initial_mode`` is unavailable or either opacity parameter lies
+            outside ``[0, 1]``."""
+        background_opacity = self._validate_unit_interval(
+            mode_shape_background_opacity,
+            "mode_shape_background_opacity",
+        )
+        dim_opacity = self._validate_unit_interval(
+            unselected_mode_opacity,
+            "unselected_mode_opacity",
+        )
+        initial_row = None if initial_mode is None else self._mode_row(initial_mode)
+
+        x, _, normalized, transition_map = self._map_data()
+        mode_rows = np.arange(1, len(self.mode_indices) + 1, dtype=float)
+        mode_labels = self.mode_indices + 1
+        actuator_position = self._node_position(self.actuator_node)
+        sensor_position = self._node_position(self.sensor_node)
+        actuator_index = self._node_index(self.actuator_node)
+        sensor_index = self._node_index(self.sensor_node)
+
+        fig = make_subplots(
+            rows=2,
+            cols=1,
+            shared_xaxes=False,
+            vertical_spacing=0.12,
+            row_heights=[0.58, 0.42],
+        )
+
+        static_indices = []
+        static_indices.append(len(fig.data))
+        fig.add_trace(
+            go.Heatmap(
+                x=x,
+                y=mode_rows,
+                z=transition_map,
+                zmin=-1.0,
+                zmax=1.0,
+                zmid=0.0,
+                colorscale=self._COMPATIBILITY_COLORSCALE,
+                showscale=False,
+                customdata=np.stack(
+                    [
+                        np.broadcast_to(mode_labels[:, None], normalized.shape),
+                        np.broadcast_to(
+                            self.natural_frequencies[:, None],
+                            normalized.shape,
+                        ),
+                        normalized,
+                    ],
+                    axis=-1,
+                ),
+                hovertemplate=(
+                    "Mode: %{customdata[0]}<br>"
+                    "Natural frequency: %{customdata[1]:.3f} Hz<br>"
+                    "Sensor position: %{x:.5f} m<br>"
+                    "Normalized residue: %{customdata[2]:+.5f}"
+                    "<extra></extra>"
+                ),
+            ),
+            row=1,
+            col=1,
+        )
+
+        dimming_indices = []
+        mask_color = f"rgba(255,255,255,{dim_opacity:.3f})"
+        for selected_row in range(len(self.mode_indices)):
+            mask = np.ones_like(transition_map)
+            mask[selected_row] = 0.0
+            dimming_indices.append(len(fig.data))
+            fig.add_trace(
+                go.Heatmap(
+                    x=x,
+                    y=mode_rows,
+                    z=mask,
+                    zmin=0.0,
+                    zmax=1.0,
+                    colorscale=[
+                        [0.0, "rgba(255,255,255,0.0)"],
+                        [0.001, mask_color],
+                        [1.0, mask_color],
+                    ],
+                    showscale=False,
+                    hoverinfo="skip",
+                    visible=initial_row == selected_row,
+                ),
+                row=1,
+                col=1,
+            )
+
+        if show_non_collocation_span and self._is_non_collocated:
+            fig.add_shape(
+                type="rect",
+                xref="x",
+                yref="y domain",
+                x0=min(actuator_position, sensor_position),
+                x1=max(actuator_position, sensor_position),
+                y0=0.0,
+                y1=1.0,
+                fillcolor=self._rgba(self._COLORS["warning"], 0.10),
+                line=dict(width=0),
+                layer="above",
+            )
+
+        static_indices.extend(
+            self._add_map_reference_traces(
+                fig,
+                row=1,
+                col=1,
+                show_low_participation_warnings=(show_low_participation_warnings),
+            )
+        )
+        for trace in self._compatibility_legend_traces():
+            static_indices.append(len(fig.data))
+            fig.add_trace(trace, row=1, col=1)
+
+        mode_groups = []
+        for row, mode_index in enumerate(self.mode_indices):
+            visible = initial_row == row
+            shape = self.mode_shapes[row]
+            group = []
+
+            group.append(len(fig.data))
+            fig.add_trace(
+                go.Heatmap(
+                    x=x,
+                    y=[-1.1, 1.1],
+                    z=np.vstack([transition_map[row], transition_map[row]]),
+                    zmin=-1.0,
+                    zmax=1.0,
+                    zmid=0.0,
+                    colorscale=self._COMPATIBILITY_COLORSCALE,
+                    showscale=False,
+                    opacity=background_opacity,
+                    hoverinfo="skip",
+                    visible=visible,
+                ),
+                row=2,
+                col=1,
+            )
+
+            group.append(len(fig.data))
+            fig.add_trace(
+                go.Scatter(
+                    x=self.rotor_positions,
+                    y=shape,
+                    mode="lines+markers",
+                    name="Mode shape",
+                    line=dict(color=self._COLORS["mode_shape"], width=2.4),
+                    marker=dict(color=self._COLORS["mode_shape"], size=4),
+                    hovertemplate=(
+                        f"Mode: {int(mode_index) + 1}<br>"
+                        "Axial position: %{x:.5f} m<br>"
+                        "Normalized amplitude: %{y:+.5f}"
+                        "<extra></extra>"
+                    ),
+                    visible=visible,
+                ),
+                row=2,
+                col=1,
+            )
+
+            group.append(len(fig.data))
+            fig.add_trace(
+                go.Scatter(
+                    x=[actuator_position, sensor_position],
+                    y=[shape[actuator_index], shape[sensor_index]],
+                    mode="markers",
+                    name=(
+                        f"{self._analyzed_bearing_label} — current sensor-actuator pair"
+                    ),
+                    showlegend=False,
+                    marker=dict(
+                        size=[12, 11],
+                        symbol=["diamond", "circle"],
+                        color=[
+                            self._COLORS["actuator"],
+                            self._COLORS["sensor"],
+                        ],
+                        line=dict(width=1),
+                    ),
+                    customdata=[
+                        ["Actuator", self.actuator_node],
+                        ["Sensor", self.sensor_node],
+                    ],
+                    hovertemplate=(
+                        f"{self._analyzed_bearing_label}<br>"
+                        "%{customdata[0]} node: %{customdata[1]}<br>"
+                        "Axial position: %{x:.5f} m<br>"
+                        "Modal amplitude: %{y:+.5f}"
+                        "<extra></extra>"
+                    ),
+                    visible=visible,
+                ),
+                row=2,
+                col=1,
+            )
+            mode_groups.append(group)
+
+        lower_reference_indices = []
+        for x_value, color, dash, name in (
+            (
+                actuator_position,
+                self._COLORS["actuator"],
+                "dash",
+                "Analyzed actuator",
+            ),
+            (
+                sensor_position,
+                self._COLORS["sensor"],
+                "dot",
+                "Current sensor",
+            ),
+        ):
+            lower_reference_indices.append(len(fig.data))
+            fig.add_trace(
+                go.Scatter(
+                    x=[x_value, x_value],
+                    y=[-1.1, 1.1],
+                    mode="lines",
+                    name=name,
+                    showlegend=False,
+                    line=dict(color=color, width=1.5, dash=dash),
+                    hoverinfo="skip",
+                    visible=initial_row is not None,
+                ),
+                row=2,
+                col=1,
+            )
+
+        for boundary in (mode_rows[:-1] + mode_rows[1:]) / 2.0:
+            fig.add_shape(
+                type="line",
+                xref="x domain",
+                yref="y",
+                x0=0.0,
+                x1=1.0,
+                y0=float(boundary),
+                y1=float(boundary),
+                line=dict(color="rgba(255,255,255,0.45)", width=0.9),
+                layer="above",
+            )
+
+        def title(selected_row):
+            if selected_row is None:
+                selected = "<br><sup>No lateral mode selected</sup>"
+                heading = "Sensor-position compatibility map"
+            else:
+                selected = (
+                    "<br><sup>"
+                    f"Selected mode: {int(self.mode_indices[selected_row]) + 1} | "
+                    f"Natural frequency: "
+                    f"{self.natural_frequencies[selected_row]:.3f} Hz"
+                    "</sup>"
+                )
+                heading = "Sensor-position compatibility and mode shape"
+            return heading + selected + self._bearing_note() + self._excluded_note()
+
+        def visibility(selected_row):
+            values = [False] * len(fig.data)
+            for index in static_indices:
+                values[index] = True
+            if selected_row is None:
+                return values
+            values[dimming_indices[selected_row]] = True
+            for index in mode_groups[selected_row] + lower_reference_indices:
+                values[index] = True
+            return values
+
+        map_only_layout = {
+            "title.text": title(None),
+            "yaxis.domain": [0.08, 0.92],
+            "yaxis2.domain": [0.0, 0.001],
+            "yaxis2.visible": False,
+            "xaxis.showticklabels": True,
+            "xaxis.title.text": "Axial position (m)",
+            "xaxis2.visible": False,
+        }
+        selected_layout = {
+            "yaxis.domain": [0.57, 0.91],
+            "yaxis2.domain": [0.08, 0.42],
+            "yaxis2.visible": True,
+            "xaxis.showticklabels": False,
+            "xaxis.title.text": None,
+            "xaxis2.visible": True,
+            "xaxis2.title.text": "Axial position (m)",
+        }
+
+        buttons = [
+            dict(
+                label="Sensor map only",
+                method="update",
+                args=[{"visible": visibility(None)}, map_only_layout],
+            )
+        ]
+        for row, mode_index in enumerate(self.mode_indices):
+            layout = dict(selected_layout)
+            layout["title.text"] = title(row)
+            buttons.append(
+                dict(
+                    label=(
+                        f"Mode {int(mode_index) + 1} — "
+                        f"{self.natural_frequencies[row]:.3f} Hz"
+                    ),
+                    method="update",
+                    args=[{"visible": visibility(row)}, layout],
+                )
+            )
+
+        initial_visibility = visibility(initial_row)
+        for trace, visible in zip(fig.data, initial_visibility, strict=True):
+            trace.visible = visible
+
+        map_only = initial_row is None
+        x_range = [float(self.rotor_positions.min()), float(self.rotor_positions.max())]
+        fig.update_yaxes(
+            title_text="Mode number",
+            tickmode="array",
+            tickvals=mode_rows,
+            ticktext=[str(int(value)) for value in mode_labels],
+            range=[0.5, len(mode_rows) + 0.5],
+            showgrid=False,
+            row=1,
+            col=1,
+        )
+        fig.update_yaxes(
+            title_text="Normalized modal amplitude",
+            range=[-1.1, 1.1],
+            zeroline=True,
+            row=2,
+            col=1,
+        )
+        fig.update_xaxes(range=x_range, row=1, col=1)
+        fig.update_xaxes(range=x_range, row=2, col=1)
+
+        self._add_map_annotations(fig, row=1, col=1)
+        fig.add_annotation(
+            text="Select lateral mode:",
+            x=0.01,
+            xref="paper",
+            y=1.17,
+            yref="paper",
+            showarrow=False,
+            xanchor="left",
+            font=dict(size=12),
+        )
+
+        fig.update_layout(
+            title=dict(text=title(initial_row), x=0.5, xanchor="center"),
+            updatemenus=[
+                dict(
+                    type="dropdown",
+                    buttons=buttons,
+                    active=0 if map_only else initial_row + 1,
+                    x=0.01,
+                    xanchor="left",
+                    y=1.12,
+                    yanchor="top",
+                )
+            ],
+            height=880,
+            hovermode="closest",
+            legend=dict(x=1.01, xanchor="left", y=0.52, yanchor="top"),
+            margin=dict(l=90, r=320, t=185, b=105),
+            yaxis=dict(domain=[0.08, 0.92] if map_only else [0.57, 0.91]),
+            yaxis2=dict(
+                domain=[0.0, 0.001] if map_only else [0.08, 0.42],
+                visible=not map_only,
+            ),
+            xaxis=dict(
+                showticklabels=map_only,
+                title=dict(text="Axial position (m)" if map_only else None),
+            ),
+            xaxis2=dict(
+                visible=not map_only,
+                title=dict(text="Axial position (m)"),
+            ),
+        )
+        return fig
+
+    def plot_separate(
+        self,
+        mode_shape_background_opacity=0.20,
+    ):
+        """Return the sensor map and all lateral mode shapes separately.
+
+        Parameters
+        ----------
+        mode_shape_background_opacity : float, optional
+            Opacity of the compatibility regions behind each mode shape. Must lie
+            in ``[0, 1]``. Default is ``0.20``.
+
+        Returns
+        -------
+        dict
+            Dictionary with ``"sensor_map"`` containing one Plotly figure and
+            ``"mode_shapes"`` containing a dictionary that maps each original
+            zero-based modal index to its Plotly figure.
+        """
+        return {
+            "sensor_map": self.plot_sensor_position_map(),
+            "mode_shapes": {
+                int(mode): self.plot_mode_shape(
+                    int(mode),
+                    show_compatibility=True,
+                    background_opacity=mode_shape_background_opacity,
+                )
+                for mode in self.mode_indices
+            },
+        }
+
+    def plot(
+        self,
+        combined=True,
+        initial_mode=None,
+        mode_shape_background_opacity=0.20,
+        unselected_mode_opacity=0.68,
+        show_non_collocation_span=True,
+        show_low_participation_warnings=True,
+    ):
+        """Return the requested visualization.
+
+        This is the main user-facing plotting method. By default, it returns
+        the interactive combined figure. When ``combined=False``, the sensor
+        map and all retained lateral mode shapes are generated as separate
+        figures, displayed automatically, and also returned in a dictionary.
+
+        Parameters
+        ----------
+        combined : bool, optional
+            If ``True``, return the interactive combined figure. If
+            ``False``, generate the separate-figure dictionary produced by
+            :meth:`plot_separate`, display all of its figures, and return
+            that dictionary. Default is ``True``.
+        initial_mode : int or None, optional
+            Original zero-based modal index initially displayed in the
+            combined figure. If ``None``, the combined figure opens in the
+            map-only state. Ignored when ``combined=False``.
+        mode_shape_background_opacity : float, optional
+            Opacity of the compatibility colors behind the mode shape.
+            Must lie in ``[0, 1]``. Default is ``0.20``.
+        unselected_mode_opacity : float, optional
+            Strength of the translucent overlay applied to unselected modal
+            rows in the combined figure. Must lie in ``[0, 1]``.
+        show_non_collocation_span : bool, optional
+            If ``True``, highlight the current sensor-actuator interval in
+            the combined map.
+        show_low_participation_warnings : bool, optional
+            If ``True``, mark modes with low actuator participation in the
+            combined map.
+
+        Returns
+        -------
+        plotly.graph_objects.Figure or dict
+            Interactive combined figure when ``combined=True``; otherwise
+            a dictionary containing the separate sensor map and mode-shape
+            figures.
+
+        Raises
+        ------
+        TypeError
+            If ``combined`` is not boolean.
+        ValueError
+            If a requested mode is unavailable or an opacity parameter lies
+            outside ``[0, 1]``.
+        """
+        if not isinstance(combined, (bool, np.bool_)):
+            raise TypeError("combined must be a boolean.")
+
+        if combined:
+            return self.plot_combined(
+                initial_mode=initial_mode,
+                mode_shape_background_opacity=(mode_shape_background_opacity),
+                unselected_mode_opacity=unselected_mode_opacity,
+                show_non_collocation_span=(show_non_collocation_span),
+                show_low_participation_warnings=(show_low_participation_warnings),
+            )
+
+        figures = self.plot_separate(
+            mode_shape_background_opacity=(mode_shape_background_opacity),
+        )
+
+        figures["sensor_map"].show()
+
+        for fig in figures["mode_shapes"].values():
+            fig.show()
+
+        return figures

@@ -206,8 +206,10 @@ def test_gyroscopic_matrix_tim(tim):
 
 def test_from_table():
     for shaft_file in [
-        os.path.dirname(os.path.realpath(__file__)) + "/data/shaft_us.xls",
-        os.path.dirname(os.path.realpath(__file__)) + "/data/shaft_si.xls",
+        os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+        + "/data/shaft_us.xls",
+        os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+        + "/data/shaft_si.xls",
     ]:
         shaft = ShaftElement.from_table(
             shaft_file, sheet_type="Model", sheet_name="Model"

@@ -1,3 +1,5 @@
+from functools import partial
+
 import numpy as np
 from scipy.optimize import curve_fit
 from warnings import warn
@@ -20,10 +22,13 @@ class HolePatternSolver:
 
     This class owns the mutable per-run state of the bulk-flow solution (base
     state arrays, perturbation integrals) and computes the leakage and dynamic
-    coefficients for one shaft speed at a time. The :class:`HolePatternSeal`
-    element builds one solver at construction and maps it over the requested
-    frequencies; the solver holds only plain data, so it can be pickled to
-    worker processes for multi-frequency runs.
+    coefficients for one rotor speed at a time. The base state depends on the
+    rotor speed, while the perturbation analysis that yields the dynamic
+    coefficients depends on the whirl (excitation) frequency, so one base
+    state can be reused for several whirl frequencies. The
+    :class:`HolePatternSeal` element builds one solver at construction and
+    maps it over the requested speeds; the solver holds only plain data, so it
+    can be pickled to worker processes for multi-speed runs.
 
     Parameters
     ----------
@@ -122,16 +127,78 @@ class HolePatternSolver:
         self.sgn_t = np.array([-1.0, 1.0, -1.0, 1.0])
         self.sgn_th = np.array([-1.0, -1.0, 1.0, 1.0])
 
-    def solve(self, frequency):
-        """Solve the seal at one shaft speed (rad/s).
+    FAILED_COEFFICIENTS = (
+        "kxx",
+        "kyy",
+        "kxy",
+        "kyx",
+        "cxx",
+        "cyy",
+        "cxy",
+        "cyx",
+        "mxx",
+        "myy",
+        "mxy",
+        "myx",
+        "seal_leakage",
+    )
+
+    def solve(self, speed, frequency=None):
+        """Solve the seal at one rotor speed and whirl frequency (rad/s).
+
+        The base state is solved for the rotor ``speed`` and the perturbation
+        analysis for the whirl ``frequency``, which defaults to
+        ``excitation_ratio * speed``.
 
         Returns a dict with the dynamic coefficients, the leakage and the
         axial pressure distribution. If the solve fails, the coefficients are
         returned as NaN and a warning explains the failure.
         """
+        if frequency is None:
+            frequency = speed * self.excitation_ratio
+        try:
+            base_state_results = self._solve_base(speed)
+            return self._solve_whirl(base_state_results, frequency)
+        except Exception as e:
+            return self._failed_result(speed, frequency, e)
+
+    def solve_row(self, speed, frequencies):
+        """Solve one rotor speed at several whirl frequencies (rad/s).
+
+        The base state is solved once and the perturbation analysis is run
+        for each whirl frequency. Returns one result dict per frequency.
+        """
+        try:
+            base_state_results = self._solve_base(speed)
+        except Exception as e:
+            return [self._failed_result(speed, f, e) for f in frequencies]
+
+        results = []
+        for frequency in frequencies:
+            try:
+                results.append(self._solve_whirl(base_state_results, frequency))
+            except Exception as e:
+                results.append(self._failed_result(speed, frequency, e))
+        return results
+
+    def solve_grid(self, speeds, frequencies, parallel_threshold=2):
+        """Solve a (speed, whirl frequency) grid.
+
+        Returns a nested list ``rows[i][j]`` with the result dict of
+        ``speeds[i]`` and ``frequencies[j]``. Speeds are solved in parallel
+        when there are more than ``parallel_threshold`` of them.
+        """
+        return solve_frequencies(
+            partial(self.solve_row, frequencies=frequencies),
+            speeds,
+            parallel_threshold=parallel_threshold,
+        )
+
+    def _solve_base(self, speed):
+        """Solve the base (equilibrium) state for one rotor speed."""
         self.gamma1 = self.gamma - 1.0
         self.gamma12 = self.gamma1 / 2.0
-        self.omega = frequency
+        self.omega = speed
         self.area = np.pi * 2.0 * self._shaft_radius * self.radial_clearance
 
         self._gamma_R = self.gamma * self.R
@@ -139,60 +206,48 @@ class HolePatternSolver:
         self._rough_factor = MOODY_ROUGHNESS_SCALE * self.relative_roughness
         self._mu_factor = MOODY_VISCOSITY_SCALE
 
-        try:
-            base_state_results = self._solve_base_state()
-            if not base_state_results:
-                raise RuntimeError("Error calculating leakage.")
+        base_state_results = self._solve_base_state()
+        if not base_state_results:
+            raise RuntimeError("Error calculating leakage.")
+        return base_state_results
 
-            force_coeffs, p_base = self._solve_force_coefficients(base_state_results)
+    def _solve_whirl(self, base_state_results, whirl_frequency):
+        """Run the perturbation analysis at one whirl frequency (rad/s)."""
+        force_coeffs, p_base = self._solve_force_coefficients(
+            base_state_results, whirl_frequency
+        )
 
-            pressure = np.insert(p_base, 0, self.inlet_pressure)
-            pressure = np.insert(pressure, 1, base_state_results.get("p2", 0))
-            pressure = np.append(pressure, base_state_results.get("p5", 0))
+        pressure = np.insert(p_base, 0, self.inlet_pressure)
+        pressure = np.insert(pressure, 1, base_state_results.get("p2", 0))
+        pressure = np.append(pressure, base_state_results.get("p5", 0))
 
-            attribute_coef = {
-                "kxx": force_coeffs.get("K_dir", 0),
-                "kyy": force_coeffs.get("K_dir", 0),
-                "kxy": force_coeffs.get("k_cross", 0),
-                "kyx": -force_coeffs.get("k_cross", 0),
-                "cxx": force_coeffs.get("C_dir", 0),
-                "cyy": force_coeffs.get("C_dir", 0),
-                "cxy": force_coeffs.get("c_cross", 0),
-                "cyx": -force_coeffs.get("c_cross", 0),
-                "mxx": force_coeffs.get("M_dir", 0),
-                "myy": force_coeffs.get("M_dir", 0),
-                "mxy": force_coeffs.get("m_cross", 0),
-                "myx": -force_coeffs.get("m_cross", 0),
-                "seal_leakage": base_state_results.get("mdot", 0),
-                "pressure": pressure,
-            }
-            return attribute_coef
-        except Exception as e:
-            warn(
-                f"Could not calculate the hole-pattern seal at frequency "
-                f"{frequency} rad/s; the coefficients for this frequency are "
-                f"set to NaN. Original error: {e}"
-            )
-            failed = dict.fromkeys(
-                [
-                    "kxx",
-                    "kyy",
-                    "kxy",
-                    "kyx",
-                    "cxx",
-                    "cyy",
-                    "cxy",
-                    "cyx",
-                    "mxx",
-                    "myy",
-                    "mxy",
-                    "myx",
-                    "seal_leakage",
-                ],
-                np.nan,
-            )
-            failed["pressure"] = np.full(self.nz + 4, np.nan)
-            return failed
+        return {
+            "kxx": force_coeffs.get("K_dir", 0),
+            "kyy": force_coeffs.get("K_dir", 0),
+            "kxy": force_coeffs.get("k_cross", 0),
+            "kyx": -force_coeffs.get("k_cross", 0),
+            "cxx": force_coeffs.get("C_dir", 0),
+            "cyy": force_coeffs.get("C_dir", 0),
+            "cxy": force_coeffs.get("c_cross", 0),
+            "cyx": -force_coeffs.get("c_cross", 0),
+            "mxx": force_coeffs.get("M_dir", 0),
+            "myy": force_coeffs.get("M_dir", 0),
+            "mxy": force_coeffs.get("m_cross", 0),
+            "myx": -force_coeffs.get("m_cross", 0),
+            "seal_leakage": base_state_results.get("mdot", 0),
+            "pressure": pressure,
+        }
+
+    def _failed_result(self, speed, frequency, error):
+        """Warn about a failed solve and return NaN coefficients."""
+        warn(
+            f"Could not calculate the hole-pattern seal at speed {speed} rad/s "
+            f"and whirl frequency {frequency} rad/s; the coefficients for this "
+            f"point are set to NaN. Original error: {error}"
+        )
+        failed = dict.fromkeys(self.FAILED_COEFFICIENTS, np.nan)
+        failed["pressure"] = np.full(self.nz + 4, np.nan)
+        return failed
 
     def _inlet_loss(self, p2):
         if p2 >= self.inlet_pressure:
@@ -937,7 +992,7 @@ class HolePatternSolver:
         ) * self.dz
         return fx_sin, fx_cos, fy_sin, fy_cos
 
-    def _solve_force_coefficients(self, base_state_results):
+    def _solve_force_coefficients(self, base_state_results, whirl_frequency):
         """Extract stiffness, damping and mass coefficients.
 
         A static perturbation (zero whirl frequency) gives the stiffness; a
@@ -966,7 +1021,6 @@ class HolePatternSolver:
         )
         K_dir, k_cross = -fx_cos, fy_cos
 
-        whirl_frequency = self.omega * self.excitation_ratio
         if abs(whirl_frequency) < 1e-9:
             force_coefficients = {
                 "K_dir": K_dir,
@@ -1064,9 +1118,16 @@ class HolePatternSeal(SealElement):
         Outlet pressure (Pa).
     inlet_temperature : float
         Inlet temperature (deg K).
-    frequency : list, pint.Quantity
-        Shaft rotational speeds (rad/s). The coefficients are evaluated at
-        the whirl frequency ``excitation_ratio * frequency``.
+    speed : list, pint.Quantity
+        Shaft rotational speeds (rad/s). The base state is solved for each
+        speed and, unless ``frequency`` is given, the coefficients are
+        evaluated at the whirl frequency ``excitation_ratio * speed``.
+    frequency : array, pint.Quantity, optional
+        Whirl (excitation) frequencies (rad/s). When given, the perturbation
+        analysis runs at every (speed, frequency) pair and the element carries
+        a 2-D coefficient table of shape ``(len(speed), len(frequency))``
+        interpolated on both axes; ``excitation_ratio`` is ignored.
+        Default is None (1-D table over the speed axis).
     gas_composition : dict, optional
         Gas composition as a dictionary {component: molar_fraction}.
     molar_mass : float, pint.Quantity, optional
@@ -1139,7 +1200,7 @@ class HolePatternSeal(SealElement):
     ...     inlet_pressure=689000.0,
     ...     outlet_pressure=94300.0,
     ...     inlet_temperature=322.0,
-    ...     frequency=Q_([8000], "RPM"),
+    ...     speed=Q_([8000], "RPM"),
     ...     gas_composition={"Nitrogen": 0.79, "Oxygen": 0.21},
     ...     preswirl=0.8,
     ...     entrance_loss_coefficient=0.5,
@@ -1164,7 +1225,8 @@ class HolePatternSeal(SealElement):
         inlet_pressure,
         outlet_pressure,
         inlet_temperature,
-        frequency,
+        speed,
+        frequency=None,
         gas_composition=None,
         molar_mass=None,
         gamma=None,
@@ -1193,7 +1255,6 @@ class HolePatternSeal(SealElement):
         self.inlet_pressure = inlet_pressure
         self.outlet_pressure = outlet_pressure
         self.inlet_temperature = inlet_temperature
-        self.frequency = frequency
         self.gas_composition = gas_composition
         self.preswirl = preswirl
         self.entrance_loss_coefficient = entrance_loss_coefficient
@@ -1277,20 +1338,34 @@ class HolePatternSeal(SealElement):
 
         coefficients_dict = {}
         if kwargs.get("kxx") is None:
-            results = solve_frequencies(
-                self.solver.solve, frequency, parallel_threshold=2
-            )
+            speed = np.atleast_1d(np.asarray(speed, dtype=float))
+            if frequency is None:
+                results = solve_frequencies(
+                    self.solver.solve, speed, parallel_threshold=2
+                )
+                rows = [[r] for r in results]
+            else:
+                frequency = np.atleast_1d(np.asarray(frequency, dtype=float))
+                rows = self.solver.solve_grid(speed, frequency, parallel_threshold=2)
 
-            self.p = [r["pressure"] for r in results]
+            coefficient_names = [
+                c for c in rows[0][0] if c not in ("pressure", "seal_leakage")
+            ]
+            if frequency is None:
+                coefficients_dict = {
+                    c: [row[0][c] for row in rows] for c in coefficient_names
+                }
+            else:
+                coefficients_dict = {
+                    c: [[r[c] for r in row] for row in rows] for c in coefficient_names
+                }
 
-            coefficients_dict = {
-                c: [k[c] for k in results]
-                for c in results[0].keys()
-                if c not in ["pressure"]
-            }
+            self.p = [row[0]["pressure"] for row in rows]
+            coefficients_dict["seal_leakage"] = [row[0]["seal_leakage"] for row in rows]
 
         super().__init__(
             self.n,
+            speed=speed,
             frequency=frequency,
             **coefficients_dict,
             **kwargs,

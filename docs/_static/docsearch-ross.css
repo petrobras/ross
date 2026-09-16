@@ -112,3 +112,9 @@ html[data-theme="dark"] {
   font-family: var(--font-mono);
   font-size: var(--fs-micro);
 }
+
+/* Sidebar search button rendered by DocSearch in place of the book-theme field */
+.bd-sidebar-primary .DocSearch-Button {
+  width: 100%;
+  margin: 0;
+}

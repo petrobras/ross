@@ -660,7 +660,7 @@ class DiskElement(Element):
         Examples
         --------
         >>> import os
-        >>> file_path = os.path.dirname(os.path.realpath(__file__)) + '/tests/data/shaft_si.xls'
+        >>> file_path = os.path.dirname(os.path.realpath(__file__)) + '/data/shaft_si.xls'
         >>> list_of_disks = DiskElement.from_table(file_path, sheet_name="More")
         >>> list_of_disks[0]
         DiskElement(Id=0.0, Ip=0.0, m=15.12, color='Firebrick', n=3, scale_factor=1, tag=None)

@@ -1,9 +1,11 @@
 import pickle
+import warnings
 from pathlib import Path
 from tempfile import tempdir
 
 import numpy as np
 import pytest
+from scipy import linalg as la
 from scipy.signal import find_peaks
 from numpy.testing import assert_allclose, assert_almost_equal, assert_equal
 
@@ -17,6 +19,7 @@ from ross.rotor_assembly import *
 from ross.rotor_assembly import _shaft_envelope
 from ross.shaft_element import *
 from ross.units import Q_
+from ross.utils import convert_6dof_to_4dof, convert_6dof_to_torsional
 from ross.results import AmbTimeResponseResults
 
 
@@ -728,18 +731,18 @@ def test_freq_response_w_force(rotor4):
     assert_allclose(mag[0:2, :], mag_exp[0:2, :])
     assert_allclose(mag[3:5, :], mag_exp[2:4, :])
 
-    freq_resp = rotor4.run_unbalance_response(2, 0.001, 0, frequency=omega)
+    freq_resp = rotor4.run_unbalance_response(2, 0.001, 0, speed_range=omega)
     mag = abs(freq_resp.forced_resp)
     assert_allclose(mag[0:2, :], mag_exp[0:2, :])
     assert_allclose(mag[3:5, :], mag_exp[2:4, :])
 
-    freq_resp = rotor4.run_unbalance_response(2, 0.001, 0, frequency=omega)
+    freq_resp = rotor4.run_unbalance_response(2, 0.001, 0, speed_range=omega)
     mag = abs(freq_resp.forced_resp)
     assert_allclose(mag[0:2, :], mag_exp[0:2, :])
     assert_allclose(mag[3:5, :], mag_exp[2:4, :])
 
     freq_resp = rotor4.run_unbalance_response(
-        [2, 3], [0.001, 0.001], [0.0, 0], frequency=omega
+        [2, 3], [0.001, 0.001], [0.0, 0], speed_range=omega
     )
     mag = abs(freq_resp.forced_resp)
     assert_allclose(mag[0:2, :], mag_exp_2_unb[0:2, :])
@@ -1619,28 +1622,32 @@ def test_plot_mode(rotor7):
 
 def test_unbalance(rotor3):
     unb = rotor3.run_unbalance_response(
-        node=0, unbalance_magnitude=1, unbalance_phase=0, frequency=[50, 100]
+        node=0, unbalance_magnitude=1, unbalance_phase=0, speed_range=[50, 100]
     )
     amplitude_expected = np.array([0.003158927232913641, 0.004620055491206476])
-    data = unb.data_magnitude(probe=[(0, 45)], probe_units="deg")
-    assert_allclose(data["Probe 1 - Node 0"], amplitude_expected, rtol=1e-4)
     data = unb.data_magnitude(probe=[Probe(0, Q_(45, "deg"), tag="Probe 1 - Node 0")])
     assert_allclose(data["Probe 1 - Node 0"], amplitude_expected, rtol=1e-4)
+    data = unb.data_magnitude(probe=[Probe(0, Q_(45, "deg"))])
+    assert_allclose(data["Probe 1 - Node 0 (45°)"], amplitude_expected, rtol=1e-4)
     phase_expected = np.array([0.9096239298802793, 1.0057118170915373])
-    data = unb.data_phase(probe=[(0, 45)], probe_units="deg")
-    assert_allclose(data["Probe 1 - Node 0"], phase_expected, rtol=1e-4)
     data = unb.data_phase(probe=[Probe(0, Q_(45, "deg"), tag="Probe 1 - Node 0")])
     assert_allclose(data["Probe 1 - Node 0"], phase_expected, rtol=1e-4)
     amplitude_expected = np.array([0.0035259958428500164, 0.005518031001232163])
-    data = unb.data_magnitude(probe=[(0, "major")])
-    assert_allclose(data["Probe 1 - Node 0"], amplitude_expected, rtol=1e-4)
     data = unb.data_magnitude(probe=[Probe(0, "major", tag="Probe 1 - Node 0")])
     assert_allclose(data["Probe 1 - Node 0"], amplitude_expected, rtol=1e-4)
     phase_expected = np.array([1.5707963267948966, 1.5707963267948966])
-    data = unb.data_phase(probe=[(0, "major")], probe_units="deg")
-    assert_allclose(data["Probe 1 - Node 0"], phase_expected, rtol=1e-4)
     data = unb.data_phase(probe=[Probe(0, "major", tag="Probe 1 - Node 0")])
     assert_allclose(data["Probe 1 - Node 0"], phase_expected, rtol=1e-4)
+
+
+def test_tuple_probes_are_rejected(rotor3):
+    unb = rotor3.run_unbalance_response(
+        node=0, unbalance_magnitude=1, unbalance_phase=0, speed_range=[50, 100]
+    )
+    with pytest.raises(TypeError, match="ross_2to3"):
+        unb.data_magnitude(probe=[(0, 45)])
+    with pytest.raises(TypeError, match="Probe"):
+        unb.plot_phase(probe=[Probe(0, 0), (3, 0, "tag")])
 
 
 def test_deflected_shape(rotor7):
@@ -1654,7 +1661,7 @@ def test_deflected_shape(rotor7):
     )
 
     forced = rotor7.run_unbalance_response(
-        node=0, unbalance_magnitude=1, unbalance_phase=0, frequency=[50]
+        node=0, unbalance_magnitude=1, unbalance_phase=0, speed_range=[50]
     )
     fig = forced.plot_deflected_shape_3d(speed=50)
     # check major axis
@@ -1683,8 +1690,9 @@ def test_deflected_shape(rotor7):
             4.39217194e-05,
         ]
     )
-    assert_allclose(fig.data[-4]["x"][:8], expected_x, rtol=1e-4)
-    assert_allclose(fig.data[-4]["y"][:8], expected_y, rtol=1e-4)
+    # the rotor length runs on the scene y axis and rotor x on the scene x axis
+    assert_allclose(fig.data[-4]["y"][:8], expected_x, rtol=1e-4)
+    assert_allclose(fig.data[-4]["x"][:8], expected_y, rtol=1e-4)
     assert_allclose(fig.data[-4]["z"][:8], expected_z, rtol=1e-4)
 
 
@@ -2030,8 +2038,8 @@ def rotor8():
     stfy = [1e7, 1.5e7]
     c = [1e3, 1.5e3]
     frequency = [50, 5000]
-    bearing0 = BearingElement(0, kxx=stfx, kyy=stfy, cxx=c, cyy=c, frequency=frequency)
-    bearing1 = BearingElement(6, kxx=stfx, kyy=stfy, cxx=c, cyy=c, frequency=frequency)
+    bearing0 = BearingElement(0, kxx=stfx, kyy=stfy, cxx=c, cyy=c, speed=frequency)
+    bearing1 = BearingElement(6, kxx=stfx, kyy=stfy, cxx=c, cyy=c, speed=frequency)
 
     return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
 
@@ -2493,6 +2501,18 @@ def test_ucs_rotor9(rotor9):
     assert_allclose(ucs_results.wn, exp_rotor_wn, rtol=1e-6)
 
 
+def test_ucs_bearing_speed_range(rotor8):
+    res = rotor8.run_ucs(bearing_speed_range=(100, 1000), num=5)
+    assert len(res.bearing_speed_range) == 30
+    assert_allclose(res.bearing_speed_range[0], 100)
+    assert_allclose(res.bearing_speed_range[-1], 1000)
+
+    res_units = rotor8.run_ucs(bearing_speed_range=Q_((100, 1000), "rad/s"), num=5)
+    assert len(res_units.bearing_speed_range) == 30
+    assert_allclose(res_units.bearing_speed_range[0], 100)
+    assert_allclose(res_units.bearing_speed_range[-1], 1000)
+
+
 def test_pickle(rotor8):
     rotor8_pickled = pickle.loads(pickle.dumps(rotor8))
     assert rotor8 == rotor8_pickled
@@ -2517,6 +2537,77 @@ def test_save_load_json(rotor8):
     rotor8_loaded = Rotor.load(file)
 
     assert rotor8 == rotor8_loaded
+
+
+def _save_with_version(rotor, version, file):
+    import toml
+
+    rotor.save(file)
+    data = toml.load(file)
+    data["ross_version"] = version
+    with open(file, "w") as f:
+        toml.dump(data, f)
+
+
+def test_load_warns_only_on_major_minor_mismatch(rotor8):
+    import ross
+
+    major, minor = ross.__version__.split(".")[:2]
+    file = Path(tempdir) / "rotor8_version.toml"
+
+    _save_with_version(rotor8, f"{major}.{minor}.99.dev0", file)
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        assert Rotor.load(file) == rotor8
+
+    _save_with_version(rotor8, f"{major}.{int(minor) + 1}.0", file)
+    with pytest.warns(UserWarning, match="File was created with ROSS"):
+        Rotor.load(file)
+
+    _save_with_version(rotor8, f"{int(major) + 1}.{minor}.0", file)
+    with pytest.warns(UserWarning, match="File was created with ROSS"):
+        Rotor.load(file)
+
+
+@pytest.mark.parametrize("suffix", [".toml", ".json"])
+def test_save_load_keeps_proportional_damping(suffix):
+    rotor = rotor_example_with_damping()
+    file = Path(tempdir) / f"rotor_proportional_damping{suffix}"
+    rotor.save(file)
+    loaded = Rotor.load(file)
+
+    assert loaded.alpha == rotor.alpha
+    assert loaded.beta == rotor.beta
+    assert loaded == rotor
+    assert_allclose(loaded.C(0), rotor.C(0))
+    assert_allclose(loaded.run_modal(0).log_dec, rotor.run_modal(0).log_dec)
+
+
+@pytest.mark.parametrize("suffix", [".toml", ".json"])
+def test_save_load_keeps_modal_damping(rotor8, suffix):
+    rotor = Rotor(
+        rotor8.shaft_elements,
+        rotor8.disk_elements,
+        rotor8.bearing_elements,
+        modal_damping_ratio=np.array([0.02, 0.03]),
+        default_damping_ratio=0.01,
+    )
+    file = Path(tempdir) / f"rotor_modal_damping{suffix}"
+    rotor.save(file)
+    loaded = Rotor.load(file)
+
+    assert loaded.modal_damping_ratio == [0.02, 0.03]
+    assert loaded.default_damping_ratio == 0.01
+    assert loaded == rotor
+    assert_allclose(loaded.C(0), rotor.C(0))
+
+
+def test_rotor_equality_sees_damping(rotor8):
+    damped = Rotor(
+        rotor8.shaft_elements, rotor8.disk_elements, rotor8.bearing_elements, beta=1e-5
+    )
+
+    assert damped != rotor8
 
 
 def disk_traces(fig, tag):
@@ -2632,7 +2723,9 @@ def test_plot_rotor_bearing_style_button(rotor8):
     pedestal, _ = button.args2
     assert {fill for fill in classic["fill"] if fill is not None} == {"none"}
     assert {fill for fill in pedestal["fill"] if fill is not None} == {"toself"}
-    for fill, index, y_classic in zip(classic["fill"], indices, classic["y"]):
+    for fill, index, y_classic in zip(
+        classic["fill"], indices, classic["y"], strict=True
+    ):
         if fill is None:
             continue
         drawn = [y for y in fig.data[index]["y"] if y is not None]
@@ -2645,7 +2738,7 @@ def test_plot_rotor_bearing_style_button(rotor8):
     button = toggle_button(fig, "Bearings: classic")
     (menu,) = [m for m in fig.layout.updatemenus if m.buttons[0] == button]
     assert menu.active == 0
-    for index, x_classic in zip(button.args[1], button.args[0]["x"]):
+    for index, x_classic in zip(button.args[1], button.args[0]["x"], strict=True):
         assert_allclose(
             [x for x in fig.data[index]["x"] if x is not None],
             [x for x in x_classic if x is not None],
@@ -2682,6 +2775,10 @@ def test_plot_rotor_axes_indicator(rotor8):
     fig = rotor8.plot_rotor(show_axes_indicator=True)
     assert all(shape.visible for shape in fig.layout.shapes)
     assert fig.layout.height == height
+    # the plot shows the z-y plane, so x points into the page: a crossed circle
+    assert [shape.type for shape in fig.layout.shapes].count("line") == 2
+    labels = {a.text for a in fig.layout.annotations if a.text}
+    assert {"<i>x</i>", "<i>y</i>", "<i>z</i>", "<i>ω</i>"} <= labels
     (menu,) = [m for m in fig.layout.updatemenus if m.buttons[0].label == "Show axes"]
     assert menu.active == 0
 
@@ -3056,3 +3153,175 @@ def test_rotor_it(rotor1, rotor3, rotor3a, rotor3b, rotor3c):
         + 51.5252611115262 * (1.0 - rotor3.CG) ** 2
     )
     assert rotor3.It == pytest.approx(It3, rel=tol)
+
+
+@pytest.fixture
+def rotor_2d_seal():
+    steel = Material(name="steel", rho=7810, E=211e9, G_s=81.2e9)
+    shaft = [ShaftElement(0.25, 0, 0.05, material=steel) for _ in range(6)]
+    disks = [
+        DiskElement.from_geometry(n=2, material=steel, width=0.07, i_d=0.05, o_d=0.28),
+        DiskElement.from_geometry(n=4, material=steel, width=0.07, i_d=0.05, o_d=0.35),
+    ]
+    bearings = [
+        BearingElement(0, kxx=1e6, cxx=100),
+        BearingElement(6, kxx=1e6, cxx=100),
+    ]
+    speed = np.array([100.0, 200.0, 300.0])
+    frequency = np.array([50.0, 150.0, 250.0])
+    kxy = np.outer(speed, np.ones(3)) * 1e2 + np.outer(np.ones(3), frequency) * 1e3
+    seal = SealElement(
+        3,
+        kxx=1e4,
+        cxx=10.0,
+        kxy=kxy,
+        kyx=-kxy,
+        speed=speed,
+        frequency=frequency,
+    )
+    return Rotor(shaft, disks, bearings + [seal])
+
+
+def test_rotor_matrices_decoupled_speed(rotor_2d_seal):
+    rotor = rotor_2d_seal
+    seal = [b for b in rotor.bearing_elements if isinstance(b, SealElement)][0]
+    dofs = list(seal.dof_global_index.values())
+
+    K_sync = rotor.K(150.0)
+    assert_allclose(K_sync, rotor.K(150.0, 150.0))
+    assert_allclose(K_sync[dofs[0], dofs[1]], 150.0 * 1e2 + 150.0 * 1e3)
+
+    K_async = rotor.K(frequency=50.0, speed=300.0)
+    assert_allclose(K_async[dofs[0], dofs[1]], 300.0 * 1e2 + 50.0 * 1e3)
+
+    # the state space matrix evaluates the coefficients at (frequency, speed)
+    A = rotor.A(speed=300.0, frequency=50.0)
+    M = rotor.M(50.0, 300.0)
+    assert_allclose(A[rotor.ndof :, : rotor.ndof], la.solve(-M, K_async))
+
+    # a single value keeps the synchronous behavior of A
+    assert_allclose(rotor.A(speed=150.0), rotor.A(speed=150.0, frequency=150.0))
+
+
+def test_transfer_matrix_decoupled_speed(rotor_2d_seal):
+    rotor = rotor_2d_seal
+    speed, frequency = 300.0, 50.0
+    H = rotor.transfer_matrix(speed=speed, frequency=frequency)
+    dynamic_stiffness = (
+        -(frequency**2) * rotor.M(frequency, speed)
+        + 1j * frequency * (rotor.C(frequency, speed) + speed * rotor.G())
+        + rotor.K(frequency, speed)
+    )
+    assert_allclose(H @ dynamic_stiffness, np.eye(rotor.ndof), atol=1e-8)
+
+
+def test_reduced_dof_matrices_accept_speed(rotor_2d_seal):
+    rotor_4dof = convert_6dof_to_4dof(rotor_2d_seal)
+    assert rotor_4dof.K(50.0, 300.0).shape == (rotor_4dof.ndof, rotor_4dof.ndof)
+    assert_allclose(
+        rotor_4dof.M(50.0, 300.0), rotor_4dof.M(frequency=50.0, speed=300.0)
+    )
+    rotor_t = convert_6dof_to_torsional(rotor_2d_seal)
+    assert rotor_t.C(50.0, 300.0).shape == (rotor_t.ndof, rotor_t.ndof)
+
+
+def test_run_modal_fixed_frequency_matches_synchronous(rotor_2d_seal):
+    rotor = rotor_2d_seal
+    speed = 200.0
+    modal_sync = rotor.run_modal(speed, num_modes=8)
+    modal_fixed = rotor.run_modal(speed, num_modes=8, frequency=speed)
+    assert_allclose(modal_fixed.evalues, modal_sync.evalues)
+    assert_allclose(modal_sync.whirl_frequency, speed)
+    assert_allclose(modal_fixed.whirl_frequency, speed)
+
+    modal_other = rotor.run_modal(speed, num_modes=8, frequency=50.0)
+    assert_allclose(modal_other.whirl_frequency, 50.0)
+    assert not np.allclose(modal_other.evalues[:4], modal_sync.evalues[:4])
+
+    with pytest.raises(ValueError, match="mutually exclusive"):
+        rotor.run_modal(speed, frequency=50.0, matched_whirl=True)
+
+
+def test_run_modal_matched_whirl(rotor_2d_seal):
+    rotor = rotor_2d_seal
+    speed = 200.0
+    modal = rotor.run_modal(speed, num_modes=8, matched_whirl=True)
+
+    assert modal.whirl_frequency.shape == modal.wd.shape
+    assert_allclose(modal.whirl_frequency, modal.wd, rtol=1e-3)
+
+    # each converged mode is an eigenpair of the problem evaluated at its own
+    # whirl frequency (within the fixed-point tolerance)
+    for i in range(4):
+        modal_i = rotor.run_modal(
+            speed, num_modes=8, frequency=modal.whirl_frequency[i]
+        )
+        assert np.min(np.abs(modal_i.evalues - modal.evalues[i])) < 2e-3 * abs(
+            modal.evalues[i]
+        )
+
+    # hand-rolled fixed point on the first mode
+    whirl = rotor.run_modal(speed, num_modes=8).wd[0]
+    for _ in range(20):
+        new_whirl = rotor.run_modal(speed, num_modes=8, frequency=whirl).wd[0]
+        if abs(new_whirl - whirl) <= 1e-3 * whirl:
+            break
+        whirl = new_whirl
+    assert_allclose(modal.whirl_frequency[0], new_whirl, rtol=1e-3)
+
+
+def test_run_modal_matched_whirl_constant_coefficients():
+    rotor = rotor_example()
+    modal_sync = rotor.run_modal(300.0, num_modes=8)
+    modal_matched = rotor.run_modal(300.0, num_modes=8, matched_whirl=True)
+    assert_allclose(modal_matched.evalues, modal_sync.evalues[:4])
+    assert_allclose(modal_matched.wd, modal_sync.wd)
+    assert_allclose(modal_matched.log_dec, modal_sync.log_dec)
+    assert_allclose(modal_matched.whirl_frequency, modal_sync.wd)
+
+
+def test_run_campbell_matched_whirl(rotor_2d_seal):
+    rotor = rotor_2d_seal
+    speed_range = np.array([100.0, 200.0, 300.0])
+    campbell = rotor.run_campbell(speed_range, frequencies=4, matched_whirl=True)
+    for w in speed_range:
+        modal = campbell.modal_results[w]
+        assert_allclose(modal.whirl_frequency, modal.wd, rtol=1e-3)
+    modal_from_closure = campbell.run_modal(200.0)
+    assert_allclose(
+        modal_from_closure.whirl_frequency, modal_from_closure.wd, rtol=1e-3
+    )
+
+    campbell_sync = rotor.run_campbell(speed_range, frequencies=4)
+    assert_allclose(campbell_sync.modal_results[200.0].whirl_frequency, 200.0)
+
+
+def test_freq_response_fixed_speed(rotor_2d_seal):
+    rotor = rotor_2d_seal
+    speed = 250.0
+    frequencies = np.array([50.0, 120.0, 300.0])
+    response = rotor.run_freq_response(speed_range=frequencies, speed=speed)
+    for i, frequency in enumerate(frequencies):
+        expected = rotor.transfer_matrix(speed=speed, frequency=frequency)
+        assert_allclose(response.freq_resp[..., i], expected)
+        assert_allclose(response.velc_resp[..., i], 1j * frequency * expected)
+
+    synchronous = rotor.run_freq_response(speed_range=frequencies)
+    assert_allclose(synchronous.freq_resp[..., 1], rotor.transfer_matrix(speed=120.0))
+    assert not np.allclose(response.freq_resp[..., 0], synchronous.freq_resp[..., 0])
+
+
+def test_forced_response_fixed_speed(rotor_2d_seal):
+    rotor = rotor_2d_seal
+    speed = 250.0
+    frequencies = np.array([50.0, 120.0, 300.0])
+    force = np.zeros((rotor.ndof, len(frequencies)), dtype=complex)
+    force[rotor.number_dof * 3, :] = 10.0
+    response = rotor.run_forced_response(
+        force=force, speed_range=frequencies, speed=speed
+    )
+    freq_resp = rotor.run_freq_response(speed_range=frequencies, speed=speed)
+    for i in range(len(frequencies)):
+        assert_allclose(
+            response.forced_resp[:, i], freq_resp.freq_resp[..., i] @ force[:, i]
+        )

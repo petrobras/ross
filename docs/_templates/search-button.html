@@ -1,0 +1,12 @@
+{#- Header search icon. With Algolia DocSearch active it opens the DocSearch
+    modal; otherwise the theme's own button, which opens the built-in Sphinx
+    search. -#}
+{%- if docsearch_app_id %}
+<button class="btn btn-sm pst-navbar-icon docsearch-open-button"
+        title="{{ _('Search') }}" aria-label="{{ _('Search') }}"
+        onclick="document.querySelector('.DocSearch-Button')?.click()">
+  <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button>
+{%- else %}
+{% include "!components/search-button.html" %}
+{%- endif %}

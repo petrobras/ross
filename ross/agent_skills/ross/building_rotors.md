@@ -1,6 +1,6 @@
 # Building a Rotor from Scratch
 
-Source: `docs/user_guide/tutorial_part_1_1.ipynb`
+Source: `docs/user_guide/tutorial_modeling_part_1.ipynb`, `docs/user_guide/tutorial_modeling_part_2.ipynb`
 
 ## Material
 
@@ -37,6 +37,8 @@ node:  0    1    2    3    4    5    6
        |====|====|====|====|====|====|
 shaft:    0    1    2    3    4    5
 ```
+
+
 
 ## Disk Elements
 
@@ -89,3 +91,4 @@ DOF ordering per node: `[x, y, z, alpha, beta, theta]` — 0=x (horizontal), 1=y
 rotor.save("my_rotor.toml")
 rotor = rs.Rotor.load("my_rotor.toml")
 ```
+

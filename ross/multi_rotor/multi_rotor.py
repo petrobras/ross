@@ -174,7 +174,7 @@ class MultiRotor(Rotor):
         position="above",
         tag=None,
     ):
-        self.rotors = {"driving": driving_rotor, "driven": driven_rotor}
+        self.rotors = {"driving": copy(driving_rotor), "driven": copy(driven_rotor)}
 
         R1 = copy(driving_rotor)
         R2 = copy(driven_rotor)
@@ -215,10 +215,9 @@ class MultiRotor(Rotor):
             d_node = R1_max_node + 1
             for elm in R2.elements:
                 elm.n += d_node
-                try:
+
+                if getattr(elm, "n_link", None) is not None:
                     elm.n_link += d_node
-                except:
-                    pass
 
                 elm.tag = None
 
@@ -293,6 +292,77 @@ class MultiRotor(Rotor):
         new_nodes_pos_2 = [pos - self.dz_pos for pos in new_nodes_pos]
         driven_rotor = self.rotors["driven"].add_nodes(new_nodes_pos_2)
 
+        return self._rebuild(driving_rotor, driven_rotor)
+
+    def add_elements(self, new_elements):
+        """Add elements to the multi-rotor.
+
+        Elements are routed to the driving or driven rotor according to
+        their node number in the multi-rotor numbering.
+
+        Parameters
+        ----------
+        new_elements : list
+            List with the new elements.
+
+        Returns
+        -------
+        multi_rotor : MultiRotor
+            The multi-rotor object with the new elements added.
+
+        Examples
+        --------
+        >>> import ross as rs
+        >>> multi_rotor = two_shaft_rotor_example()
+        >>> n_elm = len(multi_rotor.elements)
+        >>> disk = rs.DiskElement(n=2, m=10, Id=0.1, Ip=0.2)
+        >>> new_rotor = multi_rotor.add_elements([disk])
+        >>> len(new_rotor.elements) == n_elm + 1
+        True
+        """
+        d_node = int(self.driven_nodes[0] - self.rotors["driven"].nodes[0])
+
+        driving_nodes = set(self.rotors["driving"].nodes) | set(
+            self.rotors["driving"].link_nodes
+        )
+        driven_nodes = set(self.driven_nodes) | {
+            int(n) + d_node for n in self.rotors["driven"].link_nodes
+        }
+
+        driving_elements = []
+        driven_elements = []
+
+        for el in new_elements:
+            el = copy(el)
+            if el.n is None:
+                raise ValueError(
+                    "Element node `n` must be set when adding to a MultiRotor."
+                )
+
+            if el.n in driven_nodes:
+                el.n -= d_node
+                if getattr(el, "n_link", None) is not None:
+                    el.n_link -= d_node
+                if not isinstance(el, rs.ShaftElement):
+                    if hasattr(el, "n_l"):
+                        el.n_l = el.n
+                    if hasattr(el, "n_r"):
+                        el.n_r = el.n
+                driven_elements.append(el)
+            elif el.n in driving_nodes:
+                driving_elements.append(el)
+            else:
+                raise ValueError(
+                    f"Node {el.n} does not belong to the driving or driven rotor."
+                )
+
+        driving_rotor = self.rotors["driving"].add_elements(driving_elements)
+        driven_rotor = self.rotors["driven"].add_elements(driven_elements)
+
+        return self._rebuild(driving_rotor, driven_rotor)
+
+    def _rebuild(self, driving_rotor, driven_rotor):
+        """Rebuild the multi-rotor from updated driving and driven rotors."""
         gear_1 = self._get_coupled_gear(driving_rotor)
         gear_2 = self._get_coupled_gear(driven_rotor)
 
@@ -722,13 +792,19 @@ class MultiRotor(Rotor):
 
         return K0
 
-    def K(self, frequency):
+    def K(self, frequency, speed=None):
         """Stiffness matrix for a multi-rotor.
+
+        The excitation frequency is global to the coupled system, while the
+        driven rotor speed is scaled by the gear ratio.
 
         Parameters
         ----------
-        frequency : float, optional
-            Excitation frequency.
+        frequency : float
+            Excitation (whirl) frequency.
+        speed : float, optional
+            Driving rotor speed. Default is the excitation frequency
+            (synchronous evaluation).
 
         Returns
         -------
@@ -745,10 +821,13 @@ class MultiRotor(Rotor):
                [ 0.        , -0.23712736,  0.        ,  0.09416119]])
         """
 
+        if speed is None:
+            speed = frequency
+
         return self.add_coupling_stiffness(
             self._join_matrices(
-                self.rotors["driving"].K(frequency),
-                self.rotors["driven"].K(frequency * self.mesh.gear_ratio),
+                self.rotors["driving"].K(frequency, speed),
+                self.rotors["driven"].K(frequency, speed * self.mesh.gear_ratio),
             )
         )
 
@@ -783,13 +862,22 @@ class MultiRotor(Rotor):
             -self.mesh.gear_ratio * self.rotors["driven"].Ksdt(),
         )
 
-    def M(self, frequency=None, synchronous=False):
+    def M(self, frequency=None, speed=None, synchronous=False):
         """Mass matrix for a multi-rotor.
+
+        The excitation frequency is global to the coupled system, while the
+        driven rotor speed is scaled by the gear ratio.
 
         Parameters
         ----------
+        frequency : float, optional
+            Excitation (whirl) frequency. Default is 0.
+        speed : float, optional
+            Driving rotor speed. Default is the excitation frequency
+            (synchronous evaluation).
         synchronous : bool, optional
-            If True a synchronous analysis is carried out.
+            If True the gyroscopic matrix is folded into the mass matrix
+            (Rouch's formulation for a synchronous analysis).
             Default is False.
 
         Returns
@@ -808,23 +896,30 @@ class MultiRotor(Rotor):
         """
 
         if frequency is None:
-            return self._join_matrices(
-                self.rotors["driving"].M(synchronous=synchronous),
-                self.rotors["driven"].M(synchronous=synchronous),
-            )
-        else:
-            return self._join_matrices(
-                self.rotors["driving"].M(frequency, synchronous),
-                self.rotors["driven"].M(frequency * self.mesh.gear_ratio, synchronous),
-            )
+            frequency = 0
+        if speed is None:
+            speed = frequency
 
-    def C(self, frequency):
+        return self._join_matrices(
+            self.rotors["driving"].M(frequency, speed, synchronous),
+            self.rotors["driven"].M(
+                frequency, speed * self.mesh.gear_ratio, synchronous
+            ),
+        )
+
+    def C(self, frequency, speed=None):
         """Damping matrix for a multi-rotor rotor.
+
+        The excitation frequency is global to the coupled system, while the
+        driven rotor speed is scaled by the gear ratio.
 
         Parameters
         ----------
         frequency : float
-            Excitation frequency.
+            Excitation (whirl) frequency.
+        speed : float, optional
+            Driving rotor speed. Default is the excitation frequency
+            (synchronous evaluation).
 
         Returns
         -------
@@ -841,9 +936,12 @@ class MultiRotor(Rotor):
                [ 0., -0.,  0.,  0.]])
         """
 
+        if speed is None:
+            speed = frequency
+
         return self._join_matrices(
-            self.rotors["driving"].C(frequency),
-            self.rotors["driven"].C(frequency * self.mesh.gear_ratio),
+            self.rotors["driving"].C(frequency, speed),
+            self.rotors["driven"].C(frequency, speed * self.mesh.gear_ratio),
         )
 
     def G(self):
