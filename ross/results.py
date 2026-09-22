@@ -6083,7 +6083,7 @@ class TimeResponseResults(Results):
                     y=[x_response[-1]],
                     z=[y_response[-1]],
                     mode="markers",
-                    marker=dict(symbol="x", size=3, color="black"),
+                    marker=dict(symbol="x", size=1, color="black"),
                     name="Final point",
                     showlegend=False,
                 )

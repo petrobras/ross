@@ -466,7 +466,7 @@ def test_time_response_plots_use_time_window(time_response, probe_node3):
     assert fig_3d.data[1].marker.symbol == "circle"
     assert fig_3d.data[2].marker.symbol == "x"
     assert fig_3d.data[1].marker.size == 2
-    assert fig_3d.data[2].marker.size == 3
+    assert fig_3d.data[2].marker.size == 1
 
     assert_allclose(time_response.t, original_t)
     assert_allclose(time_response.yout, original_yout)
