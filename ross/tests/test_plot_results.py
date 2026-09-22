@@ -403,6 +403,70 @@ def test_time_response_plot_2d(time_response):
     assert_trace_allclose(fig.data[0], x=expected_x, y=expected_y)
 
 
+def test_time_response_plots_use_time_window(time_response, probe_node3):
+    node = 3
+    initial_index = 10
+    final_index = 20
+    t_initial = time_response.t[initial_index]
+    t_final = time_response.t[final_index]
+    original_t = time_response.t.copy()
+    original_yout = time_response.yout.copy()
+
+    fig_1d = time_response.plot_1d(
+        probe=[probe_node3],
+        t_initial=t_initial,
+        t_final=t_final,
+    )
+    fig_2d = time_response.plot_2d(
+        node=node,
+        t_initial=t_initial,
+        t_final=t_final,
+    )
+    fig_3d = time_response.plot_3d(
+        t_initial=t_initial,
+        t_final=t_final,
+    )
+
+    expected_t = time_response.t[initial_index : final_index + 1]
+    expected_yout = time_response.yout[initial_index : final_index + 1]
+    expected_df = time_response.data_time_response(
+        probe=[probe_node3],
+        t=expected_t,
+        yout=expected_yout,
+    )
+    ndof = time_response.rotor.number_dof
+
+    assert_trace_allclose(
+        fig_1d.data[0],
+        x=expected_df["time"].values,
+        y=expected_df["probe_resp[0]"].values,
+    )
+    assert fig_1d.data[1].marker.symbol == "circle"
+    assert fig_1d.data[2].marker.symbol == "x"
+
+    assert_trace_allclose(
+        fig_2d.data[0],
+        x=expected_yout[:, ndof * node],
+        y=expected_yout[:, ndof * node + 1],
+    )
+    assert fig_2d.data[1].marker.symbol == "circle"
+    assert fig_2d.data[2].marker.symbol == "x"
+
+    first_node = time_response.rotor.nodes[0]
+    expected_x = np.full(len(expected_t), time_response.rotor.nodes_pos[first_node])
+    assert_trace_allclose(
+        fig_3d.data[0],
+        x=expected_x,
+        y=expected_yout[:, ndof * first_node],
+        z=expected_yout[:, ndof * first_node + 1],
+    )
+    assert fig_3d.data[1].marker.symbol == "circle"
+    assert fig_3d.data[2].marker.symbol == "x"
+
+    assert_allclose(time_response.t, original_t)
+    assert_allclose(time_response.yout, original_yout)
+
+
 def test_time_response_plot_dfft(time_response, probe_node3):
     probe = [probe_node3]
     fig = time_response.plot_dfft(probe=probe)
