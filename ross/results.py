@@ -17,7 +17,6 @@ from numpy import linalg as la
 from plotly import graph_objects as go
 from plotly.subplots import make_subplots
 from prettytable import PrettyTable
-from scipy.fft import fft
 from pathlib import Path
 
 from ross.plotly_theme import (
@@ -5710,7 +5709,7 @@ class TimeResponseResults(Results):
         self.rotor = rotor
 
     def _get_cycle_frequency(self, time, yout):
-        """Return the cycle frequency from speed or the response spectrum.
+        """Return the cycle frequency from speed or the final response third.
 
         Parameters
         ----------
@@ -5722,7 +5721,8 @@ class TimeResponseResults(Results):
         Returns
         -------
         float
-            Cycle frequency in hertz.
+            Cycle frequency in hertz. If no speed is available, the smallest
+            significant positive DFT peak from the final response third is used.
         """
         speed = getattr(self, "speed", None)
         if speed is None:
@@ -5738,33 +5738,60 @@ class TimeResponseResults(Results):
             if speed is not None and np.isfinite(speed) and speed != 0:
                 return abs(speed) / (2 * np.pi)
 
-        if len(time) < 3:
+        init_step = int(2 * len(time) / 3)
+        frequency_time = time[init_step:]
+        frequency_response = np.asarray(yout, dtype=float)[init_step:]
+
+        if len(frequency_time) < 3:
             raise ValueError(
                 "At least three time samples are required to estimate the cycle "
                 "frequency."
             )
 
-        time_step = np.diff(time)
+        time_step = np.diff(frequency_time)
         if not np.allclose(time_step, time_step[0]):
             raise ValueError("one_cycle requires an evenly sampled time vector.")
 
-        response = np.asarray(yout, dtype=float)
-        if response.ndim == 1:
-            response = response[:, np.newaxis]
-        response = response - response.mean(axis=0, keepdims=True)
+        if frequency_response.ndim == 1:
+            frequency_response = frequency_response[:, np.newaxis]
 
-        spectrum = np.abs(fft(response, axis=0))
-        frequencies = np.fft.fftfreq(len(time), time_step[0])
-        positive = frequencies > 0
-        frequencies = frequencies[positive]
-        amplitudes = np.max(spectrum[positive], axis=1)
+        frequencies = None
+        amplitudes = None
+        for response_column in frequency_response.T:
+            response_column = response_column - response_column.mean()
+            current_frequencies, current_amplitudes, _ = compute_dfft(
+                response_column,
+                time_step[0],
+            )
+            positive = current_frequencies > 0
+            current_frequencies = current_frequencies[positive]
+            current_amplitudes = current_amplitudes[positive]
+
+            if frequencies is None:
+                frequencies = current_frequencies
+                amplitudes = current_amplitudes
+            else:
+                amplitudes = np.maximum(amplitudes, current_amplitudes)
+
+        if frequencies is None or len(frequencies) == 0:
+            raise ValueError("The response does not contain a detectable frequency.")
 
         max_amplitude = np.max(amplitudes)
         if not np.isfinite(max_amplitude) or max_amplitude == 0:
             raise ValueError("The response does not contain a detectable frequency.")
 
-        threshold = max_amplitude * 1e-6
-        detected = frequencies[amplitudes >= threshold]
+        threshold = max_amplitude * 1e-3
+        peaks = np.zeros(len(amplitudes), dtype=bool)
+        if len(amplitudes) == 1:
+            peaks[0] = True
+        else:
+            peaks[1:-1] = (amplitudes[1:-1] >= amplitudes[:-2]) & (
+                amplitudes[1:-1] >= amplitudes[2:]
+            )
+            peaks[0] = amplitudes[0] >= amplitudes[1]
+            peaks[-1] = amplitudes[-1] >= amplitudes[-2]
+
+        detected = frequencies[peaks & (amplitudes >= threshold)]
         if len(detected) == 0:
             raise ValueError("The response does not contain a detectable frequency.")
 

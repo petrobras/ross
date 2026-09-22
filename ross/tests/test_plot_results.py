@@ -474,14 +474,22 @@ def test_time_response_plots_use_time_window(time_response, probe_node3):
 
 
 def test_time_response_plots_use_one_cycle(rotor):
-    time = np.arange(0.0, 4.0, 1e-3)
+    time = np.arange(0.0, 6.0, 1e-3)
     node = 3
     frequency = 2.0
     response = np.zeros((len(time), rotor.ndof))
     dof_x = node * rotor.number_dof
     dof_y = dof_x + 1
-    response[:, dof_x] = np.sin(2 * np.pi * frequency * time)
-    response[:, dof_y] = np.cos(2 * np.pi * frequency * time)
+    response[:, dof_x] = np.where(
+        time < 4.0,
+        np.sin(2 * np.pi * 0.25 * time),
+        np.sin(2 * np.pi * frequency * time),
+    )
+    response[:, dof_y] = np.where(
+        time < 4.0,
+        np.cos(2 * np.pi * 0.25 * time),
+        np.cos(2 * np.pi * frequency * time),
+    )
 
     result = TimeResponseResults(rotor, time, response, [])
     window_time, window_response = result._get_window(one_cycle=True)
