@@ -9,6 +9,7 @@ from ross.bearings.bearing_results import ThrustPadResults
 from ross.bearings.squeeze_film_damper import SqueezeFilmDamper
 from ross.disk_element import DiskElement
 from ross.materials import steel
+from ross.results import TimeResponseResults
 from ross.rotor_assembly import Rotor, rotor_example
 from ross.shaft_element import ShaftElement
 
@@ -470,6 +471,68 @@ def test_time_response_plots_use_time_window(time_response, probe_node3):
 
     assert_allclose(time_response.t, original_t)
     assert_allclose(time_response.yout, original_yout)
+
+
+def test_time_response_plots_use_one_cycle(rotor):
+    time = np.arange(0.0, 4.0, 1e-3)
+    node = 3
+    frequency = 2.0
+    response = np.zeros((len(time), rotor.ndof))
+    dof_x = node * rotor.number_dof
+    dof_y = dof_x + 1
+    response[:, dof_x] = np.sin(2 * np.pi * frequency * time)
+    response[:, dof_y] = np.cos(2 * np.pi * frequency * time)
+
+    result = TimeResponseResults(rotor, time, response, [])
+    window_time, window_response = result._get_window(one_cycle=True)
+    expected_initial = np.searchsorted(
+        time,
+        time[-1] - 1 / frequency,
+        side="left",
+    )
+
+    assert_allclose(window_time, time[expected_initial:])
+    assert_allclose(window_response, response[expected_initial:])
+
+    probe = Probe(node, Q_(0, "rad"))
+    fig_1d = result.plot_1d(probe=[probe], one_cycle=True)
+    fig_2d = result.plot_2d(node=node, one_cycle=True)
+    fig_3d = result.plot_3d(one_cycle=True)
+
+    assert len(fig_1d.data[0].x) == len(window_time)
+    assert_allclose(
+        np.asarray(fig_1d.layout.xaxis.range),
+        [window_time[0], window_time[-1]],
+    )
+    assert len(fig_2d.data[0].x) == len(window_time)
+    assert len(fig_3d.data[0].x) == len(window_time)
+
+    initial_window, _ = result._get_window(
+        t_initial=1.0,
+        one_cycle=True,
+    )
+    final_window, _ = result._get_window(
+        t_final=3.0,
+        one_cycle=True,
+    )
+    assert initial_window[0] == pytest.approx(time[1000])
+    assert final_window[-1] == pytest.approx(time[3000])
+
+    result.speed = 2 * np.pi * 4
+    speed_window, _ = result._get_window(one_cycle=True)
+    speed_initial = np.searchsorted(
+        time,
+        time[-1] - 1 / 4,
+        side="left",
+    )
+    assert_allclose(speed_window, time[speed_initial:])
+
+    with pytest.raises(ValueError, match="one_cycle=True cannot be used"):
+        result._get_window(
+            t_initial=1.0,
+            t_final=2.0,
+            one_cycle=True,
+        )
 
 
 def test_time_response_plot_dfft(time_response, probe_node3):

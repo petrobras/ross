@@ -5709,10 +5709,115 @@ class TimeResponseResults(Results):
         self.xout = xout
         self.rotor = rotor
 
-    def _get_window(self, t_initial, t_final):
-        """Return copies of the time response cropped to a time interval."""
+    def _get_cycle_frequency(self, time, yout):
+        """Return the cycle frequency from speed or the response spectrum.
+
+        Parameters
+        ----------
+        time : array
+            Time values in seconds.
+        yout : array
+            Time-response values.
+
+        Returns
+        -------
+        float
+            Cycle frequency in hertz.
+        """
+        speed = getattr(self, "speed", None)
+        if speed is None:
+            speed = getattr(self.rotor, "speed", None)
+
+        if speed is not None:
+            try:
+                speed = speed.to("rad/s").m if hasattr(speed, "to") else speed
+                speed = float(speed)
+            except (AttributeError, TypeError, ValueError):
+                speed = None
+
+            if speed is not None and np.isfinite(speed) and speed != 0:
+                return abs(speed) / (2 * np.pi)
+
+        if len(time) < 3:
+            raise ValueError(
+                "At least three time samples are required to estimate the cycle "
+                "frequency."
+            )
+
+        time_step = np.diff(time)
+        if not np.allclose(time_step, time_step[0]):
+            raise ValueError("one_cycle requires an evenly sampled time vector.")
+
+        response = np.asarray(yout, dtype=float)
+        if response.ndim == 1:
+            response = response[:, np.newaxis]
+        response = response - response.mean(axis=0, keepdims=True)
+
+        spectrum = np.abs(fft(response, axis=0))
+        frequencies = np.fft.fftfreq(len(time), time_step[0])
+        positive = frequencies > 0
+        frequencies = frequencies[positive]
+        amplitudes = np.max(spectrum[positive], axis=1)
+
+        max_amplitude = np.max(amplitudes)
+        if not np.isfinite(max_amplitude) or max_amplitude == 0:
+            raise ValueError("The response does not contain a detectable frequency.")
+
+        threshold = max_amplitude * 1e-6
+        detected = frequencies[amplitudes >= threshold]
+        if len(detected) == 0:
+            raise ValueError("The response does not contain a detectable frequency.")
+
+        return detected[0]
+
+    def _get_window(self, t_initial=None, t_final=None, one_cycle=False):
+        """Return copied time-response data cropped to a selected window.
+
+        Parameters
+        ----------
+        t_initial : float, optional
+            Initial time in seconds. With ``one_cycle=True``, this starts the
+            selected cycle.
+        t_final : float, optional
+            Final time in seconds. With ``one_cycle=True``, this ends the
+            selected cycle.
+        one_cycle : bool, optional
+            If True, select one cycle using the last cycle by default. If only
+            ``t_initial`` is provided, the cycle starts at that time. If only
+            ``t_final`` is provided, the cycle ends at that time. Providing both
+            time values with ``one_cycle=True`` raises a ``ValueError``.
+
+        Returns
+        -------
+        time : array
+            Cropped time values.
+        yout : array
+            Cropped response values.
+        """
         time = np.array(self.t, copy=True)
         yout = np.array(self.yout, copy=True)
+
+        if one_cycle and t_initial is not None and t_final is not None:
+            raise ValueError(
+                "one_cycle=True cannot be used with both t_initial and t_final. "
+                "Choose either one_cycle with a single time boundary or a regular "
+                "time window."
+            )
+
+        if not one_cycle and (t_initial is None) != (t_final is None):
+            raise ValueError("t_initial and t_final must be provided together.")
+
+        if one_cycle:
+            period = 1 / self._get_cycle_frequency(time, yout)
+            if t_initial is None and t_final is None:
+                t_final = time[-1]
+                t_initial = t_final - period
+            elif t_initial is not None:
+                t_final = t_initial + period
+            else:
+                t_initial = t_final - period
+        elif t_initial is None:
+            return time, yout
 
         if t_initial > t_final:
             raise ValueError("t_initial must be smaller than or equal to t_final.")
@@ -5843,7 +5948,10 @@ class TimeResponseResults(Results):
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
-            ``t_initial`` and ``t_final`` select the time interval in seconds.
+            ``t_initial`` and ``t_final`` define a time window in seconds when
+            ``one_cycle`` is False. With ``one_cycle=True``, provide at most one
+            of them as the cycle anchor. Without an anchor, the last cycle is used.
+            The cycle frequency comes from an available speed or the response DFT.
             *See Plotly Python Figure Reference for more information.
 
         Returns
@@ -5857,15 +5965,15 @@ class TimeResponseResults(Results):
 
         t_initial = kwargs.pop("t_initial", None)
         t_final = kwargs.pop("t_final", None)
+        one_cycle = kwargs.pop("one_cycle", False)
 
-        if (t_initial is None) != (t_final is None):
-            raise ValueError("t_initial and t_final must be provided together.")
+        windowed = one_cycle or t_initial is not None or t_final is not None
 
-        if t_initial is None:
+        if windowed:
+            time, yout = self._get_window(t_initial, t_final, one_cycle)
+        else:
             time = self.t
             yout = self.yout
-        else:
-            time, yout = self._get_window(t_initial, t_final)
 
         df = self.data_time_response(
             probe,
@@ -5897,7 +6005,7 @@ class TimeResponseResults(Results):
                 pass
 
         fig.update_xaxes(title_text=f"Time ({time_units})")
-        if t_initial is not None:
+        if windowed:
             fig.update_xaxes(range=[_time[0], _time[-1]])
         fig.update_yaxes(title_text=f"Amplitude ({displacement_units})")
         fig.update_layout(**kwargs)
@@ -5921,7 +6029,10 @@ class TimeResponseResults(Results):
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
-            ``t_initial`` and ``t_final`` select the time interval in seconds.
+            ``t_initial`` and ``t_final`` define a time window in seconds when
+            ``one_cycle`` is False. With ``one_cycle=True``, provide at most one
+            of them as the cycle anchor. Without an anchor, the last cycle is used.
+            The cycle frequency comes from an available speed or the response DFT.
             *See Plotly Python Figure Reference for more information.
 
         Returns
@@ -5931,14 +6042,14 @@ class TimeResponseResults(Results):
         """
         t_initial = kwargs.pop("t_initial", None)
         t_final = kwargs.pop("t_final", None)
+        one_cycle = kwargs.pop("one_cycle", False)
 
-        if (t_initial is None) != (t_final is None):
-            raise ValueError("t_initial and t_final must be provided together.")
+        windowed = one_cycle or t_initial is not None or t_final is not None
 
-        if t_initial is None:
-            yout = self.yout
+        if windowed:
+            _, yout = self._get_window(t_initial, t_final, one_cycle)
         else:
-            _, yout = self._get_window(t_initial, t_final)
+            yout = self.yout
 
         nodes = self.rotor.nodes
         link_nodes = self.rotor.link_nodes
@@ -6017,7 +6128,10 @@ class TimeResponseResults(Results):
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. hoverlabel_align="center", ...).
-            ``t_initial`` and ``t_final`` select the time interval in seconds.
+            ``t_initial`` and ``t_final`` define a time window in seconds when
+            ``one_cycle`` is False. With ``one_cycle=True``, provide at most one
+            of them as the cycle anchor. Without an anchor, the last cycle is used.
+            The cycle frequency comes from an available speed or the response DFT.
             *See Plotly Python Figure Reference for more information.
 
         Returns
@@ -6027,15 +6141,15 @@ class TimeResponseResults(Results):
         """
         t_initial = kwargs.pop("t_initial", None)
         t_final = kwargs.pop("t_final", None)
+        one_cycle = kwargs.pop("one_cycle", False)
 
-        if (t_initial is None) != (t_final is None):
-            raise ValueError("t_initial and t_final must be provided together.")
+        windowed = one_cycle or t_initial is not None or t_final is not None
 
-        if t_initial is None:
+        if windowed:
+            time, yout = self._get_window(t_initial, t_final, one_cycle)
+        else:
             time = self.t
             yout = self.yout
-        else:
-            time, yout = self._get_window(t_initial, t_final)
 
         nodes_pos = self.rotor.nodes_pos
         nodes = self.rotor.nodes
