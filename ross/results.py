@@ -5893,32 +5893,12 @@ class TimeResponseResults(Results):
                     )
                 )
 
-                fig.add_trace(
-                    go.Scatter(
-                        x=[_time[0]],
-                        y=[plot_resp[0]],
-                        mode="markers",
-                        marker=dict(symbol="circle", size=8),
-                        name=f"{probe_tag} - initial",
-                        legendgroup=probe_tag,
-                        showlegend=False,
-                    )
-                )
-                fig.add_trace(
-                    go.Scatter(
-                        x=[_time[-1]],
-                        y=[plot_resp[-1]],
-                        mode="markers",
-                        marker=dict(symbol="x", size=9),
-                        name=f"{probe_tag} - final",
-                        legendgroup=probe_tag,
-                        showlegend=False,
-                    )
-                )
             except KeyError:
                 pass
 
         fig.update_xaxes(title_text=f"Time ({time_units})")
+        if t_initial is not None:
+            fig.update_xaxes(range=[_time[0], _time[-1]])
         fig.update_yaxes(title_text=f"Amplitude ({displacement_units})")
         fig.update_layout(**kwargs)
 
@@ -6092,7 +6072,7 @@ class TimeResponseResults(Results):
                     y=[x_response[0]],
                     z=[y_response[0]],
                     mode="markers",
-                    marker=dict(symbol="circle", size=5, color="black"),
+                    marker=dict(symbol="circle", size=2, color="black"),
                     name="Initial point",
                     showlegend=False,
                 )
@@ -6103,7 +6083,7 @@ class TimeResponseResults(Results):
                     y=[x_response[-1]],
                     z=[y_response[-1]],
                     mode="markers",
-                    marker=dict(symbol="x", size=6, color="black"),
+                    marker=dict(symbol="x", size=3, color="black"),
                     name="Final point",
                     showlegend=False,
                 )
