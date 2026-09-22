@@ -5715,6 +5715,8 @@ class TimeResponseResults(Results):
         displacement_units="m",
         time_units="s",
         init_step=0,
+        t=None,
+        yout=None,
     ):
         """Return the time response given a list of probes in DataFrame format.
 
@@ -5731,6 +5733,10 @@ class TimeResponseResults(Results):
         init_step : int, optional
             The index of the initial time step from which to extract the response.
             Default is 0.
+        t : array, optional
+            Time values to use instead of the stored response time values.
+        yout : array, optional
+            Response values to use instead of the stored response values.
 
         Returns
         -------
@@ -5738,6 +5744,9 @@ class TimeResponseResults(Results):
             DataFrame storing the time response measured by probes.
         """
         data = {}
+
+        time = self.t if t is None else t
+        response = self.yout if yout is None else yout
 
         nodes = self.rotor.nodes
         link_nodes = self.rotor.link_nodes
@@ -5764,23 +5773,25 @@ class TimeResponseResults(Results):
                 dofx = ndof * node - fix_dof
                 dofy = ndof * node + 1 - fix_dof
 
-                # fmt: off
                 operator = np.array(
-                    [[np.cos(angle), np.sin(angle)],
-                    [-np.sin(angle), np.cos(angle)]]
+                    [
+                        [np.cos(angle), np.sin(angle)],
+                        [-np.sin(angle), np.cos(angle)],
+                    ]
                 )
 
-                _probe_resp = operator @ np.vstack((self.yout[init_step:, dofx], self.yout[init_step:, dofy]))
-                probe_resp = _probe_resp[0,:]
-                # fmt: on
+                _probe_resp = operator @ np.vstack(
+                    (response[init_step:, dofx], response[init_step:, dofy])
+                )
+                probe_resp = _probe_resp[0, :]
             else:
                 dofz = ndof * node + 2 - fix_dof
-                probe_resp = self.yout[init_step:, dofz]
+                probe_resp = response[init_step:, dofz]
 
             probe_resp = Q_(probe_resp, "m").to(displacement_units).m
             data[f"probe_resp[{i}]"] = probe_resp
 
-        data["time"] = Q_(self.t[init_step:], "s").to(time_units).m
+        data["time"] = Q_(time[init_step:], "s").to(time_units).m
         df = pd.DataFrame(data)
 
         return df
