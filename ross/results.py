@@ -5715,14 +5715,10 @@ class TimeResponseResults(Results):
         yout = np.array(self.yout, copy=True)
 
         if t_initial > t_final:
-            raise ValueError(
-                "t_initial must be smaller than or equal to t_final."
-            )
+            raise ValueError("t_initial must be smaller than or equal to t_final.")
 
         if t_initial < time[0] or t_final > time[-1]:
-            raise ValueError(
-                f"Time interval must be within [{time[0]}, {time[-1]}]."
-            )
+            raise ValueError(f"Time interval must be within [{time[0]}, {time[-1]}].")
 
         initial_index = np.searchsorted(time, t_initial, side="left")
         final_index = np.searchsorted(time, t_final, side="right")
