@@ -6109,26 +6109,27 @@ class TimeResponseResults(Results):
             )
         )
 
-        fig.add_trace(
-            go.Scatter(
-                x=[x_response[0]],
-                y=[y_response[0]],
-                mode="markers",
-                marker=dict(symbol="circle", size=9, color="black"),
-                name="Initial point",
-                showlegend=True,
+        if windowed:
+            fig.add_trace(
+                go.Scatter(
+                    x=[x_response[0]],
+                    y=[y_response[0]],
+                    mode="markers",
+                    marker=dict(symbol="circle", size=9, color="black"),
+                    name="Initial point",
+                    showlegend=True,
+                )
             )
-        )
-        fig.add_trace(
-            go.Scatter(
-                x=[x_response[-1]],
-                y=[y_response[-1]],
-                mode="markers",
-                marker=dict(symbol="x", size=10, color="black"),
-                name="Final point",
-                showlegend=True,
+            fig.add_trace(
+                go.Scatter(
+                    x=[x_response[-1]],
+                    y=[y_response[-1]],
+                    mode="markers",
+                    marker=dict(symbol="x", size=10, color="black"),
+                    name="Final point",
+                    showlegend=True,
+                )
             )
-        )
 
         fig.update_xaxes(title_text=f"Amplitude ({displacement_units}) - X direction")
         fig.update_yaxes(title_text=f"Amplitude ({displacement_units}) - Y direction")
@@ -6210,28 +6211,29 @@ class TimeResponseResults(Results):
                 )
             )
 
-            fig.add_trace(
-                go.Scatter3d(
-                    x=[Q_(x_pos[0], "m").to(rotor_length_units).m],
-                    y=[x_response[0]],
-                    z=[y_response[0]],
-                    mode="markers",
-                    marker=dict(symbol="circle", size=2, color="black"),
-                    name="Initial point",
-                    showlegend=False,
+            if windowed:
+                fig.add_trace(
+                    go.Scatter3d(
+                        x=[Q_(x_pos[0], "m").to(rotor_length_units).m],
+                        y=[x_response[0]],
+                        z=[y_response[0]],
+                        mode="markers",
+                        marker=dict(symbol="circle", size=2, color="black"),
+                        name="Initial point",
+                        showlegend=False,
+                    )
                 )
-            )
-            fig.add_trace(
-                go.Scatter3d(
-                    x=[Q_(x_pos[-1], "m").to(rotor_length_units).m],
-                    y=[x_response[-1]],
-                    z=[y_response[-1]],
-                    mode="markers",
-                    marker=dict(symbol="x", size=1, color="black"),
-                    name="Final point",
-                    showlegend=False,
+                fig.add_trace(
+                    go.Scatter3d(
+                        x=[Q_(x_pos[-1], "m").to(rotor_length_units).m],
+                        y=[x_response[-1]],
+                        z=[y_response[-1]],
+                        mode="markers",
+                        marker=dict(symbol="x", size=1, color="black"),
+                        name="Final point",
+                        showlegend=False,
+                    )
                 )
-            )
 
         # plot center line
         line = np.zeros(len(nodes_pos))

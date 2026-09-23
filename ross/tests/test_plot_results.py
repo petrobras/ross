@@ -413,6 +413,10 @@ def test_time_response_plot_2d(time_response):
     expected_x = time_response.yout[:, ndof * node]
     expected_y = time_response.yout[:, ndof * node + 1]
     assert_trace_allclose(fig.data[0], x=expected_x, y=expected_y)
+    assert len(fig.data) == 1
+
+    fig_3d = time_response.plot_3d()
+    assert len(fig_3d.data) == len(time_response.rotor.nodes) + 1
 
 
 def test_time_response_plots_use_time_window(time_response, probe_node3):
