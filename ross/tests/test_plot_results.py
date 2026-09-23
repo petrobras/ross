@@ -393,6 +393,17 @@ def test_time_response_plot_1d_displacement_units(
     )
 
 
+def test_time_response_results_store_run_speed(rotor):
+    speed = 2 * np.pi * 4
+    time = np.arange(0.0, 1.0, 1e-3)
+    force = np.zeros((len(time), rotor.ndof))
+
+    result = rotor.run_time_response(speed, force, time)
+
+    assert result.speed == pytest.approx(speed)
+    assert result._get_cycle_frequency(result.t, result.yout) == pytest.approx(4)
+
+
 def test_time_response_plot_2d(time_response):
     node = 3
     fig = time_response.plot_2d(node=node)

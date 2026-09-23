@@ -5695,6 +5695,8 @@ class TimeResponseResults(Results):
         System response.
     xout : array
         Time evolution of the state vector.
+    speed : float or array_like, optional
+        Rotor speed used to calculate the response, in rad/s.
 
     Returns
     -------
@@ -5702,11 +5704,12 @@ class TimeResponseResults(Results):
         The figure object with the plot.
     """
 
-    def __init__(self, rotor, t, yout, xout):
+    def __init__(self, rotor, t, yout, xout, speed=None):
         self.t = t
         self.yout = yout
         self.xout = xout
         self.rotor = rotor
+        self.speed = speed
 
     def _get_cycle_frequency(self, time, yout):
         """Return the cycle frequency from speed or the final response third.
@@ -6369,9 +6372,11 @@ class AmbTimeResponseResults(TimeResponseResults):
         System response.
     xout : array
         Time evolution of the state vector.
+    speed : float or array_like, optional
+        Rotor speed used to calculate the response, in rad/s.
     """
 
-    def __init__(self, rotor, t, yout, xout):
+    def __init__(self, rotor, t, yout, xout, speed=None):
         """Initialize the AmbTimeResponseResults instance.
 
         Parameters
@@ -6384,8 +6389,10 @@ class AmbTimeResponseResults(TimeResponseResults):
             System response.
         xout : array
             Time evolution of the state vector.
+        speed : float or array_like, optional
+            Rotor speed used to calculate the response, in rad/s.
         """
-        super().__init__(rotor, t, yout, xout)
+        super().__init__(rotor, t, yout, xout, speed=speed)
         self.x_amb = self.xout[0]
         self.v_amb = self.xout[1]
         self.F_x = self.xout[2]
@@ -7246,7 +7253,13 @@ class HarmonicBalanceResults(Results):
 
         if self.time_response is None:
             y, ydot, y2dot = self._reconstruct_time_domain()
-            self.time_response = TimeResponseResults(self.rotor, self.t, y.T, [])
+            self.time_response = TimeResponseResults(
+                self.rotor,
+                self.t,
+                y.T,
+                [],
+                speed=self.speed,
+            )
 
         return self.time_response
 

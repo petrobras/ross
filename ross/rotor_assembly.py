@@ -4825,10 +4825,10 @@ class Rotor(object):
                 amb = xout[0]
                 xout = [amb["x_amb"], amb["v_amb"], amb["F_x"], amb["F_v"], amb["I"]]
 
-            results = AmbTimeResponseResults(self, t_, yout, xout)
+            results = AmbTimeResponseResults(self, t_, yout, xout, speed=speed)
 
         else:
-            results = TimeResponseResults(self, t, yout, xout)
+            results = TimeResponseResults(self, t, yout, xout, speed=speed)
 
         return results
 
