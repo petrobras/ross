@@ -5868,6 +5868,21 @@ class TimeResponseResults(Results):
 
         return time[initial_index:final_index], yout[initial_index:final_index, :]
 
+    def _get_plot_data(self, kwargs):
+        """Extract plot window arguments and return the selected response data."""
+        t_initial = kwargs.pop("t_initial", None)
+        t_final = kwargs.pop("t_final", None)
+        one_cycle = kwargs.pop("one_cycle", False)
+        windowed = one_cycle or t_initial is not None or t_final is not None
+
+        if windowed:
+            time, yout = self._get_window(t_initial, t_final, one_cycle)
+        else:
+            time = self.t
+            yout = self.yout
+
+        return time, yout, windowed
+
     def data_time_response(
         self,
         probe,
@@ -5998,17 +6013,7 @@ class TimeResponseResults(Results):
         if fig is None:
             fig = go.Figure()
 
-        t_initial = kwargs.pop("t_initial", None)
-        t_final = kwargs.pop("t_final", None)
-        one_cycle = kwargs.pop("one_cycle", False)
-
-        windowed = one_cycle or t_initial is not None or t_final is not None
-
-        if windowed:
-            time, yout = self._get_window(t_initial, t_final, one_cycle)
-        else:
-            time = self.t
-            yout = self.yout
+        time, yout, windowed = self._get_plot_data(kwargs)
 
         df = self.data_time_response(
             probe,
@@ -6075,16 +6080,7 @@ class TimeResponseResults(Results):
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
-        t_initial = kwargs.pop("t_initial", None)
-        t_final = kwargs.pop("t_final", None)
-        one_cycle = kwargs.pop("one_cycle", False)
-
-        windowed = one_cycle or t_initial is not None or t_final is not None
-
-        if windowed:
-            _, yout = self._get_window(t_initial, t_final, one_cycle)
-        else:
-            yout = self.yout
+        _, yout, windowed = self._get_plot_data(kwargs)
 
         nodes = self.rotor.nodes
         link_nodes = self.rotor.link_nodes
@@ -6175,17 +6171,7 @@ class TimeResponseResults(Results):
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
-        t_initial = kwargs.pop("t_initial", None)
-        t_final = kwargs.pop("t_final", None)
-        one_cycle = kwargs.pop("one_cycle", False)
-
-        windowed = one_cycle or t_initial is not None or t_final is not None
-
-        if windowed:
-            time, yout = self._get_window(t_initial, t_final, one_cycle)
-        else:
-            time = self.t
-            yout = self.yout
+        time, yout, windowed = self._get_plot_data(kwargs)
 
         nodes_pos = self.rotor.nodes_pos
         nodes = self.rotor.nodes
