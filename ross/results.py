@@ -5827,7 +5827,7 @@ class TimeResponseResults(Results):
                 fig.add_trace(
                     go.Scatter(
                         x=_time,
-                        y=Q_(probe_resp, "m").to(displacement_units).m,
+                        y=probe_resp,
                         mode="lines",
                         name=probe_tag,
                         legendgroup=probe_tag,
