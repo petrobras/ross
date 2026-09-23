@@ -5827,6 +5827,11 @@ class TimeResponseResults(Results):
         time = np.array(self.t, copy=True)
         yout = np.array(self.yout, copy=True)
 
+        if t_initial is not None and hasattr(t_initial, "to"):
+            t_initial = t_initial.to("s").m
+        if t_final is not None and hasattr(t_final, "to"):
+            t_final = t_final.to("s").m
+
         if one_cycle and t_initial is not None and t_final is not None:
             raise ValueError(
                 "one_cycle=True cannot be used with both t_initial and t_final. "

@@ -423,8 +423,8 @@ def test_time_response_plots_use_time_window(time_response, probe_node3):
     node = 3
     initial_index = 10
     final_index = 20
-    t_initial = time_response.t[initial_index]
-    t_final = time_response.t[final_index]
+    t_initial = Q_(time_response.t[initial_index], "s")
+    t_final = Q_(time_response.t[final_index], "s")
     original_t = time_response.t.copy()
     original_yout = time_response.yout.copy()
 
@@ -486,6 +486,20 @@ def test_time_response_plots_use_time_window(time_response, probe_node3):
 
     assert_allclose(time_response.t, original_t)
     assert_allclose(time_response.yout, original_yout)
+
+
+def test_time_response_window_converts_time_units(rotor):
+    time = np.arange(0.0, 3.0, 1e-3)
+    response = np.zeros((len(time), rotor.ndof))
+    result = TimeResponseResults(rotor, time, response, [])
+
+    window_time, _ = result._get_window(
+        t_initial=Q_(500, "ms"),
+        t_final=Q_(1500, "ms"),
+    )
+
+    assert window_time[0] == pytest.approx(0.5)
+    assert window_time[-1] == pytest.approx(1.5)
 
 
 def test_time_response_plots_use_one_cycle(rotor):
