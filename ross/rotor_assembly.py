@@ -3546,6 +3546,26 @@ class Rotor(object):
             integration (e.g. model_reduction, add_to_RHS).
             See `Rotor.integrate_system` for more details.
 
+        Notes
+        -----
+        The returned time-response object stores the supplied scalar `speed` and
+        uses it when a plot requests `one_cycle=True`. If the speed is an array,
+        the response DFT is used to estimate the cycle frequency instead.
+
+        The plotting methods accept the following optional keyword arguments:
+
+        - `t_initial` and `t_final` select a time window in seconds. Both values
+          must be provided together when `one_cycle=False`.
+        - `one_cycle=True` selects one complete cycle. Without an anchor, the
+          last cycle is selected. With only `t_initial`, the cycle starts there;
+          with only `t_final`, the cycle ends there.
+        - `t_initial` and `t_final` can also be provided as `pint.Quantity`
+          values, such as `Q_(500, "ms")`.
+
+        `one_cycle=True` cannot be combined with both `t_initial` and `t_final`.
+        These arguments control the plot window and do not change the simulated
+        time vector or recompute the response.
+
         Returns
         -------
         t : array
@@ -4801,6 +4821,14 @@ class Rotor(object):
         >>> fig2 = response.plot_2d(node=node)
         >>> # plot orbit response - plotting 3D orbits - full rotor model:
         >>> fig3 = response.plot_3d()
+        >>> # plot a regular time window:
+        >>> fig_window = response.plot_1d(
+        ...     probe=[probe1], t_initial=2.0, t_final=4.0
+        ... )
+        >>> # plot the last complete cycle using the known scalar speed:
+        >>> fig_cycle = response.plot_2d(node=node, one_cycle=True)
+        >>> # anchor one cycle at its final time:
+        >>> fig_anchored = response.plot_3d(one_cycle=True, t_final=8.0)
         """
         t_, yout, xout = self.time_response(speed, F, t, method=method, **kwargs)
 
@@ -4809,10 +4837,10 @@ class Rotor(object):
                 amb = xout[0]
                 xout = [amb["x_amb"], amb["v_amb"], amb["F_x"], amb["F_v"], amb["I"]]
 
-            results = AmbTimeResponseResults(self, t_, yout, xout)
+            results = AmbTimeResponseResults(self, t_, yout, xout, speed=speed)
 
         else:
-            results = TimeResponseResults(self, t, yout, xout)
+            results = TimeResponseResults(self, t, yout, xout, speed=speed)
 
         return results
 

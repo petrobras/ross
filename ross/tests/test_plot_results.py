@@ -9,6 +9,7 @@ from ross.bearings.bearing_results import ThrustPadResults
 from ross.bearings.squeeze_film_damper import SqueezeFilmDamper
 from ross.disk_element import DiskElement
 from ross.materials import steel
+from ross.results import TimeResponseResults
 from ross.rotor_assembly import Rotor, rotor_example
 from ross.shaft_element import ShaftElement
 
@@ -374,6 +375,17 @@ def test_time_response_plot_1d(time_response, probe_node3):
     assert_allclose(fig.data[0].y[:5], expected_y_slice)
 
 
+def test_time_response_results_store_run_speed(rotor):
+    speed = 2 * np.pi * 4
+    time = np.arange(0.0, 1.0, 1e-3)
+    force = np.zeros((len(time), rotor.ndof))
+
+    result = rotor.run_time_response(speed, force, time)
+
+    assert result.speed == pytest.approx(speed)
+    assert result._get_cycle_frequency(result.t, result.yout) == pytest.approx(4)
+
+
 def test_time_response_plot_2d(time_response):
     node = 3
     fig = time_response.plot_2d(node=node)
@@ -383,6 +395,163 @@ def test_time_response_plot_2d(time_response):
     expected_x = time_response.yout[:, ndof * node]
     expected_y = time_response.yout[:, ndof * node + 1]
     assert_trace_allclose(fig.data[0], x=expected_x, y=expected_y)
+    assert len(fig.data) == 1
+
+    fig_3d = time_response.plot_3d()
+    assert len(fig_3d.data) == len(time_response.rotor.nodes) + 1
+
+
+def test_time_response_plots_use_time_window(time_response, probe_node3):
+    node = 3
+    initial_index = 10
+    final_index = 20
+    t_initial = Q_(time_response.t[initial_index], "s")
+    t_final = Q_(time_response.t[final_index], "s")
+    original_t = time_response.t.copy()
+    original_yout = time_response.yout.copy()
+
+    fig_1d = time_response.plot_1d(
+        probe=[probe_node3],
+        t_initial=t_initial,
+        t_final=t_final,
+    )
+    fig_2d = time_response.plot_2d(
+        node=node,
+        t_initial=t_initial,
+        t_final=t_final,
+    )
+    fig_3d = time_response.plot_3d(
+        t_initial=t_initial,
+        t_final=t_final,
+    )
+
+    expected_t = time_response.t[initial_index : final_index + 1]
+    expected_yout = time_response.yout[initial_index : final_index + 1]
+    expected_df = time_response.data_time_response(
+        probe=[probe_node3],
+        t=expected_t,
+        yout=expected_yout,
+    )
+    ndof = time_response.rotor.number_dof
+
+    assert_trace_allclose(
+        fig_1d.data[0],
+        x=expected_df["time"].values,
+        y=expected_df["probe_resp[0]"].values,
+    )
+    assert len(fig_1d.data) == 1
+    assert_allclose(
+        np.asarray(fig_1d.layout.xaxis.range),
+        [expected_df["time"].values[0], expected_df["time"].values[-1]],
+    )
+
+    assert_trace_allclose(
+        fig_2d.data[0],
+        x=expected_yout[:, ndof * node],
+        y=expected_yout[:, ndof * node + 1],
+    )
+    assert fig_2d.data[1].marker.symbol == "circle"
+    assert fig_2d.data[2].marker.symbol == "x"
+
+    first_node = time_response.rotor.nodes[0]
+    expected_x = np.full(len(expected_t), time_response.rotor.nodes_pos[first_node])
+    assert_trace_allclose(
+        fig_3d.data[0],
+        x=expected_x,
+        y=expected_yout[:, ndof * first_node],
+        z=expected_yout[:, ndof * first_node + 1],
+    )
+    assert fig_3d.data[1].marker.symbol == "circle"
+    assert fig_3d.data[2].marker.symbol == "x"
+    assert fig_3d.data[1].marker.size == 2
+    assert fig_3d.data[2].marker.size == 1
+
+    assert_allclose(time_response.t, original_t)
+    assert_allclose(time_response.yout, original_yout)
+
+
+def test_time_response_window_converts_time_units(rotor):
+    time = np.arange(0.0, 3.0, 1e-3)
+    response = np.zeros((len(time), rotor.ndof))
+    result = TimeResponseResults(rotor, time, response, [])
+
+    window_time, _ = result._get_window(
+        t_initial=Q_(500, "ms"),
+        t_final=Q_(1500, "ms"),
+    )
+
+    assert window_time[0] == pytest.approx(0.5)
+    assert window_time[-1] == pytest.approx(1.5)
+
+
+def test_time_response_plots_use_one_cycle(rotor):
+    time = np.arange(0.0, 6.0, 1e-3)
+    node = 3
+    frequency = 2.0
+    response = np.zeros((len(time), rotor.ndof))
+    dof_x = node * rotor.number_dof
+    dof_y = dof_x + 1
+    response[:, dof_x] = np.where(
+        time < 4.0,
+        np.sin(2 * np.pi * 0.25 * time),
+        np.sin(2 * np.pi * frequency * time),
+    )
+    response[:, dof_y] = np.where(
+        time < 4.0,
+        np.cos(2 * np.pi * 0.25 * time),
+        np.cos(2 * np.pi * frequency * time),
+    )
+
+    result = TimeResponseResults(rotor, time, response, [])
+    window_time, window_response = result._get_window(one_cycle=True)
+    expected_initial = np.searchsorted(
+        time,
+        time[-1] - 1 / frequency,
+        side="left",
+    )
+
+    assert_allclose(window_time, time[expected_initial:])
+    assert_allclose(window_response, response[expected_initial:])
+
+    probe = Probe(node, Q_(0, "rad"))
+    fig_1d = result.plot_1d(probe=[probe], one_cycle=True)
+    fig_2d = result.plot_2d(node=node, one_cycle=True)
+    fig_3d = result.plot_3d(one_cycle=True)
+
+    assert len(fig_1d.data[0].x) == len(window_time)
+    assert_allclose(
+        np.asarray(fig_1d.layout.xaxis.range),
+        [window_time[0], window_time[-1]],
+    )
+    assert len(fig_2d.data[0].x) == len(window_time)
+    assert len(fig_3d.data[0].x) == len(window_time)
+
+    initial_window, _ = result._get_window(
+        t_initial=1.0,
+        one_cycle=True,
+    )
+    final_window, _ = result._get_window(
+        t_final=3.0,
+        one_cycle=True,
+    )
+    assert initial_window[0] == pytest.approx(time[1000])
+    assert final_window[-1] == pytest.approx(time[3000])
+
+    result.speed = 2 * np.pi * 4
+    speed_window, _ = result._get_window(one_cycle=True)
+    speed_initial = np.searchsorted(
+        time,
+        time[-1] - 1 / 4,
+        side="left",
+    )
+    assert_allclose(speed_window, time[speed_initial:])
+
+    with pytest.raises(ValueError, match="one_cycle=True cannot be used"):
+        result._get_window(
+            t_initial=1.0,
+            t_final=2.0,
+            one_cycle=True,
+        )
 
 
 def test_time_response_plot_dfft(time_response, probe_node3):

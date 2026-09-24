@@ -17,7 +17,6 @@ from numpy import linalg as la
 from plotly import graph_objects as go
 from plotly.subplots import make_subplots
 from prettytable import PrettyTable
-from scipy.fft import fft
 from pathlib import Path
 
 from ross.plotly_theme import (
@@ -62,7 +61,13 @@ class Results(ABC):
 
     This class is a general abstract class to be implemented in other classes
     for post-processing results, in order to add saving and loading data options.
+
+    Subclasses list in ``_extra_args`` the ``__init__`` arguments added after
+    ROSS 3.0. They are saved in the ``_ross`` section of the file, which older
+    versions ignore, so files saved by this version still load in them.
     """
+
+    _extra_args = ()
 
     def save(self, file):
         """Save results in a .toml or .json file.
@@ -96,18 +101,28 @@ class Results(ABC):
         >>> file = Path(tempdir) / 'unb_resp.toml'
         >>> response.save(file)
         """
+        import ross
         from ross.utils import load_data, dump_data_numpy
 
         # get __init__ arguments
         signature = inspect.signature(self.__init__)
         args_list = list(signature.parameters)
         args = {arg: getattr(self, arg) for arg in args_list}
+        extra_args = {arg: args.pop(arg) for arg in self._extra_args if arg in args}
         try:
             data = load_data(file)
         except FileNotFoundError:
             data = {}
 
         data[f"{self.__class__.__name__}"] = args
+
+        # Older versions load only the first section, so metadata goes last
+        metadata = data.pop("_ross", {})
+        metadata["ross_version"] = ross.__version__
+        metadata.pop(self.__class__.__name__, None)
+        if extra_args:
+            metadata[self.__class__.__name__] = extra_args
+        data["_ross"] = metadata
 
         try:
             del data["CampbellResults"]["modal_results"]
@@ -179,6 +194,8 @@ class Results(ABC):
         >>> abs(results2.forced_resp).all() == abs(results.forced_resp).all()
         True
         """
+        import ross
+        from ross.rotor_assembly import _major_minor
         from ross.utils import load_data
 
         def remove_npformat(v):  # remove type info related to numpy format
@@ -189,7 +206,34 @@ class Results(ABC):
             return v[idx:] if idx != -1 else v
 
         data = load_data(file)
-        data = list(data.values())[0]
+        metadata = data.pop("_ross", {})
+
+        saved_version = metadata.get("ross_version")
+        if saved_version is not None and _major_minor(saved_version) != _major_minor(
+            ross.__version__
+        ):
+            warn(
+                f"File was created with ROSS {saved_version}, "
+                f"but current version is {ross.__version__}. "
+                f"This may lead to incompatibilities."
+            )
+
+        class_name, data = next(iter(data.items()))
+        data.update(metadata.get(class_name, {}))
+
+        parameters = inspect.signature(cls.__init__).parameters
+        accepts_kwargs = any(
+            p.kind == inspect.Parameter.VAR_KEYWORD for p in parameters.values()
+        )
+        unknown_args = [key for key in data if key not in parameters]
+        if unknown_args and not accepts_kwargs:
+            warn(
+                f"Ignoring {unknown_args} saved in {file}: {cls.__name__} does not "
+                f"accept them. The file may have been created with a newer ROSS version."
+            )
+            for key in unknown_args:
+                del data[key]
+
         if cls == CampbellResults:
             data["modal_results"] = None
         for key, value in data.items():
@@ -5689,6 +5733,8 @@ class TimeResponseResults(Results):
         System response.
     xout : array
         Time evolution of the state vector.
+    speed : float or array_like, optional
+        Rotor speed used to calculate the response, in rad/s.
 
     Returns
     -------
@@ -5696,11 +5742,186 @@ class TimeResponseResults(Results):
         The figure object with the plot.
     """
 
-    def __init__(self, rotor, t, yout, xout):
+    _extra_args = ("speed",)
+
+    def __init__(self, rotor, t, yout, xout, speed=None):
         self.t = t
         self.yout = yout
         self.xout = xout
         self.rotor = rotor
+        self.speed = speed
+
+    def _get_cycle_frequency(self, time, yout):
+        """Return the cycle frequency from speed or the final response third.
+
+        Parameters
+        ----------
+        time : array
+            Time values in seconds.
+        yout : array
+            Time-response values.
+
+        Returns
+        -------
+        float
+            Cycle frequency in hertz. If no speed is available, the smallest
+            significant positive DFT peak from the final response third is used.
+        """
+        speed = getattr(self, "speed", None)
+        if speed is None:
+            speed = getattr(self.rotor, "speed", None)
+
+        if speed is not None:
+            try:
+                speed = speed.to("rad/s").m if hasattr(speed, "to") else speed
+                speed = float(speed)
+            except (AttributeError, TypeError, ValueError):
+                speed = None
+
+            if speed is not None and np.isfinite(speed) and speed != 0:
+                return abs(speed) / (2 * np.pi)
+
+        init_step = int(2 * len(time) / 3)
+        frequency_time = time[init_step:]
+        frequency_response = np.asarray(yout, dtype=float)[init_step:]
+
+        if len(frequency_time) < 3:
+            raise ValueError(
+                "At least three time samples are required to estimate the cycle "
+                "frequency."
+            )
+
+        time_step = np.diff(frequency_time)
+        if not np.allclose(time_step, time_step[0]):
+            raise ValueError("one_cycle requires an evenly sampled time vector.")
+
+        if frequency_response.ndim == 1:
+            frequency_response = frequency_response[:, np.newaxis]
+
+        frequencies = None
+        amplitudes = None
+        for response_column in frequency_response.T:
+            response_column = response_column - response_column.mean()
+            current_frequencies, current_amplitudes, _ = compute_dfft(
+                response_column,
+                time_step[0],
+            )
+            positive = current_frequencies > 0
+            current_frequencies = current_frequencies[positive]
+            current_amplitudes = current_amplitudes[positive]
+
+            if frequencies is None:
+                frequencies = current_frequencies
+                amplitudes = current_amplitudes
+            else:
+                amplitudes = np.maximum(amplitudes, current_amplitudes)
+
+        if frequencies is None or len(frequencies) == 0:
+            raise ValueError("The response does not contain a detectable frequency.")
+
+        max_amplitude = np.max(amplitudes)
+        if not np.isfinite(max_amplitude) or max_amplitude == 0:
+            raise ValueError("The response does not contain a detectable frequency.")
+
+        threshold = max_amplitude * 1e-3
+        peaks = np.zeros(len(amplitudes), dtype=bool)
+        if len(amplitudes) == 1:
+            peaks[0] = True
+        else:
+            peaks[1:-1] = (amplitudes[1:-1] >= amplitudes[:-2]) & (
+                amplitudes[1:-1] >= amplitudes[2:]
+            )
+            peaks[0] = amplitudes[0] >= amplitudes[1]
+            peaks[-1] = amplitudes[-1] >= amplitudes[-2]
+
+        detected = frequencies[peaks & (amplitudes >= threshold)]
+        if len(detected) == 0:
+            raise ValueError("The response does not contain a detectable frequency.")
+
+        return detected[0]
+
+    def _get_window(self, t_initial=None, t_final=None, one_cycle=False):
+        """Return copied time-response data cropped to a selected window.
+
+        Parameters
+        ----------
+        t_initial : float, optional
+            Initial time in seconds. With ``one_cycle=True``, this starts the
+            selected cycle.
+        t_final : float, optional
+            Final time in seconds. With ``one_cycle=True``, this ends the
+            selected cycle.
+        one_cycle : bool, optional
+            If True, select one cycle using the last cycle by default. If only
+            ``t_initial`` is provided, the cycle starts at that time. If only
+            ``t_final`` is provided, the cycle ends at that time. Providing both
+            time values with ``one_cycle=True`` raises a ``ValueError``.
+
+        Returns
+        -------
+        time : array
+            Cropped time values.
+        yout : array
+            Cropped response values.
+        """
+        time = np.array(self.t, copy=True)
+        yout = np.array(self.yout, copy=True)
+
+        if t_initial is not None and hasattr(t_initial, "to"):
+            t_initial = t_initial.to("s").m
+        if t_final is not None and hasattr(t_final, "to"):
+            t_final = t_final.to("s").m
+
+        if one_cycle and t_initial is not None and t_final is not None:
+            raise ValueError(
+                "one_cycle=True cannot be used with both t_initial and t_final. "
+                "Choose either one_cycle with a single time boundary or a regular "
+                "time window."
+            )
+
+        if not one_cycle and (t_initial is None) != (t_final is None):
+            raise ValueError("t_initial and t_final must be provided together.")
+
+        if one_cycle:
+            period = 1 / self._get_cycle_frequency(time, yout)
+            if t_initial is None and t_final is None:
+                t_final = time[-1]
+                t_initial = t_final - period
+            elif t_initial is not None:
+                t_final = t_initial + period
+            else:
+                t_initial = t_final - period
+        elif t_initial is None:
+            return time, yout
+
+        if t_initial > t_final:
+            raise ValueError("t_initial must be smaller than or equal to t_final.")
+
+        if t_initial < time[0] or t_final > time[-1]:
+            raise ValueError(f"Time interval must be within [{time[0]}, {time[-1]}].")
+
+        initial_index = np.searchsorted(time, t_initial, side="left")
+        final_index = np.searchsorted(time, t_final, side="right")
+
+        if initial_index >= final_index:
+            raise ValueError("The selected time interval contains no samples.")
+
+        return time[initial_index:final_index], yout[initial_index:final_index, :]
+
+    def _get_plot_data(self, kwargs):
+        """Extract plot window arguments and return the selected response data."""
+        t_initial = kwargs.pop("t_initial", None)
+        t_final = kwargs.pop("t_final", None)
+        one_cycle = kwargs.pop("one_cycle", False)
+        windowed = one_cycle or t_initial is not None or t_final is not None
+
+        if windowed:
+            time, yout = self._get_window(t_initial, t_final, one_cycle)
+        else:
+            time = self.t
+            yout = self.yout
+
+        return time, yout, windowed
 
     def data_time_response(
         self,
@@ -5708,6 +5929,8 @@ class TimeResponseResults(Results):
         displacement_units="m",
         time_units="s",
         init_step=0,
+        t=None,
+        yout=None,
     ):
         """Return the time response given a list of probes in DataFrame format.
 
@@ -5724,6 +5947,10 @@ class TimeResponseResults(Results):
         init_step : int, optional
             The index of the initial time step from which to extract the response.
             Default is 0.
+        t : array, optional
+            Time values to use instead of the stored response time values.
+        yout : array, optional
+            Response values to use instead of the stored response values.
 
         Returns
         -------
@@ -5731,6 +5958,9 @@ class TimeResponseResults(Results):
             DataFrame storing the time response measured by probes.
         """
         data = {}
+
+        time = self.t if t is None else t
+        response = self.yout if yout is None else yout
 
         nodes = self.rotor.nodes
         link_nodes = self.rotor.link_nodes
@@ -5763,17 +5993,19 @@ class TimeResponseResults(Results):
                     [-np.sin(angle), np.cos(angle)]]
                 )
 
-                _probe_resp = operator @ np.vstack((self.yout[init_step:, dofx], self.yout[init_step:, dofy]))
-                probe_resp = _probe_resp[0,:]
+                _probe_resp = operator @ np.vstack(
+                    (response[init_step:, dofx], response[init_step:, dofy])
+                )
+                probe_resp = _probe_resp[0, :]
                 # fmt: on
             else:
                 dofz = ndof * node + 2 - fix_dof
-                probe_resp = self.yout[init_step:, dofz]
+                probe_resp = response[init_step:, dofz]
 
             probe_resp = Q_(probe_resp, "m").to(displacement_units).m
             data[f"probe_resp[{i}]"] = probe_resp
 
-        data["time"] = Q_(self.t[init_step:], "s").to(time_units).m
+        data["time"] = Q_(time[init_step:], "s").to(time_units).m
         df = pd.DataFrame(data)
 
         return df
@@ -5806,6 +6038,10 @@ class TimeResponseResults(Results):
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
+            ``t_initial`` and ``t_final`` define a time window in seconds when
+            ``one_cycle`` is False. With ``one_cycle=True``, provide at most one
+            of them as the cycle anchor. Without an anchor, the last cycle is used.
+            The cycle frequency comes from an available speed or the response DFT.
             *See Plotly Python Figure Reference for more information.
 
         Returns
@@ -5817,17 +6053,26 @@ class TimeResponseResults(Results):
         if fig is None:
             fig = go.Figure()
 
-        df = self.data_time_response(probe, displacement_units, time_units)
+        time, yout, windowed = self._get_plot_data(kwargs)
+
+        df = self.data_time_response(
+            probe,
+            displacement_units,
+            time_units,
+            t=time,
+            yout=yout,
+        )
         _time = df["time"].values
         for i, p in enumerate(probe):
             try:
                 probe_tag = df[f"probe_tag[{i}]"].values[0]
                 probe_resp = df[f"probe_resp[{i}]"].values
+                plot_resp = Q_(probe_resp, "m").to(displacement_units).m
 
                 fig.add_trace(
                     go.Scatter(
                         x=_time,
-                        y=Q_(probe_resp, "m").to(displacement_units).m,
+                        y=plot_resp,
                         mode="lines",
                         name=probe_tag,
                         legendgroup=probe_tag,
@@ -5835,10 +6080,13 @@ class TimeResponseResults(Results):
                         hovertemplate=f"Time ({time_units}): %{{x:.2f}}<br>Amplitude ({displacement_units}): %{{y:.2e}}",
                     )
                 )
+
             except KeyError:
                 pass
 
         fig.update_xaxes(title_text=f"Time ({time_units})")
+        if windowed:
+            fig.update_xaxes(range=[_time[0], _time[-1]])
         fig.update_yaxes(title_text=f"Amplitude ({displacement_units})")
         fig.update_layout(**kwargs)
 
@@ -5861,6 +6109,10 @@ class TimeResponseResults(Results):
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
+            ``t_initial`` and ``t_final`` define a time window in seconds when
+            ``one_cycle`` is False. With ``one_cycle=True``, provide at most one
+            of them as the cycle anchor. Without an anchor, the last cycle is used.
+            The cycle frequency comes from an available speed or the response DFT.
             *See Plotly Python Figure Reference for more information.
 
         Returns
@@ -5868,6 +6120,8 @@ class TimeResponseResults(Results):
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
+        _, yout, windowed = self._get_plot_data(kwargs)
+
         nodes = self.rotor.nodes
         link_nodes = self.rotor.link_nodes
         ndof = self.rotor.number_dof
@@ -5879,10 +6133,13 @@ class TimeResponseResults(Results):
         if fig is None:
             fig = go.Figure()
 
+        x_response = Q_(yout[:, dofx], "m").to(displacement_units).m
+        y_response = Q_(yout[:, dofy], "m").to(displacement_units).m
+
         fig.add_trace(
             go.Scatter(
-                x=Q_(self.yout[:, dofx], "m").to(displacement_units).m,
-                y=Q_(self.yout[:, dofy], "m").to(displacement_units).m,
+                x=x_response,
+                y=y_response,
                 mode="lines",
                 name="Orbit",
                 legendgroup="Orbit",
@@ -5892,6 +6149,28 @@ class TimeResponseResults(Results):
                 ),
             )
         )
+
+        if windowed:
+            fig.add_trace(
+                go.Scatter(
+                    x=[x_response[0]],
+                    y=[y_response[0]],
+                    mode="markers",
+                    marker=dict(symbol="circle", size=9, color="black"),
+                    name="Initial point",
+                    showlegend=True,
+                )
+            )
+            fig.add_trace(
+                go.Scatter(
+                    x=[x_response[-1]],
+                    y=[y_response[-1]],
+                    mode="markers",
+                    marker=dict(symbol="x", size=10, color="black"),
+                    name="Final point",
+                    showlegend=True,
+                )
+            )
 
         fig.update_xaxes(title_text=f"Amplitude ({displacement_units}) - X direction")
         fig.update_yaxes(title_text=f"Amplitude ({displacement_units}) - Y direction")
@@ -5921,6 +6200,10 @@ class TimeResponseResults(Results):
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. hoverlabel_align="center", ...).
+            ``t_initial`` and ``t_final`` define a time window in seconds when
+            ``one_cycle`` is False. With ``one_cycle=True``, provide at most one
+            of them as the cycle anchor. Without an anchor, the last cycle is used.
+            The cycle frequency comes from an available speed or the response DFT.
             *See Plotly Python Figure Reference for more information.
 
         Returns
@@ -5928,6 +6211,8 @@ class TimeResponseResults(Results):
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
+        time, yout, windowed = self._get_plot_data(kwargs)
+
         nodes_pos = self.rotor.nodes_pos
         nodes = self.rotor.nodes
         ndof = self.rotor.number_dof
@@ -5936,12 +6221,15 @@ class TimeResponseResults(Results):
             fig = go.Figure()
 
         for n in nodes:
-            x_pos = np.ones(self.yout.shape[0]) * nodes_pos[n]
+            x_pos = np.ones(len(time)) * nodes_pos[n]
+            x_response = Q_(yout[:, ndof * n], "m").to(displacement_units).m
+            y_response = Q_(yout[:, ndof * n + 1], "m").to(displacement_units).m
+
             fig.add_trace(
                 go.Scatter3d(
                     x=Q_(x_pos, "m").to(rotor_length_units).m,
-                    y=Q_(self.yout[:, ndof * n], "m").to(displacement_units).m,
-                    z=Q_(self.yout[:, ndof * n + 1], "m").to(displacement_units).m,
+                    y=x_response,
+                    z=y_response,
                     mode="lines",
                     line=dict(color=tableau_colors["blue"]),
                     name="Mean",
@@ -5953,6 +6241,30 @@ class TimeResponseResults(Results):
                     **kwargs,
                 )
             )
+
+            if windowed:
+                fig.add_trace(
+                    go.Scatter3d(
+                        x=[Q_(x_pos[0], "m").to(rotor_length_units).m],
+                        y=[x_response[0]],
+                        z=[y_response[0]],
+                        mode="markers",
+                        marker=dict(symbol="circle", size=2, color="black"),
+                        name="Initial point",
+                        showlegend=False,
+                    )
+                )
+                fig.add_trace(
+                    go.Scatter3d(
+                        x=[Q_(x_pos[-1], "m").to(rotor_length_units).m],
+                        y=[x_response[-1]],
+                        z=[y_response[-1]],
+                        mode="markers",
+                        marker=dict(symbol="x", size=1, color="black"),
+                        name="Final point",
+                        showlegend=False,
+                    )
+                )
 
         # plot center line
         line = np.zeros(len(nodes_pos))
@@ -6093,9 +6405,11 @@ class AmbTimeResponseResults(TimeResponseResults):
         System response.
     xout : array
         Time evolution of the state vector.
+    speed : float or array_like, optional
+        Rotor speed used to calculate the response, in rad/s.
     """
 
-    def __init__(self, rotor, t, yout, xout):
+    def __init__(self, rotor, t, yout, xout, speed=None):
         """Initialize the AmbTimeResponseResults instance.
 
         Parameters
@@ -6108,8 +6422,10 @@ class AmbTimeResponseResults(TimeResponseResults):
             System response.
         xout : array
             Time evolution of the state vector.
+        speed : float or array_like, optional
+            Rotor speed used to calculate the response, in rad/s.
         """
-        super().__init__(rotor, t, yout, xout)
+        super().__init__(rotor, t, yout, xout, speed=speed)
         self.x_amb = self.xout[0]
         self.v_amb = self.xout[1]
         self.F_x = self.xout[2]
@@ -6970,7 +7286,13 @@ class HarmonicBalanceResults(Results):
 
         if self.time_response is None:
             y, ydot, y2dot = self._reconstruct_time_domain()
-            self.time_response = TimeResponseResults(self.rotor, self.t, y.T, [])
+            self.time_response = TimeResponseResults(
+                self.rotor,
+                self.t,
+                y.T,
+                [],
+                speed=self.speed,
+            )
 
         return self.time_response
 

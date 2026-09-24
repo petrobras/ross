@@ -46,6 +46,8 @@ class BacklashResults(TimeResponseResults):
         System response.
     xout : array
         Time evolution of the state vector.
+    speed : float or array_like, optional
+        Rotor speed used to calculate the response, in rad/s.
 
     Attributes
     ----------
@@ -103,8 +105,8 @@ class BacklashResults(TimeResponseResults):
         },
     }
 
-    def __init__(self, rotor, t, yout, xout):
-        super().__init__(rotor, t, yout, xout)
+    def __init__(self, rotor, t, yout, xout, speed=None):
+        super().__init__(rotor, t, yout, xout, speed=speed)
 
         min_dt = np.diff(self.t).min()
 

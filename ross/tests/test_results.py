@@ -690,7 +690,11 @@ def test_save_load_amb_time_response(rotor_amb):
     sim.run()
 
     results = AmbTimeResponseResults(
-        rotor_amb, sim.t, sim.y, [sim.x_disp, sim.y_disp, [], [], []]
+        rotor_amb,
+        sim.t,
+        sim.y,
+        [sim.x_disp, sim.y_disp, [], [], []],
+        speed=0,
     )
 
     file = Path(tempdir) / "amb_time.toml"
@@ -703,6 +707,7 @@ def test_save_load_amb_time_response(rotor_amb):
     assert_allclose(results2.F_x, results.F_x, atol=1e-10)
     assert_allclose(results2.F_v, results.F_v, atol=1e-10)
     assert_allclose(results2.I, results.I, atol=1e-10)
+    assert results2.speed == results.speed
 
     assert (
         results2.rotor.bearing_elements[0].tag == results.rotor.bearing_elements[0].tag
