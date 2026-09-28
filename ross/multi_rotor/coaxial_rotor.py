@@ -606,6 +606,28 @@ class CoAxialRotor(Rotor):
         self._build_base_matrices(
             modal_damping_ratio, default_damping_ratio, alpha, beta
         )
+    
+    def _get_inner_elements(self, elements):
+        inner_nodes = [sh.n for sh in self.shafts[0]]
+        return [el for el in elements if el.n in inner_nodes]
+    
+    def _get_outer_elements(self, elements):
+        outer_nodes = [sh.n for sh in self.shafts[1]]
+        return [el for el in elements if el.n in outer_nodes]
+    
+    def _build_base_matrices(
+            self, modal_damping_ratio, default_damping_ratio, alpha, beta
+        ):
+
+        super()._build_base_matrices(modal_damping_ratio, default_damping_ratio, alpha, beta)
+
+        outer_elements = self._get_outer_elements(self.shaft_elements + self.disk_elements)
+        
+        for elm in outer_elements:
+            dofs = list(elm.dof_global_index.values())
+            self.G0[np.ix_(dofs, dofs)] += (self.speed_ratio - 1) * elm.G()
+
+
 
 
 def coaxrotor_example():
