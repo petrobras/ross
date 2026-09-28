@@ -98,6 +98,12 @@ class MultiRotor(Rotor):
     rotor : rs.Rotor
         The created multi-rotor object.
 
+    References
+    ----------
+    YI, Y.; HUANG, K.; XIONG, Y.; SANG, M. Nonlinear dynamic modelling and
+    analysis for a spur gear system with time-varying pressure angle and gear
+    backlash. Mechanical Systems and Signal Processing, v. 132, p. 18-34, 2019.
+
     Examples
     --------
     >>> import ross as rs
@@ -794,6 +800,11 @@ class MultiRotor(Rotor):
     def C_mesh(self, C0):
         """Add the gear mesh damping contribution to a damping matrix.
 
+        The mesh damping coefficient is calculated as
+        :math:`c_m = 2 \\zeta \\sqrt{k_m M_{eq}}`, following Yi et al. (2019).
+        The damping contribution is assembled analogously to the mesh stiffness
+        contribution, using the same geometric coupling matrix.
+
         Parameters
         ----------
         C0 : np.ndarray
@@ -803,6 +814,12 @@ class MultiRotor(Rotor):
         -------
         C0 : np.ndarray
             Damping matrix with the gear mesh damping contribution added.
+
+        References
+        ----------
+        YI, Y.; HUANG, K.; XIONG, Y.; SANG, M. Nonlinear dynamic modelling and
+        analysis for a spur gear system with time-varying pressure angle and gear
+        backlash. Mechanical Systems and Signal Processing, v. 132, p. 18-34, 2019.
         """
         dofs_1 = self.mesh.driving_gear.dof_global_index.values()
         dofs_2 = self.mesh.driven_gear.dof_global_index.values()

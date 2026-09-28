@@ -93,6 +93,12 @@ class Mesh:
     backlash : Backlash or None
         The backlash model of the gear pair, if enabled. None otherwise.
 
+    References
+    ----------
+    YI, Y.; HUANG, K.; XIONG, Y.; SANG, M. Nonlinear dynamic modelling and
+    analysis for a spur gear system with time-varying pressure angle and gear
+    backlash. Mechanical Systems and Signal Processing, v. 132, p. 18-34, 2019.
+
     Examples
     --------
     >>> from ross.materials import steel
@@ -593,8 +599,9 @@ class Backlash:
     """Backlash model for a gear pair.
 
     The implementation constitutes a core part of the work by Sousa (2026). It adapts the
-    model from Yi et al. (2019) and extends its mathematical foundation using the equations
-    established by Kubur et al. (2004) and Mo et al. (2025).
+    model from Yi et al. (2019), including the mesh damping coefficient
+    :math:`c_m = 2 \\zeta \\sqrt{k_m M_{eq}}`, and extends its mathematical foundation
+    using the equations established by Kubur et al. (2004) and Mo et al. (2025).
 
     Parameters
     ----------
