@@ -259,8 +259,10 @@ class MultiRotor(Rotor):
 
         if self.mesh.backlash:
             self.add_coupling_stiffness = lambda K0: K0
+            self.add_coupling_damping = lambda C0: C0
         else:
             self.add_coupling_stiffness = self.K_mesh
+            self.add_coupling_damping = self.C_mesh
 
     def set_tag(self, tag):
         """Set the tag for the current multi-rotor."""
@@ -789,6 +791,30 @@ class MultiRotor(Rotor):
 
         return K0
 
+    def C_mesh(self, C0):
+        """Add the gear mesh damping contribution to a damping matrix.
+
+        Parameters
+        ----------
+        C0 : np.ndarray
+            Damping matrix to which the mesh damping will be added.
+
+        Returns
+        -------
+        C0 : np.ndarray
+            Damping matrix with the gear mesh damping contribution added.
+        """
+        dofs_1 = self.mesh.driving_gear.dof_global_index.values()
+        dofs_2 = self.mesh.driven_gear.dof_global_index.values()
+        dofs = [*dofs_1, *dofs_2]
+
+        c_m = 2.0 * self.mesh.damping_ratio * np.sqrt(
+            self.mesh.stiffness * self.mesh.M_eq
+        )
+        C0[np.ix_(dofs, dofs)] += self.coupling_matrix * c_m
+
+        return C0
+
     def K(self, frequency, speed=None):
         """Stiffness matrix for a multi-rotor.
 
@@ -936,9 +962,11 @@ class MultiRotor(Rotor):
         if speed is None:
             speed = frequency
 
-        return self._join_matrices(
-            self.rotors["driving"].C(frequency, speed),
-            self.rotors["driven"].C(frequency, speed * self.mesh.gear_ratio),
+        return self.add_coupling_damping(
+            self._join_matrices(
+                self.rotors["driving"].C(frequency, speed),
+                self.rotors["driven"].C(frequency, speed * self.mesh.gear_ratio),
+            )
         )
 
     def G(self):
@@ -1002,10 +1030,10 @@ class MultiRotor(Rotor):
             K2 = reduce_matrix(kwargs.get("Ksdt", self.Ksdt()))
 
             def rotor_system(step, **current_state):
-                C1 = reduce_matrix(self.C(speed[step]))
-
                 # Update mesh stiffness
                 self.mesh.stiffness = self.mesh.interpolate_stiffness(theta[step])
+
+                C1 = reduce_matrix(self.C(speed[step]))
                 K1 = reduce_matrix(self.K(speed[step]))
 
                 return (
