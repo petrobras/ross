@@ -16,6 +16,7 @@ from .shaft_element import *
 from .coupling_element import *
 from .units import Q_
 from .utils import get_data_from_figure, visualize_matrix
+from .multi_rotor.coaxial_rotor import *
 from .multi_rotor.multi_rotor import *
 from .multi_rotor.gear_element import *
 from .multi_rotor.mesh import *

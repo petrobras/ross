@@ -472,7 +472,7 @@ class CoAxialRotor(Rotor):
         # define positions for disks
         for disk in disk_elements:
             z_pos = nodes_pos[disk.n]
-            y_pos = nodes_o_d[disk.n]
+            y_pos = nodes_o_d[disk.n] / 2.0
             df.loc[df.tag == disk.tag, "nodes_pos_l"] = z_pos
             df.loc[df.tag == disk.tag, "nodes_pos_r"] = z_pos
             df.loc[df.tag == disk.tag, "y_pos"] = y_pos
