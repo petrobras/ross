@@ -67,8 +67,7 @@ class Mesh:
         Default is `{"enable": False, "initial_value": 0.0, "error_amp": 0.0,
         "smooth_operator": False, "sigma": 1e4}`.
     damping_ratio : float, optional
-        Damping ratio used to compute the mesh damping when the backlash
-        model is enabled. Default is 0.07.
+        Damping ratio used to compute the mesh damping. Default is 0.0.
     orientation_angle : float, pint.Quantity, optional
         The angle between the line of gear centers and x-axis. Default is 0.0 rad.
 
@@ -89,6 +88,8 @@ class Mesh:
         The contact ratio of the gear pair.
     stiffness : float
         The (constant or mean) mesh stiffness of the gear pair (N/m).
+    M_eq : float
+        Equivalent mass of the gear pair projected onto the mesh action line.
     backlash : Backlash or None
         The backlash model of the gear pair, if enabled. None otherwise.
 
@@ -131,7 +132,7 @@ class Mesh:
             "smooth_operator": False,
             "sigma": 1e4,
         },
-        damping_ratio=0.07,
+        damping_ratio=0.0,
         orientation_angle=0,
     ):
 
@@ -161,6 +162,12 @@ class Mesh:
         self.module = driving_gear.module
         self.damping_ratio = damping_ratio
         self.contact_ratio = self.compute_contact_ratio()
+
+        Ip1 = driving_gear.Ip
+        Ip2 = driven_gear.Ip
+        Rb1 = driving_gear.base_radius
+        Rb2 = driven_gear.base_radius
+        self.M_eq = (Ip1 * Ip2) / (Ip2 * (Rb1**2) + Ip1 * (Rb2**2))
 
         stiffness_type = "constant"
 
@@ -216,6 +223,7 @@ class Mesh:
                 orientation_angle=self.orientation_angle,
                 helix_angle=self.helix_angle,
                 damping_ratio=self.damping_ratio,
+                M_eq=self.M_eq,
                 module=self.module,
                 driving_gear=self.driving_gear,
                 driven_gear=self.driven_gear,
@@ -598,6 +606,8 @@ class Backlash:
         Helix angle of the gear pair.
     damping_ratio : float
         Damping ratio of the gear pair.
+    M_eq : float
+        Equivalent mass of the gear pair projected onto the mesh action line.
     module : float
         Module of the gear pair.
     driving_gear : Gear
@@ -647,6 +657,7 @@ class Backlash:
         orientation_angle,
         helix_angle,
         damping_ratio,
+        M_eq,
         module,
         driving_gear,
         driven_gear,
@@ -669,6 +680,7 @@ class Backlash:
         self.orientation_angle = orientation_angle
         self.helix_angle = helix_angle
         self.damping_ratio = damping_ratio
+        self.M_eq = M_eq
         self.module = module
 
         self.n_teeth = driving_gear.n_teeth
@@ -682,12 +694,6 @@ class Backlash:
 
         self.driving_gear_dofs = list(driving_gear.dof_global_index.values())
         self.driven_gear_dofs = list(driven_gear.dof_global_index.values())
-
-        Ip1 = driving_gear.Ip
-        Ip2 = driven_gear.Ip
-        Rb1 = self.driving_gear_base_radius
-        Rb2 = self.driven_gear_base_radius
-        self.M_eq = (Ip1 * Ip2) / (Ip2 * (Rb1**2) + Ip1 * (Rb2**2))
 
         self.theta_range = theta_range
         self.contact_ratio_range = contact_ratio_range

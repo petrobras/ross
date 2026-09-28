@@ -80,6 +80,11 @@ class MultiRotor(Rotor):
 
         Default is `{"enable": False, "initial_value": 0.0, "error_amp": 0.0,
         "smooth_operator": False, "sigma": 1e4}`.
+    damping_ratio : float, optional
+        Damping ratio used to calculate the gear mesh damping coefficient.
+        In the linear model, this parameter controls the damping contribution
+        added to the global damping matrix. When backlash is enabled, it is
+        used in the nonlinear mesh force. Default is 0.0.
     orientation_angle : float, pint.Quantity, optional
         The angle between the line of gear centers and x-axis. Default is 0.0 rad.
     position : {'above', 'below'}, optional
@@ -170,6 +175,7 @@ class MultiRotor(Rotor):
             "smooth_operator": False,
             "sigma": 1e4,
         },
+        damping_ratio=0.0,
         orientation_angle=0.0,
         position="above",
         tag=None,
@@ -245,10 +251,11 @@ class MultiRotor(Rotor):
             gear_mesh_stiffness=gear_mesh_stiffness,
             square_varying_stiffness=square_varying_stiffness,
             backlash=backlash,
+            damping_ratio=damping_ratio,
             orientation_angle=orientation_angle,
         )
 
-        self.K_coupling = self.compute_coupling_matrix()
+        self.coupling_matrix = self.compute_coupling_matrix()
 
         if self.mesh.backlash:
             self.add_coupling_stiffness = lambda K0: K0
@@ -367,6 +374,7 @@ class MultiRotor(Rotor):
             gear_mesh_stiffness=self.mesh.stiffness,
             update_mesh_stiffness=self.update_mesh_stiffness,
             square_varying_stiffness=square_varying_stiffness,
+            damping_ratio=self.mesh.damping_ratio,
             orientation_angle=self.mesh.orientation_angle,
             position="above" if self.dy_pos >= 0 else "below",
             tag=self.tag,
@@ -777,7 +785,7 @@ class MultiRotor(Rotor):
         dofs_2 = self.mesh.driven_gear.dof_global_index.values()
         dofs = [*dofs_1, *dofs_2]
 
-        K0[np.ix_(dofs, dofs)] += self.K_coupling * self.mesh.stiffness
+        K0[np.ix_(dofs, dofs)] += self.coupling_matrix * self.mesh.stiffness
 
         return K0
 

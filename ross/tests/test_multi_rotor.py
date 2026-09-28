@@ -162,6 +162,15 @@ def test_mesh(multi_rotor):
     )
     assert_allclose(multi_rotor.mesh.stiffness, 1937234387.18946, rtol=1e-6, atol=1e-5)
 
+    gear_1 = multi_rotor.mesh.driving_gear
+    gear_2 = multi_rotor.mesh.driven_gear
+    expected_M_eq = (gear_1.Ip * gear_2.Ip) / (
+        gear_2.Ip * gear_1.base_radius**2
+        + gear_1.Ip * gear_2.base_radius**2
+    )
+    assert_allclose(multi_rotor.mesh.M_eq, expected_M_eq)
+    assert multi_rotor.mesh.backlash is None
+
 
 def test_coupling_matrix_gear(multi_rotor):
     coupling_matrix = np.array(
@@ -337,7 +346,7 @@ def test_coupling_matrix_gear(multi_rotor):
         ]
     )
 
-    assert_allclose(multi_rotor.K_coupling, coupling_matrix, rtol=1e-6, atol=1e-5)
+    assert_allclose(multi_rotor.coupling_matrix, coupling_matrix, rtol=1e-6, atol=1e-5)
 
 
 @pytest.fixture
@@ -388,12 +397,18 @@ def multi_rotor_with_backlash():
             "smooth_operator": False,
             "sigma": 1e5,
         },
+        damping_ratio=0.07,
         orientation_angle=0.0,
         position="above",
     )
 
 
 def test_mesh_with_backlash(multi_rotor_with_backlash):
+    assert_allclose(
+        multi_rotor_with_backlash.mesh.backlash.M_eq,
+        multi_rotor_with_backlash.mesh.M_eq,
+    )
+
     T10, T1a = 300.0, 100.0
     T20, T2a = 300.0, 100.0
 
