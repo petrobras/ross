@@ -7,6 +7,9 @@ from copy import copy
 
 from ross.rotor_assembly import Rotor
 from ross.bearing_seal_element import SealElement
+from ross.results import ForcedResponseResults
+from ross.units import check_units
+from ross.utils import make_speed_array
 
 __all__ = ["CoAxialRotor", "coaxrotor_example"]
 
@@ -337,6 +340,9 @@ class CoAxialRotor(Rotor):
         self.L = nodes_pos[-1]
         self.center_line_pos = [0] * len(self.nodes)
 
+        self.inner_nodes = sorted({n for sh in self.shafts[0] for n in (sh.n, sh.n_r)})
+        self.outer_nodes = sorted({n for sh in self.shafts[1] for n in (sh.n, sh.n_r)})
+
         # rotor mass can also be calculated with self.M()[::4, ::4].sum()
         self.m_disks = np.sum([disk.m for disk in self.disk_elements])
         self.m_shaft = np.sum([sh_el.m for sh_el in self.shaft_elements])
@@ -608,12 +614,10 @@ class CoAxialRotor(Rotor):
         )
     
     def _get_inner_elements(self, elements):
-        inner_nodes = [sh.n for sh in self.shafts[0]]
-        return [el for el in elements if el.n in inner_nodes]
+        return [el for el in elements if el.n in self.inner_nodes]
     
     def _get_outer_elements(self, elements):
-        outer_nodes = [sh.n for sh in self.shafts[1]]
-        return [el for el in elements if el.n in outer_nodes]
+        return [el for el in elements if el.n in self.outer_nodes]
     
     def _build_base_matrices(
             self, modal_damping_ratio, default_damping_ratio, alpha, beta
@@ -627,8 +631,206 @@ class CoAxialRotor(Rotor):
             dofs = list(elm.dof_global_index.values())
             self.G0[np.ix_(dofs, dofs)] += (self.speed_ratio - 1) * elm.G()
 
+    def _node_speed_ratio(self, node):
+        """Return the speed ratio of the shaft the node belongs to.
 
+        Parameters
+        ----------
+        node : int
+            Node index.
 
+        Returns
+        -------
+        ratio : float
+            ``speed_ratio`` for a node on the outer shaft, 1 otherwise.
+        """
+        return self.speed_ratio if node in self.outer_nodes else 1
+
+    def _unbalance_force(self, node, magnitude, phase, omega):
+        """Calculate unbalance forces at the node's own excitation frequency.
+
+        The force rotates with the shaft the node belongs to, so its
+        frequency is ``abs(ratio) * omega``. For a counter-rotating shaft the
+        force whirls backward, which flips the phase and the sign of the y
+        component.
+
+        Parameters
+        ----------
+        node : int
+            Node where the unbalance is applied.
+        magnitude : float
+            Unbalance magnitude (kg.m).
+        phase : float
+            Unbalance phase (rad).
+        omega : list, float
+            Inner shaft speeds (rad/s).
+
+        Returns
+        -------
+        F0 : np.ndarray
+            Unbalance force in each degree of freedom for each value in omega.
+        """
+        ratio = self._node_speed_ratio(node)
+        frequency = abs(ratio) * np.asarray(omega)
+
+        if ratio >= 0:
+            return super()._unbalance_force(node, magnitude, phase, frequency)
+
+        F0 = super()._unbalance_force(node, magnitude, -phase, frequency)
+        F0[node * self.number_dof + 1] *= -1
+
+        return F0
+
+    @check_units
+    def run_unbalance_response(
+        self,
+        node,
+        unbalance_magnitude,
+        unbalance_phase,
+        speed_range=None,
+        modes=None,
+    ):
+        """Unbalanced response for a coaxial rotor.
+
+        Each unbalance excites at the speed of its own shaft, so an unbalance
+        on the outer shaft excites at ``abs(speed_ratio)`` times the inner
+        shaft speed. The response is evaluated at that frequency, with the
+        rotor at the inner shaft speed.
+
+        Parameters
+        ----------
+        node : list, int
+            Node where the unbalance is applied.
+        unbalance_magnitude : list, float, pint.Quantity
+            Unbalance magnitude (kg.m).
+        unbalance_phase : list, float, pint.Quantity
+            Unbalance phase (rad).
+        speed_range : list, pint.Quantity
+            Inner shaft speeds (rad/s).
+            Default is 0 to 1.5 x highest damped natural frequency.
+        modes : list, optional
+            Modes that will be used to calculate the frequency response
+            (all modes will be used if a list is not given).
+
+        Returns
+        -------
+        results : ross.ForcedResponseResults
+            For more information on attributes and methods available see:
+            :py:class:`ross.ForcedResponseResults`
+
+        Raises
+        ------
+        ValueError
+            If there are unbalances on both shafts and ``abs(speed_ratio)``
+            is not 1. The response then has two harmonics, which a single
+            result cannot hold, so each shaft must be run separately.
+
+        Examples
+        --------
+        >>> rotor = coaxrotor_example()
+        >>> speed = np.linspace(0, 150, 31)
+        >>> response = rotor.run_unbalance_response(node=[3, 13],
+        ...                                         unbalance_magnitude=[1e-4, 1e-4],
+        ...                                         unbalance_phase=[0, 0],
+        ...                                         speed_range=speed)
+        """
+        if speed_range is None:
+            modal = self.run_modal(0)
+            speed_range = np.linspace(0, max(modal.evalues.imag) * 1.5, 1000)
+        speed_range = np.asarray(speed_range)
+
+        node = np.atleast_1d(node)
+        unbalance_magnitude = np.atleast_1d(unbalance_magnitude)
+        unbalance_phase = np.atleast_1d(unbalance_phase)
+
+        frequency_ratios = {abs(self._node_speed_ratio(n)) for n in node}
+        if len(frequency_ratios) > 1:
+            raise ValueError(
+                "Unbalances on both shafts excite at different frequencies "
+                f"(abs(speed_ratio) = {abs(self.speed_ratio)}). Run the unbalance "
+                "response for each shaft separately."
+            )
+        frequency_range = frequency_ratios.pop() * speed_range
+
+        self._check_coefficient_axes(speed=speed_range, frequency=frequency_range)
+
+        force = np.zeros((self.ndof, len(speed_range)), dtype=complex)
+        for n, m, p in zip(node, unbalance_magnitude, unbalance_phase, strict=True):
+            force += self._unbalance_force(n, m, p, speed_range)
+
+        forced_resp = np.zeros((self.ndof, len(speed_range)), dtype=complex)
+        for i, (speed, frequency) in enumerate(zip(speed_range, frequency_range, strict=True)):
+            H = self.transfer_matrix(speed=speed, frequency=frequency, modes=modes)
+            forced_resp[:, i] = H @ force[:, i]
+
+        return ForcedResponseResults(
+            rotor=self,
+            forced_resp=forced_resp,
+            velc_resp=1j * frequency_range * forced_resp,
+            accl_resp=-(frequency_range**2) * forced_resp,
+            speed_range=speed_range,
+            unbalance=np.vstack((node, unbalance_magnitude, unbalance_phase)),
+        )
+
+    def unbalance_force_over_time(
+        self, node, magnitude, phase, omega, t, return_all=False
+    ):
+        """Calculate unbalance forces for each time step.
+
+        This auxiliary function calculates the unbalanced forces by taking
+        into account the magnitude and phase of the force. It generates an
+        array of force values at each degree of freedom for the specified
+        nodes at each time step, while also considering a range of
+        frequencies.
+
+        Parameters
+        ----------
+        node : list, int
+            Nodes where the unbalance is applied.
+        magnitude : list, float
+            Unbalance magnitude (kg.m) for each node.
+        phase : list, float
+            Unbalance phase (rad) for each node.
+        omega : float, np.darray
+            Constant velocity or desired range of velocities (rad/s).
+        t : np.darray
+            Time array (s).
+        return_all : bool, optional
+            If True, returns F0, theta, omega, and alpha.
+            If False, returns only F0.
+            Default is False.
+
+        Returns
+        -------
+        F0 : np.ndarray
+            Unbalance force at each degree of freedom for each time step.
+        theta : np.ndarray
+            Angular positions for each time step.
+        omega : np.ndarray
+            Angular velocities for each time step.
+        alpha : np.ndarray
+            Angular accelerations for each time step.
+        """
+
+        omega, theta, alpha = make_speed_array(omega, t)
+
+        F0 = np.zeros((self.ndof, len(t)))
+
+        for i, n in enumerate(node):
+            phi = phase[i] + theta * self._node_speed_ratio(n)
+            w = omega * self._node_speed_ratio(n)
+            a = alpha * self._node_speed_ratio(n)
+
+            Fx = magnitude[i] * ((w**2) * np.cos(phi) + a * np.sin(phi))
+            Fy = magnitude[i] * ((w**2) * np.sin(phi) - a * np.cos(phi))
+
+            F0[n * self.number_dof + 0, :] += Fx
+            F0[n * self.number_dof + 1, :] += Fy
+
+        if return_all:
+            return F0, theta, omega, alpha
+        else:
+            return F0
 
 def coaxrotor_example():
     """Create a coaxial rotor as example.
