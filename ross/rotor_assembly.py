@@ -6783,16 +6783,17 @@ class CoAxialRotor(Rotor):
 
                 if sh.n in df_bearings["n_link"].values:
                     idx = df_bearings.loc[df_bearings.n_link == sh.n, "n"].values[0]
-                    nodes_pos_l[i : sh.n] += nodes_pos_l[idx] - nodes_pos_l[k + i]
-                    nodes_pos_r[i : sh.n] += nodes_pos_r[idx] - nodes_pos_r[k + i]
-                    axial_cg_pos[i : sh.n] += nodes_pos_r[idx] - nodes_pos_r[k + i]
+                    shift = nodes_pos_l[idx] - nodes_pos_l[k + i]
+                    nodes_pos_l[i : sh.n] += shift
+                    nodes_pos_r[i : sh.n] += shift
+                    axial_cg_pos[i : sh.n] += shift
+
                 elif sh.n_r in df_bearings["n_link"].values:
                     idx = df_bearings.loc[df_bearings.n_link == sh.n_r, "n"].values[0]
-                    nodes_pos_l[i : sh.n_r] += nodes_pos_l[idx - 1] - nodes_pos_l[k + i]
-                    nodes_pos_r[i : sh.n_r] += nodes_pos_r[idx - 1] - nodes_pos_r[k + i]
-                    axial_cg_pos[i : sh.n_r] += (
-                        nodes_pos_r[idx - 1] - nodes_pos_r[k + i]
-                    )
+                    shift = nodes_pos_r[idx - 1] - nodes_pos_r[k + i]
+                    nodes_pos_l[i : sh.n_r] += shift
+                    nodes_pos_r[i : sh.n_r] += shift
+                    axial_cg_pos[i : sh.n_r] += shift
 
                 axial_cg_pos[k + i] = sh.beam_cg + nodes_pos_l[k + i]
                 sh.axial_cg_pos = axial_cg_pos[k + i]
