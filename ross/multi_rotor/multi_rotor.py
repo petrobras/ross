@@ -8,6 +8,7 @@ geared rotor-dynamic systems.
 import numpy as np
 from re import search
 from copy import deepcopy as copy
+from pathlib import Path
 
 import ross as rs
 from ross.rotor_assembly import Rotor
@@ -61,6 +62,8 @@ class MultiRotor(Rotor):
             mesh stiffness.
 
         Default is `{"enable": False, "amplitude_ratio": 0}`.
+    damping_ratio : float, optional
+        Damping ratio used by the gear mesh model. Default is 0.07.
     backlash : dict, optional
         Dictionary to enable and configure the backlash model between the
         coupled gears. Keys are:
@@ -87,7 +90,6 @@ class MultiRotor(Rotor):
         when plotting the multi-rotor. Default is 'above'.
     tag : str, optional
         A tag to identify the multi-rotor. Default is None.
-
     Returns
     -------
     rotor : rs.Rotor
@@ -163,6 +165,7 @@ class MultiRotor(Rotor):
         gear_mesh_stiffness=None,
         update_mesh_stiffness=False,
         square_varying_stiffness={"enable": False, "amplitude_ratio": 0},
+        damping_ratio=0.07,
         backlash={
             "enable": False,
             "initial_value": 0.0,
@@ -174,13 +177,44 @@ class MultiRotor(Rotor):
         position="above",
         tag=None,
     ):
+        # Keep positional calls written for the former signature working.
+        if isinstance(damping_ratio, dict):
+            legacy_backlash = damping_ratio
+            legacy_orientation = 0.0
+            legacy_position = "above"
+            legacy_tag = None
+
+            if isinstance(backlash, dict):
+                backlash = legacy_backlash
+            else:
+                legacy_orientation = backlash
+                if isinstance(orientation_angle, str):
+                    legacy_position = orientation_angle
+                    if position != "above":
+                        legacy_tag = position
+                else:
+                    if position != "above":
+                        legacy_tag = position
+                backlash = legacy_backlash
+                orientation_angle = legacy_orientation
+                position = legacy_position
+                if tag is None:
+                    tag = legacy_tag
+            damping_ratio = 0.07
+
         self.rotors = {"driving": copy(driving_rotor), "driven": copy(driven_rotor)}
+        self.coupled_nodes = tuple(int(node) for node in coupled_nodes)
+        self._gear_mesh_stiffness = gear_mesh_stiffness
+        self._damping_ratio = damping_ratio
+        self._square_varying_stiffness = copy(square_varying_stiffness)
+        self._backlash = copy(backlash)
+        self.position = position
 
         R1 = copy(driving_rotor)
         R2 = copy(driven_rotor)
 
-        gear_1 = self._locate_rotor_gears(R1, coupled_nodes[0])
-        gear_2 = self._locate_rotor_gears(R2, coupled_nodes[1])
+        gear_1 = self._locate_rotor_gears(R1, self.coupled_nodes[0])
+        gear_2 = self._locate_rotor_gears(R2, self.coupled_nodes[1])
 
         if len(gear_1) == 0 or len(gear_2) == 0:
             raise TypeError("Each rotor needs a GearElement in the coupled nodes!")
@@ -244,6 +278,7 @@ class MultiRotor(Rotor):
             gear_2,
             gear_mesh_stiffness=gear_mesh_stiffness,
             square_varying_stiffness=square_varying_stiffness,
+            damping_ratio=damping_ratio,
             backlash=backlash,
             orientation_angle=orientation_angle,
         )
@@ -254,6 +289,205 @@ class MultiRotor(Rotor):
             self.add_coupling_stiffness = lambda K0: K0
         else:
             self.add_coupling_stiffness = self.K_mesh
+
+    def _new_rotor_kwargs(self, refinement_factor):
+        """Return topology arguments for a refined temporary multi-rotor."""
+        return {
+            "coupled_nodes": tuple(
+                int(node * refinement_factor) for node in self.coupled_nodes
+            ),
+            "node_scale": refinement_factor,
+        }
+
+    def _new_rotor(
+        self,
+        shaft_elements,
+        disk_elements,
+        bearing_elements,
+        point_mass_elements,
+        coupled_nodes=None,
+        node_scale=1,
+    ):
+        """Rebuild a multi-rotor while preserving its two-rotor topology."""
+        driven_offset = (
+            self.driven_nodes[0] - self.rotors["driven"].nodes[0]
+        ) * node_scale
+        driving_nodes = set(
+            range(
+                min(self.rotors["driving"].nodes) * node_scale,
+                (max(self.rotors["driving"].nodes) + 1) * node_scale,
+            )
+        ) | {int(node) * node_scale for node in self.rotors["driving"].link_nodes}
+        driven_nodes = set(
+            range(
+                min(self.driven_nodes) * node_scale,
+                (max(self.driven_nodes) + 1) * node_scale,
+            )
+        ) | {
+            int(node) * node_scale + driven_offset
+            for node in self.rotors["driven"].link_nodes
+        }
+
+        def split_elements(elements):
+            driving = []
+            driven = []
+            for element in elements:
+                element = copy(element)
+                if element.n in driving_nodes:
+                    driving.append(element)
+                elif element.n in driven_nodes:
+                    element.n -= driven_offset
+                    if getattr(element, "n_link", None) is not None:
+                        element.n_link -= driven_offset
+                    driven.append(element)
+                else:
+                    raise ValueError(
+                        f"Node {element.n} does not belong to the driving or driven rotor."
+                    )
+            return driving, driven
+
+        driving_shaft, driven_shaft = split_elements(shaft_elements)
+        driving_disk, driven_disk = split_elements(disk_elements)
+        driving_bearing, driven_bearing = split_elements(bearing_elements)
+        driving_point_mass, driven_point_mass = split_elements(point_mass_elements)
+
+        driving_rotor = self.rotors["driving"]._new_rotor(
+            driving_shaft,
+            driving_disk,
+            driving_bearing,
+            driving_point_mass,
+        )
+        driven_rotor = self.rotors["driven"]._new_rotor(
+            driven_shaft,
+            driven_disk,
+            driven_bearing,
+            driven_point_mass,
+        )
+
+        return self.__class__(
+            driving_rotor=driving_rotor,
+            driven_rotor=driven_rotor,
+            coupled_nodes=(
+                self.coupled_nodes if coupled_nodes is None else coupled_nodes
+            ),
+            gear_mesh_stiffness=self._gear_mesh_stiffness,
+            update_mesh_stiffness=self.update_mesh_stiffness,
+            square_varying_stiffness=copy(self._square_varying_stiffness),
+            damping_ratio=self._damping_ratio,
+            backlash=copy(self._backlash),
+            orientation_angle=self.mesh.orientation_angle,
+            position=self.position,
+            tag=self.tag,
+        )
+
+    def _serialization_config(self):
+        """Return the constructor configuration needed to restore the mesh."""
+        return {
+            "coupled_nodes": list(self.coupled_nodes),
+            "gear_mesh_stiffness": self._gear_mesh_stiffness,
+            "update_mesh_stiffness": self.update_mesh_stiffness,
+            "square_varying_stiffness": copy(self._square_varying_stiffness),
+            "damping_ratio": self._damping_ratio,
+            "backlash": copy(self._backlash),
+            "orientation_angle": self.mesh.orientation_angle,
+            "position": self.position,
+            "tag": self.tag,
+        }
+
+    def save(self, file):
+        """Save the complete multi-rotor topology to TOML or JSON.
+
+        The two component rotors are saved alongside the main file.  The main
+        file contains an explicit type marker and all mesh constructor options,
+        so loading through either ``MultiRotor.load`` or ``Rotor.load`` restores
+        a real ``MultiRotor`` instead of an assembled plain ``Rotor``.
+        """
+        import ross
+        from ross.utils import cast_numpy_types, dump_data
+
+        file = Path(file)
+        dump_data(
+            {
+                "ross_version": ross.__version__,
+                "_rotor_type": "MultiRotor",
+                "parameters": self.parameters,
+                "multi_rotor": cast_numpy_types(self._serialization_config()),
+            },
+            file,
+        )
+
+        for name, rotor in self.rotors.items():
+            aux_file = str(file.with_suffix("")) + f"_{name}_rotor" + file.suffix
+            rotor.save(aux_file)
+
+    @classmethod
+    def load(cls, file):
+        """Load a complete multi-rotor from TOML or JSON."""
+        from ross.rotor_assembly import Rotor
+
+        return Rotor.load(file)
+
+    @classmethod
+    def _load_from_data(cls, file, data):
+        """Restore a multi-rotor from already loaded file data."""
+        from ross.rotor_assembly import Rotor
+
+        file = Path(file)
+        config = dict(data["multi_rotor"])
+        rotors = {}
+        for name in ("driving", "driven"):
+            aux_file = str(file.with_suffix("")) + f"_{name}_rotor" + file.suffix
+            rotors[name] = Rotor.load(aux_file)
+
+        config["coupled_nodes"] = tuple(config["coupled_nodes"])
+        return cls(
+            driving_rotor=rotors["driving"],
+            driven_rotor=rotors["driven"],
+            **config,
+        )
+
+    def __eq__(self, other):
+        """Compare both assembled elements and multi-rotor configuration."""
+        if not isinstance(other, MultiRotor):
+            return False
+
+        def elements_equal(left, right):
+            if len(left) != len(right):
+                return False
+            ignored = {"base_diameter", "dof_global_index", "tag"}
+            for left_element, right_element in zip(left, right, strict=True):
+                if left_element.__class__ is not right_element.__class__:
+                    return False
+                for name in set(vars(left_element)) | set(vars(right_element)):
+                    if name in ignored or name.endswith("_interpolated"):
+                        continue
+                    left_value = getattr(left_element, name, None)
+                    right_value = getattr(right_element, name, None)
+                    try:
+                        if not np.allclose(left_value, right_value):
+                            return False
+                    except (TypeError, ValueError):
+                        if left_value != right_value:
+                            return False
+            return True
+
+        def rotors_equal(left, right):
+            if type(left) is not type(right):
+                return False
+            if isinstance(left, MultiRotor):
+                return left == right
+            return left.parameters == right.parameters and elements_equal(
+                left.elements, right.elements
+            )
+
+        return (
+            self.parameters == other.parameters
+            and elements_equal(self.elements, other.elements)
+            and self.coupled_nodes == other.coupled_nodes
+            and self._serialization_config() == other._serialization_config()
+            and rotors_equal(self.rotors["driving"], other.rotors["driving"])
+            and rotors_equal(self.rotors["driven"], other.rotors["driven"])
+        )
 
     def set_tag(self, tag):
         """Set the tag for the current multi-rotor."""
@@ -355,20 +589,17 @@ class MultiRotor(Rotor):
         gear_1 = self._get_coupled_gear(driving_rotor)
         gear_2 = self._get_coupled_gear(driven_rotor)
 
-        square_varying_stiffness = {
-            "enable": self.mesh.stiffness_type == "square",
-            "amplitude_ratio": self.mesh.Ksq_ratio,
-        }
-
         return self.__class__(
             driving_rotor,
             driven_rotor,
             coupled_nodes=(gear_1.n, gear_2.n),
-            gear_mesh_stiffness=self.mesh.stiffness,
+            gear_mesh_stiffness=self._gear_mesh_stiffness,
             update_mesh_stiffness=self.update_mesh_stiffness,
-            square_varying_stiffness=square_varying_stiffness,
+            square_varying_stiffness=copy(self._square_varying_stiffness),
+            damping_ratio=self._damping_ratio,
+            backlash=copy(self._backlash),
             orientation_angle=self.mesh.orientation_angle,
-            position="above" if self.dy_pos >= 0 else "below",
+            position=self.position,
             tag=self.tag,
         )
 
@@ -379,7 +610,11 @@ class MultiRotor(Rotor):
 
         for elm in rotor.disk_elements:
             if elm.n == node:
-                elm.tag += tag_suffix
+                if tag_suffix not in elm.tag:
+                    old_tag = elm.tag
+                    elm.tag += tag_suffix
+                    if hasattr(rotor, "df"):
+                        rotor.df.loc[rotor.df.tag == old_tag, "tag"] = elm.tag
                 break
 
     @staticmethod

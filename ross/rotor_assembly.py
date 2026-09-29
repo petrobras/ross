@@ -1102,6 +1102,36 @@ class Rotor(object):
             name: getattr(self, name) for name in sig.parameters if name not in skip
         }
 
+    def _new_rotor(
+        self,
+        shaft_elements,
+        disk_elements,
+        bearing_elements,
+        point_mass_elements,
+        **kwargs,
+    ):
+        """Build an instance of the current rotor class from new elements.
+
+        Several analyses need a temporary rotor with modified elements.  Using
+        ``Rotor(...)`` in those methods silently discards subclass-specific
+        behavior, while calling ``self.__class__(...)`` does not provide enough
+        information for classes with a different constructor.  Subclasses can
+        override this hook to rebuild their topology.
+        """
+        parameters = self._init_parameters()
+        parameters.update(kwargs)
+        return self.__class__(
+            shaft_elements=shaft_elements,
+            disk_elements=disk_elements,
+            bearing_elements=bearing_elements,
+            point_mass_elements=point_mass_elements,
+            **parameters,
+        )
+
+    def _new_rotor_kwargs(self, refinement_factor):
+        """Return subclass-specific arguments for a refined temporary rotor."""
+        return {}
+
     def add_nodes(self, new_nodes_pos):
         """Add nodes to rotor.
 
@@ -1726,6 +1756,7 @@ class Rotor(object):
                     idl = ((nel_r - j) * idl + j * idr) / nel_r
                     shaft_elem.append(
                         ShaftElement(
+                            n=nel_r * shaft.n + j,
                             L=le,
                             idl=idl,
                             odl=odl,
@@ -1755,7 +1786,13 @@ class Rotor(object):
                 aux_elm.n = nel_r * elm.n
                 pmass_elem.append(aux_elm)
 
-            aux_rotor = Rotor(shaft_elem, disk_elem, brgs_elem, pmass_elem)
+            aux_rotor = self._new_rotor(
+                shaft_elem,
+                disk_elem,
+                brgs_elem,
+                pmass_elem,
+                **self._new_rotor_kwargs(nel_r),
+            )
             aux_modal = aux_rotor.run_modal(speed=0)
 
             eigv_arr = np.append(eigv_arr, aux_modal.wn[n_eigval])
@@ -4560,7 +4597,7 @@ class Rotor(object):
 
         for i, k in enumerate(stiffness_log):
             rotor = convert_6dof_to_4dof(
-                self.__class__(
+                self._new_rotor(
                     shaft_elements=shaft_elements,
                     disk_elements=self.disk_elements,
                     bearing_elements=[
@@ -4646,7 +4683,7 @@ class Rotor(object):
 
                         # create rotor
                         rotor_critical = convert_6dof_to_4dof(
-                            self.__class__(
+                            self._new_rotor(
                                 shaft_elements=shaft_elements,
                                 disk_elements=self.disk_elements,
                                 bearing_elements=self._remove_housing_bearings(
@@ -4737,7 +4774,7 @@ class Rotor(object):
         log_dec = np.zeros(len(stiffness))
 
         # set rotor speed to mcs
-        speed = self.rated_w
+        speed = self.rated_w if self.rated_w is not None else 0
         modal = self.run_modal(speed=speed)
 
         for i, Q in enumerate(stiffness):
@@ -4745,7 +4782,7 @@ class Rotor(object):
             cross_coupling = BearingElement(n=n, kxx=0, cxx=0, kxy=Q, kyx=-Q)
             bearings.append(cross_coupling)
 
-            rotor = self.__class__(
+            rotor = self._new_rotor(
                 self.shaft_elements,
                 self.disk_elements,
                 bearings,
@@ -5412,6 +5449,15 @@ class Rotor(object):
                 f"but current version is {ross.__version__}. "
                 f"This may lead to incompatibilities."
             )
+
+        # Rotor files are polymorphic.  Keep the public ``Rotor.load`` entry
+        # point backwards compatible while allowing subclasses to restore
+        # their complete topology.
+        if data.get("_rotor_type") == "MultiRotor":
+            from ross.multi_rotor.multi_rotor import MultiRotor
+
+            return MultiRotor._load_from_data(file, data)
+
         parameters = data["parameters"]
 
         elements = []
@@ -5528,8 +5574,12 @@ class Rotor(object):
             aux_brg.append(BearingElement(n=brg.n, n_link=brg.n_link, kxx=1e20, cxx=0))
             aux_brg_1.append(BearingElement(n=brg.n, n_link=brg.n_link, kxx=0, cxx=0))
 
-        aux_rotor = Rotor(self.shaft_elements, self.disk_elements, aux_brg, pmass)
-        aux_rotor_1 = Rotor(self.shaft_elements, self.disk_elements, aux_brg_1, pmass)
+        aux_rotor = self._new_rotor(
+            self.shaft_elements, self.disk_elements, aux_brg, pmass
+        )
+        aux_rotor_1 = self._new_rotor(
+            self.shaft_elements, self.disk_elements, aux_brg_1, pmass
+        )
 
         aux_M = aux_rotor.M(0)
         aux_K = aux_rotor.K(0)
@@ -7113,6 +7163,22 @@ class CoAxialRotor(Rotor):
         # Base matrices:
         self._build_base_matrices(
             modal_damping_ratio, default_damping_ratio, alpha, beta
+        )
+
+    def _new_rotor(
+        self,
+        shaft_elements,
+        disk_elements,
+        bearing_elements,
+        point_mass_elements,
+        **kwargs,
+    ):
+        """Build the legacy temporary rotor used by inherited analyses."""
+        return Rotor(
+            shaft_elements,
+            disk_elements,
+            bearing_elements,
+            point_mass_elements,
         )
 
 
