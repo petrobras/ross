@@ -6,6 +6,7 @@ from copy import deepcopy
 from numpy.testing import assert_allclose
 
 import ross as rs
+from ross.multi_rotor.mesh import Mesh
 
 
 @pytest.fixture
@@ -164,7 +165,14 @@ def test_damping_ratio_argument_order():
     parameters = list(inspect.signature(rs.MultiRotor).parameters)
 
     assert (
-        parameters.index("damping_ratio") == parameters.index("gear_mesh_stiffness") + 1
+        parameters.index("damping_ratio")
+        == parameters.index("square_varying_stiffness") + 1
+    )
+
+    mesh_parameters = list(inspect.signature(Mesh).parameters)
+    assert (
+        mesh_parameters.index("damping_ratio")
+        == mesh_parameters.index("square_varying_stiffness") + 1
     )
 
 
@@ -453,6 +461,7 @@ def multi_rotor_with_backlash():
         driven_rotor=rotor2,
         coupled_nodes=(0, 0),
         square_varying_stiffness={"enable": True, "amplitude_ratio": 0.275},
+        damping_ratio=0.07,
         backlash={
             "enable": True,
             "initial_value": 5e-5,
@@ -460,7 +469,6 @@ def multi_rotor_with_backlash():
             "smooth_operator": False,
             "sigma": 1e5,
         },
-        damping_ratio=0.07,
         orientation_angle=0.0,
         position="above",
     )
