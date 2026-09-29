@@ -6932,8 +6932,7 @@ class CoAxialRotor(Rotor):
         half_ndof = self.number_dof / 2
         n_last = max(el.n for el in shaft_elements)
         self.ndof = int(
-            self.number_dof * (n_last + 2)
-            + half_ndof * len(point_mass_elements)
+            self.number_dof * (n_last + 2) + half_ndof * len(point_mass_elements)
         )
 
         # Linked bearings and point masses can be placed beyond the last shaft
@@ -7228,8 +7227,12 @@ class CoAxialRotor(Rotor):
         """Restore a coaxial rotor while preserving shaft membership."""
         config = data["_coaxial_rotor"]
         elements = cls._elements_from_data(data)
-        shaft_elements = [element for element in elements if isinstance(element, ShaftElement)]
-        disk_elements = [element for element in elements if isinstance(element, DiskElement)]
+        shaft_elements = [
+            element for element in elements if isinstance(element, ShaftElement)
+        ]
+        disk_elements = [
+            element for element in elements if isinstance(element, DiskElement)
+        ]
         bearing_elements = [
             element for element in elements if isinstance(element, BearingElement)
         ]
@@ -7244,7 +7247,9 @@ class CoAxialRotor(Rotor):
                 for shaft_nodes in config["shaft_nodes"]
             ]
         except KeyError as exc:
-            raise ValueError("CoAxialRotor file has an incomplete shaft topology") from exc
+            raise ValueError(
+                "CoAxialRotor file has an incomplete shaft topology"
+            ) from exc
 
         parameters = dict(data["parameters"])
         parameters["tag"] = config.get("tag")
