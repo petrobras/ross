@@ -828,8 +828,10 @@ class MultiRotor(Rotor):
         dofs_2 = self.mesh.driven_gear.dof_global_index.values()
         dofs = [*dofs_1, *dofs_2]
 
-        c_m = 2.0 * self.mesh.damping_ratio * np.sqrt(
-            self.mesh.stiffness * self.mesh.M_eq
+        c_m = (
+            2.0
+            * self.mesh.damping_ratio
+            * np.sqrt(self.mesh.stiffness * self.mesh.M_eq)
         )
         C0[np.ix_(dofs, dofs)] += self.coupling_matrix * c_m
 

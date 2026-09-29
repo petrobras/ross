@@ -163,9 +163,9 @@ def test_add_elements(multi_rotor):
 def test_damping_ratio_argument_order():
     parameters = list(inspect.signature(rs.MultiRotor).parameters)
 
-    assert parameters.index("damping_ratio") == parameters.index(
-        "gear_mesh_stiffness"
-    ) + 1
+    assert (
+        parameters.index("damping_ratio") == parameters.index("gear_mesh_stiffness") + 1
+    )
 
 
 def test_mesh(multi_rotor):
@@ -177,8 +177,7 @@ def test_mesh(multi_rotor):
     gear_1 = multi_rotor.mesh.driving_gear
     gear_2 = multi_rotor.mesh.driven_gear
     expected_M_eq = (gear_1.Ip * gear_2.Ip) / (
-        gear_2.Ip * gear_1.base_radius**2
-        + gear_1.Ip * gear_2.base_radius**2
+        gear_2.Ip * gear_1.base_radius**2 + gear_1.Ip * gear_2.base_radius**2
     )
     assert_allclose(multi_rotor.mesh.M_eq, expected_M_eq)
     assert multi_rotor.mesh.backlash is None
@@ -374,8 +373,10 @@ def test_mesh_damping_matrix(multi_rotor):
     assert_allclose(multi_rotor.C(frequency), base_C)
 
     multi_rotor.mesh.damping_ratio = 0.07
-    c_m = 2.0 * multi_rotor.mesh.damping_ratio * np.sqrt(
-        multi_rotor.mesh.stiffness * multi_rotor.mesh.M_eq
+    c_m = (
+        2.0
+        * multi_rotor.mesh.damping_ratio
+        * np.sqrt(multi_rotor.mesh.stiffness * multi_rotor.mesh.M_eq)
     )
     expected = base_C.copy()
     dofs_1 = multi_rotor.mesh.driving_gear.dof_global_index.values()
@@ -404,9 +405,9 @@ def test_mesh_damping_updates_with_stiffness(multi_rotor):
     dofs_2 = multi_rotor.mesh.driven_gear.dof_global_index.values()
     dofs = [*dofs_1, *dofs_2]
     nonzero = np.abs(multi_rotor.coupling_matrix) > 1e-12
-    ratio = C_mesh_2[np.ix_(dofs, dofs)][nonzero] / C_mesh_1[
-        np.ix_(dofs, dofs)
-    ][nonzero]
+    ratio = (
+        C_mesh_2[np.ix_(dofs, dofs)][nonzero] / C_mesh_1[np.ix_(dofs, dofs)][nonzero]
+    )
 
     assert_allclose(ratio, np.sqrt(stiffness_2 / stiffness_1))
 
@@ -487,7 +488,6 @@ def test_mesh_with_backlash(multi_rotor_with_backlash):
     assert_allclose(multi_rotor_with_backlash.C(frequency), expected_C)
     assert_allclose(multi_rotor_with_backlash.K(frequency), expected_K)
 
-
     T10, T1a = 300.0, 100.0
     T20, T2a = 300.0, 100.0
 
@@ -541,9 +541,7 @@ def test_rebuild_preserves_mesh_configuration(multi_rotor_with_backlash):
     multi_rotor = multi_rotor_with_backlash
     rebuilt_rotors = [
         multi_rotor.add_nodes([5e-5]),
-        multi_rotor.add_elements(
-            [rs.DiskElement(n=0, m=0.1, Id=0.01, Ip=0.02)]
-        ),
+        multi_rotor.add_elements([rs.DiskElement(n=0, m=0.1, Id=0.01, Ip=0.02)]),
     ]
 
     for rebuilt in rebuilt_rotors:
