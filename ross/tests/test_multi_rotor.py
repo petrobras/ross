@@ -487,6 +487,7 @@ def test_mesh_with_backlash(multi_rotor_with_backlash):
     assert_allclose(multi_rotor_with_backlash.C(frequency), expected_C)
     assert_allclose(multi_rotor_with_backlash.K(frequency), expected_K)
 
+
     T10, T1a = 300.0, 100.0
     T20, T2a = 300.0, 100.0
 
@@ -534,3 +535,22 @@ def test_mesh_with_backlash(multi_rotor_with_backlash):
     assert_allclose(np.mean(mesh_results["center_distance"]), d, rtol=1e-2)
     assert_allclose(np.mean(mesh_results["pressure_angle"]), alpha, rtol=1e-2)
     assert_allclose(np.mean(mesh_results["contact_ratio"]), cr, rtol=1e-2)
+
+
+def test_rebuild_preserves_mesh_configuration(multi_rotor_with_backlash):
+    multi_rotor = multi_rotor_with_backlash
+    rebuilt_rotors = [
+        multi_rotor.add_nodes([5e-5]),
+        multi_rotor.add_elements(
+            [rs.DiskElement(n=0, m=0.1, Id=0.01, Ip=0.02)]
+        ),
+    ]
+
+    for rebuilt in rebuilt_rotors:
+        assert rebuilt.mesh.backlash is not None
+        assert rebuilt.mesh.stiffness_type == multi_rotor.mesh.stiffness_type
+        assert rebuilt.mesh.damping_ratio == multi_rotor.mesh.damping_ratio
+        assert (
+            rebuilt.mesh.backlash.damping_ratio
+            == multi_rotor.mesh.backlash.damping_ratio
+        )

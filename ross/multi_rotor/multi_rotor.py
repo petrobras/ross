@@ -252,6 +252,9 @@ class MultiRotor(Rotor):
 
         # Create mesh
         self.update_mesh_stiffness = update_mesh_stiffness
+        self._gear_mesh_stiffness = gear_mesh_stiffness
+        self._square_varying_stiffness = copy(square_varying_stiffness)
+        self._backlash = copy(backlash)
 
         self.mesh = Mesh(
             gear_1,
@@ -368,23 +371,19 @@ class MultiRotor(Rotor):
         return self._rebuild(driving_rotor, driven_rotor)
 
     def _rebuild(self, driving_rotor, driven_rotor):
-        """Rebuild the multi-rotor from updated driving and driven rotors."""
+        """Rebuild the multi-rotor while preserving its mesh configuration."""
         gear_1 = self._get_coupled_gear(driving_rotor)
         gear_2 = self._get_coupled_gear(driven_rotor)
-
-        square_varying_stiffness = {
-            "enable": self.mesh.stiffness_type == "square",
-            "amplitude_ratio": self.mesh.Ksq_ratio,
-        }
 
         return self.__class__(
             driving_rotor,
             driven_rotor,
             coupled_nodes=(gear_1.n, gear_2.n),
-            gear_mesh_stiffness=self.mesh.stiffness,
-            update_mesh_stiffness=self.update_mesh_stiffness,
-            square_varying_stiffness=square_varying_stiffness,
+            gear_mesh_stiffness=self._gear_mesh_stiffness,
             damping_ratio=self.mesh.damping_ratio,
+            update_mesh_stiffness=self.update_mesh_stiffness,
+            square_varying_stiffness=copy(self._square_varying_stiffness),
+            backlash=copy(self._backlash),
             orientation_angle=self.mesh.orientation_angle,
             position="above" if self.dy_pos >= 0 else "below",
             tag=self.tag,
