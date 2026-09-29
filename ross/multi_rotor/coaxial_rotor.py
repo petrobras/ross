@@ -6,7 +6,7 @@ from itertools import chain, cycle
 from copy import copy
 
 from ross.rotor_assembly import Rotor
-from ross.bearing_seal_element import SealElement
+from ross.bearing_seal_element import BearingElement, SealElement
 from ross.results import ForcedResponseResults
 from ross.units import check_units
 from ross.utils import make_speed_array
@@ -135,8 +135,8 @@ class CoAxialRotor(Rotor):
             "alpha": float(alpha) if alpha is not None else 0.0,
             "beta": float(beta) if beta is not None else 0.0,
         }
-        if tag is None:
-            self.tag = "Rotor 0"
+
+        self.set_tag(tag)
 
         ####################################################
         # Config attributes
@@ -150,23 +150,30 @@ class CoAxialRotor(Rotor):
 
         ####################################################
 
+        # flatten shaft_elements
+        def flatten(l):
+            for el in l:
+                if isinstance(el, Iterable) and not isinstance(el, (str, bytes)):
+                    yield from flatten(el)
+                else:
+                    yield el
+
         # set n for each shaft element
         aux_n = 0
-        aux_n_tag = 0
-        for j, shaft in enumerate(shafts):
+        for shaft in shafts:
             for i, sh in enumerate(shaft):
                 if sh.n is None:
                     sh.n = i + aux_n
-                if sh.tag is None:
-                    sh.tag = sh.__class__.__name__ + " " + str(i + aux_n_tag)
             aux_n = shaft[-1].n_r + 1
-            aux_n_tag = aux_n - 1 - j
 
         # flatten and make a copy for shaft elements to avoid altering
         # attributes for elements that might be used in different rotors
         # e.g. altering shaft_element.n
         shafts = [copy(sh) for sh in shafts]
         shaft_elements = list(chain(*shafts))
+
+        for i, sh in enumerate(shaft_elements):
+            sh.set_tag(i)
 
         if disk_elements is None:
             disk_elements = []
@@ -175,37 +182,40 @@ class CoAxialRotor(Rotor):
         if point_mass_elements is None:
             point_mass_elements = []
 
-        for i, disk in enumerate(disk_elements):
-            if disk.tag is None:
-                disk.tag = "Disk " + str(i)
+        elm_dict = {}
+        for elm in disk_elements + bearing_elements + point_mass_elements:
+            class_name = elm.__class__.__name__
+            elm_dict[class_name] = elm_dict.get(class_name, 0) + 1
 
-        for i, brg in enumerate(bearing_elements):
-            brg.n_l = brg.n
-            brg.n_r = brg.n
-            if brg.__class__.__name__ == "BearingElement" and brg.tag is None:
-                brg.tag = "Bearing " + str(i)
-            if brg.__class__.__name__ == "SealElement" and brg.tag is None:
-                brg.tag = "Seal " + str(i)
+            elm.set_tag(elm_dict[class_name] - 1)
 
-        for i, p_mass in enumerate(point_mass_elements):
-            if p_mass.tag is None:
-                p_mass.tag = "Point Mass " + str(i)
+            if isinstance(elm, BearingElement):
+                # add n_l and n_r to bearing elements
+                elm.n_l = elm.n
+                elm.n_r = elm.n
 
         self.shafts = shafts
         self.shaft_elements = sorted(shaft_elements, key=lambda el: el.n)
         self.bearing_elements = sorted(bearing_elements, key=lambda el: el.n)
         self.disk_elements = disk_elements
         self.point_mass_elements = point_mass_elements
-        self.elements = list(
-            chain(
-                *[
+        self.elements = [
+            el
+            for el in flatten(
+                [
                     self.shaft_elements,
                     self.disk_elements,
                     self.bearing_elements,
                     self.point_mass_elements,
                 ]
             )
-        )
+        ]
+
+        # check if tags are unique
+        tags_list = [el.tag for el in self.elements]
+        if len(tags_list) != len(set(tags_list)):
+            raise ValueError("Tags should be unique.")
+
         self.number_dof = self._check_number_dof()
 
         ####################################################
