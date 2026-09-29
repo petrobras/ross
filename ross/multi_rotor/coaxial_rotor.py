@@ -209,29 +209,6 @@ class CoAxialRotor(Rotor):
         ####################################################
         # Rotor summary
         ####################################################
-        columns = [
-            "type",
-            "n",
-            "n_link",
-            "L",
-            "node_pos",
-            "node_pos_r",
-            "idl",
-            "odl",
-            "idr",
-            "odr",
-            "i_d",
-            "o_d",
-            "beam_cg",
-            "axial_cg_pos",
-            "y_pos",
-            "material",
-            "rho",
-            "volume",
-            "m",
-            "tag",
-        ]
-
         df_shaft = pd.DataFrame([el.summary() for el in self.shaft_elements])
         df_disks = pd.DataFrame([el.summary() for el in self.disk_elements])
         df_bearings = pd.DataFrame(

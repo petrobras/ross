@@ -441,3 +441,77 @@ def test_mesh_with_backlash(multi_rotor_with_backlash):
     assert_allclose(np.mean(mesh_results["center_distance"]), d, rtol=1e-2)
     assert_allclose(np.mean(mesh_results["pressure_angle"]), alpha, rtol=1e-2)
     assert_allclose(np.mean(mesh_results["contact_ratio"]), cr, rtol=1e-2)
+
+
+@pytest.fixture
+def coaxrotor():
+    steel = rs.materials.steel
+
+    #  Co-axial rotor system with 2 shafts, 4 disks and
+    #  4 bearings (3 to ground and 1 to body)
+    i_d = 0
+    o_d = 0.05
+    n = 10
+    L = [0.25 for _ in range(n)]
+
+    axial_shaft = [rs.ShaftElement(l, i_d, o_d, material=steel) for l in L]
+
+    i_d = 0.25
+    o_d = 0.30
+    n = 6
+    L = [0.25 for _ in range(n)]
+
+    coaxial_shaft = [rs.ShaftElement(l, i_d, o_d, material=steel) for l in L]
+
+    disk0 = rs.DiskElement.from_geometry(
+        n=1, material=steel, width=0.07, i_d=0.05, o_d=0.28
+    )
+    disk1 = rs.DiskElement.from_geometry(
+        n=9, material=steel, width=0.07, i_d=0.05, o_d=0.28
+    )
+    disk2 = rs.DiskElement.from_geometry(
+        n=13, material=steel, width=0.07, i_d=0.20, o_d=0.48
+    )
+    disk3 = rs.DiskElement.from_geometry(
+        n=15, material=steel, width=0.07, i_d=0.20, o_d=0.48
+    )
+
+    shaft = [axial_shaft, coaxial_shaft]
+    disks = [disk0, disk1, disk2, disk3]
+
+    stfx = 1e6
+    stfy = 1e6
+    bearing0 = rs.BearingElement(0, kxx=stfx, kyy=stfy, cxx=0)
+    bearing1 = rs.BearingElement(10, kxx=stfx, kyy=stfy, cxx=0)
+    bearing2 = rs.BearingElement(11, kxx=stfx, kyy=stfy, cxx=0)
+    bearing3 = rs.BearingElement(8, n_link=17, kxx=stfx, kyy=stfy, cxx=0)
+    bearings = [bearing0, bearing1, bearing2, bearing3]
+
+    return rs.CoAxialRotor(shaft, disks, bearings)
+
+
+def test_coaxial_rotor(coaxrotor):
+    # fmt: off
+    assert list(coaxrotor.df["shaft_number"]) == [
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0
+    ]
+    assert coaxrotor.nodes_pos == [
+        0.0, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5,
+        0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0
+    ]
+    assert list(coaxrotor.df_shaft["nodes_pos_l"]) == [
+        0.0, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.25,
+        0.5, 0.75, 1.0, 1.25, 1.5, 1.75
+    ]
+    assert list(coaxrotor.df_shaft["nodes_pos_r"]) == [
+        0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5,
+        0.75, 1.0, 1.25, 1.5, 1.75, 2.0
+    ]
+    assert list(coaxrotor.df["y_pos"].dropna()) == [
+        0.025, 0.025, 0.025, 0.025, 0.025, 0.15, 0.15, 0.15
+    ]
+    assert list(np.round(coaxrotor.df["y_pos_sup"].dropna(), 3)) == [
+        0.319, 0.125, 0.319, 0.444
+    ]
+    # fmt: on
