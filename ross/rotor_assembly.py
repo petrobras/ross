@@ -6930,10 +6930,40 @@ class CoAxialRotor(Rotor):
 
         # number of dofs
         half_ndof = self.number_dof / 2
+        n_last = max(el.n for el in shaft_elements)
         self.ndof = int(
-            self.number_dof * (max([el.n for el in shaft_elements]) + 2)
-            + half_ndof * len([el for el in point_mass_elements])
+            self.number_dof * (n_last + 2)
+            + half_ndof * len(point_mass_elements)
         )
+
+        # Linked bearings and point masses can be placed beyond the last shaft
+        # node.  Refinement scales those auxiliary nodes as well, so the
+        # original allocation formula may be too small for their global DOFs.
+        external_nodes = [
+            node
+            for elm in self.elements
+            for node in (elm.n, getattr(elm, "n_link", None))
+            if node is not None and node > n_last + 1
+        ]
+        if external_nodes:
+            max_external_node = max(external_nodes)
+            external_dof_index = max(
+                max(elm.dof_mapping().values())
+                for elm in self.elements
+                if (
+                    elm.n > n_last + 1
+                    or getattr(elm, "n_link", None) is not None
+                    and elm.n_link > n_last + 1
+                )
+            )
+            required_ndof = (
+                half_ndof * n_last
+                + half_ndof * max_external_node
+                + self.number_dof
+                + external_dof_index
+                + 1
+            )
+            self.ndof = max(self.ndof, int(required_ndof))
 
         elm_no_shaft_id = {
             elm
@@ -7234,13 +7264,86 @@ class CoAxialRotor(Rotor):
         point_mass_elements,
         **kwargs,
     ):
-        """Build the legacy temporary rotor used by inherited analyses."""
-        return Rotor(
-            shaft_elements,
-            disk_elements,
-            bearing_elements,
-            point_mass_elements,
+        """Build a temporary coaxial rotor for inherited analyses.
+
+        The base analysis methods pass a flattened shaft-element list to this
+        hook.  Rebuilding a plain ``Rotor`` loses the separate shaft groups,
+        while rebuilding a ``CoAxialRotor`` with the flattened list makes the
+        second shaft look like a continuation of the first one.  Split the
+        refined elements using the original shaft-group sizes so the coaxial
+        node/link numbering remains valid for static and convergence analyses.
+        """
+        refinement_factor = kwargs.pop("_refinement_factor", 1)
+        shaft_elements = [deepcopy(element) for element in shaft_elements]
+        shaft_groups = []
+        shaft_node_map = {}
+        start = 0
+        next_node = 0
+        for shaft in self.shafts:
+            stop = start + refinement_factor * len(shaft)
+            shaft_group = shaft_elements[start:stop]
+            for index, element in enumerate(shaft_group):
+                old_node = element.n
+                new_node = next_node + index
+                shaft_node_map[old_node] = new_node
+                shaft_node_map[old_node + 1] = new_node + 1
+                element.n = new_node
+            shaft_groups.append(shaft_group)
+            start = stop
+            next_node += len(shaft_group) + 1
+
+        if start != len(shaft_elements):
+            raise ValueError("CoAxialRotor shaft elements do not match shaft groups")
+
+        # Refinement multiplies auxiliary link nodes as well as shaft nodes.
+        # Compact the resulting external node IDs before rebuilding the model;
+        # otherwise gaps in IDs become unconnected DOFs in the temporary rotor.
+        disk_elements = deepcopy(disk_elements)
+        bearing_elements = deepcopy(bearing_elements)
+        point_mass_elements = deepcopy(point_mass_elements)
+        temporary_elements = [
+            *disk_elements,
+            *bearing_elements,
+            *point_mass_elements,
+        ]
+        for element in temporary_elements:
+            if element.n in shaft_node_map:
+                element.n = shaft_node_map[element.n]
+            if getattr(element, "n_link", None) in shaft_node_map:
+                element.n_link = shaft_node_map[element.n_link]
+
+        last_shaft_node = max(element.n for element in shaft_elements) + 1
+        external_nodes = sorted(
+            {
+                node
+                for element in temporary_elements
+                for node in (element.n, getattr(element, "n_link", None))
+                if node is not None and node > last_shaft_node
+            }
         )
+        external_node_map = {
+            node: last_shaft_node + 1 + index
+            for index, node in enumerate(external_nodes)
+        }
+        for element in temporary_elements:
+            if element.n in external_node_map:
+                element.n = external_node_map[element.n]
+            if getattr(element, "n_link", None) in external_node_map:
+                element.n_link = external_node_map[element.n_link]
+
+        parameters = self._init_parameters()
+        parameters.update(kwargs)
+        return self.__class__(
+            shafts=shaft_groups,
+            disk_elements=disk_elements,
+            bearing_elements=bearing_elements,
+            point_mass_elements=point_mass_elements,
+            **parameters,
+        )
+
+    def _new_rotor_kwargs(self, refinement_factor):
+        """Pass the refinement factor needed to split rebuilt shaft groups."""
+        return {"_refinement_factor": refinement_factor}
 
 
 def rotor_example():

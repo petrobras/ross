@@ -49,6 +49,17 @@ def test_inherited_analyses_rebuild_multirotor():
     assert isinstance(static, rs.StaticResults)
 
 
+def test_inherited_analyses_rebuild_coaxial_rotor():
+    rotor = coaxrotor_example()
+
+    static = rotor.run_static()
+    convergence = rotor.convergence(err_max=1e3)
+
+    assert isinstance(static, rs.StaticResults)
+    assert isinstance(convergence, rs.ConvergenceResults)
+    assert isinstance(rotor, rs.CoAxialRotor)
+
+
 def test_new_positional_order_remains_compatible():
     rotor = two_shaft_rotor_example()
 
