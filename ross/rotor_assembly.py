@@ -5375,13 +5375,10 @@ class Rotor(object):
         >>> rotor = rotor_example()
         >>> rotor.save(file)
         """
-        import ross
         from ross.utils import dump_data
 
         file = Path(file)
-        dump_data(
-            {"ross_version": ross.__version__, "parameters": self.parameters}, file
-        )
+        dump_data(self._serialization_data(), file)
         for el in self.elements:
             el.save(file)
 
@@ -5404,6 +5401,12 @@ class Rotor(object):
             comment = "\n".join(f"# {line}" for line in warning_text.splitlines())
             content = file.read_text()
             file.write_text(comment + "\n\n" + content)
+
+    def _serialization_data(self):
+        """Return the metadata written by :meth:`save`."""
+        import ross
+
+        return {"ross_version": ross.__version__, "parameters": self.parameters}
 
     @classmethod
     def load(cls, file):
@@ -5458,19 +5461,14 @@ class Rotor(object):
 
             return MultiRotor._load_from_data(file, data)
 
+        if data.get("_rotor_type") == "CoAxialRotor":
+            from ross.rotor_assembly import CoAxialRotor
+
+            return CoAxialRotor._load_from_data(file, data)
+
         parameters = data["parameters"]
 
-        elements = []
-        for el_name, el_data in data.items():
-            if el_name in ("parameters", "ross_version") or el_name.startswith("_"):
-                continue
-            class_name = el_name.split("_")[0]
-            element_class = getattr(ross, class_name, None) or globals().get(class_name)
-            if element_class is None:
-                import rossxl as rsxl
-
-                element_class = getattr(rsxl, class_name)
-            elements.append(element_class.read_toml_data(el_data))
+        elements = cls._elements_from_data(data)
 
         shaft_elements = []
         disk_elements = []
@@ -5493,6 +5491,24 @@ class Rotor(object):
             point_mass_elements=point_mass_elements,
             **parameters,
         )
+
+    @staticmethod
+    def _elements_from_data(data):
+        """Read element objects from serialized rotor data."""
+        import ross
+
+        elements = []
+        for el_name, el_data in data.items():
+            if el_name in ("parameters", "ross_version") or el_name.startswith("_"):
+                continue
+            class_name = el_name.split("_")[0]
+            element_class = getattr(ross, class_name, None) or globals().get(class_name)
+            if element_class is None:
+                import rossxl as rsxl
+
+                element_class = getattr(rsxl, class_name)
+            elements.append(element_class.read_toml_data(el_data))
+        return elements
 
     def run_static(self):
         """Run static analysis.
@@ -6692,8 +6708,7 @@ class CoAxialRotor(Rotor):
             "alpha": float(alpha) if alpha is not None else 0.0,
             "beta": float(beta) if beta is not None else 0.0,
         }
-        if tag is None:
-            self.tag = "Rotor 0"
+        self.tag = tag or "Rotor 0"
 
         ####################################################
         # Config attributes
@@ -7163,6 +7178,52 @@ class CoAxialRotor(Rotor):
         # Base matrices:
         self._build_base_matrices(
             modal_damping_ratio, default_damping_ratio, alpha, beta
+        )
+
+    def _serialization_data(self):
+        """Return metadata needed to restore the coaxial shaft topology."""
+        data = super()._serialization_data()
+        data["_rotor_type"] = "CoAxialRotor"
+        data["_coaxial_rotor"] = {
+            "shaft_nodes": [
+                [int(shaft_element.n) for shaft_element in shaft]
+                for shaft in self.shafts
+            ],
+            "tag": self.tag,
+        }
+        return data
+
+    @classmethod
+    def _load_from_data(cls, file, data):
+        """Restore a coaxial rotor while preserving shaft membership."""
+        config = data["_coaxial_rotor"]
+        elements = cls._elements_from_data(data)
+        shaft_elements = [element for element in elements if isinstance(element, ShaftElement)]
+        disk_elements = [element for element in elements if isinstance(element, DiskElement)]
+        bearing_elements = [
+            element for element in elements if isinstance(element, BearingElement)
+        ]
+        point_mass_elements = [
+            element for element in elements if isinstance(element, PointMass)
+        ]
+
+        shaft_by_node = {int(element.n): element for element in shaft_elements}
+        try:
+            shafts = [
+                [shaft_by_node[int(node)] for node in shaft_nodes]
+                for shaft_nodes in config["shaft_nodes"]
+            ]
+        except KeyError as exc:
+            raise ValueError("CoAxialRotor file has an incomplete shaft topology") from exc
+
+        parameters = dict(data["parameters"])
+        parameters["tag"] = config.get("tag")
+        return cls(
+            shafts=shafts,
+            disk_elements=disk_elements,
+            bearing_elements=bearing_elements,
+            point_mass_elements=point_mass_elements,
+            **parameters,
         )
 
     def _new_rotor(
