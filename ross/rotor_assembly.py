@@ -309,19 +309,6 @@ class Rotor(object):
         beta=0.0,
         tag=None,
     ):
-        self.parameters = {
-            "min_w": min_w,
-            "max_w": max_w,
-            "rated_w": rated_w,
-            "modal_damping_ratio": (
-                None
-                if modal_damping_ratio is None
-                else [float(xi) for xi in np.atleast_1d(modal_damping_ratio)]
-            ),
-            "default_damping_ratio": float(default_damping_ratio),
-            "alpha": float(alpha) if alpha is not None else 0.0,
-            "beta": float(beta) if beta is not None else 0.0,
-        }
 
         self.set_tag(tag)
 
@@ -1070,10 +1057,19 @@ class Rotor(object):
         True if other is equal to the reference parameter.
         False if not.
         """
-        if self.elements == other.elements and self.parameters == other.parameters:
-            return True
-        else:
+        if self.elements != other.elements:
             return False
+
+        parameters = self._init_parameters()
+        parameters.pop("tag", None)
+
+        other_parameters = other._init_parameters()
+        other_parameters.pop("tag", None)
+
+        return parameters.keys() == other_parameters.keys() and all(
+            np.array_equal(v, other_parameters[k])
+            for k, v in parameters.items()
+        )
 
     def _init_parameters(self):
         """Return keyword arguments to reconstruct this rotor.
@@ -1095,7 +1091,9 @@ class Rotor(object):
             "point_mass_elements",
             "shafts",
         }
+
         sig = inspect.signature(self.__class__.__init__)
+
         return {
             name: getattr(self, name) for name in sig.parameters if name not in skip
         }
@@ -5337,12 +5335,15 @@ class Rotor(object):
         >>> rotor.save(file)
         """
         import ross
-        from ross.utils import dump_data
+        from ross.utils import dump_data, cast_numpy_types
 
         file = Path(file)
+        parameters = cast_numpy_types(self._init_parameters())
+        
         dump_data(
-            {"ross_version": ross.__version__, "parameters": self.parameters}, file
+            {"ross_version": ross.__version__, "parameters": parameters}, file
         )
+
         for el in self.elements:
             el.save(file)
 

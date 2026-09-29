@@ -123,19 +123,6 @@ class CoAxialRotor(Rotor):
         beta=0.0,
         tag=None,
     ):
-        self.parameters = {
-            "min_w": min_w,
-            "max_w": max_w,
-            "rated_w": rated_w,
-            "modal_damping_ratio": (
-                None
-                if modal_damping_ratio is None
-                else [float(xi) for xi in np.atleast_1d(modal_damping_ratio)]
-            ),
-            "default_damping_ratio": float(default_damping_ratio),
-            "alpha": float(alpha) if alpha is not None else 0.0,
-            "beta": float(beta) if beta is not None else 0.0,
-        }
 
         self.set_tag(tag)
 
