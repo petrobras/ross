@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import ross as rs
 
+from collections.abc import Iterable
 from itertools import chain, cycle
 from copy import copy
 
@@ -353,9 +354,6 @@ class CoAxialRotor(Rotor):
         self.inner_nodes = sorted({n for sh in self.shafts[0] for n in (sh.n, sh.n_r)})
         self.outer_nodes = sorted({n for sh in self.shafts[1] for n in (sh.n, sh.n_r)})
 
-        self.inner_dofs = self._get_dofs_of_inner_elements(self.elements)
-        self.outer_dofs = self._get_dofs_of_outer_elements(self.elements)
-
         # rotor mass can also be calculated with self.M()[::4, ::4].sum()
         self.m_disks = np.sum([disk.m for disk in self.disk_elements])
         self.m_shaft = np.sum([sh_el.m for sh_el in self.shaft_elements])
@@ -488,6 +486,9 @@ class CoAxialRotor(Rotor):
                 elm.dof_global_index
             )
 
+        self.inner_dofs = self._get_inner_global_dofs(self.shaft_elements)
+        self.outer_dofs = self._get_outer_global_dofs(self.shaft_elements)
+
         # define positions for disks
         for disk in disk_elements:
             z_pos = nodes_pos[disk.n]
@@ -612,12 +613,20 @@ class CoAxialRotor(Rotor):
 
         # define position for point mass elements
         dfb = df[df.type == "BearingElement"]
-        for p in point_mass_elements:
-            z_pos = dfb[dfb.n_l == p.n]["nodes_pos_l"].values[0]
-            y_pos = dfb[dfb.n_l == p.n]["y_pos"].values[0]
-            df.loc[df.tag == p.tag, "nodes_pos_l"] = z_pos
-            df.loc[df.tag == p.tag, "nodes_pos_r"] = z_pos
-            df.loc[df.tag == p.tag, "y_pos"] = y_pos
+        for pm in point_mass_elements:
+            dfb_pm = dfb[dfb.n_l == pm.n]
+
+            if not dfb_pm.empty:
+                z_pos = dfb_pm["nodes_pos_l"].values[0]
+                y_pos = dfb_pm["y_pos"].values[0]
+            else:
+                i = self.nodes.index(pm.n)
+                z_pos = nodes_pos[i]
+                y_pos = nodes_o_d[i] / 2
+
+            df.loc[df.tag == pm.tag, "nodes_pos_l"] = z_pos
+            df.loc[df.tag == pm.tag, "nodes_pos_r"] = z_pos
+            df.loc[df.tag == pm.tag, "y_pos"] = y_pos
 
         self.df = df
 
@@ -792,7 +801,7 @@ class CoAxialRotor(Rotor):
                 "response for each shaft separately."
             )
         
-        frequency_range = frequency_ratios[0] * speed_range
+        frequency_range = frequency_ratios.pop() * speed_range
 
         self._check_coefficient_axes(speed=speed_range, frequency=frequency_range)
 
