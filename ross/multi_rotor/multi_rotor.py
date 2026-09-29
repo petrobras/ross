@@ -43,6 +43,11 @@ class MultiRotor(Rotor):
         If not provided, it can be calculated automatically
         when using `GearElementTVMS` instead of `GearElement`.
         Default is None.
+    damping_ratio : float, optional
+        Damping ratio used to calculate the gear mesh damping coefficient.
+        In the linear model, this parameter controls the damping contribution
+        added to the global damping matrix. When backlash is enabled, it is
+        used in the nonlinear mesh force. Default is 0.0.
     update_mesh_stiffness : bool, optional
         Applicable only when using `GearElementTVMS`.
         If True, the gear mesh stiffness is recalculated
@@ -80,11 +85,6 @@ class MultiRotor(Rotor):
 
         Default is `{"enable": False, "initial_value": 0.0, "error_amp": 0.0,
         "smooth_operator": False, "sigma": 1e4}`.
-    damping_ratio : float, optional
-        Damping ratio used to calculate the gear mesh damping coefficient.
-        In the linear model, this parameter controls the damping contribution
-        added to the global damping matrix. When backlash is enabled, it is
-        used in the nonlinear mesh force. Default is 0.0.
     orientation_angle : float, pint.Quantity, optional
         The angle between the line of gear centers and x-axis. Default is 0.0 rad.
     position : {'above', 'below'}, optional
@@ -172,6 +172,7 @@ class MultiRotor(Rotor):
         driven_rotor,
         coupled_nodes,
         gear_mesh_stiffness=None,
+        damping_ratio=0.0,
         update_mesh_stiffness=False,
         square_varying_stiffness={"enable": False, "amplitude_ratio": 0},
         backlash={
@@ -181,7 +182,6 @@ class MultiRotor(Rotor):
             "smooth_operator": False,
             "sigma": 1e4,
         },
-        damping_ratio=0.0,
         orientation_angle=0.0,
         position="above",
         tag=None,

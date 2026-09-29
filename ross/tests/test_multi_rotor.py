@@ -1,3 +1,5 @@
+import inspect
+
 import numpy as np
 import pytest
 from copy import deepcopy
@@ -156,6 +158,14 @@ def test_add_elements(multi_rotor):
 
     with pytest.raises(ValueError, match="does not belong"):
         multi_rotor.add_elements([rs.DiskElement(n=99, m=1.0, Id=0.0, Ip=0.0)])
+
+
+def test_damping_ratio_argument_order():
+    parameters = list(inspect.signature(rs.MultiRotor).parameters)
+
+    assert parameters.index("damping_ratio") == parameters.index(
+        "gear_mesh_stiffness"
+    ) + 1
 
 
 def test_mesh(multi_rotor):
