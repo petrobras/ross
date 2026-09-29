@@ -343,6 +343,9 @@ class CoAxialRotor(Rotor):
         self.inner_nodes = sorted({n for sh in self.shafts[0] for n in (sh.n, sh.n_r)})
         self.outer_nodes = sorted({n for sh in self.shafts[1] for n in (sh.n, sh.n_r)})
 
+        self.inner_dofs = self._get_dofs_of_inner_elements(self.elements)
+        self.outer_dofs = self._get_dofs_of_outer_elements(self.elements)
+
         # rotor mass can also be calculated with self.M()[::4, ::4].sum()
         self.m_disks = np.sum([disk.m for disk in self.disk_elements])
         self.m_shaft = np.sum([sh_el.m for sh_el in self.shaft_elements])
@@ -613,23 +616,50 @@ class CoAxialRotor(Rotor):
             modal_damping_ratio, default_damping_ratio, alpha, beta
         )
     
-    def _get_inner_elements(self, elements):
+    def _get_inner_elements(self, elements=None):
+        elements = elements or self.elements
+
         return [el for el in elements if el.n in self.inner_nodes]
     
-    def _get_outer_elements(self, elements):
+    def _get_outer_elements(self, elements=None):
+        elements = elements or self.elements
+
         return [el for el in elements if el.n in self.outer_nodes]
-    
-    def _build_base_matrices(
-            self, modal_damping_ratio, default_damping_ratio, alpha, beta
-        ):
 
-        super()._build_base_matrices(modal_damping_ratio, default_damping_ratio, alpha, beta)
+    def _get_inner_global_dofs(self, elements=None):
+        if elements is None:
+            return self.inner_dofs
+        else:
+            return sorted(
+                {
+                    dof
+                    for el in elements
+                    if el.n in self.inner_nodes
+                    for dof in el.dof_global_index.values()
+                }
+            )
 
-        outer_elements = self._get_outer_elements(self.shaft_elements + self.disk_elements)
-        
-        for elm in outer_elements:
-            dofs = list(elm.dof_global_index.values())
-            self.G0[np.ix_(dofs, dofs)] += (self.speed_ratio - 1) * elm.G()
+    def _get_outer_global_dofs(self, elements=None):
+        if elements is None:
+            return self.outer_dofs
+        else:
+            return sorted(
+                {
+                    dof
+                    for el in elements
+                    if el.n in self.outer_nodes
+                    for dof in el.dof_global_index.values()
+                }
+            )
+
+    def G(self):
+        G0 = self.G0.copy()
+        dofs = self.outer_dofs
+
+        G0[np.ix_(dofs, dofs)] *= self.speed_ratio
+
+        return G0
+
 
     def _node_speed_ratio(self, node):
         """Return the speed ratio of the shaft the node belongs to.
@@ -675,11 +705,11 @@ class CoAxialRotor(Rotor):
 
         if ratio >= 0:
             return super()._unbalance_force(node, magnitude, phase, frequency)
+        else:
+            F0 = super()._unbalance_force(node, magnitude, -phase, frequency)
+            F0[node * self.number_dof + 1] *= -1
 
-        F0 = super()._unbalance_force(node, magnitude, -phase, frequency)
-        F0[node * self.number_dof + 1] *= -1
-
-        return F0
+            return F0
 
     @check_units
     def run_unbalance_response(
@@ -737,6 +767,7 @@ class CoAxialRotor(Rotor):
         if speed_range is None:
             modal = self.run_modal(0)
             speed_range = np.linspace(0, max(modal.evalues.imag) * 1.5, 1000)
+        
         speed_range = np.asarray(speed_range)
 
         node = np.atleast_1d(node)
@@ -750,7 +781,8 @@ class CoAxialRotor(Rotor):
                 f"(abs(speed_ratio) = {abs(self.speed_ratio)}). Run the unbalance "
                 "response for each shaft separately."
             )
-        frequency_range = frequency_ratios.pop() * speed_range
+        
+        frequency_range = frequency_ratios[0] * speed_range
 
         self._check_coefficient_axes(speed=speed_range, frequency=frequency_range)
 
