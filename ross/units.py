@@ -89,6 +89,9 @@ units = {
     "power": "watt",
     "module": "meter",
 }
+
+unitless_parameters = {"damping_ratio"}
+
 for i, unit in zip(["k", "c", "m"], ["N/m", "N*s/m", "kg"], strict=True):
     for j in ["x", "y", "z"]:
         for k in ["x", "y", "z"]:
@@ -134,6 +137,9 @@ def check_units(func):
 
         for arg_name, arg_value in zip(args_names, args, strict=False):
             names = arg_name.split("_")
+            if arg_name in unitless_parameters:
+                base_unit_args.append(arg_value)
+                continue
             if "units" in names:
                 base_unit_args.append(arg_value)
                 continue
@@ -167,6 +173,9 @@ def check_units(func):
         base_unit_kwargs = {}
         for k, v in kwargs.items():
             names = k.split("_")
+            if k in unitless_parameters:
+                base_unit_kwargs[k] = v
+                continue
             if "units" in names:
                 base_unit_kwargs[k] = v
                 continue

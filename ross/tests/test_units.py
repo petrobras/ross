@@ -21,6 +21,16 @@ def test_units_pickle():
     assert speed == speed_pickled
 
 
+def test_damping_ratio_is_not_converted_by_check_units():
+    @check_units
+    def func(damping_ratio):
+        return damping_ratio
+
+    damping_ratio = Q_(0.07, "")
+
+    assert func(damping_ratio) is damping_ratio
+
+
 # each possible argument
 Argument = namedtuple(
     "Argument", ["single_value", "si_unit", "other_unit", "expected_converted_value"]
