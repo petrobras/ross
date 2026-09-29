@@ -67,7 +67,9 @@ class Mesh:
         Default is `{"enable": False, "initial_value": 0.0, "error_amp": 0.0,
         "smooth_operator": False, "sigma": 1e4}`.
     damping_ratio : float, optional
-        Damping ratio used to compute the mesh damping. Default is 0.0.
+        Damping ratio used to compute the mesh damping. Default is 0.0,
+        which disables linear mesh damping. A value of 0.07 is suggested
+        for the gear-mesh damping model.
     orientation_angle : float, pint.Quantity, optional
         The angle between the line of gear centers and x-axis. Default is 0.0 rad.
 
@@ -612,7 +614,8 @@ class Backlash:
     helix_angle : float
         Helix angle of the gear pair.
     damping_ratio : float
-        Damping ratio of the gear pair.
+        Damping ratio of the gear pair. A value of 0.07 is suggested for
+        the gear-mesh damping model.
     M_eq : float
         Equivalent mass of the gear pair projected onto the mesh action line.
     module : float
@@ -1053,7 +1056,8 @@ def _compute_backlash_force(
     Ra2 : float
         Addendum radius of the second gear.
     damping_ratio : float
-        Damping ratio of the gear pair.
+        Damping ratio of the gear pair. A value of 0.07 is suggested for
+        the gear-mesh damping model.
     module : float
         Module of the gears.
     M_eq : float

@@ -47,7 +47,9 @@ class MultiRotor(Rotor):
         Damping ratio used to calculate the gear mesh damping coefficient.
         In the linear model, this parameter controls the damping contribution
         added to the global damping matrix. When backlash is enabled, it is
-        used in the nonlinear mesh force. Default is 0.0.
+        used in the nonlinear mesh force. Default is 0.0, which disables
+        linear mesh damping. A value of 0.07 is suggested for the gear-mesh
+        damping model.
     update_mesh_stiffness : bool, optional
         Applicable only when using `GearElementTVMS`.
         If True, the gear mesh stiffness is recalculated
@@ -802,6 +804,8 @@ class MultiRotor(Rotor):
 
         The mesh damping coefficient is calculated as
         :math:`c_m = 2 \\zeta \\sqrt{k_m M_{eq}}`, following Yi et al. (2019).
+        A damping ratio of 0.07 is suggested; setting it to zero disables
+        linear mesh damping.
         The damping contribution is assembled analogously to the mesh stiffness
         contribution, using the same geometric coupling matrix.
 
