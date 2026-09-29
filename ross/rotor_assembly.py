@@ -510,7 +510,11 @@ class Rotor(object):
         self.L = self.nodes_pos[-1]
 
         if "n_link" in df.columns:
-            self.link_nodes = list(df["n_link"].dropna().unique().astype(int))
+            self.link_nodes = [
+                n
+                for n in df["n_link"].dropna().unique().astype(int)
+                if n not in self.nodes
+            ]
         else:
             self.link_nodes = []
 
@@ -818,7 +822,7 @@ class Rotor(object):
         """Optional override to adjust node positions.
 
         Default implementation does nothing.
-        Useful for MultiRotor.
+        Useful for MultiRotor and CoAxialRotor.
         """
         pass
 
@@ -5339,7 +5343,7 @@ class Rotor(object):
 
         file = Path(file)
         parameters = cast_numpy_types(self._init_parameters())
-        
+
         dump_data(
             {"ross_version": ross.__version__, "parameters": parameters}, file
         )

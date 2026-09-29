@@ -1,13 +1,9 @@
 import numpy as np
-import pandas as pd
 import ross as rs
 
-from collections.abc import Iterable
-from itertools import chain, cycle
 from copy import copy
 
 from ross.rotor_assembly import Rotor
-from ross.bearing_seal_element import BearingElement, SealElement
 from ross.results import ForcedResponseResults
 from ross.units import check_units
 from ross.utils import make_speed_array
@@ -123,504 +119,126 @@ class CoAxialRotor(Rotor):
         beta=0.0,
         tag=None,
     ):
-
-        self.set_tag(tag)
-
-        ####################################################
-        # Config attributes
-        ####################################################
-
-        # operational speeds
         self.speed_ratio = speed_ratio
-        self.min_w = min_w
-        self.max_w = max_w
-        self.rated_w = rated_w
 
-        ####################################################
+        # copy shaft elements to avoid altering attributes for elements
+        # that might be used in different rotors, e.g. altering shaft_element.n
+        self.shafts = [[copy(sh) for sh in shaft] for shaft in shafts]
 
-        # flatten shaft_elements
-        def flatten(l):
-            for el in l:
-                if isinstance(el, Iterable) and not isinstance(el, (str, bytes)):
-                    yield from flatten(el)
-                else:
-                    yield el
-
-        # set n for each shaft element
+        # number each shaft right after the previous one
         aux_n = 0
-        for shaft in shafts:
+        for shaft in self.shafts:
             for i, sh in enumerate(shaft):
                 if sh.n is None:
                     sh.n = i + aux_n
             aux_n = shaft[-1].n_r + 1
 
-        # flatten and make a copy for shaft elements to avoid altering
-        # attributes for elements that might be used in different rotors
-        # e.g. altering shaft_element.n
-        shafts = [copy(sh) for sh in shafts]
-        shaft_elements = list(chain(*shafts))
-
-        for i, sh in enumerate(shaft_elements):
-            sh.set_tag(i)
-
-        if disk_elements is None:
-            disk_elements = []
-        if bearing_elements is None:
-            bearing_elements = []
-        if point_mass_elements is None:
-            point_mass_elements = []
-
-        elm_dict = {}
-        for elm in disk_elements + bearing_elements + point_mass_elements:
-            class_name = elm.__class__.__name__
-            elm_dict[class_name] = elm_dict.get(class_name, 0) + 1
-
-            elm.set_tag(elm_dict[class_name] - 1)
-
-            if isinstance(elm, BearingElement):
-                # add n_l and n_r to bearing elements
-                elm.n_l = elm.n
-                elm.n_r = elm.n
-
-        self.shafts = shafts
-        self.shaft_elements = sorted(shaft_elements, key=lambda el: el.n)
-        self.bearing_elements = sorted(bearing_elements, key=lambda el: el.n)
-        self.disk_elements = disk_elements
-        self.point_mass_elements = point_mass_elements
-        self.elements = [
-            el
-            for el in flatten(
-                [
-                    self.shaft_elements,
-                    self.disk_elements,
-                    self.bearing_elements,
-                    self.point_mass_elements,
-                ]
-            )
+        self.shafts_nodes = [
+            sorted({n for sh in shaft for n in (sh.n, sh.n_r)}) for shaft in self.shafts
         ]
 
-        # check if tags are unique
-        tags_list = [el.tag for el in self.elements]
-        if len(tags_list) != len(set(tags_list)):
-            raise ValueError("Tags should be unique.")
-
-        self.number_dof = self._check_number_dof()
-
-        ####################################################
-        # Rotor summary
-        ####################################################
-        df_shaft = pd.DataFrame([el.summary() for el in self.shaft_elements])
-        df_disks = pd.DataFrame([el.summary() for el in self.disk_elements])
-        df_bearings = pd.DataFrame(
-            [
-                el.summary()
-                for el in self.bearing_elements
-                if not isinstance(el, SealElement)
-            ]
-        )
-        df_seals = pd.DataFrame(
-            [
-                el.summary()
-                for el in self.bearing_elements
-                if isinstance(el, SealElement)
-            ]
-        )
-        df_point_mass = pd.DataFrame([el.summary() for el in self.point_mass_elements])
-
-        nodes_pos_l = np.zeros(len(df_shaft.n_l))
-        nodes_pos_r = np.zeros(len(df_shaft.n_l))
-        axial_cg_pos = np.zeros(len(df_shaft.n_l))
-        shaft_number = np.zeros(len(df_shaft.n_l))
-
-        i = 0
-        for j, shaft in enumerate(self.shafts):
-            for k, sh in enumerate(shaft):
-                shaft_number[k + i] = j
-                if k == 0:
-                    nodes_pos_r[k + i] = df_shaft.loc[k + i, "L"]
-                    axial_cg_pos[k + i] = sh.beam_cg + nodes_pos_l[k + i]
-                    sh.axial_cg_pos = axial_cg_pos[k + i]
-                if (
-                    k > 0
-                    and df_shaft.loc[k + i, "n_l"] == df_shaft.loc[k + i - 1, "n_l"]
-                ):
-                    nodes_pos_l[k + i] = nodes_pos_l[k + i - 1]
-                    nodes_pos_r[k + i] = nodes_pos_r[k + i - 1]
-                else:
-                    nodes_pos_l[k + i] = nodes_pos_r[k + i - 1]
-                    nodes_pos_r[k + i] = nodes_pos_l[k + i] + df_shaft.loc[k + i, "L"]
-
-                if sh.n in df_bearings["n_link"].values:
-                    idx = df_bearings.loc[df_bearings.n_link == sh.n, "n"].values[0]
-                    shift = nodes_pos_l[idx] - nodes_pos_l[k + i]
-                    nodes_pos_l[i : sh.n] += shift
-                    nodes_pos_r[i : sh.n] += shift
-                    axial_cg_pos[i : sh.n] += shift
-
-                elif sh.n_r in df_bearings["n_link"].values:
-                    idx = df_bearings.loc[df_bearings.n_link == sh.n_r, "n"].values[0]
-                    shift = nodes_pos_r[idx - 1] - nodes_pos_r[k + i]
-                    nodes_pos_l[i : sh.n_r] += shift
-                    nodes_pos_r[i : sh.n_r] += shift
-                    axial_cg_pos[i : sh.n_r] += shift
-
-                axial_cg_pos[k + i] = sh.beam_cg + nodes_pos_l[k + i]
-                sh.axial_cg_pos = axial_cg_pos[k + i]
-            i += k + 1
-
-        df_shaft["shaft_number"] = shaft_number
-        df_shaft["nodes_pos_l"] = nodes_pos_l
-        df_shaft["nodes_pos_r"] = nodes_pos_r
-        df_shaft["axial_cg_pos"] = axial_cg_pos
-
-        df = pd.concat(
-            [df_shaft, df_disks, df_bearings, df_point_mass, df_seals], sort=True
-        )
-        df = df.sort_values(by="n_l")
-        df = df.reset_index(drop=True)
-
-        # check consistence for disks and bearings location
-        if len(df_point_mass) > 0:
-            max_loc_point_mass = df_point_mass.n.max()
-        else:
-            max_loc_point_mass = 0
-        max_location = max(df_shaft.n_r.max(), max_loc_point_mass)
-        if df.n_l.max() > max_location:
-            raise ValueError("Trying to set disk or bearing outside shaft")
-
-        # nodes axial position and diameter
-        nodes_pos = list(df_shaft.groupby("n_l")["nodes_pos_l"].max())
-        nodes_i_d = list(df_shaft.groupby("n_l")["i_d"].min())
-        nodes_o_d = list(df_shaft.groupby("n_l")["o_d"].max())
-
-        for i, shaft in enumerate(self.shafts):
-            pos = shaft[-1].n_r
-            if i < len(self.shafts) - 1:
-                nodes_pos.insert(pos, df_shaft["nodes_pos_r"].iloc[pos - 1])
-                nodes_i_d.insert(pos, df_shaft["i_d"].iloc[pos - 1])
-                nodes_o_d.insert(pos, df_shaft["o_d"].iloc[pos - 1])
-            else:
-                nodes_pos.append(df_shaft["nodes_pos_r"].iloc[-1])
-                nodes_i_d.append(df_shaft["i_d"].iloc[-1])
-                nodes_o_d.append(df_shaft["o_d"].iloc[-1])
-
-        self.nodes_pos = nodes_pos
-        self.nodes_i_d = nodes_i_d
-        self.nodes_o_d = nodes_o_d
-
-        shaft_elements_length = list(df_shaft.groupby("n_l")["L"].min())
-        self.shaft_elements_length = shaft_elements_length
-
-        self.nodes = list(range(len(self.nodes_pos)))
-        self.L = nodes_pos[-1]
-        self.center_line_pos = [0] * len(self.nodes)
-
-        self.inner_nodes = sorted({n for sh in self.shafts[0] for n in (sh.n, sh.n_r)})
-        self.outer_nodes = sorted({n for sh in self.shafts[1] for n in (sh.n, sh.n_r)})
-
-        # rotor mass can also be calculated with self.M()[::4, ::4].sum()
-        self.m_disks = np.sum([disk.m for disk in self.disk_elements])
-        self.m_shaft = np.sum([sh_el.m for sh_el in self.shaft_elements])
-        self.m = self.m_disks + self.m_shaft
-
-        # rotor center of mass and total inertia
-        CG_sh = np.sum(
-            [(sh.m * sh.axial_cg_pos) / self.m for sh in self.shaft_elements]
-        )
-        CG_dsk = np.sum(
-            [disk.m * nodes_pos[disk.n] / self.m for disk in self.disk_elements]
-        )
-        self.CG = CG_sh + CG_dsk
-
-        Ip_sh = np.sum([sh.Im for sh in self.shaft_elements])
-        Ip_dsk = np.sum([disk.Ip for disk in self.disk_elements])
-        self.Ip = Ip_sh + Ip_dsk
-
-        # number of dofs
-        half_ndof = self.number_dof / 2
-        self.ndof = int(
-            self.number_dof * (max([el.n for el in shaft_elements]) + 2)
-            + half_ndof * len([el for el in point_mass_elements])
+        super().__init__(
+            shafts,
+            disk_elements=disk_elements,
+            bearing_elements=bearing_elements,
+            point_mass_elements=point_mass_elements,
+            min_w=min_w,
+            max_w=max_w,
+            rated_w=rated_w,
+            modal_damping_ratio=modal_damping_ratio,
+            default_damping_ratio=default_damping_ratio,
+            alpha=alpha,
+            beta=beta,
+            tag=tag,
         )
 
-        elm_no_shaft_id = {
-            elm
-            for elm in self.elements
-            if pd.isna(df.loc[df.tag == elm.tag, "shaft_number"]).all()
-        }
-        for elm in cycle(self.elements):
-            if elm_no_shaft_id:
-                if elm in elm_no_shaft_id:
-                    shnum_l = df.loc[
-                        (df.n_l == elm.n) & (df.tag != elm.tag), "shaft_number"
-                    ]
-                    shnum_r = df.loc[
-                        (df.n_r == elm.n) & (df.tag != elm.tag), "shaft_number"
-                    ]
-                    if len(shnum_l) == 0 and len(shnum_r) == 0:
-                        shnum_l = df.loc[
-                            (df.n_link == elm.n) & (df.tag != elm.tag), "shaft_number"
-                        ]
-                        shnum_r = shnum_l
-                    if len(shnum_l):
-                        df.loc[df.tag == elm.tag, "shaft_number"] = shnum_l.values[0]
-                        elm_no_shaft_id.discard(elm)
-                    elif len(shnum_r):
-                        df.loc[df.tag == elm.tag, "shaft_number"] = shnum_r.values[0]
-                        elm_no_shaft_id.discard(elm)
-            else:
-                break
-
-        df_disks["shaft_number"] = df.loc[
-            (df.type == "DiskElement"), "shaft_number"
-        ].values
-        df_bearings["shaft_number"] = df.loc[
-            (df.type == "BearingElement"), "shaft_number"
-        ].values
-        df_seals["shaft_number"] = df.loc[
-            (df.type == "SealElement"), "shaft_number"
-        ].values
-        df_point_mass["shaft_number"] = df.loc[
-            (df.type == "PointMass"), "shaft_number"
-        ].values
-
-        self.df_disks = df_disks
-        self.df_bearings = df_bearings
-        self.df_shaft = df_shaft
-        self.df_point_mass = df_point_mass
-        self.df_seals = df_seals
-
-        if "n_link" in df.columns and df_point_mass.index.size > 0:
-            aux_link = list(df["n_link"].dropna().unique().astype(int))
-            aux_node = list(df_point_mass["n"].dropna().unique().astype(int))
-            self.link_nodes = list(set(aux_link) & set(aux_node))
-        else:
-            self.link_nodes = []
-
-        # global indexes for dofs
-        n_last = self.shaft_elements[-1].n
-        for elm in self.elements:
-            dof_mapping = elm.dof_mapping()
-            global_dof_mapping = {}
-            for k, v in dof_mapping.items():
-                dof_letter, dof_number = k.split("_")
-                global_dof_mapping[dof_letter + "_" + str(int(dof_number) + elm.n)] = (
-                    int(v)
-                )
-
-            if elm.n <= n_last + 1:
-                for k, v in global_dof_mapping.items():
-                    global_dof_mapping[k] = int(self.number_dof * elm.n + v)
-            else:
-                for k, v in global_dof_mapping.items():
-                    global_dof_mapping[k] = int(
-                        half_ndof * n_last + half_ndof * elm.n + self.number_dof + v
-                    )
-
-            if hasattr(elm, "n_link") and elm.n_link is not None:
-                if elm.n_link <= n_last + 1:
-                    global_dof_mapping[f"x_{elm.n_link}"] = int(
-                        self.number_dof * elm.n_link
-                    )
-                    global_dof_mapping[f"y_{elm.n_link}"] = int(
-                        self.number_dof * elm.n_link + 1
-                    )
-                    global_dof_mapping[f"z_{elm.n_link}"] = int(
-                        self.number_dof * elm.n_link + 2
-                    )
-                else:
-                    global_dof_mapping[f"x_{elm.n_link}"] = int(
-                        half_ndof * n_last + half_ndof * elm.n_link + self.number_dof
-                    )
-                    global_dof_mapping[f"y_{elm.n_link}"] = int(
-                        half_ndof * n_last
-                        + half_ndof * elm.n_link
-                        + self.number_dof
-                        + 1
-                    )
-                    global_dof_mapping[f"z_{elm.n_link}"] = int(
-                        half_ndof * n_last
-                        + half_ndof * elm.n_link
-                        + self.number_dof
-                        + 2
-                    )
-
-            elm.dof_global_index = global_dof_mapping
-            df.at[df.loc[df.tag == elm.tag].index[0], "dof_global_index"] = (
-                elm.dof_global_index
-            )
-
-        self.inner_dofs = self._get_inner_global_dofs(self.shaft_elements)
         self.outer_dofs = self._get_outer_global_dofs(self.shaft_elements)
 
-        # define positions for disks
-        for disk in disk_elements:
-            z_pos = nodes_pos[disk.n]
-            y_pos = nodes_o_d[disk.n] / 2.0
-            df.loc[df.tag == disk.tag, "nodes_pos_l"] = z_pos
-            df.loc[df.tag == disk.tag, "nodes_pos_r"] = z_pos
-            df.loc[df.tag == disk.tag, "y_pos"] = y_pos
 
-        # define positions for bearings
-        # check if there are bearings without location
-        bearings_no_zloc = {
-            b
-            for b in bearing_elements
-            if pd.isna(df.loc[df.tag == b.tag, "nodes_pos_l"]).all()
-        }
+        # Fill the shaft_number column of the rotor dataframes
+        shaft_numbers = {el.tag: self._shaft_number(el.n) for el in self.elements}
 
-        # cycle while there are bearings without a z location
-        for b in cycle(self.bearing_elements):
-            if bearings_no_zloc:
-                if b in bearings_no_zloc:
-                    # first check if b.n is on list, if not, check for n_link
-                    node_l = df.loc[(df.n_l == b.n) & (df.tag != b.tag), "nodes_pos_l"]
-                    node_r = df.loc[(df.n_r == b.n) & (df.tag != b.tag), "nodes_pos_r"]
-                    if len(node_l) == 0 and len(node_r) == 0:
-                        node_l = df.loc[
-                            (df.n_link == b.n) & (df.tag != b.tag), "nodes_pos_l"
-                        ]
-                        node_r = node_l
-                    if len(node_l):
-                        df.loc[df.tag == b.tag, "nodes_pos_l"] = node_l.values[0]
-                        df.loc[df.tag == b.tag, "nodes_pos_r"] = node_l.values[0]
-                        bearings_no_zloc.discard(b)
-                    elif len(node_r):
-                        df.loc[df.tag == b.tag, "nodes_pos_l"] = node_r.values[0]
-                        df.loc[df.tag == b.tag, "nodes_pos_r"] = node_r.values[0]
-                        bearings_no_zloc.discard(b)
-            else:
-                break
+        for df in (
+            self.df,
+            self.df_shaft,
+            self.df_disks,
+            self.df_bearings,
+            self.df_seals,
+            self.df_point_mass,
+        ):
+            if len(df):
+                df["shaft_number"] = df["tag"].map(shaft_numbers).astype(float)
 
-        dfb = df[df.type == "BearingElement"]
-        z_positions = [pos for pos in dfb["nodes_pos_l"]]
-        z_positions = list(dict.fromkeys(z_positions))
-        mean_od = np.mean(nodes_o_d)
-        for z_pos in dfb["nodes_pos_l"]:
-            dfb_z_pos = dfb[dfb.nodes_pos_l == z_pos]
-            dfb_z_pos = dfb_z_pos.sort_values(by="n_l")
-            for n, t, nlink in zip(
-                dfb_z_pos.n, dfb_z_pos.tag, dfb_z_pos.n_link, strict=True
-            ):
-                if n in self.nodes:
-                    if z_pos == df_shaft["nodes_pos_l"].iloc[0]:
-                        y_pos = (np.max(df_shaft["odl"][df_shaft.n_l == n].values)) / 2
-                    elif z_pos == df_shaft["nodes_pos_r"].iloc[-1]:
-                        y_pos = (np.max(df_shaft["odr"][df_shaft.n_r == n].values)) / 2
-                    else:
-                        if not len(df_shaft["odl"][df_shaft._n == n].values):
-                            y_pos = (
-                                np.max(df_shaft["odr"][df_shaft._n == n - 1].values)
-                            ) / 2
-                        elif not len(df_shaft["odr"][df_shaft._n == n - 1].values):
-                            y_pos = (
-                                np.max(df_shaft["odl"][df_shaft._n == n].values)
-                            ) / 2
-                        else:
-                            y_pos = (
-                                np.max(
-                                    [
-                                        np.max(
-                                            df_shaft["odl"][df_shaft._n == n].values
-                                        ),
-                                        np.max(
-                                            df_shaft["odr"][df_shaft._n == n - 1].values
-                                        ),
-                                    ]
-                                )
-                                / 2
-                            )
-                else:
-                    y_pos += 2 * mean_od * df["scale_factor"][df.tag == t].values[0]
 
-                if nlink in self.nodes:
-                    if z_pos == df_shaft["nodes_pos_l"].iloc[0]:
-                        y_pos_sup = (
-                            np.min(df_shaft["idl"][df_shaft.n_l == nlink].values)
-                        ) / 2
-                    elif z_pos == df_shaft["nodes_pos_r"].iloc[-1]:
-                        y_pos_sup = (
-                            np.min(df_shaft["idr"][df_shaft.n_r == nlink].values)
-                        ) / 2
-                    else:
-                        if not len(df_shaft["idl"][df_shaft._n == nlink].values):
-                            y_pos_sup = (
-                                np.min(df_shaft["idr"][df_shaft._n == nlink - 1].values)
-                            ) / 2
-                        elif not len(df_shaft["idr"][df_shaft._n == nlink - 1].values):
-                            y_pos_sup = (
-                                np.min(df_shaft["idl"][df_shaft._n == nlink].values)
-                            ) / 2
-                        else:
-                            y_pos_sup = (
-                                np.min(
-                                    [
-                                        np.min(
-                                            df_shaft["idl"][df_shaft._n == nlink].values
-                                        ),
-                                        np.min(
-                                            df_shaft["idr"][
-                                                df_shaft._n == nlink - 1
-                                            ].values
-                                        ),
-                                    ]
-                                )
-                                / 2
-                            )
-                else:
-                    y_pos_sup = (
-                        y_pos + 2 * mean_od * df["scale_factor"][df.tag == t].values[0]
-                    )
+        # Draw bearings between shafts up to the outer shaft inner surface
+        for brg in self.bearing_elements:
+            if brg.n_link in self.nodes:
+                outer_node = brg.n if brg.n in self.shafts_nodes[1] else brg.n_link
+                sh_at_node = self.df_shaft[
+                    (self.df_shaft.n_l == outer_node) | (self.df_shaft.n_r == outer_node)
+                ]
+                self.df.loc[self.df.tag == brg.tag, "y_pos_sup"] = (
+                    sh_at_node.i_d.min() / 2
+                )
 
-                df.loc[df.tag == t, "y_pos"] = y_pos
-                df.loc[df.tag == t, "y_pos_sup"] = y_pos_sup
+    def _shaft_number(self, node):
+        """Return the index of the shaft the node belongs to.
 
-        # define position for point mass elements
-        dfb = df[df.type == "BearingElement"]
-        for pm in point_mass_elements:
-            dfb_pm = dfb[dfb.n_l == pm.n]
+        Nodes outside the shafts (e.g. bearing housings) belong to the shaft
+        of the bearing they are linked to.
 
-            if not dfb_pm.empty:
-                z_pos = dfb_pm["nodes_pos_l"].values[0]
-                y_pos = dfb_pm["y_pos"].values[0]
-            else:
-                i = self.nodes.index(pm.n)
-                z_pos = nodes_pos[i]
-                y_pos = nodes_o_d[i] / 2
+        Parameters
+        ----------
+        node : int
+            Node number.
 
-            df.loc[df.tag == pm.tag, "nodes_pos_l"] = z_pos
-            df.loc[df.tag == pm.tag, "nodes_pos_r"] = z_pos
-            df.loc[df.tag == pm.tag, "y_pos"] = y_pos
+        Returns
+        -------
+        shaft_number : int
+            Index of the shaft in ``shafts``.
+        """
+        if node in self.link_nodes:
+            node = self._find_linked_bearing_node(node)
 
-        self.df = df
-
-        # Base matrices:
-        self._build_base_matrices(
-            modal_damping_ratio, default_damping_ratio, alpha, beta
+        return next(
+            j for j, shaft_nodes in enumerate(self.shafts_nodes) if node in shaft_nodes
         )
     
-    def _get_inner_elements(self, elements=None):
-        elements = elements or self.elements
+    def _fix_nodes_pos(self, index, node, nodes_pos_l):
+        """Adjust node positions of the outer rotor"""
+        if node == self.shafts_nodes[1][0]:
 
-        return [el for el in elements if el.n in self.inner_nodes]
+            for n_outer in self.shafts_nodes[1]:
+                n_inner = self._find_linked_bearing_node(n_outer)
+                
+                if n_inner is not None:
+                    i = next(i for i, sh in enumerate(self.shaft_elements) if sh.n == n_inner)
+                    L_outer_shaft = sum(sh.L for sh in self._get_outer_elements(self.shaft_elements))
+
+                    nodes_pos_l[index] = nodes_pos_l[i]
+                    if node != n_outer:
+                        nodes_pos_l[index] -= L_outer_shaft
+
+                    return
+
+    def _set_nodes(self, df_shaft):
+        """Set nodes and nodes_pos lists"""
+        nodes_pos = {}
+        
+        for n, pos in zip(df_shaft.n_l, df_shaft.nodes_pos_l, strict=True):
+            nodes_pos[int(n)] = max(nodes_pos.get(int(n), pos), pos)
+        
+        for n, pos in zip(df_shaft.n_r, df_shaft.nodes_pos_r, strict=True):
+            nodes_pos.setdefault(int(n), pos)
+
+        self.nodes = [n for sh_n in self.shafts_nodes for n in sh_n]
+        self.nodes_pos = [nodes_pos[n] for n in self.nodes]
+        self.center_line_pos = [0] * len(self.nodes)
     
     def _get_outer_elements(self, elements=None):
         elements = elements or self.elements
 
-        return [el for el in elements if el.n in self.outer_nodes]
-
-    def _get_inner_global_dofs(self, elements=None):
-        if elements is None:
-            return self.inner_dofs
-        else:
-            return sorted(
-                {
-                    dof
-                    for el in elements
-                    if el.n in self.inner_nodes
-                    for dof in el.dof_global_index.values()
-                }
-            )
+        return [el for el in elements if el.n in self.shafts_nodes[1]]
 
     def _get_outer_global_dofs(self, elements=None):
         if elements is None:
@@ -629,8 +247,7 @@ class CoAxialRotor(Rotor):
             return sorted(
                 {
                     dof
-                    for el in elements
-                    if el.n in self.outer_nodes
+                    for el in self._get_outer_elements(elements)
                     for dof in el.dof_global_index.values()
                 }
             )
