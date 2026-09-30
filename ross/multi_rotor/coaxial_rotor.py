@@ -262,6 +262,33 @@ class CoAxialRotor(Rotor):
 
         return G0
 
+    def Ksdt(self):
+        """Dynamic stiffness matrix for an instance of a coaxial rotor.
+
+        The outer shaft accelerates ``speed_ratio`` times the inner shaft,
+        so its terms are scaled by ``speed_ratio``. The matrix still needs to
+        be multiplied by the inner shaft angular acceleration.
+
+        Returns
+        -------
+        Ksdt0 : np.ndarray
+            Dynamic stiffness matrix for the rotor.
+
+        Examples
+        --------
+        >>> rotor = coaxrotor_example()
+        >>> rotor.speed_ratio = -1
+        >>> dofs = rotor.outer_dofs
+        >>> np.allclose(rotor.Ksdt()[np.ix_(dofs, dofs)], -rotor.Ksdt0[np.ix_(dofs, dofs)])
+        True
+        """
+        Ksdt0 = self.Ksdt0.copy()
+        dofs = self.outer_dofs
+
+        Ksdt0[np.ix_(dofs, dofs)] *= self.speed_ratio
+
+        return Ksdt0
+
     def _node_speed_ratio(self, node):
         """Return the speed ratio of the shaft the node belongs to.
 

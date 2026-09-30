@@ -512,6 +512,21 @@ def test_coaxial_rotor(coaxrotor):
         0.025, 0.025, 0.025, 0.025, 0.025, 0.15, 0.15, 0.15
     ]
     assert list(np.round(coaxrotor.df["y_pos_sup"].dropna(), 3)) == [
-        0.319, 0.125, 0.319, 0.444
+        0.172, 0.125, 0.172, 0.297
     ]
     # fmt: on
+
+
+def test_coaxial_rotor_speed_ratio_matrices(coaxrotor):
+    coaxrotor.speed_ratio = -1.5
+    outer = coaxrotor.outer_dofs
+    inner = sorted(set(range(coaxrotor.ndof)) - set(outer))
+
+    for matrix, matrix0 in [
+        (coaxrotor.G(), coaxrotor.G0),
+        (coaxrotor.Ksdt(), coaxrotor.Ksdt0),
+    ]:
+        assert_allclose(
+            matrix[np.ix_(outer, outer)], -1.5 * matrix0[np.ix_(outer, outer)]
+        )
+        assert_allclose(matrix[np.ix_(inner, inner)], matrix0[np.ix_(inner, inner)])
