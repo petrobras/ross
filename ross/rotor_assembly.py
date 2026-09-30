@@ -1102,6 +1102,36 @@ class Rotor(object):
             name: getattr(self, name) for name in sig.parameters if name not in skip
         }
 
+    def _new_rotor(
+        self,
+        shaft_elements,
+        disk_elements,
+        bearing_elements,
+        point_mass_elements,
+        **kwargs,
+    ):
+        """Build an instance of the current rotor class from new elements.
+
+        Several analyses need a temporary rotor with modified elements.  Using
+        ``Rotor(...)`` in those methods silently discards subclass-specific
+        behavior, while calling ``self.__class__(...)`` does not provide enough
+        information for classes with a different constructor.  Subclasses can
+        override this hook to rebuild their topology.
+        """
+        parameters = self._init_parameters()
+        parameters.update(kwargs)
+        return self.__class__(
+            shaft_elements=shaft_elements,
+            disk_elements=disk_elements,
+            bearing_elements=bearing_elements,
+            point_mass_elements=point_mass_elements,
+            **parameters,
+        )
+
+    def _new_rotor_kwargs(self, refinement_factor):
+        """Return subclass-specific arguments for a refined temporary rotor."""
+        return {}
+
     def add_nodes(self, new_nodes_pos):
         """Add nodes to rotor.
 
@@ -1726,6 +1756,7 @@ class Rotor(object):
                     idl = ((nel_r - j) * idl + j * idr) / nel_r
                     shaft_elem.append(
                         ShaftElement(
+                            n=nel_r * shaft.n + j,
                             L=le,
                             idl=idl,
                             odl=odl,
@@ -1755,7 +1786,13 @@ class Rotor(object):
                 aux_elm.n = nel_r * elm.n
                 pmass_elem.append(aux_elm)
 
-            aux_rotor = Rotor(shaft_elem, disk_elem, brgs_elem, pmass_elem)
+            aux_rotor = self._new_rotor(
+                shaft_elem,
+                disk_elem,
+                brgs_elem,
+                pmass_elem,
+                **self._new_rotor_kwargs(nel_r),
+            )
             aux_modal = aux_rotor.run_modal(speed=0)
 
             eigv_arr = np.append(eigv_arr, aux_modal.wn[n_eigval])
@@ -4560,7 +4597,7 @@ class Rotor(object):
 
         for i, k in enumerate(stiffness_log):
             rotor = convert_6dof_to_4dof(
-                self.__class__(
+                self._new_rotor(
                     shaft_elements=shaft_elements,
                     disk_elements=self.disk_elements,
                     bearing_elements=[
@@ -4646,7 +4683,7 @@ class Rotor(object):
 
                         # create rotor
                         rotor_critical = convert_6dof_to_4dof(
-                            self.__class__(
+                            self._new_rotor(
                                 shaft_elements=shaft_elements,
                                 disk_elements=self.disk_elements,
                                 bearing_elements=self._remove_housing_bearings(
@@ -4737,7 +4774,7 @@ class Rotor(object):
         log_dec = np.zeros(len(stiffness))
 
         # set rotor speed to mcs
-        speed = self.rated_w
+        speed = self.rated_w if self.rated_w is not None else 0
         modal = self.run_modal(speed=speed)
 
         for i, Q in enumerate(stiffness):
@@ -4745,7 +4782,7 @@ class Rotor(object):
             cross_coupling = BearingElement(n=n, kxx=0, cxx=0, kxy=Q, kyx=-Q)
             bearings.append(cross_coupling)
 
-            rotor = self.__class__(
+            rotor = self._new_rotor(
                 self.shaft_elements,
                 self.disk_elements,
                 bearings,
@@ -5338,13 +5375,10 @@ class Rotor(object):
         >>> rotor = rotor_example()
         >>> rotor.save(file)
         """
-        import ross
         from ross.utils import dump_data
 
         file = Path(file)
-        dump_data(
-            {"ross_version": ross.__version__, "parameters": self.parameters}, file
-        )
+        dump_data(self._serialization_data(), file)
         for el in self.elements:
             el.save(file)
 
@@ -5367,6 +5401,12 @@ class Rotor(object):
             comment = "\n".join(f"# {line}" for line in warning_text.splitlines())
             content = file.read_text()
             file.write_text(comment + "\n\n" + content)
+
+    def _serialization_data(self):
+        """Return the metadata written by :meth:`save`."""
+        import ross
+
+        return {"ross_version": ross.__version__, "parameters": self.parameters}
 
     @classmethod
     def load(cls, file):
@@ -5412,19 +5452,23 @@ class Rotor(object):
                 f"but current version is {ross.__version__}. "
                 f"This may lead to incompatibilities."
             )
+
+        # Rotor files are polymorphic.  Keep the public ``Rotor.load`` entry
+        # point backwards compatible while allowing subclasses to restore
+        # their complete topology.
+        if data.get("_rotor_type") == "MultiRotor":
+            from ross.multi_rotor.multi_rotor import MultiRotor
+
+            return MultiRotor._load_from_data(file, data)
+
+        if data.get("_rotor_type") == "CoAxialRotor":
+            from ross.rotor_assembly import CoAxialRotor
+
+            return CoAxialRotor._load_from_data(file, data)
+
         parameters = data["parameters"]
 
-        elements = []
-        for el_name, el_data in data.items():
-            if el_name in ("parameters", "ross_version") or el_name.startswith("_"):
-                continue
-            class_name = el_name.split("_")[0]
-            element_class = getattr(ross, class_name, None) or globals().get(class_name)
-            if element_class is None:
-                import rossxl as rsxl
-
-                element_class = getattr(rsxl, class_name)
-            elements.append(element_class.read_toml_data(el_data))
+        elements = cls._elements_from_data(data)
 
         shaft_elements = []
         disk_elements = []
@@ -5447,6 +5491,24 @@ class Rotor(object):
             point_mass_elements=point_mass_elements,
             **parameters,
         )
+
+    @staticmethod
+    def _elements_from_data(data):
+        """Read element objects from serialized rotor data."""
+        import ross
+
+        elements = []
+        for el_name, el_data in data.items():
+            if el_name in ("parameters", "ross_version") or el_name.startswith("_"):
+                continue
+            class_name = el_name.split("_")[0]
+            element_class = getattr(ross, class_name, None) or globals().get(class_name)
+            if element_class is None:
+                import rossxl as rsxl
+
+                element_class = getattr(rsxl, class_name)
+            elements.append(element_class.read_toml_data(el_data))
+        return elements
 
     def run_static(self):
         """Run static analysis.
@@ -5528,8 +5590,12 @@ class Rotor(object):
             aux_brg.append(BearingElement(n=brg.n, n_link=brg.n_link, kxx=1e20, cxx=0))
             aux_brg_1.append(BearingElement(n=brg.n, n_link=brg.n_link, kxx=0, cxx=0))
 
-        aux_rotor = Rotor(self.shaft_elements, self.disk_elements, aux_brg, pmass)
-        aux_rotor_1 = Rotor(self.shaft_elements, self.disk_elements, aux_brg_1, pmass)
+        aux_rotor = self._new_rotor(
+            self.shaft_elements, self.disk_elements, aux_brg, pmass
+        )
+        aux_rotor_1 = self._new_rotor(
+            self.shaft_elements, self.disk_elements, aux_brg_1, pmass
+        )
 
         aux_M = aux_rotor.M(0)
         aux_K = aux_rotor.K(0)
@@ -6642,8 +6708,7 @@ class CoAxialRotor(Rotor):
             "alpha": float(alpha) if alpha is not None else 0.0,
             "beta": float(beta) if beta is not None else 0.0,
         }
-        if tag is None:
-            self.tag = "Rotor 0"
+        self.tag = tag or "Rotor 0"
 
         ####################################################
         # Config attributes
@@ -6865,10 +6930,39 @@ class CoAxialRotor(Rotor):
 
         # number of dofs
         half_ndof = self.number_dof / 2
+        n_last = max(el.n for el in shaft_elements)
         self.ndof = int(
-            self.number_dof * (max([el.n for el in shaft_elements]) + 2)
-            + half_ndof * len([el for el in point_mass_elements])
+            self.number_dof * (n_last + 2) + half_ndof * len(point_mass_elements)
         )
+
+        # Linked bearings and point masses can be placed beyond the last shaft
+        # node.  Refinement scales those auxiliary nodes as well, so the
+        # original allocation formula may be too small for their global DOFs.
+        external_nodes = [
+            node
+            for elm in self.elements
+            for node in (elm.n, getattr(elm, "n_link", None))
+            if node is not None and node > n_last + 1
+        ]
+        if external_nodes:
+            max_external_node = max(external_nodes)
+            external_dof_index = max(
+                max(elm.dof_mapping().values())
+                for elm in self.elements
+                if (
+                    elm.n > n_last + 1
+                    or getattr(elm, "n_link", None) is not None
+                    and elm.n_link > n_last + 1
+                )
+            )
+            required_ndof = (
+                half_ndof * n_last
+                + half_ndof * max_external_node
+                + self.number_dof
+                + external_dof_index
+                + 1
+            )
+            self.ndof = max(self.ndof, int(required_ndof))
 
         elm_no_shaft_id = {
             elm
@@ -7114,6 +7208,147 @@ class CoAxialRotor(Rotor):
         self._build_base_matrices(
             modal_damping_ratio, default_damping_ratio, alpha, beta
         )
+
+    def _serialization_data(self):
+        """Return metadata needed to restore the coaxial shaft topology."""
+        data = super()._serialization_data()
+        data["_rotor_type"] = "CoAxialRotor"
+        data["_coaxial_rotor"] = {
+            "shaft_nodes": [
+                [int(shaft_element.n) for shaft_element in shaft]
+                for shaft in self.shafts
+            ],
+            "tag": self.tag,
+        }
+        return data
+
+    @classmethod
+    def _load_from_data(cls, file, data):
+        """Restore a coaxial rotor while preserving shaft membership."""
+        config = data["_coaxial_rotor"]
+        elements = cls._elements_from_data(data)
+        shaft_elements = [
+            element for element in elements if isinstance(element, ShaftElement)
+        ]
+        disk_elements = [
+            element for element in elements if isinstance(element, DiskElement)
+        ]
+        bearing_elements = [
+            element for element in elements if isinstance(element, BearingElement)
+        ]
+        point_mass_elements = [
+            element for element in elements if isinstance(element, PointMass)
+        ]
+
+        shaft_by_node = {int(element.n): element for element in shaft_elements}
+        try:
+            shafts = [
+                [shaft_by_node[int(node)] for node in shaft_nodes]
+                for shaft_nodes in config["shaft_nodes"]
+            ]
+        except KeyError as exc:
+            raise ValueError(
+                "CoAxialRotor file has an incomplete shaft topology"
+            ) from exc
+
+        parameters = dict(data["parameters"])
+        parameters["tag"] = config.get("tag")
+        return cls(
+            shafts=shafts,
+            disk_elements=disk_elements,
+            bearing_elements=bearing_elements,
+            point_mass_elements=point_mass_elements,
+            **parameters,
+        )
+
+    def _new_rotor(
+        self,
+        shaft_elements,
+        disk_elements,
+        bearing_elements,
+        point_mass_elements,
+        **kwargs,
+    ):
+        """Build a temporary coaxial rotor for inherited analyses.
+
+        The base analysis methods pass a flattened shaft-element list to this
+        hook.  Rebuilding a plain ``Rotor`` loses the separate shaft groups,
+        while rebuilding a ``CoAxialRotor`` with the flattened list makes the
+        second shaft look like a continuation of the first one.  Split the
+        refined elements using the original shaft-group sizes so the coaxial
+        node/link numbering remains valid for static and convergence analyses.
+        """
+        refinement_factor = kwargs.pop("_refinement_factor", 1)
+        shaft_elements = [deepcopy(element) for element in shaft_elements]
+        shaft_groups = []
+        shaft_node_map = {}
+        start = 0
+        next_node = 0
+        for shaft in self.shafts:
+            stop = start + refinement_factor * len(shaft)
+            shaft_group = shaft_elements[start:stop]
+            for index, element in enumerate(shaft_group):
+                old_node = element.n
+                new_node = next_node + index
+                shaft_node_map[old_node] = new_node
+                shaft_node_map[old_node + 1] = new_node + 1
+                element.n = new_node
+            shaft_groups.append(shaft_group)
+            start = stop
+            next_node += len(shaft_group) + 1
+
+        if start != len(shaft_elements):
+            raise ValueError("CoAxialRotor shaft elements do not match shaft groups")
+
+        # Refinement multiplies auxiliary link nodes as well as shaft nodes.
+        # Compact the resulting external node IDs before rebuilding the model;
+        # otherwise gaps in IDs become unconnected DOFs in the temporary rotor.
+        disk_elements = deepcopy(disk_elements)
+        bearing_elements = deepcopy(bearing_elements)
+        point_mass_elements = deepcopy(point_mass_elements)
+        temporary_elements = [
+            *disk_elements,
+            *bearing_elements,
+            *point_mass_elements,
+        ]
+        for element in temporary_elements:
+            if element.n in shaft_node_map:
+                element.n = shaft_node_map[element.n]
+            if getattr(element, "n_link", None) in shaft_node_map:
+                element.n_link = shaft_node_map[element.n_link]
+
+        last_shaft_node = max(element.n for element in shaft_elements) + 1
+        external_nodes = sorted(
+            {
+                node
+                for element in temporary_elements
+                for node in (element.n, getattr(element, "n_link", None))
+                if node is not None and node > last_shaft_node
+            }
+        )
+        external_node_map = {
+            node: last_shaft_node + 1 + index
+            for index, node in enumerate(external_nodes)
+        }
+        for element in temporary_elements:
+            if element.n in external_node_map:
+                element.n = external_node_map[element.n]
+            if getattr(element, "n_link", None) in external_node_map:
+                element.n_link = external_node_map[element.n_link]
+
+        parameters = self._init_parameters()
+        parameters.update(kwargs)
+        return self.__class__(
+            shafts=shaft_groups,
+            disk_elements=disk_elements,
+            bearing_elements=bearing_elements,
+            point_mass_elements=point_mass_elements,
+            **parameters,
+        )
+
+    def _new_rotor_kwargs(self, refinement_factor):
+        """Pass the refinement factor needed to split rebuilt shaft groups."""
+        return {"_refinement_factor": refinement_factor}
 
 
 def rotor_example():

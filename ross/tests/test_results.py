@@ -14,6 +14,7 @@ from ross.rotor_assembly import *
 from ross.bearings.magnetic.amb_models import rotor_example_amb_complex_controllers
 from ross.utils import equal_dicts
 from ross.bearings.magnetic.amb_time_response import AmbTimeResponse
+from ross.multi_rotor.multi_rotor import two_shaft_rotor_example
 
 
 @pytest.fixture
@@ -154,6 +155,25 @@ def test_save_load_timeresponse(rotor1):
     assert response2.yout.all() == response.yout.all()
     assert response2.xout.all() == response.xout.all()
     assert response2.rotor == response.rotor
+
+
+@pytest.mark.parametrize("suffix", [".toml", ".json"])
+def test_save_load_timeresponse_with_multi_rotor(tmp_path, suffix):
+    rotor = two_shaft_rotor_example()
+    response = TimeResponseResults(
+        rotor,
+        np.array([0.0, 1.0]),
+        np.zeros((2, rotor.ndof)),
+        [],
+    )
+    file = tmp_path / f"multi_rotor_time{suffix}"
+
+    response.save(file)
+    loaded = TimeResponseResults.load(file)
+
+    assert isinstance(loaded.rotor, rs.MultiRotor)
+    assert loaded.rotor.coupled_nodes == rotor.coupled_nodes
+    assert_allclose(loaded.rotor.K(0), rotor.K(0))
 
 
 def test_save_load_sensitivity(rotor_amb):

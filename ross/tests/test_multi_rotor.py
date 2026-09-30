@@ -163,6 +163,100 @@ def test_mesh(multi_rotor):
     assert_allclose(multi_rotor.mesh.stiffness, 1937234387.18946, rtol=1e-6, atol=1e-5)
 
 
+@pytest.mark.parametrize("suffix", [".toml", ".json"])
+def test_save_load_multi_rotor(multi_rotor, tmp_path, suffix):
+    file = tmp_path / f"multi_rotor{suffix}"
+    configured = rs.MultiRotor(
+        driving_rotor=multi_rotor.rotors["driving"],
+        driven_rotor=multi_rotor.rotors["driven"],
+        coupled_nodes=multi_rotor.coupled_nodes,
+        gear_mesh_stiffness=multi_rotor.mesh.stiffness,
+        damping_ratio=0.123,
+        orientation_angle=rs.Q_(12, "deg"),
+        position="above",
+    )
+
+    configured.save(file)
+    loaded = rs.Rotor.load(file)
+
+    assert isinstance(loaded, rs.MultiRotor)
+    assert loaded.coupled_nodes == configured.coupled_nodes
+    assert loaded.mesh.orientation_angle == configured.mesh.orientation_angle
+    assert loaded.mesh.stiffness == configured.mesh.stiffness
+    assert loaded.mesh.damping_ratio == configured.mesh.damping_ratio
+    assert_allclose(loaded.K(0), configured.K(0))
+
+
+def test_constructor_keeps_legacy_positional_arguments(multi_rotor):
+    legacy = rs.MultiRotor(
+        multi_rotor.rotors["driving"],
+        multi_rotor.rotors["driven"],
+        multi_rotor.coupled_nodes,
+        multi_rotor.mesh.stiffness,
+        False,
+        {"enable": False, "amplitude_ratio": 0},
+        {"enable": False},
+        0.0,
+        "below",
+        "legacy",
+    )
+
+    assert legacy.update_mesh_stiffness is False
+    assert legacy.position == "below"
+    assert legacy.tag == "legacy"
+
+
+def test_constructor_places_damping_after_square_stiffness(multi_rotor):
+    ordered = rs.MultiRotor(
+        multi_rotor.rotors["driving"],
+        multi_rotor.rotors["driven"],
+        multi_rotor.coupled_nodes,
+        multi_rotor.mesh.stiffness,
+        False,
+        {"enable": False, "amplitude_ratio": 0},
+        0.123,
+        {"enable": False},
+        0.0,
+        "below",
+        "ordered",
+    )
+
+    assert ordered.mesh.damping_ratio == 0.123
+    assert ordered.position == "below"
+    assert ordered.tag == "ordered"
+
+
+@pytest.mark.parametrize("suffix", [".toml", ".json"])
+def test_save_load_multi_rotor_with_backlash(
+    multi_rotor_with_backlash, tmp_path, suffix
+):
+    file = tmp_path / f"multi_rotor_backlash{suffix}"
+
+    multi_rotor_with_backlash.save(file)
+    loaded = rs.MultiRotor.load(file)
+
+    assert loaded.mesh.backlash is not None
+    assert loaded._backlash == multi_rotor_with_backlash._backlash
+    assert loaded._square_varying_stiffness == (
+        multi_rotor_with_backlash._square_varying_stiffness
+    )
+    assert_allclose(loaded.mesh.stiffness, multi_rotor_with_backlash.mesh.stiffness)
+
+
+def test_inherited_analyses_preserve_multi_rotor(multi_rotor):
+    ucs = multi_rotor.run_ucs(num=2, num_modes=8)
+    level1 = multi_rotor.run_level1(n=0, stiffness_range=(1e6, 1e7), num=2)
+    convergence = multi_rotor.convergence(err_max=1e3)
+    static = multi_rotor.run_static()
+
+    assert isinstance(ucs, rs.UCSResults)
+    assert isinstance(level1, rs.Level1Results)
+    assert isinstance(convergence, rs.ConvergenceResults)
+    assert isinstance(static, rs.StaticResults)
+    assert isinstance(multi_rotor, rs.MultiRotor)
+    assert multi_rotor.mesh is not None
+
+
 def test_coupling_matrix_gear(multi_rotor):
     coupling_matrix = np.array(
         [

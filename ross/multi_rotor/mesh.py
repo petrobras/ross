@@ -47,6 +47,9 @@ class Mesh:
             mesh stiffness.
 
         Default is `{"enable": False, "amplitude_ratio": 0}`.
+    damping_ratio : float, optional
+        Damping ratio used to compute the mesh damping when the backlash
+        model is enabled. Default is 0.07.
     backlash : dict, optional
         Dictionary to enable and configure the backlash model between the
         coupled gears. Keys are:
@@ -66,9 +69,6 @@ class Mesh:
 
         Default is `{"enable": False, "initial_value": 0.0, "error_amp": 0.0,
         "smooth_operator": False, "sigma": 1e4}`.
-    damping_ratio : float, optional
-        Damping ratio used to compute the mesh damping when the backlash
-        model is enabled. Default is 0.07.
     orientation_angle : float, pint.Quantity, optional
         The angle between the line of gear centers and x-axis. Default is 0.0 rad.
 
@@ -124,6 +124,7 @@ class Mesh:
         driven_gear,
         gear_mesh_stiffness=None,
         square_varying_stiffness={"enable": False, "amplitude_ratio": 0},
+        damping_ratio=0.07,
         backlash={
             "enable": False,
             "initial_value": 0.0,
@@ -131,9 +132,17 @@ class Mesh:
             "smooth_operator": False,
             "sigma": 1e4,
         },
-        damping_ratio=0.07,
         orientation_angle=0,
     ):
+
+        # Keep positional calls written for the former signature working.
+        if isinstance(damping_ratio, dict):
+            legacy_backlash = damping_ratio
+            if isinstance(backlash, dict):
+                damping_ratio = 0.07
+                backlash = legacy_backlash
+            else:
+                damping_ratio, backlash = backlash, legacy_backlash
 
         if not math.isclose(driving_gear.module, driven_gear.module, rel_tol=0.05):
             warn(

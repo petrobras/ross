@@ -154,3 +154,27 @@ def test_mesh_params(mesh):
         rtol=1e-6,
         atol=1e-5,
     )
+
+
+def test_mesh_places_damping_after_square_stiffness(mesh):
+    ordered = Mesh(
+        mesh.driving_gear,
+        mesh.driven_gear,
+        mesh.stiffness,
+        {"enable": False, "amplitude_ratio": 0},
+        0.123,
+        {"enable": False},
+        0,
+    )
+    legacy = Mesh(
+        mesh.driving_gear,
+        mesh.driven_gear,
+        mesh.stiffness,
+        {"enable": False, "amplitude_ratio": 0},
+        {"enable": False},
+        0.456,
+        0,
+    )
+
+    assert ordered.damping_ratio == 0.123
+    assert legacy.damping_ratio == 0.456
