@@ -13,7 +13,7 @@
 // no warning. So the modal says, in numbers, where the joint falls and how many
 // nodes come out, and it says it while the selects are being changed rather than
 // afterwards.
-import { getEffectiveNodes } from '../components/list.js';
+import { getEffectiveNodes, getListedNodes } from '../components/list.js';
 import { openCustomAlert } from '../components/modals.js';
 import { apiFetch } from '../core/api.js';
 import { conversionName } from '../core/analysis_store.js';
@@ -28,10 +28,12 @@ import { renderRotorHub } from './hub.js';
 // the half of the node rule that already has a test comparing it, case by case,
 // against `domain/node_resolver.effective_nodes` -- so this adds no second copy
 // of anything, it just reads the existing one.
+// Couplings are numbered by `getListedNodes`, as the builder numbers them.
 export function structuralNodes(rotor) {
-    const shafts = (rotor.shafts || []).concat(rotor.couplings || []);
-    if (!shafts.length) return 0;
-    return Math.max(...getEffectiveNodes(shafts)) + 1;
+    const lefts = getEffectiveNodes(rotor.shafts || [])
+        .concat(getListedNodes(rotor.couplings || []));
+    if (!lefts.length) return 0;
+    return Math.max(...lefts) + 1;
 }
 
 // The rotor model its analyses agree on, or null when they disagree, or

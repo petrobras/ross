@@ -63,6 +63,21 @@ def effective_nodes(elements):
     return resolved
 
 
+def listed_nodes(elements):
+    """Resolve the node of each coupling: its explicit `n`, else its position.
+
+    The builder numbers couplings this way, not by `effective_nodes`, and
+    whatever reads a coupling's node back from the project has to use the
+    same rule -- two rules disagree as soon as a blank `n` follows a pinned
+    one: `[{"n": "2"}, {}]` is `[2, 1]` here and `[2, 0]` there.
+    """
+    resolved = []
+    for position, element in enumerate(elements):
+        explicit = _explicit_node(element)
+        resolved.append(position if explicit is None else explicit)
+    return resolved
+
+
 def collect_nodes(ross_elements):
     """Return every node index occupied by the built ROSS elements."""
     nodes = set()

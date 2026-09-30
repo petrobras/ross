@@ -23,7 +23,7 @@ from .cache import ELEMENT_CACHE
 from .element_registry import ross_class_name
 from .legacy import migrate_element
 from .material_names import material_key, ross_material_name, validate_materials
-from .node_resolver import effective_nodes, validate_node_topology
+from .node_resolver import effective_nodes, listed_nodes, validate_node_topology
 from .units import INT_PARAMETERS, UNITS_MAPPING
 from ross.interface.services.expressions import safe_math_eval
 
@@ -330,24 +330,18 @@ def build_rotor_from_ui(data):
 
     # Couplings
     ross_couplings = []
+    couplings_listed = listed_nodes(data.get("couplings", []))
     for i, c in enumerate(data.get("couplings", [])):
-        n_val_str = str(c.get("n", "")).strip()
-        n_val = int(float(n_val_str)) if n_val_str else i
+        n_val = couplings_listed[i]
         auto_tag = f"coupling_{i}"
 
         def build_coupling():
             kwargs = extract_kwargs(
-                c, created_materials, "CouplingElement", ignore_keys=["element_type"]
+                c, created_materials, "CouplingElement", ["n", "element_type"]
             )
-
-            if "n" in kwargs and str(kwargs["n"]).strip() != "":
-                kwargs["n"] = int(float(kwargs["n"]))
-            else:
-                kwargs["n"] = n_val
-
             if "tag" not in kwargs:
                 kwargs["tag"] = auto_tag
-            return rs.CouplingElement(**kwargs)
+            return rs.CouplingElement(n=n_val, **kwargs)
 
         ross_couplings.append(
             instantiate_with_cache("coupling", c, n_val, build_coupling, auto_tag)

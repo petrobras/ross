@@ -169,6 +169,71 @@ def test_the_comparison_can_tell_two_rotors_apart():
     assert described(one) != described(other)
 
 
+def with_coupling(second_coupling=False):
+    """A shaft line broken by a coupling on nodes 2-3, pinned as the form must.
+
+    The shafts after the coupling pin their nodes, because a blank `n` on a
+    shaft would be resolved without looking at the coupling. With
+    `second_coupling`, a coupling with a blank `n` follows a pinned one: the
+    case where the builder's rule (its place in the list, node 1) and
+    `effective_nodes` (the lowest free node, 0) disagree.
+    """
+    built = project(shafts=4, disk_at="1", bearing_at="0")
+    built["shafts"][2]["n"] = "3"
+    built["shafts"][3]["n"] = "4"
+    coupling = {
+        "element_type": "BASIC",
+        "m_l": "1",
+        "m_r": "1",
+        "Ip_l": "0.01",
+        "Ip_r": "0.01",
+        "kt_x": "1e7",
+        "kt_y": "1e7",
+        "kr_x": "1e5",
+        "kr_y": "1e5",
+        "L": "100",
+    }
+    built["couplings"].append(dict(coupling, n="2", tag="Flex"))
+    if second_coupling:
+        built["couplings"].append(dict(coupling))
+    built["bearings"].append(
+        {"element_type": "BASIC", "n": "5", "kxx": "1e6", "cxx": "0"}
+    )
+    return built
+
+
+@pytest.mark.parametrize("second_coupling", [False, True])
+@pytest.mark.parametrize("coupled", ["first", "second", "both"])
+def test_a_coupling_lands_where_ross_puts_it(coupled, second_coupling):
+    """The comparison above, with a coupling in either half or in both."""
+    plain = project(shafts=2)
+    first = with_coupling(second_coupling) if coupled != "second" else plain
+    second = with_coupling(second_coupling) if coupled != "first" else plain
+
+    theirs = ross.Rotor.concatenate(
+        build_rotor_from_ui(first), build_rotor_from_ui(second)
+    )
+    ours = build_rotor_from_ui(concatenated_project(first, second))
+
+    assert described(ours) == described(theirs)
+
+
+def test_a_blank_coupling_is_numbered_by_its_place_in_the_list():
+    """The builder's rule, written into the joined project as an explicit `n`.
+
+    The second rotor starts on node 2, the end of a two-shaft first rotor, so
+    its couplings on 2 and 1 land on 4 and 3.
+    """
+    merged = concatenated_project(project(shafts=2), with_coupling(True))
+    assert [c["n"] for c in merged["couplings"]] == ["4", "3"]
+
+
+def test_the_screen_counts_a_coupling_as_the_builder_does():
+    for data in (with_coupling(), with_coupling(True)):
+        built = build_rotor_from_ui(data)
+        assert structural_nodes(data) == max(int(n) for n in built.nodes)
+
+
 # --- what the comparison alone would pass over --------------------------------
 
 

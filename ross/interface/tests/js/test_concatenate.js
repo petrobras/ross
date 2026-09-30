@@ -40,6 +40,18 @@ function rotor(name, shafts, analyses) {
 check('two shafts span three nodes', structuralNodes(rotor('A', 2)) === 2);
 check('one shaft spans two', structuralNodes(rotor('B', 1)) === 1);
 check('no shaft at all is zero, and does not throw', structuralNodes(rotor('C', 0)) === 0);
+// Four shafts on 0, 1, 3, 4 around a coupling on 2, then a coupling with a
+// blank node: the builder puts it on 1, its place in the list, and not on the
+// lowest free node. Nodes 0..5, so the rotor ends on 5.
+const coupled = rotor('D', 4);
+coupled.shafts[2].n = '3';
+coupled.shafts[3].n = '4';
+coupled.couplings = [{ n: '2' }, {}];
+check('a coupling counts, and by its place in the list', structuralNodes(coupled) === 5);
+check(
+    'blank couplings are placed by the list, past the one shaft',
+    structuralNodes({ shafts: [{}], couplings: [{ n: '0' }, {}, {}, {}, {}] }) === 5,
+);
 
 // --- the model of a rotor, as the modal shows it ------------------------------
 //

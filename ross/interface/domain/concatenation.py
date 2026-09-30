@@ -55,7 +55,7 @@ import re
 import ross as rs
 
 from .material_names import material_key, ross_material_name
-from .node_resolver import effective_nodes
+from .node_resolver import effective_nodes, listed_nodes
 from .rotor_builder import build_rotor_from_ui
 
 # The project categories, in the order the screen lists them. Unlike the ROSS
@@ -69,6 +69,10 @@ CATEGORIES = (
     "seals",
     "pointmasses",
 )
+
+# How the builder resolves a blank `n`, by category: couplings by their place in
+# the list (`rotor_builder.py`), everything else by `effective_nodes`.
+NUMBERING = {"couplings": listed_nodes}
 
 # Which ROSS list each kind of element ends up in. Used only to sweep every
 # element of a built rotor, never to line them up with project elements.
@@ -345,11 +349,11 @@ def concatenated_project(first, second, first_conversions=(), second_conversions
         rows = []
         for rotor_index, project in ((0, first), (1, second)):
             elements = _elements_of(project, category)
-            # The project numbers its nodes the way the screen labels them, and
-            # `effective_nodes` is the one place that rule lives. Reading it here
-            # rather than trusting the `n` field is what makes an element with a
-            # blank `n` move with the rest of its rotor.
-            here = effective_nodes(elements)
+            # The project numbers its nodes the way the builder does, and
+            # `node_resolver` is the one place those rules live. Reading them
+            # here rather than trusting the `n` field is what makes an element
+            # with a blank `n` move with the rest of its rotor.
+            here = NUMBERING.get(category, effective_nodes)(elements)
             for element, before in zip(elements, here, strict=True):
                 row = copy.deepcopy(element)
                 row["n"] = str(maps[rotor_index][before])
@@ -376,7 +380,9 @@ def structural_nodes(project):
     read back from ROSS -- so a disagreement between the two is a bug in this
     function and not a wrong rotor.
     """
-    shafts = _elements_of(project, "shafts") + _elements_of(project, "couplings")
-    if not shafts:
+    lefts = effective_nodes(_elements_of(project, "shafts")) + listed_nodes(
+        _elements_of(project, "couplings")
+    )
+    if not lefts:
         return 0
-    return max(effective_nodes(shafts)) + 1
+    return max(lefts) + 1

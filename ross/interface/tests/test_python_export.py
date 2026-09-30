@@ -175,6 +175,17 @@ def test_the_exported_sweep_has_the_steps_the_form_asked_for(kind):
     assert "np.linspace(0, 1000, 50)" in build_script(project, [analysis])
 
 
+def test_a_coupling_with_no_node_is_exported_where_the_builder_puts_it():
+    """`rs.CouplingElement` has no default node, and the builder uses the
+    coupling's place in the list; the script has to say the same."""
+    coupling = {"m_l": "1", "m_r": "1", "Ip_l": "0.01", "Ip_r": "0.01"}
+    project = {"couplings": [dict(coupling, n="2"), dict(coupling)]}
+    script = build_script(project)
+
+    assert "dict(n=2, " not in script
+    assert "dict(n=1, " in script
+
+
 def test_an_empty_project_still_produces_a_runnable_script():
     script = build_script({})
     ast.parse(script)

@@ -41,19 +41,23 @@ import copy
 
 from ross.units import Q_
 
-from .node_resolver import NUMBER_SYNTAX, effective_nodes
+from .node_resolver import NUMBER_SYNTAX, effective_nodes, listed_nodes
 from .units import UNITS_MAPPING
 
-# Categories whose `n` is resolved by `effective_nodes` and whose elements sit
-# *on* a node. Shafts and couplings are not here: they span a node pair and
-# their numbering follows the list, so inserting an element renumbers them by
-# itself (see `_shaft_rows`).
-ON_NODE = ("disks", "gears", "bearings", "seals", "pointmasses")
-
-# Categories that span the shaft line. `couplings` are built by list index
-# rather than by `effective_nodes` (rotor_builder.py), so only an explicit `n`
-# can be remapped for them -- which is also all there is to remap.
-ALONG_LINE = ("shafts", "couplings")
+# Categories whose `n` is resolved without the shaft list, each by the rule the
+# builder uses for it: `listed_nodes` for couplings, `effective_nodes` for the
+# rest. Splitting a shaft does not move these lists, so an element with a
+# blank `n` above the split has to be moved -- and pinned -- by hand. Shafts are
+# not here: their numbering follows their own list, so inserting the right
+# half renumbers them by itself (see `_shaft_rows`).
+NUMBERED_ALONE = {
+    "couplings": listed_nodes,
+    "disks": effective_nodes,
+    "gears": effective_nodes,
+    "bearings": effective_nodes,
+    "seals": effective_nodes,
+    "pointmasses": effective_nodes,
+}
 
 NO_SUCH_SHAFT = "Shaft #%d does not exist: the model has %d."
 LENGTH_UNREADABLE = "Shaft #%d has no readable length, so it cannot be split."
@@ -268,16 +272,15 @@ def _moved(node, split_node):
 
 def _renumber(project, split_node):
     """Move every node above the split up by one, in place."""
-    for category in ALONG_LINE:
-        for row in project.get(category, []) or []:
-            _remap_explicit(row, "n", split_node)
+    for row in project.get("shafts", []) or []:
+        _remap_explicit(row, "n", split_node)
 
-    for category in ON_NODE:
+    for category, numbering in NUMBERED_ALONE.items():
         rows = project.get(category, []) or []
         # Resolved before anything is written: an element with a blank `n` owes
         # its node to the ones around it, so the whole category has to be read
         # before the category starts changing.
-        for row, before in zip(rows, effective_nodes(rows), strict=True):
+        for row, before in zip(rows, numbering(rows), strict=True):
             after = _moved(before, split_node)
             if after != before:
                 # It was implicit and it has to move: from here on it is

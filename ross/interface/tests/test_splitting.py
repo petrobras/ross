@@ -390,6 +390,19 @@ def test_an_element_that_never_pinned_its_node_gets_pinned_when_it_moves():
     assert split["disks"][1]["n"] == "2"
 
 
+def test_a_coupling_above_the_split_moves_whether_pinned_or_not():
+    """A coupling with a blank `n` is built on its place in the list, and the
+    list of couplings does not move when a shaft is split."""
+    data = project(with_link=False)
+    coupling = {"m_l": "1", "m_r": "1", "Ip_l": "0.01", "Ip_r": "0.01"}
+    data["couplings"] = [dict(coupling, n="0"), dict(coupling), dict(coupling)]
+    split = split_shaft(data, 0, 100.0)
+
+    # The split is on node 0: the coupling pinned there stays, and the two
+    # blanks, on 1 and 2 by their place in the list, move up and are pinned.
+    assert [c.get("n") for c in split["couplings"]] == ["0", "2", "3"]
+
+
 def test_a_shaft_that_pinned_its_node_is_renumbered_with_the_rest():
     data = project(with_link=False)
     for position, shaft in enumerate(data["shafts"]):

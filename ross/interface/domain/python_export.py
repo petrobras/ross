@@ -20,7 +20,7 @@ from decimal import Decimal
 from .element_registry import ross_class_name
 from .legacy import migrate_element
 from .material_names import material_key, ross_material_name, validate_materials
-from .node_resolver import effective_nodes
+from .node_resolver import effective_nodes, listed_nodes
 import textwrap
 
 from .schema import unit_map_by_class
@@ -304,10 +304,10 @@ def _build_rotor_block(r_data, suffix):
 
     # Couplings
     py += "couplings_data%s = [\n" % suffix
-    for coupling in r_data.get("couplings") or []:
-        py += "    dict(%s),\n" % _format_kwargs(
-            coupling, ["element_type"], "CouplingElement"
-        )
+    nodes = listed_nodes(r_data.get("couplings") or [])
+    for position, coupling in enumerate(r_data.get("couplings") or []):
+        args = _format_kwargs(coupling, ["element_type"], "CouplingElement")
+        py += "    dict(%s),\n" % _with_node_arg(coupling, args, nodes[position])
     py += (
         "]\ncouplings{s} = [rs.CouplingElement(**kwargs) "
         "for kwargs in couplings_data{s}]\n"
