@@ -226,6 +226,86 @@ def test_a_length_does_not_come_back_as_floating_point_noise():
     assert split["shafts"][1]["L"] == "270"
 
 
+def mixed_units():
+    """`TAPERED`'s first element typed with a unit per field, as the form allows.
+
+    The same geometry -- 400 mm long, 10/100 -> 20/200 mm -- with the length
+    and two of the diameters in metres, so a split that read the raw numbers
+    would interpolate 0.1 against 200.
+    """
+    data = project()
+    data["shafts"][0].update(
+        {
+            "L": "0.4",
+            "L_unit": "m",
+            "odl": "0.1",
+            "odl_unit": "m",
+            "idr": "0.02",
+            "idr_unit": "m",
+        }
+    )
+    return data
+
+
+def test_a_split_across_mixed_units_builds_the_rotor_ross_would():
+    """The oracle again, on a row whose fields do not share a unit."""
+    data = mixed_units()
+
+    ours = build_rotor_from_ui(split_shaft(data, 0, 0.1))
+    theirs = build_rotor_from_ui(data).add_nodes([0.1])
+
+    assert described(ours) == described(theirs)
+
+
+def test_mixed_units_are_the_same_split_as_millimetres():
+    """Control on the test above: the metres rotor is the millimetres rotor."""
+    in_metres = build_rotor_from_ui(split_shaft(mixed_units(), 0, 0.1))
+    in_millimetres = build_rotor_from_ui(split_shaft(project(), 0, 100.0))
+
+    assert described(in_metres) == described(in_millimetres)
+
+
+def test_each_half_is_written_in_the_unit_of_the_field_it_lands_in():
+    split = split_shaft(mixed_units(), 0, 0.1)
+    left, right = split["shafts"][0], split["shafts"][1]
+
+    assert (left["L"], left["L_unit"]) == ("0.1", "m")
+    assert (right["L"], right["L_unit"]) == ("0.3", "m")
+    assert (left["odl"], left["odl_unit"]) == ("0.1", "m")
+    assert (right["odl"], right["odl_unit"]) == ("0.125", "m")
+    # `odr` named no unit, so it is the form's millimetres on both halves.
+    assert left["odr"] == "125" and "odr_unit" not in left
+    assert right["odr"] == "200" and "odr_unit" not in right
+    assert (left["idr"], left["idr_unit"]) == ("0.0125", "m")
+    assert left["idl"] == "10" and "idl_unit" not in left
+    assert right["idl"] == "12.5" and "idl_unit" not in right
+
+
+def test_a_blank_right_diameter_takes_the_unit_of_the_left_one():
+    """A blank `odr` is `odl`'s value, so it has to be `odl`'s unit as well."""
+    data = project()
+    data["shafts"][1].update({"odl": "0.2", "odl_unit": "m"})
+    split = split_shaft(data, 1, 150.0)
+
+    for row in split["shafts"][1:3]:
+        assert (row["odl"], row["odl_unit"]) == ("0.2", "m")
+        assert (row["odr"], row["odr_unit"]) == ("0.2", "m")
+
+
+def test_a_diameter_unit_that_is_not_a_length_is_refused():
+    data = project()
+    data["shafts"][0]["odl_unit"] = "kg"
+    with pytest.raises(ValueError) as raised:
+        split_shaft(data, 0, 100.0)
+    assert "kg" in str(raised.value)
+
+
+def test_a_refusal_names_the_unit_of_the_length():
+    with pytest.raises(ValueError) as raised:
+        split_shaft(mixed_units(), 0, 0.4)
+    assert "0.4 m long" in str(raised.value)
+
+
 # --- the names, which is the half `add_nodes` throws away ---------------------
 
 

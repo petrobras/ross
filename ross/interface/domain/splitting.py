@@ -39,7 +39,10 @@ only the runtime dependency is gone.
 
 import copy
 
+from ross.units import Q_
+
 from .node_resolver import NUMBER_SYNTAX, effective_nodes
+from .units import UNITS_MAPPING
 
 # Categories whose `n` is resolved by `effective_nodes` and whose elements sit
 # *on* a node. Shafts and couplings are not here: they span a node pair and
@@ -56,9 +59,14 @@ NO_SUCH_SHAFT = "Shaft #%d does not exist: the model has %d."
 LENGTH_UNREADABLE = "Shaft #%d has no readable length, so it cannot be split."
 OFFSET_UNREADABLE = "'%s' is not a distance."
 OFFSET_OUTSIDE = (
-    "The split has to fall inside shaft #%d, which is %s mm long: %s mm would "
+    "The split has to fall inside shaft #%d, which is %s %s long: %s %s would "
     "land on node %d, which already exists."
 )
+UNIT_UNREADABLE = "Shaft #%d gives '%s' as the unit of %s, which is not a length."
+
+# What a length field means when the row names no unit: the form's default,
+# which is also what `rotor_builder.extract_kwargs` falls back to.
+SHAFT_UNITS = UNITS_MAPPING["ShaftElement"]
 
 
 def _number(value):
@@ -105,6 +113,26 @@ def _unique_tag(wanted, taken):
     return "%s (%d)" % (wanted, number)
 
 
+def _unit(row, key, fallback=None):
+    """The unit a length field is typed in: its own `*_unit`, else `fallback`.
+
+    `fallback` is how a blank `idr` borrows `idl`: the value it stands for is
+    `idl`'s, so its unit has to be `idl`'s too. A falsy `fallback` is the
+    form's default for `key`.
+    """
+    unit = str(row.get(key + "_unit", "") or "").strip()
+    if unit:
+        return unit
+    return fallback or SHAFT_UNITS[key]
+
+
+def _in_metres(value, unit, index, key):
+    try:
+        return float(Q_(value, unit).to("m").m)
+    except Exception as error:
+        raise ValueError(UNIT_UNREADABLE % (index + 1, unit, key)) from error
+
+
 def _shaft_rows(shafts, index, offset, length, split_node):
     """The shaft list with element `index` replaced by its two halves.
 
@@ -112,16 +140,49 @@ def _shaft_rows(shafts, index, offset, length, split_node):
     are copies of one row, so a renumbering that ran afterwards would either
     move both or neither. Here the left half keeps the node the original had
     and the right half is given the node the split created, once.
+
+    Every field carries its own unit (`odl_unit`, `L_unit`, ...), so the
+    interpolation runs in metres and each result is written back in the unit
+    of the field it lands in. Interpolating the raw numbers would mix them:
+    `odl = 0.05 m` and `odr = 100 mm` would give a 50 m diameter.
     """
     original = shafts[index]
     fraction = offset / length
 
-    idl = _read(original, "idl", 0.0)
-    odl = _read(original, "odl", 0.0)
-    idr = _read(original, "idr", idl)
-    odr = _read(original, "odr", odl)
-    mid_id = idl + fraction * (idr - idl)
-    mid_od = odl + fraction * (odr - odl)
+    idl_value = _read(original, "idl", 0.0)
+    odl_value = _read(original, "odl", 0.0)
+    idr_value = _read(original, "idr")
+    odr_value = _read(original, "odr")
+
+    units = {"idl": _unit(original, "idl"), "odl": _unit(original, "odl")}
+    units["idr"] = _unit(original, "idr", idr_value is None and units["idl"])
+    units["odr"] = _unit(original, "odr", odr_value is None and units["odl"])
+
+    metres = {
+        "idl": _in_metres(idl_value, units["idl"], index, "idl"),
+        "odl": _in_metres(odl_value, units["odl"], index, "odl"),
+    }
+    # A blank right diameter is the left one, so it is taken in metres
+    # already rather than read again with a unit it was never typed in.
+    metres["idr"] = (
+        metres["idl"]
+        if idr_value is None
+        else _in_metres(idr_value, units["idr"], index, "idr")
+    )
+    metres["odr"] = (
+        metres["odl"]
+        if odr_value is None
+        else _in_metres(odr_value, units["odr"], index, "odr")
+    )
+    mid_id = metres["idl"] + fraction * (metres["idr"] - metres["idl"])
+    mid_od = metres["odl"] + fraction * (metres["odr"] - metres["odl"])
+
+    def written(row, key, value_in_metres):
+        row[key] = _number(Q_(value_in_metres, "m").to(units[key]).m)
+        # Pinned only when it is not the default, so a row typed in the
+        # form's own unit comes back as it went in.
+        if units[key] != SHAFT_UNITS[key] or key + "_unit" in row:
+            row[key + "_unit"] = units[key]
 
     left = copy.deepcopy(original)
     right = copy.deepcopy(original)
@@ -130,15 +191,16 @@ def _shaft_rows(shafts, index, offset, length, split_node):
     # blank. A blank `odr` means "the same as `odl`", which stops being true the
     # moment the element is cut anywhere along a taper -- and writing the value
     # the user would have had to work out is the point of the button.
+    # `L` and `offset` are both in the unit of `L`, which is left as it was.
     for row, (a_id, a_od, b_id, b_od, span) in (
-        (left, (idl, odl, mid_id, mid_od, offset)),
-        (right, (mid_id, mid_od, idr, odr, length - offset)),
+        (left, (metres["idl"], metres["odl"], mid_id, mid_od, offset)),
+        (right, (mid_id, mid_od, metres["idr"], metres["odr"], length - offset)),
     ):
         row["L"] = _number(span)
-        row["idl"] = _number(a_id)
-        row["odl"] = _number(a_od)
-        row["idr"] = _number(b_id)
-        row["odr"] = _number(b_od)
+        written(row, "idl", a_id)
+        written(row, "odl", a_od)
+        written(row, "idr", b_id)
+        written(row, "odr", b_od)
 
     # The name goes on both halves, because both halves are that element --
     # the second one is told apart by a suffix rather than renamed, so the
@@ -157,11 +219,11 @@ def _shaft_rows(shafts, index, offset, length, split_node):
 
 
 def split_shaft(project, index, offset):
-    """Return `project` with shaft `index` cut `offset` mm from its left face.
+    """Return `project` with shaft `index` cut `offset` from its left face.
 
-    `offset` is in millimetres because the form is: `domain/units.py` maps a
-    ShaftElement's `L` to `mm`, and a field that means metres next to a field
-    that means millimetres is a bug waiting for its first user.
+    `offset` is in the unit the shaft's length is typed in (`L_unit`, else the
+    form's `mm` from `domain/units.py`), because that is the unit the prompt
+    names and the one its default -- half of `L` -- is written in.
     """
     shafts = list(project.get("shafts", []) or [])
     if not isinstance(index, int) or index < 0 or index >= len(shafts):
@@ -181,7 +243,15 @@ def split_shaft(project, index, offset):
     if distance <= 0 or distance >= length:
         landed = split_node if distance <= 0 else split_node + 1
         raise ValueError(
-            OFFSET_OUTSIDE % (index + 1, _number(length), _number(distance), landed)
+            OFFSET_OUTSIDE
+            % (
+                index + 1,
+                _number(length),
+                _unit(shafts[index], "L"),
+                _number(distance),
+                _unit(shafts[index], "L"),
+                landed,
+            )
         )
 
     built = copy.deepcopy(project)
