@@ -325,9 +325,8 @@ def concatenated_project(first, second, first_conversions=(), second_conversions
     `first_conversions` and `second_conversions` are the rotor models the saved
     analyses of each were computed under -- empty when the rotor has none.
     """
-    for project, name in ((first, "the first rotor"), (second, "the second rotor")):
-        if project.get("isMultiRotor"):
-            raise ValueError(A_MULTIROTOR)
+    if first.get("isMultiRotor") or second.get("isMultiRotor"):
+        raise ValueError(A_MULTIROTOR)
 
     refuse_mismatched_models(first_conversions, second_conversions)
 
