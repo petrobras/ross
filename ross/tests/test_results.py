@@ -702,6 +702,7 @@ def test_save_load_amb_time_response(rotor_amb):
     d_v = np.zeros((len(t), n_amb * 2))
     sim = AmbTimeResponse(rotor_amb, t=t, speed=0, disturbance=d_v)
     sim.run()
+    assert np.isfinite(sim.y).all()
 
     results = AmbTimeResponseResults(
         rotor_amb, sim.t, sim.y, [sim.x_disp, sim.y_disp, [], [], []]

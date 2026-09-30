@@ -15,6 +15,8 @@ from plotly import graph_objects as go
 from copy import deepcopy as copy
 from scipy.integrate import cumulative_trapezoid as integrate
 
+from ross.units import check_units
+
 
 class NumpyEncoder(json.JSONEncoder):
     """JSON encoder that handles numpy types and non-serializable objects."""
@@ -1103,6 +1105,62 @@ def make_speed_array(speed, t):
     displacement = integrate(speed, t, initial=0)
 
     return speed, displacement, acceleration
+
+
+@check_units
+def speed_range_from_endpoints(
+    speed_start, speed_stop, num_points=None, points_factor=20
+):
+    """Make an evenly spaced speed range from its end points.
+
+    Each end point can be given in any speed unit. When ``num_points`` is not
+    given, it grows with the square root of the span, so a narrow range gets a
+    finer step than a wide one: the step is about ``sqrt(span) / points_factor``
+    rad/s, and doubling the span multiplies the number of points by about 1.4.
+
+    The range is meant for the analyses that sweep the speed, such as
+    :py:meth:`ross.Rotor.run_campbell`, :py:meth:`ross.Rotor.run_freq_response`
+    and :py:meth:`ross.Rotor.run_unbalance_response`. The Campbell curves are
+    smooth and each of their points is a full modal analysis, so a lower
+    ``points_factor`` (around 4) is enough for them.
+
+    Parameters
+    ----------
+    speed_start : float, pint.Quantity
+        First speed of the range (rad/s).
+    speed_stop : float, pint.Quantity
+        Last speed of the range (rad/s). Must be greater than ``speed_start``.
+    num_points : int, optional
+        Number of points of the range, both end points included.
+        Default is ``ceil(points_factor * sqrt(speed_stop - speed_start))``,
+        with the span in rad/s, limited to the interval [20, 2000].
+    points_factor : float, optional
+        Factor of the default number of points. Default is 20.
+
+    Returns
+    -------
+    speed_range : np.ndarray
+        Evenly spaced speeds (rad/s).
+
+    Examples
+    --------
+    >>> from ross.units import Q_
+    >>> speed_range = speed_range_from_endpoints(Q_(0, "Hz"), Q_(3000, "RPM"))
+    >>> len(speed_range), round(speed_range[-1], 2)
+    (355, 314.16)
+    >>> len(speed_range_from_endpoints(Q_(0, "RPM"), Q_(3000, "RPM"), num_points=31))
+    31
+    """
+    span = speed_stop - speed_start
+    if span <= 0:
+        raise ValueError("speed_stop must be greater than speed_start.")
+
+    if num_points is None:
+        num_points = int(np.clip(np.ceil(points_factor * np.sqrt(span)), 20, 2000))
+    elif num_points < 2:
+        raise ValueError("num_points must be at least 2.")
+
+    return np.linspace(speed_start, speed_stop, int(num_points))
 
 
 def assemble_C_K_matrices(elements, C0, K0, *args):
