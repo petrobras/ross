@@ -1,3 +1,4 @@
+import warnings
 from pathlib import Path
 from tempfile import tempdir
 
@@ -105,7 +106,8 @@ def test_run_mesh_convergence_bisection_rejects_a_mesh():
 
 
 def test_run_mesh_convergence_keeps_couplings():
-    coupling = CouplingElement(m_l=10, m_r=10, Ip_l=0.1, Ip_r=0.1, kt_x=1e6, kr_x=1e6)
+    stiffness = {f"k{kind}_{axis}": 1e6 for kind in "tr" for axis in "xyz"}
+    coupling = CouplingElement(m_l=10, m_r=10, Ip_l=0.1, Ip_r=0.1, **stiffness)
     shaft_elements = [
         ShaftElement(L=0.25, idl=0, odl=0.05, material=steel),
         coupling,
@@ -116,8 +118,11 @@ def test_run_mesh_convergence_keeps_couplings():
         BearingElement(n=3, kxx=1e6, cxx=1e3),
     ]
     rotor = Rotor(shaft_elements, bearing_elements=bearing_elements)
-    results = rotor.run_mesh_convergence(rtol=1e-4, frequencies=4)
+    with warnings.catch_warnings(record=True) as record:
+        warnings.simplefilter("always")
+        results = rotor.run_mesh_convergence(rtol=1e-4, frequencies=4, max_elements=100)
 
+    assert not [w for w in record if "max_elements" in str(w.message)]
     assert results.subdivisions[1] == 1
     assert results.error.max() <= 1e-4
 
