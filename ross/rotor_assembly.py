@@ -2373,6 +2373,12 @@ class Rotor(object):
             For more information on attributes and methods available see:
             :py:class:`ross.FrequencyResponseResults`
 
+        See Also
+        --------
+        ross.utils.speed_range_from_endpoints
+            Build ``speed_range`` from its end points, each one in any speed
+            unit, with a number of points that grows with the range.
+
         Examples
         --------
         >>> import ross as rs
@@ -2934,6 +2940,12 @@ class Rotor(object):
         results : ross.ForcedResponseResults
             For more information on attributes and methods available see:
             :py:class:`ross.ForcedResponseResults`
+
+        See Also
+        --------
+        ross.utils.speed_range_from_endpoints
+            Build ``speed_range`` from its end points, each one in any speed
+            unit, with a number of points that grows with the range.
 
         Examples
         --------
@@ -4349,6 +4361,12 @@ class Rotor(object):
         results : ross.CampbellResults
             For more information on attributes and methods available see:
             :py:class:`ross.CampbellResults`
+
+        See Also
+        --------
+        ross.utils.speed_range_from_endpoints
+            Build ``speed_range`` from its end points, each one in any speed
+            unit, with a number of points that grows with the range.
 
         Examples
         --------
