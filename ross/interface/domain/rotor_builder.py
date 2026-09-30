@@ -22,7 +22,8 @@ from ross.units import Q_
 from .cache import ELEMENT_CACHE
 from .element_registry import ross_class_name
 from .legacy import migrate_element
-from .node_resolver import effective_nodes, validate_node_topology
+from .material_names import material_key, ross_material_name, validate_materials
+from .node_resolver import effective_nodes, listed_nodes, validate_node_topology
 from .units import INT_PARAMETERS, UNITS_MAPPING
 from ross.interface.services.expressions import safe_math_eval
 
@@ -39,14 +40,12 @@ def extract_kwargs(d, mat_dict, element_type, ignore_keys=["element_type", "n"])
             continue
 
         if k == "material":
-            mat_name = str(v).strip().lower()
-
-            if mat_name == "" or mat_name == "default (steel)":
+            if str(v).strip().lower() in ("", "default (steel)"):
                 kwargs[k] = rs.materials.steel
                 continue
 
             kwargs[k] = (
-                mat_dict.get(mat_name, list(mat_dict.values())[0])
+                mat_dict.get(material_key(v), list(mat_dict.values())[0])
                 if mat_dict
                 else rs.materials.steel
             )
@@ -120,6 +119,12 @@ def extract_kwargs(d, mat_dict, element_type, ignore_keys=["element_type", "n"])
 
 
 def build_rotor_from_ui(data):
+    # Before anything is built: an element naming a material this rotor does
+    # not have used to be answered with the first material of the list, in
+    # silence (domain/material_names.py). A MultiRotor is checked half by half,
+    # through this same call.
+    validate_materials(data)
+
     if data.get("isMultiRotor"):
         driving = build_rotor_from_ui(data["driving_rotor"])
         driven = build_rotor_from_ui(data["driven_rotor"])
@@ -163,17 +168,18 @@ def build_rotor_from_ui(data):
         return rs.MultiRotor(driving, driven, **multi_kwargs)
 
     mat_ui_props = {
-        str(m.get("name", "MaterialCustom")).strip().lower(): m
+        material_key(m.get("name", "MaterialCustom")): m
         for m in data.get("materials", [])
     }
 
     created_materials = {}
     for mat in data.get("materials", []):
-        name = str(mat.get("name", "MaterialCustom")).strip()
+        # ROSS refuses a space in the name; see domain/material_names.py.
+        name = ross_material_name(mat.get("name", "MaterialCustom"))
         kwargs = extract_kwargs(mat, {}, "Material", ["name", "element_type"])
         if "poisson" in kwargs:
             kwargs["Poisson"] = kwargs.pop("poisson")
-        created_materials[name.lower()] = rs.Material(name=name, **kwargs)
+        created_materials[material_key(name)] = rs.Material(name=name, **kwargs)
 
     def instantiate_with_cache(category, el_dict, n_val, builder_func, auto_tag):
         hash_data = {k: v for k, v in el_dict.items() if str(v).strip() != ""}
@@ -182,7 +188,7 @@ def build_rotor_from_ui(data):
         hash_data["__tag"] = el_dict.get("tag", auto_tag)
 
         if "material" in hash_data:
-            m_name = str(hash_data["material"]).strip().lower()
+            m_name = material_key(hash_data["material"])
             if m_name in mat_ui_props:
                 hash_data["__mat_props"] = {
                     k: v
@@ -324,24 +330,18 @@ def build_rotor_from_ui(data):
 
     # Couplings
     ross_couplings = []
+    couplings_listed = listed_nodes(data.get("couplings", []))
     for i, c in enumerate(data.get("couplings", [])):
-        n_val_str = str(c.get("n", "")).strip()
-        n_val = int(float(n_val_str)) if n_val_str else i
+        n_val = couplings_listed[i]
         auto_tag = f"coupling_{i}"
 
         def build_coupling():
             kwargs = extract_kwargs(
-                c, created_materials, "CouplingElement", ignore_keys=["element_type"]
+                c, created_materials, "CouplingElement", ["n", "element_type"]
             )
-
-            if "n" in kwargs and str(kwargs["n"]).strip() != "":
-                kwargs["n"] = int(float(kwargs["n"]))
-            else:
-                kwargs["n"] = n_val
-
             if "tag" not in kwargs:
                 kwargs["tag"] = auto_tag
-            return rs.CouplingElement(**kwargs)
+            return rs.CouplingElement(n=n_val, **kwargs)
 
         ross_couplings.append(
             instantiate_with_cache("coupling", c, n_val, build_coupling, auto_tag)

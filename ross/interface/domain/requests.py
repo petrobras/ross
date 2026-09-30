@@ -149,3 +149,31 @@ ROSS_FILE_REQUEST = Envelope(
     "/load_ross_file",
     Field("content", str, required=True),
 )
+
+# Two projects and, for each, the rotor models its saved analyses were computed
+# under. The conversions travel as the raw list and not as a verdict computed on
+# the screen: `domain/concatenation.model_of` is what reads them, so the three
+# answers it distinguishes -- no analyses at all, one model, several -- are
+# decided in one place and tested in Python. The frontend's `unanimousConversion`
+# folds the first two together, which is right for the export and wrong here.
+CONCATENATE_REQUEST = Envelope(
+    "/api/rotor/concatenate",
+    Field("first", dict, required=True),
+    Field("second", dict, required=True),
+    Field("first_conversions", list, default=[]),
+    Field("second_conversions", list, default=[]),
+)
+
+
+# Splitting one shaft in two. `index` is the position of the element in the
+# project's own shaft list -- not a node -- because that is what the button in
+# the modelling list has in its hand, and `offset` travels as a string because
+# it is what someone typed: the refusal for '4 0 0' belongs in the domain, with
+# the other refusals, and not in a JSON parser that would have turned it into
+# nothing on the way here.
+SPLIT_REQUEST = Envelope(
+    "/api/rotor/split_shaft",
+    Field("project", dict, required=True),
+    Field("index", int, required=True),
+    Field("offset", str, required=True),
+)

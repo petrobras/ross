@@ -689,7 +689,7 @@ class Shape(Results):
         else:
             self.whirl = "None"
 
-    def plot_orbit(self, nodes, fig=None):
+    def plot_orbit(self, nodes=None, fig=None):
         """Plot orbits.
 
         Orbits are only available for lateral modes. For torsional and axial
@@ -698,8 +698,9 @@ class Shape(Results):
 
         Parameters
         ----------
-        nodes : list
+        nodes : list, optional
             List with nodes for which the orbits will be plotted.
+            Default is None, which plots the orbits of all nodes.
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
 
@@ -726,6 +727,9 @@ class Shape(Results):
                 showarrow=False,
             )
             return fig
+
+        if nodes is None:
+            nodes = self.nodes
 
         selected_orbits = [orbit for orbit in self.orbits if orbit.node in nodes]
 
@@ -2300,8 +2304,9 @@ class ModalResults(Results):
         mode : int
             The n'th vibration mode
             Default is None
-        nodes : int, list(ints)
+        nodes : int, list(ints), optional
             Int or list of ints with the nodes selected to be plotted.
+            Default is None, which plots the orbits of all nodes.
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         kwargs : optional
@@ -2317,11 +2322,13 @@ class ModalResults(Results):
         if fig is None:
             fig = go.Figure()
 
-        # case where an int is given
-        if not isinstance(nodes, Iterable):
+        shape = self.shapes[mode]
+
+        if nodes is None:
+            nodes = list(shape.nodes)
+        elif not isinstance(nodes, Iterable):
             nodes = [nodes]
 
-        shape = self.shapes[mode]
         fig = shape.plot_orbit(nodes, fig=fig)
 
         fig.update_layout(

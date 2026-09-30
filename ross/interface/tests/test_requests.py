@@ -22,8 +22,10 @@ sys.path.insert(0, ROOT)
 
 from ross.interface.api import create_app
 from ross.interface.api.security import SESSION_TOKEN
+from ross.interface.domain import requests as request_envelopes
 from ross.interface.domain.requests import (
     ANALYSIS_REQUEST,
+    Envelope,
     ROSS_FILE_REQUEST,
     EXPORT_REQUEST,
     MODE_SHAPE_REQUEST,
@@ -34,13 +36,23 @@ from ross.interface.tests.waiting import answer_for
 APP = create_app()
 AUTH = {"X-ROSS-Token": SESSION_TOKEN}
 
-ALL_ENVELOPES = [
-    ROTOR_REQUEST,
-    ANALYSIS_REQUEST,
-    MODE_SHAPE_REQUEST,
-    EXPORT_REQUEST,
-    ROSS_FILE_REQUEST,
-]
+# Derived, not listed. This was a hand-written list of five, and the three
+# guards below are parametrised over it -- so an envelope added to
+# `domain/requests.py` and forgotten here would be a route whose body nobody
+# checks, with nothing to say so. It is the pattern this project chases, in the
+# verification itself: a copy of what the module declares, maintained by hand.
+#
+# `test_the_sweep_finds_every_envelope_there_is` is the control that keeps the
+# sweep honest, because a sweep that finds nothing also parametrises over
+# nothing, and three tests that never run look exactly like three that pass.
+ALL_ENVELOPES = sorted(
+    (
+        value
+        for value in vars(request_envelopes).values()
+        if isinstance(value, Envelope)
+    ),
+    key=lambda envelope: envelope.name,
+)
 
 
 @pytest.fixture
@@ -75,8 +87,28 @@ def _auth():
 
 def _example(field):
     return {"analysis_type": "campbell", "content": "[]"}.get(
-        field.name, {dict: {}, list: [], str: ""}[field.kind]
+        field.name, {dict: {}, list: [], str: "", int: 0}[field.kind]
     )
+
+
+def test_the_sweep_finds_every_envelope_there_is():
+    """Control: the three guards below are only worth their parametrisation.
+
+    A sweep that returns nothing parametrises over nothing, and three tests that
+    never run print the same green as three that pass. The floor is written
+    exactly rather than as a minimum: a floor only ever moves down, and the day
+    an envelope is deleted on purpose this line makes whoever changes it say so.
+    """
+    found = {envelope.name for envelope in ALL_ENVELOPES}
+    assert found == {
+        "/api/campbell/mode_shape",
+        "/api/export/python",
+        "/api/rotor/concatenate",
+        "/api/rotor/split_shaft",
+        "/build_rotor",
+        "/load_ross_file",
+        "/run_analysis",
+    }, "the envelopes of domain/requests.py changed: %s" % sorted(found)
 
 
 @pytest.mark.parametrize("envelope", ALL_ENVELOPES, ids=lambda e: e.name)

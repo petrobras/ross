@@ -285,6 +285,20 @@ def test_plot_orbit_lateral_mode(rotor1):
     assert_allclose(fig.data[0]["y"], orbit_node_2.y_circle[:-10])
 
 
+def test_plot_orbit_without_nodes_plots_every_node(rotor1):
+    modal = rotor1.run_modal(speed=Q_(4000, "RPM"), num_modes=14)
+    lateral_mode = next(
+        i for i, shape in enumerate(modal.shapes) if shape.mode_type == "Lateral"
+    )
+
+    fig = modal.plot_orbit(lateral_mode)
+
+    assert len(fig.data) == 2 * len(rotor1.nodes)
+    assert len(fig.data) == len(
+        modal.plot_orbit(lateral_mode, nodes=list(rotor1.nodes)).data
+    )
+
+
 def test_plot_orbit_non_lateral_mode(rotor1):
     modal = rotor1.run_modal(speed=Q_(4000, "RPM"), num_modes=14)
     non_lateral_mode = next(

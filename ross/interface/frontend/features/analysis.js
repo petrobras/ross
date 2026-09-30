@@ -14,6 +14,37 @@ import { t } from '../core/i18n.js';
 import { analysisFieldsFor, analysisTitle, analysisTitles, analysisUnsupported, schemaReady, unitAlternativesFor } from '../core/schema.js';
 import { isModeShape, wireModeShapeClick, prepareModeShapePanels } from './campbell.js';
 import { switchScreen } from './screens.js';
+// One analysis card. It used to be written out three times -- creating a card,
+// restoring the saved ones, loading a file -- with the same header and the
+// same four buttons in each, so a change to a button had three places to be
+// forgotten in. The ids (`card-`, `body-`, `plot-`, `icon-`) are what the rest
+// of this module finds the card by.
+//
+// The buttons carry the card and the analysis as `data-card` and `data-type`
+// (core/actions.js). Update, Help and Delete sit inside the header, which
+// folds the card when clicked; the action listener runs only the nearest
+// named element, so they no longer need `event.stopPropagation()` to keep a
+// click on them from also folding the card.
+function cardHTML(uniqueId, type, titleHTML, controlsHTML) {
+    return `
+        <div class="analysis-card" id="card-${uniqueId}">
+            <div class="analysis-header" data-action="toggle-card" data-card="${uniqueId}">
+                <span class="analysis-title">${titleHTML}</span>
+                <div class="analysis-actions">
+                    <button class="btn-update-analysis" data-action="run-card" data-card="${uniqueId}" data-type="${type}"><i class="fas fa-sync-alt"></i> ${escapeHtml(t('update'))}</button>
+                    <button class="btn-help-analysis" data-action="card-help" data-type="${type}"><i class="fas fa-question-circle"></i> ${escapeHtml(t('help'))}</button>
+                    <button class="btn-delete-analysis" data-action="delete-card" data-card="${uniqueId}"><i class="fas fa-trash"></i> ${escapeHtml(t('delete'))}</button>
+                    <span id="icon-${uniqueId}"><i class="fas fa-chevron-down"></i></span>
+                </div>
+            </div>
+            <div class="analysis-body" id="body-${uniqueId}">
+                <div id="plot-${uniqueId}" style="min-height: 400px; display: block; width: 100%; overflow: hidden; position:relative;"></div>
+                ${controlsHTML}
+            </div>
+        </div>
+    `;
+}
+
 // Rebuilds the analysis charts on the screen from memory.
 //
 // Asynchronous since slice 4: the fields come from the server, and assembling the
@@ -26,7 +57,6 @@ export async function restoreAnalysesFromMemory(savedArray) {
     savedArray.slice().reverse().forEach(an => {
         const uniqueId = Date.now() + Math.random().toString().slice(2,8);
         const nid = 'plot-' + uniqueId;
-        const cardId = 'card-' + uniqueId;
         let controlsHTML = '';
         
         if(an.type && an.params) {
@@ -41,23 +71,8 @@ export async function restoreAnalysesFromMemory(savedArray) {
         }                
         
         let typeVal = an.type || 'campbell';                
-        container.insertAdjacentHTML('afterbegin', `
-            <div class="analysis-card" id="${cardId}">
-                <div class="analysis-header" onclick="toggleAnalysis('${uniqueId}')">
-                    <span class="analysis-title">${escapeHtml(an.title)} ${conversionBadge(an.conversion)}</span>
-                    <div class="analysis-actions">
-                        <button class="btn-update-analysis" onclick="event.stopPropagation(); runCardAnalysis('${uniqueId}', '${typeVal}')"><i class="fas fa-sync-alt"></i> ${escapeHtml(t('update'))}</button>
-                        <button class="btn-help-analysis" onclick="openAnalysisCardHelp(event, '${typeVal}')"><i class="fas fa-question-circle"></i> ${escapeHtml(t('help'))}</button>
-                        <button class="btn-delete-analysis" onclick="deleteAnalysis(event, '${cardId}')"><i class="fas fa-trash"></i> ${escapeHtml(t('delete'))}</button>
-                        <span id="icon-${uniqueId}"><i class="fas fa-chevron-down"></i></span>
-                    </div>
-                </div>
-                <div class="analysis-body" id="body-${uniqueId}">
-                    <div id="${nid}" style="min-height: 400px; display: block; width: 100%; overflow: hidden; position:relative;"></div>
-                    ${controlsHTML}
-                </div>
-            </div>
-        `);                
+        container.insertAdjacentHTML('afterbegin', cardHTML(uniqueId, typeVal,
+            `${escapeHtml(an.title)} ${conversionBadge(an.conversion)}`, controlsHTML));
         
         const divNode = document.getElementById(nid);
         registerAnalysis(uniqueId, an.type, an.title || 'Analysis', an.conversion);
@@ -94,7 +109,7 @@ const generateProbeRowHTML = function(uniqueId, id, type, node=0, dof=0) {
             <option value="4" ${dof==4?'selected':''}>β</option>
             <option value="5" ${dof==5?'selected':''}>γ</option>
         </select>
-        <button type="button" class="btn-remove-probe" style="margin-left:auto;" onclick="this.parentElement.remove();"><i class="fas fa-times"></i></button>
+        <button type="button" class="btn-remove-probe" style="margin-left:auto;" data-action="remove-row"><i class="fas fa-times"></i></button>
     </div>`;
 }
 
@@ -122,7 +137,7 @@ const generateForceRowHTML = function(uniqueId, id, type, node=0, dof=0, func="1
                 <option value="4" ${dof==4?'selected':''}>β</option>
                 <option value="5" ${dof==5?'selected':''}>γ</option>
             </select>
-            <button type="button" class="btn-remove-probe" style="margin-left:auto;" onclick="this.parentElement.parentElement.remove();"><i class="fas fa-times"></i></button>
+            <button type="button" class="btn-remove-probe" style="margin-left:auto;" data-action="remove-row"><i class="fas fa-times"></i></button>
         </div>
         <div style="display:flex; gap:6px; align-items:center;">
             <span style="font-size:11px; color:var(--text-muted);">${escapeHtml(t('probeForce'))}</span> 
@@ -146,7 +161,7 @@ const generateUnbalanceRowHTML = function(uniqueId, id, type, node=0, mag=0.01, 
         <div style="display:flex; gap:6px; align-items:center;">
             <span style="font-size:11px; color:var(--text-muted);">${escapeHtml(t('probeNode'))}</span> 
             <input type="number" class="unb-node" value="${node}" min="0">
-            <button type="button" class="btn-remove-probe" style="margin-left:auto;" onclick="this.parentElement.parentElement.remove();"><i class="fas fa-times"></i></button>
+            <button type="button" class="btn-remove-probe" style="margin-left:auto;" data-action="remove-row"><i class="fas fa-times"></i></button>
         </div>
         <div style="display:flex; gap:6px; align-items:center;">
             <span style="font-size:11px; color:var(--text-muted);">${escapeHtml(t('probeMag'))}</span> 
@@ -172,7 +187,7 @@ const generateAngleProbeRowHTML = function(uniqueId, id, type, node=0, angle=0) 
         <input type="number" class="probe-node" value="${node}" min="0">
         <span style="font-size:11px; color:var(--text-muted); margin-left:8px;">${escapeHtml(t('probeAngle'))}</span> 
         <input type="number" class="probe-angle" value="${angle}" step="0.01">
-        <button type="button" class="btn-remove-probe" style="margin-left:auto;" onclick="this.parentElement.remove();"><i class="fas fa-times"></i></button>
+        <button type="button" class="btn-remove-probe" style="margin-left:auto;" data-action="remove-row"><i class="fas fa-times"></i></button>
     </div>`;
 }
 
@@ -190,7 +205,9 @@ export const toggleDashAdv = function(btn) {
         btn.innerHTML = btn.dataset.textOriginal + ' <i class="fas fa-chevron-down"></i>';
     } else {
         container.style.display = 'grid';
-        btn.innerHTML = 'Hide ' + btn.dataset.textOriginal + ' <i class="fas fa-chevron-up"></i>';
+        // `hide` and not a literal 'Hide ': the Portuguese screen said "Hide
+        // Análise avançada".
+        btn.innerHTML = escapeHtml(t('hide')) + ' ' + btn.dataset.textOriginal + ' <i class="fas fa-chevron-up"></i>';
     }
 };
 
@@ -233,15 +250,15 @@ export function buildDashboardHTML(uniqueId, type, configOverride) {
             : `class="dash-control-group"`;
         
         if (item.type === 'probe_list' || item.type === 'force_list' || item.type === 'unbalance_list' || item.type === 'angle_probe_list') {
-            let btnFunc = 'addProbeRow'; let contId = 'probe';
-            if (item.type === 'force_list') { btnFunc = 'addForceRow'; contId = 'force'; }
-            else if (item.type === 'unbalance_list') { btnFunc = 'addUnbalanceRow'; contId = 'unb'; }
-            else if (item.type === 'angle_probe_list') { btnFunc = 'addAngleProbeRow'; contId = 'angle-probe'; }
+            let contId = 'probe';
+            if (item.type === 'force_list') contId = 'force';
+            else if (item.type === 'unbalance_list') contId = 'unb';
+            else if (item.type === 'angle_probe_list') contId = 'angle-probe';
             
             html += `<div ${depsAttr} style="flex-direction: column; align-items: stretch; grid-column: 1 / -1;">
                 <div style="display:flex; justify-content:space-between; align-items: center; width:100%; margin-bottom:8px;">
                     <label style="margin:0;">${item.label}</label>
-                    <button type="button" class="btn-add-probe" onclick="${btnFunc}('${uniqueId}', '${item.id}', '${type}')"><i class="fas fa-plus"></i></button>
+                    <button type="button" class="btn-add-probe" data-action="add-row" data-list="${item.type}" data-card="${uniqueId}" data-field="${item.id}" data-type="${type}"><i class="fas fa-plus"></i></button>
                 </div>
                 <div class="probe-list-container" id="${contId}-container-${item.id}-${uniqueId}">`;
             
@@ -257,32 +274,12 @@ export function buildDashboardHTML(uniqueId, type, configOverride) {
             
             let activeUnit = item.saved_unit || item.default_unit;
 
-            if (item.type === 'range') {
-                html += `<div style="display: flex; align-items: center; gap: 10px; width: 100%;">`;                
-                html += `<input type="range" id="range-${item.id}-${uniqueId}" min="${item.min}" max="${item.max}" step="${item.step}" value="${item.val}" oninput="document.getElementById('num-${item.id}-${uniqueId}').value = this.value;" style="flex: 1; margin: 0;">`;
-                html += `<div class="unified-input" style="width: 140px; flex-shrink: 0;">`;
-                html += `<input type="number" id="num-${item.id}-${uniqueId}" value="${item.val}" oninput="document.getElementById('range-${item.id}-${uniqueId}').value = this.value;">`;
-                
-                const alternatives = unitAlternativesFor(item.default_unit);
-                if (item.default_unit && alternatives) {
-                    html += `<select id="unit-${item.id}-${uniqueId}" class="unified-unit" data-prev="${activeUnit}" onchange="handleUnitChange(this)">`;
-                    let addedOpts = new Set();
-                    alternatives.forEach(u => {
-                        let sel = (u === activeUnit) ? 'selected' : '';
-                        html += `<option value="${u}" ${sel}>${u}</option>`;
-                        addedOpts.add(u);
-                    });
-                    if (activeUnit && !addedOpts.has(activeUnit)) html += `<option value="${activeUnit}" selected>${activeUnit}</option>`;
-                    html += `<option value="Others">${escapeHtml(t('others'))}</option></select>`;
-                }
-                html += `</div></div>`;
-
-            } else if (item.type === 'select') {
+            if (item.type === 'select') {
                 let isUnit = item.id.includes('unit');
-                let changeEvent = (item.id === 'plot_type' || item.id === 'coupling') ? `onchange="checkDeps('${uniqueId}')"` : ``;            
+                let changeEvent = (item.id === 'plot_type' || item.id === 'coupling') ? `data-action="check-deps" data-card="${uniqueId}"` : ``;            
                 
                 if (isUnit) {
-                    changeEvent = `onchange="handleUnitChange(this)" data-prev="${item.val}"`;
+                    changeEvent = `data-action="change-unit" data-prev="${item.val}"`;
                 }
 
                 html += `<select id="input-${item.id}-${uniqueId}" style="width: 100%;" ${changeEvent}>`;
@@ -305,7 +302,7 @@ export function buildDashboardHTML(uniqueId, type, configOverride) {
                 
                 const alternatives = unitAlternativesFor(item.default_unit);
                 if (item.default_unit && alternatives) {
-                    html += `<select id="unit-${item.id}-${uniqueId}" class="unified-unit" data-prev="${activeUnit}" onchange="handleUnitChange(this)">`;
+                    html += `<select id="unit-${item.id}-${uniqueId}" class="unified-unit" data-prev="${activeUnit}" data-action="change-unit">`;
                     let addedOpts = new Set();
                     alternatives.forEach(u => {
                         let sel = (u === activeUnit) ? 'selected' : '';
@@ -327,8 +324,8 @@ export function buildDashboardHTML(uniqueId, type, configOverride) {
 
     let finalHtml = `<div class="light-dashboard-controls">${htmlStandard}`;
     
-    if (htmlAdvAnalysis) finalHtml += `<div style="grid-column: 1 / -1;"><button type="button" class="btn-adv-dash" data-text-original="${escapeHtml(t('advancedAnalysis'))}" onclick="toggleDashAdv(this)">${escapeHtml(t('advancedAnalysis'))} <i class="fas fa-chevron-down"></i></button><div class="adv-dash-container">${htmlAdvAnalysis}</div></div>`;
-    if (htmlAdvPlot) finalHtml += `<div style="grid-column: 1 / -1;"><button type="button" class="btn-adv-dash" data-text-original="${escapeHtml(t('advancedPlot'))}" onclick="toggleDashAdv(this)">${escapeHtml(t('advancedPlot'))} <i class="fas fa-chevron-down"></i></button><div class="adv-dash-container" id="adv-plot-${uniqueId}">${htmlAdvPlot}</div></div>`;
+    if (htmlAdvAnalysis) finalHtml += `<div style="grid-column: 1 / -1;"><button type="button" class="btn-adv-dash" data-text-original="${escapeHtml(t('advancedAnalysis'))}" data-action="toggle-dash-advanced">${escapeHtml(t('advancedAnalysis'))} <i class="fas fa-chevron-down"></i></button><div class="adv-dash-container">${htmlAdvAnalysis}</div></div>`;
+    if (htmlAdvPlot) finalHtml += `<div style="grid-column: 1 / -1;"><button type="button" class="btn-adv-dash" data-text-original="${escapeHtml(t('advancedPlot'))}" data-action="toggle-dash-advanced">${escapeHtml(t('advancedPlot'))} <i class="fas fa-chevron-down"></i></button><div class="adv-dash-container" id="adv-plot-${uniqueId}">${htmlAdvPlot}</div></div>`;
     
     finalHtml += '</div>';
     setTimeout(() => { checkDeps(uniqueId); }, 100);
@@ -346,8 +343,7 @@ export function toggleAnalysis(uniqueId) {
 
 // Function to delete the analysis
 
-export async function deleteAnalysis(event, cardId) {
-    event.stopPropagation();
+export async function deleteAnalysis(cardId) {
     let isConfirmed = await openCustomConfirm(t('confirmDeleteDashboard'));
     if (isConfirmed) {
         document.getElementById(cardId).remove();
@@ -390,31 +386,14 @@ export async function addAnalysis(event) {
     const badge = conversionBadge(conversionType);
 
     const uniqueId = Date.now() + Math.random().toString().slice(2,8);
-    const plotId = 'plot-' + uniqueId;
-    const cardId = 'card-' + uniqueId;
     const list = document.getElementById('analysis-list');
     if(list.innerHTML.includes('dashboards-empty')) list.innerHTML = '';
     const title = analysisTitle(type);
     registerAnalysis(uniqueId, type, title, conversionType);
     const controlsHTML = buildDashboardHTML(uniqueId, type);
     
-    list.insertAdjacentHTML('afterbegin', `
-        <div class="analysis-card" id="${cardId}">
-            <div class="analysis-header" onclick="toggleAnalysis('${uniqueId}')">
-                <span class="analysis-title"><i class="fas fa-chart-line"></i> ${escapeHtml(title)} ${badge}</span>
-                <div class="analysis-actions">
-                    <button class="btn-update-analysis" onclick="event.stopPropagation(); runCardAnalysis('${uniqueId}', '${type}')"><i class="fas fa-sync-alt"></i> ${escapeHtml(t('update'))}</button>
-                    <button class="btn-help-analysis" onclick="openAnalysisCardHelp(event, '${type}')"><i class="fas fa-question-circle"></i> ${escapeHtml(t('help'))}</button>
-                    <button class="btn-delete-analysis" onclick="deleteAnalysis(event, '${cardId}')"><i class="fas fa-trash"></i> ${escapeHtml(t('delete'))}</button>
-                    <span id="icon-${uniqueId}"><i class="fas fa-chevron-down"></i></span>
-                </div>
-            </div>
-            <div class="analysis-body" id="body-${uniqueId}">
-                <div id="${plotId}" style="min-height: 400px; width: 100%; overflow: hidden; position:relative;"></div>
-                ${controlsHTML}
-            </div>
-        </div>
-    `);
+    list.insertAdjacentHTML('afterbegin', cardHTML(uniqueId, type,
+        `<i class="fas fa-chart-line"></i> ${escapeHtml(title)} ${badge}`, controlsHTML));
     runCardAnalysis(uniqueId, type);
 }
 
@@ -470,10 +449,6 @@ export function cardParameters(uniqueId, type) {
                 });
             });
             p[item.id] = angleList;
-        } else if (item.type === 'range') {
-            p[item.id] = document.getElementById(`num-${item.id}-${uniqueId}`).value;
-            const unitEl = document.getElementById(`unit-${item.id}-${uniqueId}`);
-            if (unitEl) p[item.id + '_unit'] = unitEl.value;
         } else if (item.type === 'number') {
             p[item.id] = document.getElementById(`input-${item.id}-${uniqueId}`).value;
             const unitEl = document.getElementById(`unit-${item.id}-${uniqueId}`);
@@ -692,7 +667,7 @@ function inviteToRecompute(card, uniqueId, type) {
         + `<i class="fas fa-rotate"></i>`
         + `<p>${escapeHtml(t('chartNotKept'))}</p>`
         + `<button class="btn-analysis-go" type="button" `
-        + `onclick="runCardAnalysis('${uniqueId}', '${type}')">`
+        + `data-action="run-card" data-card="${uniqueId}" data-type="${type}">`
         + `${escapeHtml(t('recalculate'))}</button>`
         + `</div>`;
 }
@@ -711,7 +686,6 @@ export function loadAnalysis(event) {
             loaded.reverse().forEach(an => {
                 const uniqueId = Date.now() + Math.random().toString().slice(2,8);
                 const nid = 'plot-' + uniqueId;
-                const cardId = 'card-' + uniqueId;
                 let controlsHTML = '';
                 if(an.type && an.params) {
                     const config = analysisFieldsFor(an.type);
@@ -724,23 +698,9 @@ export function loadAnalysis(event) {
                     }
                 }                
                 let typeVal = an.type || 'campbell';                
-                container.insertAdjacentHTML('afterbegin', `
-                    <div class="analysis-card" id="${cardId}">
-                        <div class="analysis-header" onclick="toggleAnalysis('${uniqueId}')">
-                            <span class="analysis-title">${escapeHtml(an.title)} ${escapeHtml(t('loadedSuffix'))} ${conversionBadge(an.conversion)}</span>
-                            <div class="analysis-actions">
-                                <button class="btn-update-analysis" onclick="event.stopPropagation(); runCardAnalysis('${uniqueId}', '${typeVal}')"><i class="fas fa-sync-alt"></i> ${escapeHtml(t('update'))}</button>
-                                <button class="btn-help-analysis" onclick="openAnalysisCardHelp(event, '${typeVal}')"><i class="fas fa-question-circle"></i> ${escapeHtml(t('help'))}</button>
-                                <button class="btn-delete-analysis" onclick="deleteAnalysis(event, '${cardId}')"><i class="fas fa-trash"></i> ${escapeHtml(t('delete'))}</button>
-                                <span id="icon-${uniqueId}"><i class="fas fa-chevron-down"></i></span>
-                            </div>
-                        </div>
-                        <div class="analysis-body" id="body-${uniqueId}">
-                            <div id="${nid}" style="min-height: 400px; display: block; width: 100%; overflow: hidden; position:relative;"></div>
-                            ${controlsHTML}
-                        </div>
-                    </div>
-                `);                
+                container.insertAdjacentHTML('afterbegin', cardHTML(uniqueId, typeVal,
+                    `${escapeHtml(an.title)} ${escapeHtml(t('loadedSuffix'))} ${conversionBadge(an.conversion)}`,
+                    controlsHTML));
                 const divNode = document.getElementById(nid);
                 registerAnalysis(uniqueId, an.type, an.title || 'Analysis', an.conversion);
                 recordResult(uniqueId, an.params || {}, an.conversion,

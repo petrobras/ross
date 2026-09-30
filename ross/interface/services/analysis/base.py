@@ -93,6 +93,24 @@ class Runner:
     def integer(params, key, default):
         return int(Runner.number(params, key, default))
 
+    @staticmethod
+    def steps(params, key, default):
+        """How many points a speed sweep has: two at the very least.
+
+        `np.linspace(minimum, maximum, 1)` gives back the minimum alone and
+        drops the maximum without a word, and 0 gives an empty sweep and an
+        empty plot. ROSS accepts both -- measured, it raises on neither -- so
+        the refusal belongs here, by the rule stated below: a wrong result in
+        place of an error is what this module exists to avoid.
+        """
+        count = Runner.integer(params, key, default)
+        if count < 2:
+            raise ValueError(
+                "Field '%s' needs at least 2 steps to sweep a speed range; got %d."
+                % (key, count)
+            )
+        return count
+
     # A blank field either falls back to the default OR raises, and the
     # difference matters.
     #
