@@ -29,7 +29,7 @@ from ross.plotly_theme import (
 from ross.bearings.magnetic.amb_utils import get_ambs
 from ross.probe import check_probes
 from ross.units import Q_, check_units
-from ross.utils import intersection, compute_dfft, compute_freq_resp
+from ross.utils import intersection, compute_dfft, limit_data_range, compute_freq_resp
 
 __all__ = [
     "Orbit",
@@ -6050,14 +6050,7 @@ class TimeResponseResults(Results):
                 probe_resp = data[f"probe_resp[{i}]"].values
 
                 freq, amp, _ = compute_dfft(probe_resp, dt)
-
-                if frequency_range is not None:
-                    delta = 0.01 * (frequency_range[1] - frequency_range[0])
-                    mask = (freq >= frequency_range[0] - delta) & (
-                        freq <= frequency_range[1] + delta
-                    )
-                    amp = amp[mask]
-                    freq = freq[mask]
+                freq, amp = limit_data_range(freq, amp, frequency_range)
 
                 fig.add_trace(
                     go.Scatter(
@@ -6074,7 +6067,7 @@ class TimeResponseResults(Results):
                 pass
 
         if frequency_range is not None:
-            fig.update_xaxes(range=[min_freq, max_freq])
+            fig.update_xaxes(range=(min_freq, max_freq))
 
         fig.update_xaxes(title_text=f"Frequency ({frequency_units})")
         fig.update_yaxes(title_text=f"Amplitude ({displacement_units})")

@@ -14,6 +14,7 @@ tutorial_analyses_part_1
 tutorial_analyses_part_2
 tutorial_faults
 tutorial_multirotor
+tutorial_motor
 tutorial_stochastic
 ```
 

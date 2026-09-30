@@ -9,7 +9,7 @@ from copy import deepcopy as copy
 from plotly import graph_objects as go
 from plotly.subplots import make_subplots
 
-from ross.units import Q_, check_units
+from ross.units import Q_, check_units, format_unit
 from ross.results import TimeResponseResults
 
 from .utils import compute_dfft
@@ -62,43 +62,43 @@ class BacklashResults(TimeResponseResults):
         "transmission_error": {
             "name": "Dynamic Transmission Error",
             "measure": "Displacement",
-            "units": "m",
+            "unit": "m",
             "repr": "DTE",
         },
         "backlash": {
             "name": "Backlash",
             "measure": "Displacement",
-            "units": "m",
+            "unit": "m",
             "repr": "<i>b<sub>t</sub></i>",
         },
         "mesh_force": {
             "name": "Dynamic Mesh Force",
             "measure": "Force",
-            "units": "N",
+            "unit": "N",
             "repr": "<i>F<sub>m</sub></i>",
         },
         "mesh_stiffness": {
             "name": "Mesh Stiffness",
             "measure": "Stiffness",
-            "units": "N/m",
+            "unit": "N/m",
             "repr": "<i>k<sub>m</sub></i>",
         },
         "center_distance": {
             "name": "Center Distance",
             "measure": "Distance",
-            "units": "m",
+            "unit": "m",
             "repr": "<i>d</i>",
         },
         "pressure_angle": {
             "name": "Pressure Angle",
             "measure": "Angle",
-            "units": "rad",
+            "unit": "rad",
             "repr": "<i>α</i>",
         },
         "contact_ratio": {
             "name": "Contact Ratio",
             "measure": "Ratio",
-            "units": "--",
+            "unit": "dimensionless",
             "repr": "CR",
         },
     }
@@ -134,17 +134,17 @@ class BacklashResults(TimeResponseResults):
             Name of the data.
         measure : str
             Measure of the data.
-        units : str
-            Units of the data.
+        unit : str
+            Unit of the data.
         repr_ : str
             Representation of the data.
         """
         name = self.PARAMS[key]["name"]
         repr_ = self.PARAMS[key]["repr"]
         measure = self.PARAMS[key]["measure"]
-        units = self.PARAMS[key]["units"]
+        unit = self.PARAMS[key]["unit"]
 
-        return name, repr_, measure, units
+        return name, repr_, measure, unit
 
     def _plot_time_domain(self, key, time_range=None, step=None, units=None, fig=None):
         """Plot the time domain data of the gear pair.
@@ -195,7 +195,7 @@ class BacklashResults(TimeResponseResults):
         fig.add_trace(go.Scattergl(x=t[::step], y=data[::step], name=repr_))
 
         fig.update_xaxes(title_text="Time (s)")
-        fig.update_yaxes(title_text=f"{measure} ({units})")
+        fig.update_yaxes(title_text=f"{measure} ({format_unit(units)})")
         fig.update_layout(title=f"{name} ({repr_})")
 
         return fig
@@ -253,7 +253,7 @@ class BacklashResults(TimeResponseResults):
         )
 
         fig.update_xaxes(title_text="Time (s)")
-        fig.update_yaxes(title_text=f"{measure} ({units})")
+        fig.update_yaxes(title_text=f"{measure} ({format_unit(units)})")
         fig.update_layout(title=f"Nominal {name} ({repr_}<sub>nom</sub>)")
 
         return fig
@@ -327,8 +327,8 @@ class BacklashResults(TimeResponseResults):
         if frequency_range is not None:
             fig.update_xaxes(range=[f_min, f_max])
 
-        fig.update_xaxes(title_text=f"Frequency ({frequency_units})")
-        fig.update_yaxes(title_text=f"Amplitude ({units})")
+        fig.update_xaxes(title_text=f"Frequency ({format_unit(frequency_units)})")
+        fig.update_yaxes(title_text=f"Amplitude ({format_unit(units)})")
         fig.update_layout(title=f"DFT Spectrum ({repr_})")
 
         return fig

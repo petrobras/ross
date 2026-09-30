@@ -21,7 +21,7 @@ with warnings.catch_warnings():
     warnings.simplefilter("ignore")
     pint.Quantity([])
 
-__all__ = ["Q_", "check_units"]
+__all__ = ["Q_", "check_units", "format_unit"]
 
 units = {
     "E": "N/m**2",
@@ -197,3 +197,51 @@ def check_units(func):
         return func(*base_unit_args, **base_unit_kwargs)
 
     return inner
+
+
+def format_unit(unit):
+    """Format a ``check_units`` unit string for a plot axis label.
+
+    Parameters
+    ----------
+    unit : str
+        Unit string as stored in the ``units`` dictionary used by
+        ``check_units``, for example ``"N/m**2"`` or ``"radian/second"``.
+        Any unit string accepted by pint also works.
+
+    Returns
+    -------
+    label : str
+        Compact label with short unit names, unicode exponents and a
+        dot operator for multiplication.
+
+    Examples
+    --------
+    >>> format_unit("N/m**2")
+    'N/m²'
+    >>> format_unit("kg*m**2")
+    'kg⋅m²'
+    >>> format_unit("N*m")
+    'N⋅m'
+    >>> format_unit("radian/second")
+    'rad/s'
+    >>> format_unit("meter")
+    'm'
+    >>> format_unit("dimensionless")
+    '--'
+    """
+    if unit == "dimensionless":
+        return "--"
+
+    label = ureg.formatter.format_unit(
+        Q_(1, unit).units,
+        "~P",
+        sort_func=lambda items, _registry: items,
+    )
+
+    # Older pint pretty-prints multiplication as MIDDLE DOT (U+00B7).
+    # Keep DOT OPERATOR (U+22C5), which is also the decimal mark inside a
+    # superscript exponent (s¹⋅⁵) and must not be rewritten.
+    label = label.replace("\u00b7", "\u22c5")
+
+    return label

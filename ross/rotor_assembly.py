@@ -48,6 +48,7 @@ from ross.materials import Material, steel
 from ross.model_reduction import ModelReduction
 from ross.plotly_theme import axes_indicator_2d, color_shades
 from ross.point_mass import PointMass
+from ross.motors.motor_element import MotorElement
 from ross.probe import Probe
 from ross.results import (
     CampbellResults,
@@ -237,6 +238,8 @@ class Rotor(object):
         List with the bearing elements
     point_mass_elements: list
         List with the point mass elements
+    motor_element: object
+        Motor element object
     modal_damping_ratio: list, optional
         List of modal damping ratio(s) for the first modes
     default_damping_ratio: float, optional
@@ -302,6 +305,7 @@ class Rotor(object):
         disk_elements=None,
         bearing_elements=None,
         point_mass_elements=None,
+        motor_element=None,
         min_w=None,
         max_w=None,
         rated_w=None,
@@ -365,7 +369,11 @@ class Rotor(object):
             point_mass_elements = []
 
         elm_dict = {}
-        for elm in disk_elements + bearing_elements + point_mass_elements:
+        elements = disk_elements + bearing_elements + point_mass_elements
+        if motor_element is not None:
+            elements.append(motor_element)
+
+        for elm in elements:
             class_name = elm.__class__.__name__
             elm_dict[class_name] = elm_dict.get(class_name, 0) + 1
 
@@ -378,8 +386,10 @@ class Rotor(object):
 
         self.shaft_elements = sorted(shaft_elements, key=lambda el: el.n)
         self.bearing_elements = sorted(bearing_elements, key=lambda el: el.n)
-        self.disk_elements = disk_elements
-        self.point_mass_elements = point_mass_elements
+        self.disk_elements = sorted(disk_elements, key=lambda el: el.n)
+        self.point_mass_elements = sorted(point_mass_elements, key=lambda el: el.n)
+        self.motor_element = motor_element
+
         self.elements = [
             el
             for el in flatten(
@@ -391,6 +401,9 @@ class Rotor(object):
                 ]
             )
         ]
+
+        if self.motor_element is not None:
+            self.elements.append(self.motor_element)
 
         # check if tags are unique
         tags_list = [el.tag for el in self.elements]
@@ -442,6 +455,11 @@ class Rotor(object):
             ]
         )
         df_point_mass = pd.DataFrame([el.summary() for el in self.point_mass_elements])
+        df_motor = (
+            pd.DataFrame([self.motor_element.summary()])
+            if self.motor_element is not None
+            else pd.DataFrame()
+        )
 
         nodes_pos_l = np.zeros(len(df_shaft.n_l))
         nodes_pos_r = np.zeros(len(df_shaft.n_l))
@@ -468,7 +486,8 @@ class Rotor(object):
         df_shaft["axial_cg_pos"] = axial_cg_pos
 
         df = pd.concat(
-            [df_shaft, df_disks, df_bearings, df_point_mass, df_seals], sort=True
+            [df_shaft, df_disks, df_bearings, df_point_mass, df_seals, df_motor],
+            sort=True,
         )
         df = df.sort_values(by="n_l")
         df = df.reset_index(drop=True).copy()
@@ -479,12 +498,14 @@ class Rotor(object):
         df_bearings["shaft_number"] = np.zeros(len(df_bearings))
         df_seals["shaft_number"] = np.zeros(len(df_seals))
         df_point_mass["shaft_number"] = np.zeros(len(df_point_mass))
+        df_motor["shaft_number"] = np.zeros(len(df_motor))
 
         self.df_disks = df_disks
         self.df_bearings = df_bearings
         self.df_shaft = df_shaft
         self.df_point_mass = df_point_mass
         self.df_seals = df_seals
+        self.df_motor = df_motor
 
         # check consistence for elements location
         if len(df_point_mass) > 0:
@@ -620,6 +641,15 @@ class Rotor(object):
             df.loc[df.tag == elm.tag, "nodes_pos_l"] = z_pos
             df.loc[df.tag == elm.tag, "nodes_pos_r"] = z_pos
             df.loc[df.tag == elm.tag, "y_pos"] = y_pos
+
+        # define positions for motor
+        if self.motor_element is not None:
+            elm = self.motor_element
+            i = self.nodes.index(elm.n)
+            z_pos = self.nodes_pos[i]
+            df.loc[df.tag == elm.tag, "nodes_pos_l"] = z_pos
+            df.loc[df.tag == elm.tag, "nodes_pos_r"] = z_pos
+            df.loc[df.tag == elm.tag, "y_pos"] = 0.0
 
         # define positions for bearings
         for elm in self.bearing_elements:
@@ -778,6 +808,7 @@ class Rotor(object):
         disk_elements = []
         bearing_elements = []
         point_mass_elements = []
+        motor_element = None
 
         node_offset = 0
 
@@ -811,6 +842,9 @@ class Rotor(object):
             bearing_elements.extend(rotor.bearing_elements)
             point_mass_elements.extend(rotor.point_mass_elements)
 
+            if rotor.motor_element is not None:
+                motor_element = rotor.motor_element
+
             # Update offset for the next rotor
             node_offset += max(rotor.nodes)
 
@@ -822,6 +856,7 @@ class Rotor(object):
             disk_elements=disk_elements,
             bearing_elements=bearing_elements,
             point_mass_elements=point_mass_elements,
+            motor_element=motor_element,
             **parameters,
         )
 
@@ -1095,6 +1130,7 @@ class Rotor(object):
             "disk_elements",
             "bearing_elements",
             "point_mass_elements",
+            "motor_element",
             "shafts",
         }
         sig = inspect.signature(self.__class__.__init__)
@@ -1136,6 +1172,7 @@ class Rotor(object):
         disk_elements = deepcopy(self.disk_elements)
         bearing_elements = deepcopy(self.bearing_elements)
         point_mass_elements = deepcopy(self.point_mass_elements)
+        motor_element = deepcopy(self.motor_element)
 
         elements = [
             *shaft_elements,
@@ -1143,6 +1180,8 @@ class Rotor(object):
             *bearing_elements,
             *point_mass_elements,
         ]
+        if motor_element is not None:
+            elements.append(motor_element)
 
         target_elements = []
         new_elems_length = []
@@ -1213,6 +1252,7 @@ class Rotor(object):
             disk_elements=disk_elements,
             bearing_elements=bearing_elements,
             point_mass_elements=point_mass_elements,
+            motor_element=motor_element,
             **self._init_parameters(),
         )
 
@@ -1248,6 +1288,7 @@ class Rotor(object):
         disk_elements = deepcopy(self.disk_elements)
         bearing_elements = deepcopy(self.bearing_elements)
         point_mass_elements = deepcopy(self.point_mass_elements)
+        motor_element = deepcopy(self.motor_element)
 
         for el in new_elements:
             if isinstance(el, ShaftElement):
@@ -1258,14 +1299,15 @@ class Rotor(object):
                 bearing_elements.append(el)
             elif isinstance(el, PointMass):
                 point_mass_elements.append(el)
-            else:
-                raise ValueError(f"{el} is not a valid element.")
+            elif isinstance(el, MotorElement):
+                motor_element = el
 
         return self.__class__(
             shaft_elements,
             disk_elements=disk_elements,
             bearing_elements=bearing_elements,
             point_mass_elements=point_mass_elements,
+            motor_element=motor_element,
             **self._init_parameters(),
         )
 
@@ -3088,7 +3130,7 @@ class Rotor(object):
         ...     F[:, 6 * n + 0] = m * np.cos((speed * t))
         ...     F[:, 6 * n + 1] = (m-5) * np.sin((speed * t))
         >>> response = rotor.run_time_response(speed, F, t, method = "newmark")
-        Running direct method
+        Running direct method...
         >>> magnetic_bearings = [brg for brg in rotor.bearing_elements if isinstance(brg, rs.bearing_seal_element.MagneticBearingElement)]
         >>> amb_data = {key: np.zeros((len(t), len(magnetic_bearings) * 2)) for key in ["x_amb", "v_amb", "F_x", "F_v", "I"]}
         >>> magnetic_force = rotor.magnetic_bearing_controller(step, magnetic_bearings, dt, response.yout[-1,:], amb_data=amb_data)
@@ -3297,7 +3339,7 @@ class Rotor(object):
         >>> F[:, rotor.number_dof * node + 0] = 10 * np.cos(2 * t)
         >>> F[:, rotor.number_dof * node + 1] = 10 * np.sin(2 * t)
         >>> t, yout, xout = rotor.integrate_system(speed, F, t)
-        Running direct method
+        Running direct method...
         >>> yout[:, rotor.number_dof * node + 1] # doctest: +ELLIPSIS
         array([0.00000000e+00, 2.07136253e-10, 7.80557630e-10, ...,
                1.21845368e-07, 1.21954345e-07, 1.22062832e-07])
@@ -3323,14 +3365,14 @@ class Rotor(object):
 
             model_reduction["method"] = method
 
-            print(f"Running with model reduction: {method}")
+            print(f"Running with model reduction: {method}", end="\r", flush=True)
             mr = ModelReduction(rotor=self, speed=speed_ref, **model_reduction)
             reduction = [mr.reduce_matrix, mr.reduce_vector, mr.revert_vector]
 
             kwargs.pop("model_reduction")
 
         else:
-            print("Running direct method")
+            print("Running direct method", end="\r", flush=True)
             return_array = lambda array: array
             reduction = [return_array for _ in range(3)]
 
@@ -3402,6 +3444,15 @@ class Rotor(object):
         if speed_is_array:
             accel = np.gradient(speed, t)
 
+            Ktq = kwargs.get("Ktq", 0.0)
+            torque = kwargs.get("torque", np.zeros_like(speed))
+
+            if np.any(Ktq) and np.any(torque):
+                Ktq = reduce_matrix(Ktq)
+                torque = kwargs.get("torque")
+                kwargs.pop("Ktq")
+                kwargs.pop("torque")
+
             brgs_with_var_coeffs = tuple(
                 brg
                 for brg in self.bearing_elements
@@ -3421,7 +3472,7 @@ class Rotor(object):
                     return (
                         M,
                         C1 + C2 * speed[step],
-                        K1 + K2 * accel[step],
+                        K1 + K2 * accel[step] + Ktq * torque[step],
                         forces(step, **current_state),
                     )
 
@@ -3432,7 +3483,7 @@ class Rotor(object):
                 rotor_system = lambda step, **current_state: (
                     M,
                     C1 + C2 * speed[step],
-                    K1 + K2 * accel[step],
+                    K1 + K2 * accel[step] + Ktq * torque[step],
                     forces(step, **current_state),
                 )
 
@@ -3796,6 +3847,24 @@ class Rotor(object):
 
             position = (z_pos, y_pos, yc_pos)
             fig = p_mass._patch(position, fig)
+
+        # plot motor
+        if self.motor_element is not None:
+            motor = self.motor_element
+            z_pos = (
+                Q_(self.df[self.df.tag == motor.tag]["nodes_pos_l"].values[0], "m")
+                .to(length_units)
+                .m
+            )
+            y_pos = (
+                Q_(self.df[self.df.tag == motor.tag]["y_pos"].values[0], "m")
+                .to(length_units)
+                .m
+            )
+            yc_pos = center_line_pos[self.nodes.index(motor.n)]
+            diam = nodes_o_d[self.nodes.index(motor.n)]
+            position = (z_pos, y_pos, yc_pos, diam)
+            fig = motor._patch(position, fig)
 
         self._plot_legend_swatches(fig, check_sld)
 
@@ -4925,6 +4994,236 @@ class Rotor(object):
         return results
 
     @check_units
+    def run_with_motor(
+        self,
+        t,
+        node,
+        unbalance_magnitude,
+        unbalance_phase,
+        drive_mode,
+        load_torque_entrance_time=None,
+        load_torque_ratio=1.0,
+        ac_source_harmonics=None,
+        ac_source_unbalances=None,
+        time_step=None,
+        time_ramp=0.6667,
+        frequency_ref=None,
+        steady_state=True,
+        F=None,
+        verbose=False,
+        **kwargs,
+    ):
+        """Run time response with electric motor torque at the motor node.
+
+        The motor is simulated independently and its electromagnetic torque
+        (electric torque minus load torque) is applied to the torsional DOF
+        at the motor node. Shaft speed is taken from the motor simulation, so
+        the unbalance force is time-varying. The motor does not contribute to
+        the rotor global structural matrices.
+
+        Available plotting methods:
+            .plot_1d()
+            .plot_2d()
+            .plot_3d()
+            .plot_dfft()
+
+        Parameters
+        ----------
+        t : array
+            Time array.
+        node : list, int
+            Nodes where the unbalance is applied.
+        unbalance_magnitude : list, float, pint.Quantity
+            Unbalance magnitude (kg.m) for each node.
+        unbalance_phase : list, float, pint.Quantity
+            Unbalance phase (rad) for each node.
+        drive_mode : str
+            Run motor with:
+                - 'DOL': Direct on line start
+                - 'VFD_VF': Variable frequency drive with open-loop V/f adjustment technique
+                - 'VFD_FOC': Variable frequency drive with closed-loop field-oriented control
+        load_torque_entrance_time : float, pint.Quantity, optional
+            Time when load torque is applied to the motor shaft [s].
+            Default is half the simulation time.
+        load_torque_ratio : float, optional
+            Load torque ratio applied at the entrance time. This is a multiplier
+            for the rated load torque, e.g., a value of 1.0 applies 100% of the
+            rated torque at entrance time. Default is 1.0.
+        ac_source_harmonics : dict, optional
+            Configuration for grid harmonic injection.
+            Active only when `drive_mode='DOL'`.
+            Expected keys:
+            - 'enable' : bool
+                Enable harmonics.
+            - 'orders' : list of int
+                Harmonic orders (e.g., [5, 7, 11] for 5th, 7th, and 11th harmonics).
+            - 'amplitudes' : list of float
+                Harmonic amplitudes as percentage of rated voltage
+                (e.g., [10, 5, 2] for 10%, 5%, and 2%).
+        ac_source_unbalances : dict, optional
+            Configuration for three-phase grid unbalance.
+            Active only when `drive_mode='DOL'`.
+            Expected keys:
+            - 'enable' : bool
+                Enable unbalances.
+            - 'voltage_percent' : list of float
+                Voltage magnitude deviation per phase (A, B, C) relative to rated [%].
+                Must contain exactly 3 elements.
+                Positive → higher voltage; Negative → lower voltage.
+            - 'angle_deviation' : list of float, pint.Quantity
+                Angle deviation per phase (A, B, C) [rad]. Must contain exactly 3 elements.
+        time_step : float, pint.Quantity, optional
+            Time step [s] for numerical integration of the motor model.
+            Active only when `drive_mode` is ``'VFD_VF'`` or ``'VFD_FOC'``.
+            Default is None, which uses the inverter switching period / 200.
+        time_ramp : float, pint.Quantity, optional
+            Acceleration ramp time [s] for frequency ramping.
+            Active only when `drive_mode` is ``'VFD_VF'`` or ``'VFD_FOC'``.
+            Default is 0.6667.
+        frequency_ref : float, pint.Quantity, optional
+            Electrical frequency reference [rad/s]. Used as the V/f reference
+            when `drive_mode='VFD_VF'` and as the synchronous frequency
+            reference when `drive_mode='VFD_FOC'`.
+            Active only when `drive_mode` is ``'VFD_VF'`` or ``'VFD_FOC'``.
+            Default is None, which uses half the motor rated frequency.
+        steady_state : bool, optional
+            If True (default), only the last third of the interval after
+            `load_torque_entrance_time` is integrated, skipping the motor
+            start-up and the load transient. If False, the full time array
+            is used.
+        F : array, optional
+            Force array (needs to have the same number of rows as time array).
+            Each column corresponds to a dof and each row to a time.
+        verbose : bool, optional
+            If True, print the main stages of the simulation. Default is False.
+        **kwargs : optional
+            Additional keyword arguments passed to the Newmark integrator
+            (e.g. gamma, beta, tol, ...). See `ross.utils.newmark` for more
+            details. Other keyword arguments can also be passed to
+            `Rotor.integrate_system` (e.g. model_reduction, add_to_RHS).
+
+        Returns
+        -------
+        results : ross.TimeResponseResults
+            Time response of the rotor. The motor simulation is stored in
+            ``results.motor_results``
+            (:py:class:`ross.MotorResponseResults`).
+            For more information on attributes and methods available see:
+            :py:class:`ross.TimeResponseResults`
+
+        Notes
+        -----
+        For ``'VFD_VF'`` and ``'VFD_FOC'``, the inverter switching frequency
+        is fixed at 5 kHz.
+
+        Examples
+        --------
+        >>> import ross as rs
+        >>> from ross.probe import Probe
+        >>> motor = rs.motor_example()
+        >>> rotor = rs.rotor_example().add_elements([motor])
+        >>> n1 = rotor.disk_elements[0].n
+        >>> n2 = rotor.disk_elements[1].n
+        >>> results = rotor.run_with_motor(
+        ...     t=np.linspace(0, 1, 1000),
+        ...     node=[n1, n2],
+        ...     unbalance_magnitude=[5e-4, 0],
+        ...     unbalance_phase=[-np.pi / 2, 0],
+        ...     drive_mode="DOL",
+        ...     load_torque_entrance_time=0.5,
+        ... )
+        Running direct method...
+        >>> fig1 = results.plot_1d(probe=[Probe(n1, 0)])
+        >>> fig2 = results.motor_results.plot_speed()
+        """
+        if self.motor_element is None:
+            raise ValueError("No motor elements found in the rotor.")
+
+        motor = self.motor_element
+
+        if load_torque_entrance_time is None:
+            load_torque_entrance_time = t[len(t) // 2]
+
+        if F is None:
+            F = np.zeros((len(t), self.ndof))
+
+        frequency_s = Q_(5000, "Hz")
+
+        if verbose:
+            print("[1/3] Simulating motor...", end="\r", flush=True)
+
+        if drive_mode.upper() == "DOL":
+            motor_results = motor.run_direct_on_line(
+                t,
+                load_torque_entrance_time=load_torque_entrance_time,
+                load_torque_ratio=load_torque_ratio,
+                harmonics=ac_source_harmonics,
+                unbalances=ac_source_unbalances,
+            )
+        elif drive_mode.upper() == "VFD_VF":
+            motor_results = motor.run_with_inverter_vf(
+                t,
+                load_torque_entrance_time=load_torque_entrance_time,
+                load_torque_ratio=load_torque_ratio,
+                frequency_s=frequency_s,
+                time_step=time_step,
+                time_ramp=time_ramp,
+                frequency_ref=frequency_ref,
+            )
+        elif drive_mode.upper() == "VFD_FOC":
+            motor_results = motor.run_with_inverter_foc(
+                t,
+                load_torque_entrance_time=load_torque_entrance_time,
+                load_torque_ratio=load_torque_ratio,
+                frequency_s=frequency_s,
+                time_step=time_step,
+                time_ramp=time_ramp,
+                frequency_ref=frequency_ref,
+            )
+        else:
+            raise ValueError("drive_mode must be 'DOL', 'VFD_VF' or 'VFD_FOC'.")
+
+        if steady_state:
+            i = np.where(t >= load_torque_entrance_time)[0]
+            j = int(2 / 3 * len(t[i])) + i[0]
+            t = t[j:]
+            F = F[j:, :]
+
+        Te = motor_results.sample_at("electric_torque", t)
+        Tl = motor_results.sample_at("load_torque", t)
+        torque = Te - Tl
+
+        speed = motor_results.sample_at("speed", t)
+
+        F += self.unbalance_force_over_time(
+            node, unbalance_magnitude, unbalance_phase, speed, t
+        ).T
+
+        # Add torque to the rotor
+        dof_theta = motor.dof_global_index[f"theta_{motor.n}"]
+        F[:, dof_theta] += torque
+
+        Ktq = np.zeros((self.ndof, self.ndof))
+        for sh in self.shaft_elements:
+            if sh.n_l == motor.n or sh.n_r == motor.n:
+                dofs = list(sh.dof_global_index.values())
+                Ktq[np.ix_(dofs, dofs)] += sh.Ktq()
+
+        kwargs["Ktq"] = Ktq
+        kwargs["torque"] = torque
+
+        if verbose:
+            print("[2/3] Integrating rotor response... ", end="", flush=True)
+
+        results = self.run_time_response(speed, F, t, method="newmark", **kwargs)
+        results.motor_results = motor_results
+
+        if verbose:
+            print("\033[K[3/3] Simulation finished.", flush=True)
+
+        return results
+
+    @check_units
     def run_misalignment(
         self,
         node,
@@ -5030,7 +5329,7 @@ class Rotor(object):
         ...    load_torque=0,
         ...    model_reduction={"num_modes": 12},  # Pseudo-modal method
         ... )
-        Running with model reduction: pseudomodal
+        Running with model reduction: pseudomodal...
         >>> probe1 = Probe(14, 0)
         >>> probe2 = Probe(22, 0)
         >>> fig1 = results.plot_1d([probe1, probe2])
@@ -5157,7 +5456,7 @@ class Rotor(object):
         ...    t=np.arange(0, 0.5, 0.0001),
         ...    model_reduction={"num_modes": 12},  # Pseudo-modal method
         ... )
-        Running with model reduction: pseudomodal
+        Running with model reduction: pseudomodal...
         >>> probe1 = Probe(14, 0)
         >>> probe2 = Probe(22, 0)
         >>> fig1 = results.plot_1d([probe1, probe2])
@@ -5260,7 +5559,7 @@ class Rotor(object):
         ...    t=np.arange(0, 0.5, 0.0001),
         ...    model_reduction={"num_modes": 12},  # Pseudo-modal method
         ... )
-        Running with model reduction: pseudomodal
+        Running with model reduction: pseudomodal...
         >>> probe1 = Probe(14, 0)
         >>> probe2 = Probe(22, 0)
         >>> fig1 = results.plot_1d([probe1, probe2])
@@ -5430,6 +5729,8 @@ class Rotor(object):
         disk_elements = []
         bearing_elements = []
         point_mass_elements = []
+        motor_element = None
+
         for el in elements:
             if isinstance(el, ShaftElement):
                 shaft_elements.append(el)
@@ -5439,12 +5740,15 @@ class Rotor(object):
                 bearing_elements.append(el)
             elif isinstance(el, PointMass):
                 point_mass_elements.append(el)
+            elif isinstance(el, MotorElement):
+                motor_element = el
 
         return cls(
             shaft_elements=shaft_elements,
             disk_elements=disk_elements,
             bearing_elements=bearing_elements,
             point_mass_elements=point_mass_elements,
+            motor_element=motor_element,
             **parameters,
         )
 
@@ -6620,6 +6924,7 @@ class CoAxialRotor(Rotor):
         disk_elements=None,
         bearing_elements=None,
         point_mass_elements=None,
+        motor_element=None,
         min_w=None,
         max_w=None,
         rated_w=None,
@@ -6697,11 +7002,15 @@ class CoAxialRotor(Rotor):
             if p_mass.tag is None:
                 p_mass.tag = "Point Mass " + str(i)
 
+        if motor_element is not None:
+            motor_element.tag = "Motor"
+
         self.shafts = shafts
         self.shaft_elements = sorted(shaft_elements, key=lambda el: el.n)
         self.bearing_elements = sorted(bearing_elements, key=lambda el: el.n)
         self.disk_elements = disk_elements
         self.point_mass_elements = point_mass_elements
+        self.motor_element = motor_element
         self.elements = list(
             chain(
                 *[
@@ -6709,6 +7018,7 @@ class CoAxialRotor(Rotor):
                     self.disk_elements,
                     self.bearing_elements,
                     self.point_mass_elements,
+                    self.motor_element if self.motor_element is not None else [],
                 ]
             )
         )
@@ -6757,6 +7067,11 @@ class CoAxialRotor(Rotor):
             ]
         )
         df_point_mass = pd.DataFrame([el.summary() for el in self.point_mass_elements])
+        df_motor = (
+            pd.DataFrame([self.motor_element.summary()])
+            if self.motor_element is not None
+            else pd.DataFrame()
+        )
 
         nodes_pos_l = np.zeros(len(df_shaft.n_l))
         nodes_pos_r = np.zeros(len(df_shaft.n_l))
@@ -6804,7 +7119,8 @@ class CoAxialRotor(Rotor):
         df_shaft["axial_cg_pos"] = axial_cg_pos
 
         df = pd.concat(
-            [df_shaft, df_disks, df_bearings, df_point_mass, df_seals], sort=True
+            [df_shaft, df_disks, df_bearings, df_point_mass, df_seals, df_motor],
+            sort=True,
         )
         df = df.sort_values(by="n_l")
         df = df.reset_index(drop=True)
@@ -6910,12 +7226,16 @@ class CoAxialRotor(Rotor):
         df_point_mass["shaft_number"] = df.loc[
             (df.type == "PointMass"), "shaft_number"
         ].values
+        df_motor["shaft_number"] = df.loc[
+            (df.type == "MotorElement"), "shaft_number"
+        ].values
 
         self.df_disks = df_disks
         self.df_bearings = df_bearings
         self.df_shaft = df_shaft
         self.df_point_mass = df_point_mass
         self.df_seals = df_seals
+        self.df_motor = df_motor
 
         if "n_link" in df.columns and df_point_mass.index.size > 0:
             aux_link = list(df["n_link"].dropna().unique().astype(int))

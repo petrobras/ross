@@ -13,9 +13,11 @@ from numpy.fft import fft
 from numpy import linalg as la
 from plotly import graph_objects as go
 from copy import deepcopy as copy
-from scipy.integrate import cumulative_trapezoid as integrate
-
 from ross.units import check_units
+from scipy.integrate import cumulative_trapezoid as integrate
+from tsdownsample import MinMaxLTTBDownsampler
+
+_downsampler = MinMaxLTTBDownsampler()
 
 
 class NumpyEncoder(json.JSONEncoder):
@@ -1808,3 +1810,64 @@ def is_scalar(parameter, parameter_name):
         raise ValueError(f"{parameter_name} must be a scalar.")
 
     return np.array(parameter)
+
+
+def downsample_figure(fig, n_out):
+    """Downsample each Scatter in the figure to approximately n_out points.
+
+    Parameters
+    ----------
+    fig : plotly.graph_objects.Figure
+        The figure to downsample.
+    n_out : int
+        The number of points to downsample to.
+
+    Returns
+    -------
+    plotly.graph_objects.Figure
+        The downsampled figure.
+    """
+    if n_out is None:
+        return fig
+
+    for trace in fig.data:
+        y = np.asarray(trace.y)
+
+        if y.size <= n_out:
+            continue
+
+        x = np.ascontiguousarray(trace.x, dtype=np.float64)
+        y = np.ascontiguousarray(y, dtype=np.float64)
+        idx = _downsampler.downsample(x, y, n_out=int(n_out))
+        trace.x = x[idx]
+        trace.y = y[idx]
+
+    return fig
+
+
+def limit_data_range(x, y, range_limits):
+    """Limit the range of the x and y data to the given range limits.
+    Parameters
+    ----------
+    x : numpy.ndarray
+        The x data.
+    y : numpy.ndarray
+        The y data.
+    range_limits : tuple
+        The range limits.
+
+    Returns
+    -------
+    tuple
+        The limited x and y data.
+    """
+    if range_limits is None:
+        return x, y
+
+    delta = 0.01 * (range_limits[1] - range_limits[0])
+    mask = (x >= range_limits[0] - delta) & (x <= range_limits[1] + delta)
+
+    if not np.any(mask):
+        raise ValueError(f"No data within the range {range_limits}.")
+
+    return x[mask], y[mask]

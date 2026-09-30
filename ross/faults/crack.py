@@ -704,7 +704,7 @@ def crack_example():
     >>> from ross.faults.crack import crack_example
     >>> from ross.probe import Probe
     >>> results = crack_example()
-    Running direct method
+    Running direct method...
     >>> probe1 = Probe(14, 0)
     >>> probe2 = Probe(22, 0)
     >>> fig = results.plot_1d([probe1, probe2])
