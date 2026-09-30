@@ -28,7 +28,8 @@ Now it is centralised, and the split is by type:
   from the type: the innermost frame is in ROSS's own code (not this
   interface's) and the instruction running there is a `raise`. A `TypeError`
   from arithmetic inside ROSS -- a real crash -- is not a `raise` and stays a
-  500. The instruction is read from the bytecode, not from the source line,
+  500. So is an `assert` failing in ROSS, although it compiles to a `raise`.
+  The instruction is read from the bytecode, not from the source line,
   because the packaged executable ships without sources.
 * any other exception -> **500**, naming the type. It still shows the detail,
   because this is a local single-user application and hiding it would protect
@@ -88,7 +89,17 @@ _RAISE = dis.opmap["RAISE_VARARGS"]
 
 
 def raised_by_ross(error):
-    """Whether ROSS itself raised this, with a `raise` of its own."""
+    """Whether ROSS itself raised this, with a `raise` of its own.
+
+    A heuristic, and its limit is that a `raise` is not always a refusal. An
+    `except` block in ROSS that wraps a crash in an exception of its own, or
+    re-raises it, ends in a `raise` too, and reaches the screen as a 400. The
+    one case told apart here is `assert`: it compiles to a `raise` of
+    `AssertionError`, and a failed assertion is an invariant of ROSS broken,
+    which is a crash and stays a 500.
+    """
+    if isinstance(error, AssertionError):
+        return False
     frame = error.__traceback__
     if frame is None:
         return False

@@ -14,6 +14,7 @@ becomes a 500 and goes whole into the log file.
 The handling is central. A route with a `try/except` of its own would bypass
 it, and the guard below refuses that by reading the tree."""
 
+import dis
 import os
 import sys
 
@@ -112,6 +113,35 @@ def test_a_crash_inside_ross_is_still_a_server_fault():
     response = _answer(_function_in("ross.materials", BREAKS))
     assert response.status_code == 500
     assert "TypeError" in response.json["message"]
+
+
+ASSERTS = "def run(value=0):\n    assert value > 0, 'value must be positive'\n"
+
+
+def test_an_assert_failing_inside_ross_is_a_server_fault():
+    """An `assert` is a `raise` in the bytecode, and an invariant broken."""
+    response = _answer(_function_in("ross.rotor_assembly", ASSERTS))
+    assert response.status_code == 500
+    assert "AssertionError" in response.json["message"]
+
+
+def test_the_assert_really_ends_in_a_raise():
+    """Control on the test above: without the type check it would be a 400.
+
+    If `assert` ever stops compiling to `RAISE_VARARGS`, the test above would
+    pass for the wrong reason, and this one says so.
+    """
+    from ross.interface.api.errors import raised_by_ross
+
+    run = _function_in("ross.rotor_assembly", ASSERTS)
+    with pytest.raises(AssertionError) as failed:
+        run()
+    frame = failed.value.__traceback__
+    while frame.tb_next is not None:
+        frame = frame.tb_next
+    code = frame.tb_frame.f_code.co_code
+    assert code[frame.tb_lasti] == dis.opmap["RAISE_VARARGS"]
+    assert not raised_by_ross(failed.value)
 
 
 def test_a_raise_of_this_interface_is_not_one_of_rosss():
