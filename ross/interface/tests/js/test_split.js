@@ -69,7 +69,20 @@ check('with no empty parentheses where the name would be', !/\(\s*\)/.test(plain
 // checks -- a guard on one branch is an assertion that the other does not exist.
 check('and it says which face the distance is measured from', /left face/.test(plain));
 
+check('a length with no unit is in the form\'s millimetres', named.includes('400 mm'));
+const inMetres = splitPrompt({ L: '0.4', L_unit: 'm', tag: 'Inlet' }, 0);
+check('a length typed in metres is asked about in metres', inMetres.includes('0.4 m long'));
+check('and not in millimetres', !inMetres.includes('mm'));
+check(
+    'an unnamed element names its unit too',
+    splitPrompt({ L: '12', L_unit: 'in' }, 1).includes('12 in long'),
+);
+
 setSchemaLanguage('pt');
+check(
+    'the unit survives the translation',
+    splitPrompt({ L: '0.4', L_unit: 'm' }, 0).includes('0.4 m.'),
+);
 const portuguese = splitPrompt({ L: '400', tag: 'Inlet' }, 0);
 check('the question is translated', portuguese !== named);
 check('and it is really Portuguese', /face esquerda/.test(portuguese));

@@ -8,8 +8,9 @@
 // end of the rotor, and a position that lands exactly on a node that already
 // exists, which ROSS answers by doing nothing at all.
 //
-// Asking *this element, this far from its left face* removes the arithmetic and
-// makes the first refusal impossible by construction. The second one survives
+// Asking *this element, this far from its left face* -- in the unit its length
+// is typed in -- removes the arithmetic and makes the first refusal impossible
+// by construction. The second one survives
 // (0 and L are still nodes), and the server names it.
 import { openCustomAlert, openCustomPrompt } from '../components/modals.js';
 import { apiFetch } from '../core/api.js';
@@ -38,9 +39,12 @@ export function middleOf(length) {
 export function splitPrompt(shaft, index) {
     const length = String(shaft.L === undefined || shaft.L === null ? '' : shaft.L).trim();
     const tag = String(shaft.tag === undefined || shaft.tag === null ? '' : shaft.tag).trim();
+    // The unit the length is typed in, which is also the unit the server reads
+    // the answer in; `mm` is the form's default, as in modeling.js.
+    const unit = String(shaft.L_unit || '').trim() || 'mm';
     return tag
-        ? fill(t('splitNamed'), index + 1, tag, length)
-        : fill(t('splitAsk'), index + 1, length);
+        ? fill(t('splitNamed'), index + 1, tag, length, unit)
+        : fill(t('splitAsk'), index + 1, length, unit);
 }
 
 // Answers whether the project changed, and changes nothing else.
