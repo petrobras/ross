@@ -86,11 +86,11 @@ class AmbTimeResponse:
         self.b_c = None  # Controller B matrices
         self.c_c = None  # Controller C matrices
         self.d_c = None  # Controller D matrices
-        self.A_cl = None  # Closed-loop system A matrix
-        self.B_cl = None  # Closed-loop system B matrix
-        self.C_cl = None  # Closed-loop system C matrix
+        self.A_cl = None  # Closed-loop system A matrix (balanced coordinates)
+        self.B_cl = None  # Closed-loop system B matrix (balanced coordinates)
+        self.C_cl = None  # Closed-loop system C matrix (balanced coordinates)
         self.D_cl = None  # Closed-loop system D matrix
-        self.state_scaling = None  # Diagonal scaling of the closed-loop state vector
+        self.state_scaling = None  # Physical closed-loop state = state_scaling * z
 
         # Current Physical State
         self.x = None  # Complete physical state vector
@@ -231,7 +231,15 @@ class AmbTimeResponse:
         1e26 and the matrix exponential that `scipy.signal.lsim` computes
         overflows to NaN. The closed-loop realization is therefore rescaled
         by `scipy.linalg.matrix_balance`, a diagonal similarity transform
-        that leaves the input-output behavior unchanged.
+        that leaves the input-output behavior unchanged. The balancing is
+        applied to the whole system matrix [[A_cl, B_cl], [C_cl, 0]], so
+        B_cl and C_cl are conditioned together with A_cl, and only the state
+        is rescaled: the inputs and outputs keep their physical units.
+
+        The stored A_cl, B_cl and C_cl are therefore in balanced
+        coordinates. Their state z relates to the physical closed-loop state
+        x (modal displacements, modal velocities and controller states) by
+        x = state_scaling * z, element by element.
 
         Examples
         --------
@@ -335,8 +343,18 @@ class AmbTimeResponse:
             ]
         )
 
-        self.A_cl, T = matrix_balance(self.A_cl, permute=False)
-        self.state_scaling = T.diagonal()
+        n_z, n_in = self.B_cl.shape
+        n_out = self.C_cl.shape[0]
+        system = np.zeros((n_z + n_in + n_out, n_z + n_in + n_out))
+        system[:n_z, :n_z] = self.A_cl
+        system[:n_z, n_z : n_z + n_in] = self.B_cl
+        system[n_z + n_in :, :n_z] = self.C_cl
+        _, T = matrix_balance(system, permute=False)
+        self.state_scaling = T.diagonal()[:n_z]
+
+        self.A_cl = (
+            self.A_cl * self.state_scaling[None, :] / self.state_scaling[:, None]
+        )
         self.B_cl = self.B_cl / self.state_scaling[:, None]
         self.C_cl = self.C_cl * self.state_scaling[None, :]
 
