@@ -102,7 +102,7 @@ function drawRotorFigure(fig) {
     lastRotorFigure = fig;
     const dressed = Object.assign(JSON.parse(JSON.stringify(fig.layout)), ROTOR_APPEARANCE);
     const layout = withVerticalScale(
-        dressed, verticalScale, t('verticalScaleNote').replace('%1', verticalScale),
+        dressed, verticalScale, t('verticalScaleNote').replace('%1', () => verticalScale),
     );
     Plotly.newPlot('plot-rotor', fig.data, themedLayout(layout), { responsive: false });
     setupPlotHoverEvents();
@@ -585,7 +585,7 @@ function askBeforeMaterialGoes(project, positions) {
         (total, index) => total + elementsUsing(project, (project.materials[index] || {}).name), 0);
     if (!using) return null;
     const question = using === 1 ? t('deleteMaterialInUseOne') : t('deleteMaterialInUse');
-    return openCustomConfirm(question.replace('%1', using));
+    return openCustomConfirm(question.replace('%1', () => using));
 }
 
 export function deleteSelected() {

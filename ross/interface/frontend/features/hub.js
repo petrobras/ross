@@ -228,7 +228,7 @@ export function generatePythonFromHub(index) {
 // the rotor -- they are what the shafts are made of -- and stay out.
 // "1 element", not "1 elements".
 function elementsLabel(count) {
-    return (count === 1 ? t('elementsCountOne') : t('elementsCount')).replace('%1', count);
+    return (count === 1 ? t('elementsCountOne') : t('elementsCount')).replace('%1', () => count);
 }
 
 function elementCount(rotor) {

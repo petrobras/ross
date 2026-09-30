@@ -50,9 +50,12 @@ function chosenRotor(id) {
 function gearSentence(rotor) {
     const name = `<b>${escapeHtml(rotor.name || '')}</b>`;
     const nodes = gearNodes(rotor);
-    if (nodes === null) return escapeHtml(t('multiGearsUnknown')).replace('%1', name);
-    if (!nodes.length) return escapeHtml(t('multiNoGear')).replace('%1', name);
-    return escapeHtml(t('multiGearNodes')).replace('%1', name).replace('%2', nodes.join(', '));
+    if (nodes === null) return escapeHtml(t('multiGearsUnknown')).replace('%1', () => name);
+    if (!nodes.length) return escapeHtml(t('multiNoGear')).replace('%1', () => name);
+    // `%2` first: a rotor named `R%2` would otherwise have its name filled in.
+    return escapeHtml(t('multiGearNodes'))
+        .replace('%2', () => nodes.join(', '))
+        .replace('%1', () => name);
 }
 
 // Runs when the modal opens and on every change of either select.

@@ -50,7 +50,7 @@ function report(error, file, line) {
     // user typed into a field.
     if (text) {
         text.textContent = describeError(error, file, line)
-            + (shown > 1 ? ' — ' + t('errorNoticeMore').replace('%1', shown) : '');
+            + (shown > 1 ? ' — ' + t('errorNoticeMore').replace('%1', () => shown) : '');
     }
     notice.style.display = 'flex';
 }

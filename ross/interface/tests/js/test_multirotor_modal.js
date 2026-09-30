@@ -81,6 +81,20 @@ describeCoupling();
 check('with two gears to pick from, both are listed', /node 1, 3/.test(node('mr-hint').innerHTML));
 check('and the field is left to the person', node('mr-coupled-nodes').value === '9, 9');
 
+// A name is filled in as it was typed. `String.replace` reads `$&` in a
+// replacement string as "the text matched", and `%2` in a name would be filled
+// with the gear nodes if the name went in first.
+state.rotorLibrary.push(rotor('R$&%2', [{ n: '4' }]));
+node('mr-driven').value = '4';
+describeCoupling();
+check('a name with $& and %2 in it is shown as typed',
+    node('mr-hint').innerHTML.includes('<b>R$&amp;%2</b> has gears at node 4'));
+state.rotorLibrary.push(rotor('No$&gear'));
+node('mr-driven').value = '5';
+describeCoupling();
+check('and so is one on the sentence for a rotor with no gear',
+    node('mr-hint').innerHTML.includes('<b>No$&amp;gear</b> has no gear'));
+
 // Control: the same rotor on both sides says nothing about gears.
 node('mr-driven').value = '0';
 describeCoupling();

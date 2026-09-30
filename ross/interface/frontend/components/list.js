@@ -112,7 +112,7 @@ function renderSelectionBar(count) {
             <input type="checkbox" data-action="pick-all" ${allPicked(listContext(), count) ? 'checked' : ''}>
             <span>${escapeHtml(t('selectAll'))}</span>
         </label>
-        <span class="pick-count">${chosen ? escapeHtml(t('selectedCount')).replace('%1', chosen) : ''}</span>
+        <span class="pick-count">${chosen ? escapeHtml(t('selectedCount')).replace('%1', () => chosen) : ''}</span>
         <button class="btn-action copy" data-action="copy-picked" ${dead} title="${escapeHtml(t('copySelected'))}"><i class="fas fa-copy"></i></button>
         <button class="btn-action delete" data-action="delete-picked" ${dead} title="${escapeHtml(t('deleteSelected'))}"><i class="fas fa-trash"></i></button>
     `;
