@@ -61,7 +61,7 @@ class MultiRotor(Rotor):
             mesh stiffness.
 
         Default is `{"enable": False, "amplitude_ratio": 0}`.
-    damping_ratio : float, optional
+    mesh_damping_ratio : float, optional
         Damping ratio used to calculate the gear mesh damping coefficient.
         In the linear model, this parameter controls the damping contribution
         added to the global damping matrix. When backlash is enabled, it is
@@ -176,7 +176,7 @@ class MultiRotor(Rotor):
         gear_mesh_stiffness=None,
         update_mesh_stiffness=False,
         square_varying_stiffness={"enable": False, "amplitude_ratio": 0},
-        damping_ratio=0.0,
+        mesh_damping_ratio=0.0,
         backlash={
             "enable": False,
             "initial_value": 0.0,
@@ -261,7 +261,7 @@ class MultiRotor(Rotor):
             gear_2,
             gear_mesh_stiffness=gear_mesh_stiffness,
             square_varying_stiffness=square_varying_stiffness,
-            damping_ratio=damping_ratio,
+            damping_ratio=mesh_damping_ratio,
             backlash=backlash,
             orientation_angle=orientation_angle,
         )
@@ -382,7 +382,7 @@ class MultiRotor(Rotor):
             gear_mesh_stiffness=self._gear_mesh_stiffness,
             update_mesh_stiffness=self.update_mesh_stiffness,
             square_varying_stiffness=copy(self._square_varying_stiffness),
-            damping_ratio=self.mesh.damping_ratio,
+            mesh_damping_ratio=self.mesh.damping_ratio,
             backlash=copy(self._backlash),
             orientation_angle=self.mesh.orientation_angle,
             position="above" if self.dy_pos >= 0 else "below",

@@ -165,7 +165,7 @@ def test_damping_ratio_argument_order():
     parameters = list(inspect.signature(rs.MultiRotor).parameters)
 
     assert (
-        parameters.index("damping_ratio")
+        parameters.index("mesh_damping_ratio")
         == parameters.index("square_varying_stiffness") + 1
     )
 
@@ -461,7 +461,7 @@ def multi_rotor_with_backlash():
         driven_rotor=rotor2,
         coupled_nodes=(0, 0),
         square_varying_stiffness={"enable": True, "amplitude_ratio": 0.275},
-        damping_ratio=0.07,
+        mesh_damping_ratio=0.07,
         backlash={
             "enable": True,
             "initial_value": 5e-5,
