@@ -600,7 +600,9 @@ class Rotor(object):
             )
 
         df = df.copy()
-
+        
+        self.global_dof_mapping = {k: v for dofs in list(df["dof_global_index"]) for k, v in dofs.items()}
+        
         # define positions for disks
         for elm in self.disk_elements:
             i = self.nodes.index(elm.n)

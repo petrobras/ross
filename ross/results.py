@@ -9,7 +9,6 @@ from abc import ABC
 from collections.abc import Iterable
 from warnings import warn
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from numba import njit
@@ -17,7 +16,6 @@ from numpy import linalg as la
 from plotly import graph_objects as go
 from plotly.subplots import make_subplots
 from prettytable import PrettyTable
-from scipy.fft import fft
 from pathlib import Path
 
 from ross.plotly_theme import (
@@ -4150,10 +4148,6 @@ class ForcedResponseResults(Results):
             major_axis_vector[3, :] = axis vector response for the input angle
             major_axis_vector[4, :] = phase response for the input angle
         """
-        ndof = self.rotor.number_dof
-        nodes = self.rotor.nodes
-        link_nodes = self.rotor.link_nodes
-
         unit_type = str(Q_(1, amplitude_units).dimensionality)
         try:
             response = self.__dict__[self.default_units[unit_type][1]]
@@ -4164,9 +4158,8 @@ class ForcedResponseResults(Results):
 
         major_axis_vector = np.zeros((5, len(self.speed_range)), dtype=complex)
 
-        fix_dof = (node - nodes[-1] - 1) * ndof // 2 if node in link_nodes else 0
-        dofx = ndof * node - fix_dof
-        dofy = ndof * node + 1 - fix_dof
+        dofx = self.rotor.global_dof_mapping[f"x_{int(node)}"]
+        dofy = self.rotor.global_dof_mapping[f"y_{int(node)}"]
 
         # Relative angle between probes (90°)
         Rel_ang = np.exp(1j * np.pi / 2)
@@ -5732,8 +5725,6 @@ class TimeResponseResults(Results):
         """
         data = {}
 
-        nodes = self.rotor.nodes
-        link_nodes = self.rotor.link_nodes
         ndof = self.rotor.number_dof
 
         for i, p in enumerate(check_probes(probe)):
@@ -5751,11 +5742,9 @@ class TimeResponseResults(Results):
             data[f"probe_tag[{i}]"] = probe_tag
             data[f"probe_dir[{i}]"] = probe_direction
 
-            fix_dof = (node - nodes[-1] - 1) * ndof // 2 if node in link_nodes else 0
-
             if probe_direction == "radial":
-                dofx = ndof * node - fix_dof
-                dofy = ndof * node + 1 - fix_dof
+                dofx = self.rotor.global_dof_mapping[f"x_{int(node)}"]
+                dofy = self.rotor.global_dof_mapping[f"y_{int(node)}"]
 
                 # fmt: off
                 operator = np.array(
@@ -5767,7 +5756,7 @@ class TimeResponseResults(Results):
                 probe_resp = _probe_resp[0,:]
                 # fmt: on
             else:
-                dofz = ndof * node + 2 - fix_dof
+                dofz = self.rotor.global_dof_mapping[f"z_{int(node)}"]
                 probe_resp = self.yout[init_step:, dofz]
 
             probe_resp = Q_(probe_resp, "m").to(displacement_units).m
@@ -5868,13 +5857,8 @@ class TimeResponseResults(Results):
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
-        nodes = self.rotor.nodes
-        link_nodes = self.rotor.link_nodes
-        ndof = self.rotor.number_dof
-
-        fix_dof = (node - nodes[-1] - 1) * ndof // 2 if node in link_nodes else 0
-        dofx = ndof * node - fix_dof
-        dofy = ndof * node + 1 - fix_dof
+        dofx = self.rotor.global_dof_mapping[f"x_{int(node)}"]
+        dofy = self.rotor.global_dof_mapping[f"y_{int(node)}"]
 
         if fig is None:
             fig = go.Figure()
@@ -6688,10 +6672,6 @@ class HarmonicBalanceResults(Results):
         """
         data = {}
 
-        nodes = self.rotor.nodes
-        link_nodes = self.rotor.link_nodes
-        ndof = self.rotor.number_dof
-
         for i, p in enumerate(check_probes(probe)):
             node = p.node
             angle = p.angle
@@ -6704,12 +6684,11 @@ class HarmonicBalanceResults(Results):
             data[f"probe_tag[{i}]"] = probe_tag
             data[f"probe_dir[{i}]"] = probe_direction
 
-            fix_dof = (node - nodes[-1] - 1) * ndof // 2 if node in link_nodes else 0
             y = self.Qo[:, np.newaxis] / 2 + self.dQ
 
             if probe_direction == "radial":
-                dofx = ndof * node - fix_dof
-                dofy = ndof * node + 1 - fix_dof
+                dofx = self.rotor.global_dof_mapping[f"x_{int(node)}"]
+                dofy = self.rotor.global_dof_mapping[f"y_{int(node)}"]
 
                 # fmt: off
                 operator = np.array(
@@ -6721,7 +6700,7 @@ class HarmonicBalanceResults(Results):
                 probe_resp = _probe_resp[0, :]
                 # fmt: on
             else:
-                dofz = ndof * node + 2 - fix_dof
+                dofz = self.rotor.global_dof_mapping[f"z_{int(node)}"]
                 probe_resp = y[dofz, :]
 
             probe_resp = Q_(np.abs(probe_resp), "m").to(amplitude_units).m

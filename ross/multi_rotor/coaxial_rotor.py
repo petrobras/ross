@@ -123,18 +123,18 @@ class CoAxialRotor(Rotor):
 
         # copy shaft elements to avoid altering attributes for elements
         # that might be used in different rotors, e.g. altering shaft_element.n
-        self.shafts = [[copy(sh) for sh in shaft] for shaft in shafts]
+        shafts = [[copy(sh) for sh in shaft] for shaft in shafts]
 
         # number each shaft right after the previous one
         aux_n = 0
-        for shaft in self.shafts:
+        for shaft in shafts:
             for i, sh in enumerate(shaft):
                 if sh.n is None:
                     sh.n = i + aux_n
             aux_n = shaft[-1].n_r + 1
 
         self.shafts_nodes = [
-            sorted({n for sh in shaft for n in (sh.n, sh.n_r)}) for shaft in self.shafts
+            sorted({n for sh in shaft for n in (sh.n, sh.n_r)}) for shaft in shafts
         ]
 
         super().__init__(
@@ -274,7 +274,7 @@ class CoAxialRotor(Rotor):
         ratio : float
             ``speed_ratio`` for a node on the outer shaft, 1 otherwise.
         """
-        return self.speed_ratio if node in self.outer_nodes else 1
+        return self.speed_ratio if node in self.shafts_nodes[1] else 1
 
     def _unbalance_force(self, node, magnitude, phase, omega):
         """Calculate unbalance forces at the node's own excitation frequency.
