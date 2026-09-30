@@ -59,12 +59,10 @@ class ModalRunner(Runner):
     def orbit_nodes(self, params, rotor):
         """Which nodes the orbit is drawn for, refusing what ROSS would swallow.
 
-        Measured on ROSS 3 (`results.py:2289` and `:729`): `plot_orbit` turns
-        `nodes=None` into `[None]` and then keeps
-        `[o for o in self.orbits if o.node in nodes]`. So an empty field and a
-        node that does not exist **both** give a chart with no curve in it, in
-        silence. On a six-element rotor: empty gave 0 traces, `[3]` gave 2, and
-        every node gave 14.
+        Measured on ROSS 3 (`results.py`): `plot_orbit` keeps
+        `[o for o in self.orbits if o.node in nodes]`, so a node that does not
+        exist gives a chart with no curve in it, in silence. `nodes=None` used
+        to do the same (it became `[None]`); ROSS now reads it as every node.
 
         The field was declared optional in the catalogue and is, in practice,
         required. Rather than make the person type something, an empty field
