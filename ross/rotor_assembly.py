@@ -600,9 +600,11 @@ class Rotor(object):
             )
 
         df = df.copy()
-        
-        self.global_dof_mapping = {k: v for dofs in list(df["dof_global_index"]) for k, v in dofs.items()}
-        
+
+        self.global_dof_mapping = {
+            k: v for dofs in list(df["dof_global_index"]) for k, v in dofs.items()
+        }
+
         # define positions for disks
         for elm in self.disk_elements:
             i = self.nodes.index(elm.n)
@@ -1073,8 +1075,7 @@ class Rotor(object):
         other_parameters.pop("tag", None)
 
         return parameters.keys() == other_parameters.keys() and all(
-            np.array_equal(v, other_parameters[k])
-            for k, v in parameters.items()
+            np.array_equal(v, other_parameters[k]) for k, v in parameters.items()
         )
 
     def _init_parameters(self):
@@ -1150,6 +1151,7 @@ class Rotor(object):
         new_elems_length = []
 
         brg_base = [brg for brg in bearing_elements if brg.n_link in self.link_nodes]
+        brg_shaft_linked = [brg for brg in bearing_elements if brg.n_link in self.nodes]
         elm_linked = [
             elm
             for elm in bearing_elements + point_mass_elements
@@ -1185,6 +1187,8 @@ class Rotor(object):
                 for elm in elements:
                     if elm.n >= right_elem.n and elm not in elm_linked:
                         elm.n += 1
+                    if elm.n_link >= right_elem.n and elm in brg_shaft_linked:
+                        elm.n_link += 1
 
             for j in range(i + 1, len(target_elements)):
                 if target_elements[j] == target_elements[i]:
@@ -4551,6 +4555,14 @@ class Rotor(object):
         for sh in shaft_elements:
             sh.alpha = sh.beta = 0
 
+        undamped_parameters = {
+            **self._init_parameters(),
+            "modal_damping_ratio": None,
+            "default_damping_ratio": 0.0,
+            "alpha": 0.0,
+            "beta": 0.0,
+        }
+
         # exclude the seals
         bearings_elements = [
             b for b in self.bearing_elements if not isinstance(b, SealElement)
@@ -4563,13 +4575,14 @@ class Rotor(object):
         for i, k in enumerate(stiffness_log):
             rotor = convert_6dof_to_4dof(
                 self.__class__(
-                    shaft_elements=shaft_elements,
+                    shaft_elements,
                     disk_elements=self.disk_elements,
                     bearing_elements=[
                         BearingElement(n=b.n, n_link=b.n_link, kxx=k, cxx=0)
                         for b in bearings
                     ],
                     point_mass_elements=pmass,
+                    **undamped_parameters,
                 )
             )
 
@@ -4649,12 +4662,13 @@ class Rotor(object):
                         # create rotor
                         rotor_critical = convert_6dof_to_4dof(
                             self.__class__(
-                                shaft_elements=shaft_elements,
+                                shaft_elements,
                                 disk_elements=self.disk_elements,
                                 bearing_elements=self._remove_housing_bearings(
                                     bearings
                                 ),
                                 point_mass_elements=pmass,
+                                **undamped_parameters,
                             )
                         )
 
@@ -4752,6 +4766,7 @@ class Rotor(object):
                 self.disk_elements,
                 bearings,
                 self.point_mass_elements,
+                **self._init_parameters(),
             )
 
             modal = rotor.run_modal(speed=speed)
@@ -5346,9 +5361,7 @@ class Rotor(object):
         file = Path(file)
         parameters = cast_numpy_types(self._init_parameters())
 
-        dump_data(
-            {"ross_version": ross.__version__, "parameters": parameters}, file
-        )
+        dump_data({"ross_version": ross.__version__, "parameters": parameters}, file)
 
         for el in self.elements:
             el.save(file)
@@ -5533,8 +5546,12 @@ class Rotor(object):
             aux_brg.append(BearingElement(n=brg.n, n_link=brg.n_link, kxx=1e20, cxx=0))
             aux_brg_1.append(BearingElement(n=brg.n, n_link=brg.n_link, kxx=0, cxx=0))
 
-        aux_rotor = Rotor(self.shaft_elements, self.disk_elements, aux_brg, pmass)
-        aux_rotor_1 = Rotor(self.shaft_elements, self.disk_elements, aux_brg_1, pmass)
+        aux_rotor = self.__class__(
+            self.shaft_elements, self.disk_elements, aux_brg, pmass
+        )
+        aux_rotor_1 = self.__class__(
+            self.shaft_elements, self.disk_elements, aux_brg_1, pmass
+        )
 
         aux_M = aux_rotor.M(0)
         aux_K = aux_rotor.K(0)

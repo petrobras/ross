@@ -154,7 +154,6 @@ class CoAxialRotor(Rotor):
 
         self.outer_dofs = self._get_outer_global_dofs(self.shaft_elements)
 
-
         # Fill the shaft_number column of the rotor dataframes
         shaft_numbers = {el.tag: self._shaft_number(el.n) for el in self.elements}
 
@@ -169,13 +168,13 @@ class CoAxialRotor(Rotor):
             if len(df):
                 df["shaft_number"] = df["tag"].map(shaft_numbers).astype(float)
 
-
         # Draw bearings between shafts up to the outer shaft inner surface
         for brg in self.bearing_elements:
             if brg.n_link in self.nodes:
                 outer_node = brg.n if brg.n in self.shafts_nodes[1] else brg.n_link
                 sh_at_node = self.df_shaft[
-                    (self.df_shaft.n_l == outer_node) | (self.df_shaft.n_r == outer_node)
+                    (self.df_shaft.n_l == outer_node)
+                    | (self.df_shaft.n_r == outer_node)
                 ]
                 self.df.loc[self.df.tag == brg.tag, "y_pos_sup"] = (
                     sh_at_node.i_d.min() / 2
@@ -203,17 +202,20 @@ class CoAxialRotor(Rotor):
         return next(
             j for j, shaft_nodes in enumerate(self.shafts_nodes) if node in shaft_nodes
         )
-    
+
     def _fix_nodes_pos(self, index, node, nodes_pos_l):
         """Adjust node positions of the outer rotor"""
         if node == self.shafts_nodes[1][0]:
-
             for n_outer in self.shafts_nodes[1]:
                 n_inner = self._find_linked_bearing_node(n_outer)
-                
+
                 if n_inner is not None:
-                    i = next(i for i, sh in enumerate(self.shaft_elements) if sh.n == n_inner)
-                    L_outer_shaft = sum(sh.L for sh in self._get_outer_elements(self.shaft_elements))
+                    i = next(
+                        i for i, sh in enumerate(self.shaft_elements) if sh.n == n_inner
+                    )
+                    L_outer_shaft = sum(
+                        sh.L for sh in self._get_outer_elements(self.shaft_elements)
+                    )
 
                     nodes_pos_l[index] = nodes_pos_l[i]
                     if node != n_outer:
@@ -224,17 +226,17 @@ class CoAxialRotor(Rotor):
     def _set_nodes(self, df_shaft):
         """Set nodes and nodes_pos lists"""
         nodes_pos = {}
-        
+
         for n, pos in zip(df_shaft.n_l, df_shaft.nodes_pos_l, strict=True):
             nodes_pos[int(n)] = max(nodes_pos.get(int(n), pos), pos)
-        
+
         for n, pos in zip(df_shaft.n_r, df_shaft.nodes_pos_r, strict=True):
             nodes_pos.setdefault(int(n), pos)
 
         self.nodes = [n for sh_n in self.shafts_nodes for n in sh_n]
         self.nodes_pos = [nodes_pos[n] for n in self.nodes]
         self.center_line_pos = [0] * len(self.nodes)
-    
+
     def _get_outer_elements(self, elements=None):
         elements = elements or self.elements
 
@@ -259,7 +261,6 @@ class CoAxialRotor(Rotor):
         G0[np.ix_(dofs, dofs)] *= self.speed_ratio
 
         return G0
-
 
     def _node_speed_ratio(self, node):
         """Return the speed ratio of the shaft the node belongs to.
@@ -367,7 +368,7 @@ class CoAxialRotor(Rotor):
         if speed_range is None:
             modal = self.run_modal(0)
             speed_range = np.linspace(0, max(modal.evalues.imag) * 1.5, 1000)
-        
+
         speed_range = np.asarray(speed_range)
 
         node = np.atleast_1d(node)
@@ -381,7 +382,7 @@ class CoAxialRotor(Rotor):
                 f"(abs(speed_ratio) = {abs(self.speed_ratio)}). Run the unbalance "
                 "response for each shaft separately."
             )
-        
+
         frequency_range = frequency_ratios.pop() * speed_range
 
         self._check_coefficient_axes(speed=speed_range, frequency=frequency_range)
@@ -391,7 +392,9 @@ class CoAxialRotor(Rotor):
             force += self._unbalance_force(n, m, p, speed_range)
 
         forced_resp = np.zeros((self.ndof, len(speed_range)), dtype=complex)
-        for i, (speed, frequency) in enumerate(zip(speed_range, frequency_range, strict=True)):
+        for i, (speed, frequency) in enumerate(
+            zip(speed_range, frequency_range, strict=True)
+        ):
             H = self.transfer_matrix(speed=speed, frequency=frequency, modes=modes)
             forced_resp[:, i] = H @ force[:, i]
 
@@ -463,6 +466,7 @@ class CoAxialRotor(Rotor):
             return F0, theta, omega, alpha
         else:
             return F0
+
 
 def coaxrotor_example():
     """Create a coaxial rotor as example.
