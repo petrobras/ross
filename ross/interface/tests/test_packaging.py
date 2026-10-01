@@ -797,6 +797,79 @@ def test_the_check_script_really_runs_ruff():
     )
 
 
+# --- a crash is not a failing test --------------------------------------------
+
+
+def _check_module():
+    """`check.py` imported by path: it is a script, not part of the package."""
+    import importlib.util
+
+    where = os.path.join(ROOT, "check.py")
+    spec = importlib.util.spec_from_file_location("interface_check_script", where)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+CRASHED = """........s.....                                                     [100%]
+Traceback (most recent call last):
+  File "_pytest/pathlib.py", line 356, in cleanup_dead_symlinks
+    if not left_dir.resolve().exists():
+PermissionError: [WinError 5] Acesso negado: 'Temp\\pytest-of-X\\pytest-current'
+"""
+
+REALLY_FAILED = """.......F......                                                     [100%]
+FAILED tests/test_something.py::test_a_thing
+1 failed, 13 passed
+"""
+
+
+def test_a_crash_after_the_run_is_not_reported_as_a_failing_test():
+    """Windows, 2026-09-20: 955 passed, 1 skipped, and pytest died on the way out.
+
+    It died in `pytest_sessionfinish`, cleaning its own temporary directory --
+    `PermissionError` on the `pytest-current` symlink. Every test had passed.
+    The summary said `pytest FAILED`, which reads as "a test broke", and that is
+    the second pattern of this project living inside the report we built to
+    avoid it: an error answering a different question from the one asked.
+
+    Read from the progress characters and not from the summary line, because
+    when pytest dies in `sessionfinish` the summary is never printed at all.
+    """
+    check = _check_module()
+    part = {"code": 1, "output": CRASHED}
+    assert check.pytest_crashed_after_the_run(part) == 13
+
+
+def test_a_real_failure_is_still_a_real_failure():
+    """Control, and the one that matters: the note must not swallow a red.
+
+    A guard that turns every non-zero exit into "it died afterwards" would hide
+    exactly what the suite exists to show.
+    """
+    check = _check_module()
+    assert (
+        check.pytest_crashed_after_the_run({"code": 1, "output": REALLY_FAILED}) is None
+    )
+    assert check.pytest_crashed_after_the_run({"code": 0, "output": CRASHED}) is None
+    assert check.pytest_crashed_after_the_run({"code": 1, "output": "boom\n"}) is None
+
+
+def test_the_summary_line_asks_before_it_judges():
+    """Control: the function above has to be the one the report calls.
+
+    Written and never wired is the shape of a guard that reassures without
+    guarding -- slice 3 of phase 4 cost a month to that.
+    """
+    with io.open(os.path.join(ROOT, "check.py"), encoding="utf-8") as handle:
+        script = handle.read()
+    summary = script[script.index('handle.write("SUMMARY') :]
+    assert "pytest_crashed_after_the_run(" in summary, (
+        "the summary writes its verdict without asking whether pytest crashed "
+        "after a clean run"
+    )
+
+
 # --- the line endings are one, and they are LF --------------------------------
 
 

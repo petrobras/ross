@@ -24,7 +24,12 @@ import {
 import { state } from '../../frontend/core/state.js';
 import '../../frontend/main.js';
 
-const { generatePythonFile, generatePythonFromHub, closeCustomAlert } = window;
+// Imported from their modules: the `window` bridge they used to be read off is
+// gone (slice 15). The buttons reach them through the `export-python`,
+// `export-rotor-python` and `alert-ok` actions; the functions are the same.
+const { closeCustomAlert } = await import('../../frontend/components/modals.js');
+const { generatePythonFromHub } = await import('../../frontend/features/hub.js');
+const { generatePythonFile } = await import('../../frontend/features/export.js');
 
 let ok = 0, failed = 0;
 function check(description, condition) {

@@ -46,6 +46,21 @@ def test_effective_nodes(elements, expected):
     assert node_resolver.effective_nodes(elements) == expected
 
 
+@pytest.mark.parametrize(
+    "elements, expected",
+    [
+        ([{}, {}, {}], [0, 1, 2]),
+        ([{"n": "2"}, {}], [2, 1]),
+        ([{}, {"n": "0"}], [0, 0]),
+        ([{"n": "abc"}, {"n": "3.0"}], [0, 3]),
+        ([], []),
+    ],
+)
+def test_listed_nodes_is_the_position_unless_pinned(elements, expected):
+    """The builder's rule for couplings, which is not `effective_nodes`."""
+    assert node_resolver.listed_nodes(elements) == expected
+
+
 def test_validate_node_topology_accepts_link_nodes():
     """A bearing with n_link plus a PointMass on the link node is valid topology."""
     elements = [
