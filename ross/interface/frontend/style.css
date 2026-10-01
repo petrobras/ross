@@ -23,6 +23,7 @@
     --shadow-card: var(--shadow-xs);
     --radius-ui: var(--radius-sm);
     --app-topbar-h: 52px;
+    --app-min-width: 1024px;
 }
 
 /* ---------- Base ---------- */
@@ -32,8 +33,14 @@
     padding: 0;
 }
 
+/* Heights are 100 % of the page, not 100vh. `vh` counts the area under a
+   scrollbar; the page now has a horizontal one below the minimum width, and a
+   `100vh` screen would then be taller than what can be seen, cutting the bottom
+   of every panel by the scrollbar's height. A percentage of `html` is measured
+   inside the scrollbars. */
 html {
     background: var(--surface-page);
+    height: 100%;
 }
 
 body {
@@ -41,8 +48,11 @@ body {
     font-size: var(--fs-sm);
     color: var(--text-body);
     background-color: var(--bg-workspace);
-    height: 100vh;
-    overflow: hidden;
+    height: 100%;
+    /* Sideways only, and only below `--app-min-width`. The page never scrolls
+       vertically: each panel scrolls on its own, as it always has. */
+    overflow-x: auto;
+    overflow-y: hidden;
     -webkit-font-smoothing: antialiased;
 }
 
@@ -65,8 +75,8 @@ button, input, select, textarea {
 /* SPA Screen System */
 .screen {
     display: none;
-    height: 100vh;
-    width: 100vw;
+    height: 100%;
+    width: 100%;
 }
 .screen.active {
     display: flex;
@@ -116,6 +126,19 @@ button, input, select, textarea {
 
 /* ---------- Topbars ---------- */
 /* The documentation's header: a light glass bar over the page, ruled below. */
+/* Three columns, and the title is one of them.
+
+   The title used to be `position: absolute` at 50%, which takes it out of the
+   flow: nothing reserved room for it, so once the two button groups grew
+   towards the middle -- a narrower window, a zoomed page, Portuguese labels, a
+   long rotor name -- they slid underneath it. Measured in a browser, the
+   modeling header already overlapped at 1366 px with no zoom at all.
+
+   Now the button groups take what they need (`max-content`) and share the rest
+   equally (`1fr`), which keeps the title centred on the page whenever there is
+   room; the title's column is `minmax(0, auto)`, so when there is not, the
+   title is what gives way -- the rotor name first, with an ellipsis -- and
+   never a button. */
 .topbar {
     position: relative;
     background: var(--glass-bg);
@@ -123,38 +146,46 @@ button, input, select, textarea {
     backdrop-filter: var(--blur-glass);
     color: var(--text-body);
     height: var(--app-topbar-h);
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(max-content, 1fr) minmax(0, auto) minmax(max-content, 1fr);
     align-items: center;
+    column-gap: var(--space-4);
     padding: 0 var(--space-4);
-    justify-content: space-between;
     border-bottom: 1px solid var(--border-default);
     z-index: 10;
+    flex-shrink: 0;
 }
 .topbar-left {
     display: flex;
     align-items: center;
     gap: var(--space-1);
-    z-index: 1;
+    justify-self: start;
 }
 .topbar-center {
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
     display: flex;
     align-items: center;
+    justify-content: center;
+    min-width: 0;
+    overflow: hidden;
     font-size: var(--fs-sm);
     font-weight: var(--fw-semibold);
     letter-spacing: var(--ls-heading);
     color: var(--text-strong);
-    z-index: 0;
     white-space: nowrap;
-    pointer-events: none;
+}
+.topbar-center > span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.topbar-center > img {
+    flex-shrink: 0;
 }
 .topbar-actions {
     display: flex;
     align-items: center;
     gap: var(--space-2);
-    z-index: 1;
+    justify-self: end;
 }
 .logo-img-topbar {
     height: 22px;
@@ -209,6 +240,7 @@ button {
 .topbar .btn-back,
 .topbar .btn-toggle-sidebar,
 .topbar .btn-help-general,
+.topbar .btn-history,
 .btn-about,
 .btn-theme {
     background: transparent;
@@ -219,10 +251,30 @@ button {
 .topbar .btn-back:hover,
 .topbar .btn-toggle-sidebar:hover,
 .topbar .btn-help-general:hover,
+.topbar .btn-history:hover:not(:disabled),
 .btn-about:hover,
 .btn-theme:hover {
     color: var(--text-body);
     background: var(--surface-hover);
+}
+/* Nothing left to undo. Greyed and inert rather than hidden: a button that
+   disappears makes the person look for where it went; one that is greyed says
+   the history is empty, which is the actual answer. */
+.topbar .btn-history:disabled {
+    opacity: 0.35;
+    cursor: default;
+    background: transparent;
+}
+/* Which rotor is open, beside the screen's title. */
+#modeling-rotor-name {
+    color: var(--text-muted);
+    font-weight: 400;
+    /* Given up long before the screen's own name: which screen this is matters
+       more than the tail of a rotor's name, which the tooltip still has. */
+    flex-shrink: 100;
+    /* The leading space of " — name" is dropped at the start of a flex item,
+       which glued the dash to the screen's name. */
+    margin-left: 0.3em;
 }
 .btn-save,
 .btn-py {
@@ -267,7 +319,7 @@ button {
 .modeling-layout {
     display: flex;
     flex: 1;
-    height: calc(100vh - var(--app-topbar-h));
+    min-height: 0;
     overflow: hidden;
 }
 
@@ -324,6 +376,17 @@ button {
     overflow-y: auto;
     display: flex;
     flex-direction: column;
+    transition: width var(--dur-slow) var(--ease-standard), padding var(--dur-slow) var(--ease-standard);
+}
+/* Hidden by clicking the open tab again (`pickTab`). `overflow: hidden` and not
+   the inherited `auto`: at zero width the form and the list would still ask for
+   a horizontal scrollbar. */
+.dynamic-panel.collapsed {
+    width: 0;
+    padding-left: 0;
+    padding-right: 0;
+    border-right: none;
+    overflow: hidden;
 }
 .empty-message {
     text-align: center;
@@ -401,9 +464,64 @@ button {
     color: var(--success-700);
     background: var(--success-100);
 }
+/* Splitting a shaft. Warning and not danger: it changes the model and it
+   renumbers every node above it, but nothing is lost -- the two halves add back
+   up to the element that was there. Deleting is the red one. */
+.btn-action.split:hover {
+    color: var(--warning-700);
+    background: var(--warning-100);
+}
 .btn-action.delete:hover {
     color: var(--danger-700);
     background: var(--danger-100);
+}
+
+/* The bar above the element list: tick everything, the count, and the two bulk
+   actions. It sits where the list starts so the ticks and the actions read as
+   one thing. */
+#selection-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 6px 6px 6px;
+    border-bottom: 1px solid var(--border-default);
+    margin-bottom: 6px;
+}
+#selection-bar .pick-all {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+#selection-bar .pick-count {
+    flex: 1;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+#selection-bar .btn-action:disabled {
+    opacity: 0.35;
+    cursor: default;
+    background: transparent;
+}
+/* The tick box on each row, left of the drag handle. */
+.item-pick {
+    margin-right: 8px;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+/* The vertical exaggeration picker, in the bar that already carries the mass
+   and the polar inertia. */
+.rotor-scale {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.rotor-scale select {
+    padding: 2px 4px;
+    font-size: 12px;
 }
 
 /* Insertion Form and Advanced Menu */
@@ -558,10 +676,14 @@ button {
     padding: var(--space-5);
     overflow-y: auto;
 }
+/* The items wrap as wholes. Left to shrink, a label broke inside itself and
+   "Polar Inertia (Ip):" ran into its own value -- measured at 950 px. */
 .rotor-info {
     display: flex;
+    flex-wrap: wrap;
     justify-content: center;
-    gap: var(--space-8);
+    column-gap: var(--space-8);
+    row-gap: var(--space-2);
     margin-bottom: var(--space-4);
     font-weight: var(--fw-medium);
     color: var(--text-muted);
@@ -573,6 +695,9 @@ button {
     box-shadow: var(--shadow-xs);
     opacity: 0;
     transition: opacity var(--dur-slow) var(--ease-standard);
+}
+.rotor-info > span {
+    white-space: nowrap;
 }
 .info-value {
     color: var(--text-strong);
@@ -603,7 +728,7 @@ button {
 .analysis-layout {
     display: flex;
     flex: 1;
-    height: calc(100vh - var(--app-topbar-h));
+    min-height: 0;
 }
 
 .analysis-controls-panel {
@@ -770,12 +895,6 @@ button {
     font-weight: var(--fw-medium);
     margin-bottom: 0;
     min-width: 90px;
-}
-.dash-control-group input[type="range"] {
-    flex: 1 1 auto;
-    min-width: 60px;
-    cursor: pointer;
-    accent-color: var(--accent);
 }
 .dash-control-group input[type="number"],
 .dash-control-group input[type="text"] {
@@ -1348,12 +1467,6 @@ button {
     min-height: 460px;
 }
 
-/* On a narrow screen the two stack one above the other, otherwise neither
-   chart is readable. */
-@media (max-width: 1100px) {
-    .campbell-split { grid-template-columns: 1fr; }
-}
-
 .campbell-diagram,
 .campbell-mode {
     min-height: 460px;
@@ -1504,29 +1617,73 @@ button {
     opacity: 0.7;
 }
 
-/* ---------- Responsiveness ---------- */
-@media (max-width: 1024px) {
-    .dynamic-panel { width: 300px; }
-    .analysis-controls-panel { width: 280px; }
+/* --- What broke (phase 5, slice 10) ------------------------------------
+   Fixed to the bottom-left corner, opposite the line of work, for the same
+   reason: an error does not belong to the screen that happened to be open. */
+.error-notice {
+    position: fixed;
+    bottom: var(--space-4);
+    left: var(--space-4);
+    z-index: 950;
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    max-width: 480px;
+    padding: 12px 14px;
+    font-size: var(--fs-sm);
+    color: var(--text-body);
+    background: var(--surface-card);
+    border: 1px solid var(--danger-500);
+    border-left-width: 4px;
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+}
+.error-notice > i {
+    color: var(--danger-500);
+    margin-top: 2px;
+}
+.error-notice-body {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+.error-notice-text {
+    font-family: var(--font-mono);
+    font-size: var(--fs-xs);
+    color: var(--text-strong);
+    overflow-wrap: anywhere;
+}
+.error-notice-hint {
+    font-size: var(--fs-xs);
+    color: var(--text-muted);
+}
+.error-notice-close {
+    background: transparent;
+    color: var(--text-muted);
+    padding: 2px 6px;
+}
+.error-notice-close:hover {
+    color: var(--text-strong);
+    background: var(--surface-hover);
 }
 
-@media (max-width: 768px) {
-    .modeling-layout, .analysis-layout { flex-direction: column; }
+/* ---------- The layout does not reflow ---------- */
+/* Below this width the page stops rearranging itself and scrolls instead.
 
-    .sidebar { position: absolute; height: calc(100vh - var(--app-topbar-h)); z-index: 100; box-shadow: var(--shadow-lg); }
+   It used to reflow: below 1024 px the panels narrowed, below 768 px they
+   stacked and the button labels vanished. For a desktop program that is the
+   wrong answer to zoom -- zooming in *is* a narrower viewport, so the page
+   changed shape exactly when someone wanted a bigger version of it, and in
+   between (1366 px at 150 % is 911 px) buttons slid over text. Leonardo's
+   request, and the decision: keep the proportions and add scrollbars.
 
-    .dynamic-panel, .analysis-controls-panel { width: 100%; border-right: none; border-bottom: 1px solid var(--border-default); max-height: 45vh; flex: none; }
-    .plot-panel, .analysis-plot-panel { padding: 10px; flex: 1; min-height: 300px; }
-
-    .analysis-controls-panel.collapsed { max-height: 0; padding-top: 0; padding-bottom: 0; border-bottom: none; }
-
-    .btn-text { display: none; }
-    .topbar { padding: 0 10px; gap: 5px; }
-    .topbar-actions { gap: 5px; }
-    .topbar button { padding: 6px 8px; font-size: var(--fs-sm); }
-
-    .topbar-center { position: static; transform: none; flex: 1; justify-content: center; font-size: var(--fs-sm); text-align: center; }
-    .logo-img-topbar { height: 18px; margin-right: 5px; }
+   So there is no `@media (max-width: ...)` left in this file, and a guard in
+   `tests/test_frontend_structure.py` keeps it that way. The number is not a
+   guess -- see `claude/fase5-fatia9-largura-minima.md` for how it was
+   measured. */
+body {
+    min-width: var(--app-min-width);
 }
 
 /* ---------- About ---------- */

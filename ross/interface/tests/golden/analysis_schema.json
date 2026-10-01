@@ -4,34 +4,25 @@
    {
     "id": "speed_min",
     "label": "Start Speed",
-    "type": "range",
+    "type": "number",
     "val": 0,
     "role": "compute",
-    "min": 0,
-    "max": 1000,
-    "step": 10,
     "default_unit": "rad/s"
    },
    {
     "id": "speed_max",
     "label": "End Speed",
-    "type": "range",
+    "type": "number",
     "val": 400,
     "role": "compute",
-    "min": 100,
-    "max": 4000,
-    "step": 10,
     "default_unit": "rad/s"
    },
    {
     "id": "speed_steps",
     "label": "Steps",
-    "type": "range",
+    "type": "number",
     "val": 50,
-    "role": "compute",
-    "min": 10,
-    "max": 200,
-    "step": 1
+    "role": "compute"
    },
    {
     "id": "plot_type",
@@ -231,24 +222,25 @@
    {
     "id": "speed_min",
     "label": "Start Speed",
-    "type": "range",
+    "type": "number",
     "val": 0,
     "role": "compute",
-    "min": 0,
-    "max": 1000,
-    "step": 10,
     "default_unit": "rad/s"
    },
    {
     "id": "speed_max",
     "label": "End Speed",
-    "type": "range",
+    "type": "number",
     "val": 400,
     "role": "compute",
-    "min": 100,
-    "max": 4000,
-    "step": 10,
     "default_unit": "rad/s"
+   },
+   {
+    "id": "speed_steps",
+    "label": "Steps",
+    "type": "number",
+    "val": 50,
+    "role": "compute"
    },
    {
     "id": "plot_type",
@@ -386,12 +378,9 @@
    {
     "id": "speed",
     "label": "Shaft Speed",
-    "type": "range",
+    "type": "number",
     "val": 0,
     "role": "compute",
-    "min": 0,
-    "max": 2000,
-    "step": 10,
     "default_unit": "rad/s",
     "ross_param": "speed"
    },
@@ -605,24 +594,25 @@
    {
     "id": "speed_min",
     "label": "Start Speed",
-    "type": "range",
+    "type": "number",
     "val": 0,
     "role": "compute",
-    "min": 0,
-    "max": 1000,
-    "step": 10,
     "default_unit": "rad/s"
    },
    {
     "id": "speed_max",
     "label": "End Speed",
-    "type": "range",
+    "type": "number",
     "val": 400,
     "role": "compute",
-    "min": 100,
-    "max": 4000,
-    "step": 10,
     "default_unit": "rad/s"
+   },
+   {
+    "id": "speed_steps",
+    "label": "Steps",
+    "type": "number",
+    "val": 50,
+    "role": "compute"
    },
    {
     "id": "plot_type",
@@ -738,12 +728,9 @@
    {
     "id": "speed",
     "label": "Rot. Speed",
-    "type": "range",
+    "type": "number",
     "val": 100,
     "role": "compute",
-    "min": 0,
-    "max": 2000,
-    "step": 10,
     "default_unit": "rad/s",
     "ross_param": "speed"
    },
@@ -752,20 +739,14 @@
     "label": "Max Time (s)",
     "type": "number",
     "val": 1,
-    "role": "compute",
-    "min": 0.1,
-    "max": 10,
-    "step": 0.1
+    "role": "compute"
    },
    {
     "id": "steps",
     "label": "Time Steps",
     "type": "number",
     "val": 1000,
-    "role": "compute",
-    "min": 100,
-    "max": 10000,
-    "step": 100
+    "role": "compute"
    },
    {
     "id": "plot_type",
@@ -954,12 +935,9 @@
    {
     "id": "speed",
     "label": "Speed",
-    "type": "range",
+    "type": "number",
     "val": 200,
     "role": "compute",
-    "min": 0,
-    "max": 2000,
-    "step": 10,
     "default_unit": "rad/s",
     "ross_param": "speed"
    },
@@ -1077,23 +1055,17 @@
    {
     "id": "speed_min",
     "label": "Start Speed",
-    "type": "range",
+    "type": "number",
     "val": 0,
     "role": "compute",
-    "min": 0,
-    "max": 1000,
-    "step": 10,
     "default_unit": "rad/s"
    },
    {
     "id": "speed_max",
     "label": "End Speed (Trip)",
-    "type": "range",
+    "type": "number",
     "val": 1000,
     "role": "compute",
-    "min": 100,
-    "max": 4000,
-    "step": 10,
     "default_unit": "rad/s"
    },
    {
@@ -1235,12 +1207,9 @@
    {
     "id": "speed",
     "label": "Speed",
-    "type": "range",
+    "type": "number",
     "val": 125.66,
     "role": "compute",
-    "min": 0,
-    "max": 2000,
-    "step": 10,
     "default_unit": "rad/s",
     "ross_param": "speed"
    },
@@ -1495,12 +1464,9 @@
    {
     "id": "speed",
     "label": "Speed",
-    "type": "range",
+    "type": "number",
     "val": 125.66,
     "role": "compute",
-    "min": 0,
-    "max": 2000,
-    "step": 10,
     "default_unit": "rad/s",
     "ross_param": "speed"
    },
@@ -1688,12 +1654,9 @@
    {
     "id": "speed",
     "label": "Speed",
-    "type": "range",
+    "type": "number",
     "val": 125.66,
     "role": "compute",
-    "min": 0,
-    "max": 2000,
-    "step": 10,
     "default_unit": "rad/s",
     "ross_param": "speed"
    },

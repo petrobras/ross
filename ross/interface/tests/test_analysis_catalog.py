@@ -16,7 +16,7 @@ are not missing by oversight -- they cannot come from a signature:
 * composition: `speed_min`/`speed_max`/`speed_steps` are three fields that
   become one `np.linspace` in `speed_range`. There is no `speed_min` in ROSS;
 * list editors: `probes`, `forces`, `unbalances`, `inps`;
-* presentation: `plot_type`, default units, conditional visibility, sliders.
+* presentation: `plot_type`, default units, conditional visibility.
 
 A form half derived and half declared would be harder to understand than either
 pure one. So the copy does not go away -- and the way out is `getEffectiveNodes`'
@@ -407,6 +407,29 @@ def test_the_javascript_fixture_matches_the_catalogue():
     )
 
 
+def _without_sliders(forms):
+    """The frozen forms as they read once the sliders left (phase 5, slice 14).
+
+    One change that applies to every form at once, so it is applied here by
+    rule instead of being listed analysis by analysis: a `range` field became a
+    plain `number`, and its bounds went away -- a fixed 0-4000 cannot fit a
+    speed that depends on the machine, and the slider did not follow a change of
+    unit. As a transformation, the rest of every frozen form keeps being
+    compared exactly; putting the ten analyses that have a speed on
+    `CHANGED_ON_PURPOSE` would have stopped comparing them altogether."""
+    out = {}
+    for name, form in forms.items():
+        out[name] = []
+        for field in form:
+            if field.get("type") == "range":
+                field = {
+                    k: v for k, v in field.items() if k not in ("min", "max", "step")
+                }
+                field["type"] = "number"
+            out[name].append(field)
+    return out
+
+
 def test_the_frozen_dashboards_still_match_the_catalogue():
     """The golden file of the old form is what the port has to reproduce.
 
@@ -435,7 +458,7 @@ def test_the_frozen_dashboards_still_match_the_catalogue():
     hole with a comment on it."""
     path = os.path.join(ROOT, "tests", "golden", "analysis_dashboards.json")
     with io.open(path, encoding="utf-8") as handle:
-        old_one = json.load(handle)
+        old_one = _without_sliders(json.load(handle))
 
     new = catalog("en")
     assert set(old_one) == set(new)
@@ -489,7 +512,9 @@ CHANGED_ON_PURPOSE = {
     ),
     "freq_response": (
         "gained `speed`, the fixed rotor speed: with it, Start/End Speed sweeps "
-        "the excitation frequency instead of the synchronous point."
+        "the excitation frequency instead of the synchronous point. And "
+        "`speed_steps`: the sweep had a hard-coded 50 points, which the form "
+        "did not offer and the user could not change."
     ),
     "modes": (
         "gained `frequency` (a fixed whirl frequency for the coefficients) and "
@@ -506,6 +531,12 @@ CHANGED_ON_PURPOSE = {
         "plots together with the probe tuples it converted; `Probe` objects "
         "carry their own angle unit.",
     ),
+    "unbalance": (
+        "lost `probe_units` with the other response plots (ROSS 3.0 removed "
+        "the keyword together with the probe tuples it converted) and gained "
+        "`speed_steps`: the sweep had a hard-coded 50 points, which the form "
+        "did not offer and the user could not change."
+    ),
 }
 
 
@@ -518,7 +549,7 @@ def test_every_deliberate_form_change_still_differs_from_the_frozen_one():
     test that it is still needed."""
     path = os.path.join(ROOT, "tests", "golden", "analysis_dashboards.json")
     with io.open(path, encoding="utf-8") as handle:
-        old_one = json.load(handle)
+        old_one = _without_sliders(json.load(handle))
     new = catalog("en")
     for name, reason in CHANGED_ON_PURPOSE.items():
         assert name in old_one, "%s is not in the frozen file" % name

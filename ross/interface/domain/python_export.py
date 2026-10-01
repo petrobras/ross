@@ -19,7 +19,8 @@ from decimal import Decimal
 
 from .element_registry import ross_class_name
 from .legacy import migrate_element
-from .node_resolver import effective_nodes
+from .material_names import material_key, ross_material_name, validate_materials
+from .node_resolver import effective_nodes, listed_nodes
 import textwrap
 
 from .schema import unit_map_by_class
@@ -31,7 +32,16 @@ from .schema import unit_map_by_class
 #      the output is byte for byte the same.
 #   3. an explicitly null field counts as absent. Before it became the word
 #      `null` in the middle of the script -- a NameError on first run.
-DEVIATIONS = ("material_name_escaping", "select_value_escaping", "null_as_missing")
+#   4. a material's name loses its spaces (domain/material_names.py): ROSS
+#      refuses them, so the old script raised on its first `rs.Material`. It
+#      changed the one reference case with a space in a name,
+#      `material_com_apostrofo`.
+DEVIATIONS = (
+    "material_name_escaping",
+    "select_value_escaping",
+    "null_as_missing",
+    "material_name_without_spaces",
+)
 
 _DECIMAL = re.compile(r"^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$")
 _RADIX = re.compile(r"^(?:0[xX][0-9a-fA-F]+|0[oO][0-7]+|0[bB][01]+)$")
@@ -123,6 +133,25 @@ def _or(value, default):
     return value if _js_truthy(value) else default
 
 
+STEPS_UNREADABLE = "Field '%s' has to be a number of steps; got '%s'."
+
+
+def _steps(params, key, default):
+    """A step count for `np.linspace`, as an integer literal.
+
+    The analysis reads the field with `int(float(...))` and refuses what that
+    refuses (`services/analysis/base.py`); the export does the same, instead of
+    writing the text into the script, where `np.linspace(0, 100, abc)` would be
+    a `NameError` on the user's machine and `50.5` a `TypeError`. A refusal is
+    a `ValueError`, which reaches the screen as a 400 carrying the sentence.
+    """
+    raw = _or(params.get(key), default)
+    try:
+        return str(int(float(str(raw).strip())))
+    except (TypeError, ValueError, OverflowError) as error:
+        raise ValueError(STEPS_UNREADABLE % (key, raw)) from error
+
+
 def _py_string(value):
     """Escape text into a valid Python string literal."""
     return "'" + _js_str(value).replace("\\", "\\\\").replace("'", "\\'") + "'"
@@ -189,7 +218,7 @@ def _material_expression(element, suffix):
         return "rs.materials.steel"
     return "materials_dict%s.get(%s, default_mat%s)" % (
         suffix,
-        _py_string(str(chosen).lower()),
+        _py_string(material_key(chosen)),
         suffix,
     )
 
@@ -205,10 +234,12 @@ def _build_rotor_block(r_data, suffix):
         if "poisson" in copy_of:
             copy_of["Poisson"] = copy_of.pop("poisson")
         args = _format_kwargs(copy_of, ["name", "element_type"], "Material")
-        name = _or(copy_of.get("name"), "MaterialCustom")
+        # The same name the rotor is built with (domain/material_names.py):
+        # a space in it and the exported script fails where the screen did not.
+        name = ross_material_name(_or(copy_of.get("name"), "MaterialCustom"))
         py += "materials_dict%s[%s] = rs.Material(name=%s, %s)\n" % (
             suffix,
-            _py_string(str(name).lower()),
+            _py_string(material_key(name)),
             _py_string(name),
             args,
         )
@@ -292,10 +323,10 @@ def _build_rotor_block(r_data, suffix):
 
     # Couplings
     py += "couplings_data%s = [\n" % suffix
-    for coupling in r_data.get("couplings") or []:
-        py += "    dict(%s),\n" % _format_kwargs(
-            coupling, ["element_type"], "CouplingElement"
-        )
+    nodes = listed_nodes(r_data.get("couplings") or [])
+    for position, coupling in enumerate(r_data.get("couplings") or []):
+        args = _format_kwargs(coupling, ["element_type"], "CouplingElement")
+        py += "    dict(%s),\n" % _with_node_arg(coupling, args, nodes[position])
     py += (
         "]\ncouplings{s} = [rs.CouplingElement(**kwargs) "
         "for kwargs in couplings_data{s}]\n"
@@ -452,7 +483,7 @@ def _analysis_block(position, analysis):
         py += "speed_rads = np.linspace(%s, %s, %s)\n" % (
             _py_val(p, "speed_min", "rad/s"),
             _py_val(p, "speed_max", "rad/s"),
-            _js_str(_or(p.get("speed_steps"), 50)),
+            _steps(p, "speed_steps", 50),
         )
         py += (
             "camp_%d = rotor.run_campbell(speed_rads, frequencies=%s, frequency_type=%s, torsional_analysis=%s%s)\n"
@@ -526,7 +557,7 @@ def _analysis_block(position, analysis):
         py += "speed_rads = np.linspace(%s, %s, %s)\n" % (
             _py_val(p, "speed_min", "rad/s"),
             _py_val(p, "speed_max", "rad/s"),
-            _js_str(_or(p.get("speed_steps"), 50)),
+            _steps(p, "speed_steps", 50),
         )
         modes = ", modes=%s" % _js_str(p["modes"]) if _js_truthy(p.get("modes")) else ""
         py += "freq_%d = rotor.run_freq_response(speed_rads%s, free_free=%s%s)\n" % (
@@ -646,9 +677,10 @@ def _analysis_block(position, analysis):
             )
 
     elif kind == "unbalance":
-        py += "speed_rads = np.linspace(%s, %s, 50)\n" % (
+        py += "speed_rads = np.linspace(%s, %s, %s)\n" % (
             _py_val(p, "speed_min", "rad/s"),
             _py_val(p, "speed_max", "rad/s"),
+            _steps(p, "speed_steps", 50),
         )
         nodes, mags, phases = _unbalance_columns(p)
         modes = ", modes=%s" % _js_str(p["modes"]) if _js_truthy(p.get("modes")) else ""
@@ -717,7 +749,7 @@ def _analysis_block(position, analysis):
         py += "t_hb = np.linspace(%s, %s, %s)\n" % (
             _js_str(_or(p.get("t_initial"), 0)),
             _js_str(_or(p.get("t_final"), 0.5)),
-            _js_str(_or(p.get("t_steps"), 1001)),
+            _steps(p, "t_steps", 1001),
         )
         py += "harmonic_forces = [{\n"
         py += "    'node': %s,\n" % _js_str(_or(p.get("hb_node"), 0))
@@ -753,7 +785,7 @@ def _analysis_block(position, analysis):
             position,
             _py_val(p, "speed_min", "rad/s"),
             _py_val(p, "speed_max", "rad/s"),
-            _js_str(_or(p.get("speed_steps"), 101)),
+            _steps(p, "speed_steps", 101),
         )
         args = [
             "speed_range=speed_range_%d" % position,
@@ -802,7 +834,7 @@ def _transient_block(position, kind, p):
         py += "speed = %s\n" % _py_val(p, "speed", "rad/s")
         py += "t = np.linspace(0, %s, %s)\n" % (
             _js_str(_or(p.get("t_max"), 1.0)),
-            _js_str(_or(p.get("steps"), 1000)),
+            _steps(p, "steps", 1000),
         )
         py += "dofs_per_node = rotor.number_dof\n"
         py += "F_%d = np.zeros((len(t), rotor.ndof))\n" % position
@@ -822,7 +854,7 @@ def _transient_block(position, kind, p):
         py += "t_sim = np.linspace(%s, %s, %s)\n" % (
             _js_str(_or(p.get("t_initial"), 0)),
             _js_str(_or(p.get("t_final"), 0.5)),
-            _js_str(_or(p.get("t_steps"), 5000)),
+            _steps(p, "t_steps", 5000),
         )
         nodes, mags, phases = _unbalance_columns(p)
         common = (
@@ -969,6 +1001,17 @@ def build_script(project, analyses=(), conversion_type=""):
     cards, each with its analysis type and the parameters its dashboard used.
     """
     project = project or {}
+    # The same refusal the builder makes (domain/material_names.py). The
+    # generated script asks the dictionary with `.get(name, default_mat)`, so a
+    # name nothing carries would come out as a script that runs, draws a rotor
+    # and is made of the wrong metal -- and this one leaves the screen on a
+    # file, where nobody would see it happen.
+    if project.get("isMultiRotor"):
+        validate_materials(project.get("driving_rotor") or {})
+        validate_materials(project.get("driven_rotor") or {})
+    else:
+        validate_materials(project)
+
     py = _compatibility_warning(analyses, conversion_type)
     py += "import ross as rs\nimport numpy as np\nfrom ross.units import Q_\n"
     py += "\n# ==========================================\n# Modeling \n# ==========================================\n"

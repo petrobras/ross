@@ -26,6 +26,7 @@ class UnbalanceRunner(Runner):
         return {
             "speed_min": minimum,
             "speed_max": maximum,
+            "steps": self.steps(params, "speed_steps", 50),
             "node": nodes,
             "unbalance_magnitude": magnitudes,
             "unbalance_phase": phases,
@@ -33,7 +34,7 @@ class UnbalanceRunner(Runner):
         }
 
     def compute(self, rotor, spec):
-        speeds = np.linspace(spec["speed_min"], spec["speed_max"], 50)
+        speeds = np.linspace(spec["speed_min"], spec["speed_max"], spec["steps"])
         kwargs = {}
         if spec["modes"]:
             kwargs["modes"] = spec["modes"]

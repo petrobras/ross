@@ -104,22 +104,23 @@ def test_the_file_protocol_guard_is_a_classic_script():
         )
 
 
-def test_only_one_place_publishes_to_window():
-    """The bridge to the inline handlers lives in a single block.
+def test_nothing_publishes_to_window():
+    """No module hangs functions on `window`.
 
-    Before there were 21 `window.x = function` scattered through the file, each one
-    an invisible decision to make something global. The bridge has to be a list you
-    read top to bottom -- and one that shrinks when the next slice replaces the
-    inline handlers with event delegation."""
+    There used to be 21 `window.x = function` scattered through the file, then
+    one bridge block in main.js for the inline handlers of the HTML (73 names at
+    its largest). Since slice 15 every button names an action (core/actions.js)
+    and the bridge is gone; a function made global again would be one the page
+    reaches without the table."""
     scattered = []
     for module in MODULES:
         for number, line in enumerate(_text(module).split("\n"), 1):
             if re.match(r"\s*window\.[A-Za-z_$][\w$]*\s*=\s*(async\s+)?function", line):
                 scattered.append("%s:%d" % (module, number))
-    assert scattered == [], "the bridge is scattered across %s" % scattered
+    assert scattered == [], "functions hung on the window in %s" % scattered
 
-    blocks = [m for m in MODULES if "Object.assign(window, {" in _text(m)]
-    assert blocks == ["main.js"], "the bridge is in %s" % blocks
+    blocks = [m for m in MODULES if "Object.assign(window" in _text(m)]
+    assert blocks == [], "a bridge block came back in %s" % blocks
 
 
 def test_nothing_imports_the_entry_point():
@@ -208,6 +209,7 @@ def test_no_module_shadows_a_name_it_imported(module):
 ACCEPTED_ORPHANS = {
     "changeLanguage": "it exists and works; the selector is missing from index.html (FE-11)",
     "persistenceIsOff": "a read accessor, today consumed only by the tests",
+    "actionNames": "the vocabulary of the page, read by tests/js/test_actions.js against the HTML",
 }
 
 
@@ -323,9 +325,8 @@ def test_features_may_reference_each_other_but_run_nothing_on_load():
 def test_the_entry_point_holds_no_logic():
     """`main.js` wires the layers and decides nothing.
 
-    After the second delivery it is imports, the wiring between layers, the
-    bootstrap and the bridge. Any function declared there is logic that lost its
-    home."""
+    It is imports, the wiring between layers, the tables of actions and the
+    bootstrap. Any function declared there is logic that lost its home."""
     declarations = re.findall(
         r"^(?:export\s+)?(?:async\s+)?function\s+([A-Za-z_$][\w$]*)",
         _text("main.js"),
@@ -504,3 +505,85 @@ def test_the_badge_classes_exist_in_the_stylesheet():
         css = handle.read()
     for klass in (".badge-6dof", ".badge-4dof", ".badge-torsional"):
         assert klass + " {" in css, "%s has no rule" % klass
+
+
+def test_the_loader_knows_the_same_categories_as_the_registry():
+    """`CATEGORIES` in core/project_file.js against `element_registry`.
+
+    The loader needs the categories by name for one reason: a file may not have
+    one, and `renderList` empties the element list *before* it reads the
+    category -- so a project without `gears` leaves the screen blank with
+    nothing in the console. Filling the gaps is cheaper than making every
+    reader defensive, and the price is this copy of the list.
+
+    A copy maintained by hand is exactly what this project keeps paying for, so
+    it is compared here rather than trusted. The order is the sidebar's
+    business and is not compared; membership is."""
+    from ross.interface.domain.element_registry import categories
+
+    text = _text("core/project_file.js")
+    block = re.search(r"export const CATEGORIES = \[(.*?)\];", text, re.S)
+    assert block, "CATEGORIES is gone from core/project_file.js, or changed shape"
+
+    listed = set(re.findall(r"'([a-z_]+)'", block.group(1)))
+    assert listed == set(categories()), (
+        "the loader and the element registry disagree about the categories: "
+        "only in the loader %s, only in the registry %s"
+        % (sorted(listed - set(categories())), sorted(set(categories()) - listed))
+    )
+
+
+def test_every_start_function_is_started():
+    """A `start*` export takes hold of the page, and only `main.js` calls it.
+
+    The convention is that a module runs nothing on load: it exports `startX`
+    and the bootstrap in `main.js` calls it once the page exists. The node
+    batteries call these functions themselves -- the fake DOM never fires
+    `DOMContentLoaded` -- so a `start*` that `main.js` forgets passes every
+    battery and does nothing on screen. `startRotorFigureFollowsWidth` was the
+    fifth one; without its call, the figure went back to ignoring the width."""
+    main = _text("main.js")
+    missing = []
+    for module in MODULES:
+        for start in re.findall(
+            r"^export\s+(?:async\s+)?function\s+(start[A-Z]\w*)", _text(module), re.M
+        ):
+            if not re.search(r"^\s*%s\(\);" % start, main, re.M):
+                missing.append(start)
+    assert missing == [], "main.js never calls %s" % missing
+
+
+def _css_without_comments():
+    with io.open(os.path.join(FRONTEND, "style.css"), encoding="utf-8") as handle:
+        return re.sub(r"/\*.*?\*/", "", handle.read(), flags=re.S)
+
+
+def test_the_layout_does_not_reflow_with_the_window():
+    """Below the minimum width the page scrolls; it does not change shape.
+
+    Zooming in *is* a narrower viewport. With rules keyed to the window width,
+    the page rearranged itself exactly when someone asked for a bigger version
+    of it, and between the breakpoints buttons slid over text. Leonardo's
+    decision: keep the proportions and scroll. So no rule may depend on the
+    window's width -- in the CSS (`@media (max-width ...)`) or in the JS
+    (`window.innerWidth`) -- and the page carries a minimum width instead.
+
+    The value is measured, not chosen: the measurement is written up in the
+    project notes for Phase 5, slice 9."""
+    css = _css_without_comments()
+    assert not re.search(r"@media[^{]*\b(?:max|min)-width", css), (
+        "a width breakpoint came back to style.css"
+    )
+    assert re.search(r"--app-min-width:\s*\d+px", css), "--app-min-width is gone"
+    body_rules = re.findall(r"(?:^|\})\s*body\s*\{([^}]*)\}", css)
+    assert any("min-width: var(--app-min-width)" in rule for rule in body_rules), (
+        "the body no longer holds the minimum width"
+    )
+    reading_the_window = [
+        "%s:%d" % (module, number)
+        for module, number, line in code_lines()
+        if "innerWidth" in line
+    ]
+    assert reading_the_window == [], (
+        "code that changes with the window width: %s" % reading_the_window
+    )

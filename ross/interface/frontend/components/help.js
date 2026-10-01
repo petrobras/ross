@@ -421,12 +421,6 @@ export function closeHelpModal() {
     document.getElementById('help-modal-overlay').style.display = 'none';
 }
 
-// Function to intercept the click on the card and trigger contextual help
-export const openAnalysisCardHelp = function(event, type) {
-    event.stopPropagation();
-    openSectionHelp(type);
-};
-
 // Close the modal by clicking outside the white box
 
 document.getElementById('help-modal-overlay').addEventListener('click', function(e) {

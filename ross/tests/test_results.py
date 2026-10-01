@@ -285,6 +285,20 @@ def test_plot_orbit_lateral_mode(rotor1):
     assert_allclose(fig.data[0]["y"], orbit_node_2.y_circle[:-10])
 
 
+def test_plot_orbit_without_nodes_plots_every_node(rotor1):
+    modal = rotor1.run_modal(speed=Q_(4000, "RPM"), num_modes=14)
+    lateral_mode = next(
+        i for i, shape in enumerate(modal.shapes) if shape.mode_type == "Lateral"
+    )
+
+    fig = modal.plot_orbit(lateral_mode)
+
+    assert len(fig.data) == 2 * len(rotor1.nodes)
+    assert len(fig.data) == len(
+        modal.plot_orbit(lateral_mode, nodes=list(rotor1.nodes)).data
+    )
+
+
 def test_plot_orbit_non_lateral_mode(rotor1):
     modal = rotor1.run_modal(speed=Q_(4000, "RPM"), num_modes=14)
     non_lateral_mode = next(
@@ -688,6 +702,7 @@ def test_save_load_amb_time_response(rotor_amb):
     d_v = np.zeros((len(t), n_amb * 2))
     sim = AmbTimeResponse(rotor_amb, t=t, speed=0, disturbance=d_v)
     sim.run()
+    assert np.isfinite(sim.y).all()
 
     results = AmbTimeResponseResults(
         rotor_amb, sim.t, sim.y, [sim.x_disp, sim.y_disp, [], [], []]

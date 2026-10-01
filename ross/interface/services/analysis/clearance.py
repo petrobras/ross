@@ -56,7 +56,7 @@ class ClearanceRunner(Runner):
         return {
             "speed_min": minimum,
             "speed_max": maximum,
-            "steps": self.integer(params, "speed_steps", 101),
+            "steps": self.steps(params, "speed_steps", 101),
             "minimum_allowable_speed": speeds["minimum_allowable_speed"],
             "maximum_continuous_speed": speeds["maximum_continuous_speed"],
             "probes": [
