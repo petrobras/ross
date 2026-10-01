@@ -5,6 +5,7 @@ from copy import copy
 
 from ross.rotor_assembly import Rotor
 from ross.results import ForcedResponseResults
+from ross.shaft_element import ShaftElement
 from ross.units import check_units
 from ross.utils import make_speed_array
 
@@ -121,16 +122,22 @@ class CoAxialRotor(Rotor):
     ):
         self.speed_ratio = speed_ratio
 
+        if all(isinstance(sh, ShaftElement) for sh in shafts):
+            shafts = self._group_shafts(shafts)
+
         # copy shaft elements to avoid altering attributes for elements
         # that might be used in different rotors, e.g. altering shaft_element.n
         shafts = [[copy(sh) for sh in shaft] for shaft in shafts]
 
         # number each shaft right after the previous one
         aux_n = 0
-        for shaft in shafts:
+        for j, shaft in enumerate(shafts):
             for i, sh in enumerate(shaft):
+                sh._shaft_number = j
+
                 if sh.n is None:
                     sh.n = i + aux_n
+
             aux_n = shaft[-1].n_r + 1
 
         self.shafts_nodes = [
@@ -155,7 +162,7 @@ class CoAxialRotor(Rotor):
         self.outer_dofs = self._get_outer_global_dofs(self.shaft_elements)
 
         # Fill the shaft_number column of the rotor dataframes
-        shaft_numbers = {el.tag: self._shaft_number(el.n) for el in self.elements}
+        shaft_numbers = {el.tag: self._get_shaft_number(el.n) for el in self.elements}
 
         for df in (
             self.df,
@@ -180,7 +187,44 @@ class CoAxialRotor(Rotor):
                     sh_at_node.i_d.min() / 2
                 )
 
-    def _shaft_number(self, node):
+    @staticmethod
+    def _group_shafts(shaft_elements):
+        """Group a flat list of shaft elements back into one list per shaft.
+
+        Methods inherited from Rotor rebuild the rotor passing the flat
+        ``shaft_elements`` list. Each element keeps the ``shaft_number`` set
+        when the coaxial rotor was first built from the list of shafts, so
+        the grouping does not depend on node numbers.
+
+        Parameters
+        ----------
+        shaft_elements : list
+            Flat list of shaft elements.
+
+        Returns
+        -------
+        shafts : list of lists
+            Shaft elements grouped by shaft, in the original order.
+
+        Raises
+        ------
+        ValueError
+            If any element does not know which shaft it belongs to.
+        """
+        if any(getattr(sh, "_shaft_number", None) is None for sh in shaft_elements):
+            raise ValueError(
+                "Shaft elements must be given as a list of lists, one list per "
+                "shaft, so each element is assigned to the inner or outer shaft."
+            )
+
+        n_shafts = max(sh._shaft_number for sh in shaft_elements) + 1
+
+        return [
+            [sh for sh in shaft_elements if sh._shaft_number == j]
+            for j in range(n_shafts)
+        ]
+
+    def _get_shaft_number(self, node):
         """Return the index of the shaft the node belongs to.
 
         Nodes outside the shafts (e.g. bearing housings) belong to the shaft

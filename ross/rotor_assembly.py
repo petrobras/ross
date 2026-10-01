@@ -1140,13 +1140,6 @@ class Rotor(object):
         bearing_elements = deepcopy(self.bearing_elements)
         point_mass_elements = deepcopy(self.point_mass_elements)
 
-        elements = [
-            *shaft_elements,
-            *disk_elements,
-            *bearing_elements,
-            *point_mass_elements,
-        ]
-
         target_elements = []
         new_elems_length = []
 
@@ -1184,7 +1177,12 @@ class Rotor(object):
             )
 
             if left_elem.n != prev_left_node:
-                for elm in elements:
+                for elm in [
+                    *shaft_elements,
+                    *disk_elements,
+                    *bearing_elements,
+                    *point_mass_elements,
+                ]:
                     if elm not in elm_linked and elm.n >= right_elem.n:
                         elm.n += 1
                     if elm in brg_shaft_linked and elm.n_link >= right_elem.n:

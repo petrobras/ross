@@ -1224,7 +1224,12 @@ class ShaftElement(Element):
             else:
                 new_attributes[param] = attributes.get(param, getattr(self, param))
 
-        return self.__class__(**new_attributes)
+        shaft_element = self.__class__(**new_attributes)
+
+        if hasattr(self, "_shaft_number"):
+            shaft_element._shaft_number = self._shaft_number
+
+        return shaft_element
 
     @classmethod
     def from_table(cls, file, sheet_type="Simple", sheet_name=0):
