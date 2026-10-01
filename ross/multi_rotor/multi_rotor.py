@@ -102,6 +102,15 @@ class MultiRotor(Rotor):
 
     References
     ----------
+    Kaplan, J.; Dousti, S.; Allaire, P.; Nichols, B.; Dimond, T.; Untaroiu, A.
+    Rotor Dynamic Modeling of Gears and Geared Systems. Proceedings of the ASME
+    Turbo Expo 2013: Turbine Technical Conference and Exposition, Volume 7A:
+    Structures and Dynamics, V07AT29A014, 2013. doi:10.1115/GT2013-94654.
+
+    Visnadi, L. B. Efeito de trinca em engrenagens de dente reto na resposta
+    dinâmica do rotor. 2022. Tese (Doutorado em Engenharia Mecânica) —
+    Universidade Estadual de Campinas, Faculdade de Engenharia Mecânica.
+
     YI, Y.; HUANG, K.; XIONG, Y.; SANG, M. Nonlinear dynamic modelling and
     analysis for a spur gear system with time-varying pressure angle and gear
     backlash. Mechanical Systems and Signal Processing, v. 132, p. 18-34, 2019.
