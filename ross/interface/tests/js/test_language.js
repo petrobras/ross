@@ -105,7 +105,8 @@ const { categoryName, refreshTabTitle } = await import('../../frontend/features/
 
 function tabButton(category, key) {
     const b = node('tab:' + category);
-    b.setAttribute('onclick', `openTab('${category}')`);
+    b.setAttribute('onclick', `pickTab('${category}')`);
+    b.dataset.tab = category;
     b.dataset.i18n = key;
     return b;
 }

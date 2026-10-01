@@ -7,10 +7,41 @@ from types import SimpleNamespace
 from ross import SensitivityResults, MagneticBearingElement, AmbNonCollocationResults
 from ross.bearings.magnetic.amb_models import (
     rotor_example_amb_simple,
+    rotor_example_amb_complex_controllers,
     rotor_example_amb_general_controllers,
 )
+from ross.bearings.magnetic.amb_time_response import AmbTimeResponse
 from ross.probe import Probe
 from ross.units import Q_
+
+
+@pytest.mark.parametrize(
+    "rotor_example",
+    [rotor_example_amb_complex_controllers, rotor_example_amb_general_controllers],
+)
+def test_run_time_response_amb_controllers_is_finite(rotor_example):
+    rotor = rotor_example()
+    t = np.linspace(0, 0.1, 101)
+    F = np.zeros((len(t), rotor.ndof))
+
+    response = rotor.run_time_response(speed=0, F=F, t=t, weight=True)
+
+    assert np.isfinite(response.yout).all()
+    assert np.abs(response.yout).max() > 0
+
+
+def test_amb_time_response_initial_condition_is_unscaled():
+    rotor = rotor_example_amb_complex_controllers()
+    t = np.linspace(0, 0.01, 11)
+    x_0 = 1e-5
+    sim = AmbTimeResponse(
+        rotor, t=t, speed=0, disturbance=np.zeros((len(t), 4)), x_0=x_0, weight=False
+    )
+    sim.run()
+
+    assert np.isfinite(sim.y).all()
+    assert_allclose(sim.y[0, 1 : rotor.ndof : 6], x_0, rtol=1e-6)
+    assert np.all(sim.state_scaling > 0)
 
 
 def test_run_time_response_amb_values():

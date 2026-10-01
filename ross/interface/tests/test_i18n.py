@@ -353,7 +353,8 @@ def test_the_language_selector_is_on_every_screen():
     """Changing the language only on the Hub would force leaving the screen to change it."""
     html = _index()
     assert html.count('class="ui-language"') == 3
-    assert html.count('onchange="changeLanguage(this.value)"') == 3
+    # Through the action table since phase 5, slice 12 (core/actions.js).
+    assert html.count('data-action="change-language"') == 3
     for language in LANGUAGES:
         assert 'value="%s"' % language in html
 

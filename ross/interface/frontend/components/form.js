@@ -15,7 +15,7 @@ function unitSelectHTML(field) {
         '<option value="' + escapeHtml(unit) + '"' +
         (unit === field.unit ? ' selected' : '') + '>' + escapeHtml(unit) + '</option>').join('');
     return '<select id="inp-' + field.name + '_unit" class="unit-select" data-prev="' +
-        escapeHtml(field.unit) + '" onchange="handleUnitChange(this)">' +
+        escapeHtml(field.unit) + '" data-action="change-unit">' +
         optionsHtml + '<option value="Others">' + escapeHtml(t('others')) + '</option></select>';
 }
 
@@ -76,7 +76,7 @@ export function buildFormHTML(category, subtype) {
 
     let html = mainOnes.join('');
     if (advancedOnes.length) {
-        html += '<button type="button" class="btn-advanced" onclick="toggleAdvanced(this)">' +
+        html += '<button type="button" class="btn-advanced" data-action="toggle-advanced">' +
             t('advanced') + ' <i class="fas fa-chevron-down"></i></button>' +
             '<div class="advanced-fields" style="display: none;">' + advancedOnes.join('') + '</div>';
     }

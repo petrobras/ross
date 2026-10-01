@@ -1,0 +1,15 @@
+{
+ "about": "The name a material is given for ROSS, which refuses spaces. Read by tests/test_material_names.py (domain/material_names.py) and tests/js/test_material_names.js (frontend/core/material_names.js): the two sides are held to the same cases.",
+ "cases": [
+  ["Steel", "Steel"],
+  ["Stainless Steel", "Stainless_Steel"],
+  ["A\u00e7o Inox 304", "A\u00e7o_Inox_304"],
+  ["  padded  ", "padded"],
+  ["two  spaces", "two_spaces"],
+  ["tab\tand\nnewline", "tab_and_newline"],
+  ["non\u00a0breaking", "non_breaking"],
+  ["already_fine", "already_fine"],
+  ["O'Brien <alloy>", "O'Brien_<alloy>"],
+  ["", ""]
+ ]
+}

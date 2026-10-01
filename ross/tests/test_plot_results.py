@@ -374,6 +374,24 @@ def test_time_response_plot_1d(time_response, probe_node3):
     assert_allclose(fig.data[0].y[:5], expected_y_slice)
 
 
+@pytest.mark.parametrize("displacement_units", ["mm", "um"])
+def test_time_response_plot_1d_displacement_units(
+    time_response, probe_node3, displacement_units
+):
+    probe = [probe_node3]
+    fig_m = time_response.plot_1d(probe=probe)
+    fig = time_response.plot_1d(probe=probe, displacement_units=displacement_units)
+
+    df = time_response.data_time_response(
+        probe=probe, displacement_units=displacement_units
+    )
+    assert_allclose(fig.data[0].y, df["probe_resp[0]"].values)
+    assert_allclose(
+        fig.data[0].y,
+        Q_(np.asarray(fig_m.data[0].y), "m").to(displacement_units).m,
+    )
+
+
 def test_time_response_plot_2d(time_response):
     node = 3
     fig = time_response.plot_2d(node=node)
@@ -394,6 +412,20 @@ def test_time_response_plot_dfft(time_response, probe_node3):
         [3.67360008e-06, 1.78864925e-05, 1.43350914e-05, 4.07024586e-06, 1.39274833e-06]
     )
     assert_allclose(fig.data[0].y[:5], expected_y, rtol=1e-4)
+
+
+@pytest.mark.parametrize("displacement_units", ["mm", "um"])
+def test_time_response_plot_dfft_displacement_units(
+    time_response, probe_node3, displacement_units
+):
+    probe = [probe_node3]
+    fig_m = time_response.plot_dfft(probe=probe)
+    fig = time_response.plot_dfft(probe=probe, displacement_units=displacement_units)
+
+    assert_allclose(
+        fig.data[0].y,
+        Q_(np.asarray(fig_m.data[0].y), "m").to(displacement_units).m,
+    )
 
 
 def test_modal_plot_mode_2d(modal_response):

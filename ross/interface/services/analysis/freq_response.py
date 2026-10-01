@@ -24,13 +24,14 @@ class FreqResponseRunner(Runner):
         return {
             "speed_min": minimum,
             "speed_max": maximum,
+            "steps": self.steps(params, "speed_steps", 50),
             "free_free": self.flag(params, "free_free"),
             "modes": self.literal(params, "modes"),
             "speed": self.optional_quantity(params, "speed", "rad/s"),
         }
 
     def compute(self, rotor, spec):
-        speeds = np.linspace(spec["speed_min"], spec["speed_max"], 50)
+        speeds = np.linspace(spec["speed_min"], spec["speed_max"], spec["steps"])
         kwargs = {"free_free": spec["free_free"]}
         if spec["modes"]:
             kwargs["modes"] = spec["modes"]

@@ -143,7 +143,8 @@ def test_the_theme_button_is_on_every_screen():
     html = _index()
     screens = html.count('class="screen')
     assert html.count('class="btn-theme"') == screens
-    assert html.count('onclick="toggleTheme()"') == screens
+    # Through the action table since phase 5, slice 12 (core/actions.js).
+    assert html.count('data-action="toggle-theme"') == screens
 
 
 # --- every colour is a token -----------------------------------------------------

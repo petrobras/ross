@@ -414,6 +414,82 @@ def test_mode_shape_and_default_now_share_a_cache_entry():
     assert default_spec == mode_shape
 
 
+# --- how many points a speed sweep has ---------------------------------------
+#
+# `freq_response` and `unbalance` swept `np.linspace(min, max, 50)` with the 50
+# written into the runner: the form did not offer the number and no value the
+# user typed could change it, while `campbell` and `clearance` had asked for it
+# since the port. A user reported it.
+
+SWEEPS = ["campbell", "clearance", "freq_response", "unbalance"]
+
+
+@pytest.mark.parametrize("name", SWEEPS)
+def test_a_sweep_takes_the_number_of_steps_the_form_asks_for(name):
+    spec = REGISTRY[name].spec(dict(PARAMS[name], speed_steps="137"), ROTOR_REQUEST)
+    assert spec["steps"] == 137
+
+
+@pytest.mark.parametrize("name", SWEEPS)
+@pytest.mark.parametrize("typed", ["1", "0", "-3"])
+def test_a_sweep_of_fewer_than_two_points_is_refused_by_name(name, typed):
+    """`np.linspace(min, max, 1)` gives back the minimum and drops the maximum
+    without a word; 0 gives an empty plot. ROSS raises on neither (measured),
+    so the refusal is ours -- and it names the field."""
+    with pytest.raises(ValueError) as error:
+        REGISTRY[name].spec(dict(PARAMS[name], speed_steps=typed), ROTOR_REQUEST)
+    assert "speed_steps" in str(error.value)
+
+
+@pytest.mark.parametrize("name", SWEEPS)
+def test_every_analysis_that_sweeps_a_speed_offers_the_number_of_steps(name):
+    """The other half of the defect: the runner reading a field the form never
+    shows leaves the user with the default and no way out."""
+    assert any(field["id"] == "speed_steps" for field in ANALYSES[name]), (
+        "%s sweeps a speed range and its form does not offer speed_steps" % name
+    )
+
+
+def test_no_runner_writes_the_length_of_a_sweep_into_its_own_source():
+    """The ratchet for the defect itself, read off the source.
+
+    A literal third argument to the `linspace` of a speed range is a resolution
+    the screen cannot reach. Time grids are not swept here: their field
+    (`t_steps`, `steps`) is already on the form of every analysis that has one."""
+    folder = os.path.join(ROOT, "services", "analysis")
+    written = []
+    for file_name in sorted(os.listdir(folder)):
+        if not file_name.endswith(".py"):
+            continue
+        with io.open(os.path.join(folder, file_name), encoding="utf-8") as handle:
+            for number, line in enumerate(handle, 1):
+                if re.search(
+                    r"linspace\(\s*spec\[[^]]*speed[^]]*\][^)]*,\s*\d+\s*\)", line
+                ):
+                    written.append("%s:%d" % (file_name, number))
+    assert written == [], "a sweep length written into the code: %s" % written
+
+
+@pytest.mark.parametrize("name", ["freq_response", "unbalance"])
+def test_the_sweep_that_reaches_ross_has_that_many_points(name):
+    """The spec carrying the number is half of it; `compute` has to use it."""
+    seen = {}
+
+    class Rotor:
+        def run_freq_response(self, speeds, **kwargs):
+            seen["points"] = len(speeds)
+            return object()
+
+        def run_unbalance_response(self, speed_range=None, **kwargs):
+            seen["points"] = len(speed_range)
+            return object()
+
+    runner = REGISTRY[name]
+    spec = runner.spec(dict(PARAMS[name], speed_steps="7"), ROTOR_REQUEST)
+    runner.compute(Rotor(), spec)
+    assert seen["points"] == 7
+
+
 # --- reading the parameters --------------------------------------------------
 
 
@@ -426,6 +502,8 @@ def test_mode_shape_and_default_now_share_a_cache_entry():
         ("ucs", "num_modes", ("num_modes", 4)),
         ("harmonic_balance", "n_harmonics", ("n_harmonics", 1)),
         ("clearance", "speed_steps", ("steps", 101)),
+        ("freq_response", "speed_steps", ("steps", 50)),
+        ("unbalance", "speed_steps", ("steps", 50)),
         ("clearance", "num_modes", ("num_modes", 12)),
         ("clearance", "mode", ("mode", 0)),
     ],
@@ -945,3 +1023,143 @@ def test_the_two_whirl_choices_are_refused_together_by_name():
             dict(PARAMS["modes"], frequency="50", matched_whirl="True"), ROTOR_REQUEST
         )
     assert str(error.value) == ONE_WHIRL_CHOICE
+
+
+# --- the orbit of a mode ------------------------------------------------------
+#
+# The field `Nodes [list]` is declared optional in the catalogue and is, in
+# practice, required: ROSS answers an empty one with a chart that has no curve
+# in it (tests/test_ross_premises.py pins that behaviour). These say what the
+# runner does about it.
+
+
+def _a_mode_with_an_orbit(result):
+    """A mode ROSS can draw an orbit for, by index.
+
+    **Not mode 0.** The lowest mode of this rotor sits at `wd` around 1e-4 --
+    the rigid-body modes, which at that frequency are degenerate: the lateral,
+    the torsional and the axial one are the same eigenvalue, and which
+    representative the solver returns in that slot is decided by the last bits
+    of the arithmetic. Measured: the same rotor, the same ROSS, gives a Lateral
+    mode 0 on Windows and on this Linux, a Torsional one on the CI's macOS and
+    an Axial one on the CI's Ubuntu. ROSS answers a non-lateral mode with a
+    figure carrying an annotation and no curve, so a test pinned to index 0 was
+    measuring the machine rather than the runner.
+
+    (The same degeneracy is written up from the other end in the project notes:
+    a mode shape is not reproducible between processes, and that is expected.)
+    """
+    for index, shape in enumerate(result.shapes):
+        if shape.orbits is not None:
+            return index
+    pytest.skip("no lateral mode on this machine: nothing to draw an orbit for")
+
+
+@needs_ross
+def test_an_orbit_with_the_field_left_empty_draws_every_node():
+    """The case a person actually meets: open Modal, pick Orbit, press Update.
+
+    Two traces per node is what ROSS draws, so the count is the check that
+    something was really drawn rather than that the call did not raise."""
+    rotor = _test_rotor()
+    runner = REGISTRY["modes"]
+    result = runner.compute(rotor, runner.spec(dict(_lean_params("modes")), rotor))
+    params = dict(
+        _lean_params("modes"),
+        plot_type="Orbit",
+        nodes="",
+        plot_idx=str(_a_mode_with_an_orbit(result)),
+    )
+
+    figure = runner.plot(result, dict(params), rotor)
+
+    assert len(figure.data) == 2 * len(rotor.nodes)
+
+
+@needs_ross
+def test_a_mode_with_no_orbit_says_so_instead_of_drawing_nothing():
+    """The other half of the mode above, and the reason it has to be chosen.
+
+    A torsional or an axial mode has no orbit, and ROSS does not answer that
+    with an error: it answers with an empty figure carrying an annotation. That
+    annotation is what the person reads on the screen, so it has to be there --
+    it is the difference between "this mode has no orbit" and a chart that
+    failed."""
+    rotor = _test_rotor()
+    runner = REGISTRY["modes"]
+    result = runner.compute(rotor, runner.spec(dict(_lean_params("modes")), rotor))
+
+    without = [i for i, shape in enumerate(result.shapes) if shape.orbits is None]
+    if not without:
+        pytest.skip("every mode of this rotor came back lateral on this machine")
+
+    params = dict(
+        _lean_params("modes"), plot_type="Orbit", nodes="", plot_idx=str(without[0])
+    )
+    figure = runner.plot(result, params, rotor)
+
+    assert len(figure.data) == 0
+    assert any("no orbit" in note.text for note in figure.layout.annotations)
+
+
+@needs_ross
+def test_an_orbit_still_draws_only_the_nodes_it_is_given():
+    """Control on the one above: filling the field has to change the answer, or
+    "every node" would be indistinguishable from "the field is ignored"."""
+    rotor = _test_rotor()
+    runner = REGISTRY["modes"]
+    result = runner.compute(rotor, runner.spec(dict(_lean_params("modes")), rotor))
+    mode = str(_a_mode_with_an_orbit(result))
+
+    one = dict(_lean_params("modes"), plot_type="Orbit", nodes="[1]", plot_idx=mode)
+    assert len(runner.plot(result, one, rotor).data) == 2
+
+    # A bare number is a node too: `literal_eval('1')` is an int, and ROSS would
+    # have wrapped it, so the runner has to wrap it the same way.
+    bare = dict(_lean_params("modes"), plot_type="Orbit", nodes="1", plot_idx=mode)
+    assert len(runner.plot(result, bare, rotor).data) == 2
+
+
+@needs_ross
+def test_an_orbit_on_a_node_the_rotor_does_not_have_is_refused_by_name():
+    """ROSS draws an empty chart for this, which reads as "no orbit here"."""
+    rotor = _test_rotor()
+    runner = REGISTRY["modes"]
+    result = runner.compute(rotor, runner.spec(dict(_lean_params("modes")), rotor))
+    params = dict(_lean_params("modes"), plot_type="Orbit", nodes="[99]")
+
+    with pytest.raises(ValueError) as raised:
+        runner.plot(result, params, rotor)
+
+    assert "99" in str(raised.value)
+    # And it says which nodes there are, because the next thing the person does
+    # is type another number.
+    assert "0, 1, 2, 3" in str(raised.value)
+
+
+@needs_ross
+@pytest.mark.parametrize("junk", ["abc", "[1,", "3 4"])
+def test_an_orbit_with_junk_in_the_field_is_refused_rather_than_read_as_empty(junk):
+    """The trap inside the fix. `literal` answers None for an empty field *and*
+    for text it cannot read -- so a typo would quietly become "every node", and
+    the person would get a chart that is not the one they asked for."""
+    rotor = _test_rotor()
+    runner = REGISTRY["modes"]
+    result = runner.compute(rotor, runner.spec(dict(_lean_params("modes")), rotor))
+    params = dict(_lean_params("modes"), plot_type="Orbit", nodes=junk)
+
+    with pytest.raises(ValueError) as raised:
+        runner.plot(result, params, rotor)
+    assert junk in str(raised.value)
+
+
+@needs_ross
+def test_the_other_plot_types_do_not_read_the_nodes_field():
+    """Control on the blast radius: 2D and 3D share the runner and must not
+    start refusing because of a field that is not theirs."""
+    rotor = _test_rotor()
+    runner = REGISTRY["modes"]
+    result = runner.compute(rotor, runner.spec(dict(_lean_params("modes")), rotor))
+    for kind in ("2D", "3D"):
+        params = dict(_lean_params("modes"), plot_type=kind, nodes="[99]")
+        assert runner.plot(result, params, rotor).to_json()

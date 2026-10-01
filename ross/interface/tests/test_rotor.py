@@ -1,5 +1,6 @@
 import io
 import os
+import re
 import sys
 
 import pytest
@@ -257,13 +258,55 @@ def test_the_backend_no_longer_dresses_the_figure(key):
     assert 'layout["%s"]' % key not in js
 
 
-def test_the_screen_dresses_the_figure_instead():
+# What the screen still dresses, and what it stopped dressing.
+#
+# BE-12 (Phase 3) moved margin, size and legend off the server and onto the
+# screen, and this test used to require all three to be in `ROTOR_APPEARANCE`.
+# **That half of BE-12 is reversed here**, and the reason is not a change of
+# taste: ROSS 3's `plot_rotor` began computing height, margin and legend
+# position as one interdependent set -- the height from a nominal width and the
+# `scaleanchor` lock, the bottom margin as fixed bands so the axes indicator
+# does not resize the figure, the legend on a line below the title so a narrow
+# container wraps it downward. Measured, it asks for `height: 332`,
+# `margin {l:70, r:25, t:100, b:102}`, `legend.y = 1.4615`; the screen was
+# overriding them with 80, 80 and 1.05, values that knew nothing about each
+# other.
+#
+# The other half of BE-12 stands and is still guarded above: `api/rotor.py`
+# does not dress the figure. What changed is who the screen defers to.
+SCREENS_BUSINESS = ("paper_bgcolor", "plot_bgcolor")
+
+ROSSES_BUSINESS = ("height", "margin", "legend")
+
+
+def _appearance_block():
+    """The object literal of `ROTOR_APPEARANCE`, and nothing after it.
+
+    It used to be cut at `const ROTOR_MENU`, the next declaration. That override
+    is gone -- it was a fourth piece of ROSS's geometry, moving the toggle
+    buttons onto the axis labels once ROSS's own height came back -- so the
+    block is found by its own braces instead of by a neighbour that may leave."""
     js = source()
-    assert "ROTOR_APPEARANCE" in js
-    for key in ("margin", "paper_bgcolor", "autosize", "legend"):
-        assert (
-            key in js[js.index("const ROTOR_APPEARANCE") : js.index("const ROTOR_MENU")]
-        )
+    found = re.search(r"const ROTOR_APPEARANCE = \{(.*?)\};", js, re.S)
+    assert found, "ROTOR_APPEARANCE is gone from features/modeling.js, or changed shape"
+    return found.group(1)
+
+
+@pytest.mark.parametrize("key", SCREENS_BUSINESS)
+def test_the_screen_still_dresses_the_theme(key):
+    """ROSS sets neither colour (measured: both come back None), so a figure
+    transparent over a themed panel is the screen's to ask for."""
+    assert key in _appearance_block()
+
+
+@pytest.mark.parametrize("key", ROSSES_BUSINESS)
+def test_the_screen_no_longer_overrides_the_geometry(key):
+    """Taking one of a set of three and leaving the other two is how a figure
+    ends up with its buttons clipped."""
+    assert key not in _appearance_block(), (
+        "`%s` is back in ROTOR_APPEARANCE: ROSS computes it together with the "
+        "other two, so overriding one of them alone breaks the set" % key
+    )
 
 
 def test_the_geometry_fix_stays_with_the_rotor():

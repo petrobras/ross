@@ -100,8 +100,10 @@ console.log('\nCard read from a file');
 const fs = await import('fs');
 const source = fs.readFileSync(
     new URL('../../frontend/features/analysis.js', import.meta.url), 'utf8');
-const line = source.split('\n').find(l => l.includes("t('loadedSuffix')")
-                                            && l.includes('analysis-title'));
+// Since slice 14 the three paths share one card template (`cardHTML`); what
+// each one still writes itself is the title it hands over, and that is the
+// line that has to carry the badge.
+const line = source.split('\n').find(l => l.includes("t('loadedSuffix')"));
 check('the file header stamps the badge too',
           !!line && line.includes('conversionBadge(an.conversion)'));
 

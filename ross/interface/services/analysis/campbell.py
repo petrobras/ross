@@ -67,7 +67,7 @@ class CampbellRunner(Runner):
         return {
             "speed_min": minimum,
             "speed_max": maximum,
-            "steps": self.integer(params, "speed_steps", 50),
+            "steps": self.steps(params, "speed_steps", 50),
             "frequencies": self.integer(params, "frequencies", 6),
             "frequency_type": params.get("frequency_type", "wd"),
             "torsional_analysis": self.flag(params, "torsional_analysis"),
