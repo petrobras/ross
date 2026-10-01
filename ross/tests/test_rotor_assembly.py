@@ -13,6 +13,7 @@ from ross import SensitivityResults
 from ross.bearing_seal_element import *
 from ross.disk_element import *
 from ross.materials import Material, steel
+from ross.coupling_element import CouplingElement
 from ross.point_mass import *
 from ross.probe import Probe
 from ross.rotor_assembly import *
@@ -3325,3 +3326,106 @@ def test_forced_response_fixed_speed(rotor_2d_seal):
         assert_allclose(
             response.forced_resp[:, i], freq_resp.freq_resp[..., i] @ force[:, i]
         )
+
+
+@pytest.fixture
+def rotor_tapered_housing():
+    shaft_elements = [
+        ShaftElement(
+            L=0.25,
+            idl=0,
+            odl=0.1,
+            idr=0,
+            odr=0.2,
+            material=steel,
+            alpha=1e-4,
+            beta=1e-5,
+        )
+    ] + [ShaftElement(L=0.25, idl=0, odl=0.2, material=steel) for _ in range(3)]
+    bearing_elements = [
+        BearingElement(n=0, n_link=5, kxx=1e6, cxx=1e3),
+        BearingElement(n=4, kxx=1e6, cxx=1e3),
+        BearingElement(n=5, kxx=1e7, cxx=1e3),
+    ]
+    point_mass_elements = [PointMass(n=5, m=5.0)]
+    return Rotor(
+        shaft_elements,
+        bearing_elements=bearing_elements,
+        point_mass_elements=point_mass_elements,
+    )
+
+
+def test_refine():
+    rotor = rotor_example()
+    refined = rotor.refine([1, 2, 3, 1, 2, 1])
+
+    assert len(refined.shaft_elements) == 10
+    assert [disk.n for disk in refined.disk_elements] == [3, 7]
+    assert [brg.n for brg in refined.bearing_elements] == [0, 10]
+    assert_allclose(refined.nodes_pos[7], rotor.nodes_pos[4])
+    assert_allclose(refined.m, rotor.m)
+    assert_allclose(refined.run_modal(0).wn[:4], rotor.run_modal(0).wn[:4], rtol=1e-4)
+    assert len(rotor.shaft_elements) == 6
+
+
+def test_refine_tapered_and_housing(rotor_tapered_housing):
+    rotor = rotor_tapered_housing
+    refined = rotor.refine(4)
+
+    assert_allclose(refined.m, rotor.m)
+    tapered = refined.shaft_elements[:4]
+    assert_allclose([elm.odl for elm in tapered], [0.1, 0.125, 0.15, 0.175])
+    assert_allclose([elm.odr for elm in tapered], [0.125, 0.15, 0.175, 0.2])
+    assert all(elm.alpha == 1e-4 and elm.beta == 1e-5 for elm in tapered)
+    assert [(brg.n, brg.n_link) for brg in refined.bearing_elements] == [
+        (0, 17),
+        (16, None),
+        (17, None),
+    ]
+    assert [mass.n for mass in refined.point_mass_elements] == [17]
+    assert_allclose(refined.run_modal(0).wn[:4], rotor.run_modal(0).wn[:4], rtol=1e-2)
+
+
+def test_refine_keeps_couplings():
+    coupling = CouplingElement(m_l=10, m_r=10, Ip_l=0.1, Ip_r=0.1, kt_x=1e6, kr_x=1e6)
+    shaft_elements = [
+        ShaftElement(L=0.25, idl=0, odl=0.05, material=steel),
+        coupling,
+        ShaftElement(L=0.25, idl=0, odl=0.05, material=steel),
+    ]
+    bearing_elements = [
+        BearingElement(n=0, kxx=1e6, cxx=1e3),
+        BearingElement(n=3, kxx=1e6, cxx=1e3),
+    ]
+    rotor = Rotor(shaft_elements, bearing_elements=bearing_elements)
+    refined = rotor.refine(3)
+
+    assert len(refined.shaft_elements) == 7
+    assert [type(elm).__name__ for elm in refined.shaft_elements].count(
+        "CouplingElement"
+    ) == 1
+    assert_allclose(refined.m, rotor.m)
+
+
+def test_refine_errors():
+    rotor = rotor_example()
+    with pytest.raises(ValueError, match="one value for each"):
+        rotor.refine([2, 2])
+    with pytest.raises(ValueError, match="greater than zero"):
+        rotor.refine(0)
+    with pytest.raises(ValueError, match="greater than zero"):
+        rotor.refine(1.5)
+
+
+def test_convergence_tapered_and_housing(rotor_tapered_housing):
+    rotor = rotor_tapered_housing
+    mass = rotor.m
+    rotor.convergence(n_eigval=0, err_max=1e-4)
+
+    assert_allclose(rotor.m, mass)
+    assert rotor.bearing_elements[0].n_link == rotor.point_mass_elements[0].n
+
+
+def test_refine_not_available_for_rotor_subclasses():
+    with pytest.raises(NotImplementedError, match="CoAxialRotor"):
+        coaxrotor_example().refine(2)

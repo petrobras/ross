@@ -44,6 +44,7 @@ modal.plot_mode_2d(0)
 | `run_harmonic_balance_response(...)` | Harmonic balance steady-state | `HarmonicBalanceResults` | `plot()` | — |
 | `run_amb_sensitivity(...)` | AMB sensitivity analysis | `SensitivityResults` | `plot()`, `plot_time_results()` | — |
 | `run_clearance_analysis(speed_range, Nma, Nmc, probes, ...)` | API 617 close-clearance check | `ClearanceResults` | `plot()`, `plot_response()`, `plot_probe_response()` | [clearance_analysis](ross/agent_skills/ross/clearance_analysis.md) |
+| `run_mesh_convergence(rtol, frequencies, strategy)` | Shaft discretization with converged natural frequencies | `MeshConvergenceResults` | `plot()` | [mesh_convergence](ross/agent_skills/ross/mesh_convergence.md) |
 
 ### Units
 

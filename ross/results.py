@@ -43,6 +43,7 @@ __all__ = [
     "StaticResults",
     "SummaryResults",
     "ConvergenceResults",
+    "MeshConvergenceResults",
     "TimeResponseResults",
     "AmbTimeResponseResults",
     "UCSResults",
@@ -5663,6 +5664,122 @@ class ConvergenceResults(Results):
         fig.update_xaxes(title_text="Number of Elements", row=1, col=2)
         fig.update_yaxes(title_text="Relative Error (%)", row=1, col=2)
 
+        fig.update_layout(**kwargs)
+
+        return fig
+
+
+class MeshConvergenceResults(Results):
+    """Store and plot the results of a mesh convergence analysis.
+
+    Parameters
+    ----------
+    rotor : ross.Rotor
+        Rotor with the chosen shaft discretization.
+    subdivisions : array
+        Number of elements each shaft interval of the original rotor is split
+        into: ``original_rotor.refine(subdivisions)`` rebuilds ``rotor``.
+    wn : array
+        Lowest natural frequencies of ``rotor`` (rad/s).
+    wn_reference : array
+        Natural frequencies of the converged reference discretization (rad/s).
+    rtol : float
+        Relative tolerance of the natural frequencies.
+    elements : array
+        Number of shaft elements of each discretization evaluated.
+    errors : array
+        Maximum relative error of the natural frequencies of each
+        discretization evaluated.
+    families : list
+        Family ("uniform" or "graded") of each discretization evaluated.
+    reference_elements : int
+        Number of shaft elements of the reference discretization.
+
+    Attributes
+    ----------
+    error : array
+        Relative error of each natural frequency of ``rotor``.
+    """
+
+    def __init__(
+        self,
+        rotor,
+        subdivisions,
+        wn,
+        wn_reference,
+        rtol,
+        elements,
+        errors,
+        families,
+        reference_elements,
+    ):
+        self.rotor = rotor
+        self.subdivisions = np.asarray(subdivisions, dtype=int)
+        self.wn = np.asarray(wn, dtype=float)
+        self.wn_reference = np.asarray(wn_reference, dtype=float)
+        self.rtol = rtol
+        self.elements = np.asarray(elements, dtype=int)
+        self.errors = np.asarray(errors, dtype=float)
+        self.families = [str(family) for family in families]
+        self.reference_elements = int(reference_elements)
+        self.error = np.abs(self.wn / self.wn_reference - 1)
+
+    def plot(self, fig=None, **kwargs):
+        """Plot the maximum frequency error against the number of shaft elements.
+
+        Parameters
+        ----------
+        fig : Plotly graph_objects.Figure, optional
+            The figure object with the plot.
+        kwargs : optional
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+
+        Returns
+        -------
+        fig : Plotly graph_objects.Figure
+            The figure object with the plot.
+        """
+        if fig is None:
+            fig = go.Figure()
+
+        hovertemplate = "Shaft elements: %{x}<br>Maximum error: %{y:.3g} %"
+        families = np.array(self.families)
+        for family in ("uniform", "graded"):
+            mask = (families == family) & (self.errors > 0) & np.isfinite(self.errors)
+            order = np.argsort(self.elements[mask])
+            if order.size:
+                fig.add_trace(
+                    go.Scatter(
+                        x=self.elements[mask][order],
+                        y=100 * self.errors[mask][order],
+                        mode="markers",
+                        name=family.capitalize(),
+                        hovertemplate=hovertemplate,
+                    )
+                )
+
+        if self.error.max() > 0:
+            fig.add_trace(
+                go.Scatter(
+                    x=[len(self.rotor.shaft_elements)],
+                    y=[100 * self.error.max()],
+                    mode="markers",
+                    marker=dict(symbol="star", size=14),
+                    name="Chosen",
+                    hovertemplate=hovertemplate,
+                )
+            )
+
+        fig.add_hline(
+            y=100 * self.rtol,
+            line_dash="dash",
+            annotation_text="Tolerance",
+            annotation_position="bottom right",
+        )
+        fig.update_xaxes(title_text="Number of shaft elements")
+        fig.update_yaxes(title_text="Maximum frequency error (%)", type="log")
         fig.update_layout(**kwargs)
 
         return fig
