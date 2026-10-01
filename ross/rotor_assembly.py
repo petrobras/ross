@@ -1185,9 +1185,9 @@ class Rotor(object):
 
             if left_elem.n != prev_left_node:
                 for elm in elements:
-                    if elm.n >= right_elem.n and elm not in elm_linked:
+                    if elm not in elm_linked and elm.n >= right_elem.n:
                         elm.n += 1
-                    if elm.n_link >= right_elem.n and elm in brg_shaft_linked:
+                    if elm in brg_shaft_linked and elm.n_link >= right_elem.n:
                         elm.n_link += 1
 
             for j in range(i + 1, len(target_elements)):
