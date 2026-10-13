@@ -1,7 +1,7 @@
 import inspect
 import warnings
 from collections.abc import Iterable
-from copy import copy, deepcopy
+from copy import deepcopy as copy
 from itertools import chain, cycle
 from pathlib import Path
 
@@ -790,7 +790,7 @@ class Rotor(object):
             return last_node + node_index + offset + 1
 
         for i, rotor in enumerate(rotor_list):
-            rotor = deepcopy(rotor)
+            rotor = copy(rotor)
 
             for el in rotor.elements:
                 if el.n in rotor.nodes:
@@ -923,13 +923,13 @@ class Rotor(object):
         new_bearings = []
         for brg in bearing_elements:
             if brg.n not in self.link_nodes:
-                brg = deepcopy(brg)
+                brg = copy(brg)
                 brg.n_link = brg.n_link if brg.n_link in self.nodes else None
                 new_bearings.append(brg)
 
         if point_mass_elements is not None:
             new_point_masses = [
-                deepcopy(p) for p in point_mass_elements if p.n not in self.link_nodes
+                copy(p) for p in point_mass_elements if p.n not in self.link_nodes
             ]
 
             return new_bearings, new_point_masses
@@ -1097,9 +1097,13 @@ class Rotor(object):
             "point_mass_elements",
             "shafts",
         }
+
         sig = inspect.signature(self.__class__.__init__)
+
         return {
-            name: getattr(self, name) for name in sig.parameters if name not in skip
+            name: copy(getattr(self, name))
+            for name in sig.parameters
+            if name not in skip
         }
 
     def _new_rotor(
@@ -1162,10 +1166,10 @@ class Rotor(object):
         """
         new_nodes_pos.sort()
 
-        shaft_elements = deepcopy(self.shaft_elements)
-        disk_elements = deepcopy(self.disk_elements)
-        bearing_elements = deepcopy(self.bearing_elements)
-        point_mass_elements = deepcopy(self.point_mass_elements)
+        shaft_elements = copy(self.shaft_elements)
+        disk_elements = copy(self.disk_elements)
+        bearing_elements = copy(self.bearing_elements)
+        point_mass_elements = copy(self.point_mass_elements)
 
         elements = [
             *shaft_elements,
@@ -1274,10 +1278,10 @@ class Rotor(object):
         12
         """
 
-        shaft_elements = deepcopy(self.shaft_elements)
-        disk_elements = deepcopy(self.disk_elements)
-        bearing_elements = deepcopy(self.bearing_elements)
-        point_mass_elements = deepcopy(self.point_mass_elements)
+        shaft_elements = copy(self.shaft_elements)
+        disk_elements = copy(self.disk_elements)
+        bearing_elements = copy(self.bearing_elements)
+        point_mass_elements = copy(self.point_mass_elements)
 
         for el in new_elements:
             if isinstance(el, ShaftElement):
@@ -1770,19 +1774,19 @@ class Rotor(object):
                     )
 
             for elm in self.disk_elements:
-                aux_elm = deepcopy(elm)
+                aux_elm = copy(elm)
                 aux_elm.n = nel_r * elm.n
                 disk_elem.append(aux_elm)
 
             for elm in self.bearing_elements:
-                aux_elm = deepcopy(elm)
+                aux_elm = copy(elm)
                 aux_elm.n = nel_r * elm.n
                 if aux_elm.n_link is not None:
                     aux_elm.n_link = nel_r * elm.n_link
                 brgs_elem.append(aux_elm)
 
             for elm in self.point_mass_elements:
-                aux_elm = deepcopy(elm)
+                aux_elm = copy(elm)
                 aux_elm.n = nel_r * elm.n
                 pmass_elem.append(aux_elm)
 
@@ -3534,7 +3538,7 @@ class Rotor(object):
         magnetic_bearings = get_ambs(self)
 
         if len(magnetic_bearings):
-            rotor = deepcopy(self)
+            rotor = copy(self)
 
             amb_data = {
                 key: np.zeros((len(t), len(magnetic_bearings) * 2))
@@ -4582,7 +4586,7 @@ class Rotor(object):
         rotor_wn = np.zeros((num_modes // 2 // 2, len(stiffness_log)))
 
         # ensure that no proportional damping is considered
-        shaft_elements = deepcopy(self.shaft_elements)
+        shaft_elements = copy(self.shaft_elements)
         for sh in shaft_elements:
             sh.alpha = sh.beta = 0
 
@@ -5924,14 +5928,14 @@ class Rotor(object):
             regions.extend([shaft_elements])
 
             for DiskEl in disk_data:
-                aux_DiskEl = deepcopy(DiskEl)
+                aux_DiskEl = copy(DiskEl)
                 aux_DiskEl.n = nel_r * DiskEl.n
                 aux_DiskEl.n_l = nel_r * DiskEl.n_l
                 aux_DiskEl.n_r = nel_r * DiskEl.n_r
                 disk_elements.append(aux_DiskEl)
 
             for Brg_SealEl in brg_seal_data:
-                aux_Brg_SealEl = deepcopy(Brg_SealEl)
+                aux_Brg_SealEl = copy(Brg_SealEl)
                 aux_Brg_SealEl.n = nel_r * Brg_SealEl.n
                 aux_Brg_SealEl.n_l = nel_r * Brg_SealEl.n
                 aux_Brg_SealEl.n_r = nel_r * Brg_SealEl.n
