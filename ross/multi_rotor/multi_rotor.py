@@ -5,6 +5,7 @@ through a pair of gears, allowing lateral-torsional coupled analyses of
 geared rotor-dynamic systems.
 """
 
+import inspect
 import numpy as np
 from re import search
 from copy import deepcopy as copy
@@ -14,7 +15,6 @@ import ross as rs
 from ross.rotor_assembly import Rotor
 from ross.units import Q_, check_units
 from ross.utils import make_speed_array
-from ross.results import TimeResponseResults
 
 from .gear_element import GearElement
 from .mesh import Mesh
@@ -175,10 +175,13 @@ class MultiRotor(Rotor):
         tag=None,
     ):
         self.rotors = {"driving": copy(driving_rotor), "driven": copy(driven_rotor)}
+
         self.coupled_nodes = tuple(int(node) for node in coupled_nodes)
-        self._gear_mesh_stiffness = gear_mesh_stiffness
-        self._square_varying_stiffness = copy(square_varying_stiffness)
-        self._backlash = copy(backlash)
+        self.gear_mesh_stiffness = gear_mesh_stiffness
+        self.update_mesh_stiffness = update_mesh_stiffness
+        self.square_varying_stiffness = copy(square_varying_stiffness)
+        self.backlash = copy(backlash)
+        self.orientation_angle = orientation_angle
         self.position = position
 
         R1 = copy(driving_rotor)
@@ -242,8 +245,6 @@ class MultiRotor(Rotor):
         )
 
         # Create mesh
-        self.update_mesh_stiffness = update_mesh_stiffness
-
         self.mesh = Mesh(
             gear_1,
             gear_2,
@@ -300,6 +301,28 @@ class MultiRotor(Rotor):
 
         return driving, driven
 
+    def _init_parameters(self):
+        """Return keyword arguments to reconstruct this multi-rotor.
+
+        Collects every ``__init__`` parameter except the driving and driven
+        rotors, so callers can pass ``**self._init_parameters()`` when
+        building a new multi-rotor from updated component rotors.
+
+        Returns
+        -------
+        dict
+            Mapping of parameter names to the current configuration values.
+        """
+        skip = {"self", "driving_rotor", "driven_rotor"}
+
+        sig = inspect.signature(self.__class__.__init__)
+
+        return {
+            name: copy(getattr(self, name))
+            for name in sig.parameters
+            if name not in skip
+        }
+
     def _new_rotor_kwargs(self, refinement_factor):
         """Return topology arguments for a refined temporary multi-rotor."""
         return {
@@ -345,33 +368,15 @@ class MultiRotor(Rotor):
             driven_point_mass,
         )
 
+        parameters = self._init_parameters()
+        if coupled_nodes is not None:
+            parameters["coupled_nodes"] = coupled_nodes
+
         return self.__class__(
             driving_rotor=driving_rotor,
             driven_rotor=driven_rotor,
-            coupled_nodes=(
-                self.coupled_nodes if coupled_nodes is None else coupled_nodes
-            ),
-            gear_mesh_stiffness=self._gear_mesh_stiffness,
-            update_mesh_stiffness=self.update_mesh_stiffness,
-            square_varying_stiffness=copy(self._square_varying_stiffness),
-            backlash=copy(self._backlash),
-            orientation_angle=self.mesh.orientation_angle,
-            position=self.position,
-            tag=self.tag,
+            **parameters,
         )
-
-    def _serialization_config(self):
-        """Return the constructor configuration needed to restore the mesh."""
-        return {
-            "coupled_nodes": list(self.coupled_nodes),
-            "gear_mesh_stiffness": self._gear_mesh_stiffness,
-            "update_mesh_stiffness": self.update_mesh_stiffness,
-            "square_varying_stiffness": copy(self._square_varying_stiffness),
-            "backlash": copy(self._backlash),
-            "orientation_angle": self.mesh.orientation_angle,
-            "position": self.position,
-            "tag": self.tag,
-        }
 
     def save(self, file):
         """Save the complete multi-rotor topology to TOML or JSON.
@@ -390,7 +395,7 @@ class MultiRotor(Rotor):
                 "ross_version": ross.__version__,
                 "_rotor_type": "MultiRotor",
                 "parameters": self.parameters,
-                "multi_rotor": cast_numpy_types(self._serialization_config()),
+                "multi_rotor": cast_numpy_types(self._init_parameters()),
             },
             file,
         )
@@ -414,6 +419,7 @@ class MultiRotor(Rotor):
         file = Path(file)
         config = dict(data["multi_rotor"])
         rotors = {}
+
         for name in ("driving", "driven"):
             aux_file = str(file.with_suffix("")) + f"_{name}_rotor" + file.suffix
             rotors[name] = Rotor.load(aux_file)
@@ -463,7 +469,7 @@ class MultiRotor(Rotor):
             self.parameters == other.parameters
             and elements_equal(self.elements, other.elements)
             and self.coupled_nodes == other.coupled_nodes
-            and self._serialization_config() == other._serialization_config()
+            and self._init_parameters() == other._init_parameters()
             and rotors_equal(self.rotors["driving"], other.rotors["driving"])
             and rotors_equal(self.rotors["driven"], other.rotors["driven"])
         )
@@ -522,13 +528,13 @@ class MultiRotor(Rotor):
         >>> len(new_rotor.elements) == n_elm + 1
         True
         """
-        d_node = int(self.driven_nodes[0] - self.rotors["driven"].nodes[0])
+        driven_offset = int(self.driven_nodes[0] - self.rotors["driven"].nodes[0])
 
         driving_nodes = set(self.rotors["driving"].nodes) | set(
             self.rotors["driving"].link_nodes
         )
         driven_nodes = set(self.driven_nodes) | {
-            int(n) + d_node for n in self.rotors["driven"].link_nodes
+            int(n) + driven_offset for n in self.rotors["driven"].link_nodes
         }
 
         driving_elements = []
@@ -542,9 +548,9 @@ class MultiRotor(Rotor):
                 )
 
             if el.n in driven_nodes:
-                el.n -= d_node
+                el.n -= driven_offset
                 if getattr(el, "n_link", None) is not None:
-                    el.n_link -= d_node
+                    el.n_link -= driven_offset
                 if not isinstance(el, rs.ShaftElement):
                     if hasattr(el, "n_l"):
                         el.n_l = el.n
@@ -568,18 +574,10 @@ class MultiRotor(Rotor):
         gear_1 = self._get_coupled_gear(driving_rotor)
         gear_2 = self._get_coupled_gear(driven_rotor)
 
-        return self.__class__(
-            driving_rotor,
-            driven_rotor,
-            coupled_nodes=(gear_1.n, gear_2.n),
-            gear_mesh_stiffness=self._gear_mesh_stiffness,
-            update_mesh_stiffness=self.update_mesh_stiffness,
-            square_varying_stiffness=copy(self._square_varying_stiffness),
-            backlash=copy(self._backlash),
-            orientation_angle=self.mesh.orientation_angle,
-            position=self.position,
-            tag=self.tag,
-        )
+        parameters = self._init_parameters()
+        parameters["coupled_nodes"] = (gear_1.n, gear_2.n)
+
+        return self.__class__(driving_rotor, driven_rotor, **parameters)
 
     @staticmethod
     def _set_coupled_gear(rotor, node):

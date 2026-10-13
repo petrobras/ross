@@ -195,9 +195,9 @@ def test_save_load_multi_rotor_with_backlash(
     loaded = rs.MultiRotor.load(file)
 
     assert loaded.mesh.backlash is not None
-    assert loaded._backlash == multi_rotor_with_backlash._backlash
-    assert loaded._square_varying_stiffness == (
-        multi_rotor_with_backlash._square_varying_stiffness
+    assert loaded.backlash == multi_rotor_with_backlash.backlash
+    assert loaded.square_varying_stiffness == (
+        multi_rotor_with_backlash.square_varying_stiffness
     )
     assert_allclose(loaded.mesh.stiffness, multi_rotor_with_backlash.mesh.stiffness)
 
