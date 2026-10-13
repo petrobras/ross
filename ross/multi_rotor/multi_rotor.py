@@ -1050,7 +1050,7 @@ class MultiRotor(Rotor):
         """
         if self.mesh.backlash:
             t_, yout, xout = self.time_response(speed, F, t, method=method, **kwargs)
-            results = BacklashResults(self, t, yout, xout)
+            results = BacklashResults(self, t, yout, xout, speed=speed)
         else:
             results = super().run_time_response(speed, F, t, method=method, **kwargs)
 
