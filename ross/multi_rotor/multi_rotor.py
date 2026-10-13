@@ -260,6 +260,46 @@ class MultiRotor(Rotor):
         else:
             self.add_coupling_stiffness = self.K_mesh
 
+    def split_elements(self, elements, node_scale=1):
+        driven_offset = (
+            self.driven_nodes[0] - self.rotors["driven"].nodes[0]
+        ) * node_scale
+
+        driving_nodes = set(
+            range(
+                min(self.rotors["driving"].nodes) * node_scale,
+                (max(self.rotors["driving"].nodes) + 1) * node_scale,
+            )
+        ) | {int(node) * node_scale for node in self.rotors["driving"].link_nodes}
+
+        driven_nodes = set(
+            range(
+                min(self.driven_nodes) * node_scale,
+                (max(self.driven_nodes) + 1) * node_scale,
+            )
+        ) | {
+            int(node) * node_scale + driven_offset
+            for node in self.rotors["driven"].link_nodes
+        }
+
+        driving = []
+        driven = []
+        for element in elements:
+            element = copy(element)
+            if element.n in driving_nodes:
+                driving.append(element)
+            elif element.n in driven_nodes:
+                element.n -= driven_offset
+                if getattr(element, "n_link", None) is not None:
+                    element.n_link -= driven_offset
+                driven.append(element)
+            else:
+                raise ValueError(
+                    f"Node {element.n} does not belong to the driving or driven rotor."
+                )
+
+        return driving, driven
+
     def _new_rotor_kwargs(self, refinement_factor):
         """Return topology arguments for a refined temporary multi-rotor."""
         return {
@@ -279,47 +319,18 @@ class MultiRotor(Rotor):
         node_scale=1,
     ):
         """Rebuild a multi-rotor while preserving its two-rotor topology."""
-        driven_offset = (
-            self.driven_nodes[0] - self.rotors["driven"].nodes[0]
-        ) * node_scale
-        driving_nodes = set(
-            range(
-                min(self.rotors["driving"].nodes) * node_scale,
-                (max(self.rotors["driving"].nodes) + 1) * node_scale,
-            )
-        ) | {int(node) * node_scale for node in self.rotors["driving"].link_nodes}
-        driven_nodes = set(
-            range(
-                min(self.driven_nodes) * node_scale,
-                (max(self.driven_nodes) + 1) * node_scale,
-            )
-        ) | {
-            int(node) * node_scale + driven_offset
-            for node in self.rotors["driven"].link_nodes
-        }
-
-        def split_elements(elements):
-            driving = []
-            driven = []
-            for element in elements:
-                element = copy(element)
-                if element.n in driving_nodes:
-                    driving.append(element)
-                elif element.n in driven_nodes:
-                    element.n -= driven_offset
-                    if getattr(element, "n_link", None) is not None:
-                        element.n_link -= driven_offset
-                    driven.append(element)
-                else:
-                    raise ValueError(
-                        f"Node {element.n} does not belong to the driving or driven rotor."
-                    )
-            return driving, driven
-
-        driving_shaft, driven_shaft = split_elements(shaft_elements)
-        driving_disk, driven_disk = split_elements(disk_elements)
-        driving_bearing, driven_bearing = split_elements(bearing_elements)
-        driving_point_mass, driven_point_mass = split_elements(point_mass_elements)
+        driving_shaft, driven_shaft = self.split_elements(
+            shaft_elements, node_scale=node_scale
+        )
+        driving_disk, driven_disk = self.split_elements(
+            disk_elements, node_scale=node_scale
+        )
+        driving_bearing, driven_bearing = self.split_elements(
+            bearing_elements, node_scale=node_scale
+        )
+        driving_point_mass, driven_point_mass = self.split_elements(
+            point_mass_elements, node_scale=node_scale
+        )
 
         driving_rotor = self.rotors["driving"]._new_rotor(
             driving_shaft,
