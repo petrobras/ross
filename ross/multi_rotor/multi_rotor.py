@@ -9,7 +9,6 @@ import inspect
 import numpy as np
 from re import search
 from copy import deepcopy as copy
-from pathlib import Path
 
 import ross as rs
 from ross.rotor_assembly import Rotor
@@ -187,17 +186,13 @@ class MultiRotor(Rotor):
         R1 = copy(driving_rotor)
         R2 = copy(driven_rotor)
 
-        gear_1 = self._locate_rotor_gears(R1, self.coupled_nodes[0])
-        gear_2 = self._locate_rotor_gears(R2, self.coupled_nodes[1])
+        gear_1 = self._locate_gear_by_node(R1, self.coupled_nodes[0])
+        gear_2 = self._locate_gear_by_node(R2, self.coupled_nodes[1])
 
-        if len(gear_1) == 0 or len(gear_2) == 0:
+        if gear_1 is None or gear_2 is None:
             raise TypeError("Each rotor needs a GearElement in the coupled nodes!")
-        else:
-            gear_1 = gear_1[0]
-            gear_2 = gear_2[0]
 
-        self._set_coupled_gear(self.rotors["driving"], gear_1.n)
-        self._set_coupled_gear(self.rotors["driven"], gear_2.n)
+        self.coupled_tags = (gear_1.tag, gear_2.tag)
 
         gear1_plot = self._locate_gear_on_plot(R1, gear_1)
         gear2_plot = self._locate_gear_on_plot(R2, gear_2)
@@ -301,19 +296,24 @@ class MultiRotor(Rotor):
 
         return driving, driven
 
-    def _init_parameters(self):
+    def _parameters(self, skip=[]):
         """Return keyword arguments to reconstruct this multi-rotor.
 
         Collects every ``__init__`` parameter except the driving and driven
-        rotors, so callers can pass ``**self._init_parameters()`` when
+        rotors, so callers can pass ``**self._parameters()`` when
         building a new multi-rotor from updated component rotors.
+
+        Parameters
+        ----------
+        skip : list, optional
+            List of parameter names to skip. Default is empty.
 
         Returns
         -------
         dict
             Mapping of parameter names to the current configuration values.
         """
-        skip = {"self", "driving_rotor", "driven_rotor"}
+        skip = set(skip).union({"self", "driving_rotor", "driven_rotor"})
 
         sig = inspect.signature(self.__class__.__init__)
 
@@ -368,7 +368,7 @@ class MultiRotor(Rotor):
             driven_point_mass,
         )
 
-        parameters = self._init_parameters()
+        parameters = self._parameters()
         if coupled_nodes is not None:
             parameters["coupled_nodes"] = coupled_nodes
 
@@ -378,56 +378,60 @@ class MultiRotor(Rotor):
             **parameters,
         )
 
-    def save(self, file):
-        """Save the complete multi-rotor topology to TOML or JSON.
+    def _to_dict(self, file_format=".toml"):
+        """Return the complete multi-rotor topology in the format written by ``save()``.
 
-        The two component rotors are saved alongside the main file.  The main
-        file contains an explicit type marker and all mesh constructor options,
-        so loading through either ``MultiRotor.load`` or ``Rotor.load`` restores
-        a real ``MultiRotor`` instead of an assembled plain ``Rotor``.
+        The two component rotors are nested under the ``rotors`` key, so the
+        whole multi-rotor fits in a single file.  The data also contains an
+        explicit type marker and all mesh constructor options, so loading
+        through either ``MultiRotor.load`` or ``Rotor.load`` restores a real
+        ``MultiRotor`` instead of an assembled plain ``Rotor``.
+
+        Parameters
+        ----------
+        file_format : str, optional
+            File format used to serialize the elements (".toml" or ".json").
+            Default is ".toml".
+
+        Returns
+        -------
+        data : dict
+            Dictionary with the ROSS version, the rotor type, the multi-rotor
+            parameters and the data of both component rotors.
         """
         import ross
-        from ross.utils import cast_numpy_types, dump_data
+        from ross.utils import cast_numpy_types
 
-        file = Path(file)
-        dump_data(
-            {
-                "ross_version": ross.__version__,
-                "_rotor_type": "MultiRotor",
-                "parameters": self.parameters,
-                "multi_rotor": cast_numpy_types(self._init_parameters()),
+        return {
+            "ross_version": ross.__version__,
+            "rotor_type": self.__class__.__name__,
+            "multi_rotor": cast_numpy_types(self._parameters()),
+            "rotors": {
+                name: rotor._to_dict(file_format) for name, rotor in self.rotors.items()
             },
-            file,
-        )
-
-        for name, rotor in self.rotors.items():
-            aux_file = str(file.with_suffix("")) + f"_{name}_rotor" + file.suffix
-            rotor.save(aux_file)
+        }
 
     @classmethod
-    def load(cls, file):
-        """Load a complete multi-rotor from TOML or JSON."""
+    def _from_dict(cls, data):
+        """Restore a multi-rotor from data in the format written by ``save()``.
+
+        Parameters
+        ----------
+        data : dict
+            Dictionary obtained from ``_to_dict()``, toml.load() or json.load().
+
+        Returns
+        -------
+        multi_rotor : ross.MultiRotor
+        """
         from ross.rotor_assembly import Rotor
 
-        return Rotor.load(file)
-
-    @classmethod
-    def _load_from_data(cls, file, data):
-        """Restore a multi-rotor from already loaded file data."""
-        from ross.rotor_assembly import Rotor
-
-        file = Path(file)
         config = dict(data["multi_rotor"])
-        rotors = {}
-
-        for name in ("driving", "driven"):
-            aux_file = str(file.with_suffix("")) + f"_{name}_rotor" + file.suffix
-            rotors[name] = Rotor.load(aux_file)
-
         config["coupled_nodes"] = tuple(config["coupled_nodes"])
+
         return cls(
-            driving_rotor=rotors["driving"],
-            driven_rotor=rotors["driven"],
+            driving_rotor=Rotor._from_dict(data["rotors"]["driving"]),
+            driven_rotor=Rotor._from_dict(data["rotors"]["driven"]),
             **config,
         )
 
@@ -436,42 +440,11 @@ class MultiRotor(Rotor):
         if not isinstance(other, MultiRotor):
             return False
 
-        def elements_equal(left, right):
-            if len(left) != len(right):
-                return False
-            ignored = {"base_diameter", "dof_global_index", "tag"}
-            for left_element, right_element in zip(left, right, strict=True):
-                if left_element.__class__ is not right_element.__class__:
-                    return False
-                for name in set(vars(left_element)) | set(vars(right_element)):
-                    if name in ignored or name.endswith("_interpolated"):
-                        continue
-                    left_value = getattr(left_element, name, None)
-                    right_value = getattr(right_element, name, None)
-                    try:
-                        if not np.allclose(left_value, right_value):
-                            return False
-                    except (TypeError, ValueError):
-                        if left_value != right_value:
-                            return False
-            return True
-
-        def rotors_equal(left, right):
-            if type(left) is not type(right):
-                return False
-            if isinstance(left, MultiRotor):
-                return left == right
-            return left.parameters == right.parameters and elements_equal(
-                left.elements, right.elements
-            )
-
         return (
-            self.parameters == other.parameters
-            and elements_equal(self.elements, other.elements)
-            and self.coupled_nodes == other.coupled_nodes
-            and self._init_parameters() == other._init_parameters()
-            and rotors_equal(self.rotors["driving"], other.rotors["driving"])
-            and rotors_equal(self.rotors["driven"], other.rotors["driven"])
+            self.elements == other.elements
+            and self._parameters({"tag"}) == other._parameters({"tag"})
+            and self.rotors["driving"] == other.rotors["driving"]
+            and self.rotors["driven"] == other.rotors["driven"]
         )
 
     def set_tag(self, tag):
@@ -571,49 +544,39 @@ class MultiRotor(Rotor):
 
     def _rebuild(self, driving_rotor, driven_rotor):
         """Rebuild the multi-rotor from updated driving and driven rotors."""
-        gear_1 = self._get_coupled_gear(driving_rotor)
-        gear_2 = self._get_coupled_gear(driven_rotor)
+        gear_1, gear_2 = self._locate_coupled_gears(driving_rotor, driven_rotor)
 
-        parameters = self._init_parameters()
+        parameters = self._parameters()
         parameters["coupled_nodes"] = (gear_1.n, gear_2.n)
 
         return self.__class__(driving_rotor, driven_rotor, **parameters)
 
-    @staticmethod
-    def _set_coupled_gear(rotor, node):
-        """Set the coupled gear in the rotor."""
-        tag_suffix = " (Coupled)"
+    def _locate_coupled_gears(self, driving_rotor, driven_rotor):
+        """Locate the gear elements in rotors that are coupled."""
+        gears = []
 
-        for elm in rotor.disk_elements:
-            if elm.n == node:
-                if tag_suffix not in elm.tag:
-                    old_tag = elm.tag
-                    elm.tag += tag_suffix
-                    if hasattr(rotor, "df"):
-                        rotor.df.loc[rotor.df.tag == old_tag, "tag"] = elm.tag
-                break
+        for i, rotor in enumerate([driving_rotor, driven_rotor]):
+            gears.append(
+                next(
+                    elm
+                    for elm in rotor.disk_elements
+                    if elm.tag == self.coupled_tags[i]
+                )
+            )
 
-    @staticmethod
-    def _get_coupled_gear(rotor):
-        """Get the coupled gear from the rotor."""
-        tag_suffix = " (Coupled)"
-
-        gear = next(elm for elm in rotor.disk_elements if tag_suffix in elm.tag)
-
-        new_tag = gear.tag.replace(tag_suffix, "")
-        rotor.df.loc[rotor.df.tag == gear.tag, "tag"] = new_tag
-        gear.tag = new_tag
-
-        return gear
+        return gears
 
     @staticmethod
-    def _locate_rotor_gears(rotor, node):
+    def _locate_gear_by_node(rotor, node):
         """Locate the gear elements in the rotor that are coupled to the given node."""
-        return [
-            elm
-            for elm in rotor.disk_elements
-            if elm.n == node and isinstance(elm, GearElement)
-        ]
+        return next(
+            (
+                elm
+                for elm in rotor.disk_elements
+                if elm.n == node and isinstance(elm, GearElement)
+            ),
+            None,
+        )
 
     @staticmethod
     def _locate_gear_on_plot(rotor, gear):
