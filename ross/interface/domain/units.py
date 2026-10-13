@@ -218,6 +218,8 @@ UNIT_ALTERNATIVES = {
     "rad": ["rad", "deg"],
     "N/m": ["N/m", "N/mm", "lbf/in"],
     "N*s/m": ["N*s/m", "lbf*s/in"],
+    "N*m/rad": ["N*m/rad", "N*mm/rad", "lbf*in/rad"],
+    "N*m*s/rad": ["N*m*s/rad", "N*mm*s/rad", "lbf*in*s/rad"],
     "RPM": ["RPM", "rad/s", "Hz"],
     "N": ["N", "lbf", "kN"],
     "Pa*s": ["Pa*s", "cP"],

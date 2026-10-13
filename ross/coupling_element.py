@@ -145,9 +145,11 @@ class CouplingElement(ShaftElement):
         legacy_names = {"kt_x": "k_x", "kt_y": "k_y", "kt_z": "k_z"}
         for legacy_name, canonical_name in legacy_names.items():
             if legacy_name in kwargs:
-                if (canonical_name == "k_x" and k_x != 0) or (
-                    canonical_name == "k_y" and k_y != 0
-                ) or (canonical_name == "k_z" and k_z != 0):
+                if (
+                    (canonical_name == "k_x" and k_x != 0)
+                    or (canonical_name == "k_y" and k_y != 0)
+                    or (canonical_name == "k_z" and k_z != 0)
+                ):
                     raise TypeError(
                         f"Specify only {canonical_name} or {legacy_name}, not both."
                     )

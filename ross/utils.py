@@ -528,13 +528,19 @@ def visualize_matrix(rotor, matrix, frequency=None, **kwargs):
             try:
                 l_dofs = [local_mapping[key] for key in elm.dof_global_index]
             except KeyError:
-                local_names = {name: i for i, name in enumerate(
-                    ("x", "y", "z", "alpha", "beta", "theta")
-                )}
+                local_names = {
+                    name: i
+                    for i, name in enumerate(("x", "y", "z", "alpha", "beta", "theta"))
+                }
                 l_dofs = []
                 for key in elm.dof_global_index:
                     name, node = key.rsplit("_", 1)
-                    offset = 6 if getattr(elm, "n_link", None) is not None and int(node) == elm.n_link else 0
+                    offset = (
+                        6
+                        if getattr(elm, "n_link", None) is not None
+                        and int(node) == elm.n_link
+                        else 0
+                    )
                     l_dofs.append(offset + local_names[name])
 
         A[np.ix_(g_dofs, g_dofs)] += elm_matrix

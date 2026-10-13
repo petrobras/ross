@@ -575,9 +575,7 @@ class BearingElement(Element):
 
         if ignore_mass:
             coefficients = [
-                coeff
-                for coeff in coefficients
-                if not coeff.startswith(("m", "I"))
+                coeff for coeff in coefficients if not coeff.startswith(("m", "I"))
             ]
 
         return coefficients

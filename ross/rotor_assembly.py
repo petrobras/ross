@@ -889,7 +889,9 @@ class Rotor(object):
                             f"node; node {node} has only three DOFs."
                         )
 
-        external_nodes = sorted(node for node in self._node_dof_sizes if node not in self.nodes)
+        external_nodes = sorted(
+            node for node in self._node_dof_sizes if node not in self.nodes
+        )
         self._node_dof_offsets = {}
         offset = self.number_dof * len(self.nodes)
         for node in external_nodes:
@@ -933,8 +935,8 @@ class Rotor(object):
             link_size = self._node_dof_sizes[link]
             for key, local_index in mapping.items():
                 if int(local_index) < link_size:
-                    global_mapping[f"{key.split('_')[0]}_{link}"] = (
-                        link_offset + int(local_index)
+                    global_mapping[f"{key.split('_')[0]}_{link}"] = link_offset + int(
+                        local_index
                     )
         return global_mapping
 
@@ -943,9 +945,7 @@ class Rotor(object):
         matrix_method = getattr(elm, matrix_name)
         if isinstance(elm, BearingElement):
             matrix = matrix_method(frequency or 0, speed)
-            local_keys = [
-                f"{key.split('_')[0]}_{elm.n}" for key in elm.dof_mapping()
-            ]
+            local_keys = [f"{key.split('_')[0]}_{elm.n}" for key in elm.dof_mapping()]
             if elm.n_link is not None:
                 local_keys += [
                     f"{key.split('_')[0]}_{elm.n_link}" for key in elm.dof_mapping()
