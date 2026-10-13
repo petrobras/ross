@@ -1791,6 +1791,101 @@ def test_global_index():
     assert pointmass[1].dof_global_index["z_8"] == 47
 
 
+def _two_element_supported_rotor(point_mass_elements=None, bearing_elements=None):
+    shafts = [ShaftElement(L=0.5, idl=0, odl=0.05, material=steel) for _ in range(2)]
+    if bearing_elements is None:
+        bearing_elements = [
+            BearingElement(n=0, kxx=1e6, cxx=0),
+            BearingElement(n=2, kxx=1e6, cxx=0),
+        ]
+
+    return Rotor(
+        shafts,
+        bearing_elements=bearing_elements,
+        point_mass_elements=point_mass_elements,
+    )
+
+
+def test_point_mass_on_shaft_reuses_dofs_and_modal_is_regular():
+    rotor_without_mass = _two_element_supported_rotor()
+    rotor = _two_element_supported_rotor([PointMass(n=1, mx=2.0, my=3.0, mz=4.0)])
+
+    assert rotor.ndof == rotor_without_mass.ndof == 18
+    assert rotor.point_mass_elements[0].dof_global_index == {
+        "x_1": 6,
+        "y_1": 7,
+        "z_1": 8,
+    }
+
+    delta_mass = rotor.M(0) - rotor_without_mass.M(0)
+    assert_allclose(np.diag(delta_mass)[[6, 7, 8]], [2.0, 3.0, 4.0])
+    assert np.count_nonzero(delta_mass) == 3
+    assert np.linalg.matrix_rank(rotor.M(0)) == rotor.ndof
+    assert not np.any(~rotor.M(0).any(axis=1))
+
+    modal = rotor.run_modal(speed=0, num_modes=3)
+    assert np.isfinite(modal.wn).all()
+
+
+def test_point_mass_on_shaft_participates_in_static_weight():
+    rotor_without_mass = _two_element_supported_rotor()
+    rotor = _two_element_supported_rotor([PointMass(n=1, m=10.0)])
+
+    static_without_mass = rotor_without_mass.run_static()
+    static_with_mass = rotor.run_static()
+
+    assert (
+        np.max(np.abs(static_with_mass.deformation - static_without_mass.deformation))
+        > 0
+    )
+
+
+def test_point_mass_housing_dofs_are_shared_and_n_link_is_preserved():
+    shaft = ShaftElement(L=0.25, idl=0, odl=0.05, material=steel)
+    bearing = BearingElement(n=0, n_link=2, kxx=1e6, cxx=0)
+    support = BearingElement(n=2, kxx=1e6, cxx=0, tag="Support")
+    point_masses = [
+        PointMass(n=2, mx=1.0, my=1.0, mz=1.0),
+        PointMass(n=2, mx=2.0, my=2.0, mz=2.0),
+    ]
+    rotor = Rotor(
+        [shaft],
+        bearing_elements=[bearing, support],
+        point_mass_elements=point_masses,
+    )
+
+    assert rotor.ndof == 15
+    assert rotor.bearing_elements[0].dof_global_index["x_2"] == 12
+    assert rotor.point_mass_elements[0].dof_global_index == {
+        "x_2": 12,
+        "y_2": 13,
+        "z_2": 14,
+    }
+    assert rotor.point_mass_elements[0].dof_global_index == (
+        rotor.point_mass_elements[1].dof_global_index
+    )
+    assert_allclose(np.diag(rotor.M(0))[[12, 13, 14]], [3.0, 3.0, 3.0])
+    assert np.linalg.matrix_rank(rotor.M(0)) == rotor.ndof
+    assert not np.any(~rotor.M(0).any(axis=1))
+
+
+def test_point_mass_n_link_to_shaft_node_reuses_shaft_dofs():
+    bearing = BearingElement(n=0, n_link=2, kxx=1e6, cxx=0)
+    rotor = _two_element_supported_rotor(
+        bearing_elements=[bearing],
+    )
+
+    assert rotor.ndof == 18
+    assert rotor.bearing_elements[0].dof_global_index["x_2"] == 12
+    assert rotor.bearing_elements[0].dof_global_index["y_2"] == 13
+    assert rotor.bearing_elements[0].dof_global_index["z_2"] == 14
+
+
+def test_point_mass_external_node_requires_n_link_connection():
+    with pytest.raises(ValueError, match="neither a shaft node"):
+        _two_element_supported_rotor([PointMass(n=3, m=1.0)])
+
+
 def test_distinct_dof_elements_error():
     with pytest.raises(Exception):
         i_d = 0
