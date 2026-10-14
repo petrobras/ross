@@ -5,7 +5,6 @@ through a pair of gears, allowing lateral-torsional coupled analyses of
 geared rotor-dynamic systems.
 """
 
-import inspect
 import numpy as np
 from re import search
 from copy import deepcopy as copy
@@ -341,15 +340,9 @@ class MultiRotor(Rotor):
         dict
             Mapping of parameter names to the current configuration values.
         """
-        skip = set(skip).union({"self", "driving_rotor", "driven_rotor"})
+        skip = set(skip).union({"driving_rotor", "driven_rotor"})
 
-        sig = inspect.signature(self.__class__.__init__)
-
-        return {
-            name: copy(getattr(self, name))
-            for name in sig.parameters
-            if name not in skip
-        }
+        return super._parameters(skip=skip)
 
     def _new_rotor_kwargs(self, refinement_factor):
         """Return topology arguments for a refined temporary multi-rotor."""
@@ -428,12 +421,11 @@ class MultiRotor(Rotor):
             parameters and the data of both component rotors.
         """
         import ross
-        from ross.utils import cast_numpy_types
 
         return {
             "ross_version": ross.__version__,
             "rotor_type": self.__class__.__name__,
-            "multi_rotor": cast_numpy_types(self._parameters()),
+            "multi_rotor": self._parameters(),
             "rotors": {
                 name: rotor._to_dict(file_format) for name, rotor in self.rotors.items()
             },

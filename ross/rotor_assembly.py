@@ -70,6 +70,7 @@ from ross.seals.labyrinth_seal import LabyrinthSeal
 from ross.shaft_element import ShaftElement
 from ross.units import Q_, check_units
 from ross.utils import (
+    cast_numpy_types,
     convert_6dof_to_4dof,
     convert_6dof_to_torsional,
     intersection,
@@ -311,20 +312,6 @@ class Rotor(object):
         beta=0.0,
         tag=None,
     ):
-        self.parameters = {
-            "min_w": min_w,
-            "max_w": max_w,
-            "rated_w": rated_w,
-            "modal_damping_ratio": (
-                None
-                if modal_damping_ratio is None
-                else [float(xi) for xi in np.atleast_1d(modal_damping_ratio)]
-            ),
-            "default_damping_ratio": float(default_damping_ratio),
-            "alpha": float(alpha) if alpha is not None else 0.0,
-            "beta": float(beta) if beta is not None else 0.0,
-        }
-
         self.set_tag(tag)
 
         ####################################################
@@ -1104,11 +1091,13 @@ class Rotor(object):
 
         sig = inspect.signature(self.__class__.__init__)
 
-        return {
-            name: copy(getattr(self, name))
-            for name in sig.parameters
-            if name not in skip
-        }
+        return cast_numpy_types(
+            {
+                name: copy(getattr(self, name))
+                for name in sig.parameters
+                if name not in skip
+            }
+        )
 
     def _new_rotor(
         self,
@@ -5429,12 +5418,12 @@ class Rotor(object):
         """
         import ross
         from tempfile import TemporaryDirectory
-        from ross.utils import cast_numpy_types, load_data
+        from ross.utils import load_data
 
         data = {
             "ross_version": ross.__version__,
             "rotor_type": self.__class__.__name__,
-            "parameters": cast_numpy_types(self._parameters()),
+            "parameters": self._parameters(),
         }
 
         with TemporaryDirectory() as tmp_dir:
@@ -6732,19 +6721,6 @@ class CoAxialRotor(Rotor):
         beta=0.0,
         tag=None,
     ):
-        self.parameters = {
-            "min_w": min_w,
-            "max_w": max_w,
-            "rated_w": rated_w,
-            "modal_damping_ratio": (
-                None
-                if modal_damping_ratio is None
-                else [float(xi) for xi in np.atleast_1d(modal_damping_ratio)]
-            ),
-            "default_damping_ratio": float(default_damping_ratio),
-            "alpha": float(alpha) if alpha is not None else 0.0,
-            "beta": float(beta) if beta is not None else 0.0,
-        }
         if tag is None:
             self.tag = "Rotor 0"
 
