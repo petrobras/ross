@@ -519,3 +519,115 @@ def test_mesh_with_backlash(multi_rotor_with_backlash):
     assert_allclose(np.mean(mesh_results["center_distance"]), d, rtol=1e-2)
     assert_allclose(np.mean(mesh_results["pressure_angle"]), alpha, rtol=1e-2)
     assert_allclose(np.mean(mesh_results["contact_ratio"]), cr, rtol=1e-2)
+
+
+@pytest.fixture
+def three_shaft_rotors():
+    """Three shafts A -> B -> C geared 60/30 and 40/20, so B = -2A and C = 4A."""
+    steel = rs.Material(name="steel_three_shaft", rho=7810, E=211e9, G_s=81.2e9)
+    pressure_angle = rs.Q_(20, "deg")
+
+    def shaft(n_elements):
+        return [
+            rs.ShaftElement(L=0.2, idl=0, odl=0.05, material=steel, gyroscopic=True)
+            for _ in range(n_elements)
+        ]
+
+    def gear(n, n_teeth):
+        return rs.GearElement(
+            n=n,
+            m=5,
+            Id=0.02,
+            Ip=0.04,
+            n_teeth=n_teeth,
+            base_diameter=n_teeth * 0.004 * np.cos(pressure_angle.to("rad").m),
+            pr_angle=pressure_angle,
+        )
+
+    def bearings(n_left, n_right):
+        return [
+            rs.BearingElement(n=n_left, kxx=1e7, cxx=1e3),
+            rs.BearingElement(n=n_right, kxx=1e7, cxx=1e3),
+        ]
+
+    rotor_a = rs.Rotor(
+        shaft(4),
+        [rs.DiskElement(n=1, m=10, Id=0.1, Ip=0.2), gear(4, 60)],
+        bearings(0, 3),
+    )
+    rotor_b = rs.Rotor(shaft(4), [gear(0, 30), gear(4, 40)], bearings(1, 3))
+    rotor_c = rs.Rotor(
+        shaft(3),
+        [gear(0, 20), rs.DiskElement(n=2, m=5, Id=0.05, Ip=0.1)],
+        bearings(1, 3),
+    )
+
+    return rotor_a, rotor_b, rotor_c
+
+
+def nest_driving(rotor_a, rotor_b, rotor_c):
+    """Build the three-shaft system as MultiRotor(MultiRotor(A, B), C)."""
+    rotor_ab = rs.MultiRotor(
+        rotor_a, rotor_b, coupled_nodes=(4, 0), gear_mesh_stiffness=1e8
+    )
+    return rs.MultiRotor(
+        rotor_ab, rotor_c, coupled_nodes=(9, 0), gear_mesh_stiffness=1e8
+    )
+
+
+def nest_driven(rotor_a, rotor_b, rotor_c):
+    """Build the three-shaft system as MultiRotor(A, MultiRotor(B, C))."""
+    rotor_bc = rs.MultiRotor(
+        rotor_b, rotor_c, coupled_nodes=(4, 0), gear_mesh_stiffness=1e8
+    )
+    return rs.MultiRotor(
+        rotor_a, rotor_bc, coupled_nodes=(4, 0), gear_mesh_stiffness=1e8
+    )
+
+
+@pytest.mark.parametrize("nest", [nest_driving, nest_driven])
+def test_three_shaft_speed_ratios(three_shaft_rotors, nest):
+    multi_rotor = nest(*three_shaft_rotors)
+
+    assert [multi_rotor._node_gear_ratio(n) for n in (2, 6, 11)] == [1.0, -2.0, 4.0]
+
+
+@pytest.mark.parametrize("nest", [nest_driving, nest_driven])
+def test_three_shaft_matrices(three_shaft_rotors, nest):
+    from scipy.linalg import block_diag
+
+    rotor_a, rotor_b, rotor_c = three_shaft_rotors
+    multi_rotor = nest(*three_shaft_rotors)
+
+    assert_allclose(
+        multi_rotor.G(), block_diag(rotor_a.G(), -2 * rotor_b.G(), 4 * rotor_c.G())
+    )
+    assert_allclose(
+        multi_rotor.Ksdt(),
+        block_diag(rotor_a.Ksdt(), -2 * rotor_b.Ksdt(), 4 * rotor_c.Ksdt()),
+    )
+
+
+def test_three_shaft_nestings_match(three_shaft_rotors):
+    by_driving = nest_driving(*three_shaft_rotors)
+    by_driven = nest_driven(*three_shaft_rotors)
+
+    assert_allclose(by_driving.K(0, 100), by_driven.K(0, 100))
+    assert_allclose(by_driving.C(0, 100), by_driven.C(0, 100))
+    assert_allclose(by_driving.M(0, 100), by_driven.M(0, 100))
+    assert_allclose(
+        by_driving.run_modal(100).wn[:6], by_driven.run_modal(100).wn[:6], rtol=1e-6
+    )
+
+
+@pytest.mark.parametrize("nest", [nest_driving, nest_driven])
+@pytest.mark.parametrize("node, whirl", [(2, -1j), (6, 1j), (11, -1j)])
+def test_three_shaft_unbalance_force(three_shaft_rotors, nest, node, whirl):
+    multi_rotor = nest(*three_shaft_rotors)
+    dof = node * multi_rotor.number_dof
+    ratio = abs(multi_rotor._node_gear_ratio(node))
+
+    F0 = multi_rotor._unbalance_force(node, 1e-3, 0.0, [10.0])[:, 0]
+
+    assert_allclose(F0[dof + 1], whirl * F0[dof])
+    assert_allclose(abs(F0[dof]), 1e-3 * (ratio * 10.0) ** 2)

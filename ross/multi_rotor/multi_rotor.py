@@ -212,19 +212,19 @@ class MultiRotor(Rotor):
 
         R1_max_node = max([*R1.nodes, *R1.link_nodes])
         R2_min_node = min([*R2.nodes, *R2.link_nodes])
-        d_node = 0
+        driven_offset = 0
 
         if R1_max_node >= R2_min_node:
-            d_node = R1_max_node + 1
+            driven_offset = R1_max_node + 1
             for elm in R2.elements:
-                elm.n += d_node
+                elm.n += driven_offset
 
                 if getattr(elm, "n_link", None) is not None:
-                    elm.n_link += d_node
+                    elm.n_link += driven_offset
 
                 elm.tag = None
 
-        self.driven_nodes = [int(n + d_node) for n in R2.nodes]
+        self.driven_nodes = [int(n + driven_offset) for n in R2.nodes]
 
         shaft_elements = [*R1.shaft_elements, *R2.shaft_elements]
         disk_elements = [*R1.disk_elements, *R2.disk_elements]
@@ -255,6 +255,8 @@ class MultiRotor(Rotor):
             self.add_coupling_stiffness = lambda K0: K0
         else:
             self.add_coupling_stiffness = self.K_mesh
+
+        self._driven_ratio = self._node_gear_ratio(self.driven_nodes[0])
 
     def split_elements(self, elements, node_scale=1):
         """Split elements into driving and driven rotor elements.
@@ -742,14 +744,19 @@ class MultiRotor(Rotor):
         """
 
         ratio = 1.0
-        rotor = self.rotors["driving"]
+        driving_rotor = self.rotors["driving"]
 
         if node in self.driven_nodes:
-            ratio = -self.mesh.gear_ratio
-            rotor = self.rotors["driven"]
+            if isinstance(driving_rotor, MultiRotor):
+                ratio = driving_rotor._node_gear_ratio(self.coupled_nodes[0])
 
-        if isinstance(rotor, MultiRotor):
-            return rotor._node_gear_ratio(node)
+            ratio *= -self.mesh.gear_ratio
+
+            driven_rotor = self.rotors["driven"]
+            node -= self.driven_nodes[0] - driven_rotor.nodes[0]
+
+            if isinstance(driven_rotor, MultiRotor):
+                ratio *= driven_rotor._node_gear_ratio(node)
 
         return ratio
 
@@ -984,7 +991,7 @@ class MultiRotor(Rotor):
         return self.add_coupling_stiffness(
             self._join_matrices(
                 self.rotors["driving"].K(frequency, speed),
-                self.rotors["driven"].K(frequency, speed * self.mesh.gear_ratio),
+                self.rotors["driven"].K(frequency, speed * abs(self._driven_ratio)),
             )
         )
 
@@ -1016,7 +1023,7 @@ class MultiRotor(Rotor):
 
         return self._join_matrices(
             self.rotors["driving"].Ksdt(),
-            -self.mesh.gear_ratio * self.rotors["driven"].Ksdt(),
+            self._driven_ratio * self.rotors["driven"].Ksdt(),
         )
 
     def M(self, frequency=None, speed=None, synchronous=False):
@@ -1060,7 +1067,7 @@ class MultiRotor(Rotor):
         return self._join_matrices(
             self.rotors["driving"].M(frequency, speed, synchronous),
             self.rotors["driven"].M(
-                frequency, speed * self.mesh.gear_ratio, synchronous
+                frequency, speed * abs(self._driven_ratio), synchronous
             ),
         )
 
@@ -1098,7 +1105,7 @@ class MultiRotor(Rotor):
 
         return self._join_matrices(
             self.rotors["driving"].C(frequency, speed),
-            self.rotors["driven"].C(frequency, speed * self.mesh.gear_ratio),
+            self.rotors["driven"].C(frequency, speed * abs(self._driven_ratio)),
         )
 
     def G(self):
@@ -1125,7 +1132,7 @@ class MultiRotor(Rotor):
 
         return self._join_matrices(
             self.rotors["driving"].G(),
-            -self.mesh.gear_ratio * self.rotors["driven"].G(),
+            self._driven_ratio * self.rotors["driven"].G(),
         )
 
     def _rotor_system_for_integrate(
@@ -1286,9 +1293,8 @@ class MultiRotor(Rotor):
         frequency_ratios = {abs(self._node_gear_ratio(n)) for n in node}
         if len(frequency_ratios) > 1:
             raise ValueError(
-                "Unbalances on both shafts excite at different frequencies "
-                f"(abs(gear_ratio) = {abs(self.mesh.gear_ratio)}). Run the unbalance "
-                "response for each shaft separately."
+                "Unbalances on both shafts excite at different frequencies. "
+                "Run the unbalance response for each shaft separately."
             )
 
         frequency_range = frequency_ratios.pop() * speed_range
