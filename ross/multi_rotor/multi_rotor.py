@@ -257,6 +257,27 @@ class MultiRotor(Rotor):
             self.add_coupling_stiffness = self.K_mesh
 
     def split_elements(self, elements, node_scale=1):
+        """Split elements into driving and driven rotor elements.
+
+        This method takes a list of elements and separates them into two lists:
+        one for the driving rotor and another for the driven rotor. The separation
+        is based on the node numbers of the elements.
+
+        Parameters
+        ----------
+        elements : list
+            List of elements to be separated.
+        node_scale : int, optional
+            Scaling factor for node numbers. Default is 1.
+
+        Returns
+        -------
+        driving_elements : list
+            List of elements belonging to the driving rotor.
+        driven_elements : list
+            List of elements belonging to the driven rotor.
+        """
+
         driven_offset = (
             self.driven_nodes[0] - self.rotors["driven"].nodes[0]
         ) * node_scale
@@ -278,23 +299,30 @@ class MultiRotor(Rotor):
             for node in self.rotors["driven"].link_nodes
         }
 
-        driving = []
-        driven = []
+        driving_elements = []
+        driven_elements = []
+
         for element in elements:
-            element = copy(element)
-            if element.n in driving_nodes:
-                driving.append(element)
-            elif element.n in driven_nodes:
-                element.n -= driven_offset
-                if getattr(element, "n_link", None) is not None:
-                    element.n_link -= driven_offset
-                driven.append(element)
-            else:
+            elm = copy(element)
+
+            if elm.n is None:
                 raise ValueError(
-                    f"Node {element.n} does not belong to the driving or driven rotor."
+                    "Element node `n` must be set when adding to a MultiRotor."
                 )
 
-        return driving, driven
+            if elm.n in driving_nodes:
+                driving_elements.append(elm)
+            elif elm.n in driven_nodes:
+                elm.n -= driven_offset
+                if getattr(elm, "n_link", None) is not None:
+                    elm.n_link -= driven_offset
+                driven_elements.append(elm)
+            else:
+                raise ValueError(
+                    f"Node {elm.n} does not belong to the driving or driven rotor."
+                )
+
+        return driving_elements, driven_elements
 
     def _parameters(self, skip=[]):
         """Return keyword arguments to reconstruct this multi-rotor.
@@ -501,41 +529,7 @@ class MultiRotor(Rotor):
         >>> len(new_rotor.elements) == n_elm + 1
         True
         """
-        driven_offset = int(self.driven_nodes[0] - self.rotors["driven"].nodes[0])
-
-        driving_nodes = set(self.rotors["driving"].nodes) | set(
-            self.rotors["driving"].link_nodes
-        )
-        driven_nodes = set(self.driven_nodes) | {
-            int(n) + driven_offset for n in self.rotors["driven"].link_nodes
-        }
-
-        driving_elements = []
-        driven_elements = []
-
-        for el in new_elements:
-            el = copy(el)
-            if el.n is None:
-                raise ValueError(
-                    "Element node `n` must be set when adding to a MultiRotor."
-                )
-
-            if el.n in driven_nodes:
-                el.n -= driven_offset
-                if getattr(el, "n_link", None) is not None:
-                    el.n_link -= driven_offset
-                if not isinstance(el, rs.ShaftElement):
-                    if hasattr(el, "n_l"):
-                        el.n_l = el.n
-                    if hasattr(el, "n_r"):
-                        el.n_r = el.n
-                driven_elements.append(el)
-            elif el.n in driving_nodes:
-                driving_elements.append(el)
-            else:
-                raise ValueError(
-                    f"Node {el.n} does not belong to the driving or driven rotor."
-                )
+        driving_elements, driven_elements = self.split_elements(new_elements)
 
         driving_rotor = self.rotors["driving"].add_elements(driving_elements)
         driven_rotor = self.rotors["driven"].add_elements(driven_elements)

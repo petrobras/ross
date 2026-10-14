@@ -371,8 +371,8 @@ class Rotor(object):
 
             elm.set_tag(elm_dict[class_name] - 1)
 
-            if isinstance(elm, BearingElement):
-                # add n_l and n_r to bearing elements
+            if isinstance(elm, (BearingElement, DiskElement)):
+                # keep n_l and n_r in sync with n
                 elm.n_l = elm.n
                 elm.n_r = elm.n
 
@@ -5972,15 +5972,11 @@ class Rotor(object):
             for DiskEl in disk_data:
                 aux_DiskEl = copy(DiskEl)
                 aux_DiskEl.n = nel_r * DiskEl.n
-                aux_DiskEl.n_l = nel_r * DiskEl.n_l
-                aux_DiskEl.n_r = nel_r * DiskEl.n_r
                 disk_elements.append(aux_DiskEl)
 
             for Brg_SealEl in brg_seal_data:
                 aux_Brg_SealEl = copy(Brg_SealEl)
                 aux_Brg_SealEl.n = nel_r * Brg_SealEl.n
-                aux_Brg_SealEl.n_l = nel_r * Brg_SealEl.n
-                aux_Brg_SealEl.n_r = nel_r * Brg_SealEl.n
                 bearing_elements.append(aux_Brg_SealEl)
 
             regions.append(disk_elements)
@@ -6789,6 +6785,8 @@ class CoAxialRotor(Rotor):
             point_mass_elements = []
 
         for i, disk in enumerate(disk_elements):
+            disk.n_l = disk.n
+            disk.n_r = disk.n
             if disk.tag is None:
                 disk.tag = "Disk " + str(i)
 
