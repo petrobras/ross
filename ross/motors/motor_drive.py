@@ -883,16 +883,16 @@ class InverterFOC(Inverter):
         self.Is_rated = abs(Is)
 
         # PI controller gains (bandwidth method)
-        BWp_iqs = frequency_s / 8
-        BWp_ids = frequency_s / 8
-        BWi_ids = frequency_s / 8
+        BWp_iqs = Q_(frequency_s, "rad/s").to("Hz").m / 8
+        BWp_ids = Q_(frequency_s, "rad/s").to("Hz").m / 8
+        BWi_ids = Q_(frequency_s, "rad/s").to("Hz").m / 8
         BWp_w = BWi_ids / 8
         BWi_w = BWp_w / 8
 
         KL = float(torque_rated) / (self.np_pairs * self.speed_rated)  # Load constant
         J = float(Ip_motor)
 
-        # Proportional and integral controller gains
+        # Proportional and integral controller gain
         self.kp_w = J * 2 * np.pi * (BWp_w + BWi_w) - KL
         self.ki_w = J * 4 * (np.pi**2) * BWp_w * BWi_w
         self.kp_ids = self.Lss * 2 * np.pi * (BWp_ids + BWi_ids)
