@@ -216,6 +216,31 @@ def test_inherited_analyses_preserve_multi_rotor(multi_rotor):
     assert multi_rotor.mesh is not None
 
 
+@pytest.mark.parametrize("node, whirl", [(2, -1j), (7, 1j)])
+def test_unbalance_force_whirls_with_shaft(multi_rotor, node, whirl):
+    dof = node * multi_rotor.number_dof
+    F0 = multi_rotor._unbalance_force(node, 1e-3, 0.3, np.array([50.0, 100.0]))
+    ratio = abs(multi_rotor._node_gear_ratio(node))
+
+    assert_allclose(F0[dof + 1], whirl * F0[dof])
+    assert_allclose(np.abs(F0[dof]), 1e-3 * (ratio * np.array([50.0, 100.0])) ** 2)
+
+
+@pytest.mark.parametrize("node", [2, 7])
+def test_unbalance_force_matches_time_domain(multi_rotor, node):
+    speed = 80.0
+    phase = 0.7
+    t = np.linspace(0, 0.1, 51)
+    frequency = abs(multi_rotor._node_gear_ratio(node)) * speed
+
+    F0 = multi_rotor._unbalance_force(node, 1e-3, phase, [speed])[:, 0]
+    F_time = multi_rotor.unbalance_force_over_time([node], [1e-3], [phase], speed, t)
+
+    assert_allclose(
+        np.real(np.outer(F0, np.exp(1j * frequency * t))), F_time, atol=1e-9
+    )
+
+
 def test_coupling_matrix_gear(multi_rotor):
     coupling_matrix = np.array(
         [
