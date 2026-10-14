@@ -96,9 +96,9 @@ ROSS judges the change, not how it was produced. Code written entirely by an age
 
 ROSS models rotor-bearing systems and runs rotordynamic analyses on them. When a change adds a new subpackage under `ross/`, a new runtime dependency in `requirements.txt`, or a new physical domain, say so in the PR's **Scope** section and explain why it belongs here. If you are unsure, ask the maintainers before building it: a short issue or a draft PR with the summary is enough.
 
-- **Core**: finite-element rotor models (shafts, disks, couplings, point masses); bearing and seal models, including fluid-film and magnetic bearings; multi-rotor and coaxial assemblies; the analyses in the table above; faults (crack, rubbing, misalignment); stochastic analysis and model reduction of rotor models; API 617/684 checks; plotting, save/load, the interface, `ross_2to3` and the agent skill.
+- **Core**: finite-element rotor models (shafts, disks, couplings, point masses); bearing and seal models, including fluid-film and magnetic bearings; multi-rotor and coaxial assemblies; electrical machines and drives coupled to the rotor; the analyses in the table above; faults (crack, rubbing, misalignment); stochastic analysis and model reduction of rotor models; API 617/684 checks; plotting, save/load, the interface, `ross_2to3` and the agent skill.
 - **Belongs elsewhere**: tools whose subject is not the rotor-bearing system, even when they feed it. They live in separate packages that ROSS can depend on or that can depend on ROSS. Example: compressor thermodynamic performance lives in `ccp`.
-- **Not decided yet, ask first**: electrical machines and drives (PR #1296).
+- **Not decided yet, ask first**
 
 Maintainers record each new scope decision as a line in this section.
 
