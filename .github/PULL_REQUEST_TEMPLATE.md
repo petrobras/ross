@@ -26,8 +26,8 @@ and why. This is where the summary of your local plan goes.
 ## API changes
 
 <!--
-New, renamed, moved or removed public names; changed signatures or defaults.
-A rename needs an entry in ross/ross_2to3/renames.py.
+New, renamed, moved or removed public names (attributes included); changed
+signatures or defaults. Give the reason for each.
 -->
 
 ## Evidence

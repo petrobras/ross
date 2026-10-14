@@ -124,7 +124,7 @@ Rules, each with the safe way to follow it:
 - **Results** subclass `Results`. Plots are `plot_*` methods built with Plotly and the ROSS theme. A new results class must round-trip `save`/`load`.
 - **Units**: values are SI inside ROSS. Conversion happens only at the boundary (`@check_units`, `Q_`).
 - **Reuse before adding**: search for an existing class, helper or results type before creating a parallel one. A second way to do the same thing is a defect.
-- **Public API changes**: a rename needs an entry in `ross/ross_2to3/renames.py`, and a moved import path is a rename. A changed default or a removed name must be stated in the PR's **API changes** section.
+- **Public API changes**: every renamed, moved or removed public name (attributes included), changed signature and changed default must be listed in the PR's **API changes** section, with the reason. A moved import path counts as a rename. The maintainers decide whether a change needs a deprecated alias. `ross/ross_2to3/renames.py` covers only the v2 → v3 migration.
 - **Dependencies**: a new runtime dependency is a scope question; justify it in the PR.
 - **Conventions**: PascalCase classes and snake_case functions; alternative constructors as classmethods (`from_geometry()`, `from_table()`); `*_example()` functions return ready instances for doctests; TOML serialization through `save()`/`load()`; `# fmt: off` / `# fmt: on` around matrices to keep their layout; type information in docstrings, not type annotations; no comments that split or label sections of code; use clear names instead.
 
