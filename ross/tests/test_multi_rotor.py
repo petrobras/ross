@@ -1,9 +1,12 @@
+import inspect
+
 import numpy as np
 import pytest
 from copy import deepcopy
 from numpy.testing import assert_allclose
 
 import ross as rs
+from ross.multi_rotor.mesh import Mesh
 
 
 @pytest.fixture
@@ -133,11 +136,13 @@ def test_add_elements(multi_rotor):
     disk_driven = rs.DiskElement(n=7, m=1.0, Id=0.01, Ip=0.02)
     seal = rs.SealElement(n=3, kxx=1e6, kyy=0.8e6, cxx=2e2, cyy=1.5e2)
 
+    multi_rotor.mesh.damping_ratio = 0.05
     new_rotor = multi_rotor.add_elements([disk_driving, disk_driven, seal])
 
     assert isinstance(new_rotor, rs.MultiRotor)
     assert len(new_rotor.disk_elements) == n_disks + 2
     assert len(new_rotor.bearing_elements) == n_bearings + 1
+    assert new_rotor.mesh.damping_ratio == 0.05
 
     driving_masses = [d.m for d in new_rotor.rotors["driving"].disk_elements]
     driven_masses = [d.m for d in new_rotor.rotors["driven"].disk_elements]
@@ -156,11 +161,34 @@ def test_add_elements(multi_rotor):
         multi_rotor.add_elements([rs.DiskElement(n=99, m=1.0, Id=0.0, Ip=0.0)])
 
 
+def test_damping_ratio_argument_order():
+    parameters = list(inspect.signature(rs.MultiRotor).parameters)
+
+    assert (
+        parameters.index("mesh_damping_ratio")
+        == parameters.index("square_varying_stiffness") + 1
+    )
+
+    mesh_parameters = list(inspect.signature(Mesh).parameters)
+    assert (
+        mesh_parameters.index("damping_ratio")
+        == mesh_parameters.index("square_varying_stiffness") + 1
+    )
+
+
 def test_mesh(multi_rotor):
     assert_allclose(
         multi_rotor.mesh.contact_ratio, 1.6377334309511222, rtol=1e-6, atol=1e-5
     )
     assert_allclose(multi_rotor.mesh.stiffness, 1937234387.18946, rtol=1e-6, atol=1e-5)
+
+    gear_1 = multi_rotor.mesh.driving_gear
+    gear_2 = multi_rotor.mesh.driven_gear
+    expected_M_eq = (gear_1.Ip * gear_2.Ip) / (
+        gear_2.Ip * gear_1.base_radius**2 + gear_1.Ip * gear_2.base_radius**2
+    )
+    assert_allclose(multi_rotor.mesh.M_eq, expected_M_eq)
+    assert multi_rotor.mesh.backlash is None
 
 
 def test_coupling_matrix_gear(multi_rotor):
@@ -337,7 +365,59 @@ def test_coupling_matrix_gear(multi_rotor):
         ]
     )
 
-    assert_allclose(multi_rotor.K_coupling, coupling_matrix, rtol=1e-6, atol=1e-5)
+    assert_allclose(multi_rotor.coupling_matrix, coupling_matrix, rtol=1e-6, atol=1e-5)
+    assert_allclose(multi_rotor.coupling_matrix, multi_rotor.coupling_matrix.T)
+
+
+def test_mesh_damping_matrix(multi_rotor):
+    frequency = 0.0
+    base_C = multi_rotor._join_matrices(
+        multi_rotor.rotors["driving"].C(frequency, frequency),
+        multi_rotor.rotors["driven"].C(
+            frequency, frequency * multi_rotor.mesh.gear_ratio
+        ),
+    )
+
+    assert_allclose(multi_rotor.C(frequency), base_C)
+
+    multi_rotor.mesh.damping_ratio = 0.07
+    c_m = (
+        2.0
+        * multi_rotor.mesh.damping_ratio
+        * np.sqrt(multi_rotor.mesh.stiffness * multi_rotor.mesh.M_eq)
+    )
+    expected = base_C.copy()
+    dofs_1 = multi_rotor.mesh.driving_gear.dof_global_index.values()
+    dofs_2 = multi_rotor.mesh.driven_gear.dof_global_index.values()
+    dofs = [*dofs_1, *dofs_2]
+    expected[np.ix_(dofs, dofs)] += c_m * multi_rotor.coupling_matrix
+
+    actual = multi_rotor.C(frequency)
+    assert_allclose(actual, expected)
+
+    first_ndof = multi_rotor.rotors["driving"].ndof
+    assert np.any(actual[:first_ndof, first_ndof:] != 0.0)
+    assert_allclose(actual, actual.T)
+
+
+def test_mesh_damping_updates_with_stiffness(multi_rotor):
+    multi_rotor.mesh.damping_ratio = 0.07
+    stiffness_1 = multi_rotor.mesh.stiffness
+    stiffness_2 = 1.5 * stiffness_1
+
+    C_mesh_1 = multi_rotor.C_mesh(np.zeros((multi_rotor.ndof, multi_rotor.ndof)))
+    multi_rotor.mesh.stiffness = stiffness_2
+    C_mesh_2 = multi_rotor.C_mesh(np.zeros((multi_rotor.ndof, multi_rotor.ndof)))
+
+    dofs_1 = multi_rotor.mesh.driving_gear.dof_global_index.values()
+    dofs_2 = multi_rotor.mesh.driven_gear.dof_global_index.values()
+    dofs = [*dofs_1, *dofs_2]
+    nonzero = np.abs(multi_rotor.coupling_matrix) > 1e-12
+    ratio = (
+        C_mesh_2[np.ix_(dofs, dofs)][nonzero] / C_mesh_1[np.ix_(dofs, dofs)][nonzero]
+    )
+
+    assert_allclose(ratio, np.sqrt(stiffness_2 / stiffness_1))
 
 
 @pytest.fixture
@@ -381,6 +461,7 @@ def multi_rotor_with_backlash():
         driven_rotor=rotor2,
         coupled_nodes=(0, 0),
         square_varying_stiffness={"enable": True, "amplitude_ratio": 0.275},
+        mesh_damping_ratio=0.07,
         backlash={
             "enable": True,
             "initial_value": 5e-5,
@@ -394,6 +475,27 @@ def multi_rotor_with_backlash():
 
 
 def test_mesh_with_backlash(multi_rotor_with_backlash):
+    assert_allclose(
+        multi_rotor_with_backlash.mesh.backlash.M_eq,
+        multi_rotor_with_backlash.mesh.M_eq,
+    )
+
+    frequency = 0.0
+    expected_C = multi_rotor_with_backlash._join_matrices(
+        multi_rotor_with_backlash.rotors["driving"].C(frequency, frequency),
+        multi_rotor_with_backlash.rotors["driven"].C(
+            frequency, frequency * multi_rotor_with_backlash.mesh.gear_ratio
+        ),
+    )
+    expected_K = multi_rotor_with_backlash._join_matrices(
+        multi_rotor_with_backlash.rotors["driving"].K(frequency, frequency),
+        multi_rotor_with_backlash.rotors["driven"].K(
+            frequency, frequency * multi_rotor_with_backlash.mesh.gear_ratio
+        ),
+    )
+    assert_allclose(multi_rotor_with_backlash.C(frequency), expected_C)
+    assert_allclose(multi_rotor_with_backlash.K(frequency), expected_K)
+
     T10, T1a = 300.0, 100.0
     T20, T2a = 300.0, 100.0
 
@@ -441,3 +543,20 @@ def test_mesh_with_backlash(multi_rotor_with_backlash):
     assert_allclose(np.mean(mesh_results["center_distance"]), d, rtol=1e-2)
     assert_allclose(np.mean(mesh_results["pressure_angle"]), alpha, rtol=1e-2)
     assert_allclose(np.mean(mesh_results["contact_ratio"]), cr, rtol=1e-2)
+
+
+def test_rebuild_preserves_mesh_configuration(multi_rotor_with_backlash):
+    multi_rotor = multi_rotor_with_backlash
+    rebuilt_rotors = [
+        multi_rotor.add_nodes([5e-5]),
+        multi_rotor.add_elements([rs.DiskElement(n=0, m=0.1, Id=0.01, Ip=0.02)]),
+    ]
+
+    for rebuilt in rebuilt_rotors:
+        assert rebuilt.mesh.backlash is not None
+        assert rebuilt.mesh.stiffness_type == multi_rotor.mesh.stiffness_type
+        assert rebuilt.mesh.damping_ratio == multi_rotor.mesh.damping_ratio
+        assert (
+            rebuilt.mesh.backlash.damping_ratio
+            == multi_rotor.mesh.backlash.damping_ratio
+        )

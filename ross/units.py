@@ -89,6 +89,7 @@ units = {
     "power": "watt",
     "module": "meter",
 }
+
 for i, unit in zip(["k", "c", "m"], ["N/m", "N*s/m", "kg"], strict=True):
     for j in ["x", "y", "z"]:
         for k in ["x", "y", "z"]:
