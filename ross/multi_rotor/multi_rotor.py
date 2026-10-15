@@ -256,7 +256,7 @@ class MultiRotor(Rotor):
         else:
             self.add_coupling_stiffness = self.K_mesh
 
-        self._driven_ratio = self._node_gear_ratio(self.driven_nodes[0])
+        self._gear_ratio = self._node_gear_ratio(self.driven_nodes[0])
 
     def split_elements(self, elements, node_scale=1):
         """Split elements into driving and driven rotor elements.
@@ -725,31 +725,38 @@ class MultiRotor(Rotor):
             return F0
 
     def _node_gear_ratio(self, node):
-        """Return the signed speed ratio for the specified node.
+        """Return the signed speed ratio of the specified node.
 
-        This method checks if the given node belongs to the driven rotor.
-        If so, it returns the gear ratio of the mesh with a negative sign,
-        since the driven rotor spins opposite to the driving rotor.
-        Otherwise, it returns 1.0.
+        The ratio relates the rotational speed at the node to the speed of the
+        main driving shaft, i.e. the speed given to the analysis methods. Each
+        gear mesh contributes a factor of -gear_ratio, since meshed gears spin
+        in opposite directions. Nested MultiRotor objects are handled
+        recursively, so the ratio accumulates along the whole gear train:
+
+        - nodes of the driving rotor take the ratio from the driving rotor,
+          which is 1.0 when it is a single Rotor;
+        - nodes of the driven rotor take the ratio of the driving gear node,
+          multiplied by -gear_ratio of this mesh and by the ratio of the node
+          inside the driven rotor.
 
         Parameters
         ----------
         node : int
-            The node index for which the speed ratio is being queried.
+            The node index in this MultiRotor numbering.
 
         Returns
         -------
         ratio : float
-            The shaft speed at the node divided by the driving rotor speed.
+            Signed speed ratio at the node. A negative value means the node
+            spins opposite to the main driving shaft.
         """
-
         ratio = 1.0
         driving_rotor = self.rotors["driving"]
-
+        
         if node in self.driven_nodes:
             if isinstance(driving_rotor, MultiRotor):
                 ratio = driving_rotor._node_gear_ratio(self.coupled_nodes[0])
-
+            
             ratio *= -self.mesh.gear_ratio
 
             driven_rotor = self.rotors["driven"]
@@ -757,6 +764,9 @@ class MultiRotor(Rotor):
 
             if isinstance(driven_rotor, MultiRotor):
                 ratio *= driven_rotor._node_gear_ratio(node)
+
+        elif isinstance(driving_rotor, MultiRotor):
+            ratio = driving_rotor._node_gear_ratio(node)
 
         return ratio
 
@@ -991,7 +1001,7 @@ class MultiRotor(Rotor):
         return self.add_coupling_stiffness(
             self._join_matrices(
                 self.rotors["driving"].K(frequency, speed),
-                self.rotors["driven"].K(frequency, speed * abs(self._driven_ratio)),
+                self.rotors["driven"].K(frequency, speed * abs(self._gear_ratio)),
             )
         )
 
@@ -1023,7 +1033,7 @@ class MultiRotor(Rotor):
 
         return self._join_matrices(
             self.rotors["driving"].Ksdt(),
-            self._driven_ratio * self.rotors["driven"].Ksdt(),
+            self._gear_ratio * self.rotors["driven"].Ksdt(),
         )
 
     def M(self, frequency=None, speed=None, synchronous=False):
@@ -1067,7 +1077,7 @@ class MultiRotor(Rotor):
         return self._join_matrices(
             self.rotors["driving"].M(frequency, speed, synchronous),
             self.rotors["driven"].M(
-                frequency, speed * abs(self._driven_ratio), synchronous
+                frequency, speed * abs(self._gear_ratio), synchronous
             ),
         )
 
@@ -1105,7 +1115,7 @@ class MultiRotor(Rotor):
 
         return self._join_matrices(
             self.rotors["driving"].C(frequency, speed),
-            self.rotors["driven"].C(frequency, speed * abs(self._driven_ratio)),
+            self.rotors["driven"].C(frequency, speed * abs(self._gear_ratio)),
         )
 
     def G(self):
@@ -1132,7 +1142,7 @@ class MultiRotor(Rotor):
 
         return self._join_matrices(
             self.rotors["driving"].G(),
-            self._driven_ratio * self.rotors["driven"].G(),
+            self._gear_ratio * self.rotors["driven"].G(),
         )
 
     def _rotor_system_for_integrate(
