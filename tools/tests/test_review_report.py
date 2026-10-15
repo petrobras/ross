@@ -20,7 +20,8 @@ def repo(tmp_path, monkeypatch):
     ):
         subprocess.run(["git", *args], cwd=tmp_path, check=True)
     (tmp_path / "element.py").write_text(
-        "def K(self):\n    return a < b\n\n\ndef M(self):\n    pass\n"
+        "def K(self):\n    return a < b\n\n\ndef M(self):\n    pass\n",
+        encoding="utf-8",
     )
     subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True)
     subprocess.run(["git", "commit", "-q", "-m", "base"], cwd=tmp_path, check=True)
@@ -58,7 +59,8 @@ def test_report_sections_and_offline_figures(repo):
 def test_report_excerpts_a_symbol(repo):
     (repo / "rotor.py").write_text(
         "class Rotor:\n    @property\n    def C(self):\n        return 1\n\n"
-        "    def K(self):\n        return 2\n"
+        "    def K(self):\n        return 2\n",
+        encoding="utf-8",
     )
     subprocess.run(["git", "add", "-A"], check=True)
     subprocess.run(["git", "commit", "-q", "-m", "rotor"], check=True)

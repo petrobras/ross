@@ -1337,6 +1337,8 @@ def main(argv=None):
     parser.add_argument("--head", help="head revision (default: the working tree)")
     parser.add_argument("--json", action="store_true", help="print JSON")
     args = parser.parse_args(argv)
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
     facts = collect(args.base, args.head)
     if args.json:
         sys.stdout.write(json.dumps(facts, indent=1, default=str) + "\n")

@@ -1,3 +1,4 @@
+import io
 import json
 import subprocess
 import sys
@@ -55,7 +56,7 @@ def write(path, files):
     for name, content in files.items():
         file = path / name
         file.parent.mkdir(parents=True, exist_ok=True)
-        file.write_text(textwrap.dedent(content))
+        file.write_text(textwrap.dedent(content), encoding="utf-8")
 
 
 @pytest.fixture
@@ -456,3 +457,13 @@ def test_repeated_text_is_reported(repo):
     )
     facts = pr_facts.collect("main", "HEAD", repo)
     assert facts["writing"]["repeated"] == [f"{sentence.lower()!r} (x3)"]
+
+
+def test_output_is_utf8_on_any_console(repo, monkeypatch):
+    commit(repo, {"ross/extra.py": 'def f():\n    """Sparkle \u2728."""\n'})
+    console = io.TextIOWrapper(io.BytesIO(), encoding="cp1252")
+    monkeypatch.setattr(sys, "stdout", console)
+    monkeypatch.chdir(repo)
+    pr_facts.main(["--base", "main", "--head", "HEAD"])
+    console.flush()
+    assert "Emoji added: ross/extra.py" in console.buffer.getvalue().decode("utf-8")
