@@ -153,6 +153,8 @@ This applies to docstrings, documentation pages, notebooks and PR text.
 
 ### Pull requests
 
+To prepare a PR, follow the `ross-pr-create` skill in `.agents/skills/ross-pr-create/SKILL.md`. Agents with skill support load it automatically; Claude Code finds it through `.claude/skills/`. It runs `python tools/pr_facts.py`, which compares the branch with `main` without executing it and lists the scope, API, architecture, test-integrity and writing signals a reviewer will look at.
+
 - One concern per PR. Keep core-library changes, interface changes and vendored third-party code in separate PRs. Split large work into a stack of PRs that can each be reviewed on their own.
 - Plan however you like, locally. The plan is not committed; the PR text carries what a reviewer needs: scope, the design decisions to confirm, API changes, evidence, changes to existing tests and documentation. Fill in every section of the template, writing "none" where nothing applies.
 - Do not paste session logs, local notes or agent transcripts into the PR.
@@ -160,6 +162,6 @@ This applies to docstrings, documentation pages, notebooks and PR text.
 
 ### Reviewing a pull request
 
-When asked to review a PR, check it against the five points in [What a contribution must meet](#what-a-contribution-must-meet), then look for correctness problems. Report only findings that affect correctness, scope, architecture, test integrity or readability. Give each one a `file:line` reference and, for correctness claims, a way to reproduce it.
+When asked to review a PR, follow the `ross-pr-review` skill in `.agents/skills/ross-pr-review/SKILL.md`. In short: check it against the five points in [What a contribution must meet](#what-a-contribution-must-meet), then look for correctness problems. Report only findings that affect correctness, scope, architecture, test integrity or readability. Give each one a `file:line` reference and, for correctness claims, a way to reproduce it.
 
 **Never post to GitHub on your own.** Comments, reviews, approvals, labels and pushes to someone else's branch happen only after the person who asked for the review has read the findings and explicitly approved posting that content.
