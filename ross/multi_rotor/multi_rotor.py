@@ -752,11 +752,11 @@ class MultiRotor(Rotor):
         """
         ratio = 1.0
         driving_rotor = self.rotors["driving"]
-        
+
         if node in self.driven_nodes:
             if isinstance(driving_rotor, MultiRotor):
                 ratio = driving_rotor._node_gear_ratio(self.coupled_nodes[0])
-            
+
             ratio *= -self.mesh.gear_ratio
 
             driven_rotor = self.rotors["driven"]
