@@ -1105,16 +1105,10 @@ class Rotor(object):
         disk_elements,
         bearing_elements,
         point_mass_elements,
+        node_scale=None,
         **kwargs,
     ):
-        """Build an instance of the current rotor class from new elements.
-
-        Several analyses need a temporary rotor with modified elements.  Using
-        ``Rotor(...)`` in those methods silently discards subclass-specific
-        behavior, while calling ``self.__class__(...)`` does not provide enough
-        information for classes with a different constructor.  Subclasses can
-        override this hook to rebuild their topology.
-        """
+        """Rebuild a rotor while preserving its topology."""
         parameters = self._parameters()
         parameters.update(kwargs)
 
@@ -1125,10 +1119,6 @@ class Rotor(object):
             point_mass_elements=point_mass_elements,
             **parameters,
         )
-
-    def _new_rotor_kwargs(self, refinement_factor):
-        """Return subclass-specific arguments for a refined temporary rotor."""
-        return {}
 
     def add_nodes(self, new_nodes_pos):
         """Add nodes to rotor.
@@ -1767,29 +1757,21 @@ class Rotor(object):
                         )
                     )
 
-            for elm in self.disk_elements:
-                aux_elm = copy(elm)
-                aux_elm.n = nel_r * elm.n
-                disk_elem.append(aux_elm)
+            disk_elem = copy(self.disk_elements)
+            brgs_elem = copy(self.bearing_elements)
+            pmass_elem = copy(self.point_mass_elements)
 
-            for elm in self.bearing_elements:
-                aux_elm = copy(elm)
-                aux_elm.n = nel_r * elm.n
-                if aux_elm.n_link is not None:
-                    aux_elm.n_link = nel_r * elm.n_link
-                brgs_elem.append(aux_elm)
-
-            for elm in self.point_mass_elements:
-                aux_elm = copy(elm)
-                aux_elm.n = nel_r * elm.n
-                pmass_elem.append(aux_elm)
+            for elm in disk_elem + brgs_elem + pmass_elem:
+                elm.n *= nel_r
+                if getattr(elm, "n_link", None) is not None:
+                    elm.n_link *= nel_r
 
             aux_rotor = self._new_rotor(
                 shaft_elem,
                 disk_elem,
                 brgs_elem,
                 pmass_elem,
-                **self._new_rotor_kwargs(nel_r),
+                node_scale=nel_r,
             )
             aux_modal = aux_rotor.run_modal(speed=0)
 

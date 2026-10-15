@@ -279,7 +279,6 @@ class MultiRotor(Rotor):
         driven_elements : list
             List of elements belonging to the driven rotor.
         """
-
         driven_offset = (
             self.driven_nodes[0] - self.rotors["driven"].nodes[0]
         ) * node_scale
@@ -347,23 +346,14 @@ class MultiRotor(Rotor):
 
         return super()._parameters(skip=skip)
 
-    def _new_rotor_kwargs(self, refinement_factor):
-        """Return topology arguments for a refined temporary multi-rotor."""
-        return {
-            "coupled_nodes": tuple(
-                int(node * refinement_factor) for node in self.coupled_nodes
-            ),
-            "node_scale": refinement_factor,
-        }
-
     def _new_rotor(
         self,
         shaft_elements,
         disk_elements,
         bearing_elements,
         point_mass_elements,
-        coupled_nodes=None,
         node_scale=1,
+        **kwargs,
     ):
         """Rebuild a multi-rotor while preserving its two-rotor topology."""
         driving_shaft, driven_shaft = self.split_elements(
@@ -392,14 +382,11 @@ class MultiRotor(Rotor):
             driven_point_mass,
         )
 
-        parameters = self._parameters()
-        if coupled_nodes is not None:
-            parameters["coupled_nodes"] = coupled_nodes
-
-        return self.__class__(
+        return self._rebuild(
             driving_rotor=driving_rotor,
             driven_rotor=driven_rotor,
-            **parameters,
+            node_scale=node_scale,
+            **kwargs,
         )
 
     def _to_dict(self, file_format=".toml"):
@@ -531,12 +518,19 @@ class MultiRotor(Rotor):
 
         return self._rebuild(driving_rotor, driven_rotor)
 
-    def _rebuild(self, driving_rotor, driven_rotor):
+    def _rebuild(self, driving_rotor, driven_rotor, node_scale=None, **kwargs):
         """Rebuild the multi-rotor from updated driving and driven rotors."""
-        gear_1, gear_2 = self._locate_coupled_gears(driving_rotor, driven_rotor)
-
         parameters = self._parameters()
-        parameters["coupled_nodes"] = (gear_1.n, gear_2.n)
+
+        if node_scale is not None:
+            parameters["coupled_nodes"] = tuple(
+                int(node * node_scale) for node in self.coupled_nodes
+            )
+        else:
+            gear_1, gear_2 = self._locate_coupled_gears(driving_rotor, driven_rotor)
+            parameters["coupled_nodes"] = (gear_1.n, gear_2.n)
+
+        parameters.update(kwargs)
 
         return self.__class__(driving_rotor, driven_rotor, **parameters)
 
