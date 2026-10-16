@@ -85,6 +85,12 @@ class MultiRotor(Rotor):
     position : {'above', 'below'}, optional
         The relative position of the driven rotor with respect to the driving rotor
         when plotting the multi-rotor. Default is 'above'.
+    min_w : float, optional
+        The minimum angular velocity of the multi-rotor system. Default is None.
+    max_w : float, optional
+        The maximum angular velocity of the multi-rotor system. Default is None.
+    rated_w : float, optional
+        The rated angular velocity of the multi-rotor system. Default is None.
     tag : str, optional
         A tag to identify the multi-rotor. Default is None.
     Returns
@@ -171,6 +177,9 @@ class MultiRotor(Rotor):
         },
         orientation_angle=0.0,
         position="above",
+        min_w=None,
+        max_w=None,
+        rated_w=None,
         tag=None,
     ):
         self.rotors = {"driving": copy(driving_rotor), "driven": copy(driven_rotor)}
@@ -236,6 +245,9 @@ class MultiRotor(Rotor):
             disk_elements,
             bearing_elements,
             point_mass_elements,
+            min_w=min_w,
+            max_w=max_w,
+            rated_w=rated_w,
             tag=tag,
         )
 
