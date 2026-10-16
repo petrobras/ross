@@ -249,6 +249,8 @@ class MultiRotor(Rotor):
             orientation_angle=orientation_angle,
         )
 
+        self._mesh_stiffness = self.mesh.stiffness
+
         self.K_coupling = self.compute_coupling_matrix()
 
         if self.mesh.backlash:
@@ -956,7 +958,7 @@ class MultiRotor(Rotor):
         dofs_2 = self.mesh.driven_gear.dof_global_index.values()
         dofs = [*dofs_1, *dofs_2]
 
-        K0[np.ix_(dofs, dofs)] += self.K_coupling * self.mesh.stiffness
+        K0[np.ix_(dofs, dofs)] += self.K_coupling * self._mesh_stiffness
 
         return K0
 
@@ -1176,7 +1178,7 @@ class MultiRotor(Rotor):
                 C1 = reduce_matrix(self.C(speed[step]))
 
                 # Update mesh stiffness
-                self.mesh.stiffness = self.mesh.interpolate_stiffness(theta[step])
+                self._mesh_stiffness = self.mesh.interpolate_stiffness(theta[step])
                 K1 = reduce_matrix(self.K(speed[step]))
 
                 return (
@@ -1232,6 +1234,9 @@ class MultiRotor(Rotor):
             results = BacklashResults(self, t, yout, xout)
         else:
             results = super().run_time_response(speed, F, t, method=method, **kwargs)
+
+        if self.update_mesh_stiffness:
+            self._mesh_stiffness = self.mesh.stiffness
 
         return results
 
