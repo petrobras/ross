@@ -50,8 +50,8 @@ Resolve each `architecture` and `api` flag:
 
 | Flag | Fix |
 |---|---|
-| `run_*` method on a class that is not a rotor | Move the analysis to `Rotor` (override in `CoAxialRotor`/`MultiRotor` when they need it), returning a `Results` subclass |
-| Element does not define `M`, `K`, `C`, `G`, `dof_mapping` | Implement them; add tests that build the element in `Rotor`, `CoAxialRotor` and `MultiRotor` and round-trip `save`/`load` |
+| `run_*` method on a class that is not a rotor | Move the analysis to `Rotor` (override in `MultiRotor` when they need it), returning a `Results` subclass |
+| Element does not define `M`, `K`, `C`, `G`, `dof_mapping` | Implement them; add tests that build the element in `Rotor` and `MultiRotor` and round-trip `save`/`load` |
 | New rotor `run_*` missing from `AGENTS.md` or `SKILL.md` | Add the row to the table in `AGENTS.md`, the recipe in `ross/agent_skills/ross/` and the row in its `SKILL.md` |
 | Class named `*Results` that does not subclass `Results` | Subclass `Results`; add a `save`/`load` round-trip test |
 | Type annotations | Move the type information to the docstring |

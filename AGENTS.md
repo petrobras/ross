@@ -59,7 +59,6 @@ All values are SI internally: speed in rad/s, stiffness in N/m, damping in N·s/
 | `rs.compressor_example()` | Industrial compressor: 91 shafts, 7 disks, 14 bearings/seals |
 | `rs.rotor_example_6dof()` | 6-DOF rotor with axial stiffness |
 | `rs.rotor_example_with_damping()` | Rotor with internal material damping |
-| `rs.coaxrotor_example()` | Coaxial rotor (two concentric shafts) |
 | `rs.rotor_example_amb_simple()` | Rotor with active magnetic bearings |
 | `rs.rotor_example_amb_complex_controllers()` | AMB rotor with complex controllers |
 | `rs.rotor_example_amb_general_controllers()` | AMB rotor with general controllers |
@@ -113,13 +112,13 @@ Elements → Rotor assembly → Rotor.run_*() → Results objects with .plot_*()
 | `ross/element.py` | `Element` ABC |
 | `ross/shaft_element.py`, `disk_element.py`, `bearing_seal_element.py`, `coupling_element.py`, `point_mass.py` | Core elements |
 | `ross/bearings/`, `ross/seals/` | Bearing and seal models |
-| `ross/rotor_assembly.py`, `ross/multi_rotor/` | `Rotor`, `CoAxialRotor`, `MultiRotor`: assembly and analyses |
+| `ross/rotor_assembly.py`, `ross/multi_rotor/` | `Rotor`, `MultiRotor`: assembly and analyses |
 | `ross/results.py` | `Results` ABC and every results class |
 | `ross/units.py` | `@check_units` and `Q_` |
 
 Rules, each with the safe way to follow it:
 
-- **Elements** subclass `Element` and implement `M()`, `K(frequency)`, `C(frequency)`, `G()` and `dof_mapping()`. Unit handling goes through `@check_units` on `__init__`. A new element must build inside `Rotor`, `CoAxialRotor` and `MultiRotor`, and must round-trip `save`/`load`.
+- **Elements** subclass `Element` and implement `M()`, `K(frequency)`, `C(frequency)`, `G()` and `dof_mapping()`. Unit handling goes through `@check_units` on `__init__`. A new element must build inside `Rotor` and `MultiRotor`, and must round-trip `save`/`load`.
 - **Analyses are `run_*` methods on the rotor classes**, never on elements or free functions. Each returns an instance of a `Results` subclass. A new analysis adds a row to the table in this file, a recipe or recipe section in `ross/agent_skills/ross/`, and a row in that folder's `SKILL.md`.
 - **Results** subclass `Results`. Plots are `plot_*` methods built with Plotly and the ROSS theme. A new results class must round-trip `save`/`load`.
 - **Units**: values are SI inside ROSS. Conversion happens only at the boundary (`@check_units`, `Q_`).
