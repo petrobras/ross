@@ -56,9 +56,6 @@ class DiskElement(Element):
     @check_units
     def __init__(self, n, m, Id, Ip, tag=None, scale_factor=1.0, color="Firebrick"):
         self.n = int(n)
-        self.n_l = n
-        self.n_r = n
-
         self.m = float(m)
         self.Id = float(Id)
         self.Ip = float(Ip)
@@ -88,7 +85,7 @@ class DiskElement(Element):
         True
         """
         false_number = 0
-        if "DiskElement" in other.__class__.__name__:
+        if isinstance(other, DiskElement):
             for i in self.__dict__:
                 try:
                     if np.allclose(self.__dict__[i], other.__dict__[i]):

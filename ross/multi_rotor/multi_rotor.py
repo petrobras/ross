@@ -13,7 +13,7 @@ import ross as rs
 from ross.rotor_assembly import Rotor
 from ross.units import Q_, check_units
 from ross.utils import make_speed_array
-from ross.results import TimeResponseResults
+from ross.results import ForcedResponseResults
 
 from .gear_element import GearElement
 from .mesh import Mesh
@@ -85,9 +85,14 @@ class MultiRotor(Rotor):
     position : {'above', 'below'}, optional
         The relative position of the driven rotor with respect to the driving rotor
         when plotting the multi-rotor. Default is 'above'.
+    min_w : float, optional
+        The minimum angular velocity of the multi-rotor system. Default is None.
+    max_w : float, optional
+        The maximum angular velocity of the multi-rotor system. Default is None.
+    rated_w : float, optional
+        The rated angular velocity of the multi-rotor system. Default is None.
     tag : str, optional
         A tag to identify the multi-rotor. Default is None.
-
     Returns
     -------
     rotor : rs.Rotor
@@ -172,24 +177,31 @@ class MultiRotor(Rotor):
         },
         orientation_angle=0.0,
         position="above",
+        min_w=None,
+        max_w=None,
+        rated_w=None,
         tag=None,
     ):
         self.rotors = {"driving": copy(driving_rotor), "driven": copy(driven_rotor)}
 
+        self.coupled_nodes = tuple(int(node) for node in coupled_nodes)
+        self.gear_mesh_stiffness = gear_mesh_stiffness
+        self.update_mesh_stiffness = update_mesh_stiffness
+        self.square_varying_stiffness = copy(square_varying_stiffness)
+        self.backlash = copy(backlash)
+        self.orientation_angle = orientation_angle
+        self.position = position
+
         R1 = copy(driving_rotor)
         R2 = copy(driven_rotor)
 
-        gear_1 = self._locate_rotor_gears(R1, coupled_nodes[0])
-        gear_2 = self._locate_rotor_gears(R2, coupled_nodes[1])
+        gear_1 = self._locate_gear_by_node(R1, self.coupled_nodes[0])
+        gear_2 = self._locate_gear_by_node(R2, self.coupled_nodes[1])
 
-        if len(gear_1) == 0 or len(gear_2) == 0:
+        if gear_1 is None or gear_2 is None:
             raise TypeError("Each rotor needs a GearElement in the coupled nodes!")
-        else:
-            gear_1 = gear_1[0]
-            gear_2 = gear_2[0]
 
-        self._set_coupled_gear(self.rotors["driving"], gear_1.n)
-        self._set_coupled_gear(self.rotors["driven"], gear_2.n)
+        self.coupled_tags = (gear_1.tag, gear_2.tag)
 
         gear1_plot = self._locate_gear_on_plot(R1, gear_1)
         gear2_plot = self._locate_gear_on_plot(R2, gear_2)
@@ -209,19 +221,19 @@ class MultiRotor(Rotor):
 
         R1_max_node = max([*R1.nodes, *R1.link_nodes])
         R2_min_node = min([*R2.nodes, *R2.link_nodes])
-        d_node = 0
+        driven_offset = 0
 
         if R1_max_node >= R2_min_node:
-            d_node = R1_max_node + 1
+            driven_offset = R1_max_node + 1
             for elm in R2.elements:
-                elm.n += d_node
+                elm.n += driven_offset
 
                 if getattr(elm, "n_link", None) is not None:
-                    elm.n_link += d_node
+                    elm.n_link += driven_offset
 
                 elm.tag = None
 
-        self.driven_nodes = [int(n + d_node) for n in R2.nodes]
+        self.driven_nodes = [int(n + driven_offset) for n in R2.nodes]
 
         shaft_elements = [*R1.shaft_elements, *R2.shaft_elements]
         disk_elements = [*R1.disk_elements, *R2.disk_elements]
@@ -233,12 +245,13 @@ class MultiRotor(Rotor):
             disk_elements,
             bearing_elements,
             point_mass_elements,
+            min_w=min_w,
+            max_w=max_w,
+            rated_w=rated_w,
             tag=tag,
         )
 
         # Create mesh
-        self.update_mesh_stiffness = update_mesh_stiffness
-
         self.mesh = Mesh(
             gear_1,
             gear_2,
@@ -248,12 +261,288 @@ class MultiRotor(Rotor):
             orientation_angle=orientation_angle,
         )
 
+        self._mesh_stiffness = self.mesh.stiffness
+
         self.K_coupling = self.compute_coupling_matrix()
 
         if self.mesh.backlash:
             self.add_coupling_stiffness = lambda K0: K0
         else:
             self.add_coupling_stiffness = self.K_mesh
+
+        self._gear_ratio = self._node_gear_ratio(self.driven_nodes[0])
+
+    def split_elements(self, elements, node_scale=1):
+        """Split elements into driving and driven rotor elements.
+
+        This method takes a list of elements and separates them into two lists:
+        one for the driving rotor and another for the driven rotor. The separation
+        is based on the node numbers of the elements.
+
+        Parameters
+        ----------
+        elements : list
+            List of elements to be separated.
+        node_scale : int, optional
+            Scaling factor for node numbers. Default is 1.
+
+        Returns
+        -------
+        driving_elements : list
+            List of elements belonging to the driving rotor.
+        driven_elements : list
+            List of elements belonging to the driven rotor.
+        """
+        driven_offset = (
+            self.driven_nodes[0] - self.rotors["driven"].nodes[0]
+        ) * node_scale
+
+        driving_nodes = set(
+            range(
+                min(self.rotors["driving"].nodes) * node_scale,
+                (max(self.rotors["driving"].nodes) + 1) * node_scale,
+            )
+        ) | {int(node) * node_scale for node in self.rotors["driving"].link_nodes}
+
+        driven_nodes = set(
+            range(
+                min(self.driven_nodes) * node_scale,
+                (max(self.driven_nodes) + 1) * node_scale,
+            )
+        ) | {
+            int(node) * node_scale + driven_offset
+            for node in self.rotors["driven"].link_nodes
+        }
+
+        driving_elements = []
+        driven_elements = []
+
+        for element in elements:
+            elm = copy(element)
+
+            if elm.n is None:
+                raise ValueError(
+                    "Element node `n` must be set when adding to a MultiRotor."
+                )
+
+            if elm.n in driving_nodes:
+                driving_elements.append(elm)
+            elif elm.n in driven_nodes:
+                elm.n -= driven_offset
+                if getattr(elm, "n_link", None) is not None:
+                    elm.n_link -= driven_offset
+                driven_elements.append(elm)
+            else:
+                raise ValueError(
+                    f"Node {elm.n} does not belong to the driving or driven rotor."
+                )
+
+        return driving_elements, driven_elements
+
+    def _parameters(self, skip=[]):
+        """Return keyword arguments to reconstruct this multi-rotor.
+
+        Collects every ``__init__`` parameter except the driving and driven
+        rotors, so callers can pass ``**self._parameters()`` when
+        building a new multi-rotor from updated component rotors.
+
+        Parameters
+        ----------
+        skip : list, optional
+            List of parameter names to skip. Default is empty.
+
+        Returns
+        -------
+        dict
+            Mapping of parameter names to the current configuration values.
+        """
+        skip = set(skip).union({"driving_rotor", "driven_rotor"})
+
+        return super()._parameters(skip=skip)
+
+    @classmethod
+    def concatenate(cls, *rotors, tag=None):
+        """Concatenate rotors to the shafts of a multi-rotor.
+
+        Rotors placed before the multi-rotor are concatenated to the start of
+        the driving rotor, and rotors placed after it are concatenated to the
+        end of the driven rotor.
+
+        Parameters
+        ----------
+        *rotors : Rotor
+            Sequence of rotors with exactly one MultiRotor, in the order they
+            should be combined. A single list or tuple of rotors is also
+            accepted as one argument.
+        tag : str, optional
+            Tag for the new multi-rotor. Default is None.
+
+        Returns
+        -------
+        MultiRotor object.
+
+        Examples
+        --------
+        >>> import ross as rs
+        >>> from ross.multi_rotor.multi_rotor import two_shaft_rotor_example
+        >>> multi_rotor = two_shaft_rotor_example()
+        >>> rotor = rs.rotor_example()
+        >>> new_multi_rotor = multi_rotor + rotor
+        >>> len(new_multi_rotor.rotors["driven"].shaft_elements) == (
+        ...     len(multi_rotor.rotors["driven"].shaft_elements)
+        ...     + len(rotor.shaft_elements)
+        ... )
+        True
+        """
+        if len(rotors) == 1 and isinstance(rotors[0], (list, tuple)):
+            rotors = rotors[0]
+
+        rotor_list = list(rotors)
+        multi_indices = [
+            i for i, rotor in enumerate(rotor_list) if isinstance(rotor, MultiRotor)
+        ]
+        if len(multi_indices) != 1:
+            raise ValueError("Exactly one MultiRotor must be provided.")
+
+        k = multi_indices[0]
+        multi_rotor = rotor_list[k]
+        driving = multi_rotor.rotors["driving"]
+        driven = multi_rotor.rotors["driven"]
+        gear_tags = multi_rotor._locate_coupled_gears(driving, driven)
+        gear_tags = [gear.tag for gear in gear_tags]
+        coupled_nodes = list(multi_rotor.coupled_nodes)
+
+        before = rotor_list[:k]
+        after = rotor_list[k + 1 :]
+
+        if before:
+            driving = Rotor.concatenate(*before, driving)
+            gear_tags[0] = f"{gear_tags[0]} (R{len(before)})"
+        if after:
+            driven = Rotor.concatenate(driven, *after)
+            gear_tags[1] = f"{gear_tags[1]} (R0)"
+
+        for i, rotor in enumerate([driving, driven]):
+            coupled_nodes[i] = next(
+                elm.n for elm in rotor.disk_elements if elm.tag == gear_tags[i]
+            )
+
+        parameters = multi_rotor._parameters()
+        parameters["coupled_nodes"] = tuple(coupled_nodes)
+        parameters["tag"] = tag or "Concatenated MultiRotor"
+
+        return cls(driving, driven, **parameters)
+
+    def _new_rotor(
+        self,
+        shaft_elements,
+        disk_elements,
+        bearing_elements,
+        point_mass_elements,
+        node_scale=1,
+        **kwargs,
+    ):
+        """Rebuild a multi-rotor while preserving its two-rotor topology."""
+        driving_shaft, driven_shaft = self.split_elements(
+            shaft_elements, node_scale=node_scale
+        )
+        driving_disk, driven_disk = self.split_elements(
+            disk_elements, node_scale=node_scale
+        )
+        driving_bearing, driven_bearing = self.split_elements(
+            bearing_elements, node_scale=node_scale
+        )
+        driving_point_mass, driven_point_mass = self.split_elements(
+            point_mass_elements, node_scale=node_scale
+        )
+
+        driving_rotor = self.rotors["driving"]._new_rotor(
+            driving_shaft,
+            driving_disk,
+            driving_bearing,
+            driving_point_mass,
+        )
+        driven_rotor = self.rotors["driven"]._new_rotor(
+            driven_shaft,
+            driven_disk,
+            driven_bearing,
+            driven_point_mass,
+        )
+
+        return self._rebuild(
+            driving_rotor=driving_rotor,
+            driven_rotor=driven_rotor,
+            node_scale=node_scale,
+            **kwargs,
+        )
+
+    def _to_dict(self, file_format=".toml"):
+        """Return the complete multi-rotor topology in the format written by ``save()``.
+
+        The two component rotors are nested under the ``rotors`` key, so the
+        whole multi-rotor fits in a single file.  The data also contains an
+        explicit type marker and all mesh constructor options, so loading
+        through either ``MultiRotor.load`` or ``Rotor.load`` restores a real
+        ``MultiRotor`` instead of an assembled plain ``Rotor``.
+
+        Parameters
+        ----------
+        file_format : str, optional
+            File format used to serialize the elements (".toml" or ".json").
+            Default is ".toml".
+
+        Returns
+        -------
+        data : dict
+            Dictionary with the ROSS version, the rotor type, the multi-rotor
+            parameters and the data of both component rotors.
+        """
+        import ross
+
+        return {
+            "ross_version": ross.__version__,
+            "rotor_type": self.__class__.__name__,
+            "multi_rotor": self._parameters(),
+            "rotors": {
+                name: rotor._to_dict(file_format) for name, rotor in self.rotors.items()
+            },
+        }
+
+    @classmethod
+    def _from_dict(cls, data):
+        """Restore a multi-rotor from data in the format written by ``save()``.
+
+        Parameters
+        ----------
+        data : dict
+            Dictionary obtained from ``_to_dict()``, toml.load() or json.load().
+
+        Returns
+        -------
+        multi_rotor : ross.MultiRotor
+        """
+        from ross.rotor_assembly import Rotor
+
+        config = dict(data["multi_rotor"])
+        config["coupled_nodes"] = tuple(config["coupled_nodes"])
+
+        return cls(
+            driving_rotor=Rotor._from_dict(data["rotors"]["driving"]),
+            driven_rotor=Rotor._from_dict(data["rotors"]["driven"]),
+            **config,
+        )
+
+    def __eq__(self, other):
+        """Compare both assembled elements and multi-rotor configuration."""
+        if not isinstance(other, MultiRotor):
+            return False
+
+        return (
+            self.elements == other.elements
+            and self._parameters({"tag"}) == other._parameters({"tag"})
+            and self.rotors["driving"] == other.rotors["driving"]
+            and self.rotors["driven"] == other.rotors["driven"]
+        )
 
     def set_tag(self, tag):
         """Set the tag for the current multi-rotor."""
@@ -309,100 +598,55 @@ class MultiRotor(Rotor):
         >>> len(new_rotor.elements) == n_elm + 1
         True
         """
-        d_node = int(self.driven_nodes[0] - self.rotors["driven"].nodes[0])
-
-        driving_nodes = set(self.rotors["driving"].nodes) | set(
-            self.rotors["driving"].link_nodes
-        )
-        driven_nodes = set(self.driven_nodes) | {
-            int(n) + d_node for n in self.rotors["driven"].link_nodes
-        }
-
-        driving_elements = []
-        driven_elements = []
-
-        for el in new_elements:
-            el = copy(el)
-            if el.n is None:
-                raise ValueError(
-                    "Element node `n` must be set when adding to a MultiRotor."
-                )
-
-            if el.n in driven_nodes:
-                el.n -= d_node
-                if getattr(el, "n_link", None) is not None:
-                    el.n_link -= d_node
-                if not isinstance(el, rs.ShaftElement):
-                    if hasattr(el, "n_l"):
-                        el.n_l = el.n
-                    if hasattr(el, "n_r"):
-                        el.n_r = el.n
-                driven_elements.append(el)
-            elif el.n in driving_nodes:
-                driving_elements.append(el)
-            else:
-                raise ValueError(
-                    f"Node {el.n} does not belong to the driving or driven rotor."
-                )
+        driving_elements, driven_elements = self.split_elements(new_elements)
 
         driving_rotor = self.rotors["driving"].add_elements(driving_elements)
         driven_rotor = self.rotors["driven"].add_elements(driven_elements)
 
         return self._rebuild(driving_rotor, driven_rotor)
 
-    def _rebuild(self, driving_rotor, driven_rotor):
+    def _rebuild(self, driving_rotor, driven_rotor, node_scale=None, **kwargs):
         """Rebuild the multi-rotor from updated driving and driven rotors."""
-        gear_1 = self._get_coupled_gear(driving_rotor)
-        gear_2 = self._get_coupled_gear(driven_rotor)
+        parameters = self._parameters()
 
-        square_varying_stiffness = {
-            "enable": self.mesh.stiffness_type == "square",
-            "amplitude_ratio": self.mesh.Ksq_ratio,
-        }
+        if node_scale is not None:
+            parameters["coupled_nodes"] = tuple(
+                int(node * node_scale) for node in self.coupled_nodes
+            )
+        else:
+            gear_1, gear_2 = self._locate_coupled_gears(driving_rotor, driven_rotor)
+            parameters["coupled_nodes"] = (gear_1.n, gear_2.n)
 
-        return self.__class__(
-            driving_rotor,
-            driven_rotor,
-            coupled_nodes=(gear_1.n, gear_2.n),
-            gear_mesh_stiffness=self.mesh.stiffness,
-            update_mesh_stiffness=self.update_mesh_stiffness,
-            square_varying_stiffness=square_varying_stiffness,
-            orientation_angle=self.mesh.orientation_angle,
-            position="above" if self.dy_pos >= 0 else "below",
-            tag=self.tag,
-        )
+        parameters.update(kwargs)
 
-    @staticmethod
-    def _set_coupled_gear(rotor, node):
-        """Set the coupled gear in the rotor."""
-        tag_suffix = " (Coupled)"
+        return self.__class__(driving_rotor, driven_rotor, **parameters)
 
-        for elm in rotor.disk_elements:
-            if elm.n == node:
-                elm.tag += tag_suffix
-                break
+    def _locate_coupled_gears(self, driving_rotor, driven_rotor):
+        """Locate the gear elements in rotors that are coupled."""
+        gears = []
 
-    @staticmethod
-    def _get_coupled_gear(rotor):
-        """Get the coupled gear from the rotor."""
-        tag_suffix = " (Coupled)"
+        for i, rotor in enumerate([driving_rotor, driven_rotor]):
+            gears.append(
+                next(
+                    elm
+                    for elm in rotor.disk_elements
+                    if elm.tag == self.coupled_tags[i]
+                )
+            )
 
-        gear = next(elm for elm in rotor.disk_elements if tag_suffix in elm.tag)
-
-        new_tag = gear.tag.replace(tag_suffix, "")
-        rotor.df.loc[rotor.df.tag == gear.tag, "tag"] = new_tag
-        gear.tag = new_tag
-
-        return gear
+        return gears
 
     @staticmethod
-    def _locate_rotor_gears(rotor, node):
+    def _locate_gear_by_node(rotor, node):
         """Locate the gear elements in the rotor that are coupled to the given node."""
-        return [
-            elm
-            for elm in rotor.disk_elements
-            if elm.n == node and isinstance(elm, GearElement)
-        ]
+        return next(
+            (
+                elm
+                for elm in rotor.disk_elements
+                if elm.n == node and isinstance(elm, GearElement)
+            ),
+            None,
+        )
 
     @staticmethod
     def _locate_gear_on_plot(rotor, gear):
@@ -490,9 +734,16 @@ class MultiRotor(Rotor):
         F0 : list
             Unbalance force in each degree of freedom for each value in omega
         """
-        speed = self.check_speed(node, omega)
+        ratio = self._node_gear_ratio(node)
 
-        return super()._unbalance_force(node, magnitude, phase, speed)
+        F0 = super()._unbalance_force(
+            node, magnitude, phase, np.abs(ratio) * np.asarray(omega)
+        )
+
+        if ratio < 0:
+            F0 = F0.conj()
+
+        return F0
 
     def unbalance_force_over_time(
         self, node, magnitude, phase, omega, t, return_all=False
@@ -539,12 +790,12 @@ class MultiRotor(Rotor):
         F0 = np.zeros((self.ndof, len(t)))
 
         for i, n in enumerate(node):
-            phi = phase[i] + theta
+            phi = phase[i] + self._node_gear_ratio(n) * theta
+            w = self._node_gear_ratio(n) * omega
+            a = self._node_gear_ratio(n) * alpha
 
-            w = self.check_speed(n, omega)
-
-            Fx = magnitude[i] * ((w**2) * np.cos(phi) + alpha * np.sin(phi))
-            Fy = magnitude[i] * ((w**2) * np.sin(phi) - alpha * np.cos(phi))
+            Fx = magnitude[i] * ((w**2) * np.cos(phi) + a * np.sin(phi))
+            Fy = magnitude[i] * ((w**2) * np.sin(phi) - a * np.cos(phi))
 
             F0[n * self.number_dof + 0, :] += Fx
             F0[n * self.number_dof + 1, :] += Fy
@@ -554,36 +805,51 @@ class MultiRotor(Rotor):
         else:
             return F0
 
-    def check_speed(self, node, omega):
-        """Adjust the speed for the specified node based on the rotor configuration.
+    def _node_gear_ratio(self, node):
+        """Return the signed speed ratio of the specified node.
 
-        This method checks if the given node belongs to the driven rotor.
-        If so, the rotation speed is multiplied by the gear ratio.
+        The ratio relates the rotational speed at the node to the speed of the
+        main driving shaft, i.e. the speed given to the analysis methods. Each
+        gear mesh contributes a factor of -gear_ratio, since meshed gears spin
+        in opposite directions. Nested MultiRotor objects are handled
+        recursively, so the ratio accumulates along the whole gear train:
+
+        - nodes of the driving rotor take the ratio from the driving rotor,
+          which is 1.0 when it is a single Rotor;
+        - nodes of the driven rotor take the ratio of the driving gear node,
+          multiplied by -gear_ratio of this mesh and by the ratio of the node
+          inside the driven rotor.
 
         Parameters
         ----------
         node : int
-            The node index where the speed check is being applied.
-        omega : float or np.ndarray
-            The original rotation speed of the driving rotor in rad/s.
+            The node index in this MultiRotor numbering.
 
         Returns
         -------
-        speed : float or np.ndarray
-            The adjusted rotation speed for the specified node.
+        ratio : float
+            Signed speed ratio at the node. A negative value means the node
+            spins opposite to the main driving shaft.
         """
-
-        speed = omega
-        rotor = self.rotors["driving"]
+        ratio = 1.0
+        driving_rotor = self.rotors["driving"]
 
         if node in self.driven_nodes:
-            speed = -self.mesh.gear_ratio * omega
-            rotor = self.rotors["driven"]
+            if isinstance(driving_rotor, MultiRotor):
+                ratio = driving_rotor._node_gear_ratio(self.coupled_nodes[0])
 
-        if isinstance(rotor, MultiRotor):
-            return rotor.check_speed(node, speed)
+            ratio *= -self.mesh.gear_ratio
 
-        return speed
+            driven_rotor = self.rotors["driven"]
+            node -= self.driven_nodes[0] - driven_rotor.nodes[0]
+
+            if isinstance(driven_rotor, MultiRotor):
+                ratio *= driven_rotor._node_gear_ratio(node)
+
+        elif isinstance(driving_rotor, MultiRotor):
+            ratio = driving_rotor._node_gear_ratio(node)
+
+        return ratio
 
     def compute_coupling_matrix(self):
         """Coupling matrix of two coupled gears.
@@ -777,7 +1043,7 @@ class MultiRotor(Rotor):
         dofs_2 = self.mesh.driven_gear.dof_global_index.values()
         dofs = [*dofs_1, *dofs_2]
 
-        K0[np.ix_(dofs, dofs)] += self.K_coupling * self.mesh.stiffness
+        K0[np.ix_(dofs, dofs)] += self.K_coupling * self._mesh_stiffness
 
         return K0
 
@@ -816,7 +1082,7 @@ class MultiRotor(Rotor):
         return self.add_coupling_stiffness(
             self._join_matrices(
                 self.rotors["driving"].K(frequency, speed),
-                self.rotors["driven"].K(frequency, speed * self.mesh.gear_ratio),
+                self.rotors["driven"].K(frequency, speed * abs(self._gear_ratio)),
             )
         )
 
@@ -848,7 +1114,7 @@ class MultiRotor(Rotor):
 
         return self._join_matrices(
             self.rotors["driving"].Ksdt(),
-            -self.mesh.gear_ratio * self.rotors["driven"].Ksdt(),
+            self._gear_ratio * self.rotors["driven"].Ksdt(),
         )
 
     def M(self, frequency=None, speed=None, synchronous=False):
@@ -892,7 +1158,7 @@ class MultiRotor(Rotor):
         return self._join_matrices(
             self.rotors["driving"].M(frequency, speed, synchronous),
             self.rotors["driven"].M(
-                frequency, speed * self.mesh.gear_ratio, synchronous
+                frequency, speed * abs(self._gear_ratio), synchronous
             ),
         )
 
@@ -930,7 +1196,7 @@ class MultiRotor(Rotor):
 
         return self._join_matrices(
             self.rotors["driving"].C(frequency, speed),
-            self.rotors["driven"].C(frequency, speed * self.mesh.gear_ratio),
+            self.rotors["driven"].C(frequency, speed * abs(self._gear_ratio)),
         )
 
     def G(self):
@@ -957,7 +1223,7 @@ class MultiRotor(Rotor):
 
         return self._join_matrices(
             self.rotors["driving"].G(),
-            -self.mesh.gear_ratio * self.rotors["driven"].G(),
+            self._gear_ratio * self.rotors["driven"].G(),
         )
 
     def _rotor_system_for_integrate(
@@ -997,7 +1263,7 @@ class MultiRotor(Rotor):
                 C1 = reduce_matrix(self.C(speed[step]))
 
                 # Update mesh stiffness
-                self.mesh.stiffness = self.mesh.interpolate_stiffness(theta[step])
+                self._mesh_stiffness = self.mesh.interpolate_stiffness(theta[step])
                 K1 = reduce_matrix(self.K(speed[step]))
 
                 return (
@@ -1054,7 +1320,100 @@ class MultiRotor(Rotor):
         else:
             results = super().run_time_response(speed, F, t, method=method, **kwargs)
 
+        if self.update_mesh_stiffness:
+            self._mesh_stiffness = self.mesh.stiffness
+
         return results
+
+    @check_units
+    def run_unbalance_response(
+        self,
+        node,
+        unbalance_magnitude,
+        unbalance_phase,
+        speed_range=None,
+        modes=None,
+    ):
+        """Unbalanced response for a multi-rotor.
+        Each unbalance excites at the speed of its own shaft.
+        The response is evaluated at that frequency, with the
+        rotor at driving rotor speed.
+        Parameters
+        ----------
+        node : list, int
+            Node where the unbalance is applied.
+        unbalance_magnitude : list, float, pint.Quantity
+            Unbalance magnitude (kg.m).
+        unbalance_phase : list, float, pint.Quantity
+            Unbalance phase (rad).
+        speed_range : list, pint.Quantity
+            Driving rotor speeds (rad/s).
+            Default is 0 to 1.5 x highest damped natural frequency.
+        modes : list, optional
+            Modes that will be used to calculate the frequency response
+            (all modes will be used if a list is not given).
+        Returns
+        -------
+        results : ross.ForcedResponseResults
+            For more information on attributes and methods available see:
+            :py:class:`ross.ForcedResponseResults`
+        Raises
+        ------
+        ValueError
+            If there are unbalances on both shafts and ``abs(speed_ratio)``
+            is not 1. The response then has two harmonics, which a single
+            result cannot hold, so each shaft must be run separately.
+        Examples
+        --------
+        >>> multi_rotor = two_shaft_rotor_example()
+        >>> speed = np.linspace(0, 100, 11)
+        >>> response = multi_rotor.run_unbalance_response(node=7,
+        ...                                               unbalance_magnitude=1e-3,
+        ...                                               unbalance_phase=0,
+        ...                                               speed_range=speed)
+        >>> abs(response.forced_resp[7 * multi_rotor.number_dof, :3])
+        array([0.00000000e+00, 2.01389384e-06, 2.11118132e-06])
+        """
+        if speed_range is None:
+            modal = self.run_modal(0)
+            speed_range = np.linspace(0, max(modal.evalues.imag) * 1.5, 1000)
+
+        speed_range = np.asarray(speed_range)
+
+        node = np.atleast_1d(node)
+        unbalance_magnitude = np.atleast_1d(unbalance_magnitude)
+        unbalance_phase = np.atleast_1d(unbalance_phase)
+
+        frequency_ratios = {abs(self._node_gear_ratio(n)) for n in node}
+        if len(frequency_ratios) > 1:
+            raise ValueError(
+                "Unbalances on both shafts excite at different frequencies. "
+                "Run the unbalance response for each shaft separately."
+            )
+
+        frequency_range = frequency_ratios.pop() * speed_range
+
+        self._check_coefficient_axes(speed=speed_range, frequency=frequency_range)
+
+        force = np.zeros((self.ndof, len(speed_range)), dtype=complex)
+        for n, m, p in zip(node, unbalance_magnitude, unbalance_phase, strict=True):
+            force += self._unbalance_force(n, m, p, speed_range)
+
+        forced_resp = np.zeros((self.ndof, len(speed_range)), dtype=complex)
+        for i, (speed, frequency) in enumerate(
+            zip(speed_range, frequency_range, strict=True)
+        ):
+            H = self.transfer_matrix(speed=speed, frequency=frequency, modes=modes)
+            forced_resp[:, i] = H @ force[:, i]
+
+        return ForcedResponseResults(
+            rotor=self,
+            forced_resp=forced_resp,
+            velc_resp=1j * frequency_range * forced_resp,
+            accl_resp=-(frequency_range**2) * forced_resp,
+            speed_range=speed_range,
+            unbalance=np.vstack((node, unbalance_magnitude, unbalance_phase)),
+        )
 
 
 def two_shaft_rotor_example():
