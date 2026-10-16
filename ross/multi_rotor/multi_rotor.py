@@ -360,6 +360,79 @@ class MultiRotor(Rotor):
 
         return super()._parameters(skip=skip)
 
+    @classmethod
+    def concatenate(cls, *rotors, tag=None):
+        """Concatenate rotors to the shafts of a multi-rotor.
+
+        Rotors placed before the multi-rotor are concatenated to the start of
+        the driving rotor, and rotors placed after it are concatenated to the
+        end of the driven rotor.
+
+        Parameters
+        ----------
+        *rotors : Rotor
+            Sequence of rotors with exactly one MultiRotor, in the order they
+            should be combined. A single list or tuple of rotors is also
+            accepted as one argument.
+        tag : str, optional
+            Tag for the new multi-rotor. Default is None.
+
+        Returns
+        -------
+        MultiRotor object.
+
+        Examples
+        --------
+        >>> import ross as rs
+        >>> from ross.multi_rotor.multi_rotor import two_shaft_rotor_example
+        >>> multi_rotor = two_shaft_rotor_example()
+        >>> rotor = rs.rotor_example()
+        >>> new_multi_rotor = multi_rotor + rotor
+        >>> len(new_multi_rotor.rotors["driven"].shaft_elements) == (
+        ...     len(multi_rotor.rotors["driven"].shaft_elements)
+        ...     + len(rotor.shaft_elements)
+        ... )
+        True
+        """
+        if len(rotors) == 1 and isinstance(rotors[0], (list, tuple)):
+            rotors = rotors[0]
+
+        rotor_list = list(rotors)
+        multi_indices = [
+            i for i, rotor in enumerate(rotor_list) if isinstance(rotor, MultiRotor)
+        ]
+        if len(multi_indices) != 1:
+            raise ValueError("Exactly one MultiRotor must be provided.")
+
+        k = multi_indices[0]
+        multi_rotor = rotor_list[k]
+        driving = multi_rotor.rotors["driving"]
+        driven = multi_rotor.rotors["driven"]
+        gear_tags = multi_rotor._locate_coupled_gears(driving, driven)
+        gear_tags = [gear.tag for gear in gear_tags]
+        coupled_nodes = list(multi_rotor.coupled_nodes)
+
+        before = rotor_list[:k]
+        after = rotor_list[k + 1 :]
+
+        if before:
+            driving = Rotor.concatenate(*before, driving)
+            gear_tags[0] = f"{gear_tags[0]} (R{len(before)})"
+        if after:
+            driven = Rotor.concatenate(driven, *after)
+            gear_tags[1] = f"{gear_tags[1]} (R0)"
+
+        for i, rotor in enumerate([driving, driven]):
+            coupled_nodes[i] = next(
+                elm.n for elm in rotor.disk_elements if elm.tag == gear_tags[i]
+            )
+
+        parameters = multi_rotor._parameters()
+        parameters["coupled_nodes"] = tuple(coupled_nodes)
+        parameters["tag"] = tag or "Concatenated MultiRotor"
+
+        return cls(driving, driven, **parameters)
+
     def _new_rotor(
         self,
         shaft_elements,

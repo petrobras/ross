@@ -735,10 +735,17 @@ class Rotor(object):
         self.It = v @ (self.M0 @ v.T)
 
     def __add__(self, other):
-        return Rotor.concatenate(self, other)
+        if isinstance(other, type(self)):
+            cls = type(other)
+        elif isinstance(self, type(other)):
+            cls = type(self)
+        else:
+            return NotImplemented
+
+        return cls.concatenate(self, other)
 
     @classmethod
-    def concatenate(cls, *rotors):
+    def concatenate(cls, *rotors, tag=None):
         """Concatenate a sequence of rotors into a single rotor.
 
         The nodes of the concatenated rotor will be the maximum node of the last rotor
@@ -750,6 +757,8 @@ class Rotor(object):
             Sequence of rotors to be concatenated, in the order they
             should be combined. A single list or tuple of rotors is also
             accepted as one argument (e.g. `Rotor.concatenate([rotor1, rotor2])`).
+        tag : str, optional
+            Tag for the concatenated rotor. Default is None.
 
         Returns
         -------
@@ -757,8 +766,13 @@ class Rotor(object):
         """
         if len(rotors) == 1 and isinstance(rotors[0], (list, tuple)):
             rotors = rotors[0]
+
         if not rotors:
             raise ValueError("At least one rotor must be provided.")
+
+        not_rotor = next((r for r in rotors if r.__class__.__name__ != "Rotor"), None)
+        if not_rotor is not None and cls is Rotor:
+            return not_rotor.concatenate(*rotors, tag=tag)
 
         rotor_list = list(rotors)
         shaft_elements = []
@@ -802,7 +816,7 @@ class Rotor(object):
             node_offset += max(rotor.nodes)
 
         parameters = rotor_list[0]._parameters()
-        parameters["tag"] = "Concatenated Rotor"
+        parameters["tag"] = tag or "Concatenated Rotor"
 
         return cls(
             shaft_elements=shaft_elements,
