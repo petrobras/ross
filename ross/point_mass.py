@@ -66,6 +66,9 @@ class PointMass(Element):
         mx=None,
         my=None,
         mz=None,
+        Ixx=None,
+        Iyy=None,
+        Izz=None,
         tag=None,
         scale_factor=1.0,
         color="DarkSalmon",
@@ -81,6 +84,16 @@ class PointMass(Element):
         self.mx = float(mx)
         self.my = float(my)
         self.mz = 0.0 if mz is None else float(mz)
+        inertias = (Ixx, Iyy, Izz)
+        if any(value is not None for value in inertias) and not all(
+            value is not None for value in inertias
+        ):
+            raise ValueError("Ixx, Iyy and Izz must be provided together.")
+        self.Ixx = None if Ixx is None else float(Ixx)
+        self.Iyy = None if Iyy is None else float(Iyy)
+        self.Izz = None if Izz is None else float(Izz)
+        if self.is_rotational and any(value < 0 for value in inertias):
+            raise ValueError("Point-mass rotational inertias must be non-negative.")
         self.tag = tag
         self.dof_global_index = None
         self.scale_factor = scale_factor
@@ -88,6 +101,11 @@ class PointMass(Element):
 
     def __hash__(self):
         return hash(self.tag)
+
+    @property
+    def is_rotational(self):
+        """Whether this point mass includes rotational degrees of freedom."""
+        return self.Ixx is not None
 
     def __eq__(self, other):
         """Equality method for comparisons.
@@ -127,11 +145,16 @@ class PointMass(Element):
         >>> point_mass
         PointMass(n=0, mx=1.0, my=2.0, mz=3.0, tag='pointmass')
         """
+        rotational = (
+            f", Ixx={self.Ixx!r}, Iyy={self.Iyy!r}, Izz={self.Izz!r}"
+            if self.is_rotational
+            else ""
+        )
         return (
             f"{self.__class__.__name__}"
             f"(n={self.n}, mx={self.mx:{0}.{5}},"
             f" my={self.my:{0}.{5}},"
-            f" mz={self.mz:{0}.{5}},"
+            f" mz={self.mz:{0}.{5}}{rotational},"
             f" tag={self.tag!r})"
         )
 
@@ -181,9 +204,12 @@ class PointMass(Element):
         my = self.my
         mz = self.mz
         # fmt: off
-        M = np.array([[mx,  0,  0],
-                      [ 0, my,  0],
-                      [ 0,  0, mz]])
+        if self.is_rotational:
+            M = np.diag([mx, my, mz, self.Ixx, self.Iyy, self.Izz])
+        else:
+            M = np.array([[mx,  0,  0],
+                          [ 0, my,  0],
+                          [ 0,  0, mz]])
         # fmt: on
         return M
 
@@ -206,7 +232,7 @@ class PointMass(Element):
                [0., 0., 0.],
                [0., 0., 0.]])
         """
-        C = np.zeros((3, 3))
+        C = np.zeros((6, 6) if self.is_rotational else (3, 3))
         return C
 
     def K(self):
@@ -228,7 +254,7 @@ class PointMass(Element):
                [0., 0., 0.],
                [0., 0., 0.]])
         """
-        K = np.zeros((3, 3))
+        K = np.zeros((6, 6) if self.is_rotational else (3, 3))
         return K
 
     def G(self):
@@ -250,7 +276,7 @@ class PointMass(Element):
                [0., 0., 0.],
                [0., 0., 0.]])
         """
-        G = np.zeros((3, 3))
+        G = np.zeros((6, 6) if self.is_rotational else (3, 3))
         return G
 
     def dof_mapping(self):
@@ -277,7 +303,10 @@ class PointMass(Element):
         >>> p1.dof_mapping()
         {'x_0': 0, 'y_0': 1, 'z_0': 2}
         """
-        return dict(x_0=0, y_0=1, z_0=2)
+        mapping = dict(x_0=0, y_0=1, z_0=2)
+        if self.is_rotational:
+            mapping.update(alpha_0=3, beta_0=4, theta_0=5)
+        return mapping
 
     def _patch(self, position, fig):
         """Point mass element patch.

@@ -10,6 +10,7 @@ from numpy.testing import assert_allclose, assert_almost_equal
 from ross.materials import steel
 from ross.shaft_element import ShaftElement
 from ross.coupling_element import CouplingElement
+from ross.units import Q_
 
 
 @pytest.fixture
@@ -663,9 +664,9 @@ def coupling():
         m_r=mass_station,
         Ip_l=Ip_station,
         Ip_r=Ip_station,
-        kt_x=1e6,
-        kt_y=2e6,
-        kt_z=3e6,  # Axial stiffness (in N/m)
+        k_x=1e6,
+        k_y=2e6,
+        k_z=3e6,  # Axial stiffness (in N/m)
         kr_x=4e6,
         kr_y=5e6,
         kr_z=6e6,  # Torsional stiffness (in N·m/rad)
@@ -677,9 +678,9 @@ def test_parameters_coupling(coupling):
     assert coupling.Ip == 3.48
     assert coupling.Id_l == 0.87
     assert coupling.Id_r == 0.87
-    assert coupling.kt_x == 1e6
-    assert coupling.kt_y == 2e6
-    assert coupling.kt_z == 3e6
+    assert coupling.k_x == 1e6
+    assert coupling.k_y == 2e6
+    assert coupling.k_z == 3e6
     assert coupling.kr_x == 4e6
     assert coupling.kr_y == 5e6
     assert coupling.kr_z == 6e6
@@ -689,6 +690,23 @@ def test_parameters_coupling(coupling):
     assert coupling.cr_x == 0.0
     assert coupling.cr_y == 0.0
     assert coupling.cr_z == 0.0
+
+
+def test_legacy_coupling_translational_stiffness_aliases():
+    coupling = CouplingElement(
+        m_l=1,
+        m_r=1,
+        Ip_l=0.1,
+        Ip_r=0.1,
+        kt_x=Q_(1, "N/mm"),
+        kt_y=2,
+        kt_z=3,
+    )
+
+    assert coupling.k_x == 1000
+    assert coupling.k_y == 2
+    assert coupling.k_z == 3
+    assert coupling.kt_x == coupling.k_x
 
 
 def test_mass_matrix_coupling(coupling):

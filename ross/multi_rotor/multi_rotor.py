@@ -918,11 +918,11 @@ class MultiRotor(Rotor):
         Examples
         --------
         >>> multi_rotor = two_shaft_rotor_example()
-        >>> multi_rotor.C(0)[:4, :4] / 1e3
-        array([[ 3.,  0.,  0.,  0.],
-               [ 0.,  3.,  0., -0.],
-               [ 0.,  0.,  0.,  0.],
-               [ 0., -0.,  0.,  0.]])
+        >>> abs(multi_rotor.C(0)[:4, :4] / 1e3)
+        array([[3., 0., 0., 0.],
+               [0., 3., 0., 0.],
+               [0., 0., 0., 0.],
+               [0., 0., 0., 0.]])
         """
 
         if speed is None:

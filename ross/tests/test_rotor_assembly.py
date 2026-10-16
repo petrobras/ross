@@ -29,6 +29,47 @@ def get_dofs(ndof):
     return dofs_4, dofs_6
 
 
+def test_rotational_bearing_global_assembly():
+    shaft = ShaftElement(0.5, 0.0, 0.05, material=steel)
+    bearing = BearingElement(
+        n=0,
+        kxx=1e6,
+        cxx=1e3,
+        kr_xx=2e4,
+        cr_xx=3e1,
+        Ixx=1e-3,
+        Iyy=2e-3,
+        Izz=3e-3,
+    )
+    rotor = Rotor([shaft], bearing_elements=[bearing])
+
+    assert_allclose(rotor.M(0)[3, 3] - rotor.M0[3, 3], 1e-3)
+    assert_allclose(rotor.K(0)[3, 3] - rotor.K0[3, 3], 2e4)
+    assert_allclose(rotor.C(0)[3, 3] - rotor.C0[3, 3], 3e1)
+    assert_allclose(rotor.G(0, 100)[3, 4] - rotor.G0[3, 4], 3e-3)
+    assert_allclose(rotor.G(0, 100)[4, 3] - rotor.G0[4, 3], -3e-3)
+
+
+def test_rotational_linked_support_assembly():
+    shaft = ShaftElement(0.5, 0.0, 0.05, material=steel)
+    bearing = BearingElement(
+        n=0,
+        n_link=2,
+        kxx=1e6,
+        cxx=1e3,
+        kr_xx=2e4,
+        Ixx=1e-3,
+        Iyy=2e-3,
+        Izz=3e-3,
+    )
+    support = PointMass(2, m=1.0, Ixx=0.1, Iyy=0.2, Izz=0.3)
+    rotor = Rotor([shaft], bearing_elements=[bearing], point_mass_elements=[support])
+
+    assert rotor.ndof == 18
+    assert rotor.M(0).shape == (18, 18)
+    assert_allclose(rotor.G(0, 100), -rotor.G(0, 100).T)
+
+
 @pytest.fixture
 def rotor1():
     #  Rotor without damping with 2 shaft elements - no disks and no bearings

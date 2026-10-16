@@ -172,6 +172,22 @@ def read_table_file(file, element, sheet_name=0, n=0, sheet_type="Model"):
         optional_parameter_columns["cyy"] = ["cyy"]
         optional_parameter_columns["cxy"] = ["cxy"]
         optional_parameter_columns["cyx"] = ["cyx"]
+        for name in (
+            "kr_xx",
+            "kr_xy",
+            "kr_yx",
+            "kr_yy",
+            "kr_zz",
+            "cr_xx",
+            "cr_xy",
+            "cr_yx",
+            "cr_yy",
+            "cr_zz",
+            "Ixx",
+            "Iyy",
+            "Izz",
+        ):
+            optional_parameter_columns[name] = [name.lower()]
         optional_parameter_columns["speed"] = ["speed", "frequency"]
         default_dictionary["kyy"] = None
         default_dictionary["kxy"] = 0
@@ -179,6 +195,22 @@ def read_table_file(file, element, sheet_name=0, n=0, sheet_type="Model"):
         default_dictionary["cyy"] = None
         default_dictionary["cxy"] = 0
         default_dictionary["cyx"] = 0
+        for name in (
+            "kr_xx",
+            "kr_xy",
+            "kr_yx",
+            "kr_yy",
+            "kr_zz",
+            "cr_xx",
+            "cr_xy",
+            "cr_yx",
+            "cr_yy",
+            "cr_zz",
+            "Ixx",
+            "Iyy",
+            "Izz",
+        ):
+            default_dictionary[name] = 0
         default_dictionary["speed"] = None
     elif element == "shaft":
         if sheet_type == "Model":
@@ -396,6 +428,21 @@ def read_table_file(file, element, sheet_name=0, n=0, sheet_type="Model"):
                 parameters["cyy"][i] = parameters["cyy"][i] * 175.126_836_986_4
                 parameters["cxy"][i] = parameters["cxy"][i] * 175.126_836_986_4
                 parameters["cyx"][i] = parameters["cyx"][i] * 175.126_836_986_4
+                for name in (
+                    "kr_xx",
+                    "kr_xy",
+                    "kr_yx",
+                    "kr_yy",
+                    "kr_zz",
+                    "cr_xx",
+                    "cr_xy",
+                    "cr_yx",
+                    "cr_yy",
+                    "cr_zz",
+                ):
+                    parameters[name][i] *= 0.112_984_829_027
+                for name in ("Ixx", "Iyy", "Izz"):
+                    parameters[name][i] *= 0.000_292_639_7
             if element == "shaft":
                 parameters["L"][i] = parameters["L"][i] * 0.0254
                 parameters["idl"][i] = parameters["idl"][i] * 0.0254
@@ -471,6 +518,30 @@ def visualize_matrix(rotor, matrix, frequency=None, **kwargs):
             elm_matrix = getattr(elm, matrix)(frequency)
         except TypeError:
             elm_matrix = getattr(elm, matrix)()
+
+        # Bearings now expose six local DOFs while legacy support nodes may
+        # still expose only their translational three.  Rotor's projection
+        # helper keeps this visualization consistent with global assembly.
+        if len(g_dofs) != elm_matrix.shape[0] and hasattr(rotor, "_element_matrix"):
+            elm_matrix, g_dofs = rotor._element_matrix(elm, matrix, frequency)
+            local_mapping = elm.dof_mapping()
+            try:
+                l_dofs = [local_mapping[key] for key in elm.dof_global_index]
+            except KeyError:
+                local_names = {
+                    name: i
+                    for i, name in enumerate(("x", "y", "z", "alpha", "beta", "theta"))
+                }
+                l_dofs = []
+                for key in elm.dof_global_index:
+                    name, node = key.rsplit("_", 1)
+                    offset = (
+                        6
+                        if getattr(elm, "n_link", None) is not None
+                        and int(node) == elm.n_link
+                        else 0
+                    )
+                    l_dofs.append(offset + local_names[name])
 
         A[np.ix_(g_dofs, g_dofs)] += elm_matrix
 

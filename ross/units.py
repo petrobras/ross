@@ -42,8 +42,28 @@ units = {
     "m": "kg",
     "mx": "kg",
     "my": "kg",
+    "mz": "kg",
     "Ip": "kg*m**2",
     "Id": "kg*m**2",
+    "Ixx": "kg*m**2",
+    "Iyy": "kg*m**2",
+    "Izz": "kg*m**2",
+    "k_x": "N/m",
+    "k_y": "N/m",
+    "k_z": "N/m",
+    # Legacy CouplingElement names accepted during migration.
+    "kt_x": "N/m",
+    "kt_y": "N/m",
+    "kt_z": "N/m",
+    "kr_x": "N*m/rad",
+    "kr_y": "N*m/rad",
+    "kr_z": "N*m/rad",
+    "ct_x": "N*s/m",
+    "ct_y": "N*s/m",
+    "ct_z": "N*s/m",
+    "cr_x": "N*m*s/rad",
+    "cr_y": "N*m*s/rad",
+    "cr_z": "N*m*s/rad",
     "width": "meter",
     "depth": "meter",
     "thickness": "meter",
@@ -93,6 +113,10 @@ for i, unit in zip(["k", "c", "m"], ["N/m", "N*s/m", "kg"], strict=True):
     for j in ["x", "y", "z"]:
         for k in ["x", "y", "z"]:
             units["".join([i, j, k])] = unit
+
+for i, unit in zip(["kr", "cr"], ["N*m/rad", "N*m*s/rad"], strict=True):
+    for suffix in ["xx", "xy", "yx", "yy", "zz"]:
+        units[f"{i}_{suffix}"] = unit
 
 
 def check_units(func):

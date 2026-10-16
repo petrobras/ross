@@ -421,14 +421,10 @@ class BearingElement(Element):
     >>> cyy = 1.5e2
     >>> speed = np.linspace(0, 200, 11)
     >>> bearing0 = rs.BearingElement(n=0, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, speed=speed)
-    >>> bearing0.K(speed[-1])
-    array([[1000000.,       0.,       0.],
-           [      0.,  800000.,       0.],
-           [      0.,       0.,       0.]])
-    >>> bearing0.C(speed[-1])
-    array([[200.,   0.,   0.],
-           [  0., 150.,   0.],
-           [  0.,   0.,   0.]])
+    >>> bearing0.K(speed[-1]).shape
+    (6, 6)
+    >>> bearing0.C(speed[-1]).shape
+    (6, 6)
 
     A 2-D table declares both axes; the coefficients are then evaluated at
     a (frequency, speed) pair, and at the synchronous diagonal when a single
@@ -476,6 +472,19 @@ class BearingElement(Element):
         color="#355d7a",
         interpolation="pchip",
         radial_clearance=None,
+        kr_xx=0,
+        kr_xy=0,
+        kr_yx=0,
+        kr_yy=0,
+        kr_zz=0,
+        cr_xx=0,
+        cr_xy=0,
+        cr_yx=0,
+        cr_yy=0,
+        cr_zz=0,
+        Ixx=0,
+        Iyy=0,
+        Izz=0,
         **kwargs,
     ):
         self.speed = self._axis_array(speed)
@@ -505,6 +514,19 @@ class BearingElement(Element):
             "mxy",
             "myx",
             "mzz",
+            "kr_xx",
+            "kr_xy",
+            "kr_yx",
+            "kr_yy",
+            "kr_zz",
+            "cr_xx",
+            "cr_xy",
+            "cr_yx",
+            "cr_yy",
+            "cr_zz",
+            "Ixx",
+            "Iyy",
+            "Izz",
         ]
 
         # all args to coefficients.  output of locals() should be READ ONLY
@@ -552,7 +574,9 @@ class BearingElement(Element):
         ]
 
         if ignore_mass:
-            coefficients = [coeff for coeff in coefficients if "m" not in coeff]
+            coefficients = [
+                coeff for coeff in coefficients if not coeff.startswith(("m", "I"))
+            ]
 
         return coefficients
 
@@ -563,6 +587,9 @@ class BearingElement(Element):
         stiffness_units="N/m",
         damping_units="N*s/m",
         mass_units="kg",
+        rotational_inertia_units="kg*m**2",
+        rotational_stiffness_units="N*m/rad",
+        rotational_damping_units="N*m*s/rad",
         fig=None,
         **kwargs,
     ):
@@ -618,12 +645,24 @@ class BearingElement(Element):
 
         coeff_to_plot = coefficients_set.pop()
 
-        if coeff_to_plot == "k":
+        if all(coeff.startswith("kr") for coeff in coefficients):
+            default_units = "N*m/rad"
+            y_units = rotational_stiffness_units
+        elif all(coeff.startswith("cr") for coeff in coefficients):
+            default_units = "N*m*s/rad"
+            y_units = rotational_damping_units
+        elif all(coeff.startswith("I") for coeff in coefficients):
+            default_units = "kg*m**2"
+            y_units = rotational_inertia_units
+        elif coeff_to_plot == "k":
             default_units = "N/m"
             y_units = stiffness_units
         elif coeff_to_plot == "c":
             default_units = "N*s/m"
             y_units = damping_units
+        elif coeff_to_plot == "I":
+            default_units = "kg*m**2"
+            y_units = "kg*m**2"
         else:
             default_units = "kg"
             y_units = mass_units
@@ -681,6 +720,9 @@ class BearingElement(Element):
         stiffness_units="N/m",
         damping_units="N*s/m",
         mass_units="kg",
+        rotational_inertia_units="kg*m**2",
+        rotational_stiffness_units="N*m/rad",
+        rotational_damping_units="N*m*s/rad",
     ):
         """Return speed / frequency vs coefficients in table format.
 
@@ -740,8 +782,22 @@ class BearingElement(Element):
         elif coefficients is None:
             coefficients = self._get_coefficient_list(ignore_mass=True)
 
-        default_units = {"k": "N/m", "c": "N*s/m", "m": "kg"}
-        y_units = {"k": stiffness_units, "c": damping_units, "m": mass_units}
+        default_units = {
+            "k": "N/m",
+            "c": "N*s/m",
+            "m": "kg",
+            "I": "kg*m**2",
+            "kr": "N*m/rad",
+            "cr": "N*m*s/rad",
+        }
+        y_units = {
+            "k": stiffness_units,
+            "c": damping_units,
+            "m": mass_units,
+            "I": rotational_inertia_units,
+            "kr": rotational_stiffness_units,
+            "cr": rotational_damping_units,
+        }
 
         def default_axis(values, axis):
             if values is not None:
@@ -784,13 +840,22 @@ class BearingElement(Element):
         table = PrettyTable()
 
         for coeff in coefficients:
-            headers.append(f"{coeff} [{y_units[coeff[0]]}]")
+            unit_key = (
+                "I"
+                if coeff.startswith("I")
+                else "kr"
+                if coeff.startswith("kr")
+                else "cr"
+                if coeff.startswith("cr")
+                else coeff[0]
+            )
+            headers.append(f"{coeff} [{y_units[unit_key]}]")
             columns = (
                 Q_(
                     getattr(self, f"{coeff}_interpolated")(frequency_col, speed_col),
-                    default_units[coeff[0]],
+                    default_units[unit_key],
                 )
-                .to(y_units[coeff[0]])
+                .to(y_units[unit_key])
                 .m
             )
             data.append(columns)
@@ -826,6 +891,11 @@ class BearingElement(Element):
             f" mxx={self.mxx}, mxy={self.mxy},\n"
             f" myx={self.myx}, myy={self.myy},\n"
             f" mzz={self.mzz},\n"
+            f" kr_xx={self.kr_xx}, kr_xy={self.kr_xy}, kr_yx={self.kr_yx},\n"
+            f" kr_yy={self.kr_yy}, kr_zz={self.kr_zz},\n"
+            f" cr_xx={self.cr_xx}, cr_xy={self.cr_xy}, cr_yx={self.cr_yx},\n"
+            f" cr_yy={self.cr_yy}, cr_zz={self.cr_zz},\n"
+            f" Ixx={self.Ixx}, Iyy={self.Iyy}, Izz={self.Izz},\n"
             f" speed={self.speed}, frequency={self.frequency}, tag={self.tag!r})"
         )
 
@@ -1059,9 +1129,9 @@ class BearingElement(Element):
 
         >>> bearing = bearing_example()
         >>> bearing.dof_mapping()
-        {'x_0': 0, 'y_0': 1, 'z_0': 2}
+        {'x_0': 0, 'y_0': 1, 'z_0': 2, 'alpha_0': 3, 'beta_0': 4, 'theta_0': 5}
         """
-        return dict(x_0=0, y_0=1, z_0=2)
+        return dict(x_0=0, y_0=1, z_0=2, alpha_0=3, beta_0=4, theta_0=5)
 
     @check_units
     def M(self, frequency, speed=None):
@@ -1086,18 +1156,28 @@ class BearingElement(Element):
         Examples
         --------
         >>> bearing = bearing_example()
-        >>> bearing.M(0)
-        array([[0., 0., 0.],
-               [0., 0., 0.],
-               [0., 0., 0.]])
+        >>> bearing.M(0).shape
+        (6, 6)
         """
         mxx = self.mxx_interpolated(frequency, speed)
         myy = self.myy_interpolated(frequency, speed)
         mxy = self.mxy_interpolated(frequency, speed)
         myx = self.myx_interpolated(frequency, speed)
         mzz = self.mzz_interpolated(frequency, speed)
+        Ixx = self.Ixx_interpolated(frequency, speed)
+        Iyy = self.Iyy_interpolated(frequency, speed)
+        Izz = self.Izz_interpolated(frequency, speed)
 
-        M = np.array([[mxx, mxy, 0], [myx, myy, 0], [0, 0, mzz]])
+        M = np.array(
+            [
+                [mxx, mxy, 0, 0, 0, 0],
+                [myx, myy, 0, 0, 0, 0],
+                [0, 0, mzz, 0, 0, 0],
+                [0, 0, 0, Ixx, 0, 0],
+                [0, 0, 0, 0, Iyy, 0],
+                [0, 0, 0, 0, 0, Izz],
+            ]
+        )
 
         if self.n_link is not None:
             # fmt: off
@@ -1131,10 +1211,8 @@ class BearingElement(Element):
         Examples
         --------
         >>> bearing = bearing_example()
-        >>> bearing.K(0)
-        array([[1000000.,       0.,       0.],
-               [      0.,  800000.,       0.],
-               [      0.,       0.,  100000.]])
+        >>> bearing.K(0).shape
+        (6, 6)
         """
         kxx = self.kxx_interpolated(frequency, speed)
         kyy = self.kyy_interpolated(frequency, speed)
@@ -1142,7 +1220,22 @@ class BearingElement(Element):
         kyx = self.kyx_interpolated(frequency, speed)
         kzz = self.kzz_interpolated(frequency, speed)
 
-        K = np.array([[kxx, kxy, 0], [kyx, kyy, 0], [0, 0, kzz]])
+        kr_xx = self.kr_xx_interpolated(frequency, speed)
+        kr_xy = self.kr_xy_interpolated(frequency, speed)
+        kr_yx = self.kr_yx_interpolated(frequency, speed)
+        kr_yy = self.kr_yy_interpolated(frequency, speed)
+        kr_zz = self.kr_zz_interpolated(frequency, speed)
+
+        K = np.array(
+            [
+                [kxx, kxy, 0, 0, 0, 0],
+                [kyx, kyy, 0, 0, 0, 0],
+                [0, 0, kzz, 0, 0, 0],
+                [0, 0, 0, kr_xx, kr_xy, 0],
+                [0, 0, 0, kr_yx, kr_yy, 0],
+                [0, 0, 0, 0, 0, kr_zz],
+            ]
+        )
 
         if self.n_link is not None:
             # fmt: off
@@ -1176,10 +1269,8 @@ class BearingElement(Element):
         Examples
         --------
         >>> bearing = bearing_example()
-        >>> bearing.C(0)
-        array([[200.,   0.,   0.],
-               [  0., 150.,   0.],
-               [  0.,   0.,  50.]])
+        >>> bearing.C(0).shape
+        (6, 6)
         """
         cxx = self.cxx_interpolated(frequency, speed)
         cyy = self.cyy_interpolated(frequency, speed)
@@ -1187,7 +1278,22 @@ class BearingElement(Element):
         cyx = self.cyx_interpolated(frequency, speed)
         czz = self.czz_interpolated(frequency, speed)
 
-        C = np.array([[cxx, cxy, 0], [cyx, cyy, 0], [0, 0, czz]])
+        cr_xx = self.cr_xx_interpolated(frequency, speed)
+        cr_xy = self.cr_xy_interpolated(frequency, speed)
+        cr_yx = self.cr_yx_interpolated(frequency, speed)
+        cr_yy = self.cr_yy_interpolated(frequency, speed)
+        cr_zz = self.cr_zz_interpolated(frequency, speed)
+
+        C = np.array(
+            [
+                [cxx, cxy, 0, 0, 0, 0],
+                [cyx, cyy, 0, 0, 0, 0],
+                [0, 0, czz, 0, 0, 0],
+                [0, 0, 0, cr_xx, cr_xy, 0],
+                [0, 0, 0, cr_yx, cr_yy, 0],
+                [0, 0, 0, 0, 0, cr_zz],
+            ]
+        )
 
         if self.n_link is not None:
             # fmt: off
@@ -1197,7 +1303,7 @@ class BearingElement(Element):
 
         return C
 
-    def G(self):
+    def G(self, frequency=0, speed=None):
         """Gyroscopic matrix for an instance of a bearing element.
 
         This method returns the mass matrix for an instance of a bearing
@@ -1211,12 +1317,16 @@ class BearingElement(Element):
         Examples
         --------
         >>> bearing = bearing_example()
-        >>> bearing.G()
-        array([[0., 0., 0.],
-               [0., 0., 0.],
-               [0., 0., 0.]])
+        >>> bearing.G().shape
+        (6, 6)
         """
-        G = np.zeros_like(self.K(0))
+        Izz = self.Izz_interpolated(frequency, speed)
+        G = np.zeros((6, 6))
+        G[3, 4] = Izz
+        G[4, 3] = -Izz
+
+        if self.n_link is not None:
+            G = np.vstack((np.hstack([G, -G]), np.hstack([-G, G])))
 
         return G
 
@@ -1537,6 +1647,19 @@ class BearingElement(Element):
             "cyy": b_elem.cyy,
             "cxy": b_elem.cxy,
             "cyx": b_elem.cyx,
+            "kr_xx": b_elem.kr_xx,
+            "kr_xy": b_elem.kr_xy,
+            "kr_yx": b_elem.kr_yx,
+            "kr_yy": b_elem.kr_yy,
+            "kr_zz": b_elem.kr_zz,
+            "cr_xx": b_elem.cr_xx,
+            "cr_xy": b_elem.cr_xy,
+            "cr_yx": b_elem.cr_yx,
+            "cr_yy": b_elem.cr_yy,
+            "cr_zz": b_elem.cr_zz,
+            "Ixx": b_elem.Ixx,
+            "Iyy": b_elem.Iyy,
+            "Izz": b_elem.Izz,
             "speed": None if b_elem.speed is None else b_elem.speed.tolist(),
         }
         return data
@@ -1606,6 +1729,19 @@ class BearingElement(Element):
             cyy=parameters["cyy"],
             cxy=parameters["cxy"],
             cyx=parameters["cyx"],
+            kr_xx=parameters["kr_xx"],
+            kr_xy=parameters["kr_xy"],
+            kr_yx=parameters["kr_yx"],
+            kr_yy=parameters["kr_yy"],
+            kr_zz=parameters["kr_zz"],
+            cr_xx=parameters["cr_xx"],
+            cr_xy=parameters["cr_xy"],
+            cr_yx=parameters["cr_yx"],
+            cr_yy=parameters["cr_yy"],
+            cr_zz=parameters["cr_zz"],
+            Ixx=parameters["Ixx"],
+            Iyy=parameters["Iyy"],
+            Izz=parameters["Izz"],
             speed=parameters["speed"],
             tag=tag,
             n_link=n_link,
@@ -1727,14 +1863,10 @@ class SealElement(BearingElement):
     >>> cyy = 1.5e2
     >>> speed = np.linspace(0, 200, 11)
     >>> seal = rs.SealElement(n=0, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, speed=speed)
-    >>> seal.K(speed[-1])
-    array([[1000000.,       0.,       0.],
-           [      0.,  800000.,       0.],
-           [      0.,       0.,       0.]])
-    >>> seal.C(speed[-1])
-    array([[200.,   0.,   0.],
-           [  0., 150.,   0.],
-           [  0.,   0.,   0.]])
+    >>> seal.K(speed[-1]).shape
+    (6, 6)
+    >>> seal.C(speed[-1]).shape
+    (6, 6)
     """
 
     _legend_group = "Seal"
@@ -1768,6 +1900,19 @@ class SealElement(BearingElement):
         color="#77ACA2",
         interpolation="pchip",
         radial_clearance=None,
+        kr_xx=0,
+        kr_xy=0,
+        kr_yx=0,
+        kr_yy=0,
+        kr_zz=0,
+        cr_xx=0,
+        cr_xy=0,
+        cr_yx=0,
+        cr_yy=0,
+        cr_zz=0,
+        Ixx=0,
+        Iyy=0,
+        Izz=0,
         **kwargs,
     ):
         self.seal_leakage = seal_leakage
@@ -1791,6 +1936,19 @@ class SealElement(BearingElement):
             myx=myx,
             myy=myy,
             mzz=mzz,
+            kr_xx=kr_xx,
+            kr_xy=kr_xy,
+            kr_yx=kr_yx,
+            kr_yy=kr_yy,
+            kr_zz=kr_zz,
+            cr_xx=cr_xx,
+            cr_xy=cr_xy,
+            cr_yx=cr_yx,
+            cr_yy=cr_yy,
+            cr_zz=cr_zz,
+            Ixx=Ixx,
+            Iyy=Iyy,
+            Izz=Izz,
             tag=tag,
             n_link=n_link,
             color=color,
@@ -2070,10 +2228,8 @@ class BallBearingElement(BearingElement):
     >>> tag = "ballbearing"
     >>> bearing = BallBearingElement(n=n, n_balls=n_balls, d_balls=d_balls,
     ...                              fs=fs, alpha=alpha, tag=tag)
-    >>> bearing.K(0)
-    array([[4.64168838e+07, 0.00000000e+00, 0.00000000e+00],
-           [0.00000000e+00, 1.00906269e+08, 0.00000000e+00],
-           [0.00000000e+00, 0.00000000e+00, 0.00000000e+00]])
+    >>> bearing.K(0).shape
+    (6, 6)
     """
 
     def __init__(
@@ -2248,10 +2404,8 @@ class RollerBearingElement(BearingElement):
     >>> tag = "rollerbearing"
     >>> bearing = RollerBearingElement(n=n, n_rollers=n_rollers, l_rollers=l_rollers,
     ...                            fs=fs, alpha=alpha, tag=tag)
-    >>> bearing.K(0)
-    array([[2.72821927e+08, 0.00000000e+00, 0.00000000e+00],
-           [0.00000000e+00, 5.56779444e+08, 0.00000000e+00],
-           [0.00000000e+00, 0.00000000e+00, 0.00000000e+00]])
+    >>> bearing.K(0).shape
+    (6, 6)
     """
 
     def __init__(

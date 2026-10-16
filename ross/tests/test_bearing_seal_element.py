@@ -149,6 +149,9 @@ def test_bearing1_matrices(bearing1):
     M = np.array([[1e-3,   0., 0.],
                   [  0., 1e-3, 0.],
                   [  0.,   0., 0.]])
+    K = np.pad(K, ((0, 3), (0, 3)))
+    C = np.pad(C, ((0, 3), (0, 3)))
+    M = np.pad(M, ((0, 3), (0, 3)))
     # fmt: on
     assert_allclose(bearing1.K(314.2), K, rtol=1e-5)
     assert_allclose(bearing1.C(314.2), C, rtol=1e-5)
@@ -270,6 +273,10 @@ def test_bearing_link_matrices():
     ])
     # fmt: on
 
+    M12 = np.zeros((12, 12))
+    translational_dofs = [0, 1, 2, 6, 7, 8]
+    M12[np.ix_(translational_dofs, translational_dofs)] = M
+    M = M12
     assert_allclose(b0.K(0), M)
     assert_allclose(b0.C(0), M)
 
@@ -291,10 +298,12 @@ def test_ball_bearing_element():
     C = np.array([[580.2110481, 0.0], [0.0, 1261.32836543]])
     C = np.pad(C, pad_width=((0, 1), (0, 1)))
 
-    assert_allclose(ballbearing.M(0), np.zeros((3, 3)))
+    assert_allclose(ballbearing.M(0), np.zeros((6, 6)))
+    K = np.pad(K, ((0, 3), (0, 3)))
+    C = np.pad(C, ((0, 3), (0, 3)))
     assert_allclose(ballbearing.K(0), K)
     assert_allclose(ballbearing.C(0), C)
-    assert_allclose(ballbearing.G(), np.zeros((3, 3)))
+    assert_allclose(ballbearing.G(), np.zeros((6, 6)))
 
 
 def test_roller_bearing_element():
@@ -314,10 +323,12 @@ def test_roller_bearing_element():
     C = np.array([[3410.27409251, 0.0], [0.0, 6959.74304593]])
     C = np.pad(C, pad_width=((0, 1), (0, 1)))
 
-    assert_allclose(rollerbearing.M(0), np.zeros((3, 3)))
+    assert_allclose(rollerbearing.M(0), np.zeros((6, 6)))
+    K = np.pad(K, ((0, 3), (0, 3)))
+    C = np.pad(C, ((0, 3), (0, 3)))
     assert_allclose(rollerbearing.K(0), K)
     assert_allclose(rollerbearing.C(0), C)
-    assert_allclose(rollerbearing.G(), np.zeros((3, 3)))
+    assert_allclose(rollerbearing.G(), np.zeros((6, 6)))
 
 
 @pytest.fixture
@@ -376,13 +387,13 @@ def test_magnetic_bearing_element(magnetic_bearing):
     # M and G matrices
     assert_allclose(
         magnetic_bearing.M(0),
-        np.zeros((3, 3)),
+        np.zeros((6, 6)),
         rtol=0.0,
         atol=1e-10,
     )
     assert_allclose(
         magnetic_bearing.G(),
-        np.zeros((3, 3)),
+        np.zeros((6, 6)),
         rtol=0.0,
         atol=1e-10,
     )
@@ -613,6 +624,10 @@ def test_bearing6(bearing_6dof):
          [  0.,   0., 50.]])
     M = np.zeros((3, 3))
     G = np.zeros((3, 3))
+    K = np.pad(K, ((0, 3), (0, 3)))
+    C = np.pad(C, ((0, 3), (0, 3)))
+    M = np.pad(M, ((0, 3), (0, 3)))
+    G = np.pad(G, ((0, 3), (0, 3)))
     # fmt: on
 
     assert_allclose(bearing_6dof.K(0), K, rtol=1e-3)
@@ -635,6 +650,61 @@ def test_bearing_6dof_equality():
     assert bearing_6dof_0 == bearing_6dof_1
     assert bearing_6dof_1 != bearing_6dof_2
     assert bearing_6dof_0 != bearing_6dof_2
+
+
+def test_rotational_bearing_matrices():
+    bearing = BearingElement(
+        n=0,
+        kxx=1.0,
+        cxx=2.0,
+        kr_xx=3.0,
+        kr_xy=4.0,
+        kr_yx=5.0,
+        kr_yy=6.0,
+        kr_zz=7.0,
+        cr_xx=8.0,
+        cr_xy=9.0,
+        cr_yx=10.0,
+        cr_yy=11.0,
+        cr_zz=12.0,
+        Ixx=13.0,
+        Iyy=14.0,
+        Izz=15.0,
+    )
+
+    assert_allclose(
+        bearing.M(0),
+        np.diag([0.0, 0.0, 0.0, 13.0, 14.0, 15.0]),
+    )
+    assert_allclose(
+        bearing.K(0)[3:, 3:],
+        [[3.0, 4.0, 0.0], [5.0, 6.0, 0.0], [0.0, 0.0, 7.0]],
+    )
+    assert_allclose(
+        bearing.C(0)[3:, 3:],
+        [[8.0, 9.0, 0.0], [10.0, 11.0, 0.0], [0.0, 0.0, 12.0]],
+    )
+    assert_allclose(bearing.G(), -bearing.G().T)
+    assert bearing.G()[3, 4] == 15.0
+    assert bearing.G()[4, 3] == -15.0
+
+
+def test_rotational_bearing_link_matrix():
+    bearing = BearingElement(
+        n=0,
+        n_link=1,
+        kxx=1.0,
+        cxx=2.0,
+        kr_xx=3.0,
+        Ixx=4.0,
+        Iyy=5.0,
+        Izz=6.0,
+    )
+    local = bearing.K(0)
+    assert local.shape == (12, 12)
+    assert_allclose(local[:6, :6], -local[:6, 6:])
+    assert_allclose(local, local.T)
+    assert_allclose(bearing.G(), -bearing.G().T)
 
 
 def test_pickle(bearing0, bearing_constant, bearing_6dof, magnetic_bearing):
@@ -833,6 +903,8 @@ def test_cylindrical_hydrodynamic():
     expected_k = np.pad(expected_k, pad_width=((0, 1), (0, 1)))
     expected_c = np.array([[232.89693, -81.924371], [-81.924371, 294.911619]])
     expected_c = np.pad(expected_c, pad_width=((0, 1), (0, 1)))
+    expected_k = np.pad(expected_k, pad_width=((0, 3), (0, 3)))
+    expected_c = np.pad(expected_c, pad_width=((0, 3), (0, 3)))
     assert_allclose(
         cylindrical.modified_sommerfeld, expected_modified_sommerfeld, rtol=1e-6
     )
