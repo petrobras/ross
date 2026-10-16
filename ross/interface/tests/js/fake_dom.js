@@ -100,6 +100,10 @@ globalThis.document = {
     createElement: tag => looseNode(tag),
     addEventListener() {},
     body: node('body'),
+    // The viewport the element form's window is kept inside
+    // (components/floating_form.js): a laptop's. A node, because the theme
+    // writes its attribute there.
+    documentElement: Object.assign(node('html'), { clientWidth: 1366, clientHeight: 800 }),
 };
 globalThis.window = globalThis;
 globalThis.Plotly = { newPlot: async () => {}, Plots: { resize() {} } };

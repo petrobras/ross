@@ -11,7 +11,7 @@ from the mode shape; given, the table overrides that placement.
 
 import numpy as np
 
-from .base import Runner, register
+from .base import Runner, probe_from_row, register
 
 METHODS = {
     "Default": "plot",
@@ -60,7 +60,14 @@ class ClearanceRunner(Runner):
             "minimum_allowable_speed": speeds["minimum_allowable_speed"],
             "maximum_continuous_speed": speeds["maximum_continuous_speed"],
             "probes": [
-                {"node": int(row["node"]), "angle": float(row.get("angle", 0.0))}
+                {
+                    "node": int(row["node"]),
+                    "angle": None
+                    if row.get("direction") == "axial"
+                    else float(row.get("angle") or 0.0),
+                    "direction": str(row.get("direction", "") or "radial"),
+                    "tag": str(row.get("tag", "") or "").strip() or None,
+                }
                 for row in probe_rows
             ],
             "mode": self.integer(params, "mode", 0),
@@ -72,10 +79,8 @@ class ClearanceRunner(Runner):
         }
 
     def compute(self, rotor, spec):
-        import ross as rs
-
         speeds = np.linspace(spec["speed_min"], spec["speed_max"], spec["steps"])
-        probes = [rs.Probe(row["node"], row["angle"]) for row in spec["probes"]]
+        probes = [probe_from_row(row) for row in spec["probes"]]
         kwargs = {"num_modes": spec["num_modes"]}
         if spec["scale_factor_cap"] is not None:
             kwargs["scale_factor_cap"] = spec["scale_factor_cap"]

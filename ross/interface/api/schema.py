@@ -5,6 +5,8 @@ from flask import Blueprint, jsonify, request
 
 from ross.interface.domain.analysis_catalog import catalog, titles
 from ross.interface.domain.compatibility import table
+from ross.interface.domain.conversion import to_unit
+from ross.interface.domain.requests import UNITS_REQUEST
 from ross.interface.domain.schema import build_schema
 
 schema = Blueprint("schema", __name__)
@@ -43,3 +45,33 @@ def analyses():
             "unsupported": table(language),
         }
     )
+
+
+# How many values one request may ask for: a list of a few hundred elements,
+# with room to spare, and not an unbounded loop on the server.
+MOST_VALUES = 5000
+
+
+@schema.route("/api/units/convert", methods=["POST"])
+def convert_units():
+    """Read typed values as numbers in a unit, for the element list's filter.
+
+    Next to the schema because it answers with the same knowledge the forms
+    are built from -- the units -- and needs no rotor. Each answer is a number
+    or None (`domain/conversion.to_unit` says when), in the order asked.
+    """
+    payload = UNITS_REQUEST.read(request.get_json(silent=True))
+    items = payload["items"]
+    if len(items) > MOST_VALUES:
+        raise ValueError(
+            "Too many values to convert at once: %d (at most %d)."
+            % (len(items), MOST_VALUES)
+        )
+    values = []
+    for item in items:
+        if not isinstance(item, dict):
+            raise ValueError(
+                "Each value to convert is an object with value, unit and to."
+            )
+        values.append(to_unit(item.get("value"), item.get("unit"), item.get("to")))
+    return jsonify({"status": "success", "values": values})

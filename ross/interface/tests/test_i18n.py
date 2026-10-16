@@ -322,7 +322,7 @@ def test_the_help_has_every_entry_in_both_languages():
         js = handle.read()
     block = js[js.index("const HelpContent = {") : js.index("\n};")]
     entries = re.findall(r"^    (\w+): \{", block, re.M)
-    assert len(entries) == 17, entries
+    assert len(entries) == 18, entries
 
     for helpEntry in entries:
         excerpt = block[block.index("    %s: {" % helpEntry) :]

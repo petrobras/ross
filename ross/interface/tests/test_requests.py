@@ -87,7 +87,7 @@ def _auth():
 
 def _example(field):
     return {"analysis_type": "campbell", "content": "[]"}.get(
-        field.name, {dict: {}, list: [], str: "", int: 0}[field.kind]
+        field.name, {dict: {}, list: [], str: "", int: 0, bool: True}[field.kind]
     )
 
 
@@ -104,7 +104,9 @@ def test_the_sweep_finds_every_envelope_there_is():
         "/api/campbell/mode_shape",
         "/api/export/python",
         "/api/rotor/concatenate",
+        "/api/rotor/mesh_shafts",
         "/api/rotor/split_shaft",
+        "/api/units/convert",
         "/build_rotor",
         "/load_ross_file",
         "/run_analysis",
@@ -158,8 +160,8 @@ def test_the_old_flat_format_is_recognised_by_its_own_keys():
 
 def test_an_empty_body_is_not_mistaken_for_the_old_format():
     """Control: the new refusal must not itself become a misleading message."""
-    assert ROTOR_REQUEST.read({}) == {"project": {}}
-    assert ROTOR_REQUEST.read(None) == {"project": {}}
+    assert ROTOR_REQUEST.read({}) == {"project": {}, "figure": True}
+    assert ROTOR_REQUEST.read(None) == {"project": {}, "figure": True}
 
 
 def test_a_body_that_is_not_an_object_is_refused():
@@ -171,7 +173,15 @@ def test_the_defaults_are_not_shared_between_calls():
     """A shared mutable default leaks one call's project into the next."""
     first = ROTOR_REQUEST.read({})
     first["project"]["shafts"] = ["sujeira"]
-    assert ROTOR_REQUEST.read({}) == {"project": {}}
+    assert ROTOR_REQUEST.read({}) == {"project": {}, "figure": True}
+
+
+def test_the_figure_is_asked_for_with_a_boolean():
+    """The 3D view sends `figure: false`; anything but true or false is refused
+    by name, not read as "yes" because a string is truthy."""
+    assert ROTOR_REQUEST.read({"figure": False})["figure"] is False
+    with pytest.raises(ValueError, match="true or false"):
+        ROTOR_REQUEST.read({"figure": "no"})
 
 
 def test_the_old_flat_payload_is_refused_by_name(client):

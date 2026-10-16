@@ -148,7 +148,7 @@ export async function saveMultiRotor() {
             orientation_angle: document.getElementById('mr-angle').value,
             position: document.getElementById('mr-position').value
         },
-        materials: [], shafts: [], disks: [], gears: [], couplings: [], seals: [], bearings: [], pointmasses: []
+        materials: [], shafts: [], disks: [], gears: [], couplings: [], seals: [], bearings: [], pointmasses: [], probes: []
     };
     
     // Built once by the server before it is kept. A MultiRotor that ROSS will

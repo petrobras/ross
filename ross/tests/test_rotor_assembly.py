@@ -11,6 +11,7 @@ from numpy.testing import assert_allclose, assert_almost_equal, assert_equal
 
 from ross import SensitivityResults
 from ross.bearing_seal_element import *
+from ross.coupling_element import CouplingElement
 from ross.disk_element import *
 from ross.materials import Material, steel
 from ross.point_mass import *
@@ -979,6 +980,223 @@ def rotor9():
     # More complex rotor based on a centrifugal compressor
     rotor9 = Rotor.load(Path(__file__).parent / "data/rotor.toml")
     return rotor9
+
+
+def _ratios(rotor):
+    return [elm.L / max(elm.odl, elm.odr) for elm in rotor.shaft_elements]
+
+
+@pytest.mark.parametrize("max_ld", [1.0, 0.5, 0.25])
+def test_refine_mesh_keeps_every_element_under_the_ratio(rotor3, max_ld):
+    refined = rotor3.refine_mesh(max_ld=max_ld)
+    # rotor3's elements are 0.25 m long and 0.05 m across: L/D = 5.
+    parts = int(np.ceil(5 / max_ld))
+    assert len(refined.shaft_elements) == parts * len(rotor3.shaft_elements)
+    assert max(_ratios(refined)) <= max_ld * (1 + 1e-9)
+    assert_almost_equal(refined.m, rotor3.m)
+    assert_almost_equal(refined.CG, rotor3.CG)
+    assert_almost_equal(refined.Ip, rotor3.Ip)
+    # Every node the rotor had is still there, and every disk and bearing is
+    # where it was along the shaft.
+    for pos in rotor3.nodes_pos:
+        assert np.min(np.abs(np.array(refined.nodes_pos) - pos)) < 1e-12
+    for before, after in zip(
+        rotor3.disk_elements + rotor3.bearing_elements,
+        refined.disk_elements + refined.bearing_elements,
+        strict=True,
+    ):
+        assert_almost_equal(
+            refined.nodes_pos[refined.nodes.index(after.n)],
+            rotor3.nodes_pos[rotor3.nodes.index(before.n)],
+        )
+
+
+def test_refine_mesh_cuts_as_few_parts_as_the_ratio_allows(rotor3):
+    # L/D = 5 exactly at 1/5: whole; a hair under it: two parts.
+    assert len(rotor3.refine_mesh(max_ld=5.0).shaft_elements) == 6
+    assert len(rotor3.refine_mesh(max_ld=4.99).shaft_elements) == 12
+    # Nor does floating point cut one: 0.07 / (0.7 * 0.1) is 1.0000000000000002.
+    shaft = ShaftElement(L=0.07, idl=0, odl=0.1, material=steel)
+    rotor = Rotor(
+        [shaft],
+        bearing_elements=[
+            BearingElement(n=0, kxx=1e6, cxx=0),
+            BearingElement(n=1, kxx=1e6, cxx=0),
+        ],
+    )
+    assert len(rotor.refine_mesh(max_ld=0.7).shaft_elements) == 1
+
+
+def test_refine_mesh_leaves_the_original_rotor_alone(rotor3):
+    before = [(elm.n, elm.L) for elm in rotor3.shaft_elements]
+    rotor3.refine_mesh(max_ld=0.5)
+    assert [(elm.n, elm.L) for elm in rotor3.shaft_elements] == before
+
+
+def test_refine_mesh_converges_the_natural_frequencies(rotor3):
+    coarse = rotor3.run_modal(speed=0).wn[:4]
+    fine = rotor3.refine_mesh(max_ld=0.5).run_modal(speed=0).wn[:4]
+    finer = rotor3.refine_mesh(max_ld=0.25).run_modal(speed=0).wn[:4]
+    # Refining past the API 684 preference changes the first four frequencies
+    # by far less than getting there did.
+    assert np.max(np.abs(finer / fine - 1)) < 1e-3
+    assert np.max(np.abs(finer / fine - 1)) < np.max(np.abs(finer / coarse - 1))
+
+
+def test_refine_mesh_cuts_a_tapered_element_by_its_thicker_end():
+    shaft = ShaftElement(L=1.0, idl=0.0, odl=0.1, idr=0.0, odr=0.2, material=steel)
+    rotor = Rotor(
+        [shaft],
+        bearing_elements=[
+            BearingElement(n=0, kxx=1e6, cxx=0),
+            BearingElement(n=1, kxx=1e6, cxx=0),
+        ],
+    )
+    refined = rotor.refine_mesh(max_ld=0.5)
+    # 1.0 / (0.5 * 0.2) = 10 parts, the diameters interpolated between them.
+    assert len(refined.shaft_elements) == 10
+    assert_allclose(
+        [elm.odl for elm in refined.shaft_elements], np.linspace(0.1, 0.19, 10)
+    )
+    assert_almost_equal(refined.m, rotor.m)
+
+
+def test_refine_mesh_cuts_layered_elements_together(rotor9):
+    refined = rotor9.refine_mesh(max_ld=0.5)
+    assert_almost_equal(refined.m, rotor9.m)
+    assert_almost_equal(refined.CG, rotor9.CG)
+    # Elements on the same pair of nodes still share it, and every layer of
+    # a span is as long as the others.
+    spans = {}
+    for elm in refined.shaft_elements:
+        spans.setdefault(elm.n, set()).add(round(elm.L, 12))
+    assert all(len(lengths) == 1 for lengths in spans.values())
+    # Cut by the largest outer diameter of the span.
+    for n, (length,) in spans.items():
+        largest = max(
+            max(elm.odl, elm.odr) for elm in refined.shaft_elements if elm.n == n
+        )
+        assert length <= 0.5 * largest * (1 + 1e-9)
+
+
+def test_refine_mesh_does_not_cut_a_coupling():
+    shafts = [ShaftElement(L=0.25, idl=0, odl=0.05, material=steel) for _ in range(2)]
+    coupling = CouplingElement(m_l=1, m_r=1, Ip_l=0.01, Ip_r=0.01, o_d=0.05, L=0.2, n=2)
+    after = ShaftElement(L=0.25, idl=0, odl=0.05, material=steel, n=3)
+    rotor = Rotor(
+        shafts + [coupling, after],
+        bearing_elements=[
+            BearingElement(n=0, kxx=1e6, cxx=0),
+            BearingElement(n=4, kxx=1e6, cxx=0),
+        ],
+    )
+    refined = rotor.refine_mesh(max_ld=0.5)
+    couplings = [
+        elm for elm in refined.shaft_elements if isinstance(elm, CouplingElement)
+    ]
+    assert len(couplings) == 1
+    assert_almost_equal(couplings[0].L, 0.2)
+    assert len(refined.shaft_elements) == 3 * 10 + 1
+
+
+def test_refine_mesh_warns_about_elements_too_short_to_fix():
+    shafts = [
+        ShaftElement(L=0.004, idl=0, odl=0.05, material=steel),
+        ShaftElement(L=0.25, idl=0, odl=0.05, material=steel),
+    ]
+    rotor = Rotor(
+        shafts,
+        bearing_elements=[
+            BearingElement(n=0, kxx=1e6, cxx=0),
+            BearingElement(n=2, kxx=1e6, cxx=0),
+        ],
+    )
+    with pytest.warns(UserWarning, match="n=0 .L/D = 0.08"):
+        refined = rotor.refine_mesh(max_ld=0.5)
+    assert_almost_equal(refined.shaft_elements[0].L, 0.004)
+
+
+@pytest.mark.parametrize(
+    "max_ld, min_ld", [(0, 0.1), (-1, 0.1), (0.5, -0.1), (0.5, 0.6)]
+)
+def test_refine_mesh_refuses_ratios_that_mean_nothing(rotor3, max_ld, min_ld):
+    with pytest.raises(ValueError):
+        rotor3.refine_mesh(max_ld=max_ld, min_ld=min_ld)
+
+
+def test_refine_mesh_cuts_every_element_in_a_number_of_parts(rotor3):
+    refined = rotor3.refine_mesh(parts=4)
+    assert len(refined.shaft_elements) == 4 * len(rotor3.shaft_elements)
+    assert_allclose([elm.L for elm in refined.shaft_elements], 0.25 / 4)
+    assert_almost_equal(refined.m, rotor3.m)
+    # One part is the rotor as it is; the ratio is not looked at.
+    assert len(rotor3.refine_mesh(parts=1).shaft_elements) == 6
+    assert len(rotor3.refine_mesh(max_ld=0.01, parts=2).shaft_elements) == 12
+
+
+@pytest.mark.parametrize("parts", [0, -2, 1.5, "3", True])
+def test_refine_mesh_refuses_parts_that_are_not_a_count(rotor3, parts):
+    with pytest.raises(ValueError):
+        rotor3.refine_mesh(parts=parts)
+
+
+@pytest.fixture
+def coarse_rotor():
+    # Two elements for a metre of 40 mm shaft: far too coarse.
+    shafts = [ShaftElement(L=0.5, idl=0, odl=0.04, material=steel) for _ in range(2)]
+    disk = DiskElement.from_geometry(n=1, material=steel, width=0.05, i_d=0.04, o_d=0.3)
+    bearings = [
+        BearingElement(n=0, kxx=1e7, cxx=0),
+        BearingElement(n=2, kxx=1e7, cxx=0),
+    ]
+    return Rotor(shafts, [disk], bearings)
+
+
+def test_refine_mesh_by_convergence_returns_the_coarsest_converged_mesh(coarse_rotor):
+    converged, results = coarse_rotor.refine_mesh_by_convergence(n_modes=6, rtol=1e-3)
+    chosen = results.chosen
+    assert chosen is not None and chosen > 0
+    # The one chosen changes by no more than rtol when refined; every coarser
+    # one changed by more.
+    assert results.error_arr[chosen] <= 0.1
+    assert all(error > 0.1 for error in results.error_arr[:chosen])
+    assert len(converged.shaft_elements) == results.el_num[chosen]
+    assert results.el_num[chosen] < results.el_num[-1]
+    # And its frequencies are those of the finer mesh, to rtol.
+    finer = results.wn[chosen + 1]
+    assert np.max(np.abs(results.wn[chosen] / finer - 1)) <= 1e-3
+    assert_almost_equal(converged.m, coarse_rotor.m)
+    assert len(coarse_rotor.shaft_elements) == 2
+
+
+def test_refine_mesh_by_convergence_keeps_a_rotor_already_converged(rotor3):
+    converged, results = rotor3.refine_mesh_by_convergence(n_modes=4, rtol=1e-2)
+    assert results.chosen == 0 and results.max_ld[0] is None
+    assert converged is rotor3
+
+
+def test_refine_mesh_by_convergence_warns_when_nothing_converges(coarse_rotor):
+    with pytest.warns(UserWarning, match="finest mesh is returned"):
+        converged, results = coarse_rotor.refine_mesh_by_convergence(
+            n_modes=6, rtol=1e-12, max_ld_values=(2.0, 1.0)
+        )
+    assert results.chosen is None
+    assert len(converged.shaft_elements) == results.el_num[-1]
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"n_modes": 0},
+        {"n_modes": 2.5},
+        {"rtol": 0},
+        {"max_ld_values": ()},
+        {"max_ld_values": (1, -1)},
+    ],
+)
+def test_refine_mesh_by_convergence_refuses_what_means_nothing(rotor3, kwargs):
+    with pytest.raises(ValueError):
+        rotor3.refine_mesh_by_convergence(**kwargs)
 
 
 def test_add_nodes_complex(rotor9):

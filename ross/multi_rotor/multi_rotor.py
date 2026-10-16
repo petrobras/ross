@@ -283,6 +283,40 @@ class MultiRotor(Rotor):
 
         return self._rebuild(driving_rotor, driven_rotor)
 
+    def refine_mesh(self, max_ld=0.5, min_ld=0.1):
+        """Subdivide the shaft elements of both rotors by their L/D ratio.
+
+        Each rotor is refined on its own, by :meth:`Rotor.refine_mesh`, and the
+        multi-rotor is built again from the two: a node added to one rotor is
+        not added to the other, unlike :meth:`add_nodes`, which cuts both at
+        the same positions.
+
+        Parameters
+        ----------
+        max_ld : float, optional
+            Largest length-to-diameter ratio left in the model. Default is 0.5.
+        min_ld : float, optional
+            Smallest length-to-diameter ratio that is not warned about.
+            Default is 0.1.
+
+        Returns
+        -------
+        multi_rotor : MultiRotor
+            A new multi-rotor; the original is not modified.
+
+        Examples
+        --------
+        >>> multi_rotor = two_shaft_rotor_example()
+        >>> refined = multi_rotor.refine_mesh(max_ld=0.5)
+        >>> ratios = [elm.L / max(elm.odl, elm.odr)
+        ...     for rotor in refined.rotors.values() for elm in rotor.shaft_elements]
+        >>> round(max(ratios), 9) <= 0.5
+        True
+        """
+        driving_rotor = self.rotors["driving"].refine_mesh(max_ld, min_ld)
+        driven_rotor = self.rotors["driven"].refine_mesh(max_ld, min_ld)
+        return self._rebuild(driving_rotor, driven_rotor)
+
     def add_elements(self, new_elements):
         """Add elements to the multi-rotor.
 

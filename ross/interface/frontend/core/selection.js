@@ -78,15 +78,25 @@ export function pickedCount(context) {
 
 // Tick everything, or untick everything, by the rule the person expects from a
 // header checkbox: if it is not already all of them, it becomes all of them.
-export function pickAll(context, count) {
+// `shown` is how many rows there are, or which of them are shown when the
+// list is filtered (core/list_filter.js): "all" is all that can be seen. A
+// row filtered out of sight is never ticked by it -- "delete selected" would
+// otherwise delete what nobody was looking at.
+function positions(shown) {
+    return Array.isArray(shown) ? shown : Array.from({ length: shown }, (_, index) => index);
+}
+
+export function pickAll(context, shown) {
     align(context);
-    if (picks.size >= count) picks = new Set();
-    else picks = new Set(Array.from({ length: count }, (_, index) => index));
+    const all = positions(shown);
+    if (all.length && all.every(index => picks.has(index))) picks = new Set();
+    else picks = new Set(all);
     return picks.size;
 }
 
-export function allPicked(context, count) {
-    return count > 0 && pickedCount(context) === count;
+export function allPicked(context, shown) {
+    const all = positions(shown);
+    return all.length > 0 && pickedCount(context) === all.length && all.every(index => isPicked(context, index));
 }
 
 export function clearSelection() {

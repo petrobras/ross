@@ -166,12 +166,8 @@ class Runner:
     @staticmethod
     def probes(params):
         """Turn the screen's probe list into rs.Probe objects."""
-        import ross as rs
-
         probe_rows = params.get("probes") or [{"node": 0, "angle": 0.0}]
-        return [
-            rs.Probe(int(s["node"]), float(s.get("angle", 0.0))) for s in probe_rows
-        ]
+        return [probe_from_row(row) for row in probe_rows]
 
     @staticmethod
     def unbalances(params, fallback, mag_default, phase_default, clamp_rotor=None):
@@ -228,6 +224,22 @@ class Runner:
 
 
 REGISTRY = {}
+
+
+def probe_from_row(row):
+    """The `rs.Probe` of a row of a probe table.
+
+    A typed row has a node and an angle in radians, as the table's label says.
+    A row that names a probe of the model has been filled in from it
+    (domain/probe_refs.py) and carries its direction and name too: an axial
+    probe has no angle, and the name is what ROSS's legend shows.
+    """
+    import ross as rs
+
+    direction = str(row.get("direction", "") or "radial")
+    angle = None if direction == "axial" else float(row.get("angle") or 0.0)
+    tag = str(row.get("tag", "") or "").strip() or None
+    return rs.Probe(int(row["node"]), angle, direction=direction, tag=tag)
 
 
 def register(runner_cls):

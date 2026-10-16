@@ -481,6 +481,8 @@ def test_only_browser_apis_are_read_off_the_window():
         "Sortable",
         "matchMedia",
         "requestAnimationFrame",
+        # the screen's pixel density, read once by the 3D view's renderer
+        "devicePixelRatio",
     }
     found_items = []
     for module, number, line in code_lines():
@@ -531,6 +533,26 @@ def test_the_loader_knows_the_same_categories_as_the_registry():
         "only in the loader %s, only in the registry %s"
         % (sorted(listed - set(categories())), sorted(set(categories()) - listed))
     )
+
+
+def test_every_form_has_an_example_to_fill_in():
+    """The "Default" button fills a form from `DefaultExamples` in
+    components/form.js, keyed `<category>_<form>`. A form added to the
+    registry without one answers the button with "no defaults" -- which is how
+    the disk-from-geometry form would have shipped. Membership is compared, as
+    with the loader's categories."""
+    from ross.interface.domain.field_catalog import FIELDS
+
+    text = _text("components/form.js")
+    block = re.search(r"const DefaultExamples = \{(.*?)\n\};", text, re.S)
+    assert block, "DefaultExamples is gone from components/form.js, or changed shape"
+    listed = set(re.findall(r"^\s*(\w+):\s*\{", block.group(1), re.M))
+    forms = {
+        "%s_%s" % (category, subtype)
+        for category, subtypes in FIELDS.items()
+        for subtype in subtypes
+    }
+    assert forms - listed == set(), "forms with no example: %s" % sorted(forms - listed)
 
 
 def test_every_start_function_is_started():

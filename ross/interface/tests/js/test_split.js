@@ -77,6 +77,12 @@ check(
     'an unnamed element names its unit too',
     splitPrompt({ L: '12', L_unit: 'in' }, 1).includes('12 in long'),
 );
+// The placeholders are filled in one pass: a name that holds one is shown as
+// typed, and not filled in by the placeholder after it.
+check(
+    'a name holding "%3" is shown as typed',
+    splitPrompt({ L: '400', tag: 'R%3 $&' }, 0).includes('(R%3 $&) is 400 mm long'),
+);
 
 setSchemaLanguage('pt');
 check(

@@ -18,7 +18,7 @@ import re
 
 import ross as rs
 
-from .element_registry import ross_class_name
+from .element_registry import ross_constructor
 from .field_catalog import FIELDS, SECTIONS
 from .units import UNIT_ALTERNATIVES, UNITS_MAPPING, alternatives_for
 
@@ -26,6 +26,17 @@ LANGUAGES = ("en", "pt")
 
 # The UI uses lowercase 'poisson'; ROSS expects 'Poisson'.
 PARAMETER_ALIASES = {"poisson": "Poisson"}
+
+# The same, for one class only. A probe's node is `n` on the screen, as every
+# other element's, and `node` in `rs.Probe`.
+CLASS_ALIASES = {"Probe": {"n": "node"}}
+
+
+def _parameter_name(ross_class, field_name):
+    """The ROSS parameter a form field stands for."""
+    own = CLASS_ALIASES.get(ross_class, {})
+    return own.get(field_name, PARAMETER_ALIASES.get(field_name, field_name))
+
 
 # Parameters the interface handles itself; they must not become pending.
 _NOT_FORM_FIELDS = {"self", "n"}
@@ -65,7 +76,9 @@ def _documented_parameters(doc):
         stripped = line.strip()
         if stripped in _DOC_SECTIONS:
             break
-        header = re.match(r"^(\w+) : (.*)$", line)
+        # "name : type" is numpydoc; "name: type" is how some of ROSS's
+        # docstrings write it (DiskElement.from_geometry's material, for one).
+        header = re.match(r"^(\w+)\s*: (.*)$", line)
         if header and not line.startswith(" "):
             if current:
                 documented[current] = " ".join(buffer).strip()
@@ -95,6 +108,30 @@ def _jsonable(value):
     return str(value)
 
 
+def _constructor_signature(cls, method_name):
+    """The same four things for an alternative constructor, `Class.method`.
+
+    A classmethod such as DiskElement.from_geometry declares everything it
+    takes and forwards nothing, so there is no MRO to walk: its own signature
+    (bound, so without `cls`) and its own docstring are the whole story.
+    """
+    method = getattr(cls, method_name, None)
+    if method is None:
+        return None, {}, {}, set()
+    try:
+        signature = inspect.signature(method)
+    except (TypeError, ValueError):
+        return None, {}, {}, set()
+    parameters = {
+        name: parameter
+        for name, parameter in signature.parameters.items()
+        if parameter.kind
+        not in (inspect.Parameter.VAR_KEYWORD, inspect.Parameter.VAR_POSITIONAL)
+    }
+    documentation = _documented_parameters(inspect.getdoc(method))
+    return cls, parameters, documentation, set(parameters)
+
+
 def _class_signature(ross_class):
     """Return (class, parameters, docs), following **kwargs up the MRO.
 
@@ -102,10 +139,17 @@ def _class_signature(ross_class):
     rest along with **kwargs -- tag, color, scale_factor and n_link live in
     BearingElement's signature. Without walking the MRO, those fields would
     show up as "does not exist in ROSS" when they do.
+
+    `ross_class` may also name an alternative constructor, "Class.method"
+    (domain/element_registry.py); the class comes back all the same, so the
+    units still follow its inheritance.
     """
-    cls = getattr(rs, ross_class, None)
+    class_name, _, method_name = ross_class.partition(".")
+    cls = getattr(rs, class_name, None)
     if cls is None:
-        return None, {}, {}
+        return None, {}, {}, set()
+    if method_name:
+        return _constructor_signature(cls, method_name)
 
     parameters, documentation, declared_by_class = {}, {}, set()
     for klass in cls.__mro__:
@@ -155,9 +199,11 @@ def _unit_for(cls, ross_class, parameter):
 
     BallBearingElement declares no units of its own, but inherits cxx and cyy
     from BearingElement -- the unit has to come along, or the field loses its
-    selector.
+    selector. An alternative constructor's own units come first.
     """
-    names = [k.__name__ for k in cls.__mro__] if cls is not None else [ross_class]
+    names = [k.__name__ for k in cls.__mro__] if cls is not None else []
+    if "." in ross_class or cls is None:
+        names.insert(0, ross_class)
     for field_name in names:
         unit_name = UNITS_MAPPING.get(field_name, {}).get(parameter)
         if unit_name:
@@ -166,7 +212,7 @@ def _unit_for(cls, ross_class, parameter):
 
 
 def _build_field(field, cls, ross_class, parameters, documentation, language):
-    target = PARAMETER_ALIASES.get(field["name"], field["name"])
+    target = _parameter_name(ross_class, field["name"])
     parameter = parameters.get(target)
     default = _jsonable(parameter.default) if parameter is not None else None
 
@@ -214,7 +260,7 @@ def build_schema(language="en"):
     for category, subtypes in FIELDS.items():
         schema["categories"][category] = {}
         for subtype, fields in subtypes.items():
-            ross_class = ross_class_name(category, subtype)
+            ross_class = ross_constructor(category, subtype)
             cls, parameters, documentation, declared = _class_signature(ross_class)
 
             built = [
@@ -223,9 +269,11 @@ def build_schema(language="en"):
                 )
                 for field in fields
             ]
-            covered = {PARAMETER_ALIASES.get(f["name"], f["name"]) for f in fields}
+            covered = {_parameter_name(ross_class, f["name"]) for f in fields}
 
             schema["categories"][category][subtype] = {
+                # What ROSS is called with: a class, or "Class.method" for an
+                # alternative constructor (domain/element_registry.py).
                 "ross_class": ross_class,
                 "exists": cls is not None,
                 "fields": built,
