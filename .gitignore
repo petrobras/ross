@@ -141,7 +141,11 @@ pip-selfcheck.json
 /tools/plots/*.html
 !/tools/plots/index.html
 /docs/references/generated/
-/.claude
+/.claude/*
+!/.claude/skills/
+/.claude/skills/*
+!/.claude/skills/ross-pr-create
+!/.claude/skills/ross-pr-review
 .mcp.json
 uv.lock
 # Local mirror of the claude.ai design-system project (canonical source lives there)
