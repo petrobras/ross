@@ -142,7 +142,10 @@ def hydrodynamics(
     sump_index, elasto_index, mixtemp_index, jtemp_index, vis_index : int
         Outer-iteration counters that gate the film-onset search.
     relaxp : float
-        Relaxation factor for the journal-position update.
+        Relaxation factor for the journal-position update. A warm-started
+        case (see :class:`~ross.bearings.fluid_film.sweep.WarmStart`) sets
+        ``state["_newton_relax"]``, which replaces it for the position update
+        only (the shear-stress iteration keeps ``relaxp``).
     fixed_brg_fn : callable
         ``fixed_brg_fn(state, equilpost_index, relaxp, press=press)`` ->
         the :func:`fixed_brg` result dict; solves the film at the current
@@ -184,6 +187,9 @@ def hydrodynamics(
     total_e_x_film = s["total_e_x_film"]
     monitor = s.get("_monitor")
     newton_tolerance = NEWTON_ERROR * s.get("_tolerance_scale", 1.0)
+    # Relaxation of the journal-position update: ``relaxp``, or the value a
+    # warm-started case sets (full Newton steps from a nearby equilibrium).
+    step_relax = s.get("_newton_relax", relaxp)
 
     f = 0.0
     f_old = 0.0
@@ -294,8 +300,8 @@ def hydrodynamics(
                 yj_old = s["yj"]
                 xj_new = xj_old + delta_xj
                 yj_new = yj_old + delta_yj
-                s["xj"] = (1.0 - relaxp) * xj_old + relaxp * xj_new
-                s["yj"] = (1.0 - relaxp) * yj_old + relaxp * yj_new
+                s["xj"] = (1.0 - step_relax) * xj_old + step_relax * xj_new
+                s["yj"] = (1.0 - step_relax) * yj_old + step_relax * yj_new
 
         if monitor is not None:
             _record_newton(

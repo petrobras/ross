@@ -223,7 +223,7 @@ tpb_2d = rs.TiltingPad(
     lubricant="ISOVG32",
     oil_supply_temperature=Q_(40, "degC"),
     oil_flow_v=Q_(10, "l/min"),
-    num_processes=2,  # one engine case per speed
+    n_jobs=2,  # warm-start chains solved in 2 worker processes
 )
 np.array(tpb_2d.kxx).shape  # (2, 3)
 ```
@@ -343,12 +343,13 @@ Useful knobs and post-processing:
 - `lubricant`: a key of `rs.lubricants_dict` (`"ISOVG32"`, `"ISOVG46"`, `"ISOVG68"`, ...)
 - `thermal_type`: `None` (isoviscous), `"adiabatic"` or `"full"` (pad conduction)
 - `deform_type`: `None` (rigid pads, default) or one of the `"pad_mechanical*"` options for pad/pivot elasticity (full TEHD)
-- `num_processes`: solve the speeds in parallel
+- Speed sweeps: the meshes are built once; the speeds are cut into chains of `chunk_size` (default 5) ascending speeds, and each speed after the first of its chain starts from the converged state of the previous one (`warm_start=True`, default; about half the Reynolds solves of cold starts). The coefficients at a speed then depend, within the loop tolerances, on which other speeds are in the sweep (up to about 0.3 % at the default tolerances); `warm_start=False` solves every speed independently, exactly as a single-speed bearing. `results.convergence[i]["warm_start"]["start"]` is `"cold"`, `"warm"` or `"cold_retry"` (a warm start that failed and was solved again cold)
+- `n_jobs`: chains solved at once in `spawn` worker processes (`-1`: one per CPU); results are identical for every `n_jobs`; a script using it needs an `if __name__ == "__main__":` guard (a notebook does not), and a `RuntimeError` is raised when the workers cannot start. `num_processes` is an alias
 - `bearing.coefficients(speed, frequency=None)` returns `(kxx, kxy, kyx, kyy), (cxx, cxy, cyx, cyy)` interpolated at a rotor speed (and whirl frequency for 2-D tables)
 - Plots: `plot_pressure_2d()`, `plot_pressure_3d()`, `plot_temperature_2d()`, `plot_film_temperature_3d()`, `plot_film_thickness_2d()`; `show_results()` prints a per-case summary table
 - `plot_pad_temperature_3d()` draws the pads as real geometry colored by the solid pad conduction field, resolved through the pad thickness (`thermal_type="full"` only)
 - `bearing.save(file)` stores the solved coefficient table, 2-D included (reloads as a plain `BearingElement`, no re-solve)
 - `cavitation_pressure` (Pa, gauge): the film never falls below it and the cavitated film is held at it
-- Film force at a prescribed journal position (no equilibrium search, no coefficients), e.g. for a force map or a finite-difference check: `from ross.bearings.fluid_film.sweep import film_force_at`; `film_force_at(inputs, speed, xj, yj, tilts="solve")` takes the `run_case` keyword dict of the engine (`bearing._engine_inputs(speed)`), positions in m, and returns `fx`, `fy`, per-pad forces and pivot moments; `tilts="frozen"` holds the tilts of the equilibrium, an array holds given tilts
+- Film force at a prescribed journal position (no equilibrium search, no coefficients), e.g. for a force map or a finite-difference check: `from ross.bearings.fluid_film.sweep import BearingSetup, film_force_at`; `setup = BearingSetup.from_inputs(**bearing._engine_inputs(speed))` meshes once, then `film_force_at(setup, speed, xj, yj, tilts="solve")` (positions in m; the keyword dict itself is accepted too, at the cost of a mesh per call) returns `fx`, `fy`, per-pad forces and pivot moments; `tilts="frozen"` holds the tilts of the equilibrium, an array holds given tilts
 
 See `docs/user_guide/tutorial_bearings_part_2.ipynb` for the full tour.
