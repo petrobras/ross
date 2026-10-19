@@ -340,36 +340,43 @@ def test_the_converged_project_is_the_rotor_ross_converges_to():
     meshed, report = mesh_by_convergence(data, "6", "0.1", "0")
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        theirs, results = build_rotor_from_ui(data).refine_mesh_by_convergence(
-            n_modes=6, rtol=1e-3
+        results = build_rotor_from_ui(data).run_mesh_convergence(
+            rtol=1e-3, frequencies=6
         )
 
-    assert described(build_rotor_from_ui(meshed)) == described(theirs)
+    assert described(build_rotor_from_ui(meshed)) == described(results.rotor)
     table = report["convergence"]
-    assert table["chosen"] == results.chosen == 1
-    assert [row["elements"] for row in table["rows"]] == [
-        int(n) for n in results.el_num
-    ]
-    assert (
-        table["rows"][table["chosen"]]["elements"]
-        == report["after"]
-        == len(meshed["shafts"])
+    rows = table["rows"]
+    assert sorted(row["elements"] for row in rows) == sorted(
+        int(n) for n in results.elements
     )
-    # The rotor as it is first, marked by having no ratio; the frequencies in Hz.
-    assert table["rows"][0]["max_ld"] is None and table["rows"][0]["elements"] == 2
-    assert table["rows"][1]["wn"][0] == pytest.approx(
-        results.wn[1][0] / (2 * 3.141592653589793)
-    )
-    assert table["rows"][table["chosen"]]["change"] <= 0.1
-    assert table["rows"][-1]["change"] is None
+    assert [row["elements"] for row in rows] == sorted(row["elements"] for row in rows)
+    chosen = rows[table["chosen"]]
+    assert chosen["elements"] == report["after"] == len(meshed["shafts"]) > 2
+    assert chosen["error"] <= 0.1
+    assert table["reference"] == results.reference_elements
+    # The frequencies of the mesh taken, in Hz.
+    assert table["wn"] == pytest.approx(results.wn / (2 * 3.141592653589793))
 
 
 def test_a_rotor_already_converged_is_left_as_it_is():
     data = coarse()
     meshed, report = mesh_by_convergence(data, "2", "50", "0")
 
-    assert report["convergence"]["chosen"] == 0
+    rows = report["convergence"]["rows"]
+    assert rows[report["convergence"]["chosen"]]["elements"] == 2
     assert meshed == data and report["cut"] == []
+
+
+def test_rotors_coupled_by_gears_are_refused_by_name(monkeypatch):
+    from ross.interface.domain import rotor_builder
+    from ross.multi_rotor.multi_rotor import two_shaft_rotor_example
+
+    monkeypatch.setattr(
+        rotor_builder, "build_rotor_from_ui", lambda project: two_shaft_rotor_example()
+    )
+    with pytest.raises(ValueError, match="single rotor"):
+        mesh_by_convergence(coarse(), "6", "0.1", "0")
 
 
 @pytest.mark.parametrize(
@@ -417,8 +424,5 @@ def test_the_route_runs_each_way_and_refuses_one_it_does_not_know():
             headers=headers,
         )
     assert parts.status_code == 200 and parts.get_json()["report"]["after"] == 6
-    assert (
-        converged.status_code == 200
-        and converged.get_json()["report"]["convergence"]["chosen"] >= 1
-    )
+    assert converged.status_code == 200 and converged.get_json()["report"]["after"] > 2
     assert unknown.status_code == 400 and "magic" in unknown.get_json()["message"]

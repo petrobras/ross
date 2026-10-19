@@ -55,7 +55,6 @@ Rotor class and available methods for analysis (``run_*`` methods).
 
     Rotor
     MultiRotor
-    CoAxialRotor
     Rotor.run_modal
     Rotor.run_critical_speed
     Rotor.run_freq_response
@@ -72,6 +71,8 @@ Rotor class and available methods for analysis (``run_*`` methods).
     Rotor.run_harmonic_balance_response
     Rotor.run_amb_sensitivity
     Rotor.run_clearance_analysis
+    Rotor.run_mesh_convergence
+    Rotor.refine
     Rotor.api617_unbalance
 
 Example Rotors
@@ -83,7 +84,6 @@ Ready-to-use rotor models for tutorials, doctests, and quick experimentation.
 
     rotor_example
     compressor_example
-    coaxrotor_example
     rotor_example_6dof
     rotor_example_with_damping
     rotor_amb_example
@@ -105,7 +105,7 @@ These are classes used to store results and to provide useful methods such as pl
     ForcedResponseResults
     StaticResults
     SummaryResults
-    ConvergenceResults
+    MeshConvergenceResults
     TimeResponseResults
     Level1Results
     UCSResults

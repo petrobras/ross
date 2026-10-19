@@ -8,7 +8,7 @@
 // for the convergence, which meshes were analysed and which one was chosen --
 // and to leave the project alone when the person says no. The cut itself is
 // Python's (tests/test_meshing.py, held to ROSS's refine_mesh and
-// refine_mesh_by_convergence).
+// run_mesh_convergence).
 import { check, node, registerSelector, shutDown } from './fake_dom.js';
 
 const { convergenceLines, meshProject, meshSummary } = await import('../../frontend/features/mesh.js');
@@ -61,11 +61,12 @@ const REPORT = {
 };
 const CONVERGENCE = {
     rows: [
-        { max_ld: null, elements: 3, change: 8.88, wn: [30.7] },
-        { max_ld: 2, elements: 8, change: 0.0125, wn: [30.69] },
-        { max_ld: 1, elements: 14, change: null, wn: [30.69] },
+        { family: 'uniform', elements: 3, error: null },
+        { family: 'uniform', elements: 6, error: 8.88 },
+        { family: 'graded', elements: 8, error: 0.0125 },
+        { family: 'uniform', elements: 12, error: 0.0031 },
     ],
-    chosen: 1, n_modes: 6, rtol: 0.1,
+    chosen: 2, reference: 48, wn: [30.69], n_modes: 6, rtol: 0.1,
 };
 const CUT = {
     shafts: new Array(8).fill(0).map((_, i) => ({ L: '100', odl: '200', tag: 'piece ' + i })),
@@ -133,14 +134,14 @@ check('a long plan ends in "..." instead of a dialog taller than the screen', me
 check('a span kept whole beside a coupling is said',
     meshSummary({ ...REPORT, kept: [{ rows: [1], why: 'coupling' }] }, project().shafts).includes('#2'));
 const table = convergenceLines(CONVERGENCE);
-check('the convergence lists every mesh analysed, the rotor as it is first',
-    table.length === 4 && table[1].startsWith(t('meshConvAsIs')) && table[2].startsWith('L/D 2') && table[3].startsWith('L/D 1'));
-check('with its elements and how much refining it changed the frequencies',
-    table[1].includes('3') && table[1].includes('8.880') && table[2].includes('0.013'));
+check('the convergence names the reference it measures against', table.length === 5 && table[0].includes('48'));
+check('it lists every mesh analysed by its family',
+    table[1].startsWith(t('meshConvUniform')) && table[3].startsWith(t('meshConvGraded')));
+check('with its elements and its error against the reference',
+    table[2].includes('6') && table[2].includes('8.880') && table[3].includes('0.013'));
+check('a mesh with fewer frequencies than asked says so', table[1].includes(t('meshConvTooFew')));
 check('and the one chosen marked, only it', table.filter(line => line.includes(t('meshConvChosen'))).length === 1
-    && table[2].includes(t('meshConvChosen')));
-check('the last mesh has no change of its own to show', !table[3].includes('%'));
-check('none converged is said', convergenceLines({ ...CONVERGENCE, chosen: null }).includes(t('meshConvNone')));
+    && table[3].includes(t('meshConvChosen')));
 
 // --- the trip ---------------------------------------------------------------------------------
 console.log('\nAsking, sending, taking the answer on');

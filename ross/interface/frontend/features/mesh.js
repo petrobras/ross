@@ -39,14 +39,13 @@ const decimal = (value, digits) => (typeof value === 'number' && isFinite(value)
 
 // The meshes the convergence analysed, the one it chose marked.
 export function convergenceLines(convergence) {
-    const lines = [fill(t('meshConvTitle'), convergence.n_modes, convergence.rtol)];
+    const lines = [fill(t('meshConvTitle'), convergence.n_modes, convergence.rtol, convergence.reference)];
     convergence.rows.forEach((row, position) => {
-        const name = row.max_ld === null ? t('meshConvAsIs') : `L/D ${decimal(row.max_ld, 3).replace(/0+$/, '').replace(/\.$/, '')}`;
-        const change = row.change === null ? '' : fill(t('meshConvChange'), decimal(row.change, 3));
+        const name = row.family === 'graded' ? t('meshConvGraded') : t('meshConvUniform');
+        const error = row.error === null ? t('meshConvTooFew') : fill(t('meshConvError'), decimal(row.error, 3));
         const mark = position === convergence.chosen ? t('meshConvChosen') : '';
-        lines.push(`${name}: ${fill(t('meshConvElements'), row.elements)}${change}${mark}`);
+        lines.push(`${name}: ${fill(t('meshConvElements'), row.elements)}${error}${mark}`);
     });
-    if (convergence.chosen === null) lines.push(t('meshConvNone'));
     return lines;
 }
 

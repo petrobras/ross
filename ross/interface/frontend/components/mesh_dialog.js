@@ -4,8 +4,9 @@
 //   * by the L/D ratio (API RP 684, 1.5.2.1): no element longer than so many
 //     diameters -- 0.5 preferred, 1.0 at most;
 //   * in a number of equal parts per element, whatever its ratio;
-//   * by the convergence of the lowest natural frequencies: the coarsest mesh
-//     that refining no longer changes (ROSS's `refine_mesh_by_convergence`).
+//   * by the convergence of the lowest natural frequencies: the mesh
+//     with the fewest elements whose frequencies are within a tolerance of a
+//     converged reference (ROSS's `run_mesh_convergence`).
 //
 // The first two act on the shafts ticked in the list, or on all of them; the
 // convergence always on the whole rotor -- it is the whole model's frequencies

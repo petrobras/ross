@@ -53,6 +53,10 @@ BAD_MODES = "The number of frequencies has to be a whole number of 1 or more, no
 BAD_TOLERANCE = "The tolerance has to be a positive percentage, not '%s'."
 BAD_SPEED = "The speed has to be a number of rpm, not '%s'."
 BAD_METHOD = "There is no way of discretizing called '%s'."
+BAD_MULTI = (
+    "The convergence meshes a single rotor; rotors coupled by gears are "
+    "discretized by the L/D ratio or in parts."
+)
 BAD_INDEX = "Shaft rows are asked for by their position in the list, not by %r."
 
 # An element of exactly `max_ld` diameters stays whole, whatever the last bit
@@ -129,7 +133,9 @@ def plan(project, max_ld=0.5, min_ld=0.1, indexes=None, parts=None):
 
     By the ratio (`max_ld`), or -- when `parts` is given -- every span asked
     for in that many equal parts, whatever its ratio (ROSS's
-    `refine_mesh(parts=...)`, the `nel_r` of `Rotor.from_section`).
+    `refine_mesh(parts=...)`, the `nel_r` of `Rotor.from_section`). `parts`
+    can also be a dict from the node a span starts at to its parts (ROSS's
+    `refine(subdivisions)`); a span it leaves out is not cut.
 
     One entry per span (a pair of nodes) of the shaft line, in node order:
     `node`, the `rows` on it (positions in the shaft list), `ratio` (L/D),
@@ -138,8 +144,9 @@ def plan(project, max_ld=0.5, min_ld=0.1, indexes=None, parts=None):
     (not among `indexes`). `indexes`, when given, are the shaft rows asked
     for; a span is cut when any of its rows is.
     """
-    fixed = None if parts is None else _count(parts, BAD_PARTS)
-    largest = math.inf if fixed else _ratio(max_ld, BAD_RATIO)
+    per_span = parts if isinstance(parts, dict) else None
+    fixed = None if parts is None or per_span else _count(parts, BAD_PARTS)
+    largest = math.inf if fixed or per_span else _ratio(max_ld, BAD_RATIO)
     if largest <= 0:
         raise ValueError(BAD_RATIO % max_ld)
     smallest = _ratio(min_ld, BAD_MINIMUM, _number(largest))
@@ -181,9 +188,12 @@ def plan(project, max_ld=0.5, min_ld=0.1, indexes=None, parts=None):
         if asked is not None and not asked.intersection(rows):
             step["why"] = "outside"
             continue
-        step["parts"] = fixed or max(
-            1, math.ceil(length / (largest * diameter) - TOLERANCE)
-        )
+        if per_span is not None:
+            step["parts"] = per_span.get(node, 1)
+        else:
+            step["parts"] = fixed or max(
+                1, math.ceil(length / (largest * diameter) - TOLERANCE)
+            )
     return steps, smallest
 
 
@@ -268,29 +278,34 @@ def mesh_shafts(project, max_ld=0.5, min_ld=0.1, indexes=None, parts=None):
 
 # --- by the convergence of the natural frequencies --------------------------------
 #
-# `Rotor.refine_mesh_by_convergence` does the work, on the rotor built from the
-# project: the rotor as it is and then refined to L/D 2, 1, 0.5, 0.25 and
-# 0.125, each compared with the next, until refining changes none of the
-# lowest `n_modes` natural frequencies by more than `rtol`. What comes back is
-# the ratio of the mesh chosen, and the project is cut to it here, by
-# `mesh_shafts` -- which `tests/test_meshing.py` holds to `refine_mesh`, so the
-# project is the rotor ROSS chose.
+# `Rotor.run_mesh_convergence` does the work, on the rotor built from the
+# project: it finds the shaft discretization with the fewest elements whose
+# lowest `n_modes` natural frequencies are within `rtol` of a converged
+# reference, and says how many parts each span of the shaft line is cut into.
+# The project is cut to those parts here, by `mesh_shafts`, so the project is
+# the rotor ROSS chose (`tests/test_meshing.py` holds the two to it).
 #
 # It is the whole rotor or nothing: a convergence of the frequencies is a
 # property of the whole model, and the rows ticked in the list do not enter.
+# ROSS searches one rotor; a model of rotors coupled by gears is refused.
 
 
 def mesh_by_convergence(project, n_modes="6", rtol="0.1", speed="0", min_ld=0.1):
-    """Return `project` cut to the coarsest mesh whose frequencies converged.
+    """Return `project` cut to the mesh whose frequencies converged.
 
     `rtol` is a percentage and `speed` is in rpm, as the dialog asks for them.
     The report is `mesh_shafts`'s, with `convergence`: one row per mesh
-    analysed (`max_ld`, None for the rotor as it is; `elements`, the shaft
-    elements; `change`, the largest relative change of a frequency when that
-    mesh is refined, in %; `wn`, the frequencies in Hz) and `chosen`.
+    analysed, from the fewest elements (`family`, "uniform" or "graded";
+    `elements`, the shaft elements; `error`, the largest relative error of a
+    frequency against the reference, in %, None when the mesh has fewer
+    frequencies than asked), `chosen` (the position of the mesh taken),
+    `reference` (the elements of the reference mesh) and `wn` (the
+    frequencies of the mesh taken, in Hz).
     """
     # Here and not at the top: the rest of this module needs no ROSS rotor,
     # and the builder brings all of ROSS with it.
+    from ross.rotor_assembly import Rotor
+
     from .rotor_builder import build_rotor_from_ui
 
     modes = _count(n_modes, BAD_MODES)
@@ -300,40 +315,47 @@ def mesh_by_convergence(project, n_modes="6", rtol="0.1", speed="0", min_ld=0.1)
     rpm = _ratio(speed, BAD_SPEED)
 
     rotor = build_rotor_from_ui(project)
+    if type(rotor) is not Rotor:
+        raise ValueError(BAD_MULTI)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        _, results = rotor.refine_mesh_by_convergence(
-            n_modes=modes,
+        results = rotor.run_mesh_convergence(
             rtol=tolerance / 100,
+            frequencies=modes,
             speed=Q_(rpm, "rpm").to("rad/s").m,
         )
 
-    chosen = results.chosen
-    picked = results.max_ld[-1 if chosen is None else chosen]
-    if picked is None:
-        # Nothing cut, and still what is too short to fix.
-        built, report = mesh_shafts(project, min_ld=min_ld, parts=1)
-    else:
-        built, report = mesh_shafts(project, max_ld=picked, min_ld=min_ld)
+    first = min(elm.n for elm in rotor.shaft_elements)
+    parts = {first + i: int(k) for i, k in enumerate(results.subdivisions)}
+    built, report = mesh_shafts(project, min_ld=min_ld, parts=parts)
 
     couplings = len(project.get("couplings", []) or [])
-    report["convergence"] = {
-        "rows": [
+    rows = sorted(
+        (
             {
-                "max_ld": ld,
+                "family": family,
                 "elements": int(count) - couplings,
-                "change": None if math.isnan(change) else float(change),
-                "wn": [float(w) / (2 * math.pi) for w in wn],
+                "error": None if math.isinf(error) else 100 * float(error),
             }
-            for ld, count, change, wn in zip(
-                results.max_ld,
-                results.el_num,
-                results.error_arr,
-                results.wn,
-                strict=True,
+            for count, error, family in zip(
+                results.elements, results.errors, results.families, strict=True
             )
-        ],
+        ),
+        key=lambda row: row["elements"],
+    )
+    taken = len(results.rotor.shaft_elements) - couplings
+    chosen = next(
+        i
+        for i, row in enumerate(rows)
+        if row["elements"] == taken
+        and row["error"] is not None
+        and row["error"] <= tolerance
+    )
+    report["convergence"] = {
+        "rows": rows,
         "chosen": chosen,
+        "reference": int(results.reference_elements) - couplings,
+        "wn": [float(w) / (2 * math.pi) for w in results.wn],
         "n_modes": modes,
         "rtol": tolerance,
     }

@@ -37,7 +37,7 @@ if bench_type == "1":
     process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
 elif bench_type == "2":
     cProfile.run(
-        "rotor = rs.rotor_example(); rotor.convergence()",
+        "rotor = rs.rotor_example(); rotor.run_mesh_convergence()",
         filename=saving_path / "convergence.prof",
     )
     bashCommand = f"snakeviz {saving_path}/convergence.prof"
