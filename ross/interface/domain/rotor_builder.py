@@ -313,6 +313,12 @@ def assemble_rotor(data):
                 "sigma": float(bl.get("sigma", 10000.0)),
             }
 
+        # Left out when empty, so a project saved before the field existed
+        # gets ROSS's own default (no mesh damping).
+        damping_ratio = str(params.get("mesh_damping_ratio", "") or "").strip()
+        if damping_ratio:
+            multi_kwargs["mesh_damping_ratio"] = float(damping_ratio)
+
         if params.get("orientation_angle"):
             multi_kwargs["orientation_angle"] = float(params["orientation_angle"])
 
