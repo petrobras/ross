@@ -1824,9 +1824,10 @@ def downsample_figure(fig, n_out):
     ----------
     fig : plotly.graph_objects.Figure
         The figure to downsample.
-    n_out : int
-        The maximum number of points of each trace. If None, the figure is
-        returned unchanged.
+    n_out : int or None
+        The maximum number of points of each trace. Values below 4 are raised
+        to 4, the first and last samples and the lowest and highest sample. If
+        None, the figure is returned unchanged.
 
     Returns
     -------
@@ -1843,7 +1844,8 @@ def downsample_figure(fig, n_out):
     if n_out is None:
         return fig
 
-    n_out = int(n_out)
+    n_out = max(int(n_out), 4)
+
     try:
         from tsdownsample import MinMaxLTTBDownsampler
     except ImportError:
@@ -1885,7 +1887,7 @@ def _min_max_indices(x, y, n_out):
         Sorted indices of the first and last samples and of the lowest and
         highest sample of each bucket.
     """
-    n_buckets = max((n_out - 2) // 2, 1)
+    n_buckets = (n_out - 2) // 2
     bucket_size = -(-y.size // n_buckets)
     n_buckets = -(-y.size // bucket_size)
     padded = np.concatenate([y, np.full(n_buckets * bucket_size - y.size, y[-1])])

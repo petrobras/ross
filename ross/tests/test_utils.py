@@ -100,6 +100,46 @@ def test_downsample_figure_without_n_out_returns_the_figure(downsampler):
     assert_equal(fig.data[0].x, x)
 
 
+@pytest.mark.parametrize("n_out", [0, 1, 2, 3, 4])
+def test_downsample_figure_keeps_four_points_at_least(downsampler, n_out):
+    rng = np.random.default_rng(1)
+    x = np.arange(5000.0)
+    fig = go.Figure(go.Scatter(x=x, y=rng.normal(size=x.size)))
+
+    fig = downsample_figure(fig, n_out)
+
+    x_out = np.asarray(fig.data[0].x)
+    assert 2 <= len(x_out) <= 4
+    assert x_out[0] == x[0] and x_out[-1] == x[-1]
+
+
+@pytest.mark.parametrize("n_out", [0, 1, 2, 3, 4])
+def test_downsample_figure_without_tsdownsample_keeps_the_extremes(monkeypatch, n_out):
+    monkeypatch.setitem(sys.modules, "tsdownsample", None)
+    rng = np.random.default_rng(1)
+    x = np.arange(5000.0)
+    y = rng.normal(size=x.size)
+    fig = go.Figure(go.Scatter(x=x, y=y))
+
+    fig = downsample_figure(fig, n_out)
+
+    y_out = np.asarray(fig.data[0].y)
+    assert len(y_out) == 4
+    assert y_out.max() == y.max() and y_out.min() == y.min()
+
+
+@pytest.mark.parametrize("n_out", [4, 5, 7, 50])
+def test_downsample_figure_returns_at_most_n_out_points(downsampler, n_out):
+    rng = np.random.default_rng(0)
+    x = np.sort(rng.uniform(0, 1, 997))
+    y = rng.normal(size=x.size)
+    fig = go.Figure(go.Scatter(x=x, y=y))
+
+    fig = downsample_figure(fig, n_out)
+
+    assert len(fig.data[0].x) <= n_out
+
+
 def test_downsample_figure_without_tsdownsample_keeps_every_peak(monkeypatch):
     """The fallback keeps the lowest and highest sample of each bucket, so
     each period of a sine keeps its own maximum and minimum."""
