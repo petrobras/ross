@@ -4796,6 +4796,13 @@ class Rotor(object):
             For more information on attributes and methods available see:
             :py:class:`ross.TimeResponseResults`
 
+        Notes
+        -----
+        The results store `speed`, so `plot_1d`, `plot_2d` and `plot_3d` can show
+        one shaft revolution with `one_revolution=True`. Their `t_initial` and
+        `t_final` arguments select any other time window. Neither reruns the
+        simulation.
+
         Examples
         --------
         >>> from ross.probe import Probe
@@ -4817,6 +4824,14 @@ class Rotor(object):
         >>> fig2 = response.plot_2d(node=node)
         >>> # plot orbit response - plotting 3D orbits - full rotor model:
         >>> fig3 = response.plot_3d()
+        >>> # plot a regular time window:
+        >>> fig_window = response.plot_1d(
+        ...     probe=[probe1], t_initial=2.0, t_final=4.0
+        ... )
+        >>> # plot the last shaft revolution:
+        >>> fig_revolution = response.plot_2d(node=node, one_revolution=True)
+        >>> # plot the shaft revolution that ends at a given time:
+        >>> fig_anchored = response.plot_3d(one_revolution=True, t_final=8.0)
         """
         t_, yout, xout = self.time_response(speed, F, t, method=method, **kwargs)
 
@@ -4825,10 +4840,10 @@ class Rotor(object):
                 amb = xout[0]
                 xout = [amb["x_amb"], amb["v_amb"], amb["F_x"], amb["F_v"], amb["I"]]
 
-            results = AmbTimeResponseResults(self, t_, yout, xout)
+            results = AmbTimeResponseResults(self, t_, yout, xout, speed=speed)
 
         else:
-            results = TimeResponseResults(self, t, yout, xout)
+            results = TimeResponseResults(self, t, yout, xout, speed=speed)
 
         return results
 
