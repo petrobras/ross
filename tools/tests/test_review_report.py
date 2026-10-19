@@ -8,7 +8,7 @@ import pytest
 SCRIPTS = Path(__file__).resolve().parents[2] / ".agents/skills/ross-pr-review/scripts"
 sys.path.insert(0, str(SCRIPTS))
 
-from report import Report, markdown, verdict_class  # noqa: E402
+from report import STYLE, Report, markdown, verdict_class  # noqa: E402
 
 
 @pytest.fixture
@@ -97,3 +97,20 @@ def test_verdicts_are_colored_by_keyword():
     assert verdict_class("Missing or inaccurate") == "verdict-warn"
     assert verdict_class("Maintainer decides") == "verdict-warn"
     assert verdict_class("Belongs elsewhere") == "verdict-bad"
+
+
+def test_table_cells_keep_escaped_and_code_pipes():
+    page = markdown(
+        "| Check | Evidence |\n|---|---|\n"
+        '| Architecture | `git grep -i "a\\|b"` and `x | y` |\n| Writing | |'
+    )
+    assert page.count("<td>") == 4
+    assert "<code>git grep -i &quot;a|b&quot;</code> and <code>x | y</code>" in page
+    assert "<td>Writing</td><td></td>" in page
+
+
+def test_dark_theme_sets_the_background_with_the_ink():
+    light, dark = STYLE.split("@media (prefers-color-scheme:dark)")
+    assert "--bg:#fff" in light and "--bg:#0b1826" in dark
+    assert "background:var(--bg)" in STYLE
+    assert "background:#" not in STYLE.split("body{", 1)[1]
