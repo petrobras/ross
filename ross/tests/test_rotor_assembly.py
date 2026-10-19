@@ -3685,7 +3685,7 @@ def test_amb_non_collocation_same_after_refine_mesh_and_refine(collocated):
 def test_refine_add_nodes_and_refine_mesh_keep_the_motor():
     rotor = rotor_example()
     motor = motor_example()
-    motor.n = 2
+    motor.n = motor.n_l = motor.n_r = 2
     rotor = Rotor(
         rotor.shaft_elements,
         rotor.disk_elements,
