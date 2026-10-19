@@ -36,10 +36,12 @@ jobs:
         run: |
           pip install pytest
           pytest ross --cov=ross --cov-report=xml
+      - name: Test the pull request tools
+        run: pytest tools/tests
       - name: Run Ruff
         run: |
-          ruff check ross
-          ruff format --check ross
+          ruff check ross tools .agents
+          ruff format --check ross tools .agents
         if: success()
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v7
