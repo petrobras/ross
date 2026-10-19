@@ -42,7 +42,7 @@ __all__ = [
     "ForcedResponseResults",
     "StaticResults",
     "SummaryResults",
-    "ConvergenceResults",
+    "MeshConvergenceResults",
     "TimeResponseResults",
     "AmbTimeResponseResults",
     "UCSResults",
@@ -5573,43 +5573,67 @@ class SummaryResults(Results):
         return fig
 
 
-class ConvergenceResults(Results):
-    """Class used to store results and provide plots for Convergence Analysis.
-
-    This class plots:
-        Natural Frequency vs Number of Elements
-        Relative Error vs Number of Elements
+class MeshConvergenceResults(Results):
+    """Store and plot the results of a mesh convergence analysis.
 
     Parameters
     ----------
-    el_num : array
-        Array with number of elements in each iteration
-    eigv_arr : array
-        Array with the n'th natural frequency in each iteration
-    error_arr : array
-        Array with the relative error in each iteration
+    rotor : ross.Rotor
+        Rotor with the chosen shaft discretization.
+    subdivisions : array
+        Number of elements each shaft interval of the original rotor is split
+        into: ``original_rotor.refine(subdivisions)`` rebuilds ``rotor``.
+    wn : array
+        Lowest natural frequencies of ``rotor`` (rad/s).
+    wn_reference : array
+        Natural frequencies of the converged reference discretization (rad/s).
+    rtol : float
+        Relative tolerance of the natural frequencies.
+    elements : array
+        Number of shaft elements of each discretization evaluated.
+    errors : array
+        Maximum relative error of the natural frequencies of each
+        discretization evaluated.
+    families : list
+        Family ("uniform" or "graded") of each discretization evaluated.
+    reference_elements : int
+        Number of shaft elements of the reference discretization.
 
-    Returns
-    -------
-    fig : Plotly graph_objects.make_subplots()
-        The figure object with the plot.
+    Attributes
+    ----------
+    error : array
+        Relative error of each natural frequency of ``rotor``.
     """
 
-    def __init__(self, el_num, eigv_arr, error_arr):
-        self.el_num = el_num
-        self.eigv_arr = eigv_arr
-        self.error_arr = error_arr
+    def __init__(
+        self,
+        rotor,
+        subdivisions,
+        wn,
+        wn_reference,
+        rtol,
+        elements,
+        errors,
+        families,
+        reference_elements,
+    ):
+        self.rotor = rotor
+        self.subdivisions = np.asarray(subdivisions, dtype=int)
+        self.wn = np.asarray(wn, dtype=float)
+        self.wn_reference = np.asarray(wn_reference, dtype=float)
+        self.rtol = rtol
+        self.elements = np.asarray(elements, dtype=int)
+        self.errors = np.asarray(errors, dtype=float)
+        self.families = [str(family) for family in families]
+        self.reference_elements = int(reference_elements)
+        self.error = np.abs(self.wn / self.wn_reference - 1)
 
     def plot(self, fig=None, **kwargs):
-        """Plot convergence results.
-
-        This method plots:
-            Natural Frequency vs Number of Elements
-            Relative Error vs Number of Elements
+        """Plot the maximum frequency error against the number of shaft elements.
 
         Parameters
         ----------
-        fig : Plotly graph_objects.make_subplots()
+        fig : Plotly graph_objects.Figure, optional
             The figure object with the plot.
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
@@ -5618,51 +5642,48 @@ class ConvergenceResults(Results):
 
         Returns
         -------
-        fig : Plotly graph_objects.make_subplots()
+        fig : Plotly graph_objects.Figure
             The figure object with the plot.
         """
         if fig is None:
-            fig = make_subplots(
-                rows=1,
-                cols=2,
-                subplot_titles=["Frequency Evaluation", "Relative Error Evaluation"],
+            fig = go.Figure()
+
+        hovertemplate = "Shaft elements: %{x}<br>Maximum error: %{y:.3g} %"
+        families = np.array(self.families)
+        for family in ("uniform", "graded"):
+            mask = (families == family) & (self.errors > 0) & np.isfinite(self.errors)
+            order = np.argsort(self.elements[mask])
+            if order.size:
+                fig.add_trace(
+                    go.Scatter(
+                        x=self.elements[mask][order],
+                        y=100 * self.errors[mask][order],
+                        mode="markers",
+                        name=family.capitalize(),
+                        hovertemplate=hovertemplate,
+                    )
+                )
+
+        if self.error.max() > 0:
+            fig.add_trace(
+                go.Scatter(
+                    x=[len(self.rotor.shaft_elements)],
+                    y=[100 * self.error.max()],
+                    mode="markers",
+                    marker=dict(symbol="star", size=14),
+                    name="Chosen",
+                    hovertemplate=hovertemplate,
+                )
             )
 
-        # plot Frequency vs number of elements
-        fig.add_trace(
-            go.Scatter(
-                x=self.el_num,
-                y=self.eigv_arr,
-                mode="lines+markers",
-                hovertemplate=(
-                    "Number of Elements: %{x:.2f}<br>" + "Frequency: %{y:.0f}"
-                ),
-                showlegend=False,
-            ),
-            row=1,
-            col=1,
+        fig.add_hline(
+            y=100 * self.rtol,
+            line_dash="dash",
+            annotation_text="Tolerance",
+            annotation_position="bottom right",
         )
-        fig.update_xaxes(title_text="Number of Elements", row=1, col=1)
-        fig.update_yaxes(title_text="Frequency", row=1, col=1)
-
-        # plot Error vs number of elements
-        fig.add_trace(
-            go.Scatter(
-                x=self.el_num,
-                y=self.error_arr,
-                mode="lines+markers",
-                hovertemplate=(
-                    "Number of Elements: %{x:.2f}<br>" + "Relative Error: %{y:.0f}"
-                ),
-                showlegend=False,
-            ),
-            row=1,
-            col=2,
-        )
-
-        fig.update_xaxes(title_text="Number of Elements", row=1, col=2)
-        fig.update_yaxes(title_text="Relative Error (%)", row=1, col=2)
-
+        fig.update_xaxes(title_text="Number of shaft elements")
+        fig.update_yaxes(title_text="Maximum frequency error (%)", type="log")
         fig.update_layout(**kwargs)
 
         return fig

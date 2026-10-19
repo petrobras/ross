@@ -31,6 +31,7 @@ Concise recipes for rotordynamics analyses with ROSS. Each file is self-containe
 | Time response | [time_response.md](time_response.md) | `run_time_response` |
 | UCS and Level 1 stability | [ucs_and_level1.md](ucs_and_level1.md) | `run_ucs`, `run_level1` |
 | Fault analysis | [faults.md](faults.md) | `run_rubbing`, `run_crack`, `run_misalignment` |
+| Mesh convergence | [mesh_convergence.md](mesh_convergence.md) | `run_mesh_convergence`, `refine` |
 | Advanced bearings | [bearings_advanced.md](bearings_advanced.md) | `BearingElement` speed / frequency / 2-D tables, fluid-film bearings |
 | Seals | [seals.md](seals.md) | `LabyrinthSeal`, `HolePatternSeal`, `HybridSeal`, whirl-dependent tables, `matched_whirl` |
 | Common gotchas | [gotchas.md](gotchas.md) | — |
