@@ -47,10 +47,6 @@ class Mesh:
             mesh stiffness.
 
         Default is `{"enable": False, "amplitude_ratio": 0}`.
-    damping_ratio : float, optional
-        Damping ratio used to compute the mesh damping. Default is 0.0,
-        which disables linear mesh damping. A value of 0.07 is suggested
-        for the gear-mesh damping model.
     backlash : dict, optional
         Dictionary to enable and configure the backlash model between the
         coupled gears. Keys are:
@@ -70,6 +66,10 @@ class Mesh:
 
         Default is `{"enable": False, "initial_value": 0.0, "error_amp": 0.0,
         "smooth_operator": False, "sigma": 1e4}`.
+    damping_ratio : float, optional
+        Damping ratio ζ of the gear mesh (dimensionless), giving the mesh damping
+        coefficient :math:`c_m = 2 \\zeta \\sqrt{k_m M_{eq}}`. Default is 0.0,
+        no mesh damping.
     orientation_angle : float, pint.Quantity, optional
         The angle between the line of gear centers and x-axis. Default is 0.0 rad.
 
@@ -91,15 +91,17 @@ class Mesh:
     stiffness : float
         The (constant or mean) mesh stiffness of the gear pair (N/m).
     M_eq : float
-        Equivalent mass of the gear pair projected onto the mesh action line.
+        Equivalent mass of the gear pair on the line of action (kg), from the
+        gears' polar moments of inertia and base radii only. The damping ratio
+        therefore refers to the torsional mesh mode.
     backlash : Backlash or None
         The backlash model of the gear pair, if enabled. None otherwise.
 
     References
     ----------
-    YI, Y.; HUANG, K.; XIONG, Y.; SANG, M. Nonlinear dynamic modelling and
-    analysis for a spur gear system with time-varying pressure angle and gear
-    backlash. Mechanical Systems and Signal Processing, v. 132, p. 18-34, 2019.
+    The mesh model and its references (Kaplan et al., 2013; Yi et al., 2019;
+    Visnadi, 2022) are described in the MultiRotor tutorial, with the full
+    entries in ``docs/references.bib``.
 
     Examples
     --------
@@ -133,7 +135,6 @@ class Mesh:
         driven_gear,
         gear_mesh_stiffness=None,
         square_varying_stiffness={"enable": False, "amplitude_ratio": 0},
-        damping_ratio=0.0,
         backlash={
             "enable": False,
             "initial_value": 0.0,
@@ -141,6 +142,7 @@ class Mesh:
             "smooth_operator": False,
             "sigma": 1e4,
         },
+        damping_ratio=0.0,
         orientation_angle=0,
     ):
 
@@ -614,8 +616,7 @@ class Backlash:
     helix_angle : float
         Helix angle of the gear pair.
     damping_ratio : float
-        Damping ratio of the gear pair. A value of 0.07 is suggested for
-        the gear-mesh damping model.
+        Damping ratio of the gear pair.
     M_eq : float
         Equivalent mass of the gear pair projected onto the mesh action line.
     module : float
@@ -1056,8 +1057,7 @@ def _compute_backlash_force(
     Ra2 : float
         Addendum radius of the second gear.
     damping_ratio : float
-        Damping ratio of the gear pair. A value of 0.07 is suggested for
-        the gear-mesh damping model.
+        Damping ratio of the gear pair.
     module : float
         Module of the gears.
     M_eq : float

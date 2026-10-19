@@ -88,8 +88,8 @@ units = {
     "eff": "dimensionless",
     "power": "watt",
     "module": "meter",
+    "mesh_damping_ratio": "dimensionless",
 }
-
 for i, unit in zip(["k", "c", "m"], ["N/m", "N*s/m", "kg"], strict=True):
     for j in ["x", "y", "z"]:
         for k in ["x", "y", "z"]:

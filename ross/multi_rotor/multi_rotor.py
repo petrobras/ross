@@ -61,13 +61,6 @@ class MultiRotor(Rotor):
             mesh stiffness.
 
         Default is `{"enable": False, "amplitude_ratio": 0}`.
-    mesh_damping_ratio : float, optional
-        Damping ratio used to calculate the gear mesh damping coefficient.
-        In the linear model, this parameter controls the damping contribution
-        added to the global damping matrix. When backlash is enabled, it is
-        used in the nonlinear mesh force. Default is 0.0, which disables
-        linear mesh damping. A value of 0.07 is suggested for the gear-mesh
-        damping model.
     backlash : dict, optional
         Dictionary to enable and configure the backlash model between the
         coupled gears. Keys are:
@@ -94,6 +87,12 @@ class MultiRotor(Rotor):
         when plotting the multi-rotor. Default is 'above'.
     tag : str, optional
         A tag to identify the multi-rotor. Default is None.
+    mesh_damping_ratio : float, pint.Quantity, optional
+        Damping ratio ζ of the gear mesh (dimensionless), giving the mesh damping
+        coefficient :math:`c_m = 2 \\zeta \\sqrt{k_m M_{eq}}`. Without backlash,
+        :math:`c_m` is added to the global damping matrix; with backlash, it is
+        used in the nonlinear mesh force. Default is 0.0, no mesh damping
+        (ROSS 3.0 used 0.07 for backlash models).
 
     Returns
     -------
@@ -102,18 +101,9 @@ class MultiRotor(Rotor):
 
     References
     ----------
-    Kaplan, J.; Dousti, S.; Allaire, P.; Nichols, B.; Dimond, T.; Untaroiu, A.
-    Rotor Dynamic Modeling of Gears and Geared Systems. Proceedings of the ASME
-    Turbo Expo 2013: Turbine Technical Conference and Exposition, Volume 7A:
-    Structures and Dynamics, V07AT29A014, 2013. doi:10.1115/GT2013-94654.
-
-    Visnadi, L. B. Efeito de trinca em engrenagens de dente reto na resposta
-    dinâmica do rotor. 2022. Tese (Doutorado em Engenharia Mecânica) —
-    Universidade Estadual de Campinas, Faculdade de Engenharia Mecânica.
-
-    YI, Y.; HUANG, K.; XIONG, Y.; SANG, M. Nonlinear dynamic modelling and
-    analysis for a spur gear system with time-varying pressure angle and gear
-    backlash. Mechanical Systems and Signal Processing, v. 132, p. 18-34, 2019.
+    The mesh model and its references (Kaplan et al., 2013; Yi et al., 2019;
+    Visnadi, 2022) are described in the MultiRotor tutorial, with the full
+    entries in ``docs/references.bib``.
 
     Examples
     --------
@@ -185,7 +175,6 @@ class MultiRotor(Rotor):
         gear_mesh_stiffness=None,
         update_mesh_stiffness=False,
         square_varying_stiffness={"enable": False, "amplitude_ratio": 0},
-        mesh_damping_ratio=0.0,
         backlash={
             "enable": False,
             "initial_value": 0.0,
@@ -196,6 +185,7 @@ class MultiRotor(Rotor):
         orientation_angle=0.0,
         position="above",
         tag=None,
+        mesh_damping_ratio=0.0,
     ):
         self.rotors = {"driving": copy(driving_rotor), "driven": copy(driven_rotor)}
 
@@ -810,12 +800,9 @@ class MultiRotor(Rotor):
     def C_mesh(self, C0):
         """Add the gear mesh damping contribution to a damping matrix.
 
-        The mesh damping coefficient is calculated as
-        :math:`c_m = 2 \\zeta \\sqrt{k_m M_{eq}}`, following Yi et al. (2019).
-        A damping ratio of 0.07 is suggested; setting it to zero disables
-        linear mesh damping.
-        The damping contribution is assembled analogously to the mesh stiffness
-        contribution, using the same geometric coupling matrix.
+        The mesh damping coefficient :math:`c_m = 2 \\zeta \\sqrt{k_m M_{eq}}`
+        (Yi et al., 2019) multiplies the same coupling matrix as the mesh
+        stiffness.
 
         Parameters
         ----------
@@ -827,11 +814,6 @@ class MultiRotor(Rotor):
         C0 : np.ndarray
             Damping matrix with the gear mesh damping contribution added.
 
-        References
-        ----------
-        YI, Y.; HUANG, K.; XIONG, Y.; SANG, M. Nonlinear dynamic modelling and
-        analysis for a spur gear system with time-varying pressure angle and gear
-        backlash. Mechanical Systems and Signal Processing, v. 132, p. 18-34, 2019.
         """
         dofs_1 = self.mesh.driving_gear.dof_global_index.values()
         dofs_2 = self.mesh.driven_gear.dof_global_index.values()
