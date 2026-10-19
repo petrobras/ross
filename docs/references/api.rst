@@ -72,6 +72,7 @@ Rotor class and available methods for analysis (``run_*`` methods).
     Rotor.run_amb_sensitivity
     Rotor.run_clearance_analysis
     Rotor.run_mesh_convergence
+    Rotor.refine
     Rotor.api617_unbalance
 
 Example Rotors
@@ -104,7 +105,6 @@ These are classes used to store results and to provide useful methods such as pl
     ForcedResponseResults
     StaticResults
     SummaryResults
-    ConvergenceResults
     MeshConvergenceResults
     TimeResponseResults
     Level1Results

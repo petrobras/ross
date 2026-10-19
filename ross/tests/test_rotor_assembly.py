@@ -14,6 +14,8 @@ from ross.bearing_seal_element import *
 from ross.disk_element import *
 from ross.materials import Material, steel
 from ross.coupling_element import CouplingElement
+from ross.bearings.magnetic.amb_models import rotor_example_amb_simple
+from ross.multi_rotor.multi_rotor import two_shaft_rotor_example
 from ross.point_mass import *
 from ross.probe import Probe
 from ross.rotor_assembly import *
@@ -748,20 +750,6 @@ def test_freq_response_w_force(rotor4):
     mag = abs(freq_resp.forced_resp)
     assert_allclose(mag[0:2, :], mag_exp_2_unb[0:2, :])
     assert_allclose(mag[3:5, :], mag_exp_2_unb[2:4, :])
-
-
-def test_mesh_convergence(rotor3):
-    rotor3.convergence(n_eigval=0, err_max=1e-08)
-    modal3 = rotor3.run_modal(speed=0)
-
-    assert_allclose(len(rotor3.shaft_elements), 96, atol=0)
-    assert_allclose(modal3.wn[0], 82.653037335, atol=1e-02)
-    assert_allclose(rotor3.shaft_elements[0].L, 0.015625, atol=1e-06)
-    assert_allclose(rotor3.disk_elements[0].n, 32, atol=0)
-    assert_allclose(rotor3.disk_elements[1].n, 64, atol=0)
-    assert_allclose(rotor3.bearing_elements[0].n, 0, atol=0)
-    assert_allclose(rotor3.bearing_elements[1].n, 96, atol=0)
-    assert rotor3.error_arr[-1] <= 1e-08 * 100
 
 
 def test_static_analysis_rotor3(rotor3):
@@ -3345,15 +3333,43 @@ def test_refine_errors():
         rotor.refine(1.5)
 
 
-def test_convergence_tapered_and_housing(rotor_tapered_housing):
-    rotor = rotor_tapered_housing
-    mass = rotor.m
-    rotor.convergence(n_eigval=0, err_max=1e-4)
-
-    assert_allclose(rotor.m, mass)
-    assert rotor.bearing_elements[0].n_link == rotor.point_mass_elements[0].n
-
-
 def test_refine_not_available_for_rotor_subclasses():
-    with pytest.raises(NotImplementedError, match="CoAxialRotor"):
-        coaxrotor_example().refine(2)
+    class UserRotor(Rotor):
+        pass
+
+    rotor = rotor_example()
+    user_rotor = UserRotor(
+        rotor.shaft_elements, rotor.disk_elements, rotor.bearing_elements
+    )
+    with pytest.raises(NotImplementedError, match="UserRotor"):
+        user_rotor.refine(2)
+    with pytest.raises(NotImplementedError, match="MultiRotor"):
+        two_shaft_rotor_example().refine(2)
+
+
+def test_refine_renumbers_disks_and_amb_sensors(tmp_path):
+    rotor = rotor_example()
+    refined = rotor.refine(2)
+    assert [(d.n, d.n_l, d.n_r) for d in refined.disk_elements] == [
+        (4, 4, 4),
+        (8, 8, 8),
+    ]
+    refined.save(tmp_path / "refined.toml")
+    assert Rotor.load(tmp_path / "refined.toml") == refined
+
+    amb_rotor = rotor_example_amb_simple()
+    refined_amb = amb_rotor.refine(2)
+    ambs = [
+        (original, new)
+        for original, new in zip(
+            amb_rotor.bearing_elements, refined_amb.bearing_elements, strict=True
+        )
+        if isinstance(original, MagneticBearingElement)
+    ]
+    assert ambs
+    for original, new in ambs:
+        assert_allclose(
+            refined_amb.nodes_pos[new.sensor_node],
+            amb_rotor.nodes_pos[original.sensor_node],
+        )
+        assert new.sensor_node == new.n

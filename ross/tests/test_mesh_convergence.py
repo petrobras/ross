@@ -10,6 +10,7 @@ from ross.bearing_seal_element import BearingElement
 from ross.coupling_element import CouplingElement
 from ross.materials import steel
 
+from ross.mesh_convergence import _MeshSearch
 from ross.results import MeshConvergenceResults
 from ross.rotor_assembly import Rotor, rotor_example
 from ross.shaft_element import ShaftElement
@@ -58,9 +59,10 @@ def test_run_mesh_convergence_cheapest_grades_the_mesh(rotor_thin_overhang):
 
 
 def test_run_mesh_convergence_max_elements():
-    with pytest.warns(UserWarning, match="max_elements=20"):
-        results = rotor_example().run_mesh_convergence(rtol=1e-6, max_elements=20)
-    assert results.reference_elements == 12
+    # The reference needs 192 elements at rtol=1e-6 / 10, so a cap of 20 leaves
+    # no converged reference to measure the error against.
+    with pytest.raises(ValueError, match="max_elements=20"):
+        rotor_example().run_mesh_convergence(rtol=1e-6, max_elements=20)
 
 
 @pytest.mark.parametrize(
@@ -144,14 +146,15 @@ def test_run_mesh_convergence_coarse_mesh_with_fewer_modes():
 
 
 def test_run_mesh_convergence_fewer_modes_than_frequencies():
-    with pytest.warns(UserWarning, match="max_elements=6"):
-        with pytest.raises(ValueError, match="fewer than 30"):
-            rotor_example().run_mesh_convergence(frequencies=30, max_elements=6)
+    with pytest.raises(ValueError, match="fewer than 30"):
+        rotor_example().run_mesh_convergence(frequencies=30, max_elements=6)
 
 
-def test_run_mesh_convergence_graded_exceeds_max_elements():
-    with pytest.warns(UserWarning, match="max_elements=5"):
-        results = rotor_example().run_mesh_convergence(rtol=1e-3, max_elements=5)
-    assert results.reference_elements == 6
-    assert_equal(results.subdivisions, [1] * 6)
-    assert "graded" not in results.families
+def test_graded_search_stops_at_max_elements(rotor_thin_overhang):
+    search = _MeshSearch(rotor_thin_overhang, 6, 0, 1000)
+    search.find_reference(1e-5)
+    converged = search.search_graded(1e-4)
+    assert search.converged(converged, "graded", 1e-4)
+
+    search.max_elements = search.n_elements(converged) - 1
+    assert search.search_graded(1e-4) is None

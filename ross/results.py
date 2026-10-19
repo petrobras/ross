@@ -42,7 +42,6 @@ __all__ = [
     "ForcedResponseResults",
     "StaticResults",
     "SummaryResults",
-    "ConvergenceResults",
     "MeshConvergenceResults",
     "TimeResponseResults",
     "AmbTimeResponseResults",
@@ -5571,101 +5570,6 @@ class SummaryResults(Results):
             row=2,
             col=2,
         )
-        return fig
-
-
-class ConvergenceResults(Results):
-    """Class used to store results and provide plots for Convergence Analysis.
-
-    This class plots:
-        Natural Frequency vs Number of Elements
-        Relative Error vs Number of Elements
-
-    Parameters
-    ----------
-    el_num : array
-        Array with number of elements in each iteration
-    eigv_arr : array
-        Array with the n'th natural frequency in each iteration
-    error_arr : array
-        Array with the relative error in each iteration
-
-    Returns
-    -------
-    fig : Plotly graph_objects.make_subplots()
-        The figure object with the plot.
-    """
-
-    def __init__(self, el_num, eigv_arr, error_arr):
-        self.el_num = el_num
-        self.eigv_arr = eigv_arr
-        self.error_arr = error_arr
-
-    def plot(self, fig=None, **kwargs):
-        """Plot convergence results.
-
-        This method plots:
-            Natural Frequency vs Number of Elements
-            Relative Error vs Number of Elements
-
-        Parameters
-        ----------
-        fig : Plotly graph_objects.make_subplots()
-            The figure object with the plot.
-        kwargs : optional
-            Additional key word arguments can be passed to change the plot layout only
-            (e.g. width=1000, height=800, ...).
-            *See Plotly Python Figure Reference for more information.
-
-        Returns
-        -------
-        fig : Plotly graph_objects.make_subplots()
-            The figure object with the plot.
-        """
-        if fig is None:
-            fig = make_subplots(
-                rows=1,
-                cols=2,
-                subplot_titles=["Frequency Evaluation", "Relative Error Evaluation"],
-            )
-
-        # plot Frequency vs number of elements
-        fig.add_trace(
-            go.Scatter(
-                x=self.el_num,
-                y=self.eigv_arr,
-                mode="lines+markers",
-                hovertemplate=(
-                    "Number of Elements: %{x:.2f}<br>" + "Frequency: %{y:.0f}"
-                ),
-                showlegend=False,
-            ),
-            row=1,
-            col=1,
-        )
-        fig.update_xaxes(title_text="Number of Elements", row=1, col=1)
-        fig.update_yaxes(title_text="Frequency", row=1, col=1)
-
-        # plot Error vs number of elements
-        fig.add_trace(
-            go.Scatter(
-                x=self.el_num,
-                y=self.error_arr,
-                mode="lines+markers",
-                hovertemplate=(
-                    "Number of Elements: %{x:.2f}<br>" + "Relative Error: %{y:.0f}"
-                ),
-                showlegend=False,
-            ),
-            row=1,
-            col=2,
-        )
-
-        fig.update_xaxes(title_text="Number of Elements", row=1, col=2)
-        fig.update_yaxes(title_text="Relative Error (%)", row=1, col=2)
-
-        fig.update_layout(**kwargs)
-
         return fig
 
 

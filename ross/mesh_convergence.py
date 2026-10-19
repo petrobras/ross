@@ -12,10 +12,10 @@ import numpy as np
 from ross.coupling_element import CouplingElement
 from ross.results import MeshConvergenceResults
 
-__all__ = ["mesh_convergence", "MeshSearch"]
+__all__ = []
 
 
-class MeshSearch:
+class _MeshSearch:
     """Evaluate shaft discretizations of a rotor against a converged reference.
 
     A discretization is the number of equal elements each shaft interval (the
@@ -179,12 +179,18 @@ class MeshSearch:
         while True:
             finer = self.uniform(2 * m)
             if self.n_elements(finer) > self.max_elements:
-                warnings.warn(
-                    "The natural frequencies did not converge to the reference "
-                    f"tolerance within max_elements={self.max_elements}. The "
-                    "finest discretization evaluated is the reference."
+                if len(wn) < self.frequencies:
+                    raise ValueError(
+                        f"The discretizations up to max_elements={self.max_elements} "
+                        f"have fewer than {self.frequencies} natural frequencies. "
+                        "Increase max_elements or decrease frequencies."
+                    )
+                raise ValueError(
+                    "The natural frequencies did not converge to a reference "
+                    f"within max_elements={self.max_elements}, so the error of a "
+                    "discretization cannot be measured. Increase max_elements or "
+                    "rtol."
                 )
-                break
 
             m *= 2
             wn_finer = self.evaluate(finer, "uniform")
@@ -245,7 +251,7 @@ class MeshSearch:
         return self.graded(high)
 
 
-def mesh_convergence(rotor, rtol, frequencies, strategy, speed, max_elements):
+def _mesh_convergence(rotor, rtol, frequencies, strategy, speed, max_elements):
     """Find the shaft discretization with converged natural frequencies.
 
     See :py:meth:`ross.Rotor.run_mesh_convergence` for the parameters.
@@ -262,7 +268,7 @@ def mesh_convergence(rotor, rtol, frequencies, strategy, speed, max_elements):
     if strategy not in ("cheapest", "uniform"):
         raise ValueError('strategy must be "cheapest" or "uniform".')
 
-    search = MeshSearch(rotor, frequencies, speed, max_elements)
+    search = _MeshSearch(rotor, frequencies, speed, max_elements)
     search.find_reference(rtol / 10)
 
     candidates = [search.search_uniform(rtol)]

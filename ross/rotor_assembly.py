@@ -51,7 +51,6 @@ from ross.point_mass import PointMass
 from ross.probe import Probe
 from ross.results import (
     CampbellResults,
-    ConvergenceResults,
     CriticalSpeedResults,
     ForcedResponseResults,
     FrequencyResponseResults,
@@ -79,7 +78,7 @@ from ross.utils import (
 )
 
 from ross.harmonic_balance import HarmonicBalance
-from ross.mesh_convergence import mesh_convergence
+from ross.mesh_convergence import _mesh_convergence
 
 __all__ = [
     "Rotor",
@@ -1310,9 +1309,13 @@ class Rotor(object):
         point_mass_elements = deepcopy(self.point_mass_elements)
         for elm in [*disk_elements, *bearing_elements, *point_mass_elements]:
             elm.n = new_node(elm.n)
+        for elm in disk_elements:
+            elm.n_l = elm.n_r = elm.n
         for elm in bearing_elements:
             if elm.n_link is not None:
                 elm.n_link = new_node(elm.n_link)
+            if hasattr(elm, "sensor_node"):
+                elm.sensor_node = new_node(elm.sensor_node)
 
         return self.__class__(
             shaft_elements,
@@ -1750,87 +1753,6 @@ class Rotor(object):
 
         return CriticalSpeedResults(wn, wd, log_dec, damping_ratio, whirl_direction)
 
-    def convergence(self, n_eigval=0, err_max=1e-02):
-        """Run convergence analysis.
-
-        Function to analyze the eigenvalues convergence through the number of
-        shaft elements. Every new run doubles the number of shaft elements
-        (see :py:meth:`refine`).
-
-        Parameters
-        ----------
-        n_eigval : int
-            The nth eigenvalue which the convergence analysis will run.
-            Default is 0 (the first eigenvalue).
-        err_max : float
-            Maximum allowable convergence error.
-            Default is 1e-02
-
-        Returns
-        -------
-        results : An instance of ConvergenceResults class, which is used to post-process
-        results. Attributes stored:
-            el_num : array
-                Array with number of elements in each iteration
-            eigv_arr : array
-                Array with the n'th natural frequency in each iteration
-            error_arr : array
-                Array with the relative error in each iteration
-
-        Example
-        -------
-        >>> import ross as rs
-        >>> i_d = 0
-        >>> o_d = 0.05
-        >>> n = 6
-        >>> L = [0.25 for _ in range(n)]
-        ...
-        >>> shaft_elem = [rs.ShaftElement(l, i_d, o_d, material=steel,
-        ... shear_effects=True, rotary_inertia=True, gyroscopic=True) for l in L]
-        >>> disk0 = DiskElement.from_geometry(2, steel, 0.07, 0.05, 0.28)
-        >>> disk1 = DiskElement.from_geometry(4, steel, 0.07, 0.05, 0.35)
-        >>> bearing0 = BearingElement(0, kxx=1e6, kyy=8e5, cxx=2e3)
-        >>> bearing1 = BearingElement(6, kxx=1e6, kyy=8e5, cxx=2e3)
-        >>> rotor0 = Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
-        >>> len(rotor0.shaft_elements)
-        6
-        >>> convergence = rotor0.convergence(n_eigval=0, err_max=1e-08)
-        >>> len(rotor0.shaft_elements)
-        96
-
-        Plotting convergence graphics
-        >>> fig = convergence.plot()
-        """
-        el_num = np.array([len(self.shaft_elements)])
-        eigv_arr = np.array([])
-        error_arr = np.array([0])
-
-        modal = self.run_modal(speed=0)
-        eigv_arr = np.append(eigv_arr, modal.wn[n_eigval])
-
-        # this value is up to start the loop while
-        error = 1.0e10
-        nel_r = 2
-
-        while error > err_max:
-            aux_rotor = self.refine(nel_r)
-            aux_modal = aux_rotor.run_modal(speed=0)
-
-            eigv_arr = np.append(eigv_arr, aux_modal.wn[n_eigval])
-            el_num = np.append(el_num, len(aux_rotor.shaft_elements))
-
-            error = abs(1 - eigv_arr[-1] / eigv_arr[-2])
-
-            error_arr = np.append(error_arr, 100 * error)
-            nel_r *= 2
-
-        self.__dict__ = aux_rotor.__dict__
-        self.error_arr = error_arr
-
-        results = ConvergenceResults(el_num[1:], eigv_arr[1:], error_arr[1:])
-
-        return results
-
     @check_units
     def run_mesh_convergence(
         self,
@@ -1876,7 +1798,8 @@ class Rotor(object):
             Rotor speed of the modal analyses (rad/s). Default is 0.
         max_elements : int, optional
             Maximum number of shaft elements of the discretizations evaluated.
-            Default is 1000.
+            A ValueError is raised when the reference needs more. Default is
+            1000.
 
         Returns
         -------
@@ -1895,7 +1818,7 @@ class Rotor(object):
         True
         >>> fig = results.plot()
         """
-        return mesh_convergence(self, rtol, frequencies, strategy, speed, max_elements)
+        return _mesh_convergence(self, rtol, frequencies, strategy, speed, max_elements)
 
     def M(self, frequency=None, speed=None, synchronous=False):
         """Mass matrix for an instance of a rotor.

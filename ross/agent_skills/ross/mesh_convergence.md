@@ -16,7 +16,7 @@ refined_rotor = results.rotor  # use this rotor in the analyses
 - `frequencies` (int): number of natural frequencies that must converge, the lowest ones (default 6)
 - `strategy` (str): `"cheapest"` (fewest shaft elements found among uniform and graded meshes, default) or `"uniform"` (every element at most `h` long)
 - `speed` (float, `Q_`): rotor speed of the modal analyses in rad/s (default 0)
-- `max_elements` (int): cap on the shaft elements of any mesh evaluated (default 1000)
+- `max_elements` (int): cap on the shaft elements of any mesh evaluated (default 1000); a `ValueError` is raised when the reference needs more
 
 The rotor is not modified. Its shaft elements are the coarsest mesh considered: they are split, never merged.
 
@@ -53,5 +53,5 @@ results = rotor.run_mesh_convergence(speed=rs.Q_(12000, "RPM"))
 - The reference halves the element length until the frequencies change less than `rtol / 10`; the errors are measured against it
 - The k-th lowest frequency of a mesh is compared with the k-th lowest of the reference; when two different modes are closer than the mesh error (e.g. a bending and a torsional mode), check them on `results.rotor`
 - The graded mesh gives thin sections more elements than thick ones (a fixed number of elements per local bending wavelength), which pays off on rotors with varying diameters
-- Each mesh evaluated is one modal analysis: industrial models can take about a minute, dominated by the reference; lower `max_elements` to cap it
-- Not available for `MultiRotor` and `CoAxialRotor`
+- Each mesh evaluated is one modal analysis: industrial models can take about a minute, dominated by the reference; a larger `rtol` gives a coarser reference
+- Available for `Rotor` only, not for `MultiRotor` or other subclasses
