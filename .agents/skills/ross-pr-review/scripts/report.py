@@ -22,12 +22,13 @@ import subprocess
 from pathlib import Path
 
 STYLE = """
-:root{--ink:#12263b;--muted:#5b6b7e;--line:#dfe8f3;--soft:#f5f8fc;
---accent:#1f77b4;--ok:#1d6f1d;--warn:#a85207;--bad:#96191a}
-@media (prefers-color-scheme:dark){:root{--ink:#dfe8f3;--muted:#a8b6c4;
---line:#24405a;--soft:#0f2233;--accent:#6bb2e0;--ok:#7fd07f;--warn:#f0a35b;
---bad:#f08b8c}body{background:#0b1826}}
-body{margin:0;color:var(--ink);background:#fff;
+:root{color-scheme:light dark;--bg:#fff;--ink:#12263b;--muted:#5b6b7e;
+--line:#dfe8f3;--soft:#f5f8fc;--accent:#1f77b4;--ok:#1d6f1d;--warn:#a85207;
+--bad:#96191a}
+@media (prefers-color-scheme:dark){:root{--bg:#0b1826;--ink:#dfe8f3;
+--muted:#a8b6c4;--line:#24405a;--soft:#0f2233;--accent:#6bb2e0;--ok:#7fd07f;
+--warn:#f0a35b;--bad:#f08b8c}}
+body{margin:0;color:var(--ink);background:var(--bg);
 font:16px/1.6 "IBM Plex Sans",-apple-system,"Segoe UI",Helvetica,Arial,sans-serif}
 main{max-width:980px;margin:0 auto;padding:24px 20px 64px}
 h1{font-size:1.8rem;margin:0 0 4px}h2{font-size:1.3rem;margin:36px 0 8px}
@@ -68,6 +69,34 @@ def inline(text):
     return re.sub(r"\[([^\]]+)\]\(([^)\s]+)\)", r'<a href="\2">\1</a>', text)
 
 
+def table_cells(line):
+    """Split a pipe-table row into cells.
+
+    A pipe escaped as ``\\|`` (the escape is removed, as on GitHub) or inside a
+    code span belongs to the cell.
+    """
+    cells, cell, in_code, i = [], "", False, 0
+    row = line.strip()
+    row = row[1:] if row.startswith("|") else row
+    while i < len(row):
+        char = row[i]
+        if char == "\\" and row[i + 1 : i + 2] == "|":
+            cell += "|"
+            i += 2
+            continue
+        if char == "`":
+            in_code = not in_code
+        if char == "|" and not in_code:
+            cells.append(cell.strip())
+            cell = ""
+        else:
+            cell += char
+        i += 1
+    if cell.strip():
+        cells.append(cell.strip())
+    return cells
+
+
 def markdown(text):
     """Convert the Markdown of a review card to HTML.
 
@@ -89,7 +118,7 @@ def markdown(text):
         elif line.lstrip().startswith("|"):
             rows = []
             while i < len(lines) and lines[i].lstrip().startswith("|"):
-                cells = [c.strip() for c in lines[i].strip().strip("|").split("|")]
+                cells = table_cells(lines[i])
                 if not all(re.fullmatch(r":?-+:?", c) for c in cells):
                     rows.append(cells)
                 i += 1

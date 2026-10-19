@@ -115,7 +115,7 @@ hops (for example, how a new element's `K` reaches `Rotor.K`).
   change is justified, and justified in the PR text. For new physics, find
   where each expected value comes from: literature, an analytical case, an
   independent path, or (a finding) the code under test. Check that the tests
-  exercise what changed (`CoAxialRotor`, `MultiRotor`, `save`/`load`, units)
+  exercise what changed (`MultiRotor`, `save`/`load`, units)
   over a range, not a single point.
 - **Writing.** Read the new public docstrings and the changed documentation.
   Quote passages that repeat, restate the signature, narrate the process or
@@ -143,7 +143,7 @@ Then probe what the tests do not cover. Write each probe as a script in
 `PYTHONPATH="$OUT/base-tree"`) where the comparison matters, and save its
 output next to it (`p1_name.py` → `p1_name.out`):
 
-- the new element or option inside `Rotor`, `CoAxialRotor` and `MultiRotor`;
+- the new element or option inside `Rotor` and `MultiRotor`;
 - behavior that should not change: the same model on base and head, with
   the new options left at their defaults;
 - `save`/`load` round trips of new elements and results;
