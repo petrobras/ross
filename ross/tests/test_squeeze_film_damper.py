@@ -15,7 +15,7 @@ def squeeze_film_damper():
         radial_clearance=Q_(0.003, "inches"),
         eccentricity_ratio=0.5,
         lubricant="ISOVG32",
-        geometry="groove-end_seals",
+        geometry="plain_bearing",
         cavitation=True,
     )
 
