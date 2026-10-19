@@ -220,6 +220,20 @@ def thrust_pad_results():
     )
 
 
+@pytest.fixture
+def cross_coupled_rotor():
+    shaft = [ShaftElement(L=0.25, idl=0, odl=0.05, material=steel) for _ in range(6)]
+    disks = [
+        DiskElement.from_geometry(n=2, material=steel, width=0.07, i_d=0.05, o_d=0.28),
+        DiskElement.from_geometry(n=4, material=steel, width=0.07, i_d=0.05, o_d=0.35),
+    ]
+    bearings = [
+        BearingElement(n=0, kxx=1e6, kyy=1.5e6, kxy=4e5, kyx=-6e5, cxx=200, cyy=300),
+        BearingElement(n=6, kxx=1.2e6, kyy=0.8e6, kxy=3e5, kyx=-3e5, cxx=150, cyy=100),
+    ]
+    return Rotor(shaft, disks, bearings)
+
+
 def _expected_frf_magnitude(freq_response, inp, out, amplitude_units="m/N"):
     dummy_var = Q_(1, amplitude_units)
     if dummy_var.check("[length]/[force]"):
@@ -295,20 +309,6 @@ def test_frequency_response_plot_polar_bode(freq_response):
 
     assert_trace_allclose(fig.data[0], r=expected_r, theta=expected_theta)
     assert_allclose(fig.data[0].r[:3], expected_r[:3])
-
-
-@pytest.fixture
-def cross_coupled_rotor():
-    shaft = [ShaftElement(L=0.25, idl=0, odl=0.05, material=steel) for _ in range(6)]
-    disks = [
-        DiskElement.from_geometry(n=2, material=steel, width=0.07, i_d=0.05, o_d=0.28),
-        DiskElement.from_geometry(n=4, material=steel, width=0.07, i_d=0.05, o_d=0.35),
-    ]
-    bearings = [
-        BearingElement(n=0, kxx=1e6, kyy=1.5e6, kxy=4e5, kyx=-6e5, cxx=200, cyy=300),
-        BearingElement(n=6, kxx=1.2e6, kyy=0.8e6, kxy=3e5, kyx=-3e5, cxx=150, cyy=100),
-    ]
-    return Rotor(shaft, disks, bearings)
 
 
 @pytest.mark.parametrize("speed", [None, 0.0, 300.0, 900.0])
