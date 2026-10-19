@@ -689,3 +689,19 @@ def test_three_shaft_unbalance_force(three_shaft_rotors, nest, node, whirl):
 
     assert_allclose(F0[dof + 1], whirl * F0[dof])
     assert_allclose(abs(F0[dof]), 1e-3 * (ratio * 10.0) ** 2)
+
+
+def test_summary_per_shaft(three_shaft_rotors):
+    multi_rotor = nest_driving(*three_shaft_rotors)
+    summary = multi_rotor.summary()
+    masses = [rotor.m for rotor in three_shaft_rotors]
+
+    assert summary.nodes == [(0, 4), (5, 9), (10, 13)]
+    assert_allclose(summary.Ip, [rotor.Ip for rotor in three_shaft_rotors])
+    assert_allclose(summary.It, [rotor.It for rotor in three_shaft_rotors])
+    assert_allclose(np.dot(masses, summary.CG) / np.sum(masses), multi_rotor.CG)
+
+    rotor_table = summary.plot().data[0]
+    headers = list(rotor_table.header["values"])
+    table_masses = rotor_table.cells["values"][headers.index("Rotor Mass (kg)")]
+    assert_allclose([float(m) for m in table_masses], masses, atol=5e-4)

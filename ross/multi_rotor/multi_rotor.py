@@ -6,6 +6,7 @@ geared rotor-dynamic systems.
 """
 
 import numpy as np
+import pandas as pd
 from re import search
 from copy import deepcopy as copy
 
@@ -13,7 +14,7 @@ import ross as rs
 from ross.rotor_assembly import Rotor
 from ross.units import Q_, check_units
 from ross.utils import make_speed_array
-from ross.results import ForcedResponseResults
+from ross.results import ForcedResponseResults, SummaryResults
 
 from .gear_element import GearElement
 from .mesh import Mesh
@@ -804,6 +805,87 @@ class MultiRotor(Rotor):
             return F0, theta, omega, alpha
         else:
             return F0
+
+    def summary(self):
+        """Plot the multi-rotor summary.
+
+        The rotor data table has one row per shaft, since the center of
+        gravity and the moments of inertia of geared shafts are not those of a
+        single rigid rotor. Shafts are numbered from the main driving shaft
+        along the gear train. Nodes and the center of gravity are given in the
+        multi-rotor numbering and axial positions.
+
+        Returns
+        -------
+        results : ross.SummaryResults class
+            An instance of SummaryResults class to build the summary table.
+
+        Examples
+        --------
+        >>> multi_rotor = two_shaft_rotor_example()
+        >>> summary = multi_rotor.summary()
+        >>> [round(cg, 3) for cg in summary.CG]
+        [2.899, 8.508]
+        >>> table = summary.plot()
+        """
+        df_disks = pd.merge(
+            self.df_disks, self.df[["tag", "nodes_pos_l"]], on="tag", how="left"
+        )
+        df_bearings = pd.merge(
+            self.df_bearings, self.df[["tag", "nodes_pos_l"]], on="tag", how="left"
+        )
+        self.run_static()
+
+        rotors = self._single_rotors()
+
+        return SummaryResults(
+            self.df_shaft,
+            df_disks,
+            df_bearings,
+            self.bearing_forces_tag,
+            CG=[rotor.CG + pos_offset for rotor, _, pos_offset in rotors],
+            Ip=[rotor.Ip for rotor, _, _ in rotors],
+            It=[rotor.It for rotor, _, _ in rotors],
+            tag=[f"{rotor.tag} (shaft {i})" for i, (rotor, _, _) in enumerate(rotors)],
+            nodes=[
+                (rotor.nodes[0] + node_offset, rotor.nodes[-1] + node_offset)
+                for rotor, node_offset, _ in rotors
+            ],
+        )
+
+    def _single_rotors(self):
+        """Return the single rotors of this multi-rotor with their offsets.
+
+        Nested MultiRotor objects are expanded recursively.
+
+        Returns
+        -------
+        rotors : list
+            List of (rotor, node_offset, pos_offset) tuples, where the offsets
+            map the rotor node numbers and axial positions (m) to those of
+            this multi-rotor.
+        """
+        rotors = []
+        driven = self.rotors["driven"]
+        node_offsets = {
+            "driving": 0,
+            "driven": self.driven_nodes[0] - driven.nodes[0],
+        }
+
+        for key, rotor in self.rotors.items():
+            node_offset = node_offsets[key]
+            first_node = self.nodes.index(rotor.nodes[0] + node_offset)
+            pos_offset = self.nodes_pos[first_node] - rotor.nodes_pos[0]
+
+            if isinstance(rotor, MultiRotor):
+                for sub_rotor, sub_node, sub_pos in rotor._single_rotors():
+                    rotors.append(
+                        (sub_rotor, sub_node + node_offset, sub_pos + pos_offset)
+                    )
+            else:
+                rotors.append((rotor, node_offset, pos_offset))
+
+        return rotors
 
     def _node_gear_ratio(self, node):
         """Return the signed speed ratio of the specified node.
