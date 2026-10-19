@@ -142,6 +142,18 @@ def test_a_backlash_model_carries_the_mesh_damping_ratio():
     assert_allclose(built.C(0), reference.C(0), atol=1e-9)
 
 
+@pytest.mark.parametrize("ratio", ["-0.1", "-1e-3"])
+@pytest.mark.parametrize("backlash", [None, BACKLASH])
+def test_a_negative_mesh_damping_ratio_is_refused(ratio, backlash):
+    """A negative ratio makes the mesh add energy to the train; ROSS builds it
+    without a word, so the builder has to say no."""
+    extra = {"mesh_damping_ratio": ratio}
+    if backlash is not None:
+        extra["backlash"] = backlash
+    with pytest.raises(ValueError, match="zero or positive, not %s" % ratio):
+        assemble_rotor(train(**extra))
+
+
 @pytest.mark.parametrize("blank", [{}, {"mesh_damping_ratio": ""}])
 def test_a_project_saved_without_the_field_builds_an_undamped_mesh(blank):
     """A file written before the field existed, or the field left empty, gets
