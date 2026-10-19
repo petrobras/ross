@@ -61,13 +61,7 @@ class Results(ABC):
 
     This class is a general abstract class to be implemented in other classes
     for post-processing results, in order to add saving and loading data options.
-
-    Subclasses list in ``_extra_args`` the ``__init__`` arguments added after
-    ROSS 3.0. They are saved in the ``_ross`` section of the file, which older
-    versions ignore, so files saved by this version still load in them.
     """
-
-    _extra_args = ()
 
     def save(self, file):
         """Save results in a .toml or .json file.
@@ -101,28 +95,18 @@ class Results(ABC):
         >>> file = Path(tempdir) / 'unb_resp.toml'
         >>> response.save(file)
         """
-        import ross
         from ross.utils import load_data, dump_data_numpy
 
         # get __init__ arguments
         signature = inspect.signature(self.__init__)
         args_list = list(signature.parameters)
         args = {arg: getattr(self, arg) for arg in args_list}
-        extra_args = {arg: args.pop(arg) for arg in self._extra_args if arg in args}
         try:
             data = load_data(file)
         except FileNotFoundError:
             data = {}
 
         data[f"{self.__class__.__name__}"] = args
-
-        # Older versions load only the first section, so metadata goes last
-        metadata = data.pop("_ross", {})
-        metadata["ross_version"] = ross.__version__
-        metadata.pop(self.__class__.__name__, None)
-        if extra_args:
-            metadata[self.__class__.__name__] = extra_args
-        data["_ross"] = metadata
 
         try:
             del data["CampbellResults"]["modal_results"]
@@ -194,8 +178,6 @@ class Results(ABC):
         >>> abs(results2.forced_resp).all() == abs(results.forced_resp).all()
         True
         """
-        import ross
-        from ross.rotor_assembly import _major_minor
         from ross.utils import load_data
 
         def remove_npformat(v):  # remove type info related to numpy format
@@ -206,34 +188,7 @@ class Results(ABC):
             return v[idx:] if idx != -1 else v
 
         data = load_data(file)
-        metadata = data.pop("_ross", {})
-
-        saved_version = metadata.get("ross_version")
-        if saved_version is not None and _major_minor(saved_version) != _major_minor(
-            ross.__version__
-        ):
-            warn(
-                f"File was created with ROSS {saved_version}, "
-                f"but current version is {ross.__version__}. "
-                f"This may lead to incompatibilities."
-            )
-
-        class_name, data = next(iter(data.items()))
-        data.update(metadata.get(class_name, {}))
-
-        parameters = inspect.signature(cls.__init__).parameters
-        accepts_kwargs = any(
-            p.kind == inspect.Parameter.VAR_KEYWORD for p in parameters.values()
-        )
-        unknown_args = [key for key in data if key not in parameters]
-        if unknown_args and not accepts_kwargs:
-            warn(
-                f"Ignoring {unknown_args} saved in {file}: {cls.__name__} does not "
-                f"accept them. The file may have been created with a newer ROSS version."
-            )
-            for key in unknown_args:
-                del data[key]
-
+        data = list(data.values())[0]
         if cls == CampbellResults:
             data["modal_results"] = None
         for key, value in data.items():
@@ -5748,8 +5703,6 @@ class TimeResponseResults(Results):
     fig : Plotly graph_objects.Figure()
         The figure object with the plot.
     """
-
-    _extra_args = ("speed",)
 
     def __init__(self, rotor, t, yout, xout, speed=None):
         self.t = t
