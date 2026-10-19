@@ -126,8 +126,8 @@ class SqueezeFilmDamper(BearingElement):
             # Calculate coefficients based on geometry
             if self.geometry == "groove":
                 co, ko, theta, p_max = self.calculate_coeficients_with_groove(freq)
-            elif self.geometry == "end_seals":
-                co, ko, theta, p_max = self.calculate_coeficients_with_end_seals(freq)
+            elif self.geometry == "plain_bearing":
+                co, ko, theta, p_max = self.calculate_coeficients_plain_bearing(freq)
             elif self.geometry == "groove-end_seals":
                 co, ko, theta, p_max = (
                     self.calculate_coeficientes_with_groove_and_end_seals(freq)
@@ -135,7 +135,7 @@ class SqueezeFilmDamper(BearingElement):
             else:
                 raise ValueError(
                     f"Invalid geometry type: {geometry}. "
-                    "Must be 'groove', 'end_seals', or 'groove-end_seals'"
+                    "Must be 'groove', 'plain_bearing', or 'groove-end_seals'"
                 )
 
             # Store results for this frequency
@@ -160,8 +160,8 @@ class SqueezeFilmDamper(BearingElement):
             scale_factor=scale_factor,
         )
 
-    def calculate_coeficients_with_end_seals(self, freq):
-        """Calculate coefficients for a sealed SFD without a groove.
+    def calculate_coeficients_plain_bearing(self, freq):
+        """Calculate coefficients for a Plain SFD (no groove, no end seals).
 
         Parameters
         ----------
@@ -179,53 +179,52 @@ class SqueezeFilmDamper(BearingElement):
         p_max : float
             Maximum pressure.
         """
-        co = (
-            12.0
-            * np.pi
-            * self.axial_length
-            * (self.journal_radius / self.radial_clearance) ** 3
-            * self.lubricant
-        )
-        co /= (2.0 + self.eccentricity_ratio**2) * np.sqrt(
-            1.0 - self.eccentricity_ratio**2
-        )
+        if self.cavitation:
+            co = (
+                self.lubricant
+                * (self.axial_length**3)
+                * self.journal_radius
+                / (2.0 * self.radial_clearance**3)
+            )
+            co *= np.pi / ((1.0 - self.eccentricity_ratio**2) ** (3.0 / 2.0))
 
-        ko = (
-            24.0
-            * self.lubricant
-            * self.axial_length
-            * (self.journal_radius / self.radial_clearance) ** 3
-            * self.eccentricity_ratio
-            * freq
-        )
-        ko /= (2.0 + self.eccentricity_ratio**2) * (1.0 - self.eccentricity_ratio**2)
+            ko = (
+                2.0
+                * self.lubricant
+                * freq
+                * self.journal_radius
+                * (self.axial_length / self.radial_clearance) ** 3
+                * self.eccentricity_ratio
+            )
+            ko /= (1.0 - self.eccentricity_ratio**2) ** 2
 
-        theta_m = -80.45 * self.eccentricity_ratio + 268.98
+        theta_m = (
+            270.443
+            - 191.831 * self.eccentricity_ratio
+            + 218.223 * self.eccentricity_ratio**2
+            - 114.803 * self.eccentricity_ratio**3
+        )
         theta = math.radians(theta_m)
 
-        p_max_num = (
-            2.0
-            * self.eccentricity_ratio
-            * (2.0 + self.eccentricity_ratio * np.cos(theta))
-            * np.sin(theta)
-        )
-        p_max_den = (2.0 + self.eccentricity_ratio**2) * (
-            1.0 + self.eccentricity_ratio * np.cos(theta)
-        ) ** 2
         p_max = (
-            -p_max_num
-            / p_max_den
-            * 6.0
+            -1.5
+            * (self.axial_length / self.radial_clearance) ** 2
             * self.lubricant
             * freq
-            * (self.journal_radius / self.radial_clearance) ** 2
+            * self.eccentricity_ratio
+            * np.sin(theta)
         )
+        p_max /= (1.0 + self.eccentricity_ratio * np.cos(theta)) ** 3
 
-        if self.cavitation:
+        if not self.cavitation:
             ko = 0.0
-        else:
-            co = 2.0 * co
-            ko = 0.0
+            co = (
+                self.lubricant
+                * (self.axial_length / self.radial_clearance) ** 3
+                * self.journal_radius
+                * np.pi
+            )
+            co /= (1.0 - self.eccentricity_ratio**2) ** (3.0 / 2.0)
 
         return co, ko, theta, p_max
 
@@ -297,6 +296,7 @@ class SqueezeFilmDamper(BearingElement):
                 * np.pi
             )
             co /= (1.0 - self.eccentricity_ratio**2) ** (3.0 / 2.0)
+            co /= 4
 
         return co, ko, theta, p_max
 
