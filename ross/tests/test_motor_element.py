@@ -28,11 +28,17 @@ import numpy as np
 import pytest
 from numpy.testing import assert_allclose
 from copy import deepcopy
+from scipy.integrate import quad
+from scipy.signal import lsim
 
 from ross.bearing_seal_element import BearingElement
+from ross.coupling_element import CouplingElement
+from ross.materials import steel
 from ross.motors.motor_element import MotorElement, motor_example
 from ross.motors.results import MotorResponseResults
+from ross.multi_rotor.multi_rotor import two_shaft_rotor_example
 from ross.rotor_assembly import Rotor, rotor_example
+from ross.shaft_element import ShaftElement
 from ross.units import Q_
 
 
@@ -558,8 +564,13 @@ def test_inverter_vf_fft_frequency_range_narrows_current_spectrum(
 # the spectrum instead of the unbalance response. All three ``drive_mode``
 # values are run at 60 Hz under rated load, so the shaft settles near the
 # rated speed and the unbalance response is a 1X well above the first modes.
+# The rotor adds 0.67 kg.m² of polar inertia to the 0.037 kg.m² of the motor,
+# so the start-up takes about 8 s. The rated load is applied at 7.5 s, before
+# the FOC drive reaches its speed reference, and the simulation runs to 12 s,
+# so the steady-state window (10.5 s to 12 s) is past the load transient.
 
-_ROTOR_LOAD_TIME = 1.0
+_ROTOR_LOAD_TIME = 7.5
+_ROTOR_END_TIME = 12.0
 _ROTOR_UNBALANCE_NODE = 2
 _DRIVE_MODES = ("DOL", "VFD_VF", "VFD_FOC")
 
@@ -584,7 +595,7 @@ def rotor_with_motor(motor):
 def results_run_with_motor(rotor_with_motor, request):
     """Simulate the rotor with each supported drive_mode under rated load."""
     drive_mode = request.param
-    t = np.arange(0, 2.0 + 1e-3, 1e-3)
+    t = np.arange(0, _ROTOR_END_TIME + 1e-3, 1e-3)
     kwargs = {}
     if drive_mode != "DOL":
         kwargs["time_step"] = 1e-5
@@ -659,4 +670,264 @@ def test_run_with_motor_without_motor_element():
             unbalance_phase=[0.0],
             drive_mode="DOL",
             load_torque_entrance_time=0.05,
+        )
+
+
+def _rotor_example_polar_inertia():
+    """Return the polar moment of inertia of ``rotor_example()`` [kg.m²].
+
+    Every part is a steel hollow cylinder, Ip = rho * pi / 32 * (D⁴ - d⁴) * L:
+    six 0.25 m shaft elements with D = 0.05 m, and two disks of width 0.07 m
+    with d = 0.05 m and D = 0.28 m.
+    """
+    rho = 7810.0
+    shaft = rho * np.pi / 32 * 0.05**4 * 6 * 0.25
+    disks = 2 * rho * np.pi / 32 * (0.28**4 - 0.05**4) * 0.07
+    return shaft + disks
+
+
+def _equivalent_circuit_torque(motor, speed):
+    """Return the steady-state torque of the per-phase equivalent circuit [N.m].
+
+    Z = Rs + jXs + jXm || (Rr / s + jXr) and Te = 3 |Ir|² (Rr / s) / ws, with
+    the network resistance added to the stator resistance, as in
+    ``MotorElement.run``.
+    """
+    synchronous_speed = motor.frequency_rated / (motor.n_poles / 2)
+    slip = 1 - speed / synchronous_speed
+    Rs = motor.stator_resistance + motor.short_circuit_resistance
+    Zm = 1j * motor.mutual_reactance
+    Zr = motor.rotor_resistance / slip + 1j * motor.rotor_reactance
+    stator_current = motor.voltage_rated / (
+        Rs + 1j * motor.stator_reactance + Zm * Zr / (Zm + Zr)
+    )
+    rotor_current = stator_current * Zm / (Zm + Zr)
+    return (
+        3 * np.abs(rotor_current) ** 2 * motor.rotor_resistance / slip
+    ) / synchronous_speed
+
+
+def test_run_with_motor_speed_includes_rotor_inertia(rotor_with_motor):
+    """The motor must accelerate the rotor inertia, not only its own."""
+    motor = rotor_with_motor.motor_element
+    rotor_inertia = _rotor_example_polar_inertia()
+    t = np.arange(0, 4.0 + 5e-4, 1e-3)
+    results = rotor_with_motor.run_with_motor(
+        t=t,
+        node=[_ROTOR_UNBALANCE_NODE],
+        unbalance_magnitude=[5e-4],
+        unbalance_phase=[0.0],
+        drive_mode="DOL",
+        load_torque_entrance_time=3.7,
+        load_torque_ratio=0.0,
+    )
+    speed = results.motor_results.speed
+
+    # Reference: the motor alone, with the rotor inertia from geometry as
+    # Ip_load. Same model and time grid, so only round-off separates them.
+    reference_motor = deepcopy(motor)
+    reference_motor.Ip_load += rotor_inertia
+    reference = reference_motor.run_direct_on_line(
+        t, load_torque_entrance_time=3.7, load_torque_ratio=0.0
+    )
+    assert_allclose(speed, reference.speed, rtol=1e-9, atol=1e-9)
+
+    # Reference: quasi-static start-up, t = J ∫ dw / Te(w), with Te from the
+    # steady-state equivalent circuit. The electrical transients last about
+    # 0.1 s against a start-up of about 3.4 s, hence the 1 % tolerance.
+    half_speed = 0.5 * motor.frequency_rated / (motor.n_poles / 2)
+    inertia = motor.Ip_motor + motor.Ip_load + rotor_inertia
+    expected_time = (
+        inertia
+        * quad(lambda w: 1 / _equivalent_circuit_torque(motor, w), 0, half_speed)[0]
+    )
+    time_to_half_speed = results.motor_results.t[np.argmax(speed >= half_speed)]
+    assert_allclose(time_to_half_speed, expected_time, rtol=0.01)
+
+
+@pytest.fixture(scope="module")
+def results_motor_start_up(rotor_with_motor):
+    """Simulate the first 0.2 s of a direct-on-line start, rated load at 0.1 s."""
+    t = np.arange(0, 0.2 + 5e-5, 1e-4)
+    return rotor_with_motor.run_with_motor(
+        t=t,
+        node=[_ROTOR_UNBALANCE_NODE],
+        unbalance_magnitude=[5e-4],
+        unbalance_phase=[0.0],
+        drive_mode="DOL",
+        load_torque_entrance_time=0.1,
+        load_torque_ratio=1.0,
+        steady_state=False,
+    )
+
+
+def _torsional_reference(rotor, t, torque):
+    """Return the twist of a free torsional model driven at the motor node.
+
+    The model uses absolute angles: the torsional rows of ``rotor.M()`` and
+    ``rotor.K()``, with the motor and load inertias added at the motor node,
+    and the torque applied there alone. It is written in angles relative to
+    the motor node so that the rigid-body rotation, which grows to hundreds
+    of radians, does not swamp the twist, and it is integrated exactly for a
+    piecewise-linear torque with ``scipy.signal.lsim``. The returned angles
+    have the mass-weighted mean rotation removed; the weights are returned
+    with them.
+    """
+    motor = rotor.motor_element
+    dofs = [rotor.number_dof * n + 5 for n in rotor.nodes]
+    i = rotor.nodes.index(motor.n)
+    M = rotor.M()[np.ix_(dofs, dofs)]
+    M[i, i] += motor.Ip_motor + motor.Ip_load
+    K = rotor.K(0)[np.ix_(dofs, dofs)]
+
+    size = len(dofs)
+    P = np.eye(size)
+    P[:, i] = 1.0
+    Mq = P.T @ M @ P
+    Kq = P.T @ K @ P
+    A = np.block(
+        [
+            [np.zeros((size, size)), np.eye(size)],
+            [-np.linalg.solve(Mq, Kq), np.zeros((size, size))],
+        ]
+    )
+    B = np.concatenate([np.zeros(size), np.linalg.solve(Mq, P.T[:, i])])[:, None]
+    C = np.eye(2 * size)[:size]
+    C[i, i] = 0.0
+    _, relative, _ = lsim((A, B, C, np.zeros((size, 1))), torque, t)
+
+    weights = M @ np.ones(size) / M.sum()
+    return relative - (relative @ weights)[:, None], weights
+
+
+def test_run_with_motor_torsional_twist(results_motor_start_up, rotor_with_motor):
+    """Torsional DOFs must carry the twist only, matching a free-free model."""
+    results = results_motor_start_up
+    motor = rotor_with_motor.motor_element
+    motor_results = results.motor_results
+    speed = motor_results.sample_at("speed", results.t)
+    torque = (
+        motor_results.sample_at("electric_torque", results.t)
+        - motor.viscosity_coeff * speed
+        - motor_results.sample_at("load_torque", results.t)
+    )
+    expected, weights = _torsional_reference(rotor_with_motor, results.t, torque)
+    dofs = [rotor_with_motor.number_dof * n + 5 for n in rotor_with_motor.nodes]
+    theta = results.yout[:, dofs]
+
+    # The torque on the free rotor sums to zero, so the mass-weighted mean
+    # rotation stays at its initial value.
+    assert_allclose(theta @ weights, 0.0, atol=1e-12)
+
+    # Reference: absolute-angle torsional model above. Before the load step at
+    # 0.1 s the response is dominated by the 119 Hz and 274 Hz modes, for
+    # which the Newmark step of 1e-4 s gives a period error below
+    # (w dt)² / 12 = 0.25 %, so the twist must match within 1 % of its peak.
+    before = results.t < 0.1
+    twist = theta[:, 0] - theta[:, -1]
+    expected_twist = expected[:, 0] - expected[:, -1]
+    assert_allclose(
+        twist[before],
+        expected_twist[before],
+        atol=0.01 * np.max(np.abs(expected_twist)),
+    )
+    assert_allclose(
+        theta[before], expected[before], atol=0.01 * np.max(np.abs(expected))
+    )
+
+    # The load step excites the kHz torsional modes, which the step does not
+    # resolve; their contribution averages out, so after the step the mean
+    # twist is compared.
+    after = ~before
+    assert_allclose(twist[after].mean(), expected_twist[after].mean(), rtol=0.005)
+
+
+def test_run_with_motor_multi_rotor_rigid_body_mode():
+    """In a geared train the torsional DOFs must also carry the twist only."""
+    multi_rotor = two_shaft_rotor_example().add_elements([motor_example()])
+    dofs = [multi_rotor.number_dof * n + 5 for n in multi_rotor.nodes]
+
+    # Reference: a rigid rotation of the gear pair keeps the contact point
+    # fixed, so the driven shaft turns by the ratio of the pitch diameters
+    # (with the sign convention of the torsional DOFs of the mesh) and strains
+    # neither the shafts nor the mesh.
+    mesh = multi_rotor.mesh
+    pitch_ratio = mesh.driving_gear.pitch_diameter / mesh.driven_gear.pitch_diameter
+    expected_mode = np.zeros(multi_rotor.ndof)
+    expected_mode[dofs] = [
+        pitch_ratio if n in multi_rotor.driven_nodes else 1.0 for n in multi_rotor.nodes
+    ]
+
+    t = np.arange(0, 0.5 + 5e-4, 1e-3)
+    results = multi_rotor.run_with_motor(
+        t=t,
+        node=[2],
+        unbalance_magnitude=[0.0],
+        unbalance_phase=[0.0],
+        drive_mode="DOL",
+        load_torque_entrance_time=0.25,
+        load_torque_ratio=0.5,
+        steady_state=False,
+    )
+    M = multi_rotor.M()
+    M[dofs[0], dofs[0]] += multi_rotor.motor_element.Ip_motor
+    rigid_rotation = (
+        results.yout @ M @ expected_mode / (expected_mode @ M @ expected_mode)
+    )
+
+    # The torque on the free train sums to zero along the rigid-body mode, so
+    # its rotation stays at round-off level.
+    assert_allclose(rigid_rotation, 0.0, atol=1e-12)
+    assert_allclose(multi_rotor._torsional_rigid_body_mode(0), expected_mode, atol=1e-9)
+
+
+def test_run_with_motor_keeps_force_array(rotor_with_motor):
+    """The force array passed by the user must not be modified."""
+    t = np.arange(0, 0.05 + 5e-4, 1e-3)
+    F = np.zeros((len(t), rotor_with_motor.ndof))
+    rotor_with_motor.run_with_motor(
+        t=t,
+        node=[_ROTOR_UNBALANCE_NODE],
+        unbalance_magnitude=[5e-4],
+        unbalance_phase=[0.0],
+        drive_mode="DOL",
+        load_torque_entrance_time=0.025,
+        steady_state=False,
+        F=F,
+    )
+    assert not np.any(F)
+
+
+def test_run_with_motor_disconnected_torsional_train(motor):
+    """A coupling without torsional stiffness splits the train in two, so the
+    motor speed does not define the rotation of the whole rotor."""
+    shafts = [ShaftElement(L=0.25, idl=0, odl=0.05, material=steel) for _ in range(6)]
+    coupling = CouplingElement(
+        m_l=1.0,
+        m_r=1.0,
+        Ip_l=0.01,
+        Ip_r=0.01,
+        kt_x=1e7,
+        kt_y=1e7,
+        kr_x=1e5,
+        kr_y=1e5,
+    )
+    rotor = Rotor(
+        shafts[:3] + [coupling] + shafts[3:],
+        bearing_elements=[
+            BearingElement(n=0, kxx=1e6, cxx=2e3),
+            BearingElement(n=7, kxx=1e6, cxx=2e3),
+        ],
+        motor_element=deepcopy(motor),
+    )
+    t = np.arange(0, 0.05 + 5e-4, 1e-3)
+    with pytest.raises(ValueError, match="single train"):
+        rotor.run_with_motor(
+            t=t,
+            node=[1],
+            unbalance_magnitude=[5e-4],
+            unbalance_phase=[0.0],
+            drive_mode="DOL",
+            load_torque_entrance_time=0.025,
+            steady_state=False,
         )
