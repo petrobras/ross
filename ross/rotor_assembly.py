@@ -5892,9 +5892,9 @@ class Rotor(object):
     def _from_data(cls, data):
         """Build a rotor from the data of a saved file.
 
-        The ``ross_version`` entry is not checked. ``load`` checks it for user
-        files; files shipped with ROSS are built directly, since they are
-        kept in sync with the code by the test suite.
+        The ``ross_version`` entry is not checked. ``load`` checks it; example
+        functions that build rotors from files shipped with ROSS call this
+        method directly.
 
         Parameters
         ----------
