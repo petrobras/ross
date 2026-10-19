@@ -5269,8 +5269,10 @@ class Rotor(object):
         steady_state : bool, optional
             If True (default), only the last third of the interval after
             `load_torque_entrance_time` is integrated, skipping the motor
-            start-up and the load transient. If False, the full time array
-            is used.
+            start-up and the load transient. The rotor starts from rest at
+            the start of that window, so the response begins with a new
+            lateral transient; use False, or a longer `t`, when the response
+            amplitudes matter. If False, the full time array is used.
         F : array, optional
             Force array (needs to have the same number of rows as time array).
             Each column corresponds to a dof and each row to a time.

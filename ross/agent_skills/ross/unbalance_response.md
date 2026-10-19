@@ -21,7 +21,11 @@ response = rotor.run_unbalance_response(
 - `node` (int): node where unbalance is applied
 - `unbalance_magnitude` (float): in kg·m (NOT kg — this is mass times eccentricity)
 - `unbalance_phase` (float): phase angle in rad
-- `speed_range` (array): rotor speeds in rad/s (the unbalance excitation is synchronous, so this is also the excitation frequency). `ross.utils.speed_range_from_endpoints` builds it from two end points in any speed unit; without `num_points`, the number of points grows with the square root of the span (default `points_factor=20`):
+- `speed_range` (array): rotor speeds in rad/s (the unbalance excitation is synchronous, so this is also the excitation frequency)
+
+Multiple unbalance sources: pass arrays for `node`, `unbalance_magnitude`, `unbalance_phase`.
+
+`ross.utils.speed_range_from_endpoints` builds `speed_range` from two end points in any speed unit; without `num_points`, the number of points grows with the square root of the span (default `points_factor=20`):
 
 ```python
 from ross.utils import speed_range_from_endpoints
@@ -31,8 +35,6 @@ response = rotor.run_unbalance_response(
     node=2, unbalance_magnitude=0.001, unbalance_phase=0, speed_range=speed_range
 )
 ```
-
-Multiple unbalance sources: pass arrays for `node`, `unbalance_magnitude`, `unbalance_phase`.
 
 ## Results: `ForcedResponseResults`
 

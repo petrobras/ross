@@ -69,10 +69,14 @@ class MotorElement(Element):
         Polar Moment of inertia related to load [kg.m²].
         Default is 0.
     voltage_net : float, optional
-        Electrical tension of Power Supply [V].
+        Electrical tension of Power Supply [V], used to compute the network
+        short-circuit impedance. The direct-on-line supply voltage is the
+        `voltage_net` argument of ``.run_direct_on_line()``.
         Default is None, which adopts the motor's rated voltage (`voltage_rated`).
     frequency_net : float, optional, pint.Quantity
-        Electrical frequency of Power Supply [rad/s].
+        Electrical frequency of Power Supply [rad/s]. It is stored but not used
+        in the simulation; the direct-on-line supply frequency is the
+        `frequency_net` argument of ``.run_direct_on_line()``.
         Default is None, which adopts the motor's rated frequency (`frequency_rated`).
     initial_angle_net : float, optional, pint.Quantity
         Initial angular phase frequency of Power Supply [rad].
@@ -101,9 +105,10 @@ class MotorElement(Element):
     matrices assembled by ``Rotor``.
 
     The node ``n`` identifies where motor torque is applied on the shaft
-    (torsional DOF). Use ``.run_direct_on_line()``, ``.run_with_inverter_vf()``
-    or ``.run_with_inverter_foc()`` to obtain ``electric_torque``, then apply
-    it in ``.run_time_response()``.
+    (torsional DOF). :py:meth:`ross.Rotor.run_with_motor` simulates the motor
+    and applies its torque to the rotor. ``.run_direct_on_line()``,
+    ``.run_with_inverter_vf()`` and ``.run_with_inverter_foc()`` simulate the
+    motor alone.
 
     Examples
     --------

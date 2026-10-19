@@ -33,7 +33,7 @@ motor = rs.motor_example()  # the same 1.5 hp, 127 V / 60 Hz, 4-pole motor at no
 motor.T_rated  # rated torque (N·m), the reference for load_torque_ratio
 ```
 
-- `voltage_net` and `frequency_net` (supply voltage and frequency) default to the rated values; they are used only by the direct-on-line start. The inverters set the voltage and frequency themselves.
+- The direct-on-line supply voltage and frequency are the `voltage_net` and `frequency_net` arguments of `run_direct_on_line`, which default to the rated values. The `MotorElement` arguments of the same name do not reach the supply: `voltage_net` only sets the network short-circuit impedance and `frequency_net` is not used. `run_with_motor` does not pass a supply voltage or frequency, so its `"DOL"` mode always runs at the rated values. The inverters set the voltage and frequency themselves.
 - Speeds and frequencies are rad/s internally; pass `Q_(..., "RPM")` or `Q_(..., "Hz")` to convert.
 
 ## Motor-only analyses
@@ -167,7 +167,7 @@ response = rotor.run_with_motor(
 - The motor is simulated first with the chosen drive. Then the rotor is integrated with Newmark, with the net torque (electric minus load) on the motor node's `theta` DOF and unbalance forces computed from the motor speed, which varies in time.
 - `ac_source_harmonics` / `ac_source_unbalances` are the `harmonics` / `unbalances` dicts of `run_direct_on_line`, used only with `"DOL"`.
 - `time_step`, `time_ramp` and `frequency_ref` are the inverter arguments, used only with `"VFD_VF"` and `"VFD_FOC"`. The switching frequency is fixed at 5 kHz.
-- `steady_state=True` (default) integrates only the last third of the interval after `load_torque_entrance_time`, skipping start-up and the load transient: `response.t` starts there, not at `t[0]`. Pass `steady_state=False` for the full run.
+- `steady_state=True` (default) integrates only the last third of the interval after `load_torque_entrance_time`: `response.t` starts there, not at `t[0]`. The motor start-up and load transient are skipped, but the rotor starts from rest at the start of that window, so the window begins with a new lateral transient. In the run above the amplitudes at the end of the window are still 20-40 % above the steady value. Use `steady_state=False` (or a longer `t`) when amplitudes matter.
 - `F` (shape `(len(t), rotor.ndof)`) adds external forces; extra keyword arguments go to the Newmark integrator (`gamma`, `beta`, `tol`, ...) and `Rotor.integrate_system`.
 - A rotor holds one motor (`rotor.motor_element`); `run_with_motor` raises `ValueError` if there is none.
 - Use a time step suited to the rotor integration (0.1 ms here); finer steps make the Newmark run slow.
