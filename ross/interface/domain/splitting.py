@@ -57,6 +57,7 @@ NUMBERED_ALONE = {
     "bearings": effective_nodes,
     "seals": effective_nodes,
     "pointmasses": effective_nodes,
+    "probes": effective_nodes,
 }
 
 NO_SUCH_SHAFT = "Shaft #%d does not exist: the model has %d."
@@ -266,14 +267,18 @@ def split_shaft(project, index, offset):
     return built
 
 
-def _moved(node, split_node):
-    return node + 1 if node > split_node else node
+def _moved(node, split_node, count=1):
+    return node + count if node > split_node else node
 
 
-def _renumber(project, split_node):
-    """Move every node above the split up by one, in place."""
+def _renumber(project, split_node, count=1):
+    """Move every node above the split up by `count`, in place.
+
+    One for a split; `domain/meshing.py` cuts an element in several parts at
+    once, and the nodes above it move up by as many as it adds.
+    """
     for row in project.get("shafts", []) or []:
-        _remap_explicit(row, "n", split_node)
+        _remap_explicit(row, "n", split_node, count)
 
     for category, numbering in NUMBERED_ALONE.items():
         rows = project.get(category, []) or []
@@ -281,20 +286,20 @@ def _renumber(project, split_node):
         # its node to the ones around it, so the whole category has to be read
         # before the category starts changing.
         for row, before in zip(rows, numbering(rows), strict=True):
-            after = _moved(before, split_node)
+            after = _moved(before, split_node, count)
             if after != before:
                 # It was implicit and it has to move: from here on it is
                 # pinned. Leaving it blank would keep the *number* the
                 # interface picked and lose the place the user meant.
                 row["n"] = str(after)
-            _remap_explicit(row, "n_link", split_node)
+            _remap_explicit(row, "n_link", split_node, count)
 
 
-def _remap_explicit(row, key, split_node):
+def _remap_explicit(row, key, split_node, count=1):
     raw = str(row.get(key, "")).strip()
     if raw == "":
         return
     node = _read(row, key)
     if node is None:
         return
-    row[key] = str(_moved(int(node), split_node))
+    row[key] = str(_moved(int(node), split_node, count))

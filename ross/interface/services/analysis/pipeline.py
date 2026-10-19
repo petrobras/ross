@@ -22,7 +22,8 @@ import ross as rs
 
 from ross.interface.domain.cache import ANALYSIS_CACHE, spec_key
 from ross.interface.domain.compatibility import reason as unsupported_reason
-from ross.interface.domain.rotor_builder import build_rotor_from_ui
+from ross.interface.domain.probe_refs import model_probes, references, resolved
+from ross.interface.domain.rotor_builder import assemble_rotor
 from ross.interface.services.analysis import get_runner
 
 
@@ -40,9 +41,13 @@ def refuse_if_unsupported(analysis_type, conversion_type, language):
         raise ValueError(why)
 
 
-def prepared_rotor(project, conversion_type):
-    """Build the rotor and apply the requested degree-of-freedom conversion."""
-    rotor = build_rotor_from_ui(project)
+def prepared_rotor(project, conversion_type, assembled=None):
+    """Build the rotor and apply the requested degree-of-freedom conversion.
+
+    `assembled`, when given, is the project already built (`assemble_rotor`):
+    an analysis that reads at the model's probes needs it for them.
+    """
+    rotor = (assembled or assemble_rotor(project)).rotor
     if conversion_type == "4dof":
         return rs.utils.convert_6dof_to_4dof(rotor)
     if conversion_type == "torsional":
@@ -76,7 +81,13 @@ def figure_json(analysis_type, params, conversion_type, project, language="en"):
     """
     runner = get_runner(analysis_type)
     refuse_if_unsupported(analysis_type, conversion_type, language)
-    rotor = prepared_rotor(project, conversion_type)
+    assembled = assemble_rotor(project)
+    # A row of the probe table that names a probe of the model is read from
+    # the model now, before the spec and its cache key are made of it
+    # (domain/probe_refs.py).
+    if references(params):
+        params = resolved(params, model_probes(assembled, project))
+    rotor = prepared_rotor(project, conversion_type, assembled)
     result = result_for(runner, project, conversion_type, analysis_type, params, rotor)
     figure = runner.plot(result, params, rotor)
 

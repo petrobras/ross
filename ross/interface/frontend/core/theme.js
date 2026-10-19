@@ -42,6 +42,18 @@ function rememberTheme(theme) {
     } catch (e) { /* a preference is a convenience; it cannot break the page */ }
 }
 
+// Whoever draws with the theme's colours outside CSS and Plotly -- the 3D view,
+// whose rings, outlines and highlight are read from the tokens once and kept in
+// WebGL materials -- hears about a change here. A list, like
+// `onProjectChanged`, and for the same reason: a second subscriber must not
+// silently replace the first. No throw without one: the theme is applied at
+// startup, before anything has been drawn.
+const themeHandlers = [];
+
+export function onThemeChanged(fn) {
+    themeHandlers.push(fn);
+}
+
 // Applies a theme to the page: the attribute the tokens are scoped by, the icon
 // of every theme button, and the figures already drawn.
 export function applyTheme(theme) {
@@ -51,6 +63,7 @@ export function applyTheme(theme) {
         icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
     });
     restyleFigures();
+    themeHandlers.forEach(handler => handler(theme));
 }
 
 export function toggleTheme() {

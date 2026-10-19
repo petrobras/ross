@@ -4,8 +4,7 @@
 // *who* toggles. `openTab` is called from three places -- the sidebar button,
 // `switchScreen` on the way back from the analyses, and the node hub -- and
 // only the first is a person asking for the list to go away. A toggle placed in
-// `openTab` would hide the list every other time the modeling screen came back,
-// and a form opened from the figure would open into a panel nobody can see.
+// `openTab` would hide the list every other time the modeling screen came back.
 //
 // So what is checked here is mostly what must **not** hide or reset the panel.
 import { check, node, registerSelector, schemaResponse, shutDown } from './fake_dom.js';
@@ -115,9 +114,12 @@ check('coming back to the modeling screen leaves it hidden', hidden());
 switchScreen('screen-modeling');
 check('every time', hidden());
 
-// A form opened from the figure lives in the panel.
+// A form opened from the figure used to live in the panel, and brought the
+// list back. It is a window of its own now: someone who hid the list to give
+// the figure room keeps that room while editing.
 editItem(0);
 await new Promise(done => setTimeout(done, 50));
-check('editing an element from elsewhere brings the list back', !hidden());
+check('editing an element from elsewhere leaves the list hidden', hidden());
+check('and the form opens all the same', node('insertion-form').style.display === 'block');
 
 shutDown();

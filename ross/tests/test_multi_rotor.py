@@ -594,6 +594,21 @@ def test_mesh_with_backlash(multi_rotor_with_backlash):
     assert_allclose(np.mean(mesh_results["contact_ratio"]), cr, rtol=1e-2)
 
 
+def test_refine_mesh_refines_each_rotor_of_a_multi_rotor():
+    from ross.multi_rotor.multi_rotor import two_shaft_rotor_example
+
+    multi_rotor = two_shaft_rotor_example()
+    refined = multi_rotor.refine_mesh(max_ld=0.5)
+    for name in ("driving", "driven"):
+        before = multi_rotor.rotors[name]
+        after = refined.rotors[name]
+        assert after.m == pytest.approx(before.m)
+        ratios = [elm.L / max(elm.odl, elm.odr) for elm in after.shaft_elements]
+        assert max(ratios) <= 0.5 * (1 + 1e-9)
+        assert len(after.shaft_elements) >= len(before.shaft_elements)
+    assert refined.m == pytest.approx(multi_rotor.m)
+
+
 def test_rebuild_preserves_mesh_configuration(multi_rotor_with_backlash):
     multi_rotor = multi_rotor_with_backlash
     rebuilt_rotors = [

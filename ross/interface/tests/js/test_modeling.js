@@ -137,8 +137,13 @@ try { editItem(1); await new Promise(ready => setTimeout(ready, 0)); }
 catch (e) { errorOnEdit = e; }
 withoutError('editing an item does not throw', errorOnEdit);
 check('editing an item records which one', state.editingIndex === 1);
-check('and the form goes next to the item',
-          node('element-list').children.includes(node('insertion-form')));
+// The form is a window of its own now (components/floating_form.js); what used to
+// say which element it was -- sitting under its row -- is the window's heading,
+// in the row's own words.
+check('and the form window is headed by that row',
+          node('form-window-title').textContent === 'SHAFT #2 (Node 1)');
+check('and the form is not put into the list',
+          !node('element-list').children.includes(node('insertion-form')));
 
 // --- changing the language ----------------------------------------------------
 // This function was broken in another way by the same renaming: the local that

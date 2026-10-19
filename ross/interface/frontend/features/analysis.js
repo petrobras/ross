@@ -13,7 +13,8 @@ import { themedLayout } from '../core/theme.js';
 import { t } from '../core/i18n.js';
 import { analysisFieldsFor, analysisTitle, analysisTitles, analysisUnsupported, schemaReady, unitAlternativesFor } from '../core/schema.js';
 import { isModeShape, wireModeShapeClick, prepareModeShapePanels } from './campbell.js';
-import { switchScreen } from './screens.js';
+import { onScreenShown, switchScreen } from './screens.js';
+import { probeChoices } from '../core/probes.js';
 // One analysis card. It used to be written out three times -- creating a card,
 // restoring the saved ones, loading a file -- with the same header and the
 // same four buttons in each, so a change to a button had three places to be
@@ -95,9 +96,36 @@ export async function restoreAnalysesFromMemory(savedArray) {
 
 // Global probe builders
 
-const generateProbeRowHTML = function(uniqueId, id, type, node=0, dof=0) {
+// The tables whose rows can name a probe of the model instead of being typed
+// (domain/probe_refs.py `PROBE_TABLES`): the probes of the response plots,
+// and the outputs of the frequency response -- where the machine has its
+// probes. Not the inputs: an input is a force on a degree of freedom, not a
+// measurement.
+const MODEL_PROBE_FIELDS = new Set(['probes', 'outs']);
+
+// The choice of a probe of the model, for a row that can name one: '' when
+// the model has none and the row names none, which leaves the row as it
+// always was. `probe` is the id the row names; one the model no longer has is
+// shown as missing, still chosen, rather than dropped in silence.
+function modelProbePicker(probe) {
+    const choices = state.projectData ? probeChoices(state.projectData) : [];
+    const named = String(probe || '');
+    if (!choices.length && !named) return { picker: '', named };
+    const options = choices.map(choice => `<option value="${escapeHtml(choice.id)}"${choice.id === named ? ' selected' : ''}>`
+        + `${escapeHtml(choice.label)}</option>`).join('');
+    const missing = named && !choices.some(choice => choice.id === named)
+        ? `<option value="${escapeHtml(named)}" selected>${escapeHtml(t('probeMissing'))}</option>` : '';
+    const picker = `<select class="probe-ref" data-action="pick-model-probe" title="${escapeHtml(t('probeFromModelHint'))}">`
+        + `<option value="">${escapeHtml(t('probeTyped'))}</option>${options}${missing}</select>`;
+    return { picker, named };
+}
+
+const generateProbeRowHTML = function(uniqueId, id, type, node=0, dof=0, probe='') {
+    const { picker, named } = MODEL_PROBE_FIELDS.has(id) ? modelProbePicker(probe) : { picker: '', named: '' };
     return `
-    <div class="probe-row" style="align-items:center;">
+    <div class="probe-row${picker ? ' has-model-probes' : ''}" style="align-items:center;">
+        ${picker}
+        <span class="probe-typed"${named ? ' hidden' : ''}>
         <span style="font-size:11px; color:var(--text-muted);">${escapeHtml(t('probeNode'))}</span> 
         <input type="number" class="probe-node" value="${node}" min="0">
         <span style="font-size:11px; color:var(--text-muted); margin-left:8px;">${escapeHtml(t('probeDof'))}</span> 
@@ -109,6 +137,7 @@ const generateProbeRowHTML = function(uniqueId, id, type, node=0, dof=0) {
             <option value="4" ${dof==4?'selected':''}>β</option>
             <option value="5" ${dof==5?'selected':''}>γ</option>
         </select>
+        </span>
         <button type="button" class="btn-remove-probe" style="margin-left:auto;" data-action="remove-row"><i class="fas fa-times"></i></button>
     </div>`;
 }
@@ -180,15 +209,57 @@ export const addUnbalanceRow = function(uniqueId, id, type) {
 }
 
 // Angle Probe generators (Node + Angle)
-const generateAngleProbeRowHTML = function(uniqueId, id, type, node=0, angle=0) {
+//
+// When the model has probes (core/probes.js), a row can name one of them
+// instead: then its node and angle are the model's, read by the server on
+// every run, and the typed pair is put away. `probe` is the id a row names,
+// '' for a typed row; a probe the model no longer has is shown as missing,
+// rather than dropped in silence, and the run says so.
+const generateAngleProbeRowHTML = function(uniqueId, id, type, node=0, angle=0, probe='') {
+    const { picker, named } = modelProbePicker(probe);
     return `
-    <div class="probe-row" style="align-items:center;">
+    <div class="probe-row${picker ? ' has-model-probes' : ''}" style="align-items:center;">
+        ${picker}
+        <span class="probe-typed"${named ? ' hidden' : ''}>
         <span style="font-size:11px; color:var(--text-muted);">${escapeHtml(t('probeNode'))}</span> 
         <input type="number" class="probe-node" value="${node}" min="0">
         <span style="font-size:11px; color:var(--text-muted); margin-left:8px;">${escapeHtml(t('probeAngle'))}</span> 
-        <input type="number" class="probe-angle" value="${angle}" step="0.01">
+        <input type="number" class="probe-angle" value="${angle ?? 0}" step="0.01">
+        </span>
         <button type="button" class="btn-remove-probe" style="margin-left:auto;" data-action="remove-row"><i class="fas fa-times"></i></button>
     </div>`;
+}
+
+// A probe of the model chosen in a row, or the row typed again.
+export function pickModelProbe(select) {
+    const row = select.closest('.probe-row');
+    const typed = row && typeof row.querySelector === 'function' ? row.querySelector('.probe-typed') : null;
+    if (typed) typed.hidden = !!select.value;
+}
+
+// The rows of every card drawn again with the probes the model has now: a
+// card drawn before a probe was added, renamed or deleted on the modelling
+// screen would offer the old ones. What each row says is kept.
+export function refreshProbeChoices() {
+    document.querySelectorAll('[id^="angle-probe-container-"] .probe-row').forEach(row => {
+        const ref = row.querySelector('.probe-ref');
+        const node = row.querySelector('.probe-node');
+        const angle = row.querySelector('.probe-angle');
+        row.outerHTML = generateAngleProbeRowHTML('', '', '',
+            node ? node.value : 0, angle ? angle.value : 0, ref ? ref.value : '');
+    });
+    document.querySelectorAll('[id^="probe-container-outs-"] .probe-row').forEach(row => {
+        const ref = row.querySelector('.probe-ref');
+        const node = row.querySelector('.probe-node');
+        const dof = row.querySelector('.probe-dof');
+        row.outerHTML = generateProbeRowHTML('', 'outs', '',
+            node ? node.value : 0, dof ? dof.value : 0, ref ? ref.value : '');
+    });
+}
+
+// Called once from main.js.
+export function startProbeChoices() {
+    onScreenShown('screen-analysis', refreshProbeChoices);
 }
 
 // Function to add a probe
@@ -262,9 +333,9 @@ export function buildDashboardHTML(uniqueId, type, configOverride) {
                 </div>
                 <div class="probe-list-container" id="${contId}-container-${item.id}-${uniqueId}">`;
             
-            if (item.type === 'probe_list') item.val.forEach(v => { html += generateProbeRowHTML(uniqueId, item.id, type, v.node, v.dof); });
+            if (item.type === 'probe_list') item.val.forEach(v => { html += generateProbeRowHTML(uniqueId, item.id, type, v.node, v.dof, v.probe); });
             else if (item.type === 'force_list') item.val.forEach(v => { html += generateForceRowHTML(uniqueId, item.id, type, v.node, v.dof, v.func); });
-            else if (item.type === 'angle_probe_list') item.val.forEach(v => { html += generateAngleProbeRowHTML(uniqueId, item.id, type, v.node, v.angle); });
+            else if (item.type === 'angle_probe_list') item.val.forEach(v => { html += generateAngleProbeRowHTML(uniqueId, item.id, type, v.node, v.angle, v.probe); });
             else item.val.forEach(v => { html += generateUnbalanceRowHTML(uniqueId, item.id, type, v.node, v.mag, v.phase); });
             
             html += `</div></div>`;
@@ -411,10 +482,15 @@ export function cardParameters(uniqueId, type) {
             const container = document.getElementById(`probe-container-${item.id}-${uniqueId}`);
             const probes = [];
             container.querySelectorAll('.probe-row').forEach(row => {
-                probes.push({
+                const typed = {
                     node: parseInt(row.querySelector('.probe-node').value) || 0,
                     dof: parseInt(row.querySelector('.probe-dof').value) || 0
-                });
+                };
+                // An output of the frequency response can be a probe of the
+                // model, read from it by the server (domain/probe_refs.py).
+                const ref = row.querySelector('.probe-ref');
+                if (ref && ref.value) typed.probe = ref.value;
+                probes.push(typed);
             });
             p[item.id] = probes;
         } else if (item.type === 'force_list') {
@@ -443,10 +519,15 @@ export function cardParameters(uniqueId, type) {
             const container = document.getElementById(`angle-probe-container-${item.id}-${uniqueId}`);
             const angleList = [];
             container.querySelectorAll('.probe-row').forEach(row => {
-                angleList.push({
+                const typed = {
                     node: parseInt(row.querySelector('.probe-node').value) || 0,
                     angle: parseFloat(row.querySelector('.probe-angle').value) || 0
-                });
+                };
+                // A probe of the model, by its id: the server reads its node and
+                // angle from the model (domain/probe_refs.py).
+                const ref = row.querySelector('.probe-ref');
+                if (ref && ref.value) typed.probe = ref.value;
+                angleList.push(typed);
             });
             p[item.id] = angleList;
         } else if (item.type === 'number') {

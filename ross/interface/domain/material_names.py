@@ -55,6 +55,7 @@ ELEMENT_WORDS = {
     "bearings": "bearing",
     "seals": "seal",
     "pointmasses": "point mass",
+    "probes": "probe",
 }
 
 # The screen's own way of saying "no material of mine: use ROSS's steel".

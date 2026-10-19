@@ -5,6 +5,7 @@ import { escapeHtml } from '../core/dom.js';
 import { state } from '../core/state.js';
 import { t } from '../core/i18n.js';
 import { schemaFor } from '../core/schema.js';
+import { shapePickerHTML, syncShapePicker } from './shape_picker.js';
 function sectionHeaderHTML(title) {
     return '<div style="grid-column: 1 / -1; margin-top: 10px; border-bottom: 1px solid var(--border-color);">' +
         '<b style="font-size:12px; color:var(--text-muted);">' + escapeHtml(title).toUpperCase() + '</b></div>';
@@ -51,12 +52,20 @@ function batchBannerHTML() {
         '<i class="fas fa-layer-group"></i> <b>' + t('batchTitle') + '</b> ' + t('batchBody') + '</div>';
 }
 
+// The form of a model: its fields, and -- for a category the geometry bank
+// covers -- the shape the 3D view draws it with (components/shape_picker.js).
+// Not in the LIST form, which types each field as a list of values.
 export function buildFormHTML(category, subtype) {
     if (subtype === 'LIST') {
         return batchBannerHTML() +
-            buildFormHTML(category, 'BASIC').replace(
+            fieldsHTML(category, 'BASIC').replace(
                 /id="inp-n"/g, 'id="inp-n" placeholder="e.g. 0, 1, 2"');
     }
+    const fields = fieldsHTML(category, subtype);
+    return schemaFor(category, subtype) ? fields + shapePickerHTML(category) : fields;
+}
+
+function fieldsHTML(category, subtype) {
 
     const definition = schemaFor(category, subtype);
     if (!definition) return '<p class="empty-message">' + t('unavailable') + '</p>';
@@ -106,6 +115,7 @@ export function restoreFormValues(stored) {
         const button = document.querySelector('#form-fields .btn-advanced');
         if (button) toggleAdvanced(button);
     }
+    syncShapePicker();
 }
 
 // Engineering defaults library
@@ -114,10 +124,13 @@ const DefaultExamples = {
     materials_BASIC: { name: "Steel", rho: "7800", E: "211e9", G_s: "81.2e9" },
     shafts_BASIC: { L: "500", odl: "100", idl: "0", material: "Default (Steel)" },
     disks_BASIC: { m: "32", Id: "0.2", Ip: "0.3" },
+    disks_Geometry: { width: "70", o_d: "280", i_d: "50", material: "Default (Steel)" },
     gears_BASIC: { m: "4.67", Id: "0.015", Ip: "0.030", n_teeth: "26", pitch_diameter: "187", pr_angle: "22.5", helix_angle: "0" },
+    gears_Geometry: { width: "70", o_d: "280", i_d: "50", n_teeth: "50", material: "Default (Steel)" },
     gears_TVMS: { material: "Default (Steel)", width: "20", bore_diameter: "70", module: "2", n_teeth: "62", pr_angle: "20" },
     couplings_BASIC: { m_l: "37.8875", m_r: "37.8875", Ip_l: "1.0985", Ip_r: "1.0985", kr_z: "3.04256e6" },
     pointmasses_BASIC: { m: "2" },
+    probes_BASIC: { direction: "radial", angle: "45" },
     bearings_BASIC: { kxx: "1e6", kyy: "0.8e6", cxx: "2e2", cyy: "1.5e2" },
     bearings_BallBearing: { n_balls: "8", d_balls: "0.03", fs: "500", alpha: "0.523598" },
     bearings_RollerBearing: { n_rollers: "8", l_rollers: "0.03", fs: "500", alpha: "0.523598" },

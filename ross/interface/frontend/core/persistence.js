@@ -1,6 +1,7 @@
 // The model survives a closed tab; the charts do not, deliberately. A chart
 // from yesterday, of an earlier version of the rotor, would look current.
 import { analysesToSave } from './analysis_store.js';
+import { withEveryCategory } from './project_file.js';
 import { state } from './state.js';
 // --- Persistence ------------------------------------------------------------
 //
@@ -139,6 +140,8 @@ export function restoreState() {
     const library = stateFromDisk();
     if (!library || library.length === 0) return 0;
 
+    // A rotor stored before a category existed gets it, empty.
+    library.forEach(withEveryCategory);
     state.rotorLibrary = library;
     // Stays on the Hub on purpose: reopening a rotor by itself would fire a
     // computation on the server without the user having asked for anything.

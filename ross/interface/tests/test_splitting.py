@@ -469,3 +469,14 @@ def test_a_shaft_with_no_length_is_refused_by_number():
     with pytest.raises(ValueError) as raised:
         split_shaft(data, 1, 100.0)
     assert "#2" in str(raised.value)
+
+
+def test_a_coupling_with_no_node_moves_with_the_split():
+    """A coupling with a blank `n` sits on the node of its place in the list
+    (rotor_builder.py). Above the split it has to move like everything else,
+    so it is pinned where it goes; below it, it is left as it was."""
+    data = project(with_link=False)
+    data["couplings"] = [{"L": "100"}, {"L": "100"}, {"L": "100"}]
+    split = split_shaft(data, 0, 100.0)
+
+    assert [c.get("n", "") for c in split["couplings"]] == ["", "2", "3"]
