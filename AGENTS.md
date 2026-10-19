@@ -47,6 +47,7 @@ modal.plot_mode_2d(0)
 | `run_amb_non_collocation(magnetic_bearing, ...)` | AMB sensor-actuator non-collocation | `AmbNonCollocationResults` | `plot()`, `plot_mode_shape()`, `plot_sensor_position_map()` | — |
 | `run_clearance_analysis(speed_range, Nma, Nmc, probes, ...)` | API 617 close-clearance check | `ClearanceResults` | `plot()`, `plot_response()`, `plot_probe_response()` | [clearance_analysis](ross/agent_skills/ross/clearance_analysis.md) |
 | `run_mesh_convergence(rtol, frequencies, strategy)` | Shaft discretization with converged natural frequencies | `MeshConvergenceResults` | `plot()` | [mesh_convergence](ross/agent_skills/ross/mesh_convergence.md) |
+| `run_with_motor(t, node, unbalance_magnitude, unbalance_phase, drive_mode, ...)` | Time response driven by the induction-motor torque | `TimeResponseResults` (motor simulation in `.motor_results`: `MotorResponseResults`) | `plot_1d(probe)`, `plot_2d(node)`, `plot_3d()`, `plot_dfft(probe)`; `motor_results.plot_torque()`, `plot_speed()` | [motor](ross/agent_skills/ross/motor.md) |
 
 ### Units
 
@@ -63,6 +64,7 @@ All values are SI internally: speed in rad/s, stiffness in N/m, damping in N·s/
 | `rs.rotor_example_amb_simple()` | Rotor with active magnetic bearings |
 | `rs.rotor_example_amb_complex_controllers()` | AMB rotor with complex controllers |
 | `rs.rotor_example_amb_general_controllers()` | AMB rotor with general controllers |
+| `rs.motor_example()` | 1.5 hp, 127 V / 60 Hz, 4-pole induction motor (`MotorElement`) at node 0 |
 
 ### Save, load, interface, recipes
 
@@ -113,8 +115,9 @@ Elements → Rotor assembly → Rotor.run_*() → Results objects with .plot_*()
 | `ross/element.py` | `Element` ABC |
 | `ross/shaft_element.py`, `disk_element.py`, `bearing_seal_element.py`, `coupling_element.py`, `point_mass.py` | Core elements |
 | `ross/bearings/`, `ross/seals/` | Bearing and seal models |
+| `ross/motors/` | `MotorElement`, electrical sources and inverters (`SourceAC`, `InverterVF`, `InverterFOC`), `MotorResponseResults`, `PhaseResults` |
 | `ross/rotor_assembly.py`, `ross/multi_rotor/` | `Rotor`, `MultiRotor`: assembly and analyses |
-| `ross/results.py` | `Results` ABC and every results class |
+| `ross/results.py` | `Results` ABC and the rotor results classes; the bearing, multi-rotor, motor and stochastic results classes live in their subpackages |
 | `ross/units.py` | `@check_units` and `Q_` |
 
 Rules, each with the safe way to follow it:
@@ -158,7 +161,7 @@ To prepare a PR, follow the `ross-pr-create` skill in `.agents/skills/ross-pr-cr
 - One concern per PR. Keep core-library changes, interface changes and vendored third-party code in separate PRs. Split large work into a stack of PRs that can each be reviewed on their own.
 - Plan however you like, locally. The plan is not committed; the PR text carries what a reviewer needs: scope, the design decisions to confirm, API changes, evidence, changes to existing tests and documentation. Fill in every section of the template, writing "none" where nothing applies.
 - Do not paste session logs, local notes or agent transcripts into the PR.
-- Keep the cookbook in sync: the recipes in `ross/agent_skills/ross/` follow the tutorials in `docs/user_guide/`: `tutorial_modeling_part_1` and `tutorial_modeling_part_2` for modeling, `tutorial_analyses_part_1` for static and modal, `tutorial_analyses_part_2` for time and frequency, and examples 1–32. When a tutorial or `run_*` method changes, update the matching recipe and the `SKILL.md` index. The skill folder must stay self-contained: recipes only link to files inside it.
+- Keep the cookbook in sync: the recipes in `ross/agent_skills/ross/` follow the tutorials in `docs/user_guide/`: `tutorial_modeling_part_1` and `tutorial_modeling_part_2` for modeling, `tutorial_analyses_part_1` for static and modal, `tutorial_analyses_part_2` for time and frequency, `tutorial_motor` for motors, and examples 1–32. When a tutorial or `run_*` method changes, update the matching recipe and the `SKILL.md` index. The skill folder must stay self-contained: recipes only link to files inside it.
 
 ### Reviewing a pull request
 

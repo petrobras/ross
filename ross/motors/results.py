@@ -12,6 +12,8 @@ from ross.units import Q_, check_units, format_unit
 from ross.utils import limit_data_range, downsample_figure
 from .utils import windowed_dfft
 
+__all__ = ["PhaseResults", "MotorResponseResults"]
+
 
 class PhaseResults(Results):
     """Store and plot phase data.
@@ -321,6 +323,7 @@ class MotorResponseResults(Results):
         attr : str
             Name of the attribute containing the signal. Must refer to a
             time-series stored in the object. Common options include:
+
             - electric_torque
             - load_torque
             - speed

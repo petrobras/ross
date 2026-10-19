@@ -34,6 +34,7 @@ from ross.seals.labyrinth_seal import *
 from ross.seals.holepattern_seal import *
 from ross.seals.hybrid_seal import *
 from ross.motors.motor_element import *
+from ross.motors.results import *
 
 _pio.templates.default = "ross"
 if "ipykernel" in sys.modules:

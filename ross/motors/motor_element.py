@@ -788,24 +788,25 @@ class MotorElement(Element):
         harmonics : dict, optional
             Configuration for grid harmonic injection.
             Expected keys:
-            - 'enable' : bool
-                Enable harmonics.
-            - 'orders' : list of int
-                Harmonic orders (e.g., [5, 7, 11] for 5th, 7th, and 11th harmonics).
-            - 'amplitudes' : list of float
-                Harmonic amplitudes as percentage of rated voltage (e.g., [10, 5, 2] for 10%, 5%, and 2%).
+
+            - ``'enable'`` (bool): enable harmonics.
+            - ``'orders'`` (list of int): harmonic orders (e.g., [5, 7, 11]
+              for 5th, 7th, and 11th harmonics).
+            - ``'amplitudes'`` (list of float): harmonic amplitudes as
+              percentage of rated voltage (e.g., [10, 5, 2] for 10%, 5%,
+              and 2%).
         unbalances : dict, optional
             Configuration for three-phase grid unbalance.
             Expected keys:
-            - 'enable' : bool
-                Enable unbalances.
-            - 'voltage_percent' : list of float
-                Voltage magnitude deviation per phase (A, B, C) relative to rated [%].
-                Must contain exactly 3 elements.
-                Positive → higher voltage; Negative → lower voltage.
-            - 'angle_deviation' : list of float, pint.Quantity
-                Angle deviation per phase (A, B, C) [rad].
-                Must contain exactly 3 elements.
+
+            - ``'enable'`` (bool): enable unbalances.
+            - ``'voltage_percent'`` (list of float): voltage magnitude
+              deviation per phase (A, B, C) relative to rated [%]. Must
+              contain exactly 3 elements. Positive → higher voltage;
+              Negative → lower voltage.
+            - ``'angle_deviation'`` (list of float, pint.Quantity): angle
+              deviation per phase (A, B, C) [rad]. Must contain exactly 3
+              elements.
 
         Returns
         -------
