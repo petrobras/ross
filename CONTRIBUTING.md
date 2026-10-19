@@ -144,6 +144,11 @@ The following blog posts have some good information on how to write commit messa
 
 To create a Pull Request (PR), refer to [the github PR guide](https://help.github.com/articles/about-pull-requests/).
 
+The PR form opens with the sections of `.github/PULL_REQUEST_TEMPLATE.md`; fill in every one. What a
+contribution must meet (scope, architecture, tests and writing) is described in
+[AGENTS.md](https://github.com/petrobras/ross/blob/main/AGENTS.md), which coding agents read automatically and
+which applies equally to code you write by hand.
+
 ## Docstrings for class and methods
 
 A new method must have a docstring presenting a summary for what the method does.
