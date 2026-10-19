@@ -438,6 +438,11 @@ def test_add_elements_valid(rotor3):
     assert len(new_rotor.bearing_elements) == len(rotor3.bearing_elements) + 1
     assert len(new_rotor.disk_elements) == len(rotor3.disk_elements) + 1
     assert len(new_rotor.point_mass_elements) == 1
+    added_seals = [b for b in new_rotor.bearing_elements if isinstance(b, SealElement)]
+    assert [s.n for s in added_seals] == [3]
+    assert sorted(d.n for d in new_rotor.disk_elements) == [2, 4, 5]
+    assert new_rotor.point_mass_elements[0].n == 3
+    assert_allclose(new_rotor.m_disks, rotor3.m_disks + 32)
     assert rotor3.motor_element is None
     assert new_rotor.motor_element == motor
 
