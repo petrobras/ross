@@ -3,7 +3,6 @@ import sys
 from pathlib import Path
 
 import pytest
-import yaml
 
 TOOLS = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(TOOLS))
@@ -103,13 +102,15 @@ def test_script_runs_standalone(tmp_path):
 
 
 def test_release_workflow_checks_the_tag_between_build_and_upload():
-    workflow = yaml.safe_load(WORKFLOW.read_text())
-    steps = workflow["jobs"]["build-n-publish"]["steps"]
-    runs = [step.get("run", "") for step in steps]
-    uses = [step.get("uses", "") for step in steps]
-    build = next(i for i, run in enumerate(runs) if "python -m build" in run)
-    guard = next(i for i, run in enumerate(runs) if "check_release_version.py" in run)
-    upload = next(i for i, use in enumerate(uses) if "gh-action-pypi-publish" in use)
+    lines = WORKFLOW.read_text().splitlines()
+
+    def line_of(text):
+        return next(i for i, line in enumerate(lines) if text in line)
+
+    build = line_of("python -m build")
+    guard = line_of("check_release_version.py")
+    upload = line_of("gh-action-pypi-publish")
     assert build < guard < upload
-    assert "$GITHUB_REF_NAME" in runs[guard]
-    assert "dist/" in runs[guard]
+    assert lines[guard].strip().startswith("run:")
+    assert "$GITHUB_REF_NAME" in lines[guard]
+    assert "dist/" in lines[guard]
