@@ -12,6 +12,7 @@ from warnings import warn
 from numba import njit
 
 from ross.units import Q_
+from ross.utils import check_dict_keys
 
 from .gear_element import GearElementTVMS
 from .utils import involute, mod, interpolate2d, compute_contact_ratio
@@ -41,29 +42,29 @@ class Mesh:
 
         - enable : bool
             If True, a square-shaped time-varying mesh stiffness is used.
-            Default is False.
         - amplitude_ratio : float
             Ratio of the stiffness amplitude based on the mean value of the
             mesh stiffness.
 
+        All keys are required.
         Default is `{"enable": False, "amplitude_ratio": 0}`.
     backlash : dict, optional
         Dictionary to enable and configure the backlash model between the
         coupled gears. Keys are:
 
         - enable : bool
-            If True, the backlash model is used. Default is False.
+            If True, the backlash model is used.
         - initial_value : float
-            Initial backlash of the gear pair (m). Default is 0.0.
+            Initial backlash of the gear pair (m).
         - error_amp : float
-            Error amplitude used in the backlash force model. Default is 0.0.
+            Error amplitude used in the backlash force model.
         - smooth_operator : bool
             If True, a smooth (hyperbolic tangent) approximation is used for
-            the backlash force. Default is False.
+            the backlash force.
         - sigma : float
             Parameter related to the regularization of the smooth approach.
-            Default is 1e4.
 
+        All keys are required.
         Default is `{"enable": False, "initial_value": 0.0, "error_amp": 0.0,
         "smooth_operator": False, "sigma": 1e4}`.
     damping_ratio : float, optional
@@ -134,6 +135,17 @@ class Mesh:
         damping_ratio=0.07,
         orientation_angle=0,
     ):
+
+        check_dict_keys(
+            "square_varying_stiffness",
+            square_varying_stiffness,
+            ["enable", "amplitude_ratio"],
+        )
+        check_dict_keys(
+            "backlash",
+            backlash,
+            ["enable", "initial_value", "error_amp", "smooth_operator", "sigma"],
+        )
 
         if not math.isclose(driving_gear.module, driven_gear.module, rel_tol=0.05):
             warn(

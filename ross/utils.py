@@ -1808,3 +1808,30 @@ def is_scalar(parameter, parameter_name):
         raise ValueError(f"{parameter_name} must be a scalar.")
 
     return np.array(parameter)
+
+
+def check_dict_keys(name, value, keys):
+    """Raise an error if a configuration dictionary does not have exactly the keys.
+
+    Parameters
+    ----------
+    name : str
+        Name of the parameter, used in the error message.
+    value : dict
+        Configuration dictionary given by the user.
+    keys : list
+        Keys the dictionary must have.
+
+    Raises
+    ------
+    ValueError
+        If keys are missing or unknown keys are given.
+    """
+    missing = [key for key in keys if key not in value]
+    unknown = [key for key in value if key not in keys]
+
+    if missing or unknown:
+        raise ValueError(
+            f"'{name}' must have the keys {keys}. "
+            f"Missing: {missing}. Unknown: {unknown}."
+        )

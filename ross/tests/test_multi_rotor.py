@@ -471,6 +471,64 @@ def multi_rotor_with_backlash():
     )
 
 
+@pytest.mark.parametrize(
+    "kwargs, missing, unknown",
+    [
+        ({"backlash": {"enable": True}}, "initial_value", None),
+        (
+            {
+                "backlash": {
+                    "enable": True,
+                    "initial_value": 5e-5,
+                    "error_amp": 2e-5,
+                    "sigma": 1e5,
+                }
+            },
+            "smooth_operator",
+            None,
+        ),
+        (
+            {
+                "backlash": {
+                    "enable": True,
+                    "initial_val": 5e-5,
+                    "error_amp": 2e-5,
+                    "smooth_operator": False,
+                    "sigma": 1e5,
+                }
+            },
+            "initial_value",
+            "initial_val",
+        ),
+        ({"square_varying_stiffness": {"enable": True}}, "amplitude_ratio", None),
+        (
+            {
+                "square_varying_stiffness": {
+                    "enable": True,
+                    "amplitude_ratio": 0.275,
+                    "ratio": 0.1,
+                }
+            },
+            None,
+            "ratio",
+        ),
+    ],
+)
+def test_incomplete_mesh_dicts_raise(
+    multi_rotor_with_backlash, kwargs, missing, unknown
+):
+    rotors = multi_rotor_with_backlash.rotors
+
+    with pytest.raises(ValueError) as error:
+        rs.MultiRotor(rotors["driving"], rotors["driven"], (0, 0), **kwargs)
+
+    message = str(error.value)
+    assert next(iter(kwargs)) in message
+    for key in [missing, unknown]:
+        if key is not None:
+            assert f"'{key}'" in message
+
+
 def test_mesh_with_backlash(multi_rotor_with_backlash):
     T10, T1a = 300.0, 100.0
     T20, T2a = 300.0, 100.0

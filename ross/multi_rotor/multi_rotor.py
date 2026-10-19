@@ -55,29 +55,29 @@ class MultiRotor(Rotor):
 
         - enable : bool
             If True, a square-shaped time-varying mesh stiffness is used.
-            Default is False.
         - amplitude_ratio : float
             Ratio of the stiffness amplitude based on the mean value of the
             mesh stiffness.
 
+        All keys are required.
         Default is `{"enable": False, "amplitude_ratio": 0}`.
     backlash : dict, optional
         Dictionary to enable and configure the backlash model between the
         coupled gears. Keys are:
 
         - enable : bool
-            If True, the backlash model is used. Default is False.
+            If True, the backlash model is used.
         - initial_value : float
-            Initial backlash of the gear pair (m). Default is 0.0.
+            Initial backlash of the gear pair (m).
         - error_amp : float
-            Error amplitude used in the backlash force model. Default is 0.0.
+            Error amplitude used in the backlash force model.
         - smooth_operator : bool
             If True, a smooth (hyperbolic tangent) approximation is used for
-            the backlash force. Default is False.
+            the backlash force.
         - sigma : float
             Parameter related to the regularization of the smooth approach.
-            Default is 1e4.
 
+        All keys are required.
         Default is `{"enable": False, "initial_value": 0.0, "error_amp": 0.0,
         "smooth_operator": False, "sigma": 1e4}`.
     orientation_angle : float, pint.Quantity, optional
