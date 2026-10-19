@@ -124,18 +124,6 @@ def test_save_load_static(rotor1):
     assert np.array(response2.Vx_axis).all() == np.array(response.Vx_axis).all()
 
 
-def test_save_load_convergence(rotor1):
-    response = rotor1.convergence()
-
-    file = Path(tempdir) / "convergence.toml"
-    response.save(file)
-    response2 = ConvergenceResults.load(file)
-
-    assert response2.el_num.all() == response.el_num.all()
-    assert response2.eigv_arr.all() == response.eigv_arr.all()
-    assert response2.error_arr.all() == response.error_arr.all()
-
-
 def test_save_load_timeresponse(rotor1):
     speed = 500.0
     size = 1000

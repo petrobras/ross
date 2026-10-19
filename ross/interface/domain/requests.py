@@ -19,7 +19,7 @@ the validation layer would be the only one reaching the user unverified.
 
 from .cache import STRUCTURAL_KEYS
 
-TYPE_NAMES = {dict: "an object", list: "a list", str: "a string"}
+TYPE_NAMES = {dict: "an object", list: "a list", str: "a string", bool: "true or false"}
 
 
 class Field:
@@ -108,9 +108,14 @@ class Envelope:
         )
 
 
+# `figure` is whether to draw ROSS's 2D figure. The 3D view asks for the scene
+# alone: `plot_rotor` is the slow half of this route (about a second on a
+# 200-element rotor, against a millisecond for the scene), and a figure nobody
+# is looking at would be drawn on every keystroke.
 ROTOR_REQUEST = Envelope(
     "/build_rotor",
     Field("project", dict, default={}),
+    Field("figure", bool, default=True),
 )
 
 # `key` names the subject a request belongs to -- one card on the screen. The
@@ -171,6 +176,35 @@ CONCATENATE_REQUEST = Envelope(
 # it is what someone typed: the refusal for '4 0 0' belongs in the domain, with
 # the other refusals, and not in a JSON parser that would have turned it into
 # nothing on the way here.
+# The element list's filter compares a field's values in one unit, and only
+# pint knows every unit the forms accept -- including what was typed into
+# "Others". Each item is what was typed, the unit beside it and the unit to
+# answer in (`domain/conversion.to_unit`).
+UNITS_REQUEST = Envelope(
+    "/api/units/convert",
+    Field("items", list, required=True),
+)
+
+# Discretizing the shaft line (domain/meshing.py), one of three ways: by the
+# length-to-diameter rule ("ratio", `max_ld`), in a number of parts per element
+# ("parts", `parts`), or by the convergence of the lowest `n_modes` natural
+# frequencies to `rtol` % at `speed` rpm ("convergence"). Every number travels
+# as text, like the split's offset, so that a word typed into the dialog is
+# refused by name; `indexes` are the shaft rows asked for, none meaning every
+# shaft (the convergence always takes the whole rotor).
+MESH_REQUEST = Envelope(
+    "/api/rotor/mesh_shafts",
+    Field("project", dict, required=True),
+    Field("method", str, default="ratio"),
+    Field("max_ld", str, default="0.5"),
+    Field("min_ld", str, default="0.1"),
+    Field("parts", str, default="2"),
+    Field("n_modes", str, default="6"),
+    Field("rtol", str, default="0.1"),
+    Field("speed", str, default="0"),
+    Field("indexes", list, default=[]),
+)
+
 SPLIT_REQUEST = Envelope(
     "/api/rotor/split_shaft",
     Field("project", dict, required=True),

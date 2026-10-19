@@ -10,7 +10,7 @@
 import { openSectionHelp } from '../components/help.js';
 import {
     addAnalysis, addAngleProbeRow, addForceRow, addProbeRow, addUnbalanceRow, checkDeps,
-    deleteAnalysis, runCardAnalysis, toggleAnalysis, toggleDashAdv,
+    deleteAnalysis, pickModelProbe, runCardAnalysis, toggleAnalysis, toggleDashAdv,
 } from './analysis.js';
 
 // Which editor adds a row to which kind of list. The names are the catalogue's
@@ -42,4 +42,5 @@ export const ANALYSIS_ACTIONS = {
     'toggle-dash-advanced': element => toggleDashAdv(element),
     'add-row': element => addRow(element),
     'remove-row': element => element.closest('.probe-row').remove(),
+    'pick-model-probe': element => pickModelProbe(element),
 };

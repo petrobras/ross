@@ -68,6 +68,7 @@ CATEGORIES = (
     "bearings",
     "seals",
     "pointmasses",
+    "probes",
 )
 
 # How the builder resolves a blank `n`, by category: couplings by their place in

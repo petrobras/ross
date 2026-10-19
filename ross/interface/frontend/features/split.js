@@ -21,10 +21,10 @@ import { t } from '../core/i18n.js';
 // teaching the whole translation layer about placeholders for them would be a
 // feature with two users.
 function fill(template, ...values) {
-    return values.reduce(
-        (text, value, position) => text.split('%' + (position + 1)).join(String(value)),
-        template,
-    );
+    // One pass over the template: a value that itself holds "%2" is shown as
+    // typed, rather than filled in by the next placeholder.
+    return template.replace(/%(\d)/g, (marker, digit) =>
+        (digit >= 1 && digit <= values.length ? String(values[digit - 1]) : marker));
 }
 
 // The default the dialog opens with: halfway, which is the answer often enough
@@ -63,7 +63,13 @@ export async function splitProject(data, index) {
     // `null` is Escape or Cancel, and an empty box is somebody who changed their
     // mind with the keyboard. Neither is a distance, and neither is an error.
     if (typed === null || typed === undefined || String(typed).trim() === '') return false;
+    return splitProjectAt(data, index, typed);
+}
 
+// The same cut with the distance already known -- the 3D view's "split here",
+// where the pointer said where. In the unit the element's length is typed in,
+// as the dialog asks for it.
+export async function splitProjectAt(data, index, typed) {
     let answer;
     try {
         answer = await apiFetch('/api/rotor/split_shaft', {
@@ -111,7 +117,7 @@ export function applyProject(target, answered) {
 // splitting does not read them. They are also not thrown away, which is
 // deliberate -- splitting an element is an edit like any other on this screen,
 // and editing an element has never discarded the charts already computed.
-function withoutAnalyses(project) {
+export function withoutAnalyses(project) {
     const copy = JSON.parse(JSON.stringify(project));
     delete copy.savedAnalyses;
     return copy;

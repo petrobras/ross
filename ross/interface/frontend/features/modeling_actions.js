@@ -10,12 +10,18 @@
 
 import { fillDefault, handleUnitChange, toggleAdvanced } from '../components/form.js';
 import { openSectionHelp } from '../components/help.js';
+import { pickShape } from '../components/shape_picker.js';
 import {
     addElementFromNodeHub, closeForm, closeNodeHub, copyItem, copySelected, deleteItem,
-    deleteSelected, editItem, openForm, pickTab, saveItem, selectSubType, setVerticalScale,
-    splitItem, toggleSelectAll, toggleSelected,
+    deleteSelected, editItem, openForm, pickTab, saveItem, selectSubType, setRotorView,
+    meshItems, setVerticalScale, splitItem, toggleSelectAll, toggleSelected,
 } from './modeling.js';
 import { switchMultiRotorTarget } from './multirotor.js';
+import { clearListFilter, filterBy, toggleListFilter } from './list_filter.js';
+import {
+    frameRotor, toggleBench, toggleCategory3d, toggleDimensions, toggleElement3d, toggleMeasure, togglePan,
+} from './rotor3d.js';
+import { getActiveData, state } from '../core/state.js';
 
 function position(element) {
     return Number(element.dataset.index);
@@ -36,6 +42,12 @@ export const MODELING_ACTIONS = {
     'copy-element': element => copyItem(position(element)),
     'delete-element': element => deleteItem(position(element)),
     'split-element': element => splitItem(position(element)),
+    'mesh-shafts': () => meshItems(),
+
+    // the list's filter (features/list_filter.js)
+    'toggle-list-filter': () => toggleListFilter(),
+    'filter-by': element => filterBy(element.dataset.key, element.value),
+    'clear-list-filter': () => clearListFilter(),
 
     // the form
     'add-element': () => openForm(true),
@@ -43,6 +55,7 @@ export const MODELING_ACTIONS = {
     'close-form': () => closeForm(),
     'pick-subtype': element => selectSubType(element.dataset.subtype),
     'fill-default': () => fillDefault(),
+    'pick-shape': element => pickShape(element.dataset.shape),
     'toggle-advanced': element => toggleAdvanced(element),
     'change-unit': element => handleUnitChange(element),
 
@@ -52,4 +65,12 @@ export const MODELING_ACTIONS = {
 
     // the figure
     'set-vertical-scale': element => setVerticalScale(element.value),
+    'set-rotor-view': element => setRotorView(element.dataset.view),
+    'frame-rotor': () => frameRotor(),
+    'toggle-bench': () => toggleBench(),
+    'toggle-dimensions': () => toggleDimensions(),
+    'toggle-measure': () => toggleMeasure(),
+    'toggle-pan': () => togglePan(),
+    'hide-category': (element, event) => toggleCategory3d(element.dataset.category, event),
+    'hide-element': element => toggleElement3d(getActiveData()[state.currentTab][position(element)]),
 };

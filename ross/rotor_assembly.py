@@ -52,7 +52,6 @@ from ross.motors.motor_element import MotorElement
 from ross.probe import Probe
 from ross.results import (
     CampbellResults,
-    ConvergenceResults,
     CriticalSpeedResults,
     ForcedResponseResults,
     FrequencyResponseResults,
@@ -80,6 +79,7 @@ from ross.utils import (
 )
 
 from ross.harmonic_balance import HarmonicBalance
+from ross.mesh_convergence import _mesh_convergence
 
 __all__ = [
     "Rotor",
@@ -1254,6 +1254,229 @@ class Rotor(object):
             **self._init_parameters(),
         )
 
+    def refine_mesh(self, max_ld=0.5, min_ld=0.1, parts=None):
+        """Subdivide the shaft elements by their length-to-diameter ratio.
+
+        Every shaft element whose length is more than ``max_ld`` times its
+        outer diameter is cut into equal parts, as few as keep each part at or
+        under that ratio. The nodes the rotor already has are all kept, so
+        disks, bearings, seals and point masses stay where they are (they are
+        renumbered as :meth:`add_nodes` renumbers them), and the mass, the
+        inertia and the geometry of the shaft line do not change.
+
+        The rule is the one of API RP 684 (Tutorial on the API Standard
+        Paragraphs Covering Rotor Dynamics and Balancing, section 1.5.2.1):
+        after dividing the rotor at every step of diameter, the length to
+        diameter ratio of any section should not exceed 1.0 -- 0.5 is
+        preferred -- nor be less than 0.1. A section shorter than ``min_ld``
+        diameters cannot be fixed by cutting; it is reported with a warning.
+
+        Elements sharing the same pair of nodes (a sleeve over a shaft) are
+        cut together, by the largest outer diameter among them. A span that
+        holds a coupling element is not cut.
+
+        Parameters
+        ----------
+        max_ld : float, optional
+            Largest length-to-diameter ratio left in the model. Default is 0.5.
+        min_ld : float, optional
+            Smallest length-to-diameter ratio that is not warned about.
+            Default is 0.1.
+        parts : int, optional
+            When given, every shaft element is cut into this many equal parts
+            instead, whatever its ratio (as ``nel_r`` does in
+            :meth:`from_section`), and ``max_ld`` is not used. Couplings are
+            still not cut.
+
+        Returns
+        -------
+        A rotor object. The original rotor is not modified.
+
+        Notes
+        -----
+        The diameter is the larger of ``odl`` and ``odr``, so a tapered element
+        is cut by its thicker end. As with :meth:`add_nodes`, the tags of the
+        shaft elements are not kept when any element is cut.
+
+        Examples
+        --------
+        >>> import ross as rs
+        >>> rotor = rs.rotor_example()
+        >>> refined = rotor.refine_mesh(max_ld=0.5)
+        >>> len(rotor.shaft_elements), len(refined.shaft_elements)
+        (6, 60)
+        >>> ratios = [elm.L / max(elm.odl, elm.odr) for elm in refined.shaft_elements]
+        >>> round(max(ratios), 9)
+        0.5
+        >>> [disk.n for disk in rotor.disk_elements], [disk.n for disk in refined.disk_elements]
+        ([2, 4], [20, 40])
+        >>> round(refined.m - rotor.m, 12)
+        0.0
+        >>> len(rotor.refine_mesh(parts=3).shaft_elements)
+        18
+        """
+        if parts is not None:
+            if (
+                isinstance(parts, bool)
+                or not isinstance(parts, (int, np.integer))
+                or parts < 1
+            ):
+                raise ValueError(
+                    "parts must be a whole number of 1 or more, got %r." % (parts,)
+                )
+            max_ld = np.inf
+        if not max_ld > 0:
+            raise ValueError("max_ld must be positive, got %r." % (max_ld,))
+        if min_ld < 0 or min_ld > max_ld:
+            raise ValueError(
+                "min_ld must be between 0 and max_ld (%r), got %r." % (max_ld, min_ld)
+            )
+
+        spans = {}
+        for elm in self.shaft_elements:
+            spans.setdefault(elm.n, []).append(elm)
+
+        new_nodes_pos = []
+        too_short = []
+        for n, elms in sorted(spans.items()):
+            if any(isinstance(elm, CouplingElement) for elm in elms):
+                continue
+            length = float(elms[0].L)
+            diameter = max(float(max(elm.odl, elm.odr)) for elm in elms)
+            if diameter <= 0:
+                continue
+            if length < min_ld * diameter:
+                too_short.append((n, length / diameter))
+            # The tolerance keeps an element of exactly max_ld diameters whole.
+            count = parts or int(np.ceil(length / (max_ld * diameter) - 1e-9))
+            if count < 2:
+                continue
+            start = self.nodes_pos[self.nodes.index(elms[0].n_l)]
+            new_nodes_pos.extend(start + k * length / count for k in range(1, count))
+
+        if too_short:
+            warnings.warn(
+                "Shaft elements shorter than %s diameters (API RP 684 section "
+                "1.5.2.1), which cutting cannot fix: %s."
+                % (
+                    min_ld,
+                    ", ".join("n=%d (L/D = %.3g)" % item for item in too_short),
+                )
+            )
+
+        return self.add_nodes(new_nodes_pos)
+
+    def refine(self, subdivisions):
+        """Split the shaft intervals of the rotor in equal shaft elements.
+
+        An interval is the length between two consecutive shaft nodes. Every
+        shaft element of an interval (more than one in layered shafts) is split
+        in the same number of equal elements, and the diameters of tapered
+        elements are interpolated along the length. Disks, bearings, seals and
+        point masses keep their positions, and the nodes off the shaft (e.g.
+        bearing housings) are renumbered after the new shaft nodes. Intervals
+        holding a coupling element are not split.
+
+        Parameters
+        ----------
+        subdivisions : int, array_like
+            Number of elements each interval is split into, either one value for
+            every interval or a single value for all of them.
+
+        Returns
+        -------
+        rotor : ross.Rotor
+            A new rotor with the refined shaft. The original rotor is not
+            modified.
+
+        Examples
+        --------
+        >>> rotor = rotor_example()
+        >>> refined = rotor.refine(4)
+        >>> len(rotor.shaft_elements), len(refined.shaft_elements)
+        (6, 24)
+        >>> [disk.n for disk in refined.disk_elements]
+        [8, 16]
+        >>> bool(np.isclose(refined.m, rotor.m))
+        True
+        """
+        if type(self) is not Rotor:
+            raise NotImplementedError(
+                f"refine is not available for {type(self).__name__}, only for Rotor."
+            )
+
+        first_node = min(elm.n for elm in self.shaft_elements)
+        n_intervals = max(elm.n for elm in self.shaft_elements) - first_node + 1
+
+        subdivisions = np.asarray(subdivisions)
+        if subdivisions.ndim == 0:
+            subdivisions = np.full(n_intervals, subdivisions)
+        if subdivisions.shape != (n_intervals,):
+            raise ValueError(
+                "subdivisions must be a single value or have one value for each "
+                f"of the {n_intervals} shaft intervals."
+            )
+        if np.any(subdivisions < 1) or np.any(subdivisions % 1 != 0):
+            raise ValueError("subdivisions must be integers greater than zero.")
+        subdivisions = subdivisions.astype(int)
+        for elm in self.shaft_elements:
+            if isinstance(elm, CouplingElement):
+                subdivisions[elm.n - first_node] = 1
+
+        added_nodes = np.concatenate(([0], np.cumsum(subdivisions - 1)))
+        last_node = first_node + n_intervals
+
+        def new_node(node):
+            if node <= last_node:
+                return int(node + added_nodes[node - first_node])
+            return int(node + added_nodes[-1])
+
+        shaft_elements = []
+        for elm in self.shaft_elements:
+            n_split = subdivisions[elm.n - first_node]
+            if n_split == 1:
+                new_elm = deepcopy(elm)
+                new_elm.n = new_node(elm.n)
+                new_elm.tag = None
+                shaft_elements.append(new_elm)
+                continue
+
+            fraction = np.linspace(0, 1, n_split + 1)
+            idl = elm.idl + (elm.idr - elm.idl) * fraction
+            odl = elm.odl + (elm.odr - elm.odl) * fraction
+            for j in range(n_split):
+                shaft_elements.append(
+                    elm.copy(
+                        L=elm.L / n_split,
+                        idl=idl[j],
+                        idr=idl[j + 1],
+                        odl=odl[j],
+                        odr=odl[j + 1],
+                        n=new_node(elm.n) + j,
+                    )
+                )
+
+        disk_elements = deepcopy(self.disk_elements)
+        bearing_elements = deepcopy(self.bearing_elements)
+        point_mass_elements = deepcopy(self.point_mass_elements)
+        for elm in [*disk_elements, *bearing_elements, *point_mass_elements]:
+            elm.n = new_node(elm.n)
+        for elm in disk_elements:
+            elm.n_l = elm.n_r = elm.n
+        for elm in bearing_elements:
+            if elm.n_link is not None:
+                elm.n_link = new_node(elm.n_link)
+            if hasattr(elm, "sensor_node"):
+                elm.sensor_node = new_node(elm.sensor_node)
+
+        return self.__class__(
+            shaft_elements,
+            disk_elements=disk_elements,
+            bearing_elements=bearing_elements,
+            point_mass_elements=point_mass_elements,
+            **self._init_parameters(),
+        )
+
     def add_elements(self, new_elements):
         """Add elements to rotor.
 
@@ -1684,134 +1907,72 @@ class Rotor(object):
 
         return CriticalSpeedResults(wn, wd, log_dec, damping_ratio, whirl_direction)
 
-    def convergence(self, n_eigval=0, err_max=1e-02):
-        """Run convergence analysis.
+    @check_units
+    def run_mesh_convergence(
+        self,
+        rtol=1e-3,
+        frequencies=6,
+        strategy="cheapest",
+        speed=0,
+        max_elements=1000,
+    ):
+        """Find a shaft discretization with converged natural frequencies.
 
-        Function to analyze the eigenvalues convergence through the number of
-        shaft elements. Every new run doubles the number of shaft elements.
+        The shaft intervals of the rotor (the lengths between consecutive shaft
+        nodes) are split into equal elements (see :py:meth:`refine`) until the
+        lowest natural frequencies are within ``rtol`` of a converged reference.
+        The reference is found by halving the length of the elements until the
+        frequencies change less than ``rtol / 10``. The k-th lowest natural
+        frequency of a discretization is compared with the k-th lowest
+        frequency of the reference.
+
+        Two families of discretizations are searched:
+
+        - uniform: every element is at most ``h`` long;
+        - graded: every element is at most a fraction of the local bending
+          wavelength at the highest reference frequency, so thin sections get
+          shorter elements than thick ones.
+
+        The shaft elements of the rotor are the coarsest discretization
+        considered: they are split, never merged. The rotor is not modified.
 
         Parameters
         ----------
-        n_eigval : int
-            The nth eigenvalue which the convergence analysis will run.
-            Default is 0 (the first eigenvalue).
-        err_max : float
-            Maximum allowable convergence error.
-            Default is 1e-02
+        rtol : float, optional
+            Maximum relative error of the natural frequencies against the
+            reference. Default is 1e-3 (0.1%).
+        frequencies : int, optional
+            Number of natural frequencies (the lowest ones) that must converge.
+            Default is 6.
+        strategy : str, optional
+            "cheapest" returns the discretization with the fewest shaft
+            elements found in both families, and "uniform" searches the uniform
+            family only. Default is "cheapest".
+        speed : float, pint.Quantity, optional
+            Rotor speed of the modal analyses (rad/s). Default is 0.
+        max_elements : int, optional
+            Maximum number of shaft elements of the discretizations evaluated.
+            A ValueError is raised when the reference needs more. Default is
+            1000.
 
         Returns
         -------
-        results : An instance of ConvergenceResults class, which is used to post-process
-        results. Attributes stored:
-            el_num : array
-                Array with number of elements in each iteration
-            eigv_arr : array
-                Array with the n'th natural frequency in each iteration
-            error_arr : array
-                Array with the relative error in each iteration
+        results : ross.MeshConvergenceResults
+            For more information on attributes and methods available see:
+            :py:class:`ross.MeshConvergenceResults`. The rotor with the chosen
+            discretization is ``results.rotor``.
 
-        Example
-        -------
-        >>> import ross as rs
-        >>> i_d = 0
-        >>> o_d = 0.05
-        >>> n = 6
-        >>> L = [0.25 for _ in range(n)]
-        ...
-        >>> shaft_elem = [rs.ShaftElement(l, i_d, o_d, material=steel,
-        ... shear_effects=True, rotary_inertia=True, gyroscopic=True) for l in L]
-        >>> disk0 = DiskElement.from_geometry(2, steel, 0.07, 0.05, 0.28)
-        >>> disk1 = DiskElement.from_geometry(4, steel, 0.07, 0.05, 0.35)
-        >>> bearing0 = BearingElement(0, kxx=1e6, kyy=8e5, cxx=2e3)
-        >>> bearing1 = BearingElement(6, kxx=1e6, kyy=8e5, cxx=2e3)
-        >>> rotor0 = Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
-        >>> len(rotor0.shaft_elements)
-        6
-        >>> convergence = rotor0.convergence(n_eigval=0, err_max=1e-08)
-        >>> len(rotor0.shaft_elements)
-        96
-
-        Plotting convergence graphics
-        >>> fig = convergence.plot()
+        Examples
+        --------
+        >>> rotor = rotor_example()
+        >>> results = rotor.run_mesh_convergence(rtol=1e-4)
+        >>> len(rotor.shaft_elements), len(results.rotor.shaft_elements)
+        (6, 12)
+        >>> bool(results.error.max() <= 1e-4)
+        True
+        >>> fig = results.plot()
         """
-        el_num = np.array([len(self.shaft_elements)])
-        eigv_arr = np.array([])
-        error_arr = np.array([0])
-
-        modal = self.run_modal(speed=0)
-        eigv_arr = np.append(eigv_arr, modal.wn[n_eigval])
-
-        # this value is up to start the loop while
-        error = 1.0e10
-        nel_r = 2
-
-        while error > err_max:
-            shaft_elem = []
-            disk_elem = []
-            brgs_elem = []
-            pmass_elem = []
-
-            for shaft in self.shaft_elements:
-                le = shaft.L / nel_r
-                odl = shaft.odl
-                odr = shaft.odr
-                idl = shaft.idl
-                idr = shaft.idr
-
-                # loop to double the number of element
-                for j in range(nel_r):
-                    odr = ((nel_r - j - 1) * odl + (j + 1) * odr) / nel_r
-                    idr = ((nel_r - j - 1) * idl + (j + 1) * idr) / nel_r
-                    odl = ((nel_r - j) * odl + j * odr) / nel_r
-                    idl = ((nel_r - j) * idl + j * idr) / nel_r
-                    shaft_elem.append(
-                        ShaftElement(
-                            L=le,
-                            idl=idl,
-                            odl=odl,
-                            idr=idr,
-                            odr=odr,
-                            material=shaft.material,
-                            shear_effects=shaft.shear_effects,
-                            rotary_inertia=shaft.rotary_inertia,
-                            gyroscopic=shaft.gyroscopic,
-                        )
-                    )
-
-            for elm in self.disk_elements:
-                aux_elm = deepcopy(elm)
-                aux_elm.n = nel_r * elm.n
-                disk_elem.append(aux_elm)
-
-            for elm in self.bearing_elements:
-                aux_elm = deepcopy(elm)
-                aux_elm.n = nel_r * elm.n
-                if aux_elm.n_link is not None:
-                    aux_elm.n_link = nel_r * elm.n_link
-                brgs_elem.append(aux_elm)
-
-            for elm in self.point_mass_elements:
-                aux_elm = deepcopy(elm)
-                aux_elm.n = nel_r * elm.n
-                pmass_elem.append(aux_elm)
-
-            aux_rotor = Rotor(shaft_elem, disk_elem, brgs_elem, pmass_elem)
-            aux_modal = aux_rotor.run_modal(speed=0)
-
-            eigv_arr = np.append(eigv_arr, aux_modal.wn[n_eigval])
-            el_num = np.append(el_num, len(shaft_elem))
-
-            error = abs(1 - eigv_arr[-1] / eigv_arr[-2])
-
-            error_arr = np.append(error_arr, 100 * error)
-            nel_r *= 2
-
-        self.__dict__ = aux_rotor.__dict__
-        self.error_arr = error_arr
-
-        results = ConvergenceResults(el_num[1:], eigv_arr[1:], error_arr[1:])
-
-        return results
+        return _mesh_convergence(self, rtol, frequencies, strategy, speed, max_elements)
 
     def M(self, frequency=None, speed=None, synchronous=False):
         """Mass matrix for an instance of a rotor.

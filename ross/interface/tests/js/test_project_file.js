@@ -75,6 +75,9 @@ const train = projectFromFile(multiRotorFile(), 'train');
 check('it comes back as a multirotor', train.isMultiRotor === true);
 check('with the driving half inside it', train.driving_rotor.shafts.length === 1);
 check('and the driven half', train.driven_rotor.shafts.length === 1);
+// Each half has every category, the ones the file was written without too.
+check('each half with every category', [train.driving_rotor, train.driven_rotor]
+    .every(half => CATEGORIES.every(category => Array.isArray(half[category]))));
 // The four keys the old loader dropped. Each one is the whole feature.
 check('and the gear mesh parameters', train.multi_params.gear_mesh_stiffness === '1e8');
 check('including what is nested in them', train.multi_params.backlash.enable === false);

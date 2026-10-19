@@ -9,8 +9,24 @@ script that did not reproduce what the screen was showing.
 # internally; the conversion happens on the way in.
 UNITS_MAPPING = {
     "Material": {"rho": "kg/m**3", "E": "N/m**2", "G_s": "N/m**2"},
+    # The angle about the shaft, from x toward y -- ROSS's convention, which
+    # its response plots read as x cos(angle) + y sin(angle).
+    "Probe": {"angle": "deg"},
     "ShaftElement": {"L": "mm", "idl": "mm", "odl": "mm", "idr": "mm", "odr": "mm"},
     "DiskElement": {"m": "kg", "Id": "kg*m**2", "Ip": "kg*m**2"},
+    # A disk from its dimensions (the "Geometry" form): ROSS works out m, Ip and
+    # Id from these and the material's density.
+    "DiskElement.from_geometry": {"width": "mm", "i_d": "mm", "o_d": "mm"},
+    # The gear's too; o_d is its pitch diameter and i_d its bore. The angles are
+    # repeated from GearElement because the rotor builder reads this table as
+    # it is, without the inheritance the form schema follows.
+    "GearElement.from_geometry": {
+        "width": "mm",
+        "i_d": "mm",
+        "o_d": "mm",
+        "pr_angle": "deg",
+        "helix_angle": "deg",
+    },
     "GearElement": {
         "m": "kg",
         "Id": "kg*m**2",

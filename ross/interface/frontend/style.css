@@ -471,9 +471,126 @@ button {
     color: var(--warning-700);
     background: var(--warning-100);
 }
+/* Discretizing: the split's colour, for the same reason -- it cuts, and loses
+   nothing. */
+.btn-action.mesh:hover {
+    color: var(--warning-700);
+    background: var(--warning-100);
+}
 .btn-action.delete:hover {
     color: var(--danger-700);
     background: var(--danger-100);
+}
+.btn-action.eye:hover {
+    color: var(--accent);
+    background: var(--blue-100);
+}
+
+/* The 3D view's right-button menu (components/context_menu.js). */
+.context-menu {
+    position: fixed;
+    z-index: 3000;
+    min-width: 220px;
+    padding: 4px;
+    background: var(--surface-card);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+}
+.context-menu[hidden] {
+    display: none;
+}
+.context-header {
+    padding: 6px 10px 4px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+.context-item {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 10px;
+    width: 100%;
+    padding: 7px 10px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: none;
+    color: var(--text-main);
+    font-size: 13px;
+    text-align: left;
+    cursor: pointer;
+}
+.context-item i {
+    width: 14px;
+    color: var(--text-muted);
+}
+.context-item:hover:not([disabled]),
+.context-item:focus-visible {
+    background: var(--surface-tint);
+    outline: none;
+}
+.context-item[disabled] {
+    opacity: 0.5;
+    cursor: default;
+}
+.context-item.is-danger,
+.context-item.is-danger i {
+    color: var(--danger-700);
+}
+.context-separator {
+    height: 1px;
+    margin: 4px 6px;
+    background: var(--border-default);
+}
+
+/* The dialog of the ruler button (components/mesh_dialog.js). */
+.mesh-box {
+    max-width: 460px;
+    padding: 0;
+}
+.mesh-body {
+    border: none;
+    box-shadow: none;
+    margin-top: 0;
+    border-radius: 0;
+}
+.mesh-way {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 10px 0 4px;
+    font-weight: 600;
+    color: var(--text-main);
+    cursor: pointer;
+}
+/* The form box gives every input the whole width; a radio button keeps its
+   own, beside its words. */
+.mesh-way input[type="radio"] {
+    width: auto;
+    flex: none;
+    margin: 0;
+}
+.mesh-fields {
+    padding-left: 24px;
+}
+.mesh-fields[hidden],
+.mesh-busy[hidden] {
+    display: none;
+}
+.mesh-row {
+    display: flex;
+    gap: 10px;
+}
+.mesh-hint {
+    margin: 0 0 8px;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+.mesh-busy {
+    margin: 10px 0;
+    font-size: 13px;
+    color: var(--accent);
 }
 
 /* The bar above the element list: tick everything, the count, and the two bulk
@@ -499,6 +616,97 @@ button {
     flex: 1;
     font-size: 12px;
     color: var(--text-muted);
+}
+/* The filter (core/list_filter.js): its button, lit while a filter is on,
+   with the number of criteria in force; the panel under the bar; and the rows
+   it hides, which keep their places in the list. */
+#selection-bar .btn-action.filter {
+    position: relative;
+}
+#selection-bar .btn-action.filter.is-on,
+#selection-bar .btn-action.filter[aria-pressed="true"] {
+    color: var(--accent);
+    background: var(--surface-tint);
+}
+.filter-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 14px;
+    height: 14px;
+    padding: 0 3px;
+    border-radius: var(--radius-pill);
+    background: var(--accent);
+    color: var(--white);
+    font-size: 9px;
+    line-height: 14px;
+    text-align: center;
+}
+.list-filter {
+    margin-bottom: 8px;
+    padding: 8px 10px;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    background: var(--surface-sunken);
+    font-size: var(--fs-xs);
+}
+.filter-grid {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 6px 8px;
+    align-items: center;
+}
+.filter-grid label {
+    font: var(--type-eyebrow);
+    letter-spacing: var(--ls-eyebrow);
+    text-transform: uppercase;
+    color: var(--text-subtle);
+}
+.filter-grid input,
+.filter-grid select {
+    min-width: 0;
+    width: 100%;
+    padding: 4px 6px;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    background: var(--surface-page);
+    color: var(--text-body);
+    font-size: var(--fs-xs);
+}
+.filter-pair,
+.filter-condition {
+    display: flex;
+    gap: 6px;
+    min-width: 0;
+}
+.filter-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+.filter-condition select:first-child {
+    width: auto;
+    min-width: 52px;
+}
+/* No dragging through a filter (components/list.js): the handles say so. */
+#element-list.is-filtering .item-drag {
+    visibility: hidden;
+}
+.filter-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 8px;
+    color: var(--text-muted);
+}
+.filter-clear {
+    padding: 3px 8px;
+    font-size: var(--fs-xs);
+}
+.list-item.is-filtered-out {
+    display: none;
 }
 #selection-bar .btn-action:disabled {
     opacity: 0.35;
@@ -546,6 +754,70 @@ button {
     border: 1px solid var(--border-default);
     margin-top: 10px;
     box-shadow: var(--shadow-xs);
+}
+/* The element form as a window over the modeling screen
+   (components/floating_form.js). Not modal, so no scrim. Above the figure and
+   the 3D tooltip; below the dialogs, the line of work and the error notice.
+   The window itself scrolls, with its bar and its buttons held at the top and
+   the bottom: a bearing's form is taller than most screens, and the way to
+   save it should not be at the end of the scroll. Its height is capped by
+   `placeFormWindow` to the room under it. */
+.form-window {
+    position: fixed;
+    z-index: 800;
+    width: 400px;
+    margin-top: 0;
+    padding: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    box-shadow: var(--shadow-lg);
+}
+.form-window-bar {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: 6px 6px 6px var(--space-3);
+    background: var(--surface-sunken);
+    border-bottom: 1px solid var(--border-subtle);
+    cursor: move;
+    user-select: none;
+    touch-action: none;
+}
+.form-window-grip {
+    color: var(--text-subtle);
+}
+.form-window-title {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-semibold);
+    color: var(--text-strong);
+}
+.form-window-close {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    padding: 4px 8px;
+    cursor: pointer;
+}
+.form-window-close:hover {
+    background: var(--surface-hover);
+    color: var(--text-body);
+}
+.form-window-body {
+    padding: var(--space-4) var(--space-4) 0;
+}
+.form-window .form-actions {
+    position: sticky;
+    bottom: 0;
+    background: var(--surface-card);
+    padding-bottom: var(--space-3);
 }
 .form-section {
     margin-top: 10px;
@@ -614,6 +886,60 @@ button {
     border-color: var(--border-focus);
     background: var(--surface-card);
     box-shadow: var(--shadow-focus);
+}
+
+/* The geometry bank's picker (components/shape_picker.js): a tile per shape,
+   the one chosen lit. */
+.shape-picker {
+    margin-top: var(--space-3);
+    padding-top: var(--space-3);
+    border-top: 1px dashed var(--border-default);
+}
+.shape-picker > label {
+    display: block;
+    margin-bottom: 6px;
+    font: var(--type-eyebrow);
+    letter-spacing: var(--ls-eyebrow);
+    text-transform: uppercase;
+    color: var(--text-subtle);
+}
+.shape-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(82px, 1fr));
+    gap: 6px;
+}
+.shape-tile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 4px;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    background: var(--surface-page);
+    color: var(--text-muted);
+    font-size: var(--fs-micro);
+    line-height: 1.2;
+    text-align: center;
+    cursor: pointer;
+}
+.shape-tile:hover {
+    border-color: var(--accent);
+    color: var(--text-body);
+}
+.shape-tile[aria-pressed="true"] {
+    border-color: var(--accent);
+    background: var(--surface-tint);
+    color: var(--accent);
+}
+.shape-drawing {
+    width: 32px;
+    height: 32px;
+}
+.shape-hint {
+    margin: 6px 0 0;
+    color: var(--text-subtle);
+    font-size: var(--fs-micro);
 }
 
 .form-actions {
@@ -715,6 +1041,271 @@ button {
     box-shadow: var(--shadow-xs);
     transition: opacity var(--dur-base) var(--ease-standard);
 }
+/* 2D or 3D: two buttons, the one on screen pressed. */
+.rotor-view {
+    display: inline-flex;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+}
+.rotor-view-btn {
+    padding: 2px 10px;
+    border: 0;
+    background: var(--surface-card);
+    color: var(--text-muted);
+    font: inherit;
+    font-size: var(--fs-xs);
+    cursor: pointer;
+}
+.rotor-view-btn + .rotor-view-btn {
+    border-left: 1px solid var(--border-default);
+}
+.rotor-view-btn[aria-pressed="true"] {
+    background: var(--accent);
+    color: var(--white);
+}
+.rotor-view[hidden], .rotor-scale[hidden], .live-plot-area[hidden] {
+    display: none;
+}
+
+/* The 3D view: the canvas fills it; the message, the tooltip and the framing
+   button sit over the canvas. */
+.rotor3d-view {
+    position: relative;
+    height: clamp(420px, 62vh, 760px);
+    min-height: 0;
+    overflow: hidden;
+}
+.rotor3d-canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    touch-action: none;
+}
+.rotor3d-message {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    padding: var(--space-5);
+    text-align: center;
+    color: var(--text-muted);
+    background: var(--surface-card);
+    z-index: 1;
+}
+.rotor3d-message[hidden] {
+    display: none;
+}
+/* While ROSS builds the rotor: the canvas stays, blurred behind the card that
+   says so, as the 2D figure's place says it with the same spinner. */
+.rotor3d-busy {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-main);
+    background: var(--glass-bg);
+    -webkit-backdrop-filter: var(--blur-glass);
+    backdrop-filter: var(--blur-glass);
+    z-index: 1;
+}
+.rotor3d-busy[hidden] {
+    display: none;
+}
+.rotor3d-tools {
+    position: absolute;
+    top: var(--space-2);
+    right: var(--space-2);
+    z-index: 2;
+    display: flex;
+    gap: var(--space-1);
+}
+.rotor3d-tool[aria-pressed="true"] {
+    background: var(--accent);
+    color: var(--white);
+}
+.rotor3d-tool {
+    padding: 4px 8px;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    background: var(--surface-card);
+    color: var(--text-muted);
+    cursor: pointer;
+}
+/* The legend of the 3D view: a chip per category, as the 2D figure's legend
+   (features/rotor3d.js). Along the bottom, from the right, clear of the axis
+   triad: the top corners hold the tools and, by default, the element form's
+   window. */
+.rotor3d-legend {
+    position: absolute;
+    left: 116px;
+    right: var(--space-2);
+    bottom: var(--space-2);
+    z-index: 2;
+    display: flex;
+    flex-wrap: wrap-reverse;
+    justify-content: flex-end;
+    gap: var(--space-1);
+    pointer-events: none;
+}
+.rotor3d-chip {
+    pointer-events: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 8px;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-pill);
+    background: var(--surface-card);
+    color: var(--text-body);
+    font-size: var(--fs-xs);
+    cursor: pointer;
+    user-select: none;
+}
+.rotor3d-chip:hover {
+    border-color: var(--accent);
+}
+.rotor3d-chip[aria-pressed="false"] {
+    color: var(--text-subtle);
+    text-decoration: line-through;
+}
+.rotor3d-chip[aria-pressed="false"] .rotor3d-swatch {
+    opacity: 0.3;
+}
+.rotor3d-swatch {
+    width: 10px;
+    height: 10px;
+    border-radius: var(--radius-circle);
+    border: 1px solid var(--border-strong);
+}
+.rotor3d-chip-count {
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: var(--fs-micro);
+}
+/* The node numbers and the dimensions (components/rotor3d_annotations.js):
+   text of the page over the canvas, placed by a transform each frame. */
+.rotor3d-labels {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    overflow: hidden;
+    pointer-events: none;
+}
+.rotor3d-label {
+    position: absolute;
+    left: 0;
+    top: 0;
+    margin: 0;
+    padding: 0 4px;
+    border-radius: var(--radius-xs);
+    font-size: 11px;
+    line-height: 16px;
+    white-space: nowrap;
+    color: var(--text-muted);
+    background: var(--glass-bg);
+    translate: -50% calc(-100% - 4px);
+}
+.rotor3d-label[hidden] {
+    display: none;
+}
+.rotor3d-label.is-dimension {
+    font-weight: 600;
+    color: var(--text-main);
+}
+.rotor3d-label.is-below {
+    translate: -50% 4px;
+}
+/* The measuring tape's reading, over the middle of the tape
+   (features/rotor3d.js `placeMeasureLabel`). */
+.rotor3d-measure {
+    position: absolute;
+    left: 0;
+    top: 0;
+    z-index: 2;
+    padding: 1px 6px;
+    border-radius: var(--radius-xs);
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 18px;
+    white-space: nowrap;
+    pointer-events: none;
+    color: var(--white);
+    background: var(--accent);
+    translate: -50% calc(-100% - 8px);
+}
+.rotor3d-measure[hidden] {
+    display: none;
+}
+.rotor3d-canvas.is-grab {
+    cursor: grab;
+}
+.rotor3d-canvas.is-grabbing {
+    cursor: grabbing;
+}
+.rotor3d-tip {
+    position: absolute;
+    z-index: 3;
+    max-width: 280px;
+    padding: 8px 10px;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    background: var(--surface-card);
+    box-shadow: var(--shadow-xs);
+    color: var(--text-body);
+    font-size: var(--fs-xs);
+    pointer-events: none;
+}
+.rotor3d-tip[hidden] {
+    display: none;
+}
+.rotor3d-tip-title {
+    font-weight: var(--fw-semibold);
+    color: var(--text-strong);
+    margin-bottom: 4px;
+}
+.rotor3d-tip-label {
+    color: var(--text-muted);
+}
+.rotor3d-tip-hint {
+    margin-top: 6px;
+    padding-top: 4px;
+    border-top: 1px solid var(--border-default);
+    color: var(--text-muted);
+    font-size: var(--fs-micro);
+}
+.rotor3d-canvas:focus {
+    outline: none;
+}
+/* A row the 3D view on screen does not draw: hidden by its eye, or with its
+   category from the legend. */
+.list-item.is-out-of-view .item-text {
+    color: var(--text-subtle);
+    font-style: italic;
+}
+.btn-action.eye.is-off {
+    color: var(--text-subtle);
+}
+/* The row of the part the pointer is on in the 3D view. */
+.list-item.is-pointed {
+    background: var(--surface-tint);
+}
+/* The row whose form is open: the form is a window of its own now, and this
+   is what ties the two together (with the window's heading). */
+.list-item.is-editing {
+    border-left-color: var(--accent);
+    background: var(--surface-tint);
+}
+.rotor3d-tip-note {
+    margin-top: 4px;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
 .placeholder-text {
     color: var(--text-subtle);
     text-align: center;
@@ -968,6 +1559,30 @@ button {
 .probe-row input.unb-mag,
 .probe-row input.unb-phase {
     width: 65px !important;
+}
+/* A row of a probe table that can name a probe of the model
+   (features/analysis.js): the choice on its own line, the typed node and
+   angle under it, put away while a probe of the model is chosen. */
+.probe-row.has-model-probes {
+    flex-wrap: wrap;
+}
+.probe-row select.probe-ref {
+    flex: 1 1 calc(100% - 40px);
+    width: auto !important;
+}
+/* The choice and its remove button on the first line, the typed node and
+   angle under them. */
+.probe-row.has-model-probes .btn-remove-probe {
+    order: 1;
+}
+.probe-row.has-model-probes .probe-typed > * {
+    order: 2;
+}
+.probe-typed {
+    display: contents;
+}
+.probe-typed[hidden] {
+    display: none;
 }
 .probe-row input.force-func {
     width: 100% !important;

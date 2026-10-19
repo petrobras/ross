@@ -102,7 +102,7 @@ true false parseInt parseFloat isNaN isFinite encodeURIComponent decodeURICompon
 setTimeout setInterval clearTimeout clearInterval fetch FileReader Blob URL Event
 CustomEvent AbortController AbortSignal localStorage sessionStorage alert confirm prompt
 navigator location performance requestAnimationFrame Intl TextDecoder DOMParser
-Plotly Sortable structuredClone
+Plotly Sortable structuredClone Float32Array ResizeObserver WeakSet
 this arguments new typeof instanceof void delete in of from as let const var function
 return if else for while do switch case default break continue try catch finally throw
 class extends super async await yield export import static get set""".split()
