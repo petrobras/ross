@@ -67,9 +67,6 @@ class MotorElement(Element):
         Default is 0.
     Ip_load : float, optional, pint.Quantity
         Polar Moment of inertia related to load [kg.m²].
-        `Rotor.run_with_motor` adds the polar moment of inertia of the rotor
-        to it, so it only needs the load inertia that the rotor model does
-        not include.
         Default is 0.
     voltage_net : float, optional
         Electrical tension of Power Supply [V].

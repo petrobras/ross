@@ -5189,16 +5189,11 @@ class Rotor(object):
     ):
         """Run time response with electric motor torque at the motor node.
 
-        The motor is simulated first, with the polar moment of inertia of the
-        rotor added to its load inertia, so its speed is the rigid-body speed
-        of the whole drive train. This speed sets the unbalance forces and the
-        speed-dependent matrices of the rotor. The torsional DOFs carry only
-        the twist relative to this rotation: the motor torque minus friction
-        and load torques is applied at the motor node and balanced by the
-        inertia torque of the rigid-body acceleration at every node. The motor
-        and load inertias are lumped at the motor node for this integration
-        only; the motor does not contribute to the global matrices used by
-        the other analyses.
+        The motor is simulated independently and its electromagnetic torque
+        (electric torque minus load torque) is applied to the torsional DOF
+        at the motor node. Shaft speed is taken from the motor simulation, so
+        the unbalance force is time-varying. The motor does not contribute to
+        the rotor global structural matrices.
 
         Available plotting methods:
             .plot_1d()
@@ -5268,10 +5263,8 @@ class Rotor(object):
         steady_state : bool, optional
             If True (default), only the last third of the interval after
             `load_torque_entrance_time` is integrated, skipping the motor
-            start-up and the load transient. The start-up time grows with the
-            polar moment of inertia of the rotor, so `t` must be long enough
-            for the drive train to reach its speed. If False, the full time
-            array is used.
+            start-up and the load transient. If False, the full time array
+            is used.
         F : array, optional
             Force array (needs to have the same number of rows as time array).
             Each column corresponds to a dof and each row to a time.
@@ -5306,12 +5299,12 @@ class Rotor(object):
         >>> n1 = rotor.disk_elements[0].n
         >>> n2 = rotor.disk_elements[1].n
         >>> results = rotor.run_with_motor(
-        ...     t=np.arange(0, 12, 1e-3),
+        ...     t=np.linspace(0, 1, 1000),
         ...     node=[n1, n2],
         ...     unbalance_magnitude=[5e-4, 0],
         ...     unbalance_phase=[-np.pi / 2, 0],
         ...     drive_mode="DOL",
-        ...     load_torque_entrance_time=7.5,
+        ...     load_torque_entrance_time=0.5,
         ... )
         Running direct method...
         >>> fig1 = results.plot_1d(probe=[Probe(n1, 0)])
@@ -5327,19 +5320,6 @@ class Rotor(object):
 
         if F is None:
             F = np.zeros((len(t), self.ndof))
-        else:
-            F = np.array(F, dtype=float)
-
-        dof_theta = motor.dof_global_index[f"theta_{motor.n}"]
-        rigid_mode = self._torsional_rigid_body_mode(motor.n)
-        M = np.array(kwargs.get("M", self.M()), dtype=float)
-        rotor_inertia = rigid_mode @ M @ rigid_mode
-        M[dof_theta, dof_theta] += motor.Ip_motor + motor.Ip_load
-        kwargs["M"] = M
-        total_inertia = rigid_mode @ M @ rigid_mode
-
-        motor_with_rotor = copy(motor)
-        motor_with_rotor.Ip_load = motor.Ip_load + rotor_inertia
 
         frequency_s = Q_(5000, "Hz")
 
@@ -5347,7 +5327,7 @@ class Rotor(object):
             print("[1/3] Simulating motor...", end="\r", flush=True)
 
         if drive_mode.upper() == "DOL":
-            motor_results = motor_with_rotor.run_direct_on_line(
+            motor_results = motor.run_direct_on_line(
                 t,
                 load_torque_entrance_time=load_torque_entrance_time,
                 load_torque_ratio=load_torque_ratio,
@@ -5355,7 +5335,7 @@ class Rotor(object):
                 unbalances=ac_source_unbalances,
             )
         elif drive_mode.upper() == "VFD_VF":
-            motor_results = motor_with_rotor.run_with_inverter_vf(
+            motor_results = motor.run_with_inverter_vf(
                 t,
                 load_torque_entrance_time=load_torque_entrance_time,
                 load_torque_ratio=load_torque_ratio,
@@ -5365,7 +5345,7 @@ class Rotor(object):
                 frequency_ref=frequency_ref,
             )
         elif drive_mode.upper() == "VFD_FOC":
-            motor_results = motor_with_rotor.run_with_inverter_foc(
+            motor_results = motor.run_with_inverter_foc(
                 t,
                 load_torque_entrance_time=load_torque_entrance_time,
                 load_torque_ratio=load_torque_ratio,
@@ -5385,18 +5365,17 @@ class Rotor(object):
 
         Te = motor_results.sample_at("electric_torque", t)
         Tl = motor_results.sample_at("load_torque", t)
-        speed = motor_results.sample_at("speed", t)
+        torque = Te - Tl
 
-        driving_torque = Te - motor.viscosity_coeff * speed - Tl
-        accel = driving_torque / total_inertia
-        shaft_torque = driving_torque - (motor.Ip_motor + motor.Ip_load) * accel
+        speed = motor_results.sample_at("speed", t)
 
         F += self.unbalance_force_over_time(
             node, unbalance_magnitude, unbalance_phase, speed, t
         ).T
 
-        F[:, dof_theta] += driving_torque
-        F -= np.outer(accel, M @ rigid_mode)
+        # Add torque to the rotor
+        dof_theta = motor.dof_global_index[f"theta_{motor.n}"]
+        F[:, dof_theta] += torque
 
         Ktq = np.zeros((self.ndof, self.ndof))
         for sh in self.shaft_elements:
@@ -5405,7 +5384,7 @@ class Rotor(object):
                 Ktq[np.ix_(dofs, dofs)] += sh.Ktq()
 
         kwargs["Ktq"] = Ktq
-        kwargs["torque"] = shaft_torque
+        kwargs["torque"] = torque
 
         if verbose:
             print("[2/3] Integrating rotor response... ", end="", flush=True)
@@ -5417,45 +5396,6 @@ class Rotor(object):
             print("\033[K[3/3] Simulation finished.", flush=True)
 
         return results
-
-    def _torsional_rigid_body_mode(self, node):
-        """Return the torsional rigid-body mode, equal to 1 at `node`.
-
-        The mode is the rotation of the torsional DOFs that strains neither
-        the shafts nor a gear mesh, taken from the null space of the
-        stiffness matrix. It is 1 at every node of a single rotor and follows
-        the mesh ratio in a multi-rotor.
-
-        Parameters
-        ----------
-        node : int
-            Node where the mode is normalized.
-
-        Returns
-        -------
-        mode : np.ndarray
-            Rotation of each torsional DOF for a unit rotation of `node`.
-        """
-        dofs = [self.number_dof * n + 5 for n in self.nodes]
-        _, singular_values, vh = la.svd(self.K(0)[:, dofs])
-
-        if singular_values[-1] > 1e-9 * singular_values[0]:
-            raise ValueError(
-                "The torsional DOFs are restrained, so the rotor has no "
-                "torsional rigid-body mode."
-            )
-
-        if singular_values[-2] <= 1e-9 * singular_values[0]:
-            raise ValueError(
-                "The torsional DOFs do not form a single train (e.g. a "
-                "coupling with kr_z=0), so the rotor has more than one "
-                "torsional rigid-body mode."
-            )
-
-        mode = np.zeros(self.ndof)
-        mode[dofs] = vh[-1] / vh[-1][self.nodes.index(node)]
-
-        return mode
 
     @check_units
     def run_misalignment(
