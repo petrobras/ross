@@ -843,9 +843,10 @@ def test_one_revolution_with_too_few_samples(rotor, speed, dt, steps_per_revolut
     response = np.zeros((len(time), rotor.ndof))
     result = TimeResponseResults(rotor, time, response, [], speed=speed)
     samples = int(np.floor(steps_per_revolution + 1e-9)) + 1
+    noun = "sample" if samples == 1 else "samples"
     message = (
         f"lasts {2 * np.pi / speed:.4g} s and the time step is {dt:.4g} s, so it "
-        f"holds {samples} samples; at least 10 are needed"
+        f"holds {samples} {noun}; at least 10 are needed"
     )
 
     with pytest.raises(ValueError, match=message):
@@ -891,3 +892,15 @@ def test_time_window_minimum_samples(rotor, dt, t_initial, t_final, samples):
                 t_initial=Q_(t_initial * 1e3, "ms"),
                 t_final=Q_(t_final * 1e3, "ms"),
             )
+
+
+@pytest.mark.parametrize("t_initial, t_final", [(1.0, 1.0), (1.2, 1.1)])
+def test_time_window_needs_t_initial_before_t_final(rotor, t_initial, t_final):
+    time = np.linspace(0.0, 2.0, 2001)
+    response = np.zeros((len(time), rotor.ndof))
+    result = TimeResponseResults(rotor, time, response, [])
+
+    with pytest.raises(ValueError, match="t_initial must be smaller than t_final"):
+        result._get_window(t_initial, t_final)
+    with pytest.raises(ValueError, match="t_initial must be smaller than t_final"):
+        result.plot_2d(node=3, t_initial=t_initial, t_final=t_final)

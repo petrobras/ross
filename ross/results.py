@@ -5838,8 +5838,8 @@ class TimeResponseResults(Results):
         elif t_initial is None:
             return time, yout
 
-        if t_initial > t_final:
-            raise ValueError("t_initial must be smaller than or equal to t_final.")
+        if t_initial >= t_final:
+            raise ValueError("t_initial must be smaller than t_final.")
 
         if t_initial < time[0] or t_final > time[-1]:
             raise ValueError(f"Time interval must be within [{time[0]}, {time[-1]}].")
@@ -5854,9 +5854,10 @@ class TimeResponseResults(Results):
             neighborhood = time[max(initial_index - 1, 0) : final_index + 1]
             step = np.max(np.diff(neighborhood)) if len(neighborhood) > 1 else 0.0
             length = t_final - t_initial
+            noun = "sample" if samples == 1 else "samples"
             raise ValueError(
                 f"The selected window lasts {length:.4g} s and the time step is "
-                f"{step:.4g} s, so it holds {samples} samples; at least "
+                f"{step:.4g} s, so it holds {samples} {noun}; at least "
                 f"{MIN_WINDOW_SAMPLES} are needed. Use a time step of at most "
                 f"{length / (MIN_WINDOW_SAMPLES - 1):.4g} s or a longer window."
             )
