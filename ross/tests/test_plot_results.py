@@ -401,7 +401,8 @@ def test_time_response_results_store_run_speed(rotor):
     result = rotor.run_time_response(speed, force, time)
 
     assert result.speed == pytest.approx(speed)
-    assert result._get_cycle_frequency(result.t, result.yout) == pytest.approx(4)
+    t_initial, t_final = result._get_revolution(result.t)
+    assert t_final - t_initial == pytest.approx(1 / 4)
 
 
 def test_time_response_plot_2d(time_response):
@@ -488,53 +489,64 @@ def test_time_response_plots_use_time_window(time_response, probe_node3):
     assert_allclose(time_response.yout, original_yout)
 
 
-def test_time_response_window_converts_time_units(rotor):
+@pytest.mark.parametrize(
+    "t_initial, t_final, time_units",
+    [
+        (Q_(500, "ms"), Q_(1500, "ms"), "s"),
+        (500, 1500, "ms"),
+        (0.5, 1.5, "s"),
+    ],
+)
+def test_time_response_window_converts_time_units(
+    rotor, t_initial, t_final, time_units
+):
     time = np.arange(0.0, 3.0, 1e-3)
     response = np.zeros((len(time), rotor.ndof))
     result = TimeResponseResults(rotor, time, response, [])
 
-    window_time, _ = result._get_window(
-        t_initial=Q_(500, "ms"),
-        t_final=Q_(1500, "ms"),
+    window_time, _, windowed = result._get_plot_data(
+        {"t_initial": t_initial, "t_final": t_final}, time_units
+    )
+    fig = result.plot_1d(
+        probe=[Probe(3, Q_(0, "rad"))],
+        t_initial=t_initial,
+        t_final=t_final,
+        time_units=time_units,
     )
 
+    assert windowed
     assert window_time[0] == pytest.approx(0.5)
     assert window_time[-1] == pytest.approx(1.5)
+    assert_allclose(
+        np.asarray(fig.layout.xaxis.range),
+        Q_([0.5, 1.5], "s").to(time_units).m,
+    )
 
 
-def test_time_response_plots_use_one_cycle(rotor):
+def test_time_response_plots_use_one_revolution(rotor):
     time = np.arange(0.0, 6.0, 1e-3)
     node = 3
-    frequency = 2.0
+    revolutions_per_second = 2.0
     response = np.zeros((len(time), rotor.ndof))
     dof_x = node * rotor.number_dof
-    dof_y = dof_x + 1
-    response[:, dof_x] = np.where(
-        time < 4.0,
-        np.sin(2 * np.pi * 0.25 * time),
-        np.sin(2 * np.pi * frequency * time),
-    )
-    response[:, dof_y] = np.where(
-        time < 4.0,
-        np.cos(2 * np.pi * 0.25 * time),
-        np.cos(2 * np.pi * frequency * time),
-    )
+    response[:, dof_x] = np.sin(2 * np.pi * revolutions_per_second * time)
+    response[:, dof_x + 1] = np.cos(2 * np.pi * revolutions_per_second * time)
 
-    result = TimeResponseResults(rotor, time, response, [])
-    window_time, window_response = result._get_window(one_cycle=True)
-    expected_initial = np.searchsorted(
-        time,
-        time[-1] - 1 / frequency,
-        side="left",
+    result = TimeResponseResults(
+        rotor, time, response, [], speed=2 * np.pi * revolutions_per_second
     )
+    window_time, window_response = result._get_window(one_revolution=True)
+    initial_index = np.searchsorted(time, window_time[0])
 
-    assert_allclose(window_time, time[expected_initial:])
-    assert_allclose(window_response, response[expected_initial:])
+    assert_allclose(
+        [window_time[0], window_time[-1]], [time[-1] - 0.5, time[-1]], atol=1e-3
+    )
+    assert_allclose(window_response, response[initial_index:])
 
     probe = Probe(node, Q_(0, "rad"))
-    fig_1d = result.plot_1d(probe=[probe], one_cycle=True)
-    fig_2d = result.plot_2d(node=node, one_cycle=True)
-    fig_3d = result.plot_3d(one_cycle=True)
+    fig_1d = result.plot_1d(probe=[probe], one_revolution=True)
+    fig_2d = result.plot_2d(node=node, one_revolution=True)
+    fig_3d = result.plot_3d(one_revolution=True)
 
     assert len(fig_1d.data[0].x) == len(window_time)
     assert_allclose(
@@ -544,31 +556,45 @@ def test_time_response_plots_use_one_cycle(rotor):
     assert len(fig_2d.data[0].x) == len(window_time)
     assert len(fig_3d.data[0].x) == len(window_time)
 
-    initial_window, _ = result._get_window(
-        t_initial=1.0,
-        one_cycle=True,
-    )
-    final_window, _ = result._get_window(
-        t_final=3.0,
-        one_cycle=True,
-    )
-    assert initial_window[0] == pytest.approx(time[1000])
-    assert final_window[-1] == pytest.approx(time[3000])
+    initial_window, _ = result._get_window(t_initial=1.0, one_revolution=True)
+    final_window, _ = result._get_window(t_final=3.0, one_revolution=True)
+    assert initial_window[0] == pytest.approx(1.0, abs=1e-3)
+    assert initial_window[-1] == pytest.approx(1.5, abs=1e-3)
+    assert final_window[0] == pytest.approx(2.5, abs=1e-3)
+    assert final_window[-1] == pytest.approx(3.0, abs=1e-3)
 
-    result.speed = 2 * np.pi * 4
-    speed_window, _ = result._get_window(one_cycle=True)
-    speed_initial = np.searchsorted(
-        time,
-        time[-1] - 1 / 4,
-        side="left",
+    fig_ms = result.plot_1d(
+        probe=[probe], one_revolution=True, t_final=3000, time_units="ms"
     )
-    assert_allclose(speed_window, time[speed_initial:])
+    assert_allclose(np.asarray(fig_ms.layout.xaxis.range), [2500, 3000])
 
-    with pytest.raises(ValueError, match="one_cycle=True cannot be used"):
-        result._get_window(
-            t_initial=1.0,
-            t_final=2.0,
-            one_cycle=True,
+    with pytest.raises(ValueError, match="one_revolution=True cannot be used"):
+        result._get_window(t_initial=1.0, t_final=2.0, one_revolution=True)
+
+
+def test_one_revolution_integrates_a_varying_speed(rotor):
+    time = np.linspace(0.0, 2.0, 2001)
+    response = np.zeros((len(time), rotor.ndof))
+    acceleration = 4 * np.pi
+    speed = acceleration * time
+    result = TimeResponseResults(rotor, time, response, [], speed=speed)
+
+    t_initial, t_final = result._get_revolution(time)
+
+    # The shaft angle is acceleration * t**2 / 2.
+    assert t_final == pytest.approx(2.0)
+    assert t_initial == pytest.approx(np.sqrt(2.0**2 - 4 * np.pi / acceleration))
+
+
+def test_one_revolution_needs_a_speed(rotor):
+    time = np.arange(0.0, 1.0, 1e-3)
+    response = np.zeros((len(time), rotor.ndof))
+
+    with pytest.raises(ValueError, match="needs the rotor speed"):
+        TimeResponseResults(rotor, time, response, [])._get_window(one_revolution=True)
+    with pytest.raises(ValueError, match="does not complete one revolution"):
+        TimeResponseResults(rotor, time, response, [], speed=1.0)._get_window(
+            one_revolution=True
         )
 
 

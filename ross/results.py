@@ -17,6 +17,7 @@ from numpy import linalg as la
 from plotly import graph_objects as go
 from plotly.subplots import make_subplots
 from prettytable import PrettyTable
+from scipy.integrate import cumulative_trapezoid
 from pathlib import Path
 
 from ross.plotly_theme import (
@@ -5711,111 +5712,76 @@ class TimeResponseResults(Results):
         self.rotor = rotor
         self.speed = speed
 
-    def _get_cycle_frequency(self, time, yout):
-        """Return the cycle frequency from speed or the final response third.
+    def _get_revolution(self, time, t_initial=None, t_final=None):
+        """Return the limits of one shaft revolution.
+
+        The shaft angle is the time integral of the stored speed, so a speed
+        that varies along the response (a run-up) is also handled.
 
         Parameters
         ----------
         time : array
             Time values in seconds.
-        yout : array
-            Time-response values.
+        t_initial : float, optional
+            Start of the revolution in seconds.
+        t_final : float, optional
+            End of the revolution in seconds. Without ``t_initial`` and
+            ``t_final``, the revolution ends at the last time value.
 
         Returns
         -------
-        float
-            Cycle frequency in hertz. If no speed is available, the smallest
-            significant positive DFT peak from the final response third is used.
+        t_initial, t_final : float
+            Limits of the revolution in seconds.
         """
-        speed = getattr(self, "speed", None)
-        if speed is None:
-            speed = getattr(self.rotor, "speed", None)
-
-        if speed is not None:
-            try:
-                speed = speed.to("rad/s").m if hasattr(speed, "to") else speed
-                speed = float(speed)
-            except (AttributeError, TypeError, ValueError):
-                speed = None
-
-            if speed is not None and np.isfinite(speed) and speed != 0:
-                return abs(speed) / (2 * np.pi)
-
-        init_step = int(2 * len(time) / 3)
-        frequency_time = time[init_step:]
-        frequency_response = np.asarray(yout, dtype=float)[init_step:]
-
-        if len(frequency_time) < 3:
+        if self.speed is None:
             raise ValueError(
-                "At least three time samples are required to estimate the cycle "
-                "frequency."
+                "one_revolution=True needs the rotor speed, which these results "
+                "do not store. Results from run_time_response store it."
             )
 
-        time_step = np.diff(frequency_time)
-        if not np.allclose(time_step, time_step[0]):
-            raise ValueError("one_cycle requires an evenly sampled time vector.")
-
-        if frequency_response.ndim == 1:
-            frequency_response = frequency_response[:, np.newaxis]
-
-        frequencies = None
-        amplitudes = None
-        for response_column in frequency_response.T:
-            response_column = response_column - response_column.mean()
-            current_frequencies, current_amplitudes, _ = compute_dfft(
-                response_column,
-                time_step[0],
+        speed = np.abs(np.asarray(self.speed, dtype=float))
+        if speed.ndim == 0:
+            speed = np.full(len(time), speed)
+        if speed.shape != np.shape(time):
+            raise ValueError(
+                f"The speed has {speed.size} values, but the response has "
+                f"{len(time)} time values."
             )
-            positive = current_frequencies > 0
-            current_frequencies = current_frequencies[positive]
-            current_amplitudes = current_amplitudes[positive]
 
-            if frequencies is None:
-                frequencies = current_frequencies
-                amplitudes = current_amplitudes
-            else:
-                amplitudes = np.maximum(amplitudes, current_amplitudes)
-
-        if frequencies is None or len(frequencies) == 0:
-            raise ValueError("The response does not contain a detectable frequency.")
-
-        max_amplitude = np.max(amplitudes)
-        if not np.isfinite(max_amplitude) or max_amplitude == 0:
-            raise ValueError("The response does not contain a detectable frequency.")
-
-        threshold = max_amplitude * 1e-3
-        peaks = np.zeros(len(amplitudes), dtype=bool)
-        if len(amplitudes) == 1:
-            peaks[0] = True
+        angle = cumulative_trapezoid(speed, time, initial=0)
+        if t_initial is None:
+            t_final = time[-1] if t_final is None else t_final
+            start_angle = np.interp(t_final, time, angle) - 2 * np.pi
+            if start_angle < 0:
+                raise ValueError(
+                    "The shaft does not complete one revolution before t_final."
+                )
+            t_initial = np.interp(start_angle, angle, time)
         else:
-            peaks[1:-1] = (amplitudes[1:-1] >= amplitudes[:-2]) & (
-                amplitudes[1:-1] >= amplitudes[2:]
-            )
-            peaks[0] = amplitudes[0] >= amplitudes[1]
-            peaks[-1] = amplitudes[-1] >= amplitudes[-2]
+            final_angle = np.interp(t_initial, time, angle) + 2 * np.pi
+            if final_angle > angle[-1]:
+                raise ValueError(
+                    "The shaft does not complete one revolution after t_initial."
+                )
+            t_final = np.interp(final_angle, angle, time)
 
-        detected = frequencies[peaks & (amplitudes >= threshold)]
-        if len(detected) == 0:
-            raise ValueError("The response does not contain a detectable frequency.")
+        return t_initial, t_final
 
-        return detected[0]
-
-    def _get_window(self, t_initial=None, t_final=None, one_cycle=False):
+    def _get_window(self, t_initial=None, t_final=None, one_revolution=False):
         """Return copied time-response data cropped to a selected window.
 
         Parameters
         ----------
         t_initial : float, optional
-            Initial time in seconds. With ``one_cycle=True``, this starts the
-            selected cycle.
+            Initial time in seconds. With ``one_revolution=True``, the
+            revolution starts at this time.
         t_final : float, optional
-            Final time in seconds. With ``one_cycle=True``, this ends the
-            selected cycle.
-        one_cycle : bool, optional
-            If True, select one cycle using the last cycle by default. If only
-            ``t_initial`` is provided, the cycle starts at that time. If only
-            ``t_final`` is provided, the cycle ends at that time. Providing both
-            time values with ``one_cycle=True`` raises a ``ValueError``.
+            Final time in seconds. With ``one_revolution=True``, the
+            revolution ends at this time.
+        one_revolution : bool, optional
+            If True, select one shaft revolution, the last one by default.
+            Providing both time values with ``one_revolution=True`` raises a
+            ``ValueError``.
 
         Returns
         -------
@@ -5827,30 +5793,18 @@ class TimeResponseResults(Results):
         time = np.array(self.t, copy=True)
         yout = np.array(self.yout, copy=True)
 
-        if t_initial is not None and hasattr(t_initial, "to"):
-            t_initial = t_initial.to("s").m
-        if t_final is not None and hasattr(t_final, "to"):
-            t_final = t_final.to("s").m
-
-        if one_cycle and t_initial is not None and t_final is not None:
+        if one_revolution and t_initial is not None and t_final is not None:
             raise ValueError(
-                "one_cycle=True cannot be used with both t_initial and t_final. "
-                "Choose either one_cycle with a single time boundary or a regular "
-                "time window."
+                "one_revolution=True cannot be used with both t_initial and "
+                "t_final. Choose either one_revolution with a single time "
+                "boundary or a regular time window."
             )
 
-        if not one_cycle and (t_initial is None) != (t_final is None):
+        if not one_revolution and (t_initial is None) != (t_final is None):
             raise ValueError("t_initial and t_final must be provided together.")
 
-        if one_cycle:
-            period = 1 / self._get_cycle_frequency(time, yout)
-            if t_initial is None and t_final is None:
-                t_final = time[-1]
-                t_initial = t_final - period
-            elif t_initial is not None:
-                t_final = t_initial + period
-            else:
-                t_initial = t_final - period
+        if one_revolution:
+            t_initial, t_final = self._get_revolution(time, t_initial, t_final)
         elif t_initial is None:
             return time, yout
 
@@ -5860,26 +5814,37 @@ class TimeResponseResults(Results):
         if t_initial < time[0] or t_final > time[-1]:
             raise ValueError(f"Time interval must be within [{time[0]}, {time[-1]}].")
 
-        initial_index = np.searchsorted(time, t_initial, side="left")
-        final_index = np.searchsorted(time, t_final, side="right")
+        # Keep the samples that rounding puts a hair outside the limits
+        tolerance = 1e-6 * np.min(np.diff(time)) if len(time) > 1 else 0.0
+        initial_index = np.searchsorted(time, t_initial - tolerance, side="left")
+        final_index = np.searchsorted(time, t_final + tolerance, side="right")
 
         if initial_index >= final_index:
             raise ValueError("The selected time interval contains no samples.")
 
         return time[initial_index:final_index], yout[initial_index:final_index, :]
 
-    def _get_plot_data(self, kwargs):
-        """Extract plot window arguments and return the selected response data."""
+    def _get_plot_data(self, kwargs, time_units="s"):
+        """Extract plot window arguments and return the selected response data.
+
+        Plain numbers given as ``t_initial`` or ``t_final`` are read in
+        ``time_units``; ``pint.Quantity`` values keep their own units.
+        """
         t_initial = kwargs.pop("t_initial", None)
         t_final = kwargs.pop("t_final", None)
-        one_cycle = kwargs.pop("one_cycle", False)
-        windowed = one_cycle or t_initial is not None or t_final is not None
+        one_revolution = kwargs.pop("one_revolution", False)
+        windowed = one_revolution or t_initial is not None or t_final is not None
 
-        if windowed:
-            time, yout = self._get_window(t_initial, t_final, one_cycle)
-        else:
-            time = self.t
-            yout = self.yout
+        if not windowed:
+            return self.t, self.yout, windowed
+
+        t_initial, t_final = (
+            None
+            if value is None
+            else (value if hasattr(value, "to") else Q_(value, time_units)).to("s").m
+            for value in (t_initial, t_final)
+        )
+        time, yout = self._get_window(t_initial, t_final, one_revolution)
 
         return time, yout, windowed
 
@@ -5998,10 +5963,10 @@ class TimeResponseResults(Results):
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
-            ``t_initial`` and ``t_final`` define a time window in seconds when
-            ``one_cycle`` is False. With ``one_cycle=True``, provide at most one
-            of them as the cycle anchor. Without an anchor, the last cycle is used.
-            The cycle frequency comes from an available speed or the response DFT.
+            ``t_initial`` and ``t_final`` select a time window, as numbers in
+            ``time_units`` or as ``pint.Quantity`` values. ``one_revolution=True``
+            selects one shaft revolution from the stored speed: the last one, or
+            the one starting at ``t_initial`` or ending at ``t_final``.
             *See Plotly Python Figure Reference for more information.
 
         Returns
@@ -6013,7 +5978,7 @@ class TimeResponseResults(Results):
         if fig is None:
             fig = go.Figure()
 
-        time, yout, windowed = self._get_plot_data(kwargs)
+        time, yout, windowed = self._get_plot_data(kwargs, time_units)
 
         df = self.data_time_response(
             probe,
@@ -6027,12 +5992,11 @@ class TimeResponseResults(Results):
             try:
                 probe_tag = df[f"probe_tag[{i}]"].values[0]
                 probe_resp = df[f"probe_resp[{i}]"].values
-                plot_resp = probe_resp
 
                 fig.add_trace(
                     go.Scatter(
                         x=_time,
-                        y=plot_resp,
+                        y=probe_resp,
                         mode="lines",
                         name=probe_tag,
                         legendgroup=probe_tag,
@@ -6069,10 +6033,10 @@ class TimeResponseResults(Results):
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
-            ``t_initial`` and ``t_final`` define a time window in seconds when
-            ``one_cycle`` is False. With ``one_cycle=True``, provide at most one
-            of them as the cycle anchor. Without an anchor, the last cycle is used.
-            The cycle frequency comes from an available speed or the response DFT.
+            ``t_initial`` and ``t_final`` select a time window, as numbers in
+            seconds or as ``pint.Quantity`` values. ``one_revolution=True``
+            selects one shaft revolution from the stored speed: the last one, or
+            the one starting at ``t_initial`` or ending at ``t_final``.
             *See Plotly Python Figure Reference for more information.
 
         Returns
@@ -6160,10 +6124,10 @@ class TimeResponseResults(Results):
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. hoverlabel_align="center", ...).
-            ``t_initial`` and ``t_final`` define a time window in seconds when
-            ``one_cycle`` is False. With ``one_cycle=True``, provide at most one
-            of them as the cycle anchor. Without an anchor, the last cycle is used.
-            The cycle frequency comes from an available speed or the response DFT.
+            ``t_initial`` and ``t_final`` select a time window, as numbers in
+            seconds or as ``pint.Quantity`` values. ``one_revolution=True``
+            selects one shaft revolution from the stored speed: the last one, or
+            the one starting at ``t_initial`` or ending at ``t_final``.
             *See Plotly Python Figure Reference for more information.
 
         Returns
