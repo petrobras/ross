@@ -4933,7 +4933,7 @@ class Rotor(object):
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
-            *See Plotly Python Figure Reference for more information.
+            See Plotly Python Figure Reference for more information.
 
         Returns
         -------
@@ -5127,9 +5127,11 @@ class Rotor(object):
             - 'magnitudes': list, float
                 List of excitation magnitudes.
                 Interpretation depends on the type of excitation:
-                    - For direct harmonic forces: force amplitudes (N).
-                    - For unbalance-type excitations: ``m * e * speed**2`` (N),
-                    where ``m`` is the unbalance mass (kg) and ``e`` is the eccentricity (m).
+
+                - For direct harmonic forces: force amplitudes (N).
+                - For unbalance-type excitations: ``m * e * speed**2`` (N),
+                  where ``m`` is the unbalance mass (kg) and ``e`` is the
+                  eccentricity (m).
 
             - 'phases': list of float
                 List of phase angles (rad).
@@ -5234,9 +5236,12 @@ class Rotor(object):
             Unbalance phase (rad) for each node.
         drive_mode : str
             Run motor with:
-                - 'DOL': Direct on line start
-                - 'VFD_VF': Variable frequency drive with open-loop V/f adjustment technique
-                - 'VFD_FOC': Variable frequency drive with closed-loop field-oriented control
+
+            - ``'DOL'``: direct-on-line start.
+            - ``'VFD_VF'``: variable frequency drive with open-loop V/f
+              adjustment technique.
+            - ``'VFD_FOC'``: variable frequency drive with closed-loop
+              field-oriented control.
         load_torque_entrance_time : float, pint.Quantity, optional
             Time when load torque is applied to the motor shaft [s].
             Default is half the simulation time.
@@ -5248,25 +5253,26 @@ class Rotor(object):
             Configuration for grid harmonic injection.
             Active only when `drive_mode='DOL'`.
             Expected keys:
-            - 'enable' : bool
-                Enable harmonics.
-            - 'orders' : list of int
-                Harmonic orders (e.g., [5, 7, 11] for 5th, 7th, and 11th harmonics).
-            - 'amplitudes' : list of float
-                Harmonic amplitudes as percentage of rated voltage
-                (e.g., [10, 5, 2] for 10%, 5%, and 2%).
+
+            - ``'enable'`` (bool): enable harmonics.
+            - ``'orders'`` (list of int): harmonic orders (e.g., [5, 7, 11]
+              for 5th, 7th, and 11th harmonics).
+            - ``'amplitudes'`` (list of float): harmonic amplitudes as
+              percentage of rated voltage (e.g., [10, 5, 2] for 10%, 5%,
+              and 2%).
         ac_source_unbalances : dict, optional
             Configuration for three-phase grid unbalance.
             Active only when `drive_mode='DOL'`.
             Expected keys:
-            - 'enable' : bool
-                Enable unbalances.
-            - 'voltage_percent' : list of float
-                Voltage magnitude deviation per phase (A, B, C) relative to rated [%].
-                Must contain exactly 3 elements.
-                Positive → higher voltage; Negative → lower voltage.
-            - 'angle_deviation' : list of float, pint.Quantity
-                Angle deviation per phase (A, B, C) [rad]. Must contain exactly 3 elements.
+
+            - ``'enable'`` (bool): enable unbalances.
+            - ``'voltage_percent'`` (list of float): voltage magnitude
+              deviation per phase (A, B, C) relative to rated [%]. Must
+              contain exactly 3 elements. Positive → higher voltage;
+              Negative → lower voltage.
+            - ``'angle_deviation'`` (list of float, pint.Quantity): angle
+              deviation per phase (A, B, C) [rad]. Must contain exactly 3
+              elements.
         time_step : float, pint.Quantity, optional
             Time step [s] for numerical integration of the motor model.
             Active only when `drive_mode` is ``'VFD_VF'`` or ``'VFD_FOC'``.
@@ -5284,8 +5290,10 @@ class Rotor(object):
         steady_state : bool, optional
             If True (default), only the last third of the interval after
             `load_torque_entrance_time` is integrated, skipping the motor
-            start-up and the load transient. If False, the full time array
-            is used.
+            start-up and the load transient. The rotor starts from rest at
+            the start of that window, so the response begins with a new
+            lateral transient; use False, or a longer `t`, when the response
+            amplitudes matter. If False, the full time array is used.
         F : array, optional
             Force array (needs to have the same number of rows as time array).
             Each column corresponds to a dof and each row to a time.
@@ -5434,7 +5442,8 @@ class Rotor(object):
 
         Misalignment object is instantiated and system's time response is simulated.
         There are two types of coupling: flexible (flex) and rigid, each with distinct
-        parameters. These parameters are passed to the respective method through **kwargs.
+        parameters. These parameters are passed to the respective method through
+        ``**kwargs``.
 
         Parameters
         ----------
@@ -5456,7 +5465,7 @@ class Rotor(object):
             Default is "flex".
 
         **kwargs : dictionary
-            If coupling = "flex", **kwargs receives:
+            If coupling = "flex", ``**kwargs`` receives:
                 n : float
                     Number of shaft element where the misalignment is ocurring.
                 mis_type: string
@@ -5480,7 +5489,7 @@ class Rotor(object):
                 load_torque : float, pint.Quantity
                     Driven torque. Default is 0.
 
-            If coupling = "rigid", **kwargs receives:
+            If coupling = "rigid", ``**kwargs`` receives:
                 n : float
                     Number of shaft element where the misalignment is ocurring.
                 mis_distance : float, pint.Quantity
