@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+from ross import Rotor
 from ross.agent_skills import install_skill, uninstall_skill
 from ross.agent_skills.install import (
     AGENTS,
@@ -39,6 +40,12 @@ def test_skill_is_self_contained(skill_source):
             if md_file.name == "SKILL.md":
                 indexed.add(link)
     assert indexed == recipe_files
+
+
+def test_skill_indexes_every_rotor_analysis(skill_source):
+    text = (skill_source / "SKILL.md").read_text(encoding="utf-8")
+    analyses = {name for name in dir(Rotor) if name.startswith("run_")}
+    assert {name for name in analyses if f"`{name}`" not in text} == set()
 
 
 def test_install_stamps_version(tmp_path):

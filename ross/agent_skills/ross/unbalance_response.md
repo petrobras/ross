@@ -25,6 +25,17 @@ response = rotor.run_unbalance_response(
 
 Multiple unbalance sources: pass arrays for `node`, `unbalance_magnitude`, `unbalance_phase`.
 
+`ross.utils.speed_range_from_endpoints` builds `speed_range` from two end points in any speed unit; without `num_points`, the number of points grows with the square root of the span (default `points_factor=20`):
+
+```python
+from ross.utils import speed_range_from_endpoints
+
+speed_range = speed_range_from_endpoints(rs.Q_(0, "RPM"), rs.Q_(10000, "RPM"))
+response = rotor.run_unbalance_response(
+    node=2, unbalance_magnitude=0.001, unbalance_phase=0, speed_range=speed_range
+)
+```
+
 ## Results: `ForcedResponseResults`
 
 Uses `Probe` objects to specify measurement locations:

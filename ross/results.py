@@ -55,6 +55,10 @@ __all__ = [
 # Define reference circle for orbits
 NUM_POINTS = 360
 CIRCLE = np.exp(1j * np.linspace(0, 2 * np.pi, NUM_POINTS, endpoint=False))
+# A circular orbit drawn through 10 samples of one revolution (9 chords) stays
+# within 1 - cos(pi / 9), about 6 %, of its radius; fewer samples do not show
+# the orbit shape.
+MIN_WINDOW_SAMPLES = 10
 
 
 class Results(ABC):
@@ -5812,6 +5816,11 @@ class TimeResponseResults(Results):
             Cropped time values.
         yout : array
             Cropped response values.
+
+        Raises
+        ------
+        ValueError
+            If the window holds fewer than ``MIN_WINDOW_SAMPLES`` (10) samples.
         """
         time = np.array(self.t, copy=True)
         yout = np.array(self.yout, copy=True)
@@ -5831,8 +5840,8 @@ class TimeResponseResults(Results):
         elif t_initial is None:
             return time, yout
 
-        if t_initial > t_final:
-            raise ValueError("t_initial must be smaller than or equal to t_final.")
+        if t_initial >= t_final:
+            raise ValueError("t_initial must be smaller than t_final.")
 
         if t_initial < time[0] or t_final > time[-1]:
             raise ValueError(f"Time interval must be within [{time[0]}, {time[-1]}].")
@@ -5842,8 +5851,18 @@ class TimeResponseResults(Results):
         initial_index = np.searchsorted(time, t_initial - tolerance, side="left")
         final_index = np.searchsorted(time, t_final + tolerance, side="right")
 
-        if initial_index >= final_index:
-            raise ValueError("The selected time interval contains no samples.")
+        samples = final_index - initial_index
+        if samples < MIN_WINDOW_SAMPLES:
+            neighborhood = time[max(initial_index - 1, 0) : final_index + 1]
+            step = np.max(np.diff(neighborhood)) if len(neighborhood) > 1 else 0.0
+            length = t_final - t_initial
+            noun = "sample" if samples == 1 else "samples"
+            raise ValueError(
+                f"The selected window lasts {length:.4g} s and the time step is "
+                f"{step:.4g} s, so it holds {samples} {noun}; at least "
+                f"{MIN_WINDOW_SAMPLES} are needed. Use a time step of at most "
+                f"{length / (MIN_WINDOW_SAMPLES - 1):.4g} s or a longer window."
+            )
 
         return time[initial_index:final_index], yout[initial_index:final_index, :]
 
@@ -5989,7 +6008,8 @@ class TimeResponseResults(Results):
             ``t_initial`` and ``t_final`` select a time window, as numbers in
             ``time_units`` or as ``pint.Quantity`` values. ``one_revolution=True``
             selects one shaft revolution from the stored speed: the last one, or
-            the one starting at ``t_initial`` or ending at ``t_final``.
+            the one starting at ``t_initial`` or ending at ``t_final``. A window
+            with fewer than 10 samples raises a ``ValueError``.
             *See Plotly Python Figure Reference for more information.
 
         Returns
@@ -6059,7 +6079,8 @@ class TimeResponseResults(Results):
             ``t_initial`` and ``t_final`` select a time window, as numbers in
             seconds or as ``pint.Quantity`` values. ``one_revolution=True``
             selects one shaft revolution from the stored speed: the last one, or
-            the one starting at ``t_initial`` or ending at ``t_final``.
+            the one starting at ``t_initial`` or ending at ``t_final``. A window
+            with fewer than 10 samples raises a ``ValueError``.
             *See Plotly Python Figure Reference for more information.
 
         Returns
@@ -6150,7 +6171,8 @@ class TimeResponseResults(Results):
             ``t_initial`` and ``t_final`` select a time window, as numbers in
             seconds or as ``pint.Quantity`` values. ``one_revolution=True``
             selects one shaft revolution from the stored speed: the last one, or
-            the one starting at ``t_initial`` or ending at ``t_final``.
+            the one starting at ``t_initial`` or ending at ``t_final``. A window
+            with fewer than 10 samples raises a ``ValueError``.
             *See Plotly Python Figure Reference for more information.
 
         Returns

@@ -134,6 +134,7 @@ export async function saveMultiRotor() {
             coupled_nodes: document.getElementById('mr-coupled-nodes').value,
             gear_mesh_stiffness: document.getElementById('mr-stiffness').value,
             update_mesh_stiffness: document.getElementById('mr-update-stiffness').value,
+            mesh_damping_ratio: document.getElementById('mr-mesh-damping').value,
             square_varying_stiffness: {
                 enable: document.getElementById('mr-square-stiffness-enable').value === 'true',
                 amplitude_ratio: parseFloat(document.getElementById('mr-square-stiffness-ratio').value) || 0

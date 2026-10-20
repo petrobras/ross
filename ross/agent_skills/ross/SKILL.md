@@ -7,8 +7,10 @@ description: >-
   analyses: modal analysis, Campbell diagram, critical speeds, unbalance
   response, frequency response (FRF), static analysis, time response,
   undamped critical speed (UCS) map, API 617 Level 1 stability, fault
-  analyses (rubbing, crack, misalignment), and gas seals with speed- and
-  whirl-frequency-dependent coefficients.
+  analyses (rubbing, crack, misalignment), shaft mesh convergence, gas seals
+  with speed- and whirl-frequency-dependent coefficients, and three-phase
+  induction motors driving the rotor (direct-on-line, V/f and field-oriented
+  control drives).
 license: Apache-2.0
 ---
 
@@ -32,6 +34,10 @@ Concise recipes for rotordynamics analyses with ROSS. Each file is self-containe
 | UCS and Level 1 stability | [ucs_and_level1.md](ucs_and_level1.md) | `run_ucs`, `run_level1` |
 | Fault analysis | [faults.md](faults.md) | `run_rubbing`, `run_crack`, `run_misalignment` |
 | Mesh convergence | [mesh_convergence.md](mesh_convergence.md) | `run_mesh_convergence`, `refine` |
+| Induction motor | [motor.md](motor.md) | `MotorElement`, `run_direct_on_line`, `run_with_inverter_vf`, `run_with_inverter_foc`, `run_with_motor` |
+| Harmonic balance (no recipe yet) | — | `run_harmonic_balance_response`: see `help(rs.Rotor.run_harmonic_balance_response)` |
+| AMB sensitivity (no recipe yet) | — | `run_amb_sensitivity`: see `help(rs.Rotor.run_amb_sensitivity)` |
+| AMB sensor-actuator non-collocation (no recipe yet) | — | `run_amb_non_collocation`: see `help(rs.Rotor.run_amb_non_collocation)` |
 | Advanced bearings | [bearings_advanced.md](bearings_advanced.md) | `BearingElement` speed / frequency / 2-D tables, fluid-film bearings |
 | Seals | [seals.md](seals.md) | `LabyrinthSeal`, `HolePatternSeal`, `HybridSeal`, whirl-dependent tables, `matched_whirl` |
 | Common gotchas | [gotchas.md](gotchas.md) | — |
