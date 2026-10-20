@@ -320,7 +320,9 @@ was released with.
 Python releases a new minor version every October, so a release supports the
 three most recent Python minors, or four in the weeks after a new Python comes
 out. New Python versions are added to the test matrix as soon as the
-dependencies (numba in particular) publish wheels for them.
+dependencies (numba in particular) publish wheels for them. Optional
+dependencies, such as `tsdownsample` in the `downsample` extra, do not hold a
+new Python back: ROSS imports and works without them.
 
 (maintenance-branches)=
 
