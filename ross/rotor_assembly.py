@@ -1140,12 +1140,16 @@ class Rotor(object):
         """Add nodes to rotor.
 
         This method returns the modified rotor with additional nodes according to
-        the positions of the new nodes provided.
+        the positions of the new nodes provided. Disks, bearings, seals, point
+        masses and the motor keep their positions; their nodes, the housing
+        nodes (``n_link``) and the sensor nodes of magnetic bearings are
+        renumbered as :meth:`refine` renumbers them.
 
         Parameters
         ----------
         new_nodes_pos : list
-            List with the position of the new nodes.
+            List with the position of the new nodes, in m. Positions that are
+            already nodes, or that are off the shaft, are ignored.
 
         Returns
         -------
@@ -1164,95 +1168,126 @@ class Rotor(object):
         >>> round(shaft_elements[6].L, 2)
         0.14
         """
-        new_nodes_pos.sort()
+        first_node = min(elm.n for elm in self.shaft_elements)
+        n_intervals = max(elm.n for elm in self.shaft_elements) - first_node + 1
 
-        shaft_elements = deepcopy(self.shaft_elements)
+        spans = {}
+        for elm in self.shaft_elements:
+            spans[elm.n - first_node] = (
+                self.nodes_pos[self.nodes.index(elm.n_l)],
+                self.nodes_pos[self.nodes.index(elm.n_r)],
+            )
+
+        cuts = [[] for _ in range(n_intervals)]
+        for new_pos in sorted(set(new_nodes_pos)):
+            for i, (pos_l, pos_r) in spans.items():
+                if pos_l < new_pos < pos_r:
+                    cuts[i].append(new_pos)
+
+        new_node = self._node_renumbering([len(c) for c in cuts])
+        any_cut = any(cuts)
+
+        shaft_elements = []
+        for elm in self.shaft_elements:
+            pos_r = spans[elm.n - first_node][1]
+            n = new_node(elm.n)
+            remainder = deepcopy(elm)
+            remainder.n = n
+            if any_cut:
+                remainder.tag = None
+
+            for new_pos in cuts[elm.n - first_node]:
+                right_length = pos_r - new_pos
+                left_length = remainder.L - right_length
+                L = remainder.L
+                id_interp = np.interp(
+                    left_length, [0, L], [remainder.idl, remainder.idr]
+                )
+                od_interp = np.interp(
+                    left_length, [0, L], [remainder.odl, remainder.odr]
+                )
+
+                shaft_elements.append(
+                    remainder.copy(L=left_length, idr=id_interp, odr=od_interp, n=n)
+                )
+                n += 1
+                remainder = remainder.copy(
+                    L=right_length, idl=id_interp, odl=od_interp, n=n
+                )
+            shaft_elements.append(remainder)
+
+        return self.__class__(
+            shaft_elements,
+            **self._renumbered_elements(new_node),
+            **self._init_parameters(),
+        )
+
+    def _node_renumbering(self, added_nodes):
+        """Return the node numbering of the rotor after its shaft is subdivided.
+
+        Parameters
+        ----------
+        added_nodes : array_like
+            Number of nodes inserted in each shaft interval, from the first
+            shaft node on.
+
+        Returns
+        -------
+        new_node : callable
+            Function that takes a node number of this rotor and returns the
+            number of the same node in the subdivided rotor. Nodes off the
+            shaft (e.g. bearing housings) are moved after the new shaft nodes.
+        """
+        first_node = min(elm.n for elm in self.shaft_elements)
+        last_node = first_node + len(added_nodes)
+        offset = np.concatenate(([0], np.cumsum(added_nodes))).astype(int)
+
+        def new_node(node):
+            if node <= last_node:
+                return int(node + offset[node - first_node])
+            return int(node + offset[-1])
+
+        return new_node
+
+    def _renumbered_elements(self, new_node):
+        """Copy the elements that are not shaft elements onto a new numbering.
+
+        Parameters
+        ----------
+        new_node : callable
+            Function that maps a node number of this rotor to the new one, as
+            returned by :meth:`_node_renumbering`.
+
+        Returns
+        -------
+        elements : dict
+            Copies of ``disk_elements``, ``bearing_elements``,
+            ``point_mass_elements`` and ``motor_element``, keyed by those
+            names, with ``n``, ``n_l``, ``n_r``, ``n_link`` and ``sensor_node``
+            renumbered.
+        """
         disk_elements = deepcopy(self.disk_elements)
         bearing_elements = deepcopy(self.bearing_elements)
         point_mass_elements = deepcopy(self.point_mass_elements)
         motor_element = deepcopy(self.motor_element)
+        motor = [] if motor_element is None else [motor_element]
 
-        elements = [
-            *shaft_elements,
-            *disk_elements,
-            *bearing_elements,
-            *point_mass_elements,
-        ]
-        if motor_element is not None:
-            elements.append(motor_element)
+        for elm in [*disk_elements, *bearing_elements, *point_mass_elements, *motor]:
+            elm.n = new_node(elm.n)
+        for elm in [*disk_elements, *motor]:
+            elm.n_l = elm.n_r = elm.n
+        for elm in bearing_elements:
+            if elm.n_link is not None:
+                elm.n_link = new_node(elm.n_link)
+            if hasattr(elm, "sensor_node"):
+                elm.sensor_node = new_node(elm.sensor_node)
 
-        target_elements = []
-        new_elems_length = []
-
-        brg_base = [brg for brg in bearing_elements if brg.n_link in self.link_nodes]
-        elm_linked = [
-            elm
-            for elm in bearing_elements + point_mass_elements
-            if elm.n in self.link_nodes
-        ]
-
-        for new_pos in new_nodes_pos:
-            for elm in shaft_elements:
-                elm.tag = None
-
-                pos_l = self.nodes_pos[self.nodes.index(elm.n_l)]
-                pos_r = self.nodes_pos[self.nodes.index(elm.n_r)]
-
-                if new_pos > pos_l and new_pos < pos_r:
-                    target_elements.append(elm)
-                    new_elems_length.append(pos_r - new_pos)
-
-        prev_left_node = -1
-
-        for i in range(len(target_elements)):
-            elem = target_elements[i]
-
-            left_length = elem.L - new_elems_length[i]
-            id_interp = np.interp(left_length, [0, elem.L], [elem.idl, elem.idr])
-            od_interp = np.interp(left_length, [0, elem.L], [elem.odl, elem.odr])
-
-            left_elem = elem.copy(L=left_length, idr=id_interp, odr=od_interp)
-            right_elem = elem.copy(
-                L=new_elems_length[i], idl=id_interp, odl=od_interp, n=(elem.n + 1)
-            )
-
-            if left_elem.n != prev_left_node:
-                for elm in elements:
-                    if elm.n >= right_elem.n and elm not in elm_linked:
-                        elm.n += 1
-
-            for j in range(i + 1, len(target_elements)):
-                if target_elements[j] == target_elements[i]:
-                    target_elements[j] = right_elem
-
-            idx_left = shaft_elements.index(elem)
-            shaft_elements[idx_left] = left_elem
-
-            idx_right = idx_left + len(
-                [k for k, elm in enumerate(shaft_elements) if elm.n == left_elem.n]
-            )
-            shaft_elements.insert(idx_right, right_elem)
-
-            prev_left_node = left_elem.n
-
-        n_nodes = max([sh.n_r for sh in shaft_elements]) - max(
-            [sh.n_r for sh in self.shaft_elements]
-        )
-
-        for brg in brg_base:
-            brg.n_link += n_nodes
-
-        for elm in elm_linked:
-            elm.n += n_nodes
-
-        return self.__class__(
-            shaft_elements,
-            disk_elements=disk_elements,
-            bearing_elements=bearing_elements,
-            point_mass_elements=point_mass_elements,
-            motor_element=motor_element,
-            **self._init_parameters(),
-        )
+        return {
+            "disk_elements": disk_elements,
+            "bearing_elements": bearing_elements,
+            "point_mass_elements": point_mass_elements,
+            "motor_element": motor_element,
+        }
 
     def refine_mesh(self, max_ld=0.5, min_ld=0.1, parts=None):
         """Subdivide the shaft elements by their length-to-diameter ratio.
@@ -1423,13 +1458,7 @@ class Rotor(object):
             if isinstance(elm, CouplingElement):
                 subdivisions[elm.n - first_node] = 1
 
-        added_nodes = np.concatenate(([0], np.cumsum(subdivisions - 1)))
-        last_node = first_node + n_intervals
-
-        def new_node(node):
-            if node <= last_node:
-                return int(node + added_nodes[node - first_node])
-            return int(node + added_nodes[-1])
+        new_node = self._node_renumbering(subdivisions - 1)
 
         shaft_elements = []
         for elm in self.shaft_elements:
@@ -1456,24 +1485,9 @@ class Rotor(object):
                     )
                 )
 
-        disk_elements = deepcopy(self.disk_elements)
-        bearing_elements = deepcopy(self.bearing_elements)
-        point_mass_elements = deepcopy(self.point_mass_elements)
-        for elm in [*disk_elements, *bearing_elements, *point_mass_elements]:
-            elm.n = new_node(elm.n)
-        for elm in disk_elements:
-            elm.n_l = elm.n_r = elm.n
-        for elm in bearing_elements:
-            if elm.n_link is not None:
-                elm.n_link = new_node(elm.n_link)
-            if hasattr(elm, "sensor_node"):
-                elm.sensor_node = new_node(elm.sensor_node)
-
         return self.__class__(
             shaft_elements,
-            disk_elements=disk_elements,
-            bearing_elements=bearing_elements,
-            point_mass_elements=point_mass_elements,
+            **self._renumbered_elements(new_node),
             **self._init_parameters(),
         )
 
