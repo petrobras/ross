@@ -1536,6 +1536,8 @@ class Rotor(object):
                 point_mass_elements.append(el)
             elif isinstance(el, MotorElement):
                 motor_element = el
+            else:
+                raise ValueError(f"{el} is not a valid element.")
 
         return self.__class__(
             shaft_elements,

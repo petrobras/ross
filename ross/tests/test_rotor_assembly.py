@@ -410,6 +410,44 @@ def rotor3():
     return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
 
 
+@pytest.mark.parametrize(
+    "invalid",
+    [
+        "junk",
+        None,
+        {"n": 3, "kxx": 1e6},
+        Material(name="add_elements_mat", rho=7800, E=2e11, G_s=8e10),
+        [DiskElement(n=3, m=1, Id=0.1, Ip=0.2)],
+    ],
+    ids=["str", "None", "dict", "Material", "nested-list"],
+)
+def test_add_elements_rejects_invalid(rotor3, invalid):
+    # Reference: ROSS 3.0.0 raised ValueError for any object that is not
+    # a shaft, disk, bearing or point mass element.
+    with pytest.raises(ValueError, match="is not a valid element"):
+        rotor3.add_elements([invalid])
+
+
+def test_add_elements_valid(rotor3):
+    seal = SealElement(n=3, kxx=1e6, kyy=0.8e6, cxx=2e2, cyy=1.5e2)
+    disk = DiskElement(n=5, m=32, Id=0.2, Ip=0.3)
+    point_mass = PointMass(n=3, m=1.0)
+    motor = motor_example()
+
+    new_rotor = rotor3.add_elements([seal, disk, point_mass, motor])
+
+    assert len(new_rotor.bearing_elements) == len(rotor3.bearing_elements) + 1
+    assert len(new_rotor.disk_elements) == len(rotor3.disk_elements) + 1
+    assert len(new_rotor.point_mass_elements) == 1
+    added_seals = [b for b in new_rotor.bearing_elements if isinstance(b, SealElement)]
+    assert [s.n for s in added_seals] == [3]
+    assert sorted(d.n for d in new_rotor.disk_elements) == [2, 4, 5]
+    assert new_rotor.point_mass_elements[0].n == 3
+    assert_allclose(new_rotor.m_disks, rotor3.m_disks + 32)
+    assert rotor3.motor_element is None
+    assert new_rotor.motor_element == motor
+
+
 def test_add_nodes_simple(rotor3):
     new_nodes_pos = [0.42, 1.036]
     modified_rotor = rotor3.add_nodes(new_nodes_pos)

@@ -4,6 +4,7 @@ from copy import deepcopy
 from numpy.testing import assert_allclose
 
 import ross as rs
+from ross.motors.motor_element import motor_example
 from ross.multi_rotor.mesh import Mesh
 
 
@@ -163,6 +164,32 @@ def test_add_elements():
 
     with pytest.raises(ValueError, match="does not belong"):
         multi_rotor.add_elements([rs.DiskElement(n=99, m=1.0, Id=0.0, Ip=0.0)])
+
+
+@pytest.mark.parametrize(
+    "invalid",
+    [
+        "junk",
+        None,
+        rs.Material(name="add_elements_mat", rho=7800, E=2e11, G_s=8e10),
+        [rs.DiskElement(n=2, m=1.0, Id=0.01, Ip=0.02)],
+    ],
+    ids=["str", "None", "Material", "nested-list"],
+)
+def test_add_elements_rejects_invalid(multi_rotor, invalid):
+    # Same message as Rotor.add_elements, which raised ValueError in 3.0.0.
+    with pytest.raises(ValueError, match="is not a valid element"):
+        multi_rotor.add_elements([invalid])
+
+
+def test_add_elements_motor(multi_rotor):
+    motor = motor_example()
+
+    new_rotor = multi_rotor.add_elements([motor])
+
+    assert multi_rotor.motor_element is None
+    assert new_rotor.motor_element == motor
+    assert new_rotor.rotors["driving"].motor_element == motor
 
 
 def test_new_parameters_keep_3_0_positional_calls():
