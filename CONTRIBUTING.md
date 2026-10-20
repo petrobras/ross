@@ -361,7 +361,12 @@ Releases are tagged `vX.Y.Z` (`v3.0.0`, `v3.0.1`, release candidates
 from the tagged commit and uploads them to PyPI through
 [trusted publishing](https://docs.pypi.org/trusted-publishers/); no token is
 involved and the publisher only accepts tags from `petrobras/ross`, so a tag
-pushed to a fork publishes nothing. The workflow does not run the test suite,
+pushed to a fork publishes nothing. Before uploading, the workflow runs
+`tools/check_release_version.py`, which stops the release unless the tag is
+`v` followed by the exact version of the built distributions, so a tag pushed
+before `__version__` is bumped (`v3.1.0` on `3.1.0.dev0`) or spelled
+differently (`v3.1.0-rc1` for `3.1.0rc1`) uploads nothing; delete the tag, fix
+the cause and tag again. The workflow does not run the test suite,
 so check that the `Tests` workflow is green on the commit you are about to tag.
 Publishing the GitHub release afterwards starts the `interface` workflow, which
 builds the Windows executable of the graphical interface, runs its self-test
