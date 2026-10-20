@@ -24,6 +24,8 @@ Motor under test
 - Ip_motor = 0.0372 kg·m²
 """
 
+import sys
+
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose
@@ -546,6 +548,30 @@ def test_inverter_vf_fft_frequency_range_narrows_current_spectrum(
         "Restricted current FFT should not extend much beyond 2.1 x Fs "
         f"(got max={x_restricted.max():.1f} Hz, limit={2.1 * _FS_HZ:.1f} Hz)"
     )
+
+
+def test_plots_without_tsdownsample(motor, monkeypatch):
+    """Without the optional tsdownsample the plots are still downsampled to
+    n_shown_samples and keep the extreme values of each signal."""
+    monkeypatch.setitem(sys.modules, "tsdownsample", None)
+    t = np.arange(0, 0.3 + 2e-5, 2e-5)
+    results = motor.run_direct_on_line(t, load_torque_entrance_time=0.15)
+    assert results.n_shown_samples == 3000
+
+    figures = {
+        "electric torque": (results.plot_torque(), results.electric_torque),
+        "speed": (results.plot_speed(), None),
+        "phase a current": (results.plot_phase_currents(), results.currents["a"]),
+        "phase a voltage": (results.plot_phase_voltages(), results.voltages["a"]),
+        "line voltage ab": (results.plot_line_voltages(), results.line_voltages["ab"]),
+    }
+    for name, (fig, signal) in figures.items():
+        for trace in fig.data:
+            assert 0 < len(trace.x) <= results.n_shown_samples, name
+        if signal is not None:
+            y = np.asarray(fig.data[0].y)
+            assert y.max() == signal.max(), name
+            assert y.min() == signal.min(), name
 
 
 # ---------------------------------------------------------------------------
