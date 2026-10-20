@@ -419,6 +419,10 @@ def _multi_rotor_block(multi_params):
             _js_str(backlash.get("sigma")),
         )
 
+    damping_ratio = str(_or(p.get("mesh_damping_ratio"), "")).strip()
+    if damping_ratio:
+        args += ", mesh_damping_ratio=%s" % _js_number(float(damping_ratio))
+
     if _js_truthy(p.get("orientation_angle")):
         args += ", orientation_angle=%s" % _js_str(p["orientation_angle"])
 
