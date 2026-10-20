@@ -41,7 +41,7 @@ include = ["ross*"]
 [project]
 name = "ross-rotordynamics"
 dynamic = ["version", "dependencies"]
-requires-python = ">=3.12"
+requires-python = ">=3.13"
 authors = [
     {name = "ROSS developers"},
     {name = "Raphael Timbo Silva", email = "raphaelts@petrobras.com.br"}
@@ -57,9 +57,9 @@ classifiers = [
     "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
     "Programming Language :: Python :: Implementation :: CPython",
 ]
 
@@ -85,6 +85,11 @@ version = {attr = "ross.__version__"}
         "sphinxcontrib-bibtex>=2.2",
         "ruff==0.16.3",
         "sphinx-design",
+        # No wheels for Python 3.15 yet; there the tests use the numpy fallback.
+        "tsdownsample>=0.1.5; python_version < '3.15'",
+    ]
+    downsample = [
+        "tsdownsample>=0.1.5",
     ]
     interface = [
         "flask>=3.0",

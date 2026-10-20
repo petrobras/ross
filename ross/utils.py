@@ -15,9 +15,6 @@ from plotly import graph_objects as go
 from copy import deepcopy as copy
 from ross.units import check_units
 from scipy.integrate import cumulative_trapezoid as integrate
-from tsdownsample import MinMaxLTTBDownsampler
-
-_downsampler = MinMaxLTTBDownsampler()
 
 
 class NumpyEncoder(json.JSONEncoder):
@@ -1813,22 +1810,48 @@ def is_scalar(parameter, parameter_name):
 
 
 def downsample_figure(fig, n_out):
-    """Downsample each Scatter in the figure to approximately n_out points.
+    """Downsample each Scatter in the figure to at most n_out points.
+
+    Traces with more than n_out points are reduced with the MinMaxLTTB
+    algorithm from tsdownsample when it is installed
+    (``pip install "ross-rotordynamics[downsample]"``). Without it, each trace
+    is split into ``(n_out - 2) // 2`` buckets of consecutive samples and the
+    lowest and highest sample of every bucket are kept, together with the
+    first and last samples. Both keep only original samples, and both keep the
+    peaks and valleys that define the shape of the curve.
 
     Parameters
     ----------
     fig : plotly.graph_objects.Figure
         The figure to downsample.
-    n_out : int
-        The number of points to downsample to.
+    n_out : int or None
+        The maximum number of points of each trace. Values below 4 are raised
+        to 4, the first and last samples and the lowest and highest sample. If
+        None, the figure is returned unchanged.
 
     Returns
     -------
     plotly.graph_objects.Figure
         The downsampled figure.
+
+    Examples
+    --------
+    >>> x = np.linspace(0, 1, 10_000)
+    >>> fig = downsample_figure(go.Figure(go.Scatter(x=x, y=np.sin(40 * x))), 500)
+    >>> len(fig.data[0].x) <= 500
+    True
     """
     if n_out is None:
         return fig
+
+    n_out = max(int(n_out), 4)
+
+    try:
+        from tsdownsample import MinMaxLTTBDownsampler
+    except ImportError:
+        downsample = _min_max_indices
+    else:
+        downsample = MinMaxLTTBDownsampler().downsample
 
     for trace in fig.data:
         y = np.asarray(trace.y)
@@ -1838,11 +1861,46 @@ def downsample_figure(fig, n_out):
 
         x = np.ascontiguousarray(trace.x, dtype=np.float64)
         y = np.ascontiguousarray(y, dtype=np.float64)
-        idx = _downsampler.downsample(x, y, n_out=int(n_out))
+        idx = downsample(x, y, n_out=n_out)
         trace.x = x[idx]
         trace.y = y[idx]
 
     return fig
+
+
+def _min_max_indices(x, y, n_out):
+    """Return the indices of the samples kept by the min-max decimation.
+
+    Parameters
+    ----------
+    x : numpy.ndarray
+        The x data, sorted. It is not used: the buckets hold equal numbers of
+        samples, which matches equal x intervals for evenly spaced data.
+    y : numpy.ndarray
+        The y data.
+    n_out : int
+        The maximum number of indices returned.
+
+    Returns
+    -------
+    numpy.ndarray
+        Sorted indices of the first and last samples and of the lowest and
+        highest sample of each bucket.
+    """
+    n_buckets = (n_out - 2) // 2
+    bucket_size = -(-y.size // n_buckets)
+    n_buckets = -(-y.size // bucket_size)
+    padded = np.concatenate([y, np.full(n_buckets * bucket_size - y.size, y[-1])])
+    buckets = padded.reshape(n_buckets, bucket_size)
+    start = np.arange(n_buckets) * bucket_size
+    idx = np.concatenate(
+        [
+            [0, y.size - 1],
+            start + buckets.argmin(axis=1),
+            start + buckets.argmax(axis=1),
+        ]
+    )
+    return np.unique(np.minimum(idx, y.size - 1))
 
 
 def limit_data_range(x, y, range_limits):
