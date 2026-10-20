@@ -2813,6 +2813,34 @@ class Rotor(object):
 
         return forced_resp
 
+    def to_shaft_rotation(self, node, value):
+        """Convert a rotation of the rotor to the shaft of the specified node.
+
+        Every node of a single rotor rotates with the rotor, so ``value`` is
+        returned unchanged. Geared multi-rotors override this method. It
+        applies to angular positions, speeds and accelerations.
+
+        Parameters
+        ----------
+        node : int
+            Node index.
+        value : float or np.ndarray
+            Angular position (rad), speed (rad/s) or acceleration (rad/s²) of
+            the rotor.
+
+        Returns
+        -------
+        float or np.ndarray
+            The same quantity for the shaft of the node.
+
+        Examples
+        --------
+        >>> rotor = rotor_example()
+        >>> rotor.to_shaft_rotation(3, 100.0)
+        100.0
+        """
+        return value
+
     def _unbalance_force(self, node, magnitude, phase, omega):
         """Calculate unbalance forces.
 

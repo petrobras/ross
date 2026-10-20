@@ -705,3 +705,74 @@ def test_summary_per_shaft(three_shaft_rotors):
     headers = list(rotor_table.header["values"])
     table_masses = rotor_table.cells["values"][headers.index("Rotor Mass (kg)")]
     assert_allclose([float(m) for m in table_masses], masses, atol=5e-4)
+
+
+@pytest.fixture
+def fault_shaft_ratios(multi_rotor):
+    """Shaft element numbers on each shaft and the expected speed ratio."""
+    driving_gear = multi_rotor.mesh.driving_gear
+    driven_gear = multi_rotor.mesh.driven_gear
+    driving_elm = multi_rotor.shaft_elements[0].n
+    driven_elm = next(
+        elm.n for elm in multi_rotor.shaft_elements if elm.n in multi_rotor.driven_nodes
+    )
+    return [
+        (driving_elm, 1.0),
+        (driven_elm, -driving_gear.n_teeth / driven_gear.n_teeth),
+    ]
+
+
+@pytest.mark.parametrize("shaft", [0, 1])
+def test_rubbing_uses_shaft_speed(multi_rotor, fault_shaft_ratios, monkeypatch, shaft):
+    n, ratio = fault_shaft_ratios[shaft]
+    speed = 100.0
+    speeds = []
+    compute = rs.faults.rubbing.Rubbing.compute_rubbing_force
+
+    def spy(self, y, ydot, ang_speed):
+        speeds.append(ang_speed)
+        return compute(self, y, ydot, ang_speed)
+
+    monkeypatch.setattr(rs.faults.rubbing.Rubbing, "compute_rubbing_force", spy)
+
+    multi_rotor.run_rubbing(
+        n=n,
+        distance=1e-3,
+        contact_stiffness=1e6,
+        contact_damping=40,
+        friction_coeff=0.3,
+        node=[2],
+        unbalance_magnitude=[1e-4],
+        unbalance_phase=[0.0],
+        speed=speed,
+        t=np.linspace(0, 0.01, 11),
+    )
+
+    assert_allclose(speeds, ratio * speed)
+
+
+@pytest.mark.parametrize("shaft", [0, 1])
+def test_crack_uses_shaft_angle(multi_rotor, fault_shaft_ratios, monkeypatch, shaft):
+    n, ratio = fault_shaft_ratios[shaft]
+    speed = 100.0
+    t = np.linspace(0, 0.01, 11)
+    angles = []
+    mayes = rs.faults.crack.Crack.mayes
+
+    def spy(self, ap):
+        angles.append(ap)
+        return mayes(self, ap)
+
+    monkeypatch.setattr(rs.faults.crack.Crack, "mayes", spy)
+
+    multi_rotor.run_crack(
+        n=n,
+        depth_ratio=0.2,
+        node=[2],
+        unbalance_magnitude=[1e-4],
+        unbalance_phase=[0.0],
+        speed=speed,
+        t=t,
+    )
+
+    assert_allclose(angles, ratio * speed * t[1 : len(angles) + 1])

@@ -791,9 +791,9 @@ class MultiRotor(Rotor):
         F0 = np.zeros((self.ndof, len(t)))
 
         for i, n in enumerate(node):
-            phi = phase[i] + self._node_gear_ratio(n) * theta
-            w = self._node_gear_ratio(n) * omega
-            a = self._node_gear_ratio(n) * alpha
+            phi = phase[i] + self.to_shaft_rotation(n, theta)
+            w = self.to_shaft_rotation(n, omega)
+            a = self.to_shaft_rotation(n, alpha)
 
             Fx = magnitude[i] * ((w**2) * np.cos(phi) + a * np.sin(phi))
             Fy = magnitude[i] * ((w**2) * np.sin(phi) - a * np.cos(phi))
@@ -886,6 +886,35 @@ class MultiRotor(Rotor):
                 rotors.append((rotor, node_offset, pos_offset))
 
         return rotors
+
+    def to_shaft_rotation(self, node, value):
+        """Convert a rotation of the driving rotor to the shaft of the node.
+
+        The value is multiplied by the signed speed ratio of the node, so a
+        driven shaft rotates by ``-gear_ratio * value``. Nested MultiRotor
+        objects accumulate the ratio along the gear train. It applies to
+        angular positions, speeds and accelerations.
+
+        Parameters
+        ----------
+        node : int
+            Node index in this MultiRotor numbering.
+        value : float or np.ndarray
+            Angular position (rad), speed (rad/s) or acceleration (rad/s²) of
+            the driving rotor.
+
+        Returns
+        -------
+        float or np.ndarray
+            The same quantity for the shaft of the node.
+
+        Examples
+        --------
+        >>> multi_rotor = two_shaft_rotor_example()
+        >>> multi_rotor.to_shaft_rotation(7, 100.0) # doctest: +ELLIPSIS
+        -1426.08...
+        """
+        return self._node_gear_ratio(node) * value
 
     def _node_gear_ratio(self, node):
         """Return the signed speed ratio of the specified node.
