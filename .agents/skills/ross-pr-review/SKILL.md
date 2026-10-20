@@ -112,7 +112,11 @@ hops (for example, how a new element's `K` reaches `Rotor.K`).
   names follow the existing ones (`run_*`, `plot_*`, `*_example`, `from_*`).
 - **Test integrity.** For every `tests` flag, read the diff of that test
   or fixture (`git diff $BASE $HEAD_REF -- <file>`) and decide whether the
-  change is justified, and justified in the PR text. For new physics, find
+  change is justified, and justified in the PR text. A widened tolerance is
+  justified when it follows the tolerance rule in AGENTS.md *Tests*:
+  a named source, a size derived from it rather than from the failing value,
+  a margin below the effect the test checks, and one tolerance on every
+  platform. It is a finding when the change also moves results. For new physics, find
   where each expected value comes from: literature, an analytical case, an
   independent path, or (a finding) the code under test. Check that the tests
   exercise what changed (`MultiRotor`, `save`/`load`, units)

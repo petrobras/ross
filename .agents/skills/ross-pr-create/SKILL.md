@@ -69,7 +69,8 @@ they do not fit.
   fixture or helper, changed test configuration or reference data. An edited
   fixture deserves extra care: adding an argument to keep old reference values
   passing hides a change of default behavior. Undo each one unless it is physically
-  justified; if it is, keep it and write the reason in the PR's "Changes to
+  or numerically justified (for a tolerance, see the tolerance rule
+  in AGENTS.md *Tests*); if it is, keep it and write the reason in the PR's "Changes to
   existing tests or reference data". For a moved test, confirm that every
   assertion came along.
 - **New physics** needs tests whose expected values do not come from the new
