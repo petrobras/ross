@@ -5047,7 +5047,9 @@ class Rotor(object):
         The results store `speed`, so `plot_1d`, `plot_2d` and `plot_3d` can show
         one shaft revolution with `one_revolution=True`. Their `t_initial` and
         `t_final` arguments select any other time window. Neither reruns the
-        simulation.
+        simulation. A window must hold at least 10 samples, so for
+        `one_revolution=True` the time step must be at most 1/9 of a
+        revolution, 2π/(9 speed) seconds.
 
         Examples
         --------
@@ -5057,13 +5059,14 @@ class Rotor(object):
         >>> size = 1000
         >>> node = 3
         >>> probe1 = Probe(3, 0)
-        >>> t = np.linspace(0, 10, size)
+        >>> # 0.25 s with a time step of 0.25 ms: about 50 steps per revolution
+        >>> t = np.linspace(0, 0.25, size)
         >>> F = np.zeros((size, rotor.ndof))
-        >>> F[:, rotor.number_dof * node + 0] = 10 * np.cos(2 * t)
-        >>> F[:, rotor.number_dof * node + 1] = 10 * np.sin(2 * t)
+        >>> F[:, rotor.number_dof * node + 0] = 10 * np.cos(speed * t)
+        >>> F[:, rotor.number_dof * node + 1] = 10 * np.sin(speed * t)
         >>> response = rotor.run_time_response(speed, F, t)
         >>> response.yout[:, rotor.number_dof * node + 1] # doctest: +ELLIPSIS
-        array([ 0.00000000e+00,  1.86686693e-07,  8.39130663e-07, ...
+        array([ 0.00000000e+00,  4.19814382e-09,  2.42370942e-08, ...
         >>> # plot time response for a given probe:
         >>> fig1 = response.plot_1d(probe=[probe1])
         >>> # plot orbit response - plotting 2D nodal orbit:
@@ -5072,12 +5075,14 @@ class Rotor(object):
         >>> fig3 = response.plot_3d()
         >>> # plot a regular time window:
         >>> fig_window = response.plot_1d(
-        ...     probe=[probe1], t_initial=2.0, t_final=4.0
+        ...     probe=[probe1], t_initial=0.1, t_final=0.2
         ... )
         >>> # plot the last shaft revolution:
         >>> fig_revolution = response.plot_2d(node=node, one_revolution=True)
+        >>> len(fig_revolution.data[0].x)
+        51
         >>> # plot the shaft revolution that ends at a given time:
-        >>> fig_anchored = response.plot_3d(one_revolution=True, t_final=8.0)
+        >>> fig_anchored = response.plot_3d(one_revolution=True, t_final=0.2)
         """
         t_, yout, xout = self.time_response(speed, F, t, method=method, **kwargs)
 
