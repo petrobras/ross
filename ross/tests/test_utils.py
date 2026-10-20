@@ -173,7 +173,7 @@ def test_import_ross_without_tsdownsample():
             "fig = go.Figure(go.Scatter(x=x, y=np.sin(40 * x)))",
             "fig = ross.utils.downsample_figure(fig, 500)",
             "assert len(fig.data[0].x) <= 500",
-            "print(ross.__file__)",
+            "print('ross_file=' + ross.__file__)",
         ]
     )
     package_root = str(Path(ross.__file__).resolve().parents[1])
@@ -187,4 +187,12 @@ def test_import_ross_without_tsdownsample():
     )
 
     assert result.returncode == 0, result.stderr
-    assert Path(result.stdout.strip()).resolve() == Path(ross.__file__).resolve()
+    # Other packages imported by ross (ccp) may print to stdout.
+    lines = [
+        line for line in result.stdout.splitlines() if line.startswith("ross_file=")
+    ]
+    assert len(lines) == 1, result.stdout
+    assert (
+        Path(lines[0].removeprefix("ross_file=")).resolve()
+        == Path(ross.__file__).resolve()
+    )
