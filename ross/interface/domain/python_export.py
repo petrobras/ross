@@ -456,7 +456,7 @@ def probe_output(result, node, angle, dofs_per_node):
     c, s = np.cos(angle), np.sin(angle)
 
     def along(response):
-        return (c * response[:, x, :] + s * response[:, x + 1, :])[:, None, :]
+        return (c * response[x, :, :] + s * response[x + 1, :, :])[None, :, :]
 
     return FrequencyResponseResults(
         along(result.freq_resp),

@@ -220,23 +220,37 @@ def thrust_pad_results():
     )
 
 
+@pytest.fixture
+def cross_coupled_rotor():
+    shaft = [ShaftElement(L=0.25, idl=0, odl=0.05, material=steel) for _ in range(6)]
+    disks = [
+        DiskElement.from_geometry(n=2, material=steel, width=0.07, i_d=0.05, o_d=0.28),
+        DiskElement.from_geometry(n=4, material=steel, width=0.07, i_d=0.05, o_d=0.35),
+    ]
+    bearings = [
+        BearingElement(n=0, kxx=1e6, kyy=1.5e6, kxy=4e5, kyx=-6e5, cxx=200, cyy=300),
+        BearingElement(n=6, kxx=1.2e6, kyy=0.8e6, kxy=3e5, kyx=-3e5, cxx=150, cyy=100),
+    ]
+    return Rotor(shaft, disks, bearings)
+
+
 def _expected_frf_magnitude(freq_response, inp, out, amplitude_units="m/N"):
     dummy_var = Q_(1, amplitude_units)
     if dummy_var.check("[length]/[force]"):
-        magnitude = np.abs(freq_response.freq_resp[inp, out, :])
+        magnitude = np.abs(freq_response.freq_resp[out, inp, :])
         magnitude = Q_(magnitude, "m/N").to(amplitude_units).m
     elif dummy_var.check("[speed]/[force]"):
-        magnitude = np.abs(freq_response.velc_resp[inp, out, :])
+        magnitude = np.abs(freq_response.velc_resp[out, inp, :])
         magnitude = Q_(magnitude, "m/s/N").to(amplitude_units).m
     else:
-        magnitude = np.abs(freq_response.accl_resp[inp, out, :])
+        magnitude = np.abs(freq_response.accl_resp[out, inp, :])
         magnitude = Q_(magnitude, "m/s**2/N").to(amplitude_units).m
     frequency = Q_(freq_response.speed_range, "rad/s").to("rad/s").m
     return frequency, magnitude
 
 
 def _expected_frf_phase(freq_response, inp, out, phase_units="rad"):
-    phase = np.angle(freq_response.freq_resp[inp, out, :])
+    phase = np.angle(freq_response.freq_resp[out, inp, :])
     phase = Q_(phase, "rad").to(phase_units).m
     if phase_units in ["rad", "radian", "radians"]:
         phase = np.array([value + 2 * np.pi if value < 0 else value for value in phase])
@@ -295,6 +309,77 @@ def test_frequency_response_plot_polar_bode(freq_response):
 
     assert_trace_allclose(fig.data[0], r=expected_r, theta=expected_theta)
     assert_allclose(fig.data[0].r[:3], expected_r[:3])
+
+
+@pytest.mark.parametrize("speed", [None, 0.0, 300.0, 900.0])
+def test_frequency_response_plots_read_response_at_out_to_force_at_inp(
+    cross_coupled_rotor, speed
+):
+    """Each FRF plot shows the response at `out` to a unit force at `inp`.
+
+    The reference solves the dynamic stiffness Z(w) x = e_inp directly at each
+    frequency, without the transfer matrix. The bearings are anisotropic and
+    cross-coupled, with kxy != -kyx at node 0, and the disks are gyroscopic,
+    so H is not symmetric and a plot that read H[inp, out] instead of
+    H[out, inp] would differ in magnitude and phase.
+    """
+    rotor = cross_coupled_rotor
+    frequencies = np.array([60.0, 250.0, 520.0, 900.0])
+    if speed is None:
+        frf = rotor.run_freq_response(speed_range=frequencies)
+        speeds = frequencies
+    else:
+        frf = rotor.run_freq_response(speed_range=frequencies, speed=speed)
+        speeds = np.full_like(frequencies, speed)
+
+    d = rotor.number_dof
+    pairs = [(4 * d, 2 * d + 1), (2 * d + 1, 4 * d), (4 * d, 2 * d), (4 * d + 1, d + 1)]
+    for inp, out in pairs:
+        expected = []
+        for w, s in zip(frequencies, speeds, strict=True):
+            Z = (
+                -(w**2) * rotor.M(w, s)
+                + 1j * w * (rotor.C(w, s) + s * rotor.G())
+                + rotor.K(w, s)
+            )
+            force = np.zeros(rotor.ndof, dtype=complex)
+            force[inp] = 1.0
+            expected.append(np.linalg.solve(Z, force)[out])
+        expected = np.array(expected)
+        transposed = frf.freq_resp[inp, out, :]
+        assert not np.allclose(transposed, expected, rtol=1e-3, atol=0)
+
+        magnitude = frf.plot_magnitude(inp=inp, out=out).data[0]
+        assert_allclose(magnitude.y, np.abs(expected), rtol=1e-8)
+
+        phase = frf.plot_phase(inp=inp, out=out).data[0]
+        assert_allclose(np.exp(1j * np.array(phase.y)), expected / np.abs(expected))
+
+        polar = frf.plot_polar_bode(inp=inp, out=out).data[0]
+        assert_allclose(polar.r, np.abs(expected), rtol=1e-8)
+        assert_allclose(np.exp(1j * np.array(polar.theta)), expected / np.abs(expected))
+
+        combined = frf.plot(inp=inp, out=out)
+        assert_allclose(combined.data[0].y, np.abs(expected), rtol=1e-8)
+        assert_allclose(
+            np.exp(1j * np.array(combined.data[1].y)), expected / np.abs(expected)
+        )
+        assert_allclose(combined.data[2].r, np.abs(expected), rtol=1e-8)
+
+        velocity = 1j * frequencies * expected
+        acceleration = -(frequencies**2) * expected
+        for units, reference in (("m/s/N", velocity), ("m/s**2/N", acceleration)):
+            magnitude = frf.plot_magnitude(inp, out, amplitude_units=units).data[0]
+            assert_allclose(magnitude.y, np.abs(reference), rtol=1e-8)
+            phase = frf.plot_phase(inp, out, amplitude_units=units).data[0]
+            assert_allclose(
+                np.exp(1j * np.array(phase.y)), reference / np.abs(reference)
+            )
+            polar = frf.plot_polar_bode(inp, out, amplitude_units=units).data[0]
+            assert_allclose(polar.r, np.abs(reference), rtol=1e-8)
+            assert_allclose(
+                np.exp(1j * np.array(polar.theta)), reference / np.abs(reference)
+            )
 
 
 def test_forced_response_plot_magnitude(forced_response, probe_node3):
@@ -801,3 +886,106 @@ def test_clearance_plot_probe_response(clearance_results):
         y=1e6 * clearance_results.probe_response[1],
     )
     assert_trace_allclose(fig.data[find_traces_by_name(fig, "Avl")[0]], y=[25.4, 25.4])
+
+
+@pytest.mark.parametrize(
+    "speed, dt, steps_per_revolution",
+    [
+        (4 * np.pi, 1e-3, 500),
+        (100.0, 1e-3, 2 * np.pi / 100.0 / 1e-3),
+        (600.0, 2 * np.pi / 600.0 / 50, 50),
+        (500.0, 2 * np.pi / 500.0 / 9, 9),
+    ],
+)
+def test_one_revolution_with_enough_samples(rotor, speed, dt, steps_per_revolution):
+    time = np.arange(0.0, 200 * dt + 2 * np.pi / speed, dt)
+    response = np.zeros((len(time), rotor.ndof))
+    result = TimeResponseResults(rotor, time, response, [], speed=speed)
+
+    # A revolution of 2*pi/speed seconds sampled every dt seconds holds
+    # floor(2*pi/speed/dt) + 1 samples.
+    expected = np.floor(steps_per_revolution + 1e-9) + 1
+    window_time, _ = result._get_window(one_revolution=True)
+    anchored_time, _ = result._get_window(t_initial=time[3], one_revolution=True)
+
+    assert len(window_time) == expected
+    assert len(anchored_time) == expected
+    fig = result.plot_2d(node=3, one_revolution=True)
+    assert len(fig.data[0].x) == expected
+
+
+@pytest.mark.parametrize(
+    "speed, dt, steps_per_revolution",
+    [
+        (500.0, 10 / 999, 2 * np.pi / 500.0 / (10 / 999)),
+        (600.0, 16 / 1000, 2 * np.pi / 600.0 / (16 / 1000)),
+        (20 * np.pi, 0.02, 5),
+        (500.0, 2 * np.pi / 500.0 / 8, 8),
+    ],
+)
+def test_one_revolution_with_too_few_samples(rotor, speed, dt, steps_per_revolution):
+    time = np.arange(0.0, 200 * dt + 2 * np.pi / speed, dt)
+    response = np.zeros((len(time), rotor.ndof))
+    result = TimeResponseResults(rotor, time, response, [], speed=speed)
+    samples = int(np.floor(steps_per_revolution + 1e-9)) + 1
+    noun = "sample" if samples == 1 else "samples"
+    message = (
+        f"lasts {2 * np.pi / speed:.4g} s and the time step is {dt:.4g} s, so it "
+        f"holds {samples} {noun}; at least 10 are needed"
+    )
+
+    with pytest.raises(ValueError, match=message):
+        result._get_window(one_revolution=True)
+    with pytest.raises(ValueError, match=message):
+        result.plot_1d(probe=[Probe(3, Q_(0, "rad"))], one_revolution=True)
+    with pytest.raises(ValueError, match=message):
+        result.plot_2d(node=3, one_revolution=True)
+    with pytest.raises(ValueError, match=message):
+        result.plot_3d(one_revolution=True, t_final=time[-5])
+
+
+@pytest.mark.parametrize(
+    "dt, t_initial, t_final, samples",
+    [
+        (1e-3, 1.0, 1.05, 51),
+        (5e-3, 1.0, 1.045, 10),
+        (1e-2, 1.0, 1.05, 6),
+        (1e-2, 1.0, 1.08, 9),
+        (1e-2, 1.001, 1.009, 0),
+    ],
+)
+def test_time_window_minimum_samples(rotor, dt, t_initial, t_final, samples):
+    time = np.round(np.arange(0.0, 2.0, dt), 12)
+    response = np.zeros((len(time), rotor.ndof))
+    result = TimeResponseResults(rotor, time, response, [])
+
+    if samples >= 10:
+        window_time, _ = result._get_window(t_initial, t_final)
+        assert len(window_time) == samples
+        fig = result.plot_3d(t_initial=t_initial, t_final=t_final)
+        assert len(fig.data[0].x) == samples
+    else:
+        message = (
+            f"lasts {t_final - t_initial:.4g} s and the time step is {dt:.4g} s, "
+            f"so it holds {samples} samples; at least 10 are needed"
+        )
+        with pytest.raises(ValueError, match=message):
+            result._get_window(t_initial, t_final)
+        with pytest.raises(ValueError, match=message):
+            result.plot_1d(
+                probe=[Probe(3, Q_(0, "rad"))],
+                t_initial=Q_(t_initial * 1e3, "ms"),
+                t_final=Q_(t_final * 1e3, "ms"),
+            )
+
+
+@pytest.mark.parametrize("t_initial, t_final", [(1.0, 1.0), (1.2, 1.1)])
+def test_time_window_needs_t_initial_before_t_final(rotor, t_initial, t_final):
+    time = np.linspace(0.0, 2.0, 2001)
+    response = np.zeros((len(time), rotor.ndof))
+    result = TimeResponseResults(rotor, time, response, [])
+
+    with pytest.raises(ValueError, match="t_initial must be smaller than t_final"):
+        result._get_window(t_initial, t_final)
+    with pytest.raises(ValueError, match="t_initial must be smaller than t_final"):
+        result.plot_2d(node=3, t_initial=t_initial, t_final=t_final)

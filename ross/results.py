@@ -55,6 +55,10 @@ __all__ = [
 # Define reference circle for orbits
 NUM_POINTS = 360
 CIRCLE = np.exp(1j * np.linspace(0, 2 * np.pi, NUM_POINTS, endpoint=False))
+# A circular orbit drawn through 10 samples of one revolution (9 chords) stays
+# within 1 - cos(pi / 9), about 6 %, of its radius; fewer samples do not show
+# the orbit shape.
+MIN_WINDOW_SAMPLES = 10
 
 
 class Results(ABC):
@@ -2973,11 +2977,13 @@ class FrequencyResponseResults(Results):
     Parameters
     ----------
     freq_resp : array
-        Array with the frequency response (displacement).
+        Displacement frequency response, shape (ndof, ndof, len(speed_range)).
+        ``freq_resp[out, inp, i]`` is the response at degree of freedom ``out``
+        to a unit force at degree of freedom ``inp`` at ``speed_range[i]``.
     velc_resp : array
-        Array with the frequency response (velocity).
+        Velocity frequency response, indexed as ``freq_resp``.
     accl_resp : array
-        Array with the frequency response (acceleration).
+        Acceleration frequency response, indexed as ``freq_resp``.
     speed_range : array
         Array with the speed range in rad/s.
     number_dof : int
@@ -3017,9 +3023,9 @@ class FrequencyResponseResults(Results):
         Parameters
         ----------
         inp : int
-            Input.
+            Global degree of freedom where the unit force is applied.
         out : int
-            Output.
+            Global degree of freedom where the response is read.
         frequency_units : str, optional
             Units for the x axis.
             Default is "rad/s"
@@ -3080,7 +3086,7 @@ class FrequencyResponseResults(Results):
         fig.add_trace(
             go.Scatter(
                 x=frequency_range,
-                y=mag[inp, out, :],
+                y=mag[out, inp, :],
                 mode="lines",
                 line=dict(color=list(tableau_colors)[idx], shape=line_shape),
                 name=f"inp: node {inpn} | dof: {idof}<br>out: node {outn} | dof: {odof}",
@@ -3117,9 +3123,9 @@ class FrequencyResponseResults(Results):
         Parameters
         ----------
         inp : int
-            Input.
+            Global degree of freedom where the unit force is applied.
         out : int
-            Output.
+            Global degree of freedom where the response is read.
         frequency_units : str, optional
             Units for the x axis.
             Default is "rad/s"
@@ -3159,11 +3165,11 @@ class FrequencyResponseResults(Results):
 
         dummy_var = Q_(1, amplitude_units)
         if dummy_var.check("[length]/[force]"):
-            phase = np.angle(self.freq_resp[inp, out, :])
+            phase = np.angle(self.freq_resp[out, inp, :])
         elif dummy_var.check("[speed]/[force]"):
-            phase = np.angle(self.velc_resp[inp, out, :])
+            phase = np.angle(self.velc_resp[out, inp, :])
         elif dummy_var.check("[acceleration]/[force]"):
-            phase = np.angle(self.accl_resp[inp, out, :])
+            phase = np.angle(self.accl_resp[out, inp, :])
         else:
             raise ValueError(
                 "Not supported unit. Options are '[length]/[force]', '[speed]/[force]', '[acceleration]/[force]'"
@@ -3224,9 +3230,9 @@ class FrequencyResponseResults(Results):
         Parameters
         ----------
         inp : int
-            Input.
+            Global degree of freedom where the unit force is applied.
         out : int
-            Output.
+            Global degree of freedom where the response is read.
         frequency_units : str, optional
             Units for the x axis.
             Default is "rad/s"
@@ -3266,19 +3272,19 @@ class FrequencyResponseResults(Results):
 
         dummy_var = Q_(1, amplitude_units)
         if dummy_var.check("[length]/[force]"):
-            mag = np.abs(self.freq_resp[inp, out, :])
+            mag = np.abs(self.freq_resp[out, inp, :])
             mag = Q_(mag, "m/N").to(amplitude_units).m
-            phase = np.angle(self.freq_resp[inp, out, :])
+            phase = np.angle(self.freq_resp[out, inp, :])
             y_label = "Displacement"
         elif dummy_var.check("[speed]/[force]"):
-            mag = np.abs(self.velc_resp[inp, out, :])
+            mag = np.abs(self.velc_resp[out, inp, :])
             mag = Q_(mag, "m/s/N").to(amplitude_units).m
-            phase = np.angle(self.velc_resp[inp, out, :])
+            phase = np.angle(self.velc_resp[out, inp, :])
             y_label = "Velocity"
         elif dummy_var.check("[acceleration]/[force]"):
-            mag = np.abs(self.accl_resp[inp, out, :])
+            mag = np.abs(self.accl_resp[out, inp, :])
             mag = Q_(mag, "m/s**2/N").to(amplitude_units).m
-            phase = np.angle(self.accl_resp[inp, out, :])
+            phase = np.angle(self.accl_resp[out, inp, :])
             y_label = "Acceleration"
         else:
             raise ValueError(
@@ -3356,9 +3362,9 @@ class FrequencyResponseResults(Results):
         Parameters
         ----------
         inp : int
-            Input.
+            Global degree of freedom where the unit force is applied.
         out : int
-            Output.
+            Global degree of freedom where the response is read.
         frequency_units : str, optional
             Units for the x axis.
             Default is "rad/s"
@@ -5810,6 +5816,11 @@ class TimeResponseResults(Results):
             Cropped time values.
         yout : array
             Cropped response values.
+
+        Raises
+        ------
+        ValueError
+            If the window holds fewer than ``MIN_WINDOW_SAMPLES`` (10) samples.
         """
         time = np.array(self.t, copy=True)
         yout = np.array(self.yout, copy=True)
@@ -5829,8 +5840,8 @@ class TimeResponseResults(Results):
         elif t_initial is None:
             return time, yout
 
-        if t_initial > t_final:
-            raise ValueError("t_initial must be smaller than or equal to t_final.")
+        if t_initial >= t_final:
+            raise ValueError("t_initial must be smaller than t_final.")
 
         if t_initial < time[0] or t_final > time[-1]:
             raise ValueError(f"Time interval must be within [{time[0]}, {time[-1]}].")
@@ -5840,8 +5851,18 @@ class TimeResponseResults(Results):
         initial_index = np.searchsorted(time, t_initial - tolerance, side="left")
         final_index = np.searchsorted(time, t_final + tolerance, side="right")
 
-        if initial_index >= final_index:
-            raise ValueError("The selected time interval contains no samples.")
+        samples = final_index - initial_index
+        if samples < MIN_WINDOW_SAMPLES:
+            neighborhood = time[max(initial_index - 1, 0) : final_index + 1]
+            step = np.max(np.diff(neighborhood)) if len(neighborhood) > 1 else 0.0
+            length = t_final - t_initial
+            noun = "sample" if samples == 1 else "samples"
+            raise ValueError(
+                f"The selected window lasts {length:.4g} s and the time step is "
+                f"{step:.4g} s, so it holds {samples} {noun}; at least "
+                f"{MIN_WINDOW_SAMPLES} are needed. Use a time step of at most "
+                f"{length / (MIN_WINDOW_SAMPLES - 1):.4g} s or a longer window."
+            )
 
         return time[initial_index:final_index], yout[initial_index:final_index, :]
 
@@ -5987,7 +6008,8 @@ class TimeResponseResults(Results):
             ``t_initial`` and ``t_final`` select a time window, as numbers in
             ``time_units`` or as ``pint.Quantity`` values. ``one_revolution=True``
             selects one shaft revolution from the stored speed: the last one, or
-            the one starting at ``t_initial`` or ending at ``t_final``.
+            the one starting at ``t_initial`` or ending at ``t_final``. A window
+            with fewer than 10 samples raises a ``ValueError``.
             *See Plotly Python Figure Reference for more information.
 
         Returns
@@ -6057,7 +6079,8 @@ class TimeResponseResults(Results):
             ``t_initial`` and ``t_final`` select a time window, as numbers in
             seconds or as ``pint.Quantity`` values. ``one_revolution=True``
             selects one shaft revolution from the stored speed: the last one, or
-            the one starting at ``t_initial`` or ending at ``t_final``.
+            the one starting at ``t_initial`` or ending at ``t_final``. A window
+            with fewer than 10 samples raises a ``ValueError``.
             *See Plotly Python Figure Reference for more information.
 
         Returns
@@ -6148,7 +6171,8 @@ class TimeResponseResults(Results):
             ``t_initial`` and ``t_final`` select a time window, as numbers in
             seconds or as ``pint.Quantity`` values. ``one_revolution=True``
             selects one shaft revolution from the stored speed: the last one, or
-            the one starting at ``t_initial`` or ending at ``t_final``.
+            the one starting at ``t_initial`` or ending at ``t_final``. A window
+            with fewer than 10 samples raises a ``ValueError``.
             *See Plotly Python Figure Reference for more information.
 
         Returns
