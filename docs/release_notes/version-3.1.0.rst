@@ -289,6 +289,14 @@ failed. ``check_units`` now returns ``str`` arguments without converting them, a
 ``Probe.get_label`` checks for a string angle
 (`#1438 <https://github.com/petrobras/ross/pull/1438>`_).
 
+Fix the Mayes and Gasch Crack Models with pandas 3.1
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+``Crack`` read the Papadopoulos compliance table with ``pd.eval`` on a whole column, which
+pandas 3.1 refuses, so ``crack_model="Mayes"`` and ``"Gasch"`` failed. The table is now parsed
+with ``json.loads``; the coefficients are unchanged
+(`#1456 <https://github.com/petrobras/ross/pull/1456>`_).
+
 Fix the Version Warning of ``compressor_example``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
