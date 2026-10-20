@@ -1,6 +1,7 @@
 import pickle
 from collections import namedtuple
 
+import numpy as np
 import pytest
 from numpy.testing import assert_allclose
 
@@ -234,3 +235,24 @@ def test_unit_Q_conversion(auxiliary_function):
     results_dict = {k: v for k, v in zip(arguments.keys(), results, strict=True)}
     for arg, actual in results_dict.items():
         assert_allclose(actual, arguments[arg].expected_converted_value)
+
+
+@pytest.mark.parametrize("option", ["major", "minor", "wd", "wn", "x", "3"])
+def test_check_units_passes_strings_through(option):
+    @check_units
+    def func(angle, frequency_type=None, speed=None):
+        return angle, frequency_type, speed
+
+    assert func(option, frequency_type=option, speed=option) == (option,) * 3
+
+
+def test_string_options_reach_the_rotor_methods():
+    from ross import Probe, rotor_example
+
+    assert Probe(3, "major").angle == "major"
+    assert Probe(3, "minor").angle == "minor"
+
+    rotor = rotor_example()
+    campbell = rotor.run_campbell(np.linspace(0, 100, 3), frequency_type="wn")
+    modal = rotor.run_modal(speed=100)
+    assert_allclose(campbell.wd[-1], np.sort(modal.wn)[:6])

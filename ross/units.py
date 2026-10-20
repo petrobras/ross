@@ -96,6 +96,37 @@ for i, unit in zip(["k", "c", "m"], ["N/m", "N*s/m", "kg"], strict=True):
             units["".join([i, j, k])] = unit
 
 
+def _to_base_unit(value, unit):
+    """Return the magnitude of value in unit.
+
+    Strings are options such as "major" or "wd", not magnitudes, and are returned
+    unchanged, as are values pint does not accept as a magnitude, such as bool.
+
+    Parameters
+    ----------
+    value : float, array_like, str, pint.Quantity
+        Argument passed to a function decorated with check_units. A value that is
+        not a pint.Quantity is taken to be in unit already.
+    unit : str
+        Unit that ROSS uses for this argument internally.
+
+    Returns
+    -------
+    float, array_like or str
+        Magnitude in unit, or value unchanged.
+    """
+    if isinstance(value, str):
+        return value
+    # Only the magnitude is returned, since ROSS does not keep Quantities internally.
+    try:
+        return value.to(unit).m
+    except AttributeError:
+        try:
+            return Q_(value, unit).m
+        except TypeError:
+            return value
+
+
 def check_units(func):
     """Wrapper to check and convert units to base_units.
 
@@ -150,17 +181,7 @@ def check_units(func):
                 names.insert(0, arg_name)
             for name in names:
                 if name in units and arg_value is not None:
-                    # For now, we only return the magnitude for the converted Quantity
-                    # If pint is fully adopted by ross in the future, and we have all Quantities
-                    # using it, we could remove this, which would allows us to use pint in its full capability
-                    try:
-                        base_unit_args.append(arg_value.to(units[name]).m)
-                    except AttributeError:
-                        try:
-                            base_unit_args.append(Q_(arg_value, units[name]).m)
-                        except TypeError:
-                            # Handle erros that we get with bool for example
-                            base_unit_args.append(arg_value)
+                    base_unit_args.append(_to_base_unit(arg_value, units[name]))
                     break
             else:
                 base_unit_args.append(arg_value)
@@ -183,14 +204,7 @@ def check_units(func):
                 names.insert(0, k)
             for name in names:
                 if name in units and v is not None:
-                    try:
-                        base_unit_kwargs[k] = v.to(units[name]).m
-                    except AttributeError:
-                        try:
-                            base_unit_kwargs[k] = Q_(v, units[name]).m
-                        except TypeError:
-                            # Handle errors that we get with bool for example
-                            base_unit_kwargs[k] = v
+                    base_unit_kwargs[k] = _to_base_unit(v, units[name])
                     break
             else:
                 base_unit_kwargs[k] = v
