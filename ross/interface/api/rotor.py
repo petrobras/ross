@@ -6,13 +6,16 @@ import json
 from flask import Blueprint, jsonify, request
 
 from ross.interface.domain.concatenation import concatenated_project
+from ross.interface.domain.meshing import BAD_METHOD, mesh_by_convergence, mesh_shafts
 from ross.interface.domain.requests import (
     CONCATENATE_REQUEST,
+    MESH_REQUEST,
     ROSS_FILE_REQUEST,
     ROTOR_REQUEST,
     SPLIT_REQUEST,
 )
-from ross.interface.domain.rotor_builder import build_rotor_from_ui
+from ross.interface.domain.rotor_builder import assemble_rotor
+from ross.interface.domain.rotor_scene import describe_scene
 from ross.interface.domain.ross_import import project_from_ross_file
 from ross.interface.domain.splitting import split_shaft
 
@@ -37,7 +40,20 @@ def build_rotor():
     length. That is domain geometry, and the domain is here.
     """
     payload = ROTOR_REQUEST.read(request.get_json(silent=True))
-    rotor = build_rotor_from_ui(payload["project"])
+    assembled = assemble_rotor(payload["project"])
+    rotor = assembled.rotor
+    answer = {
+        "status": "success",
+        "mass": float(rotor.m),
+        "ip": float(rotor.Ip),
+        # What the 3D view draws (domain/rotor_scene.py): the same rotor,
+        # from the same build, so the two views cannot disagree.
+        "scene": describe_scene(assembled),
+    }
+    # With the 3D view on screen, the 2D figure is not asked for.
+    if not payload["figure"]:
+        return jsonify(answer)
+
     fig = rotor.plot_rotor()
 
     fig_json_str = fig.to_json()
@@ -83,14 +99,8 @@ def build_rotor():
     # case that does not exist and, if it ever did, would show zero mass on
     # screen as though it were measured. That is BE-05's shape: a wrong number
     # in place of an error.
-    return jsonify(
-        {
-            "status": "success",
-            "plot_json": json.dumps(fig_dict),
-            "mass": float(rotor.m),
-            "ip": float(rotor.Ip),
-        }
-    )
+    answer["plot_json"] = json.dumps(fig_dict)
+    return jsonify(answer)
 
 
 @rotor_api.route("/load_ross_file", methods=["POST"])
@@ -158,3 +168,39 @@ def split_shaft_route():
             ),
         }
     )
+
+
+@rotor_api.route("/api/rotor/mesh_shafts", methods=["POST"])
+def mesh_shafts_route():
+    """Discretize the shafts and answer the project, with the plan.
+
+    A project in and a project out, like the split, and the plan with it: the
+    screen shows what would be cut -- how many parts, which elements are too
+    short to fix, and for the convergence the meshes it analysed -- before it
+    takes the project on. `indexes` empty is every shaft. A refusal (a number
+    that is not one) is a `ValueError`, a 400 carrying its sentence
+    (`api/errors.py`).
+
+    The convergence runs a modal analysis per mesh here, in the request: a
+    few seconds on a small rotor, and the bearings are not computed again --
+    the rotor is built through the element cache the figure just filled.
+    """
+    payload = MESH_REQUEST.read(request.get_json(silent=True))
+    method = payload["method"]
+    project = payload["project"]
+    indexes = payload["indexes"] or None
+    if method == "ratio":
+        built, report = mesh_shafts(
+            project, payload["max_ld"], payload["min_ld"], indexes
+        )
+    elif method == "parts":
+        built, report = mesh_shafts(
+            project, min_ld=payload["min_ld"], indexes=indexes, parts=payload["parts"]
+        )
+    elif method == "convergence":
+        built, report = mesh_by_convergence(
+            project, payload["n_modes"], payload["rtol"], payload["speed"]
+        )
+    else:
+        raise ValueError(BAD_METHOD % method)
+    return jsonify({"status": "success", "projectData": built, "report": report})

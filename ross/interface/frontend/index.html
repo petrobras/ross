@@ -28,6 +28,13 @@
     <!-- Served by Flask from the installed plotly.py: the same version as fig.show(). -->
     <script src="lib/plotly.min.js"></script>
     <script src="vendor/sortable-1.15.6.min.js"></script>
+    <!-- three.js for the 3D view, by name: features/rotor3d.js imports 'three' and
+         the OrbitControls addon imports 'three' too, and this map sends both to
+         the one copy in vendor/three. Nothing is downloaded until the 3D view is
+         first opened. -->
+    <script type="importmap">
+    {"imports": {"three": "./vendor/three/three.module.js", "three/addons/": "./vendor/three/addons/"}}
+    </script>
 </head>
 <body>
 
@@ -115,6 +122,7 @@
                 <button class="tab-btn" data-action="pick-tab" data-tab="seals" data-i18n="catSeal">Seal</button>
                 <button class="tab-btn" data-action="pick-tab" data-tab="bearings" data-i18n="catBearing">Bearing</button>
                 <button class="tab-btn" data-action="pick-tab" data-tab="pointmasses" data-i18n="catPointmass">Pointmass</button>
+                <button class="tab-btn" data-action="pick-tab" data-tab="probes" data-i18n="catProbe">Probe</button>
             </div>
 
             <div class="dynamic-panel" id="list-panel">
@@ -126,16 +134,10 @@
                          wrote over it and left only the word "Category". -->
                     <h3 id="tab-title"></h3>
                     <div id="selection-bar" style="display:none;"></div>
+                    <!-- The filter's panel, drawn by components/list_filter_panel.js. -->
+                    <div id="list-filter" class="list-filter" style="display:none;"></div>
                 <div id="element-list" class="dynamic-list"></div>
                     <button class="btn-add" id="btn-add-item" data-action="add-element"><i class="fas fa-plus"></i></button>
-                    
-                    <div id="insertion-form" class="form-box" style="display: none;">
-                        <div id="form-fields"></div>
-                        <div class="form-actions">
-                            <button class="btn-confirm" data-action="save-element"><i class="fas fa-check"></i></button>
-                            <button class="btn-cancel" data-action="close-form"><i class="fas fa-times"></i></button>
-                        </div>
-                    </div>
                 </div>
             </div>
 
@@ -144,12 +146,48 @@
                     <span><span data-i18n="totalMass">Total Mass:</span> <span id="info-mass" class="info-value">-</span> kg</span>
                     <span><span data-i18n="polarInertia">Polar Inertia (Ip):</span> <span id="info-ip" class="info-value">-</span> kg.m²</span>
                     <span id="rotor-scale" class="rotor-scale"></span>
+                    <span class="rotor-view" role="group">
+                        <button type="button" class="rotor-view-btn" data-action="set-rotor-view" data-view="2d" aria-pressed="true" title="ROSS's 2D figure" data-i18n-title="rotorView2d">2D</button>
+                        <button type="button" class="rotor-view-btn" data-action="set-rotor-view" data-view="3d" aria-pressed="false" title="The rotor in 3D" data-i18n-title="rotorView3d">3D</button>
+                    </span>
                 </div>
 
                 <div id="plot-rotor" class="live-plot-area">
                     <div style="display: flex; height: 100%; min-height: 400px; align-items: center; justify-content: center;">
                         <p class="placeholder-text" data-i18n="rotorWillAppear">The rotor model will appear here...</p>
                     </div>
+                </div>
+
+                <!-- The 3D view (features/rotor3d.js puts its canvas here). -->
+                <div id="rotor-3d" class="live-plot-area rotor3d-view" hidden>
+                    <p id="rotor-3d-message" class="rotor3d-message" hidden></p>
+                    <!-- "Computing": over the canvas while ROSS builds the rotor (modeling.js). -->
+                    <div id="rotor-3d-busy" class="rotor3d-busy" role="status" aria-live="polite" hidden></div>
+                    <div class="rotor3d-tools">
+                        <button type="button" class="rotor3d-tool" data-action="toggle-pan" aria-pressed="false" title="Move the view: dragging moves it instead of turning it (also: right button, Shift + drag, arrow keys)" data-i18n-title="rotor3dPan"><i class="fas fa-up-down-left-right"></i></button>
+                        <button type="button" class="rotor3d-tool" data-action="toggle-dimensions" aria-pressed="false" title="Show the node numbers and the dimensions" data-i18n-title="rotor3dDimensions"><i class="fas fa-ruler-combined"></i></button>
+                        <button type="button" class="rotor3d-tool" data-action="toggle-measure" aria-pressed="false" title="Measure a distance along the rotor: drag the two ends; they stop at the nodes, and move freely with Shift held. Esc puts the tape away" data-i18n-title="rotor3dMeasure"><i class="fas fa-ruler"></i></button>
+                        <button type="button" class="rotor3d-tool" data-action="toggle-bench" aria-pressed="false" title="Show the rotor on a test bench, driven by a motor" data-i18n-title="rotor3dBench"><i class="fas fa-table"></i></button>
+                        <button type="button" class="rotor3d-tool rotor3d-frame" data-action="frame-rotor" title="Show the whole rotor" data-i18n-title="rotor3dFrame"><i class="fas fa-expand"></i></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- The element form, as a window over the screen and not a box in the
+             list (components/floating_form.js says why). Not modal: the figure
+             beside it stays live. The heading is written by `markEditedRow`. -->
+        <div id="insertion-form" class="form-box form-window" role="dialog" aria-labelledby="form-window-title" style="display: none;">
+            <div class="form-window-bar">
+                <i class="fas fa-grip-lines form-window-grip" title="Drag to move the form" data-i18n-title="formWindowMove"></i>
+                <span id="form-window-title" class="form-window-title"></span>
+                <button type="button" class="form-window-close" data-action="close-form" title="Close without saving" data-i18n-title="formWindowClose"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="form-window-body">
+                <div id="form-fields"></div>
+                <div class="form-actions">
+                    <button class="btn-confirm" data-action="save-element"><i class="fas fa-check"></i></button>
+                    <button class="btn-cancel" data-action="close-form"><i class="fas fa-times"></i></button>
                 </div>
             </div>
         </div>
@@ -251,6 +289,7 @@
                     <button class="element-hub-btn" data-action="add-from-node-hub" data-category="bearings"><i class="fas fa-circle-notch"></i> Bearing</button>
                     <button class="element-hub-btn" data-action="add-from-node-hub" data-category="seals"><i class="fas fa-ring"></i> Seal</button>
                     <button class="element-hub-btn" data-action="add-from-node-hub" data-category="pointmasses"><i class="fas fa-dot-circle"></i> <span data-i18n="catPointMassLong">Point Mass</span></button>
+                    <button class="element-hub-btn" data-action="add-from-node-hub" data-category="probes"><i class="fas fa-crosshairs"></i> <span data-i18n="catProbe">Probe</span></button>
                 </div>
             </div>
         </div>
@@ -285,6 +324,7 @@
                         <input type="number" id="mr-stiffness" step="any" placeholder="Auto-calculated if empty" data-i18n-placeholder="phAutoCalculated">
                     </div>
                     <div class="input-group"><label data-i18n="multiUpdateMesh">Update Mesh Stiff.</label><select id="mr-update-stiffness"><option value="false" data-i18n="no">False</option><option value="true" data-i18n="yes">True</option></select></div>
+                    <div class="input-group"><label data-i18n="multiMeshDamping">Mesh Damping Ratio [-]</label><input type="number" id="mr-mesh-damping" value="0.0" min="0" step="any"></div>
                     
                     <div class="form-section">
                         <b class="form-section-title" data-i18n="multiSquareVarying">SQUARE VARYING STIFFNESS</b>
@@ -362,6 +402,46 @@
                 <div class="form-actions">
                     <button class="btn-confirm" data-action="prompt-ok"><i class="fas fa-check"></i> OK</button>
                     <button class="btn-cancel" data-action="prompt-cancel"><i class="fas fa-times"></i> <span data-i18n="cancel">Cancel</span></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- The menu of the right button over the 3D view (components/context_menu.js). -->
+    <div id="context-menu" class="context-menu" role="menu" hidden></div>
+
+    <!-- Discretizing the shafts (components/mesh_dialog.js): the three ways,
+         and what each needs. -->
+    <div id="mesh-overlay" class="modal-overlay" style="display: none;">
+        <div class="modal-box mesh-box">
+            <div class="modal-header">
+                <h3><i class="fas fa-ruler-horizontal"></i> <span data-i18n="meshDialogTitle">Discretize the shafts</span></h3>
+                <button class="btn-close-modal" data-action="mesh-cancel"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body form-box mesh-body">
+                <p id="mesh-scope" class="mesh-hint"></p>
+                <label class="mesh-way"><input type="radio" name="mesh-method" value="ratio" data-action="mesh-method" checked> <span data-i18n="meshByRatio">By the L/D ratio (API RP 684)</span></label>
+                <div class="mesh-fields" data-method="ratio">
+                    <div class="input-group"><label data-i18n="meshMaxLd">Largest L/D of an element</label><input type="text" id="mesh-max-ld" value="0.5"></div>
+                    <p class="mesh-hint" data-i18n="meshRatioHint">API RP 684: at most 1.0, and 0.5 is preferred.</p>
+                </div>
+                <label class="mesh-way"><input type="radio" name="mesh-method" value="parts" data-action="mesh-method"> <span data-i18n="meshByParts">In a number of parts per element</span></label>
+                <div class="mesh-fields" data-method="parts" hidden>
+                    <div class="input-group"><label data-i18n="meshParts">Equal parts per element</label><input type="text" id="mesh-parts" value="2"></div>
+                </div>
+                <label class="mesh-way"><input type="radio" name="mesh-method" value="convergence" data-action="mesh-method"> <span data-i18n="meshByConvergence">By the convergence of the natural frequencies</span></label>
+                <div class="mesh-fields" data-method="convergence" hidden>
+                    <div class="mesh-row">
+                        <div class="input-group"><label data-i18n="meshModes">Frequencies</label><input type="text" id="mesh-modes" value="6"></div>
+                        <div class="input-group"><label data-i18n="meshTolerance">Tolerance [%]</label><input type="text" id="mesh-rtol" value="0.1"></div>
+                        <div class="input-group"><label data-i18n="meshSpeed">Speed [rpm]</label><input type="text" id="mesh-speed" value="0"></div>
+                    </div>
+                    <p class="mesh-hint" data-i18n="meshConvergenceHint">The whole rotor, from the mesh it has: the coarsest mesh whose lowest natural frequencies refining no longer changes by more than the tolerance. A modal analysis per mesh: a few seconds.</p>
+                </div>
+                <p id="mesh-busy" class="mesh-busy" role="status" hidden></p>
+                <div class="form-actions">
+                    <button class="btn-confirm" data-action="mesh-go"><i class="fas fa-check"></i> <span data-i18n="meshGo">Compute</span></button>
+                    <button class="btn-cancel" data-action="mesh-cancel"><i class="fas fa-times"></i> <span data-i18n="cancel">Cancel</span></button>
                 </div>
             </div>
         </div>

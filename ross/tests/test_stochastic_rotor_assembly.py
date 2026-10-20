@@ -372,6 +372,53 @@ def test_run_freq_response(rotor1):
     assert_allclose(np.angle(results.freq_resp), phase, atol=1e-6)
 
 
+def test_run_freq_response_reads_response_at_out_to_force_at_inp():
+    """Each sample is the response at `out` to a unit force at `inp`.
+
+    The reference solves Z(w) x = e_inp directly for every rotor of the
+    sample. The bearings are cross-coupled with kxy != -kyx, so H is not
+    symmetric and reading H[inp, out] would give different values.
+    """
+    shaft = [ShaftElement(0.25, 0, 0.05, material=steel) for _ in range(6)]
+    disks = [
+        DiskElement.from_geometry(n=2, material=steel, width=0.07, i_d=0.05, o_d=0.28),
+        DiskElement.from_geometry(n=4, material=steel, width=0.07, i_d=0.05, o_d=0.35),
+    ]
+    bearings = [
+        ST_BearingElement(
+            n=n,
+            kxx=[1e6, 2e6],
+            kyy=1.5e6,
+            kxy=4e5,
+            kyx=-6e5,
+            cxx=200,
+            cyy=300,
+            is_random=["kxx"],
+        )
+        for n in (0, 6)
+    ]
+    rotors = ST_Rotor(shaft, disks, bearings)
+    speed_range = np.array([60.0, 250.0, 520.0, 900.0])
+    d = 6
+    for inp, out in [(4 * d, 2 * d + 1), (4 * d, 2 * d)]:
+        results = rotors.run_freq_response(inp, out, speed_range)
+        for i, rotor in enumerate(iter(rotors)):
+            expected = []
+            for w in speed_range:
+                Z = (
+                    -(w**2) * rotor.M(w, w)
+                    + 1j * w * (rotor.C(w, w) + w * rotor.G())
+                    + rotor.K(w, w)
+                )
+                force = np.zeros(rotor.ndof, dtype=complex)
+                force[inp] = 1.0
+                expected.append(np.linalg.solve(Z, force)[out])
+            assert_allclose(results.freq_resp[:, i], expected, rtol=1e-8)
+            assert_allclose(
+                results.velc_resp[:, i], 1j * speed_range * expected, rtol=1e-8
+            )
+
+
 def test_run_unbalance_response(rotor1):
     freq_range = np.linspace(0, 500, 21)
     n = 3

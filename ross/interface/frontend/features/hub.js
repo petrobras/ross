@@ -11,6 +11,7 @@ import { generatePythonFile } from './export.js';
 import { buildRotorLive, closeForm } from './modeling.js';
 import { switchScreen } from './screens.js';
 import { t } from '../core/i18n.js';
+import { forgetFilters } from '../core/list_filter.js';
 // Function to open the Hub screen and render the list
 
 export function openRotorHub() {
@@ -98,7 +99,7 @@ export async function createNewRotorInHub() {
     let newRotor = {
         name: baseName,
         savedAnalyses: [],
-        materials: [], shafts: [], disks: [], gears: [], couplings: [], seals: [], bearings: [], pointmasses: []
+        materials: [], shafts: [], disks: [], gears: [], couplings: [], seals: [], bearings: [], pointmasses: [], probes: []
     };
     state.rotorLibrary.push(newRotor);
     renderRotorHub();
@@ -142,14 +143,16 @@ export function openRotorWorkspace(index, targetScreen) {
     openProjectHistory(state.projectData);
     showOpenRotorName();
     
-    // The form first, then the list. The form lives *inside* the list while an
-    // element is being edited, and emptying the list with it there deleted it
-    // from the page for good: every later `closeForm` threw, `openTab` stopped
-    // before drawing anything, and the element lists stayed empty until the
-    // page was reloaded. Leaving the modeling screen with a form open was
-    // enough -- which is very likely the "lists vanished" of the week's report.
-    // `closeForm` puts it back in `#list-area` and sets `editingIndex` to -1.
+    // The form closes with the rotor it was editing: `closeForm` hides the
+    // window and sets `editingIndex` to -1, so the next rotor does not open
+    // with a form for an element of the last one. (It also used to lift the
+    // form out of the list before the list was emptied -- the form lived there,
+    // and emptying the list with it inside deleted it from the page, very
+    // likely the "lists vanished" of the week's report. The form is a window of
+    // its own now, and cannot be emptied away.)
     closeForm();
+    // Filters are the last rotor's: its materials and fields, not this one's.
+    forgetFilters();
     document.getElementById('element-list').innerHTML = '';
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     
@@ -225,7 +228,8 @@ export function generatePythonFromHub(index) {
 // Every element of a rotor, whatever its kind. It used to add up shafts, disks
 // and bearings only, so a rotor with gears, couplings, seals or point masses
 // was announced with fewer elements than it had. Materials are not elements of
-// the rotor -- they are what the shafts are made of -- and stay out.
+// the rotor -- they are what the shafts are made of -- and stay out, as do the
+// probes: ROSS's rotor has none, they are where the analyses read it.
 // "1 element", not "1 elements".
 function elementsLabel(count) {
     return (count === 1 ? t('elementsCountOne') : t('elementsCount')).replace('%1', () => count);
@@ -233,7 +237,7 @@ function elementsLabel(count) {
 
 function elementCount(rotor) {
     return CATEGORIES
-        .filter(category => category !== 'materials')
+        .filter(category => category !== 'materials' && category !== 'probes')
         .reduce((total, category) => total + (Array.isArray(rotor[category]) ? rotor[category].length : 0), 0);
 }
 

@@ -126,8 +126,8 @@ const HelpContent = {
             pt: `<i class='fas fa-compact-disc'></i> Ajuda: Discos`,
         },
         body: {
-            en: `<p>Disks represent concentrated masses on the rotor, like impellers, couplings hubs, or turbine blades.</p><h4>Key Parameters:</h4><ul><li><b>Mass (m):</b> Disk mass [kg].</li><li><b>Polar Inertia (Ip):</b> Inertia around the rotational axis [kg.m²].</li><li><b>Diametral Inertia (Id):</b> Inertia around the transverse axis [kg.m²].</li></ul>`,
-            pt: `<p>Discos representam massas concentradas no rotor: impelidores, cubos de acoplamento, pás de turbina.</p><h4>Parâmetros principais:</h4><ul><li><b>Massa (m):</b> massa do disco [kg].</li><li><b>Inércia polar (Ip):</b> inércia em torno do eixo de rotação [kg.m²].</li><li><b>Inércia diametral (Id):</b> inércia em torno do eixo transversal [kg.m²].</li></ul>`,
+            en: `<p>Disks represent concentrated masses on the rotor, like impellers, couplings hubs, or turbine blades.</p><h4>Key Parameters:</h4><ul><li><b>Mass (m):</b> Disk mass [kg].</li><li><b>Polar Inertia (Ip):</b> Inertia around the rotational axis [kg.m²].</li><li><b>Diametral Inertia (Id):</b> Inertia around the transverse axis [kg.m²].</li></ul><p>The <b>Geometry</b> model takes the disk's dimensions instead — width, outer and inner diameters [mm] and material — and ROSS works out m, Ip and Id (<code>DiskElement.from_geometry</code>).</p>`,
+            pt: `<p>Discos representam massas concentradas no rotor: impelidores, cubos de acoplamento, pás de turbina.</p><h4>Parâmetros principais:</h4><ul><li><b>Massa (m):</b> massa do disco [kg].</li><li><b>Inércia polar (Ip):</b> inércia em torno do eixo de rotação [kg.m²].</li><li><b>Inércia diametral (Id):</b> inércia em torno do eixo transversal [kg.m²].</li></ul><p>O modelo <b>Geometry</b> recebe as dimensões do disco — largura, diâmetros externo e interno [mm] e material — e o ROSS calcula m, Ip e Id (<code>DiskElement.from_geometry</code>).</p>`,
         },
     },
     gears: {
@@ -136,8 +136,8 @@ const HelpContent = {
             pt: `<i class='fas fa-cog'></i> Ajuda: Engrenagens`,
         },
         body: {
-            en: `<p>Gears act as disks but can also include meshing stiffness effects. The <b>TVMS</b> model accounts for Time-Varying Mesh Stiffness.</p><h4>Key Parameters:</h4><ul><li><b>Number of Teeth (n_teeth):</b> Gear teeth count.</li><li><b>Pitch/Base Diameter:</b> Gear sizing [mm].</li><li><b>Pressure & Helix Angles:</b> Meshing geometry [deg].</li></ul>`,
-            pt: `<p>Engrenagens funcionam como discos e podem incluir o efeito da rigidez de engrenamento. O modelo <b>TVMS</b> considera a rigidez variável no tempo.</p><h4>Parâmetros principais:</h4><ul><li><b>Número de dentes (n_teeth):</b> quantidade de dentes.</li><li><b>Diâmetro primitivo/de base:</b> dimensionamento da engrenagem [mm].</li><li><b>Ângulos de pressão e de hélice:</b> geometria do engrenamento [graus].</li></ul>`,
+            en: `<p>Gears act as disks but can also include meshing stiffness effects. The <b>TVMS</b> model accounts for Time-Varying Mesh Stiffness.</p><h4>Key Parameters:</h4><ul><li><b>Number of Teeth (n_teeth):</b> Gear teeth count.</li><li><b>Pitch/Base Diameter:</b> Gear sizing [mm].</li><li><b>Pressure & Helix Angles:</b> Meshing geometry [deg].</li></ul><p>The <b>Geometry</b> model takes the gear's dimensions instead — face width, pitch diameter and bore [mm], number of teeth and material — and ROSS works out m, Ip and Id (<code>GearElement.from_geometry</code>).</p>`,
+            pt: `<p>Engrenagens funcionam como discos e podem incluir o efeito da rigidez de engrenamento. O modelo <b>TVMS</b> considera a rigidez variável no tempo.</p><h4>Parâmetros principais:</h4><ul><li><b>Número de dentes (n_teeth):</b> quantidade de dentes.</li><li><b>Diâmetro primitivo/de base:</b> dimensionamento da engrenagem [mm].</li><li><b>Ângulos de pressão e de hélice:</b> geometria do engrenamento [graus].</li></ul><p>O modelo <b>Geometry</b> recebe as dimensões da engrenagem — largura da face, diâmetro primitivo e furo [mm], número de dentes e material — e o ROSS calcula m, Ip e Id (<code>GearElement.from_geometry</code>).</p>`,
         },
     },
     couplings: {
@@ -178,6 +178,16 @@ const HelpContent = {
         body: {
             en: `<p>A simple concentrated mass attached to a single node, useful for modeling unbalanced weights or small components.</p><h4>Key Parameters:</h4><ul><li><b>Mass (m):</b> Total mass [kg].</li><li><b>mx, my, mz:</b> Advanced options for asymmetric mass properties.</li></ul>`,
             pt: `<p>Uma massa concentrada num único nó, útil para representar pesos de desbalanceamento ou componentes pequenos.</p><h4>Parâmetros principais:</h4><ul><li><b>Massa (m):</b> massa total [kg].</li><li><b>mx, my, mz:</b> opções avançadas para massa assimétrica.</li></ul>`,
+        },
+    },
+    probes: {
+        title: {
+            en: `<i class='fas fa-crosshairs'></i> Probes Help`,
+            pt: `<i class='fas fa-crosshairs'></i> Ajuda: Sondas`,
+        },
+        body: {
+            en: `<p>Where the response is measured, as a proximity probe on the machine would read it. ROSS's rotor has no probes: they take no part in building it, and the analyses read the response at them. Placed here, a probe moves with its node when a shaft is split or discretized.</p><h4>Key Parameters:</h4><ul><li><b>Node:</b> where the probe reads.</li><li><b>Name:</b> the name the charts' legend gives it.</li><li><b>Direction:</b> radial (across the shaft) or axial (along it).</li><li><b>Angle:</b> for a radial probe, about the shaft from x toward y [deg].</li></ul>`,
+            pt: `<p>Onde a resposta é medida, como uma sonda de proximidade na máquina a leria. O rotor do ROSS não tem sondas: elas não entram na montagem dele, e as análises leem a resposta nelas. Colocada aqui, uma sonda acompanha o seu nó quando um eixo é dividido ou discretizado.</p><h4>Parâmetros principais:</h4><ul><li><b>Nó:</b> onde a sonda lê.</li><li><b>Nome:</b> o nome que a legenda dos gráficos dá a ela.</li><li><b>Direção:</b> radial (através do eixo) ou axial (ao longo dele).</li><li><b>Ângulo:</b> para uma sonda radial, em torno do eixo, de x para y [graus].</li></ul>`,
         },
     },
     campbell: {

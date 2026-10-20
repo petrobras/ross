@@ -126,11 +126,16 @@ check('the modal stays open on the fields that caused it',
 state.rotorLibrary = [rotor('Motor', [{ n: '2' }]), rotor('Pump', [{ n: '1' }])];
 await openMultiRotorModal();
 serverAnswers({ status: 'success', plot_json: '{}' });
+node('mr-mesh-damping').value = '0.07';
+sent = [];
 await saveMultiRotor();
 const made = state.rotorLibrary[2];
 check('a MultiRotor ROSS builds joins the library', state.rotorLibrary.length === 3 && made.isMultiRotor === true);
 check('coupled through the gears the modal found', made.multi_params.coupled_nodes === '2, 1');
 check('and linked to its two parents', made.driving_uid === 'uid_Motor' && made.driven_uid === 'uid_Pump');
+// ROSS #1427: the mesh damping ratio, which the form had no field for.
+check('the mesh damping ratio typed is kept', made.multi_params.mesh_damping_ratio === '0.07');
+check('and is what the server built', sent[0].body.project.multi_params.mesh_damping_ratio === '0.07');
 check('and the modal closes', node('multirotor-modal-overlay').style.display === 'none');
 
 // No server at all: said so, nothing kept.

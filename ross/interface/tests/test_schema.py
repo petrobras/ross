@@ -47,15 +47,15 @@ def test_schema_has_no_unknown_fields():
 
 def test_every_form_field_is_accepted_by_its_class():
     """Belt and braces: checks straight against the signature, without the schema."""
-    from ross.interface.domain.schema import PARAMETER_ALIASES, _class_signature
+    from ross.interface.domain.schema import _class_signature, _parameter_name
 
     problems = []
     for category, subtypes in FIELDS.items():
         for subtype, fields in subtypes.items():
-            klass = element_registry.ross_class_name(category, subtype)
+            klass = element_registry.ross_constructor(category, subtype)
             _, parameters, _, _ = _class_signature(klass)
             for field in fields:
-                target = PARAMETER_ALIASES.get(field["name"], field["name"])
+                target = _parameter_name(klass, field["name"])
                 if target not in parameters:
                     problems.append(
                         f"{category}/{subtype}.{field['name']} -> rs.{klass}"
@@ -111,12 +111,17 @@ def test_labels_differ_between_languages_where_expected():
 
 
 def test_units_come_from_the_domain_module():
-    """The unit comes from units.py -- from the class itself or from a base of it."""
+    """The unit comes from units.py -- from the class itself or from a base of
+    it, and for an alternative constructor ("Class.method") from its own entry
+    first."""
     for category, subtype, definition, field in _every_field():
-        klass = getattr(rs, definition["ross_class"])  # noqa: F405
+        constructor = definition["ross_class"]
+        klass = getattr(rs, constructor.split(".")[0])  # noqa: F405
+        names = [base.__name__ for base in klass.__mro__]
+        if "." in constructor:
+            names.insert(0, constructor)
         candidates = [
-            units.UNITS_MAPPING.get(base.__name__, {}).get(field["name"])
-            for base in klass.__mro__
+            units.UNITS_MAPPING.get(name, {}).get(field["name"]) for name in names
         ]
         expected = next((u for u in candidates if u), None)
         assert field["unit"] == expected, f"{category}/{subtype}.{field['name']}"
@@ -154,6 +159,54 @@ def test_help_text_comes_from_ross_docstrings():
     assert len(with_help) > 300, (
         f"only {len(with_help)} of {len(fields)} fields with help"
     )
+
+
+def test_a_parameter_written_without_the_space_before_the_colon_keeps_its_help():
+    """numpydoc writes "name : type"; some of ROSS's docstrings write
+    "name: type" (DiskElement's scale_factor, from_geometry's material). The
+    parser used to miss those lines, so the field had no help and the one
+    above it swallowed its text."""
+    disk = build_schema("en")["categories"]["disks"]
+    basic = {f["name"]: f["help"] for f in disk["BASIC"]["fields"]}
+    geometry = {f["name"]: f["help"] for f in disk["Geometry"]["fields"]}
+    assert (
+        basic["scale_factor"] == "The scale factor is used to scale the disk drawing."
+    )
+    assert "scale_factor" not in basic["tag"]
+    assert geometry["material"] == "Disk material."
+
+
+def test_the_geometry_disk_form_is_from_geometry_in_millimetres():
+    """The second disk form calls DiskElement.from_geometry: its fields are
+    that method's parameters -- not DiskElement's -- and the three dimensions
+    are typed in millimetres, like a shaft's."""
+    definition = build_schema("en")["categories"]["disks"]["Geometry"]
+    assert definition["ross_class"] == "DiskElement.from_geometry"
+    assert definition["exists"] and definition["not_in_form"] == []
+    fields = {f["name"]: f for f in definition["fields"]}
+    for name in ("width", "o_d", "i_d"):
+        assert fields[name]["known_to_ross"]
+        assert fields[name]["unit"] == "mm"
+        assert fields[name]["group"] == "main"
+    assert fields["material"]["control"] == "material_ref"
+    assert "m" not in fields and "Ip" not in fields
+
+
+def test_the_geometry_gear_form_names_rosss_diameters_for_what_they_are():
+    """GearElement.from_geometry calls its o_d the pitch diameter and its i_d
+    the bore; the form says so, and the angles keep their degrees."""
+    definition = build_schema("en")["categories"]["gears"]["Geometry"]
+    assert definition["ross_class"] == "GearElement.from_geometry"
+    assert definition["exists"] and definition["not_in_form"] == []
+    fields = {f["name"]: f for f in definition["fields"]}
+    assert fields["o_d"]["label"] == "Pitch Diameter"
+    assert fields["i_d"]["label"] == "Bore Diameter"
+    for name in ("width", "o_d", "i_d"):
+        assert (fields[name]["unit"], fields[name]["group"]) == ("mm", "main")
+    for name in ("pr_angle", "helix_angle"):
+        assert (fields[name]["unit"], fields[name]["group"]) == ("deg", "advanced")
+    assert fields["n_teeth"]["known_to_ross"]
+    assert "m" not in fields and "pitch_diameter" not in fields
 
 
 def test_material_fields_use_the_dynamic_control():

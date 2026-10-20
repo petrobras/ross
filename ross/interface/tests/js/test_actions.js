@@ -54,15 +54,15 @@ const screens = [...PAGE.matchAll(/data-action="show-screen" data-screen="([\w-]
 check('every screen button names a screen that exists', screens.length > 0 && screens.every(id => ids.has(id)));
 
 // Every tab and every node-hub button carries the category it acts on.
-const CATEGORIES = ['materials', 'shafts', 'disks', 'gears', 'couplings', 'seals', 'bearings', 'pointmasses'];
+const CATEGORIES = ['materials', 'shafts', 'disks', 'gears', 'couplings', 'seals', 'bearings', 'pointmasses', 'probes'];
 const tabButtons = (PAGE.match(/data-action="pick-tab"/g) || []).length;
 const tabsNamed = [...PAGE.matchAll(/data-action="pick-tab" data-tab="(\w+)"/g)].map(m => m[1]);
-check('every category tab names its category', tabButtons === 8
-    && tabsNamed.length === 8 && tabsNamed.every(c => CATEGORIES.includes(c)));
+check('every category tab names its category', tabButtons === 9
+    && tabsNamed.length === 9 && tabsNamed.every(c => CATEGORIES.includes(c)));
 const hubButtons = (PAGE.match(/data-action="add-from-node-hub"/g) || []).length;
 const hubNamed = [...PAGE.matchAll(/data-action="add-from-node-hub" data-category="(\w+)"/g)].map(m => m[1]);
-check('and so does every node-hub button', hubButtons === 7
-    && hubNamed.length === 7 && hubNamed.every(c => CATEGORIES.includes(c)));
+check('and so does every node-hub button', hubButtons === 8
+    && hubNamed.length === 8 && hubNamed.every(c => CATEGORIES.includes(c)));
 
 // Every element that names an action carries what that action reads. An
 // action whose attribute is missing does not fail on the click: it runs with

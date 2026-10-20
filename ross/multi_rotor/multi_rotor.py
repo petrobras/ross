@@ -11,6 +11,7 @@ from re import search
 from copy import deepcopy as copy
 
 import ross as rs
+from ross.element import Element
 from ross.rotor_assembly import Rotor
 from ross.units import Q_, check_units
 from ross.utils import make_speed_array
@@ -81,6 +82,12 @@ class MultiRotor(Rotor):
         All keys are required.
         Default is `{"enable": False, "initial_value": 0.0, "error_amp": 0.0,
         "smooth_operator": False, "sigma": 1e4}`.
+    mesh_damping_ratio : float, pint.Quantity, optional
+        Damping ratio ζ of the gear mesh (dimensionless), giving the mesh damping
+        coefficient :math:`c_m = 2 \\zeta \\sqrt{k_m M_{eq}}`. Without backlash,
+        :math:`c_m` is added to the global damping matrix; with backlash, it is
+        used in the nonlinear mesh force. Default is 0.0, no mesh damping
+        (ROSS 3.0 used 0.07 for backlash models).
     orientation_angle : float, pint.Quantity, optional
         The angle between the line of gear centers and x-axis. Default is 0.0 rad.
     position : {'above', 'below'}, optional
@@ -94,10 +101,17 @@ class MultiRotor(Rotor):
         The rated angular velocity of the multi-rotor system. Default is None.
     tag : str, optional
         A tag to identify the multi-rotor. Default is None.
+
     Returns
     -------
     rotor : rs.Rotor
         The created multi-rotor object.
+
+    References
+    ----------
+    The mesh model and its references (Kaplan et al., 2013; Yi et al., 2019;
+    Visnadi, 2022) are described in the MultiRotor tutorial, with the full
+    entries in ``docs/references.bib``.
 
     Examples
     --------
@@ -176,6 +190,7 @@ class MultiRotor(Rotor):
             "smooth_operator": False,
             "sigma": 1e4,
         },
+        mesh_damping_ratio=0.0,
         orientation_angle=0.0,
         position="above",
         min_w=None,
@@ -241,11 +256,22 @@ class MultiRotor(Rotor):
         bearing_elements = [*R1.bearing_elements, *R2.bearing_elements]
         point_mass_elements = [*R1.point_mass_elements, *R2.point_mass_elements]
 
+        motor_element = None
+        if R1.motor_element is not None and R2.motor_element is not None:
+            motor_element = R1.motor_element
+            raise Warning("""Rotor supports only one motor element.
+            Using the motor element of the driving rotor.\n""")
+        elif R1.motor_element is not None:
+            motor_element = R1.motor_element
+        elif R2.motor_element is not None:
+            motor_element = R2.motor_element
+
         super().__init__(
             shaft_elements,
             disk_elements,
             bearing_elements,
             point_mass_elements,
+            motor_element,
             min_w=min_w,
             max_w=max_w,
             rated_w=rated_w,
@@ -258,6 +284,7 @@ class MultiRotor(Rotor):
             gear_2,
             gear_mesh_stiffness=gear_mesh_stiffness,
             square_varying_stiffness=square_varying_stiffness,
+            damping_ratio=mesh_damping_ratio,
             backlash=backlash,
             orientation_angle=orientation_angle,
         )
@@ -265,11 +292,14 @@ class MultiRotor(Rotor):
         self._mesh_stiffness = self.mesh.stiffness
 
         self.K_coupling = self.compute_coupling_matrix()
+        self.coupling_matrix = self.compute_coupling_matrix()
 
         if self.mesh.backlash:
             self.add_coupling_stiffness = lambda K0: K0
+            self.add_coupling_damping = lambda C0: C0
         else:
             self.add_coupling_stiffness = self.K_mesh
+            self.add_coupling_damping = self.C_mesh
 
         self._gear_ratio = self._node_gear_ratio(self.driven_nodes[0])
 
@@ -571,6 +601,43 @@ class MultiRotor(Rotor):
         new_nodes_pos_2 = [pos - self.dz_pos for pos in new_nodes_pos]
         driven_rotor = self.rotors["driven"].add_nodes(new_nodes_pos_2)
 
+        return self._rebuild(driving_rotor, driven_rotor)
+
+    def refine_mesh(self, max_ld=0.5, min_ld=0.1, parts=None):
+        """Subdivide the shaft elements of both rotors by their L/D ratio.
+
+        Each rotor is refined on its own, by :meth:`Rotor.refine_mesh`, and the
+        multi-rotor is built again from the two: a node added to one rotor is
+        not added to the other, unlike :meth:`add_nodes`, which cuts both at
+        the same positions.
+
+        Parameters
+        ----------
+        max_ld : float, optional
+            Largest length-to-diameter ratio left in the model. Default is 0.5.
+        min_ld : float, optional
+            Smallest length-to-diameter ratio that is not warned about.
+            Default is 0.1.
+        parts : int, optional
+            When given, every shaft element of both rotors is cut into this
+            many equal parts instead, and ``max_ld`` is not used.
+
+        Returns
+        -------
+        multi_rotor : MultiRotor
+            A new multi-rotor; the original is not modified.
+
+        Examples
+        --------
+        >>> multi_rotor = two_shaft_rotor_example()
+        >>> refined = multi_rotor.refine_mesh(max_ld=0.5)
+        >>> ratios = [elm.L / max(elm.odl, elm.odr)
+        ...     for rotor in refined.rotors.values() for elm in rotor.shaft_elements]
+        >>> round(max(ratios), 9) <= 0.5
+        True
+        """
+        driving_rotor = self.rotors["driving"].refine_mesh(max_ld, min_ld, parts)
+        driven_rotor = self.rotors["driven"].refine_mesh(max_ld, min_ld, parts)
         return self._rebuild(driving_rotor, driven_rotor)
 
     def add_elements(self, new_elements):
@@ -1154,9 +1221,40 @@ class MultiRotor(Rotor):
         dofs_2 = self.mesh.driven_gear.dof_global_index.values()
         dofs = [*dofs_1, *dofs_2]
 
-        K0[np.ix_(dofs, dofs)] += self.K_coupling * self._mesh_stiffness
+        K0[np.ix_(dofs, dofs)] += self.coupling_matrix * self._mesh_stiffness
 
         return K0
+
+    def C_mesh(self, C0):
+        """Add the gear mesh damping contribution to a damping matrix.
+
+        The mesh damping coefficient :math:`c_m = 2 \\zeta \\sqrt{k_m M_{eq}}`
+        (Yi et al., 2019) multiplies the same coupling matrix as the mesh
+        stiffness.
+
+        Parameters
+        ----------
+        C0 : np.ndarray
+            Damping matrix to which the mesh damping will be added.
+
+        Returns
+        -------
+        C0 : np.ndarray
+            Damping matrix with the gear mesh damping contribution added.
+
+        """
+        dofs_1 = self.mesh.driving_gear.dof_global_index.values()
+        dofs_2 = self.mesh.driven_gear.dof_global_index.values()
+        dofs = [*dofs_1, *dofs_2]
+
+        c_m = (
+            2.0
+            * self.mesh.damping_ratio
+            * np.sqrt(self._mesh_stiffness * self.mesh.M_eq)
+        )
+        C0[np.ix_(dofs, dofs)] += self.coupling_matrix * c_m
+
+        return C0
 
     def K(self, frequency, speed=None):
         """Stiffness matrix for a multi-rotor.
@@ -1305,9 +1403,11 @@ class MultiRotor(Rotor):
         if speed is None:
             speed = frequency
 
-        return self._join_matrices(
-            self.rotors["driving"].C(frequency, speed),
-            self.rotors["driven"].C(frequency, speed * abs(self._gear_ratio)),
+        return self.add_coupling_damping(
+            self._join_matrices(
+                self.rotors["driving"].C(frequency, speed),
+                self.rotors["driven"].C(frequency, speed * abs(self._gear_ratio)),
+            )
         )
 
     def G(self):
@@ -1371,10 +1471,10 @@ class MultiRotor(Rotor):
             K2 = reduce_matrix(kwargs.get("Ksdt", self.Ksdt()))
 
             def rotor_system(step, **current_state):
-                C1 = reduce_matrix(self.C(speed[step]))
-
                 # Update mesh stiffness
                 self._mesh_stiffness = self.mesh.interpolate_stiffness(theta[step])
+
+                C1 = reduce_matrix(self.C(speed[step]))
                 K1 = reduce_matrix(self.K(speed[step]))
 
                 return (
@@ -1427,7 +1527,7 @@ class MultiRotor(Rotor):
         """
         if self.mesh.backlash:
             t_, yout, xout = self.time_response(speed, F, t, method=method, **kwargs)
-            results = BacklashResults(self, t, yout, xout)
+            results = BacklashResults(self, t, yout, xout, speed=speed)
         else:
             results = super().run_time_response(speed, F, t, method=method, **kwargs)
 

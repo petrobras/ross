@@ -46,6 +46,8 @@ modal.plot_mode_2d(0)
 | `run_amb_sensitivity(...)` | AMB sensitivity | `SensitivityResults` | `plot()`, `plot_time_results()` | — |
 | `run_amb_non_collocation(magnetic_bearing, ...)` | AMB sensor-actuator non-collocation | `AmbNonCollocationResults` | `plot()`, `plot_mode_shape()`, `plot_sensor_position_map()` | — |
 | `run_clearance_analysis(speed_range, Nma, Nmc, probes, ...)` | API 617 close-clearance check | `ClearanceResults` | `plot()`, `plot_response()`, `plot_probe_response()` | [clearance_analysis](ross/agent_skills/ross/clearance_analysis.md) |
+| `run_mesh_convergence(rtol, frequencies, strategy)` | Shaft discretization with converged natural frequencies | `MeshConvergenceResults` | `plot()` | [mesh_convergence](ross/agent_skills/ross/mesh_convergence.md) |
+| `run_with_motor(t, node, unbalance_magnitude, unbalance_phase, drive_mode, ...)` | Time response driven by the induction-motor torque | `TimeResponseResults` (motor simulation in `.motor_results`: `MotorResponseResults`) | `plot_1d(probe)`, `plot_2d(node)`, `plot_3d()`, `plot_dfft(probe)`; `motor_results.plot_torque()`, `plot_speed()` | [motor](ross/agent_skills/ross/motor.md) |
 
 ### Units
 
@@ -59,10 +61,10 @@ All values are SI internally: speed in rad/s, stiffness in N/m, damping in N·s/
 | `rs.compressor_example()` | Industrial compressor: 91 shafts, 7 disks, 14 bearings/seals |
 | `rs.rotor_example_6dof()` | 6-DOF rotor with axial stiffness |
 | `rs.rotor_example_with_damping()` | Rotor with internal material damping |
-| `rs.coaxrotor_example()` | Coaxial rotor (two concentric shafts) |
 | `rs.rotor_example_amb_simple()` | Rotor with active magnetic bearings |
 | `rs.rotor_example_amb_complex_controllers()` | AMB rotor with complex controllers |
 | `rs.rotor_example_amb_general_controllers()` | AMB rotor with general controllers |
+| `rs.motor_example()` | 1.5 hp, 127 V / 60 Hz, 4-pole induction motor (`MotorElement`) at node 0 |
 
 ### Save, load, interface, recipes
 
@@ -86,7 +88,7 @@ ROSS judges the change, not how it was produced. Code written entirely by an age
 
 ### Setup and workflow
 
-- Python >= 3.12. Development install: `pip install -e ".[dev]"`.
+- Python >= 3.13. Development install: `pip install -e ".[dev]"`.
 - Remotes: `upstream` → `petrobras/ross`, `origin` → your fork. Branch from `upstream/main`, push to `origin`, open the PR against `petrobras/ross:main`.
 - Tests: `pytest ross` from the repository root, or `pytest ross -n auto` in parallel. `--doctest-modules` is on (`pytest.ini`). `ross/conftest.py` caps the BLAS thread pools to one thread per process; without it, xdist workers oversubscribe the cores.
 - Lint and format: `ruff check ross` and `ruff format ross` (also run by `pre-commit run --all-files`). Double quotes for strings and docstrings.
@@ -113,13 +115,14 @@ Elements → Rotor assembly → Rotor.run_*() → Results objects with .plot_*()
 | `ross/element.py` | `Element` ABC |
 | `ross/shaft_element.py`, `disk_element.py`, `bearing_seal_element.py`, `coupling_element.py`, `point_mass.py` | Core elements |
 | `ross/bearings/`, `ross/seals/` | Bearing and seal models |
-| `ross/rotor_assembly.py`, `ross/multi_rotor/` | `Rotor`, `CoAxialRotor`, `MultiRotor`: assembly and analyses |
-| `ross/results.py` | `Results` ABC and every results class |
+| `ross/motors/` | `MotorElement`, electrical sources and inverters (`SourceAC`, `InverterVF`, `InverterFOC`), `MotorResponseResults`, `PhaseResults` |
+| `ross/rotor_assembly.py`, `ross/multi_rotor/` | `Rotor`, `MultiRotor`: assembly and analyses |
+| `ross/results.py` | `Results` ABC and the rotor results classes; the bearing, multi-rotor, motor and stochastic results classes live in their subpackages |
 | `ross/units.py` | `@check_units` and `Q_` |
 
 Rules, each with the safe way to follow it:
 
-- **Elements** subclass `Element` and implement `M()`, `K(frequency)`, `C(frequency)`, `G()` and `dof_mapping()`. Unit handling goes through `@check_units` on `__init__`. A new element must build inside `Rotor`, `CoAxialRotor` and `MultiRotor`, and must round-trip `save`/`load`.
+- **Elements** subclass `Element` and implement `M()`, `K(frequency)`, `C(frequency)`, `G()` and `dof_mapping()`. Unit handling goes through `@check_units` on `__init__`. A new element must build inside `Rotor` and `MultiRotor`, and must round-trip `save`/`load`.
 - **Analyses are `run_*` methods on the rotor classes**, never on elements or free functions. Each returns an instance of a `Results` subclass. A new analysis adds a row to the table in this file, a recipe or recipe section in `ross/agent_skills/ross/`, and a row in that folder's `SKILL.md`.
 - **Results** subclass `Results`. Plots are `plot_*` methods built with Plotly and the ROSS theme. A new results class must round-trip `save`/`load`.
 - **Units**: values are SI inside ROSS. Conversion happens only at the boundary (`@check_units`, `Q_`).
@@ -158,7 +161,7 @@ To prepare a PR, follow the `ross-pr-create` skill in `.agents/skills/ross-pr-cr
 - One concern per PR. Keep core-library changes, interface changes and vendored third-party code in separate PRs. Split large work into a stack of PRs that can each be reviewed on their own.
 - Plan however you like, locally. The plan is not committed; the PR text carries what a reviewer needs: scope, the design decisions to confirm, API changes, evidence, changes to existing tests and documentation. Fill in every section of the template, writing "none" where nothing applies.
 - Do not paste session logs, local notes or agent transcripts into the PR.
-- Keep the cookbook in sync: the recipes in `ross/agent_skills/ross/` follow the tutorials in `docs/user_guide/`: `tutorial_modeling_part_1` and `tutorial_modeling_part_2` for modeling, `tutorial_analyses_part_1` for static and modal, `tutorial_analyses_part_2` for time and frequency, and examples 1–32. When a tutorial or `run_*` method changes, update the matching recipe and the `SKILL.md` index. The skill folder must stay self-contained: recipes only link to files inside it.
+- Keep the cookbook in sync: the recipes in `ross/agent_skills/ross/` follow the tutorials in `docs/user_guide/`: `tutorial_modeling_part_1` and `tutorial_modeling_part_2` for modeling, `tutorial_analyses_part_1` for static and modal, `tutorial_analyses_part_2` for time and frequency, `tutorial_motor` for motors, and examples 1–32. When a tutorial or `run_*` method changes, update the matching recipe and the `SKILL.md` index. The skill folder must stay self-contained: recipes only link to files inside it.
 
 ### Reviewing a pull request
 

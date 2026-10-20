@@ -109,6 +109,10 @@ state.rotorLibrary = [];
 check('it restored the library', restoreState() === 1);
 check('with the right content', state.rotorLibrary[0].name === 'Compressor A');
 check('stays on the Hub, reopening no rotor by itself', state.activeRotorIndex === -1);
+// A rotor stored before the probes existed comes back with the list, empty,
+// for the screen to add the first one to.
+check('a category it was stored without comes back empty',
+    Array.isArray(state.rotorLibrary[0].probes) && state.rotorLibrary[0].probes.length === 0);
 // `restoreState` gives back how many rotors came back and draws nothing. A
 // core module telling the screen to redraw was the only cycle the boundary
 // measurement found between core and feature; the line above is already the

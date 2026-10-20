@@ -28,7 +28,7 @@ globalThis.fetch = async () => ({
 });
 
 const { afterInsertion, afterMove, afterRemoval } = await import('../../frontend/core/editing.js');
-const { onReorder, renderList } = await import('../../frontend/components/list.js');
+const { markEditedRow, onReorder, renderList } = await import('../../frontend/components/list.js');
 const { buildRotorLive, copyItem, deleteItem } = await import('../../frontend/features/modeling.js');
 const { openProjectHistory, state } = await import('../../frontend/core/state.js');
 const { describeError, isNoise, startErrorNotice } = await import('../../frontend/features/error_notice.js');
@@ -77,18 +77,22 @@ check('and leaves the previous list on screen as well', list.innerHTML === befor
 state.projectData.gears = [];
 state.currentTab = 'shafts';
 
-// The form is part of what survives. It lives inside the list while an element
-// is being edited; the old code moved it out before failing, and it stayed out.
+// The form is part of what survives. It used to live inside the list, and the
+// old code moved it out before failing, where it stayed. It is a window of its
+// own now; what has to survive a failed redraw is that it stays open, on its
+// element, under the heading that names it.
 openRotor(['A', 'B', 'C']);
 renderList();
-list.appendChild(form);
+form.style.display = 'block';
 state.editingIndex = 1;
+markEditedRow();
+const heading = node('form-window-title').textContent;
 state.projectData.shafts[2] = null;
 try { renderList(); } catch (error) { /* shown by the notice */ }
-// `parentElement`, not `contains`: the fake DOM's `appendChild` does not take
-// a node out of its old parent, so `contains` stayed true after the form had
-// left -- and the first version of this check passed with the defect in place.
-check('an open form stays inside the list when rendering fails', form.parentElement === list);
+check('an open form stays open, on its element, when rendering fails',
+    form.style.display === 'block' && state.editingIndex === 1);
+check('under the heading that names it',
+    heading === 'SHAFT #2 (Node 1)' && node('form-window-title').textContent === heading);
 
 // Control: rendering that succeeds still replaces the list.
 openRotor(['X', 'Y']);
@@ -114,12 +118,13 @@ check('dragging one from above onto its place moves it up', afterMove(3, 0, 3) =
 // and "Save" wrote C's form over B.
 openRotor(['A', 'B', 'C']);
 renderList();
-list.appendChild(form);
 state.editingIndex = 2;
 copyItem(0);
 check('copying above the edited element keeps the form on it',
     state.projectData.shafts[state.editingIndex].tag === 'C');
-check('and the form is put back into the list, under its element', form.parentElement === list);
+// The heading used to be the form's place under its row; renumbered with it.
+check('and the window\'s heading follows it to its new number',
+    node('form-window-title').textContent === 'SHAFT #4 (Node 3)');
 
 copyItem(state.editingIndex);
 check('copying the edited element itself keeps the form on the original',
@@ -141,6 +146,7 @@ state.editingIndex = 1;                                  // B
 draggable().options.onEnd({ oldDraggableIndex: 3, newDraggableIndex: 0 }); // D to the top
 check('dragging another element above keeps the form on its own',
     state.projectData.shafts[state.editingIndex].tag === 'B');
+check('and its heading says where it went', node('form-window-title').textContent === 'SHAFT #3 (Node 2)');
 draggable().options.onEnd({ oldDraggableIndex: state.editingIndex, newDraggableIndex: 3 });
 check('dragging the edited element takes the form with it',
     state.projectData.shafts[state.editingIndex].tag === 'B');
@@ -164,17 +170,18 @@ check('and nothing was inserted or lost',
 //
 // The other half of what Leonardo saw, and very likely the original "lists
 // vanished": `openRotorWorkspace` emptied the list with the form still inside
-// it, which deletes the form from the page. Every later `closeForm` threw, and
-// `openTab` stopped before drawing the list.
+// it, which deleted the form from the page. The form is a window of its own
+// now and cannot be emptied away; what is left to hold is that leaving closes
+// it, so the next rotor does not open on a form for an element of this one.
 const { openRotorWorkspace } = await import('../../frontend/features/hub.js');
 openRotor(['A', 'B']);
 renderList();
-list.appendChild(form);
+form.style.display = 'block';
 state.editingIndex = 1;
 openRotorWorkspace(0, 'screen-analysis');
-check('opening a rotor takes the form out of the list before emptying it',
-    form.parentElement === node('list-area'));
-check('and closes it', state.editingIndex === -1);
+check('opening a rotor closes the form', form.style.display === 'none');
+check('and forgets which element it was on', state.editingIndex === -1);
+check('and the form was never in the list', !list.children.includes(form));
 
 // --- the notice -------------------------------------------------------------------------
 

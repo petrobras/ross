@@ -205,6 +205,7 @@ def test_the_route_stopped_computing():
         "ANALYSIS_CACHE",
         "spec_key",
         "build_rotor_from_ui",
+        "assemble_rotor",
     ):
         assert computing not in body, (
             "api/analysis.py is computing again (%s): the worker and the route "
@@ -213,9 +214,13 @@ def test_the_route_stopped_computing():
 
 
 def test_the_pipeline_is_the_only_place_that_draws_an_analysis():
-    """Control: if the route kept its own copy, the guard above would still pass."""
+    """Control: if the route kept its own copy, the guard above would still pass.
+
+    The rotor is built with `assemble_rotor`, the call `build_rotor_from_ui`
+    wraps: it also returns the probes of the model, which an analysis that
+    reads at them needs (domain/probe_refs.py)."""
     pipeline = _without_prose(_source("services", "analysis", "pipeline.py"))
-    for step in ("build_rotor_from_ui", "ANALYSIS_CACHE", "update_layout", "to_json"):
+    for step in ("assemble_rotor", "ANALYSIS_CACHE", "update_layout", "to_json"):
         assert step in pipeline, "the pipeline no longer does %s" % step
 
 

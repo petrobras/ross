@@ -320,7 +320,9 @@ was released with.
 Python releases a new minor version every October, so a release supports the
 three most recent Python minors, or four in the weeks after a new Python comes
 out. New Python versions are added to the test matrix as soon as the
-dependencies (numba in particular) publish wheels for them.
+dependencies (numba in particular) publish wheels for them. Optional
+dependencies, such as `tsdownsample` in the `downsample` extra, do not hold a
+new Python back: ROSS imports and works without them.
 
 (maintenance-branches)=
 
@@ -347,8 +349,9 @@ release, the scheme NumPy and SciPy use:
   are written on the maintenance branch and forward-ported to `main`, so the
   `latest` documentation lists every release.
 
-The older `0.3`, `0.4`, `1.1.0`, `1.5` and `v1.6` branches predate this scheme
-and are kept as they are.
+Releases before 2.0 have tags only: their old branches (`0.3`, `0.4`, `1.1.0`,
+`1.5` and `v1.6`) were deleted when this scheme was adopted. `maintenance/2.0.x`
+to `maintenance/2.3.x` were created then from the `v2.0.0` to `v2.3.0` tags.
 
 ## Making new releases
 
@@ -358,7 +361,12 @@ Releases are tagged `vX.Y.Z` (`v3.0.0`, `v3.0.1`, release candidates
 from the tagged commit and uploads them to PyPI through
 [trusted publishing](https://docs.pypi.org/trusted-publishers/); no token is
 involved and the publisher only accepts tags from `petrobras/ross`, so a tag
-pushed to a fork publishes nothing. The workflow does not run the test suite,
+pushed to a fork publishes nothing. Before uploading, the workflow runs
+`tools/check_release_version.py`, which stops the release unless the tag is
+`v` followed by the exact version of the built distributions, so a tag pushed
+before `__version__` is bumped (`v3.1.0` on `3.1.0.dev0`) or spelled
+differently (`v3.1.0-rc1` for `3.1.0rc1`) uploads nothing; delete the tag, fix
+the cause and tag again. The workflow does not run the test suite,
 so check that the `Tests` workflow is green on the commit you are about to tag.
 Publishing the GitHub release afterwards starts the `interface` workflow, which
 builds the Windows executable of the graphical interface, runs its self-test

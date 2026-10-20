@@ -1,13 +1,17 @@
 // The modeling screen: the element tabs, the form, the rotor figure that redraws
 // itself on every change, and the node hub over the figure.
 import { buildFormHTML, capturedFormValues, restoreFormValues, toggleAdvanced } from '../components/form.js';
-import { getEffectiveNodes, positionFormBox, renderList } from '../components/list.js';
+import { syncShapePicker } from '../components/shape_picker.js';
+import { categoryName, getEffectiveNodes, getTabNodes, markEditedRow, renderList, tabButton } from '../components/list.js';
+import { placeFormWindow } from '../components/floating_form.js';
+import { setThreeDShown, threeDShown } from '../core/visibility.js';
+import { shownIndexes } from '../core/list_filter.js';
 import { reapplyHelp } from '../components/help.js';
 import { openCustomAlert, openCustomConfirm } from '../components/modals.js';
 import { apiFetch, apiFetchLatest, wasCancelled, projectForServer } from '../core/api.js';
 import { busySpinner, escapeHtml } from '../core/dom.js';
 import { listContext, projectChanged, state, getActiveData, syncBackToLibrary, writeBackToLibrary } from '../core/state.js';
-import { pick, pickAll, picked } from '../core/selection.js';
+import { clearSelection, pick, pickAll, picked } from '../core/selection.js';
 import { applySnapshot, canRedo, canUndo, redo, undo } from '../core/history.js';
 import { afterInsertion, afterRemoval } from '../core/editing.js';
 import { elementsUsing, renameMaterial, rossMaterialName } from '../core/material_names.js';
@@ -15,10 +19,13 @@ import { themedLayout } from '../core/theme.js';
 import { applyLanguage, rememberLanguage, t } from '../core/i18n.js';
 import { formSubtypes, loadElementSchema, schemaReady } from '../core/schema.js';
 import { projectFromFile } from '../core/project_file.js';
+import { newProbeId } from '../core/probes.js';
 import { VERTICAL_SCALES, withVerticalScale } from '../core/rotor_scale.js';
 import { fillAnalysisTypes, redrawAnalyses } from './analysis.js';
 import { openRotorHub, renderRotorHub } from './hub.js';
-import { splitProject } from './split.js';
+import { splitProject, splitProjectAt } from './split.js';
+import { meshProject } from './mesh.js';
+import { hideRotor3d, relabelRotor3d, showRotor3d } from './rotor3d.js';
 
 // How the rotor figure settles into the panel. This used to be done in the
 // backend (BE-12): margin, background, size and legend position assembled on top
@@ -144,6 +151,92 @@ export function startRotorFigureFollowsWidth() {
     });
 }
 
+// --- 2D or 3D ------------------------------------------------------------------
+//
+// The panel shows one of two views of the same build: ROSS's 2D figure or the
+// 3D view (features/rotor3d.js). The server sends the 3D scene with every
+// build -- it costs a millisecond -- but draws the 2D figure only when it is
+// the one on screen: `plot_rotor` is the slow half of the request, about a
+// second on a 200-element rotor, and nobody would see it.
+//
+// So the 2D figure can be behind the project while the 3D view is up.
+// `figureIsCurrent` says whether it is; coming back to 2D asks for it then.
+// The choice is remembered like the language and the theme.
+const ROTOR_VIEW_KEY = 'ross-rotor-view';
+let rotorView = '2d';
+let figureIsCurrent = false;
+let lastScene = null;
+
+function rememberedRotorView() {
+    try {
+        return localStorage.getItem(ROTOR_VIEW_KEY) === '3d' ? '3d' : '2d';
+    } catch (e) {
+        return '2d';   // storage blocked: the page opens on the 2D figure
+    }
+}
+
+export function startRotorViewToggle() {
+    rotorView = rememberedRotorView();
+    showChosenRotorView();
+}
+
+export function setRotorView(view) {
+    rotorView = view === '3d' ? '3d' : '2d';
+    try {
+        localStorage.setItem(ROTOR_VIEW_KEY, rotorView);
+    } catch (e) { /* a preference: without storage it lasts until the page closes */ }
+    showChosenRotorView();
+    if (rotorView === '3d') {
+        if (lastScene) drawScene();
+        return;
+    }
+    hideRotor3d();
+    // Built while the 3D view was up, the rotor has no 2D figure yet; one that
+    // is current may still have been drawn at a width the panel no longer has.
+    if (figureIsCurrent) redrawAtNewWidth();
+    else if (lastScene) _fetchRotorLive();
+}
+
+function showChosenRotorView() {
+    // The list's eyes are drawn only with the 3D view on screen.
+    const eyesBefore = threeDShown();
+    setThreeDShown(rotorView === '3d');
+    if (eyesBefore !== threeDShown() && state.currentTab && state.projectData) renderList();
+    const flat = document.getElementById('plot-rotor');
+    const solid = document.getElementById('rotor-3d');
+    const scale = document.getElementById('rotor-scale');
+    if (flat) flat.hidden = rotorView !== '2d';
+    if (solid) solid.hidden = rotorView !== '3d';
+    if (scale) scale.hidden = rotorView !== '2d';
+    document.querySelectorAll('[data-action="set-rotor-view"]').forEach(button => {
+        button.setAttribute('aria-pressed', String(button.dataset.view === rotorView));
+    });
+}
+
+// A line in place of the 3D view: no shaft yet, three.js still loading, a
+// browser without WebGL, or the rotor ROSS would not build.
+function say3d(text) {
+    const note = document.getElementById('rotor-3d-message');
+    if (!note) return;
+    note.textContent = text || '';
+    note.hidden = !text;
+}
+
+function drawScene() {
+    const box = document.getElementById('rotor-3d');
+    if (!box || !lastScene) return;
+    // Loading three.js the first time takes a moment; the line only shows if
+    // it does.
+    const slow = setTimeout(() => say3d(t('rotor3dLoading')), 150);
+    showRotor3d(box, lastScene)
+        .then(() => say3d(''))
+        .catch(error => {
+            console.error('3D view:', error);
+            say3d(t('rotor3dUnavailable'));
+        })
+        .finally(() => clearTimeout(slow));
+}
+
 function redrawAtNewWidth() {
     const div = document.getElementById('plot-rotor');
     // On another screen the div has no width, and Plotly would draw at its
@@ -196,6 +289,8 @@ export async function changeLanguage(language) {
     renderRotorHub();
     reapplyHelp();
     await redrawAnalyses();
+    // The 3D view's legend is written by the JS, like the Hub.
+    relabelRotor3d();
 
     if (!state.currentTab) return;
     refreshTabTitle();
@@ -205,26 +300,7 @@ export async function changeLanguage(language) {
     state.editingIndex = editedIndex;
     selectSubType(state.currentSubType);
     restoreFormValues(formValues);
-    positionFormBox(editedIndex);
     document.getElementById('btn-add-item').style.display = 'none';
-}
-
-// The translated name of a category comes from the sidebar button that opens it:
-// that button is the one carrying the `data-i18n`. A second `category -> key`
-// table here could only diverge from the one already in `index.html`.
-export function categoryName(category, button) {
-    const target = button || tabButton(category);
-    const key = target && target.dataset && target.dataset.i18n;
-    return key ? t(key) : category;
-}
-
-// The sidebar button of a category, found by what it *is* (`data-tab`) rather
-// than by what it happens to call. It used to be found by reading `openTab('x')`
-// out of the `onclick` text -- which is how this slice would have broken the
-// title and the highlight the moment the buttons started calling `pickTab`.
-function tabButton(category) {
-    return Array.from(document.querySelectorAll('.tab-btn'))
-        .find(b => b.dataset && b.dataset.tab === category);
 }
 
 function tabTitle(category, button) {
@@ -319,9 +395,9 @@ export function openTab(category) {
 // Function to open the form
 
 export async function openForm(isNew = true) {
-    // A form opened from the figure (the node hub) or from anywhere else has to
-    // be seen: it lives in the list panel.
-    showListPanel(true);
+    // The list panel is left as it is. The form used to live in it and had to
+    // open it to be seen; as a window of its own it is seen anyway, and someone
+    // who hid the list to give the figure room keeps that room while editing.
     await schemaReady();          // the forms come from /api/schema/elements
     if (isNew) { state.editingIndex = -1; state.currentSubType = 'BASIC'; }
     let subTypes = formSubtypes(state.currentTab);
@@ -336,19 +412,18 @@ export async function openForm(isNew = true) {
         subTypes.forEach(type => { html += `<button class="btn-subtype" data-action="pick-subtype" data-subtype="${type}">${type}</button>`; });
         html += '</div><button class="btn-cancel" style="width:100%; margin-top:15px;" data-action="close-form">' + escapeHtml(t('cancel')) + '</button>';
         document.getElementById('form-fields').innerHTML = html;
-        document.querySelector('.form-actions').style.display = 'none';
+        document.querySelector('#insertion-form .form-actions').style.display = 'none';
     } else {
         const activeData = getActiveData();
         selectSubType(isNew ? 'BASIC' : activeData[state.currentTab][state.editingIndex].element_type || 'BASIC');
     }    
     
     document.getElementById('btn-add-item').style.display = 'none';    
-    const formBox = document.getElementById('insertion-form');
-    formBox.style.display = 'block';    
-    
-    positionFormBox(isNew ? -1 : state.editingIndex);
+    placeFormWindow();
+    document.getElementById('insertion-form').style.display = 'block';
+    markEditedRow();
     if(!document.getElementById('btn-default-form')) {
-        document.querySelector('.form-actions').insertAdjacentHTML('afterbegin', `<button type="button" id="btn-default-form" class="btn-default" data-action="fill-default"><i class="fas fa-magic"></i> ${escapeHtml(t('defaultButton'))}</button>`);
+        document.querySelector('#insertion-form .form-actions').insertAdjacentHTML('afterbegin', `<button type="button" id="btn-default-form" class="btn-default" data-action="fill-default"><i class="fas fa-magic"></i> ${escapeHtml(t('defaultButton'))}</button>`);
     }
 
     addingFromNodeHub = false; 
@@ -359,7 +434,7 @@ export async function openForm(isNew = true) {
 export function selectSubType(type) {
     state.currentSubType = type;
     document.getElementById('form-fields').innerHTML = buildFormHTML(state.currentTab, type);
-    document.querySelector('.form-actions').style.display = 'flex';
+    document.querySelector('#insertion-form .form-actions').style.display = 'flex';
     
     const activeData = getActiveData();
     
@@ -404,6 +479,9 @@ export function selectSubType(type) {
         }
     }
 
+    // The shape tiles show the shape the element was restored with.
+    syncShapePicker();
+
     if (nodeHubTarget !== undefined && nodeHubTarget !== null) {
         let nInput = document.getElementById('inp-n');
         
@@ -420,12 +498,11 @@ export function selectSubType(type) {
 // Function to close the form
 
 export function closeForm() { 
-    const formBox = document.getElementById('insertion-form');
-    formBox.style.display = 'none'; 
-    document.getElementById('list-area').appendChild(formBox);
+    document.getElementById('insertion-form').style.display = 'none'; 
     document.getElementById('btn-add-item').style.display = 'block'; 
     state.editingIndex = -1; 
     hiddenNode = null;
+    markEditedRow();
 }
 
 // Element editing function
@@ -439,6 +516,8 @@ export function editItem(index) { state.editingIndex = index; openForm(false); }
 // naming rules for the same act is how a list ends up with `Stage_1` twice.
 export function freshCopy(original, siblings) {
     const copiedItem = JSON.parse(JSON.stringify(original));
+    // A copy is another probe: an analysis that named the original keeps it.
+    if (copiedItem.id) copiedItem.id = newProbeId();
     if (copiedItem.tag) {
         let baseTag = copiedItem.tag.replace(/_\d+$/, '');
         let counter = 1;
@@ -497,9 +576,10 @@ function removeItem(activeData, index) {
 // already live side by side with the two calls that put the screen back in
 // agreement with the data. The question, the trip to the server and the answer
 // are in `splitProject`; what is added here is only what the screen owes.
-export async function splitItem(index) {
+export async function splitItem(index, at = null) {
     const activeData = getActiveData();
-    if (!(await splitProject(activeData, index))) return;
+    const cut = at === null ? splitProject(activeData, index) : splitProjectAt(activeData, index, at);
+    if (!(await cut)) return;
 
     // The form is open on the element that just stopped existing as one thing:
     // saving it would write the whole original back over its left half. Below
@@ -507,6 +587,26 @@ export async function splitItem(index) {
     if (state.editingIndex === index) closeForm();
     else state.editingIndex = afterInsertion(state.editingIndex, index + 1);
 
+    syncBackToLibrary();
+    renderList();
+    buildRotorLive();
+}
+
+// Discretizing the shafts (features/mesh.js): the shafts ticked, or every one.
+//
+// Beside `splitItem` for what it owes the screen, and a bigger change than a
+// split: every shaft may have been cut, and every node above the first cut
+// renumbered -- a disk's form open on node 4 would save a 4 that now means
+// another node. So the form is closed and the ticks let go, as after a bulk
+// delete.
+// `only`: the shaft rows to cut, from the 3D view's menu; otherwise the ones
+// ticked in the list.
+export async function meshItems(only = null) {
+    const activeData = getActiveData();
+    const chosen = only || (state.currentTab === 'shafts' ? picked(listContext()) : []);
+    if (!(await meshProject(activeData, chosen))) return;
+    closeForm();
+    clearSelection();
     syncBackToLibrary();
     renderList();
     buildRotorLive();
@@ -570,8 +670,11 @@ export function toggleSelected(index) {
     renderList();
 }
 
+// All the rows shown: with a filter on, the ones it lets through
+// (core/list_filter.js). A row out of sight is never ticked by the header.
 export function toggleSelectAll() {
-    pickAll(listContext(), (getActiveData()[state.currentTab] || []).length);
+    const items = getActiveData()[state.currentTab] || [];
+    pickAll(listContext(), shownIndexes(state.currentTab, items, getTabNodes(state.currentTab, items)));
     renderList();
 }
 
@@ -663,6 +766,7 @@ export function saveItem() {
             if (newObj.tag) {
                 newObj.tag = newObj.tag + "_" + (i + 1);
             }
+            if (state.currentTab === 'probes') newObj.id = newProbeId();
             if (state.currentTab === 'materials' && newObj.name !== undefined) {
                 newObj.name = rossMaterialName(newObj.name);
             }
@@ -687,6 +791,12 @@ export function saveItem() {
             }
         }
 
+        // A probe keeps its id through an edit: the analyses name it by it
+        // (core/probes.js). A new one gets its own.
+        const before = state.editingIndex >= 0 ? activeData[state.currentTab][state.editingIndex] : null;
+        if (before && before.id) newObject.id = before.id;
+        else if (state.currentTab === 'probes') newObject.id = newProbeId();
+
         if (state.editingIndex >= 0) {
             activeData[state.currentTab][state.editingIndex] = newObject;
         } else {
@@ -700,7 +810,7 @@ export function saveItem() {
             if (targetN !== null) {
                 let insertIdx = activeData[state.currentTab].length;
                 
-                const effNodes = getEffectiveNodes(activeData[state.currentTab]);
+                const effNodes = getTabNodes(state.currentTab, activeData[state.currentTab]);
                 for (let i = 0; i < effNodes.length; i++) {
                     if (effNodes[i] >= targetN) {
                         insertIdx = i;
@@ -720,7 +830,65 @@ export function saveItem() {
     buildRotorLive();
 }
 
-let rotorUpdateActive = false;
+// --- the build under way ------------------------------------------------------
+//
+// While ROSS builds the rotor -- a moment, or a minute for a bearing it has to
+// solve, a tilting pad -- the view on screen is dimmed and closed to the
+// pointer, and after half a second says it is computing: the 2D figure's place
+// with the spinner, the 3D view with the same card over its canvas (Leonardo:
+// the 3D view said nothing while the 2D figure did).
+//
+// All of that belongs to the NEWEST build. A build overtaken by a newer one
+// returns at once, and the newer one begins by taking down whatever the older
+// one put up, in either view. It used to be each build's own to take down, and
+// the overtaken one returned without doing it: a build started in 3D and
+// overtaken by a switch to 2D left the 3D view dimmed and deaf to the mouse
+// for good -- what Leonardo saw with a tilting pad, whose build is long enough
+// to switch views in the middle of.
+const SAY_BUSY_AFTER_MS = 500;
+let building = null;
+
+function startBuilding(in3d) {
+    stopBuilding(building);
+    const shown = document.getElementById(in3d ? 'rotor-3d' : 'plot-rotor');
+    const run = { shown, timer: null };
+    building = run;
+    shown.style.opacity = '0.4';
+    shown.style.pointerEvents = 'none';
+    run.timer = setTimeout(() => {
+        if (building !== run) return;
+        shown.style.opacity = '1';
+        if (in3d) {
+            const card = document.getElementById('rotor-3d-busy');
+            if (!card) return;
+            card.innerHTML = busyCard();
+            card.hidden = false;
+            return;
+        }
+        showInsteadOfFigure(shown, `
+                <div style="display:flex; flex-direction:column; justify-content:center; align-items:center; height:100%; min-height:400px; color: var(--text-main);">
+                    ${busyCard()}
+                </div>`);
+    }, SAY_BUSY_AFTER_MS);
+    return run;
+}
+
+function busyCard() {
+    return `<span style="margin-bottom:15px; color: var(--accent-primary);">${busySpinner(3)}</span>`
+        + `<h3 style="margin:0;">${escapeHtml(t('computingElement'))}</h3>`
+        + `<p style="color: var(--text-muted); text-align:center; padding:0 20px;">${escapeHtml(t('usingCache'))}</p>`;
+}
+
+// Takes down what `run` put up, if it is still the build on screen.
+function stopBuilding(run) {
+    if (!run || building !== run) return;
+    building = null;
+    clearTimeout(run.timer);
+    run.shown.style.opacity = '1';
+    run.shown.style.pointerEvents = 'auto';
+    const card = document.getElementById('rotor-3d-busy');
+    if (card) card.hidden = true;
+}
 
 let debounceTimer = null;
 
@@ -737,40 +905,40 @@ async function _fetchRotorLive() {
     const plotContainer = document.getElementById('plot-rotor');
     const infoContainer = document.getElementById('rotor-info');    
     if (!state.projectData.isMultiRotor && (!state.projectData.shafts || state.projectData.shafts.length === 0)) {
+        figureIsCurrent = false;
+        lastScene = null;
+        hideRotor3d();
+        say3d(t('addOneShaft'));
         showInsteadOfFigure(plotContainer,
             `<div style="display: flex; height: 100%; min-height: 400px; align-items: center; justify-content: center;">`
             + `<p class="placeholder-text">${escapeHtml(t('addOneShaft'))}</p></div>`);
         if(infoContainer) infoContainer.style.opacity = '0';
         return;
     }    
-    rotorUpdateActive = true;
-    plotContainer.style.opacity = '0.4';
-    plotContainer.style.pointerEvents = 'none';
-    let loadingTimer = setTimeout(() => {
-        if(rotorUpdateActive) {
-            plotContainer.style.opacity = '1';
-            showInsteadOfFigure(plotContainer, `
-                <div style="display:flex; flex-direction:column; justify-content:center; align-items:center; height:100%; min-height:400px; color: var(--text-main);">
-                    <span style="margin-bottom:15px; color: var(--accent-primary);">${busySpinner(3)}</span>
-                    <h3 style="margin:0;">${escapeHtml(t('computingElement'))}</h3>
-                    <p style="color: var(--text-muted); text-align:center; padding:0 20px;">${escapeHtml(t('usingCache'))}</p>
-                </div>`);
-        }
-    }, 500);
+    const in3d = rotorView === '3d';
+    const run = startBuilding(in3d);
+    // Whatever the figure on screen was, it is not the project being built.
+    figureIsCurrent = false;
     try {
         const response = await apiFetchLatest('rotor', '/build_rotor', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ project: projectForServer(state.projectData) })
+            body: JSON.stringify({ project: projectForServer(state.projectData), figure: !in3d })
         });
-        const data = await response.json();        
-        rotorUpdateActive = false;
-        clearTimeout(loadingTimer);
-        plotContainer.style.opacity = '1';
-        plotContainer.style.pointerEvents = 'auto';        
+        const data = await response.json();
+        stopBuilding(run);
         if(data.status === "success") {
-            plotContainer.innerHTML = ""; 
-            drawRotorFigure(JSON.parse(data.plot_json));
-            renderVerticalScalePicker();
+            if (data.plot_json) {
+                plotContainer.innerHTML = "";
+                drawRotorFigure(JSON.parse(data.plot_json));
+                renderVerticalScalePicker();
+                figureIsCurrent = true;
+            } else {
+                figureIsCurrent = false;
+            }
+            lastScene = data.scene || null;
+            // Read again, not `in3d`: the view may have been switched while
+            // the rotor was being built.
+            if (rotorView === '3d') drawScene();
             if(infoContainer) {
                 document.getElementById('info-mass').innerText = data.mass.toFixed(4);
                 document.getElementById('info-ip').innerText = data.ip.toFixed(4);
@@ -780,14 +948,17 @@ async function _fetchRotorLive() {
             // `data.message` is escaped like everything else: it quotes what the
             // user typed back ("could not read 'abc'"), and a tag typed into a
             // field would otherwise be drawn as a tag.
+            figureIsCurrent = false;
+            lastScene = null;
+            hideRotor3d();
+            say3d(`${t('modelingError')} ${data.message || ''}`);
             showInsteadOfFigure(plotContainer, `<div class="analysis-error"><i class="fas fa-exclamation-triangle fa-2x"></i><br><b>${escapeHtml(t('modelingError'))}</b><br>${escapeHtml(data.message)}</div>`);
             if(infoContainer) infoContainer.style.opacity = '0';
         }
     } catch (e) { 
-        if (wasCancelled(e)) return;   // a newer request has taken over
-        rotorUpdateActive = false; 
-        clearTimeout(loadingTimer); 
-        plotContainer.style.opacity = '1';
+        if (wasCancelled(e)) return;   // a newer build has taken over, and down what this one put up
+        stopBuilding(run);
+        say3d(t('serverConnectionError'));
         showInsteadOfFigure(plotContainer, `<p class="analysis-error analysis-error-tall">`
             + `${escapeHtml(t('serverConnectionError'))}</p>`);
         if(infoContainer) infoContainer.style.opacity = '0';
@@ -847,7 +1018,8 @@ export async function loadRotor(event) {
                         couplings: data.projectData.couplings || [],
                         seals: data.projectData.seals || [],
                         bearings: data.projectData.bearings || [],
-                        pointmasses: data.projectData.pointmasses || []
+                        pointmasses: data.projectData.pointmasses || [],
+                        probes: data.projectData.probes || []
                     };
                     
                     state.rotorLibrary.push(newConvertedRotor);
@@ -983,6 +1155,61 @@ function openNodeHub(nodeIndex) {
     hideFloatingAddButton();
     document.getElementById('node-hub-overlay').style.display = 'flex';
     document.getElementById('node-hub-target').innerText = nodeIndex;
+}
+
+// --- from the 3D view -----------------------------------------------------------
+//
+// The 3D view edits through the paths the list uses -- the row's own form, the
+// list's delete (with its question about a material in use), the node hub --
+// so undo, the rules of each form and the material checks hold there with
+// nothing added. What it needs from here is getting to the row: the right half
+// of a MultiRotor and the right tab. Not the list in view: the form is a window
+// of its own, and a list hidden to give the figure room stays hidden.
+function reachRow(category, half) {
+    const otherHalf = state.projectData.isMultiRotor && half && state.multiRotorEditTarget !== half;
+    if (otherHalf) state.multiRotorEditTarget = half;
+    if (otherHalf || state.currentTab !== category) openTab(category);
+}
+
+export function editFrom3d(category, index, half) {
+    reachRow(category, half);
+    editItem(index);
+}
+
+export function deleteFrom3d(category, index, half) {
+    reachRow(category, half);
+    return deleteItem(index);
+}
+
+// The rest of the 3D view's menu (features/rotor3d.js): the list's own
+// actions, on the row of the part the menu was opened on.
+export function copyFrom3d(category, index, half) {
+    reachRow(category, half);
+    copyItem(index);
+}
+
+// `at`: the distance from the left face where the pointer was, in the unit
+// the element's length is typed in; null asks for it, halfway offered.
+export function splitFrom3d(index, half, at = null) {
+    reachRow('shafts', half);
+    return splitItem(index, at);
+}
+
+// One shaft, or -- `index` null -- every shaft of the line.
+export function meshFrom3d(index, half) {
+    reachRow('shafts', half);
+    return meshItems(index === null ? [] : [index]);
+}
+
+// The node hub, as the 2D figure's "+" opens it -- on a MultiRotor too, where
+// the 2D figure offers none: the half is chosen first, so the element goes to
+// the line the node belongs to.
+export function addFrom3d(node, half) {
+    if (state.projectData.isMultiRotor && half && state.multiRotorEditTarget !== half) {
+        state.multiRotorEditTarget = half;
+        if (state.currentTab) openTab(state.currentTab);
+    }
+    openNodeHub(node);
 }
 
 export function closeNodeHub() {
