@@ -69,10 +69,14 @@ class MotorElement(Element):
         Polar Moment of inertia related to load [kg.m²].
         Default is 0.
     voltage_net : float, optional
-        Electrical tension of Power Supply [V].
+        Electrical tension of Power Supply [V], used to compute the network
+        short-circuit impedance. The direct-on-line supply voltage is the
+        `voltage_net` argument of ``.run_direct_on_line()``.
         Default is None, which adopts the motor's rated voltage (`voltage_rated`).
     frequency_net : float, optional, pint.Quantity
-        Electrical frequency of Power Supply [rad/s].
+        Electrical frequency of Power Supply [rad/s]. It is stored but not used
+        in the simulation; the direct-on-line supply frequency is the
+        `frequency_net` argument of ``.run_direct_on_line()``.
         Default is None, which adopts the motor's rated frequency (`frequency_rated`).
     initial_angle_net : float, optional, pint.Quantity
         Initial angular phase frequency of Power Supply [rad].
@@ -101,9 +105,10 @@ class MotorElement(Element):
     matrices assembled by ``Rotor``.
 
     The node ``n`` identifies where motor torque is applied on the shaft
-    (torsional DOF). Use ``.run_direct_on_line()``, ``.run_with_inverter_vf()``
-    or ``.run_with_inverter_foc()`` to obtain ``electric_torque``, then apply
-    it in ``.run_time_response()``.
+    (torsional DOF). :py:meth:`ross.Rotor.run_with_motor` simulates the motor
+    and applies its torque to the rotor. ``.run_direct_on_line()``,
+    ``.run_with_inverter_vf()`` and ``.run_with_inverter_foc()`` simulate the
+    motor alone.
 
     Examples
     --------
@@ -788,24 +793,25 @@ class MotorElement(Element):
         harmonics : dict, optional
             Configuration for grid harmonic injection.
             Expected keys:
-            - 'enable' : bool
-                Enable harmonics.
-            - 'orders' : list of int
-                Harmonic orders (e.g., [5, 7, 11] for 5th, 7th, and 11th harmonics).
-            - 'amplitudes' : list of float
-                Harmonic amplitudes as percentage of rated voltage (e.g., [10, 5, 2] for 10%, 5%, and 2%).
+
+            - ``'enable'`` (bool): enable harmonics.
+            - ``'orders'`` (list of int): harmonic orders (e.g., [5, 7, 11]
+              for 5th, 7th, and 11th harmonics).
+            - ``'amplitudes'`` (list of float): harmonic amplitudes as
+              percentage of rated voltage (e.g., [10, 5, 2] for 10%, 5%,
+              and 2%).
         unbalances : dict, optional
             Configuration for three-phase grid unbalance.
             Expected keys:
-            - 'enable' : bool
-                Enable unbalances.
-            - 'voltage_percent' : list of float
-                Voltage magnitude deviation per phase (A, B, C) relative to rated [%].
-                Must contain exactly 3 elements.
-                Positive → higher voltage; Negative → lower voltage.
-            - 'angle_deviation' : list of float, pint.Quantity
-                Angle deviation per phase (A, B, C) [rad].
-                Must contain exactly 3 elements.
+
+            - ``'enable'`` (bool): enable unbalances.
+            - ``'voltage_percent'`` (list of float): voltage magnitude
+              deviation per phase (A, B, C) relative to rated [%]. Must
+              contain exactly 3 elements. Positive → higher voltage;
+              Negative → lower voltage.
+            - ``'angle_deviation'`` (list of float, pint.Quantity): angle
+              deviation per phase (A, B, C) [rad]. Must contain exactly 3
+              elements.
 
         Returns
         -------

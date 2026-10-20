@@ -4,6 +4,7 @@ from copy import deepcopy
 from numpy.testing import assert_allclose
 
 import ross as rs
+from ross.motors.motor_element import motor_example
 from ross.multi_rotor.mesh import Mesh
 
 
@@ -163,6 +164,32 @@ def test_add_elements():
 
     with pytest.raises(ValueError, match="does not belong"):
         multi_rotor.add_elements([rs.DiskElement(n=99, m=1.0, Id=0.0, Ip=0.0)])
+
+
+@pytest.mark.parametrize(
+    "invalid",
+    [
+        "junk",
+        None,
+        rs.Material(name="add_elements_mat", rho=7800, E=2e11, G_s=8e10),
+        [rs.DiskElement(n=2, m=1.0, Id=0.01, Ip=0.02)],
+    ],
+    ids=["str", "None", "Material", "nested-list"],
+)
+def test_add_elements_rejects_invalid(multi_rotor, invalid):
+    # Same message as Rotor.add_elements, which raised ValueError in 3.0.0.
+    with pytest.raises(ValueError, match="is not a valid element"):
+        multi_rotor.add_elements([invalid])
+
+
+def test_add_elements_motor(multi_rotor):
+    motor = motor_example()
+
+    new_rotor = multi_rotor.add_elements([motor])
+
+    assert multi_rotor.motor_element is None
+    assert new_rotor.motor_element == motor
+    assert new_rotor.rotors["driving"].motor_element == motor
 
 
 def test_new_parameters_keep_3_0_positional_calls():
@@ -624,3 +651,36 @@ def test_rebuild_preserves_mesh_configuration(multi_rotor_with_backlash):
             rebuilt.mesh.backlash.damping_ratio
             == multi_rotor.mesh.backlash.damping_ratio
         )
+
+
+@pytest.mark.parametrize("parts", [2, 3])
+def test_refine_mesh_parts_refines_each_rotor_of_a_multi_rotor(parts):
+    from ross.multi_rotor.multi_rotor import two_shaft_rotor_example
+
+    multi_rotor = two_shaft_rotor_example()
+    refined = multi_rotor.refine_mesh(parts=parts)
+    for name in ("driving", "driven"):
+        expected = multi_rotor.rotors[name].refine(parts)
+        after = refined.rotors[name]
+        assert len(after.shaft_elements) == parts * len(
+            multi_rotor.rotors[name].shaft_elements
+        )
+        assert_allclose(after.nodes_pos, expected.nodes_pos, atol=1e-12)
+        assert [elm.n for elm in after.disk_elements] == [
+            elm.n for elm in expected.disk_elements
+        ]
+        assert [elm.n for elm in after.bearing_elements] == [
+            elm.n for elm in expected.bearing_elements
+        ]
+
+    expected = multi_rotor._rebuild(
+        multi_rotor.rotors["driving"].refine(parts),
+        multi_rotor.rotors["driven"].refine(parts),
+    )
+    # The dense eigensolver: the sparse one moves single frequencies by 1e-9
+    # between matrices that differ by round-off only.
+    assert_allclose(
+        refined.run_modal(speed=0, num_modes=12, sparse=False).wn[:12],
+        expected.run_modal(speed=0, num_modes=12, sparse=False).wn[:12],
+        rtol=1e-9,
+    )

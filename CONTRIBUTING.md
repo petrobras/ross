@@ -349,8 +349,9 @@ release, the scheme NumPy and SciPy use:
   are written on the maintenance branch and forward-ported to `main`, so the
   `latest` documentation lists every release.
 
-The older `0.3`, `0.4`, `1.1.0`, `1.5` and `v1.6` branches predate this scheme
-and are kept as they are.
+Releases before 2.0 have tags only: their old branches (`0.3`, `0.4`, `1.1.0`,
+`1.5` and `v1.6`) were deleted when this scheme was adopted. `maintenance/2.0.x`
+to `maintenance/2.3.x` were created then from the `v2.0.0` to `v2.3.0` tags.
 
 ## Making new releases
 
