@@ -10,6 +10,7 @@ from re import search
 from copy import deepcopy as copy
 
 import ross as rs
+from ross.element import Element
 from ross.rotor_assembly import Rotor
 from ross.units import Q_, check_units
 from ross.utils import make_speed_array
@@ -313,7 +314,7 @@ class MultiRotor(Rotor):
 
         return self._rebuild(driving_rotor, driven_rotor)
 
-    def refine_mesh(self, max_ld=0.5, min_ld=0.1):
+    def refine_mesh(self, max_ld=0.5, min_ld=0.1, parts=None):
         """Subdivide the shaft elements of both rotors by their L/D ratio.
 
         Each rotor is refined on its own, by :meth:`Rotor.refine_mesh`, and the
@@ -328,6 +329,9 @@ class MultiRotor(Rotor):
         min_ld : float, optional
             Smallest length-to-diameter ratio that is not warned about.
             Default is 0.1.
+        parts : int, optional
+            When given, every shaft element of both rotors is cut into this
+            many equal parts instead, and ``max_ld`` is not used.
 
         Returns
         -------
@@ -343,8 +347,8 @@ class MultiRotor(Rotor):
         >>> round(max(ratios), 9) <= 0.5
         True
         """
-        driving_rotor = self.rotors["driving"].refine_mesh(max_ld, min_ld)
-        driven_rotor = self.rotors["driven"].refine_mesh(max_ld, min_ld)
+        driving_rotor = self.rotors["driving"].refine_mesh(max_ld, min_ld, parts)
+        driven_rotor = self.rotors["driven"].refine_mesh(max_ld, min_ld, parts)
         return self._rebuild(driving_rotor, driven_rotor)
 
     def add_elements(self, new_elements):
@@ -386,6 +390,9 @@ class MultiRotor(Rotor):
         driven_elements = []
 
         for el in new_elements:
+            if not isinstance(el, Element):
+                raise ValueError(f"{el} is not a valid element.")
+
             el = copy(el)
             if el.n is None:
                 raise ValueError(

@@ -2977,11 +2977,13 @@ class FrequencyResponseResults(Results):
     Parameters
     ----------
     freq_resp : array
-        Array with the frequency response (displacement).
+        Displacement frequency response, shape (ndof, ndof, len(speed_range)).
+        ``freq_resp[out, inp, i]`` is the response at degree of freedom ``out``
+        to a unit force at degree of freedom ``inp`` at ``speed_range[i]``.
     velc_resp : array
-        Array with the frequency response (velocity).
+        Velocity frequency response, indexed as ``freq_resp``.
     accl_resp : array
-        Array with the frequency response (acceleration).
+        Acceleration frequency response, indexed as ``freq_resp``.
     speed_range : array
         Array with the speed range in rad/s.
     number_dof : int
@@ -3021,9 +3023,9 @@ class FrequencyResponseResults(Results):
         Parameters
         ----------
         inp : int
-            Input.
+            Global degree of freedom where the unit force is applied.
         out : int
-            Output.
+            Global degree of freedom where the response is read.
         frequency_units : str, optional
             Units for the x axis.
             Default is "rad/s"
@@ -3084,7 +3086,7 @@ class FrequencyResponseResults(Results):
         fig.add_trace(
             go.Scatter(
                 x=frequency_range,
-                y=mag[inp, out, :],
+                y=mag[out, inp, :],
                 mode="lines",
                 line=dict(color=list(tableau_colors)[idx], shape=line_shape),
                 name=f"inp: node {inpn} | dof: {idof}<br>out: node {outn} | dof: {odof}",
@@ -3121,9 +3123,9 @@ class FrequencyResponseResults(Results):
         Parameters
         ----------
         inp : int
-            Input.
+            Global degree of freedom where the unit force is applied.
         out : int
-            Output.
+            Global degree of freedom where the response is read.
         frequency_units : str, optional
             Units for the x axis.
             Default is "rad/s"
@@ -3163,11 +3165,11 @@ class FrequencyResponseResults(Results):
 
         dummy_var = Q_(1, amplitude_units)
         if dummy_var.check("[length]/[force]"):
-            phase = np.angle(self.freq_resp[inp, out, :])
+            phase = np.angle(self.freq_resp[out, inp, :])
         elif dummy_var.check("[speed]/[force]"):
-            phase = np.angle(self.velc_resp[inp, out, :])
+            phase = np.angle(self.velc_resp[out, inp, :])
         elif dummy_var.check("[acceleration]/[force]"):
-            phase = np.angle(self.accl_resp[inp, out, :])
+            phase = np.angle(self.accl_resp[out, inp, :])
         else:
             raise ValueError(
                 "Not supported unit. Options are '[length]/[force]', '[speed]/[force]', '[acceleration]/[force]'"
@@ -3228,9 +3230,9 @@ class FrequencyResponseResults(Results):
         Parameters
         ----------
         inp : int
-            Input.
+            Global degree of freedom where the unit force is applied.
         out : int
-            Output.
+            Global degree of freedom where the response is read.
         frequency_units : str, optional
             Units for the x axis.
             Default is "rad/s"
@@ -3270,19 +3272,19 @@ class FrequencyResponseResults(Results):
 
         dummy_var = Q_(1, amplitude_units)
         if dummy_var.check("[length]/[force]"):
-            mag = np.abs(self.freq_resp[inp, out, :])
+            mag = np.abs(self.freq_resp[out, inp, :])
             mag = Q_(mag, "m/N").to(amplitude_units).m
-            phase = np.angle(self.freq_resp[inp, out, :])
+            phase = np.angle(self.freq_resp[out, inp, :])
             y_label = "Displacement"
         elif dummy_var.check("[speed]/[force]"):
-            mag = np.abs(self.velc_resp[inp, out, :])
+            mag = np.abs(self.velc_resp[out, inp, :])
             mag = Q_(mag, "m/s/N").to(amplitude_units).m
-            phase = np.angle(self.velc_resp[inp, out, :])
+            phase = np.angle(self.velc_resp[out, inp, :])
             y_label = "Velocity"
         elif dummy_var.check("[acceleration]/[force]"):
-            mag = np.abs(self.accl_resp[inp, out, :])
+            mag = np.abs(self.accl_resp[out, inp, :])
             mag = Q_(mag, "m/s**2/N").to(amplitude_units).m
-            phase = np.angle(self.accl_resp[inp, out, :])
+            phase = np.angle(self.accl_resp[out, inp, :])
             y_label = "Acceleration"
         else:
             raise ValueError(
@@ -3360,9 +3362,9 @@ class FrequencyResponseResults(Results):
         Parameters
         ----------
         inp : int
-            Input.
+            Global degree of freedom where the unit force is applied.
         out : int
-            Output.
+            Global degree of freedom where the response is read.
         frequency_units : str, optional
             Units for the x axis.
             Default is "rad/s"
