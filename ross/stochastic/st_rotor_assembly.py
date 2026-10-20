@@ -499,9 +499,9 @@ class ST_Rotor(object):
         Parameters
         ----------
         inp : int
-            Input DoF.
+            Global degree of freedom where the unit force is applied.
         out : int
-            Output DoF.
+            Global degree of freedom where the response is read.
         speed_range : array, optional
             Array with the desired range of frequencies.
             Default is 0 to 1.5 x highest damped natural frequency.
@@ -548,9 +548,9 @@ class ST_Rotor(object):
         # Monte Carlo - results storage
         for i, rotor in enumerate(iter(self)):
             results = rotor.run_freq_response(speed_range, modes)
-            freq_resp[:, i] = results.freq_resp[inp, out, :]
-            velc_resp[:, i] = results.velc_resp[inp, out, :]
-            accl_resp[:, i] = results.accl_resp[inp, out, :]
+            freq_resp[:, i] = results.freq_resp[out, inp, :]
+            velc_resp[:, i] = results.velc_resp[out, inp, :]
+            accl_resp[:, i] = results.accl_resp[out, inp, :]
 
         results = ST_FrequencyResponseResults(
             speed_range, freq_resp, velc_resp, accl_resp

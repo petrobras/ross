@@ -8,10 +8,17 @@ the projection ROSS itself makes of a probe in the unbalance response
 system is linear, so the response read by the probe is that projection of
 the responses, for every input. The claims:
 
-* `probe_output` is that projection, and at 0 and 90 degrees it is x and y;
+* `probe_output`, in the service and in the exported script, is that
+  projection of the response at the probe's node, checked against a direct
+  solve of the dynamic stiffness on a rotor whose transfer matrix is not
+  symmetric; at 0 and 90 degrees it is x and y;
+* in one chart, a typed output row and a probe along the same axis draw the
+  same curve;
 * the chart of an output that names a probe draws it, named as the model
   names it, and an axial probe reads z;
 * a model with no degree of freedom for the probe refuses it by name;
+* at a 45 degree probe the chart is what `rs.Probe` reads of the forced
+  response to a unit force at the input;
 * the exported script carries the same function, giving the same numbers.
 """
 
@@ -21,6 +28,7 @@ import json
 
 import numpy as np
 import pytest
+from numpy.testing import assert_allclose
 
 ross = pytest.importorskip("ross", reason="requires ROSS installed")
 
@@ -68,6 +76,158 @@ def response():
     return rotor, rotor.run_freq_response(np.linspace(0, 1000, 12))
 
 
+ANGLES = (0.0, 45.0, 90.0, 135.0)
+SPEED = 300.0
+
+
+def coupled_project(probes=()):
+    """The project above, with cross-coupled bearings.
+
+    kxy = -kyx makes the transfer matrix non-symmetric, as the gyroscopic
+    disk does at speed: the response at a probe to a force at another degree
+    of freedom is then not the response there to a force at the probe.
+    """
+    built = project(probes)
+    for bearing in built["bearings"]:
+        bearing.update(kxy="5e6", kyx="-5e6")
+    return built
+
+
+@pytest.fixture(scope="module")
+def coupled():
+    from ross.interface.domain.rotor_builder import build_rotor_from_ui
+
+    rotor = build_rotor_from_ui(coupled_project())
+    frequencies = np.linspace(50, 1000, 12)
+    return rotor, rotor.run_freq_response(frequencies, speed=SPEED)
+
+
+def direct_solve(rotor, frequencies, inp):
+    """The response of every degree of freedom to a unit force at `inp`.
+
+    Each frequency w solves Z(w) q = e_inp, with
+    Z = K - w^2 M + i w (C + speed G), by `numpy.linalg.solve`: a path
+    independent of the transfer matrix `run_freq_response` stores.
+    """
+    force = np.zeros(rotor.ndof)
+    force[inp] = 1.0
+    columns = []
+    for w in frequencies:
+        dynamic_stiffness = (
+            rotor.K(w, SPEED)
+            - w**2 * rotor.M(w, SPEED)
+            + 1j * w * (rotor.C(w, SPEED) + SPEED * rotor.G())
+        )
+        columns.append(np.linalg.solve(dynamic_stiffness, force))
+    return np.array(columns).T
+
+
+def radial_probes(node, angles):
+    return [
+        {
+            "id": "p-%d" % degrees,
+            "n": str(node),
+            "tag": "P %d" % degrees,
+            "direction": "radial",
+            "angle": str(degrees),
+        }
+        for degrees in angles
+    ]
+
+
+def coupled_params(inp, outs):
+    return dict(
+        PARAMS,
+        speed_min="50",
+        speed_max="1000",
+        speed=str(SPEED),
+        inps=[inp],
+        outs=outs,
+    )
+
+
+def test_the_transfer_matrix_here_is_not_symmetric(coupled):
+    _, result = coupled
+    h = result.freq_resp
+    assert not np.allclose(h, h.transpose(1, 0, 2))
+
+
+def test_the_probe_reads_the_response_at_its_node_in_its_direction(coupled):
+    rotor, result = coupled
+    d = rotor.number_dof
+    w = result.speed_range
+    namespace = {"np": np}
+    exec(PROBE_OUTPUT, namespace)
+    for inp in (2 * d, 2 * d + 1, 1 * d, 3 * d + 1):
+        q = direct_solve(rotor, w, inp)
+        for degrees in ANGLES:
+            angle = np.deg2rad(degrees)
+            expected = np.cos(angle) * q[2 * d] + np.sin(angle) * q[2 * d + 1]
+            for function in (probe_output, namespace["probe_output"]):
+                read = function(result, 2, angle, d)
+                assert_allclose(read.freq_resp[0, inp], expected, rtol=1e-9)
+                assert_allclose(read.velc_resp[0, inp], 1j * w * expected, rtol=1e-9)
+                assert_allclose(read.accl_resp[0, inp], -(w**2) * expected, rtol=1e-9)
+
+
+def test_the_chart_draws_the_response_at_the_probe(coupled):
+    rotor, result = coupled
+    d = rotor.number_dof
+    q = direct_solve(rotor, result.speed_range, 1 * d + 1)
+    probes = radial_probes(2, ANGLES)
+    params = coupled_params(
+        {"node": 1, "dof": 1}, [{"probe": probe["id"]} for probe in probes]
+    )
+    built = coupled_project(probes)
+    magnitude = json.loads(figure_json("freq_response", params, "none", built))
+    phase = json.loads(
+        figure_json("freq_response", dict(params, plot_type="Phase"), "none", built)
+    )
+    for k, degrees in enumerate(ANGLES):
+        angle = np.deg2rad(degrees)
+        expected = np.cos(angle) * q[2 * d] + np.sin(angle) * q[2 * d + 1]
+        assert magnitude["data"][k]["name"] == "In(N1 D1) | Out(P %d)" % degrees
+        assert_allclose(numbers(magnitude["data"][k]["y"]), np.abs(expected), rtol=1e-9)
+        drawn = numbers(phase["data"][k]["y"])
+        assert_allclose(np.exp(1j * drawn), np.exp(1j * np.angle(expected)), atol=1e-9)
+
+
+@pytest.mark.parametrize("inp", [{"node": 1, "dof": 0}, {"node": 3, "dof": 1}])
+def test_a_typed_row_and_the_probe_on_its_axis_draw_the_same_curve(coupled, inp):
+    """Out(N2 D0) is the 0 degree probe at node 2, Out(N2 D1) the 90 degree one.
+
+    The typed rows are read by `FrequencyResponseResults` from the full
+    response, the probe rows from `probe_output`; both are held to the direct
+    solve of Z(w) as well, so a chart cannot mix two readings of the matrix.
+    """
+    rotor, result = coupled
+    d = rotor.number_dof
+    q = direct_solve(rotor, result.speed_range, inp["node"] * d + inp["dof"])
+    probes = radial_probes(2, (0, 90))
+    outs = [
+        {"node": 2, "dof": 0},
+        {"probe": "p-0"},
+        {"node": 2, "dof": 1},
+        {"probe": "p-90"},
+    ]
+    built = coupled_project(probes)
+    params = coupled_params(inp, outs)
+    magnitude = json.loads(figure_json("freq_response", params, "none", built))
+    phase = json.loads(
+        figure_json("freq_response", dict(params, plot_type="Phase"), "none", built)
+    )
+    for typed, probe, dof in ((0, 1, 0), (2, 3, 1)):
+        expected = q[2 * d + dof]
+        for k in (typed, probe):
+            assert_allclose(
+                numbers(magnitude["data"][k]["y"]), np.abs(expected), rtol=1e-9
+            )
+            drawn = numbers(phase["data"][k]["y"])
+            assert_allclose(
+                np.exp(1j * drawn), np.exp(1j * np.angle(expected)), atol=1e-9
+            )
+
+
 def test_the_probe_reads_the_projection_of_the_response(response):
     rotor, result = response
     d = rotor.number_dof
@@ -80,12 +240,12 @@ def test_the_probe_reads_the_projection_of_the_response(response):
         (result.accl_resp, read.accl_resp),
     ):
         expected = (
-            np.cos(angle) * responses[:, x, :] + np.sin(angle) * responses[:, y, :]
+            np.cos(angle) * responses[x, :, :] + np.sin(angle) * responses[y, :, :]
         )
-        assert np.allclose(probe[:, 0, :], expected)
+        assert np.allclose(probe[0, :, :], expected)
     assert read.freq_resp.shape == (
-        result.freq_resp.shape[0],
         1,
+        result.freq_resp.shape[1],
         result.freq_resp.shape[2],
     )
 
@@ -94,16 +254,16 @@ def test_at_0_and_90_degrees_the_probe_reads_x_and_y(response):
     rotor, result = response
     d = rotor.number_dof
     assert np.allclose(
-        probe_output(result, 2, 0.0, d).freq_resp[:, 0, :],
-        result.freq_resp[:, 2 * d, :],
+        probe_output(result, 2, 0.0, d).freq_resp[0, :, :],
+        result.freq_resp[2 * d, :, :],
     )
     assert np.allclose(
-        probe_output(result, 2, np.pi / 2, d).freq_resp[:, 0, :],
-        result.freq_resp[:, 2 * d + 1, :],
+        probe_output(result, 2, np.pi / 2, d).freq_resp[0, :, :],
+        result.freq_resp[2 * d + 1, :, :],
     )
     # and x and y differ here, so the two lines above are not the same claim
     assert not np.allclose(
-        result.freq_resp[:, 2 * d, :], result.freq_resp[:, 2 * d + 1, :]
+        result.freq_resp[2 * d, :, :], result.freq_resp[2 * d + 1, :, :]
     )
 
 
@@ -140,8 +300,56 @@ def test_the_chart_reads_at_the_probe_and_names_it(response):
     trace = figure["data"][0]
     assert trace["name"] == "In(N2 D0) | Out(DE 45)"
     d = rotor.number_dof
-    expected = np.abs(probe_output(result, 2, np.pi / 4, d).freq_resp[2 * d, 0, :])
+    expected = np.abs(probe_output(result, 2, np.pi / 4, d).freq_resp[0, 2 * d, :])
     assert np.allclose(numbers(trace["y"]), expected)
+
+
+def cross_coupled(probes=()):
+    built = project(probes)
+    for bearing in built["bearings"]:
+        bearing.update(kxy="5e6", kyx="-8e6")
+    return built
+
+
+@pytest.mark.parametrize("dof", [0, 1])
+def test_the_chart_matches_the_forced_response_read_by_the_probe(dof):
+    """The chart at a 45 degree probe is what `rs.Probe` reads of the response.
+
+    The reference is the forced response to a unit force at the input, read
+    at the same probe by `ForcedResponseResults`, a path that does not go
+    through `probe_output`. The bearings are cross-coupled with kxy != -kyx
+    and differ in x and y, so the response matrix is not symmetric: reading
+    its force side would give other numbers, close to a probe mirrored to
+    -45 degrees. The forced response reports the phase as a lag and the
+    frequency response as the angle of the complex response, so the two
+    phases have opposite signs.
+    """
+    from ross.interface.domain.rotor_builder import build_rotor_from_ui
+
+    rotor = build_rotor_from_ui(cross_coupled())
+    d = rotor.number_dof
+    speeds = np.linspace(0, 1000, 12)
+    force = np.zeros((rotor.ndof, len(speeds)), dtype=complex)
+    force[2 * d + dof, :] = 1.0
+    forced = rotor.run_forced_response(force=force, speed_range=speeds)
+    probe = [ross.Probe(2, ross.Q_(45, "deg"))]
+    magnitude = forced.data_magnitude(probe=probe, amplitude_units="m").iloc[1:, 1]
+    phase = forced.data_phase(probe=probe).iloc[1:, 1]
+    mirrored = forced.data_magnitude(
+        probe=[ross.Probe(2, ross.Q_(-45, "deg"))], amplitude_units="m"
+    ).iloc[1:, 1]
+    assert not np.allclose(magnitude, mirrored, rtol=1e-2, atol=0)
+
+    params = dict(PARAMS, inps=[{"node": 2, "dof": dof}], outs=[{"probe": "p-de"}])
+    built = cross_coupled([DE])
+    figure = json.loads(figure_json("freq_response", params, "none", built))
+    charted = numbers(figure["data"][0]["y"])[1:]
+    assert np.allclose(charted, magnitude, rtol=1e-8, atol=0)
+
+    params["plot_type"] = "Phase"
+    figure = json.loads(figure_json("freq_response", params, "none", built))
+    charted = numbers(figure["data"][0]["y"])[1:]
+    assert np.allclose(np.exp(1j * charted), np.exp(-1j * np.asarray(phase)))
 
 
 def test_an_axial_probe_reads_z(response):

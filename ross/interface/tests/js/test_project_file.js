@@ -45,6 +45,7 @@ function multiRotorFile() {
         multi_params: {
             coupled_nodes: '3,0',
             gear_mesh_stiffness: '1e8',
+            mesh_damping_ratio: '0.07',
             backlash: { enable: false, initial_value: 0.0 },
         },
         materials: [],
@@ -81,6 +82,13 @@ check('each half with every category', [train.driving_rotor, train.driven_rotor]
 // The four keys the old loader dropped. Each one is the whole feature.
 check('and the gear mesh parameters', train.multi_params.gear_mesh_stiffness === '1e8');
 check('including what is nested in them', train.multi_params.backlash.enable === false);
+check('and the mesh damping ratio', train.multi_params.mesh_damping_ratio === '0.07');
+// A file written before the field existed is not given one here: the builder
+// leaves it out and ROSS uses its own default (tests/test_multirotor_mesh.py).
+const undamped = multiRotorFile();
+delete undamped.multi_params.mesh_damping_ratio;
+check('a file without it loads without it',
+    projectFromFile(undamped, 'old').multi_params.mesh_damping_ratio === undefined);
 
 // The links to the library are cut on purpose: loading the same file back into
 // the session that wrote it would otherwise let `syncMultiRotors` overwrite the

@@ -15,7 +15,7 @@ speed_range = np.linspace(0, 1000, 200)
 frf = rotor.run_freq_response(speed_range=speed_range)
 ```
 
-- `speed_range` (array): excitation frequencies in rad/s (auto-selected if None). By default the rotor speed follows the sweep (synchronous excitation: speed = frequency at every point)
+- `speed_range` (array): excitation frequencies in rad/s (auto-selected if None). By default the rotor speed follows the sweep (synchronous excitation: speed = frequency at every point). `ross.utils.speed_range_from_endpoints(speed_start, speed_stop, num_points=None, points_factor=20)` builds it from two end points in any speed unit, e.g. `speed_range_from_endpoints(rs.Q_(0, "RPM"), rs.Q_(10000, "RPM"))`; without `num_points`, the number of points grows with the square root of the span
 - `speed` (float, optional): hold the rotor speed fixed at this value while `speed_range` sweeps the excitation frequency — the gyroscopic term and speed-dependent bearing/seal coefficients use `speed`, frequency-dependent coefficients follow the sweep
 - `free_free` (bool): if True, evaluates the transfer matrix at zero rotating speed (no gyroscopic term; speed-dependent bearing coefficients taken at 0 rad/s) while the excitation frequency sweeps — bearings are still included (equivalent to `speed=0`)
 
@@ -45,6 +45,7 @@ fig = frf.plot_polar_bode(inp=inp, out=out)
 
 ```python
 frf.freq_resp  # complex FRF matrix, shape (ndof, ndof, num_frequencies)
+frf.freq_resp[out, inp, :]  # response at `out` to a unit force at `inp`, as plotted
 frf.speed_range  # frequency array (rad/s)
 ```
 

@@ -220,6 +220,10 @@ PROBE_DIRECTION = "Probe #%d: the direction is 'radial' or 'axial', not '%s'."
 PROBE_NEEDS_ANGLE = "Probe #%d is radial and needs the angle it reads at."
 PROBE_ANGLE_UNREADABLE = "Probe #%d: '%s' is not an angle."
 
+# ROSS takes a negative mesh damping ratio and builds a mesh that feeds energy
+# into the train, so the MultiRotor form refuses it here.
+MESH_DAMPING_NEGATIVE = "The mesh damping ratio must be zero or positive, not %s."
+
 
 def build_probes(rows, rotor):
     """The `rs.Probe` of each row of the project's probes, in the list's order.
@@ -312,6 +316,15 @@ def assemble_rotor(data):
                 "smooth_operator": str(bl.get("smooth_operator")).lower() == "true",
                 "sigma": float(bl.get("sigma", 10000.0)),
             }
+
+        # Left out when empty, so a project saved before the field existed
+        # gets ROSS's own default (no mesh damping).
+        damping_ratio = str(params.get("mesh_damping_ratio", "") or "").strip()
+        if damping_ratio:
+            ratio = float(damping_ratio)
+            if ratio < 0:
+                raise ValueError(MESH_DAMPING_NEGATIVE % damping_ratio)
+            multi_kwargs["mesh_damping_ratio"] = ratio
 
         if params.get("orientation_angle"):
             multi_kwargs["orientation_angle"] = float(params["orientation_angle"])

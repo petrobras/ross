@@ -25,8 +25,10 @@ def probe_output(result, node, angle, dofs_per_node):
     which is the response's projection in its direction -- the same reading
     the unbalance response makes of a probe. The system is linear, so the
     projection of the response is the response of the projection, and output
-    0 of the results returned here is exactly that, for every input. They
-    keep the input axis whole and ROSS's own plotting and units.
+    0 of the results returned here is exactly that, for every input. ROSS
+    stores the response as `freq_resp[out, inp]`, so the projection is taken
+    along the first axis; the input axis is kept whole, with ROSS's own
+    plotting and units.
 
     `domain/python_export.py` writes this same function into the script
     (`PROBE_OUTPUT`); `tests/test_freq_response_probes.py` holds the two to
@@ -38,7 +40,7 @@ def probe_output(result, node, angle, dofs_per_node):
     c, s = np.cos(angle), np.sin(angle)
 
     def along(response):
-        return (c * response[:, x, :] + s * response[:, x + 1, :])[:, None, :]
+        return (c * response[x, :, :] + s * response[x + 1, :, :])[None, :, :]
 
     return FrequencyResponseResults(
         along(result.freq_resp),

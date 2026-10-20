@@ -18,6 +18,17 @@ campbell = rotor.run_campbell(speed_range, frequencies=6)
 - `frequency_type`: `"wd"` (damped, default) or `"wn"` (undamped)
 - `matched_whirl` (bool): at each speed, evaluate the frequency-dependent bearing/seal coefficients at each mode's own damped natural frequency instead of at the rotor speed (default False; see [modal_analysis.md](modal_analysis.md)). `whirl_rtol` (1e-3) and `whirl_max_iter` (15) control the iteration. Only changes results for `frequency=` or 2-D coefficient tables
 
+`ross.utils.speed_range_from_endpoints` builds the range from two end points in any speed unit. Without `num_points`, the number of points grows with the square root of the span (step about `sqrt(span) / points_factor` rad/s, between 20 and 2000 points); each Campbell point is a full modal analysis, so `points_factor=4` is usually enough:
+
+```python
+from ross.utils import speed_range_from_endpoints
+
+speed_range = speed_range_from_endpoints(
+    rs.Q_(0, "RPM"), rs.Q_(10000, "RPM"), points_factor=4
+)
+campbell = rotor.run_campbell(speed_range, frequencies=6)
+```
+
 ## Results: `CampbellResults`
 
 ```python
