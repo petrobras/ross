@@ -38,3 +38,9 @@ def test_info_axial(probe2):
     assert_allclose(node, 10)
     assert angle is None
     assert direc == "axial"
+
+
+def test_label_keeps_the_axis_name():
+    assert Probe(3, "major").get_label(1) == "Probe 1 - Node 3 (major)"
+    assert Probe(3, "minor").get_label() == "Probe - Node 3 (minor)"
+    assert Probe(3, Q_(45, "deg")).get_label() == "Probe - Node 3 (45°)"
