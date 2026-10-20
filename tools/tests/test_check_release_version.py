@@ -102,7 +102,7 @@ def test_script_runs_standalone(tmp_path):
 
 
 def test_release_workflow_checks_the_tag_between_build_and_upload():
-    lines = WORKFLOW.read_text().splitlines()
+    lines = WORKFLOW.read_text(encoding="utf-8").splitlines()
 
     def line_of(text):
         return next(i for i, line in enumerate(lines) if text in line)
