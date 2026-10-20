@@ -88,7 +88,7 @@ ROSS judges the change, not how it was produced. Code written entirely by an age
 
 ### Setup and workflow
 
-- Python >= 3.12. Development install: `pip install -e ".[dev]"`.
+- Python >= 3.13. Development install: `pip install -e ".[dev]"`.
 - Remotes: `upstream` → `petrobras/ross`, `origin` → your fork. Branch from `upstream/main`, push to `origin`, open the PR against `petrobras/ross:main`.
 - Tests: `pytest ross` from the repository root, or `pytest ross -n auto` in parallel. `--doctest-modules` is on (`pytest.ini`). `ross/conftest.py` caps the BLAS thread pools to one thread per process; without it, xdist workers oversubscribe the cores.
 - Lint and format: `ruff check ross` and `ruff format ross` (also run by `pre-commit run --all-files`). Double quotes for strings and docstrings.

@@ -5,11 +5,11 @@
 ## Install Python
 
 The first step is to install Python. Since ROSS requires several packages to be installed besides Python, such as
-numpy and scipy, we recommend installing [miniforge](https://conda-forge.org/download/) or [Anaconda](https://docs.anaconda.com/free/anaconda/index.html) (Python 3.12 or higher) which is a
+numpy and scipy, we recommend installing [miniforge](https://conda-forge.org/download/) or [Anaconda](https://docs.anaconda.com/free/anaconda/index.html) (Python 3.13 or higher) which is a
 scientific Python distribution that aims to simplify package management and deployment. It contains Python and a large
 number of packages that are commonly used.
 Alternatively, you may refer to the [Python website](http://www.python.org/).
-ROSS is tested on Python 3.12, 3.13 and 3.14. Supported Python and dependency versions follow [SPEC 0](https://scientific-python.org/specs/spec-0000/); see the contributing guide for details.
+ROSS is tested on Python 3.13, 3.14 and 3.15. Supported Python and dependency versions follow [SPEC 0](https://scientific-python.org/specs/spec-0000/); see the contributing guide for details.
 
 ## Install ROSS
 
@@ -23,6 +23,14 @@ Alternatively, you can install the development version from GitHub:
 
 ```{code-block}
 pip install git+https://github.com/petrobras/ross.git
+```
+
+The `downsample` extra installs [tsdownsample](https://github.com/predict-idlab/tsdownsample), which the motor
+plots use to reduce long time signals with the MinMaxLTTB algorithm. Without it, they fall back to a min-max
+decimation written in numpy:
+
+```{code-block}
+pip install "ross-rotordynamics[downsample]"
 ```
 
 ## Testing the installation

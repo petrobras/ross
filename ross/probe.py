@@ -81,11 +81,11 @@ class Probe:
         label += f" - Node {self.node} "
 
         if self.direction == "radial":
-            try:
+            if isinstance(self.angle, str):
+                label += f"({self.angle})"
+            else:
                 angle = Q_(self.angle, "rad").to("deg").m
                 label += f"({angle:.0f}°)"
-            except TypeError:
-                label += f"({self.angle})"
         else:
             label += "(axial direction)"
 
