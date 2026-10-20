@@ -45,6 +45,7 @@ fig = frf.plot_polar_bode(inp=inp, out=out)
 
 ```python
 frf.freq_resp  # complex FRF matrix, shape (ndof, ndof, num_frequencies)
+frf.freq_resp[out, inp, :]  # response at `out` to a unit force at `inp`, as plotted
 frf.speed_range  # frequency array (rad/s)
 ```
 
