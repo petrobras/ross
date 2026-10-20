@@ -3667,11 +3667,18 @@ def test_refine_mesh_and_add_nodes_renumber_as_refine(
 
     assert_allclose(refined.nodes_pos, expected.nodes_pos, atol=1e-12)
     assert _numbering(refined) == _numbering(expected)
-    assert_allclose(
-        refined.run_modal(speed=0, num_modes=8).wn,
-        expected.run_modal(speed=0, num_modes=8).wn,
-        rtol=1e-9,
-    )
+    for refined_matrix, expected_matrix in [
+        (refined.M(), expected.M()),
+        (refined.K(0), expected.K(0)),
+        (refined.C(0), expected.C(0)),
+        (refined.G(), expected.G()),
+    ]:
+        assert_allclose(
+            refined_matrix,
+            expected_matrix,
+            rtol=0,
+            atol=1e-12 * max(np.abs(expected_matrix).max(), 1.0),
+        )
 
 
 @pytest.mark.parametrize(
