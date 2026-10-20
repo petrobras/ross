@@ -2647,6 +2647,29 @@ def test_load_warns_only_on_major_minor_mismatch(rotor8):
         Rotor.load(file)
 
 
+def test_compressor_example_does_not_warn_about_version(tmp_path):
+    import toml
+
+    import ross
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        rotor = compressor_example()
+
+    major, minor = ross.__version__.split(".")[:2]
+    older = f"{major}.{int(minor) - 1}.0" if int(minor) > 0 else f"{int(major) - 1}.0.0"
+    bundled = Path(ross.__file__).parent / "data/compressor_example.toml"
+    data = toml.load(bundled)
+    data["ross_version"] = older
+    file = tmp_path / "compressor.toml"
+    with open(file, "w") as f:
+        toml.dump(data, f)
+
+    with pytest.warns(UserWarning, match=f"File was created with ROSS {older}"):
+        loaded = Rotor.load(file)
+    assert loaded == rotor
+
+
 @pytest.mark.parametrize("suffix", [".toml", ".json"])
 def test_save_load_keeps_proportional_damping(suffix):
     rotor = rotor_example_with_damping()

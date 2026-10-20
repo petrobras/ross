@@ -5899,6 +5899,28 @@ class Rotor(object):
                 f"but current version is {ross.__version__}. "
                 f"This may lead to incompatibilities."
             )
+
+        return cls._from_data(data)
+
+    @classmethod
+    def _from_data(cls, data):
+        """Build a rotor from the data of a saved file.
+
+        The ``ross_version`` entry is not checked. ``load`` checks it; example
+        functions that build rotors from files shipped with ROSS call this
+        method directly.
+
+        Parameters
+        ----------
+        data : dict
+            Dictionary obtained from ``ross.utils.load_data``.
+
+        Returns
+        -------
+        rotor : ross.rotor.Rotor
+        """
+        import ross
+
         parameters = data["parameters"]
 
         elements = []
@@ -7091,9 +7113,11 @@ def compressor_example():
     >>> len(rotor.bearing_elements)
     14
     """
-    compressor_dir = Path(__file__).parent / "data/compressor_example.toml"
+    from ross.utils import load_data
 
-    return Rotor.load(compressor_dir)
+    compressor_file = Path(__file__).parent / "data/compressor_example.toml"
+
+    return Rotor._from_data(load_data(compressor_file))
 
 
 def rotor_example_6dof():
