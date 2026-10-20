@@ -651,3 +651,36 @@ def test_rebuild_preserves_mesh_configuration(multi_rotor_with_backlash):
             rebuilt.mesh.backlash.damping_ratio
             == multi_rotor.mesh.backlash.damping_ratio
         )
+
+
+@pytest.mark.parametrize("parts", [2, 3])
+def test_refine_mesh_parts_refines_each_rotor_of_a_multi_rotor(parts):
+    from ross.multi_rotor.multi_rotor import two_shaft_rotor_example
+
+    multi_rotor = two_shaft_rotor_example()
+    refined = multi_rotor.refine_mesh(parts=parts)
+    for name in ("driving", "driven"):
+        expected = multi_rotor.rotors[name].refine(parts)
+        after = refined.rotors[name]
+        assert len(after.shaft_elements) == parts * len(
+            multi_rotor.rotors[name].shaft_elements
+        )
+        assert_allclose(after.nodes_pos, expected.nodes_pos, atol=1e-12)
+        assert [elm.n for elm in after.disk_elements] == [
+            elm.n for elm in expected.disk_elements
+        ]
+        assert [elm.n for elm in after.bearing_elements] == [
+            elm.n for elm in expected.bearing_elements
+        ]
+
+    expected = multi_rotor._rebuild(
+        multi_rotor.rotors["driving"].refine(parts),
+        multi_rotor.rotors["driven"].refine(parts),
+    )
+    # The dense eigensolver: the sparse one moves single frequencies by 1e-9
+    # between matrices that differ by round-off only.
+    assert_allclose(
+        refined.run_modal(speed=0, num_modes=12, sparse=False).wn[:12],
+        expected.run_modal(speed=0, num_modes=12, sparse=False).wn[:12],
+        rtol=1e-9,
+    )

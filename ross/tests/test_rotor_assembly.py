@@ -1,5 +1,6 @@
 import pickle
 import warnings
+from copy import deepcopy
 from pathlib import Path
 from tempfile import tempdir
 
@@ -2684,6 +2685,29 @@ def test_load_warns_only_on_major_minor_mismatch(rotor8):
         Rotor.load(file)
 
 
+def test_compressor_example_does_not_warn_about_version(tmp_path):
+    import toml
+
+    import ross
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        rotor = compressor_example()
+
+    major, minor = ross.__version__.split(".")[:2]
+    older = f"{major}.{int(minor) - 1}.0" if int(minor) > 0 else f"{int(major) - 1}.0.0"
+    bundled = Path(ross.__file__).parent / "data/compressor_example.toml"
+    data = toml.load(bundled)
+    data["ross_version"] = older
+    file = tmp_path / "compressor.toml"
+    with open(file, "w") as f:
+        toml.dump(data, f)
+
+    with pytest.warns(UserWarning, match=f"File was created with ROSS {older}"):
+        loaded = Rotor.load(file)
+    assert loaded == rotor
+
+
 @pytest.mark.parametrize("suffix", [".toml", ".json"])
 def test_save_load_keeps_proportional_damping(suffix):
     rotor = rotor_example_with_damping()
@@ -3571,3 +3595,171 @@ def test_refine_renumbers_disks_and_amb_sensors(tmp_path):
             amb_rotor.nodes_pos[original.sensor_node],
         )
         assert new.sensor_node == new.n
+
+
+def _non_collocated_amb_rotor():
+    rotor = rotor_example_amb_simple()
+    bearing_elements = deepcopy(rotor.bearing_elements)
+    bearing_elements[0].sensor_node = bearing_elements[0].n + 2
+    return Rotor(rotor.shaft_elements, rotor.disk_elements, bearing_elements)
+
+
+def _api684_subdivisions(rotor, max_ld=0.5):
+    # One shaft element per interval in the rotors used here.
+    return [
+        int(np.ceil(elm.L / (max_ld * max(elm.odl, elm.odr)) - 1e-9))
+        for elm in rotor.shaft_elements
+    ]
+
+
+def _equal_cuts(rotor, parts):
+    return [
+        left + k * (right - left) / parts
+        for left, right in zip(rotor.nodes_pos[:-1], rotor.nodes_pos[1:], strict=True)
+        for k in range(1, parts)
+    ]
+
+
+def _numbering(rotor):
+    return {
+        "disks": [(elm.n, elm.n_l, elm.n_r) for elm in rotor.disk_elements],
+        "bearings": [
+            (elm.n, elm.n_link, getattr(elm, "sensor_node", None))
+            for elm in rotor.bearing_elements
+        ],
+        "point_masses": [elm.n for elm in rotor.point_mass_elements],
+    }
+
+
+@pytest.mark.parametrize(
+    "rotor_name",
+    [
+        "rotor_example",
+        "rotor_example_amb_simple",
+        "non_collocated_amb",
+        "rotor_tapered_housing",
+    ],
+)
+@pytest.mark.parametrize(
+    "subdivide, reference",
+    [
+        (lambda r: r.refine_mesh(parts=2), lambda r: r.refine(2)),
+        (lambda r: r.refine_mesh(parts=3), lambda r: r.refine(3)),
+        (lambda r: r.refine_mesh(), lambda r: r.refine(_api684_subdivisions(r))),
+        (lambda r: r.add_nodes(_equal_cuts(r, 2)), lambda r: r.refine(2)),
+        (lambda r: r.add_nodes(_equal_cuts(r, 3)), lambda r: r.refine(3)),
+    ],
+    ids=["parts=2", "parts=3", "max_ld=0.5", "add_nodes 2", "add_nodes 3"],
+)
+def test_refine_mesh_and_add_nodes_renumber_as_refine(
+    rotor_name, subdivide, reference, request
+):
+    if rotor_name == "rotor_example":
+        rotor = rotor_example()
+    elif rotor_name == "rotor_example_amb_simple":
+        rotor = rotor_example_amb_simple()
+    elif rotor_name == "non_collocated_amb":
+        rotor = _non_collocated_amb_rotor()
+    else:
+        rotor = request.getfixturevalue(rotor_name)
+    refined = subdivide(rotor)
+    expected = reference(rotor)
+
+    assert_allclose(refined.nodes_pos, expected.nodes_pos, atol=1e-12)
+    assert _numbering(refined) == _numbering(expected)
+    assert_allclose(
+        refined.run_modal(speed=0, num_modes=8).wn,
+        expected.run_modal(speed=0, num_modes=8).wn,
+        rtol=1e-9,
+    )
+
+
+@pytest.mark.parametrize(
+    "subdivide",
+    [
+        lambda r: r.add_nodes([0.123]),
+        lambda r: r.add_nodes([0.05, 0.123, 0.47, 0.88]),
+        lambda r: r.refine_mesh(parts=2),
+        lambda r: r.refine_mesh(parts=3),
+        lambda r: r.refine_mesh(),
+    ],
+    ids=["one node", "four nodes", "parts=2", "parts=3", "max_ld=0.5"],
+)
+@pytest.mark.parametrize("collocated", [True, False])
+def test_subdividing_keeps_amb_sensors_and_disks_in_place(subdivide, collocated):
+    rotor = rotor_example_amb_simple() if collocated else _non_collocated_amb_rotor()
+    refined = subdivide(rotor)
+
+    ambs = [
+        (original, new)
+        for original, new in zip(
+            rotor.bearing_elements, refined.bearing_elements, strict=True
+        )
+        if isinstance(original, MagneticBearingElement)
+    ]
+    assert len(ambs) == 2
+    for original, new in ambs:
+        assert_allclose(refined.nodes_pos[new.n], rotor.nodes_pos[original.n])
+        assert_allclose(
+            refined.nodes_pos[new.sensor_node], rotor.nodes_pos[original.sensor_node]
+        )
+        assert new.is_non_collocated == original.is_non_collocated
+    assert [amb.is_non_collocated for _, amb in ambs] == [not collocated, False]
+
+    for original, new in zip(rotor.disk_elements, refined.disk_elements, strict=True):
+        assert new.n_l == new.n_r == new.n
+        assert_allclose(refined.nodes_pos[new.n], rotor.nodes_pos[original.n])
+
+
+@pytest.mark.parametrize("collocated", [True, False])
+def test_amb_non_collocation_same_after_refine_mesh_and_refine(collocated):
+    rotor = rotor_example_amb_simple() if collocated else _non_collocated_amb_rotor()
+    refined = rotor.refine(2)
+    results = []
+    for rotor_ in (
+        refined,
+        rotor.refine_mesh(parts=2),
+        rotor.add_nodes(_equal_cuts(rotor, 2)),
+    ):
+        amb = next(
+            elm
+            for elm in rotor_.bearing_elements
+            if isinstance(elm, MagneticBearingElement)
+        )
+        results.append(rotor_.run_amb_non_collocation(amb, modes=[0, 2, 4]))
+
+    expected = results[0]
+    assert expected.sensor_node == expected.actuator_node + (0 if collocated else 4)
+    for result in results[1:]:
+        assert result.actuator_node == expected.actuator_node
+        assert result.sensor_node == expected.sensor_node
+        assert_equal(result.all_sensor_nodes, expected.all_sensor_nodes)
+        assert_allclose(result.natural_frequencies, expected.natural_frequencies)
+        # Residues are normalized to 1; near a modal node the eigenvectors
+        # differ by the eigensolver's round-off.
+        assert_allclose(
+            result.normalized_residues, expected.normalized_residues, atol=1e-6
+        )
+        assert_equal(result.classifications, expected.classifications)
+
+
+def test_refine_add_nodes_and_refine_mesh_keep_the_motor():
+    rotor = rotor_example()
+    motor = motor_example()
+    motor.n = motor.n_l = motor.n_r = 2
+    rotor = Rotor(
+        rotor.shaft_elements,
+        rotor.disk_elements,
+        rotor.bearing_elements,
+        motor_element=motor,
+    )
+    for refined in (
+        rotor.refine(2),
+        rotor.refine_mesh(parts=2),
+        rotor.add_nodes(_equal_cuts(rotor, 2)),
+    ):
+        new_motor = refined.motor_element
+        assert new_motor is not None
+        assert new_motor.n == new_motor.n_l == new_motor.n_r == 4
+        assert_allclose(refined.nodes_pos[new_motor.n], rotor.nodes_pos[2])
+        assert_allclose(refined.m, rotor.m)
