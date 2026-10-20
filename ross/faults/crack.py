@@ -1,3 +1,4 @@
+import json
 from abc import ABC
 from pathlib import Path
 
@@ -197,7 +198,7 @@ class Crack(ABC):
         E = self.shaft_elem.material.E
         radius = self.shaft_elem.odl / 2
 
-        c = np.array(pd.eval(self.coefficient_data[coeff]))
+        c = np.array([json.loads(pair) for pair in self.coefficient_data[coeff]])
         ind = np.where(c[:, 1] >= self.depth_ratio * 2)[0]
 
         c = c[ind[0], 0] * (1 - Poisson**2) / (E * radius**3)
