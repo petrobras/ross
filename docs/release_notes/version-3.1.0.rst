@@ -289,6 +289,14 @@ failed. ``check_units`` now returns ``str`` arguments without converting them, a
 ``Probe.get_label`` checks for a string angle
 (`#1438 <https://github.com/petrobras/ross/pull/1438>`_).
 
+Fix the Mayes and Gasch Crack Models with pandas 3.1
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+``Crack`` read the Papadopoulos compliance table with ``pd.eval`` on a whole column, which
+pandas 3.1 refuses, so ``crack_model="Mayes"`` and ``"Gasch"`` failed. The table is now parsed
+with ``json.loads``; the coefficients are unchanged
+(`#1456 <https://github.com/petrobras/ross/pull/1456>`_).
+
 Fix the Version Warning of ``compressor_example``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -394,6 +402,11 @@ Release Process
   (`#1448 <https://github.com/petrobras/ross/pull/1448>`_).
 - CI tests Python 3.13, 3.14 and 3.15, and the release is built on 3.13
   (`#1447 <https://github.com/petrobras/ross/pull/1447>`_).
+- Two tests no longer depend on the platform or on what other packages print, and the Lint
+  step and the release-check test pass on Windows
+  (`#1453 <https://github.com/petrobras/ross/pull/1453>`_,
+  `#1455 <https://github.com/petrobras/ross/pull/1455>`_). 3.1.0rc1 was the release candidate
+  (`#1451 <https://github.com/petrobras/ross/pull/1451>`_).
 
 API Changes
 ~~~~~~~~~~~

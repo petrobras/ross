@@ -61,7 +61,8 @@ results_dol = motor.run_direct_on_line(
 results_d = motor.run_direct_on_line(
     t,
     load_torque_entrance_time=1.5,
-    harmonics={"enable": True, "orders": [5, 7], "amplitudes": [3.0, 2.0]},  # % of supply voltage
+    # amplitudes in % of the supply voltage
+    harmonics={"enable": True, "orders": [5, 7], "amplitudes": [3.0, 2.0]},
     unbalances={
         "enable": True,
         "voltage_percent": [-1.0, 2.0, 3.0],  # phases A, B, C (%)
@@ -88,7 +89,8 @@ results_foc = motor.run_with_inverter_foc(
     load_torque_entrance_time=1.5,
     frequency_s=Q_(5000, "Hz"),
     time_ramp=0.6667,
-    frequency_ref=Q_(30, "Hz"),  # synchronous frequency; speed reference = frequency_ref / (n_poles / 2)
+    # synchronous frequency; speed reference = frequency_ref / (n_poles / 2)
+    frequency_ref=Q_(30, "Hz"),
 )
 ```
 
@@ -107,7 +109,8 @@ results_dol.currents  # dict: "a", "b", "c", "alpha", "beta", "d", "q" (A)
 results_dol.voltages  # dict: "a", "b", "c" (V)
 results_dol.line_voltages  # dict: "ab", "bc", "ca" (V)
 
-speed_at_t = results_vf.sample_at("speed")  # cubic interpolation at t_eval (or pass t_eval=...)
+# cubic interpolation at t_eval (or pass t_eval=...)
+speed_at_t = results_vf.sample_at("speed")
 ```
 
 ### Plotting
@@ -179,7 +182,8 @@ response = rotor.run_with_motor(
 ```python
 probe = rs.Probe(2, 0)
 fig = response.plot_1d(probe=[probe])
-fig = response.plot_2d(node=2, one_revolution=True)  # last revolution, integrating the varying speed
+# last revolution, integrating the varying speed
+fig = response.plot_2d(node=2, one_revolution=True)
 fig = response.plot_dfft(probe=[probe])
 
 fig = response.motor_results.plot_speed()
