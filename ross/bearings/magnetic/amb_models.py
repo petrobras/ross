@@ -193,12 +193,19 @@ def rotor_example_amb_complex_controllers(ambs=True):
     i0 = 1.0
     s0 = 0.432e-3
     alpha = 0.392
+
+    # Controllers of the LMEst rig (MBResearch, MBScope). The control filter
+    # is specified in A/um, so 1e6 converts the rotor displacement from m to
+    # um. Sensor and amplifier gains are cancelled inside the controller
+    # software (position sensitivity in um/V, current sensitivity in A/V),
+    # hence k_amp = k_sense = 1. The proportional gains are 0.0062 A/um
+    # (c_13) and 0.0046 A/um (c_24); levitation requires the loop gain to
+    # exceed |ks| / ki = i0 / s0 (about 0.0023 A/um for this actuator).
     c_13 = (
         1e6
         * 0.0062
         * (s + 46)
         / s
-        * 0.0062
         * (400 / 77)
         * ((s + 77 * 2 * np.pi) / (s + 400 * 2 * np.pi))
         * (409 / 124)
@@ -216,7 +223,6 @@ def rotor_example_amb_complex_controllers(ambs=True):
 
     c_24 = (
         1e6
-        * 0.0046
         * 0.0046
         * (s + 35)
         / s

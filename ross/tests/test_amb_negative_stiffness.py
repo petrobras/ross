@@ -40,9 +40,9 @@ AMB_PARAMS = {"g0": G0, "i0": I0, "ag": 1e-4, "nw": 200}
 # levitate the rotor.
 KP_THRESHOLD = I0 / G0
 
-# Sensor and amplifier gains of the LMEst rig (k_sense taken inside the
-# range of its displacement sensors), used to check that both paths apply
-# the full loop gain ki * k_amp * k_sense * C.
+# Representative sensor and amplifier gains for a rig whose controller does
+# not cancel them, used to check that both paths apply the full loop gain
+# ki * k_amp * k_sense * C.
 RIG_GAINS = {"k_amp": 1.75, "k_sense": 60.0}
 
 # Eigenvalues smaller than this (rad/s) belong to the free axial/torsional
@@ -217,14 +217,6 @@ def test_example_general_controllers_levitates():
     assert _max_real_part(np.linalg.eigvals(sim.A_cl)) < SMALL_EIGENVALUE
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "With k_amp = k_sense = 1 the controller gain is far below |ks| / ki "
-        "(about 2315 A/m for this actuator); the gains or the sensor and "
-        "amplifier gains of this example must be revised."
-    ),
-)
 def test_example_complex_controllers_levitates():
     sim = _closed_loop(rotor_example_amb_complex_controllers())
     assert _max_real_part(np.linalg.eigvals(sim.A_cl)) < SMALL_EIGENVALUE
