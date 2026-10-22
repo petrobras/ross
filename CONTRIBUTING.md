@@ -3,7 +3,8 @@
 We welcome any contribution via [ROSS issue tracker](https://github.com/petrobras/ross/issues).
 These include bug reports, problems on the documentation, feedback, enhancement proposals etc.
 You can use the repository [Discussions](https://github.com/petrobras/ross/discussions)
-section for questions and further information.
+section for questions and further information. The issue and discussion forms
+(`.github/ISSUE_TEMPLATE/`, `.github/DISCUSSION_TEMPLATE/`) ask for what maintainers need to reproduce or evaluate a report.
 
 ## Code style: Ruff
 

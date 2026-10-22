@@ -1,0 +1,23 @@
+title: "[Idea] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this to check whether an idea fits ROSS before building it. See the Scope section of [AGENTS.md](https://github.com/petrobras/ross/blob/main/AGENTS.md#scope).
+  - type: textarea
+    id: idea
+    attributes:
+      label: Idea
+      description: What you would like ROSS to do and the problem it solves.
+    validations:
+      required: true
+  - type: textarea
+    id: fit
+    attributes:
+      label: How it fits ROSS
+      description: Which elements, `run_*` analyses or results it touches, and any new dependency it would need.
+  - type: textarea
+    id: references
+    attributes:
+      label: References
+      description: Literature or reference results.
