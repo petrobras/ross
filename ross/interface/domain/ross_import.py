@@ -47,6 +47,7 @@ def project_from_ross_file(content):
         "seals": [],
         "bearings": [],
         "pointmasses": [],
+        "probes": [],
     }
     seen_materials = set()
 

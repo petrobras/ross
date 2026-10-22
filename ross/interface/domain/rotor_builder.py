@@ -14,13 +14,20 @@ release could remove.
 import ast
 import hashlib
 import json
+from typing import NamedTuple
 
 import numpy as np
 import ross as rs
 from ross.units import Q_
 
 from .cache import ELEMENT_CACHE
-from .element_registry import ross_class_name
+from .element_registry import (
+    VIEW_FIELDS,
+    resolve_constructor,
+    ross_class_name,
+    ross_constructor,
+    takes_units,
+)
 from .legacy import migrate_element
 from .material_names import material_key, ross_material_name, validate_materials
 from .node_resolver import effective_nodes, listed_nodes, validate_node_topology
@@ -34,7 +41,7 @@ def extract_kwargs(d, mat_dict, element_type, ignore_keys=["element_type", "n"])
     unit_map = UNITS_MAPPING.get(element_type, {})
 
     for k, v in d.items():
-        if k in ignore_keys or k.endswith("_unit"):
+        if k in ignore_keys or k in VIEW_FIELDS or k.endswith("_unit"):
             continue
         if v is None:
             continue
@@ -118,7 +125,153 @@ def extract_kwargs(d, mat_dict, element_type, ignore_keys=["element_type", "n"])
     return kwargs
 
 
+class Assembled(NamedTuple):
+    """A built rotor, and where each of its elements came from.
+
+    `placed` maps each category of the project to the ROSS elements built from
+    it, **in the order of the project's list** -- the order the screen numbers
+    its rows. The rotor itself cannot say this: `Rotor` sorts its elements by
+    node, and the element cache (domain/cache.py) shares one element among
+    every rotor that describes it the same way, so neither position nor
+    identity inside the rotor leads back to a row. It is `domain/rotor_scene.py`
+    that needs it, so a click on a part in the 3D view opens the right row.
+
+    For a MultiRotor, `placed` is None, `halves` holds the two halves, each an
+    `Assembled` of its own, and `coupling` what joins them: the coupled nodes,
+    the side the driven line is drawn on and the orientation angle, as read
+    from the project.
+
+    `geometry` keeps the dimensions an element was built from when ROSS does
+    not: a disk made by `DiskElement.from_geometry` holds only m, Ip and Id.
+    It maps a category to a list parallel to `placed`'s, with the dimensions
+    in SI -- or None for an element built from its mass and inertias.
+    """
+
+    rotor: object
+    placed: dict | None
+    halves: tuple | None = None
+    coupling: dict | None = None
+    geometry: dict | None = None
+
+
+# The dimensions both `from_geometry` constructors take -- DiskElement's and
+# GearElement's -- named as the form names them.
+GEOMETRY_DIMENSIONS = ("width", "i_d", "o_d")
+
+# How the messages call the element and its two diameters. A gear's o_d is its
+# pitch diameter and its i_d the bore.
+_GEOMETRY_WORDS = {
+    "DiskElement.from_geometry": ("disk", "outer diameter", "inner one"),
+    "GearElement.from_geometry": ("gear", "pitch diameter", "bore"),
+}
+
+
+def geometry_dimensions(row, constructor):
+    """The width and diameters of a "Geometry" row, in metres.
+
+    Checked here and not left to ROSS: `from_geometry` computes the mass as
+    rho * pi * w * (o_d^2 - i_d^2) / 4 and takes whatever comes out, so an
+    inner diameter larger than the outer one builds an element of negative
+    mass without a word.
+    """
+    word, outer, inner = _GEOMETRY_WORDS[constructor]
+    others = [k for k in row if k not in GEOMETRY_DIMENSIONS]
+    kwargs = extract_kwargs(row, {}, constructor, others)
+    missing = [k for k in GEOMETRY_DIMENSIONS if k not in kwargs]
+    if missing:
+        raise ValueError(
+            "A %s from its geometry needs the width and both diameters "
+            "(missing: %s)." % (word, ", ".join(missing))
+        )
+    width, i_d, o_d = (
+        float(getattr(kwargs[k], "m", kwargs[k])) for k in GEOMETRY_DIMENSIONS
+    )
+    if width <= 0 or i_d < 0 or o_d <= i_d:
+        raise ValueError(
+            "Invalid %s geometry: the width must be positive and the %s "
+            "larger than the %s." % (word, outer, inner)
+        )
+    return {"width": width, "i_d": i_d, "o_d": o_d}
+
+
+def _in_si_when_unchecked(constructor, kwargs):
+    """Plain SI numbers for a call ROSS does not convert (element_registry).
+
+    `extract_kwargs` has already put every quantity in base units, so the
+    number is its magnitude.
+    """
+    if takes_units(constructor):
+        return kwargs
+    return {
+        k: v.to_base_units().magnitude if isinstance(v, Q_) else v
+        for k, v in kwargs.items()
+    }
+
+
+# A probe is checked here, where its row can be named, because ROSS checks
+# little of it and only later: `rs.Probe` refuses a radial probe with no angle,
+# but a probe on a node the rotor does not have is taken, and the response
+# plots then read nothing there.
+PROBE_NO_NODE = (
+    "Probe #%d is on node %d, which this rotor does not have: its nodes go from "
+    "%d to %d."
+)
+PROBE_DIRECTION = "Probe #%d: the direction is 'radial' or 'axial', not '%s'."
+PROBE_NEEDS_ANGLE = "Probe #%d is radial and needs the angle it reads at."
+PROBE_ANGLE_UNREADABLE = "Probe #%d: '%s' is not an angle."
+
+# ROSS takes a negative mesh damping ratio and builds a mesh that feeds energy
+# into the train, so the MultiRotor form refuses it here.
+MESH_DAMPING_NEGATIVE = "The mesh damping ratio must be zero or positive, not %s."
+
+
+def build_probes(rows, rotor):
+    """The `rs.Probe` of each row of the project's probes, in the list's order.
+
+    Built to be checked and described (domain/rotor_scene.py), not to be built
+    into anything: ROSS's `Rotor` takes no probes. The angle goes in radians,
+    and an axial probe has none, as `rs.Probe` itself sets it.
+    """
+    nodes = [int(n) for n in rotor.nodes]
+    resolved = effective_nodes(rows)
+    probes = []
+    for i, row in enumerate(rows):
+        node = resolved[i]
+        if node not in nodes:
+            raise ValueError(PROBE_NO_NODE % (i + 1, node, min(nodes), max(nodes)))
+        direction = str(row.get("direction", "") or "radial").strip().lower()
+        if direction not in ("radial", "axial"):
+            raise ValueError(PROBE_DIRECTION % (i + 1, row.get("direction")))
+        angle = None
+        if direction == "radial":
+            raw = str(row.get("angle", "")).strip()
+            if raw == "":
+                raise ValueError(PROBE_NEEDS_ANGLE % (i + 1))
+            # Its own unit when the row names one, else the form's degrees.
+            typed = {"angle": raw}
+            if str(row.get("angle_unit", "") or "").strip():
+                typed["angle_unit"] = str(row["angle_unit"]).strip()
+            value = extract_kwargs(typed, {}, "Probe", []).get("angle")
+            if isinstance(value, Q_):
+                angle = float(value.to("rad").m)
+            elif isinstance(value, (int, float)):
+                angle = float(value)
+            else:
+                raise ValueError(PROBE_ANGLE_UNREADABLE % (i + 1, raw))
+        # The tag is the probe's name, read as typed: through `extract_kwargs`
+        # a probe called "1" would come back as the number 1.0.
+        tag = str(row.get("tag", "") or "").strip() or None
+        probes.append(rs.Probe(node, angle, direction=direction, tag=tag))
+    return probes
+
+
 def build_rotor_from_ui(data):
+    """The ROSS rotor the project describes."""
+    return assemble_rotor(data).rotor
+
+
+def assemble_rotor(data):
+    """The rotor, together with which element came from which row."""
     # Before anything is built: an element naming a material this rotor does
     # not have used to be answered with the first material of the list, in
     # silence (domain/material_names.py). A MultiRotor is checked half by half,
@@ -126,8 +279,10 @@ def build_rotor_from_ui(data):
     validate_materials(data)
 
     if data.get("isMultiRotor"):
-        driving = build_rotor_from_ui(data["driving_rotor"])
-        driven = build_rotor_from_ui(data["driven_rotor"])
+        driving_half = assemble_rotor(data["driving_rotor"])
+        driven_half = assemble_rotor(data["driven_rotor"])
+        driving = driving_half.rotor
+        driven = driven_half.rotor
         params = data.get("multi_params", {})
 
         c_nodes_str = str(params.get("coupled_nodes", "0, 0")).split(",")
@@ -162,10 +317,28 @@ def build_rotor_from_ui(data):
                 "sigma": float(bl.get("sigma", 10000.0)),
             }
 
+        # Left out when empty, so a project saved before the field existed
+        # gets ROSS's own default (no mesh damping).
+        damping_ratio = str(params.get("mesh_damping_ratio", "") or "").strip()
+        if damping_ratio:
+            ratio = float(damping_ratio)
+            if ratio < 0:
+                raise ValueError(MESH_DAMPING_NEGATIVE % damping_ratio)
+            multi_kwargs["mesh_damping_ratio"] = ratio
+
         if params.get("orientation_angle"):
             multi_kwargs["orientation_angle"] = float(params["orientation_angle"])
 
-        return rs.MultiRotor(driving, driven, **multi_kwargs)
+        return Assembled(
+            rs.MultiRotor(driving, driven, **multi_kwargs),
+            None,
+            (driving_half, driven_half),
+            {
+                "coupled_nodes": list(coupled_nodes),
+                "position": multi_kwargs["position"],
+                "orientation_angle": multi_kwargs.get("orientation_angle", 0.0),
+            },
+        )
 
     mat_ui_props = {
         material_key(m.get("name", "MaterialCustom")): m
@@ -182,7 +355,13 @@ def build_rotor_from_ui(data):
         created_materials[material_key(name)] = rs.Material(name=name, **kwargs)
 
     def instantiate_with_cache(category, el_dict, n_val, builder_func, auto_tag):
-        hash_data = {k: v for k, v in el_dict.items() if str(v).strip() != ""}
+        # A view field changes the picture, not the element: a new shape must
+        # not cost a new ROSS element.
+        hash_data = {
+            k: v
+            for k, v in el_dict.items()
+            if str(v).strip() != "" and k not in VIEW_FIELDS
+        }
         hash_data["__cat"] = category
         hash_data["__n_calc"] = n_val
         hash_data["__tag"] = el_dict.get("tag", auto_tag)
@@ -229,24 +408,33 @@ def build_rotor_from_ui(data):
     if not ross_shafts:
         raise ValueError("Add at least one Shaft!")
 
-    # Disks
+    # Disks: from m, Ip and Id (BASIC), or from their dimensions (Geometry,
+    # DiskElement.from_geometry).
     ross_disks = []
+    disk_geometry = []
     disks_eff = effective_nodes(data.get("disks", []))
     for i, d in enumerate(data.get("disks", [])):
         n_val = disks_eff[i]
         auto_tag = f"disk_{i}"
+        constructor = ross_constructor("disks", d.get("element_type"))
+        dimensions = geometry_dimensions(d, constructor) if "." in constructor else None
 
         def build_disk():
             kwargs = extract_kwargs(
-                d, created_materials, "DiskElement", ["n", "element_type"]
+                d, created_materials, constructor, ["n", "element_type"]
             )
             if "tag" not in kwargs:
                 kwargs["tag"] = auto_tag
-            return rs.DiskElement(n=n_val, **kwargs)
+            if dimensions is not None:
+                # No material chosen is the form's own "Default (Steel)".
+                kwargs.setdefault("material", rs.materials.steel)
+            make = resolve_constructor(constructor)
+            return make(n=n_val, **_in_si_when_unchecked(constructor, kwargs))
 
         ross_disks.append(
             instantiate_with_cache("disk", d, n_val, build_disk, auto_tag)
         )
+        disk_geometry.append(dimensions)
 
     # Gears
     ross_gears = []
@@ -256,10 +444,13 @@ def build_rotor_from_ui(data):
         type_val = g.get("element_type", "BASIC")
         auto_tag = f"gear_{i}_{type_val}"
 
+        constructor = ross_constructor("gears", type_val)
+        if "." in constructor:
+            geometry_dimensions(g, constructor)
+
         def build_gear():
-            element_class = ross_class_name("gears", type_val)
             kwargs = extract_kwargs(
-                g, created_materials, element_class, ["n", "element_type"]
+                g, created_materials, constructor, ["n", "element_type"]
             )
             if "tag" not in kwargs:
                 kwargs["tag"] = auto_tag
@@ -271,8 +462,11 @@ def build_rotor_from_ui(data):
                 raise ValueError(
                     "For gears, provide either Pitch Diameter or Base Diameter."
                 )
-            ross_class = getattr(rs, element_class, rs.GearElement)
-            return ross_class(n=n_val, **kwargs)
+            if "." in constructor:
+                # No material chosen is the form's own "Default (Steel)".
+                kwargs.setdefault("material", rs.materials.steel)
+            make = resolve_constructor(constructor) or rs.GearElement
+            return make(n=n_val, **_in_si_when_unchecked(constructor, kwargs))
 
         ross_gears.append(
             instantiate_with_cache("gear", g, n_val, build_gear, auto_tag)
@@ -380,6 +574,17 @@ def build_rotor_from_ui(data):
 
     validate_node_topology(all_elements)
 
+    # Taken before the sorts below, which put the lists in node order.
+    placed = {
+        "shafts": list(ross_shafts),
+        "couplings": list(ross_couplings),
+        "disks": list(ross_disks),
+        "gears": list(ross_gears),
+        "bearings": list(ross_bearings),
+        "seals": list(ross_seals),
+        "pointmasses": list(ross_pointmasses),
+    }
+
     ross_shafts.sort(key=lambda x: x.n)
     ross_disks.sort(key=lambda x: x.n)
     ross_gears.sort(key=lambda x: x.n)
@@ -387,9 +592,11 @@ def build_rotor_from_ui(data):
     ross_seals.sort(key=lambda x: x.n)
     ross_pointmasses.sort(key=lambda x: x.n)
 
-    return rs.Rotor(
+    rotor = rs.Rotor(
         shaft_elements=ross_shafts + ross_couplings,
         disk_elements=ross_disks + ross_gears,
         bearing_elements=ross_bearings + ross_seals,
         point_mass_elements=ross_pointmasses,
     )
+    placed["probes"] = build_probes(data.get("probes", []) or [], rotor)
+    return Assembled(rotor, placed, geometry={"disks": disk_geometry})

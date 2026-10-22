@@ -6,10 +6,21 @@ import { openTab } from './modeling.js';
 import { t } from '../core/i18n.js';
 // Function to switch between windows without leaving others active
 
+// What a screen asks to be told when it is shown: the analysis screen
+// offers the model's probes, which may have changed while it was away
+// (features/analysis.js `refreshProbeChoices`). A hook, so this module does
+// not import the screens it shows.
+const SHOWN = {};
+
+export function onScreenShown(screenId, run) {
+    (SHOWN[screenId] = SHOWN[screenId] || []).push(run);
+}
+
 export function switchScreen(screenId) {
     document.querySelectorAll('.screen').forEach(screen => screen.classList.remove('active'));
     document.getElementById(screenId).classList.add('active');
     if(screenId === 'screen-modeling' && state.currentTab) openTab(state.currentTab);
+    (SHOWN[screenId] || []).forEach(run => run());
 
     setTimeout(() => {
         window.dispatchEvent(new Event('resize'));

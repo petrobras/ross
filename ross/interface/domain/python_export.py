@@ -17,7 +17,14 @@ in DEVIATIONS.
 import re
 from decimal import Decimal
 
-from .element_registry import ross_class_name
+from ross.units import Q_
+
+from .element_registry import (
+    VIEW_FIELDS,
+    ross_class_name,
+    ross_constructor,
+    takes_units,
+)
 from .legacy import migrate_element
 from .material_names import material_key, ross_material_name, validate_materials
 from .node_resolver import effective_nodes, listed_nodes
@@ -157,16 +164,21 @@ def _py_string(value):
     return "'" + _js_str(value).replace("\\", "\\\\").replace("'", "\\'") + "'"
 
 
-def _format_kwargs(obj, exclude_keys=(), class_name=""):
+def _format_kwargs(obj, exclude_keys=(), class_name="", in_si=False):
     """Build `key=value, ...` from what the form returned.
 
     The unit map comes from the schema, inherited units already resolved: a
     BallBearingElement's cxx is declared on BearingElement.
+
+    `in_si` is for a call ROSS does not convert units for
+    (`element_registry.takes_units`): the quantity is still written in the
+    unit it was typed in, and handed over as its number in SI --
+    `Q_(70, 'mm').m_as('meter')`.
     """
     items = []
     unit_map = unit_map_by_class().get(class_name or "", {})
     for key, val in obj.items():
-        if key in exclude_keys or key.endswith("_unit"):
+        if key in exclude_keys or key in VIEW_FIELDS or key.endswith("_unit"):
             continue
         if val is None or (isinstance(val, str) and val == ""):
             continue
@@ -190,11 +202,20 @@ def _format_kwargs(obj, exclude_keys=(), class_name=""):
             final = _js_str(val)
             if is_text and rendered.startswith("[") and _js_truthy(unit):
                 final = "np.array(%s)" % _js_str(val)
-            if _js_truthy(unit):
+            if _js_truthy(unit) and in_si:
+                items.append(
+                    "%s=Q_(%s, '%s').m_as('%s')" % (key, final, unit, _base_unit(unit))
+                )
+            elif _js_truthy(unit):
                 items.append("%s=Q_(%s, '%s')" % (key, final, unit))
             else:
                 items.append("%s=%s" % (key, final))
     return ", ".join(items)
+
+
+def _base_unit(unit):
+    """The SI unit a quantity typed in `unit` is handed over in: 'meter' for mm."""
+    return str(Q_(1, unit).to_base_units().units)
 
 
 def _with_node_arg(element, args, effective_node):
@@ -262,25 +283,35 @@ def _build_rotor_block(r_data, suffix):
         s=suffix
     )
 
-    # Disks
+    # Disks: rs.DiskElement from m, Ip and Id, or rs.DiskElement.from_geometry
+    # from the dimensions and a material -- the call the rotor was built with.
     py += "disks_data%s = [\n" % suffix
     nodes = effective_nodes(r_data.get("disks") or [])
     for position, disk in enumerate(r_data.get("disks") or []):
-        args = _format_kwargs(disk, ["element_type"], "DiskElement")
-        args = _with_node_arg(disk, args, nodes[position])
-        py += "    dict(%s),\n" % args
-    py += (
-        "]\ndisks{s} = [rs.DiskElement(**kwargs) for kwargs in disks_data{s}]\n".format(
-            s=suffix
+        make = ross_constructor("disks", disk.get("element_type"))
+        from_geometry = "." in make
+        args = _format_kwargs(
+            disk,
+            ["element_type"] + (["material"] if from_geometry else []),
+            make,
+            in_si=not takes_units(make),
         )
+        args = _with_node_arg(disk, args, nodes[position])
+        if from_geometry:
+            args += ", material=%s" % _material_expression(disk, suffix)
+        py += "    (rs.%s, dict(%s)),\n" % (make, args)
+    py += "]\ndisks{s} = [make(**kwargs) for make, kwargs in disks_data{s}]\n".format(
+        s=suffix
     )
 
     # Gears
     py += "gears_data%s = [\n" % suffix
     nodes = effective_nodes(r_data.get("gears") or [])
     for position, gear in enumerate(r_data.get("gears") or []):
-        klass = ross_class_name("gears", gear.get("element_type"))
-        args = _format_kwargs(gear, ["element_type", "material"], klass)
+        klass = ross_constructor("gears", gear.get("element_type"))
+        args = _format_kwargs(
+            gear, ["element_type", "material"], klass, in_si=not takes_units(klass)
+        )
         args = _with_node_arg(gear, args, nodes[position])
         material = _material_expression(gear, suffix)
         full_args = (
@@ -388,6 +419,10 @@ def _multi_rotor_block(multi_params):
             _js_str(backlash.get("sigma")),
         )
 
+    damping_ratio = str(_or(p.get("mesh_damping_ratio"), "")).strip()
+    if damping_ratio:
+        args += ", mesh_damping_ratio=%s" % _js_number(float(damping_ratio))
+
     if _js_truthy(p.get("orientation_angle")):
         args += ", orientation_angle=%s" % _js_str(p["orientation_angle"])
 
@@ -405,14 +440,61 @@ def _py_val(params, key, target_unit=None):
     return _js_str(literal)
 
 
+# The frequency response at a radial probe of the model, written into the
+# script where an output names one: the same function as
+# services/analysis/freq_response.py `probe_output` (the packaged executable
+# has no sources to copy it from), and tests/test_freq_response_probes.py
+# holds the two to the same numbers.
+PROBE_OUTPUT = """
+def probe_output(result, node, angle, dofs_per_node):
+    \"\"\"The response a radial probe reads: x cos(angle) + y sin(angle) of its
+    node, as output 0 of results ROSS can plot (ROSS plots one degree of
+    freedom as the output).\"\"\"
+    from ross.results import FrequencyResponseResults
+
+    x = node * dofs_per_node
+    c, s = np.cos(angle), np.sin(angle)
+
+    def along(response):
+        return (c * response[x, :, :] + s * response[x + 1, :, :])[None, :, :]
+
+    return FrequencyResponseResults(
+        along(result.freq_resp),
+        along(result.velc_resp),
+        along(result.accl_resp),
+        result.speed_range,
+        result.number_dof,
+    )
+
+"""
+
+
+def _probe_expression(row):
+    """One row of a probe table as `rs.Probe(...)`.
+
+    A row that named a probe of the model has been filled in from it before
+    the script is written (api/export.py, domain/probe_refs.py): its node, its
+    angle in radians -- none for an axial probe -- its direction and its name.
+    """
+    if not str(row.get("probe", "") or "").strip():
+        return "rs.Probe(%s, %s)" % (
+            _js_str(row.get("node")),
+            _js_str(row.get("angle")),
+        )
+    angle = row.get("angle")
+    args = [str(int(row["node"])), "None" if angle is None else repr(float(angle))]
+    if row.get("direction") == "axial":
+        args.append("direction='axial'")
+    if row.get("tag"):
+        args.append("tag=%s" % _py_string(row["tag"]))
+    return "rs.Probe(%s)" % ", ".join(args)
+
+
 def _probes_expression(params):
     probes = params.get("probes") or []
     if not probes:
         return "rs.Probe(0, 0)"
-    return ", ".join(
-        "rs.Probe(%s, %s)" % (_js_str(s.get("node")), _js_str(s.get("angle")))
-        for s in probes
-    )
+    return ", ".join(_probe_expression(row) for row in probes)
 
 
 def _unbalance_columns(params, mag_default="0.01", phase_default="0.0"):
@@ -582,6 +664,11 @@ def _analysis_block(position, analysis):
 
         entries = p.get("inps") or [{"node": 0, "dof": 0}]
         outputs = p.get("outs") or [{"node": 0, "dof": 0}]
+        if any(
+            output.get("probe") and output.get("direction") != "axial"
+            for output in outputs
+        ):
+            py += PROBE_OUTPUT
         py += "fig_freq_%d = None\n" % position
         py += "colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b']\n"
         for j in range(max(len(entries), len(outputs))):
@@ -591,21 +678,48 @@ def _analysis_block(position, analysis):
                 _js_str(entry.get("node")),
                 _js_str(entry.get("dof")),
             )
-            py += "g_out = %s * dofs_per_node + %s\n" % (
-                _js_str(output.get("node")),
-                _js_str(output.get("dof")),
-            )
-            py += "fig_temp = freq_%d.%s(inp=g_inp, out=g_out, %s)\n" % (
-                position,
+            # An output that named a probe of the model has been filled in
+            # from it (api/export.py): an axial one reads z of its node, a
+            # radial one its direction, through `probe_output`.
+            source = "freq_%d" % position
+            if not output.get("probe"):
+                py += "g_out = %s * dofs_per_node + %s\n" % (
+                    _js_str(output.get("node")),
+                    _js_str(output.get("dof")),
+                )
+                read_at = "N%s D%s" % (
+                    _js_str(output.get("node")),
+                    _js_str(output.get("dof")),
+                )
+            elif output.get("direction") == "axial":
+                py += "g_out = %d * dofs_per_node + 2\n" % int(output["node"])
+                read_at = output.get("tag") or "probe at node %d" % int(output["node"])
+            else:
+                py += "g_out = 0\n"
+                source = "probe_output(freq_%d, %d, %r, dofs_per_node)" % (
+                    position,
+                    int(output["node"]),
+                    float(output.get("angle") or 0.0),
+                )
+                read_at = output.get("tag") or "probe at node %d" % int(output["node"])
+            py += "fig_temp = %s.%s(inp=g_inp, out=g_out, %s)\n" % (
+                source,
                 method,
                 ", ".join(args),
             )
             py += "for k, trace in enumerate(fig_temp.data):\n"
-            py += '    trace.name = f"In(N%s D%s) | Out(N%s D%s)"\n' % (
+            label = "In(N%s D%s) | Out(%s)" % (
                 _js_str(entry.get("node")),
                 _js_str(entry.get("dof")),
-                _js_str(output.get("node")),
-                _js_str(output.get("dof")),
+                read_at,
+            )
+            # A typed row keeps the f-string it always had; a probe's name is
+            # whatever was typed, braces and quotes included, so it goes in as
+            # a plain literal.
+            py += (
+                '    trace.name = f"%s"\n' % label
+                if not output.get("probe")
+                else "    trace.name = %s\n" % _py_string(label)
             )
             py += '    trace.legendgroup = f"group_%d"\n' % j
             py += "    trace.showlegend = (k == 0)\n"

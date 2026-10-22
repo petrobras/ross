@@ -1,4 +1,9 @@
+import csv
+import json
+from pathlib import Path
+
 import numpy as np
+import pandas as pd
 import pytest
 
 import ross as rs
@@ -210,3 +215,31 @@ def test_crack_gasch_resp(run_crack_gasch):
     data = run_crack_gasch.data_time_response(probe=[probe1, probe2])
     assert_allclose(data["probe_resp[0]"].to_numpy()[:5], resp_prob1, rtol=1e-6)
     assert_allclose(data["probe_resp[1]"].to_numpy()[:5], resp_prob2, rtol=1e-6)
+
+
+@pytest.mark.parametrize("depth_ratio", [0.1, 0.2, 0.35, 0.5])
+@pytest.mark.parametrize("coeff", ["c44", "c45", "c55"])
+def test_compliance_coefficients_without_pandas_eval(
+    rotor, monkeypatch, depth_ratio, coeff
+):
+    # pandas 3.1 refuses a Series in pd.eval; the coefficients must not depend on it.
+    def refuse(expr, *args, **kwargs):
+        raise ValueError("expr must be a string to be evaluated")
+
+    monkeypatch.setattr(pd, "eval", refuse)
+    crack = Crack(rotor, n=18, depth_ratio=depth_ratio, crack_model="Mayes")
+
+    # Reference: the table read with the standard library, first row whose depth
+    # reaches the crack depth (Papadopoulos compliance data).
+    table = Path(rs.__file__).parent / "faults/data/PAPADOPOULOS.csv"
+    with open(table, newline="", encoding="utf-8") as file:
+        rows = [json.loads(row[coeff]) for row in csv.DictReader(file)]
+    value = next(c for c, depth in rows if depth >= 2 * depth_ratio)
+    shaft = crack.shaft_elem
+    expected = (
+        value
+        * (1 - shaft.material.Poisson**2)
+        / (shaft.material.E * (shaft.odl / 2) ** 3)
+    )
+
+    assert_allclose(crack._get_coefficient(coeff), expected, rtol=1e-12)

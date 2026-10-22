@@ -124,18 +124,6 @@ def test_save_load_static(rotor1):
     assert np.array(response2.Vx_axis).all() == np.array(response.Vx_axis).all()
 
 
-def test_save_load_convergence(rotor1):
-    response = rotor1.convergence()
-
-    file = Path(tempdir) / "convergence.toml"
-    response.save(file)
-    response2 = ConvergenceResults.load(file)
-
-    assert response2.el_num.all() == response.el_num.all()
-    assert response2.eigv_arr.all() == response.eigv_arr.all()
-    assert response2.error_arr.all() == response.error_arr.all()
-
-
 def test_save_load_timeresponse(rotor1):
     speed = 500.0
     size = 1000
@@ -705,7 +693,11 @@ def test_save_load_amb_time_response(rotor_amb):
     assert np.isfinite(sim.y).all()
 
     results = AmbTimeResponseResults(
-        rotor_amb, sim.t, sim.y, [sim.x_disp, sim.y_disp, [], [], []]
+        rotor_amb,
+        sim.t,
+        sim.y,
+        [sim.x_disp, sim.y_disp, [], [], []],
+        speed=0,
     )
 
     file = Path(tempdir) / "amb_time.toml"
@@ -718,6 +710,7 @@ def test_save_load_amb_time_response(rotor_amb):
     assert_allclose(results2.F_x, results.F_x, atol=1e-10)
     assert_allclose(results2.F_v, results.F_v, atol=1e-10)
     assert_allclose(results2.I, results.I, atol=1e-10)
+    assert results2.speed == results.speed
 
     assert (
         results2.rotor.bearing_elements[0].tag == results.rotor.bearing_elements[0].tag

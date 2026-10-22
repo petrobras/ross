@@ -45,6 +45,7 @@ Elements
     CouplingElement
     Probe
     PointMass
+    MotorElement
 
 Rotor and Analysis
 ------------------
@@ -55,7 +56,6 @@ Rotor class and available methods for analysis (``run_*`` methods).
 
     Rotor
     MultiRotor
-    CoAxialRotor
     Rotor.run_modal
     Rotor.run_critical_speed
     Rotor.run_freq_response
@@ -71,7 +71,12 @@ Rotor class and available methods for analysis (``run_*`` methods).
     Rotor.run_crack
     Rotor.run_harmonic_balance_response
     Rotor.run_amb_sensitivity
+    Rotor.run_amb_non_collocation
     Rotor.run_clearance_analysis
+    Rotor.run_mesh_convergence
+    Rotor.run_with_motor
+    Rotor.refine
+    Rotor.refine_mesh
     Rotor.api617_unbalance
 
 Example Rotors
@@ -83,11 +88,12 @@ Ready-to-use rotor models for tutorials, doctests, and quick experimentation.
 
     rotor_example
     compressor_example
-    coaxrotor_example
     rotor_example_6dof
     rotor_example_with_damping
-    rotor_amb_example
-    concatenate_rotor
+    rotor_example_amb_simple
+    rotor_example_amb_complex_controllers
+    rotor_example_amb_general_controllers
+    motor_example
 
 Results
 -------
@@ -105,13 +111,16 @@ These are classes used to store results and to provide useful methods such as pl
     ForcedResponseResults
     StaticResults
     SummaryResults
-    ConvergenceResults
+    MeshConvergenceResults
     TimeResponseResults
     Level1Results
     UCSResults
     HarmonicBalanceResults
     SensitivityResults
+    AmbNonCollocationResults
     ClearanceResults
+    MotorResponseResults
+    PhaseResults
 
 Bearing Results
 ---------------
@@ -148,6 +157,19 @@ Methods for reducing the size of rotor finite element models.
     PseudoModal
     Guyan
 
+Motor Drives
+------------
+Electrical sources that feed a ``MotorElement``.
+
+.. currentmodule:: ross.motors.motor_drive
+
+.. autosummary::
+    :toctree: generated/motor_drives
+
+    SourceAC
+    InverterVF
+    InverterFOC
+
 Stochastic Analysis
 -------------------
 Stochastic elements, rotor assembly, and results for uncertainty quantification.
@@ -170,7 +192,7 @@ Stochastic elements, rotor assembly, and results for uncertainty quantification.
 
 Utilities
 ---------
-Unit conversion helpers and visualization utilities.
+Unit conversion helpers, visualization utilities and speed ranges for sweep analyses.
 
 .. currentmodule:: ross
 
@@ -181,3 +203,10 @@ Unit conversion helpers and visualization utilities.
     get_data_from_figure
     visualize_matrix
     lubricants_dict
+
+.. currentmodule:: ross.utils
+
+.. autosummary::
+    :toctree: generated/utilities
+
+    speed_range_from_endpoints

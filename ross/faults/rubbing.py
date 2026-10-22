@@ -247,7 +247,7 @@ def rubbing_example():
     >>> from ross.faults.rubbing import rubbing_example
     >>> from ross.probe import Probe
     >>> results = rubbing_example()
-    Running direct method
+    Running direct method...
     >>> probe1 = Probe(14, 0)
     >>> probe2 = Probe(22, 0)
     >>> fig = results.plot_1d([probe1, probe2])

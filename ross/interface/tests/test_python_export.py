@@ -224,6 +224,118 @@ def test_an_empty_project_still_produces_a_runnable_script():
     assert "rotor.plot_rotor().show()" in script
 
 
+def test_a_disk_from_its_dimensions_is_exported_as_the_call_that_built_it():
+    """The "Geometry" disk is `rs.DiskElement.from_geometry` in the script too,
+    with the project's material and the millimetres it was typed in -- and the
+    disks the script builds are the ones the screen built, number for number."""
+    from ross.interface.domain.rotor_builder import assemble_rotor
+
+    project = {
+        "materials": [{"name": "Steel", "rho": "7810", "E": "211e9", "G_s": "81.2e9"}],
+        "shafts": [
+            {"L": "250", "idl": "0", "odl": "50", "material": "Steel"} for _ in range(3)
+        ],
+        "disks": [
+            {
+                "element_type": "Geometry",
+                "n": "1",
+                "width": "70",
+                "o_d": "280",
+                "i_d": "50",
+                "material": "Steel",
+            },
+            {"element_type": "BASIC", "n": "2", "m": "10", "Ip": "0.1", "Id": "0.05"},
+        ],
+        "bearings": [
+            {"element_type": "BASIC", "n": "0", "kxx": "1e6", "cxx": "0"},
+            {"element_type": "BASIC", "n": "3", "kxx": "1e6", "cxx": "0"},
+        ],
+    }
+    script = build_script(project)
+    assert (
+        "(rs.DiskElement.from_geometry, dict(n=1, width=Q_(70, 'mm'), "
+        "o_d=Q_(280, 'mm'), i_d=Q_(50, 'mm'), "
+        "material=materials_dict.get('steel', default_mat))),"
+    ) in script
+    assert "(rs.DiskElement, dict(n=2, m=Q_(10, 'kg')" in script
+
+    # Run the modelling half of the script; the other half opens a figure.
+    modelling = script.split('print("Rotor Successfully Modeled!")')[0]
+    namespace = {}
+    exec(modelling, namespace)
+    exported = namespace["disks"]
+    built = assemble_rotor(project).placed["disks"]
+    assert len(exported) == len(built) == 2
+    for mine, theirs in zip(exported, built, strict=True):
+        assert type(mine) is type(theirs)
+        for name in ("n", "m", "Ip", "Id"):
+            assert float(getattr(mine, name)) == pytest.approx(
+                float(getattr(theirs, name)), rel=1e-12
+            ), name
+
+
+def test_a_gear_from_its_dimensions_is_exported_with_numbers_in_si():
+    """GearElement.from_geometry does not convert units, so the script hands
+    it the number in SI while still showing what was typed -- and the gears
+    the script builds are the ones the screen built."""
+    from ross.interface.domain.rotor_builder import assemble_rotor
+
+    project = {
+        "materials": [{"name": "Steel", "rho": "7810", "E": "211e9", "G_s": "81.2e9"}],
+        "shafts": [
+            {"L": "250", "idl": "0", "odl": "50", "material": "Steel"} for _ in range(3)
+        ],
+        "gears": [
+            {
+                "element_type": "Geometry",
+                "n": "1",
+                "width": "70",
+                "o_d": "280",
+                "i_d": "50",
+                "n_teeth": "50",
+                "pr_angle": "22.5",
+                "pr_angle_unit": "deg",
+                "material": "Steel",
+            },
+            {
+                "element_type": "BASIC",
+                "n": "2",
+                "m": "5",
+                "Ip": "0.04",
+                "Id": "0.02",
+                "n_teeth": "30",
+                "pitch_diameter": "200",
+            },
+        ],
+        "bearings": [
+            {"element_type": "BASIC", "n": "0", "kxx": "1e6", "cxx": "0"},
+            {"element_type": "BASIC", "n": "3", "kxx": "1e6", "cxx": "0"},
+        ],
+    }
+    script = build_script(project)
+    assert (
+        "(rs.GearElement.from_geometry, dict(n=1, "
+        "width=Q_(70, 'mm').m_as('meter'), o_d=Q_(280, 'mm').m_as('meter'), "
+        "i_d=Q_(50, 'mm').m_as('meter'), n_teeth=50, "
+        "pr_angle=Q_(22.5, 'deg').m_as('radian'), "
+        "material=materials_dict.get('steel', default_mat))),"
+    ) in script
+    # The class that does convert keeps its quantities as they were.
+    assert "pitch_diameter=Q_(200, 'mm'), " in script
+
+    modelling = script.split('print("Rotor Successfully Modeled!")')[0]
+    namespace = {}
+    exec(modelling, namespace)
+    exported = namespace["gears"]
+    built = assemble_rotor(project).placed["gears"]
+    for mine, theirs in zip(exported, built, strict=True):
+        assert type(mine) is type(theirs)
+        for name in ("n", "m", "Ip", "Id", "pr_angle", "pitch_diameter"):
+            assert float(getattr(mine, name)) == pytest.approx(
+                float(getattr(theirs, name)), rel=1e-12
+            ), name
+
+
 def test_analyses_are_optional_and_never_half_written():
     """A card with no parameters stays out: it became a truncated block in the script."""
     script = build_script({}, [{"type": "campbell"}, {"params": {"speed": "1"}}])
@@ -534,3 +646,63 @@ def test_a_whirl_option_left_at_its_default_is_not_repeated(kind, base, blank):
     assert with_blank == without
     assert "matched_whirl" not in with_blank
     assert "frequency=" not in with_blank
+
+
+def test_the_shape_drawn_in_3d_never_reaches_ross_nor_the_script():
+    """The geometry bank's `shape3d` is only a picture (VIEW_FIELDS).
+
+    Handed to ROSS it would be an unexpected keyword -- `DiskElement` takes
+    none of that name -- and the rotor would stop building the moment someone
+    chose an impeller. In the script it would be the same error, one step
+    later. The same project with and without it has to build the same disks
+    and write the same script."""
+    from ross.interface.domain.rotor_builder import assemble_rotor
+
+    def project(shape):
+        disks = [
+            # Values of this test's own: the element cache must not answer
+            # with a disk another test built, or the builder is never asked.
+            {
+                "element_type": "BASIC",
+                "n": "1",
+                "m": "10.25",
+                "Ip": "0.1",
+                "Id": "0.05",
+            },
+            {
+                "element_type": "Geometry",
+                "n": "2",
+                "width": "70.5",
+                "o_d": "280",
+                "i_d": "50",
+                "material": "Steel",
+            },
+        ]
+        if shape:
+            for disk in disks:
+                disk["shape3d"] = shape
+        return {
+            "materials": [
+                {"name": "Steel", "rho": "7810", "E": "211e9", "G_s": "81.2e9"}
+            ],
+            "shafts": [
+                {"L": "250", "idl": "0", "odl": "50", "material": "Steel"}
+                for _ in range(3)
+            ],
+            "disks": disks,
+            "bearings": [
+                {"element_type": "BASIC", "n": "0", "kxx": "1e6", "cxx": "0"},
+                {"element_type": "BASIC", "n": "3", "kxx": "1e6", "cxx": "0"},
+            ],
+        }
+
+    # The shaped one first: the cache leaves the shape out of its key, so built
+    # second it would be answered from the plain one's elements.
+    shaped = assemble_rotor(project("impeller")).placed["disks"]
+    plain = assemble_rotor(project(None)).placed["disks"]
+    for mine, theirs in zip(shaped, plain, strict=True):
+        for name in ("n", "m", "Ip", "Id"):
+            assert float(getattr(mine, name)) == float(getattr(theirs, name)), name
+    script = build_script(project("impeller"))
+    assert "shape3d" not in script and "impeller" not in script
+    assert script == build_script(project(None))

@@ -17,7 +17,7 @@ from numpy import linalg as la
 from plotly import graph_objects as go
 from plotly.subplots import make_subplots
 from prettytable import PrettyTable
-from scipy.fft import fft
+from scipy.integrate import cumulative_trapezoid
 from pathlib import Path
 
 from ross.plotly_theme import (
@@ -29,7 +29,7 @@ from ross.plotly_theme import (
 from ross.bearings.magnetic.amb_utils import get_ambs
 from ross.probe import check_probes
 from ross.units import Q_, check_units
-from ross.utils import intersection, compute_dfft, compute_freq_resp
+from ross.utils import intersection, compute_dfft, limit_data_range, compute_freq_resp
 
 __all__ = [
     "Orbit",
@@ -42,7 +42,7 @@ __all__ = [
     "ForcedResponseResults",
     "StaticResults",
     "SummaryResults",
-    "ConvergenceResults",
+    "MeshConvergenceResults",
     "TimeResponseResults",
     "AmbTimeResponseResults",
     "UCSResults",
@@ -55,6 +55,10 @@ __all__ = [
 # Define reference circle for orbits
 NUM_POINTS = 360
 CIRCLE = np.exp(1j * np.linspace(0, 2 * np.pi, NUM_POINTS, endpoint=False))
+# A circular orbit drawn through 10 samples of one revolution (9 chords) stays
+# within 1 - cos(pi / 9), about 6 %, of its radius; fewer samples do not show
+# the orbit shape.
+MIN_WINDOW_SAMPLES = 10
 
 
 class Results(ABC):
@@ -2973,11 +2977,13 @@ class FrequencyResponseResults(Results):
     Parameters
     ----------
     freq_resp : array
-        Array with the frequency response (displacement).
+        Displacement frequency response, shape (ndof, ndof, len(speed_range)).
+        ``freq_resp[out, inp, i]`` is the response at degree of freedom ``out``
+        to a unit force at degree of freedom ``inp`` at ``speed_range[i]``.
     velc_resp : array
-        Array with the frequency response (velocity).
+        Velocity frequency response, indexed as ``freq_resp``.
     accl_resp : array
-        Array with the frequency response (acceleration).
+        Acceleration frequency response, indexed as ``freq_resp``.
     speed_range : array
         Array with the speed range in rad/s.
     number_dof : int
@@ -3017,9 +3023,9 @@ class FrequencyResponseResults(Results):
         Parameters
         ----------
         inp : int
-            Input.
+            Global degree of freedom where the unit force is applied.
         out : int
-            Output.
+            Global degree of freedom where the response is read.
         frequency_units : str, optional
             Units for the x axis.
             Default is "rad/s"
@@ -3080,7 +3086,7 @@ class FrequencyResponseResults(Results):
         fig.add_trace(
             go.Scatter(
                 x=frequency_range,
-                y=mag[inp, out, :],
+                y=mag[out, inp, :],
                 mode="lines",
                 line=dict(color=list(tableau_colors)[idx], shape=line_shape),
                 name=f"inp: node {inpn} | dof: {idof}<br>out: node {outn} | dof: {odof}",
@@ -3117,9 +3123,9 @@ class FrequencyResponseResults(Results):
         Parameters
         ----------
         inp : int
-            Input.
+            Global degree of freedom where the unit force is applied.
         out : int
-            Output.
+            Global degree of freedom where the response is read.
         frequency_units : str, optional
             Units for the x axis.
             Default is "rad/s"
@@ -3159,11 +3165,11 @@ class FrequencyResponseResults(Results):
 
         dummy_var = Q_(1, amplitude_units)
         if dummy_var.check("[length]/[force]"):
-            phase = np.angle(self.freq_resp[inp, out, :])
+            phase = np.angle(self.freq_resp[out, inp, :])
         elif dummy_var.check("[speed]/[force]"):
-            phase = np.angle(self.velc_resp[inp, out, :])
+            phase = np.angle(self.velc_resp[out, inp, :])
         elif dummy_var.check("[acceleration]/[force]"):
-            phase = np.angle(self.accl_resp[inp, out, :])
+            phase = np.angle(self.accl_resp[out, inp, :])
         else:
             raise ValueError(
                 "Not supported unit. Options are '[length]/[force]', '[speed]/[force]', '[acceleration]/[force]'"
@@ -3224,9 +3230,9 @@ class FrequencyResponseResults(Results):
         Parameters
         ----------
         inp : int
-            Input.
+            Global degree of freedom where the unit force is applied.
         out : int
-            Output.
+            Global degree of freedom where the response is read.
         frequency_units : str, optional
             Units for the x axis.
             Default is "rad/s"
@@ -3266,19 +3272,19 @@ class FrequencyResponseResults(Results):
 
         dummy_var = Q_(1, amplitude_units)
         if dummy_var.check("[length]/[force]"):
-            mag = np.abs(self.freq_resp[inp, out, :])
+            mag = np.abs(self.freq_resp[out, inp, :])
             mag = Q_(mag, "m/N").to(amplitude_units).m
-            phase = np.angle(self.freq_resp[inp, out, :])
+            phase = np.angle(self.freq_resp[out, inp, :])
             y_label = "Displacement"
         elif dummy_var.check("[speed]/[force]"):
-            mag = np.abs(self.velc_resp[inp, out, :])
+            mag = np.abs(self.velc_resp[out, inp, :])
             mag = Q_(mag, "m/s/N").to(amplitude_units).m
-            phase = np.angle(self.velc_resp[inp, out, :])
+            phase = np.angle(self.velc_resp[out, inp, :])
             y_label = "Velocity"
         elif dummy_var.check("[acceleration]/[force]"):
-            mag = np.abs(self.accl_resp[inp, out, :])
+            mag = np.abs(self.accl_resp[out, inp, :])
             mag = Q_(mag, "m/s**2/N").to(amplitude_units).m
-            phase = np.angle(self.accl_resp[inp, out, :])
+            phase = np.angle(self.accl_resp[out, inp, :])
             y_label = "Acceleration"
         else:
             raise ValueError(
@@ -3356,9 +3362,9 @@ class FrequencyResponseResults(Results):
         Parameters
         ----------
         inp : int
-            Input.
+            Global degree of freedom where the unit force is applied.
         out : int
-            Output.
+            Global degree of freedom where the response is read.
         frequency_units : str, optional
             Units for the x axis.
             Default is "rad/s"
@@ -5573,43 +5579,67 @@ class SummaryResults(Results):
         return fig
 
 
-class ConvergenceResults(Results):
-    """Class used to store results and provide plots for Convergence Analysis.
-
-    This class plots:
-        Natural Frequency vs Number of Elements
-        Relative Error vs Number of Elements
+class MeshConvergenceResults(Results):
+    """Store and plot the results of a mesh convergence analysis.
 
     Parameters
     ----------
-    el_num : array
-        Array with number of elements in each iteration
-    eigv_arr : array
-        Array with the n'th natural frequency in each iteration
-    error_arr : array
-        Array with the relative error in each iteration
+    rotor : ross.Rotor
+        Rotor with the chosen shaft discretization.
+    subdivisions : array
+        Number of elements each shaft interval of the original rotor is split
+        into: ``original_rotor.refine(subdivisions)`` rebuilds ``rotor``.
+    wn : array
+        Lowest natural frequencies of ``rotor`` (rad/s).
+    wn_reference : array
+        Natural frequencies of the converged reference discretization (rad/s).
+    rtol : float
+        Relative tolerance of the natural frequencies.
+    elements : array
+        Number of shaft elements of each discretization evaluated.
+    errors : array
+        Maximum relative error of the natural frequencies of each
+        discretization evaluated.
+    families : list
+        Family ("uniform" or "graded") of each discretization evaluated.
+    reference_elements : int
+        Number of shaft elements of the reference discretization.
 
-    Returns
-    -------
-    fig : Plotly graph_objects.make_subplots()
-        The figure object with the plot.
+    Attributes
+    ----------
+    error : array
+        Relative error of each natural frequency of ``rotor``.
     """
 
-    def __init__(self, el_num, eigv_arr, error_arr):
-        self.el_num = el_num
-        self.eigv_arr = eigv_arr
-        self.error_arr = error_arr
+    def __init__(
+        self,
+        rotor,
+        subdivisions,
+        wn,
+        wn_reference,
+        rtol,
+        elements,
+        errors,
+        families,
+        reference_elements,
+    ):
+        self.rotor = rotor
+        self.subdivisions = np.asarray(subdivisions, dtype=int)
+        self.wn = np.asarray(wn, dtype=float)
+        self.wn_reference = np.asarray(wn_reference, dtype=float)
+        self.rtol = rtol
+        self.elements = np.asarray(elements, dtype=int)
+        self.errors = np.asarray(errors, dtype=float)
+        self.families = [str(family) for family in families]
+        self.reference_elements = int(reference_elements)
+        self.error = np.abs(self.wn / self.wn_reference - 1)
 
     def plot(self, fig=None, **kwargs):
-        """Plot convergence results.
-
-        This method plots:
-            Natural Frequency vs Number of Elements
-            Relative Error vs Number of Elements
+        """Plot the maximum frequency error against the number of shaft elements.
 
         Parameters
         ----------
-        fig : Plotly graph_objects.make_subplots()
+        fig : Plotly graph_objects.Figure, optional
             The figure object with the plot.
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
@@ -5618,51 +5648,48 @@ class ConvergenceResults(Results):
 
         Returns
         -------
-        fig : Plotly graph_objects.make_subplots()
+        fig : Plotly graph_objects.Figure
             The figure object with the plot.
         """
         if fig is None:
-            fig = make_subplots(
-                rows=1,
-                cols=2,
-                subplot_titles=["Frequency Evaluation", "Relative Error Evaluation"],
+            fig = go.Figure()
+
+        hovertemplate = "Shaft elements: %{x}<br>Maximum error: %{y:.3g} %"
+        families = np.array(self.families)
+        for family in ("uniform", "graded"):
+            mask = (families == family) & (self.errors > 0) & np.isfinite(self.errors)
+            order = np.argsort(self.elements[mask])
+            if order.size:
+                fig.add_trace(
+                    go.Scatter(
+                        x=self.elements[mask][order],
+                        y=100 * self.errors[mask][order],
+                        mode="markers",
+                        name=family.capitalize(),
+                        hovertemplate=hovertemplate,
+                    )
+                )
+
+        if self.error.max() > 0:
+            fig.add_trace(
+                go.Scatter(
+                    x=[len(self.rotor.shaft_elements)],
+                    y=[100 * self.error.max()],
+                    mode="markers",
+                    marker=dict(symbol="star", size=14),
+                    name="Chosen",
+                    hovertemplate=hovertemplate,
+                )
             )
 
-        # plot Frequency vs number of elements
-        fig.add_trace(
-            go.Scatter(
-                x=self.el_num,
-                y=self.eigv_arr,
-                mode="lines+markers",
-                hovertemplate=(
-                    "Number of Elements: %{x:.2f}<br>" + "Frequency: %{y:.0f}"
-                ),
-                showlegend=False,
-            ),
-            row=1,
-            col=1,
+        fig.add_hline(
+            y=100 * self.rtol,
+            line_dash="dash",
+            annotation_text="Tolerance",
+            annotation_position="bottom right",
         )
-        fig.update_xaxes(title_text="Number of Elements", row=1, col=1)
-        fig.update_yaxes(title_text="Frequency", row=1, col=1)
-
-        # plot Error vs number of elements
-        fig.add_trace(
-            go.Scatter(
-                x=self.el_num,
-                y=self.error_arr,
-                mode="lines+markers",
-                hovertemplate=(
-                    "Number of Elements: %{x:.2f}<br>" + "Relative Error: %{y:.0f}"
-                ),
-                showlegend=False,
-            ),
-            row=1,
-            col=2,
-        )
-
-        fig.update_xaxes(title_text="Number of Elements", row=1, col=2)
-        fig.update_yaxes(title_text="Relative Error (%)", row=1, col=2)
-
+        fig.update_xaxes(title_text="Number of shaft elements")
+        fig.update_yaxes(title_text="Maximum frequency error (%)", type="log")
         fig.update_layout(**kwargs)
 
         return fig
@@ -5696,6 +5723,8 @@ class TimeResponseResults(Results):
         System response.
     xout : array
         Time evolution of the state vector.
+    speed : float or array_like, optional
+        Rotor speed used to calculate the response, in rad/s.
 
     Returns
     -------
@@ -5703,11 +5732,163 @@ class TimeResponseResults(Results):
         The figure object with the plot.
     """
 
-    def __init__(self, rotor, t, yout, xout):
+    def __init__(self, rotor, t, yout, xout, speed=None):
         self.t = t
         self.yout = yout
         self.xout = xout
         self.rotor = rotor
+        self.speed = speed
+
+    def _get_revolution(self, time, t_initial=None, t_final=None):
+        """Return the limits of one shaft revolution.
+
+        The shaft angle is the time integral of the stored speed, so a speed
+        that varies along the response (a run-up) is also handled.
+
+        Parameters
+        ----------
+        time : array
+            Time values in seconds.
+        t_initial : float, optional
+            Start of the revolution in seconds.
+        t_final : float, optional
+            End of the revolution in seconds. Without ``t_initial`` and
+            ``t_final``, the revolution ends at the last time value.
+
+        Returns
+        -------
+        t_initial, t_final : float
+            Limits of the revolution in seconds.
+        """
+        if self.speed is None:
+            raise ValueError(
+                "one_revolution=True needs the rotor speed, which these results "
+                "do not store. Results from run_time_response store it."
+            )
+
+        speed = np.abs(np.asarray(self.speed, dtype=float))
+        if speed.ndim == 0:
+            speed = np.full(len(time), speed)
+        if speed.shape != np.shape(time):
+            raise ValueError(
+                f"The speed has {speed.size} values, but the response has "
+                f"{len(time)} time values."
+            )
+
+        angle = cumulative_trapezoid(speed, time, initial=0)
+        if t_initial is None:
+            t_final = time[-1] if t_final is None else t_final
+            start_angle = np.interp(t_final, time, angle) - 2 * np.pi
+            if start_angle < 0:
+                raise ValueError(
+                    "The shaft does not complete one revolution before t_final."
+                )
+            t_initial = np.interp(start_angle, angle, time)
+        else:
+            final_angle = np.interp(t_initial, time, angle) + 2 * np.pi
+            if final_angle > angle[-1]:
+                raise ValueError(
+                    "The shaft does not complete one revolution after t_initial."
+                )
+            t_final = np.interp(final_angle, angle, time)
+
+        return t_initial, t_final
+
+    def _get_window(self, t_initial=None, t_final=None, one_revolution=False):
+        """Return copied time-response data cropped to a selected window.
+
+        Parameters
+        ----------
+        t_initial : float, optional
+            Initial time in seconds. With ``one_revolution=True``, the
+            revolution starts at this time.
+        t_final : float, optional
+            Final time in seconds. With ``one_revolution=True``, the
+            revolution ends at this time.
+        one_revolution : bool, optional
+            If True, select one shaft revolution, the last one by default.
+            Providing both time values with ``one_revolution=True`` raises a
+            ``ValueError``.
+
+        Returns
+        -------
+        time : array
+            Cropped time values.
+        yout : array
+            Cropped response values.
+
+        Raises
+        ------
+        ValueError
+            If the window holds fewer than ``MIN_WINDOW_SAMPLES`` (10) samples.
+        """
+        time = np.array(self.t, copy=True)
+        yout = np.array(self.yout, copy=True)
+
+        if one_revolution and t_initial is not None and t_final is not None:
+            raise ValueError(
+                "one_revolution=True cannot be used with both t_initial and "
+                "t_final. Choose either one_revolution with a single time "
+                "boundary or a regular time window."
+            )
+
+        if not one_revolution and (t_initial is None) != (t_final is None):
+            raise ValueError("t_initial and t_final must be provided together.")
+
+        if one_revolution:
+            t_initial, t_final = self._get_revolution(time, t_initial, t_final)
+        elif t_initial is None:
+            return time, yout
+
+        if t_initial >= t_final:
+            raise ValueError("t_initial must be smaller than t_final.")
+
+        if t_initial < time[0] or t_final > time[-1]:
+            raise ValueError(f"Time interval must be within [{time[0]}, {time[-1]}].")
+
+        # Keep the samples that rounding puts a hair outside the limits
+        tolerance = 1e-6 * np.min(np.diff(time)) if len(time) > 1 else 0.0
+        initial_index = np.searchsorted(time, t_initial - tolerance, side="left")
+        final_index = np.searchsorted(time, t_final + tolerance, side="right")
+
+        samples = final_index - initial_index
+        if samples < MIN_WINDOW_SAMPLES:
+            neighborhood = time[max(initial_index - 1, 0) : final_index + 1]
+            step = np.max(np.diff(neighborhood)) if len(neighborhood) > 1 else 0.0
+            length = t_final - t_initial
+            noun = "sample" if samples == 1 else "samples"
+            raise ValueError(
+                f"The selected window lasts {length:.4g} s and the time step is "
+                f"{step:.4g} s, so it holds {samples} {noun}; at least "
+                f"{MIN_WINDOW_SAMPLES} are needed. Use a time step of at most "
+                f"{length / (MIN_WINDOW_SAMPLES - 1):.4g} s or a longer window."
+            )
+
+        return time[initial_index:final_index], yout[initial_index:final_index, :]
+
+    def _get_plot_data(self, kwargs, time_units="s"):
+        """Extract plot window arguments and return the selected response data.
+
+        Plain numbers given as ``t_initial`` or ``t_final`` are read in
+        ``time_units``; ``pint.Quantity`` values keep their own units.
+        """
+        t_initial = kwargs.pop("t_initial", None)
+        t_final = kwargs.pop("t_final", None)
+        one_revolution = kwargs.pop("one_revolution", False)
+        windowed = one_revolution or t_initial is not None or t_final is not None
+
+        if not windowed:
+            return self.t, self.yout, windowed
+
+        t_initial, t_final = (
+            None
+            if value is None
+            else (value if hasattr(value, "to") else Q_(value, time_units)).to("s").m
+            for value in (t_initial, t_final)
+        )
+        time, yout = self._get_window(t_initial, t_final, one_revolution)
+
+        return time, yout, windowed
 
     def data_time_response(
         self,
@@ -5715,6 +5896,8 @@ class TimeResponseResults(Results):
         displacement_units="m",
         time_units="s",
         init_step=0,
+        t=None,
+        yout=None,
     ):
         """Return the time response given a list of probes in DataFrame format.
 
@@ -5731,6 +5914,10 @@ class TimeResponseResults(Results):
         init_step : int, optional
             The index of the initial time step from which to extract the response.
             Default is 0.
+        t : array, optional
+            Time values to use instead of the stored response time values.
+        yout : array, optional
+            Response values to use instead of the stored response values.
 
         Returns
         -------
@@ -5738,6 +5925,9 @@ class TimeResponseResults(Results):
             DataFrame storing the time response measured by probes.
         """
         data = {}
+
+        time = self.t if t is None else t
+        response = self.yout if yout is None else yout
 
         nodes = self.rotor.nodes
         link_nodes = self.rotor.link_nodes
@@ -5770,17 +5960,19 @@ class TimeResponseResults(Results):
                     [-np.sin(angle), np.cos(angle)]]
                 )
 
-                _probe_resp = operator @ np.vstack((self.yout[init_step:, dofx], self.yout[init_step:, dofy]))
-                probe_resp = _probe_resp[0,:]
+                _probe_resp = operator @ np.vstack(
+                    (response[init_step:, dofx], response[init_step:, dofy])
+                )
+                probe_resp = _probe_resp[0, :]
                 # fmt: on
             else:
                 dofz = ndof * node + 2 - fix_dof
-                probe_resp = self.yout[init_step:, dofz]
+                probe_resp = response[init_step:, dofz]
 
             probe_resp = Q_(probe_resp, "m").to(displacement_units).m
             data[f"probe_resp[{i}]"] = probe_resp
 
-        data["time"] = Q_(self.t[init_step:], "s").to(time_units).m
+        data["time"] = Q_(time[init_step:], "s").to(time_units).m
         df = pd.DataFrame(data)
 
         return df
@@ -5813,6 +6005,11 @@ class TimeResponseResults(Results):
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
+            ``t_initial`` and ``t_final`` select a time window, as numbers in
+            ``time_units`` or as ``pint.Quantity`` values. ``one_revolution=True``
+            selects one shaft revolution from the stored speed: the last one, or
+            the one starting at ``t_initial`` or ending at ``t_final``. A window
+            with fewer than 10 samples raises a ``ValueError``.
             *See Plotly Python Figure Reference for more information.
 
         Returns
@@ -5824,7 +6021,15 @@ class TimeResponseResults(Results):
         if fig is None:
             fig = go.Figure()
 
-        df = self.data_time_response(probe, displacement_units, time_units)
+        time, yout, windowed = self._get_plot_data(kwargs, time_units)
+
+        df = self.data_time_response(
+            probe,
+            displacement_units,
+            time_units,
+            t=time,
+            yout=yout,
+        )
         _time = df["time"].values
         for i, p in enumerate(probe):
             try:
@@ -5842,10 +6047,13 @@ class TimeResponseResults(Results):
                         hovertemplate=f"Time ({time_units}): %{{x:.2f}}<br>Amplitude ({displacement_units}): %{{y:.2e}}",
                     )
                 )
+
             except KeyError:
                 pass
 
         fig.update_xaxes(title_text=f"Time ({time_units})")
+        if windowed:
+            fig.update_xaxes(range=[_time[0], _time[-1]])
         fig.update_yaxes(title_text=f"Amplitude ({displacement_units})")
         fig.update_layout(**kwargs)
 
@@ -5868,6 +6076,11 @@ class TimeResponseResults(Results):
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
+            ``t_initial`` and ``t_final`` select a time window, as numbers in
+            seconds or as ``pint.Quantity`` values. ``one_revolution=True``
+            selects one shaft revolution from the stored speed: the last one, or
+            the one starting at ``t_initial`` or ending at ``t_final``. A window
+            with fewer than 10 samples raises a ``ValueError``.
             *See Plotly Python Figure Reference for more information.
 
         Returns
@@ -5875,6 +6088,8 @@ class TimeResponseResults(Results):
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
+        _, yout, windowed = self._get_plot_data(kwargs)
+
         nodes = self.rotor.nodes
         link_nodes = self.rotor.link_nodes
         ndof = self.rotor.number_dof
@@ -5886,10 +6101,13 @@ class TimeResponseResults(Results):
         if fig is None:
             fig = go.Figure()
 
+        x_response = Q_(yout[:, dofx], "m").to(displacement_units).m
+        y_response = Q_(yout[:, dofy], "m").to(displacement_units).m
+
         fig.add_trace(
             go.Scatter(
-                x=Q_(self.yout[:, dofx], "m").to(displacement_units).m,
-                y=Q_(self.yout[:, dofy], "m").to(displacement_units).m,
+                x=x_response,
+                y=y_response,
                 mode="lines",
                 name="Orbit",
                 legendgroup="Orbit",
@@ -5899,6 +6117,28 @@ class TimeResponseResults(Results):
                 ),
             )
         )
+
+        if windowed:
+            fig.add_trace(
+                go.Scatter(
+                    x=[x_response[0]],
+                    y=[y_response[0]],
+                    mode="markers",
+                    marker=dict(symbol="circle", size=9, color="black"),
+                    name="Initial point",
+                    showlegend=True,
+                )
+            )
+            fig.add_trace(
+                go.Scatter(
+                    x=[x_response[-1]],
+                    y=[y_response[-1]],
+                    mode="markers",
+                    marker=dict(symbol="x", size=10, color="black"),
+                    name="Final point",
+                    showlegend=True,
+                )
+            )
 
         fig.update_xaxes(title_text=f"Amplitude ({displacement_units}) - X direction")
         fig.update_yaxes(title_text=f"Amplitude ({displacement_units}) - Y direction")
@@ -5928,6 +6168,11 @@ class TimeResponseResults(Results):
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. hoverlabel_align="center", ...).
+            ``t_initial`` and ``t_final`` select a time window, as numbers in
+            seconds or as ``pint.Quantity`` values. ``one_revolution=True``
+            selects one shaft revolution from the stored speed: the last one, or
+            the one starting at ``t_initial`` or ending at ``t_final``. A window
+            with fewer than 10 samples raises a ``ValueError``.
             *See Plotly Python Figure Reference for more information.
 
         Returns
@@ -5935,6 +6180,8 @@ class TimeResponseResults(Results):
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
+        time, yout, windowed = self._get_plot_data(kwargs)
+
         nodes_pos = self.rotor.nodes_pos
         nodes = self.rotor.nodes
         ndof = self.rotor.number_dof
@@ -5943,12 +6190,15 @@ class TimeResponseResults(Results):
             fig = go.Figure()
 
         for n in nodes:
-            x_pos = np.ones(self.yout.shape[0]) * nodes_pos[n]
+            x_pos = np.ones(len(time)) * nodes_pos[n]
+            x_response = Q_(yout[:, ndof * n], "m").to(displacement_units).m
+            y_response = Q_(yout[:, ndof * n + 1], "m").to(displacement_units).m
+
             fig.add_trace(
                 go.Scatter3d(
                     x=Q_(x_pos, "m").to(rotor_length_units).m,
-                    y=Q_(self.yout[:, ndof * n], "m").to(displacement_units).m,
-                    z=Q_(self.yout[:, ndof * n + 1], "m").to(displacement_units).m,
+                    y=x_response,
+                    z=y_response,
                     mode="lines",
                     line=dict(color=tableau_colors["blue"]),
                     name="Mean",
@@ -5960,6 +6210,30 @@ class TimeResponseResults(Results):
                     **kwargs,
                 )
             )
+
+            if windowed:
+                fig.add_trace(
+                    go.Scatter3d(
+                        x=[Q_(x_pos[0], "m").to(rotor_length_units).m],
+                        y=[x_response[0]],
+                        z=[y_response[0]],
+                        mode="markers",
+                        marker=dict(symbol="circle", size=2, color="black"),
+                        name="Initial point",
+                        showlegend=False,
+                    )
+                )
+                fig.add_trace(
+                    go.Scatter3d(
+                        x=[Q_(x_pos[-1], "m").to(rotor_length_units).m],
+                        y=[x_response[-1]],
+                        z=[y_response[-1]],
+                        mode="markers",
+                        marker=dict(symbol="x", size=1, color="black"),
+                        name="Final point",
+                        showlegend=False,
+                    )
+                )
 
         # plot center line
         line = np.zeros(len(nodes_pos))
@@ -6050,14 +6324,7 @@ class TimeResponseResults(Results):
                 probe_resp = data[f"probe_resp[{i}]"].values
 
                 freq, amp, _ = compute_dfft(probe_resp, dt)
-
-                if frequency_range is not None:
-                    delta = 0.01 * (frequency_range[1] - frequency_range[0])
-                    mask = (freq >= frequency_range[0] - delta) & (
-                        freq <= frequency_range[1] + delta
-                    )
-                    amp = amp[mask]
-                    freq = freq[mask]
+                freq, amp = limit_data_range(freq, amp, frequency_range)
 
                 fig.add_trace(
                     go.Scatter(
@@ -6074,7 +6341,7 @@ class TimeResponseResults(Results):
                 pass
 
         if frequency_range is not None:
-            fig.update_xaxes(range=[min_freq, max_freq])
+            fig.update_xaxes(range=(min_freq, max_freq))
 
         fig.update_xaxes(title_text=f"Frequency ({frequency_units})")
         fig.update_yaxes(title_text=f"Amplitude ({displacement_units})")
@@ -6100,9 +6367,11 @@ class AmbTimeResponseResults(TimeResponseResults):
         System response.
     xout : array
         Time evolution of the state vector.
+    speed : float or array_like, optional
+        Rotor speed used to calculate the response, in rad/s.
     """
 
-    def __init__(self, rotor, t, yout, xout):
+    def __init__(self, rotor, t, yout, xout, speed=None):
         """Initialize the AmbTimeResponseResults instance.
 
         Parameters
@@ -6115,8 +6384,10 @@ class AmbTimeResponseResults(TimeResponseResults):
             System response.
         xout : array
             Time evolution of the state vector.
+        speed : float or array_like, optional
+            Rotor speed used to calculate the response, in rad/s.
         """
-        super().__init__(rotor, t, yout, xout)
+        super().__init__(rotor, t, yout, xout, speed=speed)
         self.x_amb = self.xout[0]
         self.v_amb = self.xout[1]
         self.F_x = self.xout[2]
@@ -6977,7 +7248,13 @@ class HarmonicBalanceResults(Results):
 
         if self.time_response is None:
             y, ydot, y2dot = self._reconstruct_time_domain()
-            self.time_response = TimeResponseResults(self.rotor, self.t, y.T, [])
+            self.time_response = TimeResponseResults(
+                self.rotor,
+                self.t,
+                y.T,
+                [],
+                speed=self.speed,
+            )
 
         return self.time_response
 

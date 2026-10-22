@@ -1,4 +1,4 @@
-__version__ = "3.1.0.dev0"
+__version__ = "3.2.0.dev0"
 import sys
 from plotly import io as _pio
 
@@ -20,6 +20,7 @@ from .multi_rotor.multi_rotor import *
 from .multi_rotor.gear_element import *
 from .multi_rotor.mesh import *
 from .bearings.magnetic.amb_models import *
+from ross.bearings.magnetic.amb_utils import *
 from ross.bearings.lubricants import lubricants_dict
 from ross.bearings.bearing_results import *
 from ross.bearings.fluid_film_bearing import *
@@ -32,7 +33,8 @@ from ross.model_reduction import *
 from ross.seals.labyrinth_seal import *
 from ross.seals.holepattern_seal import *
 from ross.seals.hybrid_seal import *
-from ross.bearings.magnetic.amb_utils import *
+from ross.motors.motor_element import *
+from ross.motors.results import *
 
 _pio.templates.default = "ross"
 if "ipykernel" in sys.modules:

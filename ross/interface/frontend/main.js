@@ -9,16 +9,23 @@
 // called (73 names at its largest); every button now says `data-action="..."`
 // and one listener looks the name up (core/actions.js).
 import { onReorder } from './components/list.js';
+import { startFormWindow } from './components/floating_form.js';
+import { startContextMenu } from './components/context_menu.js';
+import { onNumbersNeeded } from './core/list_filter.js';
+import { readNumbers } from './features/list_filter.js';
 import { applyLanguage } from './core/i18n.js';
 import { startPersistence, restoreState } from './core/persistence.js';
 import { schemaReady } from './core/schema.js';
 import { onProjectChanged } from './core/state.js';
-import { fillAnalysisTypes } from './features/analysis.js';
+import { fillAnalysisTypes, startProbeChoices } from './features/analysis.js';
 import { renderRotorHub } from './features/hub.js';
-import { buildRotorLive, refreshHistoryButtons, startRotorFigureFollowsWidth } from './features/modeling.js';
+import {
+    buildRotorLive, refreshHistoryButtons, startRotorFigureFollowsWidth, startRotorViewToggle,
+} from './features/modeling.js';
+import { restyleRotor3d, startRotor3dListLink } from './features/rotor3d.js';
 import { startHistoryShortcuts } from './features/shortcuts.js';
 import { startWorkBar } from './features/progress.js';
-import { startTheme } from './core/theme.js';
+import { onThemeChanged, startTheme } from './core/theme.js';
 import { startErrorNotice } from './features/error_notice.js';
 import { defineActions, startActions } from './core/actions.js';
 import { SHELL_ACTIONS } from './features/shell_actions.js';
@@ -37,6 +44,14 @@ onReorder(buildRotorLive);
 // The buttons grey out when there is nothing left to undo. The reason this is a
 // hook and not a call from core/state.js is written there.
 onProjectChanged(refreshHistoryButtons);
+
+// The 3D view keeps its theme colours in WebGL, where CSS does not reach; a
+// change of theme repaints them.
+onThemeChanged(restyleRotor3d);
+
+// The list filter's values are read by the server (pint knows the units); the
+// list asks, and the feature that talks to the server answers.
+onNumbersNeeded(readNumbers);
 
 // What the buttons mean, by name (core/actions.js). One table per area of the
 // page.
@@ -64,6 +79,16 @@ document.addEventListener('DOMContentLoaded', () => {
     startHistoryShortcuts();
     // The rotor figure follows the width without losing ROSS's height.
     startRotorFigureFollowsWidth();
+    // 2D or 3D, as the person left it.
+    startRotorViewToggle();
+    // A row of the element list lights its part in the 3D view.
+    startRotor3dListLink();
+    // The element form's window: dragged by its bar, kept in view.
+    startFormWindow();
+    // The 3D view's right-button menu closes on a press elsewhere or Escape.
+    startContextMenu();
+    // The analysis screen offers the model's probes as they are when it opens.
+    startProbeChoices();
     schemaReady()
         .then(() => { applyLanguage(); fillAnalysisTypes(); })
         .catch(error => console.error('schema:', error));
