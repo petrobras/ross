@@ -202,6 +202,7 @@ class MultiRotor(Rotor):
 
         self.coupled_nodes = tuple(int(node) for node in coupled_nodes)
         self.gear_mesh_stiffness = gear_mesh_stiffness
+        self.mesh_damping_ratio = mesh_damping_ratio
         self.update_mesh_stiffness = update_mesh_stiffness
         self.square_varying_stiffness = copy(square_varying_stiffness)
         self.backlash = copy(backlash)
@@ -1249,7 +1250,7 @@ class MultiRotor(Rotor):
 
         c_m = (
             2.0
-            * self.mesh.damping_ratio
+            * self.mesh_damping_ratio
             * np.sqrt(self._mesh_stiffness * self.mesh.M_eq)
         )
         C0[np.ix_(dofs, dofs)] += self.coupling_matrix * c_m
