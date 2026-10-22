@@ -187,9 +187,18 @@ def rotor_example_amb_complex_controllers(ambs=True):
     disk_elements = [*disk_elements_1, *disk_elements_2]
 
     # Bearing elements:
+    # Actuator data from the manufacturer's datasheet: each axis is a
+    # horseshoe electromagnet with two coils of 138 turns (n = 276 turns per
+    # electromagnet) and a pole-face area of 470.3 mm^2 per axis, i.e.
+    # A = 235.15 mm^2 per pole, as required by the ki and ks formulas of
+    # MagneticBearingElement. i0 = 1 A is the bias current used in the
+    # experiments. This ideal model gives
+    # ki = 111.5 N/A and ks = -258 kN/m, about 10 % above the values
+    # identified on the rig (96-104 N/A and -203 to -235 kN/m), since
+    # fringing and iron reluctance are not modeled.
     n_list = [12, 43]
-    n = 138
-    A = 470.3e-6
+    n = 276
+    A = 235.15e-6
     i0 = 1.0
     s0 = 0.432e-3
     alpha = 0.392
