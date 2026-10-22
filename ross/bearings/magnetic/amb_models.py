@@ -373,7 +373,10 @@ def rotor_example_amb_general_controllers(controller_transfer_function=None):
     k_sense = 1.0
 
     if controller_transfer_function is None:
-        Kp = 1000
+        # Levitation requires ki * k_amp * k_sense * Kp > |ks|, i.e.
+        # Kp > i0 / s0 = 1000 for this geometry. Kp = 3 * i0 / s0 gives a
+        # net static stiffness of 2 * |ks| per axis.
+        Kp = 3000
         Ki = 0
         Kd = 5
 

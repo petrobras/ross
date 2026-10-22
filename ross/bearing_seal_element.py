@@ -2786,7 +2786,13 @@ class MagneticBearingElement(BearingElement):
         3) Form the coil signal
            signal_pid = current_offset + u.
         4) Map current to force
-           F = ki * signal_pid + ks * disp_actuator.
+           F = ki * signal_pid - ks * disp_actuator.
+
+        ``ks`` is negative (ISO 14839-1) and is treated as a stiffness, the
+        same quantity that enters ``k_eq = ks + ki * k_amp * k_sense * C``.
+        The corresponding force is ``-ks * disp_actuator``, which has the
+        same sign as the displacement: the rotor is pulled toward the
+        closer pole (destabilizing negative stiffness).
 
         Parameters
         ----------
@@ -2839,7 +2845,7 @@ class MagneticBearingElement(BearingElement):
         ...     current_offset=0.0, setpoint=0.0, disp=2e-4, dof_index=0
         ... )
         >>> force  # doctest: +ELLIPSIS
-        -0.945195...
+        0.912374...
         >>> current  # doctest: +ELLIPSIS
         -0.003533...
         """
@@ -2851,7 +2857,7 @@ class MagneticBearingElement(BearingElement):
         self.x_c[dof_index] = self.A_c @ self.x_c[dof_index] + self.B_c * err
 
         signal_pid = current_offset + u
-        magnetic_force = self.ki * signal_pid + self.ks * disp_actuator
+        magnetic_force = self.ki * signal_pid - self.ks * disp_actuator
 
         return magnetic_force.item(), signal_pid.item()
 
