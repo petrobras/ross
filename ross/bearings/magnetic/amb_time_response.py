@@ -179,12 +179,18 @@ class AmbTimeResponse:
             # Controller
             C_s = ct.ss(amb.get_analog_controller())
 
-            # Add twice for X/Y channels
-            for _ in range(2):
+            # One controller per control axis. The sensor gain scales the
+            # controller input and the amplifier gain its output, so the
+            # controller blocks map displacement (m) to coil current (A),
+            # matching k_eq = ks + ki * k_amp * k_sense * C in the
+            # frequency-domain model.
+            for axis in range(2):
+                k_sense = amb.axis_gain(amb.k_sense, axis)
+                k_amp = amb.axis_gain(amb.k_amp, axis)
                 self.a_c.append(C_s.A)
-                self.b_c.append(C_s.B)
-                self.c_c.append(C_s.C)
-                self.d_c.append(C_s.D)
+                self.b_c.append(C_s.B * k_sense)
+                self.c_c.append(k_amp * C_s.C)
+                self.d_c.append(k_amp * C_s.D * k_sense)
 
             # Constants
             self.k_i.extend([amb.ki, amb.ki])

@@ -40,6 +40,11 @@ AMB_PARAMS = {"g0": G0, "i0": I0, "ag": 1e-4, "nw": 200}
 # levitate the rotor.
 KP_THRESHOLD = I0 / G0
 
+# Sensor and amplifier gains of the LMEst rig (k_sense taken inside the
+# range of its displacement sensors), used to check that both paths apply
+# the full loop gain ki * k_amp * k_sense * C.
+RIG_GAINS = {"k_amp": 1.75, "k_sense": 60.0}
+
 # Eigenvalues smaller than this (rad/s) belong to the free axial/torsional
 # rigid-body modes or to pole-zero cancellations of the PID realization.
 SMALL_EIGENVALUE = 1.0
@@ -49,7 +54,7 @@ def _amb(n, kp, **kwargs):
     return MagneticBearingElement(n=n, kp_pid=kp, **AMB_PARAMS, **kwargs)
 
 
-def _p_only_rotor(kp):
+def _p_only_rotor(kp, **amb_kwargs):
     """Small damped rotor on two proportional-only AMBs."""
     steel = Material(name="steel_amb_ks", rho=7850, E=2.1e11, Poisson=0.3)
     shaft = [
@@ -57,7 +62,10 @@ def _p_only_rotor(kp):
         for _ in range(6)
     ]
     disk = DiskElement(n=3, m=5.0, Id=0.01, Ip=0.02)
-    bearings = [_amb(1, kp, tag="AMB 0"), _amb(5, kp, tag="AMB 1")]
+    bearings = [
+        _amb(1, kp, tag="AMB 0", **amb_kwargs),
+        _amb(5, kp, tag="AMB 1", **amb_kwargs),
+    ]
     return Rotor(shaft, [disk], bearings)
 
 
@@ -220,3 +228,72 @@ def test_example_general_controllers_levitates():
 def test_example_complex_controllers_levitates():
     sim = _closed_loop(rotor_example_amb_complex_controllers())
     assert _max_real_part(np.linalg.eigvals(sim.A_cl)) < SMALL_EIGENVALUE
+
+
+@pytest.mark.parametrize("kp", [0.5, 3.0])
+def test_newmark_force_includes_sensor_and_amplifier_gains(kp):
+    """With k_amp and k_sense, F = -(ks + ki * k_amp * k_sense * Kp) * x."""
+    gain = RIG_GAINS["k_amp"] * RIG_GAINS["k_sense"]
+    kp = kp * KP_THRESHOLD / gain
+    amb = _amb(0, kp=kp, **RIG_GAINS)
+    amb.build_controller(dt=1e-4)
+
+    x = 2e-5
+    force, current = amb.compute_amb_controller(
+        current_offset=0.0, setpoint=0.0, disp=x, dof_index=0
+    )
+
+    k_eq = amb.ks + amb.ki * gain * kp
+    assert_allclose(amb.k_eq[0], k_eq, rtol=1e-12)
+    assert_allclose(current, -gain * kp * x, rtol=1e-9)
+    assert_allclose(force, -k_eq * x, rtol=1e-9)
+
+
+@pytest.mark.parametrize("kp", [0.25, 3.0])
+def test_lsim_closed_loop_matches_frequency_domain_with_gains(kp):
+    gain = RIG_GAINS["k_amp"] * RIG_GAINS["k_sense"]
+    rotor = _p_only_rotor(kp * KP_THRESHOLD / gain, **RIG_GAINS)
+
+    reference = np.linalg.eigvals(rotor.A(speed=0))
+    reference = reference[np.abs(reference) > SMALL_EIGENVALUE]
+    closed_loop = np.linalg.eigvals(_closed_loop(rotor).A_cl)
+
+    scale = np.max(np.abs(reference))
+    for eigenvalue in reference:
+        distance = np.min(np.abs(closed_loop - eigenvalue))
+        assert distance <= 1e-6 * abs(eigenvalue) + 1e-9 * scale, eigenvalue
+
+
+@pytest.mark.parametrize("kp, levitates", [(0.9, False), (1.5, True)])
+def test_levitation_threshold_with_gains(kp, levitates):
+    """The threshold becomes ki * k_amp * k_sense * Kp > |ks| in both paths."""
+    gain = RIG_GAINS["k_amp"] * RIG_GAINS["k_sense"]
+    rotor = _p_only_rotor(kp * KP_THRESHOLD / gain, **RIG_GAINS)
+
+    frequency_domain = _max_real_part(np.linalg.eigvals(rotor.A(speed=0)))
+    time_domain = _max_real_part(np.linalg.eigvals(_closed_loop(rotor).A_cl))
+
+    for max_real in (frequency_domain, time_domain):
+        assert bool(max_real < SMALL_EIGENVALUE) == levitates
+
+
+def test_lsim_current_output_includes_gains():
+    """The current output of AmbTimeResponse is k_amp * C(k_sense * error)."""
+    gain = RIG_GAINS["k_amp"] * RIG_GAINS["k_sense"]
+    kp = 3.0 * KP_THRESHOLD / gain
+    sim = _closed_loop(_p_only_rotor(kp, **RIG_GAINS))
+
+    n_c = 2 * sim.n_amb
+    N = sim.n_dof
+    C_phys = sim.C_cl / sim.state_scaling[None, :]
+
+    rng = np.random.default_rng(1)
+    x_nodes = rng.normal(scale=1e-5, size=N)
+    q = sim.Phi.T @ sim.rotor.M(0) @ x_nodes
+    state = np.concatenate([q, np.zeros(sim.num_modes), np.zeros(sim.n_x_c)])
+    y = C_phys @ state
+
+    v_amb = y[N + n_c : N + 2 * n_c]
+    current = y[N + 4 * n_c : N + 5 * n_c]
+
+    assert_allclose(current, -gain * kp * v_amb, rtol=1e-8)

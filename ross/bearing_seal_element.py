@@ -2361,8 +2361,9 @@ class MagneticBearingElement(BearingElement):
         Angular position of the magnetic pole relative to the rotor x
         axis (radians). Default is 0.39269908 (approximately 22.5°).
     k_amp : float or list of float, optional
-        Power amplifier gain (V/A). Can be a scalar value or a list of
-        two values, one for each axis. Default is 1.
+        Power amplifier gain (A/V): coil current per unit of controller
+        output. Can be a scalar value or a list of two values, one for
+        each axis. Default is 1.
     k_sense : float or list of float, optional
         Displacement sensor gain (V/m). Can be a scalar value or a list
         of two values, one for each axis. Default is 1.
@@ -2416,7 +2417,7 @@ class MagneticBearingElement(BearingElement):
     alpha : float
         Magnetic pole angle relative to the rotor x axis (radians).
     k_amp : numpy.ndarray
-        Amplifier gains for each axis (V/A).
+        Amplifier gains for each axis (A/V).
     k_sense : numpy.ndarray
         Sensor gains for each axis (V/m).
     kp_pid, kd_pid, ki_pid : float
@@ -2778,15 +2779,21 @@ class MagneticBearingElement(BearingElement):
         state vectors are available.
 
         The calculation follows:
-        1) Compute the control output for the current error
+        1) Compute the control output for the sensed error
            u = C_c @ x_c[dof_index] + D_c * error, where
-           error = setpoint - disp.
+           error = k_sense * (setpoint - disp).
         2) Update the controller state
            x_c[dof_index] = A_c @ x_c[dof_index] + B_c * error.
-        3) Form the coil signal
-           signal_pid = current_offset + u.
+        3) Form the coil current through the power amplifier
+           signal_pid = current_offset + k_amp * u.
         4) Map current to force
            F = ki * signal_pid - ks * disp_actuator.
+
+        Steps 1 and 3 apply the same sensor and amplifier gains as the
+        frequency-domain model, so for a static error the force equals
+        ``-k_eq(0) * disp`` with ``k_eq = ks + ki * k_amp * k_sense * C``.
+        ``k_amp`` and ``k_sense`` may be given per axis; ``dof_index``
+        selects the value.
 
         ``ks`` is negative (ISO 14839-1) and is treated as a stiffness, the
         same quantity that enters ``k_eq = ks + ki * k_amp * k_sense * C``.
@@ -2852,14 +2859,43 @@ class MagneticBearingElement(BearingElement):
         if disp_actuator is None:
             disp_actuator = disp
 
-        err = setpoint - disp
+        k_sense = self.axis_gain(self.k_sense, dof_index)
+        k_amp = self.axis_gain(self.k_amp, dof_index)
+
+        err = k_sense * (setpoint - disp)
         u = self.C_c @ self.x_c[dof_index] + self.D_c * err
         self.x_c[dof_index] = self.A_c @ self.x_c[dof_index] + self.B_c * err
 
-        signal_pid = current_offset + u
+        signal_pid = current_offset + k_amp * u
         magnetic_force = self.ki * signal_pid - self.ks * disp_actuator
 
         return magnetic_force.item(), signal_pid.item()
+
+    @staticmethod
+    def axis_gain(gain, dof_index):
+        """Return the sensor or amplifier gain of one control axis.
+
+        Parameters
+        ----------
+        gain : float or array_like
+            Scalar gain shared by both axes, or two gains (one per axis).
+        dof_index : int
+            Axis selector: 0 for the first axis, 1 for the second.
+
+        Returns
+        -------
+        float
+            Gain of the selected axis.
+
+        Examples
+        --------
+        >>> MagneticBearingElement.axis_gain(1.75, 1)
+        1.75
+        >>> MagneticBearingElement.axis_gain([60.0, 80.0], 1)
+        80.0
+        """
+        gain = np.atleast_1d(np.asarray(gain, dtype=float))
+        return float(gain[dof_index] if gain.size == 2 else gain[0])
 
     def get_analog_controller(self):
         """
