@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Ask a question or start a discussion
+    url: https://github.com/petrobras/ross/discussions
+    about: Technical or theoretical questions, usage help, ideas and conversations that do not fit code or task tracking.
