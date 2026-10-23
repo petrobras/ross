@@ -667,6 +667,10 @@ class MultiRotor(Rotor):
         >>> len(new_rotor.elements) == n_elm + 1
         True
         """
+        for el in new_elements:
+            if not isinstance(el, Element):
+                raise ValueError(f"{el} is not a valid element.")
+
         driving_elements, driven_elements = self.split_elements(new_elements)
 
         driving_rotor = self.rotors["driving"].add_elements(driving_elements)

@@ -204,10 +204,11 @@ def test_new_parameters_keep_3_0_positional_calls():
     }
 
     multi_rotor = rs.MultiRotor(
-        rotor1, rotor2, (0, 0), None, False, square, backlash, 0.0, "above"
+        rotor1, rotor2, (0, 0), None, False, square, backlash, 0.05, 0.0, "above"
     )
     assert multi_rotor.mesh.backlash is not None
-    assert multi_rotor.mesh.damping_ratio == 0.0
+    assert multi_rotor.mesh.damping_ratio == 0.05
+    assert multi_rotor.mesh.orientation_angle == 0.0
     assert multi_rotor.dy_pos >= 0
 
     gear_1 = multi_rotor.mesh.driving_gear
@@ -277,14 +278,15 @@ def test_save_load_multi_rotor_with_backlash(
 def test_inherited_analyses_preserve_multi_rotor(multi_rotor):
     ucs = multi_rotor.run_ucs(num=2, num_modes=8)
     level1 = multi_rotor.run_level1(n=0, stiffness_range=(1e6, 1e7), num=2)
-    convergence = multi_rotor.convergence(err_max=1e3)
     static = multi_rotor.run_static()
 
     assert isinstance(ucs, rs.UCSResults)
     assert isinstance(level1, rs.Level1Results)
-    assert isinstance(convergence, rs.ConvergenceResults)
     assert isinstance(static, rs.StaticResults)
     assert isinstance(multi_rotor, rs.MultiRotor)
+
+    with pytest.raises(NotImplementedError, match="refine is not available"):
+        multi_rotor.run_mesh_convergence()
     assert multi_rotor.mesh is not None
 
 
@@ -555,7 +557,7 @@ def test_mesh_damping_updates_with_stiffness():
     stiffness_2 = 1.5 * stiffness_1
 
     C_mesh_1 = multi_rotor.C_mesh(np.zeros((multi_rotor.ndof, multi_rotor.ndof)))
-    multi_rotor.mesh.stiffness = stiffness_2
+    multi_rotor._mesh_stiffness = stiffness_2
     C_mesh_2 = multi_rotor.C_mesh(np.zeros((multi_rotor.ndof, multi_rotor.ndof)))
 
     dofs_1 = multi_rotor.mesh.driving_gear.dof_global_index.values()

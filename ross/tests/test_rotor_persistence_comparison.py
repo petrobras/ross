@@ -23,10 +23,8 @@ def test_inherited_analyses_rebuild_multirotor():
 
     ucs = rotor.run_ucs(num=2, num_modes=8)
     level1 = rotor.run_level1(n=0, stiffness_range=(1e6, 1e7), num=2)
-    convergence = rotor.convergence(err_max=1e3)
     static = rotor.run_static()
 
     assert isinstance(ucs, rs.UCSResults)
     assert isinstance(level1, rs.Level1Results)
-    assert isinstance(convergence, rs.ConvergenceResults)
     assert isinstance(static, rs.StaticResults)
