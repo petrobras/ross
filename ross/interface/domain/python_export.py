@@ -539,6 +539,23 @@ def _opt_args(params, keys):
     return args
 
 
+def _time_window_args(params):
+    """The transient plot's time window (ROSS #1416), as the runner passes it.
+
+    In seconds, as `Q_`: a plain number would be read in `time_units` by
+    `plot_1d` and in seconds by the other two plots.
+    """
+    args = []
+    for field, keyword in (("window_start", "t_initial"), ("window_end", "t_final")):
+        value = params.get(field)
+        # Filled, as the runner reads it: zero is a time like any other.
+        if value is not None and str(value).strip() != "":
+            args.append("%s=Q_(%s, 's')" % (keyword, _js_str(params[field])))
+    if _flag(params, "one_revolution") == "True":
+        args.append("one_revolution=True")
+    return args
+
+
 def _whirl_args(params, flag_key=None, fixed=None):
     """The ROSS 3 options that decouple the whirl frequency from the speed.
 
@@ -1040,6 +1057,7 @@ def _transient_block(position, kind, p):
     first_node = p["probes"][0].get("node") if (p.get("probes") or []) else 0
     args = _opt_args(p, [("displacement_units", "str")])
     chart = p.get("plot_type")
+    window = _time_window_args(p) if chart != "Frequency (DFFT)" else []
 
     if chart == "Frequency (DFFT)":
         args += _opt_args(p, [("frequency_units", "str")])
@@ -1052,17 +1070,17 @@ def _transient_block(position, kind, p):
         py += "resp_%d.plot_2d(node=%s, %s).show()\n" % (
             position,
             _js_str(first_node),
-            ", ".join(args),
+            ", ".join(args + window),
         )
     elif chart == "3D":
         args += _opt_args(p, [("rotor_length_units", "str")])
-        py += "resp_%d.plot_3d(%s).show()\n" % (position, ", ".join(args))
+        py += "resp_%d.plot_3d(%s).show()\n" % (position, ", ".join(args + window))
     else:
         args += _opt_args(p, [("time_units", "str")])
         py += "resp_%d.plot_1d(probe=[%s], %s).show()\n" % (
             position,
             probes,
-            ", ".join(args),
+            ", ".join(args + window),
         )
 
     return py

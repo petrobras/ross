@@ -9,6 +9,7 @@ import numpy as np
 
 from .base import Runner, register
 from ross.interface.domain.conversion import get_converted_param
+from ross.units import Q_
 from ross.interface.services.expressions import safe_expression_eval
 
 # The row used when the unbalance table is empty. The cells themselves fall
@@ -35,27 +36,67 @@ class TransientRunner(Runner):
     def time_vector(spec):
         return np.linspace(spec["t_initial"], spec["t_final"], spec["t_steps"])
 
+    @classmethod
+    def time_window(cls, params):
+        """The plot's time window (ROSS #1416), as the keywords ROSS reads.
+
+        The two times go as quantities in seconds. A plain number would be
+        read in `time_units` by `plot_1d` but in seconds by `plot_2d` and
+        `plot_3d`; a quantity keeps its unit in all three, so the same field
+        means the same instant whichever chart is drawn.
+
+        ROSS's own refusals name its keywords (`t_initial`), which here are
+        the integration time of the faults -- a different field. So the two
+        combinations ROSS refuses are refused here first, naming the
+        interface's fields.
+        """
+        times = {}
+        for field, keyword in (
+            ("window_start", "t_initial"),
+            ("window_end", "t_final"),
+        ):
+            if cls.text(params, field) is not None:
+                times[keyword] = Q_(cls.number(params, field, 0.0), "s")
+        one_revolution = cls.flag(params, "one_revolution")
+
+        if one_revolution and len(times) == 2:
+            raise ValueError(
+                "With 'One Revolution', fill at most one of 'Window Start' "
+                "and 'Window End': the revolution starts or ends there."
+            )
+        if not one_revolution and len(times) == 1:
+            raise ValueError("Fill both 'Window Start' and 'Window End', or neither.")
+        if one_revolution:
+            times["one_revolution"] = True
+        return times
+
     def plot(self, result, params, rotor):
         kind = params.get("plot_type", "1D")
         probes = self.probes(params)
 
         if kind == "Frequency (DFFT)":
+            # plot_dfft takes no window: ROSS crops only the three time plots.
             return result.plot_dfft(
                 probe=probes,
                 **self.units(params, ["displacement_units", "frequency_units"]),
             )
+        window = self.time_window(params)
         if kind == "2D":
             lines = params.get("probes") or [{"node": 0}]
             return result.plot_2d(
-                node=lines[0]["node"], **self.units(params, ["displacement_units"])
+                node=lines[0]["node"],
+                **self.units(params, ["displacement_units"]),
+                **window,
             )
         if kind == "3D":
             return result.plot_3d(
-                **self.units(params, ["displacement_units", "rotor_length_units"])
+                **self.units(params, ["displacement_units", "rotor_length_units"]),
+                **window,
             )
         return result.plot_1d(
             probe=probes,
             **self.units(params, ["displacement_units", "time_units"]),
+            **window,
         )
 
 
