@@ -402,6 +402,11 @@ Release Process
   (`#1448 <https://github.com/petrobras/ross/pull/1448>`_).
 - CI tests Python 3.13, 3.14 and 3.15, and the release is built on 3.13
   (`#1447 <https://github.com/petrobras/ross/pull/1447>`_).
+- Two tests no longer depend on the platform or on what other packages print, and the Lint
+  step and the release-check test pass on Windows
+  (`#1453 <https://github.com/petrobras/ross/pull/1453>`_,
+  `#1455 <https://github.com/petrobras/ross/pull/1455>`_). 3.1.0rc1 was the release candidate
+  (`#1451 <https://github.com/petrobras/ross/pull/1451>`_).
 
 API Changes
 ~~~~~~~~~~~

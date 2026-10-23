@@ -43,7 +43,7 @@ Figures or tables where they help.
 
 <!--
 "None", or each changed tolerance, assertion, test, skip/xfail or reference value
-with the physical reason. Say so when a test was only moved.
+with the physical or numerical reason. Say so when a test was only moved.
 -->
 
 ## Documentation
