@@ -130,6 +130,34 @@ def takes_units(constructor):
     return hasattr(target, "__wrapped__")
 
 
+def ross_converts(constructor, name):
+    """Whether ROSS converts a quantity given for parameter `name` itself.
+
+    `@check_units` converts an argument only when its name, or a piece of it
+    split at "_", is in ROSS's table (`ross.units.units`): `d_balls` through
+    "d", `inlet_pressure` through "pressure". Any other quantity -- a ball
+    bearing's static force `fs`, a magnetic bearing's gap `g0` -- reaches ROSS
+    as a pint Quantity, which ROSS then does arithmetic with as it comes. So
+    the builder and the exported script hand those over as their number in SI
+    (`rotor_builder.ross_ready`, `python_export._format_kwargs`). The test of
+    the name is ROSS's own, restated: tests/test_element_registry.py holds the
+    two to the same answers.
+    """
+    from ross.units import units as ross_units
+
+    if not takes_units(constructor):
+        return False
+    names = name.split("_")
+    if "units" in names:
+        return False
+    for whole in ("flow_v", "flow_m"):
+        if whole in name:
+            names.insert(0, whole)
+    if name not in names:
+        names.insert(0, name)
+    return any(piece in ross_units for piece in names)
+
+
 def ui_type_for_ross_class(ross_class):
     """Return (category, element_type) for a ROSS class name, or None."""
     return _BY_ROSS_CLASS.get(ross_class)

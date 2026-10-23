@@ -38,6 +38,11 @@ def F(
     }
 
 
+# The options of a lubricant field: the keys of ROSS's
+# `ross.bearings.lubricants.lubricants_dict`, filled in by domain/schema.py,
+# where the library is read (this catalogue imports none of it).
+LUBRICANTS = "ross-lubricants"
+
 SECTIONS = {
     "Mesh & Solver": {"en": "Mesh & Solver", "pt": "Malha e Solver"},
     "Loads & Positions": {"en": "Loads & Positions", "pt": "Cargas e Posições"},
@@ -92,6 +97,8 @@ FIELDS = {
                 "Shear Calc Method",
                 "Método de Cálculo do Cisalhamento",
                 group="advanced",
+                control="select",
+                options=["cowper", "hutchinson"],
             ),
             F("alpha", "Alpha", "Alfa", group="advanced"),
             F("beta", "Beta", "Beta", group="advanced"),
@@ -291,7 +298,7 @@ FIELDS = {
             F("speed", "Speed", "Velocidade"),
             F("fxs_load", "FXS Load", "Carga FXS"),
             F("fys_load", "FYS Load", "Carga FYS"),
-            F("lubricant", "Lubricant", "Lubrificante"),
+            F("lubricant", "Lubricant", "Lubrificante", options=LUBRICANTS),
             F("initial_position", "Initial Position (x,y)", "Posição Inicial (x,y)"),
             F("oil_supply_pressure", "Oil Supply Pres", "Pressão de Alimentação"),
             F("oil_flow_v", "Oil Flow (v)", "Vazão de Óleo (v)"),
@@ -307,7 +314,7 @@ FIELDS = {
             F("journal_diameter", "Journal Diameter", "Diâmetro do Munhão"),
             F("radial_clearance", "Radial Clearance", "Folga Radial"),
             F("eccentricity_ratio", "Eccentricity Ratio", "Razão de Excentricidade"),
-            F("lubricant", "Lubricant", "Lubrificante"),
+            F("lubricant", "Lubricant", "Lubrificante", options=LUBRICANTS),
             F(
                 "geometry",
                 "Geometry",
@@ -327,7 +334,7 @@ FIELDS = {
             F("pad_arc", "Pad Arc", "Arco da Sapata"),
             F("pivot_angle", "Pivot Angle", "Ângulo do Pivô"),
             F("oil_supply_temperature", "Oil Supply Temp", "Temp. de Alimentação"),
-            F("lubricant", "Lubricant", "Lubrificante"),
+            F("lubricant", "Lubricant", "Lubrificante", options=LUBRICANTS),
             F("n_pads", "Number of Pads", "Número de Sapatas"),
             F("n_theta", "Theta Mesh (n_theta)", "Malha em Theta (n_theta)"),
             F("n_radial", "Radial Mesh (n_radial)", "Malha Radial (n_radial)"),
@@ -372,7 +379,7 @@ FIELDS = {
             F("pivot_angle", "Pivot Angle", "Ângulo do Pivô"),
             F("preload", "Preload", "Pré-carga"),
             F("offset", "Offset", "Offset"),
-            F("lubricant", "Lubricant", "Lubrificante"),
+            F("lubricant", "Lubricant", "Lubrificante", options=LUBRICANTS),
             F("oil_supply_temperature", "Oil Supply Temp", "Temp. de Alimentação"),
             F("speed", "Speed", "Velocidade"),
             F(
@@ -398,6 +405,8 @@ FIELDS = {
                 "Equilibrium Type",
                 "Tipo de Equilíbrio",
                 section="Mesh & Solver",
+                control="select",
+                options=["match_eccentricity", "match_load"],
             ),
             F(
                 "eccentricity",
@@ -702,9 +711,9 @@ FIELDS = {
         "BASIC": [
             F("n", "Node #", "Nó", optional=True),
             F("m", "Mass", "Massa"),
-            F("mx", "mx", "mx", group="advanced"),
-            F("my", "my", "my", group="advanced"),
-            F("mz", "mz", "mz", group="advanced"),
+            F("mx", "Mass in x (mx)", "Massa na direção x (mx)", group="advanced"),
+            F("my", "Mass in y (my)", "Massa na direção y (my)", group="advanced"),
+            F("mz", "Mass in z (mz)", "Massa na direção z (mz)", group="advanced"),
             F("scale_factor", "Scale Factor", "Fator de Escala", group="advanced"),
             F("tag", "Tag", "Identificador", group="advanced"),
             F("color", "Hex Color", "Cor (hex)", group="advanced"),
