@@ -214,8 +214,10 @@ class Rubbing(ABC):
 
         self.forces = np.zeros((rotor.ndof, len(t)))
 
+        shaft_speed = rotor.to_shaft_rotation(self.shaft_elem.n, speed)
+
         force_rubbing = lambda step, **state: self._get_force_over_time(
-            step, state.get("disp_resp"), state.get("velc_resp"), speed[step]
+            step, state.get("disp_resp"), state.get("velc_resp"), shaft_speed[step]
         )
 
         results = rotor.run_time_response(

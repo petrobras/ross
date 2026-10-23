@@ -121,6 +121,8 @@ class GearElement(DiskElement):
                 "At least one of the following must be informed for GearElement: base_diameter or pitch_diameter"
             )
 
+        self.base_diameter = 2 * self.base_radius
+
         self.module = self.pitch_diameter / self.n_teeth
         self.addendum_radius = self.pitch_diameter * (0.5 + 1 / self.n_teeth)
 
@@ -241,8 +243,6 @@ class GearElement(DiskElement):
         )
 
     def save(self, file):
-        self.base_diameter = self.base_radius * 2
-
         super().save(
             file,
             material={

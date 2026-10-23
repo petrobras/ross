@@ -1,8 +1,8 @@
 import inspect
 import warnings
 from collections.abc import Iterable
-from copy import copy, deepcopy
-from itertools import chain, cycle
+from copy import deepcopy as copy
+from itertools import chain
 from pathlib import Path
 
 import numpy as np
@@ -70,6 +70,7 @@ from ross.seals.labyrinth_seal import LabyrinthSeal
 from ross.shaft_element import ShaftElement
 from ross.units import Q_, check_units
 from ross.utils import (
+    cast_numpy_types,
     convert_6dof_to_4dof,
     convert_6dof_to_torsional,
     intersection,
@@ -313,20 +314,6 @@ class Rotor(object):
         beta=0.0,
         tag=None,
     ):
-        self.parameters = {
-            "min_w": min_w,
-            "max_w": max_w,
-            "rated_w": rated_w,
-            "modal_damping_ratio": (
-                None
-                if modal_damping_ratio is None
-                else [float(xi) for xi in np.atleast_1d(modal_damping_ratio)]
-            ),
-            "default_damping_ratio": float(default_damping_ratio),
-            "alpha": float(alpha) if alpha is not None else 0.0,
-            "beta": float(beta) if beta is not None else 0.0,
-        }
-
         self.set_tag(tag)
 
         ####################################################
@@ -377,8 +364,8 @@ class Rotor(object):
 
             elm.set_tag(elm_dict[class_name] - 1)
 
-            if isinstance(elm, BearingElement):
-                # add n_l and n_r to bearing elements
+            if isinstance(elm, (BearingElement, DiskElement)):
+                # keep n_l and n_r in sync with n
                 elm.n_l = elm.n
                 elm.n_r = elm.n
 
@@ -776,10 +763,17 @@ class Rotor(object):
         self.It = v @ (self.M0 @ v.T)
 
     def __add__(self, other):
-        return Rotor.concatenate(self, other)
+        if isinstance(other, type(self)):
+            cls = type(other)
+        elif isinstance(self, type(other)):
+            cls = type(self)
+        else:
+            return NotImplemented
+
+        return cls.concatenate(self, other)
 
     @classmethod
-    def concatenate(cls, *rotors):
+    def concatenate(cls, *rotors, tag=None):
         """Concatenate a sequence of rotors into a single rotor.
 
         The nodes of the concatenated rotor will be the maximum node of the last rotor
@@ -791,6 +785,8 @@ class Rotor(object):
             Sequence of rotors to be concatenated, in the order they
             should be combined. A single list or tuple of rotors is also
             accepted as one argument (e.g. `Rotor.concatenate([rotor1, rotor2])`).
+        tag : str, optional
+            Tag for the concatenated rotor. Default is None.
 
         Returns
         -------
@@ -798,8 +794,13 @@ class Rotor(object):
         """
         if len(rotors) == 1 and isinstance(rotors[0], (list, tuple)):
             rotors = rotors[0]
+
         if not rotors:
             raise ValueError("At least one rotor must be provided.")
+
+        not_rotor = next((r for r in rotors if r.__class__.__name__ != "Rotor"), None)
+        if not_rotor is not None and cls is Rotor:
+            return not_rotor.concatenate(*rotors, tag=tag)
 
         rotor_list = list(rotors)
         shaft_elements = []
@@ -819,7 +820,7 @@ class Rotor(object):
             return last_node + node_index + offset + 1
 
         for i, rotor in enumerate(rotor_list):
-            rotor = deepcopy(rotor)
+            rotor = copy(rotor)
 
             for el in rotor.elements:
                 if el.n in rotor.nodes:
@@ -846,8 +847,8 @@ class Rotor(object):
             # Update offset for the next rotor
             node_offset += max(rotor.nodes)
 
-        parameters = rotor_list[0]._init_parameters()
-        parameters["tag"] = "Concatenated Rotor"
+        parameters = rotor_list[0]._parameters()
+        parameters["tag"] = tag or "Concatenated Rotor"
 
         return cls(
             shaft_elements=shaft_elements,
@@ -956,13 +957,13 @@ class Rotor(object):
         new_bearings = []
         for brg in bearing_elements:
             if brg.n not in self.link_nodes:
-                brg = deepcopy(brg)
+                brg = copy(brg)
                 brg.n_link = brg.n_link if brg.n_link in self.nodes else None
                 new_bearings.append(brg)
 
         if point_mass_elements is not None:
             new_point_masses = [
-                deepcopy(p) for p in point_mass_elements if p.n not in self.link_nodes
+                copy(p) for p in point_mass_elements if p.n not in self.link_nodes
             ]
 
             return new_bearings, new_point_masses
@@ -1105,36 +1106,66 @@ class Rotor(object):
         True if other is equal to the reference parameter.
         False if not.
         """
-        if self.elements == other.elements and self.parameters == other.parameters:
-            return True
-        else:
-            return False
+        return self.elements == other.elements and self._parameters(
+            {"tag"}
+        ) == other._parameters({"tag"})
 
-    def _init_parameters(self):
+    def _parameters(self, skip=[]):
         """Return keyword arguments to reconstruct this rotor.
 
-        Collects every ``__init__`` parameter except the element lists,
-        so callers can pass ``**self._init_parameters()`` when building
-        a new instance of the same class.
+        Collects every ``__init__`` parameter except the element lists.
+
+        Parameters
+        ----------
+        skip : list, optional
+            List of parameter names to skip. Default is empty.
 
         Returns
         -------
         dict
             Mapping of parameter names to the current attribute values.
         """
-        skip = {
-            "self",
-            "shaft_elements",
-            "disk_elements",
-            "bearing_elements",
-            "point_mass_elements",
-            "motor_element",
-            "shafts",
-        }
+        skip = set(skip).union(
+            {
+                "self",
+                "shaft_elements",
+                "disk_elements",
+                "bearing_elements",
+                "point_mass_elements",
+                "motor_element",
+            }
+        )
+
         sig = inspect.signature(self.__class__.__init__)
-        return {
-            name: getattr(self, name) for name in sig.parameters if name not in skip
-        }
+
+        return cast_numpy_types(
+            {
+                name: copy(getattr(self, name))
+                for name in sig.parameters
+                if name not in skip
+            }
+        )
+
+    def _new_rotor(
+        self,
+        shaft_elements,
+        disk_elements,
+        bearing_elements,
+        point_mass_elements,
+        node_scale=None,
+        **kwargs,
+    ):
+        """Rebuild a rotor while preserving its topology."""
+        parameters = self._parameters()
+        parameters.update(kwargs)
+
+        return self.__class__(
+            shaft_elements=shaft_elements,
+            disk_elements=disk_elements,
+            bearing_elements=bearing_elements,
+            point_mass_elements=point_mass_elements,
+            **parameters,
+        )
 
     def add_nodes(self, new_nodes_pos):
         """Add nodes to rotor.
@@ -1191,7 +1222,7 @@ class Rotor(object):
         for elm in self.shaft_elements:
             pos_r = spans[elm.n - first_node][1]
             n = new_node(elm.n)
-            remainder = deepcopy(elm)
+            remainder = copy(elm)
             remainder.n = n
             if any_cut:
                 remainder.tag = None
@@ -1219,7 +1250,7 @@ class Rotor(object):
         return self.__class__(
             shaft_elements,
             **self._renumbered_elements(new_node),
-            **self._init_parameters(),
+            **self._parameters(),
         )
 
     def _node_renumbering(self, added_nodes):
@@ -1266,10 +1297,10 @@ class Rotor(object):
             names, with ``n``, ``n_l``, ``n_r``, ``n_link`` and ``sensor_node``
             renumbered.
         """
-        disk_elements = deepcopy(self.disk_elements)
-        bearing_elements = deepcopy(self.bearing_elements)
-        point_mass_elements = deepcopy(self.point_mass_elements)
-        motor_element = deepcopy(self.motor_element)
+        disk_elements = copy(self.disk_elements)
+        bearing_elements = copy(self.bearing_elements)
+        point_mass_elements = copy(self.point_mass_elements)
+        motor_element = copy(self.motor_element)
         motor = [] if motor_element is None else [motor_element]
 
         for elm in [*disk_elements, *bearing_elements, *point_mass_elements, *motor]:
@@ -1464,7 +1495,7 @@ class Rotor(object):
         for elm in self.shaft_elements:
             n_split = subdivisions[elm.n - first_node]
             if n_split == 1:
-                new_elm = deepcopy(elm)
+                new_elm = copy(elm)
                 new_elm.n = new_node(elm.n)
                 new_elm.tag = None
                 shaft_elements.append(new_elm)
@@ -1488,7 +1519,7 @@ class Rotor(object):
         return self.__class__(
             shaft_elements,
             **self._renumbered_elements(new_node),
-            **self._init_parameters(),
+            **self._parameters(),
         )
 
     def add_elements(self, new_elements):
@@ -1519,11 +1550,11 @@ class Rotor(object):
         12
         """
 
-        shaft_elements = deepcopy(self.shaft_elements)
-        disk_elements = deepcopy(self.disk_elements)
-        bearing_elements = deepcopy(self.bearing_elements)
-        point_mass_elements = deepcopy(self.point_mass_elements)
-        motor_element = deepcopy(self.motor_element)
+        shaft_elements = copy(self.shaft_elements)
+        disk_elements = copy(self.disk_elements)
+        bearing_elements = copy(self.bearing_elements)
+        point_mass_elements = copy(self.point_mass_elements)
+        motor_element = copy(self.motor_element)
 
         for el in new_elements:
             if isinstance(el, ShaftElement):
@@ -1545,7 +1576,7 @@ class Rotor(object):
             bearing_elements=bearing_elements,
             point_mass_elements=point_mass_elements,
             motor_element=motor_element,
-            **self._init_parameters(),
+            **self._parameters(),
         )
 
     @lru_cache()
@@ -2999,6 +3030,34 @@ class Rotor(object):
 
         return forced_resp
 
+    def to_shaft_rotation(self, node, value):
+        """Convert a rotation of the rotor to the shaft of the specified node.
+
+        Every node of a single rotor rotates with the rotor, so ``value`` is
+        returned unchanged. Geared multi-rotors override this method. It
+        applies to angular positions, speeds and accelerations.
+
+        Parameters
+        ----------
+        node : int
+            Node index.
+        value : float or np.ndarray
+            Angular position (rad), speed (rad/s) or acceleration (rad/s²) of
+            the rotor.
+
+        Returns
+        -------
+        float or np.ndarray
+            The same quantity for the shaft of the node.
+
+        Examples
+        --------
+        >>> rotor = rotor_example()
+        >>> rotor.to_shaft_rotation(3, 100.0)
+        100.0
+        """
+        return value
+
     def _unbalance_force(self, node, magnitude, phase, omega):
         """Calculate unbalance forces.
 
@@ -3723,7 +3782,7 @@ class Rotor(object):
         magnetic_bearings = get_ambs(self)
 
         if len(magnetic_bearings):
-            rotor = deepcopy(self)
+            rotor = copy(self)
 
             amb_data = {
                 key: np.zeros((len(t), len(magnetic_bearings) * 2))
@@ -4789,7 +4848,7 @@ class Rotor(object):
         rotor_wn = np.zeros((num_modes // 2 // 2, len(stiffness_log)))
 
         # ensure that no proportional damping is considered
-        shaft_elements = deepcopy(self.shaft_elements)
+        shaft_elements = copy(self.shaft_elements)
         for sh in shaft_elements:
             sh.alpha = sh.beta = 0
 
@@ -4804,7 +4863,7 @@ class Rotor(object):
 
         for i, k in enumerate(stiffness_log):
             rotor = convert_6dof_to_4dof(
-                self.__class__(
+                self._new_rotor(
                     shaft_elements=shaft_elements,
                     disk_elements=self.disk_elements,
                     bearing_elements=[
@@ -4890,7 +4949,7 @@ class Rotor(object):
 
                         # create rotor
                         rotor_critical = convert_6dof_to_4dof(
-                            self.__class__(
+                            self._new_rotor(
                                 shaft_elements=shaft_elements,
                                 disk_elements=self.disk_elements,
                                 bearing_elements=self._remove_housing_bearings(
@@ -4981,7 +5040,7 @@ class Rotor(object):
         log_dec = np.zeros(len(stiffness))
 
         # set rotor speed to mcs
-        speed = self.rated_w
+        speed = self.rated_w if self.rated_w is not None else 0
         modal = self.run_modal(speed=speed)
 
         for i, Q in enumerate(stiffness):
@@ -4989,7 +5048,7 @@ class Rotor(object):
             cross_coupling = BearingElement(n=n, kxx=0, cxx=0, kxy=Q, kyx=-Q)
             bearings.append(cross_coupling)
 
-            rotor = self.__class__(
+            rotor = self._new_rotor(
                 self.shaft_elements,
                 self.disk_elements,
                 bearings,
@@ -5841,15 +5900,10 @@ class Rotor(object):
         >>> rotor = rotor_example()
         >>> rotor.save(file)
         """
-        import ross
         from ross.utils import dump_data
 
         file = Path(file)
-        dump_data(
-            {"ross_version": ross.__version__, "parameters": self.parameters}, file
-        )
-        for el in self.elements:
-            el.save(file)
+        dump_data(self._to_dict(file.suffix), file)
 
         warning_text = (
             "This file is auto-generated by ROSS. Do not edit values directly.\n"
@@ -5870,6 +5924,44 @@ class Rotor(object):
             comment = "\n".join(f"# {line}" for line in warning_text.splitlines())
             content = file.read_text()
             file.write_text(comment + "\n\n" + content)
+
+    def _to_dict(self, file_format=".toml"):
+        """Return the rotor data in the format written by ``save()``.
+
+        Elements are written with their own ``save()`` method to a temporary
+        file, so the data matches exactly what a saved rotor file contains.
+
+        Parameters
+        ----------
+        file_format : str, optional
+            File format used to serialize the elements (".toml" or ".json").
+            Default is ".toml".
+
+        Returns
+        -------
+        data : dict
+            Dictionary with the ROSS version, the rotor type, the rotor
+            parameters and one entry per element.
+        """
+        import ross
+        from tempfile import TemporaryDirectory
+        from ross.utils import load_data
+
+        data = {
+            "ross_version": ross.__version__,
+            "rotor_type": self.__class__.__name__,
+            "parameters": self._parameters(),
+        }
+
+        with TemporaryDirectory() as tmp_dir:
+            elements_file = Path(tmp_dir) / f"elements{file_format}"
+
+            for el in self.elements:
+                el.save(elements_file)
+
+            data.update(load_data(elements_file))
+
+        return data
 
     @classmethod
     def load(cls, file):
@@ -5903,10 +5995,29 @@ class Rotor(object):
         >>> rotor1 == rotor2
         True
         """
-        import ross
         from ross.utils import load_data
 
-        data = load_data(file)
+        return cls._from_dict(load_data(file))
+
+    @classmethod
+    def _from_dict(cls, data):
+        """Restore a rotor from data in the format written by ``save()``.
+
+        Parameters
+        ----------
+        data : dict
+            Dictionary obtained from ``_to_dict()``, toml.load() or json.load().
+
+        Returns
+        -------
+        rotor : ross.rotor.Rotor
+            Instance of the class named by ``rotor_type`` in the data.
+        """
+        import ross
+
+        rotor_class = getattr(ross, data.get("rotor_type", cls.__name__), cls)
+        if rotor_class is not cls:
+            return rotor_class._from_dict(data)
 
         saved_version = data.get("ross_version", "unknown")
         if _major_minor(saved_version) != _major_minor(ross.__version__):
@@ -5941,7 +6052,11 @@ class Rotor(object):
 
         elements = []
         for el_name, el_data in data.items():
-            if el_name in ("parameters", "ross_version") or el_name.startswith("_"):
+            if el_name in (
+                "ross_version",
+                "rotor_type",
+                "parameters",
+            ) or el_name.startswith("_"):
                 continue
             class_name = el_name.split("_")[0]
             element_class = getattr(ross, class_name, None) or globals().get(class_name)
@@ -6058,8 +6173,12 @@ class Rotor(object):
             aux_brg.append(BearingElement(n=brg.n, n_link=brg.n_link, kxx=1e20, cxx=0))
             aux_brg_1.append(BearingElement(n=brg.n, n_link=brg.n_link, kxx=0, cxx=0))
 
-        aux_rotor = Rotor(self.shaft_elements, self.disk_elements, aux_brg, pmass)
-        aux_rotor_1 = Rotor(self.shaft_elements, self.disk_elements, aux_brg_1, pmass)
+        aux_rotor = self._new_rotor(
+            self.shaft_elements, self.disk_elements, aux_brg, pmass
+        )
+        aux_rotor_1 = self._new_rotor(
+            self.shaft_elements, self.disk_elements, aux_brg_1, pmass
+        )
 
         aux_M = aux_rotor.M(0)
         aux_K = aux_rotor.K(0)
@@ -6393,17 +6512,13 @@ class Rotor(object):
             regions.extend([shaft_elements])
 
             for DiskEl in disk_data:
-                aux_DiskEl = deepcopy(DiskEl)
+                aux_DiskEl = copy(DiskEl)
                 aux_DiskEl.n = nel_r * DiskEl.n
-                aux_DiskEl.n_l = nel_r * DiskEl.n_l
-                aux_DiskEl.n_r = nel_r * DiskEl.n_r
                 disk_elements.append(aux_DiskEl)
 
             for Brg_SealEl in brg_seal_data:
-                aux_Brg_SealEl = deepcopy(Brg_SealEl)
+                aux_Brg_SealEl = copy(Brg_SealEl)
                 aux_Brg_SealEl.n = nel_r * Brg_SealEl.n
-                aux_Brg_SealEl.n_l = nel_r * Brg_SealEl.n
-                aux_Brg_SealEl.n_r = nel_r * Brg_SealEl.n
                 bearing_elements.append(aux_Brg_SealEl)
 
             regions.append(disk_elements)
@@ -6490,7 +6605,7 @@ class Rotor(object):
             rotor.disk_elements,
             bearings_seals_rs,
             rotor.point_mass_elements,
-            **rotor._init_parameters(),
+            **rotor._parameters(),
         )
 
     def _journal_bearing_loads(self):

@@ -5328,14 +5328,21 @@ class SummaryResults(Results):
         bearings dataframe
     brg_forces: list
         list of reaction forces on bearings
-    nodes_pos:  list
-        list of nodes axial position
-    CG: float
-        rotor center of gravity
-    Ip: float
-        rotor total moment of inertia around the center line
-    tag: str
-        rotor's tag
+    CG: float, list
+        Axial position of the rotor center of gravity (m). A list gives one
+        value per rotor.
+    Ip: float, list
+        Rotor polar moment of inertia around the center line (kg.m²). A list
+        gives one value per rotor.
+    It: float, list
+        Rotor transverse moment of inertia around the center of gravity
+        (kg.m²). A list gives one value per rotor.
+    tag: str, list
+        Rotor tag. A list gives one value per rotor.
+    nodes: list, optional
+        First and last node of each rotor, as a list of (first, last) pairs,
+        used when CG, Ip, It and tag are lists. Default is None, which takes
+        the whole model as a single rotor.
 
     Returns
     -------
@@ -5343,7 +5350,18 @@ class SummaryResults(Results):
         The figure object with the tables plot.
     """
 
-    def __init__(self, df_shaft, df_disks, df_bearings, brg_forces, CG, Ip, It, tag):
+    def __init__(
+        self,
+        df_shaft,
+        df_disks,
+        df_bearings,
+        brg_forces,
+        CG,
+        Ip,
+        It,
+        tag,
+        nodes=None,
+    ):
         self.df_shaft = df_shaft
         self.df_disks = df_disks
         self.df_bearings = df_bearings
@@ -5352,6 +5370,7 @@ class SummaryResults(Results):
         self.Ip = Ip
         self.It = It
         self.tag = tag
+        self.nodes = nodes
 
     def plot(self, length_units="m", mass_units="kg", force_units="N"):
         """Plot the summary table.
@@ -5412,33 +5431,39 @@ class SummaryResults(Results):
             ).map("{:.3e}".format),
         }
 
-        rotor_mass = np.sum(self.df_shaft["m"]) + np.sum(self.df_disks["m"])
+        tags = np.atleast_1d(self.tag)
+        nodes = self.nodes
+        if nodes is None:
+            nodes = [(self.df_shaft["n_l"].iloc[0], self.df_shaft["n_r"].iloc[-1])]
+
+        starts, lengths, masses = [], [], []
+        for first, last in nodes:
+            shafts = self.df_shaft[
+                (self.df_shaft["n_l"] >= first) & (self.df_shaft["n_r"] <= last)
+            ]
+            disks = self.df_disks[
+                (self.df_disks["n"] >= first) & (self.df_disks["n"] <= last)
+            ]
+            starts.append(shafts["nodes_pos_l"].min())
+            lengths.append(shafts["nodes_pos_r"].max() - shafts["nodes_pos_l"].min())
+            masses.append(np.sum(shafts["m"]) + np.sum(disks["m"]))
+
+        def fmt(values, units, to_units, spec):
+            values = Q_(np.atleast_1d(values).astype(float), units).to(to_units).m
+            return [spec.format(v) for v in values]
+
         rotor_data = {
-            "Tag": [self.tag],
-            "Starting node": [self.df_shaft["n_l"].iloc[0]],
-            "Ending node": [self.df_shaft["n_r"].iloc[-1]],
-            f"Starting point ({length_units})": [
-                "{:.3f}".format(
-                    Q_(self.df_shaft["nodes_pos_l"].iloc[0], "m").to(length_units).m
-                )
-            ],
-            f"Total length ({length_units})": [
-                "{:.3f}".format(
-                    Q_(self.df_shaft["nodes_pos_r"].iloc[-1], "m").to(length_units).m
-                )
-            ],
-            f"CG ({length_units})": [
-                "{:.3f}".format(Q_(self.CG, "m").to(length_units).m)
-            ],
-            f"Ip{inertia_units_dis}": [
-                "{:.3e}".format(Q_(self.Ip, "m**2*kg").to(inertia_units).m)
-            ],
-            f"It{inertia_units_dis}": [
-                "{:.3e}".format(Q_(self.It, "m**2*kg").to(inertia_units).m)
-            ],
-            f"Rotor Mass ({mass_units})": [
-                "{:.3f}".format(Q_(rotor_mass, "kg").to(mass_units).m)
-            ],
+            "Tag": list(tags),
+            "Starting node": [first for first, _ in nodes],
+            "Ending node": [last for _, last in nodes],
+            f"Starting point ({length_units})": fmt(
+                starts, "m", length_units, "{:.3f}"
+            ),
+            f"Total length ({length_units})": fmt(lengths, "m", length_units, "{:.3f}"),
+            f"CG ({length_units})": fmt(self.CG, "m", length_units, "{:.3f}"),
+            f"Ip{inertia_units_dis}": fmt(self.Ip, "m**2*kg", inertia_units, "{:.3e}"),
+            f"It{inertia_units_dis}": fmt(self.It, "m**2*kg", inertia_units, "{:.3e}"),
+            f"Rotor Mass ({mass_units})": fmt(masses, "kg", mass_units, "{:.3f}"),
         }
 
         disk_data = {

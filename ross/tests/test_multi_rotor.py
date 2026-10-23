@@ -204,10 +204,11 @@ def test_new_parameters_keep_3_0_positional_calls():
     }
 
     multi_rotor = rs.MultiRotor(
-        rotor1, rotor2, (0, 0), None, False, square, backlash, 0.0, "above"
+        rotor1, rotor2, (0, 0), None, False, square, backlash, 0.05, 0.0, "above"
     )
     assert multi_rotor.mesh.backlash is not None
-    assert multi_rotor.mesh.damping_ratio == 0.0
+    assert multi_rotor.mesh.damping_ratio == 0.05
+    assert multi_rotor.mesh.orientation_angle == 0.0
     assert multi_rotor.dy_pos >= 0
 
     gear_1 = multi_rotor.mesh.driving_gear
@@ -233,6 +234,85 @@ def test_mesh(multi_rotor):
     )
     assert_allclose(multi_rotor.mesh.stiffness, 1937234387.18946, rtol=1e-6, atol=1e-5)
     assert multi_rotor.mesh.backlash is None
+
+
+@pytest.mark.parametrize("suffix", [".toml", ".json"])
+def test_save_load_multi_rotor(multi_rotor, tmp_path, suffix):
+    file = tmp_path / f"multi_rotor{suffix}"
+    configured = rs.MultiRotor(
+        driving_rotor=multi_rotor.rotors["driving"],
+        driven_rotor=multi_rotor.rotors["driven"],
+        coupled_nodes=multi_rotor.coupled_nodes,
+        gear_mesh_stiffness=multi_rotor.mesh.stiffness,
+        orientation_angle=rs.Q_(12, "deg"),
+        position="above",
+    )
+
+    configured.save(file)
+    loaded = rs.Rotor.load(file)
+
+    assert isinstance(loaded, rs.MultiRotor)
+    assert loaded.coupled_nodes == configured.coupled_nodes
+    assert loaded.mesh.orientation_angle == configured.mesh.orientation_angle
+    assert loaded.mesh.stiffness == configured.mesh.stiffness
+    assert_allclose(loaded.K(0), configured.K(0))
+
+
+@pytest.mark.parametrize("suffix", [".toml", ".json"])
+def test_save_load_multi_rotor_with_backlash(
+    multi_rotor_with_backlash, tmp_path, suffix
+):
+    file = tmp_path / f"multi_rotor_backlash{suffix}"
+
+    multi_rotor_with_backlash.save(file)
+    loaded = rs.MultiRotor.load(file)
+
+    assert loaded.mesh.backlash is not None
+    assert loaded.backlash == multi_rotor_with_backlash.backlash
+    assert loaded.square_varying_stiffness == (
+        multi_rotor_with_backlash.square_varying_stiffness
+    )
+    assert_allclose(loaded.mesh.stiffness, multi_rotor_with_backlash.mesh.stiffness)
+
+
+def test_inherited_analyses_preserve_multi_rotor(multi_rotor):
+    ucs = multi_rotor.run_ucs(num=2, num_modes=8)
+    level1 = multi_rotor.run_level1(n=0, stiffness_range=(1e6, 1e7), num=2)
+    static = multi_rotor.run_static()
+
+    assert isinstance(ucs, rs.UCSResults)
+    assert isinstance(level1, rs.Level1Results)
+    assert isinstance(static, rs.StaticResults)
+    assert isinstance(multi_rotor, rs.MultiRotor)
+
+    with pytest.raises(NotImplementedError, match="refine is not available"):
+        multi_rotor.run_mesh_convergence()
+    assert multi_rotor.mesh is not None
+
+
+@pytest.mark.parametrize("node, whirl", [(2, -1j), (7, 1j)])
+def test_unbalance_force_whirls_with_shaft(multi_rotor, node, whirl):
+    dof = node * multi_rotor.number_dof
+    F0 = multi_rotor._unbalance_force(node, 1e-3, 0.3, np.array([50.0, 100.0]))
+    ratio = abs(multi_rotor._node_gear_ratio(node))
+
+    assert_allclose(F0[dof + 1], whirl * F0[dof])
+    assert_allclose(np.abs(F0[dof]), 1e-3 * (ratio * np.array([50.0, 100.0])) ** 2)
+
+
+@pytest.mark.parametrize("node", [2, 7])
+def test_unbalance_force_matches_time_domain(multi_rotor, node):
+    speed = 80.0
+    phase = 0.7
+    t = np.linspace(0, 0.1, 51)
+    frequency = abs(multi_rotor._node_gear_ratio(node)) * speed
+
+    F0 = multi_rotor._unbalance_force(node, 1e-3, phase, [speed])[:, 0]
+    F_time = multi_rotor.unbalance_force_over_time([node], [1e-3], [phase], speed, t)
+
+    assert_allclose(
+        np.real(np.outer(F0, np.exp(1j * frequency * t))), F_time, atol=1e-9
+    )
 
 
 def test_coupling_matrix_gear(multi_rotor):
@@ -477,7 +557,7 @@ def test_mesh_damping_updates_with_stiffness():
     stiffness_2 = 1.5 * stiffness_1
 
     C_mesh_1 = multi_rotor.C_mesh(np.zeros((multi_rotor.ndof, multi_rotor.ndof)))
-    multi_rotor.mesh.stiffness = stiffness_2
+    multi_rotor._mesh_stiffness = stiffness_2
     C_mesh_2 = multi_rotor.C_mesh(np.zeros((multi_rotor.ndof, multi_rotor.ndof)))
 
     dofs_1 = multi_rotor.mesh.driving_gear.dof_global_index.values()
@@ -550,6 +630,64 @@ def multi_rotor_with_backlash():
     )
 
 
+@pytest.mark.parametrize(
+    "kwargs, missing, unknown",
+    [
+        ({"backlash": {"enable": True}}, "initial_value", None),
+        (
+            {
+                "backlash": {
+                    "enable": True,
+                    "initial_value": 5e-5,
+                    "error_amp": 2e-5,
+                    "sigma": 1e5,
+                }
+            },
+            "smooth_operator",
+            None,
+        ),
+        (
+            {
+                "backlash": {
+                    "enable": True,
+                    "initial_val": 5e-5,
+                    "error_amp": 2e-5,
+                    "smooth_operator": False,
+                    "sigma": 1e5,
+                }
+            },
+            "initial_value",
+            "initial_val",
+        ),
+        ({"square_varying_stiffness": {"enable": True}}, "amplitude_ratio", None),
+        (
+            {
+                "square_varying_stiffness": {
+                    "enable": True,
+                    "amplitude_ratio": 0.275,
+                    "ratio": 0.1,
+                }
+            },
+            None,
+            "ratio",
+        ),
+    ],
+)
+def test_incomplete_mesh_dicts_raise(
+    multi_rotor_with_backlash, kwargs, missing, unknown
+):
+    rotors = multi_rotor_with_backlash.rotors
+
+    with pytest.raises(ValueError) as error:
+        rs.MultiRotor(rotors["driving"], rotors["driven"], (0, 0), **kwargs)
+
+    message = str(error.value)
+    assert next(iter(kwargs)) in message
+    for key in [missing, unknown]:
+        if key is not None:
+            assert f"'{key}'" in message
+
+
 def test_mesh_with_backlash(multi_rotor_with_backlash):
     assert_allclose(
         multi_rotor_with_backlash.mesh.backlash.M_eq,
@@ -619,6 +757,205 @@ def test_mesh_with_backlash(multi_rotor_with_backlash):
     assert_allclose(np.mean(mesh_results["center_distance"]), d, rtol=1e-2)
     assert_allclose(np.mean(mesh_results["pressure_angle"]), alpha, rtol=1e-2)
     assert_allclose(np.mean(mesh_results["contact_ratio"]), cr, rtol=1e-2)
+
+
+@pytest.fixture
+def three_shaft_rotors():
+    """Three shafts A -> B -> C geared 60/30 and 40/20, so B = -2A and C = 4A."""
+    steel = rs.Material(name="steel_three_shaft", rho=7810, E=211e9, G_s=81.2e9)
+    pressure_angle = rs.Q_(20, "deg")
+
+    def shaft(n_elements):
+        return [
+            rs.ShaftElement(L=0.2, idl=0, odl=0.05, material=steel, gyroscopic=True)
+            for _ in range(n_elements)
+        ]
+
+    def gear(n, n_teeth):
+        return rs.GearElement(
+            n=n,
+            m=5,
+            Id=0.02,
+            Ip=0.04,
+            n_teeth=n_teeth,
+            base_diameter=n_teeth * 0.004 * np.cos(pressure_angle.to("rad").m),
+            pr_angle=pressure_angle,
+        )
+
+    def bearings(n_left, n_right):
+        return [
+            rs.BearingElement(n=n_left, kxx=1e7, cxx=1e3),
+            rs.BearingElement(n=n_right, kxx=1e7, cxx=1e3),
+        ]
+
+    rotor_a = rs.Rotor(
+        shaft(4),
+        [rs.DiskElement(n=1, m=10, Id=0.1, Ip=0.2), gear(4, 60)],
+        bearings(0, 3),
+    )
+    rotor_b = rs.Rotor(shaft(4), [gear(0, 30), gear(4, 40)], bearings(1, 3))
+    rotor_c = rs.Rotor(
+        shaft(3),
+        [gear(0, 20), rs.DiskElement(n=2, m=5, Id=0.05, Ip=0.1)],
+        bearings(1, 3),
+    )
+
+    return rotor_a, rotor_b, rotor_c
+
+
+def nest_driving(rotor_a, rotor_b, rotor_c):
+    """Build the three-shaft system as MultiRotor(MultiRotor(A, B), C)."""
+    rotor_ab = rs.MultiRotor(
+        rotor_a, rotor_b, coupled_nodes=(4, 0), gear_mesh_stiffness=1e8
+    )
+    return rs.MultiRotor(
+        rotor_ab, rotor_c, coupled_nodes=(9, 0), gear_mesh_stiffness=1e8
+    )
+
+
+def nest_driven(rotor_a, rotor_b, rotor_c):
+    """Build the three-shaft system as MultiRotor(A, MultiRotor(B, C))."""
+    rotor_bc = rs.MultiRotor(
+        rotor_b, rotor_c, coupled_nodes=(4, 0), gear_mesh_stiffness=1e8
+    )
+    return rs.MultiRotor(
+        rotor_a, rotor_bc, coupled_nodes=(4, 0), gear_mesh_stiffness=1e8
+    )
+
+
+@pytest.mark.parametrize("nest", [nest_driving, nest_driven])
+def test_three_shaft_speed_ratios(three_shaft_rotors, nest):
+    multi_rotor = nest(*three_shaft_rotors)
+
+    assert [multi_rotor._node_gear_ratio(n) for n in (2, 6, 11)] == [1.0, -2.0, 4.0]
+
+
+@pytest.mark.parametrize("nest", [nest_driving, nest_driven])
+def test_three_shaft_matrices(three_shaft_rotors, nest):
+    from scipy.linalg import block_diag
+
+    rotor_a, rotor_b, rotor_c = three_shaft_rotors
+    multi_rotor = nest(*three_shaft_rotors)
+
+    assert_allclose(
+        multi_rotor.G(), block_diag(rotor_a.G(), -2 * rotor_b.G(), 4 * rotor_c.G())
+    )
+    assert_allclose(
+        multi_rotor.Ksdt(),
+        block_diag(rotor_a.Ksdt(), -2 * rotor_b.Ksdt(), 4 * rotor_c.Ksdt()),
+    )
+
+
+def test_three_shaft_nestings_match(three_shaft_rotors):
+    by_driving = nest_driving(*three_shaft_rotors)
+    by_driven = nest_driven(*three_shaft_rotors)
+
+    assert_allclose(by_driving.K(0, 100), by_driven.K(0, 100))
+    assert_allclose(by_driving.C(0, 100), by_driven.C(0, 100))
+    assert_allclose(by_driving.M(0, 100), by_driven.M(0, 100))
+    assert_allclose(
+        by_driving.run_modal(100).wn[:6], by_driven.run_modal(100).wn[:6], rtol=1e-6
+    )
+
+
+@pytest.mark.parametrize("nest", [nest_driving, nest_driven])
+@pytest.mark.parametrize("node, whirl", [(2, -1j), (6, 1j), (11, -1j)])
+def test_three_shaft_unbalance_force(three_shaft_rotors, nest, node, whirl):
+    multi_rotor = nest(*three_shaft_rotors)
+    dof = node * multi_rotor.number_dof
+    ratio = abs(multi_rotor._node_gear_ratio(node))
+
+    F0 = multi_rotor._unbalance_force(node, 1e-3, 0.0, [10.0])[:, 0]
+
+    assert_allclose(F0[dof + 1], whirl * F0[dof])
+    assert_allclose(abs(F0[dof]), 1e-3 * (ratio * 10.0) ** 2)
+
+
+def test_summary_per_shaft(three_shaft_rotors):
+    multi_rotor = nest_driving(*three_shaft_rotors)
+    summary = multi_rotor.summary()
+    masses = [rotor.m for rotor in three_shaft_rotors]
+
+    assert summary.nodes == [(0, 4), (5, 9), (10, 13)]
+    assert_allclose(summary.Ip, [rotor.Ip for rotor in three_shaft_rotors])
+    assert_allclose(summary.It, [rotor.It for rotor in three_shaft_rotors])
+    assert_allclose(np.dot(masses, summary.CG) / np.sum(masses), multi_rotor.CG)
+
+    rotor_table = summary.plot().data[0]
+    headers = list(rotor_table.header["values"])
+    table_masses = rotor_table.cells["values"][headers.index("Rotor Mass (kg)")]
+    assert_allclose([float(m) for m in table_masses], masses, atol=5e-4)
+
+
+@pytest.fixture
+def fault_shaft_ratios(multi_rotor):
+    """Shaft element numbers on each shaft and the expected speed ratio."""
+    driving_gear = multi_rotor.mesh.driving_gear
+    driven_gear = multi_rotor.mesh.driven_gear
+    driving_elm = multi_rotor.shaft_elements[0].n
+    driven_elm = next(
+        elm.n for elm in multi_rotor.shaft_elements if elm.n in multi_rotor.driven_nodes
+    )
+    return [
+        (driving_elm, 1.0),
+        (driven_elm, -driving_gear.n_teeth / driven_gear.n_teeth),
+    ]
+
+
+@pytest.mark.parametrize("shaft", [0, 1])
+def test_rubbing_uses_shaft_speed(multi_rotor, fault_shaft_ratios, monkeypatch, shaft):
+    n, ratio = fault_shaft_ratios[shaft]
+    speed = 100.0
+    speeds = []
+    compute = rs.faults.rubbing.Rubbing.compute_rubbing_force
+
+    def spy(self, y, ydot, ang_speed):
+        speeds.append(ang_speed)
+        return compute(self, y, ydot, ang_speed)
+
+    monkeypatch.setattr(rs.faults.rubbing.Rubbing, "compute_rubbing_force", spy)
+
+    multi_rotor.run_rubbing(
+        n=n,
+        distance=1e-3,
+        contact_stiffness=1e6,
+        contact_damping=40,
+        friction_coeff=0.3,
+        node=[2],
+        unbalance_magnitude=[1e-4],
+        unbalance_phase=[0.0],
+        speed=speed,
+        t=np.linspace(0, 0.01, 11),
+    )
+
+    assert_allclose(speeds, ratio * speed)
+
+
+@pytest.mark.parametrize("shaft", [0, 1])
+def test_crack_uses_shaft_angle(multi_rotor, fault_shaft_ratios, monkeypatch, shaft):
+    n, ratio = fault_shaft_ratios[shaft]
+    speed = 100.0
+    t = np.linspace(0, 0.01, 11)
+    angles = []
+    mayes = rs.faults.crack.Crack.mayes
+
+    def spy(self, ap):
+        angles.append(ap)
+        return mayes(self, ap)
+
+    monkeypatch.setattr(rs.faults.crack.Crack, "mayes", spy)
+
+    multi_rotor.run_crack(
+        n=n,
+        depth_ratio=0.2,
+        node=[2],
+        unbalance_magnitude=[1e-4],
+        unbalance_phase=[0.0],
+        speed=speed,
+        t=t,
+    )
+
+    assert_allclose(angles, ratio * speed * t[1 : len(angles) + 1])
 
 
 def test_refine_mesh_refines_each_rotor_of_a_multi_rotor():
