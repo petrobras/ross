@@ -1,8 +1,8 @@
 import inspect
 import warnings
 from collections.abc import Iterable
-from copy import copy as copy
-from itertools import chain, cycle
+from copy import deepcopy as copy
+from itertools import chain
 from pathlib import Path
 
 import numpy as np
@@ -1519,7 +1519,7 @@ class Rotor(object):
         return self.__class__(
             shaft_elements,
             **self._renumbered_elements(new_node),
-            **self._init_parameters(),
+            **self._parameters(),
         )
 
     def add_elements(self, new_elements):
