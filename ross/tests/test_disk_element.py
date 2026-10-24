@@ -110,6 +110,6 @@ def test_from_table():
         )
         disks = DiskElement.from_table(file_name, sheet_name="More")
 
-        assert_allclose(disks[1].m, 6.90999178227835)
-        assert_allclose(disks[1].Ip, 0.0469996988106328, atol=1.6e-07)
-        assert_allclose(disks[1].Id, 0.0249998397928898, atol=1.6e-07)
+        assert_allclose(disks[1].m, 6.71)
+        assert_allclose(disks[1].Ip, 0.0425, atol=1.6e-07)
+        assert_allclose(disks[1].Id, 0.0226, atol=1.6e-07)

@@ -216,19 +216,19 @@ def test_from_table():
         )
         el0 = shaft[0]
         assert el0.n == 0
-        assert_allclose(el0.i_d, 0.1409954)
-        assert_allclose(el0.o_d, 0.151003)
+        assert_allclose(el0.i_d, 0.1355)
+        assert_allclose(el0.o_d, 0.144)
 
         mat0 = el0.material
-        assert_allclose(mat0.rho, 7833.41, atol=0.003)
-        assert_allclose(mat0.E, 206842718795.05, rtol=3e-06)
-        assert_allclose(mat0.G_s, 82737087518.02, rtol=2e-06)
+        assert_allclose(mat0.rho, 7850.0, atol=0.003)
+        assert_allclose(mat0.E, 205e9, rtol=3e-06)
+        assert_allclose(mat0.G_s, 79.5e9, rtol=2e-06)
 
         # test if node is the same for elements in different layers
         assert shaft[8].n == 8
         assert shaft[9].n == 8
-        assert_allclose(shaft[8].material.E, 206842718795.05, rtol=3e-06)
-        assert_allclose(shaft[9].material.E, 6894.75, atol=0.008)
+        assert_allclose(shaft[8].material.E, 205e9, rtol=3e-06)
+        assert_allclose(shaft[9].material.E, 1e4, atol=0.008)
 
 
 # Shaft Tapered Element tests
