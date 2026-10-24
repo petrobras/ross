@@ -61,15 +61,15 @@ check('a bearing hanging under a link node does not cut the line', every.lines[0
     && CASES.every_element.scene.bearings.some(b => b.link));
 const compressor = annotationLayout(layoutScene(CASES.compressor_example.scene)).lines[0];
 check('the compressor: two overhangs and the span between its bearings',
-    compressor.spans.length === 3 && near(compressor.spans[0].length, 0.2355) && near(compressor.spans[1].length, 1.19));
+    compressor.spans.length === 3 && near(compressor.spans[0].length, 0.2465) && near(compressor.spans[1].length, 1.2455));
 
 // --- the labels --------------------------------------------------------------------------
 console.log('\nThe numbers');
 
 const labels = annotationLabels(annotationLayout(layoutScene(CASES.compressor_example.scene)));
 const dims = labels.filter(l => l.kind === 'dimension');
-check('the total reads as one, in mm, above its line, always shown', dims[0].text === 'L = 1653.3 mm' && dims[0].rank === 2 && !dims[0].below);
-check('each span its own length, below its line, before any node', dims.slice(1).map(d => d.text).join() === '235.5 mm,1190.0 mm,227.8 mm'
+check('the total reads as one, in mm, above its line, always shown', dims[0].text === 'L = 1730.0 mm' && dims[0].rank === 2 && !dims[0].below);
+check('each span its own length, below its line, before any node', dims.slice(1).map(d => d.text).join() === '246.5 mm,1245.5 mm,238.0 mm'
     && dims.slice(1).every(d => d.below && d.rank === 1));
 const nodes = labels.filter(l => l.kind === 'node');
 check('a number per node, the first and the last always kept', nodes.length === CASES.compressor_example.scene.nodes.length

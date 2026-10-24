@@ -3428,7 +3428,7 @@ class Rotor(object):
         >>> rotor = compressor_example()
         >>> force = rotor.gravitational_force()
         >>> force[:4]
-        array([ 0.        , -3.12941854,  0.        ,  0.01851573])
+        array([ 0.        , -2.62142343,  0.        ,  0.01594699])
         """
         idx = {"x": 0, "y": 1, "z": 2}
 
@@ -3516,8 +3516,8 @@ class Rotor(object):
         >>> t, yout, xout = rotor.integrate_system(speed, F, t)
         Running direct method...
         >>> yout[:, rotor.number_dof * node + 1] # doctest: +ELLIPSIS
-        array([0.00000000e+00, 2.07136253e-10, 7.80557630e-10, ...,
-               1.21845368e-07, 1.21954345e-07, 1.22062832e-07])
+        array([0.00000000e+00, 2.27923369e-10, 8.80472767e-10, ...,
+               1.47672309e-07, 1.47804205e-07, 1.47935531e-07])
         """
         xout = []
 
@@ -7108,16 +7108,12 @@ def compressor_example():
 
     This function returns an instance of a rotor with
     91 shaft elements, 7 disks and 2 simple bearings and 12 seals.
+    The model is representative of a six-stage centrifugal compressor; it is
+    not the model of a specific machine.
 
     Returns
     -------
     An instance of a rotor object.
-
-    References
-    ----------
-    Timbó, R., Ritto, T. G. (2019). Impact of damper seal coefficients uncertainties
-    in rotor dynamics. Journal of the Brazilian Society of Mechanical Sciences and
-    Engineering, 41(4),165. doi: 10.1007/s40430-019-1652-8
 
     Examples
     --------
