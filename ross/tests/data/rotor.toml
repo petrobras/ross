@@ -3,16 +3,19 @@
 # Changing values here will NOT trigger recalculation of dependent quantities.
 # To modify the rotor, change parameters in Python and save again.
 
-ross_version = "3.0.0.dev0"
+ross_version = "3.2.0.dev0"
 
 [parameters]
+default_damping_ratio = 0.0
+alpha = 0.0
+beta = 0.0
 
-["ShaftElement_ShaftElement 0"]
-L = 0.035500000000000004
-idl = 0.1409954
-odl = 0.151003
-idr = 0.1409954
-odr = 0.151003
+["ShaftElement_Shaft Element 0"]
+L = 0.0365
+idl = 0.1355
+odl = 0.144
+idr = 0.1355
+odr = 0.144
 n = 0
 axial_force = 0
 torque = 0
@@ -20,16 +23,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 0"
+tag = "Shaft Element 0"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 1"]
-L = 0.036000000000000004
-idl = 0.1409954
-odl = 0.151003
-idr = 0.1409954
-odr = 0.151003
+["ShaftElement_Shaft Element 1"]
+L = 0.038
+idl = 0.1355
+odl = 0.144
+idr = 0.1355
+odr = 0.144
 n = 1
 axial_force = 0
 torque = 0
@@ -37,16 +40,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 1"
+tag = "Shaft Element 1"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 2"]
-L = 0.054000000000000006
+["ShaftElement_Shaft Element 2"]
+L = 0.058
 idl = 0.0
-odl = 0.08
+odl = 0.077
 idr = 0.0
-odr = 0.08
+odr = 0.077
 n = 2
 axial_force = 0
 torque = 0
@@ -54,16 +57,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 2"
+tag = "Shaft Element 2"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 3"]
-L = 0.043000000000000003
+["ShaftElement_Shaft Element 3"]
+L = 0.0445
 idl = 0.0
-odl = 0.08
+odl = 0.077
 idr = 0.0
-odr = 0.08
+odr = 0.077
 n = 3
 axial_force = 0
 torque = 0
@@ -71,16 +74,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 3"
+tag = "Shaft Element 3"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 4"]
-L = 0.0165
+["ShaftElement_Shaft Element 4"]
+L = 0.0175
 idl = 0.0
-odl = 0.088
+odl = 0.084
 idr = 0.0
-odr = 0.088
+odr = 0.084
 n = 4
 axial_force = 0
 torque = 0
@@ -88,16 +91,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 4"
+tag = "Shaft Element 4"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 5"]
-L = 0.014
+["ShaftElement_Shaft Element 5"]
+L = 0.0145
 idl = 0.0
-odl = 0.088
+odl = 0.084
 idr = 0.0
-odr = 0.088
+odr = 0.084
 n = 5
 axial_force = 0
 torque = 0
@@ -105,16 +108,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 5"
+tag = "Shaft Element 5"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 6"]
-L = 0.036500000000000005
+["ShaftElement_Shaft Element 6"]
+L = 0.0375
 idl = 0.0
-odl = 0.09000000000000001
+odl = 0.0865
 idr = 0.0
-odr = 0.09000000000000001
+odr = 0.0865
 n = 6
 axial_force = 0
 torque = 0
@@ -122,16 +125,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 6"
+tag = "Shaft Element 6"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 7"]
-L = 0.051
+["ShaftElement_Shaft Element 7"]
+L = 0.0545
 idl = 0.0
-odl = 0.09000000000000001
+odl = 0.0865
 idr = 0.0
-odr = 0.09000000000000001
+odr = 0.0865
 n = 7
 axial_force = 0
 torque = 0
@@ -139,186 +142,203 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 7"
+tag = "Shaft Element 7"
+alpha = 0.0
+beta = 0.0
 
+["ShaftElement_Shaft Element 8"]
+L = 0.027
+idl = 0.0
+odl = 0.1
+idr = 0.0
+odr = 0.1
+n = 8
+axial_force = 0
+torque = 0
+shear_effects = true
+rotary_inertia = true
+gyroscopic = true
+shear_method_calc = "cowper"
+tag = "Shaft Element 8"
+alpha = 0.0
+beta = 0.0
 
+["ShaftElement_Shaft Element 9"]
+L = 0.027
+idl = 0.1
+odl = 0.1325
+idr = 0.1
+odr = 0.1325
+n = 8
+axial_force = 0
+torque = 0
+shear_effects = true
+rotary_inertia = true
+gyroscopic = true
+shear_method_calc = "cowper"
+tag = "Shaft Element 9"
+alpha = 0.0
+beta = 0.0
 
-["ShaftElement_ShaftElement 8"]
-L = 0.025
+["ShaftElement_Shaft Element 10"]
+L = 0.0165
+idl = 0.0
+odl = 0.0815
+idr = 0.0
+odr = 0.0815
+n = 9
+axial_force = 0
+torque = 0
+shear_effects = true
+rotary_inertia = true
+gyroscopic = true
+shear_method_calc = "cowper"
+tag = "Shaft Element 10"
+alpha = 0.0
+beta = 0.0
+
+["ShaftElement_Shaft Element 11"]
+L = 0.0165
+idl = 0.0815
+odl = 0.1325
+idr = 0.0815
+odr = 0.1325
+n = 9
+axial_force = 0
+torque = 0
+shear_effects = true
+rotary_inertia = true
+gyroscopic = true
+shear_method_calc = "cowper"
+tag = "Shaft Element 11"
+alpha = 0.0
+beta = 0.0
+
+["ShaftElement_Shaft Element 12"]
+L = 0.0255
+idl = 0.0
+odl = 0.1015
+idr = 0.0
+odr = 0.1015
+n = 10
+axial_force = 0
+torque = 0
+shear_effects = true
+rotary_inertia = true
+gyroscopic = true
+shear_method_calc = "cowper"
+tag = "Shaft Element 12"
+alpha = 0.0
+beta = 0.0
+
+["ShaftElement_Shaft Element 13"]
+L = 0.0255
+idl = 0.1015
+odl = 0.1695
+idr = 0.1015
+odr = 0.1695
+n = 10
+axial_force = 0
+torque = 0
+shear_effects = true
+rotary_inertia = true
+gyroscopic = true
+shear_method_calc = "cowper"
+tag = "Shaft Element 13"
+alpha = 0.0
+beta = 0.0
+
+["ShaftElement_Shaft Element 14"]
+L = 0.0045
+idl = 0.0
+odl = 0.095
+idr = 0.0
+odr = 0.095
+n = 11
+axial_force = 0
+torque = 0
+shear_effects = true
+rotary_inertia = true
+gyroscopic = true
+shear_method_calc = "cowper"
+tag = "Shaft Element 14"
+alpha = 0.0
+beta = 0.0
+
+["ShaftElement_Shaft Element 15"]
+L = 0.0045
+idl = 0.095
+odl = 0.1695
+idr = 0.095
+odr = 0.1695
+n = 11
+axial_force = 0
+torque = 0
+shear_effects = true
+rotary_inertia = true
+gyroscopic = true
+shear_method_calc = "cowper"
+tag = "Shaft Element 15"
+alpha = 0.0
+beta = 0.0
+
+["ShaftElement_Shaft Element 16"]
+L = 0.0135
+idl = 0.0
+odl = 0.1015
+idr = 0.0
+odr = 0.1015
+n = 12
+axial_force = 0
+torque = 0
+shear_effects = true
+rotary_inertia = true
+gyroscopic = true
+shear_method_calc = "cowper"
+tag = "Shaft Element 16"
+alpha = 0.0
+beta = 0.0
+
+["ShaftElement_Shaft Element 17"]
+L = 0.0135
+idl = 0.1015
+odl = 0.1695
+idr = 0.1015
+odr = 0.1695
+n = 12
+axial_force = 0
+torque = 0
+shear_effects = true
+rotary_inertia = true
+gyroscopic = true
+shear_method_calc = "cowper"
+tag = "Shaft Element 17"
+alpha = 0.0
+beta = 0.0
+
+["ShaftElement_Shaft Element 18"]
+L = 0.0215
 idl = 0.0
 odl = 0.103
 idr = 0.0
 odr = 0.103
-n = 8
+n = 13
 axial_force = 0
 torque = 0
 shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 8"
+tag = "Shaft Element 18"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 9"]
-L = 0.025
+["ShaftElement_Shaft Element 19"]
+L = 0.0215
 idl = 0.103
-odl = 0.13799999999999998
+odl = 0.1785
 idr = 0.103
-odr = 0.13799999999999998
-n = 8
-axial_force = 0
-torque = 0
-shear_effects = true
-rotary_inertia = true
-gyroscopic = true
-shear_method_calc = "cowper"
-tag = "ShaftElement 9"
-
-
-
-["ShaftElement_ShaftElement 10"]
-L = 0.016
-idl = 0.0
-odl = 0.085
-idr = 0.0
-odr = 0.085
-n = 9
-axial_force = 0
-torque = 0
-shear_effects = true
-rotary_inertia = true
-gyroscopic = true
-shear_method_calc = "cowper"
-tag = "ShaftElement 10"
-
-
-
-["ShaftElement_ShaftElement 11"]
-L = 0.016
-idl = 0.085
-odl = 0.13799999999999998
-idr = 0.085
-odr = 0.13799999999999998
-n = 9
-axial_force = 0
-torque = 0
-shear_effects = true
-rotary_inertia = true
-gyroscopic = true
-shear_method_calc = "cowper"
-tag = "ShaftElement 11"
-
-
-
-["ShaftElement_ShaftElement 12"]
-L = 0.0242
-idl = 0.0
-odl = 0.104
-idr = 0.0
-odr = 0.104
-n = 10
-axial_force = 0
-torque = 0
-shear_effects = true
-rotary_inertia = true
-gyroscopic = true
-shear_method_calc = "cowper"
-tag = "ShaftElement 12"
-
-
-
-["ShaftElement_ShaftElement 13"]
-L = 0.0242
-idl = 0.104
-odl = 0.174
-idr = 0.104
-odr = 0.174
-n = 10
-axial_force = 0
-torque = 0
-shear_effects = true
-rotary_inertia = true
-gyroscopic = true
-shear_method_calc = "cowper"
-tag = "ShaftElement 13"
-
-
-
-["ShaftElement_ShaftElement 14"]
-L = 0.0045000000000000005
-idl = 0.0
-odl = 0.0982
-idr = 0.0
-odr = 0.0982
-n = 11
-axial_force = 0
-torque = 0
-shear_effects = true
-rotary_inertia = true
-gyroscopic = true
-shear_method_calc = "cowper"
-tag = "ShaftElement 14"
-
-
-
-["ShaftElement_ShaftElement 15"]
-L = 0.0045000000000000005
-idl = 0.0982
-odl = 0.174
-idr = 0.0982
-odr = 0.174
-n = 11
-axial_force = 0
-torque = 0
-shear_effects = true
-rotary_inertia = true
-gyroscopic = true
-shear_method_calc = "cowper"
-tag = "ShaftElement 15"
-
-
-
-["ShaftElement_ShaftElement 16"]
-L = 0.01257
-idl = 0.0
-odl = 0.104
-idr = 0.0
-odr = 0.104
-n = 12
-axial_force = 0
-torque = 0
-shear_effects = true
-rotary_inertia = true
-gyroscopic = true
-shear_method_calc = "cowper"
-tag = "ShaftElement 16"
-
-
-
-["ShaftElement_ShaftElement 17"]
-L = 0.01257
-idl = 0.104
-odl = 0.174
-idr = 0.104
-odr = 0.174
-n = 12
-axial_force = 0
-torque = 0
-shear_effects = true
-rotary_inertia = true
-gyroscopic = true
-shear_method_calc = "cowper"
-tag = "ShaftElement 17"
-
-
-
-["ShaftElement_ShaftElement 18"]
-L = 0.02
-idl = 0.0
-odl = 0.10600000000000001
-idr = 0.0
-odr = 0.10600000000000001
+odr = 0.1785
 n = 13
 axial_force = 0
 torque = 0
@@ -326,33 +346,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 18"
+tag = "Shaft Element 19"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 19"]
-L = 0.02
-idl = 0.10600000000000001
-odl = 0.184
-idr = 0.10600000000000001
-odr = 0.184
-n = 13
-axial_force = 0
-torque = 0
-shear_effects = true
-rotary_inertia = true
-gyroscopic = true
-shear_method_calc = "cowper"
-tag = "ShaftElement 19"
-
-
-
-["ShaftElement_ShaftElement 20"]
-L = 0.06273000000000001
+["ShaftElement_Shaft Element 20"]
+L = 0.0655
 idl = 0.0
-odl = 0.10800000000000001
+odl = 0.1035
 idr = 0.0
-odr = 0.10800000000000001
+odr = 0.1035
 n = 14
 axial_force = 0
 torque = 0
@@ -360,16 +363,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 20"
+tag = "Shaft Element 20"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 21"]
-L = 0.06273000000000001
-idl = 0.10800000000000001
-odl = 0.184
-idr = 0.10800000000000001
-odr = 0.184
+["ShaftElement_Shaft Element 21"]
+L = 0.0655
+idl = 0.1035
+odl = 0.1785
+idr = 0.1035
+odr = 0.1785
 n = 14
 axial_force = 0
 torque = 0
@@ -377,16 +380,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 21"
+tag = "Shaft Element 21"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 22"]
-L = 0.038
+["ShaftElement_Shaft Element 22"]
+L = 0.0405
 idl = 0.0
-odl = 0.11
+odl = 0.1055
 idr = 0.0
-odr = 0.11
+odr = 0.1055
 n = 15
 axial_force = 0
 torque = 0
@@ -394,16 +397,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 22"
+tag = "Shaft Element 22"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 23"]
-L = 0.038
-idl = 0.11
-odl = 0.184
-idr = 0.11
-odr = 0.184
+["ShaftElement_Shaft Element 23"]
+L = 0.0405
+idl = 0.1055
+odl = 0.1785
+idr = 0.1055
+odr = 0.1785
 n = 15
 axial_force = 0
 torque = 0
@@ -411,16 +414,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 23"
+tag = "Shaft Element 23"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 24"]
-L = 0.038
+["ShaftElement_Shaft Element 24"]
+L = 0.0405
 idl = 0.0
-odl = 0.122
+odl = 0.1185
 idr = 0.0
-odr = 0.122
+odr = 0.1185
 n = 16
 axial_force = 0
 torque = 0
@@ -428,16 +431,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 24"
+tag = "Shaft Element 24"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 25"]
-L = 0.038
-idl = 0.122
-odl = 0.13899999999999998
-idr = 0.122
-odr = 0.13899999999999998
+["ShaftElement_Shaft Element 25"]
+L = 0.0405
+idl = 0.1185
+odl = 0.1335
+idr = 0.1185
+odr = 0.1335
 n = 16
 axial_force = 0
 torque = 0
@@ -445,16 +448,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 25"
+tag = "Shaft Element 25"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 26"]
-L = 0.030000000000000002
+["ShaftElement_Shaft Element 26"]
+L = 0.031
 idl = 0.0
-odl = 0.135
+odl = 0.1315
 idr = 0.0
-odr = 0.135
+odr = 0.1315
 n = 17
 axial_force = 0
 torque = 0
@@ -462,16 +465,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 26"
+tag = "Shaft Element 26"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 27"]
-L = 0.030000000000000002
-idl = 0.135
-odl = 0.175
-idr = 0.135
-odr = 0.175
+["ShaftElement_Shaft Element 27"]
+L = 0.031
+idl = 0.1315
+odl = 0.171
+idr = 0.1315
+odr = 0.171
 n = 17
 axial_force = 0
 torque = 0
@@ -479,16 +482,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 27"
+tag = "Shaft Element 27"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 28"]
-L = 0.053000000000000005
+["ShaftElement_Shaft Element 28"]
+L = 0.0545
 idl = 0.0
-odl = 0.11770000000000001
+odl = 0.114
 idr = 0.0
-odr = 0.11770000000000001
+odr = 0.114
 n = 18
 axial_force = 0
 torque = 0
@@ -496,16 +499,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 28"
+tag = "Shaft Element 28"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 29"]
-L = 0.053000000000000005
-idl = 0.11770000000000001
-odl = 0.1965
-idr = 0.11770000000000001
-odr = 0.1965
+["ShaftElement_Shaft Element 29"]
+L = 0.0545
+idl = 0.114
+odl = 0.1895
+idr = 0.114
+odr = 0.1895
 n = 18
 axial_force = 0
 torque = 0
@@ -513,16 +516,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 29"
+tag = "Shaft Element 29"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 30"]
-L = 0.01949
+["ShaftElement_Shaft Element 30"]
+L = 0.0205
 idl = 0.0
-odl = 0.12234999999999999
+odl = 0.119
 idr = 0.0
-odr = 0.12234999999999999
+odr = 0.119
 n = 19
 axial_force = 0
 torque = 0
@@ -530,16 +533,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 30"
+tag = "Shaft Element 30"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 31"]
-L = 0.01949
-idl = 0.12234999999999999
-odl = 0.127
-idr = 0.12234999999999999
-odr = 0.127
+["ShaftElement_Shaft Element 31"]
+L = 0.0205
+idl = 0.119
+odl = 0.123
+idr = 0.119
+odr = 0.123
 n = 19
 axial_force = 0
 torque = 0
@@ -547,16 +550,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 31"
+tag = "Shaft Element 31"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 32"]
-L = 0.013510000000000003
+["ShaftElement_Shaft Element 32"]
+L = 0.014
 idl = 0.0
-odl = 0.12234999999999999
+odl = 0.119
 idr = 0.0
-odr = 0.12234999999999999
+odr = 0.119
 n = 20
 axial_force = 0
 torque = 0
@@ -564,16 +567,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 32"
+tag = "Shaft Element 32"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 33"]
-L = 0.013510000000000003
-idl = 0.12234999999999999
-odl = 0.127
-idr = 0.12234999999999999
-odr = 0.127
+["ShaftElement_Shaft Element 33"]
+L = 0.014
+idl = 0.119
+odl = 0.123
+idr = 0.119
+odr = 0.123
 n = 20
 axial_force = 0
 torque = 0
@@ -581,16 +584,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 33"
+tag = "Shaft Element 33"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 34"]
-L = 0.0495
+["ShaftElement_Shaft Element 34"]
+L = 0.0525
 idl = 0.0
-odl = 0.11770000000000001
+odl = 0.114
 idr = 0.0
-odr = 0.11770000000000001
+odr = 0.114
 n = 21
 axial_force = 0
 torque = 0
@@ -598,16 +601,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 34"
+tag = "Shaft Element 34"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 35"]
-L = 0.01959
+["ShaftElement_Shaft Element 35"]
+L = 0.021
 idl = 0.0
-odl = 0.12234999999999999
+odl = 0.119
 idr = 0.0
-odr = 0.12234999999999999
+odr = 0.119
 n = 22
 axial_force = 0
 torque = 0
@@ -615,16 +618,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 35"
+tag = "Shaft Element 35"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 36"]
-L = 0.01959
-idl = 0.12234999999999999
-odl = 0.127
-idr = 0.12234999999999999
-odr = 0.127
+["ShaftElement_Shaft Element 36"]
+L = 0.021
+idl = 0.119
+odl = 0.123
+idr = 0.119
+odr = 0.123
 n = 22
 axial_force = 0
 torque = 0
@@ -632,16 +635,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 36"
+tag = "Shaft Element 36"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 37"]
-L = 0.012410000000000001
+["ShaftElement_Shaft Element 37"]
+L = 0.013
 idl = 0.0
-odl = 0.12234999999999999
+odl = 0.119
 idr = 0.0
-odr = 0.12234999999999999
+odr = 0.119
 n = 23
 axial_force = 0
 torque = 0
@@ -649,16 +652,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 37"
+tag = "Shaft Element 37"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 38"]
-L = 0.012410000000000001
-idl = 0.12234999999999999
-odl = 0.127
-idr = 0.12234999999999999
-odr = 0.127
+["ShaftElement_Shaft Element 38"]
+L = 0.013
+idl = 0.119
+odl = 0.123
+idr = 0.119
+odr = 0.123
 n = 23
 axial_force = 0
 torque = 0
@@ -666,16 +669,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 38"
+tag = "Shaft Element 38"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 39"]
-L = 0.049
+["ShaftElement_Shaft Element 39"]
+L = 0.0525
 idl = 0.0
-odl = 0.11770000000000001
+odl = 0.114
 idr = 0.0
-odr = 0.11770000000000001
+odr = 0.114
 n = 24
 axial_force = 0
 torque = 0
@@ -683,16 +686,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 39"
+tag = "Shaft Element 39"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 40"]
-L = 0.019700000000000002
+["ShaftElement_Shaft Element 40"]
+L = 0.021
 idl = 0.0
-odl = 0.12234999999999999
+odl = 0.119
 idr = 0.0
-odr = 0.12234999999999999
+odr = 0.119
 n = 25
 axial_force = 0
 torque = 0
@@ -700,16 +703,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 40"
+tag = "Shaft Element 40"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 41"]
-L = 0.019700000000000002
-idl = 0.12234999999999999
-odl = 0.127
-idr = 0.12234999999999999
-odr = 0.127
+["ShaftElement_Shaft Element 41"]
+L = 0.021
+idl = 0.119
+odl = 0.123
+idr = 0.119
+odr = 0.123
 n = 25
 axial_force = 0
 torque = 0
@@ -717,16 +720,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 41"
+tag = "Shaft Element 41"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 42"]
-L = 0.0123
+["ShaftElement_Shaft Element 42"]
+L = 0.013
 idl = 0.0
-odl = 0.12234999999999999
+odl = 0.119
 idr = 0.0
-odr = 0.12234999999999999
+odr = 0.119
 n = 26
 axial_force = 0
 torque = 0
@@ -734,16 +737,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 42"
+tag = "Shaft Element 42"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 43"]
-L = 0.0123
-idl = 0.12234999999999999
-odl = 0.127
-idr = 0.12234999999999999
-odr = 0.127
+["ShaftElement_Shaft Element 43"]
+L = 0.013
+idl = 0.119
+odl = 0.123
+idr = 0.119
+odr = 0.123
 n = 26
 axial_force = 0
 torque = 0
@@ -751,16 +754,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 43"
+tag = "Shaft Element 43"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 44"]
-L = 0.0495
+["ShaftElement_Shaft Element 44"]
+L = 0.053
 idl = 0.0
-odl = 0.11770000000000001
+odl = 0.114
 idr = 0.0
-odr = 0.11770000000000001
+odr = 0.114
 n = 27
 axial_force = 0
 torque = 0
@@ -768,16 +771,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 44"
+tag = "Shaft Element 44"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 45"]
-L = 0.019829999999999997
+["ShaftElement_Shaft Element 45"]
+L = 0.02
 idl = 0.0
-odl = 0.12234999999999999
+odl = 0.119
 idr = 0.0
-odr = 0.12234999999999999
+odr = 0.119
 n = 28
 axial_force = 0
 torque = 0
@@ -785,16 +788,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 45"
+tag = "Shaft Element 45"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 46"]
-L = 0.019829999999999997
-idl = 0.12234999999999999
-odl = 0.127
-idr = 0.12234999999999999
-odr = 0.127
+["ShaftElement_Shaft Element 46"]
+L = 0.02
+idl = 0.119
+odl = 0.123
+idr = 0.119
+odr = 0.123
 n = 28
 axial_force = 0
 torque = 0
@@ -802,16 +805,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 46"
+tag = "Shaft Element 46"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 47"]
-L = 0.011670000000000002
+["ShaftElement_Shaft Element 47"]
+L = 0.012
 idl = 0.0
-odl = 0.12234999999999999
+odl = 0.119
 idr = 0.0
-odr = 0.12234999999999999
+odr = 0.119
 n = 29
 axial_force = 0
 torque = 0
@@ -819,16 +822,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 47"
+tag = "Shaft Element 47"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 48"]
-L = 0.011670000000000002
-idl = 0.12234999999999999
-odl = 0.127
-idr = 0.12234999999999999
-odr = 0.127
+["ShaftElement_Shaft Element 48"]
+L = 0.012
+idl = 0.119
+odl = 0.123
+idr = 0.119
+odr = 0.123
 n = 29
 axial_force = 0
 torque = 0
@@ -836,16 +839,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 48"
+tag = "Shaft Element 48"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 49"]
-L = 0.0495
+["ShaftElement_Shaft Element 49"]
+L = 0.0525
 idl = 0.0
-odl = 0.11770000000000001
+odl = 0.114
 idr = 0.0
-odr = 0.11770000000000001
+odr = 0.114
 n = 30
 axial_force = 0
 torque = 0
@@ -853,16 +856,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 49"
+tag = "Shaft Element 49"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 50"]
-L = 0.01998
+["ShaftElement_Shaft Element 50"]
+L = 0.0205
 idl = 0.0
-odl = 0.12234999999999999
+odl = 0.119
 idr = 0.0
-odr = 0.12234999999999999
+odr = 0.119
 n = 31
 axial_force = 0
 torque = 0
@@ -870,16 +873,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 50"
+tag = "Shaft Element 50"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 51"]
-L = 0.01998
-idl = 0.12234999999999999
-odl = 0.127
-idr = 0.12234999999999999
-odr = 0.127
+["ShaftElement_Shaft Element 51"]
+L = 0.0205
+idl = 0.119
+odl = 0.123
+idr = 0.119
+odr = 0.123
 n = 31
 axial_force = 0
 torque = 0
@@ -887,16 +890,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 51"
+tag = "Shaft Element 51"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 52"]
-L = 0.01202
+["ShaftElement_Shaft Element 52"]
+L = 0.012
 idl = 0.0
-odl = 0.12234999999999999
+odl = 0.119
 idr = 0.0
-odr = 0.12234999999999999
+odr = 0.119
 n = 32
 axial_force = 0
 torque = 0
@@ -904,16 +907,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 52"
+tag = "Shaft Element 52"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 53"]
-L = 0.01202
-idl = 0.12234999999999999
-odl = 0.127
-idr = 0.12234999999999999
-odr = 0.127
+["ShaftElement_Shaft Element 53"]
+L = 0.012
+idl = 0.119
+odl = 0.123
+idr = 0.119
+odr = 0.123
 n = 32
 axial_force = 0
 torque = 0
@@ -921,16 +924,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 53"
+tag = "Shaft Element 53"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 54"]
-L = 0.0495
+["ShaftElement_Shaft Element 54"]
+L = 0.051
 idl = 0.0
-odl = 0.11770000000000001
+odl = 0.114
 idr = 0.0
-odr = 0.11770000000000001
+odr = 0.114
 n = 33
 axial_force = 0
 torque = 0
@@ -938,16 +941,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 54"
+tag = "Shaft Element 54"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 55"]
-L = 0.020100000000000003
+["ShaftElement_Shaft Element 55"]
+L = 0.0205
 idl = 0.0
-odl = 0.12234999999999999
+odl = 0.119
 idr = 0.0
-odr = 0.12234999999999999
+odr = 0.119
 n = 34
 axial_force = 0
 torque = 0
@@ -955,16 +958,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 55"
+tag = "Shaft Element 55"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 56"]
-L = 0.020100000000000003
-idl = 0.12234999999999999
-odl = 0.127
-idr = 0.12234999999999999
-odr = 0.127
+["ShaftElement_Shaft Element 56"]
+L = 0.0205
+idl = 0.119
+odl = 0.123
+idr = 0.119
+odr = 0.123
 n = 34
 axial_force = 0
 torque = 0
@@ -972,16 +975,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 56"
+tag = "Shaft Element 56"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 57"]
-L = 0.012399999999999998
+["ShaftElement_Shaft Element 57"]
+L = 0.013
 idl = 0.0
-odl = 0.12234999999999999
+odl = 0.119
 idr = 0.0
-odr = 0.12234999999999999
+odr = 0.119
 n = 35
 axial_force = 0
 torque = 0
@@ -989,16 +992,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 57"
+tag = "Shaft Element 57"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 58"]
-L = 0.012399999999999998
-idl = 0.12234999999999999
-odl = 0.127
-idr = 0.12234999999999999
-odr = 0.127
+["ShaftElement_Shaft Element 58"]
+L = 0.013
+idl = 0.119
+odl = 0.123
+idr = 0.119
+odr = 0.123
 n = 35
 axial_force = 0
 torque = 0
@@ -1006,16 +1009,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 58"
+tag = "Shaft Element 58"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 59"]
-L = 0.056999999999999995
+["ShaftElement_Shaft Element 59"]
+L = 0.0595
 idl = 0.0
-odl = 0.11770000000000001
+odl = 0.114
 idr = 0.0
-odr = 0.11770000000000001
+odr = 0.114
 n = 36
 axial_force = 0
 torque = 0
@@ -1023,16 +1026,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 59"
+tag = "Shaft Element 59"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 60"]
-L = 0.026
+["ShaftElement_Shaft Element 60"]
+L = 0.0265
 idl = 0.0
-odl = 0.135
+odl = 0.1315
 idr = 0.0
-odr = 0.135
+odr = 0.1315
 n = 37
 axial_force = 0
 torque = 0
@@ -1040,16 +1043,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 60"
+tag = "Shaft Element 60"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 61"]
-L = 0.026
-idl = 0.135
-odl = 0.175
-idr = 0.135
-odr = 0.175
+["ShaftElement_Shaft Element 61"]
+L = 0.0265
+idl = 0.1315
+odl = 0.171
+idr = 0.1315
+odr = 0.171
 n = 37
 axial_force = 0
 torque = 0
@@ -1057,16 +1060,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 61"
+tag = "Shaft Element 61"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 62"]
-L = 0.038
+["ShaftElement_Shaft Element 62"]
+L = 0.039
 idl = 0.0
-odl = 0.122
+odl = 0.1185
 idr = 0.0
-odr = 0.122
+odr = 0.1185
 n = 38
 axial_force = 0
 torque = 0
@@ -1074,16 +1077,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 62"
+tag = "Shaft Element 62"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 63"]
-L = 0.038
-idl = 0.122
-odl = 0.13899999999999998
-idr = 0.122
-odr = 0.13899999999999998
+["ShaftElement_Shaft Element 63"]
+L = 0.039
+idl = 0.1185
+odl = 0.1335
+idr = 0.1185
+odr = 0.1335
 n = 38
 axial_force = 0
 torque = 0
@@ -1091,16 +1094,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 63"
+tag = "Shaft Element 63"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 64"]
-L = 0.038
+["ShaftElement_Shaft Element 64"]
+L = 0.039
 idl = 0.0
-odl = 0.11
+odl = 0.1055
 idr = 0.0
-odr = 0.11
+odr = 0.1055
 n = 39
 axial_force = 0
 torque = 0
@@ -1108,16 +1111,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 64"
+tag = "Shaft Element 64"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 65"]
-L = 0.038
-idl = 0.11
-odl = 0.184
-idr = 0.11
-odr = 0.184
+["ShaftElement_Shaft Element 65"]
+L = 0.039
+idl = 0.1055
+odl = 0.1785
+idr = 0.1055
+odr = 0.1785
 n = 39
 axial_force = 0
 torque = 0
@@ -1125,16 +1128,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 65"
+tag = "Shaft Element 65"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 66"]
-L = 0.06273000000000001
+["ShaftElement_Shaft Element 66"]
+L = 0.0645
 idl = 0.0
-odl = 0.10800000000000001
+odl = 0.1035
 idr = 0.0
-odr = 0.10800000000000001
+odr = 0.1035
 n = 40
 axial_force = 0
 torque = 0
@@ -1142,16 +1145,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 66"
+tag = "Shaft Element 66"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 67"]
-L = 0.06273000000000001
-idl = 0.10800000000000001
-odl = 0.184
-idr = 0.10800000000000001
-odr = 0.184
+["ShaftElement_Shaft Element 67"]
+L = 0.0645
+idl = 0.1035
+odl = 0.1785
+idr = 0.1035
+odr = 0.1785
 n = 40
 axial_force = 0
 torque = 0
@@ -1159,203 +1162,186 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 67"
+tag = "Shaft Element 67"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 68"]
-L = 0.02
-idl = 0.0
-odl = 0.10600000000000001
-idr = 0.0
-odr = 0.10600000000000001
-n = 41
-axial_force = 0
-torque = 0
-shear_effects = true
-rotary_inertia = true
-gyroscopic = true
-shear_method_calc = "cowper"
-tag = "ShaftElement 68"
-
-
-
-["ShaftElement_ShaftElement 69"]
-L = 0.02
-idl = 0.10600000000000001
-odl = 0.184
-idr = 0.10600000000000001
-odr = 0.184
-n = 41
-axial_force = 0
-torque = 0
-shear_effects = true
-rotary_inertia = true
-gyroscopic = true
-shear_method_calc = "cowper"
-tag = "ShaftElement 69"
-
-
-
-["ShaftElement_ShaftElement 70"]
-L = 0.01257
-idl = 0.0
-odl = 0.104
-idr = 0.0
-odr = 0.104
-n = 42
-axial_force = 0
-torque = 0
-shear_effects = true
-rotary_inertia = true
-gyroscopic = true
-shear_method_calc = "cowper"
-tag = "ShaftElement 70"
-
-
-
-["ShaftElement_ShaftElement 71"]
-L = 0.01257
-idl = 0.104
-odl = 0.174
-idr = 0.104
-odr = 0.174
-n = 42
-axial_force = 0
-torque = 0
-shear_effects = true
-rotary_inertia = true
-gyroscopic = true
-shear_method_calc = "cowper"
-tag = "ShaftElement 71"
-
-
-
-["ShaftElement_ShaftElement 72"]
-L = 0.0045000000000000005
-idl = 0.0
-odl = 0.0982
-idr = 0.0
-odr = 0.0982
-n = 43
-axial_force = 0
-torque = 0
-shear_effects = true
-rotary_inertia = true
-gyroscopic = true
-shear_method_calc = "cowper"
-tag = "ShaftElement 72"
-
-
-
-["ShaftElement_ShaftElement 73"]
-L = 0.0045000000000000005
-idl = 0.0982
-odl = 0.174
-idr = 0.0982
-odr = 0.174
-n = 43
-axial_force = 0
-torque = 0
-shear_effects = true
-rotary_inertia = true
-gyroscopic = true
-shear_method_calc = "cowper"
-tag = "ShaftElement 73"
-
-
-
-["ShaftElement_ShaftElement 74"]
-L = 0.0242
-idl = 0.0
-odl = 0.104
-idr = 0.0
-odr = 0.104
-n = 44
-axial_force = 0
-torque = 0
-shear_effects = true
-rotary_inertia = true
-gyroscopic = true
-shear_method_calc = "cowper"
-tag = "ShaftElement 74"
-
-
-
-["ShaftElement_ShaftElement 75"]
-L = 0.0242
-idl = 0.104
-odl = 0.174
-idr = 0.104
-odr = 0.174
-n = 44
-axial_force = 0
-torque = 0
-shear_effects = true
-rotary_inertia = true
-gyroscopic = true
-shear_method_calc = "cowper"
-tag = "ShaftElement 75"
-
-
-
-["ShaftElement_ShaftElement 76"]
-L = 0.016
-idl = 0.0
-odl = 0.085
-idr = 0.0
-odr = 0.085
-n = 45
-axial_force = 0
-torque = 0
-shear_effects = true
-rotary_inertia = true
-gyroscopic = true
-shear_method_calc = "cowper"
-tag = "ShaftElement 76"
-
-
-
-["ShaftElement_ShaftElement 77"]
-L = 0.016
-idl = 0.085
-odl = 0.13799999999999998
-idr = 0.085
-odr = 0.13799999999999998
-n = 45
-axial_force = 0
-torque = 0
-shear_effects = true
-rotary_inertia = true
-gyroscopic = true
-shear_method_calc = "cowper"
-tag = "ShaftElement 77"
-
-
-
-["ShaftElement_ShaftElement 78"]
-L = 0.025
+["ShaftElement_Shaft Element 68"]
+L = 0.0205
 idl = 0.0
 odl = 0.103
 idr = 0.0
 odr = 0.103
-n = 46
+n = 41
 axial_force = 0
 torque = 0
 shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 78"
+tag = "Shaft Element 68"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 79"]
-L = 0.025
+["ShaftElement_Shaft Element 69"]
+L = 0.0205
 idl = 0.103
-odl = 0.13799999999999998
+odl = 0.1785
 idr = 0.103
-odr = 0.13799999999999998
+odr = 0.1785
+n = 41
+axial_force = 0
+torque = 0
+shear_effects = true
+rotary_inertia = true
+gyroscopic = true
+shear_method_calc = "cowper"
+tag = "Shaft Element 69"
+alpha = 0.0
+beta = 0.0
+
+["ShaftElement_Shaft Element 70"]
+L = 0.013
+idl = 0.0
+odl = 0.1015
+idr = 0.0
+odr = 0.1015
+n = 42
+axial_force = 0
+torque = 0
+shear_effects = true
+rotary_inertia = true
+gyroscopic = true
+shear_method_calc = "cowper"
+tag = "Shaft Element 70"
+alpha = 0.0
+beta = 0.0
+
+["ShaftElement_Shaft Element 71"]
+L = 0.013
+idl = 0.1015
+odl = 0.1695
+idr = 0.1015
+odr = 0.1695
+n = 42
+axial_force = 0
+torque = 0
+shear_effects = true
+rotary_inertia = true
+gyroscopic = true
+shear_method_calc = "cowper"
+tag = "Shaft Element 71"
+alpha = 0.0
+beta = 0.0
+
+["ShaftElement_Shaft Element 72"]
+L = 0.005
+idl = 0.0
+odl = 0.095
+idr = 0.0
+odr = 0.095
+n = 43
+axial_force = 0
+torque = 0
+shear_effects = true
+rotary_inertia = true
+gyroscopic = true
+shear_method_calc = "cowper"
+tag = "Shaft Element 72"
+alpha = 0.0
+beta = 0.0
+
+["ShaftElement_Shaft Element 73"]
+L = 0.005
+idl = 0.095
+odl = 0.1695
+idr = 0.095
+odr = 0.1695
+n = 43
+axial_force = 0
+torque = 0
+shear_effects = true
+rotary_inertia = true
+gyroscopic = true
+shear_method_calc = "cowper"
+tag = "Shaft Element 73"
+alpha = 0.0
+beta = 0.0
+
+["ShaftElement_Shaft Element 74"]
+L = 0.025
+idl = 0.0
+odl = 0.1015
+idr = 0.0
+odr = 0.1015
+n = 44
+axial_force = 0
+torque = 0
+shear_effects = true
+rotary_inertia = true
+gyroscopic = true
+shear_method_calc = "cowper"
+tag = "Shaft Element 74"
+alpha = 0.0
+beta = 0.0
+
+["ShaftElement_Shaft Element 75"]
+L = 0.025
+idl = 0.1015
+odl = 0.1695
+idr = 0.1015
+odr = 0.1695
+n = 44
+axial_force = 0
+torque = 0
+shear_effects = true
+rotary_inertia = true
+gyroscopic = true
+shear_method_calc = "cowper"
+tag = "Shaft Element 75"
+alpha = 0.0
+beta = 0.0
+
+["ShaftElement_Shaft Element 76"]
+L = 0.0165
+idl = 0.0
+odl = 0.0815
+idr = 0.0
+odr = 0.0815
+n = 45
+axial_force = 0
+torque = 0
+shear_effects = true
+rotary_inertia = true
+gyroscopic = true
+shear_method_calc = "cowper"
+tag = "Shaft Element 76"
+alpha = 0.0
+beta = 0.0
+
+["ShaftElement_Shaft Element 77"]
+L = 0.0165
+idl = 0.0815
+odl = 0.1325
+idr = 0.0815
+odr = 0.1325
+n = 45
+axial_force = 0
+torque = 0
+shear_effects = true
+rotary_inertia = true
+gyroscopic = true
+shear_method_calc = "cowper"
+tag = "Shaft Element 77"
+alpha = 0.0
+beta = 0.0
+
+["ShaftElement_Shaft Element 78"]
+L = 0.026
+idl = 0.0
+odl = 0.1
+idr = 0.0
+odr = 0.1
 n = 46
 axial_force = 0
 torque = 0
@@ -1363,16 +1349,33 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 79"
+tag = "Shaft Element 78"
+alpha = 0.0
+beta = 0.0
 
+["ShaftElement_Shaft Element 79"]
+L = 0.026
+idl = 0.1
+odl = 0.1325
+idr = 0.1
+odr = 0.1325
+n = 46
+axial_force = 0
+torque = 0
+shear_effects = true
+rotary_inertia = true
+gyroscopic = true
+shear_method_calc = "cowper"
+tag = "Shaft Element 79"
+alpha = 0.0
+beta = 0.0
 
-
-["ShaftElement_ShaftElement 80"]
-L = 0.051
+["ShaftElement_Shaft Element 80"]
+L = 0.054
 idl = 0.0
-odl = 0.09000000000000001
+odl = 0.0865
 idr = 0.0
-odr = 0.09000000000000001
+odr = 0.0865
 n = 47
 axial_force = 0
 torque = 0
@@ -1380,16 +1383,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 80"
+tag = "Shaft Element 80"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 81"]
-L = 0.050499999999999996
+["ShaftElement_Shaft Element 81"]
+L = 0.0535
 idl = 0.0
-odl = 0.09000000000000001
+odl = 0.0865
 idr = 0.0
-odr = 0.09000000000000001
+odr = 0.0865
 n = 48
 axial_force = 0
 torque = 0
@@ -1397,16 +1400,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 81"
+tag = "Shaft Element 81"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 82"]
-L = 0.036375000000000005
+["ShaftElement_Shaft Element 82"]
+L = 0.038
 idl = 0.0
-odl = 0.09000000000000001
+odl = 0.0865
 idr = 0.0
-odr = 0.09000000000000001
+odr = 0.0865
 n = 49
 axial_force = 0
 torque = 0
@@ -1414,16 +1417,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 82"
+tag = "Shaft Element 82"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 83"]
-L = 0.036375000000000005
+["ShaftElement_Shaft Element 83"]
+L = 0.038
 idl = 0.0
-odl = 0.09000000000000001
+odl = 0.0865
 idr = 0.0
-odr = 0.09000000000000001
+odr = 0.0865
 n = 50
 axial_force = 0
 torque = 0
@@ -1431,16 +1434,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 83"
+tag = "Shaft Element 83"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 84"]
-L = 0.013500000000000002
+["ShaftElement_Shaft Element 84"]
+L = 0.014
 idl = 0.0
-odl = 0.09000000000000001
+odl = 0.0865
 idr = 0.0
-odr = 0.09000000000000001
+odr = 0.0865
 n = 51
 axial_force = 0
 torque = 0
@@ -1448,16 +1451,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 84"
+tag = "Shaft Element 84"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 85"]
-L = 0.034999999999999996
+["ShaftElement_Shaft Element 85"]
+L = 0.0365
 idl = 0.0
-odl = 0.09000000000000001
+odl = 0.0865
 idr = 0.0
-odr = 0.09000000000000001
+odr = 0.0865
 n = 52
 axial_force = 0
 torque = 0
@@ -1465,16 +1468,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 85"
+tag = "Shaft Element 85"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 86"]
-L = 0.034999999999999996
-idl = 0.09000000000000001
-odl = 0.245
-idr = 0.09000000000000001
-odr = 0.245
+["ShaftElement_Shaft Element 86"]
+L = 0.0365
+idl = 0.0865
+odl = 0.236
+idr = 0.0865
+odr = 0.236
 n = 52
 axial_force = 0
 torque = 0
@@ -1482,16 +1485,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 86"
+tag = "Shaft Element 86"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 87"]
-L = 0.024
+["ShaftElement_Shaft Element 87"]
+L = 0.0255
 idl = 0.0
-odl = 0.0872
+odl = 0.084
 idr = 0.0
-odr = 0.0872
+odr = 0.084
 n = 53
 axial_force = 0
 torque = 0
@@ -1499,16 +1502,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 87"
+tag = "Shaft Element 87"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 88"]
-L = 0.024
-idl = 0.0872
-odl = 0.112
-idr = 0.0872
-odr = 0.112
+["ShaftElement_Shaft Element 88"]
+L = 0.0255
+idl = 0.084
+odl = 0.1075
+idr = 0.084
+odr = 0.1075
 n = 53
 axial_force = 0
 torque = 0
@@ -1516,16 +1519,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 88"
+tag = "Shaft Element 88"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 89"]
-L = 0.032
+["ShaftElement_Shaft Element 89"]
+L = 0.0325
 idl = 0.0
-odl = 0.085
+odl = 0.0815
 idr = 0.0
-odr = 0.085
+odr = 0.0815
 n = 54
 axial_force = 0
 torque = 0
@@ -1533,16 +1536,16 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 89"
+tag = "Shaft Element 89"
+alpha = 0.0
+beta = 0.0
 
-
-
-["ShaftElement_ShaftElement 90"]
-L = 0.032
-idl = 0.085
-odl = 0.113
-idr = 0.085
-odr = 0.113
+["ShaftElement_Shaft Element 90"]
+L = 0.0325
+idl = 0.0815
+odl = 0.109
+idr = 0.0815
+odr = 0.109
 n = 54
 axial_force = 0
 torque = 0
@@ -1550,1014 +1553,1028 @@ shear_effects = true
 rotary_inertia = true
 gyroscopic = true
 shear_method_calc = "cowper"
-tag = "ShaftElement 90"
-
-
+tag = "Shaft Element 90"
+alpha = 0.0
+beta = 0.0
 
 ["DiskElement_Disk 0"]
 n = 3
-m = 15.119982018530925
+m = 13.91
 Id = 0.0
 Ip = 0.0
 tag = "Disk 0"
-scale_factor = 1
+scale_factor = 1.0
 color = "Firebrick"
 
 ["DiskElement_Disk 1"]
 n = 20
-m = 6.909991782278354
-Id = 0.02499983979288977
-Ip = 0.046999698810632776
+m = 6.71
+Id = 0.0226
+Ip = 0.0425
 tag = "Disk 1"
-scale_factor = 1
+scale_factor = 1.0
 color = "Firebrick"
 
 ["DiskElement_Disk 2"]
 n = 23
-m = 6.929991758493341
-Id = 0.02499983979288977
-Ip = 0.046999698810632776
+m = 6.9
+Id = 0.0232
+Ip = 0.0436
 tag = "Disk 2"
-scale_factor = 1
+scale_factor = 1.0
 color = "Firebrick"
 
 ["DiskElement_Disk 3"]
 n = 26
-m = 6.94999173470833
-Id = 0.02499983979288977
-Ip = 0.047999692402348366
+m = 6.76
+Id = 0.0226
+Ip = 0.0435
 tag = "Disk 3"
-scale_factor = 1
+scale_factor = 1.0
 color = "Firebrick"
 
 ["DiskElement_Disk 4"]
 n = 29
-m = 6.979991699030812
-Id = 0.02499983979288977
-Ip = 0.047999692402348366
+m = 6.79
+Id = 0.0227
+Ip = 0.0435
 tag = "Disk 4"
-scale_factor = 1
+scale_factor = 1.0
 color = "Firebrick"
 
 ["DiskElement_Disk 5"]
 n = 32
-m = 6.939991746600836
-Id = 0.02499983979288977
-Ip = 0.047999692402348366
+m = 6.85
+Id = 0.023
+Ip = 0.0441
 tag = "Disk 5"
-scale_factor = 1
+scale_factor = 1.0
 color = "Firebrick"
 
 ["DiskElement_Disk 6"]
 n = 35
-m = 6.959991722815824
-Id = 0.02499983979288977
-Ip = 0.047999692402348366
+m = 6.94
+Id = 0.0232
+Ip = 0.0445
 tag = "Disk 6"
-scale_factor = 1
+scale_factor = 1.0
 color = "Firebrick"
 
 ["BearingElement_Bearing 0"]
 color = "#355d7a"
-cxx = [ 102506.0, 127450.0, 144989.0, 153563.0, 155122.0, 150835.0, 145086.0, 141871.0, 140702.0,]
-cxy = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
-cyx = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
-cyy = [ 102506.0, 127450.0, 144989.0, 153563.0, 155122.0, 150835.0, 145086.0, 141871.0, 140702.0,]
-czz = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-speed = [ 314.1592653591, 418.8790204788, 523.5987755985, 628.3185307182, 733.0382858378999, 837.7580409576, 942.4777960773, 1047.197551197, 1151.9173063167,]
-kxx = [ 13798100.0, 29951900.0, 53565699.99999999, 85144200.0, 120733000.0, 159519000.0, 197885000.0, 235239999.99999997, 271250000.0,]
-kxy = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
-kyx = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
-kyy = [ 13798100.0, 29951900.0, 53565699.99999999, 85144200.0, 120733000.0, 159519000.0, 197885000.0, 235239999.99999997, 271250000.0,]
-kzz = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-mxx = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-mxy = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-myx = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-myy = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-mzz = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
+cxx = [ 166440.5442, 155267.4521, 145871.267, 137717.2214, 130547.9491, 124075.2613, 118232.8899, 112923.7448,]
+cxy = [ -485.467, -272.9317, -165.9166, -104.7897, -66.1586, -39.4649, -19.6585, -4.5666,]
+cyx = [ -523.1319, -319.273, -220.7032, -167.8121, -137.2194, -118.3932, -106.2985, -98.7778,]
+cyy = [ 175702.6523, 161539.7949, 150463.7931, 141254.083, 133372.815, 126400.8055, 120188.5663, 114600.4792,]
+czz = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+interpolation = "pchip"
+kxx = [ 98090186.6138, 114824361.305, 130099134.0274, 144065113.8593, 156934659.6011, 168682167.7094, 179510960.44, 189541525.0556,]
+kxy = [ -497281.0548, -393119.8162, -339141.5225, -312333.1066, -302272.4202, -303356.8055, -312815.0557, -328809.7398,]
+kyx = [ -447685.4853, -315812.1763, -228067.3273, -161422.8101, -105473.0436, -54662.0589, -6203.2867, 41742.8121,]
+kyy = [ 105631183.1649, 121315612.5803, 135887040.907, 149343962.0541, 161814393.7384, 173260683.6901, 183863562.8033, 193683274.7092,]
+kzz = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+mxx = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+mxy = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+myx = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+myy = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+mzz = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
 n = 7
-scale_factor = 0.5
+scale_factor = 1
+speed = [ 418.87902047863906, 523.5987755982989, 628.3185307179587, 733.0382858376183, 837.7580409572781, 942.4777960769379, 1047.1975511965977, 1151.9173063162575,]
 tag = "Bearing 0"
+
+["SealElement_Seal 0"]
+color = "#77ACA2"
+cxx = [ 68405.5496, 68183.091, 67821.2497, 67333.8715, 66735.7257, 66040.658,]
+cxy = [ -317.7373, -640.3022, -972.6332, -1319.7978, -1687.1775, -2079.8492,]
+cyx = [ -317.7373, -640.3022, -972.6332, -1319.7978, -1687.1775, -2079.8492,]
+cyy = [ 68405.5496, 68183.091, 67821.2497, 67333.8715, 66735.7257, 66040.658,]
+czz = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+interpolation = "pchip"
+kxx = [ 134121288.8418, 134250517.8882, 134444361.4577, 134656666.3196, 134841279.243, 134961277.6432,]
+kxy = [ 1349797.3894, 2711779.2317, 4101637.6254, 5541618.4278, 7060613.5615, 8693145.643,]
+kyx = [ 1349797.3894, 2711779.2317, 4101637.6254, 5541618.4278, 7060613.5615, 8693145.643,]
+kyy = [ 134121288.8418, 134250517.8882, 134444361.4577, 134656666.3196, 134841279.243, 134961277.6432,]
+kzz = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+mxx = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+mxy = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+myx = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+myy = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+mzz = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+n = 18
+scale_factor = 0.5
+speed = [ 209.43951023931953, 418.87902047863906, 628.3185307179587, 837.7580409572781, 1047.1975511965977, 1256.6370614359173,]
+tag = "Seal 0"
+
+["SealElement_Seal 1"]
+color = "#77ACA2"
+cxx = [ 2154.8463, 2173.6395, 2188.4074, 2197.9477, 2201.4654, 2198.4846, 2188.7802, 2172.324, 1769.0642,]
+cxy = [ 194.6184, 187.561, 165.9194, 132.3748, 89.2681, 38.6546, -17.6591, -78.0877, -631.2858,]
+cyx = [ -194.6184, -187.561, -165.9194, -132.3748, -89.2681, -38.6546, 17.6591, 78.0877, 631.2858,]
+cyy = [ 2154.8463, 2173.6395, 2188.4074, 2197.9477, 2201.4654, 2198.4846, 2188.7802, 2172.324, 1769.0642,]
+czz = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+interpolation = "pchip"
+kxx = [ 280511.1081, 321237.4842, 371084.0392, 430967.0507, 501453.5975, 582860.5161, 675321.1925, 778832.5787, 2171533.728,]
+kxy = [ 1168596.2889, 1525849.3255, 1898972.8331, 2284799.8206, 2680684.1701, 3084380.0191, 3493960.1343, 3907757.1177, 7631648.419,]
+kyx = [ -1168596.2889, -1525849.3255, -1898972.8331, -2284799.8206, -2680684.1701, -3084380.0191, -3493960.1343, -3907757.1177, -7631648.419,]
+kyy = [ 280511.1081, 321237.4842, 371084.0392, 430967.0507, 501453.5975, 582860.5161, 675321.1925, 778832.5787, 2171533.728,]
+kzz = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+mxx = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+mxy = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+myx = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+myy = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+mzz = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+n = 21
+scale_factor = 0.5
+speed = [ 418.8790204788, 523.5987755985, 628.3185307182, 733.0382858378999, 837.7580409576, 942.4777960773, 1047.197551197, 1151.9173063167, 2094.395102394,]
+tag = "Seal 1"
 
 ["SealElement_Seal 2"]
 color = "#77ACA2"
-cxx = [ 212416.0, 265033.0, 301476.0, 318820.0, 319599.0, 311804.0, 301670.0, 293875.0, 289978.0,]
-cxy = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
-cyx = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
-cyy = [ 212416.0, 265033.0, 301476.0, 318820.0, 319599.0, 311804.0, 301670.0, 293875.0, 289978.0,]
-czz = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-speed = [ 314.1592653591, 418.8790204788, 523.5987755985, 628.3185307182, 733.0382858378999, 837.7580409576, 942.4777960773, 1047.197551197, 1151.9173063167,]
-kxx = [ 9740880.0, 21497099.999999996, 38963500.0, 61804200.0, 88339700.00000001, 115547000.0, 144098000.00000003, 171305000.0, 197673000.0,]
-kxy = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
-kyx = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
-kyy = [ 9740880.0, 21497099.999999996, 38963500.0, 61804200.0, 88339700.00000001, 115547000.0, 144098000.00000003, 171305000.0, 197673000.0,]
-kzz = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-mxx = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-mxy = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-myx = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-myy = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-mzz = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-n = 18
-scale_factor = 0.3
-tag = "Seal 2"
-
-["SealElement_Seal 8"]
-color = "#77ACA2"
-cxx = [ 2291.12243345773, 2311.1040718269, 2326.80597091329, 2336.94965058397, 2340.6898099477, 2337.52046884341, 2327.20232641125, 2309.70538908619, 1880.94276136733,]
-cxy = [ 206.926347739178, 199.422636876644, 176.412369573979, 140.746432758469, 94.9135905607814, 41.0991829034798, -18.775866654557, -83.0260630423863, -671.209405124406,]
-cyx = [ -206.926347739178, -199.422636876644, -176.412369573979, -140.746432758469, -94.9135905607814, -41.0991829034798, 18.775866654557, 83.0260630423863, 671.209405124406,]
-cyy = [ 2291.12243345773, 2311.1040718269, 2326.80597091329, 2336.94965058397, 2340.6898099477, 2337.52046884341, 2327.20232641125, 2309.70538908619, 1880.94276136733,]
-czz = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-speed = [ 418.8790204788, 523.5987755985, 628.3185307182, 733.0382858378999, 837.7580409576, 942.4777960773, 1047.197551197, 1151.9173063167, 2094.395102394,]
-kxx = [ 298251.102793201, 341553.083464932, 394552.018603807, 458222.132531081, 533166.367271116, 619721.596416625, 718029.641688798, 828087.262141986, 2308865.1768009,]
-kxy = [ 1242500.2855946, 1622346.60563776, 2019067.07204817, 2429294.4077584, 2850215.15001386, 3279441.40422489, 3714924.05537521, 4154890.25666796, 8114286.71318661,]
-kyx = [ -1242500.2855946, -1622346.60563776, -2019067.07204817, -2429294.4077584, -2850215.15001386, -3279441.40422489, -3714924.05537521, -4154890.25666796, -8114286.71318661,]
-kyy = [ 298251.102793201, 341553.083464932, 394552.018603807, 458222.132531081, 533166.367271116, 619721.596416625, 718029.641688798, 828087.262141986, 2308865.1768009,]
-kzz = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-mxx = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-mxy = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-myx = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-myy = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-mzz = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-n = 21
-scale_factor = 0.3
-tag = "Seal 8"
-
-["SealElement_Seal 13"]
-color = "#77ACA2"
-cxx = [ 844.704816544965, 845.510119153807, 843.879821457693, 839.45090843711, 832.029915317881, 821.555183438786, 808.067199559831, 791.684638045522, 551.77571052815,]
-cxy = [ 41.8735664570863, 33.9385369802047, 21.4702902513189, 5.51035377944818, -13.0248291697293, -33.3307978115303, -54.7060168965144, -76.544502427302, -232.737765811523,]
-cyx = [ -41.8735664570863, -33.9385369802047, -21.4702902513189, -5.51035377944818, 13.0248291697293, 33.3307978115303, 54.7060168965144, 76.544502427302, 232.737765811523,]
-cyy = [ 844.704816544965, 845.510119153807, 843.879821457693, 839.45090843711, 832.029915317881, 821.555183438786, 808.067199559831, 791.684638045522, 551.77571052815,]
-czz = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-speed = [ 418.8790204788, 523.5987755985, 628.3185307182, 733.0382858378999, 837.7580409576, 942.4777960773, 1047.197551197, 1151.9173063167, 2094.395102394,]
-kxx = [ 212004.230533674, 228104.197005656, 247866.752578785, 271587.121157548, 299441.94589272, 331521.70676384, 367852.540447444, 408411.467916301, 946059.583744362,]
-kxy = [ 438140.709696468, 570924.881967202, 709603.313478691, 853069.011373774, 1000381.95159242, 1150732.27599602, 1303415.03798806, 1457811.94108399, 2852208.05920669,]
-kyx = [ -438140.709696468, -570924.881967202, -709603.313478691, -853069.011373774, -1000381.95159242, -1150732.27599602, -1303415.03798806, -1457811.94108399, -2852208.05920669,]
-kyy = [ 212004.230533674, 228104.197005656, 247866.752578785, 271587.121157548, 299441.94589272, 331521.70676384, 367852.540447444, 408411.467916301, 946059.583744362,]
-kzz = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-mxx = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-mxy = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-myx = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-myy = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-mzz = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
+cxx = [ 746.2745, 746.9859, 745.5456, 741.6328, 735.0765, 725.8224, 713.9061, 699.4325, 487.4793,]
+cxy = [ 36.9942, 29.9838, 18.9684, 4.8683, -11.5071, -29.4469, -48.3313, -67.6251, -205.6177,]
+cyx = [ -36.9942, -29.9838, -18.9684, -4.8683, 11.5071, 29.4469, 48.3313, 67.6251, 205.6177,]
+cyy = [ 746.2745, 746.9859, 745.5456, 741.6328, 735.0765, 725.8224, 713.9061, 699.4325, 487.4793,]
+czz = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+interpolation = "pchip"
+kxx = [ 187300.1576, 201524.0542, 218983.7519, 239940.0732, 264549.0777, 292890.7021, 324988.0374, 360820.7823, 835818.7415,]
+kxy = [ 387085.7849, 504397.1062, 626915.8504, 753664.0184, 883811.1237, 1016641.678, 1151532.8796, 1287938.4797, 2519850.7488,]
+kyx = [ -387085.7849, -504397.1062, -626915.8504, -753664.0184, -883811.1237, -1016641.678, -1151532.8796, -1287938.4797, -2519850.7488,]
+kyy = [ 187300.1576, 201524.0542, 218983.7519, 239940.0732, 264549.0777, 292890.7021, 324988.0374, 360820.7823, 835818.7415,]
+kzz = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+mxx = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+mxy = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+myx = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+myy = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+mzz = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
 n = 22
-scale_factor = 0.3
-tag = "Seal 13"
-
-["SealElement_Seal 7"]
-color = "#77ACA2"
-cxx = [ 2237.27062169521, 2262.54451706828, 2284.71266328052, 2302.40907831969, 2314.67941113008, 2320.89559745058, 2320.68980309972, 2313.90150206837, 1988.68376388278,]
-cxy = [ 228.5066838492, 228.216282636906, 212.358685620386, 183.537798746503, 144.04734233591, 95.9190515734874, 40.9558585213239, -19.2447358005768, -614.227168738531,]
-cyx = [ -228.5066838492, -228.216282636906, -212.358685620386, -183.537798746503, -144.04734233591, -95.9190515734874, -40.9558585213239, 19.2447358005768, 614.227168738531,]
-cyy = [ 2237.27062169521, 2262.54451706828, 2284.71266328052, 2302.40907831969, 2314.67941113008, 2320.89559745058, 2320.68980309972, 2313.90150206837, 1988.68376388278,]
-czz = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
+scale_factor = 0.5
 speed = [ 418.8790204788, 523.5987755985, 628.3185307182, 733.0382858378999, 837.7580409576, 942.4777960773, 1047.197551197, 1151.9173063167, 2094.395102394,]
-kxx = [ 252811.630578299, 292779.969788229, 341775.407113344, 400829.381676715, 470611.220647497, 551527.947163869, 643791.437001381, 747466.3932106181, 2165015.37392413,]
-kxy = [ 1196154.91738691, 1560429.00166038, 1940945.78963764, 2334594.59072454, 2738754.90307113, 3151186.98050217, 3569954.75170215, 3993371.59388281, 7817904.77114129,]
-kyx = [ -1196154.91738691, -1560429.00166038, -1940945.78963764, -2334594.59072454, -2738754.90307113, -3151186.98050217, -3569954.75170215, -3993371.59388281, -7817904.77114129,]
-kyy = [ 252811.630578299, 292779.969788229, 341775.407113344, 400829.381676715, 470611.220647497, 551527.947163869, 643791.437001381, 747466.3932106181, 2165015.37392413,]
-kzz = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-mxx = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-mxy = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-myx = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-myy = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-mzz = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-n = 24
-scale_factor = 0.3
-tag = "Seal 7"
-
-["SealElement_Seal 12"]
-color = "#77ACA2"
-cxx = [ 828.076214508057, 831.698341316398, 833.420964081016, 832.833200737184, 829.68538941482, 823.855212022527, 815.320735537458, 804.138365393787, 613.175254017714,]
-cxy = [ 56.639482846621, 52.6803994392273, 44.0249331997799, 31.6254311839271, 16.3284602522176, -1.11491725585648, -20.0424044945381, -39.8750850779251, -198.229669313471,]
-cyx = [ -56.639482846621, -52.6803994392273, -44.0249331997799, -31.6254311839271, -16.3284602522176, 1.11491725585648, 20.0424044945381, 39.8750850779251, 198.229669313471,]
-cyy = [ 828.076214508057, 831.698341316398, 833.420964081016, 832.833200737184, 829.68538941482, 823.855212022527, 815.320735537458, 804.138365393787, 613.175254017714,]
-czz = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-speed = [ 418.8790204788, 523.5987755985, 628.3185307182, 733.0382858378999, 837.7580409576, 942.4777960773, 1047.197551197, 1151.9173063167, 2094.395102394,]
-kxx = [ 180839.024474825, 195355.027554806, 213179.711736108, 234627.751980985, 259899.30178444, 289110.53399467, 322314.274331595, 359514.507333211, 860767.574416809,]
-kxy = [ 424916.756322156, 553193.12733327, 687168.6168166, 825821.555318317, 968280.211140864, 1113789.96941796, 1261690.85775216, 1411401.36210057, 2771413.59584677,]
-kyx = [ -424916.756322156, -553193.12733327, -687168.6168166, -825821.555318317, -968280.211140864, -1113789.96941796, -1261690.85775216, -1411401.36210057, -2771413.59584677,]
-kyy = [ 180839.024474825, 195355.027554806, 213179.711736108, 234627.751980985, 259899.30178444, 289110.53399467, 322314.274331595, 359514.507333211, 860767.574416809,]
-kzz = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-mxx = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-mxy = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-myx = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-myy = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-mzz = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-n = 25
-scale_factor = 0.3
-tag = "Seal 12"
-
-["SealElement_Seal 6"]
-color = "#77ACA2"
-cxx = [ 2178.21606571578, 2209.14806245493, 2238.23710142438, 2264.02667383226, 2285.44579131069, 2301.73368540227, 2312.38047214785, 2317.07943041658, 2101.22864360535,]
-cxy = [ 250.258153865912, 257.227741725991, 248.537158173789, 226.525141043403, 193.271057301904, 150.636859160072, 100.293246923114, 43.7381624842223, -567.222123721818,]
-cyx = [ -250.258153865912, -257.227741725991, -248.537158173789, -226.525141043403, -193.271057301904, -150.636859160072, -100.293246923114, -43.7381624842223, 567.222123721818,]
-cyy = [ 2178.21606571578, 2209.14806245493, 2238.23710142438, 2264.02667383226, 2285.44579131069, 2301.73368540227, 2312.38047214785, 2317.07943041658, 2101.22864360535,]
-czz = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-speed = [ 418.8790204788, 523.5987755985, 628.3185307182, 733.0382858378999, 837.7580409576, 942.4777960773, 1047.197551197, 1151.9173063167, 2094.395102394,]
-kxx = [ 205852.667541406, 242366.978579705, 287218.2673746, 341497.431815182, 405944.815928242, 481042.985669013, 567080.222997083, 664196.067389568, 2018342.16604649,]
-kxy = [ 1147712.75186238, 1495785.8148233, 1859450.35261072, 2235861.74214649, 2622603.49661036, 3017591.3675152, 3419008.72231515, 3825260.09699669, 7510461.330822,]
-kyx = [ -1147712.75186238, -1495785.8148233, -1859450.35261072, -2235861.74214649, -2622603.49661036, -3017591.3675152, -3419008.72231515, -3825260.09699669, -7510461.330822,]
-kyy = [ 205852.667541406, 242366.978579705, 287218.2673746, 341497.431815182, 405944.815928242, 481042.985669013, 567080.222997083, 664196.067389568, 2018342.16604649,]
-kzz = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-mxx = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-mxy = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-myx = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-myy = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-mzz = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-n = 27
-scale_factor = 0.3
-tag = "Seal 6"
-
-["SealElement_Seal 11"]
-color = "#77ACA2"
-cxx = [ 805.360714967088, 810.807324312486, 814.773343900831, 816.814170445135, 816.638103264431, 814.07641475685, 809.059159293008, 801.595062580611, 646.55136163657,]
-cxy = [ 63.6178915228003, 62.1369490163509, 55.9666789064099, 45.9704212310253, 32.9255972926375, 17.5307496744211, 0.409583747581219, -17.8859321380999, -175.328107698497,]
-cyx = [ -63.6178915228003, -62.1369490163509, -55.9666789064099, -45.9704212310253, -32.9255972926375, -17.5307496744211, -0.409583747581219, 17.8859321380999, 175.328107698497,]
-cyy = [ 805.360714967088, 810.807324312486, 814.773343900831, 816.814170445135, 816.638103264431, 814.07641475685, 809.059159293008, 801.595062580611, 646.55136163657,]
-czz = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-speed = [ 418.8790204788, 523.5987755985, 628.3185307182, 733.0382858378999, 837.7580409576, 942.4777960773, 1047.197551197, 1151.9173063167, 2094.395102394,]
-kxx = [ 162079.699898803, 175413.041171466, 191782.836082965, 211515.373531839, 234827.564468616, 261855.220747408, 292672.259417268, 327304.284853313, 800601.079718764,]
-kxy = [ 406978.422739746, 529155.447676398, 656706.644009378, 788702.816695279, 924345.338451978, 1062937.9131192, 1203867.36017507, 1346589.781951, 2646350.0643761,]
-kyx = [ -406978.422739746, -529155.447676398, -656706.644009378, -788702.816695279, -924345.338451978, -1062937.9131192, -1203867.36017507, -1346589.781951, -2646350.0643761,]
-kyy = [ 162079.699898803, 175413.041171466, 191782.836082965, 211515.373531839, 234827.564468616, 261855.220747408, 292672.259417268, 327304.284853313, 800601.079718764,]
-kzz = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-mxx = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-mxy = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-myx = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-myy = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-mzz = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-n = 28
-scale_factor = 0.3
-tag = "Seal 11"
-
-["SealElement_Seal 5"]
-color = "#77ACA2"
-cxx = [ 2114.3239242484, 2151.86018396449, 2189.00202211794, 2224.19825749469, 2256.25109134112, 2284.25181009551, 2307.52812156361, 2325.60282589679, 2236.14986468286,]
-cxy = [ 276.125157962378, 291.232201189786, 290.488133219166, 275.939934277962, 249.425082886449, 212.610147360682, 167.009160238909, 113.999361057078, -525.407830501088,]
-cyx = [ -276.125157962378, -291.232201189786, -290.488133219166, -275.939934277962, -249.425082886449, -212.610147360682, -167.009160238909, -113.999361057078, 525.407830501088,]
-cyy = [ 2114.3239242484, 2151.86018396449, 2189.00202211794, 2224.19825749469, 2256.25109134112, 2284.25181009551, 2307.52812156361, 2325.60282589679, 2236.14986468286,]
-czz = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-speed = [ 418.8790204788, 523.5987755985, 628.3185307182, 733.0382858378999, 837.7580409576, 942.4777960773, 1047.197551197, 1151.9173063167, 2094.395102394,]
-kxx = [ 152572.564780079, 185205.802529499, 225423.727870828, 274388.567172405, 332925.027240472, 401604.961161511, 480807.601610557, 570761.855747787, 1858564.83662114,]
-kxy = [ 1098257.30952438, 1429977.12678861, 1776691.37706298, 2135830.7407142, 2505191.59642991, 2882850.96447124, 3267117.0862745, 3656488.87697799, 7208606.38767389,]
-kyx = [ -1098257.30952438, -1429977.12678861, -1776691.37706298, -2135830.7407142, -2505191.59642991, -2882850.96447124, -3267117.0862745, -3656488.87697799, -7208606.38767389,]
-kyy = [ 152572.564780079, 185205.802529499, 225423.727870828, 274388.567172405, 332925.027240472, 401604.961161511, 480807.601610557, 570761.855747787, 1858564.83662114,]
-kzz = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-mxx = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-mxy = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-myx = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-myy = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-mzz = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-n = 30
-scale_factor = 0.3
-tag = "Seal 5"
-
-["SealElement_Seal 10"]
-color = "#77ACA2"
-cxx = [ 780.119253662987, 787.684355944009, 794.242332296682, 799.312347070576, 802.55627409239, 803.753118817436, 802.777721491268, 799.582973527294, 685.153719729093,]
-cxy = [ 71.9405192865185, 73.2172125105903, 69.7772091351367, 62.3870346967872, 51.7470502670171, 38.4965142422057, 23.2144639309886, 6.42115937619801, -153.589719559604,]
-cyx = [ -71.9405192865185, -73.2172125105903, -69.7772091351367, -62.3870346967872, -51.7470502670171, -38.4965142422057, -23.2144639309886, -6.42115937619801, 153.589719559604,]
-cyy = [ 780.119253662987, 787.684355944009, 794.242332296682, 799.312347070576, 802.55627409239, 803.753118817436, 802.777721491268, 799.582973527294, 685.153719729093,]
-czz = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-speed = [ 418.8790204788, 523.5987755985, 628.3185307182, 733.0382858378999, 837.7580409576, 942.4777960773, 1047.197551197, 1151.9173063167, 2094.395102394,]
-kxx = [ 140049.817601769, 152063.602437156, 166813.832185813, 184639.367211113, 205775.545611855, 230379.77415706, 258549.549695261, 290334.891898862, 732939.091902253,]
-kxy = [ 388401.623689309, 504334.860616662, 625326.20214955, 750542.069249618, 879260.768917699, 1010847.15033575, 1144738.0717901, 1280430.08808057, 2520968.98404806,]
-kyx = [ -388401.623689309, -504334.860616662, -625326.20214955, -750542.069249618, -879260.768917699, -1010847.15033575, -1144738.0717901, -1280430.08808057, -2520968.98404806,]
-kyy = [ 140049.817601769, 152063.602437156, 166813.832185813, 184639.367211113, 205775.545611855, 230379.77415706, 258549.549695261, 290334.891898862, 732939.091902253,]
-kzz = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-mxx = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-mxy = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-myx = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-myy = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-mzz = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-n = 31
-scale_factor = 0.3
-tag = "Seal 10"
-
-["SealElement_Seal 4"]
-color = "#77ACA2"
-cxx = [ 2042.80354037266, 2087.34323361495, 2133.05245009602, 2178.28290613318, 2221.70220592325, 2262.23898170276, 2299.0394215401, 2331.43213723079, 2373.99452038876,]
-cxy = [ 300.719623259512, 323.676427884606, 330.553298935302, 323.075231492631, 302.810062114474, 271.199333765612, 229.5757085895, 179.173983835812, -506.196065119599,]
-cyx = [ -300.719623259512, -323.676427884606, -330.553298935302, -323.075231492631, -302.810062114474, -271.199333765612, -229.5757085895, -179.173983835812, 506.196065119599,]
-cyy = [ 2042.80354037266, 2087.34323361495, 2133.05245009602, 2178.28290613318, 2221.70220592325, 2262.23898170276, 2299.0394215401, 2331.43213723079, 2373.99452038876,]
-czz = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-speed = [ 418.8790204788, 523.5987755985, 628.3185307182, 733.0382858378999, 837.7580409576, 942.4777960773, 1047.197551197, 1151.9173063167, 2094.395102394,]
-kxx = [ 99565.3280288305, 128280.786974181, 163838.557867115, 207478.594722917, 260118.020975725, 322429.13160572, 394893.509217979, 477841.629547027, 1705205.47349929,]
-kxy = [ 1045693.89578556, 1360157.4064092, 1689000.07378138, 2029942.27233339, 2381001.43932843, 2740426.4413257, 3106654.74733322, 3478282.16261192, 6889822.23965831,]
-kyx = [ -1045693.89578556, -1360157.4064092, -1689000.07378138, -2029942.27233339, -2381001.43932843, -2740426.4413257, -3106654.74733322, -3478282.16261192, -6889822.23965831,]
-kyy = [ 99565.3280288305, 128280.786974181, 163838.557867115, 207478.594722917, 260118.020975725, 322429.13160572, 394893.509217979, 477841.629547027, 1705205.47349929,]
-kzz = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-mxx = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-mxy = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-myx = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-myy = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-mzz = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-n = 33
-scale_factor = 0.3
-tag = "Seal 4"
-
-["SealElement_Seal 9"]
-color = "#77ACA2"
-cxx = [ 750.949959062333, 760.710326884617, 769.964578233571, 778.19629293504, 785.019902997508, 790.15932800096, 793.430153680943, 794.724300760962, 722.544808720561,]
-cxy = [ 79.8543326386884, 83.81589186923, 83.0331567785093, 78.1681935600569, 69.837391650402, 58.613348963646, 45.0245327033877, 29.554474250066, -136.376148153058,]
-cyx = [ -79.8543326386884, -83.81589186923, -83.0331567785093, -78.1681935600569, -69.837391650402, -58.613348963646, -45.0245327033877, -29.554474250066, 136.376148153058,]
-cyy = [ 750.949959062333, 760.710326884617, 769.964578233571, 778.19629293504, 785.019902997508, 790.15932800096, 793.430153680943, 794.724300760962, 722.544808720561,]
-czz = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-speed = [ 418.8790204788, 523.5987755985, 628.3185307182, 733.0382858378999, 837.7580409576, 942.4777960773, 1047.197551197, 1151.9173063167, 2094.395102394,]
-kxx = [ 117358.92657379, 128015.751147855, 141102.498057583, 156969.989754583, 175871.907235927, 197988.188305016, 223441.071331206, 252306.609321979, 663772.402239837,]
-kxy = [ 368248.874078639, 477487.487203766, 591452.926163509, 709411.473344204, 830721.103799336, 954812.05503821, 1081173.83156822, 1209345.94547456, 2386511.8788015,]
-kyx = [ -368248.874078639, -477487.487203766, -591452.926163509, -709411.473344204, -830721.103799336, -954812.05503821, -1081173.83156822, -1209345.94547456, -2386511.8788015,]
-kyy = [ 117358.92657379, 128015.751147855, 141102.498057583, 156969.989754583, 175871.907235927, 197988.188305016, 223441.071331206, 252306.609321979, 663772.402239837,]
-kzz = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-mxx = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-mxy = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-myx = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-myy = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-mzz = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-n = 34
-scale_factor = 0.3
-tag = "Seal 9"
+tag = "Seal 2"
 
 ["SealElement_Seal 3"]
 color = "#77ACA2"
-cxx = [ 1963.22827166158, 2015.78518072991, 2071.30777883873, 2128.0501207825, 2184.53471897006, 2239.50807488773, 2291.90587538764, 2340.82530827392, 2532.59539821632,]
-cxy = [ 327.498095371777, 358.733673950888, 373.552265248427, 373.313275236128, 359.267683770068, 332.586462550931, 294.376327892065, 245.689271656646, -511.811286666433,]
-cyx = [ -327.498095371777, -358.733673950888, -373.552265248427, -373.313275236128, -359.267683770068, -332.586462550931, -294.376327892065, -245.689271656646, 511.811286666433,]
-cyy = [ 1963.22827166158, 2015.78518072991, 2071.30777883873, 2128.0501207825, 2184.53471897006, 2239.50807488773, 2291.90587538764, 2340.82530827392, 2532.59539821632,]
-czz = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
+cxx = [ 2002.0402, 2024.6568, 2044.4941, 2060.3299, 2071.3101, 2076.8727, 2076.6886, 2070.614, 1779.5902,]
+cxy = [ 204.4811, 204.2212, 190.0309, 164.2403, 128.902, 85.834, 36.6497, -17.2213, -549.6463,]
+cyx = [ -204.4811, -204.2212, -190.0309, -164.2403, -128.902, -85.834, -36.6497, 17.2213, 549.6463,]
+cyy = [ 2002.0402, 2024.6568, 2044.4941, 2060.3299, 2071.3101, 2076.8727, 2076.6886, 2070.614, 1779.5902,]
+czz = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+interpolation = "pchip"
+kxx = [ 226230.5898, 261996.5905, 305840.565, 358685.5051, 421130.364, 493539.3695, 576102.1206, 668876.5172, 1937382.0098,]
+kxy = [ 1070389.174, 1396362.8673, 1736871.4791, 2089131.382, 2450797.5981, 2819865.872, 3194603.6942, 3573501.7762, 6995917.0914,]
+kyx = [ -1070389.174, -1396362.8673, -1736871.4791, -2089131.382, -2450797.5981, -2819865.872, -3194603.6942, -3573501.7762, -6995917.0914,]
+kyy = [ 226230.5898, 261996.5905, 305840.565, 358685.5051, 421130.364, 493539.3695, 576102.1206, 668876.5172, 1937382.0098,]
+kzz = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+mxx = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+mxy = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+myx = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+myy = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+mzz = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+n = 24
+scale_factor = 0.5
 speed = [ 418.8790204788, 523.5987755985, 628.3185307182, 733.0382858378999, 837.7580409576, 942.4777960773, 1047.197551197, 1151.9173063167, 2094.395102394,]
-kxx = [ 42736.7276429811, 67214.3361587494, 97775.6346026271, 135757.803441503, 182192.939775206, 237877.364149987, 303419.845206835, 379277.183402673, 1553300.56707975,]
-kxy = [ 990798.147638428, 1287520.08475897, 1598073.52054941, 1920481.53213523, 2252993.8192709, 2594035.77027586, 2942176.31364923, 3296105.80753795, 6569742.52112397,]
-kyx = [ -990798.147638428, -1287520.08475897, -1598073.52054941, -1920481.53213523, -2252993.8192709, -2594035.77027586, -2942176.31364923, -3296105.80753795, -6569742.52112397,]
-kyy = [ 42736.7276429811, 67214.3361587494, 97775.6346026271, 135757.803441503, 182192.939775206, 237877.364149987, 303419.845206835, 379277.183402673, 1553300.56707975,]
-kzz = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-mxx = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-mxy = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-myx = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-myy = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-mzz = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-n = 36
-scale_factor = 0.3
 tag = "Seal 3"
+
+["SealElement_Seal 4"]
+color = "#77ACA2"
+cxx = [ 757.3263, 760.639, 762.2144, 761.6769, 758.798, 753.466, 745.6607, 735.4337, 560.7863,]
+cxy = [ 51.8003, 48.1794, 40.2635, 28.9234, 14.9334, -1.0197, -18.33, -36.4682, -181.2932,]
+cyx = [ -51.8003, -48.1794, -40.2635, -28.9234, -14.9334, 1.0197, 18.33, 36.4682, 181.2932,]
+cyy = [ 757.3263, 760.639, 762.2144, 761.6769, 758.798, 753.466, 745.6607, 735.4337, 560.7863,]
+czz = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+interpolation = "pchip"
+kxx = [ 165388.3491, 178664.1218, 194965.8857, 214581.4304, 237693.8085, 264409.2671, 294776.1186, 328798.007, 787224.5965,]
+kxy = [ 388612.3641, 505928.9516, 628457.7315, 755264.3246, 885551.479, 1018629.0531, 1153893.462, 1290812.8755, 2534627.2498,]
+kyx = [ -388612.3641, -505928.9516, -628457.7315, -755264.3246, -885551.479, -1018629.0531, -1153893.462, -1290812.8755, -2534627.2498,]
+kyy = [ 165388.3491, 178664.1218, 194965.8857, 214581.4304, 237693.8085, 264409.2671, 294776.1186, 328798.007, 787224.5965,]
+kzz = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+mxx = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+mxy = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+myx = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+myy = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+mzz = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+n = 25
+scale_factor = 0.5
+speed = [ 418.8790204788, 523.5987755985, 628.3185307182, 733.0382858378999, 837.7580409576, 942.4777960773, 1047.197551197, 1151.9173063167, 2094.395102394,]
+tag = "Seal 4"
+
+["SealElement_Seal 5"]
+color = "#77ACA2"
+cxx = [ 2006.4425, 2034.9352, 2061.7303, 2085.4861, 2105.2161, 2120.2195, 2130.0267, 2134.3551, 1935.5263,]
+cxy = [ 230.5229, 236.9428, 228.9376, 208.6614, 178.0297, 138.7577, 92.3841, 40.289, -522.4911,]
+cyx = [ -230.5229, -236.9428, -228.9376, -208.6614, -178.0297, -138.7577, -92.3841, -40.289, 522.4911,]
+cyy = [ 2006.4425, 2034.9352, 2061.7303, 2085.4861, 2105.2161, 2120.2195, 2130.0267, 2134.3551, 1935.5263,]
+czz = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+interpolation = "pchip"
+kxx = [ 189619.1753, 223253.9765, 264568.3034, 314567.0259, 373932.1047, 443108.0507, 522360.412, 611817.7241, 1859176.1847,]
+kxy = [ 1057204.3983, 1377828.5026, 1712814.5418, 2059542.219, 2415785.611, 2779624.8328, 3149386.5108, 3523600.9991, 6918188.1435,]
+kyx = [ -1057204.3983, -1377828.5026, -1712814.5418, -2059542.219, -2415785.611, -2779624.8328, -3149386.5108, -3523600.9991, -6918188.1435,]
+kyy = [ 189619.1753, 223253.9765, 264568.3034, 314567.0259, 373932.1047, 443108.0507, 522360.412, 611817.7241, 1859176.1847,]
+kzz = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+mxx = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+mxy = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+myx = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+myy = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+mzz = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+n = 27
+scale_factor = 0.5
+speed = [ 418.8790204788, 523.5987755985, 628.3185307182, 733.0382858378999, 837.7580409576, 942.4777960773, 1047.197551197, 1151.9173063167, 2094.395102394,]
+tag = "Seal 5"
+
+["SealElement_Seal 6"]
+color = "#77ACA2"
+cxx = [ 701.0642, 705.8054, 709.2578, 711.0344, 710.8811, 708.6512, 704.2837, 697.7862, 562.8211,]
+cxy = [ 55.3792, 54.09, 48.7188, 40.0171, 28.6616, 15.2605, 0.3565, -15.5697, -152.6226,]
+cyx = [ -55.3792, -54.09, -48.7188, -40.0171, -28.6616, -15.2605, -0.3565, 15.5697, 152.6226,]
+cyy = [ 701.0642, 705.8054, 709.2578, 711.0344, 710.8811, 708.6512, 704.2837, 697.7862, 562.8211,]
+czz = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+interpolation = "pchip"
+kxx = [ 141089.9085, 152696.5434, 166946.4024, 184123.5189, 204416.7135, 227944.2099, 254770.3526, 284917.4303, 696920.9169,]
+kxy = [ 354273.5361, 460628.2819, 571661.2282, 686563.5135, 804639.9351, 925284.3693, 1047963.044, 1172202.4981, 2303640.0527,]
+kyx = [ -354273.5361, -460628.2819, -571661.2282, -686563.5135, -804639.9351, -925284.3693, -1047963.044, -1172202.4981, -2303640.0527,]
+kyy = [ 141089.9085, 152696.5434, 166946.4024, 184123.5189, 204416.7135, 227944.2099, 254770.3526, 284917.4303, 696920.9169,]
+kzz = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+mxx = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+mxy = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+myx = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+myy = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+mzz = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+n = 28
+scale_factor = 0.5
+speed = [ 418.8790204788, 523.5987755985, 628.3185307182, 733.0382858378999, 837.7580409576, 942.4777960773, 1047.197551197, 1151.9173063167, 2094.395102394,]
+tag = "Seal 6"
+
+["SealElement_Seal 7"]
+color = "#77ACA2"
+cxx = [ 1988.5457, 2023.8489, 2058.7813, 2091.8837, 2122.0298, 2148.3648, 2170.2564, 2187.2559, 2103.1243,]
+cxy = [ 259.6988, 273.9072, 273.2074, 259.5246, 234.5871, 199.9623, 157.074, 107.2177, -494.152,]
+cyx = [ -259.6988, -273.9072, -273.2074, -259.5246, -234.5871, -199.9623, -157.074, -107.2177, 494.152,]
+cyy = [ 1988.5457, 2023.8489, 2058.7813, 2091.8837, 2122.0298, 2148.3648, 2170.2564, 2187.2559, 2103.1243,]
+czz = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+interpolation = "pchip"
+kxx = [ 143496.2291, 174188.1596, 212013.575, 258065.5621, 313119.7673, 377714.0248, 452205.0072, 536808.0043, 1748001.3263,]
+kxy = [ 1032923.4664, 1344909.7201, 1670998.4082, 2008773.0565, 2356161.134, 2711354.0567, 3072760.7062, 3438969.2953, 6779776.1359,]
+kyx = [ -1032923.4664, -1344909.7201, -1670998.4082, -2008773.0565, -2356161.134, -2711354.0567, -3072760.7062, -3438969.2953, -6779776.1359,]
+kyy = [ 143496.2291, 174188.1596, 212013.575, 258065.5621, 313119.7673, 377714.0248, 452205.0072, 536808.0043, 1748001.3263,]
+kzz = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+mxx = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+mxy = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+myx = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+myy = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+mzz = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+n = 30
+scale_factor = 0.5
+speed = [ 418.8790204788, 523.5987755985, 628.3185307182, 733.0382858378999, 837.7580409576, 942.4777960773, 1047.197551197, 1151.9173063167, 2094.395102394,]
+tag = "Seal 7"
+
+["SealElement_Seal 8"]
+color = "#77ACA2"
+cxx = [ 719.4919, 726.4691, 732.5174, 737.1934, 740.1852, 741.2891, 740.3895, 737.443, 631.9067,]
+cxy = [ 66.3496, 67.5271, 64.3544, 57.5386, 47.7255, 35.5047, 21.4103, 5.9221, -141.6534,]
+cyx = [ -66.3496, -67.5271, -64.3544, -57.5386, -47.7255, -35.5047, -21.4103, -5.9221, 141.6534,]
+cyy = [ 719.4919, 726.4691, 732.5174, 737.1934, 740.1852, 741.2891, 740.3895, 737.443, 631.9067,]
+czz = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+interpolation = "pchip"
+kxx = [ 129165.7787, 140245.9065, 153849.815, 170290.0301, 189783.6002, 212475.6993, 238456.2472, 267771.3762, 675978.3781,]
+kxy = [ 358216.8048, 465140.2345, 576728.6758, 692213.3316, 810928.5957, 932288.6782, 1055774.2024, 1180920.8484, 2325050.6679,]
+kyx = [ -358216.8048, -465140.2345, -576728.6758, -692213.3316, -810928.5957, -932288.6782, -1055774.2024, -1180920.8484, -2325050.6679,]
+kyy = [ 129165.7787, 140245.9065, 153849.815, 170290.0301, 189783.6002, 212475.6993, 238456.2472, 267771.3762, 675978.3781,]
+kzz = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+mxx = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+mxy = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+myx = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+myy = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+mzz = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+n = 31
+scale_factor = 0.5
+speed = [ 418.8790204788, 523.5987755985, 628.3185307182, 733.0382858378999, 837.7580409576, 942.4777960773, 1047.197551197, 1151.9173063167, 2094.395102394,]
+tag = "Seal 8"
+
+["SealElement_Seal 9"]
+color = "#77ACA2"
+cxx = [ 1897.5134, 1938.8853, 1981.3435, 2023.357, 2063.6882, 2101.3419, 2135.525, 2165.6138, 2205.1491,]
+cxy = [ 279.3316, 300.6556, 307.0434, 300.0972, 281.2733, 251.9108, 213.2476, 166.4306, -470.1939,]
+cyx = [ -279.3316, -300.6556, -307.0434, -300.0972, -281.2733, -251.9108, -213.2476, -166.4306, 470.1939,]
+cyy = [ 1897.5134, 1938.8853, 1981.3435, 2023.357, 2063.6882, 2101.3419, 2135.525, 2165.6138, 2205.1491,]
+czz = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+interpolation = "pchip"
+kxx = [ 92483.95, 119157.0814, 152185.8793, 192722.1088, 241617.6648, 299497.0266, 366807.5252, 443856.1321, 1583926.2614,]
+kxy = [ 971321.0805, 1263419.0244, 1568873.4373, 1885566.8272, 2211657.6371, 2545519.2793, 2885700.3546, 3230896.5387, 6399797.8846,]
+kyx = [ -971321.0805, -1263419.0244, -1568873.4373, -1885566.8272, -2211657.6371, -2545519.2793, -2885700.3546, -3230896.5387, -6399797.8846,]
+kyy = [ 92483.95, 119157.0814, 152185.8793, 192722.1088, 241617.6648, 299497.0266, 366807.5252, 443856.1321, 1583926.2614,]
+kzz = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+mxx = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+mxy = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+myx = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+myy = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+mzz = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+n = 33
+scale_factor = 0.5
+speed = [ 418.8790204788, 523.5987755985, 628.3185307182, 733.0382858378999, 837.7580409576, 942.4777960773, 1047.197551197, 1151.9173063167, 2094.395102394,]
+tag = "Seal 9"
+
+["SealElement_Seal 10"]
+color = "#77ACA2"
+cxx = [ 654.8151, 663.326, 671.3955, 678.5735, 684.5235, 689.005, 691.8571, 692.9856, 630.0463,]
+cxy = [ 69.6316, 73.086, 72.4034, 68.1613, 60.897, 51.1098, 39.2606, 25.771, -118.9176,]
+cyx = [ -69.6316, -73.086, -72.4034, -68.1613, -60.897, -51.1098, -39.2606, -25.771, 118.9176,]
+cyy = [ 654.8151, 663.326, 671.3955, 678.5735, 684.5235, 689.005, 691.8571, 692.9856, 630.0463,]
+czz = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+interpolation = "pchip"
+kxx = [ 102334.9164, 111627.4797, 123038.8924, 136875.0657, 153357.2047, 172642.2122, 194836.6777, 220006.9183, 578797.8408,]
+kxy = [ 321106.5306, 416360.6767, 515736.5317, 618594.3067, 724374.1673, 832579.2906, 942764.5336, 1054528.3589, 2080996.3141,]
+kyx = [ -321106.5306, -416360.6767, -515736.5317, -618594.3067, -724374.1673, -832579.2906, -942764.5336, -1054528.3589, -2080996.3141,]
+kyy = [ 102334.9164, 111627.4797, 123038.8924, 136875.0657, 153357.2047, 172642.2122, 194836.6777, 220006.9183, 578797.8408,]
+kzz = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+mxx = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+mxy = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+myx = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+myy = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+mzz = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+n = 34
+scale_factor = 0.5
+speed = [ 418.8790204788, 523.5987755985, 628.3185307182, 733.0382858378999, 837.7580409576, 942.4777960773, 1047.197551197, 1151.9173063167, 2094.395102394,]
+tag = "Seal 10"
+
+["SealElement_Seal 11"]
+color = "#77ACA2"
+cxx = [ 1729.6124, 1775.9153, 1824.8309, 1874.8212, 1924.5843, 1973.0161, 2019.1788, 2062.277, 2231.2273,]
+cxy = [ 288.5272, 316.0459, 329.1011, 328.8906, 316.5164, 293.0101, 259.3468, 216.4533, -450.9079,]
+cyx = [ -288.5272, -316.0459, -329.1011, -328.8906, -316.5164, -293.0101, -259.3468, -216.4533, 450.9079,]
+cyy = [ 1729.6124, 1775.9153, 1824.8309, 1874.8212, 1924.5843, 1973.0161, 2019.1788, 2062.277, 2231.2273,]
+czz = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+interpolation = "pchip"
+kxx = [ 37651.238, 59216.1148, 86140.7481, 119603.1997, 160512.7515, 209570.9651, 267314.1685, 334144.8047, 1368464.3772,]
+kxy = [ 872897.3637, 1134310.6468, 1407909.5388, 1691952.3622, 1984897.0953, 2285356.4983, 2592069.7912, 2903883.1741, 5787970.9812,]
+kyx = [ -872897.3637, -1134310.6468, -1407909.5388, -1691952.3622, -1984897.0953, -2285356.4983, -2592069.7912, -2903883.1741, -5787970.9812,]
+kyy = [ 37651.238, 59216.1148, 86140.7481, 119603.1997, 160512.7515, 209570.9651, 267314.1685, 334144.8047, 1368464.3772,]
+kzz = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+mxx = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+mxy = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+myx = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+myy = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+mzz = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+n = 36
+scale_factor = 0.5
+speed = [ 418.8790204788, 523.5987755985, 628.3185307182, 733.0382858378999, 837.7580409576, 942.4777960773, 1047.197551197, 1151.9173063167, 2094.395102394,]
+tag = "Seal 11"
 
 ["BearingElement_Bearing 1"]
 color = "#355d7a"
-cxx = [ 102506.0, 127450.0, 144989.0, 153563.0, 155122.0, 150835.0, 145086.0, 141871.0, 140702.0,]
-cxy = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
-cyx = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
-cyy = [ 102506.0, 127450.0, 144989.0, 153563.0, 155122.0, 150835.0, 145086.0, 141871.0, 140702.0,]
-czz = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-speed = [ 314.1592653591, 418.8790204788, 523.5987755985, 628.3185307182, 733.0382858378999, 837.7580409576, 942.4777960773, 1047.197551197, 1151.9173063167,]
-kxx = [ 13798100.0, 29951900.0, 53565699.99999999, 85144200.0, 120733000.0, 159519000.0, 197885000.0, 235239999.99999997, 271250000.0,]
-kxy = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
-kyx = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
-kyy = [ 13798100.0, 29951900.0, 53565699.99999999, 85144200.0, 120733000.0, 159519000.0, 197885000.0, 235239999.99999997, 271250000.0,]
-kzz = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-mxx = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-mxy = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-myx = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-myy = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
-mzz = [ 0, 0, 0, 0, 0, 0, 0, 0, 0,]
+cxx = [ 158118.517, 147504.0795, 138577.7036, 130831.3603, 124020.5516, 117871.4982, 112321.2454, 107277.5575,]
+cxy = [ -461.1936, -259.2851, -157.6207, -99.5502, -62.8506, -37.4917, -18.6756, -4.3383,]
+cyx = [ -496.9753, -303.3094, -209.6681, -159.4215, -130.3585, -112.4735, -100.9836, -93.8389,]
+cyy = [ 166917.5197, 153462.8051, 142940.6034, 134191.3788, 126704.1742, 120080.7652, 114179.138, 108870.4552,]
+czz = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+interpolation = "pchip"
+kxx = [ 93185677.2831, 109083143.2398, 123594177.3261, 136861858.1663, 149087926.621, 160248059.3239, 170535412.418, 180064448.8028,]
+kxy = [ -472417.002, -373463.8254, -322184.4464, -296716.4513, -287158.7992, -288188.9653, -297174.3029, -312369.2528,]
+kyx = [ -425301.211, -300021.5675, -216663.9609, -153351.6696, -100199.3915, -51928.9559, -5893.1224, 39655.6715,]
+kyy = [ 100349624.0066, 115249831.9513, 129092688.8616, 141876763.9514, 153723674.0515, 164597649.5056, 174670384.6631, 183999110.9737,]
+kzz = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+mxx = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+mxy = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+myx = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+myy = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
+mzz = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,]
 n = 48
-scale_factor = 0.5
+scale_factor = 1
+speed = [ 418.87902047863906, 523.5987755982989, 628.3185307179587, 733.0382858376183, 837.7580409572781, 942.4777960769379, 1047.1975511965977, 1151.9173063162575,]
 tag = "Bearing 1"
 
-["ShaftElement_ShaftElement 0".material]
-name = "shaft_mat_3"
-rho = 7833.412
-E = 206842300000.0
-G_s = 82736940000.0
+["ShaftElement_Shaft Element 0".material]
+name = "Steel"
+rho = 7850.0
+E = 205000000000.0
+G_s = 79500000000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 1".material]
-name = "shaft_mat_3"
-rho = 7833.412
-E = 206842300000.0
-G_s = 82736940000.0
+["ShaftElement_Shaft Element 1".material]
+name = "Steel"
+rho = 7850.0
+E = 205000000000.0
+G_s = 79500000000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 2".material]
-name = "shaft_mat_1"
-rho = 7833.412
-E = 206842300000.0
-G_s = 82736940000.0
+["ShaftElement_Shaft Element 2".material]
+name = "Steel"
+rho = 7850.0
+E = 205000000000.0
+G_s = 79500000000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 3".material]
-name = "shaft_mat_1"
-rho = 7833.412
-E = 206842300000.0
-G_s = 82736940000.0
+["ShaftElement_Shaft Element 3".material]
+name = "Steel"
+rho = 7850.0
+E = 205000000000.0
+G_s = 79500000000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 4".material]
-name = "shaft_mat_1"
-rho = 7833.412
-E = 206842300000.0
-G_s = 82736940000.0
+["ShaftElement_Shaft Element 4".material]
+name = "Steel"
+rho = 7850.0
+E = 205000000000.0
+G_s = 79500000000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 5".material]
-name = "shaft_mat_1"
-rho = 7833.412
-E = 206842300000.0
-G_s = 82736940000.0
+["ShaftElement_Shaft Element 5".material]
+name = "Steel"
+rho = 7850.0
+E = 205000000000.0
+G_s = 79500000000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 6".material]
-name = "shaft_mat_1"
-rho = 7833.412
-E = 206842300000.0
-G_s = 82736940000.0
+["ShaftElement_Shaft Element 6".material]
+name = "Steel"
+rho = 7850.0
+E = 205000000000.0
+G_s = 79500000000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 7".material]
-name = "shaft_mat_1"
-rho = 7833.412
-E = 206842300000.0
-G_s = 82736940000.0
+["ShaftElement_Shaft Element 7".material]
+name = "Steel"
+rho = 7850.0
+E = 205000000000.0
+G_s = 79500000000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 8".material]
-name = "shaft_mat_1"
-rho = 7833.412
-E = 206842300000.0
-G_s = 82736940000.0
+["ShaftElement_Shaft Element 8".material]
+name = "Steel"
+rho = 7850.0
+E = 205000000000.0
+G_s = 79500000000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 9".material]
-name = "shaft_mat_2"
-rho = 7833.412
-E = 6894.75
-G_s = 6894.75
+["ShaftElement_Shaft Element 9".material]
+name = "Sleeve"
+rho = 7850.0
+E = 10000.0
+G_s = 10000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 10".material]
-name = "shaft_mat_1"
-rho = 7833.412
-E = 206842300000.0
-G_s = 82736940000.0
+["ShaftElement_Shaft Element 10".material]
+name = "Steel"
+rho = 7850.0
+E = 205000000000.0
+G_s = 79500000000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 11".material]
-name = "shaft_mat_2"
-rho = 7833.412
-E = 6894.75
-G_s = 6894.75
+["ShaftElement_Shaft Element 11".material]
+name = "Sleeve"
+rho = 7850.0
+E = 10000.0
+G_s = 10000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 12".material]
-name = "shaft_mat_1"
-rho = 7833.412
-E = 206842300000.0
-G_s = 82736940000.0
+["ShaftElement_Shaft Element 12".material]
+name = "Steel"
+rho = 7850.0
+E = 205000000000.0
+G_s = 79500000000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 13".material]
-name = "shaft_mat_2"
-rho = 7833.412
-E = 6894.75
-G_s = 6894.75
+["ShaftElement_Shaft Element 13".material]
+name = "Sleeve"
+rho = 7850.0
+E = 10000.0
+G_s = 10000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 14".material]
-name = "shaft_mat_1"
-rho = 7833.412
-E = 206842300000.0
-G_s = 82736940000.0
+["ShaftElement_Shaft Element 14".material]
+name = "Steel"
+rho = 7850.0
+E = 205000000000.0
+G_s = 79500000000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 15".material]
-name = "shaft_mat_2"
-rho = 7833.412
-E = 6894.75
-G_s = 6894.75
+["ShaftElement_Shaft Element 15".material]
+name = "Sleeve"
+rho = 7850.0
+E = 10000.0
+G_s = 10000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 16".material]
-name = "shaft_mat_1"
-rho = 7833.412
-E = 206842300000.0
-G_s = 82736940000.0
+["ShaftElement_Shaft Element 16".material]
+name = "Steel"
+rho = 7850.0
+E = 205000000000.0
+G_s = 79500000000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 17".material]
-name = "shaft_mat_2"
-rho = 7833.412
-E = 6894.75
-G_s = 6894.75
+["ShaftElement_Shaft Element 17".material]
+name = "Sleeve"
+rho = 7850.0
+E = 10000.0
+G_s = 10000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 18".material]
-name = "shaft_mat_1"
-rho = 7833.412
-E = 206842300000.0
-G_s = 82736940000.0
+["ShaftElement_Shaft Element 18".material]
+name = "Steel"
+rho = 7850.0
+E = 205000000000.0
+G_s = 79500000000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 19".material]
-name = "shaft_mat_2"
-rho = 7833.412
-E = 6894.75
-G_s = 6894.75
+["ShaftElement_Shaft Element 19".material]
+name = "Sleeve"
+rho = 7850.0
+E = 10000.0
+G_s = 10000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 20".material]
-name = "shaft_mat_1"
-rho = 7833.412
-E = 206842300000.0
-G_s = 82736940000.0
+["ShaftElement_Shaft Element 20".material]
+name = "Steel"
+rho = 7850.0
+E = 205000000000.0
+G_s = 79500000000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 21".material]
-name = "shaft_mat_2"
-rho = 7833.412
-E = 6894.75
-G_s = 6894.75
+["ShaftElement_Shaft Element 21".material]
+name = "Sleeve"
+rho = 7850.0
+E = 10000.0
+G_s = 10000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 22".material]
-name = "shaft_mat_1"
-rho = 7833.412
-E = 206842300000.0
-G_s = 82736940000.0
+["ShaftElement_Shaft Element 22".material]
+name = "Steel"
+rho = 7850.0
+E = 205000000000.0
+G_s = 79500000000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 23".material]
-name = "shaft_mat_2"
-rho = 7833.412
-E = 6894.75
-G_s = 6894.75
+["ShaftElement_Shaft Element 23".material]
+name = "Sleeve"
+rho = 7850.0
+E = 10000.0
+G_s = 10000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 24".material]
-name = "shaft_mat_1"
-rho = 7833.412
-E = 206842300000.0
-G_s = 82736940000.0
+["ShaftElement_Shaft Element 24".material]
+name = "Steel"
+rho = 7850.0
+E = 205000000000.0
+G_s = 79500000000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 25".material]
-name = "shaft_mat_2"
-rho = 7833.412
-E = 6894.75
-G_s = 6894.75
+["ShaftElement_Shaft Element 25".material]
+name = "Sleeve"
+rho = 7850.0
+E = 10000.0
+G_s = 10000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 26".material]
-name = "shaft_mat_1"
-rho = 7833.412
-E = 206842300000.0
-G_s = 82736940000.0
+["ShaftElement_Shaft Element 26".material]
+name = "Steel"
+rho = 7850.0
+E = 205000000000.0
+G_s = 79500000000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 27".material]
-name = "shaft_mat_2"
-rho = 7833.412
-E = 6894.75
-G_s = 6894.75
+["ShaftElement_Shaft Element 27".material]
+name = "Sleeve"
+rho = 7850.0
+E = 10000.0
+G_s = 10000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 28".material]
-name = "shaft_mat_1"
-rho = 7833.412
-E = 206842300000.0
-G_s = 82736940000.0
+["ShaftElement_Shaft Element 28".material]
+name = "Steel"
+rho = 7850.0
+E = 205000000000.0
+G_s = 79500000000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 29".material]
-name = "shaft_mat_2"
-rho = 7833.412
-E = 6894.75
-G_s = 6894.75
+["ShaftElement_Shaft Element 29".material]
+name = "Sleeve"
+rho = 7850.0
+E = 10000.0
+G_s = 10000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 30".material]
-name = "shaft_mat_1"
-rho = 7833.412
-E = 206842300000.0
-G_s = 82736940000.0
+["ShaftElement_Shaft Element 30".material]
+name = "Steel"
+rho = 7850.0
+E = 205000000000.0
+G_s = 79500000000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 31".material]
-name = "shaft_mat_2"
-rho = 7833.412
-E = 6894.75
-G_s = 6894.75
+["ShaftElement_Shaft Element 31".material]
+name = "Sleeve"
+rho = 7850.0
+E = 10000.0
+G_s = 10000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 32".material]
-name = "shaft_mat_1"
-rho = 7833.412
-E = 206842300000.0
-G_s = 82736940000.0
+["ShaftElement_Shaft Element 32".material]
+name = "Steel"
+rho = 7850.0
+E = 205000000000.0
+G_s = 79500000000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 33".material]
-name = "shaft_mat_2"
-rho = 7833.412
-E = 6894.75
-G_s = 6894.75
+["ShaftElement_Shaft Element 33".material]
+name = "Sleeve"
+rho = 7850.0
+E = 10000.0
+G_s = 10000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 34".material]
-name = "shaft_mat_1"
-rho = 7833.412
-E = 206842300000.0
-G_s = 82736940000.0
+["ShaftElement_Shaft Element 34".material]
+name = "Steel"
+rho = 7850.0
+E = 205000000000.0
+G_s = 79500000000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 35".material]
-name = "shaft_mat_1"
-rho = 7833.412
-E = 206842300000.0
-G_s = 82736940000.0
+["ShaftElement_Shaft Element 35".material]
+name = "Steel"
+rho = 7850.0
+E = 205000000000.0
+G_s = 79500000000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 36".material]
-name = "shaft_mat_2"
-rho = 7833.412
-E = 6894.75
-G_s = 6894.75
+["ShaftElement_Shaft Element 36".material]
+name = "Sleeve"
+rho = 7850.0
+E = 10000.0
+G_s = 10000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 37".material]
-name = "shaft_mat_1"
-rho = 7833.412
-E = 206842300000.0
-G_s = 82736940000.0
+["ShaftElement_Shaft Element 37".material]
+name = "Steel"
+rho = 7850.0
+E = 205000000000.0
+G_s = 79500000000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 38".material]
-name = "shaft_mat_2"
-rho = 7833.412
-E = 6894.75
-G_s = 6894.75
+["ShaftElement_Shaft Element 38".material]
+name = "Sleeve"
+rho = 7850.0
+E = 10000.0
+G_s = 10000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 39".material]
-name = "shaft_mat_1"
-rho = 7833.412
-E = 206842300000.0
-G_s = 82736940000.0
+["ShaftElement_Shaft Element 39".material]
+name = "Steel"
+rho = 7850.0
+E = 205000000000.0
+G_s = 79500000000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 40".material]
-name = "shaft_mat_1"
-rho = 7833.412
-E = 206842300000.0
-G_s = 82736940000.0
+["ShaftElement_Shaft Element 40".material]
+name = "Steel"
+rho = 7850.0
+E = 205000000000.0
+G_s = 79500000000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 41".material]
-name = "shaft_mat_2"
-rho = 7833.412
-E = 6894.75
-G_s = 6894.75
+["ShaftElement_Shaft Element 41".material]
+name = "Sleeve"
+rho = 7850.0
+E = 10000.0
+G_s = 10000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 42".material]
-name = "shaft_mat_1"
-rho = 7833.412
-E = 206842300000.0
-G_s = 82736940000.0
+["ShaftElement_Shaft Element 42".material]
+name = "Steel"
+rho = 7850.0
+E = 205000000000.0
+G_s = 79500000000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 43".material]
-name = "shaft_mat_2"
-rho = 7833.412
-E = 6894.75
-G_s = 6894.75
+["ShaftElement_Shaft Element 43".material]
+name = "Sleeve"
+rho = 7850.0
+E = 10000.0
+G_s = 10000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 44".material]
-name = "shaft_mat_1"
-rho = 7833.412
-E = 206842300000.0
-G_s = 82736940000.0
+["ShaftElement_Shaft Element 44".material]
+name = "Steel"
+rho = 7850.0
+E = 205000000000.0
+G_s = 79500000000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 45".material]
-name = "shaft_mat_1"
-rho = 7833.412
-E = 206842300000.0
-G_s = 82736940000.0
+["ShaftElement_Shaft Element 45".material]
+name = "Steel"
+rho = 7850.0
+E = 205000000000.0
+G_s = 79500000000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 46".material]
-name = "shaft_mat_2"
-rho = 7833.412
-E = 6894.75
-G_s = 6894.75
+["ShaftElement_Shaft Element 46".material]
+name = "Sleeve"
+rho = 7850.0
+E = 10000.0
+G_s = 10000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 47".material]
-name = "shaft_mat_1"
-rho = 7833.412
-E = 206842300000.0
-G_s = 82736940000.0
+["ShaftElement_Shaft Element 47".material]
+name = "Steel"
+rho = 7850.0
+E = 205000000000.0
+G_s = 79500000000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 48".material]
-name = "shaft_mat_2"
-rho = 7833.412
-E = 6894.75
-G_s = 6894.75
+["ShaftElement_Shaft Element 48".material]
+name = "Sleeve"
+rho = 7850.0
+E = 10000.0
+G_s = 10000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 49".material]
-name = "shaft_mat_1"
-rho = 7833.412
-E = 206842300000.0
-G_s = 82736940000.0
+["ShaftElement_Shaft Element 49".material]
+name = "Steel"
+rho = 7850.0
+E = 205000000000.0
+G_s = 79500000000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 50".material]
-name = "shaft_mat_1"
-rho = 7833.412
-E = 206842300000.0
-G_s = 82736940000.0
+["ShaftElement_Shaft Element 50".material]
+name = "Steel"
+rho = 7850.0
+E = 205000000000.0
+G_s = 79500000000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 51".material]
-name = "shaft_mat_2"
-rho = 7833.412
-E = 6894.75
-G_s = 6894.75
+["ShaftElement_Shaft Element 51".material]
+name = "Sleeve"
+rho = 7850.0
+E = 10000.0
+G_s = 10000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 52".material]
-name = "shaft_mat_1"
-rho = 7833.412
-E = 206842300000.0
-G_s = 82736940000.0
+["ShaftElement_Shaft Element 52".material]
+name = "Steel"
+rho = 7850.0
+E = 205000000000.0
+G_s = 79500000000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 53".material]
-name = "shaft_mat_2"
-rho = 7833.412
-E = 6894.75
-G_s = 6894.75
+["ShaftElement_Shaft Element 53".material]
+name = "Sleeve"
+rho = 7850.0
+E = 10000.0
+G_s = 10000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 54".material]
-name = "shaft_mat_1"
-rho = 7833.412
-E = 206842300000.0
-G_s = 82736940000.0
+["ShaftElement_Shaft Element 54".material]
+name = "Steel"
+rho = 7850.0
+E = 205000000000.0
+G_s = 79500000000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 55".material]
-name = "shaft_mat_1"
-rho = 7833.412
-E = 206842300000.0
-G_s = 82736940000.0
+["ShaftElement_Shaft Element 55".material]
+name = "Steel"
+rho = 7850.0
+E = 205000000000.0
+G_s = 79500000000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 56".material]
-name = "shaft_mat_2"
-rho = 7833.412
-E = 6894.75
-G_s = 6894.75
+["ShaftElement_Shaft Element 56".material]
+name = "Sleeve"
+rho = 7850.0
+E = 10000.0
+G_s = 10000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 57".material]
-name = "shaft_mat_1"
-rho = 7833.412
-E = 206842300000.0
-G_s = 82736940000.0
+["ShaftElement_Shaft Element 57".material]
+name = "Steel"
+rho = 7850.0
+E = 205000000000.0
+G_s = 79500000000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 58".material]
-name = "shaft_mat_2"
-rho = 7833.412
-E = 6894.75
-G_s = 6894.75
+["ShaftElement_Shaft Element 58".material]
+name = "Sleeve"
+rho = 7850.0
+E = 10000.0
+G_s = 10000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 59".material]
-name = "shaft_mat_1"
-rho = 7833.412
-E = 206842300000.0
-G_s = 82736940000.0
+["ShaftElement_Shaft Element 59".material]
+name = "Steel"
+rho = 7850.0
+E = 205000000000.0
+G_s = 79500000000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 60".material]
-name = "shaft_mat_1"
-rho = 7833.412
-E = 206842300000.0
-G_s = 82736940000.0
+["ShaftElement_Shaft Element 60".material]
+name = "Steel"
+rho = 7850.0
+E = 205000000000.0
+G_s = 79500000000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 61".material]
-name = "shaft_mat_2"
-rho = 7833.412
-E = 6894.75
-G_s = 6894.75
+["ShaftElement_Shaft Element 61".material]
+name = "Sleeve"
+rho = 7850.0
+E = 10000.0
+G_s = 10000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 62".material]
-name = "shaft_mat_1"
-rho = 7833.412
-E = 206842300000.0
-G_s = 82736940000.0
+["ShaftElement_Shaft Element 62".material]
+name = "Steel"
+rho = 7850.0
+E = 205000000000.0
+G_s = 79500000000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 63".material]
-name = "shaft_mat_2"
-rho = 7833.412
-E = 6894.75
-G_s = 6894.75
+["ShaftElement_Shaft Element 63".material]
+name = "Sleeve"
+rho = 7850.0
+E = 10000.0
+G_s = 10000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 64".material]
-name = "shaft_mat_1"
-rho = 7833.412
-E = 206842300000.0
-G_s = 82736940000.0
+["ShaftElement_Shaft Element 64".material]
+name = "Steel"
+rho = 7850.0
+E = 205000000000.0
+G_s = 79500000000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 65".material]
-name = "shaft_mat_2"
-rho = 7833.412
-E = 6894.75
-G_s = 6894.75
+["ShaftElement_Shaft Element 65".material]
+name = "Sleeve"
+rho = 7850.0
+E = 10000.0
+G_s = 10000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 66".material]
-name = "shaft_mat_1"
-rho = 7833.412
-E = 206842300000.0
-G_s = 82736940000.0
+["ShaftElement_Shaft Element 66".material]
+name = "Steel"
+rho = 7850.0
+E = 205000000000.0
+G_s = 79500000000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 67".material]
-name = "shaft_mat_2"
-rho = 7833.412
-E = 6894.75
-G_s = 6894.75
+["ShaftElement_Shaft Element 67".material]
+name = "Sleeve"
+rho = 7850.0
+E = 10000.0
+G_s = 10000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 68".material]
-name = "shaft_mat_1"
-rho = 7833.412
-E = 206842300000.0
-G_s = 82736940000.0
+["ShaftElement_Shaft Element 68".material]
+name = "Steel"
+rho = 7850.0
+E = 205000000000.0
+G_s = 79500000000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 69".material]
-name = "shaft_mat_2"
-rho = 7833.412
-E = 6894.75
-G_s = 6894.75
+["ShaftElement_Shaft Element 69".material]
+name = "Sleeve"
+rho = 7850.0
+E = 10000.0
+G_s = 10000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 70".material]
-name = "shaft_mat_1"
-rho = 7833.412
-E = 206842300000.0
-G_s = 82736940000.0
+["ShaftElement_Shaft Element 70".material]
+name = "Steel"
+rho = 7850.0
+E = 205000000000.0
+G_s = 79500000000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 71".material]
-name = "shaft_mat_2"
-rho = 7833.412
-E = 6894.75
-G_s = 6894.75
+["ShaftElement_Shaft Element 71".material]
+name = "Sleeve"
+rho = 7850.0
+E = 10000.0
+G_s = 10000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 72".material]
-name = "shaft_mat_1"
-rho = 7833.412
-E = 206842300000.0
-G_s = 82736940000.0
+["ShaftElement_Shaft Element 72".material]
+name = "Steel"
+rho = 7850.0
+E = 205000000000.0
+G_s = 79500000000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 73".material]
-name = "shaft_mat_2"
-rho = 7833.412
-E = 6894.75
-G_s = 6894.75
+["ShaftElement_Shaft Element 73".material]
+name = "Sleeve"
+rho = 7850.0
+E = 10000.0
+G_s = 10000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 74".material]
-name = "shaft_mat_1"
-rho = 7833.412
-E = 206842300000.0
-G_s = 82736940000.0
+["ShaftElement_Shaft Element 74".material]
+name = "Steel"
+rho = 7850.0
+E = 205000000000.0
+G_s = 79500000000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 75".material]
-name = "shaft_mat_2"
-rho = 7833.412
-E = 6894.75
-G_s = 6894.75
+["ShaftElement_Shaft Element 75".material]
+name = "Sleeve"
+rho = 7850.0
+E = 10000.0
+G_s = 10000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 76".material]
-name = "shaft_mat_1"
-rho = 7833.412
-E = 206842300000.0
-G_s = 82736940000.0
+["ShaftElement_Shaft Element 76".material]
+name = "Steel"
+rho = 7850.0
+E = 205000000000.0
+G_s = 79500000000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 77".material]
-name = "shaft_mat_2"
-rho = 7833.412
-E = 6894.75
-G_s = 6894.75
+["ShaftElement_Shaft Element 77".material]
+name = "Sleeve"
+rho = 7850.0
+E = 10000.0
+G_s = 10000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 78".material]
-name = "shaft_mat_1"
-rho = 7833.412
-E = 206842300000.0
-G_s = 82736940000.0
+["ShaftElement_Shaft Element 78".material]
+name = "Steel"
+rho = 7850.0
+E = 205000000000.0
+G_s = 79500000000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 79".material]
-name = "shaft_mat_2"
-rho = 7833.412
-E = 6894.75
-G_s = 6894.75
+["ShaftElement_Shaft Element 79".material]
+name = "Sleeve"
+rho = 7850.0
+E = 10000.0
+G_s = 10000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 80".material]
-name = "shaft_mat_1"
-rho = 7833.412
-E = 206842300000.0
-G_s = 82736940000.0
+["ShaftElement_Shaft Element 80".material]
+name = "Steel"
+rho = 7850.0
+E = 205000000000.0
+G_s = 79500000000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 81".material]
-name = "shaft_mat_1"
-rho = 7833.412
-E = 206842300000.0
-G_s = 82736940000.0
+["ShaftElement_Shaft Element 81".material]
+name = "Steel"
+rho = 7850.0
+E = 205000000000.0
+G_s = 79500000000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 82".material]
-name = "shaft_mat_1"
-rho = 7833.412
-E = 206842300000.0
-G_s = 82736940000.0
+["ShaftElement_Shaft Element 82".material]
+name = "Steel"
+rho = 7850.0
+E = 205000000000.0
+G_s = 79500000000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 83".material]
-name = "shaft_mat_1"
-rho = 7833.412
-E = 206842300000.0
-G_s = 82736940000.0
+["ShaftElement_Shaft Element 83".material]
+name = "Steel"
+rho = 7850.0
+E = 205000000000.0
+G_s = 79500000000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 84".material]
-name = "shaft_mat_1"
-rho = 7833.412
-E = 206842300000.0
-G_s = 82736940000.0
+["ShaftElement_Shaft Element 84".material]
+name = "Steel"
+rho = 7850.0
+E = 205000000000.0
+G_s = 79500000000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 85".material]
-name = "shaft_mat_1"
-rho = 7833.412
-E = 206842300000.0
-G_s = 82736940000.0
+["ShaftElement_Shaft Element 85".material]
+name = "Steel"
+rho = 7850.0
+E = 205000000000.0
+G_s = 79500000000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 86".material]
-name = "shaft_mat_2"
-rho = 7833.412
-E = 6894.75
-G_s = 6894.75
+["ShaftElement_Shaft Element 86".material]
+name = "Sleeve"
+rho = 7850.0
+E = 10000.0
+G_s = 10000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 87".material]
-name = "shaft_mat_1"
-rho = 7833.412
-E = 206842300000.0
-G_s = 82736940000.0
+["ShaftElement_Shaft Element 87".material]
+name = "Steel"
+rho = 7850.0
+E = 205000000000.0
+G_s = 79500000000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 88".material]
-name = "shaft_mat_2"
-rho = 7833.412
-E = 6894.75
-G_s = 6894.75
+["ShaftElement_Shaft Element 88".material]
+name = "Sleeve"
+rho = 7850.0
+E = 10000.0
+G_s = 10000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 89".material]
-name = "shaft_mat_1"
-rho = 7833.412
-E = 206842300000.0
-G_s = 82736940000.0
+["ShaftElement_Shaft Element 89".material]
+name = "Steel"
+rho = 7850.0
+E = 205000000000.0
+G_s = 79500000000.0
 color = "#525252"
 
-["ShaftElement_ShaftElement 90".material]
-name = "shaft_mat_2"
-rho = 7833.412
-E = 6894.75
-G_s = 6894.75
+["ShaftElement_Shaft Element 90".material]
+name = "Sleeve"
+rho = 7850.0
+E = 10000.0
+G_s = 10000.0
 color = "#525252"

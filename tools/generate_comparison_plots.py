@@ -11,7 +11,7 @@ import ross as rs
 dir_path = Path(__file__).parent
 rotors = {
     k: rs.rotor_assembly.Rotor.load((dir_path / "data" / k))
-    for k in ["rotor_example", "c123701", "injection"]
+    for k in ["rotor_example", "compressor"]
 }
 
 env = Environment(loader=FileSystemLoader(dir_path / "plots/templates/"))

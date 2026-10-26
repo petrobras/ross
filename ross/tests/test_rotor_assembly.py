@@ -1170,7 +1170,7 @@ def test_refine_mesh_refuses_parts_that_are_not_a_count(rotor3, parts):
 
 
 def test_add_nodes_complex(rotor9):
-    new_nodes_pos = [1.244, 0.052, 1.637]
+    new_nodes_pos = [1.303, 0.054, 1.713]
     modified_rotor = rotor9.add_nodes(new_nodes_pos)
 
     assert_equal(modified_rotor.nodes[-1], rotor9.nodes[-1] + len(new_nodes_pos))
@@ -1190,7 +1190,7 @@ def test_add_nodes_complex(rotor9):
         + modified_rotor.shaft_elements_length[2],
         rotor9.shaft_elements_length[1],
     )
-    assert_equal(modified_rotor.nodes_pos[2], 0.052)
+    assert_equal(modified_rotor.nodes_pos[2], 0.054)
 
     assert_equal(
         modified_rotor.shaft_elements[67].L, modified_rotor.shaft_elements[68].L
@@ -1204,7 +1204,7 @@ def test_add_nodes_complex(rotor9):
         + modified_rotor.shaft_elements_length[42],
         rotor9.shaft_elements_length[40],
     )
-    assert_equal(modified_rotor.nodes_pos[42], 1.244)
+    assert_equal(modified_rotor.nodes_pos[42], 1.303)
 
     for i, elm in enumerate(rotor9.disk_elements):
         assert_equal(modified_rotor.disk_elements[i].n, elm.n + 1)
@@ -1298,7 +1298,7 @@ def test_static_analysis_rotor6(rotor6):
 def test_static_analysis_rotor9(rotor9):
     static = rotor9.run_static()
     assert_allclose(sum(static.bearing_forces.values()), rotor9.m * 9.8065)
-    assert_almost_equal(static.bearing_forces["node_7"], 1216.2827567768297)
+    assert_almost_equal(static.bearing_forces["node_7"], 1179.828331515445)
 
 
 def test_static_analysis_high_stiffness(rotor2):
@@ -2549,32 +2549,32 @@ def test_ucs_rotor9(rotor9):
     exp_rotor_wn = np.array(
         [
             [
-                89.61923786,
-                350.42266504,
-                662.41928664,
-                694.07268245,
-                695.82331031,
+                90.61008116,
+                345.17288671,
+                591.20944338,
+                612.72970144,
+                613.92598754,
             ],
             [
-                124.81086083,
-                523.02183296,
-                1891.18155397,
-                2108.7448203,
-                2111.56014972,
+                127.25397682,
+                531.88354234,
+                1766.94803190,
+                1865.22123161,
+                1867.21300101,
             ],
             [
-                976.61001489,
-                1046.09648924,
-                2047.58519431,
-                3043.40464892,
-                3113.38540495,
+                872.28266421,
+                957.42871826,
+                1946.16059484,
+                2722.09651022,
+                2770.43740998,
             ],
             [
-                2159.64074905,
-                2162.07931839,
-                2321.68023491,
-                4080.81909788,
-                4317.88700623,
+                1915.66260359,
+                1919.16731459,
+                2240.85389447,
+                3736.46879920,
+                3896.44227642,
             ],
         ]
     )
@@ -2584,32 +2584,32 @@ def test_ucs_rotor9(rotor9):
     exp_rotor_wn = np.array(
         [
             [
-                89.61947056,
-                350.61514002,
-                670.08583401,
-                703.98416314,
-                705.86888929,
+                90.61032940,
+                345.44316646,
+                597.36831502,
+                620.20899285,
+                621.48307900,
             ],
             [
-                126.08902134,
-                528.47472934,
-                1971.00830161,
-                2249.52916259,
-                2251.5657217,
+                128.38432230,
+                536.73858193,
+                1867.03010410,
+                1971.69433222,
+                1973.29458066,
             ],
             [
-                1006.73169597,
-                1078.17877977,
-                2100.24701415,
-                3286.9082896,
-                3385.80171304,
+                895.68699558,
+                982.78228065,
+                1977.12173532,
+                2916.65984646,
+                2982.06951457,
             ],
             [
-                2282.84557629,
-                2284.30991972,
-                2383.54778909,
-                4234.40738673,
-                4549.46314886,
+                2009.14924625,
+                2011.57653196,
+                2269.21955902,
+                3868.20262252,
+                4077.38983434,
             ],
         ]
     )
