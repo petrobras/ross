@@ -111,7 +111,9 @@ const nearNode = menuEntries({ part: shaftPart, point: at(0.25001) });
 check('too close to a node, "split here" is offered disabled and says why', nearNode[1].disabled === true && nearNode[1].label === t('ctxSplitHereNo'));
 const diskPart = { kind: 'disk', category: 'disks', index: 0, half: null, z0: 0.24, z1: 0.26, offset: { x: 0, y: 0, z: 0 } };
 check('a disk: no cut to offer', !labels(menuEntries({ part: diskPart, point: at(0.25) })).some(l => l.includes(t('ctxMesh'))));
-check('the empty view: the rotor as a whole', JSON.stringify(labels(menuEntries(null))) === JSON.stringify([t('ctxMeshAll'), t('ctxMeasure'), t('rotor3dFrame')]));
+check('the empty view: the rotor as a whole, then the standard views', JSON.stringify(labels(menuEntries(null))) === JSON.stringify([
+    t('ctxMeshAll'), t('ctxMeasure'), t('rotor3dFrame'), t('rotor3dViewsTitle'),
+    t('rotor3dViewHome'), t('rotor3dViewIso'), t('rotor3dViewFront'), t('rotor3dViewSide'), t('rotor3dViewTop')]));
 
 sent = [];
 const splitHere = onShaft[1];
