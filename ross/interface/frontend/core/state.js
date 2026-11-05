@@ -1,6 +1,7 @@
 import { recordChange, resetHistory, structuralSnapshot } from './history.js';
 import { clearSelection } from './selection.js';
 import { filterSignature } from './list_filter.js';
+import { adoptMaterials } from './material_names.js';
 
 // The six values that cross module boundaries, in one named object.
 //
@@ -25,6 +26,17 @@ export const state = {
 
 
 // Returns data for the active rotor on the screen (whether a simple rotor or the selected half of a multi-rotor)
+// The other rotor of the open MultiRotor, beside `line` (one of its two);
+// null on a single rotor or for anything else. What one half can borrow from
+// the other: its materials (core/material_names.js, `materialsOffered`).
+export function otherLine(line) {
+    const project = state.projectData;
+    if (!project || !project.isMultiRotor) return null;
+    if (line === project.driving_rotor) return project.driven_rotor || null;
+    if (line === project.driven_rotor) return project.driving_rotor || null;
+    return null;
+}
+
 export function getActiveData() {
     if (state.projectData.isMultiRotor) {
         return state.multiRotorEditTarget === 'driven' ? state.projectData.driven_rotor : state.projectData.driving_rotor;
@@ -99,7 +111,15 @@ export function listContext() {
 // The history is recorded here because this is the one call every mutation of
 // the modelling screen already makes -- see the comment at the top of
 // core/history.js for why that matters more than it looks.
+//
+// On a MultiRotor, a material an element took from the other half's list is
+// copied into its own first (`adoptMaterials`): every change of either half
+// passes here, before it is built, recorded or written back.
 export function syncBackToLibrary() {
+    if (state.projectData && state.projectData.isMultiRotor) {
+        adoptMaterials(state.projectData.driving_rotor, state.projectData.driven_rotor);
+        adoptMaterials(state.projectData.driven_rotor, state.projectData.driving_rotor);
+    }
     writeBackToLibrary();
     recordChange(structuralSnapshot(state.projectData));
     projectChanged();
