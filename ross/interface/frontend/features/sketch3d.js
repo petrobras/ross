@@ -26,7 +26,8 @@
 // of the tool.
 import { escapeHtml } from '../core/dom.js';
 import { t } from '../core/i18n.js';
-import { state } from '../core/state.js';
+import { materialsOffered } from '../core/material_names.js';
+import { otherLine, state } from '../core/state.js';
 import {
     MAX_CIRCLES, circleProblem, draggedLength, extrusionBounds, farOf, firstFace, gridSpacing, handleDiameter,
     pointerDiameter, sectionOf, shaftRow, shown, sketchExtent, slenderness, startingLength, taperProblem, typedLength,
@@ -480,8 +481,13 @@ function clearSketchDrawing() {
 }
 
 function materialOptions() {
+    // The materials of the rotor the face is on -- on a MultiRotor, one of its
+    // two, whose lists the MultiRotor's own (empty) is not -- and those of the
+    // other half (core/material_names.js).
     const project = state.projectData || {};
-    const names = (project.materials || []).map(m => String(m.name || '')).filter(Boolean);
+    const half = session.face.half;
+    const line = project.isMultiRotor && half ? project[`${half}_rotor`] || {} : project;
+    const names = materialsOffered(line, otherLine(line)).map(m => String(m.name || '')).filter(Boolean);
     return [`<option value="${DEFAULT_MATERIAL}">${escapeHtml(t('defaultSteel'))}</option>`]
         .concat(names.map(name => `<option value="${escapeHtml(name)}"${name === session.material ? ' selected' : ''}>${escapeHtml(name)}</option>`))
         .join('');
