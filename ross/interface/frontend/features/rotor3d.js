@@ -29,7 +29,7 @@ import {
 } from '../core/rotor3d_measure.js';
 import { buildMeasure } from '../components/rotor3d_measure.js';
 import { FLIGHT_MS, VIEWS, cameraBetween, easeInOut, viewTowards } from '../core/rotor3d_views.js';
-import { shaftFace } from '../core/sketch3d.js';
+import { faceAtNode, shaftFace } from '../core/sketch3d.js';
 import { state } from '../core/state.js';
 import {
     LEGEND_CATEGORIES, categoryHidden, drawn, elementHidden, legendClick, toggleElementHidden,
@@ -1071,6 +1071,8 @@ export function menuEntries(hit) {
     entries.push({ label: t('rotor3dHideElement'), icon: 'fa-eye-slash', disabled: !element, run: () => toggleElement3d(element) });
     const node = hit.point && layout ? nodeUnder(hit) : null;
     if (node !== null) entries.push({ label: fill(t('ctxAddAtNode'), node), icon: 'fa-plus', run: () => addFrom3d(node, part.half) });
+    const sketchHere = node !== null && part.kind !== 'shaft' && !part.hanging && layout ? faceAtNode(node, part.half, layout.parts) : null;
+    if (sketchHere) entries.push({ label: fill(t('ctxSketchAtNode'), node), icon: 'fa-drafting-compass', run: () => sketchOnFace(sketchHere) });
     if (node !== null && !part.hanging) entries.push({ label: fill(t('ctxMeasureFrom'), node), icon: 'fa-ruler', run: () => measureFrom(node, part.half) });
     entries.push(null);
     entries.push({ label: t('ctxDelete'), icon: 'fa-trash', danger: true, run: () => deleteFrom3d(part.category, part.index, part.half) });
@@ -1078,12 +1080,13 @@ export function menuEntries(hit) {
 }
 
 // A sketch on the start or the end face of a shaft (features/sketch3d.js),
-// the face nearer the pointer first. Not on a MultiRotor: the sketch is drawn
-// on the axis of a single rotor.
+// the face nearer the pointer first. On a MultiRotor, on either of its rotors:
+// the faces are along the axis of the one the shaft is on, and the pointer is
+// brought onto it by that rotor's offset.
 function sketchEntries(part, point) {
-    if (state.projectData && state.projectData.isMultiRotor) return [];
     const faces = ['start', 'end'].map(side => shaftFace(part, side, layout ? layout.parts : []));
-    if (point && Math.abs(point[2] - faces[1].z) < Math.abs(point[2] - faces[0].z)) faces.reverse();
+    const z = point ? point[2] - part.offset.z : null;
+    if (point && Math.abs(z - faces[1].z) < Math.abs(z - faces[0].z)) faces.reverse();
     return faces.map(face => ({
         label: fill(face.side === 'end' ? t('ctxSketchEnd') : t('ctxSketchStart'), face.node === null ? '?' : face.node),
         icon: 'fa-drafting-compass',

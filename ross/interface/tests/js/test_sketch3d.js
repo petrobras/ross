@@ -146,6 +146,30 @@ check('a coupling going on from it is the line going on; a disk is not', !endOfS
     && S.shaftFace(second, 'end', [first, second, disk]).free);
 check('the other half of a MultiRotor is another line', S.shaftFace(second, 'end', [first, second, { ...coupling, half: 'driven' }]).free);
 check('not the first shaft of a project', !endOfSecond.first && S.firstFace().first);
+check('a single rotor sketches on its own axis', JSON.stringify(endOfSecond.origin) === '[0,0,0]' && endOfSecond.half === null
+    && JSON.stringify(S.firstFace().origin) === '[0,0,0]');
+
+// The driven rotor of a MultiRotor, drawn above the driving one: its faces are
+// along its own axis, and say where that axis is.
+const above = { x: 0, y: 0.3, z: 0.1 };
+const drivenShaft = { ...first, half: 'driven', offset: above };
+const drivenEnd = S.shaftFace(drivenShaft, 'end', [drivenShaft]);
+check('a face of the driven rotor: its z along that rotor, its half, and where its axis is',
+    drivenEnd.z === 0.25 && drivenEnd.half === 'driven' && JSON.stringify(drivenEnd.origin) === '[0,0.3,0.1]');
+
+// --- the face at a node --------------------------------------------------------------------
+console.log('\nThe face at a node');
+
+const atJoint = S.faceAtNode(1, null, line);
+check('at a joint: the end face of the shaft that ends there', atJoint.index === 0 && atJoint.side === 'end' && atJoint.node === 1);
+const atFirst = S.faceAtNode(0, null, line);
+check('at the first node: the start face of the shaft that starts there', atFirst.index === 0 && atFirst.side === 'start' && atFirst.free);
+const atLast = S.faceAtNode(2, null, line);
+check('at the last node of the shafts: the end face of the last', atLast.index === 1 && atLast.side === 'end' && atLast.node === 2);
+check('none on a node no shaft touches', S.faceAtNode(7, null, line) === null);
+check('none on a node of the other rotor of a MultiRotor', S.faceAtNode(1, 'driven', line) === null);
+const drivenAtNode = S.faceAtNode(1, 'driven', [first, drivenShaft]);
+check('and the driven rotor\'s own, on it', drivenAtNode.half === 'driven' && drivenAtNode.side === 'end' && drivenAtNode.origin[1] === 0.3);
 
 // --- what is drawn ----------------------------------------------------------------------
 console.log('\nWhat is drawn');

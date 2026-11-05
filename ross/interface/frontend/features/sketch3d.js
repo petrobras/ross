@@ -103,7 +103,34 @@ function colours(kit) {
 
 // --- step 1, the sketch ---------------------------------------------------------
 
-function openSketch(kit, face) {
+// The view's kit, on the axis of the rotor the face is on. On a MultiRotor the
+// driven rotor is drawn beside the driving one, moved by its offset
+// (core/rotor3d_layout.js), and the faces are along its own axis
+// (core/sketch3d.js, `shaftFace`): what the sketch draws goes in a group placed
+// at that offset, the rays it reads come back into the rotor's coordinates,
+// and the points it shows or frames go out to the scene's. The camera's own
+// states (`here`, `place`, `fly`) are the scene's and stay as they are.
+// `leave` takes the group out of the scene.
+function onLine(kit, origin) {
+    const o = origin || [0, 0, 0];
+    const root = new kit.THREE.Group();
+    root.position.set(o[0], o[1], o[2]);
+    kit.scene.add(root);
+    const out = point => point.map((v, i) => v + o[i]);
+    return Object.assign({}, kit, {
+        scene: root,
+        ray: (event) => {
+            const ray = kit.ray(event);
+            return ray ? Object.assign({}, ray, { origin: ray.origin.map((v, i) => v - o[i]) }) : null;
+        },
+        project: (point) => kit.project(out(point)),
+        framed: (bounds, from) => kit.framed({ min: out(bounds.min), max: out(bounds.max) }, from),
+        leave: () => kit.scene.remove(root),
+    });
+}
+
+function openSketch(world, face) {
+    const kit = onLine(world, face.origin);
     const extent = sketchExtent(face.diameter);
     const palette = colours(kit);
     const plane = buildSketchPlane(kit.THREE, { z: face.z, extent, spacing: gridSpacing(extent), colours: palette });
@@ -704,7 +731,7 @@ export function confirmExtrusion() {
         return;
     }
     kit.fly(returnTo);
-    insertShaftFromSketch(face.index, face.side, row);
+    insertShaftFromSketch(face.index, face.side, row, face.half);
 }
 
 // --- leaving ------------------------------------------------------------------------
@@ -729,6 +756,7 @@ export function closeSketch(made = false) {
     }
     session.panel.remove();
     session.labels.remove();
+    kit.leave();
     kit.canvas.classList.remove('is-grab', 'is-grabbing');
     session = null;
     useTool(null);

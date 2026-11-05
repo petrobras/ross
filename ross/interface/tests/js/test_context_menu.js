@@ -112,10 +112,12 @@ check('a shaft: its name, the three cuts, a sketch on each face (the nearer firs
 const nearEnd = labels(menuEntries({ part: shaftPart, point: at(0.45) }));
 check('nearer the end face, its sketch comes first', nearEnd.indexOf(t('ctxSketchEnd').replace('%1', '2'))
     < nearEnd.indexOf(t('ctxSketchStart').replace('%1', '1')));
-state.projectData.isMultiRotor = true;
-check('a MultiRotor offers no sketch', !labels(menuEntries({ part: shaftPart, point: at(0.3) }))
-    .some(l => l === t('ctxSketchEnd').replace('%1', '2')));
-state.projectData.isMultiRotor = false;
+// The driven rotor of a MultiRotor, drawn 1 m further along: the pointer is
+// near the end face of its shaft by that rotor's own axis.
+const drivenShaft = { ...shaftPart, half: 'driven', offset: { x: 0, y: 0.3, z: 1.0 } };
+const onDriven = menuEntries({ part: drivenShaft, point: at(1.45) }).filter(e => e && e.icon === 'fa-drafting-compass');
+check('a MultiRotor\'s driven rotor offers its sketches too, the nearer face by its own axis first',
+    onDriven.length === 2 && onDriven[0].label === t('ctxSketchEnd').replace('%1', '2'));
 check('delete is the last, and marked', onShaft[onShaft.length - 1].danger === true);
 const nearNode = menuEntries({ part: shaftPart, point: at(0.25001) });
 check('too close to a node, "split here" is offered disabled and says why', nearNode[1].disabled === true && nearNode[1].label === t('ctxSplitHereNo'));

@@ -4,8 +4,7 @@
 // A ROSS shaft element is a cylinder: its length `L`, its outer diameter
 // `odl` and its inner one `idl`. The sketch gives the two diameters -- one or
 // two concentric circles on the plane of a cross-section -- and the extrusion
-// the length. Nothing else is asked for here: a tapered element (`idr`,
-// `odr`) is typed in the form.
+// the length; a taper gives its far face too (`idr`, `odr`).
 //
 // What the mouse gives is only a preview, rounded to a step that suits the
 // size (`niceStep`); the value typed in the box beside it is what the element
@@ -173,7 +172,7 @@ export function gridSpacing(extent) {
 // for the size of the sketch. The first shaft of a rotor starts on z = 0,
 // sketched from the front view (`look`, the direction the camera looks from).
 export function firstFace() {
-    return { z: 0, sense: 1, diameter: 0, first: true, look: [0, 0, -1] };
+    return { z: 0, sense: 1, diameter: 0, first: true, look: [0, 0, -1], origin: [0, 0, 0], half: null };
 }
 
 // The start or the end face of a shaft part of the 3D view's layout
@@ -188,6 +187,9 @@ export function firstFace() {
 //     it is still the place to sketch -- the neighbour hidden or not -- but
 //     what is past the face moves along by the new length, and the panel says
 //     so.
+//   * `origin`, `half`: on a MultiRotor, which of its two rotors the face is
+//     on, and where that rotor's axis is drawn (`part.offset`): `z` and the
+//     rest are along that rotor's own axis, as the layout gives them.
 // `diameter` and `inner` are the face's (mm): the size of the sketch, and the
 // circles it shows for reference.
 export function shaftFace(part, side, parts) {
@@ -212,7 +214,23 @@ export function shaftFace(part, side, parts) {
         side: end ? 'end' : 'start',
         node: start === null ? null : start + (end ? 1 : 0),
         free: !touching,
+        origin: part.offset ? [part.offset.x || 0, part.offset.y || 0, part.offset.z || 0] : [0, 0, 0],
+        half: part.half || null,
     };
+}
+
+// The face to sketch on at a node of the line, for the menu of what sits on
+// it (a disk, a bearing, a gear...): the end face of the shaft that ends
+// there, so that what is on the node stays on it and the element goes after
+// it; at the first node, where no shaft ends, the start face of the one that
+// starts there. Null on a node no shaft of that line touches.
+export function faceAtNode(node, half, parts) {
+    const shafts = (parts || []).filter(p => p.kind === 'shaft' && (p.half || null) === (half || null)
+        && p.entry && Number.isFinite(Number(p.entry.n)));
+    const ending = shafts.find(p => Number(p.entry.n) + 1 === node);
+    if (ending) return shaftFace(ending, 'end', parts);
+    const starting = shafts.find(p => Number(p.entry.n) === node);
+    return starting ? shaftFace(starting, 'start', parts) : null;
 }
 
 // The box the extrusion takes up, for the camera to frame it. `margin`, in

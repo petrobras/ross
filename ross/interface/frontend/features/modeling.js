@@ -1023,7 +1023,11 @@ export function addShaftFromSketch(row) {
 // before it or after it, and every node past the face moved along -- by the
 // server (domain/inserting.py), which numbers them as ROSS does, as the split
 // does. The form, open on a row whose node may have just moved, is closed.
-export async function insertShaftFromSketch(index, side, row) {
+//
+// `half`: on a MultiRotor, the rotor the face is on, which becomes the one
+// being edited -- as a cut from the 3D view does (`reachRow`).
+export async function insertShaftFromSketch(index, side, row, half = null) {
+    reachRow('shafts', half);
     const activeData = getActiveData();
     let answer;
     let body;
