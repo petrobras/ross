@@ -1021,10 +1021,10 @@ button {
     box-shadow: var(--shadow-xs);
 }
 /* The bar is always there, for its 2D/3D buttons: with no shaft yet -- or a
-   rotor ROSS would not build -- they are still the way between the two views
-   (Leonardo). What it reads of a rotor shows only once a rotor was built
-   (`has-readings`, features/modeling.js); until then the buttons are alone in
-   the bar, in its middle. */
+   rotor ROSS would not build -- they are the way to the 3D view's "sketch the
+   first shaft" (Leonardo). What it reads of a rotor shows only once a rotor
+   was built (`has-readings`, features/modeling.js); until then the buttons
+   are alone in the bar, in its middle. */
 .rotor-info:not(.has-readings) > :not(.rotor-view) {
     display: none;
 }
@@ -1050,9 +1050,9 @@ button {
     transition: opacity var(--dur-base) var(--ease-standard);
 }
 /* The 2D figure's place with no shaft yet (features/modeling.js): the line
-   and, under it, the button that opens the shaft form. The button shows when
-   the pointer comes over the box, or the keyboard reaches it, and always
-   where there is no pointer to hover. */
+   and, under it, the button that opens the shaft form. Like the 3D view's,
+   the button shows when the pointer comes over the box, or the keyboard
+   reaches it, and always where there is no pointer to hover. */
 .figure-empty {
     display: flex;
     flex-direction: column;
@@ -1174,6 +1174,174 @@ button {
     background: var(--surface-card);
     color: var(--text-muted);
     cursor: pointer;
+}
+/* The sketch and the extrusion of a shaft element (features/sketch3d.js). While
+   one is in use the view's own tools and legend step aside: what the pointer
+   does is the sketch's. */
+.rotor3d-view.is-tool .rotor3d-tools,
+.rotor3d-view.is-tool .rotor3d-legend {
+    display: none;
+}
+/* The empty view's button: it shows when the pointer comes over the view, or
+   the keyboard reaches it, and always where there is no pointer to hover. */
+.rotor3d-first-shaft {
+    position: absolute;
+    left: 50%;
+    top: calc(50% + 3em);
+    transform: translateX(-50%);
+    z-index: 2;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+.rotor3d-first-shaft[hidden] {
+    display: none;
+}
+.rotor3d-view:hover .rotor3d-first-shaft,
+.rotor3d-first-shaft:focus-visible {
+    opacity: 1;
+}
+@media (hover: none) {
+    .rotor3d-first-shaft {
+        opacity: 1;
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .rotor3d-first-shaft {
+        transition: none;
+    }
+}
+.sketch-panel,
+.sketch-dimension {
+    position: absolute;
+    z-index: 4;
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    background: var(--surface-card);
+    color: var(--text-main);
+    box-shadow: var(--shadow-md);
+}
+.sketch-panel {
+    top: var(--space-2);
+    left: var(--space-2);
+    width: 270px;
+    max-width: calc(100% - 2 * var(--space-2));
+}
+.sketch-title {
+    font-weight: 600;
+    color: var(--text-strong);
+    margin-bottom: var(--space-1);
+}
+.sketch-hint,
+.sketch-section,
+.sketch-ratio {
+    margin: var(--space-1) 0;
+    color: var(--text-muted);
+    font-size: 0.85em;
+}
+.sketch-ratio.is-warning,
+.sketch-error {
+    color: var(--accent-danger);
+    font-size: 0.85em;
+}
+.sketch-tool[aria-pressed="true"] {
+    background: var(--accent);
+    color: var(--white);
+}
+.sketch-tool {
+    padding: 4px 10px;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    background: var(--surface-card);
+    color: var(--text-main);
+    cursor: pointer;
+}
+.sketch-tool:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+.sketch-circles {
+    list-style: none;
+    margin: var(--space-2) 0 0;
+    padding: 0;
+}
+.sketch-circle-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+}
+.sketch-circle-row span {
+    flex: 1;
+}
+.sketch-icon {
+    padding: 2px 6px;
+    border: none;
+    background: none;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+.sketch-field {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    margin: var(--space-1) 0;
+}
+.sketch-field input,
+.sketch-dimension input {
+    width: 6em;
+}
+.sketch-field select {
+    flex: 1;
+    min-width: 0;
+}
+.sketch-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-1);
+    margin-top: var(--space-2);
+}
+.sketch-actions button:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+.sketch-dimension {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-1);
+    width: 250px;
+}
+.sketch-dimension label {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    white-space: nowrap;
+}
+.sketch-dimension .sketch-error {
+    flex-basis: 100%;
+    margin: 0;
+}
+.sketch-labels {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    overflow: hidden;
+    pointer-events: none;
+}
+.sketch-label {
+    position: absolute;
+    left: 0;
+    top: 0;
+    margin: -1.6em 0 0 4px;
+    padding: 0 4px;
+    border-radius: var(--radius-sm);
+    background: var(--surface-card);
+    color: var(--text-strong);
+    font-size: 0.8em;
+    white-space: nowrap;
+}
+.sketch-label.is-live {
+    color: var(--accent);
 }
 /* The legend of the 3D view: a chip per category, as the 2D figure's legend
    (features/rotor3d.js). Along the bottom, from the right, clear of the axis

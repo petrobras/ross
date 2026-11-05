@@ -107,6 +107,17 @@ let lastScene = null;
 // The camera on its way to a view: where it left from, where it goes, and
 // when it left. Null when it is not flying.
 let flight = null;
+// The rotor built next is framed with a flight rather than a jump: the one
+// the sketch just made (features/sketch3d.js), which the person watched take
+// shape and should see land.
+let flyToNextBuild = false;
+
+// A tool that has the pointer to itself -- the sketch and the extrusion
+// (features/sketch3d.js) -- or null. While one is in use, a click does not
+// open a part's form nor the right button the menu, and the pointer lights no
+// part: what it does is the tool's. Its handlers answer true when they took
+// the event, which then goes no further, not even to the camera.
+let tool = null;
 
 // Editing from the 3D view (slice 3). `chosen` is the key of the part last
 // clicked -- its row's form is open -- and `listPointed` the part of the row
@@ -337,6 +348,18 @@ function makeStage(container) {
     container.appendChild(tip);
     container.appendChild(legend);
 
+    // The tool's, first of all: ahead of the tape and of the camera.
+    const toTool = name => event => {
+        if (tool && typeof tool[name] === 'function' && tool[name](event)) {
+            event.stopImmediatePropagation();
+            event.preventDefault();
+        }
+    };
+    renderer.domElement.addEventListener('pointerdown', toTool('pointerdown'), { capture: true });
+    renderer.domElement.addEventListener('pointermove', toTool('pointermove'), { capture: true });
+    renderer.domElement.addEventListener('pointerup', toTool('pointerup'), { capture: true });
+    renderer.domElement.addEventListener('keydown', toTool('keydown'), { capture: true });
+
     // The tape's ends are grabbed before OrbitControls sees the press: these
     // listen in the capture phase, which on the canvas itself runs ahead of
     // the controls' own listeners, and a press on a handle goes no further --
@@ -396,6 +419,7 @@ function makeStage(container) {
     });
     renderer.domElement.addEventListener('contextmenu', event => event.preventDefault());
     renderer.domElement.addEventListener('pointerup', event => {
+        if (tool) return;
         if (event.button === 2) {
             const still = rightPressed && Math.hypot(event.clientX - rightPressed.x, event.clientY - rightPressed.y) <= CLICK_SLOP;
             rightPressed = null;
@@ -408,6 +432,7 @@ function makeStage(container) {
         clickTimer = setTimeout(() => { if (hit) editPart(hit.part); }, DOUBLE_CLICK);
     });
     renderer.domElement.addEventListener('dblclick', event => {
+        if (tool) return;
         clearTimeout(clickTimer);
         const hit = pickAt(event);
         if (!hit) return;
@@ -562,10 +587,11 @@ function advanceFlight() {
     if (!flight) return;
     const progress = (performance.now() - flight.start) / FLIGHT_MS;
     if (progress >= 1) {
-        const end = flight.to;
+        const { to: end, onLand } = flight;
         flight = null;
         placeCamera(end);
         setClipping(end);
+        if (typeof onLand === 'function') onLand();
         return;
     }
     placeCamera(cameraBetween(flight.from, flight.to, easeInOut(progress)));
@@ -612,6 +638,9 @@ export async function showRotor3d(container, scene) {
         framedFor = null;
     }
     fitCanvas(stage);
+    // A rotor drawn under a tool -- another project opened mid-sketch -- is
+    // not the one the tool was working on.
+    if (tool && typeof tool.onRotor === 'function') tool.onRotor();
     layout = layoutScene(scene, shapeForElement);
     lastScene = scene;
     direction = viewTowards(chosenView, scene);
@@ -620,8 +649,148 @@ export async function showRotor3d(container, scene) {
     placeMeasure();
     placeBench();
     stage.hovered = null;
-    if (needsFraming(shownBounds()) || framedFrom !== String(direction)) frameRotor();
+    if (needsFraming(shownBounds()) || framedFrom !== String(direction)) frameRotor(flyToNextBuild);
+    flyToNextBuild = false;
     requestFrame();
+}
+
+// --- tools: the sketch and the extrusion (features/sketch3d.js) -----------------
+//
+// What a tool is lent of the view: the library, the scene to add its drawing
+// to, the camera and its controls, and the few things it cannot do alone --
+// the ray under a pointer, a point on the screen, a flight of the camera.
+
+// The view without a rotor, for the first shaft of a project to be sketched
+// on: the stage, its floor and its light, and nothing on them.
+export async function showEmptyStage(container) {
+    await loadLibrary();
+    if (!stage || stage.container !== container) {
+        stage = makeStage(container);
+    }
+    fitCanvas(stage);
+    if (model) {
+        stage.scene.remove(model.object);
+        model.dispose();
+        model = null;
+    }
+    if (annotations) {
+        stage.scene.remove(annotations.object);
+        annotations.dispose();
+        annotations = null;
+    }
+    labelSpans.forEach(span => span.remove());
+    labelSpans = [];
+    if (bench) {
+        stage.scene.remove(bench.object);
+        bench.dispose();
+        bench = null;
+    }
+    if (measuring) toggleMeasure();
+    layout = null;
+    lastScene = null;
+    shownParts = [];
+    stage.legend.innerHTML = '';
+    // The next rotor is framed afresh.
+    framedFor = null;
+    placeFloor(stage, { min: [-0.1, -0.1, -0.05], max: [0.1, 0.1, 0.35] });
+    requestFrame();
+}
+
+export function useTool(next) {
+    tool = next || null;
+    if (stage) {
+        stage.container.classList.toggle('is-tool', !!tool);
+        stage.controls.enabled = true;
+        stage.controls.enableRotate = !(tool && tool.locksRotation);
+    }
+    requestFrame();
+}
+
+export function toolInUse() {
+    return tool;
+}
+
+export function flyToNextRotor() {
+    flyToNextBuild = true;
+}
+
+export function toolKit() {
+    if (!stage) return null;
+    const { THREE } = library;
+    const { camera, controls, renderer, scene, container } = stage;
+    return {
+        THREE, scene, camera, controls, container, canvas: renderer.domElement, requestFrame,
+        colour: themeColor,
+        // The ray under a pointer event: { origin, direction }, as arrays.
+        ray: (event) => {
+            const box = renderer.domElement.getBoundingClientRect();
+            if (!box.width || !box.height) return null;
+            const ndc = {
+                x: ((event.clientX - box.left) / box.width) * 2 - 1,
+                y: -((event.clientY - box.top) / box.height) * 2 + 1,
+            };
+            stage.raycaster.setFromCamera(ndc, camera);
+            const { origin, direction } = stage.raycaster.ray;
+            return { origin: origin.toArray(), direction: direction.toArray(), raycaster: stage.raycaster };
+        },
+        // A point of the scene on the canvas, in its pixels: [x, y, depth].
+        project: (point) => {
+            const box = renderer.domElement.getBoundingClientRect();
+            const p = new THREE.Vector3(...point).project(camera);
+            return [(p.x + 1) / 2 * box.width, (1 - p.y) / 2 * box.height, p.z];
+        },
+        // Where the camera takes in `bounds` from the view `name`, or from the
+        // direction `name` when it is one ([x, y, z], toward the camera).
+        framed: (bounds, name) => {
+            const towards = Array.isArray(name) ? name : viewTowards(name, lastScene);
+            const view = framing(bounds, FOV, camera.aspect, towards);
+            const [cx, cy, cz] = view.center;
+            const [dx, dy, dz] = view.direction;
+            const d = view.distance;
+            return {
+                position: [cx + dx * d, cy + dy * d, cz + dz * d],
+                target: [cx, cy, cz],
+                near: Math.max(d / 200, 1e-4),
+                far: d * 20,
+            };
+        },
+        // The camera at `end`, at once.
+        place: (end) => {
+            flight = null;
+            placeCamera(end);
+            setClipping(end);
+            requestFrame();
+        },
+        // Where the camera is now.
+        here: () => {
+            return {
+                position: camera.position.toArray(), target: controls.target.toArray(),
+                near: camera.near, far: camera.far,
+            };
+        },
+        // The camera flies to `end`, and `onLand` runs when it is there (at
+        // once with "reduce motion").
+        fly: (end, onLand) => {
+            if (prefersStillness()) {
+                flight = null;
+                placeCamera(end);
+                setClipping(end);
+                requestFrame();
+                if (typeof onLand === 'function') onLand();
+                return;
+            }
+            flight = {
+                from: { position: camera.position.toArray(), target: controls.target.toArray() },
+                to: end,
+                start: performance.now(),
+                onLand,
+            };
+            camera.near = Math.min(camera.near, end.near);
+            camera.far = Math.max(camera.far, end.far);
+            camera.updateProjectionMatrix();
+            requestFrame();
+        },
+    };
 }
 
 // The model of what is shown: the layout's parts less the hidden ones. The
@@ -960,6 +1129,8 @@ function drawFrame() {
     drawTriad();
     placeLabels();
     placeMeasureLabel();
+    // The tool's labels follow the view, like the dimensions.
+    if (tool && typeof tool.frame === 'function') tool.frame();
 }
 
 // The numbers follow the view: projected every frame, those that would print
@@ -1162,6 +1333,13 @@ function placeMeasureLabel() {
 
 function showWhatIsUnderThePointer() {
     const { sleeve, tip, raycaster, camera } = stage;
+    if (tool) {
+        tip.hidden = true;
+        sleeve.visible = false;
+        stage.mark.visible = false;
+        markRow(null);
+        return;
+    }
     const overTriad = !!pointer && inTriad(pointer.x, pointer.y, pointer.height);
     let hit = null;
     if (pointer && !overTriad && layout && pointer.width && pointer.height) {
