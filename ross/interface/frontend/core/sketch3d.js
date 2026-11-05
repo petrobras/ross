@@ -89,23 +89,67 @@ export function startingLength(section) {
     return section ? rounded(section.odl, niceStep(section.odl)) : 100;
 }
 
+// A tapered element: the section of its far face, `{ od, id }` in mm, beside
+// the sketched one (`section`, the near face). Null is a straight element.
+// Turned on, the far face starts as the near one.
+export function farOf(section) {
+    return { od: section.odl, id: section.idl };
+}
+
+export function isTapered(section, far) {
+    return !!far && (Math.abs(far.od - section.odl) > 1e-12 || Math.abs(far.id - section.idl) > 1e-12);
+}
+
+// Why the far face cannot be made, or null: it needs an outside, wider than
+// its bore. The reasons are i18n keys.
+export function taperProblem(far) {
+    if (!far) return null;
+    if (!(far.od > 0)) return 'extrudeFarNeedsOuter';
+    if (!(far.id >= 0) || far.id >= far.od) return 'extrudeFarBore';
+    return null;
+}
+
+// The far face's outside from the handle on its rim: twice the distance of
+// the pointer from the axis on the far face's plane, rounded unless `free`,
+// and kept a step wider than the bore.
+export function handleDiameter(x, y, bore, free = false) {
+    const millimetres = 2000 * Math.hypot(x, y);
+    const step = niceStep(Math.max(millimetres, 1));
+    const value = free ? Number(millimetres.toPrecision(6)) : rounded(millimetres, step);
+    return Math.max(value, (bore || 0) + step, step);
+}
+
+// The diameter API RP 684's L/D is taken with: the larger end of a taper, as
+// ROSS's `refine_mesh` takes it.
+function widest(section, far) {
+    return Math.max(section.odl, far && far.od > 0 ? far.od : 0);
+}
+
 // L/D, and whether it is past what API RP 684 accepts for an element (1.0)
 // or prefers (0.5) -- the rule the discretization dialog cuts by.
-export function slenderness(length, section) {
+export function slenderness(length, section, far = null) {
     if (!section || !(section.odl > 0) || !(length > 0)) return null;
-    const ratio = length / section.odl;
+    const ratio = length / widest(section, far);
     return { ratio, tooLong: ratio > 1 + 1e-9, overPreferred: ratio > 0.5 + 1e-9 };
 }
 
-// The row of the element list the sketch and the extrusion make.
-export function shaftRow(length, section, material) {
-    return {
-        element_type: 'BASIC',
-        L: shown(length),
-        idl: shown(section.idl),
-        odl: shown(section.odl),
-        material: material || 'Default (Steel)',
-    };
+// The row of the element list the sketch and the extrusion make. A taper
+// writes the right end too (`odr`, `idr`): ROSS's left end is the lower z, so
+// the sketched face is the left one when the element grows +z (`sense` 1) and
+// the right one when it grows -z, from the start face of a shaft.
+export function shaftRow(length, section, material, far = null, sense = 1) {
+    const row = { element_type: 'BASIC', L: shown(length) };
+    if (isTapered(section, far)) {
+        const near = { od: section.odl, id: section.idl };
+        const [left, right] = sense < 0 ? [far, near] : [near, far];
+        Object.assign(row, {
+            idl: shown(left.id), odl: shown(left.od), idr: shown(right.id), odr: shown(right.od),
+        });
+    } else {
+        Object.assign(row, { idl: shown(section.idl), odl: shown(section.odl) });
+    }
+    row.material = material || 'Default (Steel)';
+    return row;
 }
 
 // How far around the axis the sketch plane is shown, in metres: three times
@@ -175,8 +219,8 @@ export function shaftFace(part, side, parts) {
 // radii of the element, widens it all round: on the face of a rotor the camera
 // has to stand clear of the bearing or the disk that sits there, which are
 // drawn a few shaft radii wide.
-export function extrusionBounds(face, length, section, margin = 0) {
-    const r = (section ? section.odl : 100) / 2000;
+export function extrusionBounds(face, length, section, margin = 0, far = null) {
+    const r = (section ? widest(section, far) : 100) / 2000;
     const z1 = face.z + face.sense * (length / 1000);
     const out = r * (1 + margin);
     const along = r * margin;

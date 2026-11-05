@@ -1295,6 +1295,9 @@ button {
     flex: 1;
     min-width: 0;
 }
+.sketch-check input {
+    width: auto;
+}
 .sketch-actions {
     display: flex;
     justify-content: flex-end;

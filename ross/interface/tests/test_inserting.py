@@ -256,3 +256,15 @@ def test_the_route_answers_the_project():
     assert answer.status_code == 200
     assert len(answer.get_json()["projectData"]["shafts"]) == 4
     assert refused.status_code == 400 and "Shaft #8" in refused.get_json()["message"]
+
+
+def test_a_taper_on_a_start_face_meets_the_face_with_its_right_end():
+    """Sketched on a start face, the element grows -z: the sketch is its
+    right end (ROSS's `odr`, at the higher z), the far face its left
+    (frontend/core/sketch3d.js, `shaftRow` with sense -1). Built by ROSS, the
+    new element's right end has the diameter of the face it was drawn on."""
+    taper = dict(NEW, odl="80", idl="0", odr="50", idr="0")
+    rotor = build_rotor_from_ui(insert_shaft(project(), 1, "start", taper))
+    new, b = sorted(rotor.shaft_elements, key=lambda e: e.n)[1:3]
+    assert (new.odl, new.odr) == pytest.approx((0.08, 0.05))
+    assert new.odr == pytest.approx(b.odl)

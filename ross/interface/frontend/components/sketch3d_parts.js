@@ -117,15 +117,27 @@ export function buildExtrusion(THREE, colours) {
     arrow.add(stem, head);
     group.add(arrow);
 
-    function set(face, length, section) {
+    // The handle of a taper: a bead on the rim of the far face, pulled away
+    // from the axis or toward it. Shown only while the element is tapered.
+    const handleMaterial = new THREE.MeshBasicMaterial({ color: colours.arrow, toneMapped: false, depthTest: false });
+    const handle = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 12), handleMaterial);
+    handle.renderOrder = OVERLAY;
+    handle.visible = false;
+    group.add(handle);
+
+    // `far`: the far face of a taper, `{ od, id }` in mm; null for a straight
+    // element, whose far face is the sketched one.
+    function set(face, length, section, far = null) {
         const outer = section.odl / 2000;
         const inner = section.idl / 2000;
+        const farOuter = (far ? far.od : section.odl) / 2000;
+        const farInner = (far ? far.id : section.idl) / 2000;
         const span = length / 1000;
-        // The profile turned about the axis: a rectangle from the bore to the
-        // outside, closed at both ends.
+        // The profile turned about the axis: from the bore to the outside at
+        // the sketched face, to those of the far face, closed at both ends.
         const profile = [
             new THREE.Vector2(inner, 0), new THREE.Vector2(outer, 0),
-            new THREE.Vector2(outer, span), new THREE.Vector2(inner, span), new THREE.Vector2(inner, 0),
+            new THREE.Vector2(farOuter, span), new THREE.Vector2(farInner, span), new THREE.Vector2(inner, 0),
         ];
         const geometry = new THREE.LatheGeometry(profile, 64);
         geometry.rotateX(face.sense < 0 ? -Math.PI / 2 : Math.PI / 2);
@@ -135,18 +147,25 @@ export function buildExtrusion(THREE, colours) {
         edges.geometry = new THREE.EdgesGeometry(geometry, 30);
         group.position.set(0, 0, face.z);
         // The arrow stands on the far face, on the axis, as long as the section is wide.
-        const size = Math.max(outer, 0.005) * 1.2;
+        const size = Math.max(outer, farOuter, 0.005) * 1.2;
         arrow.scale.setScalar(size);
         arrow.position.set(0, 0, face.sense * span);
         arrow.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, face.sense < 0 ? -1 : 1));
+        handle.visible = !!far;
+        handle.scale.setScalar(size * 0.12);
+        handle.position.set(0, farOuter, face.sense * span);
     }
 
     return {
         object: group,
         arrow,
+        handle,
         set,
         setHover: (on) => {
             arrowMaterial.color.set(on ? colours.arrowHover : colours.arrow);
+        },
+        setHandleHover: (on) => {
+            handleMaterial.color.set(on ? colours.arrowHover : colours.arrow);
         },
         dispose: () => {
             body.geometry.dispose();
@@ -156,6 +175,8 @@ export function buildExtrusion(THREE, colours) {
             stem.geometry.dispose();
             head.geometry.dispose();
             arrowMaterial.dispose();
+            handle.geometry.dispose();
+            handleMaterial.dispose();
         },
     };
 }

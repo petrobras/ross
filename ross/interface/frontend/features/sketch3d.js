@@ -28,8 +28,8 @@ import { escapeHtml } from '../core/dom.js';
 import { t } from '../core/i18n.js';
 import { state } from '../core/state.js';
 import {
-    MAX_CIRCLES, circleProblem, draggedLength, extrusionBounds, firstFace, gridSpacing, pointerDiameter,
-    sectionOf, shaftRow, shown, sketchExtent, slenderness, startingLength, typedLength,
+    MAX_CIRCLES, circleProblem, draggedLength, extrusionBounds, farOf, firstFace, gridSpacing, handleDiameter,
+    pointerDiameter, sectionOf, shaftRow, shown, sketchExtent, slenderness, startingLength, taperProblem, typedLength,
 } from '../core/sketch3d.js';
 import { alongAxis } from '../core/rotor3d_measure.js';
 import { buildCircle, buildExtrusion, buildSketchPlane } from '../components/sketch3d_parts.js';
@@ -38,11 +38,14 @@ import { addShaftFromSketch, insertShaftFromSketch, refreshRotorFigure } from '.
 
 const DEFAULT_MATERIAL = 'Default (Steel)';
 
-// Why a diameter was refused (core/sketch3d.js, `circleProblem`), in words.
+// Why a diameter was refused (core/sketch3d.js, `circleProblem` and
+// `taperProblem`), in words.
 const PROBLEMS = {
     sketchNeedsDiameter: () => t('sketchNeedsDiameter'),
     sketchTwoCircles: () => t('sketchTwoCircles'),
     sketchSameCircle: () => t('sketchSameCircle'),
+    extrudeFarNeedsOuter: () => t('extrudeFarNeedsOuter'),
+    extrudeFarBore: () => t('extrudeFarBore'),
 };
 
 let session = null;
@@ -400,6 +403,9 @@ export function finishSketch() {
     clearSketchDrawing();
     session.phase = 'extrude';
     session.section = section;
+    // The far face of a taper, `{ od, id }` in mm; null while the element is
+    // straight (core/sketch3d.js, `farOf`).
+    session.far = null;
     session.length = startingLength(section);
     session.extrusion = buildExtrusion(kit.THREE, session.palette);
     session.extrusion.set(session.face, session.length, section);
@@ -425,7 +431,7 @@ function flyToExtrusion(from = null) {
     const { kit, face, section } = session;
     if (from === null) from = face.first ? 'iso' : [-1, 1, face.sense];
     // Over a rotor, room round the face for what is drawn on it.
-    const bounds = extrusionBounds(face, Math.max(session.length, section.odl) * 1.6, section, face.first ? 0 : 4);
+    const bounds = extrusionBounds(face, Math.max(session.length, section.odl) * 1.6, section, face.first ? 0 : 4, session.far);
     kit.fly(kit.framed(bounds, from));
 }
 
@@ -465,11 +471,15 @@ function renderExtrudePanel() {
         + `<label class="sketch-field">${escapeHtml(t('extrudeLength'))} <input type="text" inputmode="decimal" `
         + `class="extrude-length" value="${escapeHtml(shown(session.length))}"> mm</label>`
         + `<p class="sketch-ratio" aria-live="polite"></p>`
+        + `<label class="sketch-field sketch-check"><input type="checkbox" class="extrude-taper" data-action="extrude-taper"`
+        + `${session.far ? ' checked' : ''}> ${escapeHtml(t('extrudeTaper'))}</label>`
+        + (session.far ? farFields() : '')
         + `<label class="sketch-field">${escapeHtml(t('extrudeMaterial'))} `
         + `<select class="extrude-material" data-action="extrude-material">${materialOptions()}</select></label>`
         + `<div class="sketch-actions">`
         + `<button type="button" class="btn-secondary" data-action="sketch-cancel">${escapeHtml(t('cancel'))}</button>`
         + `<button type="button" class="btn-primary" data-action="extrude-confirm">${escapeHtml(t('extrudeCreate'))}</button></div>`;
+    wireFarFields();
     const input = panel.querySelector('.extrude-length');
     input.addEventListener('input', () => {
         const value = typedLength(input.value);
@@ -484,10 +494,66 @@ function renderExtrudePanel() {
     showRatio();
 }
 
+// The far face of a taper: its outside and its bore, as they are typed; the
+// handle on its rim moves the outside.
+function farFields() {
+    const { far } = session;
+    return `<p class="sketch-hint">${escapeHtml(t('extrudeTaperHint'))}</p>`
+        + `<label class="sketch-field">${escapeHtml(t('extrudeFarOuter'))} <input type="text" inputmode="decimal" `
+        + `class="extrude-far-od" value="${escapeHtml(shown(far.od))}"> mm</label>`
+        + `<label class="sketch-field">${escapeHtml(t('extrudeFarInner'))} <input type="text" inputmode="decimal" `
+        + `class="extrude-far-id" value="${escapeHtml(shown(far.id))}"> mm</label>`
+        + `<p class="sketch-error extrude-far-error" role="alert" hidden></p>`;
+}
+
+function wireFarFields() {
+    const { panel } = session;
+    [['.extrude-far-od', 'od'], ['.extrude-far-id', 'id']].forEach(([selector, key]) => {
+        const input = panel.querySelector(selector);
+        if (!input) return;
+        input.addEventListener('input', () => {
+            const text = String(input.value).trim().replace(',', '.');
+            const value = key === 'id' && text !== '' && Number(text) === 0 ? 0 : typedLength(input.value);
+            if (value === null) return;
+            setFar({ ...session.far, [key]: value }, false);
+        });
+        input.addEventListener('keydown', event => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                confirmExtrusion();
+            }
+        });
+    });
+}
+
+// "Tapered": the far face gets its own section, starting as the near one.
+export function toggleTaper(on) {
+    if (!session || session.phase !== 'extrude') return;
+    session.far = on ? farOf(session.section) : null;
+    session.extrusion.set(session.face, session.length, session.section, session.far);
+    renderExtrudePanel();
+    session.kit.requestFrame();
+}
+
+// The far face, from the handle (`fromHandle`: its box is rewritten to match)
+// or from the boxes.
+function setFar(far, fromHandle) {
+    session.far = far;
+    session.extrusion.set(session.face, session.length, session.section, far);
+    if (fromHandle) {
+        const input = session.panel.querySelector('.extrude-far-od');
+        if (input) input.value = shown(far.od);
+    }
+    const line = session.panel.querySelector('.extrude-far-error');
+    if (line) line.hidden = true;
+    showRatio();
+    session.kit.requestFrame();
+}
+
 function showRatio() {
     const line = session.panel.querySelector('.sketch-ratio');
     if (!line) return;
-    const ratio = slenderness(session.length, session.section);
+    const ratio = slenderness(session.length, session.section, session.far);
     if (!ratio) {
         line.textContent = '';
         return;
@@ -502,7 +568,7 @@ function showRatio() {
 // from the box.
 function setLength(value, fromArrow) {
     session.length = value;
-    session.extrusion.set(session.face, value, session.section);
+    session.extrusion.set(session.face, value, session.section, session.far);
     if (fromArrow) {
         const input = session.panel.querySelector('.extrude-length');
         if (input) input.value = shown(value);
@@ -511,30 +577,55 @@ function setLength(value, fromArrow) {
     session.kit.requestFrame();
 }
 
-function arrowUnder(event) {
+// What of the extrusion is under the pointer: 'handle' (the taper's bead),
+// 'arrow', or null. The bead first: it sits on the rim, where the arrow's head
+// can be behind it.
+function grabbedUnder(event) {
     const ray = session.kit.ray(event);
-    if (!ray) return false;
-    return ray.raycaster.intersectObject(session.extrusion.arrow, true).length > 0;
+    if (!ray) return null;
+    const { handle, arrow } = session.extrusion;
+    if (handle.visible && ray.raycaster.intersectObject(handle, false).length > 0) return 'handle';
+    if (ray.raycaster.intersectObject(arrow, true).length > 0) return 'arrow';
+    return null;
+}
+
+// The point of the far face's plane under the pointer, or null.
+function onFarFace(event) {
+    const ray = session.kit.ray(event);
+    if (!ray) return null;
+    const z = session.face.z + session.face.sense * (session.length / 1000);
+    const [ox, oy, oz] = ray.origin;
+    const [dx, dy, dz] = ray.direction;
+    if (Math.abs(dz) < 1e-9) return null;
+    const along = (z - oz) / dz;
+    return along < 0 ? null : [ox + dx * along, oy + dy * along];
 }
 
 function extrudeMove(event) {
     const { kit } = session;
-    if (session.dragging) {
+    if (session.dragging === 'arrow') {
         const ray = kit.ray(event);
         const z = ray ? alongAxis(ray.origin, ray.direction, { x: 0, tape: 0 }) : null;
         if (z !== null) setLength(draggedLength(z, session.face.z, session.face.sense, event.shiftKey), true);
         return true;
     }
-    const over = arrowUnder(event);
-    session.extrusion.setHover(over);
-    kit.canvas.classList.toggle('is-grab', over);
+    if (session.dragging === 'handle') {
+        const point = onFarFace(event);
+        if (point) setFar({ ...session.far, od: handleDiameter(point[0], point[1], session.far.id, event.shiftKey) }, true);
+        return true;
+    }
+    const over = grabbedUnder(event);
+    session.extrusion.setHover(over === 'arrow');
+    session.extrusion.setHandleHover(over === 'handle');
+    kit.canvas.classList.toggle('is-grab', !!over);
     kit.requestFrame();
     return false;
 }
 
 function extrudeDown(event) {
-    if (event.button !== 0 || !arrowUnder(event)) return false;
-    session.dragging = true;
+    const grabbed = event.button === 0 ? grabbedUnder(event) : null;
+    if (!grabbed) return false;
+    session.dragging = grabbed;
     // The press is kept from the camera, and with it the focus a click gives:
     // given here, so Enter and Esc reach the extrusion after the drag.
     session.kit.canvas.focus();
@@ -559,7 +650,7 @@ function keepInView() {
     const { kit, face, section, length } = session;
     const box = kit.canvas.getBoundingClientRect();
     const far = face.z + face.sense * (length / 1000);
-    const r = section.odl / 2000;
+    const r = Math.max(section.odl, session.far ? session.far.od : 0) / 2000;
     const outside = [[0, r, far], [0, -r, far], [r, 0, far], [-r, 0, far]].some(point => {
         const [x, y, depth] = kit.project(point);
         return depth > 1 || x < 0 || y < 0 || x > box.width || y > box.height;
@@ -595,7 +686,16 @@ export function confirmExtrusion() {
         input.focus();
         return;
     }
-    const row = shaftRow(typed, session.section, session.material);
+    const problem = taperProblem(session.far);
+    if (problem) {
+        const line = session.panel.querySelector('.extrude-far-error');
+        if (line) {
+            line.textContent = PROBLEMS[problem]();
+            line.hidden = false;
+        }
+        return;
+    }
+    const row = shaftRow(typed, session.section, session.material, session.far, session.face.sense);
     const { face, kit, returnTo } = session;
     closeSketch(true);
     flyToNextRotor();
@@ -646,5 +746,6 @@ export const SKETCH_ACTIONS = {
     'sketch-finish': () => finishSketch(),
     'sketch-cancel': () => closeSketch(),
     'extrude-material': element => chooseMaterial(element.value),
+    'extrude-taper': element => toggleTaper(!!element.checked),
     'extrude-confirm': () => confirmExtrusion(),
 };

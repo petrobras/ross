@@ -91,6 +91,33 @@ check('a grid of about thirty round steps', [0.15, 0.03, 0.9].every(e => {
 const box = S.extrusionBounds({ z: 0.5, sense: -1 }, 200, { odl: 100, idl: 0 });
 check('the box of the extrusion, growing -z from z = 0.5', near(box.min[2], 0.3) && near(box.max[2], 0.5) && near(box.max[0], 0.05));
 
+// --- a tapered element ---------------------------------------------------------------------
+console.log('\nA tapered element');
+
+const sketched = { odl: 100, idl: 40 };
+const far0 = S.farOf(sketched);
+check('turned on, the far face starts as the sketched one', far0.od === 100 && far0.id === 40);
+check('which is not yet a taper', !S.isTapered(sketched, far0) && !S.isTapered(sketched, null));
+check('a different outside or bore is', S.isTapered(sketched, { od: 60, id: 40 }) && S.isTapered(sketched, { od: 100, id: 20 }));
+check('the far face needs an outside', S.taperProblem({ od: 0, id: 0 }) === 'extrudeFarNeedsOuter');
+check('wider than its bore', S.taperProblem({ od: 40, id: 40 }) === 'extrudeFarBore' && S.taperProblem({ od: 40, id: 50 }) === 'extrudeFarBore');
+check('a straight element and a good taper pass', S.taperProblem(null) === null && S.taperProblem({ od: 60, id: 0 }) === null);
+check('the handle: twice the distance from the axis, rounded', S.handleDiameter(0.03, 0.04, 0) === 100
+    && S.handleDiameter(0.0237, 0, 0) === 47);
+check('free with Shift', S.handleDiameter(0.0237, 0, 0, true) === 47.4);
+check('never down to the bore', S.handleDiameter(0.001, 0, 40) > 40);
+const tapered = S.slenderness(100, { odl: 50, idl: 0 }, { od: 100, id: 0 });
+check('L/D by the larger end, as ROSS refine_mesh takes it', near(tapered.ratio, 1, 1e-12));
+const growing = S.shaftRow(200, { odl: 100, idl: 40 }, 'Steel', { od: 60, id: 20 }, 1);
+check('growing +z from the face: the sketch is the left end, the far face the right',
+    JSON.stringify(growing) === JSON.stringify({ element_type: 'BASIC', L: '200', idl: '40', odl: '100', idr: '20', odr: '60', material: 'Steel' }));
+const backwards = S.shaftRow(200, { odl: 100, idl: 40 }, 'Steel', { od: 60, id: 20 }, -1);
+check('growing -z from a start face: the far face is the left end',
+    backwards.odl === '60' && backwards.idl === '20' && backwards.odr === '100' && backwards.idr === '40');
+check('a far face like the near one writes a straight row', !('odr' in S.shaftRow(200, sketched, 'Steel', S.farOf(sketched), 1)));
+const wide = S.extrusionBounds({ z: 0, sense: 1 }, 200, { odl: 50, idl: 0 }, 0, { od: 120, id: 0 });
+check('the box takes the wider end', Math.abs(wide.max[0] - 0.06) < 1e-12);
+
 // --- the faces of a shaft ----------------------------------------------------------------
 console.log('\nThe faces a sketch can be drawn on');
 
@@ -168,6 +195,21 @@ check('growing -z, the other way from its face', near(body.geometry.boundingBox.
     && near(body.geometry.boundingBox.max.z + 0.5, 0.5, 1e-6));
 const back = new THREE.Vector3(0, 1, 0).applyQuaternion(extrusion.arrow.quaternion);
 check('and the arrow with it', near(back.z, -1, 1e-9));
+
+// A taper: the far face with its own section, and the bead on its rim.
+extrusion.set({ z: 0.1, sense: 1 }, 250, { odl: 100, idl: 40 }, { od: 60, id: 20 });
+body.geometry.computeBoundingBox();
+const farRing = [];
+const p2 = body.geometry.attributes.position.array;
+for (let i = 0; i < p2.length; i += 3) if (Math.abs(p2[i + 2] - 0.25) < 1e-6) farRing.push(Math.hypot(p2[i], p2[i + 1]));
+check('the far face: its outside and its bore', near(Math.max(...farRing), 0.03, 1e-6) && near(Math.min(...farRing), 0.01, 1e-6));
+check('the near face still the sketch', near(bodyBox.max.x, 0.05, 1e-3));
+extrusion.object.updateMatrixWorld(true);
+const bead = new THREE.Vector3();
+extrusion.handle.getWorldPosition(bead);
+check('the bead on the rim of the far face', extrusion.handle.visible && near(bead.z, 0.35, 1e-9) && near(bead.y, 0.03, 1e-9));
+extrusion.set({ z: 0.1, sense: 1 }, 250, { odl: 100, idl: 40 });
+check('no bead on a straight element', !extrusion.handle.visible);
 
 // Everything made is freed.
 const freed = new Set();
