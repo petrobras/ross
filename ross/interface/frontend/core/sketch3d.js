@@ -126,14 +126,59 @@ export function gridSpacing(extent) {
 
 // Where a face lets a new element start: its plane `z` (metres), the sense it
 // grows (+1 after the face, -1 before it), and the diameter the face has (mm),
-// for the size of the sketch. The first shaft of a rotor starts on z = 0.
+// for the size of the sketch. The first shaft of a rotor starts on z = 0,
+// sketched from the front view (`look`, the direction the camera looks from).
 export function firstFace() {
-    return { z: 0, sense: 1, diameter: 0 };
+    return { z: 0, sense: 1, diameter: 0, first: true, look: [0, 0, -1] };
 }
 
-// The box the extrusion takes up, for the camera to frame it.
-export function extrusionBounds(face, length, section) {
+// The start or the end face of a shaft part of the 3D view's layout
+// (core/rotor3d_layout.js), as a place to sketch on:
+//
+//   * `side`, `index`: what domain/inserting.py is told -- the new element goes
+//     after the shaft (`end`) or before it (`start`);
+//   * `node`: the node the face is on, for the menu to name it;
+//   * `look`: the sketch is seen from outside the face, the side the element
+//     grows into;
+//   * `free`: nothing of the line goes on from the face. When something does,
+//     it is still the place to sketch -- the neighbour hidden or not -- but
+//     what is past the face moves along by the new length, and the panel says
+//     so.
+// `diameter` and `inner` are the face's (mm): the size of the sketch, and the
+// circles it shows for reference.
+export function shaftFace(part, side, parts) {
+    const end = side === 'end';
+    const z = end ? part.z1 : part.z0;
+    const profile = part.profile || {};
+    const outer = end ? profile.odr : profile.odl;
+    const inner = end ? profile.idr : profile.idl;
+    const span = Math.abs(part.z1 - part.z0) || 1;
+    const touching = (parts || []).some(p => p !== part && p.half === part.half
+        && (p.kind === 'shaft' || p.kind === 'coupling')
+        && Math.abs((end ? Math.min(p.z0, p.z1) : Math.max(p.z0, p.z1)) - z) <= 1e-9 * span);
+    const start = part.entry && Number.isFinite(Number(part.entry.n)) ? Number(part.entry.n) : null;
+    return {
+        z,
+        sense: end ? 1 : -1,
+        diameter: (outer || 0) * 1000,
+        inner: (inner || 0) * 1000,
+        first: false,
+        look: [0, 0, end ? 1 : -1],
+        index: part.index,
+        side: end ? 'end' : 'start',
+        node: start === null ? null : start + (end ? 1 : 0),
+        free: !touching,
+    };
+}
+
+// The box the extrusion takes up, for the camera to frame it. `margin`, in
+// radii of the element, widens it all round: on the face of a rotor the camera
+// has to stand clear of the bearing or the disk that sits there, which are
+// drawn a few shaft radii wide.
+export function extrusionBounds(face, length, section, margin = 0) {
     const r = (section ? section.odl : 100) / 2000;
     const z1 = face.z + face.sense * (length / 1000);
-    return { min: [-r, -r, Math.min(face.z, z1)], max: [r, r, Math.max(face.z, z1)] };
+    const out = r * (1 + margin);
+    const along = r * margin;
+    return { min: [-out, -out, Math.min(face.z, z1) - along], max: [out, out, Math.max(face.z, z1) + along] };
 }

@@ -29,6 +29,7 @@ import {
 } from '../core/rotor3d_measure.js';
 import { buildMeasure } from '../components/rotor3d_measure.js';
 import { FLIGHT_MS, VIEWS, cameraBetween, easeInOut, viewTowards } from '../core/rotor3d_views.js';
+import { shaftFace } from '../core/sketch3d.js';
 import { state } from '../core/state.js';
 import {
     LEGEND_CATEGORIES, categoryHidden, drawn, elementHidden, legendClick, toggleElementHidden,
@@ -39,6 +40,7 @@ import { buildTriad } from '../components/rotor3d_triad.js';
 import { SHAPE_FIELD, drawnShape, shapeOf } from '../core/shapes3d.js';
 import { openContextMenu } from '../components/context_menu.js';
 import { addFrom3d, copyFrom3d, deleteFrom3d, editFrom3d, meshFrom3d, splitFrom3d } from './modeling.js';
+import { sketchOnFace } from './sketch3d.js';
 
 const FOV = 35;
 
@@ -1060,6 +1062,8 @@ export function menuEntries(hit) {
             : { label: t('ctxSplitHereNo'), icon: 'fa-scissors', disabled: true });
         entries.push({ label: t('ctxSplitAsk'), icon: 'fa-scissors', run: () => splitFrom3d(part.index, part.half) });
         entries.push({ label: t('ctxMesh'), icon: 'fa-ruler-horizontal', run: () => meshFrom3d(part.index, part.half) });
+        const sketches = sketchEntries(part, hit.point);
+        entries.push(...sketches);
         entries.push(null);
     }
     entries.push({ label: t('ctxEdit'), icon: 'fa-pen', run: () => editPart(part) });
@@ -1071,6 +1075,20 @@ export function menuEntries(hit) {
     entries.push(null);
     entries.push({ label: t('ctxDelete'), icon: 'fa-trash', danger: true, run: () => deleteFrom3d(part.category, part.index, part.half) });
     return entries;
+}
+
+// A sketch on the start or the end face of a shaft (features/sketch3d.js),
+// the face nearer the pointer first. Not on a MultiRotor: the sketch is drawn
+// on the axis of a single rotor.
+function sketchEntries(part, point) {
+    if (state.projectData && state.projectData.isMultiRotor) return [];
+    const faces = ['start', 'end'].map(side => shaftFace(part, side, layout ? layout.parts : []));
+    if (point && Math.abs(point[2] - faces[1].z) < Math.abs(point[2] - faces[0].z)) faces.reverse();
+    return faces.map(face => ({
+        label: fill(face.side === 'end' ? t('ctxSketchEnd') : t('ctxSketchStart'), face.node === null ? '?' : face.node),
+        icon: 'fa-drafting-compass',
+        run: () => sketchOnFace(face),
+    }));
 }
 
 // The line being edited, on a MultiRotor; none on a rotor.

@@ -1240,6 +1240,7 @@ button {
     font-size: 0.85em;
 }
 .sketch-ratio.is-warning,
+.sketch-hint.is-warning,
 .sketch-error {
     color: var(--accent-danger);
     font-size: 0.85em;

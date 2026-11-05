@@ -92,11 +92,17 @@ export function buildCircle(THREE, z, colour) {
 // face to `length` along the axis, with an arrow on its far face to pull it.
 export function buildExtrusion(THREE, colours) {
     const group = new THREE.Group();
+    // Drawn over the rotor, like the sketch: an element under construction is
+    // seen through the bearing or the disk on the face it starts from.
     const body = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshStandardMaterial({
-        color: colours.accent, transparent: true, opacity: 0.38, depthWrite: false,
+        color: colours.accent, transparent: true, opacity: 0.38, depthWrite: false, depthTest: false,
         metalness: 0.2, roughness: 0.5, side: THREE.DoubleSide,
     }));
-    const edges = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: colours.accent }));
+    const edges = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({
+        color: colours.accent, depthTest: false,
+    }));
+    body.renderOrder = OVERLAY;
+    edges.renderOrder = OVERLAY + 1;
     group.add(body, edges);
 
     // The arrow: a shaft and a head, pointing +y before it is turned onto the axis.

@@ -78,7 +78,9 @@ check('the row the form would write: mm, no unit, the material by name',
 check('with no material, the default steel', S.shaftRow(250, { odl: 100, idl: 0 }).material === 'Default (Steel)');
 check('a typed 12,5 mm length is 12.5 in the row', S.shaftRow(S.typedLength('12,5'), { odl: 10, idl: 0 }).L === '12.5');
 
-check('the first shaft starts on z = 0 and grows +z', JSON.stringify(S.firstFace()) === JSON.stringify({ z: 0, sense: 1, diameter: 0 }));
+const firstOne = S.firstFace();
+check('the first shaft starts on z = 0 and grows +z, sketched from the front view', firstOne.z === 0 && firstOne.sense === 1
+    && firstOne.diameter === 0 && JSON.stringify(firstOne.look) === JSON.stringify([0, 0, -1]));
 check('the sketch spans three radii of the face, 150 mm with none', near(S.sketchExtent(100), 0.15) && near(S.sketchExtent(0), 0.15));
 check('a grid of about thirty round steps', [0.15, 0.03, 0.9].every(e => {
     const step = S.gridSpacing(e) * 1000;
@@ -88,6 +90,35 @@ check('a grid of about thirty round steps', [0.15, 0.03, 0.9].every(e => {
 }));
 const box = S.extrusionBounds({ z: 0.5, sense: -1 }, 200, { odl: 100, idl: 0 });
 check('the box of the extrusion, growing -z from z = 0.5', near(box.min[2], 0.3) && near(box.max[2], 0.5) && near(box.max[0], 0.05));
+
+// --- the faces of a shaft ----------------------------------------------------------------
+console.log('\nThe faces a sketch can be drawn on');
+
+// Two shafts of a line, 0..0.25 and 0.25..0.5, the second tapered 60 -> 40 mm
+// with a 20 mm bore, and a coupling 0.5..0.6 after it.
+const first = { kind: 'shaft', half: null, index: 0, z0: 0, z1: 0.25, entry: { n: 0 },
+    profile: { odl: 0.05, odr: 0.05, idl: 0, idr: 0 } };
+const second = { kind: 'shaft', half: null, index: 1, z0: 0.25, z1: 0.5, entry: { n: 1 },
+    profile: { odl: 0.06, odr: 0.04, idl: 0.02, idr: 0.02 } };
+const coupling = { kind: 'coupling', half: null, index: 0, z0: 0.5, z1: 0.6 };
+const disk = { kind: 'disk', half: null, index: 0, z0: 0.49, z1: 0.51 };
+const line = [first, second, coupling, disk];
+const startOfFirst = S.shaftFace(first, 'start', line);
+check('the start face of the first shaft: z = 0, growing -z, node 0, free',
+    startOfFirst.z === 0 && startOfFirst.sense === -1 && startOfFirst.node === 0 && startOfFirst.free && startOfFirst.side === 'start');
+check('seen from outside it, the side it grows into', JSON.stringify(startOfFirst.look) === JSON.stringify([0, 0, -1]));
+const endOfFirst = S.shaftFace(first, 'end', line);
+check('its end face: z = 0.25, growing +z, node 1 -- the next shaft goes on from it',
+    endOfFirst.z === 0.25 && endOfFirst.sense === 1 && endOfFirst.node === 1 && !endOfFirst.free);
+const startOfSecond = S.shaftFace(second, 'start', line);
+check('the start face of the second: the diameters of its left end, in mm',
+    near(startOfSecond.diameter, 60) && near(startOfSecond.inner, 20) && !startOfSecond.free && startOfSecond.index === 1);
+const endOfSecond = S.shaftFace(second, 'end', line);
+check('its end face: those of its right end', near(endOfSecond.diameter, 40) && endOfSecond.node === 2);
+check('a coupling going on from it is the line going on; a disk is not', !endOfSecond.free
+    && S.shaftFace(second, 'end', [first, second, disk]).free);
+check('the other half of a MultiRotor is another line', S.shaftFace(second, 'end', [first, second, { ...coupling, half: 'driven' }]).free);
+check('not the first shaft of a project', !endOfSecond.first && S.firstFace().first);
 
 // --- what is drawn ----------------------------------------------------------------------
 console.log('\nWhat is drawn');

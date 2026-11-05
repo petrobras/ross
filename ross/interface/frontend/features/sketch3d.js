@@ -34,7 +34,7 @@ import {
 import { alongAxis } from '../core/rotor3d_measure.js';
 import { buildCircle, buildExtrusion, buildSketchPlane } from '../components/sketch3d_parts.js';
 import { flyToNextRotor, showEmptyStage, toolKit, useTool } from './rotor3d.js';
-import { addShaftFromSketch, refreshRotorFigure } from './modeling.js';
+import { addShaftFromSketch, insertShaftFromSketch, refreshRotorFigure } from './modeling.js';
 
 const DEFAULT_MATERIAL = 'Default (Steel)';
 
@@ -73,6 +73,15 @@ export async function sketchFirstShaft() {
     openSketch(kit, face);
 }
 
+// The menu of a shaft in the 3D view (features/rotor3d.js): a sketch on its
+// start or end face (core/sketch3d.js, `shaftFace`), over the rotor as it is.
+export function sketchOnFace(face) {
+    if (session || !face) return;
+    const kit = toolKit();
+    if (!kit) return;
+    openSketch(kit, face);
+}
+
 function planeBounds(face, extent) {
     return { min: [-extent, -extent, face.z], max: [extent, extent, face.z] };
 }
@@ -96,6 +105,13 @@ function openSketch(kit, face) {
     const palette = colours(kit);
     const plane = buildSketchPlane(kit.THREE, { z: face.z, extent, spacing: gridSpacing(extent), colours: palette });
     kit.scene.add(plane.object);
+    // The face's own circles, faint, to draw to.
+    const references = [face.diameter, face.inner].filter(d => d > 0).map(d => {
+        const circle = buildCircle(kit.THREE, face.z, palette.grid);
+        circle.setDiameter(d);
+        kit.scene.add(circle.object);
+        return circle;
+    });
     const panel = document.createElement('div');
     panel.className = 'sketch-panel';
     panel.setAttribute('role', 'dialog');
@@ -106,7 +122,10 @@ function openSketch(kit, face) {
     kit.container.appendChild(labels);
     kit.container.appendChild(panel);
     session = {
-        kit, face, extent, palette, plane, panel, labels,
+        kit, face, extent, palette, plane, panel, labels, references,
+        // Where the camera was: it goes back there when the sketch is left
+        // without making anything, or once the element is made.
+        returnTo: kit.here(),
         phase: 'sketch',
         circles: [],
         drawn: [],
@@ -127,10 +146,11 @@ function openSketch(kit, face) {
         pointerdown: sketchDown,
         keydown: sketchKey,
         frame: placeLabels,
-        onRotor: () => closeSketch(),
+        // Torn down only: the rotor drawn is what the view now shows.
+        onRotor: () => closeSketch(true),
     });
     renderSketchPanel();
-    kit.fly(kit.framed(planeBounds(face, extent), 'front'));
+    kit.fly(kit.framed(planeBounds(face, extent), face.look || 'front'));
 }
 
 function renderSketchPanel() {
@@ -179,9 +199,11 @@ export function beginCircle() {
 
 // Before the pointer reaches the canvas: a third of the plane, or between the
 // two circles there are, so the new one is not drawn on top of another.
+// On a face, the first circle starts as the face's own diameter.
 function startingDiameter() {
-    const { circles, extent } = session;
+    const { circles, extent, face } = session;
     if (circles.length) return Math.max(1, Math.round(circles[0] / 2));
+    if (face.diameter > 0) return face.diameter;
     return Math.round((extent * 1000 * 2) / 3);
 }
 
@@ -389,16 +411,21 @@ export function finishSketch() {
         pointerup: extrudeUp,
         keydown: extrudeKey,
         frame: placeLabels,
-        onRotor: () => closeSketch(),
+        // Torn down only: the rotor drawn is what the view now shows.
+        onRotor: () => closeSketch(true),
     });
     renderExtrudePanel();
     flyToExtrusion();
 }
 
-// `from`: the direction to look from; the isometric view unless given.
-function flyToExtrusion(from = 'iso') {
+// `from`: the direction to look from. Unless given: the isometric view for the
+// first shaft, and over a rotor the isometric view from the side the element
+// grows into, so the rest of the rotor is behind it rather than in front.
+function flyToExtrusion(from = null) {
     const { kit, face, section } = session;
-    const bounds = extrusionBounds(face, Math.max(session.length, section.odl) * 1.6, section);
+    if (from === null) from = face.first ? 'iso' : [-1, 1, face.sense];
+    // Over a rotor, room round the face for what is drawn on it.
+    const bounds = extrusionBounds(face, Math.max(session.length, section.odl) * 1.6, section, face.first ? 0 : 4);
     kit.fly(kit.framed(bounds, from));
 }
 
@@ -406,6 +433,11 @@ function clearSketchDrawing() {
     const { kit } = session;
     kit.scene.remove(session.plane.object);
     session.plane.dispose();
+    session.references.forEach(circle => {
+        kit.scene.remove(circle.object);
+        circle.dispose();
+    });
+    session.references = [];
     session.drawn.forEach(object => {
         kit.scene.remove(object.object);
         object.dispose();
@@ -428,6 +460,8 @@ function renderExtrudePanel() {
     panel.innerHTML = `<div class="sketch-title">${escapeHtml(t('extrudeTitle'))}</div>`
         + `<p class="sketch-hint">${escapeHtml(t('extrudeHint'))}</p>`
         + `<p class="sketch-section">${escapeHtml(t('sketchOuter'))} Ø ${escapeHtml(shown(section.odl))} mm${bore}</p>`
+        + (session.face.first || session.face.free ? ''
+            : `<p class="sketch-hint is-warning">${escapeHtml(t('extrudeShifts'))}</p>`)
         + `<label class="sketch-field">${escapeHtml(t('extrudeLength'))} <input type="text" inputmode="decimal" `
         + `class="extrude-length" value="${escapeHtml(shown(session.length))}"> mm</label>`
         + `<p class="sketch-ratio" aria-live="polite"></p>`
@@ -562,19 +596,26 @@ export function confirmExtrusion() {
         return;
     }
     const row = shaftRow(typed, session.section, session.material);
+    const { face, kit, returnTo } = session;
     closeSketch(true);
     flyToNextRotor();
-    addShaftFromSketch(row);
+    if (face.first) {
+        addShaftFromSketch(row);
+        return;
+    }
+    kit.fly(returnTo);
+    insertShaftFromSketch(face.index, face.side, row);
 }
 
 // --- leaving ------------------------------------------------------------------------
 
 // Takes down everything the tool put up. `made`: a row was added, and the
-// rotor about to be built replaces the empty view; otherwise the view goes
-// back to what it was (the message and the button of an empty project).
+// rotor about to be built replaces what is drawn; otherwise the view goes back
+// to what it was -- the message and the button of an empty project, or the
+// camera where it was over the rotor.
 export function closeSketch(made = false) {
     if (!session) return;
-    const { kit } = session;
+    const { kit, face, returnTo } = session;
     closeDimensionBox(false, true);
     if (session.drawing) {
         kit.scene.remove(session.drawing.object.object);
@@ -591,7 +632,9 @@ export function closeSketch(made = false) {
     kit.canvas.classList.remove('is-grab', 'is-grabbing');
     session = null;
     useTool(null);
-    if (!made) refreshRotorFigure();
+    if (made) return;
+    if (face.first) refreshRotorFigure();
+    else kit.fly(returnTo);
 }
 
 export const SKETCH_ACTIONS = {

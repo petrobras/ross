@@ -23,7 +23,7 @@ import { newProbeId } from '../core/probes.js';
 import { VERTICAL_SCALES, withVerticalScale } from '../core/rotor_scale.js';
 import { fillAnalysisTypes, redrawAnalyses } from './analysis.js';
 import { openRotorHub, renderRotorHub } from './hub.js';
-import { splitProject, splitProjectAt } from './split.js';
+import { applyProject, splitProject, splitProjectAt, withoutAnalyses } from './split.js';
 import { meshProject } from './mesh.js';
 import { clearRotor3d, hideRotor3d, relabelRotor3d, showRotor3d, toolInUse } from './rotor3d.js';
 
@@ -1017,6 +1017,38 @@ export function addShaftFromSketch(row) {
     if (state.currentTab === 'shafts') renderList();
     else openTab('shafts');
     buildRotorLive();
+}
+
+// The shaft the sketch made on a face of another (features/sketch3d.js):
+// before it or after it, and every node past the face moved along -- by the
+// server (domain/inserting.py), which numbers them as ROSS does, as the split
+// does. The form, open on a row whose node may have just moved, is closed.
+export async function insertShaftFromSketch(index, side, row) {
+    const activeData = getActiveData();
+    let answer;
+    let body;
+    try {
+        answer = await apiFetch('/api/rotor/insert_shaft', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ project: withoutAnalyses(activeData), index, side, row }),
+        });
+        body = await answer.json();
+    } catch (error) {
+        await openCustomAlert(t('insertFailed'));
+        return false;
+    }
+    if (!answer.ok) {
+        await openCustomAlert(body.message || t('insertFailed'));
+        return false;
+    }
+    closeForm();
+    applyProject(activeData, body.projectData);
+    syncBackToLibrary();
+    if (state.currentTab === 'shafts') renderList();
+    else openTab('shafts');
+    buildRotorLive();
+    return true;
 }
 
 // Function to save the active rotor
