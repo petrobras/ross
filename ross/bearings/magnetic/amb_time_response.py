@@ -179,12 +179,18 @@ class AmbTimeResponse:
             # Controller
             C_s = ct.ss(amb.get_analog_controller())
 
-            # Add twice for X/Y channels
-            for _ in range(2):
+            # One controller per control axis. The sensor gain scales the
+            # controller input and the amplifier gain its output, so the
+            # controller blocks map displacement (m) to coil current (A),
+            # matching k_eq = ks + ki * k_amp * k_sense * C in the
+            # frequency-domain model.
+            for axis in range(2):
+                k_sense = amb.axis_gain(amb.k_sense, axis)
+                k_amp = amb.axis_gain(amb.k_amp, axis)
                 self.a_c.append(C_s.A)
-                self.b_c.append(C_s.B)
-                self.c_c.append(C_s.C)
-                self.d_c.append(C_s.D)
+                self.b_c.append(C_s.B * k_sense)
+                self.c_c.append(k_amp * C_s.C)
+                self.d_c.append(k_amp * C_s.D * k_sense)
 
             # Constants
             self.k_i.extend([amb.ki, amb.ki])
@@ -224,6 +230,13 @@ class AmbTimeResponse:
         Constructs the A_cl, B_cl, C_cl, and D_cl matrices for the system
         in closed-loop with the magnetic bearing controllers, considering
         the bearing orientation and coupling effects.
+
+        Sign convention: ``k_s`` is negative (ISO 14839-1) and is a
+        *stiffness*, the same quantity that enters the rotor stiffness
+        matrix through ``MagneticBearingElement``. The force it produces on
+        the rotor is therefore ``-k_s * x``, which points in the same
+        direction as the displacement (destabilizing). This is why
+        ``K_x`` appears as ``-K_x`` in the dynamics and force outputs.
 
         The controllers come from a transfer function, so their state-space
         realization is a companion form whose entries span many orders of
@@ -301,7 +314,7 @@ class AmbTimeResponse:
                 [
                     M_m_inv
                     @ Phi_T
-                    @ (phi @ R_T @ (K_x - K_i @ D_c) @ R @ phi_t - K)
+                    @ (phi @ R_T @ (-K_x - K_i @ D_c) @ R @ phi_t - K)
                     @ Phi,
                     -M_m_inv @ C_m,
                     M_m_inv @ Phi_T @ phi @ R_T @ K_i @ C_c,
@@ -324,11 +337,11 @@ class AmbTimeResponse:
                 [phi_t @ Phi, zeros(n_c, m), zeros(n_c, n)],
                 [R @ phi_t @ Phi, zeros(n_c, m), zeros(n_c, n)],
                 [
-                    R_T @ (K_x - K_i @ D_c) @ R @ phi_t @ Phi,
+                    R_T @ (-K_x - K_i @ D_c) @ R @ phi_t @ Phi,
                     zeros(n_c, m),
                     R_T @ K_i @ C_c,
                 ],
-                [(K_x - K_i @ D_c) @ R @ phi_t @ Phi, zeros(n_c, m), K_i @ C_c],
+                [(-K_x - K_i @ D_c) @ R @ phi_t @ Phi, zeros(n_c, m), K_i @ C_c],
                 [-D_c @ R @ phi_t @ Phi, zeros(n_c, m), C_c],
             ]
         )
