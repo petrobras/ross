@@ -268,6 +268,8 @@ class MisalignmentFlex(ABC):
             node, unb_magnitude, unb_phase, speed, t, return_all=True
         )
 
+        ang_pos = rotor.to_shaft_rotation(ang_pos, self.shaft_elem.n)
+
         self.forces = self.compute_reaction_force(ang_pos)
 
         F += self.forces
@@ -510,6 +512,7 @@ class MisalignmentRigid(ABC):
         F, ang_pos, speed, _ = rotor.unbalance_force_over_time(
             node, unb_magnitude, unb_phase, speed, t, return_all=True
         )
+        ang_pos = rotor.to_shaft_rotation(ang_pos, self.shaft_elem.n)
 
         self.forces = np.zeros((rotor.ndof, len(t)))
 
