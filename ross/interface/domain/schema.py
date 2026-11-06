@@ -19,7 +19,7 @@ import re
 import ross as rs
 
 from .element_registry import ross_constructor
-from .field_catalog import FIELDS, SECTIONS
+from .field_catalog import FIELDS, LUBRICANTS, SECTIONS
 from .units import UNIT_ALTERNATIVES, UNITS_MAPPING, alternatives_for
 
 LANGUAGES = ("en", "pt")
@@ -71,23 +71,38 @@ def _documented_parameters(doc):
     except StopIteration:
         return {}
 
-    documented, current, buffer = {}, None, []
+    documented, current, buffer = {}, [], []
     for line in lines[start + 2 :]:
         stripped = line.strip()
         if stripped in _DOC_SECTIONS:
             break
         # "name : type" is numpydoc; "name: type" is how some of ROSS's
         # docstrings write it (DiskElement.from_geometry's material, for one).
-        header = re.match(r"^(\w+)\s*: (.*)$", line)
+        # And "xj, yj : float" documents two at once (TiltingPad's journal
+        # position): each name gets the text.
+        header = re.match(r"^(\w+(?:\s*,\s*\w+)*)\s*: (.*)$", line)
         if header and not line.startswith(" "):
-            if current:
-                documented[current] = " ".join(buffer).strip()
-            current, buffer = header.group(1), []
+            for name in current:
+                documented[name] = " ".join(buffer).strip()
+            current, buffer = [n.strip() for n in header.group(1).split(",")], []
         elif current and stripped:
             buffer.append(stripped)
-    if current:
-        documented[current] = " ".join(buffer).strip()
+    for name in current:
+        documented[name] = " ".join(buffer).strip()
     return documented
+
+
+def lubricant_names():
+    """The lubricants ROSS knows by name, in the order it lists them.
+
+    `TEST` is left out: it is the fixture of ROSS's own tests, not an oil.
+    A dict of properties, which ROSS also takes, is still accepted from a
+    project typed before the field became a choice (the form keeps a value it
+    does not list, features/modeling.js).
+    """
+    from ross.bearings.lubricants import lubricants_dict
+
+    return [name for name in lubricants_dict if name != "TEST"]
 
 
 def _first_sentence(text):
@@ -218,6 +233,8 @@ def _build_field(field, cls, ross_class, parameters, documentation, language):
 
     control = field["control"]
     options = field["options"]
+    if options == LUBRICANTS:
+        control, options = "select", lubricant_names()
     if isinstance(default, bool):
         control, options = "boolean", ["false", "true"]
 
