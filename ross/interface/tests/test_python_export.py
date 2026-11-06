@@ -352,10 +352,14 @@ def test_units_are_inherited_from_the_ross_base_class():
     The raw map in units.py has BallBearingElement empty; what resolves the
     inheritance is the schema. If the generator went back to reading the raw map,
     the value would come out without Q_ and ROSS would read it as SI -- silently
-    wrong."""
+    wrong.
+
+    And handed over in SI: `BallBearingElement` has no `@check_units`, so the
+    quantity is written in its unit and given to ROSS as its number in SI, as
+    the builder gives it (`element_registry.ross_converts`)."""
     assert unit_map_by_class()["BallBearingElement"]["cxx"] == "N*s/m"
     args = _format_kwargs({"cxx": "1500"}, [], "BallBearingElement")
-    assert args == "cxx=Q_(1500, 'N*s/m')"
+    assert args == "cxx=Q_(1500, 'N*s/m').m_as('kilogram / second')"
 
 
 def test_the_unit_typed_by_the_user_wins_over_the_default():
