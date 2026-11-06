@@ -21,8 +21,10 @@ from ross.units import Q_
 
 from .element_registry import (
     VIEW_FIELDS,
+    resolve_constructor,
     ross_class_name,
     ross_constructor,
+    ross_converts,
     takes_units,
 )
 from .legacy import migrate_element
@@ -31,6 +33,7 @@ from .node_resolver import effective_nodes, listed_nodes
 import textwrap
 
 from .schema import unit_map_by_class
+from .units import DROPPED_UNITS, typed_unit
 
 # Deliberate differences from the old app.js generator:
 #   1. material names go into the script as an escaped literal. Before, a
@@ -164,7 +167,7 @@ def _py_string(value):
     return "'" + _js_str(value).replace("\\", "\\\\").replace("'", "\\'") + "'"
 
 
-def _format_kwargs(obj, exclude_keys=(), class_name="", in_si=False):
+def _format_kwargs(obj, exclude_keys=(), class_name="", in_si=None):
     """Build `key=value, ...` from what the form returned.
 
     The unit map comes from the schema, inherited units already resolved: a
@@ -173,8 +176,12 @@ def _format_kwargs(obj, exclude_keys=(), class_name="", in_si=False):
     `in_si` is for a call ROSS does not convert units for
     (`element_registry.takes_units`): the quantity is still written in the
     unit it was typed in, and handed over as its number in SI --
-    `Q_(70, 'mm').m_as('meter')`.
+    `Q_(70, 'mm').m_as('meter')`. Left as None, it is decided per argument,
+    as the builder decides it (`rotor_builder.ross_ready`): in a call ROSS
+    converts units for, an argument whose name ROSS's table does not cover --
+    a ball bearing's `fs` -- is handed over in SI too.
     """
+    known = bool(class_name) and resolve_constructor(class_name) is not None
     items = []
     unit_map = unit_map_by_class().get(class_name or "", {})
     for key, val in obj.items():
@@ -183,7 +190,9 @@ def _format_kwargs(obj, exclude_keys=(), class_name="", in_si=False):
         if val is None or (isinstance(val, str) and val == ""):
             continue
 
-        unit = _or(obj.get(key + "_unit"), unit_map.get(key))
+        unit = _or(typed_unit(class_name, obj, key), unit_map.get(key))
+        if key in DROPPED_UNITS.get(class_name, ()):
+            unit = None
         is_text = isinstance(val, str)
         rendered = val.strip() if is_text else val
         # '(' is on the list: without it, initial_position=(0.1, -0.1) became a
@@ -202,7 +211,12 @@ def _format_kwargs(obj, exclude_keys=(), class_name="", in_si=False):
             final = _js_str(val)
             if is_text and rendered.startswith("[") and _js_truthy(unit):
                 final = "np.array(%s)" % _js_str(val)
-            if _js_truthy(unit) and in_si:
+            si_here = (
+                in_si
+                if in_si is not None
+                else known and not ross_converts(class_name, key)
+            )
+            if _js_truthy(unit) and si_here:
                 items.append(
                     "%s=Q_(%s, '%s').m_as('%s')" % (key, final, unit, _base_unit(unit))
                 )
