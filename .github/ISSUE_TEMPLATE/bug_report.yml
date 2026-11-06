@@ -1,0 +1,60 @@
+name: Bug report
+description: Report incorrect results, errors or crashes in ROSS.
+title: "BUG: <Please write a comprehensive title after the 'BUG: ' prefix>"
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: >
+        Thank you for taking the time to file a bug report. Before creating a new issue,
+        please make sure to take a few minutes to check the issue tracker for existing
+        issues about the bug. For questions about how to use ROSS, use
+        [Discussions](https://github.com/petrobras/ross/discussions) instead.
+  - type: textarea
+    id: description
+    attributes:
+      label: "Describe the issue:"
+      description: What goes wrong, and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: "Reproduce the code example:"
+      description: >
+        A short code example that reproduces the problem. It should be self-contained,
+        i.e., can be copy-pasted into the Python interpreter or run as-is via
+        `python myproblem.py`. Prefer `rs.rotor_example()` or another `*_example()`
+        over a large custom model.
+      placeholder: |
+        import ross as rs
+        << your code here >>
+      render: python
+    validations:
+      required: true
+  - type: textarea
+    id: traceback
+    attributes:
+      label: "Error message:"
+      description: >
+        Please include full error message, if any, or the numbers you got compared with
+        the ones you expected (with the reference, if there is one).
+      placeholder: |
+        << Full traceback starting from `Traceback: ...` >>
+      render: shell
+  - type: textarea
+    id: versions
+    attributes:
+      label: "Python and ROSS Versions:"
+      description: >
+        Output of `python -c "import sys, ross; print(ross.__version__); print(sys.version)"`,
+        and your operating system.
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: "Context for the issue:"
+      description: >
+        How this affects your work, and anything else that helps, such as a saved rotor
+        (`rotor.save(...)`).
