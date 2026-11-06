@@ -557,14 +557,19 @@ class Rotor(object):
         self.Ip = Ip_sh + Ip_dsk
 
         # number of dofs
+        external_nodes = [n for n in self.link_nodes if n not in self.nodes]
         half_ndof = self.number_dof / 2
+
+        external_dof_mapping = {
+            node: int(self.number_dof * len(self.nodes) + half_ndof * index)
+            for index, node in enumerate(external_nodes)
+        }
+
         self.ndof = int(
-            self.number_dof * len(self.nodes)
-            + half_ndof * len(self.point_mass_elements)
+            self.number_dof * len(self.nodes) + half_ndof * len(external_nodes)
         )
 
         # global indexes for dofs
-        n_last = self.shaft_elements[-1].n
         for elm in self.elements:
             dof_mapping = elm.dof_mapping()
             global_dof_mapping = {}
@@ -574,41 +579,34 @@ class Rotor(object):
                     int(v)
                 )
 
-            if elm.n <= n_last + 1:
-                for k, v in global_dof_mapping.items():
-                    global_dof_mapping[k] = int(self.number_dof * elm.n + v)
+            if elm.n in self.nodes:
+                elm_dof_start = int(self.number_dof * elm.n)
+            elif elm.n in external_nodes:
+                elm_dof_start = external_dof_mapping[elm.n]
             else:
-                for k, v in global_dof_mapping.items():
-                    global_dof_mapping[k] = int(
-                        half_ndof * n_last + half_ndof * elm.n + self.number_dof + v
-                    )
+                raise ValueError(
+                    f"{elm.__class__.__name__} node {elm.n} is neither a shaft node nor a "
+                    "connected external bearing-support node."
+                )
+
+            for k, v in global_dof_mapping.items():
+                global_dof_mapping[k] = elm_dof_start + v
 
             if hasattr(elm, "n_link") and elm.n_link is not None:
-                if elm.n_link <= n_last + 1:
-                    global_dof_mapping[f"x_{elm.n_link}"] = int(
-                        self.number_dof * elm.n_link
-                    )
-                    global_dof_mapping[f"y_{elm.n_link}"] = int(
-                        self.number_dof * elm.n_link + 1
-                    )
-                    global_dof_mapping[f"z_{elm.n_link}"] = int(
-                        self.number_dof * elm.n_link + 2
-                    )
+                if elm.n_link in self.nodes:
+                    link_dof_start = int(self.number_dof * elm.n_link)
+                    global_dof_mapping[f"x_{elm.n_link}"] = int(link_dof_start)
+                    global_dof_mapping[f"y_{elm.n_link}"] = int(link_dof_start + 1)
+                    global_dof_mapping[f"z_{elm.n_link}"] = int(link_dof_start + 2)
+                elif elm.n_link in external_nodes:
+                    link_dof_start = external_dof_mapping[elm.n_link]
+                    global_dof_mapping[f"x_{elm.n_link}"] = int(link_dof_start)
+                    global_dof_mapping[f"y_{elm.n_link}"] = int(link_dof_start + 1)
+                    global_dof_mapping[f"z_{elm.n_link}"] = int(link_dof_start + 2)
                 else:
-                    global_dof_mapping[f"x_{elm.n_link}"] = int(
-                        half_ndof * n_last + half_ndof * elm.n_link + self.number_dof
-                    )
-                    global_dof_mapping[f"y_{elm.n_link}"] = int(
-                        half_ndof * n_last
-                        + half_ndof * elm.n_link
-                        + self.number_dof
-                        + 1
-                    )
-                    global_dof_mapping[f"z_{elm.n_link}"] = int(
-                        half_ndof * n_last
-                        + half_ndof * elm.n_link
-                        + self.number_dof
-                        + 2
+                    raise ValueError(
+                        f"{elm.__class__.__name__} link node {elm.n_link} is neither a shaft "
+                        "node nor a connected external bearing-support node."
                     )
 
             elm.dof_global_index = global_dof_mapping
