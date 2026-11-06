@@ -1,0 +1,24 @@
+title: "[Question] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Search the [documentation](https://ross.readthedocs.io) and existing discussions first. If something is broken, open a bug report instead.
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+      description: What you are trying to model or analyse, and where you are stuck.
+    validations:
+      required: true
+  - type: textarea
+    id: code
+    attributes:
+      label: What you tried
+      description: Short code that shows your model or analysis, and what you got.
+      render: python
+  - type: input
+    id: ross-version
+    attributes:
+      label: ROSS version
+      placeholder: "3.1.0"
