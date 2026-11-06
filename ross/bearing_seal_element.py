@@ -539,6 +539,12 @@ class BearingElement(Element):
                 frequency=self.frequency,
                 interpolation=interpolation,
             )
+            if arg in {"Ixx", "Iyy", "Izz"}:
+                inertia_values = np.asarray(interpolated.values)
+                if np.any(inertia_values != inertia_values.flat[0]):
+                    raise ValueError(
+                        f"{arg} must be constant and cannot vary with speed or frequency."
+                    )
             setattr(self, arg, interpolated.values)
             setattr(self, f"{arg}_interpolated", interpolated)
 

@@ -691,7 +691,7 @@ class Rotor(object):
             if not dfb_pm.empty:
                 z_pos = dfb_pm["nodes_pos_l"].values[0]
                 y_pos = dfb_pm["y_pos"].values[0]
-            elif not dfb[dfb.n_link == pm.n].empty:
+            elif "n_link" in dfb.columns and not dfb[dfb.n_link == pm.n].empty:
                 linked = dfb[dfb.n_link == pm.n].iloc[0]
                 z_pos = linked["nodes_pos_l"]
                 y_pos = linked.get("y_pos_sup", linked["y_pos"])
@@ -897,18 +897,33 @@ class Rotor(object):
         )
         return any(np.any(np.asarray(getattr(bearing, name)) != 0) for name in names)
 
+    @staticmethod
+    def _has_rotational_bearing_stiffness(bearing):
+        """Return whether a bearing has any rotational stiffness coefficient."""
+        names = ("kr_xx", "kr_xy", "kr_yx", "kr_yy", "kr_zz")
+        return any(np.any(np.asarray(getattr(bearing, name)) != 0) for name in names)
+
     def _setup_node_dofs(self):
         """Build offsets for shaft and optional external three/six-DOF nodes."""
         self._node_dof_sizes = {int(node): self.number_dof for node in self.nodes}
+        point_masses_by_node = {}
+        linked_nodes = {
+            int(bearing.n_link)
+            for bearing in self.bearing_elements
+            if bearing.n_link is not None and int(bearing.n_link) not in self.nodes
+        }
         for point_mass in self.point_mass_elements:
             node = int(point_mass.n)
+            point_masses_by_node[node] = point_mass
             size = len(point_mass.dof_mapping())
-            if node in self._node_dof_sizes and self._node_dof_sizes[node] != size:
-                raise ValueError(
-                    f"PointMass node {node} conflicts with a shaft node and "
-                    "cannot change its number of degrees of freedom."
-                )
-            self._node_dof_sizes[node] = size
+            if node in self._node_dof_sizes:
+                if size > self._node_dof_sizes[node]:
+                    raise ValueError(
+                        f"PointMass at shaft node {node} has {size} DOFs, but "
+                        f"the shaft has only {self._node_dof_sizes[node]}."
+                    )
+            else:
+                self._node_dof_sizes[node] = size
 
         for bearing in self.bearing_elements:
             for node in (bearing.n, bearing.n_link):
@@ -917,10 +932,65 @@ class Rotor(object):
             if self._has_rotational_bearing_terms(bearing):
                 for node in (bearing.n, bearing.n_link):
                     if node is not None and self._node_dof_sizes[int(node)] < 6:
+                        point_mass = point_masses_by_node.get(int(node))
+                        if (
+                            point_mass is not None
+                            and not point_mass.is_rotational
+                            and int(node) in linked_nodes
+                            and int(node) not in self.nodes
+                            and int(bearing.n) == int(node)
+                            and self._has_rotational_bearing_stiffness(bearing)
+                        ):
+                            rotational_stiffness = [
+                                name
+                                for name in (
+                                    "kr_xx",
+                                    "kr_xy",
+                                    "kr_yx",
+                                    "kr_yy",
+                                    "kr_zz",
+                                )
+                                if np.any(np.asarray(getattr(bearing, name)) != 0)
+                            ]
+                            raise ValueError(
+                                f"PointMass at support node {node} has only three "
+                                "degrees of freedom, but its support bearing "
+                                "defines rotational stiffness "
+                                f"({', '.join(rotational_stiffness)}). Provide "
+                                "Ixx, Iyy, and Izz together to enable six DOFs, "
+                                "or remove the rotational stiffness."
+                            )
                         raise ValueError(
                             "Rotational bearing coefficients require a six-DOF "
                             f"node; node {node} has only three DOFs."
                         )
+
+        for node in linked_nodes:
+            point_mass = point_masses_by_node.get(node)
+            if point_mass is None or not point_mass.is_rotational:
+                continue
+            support_bearings = [
+                bearing for bearing in self.bearing_elements if int(bearing.n) == node
+            ]
+            missing = [
+                name
+                for name in ("kr_xx", "kr_yy", "kr_zz")
+                if not any(
+                    np.any(np.asarray(getattr(bearing, name)) != 0)
+                    for bearing in support_bearings
+                )
+            ]
+            if missing:
+                warnings.warn(
+                    f"PointMass at linked support node {node} has rotational "
+                    "degrees of freedom, but support bearings are missing direct "
+                    f"rotational stiffness ({', '.join(missing)}). This may "
+                    "introduce free rotational modes or a singular stiffness "
+                    "matrix. Add the appropriate coefficients or omit "
+                    "Ixx, Iyy, and Izz if the support should have only three DOFs.",
+                    UserWarning,
+                    stacklevel=3,
+                )
 
         external_nodes = sorted(
             node for node in self._node_dof_sizes if node not in self.nodes
@@ -2249,7 +2319,7 @@ class Rotor(object):
 
         return C0
 
-    def G(self, frequency=0, speed=None):
+    def G(self):
         """Gyroscopic matrix for an instance of a rotor.
 
         Returns
@@ -2269,7 +2339,7 @@ class Rotor(object):
         G0 = self.G0.copy()
 
         for elm in self.bearing_elements:
-            matrix, dofs = self._element_matrix(elm, "G", frequency, speed)
+            matrix, dofs = self._element_matrix(elm, "G")
             G0[np.ix_(dofs, dofs)] += matrix
 
         return G0
@@ -2321,12 +2391,7 @@ class Rotor(object):
         I = np.eye(size)
 
         # fmt: off
-        try:
-            G = self.G(frequency, speed)
-        except TypeError:
-            # Reduced-order conversion helpers replace G with a no-argument
-            # callable for backward compatibility.
-            G = self.G()
+        G = self.G()
 
         A = np.vstack(
             [np.hstack([Z, I]),
@@ -2626,10 +2691,7 @@ class Rotor(object):
             frequency = speed
 
         I = np.eye(self.M().shape[0])
-        try:
-            G = self.G(frequency, speed)
-        except TypeError:
-            G = self.G()
+        G = self.G()
 
         lu, piv = lu_factor(
             -(frequency**2) * self.M(frequency, speed)

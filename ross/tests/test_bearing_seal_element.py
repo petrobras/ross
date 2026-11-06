@@ -689,6 +689,32 @@ def test_rotational_bearing_matrices():
     assert bearing.G()[4, 3] == -15.0
 
 
+def test_rotational_bearing_inertias_must_be_constant():
+    bearing = BearingElement(
+        n=0,
+        kxx=[1e6, 2e6],
+        cxx=0,
+        kr_xx=[1e4, 2e4],
+        Ixx=[0.1, 0.1],
+        Iyy=[0.2, 0.2],
+        Izz=[0.3, 0.3],
+        speed=[0.0, 100.0],
+    )
+
+    assert_allclose(bearing.K(0.0, 0.0)[3, 3], 1e4)
+    assert_allclose(bearing.K(0.0, 100.0)[3, 3], 2e4)
+    assert bearing.G()[3, 4] == 0.3
+
+    with pytest.raises(ValueError, match=r"Izz must be constant.*speed or frequency"):
+        BearingElement(
+            n=0,
+            kxx=1e6,
+            cxx=0,
+            Izz=[0.3, 0.4],
+            speed=[0.0, 100.0],
+        )
+
+
 def test_rotational_bearing_link_matrix():
     bearing = BearingElement(
         n=0,
