@@ -665,6 +665,7 @@ class Crack(ABC):
         F, ang_pos, _, _ = rotor.unbalance_force_over_time(
             node, unb_magnitude, unb_phase, speed, t, return_all=True
         )
+        ang_pos = rotor.to_shaft_rotation(ang_pos, self.shaft_elem.n)
 
         # Weight
         F += rotor.gravitational_force()[:, np.newaxis]
