@@ -26,13 +26,36 @@ from .element_registry import (
     resolve_constructor,
     ross_class_name,
     ross_constructor,
-    takes_units,
+    ross_converts,
 )
 from .legacy import migrate_element
 from .material_names import material_key, ross_material_name, validate_materials
 from .node_resolver import effective_nodes, listed_nodes, validate_node_topology
-from .units import INT_PARAMETERS, UNITS_MAPPING
+from .units import INT_PARAMETERS, UNITS_MAPPING, typed_unit
 from ross.interface.services.expressions import safe_math_eval
+
+
+# Parameters ROSS reads only as a list, by class: a single value typed alone
+# is handed over as a list of one. Measured: `CylindricalBearing(speed=1500)`
+# fails with "'float' object is not iterable" and
+# `SqueezeFilmDamper(frequency=18600)` with "tuple index out of range"; the
+# same classes take `[1500]` and `[18600]`. The other bearings and seals take a
+# single speed as it is (tests/test_form_fixes.py).
+LIST_PARAMETERS = {
+    "CylindricalBearing": frozenset({"speed", "frequency"}),
+    "SqueezeFilmDamper": frozenset({"frequency"}),
+}
+
+# Fields whose text is text, whatever it looks like: "1, 2" is a name here.
+TEXT_FIELDS = frozenset({"tag", "color", "name"})
+
+
+def _numbers(text):
+    """`[100, 200]` from "100, 200": a list typed without its brackets, or None."""
+    try:
+        return [float(piece) for piece in text.split(",")]
+    except ValueError:
+        return None
 
 
 def extract_kwargs(d, mat_dict, element_type, ignore_keys=["element_type", "n"]):
@@ -83,7 +106,7 @@ def extract_kwargs(d, mat_dict, element_type, ignore_keys=["element_type", "n"])
                         # dtype=float also takes a nested list, which is how
                         # a 2-D coefficient table (speed x frequency) is typed.
                         val_parsed = np.array(val_parsed, dtype=float)
-                        unit = d.get(f"{k}_unit", unit_map.get(k))
+                        unit = typed_unit(element_type, d, k, unit_map.get(k))
                         if unit:
                             kwargs[k] = Q_(val_parsed, unit).to_base_units()
                         else:
@@ -93,6 +116,16 @@ def extract_kwargs(d, mat_dict, element_type, ignore_keys=["element_type", "n"])
                     continue
                 except Exception:
                     pass
+
+            # A list typed without its brackets, "100, 200": the same list.
+            numbers = (
+                _numbers(v_strip) if "," in v_strip and k not in TEXT_FIELDS else None
+            )
+            if numbers is not None:
+                values = np.array(numbers, dtype=float)
+                unit = typed_unit(element_type, d, k, unit_map.get(k))
+                kwargs[k] = Q_(values, unit).to_base_units() if unit else values
+                continue
 
             if v_strip.lower() == "true":
                 kwargs[k] = True
@@ -112,8 +145,10 @@ def extract_kwargs(d, mat_dict, element_type, ignore_keys=["element_type", "n"])
 
             if k in INT_PARAMETERS:
                 val_num = int(val_num)
+            if k in LIST_PARAMETERS.get(element_type, ()):
+                val_num = np.array([val_num], dtype=float)
 
-            unit = d.get(f"{k}_unit", unit_map.get(k))
+            unit = typed_unit(element_type, d, k, unit_map.get(k))
             if unit:
                 kwargs[k] = Q_(val_num, unit).to_base_units()
             else:
@@ -194,16 +229,20 @@ def geometry_dimensions(row, constructor):
     return {"width": width, "i_d": i_d, "o_d": o_d}
 
 
-def _in_si_when_unchecked(constructor, kwargs):
-    """Plain SI numbers for a call ROSS does not convert (element_registry).
+def ross_ready(constructor, kwargs):
+    """The arguments as ROSS reads them: a quantity ROSS converts itself stays
+    a quantity, every other one becomes its number in SI.
 
     `extract_kwargs` has already put every quantity in base units, so the
-    number is its magnitude.
+    number is its magnitude. Which quantities ROSS converts is decided per
+    argument (`element_registry.ross_converts`): a constructor without
+    `@check_units` converts none, and one with it converts only the names in
+    its table -- a ball bearing's `fs` (N) is not among them.
     """
-    if takes_units(constructor):
-        return kwargs
     return {
-        k: v.to_base_units().magnitude if isinstance(v, Q_) else v
+        k: v.to_base_units().magnitude
+        if isinstance(v, Q_) and not ross_converts(constructor, k)
+        else v
         for k, v in kwargs.items()
     }
 
@@ -399,7 +438,7 @@ def assemble_rotor(data):
             )
             if odl_mag <= 0.0:
                 raise ValueError("Invalid outer diameter for Shaft!")
-            return rs.ShaftElement(n=n_val, **kwargs)
+            return rs.ShaftElement(n=n_val, **ross_ready("ShaftElement", kwargs))
 
         ross_shafts.append(
             instantiate_with_cache("shaft", shaft, n_val, build_shaft, auto_tag)
@@ -429,7 +468,7 @@ def assemble_rotor(data):
                 # No material chosen is the form's own "Default (Steel)".
                 kwargs.setdefault("material", rs.materials.steel)
             make = resolve_constructor(constructor)
-            return make(n=n_val, **_in_si_when_unchecked(constructor, kwargs))
+            return make(n=n_val, **ross_ready(constructor, kwargs))
 
         ross_disks.append(
             instantiate_with_cache("disk", d, n_val, build_disk, auto_tag)
@@ -466,7 +505,7 @@ def assemble_rotor(data):
                 # No material chosen is the form's own "Default (Steel)".
                 kwargs.setdefault("material", rs.materials.steel)
             make = resolve_constructor(constructor) or rs.GearElement
-            return make(n=n_val, **_in_si_when_unchecked(constructor, kwargs))
+            return make(n=n_val, **ross_ready(constructor, kwargs))
 
         ross_gears.append(
             instantiate_with_cache("gear", g, n_val, build_gear, auto_tag)
@@ -491,7 +530,7 @@ def assemble_rotor(data):
             if "tag" not in kwargs:
                 kwargs["tag"] = auto_tag
             ross_class = getattr(rs, element_class, rs.BearingElement)
-            return ross_class(n=n_val, **kwargs)
+            return ross_class(n=n_val, **ross_ready(element_class, kwargs))
 
         ross_bearings.append(
             instantiate_with_cache("bearing", m, n_val, build_bearing, auto_tag)
@@ -516,7 +555,7 @@ def assemble_rotor(data):
             if "tag" not in kwargs:
                 kwargs["tag"] = auto_tag
             ross_class = getattr(rs, element_class, rs.SealElement)
-            return ross_class(n=n_val, **kwargs)
+            return ross_class(n=n_val, **ross_ready(element_class, kwargs))
 
         ross_seals.append(
             instantiate_with_cache("seal", s, n_val, build_seal, auto_tag)
@@ -535,7 +574,7 @@ def assemble_rotor(data):
             )
             if "tag" not in kwargs:
                 kwargs["tag"] = auto_tag
-            return rs.CouplingElement(n=n_val, **kwargs)
+            return rs.CouplingElement(n=n_val, **ross_ready("CouplingElement", kwargs))
 
         ross_couplings.append(
             instantiate_with_cache("coupling", c, n_val, build_coupling, auto_tag)
@@ -554,7 +593,7 @@ def assemble_rotor(data):
             )
             if "tag" not in kwargs:
                 kwargs["tag"] = auto_tag
-            return rs.PointMass(n=n_val, **kwargs)
+            return rs.PointMass(n=n_val, **ross_ready("PointMass", kwargs))
 
         ross_pointmasses.append(
             instantiate_with_cache("pointmass", p, n_val, build_pointmass, auto_tag)
