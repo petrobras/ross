@@ -668,6 +668,25 @@ export async function showEmptyStage(container) {
         stage = makeStage(container);
     }
     fitCanvas(stage);
+    dropRotor();
+    placeFloor(stage, { min: [-0.1, -0.1, -0.05], max: [0.1, 0.1, 0.35] });
+    requestFrame();
+}
+
+// A project with no shaft (features/modeling.js): the rotor drawn before --
+// the one deleted, or the project open before this one -- leaves the view,
+// and its legend with it. The chips of a rotor that is no longer there used
+// to stay in the corner of the empty view (Leonardo).
+export function clearRotor3d() {
+    if (!stage) return;
+    dropRotor();
+    requestFrame();
+}
+
+// What a rotor puts on the stage, taken down: its parts, its labels and
+// dimensions, the bench, the tape and the legend. The next rotor is framed
+// afresh.
+function dropRotor() {
     if (model) {
         stage.scene.remove(model.object);
         model.dispose();
@@ -690,10 +709,7 @@ export async function showEmptyStage(container) {
     lastScene = null;
     shownParts = [];
     stage.legend.innerHTML = '';
-    // The next rotor is framed afresh.
     framedFor = null;
-    placeFloor(stage, { min: [-0.1, -0.1, -0.05], max: [0.1, 0.1, 0.35] });
-    requestFrame();
 }
 
 export function useTool(next) {

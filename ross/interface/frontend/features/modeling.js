@@ -25,7 +25,7 @@ import { fillAnalysisTypes, redrawAnalyses } from './analysis.js';
 import { openRotorHub, renderRotorHub } from './hub.js';
 import { splitProject, splitProjectAt } from './split.js';
 import { meshProject } from './mesh.js';
-import { hideRotor3d, relabelRotor3d, showRotor3d, toolInUse } from './rotor3d.js';
+import { clearRotor3d, hideRotor3d, relabelRotor3d, showRotor3d, toolInUse } from './rotor3d.js';
 
 // How the rotor figure settles into the panel. This used to be done in the
 // backend (BE-12): margin, background, size and legend position assembled on top
@@ -911,6 +911,7 @@ async function _fetchRotorLive() {
         // on this empty view: what the view says stays out of its way.
         if (toolInUse()) return;
         hideRotor3d();
+        clearRotor3d();
         say3d(t('addOneShaft'));
         showFirstShaftButton(true);
         showInsteadOfFigure(plotContainer, emptyFigureHtml());
