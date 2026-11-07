@@ -6,7 +6,9 @@
 //   * in a number of equal parts per element, whatever its ratio;
 //   * by the convergence of the lowest natural frequencies: the mesh
 //     with the fewest elements whose frequencies are within a tolerance of a
-//     converged reference (ROSS's `run_mesh_convergence`).
+//     converged reference (ROSS's `run_mesh_convergence`), searched among
+//     uniform and graded meshes or uniform ones only, up to a largest number
+//     of elements.
 //
 // The first two act on the shafts ticked in the list, or on all of them; the
 // convergence always on the whole rotor -- it is the whole model's frequencies
@@ -69,6 +71,8 @@ export function meshDialogValues() {
         n_modes: read('mesh-modes'),
         rtol: read('mesh-rtol'),
         speed: read('mesh-speed'),
+        strategy: byId('mesh-strategy').value,
+        max_elements: read('mesh-max-elements'),
     };
 }
 
@@ -95,7 +99,7 @@ export function setMeshBusy(on, text = '') {
     const line = byId('mesh-busy');
     line.innerText = on ? text : '';
     line.hidden = !on;
-    document.querySelectorAll('#mesh-overlay button, #mesh-overlay input').forEach(control => {
+    document.querySelectorAll('#mesh-overlay button, #mesh-overlay input, #mesh-overlay select').forEach(control => {
         control.disabled = busy;
     });
 }
