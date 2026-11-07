@@ -40,13 +40,13 @@ class CouplingElement(ShaftElement):
     Id_r : float, pint.Quantity, optional
         Diametral moment of inertia of the right station of the coupling element (kg.m²).
         If not given, it is assumed to be half of `Ip_r`.
-    kt_x : float, optional
+    k_x : float, optional
         Translational stiffness in `x` (N/m).
         Default is 0.
-    kt_y : float, optional
+    k_y : float, optional
         Translational stiffness in `y` (N/m).
         Default is 0.
-    kt_z : float, optional
+    k_z : float, optional
         Axial stiffness (N/m).
         Default is 0.
     kr_x : float, optional
@@ -122,9 +122,9 @@ class CouplingElement(ShaftElement):
         Ip_r,
         Id_l=0,
         Id_r=0,
-        kt_x=0,
-        kt_y=0,
-        kt_z=0,
+        k_x=0,
+        k_y=0,
+        k_z=0,
         kr_x=0,
         kr_y=0,
         kr_z=0,
@@ -157,9 +157,9 @@ class CouplingElement(ShaftElement):
         self.Id_l = float(Id_l) if Id_l else Ip_l / 2
         self.Id_r = float(Id_r) if Id_r else Ip_r / 2
 
-        self.kt_x = float(kt_x)
-        self.kt_y = float(kt_y)
-        self.kt_z = float(kt_z)
+        self.k_x = float(k_x)
+        self.k_y = float(k_y)
+        self.k_z = float(k_z)
 
         self.kr_x = float(kr_x)
         self.kr_y = float(kr_y)
@@ -322,9 +322,9 @@ class CouplingElement(ShaftElement):
                [      0.,       0.,       0.,       0.,       0.,       0.],
                [      0.,       0.,       0.,       0.,       0., 3042560.]])
         """
-        k1 = self.kt_x
-        k2 = self.kt_y
-        k3 = self.kt_z
+        k1 = self.k_x
+        k2 = self.k_y
+        k3 = self.k_z
         k4 = self.kr_x
         k5 = self.kr_y
         k6 = self.kr_z

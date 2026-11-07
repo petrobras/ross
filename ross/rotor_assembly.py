@@ -556,59 +556,11 @@ class Rotor(object):
         Ip_dsk = np.sum([disk.Ip for disk in self.disk_elements])
         self.Ip = Ip_sh + Ip_dsk
 
-        # number of dofs
-        external_nodes = [n for n in self.link_nodes if n not in self.nodes]
-        half_ndof = self.number_dof / 2
-
-        external_dof_mapping = {
-            node: int(self.number_dof * len(self.nodes) + half_ndof * index)
-            for index, node in enumerate(external_nodes)
-        }
-
-        self.ndof = int(
-            self.number_dof * len(self.nodes) + half_ndof * len(external_nodes)
-        )
+        self._setup_node_dofs()
 
         # global indexes for dofs
         for elm in self.elements:
-            dof_mapping = elm.dof_mapping()
-            global_dof_mapping = {}
-            for k, v in dof_mapping.items():
-                dof_letter, dof_number = k.split("_")
-                global_dof_mapping[dof_letter + "_" + str(int(dof_number) + elm.n)] = (
-                    int(v)
-                )
-
-            if elm.n in self.nodes:
-                elm_dof_start = int(self.number_dof * elm.n)
-            elif elm.n in external_nodes:
-                elm_dof_start = external_dof_mapping[elm.n]
-            else:
-                raise ValueError(
-                    f"{elm.__class__.__name__} node {elm.n} is neither a shaft node nor a "
-                    "connected external bearing-support node."
-                )
-
-            for k, v in global_dof_mapping.items():
-                global_dof_mapping[k] = elm_dof_start + v
-
-            if hasattr(elm, "n_link") and elm.n_link is not None:
-                if elm.n_link in self.nodes:
-                    link_dof_start = int(self.number_dof * elm.n_link)
-                    global_dof_mapping[f"x_{elm.n_link}"] = int(link_dof_start)
-                    global_dof_mapping[f"y_{elm.n_link}"] = int(link_dof_start + 1)
-                    global_dof_mapping[f"z_{elm.n_link}"] = int(link_dof_start + 2)
-                elif elm.n_link in external_nodes:
-                    link_dof_start = external_dof_mapping[elm.n_link]
-                    global_dof_mapping[f"x_{elm.n_link}"] = int(link_dof_start)
-                    global_dof_mapping[f"y_{elm.n_link}"] = int(link_dof_start + 1)
-                    global_dof_mapping[f"z_{elm.n_link}"] = int(link_dof_start + 2)
-                else:
-                    raise ValueError(
-                        f"{elm.__class__.__name__} link node {elm.n_link} is neither a shaft "
-                        "node nor a connected external bearing-support node."
-                    )
-
+            global_dof_mapping = self._global_dof_mapping(elm)
             elm.dof_global_index = global_dof_mapping
             df.at[df.loc[df.tag == elm.tag].index[0], "dof_global_index"] = (
                 elm.dof_global_index
@@ -726,7 +678,16 @@ class Rotor(object):
             if not dfb_pm.empty:
                 z_pos = dfb_pm["nodes_pos_l"].values[0]
                 y_pos = dfb_pm["y_pos"].values[0]
+            elif "n_link" in dfb.columns and not dfb[dfb.n_link == pm.n].empty:
+                linked = dfb[dfb.n_link == pm.n].iloc[0]
+                z_pos = linked["nodes_pos_l"]
+                y_pos = linked.get("y_pos_sup", linked["y_pos"])
             else:
+                if pm.n not in self.nodes:
+                    raise ValueError(
+                        f"PointMass node {pm.n} is neither a shaft node nor a "
+                        "connected external bearing-support node."
+                    )
                 i = self.nodes.index(pm.n)
                 z_pos = self.nodes_pos[i]
                 y_pos = self.nodes_o_d[i] / 2
@@ -910,14 +871,201 @@ class Rotor(object):
                 "The number of degrees of freedom of all elements must be the same! There are DISK elements with discrepant DoFs."
             )
 
-        if any(
-            len(brg.dof_mapping()) != number_dof / 2 for brg in self.bearing_elements
-        ):
+        if any(len(brg.dof_mapping()) != number_dof for brg in self.bearing_elements):
             raise Exception(
                 "The number of degrees of freedom of all elements must be the same! There are BEARING elements with discrepant DoFs."
             )
 
         return int(number_dof)
+
+    @staticmethod
+    def _has_rotational_bearing_terms(bearing):
+        """Return whether a bearing requires rotational support coordinates."""
+        names = (
+            "kr_xx",
+            "kr_xy",
+            "kr_yx",
+            "kr_yy",
+            "kr_zz",
+            "cr_xx",
+            "cr_xy",
+            "cr_yx",
+            "cr_yy",
+            "cr_zz",
+            "Ixx",
+            "Iyy",
+            "Izz",
+        )
+        return any(np.any(np.asarray(getattr(bearing, name)) != 0) for name in names)
+
+    @staticmethod
+    def _has_rotational_bearing_stiffness(bearing):
+        """Return whether a bearing has any rotational stiffness coefficient."""
+        names = ("kr_xx", "kr_xy", "kr_yx", "kr_yy", "kr_zz")
+        return any(np.any(np.asarray(getattr(bearing, name)) != 0) for name in names)
+
+    def _setup_node_dofs(self):
+        """Build offsets for shaft and optional external three/six-DOF nodes."""
+        self._node_dof_sizes = {int(node): self.number_dof for node in self.nodes}
+        point_masses_by_node = {}
+        linked_nodes = {
+            int(bearing.n_link)
+            for bearing in self.bearing_elements
+            if bearing.n_link is not None and int(bearing.n_link) not in self.nodes
+        }
+        for point_mass in self.point_mass_elements:
+            node = int(point_mass.n)
+            point_masses_by_node[node] = point_mass
+            size = len(point_mass.dof_mapping())
+            if node in self._node_dof_sizes:
+                if size > self._node_dof_sizes[node]:
+                    raise ValueError(
+                        f"PointMass at shaft node {node} has {size} DOFs, but "
+                        f"the shaft has only {self._node_dof_sizes[node]}."
+                    )
+            else:
+                self._node_dof_sizes[node] = size
+
+        for bearing in self.bearing_elements:
+            for node in (bearing.n, bearing.n_link):
+                if node is not None and int(node) not in self._node_dof_sizes:
+                    self._node_dof_sizes[int(node)] = 3
+            if self._has_rotational_bearing_terms(bearing):
+                for node in (bearing.n, bearing.n_link):
+                    if node is not None and self._node_dof_sizes[int(node)] < 6:
+                        point_mass = point_masses_by_node.get(int(node))
+                        if (
+                            point_mass is not None
+                            and not point_mass.is_rotational
+                            and int(node) in linked_nodes
+                            and int(node) not in self.nodes
+                            and int(bearing.n) == int(node)
+                            and self._has_rotational_bearing_stiffness(bearing)
+                        ):
+                            rotational_stiffness = [
+                                name
+                                for name in (
+                                    "kr_xx",
+                                    "kr_xy",
+                                    "kr_yx",
+                                    "kr_yy",
+                                    "kr_zz",
+                                )
+                                if np.any(np.asarray(getattr(bearing, name)) != 0)
+                            ]
+                            raise ValueError(
+                                f"PointMass at support node {node} has only three "
+                                "degrees of freedom, but its support bearing "
+                                "defines rotational stiffness "
+                                f"({', '.join(rotational_stiffness)}). Provide "
+                                "Ixx, Iyy, and Izz together to enable six DOFs, "
+                                "or remove the rotational stiffness."
+                            )
+                        raise ValueError(
+                            "Rotational bearing coefficients require a six-DOF "
+                            f"node; node {node} has only three DOFs."
+                        )
+
+        for node in linked_nodes:
+            point_mass = point_masses_by_node.get(node)
+            if point_mass is None or not point_mass.is_rotational:
+                continue
+            support_bearings = [
+                bearing for bearing in self.bearing_elements if int(bearing.n) == node
+            ]
+            missing = [
+                name
+                for name in ("kr_xx", "kr_yy", "kr_zz")
+                if not any(
+                    np.any(np.asarray(getattr(bearing, name)) != 0)
+                    for bearing in support_bearings
+                )
+            ]
+            if missing:
+                warnings.warn(
+                    f"PointMass at linked support node {node} has rotational "
+                    "degrees of freedom, but support bearings are missing direct "
+                    f"rotational stiffness ({', '.join(missing)}). This may "
+                    "introduce free rotational modes or a singular stiffness "
+                    "matrix. Add the appropriate coefficients or omit "
+                    "Ixx, Iyy, and Izz if the support should have only three DOFs.",
+                    UserWarning,
+                    stacklevel=3,
+                )
+
+        external_nodes = sorted(
+            node for node in self._node_dof_sizes if node not in self.nodes
+        )
+        self._node_dof_offsets = {}
+        offset = self.number_dof * len(self.nodes)
+        for node in external_nodes:
+            self._node_dof_offsets[node] = offset
+            offset += self._node_dof_sizes[node]
+        self.ndof = offset
+
+    def _global_dof_mapping(self, elm):
+        """Return global DOF indexes, projecting legacy three-DOF nodes."""
+        mapping = elm.dof_mapping()
+        node = int(elm.n)
+        offset = (
+            self.number_dof * node
+            if node in self.nodes
+            else self._node_dof_offsets[node]
+        )
+        size = self._node_dof_sizes[node]
+
+        if elm in self.shaft_elements:
+            global_mapping = {}
+            for key, local_index in mapping.items():
+                dof_letter, dof_number = key.split("_")
+                global_mapping[f"{dof_letter}_{int(dof_number) + elm.n}"] = (
+                    offset + int(local_index)
+                )
+            return global_mapping
+
+        global_mapping = {
+            f"{key.split('_')[0]}_{node}": offset + int(local_index)
+            for key, local_index in mapping.items()
+            if int(local_index) < size
+        }
+
+        if hasattr(elm, "n_link") and elm.n_link is not None:
+            link = int(elm.n_link)
+            link_offset = (
+                self.number_dof * link
+                if link in self.nodes
+                else self._node_dof_offsets[link]
+            )
+            link_size = self._node_dof_sizes[link]
+            for key, local_index in mapping.items():
+                if int(local_index) < link_size:
+                    global_mapping[f"{key.split('_')[0]}_{link}"] = link_offset + int(
+                        local_index
+                    )
+        return global_mapping
+
+    def _element_matrix(self, elm, matrix_name, frequency=None, speed=None):
+        """Return an element matrix projected onto its available global DOFs."""
+        matrix_method = getattr(elm, matrix_name)
+        if isinstance(elm, BearingElement):
+            matrix = matrix_method(frequency or 0, speed)
+            local_keys = [f"{key.split('_')[0]}_{elm.n}" for key in elm.dof_mapping()]
+            if elm.n_link is not None:
+                local_keys += [
+                    f"{key.split('_')[0]}_{elm.n_link}" for key in elm.dof_mapping()
+                ]
+        elif frequency is not None and matrix_name in {"M", "K", "C"}:
+            matrix = matrix_method(frequency, speed)
+            local_keys = list(elm.dof_mapping())
+        else:
+            matrix = matrix_method()
+            local_keys = list(elm.dof_mapping())
+
+        selected_keys = list(elm.dof_global_index)
+        local_indices = [local_keys.index(key) for key in selected_keys]
+        return matrix[np.ix_(local_indices, local_indices)], list(
+            elm.dof_global_index.values()
+        )
 
     def _find_linked_bearing_node(self, node):
         """Find the linked bearing element by node
@@ -2083,8 +2231,8 @@ class Rotor(object):
         M0 = self.M0.copy()
 
         for elm in self.bearing_elements:
-            dofs = list(elm.dof_global_index.values())
-            M0[np.ix_(dofs, dofs)] += elm.M(frequency, speed)
+            matrix, dofs = self._element_matrix(elm, "M", frequency, speed)
+            M0[np.ix_(dofs, dofs)] += matrix
 
         if synchronous:
             for elm in self.shaft_elements:
@@ -2116,6 +2264,17 @@ class Rotor(object):
                 G = elm.G()
                 M0[dofs[a0], dofs[a0]] -= G[a0, b0]
                 M0[dofs[b0], dofs[b0]] += G[b0, a0]
+
+            for elm in self.bearing_elements:
+                matrix, dofs = self._element_matrix(elm, "G", frequency, speed)
+                for offset in (0, 6) if elm.n_link is not None else (0,):
+                    if offset + 4 < matrix.shape[0]:
+                        M0[dofs[offset + 3], dofs[offset + 3]] -= matrix[
+                            offset + 3, offset + 4
+                        ]
+                        M0[dofs[offset + 4], dofs[offset + 4]] += matrix[
+                            offset + 4, offset + 3
+                        ]
 
         return M0
 
@@ -2149,8 +2308,8 @@ class Rotor(object):
         K0 = self.K0.copy()
 
         for elm in self.bearing_elements:
-            dofs = list(elm.dof_global_index.values())
-            K0[np.ix_(dofs, dofs)] += elm.K(frequency, speed)
+            matrix, dofs = self._element_matrix(elm, "K", frequency, speed)
+            K0[np.ix_(dofs, dofs)] += matrix
 
         return K0
 
@@ -2211,8 +2370,8 @@ class Rotor(object):
         C0 = self.C0.copy()
 
         for elm in self.bearing_elements:
-            dofs = list(elm.dof_global_index.values())
-            C0[np.ix_(dofs, dofs)] += elm.C(frequency, speed)
+            matrix, dofs = self._element_matrix(elm, "C", frequency, speed)
+            C0[np.ix_(dofs, dofs)] += matrix
 
         return C0
 
@@ -2234,6 +2393,10 @@ class Rotor(object):
                [ 0.00022681,  0.        ,  0.        ,  0.        ]])
         """
         G0 = self.G0.copy()
+
+        for elm in self.bearing_elements:
+            matrix, dofs = self._element_matrix(elm, "G")
+            G0[np.ix_(dofs, dofs)] += matrix
 
         return G0
 
@@ -2284,9 +2447,11 @@ class Rotor(object):
         I = np.eye(size)
 
         # fmt: off
+        G = self.G()
+
         A = np.vstack(
             [np.hstack([Z, I]),
-             np.hstack([la.solve(-M, self.K(frequency, speed)), la.solve(-M, (self.C(frequency, speed) + self.G() * speed))])])
+             np.hstack([la.solve(-M, self.K(frequency, speed)), la.solve(-M, (self.C(frequency, speed) + G * speed))])])
         # fmt: on
 
         return A
@@ -2582,10 +2747,11 @@ class Rotor(object):
             frequency = speed
 
         I = np.eye(self.M().shape[0])
+        G = self.G()
 
         lu, piv = lu_factor(
             -(frequency**2) * self.M(frequency, speed)
-            + 1j * frequency * (self.C(frequency, speed) + speed * self.G())
+            + 1j * frequency * (self.C(frequency, speed) + speed * G)
             + self.K(frequency, speed)
         )
         H = lu_solve((lu, piv), I)
