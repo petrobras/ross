@@ -1019,8 +1019,14 @@ button {
     border-radius: var(--radius-md);
     border: 1px solid var(--border-default);
     box-shadow: var(--shadow-xs);
-    opacity: 0;
-    transition: opacity var(--dur-slow) var(--ease-standard);
+}
+/* The bar is always there, for its 2D/3D buttons: with no shaft yet -- or a
+   rotor ROSS would not build -- they are still the way between the two views
+   (Leonardo). What it reads of a rotor shows only once a rotor was built
+   (`has-readings`, features/modeling.js); until then the buttons are alone in
+   the bar, in its middle. */
+.rotor-info:not(.has-readings) > :not(.rotor-view) {
+    display: none;
 }
 .rotor-info > span {
     white-space: nowrap;
@@ -1042,6 +1048,37 @@ button {
     background: var(--surface-card);
     box-shadow: var(--shadow-xs);
     transition: opacity var(--dur-base) var(--ease-standard);
+}
+/* The 2D figure's place with no shaft yet (features/modeling.js): the line
+   and, under it, the button that opens the shaft form. The button shows when
+   the pointer comes over the box, or the keyboard reaches it, and always
+   where there is no pointer to hover. */
+.figure-empty {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    height: 100%;
+    min-height: 400px;
+    align-items: center;
+    justify-content: center;
+}
+.figure-first-shaft {
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+.live-plot-area:hover .figure-first-shaft,
+.figure-first-shaft:focus-visible {
+    opacity: 1;
+}
+@media (hover: none) {
+    .figure-first-shaft {
+        opacity: 1;
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .figure-first-shaft {
+        transition: none;
+    }
 }
 /* 2D or 3D: two buttons, the one on screen pressed. */
 .rotor-view {
