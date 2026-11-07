@@ -1031,10 +1031,12 @@ button {
     font-weight: var(--fw-semibold);
     font-size: var(--fs-sm);
 }
+/* At least as tall as the panel, and taller when the figure is: a vertical
+   scale of 2x or 5x makes ROSS's figure taller than the panel, and a box of
+   fixed height left it hanging out of its own border (Leonardo). */
 .live-plot-area {
     width: 100%;
-    height: 100%;
-    min-height: 500px;
+    min-height: max(500px, 100%);
     border: 1px solid var(--border-default);
     border-radius: var(--radius-md);
     background: var(--surface-card);
