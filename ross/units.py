@@ -11,9 +11,12 @@ new_units_path = Path(__file__).parent / "new_units.txt"
 ureg = pint.get_application_registry()
 if isinstance(ureg.get(), pint.registry.LazyRegistry):
     ureg = pint.UnitRegistry()
-    ureg.load_definitions(str(new_units_path))
-    # set ureg to make pickle possible
-    pint.set_application_registry(ureg)
+else:
+    # another library (e.g. ccp) has already set the application registry
+    ureg = ureg.get()
+ureg.load_definitions(str(new_units_path))
+# set ureg to make pickle possible
+pint.set_application_registry(ureg)
 
 Q_ = ureg.Quantity
 
