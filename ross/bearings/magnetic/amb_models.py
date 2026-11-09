@@ -187,18 +187,34 @@ def rotor_example_amb_complex_controllers(ambs=True):
     disk_elements = [*disk_elements_1, *disk_elements_2]
 
     # Bearing elements:
+    # Actuator data from the manufacturer's datasheet: each axis is a
+    # horseshoe electromagnet with two coils of 138 turns (n = 276 turns per
+    # electromagnet) and a pole-face area of 470.3 mm^2 per axis, i.e.
+    # A = 235.15 mm^2 per pole, as required by the ki and ks formulas of
+    # MagneticBearingElement. i0 = 1 A is the bias current used in the
+    # experiments. This ideal model gives
+    # ki = 111.5 N/A and ks = -258 kN/m, about 10 % above the values
+    # identified on the rig (96-104 N/A and -203 to -235 kN/m), since
+    # fringing and iron reluctance are not modeled.
     n_list = [12, 43]
-    n = 138
-    A = 470.3e-6
+    n = 276
+    A = 235.15e-6
     i0 = 1.0
     s0 = 0.432e-3
     alpha = 0.392
+
+    # Controllers of the LMEst rig (MBResearch, MBScope). The control filter
+    # is specified in A/um, so 1e6 converts the rotor displacement from m to
+    # um. Sensor and amplifier gains are cancelled inside the controller
+    # software (position sensitivity in um/V, current sensitivity in A/V),
+    # hence k_amp = k_sense = 1. The proportional gains are 0.0062 A/um
+    # (c_13) and 0.0046 A/um (c_24); levitation requires the loop gain to
+    # exceed |ks| / ki = i0 / s0 (about 0.0023 A/um for this actuator).
     c_13 = (
         1e6
         * 0.0062
         * (s + 46)
         / s
-        * 0.0062
         * (400 / 77)
         * ((s + 77 * 2 * np.pi) / (s + 400 * 2 * np.pi))
         * (409 / 124)
@@ -216,7 +232,6 @@ def rotor_example_amb_complex_controllers(ambs=True):
 
     c_24 = (
         1e6
-        * 0.0046
         * 0.0046
         * (s + 35)
         / s
@@ -373,7 +388,10 @@ def rotor_example_amb_general_controllers(controller_transfer_function=None):
     k_sense = 1.0
 
     if controller_transfer_function is None:
-        Kp = 1000
+        # Levitation requires ki * k_amp * k_sense * Kp > |ks|, i.e.
+        # Kp > i0 / s0 = 1000 for this geometry. Kp = 3 * i0 / s0 gives a
+        # net static stiffness of 2 * |ks| per axis.
+        Kp = 3000
         Ki = 0
         Kd = 5
 
