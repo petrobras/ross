@@ -55,30 +55,30 @@ def test_run_time_response_amb_values():
     expected_yout = np.array(
         [
             0.00000000e00,
-            -1.35870226e-08,
-            -5.43468162e-08,
-            -1.22276734e-07,
-            -2.17373160e-07,
-            -3.39631510e-07,
-            -4.89046215e-07,
-            -6.65610691e-07,
-            -8.69317307e-07,
-            -1.10015734e-06,
+            -4.90324857e-12,
+            -1.96129877e-11,
+            -4.41292062e-11,
+            -7.84518919e-11,
+            -1.22581032e-10,
+            -1.76516612e-10,
+            -2.40258617e-10,
+            -3.13807034e-10,
+            -3.97161847e-10,
         ]
     )
 
     expected_x_amb_0 = np.array(
         [
             0.00000000e00,
-            2.52056841e-28,
-            1.53697973e-27,
-            4.36834784e-27,
-            1.00165154e-26,
-            2.31173210e-26,
-            4.06316599e-26,
-            5.63156133e-26,
-            9.05077127e-26,
-            1.14879669e-25,
+            1.71407425e-28,
+            6.95526899e-28,
+            1.31669341e-27,
+            2.22296773e-27,
+            4.30253731e-27,
+            5.64867466e-27,
+            8.87205587e-27,
+            1.31782629e-26,
+            2.09278634e-26,
         ]
     )
 
@@ -87,43 +87,43 @@ def test_run_time_response_amb_values():
             0.00000000e00,
             -3.46710962e-12,
             -1.38683907e-11,
-            -3.12037695e-11,
-            -5.54731702e-11,
-            -8.66765149e-11,
-            -1.24813724e-10,
-            -1.69884714e-10,
-            -2.21889403e-10,
-            -2.80827704e-10,
+            -3.12037697e-11,
+            -5.54731708e-11,
+            -8.66765164e-11,
+            -1.24813726e-10,
+            -1.69884719e-10,
+            -2.21889412e-10,
+            -2.80827718e-10,
         ]
     )
 
     expected_F_y_amb_0 = np.array(
         [
             0.00000000e00,
-            2.29979284e-06,
-            9.19913968e-06,
-            2.06979917e-05,
-            3.67962986e-05,
-            5.74940088e-05,
-            8.27910692e-05,
-            1.12687425e-04,
-            1.47183022e-04,
-            1.86277802e-04,
+            2.25425235e-06,
+            9.01697835e-06,
+            2.02881302e-05,
+            3.60676587e-05,
+            5.63555134e-05,
+            8.11516424e-05,
+            1.10455993e-04,
+            1.44268510e-04,
+            1.82589139e-04,
         ]
     )
 
     expected_F_v_amb_0 = np.array(
         [
             0.00000000e00,
-            1.62619911e-06,
-            6.50477405e-06,
-            1.46356903e-05,
-            2.60189123e-05,
-            4.06544035e-05,
-            5.85421265e-05,
-            7.96820427e-05,
-            1.04074113e-04,
-            1.31718297e-04,
+            1.59399712e-06,
+            6.37596653e-06,
+            1.43458744e-05,
+            2.55036861e-05,
+            3.98493657e-05,
+            5.73828766e-05,
+            7.81041814e-05,
+            1.02013242e-04,
+            1.29110018e-04,
         ]
     )
 
@@ -132,13 +132,13 @@ def test_run_time_response_amb_values():
             0.00000000e00,
             3.46710617e-07,
             1.38683769e-06,
-            3.12037386e-06,
-            5.54731155e-06,
-            8.66764297e-06,
-            1.24813601e-05,
-            1.69884548e-05,
-            2.21889187e-05,
-            2.80827432e-05,
+            3.12037388e-06,
+            5.54731161e-06,
+            8.66764311e-06,
+            1.24813604e-05,
+            1.69884553e-05,
+            2.21889196e-05,
+            2.80827446e-05,
         ]
     )
 
@@ -149,12 +149,16 @@ def test_run_time_response_amb_values():
     I_v_amb_0 = response.xout[4][:10, 0]
     yout = response.yout[:10, 5 * 6 + 1]
 
-    assert_allclose(yout, expected_yout, atol=1e-5)
-    assert_allclose(x_amb_0, expected_x_amb_0, atol=1e-5)
-    assert_allclose(v_amb_0, expected_v_amb_0, atol=1e-5)
-    assert_allclose(F_y_amb_0, expected_F_y_amb_0, atol=1e-5)
-    assert_allclose(F_v_amb_0, expected_F_v_amb_0, atol=1e-5)
-    assert_allclose(I_v_amb_0, expected_I_v_amb_0, atol=1e-5)
+    # The signals are O(1e-8) to O(1e-4), so an absolute tolerance of 1e-5
+    # accepted almost any result (including the wrong sign of ks). Compare
+    # relative to each signal instead. x_amb_0 is the horizontal direction,
+    # which only carries round-off, so it keeps an absolute check.
+    assert_allclose(yout, expected_yout, rtol=1e-6, atol=1e-15)
+    assert_allclose(x_amb_0, expected_x_amb_0, rtol=0, atol=1e-18)
+    assert_allclose(v_amb_0, expected_v_amb_0, rtol=1e-6, atol=1e-18)
+    assert_allclose(F_y_amb_0, expected_F_y_amb_0, rtol=1e-6, atol=1e-12)
+    assert_allclose(F_v_amb_0, expected_F_v_amb_0, rtol=1e-6, atol=1e-12)
+    assert_allclose(I_v_amb_0, expected_I_v_amb_0, rtol=1e-6, atol=1e-14)
 
     fig1 = response.plot_amb_disps(axes=0)
     assert fig1 is not None
@@ -202,13 +206,18 @@ def test_amb_controller():
     mse_x = 1 / n * np.sum(response_x**2)
     mse_y = 1 / n * np.sum(response_y**2)
 
-    assert_allclose(mse_x, np.array(9.228097168398774e-10), rtol=1e-6, atol=1e-6)
-    assert_allclose(mse_y, np.array(2.2135792430227363e-10), rtol=1e-6, atol=1e-6)
+    # atol=1e-6 made these checks vacuous (the MSE is O(1e-10)); compare
+    # relative values only.
+    assert_allclose(mse_x, np.array(6.716327887327692e-10), rtol=1e-6, atol=0)
+    assert_allclose(mse_y, np.array(2.144521317276409e-10), rtol=1e-6, atol=0)
 
 
 def test_amb_generic_controller():
 
-    kp = 100.0
+    # kp must exceed |ks| / ki = i0 / g0 = 1000 for the rotor to levitate
+    # (the lead stage has unit DC gain). kp = 100 gave a negative static
+    # stiffness, which only looked stable with the old sign of ks.
+    kp = 3000.0
     ki = 0
     kd = 10.0
     n_f = 10_000
@@ -246,8 +255,8 @@ def test_amb_generic_controller():
     mse_x = 1 / n * np.sum(response_x**2)
     mse_y = 1 / n * np.sum(response_y**2)
 
-    assert_allclose(mse_x, np.array(7.934767106972457e-11), rtol=1e-6, atol=1e-6)
-    assert_allclose(mse_y, np.array(3.6781959914042914e-11), rtol=1e-6, atol=1e-6)
+    assert_allclose(mse_x, np.array(6.282224867030743e-12), rtol=1e-6, atol=0)
+    assert_allclose(mse_y, np.array(4.119302762331817e-12), rtol=1e-6, atol=0)
 
 
 @pytest.mark.parametrize(
@@ -382,24 +391,24 @@ def test_run_amb_sensitivity():
     """
     EXPECTED_SENSITIVITY_RESULTS = {
         "max_abs": {
-            "Magnetic Bearing 0": {"x": 0.9927339313, "y": 0.9927339313},
-            "Magnetic Bearing 1": {"x": 0.9897072281, "y": 0.9897072281},
+            "Magnetic Bearing 0": {"x": 0.9904423157, "y": 0.9904423157},
+            "Magnetic Bearing 1": {"x": 0.9864631624, "y": 0.9864631624},
         },
         "abs_slice": {
             "Magnetic Bearing 0": {
                 "x": np.array(
-                    [0.9927339313, 0.99271824, 0.99268636, 0.99264242, 0.99259454]
+                    [0.9904423157, 0.99041907, 0.99037487, 0.99031440, 0.99024855]
                 ),
                 "y": np.array(
-                    [0.9927339313, 0.99271824, 0.99268636, 0.99264242, 0.99259454]
+                    [0.9904423157, 0.99041907, 0.99037487, 0.99031440, 0.99024855]
                 ),
             },
             "Magnetic Bearing 1": {
                 "x": np.array(
-                    [0.9897072281, 0.98968478, 0.98963755, 0.98957234, 0.9895013]
+                    [0.9864631624, 0.98643015, 0.98636536, 0.98627634, 0.98617941]
                 ),
                 "y": np.array(
-                    [0.9897072281, 0.98968478, 0.98963755, 0.98957234, 0.9895013]
+                    [0.9864631624, 0.98643015, 0.98636536, 0.98627634, 0.98617941]
                 ),
             },
         },
@@ -408,19 +417,19 @@ def test_run_amb_sensitivity():
                 "x": np.array(
                     [
                         0.00000000e00,
-                        7.33293668e-05,
-                        1.33513269e-04,
-                        1.78009620e-04,
-                        2.05688519e-04,
+                        1.0227e-04,
+                        1.8463e-04,
+                        2.4578e-04,
+                        2.8388e-04,
                     ]
                 ),
                 "y": np.array(
                     [
                         0.00000000e00,
-                        7.33293668e-05,
-                        1.33513269e-04,
-                        1.78009620e-04,
-                        2.05688519e-04,
+                        1.0227e-04,
+                        1.8463e-04,
+                        2.4578e-04,
+                        2.8388e-04,
                     ]
                 ),
             },
@@ -428,19 +437,19 @@ def test_run_amb_sensitivity():
                 "x": np.array(
                     [
                         0.00000000e00,
-                        1.08630548e-04,
-                        1.98671121e-04,
-                        2.65038535e-04,
-                        3.06378785e-04,
+                        1.5028e-04,
+                        2.7267e-04,
+                        3.6328e-04,
+                        4.1977e-04,
                     ]
                 ),
                 "y": np.array(
                     [
                         0.00000000e00,
-                        1.08630548e-04,
-                        1.98671121e-04,
-                        2.65038535e-04,
-                        3.06378785e-04,
+                        1.5028e-04,
+                        2.7267e-04,
+                        3.6328e-04,
+                        4.1977e-04,
                     ]
                 ),
             },
@@ -464,18 +473,18 @@ def test_run_amb_sensitivity():
                 [
                     0.00000000e00,
                     6.67703996e-12,
-                    1.42061436e-11,
-                    2.26926383e-11,
-                    3.22569749e-11,
+                    1.42060179e-11,
+                    2.26919494e-11,
+                    3.22548923e-11,
                 ]
             ),
             "sensor": np.array(
                 [
                     0.00000000e00,
                     0.00000000e00,
-                    -2.15782942e-15,
-                    -1.04302014e-14,
-                    -2.76315703e-14,
+                    -2.28352822e-15,
+                    -1.11191444e-14,
+                    -2.97142136e-14,
                 ]
             ),
         },
@@ -605,7 +614,12 @@ def test_run_amb_sensitivity():
 
 
 def test_run_amb_non_collocation():
-    """Return modal results for the selected AMB."""
+    """Return modal results for the selected AMB.
+
+    Modes 0-11 of the example hold ten lateral modes and the first two
+    torsional modes (indices 8 and 9), so the non-lateral filter is
+    exercised.
+    """
     rotor = rotor_example_amb_general_controllers()
 
     ambs = [
@@ -618,7 +632,7 @@ def test_run_amb_non_collocation():
 
     results = rotor.run_amb_non_collocation(
         magnetic_bearing=analyzed_amb,
-        modes=range(8),
+        modes=range(12),
     )
 
     assert isinstance(results, AmbNonCollocationResults)
@@ -627,11 +641,11 @@ def test_run_amb_non_collocation():
 
     np.testing.assert_array_equal(
         results.requested_mode_indices,
-        np.arange(8),
+        np.arange(12),
     )
     np.testing.assert_array_equal(
         np.sort(np.concatenate([results.mode_indices, results.excluded_mode_indices])),
-        np.arange(8),
+        np.arange(12),
     )
     assert len(results.excluded_mode_indices) == 2
     np.testing.assert_array_equal(
