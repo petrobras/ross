@@ -40,12 +40,18 @@ def test_new_units_loaded_into_existing_registry():
         "pint.set_application_registry(pint.UnitRegistry())\n"
         "from ross.units import Q_\n"
         "assert Q_ is pint.get_application_registry().Quantity\n"
-        "print(Q_(150, 'Hz').to('rpm').m, Q_(1, 'pkpk').to('').m, Q_(1, 'cv').to('W').m)\n"
+        "print('RESULT', Q_(150, 'Hz').to('rpm').m, Q_(1, 'pkpk').to('').m,"
+        " Q_(1, 'cv').to('W').m)\n"
     )
     result = subprocess.run(
         [sys.executable, "-c", code], capture_output=True, text=True, check=True
     )
-    hz_rpm, pkpk, cv = map(float, result.stdout.split())
+    # importing ross may print other messages (e.g. CoolProp when REFPROP
+    # cannot be loaded), so read only the result line
+    line = next(
+        line for line in result.stdout.splitlines() if line.startswith("RESULT ")
+    )
+    hz_rpm, pkpk, cv = map(float, line.split()[1:])
     assert_allclose(hz_rpm, 9000)
     assert_allclose(pkpk, 0.5)
     assert_allclose(cv, 735.49875)
