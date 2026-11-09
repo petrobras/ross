@@ -560,7 +560,44 @@ class Rotor(object):
 
         # global indexes for dofs
         for elm in self.elements:
-            global_dof_mapping = self._global_dof_mapping(elm)
+            dof_mapping = elm.dof_mapping()
+            global_dof_mapping = {}
+
+            if elm in self.shaft_elements:
+                for key, value in dof_mapping.items():
+                    dof_letter, dof_number = key.split("_")
+                    global_dof_mapping[f"{dof_letter}_{int(dof_number) + elm.n}"] = (
+                        self.number_dof * elm.n + int(value)
+                    )
+            else:
+                node = int(elm.n)
+                node_offset = (
+                    self.number_dof * node
+                    if node in self.nodes
+                    else self._node_dof_offsets[node]
+                )
+                node_size = self._node_dof_sizes[node]
+
+                for key, value in dof_mapping.items():
+                    if int(value) < node_size:
+                        global_dof_mapping[f"{key.split('_')[0]}_{node}"] = (
+                            node_offset + int(value)
+                        )
+
+                if hasattr(elm, "n_link") and elm.n_link is not None:
+                    link = int(elm.n_link)
+                    link_offset = (
+                        self.number_dof * link
+                        if link in self.nodes
+                        else self._node_dof_offsets[link]
+                    )
+                    link_size = self._node_dof_sizes[link]
+                    for key, value in dof_mapping.items():
+                        if int(value) < link_size:
+                            global_dof_mapping[f"{key.split('_')[0]}_{link}"] = (
+                                link_offset + int(value)
+                            )
+
             elm.dof_global_index = global_dof_mapping
             df.at[df.loc[df.tag == elm.tag].index[0], "dof_global_index"] = (
                 elm.dof_global_index
@@ -1003,66 +1040,21 @@ class Rotor(object):
             offset += self._node_dof_sizes[node]
         self.ndof = offset
 
-    def _global_dof_mapping(self, elm):
-        """Return global DOF indexes, projecting legacy three-DOF nodes."""
-        mapping = elm.dof_mapping()
-        node = int(elm.n)
-        offset = (
-            self.number_dof * node
-            if node in self.nodes
-            else self._node_dof_offsets[node]
-        )
-        size = self._node_dof_sizes[node]
-
-        if elm in self.shaft_elements:
-            global_mapping = {}
-            for key, local_index in mapping.items():
-                dof_letter, dof_number = key.split("_")
-                global_mapping[f"{dof_letter}_{int(dof_number) + elm.n}"] = (
-                    offset + int(local_index)
-                )
-            return global_mapping
-
-        global_mapping = {
-            f"{key.split('_')[0]}_{node}": offset + int(local_index)
-            for key, local_index in mapping.items()
-            if int(local_index) < size
-        }
-
-        if hasattr(elm, "n_link") and elm.n_link is not None:
-            link = int(elm.n_link)
-            link_offset = (
-                self.number_dof * link
-                if link in self.nodes
-                else self._node_dof_offsets[link]
-            )
-            link_size = self._node_dof_sizes[link]
-            for key, local_index in mapping.items():
-                if int(local_index) < link_size:
-                    global_mapping[f"{key.split('_')[0]}_{link}"] = link_offset + int(
-                        local_index
-                    )
-        return global_mapping
-
     def _element_matrix(self, elm, matrix_name, frequency=None, speed=None):
-        """Return an element matrix projected onto its available global DOFs."""
+        """Return a bearing matrix projected onto its available global DOFs."""
         matrix_method = getattr(elm, matrix_name)
-        if isinstance(elm, BearingElement):
-            matrix = matrix_method(frequency or 0, speed)
-            local_keys = [f"{key.split('_')[0]}_{elm.n}" for key in elm.dof_mapping()]
-            if elm.n_link is not None:
-                local_keys += [
-                    f"{key.split('_')[0]}_{elm.n_link}" for key in elm.dof_mapping()
-                ]
-        elif frequency is not None and matrix_name in {"M", "K", "C"}:
-            matrix = matrix_method(frequency, speed)
-            local_keys = list(elm.dof_mapping())
-        else:
-            matrix = matrix_method()
-            local_keys = list(elm.dof_mapping())
+        matrix = (
+            matrix_method()
+            if matrix_name == "G"
+            else matrix_method(frequency or 0, speed)
+        )
+        local_keys = [f"{key.split('_')[0]}_{elm.n}" for key in elm.dof_mapping()]
+        if elm.n_link is not None:
+            local_keys += [
+                f"{key.split('_')[0]}_{elm.n_link}" for key in elm.dof_mapping()
+            ]
 
-        selected_keys = list(elm.dof_global_index)
-        local_indices = [local_keys.index(key) for key in selected_keys]
+        local_indices = [local_keys.index(key) for key in elm.dof_global_index]
         return matrix[np.ix_(local_indices, local_indices)], list(
             elm.dof_global_index.values()
         )
@@ -2447,11 +2439,9 @@ class Rotor(object):
         I = np.eye(size)
 
         # fmt: off
-        G = self.G()
-
         A = np.vstack(
             [np.hstack([Z, I]),
-             np.hstack([la.solve(-M, self.K(frequency, speed)), la.solve(-M, (self.C(frequency, speed) + G * speed))])])
+             np.hstack([la.solve(-M, self.K(frequency, speed)), la.solve(-M, (self.C(frequency, speed) + self.G() * speed))])])
         # fmt: on
 
         return A
@@ -2747,11 +2737,9 @@ class Rotor(object):
             frequency = speed
 
         I = np.eye(self.M().shape[0])
-        G = self.G()
-
         lu, piv = lu_factor(
             -(frequency**2) * self.M(frequency, speed)
-            + 1j * frequency * (self.C(frequency, speed) + speed * G)
+            + 1j * frequency * (self.C(frequency, speed) + speed * self.G())
             + self.K(frequency, speed)
         )
         H = lu_solve((lu, piv), I)
