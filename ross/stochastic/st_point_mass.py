@@ -31,12 +31,16 @@ class ST_PointMass:
         Input a list to make it random.
     mz: float, list, optional
         Mass in the z direction (kg).
+        Default is None.
     Ixx: float, list, optional
         Mass moment of inertia about x (kg*m**2).
+        Default is None.
     Iyy: float, list, optional
         Mass moment of inertia about y (kg*m**2).
+        Default is None.
     Izz: float, list, optional
         Mass moment of inertia about z (kg*m**2).
+        Default is None.
     tag : str, optional
         A tag to name the element
         Default is None

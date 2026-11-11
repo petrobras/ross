@@ -383,30 +383,43 @@ class BearingElement(Element):
         Default is 0.
     kr_xx : float, array, pint.Quantity, optional
         Torque about x per rotation about x (N*m/rad).
+        Default is 0.
     kr_xy : float, array, pint.Quantity, optional
         Torque about x per rotation about y (N*m/rad).
+        Default is 0.
     kr_yx : float, array, pint.Quantity, optional
         Torque about y per rotation about x (N*m/rad).
+        Default is 0.
     kr_yy : float, array, pint.Quantity, optional
         Torque about y per rotation about y (N*m/rad).
+        Default is 0.
     kr_zz : float, array, pint.Quantity, optional
         Torque about z per rotation about z (N*m/rad).
+        Default is 0.
     cr_xx : float, array, pint.Quantity, optional
         Torque about x per angular velocity about x (N*m*s/rad).
+        Default is 0.
     cr_xy : float, array, pint.Quantity, optional
         Torque about x per angular velocity about y (N*m*s/rad).
+        Default is 0.
     cr_yx : float, array, pint.Quantity, optional
         Torque about y per angular velocity about x (N*m*s/rad).
+        Default is 0.
     cr_yy : float, array, pint.Quantity, optional
         Torque about y per angular velocity about y (N*m*s/rad).
+        Default is 0.
     cr_zz : float, array, pint.Quantity, optional
         Torque about z per angular velocity about z (N*m*s/rad).
+        Default is 0.
     Ixx : float, pint.Quantity, optional
         Mass moment of inertia about x (kg*m**2).
+        Default is 0.
     Iyy : float, pint.Quantity, optional
         Mass moment of inertia about y (kg*m**2).
+        Default is 0.
     Izz : float, pint.Quantity, optional
         Mass moment of inertia about z (kg*m**2).
+        Default is 0.
     speed : array, pint.Quantity, optional
         Rotor speed axis of the coefficient table (rad/s).
         Default is None.
@@ -1853,30 +1866,43 @@ class SealElement(BearingElement):
         Default is 0.
     kr_xx : float, array, pint.Quantity, optional
         Torque about x per rotation about x (N*m/rad).
+        Default is 0.
     kr_xy : float, array, pint.Quantity, optional
         Torque about x per rotation about y (N*m/rad).
+        Default is 0.
     kr_yx : float, array, pint.Quantity, optional
         Torque about y per rotation about x (N*m/rad).
+        Default is 0.
     kr_yy : float, array, pint.Quantity, optional
         Torque about y per rotation about y (N*m/rad).
+        Default is 0.
     kr_zz : float, array, pint.Quantity, optional
         Torque about z per rotation about z (N*m/rad).
+        Default is 0.
     cr_xx : float, array, pint.Quantity, optional
         Torque about x per angular velocity about x (N*m*s/rad).
+        Default is 0.
     cr_xy : float, array, pint.Quantity, optional
         Torque about x per angular velocity about y (N*m*s/rad).
+        Default is 0.
     cr_yx : float, array, pint.Quantity, optional
         Torque about y per angular velocity about x (N*m*s/rad).
+        Default is 0.
     cr_yy : float, array, pint.Quantity, optional
         Torque about y per angular velocity about y (N*m*s/rad).
+        Default is 0.
     cr_zz : float, array, pint.Quantity, optional
         Torque about z per angular velocity about z (N*m*s/rad).
+        Default is 0.
     Ixx : float, pint.Quantity, optional
         Mass moment of inertia about x (kg*m**2).
+        Default is 0.
     Iyy : float, pint.Quantity, optional
         Mass moment of inertia about y (kg*m**2).
+        Default is 0.
     Izz : float, pint.Quantity, optional
         Mass moment of inertia about z (kg*m**2).
+        Default is 0.
     seal_leakage : float, optional
         Seal leakage mass flow rate (kg/s).
     speed : array, pint.Quantity, optional

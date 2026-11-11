@@ -35,10 +35,13 @@ class PointMass(Element):
         Mass for the element on the z direction.
     Ixx: float, pint.Quantity, optional
         Mass moment of inertia about x (kg*m**2).
+        Default is None.
     Iyy: float, pint.Quantity, optional
         Mass moment of inertia about y (kg*m**2).
+        Default is None.
     Izz: float, pint.Quantity, optional
         Mass moment of inertia about z (kg*m**2).
+        Default is None.
     tag: str
         A tag to name the element
     scale_factor : float, optional

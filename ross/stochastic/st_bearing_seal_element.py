@@ -50,30 +50,43 @@ class ST_BearingElement:
         (defaults to 0)
     kr_xx: float, array, optional
         Torque about x per rotation about x (N*m/rad).
+        (defaults to 0)
     kr_xy: float, array, optional
         Torque about x per rotation about y (N*m/rad).
+        (defaults to 0)
     kr_yx: float, array, optional
         Torque about y per rotation about x (N*m/rad).
+        (defaults to 0)
     kr_yy: float, array, optional
         Torque about y per rotation about y (N*m/rad).
+        (defaults to 0)
     kr_zz: float, array, optional
         Torque about z per rotation about z (N*m/rad).
+        (defaults to 0)
     cr_xx: float, array, optional
         Torque about x per angular velocity about x (N*m*s/rad).
+        (defaults to 0)
     cr_xy: float, array, optional
         Torque about x per angular velocity about y (N*m*s/rad).
+        (defaults to 0)
     cr_yx: float, array, optional
         Torque about y per angular velocity about x (N*m*s/rad).
+        (defaults to 0)
     cr_yy: float, array, optional
         Torque about y per angular velocity about y (N*m*s/rad).
+        (defaults to 0)
     cr_zz: float, array, optional
         Torque about z per angular velocity about z (N*m*s/rad).
+        (defaults to 0)
     Ixx: float, array, optional
         Mass moment of inertia about x (kg*m**2).
+        (defaults to 0)
     Iyy: float, array, optional
         Mass moment of inertia about y (kg*m**2).
+        (defaults to 0)
     Izz: float, array, optional
         Mass moment of inertia about z (kg*m**2).
+        (defaults to 0)
     frequency: array, optional
         Array with the frequencies (rad/s).
     tag: str, optional
