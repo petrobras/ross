@@ -52,14 +52,18 @@ class HarmonicBalance:
                 List of excitation magnitudes.
                 Interpretation depends on the type of excitation:
                     - For direct harmonic forces: force amplitudes (N).
-                    - For unbalance-type excitations: ``m * e * speed**2`` (N),
+                    - For unbalance-type excitations: ``m * e * shaft_speed**2`` (N),
                     where ``m`` is the unbalance mass (kg) and ``e`` is the eccentricity (m).
 
             - 'phases': list of float
                 List of phase angles (rad).
 
             - 'harmonics': list of int
-                List of harmonic orders (1 for fundamental, 2 for second, etc.).
+                List of harmonic orders of the speed of the node's shaft
+                (1 for fundamental, 2 for second, etc.). The force rotates
+                with that shaft. In a geared multi-rotor, harmonic ``h`` of a
+                shaft turning ``r`` times as fast as the driving rotor is
+                harmonic ``abs(r) * h`` of the rotor speed. ``r`` must be an integer.
         speed : float
             Rotor rotational speed (rad/s).
         t : numpy.ndarray
@@ -149,14 +153,18 @@ class HarmonicBalance:
                 List of excitation magnitudes.
                 Interpretation depends on the type of excitation:
                     - For direct harmonic forces: force amplitudes (N).
-                    - For unbalance-type excitations: ``m * e * speed**2`` (N),
+                    - For unbalance-type excitations: ``m * e * shaft_speed**2`` (N),
                     where ``m`` is the unbalance mass (kg) and ``e`` is the eccentricity (m).
 
             - 'phases': list of float
                 List of phase angles (rad).
 
             - 'harmonics': list of int
-                List of harmonic orders (1 for fundamental, 2 for second, etc.).
+                List of harmonic orders of the speed of the node's shaft
+                (1 for fundamental, 2 for second, etc.). The force rotates
+                with that shaft. In a geared multi-rotor, harmonic ``h`` of a
+                shaft turning ``r`` times as fast as the driving rotor is
+                harmonic ``abs(r) * h`` of the rotor speed. ``r`` must be an integer.
 
         Returns
         -------
@@ -168,14 +176,11 @@ class HarmonicBalance:
         ndof = self.rotor.ndof
         number_dof = self.rotor.number_dof
 
-        max_harmonic = max(h for f in forces for h in f["harmonics"])
-        if max_harmonic > self.noh:
-            self.noh = max_harmonic
-
-        F = np.zeros((ndof, self.noh), dtype=np.complex128)
-
+        terms = []
+        unconverted_nodes = set()
         for f in forces:
             n = f["node"]
+            ratio = self.rotor.to_shaft_rotation(1, n)
 
             for p, m, h in zip(
                 f["phases"], f["magnitudes"], f["harmonics"], strict=True
@@ -185,9 +190,35 @@ class HarmonicBalance:
 
                 Fa = m * np.array([cos, sin])
                 Fb = m * np.array([-sin, cos])
+                force = Fa - 1j * Fb
+
+                harmonic = h * abs(ratio)
+                if np.isclose(harmonic, round(harmonic)):
+                    harmonic = int(round(harmonic))
+                    if ratio < 0:
+                        force = np.conjugate(force)
+                else:
+                    harmonic = h
+                    unconverted_nodes.add(n)
 
                 dofs = [number_dof * n, number_dof * n + 1]
-                F[dofs, h - 1] += Fa - 1j * Fb
+                terms.append((dofs, harmonic, force))
+
+        if unconverted_nodes:
+            warnings.warn(
+                f"Harmonic forces on nodes {sorted(unconverted_nodes)} are on "
+                "shafts whose speed is not an integer multiple of the rotor "
+                "speed.",
+                UserWarning,
+            )
+
+        max_harmonic = max(harmonic for _, harmonic, _ in terms)
+        if max_harmonic > self.noh:
+            self.noh = max_harmonic
+
+        F = np.zeros((ndof, self.noh), dtype=np.complex128)
+        for dofs, harmonic, force in terms:
+            F[dofs, harmonic - 1] += force
 
         F_s = np.conjugate(F)
 

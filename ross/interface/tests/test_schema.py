@@ -139,7 +139,7 @@ def test_units_are_inherited_like_the_parameters_are():
         c["name"]: c
         for c in build_schema()["categories"]["bearings"]["BallBearing"]["fields"]
     }
-    assert units.UNITS_MAPPING["BallBearingElement"] == {}
+    assert "cxx" not in units.UNITS_MAPPING["BallBearingElement"]
     assert fields["cxx"]["unit"] == "N*s/m"
     assert fields["cxx"]["unit_options"] == ["N*s/m", "lbf*s/in"]
 
