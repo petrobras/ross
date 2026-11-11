@@ -15,6 +15,7 @@ These tests tie the three paths together, so that a sign error in any one of
 them makes the rotor behave differently between analyses.
 """
 
+import control as ct
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose
@@ -532,3 +533,30 @@ def test_lsim_closed_loop_matches_frequency_domain_under_static_load():
     for eigenvalue in reference:
         distance = np.min(np.abs(closed_loop - eigenvalue))
         assert distance <= 1e-6 * abs(eigenvalue) + 1e-9 * scale, eigenvalue
+
+
+def test_static_load_needs_two_values():
+    with pytest.raises(ValueError, match="two values"):
+        _amb(0, kp=3.0 * KP_THRESHOLD, static_load=(1.0, 2.0, 3.0))
+
+
+def test_static_load_without_equilibrium_raises():
+    """Without integral action the pair holds at most about F_SWITCH in the gap."""
+    with pytest.raises(ValueError, match="cannot hold a static load"):
+        _loaded_amb((2.0 * F_SWITCH, 0.0), integral=False)
+
+
+def test_controller_static_gain_cancels_common_zeros():
+    """C(s) = Kp s / s has no integral action: its static gain is Kp."""
+    kp = 3.0 * KP_THRESHOLD
+    amb = _amb(0, kp=kp)
+    amb.get_analog_controller = lambda: ct.tf([kp, 0.0], [1.0, 0.0])
+
+    assert_allclose(amb._controller_static_gain(), kp)
+
+
+def test_hover_info_shows_static_load():
+    amb = _loaded_amb((0.5 * F_SWITCH, -1.5 * F_SWITCH))
+    _, hovertemplate = amb._hover_info()
+
+    assert "Static Load (x, y)" in hovertemplate
