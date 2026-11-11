@@ -29,6 +29,14 @@ class ST_PointMass:
     my: float, optional
         Mass for the element on the y direction.
         Input a list to make it random.
+    mz: float, list, optional
+        Mass in the z direction (kg).
+    Ixx: float, list, optional
+        Mass moment of inertia about x (kg*m**2).
+    Iyy: float, list, optional
+        Mass moment of inertia about y (kg*m**2).
+    Izz: float, list, optional
+        Mass moment of inertia about z (kg*m**2).
     tag : str, optional
         A tag to name the element
         Default is None

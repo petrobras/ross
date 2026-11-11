@@ -381,6 +381,32 @@ class BearingElement(Element):
     mzz : float, array, pint.Quantity, optional
         Direct mass in the z direction (kg).
         Default is 0.
+    kr_xx : float, array, pint.Quantity, optional
+        Torque about x per rotation about x (N*m/rad).
+    kr_xy : float, array, pint.Quantity, optional
+        Torque about x per rotation about y (N*m/rad).
+    kr_yx : float, array, pint.Quantity, optional
+        Torque about y per rotation about x (N*m/rad).
+    kr_yy : float, array, pint.Quantity, optional
+        Torque about y per rotation about y (N*m/rad).
+    kr_zz : float, array, pint.Quantity, optional
+        Torque about z per rotation about z (N*m/rad).
+    cr_xx : float, array, pint.Quantity, optional
+        Torque about x per angular velocity about x (N*m*s/rad).
+    cr_xy : float, array, pint.Quantity, optional
+        Torque about x per angular velocity about y (N*m*s/rad).
+    cr_yx : float, array, pint.Quantity, optional
+        Torque about y per angular velocity about x (N*m*s/rad).
+    cr_yy : float, array, pint.Quantity, optional
+        Torque about y per angular velocity about y (N*m*s/rad).
+    cr_zz : float, array, pint.Quantity, optional
+        Torque about z per angular velocity about z (N*m*s/rad).
+    Ixx : float, pint.Quantity, optional
+        Mass moment of inertia about x (kg*m**2).
+    Iyy : float, pint.Quantity, optional
+        Mass moment of inertia about y (kg*m**2).
+    Izz : float, pint.Quantity, optional
+        Mass moment of inertia about z (kg*m**2).
     speed : array, pint.Quantity, optional
         Rotor speed axis of the coefficient table (rad/s).
         Default is None.
@@ -1132,6 +1158,9 @@ class BearingElement(Element):
         x_0 - horizontal translation
         y_0 - vertical translation
         z_0 - axial translation
+        alpha_0 - rotation about x
+        beta_0 - rotation about y
+        theta_0 - rotation about z
 
         >>> bearing = bearing_example()
         >>> bearing.dof_mapping()
@@ -1157,7 +1186,7 @@ class BearingElement(Element):
         Returns
         -------
         M : np.ndarray
-            Mass matrix (kg).
+            Translational mass (kg) and rotational inertia (kg*m**2) matrix.
 
         Examples
         --------
@@ -1211,8 +1240,7 @@ class BearingElement(Element):
         Returns
         -------
         K : np.ndarray
-            A 3x3 matrix of floats containing the kxx, kxy, kyx, kyy and kzz
-            values (N/m).
+            Matrix of translational (N/m) and rotational (N*m/rad) stiffness.
 
         Examples
         --------
@@ -1269,8 +1297,7 @@ class BearingElement(Element):
         Returns
         -------
         C : np.ndarray
-            A 3x3 matrix of floats containing the cxx, cxy, cyx, cyy, and czz
-            values (N*s/m).
+            Matrix of translational (N*s/m) and rotational (N*m*s/rad) damping.
 
         Examples
         --------
@@ -1312,13 +1339,10 @@ class BearingElement(Element):
     def G(self, frequency=0, speed=None):
         """Gyroscopic matrix for an instance of a bearing element.
 
-        This method returns the mass matrix for an instance of a bearing
-        element.
-
         Returns
         -------
         G : np.ndarray
-            A 3x3 matrix of floats.
+            Matrix of gyroscopic coupling from Izz.
 
         Examples
         --------
@@ -1827,6 +1851,32 @@ class SealElement(BearingElement):
     mzz : float, array, pint.Quantity, optional
         Direct mass in the z direction (kg).
         Default is 0.
+    kr_xx : float, array, pint.Quantity, optional
+        Torque about x per rotation about x (N*m/rad).
+    kr_xy : float, array, pint.Quantity, optional
+        Torque about x per rotation about y (N*m/rad).
+    kr_yx : float, array, pint.Quantity, optional
+        Torque about y per rotation about x (N*m/rad).
+    kr_yy : float, array, pint.Quantity, optional
+        Torque about y per rotation about y (N*m/rad).
+    kr_zz : float, array, pint.Quantity, optional
+        Torque about z per rotation about z (N*m/rad).
+    cr_xx : float, array, pint.Quantity, optional
+        Torque about x per angular velocity about x (N*m*s/rad).
+    cr_xy : float, array, pint.Quantity, optional
+        Torque about x per angular velocity about y (N*m*s/rad).
+    cr_yx : float, array, pint.Quantity, optional
+        Torque about y per angular velocity about x (N*m*s/rad).
+    cr_yy : float, array, pint.Quantity, optional
+        Torque about y per angular velocity about y (N*m*s/rad).
+    cr_zz : float, array, pint.Quantity, optional
+        Torque about z per angular velocity about z (N*m*s/rad).
+    Ixx : float, pint.Quantity, optional
+        Mass moment of inertia about x (kg*m**2).
+    Iyy : float, pint.Quantity, optional
+        Mass moment of inertia about y (kg*m**2).
+    Izz : float, pint.Quantity, optional
+        Mass moment of inertia about z (kg*m**2).
     seal_leakage : float, optional
         Seal leakage mass flow rate (kg/s).
     speed : array, pint.Quantity, optional

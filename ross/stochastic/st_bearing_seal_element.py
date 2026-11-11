@@ -48,6 +48,32 @@ class ST_BearingElement:
     cyx: float, 1-D array, 2-D array, optional
         Cross coupled damping in the y direction.
         (defaults to 0)
+    kr_xx: float, array, optional
+        Torque about x per rotation about x (N*m/rad).
+    kr_xy: float, array, optional
+        Torque about x per rotation about y (N*m/rad).
+    kr_yx: float, array, optional
+        Torque about y per rotation about x (N*m/rad).
+    kr_yy: float, array, optional
+        Torque about y per rotation about y (N*m/rad).
+    kr_zz: float, array, optional
+        Torque about z per rotation about z (N*m/rad).
+    cr_xx: float, array, optional
+        Torque about x per angular velocity about x (N*m*s/rad).
+    cr_xy: float, array, optional
+        Torque about x per angular velocity about y (N*m*s/rad).
+    cr_yx: float, array, optional
+        Torque about y per angular velocity about x (N*m*s/rad).
+    cr_yy: float, array, optional
+        Torque about y per angular velocity about y (N*m*s/rad).
+    cr_zz: float, array, optional
+        Torque about z per angular velocity about z (N*m*s/rad).
+    Ixx: float, array, optional
+        Mass moment of inertia about x (kg*m**2).
+    Iyy: float, array, optional
+        Mass moment of inertia about y (kg*m**2).
+    Izz: float, array, optional
+        Mass moment of inertia about z (kg*m**2).
     frequency: array, optional
         Array with the frequencies (rad/s).
     tag: str, optional

@@ -33,6 +33,12 @@ class PointMass(Element):
         Mass for the element on the y direction.
     mz: float, pint.Quantity, optional
         Mass for the element on the z direction.
+    Ixx: float, pint.Quantity, optional
+        Mass moment of inertia about x (kg*m**2).
+    Iyy: float, pint.Quantity, optional
+        Mass moment of inertia about y (kg*m**2).
+    Izz: float, pint.Quantity, optional
+        Mass moment of inertia about z (kg*m**2).
     tag: str
         A tag to name the element
     scale_factor : float, optional
@@ -298,6 +304,9 @@ class PointMass(Element):
         x_0 - horizontal translation
         y_0 - vertical translation
         z_0 - axial translation
+        alpha_0 - rotation about x, when Ixx/Iyy/Izz are provided
+        beta_0 - rotation about y, when Ixx/Iyy/Izz are provided
+        theta_0 - rotation about z, when Ixx/Iyy/Izz are provided
 
         >>> p1 = PointMass(n=0, mx=2, my=3, mz=4)
         >>> p1.dof_mapping()
