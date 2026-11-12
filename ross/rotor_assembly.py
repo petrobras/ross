@@ -559,9 +559,11 @@ class Rotor(object):
         self._setup_node_dofs()
 
         # global indexes for dofs
+        self._bearing_local_indices = {}
         for elm in self.elements:
             dof_mapping = elm.dof_mapping()
             global_dof_mapping = {}
+            local_dof_indices = []
 
             if elm in self.shaft_elements:
                 for key, value in dof_mapping.items():
@@ -583,6 +585,7 @@ class Rotor(object):
                         global_dof_mapping[f"{key.split('_')[0]}_{node}"] = (
                             node_offset + int(value)
                         )
+                        local_dof_indices.append(int(value))
 
                 if hasattr(elm, "n_link") and elm.n_link is not None:
                     link = int(elm.n_link)
@@ -597,8 +600,11 @@ class Rotor(object):
                             global_dof_mapping[f"{key.split('_')[0]}_{link}"] = (
                                 link_offset + int(value)
                             )
+                            local_dof_indices.append(len(dof_mapping) + int(value))
 
             elm.dof_global_index = global_dof_mapping
+            if elm in self.bearing_elements:
+                self._bearing_local_indices[elm.tag] = local_dof_indices
             df.at[df.loc[df.tag == elm.tag].index[0], "dof_global_index"] = (
                 elm.dof_global_index
             )
@@ -1028,25 +1034,6 @@ class Rotor(object):
             self._node_dof_offsets[node] = offset
             offset += self._node_dof_sizes[node]
         self.ndof = offset
-
-    def _element_matrix(self, elm, matrix_name, frequency=None, speed=None):
-        """Return a bearing matrix projected onto its available global DOFs."""
-        matrix_method = getattr(elm, matrix_name)
-        matrix = (
-            matrix_method()
-            if matrix_name == "G"
-            else matrix_method(frequency or 0, speed)
-        )
-        local_keys = [f"{key.split('_')[0]}_{elm.n}" for key in elm.dof_mapping()]
-        if elm.n_link is not None:
-            local_keys += [
-                f"{key.split('_')[0]}_{elm.n_link}" for key in elm.dof_mapping()
-            ]
-
-        local_indices = [local_keys.index(key) for key in elm.dof_global_index]
-        return matrix[np.ix_(local_indices, local_indices)], list(
-            elm.dof_global_index.values()
-        )
 
     def _find_linked_bearing_node(self, node):
         """Find the linked bearing element by node
@@ -2212,8 +2199,9 @@ class Rotor(object):
         M0 = self.M0.copy()
 
         for elm in self.bearing_elements:
-            matrix, dofs = self._element_matrix(elm, "M", frequency, speed)
-            M0[np.ix_(dofs, dofs)] += matrix
+            dofs = list(elm.dof_global_index.values())
+            local = self._bearing_local_indices[elm.tag]
+            M0[np.ix_(dofs, dofs)] += elm.M(frequency, speed)[np.ix_(local, local)]
 
         if synchronous:
             for elm in self.shaft_elements:
@@ -2247,13 +2235,15 @@ class Rotor(object):
                 M0[dofs[b0], dofs[b0]] += G[b0, a0]
 
             for elm in self.bearing_elements:
-                matrix, dofs = self._element_matrix(elm, "G", frequency, speed)
+                dofs = list(elm.dof_global_index.values())
+                local = self._bearing_local_indices[elm.tag]
+                G = elm.G()[np.ix_(local, local)]
                 for offset in (0, 6) if elm.n_link is not None else (0,):
-                    if offset + 4 < matrix.shape[0]:
-                        M0[dofs[offset + 3], dofs[offset + 3]] -= matrix[
+                    if offset + 4 < G.shape[0]:
+                        M0[dofs[offset + 3], dofs[offset + 3]] -= G[
                             offset + 3, offset + 4
                         ]
-                        M0[dofs[offset + 4], dofs[offset + 4]] += matrix[
+                        M0[dofs[offset + 4], dofs[offset + 4]] += G[
                             offset + 4, offset + 3
                         ]
 
@@ -2289,8 +2279,9 @@ class Rotor(object):
         K0 = self.K0.copy()
 
         for elm in self.bearing_elements:
-            matrix, dofs = self._element_matrix(elm, "K", frequency, speed)
-            K0[np.ix_(dofs, dofs)] += matrix
+            dofs = list(elm.dof_global_index.values())
+            local = self._bearing_local_indices[elm.tag]
+            K0[np.ix_(dofs, dofs)] += elm.K(frequency or 0, speed)[np.ix_(local, local)]
 
         return K0
 
@@ -2351,8 +2342,9 @@ class Rotor(object):
         C0 = self.C0.copy()
 
         for elm in self.bearing_elements:
-            matrix, dofs = self._element_matrix(elm, "C", frequency, speed)
-            C0[np.ix_(dofs, dofs)] += matrix
+            dofs = list(elm.dof_global_index.values())
+            local = self._bearing_local_indices[elm.tag]
+            C0[np.ix_(dofs, dofs)] += elm.C(frequency or 0, speed)[np.ix_(local, local)]
 
         return C0
 
@@ -2376,8 +2368,9 @@ class Rotor(object):
         G0 = self.G0.copy()
 
         for elm in self.bearing_elements:
-            matrix, dofs = self._element_matrix(elm, "G")
-            G0[np.ix_(dofs, dofs)] += matrix
+            dofs = list(elm.dof_global_index.values())
+            local = self._bearing_local_indices[elm.tag]
+            G0[np.ix_(dofs, dofs)] += elm.G()[np.ix_(local, local)]
 
         return G0
 
