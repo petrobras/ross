@@ -52,6 +52,13 @@ BAD_PARTS = "The number of parts has to be a whole number of 1 or more, not '%s'
 BAD_MODES = "The number of frequencies has to be a whole number of 1 or more, not '%s'."
 BAD_TOLERANCE = "The tolerance has to be a positive percentage, not '%s'."
 BAD_SPEED = "The speed has to be a number of rpm, not '%s'."
+BAD_STRATEGY = (
+    "There is no convergence search called '%s'; it is 'cheapest' or 'uniform'."
+)
+BAD_MAX_ELEMENTS = (
+    "The largest number of elements has to be a whole number of 1 or more, not '%s'."
+)
+STRATEGIES = ("cheapest", "uniform")
 BAD_METHOD = "There is no way of discretizing called '%s'."
 BAD_MULTI = (
     "The convergence meshes a single rotor; rotors coupled by gears are "
@@ -290,10 +297,22 @@ def mesh_shafts(project, max_ld=0.5, min_ld=0.1, indexes=None, parts=None):
 # ROSS searches one rotor; a model of rotors coupled by gears is refused.
 
 
-def mesh_by_convergence(project, n_modes="6", rtol="0.1", speed="0", min_ld=0.1):
+def mesh_by_convergence(
+    project,
+    n_modes="6",
+    rtol="0.1",
+    speed="0",
+    min_ld=0.1,
+    strategy="cheapest",
+    max_elements="1000",
+):
     """Return `project` cut to the mesh whose frequencies converged.
 
     `rtol` is a percentage and `speed` is in rpm, as the dialog asks for them.
+    `strategy` and `max_elements` are ROSS's own (#1420): "cheapest" takes the
+    mesh with the fewest elements of the uniform and the graded families,
+    "uniform" searches the uniform one only; `max_elements` caps the meshes
+    evaluated, and ROSS refuses when the reference needs more.
     The report is `mesh_shafts`'s, with `convergence`: one row per mesh
     analysed, from the fewest elements (`family`, "uniform" or "graded";
     `elements`, the shaft elements; `error`, the largest relative error of a
@@ -313,6 +332,10 @@ def mesh_by_convergence(project, n_modes="6", rtol="0.1", speed="0", min_ld=0.1)
     if tolerance <= 0:
         raise ValueError(BAD_TOLERANCE % rtol)
     rpm = _ratio(speed, BAD_SPEED)
+    search = str(strategy or "cheapest").strip()
+    if search not in STRATEGIES:
+        raise ValueError(BAD_STRATEGY % strategy)
+    ceiling = _count(max_elements, BAD_MAX_ELEMENTS)
 
     rotor = build_rotor_from_ui(project)
     if type(rotor) is not Rotor:
@@ -322,7 +345,9 @@ def mesh_by_convergence(project, n_modes="6", rtol="0.1", speed="0", min_ld=0.1)
         results = rotor.run_mesh_convergence(
             rtol=tolerance / 100,
             frequencies=modes,
+            strategy=search,
             speed=Q_(rpm, "rpm").to("rad/s").m,
+            max_elements=ceiling,
         )
 
     first = min(elm.n for elm in rotor.shaft_elements)
@@ -358,5 +383,7 @@ def mesh_by_convergence(project, n_modes="6", rtol="0.1", speed="0", min_ld=0.1)
         "wn": [float(w) / (2 * math.pi) for w in results.wn],
         "n_modes": modes,
         "rtol": tolerance,
+        "strategy": search,
+        "max_elements": ceiling,
     }
     return built, report
