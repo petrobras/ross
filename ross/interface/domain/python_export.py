@@ -33,6 +33,7 @@ from .node_resolver import effective_nodes, listed_nodes
 import textwrap
 
 from .schema import unit_map_by_class
+from .seal_stages import folded
 from .units import DROPPED_UNITS, typed_unit
 
 # Deliberate differences from the old app.js generator:
@@ -358,6 +359,10 @@ def _build_rotor_block(r_data, suffix):
     nodes = effective_nodes(r_data.get("seals") or [])
     for position, seal in enumerate(r_data.get("seals") or []):
         klass = ross_class_name("seals", seal.get("element_type"))
+        # A hybrid seal's stage fields, folded into ROSS's two dictionaries
+        # as the builder folds them (domain/seal_stages.py).
+        if klass == "HybridSeal":
+            seal = folded(seal)
         seal = migrate_element(seal, klass)
         args = _format_kwargs(seal, ["element_type"], klass)
         args = _with_node_arg(seal, args, nodes[position])
