@@ -916,8 +916,8 @@ class Rotor(object):
         return int(number_dof)
 
     @staticmethod
-    def _has_rotational_bearing_terms(bearing):
-        """Return whether a bearing requires rotational support coordinates."""
+    def _active_rotational_bearing_terms(bearing):
+        """Return the names of nonzero rotational bearing coefficients."""
         names = (
             "kr_xx",
             "kr_xy",
@@ -933,13 +933,9 @@ class Rotor(object):
             "Iyy",
             "Izz",
         )
-        return any(np.any(np.asarray(getattr(bearing, name)) != 0) for name in names)
-
-    @staticmethod
-    def _has_rotational_bearing_stiffness(bearing):
-        """Return whether a bearing has any rotational stiffness coefficient."""
-        names = ("kr_xx", "kr_xy", "kr_yx", "kr_yy", "kr_zz")
-        return any(np.any(np.asarray(getattr(bearing, name)) != 0) for name in names)
+        return [
+            name for name in names if np.any(np.asarray(getattr(bearing, name)) != 0)
+        ]
 
     def _setup_node_dofs(self):
         """Build offsets for shaft and optional external three/six-DOF nodes."""
@@ -967,7 +963,11 @@ class Rotor(object):
             for node in (bearing.n, bearing.n_link):
                 if node is not None and int(node) not in self._node_dof_sizes:
                     self._node_dof_sizes[int(node)] = 3
-            if self._has_rotational_bearing_terms(bearing):
+            rotational_terms = self._active_rotational_bearing_terms(bearing)
+            if rotational_terms:
+                rotational_stiffness = [
+                    name for name in rotational_terms if name.startswith("kr_")
+                ]
                 for node in (bearing.n, bearing.n_link):
                     if node is not None and self._node_dof_sizes[int(node)] < 6:
                         point_mass = point_masses_by_node.get(int(node))
@@ -977,19 +977,8 @@ class Rotor(object):
                             and int(node) in linked_nodes
                             and int(node) not in self.nodes
                             and int(bearing.n) == int(node)
-                            and self._has_rotational_bearing_stiffness(bearing)
+                            and rotational_stiffness
                         ):
-                            rotational_stiffness = [
-                                name
-                                for name in (
-                                    "kr_xx",
-                                    "kr_xy",
-                                    "kr_yx",
-                                    "kr_yy",
-                                    "kr_zz",
-                                )
-                                if np.any(np.asarray(getattr(bearing, name)) != 0)
-                            ]
                             raise ValueError(
                                 f"PointMass at support node {node} has only three "
                                 "degrees of freedom, but its support bearing "
