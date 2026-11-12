@@ -46,8 +46,16 @@ def test_schema_has_no_unknown_fields():
 
 
 def test_every_form_field_is_accepted_by_its_class():
-    """Belt and braces: checks straight against the signature, without the schema."""
-    from ross.interface.domain.schema import _class_signature, _parameter_name
+    """Belt and braces: checks straight against the signature, without the schema.
+
+    A field that is one key of a dictionary parameter (`part_of`, the hybrid
+    seal's stages) is accepted when the parameter is in the signature and its
+    docstring lists the key."""
+    from ross.interface.domain.schema import (
+        _class_signature,
+        _documented_keys,
+        _parameter_name,
+    )
 
     problems = []
     for category, subtypes in FIELDS.items():
@@ -55,6 +63,15 @@ def test_every_form_field_is_accepted_by_its_class():
             klass = element_registry.ross_constructor(category, subtype)
             _, parameters, _, _ = _class_signature(klass)
             for field in fields:
+                if field.get("part_of"):
+                    parent, key = field["part_of"]
+                    cls = element_registry.resolve_constructor(klass)
+                    if parent in parameters and key in _documented_keys(cls, parent):
+                        continue
+                    problems.append(
+                        f"{category}/{subtype}.{field['name']} -> rs.{klass}.{parent}"
+                    )
+                    continue
                 target = _parameter_name(klass, field["name"])
                 if target not in parameters:
                     problems.append(
