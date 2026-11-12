@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="appTitle">ROSS - Digital Twin</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Local libraries: the interface runs without internet. -->
+    <link rel="stylesheet" href="vendor/fontawesome/css/all.min.css">
+    <!-- Served by Flask from the installed plotly.py: the same version as fig.show(). -->
+    <script src="lib/plotly.min.js"></script>
+</head>
+<body>
+
+    <div id="screen-home" class="screen active">
+        <div class="home-container">
+            <img src="assets/ross-logo.svg" alt="ROSS Logo" class="logo-img-home" onerror="this.style.display='none'">
+            <h1 class="logo-text" data-i18n="appName">ROSS</h1>
+            <p class="subtitle" data-i18n="appTagline">Digital Twin</p>
+            <div class="home-buttons">
+                <button class="btn-primary" data-screen="screen-dt"><i class="fas fa-project-diagram"></i> <span data-i18n="homeDigitalTwin">Digital Twin</span></button>
+                <button class="btn-secondary" data-screen="screen-balance"><i class="fas fa-balance-scale"></i> <span data-i18n="homeBalance">BRBalance</span></button>
+                <button class="btn-secondary" data-screen="screen-cfd"><i class="fas fa-wind"></i> <span data-i18n="homeCfd">CFD</span></button>
+                <button class="btn-exit" data-exit><i class="fas fa-power-off"></i> <span data-i18n="homeExit">Sair do Programa</span></button>
+            </div>
+        </div>
+    </div>
+
+    <div id="screen-dt" class="screen">
+        <div class="topbar">
+            <div class="topbar-left">
+                <button class="btn-back" data-screen="screen-home" title="Voltar ao Início" data-i18n-title="backToHome"><i class="fas fa-arrow-left"></i></button>
+                <button class="btn-toggle-sidebar" data-toggle-sidebar="dt-sidebar" title="Mostrar/ocultar painel" data-i18n-title="toggleSidebar"><i class="fas fa-bars"></i></button>
+                <button class="btn-help-general" data-help="dt" title="Como usar" data-i18n-title="howToUse"><i class="fas fa-question-circle"></i></button>
+            </div>
+            <div class="topbar-center">
+                <img src="assets/ross-logo.svg" alt="Logo" class="logo-img-topbar" onerror="this.style.display='none'"> <span data-i18n="dtTitle">ROSS - Digital Twin</span>
+            </div>
+            <div class="topbar-actions">
+                <button class="btn-analysis-go" id="dt-go-analysis" data-screen="screen-dt-analysis" title="Ir para Análises" data-i18n-title="anGo" disabled><span class="btn-text" data-i18n="anGo">Ir para Análises</span> <i class="fas fa-arrow-right"></i></button>
+                <select class="ui-language" title="Idioma" data-i18n-title="language"><option value="pt">Português</option><option value="en">English</option></select>
+                <button class="btn-exit-small" data-exit title="Sair" data-i18n-title="exit"><i class="fas fa-power-off"></i></button>
+            </div>
+        </div>
+
+        <div class="modeling-layout">
+            <div class="sidebar" id="dt-sidebar">
+                <button class="tab-btn active" data-tab-group="dt" data-tab="equipment" data-i18n="dtStepEquipment">1. Equipamento</button>
+                <button class="tab-btn" data-tab-group="dt" data-tab="process" data-i18n="dtStepProcess">2. Dados de Processo</button>
+                <button class="tab-btn" data-tab-group="dt" data-tab="model" data-i18n="dtStepModel">3. Modelo</button>
+            </div>
+
+            <div class="dynamic-panel">
+                <div data-panel-group="dt" data-panel="equipment">
+                    <h3 class="panel-title" data-i18n="dtStepEquipment">1. Equipamento</h3>
+                    <div class="form-box">
+                        <div class="input-group"><label data-i18n="dtPlatform">Plataforma</label><select id="dt-platform"></select></div>
+                        <div class="input-group"><label data-i18n="dtEquipment">Equipamento</label><select id="dt-equipment"></select></div>
+                        <div class="input-group">
+                            <label data-i18n="dtRotation">Sentido de rotação</label>
+                            <select id="dt-rotation">
+                                <option value="clockwise" data-i18n="dtClockwise">Horário</option>
+                                <option value="counterclockwise" data-i18n="dtCounterclockwise">Anti-horário</option>
+                            </select>
+                        </div>
+                        <p class="panel-hint" id="dt-equipment-note"></p>
+                    </div>
+                </div>
+
+                <div data-panel-group="dt" data-panel="process" style="display: none;">
+                    <h3 class="panel-title" data-i18n="dtStepProcess">2. Dados de Processo</h3>
+                    <div class="form-box">
+                        <div style="display: flex; gap: 10px;">
+                            <div class="input-group"><label data-i18n="dtDate">Data</label><input id="dt-date" type="date"></div>
+                            <div class="input-group"><label data-i18n="dtTime">Hora inicial</label><input id="dt-time" type="time" step="1" value="00:00:00"></div>
+                        </div>
+                        <p class="panel-hint" data-i18n="dtNullWarning">Valores nulos nos dados selecionados podem comprometer a construção do modelo.</p>
+                        <button type="button" id="dt-load" class="btn-primary"><i class="fas fa-database"></i> <span data-i18n="dtLoadData">Carregar dados</span></button>
+                    </div>
+                </div>
+
+                <div data-panel-group="dt" data-panel="model" style="display: none;">
+                    <h3 class="panel-title" data-i18n="dtStepModel">3. Modelo</h3>
+                    <div class="form-box">
+                        <p class="panel-hint" data-i18n="dtModelHint">O modelo é construído a partir dos dados de processo da etapa 2.</p>
+                        <button type="button" id="dt-create" class="btn-primary" disabled><i class="fas fa-cogs"></i> <span data-i18n="dtCreateModel">Criar modelo</span></button>
+                    </div>
+                </div>
+
+                <p class="panel-status" id="dt-status"></p>
+            </div>
+
+            <div class="plot-panel">
+                <div id="dt-rotor-info" style="display:flex; flex-wrap: wrap; justify-content:center; gap: 30px; margin-bottom: 15px; font-weight: 600; color: var(--text-main); font-size: 13px; background: var(--bg-card); padding: 10px; border-radius: var(--radius-ui); border: 1px solid var(--border-color); box-shadow: var(--shadow-card); opacity: 0; transition: opacity 0.3s;">
+                    <span><span data-i18n="dtSession">Sessão</span>: <span id="dt-info-session" class="info-value">-</span></span>
+                    <span><span data-i18n="dtEquipment">Equipamento</span>: <span id="dt-info-equipment" class="info-value">-</span></span>
+                    <span><span data-i18n="dtInfoNodes">Nós:</span> <span id="dt-info-nodes" class="info-value">-</span></span>
+                    <span><span data-i18n="totalMass">Massa Total:</span> <span id="dt-info-mass" class="info-value">-</span> kg</span>
+                    <span><span data-i18n="dtInfoDisks">Discos:</span> <span id="dt-info-disks" class="info-value">-</span></span>
+                    <span><span data-i18n="dtInfoBearings">Mancais:</span> <span id="dt-info-bearings" class="info-value">-</span></span>
+                </div>
+
+                <div id="dt-plot" class="live-plot-area">
+                    <div class="analysis-no-chart" style="height: 100%;">
+                        <i class="fas fa-cogs"></i>
+                        <p data-i18n="dtRotorWillAppear">O modelo do rotor aparecerá aqui...</p>
+                    </div>
+                </div>
+
+                <div class="analysis-card" id="dt-data-card" style="display: none;">
+                    <div class="analysis-header" data-collapse="dt-data-body">
+                        <span class="analysis-title"><i class="fas fa-table"></i> <span data-i18n="dtProcessData">Dados de Processo</span></span>
+                        <span class="analysis-actions"><i class="fas fa-chevron-down"></i></span>
+                    </div>
+                    <div class="analysis-body" id="dt-data-body"></div>
+                </div>
+
+                <div class="analysis-card" id="dt-components-card" style="display: none;">
+                    <div class="analysis-header" data-collapse="dt-components-body">
+                        <span class="analysis-title"><i class="fas fa-circle-notch"></i> <span data-i18n="dtComponents">Dados dos Componentes</span></span>
+                        <span class="analysis-actions"><i class="fas fa-chevron-down"></i></span>
+                    </div>
+                    <div class="analysis-body" id="dt-components-body" style="display: none;">
+                        <div class="result-grid">
+                            <div><h4 data-i18n="dtBearings">Mancais e selos</h4><pre id="dt-bearings"></pre></div>
+                            <div><h4 data-i18n="dtLabyrinths">Labirintos</h4><pre id="dt-labyrinths"></pre></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="screen-dt-analysis" class="screen">
+        <div class="topbar">
+            <div class="topbar-left">
+                <button class="btn-back" data-screen="screen-dt" title="Voltar ao Modelo" data-i18n-title="anBackToModel"><i class="fas fa-arrow-left"></i></button>
+                <button class="btn-toggle-sidebar" data-toggle-sidebar="dt-analysis-controls" title="Mostrar/ocultar painel" data-i18n-title="toggleSidebar"><i class="fas fa-bars"></i></button>
+                <button class="btn-help-general" data-help="analyses" title="Como usar" data-i18n-title="howToUse"><i class="fas fa-question-circle"></i></button>
+            </div>
+            <div class="topbar-center">
+                <img src="assets/ross-logo.svg" alt="Logo" class="logo-img-topbar" onerror="this.style.display='none'"> <span data-i18n="anTitle">ROSS - Digital Twin - Análises</span>
+            </div>
+            <div class="topbar-actions">
+                <select class="ui-language" title="Idioma" data-i18n-title="language"><option value="pt">Português</option><option value="en">English</option></select>
+                <button class="btn-exit-small" data-exit title="Sair" data-i18n-title="exit"><i class="fas fa-power-off"></i></button>
+            </div>
+        </div>
+
+        <div class="analysis-layout">
+            <div class="analysis-controls-panel" id="dt-analysis-controls">
+                <select id="dt-analysis-type" class="analysis-select"></select>
+                <button type="button" class="btn-analysis-go" id="dt-analysis-add" style="width: 100%; margin-top: 15px;"><i class="fas fa-plus"></i> <span data-i18n="anAdd">Adicionar Painel</span></button>
+            </div>
+            <div class="analysis-plot-panel" id="dt-analysis-list">
+                <p class="dashboards-empty" style="color: #888; text-align: center; margin-top: 20%;" data-i18n="anWillAppear">Os painéis gerados aparecerão aqui.</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="screen-balance" class="screen">
+        <div class="topbar">
+            <div class="topbar-left">
+                <button class="btn-back" data-screen="screen-home" title="Voltar ao Início" data-i18n-title="backToHome"><i class="fas fa-arrow-left"></i></button>
+                <button class="btn-toggle-sidebar" data-toggle-sidebar="bal-sidebar" title="Mostrar/ocultar painel" data-i18n-title="toggleSidebar"><i class="fas fa-bars"></i></button>
+                <button class="btn-help-general" data-help="balance" title="Como usar" data-i18n-title="howToUse"><i class="fas fa-question-circle"></i></button>
+            </div>
+            <div class="topbar-center">
+                <img src="assets/ross-logo.svg" alt="Logo" class="logo-img-topbar" onerror="this.style.display='none'"> <span data-i18n="balanceTitle">ROSS - BRBalance</span>
+            </div>
+            <div class="topbar-actions">
+                <button class="btn-save" id="bal-open" title="Abrir um arquivo .brb" data-i18n-title="balOpenTitle"><i class="fas fa-folder-open"></i> <span class="btn-text" data-i18n="balOpen">Abrir</span></button>
+                <input type="file" id="bal-file" accept=".brb" style="display: none;">
+                <button class="btn-save" id="bal-save" title="Salvar o formulário como .brb" data-i18n-title="balSaveTitle"><i class="fas fa-save"></i> <span class="btn-text" data-i18n="balSave">Salvar</span></button>
+                <button class="btn-py" id="bal-report" title="Baixar o relatório Word" data-i18n-title="balReportTitle"><i class="fas fa-file-word"></i> <span class="btn-text" data-i18n="balReport">Relatório</span></button>
+                <button class="btn-analysis-go" id="bal-calc"><i class="fas fa-calculator"></i> <span class="btn-text" data-i18n="balCalculate">Calcular</span></button>
+                <select class="ui-language" title="Idioma" data-i18n-title="language"><option value="pt">Português</option><option value="en">English</option></select>
+                <button class="btn-exit-small" data-exit title="Sair" data-i18n-title="exit"><i class="fas fa-power-off"></i></button>
+            </div>
+        </div>
+
+        <div class="modeling-layout">
+            <div class="sidebar" id="bal-sidebar">
+                <button class="tab-btn active" data-tab-group="bal" data-tab="setup" data-i18n="balStepSetup">Configuração</button>
+                <button class="tab-btn" data-tab-group="bal" data-tab="reference" data-i18n="balStepReference">Referência</button>
+                <button class="tab-btn" data-tab-group="bal" data-tab="tests" data-i18n="balStepTests">Rodadas de Teste</button>
+                <button class="tab-btn" data-tab-group="bal" data-tab="current" data-i18n="balStepCurrent">Condição Atual</button>
+                <button class="tab-btn" data-tab-group="bal" data-tab="applied" data-i18n="balStepApplied">Correções Aplicadas</button>
+                <button class="tab-btn" data-tab-group="bal" data-tab="notes" data-i18n="balStepNotes">Anotações</button>
+            </div>
+
+            <div class="dynamic-panel" id="balance-root">
+                <div data-panel-group="bal" data-panel="setup">
+                    <h3 class="panel-title" data-i18n="balStepSetup">Configuração</h3>
+                    <div class="form-box">
+                        <div class="input-group"><label data-i18n="balSessionName">Nome da sessão</label><input id="bal-name" type="text"></div>
+                        <div style="display: flex; gap: 10px;">
+                            <div class="input-group"><label data-i18n="balSensors">Sensores utilizados</label><input id="bal-n-sensors" type="number" min="1" max="20" value="2"></div>
+                            <div class="input-group"><label data-i18n="balTests">Testes realizados</label><input id="bal-n-tests" type="number" min="1" max="10" value="2"></div>
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <div class="input-group"><label data-i18n="balPlanes">Planos de balanceamento</label><input id="bal-n-planes" type="number" min="1" max="5" value="2"></div>
+                            <div class="input-group"><label data-i18n="balWeights">Massas por plano</label><input id="bal-n-weights" type="number" min="1" max="8" value="2"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div data-panel-group="bal" data-panel="reference" style="display: none;">
+                    <h3 class="panel-title" data-i18n="balStepReference">Referência</h3>
+                    <p class="panel-hint" data-i18n="balReferenceHint"></p>
+                    <div class="form-box">
+                        <div class="input-group">
+                            <label data-i18n="balQuantity">Grandeza</label>
+                            <select id="bal-ref-quantity">
+                                <option value="vib" data-i18n="balVibration">Vibração</option>
+                                <option value="run" data-i18n="balRunout">Runout</option>
+                            </select>
+                        </div>
+                        <div class="table-scroll" id="bal-ref"></div>
+                    </div>
+                </div>
+
+                <div data-panel-group="bal" data-panel="tests" style="display: none;">
+                    <h3 class="panel-title" data-i18n="balStepTests">Rodadas de Teste</h3>
+                    <p class="panel-hint" data-i18n="balTestsHint"></p>
+                    <div class="form-box">
+                        <div class="input-group"><label data-i18n="balTest">Teste</label><select id="bal-test-pick"></select></div>
+                        <div id="bal-tests"></div>
+                    </div>
+                </div>
+
+                <div data-panel-group="bal" data-panel="current" style="display: none;">
+                    <h3 class="panel-title" data-i18n="balStepCurrent">Condição Atual</h3>
+                    <p class="panel-hint" data-i18n="balCurrentHint"></p>
+                    <div class="form-box">
+                        <div class="input-group">
+                            <label data-i18n="balQuantity">Grandeza</label>
+                            <select id="bal-curr-quantity">
+                                <option value="vib" data-i18n="balVibration">Vibração</option>
+                                <option value="run" data-i18n="balRunout">Runout</option>
+                            </select>
+                        </div>
+                        <div class="table-scroll" id="bal-current"></div>
+                        <button type="button" id="bal-copy" class="btn-secondary"><i class="fas fa-copy"></i> <span data-i18n="balCopyReference">Copiar dados de referência</span></button>
+                    </div>
+                </div>
+
+                <div data-panel-group="bal" data-panel="applied" style="display: none;">
+                    <h3 class="panel-title" data-i18n="balStepApplied">Correções Aplicadas</h3>
+                    <p class="panel-hint" data-i18n="balAppliedHint"></p>
+                    <div class="form-box">
+                        <div class="table-scroll" id="bal-corr"></div>
+                        <div id="bal-invert" style="margin-top: 10px;"></div>
+                    </div>
+                </div>
+
+                <div data-panel-group="bal" data-panel="notes" style="display: none;">
+                    <h3 class="panel-title" data-i18n="balStepNotes">Anotações</h3>
+                    <div class="form-box">
+                        <textarea id="bal-notes" rows="8" data-i18n-placeholder="balNotesPlaceholder"></textarea>
+                    </div>
+                </div>
+
+                <p class="panel-status" id="bal-status"></p>
+            </div>
+
+            <div class="plot-panel">
+                <div class="analysis-card" id="bal-results-card" style="display: none;">
+                    <div class="analysis-header" data-collapse="bal-results">
+                        <span class="analysis-title"><i class="fas fa-balance-scale"></i> <span data-i18n="balResults">Resultados</span></span>
+                        <span class="analysis-actions"><i class="fas fa-chevron-down"></i></span>
+                    </div>
+                    <div class="analysis-body" id="bal-results"></div>
+                </div>
+
+                <div id="bal-plot" class="live-plot-area">
+                    <div class="analysis-no-chart" style="height: 100%;">
+                        <i class="fas fa-bullseye"></i>
+                        <p data-i18n="balWillAppear">Preencha os dados e clique em Calcular.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="screen-cfd" class="screen">
+        <div class="topbar">
+            <div class="topbar-left">
+                <button class="btn-back" data-screen="screen-home" title="Voltar ao Início" data-i18n-title="backToHome"><i class="fas fa-arrow-left"></i></button>
+            </div>
+            <div class="topbar-center">
+                <img src="assets/ross-logo.svg" alt="Logo" class="logo-img-topbar" onerror="this.style.display='none'"> <span data-i18n="cfdTitle">ROSS - CFD</span>
+            </div>
+            <div class="topbar-actions">
+                <select class="ui-language" title="Idioma" data-i18n-title="language"><option value="pt">Português</option><option value="en">English</option></select>
+                <button class="btn-exit-small" data-exit title="Sair" data-i18n-title="exit"><i class="fas fa-power-off"></i></button>
+            </div>
+        </div>
+        <div class="hub-container">
+            <div class="hub-list">
+                <div class="hub-card">
+                    <div class="analysis-no-chart">
+                        <i class="fas fa-wind"></i>
+                        <p data-i18n="cfdSoon"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="help-modal-overlay" class="modal-overlay" style="display: none;">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3 id="help-modal-title"></h3>
+                <button class="btn-close-modal" data-close-help><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body" id="help-modal-body"></div>
+        </div>
+    </div>
+
+    <div id="custom-prompt-overlay" class="modal-overlay" style="display: none;">
+        <div class="modal-box" style="max-width: 400px; padding: 0;">
+            <div class="modal-header">
+                <h3 style="color: var(--text-main); font-size: 15px;"><i class="fas fa-edit" style="color: var(--accent-primary);"></i> <span data-i18n="dialogInputRequired">Entrada Necessária</span></h3>
+                <button class="btn-close-modal" data-prompt-cancel><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body form-box" style="border: none; box-shadow: none; margin-top: 0; border-radius: 0;">
+                <p id="custom-prompt-message" style="margin-bottom: 10px; font-size: 13px; color: var(--text-muted); font-weight: 600;"></p>
+                <div class="input-group" style="margin-bottom: 15px;">
+                    <input type="text" id="custom-prompt-input" style="width: 100%;">
+                </div>
+                <div class="form-actions">
+                    <button class="btn-confirm" data-prompt-confirm><i class="fas fa-check"></i> OK</button>
+                    <button class="btn-cancel" data-prompt-cancel><i class="fas fa-times"></i> <span data-i18n="cancel">Cancelar</span></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="custom-confirm-overlay" class="modal-overlay" style="display: none;">
+        <div class="modal-box" style="max-width: 400px; padding: 0;">
+            <div class="modal-header">
+                <h3 style="color: var(--text-main); font-size: 15px;"><i class="fas fa-exclamation-triangle" style="color: var(--accent-danger);"></i> <span data-i18n="dialogConfirmAction">Confirmar Ação</span></h3>
+                <button class="btn-close-modal" data-confirm="false"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body form-box" style="border: none; box-shadow: none; margin-top: 0; border-radius: 0;">
+                <p id="custom-confirm-message" style="margin-bottom: 20px; font-size: 14px; color: var(--text-main); line-height: 1.5;"></p>
+                <div class="form-actions">
+                    <button class="btn-confirm" style="background: var(--accent-danger);" data-confirm="true"><i class="fas fa-check"></i> <span data-i18n="dialogYes">Sim</span></button>
+                    <button class="btn-cancel" data-confirm="false"><i class="fas fa-times"></i> <span data-i18n="no">Não</span></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="custom-alert-overlay" class="modal-overlay" style="display: none;">
+        <div class="modal-box" style="max-width: 400px; padding: 0;">
+            <div class="modal-header">
+                <h3 style="color: var(--text-main); font-size: 15px;"><i class="fas fa-info-circle" style="color: var(--accent-primary);"></i> <span data-i18n="dialogNotice">Aviso</span></h3>
+                <button class="btn-close-modal" data-alert-close><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body form-box" style="border: none; box-shadow: none; margin-top: 0; border-radius: 0;">
+                <p id="custom-alert-message" style="margin-bottom: 20px; font-size: 14px; color: var(--text-main); line-height: 1.5; white-space: pre-wrap;"></p>
+                <div class="form-actions" style="justify-content: center;">
+                    <button class="btn-confirm" data-alert-close><i class="fas fa-check"></i> OK</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<!-- The file:// guard has to be a classic script: with type="module" the
+     browser refuses the module on CORS before any code of ours runs. -->
+<script>
+if (!window.ROSS_TOKEN && window.location.protocol === 'file:') {
+    document.addEventListener('DOMContentLoaded', () => {
+        document.body.innerHTML =
+            '<div style="max-width:520px;margin:15vh auto;padding:28px;font-family:sans-serif;' +
+            'text-align:center;border:1px solid #cbd5e1;border-radius:4px;background:#fff;color:#334155">' +
+            '<h2 style="margin:0 0 12px">Abra a interface pelo servidor</h2>' +
+            '<p style="line-height:1.6">Este arquivo foi aberto direto do disco. Rode ' +
+            '<code>python app.py</code> e acesse ' +
+            '<a href="http://127.0.0.1:5002/">http://127.0.0.1:5002/</a>.</p></div>';
+    });
+}
+</script>
+<script type="module" src="main.js"></script>
+</body>
+</html>
