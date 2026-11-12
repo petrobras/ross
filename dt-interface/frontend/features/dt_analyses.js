@@ -260,6 +260,7 @@ function drawResult(id, plot, result) {
         html += `<div class="analysis-body"><div class="result-grid">${result.tables.map(tableHTML).join('')}</div></div>`;
     }
     plot.innerHTML = html;
+    plot.style.minHeight = figures.length ? '400px' : '0';
     figures.forEach((fig, index) => {
         const layout = Object.assign({}, fig.layout, { autosize: true });
         window.Plotly.newPlot(`fig-${id}-${index}`, fig.data, layout, { responsive: true, displaylogo: false });

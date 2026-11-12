@@ -21,6 +21,11 @@ export async function apiJson(path, body, method) {
     const response = await apiFetch(path, options);
     let answer = null;
     try { answer = await response.json(); } catch (e) { answer = null; }
+    // A route the server does not know means the running app.py predates this
+    // page: Flask runs without the reloader, so new code needs a restart.
+    if (response.status === 404 || response.status === 405) {
+        throw new Error('O servidor não conhece ' + path + '. Reinicie o app.py: o processo em execução é anterior a esta versão da interface.');
+    }
     if (!response.ok) {
         throw new Error((answer && answer.message) || ('HTTP ' + response.status));
     }
