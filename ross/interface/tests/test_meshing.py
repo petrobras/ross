@@ -396,6 +396,45 @@ def test_what_the_convergence_cannot_use_is_refused_by_name(
         mesh_by_convergence(coarse(), n_modes, rtol, speed)
 
 
+def test_the_uniform_search_is_ross_s_uniform_search():
+    """ROSS #1420: `strategy="uniform"` searches equal elements only. The
+    project is cut to the mesh ROSS chose that way, and the table lists only
+    uniform meshes."""
+    data = coarse()
+    meshed, report = mesh_by_convergence(data, "6", "0.1", "0", strategy="uniform")
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        results = build_rotor_from_ui(data).run_mesh_convergence(
+            rtol=1e-3, frequencies=6, strategy="uniform"
+        )
+
+    assert described(build_rotor_from_ui(meshed)) == described(results.rotor)
+    table = report["convergence"]
+    assert {row["family"] for row in table["rows"]} == {"uniform"}
+    assert table["strategy"] == "uniform" and table["max_elements"] == 1000
+
+
+def test_the_largest_number_of_elements_reaches_ross():
+    """A ceiling the reference does not fit in is ROSS's refusal, which names
+    the ceiling."""
+    with pytest.raises(ValueError, match="max_elements=4"):
+        mesh_by_convergence(coarse(), "6", "0.1", "0", max_elements="4")
+
+
+@pytest.mark.parametrize(
+    "extra, words",
+    [
+        ({"strategy": "fastest"}, "fastest"),
+        ({"max_elements": "0"}, "largest number of elements"),
+        ({"max_elements": "12.5"}, "largest number of elements"),
+        ({"max_elements": "many"}, "largest number of elements"),
+    ],
+)
+def test_a_search_or_ceiling_that_means_nothing_is_refused_by_name(extra, words):
+    with pytest.raises(ValueError, match=words):
+        mesh_by_convergence(coarse(), "6", "0.1", "0", **extra)
+
+
 def test_the_route_runs_each_way_and_refuses_one_it_does_not_know():
     from ross.interface.api.security import SESSION_TOKEN
     from ross.interface.app import app
@@ -415,6 +454,8 @@ def test_the_route_runs_each_way_and_refuses_one_it_does_not_know():
                 "method": "convergence",
                 "n_modes": "4",
                 "rtol": "0.1",
+                "strategy": "uniform",
+                "max_elements": "500",
             },
             headers=headers,
         )
@@ -425,4 +466,6 @@ def test_the_route_runs_each_way_and_refuses_one_it_does_not_know():
         )
     assert parts.status_code == 200 and parts.get_json()["report"]["after"] == 6
     assert converged.status_code == 200 and converged.get_json()["report"]["after"] > 2
+    table = converged.get_json()["report"]["convergence"]
+    assert table["strategy"] == "uniform" and table["max_elements"] == 500
     assert unknown.status_code == 400 and "magic" in unknown.get_json()["message"]

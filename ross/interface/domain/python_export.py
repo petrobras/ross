@@ -33,6 +33,7 @@ from .node_resolver import effective_nodes, listed_nodes
 import textwrap
 
 from .schema import unit_map_by_class
+from .seal_stages import folded
 from .units import DROPPED_UNITS, typed_unit
 
 # Deliberate differences from the old app.js generator:
@@ -358,6 +359,10 @@ def _build_rotor_block(r_data, suffix):
     nodes = effective_nodes(r_data.get("seals") or [])
     for position, seal in enumerate(r_data.get("seals") or []):
         klass = ross_class_name("seals", seal.get("element_type"))
+        # A hybrid seal's stage fields, folded into ROSS's two dictionaries
+        # as the builder folds them (domain/seal_stages.py).
+        if klass == "HybridSeal":
+            seal = folded(seal)
         seal = migrate_element(seal, klass)
         args = _format_kwargs(seal, ["element_type"], klass)
         args = _with_node_arg(seal, args, nodes[position])
@@ -550,6 +555,23 @@ def _opt_args(params, keys):
             "%s=%s"
             % (name, _py_string(literal) if shape == "str" else _js_str(literal))
         )
+    return args
+
+
+def _time_window_args(params):
+    """The transient plot's time window (ROSS #1416), as the runner passes it.
+
+    In seconds, as `Q_`: a plain number would be read in `time_units` by
+    `plot_1d` and in seconds by the other two plots.
+    """
+    args = []
+    for field, keyword in (("window_start", "t_initial"), ("window_end", "t_final")):
+        value = params.get(field)
+        # Filled, as the runner reads it: zero is a time like any other.
+        if value is not None and str(value).strip() != "":
+            args.append("%s=Q_(%s, 's')" % (keyword, _js_str(params[field])))
+    if _flag(params, "one_revolution") == "True":
+        args.append("one_revolution=True")
     return args
 
 
@@ -1054,6 +1076,7 @@ def _transient_block(position, kind, p):
     first_node = p["probes"][0].get("node") if (p.get("probes") or []) else 0
     args = _opt_args(p, [("displacement_units", "str")])
     chart = p.get("plot_type")
+    window = _time_window_args(p) if chart != "Frequency (DFFT)" else []
 
     if chart == "Frequency (DFFT)":
         args += _opt_args(p, [("frequency_units", "str")])
@@ -1066,17 +1089,17 @@ def _transient_block(position, kind, p):
         py += "resp_%d.plot_2d(node=%s, %s).show()\n" % (
             position,
             _js_str(first_node),
-            ", ".join(args),
+            ", ".join(args + window),
         )
     elif chart == "3D":
         args += _opt_args(p, [("rotor_length_units", "str")])
-        py += "resp_%d.plot_3d(%s).show()\n" % (position, ", ".join(args))
+        py += "resp_%d.plot_3d(%s).show()\n" % (position, ", ".join(args + window))
     else:
         args += _opt_args(p, [("time_units", "str")])
         py += "resp_%d.plot_1d(probe=[%s], %s).show()\n" % (
             position,
             probes,
-            ", ".join(args),
+            ", ".join(args + window),
         )
 
     return py

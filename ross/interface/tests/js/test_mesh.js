@@ -26,9 +26,12 @@ const blocks = ['ratio', 'parts', 'convergence'].map(method => {
     return block;
 });
 registerSelector('.mesh-fields', blocks);
-const controls = [node('mesh-go-button'), node('mesh-cancel-button'), ...radios];
-registerSelector('#mesh-overlay button, #mesh-overlay input', controls);
-const DEFAULTS = { 'mesh-max-ld': '0.5', 'mesh-parts': '2', 'mesh-modes': '6', 'mesh-rtol': '0.1', 'mesh-speed': '0' };
+const controls = [node('mesh-go-button'), node('mesh-cancel-button'), ...radios, node('mesh-strategy')];
+registerSelector('#mesh-overlay button, #mesh-overlay input, #mesh-overlay select', controls);
+const DEFAULTS = {
+    'mesh-max-ld': '0.5', 'mesh-parts': '2', 'mesh-modes': '6', 'mesh-rtol': '0.1', 'mesh-speed': '0',
+    'mesh-strategy': 'cheapest', 'mesh-max-elements': '1000',
+};
 function resetDialog() {
     Object.entries(DEFAULTS).forEach(([id, value]) => { node(id).value = value; });
     choose('ratio');
@@ -180,9 +183,13 @@ serverAnswers(true, { status: 'success', projectData: CUT, report: { ...REPORT, 
 const conv = await run(converging, [1], () => {
     choose('convergence');
     node('mesh-modes').value = '4'; node('mesh-rtol').value = '0,2'; node('mesh-speed').value = '3600';
+    node('mesh-strategy').value = 'uniform'; node('mesh-max-elements').value = ' 400 ';
 }, true);
 check('the convergence sends its frequencies, tolerance and speed', sent.body.method === 'convergence'
     && sent.body.n_modes === '4' && sent.body.rtol === '0.2' && sent.body.speed === '3600');
+// ROSS #1420: which meshes are searched, and how large they may get.
+check('and the meshes searched and the largest number of elements',
+    sent.body.strategy === 'uniform' && sent.body.max_elements === '400');
 check('and always the whole rotor, whatever is ticked', sent.body.indexes.length === 0);
 check('it says it is computing each mesh', busyWhenSent.text === t('meshBusyConvergence'));
 check('its table comes before the plan', conv.confirmed.indexOf(t('meshConvChosen')) >= 0
