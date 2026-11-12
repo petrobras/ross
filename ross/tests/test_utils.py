@@ -11,7 +11,11 @@ from plotly import graph_objects as go
 import ross
 from ross.rotor_assembly import rotor_example
 from ross.units import Q_
-from ross.utils import downsample_figure, speed_range_from_endpoints
+from ross.utils import (
+    downsample_figure,
+    is_scalar_or_list,
+    speed_range_from_endpoints,
+)
 
 
 @pytest.fixture(params=["tsdownsample", "numpy"])
@@ -196,3 +200,26 @@ def test_import_ross_without_tsdownsample():
         Path(lines[0].removeprefix("ross_file=")).resolve()
         == Path(ross.__file__).resolve()
     )
+
+
+@pytest.mark.parametrize(
+    "value, expected",
+    [
+        (1.5, 1.5),
+        (2, 2.0),
+        (np.array(1.5), 1.5),
+        ([1.0, 0.8], [1.0, 0.8]),
+        ((1, 2), [1.0, 2.0]),
+        (np.array([1.0, 0.8]), [1.0, 0.8]),
+    ],
+)
+def test_is_scalar_or_list_accepts_scalars_and_lists(value, expected):
+    assert_allclose(is_scalar_or_list(value, 2, "i0"), expected)
+
+
+@pytest.mark.parametrize(
+    "value", [[1.0], [1.0, 2.0, 3.0], [1.0, "2"], [True, 1.0], "1"]
+)
+def test_is_scalar_or_list_rejects_other_values(value):
+    with pytest.raises(ValueError, match="i0 must be"):
+        is_scalar_or_list(value, 2, "i0")

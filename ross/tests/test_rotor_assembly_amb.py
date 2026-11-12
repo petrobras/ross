@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose, assert_equal
+from scipy.linalg import eigh
 import copy
 from types import SimpleNamespace
 
@@ -13,6 +14,32 @@ from ross.bearings.magnetic.amb_models import (
 from ross.bearings.magnetic.amb_time_response import AmbTimeResponse
 from ross.probe import Probe
 from ross.units import Q_
+
+
+def test_amb_test_rig_rotor_matches_r6_free_free_frequencies():
+    """The test rig rotor reproduces the free-free bending modes of model R6.
+
+    Reference: first three free-free bending frequencies of the consolidated
+    model R6 of the LMEst/UFU test rig (5 mm mesh, disk with its center of mass
+    1.03 mm away from its node). The example places the disk on its node,
+    which shifts these frequencies by -0.05 %, +0.25 % and -0.35 %.
+    """
+    rotor = rotor_example_amb_complex_controllers(ambs=False)
+
+    assert_allclose(rotor.m, 5.89, rtol=1e-12)
+    assert_allclose(rotor.nodes_pos[-1] - rotor.nodes_pos[0], 0.645, rtol=1e-12)
+
+    # Bending in the x plane: x and beta of every node (6 dof per node).
+    nodes = np.arange(len(rotor.nodes))
+    dofs = np.ravel(np.column_stack([6 * nodes, 6 * nodes + 4]))
+    M = rotor.M(0)[np.ix_(dofs, dofs)]
+    K = rotor.K(0)[np.ix_(dofs, dofs)]
+    eigenvalues = eigh(K, M, eigvals_only=True)
+
+    # Two rigid-body modes (translation and tilt), then the bending modes.
+    assert np.all(np.abs(eigenvalues[:2]) < (2 * np.pi * 0.1) ** 2)
+    frequencies = np.sqrt(eigenvalues[2:5]) / (2 * np.pi)
+    assert_allclose(frequencies, [106.913218, 400.902276, 769.279991], rtol=4e-3)
 
 
 @pytest.mark.parametrize(
@@ -180,16 +207,67 @@ def test_run_time_response_amb_values():
     assert fig6 is not None
 
 
+def test_amb_time_response_plots_are_downsampled():
+    """The AMB time-response plots keep at most n_points original samples."""
+    rotor = rotor_example_amb_simple()
+    t = np.linspace(0, 0.1, 5001)
+    F = np.zeros((len(t), rotor.ndof))
+    response = rotor.run_time_response(speed=0, F=F, t=t, weight=True)
+
+    for plot in (
+        response.plot_amb_disps,
+        response.plot_amb_currents,
+        response.plot_amb_forces,
+    ):
+        full = plot()  # default: no reduction
+        reduced = plot(n_points=500)
+        assert len(reduced.data) == len(full.data) == 4
+        for trace_full, trace in zip(full.data, reduced.data, strict=True):
+            assert len(trace_full.x) == len(t)
+            assert len(trace.x) <= 500
+            assert np.isin(trace.x, trace_full.x).all()
+            assert trace.x[0] == trace_full.x[0]
+            assert trace.x[-1] == trace_full.x[-1]
+
+
+def test_sensitivity_time_plot_is_downsampled():
+    """Long sensor signals are reduced; the excitation keeps its visible window."""
+    rotor = rotor_example_amb_simple()
+    results = rotor.run_amb_sensitivity(
+        speed=0,
+        t_max=1e-2,
+        dt=1e-5,
+        disturbance_amplitude=1e-5,
+        disturbance_min_frequency=0.001,
+        disturbance_max_frequency=150,
+        amb_tags=["AMB_1"],
+        verbose=0,
+    )
+    t = results.sensitivity_run_time_results["t"]
+    assert len(t) > 100
+
+    full = results.plot_time_results()  # default: no reduction
+    reduced = results.plot_time_results(n_points=100)
+
+    for trace_full, trace in zip(full.data, reduced.data, strict=True):
+        if trace.yaxis == "y2":  # excitation signal: first 30 time steps
+            assert_equal(np.asarray(trace.x), t[:31])
+            assert_equal(np.asarray(trace_full.x), t[:31])
+        else:  # sensor signal
+            assert len(trace_full.x) == len(t)
+            assert len(trace.x) <= 100
+            assert np.isin(trace.x, trace_full.x).all()
+
+
 def test_amb_controller():
     # Test for the magnetic_bearing_controller method.
 
     rot_speed = 1200
     dt = 0.001
     t = np.arange(0.0, 500 * dt, dt)
-    unbalance_node = 27
-    probe_node = 12
-
     rotor = rotor_example_amb_general_controllers()
+    unbalance_node = rotor.disk_elements[0].n
+    probe_node = rotor.bearing_elements[0].n
     n = len(t)
     F = np.zeros((n, rotor.ndof))
     m_u = 0.010  # kg
@@ -208,8 +286,11 @@ def test_amb_controller():
 
     # atol=1e-6 made these checks vacuous (the MSE is O(1e-10)); compare
     # relative values only.
-    assert_allclose(mse_x, np.array(6.716327887327692e-10), rtol=1e-6, atol=0)
-    assert_allclose(mse_y, np.array(2.144521317276409e-10), rtol=1e-6, atol=0)
+    # Regression values of the Newmark path. With dt = 1 ms the response is
+    # not converged in dt (the lightly damped bending modes of the test rig
+    # ring for the whole 0.5 s): the MSE changes by about 30 % at dt = 0.05 ms.
+    assert_allclose(mse_x, np.array(9.384022345331516e-10), rtol=1e-6, atol=0)
+    assert_allclose(mse_y, np.array(2.2015824426032983e-10), rtol=1e-6, atol=0)
 
 
 def test_amb_generic_controller():
@@ -235,10 +316,9 @@ def test_amb_generic_controller():
     rot_speed = 1200
     dt = 0.001
     t = np.arange(0.0, 500 * dt, dt)
-    unbalance_node = 27
-    probe_node = 12
-
     rotor = rotor_example_amb_general_controllers(controller_transfer_function)
+    unbalance_node = rotor.disk_elements[0].n
+    probe_node = rotor.bearing_elements[0].n
     n = len(t)
     F = np.zeros((n, rotor.ndof))
     m_u = 0.010  # kg
@@ -255,8 +335,11 @@ def test_amb_generic_controller():
     mse_x = 1 / n * np.sum(response_x**2)
     mse_y = 1 / n * np.sum(response_y**2)
 
-    assert_allclose(mse_x, np.array(6.282224867030743e-12), rtol=1e-6, atol=0)
-    assert_allclose(mse_y, np.array(4.119302762331817e-12), rtol=1e-6, atol=0)
+    # Regression values of the Newmark path. With dt = 1 ms the response is
+    # not converged in dt (the lightly damped bending modes of the test rig
+    # ring for the whole 0.5 s): the MSE changes by about 30 % at dt = 0.05 ms.
+    assert_allclose(mse_x, np.array(5.8702652415637476e-12), rtol=1e-6, atol=0)
+    assert_allclose(mse_y, np.array(3.5803835185052845e-12), rtol=1e-6, atol=0)
 
 
 @pytest.mark.parametrize(
@@ -391,24 +474,24 @@ def test_run_amb_sensitivity():
     """
     EXPECTED_SENSITIVITY_RESULTS = {
         "max_abs": {
-            "Magnetic Bearing 0": {"x": 0.9904423157, "y": 0.9904423157},
-            "Magnetic Bearing 1": {"x": 0.9864631624, "y": 0.9864631624},
+            "Magnetic Bearing 0": {"x": 0.9903847953, "y": 0.9903847953},
+            "Magnetic Bearing 1": {"x": 0.9853701742, "y": 0.9853701742},
         },
         "abs_slice": {
             "Magnetic Bearing 0": {
                 "x": np.array(
-                    [0.9904423157, 0.99041907, 0.99037487, 0.99031440, 0.99024855]
+                    [0.9903847953, 0.99036109, 0.99031601, 0.99025433, 0.99018717]
                 ),
                 "y": np.array(
-                    [0.9904423157, 0.99041907, 0.99037487, 0.99031440, 0.99024855]
+                    [0.9903847953, 0.99036109, 0.99031601, 0.99025433, 0.99018717]
                 ),
             },
             "Magnetic Bearing 1": {
                 "x": np.array(
-                    [0.9864631624, 0.98643015, 0.98636536, 0.98627634, 0.98617941]
+                    [0.9853701742, 0.98533447, 0.98526399, 0.98516711, 0.98506162]
                 ),
                 "y": np.array(
-                    [0.9864631624, 0.98643015, 0.98636536, 0.98627634, 0.98617941]
+                    [0.9853701742, 0.98533447, 0.98526399, 0.98516711, 0.98506162]
                 ),
             },
         },
@@ -417,19 +500,19 @@ def test_run_amb_sensitivity():
                 "x": np.array(
                     [
                         0.00000000e00,
-                        1.0227e-04,
-                        1.8463e-04,
-                        2.4578e-04,
-                        2.8388e-04,
+                        1.0432e-04,
+                        1.8834e-04,
+                        2.5073e-04,
+                        2.8961e-04,
                     ]
                 ),
                 "y": np.array(
                     [
                         0.00000000e00,
-                        1.0227e-04,
-                        1.8463e-04,
-                        2.4578e-04,
-                        2.8388e-04,
+                        1.0432e-04,
+                        1.8834e-04,
+                        2.5073e-04,
+                        2.8961e-04,
                     ]
                 ),
             },
@@ -437,26 +520,26 @@ def test_run_amb_sensitivity():
                 "x": np.array(
                     [
                         0.00000000e00,
-                        1.5028e-04,
-                        2.7267e-04,
-                        3.6328e-04,
-                        4.1977e-04,
+                        1.6359e-04,
+                        2.9704e-04,
+                        3.9578e-04,
+                        4.5735e-04,
                     ]
                 ),
                 "y": np.array(
                     [
                         0.00000000e00,
-                        1.5028e-04,
-                        2.7267e-04,
-                        3.6328e-04,
-                        4.1977e-04,
+                        1.6359e-04,
+                        2.9704e-04,
+                        3.9578e-04,
+                        4.5735e-04,
                     ]
                 ),
             },
         },
         "dofs": {
-            "Magnetic Bearing 0": {"x": 72, "y": 73},
-            "Magnetic Bearing 1": {"x": 258, "y": 259},
+            "Magnetic Bearing 0": {"x": 66, "y": 67},
+            "Magnetic Bearing 1": {"x": 234, "y": 235},
         },
         "time_results_slice": {
             "t": np.array([0.0, 0.0001, 0.0002, 0.0003, 0.0004]),
@@ -473,18 +556,18 @@ def test_run_amb_sensitivity():
                 [
                     0.00000000e00,
                     6.67703996e-12,
-                    1.42060179e-11,
-                    2.26919494e-11,
-                    3.22548923e-11,
+                    1.42063148e-11,
+                    2.26930764e-11,
+                    3.22573880e-11,
                 ]
             ),
             "sensor": np.array(
                 [
                     0.00000000e00,
                     0.00000000e00,
-                    -2.28352822e-15,
-                    -1.11191444e-14,
-                    -2.97142136e-14,
+                    -1.98665610e-15,
+                    -9.99212194e-15,
+                    -2.72185261e-14,
                 ]
             ),
         },
@@ -493,6 +576,9 @@ def test_run_amb_sensitivity():
 
     r_tol = 0
     a_tol = 1e-8
+    # The time signals are 1e-15 to 1e-11 m, so a_tol would accept any value.
+    signal_rtol = 1e-6
+    signal_atol = 1e-21
 
     # Setup - run the analysis
     rotor = rotor_example_amb_general_controllers()
@@ -558,20 +644,20 @@ def test_run_amb_sensitivity():
     assert_allclose(
         time_results_amb_0_x["excitation_signal"][:5],
         EXPECTED_SENSITIVITY_RESULTS["time_results_slice"]["excitation"],
-        atol=a_tol,
-        rtol=r_tol,
+        atol=signal_atol,
+        rtol=signal_rtol,
     )
     assert_allclose(
         time_results_amb_0_x["disturbed_signal"][:5],
         EXPECTED_SENSITIVITY_RESULTS["time_results_slice"]["disturbed"],
-        atol=a_tol,
-        rtol=r_tol,
+        atol=signal_atol,
+        rtol=signal_rtol,
     )
     assert_allclose(
         time_results_amb_0_x["sensor_signal"][:5],
         EXPECTED_SENSITIVITY_RESULTS["time_results_slice"]["sensor"],
-        atol=a_tol,
-        rtol=r_tol,
+        atol=signal_atol,
+        rtol=signal_rtol,
     )
 
     # Scenario 2: Test with `amb_tags` argument

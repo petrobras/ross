@@ -12,6 +12,7 @@ from prettytable import PrettyTable
 from numpy.polynomial import Polynomial
 from plotly import graph_objects as go
 from scipy import interpolate as interpolate
+from scipy.optimize import brentq
 
 from ross.element import Element
 from ross.plotly_theme import color_shades
@@ -2347,11 +2348,13 @@ class MagneticBearingElement(BearingElement):
         Nominal air gap (m).
     i0 : float or list of float
         Bias current applied to the coils (A). Can be a scalar value
-        or a list of two values for the x and y axes.
+        or a list of two values, one for each control axis (the sensor
+        axes, rotated by ``sensors_axis_rotation``).
     ag : float
-        Effective pole area (m²).
+        Area of one pole face (m²).
     nw : int or float
-        Number of turns per coil (windings).
+        Number of turns of one electromagnet, i.e. of all the coils that
+        carry the current of one control axis.
     frequency : array_like, optional
         Frequency vector in rad/s used to evaluate the controller
         frequency response and build the equivalent stiffness and damping
@@ -2391,6 +2394,13 @@ class MagneticBearingElement(BearingElement):
         Node where the displacement used for feedback is measured.
         If not provided, it defaults to the actuator node ``n``,
         representing a collocated sensor-actuator configuration.
+    static_load : array_like, optional
+        Static force (Fx, Fy) that the bearing exerts on the rotor in
+        equilibrium (N), in the global x and y directions; to carry a rotor
+        weight W, use (0, W). When given, ``ki`` and ``ks`` are linearized
+        at the operating point that holds this load instead of at the
+        nominal point (centered rotor, no control current). Default is
+        None.
     tag : str, optional
         Label used to identify the element in the rotor model.
     n_link : int, optional
@@ -2411,9 +2421,9 @@ class MagneticBearingElement(BearingElement):
     i0 : float or numpy.ndarray
         Bias current applied to the coils (A) in each controlled axis.
     ag : float
-        Effective pole area (m²).
+        Area of one pole face (m²).
     nw : float
-        Number of turns per coil (windings).
+        Number of turns of one electromagnet.
     alpha : float
         Magnetic pole angle relative to the rotor x axis (radians).
     k_amp : numpy.ndarray
@@ -2429,11 +2439,17 @@ class MagneticBearingElement(BearingElement):
     frequency : numpy.ndarray
         Frequency vector in rad/s used to compute the equivalent
         stiffness and damping matrices.
-    ks : float
-        Negative electromagnetic stiffness constant obtained from the
-        linearization of the magnetic force.
-    ki : float
-        Electromagnetic current-to-force gain.
+    ks : float or numpy.ndarray
+        Negative electromagnetic stiffness (N/m) obtained from the
+        linearization of the magnetic force; one value per control axis
+        when the axes differ.
+    ki : float or numpy.ndarray
+        Electromagnetic current-to-force gain (N/A); one value per control
+        axis when the axes differ.
+    k_eq, c_eq : numpy.ndarray
+        Equivalent stiffness (N/m) and damping (N·s/m) in the control axes
+        over ``frequency``; shape ``(2, len(frequency))`` when the two axes
+        differ.
     kxx, kxy, kyx, kyy : numpy.ndarray
         Frequency-dependent stiffness coefficients in the rotor x–y
         coordinates (N/m).
@@ -2466,6 +2482,14 @@ class MagneticBearingElement(BearingElement):
         It is equal to ``n`` for a collocated configuration.
     is_non_collocated : bool
         Whether the sensor and actuator are located at different nodes.
+    static_load : numpy.ndarray or None
+        Static force (Fx, Fy) held by the bearing (N).
+    static_current : numpy.ndarray
+        Static control current of each control axis at the operating
+        point (A); zero without ``static_load``.
+    static_displacement : numpy.ndarray
+        Static rotor displacement along each control axis at the operating
+        point (m); zero when the controller has integral action.
 
     Notes
     -----
@@ -2476,6 +2500,14 @@ class MagneticBearingElement(BearingElement):
       obtained from the real and imaginary parts of the closed-loop
       controller frequency response.
     - The same controller is assumed for both controlled axes.
+    - With ``static_load``, each control axis is linearized at its
+      equilibrium. The bias is symmetric and the amplifiers are unipolar:
+      when the control current exceeds the bias, the opposite coil carries
+      no current and a single electromagnet holds the load. With integral
+      action the rotor stays centered; without it, the rotor moves until
+      the static controller force, ``-k_amp * k_sense * C(0) * x``, holds
+      the load. Fringing, iron reluctance and magnetic saturation are not
+      modeled.
     - The method get_analog_controller builds the continuous-time
       controller associated with the element, build_controller creates
       the discrete-time state-space representation, and compute_amb_controller
@@ -2549,6 +2581,7 @@ class MagneticBearingElement(BearingElement):
         controller_transfer_function=None,
         sensors_axis_rotation=0.78539816,
         sensor_node=None,
+        static_load=None,
         tag=None,
         n_link=None,
         scale_factor=1,
@@ -2625,6 +2658,15 @@ class MagneticBearingElement(BearingElement):
             / (4.0 * self.g0**2)
         )
 
+        self.static_load = None
+        self.static_current = np.zeros(2)
+        self.static_displacement = np.zeros(2)
+        if static_load is not None:
+            self.static_load = np.asarray(static_load, dtype=float)
+            if self.static_load.shape != (2,):
+                raise ValueError("static_load must have two values (Fx, Fy).")
+            ki, ks = self._linearize_at_static_load()
+
         self.ks = ks
         self.ki = ki
 
@@ -2659,8 +2701,23 @@ class MagneticBearingElement(BearingElement):
         C_real = Hjw.real
         C_imag = Hjw.imag
 
-        self.k_eq = ks + ki * self.k_amp * self.k_sense * C_real
-        self.c_eq = ki * self.k_amp * self.k_sense * C_imag * np.divide(1, omega)
+        loop_gain = np.array(
+            [
+                self.axis_gain(ki, axis)
+                * self.axis_gain(self.k_amp, axis)
+                * self.axis_gain(self.k_sense, axis)
+                for axis in range(2)
+            ]
+        )
+        position_stiffness = np.array([self.axis_gain(ks, axis) for axis in range(2)])
+        k_axes = position_stiffness[:, None] + loop_gain[:, None] * C_real
+        c_axes = loop_gain[:, None] * C_imag * np.divide(1, omega)
+
+        isotropic = np.array_equal(k_axes[0], k_axes[1]) and np.array_equal(
+            c_axes[0], c_axes[1]
+        )
+        self.k_eq = k_axes[0] if isotropic else k_axes
+        self.c_eq = c_axes[0] if isotropic else c_axes
 
         rotation_matrix = np.array(
             [
@@ -2684,9 +2741,9 @@ class MagneticBearingElement(BearingElement):
         c_xy = []
         c_yx = []
         c_yy = []
-        for omega_i, k, c in zip(omega, self.k_eq, self.c_eq, strict=True):
-            k_equivalent_matrix = np.array([[k, 0], [0, k]])
-            c_equivalent_matrix = np.array([[c, 0], [0, c]])
+        for k_v, k_w, c_v, c_w in zip(*k_axes, *c_axes, strict=True):
+            k_equivalent_matrix = np.diag([k_v, k_w])
+            c_equivalent_matrix = np.diag([c_v, c_w])
 
             k_xy_axis_matrix = (
                 inv_rotation_matrix @ k_equivalent_matrix @ rotation_matrix
@@ -2722,6 +2779,104 @@ class MagneticBearingElement(BearingElement):
             color=color,
         )
 
+    def _controller_static_gain(self):
+        """Return the DC gain C(0) of the analog controller, inf with integral action."""
+        controller = self.get_analog_controller()
+        num = np.atleast_1d(np.squeeze(np.array(controller.num, dtype=float)))
+        den = np.atleast_1d(np.squeeze(np.array(controller.den, dtype=float)))
+        while num.size > 1 and den.size > 1 and num[-1] == 0 and den[-1] == 0:
+            num, den = num[:-1], den[:-1]
+        if den[-1] == 0:
+            return np.inf
+        return num[-1] / den[-1]
+
+    def _linearize_at_static_load(self):
+        """Linearize each control axis at the equilibrium that holds ``static_load``.
+
+        Returns
+        -------
+        ki, ks : float or numpy.ndarray
+            Current gain (N/A) and position stiffness (N/m) at the operating
+            point; one value per control axis when the axes differ.
+        """
+        magnet = np.pi * 1e-7 * self.nw**2 * self.ag * np.cos(self.alpha)
+        g0 = float(self.g0)
+        angle = float(self.sensors_axis_rotation)
+        rotation = np.array(
+            [[np.cos(angle), np.sin(angle)], [-np.sin(angle), np.cos(angle)]]
+        )
+        axis_loads = rotation @ self.static_load
+        static_gain = self._controller_static_gain()
+
+        def coil_currents(control_current, axis):
+            bias = self.axis_gain(self.i0, axis)
+            return max(bias + control_current, 0.0), max(bias - control_current, 0.0)
+
+        def force(displacement, control_current, axis):
+            top, bottom = coil_currents(control_current, axis)
+            return magnet * (
+                top**2 / (g0 - displacement) ** 2 - bottom**2 / (g0 + displacement) ** 2
+            )
+
+        ki_axes, ks_axes = np.zeros(2), np.zeros(2)
+        for axis, load in enumerate(axis_loads):
+            bias = self.axis_gain(self.i0, axis)
+            loop_gain = (
+                self.axis_gain(self.k_amp, axis)
+                * self.axis_gain(self.k_sense, axis)
+                * static_gain
+            )
+            if np.isinf(loop_gain):
+                displacement = 0.0
+                control_current = load * g0**2 / (4 * magnet * bias)
+                if abs(control_current) > bias:
+                    control_current = np.sign(load) * (
+                        g0 * np.sqrt(abs(load) / magnet) - bias
+                    )
+            else:
+
+                def residual(x, axis=axis, load=load, loop_gain=loop_gain):
+                    return force(x, -loop_gain * x, axis) - load
+
+                grid = np.linspace(-0.999 * g0, 0.999 * g0, 4001)
+                values = np.array([residual(x) for x in grid])
+                brackets = np.flatnonzero(np.sign(values[:-1]) != np.sign(values[1:]))
+                if brackets.size == 0:
+                    raise ValueError(
+                        f"The controller cannot hold a static load of {load:.4g} N "
+                        f"on control axis {axis}."
+                    )
+                nearest = brackets[np.argmin(np.abs(grid[brackets]))]
+                displacement = brentq(
+                    residual, grid[nearest], grid[nearest + 1], xtol=1e-15 * g0
+                )
+                control_current = -loop_gain * displacement
+
+            top, bottom = coil_currents(control_current, axis)
+            gap_top, gap_bottom = g0 - displacement, g0 + displacement
+            ki_axes[axis] = 2 * magnet * (top / gap_top**2 + bottom / gap_bottom**2)
+            ks_axes[axis] = (
+                -2 * magnet * (top**2 / gap_top**3 + bottom**2 / gap_bottom**3)
+            )
+            if (
+                not np.isinf(loop_gain)
+                and ks_axes[axis] + ki_axes[axis] * loop_gain <= 0
+            ):
+                raise ValueError(
+                    f"The controller cannot hold a static load of {load:.4g} N "
+                    f"on control axis {axis}: the static stiffness at the "
+                    "equilibrium is not positive."
+                )
+            self.static_current[axis] = control_current
+            self.static_displacement[axis] = displacement
+
+        same_axes = np.allclose(ki_axes[0], ki_axes[1], rtol=1e-12, atol=0) and (
+            np.allclose(ks_axes[0], ks_axes[1], rtol=1e-12, atol=0)
+        )
+        if same_axes:
+            return ki_axes[0], ks_axes[0]
+        return ki_axes, ks_axes
+
     @property
     def is_non_collocated(self):
         """Return whether the sensor and actuator are at different nodes."""
@@ -2750,9 +2905,16 @@ class MagneticBearingElement(BearingElement):
         if self.tag is not None:
             hovertemplate = f"Tag: {self.tag}<br>" + hovertemplate
 
+        bias = ", ".join(f"{i:.2f}" for i in np.atleast_1d(self.i0))
+        static_load = ""
+        if self.static_load is not None:
+            fx, fy = self.static_load
+            static_load = f"Static Load (x, y): {fx:.2f}, {fy:.2f} N<br>"
+
         hovertemplate += (
             f"Air Gap (g0): {self.g0:.4e} m<br>"
-            f"Bias Current (i0): {self.i0:.2f} A<br>"
+            f"Bias Current (i0): {bias} A<br>"
+            f"{static_load}"
             f"Pole Area: {self.ag:.4e} m²<br>"
             f"Windings: {self.nw:.0f}<br>"
             f"PID Kp: {self.kp_pid:.3e}<br>"
@@ -2861,31 +3023,36 @@ class MagneticBearingElement(BearingElement):
 
         k_sense = self.axis_gain(self.k_sense, dof_index)
         k_amp = self.axis_gain(self.k_amp, dof_index)
+        ki = self.axis_gain(self.ki, dof_index)
+        ks = self.axis_gain(self.ks, dof_index)
 
         err = k_sense * (setpoint - disp)
         u = self.C_c @ self.x_c[dof_index] + self.D_c * err
         self.x_c[dof_index] = self.A_c @ self.x_c[dof_index] + self.B_c * err
 
         signal_pid = current_offset + k_amp * u
-        magnetic_force = self.ki * signal_pid - self.ks * disp_actuator
+        magnetic_force = ki * signal_pid - ks * disp_actuator
 
         return magnetic_force.item(), signal_pid.item()
 
     @staticmethod
     def axis_gain(gain, dof_index):
-        """Return the sensor or amplifier gain of one control axis.
+        """Return the value of a per-axis parameter for one control axis.
+
+        Used for the sensor and amplifier gains and for the electromagnetic
+        coefficients ``ki`` and ``ks``.
 
         Parameters
         ----------
         gain : float or array_like
-            Scalar gain shared by both axes, or two gains (one per axis).
+            Scalar value shared by both axes, or two values (one per axis).
         dof_index : int
             Axis selector: 0 for the first axis, 1 for the second.
 
         Returns
         -------
         float
-            Gain of the selected axis.
+            Value of the selected axis.
 
         Examples
         --------

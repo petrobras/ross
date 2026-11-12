@@ -12,9 +12,151 @@ import control as ct
 from ross.bearings.magnetic.amb_controllers import s
 
 
+def _amb_test_rig_rotor(bearing_elements=None):
+    """Rotor of the LMEst/UFU magnetic bearing test rig, without bearings.
+
+    The shaft and disk come from the consolidated model R6 of the test rig
+    (LMEst/UFU, unpublished, 2026; the reference will be added after
+    publication). R6 was fitted to free-free impact tests of the rotor:
+
+    - 645 mm shaft, 5.89 kg in total, 20 mm maximum element length (46 nodes).
+      The mesh converges to within 0.004 % of the 5 mm mesh of R6 in the first
+      three free-free bending frequencies.
+    - The laminated sleeves under the actuators are concentric shaft elements
+      on the same nodes as the core, so they add mass and stiffness.
+    - Each region has its own equivalent E and rho from the R6 fit. The four
+      short elements with reduced E are the local flexibility of the shaft
+      steps, which keeps the geometric lengths. They are not real materials.
+    - In R6 the center of mass of the disk is 1.03 mm away from its node. A
+      standard DiskElement cannot represent this offset, so the disk sits on
+      the node with the R6 mass and inertias (referred to its center of mass).
+      This changes the free-free bending frequencies of R6 (106.91, 400.90 and
+      769.28 Hz) by -0.05 %, +0.25 % and -0.35 %.
+    - Stiffness-proportional damping, beta = 2.1248e-7 s (alpha = 0), fitted to
+      the effective damping ratios of the first three free-free bending modes
+      identified with R6 (about 1e-4). Mass-proportional damping is left out
+      because it would also damp the rigid-body motion.
+
+    Parameters
+    ----------
+    bearing_elements : list, optional
+        Bearing elements of the rotor. Defaults to no bearings (free-free).
+
+    Returns
+    -------
+    rotor : ross.Rotor
+        Rotor of the test rig.
+    """
+    # fmt: off
+    node_positions_mm = [
+        0.0, 12.0, 27.0, 42.0, 58.666666667, 75.333333333,
+        92.0, 112.0, 127.24, 132.0, 142.495, 152.99,
+        165.3, 180.5, 190.5, 207.733333333, 224.966666667, 242.2,
+        261.46, 280.72, 299.98, 319.24, 338.5, 348.5,
+        360.1, 361.0, 370.1, 373.5, 393.175, 412.85,
+        432.525, 452.2, 468.66, 485.12, 501.58, 518.04,
+        534.5, 544.5, 559.6, 572.01, 584.885, 597.76,
+        613.0, 618.9, 633.0, 645.0,
+    ]
+    # Equivalent materials of R6: (E (Pa), rho (kg/m^3), Poisson)
+    materials = [
+        (201912612668.44516, 7264.434381617933, 0.3),    # 0: shaft, drive end
+        (200000000000.0, 6700.479950384487, 0.31),       # 1-5: lamination, drive
+        (200000000000.0, 6725.803272022205, 0.31),       #      end (axial mass
+        (200000000000.0, 6745.118635601375, 0.31),       #      profile of R6)
+        (200000000000.0, 6771.6954616601615, 0.31),
+        (200000000000.0, 6800.570379157571, 0.31),
+        (201912612668.44516, 10173.528920453931, 0.3),   # 6: sleeve, drive end
+        (9546884519.119942, 10173.528920453931, 0.3),    # 7: sleeve, step flexibility
+        (201912612668.44516, 7878.982875436916, 0.3),    # 8: shaft, non-drive end
+        (133955557750.27191, 7878.982875436916, 0.3),    # 9: step flexibility (disk)
+        (179687186306.40756, 7878.982875436916, 0.3),    # 10: step flexibility (disk)
+        (9546884519.119942, 7878.982875436916, 0.3),     # 11: sleeve, step flexibility
+        (200000000000.0, 7256.193338209257, 0.31),       # 12: lamination, non-drive end
+    ]
+    # (node, outer diameter (mm), inner diameter (mm), material index)
+    elements = [
+        (0, 6.35, 0.0, 0), (1, 32.0, 0.0, 0), (2, 32.0, 0.0, 0),
+        (3, 32.0, 0.0, 0), (4, 32.0, 0.0, 0), (5, 32.0, 0.0, 0),
+        (6, 34.8, 0.0, 0),
+        (7, 34.8, 0.0, 0), (7, 49.9, 34.8, 1),
+        (8, 34.8, 0.0, 0), (8, 49.9, 34.8, 2),
+        (9, 34.8, 0.0, 0), (9, 49.9, 34.8, 3),
+        (10, 34.8, 0.0, 0), (10, 49.9, 34.8, 4),
+        (11, 34.8, 0.0, 0), (11, 49.9, 34.8, 5),
+        (12, 49.9, 0.0, 6), (13, 49.9, 0.0, 7),
+        (14, 19.05, 0.0, 8), (15, 19.05, 0.0, 8), (16, 19.05, 0.0, 8),
+        (17, 19.05, 0.0, 8), (18, 19.05, 0.0, 8), (19, 19.05, 0.0, 8),
+        (20, 19.05, 0.0, 8), (21, 19.05, 0.0, 8), (22, 19.05, 0.0, 9),
+        (23, 54.0, 0.0, 8),
+        (24, 19.05, 0.0, 10), (25, 19.05, 0.0, 10), (26, 19.05, 0.0, 8),
+        (27, 19.05, 0.0, 8), (28, 19.05, 0.0, 8), (29, 19.05, 0.0, 8),
+        (30, 19.05, 0.0, 8), (31, 19.05, 0.0, 8), (32, 19.05, 0.0, 8),
+        (33, 19.05, 0.0, 8), (34, 19.05, 0.0, 8), (35, 19.05, 0.0, 8),
+        (36, 49.9, 0.0, 11), (37, 49.9, 0.0, 8),
+        (38, 34.8, 0.0, 8), (38, 49.9, 34.8, 12),
+        (39, 34.8, 0.0, 8), (39, 49.9, 34.8, 12),
+        (40, 34.8, 0.0, 8), (40, 49.9, 34.8, 12),
+        (41, 34.8, 0.0, 8), (41, 49.9, 34.8, 12),
+        (42, 34.8, 0.0, 8), (43, 34.8, 0.0, 8), (44, 6.35, 0.0, 8),
+    ]
+    # fmt: on
+
+    # The equivalent materials share two names, so that the rotor plot shows
+    # one legend entry for the shaft and one for the laminations. Each shaft
+    # element keeps its own E and rho.
+    laminations = {1, 2, 3, 4, 5, 12}
+    steels = [
+        Material(
+            name="amb_rig_lamination" if i in laminations else "amb_rig_shaft",
+            E=E,
+            rho=rho,
+            Poisson=poisson,
+            color="#468f9c" if i in laminations else "#525252",
+        )
+        for i, (E, rho, poisson) in enumerate(materials)
+    ]
+    shaft_elements = [
+        ShaftElement(
+            n=n,
+            L=(node_positions_mm[n + 1] - node_positions_mm[n]) * 1e-3,
+            idl=idl * 1e-3,
+            odl=odl * 1e-3,
+            material=steels[material],
+            shear_effects=True,
+            rotary_inertia=True,
+            gyroscopic=True,
+            alpha=0.0,
+            beta=2.12480562e-7,
+        )
+        for n, odl, idl, material in elements
+    ]
+
+    # Disk on its mounting node (360.1 mm); mass and inertias of R6 at the
+    # disk center of mass.
+    disk = DiskElement(
+        n=24,
+        m=1.7658539830837185,
+        Id=0.0022225435635540654,
+        Ip=0.0037500871621930173,
+        tag="Disk",
+    )
+
+    return Rotor(
+        shaft_elements=shaft_elements,
+        disk_elements=[disk],
+        bearing_elements=bearing_elements or [],
+    )
+
+
 def rotor_example_amb_complex_controllers(ambs=True):
     """
-    Create a rotor example with complex magnetic bearing controllers.
+    Create the LMEst/UFU magnetic bearing test rig with its controllers.
+
+    The rotor is the consolidated model R6 of the test rig (see
+    ``_amb_test_rig_rotor``). The magnetic bearings use the actuator of the
+    test rig and the controllers of its MBScope software, with collocated
+    sensors.
 
     Parameters
     ----------
@@ -32,160 +174,8 @@ def rotor_example_amb_complex_controllers(ambs=True):
     >>> from ross.bearings.magnetic.amb_models import rotor_example_amb_complex_controllers
     >>> rotor_amb = rotor_example_amb_complex_controllers()
     >>> rotor_amb.ndof
-    318
+    276
     """
-    ## Shaft material creation ##
-    steel = Material(name="steel", rho=7850, E=1.9e11, Poisson=0.30)
-    steel_m12 = Material(name="steel", rho=7700, E=2e11, Poisson=0.31, color="red")
-
-    ## Shaft elements ##
-    Li = [
-        0.0,
-        0.012,
-        0.032,
-        0.052,
-        0.072,
-        0.092,
-        0.112,
-        0.1208,
-        0.12724,
-        0.13475,
-        0.14049,
-        0.14689,
-        0.15299,
-        0.159170,
-        0.16535,
-        0.180350,
-        0.1905,
-        0.2063,
-        0.2221,
-        0.2379,
-        0.2537,
-        0.2695,
-        0.2853,
-        0.3011,
-        0.3169,
-        0.3243,
-        0.3363,
-        0.358,
-        0.364,
-        0.3705,
-        0.3825,
-        0.3986,
-        0.4147,
-        0.4308,
-        0.4469,
-        0.4630,
-        0.4791,
-        0.4952,
-        0.5113,
-        0.5274,
-        0.5356,
-        0.5457,
-        0.5607,
-        0.5669,
-        0.5731,
-        0.5792,
-        0.5856,
-        0.5913,
-        0.5989,
-        0.6053,
-        0.6141,
-        0.6341,
-        0.6461,
-    ]
-    # Shaft discretization - node positions ## CG: 0.3243
-    Li = [round(i, 4) for i in Li]  # Rounding decimal places
-    L = [Li[i + 1] - Li[i] for i in range(len(Li) - 1)]  # Element size (e = n-1)
-    i_d = [0.0 for _ in L]  # Internal diameter
-    o_d1 = [0.0 for _ in L]  # External diameter
-
-    # Adjustments for external diameter
-    o_d1[0] = 6.35
-    o_d1[1:5] = [32 for _ in range(4)]
-    o_d1[5:14] = [34.8 for _ in range(9)]
-    o_d1[14:16] = [49.9 for _ in range(2)]
-    o_d1[16:27] = [19.05 for _ in range(11)]
-    o_d1[27:29] = [54 for _ in range(2)]
-    o_d1[29:40] = [19.05 for _ in range(11)]
-    o_d1[40:42] = [49.9 for _ in range(2)]
-    o_d1[42:51] = [34.8 for _ in range(9)]
-    o_d1[51] = 6.35
-    o_d = [i * 1e-3 for i in o_d1]  # Conversion to meters
-
-    shaft_elements = [
-        ShaftElement(
-            L=l,
-            idl=idl,
-            odl=odl,
-            material=steel,
-            shear_effects=True,
-            rotary_inertia=True,
-            gyroscopic=True,
-            alpha=2.5,
-            beta=1e-4,
-        )
-        for l, idl, odl in zip(L, i_d, o_d, strict=True)
-    ]
-
-    # Disk elements ##
-    n_list = [27, 28, 29]  # Central disk positioning
-    n_list_2 = [
-        6,
-        7,
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        43,
-        44,
-        45,
-        46,
-        47,
-        48,
-        49,
-        50,
-    ]  # Disks representing lamination
-    width = [0.004, 0.007, 0.014]  # Central disk width
-
-    width_2 = [
-        0.0088,
-        0.0064,
-        0.0075,
-        0.0057,
-        0.0064,
-        0.0061,
-        0.0062,
-        0.0062,
-        0.0062,
-        0.0062,
-        0.0061,
-        0.0064,
-        0.0057,
-        0.0075,
-        0.0064,
-        0.0088,
-    ]  # Lamination disk width
-
-    i_disc_1 = [0.054, 0.054, 0.054]  # Central disk internal diameter
-    i_disc_2 = [0.0348] * 16  # Lamination disk internal diameter
-    o_disc = [0.1200] * 3  # Central disk external diameter
-    o_disc_2 = [0.0498] * 16  # Lamination disk external diameter
-
-    disk_elements_1 = [
-        DiskElement.from_geometry(n=n, material=steel, width=m, i_d=Id, o_d=Od)
-        for n, m, Id, Od in zip(n_list, width, i_disc_1, o_disc, strict=True)
-    ]
-
-    disk_elements_2 = [
-        DiskElement.from_geometry(n=n, material=steel_m12, width=m, i_d=Id, o_d=Od)
-        for n, m, Id, Od in zip(n_list_2, width_2, i_disc_2, o_disc_2, strict=True)
-    ]
-
-    disk_elements = [*disk_elements_1, *disk_elements_2]
-
     # Bearing elements:
     # Actuator data from the manufacturer's datasheet: each axis is a
     # horseshoe electromagnet with two coils of 138 turns (n = 276 turns per
@@ -196,7 +186,7 @@ def rotor_example_amb_complex_controllers(ambs=True):
     # ki = 111.5 N/A and ks = -258 kN/m, about 10 % above the values
     # identified on the rig (96-104 N/A and -203 to -235 kN/m), since
     # fringing and iron reluctance are not modeled.
-    n_list = [12, 43]
+    n_list = [11, 39]  # actuator centers at 152.99 mm and 572.01 mm
     n = 276
     A = 235.15e-6
     i0 = 1.0
@@ -276,109 +266,34 @@ def rotor_example_amb_complex_controllers(ambs=True):
         ),
     ]
 
-    ## Rotor assembly - 6dof ##
-    # Rotor construction:
-    if ambs:
-        rotor = Rotor(
-            shaft_elements=shaft_elements,
-            disk_elements=disk_elements,
-            bearing_elements=bearing_elements,
-        )
-    else:
-        rotor = Rotor(
-            shaft_elements=shaft_elements,
-            disk_elements=disk_elements,
-        )
+    if not ambs:
+        return _amb_test_rig_rotor()
 
-    return rotor
+    return _amb_test_rig_rotor(bearing_elements)
 
 
 def rotor_example_amb_general_controllers(controller_transfer_function=None):
-    r"""This function creates the model of a test rig rotor supported by magnetic bearings.
-    Details of the model can be found at doi.org/10.14393/ufu.di.2015.186.
+    r"""Create the magnetic bearing test rig rotor with a generic actuator and controller.
+
+    The rotor is the consolidated model R6 of the LMEst/UFU test rig (see
+    ``_amb_test_rig_rotor``), the same as in
+    ``rotor_example_amb_complex_controllers``. The actuator has round,
+    illustrative parameters and the controller is a PD controller, or the
+    transfer function given by the user. The original controller study of the
+    test rig is at doi.org/10.14393/ufu.di.2015.186.
+
+    Parameters
+    ----------
+    controller_transfer_function : control.TransferFunction, optional
+        Controller of both magnetic bearings. Defaults to a PD controller.
 
     Returns
     -------
     Rotor object.
     """
 
-    from ross.materials import Material
-
-    steel_amb = Material(name="steel", rho=7850, E=1.9e11, Poisson=0.30)
-    steel_m12_amb = Material(name="steel", rho=7600, E=2e11, Poisson=0.31, color="red")
-
-    # Shaft elements:
-    # fmt: off
-    Li = [
-        0.0, 0.012, 0.032, 0.052, 0.072, 0.092, 0.112, 0.1208,
-        0.12724, 0.13475, 0.14049, 0.14689, 0.15299, 0.159170,
-        0.16535, 0.180350, 0.1905, 0.2063, 0.2221, 0.2379, 0.2537,
-        0.2695, 0.2853, 0.3011, 0.3169, 0.3243, 0.3363, 0.358,
-        0.364, 0.3705, 0.3825, 0.3986, 0.4147, 0.4308, 0.4469,
-        0.4630, 0.4791, 0.4952, 0.5113, 0.5274, 0.5356, 0.5457,
-        0.5607, 0.5669, 0.5731, 0.5792, 0.5856, 0.5913, 0.5989,
-        0.6053, 0.6141, 0.6341, 0.6461,
-    ]
-
-    Li = [round(i, 4) for i in Li]
-    L = [Li[i + 1] - Li[i] for i in range(len(Li) - 1)]
-
-    i_d = [0.0 for _ in L]
-    o_d1 = [0.0 for _ in L]
-    o_d1[0] = 6.35
-    o_d1[1:5] = [32 for _ in range(4)]
-    o_d1[5:14] = [34.8 for _ in range(9)]
-    o_d1[14:16] = [49.9 for _ in range(2)]
-    o_d1[16:27] = [19.05 for _ in range(11)]
-    o_d1[27:29] = [54 for _ in range(2)]
-    o_d1[29:40] = [19.05 for _ in range(11)]
-    o_d1[40:42] = [49.9 for _ in range(2)]
-    o_d1[42:51] = [34.8 for _ in range(9)]
-    o_d1[51] = 6.35
-    o_d = [i * 1e-3 for i in o_d1]
-
-    shaft_elements = [
-        ShaftElement(
-            L=l,
-            idl=idl,
-            odl=odl,
-            material=steel_amb,
-            shear_effects=True,
-            rotary_inertia=True,
-            gyroscopic=True,
-            alpha=2.5,
-        )
-        for l, idl, odl in zip(L, i_d, o_d, strict=True)
-    ]
-
-    # Disk elements:
-    n_list = [27, 28, 29]
-    n_list_2 = [6, 7, 8, 9, 10, 11, 12, 13, 43, 44, 45, 46, 47, 48, 49, 50]
-    width = [0.004, 0.007, 0.014]
-    width_2 = [
-        0.0088, 0.0064, 0.0075, 0.0057, 0.0064, 0.0061,
-        0.0062, 0.0062, 0.0062, 0.0062,0.0061, 0.0064,
-        0.0057, 0.0075, 0.0064, 0.0088,
-    ]
-    i_disc_1 = [0.054, 0.054, 0.054]
-    i_disc_2 = [0.0348] * 16
-    o_disc = [0.1200] * 3
-    o_disc_2 = [0.0498] * 16
-    # fmt: on
-    disk_elements_1 = [
-        DiskElement.from_geometry(n=n, material=steel_amb, width=m, i_d=Id, o_d=Od)
-        for n, m, Id, Od in zip(n_list, width, i_disc_1, o_disc, strict=True)
-    ]
-
-    disk_elements_2 = [
-        DiskElement.from_geometry(n=n, material=steel_m12_amb, width=m, i_d=Id, o_d=Od)
-        for n, m, Id, Od in zip(n_list_2, width_2, i_disc_2, o_disc_2, strict=True)
-    ]
-
-    disk_elements = [*disk_elements_1, *disk_elements_2]
-
     # Bearing elements:
-    n_list = [12, 43]
+    n_list = [11, 39]  # actuator centers at 152.99 mm and 572.01 mm
     n = 200
     A = 1e-4
     i0 = 1.0
@@ -454,7 +369,7 @@ def rotor_example_amb_general_controllers(controller_transfer_function=None):
             ),
         ]
 
-    return Rotor(shaft_elements, disk_elements, bearing_elements)
+    return _amb_test_rig_rotor(bearing_elements)
 
 
 def rotor_example_amb_simple():
