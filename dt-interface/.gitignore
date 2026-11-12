@@ -1,0 +1,7 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+sessoes/
+sessoes/
+.venv/
+venv/
