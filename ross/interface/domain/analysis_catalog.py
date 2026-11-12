@@ -46,6 +46,46 @@ def A(id, label_en, label_pt, type, val, role, **extra):
     return field
 
 
+# ROSS #1416: the transient plots (1D, 2D and 3D -- not the DFFT) crop the
+# response to a time window, or to one shaft revolution. These are plot
+# fields, so changing them redraws without integrating again. Their names are
+# not ROSS's `t_initial`/`t_final` because the faults already use those for
+# the integration time, which is a different thing.
+def TIME_WINDOW():
+    """The three plot fields of the time window, the same in the four analyses."""
+    shown = dict(adv="plot", deps=["1D", "2D", "3D"], deps_de="plot_type")
+    return [
+        A(
+            "window_start",
+            "Window Start (s)",
+            "Início da Janela (s)",
+            "number",
+            "",
+            "plot",
+            **shown,
+        ),
+        A(
+            "window_end",
+            "Window End (s)",
+            "Fim da Janela (s)",
+            "number",
+            "",
+            "plot",
+            **shown,
+        ),
+        A(
+            "one_revolution",
+            "One Revolution",
+            "Uma Revolução",
+            "select",
+            "False",
+            "plot",
+            options=["False", "True"],
+            **shown,
+        ),
+    ]
+
+
 ANALYSES = {
     "campbell": [
         A(
@@ -768,6 +808,7 @@ ANALYSES = {
             deps=["1D"],
             deps_de="plot_type",
         ),
+        *TIME_WINDOW(),
         A(
             "rotor_length_units",
             "Rotor Len Units",
@@ -1272,6 +1313,7 @@ ANALYSES = {
             deps=["1D"],
             deps_de="plot_type",
         ),
+        *TIME_WINDOW(),
         A(
             "rotor_length_units",
             "Rotor Len Units",
@@ -1419,6 +1461,7 @@ ANALYSES = {
             deps=["1D"],
             deps_de="plot_type",
         ),
+        *TIME_WINDOW(),
         A(
             "rotor_length_units",
             "Rotor Len Units",
@@ -1545,6 +1588,7 @@ ANALYSES = {
             deps=["1D"],
             deps_de="plot_type",
         ),
+        *TIME_WINDOW(),
         A(
             "rotor_length_units",
             "Rotor Len Units",

@@ -1,5 +1,5 @@
 RPM = rpm * 1
-Hz = rps
+Hz = revolutions_per_second = _ = hertz
 hour = 60 * minute = h = hr
 cv = metric_horsepower
 
