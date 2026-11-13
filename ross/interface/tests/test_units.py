@@ -18,12 +18,30 @@ sys.path.append(ROOT)
 import ross as rs
 
 from ross.interface.domain import units
-from ross.interface.domain.element_registry import resolve_constructor
+from ross.interface.domain.element_registry import ELEMENTS, resolve_constructor
+from ross.interface.domain.field_catalog import FIELDS
+
+
+def _parts_of_dictionaries():
+    """{ROSS class: {field: parent parameter}} for the fields that are one key
+    of a dictionary parameter (field_catalog.F `part_of`)."""
+    parts = {}
+    for category, subtypes in FIELDS.items():
+        for subtype, fields in subtypes.items():
+            klass = ELEMENTS[category].get(subtype)
+            for field in fields:
+                if field.get("part_of"):
+                    parts.setdefault(klass, {})[field["name"]] = field["part_of"][0]
+    return parts
 
 
 def test_every_mapped_unit_is_a_real_ross_parameter():
-    """This test would have caught BE-13 on its own, on the day of the bearing refactor."""
+    """This test would have caught BE-13 on its own, on the day of the bearing refactor.
+
+    The hybrid seal's stage fields are keys of a dictionary parameter: their
+    unit is checked against that parameter being in the signature."""
     problems = []
+    parts = _parts_of_dictionaries()
     for ross_class, mapping in units.UNITS_MAPPING.items():
         # "Class.method" is an alternative constructor (DiskElement.from_geometry):
         # its own signature is the one that has to take the parameter.
@@ -34,6 +52,7 @@ def test_every_mapped_unit_is_a_real_ross_parameter():
         method = target if "." in ross_class else target.__init__
         signature = set(inspect.signature(method).parameters)
         for parameter in mapping:
+            parameter = parts.get(ross_class, {}).get(parameter, parameter)
             if parameter not in signature:
                 problems.append(f"{ross_class}.{parameter}")
     assert not problems, "parameters that no longer exist in ROSS: " + ", ".join(

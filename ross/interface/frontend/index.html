@@ -436,7 +436,11 @@
                         <div class="input-group"><label data-i18n="meshTolerance">Tolerance [%]</label><input type="text" id="mesh-rtol" value="0.1"></div>
                         <div class="input-group"><label data-i18n="meshSpeed">Speed [rpm]</label><input type="text" id="mesh-speed" value="0"></div>
                     </div>
-                    <p class="mesh-hint" data-i18n="meshConvergenceHint">The whole rotor, from the mesh it has: the coarsest mesh whose lowest natural frequencies refining no longer changes by more than the tolerance. A modal analysis per mesh: a few seconds.</p>
+                    <div class="mesh-row">
+                        <div class="input-group"><label data-i18n="meshStrategy">Meshes searched</label><select id="mesh-strategy"><option value="cheapest" data-i18n="meshStrategyCheapest">Uniform and graded</option><option value="uniform" data-i18n="meshStrategyUniform">Uniform only</option></select></div>
+                        <div class="input-group"><label data-i18n="meshMaxElements">Largest number of elements</label><input type="text" id="mesh-max-elements" value="1000"></div>
+                    </div>
+                    <p class="mesh-hint" data-i18n="meshConvergenceHint">The whole rotor, from the mesh it has: the mesh with the fewest elements whose lowest natural frequencies are within the tolerance of a converged reference. Graded meshes have shorter elements where the shaft is thinner; 'Uniform only' searches equal elements alone. A modal analysis per mesh: a few seconds on a small rotor, about a minute on a large one.</p>
                 </div>
                 <p id="mesh-busy" class="mesh-busy" role="status" hidden></p>
                 <div class="form-actions">

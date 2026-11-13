@@ -202,6 +202,8 @@ MESH_REQUEST = Envelope(
     Field("n_modes", str, default="6"),
     Field("rtol", str, default="0.1"),
     Field("speed", str, default="0"),
+    Field("strategy", str, default="cheapest"),
+    Field("max_elements", str, default="1000"),
     Field("indexes", list, default=[]),
 )
 

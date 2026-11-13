@@ -226,10 +226,52 @@ def _unit_for(cls, ross_class, parameter):
     return None
 
 
+def _documented_keys(cls, parameter):
+    """The keys a dictionary parameter documents, `- key : type` lines under it.
+
+    The hybrid seal's two stages are documented that way in ROSS's docstring;
+    each key's text is what follows its line, more indented.
+    """
+    lines = (inspect.getdoc(cls) or "").splitlines()
+    try:
+        start = next(
+            i for i, line in enumerate(lines) if re.match(r"^%s\s*:" % parameter, line)
+        )
+    except StopIteration:
+        return {}
+    keys, current, depth, buffer = {}, None, None, []
+    for line in lines[start + 1 :]:
+        if line.strip() and not line.startswith(" "):
+            break
+        entry = re.match(r"^(\s*)- (\w+)\s*:", line)
+        if entry:
+            if current:
+                keys[current] = " ".join(buffer).strip()
+            current, depth, buffer = entry.group(2), len(entry.group(1)), []
+        elif current and line.strip() and len(line) - len(line.lstrip()) > depth:
+            buffer.append(line.strip())
+    if current:
+        keys[current] = " ".join(buffer).strip()
+    return keys
+
+
 def _build_field(field, cls, ross_class, parameters, documentation, language):
     target = _parameter_name(ross_class, field["name"])
     parameter = parameters.get(target)
     default = _jsonable(parameter.default) if parameter is not None else None
+    help_text = documentation.get(target)
+    known = parameter is not None
+
+    # One key of a dictionary parameter (field_catalog.F `part_of`): it exists
+    # when the parameter does and its docstring lists the key; its unit is the
+    # field's own (domain/units.py).
+    if field.get("part_of"):
+        parent, key = field["part_of"]
+        keys = _documented_keys(cls, parent) if cls is not None else {}
+        parameter, default = parameters.get(parent), None
+        help_text = keys.get(key)
+        known = parameter is not None and key in keys
+        target = field["name"]
 
     control = field["control"]
     options = field["options"]
@@ -252,11 +294,11 @@ def _build_field(field, cls, ross_class, parameters, documentation, language):
         "is_dict": field["is_dict"],
         "unit": unit,
         "unit_options": alternatives_for(unit) if unit else None,
-        "help": _first_sentence(documentation.get(target)),
+        "help": _first_sentence(help_text),
         "ross_default": default,
         # False means the field no longer exists on the class: the interface
         # still shows it, but ROSS would refuse it. The tests fail on this.
-        "known_to_ross": parameter is not None,
+        "known_to_ross": known,
     }
 
 
@@ -286,7 +328,12 @@ def build_schema(language="en"):
                 )
                 for field in fields
             ]
-            covered = {_parameter_name(ross_class, f["name"]) for f in fields}
+            covered = {
+                f["part_of"][0]
+                if f.get("part_of")
+                else _parameter_name(ross_class, f["name"])
+                for f in fields
+            }
 
             schema["categories"][category][subtype] = {
                 # What ROSS is called with: a class, or "Class.method" for an

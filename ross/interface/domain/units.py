@@ -194,6 +194,19 @@ UNITS_MAPPING = {
         "inlet_temperature": "degC",
         "speed": "RPM",
         "frequency": "RPM",
+        # One field per key of the two stages (domain/field_catalog.py):
+        # ROSS takes these in m, K and Pa*s; the form, like the other seals'.
+        "hp_radial_clearance": "mm",
+        "hp_axial_length": "mm",
+        "hp_cell_length": "mm",
+        "hp_cell_width": "mm",
+        "hp_cell_depth": "mm",
+        "lab_radial_clearance": "mm",
+        "lab_pitch": "mm",
+        "lab_tooth_height": "mm",
+        "lab_tooth_width": "mm",
+        "lab_reference_temperatures": "kelvin",
+        "lab_reference_viscosities": "Pa*s",
     },
     "PointMass": {"m": "kg", "mx": "kg", "my": "kg", "mz": "kg"},
 }
@@ -215,6 +228,7 @@ UNIT_ALTERNATIVES = {
     "N": ["N", "lbf", "kN"],
     "Pa*s": ["Pa*s", "cP"],
     "degC": ["degC", "kelvin", "degF"],
+    "kelvin": ["kelvin", "degC"],
     "l/min": ["l/min", "m**3/s"],
     "rad/s": ["rad/s", "RPM", "Hz"],
     "A": ["A", "mA"],
